@@ -44,12 +44,33 @@ public sealed class FormCatalogFieldRecorderTests
         var field = Field();
         Assert.True(catalog.SetFields([field], null).IsSuccess);
         var reader = new FormCatalogFieldReader();
-        reader.Uses.Add(new(Guid.CreateVersion7(), "Form", "Question", "Active", field.Id));
+        reader.Uses.Add(new(Guid.CreateVersion7(), "Form", "Question", Guid.CreateVersion7(), "Active", field.Id));
         var result = await new FormCatalogFieldRecorder(reader).PrepareAsync(catalog, [], [Input(field.Id) with { IsActive = false }], null, [], TestContext.Current.CancellationToken);
         Assert.Equal("Forms.Catalog.FieldInUse", result.Error.Code);
         Assert.Equal(ArquitecturaBase.Domain.Results.ErrorType.Conflict, result.Error.Type);
         Assert.NotNull(result.Error.Metadata!["uses"]);
         Assert.True(Assert.Single(FormCatalogFieldPolicy.ReadFields(catalog.FieldsJson)).IsActive);
+    }
+
+    [Fact]
+    public async Task A_field_in_use_reports_the_question_identity_and_stage_of_each_use()
+    {
+        var catalog = Catalog();
+        var field = Field();
+        Assert.True(catalog.SetFields([field], null).IsSuccess);
+        var definitionId = Guid.CreateVersion7();
+        var questionId = Guid.CreateVersion7();
+        var reader = new FormCatalogFieldReader();
+        reader.Uses.Add(new(definitionId, "Form", "Question", questionId, "Active", field.Id));
+        reader.Uses.Add(new(definitionId, "Form", "Question", questionId, "Draft", field.Id));
+
+        var result = await new FormCatalogFieldRecorder(reader).PrepareAsync(catalog, [], [Input(field.Id) with { IsActive = false }], null, [], TestContext.Current.CancellationToken);
+
+        Assert.Equal("Forms.Catalog.FieldInUse", result.Error.Code);
+        Assert.Equal(
+            [new FormCatalogFieldUsageResponse(definitionId, "Form", "Question", questionId, "Active"),
+                new FormCatalogFieldUsageResponse(definitionId, "Form", "Question", questionId, "Draft")],
+            Assert.IsAssignableFrom<IReadOnlyList<FormCatalogFieldUsageResponse>>(result.Error.Metadata!["uses"]));
     }
 
     [Fact]

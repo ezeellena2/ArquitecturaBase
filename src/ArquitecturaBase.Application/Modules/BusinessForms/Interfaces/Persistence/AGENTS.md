@@ -18,7 +18,7 @@ Contratos que implementa `Infrastructure/Modules/BusinessForms/Persistence`. Los
 - `FindContinuationAsync` devuelve el DTO de tareas autorizadas del mismo formulario, con ancla abierta o resuelta, posiciones actuales y total de una instantánea; no pagina por offset ni hidrata valores.
 - `IFormCatalogReader.ListAllItemsAsync` devuelve todos los ítems Manual, incluidos inactivos, por Position+Id y sin truncar. Es lectura interna de condiciones; `ListOfferItemsAsync` mantiene 201 filas activas para detectar el exceso del canal. `CountActiveItemsAsync` cuenta activos en SQL sin materializar ítems; el chequeo de varias elecciones Manual lo usa una vez por catálogo compartido.
 - Eliminar es `Remove` sobre la definición seguida: el interceptor completa el borrado lógico.
-- `ListCatalogFieldValuesAsync` proyecta de una vez campos y valores de los ítems elegidos bajo los locks existentes; una segunda lectura del mismo puerto resuelve textos de opciones fuente. `ListOfferItemsAsync` acepta contención JSON canónica opcional y la aplica antes de ordenar y limitar. `ListFieldUsageAsync` conserva borrador y activa; `ExistsSourceUsageAsync` bloquea fuentes usadas por campos activos de otros catálogos.
+- `ListCatalogFieldValuesAsync` proyecta de una vez campos y valores de los ítems elegidos bajo los locks existentes; una segunda lectura del mismo puerto resuelve textos de opciones fuente. `ListOfferItemsAsync` acepta contención JSON canónica opcional y la aplica antes de ordenar y limitar. `ListFieldUsageAsync` conserva borrador y activa, cada uso con la identidad de su pregunta; `ExistsSourceUsageAsync` bloquea fuentes usadas por campos activos de otros catálogos.
 
 ## Referencias
 

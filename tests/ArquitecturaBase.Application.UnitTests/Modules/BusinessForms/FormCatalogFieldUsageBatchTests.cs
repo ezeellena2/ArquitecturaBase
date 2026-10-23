@@ -21,6 +21,24 @@ public sealed class FormCatalogFieldUsageBatchTests
     }
 
     [Fact]
+    public async Task Detail_reports_the_question_identity_of_each_field_use()
+    {
+        var field = Field("first");
+        var catalog = Catalog();
+        Assert.True(catalog.SetFields([field], null).IsSuccess);
+        var definitionId = Guid.CreateVersion7();
+        var questionId = Guid.CreateVersion7();
+        var reader = new FormCatalogFieldReader();
+        reader.Uses.Add(new(definitionId, "Form", "Question", questionId, "Draft", field.Id));
+        var detail = new FormCatalogDetailResponse(catalog.Id, catalog.Key, field.Name, new Dictionary<string, string>(), "Manual", 1, true, 0, null, null);
+
+        var result = await FormCatalogFieldPresentation.DescribeAsync(detail, catalog.FieldsJson, null, [], reader, TestContext.Current.CancellationToken);
+
+        Assert.Equal(new FormCatalogFieldUsageResponse(definitionId, "Form", "Question", questionId, "Draft"),
+            Assert.Single(Assert.Single(result.Fields!).UsedBy));
+    }
+
+    [Fact]
     public async Task Removing_several_fields_checks_uses_in_one_batch()
     {
         var catalog = Catalog();

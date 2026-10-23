@@ -23,5 +23,6 @@ public sealed class FormCatalogOwnPresentationUsageTests
         Assert.Equal("Catalog", use.Stage);
         Assert.Null(use.DefinitionId);
         Assert.Null(use.Question);
+        Assert.Null(use.QuestionId);
     }
 }

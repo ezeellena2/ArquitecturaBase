@@ -59,11 +59,11 @@ internal sealed class FormCatalogFieldRecorder(IFormCatalogReader reader)
             if (presentation?.Title?.Contains(fieldKey) == true || presentation?.Description?.Contains(fieldKey) == true)
             {
                 var names = FormDraftPolicy.Read<Dictionary<string, string>>(catalog.NameJson);
-                IReadOnlyList<FormCatalogFieldUsageResponse> ownUses = [new(null, names.GetValueOrDefault(culture) ?? names["es"], null, "Catalog")];
+                IReadOnlyList<FormCatalogFieldUsageResponse> ownUses = [new(null, names.GetValueOrDefault(culture) ?? names["es"], null, null, "Catalog")];
                 return FieldErrors.OnWithMetadata(FormCatalogErrors.FieldDetails(FormCatalogErrors.FieldInUse,
                     new Dictionary<string, object?> { ["uses"] = ownUses }), $"fields[{index}].isActive");
             }
-            var uses = usesByField[field.Id].Select(use => new FormCatalogFieldUsageResponse(use.DefinitionId, use.FormName, use.Question, use.Stage)).ToArray();
+            var uses = usesByField[field.Id].Select(use => new FormCatalogFieldUsageResponse(use.DefinitionId, use.FormName, use.Question, use.QuestionId, use.Stage)).ToArray();
             if (uses.Length > 0) return FieldErrors.OnWithMetadata(FormCatalogErrors.FieldDetails(FormCatalogErrors.FieldInUse,
                 new Dictionary<string, object?> { ["uses"] = uses }), $"fields[{index}].isActive");
             var count = items.Count(item => FormCatalogFieldPolicy.ReadValues(item.FieldValuesJson).ContainsKey(field.Id.ToString("D")));

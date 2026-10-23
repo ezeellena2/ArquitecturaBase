@@ -17,7 +17,7 @@ internal sealed partial class FormCatalogReader
             SELECT definition."Id" AS "DefinitionId",
                 COALESCE(NULLIF(definition."NameJson" ->> {0}, ''), definition."NameJson" ->> definition."Culture", '') AS "FormName",
                 COALESCE(NULLIF(question.value #>> ARRAY['label', {0}], ''), question.value #>> ARRAY['label', definition."Culture"], '') AS "Question",
-                'Draft' AS "Stage", requested."FieldId" AS "FieldId"
+                (question.value ->> 'fieldId')::uuid AS "QuestionId", 'Draft' AS "Stage", requested."FieldId" AS "FieldId"
             FROM "FormDefinitions" AS definition
             CROSS JOIN UNNEST({2}::uuid[]) AS requested("FieldId")
             CROSS JOIN LATERAL jsonb_array_elements(definition."SchemaJson" -> 'fields') AS question(value)
@@ -29,7 +29,7 @@ internal sealed partial class FormCatalogReader
             SELECT definition."Id" AS "DefinitionId",
                 COALESCE(NULLIF(version."NameJson" ->> {0}, ''), version."NameJson" ->> version."Culture", definition."NameJson" ->> definition."Culture", '') AS "FormName",
                 COALESCE(NULLIF(question.value #>> ARRAY['label', {0}], ''), question.value #>> ARRAY['label', COALESCE(version."Culture", definition."Culture")], '') AS "Question",
-                'Active' AS "Stage", requested."FieldId" AS "FieldId"
+                (question.value ->> 'fieldId')::uuid AS "QuestionId", 'Active' AS "Stage", requested."FieldId" AS "FieldId"
             FROM "FormDefinitions" AS definition
             JOIN "BusinessFormVersions" AS version ON version."Id" = definition."ActiveVersionId" AND version."DefinitionId" = definition."Id"
             CROSS JOIN UNNEST({2}::uuid[]) AS requested("FieldId")
@@ -38,7 +38,7 @@ internal sealed partial class FormCatalogReader
                 (question.value -> 'source') @> jsonb_build_object('match', jsonb_build_array(jsonb_build_object('fieldId', requested."FieldId"::text)))
                 OR question.value #> ARRAY['source', 'presentation', 'title'] @> jsonb_build_array(requested."FieldId"::text)
                 OR question.value #> ARRAY['source', 'presentation', 'description'] @> jsonb_build_array(requested."FieldId"::text))
-            ORDER BY "FormName", "DefinitionId", "Question", "Stage"
+            ORDER BY "FormName", "DefinitionId", "Question", "QuestionId", "Stage"
             """, culture, catalogId.ToString("D"), fieldIds.ToArray());
 
     public async Task<bool> ExistsSourceUsageAsync(Guid catalogId, CancellationToken cancellationToken)
