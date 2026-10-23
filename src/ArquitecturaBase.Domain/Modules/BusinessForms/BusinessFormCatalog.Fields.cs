@@ -7,7 +7,10 @@ namespace ArquitecturaBase.Domain.Modules.BusinessForms;
 
 public sealed record BusinessFormCatalogField(Guid Id, string Key, IReadOnlyDictionary<string, string> Name,
     string Type, Guid? SourceCatalogId, bool Required, bool Unique, string? Min, string? Max, int? MaxLength,
-    string Role, int Position, bool IsActive);
+    string Role, int Position, bool IsActive)
+{
+    public static Guid CreateIdentity() => Guid.CreateVersion7();
+}
 
 public sealed partial class BusinessFormCatalog
 {
