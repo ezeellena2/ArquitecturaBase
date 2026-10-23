@@ -23,7 +23,8 @@ public sealed class FormExportsController(IFormExportService service) : Controll
     {
         Response.Headers.CacheControl = "no-store";
         Response.Headers.XContentTypeOptions = "nosniff";
-        var result = await service.ExportAsync(id, new(FormRecordsRequestMapping.Map(request.Filter), request.Columns), cancellationToken);
+        var result = await service.ExportAsync(id, new(FormRecordsRequestMapping.Map(request.Filter), request.Columns, request.CatalogFields?.Select(field =>
+            field is null ? null : new ArquitecturaBase.Application.Modules.BusinessForms.Models.FormExportCatalogField(field.QuestionId, field.FieldId)).ToArray()), cancellationToken);
         return result.IsFailure ? result.ToActionResult(this) : File(result.Value.Content, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", result.Value.FileName);
     }
 }

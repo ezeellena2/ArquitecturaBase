@@ -34,18 +34,14 @@ internal sealed class FormExportService(IFormResponseReader reader, IFormWorkboo
                 var culture = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es";
                 var availableColumns = FormResponsePresentationPolicy.Columns(definition, culture);
                 if (request.Columns?.Any(fieldId => !availableColumns.Any(column => column.FieldId == fieldId)) == true) return FormRecordErrors.FilterInvalid;
-                var columns = availableColumns.Where(column => request.Columns is null || request.Columns.Contains(column.FieldId)).ToArray();
+                if (request.CatalogFields?.Any(field => !availableColumns.Any(column => column.FieldId == field!.QuestionId
+                    && column.Fields?.Any(extra => extra.FieldId == field.FieldId) == true)) == true) return FormRecordErrors.FilterInvalid;
+                var selectedColumns = SelectColumns(availableColumns, request, culture);
                 var filter = request.Filter with { UpToNumber = maximum, DisplayCulture = culture };
                 var ids = await reader.ListExportIdsAsync(definition, filter, MaximumRecords + 1, ct);
                 if (ids.Count > MaximumRecords) return FormRecordErrors.ExportTooLarge;
                 var headers = new List<string> { FormResponseTexts.Get("Number", culture), FormResponseTexts.Get("ReceivedUtc", culture), FormResponseTexts.Get("Actor", culture), FormResponseTexts.Get("Channel", culture) };
-                foreach (var column in columns)
-                {
-                    var header = column.Label + (column.IntroducedInVersion > 1
-                        ? string.Format(CultureInfo.GetCultureInfo(culture), FormResponseTexts.Get("SinceVersion", culture), column.IntroducedInVersion) : "");
-                    headers.Add(header);
-                    if (column.ValueType is not null) headers.Add(header + " · " + FormResponseTexts.Get("Value", culture));
-                }
+                headers.AddRange(selectedColumns.Select(column => column.Header));
                 var rows = new List<IReadOnlyList<FormWorkbookCell>>(ids.Count);
                 foreach (var batch in ids.Chunk(100))
                 {
@@ -57,15 +53,16 @@ internal sealed class FormExportService(IFormResponseReader reader, IFormWorkboo
                     {
                         var row = records[receiptId];
                         var reply = FormRecordPresentationPolicy.Project(row.Record, definition.VersionsById[row.Record.VersionId].DisplayCulture(culture), definition.Schemas[row.Record.VersionId]);
-                        var values = FormResponsePresentationPolicy.Cells(columns, reply);
+                        var values = FormResponsePresentationPolicy.Cells(availableColumns, reply).ToDictionary(value => value.FieldId);
                         var channel = channels.GetValueOrDefault(receiptId)?.ChannelId ?? "";
                         var cells = new List<FormWorkbookCell> { new("text", reply.Number), new("dateTime", row.SubmittedAtUtc),
                             new("text", row.Actor.DisplayName ?? FormResponseTexts.Get("unknown", culture)),
                             new("text", FormResponseTexts.Get(channel.Length == 0 ? "unknown" : channel, culture)) };
-                        for (var index = 0; index < values.Count; index++)
+                        foreach (var column in selectedColumns)
                         {
-                            cells.Add(FormExportPolicy.Cell(values[index]));
-                            if (columns[index].ValueType is not null) cells.Add(FormExportPolicy.CatalogValue(values[index]));
+                            var cell = values[column.QuestionId];
+                            cells.Add(column.ExtraId is { } extraId ? FormExportPolicy.CatalogField(cell, extraId)
+                                : column.IsValue ? FormExportPolicy.CatalogValue(cell) : FormExportPolicy.Cell(cell));
                         }
                         rows.Add(cells);
                     }
@@ -81,4 +78,26 @@ internal sealed class FormExportService(IFormResponseReader reader, IFormWorkboo
                 return FormRecordErrors.ExportBudgetExceeded;
             }
         });
+
+    private sealed record ExportColumn(Guid QuestionId, string Header, bool IsValue = false, Guid? ExtraId = null);
+
+    private static List<ExportColumn> SelectColumns(IReadOnlyList<FormResponseColumn> available, FormExportRequest request, string culture)
+    {
+        var selected = new List<ExportColumn>();
+        foreach (var column in available)
+        {
+            var header = column.Label + (column.IntroducedInVersion > 1
+                ? string.Format(CultureInfo.GetCultureInfo(culture), FormResponseTexts.Get("SinceVersion", culture), column.IntroducedInVersion) : "");
+            if (request.Columns is null || request.Columns.Contains(column.FieldId))
+            {
+                selected.Add(new(column.FieldId, header));
+                if (column.ValueType is not null) selected.Add(new(column.FieldId, header + " · " + FormResponseTexts.Get("Value", culture), true));
+            }
+            foreach (var extra in column.Fields ?? [])
+                if (request.CatalogFields is null || request.CatalogFields.Any(field => field!.QuestionId == column.FieldId && field.FieldId == extra.FieldId))
+                    selected.Add(new(column.FieldId, header + " · " + extra.Label, ExtraId: extra.FieldId));
+        }
+        return selected;
+    }
+
 }

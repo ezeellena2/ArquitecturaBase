@@ -19,6 +19,32 @@ internal static class FormExportPolicy
             _ => new("text", cell.Value),
         };
     }
+    public static FormWorkbookCell CatalogField(FormResponseCell cell, Guid fieldId)
+    {
+        if (cell.State != "Answered") return Cell(cell);
+        if (cell.Type == "multiChoice")
+        {
+            var choices = (IReadOnlyList<StructuredRecordChoiceValue>)cell.Value!;
+            return new("text", choices.Count == 0 ? null : string.Join("; ", choices.Select(choice =>
+            {
+                var value = choice.Fields?.SingleOrDefault(field => field.FieldId == fieldId);
+                return value is null ? "—" : value.Type == "catalog" ? value.Text : value.Value;
+            })));
+        }
+        var field = ((StructuredRecordChoiceValue)cell.Value!).Fields?.SingleOrDefault(field => field.FieldId == fieldId);
+        if (field is null) return new("text", "—");
+        return field.Type switch
+        {
+            "integer" => new("integer", long.Parse(field.Value, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture)),
+            "decimal" => new("decimal", decimal.Parse(field.Value, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture)),
+            "date" => new("date", DateOnly.ParseExact(field.Value, "yyyy-MM-dd", CultureInfo.InvariantCulture).ToDateTime(TimeOnly.MinValue)),
+            "boolean" => new("boolean", bool.Parse(field.Value)),
+            "catalog" => new("text", field.Text),
+            "text" => new("text", field.Value),
+            _ => throw new InvalidOperationException("The captured catalog field type is invalid."),
+        };
+    }
+
     public static FormWorkbookCell CatalogValue(FormResponseCell cell)
     {
         if (cell.State != "Answered") return Cell(cell);

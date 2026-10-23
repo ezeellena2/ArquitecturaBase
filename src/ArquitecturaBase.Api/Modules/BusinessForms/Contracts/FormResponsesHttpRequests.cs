@@ -12,5 +12,7 @@ public sealed record FormRecordFacetHttpRequest(FormRecordsSearchHttpRequest Fil
     int Page = 1, int PageSize = 20, string? Sort = null, string? Search = null)
 { public override string ToString() => "FormRecordFacetHttpRequest { Content = [REDACTED] }"; }
 
-public sealed record FormExportHttpRequest(FormRecordsSearchHttpRequest Filter, IReadOnlyList<Guid>? Columns)
+public sealed record FormExportHttpRequest(FormRecordsSearchHttpRequest Filter, IReadOnlyList<Guid>? Columns, IReadOnlyList<FormExportCatalogFieldHttpRequest?>? CatalogFields = null)
 { public override string ToString() => "FormExportHttpRequest { Content = [REDACTED] }"; }
+
+public sealed record FormExportCatalogFieldHttpRequest(Guid QuestionId, Guid FieldId);
