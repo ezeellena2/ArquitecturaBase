@@ -72,7 +72,7 @@ internal static partial class FormCatalogImportPolicy
     }
 
     private static void ValidateUniqueFields(FormCatalogImportSource source, IReadOnlyList<BusinessFormCatalogField> fields,
-        List<ParsedRow> rows, FormCatalogImportMode mode, HashSet<string?> present,
+        List<FormCatalogImportParsedRow> rows, FormCatalogImportMode mode, HashSet<string?> present,
         List<FormCatalogImportIssue> issues, HashSet<int> errorRows)
     {
         var unique = fields.Where(field => field.Unique).Select(field => field.Id.ToString("D")).ToArray();

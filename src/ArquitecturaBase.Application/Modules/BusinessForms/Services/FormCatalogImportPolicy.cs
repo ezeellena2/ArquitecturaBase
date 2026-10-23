@@ -1,4 +1,3 @@
-using System.Text.Json;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Resources;
 using ArquitecturaBase.Domain.Common;
@@ -10,10 +9,6 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 internal static partial class FormCatalogImportPolicy
 {
     private static readonly string[] SupportedCultures = ["es", "en"];
-    private sealed record ParsedRow(int Number, string Code, string TextEs, string? TextEn,
-        string? DetailEs, string? DetailEn, bool Active, string? Value, IReadOnlyDictionary<string, JsonElement> Fields)
-    { public override string ToString() => "ParsedRow { Content = [REDACTED] }"; }
-
     public static Result<FormCatalogImportPlan> Build(FormCatalogImportSource source, FormSpreadsheet sheet,
         FormCatalogImportMode mode, string culture)
     {
@@ -57,7 +52,7 @@ internal static partial class FormCatalogImportPolicy
             .GroupBy(row => Cell(row,columns,"code")?.Text?.Trim() ?? "",StringComparer.OrdinalIgnoreCase)
             .Where(group => group.Key.Length > 0 && group.Count() > 1)
             .ToDictionary(group => group.Key,group => group.Select(row=>row.Number).ToArray(),StringComparer.OrdinalIgnoreCase);
-        var valid = new List<ParsedRow>();
+        var valid = new List<FormCatalogImportParsedRow>();
         var errorRows = new HashSet<int>();
         foreach (var row in rows)
         {
@@ -179,14 +174,14 @@ internal static partial class FormCatalogImportPolicy
     private static FormSpreadsheetCell? Cell(FormSpreadsheetRow row,IReadOnlyDictionary<string,int> columns,string key) =>
         columns.TryGetValue(key,out var position)?row.Cells.ElementAtOrDefault(position):null;
     private static string? Optional(string? text) => string.IsNullOrWhiteSpace(text)?null:text;
-    private static string Text(ParsedRow row,string culture) => culture=="en"&&!string.IsNullOrWhiteSpace(row.TextEn)?row.TextEn:row.TextEs;
-    private static FormCatalogManualItemSaveRequest Input(ParsedRow row,Guid? id,BusinessFormCatalogField[] fields) => new(id is null?"import-row"+row.Number:"item-"+id.Value.ToString("N"),id,row.Code,
+    private static string Text(FormCatalogImportParsedRow row,string culture) => culture=="en"&&!string.IsNullOrWhiteSpace(row.TextEn)?row.TextEn:row.TextEs;
+    private static FormCatalogManualItemSaveRequest Input(FormCatalogImportParsedRow row,Guid? id,BusinessFormCatalogField[] fields) => new(id is null?"import-row"+row.Number:"item-"+id.Value.ToString("N"),id,row.Code,
         new Dictionary<string,string?> { ["es"]=row.TextEs,["en"]=row.TextEn },new Dictionary<string,string?> { ["es"]=row.DetailEs,["en"]=row.DetailEn },row.Active,row.Value,
         fields.Length == 0 ? null : row.Fields.Where(pair => fields.Any(field => field.Id.ToString("D") == pair.Key))
             .ToDictionary(pair => pair.Key, pair => FormCatalogFieldPolicy.Input(pair.Value), StringComparer.Ordinal));
     private static FormCatalogImportIssue Issue(int row,string column,Error error,string severity="Error",int? related=null,int? length=null) =>
         new(row,column,severity,error.Code,ErrorMessages.Get(error.Code),related,length);
-    private static List<FormCatalogImportChange> Changes(FormCatalogStoredItemRow item,ParsedRow row,BusinessFormCatalogField[] fields,
+    private static List<FormCatalogImportChange> Changes(FormCatalogStoredItemRow item,FormCatalogImportParsedRow row,BusinessFormCatalogField[] fields,
         Dictionary<Guid, Dictionary<Guid, FormCatalogStoredItemRow>> sourceTexts,string culture)
     {
         var changes = new List<FormCatalogImportChange>();
@@ -205,7 +200,7 @@ internal static partial class FormCatalogImportPolicy
         return changes;
         void Add(string column,string? before,string? after) { if (!string.Equals(before,after,StringComparison.Ordinal)) changes.Add(new(column,before,after)); }
     }
-    private static Dictionary<string, string>? FieldTexts(ParsedRow row,BusinessFormCatalogField[] fields,
+    private static Dictionary<string, string>? FieldTexts(FormCatalogImportParsedRow row,BusinessFormCatalogField[] fields,
         Dictionary<Guid, Dictionary<Guid, FormCatalogStoredItemRow>> sourceTexts,string culture)
     {
         var texts = new Dictionary<string, string>(StringComparer.Ordinal);

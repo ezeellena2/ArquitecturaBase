@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Results;
@@ -59,3 +60,7 @@ internal sealed record FormCatalogImportSource(Guid Id, long Revision, BusinessF
 internal sealed record FormCatalogImportPlan(FormCatalogImportPreviewResponse Preview,
     IReadOnlyList<FormCatalogManualItemSaveRequest> Items)
 { public override string ToString() => "FormCatalogImportPlan { Content = [REDACTED] }"; }
+
+internal sealed record FormCatalogImportParsedRow(int Number, string Code, string TextEs, string? TextEn,
+        string? DetailEs, string? DetailEn, bool Active, string? Value, IReadOnlyDictionary<string, JsonElement> Fields)
+    { public override string ToString() => "FormCatalogImportParsedRow { Content = [REDACTED] }"; }
