@@ -242,6 +242,34 @@ Se corrige en un solo chat, back y front juntos, cada arreglo con su test y comm
       - «Agregar opción», «Pegar desde Excel», «Importar», «Exportar» y el menú van alineados al margen derecho de la sección, a la altura del título;
       - el motivo de un botón deshabilitado queda como ayuda al pasar el mouse o con el foco, y para el lector de pantalla;
       - si el tablero mostraba el texto, se anota el cambio en el diseño del front.
+38. **Botones y estados en todo el front.** Es una decisión del usuario del 2026-10-23, y quedó como regla en `visual-baseline.md` del front, en «Pantalla» y en «Formularios y diálogos».
+    - **Qué pasa:**
+      - hay textos que explican los botones y cambian con cada acción;
+      - aparece el estado «Cambios sin guardar» y hay números de revisión al lado de Guardar;
+      - los botones quedan corridos hacia el medio del encabezado;
+      - hay errores que aparecen antes de intentar guardar, aunque la regla ya decía «se valida al enviar».
+    - **Lugares conocidos** (no es la lista completa, hay que revisar todo el front):
+      - **textos al lado de los botones:**
+        - `FormRulesSection` y `FormSuggestionsSection`: «No hay cambios para guardar», «Revisá los datos marcados antes de guardar», la espera y el conflicto;
+        - `CatalogEditorPage`: «Revisá las opciones marcadas antes de guardar»;
+        - `CatalogOptionsActions` (punto 37);
+        - `CatalogQuestionSettings`: «Guardá el formulario para probar con una persona»;
+      - **«Cambios sin guardar»:** `FormRulesSection`, `FormSuggestionsSection`, `CatalogEditorPage`, `CatalogFiltersEditorPage`, `FormPdfDesignPage`, `AiSettingsPage`, `AppearancePage`, `SettingsPage`, `RoleEditorPage` y `BusinessInformationPage`;
+      - **números de revisión al lado de Guardar o en los encabezados:**
+        - en `FormRulesSection`, `FormSuggestionsSection` y `FormPdfDesignPage`;
+        - el «Revisión N:» del resumen de `AiSettingsPage`;
+        - en los historiales de revisiones se conservan;
+      - **errores antes de tiempo:** al agregar una opción (punto 36) y al agregar una acción a una regla («Completá este dato»).
+    - **Arreglo:** aplicar en todas las pantallas las reglas de `visual-baseline.md`:
+      - un botón está habilitado o deshabilitado, sin textos al lado, y no cambia de lugar ni de forma con cada acción. Si el motivo no es obvio, va como tooltip;
+      - no hay «Cambios sin guardar» ni números de revisión en los encabezados ni al lado de los botones. Se conserva el aviso al salir con cambios sin guardar;
+      - las acciones de cada superficie van al borde derecho de su encabezado, a la altura del título;
+      - se valida al intentar guardar; después del primer error, en vivo mientras se corrige;
+      - se actualizan las pruebas visuales y la evidencia.
+39. **La sección «El catálogo»** (front: `CatalogMetadataFields.tsx`; back: `FormCatalogRequestValidators.cs:184`). Es una decisión del usuario del 2026-10-23:
+    - la sección tiene solo Nombre y Descripción, y la descripción es opcional, en el back y en el front;
+    - «De dónde salen» y «Tipo de valor» se eligen en el paso anterior y no se cambian después. Se muestran como dato de solo lectura, sin caja ni explicación, por ejemplo «Escritas a mano · Texto» en una línea arriba de Nombre;
+    - se sacan los textos que explicaban que no se pueden cambiar.
 
 ## Después, sin bloquear
 
