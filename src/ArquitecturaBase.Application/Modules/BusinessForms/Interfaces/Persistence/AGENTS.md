@@ -2,6 +2,10 @@
 
 Contratos que implementa `Infrastructure/Modules/BusinessForms/Persistence`. Los repositorios devuelven entidades seguidas y dan de alta sin guardar; los lectores proyectan sin seguimiento. Hay uno o dos por área: borrador y definición, publicación, ciclo de vida, versiones sin uso, catálogos y filtros, registros, recibos y archivos, planilla, reglas, acciones, aprobaciones, PDF, selección del asistente, sugerencias y formularios que faltan.
 
+## Datos de personas
+
+`IFormPersonDataRepository` comparte lock de definiciones y agrega atributos/persona; no guarda. `IFormPersonDataReader` proyecta atributos/usos y datos con etiquetas fuente por lote, sin correo. Falta de fila devuelve valores vacíos y revisión null. La tabla administrativa incluye cuentas inactivas y omite borradas; opciones sólo id/text activos, búsqueda y paginado SQL. Datos históricos inactivos siguen persistidos.
+
 ## Al modificar
 
 - Nombres por lo que devuelven ([ADR 0008](../../../../../../docs/decisions/0008-nombres-de-repositorios-y-lectores.md)); una proyección nueva de un lector termina en `Row` ([Response y Row](../../../../../../docs/architecture/backend.md#modelos-response-y-row)).

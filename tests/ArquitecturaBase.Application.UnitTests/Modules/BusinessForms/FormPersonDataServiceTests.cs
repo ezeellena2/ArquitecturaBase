@@ -1,0 +1,241 @@
+using System.Text.Json;
+using ArquitecturaBase.Application.Modules.BusinessForms.Models;
+using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms;
+using ArquitecturaBase.Domain.Authorization;
+using ArquitecturaBase.Domain.Modules.BusinessForms;
+using ArquitecturaBase.Application.Interfaces.Persistence;
+using ArquitecturaBase.Domain.Results;
+
+namespace ArquitecturaBase.Application.UnitTests.Modules.BusinessForms;
+
+public sealed class FormPersonDataServiceTests
+{
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
+    [Theory]
+    [InlineData(BusinessFormsPermissions.PersonDataManage)]
+    [InlineData(Permissions.Users.Manage)]
+    [InlineData(BusinessFormsPermissions.Manage)]
+    public async Task Each_authorized_attribute_reader_can_read_definitions_without_receiving_person_values(string permission)
+    {
+        var fixture = new FormPersonDataFixture();
+        fixture.Grant(permission);
+        fixture.AddAttribute();
+
+        var result = await fixture.Service.ListAttributesAsync(Ct);
+
+        Assert.True(result.IsSuccess);
+        Assert.Single(result.Value.Items);
+        Assert.Equal(0, fixture.RecipientReads);
+        Assert.Equal(0, fixture.Work.Transactions);
+    }
+
+    [Theory]
+    [InlineData(BusinessFormsPermissions.PersonDataManage)]
+    [InlineData(Permissions.Users.Read)]
+    [InlineData(Permissions.Users.Manage)]
+    public async Task The_people_table_requires_both_definition_management_and_user_read_access(string permission)
+    {
+        var fixture = new FormPersonDataFixture();
+        fixture.Grant(permission);
+
+        var result = await fixture.Service.ListPeopleAsync(new(), Ct);
+
+        Assert.Equal(FormDefinitionErrors.Forbidden, result.Error);
+        Assert.Equal(0, fixture.PeopleReads);
+        Assert.Equal(0, fixture.Work.Transactions);
+    }
+
+    [Fact]
+    public async Task Creating_an_attribute_checks_global_capacity_and_key_uniqueness_before_adding_it()
+    {
+        var fixture = new FormPersonDataFixture();
+        fixture.AddAttribute("zone");
+        var duplicate = await fixture.Service.CreateAttributeAsync(new("zone", Names(), "Text", null), Ct);
+        Assert.Equal(FormPersonDataErrors.AttributeKeyDuplicate.Code, duplicate.Error.Code);
+        Assert.Contains("key", Assert.IsType<ValidationError>(duplicate.Error).Errors.Keys);
+        Assert.Single(fixture.Attributes);
+        for (var index = 1; index < 20; index++) fixture.AddAttribute("field_" + index, active: false);
+
+        var full = await fixture.Service.CreateAttributeAsync(new("other", Names(), "Text", null), Ct);
+
+        Assert.Equal(FormPersonDataErrors.AttributeTooMany, full.Error);
+        Assert.Equal(20, fixture.Attributes.Count);
+        Assert.Equal(0, fixture.Work.Commits);
+    }
+
+    [Fact]
+    public async Task A_used_attribute_can_be_renamed_but_cannot_change_its_type_or_be_deactivated()
+    {
+        var fixture = new FormPersonDataFixture();
+        var attribute = fixture.AddAttribute();
+        fixture.UsedAttributes.Add(attribute.Id);
+        var request = new UpdateFormPersonAttributeRequest(1, Names(), "Text", null, 0, true);
+
+        Assert.Equal(FormPersonDataErrors.AttributeInUse, (await fixture.Service.UpdateAttributeAsync(attribute.Id, request, Ct)).Error);
+        Assert.Equal(FormPersonDataErrors.AttributeInUse, (await fixture.Service.UpdateAttributeAsync(attribute.Id,
+            request with { Type = "Catalog", SourceCatalogId = fixture.Catalog.Id, IsActive = false }, Ct)).Error);
+        var renamed = await fixture.Service.UpdateAttributeAsync(attribute.Id,
+            request with { Name = new Dictionary<string, string?> { ["es"] = "Zona de atención" }, Type = "Catalog", SourceCatalogId = fixture.Catalog.Id }, Ct);
+
+        Assert.True(renamed.IsSuccess);
+        Assert.Equal(attribute.Id, renamed.Value.Id);
+        Assert.Equal(2, renamed.Value.Revision);
+        Assert.Equal(1, fixture.Work.Commits);
+    }
+
+    [Fact]
+    public async Task Saving_person_values_uses_one_boundary_and_rejects_a_stale_initial_revision()
+    {
+        var fixture = new FormPersonDataFixture();
+        fixture.Grant(Permissions.Users.Manage);
+        var attribute = fixture.AddAttribute();
+        var request = new UpdateFormPersonDataRequest(null,
+            new Dictionary<string, string?> { [attribute.Id.ToString("D")] = fixture.ActiveItem.Id.ToString("D") });
+
+        var saved = await fixture.Service.SaveDataAsync(fixture.Subject, request, Ct);
+        var stale = await fixture.Service.SaveDataAsync(fixture.Subject, request, Ct);
+
+        Assert.True(saved.IsSuccess);
+        Assert.Equal(1, saved.Value.Revision);
+        Assert.Equal(FormPersonDataErrors.RevisionConflict, stale.Error);
+        Assert.Single(fixture.Data);
+        Assert.Equal(1, fixture.Work.Commits);
+        Assert.Equal(CommitPolicy.OnSuccess, fixture.Work.LastPolicy);
+        Assert.Equal(["attributes", "data:" + fixture.Subject.ToString("N"), "catalog:" + fixture.Catalog.Id.ToString("N")], fixture.Events.Take(3));
+    }
+
+    [Fact]
+    public async Task Invalid_or_inactive_catalog_choices_never_create_a_person_data_row()
+    {
+        var fixture = new FormPersonDataFixture();
+        var attribute = fixture.AddAttribute();
+        foreach (var value in new[] { Guid.CreateVersion7().ToString("D"), fixture.InactiveItem.Id.ToString("D"), "not-an-id" })
+        {
+            var result = await fixture.Service.SaveDataAsync(fixture.Subject,
+                new(null, new Dictionary<string, string?> { [attribute.Id.ToString("D")] = value }), Ct);
+            Assert.Equal(FormPersonDataErrors.ValueInvalid.Code, result.Error.Code);
+            Assert.Empty(fixture.Data);
+        }
+        Assert.Equal(0, fixture.Work.Commits);
+    }
+
+    [Fact]
+    public async Task Saving_active_values_preserves_values_of_inactive_attributes_and_normalizes_text()
+    {
+        var fixture = new FormPersonDataFixture();
+        var inactive = fixture.AddAttribute("old_zone", active: false);
+        var current = fixture.AddAttribute("note", catalog: false);
+        fixture.Data.Add(BusinessFormPersonData.Create(fixture.Subject, JsonSerializer.Serialize(new Dictionary<string, string>
+        {
+            [inactive.Id.ToString("D")] = fixture.ActiveItem.Id.ToString("D"), [current.Id.ToString("D")] = "Antes",
+        })));
+
+        var result = await fixture.Service.SaveDataAsync(fixture.Subject,
+            new(1, new Dictionary<string, string?> { [current.Id.ToString("D")] = "  Después  " }), Ct);
+
+        Assert.True(result.IsSuccess);
+        var stored = JsonDocument.Parse(Assert.Single(fixture.Data).ValuesJson).RootElement;
+        Assert.Equal(fixture.ActiveItem.Id.ToString("D"), stored.GetProperty(inactive.Id.ToString("D")).GetString());
+        Assert.Equal("Después", stored.GetProperty(current.Id.ToString("D")).GetString());
+        Assert.False(result.Value.Values.ContainsKey(inactive.Id.ToString("D")));
+    }
+
+    [Fact]
+    public async Task Revoking_write_access_while_taking_the_lock_rolls_back_without_adding_values()
+    {
+        var fixture = new FormPersonDataFixture();
+        fixture.AddAttribute();
+        fixture.OnLock = () => fixture.Grant();
+
+        var result = await fixture.Service.SaveDataAsync(fixture.Subject, new(null, new Dictionary<string, string?>()), Ct);
+
+        Assert.Equal(FormDefinitionErrors.Forbidden, result.Error);
+        Assert.Empty(fixture.Data);
+        Assert.Equal(0, fixture.Work.Commits);
+        Assert.Equal(1, fixture.Work.Rollbacks);
+    }
+
+    [Fact]
+    public async Task Revoking_read_access_discards_the_entire_person_data_response_without_a_transaction()
+    {
+        var fixture = new FormPersonDataFixture();
+        fixture.OnRecipientRead = () => fixture.Grant();
+
+        var result = await fixture.Service.GetDataAsync(fixture.Subject, Ct);
+
+        Assert.Equal(FormDefinitionErrors.Forbidden, result.Error);
+        Assert.Equal(1, fixture.RecipientReads);
+        Assert.Equal(0, fixture.Work.Transactions);
+    }
+
+    [Fact]
+    public async Task A_user_manager_can_read_only_active_source_options_without_catalog_read_access()
+    {
+        var fixture = new FormPersonDataFixture();
+        var attribute = fixture.AddAttribute();
+        fixture.Grant(Permissions.Users.Manage);
+
+        var result = await fixture.Service.ListOptionsAsync(attribute.Id, new(), Ct);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(fixture.ActiveItem.Id, Assert.Single(result.Value.Items).Id);
+        Assert.Equal(0, fixture.RecipientReads);
+        Assert.Equal(0, fixture.Work.Transactions);
+        fixture.Catalog.UpdateManual(1, new Dictionary<string, string> { ["es"] = "Zonas", ["en"] = "Zones" },
+            new Dictionary<string, string> { ["es"] = "Zonas", ["en"] = "Zones" }, false);
+        Assert.Equal(FormPersonDataErrors.SourceUnavailable, (await fixture.Service.ListOptionsAsync(attribute.Id, new(), Ct)).Error);
+    }
+
+    [Fact]
+    public async Task Data_revisions_and_values_are_independent_for_each_person()
+    {
+        var fixture = new FormPersonDataFixture();
+        var attribute = fixture.AddAttribute("note", catalog: false);
+        var other = fixture.Users.AddUser("person-data-other@example.invalid").Id;
+        var first = new UpdateFormPersonDataRequest(null, new Dictionary<string, string?> { [attribute.Id.ToString("D")] = "Primera" });
+        var second = new UpdateFormPersonDataRequest(null, new Dictionary<string, string?> { [attribute.Id.ToString("D")] = "Segunda" });
+
+        var savedFirst = await fixture.Service.SaveDataAsync(fixture.Subject, first, Ct);
+        var savedSecond = await fixture.Service.SaveDataAsync(other, second, Ct);
+
+        Assert.True(savedFirst.IsSuccess);
+        Assert.True(savedSecond.IsSuccess);
+        Assert.Equal(1, savedFirst.Value.Revision);
+        Assert.Equal(1, savedSecond.Value.Revision);
+        Assert.Equal("Primera", (await fixture.Service.GetDataAsync(fixture.Subject, Ct)).Value.Values[attribute.Id.ToString("D")].Value);
+        Assert.Equal("Segunda", (await fixture.Service.GetDataAsync(other, Ct)).Value.Values[attribute.Id.ToString("D")].Value);
+        Assert.Equal(2, fixture.Work.Commits);
+    }
+
+    [Fact]
+    public async Task Missing_delta_values_preserve_other_active_values_and_null_clears_only_the_named_attribute()
+    {
+        var fixture = new FormPersonDataFixture();
+        var first = fixture.AddAttribute("first", catalog: false);
+        var second = fixture.AddAttribute("second", catalog: false);
+        fixture.Data.Add(BusinessFormPersonData.Create(fixture.Subject, JsonSerializer.Serialize(new Dictionary<string, string>
+        { [first.Id.ToString("D")] = "Primero", [second.Id.ToString("D")] = "Segundo" })));
+        var result = await fixture.Service.SaveDataAsync(fixture.Subject,
+            new(1, new Dictionary<string, string?> { [first.Id.ToString("D")] = null }), Ct);
+        Assert.True(result.IsSuccess);
+        Assert.False(result.Value.Values.ContainsKey(first.Id.ToString("D")));
+        Assert.Equal("Segundo", result.Value.Values[second.Id.ToString("D")].Value);
+    }
+
+    [Fact]
+    public async Task A_delta_preserves_the_source_label_of_an_unchanged_catalog_value_in_its_receipt()
+    {
+        var fixture = new FormPersonDataFixture();
+        var catalog = fixture.AddAttribute();
+        var note = fixture.AddAttribute("note", catalog: false);
+        fixture.Data.Add(BusinessFormPersonData.Create(fixture.Subject, JsonSerializer.Serialize(new Dictionary<string, string>
+        { [catalog.Id.ToString("D")] = fixture.ActiveItem.Id.ToString("D") })));
+        var saved = await fixture.Service.SaveDataAsync(fixture.Subject,
+            new(1, new Dictionary<string, string?> { [note.Id.ToString("D")] = "Actualizado" }), Ct);
+        Assert.True(saved.IsSuccess);
+        Assert.Equal("Centro", saved.Value.Values[catalog.Id.ToString("D")].Text);
+    }
+
+    private static Dictionary<string, string?> Names() => new() { ["es"] = "Zona", ["en"] = "Zone" };
+}

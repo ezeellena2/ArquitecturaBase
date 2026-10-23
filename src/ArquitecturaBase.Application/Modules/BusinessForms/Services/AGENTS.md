@@ -1,6 +1,6 @@
 # BusinessForms/Services: casos de uso y helpers
 
-Casos de uso (`*Service`, con contrato en `Interfaces/Services`) y helpers. Reglas en [formularios](../../../../../docs/features/formularios.md); cada grupo conserva sus límites técnicos. Adaptadores en [Channels](../Channels/AGENTS.md); locks y lectores en [Persistence](../Interfaces/Persistence/AGENTS.md).
+Casos de uso y helpers; contratos en `Interfaces/Services`. Leer [formularios](../../../../../docs/features/formularios.md), [Channels](../Channels/AGENTS.md) y [Persistence](../Interfaces/Persistence/AGENTS.md).
 
 ## Al modificar
 
@@ -29,13 +29,19 @@ Casos de uso (`*Service`, con contrato en `Interfaces/Services`) y helpers. Regl
 - Eliminar: Read+Manage; revisión, sin publicación abierta, `LastRecordNumber` cero y sin envíos abiertos ni replies pendientes (`IStructuredFormChannelStateSource`, sólo lectura). `Remove` deja el borrado lógico al interceptor.
 - Lifecycle es metadata hermana, fuera de borrador, comprobante y manifiesto. Sus conteos exigen RecordsRead; `CanDelete` depende de Manage y no los revela.
 
+### Datos de personas
+
+- `FormPersonDataService`: atributos con PersonDataManage; lectura OR UsersManage/Manage; tabla además UsersRead. Valores requieren UsersManage y usuario existente, antes y dentro del guardado o después de leer.
+- Atributos: lock definiciones → atributos → fuentes ordenadas, máximo20 incluyendo inactivos; usados no cambian tipo/fuente/actividad. Valores: atributos → persona → fuentes, CAS propio y delta (ausente conserva, null limpia). Catálogo Manual activo y opción activa; texto recortado hasta300. No se borran valores inactivos ni se devuelven.
+- Opciones: lector paginado exclusivo id/text, sin CatalogsRead ni campos internos. Sin caché ni replay durable.
+
 ### Catálogos y filtros
 
-- CatalogsRead, más CatalogsManage al escribir, con lock del catálogo; metadatos, estado e ítems comparten revisión, sin ruta ni protocolo durable para el estado.
+- CatalogsRead, más CatalogsManage al escribir, con lock del catálogo; metadatos, estado e ítems comparten revisión, sin protocolo durable.
 - `FormCatalogValuePolicy` normaliza enteros de hasta 18 dígitos, Decimal sin redondeo y fecha ISO; el error queda en `items[i].value`, también en opciones inactivas. Importar texto usa la cultura de UI y rechaza separadores ambiguos; las celdas numéricas/fecha y la cabecera canónica del export conservan el valor exacto. El tipo se recibe sólo al crear. Mover conserva el valor.
 - `FormCatalogItemRecorder`: núcleo PUT/importación sobre ítems seguidos, sin UoW/lock/revisión propios. Manual sin Position; moves usa todo Position+Id. A–Z ordena el original con es-AR y desempata Position+Id, sin moves. Conserva valores tipados; un error revierte todo.
-- `FormCatalogFieldRecorder` resuelve identidades, claves, fuentes Manual activas, usos de borrador/activa y confirmaciones antes de cambiar configuración. `FormCatalogFieldPolicy` valida todos los valores, obligatoriedad y unicidad entre activos, conversión y JSON tipado bajo el mismo lock; los errores conservan paths y metadata acotada mediante FieldErrors.OnWithMetadata.
-- El recorder común aplica Fields sólo cuando viene el mapa, conserva los inactivos y devuelve identidad más el conjunto final seguido. `FormCatalogFieldPresentation` arma metadata y chequea títulos con la política pura compartida; las fuentes se leen por catálogo y se indexan por opción, sin búsquedas por cada valor.
+- `FormCatalogFieldRecorder`: identidades, claves, fuentes Manual activas, usos borrador/activa y confirmaciones antes de configurar. `FormCatalogFieldPolicy`: todos los valores, requeridos, unicidad activa, conversión y JSON tipado bajo lock; errores con paths y metadata acotada (FieldErrors.OnWithMetadata).
+- El recorder aplica Fields sólo si viene, conserva inactivos y devuelve identidad/conjunto final seguido. `FormCatalogFieldPresentation` arma metadata y chequea títulos con la política pura; fuentes por catálogo, indexadas por opción.
 - Manual admite 10.000 filas en total, incluidas inactivas; un delta suma las existentes bajo el mismo lock. El duplicado señala `items[i].code`; `moves` conserva su tope de 500. Las condiciones leen todos los ítems una vez por catálogo, sin usar el paginado de pantalla ni el tope de oferta de Meta.
 - Importar: CatalogsRead+CatalogsManage y Manual/revisión antes de parsear. Preview revalida revisión/permisos, sin UoW/archivo persistido. Apply relee afuera y compara SHA-256; bajo lock revalida, recompone el plan, exige confirmaciones y ejecuta recorder. MarkImported sube una revisión con huella/UTC sólo si hay diferencias; sin ellas conserva revisión y marca. No devuelve mapa local ni usa caché/replay durable. Fila inválida conserva ítem/posición. Los campos extra se reconocen por clave o nombre es/en; una columna ausente conserva el valor guardado. La plantilla marca con `[campo]` las claves que chocan con columnas fijas; el export usa `[canónico]`/`[canonical]` para reimportar sin reinterpretar decimales ni perder precisión.
 - Filters: personas de ejemplo sólo con Manage; la vista previa no abre UoW ni guarda. `UsageCount` es null sin `formtemplates.read`. Al editar Manual o Filters se devuelve el conteo real; una escritura fallida o sin ese permiso no consulta el uso.
@@ -44,12 +50,12 @@ Casos de uso (`*Service`, con contrato en `Interfaces/Services`) y helpers. Regl
 
 ### Captura de respuestas y archivos
 
-- Un recibo con la misma huella se devuelve antes de exigir permisos; después, RecordsCreate antes y dentro del límite.
+- Replay por huella antes de permisos; luego RecordsCreate antes y dentro del límite.
 - Los archivos se verifican y suben antes del límite, con clave por recibo, campo, posición y hash; el error lleva el `FieldId`.
 - La UoW: lock del recibo → definiciones → versión publicada (activa o anterior) → valores, oferta, locks Manual ordenados y actividad del ítem → origen → número → registro, valores, referencias, archivos, runs y recibo juntos. Un rechazo guarda sólo el recibo.
 - Huella: suma catálogos, metadatos de archivos y origen sólo si existen, sin cambiar huellas anteriores. MultiChoice valida GUID D distintos/ofrecidos y rango sellado, sin ordenar/deduplicar. ValuesJson lleva un array por pregunta; cada elección crea valor con Position y referencia por ItemId. Omitida sin entrada; [] explícito sin filas. Manual revalida sólo actividad de elegidas bajo los locks existentes; presentación/valor/tipo salen de la oferta.
 - Origen: `OriginRecordId` y `OriginSuggestionId` de registros reales de la misma persona, validados contra la sugerencia activa del destino (no su versión); de un catálogo, sólo la opción propuesta con su presentación histórica.
-- Los campos extra se leen sólo para las opciones Manual elegidas bajo sus locks: un lote de metadata/valores y otro de textos fuente. Entity y FormRecordReferenceRow sellan el mismo JSON activo/presente, sin ampliarlo en la sesión; los nulos conservan la serialización anterior.
+- Campos extra: dos lotes (metadata/valores y textos fuente) sólo de opciones Manual elegidas bajo lock. Entity y FormRecordReferenceRow sellan el mismo JSON activo/presente; la sesión no lo amplía y null conserva los bytes anteriores.
 - `FormFileService`: RecordsRead antes y después de abrir el stream, pertenencia y nunca URL ni SAS.
 
 ### Planilla, detalle y Excel
@@ -71,7 +77,7 @@ Casos de uso (`*Service`, con contrato en `Interfaces/Services`) y helpers. Regl
 ### PDF
 
 - Diseño: RulesManage, revisión propia y `ActivePdfDesignId`. El preview usa ejemplos (foto ficticia) y no guarda.
-- Un idioma está completo con nombre del formulario y del diseño, pie, preguntas y opciones elegidas.
+- Un idioma está completo con nombre de formulario/diseño, pie, preguntas y opciones elegidas.
 - Preparar fija diseño, culturas y `AppName`; ejecutar relee el registro por Id, arma un `FormPdfRenderRequest` efímero y usa `WriteOnceAsync` en `FormPdfStorageKey.Create` tras consultar.
 - `FormPdfDocumentRecorder` registra una vez un resultado completo, bajo el fence.
 

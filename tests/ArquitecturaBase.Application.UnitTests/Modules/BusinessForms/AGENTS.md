@@ -53,3 +53,5 @@ FormSuggestionAuthenticSelectionTests verifica derivación de IDs sólo desde pr
 FormAssistantChannelContextTests usa IDs opacos y modo neutral explícito para sugerencias, catálogos y pedidos faltantes. Manual, Unspecified y valores no definidos no reciben la excepción automática por llevar un ID privado conocido; conserva permisos propios, Actor/Subject y procedencia.
 
 FormApprovalContinuationServiceTests cubre contrato, dirección/tamaño/definición, actor, permiso antes y después de leer, ancla ausente y ausencia de transacción en esta lectura.
+
+Datos de personas: permisos OR/AND y revocación, revisión por fila/atributo, delta que conserva ausentes/inactivos y limpia null, source/opción activa, aislamiento por persona, máximo20 y usados. El lector de opciones devuelve sólo id/text sin CatalogsRead. Casos PostgreSQL y locks reales van a integración.
