@@ -12,8 +12,13 @@ public sealed record StructuredRecordChoiceValue(string ChoiceId, string Label,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? CatalogName = null,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? Detail = null,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? Value = null,
-    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? ValueType = null)
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? ValueType = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<StructuredRecordCatalogFieldValue>? Fields = null)
 { public override string ToString() => "StructuredRecordChoiceValue { Content = [REDACTED] }"; }
 
 public sealed record StructuredRecordFileValue(Guid FileId, string Name, string ContentType, long Size, bool HasThumbnail)
 { public override string ToString() => "StructuredRecordFileValue { Content = [REDACTED] }"; }
+
+public sealed record StructuredRecordCatalogFieldValue(Guid FieldId, string Label, string Type, string Role, string Value,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? Text = null)
+{ public override string ToString() => "StructuredRecordCatalogFieldValue { Content = [REDACTED] }"; }

@@ -22,7 +22,12 @@ internal static class FormResponsePresentationPolicy
                         FormRecordPresentationPolicy.Text(other.Option.Label, other.Version.DisplayCulture(culture)))).ToArray(),
                 item.Question.Source?.Catalog is Guid catalogId
                     && definition.CatalogValueTypes?.GetValueOrDefault(catalogId) is { } valueType && valueType != "Text"
-                        ? valueType : null)).ToArray();
+                        ? valueType : null,
+                item.Question.Source?.Catalog is Guid fieldsCatalogId
+                    && definition.CatalogFields?.GetValueOrDefault(fieldsCatalogId) is { Count: > 0 } catalogFields
+                        ? catalogFields.Select(field => new FormResponseCatalogField(field.Id, field.Key,
+                            FormRecordPresentationPolicy.Text(field.Name, item.Version.DisplayCulture(culture)), field.Type, field.Role)).ToArray()
+                        : null)).ToArray();
     }
 
     public static IReadOnlyList<FormResponseCell> Cells(IReadOnlyList<FormResponseColumn> columns, StructuredRecordReadReply reply)

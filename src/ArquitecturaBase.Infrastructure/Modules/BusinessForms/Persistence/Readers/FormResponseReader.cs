@@ -24,11 +24,13 @@ internal sealed partial class FormResponseReader(ApplicationDbContext dbContext,
         var result = new FormResponseDefinitionRow(definition.Id, definition.Prefix, definition.ActiveVersionId!.Value, versions, definition.HasApproval);
         var catalogIds = result.Schemas.Values.SelectMany(schema => schema.Questions)
             .Select(question => question.Source?.Catalog).OfType<Guid>().Distinct().ToArray();
-        var valueTypes = catalogIds.Length == 0 ? new Dictionary<Guid, string>()
+        var catalogs = catalogIds.Length == 0 ? []
             : await dbContext.Set<BusinessFormCatalog>().AsNoTracking().Where(catalog => catalogIds.Contains(catalog.Id))
-                .Select(catalog => new { catalog.Id, Type = catalog.ValueType.ToString() })
-                .ToDictionaryAsync(catalog => catalog.Id, catalog => catalog.Type, cancellationToken);
-        return result with { CatalogValueTypes = valueTypes };
+                .Select(catalog => new CatalogMetadataRow { Id = catalog.Id, ValueType = catalog.ValueType.ToString(), FieldsJson = catalog.FieldsJson })
+                .ToArrayAsync(cancellationToken);
+        var historical = catalogIds.Length == 0 ? [] : await FindHistoricalCatalogFields(id).ToArrayAsync(cancellationToken);
+        var catalogFields = ReadCatalogFields(catalogs, historical);
+        return result with { CatalogValueTypes = catalogs.ToDictionary(catalog => catalog.Id, catalog => catalog.ValueType), CatalogFields = catalogFields };
     }
     public async Task<PagedResult<FormResponseStoredRow>> ListAsync(FormResponseDefinitionRow definition, ListFormRecordsRequest request, CancellationToken cancellationToken)
     {

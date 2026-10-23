@@ -59,3 +59,5 @@ Configuraciones EF, repositorios, lectores y seed del módulo, sobre `Set<T>()` 
 - Pruebas: [selección](../../../../../tests/ArquitecturaBase.Api.IntegrationTests/Modules/BusinessForms/FormSelectionQueryTests.cs) y [planilla](../../../../../tests/ArquitecturaBase.Api.IntegrationTests/Modules/BusinessForms/FormResponseQueryTests.cs).
 
 Estadísticas de Match: máximo agrupa el JSON tipado de campos de persona después de activos/contención fija; claves y valores son parámetros. Faltantes usa EXISTS de permiso por rol y de cualquier dato ausente, excluye inactivos/borrados, cuenta una vez y limita los nombres a5; no lee emails ni itera usuarios.
+
+E2-4: columnas extra combinan campos activos actuales con metadata histórica más reciente por campo. Una SQL parametrizada expande JSON y proyecta sólo metadata, sin cargar valores por respuesta ni consultas por fila.
