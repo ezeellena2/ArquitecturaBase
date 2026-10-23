@@ -141,6 +141,7 @@ internal sealed partial class FormCatalogReader(ApplicationDbContext dbContext) 
     {
         var query = dbContext.Set<BusinessFormCatalogItem>().AsNoTracking().Where(value => value.CatalogId == id);
         if (request.IsActive.HasValue) query = query.Where(value => value.IsActive == request.IsActive.Value);
+        if (request.Ids.Count > 0) query = query.Where(value => request.Ids.Contains(value.Id));
         if (!string.IsNullOrWhiteSpace(request.Search))
         {
             var pattern = LikePatterns.Contains(request.Search.Trim());

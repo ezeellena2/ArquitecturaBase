@@ -20,5 +20,7 @@ internal sealed class ListFormCatalogsRequestValidator : PagedRequestValidator<L
 
 internal sealed class ListFormCatalogItemsRequestValidator : PagedRequestValidator<ListFormCatalogItemsRequest>
 {
-    public ListFormCatalogItemsRequestValidator() : base(ListFormCatalogItemsRequest.SortableFields) { }
+    public ListFormCatalogItemsRequestValidator() : base(ListFormCatalogItemsRequest.SortableFields) =>
+        RuleFor(request => request.Ids).Must(ids => ids is { Count: <= 100 } && !ids.Contains(Guid.Empty))
+            .WithMessage(_ => FormCatalogRequestValidation.InvalidMessage());
 }

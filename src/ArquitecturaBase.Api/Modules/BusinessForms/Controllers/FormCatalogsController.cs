@@ -114,7 +114,7 @@ public sealed class FormCatalogsController(IFormCatalogService service, IFormCat
         { Page = query.Page, PageSize = query.PageSize, Sort = query.Sort, Search = query.Search, Kind = query.Kind, State = query.State };
 
     private static ListFormCatalogItemsRequest Map(FormCatalogItemsQuery query) => new()
-        { Page = query.Page, PageSize = query.PageSize, Sort = query.Sort, Search = query.Search, IsActive = query.IsActive };
+        { Page = query.Page, PageSize = query.PageSize, Sort = query.Sort, Search = query.Search, IsActive = query.IsActive, Ids = query.Ids ?? [] };
 
     private static UpdateManualCatalogRequest Map(UpdateManualCatalogHttpRequest request) => new(request.ExpectedRevision,
         request.Name, request.Description, request.Items?.Select(Map).ToArray(),

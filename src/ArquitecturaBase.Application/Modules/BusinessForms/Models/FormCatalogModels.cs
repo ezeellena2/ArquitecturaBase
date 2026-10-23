@@ -17,6 +17,7 @@ public sealed record ListFormCatalogItemsRequest : PagedRequest
     public static readonly IReadOnlyCollection<string> SortableFields = ["position", "code", "text", "isActive"];
 
     public bool? IsActive { get; init; }
+    public IReadOnlyList<Guid> Ids { get; init; } = [];
     public string DisplayCulture { get; init; } = "es";
 }
 

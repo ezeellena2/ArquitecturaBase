@@ -41,7 +41,8 @@ public sealed record FormCatalogManualItemHttpRequest(
 public sealed record FormCatalogsQuery(int Page = 1, int PageSize = 20, string? Sort = null, string? Search = null,
     string? Kind = null, string? State = null);
 
-public sealed record FormCatalogItemsQuery(int Page = 1, int PageSize = 20, string? Sort = null, string? Search = null, bool? IsActive = null);
+public sealed record FormCatalogItemsQuery(int Page = 1, int PageSize = 20, string? Sort = null, string? Search = null, bool? IsActive = null,
+    IReadOnlyList<Guid>? Ids = null);
 
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record FormCatalogFieldHttpRequest(string? LocalId, Guid? Id, string? Key,

@@ -355,6 +355,47 @@ public sealed partial class FormCatalogEndpointsTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Items_filtered_by_ids_return_only_those_options_including_inactive_ones()
+    {
+        using var client = await OperatorAsync(BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage);
+        var payload = new
+        {
+            name = new { es = "Por identidad", en = "By identity" },
+            description = new { es = "Prueba", en = "Test" },
+            items = Enumerable.Range(1, 25).Select(index => Item($"row-{index}", null, $"R{index:00}", $"Opción {index}", null, index != 7)).ToArray(),
+        };
+        using var created = await client.PostAsJsonAsync("/api/forms/catalogs", payload, Ct);
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var createdJson = await created.ReadJsonAsync();
+        var catalogId = createdJson.GetProperty("catalog").GetProperty("id").GetGuid();
+        var inactiveId = createdJson.GetProperty("itemIdentityMap").GetProperty("row-7").GetGuid();
+        var lastId = createdJson.GetProperty("itemIdentityMap").GetProperty("row-25").GetGuid();
+        using var other = await client.PostAsJsonAsync("/api/forms/catalogs", new
+        {
+            name = new { es = "Otro", en = "Other" },
+            description = new { es = "Prueba", en = "Test" },
+            items = new[] { Item("foreign", null, "F01", "Ajena", null, true) },
+        }, Ct);
+        Assert.Equal(HttpStatusCode.Created, other.StatusCode);
+        var foreignId = (await other.ReadJsonAsync()).GetProperty("itemIdentityMap").GetProperty("foreign").GetGuid();
+
+        using var filtered = await client.GetAsync($"/api/forms/catalogs/{catalogId}/items?ids={lastId}&ids={foreignId}&ids={inactiveId}", Ct);
+        Assert.Equal(HttpStatusCode.OK, filtered.StatusCode);
+        var page = await filtered.ReadJsonAsync();
+        Assert.Equal(2, page.GetProperty("totalCount").GetInt32());
+        Assert.Equal([inactiveId, lastId], page.GetProperty("items").EnumerateArray().Select(item => item.GetProperty("id").GetGuid()));
+        Assert.False(page.GetProperty("items")[0].GetProperty("isActive").GetBoolean());
+        Assert.Equal("Opción 25", page.GetProperty("items")[1].GetProperty("text").GetProperty("es").GetString());
+
+        using var empty = await client.GetAsync($"/api/forms/catalogs/{catalogId}/items?ids={Guid.Empty}", Ct);
+        Assert.Equal(HttpStatusCode.BadRequest, empty.StatusCode);
+        Assert.True((await empty.ReadJsonAsync()).GetProperty("errors").TryGetProperty("ids", out _));
+        var operation = (await OpenApiTests.ReadDocumentAsync(factory)).GetProperty("paths").GetProperty("/api/forms/catalogs/{id}/items").GetProperty("get");
+        var ids = Assert.Single(operation.GetProperty("parameters").EnumerateArray(), parameter => parameter.GetProperty("name").GetString() == "Ids");
+        Assert.Equal("query", ids.GetProperty("in").GetString());
+    }
+
+    [Fact]
     public async Task Missing_expected_revision_is_a_field_error_before_any_catalog_change()
     {
         using var client = await OperatorAsync(BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage);
