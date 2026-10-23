@@ -14,6 +14,7 @@ public interface IFormCatalogReader
     Task<int> CountUsageAsync(Guid catalogId, CancellationToken cancellationToken);
     Task<IReadOnlyList<FormCatalogFieldUsageRow>> FindFieldUsageAsync(Guid catalogId, IReadOnlyCollection<Guid> fieldIds, CancellationToken cancellationToken);
     Task<bool> ExistsSourceUsageAsync(Guid catalogId, CancellationToken cancellationToken);
+    Task<FormCatalogMaximumOfferRow> FindMaximumOfferSizeAsync(Guid catalogId, string? fixedContainmentJson, IReadOnlyCollection<Guid> personFieldIds, CancellationToken cancellationToken);
     Task<int> CountActiveItemsAsync(Guid catalogId, CancellationToken cancellationToken);
     Task<PagedResult<FormCatalogItemResponse>> ListItemsAsync(Guid id, ListFormCatalogItemsRequest request, CancellationToken cancellationToken);
 }

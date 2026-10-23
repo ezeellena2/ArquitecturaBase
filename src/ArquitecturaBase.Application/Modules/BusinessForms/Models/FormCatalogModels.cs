@@ -130,3 +130,6 @@ public sealed record FormCatalogStoredItemRow(
     string? DetailEn,
     int Position,
     bool IsActive, string? Value = null, string FieldValuesJson = "{}");
+
+public sealed record FormCatalogMaximumOfferRow(int Maximum, string ValuesJson)
+{ public override string ToString() => "FormCatalogMaximumOfferRow { Content = [REDACTED] }"; }

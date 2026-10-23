@@ -97,4 +97,6 @@ internal sealed class FormRuleFixture : IFormDraftRepository, IFormRuleRepositor
     public Task<FormCatalogFilterPreviewResponse> FindPreviewAsync(Guid actor,FormCatalogFilterDefinition filters,CancellationToken ct) { PreviewActor = actor; return Task.FromResult(FilterPreview); }
     public Task<IReadOnlyList<FormCatalogFieldUsageRow>> FindFieldUsageAsync(Guid catalogId, IReadOnlyCollection<Guid> fieldIds, CancellationToken ct) => Task.FromResult<IReadOnlyList<FormCatalogFieldUsageRow>>([]);
     public Task<bool> ExistsSourceUsageAsync(Guid catalogId, CancellationToken ct) => Task.FromResult(false);
+    public Task<FormCatalogMaximumOfferRow> FindMaximumOfferSizeAsync(Guid catalogId, string? fixedContainmentJson,
+        IReadOnlyCollection<Guid> personFieldIds, CancellationToken cancellationToken) => throw new NotSupportedException();
 }

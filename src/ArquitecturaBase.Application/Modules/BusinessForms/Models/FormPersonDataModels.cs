@@ -32,3 +32,6 @@ public sealed record FormPersonRecipientDataRow(Guid UserId, long? Revision, str
 public sealed record FormPersonDataTableRow(Guid UserId, string? DisplayName, string ValuesJson, IReadOnlyDictionary<Guid, string> OptionTexts)
 { public override string ToString() => "FormPersonDataTableRow { Content = [REDACTED] }"; }
 public sealed record FormPersonAttributeOptionRow(Guid Id, string Text);
+
+public sealed record FormPersonMissingRecipientsRow(int Count, IReadOnlyList<string> People)
+{ public override string ToString() => "FormPersonMissingRecipientsRow { Content = [REDACTED] }"; }

@@ -123,4 +123,8 @@ internal sealed class FormPersonDataFixture : IFormPersonDataRepository, IFormPe
     private static FormCatalogStoredItemRow Item(BusinessFormCatalogItem value) => new(value.Id, value.CatalogId, value.Code,
         value.TextEs, value.TextEn, value.DetailEs, value.DetailEn, value.Position, value.IsActive, value.Value);
     private static Dictionary<string, string> Names() => new() { ["es"] = "Zona", ["en"] = "Zone" };
+    public Task<FormCatalogMaximumOfferRow> FindMaximumOfferSizeAsync(Guid catalogId, string? fixedContainmentJson,
+        IReadOnlyCollection<Guid> personFieldIds, CancellationToken cancellationToken) => throw new NotSupportedException();
+    public Task<FormPersonMissingRecipientsRow> FindRecipientsWithoutDataAsync(IReadOnlyCollection<Guid> attributeIds,
+        CancellationToken cancellationToken) => throw new NotSupportedException();
 }

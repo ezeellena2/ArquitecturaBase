@@ -25,3 +25,5 @@ Contratos que implementa `Infrastructure/Modules/BusinessForms/Persistence`. Los
 - [Locks](../../../../../../docs/architecture/backend.md#locks).
 - [Implementación y SQL](../../../../../ArquitecturaBase.Infrastructure/Modules/BusinessForms/AGENTS.md).
 - [Repositorio de referencia](IFormDraftRepository.cs).
+
+- FindMaximumOfferSizeAsync devuelve máximo por combinación de campos de persona, tras contención fija y activos; no hidrata opciones. FindRecipientsWithoutDataAsync cuenta usuarios activos con RecordsCreate que carecen de cualquiera de los atributos, sin duplicar y con hasta5 nombres. Ambos son SQL fijo parametrizado y de sólo lectura.
