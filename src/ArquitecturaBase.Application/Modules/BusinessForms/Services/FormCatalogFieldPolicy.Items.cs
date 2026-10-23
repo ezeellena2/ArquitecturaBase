@@ -18,6 +18,8 @@ internal static partial class FormCatalogFieldPolicy
             requested.TryGetValue(item.Id, out var sent) ? sent : stored[item.Id], StringComparer.Ordinal));
         var inputIndexes = inputs.Select((input, index) => (input, index)).Where(pair => pair.input?.ItemId is not null)
             .ToDictionary(pair => pair.input!.ItemId!.Value, pair => pair.index);
+        // Items arrive in storage order; walking them by row keeps invalidRows as the first rows and the first error stable.
+        var byRow = items.OrderBy(item => item.Position).ThenBy(item => item.Id).ToArray();
         for (var fieldIndex = 0; fieldIndex < context.Fields.Count; fieldIndex++)
         {
             var field = context.Fields[fieldIndex];
@@ -34,7 +36,7 @@ internal static partial class FormCatalogFieldPolicy
             var converted = 0;
             var invalidCount = 0;
             var unique = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var item in items)
+            foreach (var item in byRow)
             {
                 values[item.Id].TryGetValue(key, out var raw);
                 var input = raw.ValueKind == JsonValueKind.Undefined ? null : Input(raw);

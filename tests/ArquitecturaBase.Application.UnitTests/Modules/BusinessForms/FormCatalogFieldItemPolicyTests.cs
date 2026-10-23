@@ -53,6 +53,23 @@ public sealed class FormCatalogFieldItemPolicyTests
     }
 
     [Fact]
+    public void Type_conversion_reports_the_first_fifty_bad_rows_in_row_order_whatever_the_stored_order()
+    {
+        var field = Field("integer");
+        var catalog = BusinessFormCatalog.CreateManual(new Dictionary<string, string> { ["es"] = "Catalog" }, new Dictionary<string, string>());
+        var items = Enumerable.Range(1, 62).Select(position => catalog.AddManualItem($"item{position}", "Item", null, null, null, position).Value).ToArray();
+        foreach (var item in items) StoreText(catalog, item, field, "invalid");
+        var stored = items.Where((_, index) => index % 2 == 1).Reverse().Concat(items.Where((_, index) => index % 2 == 0)).ToArray();
+        var context = new FormCatalogFieldContext([field], new Dictionary<Guid, IReadOnlyList<FormCatalogStoredItemRow>>(), new HashSet<Guid> { field.Id }, new HashSet<Guid>());
+
+        var result = FormCatalogFieldPolicy.ValidateItems(catalog, stored, [], NoRequest(), context);
+
+        Assert.Equal(62, result.Error.Metadata!["invalidCount"]);
+        var rows = Assert.IsAssignableFrom<IReadOnlyList<FormCatalogInvalidFieldRow>>(result.Error.Metadata!["invalidRows"]);
+        Assert.Equal(Enumerable.Range(1, 50), rows.Select(row => row.Row));
+    }
+
+    [Fact]
     public void Type_conversion_rows_carry_their_row_attempted_value_and_reason()
     {
         var field = Field("integer") with { Required = true, Max = "180" };
