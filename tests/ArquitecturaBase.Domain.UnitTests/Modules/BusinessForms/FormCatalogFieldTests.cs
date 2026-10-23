@@ -51,6 +51,21 @@ public sealed class FormCatalogFieldTests
         Assert.True(catalog.SetFields(fields[..20], null).IsSuccess);
     }
 
+    [Fact]
+    public void Blank_name_translations_are_discarded_when_fields_are_saved()
+    {
+        var catalog = Catalog();
+        var empty = Field() with { Name = new Dictionary<string, string> { ["es"] = "Campo", ["en"] = "" } };
+        var spaces = Field() with { Key = "other", Name = new Dictionary<string, string> { ["es"] = "Otro", ["en"] = "   " } };
+
+        Assert.True(catalog.SetFields([empty, spaces], null).IsSuccess);
+        var stored = JsonSerializer.Deserialize<BusinessFormCatalogField[]>(catalog.FieldsJson!, JsonSerializerOptions.Web)!;
+        Assert.All(stored, field => Assert.Equal(["es"], field.Name.Keys));
+        Assert.Equal(["Campo", "Otro"], stored.Select(field => field.Name["es"]));
+        var blankOriginal = Field() with { Name = new Dictionary<string, string> { ["es"] = "  ", ["en"] = "Field" } };
+        Assert.Equal("Forms.Catalog.FieldInvalid", Catalog().SetFields([blankOriginal], null).Error.Code);
+    }
+
     private static BusinessFormCatalog Catalog() => BusinessFormCatalog.CreateManual(new Dictionary<string, string> { ["es"] = "Catalog" }, new Dictionary<string, string>());
     private static BusinessFormCatalogField Field() => new(Guid.CreateVersion7(), "field", new Dictionary<string, string> { ["es"] = "Campo" }, "text", null, false, false, null, null, 300, "data", 0, true);
 }

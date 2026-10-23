@@ -30,8 +30,13 @@ public sealed partial class BusinessFormCatalog
         var ids = new HashSet<Guid>();
         var keys = new HashSet<string>(StringComparer.Ordinal);
         var canonical = new List<BusinessFormCatalogField>();
-        foreach (var field in fields)
+        foreach (var input in fields)
         {
+            var field = input with
+            {
+                Name = input.Name.Where(pair => !string.IsNullOrWhiteSpace(pair.Value))
+                    .ToDictionary(pair => pair.Key, pair => pair.Value.Trim(), StringComparer.Ordinal)
+            };
             if (!keys.Add(field.Key)) return FormCatalogErrors.FieldKeyDuplicate;
             if (field.Id == Guid.Empty || !ids.Add(field.Id) || !FieldKeyPattern().IsMatch(field.Key)
                 || field.Name.Count == 0 || !field.Name.TryGetValue("es", out var name) || string.IsNullOrWhiteSpace(name)
