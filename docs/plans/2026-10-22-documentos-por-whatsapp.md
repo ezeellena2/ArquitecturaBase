@@ -1,6 +1,6 @@
 # Documentos por WhatsApp: biblioteca de formularios estándar, lectura con IA y tableros
 
-**Estado:** decidido el 2026-10-22, con el [ADR 0022](../decisions/0022-lectura-de-documentos-con-ia.md) aceptado y los tableros de diseño DOC1–DOC7 listos para elegir. Sin empezar. Es la etapa «fotos y documentos» que el usuario marcó como prioridad ([casos del asistente](2026-10-21-casos-del-asistente.md#etapa-siguiente-fotos-y-documentos)). Va después de [Catálogos E2](formularios/catalogos-campos-extra.md), porque el cruce con catálogos usa sus campos extra. Su orden frente a «Casos del asistente» lo define el usuario.
+**Estado:** decidido el 2026-10-22, con el [ADR 0022](../decisions/0022-lectura-de-documentos-con-ia.md) aceptado y los tableros de diseño elegidos (DOC5-A y DOC7-A). Sin empezar. Es la etapa «fotos y documentos» que el usuario marcó como prioridad ([casos del asistente](2026-10-21-casos-del-asistente.md#etapa-siguiente-fotos-y-documentos)). Va después de [Catálogos E2](formularios/catalogos-campos-extra.md), porque el cruce con catálogos usa sus campos extra. Su orden frente a «Casos del asistente» lo define el usuario.
 
 ## Por qué
 
@@ -95,6 +95,8 @@ Se leen **solo los mensajes de personas con cuenta vinculada y activa,** como ho
 
 ### La bandeja «Documentos recibidos»
 
+Forma elegida, **DOC5-A:** una planilla como la de respuestas, con sus filtros. El documento se abre en un panel al costado, junto a sus datos, como la vista rápida de una respuesta.
+
 - **Filtros:** tipo, estado (propuesto, confirmado, sin clasificar, descartado), persona y fecha.
 - **El documento al lado de los datos extraídos,** para revisar, corregir y pasar al formulario.
 - **Búsqueda por los datos:** monto, CUIT o número de operación.
@@ -134,6 +136,8 @@ Cada formulario tiene una pestaña **«Tablero»**, armada sola a partir de sus 
 | Persona y estado | Quién cargó cuánto; aprobadas, rechazadas y pendientes |
 | Fecha | La evolución en el tiempo |
 
+Forma elegida, **DOC7-A:** arriba, los números contra el período anterior; abajo, una tarjeta por gráfico.
+
 - **Se puede ajustar:** sumar o quitar gráficos, y filtrar con la misma gramática de la planilla, por período, persona o estado.
 - **No hay tableros en el código:** salen de los tipos de las preguntas, así que un formulario nuevo, también el armado por la IA, ya tiene el suyo.
 - **Los permisos de la planilla:** quien no puede leer respuestas no ve el tablero.
@@ -163,6 +167,7 @@ No se vuelven a preguntar.
 - **Quién manda:** se leen solo los mensajes de personas con cuenta vinculada y activa.
 - **Retención:** un documento que termina en una respuesta se queda con ella. Uno descartado o sin clasificar se borra a los 90 días, con su lectura.
 - **Tipos en la primera etapa:** foto, PDF, Word (`.docx`), Excel (`.xlsx`), ubicación y contacto.
+- **Tableros elegidos (2026-10-22):** DOC5-A, la bandeja como planilla con panel, y DOC7-A, el tablero con tarjetas. DOC1–DOC4 y DOC6 tienen un solo concepto.
 
 **Esta es la parte 1 de tres proyectos.** La parte 2, formularios conectados a sistemas externos (ARCA, Mercado Libre y cualquier API), y la parte 3, que otros sistemas reciban nuestros datos (webhooks, API pública y MCP), tienen su propio plan después de la investigación del 2026-10-22.
 
@@ -189,7 +194,7 @@ Las reglas de lectura están en el [ADR 0022](../decisions/0022-lectura-de-docum
 ## Cómo se encara
 
 1. El ADR, ya aceptado: [0022](../decisions/0022-lectura-de-documentos-con-ia.md).
-2. Los tableros de diseño, con el chat de diseño y en la maqueta (incluidos el formulario armado por la IA y la pestaña «Tablero»). DOC1–DOC7 quedaron listos el 2026-10-22; DOC5 (la bandeja) y DOC7 (el tablero) tienen dos conceptos para elegir. Cubren:
+2. Los tableros de diseño, con el chat de diseño y en la maqueta (incluidos el formulario armado por la IA y la pestaña «Tablero»). DOC1–DOC7 quedaron listos el 2026-10-22, y el usuario eligió DOC5-A y DOC7-A. Cubren:
    - la biblioteca;
    - el formulario con lectura de documentos;
    - los tres casos en el celular;
