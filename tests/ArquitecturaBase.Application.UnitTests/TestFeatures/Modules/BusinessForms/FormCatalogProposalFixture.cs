@@ -81,4 +81,6 @@ internal sealed class FormCatalogProposalFixture : IFormCatalogRepository, IForm
     public Task<FormCatalogsPageResponse> FindPageAsync(ListFormCatalogsRequest request, bool edit, bool read, CancellationToken ct) => throw new NotSupportedException();
     public Task<PagedResult<FormCatalogItemResponse>> ListItemsAsync(Guid id, ListFormCatalogItemsRequest request, CancellationToken ct) => throw new NotSupportedException();
 
+    public Task<IReadOnlyList<FormCatalogFieldUsageRow>> FindFieldUsageAsync(Guid catalogId, Guid fieldId, CancellationToken ct) => Task.FromResult<IReadOnlyList<FormCatalogFieldUsageRow>>([]);
+    public Task<bool> ExistsSourceUsageAsync(Guid catalogId, CancellationToken ct) => Task.FromResult(false);
 }

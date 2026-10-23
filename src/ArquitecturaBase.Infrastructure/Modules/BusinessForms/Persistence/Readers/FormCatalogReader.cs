@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ArquitecturaBase.Infrastructure.Modules.BusinessForms.Persistence.Readers;
 
-internal sealed class FormCatalogReader(ApplicationDbContext dbContext) : IFormCatalogReader
+internal sealed partial class FormCatalogReader(ApplicationDbContext dbContext) : IFormCatalogReader
 {
     private sealed record CatalogUsageCount(Guid CatalogId, int? UsageCount);
     private sealed class CatalogWithUsage
@@ -105,20 +105,27 @@ internal sealed class FormCatalogReader(ApplicationDbContext dbContext) : IFormC
         await dbContext.Set<BusinessFormCatalogItem>().AsNoTracking().Where(item => item.CatalogId == catalogId)
             .OrderBy(item => item.Position).ThenBy(item => item.Id)
             .Select(item => new FormCatalogStoredItemRow(item.Id, item.CatalogId, item.Code, item.TextEs, item.TextEn,
-                item.DetailEs, item.DetailEn, item.Position, item.IsActive, item.Value)).ToListAsync(cancellationToken);
+                item.DetailEs, item.DetailEn, item.Position, item.IsActive, item.Value, item.FieldValuesJson)).ToListAsync(cancellationToken);
 
     public async Task<IReadOnlyList<FormCatalogStoredItemRow>> ListOfferItemsAsync(Guid catalogId, CancellationToken cancellationToken,
         string? fieldValueContainmentJson = null) =>
-        await dbContext.Set<BusinessFormCatalogItem>().AsNoTracking().Where(item => item.CatalogId == catalogId && item.IsActive)
-            .OrderBy(item => item.Position).ThenBy(item => item.Id).Take(201)
+        await FindOfferItems(catalogId, fieldValueContainmentJson)
             .Select(item => new FormCatalogStoredItemRow(item.Id, item.CatalogId, item.Code, item.TextEs, item.TextEn,
-                item.DetailEs, item.DetailEn, item.Position, item.IsActive, item.Value)).ToListAsync(cancellationToken);
+                item.DetailEs, item.DetailEn, item.Position, item.IsActive, item.Value, item.FieldValuesJson)).ToListAsync(cancellationToken);
+
+    private IQueryable<BusinessFormCatalogItem> FindOfferItems(Guid catalogId, string? fieldValueContainmentJson)
+    {
+        var items = dbContext.Set<BusinessFormCatalogItem>().AsNoTracking().Where(item => item.CatalogId == catalogId && item.IsActive);
+        if (fieldValueContainmentJson is not null)
+            items = items.Where(item => EF.Functions.JsonContains(item.FieldValuesJson, fieldValueContainmentJson));
+        return items.OrderBy(item => item.Position).ThenBy(item => item.Id).Take(201);
+    }
 
     public Task<FormCatalogStoredRow?> FindAsync(Guid id, CancellationToken cancellationToken) =>
         dbContext.Set<BusinessFormCatalog>().AsNoTracking().Where(value => value.Id == id)
             .Select(value => new FormCatalogStoredRow(value.Id, value.Key, value.NameJson, value.DescriptionJson, value.Kind.ToString(),
                 value.Revision, value.IsActive, value.CreatedAtUtc, value.CreatedBy, value.ModifiedAtUtc, value.ModifiedBy,
-                dbContext.Set<BusinessFormCatalogItem>().Count(item => item.CatalogId == value.Id), value.FiltersJson, value.ProposalEvidenceJson, value.ProposalState, value.ProposalDecidedByUserId, value.ProposalDecidedAtUtc, value.ValueType.ToString(), value.LastImportSha256, value.LastImportAtUtc))
+                dbContext.Set<BusinessFormCatalogItem>().Count(item => item.CatalogId == value.Id), value.FiltersJson, value.ProposalEvidenceJson, value.ProposalState, value.ProposalDecidedByUserId, value.ProposalDecidedAtUtc, value.ValueType.ToString(), value.LastImportSha256, value.LastImportAtUtc, value.FieldsJson, value.PresentationJson))
             .SingleOrDefaultAsync(cancellationToken);
 
     public Task<int> CountActiveItemsAsync(Guid catalogId, CancellationToken cancellationToken) =>
@@ -153,10 +160,8 @@ internal sealed class FormCatalogReader(ApplicationDbContext dbContext) : IFormC
         };
         var rows = await query.ApplySort(SortDescriptor.Parse(request.Sort), sortable, new("position", false), value => value.Id)
             .Select(value => new FormCatalogStoredItemRow(value.Id, value.CatalogId, value.Code, value.TextEs, value.TextEn,
-                value.DetailEs, value.DetailEn, value.Position, value.IsActive, value.Value)).ToPagedResultAsync(request, cancellationToken);
-        var items = rows.Items.Select(value => new FormCatalogItemResponse(value.Id, value.Code,
-            new Dictionary<string, string?> { ["es"] = value.TextEs, ["en"] = value.TextEn },
-            new Dictionary<string, string?> { ["es"] = value.DetailEs, ["en"] = value.DetailEn }, value.Position, value.IsActive, value.Value)).ToArray();
+                value.DetailEs, value.DetailEn, value.Position, value.IsActive, value.Value, value.FieldValuesJson)).ToPagedResultAsync(request, cancellationToken);
+        var items = await PresentItemsAsync(id, rows.Items, cancellationToken);
         return new(items, rows.Page, rows.PageSize, rows.TotalCount);
     }
 }

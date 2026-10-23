@@ -94,6 +94,7 @@ internal sealed class FakeRecordRepository(BusinessFormDefinition definition, Bu
         var definition = BusinessFormDefinition.Create();
         return new(definition, BusinessFormVersion.Create(definition.Id, 1, "test"));
     }
+    public Task<IReadOnlyList<FormCatalogItemFieldValuesRow>> FindCatalogFieldValuesAsync(IReadOnlyCollection<Guid> itemIds, CancellationToken ct) => Task.FromResult<IReadOnlyList<FormCatalogItemFieldValuesRow>>([]);
     public bool ItemActive { get; set; } = true;
     public HashSet<Guid> InactiveItems { get; } = [];
     public List<Guid> CatalogLocks { get; } = [];
