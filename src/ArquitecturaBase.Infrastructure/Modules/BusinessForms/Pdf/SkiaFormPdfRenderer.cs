@@ -82,8 +82,7 @@ internal sealed class SkiaFormPdfRenderer(IFormFileReader references, IStoredFil
             "decimal" => answer.GetDecimal().ToString("#,0.############################", locale),
             "date" => DateOnly.ParseExact(answer.GetString()!, "yyyy-MM-dd", CultureInfo.InvariantCulture).ToString("d MMM yyyy", locale),
             "boolean" => FormPdfTexts.Get(answer.GetBoolean() ? "Yes" : "No", culture),
-            "multiChoice" => answer.GetArrayLength() == 0 ? FormPdfTexts.Get("NoAnswer", culture)
-                : string.Join(", ", answer.EnumerateArray().Select(value => Value(question with { Type = "choice" }, value, culture, record))),
+            "multiChoice" => MultipleValue(question, answer, culture, record),
             "choice" when question.Source?.Catalog is not null => CatalogValue((record.References ?? []).Single(reference => reference.FieldId == question.FieldId && reference.ItemId == answer.GetGuid()), locale),
             "choice" => question.Options!.Single(option => option.ChoiceId == answer.GetGuid()).Label[culture],
             _ => throw new InvalidOperationException("The PDF contains an unsupported response value."),
@@ -91,8 +90,7 @@ internal sealed class SkiaFormPdfRenderer(IFormFileReader references, IStoredFil
     }
     private static string CatalogValue(FormRecordReferenceRow reference, CultureInfo locale)
     {
-        if (reference.Value is null) return reference.Text;
-        var value = reference.ValueType switch
+        var value = reference.Value is null ? null : reference.ValueType switch
         {
             "Integer" => long.Parse(reference.Value, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture).ToString("N0", locale),
             "Decimal" => decimal.Parse(reference.Value, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture)
@@ -100,8 +98,38 @@ internal sealed class SkiaFormPdfRenderer(IFormFileReader references, IStoredFil
             "Date" => DateOnly.ParseExact(reference.Value, "yyyy-MM-dd", CultureInfo.InvariantCulture).ToString("d", locale),
             _ => throw new InvalidOperationException("The captured catalog value type is invalid."),
         };
-        return reference.Text + " · " + value;
+        var text = reference.Text + (value is null ? "" : " · " + value);
+        var fields = reference.FieldValuesJson is null ? []
+            : JsonSerializer.Deserialize<FormCatalogCapturedField[]>(reference.FieldValuesJson, JsonSerializerOptions.Web)
+                ?? throw new InvalidOperationException("The captured catalog fields are invalid.");
+        var data = fields.Where(field => field.Role == "data").Select(field =>
+            FieldText(field.Name, locale) + " " + CapturedFieldValue(field, locale)).ToArray();
+        return data.Length == 0 ? text : text + "\n" + string.Join(" · ", data);
     }
+
+    private static string MultipleValue(CanonicalFormField question, JsonElement answer, string culture, FormRecordStoredRow record)
+    {
+        if (answer.GetArrayLength() == 0) return FormPdfTexts.Get("NoAnswer", culture);
+        var choices = answer.EnumerateArray().Select(value => Value(question with { Type = "choice" }, value, culture, record)).ToArray();
+        return string.Join(choices.Any(value => value.Contains('\n')) ? "\n\n" : ", ", choices);
+    }
+
+    private static string CapturedFieldValue(FormCatalogCapturedField field, CultureInfo locale) => field.Type switch
+    {
+        "text" => field.Value.GetString()!,
+        "integer" => field.Value.GetInt64().ToString("N0", locale),
+        "decimal" => decimal.Parse(field.Value.GetString()!, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture)
+            .ToString("#,##0.00##########################", locale),
+        "date" => DateOnly.ParseExact(field.Value.GetString()!, "yyyy-MM-dd", CultureInfo.InvariantCulture).ToString("d", locale),
+        "boolean" => FormPdfTexts.Get(field.Value.GetBoolean() ? "Yes" : "No", locale.TwoLetterISOLanguageName),
+        "catalog" => FieldText(field.Text!, locale),
+        _ => throw new InvalidOperationException("The captured catalog field type is invalid."),
+    };
+
+    private static string FieldText(IReadOnlyDictionary<string, string> texts, CultureInfo locale) =>
+        texts.TryGetValue(locale.TwoLetterISOLanguageName, out var value) && !string.IsNullOrWhiteSpace(value) ? value
+            : texts.TryGetValue("es", out value) && !string.IsNullOrWhiteSpace(value) ? value
+                : texts["en"];
 
     private sealed class DocumentLayout : IDisposable
     {

@@ -20,3 +20,5 @@
 - [Diseño y copia fija del PDF](../../../../../docs/features/formularios.md#diseño-y-copia-fija-del-pdf--etapa-4-g2) y [archivos privados](../../../../../docs/architecture/backend.md#archivos-privados).
 - [Procedencia de las fuentes](Fonts/SOURCE.md).
 - Pruebas: [renderer](../../../../../tests/ArquitecturaBase.Api.IntegrationTests/Modules/BusinessForms/FormPdfRendererTests.cs), [emoji](../../../../../tests/ArquitecturaBase.Api.IntegrationTests/Modules/BusinessForms/FormPdfEmojiTests.cs) y [retención de copias pendientes](../../../../../tests/ArquitecturaBase.Api.IntegrationTests/Modules/BusinessForms/FormPdfRetentionIntegrationTests.cs).
+
+E2-4: sólo campos sellados de papel data, localizados individualmente y agrupados por opción; no consulta configuración actual. Los de filter se omiten.
