@@ -26,7 +26,7 @@ public sealed class FormPersonDataPersistenceTests(ApiFactory factory)
         await using var db = new ApplicationDbContext(scope.ServiceProvider.GetRequiredService<DbContextOptions<ApplicationDbContext>>());
         try
         {
-            await db.GetService<IMigrator>().MigrateAsync(FormPersonDataMigrationFixture.WithPeople, Ct);
+            await db.GetService<IMigrator>().MigrateAsync(cancellationToken: Ct);
             var seed = await FormCatalogValueMigrationFixture.InsertAsync(db, factory.Clock.GetUtcNow().UtcDateTime, Ct);
             var names = new Dictionary<string, string> { ["es"] = "Zona", ["en"] = "Area" };
             var attribute = BusinessFormPersonAttribute.Create("zone", "es", names, BusinessFormPersonAttributeType.Catalog, seed.CatalogId, 0).Value;
@@ -84,7 +84,7 @@ public sealed class FormPersonDataPersistenceTests(ApiFactory factory)
         await using var db = new ApplicationDbContext(scope.ServiceProvider.GetRequiredService<DbContextOptions<ApplicationDbContext>>());
         try
         {
-            await db.GetService<IMigrator>().MigrateAsync(FormPersonDataMigrationFixture.WithPeople, Ct);
+            await db.GetService<IMigrator>().MigrateAsync(cancellationToken: Ct);
             await FormCatalogValueMigrationFixture.InsertAsync(db, factory.Clock.GetUtcNow().UtcDateTime, Ct);
             var first = Guid.NewGuid(); var second = Guid.NewGuid(); var questionId = Guid.NewGuid();
             object Question(Guid attributeId) => new { fieldId = questionId, source = new { match = new[] { new { fieldId = questionId, personAttributeId = attributeId } } } };
