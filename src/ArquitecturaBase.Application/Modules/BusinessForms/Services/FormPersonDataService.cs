@@ -119,9 +119,10 @@ internal sealed partial class FormPersonDataService(IFormPersonDataRepository re
         var source = await SourceAsync(request.Type!, request.SourceCatalogId, ct);
         if (source.IsFailure) return source.Error;
         var typeChanged = attribute.Type.ToString() != request.Type;
-        var stored = typeChanged || attribute.SourceCatalogId != request.SourceCatalogId ? await repository.ListDataWithValueAsync(id, ct) : [];
-        if (stored.Count > 0 && !request.ConfirmValueRemoval)
-            return FieldErrors.OnWithMetadata(FormPersonDataErrors.ValueRemovalDetails(stored.Count), typeChanged ? "type" : "sourceCatalogId");
+        var valuesChange = typeChanged || attribute.SourceCatalogId != request.SourceCatalogId;
+        var people = valuesChange && !request.ConfirmValueRemoval ? await reader.CountPeopleWithValueAsync(id, ct) : 0;
+        if (people > 0) return FieldErrors.OnWithMetadata(FormPersonDataErrors.ValueRemovalDetails(people), typeChanged ? "type" : "sourceCatalogId");
+        var stored = valuesChange ? await repository.ListDataWithValueAsync(id, ct) : [];
         var updated = attribute.Update(request.ExpectedRevision!.Value, Names(request.Name!), Enum.Parse<BusinessFormPersonAttributeType>(request.Type!), request.SourceCatalogId, request.Position, request.IsActive);
         if (updated.IsFailure) return updated.Error;
         foreach (var row in stored)

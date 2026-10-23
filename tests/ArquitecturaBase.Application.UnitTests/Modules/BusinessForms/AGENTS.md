@@ -54,7 +54,7 @@ FormAssistantChannelContextTests usa IDs opacos y modo neutral explícito para s
 
 FormApprovalContinuationServiceTests cubre contrato, dirección/tamaño/definición, actor, permiso antes y después de leer, ancla ausente y ausencia de transacción en esta lectura.
 
-Datos de personas: permisos OR/AND y revocación, revisión por fila/atributo, delta que conserva ausentes/inactivos y limpia null, source/opción activa, aislamiento por persona, máximo20, usados y confirmación que limpia sólo ese valor al cambiar tipo o fuente. El lector de opciones devuelve sólo id/text sin CatalogsRead. Casos PostgreSQL y locks reales van a integración.
+Datos de personas: permisos OR/AND y revocación, revisión por fila/atributo, delta que conserva ausentes/inactivos y limpia null, source/opción activa, aislamiento por persona, máximo20, usados y confirmación que limpia sólo ese valor al cambiar tipo o fuente; la confirmación cuenta sólo personas no borradas y la limpieza alcanza a las borradas. El lector de opciones devuelve sólo id/text sin CatalogsRead. Casos PostgreSQL y locks reales van a integración.
 
 E2-3 cubre canónico de Match, ausencia que nunca amplía oferta, huella exacta del esquema anterior y Source/Shown nulos omitidos. Preparación y asistente comparten cultura efectiva y límites; preview conserva exceso/títulos inválidos sólo para diagnóstico y revalida permisos también al devolver ausencia. Publicación separa bloqueos/avisos, máximo y unión de faltantes.
 

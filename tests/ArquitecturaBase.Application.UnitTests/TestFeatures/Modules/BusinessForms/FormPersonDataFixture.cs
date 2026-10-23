@@ -24,6 +24,7 @@ internal sealed class FormPersonDataFixture : IFormPersonDataRepository, IFormPe
     public Guid Subject { get; }
     public List<BusinessFormPersonAttribute> Attributes { get; } = [];
     public List<BusinessFormPersonData> Data { get; } = [];
+    public HashSet<Guid> DeletedUsers { get; } = [];
     public HashSet<Guid> UsedAttributes { get; } = [];
     public List<string> Events { get; } = [];
     public BusinessFormCatalog Catalog { get; } = BusinessFormCatalog.CreateManual("es", Names(), Names());
@@ -79,10 +80,15 @@ internal sealed class FormPersonDataFixture : IFormPersonDataRepository, IFormPe
     public Task<List<BusinessFormPersonData>> ListDataWithValueAsync(Guid attributeId, CancellationToken cancellationToken)
     {
         Assert.True(Work.InTransaction);
-        var key = attributeId.ToString("D");
-        return Task.FromResult(Data.Where(value => JsonSerializer.Deserialize<Dictionary<string, string>>(value.ValuesJson)!.ContainsKey(key))
-            .OrderBy(value => value.UserId).ToList());
+        return Task.FromResult(DataWithValue(attributeId).ToList());
     }
+    public Task<int> CountPeopleWithValueAsync(Guid attributeId, CancellationToken cancellationToken)
+    {
+        Assert.True(Work.InTransaction);
+        return Task.FromResult(DataWithValue(attributeId).Count(value => !DeletedUsers.Contains(value.UserId)));
+    }
+    private IEnumerable<BusinessFormPersonData> DataWithValue(Guid attributeId) => Data
+        .Where(value => JsonSerializer.Deserialize<Dictionary<string, string>>(value.ValuesJson)!.ContainsKey(attributeId.ToString("D"))).OrderBy(value => value.UserId);
     public void Add(BusinessFormPersonAttribute value) { Assert.True(Work.InTransaction); Attributes.Add(value); }
     public void Add(BusinessFormPersonData value) { Assert.True(Work.InTransaction); Data.Add(value); }
 

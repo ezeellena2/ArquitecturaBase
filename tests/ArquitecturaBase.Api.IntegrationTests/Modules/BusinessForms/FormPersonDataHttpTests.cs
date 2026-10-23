@@ -162,6 +162,72 @@ public sealed class FormPersonDataHttpTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Changing_an_attribute_type_asks_confirmation_only_for_people_who_are_not_deleted_and_still_clears_deleted_accounts()
+    {
+        var suffix = Guid.NewGuid().ToString("N")[..8];
+        using var manager = await OperatorAsync(BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage,
+            BusinessFormsPermissions.PersonDataManage, Permissions.Users.Manage);
+        using var catalogResponse = await manager.PostAsJsonAsync("/api/forms/catalogs", new
+        {
+            name = new { es = "Zonas borradas " + suffix, en = "Deleted zones " + suffix },
+            description = new { es = "Zonas", en = "Zones" }, items = new[] { Item("central", "CENTRAL", "Centro", "Central", true) },
+        }, Ct);
+        Assert.Equal(HttpStatusCode.Created, catalogResponse.StatusCode);
+        var catalogId = (await catalogResponse.ReadJsonAsync()).GetProperty("catalog").GetProperty("id").GetGuid();
+        var itemId = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormCatalogItem>().Where(item => item.CatalogId == catalogId)
+            .Select(item => item.Id).SingleAsync(Ct));
+        using var created = await manager.PostAsJsonAsync("/api/forms/person-attributes", new
+        {
+            key = "deleted_zone_" + suffix, name = new { es = "Zona", en = "Zone" }, type = "Catalog", sourceCatalogId = catalogId,
+        }, Ct);
+        Assert.Equal(HttpStatusCode.OK, created.StatusCode);
+        var attribute = await created.ReadJsonAsync();
+        var attributeId = attribute.GetProperty("id").GetGuid();
+        var key = attributeId.ToString("D");
+        var (visible, deleted) = await factory.InTransactionAsync(async services =>
+        {
+            var users = services.GetRequiredService<IUserRepository>();
+            var first = await users.CreateAsync(Email.Create(TestEmails.Unique("person-data-visible")).Value, null, false, "Persona visible " + suffix, "es", Ct);
+            var second = await users.CreateAsync(Email.Create(TestEmails.Unique("person-data-deleted")).Value, null, false, "Persona borrada " + suffix, "es", Ct);
+            return (first.Id, second.Id);
+        });
+        foreach (var userId in new[] { visible, deleted })
+        {
+            using var saved = await manager.PutAsJsonAsync($"/api/forms/person-data/{userId}", new
+            {
+                expectedRevision = (long?)null, values = new Dictionary<string, string?> { [key] = itemId.ToString("D") },
+            }, Ct);
+            Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+        }
+        await factory.InTransactionAsync(services => services.GetRequiredService<IUserRepository>().DeleteAsync(deleted, Ct));
+        var toText = new
+        {
+            expectedRevision = 1, name = new { es = "Zona", en = "Zone" }, type = "Text", sourceCatalogId = (Guid?)null,
+            position = attribute.GetProperty("position").GetInt32(), isActive = true,
+        };
+
+        using var visibleAndDeleted = await manager.PutAsJsonAsync($"/api/forms/person-attributes/{attributeId}", toText, Ct);
+
+        Assert.Equal(HttpStatusCode.BadRequest, visibleAndDeleted.StatusCode);
+        Assert.Equal(1, (await visibleAndDeleted.ReadJsonAsync()).GetProperty("count").GetInt32());
+
+        using var cleared = await manager.PutAsJsonAsync($"/api/forms/person-data/{visible}", new
+        {
+            expectedRevision = 1, values = new Dictionary<string, string?> { [key] = null },
+        }, Ct);
+        Assert.Equal(HttpStatusCode.OK, cleared.StatusCode);
+
+        using var onlyDeleted = await manager.PutAsJsonAsync($"/api/forms/person-attributes/{attributeId}", toText, Ct);
+
+        Assert.Equal(HttpStatusCode.OK, onlyDeleted.StatusCode);
+        Assert.Equal("Text", (await onlyDeleted.ReadJsonAsync()).GetProperty("type").GetString());
+        var stored = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormPersonData>().Where(row => row.UserId == deleted)
+            .Select(row => new { row.Revision, row.ValuesJson }).SingleAsync(Ct));
+        Assert.Equal(2, stored.Revision);
+        Assert.False(JsonDocument.Parse(stored.ValuesJson).RootElement.TryGetProperty(key, out _));
+    }
+
+    [Fact]
     public async Task Person_data_routes_require_authentication_and_dedicated_permissions_without_granting_user_read_access()
     {
         var id = Guid.CreateVersion7();

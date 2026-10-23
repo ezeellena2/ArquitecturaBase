@@ -145,6 +145,35 @@ public sealed class FormPersonDataServiceTests
     }
 
     [Fact]
+    public async Task Changing_the_type_counts_only_people_who_are_not_deleted_and_still_clears_the_values_of_deleted_accounts()
+    {
+        var fixture = new FormPersonDataFixture();
+        var zone = fixture.AddAttribute("zone");
+        var deleted = Guid.CreateVersion7();
+        fixture.DeletedUsers.Add(deleted);
+        var storedJson = JsonSerializer.Serialize(new Dictionary<string, string> { [zone.Id.ToString("D")] = fixture.ActiveItem.Id.ToString("D") });
+        var visible = BusinessFormPersonData.Create(fixture.Subject, storedJson);
+        fixture.Data.AddRange([visible, BusinessFormPersonData.Create(deleted, storedJson)]);
+        var request = new UpdateFormPersonAttributeRequest(1, Names(), "Text", null, 0, true);
+
+        var withVisiblePerson = await fixture.Service.UpdateAttributeAsync(zone.Id, request, Ct);
+
+        Assert.Equal("Forms.PersonAttribute.ValueRemovalNotConfirmed", withVisiblePerson.Error.Code);
+        Assert.Equal(1, withVisiblePerson.Error.Metadata!["count"]);
+
+        fixture.Data.Remove(visible);
+        var onlyDeleted = await fixture.Service.UpdateAttributeAsync(zone.Id, request, Ct);
+
+        Assert.True(onlyDeleted.IsSuccess);
+        Assert.Equal(BusinessFormPersonAttributeType.Text, zone.Type);
+        var row = Assert.Single(fixture.Data);
+        Assert.Equal(deleted, row.UserId);
+        Assert.False(JsonDocument.Parse(row.ValuesJson).RootElement.TryGetProperty(zone.Id.ToString("D"), out _));
+        Assert.Equal(2, row.Revision);
+        Assert.Equal(1, fixture.Work.Commits);
+    }
+
+    [Fact]
     public async Task Saving_person_values_uses_one_boundary_and_rejects_a_stale_initial_revision()
     {
         var fixture = new FormPersonDataFixture();

@@ -39,6 +39,14 @@ internal sealed partial class FormPersonDataReader(ApplicationDbContext dbContex
         return new(userId, data?.Revision, values, attributes, optionTexts);
     }
 
+    public Task<int> CountPeopleWithValueAsync(Guid attributeId, CancellationToken cancellationToken)
+    {
+        var key = attributeId.ToString("D");
+        return dbContext.Set<BusinessFormPersonData>().AsNoTracking()
+            .Where(value => EF.Functions.JsonExists(value.ValuesJson, key) && dbContext.Users.Any(user => user.Id == value.UserId))
+            .CountAsync(cancellationToken);
+    }
+
     public async Task<PagedResult<FormPersonDataTableRow>> ListPeopleAsync(ListFormPersonDataRequest request, CancellationToken cancellationToken)
     {
         var page = await FindPeople(request).ToPagedResultAsync(request, cancellationToken);
