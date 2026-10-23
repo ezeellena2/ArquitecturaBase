@@ -26,7 +26,7 @@ public sealed class FormPublicationsController(IFormPublicationAcceptanceService
     [ProducesProblem(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Accept([FromRoute] Guid id, [FromBody] AcceptFormPublicationHttpRequest request, CancellationToken cancellationToken)
     {
-        var result = await service.AcceptAsync(id, Map(request), cancellationToken);
+        var result = await service.AcceptAsync(id, FormDraftRequestMapping.Map(request), cancellationToken);
         if (result.IsFailure) return result.ToAcceptedResult(this);
 
         var receipt = result.Value;
@@ -42,13 +42,4 @@ public sealed class FormPublicationsController(IFormPublicationAcceptanceService
     [ProducesProblem(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Get([FromRoute] Guid id, [FromRoute] Guid requestId, CancellationToken cancellationToken) =>
         (await statusService.GetAsync(id, requestId, cancellationToken)).ToActionResult(this);
-
-    private static AcceptFormPublicationRequest Map(AcceptFormPublicationHttpRequest request) => new(request.RequestId,
-        request.ExpectedRevision, request.CheckToken, request.Name, request.Prefix,
-        request.Draft is { } draft ? new(draft.Format, draft.Culture, draft.SubmitLabel,
-            draft.Fields?.Select(field => field is null ? null! : new FormFieldInput(field.LocalId, field.FieldId, field.ReplacesFieldId,
-                field.Type, field.Label, field.Help, field.Required, field.MaxLength,
-                field.Options?.Select(option => option is null ? null! : new FormChoiceInput(option.LocalId, option.ChoiceId, option.Label)).ToArray(),
-                field.Source is null ? null : new FormQuestionSource(field.Source.Catalog), field.Files is null ? null : new FormFileSettings(field.Files.MinFiles, field.Files.MaxFiles, field.Files.PhotoSource),
-                field.Selection is null ? null : new FormSelectionSettings(field.Selection.MinSelected, field.Selection.MaxSelected))).ToArray()!) : null!);
 }

@@ -48,7 +48,7 @@ public sealed class FormDefinitionsController(IFormDraftService service) : Contr
     [ProducesProblem(StatusCodes.Status410Gone)]
     public async Task<IActionResult> Create([FromBody] SaveFormDraftHttpRequest request, CancellationToken cancellationToken)
     {
-        var result = await service.CreateAsync(Map(request), cancellationToken);
+        var result = await service.CreateAsync(FormDraftRequestMapping.Map(request), cancellationToken);
         if (result.IsFailure) return result.ToCreatedResult(this, nameof(Get), value => new { id = value.Definition.Id });
         return ArquitecturaBase.Domain.Results.Result.Success(MapCommit(result.Value)).ToCreatedResult(this, nameof(Get), value => new { id = value.Definition.Id });
     }
@@ -61,7 +61,7 @@ public sealed class FormDefinitionsController(IFormDraftService service) : Contr
     [ProducesProblem(StatusCodes.Status410Gone)]
     public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] SaveFormDraftHttpRequest request, CancellationToken cancellationToken)
     {
-        var result = await service.UpdateAsync(id, Map(request), cancellationToken);
+        var result = await service.UpdateAsync(id, FormDraftRequestMapping.Map(request), cancellationToken);
         return result.IsFailure ? result.ToActionResult(this) : ArquitecturaBase.Domain.Results.Result.Success(MapCommit(result.Value)).ToActionResult(this);
     }
     private FormDraftCommitHttpResponse MapCommit(FormDraftCommitResponse response) => new(response.RequestId, response.Definition,
@@ -71,11 +71,4 @@ public sealed class FormDefinitionsController(IFormDraftService service) : Contr
         new { id, requestId }) ?? throw new InvalidOperationException("The publication status route could not be generated.");
     private static ListFormDefinitionsRequest Map(ListFormDefinitionsQuery query) => new()
         { Page = query.Page, PageSize = query.PageSize, Search = query.Search, Sort = query.Sort, PublicationFilter = query.PublicationFilter };
-    private static SaveFormDraftRequest Map(SaveFormDraftHttpRequest request) => new(request.RequestId, request.Name, request.Prefix,
-        request.Draft is { } draft ? new(draft.Format, draft.Culture, draft.SubmitLabel,
-            draft.Fields?.Select(field => field is null ? null! : new FormFieldInput(field.LocalId, field.FieldId, field.ReplacesFieldId,
-                field.Type, field.Label, field.Help, field.Required, field.MaxLength,
-                field.Options?.Select(option => option is null ? null! : new FormChoiceInput(option.LocalId, option.ChoiceId, option.Label)).ToArray(),
-                field.Source is null ? null : new FormQuestionSource(field.Source.Catalog), field.Files is null ? null : new FormFileSettings(field.Files.MinFiles, field.Files.MaxFiles, field.Files.PhotoSource),
-                field.Selection is null ? null : new FormSelectionSettings(field.Selection.MinSelected, field.Selection.MaxSelected))).ToArray()!) : null!, request.ExpectedRevision, request.OfferWhen);
 }

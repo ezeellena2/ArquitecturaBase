@@ -67,9 +67,9 @@ internal static class FormDraftPolicy
                 if (!oldById.TryGetValue(sourceId.Value, out prior) || !usedOld.Add(sourceId.Value)) return FieldErrors.On(FormDraftErrors.IdentityInvalid, path + (input.FieldId.HasValue ? ".fieldId" : ".replacesFieldId"));
                 if (input.FieldId.HasValue && input.Type != prior.Type)
                     return FieldErrors.On(FormDraftErrors.QuestionConfigurationInvalid, path + ".type");
-                if (input.FieldId.HasValue && input.Source != prior.Source)
+                if (input.FieldId.HasValue && input.Source?.Catalog != prior.Source?.Catalog)
                     return FieldErrors.On(FormDraftErrors.QuestionConfigurationInvalid, path + ".source.catalog");
-                if (input.ReplacesFieldId.HasValue && input.Type == prior.Type && input.Source == prior.Source)
+                if (input.ReplacesFieldId.HasValue && input.Type == prior.Type && input.Source?.Catalog == prior.Source?.Catalog)
                     return FieldErrors.On(FormDraftErrors.QuestionConfigurationInvalid, path + ".type");
                 if (LostTranslations(prior.Label, input.Label)) return FieldErrors.On(FormDefinitionErrors.TranslationsWouldBeLost, path + ".label");
                 if (prior.Help is not null && prior.Help.Keys.Any(key => input.Help is null || !input.Help.ContainsKey(key)))

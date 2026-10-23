@@ -22,12 +22,5 @@ public sealed class FormPublicationChecksController(IBusinessFormPublicationServ
     [ProducesProblem(StatusCodes.Status404NotFound)]
     [ProducesProblem(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Check([FromRoute] Guid id, [FromBody] CheckFormPublicationHttpRequest request, CancellationToken cancellationToken) =>
-        (await service.CheckAsync(id, Map(request), cancellationToken)).ToActionResult(this);
-    private static CheckFormPublicationRequest Map(CheckFormPublicationHttpRequest request) => new(request.ExpectedRevision, request.Name, request.Prefix,
-        request.Draft is { } draft ? new(draft.Format, draft.Culture, draft.SubmitLabel,
-            draft.Fields?.Select(field => field is null ? null! : new FormFieldInput(field.LocalId, field.FieldId, field.ReplacesFieldId,
-                field.Type, field.Label, field.Help, field.Required, field.MaxLength,
-                field.Options?.Select(option => option is null ? null! : new FormChoiceInput(option.LocalId, option.ChoiceId, option.Label)).ToArray(),
-                field.Source is null ? null : new FormQuestionSource(field.Source.Catalog), field.Files is null ? null : new FormFileSettings(field.Files.MinFiles, field.Files.MaxFiles, field.Files.PhotoSource),
-                field.Selection is null ? null : new FormSelectionSettings(field.Selection.MinSelected, field.Selection.MaxSelected))).ToArray()!) : null!);
+        (await service.CheckAsync(id, FormDraftRequestMapping.Map(request), cancellationToken)).ToActionResult(this);
 }
