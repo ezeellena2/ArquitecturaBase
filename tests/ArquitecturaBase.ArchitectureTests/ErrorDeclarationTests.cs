@@ -125,6 +125,8 @@ public sealed class ErrorDeclarationTests
         // otro dueño, o un with, lo rompe.
         Assert.Equal(FieldsConstructorOwners, OwnersOf(calls, ".ctor", parameters: 1));
         Assert.Equal([CodedConstructorOwner], OwnersOf(calls, ".ctor", parameters: 3));
+        Assert.Equal([CodedConstructorOwner], OwnersOf(calls, ".ctor", parameters: 5));
+        Assert.DoesNotContain(calls, call => call.Method == ".ctor" && call.Parameters is not (1 or 3 or 5));
         Assert.Empty(OwnersOf(calls, "<Clone>$", parameters: 0));
     }
 
@@ -138,6 +140,7 @@ public sealed class ErrorDeclarationTests
 
         Assert.Contains(typeof(ControlOutsideDomainErrors).FullName, OwnersOf(calls, ".ctor", parameters: 1));
         Assert.Contains(typeof(ControlOutsideDomainErrors).FullName, OwnersOf(calls, ".ctor", parameters: 3));
+        Assert.Contains(typeof(ControlOutsideDomainErrors).FullName, OwnersOf(calls, ".ctor", parameters: 5));
         Assert.Contains(typeof(ControlOutsideDomainErrors).FullName, OwnersOf(calls, "<Clone>$", parameters: 0));
     }
 

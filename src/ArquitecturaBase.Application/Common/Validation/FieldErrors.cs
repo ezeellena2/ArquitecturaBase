@@ -26,4 +26,13 @@ internal static class FieldErrors
     /// <summary>Un error de validación común (<c>Validation.Failed</c>) en un solo campo.</summary>
     public static ValidationError Validation(string field, string message) =>
         new(new Dictionary<string, string[]>(StringComparer.Ordinal) { [field] = [message] });
+
+    /// <summary>Opt-in for errors whose declared metadata belongs in the field response, including conflicts.</summary>
+    public static ValidationError OnWithMetadata(Error error, string field)
+    {
+        ArgumentNullException.ThrowIfNull(error);
+        return new(error.Code, error.Description,
+            new Dictionary<string, string[]>(StringComparer.Ordinal) { [field] = [ErrorMessages.Find(error.Code) ?? error.Description] },
+            error.Type, error.Metadata);
+    }
 }

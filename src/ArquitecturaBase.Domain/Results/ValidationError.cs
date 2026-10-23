@@ -22,5 +22,14 @@ public sealed record ValidationError : Error
         Errors = errors;
     }
 
+    /// <summary>A field error that explicitly preserves a business error's status and safe metadata.</summary>
+    public ValidationError(string code, string description, IReadOnlyDictionary<string, string[]> errors,
+        ErrorType type, IReadOnlyDictionary<string, object?>? metadata)
+        : base(code, description, type, metadata)
+    {
+        ArgumentNullException.ThrowIfNull(errors);
+        Errors = errors;
+    }
+
     public IReadOnlyDictionary<string, string[]> Errors { get; }
 }

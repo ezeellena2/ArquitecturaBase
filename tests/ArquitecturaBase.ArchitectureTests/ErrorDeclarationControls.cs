@@ -14,6 +14,9 @@ namespace ArquitecturaBase.ArchitectureTests
         // Los constructores de ValidationError y la copia with, que armarían un error desde afuera de Domain.
         public static readonly Error Field = new ValidationError("Controls.Control.Field", "Field.", new Dictionary<string, string[]>());
 
+        public static readonly Error FieldWithMetadata = new ValidationError("Controls.Control.Field", "Field.",
+            new Dictionary<string, string[]>(), ErrorType.Conflict, new Dictionary<string, object?> { ["count"] = 1 });
+
         public static readonly Error Fields = new ValidationError(new Dictionary<string, string[]>());
 
         public static readonly Error FieldCopied = ((ValidationError)Fields) with { Code = "Controls.Control.Copied" };
