@@ -44,7 +44,7 @@ public sealed class FormCatalogFieldRecorderTests
         var field = Field();
         Assert.True(catalog.SetFields([field], null).IsSuccess);
         var reader = new FormCatalogFieldReader();
-        reader.Uses.Add(new(Guid.CreateVersion7(), "Form", "Question", "Active"));
+        reader.Uses.Add(new(Guid.CreateVersion7(), "Form", "Question", "Active", field.Id));
         var result = await new FormCatalogFieldRecorder(reader).PrepareAsync(catalog, [], [Input(field.Id) with { IsActive = false }], null, [], TestContext.Current.CancellationToken);
         Assert.Equal("Forms.Catalog.FieldInUse", result.Error.Code);
         Assert.Equal(ArquitecturaBase.Domain.Results.ErrorType.Conflict, result.Error.Type);

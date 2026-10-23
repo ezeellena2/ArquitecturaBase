@@ -108,6 +108,6 @@ internal sealed class FormCatalogImportFixture : IFormCatalogRepository, IFormCa
     public static FormSpreadsheetRow Row(int number, params string[] cells) => new(number, cells.Select(value => new FormSpreadsheetCell(value)).ToArray());
     private static Dictionary<string, string> Texts() => new() { ["es"] = "Propio", ["en"] = "Own" };
     public void Dispose() => Content.Dispose();
-    public Task<IReadOnlyList<FormCatalogFieldUsageRow>> FindFieldUsageAsync(Guid catalogId, Guid fieldId, CancellationToken ct) => Task.FromResult<IReadOnlyList<FormCatalogFieldUsageRow>>([]);
+    public Task<IReadOnlyList<FormCatalogFieldUsageRow>> FindFieldUsageAsync(Guid catalogId, IReadOnlyCollection<Guid> fieldIds, CancellationToken ct) => Task.FromResult<IReadOnlyList<FormCatalogFieldUsageRow>>([]);
     public Task<bool> ExistsSourceUsageAsync(Guid catalogId, CancellationToken ct) => Task.FromResult(false);
 }

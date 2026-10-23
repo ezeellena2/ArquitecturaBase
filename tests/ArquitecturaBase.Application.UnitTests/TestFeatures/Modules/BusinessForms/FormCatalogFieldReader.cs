@@ -6,11 +6,16 @@ namespace ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessFo
 
 internal sealed class FormCatalogFieldReader : IFormCatalogReader
 {
+    public int UsageReads { get; private set; }
     public bool SourceInUse { get; set; }
     public List<FormCatalogFieldUsageRow> Uses { get; } = [];
     public Dictionary<Guid, FormCatalogStoredRow> Catalogs { get; } = [];
     public Dictionary<Guid, IReadOnlyList<FormCatalogStoredItemRow>> Items { get; } = [];
-    public Task<IReadOnlyList<FormCatalogFieldUsageRow>> FindFieldUsageAsync(Guid catalogId, Guid fieldId, CancellationToken ct) => Task.FromResult<IReadOnlyList<FormCatalogFieldUsageRow>>(Uses);
+    public Task<IReadOnlyList<FormCatalogFieldUsageRow>> FindFieldUsageAsync(Guid catalogId, IReadOnlyCollection<Guid> fieldIds, CancellationToken ct)
+    {
+        UsageReads++;
+        return Task.FromResult<IReadOnlyList<FormCatalogFieldUsageRow>>(Uses.Where(use => fieldIds.Contains(use.FieldId)).ToArray());
+    }
     public Task<bool> ExistsSourceUsageAsync(Guid catalogId, CancellationToken ct) => Task.FromResult(SourceInUse);
     public Task<IReadOnlyList<FormCatalogStoredItemRow>> ListAllItemsAsync(Guid catalogId, CancellationToken ct) => Task.FromResult(Items.GetValueOrDefault(catalogId) ?? (IReadOnlyList<FormCatalogStoredItemRow>)[]);
     public Task<IReadOnlyList<FormCatalogStoredItemRow>> ListOfferItemsAsync(Guid catalogId, CancellationToken ct, string? fieldValueContainmentJson = null) => throw new NotSupportedException();

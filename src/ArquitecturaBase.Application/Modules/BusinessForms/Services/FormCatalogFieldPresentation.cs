@@ -22,10 +22,12 @@ internal static class FormCatalogFieldPresentation
         var culture = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es";
         var values = items.Select(item => FormCatalogFieldPolicy.ReadValues(item.FieldValuesJson)).ToArray();
         var responses = new List<FormCatalogFieldResponse>();
+        var fieldIds = fields.Where(field => field.IsActive).Select(field => field.Id).ToArray();
+        var uses = fieldIds.Length == 0 ? [] : await reader.FindFieldUsageAsync(detail.Id, fieldIds, ct);
+        var usesByField = uses.ToLookup(use => use.FieldId);
         foreach (var field in fields)
         {
-            var uses = field.IsActive ? await reader.FindFieldUsageAsync(detail.Id, field.Id, ct) : [];
-            var usedBy = uses.Select(use => new FormCatalogFieldUsageResponse(use.DefinitionId, use.FormName, use.Question, use.Stage)).ToList();
+            var usedBy = usesByField[field.Id].Select(use => new FormCatalogFieldUsageResponse(use.DefinitionId, use.FormName, use.Question, use.Stage)).ToList();
             if (presentation?.Title.Contains(field.Id.ToString("D")) == true || presentation?.Description.Contains(field.Id.ToString("D")) == true)
                 usedBy.Add(new(null, detail.Name.GetValueOrDefault(culture) ?? detail.Name["es"], null, "Catalog"));
             responses.Add(new(field.Id, field.Key, field.Name, field.Type, field.SourceCatalogId, field.Required, field.Unique,

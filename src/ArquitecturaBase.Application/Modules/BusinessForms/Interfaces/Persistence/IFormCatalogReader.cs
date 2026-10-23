@@ -12,7 +12,7 @@ public interface IFormCatalogReader
         CancellationToken cancellationToken);
     Task<FormCatalogStoredRow?> FindAsync(Guid id, CancellationToken cancellationToken);
     Task<int> CountUsageAsync(Guid catalogId, CancellationToken cancellationToken);
-    Task<IReadOnlyList<FormCatalogFieldUsageRow>> FindFieldUsageAsync(Guid catalogId, Guid fieldId, CancellationToken cancellationToken);
+    Task<IReadOnlyList<FormCatalogFieldUsageRow>> FindFieldUsageAsync(Guid catalogId, IReadOnlyCollection<Guid> fieldIds, CancellationToken cancellationToken);
     Task<bool> ExistsSourceUsageAsync(Guid catalogId, CancellationToken cancellationToken);
     Task<int> CountActiveItemsAsync(Guid catalogId, CancellationToken cancellationToken);
     Task<PagedResult<FormCatalogItemResponse>> ListItemsAsync(Guid id, ListFormCatalogItemsRequest request, CancellationToken cancellationToken);

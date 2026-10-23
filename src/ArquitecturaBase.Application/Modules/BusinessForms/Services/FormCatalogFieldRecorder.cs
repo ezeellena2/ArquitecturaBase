@@ -47,6 +47,9 @@ internal sealed class FormCatalogFieldRecorder(IFormCatalogReader reader)
             }
             if (original.Any(field => !seen.Contains(field.Id))) return FieldErrors.On(FormCatalogErrors.FieldInvalid, "fields");
         }
+        var removedIds = resolved.Where(field => !field.IsActive && byId.TryGetValue(field.Id, out var old) && old.IsActive).Select(field => field.Id).ToArray();
+        var fieldUses = removedIds.Length == 0 ? [] : await reader.FindFieldUsageAsync(catalog.Id, removedIds, ct);
+        var usesByField = fieldUses.ToLookup(use => use.FieldId);
         for (var index = 0; index < resolved.Count; index++)
         {
             var field = resolved[index];
@@ -60,8 +63,8 @@ internal sealed class FormCatalogFieldRecorder(IFormCatalogReader reader)
                 return FieldErrors.OnWithMetadata(FormCatalogErrors.FieldDetails(FormCatalogErrors.FieldInUse,
                     new Dictionary<string, object?> { ["uses"] = ownUses }), $"fields[{index}].isActive");
             }
-            var uses = await reader.FindFieldUsageAsync(catalog.Id, field.Id, ct);
-            if (uses.Count > 0) return FieldErrors.OnWithMetadata(FormCatalogErrors.FieldDetails(FormCatalogErrors.FieldInUse,
+            var uses = usesByField[field.Id].Select(use => new FormCatalogFieldUsageResponse(use.DefinitionId, use.FormName, use.Question, use.Stage)).ToArray();
+            if (uses.Length > 0) return FieldErrors.OnWithMetadata(FormCatalogErrors.FieldDetails(FormCatalogErrors.FieldInUse,
                 new Dictionary<string, object?> { ["uses"] = uses }), $"fields[{index}].isActive");
             var count = items.Count(item => FormCatalogFieldPolicy.ReadValues(item.FieldValuesJson).ContainsKey(field.Id.ToString("D")));
             if (count > 0 && confirmedRemovals?.Contains(field.Id) != true)

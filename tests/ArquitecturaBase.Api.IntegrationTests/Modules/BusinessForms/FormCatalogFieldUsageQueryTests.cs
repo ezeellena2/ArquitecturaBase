@@ -14,7 +14,8 @@ public sealed class FormCatalogFieldUsageQueryTests
             .UseNpgsql("Host=localhost;Database=not-opened;Username=test;Password=test").Options);
         var method = typeof(FormCatalogReader).GetMethod("FindFieldUsages", BindingFlags.NonPublic | BindingFlags.Instance);
         Assert.NotNull(method);
-        var query = Assert.IsAssignableFrom<IQueryable>(method.Invoke(new FormCatalogReader(db), [Guid.NewGuid(), Guid.NewGuid(), "en"]));
+        Assert.Equal(typeof(IReadOnlyCollection<Guid>), method.GetParameters()[1].ParameterType);
+        var query = Assert.IsAssignableFrom<IQueryable>(method.Invoke(new FormCatalogReader(db), [Guid.NewGuid(), new[] { Guid.NewGuid(), Guid.NewGuid() }, "en"]));
 
         var sql = query.ToQueryString();
 
@@ -27,6 +28,8 @@ public sealed class FormCatalogFieldUsageQueryTests
         Assert.Contains("'presentation', 'description'", sql, StringComparison.Ordinal);
         Assert.Contains("'Draft'", sql, StringComparison.Ordinal);
         Assert.Contains("'Active'", sql, StringComparison.Ordinal);
+        Assert.Contains("UNNEST", sql, StringComparison.Ordinal);
+        Assert.Contains("requested.\"FieldId\"", sql, StringComparison.Ordinal);
         Assert.Contains("NOT definition.\"IsDeleted\"", sql, StringComparison.Ordinal);
         Assert.DoesNotContain("DeactivatedAtUtc", sql, StringComparison.Ordinal);
     }
