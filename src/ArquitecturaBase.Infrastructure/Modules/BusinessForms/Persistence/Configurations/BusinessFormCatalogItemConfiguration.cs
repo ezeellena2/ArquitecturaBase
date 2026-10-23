@@ -12,6 +12,8 @@ internal sealed class BusinessFormCatalogItemConfiguration : IEntityTypeConfigur
         builder.HasKey(value => value.Id);
         builder.Property(value => value.Code).HasMaxLength(80);
         builder.Property(value => value.Value).HasMaxLength(64);
+        builder.Property(value => value.FieldValuesJson).HasColumnType("jsonb").HasDefaultValue("{}");
+        builder.HasIndex(value => value.FieldValuesJson).HasMethod("gin").HasOperators("jsonb_path_ops");
         builder.Property(value => value.TextEs).HasMaxLength(200);
         builder.Property(value => value.TextEn).HasMaxLength(200);
         builder.Property(value => value.DetailEs).HasMaxLength(500);

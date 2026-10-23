@@ -1056,6 +1056,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(120)")
                         .HasComputedColumnSql("COALESCE(NULLIF(\"NameJson\" ->> 'es', ''), NULLIF(\"NameJson\" ->> 'en', ''), '')", true);
 
+                    b.Property<string>("FieldsJson")
+                        .HasColumnType("jsonb");
+
                     b.Property<string>("FiltersJson")
                         .HasColumnType("jsonb");
 
@@ -1087,6 +1090,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("NameJson")
                         .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("PresentationJson")
                         .HasColumnType("jsonb");
 
                     b.Property<DateTime?>("ProposalDecidedAtUtc")
@@ -1130,6 +1136,8 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("CK_BusinessFormCatalogs_LastImport", "(\"LastImportSha256\" IS NULL) = (\"LastImportAtUtc\" IS NULL)");
 
+                            t.HasCheckConstraint("CK_BusinessFormCatalogs_ManualFields", "\"Kind\" = 'Manual' OR (\"FieldsJson\" IS NULL AND \"PresentationJson\" IS NULL)");
+
                             t.HasCheckConstraint("CK_BusinessFormCatalogs_Proposal", "(\"ProposalId\" IS NULL AND \"ProposalEvidenceJson\" IS NULL AND \"ProposalState\" IS NULL\n    AND \"ProposalDecidedByUserId\" IS NULL AND \"ProposalDecidedAtUtc\" IS NULL)\nOR (\"Kind\" = 'Filters' AND \"ProposalId\" IS NOT NULL AND \"ProposalEvidenceJson\" IS NOT NULL AND \"ProposalState\" IS NOT NULL AND (\n    (\"ProposalState\" = 'Pending' AND NOT \"IsActive\" AND \"ProposalDecidedByUserId\" IS NULL AND \"ProposalDecidedAtUtc\" IS NULL)\n    OR (\"ProposalState\" = 'Approved' AND \"ProposalDecidedByUserId\" IS NOT NULL AND \"ProposalDecidedAtUtc\" IS NOT NULL)\n    OR (\"ProposalState\" = 'Discarded' AND NOT \"IsActive\" AND \"ProposalDecidedByUserId\" IS NOT NULL AND \"ProposalDecidedAtUtc\" IS NOT NULL)))");
 
                             t.HasCheckConstraint("CK_BusinessFormCatalogs_ValueType", "\"ValueType\" IN ('Text','Integer','Decimal','Date') AND (\"Kind\" = 'Manual' OR \"ValueType\" = 'Text')");
@@ -1164,6 +1172,12 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
+                    b.Property<string>("FieldValuesJson")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("jsonb")
+                        .HasDefaultValue("{}");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
 
@@ -1190,6 +1204,11 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(64)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("FieldValuesJson");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("FieldValuesJson"), "gin");
+                    NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("FieldValuesJson"), new[] { "jsonb_path_ops" });
 
                     b.HasIndex("CatalogId", "IsActive", "Position", "Id");
 
@@ -1829,6 +1848,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid>("FieldId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("FieldValuesJson")
+                        .HasColumnType("jsonb");
 
                     b.Property<Guid>("ItemId")
                         .HasColumnType("uuid");

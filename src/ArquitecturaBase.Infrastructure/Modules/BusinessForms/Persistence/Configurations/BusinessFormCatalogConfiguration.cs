@@ -11,6 +11,7 @@ internal sealed class BusinessFormCatalogConfiguration : IEntityTypeConfiguratio
         builder.ToTable("BusinessFormCatalogs", table =>
         {
             table.HasCheckConstraint("CK_BusinessFormCatalogs_LastImport", "(\"LastImportSha256\" IS NULL) = (\"LastImportAtUtc\" IS NULL)");
+            table.HasCheckConstraint("CK_BusinessFormCatalogs_ManualFields", "\"Kind\" = 'Manual' OR (\"FieldsJson\" IS NULL AND \"PresentationJson\" IS NULL)");
             table.HasCheckConstraint("CK_BusinessFormCatalogs_ValueType",
                 "\"ValueType\" IN ('Text','Integer','Decimal','Date') AND (\"Kind\" = 'Manual' OR \"ValueType\" = 'Text')");
             table.HasCheckConstraint("CK_BusinessFormCatalogs_KindFilters",
@@ -30,6 +31,8 @@ internal sealed class BusinessFormCatalogConfiguration : IEntityTypeConfiguratio
         builder.Property(value => value.NameJson).HasColumnType("jsonb");
         builder.Property(value => value.DescriptionJson).HasColumnType("jsonb");
         builder.Property(value => value.FiltersJson).HasColumnType("jsonb");
+        builder.Property(value => value.FieldsJson).HasColumnType("jsonb");
+        builder.Property(value => value.PresentationJson).HasColumnType("jsonb");
         builder.Property(value => value.ProposalEvidenceJson).HasColumnType("jsonb");
         builder.Property(value => value.ProposalState).HasConversion<string>().HasMaxLength(16);
         builder.HasIndex(value => value.ProposalId).IsUnique();

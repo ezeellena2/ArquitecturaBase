@@ -18,6 +18,8 @@ AddCatalogImportMarker agrega sólo las dos columnas nullable de la última plan
 
 AddFormMultipleChoiceValues agrega Position con default 0 y CHECK 0–19, y cambia sólo los índices únicos de valores y referencias para admitir varias elecciones. Conserva JSON, versiones, hashes y recibos. Down toma locks de definiciones, campos, valores y referencias y rechaza multiChoice en el borrador SchemaJson.fields, aun sin versión publicada o con activa escalar, o una identidad BusinessFormFields.Type=multiChoice incluso sin valores o con una sola elegida en Position 0, cualquier Position mayor que 0 o varias referencias por pregunta antes de cualquier DDL; nunca adapta ni borra hechos para volver atrás.
 
+AddCatalogFieldsAndPresentation agrega FieldsJson/PresentationJson nullable sólo para Manual, FieldValuesJson de ítems con default `{}` e índice GIN `jsonb_path_ops`, y snapshot nullable en referencias. No reescribe historia. Down toma locks de las tres tablas y rechaza metadata o valores E2 antes de cualquier DDL. FormCatalogFieldsMigrationTests prepara conservación Up/Down/Up, default, CHECK, índice y rechazo sin pérdida por cada columna; PostgreSQL sólo se ejecuta al cierre conjunto.
+
 ## Referencias
 
 - [Comandos y revisión obligatoria](../../../../docs/guides/migracion.md).
