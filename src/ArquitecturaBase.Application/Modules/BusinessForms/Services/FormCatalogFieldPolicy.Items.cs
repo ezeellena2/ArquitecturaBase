@@ -41,9 +41,10 @@ internal static partial class FormCatalogFieldPolicy
                 values[item.Id].TryGetValue(key, out var raw);
                 var input = raw.ValueKind == JsonValueKind.Undefined ? null : Input(raw);
                 var fresh = Fresh(item.Id, key);
+                var sent = Sent(item.Id, key);
                 var rowField = field with { Required = field.Required && item.IsActive };
                 var parsed = context.TypeChanges.Contains(field.Id)
-                    ? Convert(context.Previous[field.Id], rowField, input, fresh, context, sourceIndexes)
+                    ? Convert(context.Previous[field.Id], rowField, input, sent, context, sourceIndexes)
                     : Normalize(rowField, input);
                 if (parsed.IsSuccess && parsed.Value is { } selection && field.Type == "catalog"
                     && (!sourceIndexes.TryGetValue(field.SourceCatalogId!.Value, out var source)
@@ -56,7 +57,7 @@ internal static partial class FormCatalogFieldPolicy
                     {
                         invalidCount++;
                         if (invalid.Count < 50) invalid.Add(new(item.Id, item.Code, item.Position, Attempted(input), InvalidReason(field, input, parsed.Error,
-                            unbounded => Convert(context.Previous[field.Id], unbounded, input, fresh, context, sourceIndexes))));
+                            unbounded => Convert(context.Previous[field.Id], unbounded, input, sent, context, sourceIndexes))));
                         continue;
                     }
                     var path = inputIndexes.TryGetValue(item.Id, out var index) ? $"items[{index}].fields.{key}" : $"fields[{fieldIndex}].type";
@@ -89,12 +90,15 @@ internal static partial class FormCatalogFieldPolicy
         // only a new or changed one needs an active option.
         bool Fresh(Guid itemId, string key) => requested.TryGetValue(itemId, out var sent) && sent.TryGetValue(key, out var value)
             && (!stored[itemId].TryGetValue(key, out var saved) || !JsonElement.DeepEquals(saved, value));
+
+        // A value received in this save was edited by the user, even when it equals the saved text.
+        bool Sent(Guid itemId, string key) => inputIndexes.TryGetValue(itemId, out var index) && inputs[index]!.Fields?.ContainsKey(key) == true;
     }
 
-    // A catalog target resolves the source option by identity, code or text. Otherwise a value edited in this save already
-    // arrives canonical in the new type, while a saved one is read like an imported cell: text in the request culture,
-    // where an ambiguous number does not convert, and a value of another type in its canonical form.
-    private static Result<JsonElement?> Convert(BusinessFormCatalogField previous, BusinessFormCatalogField field, string? input, bool fresh,
+    // A catalog target resolves the source option by identity, code or text. Otherwise a value received in this save already
+    // arrives canonical in the new type, even when it equals the saved text, while a saved one is read like an imported cell:
+    // text in the request culture, where an ambiguous number does not convert, and a value of another type in its canonical form.
+    private static Result<JsonElement?> Convert(BusinessFormCatalogField previous, BusinessFormCatalogField field, string? input, bool sent,
         FormCatalogFieldContext context, Dictionary<Guid, FormCatalogFieldSourceIndex> sourceIndexes)
     {
         if (field.Type == "catalog" && sourceIndexes.TryGetValue(field.SourceCatalogId!.Value, out var source))
@@ -102,7 +106,7 @@ internal static partial class FormCatalogFieldPolicy
             var resolved = ResolveCatalogValue(source, input);
             return resolved.IsFailure ? resolved.Error : Normalize(field, resolved.Value);
         }
-        return fresh ? Normalize(field, input) : NormalizeImport(field, input, context.Culture, canonical: previous.Type != "text");
+        return sent ? Normalize(field, input) : NormalizeImport(field, input, context.Culture, canonical: previous.Type != "text");
     }
 
     private static string? Attempted(string? input) => input?.Trim() is { Length: > 0 } value ? value[..Math.Min(value.Length, 300)] : null;

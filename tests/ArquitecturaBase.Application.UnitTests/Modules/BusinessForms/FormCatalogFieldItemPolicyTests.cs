@@ -168,16 +168,27 @@ public sealed class FormCatalogFieldItemPolicyTests
     public void A_value_edited_while_converting_is_read_as_the_new_type()
     {
         var field = Field("decimal");
-        var key = field.Id.ToString("D");
         var catalog = BusinessFormCatalog.CreateManual("es", new Dictionary<string, string> { ["es"] = "Catalog" }, new Dictionary<string, string>());
         var item = catalog.AddManualItem("one", "One", null, null, null, 1).Value;
         StoreText(catalog, item, field, "doce");
-        var requested = new Dictionary<Guid, Dictionary<string, JsonElement>>
-        {
-            [item.Id] = new(StringComparer.Ordinal) { [key] = JsonSerializer.SerializeToElement("12.345", JsonSerializerOptions.Web) },
-        };
+        var recorder = new FormCatalogItemRecorder(new FormCatalogCapacityRepository(catalog, [item]));
 
-        var result = FormCatalogFieldPolicy.ValidateItems(catalog, [item], [], requested, Context(field, previousType: "text", culture: "es"));
+        var result = recorder.Record(catalog, [item], [Edited(item, field, "12.345")], fieldContext: Context(field, previousType: "text", culture: "es"));
+
+        Assert.True(result.IsSuccess, Describe(result));
+        Assert.Equal("12.345", StoredInput(item, field));
+    }
+
+    [Fact]
+    public void A_value_sent_while_converting_is_read_as_the_new_type_even_when_it_equals_the_saved_text()
+    {
+        var field = Field("decimal");
+        var catalog = BusinessFormCatalog.CreateManual("es", new Dictionary<string, string> { ["es"] = "Catalog" }, new Dictionary<string, string>());
+        var item = catalog.AddManualItem("one", "One", null, null, null, 1).Value;
+        StoreText(catalog, item, field, "12.345");
+        var recorder = new FormCatalogItemRecorder(new FormCatalogCapacityRepository(catalog, [item]));
+
+        var result = recorder.Record(catalog, [item], [Edited(item, field, "12.345")], fieldContext: Context(field, previousType: "text", culture: "es"));
 
         Assert.True(result.IsSuccess, Describe(result));
         Assert.Equal("12.345", StoredInput(item, field));
@@ -298,6 +309,11 @@ public sealed class FormCatalogFieldItemPolicyTests
 
     private static void StoreText(BusinessFormCatalog catalog, BusinessFormCatalogItem item, BusinessFormCatalogField field, string value) =>
         Assert.True(catalog.SetManualItemFields(item, JsonSerializer.Serialize(new Dictionary<string, string> { [field.Id.ToString("D")] = value })).IsSuccess);
+
+    // An edited cell travels as the front sends it: only that key in the item's Fields, canonical in the field's type.
+    private static FormCatalogManualItemSaveRequest Edited(BusinessFormCatalogItem item, BusinessFormCatalogField field, string value) =>
+        new(null, item.Id, item.Code, new Dictionary<string, string?> { ["es"] = item.TextEs }, null, true,
+            Fields: new Dictionary<string, string?> { [field.Id.ToString("D")] = value });
 
     private sealed record ZoneScenario(BusinessFormCatalog Catalog, BusinessFormCatalogField Field, FormCatalogStoredItemRow North,
         FormCatalogStoredItemRow South, FormCatalogFieldContext Context)
