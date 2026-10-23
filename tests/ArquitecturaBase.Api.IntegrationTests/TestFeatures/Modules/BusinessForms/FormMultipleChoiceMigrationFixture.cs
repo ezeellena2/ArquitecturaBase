@@ -7,6 +7,7 @@ namespace ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessFor
 internal sealed record FormMultipleChoiceMigrationFixture(Guid RecordId, Guid FieldId, Guid? ValueId, Guid? ReferenceId, Guid? ItemId)
 {
     public const string Before = "20261022114007_AddCatalogImportMarker";
+    public const string WithMultipleChoices = "20261022125008_AddFormMultipleChoiceValues";
 
     public static async Task<Guid> AddDraftAsync(ApplicationDbContext db, FormCatalogValueMigrationFixture catalog,
         DateTime nowUtc, bool publishedScalar, CancellationToken ct)
@@ -102,6 +103,39 @@ internal sealed record FormMultipleChoiceMigrationFixture(Guid RecordId, Guid Fi
         }
         return new(recordId, fieldId, count > 0 ? firstValue : null, count > 0 ? firstReference : null, count > 0 ? choices[0] : null);
     }
+
+    // Only columns present before AddFormMultipleChoiceValues participate in the Up/Down comparison.
+    public static Task<string[]> LegacyRowsAsync(ApplicationDbContext db, CancellationToken ct) => db.Database.SqlQueryRaw<string>("""
+        SELECT jsonb_build_object('table', 'definition', 'data', to_jsonb(r))::text AS "Value" FROM "FormDefinitions" r
+        UNION ALL SELECT jsonb_build_object('table', 'version', 'data', to_jsonb(r))::text FROM "BusinessFormVersions" r
+        UNION ALL SELECT jsonb_build_object('table', 'operation', 'data', to_jsonb(r))::text FROM "BusinessFormPublicationOperations" r
+        UNION ALL SELECT jsonb_build_object('table', 'field', 'data', to_jsonb(r))::text FROM "BusinessFormFields" r
+        UNION ALL SELECT jsonb_build_object('table', 'record', 'data', to_jsonb(r))::text FROM "BusinessFormRecords" r
+        UNION ALL SELECT jsonb_build_object('table', 'recordValue', 'data', jsonb_build_object(
+            'Id', r."Id", 'DefinitionId', r."DefinitionId", 'RecordId', r."RecordId", 'FieldId', r."FieldId", 'Type', r."Type",
+            'TextValue', r."TextValue", 'DecimalValue', r."DecimalValue", 'DateValue', r."DateValue", 'BooleanValue', r."BooleanValue", 'ChoiceId', r."ChoiceId"))::text
+            FROM "BusinessFormRecordValues" r
+        UNION ALL SELECT jsonb_build_object('table', 'receipt', 'data', to_jsonb(r))::text FROM "BusinessFormCaptureReceipts" r
+        UNION ALL SELECT jsonb_build_object('table', 'catalog', 'data', jsonb_build_object(
+            'Id', r."Id", 'Key', r."Key", 'Kind', r."Kind", 'NameJson', r."NameJson", 'DescriptionJson', r."DescriptionJson",
+            'FiltersJson', r."FiltersJson", 'IsActive', r."IsActive", 'Revision', r."Revision", 'CreatedAtUtc', r."CreatedAtUtc",
+            'CreatedBy', r."CreatedBy", 'ModifiedAtUtc', r."ModifiedAtUtc", 'ModifiedBy', r."ModifiedBy", 'ProposalId', r."ProposalId",
+            'ProposalEvidenceJson', r."ProposalEvidenceJson", 'ProposalState', r."ProposalState", 'ProposalDecidedByUserId', r."ProposalDecidedByUserId",
+            'ProposalDecidedAtUtc', r."ProposalDecidedAtUtc", 'DisplayNameEs', r."DisplayNameEs", 'DisplayNameEn', r."DisplayNameEn",
+            'DisplayDescriptionEs', r."DisplayDescriptionEs", 'DisplayDescriptionEn', r."DisplayDescriptionEn", 'ValueType', r."ValueType",
+            'LastImportSha256', r."LastImportSha256", 'LastImportAtUtc', r."LastImportAtUtc"))::text FROM "BusinessFormCatalogs" r
+        UNION ALL SELECT jsonb_build_object('table', 'item', 'data', jsonb_build_object(
+            'Id', r."Id", 'CatalogId', r."CatalogId", 'Code', r."Code", 'Value', r."Value", 'TextEs', r."TextEs", 'TextEn', r."TextEn",
+            'DetailEs', r."DetailEs", 'DetailEn', r."DetailEn", 'Position', r."Position", 'IsActive', r."IsActive",
+            'CreatedAtUtc', r."CreatedAtUtc", 'CreatedBy', r."CreatedBy", 'ModifiedAtUtc', r."ModifiedAtUtc", 'ModifiedBy', r."ModifiedBy"))::text
+            FROM "BusinessFormCatalogItems" r
+        UNION ALL SELECT jsonb_build_object('table', 'reference', 'data', jsonb_build_object(
+            'Id', r."Id", 'RecordId', r."RecordId", 'DefinitionId', r."DefinitionId", 'FieldId', r."FieldId", 'CatalogId', r."CatalogId",
+            'CatalogRevision', r."CatalogRevision", 'ItemId', r."ItemId", 'Text', r."Text", 'Detail', r."Detail",
+            'CatalogName', r."CatalogName", 'TranslationsJson', r."TranslationsJson", 'Value', r."Value", 'ValueType', r."ValueType"))::text
+            FROM "BusinessFormRecordReferences" r
+        ORDER BY "Value"
+        """).ToArrayAsync(ct);
 
     public static Task<string[]> AllCapturedRowsAsync(ApplicationDbContext db, CancellationToken ct) => db.Database.SqlQueryRaw<string>("""
         SELECT jsonb_build_object('table', 'definition', 'data', to_jsonb(r))::text AS "Value" FROM "FormDefinitions" r

@@ -82,7 +82,11 @@ internal sealed record FormCatalogValueMigrationFixture(Guid CatalogId, Guid Ite
             'ProposalEvidenceJson', r."ProposalEvidenceJson", 'ProposalState', r."ProposalState", 'ProposalDecidedByUserId', r."ProposalDecidedByUserId",
             'ProposalDecidedAtUtc', r."ProposalDecidedAtUtc", 'DisplayNameEs', r."DisplayNameEs", 'DisplayNameEn', r."DisplayNameEn",
             'DisplayDescriptionEs', r."DisplayDescriptionEs", 'DisplayDescriptionEn', r."DisplayDescriptionEn"))::text FROM "BusinessFormCatalogs" r
-        UNION ALL SELECT jsonb_build_object('table', 'item', 'data', to_jsonb(r) - 'Value')::text FROM "BusinessFormCatalogItems" r
+        UNION ALL SELECT jsonb_build_object('table', 'item', 'data', jsonb_build_object(
+            'Id', r."Id", 'CatalogId', r."CatalogId", 'Code', r."Code", 'TextEs', r."TextEs", 'TextEn', r."TextEn",
+            'DetailEs', r."DetailEs", 'DetailEn', r."DetailEn", 'Position', r."Position", 'IsActive', r."IsActive",
+            'CreatedAtUtc', r."CreatedAtUtc", 'CreatedBy', r."CreatedBy", 'ModifiedAtUtc', r."ModifiedAtUtc", 'ModifiedBy', r."ModifiedBy"))::text
+            FROM "BusinessFormCatalogItems" r
         UNION ALL SELECT jsonb_build_object('table', 'reference', 'data', jsonb_build_object(
             'Id', r."Id", 'RecordId', r."RecordId", 'DefinitionId', r."DefinitionId", 'FieldId', r."FieldId", 'CatalogId', r."CatalogId",
             'CatalogRevision', r."CatalogRevision", 'ItemId', r."ItemId", 'Text', r."Text", 'Detail', r."Detail",

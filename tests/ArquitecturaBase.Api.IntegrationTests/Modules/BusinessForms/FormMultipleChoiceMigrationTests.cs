@@ -26,14 +26,14 @@ public sealed class FormMultipleChoiceMigrationTests(ApiFactory factory)
         {
             await migrator.MigrateAsync(FormMultipleChoiceMigrationFixture.Before, Ct);
             var seed = await FormCatalogValueMigrationFixture.InsertAsync(db, factory.Clock.GetUtcNow().UtcDateTime, Ct);
-            var history = await FormCatalogValueMigrationFixture.HistoricalRowsAsync(db, Ct);
-            await migrator.MigrateAsync(cancellationToken: Ct);
-            Assert.Equal(history, await FormCatalogValueMigrationFixture.HistoricalRowsAsync(db, Ct));
+            var history = await FormMultipleChoiceMigrationFixture.LegacyRowsAsync(db, Ct);
+            await migrator.MigrateAsync(FormMultipleChoiceMigrationFixture.WithMultipleChoices, Ct);
+            Assert.Equal(history, await FormMultipleChoiceMigrationFixture.LegacyRowsAsync(db, Ct));
             Assert.Equal(0, await db.Database.SqlQuery<int>($"""SELECT "Position" AS "Value" FROM "BusinessFormRecordValues" WHERE "ChoiceId" = {seed.ItemId}""").SingleAsync(Ct));
             await migrator.MigrateAsync(FormMultipleChoiceMigrationFixture.Before, Ct);
-            Assert.Equal(history, await FormCatalogValueMigrationFixture.HistoricalRowsAsync(db, Ct));
-            await migrator.MigrateAsync(cancellationToken: Ct);
-            Assert.Equal(history, await FormCatalogValueMigrationFixture.HistoricalRowsAsync(db, Ct));
+            Assert.Equal(history, await FormMultipleChoiceMigrationFixture.LegacyRowsAsync(db, Ct));
+            await migrator.MigrateAsync(FormMultipleChoiceMigrationFixture.WithMultipleChoices, Ct);
+            Assert.Equal(history, await FormMultipleChoiceMigrationFixture.LegacyRowsAsync(db, Ct));
             Assert.False(db.Database.HasPendingModelChanges());
         }
         finally { await db.Database.EnsureDeletedAsync(CancellationToken.None); }
@@ -51,7 +51,7 @@ public sealed class FormMultipleChoiceMigrationTests(ApiFactory factory)
         {
             await migrator.MigrateAsync(FormMultipleChoiceMigrationFixture.Before, Ct);
             var catalog = await FormCatalogValueMigrationFixture.InsertAsync(db, factory.Clock.GetUtcNow().UtcDateTime, Ct);
-            await migrator.MigrateAsync(cancellationToken: Ct);
+            await migrator.MigrateAsync(FormMultipleChoiceMigrationFixture.WithMultipleChoices, Ct);
             var captured = await FormMultipleChoiceMigrationFixture.AddCapturedAsync(db, catalog, factory.Clock.GetUtcNow().UtcDateTime, 2, Ct);
             var positions = await db.Database.SqlQuery<int>($"""
                 SELECT "Position" AS "Value" FROM "BusinessFormRecordValues" WHERE "RecordId" = {captured.RecordId} ORDER BY "Position"
@@ -92,7 +92,7 @@ public sealed class FormMultipleChoiceMigrationTests(ApiFactory factory)
         {
             await migrator.MigrateAsync(FormMultipleChoiceMigrationFixture.Before, Ct);
             var catalog = await FormCatalogValueMigrationFixture.InsertAsync(db, factory.Clock.GetUtcNow().UtcDateTime, Ct);
-            await migrator.MigrateAsync(cancellationToken: Ct);
+            await migrator.MigrateAsync(FormMultipleChoiceMigrationFixture.WithMultipleChoices, Ct);
             if (fact == "single-multiChoice")
             {
                 var captured = await FormMultipleChoiceMigrationFixture.AddCapturedAsync(db, catalog, factory.Clock.GetUtcNow().UtcDateTime, 1, Ct);
@@ -142,7 +142,7 @@ public sealed class FormMultipleChoiceMigrationTests(ApiFactory factory)
         {
             await migrator.MigrateAsync(FormMultipleChoiceMigrationFixture.Before, Ct);
             var catalog = await FormCatalogValueMigrationFixture.InsertAsync(db, factory.Clock.GetUtcNow().UtcDateTime, Ct);
-            await migrator.MigrateAsync(cancellationToken: Ct);
+            await migrator.MigrateAsync(FormMultipleChoiceMigrationFixture.WithMultipleChoices, Ct);
             var definitionId = await FormMultipleChoiceMigrationFixture.AddDraftAsync(db, catalog,
                 factory.Clock.GetUtcNow().UtcDateTime, publishedScalar, Ct);
             Assert.Equal(0, await db.Database.SqlQuery<int>($"""

@@ -30,12 +30,13 @@ public sealed class FormCatalogValueMigrationTests(ApiFactory factory)
             await migrator.MigrateAsync(FormCatalogValueMigrationFixture.Before, Ct);
             var seed = await FormCatalogValueMigrationFixture.InsertAsync(db, factory.Clock.GetUtcNow().UtcDateTime, Ct);
             var original = await FormCatalogValueMigrationFixture.HistoricalRowsAsync(db, Ct);
-            await migrator.MigrateAsync(cancellationToken: Ct);
+            await migrator.MigrateAsync(FormCatalogValueMigrationFixture.WithValueType, Ct);
             Assert.Equal(original, await FormCatalogValueMigrationFixture.HistoricalRowsAsync(db, Ct));
             Assert.Equal(BusinessFormCatalogValueType.Text, await db.Set<BusinessFormCatalog>().Where(value => value.Id == seed.CatalogId)
                 .Select(value => value.ValueType).SingleAsync(Ct));
             Assert.Null(await db.Set<BusinessFormCatalogItem>().Where(value => value.Id == seed.ItemId).Select(value => value.Value).SingleAsync(Ct));
-            var reference = await db.Set<BusinessFormRecordReference>().SingleAsync(value => value.Id == seed.ReferenceId, Ct);
+            var reference = await db.Set<BusinessFormRecordReference>().Where(value => value.Id == seed.ReferenceId)
+                .Select(value => new { value.Value, value.ValueType }).SingleAsync(Ct);
             Assert.Null(reference.Value); Assert.Null(reference.ValueType);
             var unknownType = await Assert.ThrowsAsync<PostgresException>(() => db.Database.ExecuteSqlAsync(
                 $"""UPDATE "BusinessFormCatalogs" SET "ValueType" = 'Unknown' WHERE "Id" = {seed.CatalogId}""", Ct));
@@ -50,6 +51,12 @@ public sealed class FormCatalogValueMigrationTests(ApiFactory factory)
             var missingValue = await Assert.ThrowsAsync<PostgresException>(() => db.Database.ExecuteSqlAsync(
                 $"""UPDATE "BusinessFormRecordReferences" SET "ValueType" = 'Decimal' WHERE "Id" = {seed.ReferenceId}""", Ct));
             Assert.Equal("CK_BusinessFormRecordReferences_Value", missingValue.ConstraintName);
+
+            await migrator.MigrateAsync(FormCatalogValueMigrationFixture.Before, Ct);
+            Assert.Equal(original, await FormCatalogValueMigrationFixture.HistoricalRowsAsync(db, Ct));
+            // The HTTP pipeline uses current entities, so restore the current schema after exercising the value-type boundary.
+            await migrator.MigrateAsync(cancellationToken: Ct);
+            Assert.Equal(original, await FormCatalogValueMigrationFixture.HistoricalRowsAsync(db, Ct));
 
             var actor = await FormCatalogValueMigrationFixture.CreateOperatorAsync(scope.ServiceProvider, Ct);
             using var client = host.CreateClient();
@@ -78,11 +85,6 @@ public sealed class FormCatalogValueMigrationTests(ApiFactory factory)
             Assert.Equal(["B", "A"], swapped.Select(value => value.Code));
             Assert.Equal([1, 2], swapped.Select(value => value.Position));
             Assert.All(swapped, value => Assert.Null(value.Value));
-            var beforeDown = await FormCatalogValueMigrationFixture.HistoricalRowsAsync(db, Ct);
-            await migrator.MigrateAsync(FormCatalogValueMigrationFixture.Before, Ct);
-            Assert.Equal(beforeDown, await FormCatalogValueMigrationFixture.HistoricalRowsAsync(db, Ct));
-            await migrator.MigrateAsync(cancellationToken: Ct);
-            Assert.Equal(beforeDown, await FormCatalogValueMigrationFixture.HistoricalRowsAsync(db, Ct));
             Assert.False(db.Database.HasPendingModelChanges());
         }
         finally
