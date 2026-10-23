@@ -32,7 +32,10 @@ internal sealed class FormCatalogImportFixture : IFormCatalogRepository, IFormCa
     public int ItemReads { get; private set; }
     public int UsageReads { get; private set; }
     public int UsageCount { get; set; } = 4;
-    public int Locks { get; private set; }
+    public List<Guid> LockedIds { get; } = [];
+    public int Locks => LockedIds.Count;
+    public BusinessFormCatalog? Source { get; private set; }
+    public List<BusinessFormCatalogItem> SourceItems { get; } = [];
     public Action? WhileReadingFile { get; set; }
     public Action? WhileLocking { get; set; }
     public Action<int>? BeforeMetadata { get; set; }
@@ -53,6 +56,15 @@ internal sealed class FormCatalogImportFixture : IFormCatalogRepository, IFormCa
         Items.Add(item);
         return item;
     }
+    public Guid AddSourceField()
+    {
+        Source = BusinessFormCatalog.CreateManual(Texts(), Texts(), BusinessFormCatalogValueType.Text);
+        SourceItems.Add(Source.AddManualItem("ZONE", "Zona", null, null, null, 0).Value);
+        var field = new BusinessFormCatalogField(BusinessFormCatalogField.CreateIdentity(), "zone",
+            new Dictionary<string, string> { ["es"] = "Zona", ["en"] = "Zone" }, "catalog", Source.Id, false, false, null, null, null, "data", 0, true);
+        Assert.True(Catalog.SetFields([field], null).IsSuccess);
+        return Source.Id;
+    }
     public void Revoke() => Permissions.Permissions[Actor] = [BusinessFormsPermissions.CatalogsRead];
     public void ChangeRevision() => Catalog.UpdateManual(Catalog.Revision, Texts(), Texts());
     public Task<Result<FormSpreadsheet>> ReadAsync(Stream content, string fileName, CancellationToken ct)
@@ -69,7 +81,7 @@ internal sealed class FormCatalogImportFixture : IFormCatalogRepository, IFormCa
     {
         ct.ThrowIfCancellationRequested();
         Assert.True(Work.InTransaction);
-        Locks++;
+        LockedIds.Add(id);
         WhileLocking?.Invoke();
         return Task.CompletedTask;
     }
@@ -85,6 +97,9 @@ internal sealed class FormCatalogImportFixture : IFormCatalogRepository, IFormCa
     public void AddItems(IEnumerable<BusinessFormCatalogItem> items) { Assert.True(Work.InTransaction); Items.AddRange(items); }
     public Task<FormCatalogStoredRow?> FindAsync(Guid id, CancellationToken ct)
     {
+        if (Source is { } source && id == source.Id) return Task.FromResult<FormCatalogStoredRow?>(new(source.Id, source.Key,
+            source.NameJson, source.DescriptionJson, source.Kind.ToString(), source.Revision, source.IsActive, source.CreatedAtUtc,
+            source.CreatedBy, source.ModifiedAtUtc, source.ModifiedBy, SourceItems.Count, null, ValueType: source.ValueType.ToString()));
         BeforeMetadata?.Invoke(++MetadataReads);
         return Task.FromResult<FormCatalogStoredRow?>(!Exists || id != Catalog.Id ? null : new(Catalog.Id, Catalog.Key,
             Catalog.NameJson, Catalog.DescriptionJson, Catalog.Kind.ToString(), Catalog.Revision, Catalog.IsActive,
@@ -94,12 +109,15 @@ internal sealed class FormCatalogImportFixture : IFormCatalogRepository, IFormCa
     }
     public Task<IReadOnlyList<FormCatalogStoredItemRow>> ListAllItemsAsync(Guid id, CancellationToken ct)
     {
+        if (Source is { } source && id == source.Id) return Task.FromResult<IReadOnlyList<FormCatalogStoredItemRow>>(Rows(SourceItems));
         Assert.False(Work.InTransaction);
         ItemReads++;
-        return Task.FromResult<IReadOnlyList<FormCatalogStoredItemRow>>(Items.OrderBy(item => item.Position).ThenBy(item => item.Id)
-            .Select(item => new FormCatalogStoredItemRow(item.Id, item.CatalogId, item.Code, item.TextEs, item.TextEn,
-                item.DetailEs, item.DetailEn, item.Position, item.IsActive, item.Value, item.FieldValuesJson)).ToArray());
+        return Task.FromResult<IReadOnlyList<FormCatalogStoredItemRow>>(Rows(Items));
     }
+    private static FormCatalogStoredItemRow[] Rows(IEnumerable<BusinessFormCatalogItem> items) =>
+        items.OrderBy(item => item.Position).ThenBy(item => item.Id)
+            .Select(item => new FormCatalogStoredItemRow(item.Id, item.CatalogId, item.Code, item.TextEs, item.TextEn,
+                item.DetailEs, item.DetailEn, item.Position, item.IsActive, item.Value, item.FieldValuesJson)).ToArray();
     public Task<int> CountActiveItemsAsync(Guid catalogId, CancellationToken cancellationToken) => throw new NotSupportedException();
     public Task<int> CountUsageAsync(Guid id, CancellationToken ct) { UsageReads++; return Task.FromResult(UsageCount); }
     public Task<IReadOnlyList<FormCatalogStoredItemRow>> ListOfferItemsAsync(Guid id, CancellationToken ct, string? fieldValueContainmentJson = null) => throw new NotSupportedException();

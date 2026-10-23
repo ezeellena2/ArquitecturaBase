@@ -123,6 +123,16 @@ public sealed class FormCatalogImportServiceTests
     }
 
     [Fact]
+    public async Task Apply_locks_the_source_catalogs_and_the_catalog_in_ascending_order()
+    {
+        using var f = new FormCatalogImportFixture();
+        var sourceId = f.AddSourceField();
+        var result = await f.Service.ApplyAsync(f.Catalog.Id, f.Request(), Ct);
+        Assert.True(result.IsSuccess);
+        Assert.Equal(new[] { sourceId, f.Catalog.Id }.Order(), f.LockedIds);
+    }
+
+    [Fact]
     public async Task A_different_sheet_hash_is_rejected_before_the_write_boundary()
     {
         using var f = new FormCatalogImportFixture();

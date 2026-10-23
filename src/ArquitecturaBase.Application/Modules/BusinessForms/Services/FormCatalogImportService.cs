@@ -52,7 +52,9 @@ internal sealed class FormCatalogImportService(IFormCatalogRepository repository
         var sheet = await spreadsheets.ReadAsync(request.Content, request.FileName, cancellationToken);
         if (sheet.IsFailure) return sheet.Error;
         if (!string.Equals(request.SheetSha256, sheet.Value.Sha256, StringComparison.Ordinal)) return FormCatalogImportErrors.SheetChanged;
-        var result = await unitOfWork.ExecuteInTransactionAsync(ct => ApplyCoreAsync(id, request, sheet.Value, ct),
+        var sourceIds = FormCatalogFieldPolicy.ReadFields(current.Value.FieldsJson)
+            .Where(field => field.IsActive && field.SourceCatalogId is not null).Select(field => field.SourceCatalogId!.Value).ToArray();
+        var result = await unitOfWork.ExecuteInTransactionAsync(ct => ApplyCoreAsync(id, sourceIds, request, sheet.Value, ct),
             CommitPolicy.OnSuccess, cancellationToken);
         if (result.IsFailure) return result.Error;
         int? usageCount = await access.HasPermissionAsync(actor.Value, BusinessFormsPermissions.Read, cancellationToken)
@@ -60,10 +62,10 @@ internal sealed class FormCatalogImportService(IFormCatalogRepository repository
         return result.Value with { Catalog = result.Value.Catalog with { UsageCount = usageCount } };
     }
 
-    private async Task<Result<FormCatalogSaveResponse>> ApplyCoreAsync(Guid id, FormCatalogImportRequest request,
-        FormSpreadsheet sheet, CancellationToken cancellationToken)
+    private async Task<Result<FormCatalogSaveResponse>> ApplyCoreAsync(Guid id, IEnumerable<Guid> sourceIds,
+        FormCatalogImportRequest request, FormSpreadsheet sheet, CancellationToken cancellationToken)
     {
-        await repository.LockAsync(id, cancellationToken);
+        foreach (var catalogId in sourceIds.Append(id).Distinct().Order()) await repository.LockAsync(catalogId, cancellationToken);
         var actor = await access.CheckAsync(true, cancellationToken);
         if (actor.IsFailure) return actor.Error;
         var catalog = await repository.GetAsync(id, cancellationToken);
