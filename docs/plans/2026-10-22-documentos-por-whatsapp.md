@@ -91,7 +91,7 @@ Se leen **solo los mensajes de personas con cuenta vinculada y activa,** como ho
 | Documento sin texto | Funciona igual: el documento es el mensaje |
 | Un contacto sin cuenta vinculada | No se lee ([ADR 0022](../decisions/0022-lectura-de-documentos-con-ia.md)): queda en el chat para un operador, como hoy |
 | Una cuenta sin permiso para cargar respuestas | No se lee, porque no tiene formularios posibles: lo dice y deriva |
-| El formulario reconocido no se le puede mandar, por ejemplo porque le falta el dato con el que se filtra un catálogo ([E2](formularios/catalogos-campos-extra.md)) | Lo dice y deriva |
+| El formulario reconocido no se le puede mandar, por ejemplo porque le falta el dato con el que se filtra un catálogo ([E2](formularios/catalogos-campos-extra.md)) | Lo dice, deriva y queda propuesto en la bandeja; nunca va la lista entera |
 | Varias fotos de un mismo documento, o varios documentos en un mensaje | Después de esta etapa: necesita la ráfaga y las varias acciones de [casos del asistente](2026-10-21-casos-del-asistente.md) |
 
 ### La bandeja «Documentos recibidos»
@@ -100,7 +100,7 @@ Forma elegida, **DOC5-A:** una planilla como la de respuestas, con sus filtros. 
 
 - **Filtros:** tipo, estado (propuesto, confirmado, sin clasificar, descartado), persona y fecha.
 - **El documento al lado de los datos extraídos,** para revisar, corregir y pasar al formulario.
-- **Propuestos para revisar acá:** los que la persona no confirmó antes de que venciera el envío y las filas de una planilla que pasaron el tope. Alguien con permiso los pasa al formulario, y la respuesta dice de qué documento salió y quién la revisó.
+- **Propuestos para revisar acá:** los que la persona no confirmó antes de que venciera el envío, los que no se le pudieron mandar y las filas de una planilla que pasaron el tope. Alguien con permiso los pasa al formulario, y la respuesta dice de qué documento salió y quién la revisó.
 - **Cuándo se borra:** cada descartado o sin clasificar muestra la fecha, a los 90 días.
 - **Búsqueda por los datos:** monto, CUIT o número de operación.
 - **Permisos propios** para ver y revisar documentos.
