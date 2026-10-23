@@ -1,6 +1,6 @@
 # Documentos por WhatsApp: biblioteca de formularios estándar, lectura con IA y tableros
 
-**Estado:** decidido el 2026-10-22, con el [ADR 0022](../decisions/0022-lectura-de-documentos-con-ia.md) aceptado y los tableros de diseño elegidos (DOC5-A y DOC7-A). Sin empezar. Es la etapa «fotos y documentos» que el usuario marcó como prioridad ([casos del asistente](2026-10-21-casos-del-asistente.md#etapa-siguiente-fotos-y-documentos)). Va después de [Catálogos E2](formularios/catalogos-campos-extra.md), porque el cruce con catálogos usa sus campos extra. Su orden frente a «Casos del asistente» lo define el usuario.
+**Estado:** decidido el 2026-10-22, con el [ADR 0022](../decisions/0022-lectura-de-documentos-con-ia.md) aceptado y los tableros de diseño elegidos (DOC5-A y DOC7-A). Sin empezar. Es la etapa «fotos y documentos» que el usuario marcó como prioridad ([casos del asistente](2026-10-21-casos-del-asistente.md#etapa-siguiente-fotos-y-documentos)). Va después de [Catálogos E2](../features/formularios.md#catálogos-con-campos-extra-y-filtros-por-persona--e2-2026-10-23), porque el cruce con catálogos usa sus campos extra. Su orden frente a «Casos del asistente» lo define el usuario.
 
 ## Por qué
 
@@ -72,7 +72,7 @@ Se leen **solo los mensajes de personas con cuenta vinculada y activa,** como ho
 3. **Extraer** los datos según las **preguntas del formulario elegido**, con su nivel de seguridad por dato.
 4. **Validar sin IA:**
    - las validaciones fijas del estándar;
-   - el cruce con catálogos: el CUIT en Proveedores o Clientes, como [campo extra de Catálogos E2](formularios/catalogos-campos-extra.md);
+   - el cruce con catálogos: el CUIT en Proveedores o Clientes, como [campo extra de Catálogos E2](../features/formularios.md#catálogos-con-campos-extra-y-filtros-por-persona--e2-2026-10-23);
    - **los duplicados:** el mismo archivo, o la misma operación, monto y fecha.
 5. **Proponer:** el formulario prellenado por WhatsApp, **con el documento adjunto** en su pregunta de archivo. Un dato que no se pudo leer queda vacío, y uno dudoso, marcado.
 6. **Confirmar o corregir:** lo hace la persona. **En esta etapa, la IA nunca carga sola.**
@@ -91,7 +91,7 @@ Se leen **solo los mensajes de personas con cuenta vinculada y activa,** como ho
 | Documento sin texto | Funciona igual: el documento es el mensaje |
 | Un contacto sin cuenta vinculada | No se lee ([ADR 0022](../decisions/0022-lectura-de-documentos-con-ia.md)): queda en el chat para un operador, como hoy |
 | Una cuenta sin permiso para cargar respuestas | No se lee, porque no tiene formularios posibles: lo dice y deriva |
-| El formulario reconocido no se le puede mandar, por ejemplo porque le falta el dato con el que se filtra un catálogo ([E2](formularios/catalogos-campos-extra.md)) | Lo dice, deriva y queda propuesto en la bandeja; nunca va la lista entera |
+| El formulario reconocido no se le puede mandar, por ejemplo porque le falta el dato con el que se filtra un catálogo ([E2](../features/formularios.md#catálogos-con-campos-extra-y-filtros-por-persona--e2-2026-10-23)) | Lo dice, deriva y queda propuesto en la bandeja; nunca va la lista entera |
 | Varias fotos de un mismo documento, o varios documentos en un mensaje | Después de esta etapa: necesita la ráfaga y las varias acciones de [casos del asistente](2026-10-21-casos-del-asistente.md) |
 
 ### La bandeja «Documentos recibidos»

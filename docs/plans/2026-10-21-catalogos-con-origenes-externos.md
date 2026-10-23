@@ -1,6 +1,6 @@
 # Catálogos: hoja de ruta
 
-**Estado:** hoja de ruta del 2026-10-21, actualizada el 2026-10-22. [E1: carga de una vez, tipo de valor y elegir varias](../features/formularios.md#verificación-local-de-catálogos-e1--2026-10-22) está implementado; su code review y el [piloto real](verificacion-y-produccion.md#formularios-catálogos-e1) siguen pendientes. La siguiente etapa, [E2: campos extra y filtrar por persona](formularios/catalogos-campos-extra.md), está decidida con tableros, sin comenzar. Las propuestas posteriores conservan abajo su alcance y no se programan hasta que el usuario las defina.
+**Estado:** hoja de ruta del 2026-10-21, actualizada el 2026-10-23. [E1 y E2](../features/formularios.md#catálogos-con-campos-extra-y-filtros-por-persona--e2-2026-10-23) están implementados. El review de E1 se cerró; después del review de E2 se hace el [piloto único real](verificacion-y-produccion.md#formularios-piloto-único-con-meta-después-de-e2). Las propuestas posteriores conservan abajo su alcance y no se programan hasta que el usuario las defina.
 
 ## Lo que definió el usuario
 
@@ -8,7 +8,7 @@ No se vuelve a preguntar.
 
 - **Primer cliente: OCHA S.A.** Usa una base con el esquema de **Macrosistemas**, el mismo que La Clementina. Hace falta traer sus listas (por ejemplo, proveedores) y, más adelante, un conector a esa base.
 - **Primer paso: Excel, con una plantilla definida por el catálogo.** Implementado en [E1-A](../features/formularios.md#carga-de-catálogos-desde-una-planilla--e1-a-2026-10-22).
-- **Tipos de datos validados al cargar.** El tipo de valor de las opciones está implementado en [E1-B](../features/formularios.md#catálogos-con-tipo-de-valor--e1-b-2026-10-22); los tipos de los campos extra siguen en E2.
+- **Tipos de datos validados al cargar.** El tipo de valor de las opciones está implementado en [E1-B](../features/formularios.md#catálogos-con-tipo-de-valor--e1-b-2026-10-22); los tipos de los campos extra están implementados en [E2](../features/formularios.md#catálogos-con-campos-extra-y-filtros-por-persona--e2-2026-10-23).
 - **Nada fijo en el código:** el catálogo, sus campos y sus tipos son configuración. En el código vive solo el conjunto de tipos y el mecanismo de importación y validación.
 - **Catálogos grandes:** hasta 10.000 opciones por catálogo.
 - **Quién configura los orígenes:** las dos posibilidades, nosotros en la implementación y el cliente.
@@ -27,42 +27,9 @@ Cualquiera sea el origen (Excel, una API o una base), las opciones se guardan en
 
 ## Campos extra del catálogo
 
-**Qué son.** Hoy cada opción tiene campos fijos:
-- un **código**, para la empresa;
-- un **texto**, lo que se ve en WhatsApp;
-- un **detalle** opcional;
-- un **valor** en los catálogos tipados.
+E2 implementó campos tipados, fuente única en otro catálogo Manual, datos de las personas, filtros por destinatario y la presentación elegida para WhatsApp. Los valores se sellan al responder y se conservan en planilla, detalle, Excel y PDF. Las reglas están en [formularios](../features/formularios.md#catálogos-con-campos-extra-y-filtros-por-persona--e2-2026-10-23); CE1, CE2, CE3-B, CE4-A, CE5 y CE6 conservan la elección visual en el [front](../../../ArquitecturaBaseFront/docs/design/catalogos-campos-extra.md).
 
-E1 ya incorporó el valor tipado. Los campos extra son **columnas propias que define cada catálogo**, además de esas. Por ejemplo, un catálogo de proveedores:
-
-| Código | Texto (se ve en WhatsApp) | CUIT | Zona | Rubro | Plazo de pago (días) |
-| --- | --- | --- | --- | --- | --- |
-| PRV-001 | Frigorífico Del Sur | 30-71234567-8 | Centro | Frío | 30 |
-| PRV-002 | Repuestos Norte | 30-70987654-3 | Norte | Repuestos | 15 |
-
-En WhatsApp la persona sigue viendo solo «Frigorífico Del Sur». Las columnas extra viajan escondidas y sirven para tres cosas:
-
-1. **Filtrar por persona.** Si «Zona» es un campo de filtro, cada empleado ve solo los proveedores de su zona: Juan, de zona Centro, ve 14 de 1.200. Así una lista enorme entra en los 200 del desplegable o en los 20 de elegir varias. Es lo que muestra el prototipo con «Proveedores de mi zona».
-2. **Completar otras preguntas.** Elegir el proveedor completa solo su CUIT en el formulario.
-3. **Validar al importar.** «Plazo de pago» tiene que ser un número entero, y la carga lo controla.
-
-**Cómo se definen.** Cada campo tiene clave, nombre (es/en), tipo (texto, entero, decimal, fecha, sí o no, lista de valores…), reglas (obligatorio, único, mínimos y máximos) y **papel**: filtro o dato. Se guardan con revisión y 409, como el resto de la configuración.
-
-**Cómo se guardan.** Los valores de cada opción van en un JSON validado por el servidor contra la definición del campo y normalizado (fechas `AAAA-MM-DD`, decimales canónicos). Quien sabe el tipo es la definición, no el JSON. Si algún día hace falta filtrar u ordenar por rangos de número o de fecha, esos campos pasan a una tabla con columnas por tipo, como las respuestas de los formularios.
-
-**Qué viaja a WhatsApp (pedido del usuario, 2026-10-21).** En WhatsApp cada opción tiene un **título** (hasta 30 caracteres) y una **descripción** (hasta 300). Hoy son el texto y el detalle. Con campos extra, el catálogo elige **qué campos arman cada uno**. Por ejemplo, primero «texto» y «código», y más adelante «texto» y «CUIT · zona». Reglas:
-- **El título no pasa de 30 caracteres.** Si la combinación elegida no entra en alguna opción, la pantalla lo avisa con las opciones afectadas, y la comprobación de publicación lo frena.
-- **Un cambio vale para los envíos nuevos.** Lo ya enviado y las respuestas guardadas conservan lo que se mostró.
-- **A Meta solo viaja lo que se muestra.** Los campos de filtro o de dato que no se eligieron no salen del sistema. El filtrado por persona se hace en el servidor, antes de enviar.
-
-Se eligió CE3-B: el catálogo define lo de siempre y una pregunta puede tener lo propio.
-
-**Decididos con tableros el 2026-10-21** (CE1, CE2, CE3-B, CE4-A, CE5 y CE6): la etapa, con su modelo de datos, está en [campos extra, qué viaja a WhatsApp y filtrar por persona](formularios/catalogos-campos-extra.md). Lo que sigue en esta sección es el contexto.
-
-**De dónde sale el dato de la persona: se eligió CE4-A, «Datos de las personas», del módulo de formularios.** Las opciones eran: Para que Juan vea «solo los de su zona», el sistema tiene que saber que Juan es de zona Centro. Opciones:
-- **atributos propios de la persona** (Zona, Sucursal), definidos una vez y cargados en Usuarios;
-- **roles**, como hoy hacen los catálogos de Filtros;
-- **un filtro fijo de la pregunta,** que no depende de la persona. Por ejemplo, «solo rubro Frío».
+Completar otras preguntas a partir de un dato de la opción, por ejemplo el CUIT, sigue siendo una propuesta posterior. El origen externo alimentaría estos mismos catálogos; no cambia el contrato del envío ni agrega campos empresariales al código.
 
 ## El asistente arma catálogos e importa
 
@@ -120,12 +87,10 @@ WhatsApp muestra hasta 200 opciones por pregunta en el desplegable y hasta 20 en
 - **Lo que llega son datos:** se valida y nada se ejecuta.
 - **Multitenant:** todo va por organización.
 
-## Esquema de base (propuesta para etapas posteriores a E1)
+## Esquema de base propuesto para orígenes externos
 
 | Tabla | Qué guarda |
 | --- | --- |
-| `FormCatalogs` (existe) | Los **campos extra** del catálogo (JSON validado contra los tipos, con revisión) y el tipo de origen. |
-| `FormCatalogItems` (existe) | El código externo (único por catálogo) y los **valores de los campos extra** (JSONB), con un índice para los de filtro. |
 | `FormCatalogSources` (nueva) | Origen: tipo, configuración no secreta, secreto cifrado, frecuencia, estado, lease y fence. |
 | `FormCatalogSourceTemplates` (nueva) | Plantillas de origen, como «Macrosistemas · Proveedores». |
 | `FormCatalogSyncRuns` (nueva) | Una fila por sincronización: disparador, estado, contadores, hash del lote y motivo seguro. |
@@ -136,8 +101,8 @@ WhatsApp muestra hasta 200 opciones por pregunta en el desplegable y hasta 20 en
 
 | Fase | Qué incluye | Estado |
 | --- | --- | --- |
-| **1** | Carga de una vez, tipo de valor y elegir varias | [Implementado: reglas y verificación local](../features/formularios.md#verificación-local-de-catálogos-e1--2026-10-22); code review y piloto pendientes |
-| **2** | Campos extra, qué viaja a WhatsApp y filtrar por persona | [Decidida, con tableros; sin comenzar](formularios/catalogos-campos-extra.md) |
+| **1** | Carga de una vez, tipo de valor y elegir varias | [Implementado: reglas y verificación local](../features/formularios.md#verificación-local-de-catálogos-e1--2026-10-22); review cerrado y piloto único pendiente |
+| **2** | Campos extra, qué viaja a WhatsApp y filtrar por persona | [Implementada: reglas vigentes](../features/formularios.md#catálogos-con-campos-extra-y-filtros-por-persona--e2-2026-10-23) |
 | **3** | Búsqueda en vivo con Meta | Por diseñar (intercambio cifrado) |
 | **4** | El asistente arma catálogos y mapea el Excel | Por diseñar |
 | **5** | Recepción por API, conector para Macrosistemas y plantillas de origen | Por diseñar |

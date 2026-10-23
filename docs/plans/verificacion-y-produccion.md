@@ -102,8 +102,7 @@ Verificación final: regresiones del despacho en rojo antes del arreglo; 649 tes
 
 El [review 1–10](../reviews/2026-10-21-code-review-menu-y-detalle.md#cierre-local) quedó corregido y verificado localmente: Docker **5.389/5.389**, front **2.689/2.689**, visual **623/623**, builds limpios y recorrido es/en a 390/320. El piloto propio sigue pendiente; no se usó Meta durante el desarrollo. Las reglas y el alcance vigente se consolidan en [formularios](../features/formularios.md#gestión-de-formularios-y-detalle-completo--2026-10-21).
 
-- [ ] Después del review, confirmar con una visita real el recorrido desde Formularios y su bloque Por aprobar, D2 y pantalla completa, retorno a la fila/filtros, flechas según el origen y PDF dentro de la acción que lo generó. Comprobar también la cuenta que sólo decide, sin respuestas ni pantalla completa.
-- [ ] Con dos o tres contactos simultáneos, comprobar en Asistente y Atención manual que cada número recibe únicamente su propuesta y contexto, y que un turno lento no detiene a los otros. La integración con proveedores controlados no acredita esta comprobación física.
+Los recorridos pendientes de MF1, D2/DC1, la cuenta que sólo decide y los contactos simultáneos se reúnen en el [piloto único posterior a E2](#formularios-piloto-único-con-meta-después-de-e2). La evidencia local anterior se conserva; no acredita esa comprobación física.
 
 ## Propuesta heredada por confirmar
 
@@ -211,22 +210,24 @@ documentación no acredita ejecución, aprobación externa ni despliegue.
 
 ## Formularios: baja, reactivación y eliminación
 
-Pendiente por pedido del usuario: primero code review, después piloto real con Meta. Las [reglas implementadas](../features/formularios.md#dar-de-baja-reactivar-y-eliminar--2026-10-21) y la integración local no acreditan ese piloto.
-
-- [ ] Con un envío abierto, dar de baja: deja de ofrecerse en selector, asistente y sugerencias. Responder ese envío antes de vencer y comprobar respuesta, aprobación, avisos y PDF conservados.
-- [ ] Al vencer el último envío abierto, comprobar que Meta depreca los Flows de todas las versiones; listado y editor deben mostrar su confirmación. Si un resultado queda Sin confirmar, observar la consulta previa a cualquier repetición.
-- [ ] Reactivar: durante la publicación sigue en Dados de baja; después de aprobar Meta la versión nueva, vuelve a Activos, se manda con Flows nuevos y continúa la numeración.
-- [ ] Eliminar un formulario sin respuestas ni envíos abiertos: desaparece, el prefijo queda reservado y sus Flows publicados se deprecan. Comprobar que un formulario con respuestas no ofrece Eliminar.
-
-Para el piloto se levanta Aspire con el túnel, se conservan los datos reales y al terminar se restaura la configuración de prueba y se ejecuta `aspire stop`. No se inició en este desarrollo.
+Las [reglas implementadas](../features/formularios.md#dar-de-baja-reactivar-y-eliminar--2026-10-21), su review y la integración local conservan su evidencia propia. La baja con un envío abierto, la deprecación confirmada, reactivar y eliminar se prueban una sola vez en el [piloto único posterior a E2](#formularios-piloto-único-con-meta-después-de-e2), junto con los otros recorridos pendientes. No se inició ese piloto durante el desarrollo.
 
 ## Formularios: catálogos E1
 
-La carga de una vez, el valor tipado y elegir varias están implementados según las [reglas de E1](../features/formularios.md#catálogos-base-de-la-etapa-e1--2026-10-21). El [cierre local conjunto](../features/formularios.md#verificación-local-de-catálogos-e1--2026-10-22) quedó verificado. El [code review](../reviews/2026-10-22-code-review-catalogos-e1.md#cierre-local) se cerró el 2026-10-22; falta el piloto real con Meta, que se hace junto con el de [Catálogos E2](formularios/catalogos-campos-extra.md#cómo-se-cierra), por decisión del usuario.
+La carga de una vez, el valor tipado y elegir varias están implementados según las [reglas de E1](../features/formularios.md#catálogos-base-de-la-etapa-e1--2026-10-21). El [cierre local conjunto](../features/formularios.md#verificación-local-de-catálogos-e1--2026-10-22) y el [code review cerrado el 2026-10-22](../reviews/2026-10-22-code-review-catalogos-e1.md#cierre-local) se conservan. La prueba física de importación, valores y casillas se reúne con [E2](../features/formularios.md#catálogos-con-campos-extra-y-filtros-por-persona--e2-2026-10-23) en el [piloto único](#formularios-piloto-único-con-meta-después-de-e2), por decisión del usuario.
 
-- [ ] Pegar un catálogo de proveedores ficticio y después importar su XLSX: revisar altas, cambios, bajas y errores antes de aplicar; comprobar que conservaron las identidades por código.
-- [ ] Usar un catálogo decimal y comprobar texto y valor histórico en la respuesta y el PDF. La columna numérica de una elección simple en Excel conserva su límite de 15 cifras significativas; exportar el catálogo o los valores de varias conserva texto canónico exacto.
-- [ ] Publicar con r9 un formulario con casillas y mandar al celular: confirmar el formato real del `nfm_reply`, el orden que entrega Meta y la diferencia entre `[]` y clave ausente. La implementación conserva el orden recibido; el orden físico de selección sigue por comprobar.
-- [ ] Confirmar una respuesta con varias opciones y archivos; revisarla en la planilla, el detalle y el chat, filtrar «alguna de» y abrir el Excel y el PDF. Comprobar las etiquetas históricas después de editar el catálogo.
+## Formularios: piloto único con Meta después de E2
 
-La prueba se hace con Aspire y el túnel, conserva los datos reales y termina restaurando la configuración de prueba y ejecutando `aspire stop`. Los escenarios locales con Meta controlado y las pantallas de datos sintéticos no acreditan este piloto.
+**Pendiente:** primero el code review de E2, después una sola prueba guiada con Aspire, túnel y proveedores reales. Este recorrido reúne los pendientes de baja/reactivación/eliminación, menú/detalle, contactos simultáneos y catálogos E1/E2; no repite como pendientes las comprobaciones físicas anteriores ya acreditadas arriba.
+
+- [ ] Preparar Zonas y Proveedores ficticios con CUIT, Zona de ese catálogo y al menos otro campo de dato; pegar opciones e importar su XLSX. Revisar altas, cambios, bajas y errores antes de aplicar, conservando las identidades por código. Definir qué título y descripción viajan y la presentación propia de una pregunta.
+- [ ] Cargar zonas distintas a dos personas y publicar un formulario con catálogo, elegir varias y archivos. Cada persona ve sólo sus opciones en su celular y sólo los campos elegidos para mostrarse. A una persona sin el dato se le bloquea el envío con el motivo, sin mandar la lista completa. Revisar la muestra por destinatario y los avisos no bloqueantes antes de publicar.
+- [ ] Con dos o tres contactos simultáneos, en Asistente y Atención manual, comprobar que cada número recibe sólo su propuesta y contexto; un turno lento no detiene a los otros. Revisar y enviar una sugerencia desde el chat y completar su formulario.
+- [ ] Confirmar en un `nfm_reply` real de CheckboxGroup el array de identidades, el orden que entrega Meta y la diferencia entre `[]` y clave ausente. La implementación conserva el orden recibido; no se afirma que Meta devuelva el orden físico de selección.
+- [ ] Completar respuestas con varias opciones y archivos. En MF1 y su bloque Por aprobar, recorrer D2 y pantalla completa, regreso a la misma fila y filtros, flechas según origen y PDF dentro de la acción que lo generó. La cuenta que sólo decide no ve respuestas ni pantalla completa.
+- [ ] Revisar los campos sellados en planilla, detalle, Excel y PDF, también después de editar valores/nombres del catálogo. Probar Columnas y «Solo las columnas visibles», el orden entre opciones y «alguna de». El chat conserva su tarjeta. Los campos de dato se ven por defecto y los de filtro son optativos en la planilla; el PDF muestra sólo los de dato.
+- [ ] Usar además un catálogo decimal y comprobar texto y valor histórico en respuesta y PDF. En una elección simple Excel conserva el límite de 15 cifras significativas; exportar el catálogo o los valores de varias conserva texto canónico exacto. En inglés comprobar nombres de pregunta/campo y el respaldo individual de una etiqueta sin traducir.
+- [ ] Con un envío abierto, dar de baja el formulario: deja de ofrecerse en selector, asistente y sugerencias. Responder ese envío antes de vencer y comprobar respuesta, aprobación, avisos y PDF conservados. Al vencer el último envío abierto, verificar la deprecación de todas las versiones y su estado en listado/editor; un resultado Sin confirmar se consulta antes de repetir.
+- [ ] Reactivar: sigue en Dados de baja durante la publicación y vuelve a Activos sólo al aprobar Meta la versión nueva; usa Flows nuevos y continúa la numeración. Eliminar otro formulario sin respuestas ni envíos abiertos: desaparece, conserva el prefijo reservado y depreca sus Flows. Uno con respuestas no ofrece Eliminar.
+
+Al cerrar cada recorrido se registra su resultado y el alcance real, sin confundirlo con escenas sintéticas o Meta controlado. Se conservan respuestas y archivos reales; se restauran configuración de prueba, datos de cuenta y modo original de los chats, se cierran las sesiones temporales y se ejecuta `aspire stop`. No se inicia este piloto como parte del cierre técnico de E2.

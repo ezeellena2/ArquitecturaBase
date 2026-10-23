@@ -1,6 +1,6 @@
 # Formularios por WhatsApp: etapas
 
-Estado al `2026-10-22`. Las reglas implementadas están en [formularios](../../features/formularios.md) y [WhatsApp](../../features/whatsapp.md); las pantallas, en el [diseño del front](../../../../ArquitecturaBaseFront/docs/design/formularios-whatsapp.md). Los próximos desarrollos conservan abajo su alcance y requieren sus decisiones y tableros antes de programarse.
+Estado al `2026-10-23`. Las reglas implementadas están en [formularios](../../features/formularios.md) y [WhatsApp](../../features/whatsapp.md); las pantallas, en el [diseño del front](../../../../ArquitecturaBaseFront/docs/design/formularios-whatsapp.md). Los próximos desarrollos conservan abajo su alcance y requieren sus decisiones y tableros antes de programarse.
 
 | Etapa | Resumen | Estado |
 | --- | --- | --- |
@@ -26,7 +26,7 @@ Sin orden fijo; cada una necesita su tablero y su decisión antes de programarse
 - descargar todas las fotos juntas desde el detalle de una respuesta;
 - corregir una respuesta (una respuesta nueva que reemplaza a la anterior);
 - borrador de formulario armado por la IA a partir de los pedidos de formularios que faltan;
-- **catálogos E1 implementado:** carga de una vez (pegar, importar y exportar), tipo de valor y elegir varias, con tableros CA1-A y CA2–CA6. Las [reglas](../../features/formularios.md#catálogos-base-de-la-etapa-e1--2026-10-21) y la [verificación local](../../features/formularios.md#verificación-local-de-catálogos-e1--2026-10-22) sustituyen el plan retirado; el code review y el [piloto de E1](../verificacion-y-produccion.md#formularios-catálogos-e1) siguen pendientes. La etapa E2, [campos extra, qué viaja a WhatsApp y filtrar por persona](catalogos-campos-extra.md), está decidida con tableros y sin comenzar. Lo demás (búsqueda en vivo, asistente y conector) conserva su alcance en la [hoja de ruta](../2026-10-21-catalogos-con-origenes-externos.md);
+- **catálogos E1 y E2 implementados:** carga de una vez, tipo de valor, elegir varias, campos extra, presentación y filtros por persona. Las [reglas vigentes](../../features/formularios.md#catálogos-con-campos-extra-y-filtros-por-persona--e2-2026-10-23) y los tableros CA1-A/CA2–CA6 y CE1/CE2/CE3-B/CE4-A/CE5/CE6 sustituyen los resúmenes retirados. El review de E1 está cerrado; el de E2 precede al [piloto único con Meta](../verificacion-y-produccion.md#formularios-piloto-único-con-meta-después-de-e2). Búsqueda en vivo, asistente y orígenes externos conservan su alcance en la [hoja de ruta](../2026-10-21-catalogos-con-origenes-externos.md);
 - copiar definiciones (pendiente en [planes](../README.md)); dar de baja, reactivar, eliminar y deprecar en Meta tienen [reglas implementadas](../../features/formularios.md#dar-de-baja-reactivar-y-eliminar--2026-10-21) y su [piloto después del code review](../verificacion-y-produccion.md#formularios-baja-reactivación-y-eliminación).
 
 La [demo de datos](../formularios-modelo-demo/README.md) es una base aislada de demostración, no una migración.
