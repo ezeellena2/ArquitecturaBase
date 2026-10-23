@@ -204,6 +204,26 @@ Se corrige en un solo chat, back y front juntos, cada arreglo con su test y comm
     - `FieldInUse` y los usos `Draft` y `Active` en las cohortes exportadas, consumidos por el front, como pedía la §6.2;
     - el formato canónico con cultura de los campos tipados al importar, por HTTP.
 
+**Extra: lo que apareció al usar la app**
+
+34. **El chat de Inicio no muestra la respuesta** (front: `api/assistant.ts`, `assistant/model.ts`, `AiAssistantPage.tsx` y `AssistantOperationState.tsx`; back: `AiAssistantResponsePolicy.State`).
+    - **Qué pasa:**
+      - el back devuelve el estado en minúsculas («pending», «completed»), y sus tests de integración lo fijan así;
+      - el front lo espera con mayúscula inicial;
+      - al mandar «Hola», el front da la consulta por terminada, deja de consultar, muestra «states.pending» sin traducir y nunca muestra la respuesta;
+      - pasa desde el 2026-10-09 por lo menos, y no hay ejemplos exportados del asistente que lo detecten.
+    - **Arreglo:**
+      - el contrato publicado es el del back: corregir en el front los tipos, las comparaciones, las claves es/en y los dobles de los tests;
+      - exportar ejemplos HTTP reales del asistente (bootstrap, enviar, turno, turnos y cancelar) y validarlos con zod estricto.
+35. **Crear un catálogo con el nombre y la descripción solo en español parece no guardar** (back: `FormCatalogRequestValidators.cs:183-184`; front: `CatalogMetadataFields.tsx:25,30`).
+    - **Qué pasa:**
+      - el back exige es y en, y el 400 trae `name.en` y `description.en`;
+      - el front muestra el error solo en la pestaña del idioma activo y no avisa en ningún otro lado;
+      - la persona ve que no pasa nada y, al irse, pierde lo escrito.
+    - **Arreglo:**
+      - **decisión del usuario, 2026-10-23:** el inglés es opcional en el nombre y la descripción del catálogo, como en los formularios (el idioma original es obligatorio y la traducción, opcional) y en las opciones. Hay que ajustar el validador, el texto de ayuda de la pantalla, los contratos y el front, y anotarlo en las reglas de formularios;
+      - un error de guardado en un campo que no está a la vista tiene que verse: cambiar a la pestaña del idioma con el error y marcarla. Si no hay un campo visible, se muestra en la página.
+
 ## Después, sin bloquear
 
 - **Rendimiento:** medir antes de optimizar.
