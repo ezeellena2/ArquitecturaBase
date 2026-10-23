@@ -30,6 +30,14 @@ public sealed class FormPersonDataValidationTests
     }
 
     [Fact]
+    public void Person_search_requests_do_not_expose_private_search_terms_when_formatted()
+    {
+        const string search = "Nombre privado";
+        Assert.DoesNotContain(search, new ListFormPersonDataRequest { Search = search }.ToString(), StringComparison.Ordinal);
+        Assert.DoesNotContain(search, new ListFormPersonAttributeOptionsRequest { Search = search }.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Person_value_requests_have_a_bounded_revision_and_canonical_attribute_ids()
     {
         var validator = new UpdateFormPersonDataRequestValidator();

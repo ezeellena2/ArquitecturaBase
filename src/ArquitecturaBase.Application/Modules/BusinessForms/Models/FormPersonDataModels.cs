@@ -7,9 +7,11 @@ public sealed record UpdateFormPersonAttributeRequest(long? ExpectedRevision, IR
 public sealed record UpdateFormPersonDataRequest(long? ExpectedRevision, IReadOnlyDictionary<string, string?>? Values)
 { public override string ToString() => "UpdateFormPersonDataRequest { Content = [REDACTED] }"; }
 public sealed record ListFormPersonDataRequest : PagedRequest
-{ public static readonly IReadOnlyCollection<string> SortableFields = ["displayName"]; public string DisplayCulture { get; init; } = "es"; }
+{ public static readonly IReadOnlyCollection<string> SortableFields = ["displayName"]; public string DisplayCulture { get; init; } = "es";
+    public override string ToString() => "ListFormPersonDataRequest { Search = [REDACTED] }"; }
 public sealed record ListFormPersonAttributeOptionsRequest : PagedRequest
-{ public static readonly IReadOnlyCollection<string> SortableFields = ["text"]; public string DisplayCulture { get; init; } = "es"; }
+{ public static readonly IReadOnlyCollection<string> SortableFields = ["text"]; public string DisplayCulture { get; init; } = "es";
+    public override string ToString() => "ListFormPersonAttributeOptionsRequest { Search = [REDACTED] }"; }
 public sealed record FormPersonAttributeUseResponse(Guid DefinitionId, string Name);
 public sealed record FormPersonAttributeResponse(Guid Id, string Key, IReadOnlyDictionary<string, string> Name, string Type, Guid? SourceCatalogId,
     string? SourceCatalogName, int Position, bool IsActive, long Revision, IReadOnlyList<FormPersonAttributeUseResponse> UsedBy);
