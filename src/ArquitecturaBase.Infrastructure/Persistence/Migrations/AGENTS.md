@@ -20,6 +20,8 @@ AddFormMultipleChoiceValues agrega Position con default 0 y CHECK 0–19, y camb
 
 AddCatalogFieldsAndPresentation agrega FieldsJson/PresentationJson nullable sólo para Manual, FieldValuesJson de ítems con default `{}` e índice GIN `jsonb_path_ops`, y snapshot nullable en referencias. No reescribe historia. Down toma locks de las tres tablas y rechaza metadata o valores E2 antes de cualquier DDL. FormCatalogFieldsMigrationTests prepara conservación Up/Down/Up, default, CHECK, índice y rechazo sin pérdida por cada columna; PostgreSQL sólo se ejecuta al cierre conjunto.
 
+AddFormPersonData crea las tablas de atributos y valores con revisiones independientes, Key y UserId únicos, CHECK de fuente y FK restrictiva al catálogo, sin FK de UserId al núcleo. Conserva íntegros catálogos y capturas anteriores. Down bloquea ambas tablas y rechaza cualquier fila antes del DDL; las pruebas preparan Up/Down/Up y rechazo de cada tabla.
+
 ## Referencias
 
 - [Comandos y revisión obligatoria](../../../../docs/guides/migracion.md).

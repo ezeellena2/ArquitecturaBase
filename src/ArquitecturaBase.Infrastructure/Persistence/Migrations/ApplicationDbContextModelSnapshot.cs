@@ -1614,6 +1614,103 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.ToTable("BusinessFormPdfDesigns", (string)null);
                 });
 
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormPersonAttribute", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ModifiedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("NameJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid?>("SourceCatalogId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Key")
+                        .IsUnique();
+
+                    b.HasIndex("SourceCatalogId");
+
+                    b.ToTable("BusinessFormPersonAttributes", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_BusinessFormPersonAttributes_Source", "(\"Type\" = 'Catalog') = (\"SourceCatalogId\" IS NOT NULL)");
+                        });
+                });
+
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormPersonData", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ModifiedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ValuesJson")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("jsonb")
+                        .HasDefaultValue("{}");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.ToTable("BusinessFormPersonData", (string)null);
+                });
+
             modelBuilder.Entity("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormPublicationOperation", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3849,6 +3946,14 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasForeignKey("DefinitionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormPersonAttribute", b =>
+                {
+                    b.HasOne("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormCatalog", null)
+                        .WithMany()
+                        .HasForeignKey("SourceCatalogId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormPublicationOperation", b =>
