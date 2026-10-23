@@ -76,6 +76,38 @@ public sealed class FormPersonDataPersistenceTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Option_texts_leave_out_an_item_of_another_manual_catalog_than_the_attribute_source()
+    {
+        var connection = factory.NewDatabaseConnectionString("person_data_source");
+        await using var host = factory.WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:appdb", connection));
+        await using var scope = host.Services.CreateAsyncScope();
+        await using var db = new ApplicationDbContext(scope.ServiceProvider.GetRequiredService<DbContextOptions<ApplicationDbContext>>());
+        try
+        {
+            await db.GetService<IMigrator>().MigrateAsync(cancellationToken: Ct);
+            var zones = BusinessFormCatalog.CreateManual("es", new Dictionary<string, string> { ["es"] = "Zonas" }, new Dictionary<string, string>());
+            var regions = BusinessFormCatalog.CreateManual("es", new Dictionary<string, string> { ["es"] = "Regiones" }, new Dictionary<string, string>());
+            var north = zones.AddManualItem("NORTE", "Norte", null, null, null, 1).Value;
+            var south = regions.AddManualItem("SUR", "Sur", null, null, null, 1).Value;
+            var attribute = BusinessFormPersonAttribute.Create("zone", "es", new Dictionary<string, string> { ["es"] = "Zona" },
+                BusinessFormPersonAttributeType.Catalog, zones.Id, 0).Value;
+            var person = ApplicationUser.Create("person-source@arquitecturabase.test", false, null, false, "Source person", "es");
+            var values = JsonSerializer.Serialize(new Dictionary<string, string> { [attribute.Id.ToString("D")] = south.Id.ToString("D") });
+            db.AddRange(zones, regions, north, south, attribute, person, BusinessFormPersonData.Create(person.Id, values));
+            await db.SaveChangesAsync(Ct);
+            db.ChangeTracker.Clear();
+            var reader = new FormPersonDataReader(db);
+            var data = await reader.FindRecipientDataAsync(person.Id, Ct);
+            using (var stored = JsonDocument.Parse(data.ValuesJson))
+                Assert.Equal(south.Id.ToString("D"), stored.RootElement.GetProperty(attribute.Id.ToString("D")).GetString());
+            Assert.DoesNotContain(south.Id, data.OptionTexts.Keys);
+            var row = Assert.Single((await reader.ListPeopleAsync(new() { Search = "Source person" }, Ct)).Items);
+            Assert.DoesNotContain(south.Id, row.OptionTexts.Keys);
+        }
+        finally { await db.Database.EnsureDeletedAsync(CancellationToken.None); }
+    }
+
+    [Fact]
     public async Task Attribute_usage_deduplicates_draft_and_active_questions_and_keeps_deactivated_forms()
     {
         var connection = factory.NewDatabaseConnectionString("person_data_usage");
