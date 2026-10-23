@@ -46,9 +46,9 @@ internal static partial class FormCatalogFieldPolicy
                 }
                 else parsed = Normalize(field with { Required = field.Required && item.IsActive }, input);
                 if (parsed.IsSuccess && parsed.Value is { } selection && field.Type == "catalog"
-                    && (context.TypeChanges.Contains(field.Id) || Fresh(item.Id, key))
                     && (!sourceIndexes.TryGetValue(field.SourceCatalogId!.Value, out var source)
-                        || !source.Contains(selection.GetGuid())))
+                        || !(context.TypeChanges.Contains(field.Id) || Fresh(item.Id, key)
+                            ? source.Contains(selection.GetGuid()) : source.ContainsAny(selection.GetGuid()))))
                     parsed = FormCatalogErrors.FieldValueInvalid;
                 if (parsed.IsFailure)
                 {
@@ -84,7 +84,8 @@ internal static partial class FormCatalogFieldPolicy
         }
         return Result.Success();
 
-        // A saved value may keep pointing to an option that was deactivated later; only a new or changed one needs an active option.
+        // A saved value may keep pointing to a source option that was deactivated later, never to one outside the source;
+        // only a new or changed one needs an active option.
         bool Fresh(Guid itemId, string key) => requested.TryGetValue(itemId, out var sent) && sent.TryGetValue(key, out var value)
             && (!stored[itemId].TryGetValue(key, out var saved) || !JsonElement.DeepEquals(saved, value));
     }

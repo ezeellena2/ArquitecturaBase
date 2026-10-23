@@ -95,6 +95,26 @@ public sealed class FormCatalogFieldItemPolicyTests
         Assert.Equal($"items[0].fields.{zones.Key}", Assert.Single(Assert.IsType<ValidationError>(result.Error).Errors.Keys));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void A_saved_value_that_points_to_no_source_option_is_rejected(bool sent)
+    {
+        var zones = Zones();
+        var item = zones.Catalog.AddManualItem("acme", "Acme", null, null, null, 1).Value;
+        var otherCatalogOption = Guid.CreateVersion7();
+        Store(zones, item, otherCatalogOption);
+
+        var result = sent
+            ? FormCatalogFieldPolicy.ValidateItems(zones.Catalog, [item], [Input(item.Id, "Acme", zones, otherCatalogOption)],
+                Request(item.Id, zones, otherCatalogOption), zones.Context)
+            : FormCatalogFieldPolicy.ValidateItems(zones.Catalog, [item], [], NoRequest(), zones.Context);
+
+        Assert.Equal("Forms.Catalog.FieldValueInvalid", result.Error.Code);
+        Assert.Equal(sent ? $"items[0].fields.{zones.Key}" : "fields[0].type",
+            Assert.Single(Assert.IsType<ValidationError>(result.Error).Errors.Keys));
+    }
+
     [Fact]
     public void Recording_items_keeps_saved_values_of_inactive_source_options()
     {

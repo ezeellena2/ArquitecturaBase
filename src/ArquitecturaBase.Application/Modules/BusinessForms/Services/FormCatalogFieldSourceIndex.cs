@@ -6,12 +6,14 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
 internal sealed class FormCatalogFieldSourceIndex
 {
+    private readonly Dictionary<Guid, FormCatalogStoredItemRow> _all;
     private readonly HashSet<Guid> _activeIds = [];
     private readonly Dictionary<string, Guid> _codes = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, Guid?> _texts = new(StringComparer.OrdinalIgnoreCase);
 
     public FormCatalogFieldSourceIndex(IReadOnlyList<FormCatalogStoredItemRow> items)
     {
+        _all = items.ToDictionary(item => item.Id);
         foreach (var item in items.Where(item => item.IsActive))
         {
             _activeIds.Add(item.Id);
@@ -22,6 +24,9 @@ internal sealed class FormCatalogFieldSourceIndex
     }
 
     public bool Contains(Guid id) => _activeIds.Contains(id);
+
+    // Any option of the source, active or deactivated: a saved value may keep an option that was deactivated later.
+    public bool ContainsAny(Guid id) => _all.ContainsKey(id);
 
     public Result<string?> Resolve(string? input)
     {
