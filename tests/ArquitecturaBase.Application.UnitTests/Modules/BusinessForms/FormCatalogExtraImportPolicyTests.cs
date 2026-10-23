@@ -142,6 +142,42 @@ public sealed class FormCatalogExtraImportPolicyTests
         Assert.Empty(instructions.Value.Items);
     }
 
+    [Theory]
+    [InlineData("es")]
+    [InlineData("en")]
+    public void Reimporting_a_saved_inactive_source_option_is_an_unchanged_row(string culture)
+    {
+        var (field, sources, north, _) = Zones();
+        var item = Item("A", "Opción", Values((field.Id, north.Id.ToString("D"))));
+        var columns = FormCatalogImportTemplate.Columns(BusinessFormCatalogValueType.Text, culture, canonicalValue: true, fields: [field]);
+        var row = columns.Select(column => column.Key switch
+        {
+            "code" => "A", "text" => "Opción", "active" => "Yes", "textEn" or "detail" or "detailEn" => null, _ => north.Id.ToString("D"),
+        }).ToArray();
+        var result = FormCatalogImportPolicy.Build(Source([field], [item], sources), Sheet(columns.Select(column => column.Header).ToArray(), row),
+            FormCatalogImportMode.Replace, culture);
+        Assert.True(result.IsSuccess);
+        Assert.Empty(result.Value.Preview.Issues.Select(issue => issue.Code));
+        Assert.Equal(1, result.Value.Preview.Counts.Unchanged);
+        Assert.Empty(result.Value.Items);
+    }
+
+    [Fact]
+    public void An_inactive_source_option_is_still_a_row_error_as_a_new_or_changed_value()
+    {
+        var (field, sources, north, south) = Zones();
+        var source = Source([field], [Item("A", "Opción", Values((field.Id, south.Id.ToString("D"))))], sources);
+        foreach (var sheet in new[] { Sheet(["Code", "Text", "zone"], ["A", "Opción", "NORTE"]), Sheet(["Code", "Text", "zone"], ["B", "Nueva", north.Id.ToString("D")]) })
+        {
+            var result = FormCatalogImportPolicy.Build(source, sheet, FormCatalogImportMode.Append, "es");
+            Assert.True(result.IsSuccess);
+            Assert.Empty(result.Value.Items);
+            var issue = Assert.Single(result.Value.Preview.Issues);
+            Assert.Equal(field.Id.ToString("D"), issue.Column);
+            Assert.Equal("Forms.Catalog.FieldValueInvalid", issue.Code);
+        }
+    }
+
     [Fact]
     public void An_unknown_or_ambiguous_catalog_selection_is_a_row_error_and_not_a_silent_blank_value()
     {
@@ -196,6 +232,16 @@ public sealed class FormCatalogExtraImportPolicyTests
         Assert.True(blanks.IsSuccess, blanks.IsFailure ? blanks.Error.Code : null);
         Assert.Empty(blanks.Value.Preview.Issues);
         Assert.All(Assert.Single(blanks.Value.Items).Fields!.Values, Assert.Null);
+    }
+
+    // A source with «Norte» deactivated and «Sur» active, and a catalog field that points to it.
+    private static (BusinessFormCatalogField Field, Dictionary<Guid, IReadOnlyList<FormCatalogStoredItemRow>> Sources,
+        FormCatalogStoredItemRow North, FormCatalogStoredItemRow South) Zones()
+    {
+        var sourceId = Guid.CreateVersion7();
+        var north = new FormCatalogStoredItemRow(Guid.CreateVersion7(), sourceId, "NORTE", "Norte", "North", null, null, 0, false);
+        var south = new FormCatalogStoredItemRow(Guid.CreateVersion7(), sourceId, "SUR", "Sur", "South", null, null, 1, true);
+        return (Field("zone", "catalog") with { SourceCatalogId = sourceId }, new() { [sourceId] = [north, south] }, north, south);
     }
 
     private static FormCatalogImportSource Source(IReadOnlyList<BusinessFormCatalogField> fields, IReadOnlyList<FormCatalogStoredItemRow>? items = null,

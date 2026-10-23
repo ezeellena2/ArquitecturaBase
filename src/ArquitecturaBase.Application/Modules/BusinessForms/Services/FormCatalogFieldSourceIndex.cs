@@ -28,14 +28,22 @@ internal sealed class FormCatalogFieldSourceIndex
     // Any option of the source, active or deactivated: a saved value may keep an option that was deactivated later.
     public bool ContainsAny(Guid id) => _all.ContainsKey(id);
 
-    public Result<string?> Resolve(string? input)
+    // A cell that still names the saved option keeps it, even if it was deactivated later; any other cell needs an active option.
+    public Result<string?> Resolve(string? input, Guid? current = null)
     {
         var value = input?.Trim();
         if (string.IsNullOrEmpty(value)) return Result.Success<string?>(null);
+        if (current is { } saved && Names(saved, value)) return saved.ToString("D");
         if (Guid.TryParseExact(value, "D", out var id) && _activeIds.Contains(id)) return id.ToString("D");
         if (_codes.TryGetValue(value, out id)) return id.ToString("D");
         return _texts.TryGetValue(value, out var textId) && textId.HasValue ? textId.Value.ToString("D") : FormCatalogErrors.FieldValueInvalid;
     }
+
+    private bool Names(Guid id, string value) => _all.TryGetValue(id, out var item)
+        && (Guid.TryParseExact(value, "D", out var named) && named == id
+            || string.Equals(value, item.Code, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, item.TextEs.Trim(), StringComparison.OrdinalIgnoreCase)
+            || item.TextEn is { } english && string.Equals(value, english.Trim(), StringComparison.OrdinalIgnoreCase));
 
     private void Add(string text, Guid id)
     {
@@ -51,5 +59,5 @@ internal sealed class FormCatalogFieldSourceIndex
 internal static partial class FormCatalogFieldPolicy
 {
     public static FormCatalogFieldSourceIndex CreateSourceIndex(IReadOnlyList<FormCatalogStoredItemRow> items) => new(items);
-    public static Result<string?> ResolveCatalogValue(FormCatalogFieldSourceIndex source, string? input) => source.Resolve(input);
+    public static Result<string?> ResolveCatalogValue(FormCatalogFieldSourceIndex source, string? input, Guid? current = null) => source.Resolve(input, current);
 }

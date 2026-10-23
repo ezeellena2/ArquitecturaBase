@@ -27,19 +27,19 @@ internal static partial class FormCatalogImportPolicy
         return byName.Length switch { 0 => new(null), 1 => new(byName[0].Id.ToString("D")), _ => new(null, Ambiguous: true) };
     }
 
-    private static Dictionary<Guid, Func<string?, Result<string?>>> SourceResolvers(FormCatalogImportSource source)
+    private static Dictionary<Guid, Func<string?, Guid?, Result<string?>>> SourceResolvers(FormCatalogImportSource source)
     {
-        var result = new Dictionary<Guid, Func<string?, Result<string?>>>();
+        var result = new Dictionary<Guid, Func<string?, Guid?, Result<string?>>>();
         foreach (var (id, options) in source.Sources ?? new Dictionary<Guid, IReadOnlyList<FormCatalogStoredItemRow>>())
         {
             var index = FormCatalogFieldPolicy.CreateSourceIndex(options);
-            result.Add(id, input => FormCatalogFieldPolicy.ResolveCatalogValue(index, input));
+            result.Add(id, (input, current) => FormCatalogFieldPolicy.ResolveCatalogValue(index, input, current));
         }
         return result;
     }
 
     private static Dictionary<string, JsonElement> ParseFields(IReadOnlyList<BusinessFormCatalogField> fields,
-        Dictionary<Guid, Func<string?, Result<string?>>> resolvers, FormCatalogStoredItemRow? existing,
+        Dictionary<Guid, Func<string?, Guid?, Result<string?>>> resolvers, FormCatalogStoredItemRow? existing,
         FormSpreadsheetRow row, Dictionary<string, int> columns, HashSet<string> canonicalFields,
         HashSet<string> invalidCells, bool active, string culture, List<FormCatalogImportIssue> issues)
     {
@@ -58,9 +58,11 @@ internal static partial class FormCatalogImportPolicy
             var input = cell?.Text;
             if (field.Type == "catalog")
             {
+                // The saved option resolves even if it was deactivated later, so re-importing it is not a change.
+                Guid? saved = values.TryGetValue(key, out var stored) && Guid.TryParse(FormCatalogFieldPolicy.Input(stored), out var savedId) ? savedId : null;
                 Result<string?> resolved = string.IsNullOrWhiteSpace(input) ? Result.Success<string?>(null)
                     : field.SourceCatalogId is { } sourceId && resolvers.TryGetValue(sourceId, out var resolve)
-                        ? resolve(input) : FormCatalogErrors.FieldValueInvalid;
+                        ? resolve(input, saved) : FormCatalogErrors.FieldValueInvalid;
                 if (resolved.IsFailure) { issues.Add(Issue(row.Number, key, resolved.Error)); continue; }
                 input = resolved.Value;
             }

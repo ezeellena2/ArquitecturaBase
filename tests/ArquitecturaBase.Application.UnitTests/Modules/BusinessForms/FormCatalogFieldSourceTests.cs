@@ -23,6 +23,27 @@ public sealed class FormCatalogFieldSourceTests
         Assert.Null(FormCatalogFieldPolicy.ResolveCatalogValue(index, " ").Value);
     }
 
+    [Fact]
+    public void A_cell_that_names_the_saved_option_keeps_it_even_if_inactive()
+    {
+        var sourceId = Guid.CreateVersion7();
+        var active = Item(sourceId, "A", "Activa", null);
+        var inactive = Item(sourceId, "C", "Norte", "North") with { IsActive = false };
+        var outside = Guid.CreateVersion7();
+        var index = FormCatalogFieldPolicy.CreateSourceIndex([active, inactive]);
+        var saved = inactive.Id.ToString("D");
+        foreach (var cell in new[] { "C", " c ", saved, saved.ToUpperInvariant(), "norte", " North " })
+        {
+            var kept = FormCatalogFieldPolicy.ResolveCatalogValue(index, cell, inactive.Id);
+            Assert.True(kept.IsSuccess, $"'{cell}' should keep the saved option: {(kept.IsFailure ? kept.Error.Code : null)}");
+            Assert.Equal(saved, kept.Value);
+        }
+        Assert.Equal(active.Id.ToString("D"), FormCatalogFieldPolicy.ResolveCatalogValue(index, "A", inactive.Id).Value);
+        Assert.Equal("Forms.Catalog.FieldValueInvalid", FormCatalogFieldPolicy.ResolveCatalogValue(index, "C").Error.Code);
+        Assert.Equal("Forms.Catalog.FieldValueInvalid", FormCatalogFieldPolicy.ResolveCatalogValue(index, saved).Error.Code);
+        Assert.Equal("Forms.Catalog.FieldValueInvalid", FormCatalogFieldPolicy.ResolveCatalogValue(index, outside.ToString("D"), outside).Error.Code);
+    }
+
     [Theory]
     [InlineData("CODE")]
     [InlineData("Source label")]
