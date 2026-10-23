@@ -49,9 +49,9 @@ Se leen **solo los mensajes de personas con cuenta vinculada y activa,** como ho
 | Foto o captura (JPEG, PNG) | La IA la lee | Tipo de documento y datos; propone el formulario con la foto adjunta |
 | PDF | La IA lee todas sus páginas, con un tope | Igual que la foto |
 | Word (`.docx`) | El servidor extrae el texto y las tablas, y la IA los lee | Igual, con el archivo adjunto |
-| Excel (`.xlsx`) | El servidor lee las hojas, con los topes de la importación de catálogos, y la IA las lee | Igual. Una planilla con varias filas del mismo tipo puede proponer varias cargas, hasta el tope de acciones |
-| Ubicación | Sin IA: llega con latitud, longitud y, a veces, nombre y dirección | La pregunta de ubicación o dirección del formulario que se esté completando |
-| Contacto (tarjeta) | Sin IA: llega con nombre y teléfonos | Las preguntas de nombre y teléfono |
+| Excel (`.xlsx`) | El servidor lee las hojas, con los topes de la importación de catálogos, y la IA las lee | Igual. Una planilla con varias filas del mismo tipo puede proponer varias cargas, hasta el tope de acciones; las filas que pasan el tope quedan propuestas en la bandeja |
+| Ubicación | Sin IA: llega con latitud, longitud y, a veces, nombre y dirección | La pregunta de ubicación o dirección del formulario que se esté completando; cuál es se elige en el editor |
+| Contacto (tarjeta) | Sin IA: llega con nombre y teléfonos | Las preguntas de nombre y teléfono, elegidas en el editor |
 | Video o sticker | No se lee | — |
 
 - **Los formatos viejos** (`.doc`, `.xls`), los archivos con macros y los protegidos con contraseña no se leen: se pide un PDF o una versión sin contraseña.
@@ -91,6 +91,7 @@ Se leen **solo los mensajes de personas con cuenta vinculada y activa,** como ho
 | Documento sin texto | Funciona igual: el documento es el mensaje |
 | Un contacto sin cuenta vinculada | No se lee ([ADR 0022](../decisions/0022-lectura-de-documentos-con-ia.md)): queda en el chat para un operador, como hoy |
 | Una cuenta sin permiso para cargar respuestas | No se lee, porque no tiene formularios posibles: lo dice y deriva |
+| El formulario reconocido no se le puede mandar, por ejemplo porque le falta el dato con el que se filtra un catálogo ([E2](formularios/catalogos-campos-extra.md)) | Lo dice y deriva |
 | Varias fotos de un mismo documento, o varios documentos en un mensaje | Después de esta etapa: necesita la ráfaga y las varias acciones de [casos del asistente](2026-10-21-casos-del-asistente.md) |
 
 ### La bandeja «Documentos recibidos»
@@ -99,6 +100,8 @@ Forma elegida, **DOC5-A:** una planilla como la de respuestas, con sus filtros. 
 
 - **Filtros:** tipo, estado (propuesto, confirmado, sin clasificar, descartado), persona y fecha.
 - **El documento al lado de los datos extraídos,** para revisar, corregir y pasar al formulario.
+- **Propuestos para revisar acá:** los que la persona no confirmó antes de que venciera el envío y las filas de una planilla que pasaron el tope. Alguien con permiso los pasa al formulario, y la respuesta dice de qué documento salió y quién la revisó.
+- **Cuándo se borra:** cada descartado o sin clasificar muestra la fecha, a los 90 días.
 - **Búsqueda por los datos:** monto, CUIT o número de operación.
 - **Permisos propios** para ver y revisar documentos.
 
