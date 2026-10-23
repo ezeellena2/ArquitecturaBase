@@ -170,7 +170,7 @@ No se vuelven a preguntar.
 - **Quién manda:** se leen solo los mensajes de personas con cuenta vinculada y activa.
 - **Retención:** un documento que termina en una respuesta se queda con ella. Uno descartado o sin clasificar se borra a los 90 días, con su lectura.
 - **Tipos en la primera etapa:** foto, PDF, Word (`.docx`), Excel (`.xlsx`), ubicación y contacto.
-- **Tableros elegidos (2026-10-22):** DOC5-A, la bandeja como planilla con panel, y DOC7-A, el tablero con tarjetas. DOC1–DOC4 y DOC6 tienen un solo concepto.
+- **Tableros elegidos (2026-10-22):** DOC5-A, la bandeja como planilla con panel, y DOC7-A, el tablero con tarjetas. DOC1–DOC4 y DOC6 tienen un solo concepto. Lo fijado al dibujar y las correcciones al elegir están en el [diseño del front](../../../ArquitecturaBaseFront/docs/design/documentos.md#los-tableros).
 
 **Esta es la parte 1 de tres proyectos.** La parte 2, formularios conectados a sistemas externos (ARCA, Mercado Libre y cualquier API), y la parte 3, que otros sistemas reciban nuestros datos (webhooks, API pública y MCP), tienen su propio plan después de la investigación del 2026-10-22.
 
