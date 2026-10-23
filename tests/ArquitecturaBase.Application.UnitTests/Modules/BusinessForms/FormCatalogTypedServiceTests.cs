@@ -100,6 +100,27 @@ public sealed class FormCatalogTypedServiceTests
         finally { CultureInfo.CurrentUICulture = previous; }
     }
 
+    [Theory]
+    [InlineData("es-AR", "es")]
+    [InlineData("en-US", "en")]
+    public async Task A_created_filters_catalog_takes_its_original_language_from_the_menu(string uiCulture, string original)
+    {
+        var previous = CultureInfo.CurrentUICulture;
+        CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo(uiCulture);
+        try
+        {
+            var repository = new FormCatalogCapacityRepository();
+
+            var result = await FiltersService(repository, new FakeUnitOfWork()).CreateAsync(new(Texts(), Texts(),
+                new("name", null, [], false, "name", false)), Ct);
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal(BusinessFormCatalogKind.Filters, repository.Catalog!.Kind);
+            Assert.Equal(original, repository.Catalog.OriginalCulture);
+        }
+        finally { CultureInfo.CurrentUICulture = previous; }
+    }
+
     [Fact]
     public async Task Text_is_the_default_and_an_empty_typed_catalog_can_be_saved()
     {
@@ -148,5 +169,13 @@ public sealed class FormCatalogTypedServiceTests
         return new(repository, null!, work,
             RequestValidators.For(new CreateManualCatalogRequestValidator(), new UpdateManualCatalogRequestValidator()),
             new(new FakeCurrentUser { UserId = actor }, permissions), null!, new(repository), new(null!));
+    }
+    private static FormCatalogFiltersService FiltersService(FormCatalogCapacityRepository repository, FakeUnitOfWork work)
+    {
+        var actor = Guid.NewGuid();
+        var permissions = new FakePermissionService();
+        permissions.Permissions[actor] = [BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage];
+        return new(repository, null!, work, RequestValidators.For(new CreateFiltersCatalogRequestValidator()),
+            new(new FakeCurrentUser { UserId = actor }, permissions), null!, null!);
     }
 }
