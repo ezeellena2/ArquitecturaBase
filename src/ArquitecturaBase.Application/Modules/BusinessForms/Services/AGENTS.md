@@ -11,7 +11,7 @@ Casos de uso y helpers; contratos en `Interfaces/Services`. Leer [formularios](.
 - Read, más Manage al escribir. El comprobante propio se consulta antes que la revisión; la purga es `FormDraftRetentionService`.
 - `Normalize` canoniza mapas, longitudes por defecto y `OfferWhen` (vacío es null); `Resolve` asigna identidades y falla si se pierde una traducción no vacía. `LocalId` sólo correlaciona el intento.
 - `SchemaJson` lleva `format` y `fields`; cultura, botón, retiradas y `OfferWhen` van aparte. Guardar o chequear no crea campos ni versiones. MultiChoice requiere Selection: 0 ≤ min ≤ max ≤ 20, max ≥ 1 y Required si y sólo si min > 0; opciones propias de 1 a 20, con mínimo no mayor que su cantidad. Cambiar tipo crea identidad nueva; cambiar el rango la conserva.
-- Listado y facetas usan la cultura de UI del servidor. `FormDefinitionReadPolicy` da `recoveryActor` sólo con Publish y omite filas borradas en el medio sin repaginar; detalle y recibo de baja responden NotFound.
+- Listado/facetas usan cultura UI. RecoveryActor sólo con Publish; omitir borrados sin repaginar y detalle/recibo ausentes dan NotFound.
 
 ### Publicación
 
@@ -27,7 +27,7 @@ Casos de uso y helpers; contratos en `Interfaces/Services`. Leer [formularios](.
 - Baja: Read+Publish; lock → permisos → revisión → sin publicación abierta → `Deactivate`, que conserva la versión activa. La vista previa lee y lista sugerencias entrantes activas.
 - Reactivar es publicar el borrador; Domain reactiva al activar la versión nueva.
 - Eliminar: Read+Manage; revisión, sin publicación abierta, `LastRecordNumber` cero y sin envíos abiertos ni replies pendientes (`IStructuredFormChannelStateSource`, sólo lectura). `Remove` deja el borrado lógico al interceptor.
-- Lifecycle fuera del borrador/manifiesto: conteos con RecordsRead; CanDelete con Manage sin revelarlos.
+- Lifecycle fuera de borrador/manifiesto; conteos con RecordsRead y CanDelete con Manage sin revelarlos.
 
 ### Datos de personas
 
@@ -38,11 +38,11 @@ Casos de uso y helpers; contratos en `Interfaces/Services`. Leer [formularios](.
 ### Catálogos y filtros
 
 - CatalogsRead, más CatalogsManage al escribir, con lock del catálogo; metadatos, estado e ítems comparten revisión, sin protocolo durable.
-- `FormCatalogValuePolicy` normaliza enteros de hasta 18 dígitos, Decimal sin redondeo y fecha ISO; el error queda en `items[i].value`, también en opciones inactivas. Importar texto usa la cultura de UI y rechaza separadores ambiguos; las celdas numéricas/fecha y la cabecera canónica del export conservan el valor exacto. El tipo se recibe sólo al crear. Mover conserva el valor.
+- Valor: entero hasta 18 dígitos, decimal exacto y fecha ISO; errores `items[i].value`, también inactivos. Texto importado usa cultura UI y rechaza ambigüedad; celdas tipadas/cabecera canónica conservan precisión. Tipo sólo al crear; mover conserva valor.
 - `FormCatalogItemRecorder` comparte PUT/import sobre ítems seguidos, sin límite propio. Manual sin Position; moves y A–Z conservan los desempates. Error revierte todo.
 - `FormCatalogFieldRecorder`: identidades, claves, fuentes Manual activas, usos borrador/activa y confirmaciones antes de configurar. `FormCatalogFieldPolicy`: todos los valores, requeridos, unicidad activa, conversión y JSON tipado bajo lock; errores con paths y metadata acotada (FieldErrors.OnWithMetadata).
 - Fields ausente conserva configuración; inactivos conservan nombre. `FormCatalogFieldPresentation` compone metadata/títulos con la política pura y fuentes por lote.
-- Manual admite 10.000 filas en total, incluidas inactivas; un delta suma las existentes bajo el mismo lock. El duplicado señala `items[i].code`; `moves` conserva su tope de 500. Las condiciones leen todos los ítems una vez por catálogo, sin usar el paginado de pantalla ni el tope de oferta de Meta.
+- Manual: máximo 10.000 incluidas inactivas/delta bajo lock; duplicado en `items[i].code` y moves ≤ 500. Condiciones: ListAll una vez por catálogo, sin paginado ni tope de oferta.
 - Import: permisos/Manual/revisión antes de parsear; preview sin UoW/archivo persistido. Apply compara SHA-256 y recompone bajo lock, con confirmaciones y recorder. Sin diferencias conserva revisión/marca; fila inválida conserva ítem/posición. Campos por clave/nombre es/en; ausente conserva valor. Plantilla desambigua claves fijas con `[campo]`; export `[canónico]`/`[canonical]` conserva precisión y roundtrip. Sin caché/replay durable.
 - Filters: personas de ejemplo sólo con Manage; la vista previa no abre UoW ni guarda. `UsageCount` es null sin `formtemplates.read`. Al editar Manual o Filters se devuelve el conteo real; una escritura fallida o sin ese permiso no consulta el uso.
 - `FormCatalogOptionsPolicy` y `FormConditionChoicePolicy` sólo leen, sin permisos de valores; `FormCatalogPreparationPolicy` toma los locks de catálogo, ordenados, sólo al enviar y en la UoW del canal.
@@ -64,7 +64,8 @@ Casos de uso y helpers; contratos en `Interfaces/Services`. Leer [formularios](.
 - `FindRecordNavigationAsync`: mismo pedido/snapshot de planilla, sólo IDs, posición global desde 1 y total sin paginar. Ancla ajena, excluida o ausente da NotFound; revocar descarta también esa ausencia.
 - Overview: RecordsRead o ApprovalsDecide, revalidando dimensiones; publicados no eliminados, nombre sellado y LastRecordNumber. Pendientes por roles vigentes y sin propias. Sólo aprobar conserva segmento sin respuestas; PendingOnly explícito con ambos permisos incluye bajas. Facetas/paginado SQL.
 - Celdas: `NotAsked` sin pregunta; `Unanswered` vacía, también multiChoice []. El filtro `unanswered` incluye ambas en SQL/facetas/reglas. MultiChoice conserva orden capturado, usa anyOf por intersección y no admite orden por pregunta.
-- Excel: RecordsRead+RecordsExport por lote y máximo inicial. MultiChoice une etiquetas con '; '; su columna tipada adicional también es texto canónico, aun vacía/una elección. Choice conserva número/fecha y los headers existen sin filas.
+- Excel: RecordsRead+RecordsExport por lote/tope. MultiChoice une con '; ' y conserva precisión canónica; Choice mantiene tipos y headers sin filas. CatalogFields elige pares pregunta/campo aparte de Columns: null todos, [] ninguno.
+- Campos extra: metadata actual activa más histórica por catálogo; valores/nombres/tipos de cada celda salen del snapshot. Subcolumnas sin sort/facetas. Detalle muestra todos; PDF sólo datos; chat omite Fields. Historia sin snapshot muestra «—».
 
 ### Reglas, acciones y aprobaciones
 

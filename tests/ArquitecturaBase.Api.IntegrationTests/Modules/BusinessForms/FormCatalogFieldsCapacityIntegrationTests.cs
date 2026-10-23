@@ -1,11 +1,15 @@
 using System.Diagnostics;
 using System.Globalization;
+using System.Net;
+using System.Net.Http.Json;
 using System.Text.Json;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessForms;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
+using ArquitecturaBase.Domain.ValueObjects;
 using ArquitecturaBase.Infrastructure.Modules.BusinessForms.Persistence.Readers;
 using ArquitecturaBase.Infrastructure.Modules.BusinessForms.Persistence.Repositories;
 using ArquitecturaBase.Infrastructure.Persistence;
@@ -48,6 +52,30 @@ public sealed class FormCatalogFieldsCapacityIntegrationTests(ApiFactory factory
                 repository.Add(catalog);
                 repository.AddItems(items);
             });
+            var actor = await factory.InTransactionAsync(async services =>
+            {
+                var roles = services.GetRequiredService<IRoleRepository>();
+                var role = "capacity-fields-" + Guid.NewGuid().ToString("N");
+                await roles.CreateAsync(role, null, [BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage], Ct);
+                var users = services.GetRequiredService<IUserRepository>();
+                var user = await users.CreateAsync(Email.Create(TestEmails.Unique("capacity-fields")).Value, null, false, null, "es", Ct);
+                await users.SetRolesAsync(user.Id, [role], Ct);
+                return user.Id;
+            });
+            using var client = factory.CreateClient();
+            client.DefaultRequestHeaders.Add(TestAuthHandler.UserIdHeader, actor.ToString("D"));
+            var saving = Stopwatch.StartNew();
+            using var saved = await client.PutAsJsonAsync("/api/forms/catalogs/" + catalog.Id, new
+            {
+                expectedRevision = 1, name = texts, description = texts, fields, items = Array.Empty<object>(),
+            }, Ct);
+            saving.Stop();
+            Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+            var savedBody = await saved.ReadJsonAsync();
+            Assert.Equal(2, savedBody.GetProperty("catalog").GetProperty("revision").GetInt64());
+            Assert.Equal(20, savedBody.GetProperty("catalog").GetProperty("fields").GetArrayLength());
+            Assert.All(savedBody.GetProperty("catalog").GetProperty("fields").EnumerateArray(), field => Assert.True(field.GetProperty("hasValues").GetBoolean()));
+            Assert.Equal(2, await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormCatalog>().Where(value => value.Id == catalog.Id).Select(value => value.Revision).SingleAsync(Ct)));
             await factory.ExecuteScopeAsync(async services =>
             {
                 var recorder = new FormResponseCommandRecorder();
@@ -89,13 +117,13 @@ public sealed class FormCatalogFieldsCapacityIntegrationTests(ApiFactory factory
                 var plan = (string)(await command.ExecuteScalarAsync(Ct))!;
                 using var document = JsonDocument.Parse(plan);
                 Assert.Equal(100d, document.RootElement[0].GetProperty("Plan").GetProperty("Actual Rows").GetDouble());
-                output.WriteLine("Catalog 10000x20: offered={0}; containment={1:F2} ms; selected batch={2:F2} ms.", offered.Count, offerMilliseconds, captureMilliseconds);
+                output.WriteLine("Catalog 10000x20: offered={0}; containment={1:F2} ms; selected batch={2:F2} ms; validating save={3:F2} ms.", offered.Count, offerMilliseconds, captureMilliseconds, saving.Elapsed.TotalMilliseconds);
                 var destination = Environment.GetEnvironmentVariable("FORM_CATALOG_FIELDS_PERFORMANCE_OUTPUT");
                 if (!string.IsNullOrWhiteSpace(destination))
                 {
                     Directory.CreateDirectory(destination);
                     await File.WriteAllTextAsync(Path.Combine(destination, "catalog-fields-10000x20.json"),
-                        JsonSerializer.Serialize(new { rows = 10000, fields = 20, offered = offered.Count, offerMilliseconds, captureMilliseconds,
+                        JsonSerializer.Serialize(new { rows = 10000, fields = 20, offered = offered.Count, saveMilliseconds = saving.Elapsed.TotalMilliseconds, offerMilliseconds, captureMilliseconds,
                             plan = document.RootElement.Clone() }), Ct);
                 }
             });

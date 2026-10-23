@@ -57,3 +57,5 @@ FormApprovalContinuationServiceTests cubre contrato, dirección/tamaño/definici
 Datos de personas: permisos OR/AND y revocación, revisión por fila/atributo, delta que conserva ausentes/inactivos y limpia null, source/opción activa, aislamiento por persona, máximo20 y usados. El lector de opciones devuelve sólo id/text sin CatalogsRead. Casos PostgreSQL y locks reales van a integración.
 
 E2-3 cubre canónico de Match, ausencia que nunca amplía oferta, huella exacta del esquema anterior y Source/Shown nulos omitidos. Preparación y asistente comparten cultura efectiva y límites; preview conserva exceso/títulos inválidos sólo para diagnóstico y revalida permisos también al devolver ausencia. Publicación separa bloqueos/avisos, máximo y unión de faltantes.
+
+E2-4 verifica nombres/valores históricos es/en, precisión, ausencia y orden; selección Excel independiente por pregunta/campo, nulos/duplicados y tipos escalares. Chat omite extras; columnas no habilitan sort ni condiciones.
