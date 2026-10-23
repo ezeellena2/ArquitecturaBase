@@ -79,10 +79,13 @@ internal sealed class FormCatalogImportService(IFormCatalogRepository repository
         if (confirmations.IsFailure) return confirmations.Error;
         var recorded = recorder.Record(catalog, items, plan.Value.Items);
         if (recorded.IsFailure) return recorded.Error;
-        var marked = catalog.MarkImported(request.ExpectedRevision, sheet.Sha256, timeProvider.GetUtcNow().UtcDateTime);
-        if (marked.IsFailure) return marked.Error;
+        if (plan.Value.Items.Count > 0)
+        {
+            var marked = catalog.MarkImported(request.ExpectedRevision, sheet.Sha256, timeProvider.GetUtcNow().UtcDateTime);
+            if (marked.IsFailure) return marked.Error;
+        }
         var detail = new FormCatalogDetailResponse(catalog.Id, catalog.Key, ReadTexts(catalog.NameJson), ReadTexts(catalog.DescriptionJson),
-            catalog.Kind.ToString(), catalog.Revision, catalog.IsActive, items.Count + recorded.Value.Count, null, null,
+            catalog.Kind.ToString(), catalog.Revision, catalog.IsActive, items.Count + recorded.Value.IdentityMap.Count, null, null,
             ValueType: catalog.ValueType.ToString());
         return new FormCatalogSaveResponse(detail, new Dictionary<string, Guid>(StringComparer.Ordinal));
     }
