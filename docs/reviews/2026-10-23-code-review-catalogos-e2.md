@@ -215,13 +215,20 @@ Se corrige en un solo chat, back y front juntos, cada arreglo con su test y comm
     - **Arreglo:**
       - el contrato publicado es el del back: corregir en el front los tipos, las comparaciones, las claves es/en y los dobles de los tests;
       - exportar ejemplos HTTP reales del asistente (bootstrap, enviar, turno, turnos y cancelar) y validarlos con zod estricto.
-35. **Crear un catálogo con el nombre y la descripción solo en español parece no guardar** (back: `FormCatalogRequestValidators.cs:183-184`; front: `CatalogMetadataFields.tsx:25,30`).
+35. **Nadie está obligado a escribir en inglés ni en español** (back: `FormCatalogRequestValidators.cs:183-184` y `BusinessFormPersonAttribute.cs`; front: `CatalogMetadataFields.tsx:25,30` y `catalogResponse.ts`).
     - **Qué pasa:**
-      - el back exige es y en, y el 400 trae `name.en` y `description.en`;
-      - el front muestra el error solo en la pestaña del idioma activo y no avisa en ningún otro lado;
+      - el alta de catálogos sigue siendo bilingüe: el nombre y la descripción exigen es y en. Es la excepción que dejó la [regla de idioma original](../features/formularios.md#idioma-original-y-traducción-opcional--2026-10-19) del 2026-10-19;
+      - los nombres de los campos, el texto de las opciones y los datos de las personas exigen español;
+      - al crear un catálogo solo en español, «Guardar» parece no hacer nada: el 400 trae `name.en` y `description.en`, y el front lo muestra solo en la pestaña del idioma activo;
       - la persona ve que no pasa nada y, al irse, pierde lo escrito.
+    - **Regla, decisión del usuario del 2026-10-23:**
+      - lo que se crea en la web se escribe en el idioma elegido en el menú; ese es su idioma original y el único obligatorio;
+      - el otro idioma es una traducción opcional;
+      - se muestra en el idioma de la pantalla y, si falta, en el original.
     - **Arreglo:**
-      - **decisión del usuario, 2026-10-23:** el inglés es opcional en el nombre y la descripción del catálogo, como en los formularios (el idioma original es obligatorio y la traducción, opcional) y en las opciones. Hay que ajustar el validador, el texto de ayuda de la pantalla, los contratos y el front, y anotarlo en las reglas de formularios;
+      - es la misma regla que ya tienen los formularios: se extiende a los catálogos (nombre, descripción y opciones), a los campos y a los datos de las personas, y se retira la excepción bilingüe;
+      - hay que revisar todo lo que hoy exige «es», «es y en» o cae a «es» por defecto, también lo que viaja a WhatsApp y las pantallas que dicen «Completá … en español e inglés»;
+      - se anota en las reglas de formularios;
       - un error de guardado en un campo que no está a la vista tiene que verse: cambiar a la pestaña del idioma con el error y marcarla. Si no hay un campo visible, se muestra en la página.
 36. **Al agregar una opción, sus campos aparecen en rojo antes de escribir nada** (front: `CatalogEditorPage.tsx`, con `catalogItemProblems`, y `CatalogManualItemsEditor`).
     - **Qué pasa:** «Agregar opción» crea la fila vacía y enseguida marca Texto y Código con «Completá este campo». Arriba aparece «Revisá las opciones marcadas antes de guardar».
