@@ -28,15 +28,15 @@ internal sealed class FormCatalogFieldSourceIndex
     // Any option of the source, active or deactivated: a saved value may keep an option that was deactivated later.
     public bool ContainsAny(Guid id) => _all.ContainsKey(id);
 
-    // A cell that still names the saved option keeps it, even if it was deactivated later; any other cell needs an active option.
+    // Active options resolve first; a cell that resolves to none of them but still names the saved option keeps it, even if it was deactivated later.
     public Result<string?> Resolve(string? input, Guid? current = null)
     {
         var value = input?.Trim();
         if (string.IsNullOrEmpty(value)) return Result.Success<string?>(null);
-        if (current is { } saved && Names(saved, value)) return saved.ToString("D");
         if (Guid.TryParseExact(value, "D", out var id) && _activeIds.Contains(id)) return id.ToString("D");
         if (_codes.TryGetValue(value, out id)) return id.ToString("D");
-        return _texts.TryGetValue(value, out var textId) && textId.HasValue ? textId.Value.ToString("D") : FormCatalogErrors.FieldValueInvalid;
+        if (_texts.TryGetValue(value, out var textId) && textId.HasValue) return textId.Value.ToString("D");
+        return current is { } saved && Names(saved, value) ? saved.ToString("D") : FormCatalogErrors.FieldValueInvalid;
     }
 
     private bool Names(Guid id, string value) => _all.TryGetValue(id, out var item)

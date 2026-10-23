@@ -44,6 +44,24 @@ public sealed class FormCatalogFieldSourceTests
         Assert.Equal("Forms.Catalog.FieldValueInvalid", FormCatalogFieldPolicy.ResolveCatalogValue(index, outside.ToString("D"), outside).Error.Code);
     }
 
+    [Fact]
+    public void A_cell_that_names_an_active_option_resolves_to_it_before_the_saved_inactive_one()
+    {
+        var sourceId = Guid.CreateVersion7();
+        var saved = Item(sourceId, "NORTE", "Norte", "North") with { IsActive = false };
+        var recreated = Item(sourceId, "NORTE-2", "Norte", null);
+        var coded = Item(sourceId, "NORTH", "Septentrion", null);
+        var firstCenter = Item(sourceId, "CENTRO-1", "Centro", null);
+        var secondCenter = Item(sourceId, "CENTRO-2", "Centro", null);
+        var savedCenter = Item(sourceId, "CENTRO", "Centro", null) with { IsActive = false };
+        var index = FormCatalogFieldPolicy.CreateSourceIndex([saved, recreated, coded, firstCenter, secondCenter, savedCenter]);
+        Assert.Equal(recreated.Id.ToString("D"), FormCatalogFieldPolicy.ResolveCatalogValue(index, "Norte", saved.Id).Value);
+        Assert.Equal(coded.Id.ToString("D"), FormCatalogFieldPolicy.ResolveCatalogValue(index, "north", saved.Id).Value);
+        Assert.Equal(saved.Id.ToString("D"), FormCatalogFieldPolicy.ResolveCatalogValue(index, saved.Id.ToString("D"), saved.Id).Value);
+        Assert.Equal(savedCenter.Id.ToString("D"), FormCatalogFieldPolicy.ResolveCatalogValue(index, "centro", savedCenter.Id).Value);
+        Assert.Equal("Forms.Catalog.FieldValueInvalid", FormCatalogFieldPolicy.ResolveCatalogValue(index, "centro").Error.Code);
+    }
+
     [Theory]
     [InlineData("CODE")]
     [InlineData("Source label")]
