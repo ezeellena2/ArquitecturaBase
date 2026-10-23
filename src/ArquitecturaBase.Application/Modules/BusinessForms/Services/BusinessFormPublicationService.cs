@@ -51,7 +51,9 @@ internal sealed class BusinessFormPublicationService : IBusinessFormPublicationS
         var channels = new List<FormPublicationChannelResponse>();
         var issues = cultures.Where(culture => culture.IsOriginal).SelectMany(culture => culture.Missing).ToList();
         issues.AddRange(_guard.ValidateFiles(saved));
-        issues.AddRange(await _guard.ValidateCatalogsAsync(saved.Draft.Fields, cancellationToken));
+        var catalogs = await _guard.InspectCatalogsAsync(saved.Draft.Fields, cancellationToken,
+            cultures.Where(culture => culture.IsComplete).Select(culture => culture.Culture).ToArray());
+        issues.AddRange(catalogs.Issues);
         if (_channels.Length == 0)
             issues.Add(new(null, null, null, "channel", FormPublicationErrors.ChannelUnavailable.Code,
                 ErrorMessages.Get(FormPublicationErrors.ChannelUnavailable.Code), null, null));
@@ -80,7 +82,7 @@ internal sealed class BusinessFormPublicationService : IBusinessFormPublicationS
             FormPublicationSnapshotPolicy.Fingerprint(saved, profiles), expiresAtUtc!.Value)) : null;
         return new FormPublicationCheckResponse(id, row.Revision, compatibility, canAccept,
             open ? "InProgress" : publicationAvailable ? "Available" : "Unavailable", channels.AsReadOnly(), issues.AsReadOnly(),
-            cultures, await DiffAsync(id, saved, cultures, cancellationToken), nextVersionNumber, token, expiresAtUtc);
+            cultures, await DiffAsync(id, saved, cultures, cancellationToken), nextVersionNumber, token, expiresAtUtc) { Warnings = catalogs.Warnings };
     });
     private async Task<FormPublicationDiffResponse> DiffAsync(Guid id, FormDefinitionResponse saved,
         IReadOnlyList<FormPublicationCultureResponse> cultures, CancellationToken ct)
