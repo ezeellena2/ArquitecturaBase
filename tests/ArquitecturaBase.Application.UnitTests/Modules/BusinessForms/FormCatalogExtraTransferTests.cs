@@ -81,6 +81,8 @@ public sealed class FormCatalogExtraTransferTests
             Assert.Equal("1500.5", JsonDocument.Parse(Assert.Single(fixture.Items).FieldValuesJson).RootElement.GetProperty(field.Id.ToString("D")).GetString());
             Assert.Equal(2, fixture.Catalog.Revision);
             Assert.Equal(1, fixture.Work.Commits);
+            Assert.NotNull(applied.Value.FieldIdentityMap);
+            Assert.Empty(applied.Value.FieldIdentityMap);
             Assert.True(Assert.Single(applied.Value.Catalog.Fields!).HasValues);
             Assert.Equal(2, fixture.FileReads);
         }

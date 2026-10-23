@@ -94,7 +94,8 @@ internal sealed class FormCatalogImportService(IFormCatalogRepository repository
             ValueType: catalog.ValueType.ToString());
         detail = await FormCatalogFieldPresentation.DescribeAsync(detail, catalog.FieldsJson, catalog.PresentationJson,
             FormCatalogFieldPresentation.ToRows(recorded.Value.Items), reader, cancellationToken, source.Value.Sources);
-        return new FormCatalogSaveResponse(detail, new Dictionary<string, Guid>(StringComparer.Ordinal));
+        return new FormCatalogSaveResponse(detail, new Dictionary<string, Guid>(StringComparer.Ordinal),
+            new Dictionary<string, Guid>(StringComparer.Ordinal));
     }
 
     private async Task<Result<FormCatalogImportSource>> WithFieldsAsync(FormCatalogImportSource source, string? fieldsJson,
