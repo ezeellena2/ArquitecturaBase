@@ -126,10 +126,10 @@ public sealed class FormCatalogImportServiceTests
     public async Task Apply_locks_the_source_catalogs_and_the_catalog_in_ascending_order()
     {
         using var f = new FormCatalogImportFixture();
-        var sourceId = f.AddSourceField();
+        var sourceIds = f.AddSourceFields();
         var result = await f.Service.ApplyAsync(f.Catalog.Id, f.Request(), Ct);
         Assert.True(result.IsSuccess);
-        Assert.Equal(new[] { sourceId, f.Catalog.Id }.Order(), f.LockedIds);
+        Assert.Equal(sourceIds.Append(f.Catalog.Id).Order(), f.LockedIds);
     }
 
     [Fact]
