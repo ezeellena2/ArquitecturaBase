@@ -27,19 +27,21 @@ public sealed record FormCatalogManualItemSaveRequest(
     string? Code,
     IReadOnlyDictionary<string, string?>? Text,
     IReadOnlyDictionary<string, string?>? Detail,
-    bool IsActive, string? Value = null);
+    bool IsActive, string? Value = null, IReadOnlyDictionary<string, string?>? Fields = null);
 
 public sealed record CreateManualCatalogRequest(
     IReadOnlyDictionary<string, string?>? Name,
     IReadOnlyDictionary<string, string?>? Description,
-    IReadOnlyList<FormCatalogManualItemSaveRequest?>? Items, string? ValueType = null);
+    IReadOnlyList<FormCatalogManualItemSaveRequest?>? Items, string? ValueType = null,
+    IReadOnlyList<FormCatalogFieldSaveRequest?>? Fields = null, FormCatalogPresentation? Presentation = null);
 
 public sealed record UpdateManualCatalogRequest(
     long? ExpectedRevision,
     IReadOnlyDictionary<string, string?>? Name,
     IReadOnlyDictionary<string, string?>? Description,
     IReadOnlyList<FormCatalogManualItemSaveRequest?>? Items,
-    IReadOnlyList<FormCatalogManualItemMoveRequest?>? Moves = null, bool? IsActive = null, bool SortAlphabetically = false);
+    IReadOnlyList<FormCatalogManualItemMoveRequest?>? Moves = null, bool? IsActive = null, bool SortAlphabetically = false, IReadOnlyList<FormCatalogFieldSaveRequest?>? Fields = null,
+    FormCatalogPresentation? Presentation = null, IReadOnlyList<Guid>? ConfirmFieldRemovals = null);
 
 public sealed record FormCatalogManualItemMoveRequest(Guid? ItemId, string? Direction);
 
@@ -83,7 +85,9 @@ public sealed record FormCatalogDetailResponse(
     int? ItemsCount,
     int? UsageCount,
     string? UnavailableReasonCode,
-    FormCatalogFilterDefinition? Filters = null, FormCatalogProposalResponse? Proposal = null, string ValueType = "Text");
+    FormCatalogFilterDefinition? Filters = null, FormCatalogProposalResponse? Proposal = null, string ValueType = "Text",
+    IReadOnlyList<FormCatalogFieldResponse>? Fields = null, FormCatalogPresentation? Presentation = null,
+    FormCatalogPresentationCheck? PresentationCheck = null);
 
 public sealed record FormCatalogItemResponse(
     Guid Id,
@@ -91,11 +95,12 @@ public sealed record FormCatalogItemResponse(
     IReadOnlyDictionary<string, string?> Text,
     IReadOnlyDictionary<string, string?> Detail,
     int Position,
-    bool IsActive, string? Value = null);
+    bool IsActive, string? Value = null, IReadOnlyDictionary<string, string?>? Fields = null,
+    IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>>? FieldTexts = null);
 
 public sealed record FormCatalogSaveResponse(
     FormCatalogDetailResponse Catalog,
-    IReadOnlyDictionary<string, Guid> ItemIdentityMap);
+    IReadOnlyDictionary<string, Guid> ItemIdentityMap, IReadOnlyDictionary<string, Guid>? FieldIdentityMap = null);
 
 public sealed record FormCatalogStoredRow(
     Guid Id,
@@ -113,7 +118,7 @@ public sealed record FormCatalogStoredRow(
     string? FiltersJson = null,
     string? ProposalEvidenceJson = null, BusinessFormCatalogProposalState? ProposalState = null,
     Guid? ProposalDecidedByUserId = null, DateTime? ProposalDecidedAtUtc = null, string ValueType = "Text",
-    string? LastImportSha256 = null, DateTime? LastImportAtUtc = null);
+    string? LastImportSha256 = null, DateTime? LastImportAtUtc = null, string? FieldsJson = null, string? PresentationJson = null);
 
 public sealed record FormCatalogStoredItemRow(
     Guid Id,
@@ -124,4 +129,4 @@ public sealed record FormCatalogStoredItemRow(
     string? DetailEs,
     string? DetailEn,
     int Position,
-    bool IsActive, string? Value = null);
+    bool IsActive, string? Value = null, string FieldValuesJson = "{}");

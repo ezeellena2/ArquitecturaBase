@@ -14,6 +14,7 @@ internal sealed class CreateManualCatalogRequestValidator : AbstractValidator<Cr
         if (request.ValueType is not (null or "Text" or "Integer" or "Decimal" or "Date"))
             context.AddFailure("valueType", FormCatalogRequestValidation.InvalidMessage());
         FormCatalogRequestValidation.Validate(request.Name, request.Description, request.Items, context, creating: true);
+        FormCatalogRequestValidation.ValidateConfiguration(request.Fields, request.Presentation, true, context.AddFailure);
     });
 }
 
@@ -26,6 +27,9 @@ internal sealed class UpdateManualCatalogRequestValidator : AbstractValidator<Up
         if (request.SortAlphabetically && request.Moves is { Count: > 0 })
             context.AddFailure("moves", FormCatalogRequestValidation.InvalidMessage());
         FormCatalogRequestValidation.Validate(request.Name, request.Description, request.Items, context, creating: false);
+        FormCatalogRequestValidation.ValidateConfiguration(request.Fields, request.Presentation, false, context.AddFailure);
+        if (request.ConfirmFieldRemovals is { } removals && (removals.Count > BusinessFormCatalog.MaxFields || removals.Distinct().Count() != removals.Count || removals.Contains(Guid.Empty)))
+            context.AddFailure("confirmFieldRemovals", FormCatalogRequestValidation.InvalidMessage());
         if (request.Moves is { } moves)
         {
             if (moves.Count > 500) context.AddFailure("moves", FormCatalogRequestValidation.InvalidMessage());
@@ -193,9 +197,47 @@ internal static partial class FormCatalogRequestValidation
             if (string.IsNullOrWhiteSpace(item.Code) || item.Code.Length > 80) fail(path + ".code", Message());
             CheckMap(item.Text, path + ".text", BusinessFormCatalogItem.MaxTextLength, required: true, allowNulls: true, requiredCultures: ["es"]);
             CheckMap(item.Detail, path + ".detail", BusinessFormCatalogItem.MaxDetailLength, required: false, allowNulls: true);
+            if (item.Fields is { } fields)
+            {
+                if (fields.Count > BusinessFormCatalog.MaxFields) fail(path + ".fields", Message());
+                foreach (var (key, value) in fields)
+                    if (!Guid.TryParseExact(key, "D", out var id) || id == Guid.Empty || key != id.ToString("D") || value?.Length > 300)
+                        fail(path + ".fields." + key, Message());
+            }
         }
     }
 
+    public static void ValidateConfiguration(IReadOnlyList<FormCatalogFieldSaveRequest?>? fields,
+        FormCatalogPresentation? presentation, bool creating, Action<string, string> fail)
+    {
+        if (presentation is not null)
+        {
+            if (presentation.Title is not { Count: > 0 and <= 24 } || presentation.Title.Any(string.IsNullOrWhiteSpace)) fail("presentation.title", Message());
+            if (presentation.Description is null || presentation.Description.Count > 24 || presentation.Description.Any(string.IsNullOrWhiteSpace)) fail("presentation.description", Message());
+        }
+        if (fields is null) return;
+        if (fields.Count > BusinessFormCatalog.MaxFields) { fail("fields", ErrorMessages.Get(FormCatalogErrors.TooManyFields.Code)); return; }
+        var ids = new HashSet<Guid>();
+        var locals = new HashSet<string>(StringComparer.Ordinal);
+        for (var index = 0; index < fields.Count; index++)
+        {
+            var field = fields[index];
+            var path = $"fields[{index}]";
+            if (field is null) { fail(path, Message()); continue; }
+            if (field.Id == Guid.Empty || creating && field.Id is not null || field.Id is { } id && !ids.Add(id)) fail(path + ".id", Message());
+            if (field.Id is null && (field.LocalId is null || !LocalIdPattern().IsMatch(field.LocalId) || !locals.Add(field.LocalId))) fail(path + ".localId", Message());
+            if (field.Key is null || !FieldKeyPattern().IsMatch(field.Key)) fail(path + ".key", Message());
+            if (field.Name is null || !field.Name.TryGetValue("es", out var name) || string.IsNullOrWhiteSpace(name)) fail(path + ".name.es", Message());
+            if (field.Name?.Any(pair => pair.Key is not ("es" or "en") || pair.Value?.Length > 120) == true) fail(path + ".name", Message());
+            if (field.Type is not ("text" or "integer" or "decimal" or "date" or "boolean" or "catalog")) fail(path + ".type", Message());
+            if ((field.Type == "catalog") != field.SourceCatalogId.HasValue || field.SourceCatalogId == Guid.Empty) fail(path + ".sourceCatalogId", Message());
+            if (field.Position < 0) fail(path + ".position", Message());
+            if (field.Role is not ("data" or "filter")) fail(path + ".role", Message());
+            if (field.Min?.Length > 64 || field.Max?.Length > 64 || field.MaxLength is < 1 or > 300) fail(path + ".type", Message());
+        }
+    }
+
+    [GeneratedRegex("^[a-z][a-z0-9_]{0,39}\\z", RegexOptions.CultureInvariant)] private static partial Regex FieldKeyPattern();
     public static string InvalidMessage() => ErrorMessages.Get(FormCatalogErrors.ContentInvalid.Code);
     private static string Message() => InvalidMessage();
     [GeneratedRegex("^[A-Za-z0-9_-]{1,64}\\z", RegexOptions.CultureInvariant)] private static partial Regex LocalIdPattern();

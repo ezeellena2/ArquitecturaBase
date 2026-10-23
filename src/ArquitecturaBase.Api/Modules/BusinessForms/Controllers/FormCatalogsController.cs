@@ -108,7 +108,7 @@ public sealed class FormCatalogsController(IFormCatalogService service, IFormCat
         (await proposals.DiscardAsync(id, new(request.ExpectedRevision), cancellationToken)).ToActionResult(this);
 
     private static CreateManualCatalogRequest Map(CreateManualCatalogHttpRequest request) => new(request.Name, request.Description,
-        request.Items?.Select(Map).ToArray(), request.ValueType);
+        request.Items?.Select(Map).ToArray(), request.ValueType, request.Fields?.Select(Map).ToArray(), Map(request.Presentation));
 
     private static ListFormCatalogsRequest Map(FormCatalogsQuery query) => new()
         { Page = query.Page, PageSize = query.PageSize, Sort = query.Sort, Search = query.Search, Kind = query.Kind, State = query.State };
@@ -118,10 +118,17 @@ public sealed class FormCatalogsController(IFormCatalogService service, IFormCat
 
     private static UpdateManualCatalogRequest Map(UpdateManualCatalogHttpRequest request) => new(request.ExpectedRevision,
         request.Name, request.Description, request.Items?.Select(Map).ToArray(),
-        request.Moves?.Select(move => move is null ? null : new FormCatalogManualItemMoveRequest(move.ItemId, move.Direction)).ToArray(), request.IsActive, request.SortAlphabetically);
+        request.Moves?.Select(move => move is null ? null : new FormCatalogManualItemMoveRequest(move.ItemId, move.Direction)).ToArray(), request.IsActive, request.SortAlphabetically, request.Fields?.Select(Map).ToArray(), Map(request.Presentation), request.ConfirmFieldRemovals);
 
     private static FormCatalogManualItemSaveRequest? Map(FormCatalogManualItemHttpRequest? request) => request is null ? null
-        : new(request.LocalId, request.ItemId, request.Code, request.Text, request.Detail, request.IsActive, request.Value);
+        : new(request.LocalId, request.ItemId, request.Code, request.Text, request.Detail, request.IsActive, request.Value, request.Fields);
+
+    private static FormCatalogFieldSaveRequest? Map(FormCatalogFieldHttpRequest? field) => field is null ? null
+        : new(field.LocalId, field.Id, field.Key, field.Name, field.Type, field.SourceCatalogId, field.Required,
+            field.Unique, field.Min, field.Max, field.MaxLength, field.Role, field.Position, field.IsActive);
+
+    private static FormCatalogPresentation? Map(FormCatalogPresentationHttpRequest? presentation) => presentation is null ? null
+        : new(presentation.Title!, presentation.Description!);
 
     private static FormCatalogFilterDefinition? Map(FormCatalogFilterDefinitionHttpRequest? filters) => filters is null ? null
         : new(filters.TextColumn, filters.DetailColumn,
