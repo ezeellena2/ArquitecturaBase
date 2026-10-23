@@ -1,8 +1,14 @@
 # Catálogos: campos extra, qué viaja a WhatsApp y filtrar por persona
 
-**Estado:** decidida y con tableros elegidos el 2026-10-21 (CE1, CE2, CE3-B, CE4-A, CE5 y CE6). La evaluación de impacto, back y front, está incorporada abajo. Sin empezar. Se apoya en [E1, ya implementado](../../features/formularios.md#catálogos-base-de-la-etapa-e1--2026-10-21): la tabla editable, importar y pegar, el valor tipado y la clave de referencias por opción de elegir varias. La visión completa está en la [hoja de ruta de catálogos](../2026-10-21-catalogos-con-origenes-externos.md).
+**Estado:** decidida y con tableros elegidos el 2026-10-21 (CE1, CE2, CE3-B, CE4-A, CE5 y CE6). La evaluación de impacto, back y front, está incorporada abajo. En desarrollo: E2-0 terminado y E2-1 en verificación del front; el backend del catálogo ya está implementado y tiene sus pruebas rápidas en verde. El piloto con Meta queda consolidado para después del review de E2. Se apoya en [E1, ya implementado](../../features/formularios.md#catálogos-base-de-la-etapa-e1--2026-10-21): la tabla editable, importar y pegar, el valor tipado y la clave de referencias por opción de elegir varias. La visión completa está en la [hoja de ruta de catálogos](../2026-10-21-catalogos-con-origenes-externos.md).
 
 **Spec técnica:** el modelo de datos, los contratos, los errores, el árbol de archivos y el orden de trabajo de esta etapa (E2) están en la [spec de catálogos](../../specs/2026-10-21-catalogos-design.md). Si la spec y este resumen se contradicen, manda este resumen.
+
+## Progreso del desarrollo
+
+- **E2-0 terminado:** identidad de pregunta por catálogo, mapeo HTTP único, contención JSON antes del límite de oferta y uso de borrador más versión activa. El front conserva columnas descritas, valores comunes, comparación estructural, paths y tabla ancha.
+- **E2-1:** campos, canónico y reglas bajo el lock del catálogo; presentación y usos; importación/exportación y sellado por lote implementados. Los tests rápidos del backend están verdes. El front de campos, valores y presentación está integrado y termina sus pruebas de mensajes y permisos. La integración Docker, las cohortes HTTP completas y la verificación visual quedan para el cierre conjunto de E2.
+- **E2-2 a E2-4:** sin activar. Se preparan por adelantado pruebas y archivos con extensión `.pending`, fuera de compilación, conservando el orden de los cortes.
 
 ## Para qué
 
