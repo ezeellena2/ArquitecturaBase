@@ -76,6 +76,7 @@ public static class BusinessFormsApplicationRegistration
         services.TryAddScoped<IFormCatalogExportService, FormCatalogExportService>();
         services.TryAddScoped<IFormCatalogImportService, FormCatalogImportService>();
         services.TryAddScoped<FormCatalogItemRecorder>();
+        services.TryAddScoped<FormCatalogFieldRecorder>();
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<FormCatalogImportRequest>, FormCatalogImportRequestValidator>());
         services.TryAddScoped<IFormCatalogService, FormCatalogService>();
         services.TryAddScoped<IFormCatalogFiltersService, FormCatalogFiltersService>();

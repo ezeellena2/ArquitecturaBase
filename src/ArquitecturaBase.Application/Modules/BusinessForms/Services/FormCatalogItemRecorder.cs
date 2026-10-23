@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.Json;
 using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
@@ -9,9 +10,9 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
 internal sealed class FormCatalogItemRecorder(IFormCatalogRepository repository)
 {
-    public Result<IReadOnlyDictionary<string, Guid>> Record(BusinessFormCatalog catalog,
+    public Result<FormCatalogItemsRecorded> Record(BusinessFormCatalog catalog,
         IReadOnlyList<BusinessFormCatalogItem> storedItems, IReadOnlyList<FormCatalogManualItemSaveRequest?> inputs,
-        IReadOnlyList<FormCatalogManualItemMoveRequest?>? moves = null, bool sortAlphabetically = false)
+        IReadOnlyList<FormCatalogManualItemMoveRequest?>? moves = null, bool sortAlphabetically = false, FormCatalogFieldContext? fieldContext = null)
     {
         var byId = storedItems.ToDictionary(item => item.Id);
         var requestedIds = inputs.Where(item => item!.ItemId.HasValue).Select(item => item!.ItemId!.Value).ToHashSet();
@@ -30,8 +31,10 @@ internal sealed class FormCatalogItemRecorder(IFormCatalogRepository repository)
             if (itemValue.IsFailure) return FieldErrors.On(itemValue.Error, $"items[{index}].value");
             var text = Texts(value.Text!);
             var detail = OptionalTexts(value.Detail);
+            BusinessFormCatalogItem recordedItem;
             if (value.ItemId is { } itemId)
             {
+                recordedItem = byId[itemId];
                 var changed = catalog.UpdateManualItem(byId[itemId], value.Code!.Trim(), text["es"], text.GetValueOrDefault("en"),
                     detail.GetValueOrDefault("es"), detail.GetValueOrDefault("en"), byId[itemId].Position, itemValue.Value);
                 if (changed.IsFailure) return changed.Error;
@@ -43,6 +46,7 @@ internal sealed class FormCatalogItemRecorder(IFormCatalogRepository repository)
                 var created = catalog.AddManualItem(value.Code!.Trim(), text["es"], text.GetValueOrDefault("en"),
                     detail.GetValueOrDefault("es"), detail.GetValueOrDefault("en"), nextPosition++, itemValue.Value);
                 if (created.IsFailure) return created.Error;
+                recordedItem = created.Value;
                 addedItems.Add(created.Value);
                 identityMap.Add(value.LocalId!, created.Value.Id);
                 if (!value.IsActive)
@@ -50,6 +54,26 @@ internal sealed class FormCatalogItemRecorder(IFormCatalogRepository repository)
                     var inactive = catalog.SetManualItemActive(created.Value, false);
                     if (inactive.IsFailure) return inactive.Error;
                 }
+            }
+            if (value.Fields is not null)
+            {
+                var definitions = (fieldContext?.Fields ?? []).ToDictionary(field => field.Id.ToString("D"), StringComparer.Ordinal);
+                var storedValues = FormCatalogFieldPolicy.ReadValues(recordedItem.FieldValuesJson);
+                var newValues = storedValues.Where(pair => definitions.TryGetValue(pair.Key, out var field) && !field.IsActive)
+                    .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
+                foreach (var (key, inputValue) in value.Fields)
+                {
+                    if (!definitions.TryGetValue(key, out var field)) return FieldErrors.On(FormCatalogErrors.FieldInvalid, $"items[{index}].fields.{key}");
+                    if (!field.IsActive)
+                    {
+                        if (!storedValues.TryGetValue(key, out var old) || FormCatalogFieldPolicy.Input(old) != inputValue)
+                            return FieldErrors.On(FormCatalogErrors.FieldInvalid, $"items[{index}].fields.{key}");
+                        continue;
+                    }
+                    newValues[key] = JsonSerializer.SerializeToElement(inputValue, JsonSerializerOptions.Web);
+                }
+                var fieldsSaved = catalog.SetManualItemFields(recordedItem, JsonSerializer.Serialize(newValues, JsonSerializerOptions.Web));
+                if (fieldsSaved.IsFailure) return fieldsSaved.Error;
             }
         }
 
@@ -82,8 +106,15 @@ internal sealed class FormCatalogItemRecorder(IFormCatalogRepository repository)
             }
         }
 
+        var allItems = storedItems.Concat(addedItems).ToArray();
+        if (fieldContext is { Fields.Count: > 0 })
+        {
+            var validationInputs = inputs.Select(input => input!.ItemId is null ? input with { ItemId = identityMap[input.LocalId!] } : input).ToArray();
+            var validated = FormCatalogFieldPolicy.ValidateItems(catalog, allItems, validationInputs, fieldContext);
+            if (validated.IsFailure) return validated.Error;
+        }
         repository.AddItems(addedItems);
-        return identityMap;
+        return new FormCatalogItemsRecorded(identityMap, allItems);
     }
 
     private static Dictionary<string, string> Texts(IReadOnlyDictionary<string, string?> source)

@@ -79,6 +79,6 @@ public sealed class FormCatalogAlphabeticalOrderTests
         var permissions = new FakePermissionService();
         permissions.Permissions[actor] = [BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage];
         return new(repository, null!, work, RequestValidators.For(new UpdateManualCatalogRequestValidator()),
-            new(new FakeCurrentUser { UserId = actor }, permissions), null!, new(repository));
+            new(new FakeCurrentUser { UserId = actor }, permissions), null!, new(repository), new(null!));
     }
 }

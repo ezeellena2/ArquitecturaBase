@@ -13,7 +13,7 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
 internal sealed class FormCatalogService(IFormCatalogRepository repository, IFormCatalogReader reader,
     IUnitOfWork unitOfWork,
-    IRequestValidator validator, FormCatalogAccessGuard accessGuard, IUserReader users, FormCatalogItemRecorder recorder) : IFormCatalogService
+    IRequestValidator validator, FormCatalogAccessGuard accessGuard, IUserReader users, FormCatalogItemRecorder recorder, FormCatalogFieldRecorder fieldRecorder) : IFormCatalogService
 {
     public async Task<Result<FormCatalogSaveResponse>> CreateManualAsync(CreateManualCatalogRequest request, CancellationToken cancellationToken)
     {
@@ -43,8 +43,10 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
         if (row is null) return FormCatalogErrors.NotFound;
         var canReadForms = await accessGuard.HasPermissionAsync(access.Value, BusinessFormsPermissions.Read, cancellationToken);
         int? usageCount = canReadForms ? await reader.CountUsageAsync(id, cancellationToken) : null;
-        return Map(row, usageCount, null) with { Proposal = await FormCatalogProposalPresentation.ReadAsync(
+        var detail = Map(row, usageCount, null) with { Proposal = await FormCatalogProposalPresentation.ReadAsync(
             row.ProposalEvidenceJson, row.ProposalState, row.ProposalDecidedByUserId, row.ProposalDecidedAtUtc, users, cancellationToken) };
+        var items = row.FieldsJson is null && row.PresentationJson is null ? [] : await reader.ListAllItemsAsync(id, cancellationToken);
+        return await FormCatalogFieldPresentation.DescribeAsync(detail, row.FieldsJson, row.PresentationJson, items, reader, cancellationToken);
     }
 
     public async Task<Result<FormCatalogsPageResponse>> ListAsync(ListFormCatalogsRequest request, CancellationToken cancellationToken)
@@ -74,25 +76,44 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
         var description = RequiredTexts(request.Description!);
         var catalog = BusinessFormCatalog.CreateManual(name, description,
             Enum.Parse<BusinessFormCatalogValueType>(request.ValueType ?? "Text"));
-        await repository.LockAsync(catalog.Id, ct);
-        var recorded = recorder.Record(catalog, [], request.Items!);
+        await LockCatalogsAsync(catalog.Id, request.Fields, ct);
+        var access = await accessGuard.CheckAsync(true, ct);
+        if (access.IsFailure) return access.Error;
+        var fields = await fieldRecorder.PrepareAsync(catalog, [], request.Fields, request.Presentation, [], ct);
+        if (fields.IsFailure) return fields.Error;
+        var recorded = recorder.Record(catalog, [], request.Items!, fieldContext: fields.Value.Context);
         if (recorded.IsFailure) return recorded.Error;
         repository.Add(catalog);
-        return new FormCatalogSaveResponse(Map(catalog, recorded.Value.Count), recorded.Value);
+        var detail = await FormCatalogFieldPresentation.DescribeAsync(Map(catalog, recorded.Value.Items.Count), catalog.FieldsJson,
+            catalog.PresentationJson, FormCatalogFieldPresentation.ToRows(recorded.Value.Items), reader, ct, fields.Value.Context.Sources);
+        return new FormCatalogSaveResponse(detail, recorded.Value.IdentityMap, fields.Value.IdentityMap);
     }
 
     private async Task<Result<FormCatalogSaveResponse>> UpdateCoreAsync(Guid id, UpdateManualCatalogRequest request, CancellationToken ct)
     {
-        await repository.LockAsync(id, ct);
+        await LockCatalogsAsync(id, request.Fields, ct);
+        var access = await accessGuard.CheckAsync(true, ct);
+        if (access.IsFailure) return access.Error;
         var catalog = await repository.GetAsync(id, ct);
         if (catalog is null) return FormCatalogErrors.NotFound;
+        if (catalog.Revision != request.ExpectedRevision) return FormCatalogErrors.RevisionConflict;
+        if (request.IsActive == false && catalog.IsActive && await reader.ExistsSourceUsageAsync(id, ct)) return FormCatalogErrors.SourceInUse;
+        var storedItems = await repository.ListItemsAsync(id, ct);
+        var fields = await fieldRecorder.PrepareAsync(catalog, storedItems, request.Fields, request.Presentation, request.ConfirmFieldRemovals, ct);
+        if (fields.IsFailure) return fields.Error;
+        var recorded = recorder.Record(catalog, storedItems, request.Items!, request.Moves, request.SortAlphabetically, fields.Value.Context);
+        if (recorded.IsFailure) return recorded.Error;
         var updated = catalog.UpdateManual(request.ExpectedRevision!.Value, RequiredTexts(request.Name!), RequiredTexts(request.Description!), request.IsActive);
         if (updated.IsFailure) return updated.Error;
+        var detail = await FormCatalogFieldPresentation.DescribeAsync(Map(catalog, recorded.Value.Items.Count), catalog.FieldsJson,
+            catalog.PresentationJson, FormCatalogFieldPresentation.ToRows(recorded.Value.Items), reader, ct, fields.Value.Context.Sources);
+        return new FormCatalogSaveResponse(detail, recorded.Value.IdentityMap, fields.Value.IdentityMap);
+    }
 
-        var storedItems = await repository.ListItemsAsync(id, ct);
-        var recorded = recorder.Record(catalog, storedItems, request.Items!, request.Moves, request.SortAlphabetically);
-        if (recorded.IsFailure) return recorded.Error;
-        return new FormCatalogSaveResponse(Map(catalog, storedItems.Count + recorded.Value.Count), recorded.Value);
+    private async Task LockCatalogsAsync(Guid id, IReadOnlyList<FormCatalogFieldSaveRequest?>? fields, CancellationToken ct)
+    {
+        var sourceIds = fields?.Where(field => field?.IsActive == true && field.SourceCatalogId is not null).Select(field => field!.SourceCatalogId!.Value) ?? [];
+        foreach (var catalogId in sourceIds.Append(id).Distinct().Order()) await repository.LockAsync(catalogId, ct);
     }
 
     private async Task<Result<FormCatalogSaveResponse>> WithUsageCountAsync(Result<FormCatalogSaveResponse> result, bool canReadForms,
