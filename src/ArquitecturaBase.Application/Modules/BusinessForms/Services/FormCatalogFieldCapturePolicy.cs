@@ -12,12 +12,12 @@ internal static class FormCatalogFieldCapturePolicy
     {
         if (selectedItemIds.Count == 0) return new Dictionary<Guid, string>();
         var itemIds = selectedItemIds.Distinct().Order().ToArray();
-        var rows = (await records.FindCatalogFieldValuesAsync(itemIds, cancellationToken)).ToDictionary(row => row.ItemId);
+        var rows = (await records.ListCatalogFieldValuesAsync(itemIds, cancellationToken)).ToDictionary(row => row.ItemId);
         var selected = itemIds.Select(itemId => (ItemId: itemId, Fields: ReadFields(rows[itemId]))).ToArray();
         var sourceIds = selected.SelectMany(item => item.Fields).Where(value => value.Field.Type == "catalog")
             .Select(value => Guid.Parse(value.Value.GetString()!)).Distinct().Order().ToArray();
         var sourceRows = sourceIds.Length == 0 ? new Dictionary<Guid, FormCatalogItemFieldValuesRow>()
-            : (await records.FindCatalogFieldValuesAsync(sourceIds, cancellationToken)).ToDictionary(row => row.ItemId);
+            : (await records.ListCatalogFieldValuesAsync(sourceIds, cancellationToken)).ToDictionary(row => row.ItemId);
         var result = new Dictionary<Guid, string>();
         foreach (var item in selected)
         {

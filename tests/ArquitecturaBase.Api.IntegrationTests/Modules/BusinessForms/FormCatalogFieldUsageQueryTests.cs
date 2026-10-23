@@ -12,7 +12,7 @@ public sealed class FormCatalogFieldUsageQueryTests
     {
         using var db = new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseNpgsql("Host=localhost;Database=not-opened;Username=test;Password=test").Options);
-        var method = typeof(FormCatalogReader).GetMethod("FindFieldUsages", BindingFlags.NonPublic | BindingFlags.Instance);
+        var method = typeof(FormCatalogReader).GetMethod("FieldUsages", BindingFlags.NonPublic | BindingFlags.Instance);
         Assert.NotNull(method);
         Assert.Equal(typeof(IReadOnlyCollection<Guid>), method.GetParameters()[1].ParameterType);
         var query = Assert.IsAssignableFrom<IQueryable>(method.Invoke(new FormCatalogReader(db), [Guid.NewGuid(), new[] { Guid.NewGuid(), Guid.NewGuid() }, "en"]));

@@ -48,7 +48,7 @@ internal sealed class FormCatalogFieldRecorder(IFormCatalogReader reader)
             if (original.Any(field => !seen.Contains(field.Id))) return FieldErrors.On(FormCatalogErrors.FieldInvalid, "fields");
         }
         var removedIds = resolved.Where(field => !field.IsActive && byId.TryGetValue(field.Id, out var old) && old.IsActive).Select(field => field.Id).ToArray();
-        var fieldUses = removedIds.Length == 0 ? [] : await reader.FindFieldUsageAsync(catalog.Id, removedIds, ct);
+        var fieldUses = removedIds.Length == 0 ? [] : await reader.ListFieldUsageAsync(catalog.Id, removedIds, ct);
         var usesByField = fieldUses.ToLookup(use => use.FieldId);
         var culture = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es";
         for (var index = 0; index < resolved.Count; index++)

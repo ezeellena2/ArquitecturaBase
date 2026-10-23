@@ -13,7 +13,7 @@ public interface IFormRecordRepository
     Task<bool> ExistsPublishedAsync(Guid versionId, CancellationToken cancellationToken);
     Task LockCatalogAsync(Guid catalogId, CancellationToken cancellationToken);
     Task<bool> ExistsActiveCatalogItemAsync(Guid catalogId, Guid itemId, CancellationToken cancellationToken);
-    Task<IReadOnlyList<FormCatalogItemFieldValuesRow>> FindCatalogFieldValuesAsync(IReadOnlyCollection<Guid> itemIds, CancellationToken cancellationToken);
+    Task<IReadOnlyList<FormCatalogItemFieldValuesRow>> ListCatalogFieldValuesAsync(IReadOnlyCollection<Guid> itemIds, CancellationToken cancellationToken);
     void Add(BusinessFormRecordFile file);
     void Add(BusinessFormRecordReference reference);
     void Add(BusinessFormRecord record);

@@ -99,7 +99,7 @@ public sealed class FormCatalogFieldsCapacityIntegrationTests(ApiFactory factory
                 Assert.Contains("LIMIT", generated.Sql, StringComparison.Ordinal);
 
                 elapsed.Restart();
-                var captured = await new FormRecordRepository(db).FindCatalogFieldValuesAsync(offered.Select(item => item.Id).ToArray(), Ct);
+                var captured = await new FormRecordRepository(db).ListCatalogFieldValuesAsync(offered.Select(item => item.Id).ToArray(), Ct);
                 elapsed.Stop();
                 var captureMilliseconds = elapsed.Elapsed.TotalMilliseconds;
                 Assert.Equal(100, captured.Count);

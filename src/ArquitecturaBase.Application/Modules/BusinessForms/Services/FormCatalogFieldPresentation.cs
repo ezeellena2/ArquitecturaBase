@@ -23,7 +23,7 @@ internal static class FormCatalogFieldPresentation
         var values = items.Select(item => FormCatalogFieldPolicy.ReadValues(item.FieldValuesJson)).ToArray();
         var responses = new List<FormCatalogFieldResponse>();
         var fieldIds = fields.Where(field => field.IsActive).Select(field => field.Id).ToArray();
-        var uses = fieldIds.Length == 0 ? [] : await reader.FindFieldUsageAsync(detail.Id, fieldIds, ct);
+        var uses = fieldIds.Length == 0 ? [] : await reader.ListFieldUsageAsync(detail.Id, fieldIds, ct);
         var usesByField = uses.ToLookup(use => use.FieldId);
         foreach (var field in fields)
         {

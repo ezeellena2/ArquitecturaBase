@@ -54,6 +54,15 @@ public sealed class PersistenceNamingTests
     }
 
     [Fact]
+    public void A_find_that_returns_a_collection_breaks_the_naming_rule()
+    {
+        // Casos de control: una colección va con List, y Find queda para una proyección, un registro o un escalar.
+        Assert.False(HasTheShapeOfItsVerb(typeof(IControlReader).GetMethod(nameof(IControlReader.FindIdsAsync))!));
+        Assert.True(HasTheShapeOfItsVerb(typeof(IControlReader).GetMethod(nameof(IControlReader.FindIdAsync))!));
+        Assert.True(HasTheShapeOfItsVerb(typeof(IControlReader).GetMethod(nameof(IControlReader.ListIdsAsync))!));
+    }
+
+    [Fact]
     public void Readers_only_read()
     {
         Assert.Contains(Contracts, contract => contract.Name.EndsWith("Reader", StringComparison.Ordinal));
@@ -130,7 +139,7 @@ public sealed class PersistenceNamingTests
             "Get" => method.DeclaringType!.Name.EndsWith("Repository", StringComparison.Ordinal)
                 && result is not null
                 && typeof(Entity).IsAssignableFrom(result),
-            "Find" => result is not null && !typeof(Entity).IsAssignableFrom(result),
+            "Find" => result is not null && !typeof(Entity).IsAssignableFrom(result) && !IsListOrPage(result),
             "List" => result is not null && IsListOrPage(result),
             "Exists" => result == typeof(bool),
             "Count" => result == typeof(int) || result?.Name.EndsWith("Counts", StringComparison.Ordinal) == true,
@@ -157,4 +166,14 @@ public sealed class PersistenceNamingTests
                 && char.IsUpper(name[verb.Length])));
 
     private static string NameOf(MethodInfo method) => method.DeclaringType!.Name + "." + method.Name;
+
+    /// <summary>Lector inventado para los casos de control; vive en el ensamblado de tests, así que el escaneo no lo ve.</summary>
+    private interface IControlReader
+    {
+        Task<IReadOnlyList<Guid>> FindIdsAsync(CancellationToken cancellationToken);
+
+        Task<Guid?> FindIdAsync(CancellationToken cancellationToken);
+
+        Task<IReadOnlyList<Guid>> ListIdsAsync(CancellationToken cancellationToken);
+    }
 }

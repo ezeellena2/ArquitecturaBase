@@ -97,7 +97,7 @@ internal sealed class FakeRecordRepository(BusinessFormDefinition definition, Bu
     public Dictionary<Guid, FormCatalogItemFieldValuesRow> CatalogFieldValues { get; } = [];
     public List<Guid[]> FieldValueBatches { get; } = [];
     public List<Guid[]> FieldValueReadLocks { get; } = [];
-    public Task<IReadOnlyList<FormCatalogItemFieldValuesRow>> FindCatalogFieldValuesAsync(IReadOnlyCollection<Guid> itemIds, CancellationToken ct)
+    public Task<IReadOnlyList<FormCatalogItemFieldValuesRow>> ListCatalogFieldValuesAsync(IReadOnlyCollection<Guid> itemIds, CancellationToken ct)
     {
         FieldValueBatches.Add(itemIds.ToArray());
         FieldValueReadLocks.Add(CatalogLocks.ToArray());

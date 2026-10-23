@@ -8,11 +8,11 @@ namespace ArquitecturaBase.Infrastructure.Modules.BusinessForms.Persistence.Read
 
 internal sealed partial class FormCatalogReader
 {
-    public async Task<IReadOnlyList<FormCatalogFieldUsageRow>> FindFieldUsageAsync(Guid catalogId, IReadOnlyCollection<Guid> fieldIds,
-        CancellationToken cancellationToken) => await FindFieldUsages(catalogId, fieldIds,
+    public async Task<IReadOnlyList<FormCatalogFieldUsageRow>> ListFieldUsageAsync(Guid catalogId, IReadOnlyCollection<Guid> fieldIds,
+        CancellationToken cancellationToken) => await FieldUsages(catalogId, fieldIds,
             CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es").ToListAsync(cancellationToken);
 
-    private IQueryable<FormCatalogFieldUsageRow> FindFieldUsages(Guid catalogId, IReadOnlyCollection<Guid> fieldIds, string culture) =>
+    private IQueryable<FormCatalogFieldUsageRow> FieldUsages(Guid catalogId, IReadOnlyCollection<Guid> fieldIds, string culture) =>
         dbContext.Database.SqlQueryRaw<FormCatalogFieldUsageRow>("""
             SELECT definition."Id" AS "DefinitionId",
                 COALESCE(NULLIF(definition."NameJson" ->> {0}, ''), definition."NameJson" ->> definition."Culture", '') AS "FormName",

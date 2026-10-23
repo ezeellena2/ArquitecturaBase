@@ -166,7 +166,7 @@ Rige para los métodos de `Application/Interfaces/Persistence`, salvo `IUnitOfWo
 | Prefijo | Devuelve | Dónde |
 |---|---|---|
 | `Get…` | una entidad seguida por EF, para modificarla (si toma lock de fila, su XML lo dice); `null` si no existe | solo `*Repository` |
-| `Find…` | una proyección, un registro o un escalar, nunca una entidad; `null` o un valor por defecto documentado | lectores y repositorios |
+| `Find…` | una proyección, un registro o un escalar, nunca una entidad ni una colección; `null` o un valor por defecto documentado | lectores y repositorios |
 | `List…` | una colección (no `string`) o `PagedResult<T>` | los dos |
 | `Exists…` | `Task<bool>` | los dos |
 | `Count…` | `Task<int>` o un registro terminado en `Counts`; cuenta en SQL | los dos |

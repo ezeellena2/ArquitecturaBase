@@ -11,7 +11,7 @@ internal sealed class FormCatalogFieldReader : IFormCatalogReader
     public List<FormCatalogFieldUsageRow> Uses { get; } = [];
     public Dictionary<Guid, FormCatalogStoredRow> Catalogs { get; } = [];
     public Dictionary<Guid, IReadOnlyList<FormCatalogStoredItemRow>> Items { get; } = [];
-    public Task<IReadOnlyList<FormCatalogFieldUsageRow>> FindFieldUsageAsync(Guid catalogId, IReadOnlyCollection<Guid> fieldIds, CancellationToken ct)
+    public Task<IReadOnlyList<FormCatalogFieldUsageRow>> ListFieldUsageAsync(Guid catalogId, IReadOnlyCollection<Guid> fieldIds, CancellationToken ct)
     {
         UsageReads++;
         return Task.FromResult<IReadOnlyList<FormCatalogFieldUsageRow>>(Uses.Where(use => fieldIds.Contains(use.FieldId)).ToArray());
