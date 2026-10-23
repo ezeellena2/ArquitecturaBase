@@ -42,13 +42,13 @@ La paridad entre condiciones y SQL compara ambos resultados contra conjuntos num
 
 D2 acredita por HTTP la fecha real de solicitud, distinta de la aceptación previa del run, antes y después de una decisión. Un pedido fallido por rol ausente conserva su acción, sin tarea ni estado pendiente ficticios. El origen inexistente permanece null. Los ejemplos de Workflow se exportan sólo desde los productores al cierre.
 
-FormWorkflowEndToEndHttpTests verifica captura real con foto/catálogo histórico, aprobación por otra cuenta y PDF Skia privado: faltante exclusivo de aviso o pie PDF exige respaldo entero al original; texto/detalle de ítem sin inglés conserva su original individual. Sólo el canal de aviso acepta ficticiamente: Accepted no inventa DeliveredAtUtc/ReadAtUtc. El cierre de backend verificó el recorrido con PostgreSQL y exportó PDF/workflow; no acredita Meta físico. FormExportRateLimitTests es técnico sin ApiFactory/Docker y verifica liberación del permiso tras éxito, error conocido, excepción y cancelación, esperando la salida del pipeline completo.
+WorkflowEndToEndHttpTests cubre captura/foto/catálogo, aprobación ajena y PDF Skia privado; respaldo entero al original salvo ítem sin inglés. Aviso Accepted simulado no inventa entrega/lectura. ExportRateLimitTests técnico verifica liberación tras cualquier salida del pipeline.
 
 FormPublicationLanguageTests verifica tres versiones con original solo, secundaria completa y secundaria retirada para originales es/en. Afirma culturas del chequeo, manifiesto, activa y status; captura dieciocho cuerpos HTTP íntegros sin ticket para el exportador existente. El cierre de backend ejecutó los casos con PostgreSQL y exportó esos cuerpos sin reconstruirlos.
 
 D2 verifica Estado contra conjuntos fijos 1/2/3,5/4 en GET/POST/total/Excel y conserva ese filtro en las facetas existentes. La presencia PDF diferencia aprobada con copia fija de aprobada sin copia, mantiene HasApproval histórico y se obtiene por un EXISTS de página con cantidad de consultas independiente de las filas.
 
-FormPdfEmojiTests verifica seis grafemas (simple, modificador, ZWJ y bandera) con shaping real y bitmap: contorno no vacío, píxeles iguales a Noto Emoji y avance igual al usado por el layout. FormPdfRendererTests emite un PDF mixto con la fuente embebida en nombres, pregunta, respuesta, autor, aprobación y pie. El cierre técnico revisa PNG de Poppler y texto extraído; la ejecución Windows no acredita el nativo Linux de HarfBuzz.
+PDF técnico: EmojiTests verifica shaping/bitmap Noto Emoji y RendererTests emite el PDF mixto para Poppler. Windows no acredita el nativo Linux de HarfBuzz.
 
 OfferWhen se verifica por HTTP con guardado/recuperación/replay normalizado, limpieza, conflicto de revisión sin guardado parcial y rechazo del campo en publication-checks. PostgreSQL conserva el schema y no crea versiones por guardar las instrucciones.
 
@@ -58,13 +58,13 @@ FormSuggestionHttpTests prepara las cinco rutas con 401/403, guardado/historial 
 
 H5 prepara con PostgreSQL dos formularios realmente publicados, valida la pregunta y nombres actuales por el puerto neutral y comprueba que deshabilitar una instrucción invalida la aclaración completa. No crea respuestas ni acredita botones o envíos de Meta; se ejecuta en el cierre integrado.
 
-FormSuggestionCaptureIntegrationTests prepara captura y prellenado reales por los puertos del módulo, destino publicado sin OfferWhen, aislamiento del autor, replay, valor corregido y ramas/ancestros en PostgreSQL. El GET conserva modo histórico aunque cambie el set activo y exporta es/en sin IDs técnicos del motor. Se ejecuta sólo junto con la migración y el cierre integrado.
+SuggestionCaptureIntegrationTests cubre puertos reales, destino sin OfferWhen, autor/replay/ramas y modo histórico; GET es/en sin IDs del motor. Sólo cierre PostgreSQL.
 
 FormAssistantMigrationTests recorre Up/Down/Up desde EnableWhatsAppAssistant con datos guardados del esquema anterior. Conserva snapshot y numeración, false tipado, actor/recibo y catálogo bilingüe; las nuevas atribuciones y punteros quedan null. Se compila por corte y se ejecuta sólo en la integración final.
 
 La regresión de descubrimiento ejecuta los tres métodos reales de FormSelectionReader en PostgreSQL: ListAssistant, FindAssistant y ListSuggestionTargets, con orden por definición, instrucciones actuales, esquema publicado, borrador excluido y destino de sugerencia sin OfferWhen. Deshabilitar instrucciones retira sólo la oferta del asistente y no el destino publicado de sugerencias.
 
-FormSelectionQueryTests caracteriza SQL Npgsql sin conexión: selección activa, instrucciones del asistente y publicación histórica sin excluir bajas. FormDefinitionQueryTests cubre Active/Published/Drafts/Deactivated y auditoría por revisión, sin ModifiedAtUtc ni contenido protegido. Persistencia, conteos/autores y empates se acreditan con PostgreSQL al cierre.
+SelectionQueryTests y DefinitionQueryTests caracterizan SQL sin conexión: selección vigente/histórica, filtros de estado y auditoría por revisión, sin contenido protegido. PostgreSQL acredita persistencia/conteos/empates.
 
 FormDeactivationHttpTests prepara baja por Read+Publish sin Manage, CAS, cuatro filtros/facetas y privacidad de conteos. Usa publicaciones y capturas reales del módulo para conservar historia y numeración, opciones BA6 sin alterar conjuntos y el inverso BA3 sólo desde conjuntos actuales de orígenes ofertables. Baja y Guardar posterior comparten el mismo FakeTimeProvider: la revisión distingue el último autor. La reactivación conserva la baja en Accepted y la limpia al activar Published. Se ejecuta con PostgreSQL sólo en el cierre integrado; no acredita sesiones ni deprecación física de Meta.
 
@@ -80,4 +80,6 @@ FormCatalogCapacityIntegrationTests prepara 10.000 filas Manual, incluidas 5.000
 
 FormMultipleChoiceMigrationTests prepara Up/Down/Up con datos previos, Position 0, índices por posición/ítem y checks reales. Down debe rechazar también una única elección en Position 0 y una respuesta opcional [] sin filas de valores/referencias, desde la identidad multiChoice del campo o del borrador aun sin versión publicada o con activa escalar, y conservar hechos/migraciones aplicadas al fallar. FormCatalogActiveCountIntegrationTests verifica un agregado por catálogo que excluye inactivos y filas ajenas, sin hidratar ni paginar.
 
-Datos de personas: FormPersonDataContractTests cierra JSON/redacción sin DB. FormPersonDataHttpTests prepara permisos OR/AND, siete rutas, opciones id/text sin CatalogsRead, CAS/delta por persona, rollback, fuente usada y cuerpos es/en vía FORM_PERSON_DATA_HTTP_OUTPUT. Migración y persistencia usan PostgreSQL real; no acredita Meta.
+Datos de personas: FormPersonDataContractTests cierra JSON/redacción sin DB. FormPersonDataHttpTests: siete rutas, OR/AND, opciones id/text sin CatalogsRead, CAS/delta, rollback/fuente usada y capturas es/en. Migración y persistencia usan PostgreSQL real; no acredita Meta.
+
+E2-3: RecipientFilterIntegrationTests y FormRecipientScenario usan base aislada, HTTP real y puertos neutrales para Juan/María/sin dato, Match desordenado, replay de publicación en curso y rol filter→data. Exportan12 cuerpos recipient-filters es/en al cierre. RecipientPreviewContractTests y RecipientStatisticsQueryTests son técnicos sin Docker: JSON cerrado/mapeo y SQL parametrizado/grupado. Captura de cuerpo no reconstruida.
