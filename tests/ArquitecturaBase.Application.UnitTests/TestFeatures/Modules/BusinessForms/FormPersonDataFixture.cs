@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.Json;
 using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
@@ -26,6 +27,7 @@ internal sealed class FormPersonDataFixture : IFormPersonDataRepository, IFormPe
     public HashSet<Guid> UsedAttributes { get; } = [];
     public List<string> Events { get; } = [];
     public BusinessFormCatalog Catalog { get; } = BusinessFormCatalog.CreateManual("es", Names(), Names());
+    public BusinessFormCatalog OtherCatalog { get; } = BusinessFormCatalog.CreateManual("es", Names(), Names());
     public BusinessFormCatalogItem ActiveItem { get; }
     public BusinessFormCatalogItem InactiveItem { get; }
     public int RecipientReads { get; private set; }
@@ -74,6 +76,13 @@ internal sealed class FormPersonDataFixture : IFormPersonDataRepository, IFormPe
     public Task<BusinessFormPersonAttribute?> GetAttributeAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult(Attributes.SingleOrDefault(value => value.Id == id));
     public Task<BusinessFormPersonData?> GetDataAsync(Guid userId, CancellationToken cancellationToken) => Task.FromResult(Data.SingleOrDefault(value => value.UserId == userId));
     Task<List<BusinessFormPersonAttribute>> IFormPersonDataRepository.ListAttributesAsync(CancellationToken cancellationToken) => Task.FromResult(Attributes.ToList());
+    public Task<List<BusinessFormPersonData>> ListDataWithValueAsync(Guid attributeId, CancellationToken cancellationToken)
+    {
+        Assert.True(Work.InTransaction);
+        var key = attributeId.ToString("D");
+        return Task.FromResult(Data.Where(value => JsonSerializer.Deserialize<Dictionary<string, string>>(value.ValuesJson)!.ContainsKey(key))
+            .OrderBy(value => value.UserId).ToList());
+    }
     public void Add(BusinessFormPersonAttribute value) { Assert.True(Work.InTransaction); Attributes.Add(value); }
     public void Add(BusinessFormPersonData value) { Assert.True(Work.InTransaction); Data.Add(value); }
 
@@ -99,14 +108,15 @@ internal sealed class FormPersonDataFixture : IFormPersonDataRepository, IFormPe
         Task.FromResult(new PagedResult<FormPersonAttributeOptionRow>([new(ActiveItem.Id, "Centro")], request.Page, request.PageSize, 1));
 
     Task IFormCatalogRepository.LockAsync(Guid id, CancellationToken cancellationToken) => Lock("catalog:" + id.ToString("N"));
-    Task<BusinessFormCatalog?> IFormCatalogRepository.GetAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult(id == Catalog.Id ? Catalog : null);
+    Task<BusinessFormCatalog?> IFormCatalogRepository.GetAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult(Source(id));
     public Task<BusinessFormCatalog?> GetByProposalAsync(Guid id, CancellationToken cancellationToken) => throw new NotSupportedException();
-    public Task<List<BusinessFormCatalogItem>> ListItemsAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult(new List<BusinessFormCatalogItem> { ActiveItem, InactiveItem });
+    public Task<List<BusinessFormCatalogItem>> ListItemsAsync(Guid id, CancellationToken cancellationToken) =>
+        Task.FromResult(id == Catalog.Id ? new List<BusinessFormCatalogItem> { ActiveItem, InactiveItem } : []);
     public void Add(BusinessFormCatalog value) => throw new NotSupportedException();
     public void AddItems(IEnumerable<BusinessFormCatalogItem> values) => throw new NotSupportedException();
-    public Task<FormCatalogStoredRow?> FindAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult<FormCatalogStoredRow?>(id != Catalog.Id ? null : new(
-        Catalog.Id, Catalog.Key, Catalog.NameJson, Catalog.DescriptionJson, Catalog.Kind.ToString(), Catalog.Revision, Catalog.IsActive,
-        Catalog.CreatedAtUtc, Catalog.CreatedBy, Catalog.ModifiedAtUtc, Catalog.ModifiedBy, 2));
+    public Task<FormCatalogStoredRow?> FindAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult<FormCatalogStoredRow?>(Source(id) is not { } source ? null : new(
+        source.Id, source.Key, source.NameJson, source.DescriptionJson, source.Kind.ToString(), source.Revision, source.IsActive,
+        source.CreatedAtUtc, source.CreatedBy, source.ModifiedAtUtc, source.ModifiedBy, id == Catalog.Id ? 2 : 0));
     public Task<IReadOnlyList<FormCatalogStoredItemRow>> ListAllItemsAsync(Guid catalogId, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<FormCatalogStoredItemRow>>([Item(ActiveItem), Item(InactiveItem)]);
     public Task<IReadOnlyList<FormCatalogStoredItemRow>> ListOfferItemsAsync(Guid catalogId, CancellationToken cancellationToken, string? fieldValueContainmentJson = null) => throw new NotSupportedException();
@@ -118,6 +128,7 @@ internal sealed class FormPersonDataFixture : IFormPersonDataRepository, IFormPe
     public Task<int> CountActiveItemsAsync(Guid catalogId, CancellationToken cancellationToken) => throw new NotSupportedException();
     public Task<PagedResult<FormCatalogItemResponse>> ListItemsAsync(Guid catalogId, ListFormCatalogItemsRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
 
+    private BusinessFormCatalog? Source(Guid id) => id == Catalog.Id ? Catalog : id == OtherCatalog.Id ? OtherCatalog : null;
     private FormPersonAttributeStoredRow Row(BusinessFormPersonAttribute value) => new(value.Id, value.Key, value.NameJson,
         value.Type.ToString(), value.SourceCatalogId, value.Position, value.IsActive, value.Revision, value.SourceCatalogId is null ? null : Catalog.NameJson);
     private static FormCatalogStoredItemRow Item(BusinessFormCatalogItem value) => new(value.Id, value.CatalogId, value.Code,

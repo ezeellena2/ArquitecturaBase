@@ -104,6 +104,46 @@ public sealed class FormPersonDataServiceTests
         Assert.Equal(1, fixture.Work.Commits);
     }
 
+    [Theory]
+    [InlineData("type")]
+    [InlineData("source")]
+    public async Task Changing_the_type_or_source_of_an_attribute_with_stored_values_requires_confirmation_and_clears_only_that_value(string change)
+    {
+        var fixture = new FormPersonDataFixture();
+        var zone = fixture.AddAttribute("zone");
+        var note = fixture.AddAttribute("note", catalog: false);
+        var storedJson = JsonSerializer.Serialize(new Dictionary<string, string>
+        { [zone.Id.ToString("D")] = fixture.ActiveItem.Id.ToString("D"), [note.Id.ToString("D")] = "Nota" });
+        fixture.Data.Add(BusinessFormPersonData.Create(fixture.Subject, storedJson));
+        var request = change == "type"
+            ? new UpdateFormPersonAttributeRequest(1, Names(), "Text", null, 0, true)
+            : new UpdateFormPersonAttributeRequest(1, Names(), "Catalog", fixture.OtherCatalog.Id, 0, true);
+
+        var unconfirmed = await fixture.Service.UpdateAttributeAsync(zone.Id, request, Ct);
+
+        Assert.Equal("Forms.PersonAttribute.ValueRemovalNotConfirmed", unconfirmed.Error.Code);
+        Assert.Contains(change == "type" ? "type" : "sourceCatalogId", Assert.IsType<ValidationError>(unconfirmed.Error).Errors.Keys);
+        Assert.Equal(1, unconfirmed.Error.Metadata!["count"]);
+        Assert.Equal(0, fixture.Work.Commits);
+        Assert.Equal(1, zone.Revision);
+        Assert.Equal(BusinessFormPersonAttributeType.Catalog, zone.Type);
+        Assert.Equal(fixture.Catalog.Id, zone.SourceCatalogId);
+        Assert.Equal(storedJson, Assert.Single(fixture.Data).ValuesJson);
+
+        var confirmed = await fixture.Service.UpdateAttributeAsync(zone.Id, request with { ConfirmValueRemoval = true }, Ct);
+
+        Assert.True(confirmed.IsSuccess);
+        Assert.Equal(change == "type" ? BusinessFormPersonAttributeType.Text : BusinessFormPersonAttributeType.Catalog, zone.Type);
+        Assert.Equal(change == "type" ? null : fixture.OtherCatalog.Id, zone.SourceCatalogId);
+        var row = Assert.Single(fixture.Data);
+        var stored = JsonDocument.Parse(row.ValuesJson).RootElement;
+        Assert.False(stored.TryGetProperty(zone.Id.ToString("D"), out _));
+        Assert.Equal("Nota", stored.GetProperty(note.Id.ToString("D")).GetString());
+        Assert.Equal(2, row.Revision);
+        Assert.Equal(1, fixture.Work.Commits);
+        Assert.Equal(CommitPolicy.OnSuccess, fixture.Work.LastPolicy);
+    }
+
     [Fact]
     public async Task Saving_person_values_uses_one_boundary_and_rejects_a_stale_initial_revision()
     {

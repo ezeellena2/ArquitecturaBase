@@ -118,8 +118,19 @@ internal sealed partial class FormPersonDataService(IFormPersonDataRepository re
         foreach (var sourceId in new[] { attribute.SourceCatalogId, request.SourceCatalogId }.OfType<Guid>().Distinct().Order()) await catalogs.LockAsync(sourceId, ct);
         var source = await SourceAsync(request.Type!, request.SourceCatalogId, ct);
         if (source.IsFailure) return source.Error;
+        var typeChanged = attribute.Type.ToString() != request.Type;
+        var stored = typeChanged || attribute.SourceCatalogId != request.SourceCatalogId ? await repository.ListDataWithValueAsync(id, ct) : [];
+        if (stored.Count > 0 && !request.ConfirmValueRemoval)
+            return FieldErrors.OnWithMetadata(FormPersonDataErrors.ValueRemovalDetails(stored.Count), typeChanged ? "type" : "sourceCatalogId");
         var updated = attribute.Update(request.ExpectedRevision!.Value, Names(request.Name!), Enum.Parse<BusinessFormPersonAttributeType>(request.Type!), request.SourceCatalogId, request.Position, request.IsActive);
         if (updated.IsFailure) return updated.Error;
+        foreach (var row in stored)
+        {
+            var values = ReadValues(row.ValuesJson);
+            values.Remove(id.ToString("D"));
+            var cleared = row.Update(row.Revision, JsonSerializer.Serialize(values, JsonSerializerOptions.Web));
+            if (cleared.IsFailure) return cleared.Error;
+        }
         return Map(Row(attribute, source.Value?.NameJson), uses);
     }
     private async Task<Result<BusinessFormCatalog?>> SourceAsync(string type, Guid? sourceId, CancellationToken ct)

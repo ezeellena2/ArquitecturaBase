@@ -329,6 +329,7 @@
   <data name="Forms.PersonAttribute.TooMany" xml:space="preserve"><value>You can define up to 20 data items.</value></data>
   <data name="Forms.PersonAttribute.Invalid" xml:space="preserve"><value>Check the data field and its source catalog.</value></data>
   <data name="Forms.PersonAttribute.SourceUnavailable" xml:space="preserve"><value>The source catalog is unavailable.</value></data>
+  <data name="Forms.PersonAttribute.ValueRemovalNotConfirmed" xml:space="preserve"><value>Confirm you want to change the attribute and delete the values people have stored.</value></data>
   <data name="Forms.PersonData.RevisionConflict" xml:space="preserve"><value>Someone else changed this data. Reload it.</value></data>
   <data name="Forms.PersonData.ValueInvalid" xml:space="preserve"><value>The value does not match the data type.</value></data>
   <data name="Forms.PersonData.UserNotFound" xml:space="preserve"><value>The person does not exist.</value></data>

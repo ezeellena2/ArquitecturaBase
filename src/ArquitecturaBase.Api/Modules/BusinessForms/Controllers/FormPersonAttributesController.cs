@@ -44,7 +44,8 @@ public sealed class FormPersonAttributesController(IFormPersonDataService servic
     [ProducesProblem(StatusCodes.Status404NotFound)]
     [ProducesProblem(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] UpdateFormPersonAttributeHttpRequest request, CancellationToken cancellationToken) =>
-        (await service.UpdateAttributeAsync(id, new(request.ExpectedRevision, request.Name, request.Type, request.SourceCatalogId, request.Position, request.IsActive), cancellationToken)).ToActionResult(this);
+        (await service.UpdateAttributeAsync(id, new(request.ExpectedRevision, request.Name, request.Type, request.SourceCatalogId, request.Position, request.IsActive,
+            request.ConfirmValueRemoval), cancellationToken)).ToActionResult(this);
 
     [HttpGet("{id:guid}/options")]
     [ProducesResponseType<PagedResult<FormPersonAttributeOptionResponse>>(StatusCodes.Status200OK)]

@@ -4,7 +4,7 @@ Contratos que implementa `Infrastructure/Modules/BusinessForms/Persistence`. Los
 
 ## Datos de personas
 
-`IFormPersonDataRepository` comparte lock de definiciones y agrega atributos/persona; no guarda. `IFormPersonDataReader` proyecta atributos/usos y datos con etiquetas fuente por lote, sin correo. Falta de fila devuelve valores vacíos y revisión null. La tabla administrativa incluye cuentas inactivas y omite borradas; opciones sólo id/text activos, búsqueda y paginado SQL. Datos históricos inactivos siguen persistidos.
+`IFormPersonDataRepository` comparte lock de definiciones y agrega atributos/persona; no guarda. `ListDataWithValueAsync` devuelve seguidas, por UserId, las filas cuyo ValuesJson tiene la clave del atributo (existencia JSONB en SQL). `IFormPersonDataReader` proyecta atributos/usos y datos con etiquetas fuente por lote, sin correo. Falta de fila devuelve valores vacíos y revisión null. La tabla administrativa incluye cuentas inactivas y omite borradas; opciones sólo id/text activos, búsqueda y paginado SQL. Datos históricos inactivos siguen persistidos.
 
 ## Al modificar
 

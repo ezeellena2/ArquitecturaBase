@@ -8,6 +8,7 @@ public interface IFormPersonDataRepository
     Task<BusinessFormPersonAttribute?> GetAttributeAsync(Guid id, CancellationToken cancellationToken);
     Task<BusinessFormPersonData?> GetDataAsync(Guid userId, CancellationToken cancellationToken);
     Task<List<BusinessFormPersonAttribute>> ListAttributesAsync(CancellationToken cancellationToken);
+    Task<List<BusinessFormPersonData>> ListDataWithValueAsync(Guid attributeId, CancellationToken cancellationToken);
     void Add(BusinessFormPersonAttribute value);
     void Add(BusinessFormPersonData value);
 }

@@ -24,6 +24,15 @@ public sealed class FormPersonDataContractTests
     }
 
     [Fact]
+    public void Attribute_updates_accept_an_optional_confirmation_to_remove_the_stored_values()
+    {
+        const string confirmed = """{"expectedRevision":1,"name":{"es":"Zona"},"type":"Text","sourceCatalogId":null,"position":0,"isActive":true,"confirmValueRemoval":true}""";
+        const string omitted = """{"expectedRevision":1,"name":{"es":"Zona"},"type":"Text","sourceCatalogId":null,"position":0,"isActive":true}""";
+        Assert.True(JsonSerializer.Deserialize<UpdateFormPersonAttributeHttpRequest>(confirmed, JsonSerializerOptions.Web)!.ConfirmValueRemoval);
+        Assert.False(JsonSerializer.Deserialize<UpdateFormPersonAttributeHttpRequest>(omitted, JsonSerializerOptions.Web)!.ConfirmValueRemoval);
+    }
+
+    [Fact]
     public void Person_values_accept_null_to_clear_a_value_and_redact_the_personal_content()
     {
         const string json = """{"expectedRevision":null,"values":{"0199f0a1-0000-7000-8000-00000000c017":"Dato privado","0199f0a1-0000-7000-8000-00000000c018":null}}""";

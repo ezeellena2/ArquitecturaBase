@@ -136,6 +136,29 @@ public sealed class FormPersonDataHttpTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.Conflict, sourceInUse.StatusCode);
         Assert.Equal("Forms.Catalog.SourceInUse", (await sourceInUse.ReadJsonAsync()).GetProperty("code").GetString());
         await FormPersonDataContractCapture.WriteAsync(sourceInUse, culture, "source-in-use", Ct);
+
+        object ToText(bool confirm) => new
+        {
+            expectedRevision = 2, name = new { es = "Zona de atención", en = "Service zone" }, type = "Text",
+            sourceCatalogId = (Guid?)null, position = 1, isActive = true, confirmValueRemoval = confirm,
+        };
+        using var unconfirmed = await manager.PutAsJsonAsync($"/api/forms/person-attributes/{attributeId}", ToText(false), Ct);
+        Assert.Equal(HttpStatusCode.BadRequest, unconfirmed.StatusCode);
+        var unconfirmedJson = await unconfirmed.ReadJsonAsync();
+        Assert.Equal("Forms.PersonAttribute.ValueRemovalNotConfirmed", unconfirmedJson.GetProperty("code").GetString());
+        Assert.True(unconfirmedJson.GetProperty("errors").TryGetProperty("type", out _));
+        Assert.Equal(1, unconfirmedJson.GetProperty("count").GetInt32());
+        await FormPersonDataContractCapture.WriteAsync(unconfirmed, culture, "attribute-value-removal-confirmation", Ct);
+        Assert.Equal(1, await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormPersonData>()
+            .Where(row => row.UserId == userId).Select(row => row.Revision).SingleAsync(Ct)));
+
+        using var confirmed = await manager.PutAsJsonAsync($"/api/forms/person-attributes/{attributeId}", ToText(true), Ct);
+        Assert.Equal(HttpStatusCode.OK, confirmed.StatusCode);
+        Assert.Equal("Text", (await confirmed.ReadJsonAsync()).GetProperty("type").GetString());
+        var cleared = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormPersonData>()
+            .Where(row => row.UserId == userId).Select(row => new { row.Revision, row.ValuesJson }).SingleAsync(Ct));
+        Assert.Equal(2, cleared.Revision);
+        Assert.False(JsonDocument.Parse(cleared.ValuesJson).RootElement.TryGetProperty(attributeId.ToString("D"), out _));
     }
 
     [Fact]

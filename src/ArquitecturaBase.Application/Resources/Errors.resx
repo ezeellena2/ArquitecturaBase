@@ -329,6 +329,7 @@
   <data name="Forms.PersonAttribute.TooMany" xml:space="preserve"><value>Se pueden definir hasta 20 datos.</value></data>
   <data name="Forms.PersonAttribute.Invalid" xml:space="preserve"><value>Revisá el dato y su catálogo fuente.</value></data>
   <data name="Forms.PersonAttribute.SourceUnavailable" xml:space="preserve"><value>El catálogo fuente no está disponible.</value></data>
+  <data name="Forms.PersonAttribute.ValueRemovalNotConfirmed" xml:space="preserve"><value>Confirmá que querés cambiar el dato y borrar los valores que tienen cargados las personas.</value></data>
   <data name="Forms.PersonData.RevisionConflict" xml:space="preserve"><value>Otra persona cambió estos datos. Volvé a cargarlos.</value></data>
   <data name="Forms.PersonData.ValueInvalid" xml:space="preserve"><value>El valor no corresponde al dato.</value></data>
   <data name="Forms.PersonData.UserNotFound" xml:space="preserve"><value>La persona no existe.</value></data>

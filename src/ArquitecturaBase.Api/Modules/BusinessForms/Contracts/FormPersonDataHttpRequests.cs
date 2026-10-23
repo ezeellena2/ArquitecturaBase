@@ -11,7 +11,7 @@ public sealed record CreateFormPersonAttributeHttpRequest(string? Key, IReadOnly
 
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record UpdateFormPersonAttributeHttpRequest(long? ExpectedRevision, IReadOnlyDictionary<string, string?>? Name,
-    string? Type, Guid? SourceCatalogId, int Position, bool IsActive)
+    string? Type, Guid? SourceCatalogId, int Position, bool IsActive, bool ConfirmValueRemoval = false)
 {
     public override string ToString() => "UpdateFormPersonAttributeHttpRequest { Content = [REDACTED] }";
 }

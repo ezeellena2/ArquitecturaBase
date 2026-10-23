@@ -9,7 +9,10 @@ public static class FormPersonDataErrors
     public static readonly Error AttributeTooMany = Error.Conflict("Forms.PersonAttribute.TooMany", "Up to 20 person attributes can be defined.");
     public static readonly Error AttributeInvalid = Error.Validation("Forms.PersonAttribute.Invalid", "The person attribute definition is invalid.");
     public static readonly Error SourceUnavailable = Error.Conflict("Forms.PersonAttribute.SourceUnavailable", "The source catalog is unavailable.");
+    public static readonly Error ValueRemovalNotConfirmed = Error.Validation("Forms.PersonAttribute.ValueRemovalNotConfirmed", "Confirm removal of the values stored for this person attribute.");
     public static readonly Error RevisionConflict = Error.Conflict("Forms.PersonData.RevisionConflict", "The person data changed. Reload it.");
     public static readonly Error ValueInvalid = Error.Validation("Forms.PersonData.ValueInvalid", "The value does not match the person attribute.");
     public static readonly Error UserNotFound = Error.NotFound("Forms.PersonData.UserNotFound", "The person was not found.");
+
+    public static Error ValueRemovalDetails(int count) => ValueRemovalNotConfirmed with { Metadata = new Dictionary<string, object?> { ["count"] = count } };
 }

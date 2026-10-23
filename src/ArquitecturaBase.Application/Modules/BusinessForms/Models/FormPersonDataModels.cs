@@ -2,7 +2,8 @@ using ArquitecturaBase.Application.Common.Pagination;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Models;
 public sealed record CreateFormPersonAttributeRequest(string? Key, IReadOnlyDictionary<string, string?>? Name, string? Type, Guid? SourceCatalogId)
 { public override string ToString() => "CreateFormPersonAttributeRequest { Content = [REDACTED] }"; }
-public sealed record UpdateFormPersonAttributeRequest(long? ExpectedRevision, IReadOnlyDictionary<string, string?>? Name, string? Type, Guid? SourceCatalogId, int Position, bool IsActive)
+public sealed record UpdateFormPersonAttributeRequest(long? ExpectedRevision, IReadOnlyDictionary<string, string?>? Name, string? Type, Guid? SourceCatalogId, int Position, bool IsActive,
+    bool ConfirmValueRemoval = false)
 { public override string ToString() => "UpdateFormPersonAttributeRequest { Content = [REDACTED] }"; }
 public sealed record UpdateFormPersonDataRequest(long? ExpectedRevision, IReadOnlyDictionary<string, string?>? Values)
 { public override string ToString() => "UpdateFormPersonDataRequest { Content = [REDACTED] }"; }

@@ -26,6 +26,13 @@ internal sealed class FormPersonDataRepository(ApplicationDbContext dbContext) :
     public Task<List<BusinessFormPersonAttribute>> ListAttributesAsync(CancellationToken cancellationToken) =>
         dbContext.Set<BusinessFormPersonAttribute>().OrderBy(value => value.Position).ThenBy(value => value.Id).ToListAsync(cancellationToken);
 
+    public Task<List<BusinessFormPersonData>> ListDataWithValueAsync(Guid attributeId, CancellationToken cancellationToken)
+    {
+        var key = attributeId.ToString("D");
+        return dbContext.Set<BusinessFormPersonData>().Where(value => EF.Functions.JsonExists(value.ValuesJson, key))
+            .OrderBy(value => value.UserId).ToListAsync(cancellationToken);
+    }
+
     public void Add(BusinessFormPersonAttribute value)
     {
         dbContext.RequireTransaction();
