@@ -235,7 +235,7 @@ Se corrige en un solo chat, back y front juntos, cada arreglo con su test y comm
       - es la misma regla que ya tienen los formularios: se extiende a los catálogos (nombre, descripción y opciones), a los campos y a los datos de las personas, y se retira la excepción bilingüe;
       - hay que revisar todo lo que hoy exige «es», «es y en» o cae a «es» por defecto, también lo que viaja a WhatsApp y las pantallas que dicen «Completá … en español e inglés»;
       - se anota en las reglas de formularios;
-      - un error de guardado en un campo que no está a la vista tiene que verse: cambiar a la pestaña del idioma con el error y marcarla. Si no hay un campo visible, se muestra en la página.
+      - un error de guardado en un campo que no está a la vista tiene que verse en la página. Como no hay pestañas de idioma, un error del idioma original con el menú en el otro idioma dice qué falta y en qué idioma.
 36. **Al agregar una opción, sus campos aparecen en rojo antes de escribir nada** (front: `CatalogEditorPage.tsx`, con `catalogItemProblems`, y `CatalogManualItemsEditor`).
     - **Qué pasa:** «Agregar opción» crea la fila vacía y enseguida marca Texto y Código con «Completá este campo». Arriba aparece «Revisá las opciones marcadas antes de guardar».
     - **Arreglo:**
