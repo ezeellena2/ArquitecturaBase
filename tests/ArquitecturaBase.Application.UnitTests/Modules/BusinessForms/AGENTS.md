@@ -13,6 +13,8 @@ Importación: permisos y revisión antes del archivo y después de leer; parseo 
 Publicación multiChoice: límite de 20 activos sólo para catálogo Manual, conteo SQL delegado una vez por catálogo compartido y error con FieldId/path propios. Choice ordinario, Filters y catálogos inválidos conservan sus recorridos.
 Captura multiChoice: array GUID D distinto, min/max sellados, orden Position 0..N-1 y referencia ofertada por opción; omitida no agrega entrada, [] conserva array real sin filas; replay/huella escalar y atomicidad de metadata junto a archivos permanecen.
 
+Campos extra: la captura prueba un lote para elegidas y otro para textos fuente, ambos después de los locks Manual. Sella sólo campos activos con valor, incluido cero/false y los nombres originales incompletos; replay conserva ese snapshot después de editar los datos. Filters e historia sin campos mantienen null y omiten la propiedad nueva al serializar.
+
 Oferta/captura tipadas: pares Value/ValueType canónicos, tipo cerrado y validación antes de subir archivos. Una edición del catálogo no cambia la oferta ya sellada ni sus referencias finales/propuestas. Text, Filters y filas históricas mantienen los bytes JSON sin propiedades nuevas nulas; cambiar un valor ofrecido invalida el replay.
 
 - Composición de chequeo rechaza ChannelId duplicado/vacío. Dobles neutrales en TestFeatures/Channels; los que usan tipos/errores BusinessForms viven en TestFeatures/Modules/BusinessForms.

@@ -115,6 +115,9 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
             if (!await records.ExistsActiveCatalogItemAsync(value.Offer.CatalogId, value.ChoiceId, ct))
                 return Reject(request, fingerprint, FormRecordErrors.CatalogItemInactive.Code, value.Answer.FieldId);
 
+        var catalogFields = await FormCatalogFieldCapturePolicy.CaptureAsync(records,
+            selected.Where(value => value.Offer.Kind == "Manual").Select(value => value.ChoiceId).Distinct().ToArray(), ct);
+
         var origin = await origins.ValidateAsync(request, schema, ct);
         if (origin.IsFailure) return Reject(request, fingerprint, origin.Error.Code);
 
@@ -149,9 +152,10 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
         {
             var option = value.Offer.Options.Single(option => option.Id == value.ChoiceId);
             var translations = FormRecordReferencePolicy.Capture(option, value.Offer);
+            var fieldValuesJson = value.Offer.Kind == "Manual" ? catalogFields.GetValueOrDefault(option.Id) : null;
             records.Add(BusinessFormRecordReference.Create(record.Id, definition.Id, value.Answer.FieldId,
-                value.Offer.CatalogId, value.Offer.Revision, option.Id, option.Text, option.Detail, value.Offer.CatalogName, translations, option.Value, value.Offer.ValueType));
-            references.Add(new(record.Id, value.Answer.FieldId, value.Offer.CatalogId, value.Offer.Revision, option.Id, option.Text, option.Detail, value.Offer.CatalogName, translations, option.Value, value.Offer.ValueType));
+                value.Offer.CatalogId, value.Offer.Revision, option.Id, option.Text, option.Detail, value.Offer.CatalogName, translations, option.Value, value.Offer.ValueType, fieldValuesJson));
+            references.Add(new(record.Id, value.Answer.FieldId, value.Offer.CatalogId, value.Offer.Revision, option.Id, option.Text, option.Detail, value.Offer.CatalogName, translations, option.Value, value.Offer.ValueType, fieldValuesJson));
         }
         var fileRows = fileRecorder.Record(record, files);
         var stored = new FormRecordStoredRow(record.SourceReceiptId, record.Id, record.Number, definition.Id, definition.Prefix,

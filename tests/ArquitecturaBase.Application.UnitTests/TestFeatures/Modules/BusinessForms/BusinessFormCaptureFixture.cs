@@ -94,7 +94,17 @@ internal sealed class FakeRecordRepository(BusinessFormDefinition definition, Bu
         var definition = BusinessFormDefinition.Create();
         return new(definition, BusinessFormVersion.Create(definition.Id, 1, "test"));
     }
-    public Task<IReadOnlyList<FormCatalogItemFieldValuesRow>> FindCatalogFieldValuesAsync(IReadOnlyCollection<Guid> itemIds, CancellationToken ct) => Task.FromResult<IReadOnlyList<FormCatalogItemFieldValuesRow>>([]);
+    public Dictionary<Guid, FormCatalogItemFieldValuesRow> CatalogFieldValues { get; } = [];
+    public List<Guid[]> FieldValueBatches { get; } = [];
+    public List<Guid[]> FieldValueReadLocks { get; } = [];
+    public Task<IReadOnlyList<FormCatalogItemFieldValuesRow>> FindCatalogFieldValuesAsync(IReadOnlyCollection<Guid> itemIds, CancellationToken ct)
+    {
+        FieldValueBatches.Add(itemIds.ToArray());
+        FieldValueReadLocks.Add(CatalogLocks.ToArray());
+        return Task.FromResult<IReadOnlyList<FormCatalogItemFieldValuesRow>>(itemIds.Select(id =>
+            CatalogFieldValues.TryGetValue(id, out var row) ? row
+                : new FormCatalogItemFieldValuesRow(id, ActivityReads.Last(value => value.ItemId == id).CatalogId, null, "{}")).ToArray());
+    }
     public bool ItemActive { get; set; } = true;
     public HashSet<Guid> InactiveItems { get; } = [];
     public List<Guid> CatalogLocks { get; } = [];
