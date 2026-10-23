@@ -55,7 +55,7 @@ internal static partial class FormCatalogFieldPolicy
                     if (context.TypeChanges.Contains(field.Id))
                     {
                         invalidCount++;
-                        if (invalid.Count < 50) invalid.Add(new(item.Id, item.Code));
+                        if (invalid.Count < 50) invalid.Add(new(item.Id, item.Code, item.Position, Attempted(input), InvalidReason(field, input, parsed.Error)));
                         continue;
                     }
                     var path = inputIndexes.TryGetValue(item.Id, out var index) ? $"items[{index}].fields.{key}" : $"fields[{fieldIndex}].type";
@@ -88,5 +88,15 @@ internal static partial class FormCatalogFieldPolicy
         // only a new or changed one needs an active option.
         bool Fresh(Guid itemId, string key) => requested.TryGetValue(itemId, out var sent) && sent.TryGetValue(key, out var value)
             && (!stored[itemId].TryGetValue(key, out var saved) || !JsonElement.DeepEquals(saved, value));
+    }
+
+    private static string? Attempted(string? input) => input?.Trim() is { Length: > 0 } value ? value[..Math.Min(value.Length, 300)] : null;
+
+    // The same reasons the editor uses for a cell: missing, out of the field bounds, too long, or not a value of the type.
+    private static string InvalidReason(BusinessFormCatalogField field, string? input, Error error)
+    {
+        if (error.Code == FormCatalogErrors.FieldValueRequired.Code) return "required";
+        if (field.Type is "integer" or "decimal" or "date" && Normalize(field with { Required = false, Min = null, Max = null }, input).IsSuccess) return "range";
+        return field.Type == "text" && input?.Trim().Length > (field.MaxLength ?? 300) ? "length" : "invalid";
     }
 }

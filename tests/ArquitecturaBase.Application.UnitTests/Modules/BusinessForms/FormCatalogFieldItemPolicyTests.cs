@@ -53,6 +53,43 @@ public sealed class FormCatalogFieldItemPolicyTests
     }
 
     [Fact]
+    public void Type_conversion_rows_carry_their_row_attempted_value_and_reason()
+    {
+        var field = Field("integer") with { Required = true, Max = "180" };
+        var catalog = BusinessFormCatalog.CreateManual(new Dictionary<string, string> { ["es"] = "Plazos" }, new Dictionary<string, string>());
+        var days = catalog.AddManualItem("days", "Days", null, null, null, 3).Value;
+        var large = catalog.AddManualItem("large", "Large", null, null, null, 4).Value;
+        var empty = catalog.AddManualItem("empty", "Empty", null, null, null, 5).Value;
+        StoreText(catalog, days, field, "30 días");
+        StoreText(catalog, large, field, "200");
+        var context = new FormCatalogFieldContext([field], new Dictionary<Guid, IReadOnlyList<FormCatalogStoredItemRow>>(), new HashSet<Guid> { field.Id }, new HashSet<Guid>());
+
+        var result = FormCatalogFieldPolicy.ValidateItems(catalog, [days, large, empty], [], NoRequest(), context);
+
+        Assert.Equal("Forms.Catalog.FieldTypeNotConvertible", result.Error.Code);
+        var rows = Assert.IsAssignableFrom<IReadOnlyList<FormCatalogInvalidFieldRow>>(result.Error.Metadata!["invalidRows"]);
+        Assert.Equal(new (int, string?, string)[] { (3, "30 días", "invalid"), (4, "200", "range"), (5, null, "required") },
+            rows.Select(row => (row.Row, row.Value, row.Reason)));
+        Assert.Equal(new[] { days.Id, large.Id, empty.Id }, rows.Select(row => row.ItemId));
+        Assert.DoesNotContain("30 días", rows[0].ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Type_conversion_to_a_shorter_text_reports_length()
+    {
+        var field = Field("text") with { MaxLength = 3 };
+        var catalog = BusinessFormCatalog.CreateManual(new Dictionary<string, string> { ["es"] = "Montos" }, new Dictionary<string, string>());
+        var item = catalog.AddManualItem("amount", "Amount", null, null, null, 1).Value;
+        Assert.True(catalog.SetManualItemFields(item, JsonSerializer.Serialize(new Dictionary<string, long> { [field.Id.ToString("D")] = 12345 })).IsSuccess);
+        var context = new FormCatalogFieldContext([field], new Dictionary<Guid, IReadOnlyList<FormCatalogStoredItemRow>>(), new HashSet<Guid> { field.Id }, new HashSet<Guid>());
+
+        var result = FormCatalogFieldPolicy.ValidateItems(catalog, [item], [], NoRequest(), context);
+
+        var row = Assert.Single(Assert.IsAssignableFrom<IReadOnlyList<FormCatalogInvalidFieldRow>>(result.Error.Metadata!["invalidRows"]));
+        Assert.Equal<(int, string?, string)>((1, "12345", "length"), (row.Row, row.Value, row.Reason));
+    }
+
+    [Fact]
     public void Saved_values_that_point_to_an_inactive_source_option_are_kept()
     {
         var zones = Zones();
@@ -152,6 +189,9 @@ public sealed class FormCatalogFieldItemPolicyTests
         type == "catalog" ? Guid.CreateVersion7() : null, false, false, null, null, type == "text" ? 300 : null, "data", 0, true);
 
     private static Dictionary<Guid, Dictionary<string, JsonElement>> NoRequest() => [];
+
+    private static void StoreText(BusinessFormCatalog catalog, BusinessFormCatalogItem item, BusinessFormCatalogField field, string value) =>
+        Assert.True(catalog.SetManualItemFields(item, JsonSerializer.Serialize(new Dictionary<string, string> { [field.Id.ToString("D")] = value })).IsSuccess);
 
     private sealed record ZoneScenario(BusinessFormCatalog Catalog, BusinessFormCatalogField Field, FormCatalogStoredItemRow North,
         FormCatalogStoredItemRow South, FormCatalogFieldContext Context)

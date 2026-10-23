@@ -53,7 +53,12 @@ public sealed partial class FormCatalogEndpointsTests
         var failedConversion = await conversion.ReadJsonAsync();
         Assert.Equal("Forms.Catalog.FieldTypeNotConvertible", failedConversion.GetProperty("code").GetString());
         Assert.Equal(0, failedConversion.GetProperty("convertedCount").GetInt32());
-        Assert.Equal(itemId, Assert.Single(failedConversion.GetProperty("invalidRows").EnumerateArray()).GetProperty("itemId").GetGuid());
+        var invalidRow = Assert.Single(failedConversion.GetProperty("invalidRows").EnumerateArray());
+        Assert.Equal(itemId, invalidRow.GetProperty("itemId").GetGuid());
+        Assert.Equal("ONE", invalidRow.GetProperty("code").GetString());
+        Assert.Equal(1, invalidRow.GetProperty("row").GetInt32());
+        Assert.Equal("1", invalidRow.GetProperty("value").GetString());
+        Assert.Equal("invalid", invalidRow.GetProperty("reason").GetString());
         await ExportBilingualResponseAsync(conversion, "fields-conversion-error");
 
         using var rules = await client.PutAsJsonAsync(path, Update(2, FieldPayload(fieldId, "integer", required: true, unique: true)), Ct);

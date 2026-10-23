@@ -24,7 +24,8 @@ public sealed record FormCatalogCapturedField(Guid Id, string Key, IReadOnlyDict
 internal sealed record FormCatalogFieldContext(IReadOnlyList<ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormCatalogField> Fields,
     IReadOnlyDictionary<Guid, IReadOnlyList<FormCatalogStoredItemRow>> Sources,
     IReadOnlySet<Guid> TypeChanges, IReadOnlySet<Guid> RequiredTransitions);
-public sealed record FormCatalogInvalidFieldRow(Guid ItemId, string Code);
+public sealed record FormCatalogInvalidFieldRow(Guid ItemId, string Code, int Row, string? Value, string Reason)
+{ public override string ToString() => "FormCatalogInvalidFieldRow { Content = [REDACTED] }"; }
 
 internal sealed record FormCatalogFieldPreparation(FormCatalogFieldContext Context, IReadOnlyDictionary<string, Guid> IdentityMap);
 
