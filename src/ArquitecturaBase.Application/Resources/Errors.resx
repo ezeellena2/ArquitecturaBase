@@ -322,4 +322,14 @@
   <data name="Forms.Catalog.FieldValueDuplicate" xml:space="preserve"><value>Ese valor ya está en otra opción y el campo es único.</value></data>
   <data name="Forms.Catalog.SourceInUse" xml:space="preserve"><value>Un campo o un dato de las personas toma sus valores de este catálogo: no se puede dar de baja.</value></data>
   <data name="Forms.Catalog.PresentationInvalid" xml:space="preserve"><value>El título necesita al menos un campo, y los campos tienen que existir.</value></data>
+  <data name="Forms.PersonAttribute.NotFound" xml:space="preserve"><value>El dato no existe.</value></data>
+  <data name="Forms.PersonAttribute.RevisionConflict" xml:space="preserve"><value>Otra persona cambió el dato. Volvé a cargarlo.</value></data>
+  <data name="Forms.PersonAttribute.KeyDuplicate" xml:space="preserve"><value>Ya hay un dato con esa clave.</value></data>
+  <data name="Forms.PersonAttribute.InUse" xml:space="preserve"><value>Un filtro usa este dato: no se puede quitar ni cambiar su tipo.</value></data>
+  <data name="Forms.PersonAttribute.TooMany" xml:space="preserve"><value>Se pueden definir hasta 20 datos.</value></data>
+  <data name="Forms.PersonAttribute.Invalid" xml:space="preserve"><value>Revisá el dato y su catálogo fuente.</value></data>
+  <data name="Forms.PersonAttribute.SourceUnavailable" xml:space="preserve"><value>El catálogo fuente no está disponible.</value></data>
+  <data name="Forms.PersonData.RevisionConflict" xml:space="preserve"><value>Otra persona cambió estos datos. Volvé a cargarlos.</value></data>
+  <data name="Forms.PersonData.ValueInvalid" xml:space="preserve"><value>El valor no corresponde al dato.</value></data>
+  <data name="Forms.PersonData.UserNotFound" xml:space="preserve"><value>La persona no existe.</value></data>
 </root>

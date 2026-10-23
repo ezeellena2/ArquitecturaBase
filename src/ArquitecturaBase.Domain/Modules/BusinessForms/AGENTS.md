@@ -2,6 +2,7 @@
 
 Leer [formularios](../../../../docs/features/formularios.md) y el [resumen de la etapa en curso](../../../../docs/plans/formularios/README.md) antes de modificar.
 - Domain usa BCL y Result. Entidades Definition/DraftChange heredan Entity e IAuditable; auditoría exclusivamente por interceptores.
+- PersonAttribute fija clave, fuente Catalog/Text y revisión; al desactivar conserva el último nombre activo. PersonData guarda una fila/revisión por UserId opaco sin FK al núcleo; ValuesJson se valida en Application.
 - `BusinessFormCatalog.MaxItems` fija 10.000 filas, incluidas inactivas. Application verifica el total al guardar bajo el lock del catálogo.
 - `ValueType` se fija al crear Manual (Text/Integer/Decimal/Date); Filters conserva Text. Item guarda Value canónico nullable. Reference sella el par Value/ValueType de la oferta; nunca relee el valor actual para reconstruir lo histórico.
 - Los campos extra pertenecen al agregado: FieldsJson conserva IDs y claves estables, incluidos los inactivos, cuyo nombre no cambia al quitarlos; PresentationJson conserva la selección predeterminada. Crear un campo asigna su identidad en Domain y exige que nazca opcional. SetFields y SetManualItemFields no avanzan revisión propia: comparten la del catálogo.

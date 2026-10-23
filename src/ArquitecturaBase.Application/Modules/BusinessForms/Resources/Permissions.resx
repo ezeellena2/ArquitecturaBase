@@ -28,4 +28,7 @@
   <data name="Area.formsuggestions" xml:space="preserve"><value>Sugerencias de formularios</value></data>
   <data name="Permission.formsuggestions.manage" xml:space="preserve"><value>Administrar sugerencias entre formularios</value></data>
   <data name="PermissionDescription.formsuggestions.manage" xml:space="preserve"><value>Configurar qué formulario sugerir después y qué datos pasar.</value></data>
+  <data name="Area.formpersondata" xml:space="preserve"><value>Datos de las personas</value></data>
+  <data name="Permission.formpersondata.manage" xml:space="preserve"><value>Administrar datos de las personas</value></data>
+  <data name="PermissionDescription.formpersondata.manage" xml:space="preserve"><value>Definir los datos que tiene cada persona, como zona o sucursal.</value></data>
 </root>

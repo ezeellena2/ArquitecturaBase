@@ -76,3 +76,7 @@ generated_code = true
 [src/ArquitecturaBase.Domain/Modules/BusinessForms/BusinessFormCatalogValueType.cs]
 # CA1720: los nombres del conjunto cerrado Text/Integer/Decimal/Date son el contrato elegido de catálogo y PostgreSQL.
 dotnet_diagnostic.CA1720.severity = none
+
+[src/ArquitecturaBase.Domain/Modules/BusinessForms/BusinessFormPersonAttribute.cs]
+# CA1711: Attribute nombra el dato configurable de una persona del modelo E2, no un atributo CLR.
+dotnet_code_quality.CA1711.allowed_suffixes = Attribute

@@ -28,4 +28,7 @@
   <data name="Area.formsuggestions" xml:space="preserve"><value>Form suggestions</value></data>
   <data name="Permission.formsuggestions.manage" xml:space="preserve"><value>Manage follow-up form suggestions</value></data>
   <data name="PermissionDescription.formsuggestions.manage" xml:space="preserve"><value>Configure follow-up forms and the values to carry over.</value></data>
+  <data name="Area.formpersondata" xml:space="preserve"><value>Person data</value></data>
+  <data name="Permission.formpersondata.manage" xml:space="preserve"><value>Manage person data</value></data>
+  <data name="PermissionDescription.formpersondata.manage" xml:space="preserve"><value>Define the data held for each person, such as area or branch.</value></data>
 </root>

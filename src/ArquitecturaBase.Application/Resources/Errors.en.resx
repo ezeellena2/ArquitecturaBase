@@ -322,4 +322,14 @@
   <data name="Forms.Catalog.FieldValueDuplicate" xml:space="preserve"><value>That value is already used by another option and the field is unique.</value></data>
   <data name="Forms.Catalog.SourceInUse" xml:space="preserve"><value>A field or person data takes its values from this catalog: it can't be deactivated.</value></data>
   <data name="Forms.Catalog.PresentationInvalid" xml:space="preserve"><value>The title needs at least one field, and the fields must exist.</value></data>
+  <data name="Forms.PersonAttribute.NotFound" xml:space="preserve"><value>The data does not exist.</value></data>
+  <data name="Forms.PersonAttribute.RevisionConflict" xml:space="preserve"><value>Someone else changed this data. Reload it.</value></data>
+  <data name="Forms.PersonAttribute.KeyDuplicate" xml:space="preserve"><value>There is already data with that key.</value></data>
+  <data name="Forms.PersonAttribute.InUse" xml:space="preserve"><value>A filter uses this data: it cannot be removed or change type.</value></data>
+  <data name="Forms.PersonAttribute.TooMany" xml:space="preserve"><value>You can define up to 20 data items.</value></data>
+  <data name="Forms.PersonAttribute.Invalid" xml:space="preserve"><value>Check the data field and its source catalog.</value></data>
+  <data name="Forms.PersonAttribute.SourceUnavailable" xml:space="preserve"><value>The source catalog is unavailable.</value></data>
+  <data name="Forms.PersonData.RevisionConflict" xml:space="preserve"><value>Someone else changed this data. Reload it.</value></data>
+  <data name="Forms.PersonData.ValueInvalid" xml:space="preserve"><value>The value does not match the data type.</value></data>
+  <data name="Forms.PersonData.UserNotFound" xml:space="preserve"><value>The person does not exist.</value></data>
 </root>

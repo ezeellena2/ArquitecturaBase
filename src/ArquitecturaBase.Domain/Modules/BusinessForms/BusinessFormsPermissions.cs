@@ -12,5 +12,6 @@ public static class BusinessFormsPermissions
     public const string RulesManage = "formrules.manage";
     public const string SuggestionsManage = "formsuggestions.manage";
     public const string ApprovalsDecide = "formapprovals.decide";
-    public static IReadOnlyCollection<string> All { get; } = [Read, Manage, Publish, RecordsCreate, RecordsRead, RecordsExport, CatalogsRead, CatalogsManage, RulesManage, ApprovalsDecide, SuggestionsManage];
+    public const string PersonDataManage = "formpersondata.manage";
+    public static IReadOnlyCollection<string> All { get; } = [Read, Manage, Publish, RecordsCreate, RecordsRead, RecordsExport, CatalogsRead, CatalogsManage, RulesManage, ApprovalsDecide, SuggestionsManage, PersonDataManage];
 }
