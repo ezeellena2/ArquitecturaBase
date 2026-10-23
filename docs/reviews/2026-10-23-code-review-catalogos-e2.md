@@ -224,7 +224,13 @@ Se corrige en un solo chat, back y front juntos, cada arreglo con su test y comm
     - **Regla, decisión del usuario del 2026-10-23:**
       - lo que se crea en la web se escribe en el idioma elegido en el menú; ese es su idioma original y el único obligatorio;
       - el otro idioma es una traducción opcional;
-      - se muestra en el idioma de la pantalla y, si falta, en el original.
+      - se muestra en el idioma de la pantalla y, si falta, en el original;
+      - **no hay selector de idioma en las pantallas.** Para traducir, se cambia el idioma del menú y se edita lo mismo:
+        - se saca «Textos en» de `FormEditorPage`, `CatalogMetadataFields`, `OfficialFormPreview` y `FormPdfPreview`;
+        - los pares de campos por idioma, como «Nombre» y «Nombre en inglés» en `CatalogFieldEditor` o `PersonAttributeDialog`, pasan a un solo campo en el idioma del menú;
+        - con el menú en el idioma que no es el original, un campo sin traducción muestra el original como referencia, sin copiarlo;
+        - la comprobación de publicación sigue avisando lo que falte del original;
+        - esto cambia el editor de formularios de la etapa de idiomas (I1–I3): se anota en las reglas y en el diseño del front.
     - **Arreglo:**
       - es la misma regla que ya tienen los formularios: se extiende a los catálogos (nombre, descripción y opciones), a los campos y a los datos de las personas, y se retira la excepción bilingüe;
       - hay que revisar todo lo que hoy exige «es», «es y en» o cae a «es» por defecto, también lo que viaja a WhatsApp y las pantallas que dicen «Completá … en español e inglés»;
