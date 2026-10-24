@@ -21,6 +21,7 @@ public static class FormCatalogErrors
     public static readonly Error FieldInUse = Error.Conflict("Forms.Catalog.FieldInUse", "The field is in use.");
     public static readonly Error FieldRemovalNotConfirmed = Error.Validation("Forms.Catalog.FieldRemovalNotConfirmed", "Confirm removal of the field and its values.");
     public static readonly Error FieldTypeNotConvertible = Error.Validation("Forms.Catalog.FieldTypeNotConvertible", "Some values cannot be converted to the new type.");
+    public static readonly Error FieldValuesIncompatible = Error.Validation("Forms.Catalog.FieldValuesIncompatible", "Some values don't meet the field rules.");
     public static readonly Error FieldValuesMissing = Error.Validation("Forms.Catalog.FieldValuesMissing", "Some active items have no value for the required field.");
     public static readonly Error FieldValueInvalid = Error.Validation("Forms.Catalog.FieldValueInvalid", "The value does not match the field type.");
     public static readonly Error FieldValueRequired = Error.Validation("Forms.Catalog.FieldValueRequired", "Enter a value for the required field.");

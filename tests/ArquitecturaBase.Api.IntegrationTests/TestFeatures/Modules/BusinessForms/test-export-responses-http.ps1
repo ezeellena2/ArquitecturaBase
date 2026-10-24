@@ -81,13 +81,13 @@ foreach ($case in @("Configuration", "Merge", "Missing", "Collision")) {
                 Assert-Condition (($sourceRoot + "BusinessForms/FormCatalogImportFieldsHttpTests.cs") -in $imports.Sources) "The source field import producer SHA must be included."
                 Assert-Condition (($captureRoot + "Modules/BusinessForms/FormCatalogImportContractCapture.cs") -in $imports.Sources) "The import capture SHA must be included."
                 $manual = @($cohorts | Where-Object { $_.Name -eq "manual-catalogs" })[0]
-                Assert-Condition ($manual.RequiredNames.Count -eq 45) "Manual catalogs must preserve prior captures, fourteen extra-field artifacts, the optional description and three original-language bodies."
+                Assert-Condition ($manual.RequiredNames.Count -eq 47) "Manual catalogs must preserve prior captures, sixteen extra-field artifacts, the optional description and three original-language bodies."
                 Assert-Condition ("description-optional-created.json" -in $manual.RequiredNames) "The optional catalog description body is missing."
                 foreach ($name in @("english-original-created", "english-original-detail-es", "original-missing-error")) { Assert-Condition (("$name.json") -in $manual.RequiredNames) "An original-language catalog body is missing." }
                 $typedNames = @("typed-text-created.json", "typed-text-items.json", "typed-integer-created.json", "typed-integer-items.json", "typed-decimal-created.json", "typed-decimal-items.json", "typed-date-created.json", "typed-date-items.json", "typed-invalid-value-es.json", "typed-invalid-value-en.json", "typed-required-value.json", "typed-type-change-rejected.json")
                 foreach ($name in $typedNames) { Assert-Condition ($name -in $manual.RequiredNames) "A typed catalog capture is missing from the required inventory." }
                 Assert-Condition (($sourceRoot + "BusinessForms/FormCatalogValueHttpTests.cs") -in $manual.Sources) "The typed catalog producer SHA must be included."
-                foreach ($name in @("fields-created", "fields-required-error", "fields-values-saved", "fields-conversion-error", "fields-unique-error", "fields-detail", "fields-items", "fields-removal-confirmation", "fields-removed", "fields-presentation", "fields-source-items", "fields-source-in-use")) {
+                foreach ($name in @("fields-created", "fields-required-error", "fields-values-saved", "fields-conversion-error", "fields-unique-error", "fields-rules-error-es", "fields-rules-error-en", "fields-detail", "fields-items", "fields-removal-confirmation", "fields-removed", "fields-presentation", "fields-source-items", "fields-source-in-use")) {
                     Assert-Condition (("$name.json") -in $manual.RequiredNames) "An extra-field catalog HTTP body is missing."
                 }
                 foreach ($name in @("fields-create", "fields-update")) { Assert-Condition (("$name.request.json") -in $manual.RequiredNames) "An extra-field request artifact is missing." }

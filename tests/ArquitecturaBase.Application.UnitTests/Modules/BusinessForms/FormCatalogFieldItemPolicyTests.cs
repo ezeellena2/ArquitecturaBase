@@ -366,6 +366,109 @@ public sealed class FormCatalogFieldItemPolicyTests
         Assert.Equal($"items[0].fields.{zones.Key}", Assert.Single(Assert.IsType<ValidationError>(result.Error).Errors.Keys));
     }
 
+    [Fact]
+    public void Lowering_max_length_reports_every_longer_value_on_the_max_length_control()
+    {
+        var field = Field("text") with { MaxLength = 5 };
+        var catalog = Catalog("es");
+        var items = Stored(catalog, field, "abcdef", "abc", "abcdefgh");
+
+        var result = FormCatalogFieldPolicy.ValidateItems(catalog, items, [], NoRequest(), Changing(field, field with { MaxLength = 300 }));
+
+        AssertIncompatible(result, "maxLength", 2, (1, "abcdef", "length"), (3, "abcdefgh", "length"));
+    }
+
+    [Theory]
+    [InlineData("3", null, "min", 1, "1", 2, "2")]
+    [InlineData(null, "8", "max", 4, "9", 5, "10")]
+    [InlineData("3", "8", "min", 1, "1", 2, "2")]
+    public void Changing_bounds_reports_values_below_min_on_min_and_above_max_on_max(string? min, string? max, string control,
+        int firstRow, string firstValue, int secondRow, string secondValue)
+    {
+        var field = Field("integer") with { Min = min, Max = max };
+        var catalog = Catalog("es");
+        var items = Stored(catalog, field, "1", "2", "5", "9", "10");
+
+        var result = FormCatalogFieldPolicy.ValidateItems(catalog, items, [], NoRequest(), Changing(field, field with { Min = null, Max = null }));
+
+        AssertIncompatible(result, control, 2, (firstRow, firstValue, "range"), (secondRow, secondValue, "range"));
+    }
+
+    [Fact]
+    public void Turning_on_unique_reports_every_repeated_active_value_on_the_unique_control()
+    {
+        var field = Field("text") with { Unique = true };
+        var catalog = Catalog("es");
+        var items = Stored(catalog, field, "abc", "def", "abc", "abc", "def", "ghi");
+        Assert.True(catalog.SetManualItemActive(items[3], false).IsSuccess);
+
+        var result = FormCatalogFieldPolicy.ValidateItems(catalog, items, [], NoRequest(), Changing(field, field with { Unique = false }));
+
+        AssertIncompatible(result, "unique", 4, (1, "abc", "duplicate"), (2, "def", "duplicate"), (3, "abc", "duplicate"), (5, "def", "duplicate"));
+    }
+
+    [Fact]
+    public void Restoring_a_field_reports_every_incompatible_value_on_its_active_control()
+    {
+        var field = Field("integer") with { Unique = true };
+        var catalog = Catalog("es");
+        var items = Stored(catalog, field, "abc", "5", "x", "5", "7");
+
+        var result = FormCatalogFieldPolicy.ValidateItems(catalog, items, [], NoRequest(), Changing(field, field with { IsActive = false }));
+
+        AssertIncompatible(result, "isActive", 4, (1, "abc", "invalid"), (2, "5", "duplicate"), (3, "x", "invalid"), (4, "5", "duplicate"));
+    }
+
+    [Fact]
+    public void Rule_changes_on_an_inactive_field_are_validated_too()
+    {
+        // An inactive field is never required, so the empty value is fine; only the narrowed length fails.
+        var field = Field("text") with { MaxLength = 5, Required = true, IsActive = false };
+        var catalog = Catalog("es");
+        var items = Stored(catalog, field, "abcdefgh", "abc", "");
+
+        var result = FormCatalogFieldPolicy.ValidateItems(catalog, items, [], NoRequest(), Changing(field, field with { MaxLength = 300 }));
+
+        AssertIncompatible(result, "maxLength", 1, (1, "abcdefgh", "length"));
+    }
+
+    [Fact]
+    public void Removing_a_field_without_changing_its_rules_does_not_revalidate_its_values()
+    {
+        var field = Field("text") with { MaxLength = 5 };
+        var catalog = Catalog("es");
+        var item = Stored(catalog, field, "abcdefgh")[0];
+        var saved = item.FieldValuesJson;
+
+        var result = FormCatalogFieldPolicy.ValidateItems(catalog, [item], [], NoRequest(), Changing(field with { IsActive = false }, field));
+
+        Assert.True(result.IsSuccess, Describe(result));
+        Assert.Equal(saved, item.FieldValuesJson);
+    }
+
+    // The field keeps its type and changes its rules or its activity from the previous definition in this save.
+    private static FormCatalogFieldContext Changing(BusinessFormCatalogField field, BusinessFormCatalogField previous) => new([field],
+        new Dictionary<Guid, IReadOnlyList<FormCatalogStoredItemRow>>(), new HashSet<Guid>(), new HashSet<Guid>(),
+        new Dictionary<Guid, BusinessFormCatalogField> { [field.Id] = previous }, "es");
+
+    // One item per value, at rows 1..n, with the value saved as text.
+    private static BusinessFormCatalogItem[] Stored(BusinessFormCatalog catalog, BusinessFormCatalogField field, params string[] values) =>
+        values.Select((value, index) =>
+        {
+            var item = catalog.AddManualItem($"item{index + 1}", "Item", null, null, null, index + 1).Value;
+            StoreText(catalog, item, field, value);
+            return item;
+        }).ToArray();
+
+    private static void AssertIncompatible(Result result, string control, int invalidCount, params (int Row, string? Value, string Reason)[] rows)
+    {
+        Assert.Equal("Forms.Catalog.FieldValuesIncompatible", result.Error.Code);
+        Assert.Equal($"fields[0].{control}", Assert.Single(Assert.IsType<ValidationError>(result.Error).Errors.Keys));
+        Assert.Equal(invalidCount, result.Error.Metadata!["invalidCount"]);
+        Assert.Equal(rows, Assert.IsAssignableFrom<IReadOnlyList<FormCatalogInvalidFieldRow>>(result.Error.Metadata!["invalidRows"])
+            .Select(row => (row.Row, row.Value, row.Reason)));
+    }
+
     private static BusinessFormCatalogField Field(string type) => new(Guid.CreateVersion7(), "field", new Dictionary<string, string> { ["es"] = "Campo" }, type,
         type == "catalog" ? Guid.CreateVersion7() : null, false, false, null, null, type == "text" ? 300 : null, "data", 0, true);
 

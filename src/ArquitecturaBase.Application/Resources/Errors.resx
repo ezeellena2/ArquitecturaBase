@@ -316,6 +316,7 @@
   <data name="Forms.Catalog.FieldInUse" xml:space="preserve"><value>El campo está en uso. Sacá esos usos para quitarlo o para cambiarle el papel, el tipo o el catálogo.</value></data>
   <data name="Forms.Catalog.FieldRemovalNotConfirmed" xml:space="preserve"><value>Confirmá que querés quitar el campo y sus valores.</value></data>
   <data name="Forms.Catalog.FieldTypeNotConvertible" xml:space="preserve"><value>Hay valores que no se convierten al tipo nuevo.</value></data>
+  <data name="Forms.Catalog.FieldValuesIncompatible" xml:space="preserve"><value>Hay valores que no cumplen las reglas del campo.</value></data>
   <data name="Forms.Catalog.FieldValuesMissing" xml:space="preserve"><value>Faltan valores en opciones activas para hacerlo obligatorio.</value></data>
   <data name="Forms.Catalog.FieldValueInvalid" xml:space="preserve"><value>El valor no corresponde al tipo del campo.</value></data>
   <data name="Forms.Catalog.FieldValueRequired" xml:space="preserve"><value>Este campo es obligatorio.</value></data>

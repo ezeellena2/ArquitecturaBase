@@ -81,7 +81,9 @@ internal sealed class FormCatalogFieldRecorder(IFormCatalogReader reader)
         }
         if (!ValidPresentation(catalog, resolved, presentation)) return FieldErrors.On(FormCatalogErrors.PresentationInvalid, "presentation");
         var sources = new Dictionary<Guid, IReadOnlyList<FormCatalogStoredItemRow>>();
-        foreach (var field in resolved.Where(field => field.IsActive && field.Type == "catalog"))
+        // An inactive field is validated again, against its source, only when this save rewrites its values or narrows its rules.
+        foreach (var field in resolved.Where(field => field.Type == "catalog" && (field.IsActive || byId.TryGetValue(field.Id, out var old)
+            && (old.Type != field.Type || old.SourceCatalogId != field.SourceCatalogId || FormCatalogFieldPolicy.ChangedRules(old, field).Count > 0))))
         {
             if (field.SourceCatalogId is not { } sourceId || sourceId == catalog.Id) return FieldErrors.On(FormCatalogErrors.FieldInvalid, $"fields[{resolved.IndexOf(field)}].sourceCatalogId");
             if (sources.ContainsKey(sourceId)) continue;

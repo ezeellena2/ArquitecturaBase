@@ -83,6 +83,56 @@ public sealed partial class FormCatalogEndpointsTests
     }
 
     [Fact]
+    public async Task Rule_changes_report_every_incompatible_value_on_their_control()
+    {
+        using var client = await OperatorAsync(BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage);
+        var texts = new { es = "Rules " + Guid.NewGuid().ToString("N"), en = "Rules" };
+        object TextField(Guid? id, int maxLength = 300, bool unique = false) => new
+        {
+            localId = id is null ? "field" : null, id, key = "field", name = new { es = "Field", en = "Field" }, type = "text",
+            sourceCatalogId = (Guid?)null, required = false, unique, min = (string?)null, max = (string?)null, maxLength, role = "data", position = 0, isActive = true,
+        };
+        using var created = await client.PostAsJsonAsync("/api/forms/catalogs", new { name = texts, description = texts, fields = new[] { TextField(null) },
+            items = new[] { Item("one", null, "ONE", "One", null, true), Item("two", null, "TWO", "Two", null, true), Item("three", null, "THREE", "Three", null, true) } }, Ct);
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var saved = await created.ReadJsonAsync();
+        var path = $"/api/forms/catalogs/{saved.GetProperty("catalog").GetProperty("id").GetGuid()}";
+        var fieldId = saved.GetProperty("fieldIdentityMap").GetProperty("field").GetGuid();
+        var (one, two, three) = (saved.GetProperty("itemIdentityMap").GetProperty("one").GetGuid(), saved.GetProperty("itemIdentityMap").GetProperty("two").GetGuid(),
+            saved.GetProperty("itemIdentityMap").GetProperty("three").GetGuid());
+        object Save(long revision, object field, params object[] items) => new { expectedRevision = revision, name = texts, description = texts, fields = new[] { field }, items };
+        using var values = await client.PutAsJsonAsync(path, Save(1, TextField(fieldId), FieldItem("one", one, "ONE", fieldId, "abcdef", "One"),
+            FieldItem("two", two, "TWO", fieldId, "abc", "Two"), FieldItem("three", three, "THREE", fieldId, "abcdefgh", "Three")), Ct);
+        Assert.Equal(HttpStatusCode.OK, values.StatusCode);
+
+        foreach (var culture in new[] { "es", "en" })
+        {
+            client.DefaultRequestHeaders.AcceptLanguage.Clear();
+            client.DefaultRequestHeaders.AcceptLanguage.ParseAdd(culture);
+            using var shorter = await client.PutAsJsonAsync(path, Save(2, TextField(fieldId, maxLength: 5)), Ct);
+            Assert.Equal(HttpStatusCode.BadRequest, shorter.StatusCode);
+            var error = await shorter.ReadJsonAsync();
+            Assert.Equal("Forms.Catalog.FieldValuesIncompatible", error.GetProperty("code").GetString());
+            Assert.True(error.GetProperty("errors").TryGetProperty("fields[0].maxLength", out _));
+            Assert.Equal(2, error.GetProperty("invalidCount").GetInt32());
+            Assert.Equal(new (Guid, int, string?, string?)[] { (one, 1, "abcdef", "length"), (three, 3, "abcdefgh", "length") },
+                error.GetProperty("invalidRows").EnumerateArray().Select(row => (row.GetProperty("itemId").GetGuid(), row.GetProperty("row").GetInt32(),
+                    row.GetProperty("value").GetString(), row.GetProperty("reason").GetString())));
+            await ExportBilingualResponseAsync(shorter, "fields-rules-error-" + culture);
+        }
+
+        using var repeated = await client.PutAsJsonAsync(path, Save(2, TextField(fieldId), FieldItem("one", one, "ONE", fieldId, "abc", "One")), Ct);
+        Assert.Equal(HttpStatusCode.OK, repeated.StatusCode);
+        using var unique = await client.PutAsJsonAsync(path, Save(3, TextField(fieldId, unique: true)), Ct);
+        Assert.Equal(HttpStatusCode.BadRequest, unique.StatusCode);
+        var duplicates = await unique.ReadJsonAsync();
+        Assert.Equal("Forms.Catalog.FieldValuesIncompatible", duplicates.GetProperty("code").GetString());
+        Assert.True(duplicates.GetProperty("errors").TryGetProperty("fields[0].unique", out _));
+        Assert.Equal(2, duplicates.GetProperty("invalidCount").GetInt32());
+        Assert.Equal([one, two], duplicates.GetProperty("invalidRows").EnumerateArray().Select(row => row.GetProperty("itemId").GetGuid()));
+    }
+
+    [Fact]
     public async Task Removing_a_field_confirms_values_and_keeps_its_historical_name_and_data()
     {
         using var client = await OperatorAsync(BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage);

@@ -316,6 +316,7 @@
   <data name="Forms.Catalog.FieldInUse" xml:space="preserve"><value>The field is in use. Remove those uses to delete it or to change its role, type or catalog.</value></data>
   <data name="Forms.Catalog.FieldRemovalNotConfirmed" xml:space="preserve"><value>Confirm you want to remove the field and its values.</value></data>
   <data name="Forms.Catalog.FieldTypeNotConvertible" xml:space="preserve"><value>Some values can't be converted to the new type.</value></data>
+  <data name="Forms.Catalog.FieldValuesIncompatible" xml:space="preserve"><value>Some values don't meet the field rules.</value></data>
   <data name="Forms.Catalog.FieldValuesMissing" xml:space="preserve"><value>Some active options have no value, so it can't be required.</value></data>
   <data name="Forms.Catalog.FieldValueInvalid" xml:space="preserve"><value>The value doesn't match the field type.</value></data>
   <data name="Forms.Catalog.FieldValueRequired" xml:space="preserve"><value>This field is required.</value></data>

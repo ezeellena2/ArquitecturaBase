@@ -172,6 +172,26 @@ public sealed class FormCatalogFieldRecorderTests
         Assert.Equal(north, Assert.Single(options));
     }
 
+    [Fact]
+    public async Task A_type_change_on_an_inactive_field_to_catalog_loads_its_source()
+    {
+        var catalog = Catalog();
+        var field = Field() with { IsActive = false };
+        Assert.True(catalog.SetFields([field], null).IsSuccess);
+        var reader = new FormCatalogFieldReader();
+        var sourceId = Guid.CreateVersion7();
+        reader.Catalogs[sourceId] = new(sourceId, "source", """{"es":"Source"}""", "{}", "es", "Manual", 1, true, DateTime.UnixEpoch, null, null, null, 0);
+        var north = new FormCatalogStoredItemRow(Guid.CreateVersion7(), sourceId, "N", "Norte", null, null, null, 1, true);
+        reader.Items[sourceId] = [north];
+        var input = Input(field.Id) with { IsActive = false, Type = "catalog", SourceCatalogId = sourceId, MaxLength = null };
+
+        var result = await new FormCatalogFieldRecorder(reader).PrepareAsync(catalog, [], [input], null, [], true, TestContext.Current.CancellationToken);
+
+        Assert.True(result.IsSuccess);
+        Assert.True(result.Value.Context.Sources.TryGetValue(sourceId, out var options));
+        Assert.Equal(north, Assert.Single(options));
+    }
+
     private static BusinessFormCatalog Catalog() => BusinessFormCatalog.CreateManual("es", new Dictionary<string, string> { ["es"] = "Catalog" }, new Dictionary<string, string>());
     private static BusinessFormCatalogField Field() => new(Guid.CreateVersion7(), "field", new Dictionary<string, string> { ["es"] = "Field" }, "text", null, false, false, null, null, 300, "data", 0, true);
     // A catalog-type filter field whose source and a second source are both active Manual catalogs, so only the use check can stop the change.

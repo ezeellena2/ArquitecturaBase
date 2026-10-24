@@ -24,7 +24,15 @@ internal static partial class FormCatalogFieldPolicy
         for (var fieldIndex = 0; fieldIndex < context.Fields.Count; fieldIndex++)
         {
             var field = context.Fields[fieldIndex];
-            if (!field.IsActive) continue;
+            var converting = context.TypeChanges.Contains(field.Id);
+            var previous = context.Previous.GetValueOrDefault(field.Id);
+            // A field brought back or whose rules narrowed checks its saved values again, inactive or not, and reports every value
+            // that fails on the control that changed; an inactive field is never required.
+            var restored = !converting && previous is { IsActive: false } && field.IsActive;
+            IReadOnlyList<string> rules = previous is null ? [] : ChangedRules(previous, field);
+            if (!field.IsActive && !converting && rules.Count == 0) continue;
+            var revalidating = restored || rules.Count > 0;
+            var grouping = restored || rules.Contains("unique");
             var key = field.Id.ToString("D");
             if (context.RequiredTransitions.Contains(field.Id))
             {
@@ -37,14 +45,15 @@ internal static partial class FormCatalogFieldPolicy
             var converted = 0;
             var invalidCount = 0;
             var unique = new HashSet<string>(StringComparer.Ordinal);
-            var converting = context.TypeChanges.Contains(field.Id);
+            var incompatible = new Dictionary<string, List<FormCatalogInvalidFieldRow>>(StringComparer.Ordinal);
+            var repeated = new Dictionary<string, List<FormCatalogInvalidFieldRow>>(StringComparer.Ordinal);
             foreach (var item in byRow)
             {
                 values[item.Id].TryGetValue(key, out var raw);
                 var input = raw.ValueKind == JsonValueKind.Undefined ? null : Input(raw);
                 var fresh = Fresh(item.Id, key);
                 var sent = Sent(item.Id, key);
-                var rowField = field with { Required = field.Required && item.IsActive };
+                var rowField = field with { Required = field.Required && field.IsActive && item.IsActive };
                 // A saved option or boolean becomes the text it showed, which is also what a row that does not fit reports.
                 var shown = converting && !sent ? Shown(context.Previous[field.Id], field, input, catalog.OriginalCulture, sourceIndexes) : input;
                 if (shown.IsSuccess) input = shown.Value;
@@ -64,19 +73,39 @@ internal static partial class FormCatalogFieldPolicy
                             : InvalidReason(field, input, parsed.Error, unbounded => Convert(context.Previous[field.Id], unbounded, input, sent, context, sourceIndexes))));
                         continue;
                     }
+                    // A value edited in this save keeps its cell error; a saved one goes with the others that broke the same change.
+                    if (revalidating && !fresh)
+                    {
+                        Add(incompatible, restored ? "isActive" : RuleControl(field, input, rules), new(item.Id, item.Code, item.Position, Attempted(input),
+                            InvalidReason(field, input, parsed.Error, unbounded => Normalize(unbounded, input))));
+                        continue;
+                    }
                     var path = inputIndexes.TryGetValue(item.Id, out var index) ? $"items[{index}].fields.{key}" : $"fields[{fieldIndex}].type";
                     return FieldErrors.On(parsed.Error, path);
                 }
                 if (parsed.Value is not null) converted++;
                 normalized.Add(item.Id, parsed.Value);
-                if (field.Unique && item.IsActive && parsed.Value is { } value && !unique.Add(Input(value)!))
+                if (field.Unique && item.IsActive && parsed.Value is { } value)
                 {
-                    var path = inputIndexes.TryGetValue(item.Id, out var index) ? $"items[{index}].fields.{key}" : $"fields[{fieldIndex}].unique";
-                    return FieldErrors.On(FormCatalogErrors.FieldValueDuplicate, path);
+                    if (grouping) Add(repeated, Input(value)!, new(item.Id, item.Code, item.Position, Attempted(input), "duplicate"));
+                    else if (!unique.Add(Input(value)!))
+                    {
+                        var path = inputIndexes.TryGetValue(item.Id, out var index) ? $"items[{index}].fields.{key}" : $"fields[{fieldIndex}].unique";
+                        return FieldErrors.On(FormCatalogErrors.FieldValueDuplicate, path);
+                    }
                 }
             }
             if (invalid.Count > 0) return FieldErrors.OnWithMetadata(FormCatalogErrors.FieldDetails(FormCatalogErrors.FieldTypeNotConvertible,
                 new Dictionary<string, object?> { ["convertedCount"] = converted, ["invalidCount"] = invalidCount, ["invalidRows"] = invalid }), $"fields[{fieldIndex}].type");
+            // Every active option that shares its value with another one is repeated, not just the second.
+            foreach (var row in repeated.Values.Where(rows => rows.Count > 1).SelectMany(rows => rows)) Add(incompatible, restored ? "isActive" : "unique", row);
+            foreach (var control in IncompatibleControls)
+                if (incompatible.TryGetValue(control, out var rows))
+                    return FieldErrors.OnWithMetadata(FormCatalogErrors.FieldDetails(FormCatalogErrors.FieldValuesIncompatible, new Dictionary<string, object?>
+                    {
+                        ["invalidCount"] = rows.Count,
+                        ["invalidRows"] = rows.OrderBy(row => row.Row).ThenBy(row => row.ItemId).Take(50).ToArray(),
+                    }), $"fields[{fieldIndex}].{control}");
             foreach (var (itemId, value) in normalized)
             {
                 if (value is { } present) values[itemId][key] = present;
@@ -98,6 +127,41 @@ internal static partial class FormCatalogFieldPolicy
 
         // A value received in this save was edited by the user, even when it equals the saved text.
         bool Sent(Guid itemId, string key) => inputIndexes.TryGetValue(itemId, out var index) && inputs[index]!.Fields?.ContainsKey(key) == true;
+    }
+
+    private static readonly string[] IncompatibleControls = ["isActive", "maxLength", "min", "max", "unique"];
+
+    // The rules a field narrowed or switched on while keeping its type and source, in the order their problems are reported.
+    public static IReadOnlyList<string> ChangedRules(BusinessFormCatalogField previous, BusinessFormCatalogField field)
+    {
+        if (field.Type != previous.Type || field.SourceCatalogId != previous.SourceCatalogId) return [];
+        var rules = new List<string>();
+        if ((field.MaxLength ?? 300) < (previous.MaxLength ?? 300)) rules.Add("maxLength");
+        if (field.Min != previous.Min) rules.Add("min");
+        if (field.Max != previous.Max) rules.Add("max");
+        if (field.Unique && !previous.Unique) rules.Add("unique");
+        return rules;
+    }
+
+    // The rule a saved value breaks: too long, below the minimum or above the maximum, read without bounds. A value that breaks
+    // none of them (not a value of the type, or missing) goes with the first rule that changed.
+    private static string RuleControl(BusinessFormCatalogField field, string? input, IReadOnlyList<string> rules)
+    {
+        if (field.Type == "text" && input?.Trim().Length > (field.MaxLength ?? 300)) return "maxLength";
+        if (field.Type is "integer" or "decimal" or "date"
+            && Normalize(field with { Required = false, Min = null, Max = null }, input) is var read && read.IsSuccess && read.Value is { } value)
+        {
+            var canonical = Input(value)!;
+            if (field.Min is not null && Compare(field.Type, canonical, field.Min) < 0) return "min";
+            if (field.Max is not null && Compare(field.Type, canonical, field.Max) > 0) return "max";
+        }
+        return rules[0];
+    }
+
+    private static void Add(Dictionary<string, List<FormCatalogInvalidFieldRow>> buckets, string key, FormCatalogInvalidFieldRow row)
+    {
+        if (!buckets.TryGetValue(key, out var rows)) buckets.Add(key, rows = []);
+        rows.Add(row);
     }
 
     // A catalog target resolves the source option by identity, code or text. Otherwise a value received in this save already

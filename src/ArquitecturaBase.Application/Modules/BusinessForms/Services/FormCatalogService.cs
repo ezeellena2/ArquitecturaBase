@@ -137,7 +137,8 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
 
     private async Task LockCatalogsAsync(Guid id, IReadOnlyList<FormCatalogFieldSaveRequest?>? fields, CancellationToken ct)
     {
-        var sourceIds = fields?.Where(field => field?.IsActive == true && field.SourceCatalogId is not null).Select(field => field!.SourceCatalogId!.Value) ?? [];
+        // An inactive field can change its source or rules too, and is then validated against that source.
+        var sourceIds = fields?.Where(field => field?.SourceCatalogId is not null).Select(field => field!.SourceCatalogId!.Value) ?? [];
         foreach (var catalogId in sourceIds.Append(id).Distinct().Order()) await repository.LockAsync(catalogId, ct);
     }
 
