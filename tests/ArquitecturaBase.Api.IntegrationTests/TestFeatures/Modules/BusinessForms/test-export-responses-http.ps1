@@ -46,7 +46,14 @@ foreach ($case in @("Configuration", "Merge", "Missing", "Collision")) {
                 Assert-Condition ($extras["WHATSAPP_FORM_REPLIES_HTTP_OUTPUT"] -eq "whatsapp-form-replies") "Replies require their own raw root."
                 Assert-Condition ($extras["WHATSAPP_FORM_PRIVACY_HTTP_OUTPUT"] -eq "whatsapp-form-privacy") "Privacy requires its own raw root."
                 $cohorts = @(Read-ExporterAssignment "cohorts")
-                Assert-Condition ($cohorts.Count -eq 22) "The joint export contains twenty-two cohorts, including person data."
+                Assert-Condition ($cohorts.Count -eq 23) "The joint export contains twenty-three cohorts, including the Home assistant."
+                $assistant = @($cohorts | Where-Object { $_.Name -eq "ai-assistant" })[0]
+                Assert-Condition ($null -ne $assistant -and $assistant.Environment -eq "AI_ASSISTANT_HTTP_OUTPUT" -and $assistant.Destination -eq "ai-assistant-http") "The Home assistant requires its own agreed output and destination."
+                $expectedAssistant = @("bootstrap.json", "submitted.json", "turn-pending.json", "turn-completed.json", "turns.json", "canceled.json")
+                Assert-Condition (@(Compare-Object $expectedAssistant $assistant.RequiredNames).Count -eq 0) "The Home assistant must contain its six actual HTTP bodies."
+                foreach ($producer in @(($sourceRoot + "ArtificialIntelligence/AiAssistantHttpContractTests.cs"), ($captureRoot + "Modules/ArtificialIntelligence/AiAssistantContractCapture.cs"), ($captureRoot + "Modules/ArtificialIntelligence/AiAssistantExecutionScenario.cs"), ($captureRoot + "Modules/ArtificialIntelligence/AiAssistantExecutionProviderHandler.cs"), "src/ArquitecturaBase.Application/Modules/ArtificialIntelligence/Models/AiAssistantResponses.cs")) {
+                    Assert-Condition ($producer -in $assistant.Sources) "The Home assistant producer, capture, scenario, provider double and DTO SHA must be included."
+                }
                 $responses = @($cohorts | Where-Object { $_.Name -eq "responses" })[0]
                 $pdf = @($cohorts | Where-Object { $_.Name -eq "pdf" })[0]
                 $definitions = @($cohorts | Where-Object { $_.Name -eq "forms" })[0]

@@ -11,6 +11,9 @@ independientes y Running incierto sin regeneración. Workload cuenta aceptacione
 una sola vez aunque se repita el UUID o se retire su conversación.
 Migración prueba Up/Down desde el esquema previo y conserva conexión y hechos del negocio.
 Los helpers/dobles nuevos viven en TestFeatures/Modules/ArtificialIntelligence.
+AiAssistantHttpContractTests recorre Inicio con AiAssistantExecutionScenario y el proveedor
+ficticio (bootstrap, 202, pending, completed, página de turnos y canceled), fija `state` y
+`stage` en minúsculas y deja los seis cuerpos para la cohorte ai-assistant-http del exportador.
 
 ConversationHistoryTests comprueba título común de list/detail, propietario distinto, retirada,
 cifrado corrupto, bloqueo y vencimiento sin cambiar el reloj compartido del factory hacia atrás.
