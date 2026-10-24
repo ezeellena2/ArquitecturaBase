@@ -228,7 +228,7 @@ public sealed class FormRecipientFilterIntegrationTests(ApiFactory factory)
         using var detail = await client.GetAsync($"/api/forms/catalogs/{scenario.CatalogId}", Ct);
         Assert.Equal(HttpStatusCode.OK, detail.StatusCode);
         var usedBy = (await detail.ReadJsonAsync()).GetProperty("fields").EnumerateArray().ToDictionary(field => field.GetProperty("id").GetGuid(),
-            field => field.GetProperty("usedBy").EnumerateArray().Select(FieldUse).ToArray());
+            field => field.GetProperty("usedBy").EnumerateArray().Select(FormRecipientScenario.FieldUse).ToArray());
         var form = scenario.DefinitionId;
         // La misma pregunta en la versión activa y en el borrador son dos usos con la misma identidad; la que sólo está en el
         // borrador trae la suya y la etapa Draft.
@@ -240,12 +240,6 @@ public sealed class FormRecipientFilterIntegrationTests(ApiFactory factory)
         Assert.Equal(kind, usedBy[scenario.KindFieldId]);
         FormCatalogFieldUsageResponse[] own = [new(null, "Proveedores", null, null, "Catalog")];
         Assert.Equal(own, usedBy[scenario.DataFieldId]);
-
-        static FormCatalogFieldUsageResponse FieldUse(JsonElement use) => new(
-            use.GetProperty("definitionId").ValueKind == JsonValueKind.Null ? null : use.GetProperty("definitionId").GetGuid(),
-            use.GetProperty("formName").GetString()!, use.GetProperty("question").GetString(),
-            use.GetProperty("questionId").ValueKind == JsonValueKind.Null ? null : use.GetProperty("questionId").GetGuid(),
-            use.GetProperty("stage").GetString()!);
     }
 
     [Fact]

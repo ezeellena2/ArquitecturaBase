@@ -54,7 +54,7 @@ public sealed class FormCatalogFieldInUseIntegrationTests(ApiFactory factory)
         using var detail = await client.GetAsync(path, Ct);
         Assert.Equal(HttpStatusCode.OK, detail.StatusCode);
         var usedBy = (await detail.ReadJsonAsync()).GetProperty("fields").EnumerateArray().ToDictionary(field => field.GetProperty("id").GetGuid(),
-            field => field.GetProperty("usedBy").EnumerateArray().Select(FieldUse).ToArray());
+            field => field.GetProperty("usedBy").EnumerateArray().Select(FormRecipientScenario.FieldUse).ToArray());
         Assert.Equal(new[] { Use("Active"), Use("Draft") }, usedBy[scenario.ZoneFieldId]);
         Assert.Equal(new[] { Use("Active") }, usedBy[scenario.KindFieldId]);
         Assert.Equal(new[] { new FormCatalogFieldUsageResponse(null, "Proveedores", null, null, "Catalog") }, usedBy[scenario.DataFieldId]);
@@ -78,14 +78,8 @@ public sealed class FormCatalogFieldInUseIntegrationTests(ApiFactory factory)
         var problem = await response.ReadJsonAsync();
         Assert.Equal(FormCatalogErrors.FieldInUse.Code, problem.GetProperty("code").GetString());
         Assert.Equal([path], problem.GetProperty("errors").EnumerateObject().Select(error => error.Name));
-        return problem.GetProperty("uses").EnumerateArray().Select(FieldUse).ToArray();
+        return problem.GetProperty("uses").EnumerateArray().Select(FormRecipientScenario.FieldUse).ToArray();
     }
-
-    private static FormCatalogFieldUsageResponse FieldUse(JsonElement use) => new(
-        use.GetProperty("definitionId").ValueKind == JsonValueKind.Null ? null : use.GetProperty("definitionId").GetGuid(),
-        use.GetProperty("formName").GetString(), use.GetProperty("question").GetString(),
-        use.GetProperty("questionId").ValueKind == JsonValueKind.Null ? null : use.GetProperty("questionId").GetGuid(),
-        use.GetProperty("stage").GetString()!);
 
     private static Task<(long Revision, BusinessFormCatalogField[] Fields)> StoredAsync(FormRecipientScenario scenario) => scenario.ScopeAsync(async services =>
     {

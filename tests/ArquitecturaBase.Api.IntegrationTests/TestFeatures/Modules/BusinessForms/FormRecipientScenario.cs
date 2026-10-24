@@ -159,6 +159,12 @@ internal sealed class FormRecipientScenario(WebApplicationFactory<Program> host)
         var match = payload["draft"]!["fields"]![0]!["source"]!["match"]!.AsArray();
         match.Remove(match.Single(filter => Guid.Parse(filter!["fieldId"]!.GetValue<string>()) == fieldId));
     }
+    // Un uso de campo tal como lo devuelven el detalle del catálogo (usedBy) y el 409 FieldInUse (uses).
+    public static FormCatalogFieldUsageResponse FieldUse(JsonElement use) => new(
+        use.GetProperty("definitionId").ValueKind == JsonValueKind.Null ? null : use.GetProperty("definitionId").GetGuid(),
+        use.GetProperty("formName").GetString(), use.GetProperty("question").GetString(),
+        use.GetProperty("questionId").ValueKind == JsonValueKind.Null ? null : use.GetProperty("questionId").GetGuid(),
+        use.GetProperty("stage").GetString()!);
     public JsonObject CatalogEdit(long revision) => JsonSerializer.SerializeToNode(new
     {
         expectedRevision = revision, name = new { es = "Proveedores", en = "Suppliers" }, description = new { es = "Proveedores", en = "Suppliers" },
