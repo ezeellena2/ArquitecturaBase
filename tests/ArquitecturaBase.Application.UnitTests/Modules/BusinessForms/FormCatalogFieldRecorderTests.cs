@@ -77,11 +77,14 @@ public sealed class FormCatalogFieldRecorderTests
     [InlineData("role")]
     [InlineData("type")]
     [InlineData("source")]
-    public async Task Changing_the_role_type_or_source_of_a_field_used_by_a_filter_is_a_conflict_with_its_uses(string change)
+    public async Task Changing_the_role_type_or_source_of_a_field_used_by_a_filter_is_a_conflict_with_only_its_filter_uses(string change)
     {
         var (catalog, field, reader) = FilterField();
         var stored = catalog.FieldsJson;
-        reader.Uses.Add(new(Guid.CreateVersion7(), "Form", "Question", Guid.CreateVersion7(), "Draft", field.Id, ByMatch: true));
+        var filterQuestionId = Guid.CreateVersion7();
+        reader.Uses.Add(new(Guid.CreateVersion7(), "Form", "Question", filterQuestionId, "Draft", field.Id, ByMatch: true));
+        // A question that only shows the field does not block the change, so the conflict leaves it out.
+        reader.Uses.Add(new(Guid.CreateVersion7(), "Form", "Shown", Guid.CreateVersion7(), "Active", field.Id, ByMatch: false));
         var input = FilterInput(field);
         var (edited, property) = change switch
         {
@@ -95,7 +98,8 @@ public sealed class FormCatalogFieldRecorderTests
         Assert.Equal("Forms.Catalog.FieldInUse", result.Error.Code);
         Assert.Equal(ArquitecturaBase.Domain.Results.ErrorType.Conflict, result.Error.Type);
         Assert.Equal($"fields[0].{property}", Assert.Single(Assert.IsType<ArquitecturaBase.Domain.Results.ValidationError>(result.Error).Errors.Keys));
-        Assert.Equal("Draft", Assert.Single(Assert.IsAssignableFrom<IReadOnlyList<FormCatalogFieldUsageResponse>>(result.Error.Metadata!["uses"])).Stage);
+        var use = Assert.Single(Assert.IsAssignableFrom<IReadOnlyList<FormCatalogFieldUsageResponse>>(result.Error.Metadata!["uses"]));
+        Assert.Equal((filterQuestionId, "Draft"), (use.QuestionId, use.Stage));
         Assert.Equal(stored, catalog.FieldsJson);
     }
 
