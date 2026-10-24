@@ -73,8 +73,9 @@ internal static partial class FormCatalogFieldPolicy
                             : InvalidReason(field, input, parsed.Error, unbounded => Convert(context.Previous[field.Id], unbounded, input, sent, context, sourceIndexes))));
                         continue;
                     }
-                    // A value edited in this save keeps its cell error; a saved one goes with the others that broke the same change.
-                    if (revalidating && !fresh)
+                    // A value edited in this save, or missing from an option this save sends without a saved one (new or reactivated),
+                    // keeps its cell error; a saved one goes with the others that broke the same change.
+                    if (revalidating && !fresh && (stored[item.Id].ContainsKey(key) || !inputIndexes.ContainsKey(item.Id)))
                     {
                         Add(incompatible, restored ? "isActive" : RuleControl(field, input, rules), new(item.Id, item.Code, item.Position, Attempted(input),
                             InvalidReason(field, input, parsed.Error, unbounded => Normalize(unbounded, input))));

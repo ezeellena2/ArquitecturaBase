@@ -446,6 +446,34 @@ public sealed class FormCatalogFieldItemPolicyTests
         Assert.Equal(saved, item.FieldValuesJson);
     }
 
+    [Fact]
+    public void A_new_option_without_a_required_value_keeps_its_cell_error_while_the_rules_change()
+    {
+        var field = Field("integer") with { Required = true, Min = "3" };
+        var catalog = Catalog("es");
+        var saved = Stored(catalog, field, "5")[0];
+        var added = catalog.AddManualItem("new", "Nueva", null, null, null, 2).Value;
+        var input = new FormCatalogManualItemSaveRequest("new", added.Id, added.Code, new Dictionary<string, string?> { ["es"] = added.TextEs }, null, true);
+
+        var result = FormCatalogFieldPolicy.ValidateItems(catalog, [saved, added], [input], NoRequest(), Changing(field, field with { Min = null }));
+
+        Assert.Equal(FormCatalogErrors.FieldValueRequired.Code, result.Error.Code);
+        Assert.Equal($"items[0].fields.{field.Id:D}", Assert.Single(Assert.IsType<ValidationError>(result.Error).Errors.Keys));
+    }
+
+    [Fact]
+    public void Restoring_a_required_field_reports_saved_options_without_a_value_on_its_active_control()
+    {
+        var field = Field("integer") with { Required = true };
+        var catalog = Catalog("es");
+        var saved = Stored(catalog, field, "5")[0];
+        var empty = catalog.AddManualItem("empty", "Vacía", null, null, null, 2).Value;
+
+        var result = FormCatalogFieldPolicy.ValidateItems(catalog, [saved, empty], [], NoRequest(), Changing(field, field with { IsActive = false }));
+
+        AssertIncompatible(result, "isActive", 1, (2, null, "required"));
+    }
+
     // The field keeps its type and changes its rules or its activity from the previous definition in this save.
     private static FormCatalogFieldContext Changing(BusinessFormCatalogField field, BusinessFormCatalogField previous) => new([field],
         new Dictionary<Guid, IReadOnlyList<FormCatalogStoredItemRow>>(), new HashSet<Guid>(), new HashSet<Guid>(),
