@@ -87,7 +87,10 @@ public sealed class FormResponseQueryTests
         foreach(var sql in new[]{records.Take(20).Select(record=>record.Id).ToQueryString(),facets.ToQueryString()})
         {
             var statement=sql[sql.IndexOf("SELECT",StringComparison.Ordinal)..];
-            Assert.Contains("TranslationsJson",statement,StringComparison.Ordinal);Assert.Contains("COALESCE",statement,StringComparison.Ordinal);Assert.Contains("'es'",statement,StringComparison.Ordinal);
+            Assert.Contains("TranslationsJson",statement,StringComparison.Ordinal);Assert.Contains("COALESCE",statement,StringComparison.Ordinal);
+            // Without a translation in the version's culture the label falls back to the other one, the item's original, never to Spanish.
+            Assert.Contains("CASE presentation.value->>'culture' WHEN 'en' THEN 'es' ELSE 'en' END",statement,StringComparison.Ordinal);
+            Assert.DoesNotContain("-> 'es' ->>",statement,StringComparison.Ordinal);
             Assert.Contains("RecordId",statement,StringComparison.Ordinal);Assert.Contains("FieldId",statement,StringComparison.Ordinal);Assert.Contains("ItemId",statement,StringComparison.Ordinal);
             Assert.Contains("@p0",statement,StringComparison.Ordinal);Assert.Contains(culture,sql,StringComparison.Ordinal);
             Assert.DoesNotContain("BusinessFormCatalogItems",statement,StringComparison.Ordinal);
