@@ -47,25 +47,32 @@ internal sealed class FormCatalogFieldRecorder(IFormCatalogReader reader)
             }
             if (original.Any(field => !seen.Contains(field.Id))) return FieldErrors.On(FormCatalogErrors.FieldInvalid, "fields");
         }
-        var removedIds = resolved.Where(field => !field.IsActive && byId.TryGetValue(field.Id, out var old) && old.IsActive).Select(field => field.Id).ToArray();
-        var fieldUses = removedIds.Length == 0 ? [] : await reader.ListFieldUsageAsync(catalog.Id, removedIds, ct);
+        var removedIds = resolved.Where(field => !field.IsActive && byId.TryGetValue(field.Id, out var old) && old.IsActive).Select(field => field.Id);
+        var changedIds = resolved.Where(field => field.IsActive && byId.TryGetValue(field.Id, out var old) && old.IsActive && ChangedProperty(old, field) is not null)
+            .Select(field => field.Id);
+        var checkedIds = removedIds.Concat(changedIds).ToArray();
+        var fieldUses = checkedIds.Length == 0 ? [] : await reader.ListFieldUsageAsync(catalog.Id, checkedIds, ct);
         var usesByField = fieldUses.ToLookup(use => use.FieldId);
         var culture = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es";
         for (var index = 0; index < resolved.Count; index++)
         {
             var field = resolved[index];
-            if (field.IsActive || !byId.TryGetValue(field.Id, out var prior) || !prior.IsActive) continue;
+            if (!byId.TryGetValue(field.Id, out var prior) || !prior.IsActive) continue;
+            if (field.IsActive)
+            {
+                // A filter's match needs the field's role, type and source as they are; a question that only shows the field does not.
+                var filters = usesByField[field.Id].Where(use => use.ByMatch).ToArray();
+                if (filters.Length > 0 && ChangedProperty(prior, field) is { } property) return InUse(Uses(filters), $"fields[{index}].{property}");
+                continue;
+            }
             var fieldKey = field.Id.ToString("D");
             if (presentation?.Title?.Contains(fieldKey) == true || presentation?.Description?.Contains(fieldKey) == true)
             {
                 var names = FormDraftPolicy.Read<Dictionary<string, string>>(catalog.NameJson);
-                IReadOnlyList<FormCatalogFieldUsageResponse> ownUses = [new(null, names.GetValueOrDefault(culture) ?? names["es"], null, null, "Catalog")];
-                return FieldErrors.OnWithMetadata(FormCatalogErrors.FieldDetails(FormCatalogErrors.FieldInUse,
-                    new Dictionary<string, object?> { ["uses"] = ownUses }), $"fields[{index}].isActive");
+                return InUse([new(null, names.GetValueOrDefault(culture) ?? names["es"], null, null, "Catalog")], $"fields[{index}].isActive");
             }
-            var uses = usesByField[field.Id].Select(use => new FormCatalogFieldUsageResponse(use.DefinitionId, use.FormName, use.Question, use.QuestionId, use.Stage)).ToArray();
-            if (uses.Length > 0) return FieldErrors.OnWithMetadata(FormCatalogErrors.FieldDetails(FormCatalogErrors.FieldInUse,
-                new Dictionary<string, object?> { ["uses"] = uses }), $"fields[{index}].isActive");
+            var uses = Uses(usesByField[field.Id]);
+            if (uses.Length > 0) return InUse(uses, $"fields[{index}].isActive");
             var count = items.Count(item => FormCatalogFieldPolicy.ReadValues(item.FieldValuesJson).ContainsKey(field.Id.ToString("D")));
             if (count > 0 && confirmedRemovals?.Contains(field.Id) != true)
                 return FieldErrors.OnWithMetadata(FormCatalogErrors.FieldDetails(FormCatalogErrors.FieldRemovalNotConfirmed,
@@ -97,6 +104,15 @@ internal sealed class FormCatalogFieldRecorder(IFormCatalogReader reader)
             canonical.Where(field => field.IsActive && field.Required && byId.TryGetValue(field.Id, out var old) && !old.Required).Select(field => field.Id).ToHashSet(),
             byId, culture), identityMap);
     }
+
+    private static string? ChangedProperty(BusinessFormCatalogField prior, BusinessFormCatalogField field) =>
+        field.Role != prior.Role ? "role" : field.Type != prior.Type ? "type" : field.SourceCatalogId != prior.SourceCatalogId ? "sourceCatalogId" : null;
+
+    private static FormCatalogFieldUsageResponse[] Uses(IEnumerable<FormCatalogFieldUsageRow> rows) =>
+        rows.Select(use => new FormCatalogFieldUsageResponse(use.DefinitionId, use.FormName, use.Question, use.QuestionId, use.Stage)).ToArray();
+
+    private static ValidationError InUse(IReadOnlyList<FormCatalogFieldUsageResponse> uses, string path) =>
+        FieldErrors.OnWithMetadata(FormCatalogErrors.FieldDetails(FormCatalogErrors.FieldInUse, new Dictionary<string, object?> { ["uses"] = uses }), path);
 
     public static bool ValidPresentation(BusinessFormCatalog catalog, IReadOnlyList<BusinessFormCatalogField> fields, FormCatalogPresentation? presentation) =>
         FormCatalogPresentationPolicy.ValidConfiguration(presentation, fields, catalog.ValueType.ToString());

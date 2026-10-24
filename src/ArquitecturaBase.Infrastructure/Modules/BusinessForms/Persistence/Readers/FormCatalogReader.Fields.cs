@@ -17,7 +17,8 @@ internal sealed partial class FormCatalogReader
             SELECT definition."Id" AS "DefinitionId",
                 COALESCE(NULLIF(definition."NameJson" ->> {0}, ''), definition."NameJson" ->> definition."Culture", '') AS "FormName",
                 COALESCE(NULLIF(question.value #>> ARRAY['label', {0}], ''), question.value #>> ARRAY['label', definition."Culture"], '') AS "Question",
-                (question.value ->> 'fieldId')::uuid AS "QuestionId", 'Draft' AS "Stage", requested."FieldId" AS "FieldId"
+                (question.value ->> 'fieldId')::uuid AS "QuestionId", 'Draft' AS "Stage", requested."FieldId" AS "FieldId",
+                (question.value -> 'source') @> jsonb_build_object('match', jsonb_build_array(jsonb_build_object('fieldId', requested."FieldId"::text))) AS "ByMatch"
             FROM "FormDefinitions" AS definition
             CROSS JOIN UNNEST({2}::uuid[]) AS requested("FieldId")
             CROSS JOIN LATERAL jsonb_array_elements(definition."SchemaJson" -> 'fields') AS question(value)
@@ -29,7 +30,8 @@ internal sealed partial class FormCatalogReader
             SELECT definition."Id" AS "DefinitionId",
                 COALESCE(NULLIF(version."NameJson" ->> {0}, ''), version."NameJson" ->> version."Culture", definition."NameJson" ->> definition."Culture", '') AS "FormName",
                 COALESCE(NULLIF(question.value #>> ARRAY['label', {0}], ''), question.value #>> ARRAY['label', COALESCE(version."Culture", definition."Culture")], '') AS "Question",
-                (question.value ->> 'fieldId')::uuid AS "QuestionId", 'Active' AS "Stage", requested."FieldId" AS "FieldId"
+                (question.value ->> 'fieldId')::uuid AS "QuestionId", 'Active' AS "Stage", requested."FieldId" AS "FieldId",
+                (question.value -> 'source') @> jsonb_build_object('match', jsonb_build_array(jsonb_build_object('fieldId', requested."FieldId"::text))) AS "ByMatch"
             FROM "FormDefinitions" AS definition
             JOIN "BusinessFormVersions" AS version ON version."Id" = definition."ActiveVersionId" AND version."DefinitionId" = definition."Id"
             CROSS JOIN UNNEST({2}::uuid[]) AS requested("FieldId")

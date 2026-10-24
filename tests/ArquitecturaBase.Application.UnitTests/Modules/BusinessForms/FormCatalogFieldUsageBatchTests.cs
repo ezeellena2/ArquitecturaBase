@@ -29,7 +29,7 @@ public sealed class FormCatalogFieldUsageBatchTests
         var definitionId = Guid.CreateVersion7();
         var questionId = Guid.CreateVersion7();
         var reader = new FormCatalogFieldReader();
-        reader.Uses.Add(new(definitionId, "Form", "Question", questionId, "Draft", field.Id));
+        reader.Uses.Add(new(definitionId, "Form", "Question", questionId, "Draft", field.Id, ByMatch: true));
         var detail = new FormCatalogDetailResponse(catalog.Id, catalog.Key, field.Name, new Dictionary<string, string>(), "Manual", 1, true, 0, null, null);
 
         var result = await FormCatalogFieldPresentation.DescribeAsync(detail, catalog.FieldsJson, null, [], reader, TestContext.Current.CancellationToken);

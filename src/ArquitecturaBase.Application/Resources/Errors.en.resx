@@ -313,7 +313,7 @@
   <data name="Forms.Catalog.TooManyFields" xml:space="preserve"><value>A catalog can have up to 20 fields.</value></data>
   <data name="Forms.Catalog.FieldKeyDuplicate" xml:space="preserve"><value>There's already a field with that key.</value></data>
   <data name="Forms.Catalog.FieldInvalid" xml:space="preserve"><value>Check the field type, rules and role.</value></data>
-  <data name="Forms.Catalog.FieldInUse" xml:space="preserve"><value>The field is in use. Remove those uses to delete it.</value></data>
+  <data name="Forms.Catalog.FieldInUse" xml:space="preserve"><value>The field is in use. Remove those uses to delete it or to change its role, type or catalog.</value></data>
   <data name="Forms.Catalog.FieldRemovalNotConfirmed" xml:space="preserve"><value>Confirm you want to remove the field and its values.</value></data>
   <data name="Forms.Catalog.FieldTypeNotConvertible" xml:space="preserve"><value>Some values can't be converted to the new type.</value></data>
   <data name="Forms.Catalog.FieldValuesMissing" xml:space="preserve"><value>Some active options have no value, so it can't be required.</value></data>

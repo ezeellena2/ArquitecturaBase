@@ -38,6 +38,16 @@ public sealed class FormCatalogFieldUsageQueryTests
         Assert.Contains("ORDER BY \"FormName\", \"DefinitionId\", \"Question\", \"QuestionId\", \"Stage\"", sql, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Field_usage_tells_in_both_stages_whether_the_question_filters_by_the_field()
+    {
+        var sql = FieldUsageSql();
+
+        // Una vez en cada rama: cambiar el papel, el tipo o la fuente de un campo sólo se frena por los usos de un filtro.
+        Assert.Equal(2, sql.Split("(question.value -> 'source') @> jsonb_build_object('match', jsonb_build_array(jsonb_build_object('fieldId', requested.\"FieldId\"::text))) AS \"ByMatch\"",
+            StringSplitOptions.None).Length - 1);
+    }
+
     private static string FieldUsageSql()
     {
         using var db = new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>()

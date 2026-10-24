@@ -44,7 +44,7 @@ public sealed class FormCatalogFieldRecorderTests
         var field = Field();
         Assert.True(catalog.SetFields([field], null).IsSuccess);
         var reader = new FormCatalogFieldReader();
-        reader.Uses.Add(new(Guid.CreateVersion7(), "Form", "Question", Guid.CreateVersion7(), "Active", field.Id));
+        reader.Uses.Add(new(Guid.CreateVersion7(), "Form", "Question", Guid.CreateVersion7(), "Active", field.Id, ByMatch: true));
         var result = await new FormCatalogFieldRecorder(reader).PrepareAsync(catalog, [], [Input(field.Id) with { IsActive = false }], null, [], TestContext.Current.CancellationToken);
         Assert.Equal("Forms.Catalog.FieldInUse", result.Error.Code);
         Assert.Equal(ArquitecturaBase.Domain.Results.ErrorType.Conflict, result.Error.Type);
@@ -61,8 +61,8 @@ public sealed class FormCatalogFieldRecorderTests
         var definitionId = Guid.CreateVersion7();
         var questionId = Guid.CreateVersion7();
         var reader = new FormCatalogFieldReader();
-        reader.Uses.Add(new(definitionId, "Form", "Question", questionId, "Active", field.Id));
-        reader.Uses.Add(new(definitionId, "Form", "Question", questionId, "Draft", field.Id));
+        reader.Uses.Add(new(definitionId, "Form", "Question", questionId, "Active", field.Id, ByMatch: true));
+        reader.Uses.Add(new(definitionId, "Form", "Question", questionId, "Draft", field.Id, ByMatch: true));
 
         var result = await new FormCatalogFieldRecorder(reader).PrepareAsync(catalog, [], [Input(field.Id) with { IsActive = false }], null, [], TestContext.Current.CancellationToken);
 
@@ -71,6 +71,44 @@ public sealed class FormCatalogFieldRecorderTests
             [new FormCatalogFieldUsageResponse(definitionId, "Form", "Question", questionId, "Active"),
                 new FormCatalogFieldUsageResponse(definitionId, "Form", "Question", questionId, "Draft")],
             Assert.IsAssignableFrom<IReadOnlyList<FormCatalogFieldUsageResponse>>(result.Error.Metadata!["uses"]));
+    }
+
+    [Theory]
+    [InlineData("role")]
+    [InlineData("type")]
+    [InlineData("source")]
+    public async Task Changing_the_role_type_or_source_of_a_field_used_by_a_filter_is_a_conflict_with_its_uses(string change)
+    {
+        var (catalog, field, reader) = FilterField();
+        var stored = catalog.FieldsJson;
+        reader.Uses.Add(new(Guid.CreateVersion7(), "Form", "Question", Guid.CreateVersion7(), "Draft", field.Id, ByMatch: true));
+        var input = FilterInput(field);
+        var (edited, property) = change switch
+        {
+            "role" => (input with { Role = "data" }, "role"),
+            "type" => (input with { Type = "text", SourceCatalogId = null, MaxLength = 300 }, "type"),
+            _ => (input with { SourceCatalogId = reader.Catalogs.Keys.Single(id => id != field.SourceCatalogId) }, "sourceCatalogId"),
+        };
+
+        var result = await new FormCatalogFieldRecorder(reader).PrepareAsync(catalog, [], [edited], null, [], TestContext.Current.CancellationToken);
+
+        Assert.Equal("Forms.Catalog.FieldInUse", result.Error.Code);
+        Assert.Equal(ArquitecturaBase.Domain.Results.ErrorType.Conflict, result.Error.Type);
+        Assert.Equal($"fields[0].{property}", Assert.Single(Assert.IsType<ArquitecturaBase.Domain.Results.ValidationError>(result.Error).Errors.Keys));
+        Assert.Equal("Draft", Assert.Single(Assert.IsAssignableFrom<IReadOnlyList<FormCatalogFieldUsageResponse>>(result.Error.Metadata!["uses"])).Stage);
+        Assert.Equal(stored, catalog.FieldsJson);
+    }
+
+    [Fact]
+    public async Task A_field_shown_only_by_a_question_presentation_can_change_its_role()
+    {
+        var (catalog, field, reader) = FilterField();
+        reader.Uses.Add(new(Guid.CreateVersion7(), "Form", "Question", Guid.CreateVersion7(), "Draft", field.Id, ByMatch: false));
+
+        var result = await new FormCatalogFieldRecorder(reader).PrepareAsync(catalog, [], [FilterInput(field) with { Role = "data" }], null, [], TestContext.Current.CancellationToken);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("data", Assert.Single(FormCatalogFieldPolicy.ReadFields(catalog.FieldsJson)).Role);
     }
 
     [Fact]
@@ -115,5 +153,18 @@ public sealed class FormCatalogFieldRecorderTests
 
     private static BusinessFormCatalog Catalog() => BusinessFormCatalog.CreateManual("es", new Dictionary<string, string> { ["es"] = "Catalog" }, new Dictionary<string, string>());
     private static BusinessFormCatalogField Field() => new(Guid.CreateVersion7(), "field", new Dictionary<string, string> { ["es"] = "Field" }, "text", null, false, false, null, null, 300, "data", 0, true);
+    // A catalog-type filter field whose source and a second source are both active Manual catalogs, so only the use check can stop the change.
+    private static (BusinessFormCatalog Catalog, BusinessFormCatalogField Field, FormCatalogFieldReader Reader) FilterField()
+    {
+        var catalog = Catalog();
+        var reader = new FormCatalogFieldReader();
+        foreach (var source in new[] { Guid.CreateVersion7(), Guid.CreateVersion7() })
+            reader.Catalogs[source] = new(source, "source-" + source.ToString("N"), """{"es":"Source"}""", "{}", "Manual", 1, true, DateTime.UnixEpoch, null, null, null, 0);
+        var field = Field() with { Type = "catalog", SourceCatalogId = reader.Catalogs.Keys.First(), MaxLength = null, Role = "filter" };
+        Assert.True(catalog.SetFields([field], null).IsSuccess);
+        return (catalog, field, reader);
+    }
+    private static FormCatalogFieldSaveRequest FilterInput(BusinessFormCatalogField field) => Input(field.Id) with
+    { Type = field.Type, SourceCatalogId = field.SourceCatalogId, MaxLength = field.MaxLength, Role = field.Role };
     private static FormCatalogFieldSaveRequest Input(Guid? id) => new(id is null ? "local" : null, id, "field", new Dictionary<string, string?> { ["es"] = "Field" }, "text", null, false, false, null, null, 300, "data", 0, true);
 }
