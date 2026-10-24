@@ -18,15 +18,18 @@ public sealed class FormPersonDataValidationTests
     }
 
     [Fact]
-    public void Only_the_original_attribute_name_is_required_and_source_configuration_must_match_the_type()
+    public void Attribute_names_need_only_a_valid_shape_and_source_configuration_must_match_the_type()
     {
         var validator = new CreateFormPersonAttributeRequestValidator();
         var request = new CreateFormPersonAttributeRequest("zone", new Dictionary<string, string?> { ["es"] = "Zona", ["en"] = "" }, "Catalog", Guid.CreateVersion7());
         Assert.True(validator.Validate(request).IsValid);
         Assert.Contains(validator.Validate(request with { SourceCatalogId = null }).Errors, error => error.PropertyName == "sourceCatalogId");
         Assert.Contains(validator.Validate(request with { Type = "Text" }).Errors, error => error.PropertyName == "sourceCatalogId");
-        Assert.Contains(validator.Validate(request with { Name = new Dictionary<string, string?> { ["en"] = "Zone" } }).Errors,
-            error => error.PropertyName == "name.es");
+        // The required language is the original one, which the service knows; the validator accepts a name in either language.
+        Assert.True(validator.Validate(request with { Name = new Dictionary<string, string?> { ["en"] = "Zone" } }).IsValid);
+        Assert.Contains(validator.Validate(request with { Name = null }).Errors, error => error.PropertyName == "name");
+        Assert.Contains(validator.Validate(request with { Name = new Dictionary<string, string?> { ["fr"] = "Zone" } }).Errors,
+            error => error.PropertyName == "name.fr");
     }
 
     [Fact]

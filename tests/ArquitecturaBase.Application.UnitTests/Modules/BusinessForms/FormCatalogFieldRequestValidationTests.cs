@@ -30,9 +30,22 @@ public sealed class FormCatalogFieldRequestValidationTests
         var field = new FormCatalogFieldSaveRequest(null, null, "field", null, null, null, false, false, null, null, null, null, -1, true);
         var result = new CreateManualCatalogRequestValidator().Validate(new CreateManualCatalogRequest(Texts(), Texts(), [], Fields: [field]));
         Assert.Contains(result.Errors, error => error.PropertyName == "fields[0].localId");
-        Assert.Contains(result.Errors, error => error.PropertyName == "fields[0].name.es");
+        Assert.Contains(result.Errors, error => error.PropertyName == "fields[0].name");
         Assert.Contains(result.Errors, error => error.PropertyName == "fields[0].type");
         Assert.Contains(result.Errors, error => error.PropertyName == "fields[0].position");
+    }
+
+    [Fact]
+    public void A_field_name_in_a_single_language_has_a_valid_shape()
+    {
+        var english = new FormCatalogFieldSaveRequest("region", null, "region", new Dictionary<string, string?> { ["en"] = "Region", ["es"] = null },
+            "text", null, false, false, null, null, 300, "data", 0, true);
+        var unknown = english with { Name = new Dictionary<string, string?> { ["fr"] = "Région" } };
+        var validator = new CreateManualCatalogRequestValidator();
+
+        Assert.True(validator.Validate(new CreateManualCatalogRequest(Texts(), null, [], Fields: [english])).IsValid);
+        Assert.Contains(validator.Validate(new CreateManualCatalogRequest(Texts(), null, [], Fields: [unknown])).Errors,
+            error => error.PropertyName == "fields[0].name");
     }
 
     private static Dictionary<string, string?> Texts() => new Dictionary<string, string?> { ["es"] = "Catálogo", ["en"] = "Catalog" };

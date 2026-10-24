@@ -80,8 +80,9 @@ foreach ($case in @("Configuration", "Merge", "Missing", "Collision")) {
                 Assert-Condition (($sourceRoot + "BusinessForms/FormCatalogImportFieldsHttpTests.cs") -in $imports.Sources) "The source field import producer SHA must be included."
                 Assert-Condition (($captureRoot + "Modules/BusinessForms/FormCatalogImportContractCapture.cs") -in $imports.Sources) "The import capture SHA must be included."
                 $manual = @($cohorts | Where-Object { $_.Name -eq "manual-catalogs" })[0]
-                Assert-Condition ($manual.RequiredNames.Count -eq 42) "Manual catalogs must preserve prior captures, fourteen extra-field artifacts and the optional description."
+                Assert-Condition ($manual.RequiredNames.Count -eq 45) "Manual catalogs must preserve prior captures, fourteen extra-field artifacts, the optional description and three original-language bodies."
                 Assert-Condition ("description-optional-created.json" -in $manual.RequiredNames) "The optional catalog description body is missing."
+                foreach ($name in @("english-original-created", "english-original-detail-es", "original-missing-error")) { Assert-Condition (("$name.json") -in $manual.RequiredNames) "An original-language catalog body is missing." }
                 $typedNames = @("typed-text-created.json", "typed-text-items.json", "typed-integer-created.json", "typed-integer-items.json", "typed-decimal-created.json", "typed-decimal-items.json", "typed-date-created.json", "typed-date-items.json", "typed-invalid-value-es.json", "typed-invalid-value-en.json", "typed-required-value.json", "typed-type-change-rejected.json")
                 foreach ($name in $typedNames) { Assert-Condition ($name -in $manual.RequiredNames) "A typed catalog capture is missing from the required inventory." }
                 Assert-Condition (($sourceRoot + "BusinessForms/FormCatalogValueHttpTests.cs") -in $manual.Sources) "The typed catalog producer SHA must be included."
@@ -104,8 +105,8 @@ foreach ($case in @("Configuration", "Merge", "Missing", "Collision")) {
                 $personData = @($cohorts | Where-Object { $_.Name -eq "person-data" })[0]
                 Assert-Condition ($null -ne $personData -and $personData.Environment -eq "FORM_PERSON_DATA_HTTP_OUTPUT" -and $personData.Destination -eq "forms-person-data-http") "Person data require their own agreed output and destination."
                 $personNames = @("attribute-created", "person-options", "person-data-empty", "person-data-saved", "person-data", "people", "conflict", "invalid-value", "attribute-updated", "attributes", "forbidden", "source-in-use", "attribute-value-removal-confirmation")
-                $expectedPersonData = @(@("es", "en") | ForEach-Object { $culture = $_; $personNames | ForEach-Object { "$_-$culture.json" } })
-                Assert-Condition (@(Compare-Object $expectedPersonData $personData.RequiredNames).Count -eq 0) "Person data must contain all twenty-six actual HTTP bodies."
+                $expectedPersonData = @(@("es", "en") | ForEach-Object { $culture = $_; $personNames | ForEach-Object { "$_-$culture.json" } }) + @("attribute-created-english-original-en.json")
+                Assert-Condition (@(Compare-Object $expectedPersonData $personData.RequiredNames).Count -eq 0) "Person data must contain all twenty-seven actual HTTP bodies, including the English original attribute."
                 Assert-Condition (($sourceRoot + "BusinessForms/FormPersonDataHttpTests.cs") -in $personData.Sources) "The person data producer SHA must be included."
                 Assert-Condition (($captureRoot + "Modules/BusinessForms/FormPersonDataContractCapture.cs") -in $personData.Sources) "The person data capture SHA must be included."
                 $catalogSending = @($cohorts | Where-Object { $_.Name -eq "whatsapp-catalogs" })[0]

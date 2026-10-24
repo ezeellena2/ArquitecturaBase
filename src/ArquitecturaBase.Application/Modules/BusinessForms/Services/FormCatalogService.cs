@@ -20,6 +20,8 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
         var access = await accessGuard.CheckAsync(true, cancellationToken);
         if (access.IsFailure) return access.Error;
         if (await validator.ValidateAsync(request, cancellationToken) is { } invalid) return invalid;
+        var original = FormCatalogOriginalTextPolicy.Validate(Culture(), request.Name, request.Items, request.Fields);
+        if (original.IsFailure) return original.Error;
         var canReadForms = await accessGuard.HasPermissionAsync(access.Value, BusinessFormsPermissions.Read, cancellationToken);
         var result = await unitOfWork.ExecuteInTransactionAsync(ct => CreateCoreAsync(request, ct), CommitPolicy.OnSuccess, cancellationToken);
         return await WithUsageCountAsync(result, canReadForms, cancellationToken);
@@ -72,7 +74,7 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
 
     private async Task<Result<FormCatalogSaveResponse>> CreateCoreAsync(CreateManualCatalogRequest request, CancellationToken ct)
     {
-        var name = RequiredTexts(request.Name!);
+        var name = FormCatalogProposalPolicy.Texts(request.Name);
         var description = FormCatalogProposalPolicy.Texts(request.Description);
         var catalog = BusinessFormCatalog.CreateManual(Culture(), name, description,
             Enum.Parse<BusinessFormCatalogValueType>(request.ValueType ?? "Text"));
@@ -97,13 +99,15 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
         var catalog = await repository.GetAsync(id, ct);
         if (catalog is null) return FormCatalogErrors.NotFound;
         if (catalog.Revision != request.ExpectedRevision) return FormCatalogErrors.RevisionConflict;
+        var original = FormCatalogOriginalTextPolicy.Validate(catalog.OriginalCulture, request.Name, request.Items, request.Fields);
+        if (original.IsFailure) return original.Error;
         if (request.IsActive == false && catalog.IsActive && await reader.ExistsSourceUsageAsync(id, ct)) return FormCatalogErrors.SourceInUse;
         var storedItems = await repository.ListItemsAsync(id, ct);
         var fields = await fieldRecorder.PrepareAsync(catalog, storedItems, request.Fields, request.Presentation, request.ConfirmFieldRemovals, ct);
         if (fields.IsFailure) return fields.Error;
         var recorded = recorder.Record(catalog, storedItems, request.Items!, request.Moves, request.SortAlphabetically, fields.Value.Context);
         if (recorded.IsFailure) return recorded.Error;
-        var updated = catalog.UpdateManual(request.ExpectedRevision!.Value, RequiredTexts(request.Name!), FormCatalogProposalPolicy.Texts(request.Description), request.IsActive);
+        var updated = catalog.UpdateManual(request.ExpectedRevision!.Value, FormCatalogProposalPolicy.Texts(request.Name), FormCatalogProposalPolicy.Texts(request.Description), request.IsActive);
         if (updated.IsFailure) return updated.Error;
         var detail = await FormCatalogFieldPresentation.DescribeAsync(Map(catalog, recorded.Value.Items.Count), catalog.FieldsJson,
             catalog.PresentationJson, FormCatalogFieldPresentation.ToRows(recorded.Value.Items), reader, ct, fields.Value.Context.Sources);
@@ -136,9 +140,6 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
     private static Dictionary<string, string> ReadTexts(string json) =>
         JsonSerializer.Deserialize<Dictionary<string, string>>(json, JsonSerializerOptions.Web)
         ?? throw new InvalidOperationException("The stored catalog text is invalid.");
-
-    private static Dictionary<string, string> RequiredTexts(IReadOnlyDictionary<string, string?> source) =>
-        new(StringComparer.Ordinal) { ["es"] = source["es"]!, ["en"] = source["en"]! };
 
     private static string Culture() => CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es";
 

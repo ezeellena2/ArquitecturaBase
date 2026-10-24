@@ -44,8 +44,9 @@ internal static class FormPersonDataValidation
     public static string Message() => ErrorMessages.Get(FormPersonDataErrors.AttributeInvalid.Code);
     public static void Attribute(IReadOnlyDictionary<string, string?>? names, string? type, Guid? source, Action<string, string> fail)
     {
-        if (names is null || !names.TryGetValue("es", out var original) || string.IsNullOrWhiteSpace(original)) fail("name.es", Message());
-        if (names is not null) foreach (var (culture, value) in names)
+        // Shape only: null or blank is a missing translation. The service requires the name in the attribute's original culture.
+        if (names is null) fail("name", Message());
+        else foreach (var (culture, value) in names)
             if (culture is not ("es" or "en") || value is not null && (value.Trim().Length > 120 || !StorableText.IsStorable(value))) fail("name." + culture, Message());
         if (type is not ("Catalog" or "Text")) fail("type", Message());
         if (type == "Catalog" ? source is null || source == Guid.Empty : source is not null) fail("sourceCatalogId", Message());

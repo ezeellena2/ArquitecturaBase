@@ -29,6 +29,7 @@ internal sealed partial class FormPersonDataService(IFormPersonDataRepository re
         var allowed = await access.CheckAttributesAsync(true, cancellationToken);
         if (allowed.IsFailure) return allowed.Error;
         if (await validator.ValidateAsync(request, cancellationToken) is { } invalid) return invalid;
+        if (OriginalNameMissing(request.Name!, Culture()) is { } missing) return missing;
         var result = await work.ExecuteInTransactionAsync(ct => CreateAttributeCoreAsync(request, ct), CommitPolicy.OnSuccess, cancellationToken);
         if (result.IsSuccess) LogSaved(logger, result.Value.Id);
         return result;
@@ -113,6 +114,7 @@ internal sealed partial class FormPersonDataService(IFormPersonDataRepository re
         var attribute = await repository.GetAttributeAsync(id, ct);
         if (attribute is null) return FormPersonDataErrors.AttributeNotFound;
         if (attribute.Revision != request.ExpectedRevision) return FormPersonDataErrors.AttributeRevisionConflict;
+        if (OriginalNameMissing(request.Name!, attribute.OriginalCulture) is { } missing) return missing;
         var uses = await reader.ListAttributeUsagesAsync([id], ct);
         if (uses.Count > 0 && (attribute.Type.ToString() != request.Type || attribute.SourceCatalogId != request.SourceCatalogId || !request.IsActive)) return FormPersonDataErrors.AttributeInUse;
         foreach (var sourceId in new[] { attribute.SourceCatalogId, request.SourceCatalogId }.OfType<Guid>().Distinct().Order()) await catalogs.LockAsync(sourceId, ct);
@@ -145,6 +147,9 @@ internal sealed partial class FormPersonDataService(IFormPersonDataRepository re
     private static FormPersonAttributeResponse Map(FormPersonAttributeStoredRow row, IReadOnlyList<FormPersonAttributeUseRow> uses) => new(row.Id, row.Key, Texts(row.NameJson), row.OriginalCulture, row.Type, row.SourceCatalogId,
         row.SourceCatalogNameJson is null ? null : Text(row.SourceCatalogNameJson), row.Position, row.IsActive, row.Revision,
         uses.Where(use => use.AttributeId == row.Id).DistinctBy(use => use.DefinitionId).Select(use => new FormPersonAttributeUseResponse(use.DefinitionId, Text(use.NameJson))).ToArray());
+    // The original culture is the only required language of the name; the other one is an optional translation.
+    private static ValidationError? OriginalNameMissing(IReadOnlyDictionary<string, string?> names, string original) =>
+        Names(names).ContainsKey(original) ? null : FieldErrors.On(FormPersonDataErrors.AttributeInvalid, "name." + original);
     private static Dictionary<string, string> Names(IReadOnlyDictionary<string, string?> values) => values.Where(pair => !string.IsNullOrWhiteSpace(pair.Value)).ToDictionary(pair => pair.Key, pair => pair.Value!.Trim(), StringComparer.Ordinal);
     private static Dictionary<string, string> Texts(string json) => JsonSerializer.Deserialize<Dictionary<string, string>>(json, JsonSerializerOptions.Web) ?? throw new InvalidOperationException("The stored person attribute names are invalid.");
     private static string Text(string json) => FormRecordPresentationPolicy.Text(Texts(json), Culture());

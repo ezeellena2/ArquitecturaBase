@@ -248,6 +248,46 @@ public sealed class FormCatalogFiltersEndpointsTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.Conflict, staleUpdate.StatusCode);
     }
 
+    [Fact]
+    public async Task A_filters_catalog_can_be_created_only_in_the_menu_language()
+    {
+        var suffix = Guid.NewGuid().ToString("N")[..8];
+        using var manager = await OperatorAsync(BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage);
+        var filters = new FormCatalogFilterDefinition("name", null, [], false, "name", false);
+        manager.DefaultRequestHeaders.AcceptLanguage.ParseAdd("en");
+
+        using var withoutOriginal = await manager.PostAsJsonAsync("/api/forms/catalogs/filters",
+            new { name = new { es = "Personas " + suffix }, filters }, Ct);
+        using var created = await manager.PostAsJsonAsync("/api/forms/catalogs/filters",
+            new { name = new { en = "People " + suffix }, filters }, Ct);
+
+        Assert.Equal(HttpStatusCode.BadRequest, withoutOriginal.StatusCode);
+        var error = await withoutOriginal.ReadJsonAsync();
+        Assert.Equal(FormCatalogErrors.ContentInvalid.Code, error.GetProperty("code").GetString());
+        Assert.Equal(["name.en"], error.GetProperty("errors").EnumerateObject().Select(property => property.Name));
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var catalog = (await created.ReadJsonAsync()).GetProperty("catalog");
+        var catalogId = catalog.GetProperty("id").GetGuid();
+        Assert.Equal("en", catalog.GetProperty("originalCulture").GetString());
+        Assert.Equal(["en"], catalog.GetProperty("name").EnumerateObject().Select(property => property.Name));
+
+        // With the menu in Spanish the English original stays required; the Spanish name is only a translation.
+        manager.DefaultRequestHeaders.AcceptLanguage.Clear();
+        manager.DefaultRequestHeaders.AcceptLanguage.ParseAdd("es");
+        using var missing = await manager.PutAsJsonAsync($"/api/forms/catalogs/{catalogId}/filters",
+            new { expectedRevision = 1, name = new { es = "Personas " + suffix, en = " " }, filters }, Ct);
+        using var translated = await manager.PutAsJsonAsync($"/api/forms/catalogs/{catalogId}/filters",
+            new { expectedRevision = 1, name = new { es = "Personas " + suffix, en = "People " + suffix }, filters }, Ct);
+
+        Assert.Equal(HttpStatusCode.BadRequest, missing.StatusCode);
+        Assert.Equal(["name.en"], (await missing.ReadJsonAsync()).GetProperty("errors").EnumerateObject().Select(property => property.Name));
+        Assert.Equal(HttpStatusCode.OK, translated.StatusCode);
+        var saved = (await translated.ReadJsonAsync()).GetProperty("catalog");
+        Assert.Equal(2, saved.GetProperty("revision").GetInt64());
+        Assert.Equal("en", saved.GetProperty("originalCulture").GetString());
+        Assert.Equal("Personas " + suffix, saved.GetProperty("name").GetProperty("es").GetString());
+    }
+
     private async Task<HttpClient> OperatorAsync(params string[] permissions)
     {
         var actor = await factory.InTransactionAsync(async services =>

@@ -65,11 +65,13 @@ internal sealed class FormCatalogFiltersService(
         var access = await accessGuard.CheckAsync(true, cancellationToken);
         if (access.IsFailure) return access.Error;
         if (await validator.ValidateAsync(request, cancellationToken) is { } invalid) return invalid;
+        var original = FormCatalogOriginalTextPolicy.Validate(Culture(), request.Name);
+        if (original.IsFailure) return original.Error;
         var canReadForms = await accessGuard.HasPermissionAsync(access.Value, BusinessFormsPermissions.Read, cancellationToken);
         var filtersJson = JsonSerializer.Serialize(request.Filters, JsonSerializerOptions.Web);
         var created = await unitOfWork.ExecuteInTransactionAsync<Result<FormCatalogSaveResponse>>(async ct =>
         {
-            var catalog = BusinessFormCatalog.CreateFilters(Culture(), RequiredTexts(request.Name!), FormCatalogProposalPolicy.Texts(request.Description), filtersJson);
+            var catalog = BusinessFormCatalog.CreateFilters(Culture(), FormCatalogProposalPolicy.Texts(request.Name), FormCatalogProposalPolicy.Texts(request.Description), filtersJson);
             await repository.LockAsync(catalog.Id, ct);
             repository.Add(catalog);
             return Result<FormCatalogSaveResponse>.Success(
@@ -91,16 +93,20 @@ internal sealed class FormCatalogFiltersService(
             await repository.LockAsync(id, ct);
             var catalog = await repository.GetAsync(id, ct);
             if (catalog is null) return FormCatalogErrors.NotFound;
-            if (catalog.ProposalEvidenceJson is { } evidenceJson)
+            if (catalog.ProposalEvidenceJson is not null)
             {
-                var evidence = FormCatalogProposalPresentation.Evidence(evidenceJson);
-                var content = FormCatalogProposalPolicy.ValidateEdits(request.Name, request.Description, request.Filters, evidence.OriginalCulture);
+                var content = FormCatalogProposalPolicy.ValidateEdits(request.Name, request.Description, request.Filters, catalog.OriginalCulture);
                 if (content.IsFailure) return content.Error;
                 var roles = FormCatalogProposalPolicy.ValidateRoles(request.Filters!, await filterReader.ListRolesAsync(ct));
                 if (roles.IsFailure) return roles.Error;
             }
-            else if (await validator.ValidateAsync(request, ct) is { } invalid) return invalid;
-            var result = catalog.UpdateFilters(request.ExpectedRevision.Value, FormCatalogProposalPolicy.Texts(request.Name!),
+            else
+            {
+                if (await validator.ValidateAsync(request, ct) is { } invalid) return invalid;
+                var original = FormCatalogOriginalTextPolicy.Validate(catalog.OriginalCulture, request.Name);
+                if (original.IsFailure) return original.Error;
+            }
+            var result = catalog.UpdateFilters(request.ExpectedRevision.Value, FormCatalogProposalPolicy.Texts(request.Name),
                 FormCatalogProposalPolicy.Texts(request.Description), JsonSerializer.Serialize(request.Filters, JsonSerializerOptions.Web), request.IsActive);
             if (result.IsFailure) return result.Error;
             int? usageCount = canReadForms ? await catalogReader.CountUsageAsync(catalog.Id, ct) : null;
@@ -120,9 +126,6 @@ internal sealed class FormCatalogFiltersService(
     private static Dictionary<string, Guid> EmptyIdentityMap() => new(StringComparer.Ordinal);
 
     private static string Culture() => CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es";
-
-    private static Dictionary<string, string> RequiredTexts(IReadOnlyDictionary<string, string?> values) =>
-        new(StringComparer.Ordinal) { ["es"] = values["es"]!, ["en"] = values["en"]! };
 
     private static Dictionary<string, string> ReadTexts(string json) =>
         JsonSerializer.Deserialize<Dictionary<string, string>>(json, JsonSerializerOptions.Web)

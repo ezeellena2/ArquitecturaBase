@@ -109,6 +109,45 @@ public sealed class FormPersonDataServiceTests
     }
 
     [Fact]
+    public async Task An_attribute_created_with_the_menu_in_English_requires_only_its_English_name()
+    {
+        using var menu = new CultureScope("en-US");
+        var fixture = new FormPersonDataFixture();
+
+        var missing = await fixture.Service.CreateAttributeAsync(new("zone", new Dictionary<string, string?> { ["es"] = "Zona", ["en"] = " " }, "Text", null), Ct);
+        var created = await fixture.Service.CreateAttributeAsync(new("zone", new Dictionary<string, string?> { ["en"] = "Zone" }, "Text", null), Ct);
+
+        var error = Assert.IsType<ValidationError>(missing.Error);
+        Assert.Equal(FormPersonDataErrors.AttributeInvalid.Code, error.Code);
+        Assert.Equal("name.en", Assert.Single(error.Errors).Key);
+        Assert.True(created.IsSuccess, created.IsFailure ? created.Error.Code : null);
+        Assert.Equal("en", created.Value.OriginalCulture);
+        Assert.Equal(new Dictionary<string, string> { ["en"] = "Zone" }, created.Value.Name);
+        Assert.Equal(1, fixture.Work.Commits);
+    }
+
+    [Fact]
+    public async Task Updating_an_attribute_requires_its_stored_original_name()
+    {
+        var fixture = new FormPersonDataFixture();
+        var attribute = fixture.AddAttribute(catalog: false);
+        using var menu = new CultureScope("en-US");
+
+        var missing = await fixture.Service.UpdateAttributeAsync(attribute.Id,
+            new(1, new Dictionary<string, string?> { ["en"] = "Zone" }, "Text", null, 0, true), Ct);
+        var renamed = await fixture.Service.UpdateAttributeAsync(attribute.Id,
+            new(1, new Dictionary<string, string?> { ["es"] = "Zona de atención", ["en"] = null }, "Text", null, 0, true), Ct);
+
+        var error = Assert.IsType<ValidationError>(missing.Error);
+        Assert.Equal(FormPersonDataErrors.AttributeInvalid.Code, error.Code);
+        Assert.Equal("name.es", Assert.Single(error.Errors).Key);
+        Assert.True(renamed.IsSuccess, renamed.IsFailure ? renamed.Error.Code : null);
+        Assert.Equal("es", renamed.Value.OriginalCulture);
+        Assert.Equal(new Dictionary<string, string> { ["es"] = "Zona de atención" }, renamed.Value.Name);
+        Assert.Equal(1, fixture.Work.Commits);
+    }
+
+    [Fact]
     public async Task Source_and_form_names_fall_back_to_their_original_language()
     {
         var previous = CultureInfo.CurrentUICulture;

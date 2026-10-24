@@ -167,6 +167,48 @@ public sealed class FormPersonDataHttpTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task An_attribute_created_with_the_menu_in_English_needs_no_Spanish_name()
+    {
+        var suffix = Guid.NewGuid().ToString("N")[..8];
+        using var manager = await OperatorAsync(BusinessFormsPermissions.PersonDataManage);
+        manager.DefaultRequestHeaders.AcceptLanguage.ParseAdd("en");
+
+        using var created = await manager.PostAsJsonAsync("/api/forms/person-attributes", new
+        {
+            key = "branch_" + suffix, name = new { en = "Branch" }, type = "Text",
+        }, Ct);
+
+        Assert.Equal(HttpStatusCode.OK, created.StatusCode);
+        await FormPersonDataContractCapture.WriteAsync(created, "en", "attribute-created-english-original", Ct);
+        var attribute = await created.ReadJsonAsync();
+        var attributeId = attribute.GetProperty("id").GetGuid();
+        Assert.Equal("en", attribute.GetProperty("originalCulture").GetString());
+        Assert.Equal(["en"], attribute.GetProperty("name").EnumerateObject().Select(property => property.Name));
+
+        // With the menu in Spanish the stored English original stays required; the Spanish name is only a translation.
+        manager.DefaultRequestHeaders.AcceptLanguage.Clear();
+        manager.DefaultRequestHeaders.AcceptLanguage.ParseAdd("es");
+        object Update(object name) => new
+        {
+            expectedRevision = 1, name, type = "Text", sourceCatalogId = (Guid?)null,
+            position = attribute.GetProperty("position").GetInt32(), isActive = true,
+        };
+        using var missing = await manager.PutAsJsonAsync($"/api/forms/person-attributes/{attributeId}", Update(new { es = "Sucursal" }), Ct);
+        using var translated = await manager.PutAsJsonAsync($"/api/forms/person-attributes/{attributeId}",
+            Update(new { es = "Sucursal", en = "Branch" }), Ct);
+
+        Assert.Equal(HttpStatusCode.BadRequest, missing.StatusCode);
+        var error = await missing.ReadJsonAsync();
+        Assert.Equal(FormPersonDataErrors.AttributeInvalid.Code, error.GetProperty("code").GetString());
+        Assert.Equal(["name.en"], error.GetProperty("errors").EnumerateObject().Select(property => property.Name));
+        Assert.Equal(HttpStatusCode.OK, translated.StatusCode);
+        var saved = await translated.ReadJsonAsync();
+        Assert.Equal(2, saved.GetProperty("revision").GetInt64());
+        Assert.Equal("en", saved.GetProperty("originalCulture").GetString());
+        Assert.Equal("Sucursal", saved.GetProperty("name").GetProperty("es").GetString());
+    }
+
+    [Fact]
     public async Task Changing_an_attribute_type_asks_confirmation_only_for_people_who_are_not_deleted_and_still_clears_deleted_accounts()
     {
         var suffix = Guid.NewGuid().ToString("N")[..8];

@@ -357,6 +357,80 @@ public sealed partial class FormCatalogEndpointsTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task An_English_menu_creates_a_catalog_whose_only_required_language_is_English()
+    {
+        var unique = Guid.NewGuid().ToString("N")[..8];
+        using var client = await OperatorAsync(BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage);
+        client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("en");
+
+        using var created = await client.PostAsJsonAsync("/api/forms/catalogs", new
+        {
+            name = new { en = "Branches " + unique },
+            description = new { en = "Branch list" },
+            fields = new[]
+            {
+                new { localId = "region", key = "region", name = new { en = "Region" }, type = "text", required = false, unique = false,
+                    maxLength = 300, role = "data", position = 0, isActive = true },
+            },
+            items = new[] { new { localId = "north", code = "NORTH", text = new { en = "North branch" }, isActive = true } },
+        }, Ct);
+
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        await ExportBilingualResponseAsync(created, "english-original-created");
+        var saved = await created.ReadJsonAsync();
+        var catalogId = saved.GetProperty("catalog").GetProperty("id").GetGuid();
+        var itemId = saved.GetProperty("itemIdentityMap").GetProperty("north").GetGuid();
+        Assert.Equal("en", saved.GetProperty("catalog").GetProperty("originalCulture").GetString());
+        var item = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormCatalogItem>().SingleAsync(row => row.Id == itemId, Ct));
+        Assert.Null(item.TextEs);
+        Assert.Equal("North branch", item.TextEn);
+
+        // The Spanish menu shows the English original as it is: only one language is stored.
+        client.DefaultRequestHeaders.AcceptLanguage.Clear();
+        client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("es");
+        using var detail = await client.GetAsync($"/api/forms/catalogs/{catalogId}", Ct);
+        Assert.Equal(HttpStatusCode.OK, detail.StatusCode);
+        await ExportBilingualResponseAsync(detail, "english-original-detail-es");
+        var detailJson = await detail.ReadJsonAsync();
+        Assert.Equal("en", detailJson.GetProperty("originalCulture").GetString());
+        Assert.Equal(["en"], detailJson.GetProperty("name").EnumerateObject().Select(property => property.Name));
+        Assert.Equal(["en"], detailJson.GetProperty("description").EnumerateObject().Select(property => property.Name));
+        Assert.Equal(["en"], Assert.Single(detailJson.GetProperty("fields").EnumerateArray()).GetProperty("name").EnumerateObject()
+            .Select(property => property.Name));
+
+        // A new option written only in Spanish lacks the English original of the catalog.
+        object Update(params object[] items) => new
+        {
+            expectedRevision = 1, name = new { es = "Sucursales", en = "Branches " + unique }, items,
+        };
+        var translatedItem = new { localId = "north", itemId, code = "NORTH", text = new { es = "Sucursal norte", en = "North branch" }, isActive = true };
+        using var missing = await client.PutAsJsonAsync($"/api/forms/catalogs/{catalogId}",
+            Update(translatedItem, new { localId = "south", code = "SOUTH", text = new { es = "Sucursal sur" }, isActive = true }), Ct);
+
+        Assert.Equal(HttpStatusCode.BadRequest, missing.StatusCode);
+        await ExportBilingualResponseAsync(missing, "original-missing-error");
+        var error = await missing.ReadJsonAsync();
+        Assert.Equal(FormCatalogErrors.ContentInvalid.Code, error.GetProperty("code").GetString());
+        Assert.Equal(["items[1].text.en"], error.GetProperty("errors").EnumerateObject().Select(property => property.Name));
+
+        using var withoutOriginalName = await client.PutAsJsonAsync($"/api/forms/catalogs/{catalogId}", new
+        {
+            expectedRevision = 1, name = new { es = "Sucursales" }, items = new[] { translatedItem },
+        }, Ct);
+
+        Assert.Equal(HttpStatusCode.BadRequest, withoutOriginalName.StatusCode);
+        Assert.Equal(["name.en"], (await withoutOriginalName.ReadJsonAsync()).GetProperty("errors").EnumerateObject().Select(property => property.Name));
+
+        using var translated = await client.PutAsJsonAsync($"/api/forms/catalogs/{catalogId}", Update(translatedItem), Ct);
+
+        Assert.Equal(HttpStatusCode.OK, translated.StatusCode);
+        var translatedCatalog = (await translated.ReadJsonAsync()).GetProperty("catalog");
+        Assert.Equal(2, translatedCatalog.GetProperty("revision").GetInt64());
+        Assert.Equal("en", translatedCatalog.GetProperty("originalCulture").GetString());
+        Assert.Equal("Sucursales", translatedCatalog.GetProperty("name").GetProperty("es").GetString());
+    }
+
+    [Fact]
     public async Task Inactive_item_in_initial_catalog_save_stays_inactive_after_reload()
     {
         using var client = await OperatorAsync(BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage);

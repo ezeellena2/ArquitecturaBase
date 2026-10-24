@@ -143,12 +143,9 @@ internal static class FormCatalogFilterRequestValidation
             return;
         }
 
+        // Shape only: null or blank is a missing translation. The service requires the text in the catalog's original culture.
         foreach (var (culture, value) in values)
-            if (culture is not ("es" or "en") || required && string.IsNullOrWhiteSpace(value) || value?.Length > maxLength)
-                fail(path + "." + culture, InvalidMessage);
-        if (!required) return;
-        foreach (var culture in new[] { "es", "en" })
-            if (!values.TryGetValue(culture, out var value) || string.IsNullOrWhiteSpace(value))
+            if (culture is not ("es" or "en") || value?.Length > maxLength)
                 fail(path + "." + culture, InvalidMessage);
     }
 }
@@ -170,19 +167,16 @@ internal static partial class FormCatalogRequestValidation
     private static void ValidateCore(IReadOnlyDictionary<string, string?>? name, IReadOnlyDictionary<string, string?>? description,
         IReadOnlyList<FormCatalogManualItemSaveRequest?>? items, Action<string, string> fail, bool creating)
     {
-        void CheckMap(IReadOnlyDictionary<string, string?>? map, string path, int maxLength, bool required, bool allowNulls = false,
-            params string[] requiredCultures)
+        // Shape only: null or blank is a missing translation. FormCatalogOriginalTextPolicy requires the original culture.
+        void CheckMap(IReadOnlyDictionary<string, string?>? map, string path, int maxLength, bool required)
         {
             if (map is null) { if (required) fail(path, Message()); return; }
             foreach (var (language, value) in map)
-                if (language is not ("es" or "en") || (!allowNulls && value is null) || (value?.Length > maxLength)
-                    || (requiredCultures.Contains(language, StringComparer.Ordinal) && string.IsNullOrWhiteSpace(value))) fail(path + "." + language, Message());
-            foreach (var language in requiredCultures)
-                    if (!map.TryGetValue(language, out var value) || string.IsNullOrWhiteSpace(value)) fail(path + "." + language, Message());
+                if (language is not ("es" or "en") || value?.Length > maxLength) fail(path + "." + language, Message());
         }
 
-        CheckMap(name, "name", 120, required: true, requiredCultures: ["es", "en"]);
-        CheckMap(description, "description", 1000, required: false, allowNulls: true);
+        CheckMap(name, "name", 120, required: true);
+        CheckMap(description, "description", 1000, required: false);
         if (items is null) { fail("items", Message()); return; }
         if (items.Count > BusinessFormCatalog.MaxItems) { fail("items", ErrorMessages.Get(FormCatalogErrors.TooManyItems.Code)); return; }
         var localIds = new HashSet<string>(StringComparer.Ordinal);
@@ -196,8 +190,8 @@ internal static partial class FormCatalogRequestValidation
             if (item.ItemId == Guid.Empty || (item.ItemId.HasValue && !itemIds.Add(item.ItemId.Value))) fail(path + ".itemId", Message());
             if (creating && item.ItemId.HasValue) fail(path + ".itemId", Message());
             if (string.IsNullOrWhiteSpace(item.Code) || item.Code.Length > 80) fail(path + ".code", Message());
-            CheckMap(item.Text, path + ".text", BusinessFormCatalogItem.MaxTextLength, required: true, allowNulls: true, requiredCultures: ["es"]);
-            CheckMap(item.Detail, path + ".detail", BusinessFormCatalogItem.MaxDetailLength, required: false, allowNulls: true);
+            CheckMap(item.Text, path + ".text", BusinessFormCatalogItem.MaxTextLength, required: true);
+            CheckMap(item.Detail, path + ".detail", BusinessFormCatalogItem.MaxDetailLength, required: false);
             if (item.Fields is { } fields)
             {
                 if (fields.Count > BusinessFormCatalog.MaxFields) fail(path + ".fields", Message());
@@ -228,8 +222,7 @@ internal static partial class FormCatalogRequestValidation
             if (field.Id == Guid.Empty || creating && field.Id is not null || field.Id is { } id && !ids.Add(id)) fail(path + ".id", Message());
             if (field.Id is null && (field.LocalId is null || !LocalIdPattern().IsMatch(field.LocalId) || !locals.Add(field.LocalId))) fail(path + ".localId", Message());
             if (field.Key is null || !FieldKeyPattern().IsMatch(field.Key)) fail(path + ".key", Message());
-            if (field.Name is null || !field.Name.TryGetValue("es", out var name) || string.IsNullOrWhiteSpace(name)) fail(path + ".name.es", Message());
-            if (field.Name?.Any(pair => pair.Key is not ("es" or "en") || pair.Value?.Length > 120) == true) fail(path + ".name", Message());
+            if (field.Name is null || field.Name.Any(pair => pair.Key is not ("es" or "en") || pair.Value?.Length > 120)) fail(path + ".name", Message());
             if (field.Type is not ("text" or "integer" or "decimal" or "date" or "boolean" or "catalog")) fail(path + ".type", Message());
             if ((field.Type == "catalog") != field.SourceCatalogId.HasValue || field.SourceCatalogId == Guid.Empty) fail(path + ".sourceCatalogId", Message());
             if (field.Position < 0) fail(path + ".position", Message());
