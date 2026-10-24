@@ -38,6 +38,22 @@ public sealed class FormCatalogFieldItemPolicyTests
     }
 
     [Fact]
+    public void Validating_without_value_changes_keeps_the_saved_json_untouched()
+    {
+        var field = Field("integer");
+        var catalog = BusinessFormCatalog.CreateManual("es", new Dictionary<string, string> { ["es"] = "Catalog" }, new Dictionary<string, string>());
+        var item = catalog.AddManualItem("one", "One", null, null, null, 1).Value;
+        // PostgreSQL returns jsonb with a space after the colon; the canonical serialization is compact.
+        var saved = $"{{\"{field.Id:D}\": 5}}";
+        Assert.True(catalog.SetManualItemFields(item, saved).IsSuccess);
+
+        var result = FormCatalogFieldPolicy.ValidateItems(catalog, [item], [], NoRequest(), Context(field));
+
+        Assert.True(result.IsSuccess, Describe(result));
+        Assert.Equal(saved, item.FieldValuesJson);
+    }
+
+    [Fact]
     public void Type_conversion_reports_success_count_and_at_most_fifty_bad_rows()
     {
         var field = Field("integer");

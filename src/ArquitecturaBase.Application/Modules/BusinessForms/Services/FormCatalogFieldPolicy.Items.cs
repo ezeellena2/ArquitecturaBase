@@ -83,7 +83,8 @@ internal static partial class FormCatalogFieldPolicy
                 else values[itemId].Remove(key);
             }
         }
-        foreach (var item in items)
+        // An item whose values did not change keeps its stored JSON, so a save neither rewrites it nor touches its audit.
+        foreach (var item in items.Where(item => !SameValues(stored[item.Id], values[item.Id])))
         {
             var result = catalog.SetManualItemFields(item, JsonSerializer.Serialize(values[item.Id], JsonSerializerOptions.Web));
             if (result.IsFailure) return result.Error;
@@ -127,6 +128,10 @@ internal static partial class FormCatalogFieldPolicy
             _ => input,
         };
     }
+
+    // jsonb comes back with its own spacing, key order and escapes, so the stored map is compared by value, not by text.
+    private static bool SameValues(Dictionary<string, JsonElement> stored, Dictionary<string, JsonElement> values) =>
+        stored.Count == values.Count && values.All(pair => stored.TryGetValue(pair.Key, out var saved) && JsonElement.DeepEquals(saved, pair.Value));
 
     private static string? Attempted(string? input) => input?.Trim() is { Length: > 0 } value ? value[..Math.Min(value.Length, 300)] : null;
 

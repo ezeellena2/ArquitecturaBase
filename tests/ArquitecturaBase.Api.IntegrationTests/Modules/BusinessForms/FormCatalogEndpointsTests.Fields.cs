@@ -233,6 +233,56 @@ public sealed partial class FormCatalogEndpointsTests
         Assert.Equal("No", items[globex].GetProperty(approved.ToString("D")).GetString());
     }
 
+    [Fact]
+    public async Task Saving_or_importing_without_value_changes_keeps_option_audit_untouched()
+    {
+        using var client = await OperatorAsync(BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage);
+        var texts = new { es = "Audit " + Guid.NewGuid().ToString("N"), en = "Audit" };
+        using var created = await client.PostAsJsonAsync("/api/forms/catalogs", new { name = texts, description = texts,
+            fields = new[] { FieldPayload(null, "text") }, items = new[] { Item("one", null, "ONE", "One", null, true), Item("two", null, "TWO", "Two", null, true) } }, Ct);
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var saved = await created.ReadJsonAsync();
+        var id = saved.GetProperty("catalog").GetProperty("id").GetGuid();
+        var fieldId = saved.GetProperty("fieldIdentityMap").GetProperty("field").GetGuid();
+        var one = saved.GetProperty("itemIdentityMap").GetProperty("one").GetGuid();
+        var two = saved.GetProperty("itemIdentityMap").GetProperty("two").GetGuid();
+        var path = $"/api/forms/catalogs/{id}";
+        object Save(long revision, object name, params object[] items) => new { expectedRevision = revision, name, description = texts, fields = new[] { FieldPayload(fieldId, "text") }, items };
+        Task<Dictionary<Guid, DateTime?>> AuditAsync() => factory.ExecuteDbContextAsync(db => db.Set<BusinessFormCatalogItem>().AsNoTracking()
+            .Where(item => item.CatalogId == id).ToDictionaryAsync(item => item.Id, item => item.ModifiedAtUtc, Ct));
+        using var values = await client.PutAsJsonAsync(path, Save(1, texts, FieldItem("one", one, "ONE", fieldId, "Uno"), FieldItem("two", two, "TWO", fieldId, "Dos", "Two")), Ct);
+        Assert.Equal(HttpStatusCode.OK, values.StatusCode);
+        var before = await AuditAsync();
+
+        factory.Clock.Advance(TimeSpan.FromMinutes(5));
+        var renamed = new { es = texts.es + " renamed", en = "Audit renamed" };
+        using var rename = await client.PutAsJsonAsync(path, Save(2, renamed), Ct);
+        Assert.Equal(HttpStatusCode.OK, rename.StatusCode);
+        Assert.Equal(before, await AuditAsync());
+
+        factory.Clock.Advance(TimeSpan.FromMinutes(5));
+        using var edited = await client.PutAsJsonAsync(path, Save(3, renamed, FieldItem("one", one, "ONE", fieldId, "Uno", "One edited")), Ct);
+        Assert.Equal(HttpStatusCode.OK, edited.StatusCode);
+        var afterEdit = await AuditAsync();
+        Assert.True(afterEdit[one] > before[one]);
+        Assert.Equal(before[two], afterEdit[two]);
+
+        factory.Clock.Advance(TimeSpan.FromMinutes(5));
+        using var exported = await client.GetAsync(path + "/export", Ct);
+        Assert.Equal(HttpStatusCode.OK, exported.StatusCode);
+        var workbook = await exported.Content.ReadAsByteArrayAsync(Ct);
+        using var previewBody = CatalogImportContent(workbook, "export.xlsx", 4);
+        using var preview = await client.PostAsync(path + "/import-previews", previewBody, Ct);
+        Assert.Equal(HttpStatusCode.OK, preview.StatusCode);
+        var plan = await preview.ReadJsonAsync();
+        Assert.Equal(2, plan.GetProperty("counts").GetProperty("unchanged").GetInt32());
+        foreach (var key in new[] { "added", "changed", "deactivated", "reactivated", "errorRows" }) Assert.Equal(0, plan.GetProperty("counts").GetProperty(key).GetInt32());
+        using var applyBody = CatalogImportContent(workbook, "export.xlsx", 4, sha: plan.GetProperty("sheetSha256").GetString());
+        using var applied = await client.PostAsync(path + "/imports", applyBody, Ct);
+        Assert.Equal(HttpStatusCode.OK, applied.StatusCode);
+        Assert.Equal(afterEdit, await AuditAsync());
+    }
+
     private static object FieldPayload(Guid? id, string type, Guid? sourceId = null, bool required = false, bool unique = false, bool active = true) => new
     {
         localId = id is null ? "field" : null, id, key = "field", name = new { es = "Field", en = "Field" }, type,
