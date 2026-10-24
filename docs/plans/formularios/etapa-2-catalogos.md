@@ -27,7 +27,7 @@ No se vuelven a preguntar.
 - Vista previa con una persona de ejemplo elegida explícitamente, sin suplantar su identidad ni sus permisos. Se prueba antes de guardar, con tope de tiempo y de filas.
 - Catálogo inválido después de una migración: no frena el despliegue; queda «No se puede usar» con motivo seguro (K1), no se elige en K6 y no se puede mandar (K7).
 - Guardar un catálogo es configuración interna: un límite, revisión y 409, sin comprobantes recuperables ([ADR 0018]).
-- Nombre y descripción del catálogo en es y en. Cada ítem tiene texto, detalle y código; el español es obligatorio y el inglés opcional, con respaldo en español. El código no se muestra en WhatsApp.
+- Nombre y descripción del catálogo en es y en. Cada ítem tiene texto, detalle y código; el español es obligatorio y el inglés opcional, con respaldo en español. El código no se muestra en WhatsApp. La exigencia de idiomas fue sustituida el 2026-10-23 por [original obligatorio y traducción opcional](../../features/formularios.md#idioma-original-y-traducción-opcional--2026-10-19).
 - Dar de baja un ítem no lo borra y se puede reactivar; las respuestas viejas lo siguen mostrando.
 - Posiciones únicas por catálogo. El servidor ubica las nuevas al final; reordenar es mover por `itemId` (arriba o abajo) dentro del mismo Guardar.
 - La versión guarda solo `source.catalog`: cambiar ítems no obliga a republicar. Cambiar el catálogo de una pregunta publicada crea una pregunta nueva; versiones y sesiones anteriores quedan intactas.
