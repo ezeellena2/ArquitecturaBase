@@ -53,6 +53,28 @@ public sealed class FormPersonDataQueryTests
         Assert.Contains("ORDER BY", sql, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Missing_counts_group_each_requested_attribute_over_the_people_table_filter()
+    {
+        using var db = Database();
+        var attributes = new[] { Guid.NewGuid(), Guid.NewGuid() };
+        using var command = Query(db, "CountMissingByAttribute", attributes, " 50%_off ").CreateDbCommand();
+        var sql = command.CommandText;
+        Assert.Contains("UNNEST", sql, StringComparison.Ordinal);
+        Assert.Contains("LEFT JOIN \"AspNetUsers\" AS person ON NOT person.\"IsDeleted\"", sql, StringComparison.Ordinal);
+        Assert.Contains("LEFT JOIN \"BusinessFormPersonData\" AS data", sql, StringComparison.Ordinal);
+        Assert.Contains("ILIKE", sql, StringComparison.Ordinal);
+        Assert.Contains("COUNT(person.\"Id\") FILTER", sql, StringComparison.Ordinal);
+        Assert.Contains("= 'null'::jsonb", sql, StringComparison.Ordinal);
+        Assert.Contains("GROUP BY requested.key", sql, StringComparison.Ordinal);
+        Assert.DoesNotContain("IsActive", sql, StringComparison.Ordinal);
+        Assert.DoesNotContain("Email", sql, StringComparison.Ordinal);
+        Assert.Equal(attributes.Select(id => id.ToString("D")), Assert.IsType<string[]>(command.Parameters[0].Value));
+        Assert.Equal("%50\\%\\_off%", command.Parameters[1].Value);
+        using var all = Query(db, "CountMissingByAttribute", attributes, null!).CreateDbCommand();
+        Assert.Equal("", all.Parameters[1].Value);
+    }
+
     private static IQueryable Query(ApplicationDbContext db, string name, params object[] arguments)
     {
         var type = typeof(FormPersonDataReader);

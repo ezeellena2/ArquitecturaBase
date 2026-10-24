@@ -97,7 +97,10 @@ public sealed class FormPersonDataHttpTests(ApiFactory factory)
         using var people = await manager.GetAsync("/api/forms/person-data?page=1&pageSize=20&search=" + Uri.EscapeDataString("Persona E2 " + suffix), Ct);
         Assert.Equal(HttpStatusCode.OK, people.StatusCode);
         await FormPersonDataContractCapture.WriteAsync(people, culture, "people", Ct);
-        Assert.Equal(userId, Assert.Single((await people.ReadJsonAsync()).GetProperty("items").EnumerateArray()).GetProperty("userId").GetGuid());
+        var peopleJson = await people.ReadJsonAsync();
+        Assert.Equal(userId, Assert.Single(peopleJson.GetProperty("items").EnumerateArray()).GetProperty("userId").GetGuid());
+        Assert.Contains(peopleJson.GetProperty("missing").EnumerateArray(), row => row.GetProperty("attributeId").GetGuid() == attributeId
+            && row.GetProperty("count").GetInt32() == 0);
 
         using var stale = await editor.PutAsJsonAsync($"/api/forms/person-data/{userId}", new { expectedRevision = (long?)null, values }, Ct);
         Assert.Equal(HttpStatusCode.Conflict, stale.StatusCode);
@@ -280,6 +283,65 @@ public sealed class FormPersonDataHttpTests(ApiFactory factory)
             .Select(row => new { row.Revision, row.ValuesJson }).SingleAsync(Ct));
         Assert.Equal(2, stored.Revision);
         Assert.False(JsonDocument.Parse(stored.ValuesJson).RootElement.TryGetProperty(key, out _));
+    }
+
+    [Fact]
+    public async Task The_people_table_counts_matching_people_without_each_active_attribute()
+    {
+        var suffix = Guid.NewGuid().ToString("N")[..8];
+        using var manager = await OperatorAsync(BusinessFormsPermissions.PersonDataManage, Permissions.Users.Read, Permissions.Users.Manage);
+        async Task<JsonElement> CreateAsync(string key)
+        {
+            using var created = await manager.PostAsJsonAsync("/api/forms/person-attributes", new
+            {
+                key = key + "_" + suffix, name = new { es = "Dato", en = "Attribute" }, type = "Text",
+            }, Ct);
+            Assert.Equal(HttpStatusCode.OK, created.StatusCode);
+            return await created.ReadJsonAsync();
+        }
+        var zone = (await CreateAsync("missing_zone")).GetProperty("id").GetGuid();
+        var branch = (await CreateAsync("missing_branch")).GetProperty("id").GetGuid();
+        var retired = await CreateAsync("missing_retired");
+        using var deactivated = await manager.PutAsJsonAsync($"/api/forms/person-attributes/{retired.GetProperty("id").GetGuid()}", new
+        {
+            expectedRevision = 1, name = new { es = "Dato", en = "Attribute" }, type = "Text", sourceCatalogId = (Guid?)null,
+            position = retired.GetProperty("position").GetInt32(), isActive = false,
+        }, Ct);
+        Assert.Equal(HttpStatusCode.OK, deactivated.StatusCode);
+        var prefix = "Faltantes " + suffix;
+        // Carla matches the search without values; the deleted account and the person outside the search are not counted.
+        var (complete, zoneOnly, deleted) = await factory.InTransactionAsync(async services =>
+        {
+            var users = services.GetRequiredService<IUserRepository>();
+            async Task<Guid> PersonAsync(string name) =>
+                (await users.CreateAsync(Email.Create(TestEmails.Unique("person-data-missing")).Value, null, false, name, "es", Ct)).Id;
+            var people = (await PersonAsync(prefix + " Ana"), await PersonAsync(prefix + " Beto"), await PersonAsync(prefix + " Borrada"));
+            await PersonAsync(prefix + " Carla");
+            await PersonAsync("Otra persona " + suffix);
+            return people;
+        });
+        async Task<long> SaveAsync(Guid userId, long? revision, Dictionary<string, string?> values)
+        {
+            using var saved = await manager.PutAsJsonAsync($"/api/forms/person-data/{userId}", new { expectedRevision = revision, values }, Ct);
+            Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+            return (await saved.ReadJsonAsync()).GetProperty("revision").GetInt64();
+        }
+        await SaveAsync(complete, null, new() { [zone.ToString("D")] = "Sur", [branch.ToString("D")] = "Centro" });
+        var zoneOnlyRevision = await SaveAsync(zoneOnly, null, new() { [zone.ToString("D")] = "Norte", [branch.ToString("D")] = "Oeste" });
+        await SaveAsync(zoneOnly, zoneOnlyRevision, new() { [branch.ToString("D")] = null });
+        await factory.InTransactionAsync(services => services.GetRequiredService<IUserRepository>().DeleteAsync(deleted, Ct));
+
+        using var people = await manager.GetAsync("/api/forms/person-data?page=1&pageSize=1&search=" + Uri.EscapeDataString(prefix), Ct);
+
+        Assert.Equal(HttpStatusCode.OK, people.StatusCode);
+        var json = await people.ReadJsonAsync();
+        Assert.Equal(3, json.GetProperty("totalCount").GetInt32());
+        Assert.Single(json.GetProperty("items").EnumerateArray());
+        var missing = json.GetProperty("missing").EnumerateArray()
+            .ToDictionary(row => row.GetProperty("attributeId").GetGuid(), row => row.GetProperty("count").GetInt32());
+        Assert.Equal(1, missing[zone]);
+        Assert.Equal(2, missing[branch]);
+        Assert.DoesNotContain(retired.GetProperty("id").GetGuid(), missing.Keys);
     }
 
     [Fact]

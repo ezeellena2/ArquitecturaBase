@@ -8,7 +8,7 @@ public interface IFormPersonDataService
     Task<Result<FormPersonAttributeResponse>> CreateAttributeAsync(CreateFormPersonAttributeRequest request, CancellationToken cancellationToken);
     Task<Result<FormPersonAttributeResponse>> UpdateAttributeAsync(Guid id, UpdateFormPersonAttributeRequest request, CancellationToken cancellationToken);
     Task<Result<PagedResult<FormPersonAttributeOptionResponse>>> ListOptionsAsync(Guid id, ListFormPersonAttributeOptionsRequest request, CancellationToken cancellationToken);
-    Task<Result<PagedResult<FormPersonDataTableResponse>>> ListPeopleAsync(ListFormPersonDataRequest request, CancellationToken cancellationToken);
+    Task<Result<FormPersonDataPageResponse>> ListPeopleAsync(ListFormPersonDataRequest request, CancellationToken cancellationToken);
     Task<Result<FormPersonDataResponse>> GetDataAsync(Guid userId, CancellationToken cancellationToken);
     Task<Result<FormPersonDataResponse>> SaveDataAsync(Guid userId, UpdateFormPersonDataRequest request, CancellationToken cancellationToken);
 }

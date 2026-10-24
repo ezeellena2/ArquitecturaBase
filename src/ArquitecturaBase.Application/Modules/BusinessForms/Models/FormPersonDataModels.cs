@@ -23,6 +23,16 @@ public sealed record FormPersonDataResponse(Guid UserId, long? Revision, IReadOn
 { public override string ToString() => "FormPersonDataResponse { Content = [REDACTED] }"; }
 public sealed record FormPersonDataTableResponse(Guid UserId, string? DisplayName, IReadOnlyDictionary<string, FormPersonDataValueResponse> Values)
 { public override string ToString() => "FormPersonDataTableResponse { Content = [REDACTED] }"; }
+// The people table with, for each active attribute, how many people of the whole filtered set (not only this page) lack its value.
+public sealed record FormPersonDataPageResponse(IReadOnlyList<FormPersonDataTableResponse> Items, int Page, int PageSize, int TotalCount,
+    IReadOnlyList<FormPersonMissingCountResponse> Missing)
+{
+    public int TotalPages => PageSize <= 0 ? 0 : (int)Math.Ceiling(TotalCount / (double)PageSize);
+    public bool HasPrevious => Page > 1;
+    public bool HasNext => Page < TotalPages;
+}
+public sealed record FormPersonMissingCountResponse(Guid AttributeId, int Count);
+public sealed record FormPersonMissingCounts(IReadOnlyDictionary<Guid, int> ByAttribute);
 public sealed record FormPersonAttributeOptionResponse(Guid Id, string Text);
 public sealed record FormPersonAttributeStoredRow(Guid Id, string Key, string NameJson, string OriginalCulture, string Type, Guid? SourceCatalogId,
     int Position, bool IsActive, long Revision, string? SourceCatalogNameJson = null);

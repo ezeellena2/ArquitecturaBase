@@ -9,5 +9,6 @@ public interface IFormPersonDataReader
     Task<int> CountPeopleWithValueAsync(Guid attributeId, CancellationToken cancellationToken);
     Task<FormPersonMissingRecipientsRow> FindRecipientsWithoutDataAsync(IReadOnlyCollection<Guid> attributeIds, CancellationToken cancellationToken);
     Task<PagedResult<FormPersonDataTableRow>> ListPeopleAsync(ListFormPersonDataRequest request, CancellationToken cancellationToken);
+    Task<FormPersonMissingCounts> CountMissingByAttributeAsync(IReadOnlyCollection<Guid> attributeIds, string? search, CancellationToken cancellationToken);
     Task<PagedResult<FormPersonAttributeOptionRow>> ListOptionsAsync(Guid sourceCatalogId, ListFormPersonAttributeOptionsRequest request, CancellationToken cancellationToken);
 }

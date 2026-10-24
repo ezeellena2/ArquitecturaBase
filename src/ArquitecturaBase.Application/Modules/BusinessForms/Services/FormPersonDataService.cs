@@ -58,17 +58,20 @@ internal sealed partial class FormPersonDataService(IFormPersonDataRepository re
         if (final.IsFailure) return final.Error;
         return new PagedResult<FormPersonAttributeOptionResponse>(options.Items.Select(row => new FormPersonAttributeOptionResponse(row.Id, row.Text)).ToArray(), options.Page, options.PageSize, options.TotalCount);
     }
-    public async Task<Result<PagedResult<FormPersonDataTableResponse>>> ListPeopleAsync(ListFormPersonDataRequest request, CancellationToken cancellationToken)
+    public async Task<Result<FormPersonDataPageResponse>> ListPeopleAsync(ListFormPersonDataRequest request, CancellationToken cancellationToken)
     {
         var allowed = await access.CheckPeopleAsync(cancellationToken);
         if (allowed.IsFailure) return allowed.Error;
         if (await validator.ValidateAsync(request, cancellationToken) is { } invalid) return invalid;
         var attributes = await reader.ListAttributesAsync(cancellationToken);
         var page = await reader.ListPeopleAsync(request with { DisplayCulture = Culture() }, cancellationToken);
+        var active = attributes.Where(row => row.IsActive).Select(row => row.Id).ToArray();
+        var missing = await reader.CountMissingByAttributeAsync(active, request.Search, cancellationToken);
         var final = await access.CheckPeopleAsync(cancellationToken);
         if (final.IsFailure) return final.Error;
-        return new PagedResult<FormPersonDataTableResponse>(page.Items.Select(row => new FormPersonDataTableResponse(row.UserId, row.DisplayName,
-            Values(row.ValuesJson, attributes, row.OptionTexts))).ToArray(), page.Page, page.PageSize, page.TotalCount);
+        return new FormPersonDataPageResponse(page.Items.Select(row => new FormPersonDataTableResponse(row.UserId, row.DisplayName,
+            Values(row.ValuesJson, attributes, row.OptionTexts))).ToArray(), page.Page, page.PageSize, page.TotalCount,
+            active.Select(id => new FormPersonMissingCountResponse(id, missing.ByAttribute.GetValueOrDefault(id))).ToArray());
     }
     public async Task<Result<FormPersonDataResponse>> GetDataAsync(Guid userId, CancellationToken cancellationToken)
     {

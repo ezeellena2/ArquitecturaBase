@@ -1,6 +1,7 @@
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
+using ArquitecturaBase.Infrastructure.Persistence.Extensions;
 using Microsoft.EntityFrameworkCore;
 
 namespace ArquitecturaBase.Infrastructure.Modules.BusinessForms.Persistence.Readers;
@@ -13,6 +14,12 @@ internal sealed partial class FormPersonDataReader
         public string[] People { get; init; } = [];
     }
 
+    private sealed class MissingCountSqlRow
+    {
+        public string AttributeId { get; init; } = "";
+        public int Count { get; init; }
+    }
+
     public async Task<FormPersonMissingRecipientsRow> FindRecipientsWithoutDataAsync(IReadOnlyCollection<Guid> attributeIds,
         CancellationToken cancellationToken)
     {
@@ -20,6 +27,29 @@ internal sealed partial class FormPersonDataReader
         var row = await FindMissingRecipients(attributeIds).SingleAsync(cancellationToken);
         return new(row.Count, row.People);
     }
+
+    public async Task<FormPersonMissingCounts> CountMissingByAttributeAsync(IReadOnlyCollection<Guid> attributeIds, string? search,
+        CancellationToken cancellationToken)
+    {
+        if (attributeIds.Count == 0) return new(new Dictionary<Guid, int>());
+        var rows = await CountMissingByAttribute(attributeIds, search).ToListAsync(cancellationToken);
+        return new(rows.ToDictionary(row => Guid.ParseExact(row.AttributeId, "D"), row => row.Count));
+    }
+
+    // The same people as the administrative table (not deleted, active or not, same display name search), one row per requested key.
+    private IQueryable<MissingCountSqlRow> CountMissingByAttribute(IReadOnlyCollection<Guid> attributeIds, string? search) =>
+        dbContext.Database.SqlQueryRaw<MissingCountSqlRow>("""
+            SELECT requested.key AS "AttributeId", (COUNT(person."Id") FILTER (
+                    WHERE data."ValuesJson" -> requested.key IS NULL
+                        OR data."ValuesJson" -> requested.key = 'null'::jsonb
+                        OR data."ValuesJson" ->> requested.key = ''))::integer AS "Count"
+            FROM UNNEST({0}::text[]) AS requested(key)
+            LEFT JOIN "AspNetUsers" AS person ON NOT person."IsDeleted"
+                AND ({1} = '' OR person."DisplayName" ILIKE {1} ESCAPE {2})
+            LEFT JOIN "BusinessFormPersonData" AS data ON data."UserId" = person."Id"
+            GROUP BY requested.key
+            """.ReplaceLineEndings("\n"), attributeIds.Select(id => id.ToString("D")).ToArray(),
+            string.IsNullOrWhiteSpace(search) ? "" : LikePatterns.Contains(search.Trim()), LikePatterns.EscapeCharacter);
 
     private IQueryable<MissingRecipientsSqlRow> FindMissingRecipients(IReadOnlyCollection<Guid> attributeIds) =>
         dbContext.Database.SqlQueryRaw<MissingRecipientsSqlRow>("""

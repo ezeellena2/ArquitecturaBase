@@ -3,7 +3,6 @@ using ArquitecturaBase.Api.Authorization;
 using ArquitecturaBase.Api.ErrorHandling;
 using ArquitecturaBase.Api.Modules.BusinessForms.Contracts;
 using ArquitecturaBase.Api.OpenApi;
-using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Domain.Authorization;
@@ -24,7 +23,7 @@ public sealed class FormPersonDataController(IFormPersonDataService service) : C
     [HttpGet]
     [HasPermission(BusinessFormsPermissions.PersonDataManage)]
     [HasPermission(Permissions.Users.Read)]
-    [ProducesResponseType<PagedResult<FormPersonDataTableResponse>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<FormPersonDataPageResponse>(StatusCodes.Status200OK)]
     [ProducesProblem(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> List([FromQuery] FormPersonDataQuery query, CancellationToken cancellationToken) =>
         (await service.ListPeopleAsync(new() { Page = query.Page, PageSize = query.PageSize, Sort = query.Sort,

@@ -48,6 +48,38 @@ public sealed class FormPersonDataServiceTests
     }
 
     [Fact]
+    public async Task The_people_table_reports_how_many_matching_people_lack_each_active_attribute()
+    {
+        var fixture = new FormPersonDataFixture();
+        var zone = fixture.AddAttribute("zone");
+        var retired = fixture.AddAttribute("retired_zone", active: false);
+        var branch = fixture.AddAttribute("branch", catalog: false);
+        fixture.MissingCounts[zone.Id] = 2;
+        fixture.MissingCounts[retired.Id] = 9;
+
+        var result = await fixture.Service.ListPeopleAsync(new() { Search = "Sosa" }, Ct);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(new FormPersonMissingCountResponse[] { new(zone.Id, 2), new(branch.Id, 0) }, result.Value.Missing);
+        var read = Assert.Single(fixture.MissingReads);
+        Assert.Equal([zone.Id, branch.Id], read.AttributeIds);
+        Assert.Equal("Sosa", read.Search);
+        Assert.Equal(0, fixture.Work.Transactions);
+    }
+
+    [Fact]
+    public async Task Revoking_user_read_access_while_counting_missing_values_discards_the_people_table()
+    {
+        var fixture = new FormPersonDataFixture();
+        fixture.AddAttribute();
+        fixture.OnMissingRead = () => fixture.Grant(BusinessFormsPermissions.PersonDataManage);
+
+        var result = await fixture.Service.ListPeopleAsync(new(), Ct);
+
+        Assert.Equal(FormDefinitionErrors.Forbidden, result.Error);
+    }
+
+    [Fact]
     public async Task Creating_an_attribute_checks_global_capacity_and_key_uniqueness_before_adding_it()
     {
         var fixture = new FormPersonDataFixture();

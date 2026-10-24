@@ -37,6 +37,9 @@ internal sealed class FormPersonDataFixture : IFormPersonDataRepository, IFormPe
     public int PeopleReads { get; private set; }
     public Action? OnLock { get; set; }
     public Action? OnRecipientRead { get; set; }
+    public Dictionary<Guid, int> MissingCounts { get; } = [];
+    public List<(Guid[] AttributeIds, string? Search)> MissingReads { get; } = [];
+    public Action? OnMissingRead { get; set; }
     public FormPersonDataService Service { get; }
 
     public FormPersonDataFixture()
@@ -111,6 +114,12 @@ internal sealed class FormPersonDataFixture : IFormPersonDataRepository, IFormPe
     {
         PeopleReads++;
         return Task.FromResult(new PagedResult<FormPersonDataTableRow>([], request.Page, request.PageSize, 0));
+    }
+    public Task<FormPersonMissingCounts> CountMissingByAttributeAsync(IReadOnlyCollection<Guid> attributeIds, string? search, CancellationToken cancellationToken)
+    {
+        MissingReads.Add((attributeIds.ToArray(), search));
+        OnMissingRead?.Invoke();
+        return Task.FromResult(new FormPersonMissingCounts(attributeIds.ToDictionary(id => id, id => MissingCounts.GetValueOrDefault(id))));
     }
     public Task<PagedResult<FormPersonAttributeOptionRow>> ListOptionsAsync(Guid sourceCatalogId, ListFormPersonAttributeOptionsRequest request, CancellationToken cancellationToken) =>
         Task.FromResult(new PagedResult<FormPersonAttributeOptionRow>([new(ActiveItem.Id, "Centro")], request.Page, request.PageSize, 1));

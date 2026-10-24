@@ -31,5 +31,6 @@ internal sealed class FormCatalogPersonReader : IFormPersonDataReader
     public Task<IReadOnlyList<FormPersonAttributeUseRow>> ListAttributeUsagesAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct) => throw new NotSupportedException();
     public Task<int> CountPeopleWithValueAsync(Guid attributeId, CancellationToken ct) => throw new NotSupportedException();
     public Task<PagedResult<FormPersonDataTableRow>> ListPeopleAsync(ListFormPersonDataRequest request, CancellationToken ct) => throw new NotSupportedException();
+    public Task<FormPersonMissingCounts> CountMissingByAttributeAsync(IReadOnlyCollection<Guid> attributeIds, string? search, CancellationToken ct) => throw new NotSupportedException();
     public Task<PagedResult<FormPersonAttributeOptionRow>> ListOptionsAsync(Guid catalogId, ListFormPersonAttributeOptionsRequest request, CancellationToken ct) => throw new NotSupportedException();
 }
