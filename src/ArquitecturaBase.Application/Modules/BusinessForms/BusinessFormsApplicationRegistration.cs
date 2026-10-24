@@ -94,6 +94,7 @@ public static class BusinessFormsApplicationRegistration
         services.TryAddScoped<FormCatalogAccessGuard>();
         services.TryAddScoped<FormPublicationAccessGuard>();
         services.TryAddScoped<FormPublicationGuard>();
+        services.TryAddScoped<FormCatalogRecipientMaximumPolicy>();
         services.TryAddScoped<FormCatalogPreparationPolicy>();
         services.TryAddScoped<FormPresentationCulturePolicy>();
         services.TryAddScoped<FormCatalogOptionsPolicy>();

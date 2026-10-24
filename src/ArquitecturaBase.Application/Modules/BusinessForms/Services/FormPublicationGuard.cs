@@ -8,7 +8,8 @@ using ArquitecturaBase.Domain.Modules.BusinessForms;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
 internal sealed class FormPublicationGuard(FormPublicationAccessGuard accessGuard, IFormCatalogReader catalogReader, IPrivateFileStore files,
-    Microsoft.Extensions.Options.IOptions<Configuration.BusinessFormsOptions> options, IFormPersonDataReader people)
+    Microsoft.Extensions.Options.IOptions<Configuration.BusinessFormsOptions> options, IFormPersonDataReader people,
+    FormCatalogRecipientMaximumPolicy maximums)
 {
     public int MaxFileSizeMiB => options.Value.MaxFileSizeMiB;
     public IReadOnlyList<FormPublicationIssueResponse> ValidateFiles(FormDefinitionResponse definition) =>
@@ -123,30 +124,17 @@ internal sealed class FormPublicationGuard(FormPublicationAccessGuard accessGuar
                 if (count > limit) Issue(FormPublicationErrors.CatalogTooLargeForMultiple, ".catalog");
                 continue;
             }
-            var personFields = matches.Where(match => match.PersonAttributeId is not null).Select(match => match.FieldId).ToArray();
-            var blocks = question.Type == "multiChoice" && personFields.Length == 0;
+            var blocks = question.Type == "multiChoice" && matches.All(match => match.PersonAttributeId is null);
             if (!includeWarnings && !blocks) continue;
-            var fixedContainment = FormCatalogMatchPolicy.FixedContainment(matches, fields).Value;
-            var maximum = await catalogReader.FindMaximumOfferSizeAsync(catalogId, fixedContainment, personFields, ct);
-            if (blocks && maximum.Maximum > limit)
+            var (maximum, maximumLabel) = await maximums.FindAsync(catalogId, fields, matches, culture, ct);
+            if (blocks && maximum > limit)
             {
                 Issue(FormPublicationErrors.CatalogTooLargeForMultiple, ".catalog");
                 continue;
             }
             if (!includeWarnings) continue;
-            string? maximumLabel = null;
-            if (maximum.Maximum > 0 && personFields.Length > 0)
-            {
-                foreach (var sourceId in fields.Where(field => personFields.Contains(field.Id) && field.SourceCatalogId is not null)
-                    .Select(field => field.SourceCatalogId!.Value).Distinct())
-                    if (!sourceItems.ContainsKey(sourceId)) sourceItems.Add(sourceId, await catalogReader.ListAllItemsAsync(sourceId, ct));
-                var labels = FormCatalogFieldPresentation.Values(new(Guid.Empty, catalogId, "", null, null, null, null, 0, true, FieldValuesJson: maximum.ValuesJson),
-                    fields, sourceItems.Values.SelectMany(values => values).ToDictionary(item => item.Id), culture, catalog.ValueType);
-                maximumLabel = string.Join(" · ", personFields.Order().Select(id => labels.GetValueOrDefault(id.ToString("D"))).Where(value => !string.IsNullOrEmpty(value)));
-                if (maximumLabel.Length == 0) maximumLabel = null;
-            }
             warnings.Add(new(question.FieldId, path + ".match", FormPublicationErrors.OptionsPerRecipientHigh.Code,
-                ErrorMessages.Get(FormPublicationErrors.OptionsPerRecipientHigh.Code), limit, maximum.Maximum, maximumLabel));
+                ErrorMessages.Get(FormPublicationErrors.OptionsPerRecipientHigh.Code), limit, maximum, maximumLabel));
             var attributeIds = matches.Where(match => match.PersonAttributeId is not null).Select(match => match.PersonAttributeId!.Value).Distinct().ToArray();
             if (attributeIds.Length == 0) continue;
             var missing = await people.FindRecipientsWithoutDataAsync(attributeIds, ct);

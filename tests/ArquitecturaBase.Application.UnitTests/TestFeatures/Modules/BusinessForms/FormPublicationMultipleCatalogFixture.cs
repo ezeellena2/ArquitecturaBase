@@ -25,7 +25,7 @@ internal sealed class FormPublicationMultipleCatalogFixture : IFormCatalogReader
     public FormCatalogMaximumOfferRow Maximum { get; set; } = new(0, "{}");
     public List<(string? Fixed, Guid[] Fields)> MaximumReads { get; } = [];
 
-    public FormPublicationGuard Guard => new(null!, this, null!, Options.Create(new BusinessFormsOptions()), People);
+    public FormPublicationGuard Guard => new(null!, this, null!, Options.Create(new BusinessFormsOptions()), People, new(this));
     public CanonicalFormField Field(string type = "multiChoice")
     {
         var id = Guid.CreateVersion7();
