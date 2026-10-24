@@ -47,4 +47,6 @@ StructuredFormChannelStateRow conserva DefinitionId, LastOpenSessionExpiresAtUtc
 
 StructuredFormVersionReference contiene sólo el par opaco DefinitionId/VersionId. Una lectura de retiro devuelve únicamente pares candidatos confirmados por su dueño; no transporta estado Meta, perfil, manifiesto ni identidad de la persona.
 
+E2-3: `StructuredFormPreparationIssue.MissingData` es el nombre del dato de la persona que falta, sólo en `Forms.Record.RecipientDataMissing` y null en los demás issues. Va en el idioma del menú de quien prepara, con respaldo al otro; no se sella ni entra en huellas.
+
 E2-4: Choice.Fields contiene campos históricos tipados con valor canónico string exacto y texto fuente localizado; null se omite. El adaptador del chat lo excluye expresamente, conservando su contrato.

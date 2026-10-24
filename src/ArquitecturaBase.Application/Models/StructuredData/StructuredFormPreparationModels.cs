@@ -31,7 +31,7 @@ public sealed record StructuredFormCatalogOffer(Guid FieldId, string Key, string
 }
 
 public sealed record StructuredFormPreparationIssue(Guid FieldId, string Label, string Code,
-    string? CatalogName = null, int? InvalidOptionCount = null);
+    string? CatalogName = null, int? InvalidOptionCount = null, string? MissingData = null);
 public sealed record StructuredFormPreparationResponse(IReadOnlyList<StructuredFormCatalogOffer> Catalogs,
     IReadOnlyList<StructuredFormPreparationIssue> Issues)
 {

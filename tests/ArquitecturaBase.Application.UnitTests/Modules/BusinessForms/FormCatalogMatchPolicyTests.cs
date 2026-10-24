@@ -53,6 +53,19 @@ public sealed class FormCatalogMatchPolicyTests
         Assert.Equal(FormRecordErrors.RecipientDataMissing.Code, result.Error.Code);
     }
 
+    [Fact]
+    public void The_missing_person_attribute_is_the_first_person_match_without_a_value_in_field_order()
+    {
+        var region = Guid.Parse("01990000-0000-7000-8000-00000000000a");
+        FormCatalogMatch[] matches = [new(TextFieldId, PersonAttributeId: region), new(CountFieldId, "3"), new(ZoneFieldId, PersonAttributeId: ZoneAttributeId)];
+        Assert.Equal(ZoneAttributeId, FormCatalogMatchPolicy.MissingPersonAttribute(matches, new Dictionary<string, string> { [region.ToString("D")] = " " }));
+        Assert.Equal(region, FormCatalogMatchPolicy.MissingPersonAttribute(matches,
+            new Dictionary<string, string> { [ZoneAttributeId.ToString("D")] = CentralId.ToString("D") }));
+        Assert.Null(FormCatalogMatchPolicy.MissingPersonAttribute(matches, new Dictionary<string, string>
+        { [ZoneAttributeId.ToString("D")] = CentralId.ToString("D"), [region.ToString("D")] = CentralId.ToString("D") }));
+        Assert.Equal(ZoneAttributeId, FormCatalogMatchPolicy.MissingPersonAttribute(matches, null));
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

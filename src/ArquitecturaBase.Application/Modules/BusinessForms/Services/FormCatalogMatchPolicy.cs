@@ -47,20 +47,23 @@ internal static class FormCatalogMatchPolicy
     {
         if (Validate(matches, fields, attributes) is not null) return FormRecordErrors.CatalogFilterUnavailable;
         if (matches is null || matches.Count == 0) return Result.Success<string?>(null);
+        if (MissingPersonAttribute(matches, personValues) is not null) return FormRecordErrors.RecipientDataMissing;
         var containment = new SortedDictionary<string, JsonElement>(StringComparer.Ordinal);
         foreach (var match in matches)
         {
             var field = fields.Single(field => field.Id == match.FieldId);
-            var input = match.Value;
-            if (match.PersonAttributeId is { } attributeId
-                && (personValues is null || !personValues.TryGetValue(attributeId.ToString("D"), out input) || string.IsNullOrWhiteSpace(input)))
-                return FormRecordErrors.RecipientDataMissing;
+            var input = match.PersonAttributeId is { } attributeId ? personValues![attributeId.ToString("D")] : match.Value;
             var value = FormCatalogFieldPolicy.Normalize(field with { Required = true }, input);
             if (value.IsFailure || value.Value is null) return FormRecordErrors.CatalogFilterUnavailable;
             containment.Add(field.Id.ToString("D"), value.Value.Value);
         }
         return JsonSerializer.Serialize(containment, JsonSerializerOptions.Web);
     }
+
+    // The first person filter, in the normalized FieldId order, whose datum the recipient lacks.
+    public static Guid? MissingPersonAttribute(IReadOnlyList<FormCatalogMatch>? matches, IReadOnlyDictionary<string, string>? personValues) =>
+        matches?.OrderBy(match => match.FieldId).Select(match => match.PersonAttributeId).FirstOrDefault(attributeId => attributeId is { } id
+            && (personValues is null || !personValues.TryGetValue(id.ToString("D"), out var value) || string.IsNullOrWhiteSpace(value)));
 
     public static Dictionary<string, string> RecipientValues(FormPersonRecipientDataRow data)
     {

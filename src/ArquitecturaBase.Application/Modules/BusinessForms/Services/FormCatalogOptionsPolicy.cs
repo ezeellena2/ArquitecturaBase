@@ -1,3 +1,4 @@
+using System.Globalization;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
@@ -39,7 +40,8 @@ internal sealed class FormCatalogOptionsPolicy(IFormCatalogReader catalogs, IFor
             var containment = FormCatalogMatchPolicy.Containment(question.Source.Match, fields, personData?.Attributes ?? [], personValues);
             if (containment.IsFailure)
             {
-                issues.Add(new(question.FieldId, label, containment.Error.Code));
+                issues.Add(new(question.FieldId, label, containment.Error.Code, MissingData: containment.Error.Code == FormRecordErrors.RecipientDataMissing.Code
+                    ? MissingData(personData!, FormCatalogMatchPolicy.MissingPersonAttribute(question.Source.Match, personValues)!.Value) : null));
                 continue;
             }
             var presentation = question.Source.Presentation ?? (catalog.PresentationJson is null ? null
@@ -111,6 +113,11 @@ internal sealed class FormCatalogOptionsPolicy(IFormCatalogReader catalogs, IFor
         }
         return prepared with { Catalogs = offers, Issues = issues };
     }
+
+    // The datum's name is for the operator, so it follows the menu language rather than the form's.
+    private static string MissingData(FormPersonRecipientDataRow personData, Guid attributeId) => FormRecordPresentationPolicy.Text(
+        FormDraftPolicy.Read<Dictionary<string, string>>(personData.Attributes.Single(attribute => attribute.Id == attributeId).NameJson),
+        CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es");
 
     private static string Name(string json, string culture, string? originalCulture)
     {

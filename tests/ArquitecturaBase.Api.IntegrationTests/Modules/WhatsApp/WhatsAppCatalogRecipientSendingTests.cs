@@ -137,7 +137,7 @@ public sealed partial class WhatsAppFormSendingTests
         foreach (var hidden in new[] { "Texto privado", "Private item text", "Detalle privado original", "Private original detail", "Never shown private value", privateField.ToString("D") })
             Assert.DoesNotContain(hidden, payload.ToJsonString(), StringComparison.Ordinal);
         var missingContact = await CreateLinkedContactAsync(missingRecipient, clock);
-        await AssertBlockedAsync(missingContact, "Forms.Record.RecipientDataMissing", "preparation-recipient-data-missing");
+        await AssertBlockedAsync(missingContact, "Forms.Record.RecipientDataMissing", culture == "en" ? "Zone" : "Zona", "preparation-recipient-data-missing");
         using var changedRole = await author.PutAsJsonAsync($"/api/forms/catalogs/{catalogId}", CatalogEdit(2, "data", []), Ct);
         Assert.Equal(HttpStatusCode.Conflict, changedRole.StatusCode);
         Assert.Equal("Forms.Catalog.FieldInUse", (await changedRole.ReadJsonAsync()).GetProperty("code").GetString());
@@ -148,7 +148,7 @@ public sealed partial class WhatsAppFormSendingTests
 
         object Send(string? revision) => new { requestId = Guid.NewGuid(), definitionId, versionId,
             expectedModeRevision = 0, expectedRecipientContextRevision = revision, message = "Complete this form" };
-        async Task AssertBlockedAsync(Guid contact, string expectedCode, string capture)
+        async Task AssertBlockedAsync(Guid contact, string expectedCode, string expectedMissingData, string capture)
         {
             using var list = await sender.GetAsync($"/api/whatsapp/chats/{contact}/forms", Ct);
             Assert.Equal(HttpStatusCode.OK, list.StatusCode);
@@ -166,7 +166,9 @@ public sealed partial class WhatsAppFormSendingTests
             var body = json.RootElement.GetProperty("preparation");
             Assert.False(body.GetProperty("canSend").GetBoolean());
             Assert.Empty(body.GetProperty("catalogs").EnumerateArray());
-            Assert.Equal(expectedCode, Assert.Single(body.GetProperty("issues").EnumerateArray()).GetProperty("code").GetString());
+            var issue = Assert.Single(body.GetProperty("issues").EnumerateArray());
+            Assert.Equal(expectedCode, issue.GetProperty("code").GetString());
+            Assert.Equal(expectedMissingData, issue.GetProperty("missingData").GetString());
             using var denied = await sender.PostAsJsonAsync($"/api/whatsapp/chats/{contact}/form-messages", Send(revision), Ct);
             Assert.Equal(HttpStatusCode.Conflict, denied.StatusCode);
             Assert.Equal("WhatsApp.Flow.CatalogPreparationBlocked", (await denied.ReadJsonAsync()).GetProperty("code").GetString());

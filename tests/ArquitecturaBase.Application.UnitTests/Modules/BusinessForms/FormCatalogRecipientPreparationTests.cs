@@ -60,6 +60,35 @@ public sealed class FormCatalogRecipientPreparationTests
     }
 
     [Theory]
+    [InlineData("es", "en", "Zona")]
+    [InlineData("en", "es", "Zone")]
+    public async Task A_missing_person_value_names_the_attribute_the_recipient_lacks(string menu, string formCulture, string expected)
+    {
+        using var culture = new CultureScope(menu);
+        var f = new FormCatalogPreparationFixture();
+        var people = new FormCatalogPersonReader();
+        var zones = Guid.CreateVersion7();
+        var regions = Guid.CreateVersion7();
+        var zone = Field("zone", "catalog", "filter", zones);
+        var region = Field("region", "catalog", "filter", regions);
+        Assert.True(f.Catalog.SetFields([zone, region], null).IsSuccess);
+        var zoneDatum = Attribute(zones) with { NameJson = "{\"es\":\"Zona\",\"en\":\"Zone\"}" };
+        var regionDatum = Attribute(regions) with { Key = "region", NameJson = "{\"es\":\"Región\",\"en\":\"Region\"}" };
+        people.Attributes.AddRange([regionDatum, zoneDatum]);
+        var south = Guid.CreateVersion7();
+        people.Values[regionDatum.Id.ToString("D")] = south.ToString("D");
+        people.OptionTexts[south] = new(regions, "Sur");
+        var question = Question(f) with { Source = new(f.Catalog.Id,
+            [new(zone.Id, PersonAttributeId: zoneDatum.Id), new(region.Id, PersonAttributeId: regionDatum.Id)]) };
+        var prepared = await new FormCatalogOptionsPolicy(f, f, people).PrepareAsync(Guid.CreateVersion7(), formCulture, new(1, [question]), "es", Ct);
+        var issue = Assert.Single(prepared.Issues);
+        Assert.Equal(FormRecordErrors.RecipientDataMissing.Code, issue.Code);
+        Assert.Equal(expected, issue.MissingData);
+        Assert.Empty(prepared.Catalogs);
+        Assert.Equal(0, f.OfferReads);
+    }
+
+    [Theory]
     [InlineData("other-catalog")]
     [InlineData("text")]
     public async Task A_person_value_that_is_not_an_option_of_the_attribute_source_blocks_as_missing_data(string stored)
@@ -122,7 +151,9 @@ public sealed class FormCatalogRecipientPreparationTests
         people.Values[attribute.Id.ToString("D")] = Guid.CreateVersion7().ToString("D");
         var question = Question(f) with { Source = new(f.Catalog.Id, [new(zone.Id, PersonAttributeId: attribute.Id)]) };
         var prepared = await new FormCatalogOptionsPolicy(f, f, people).PrepareAsync(Guid.CreateVersion7(), "es", new(1, [question]), "es", Ct);
-        Assert.Equal(FormRecordErrors.CatalogFilterUnavailable.Code, Assert.Single(prepared.Issues).Code);
+        var issue = Assert.Single(prepared.Issues);
+        Assert.Equal(FormRecordErrors.CatalogFilterUnavailable.Code, issue.Code);
+        Assert.Null(issue.MissingData);
         Assert.Empty(prepared.Catalogs);
         Assert.Equal(0, f.OfferReads);
     }
