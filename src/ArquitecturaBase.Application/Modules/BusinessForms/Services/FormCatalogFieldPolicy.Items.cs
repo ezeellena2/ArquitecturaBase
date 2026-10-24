@@ -87,7 +87,8 @@ internal static partial class FormCatalogFieldPolicy
                 normalized.Add(item.Id, parsed.Value);
                 if (field.Unique && item.IsActive && parsed.Value is { } value)
                 {
-                    if (grouping) Add(repeated, Input(value)!, new(item.Id, item.Code, item.Position, Attempted(input), "duplicate"));
+                    // A repeat is reported with the reasons the editor already reads; its control says the value is repeated.
+                    if (grouping) Add(repeated, Input(value)!, new(item.Id, item.Code, item.Position, Attempted(input), "invalid"));
                     else if (!unique.Add(Input(value)!))
                     {
                         var path = inputIndexes.TryGetValue(item.Id, out var index) ? $"items[{index}].fields.{key}" : $"fields[{fieldIndex}].unique";

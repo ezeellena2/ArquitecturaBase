@@ -404,7 +404,7 @@ public sealed class FormCatalogFieldItemPolicyTests
 
         var result = FormCatalogFieldPolicy.ValidateItems(catalog, items, [], NoRequest(), Changing(field, field with { Unique = false }));
 
-        AssertIncompatible(result, "unique", 4, (1, "abc", "duplicate"), (2, "def", "duplicate"), (3, "abc", "duplicate"), (5, "def", "duplicate"));
+        AssertIncompatible(result, "unique", 4, (1, "abc", "invalid"), (2, "def", "invalid"), (3, "abc", "invalid"), (5, "def", "invalid"));
     }
 
     [Fact]
@@ -416,7 +416,7 @@ public sealed class FormCatalogFieldItemPolicyTests
 
         var result = FormCatalogFieldPolicy.ValidateItems(catalog, items, [], NoRequest(), Changing(field, field with { IsActive = false }));
 
-        AssertIncompatible(result, "isActive", 4, (1, "abc", "invalid"), (2, "5", "duplicate"), (3, "x", "invalid"), (4, "5", "duplicate"));
+        AssertIncompatible(result, "isActive", 4, (1, "abc", "invalid"), (2, "5", "invalid"), (3, "x", "invalid"), (4, "5", "invalid"));
     }
 
     [Fact]

@@ -129,7 +129,8 @@ public sealed partial class FormCatalogEndpointsTests
         Assert.Equal("Forms.Catalog.FieldValuesIncompatible", duplicates.GetProperty("code").GetString());
         Assert.True(duplicates.GetProperty("errors").TryGetProperty("fields[0].unique", out _));
         Assert.Equal(2, duplicates.GetProperty("invalidCount").GetInt32());
-        Assert.Equal([one, two], duplicates.GetProperty("invalidRows").EnumerateArray().Select(row => row.GetProperty("itemId").GetGuid()));
+        Assert.Equal(new (Guid, string?)[] { (one, "invalid"), (two, "invalid") }, duplicates.GetProperty("invalidRows").EnumerateArray()
+            .Select(row => (row.GetProperty("itemId").GetGuid(), row.GetProperty("reason").GetString())));
     }
 
     [Fact]
