@@ -94,6 +94,26 @@ public sealed class FormSendingLanguageTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public async Task A_Spanish_item_with_no_Spanish_detail_shows_its_English_original_detail_without_forging_its_translation(bool forSending)
+    {
+        // The catalog was written in English: the Spanish translation has a name but no detail, so only English can supply it.
+        var fixture = new FormCatalogPreparationFixture(catalogCulture: "en");
+        fixture.Items.Add(BusinessFormCatalogItem.Create(fixture.Catalog.Id, "ONE", "Nombre", "Name", null, "Original detail", 0));
+
+        var prepared = await fixture.Policy.PrepareAsync(Guid.NewGuid(), "es", fixture.DefinitionId, fixture.Version.Id, forSending, Ct);
+
+        Assert.True(prepared.CanSend);
+        Assert.Equal("es", prepared.Culture);
+        var option = Assert.Single(Assert.Single(prepared.Catalogs).Options);
+        Assert.Equal("Nombre", option.Text);
+        Assert.Equal("Original detail", option.Detail);
+        Assert.Null(option.Translations!["es"].Detail);
+        Assert.Equal("Original detail", option.Translations["en"].Detail);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public async Task A_Spanish_form_keeps_its_culture_with_a_catalog_named_only_in_English(bool forSending)
     {
         var fixture = new FormCatalogPreparationFixture(catalogCulture: "en");
