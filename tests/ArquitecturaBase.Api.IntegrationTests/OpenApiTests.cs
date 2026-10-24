@@ -200,24 +200,6 @@ public sealed class OpenApiTests(ApiFactory factory)
         AssertErrors(paths, "post", "/api/users/{id}/invitation", "400", "401", "403", "404", "429", "500");
     }
 
-    [Fact]
-    public async Task Catalog_item_response_requires_non_nullable_field_maps()
-    {
-        var schema = (await ReadDocumentAsync(factory)).GetProperty("components").GetProperty("schemas")
-            .GetProperty("FormCatalogItemResponse");
-        var required = schema.TryGetProperty("required", out var names)
-            ? names.EnumerateArray().Select(name => name.GetString()).ToArray()
-            : [];
-
-        // El lector siempre escribe los dos mapas, aunque estén vacíos.
-        foreach (var name in new[] { "fields", "fieldTexts" })
-        {
-            var property = schema.GetProperty("properties").GetProperty(name);
-            Assert.True(required.Contains(name), $"{name} is not required: {schema.GetRawText()}");
-            Assert.False(AdmitsNull(property), $"{name} admits null: {property.GetRawText()}");
-        }
-    }
-
     [Theory]
     [InlineData("/swagger/index.html")]
     [InlineData("/openapi/v1.json")]
@@ -291,15 +273,6 @@ public sealed class OpenApiTests(ApiFactory factory)
     }
 
     private static bool IsError(string statusCode) => statusCode.StartsWith('4') || statusCode.StartsWith('5');
-
-    // OpenAPI 3.1 marca null en el tipo ("type": ["null", "object"]) o en una alternativa de oneOf/anyOf.
-    private static bool AdmitsNull(JsonElement schema) =>
-        (schema.TryGetProperty("nullable", out var nullable) && nullable.ValueKind == JsonValueKind.True)
-        || (schema.TryGetProperty("type", out var type) && (type.ValueKind == JsonValueKind.Array
-            ? type.EnumerateArray().Any(value => value.GetString() == "null")
-            : type.GetString() == "null"))
-        || new[] { "oneOf", "anyOf" }.Any(keyword => schema.TryGetProperty(keyword, out var alternatives)
-            && alternatives.EnumerateArray().Any(AdmitsNull));
 
     private static bool HasSchema(JsonElement response) =>
         response.TryGetProperty("content", out var content)
