@@ -64,6 +64,25 @@ internal sealed class FormPublicationGuard(FormPublicationAccessGuard accessGuar
                 Issue(invalid, ".match");
                 continue;
             }
+            var valueUnavailable = false;
+            foreach (var match in matches ?? [])
+            {
+                if (match.Value is null || fields.Single(field => field.Id == match.FieldId) is not { Type: "catalog", SourceCatalogId: { } sourceId }) continue;
+                if (!sourceItems.TryGetValue(sourceId, out var options))
+                {
+                    options = await catalogReader.ListAllItemsAsync(sourceId, ct);
+                    sourceItems.Add(sourceId, options);
+                }
+                var itemId = Guid.Parse(match.Value);
+                if (options.Any(item => item.IsActive && item.Id == itemId)) continue;
+                valueUnavailable = true;
+                break;
+            }
+            if (valueUnavailable)
+            {
+                Issue(FormPublicationErrors.MatchValueUnavailable, ".match");
+                continue;
+            }
             var presentation = source.Presentation ?? (catalog.PresentationJson is null ? null : FormDraftPolicy.Read<FormCatalogPresentation>(catalog.PresentationJson));
             if (!FormCatalogPresentationPolicy.ValidConfiguration(presentation, fields, catalog.ValueType))
             {

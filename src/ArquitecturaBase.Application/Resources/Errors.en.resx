@@ -336,6 +336,9 @@
   <data name="Forms.Publication.MatchInvalid" xml:space="preserve">
     <value>The filter uses a field that is unavailable or cannot be used for filtering.</value>
   </data>
+  <data name="Forms.Publication.MatchValueUnavailable" xml:space="preserve">
+    <value>A fixed filter value is no longer an active option of its catalog. Choose another value.</value>
+  </data>
   <data name="Forms.Publication.MatchSourceMismatch" xml:space="preserve">
     <value>The field and person attribute must use the same value catalog.</value>
   </data>

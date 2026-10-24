@@ -130,6 +130,49 @@ public sealed class FormCatalogPublicationMatchTests : IDisposable
         Assert.Empty(f.CountReads);
     }
 
+    [Theory]
+    [InlineData("missing")]
+    [InlineData("foreign")]
+    [InlineData("inactive")]
+    public async Task A_fixed_catalog_value_must_be_an_active_option_of_the_field_source(string problem)
+    {
+        var f = new FormPublicationMultipleCatalogFixture();
+        var source = Guid.CreateVersion7();
+        var other = Guid.CreateVersion7();
+        var zone = Field("catalog", source);
+        f.Fields = [zone];
+        var south = new FormCatalogStoredItemRow(Guid.CreateVersion7(), source, "S", "Zona Sur", null, null, null, 0, true);
+        var north = new FormCatalogStoredItemRow(Guid.CreateVersion7(), other, "N", "Zona Norte", null, null, null, 0, true);
+        f.Sources[source] = [problem == "inactive" ? south with { IsActive = false } : south];
+        f.Sources[other] = [north];
+        var value = problem switch { "missing" => Guid.CreateVersion7(), "foreign" => north.Id, _ => south.Id };
+        var question = f.Field() with { Source = new(f.CatalogId, [new(zone.Id, value.ToString("D"))]) };
+        var inspected = await f.Guard.InspectCatalogsAsync([question], Ct);
+        var validated = await f.Guard.ValidateCatalogsAsync([question], Ct);
+        foreach (var issue in new[] { Assert.Single(inspected.Issues), Assert.Single(validated) })
+        {
+            Assert.Equal(FormPublicationErrors.MatchValueUnavailable.Code, issue.Code);
+            Assert.Equal("draft.fields[0].source.match", issue.Path);
+            Assert.Equal(question.FieldId, issue.FieldId);
+        }
+        Assert.Empty(inspected.Warnings);
+        Assert.Empty(f.MaximumReads);
+    }
+
+    [Fact]
+    public async Task A_fixed_catalog_value_that_is_an_active_source_option_publishes()
+    {
+        var f = new FormPublicationMultipleCatalogFixture { Maximum = new(3, "{}") };
+        var source = Guid.CreateVersion7();
+        var zone = Field("catalog", source);
+        f.Fields = [zone];
+        var south = new FormCatalogStoredItemRow(Guid.CreateVersion7(), source, "S", "Zona Sur", null, null, null, 0, true);
+        f.Sources[source] = [south];
+        var question = f.Field() with { Source = new(f.CatalogId, [new(zone.Id, south.Id.ToString("D"))]) };
+        Assert.Empty(await f.Guard.ValidateCatalogsAsync([question], Ct));
+        Assert.Empty((await f.Guard.InspectCatalogsAsync([question], Ct)).Issues);
+    }
+
     [Fact]
     public async Task Title_problems_identify_the_inherited_catalog_or_the_question_override()
     {

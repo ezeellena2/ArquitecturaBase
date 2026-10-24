@@ -16,6 +16,7 @@ public static class FormPublicationErrors
     public static readonly Error CatalogTooLargeForMultiple = Error.Validation("Forms.Publication.CatalogTooLargeForMultiple", "Multiple-selection questions cannot publish manual catalogs with more than twenty active options.");
     public static readonly Error CatalogInvalid = Error.Validation("Forms.Publication.CatalogInvalid", "A question references a catalog that is unavailable for publication.");
     public static readonly Error MatchInvalid = Error.Validation("Forms.Publication.MatchInvalid", "The question filter references a missing, inactive or non-filter catalog field.");
+    public static readonly Error MatchValueUnavailable = Error.Validation("Forms.Publication.MatchValueUnavailable", "A fixed filter value is not an active option of its source catalog.");
     public static readonly Error MatchSourceMismatch = Error.Validation("Forms.Publication.MatchSourceMismatch", "The catalog field and person attribute must use the same source catalog.");
     public static readonly Error CatalogTitleTooLong = Error.Validation("Forms.Publication.CatalogTitleTooLong", "The catalog presentation produces option titles longer than thirty characters.");
     public static readonly Error QuestionTitleTooLong = Error.Validation("Forms.Publication.QuestionTitleTooLong", "The question presentation produces option titles longer than thirty characters.");
