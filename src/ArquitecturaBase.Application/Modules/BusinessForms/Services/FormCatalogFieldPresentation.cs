@@ -104,7 +104,7 @@ internal static class FormCatalogFieldPresentation
         return values;
     }
 
-    // The screen format of a typed value, the same one the rest of the product shows: grouped numbers, a numeric date and Yes/No.
+    // The screen format of a typed value, the same one the front shows (the PDF has its own): grouped numbers, a numeric date and Yes/No.
     private static string? Display(string type, string? value, string culture)
     {
         if (value is null) return null;

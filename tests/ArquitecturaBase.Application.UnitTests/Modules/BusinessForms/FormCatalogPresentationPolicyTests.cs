@@ -47,7 +47,7 @@ public sealed class FormCatalogPresentationPolicyTests
         Assert.Equal(expected, FormCatalogPresentationPolicy.IsValid(result));
     }
 
-    // The WhatsApp title shows a typed value with the same screen format as the rest of the product: grouped numbers,
+    // The WhatsApp title shows a typed value with the same screen format as the front (the PDF has its own): grouped numbers,
     // a numeric date and Yes/No, in each culture.
     [Theory]
     [InlineData("es", "1.500,5", "15.000", "1.500,25", "15/03/2027", "Sí")]
