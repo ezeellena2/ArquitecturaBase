@@ -121,6 +121,14 @@ public sealed class FormPersonDataHttpTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.OK, updated.StatusCode);
         Assert.Equal(2, (await updated.ReadJsonAsync()).GetProperty("revision").GetInt64());
         await FormPersonDataContractCapture.WriteAsync(updated, culture, "attribute-updated", Ct);
+        using var staleAttribute = await manager.PutAsJsonAsync($"/api/forms/person-attributes/{attributeId}", new
+        {
+            expectedRevision = 1, name = new { es = "Zona de atención", en = "Service zone" }, type = "Catalog",
+            sourceCatalogId = catalogId, position = 1, isActive = true,
+        }, Ct);
+        Assert.Equal(HttpStatusCode.Conflict, staleAttribute.StatusCode);
+        Assert.Equal("Forms.PersonAttribute.RevisionConflict", (await staleAttribute.ReadJsonAsync()).GetProperty("code").GetString());
+        await FormPersonDataContractCapture.WriteAsync(staleAttribute, culture, "attribute-conflict", Ct);
         using var attributes = await editor.GetAsync("/api/forms/person-attributes", Ct);
         Assert.Equal(HttpStatusCode.OK, attributes.StatusCode);
         await FormPersonDataContractCapture.WriteAsync(attributes, culture, "attributes", Ct);
