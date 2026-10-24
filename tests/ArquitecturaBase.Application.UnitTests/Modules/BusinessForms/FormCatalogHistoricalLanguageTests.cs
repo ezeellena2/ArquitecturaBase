@@ -207,6 +207,29 @@ public sealed class FormCatalogHistoricalLanguageTests
         Assert.Equal(1, fixture.Definition.LastRecordNumber);
     }
 
+    [Fact]
+    public async Task A_Spanish_form_captures_an_option_offered_only_in_its_English_catalog_original()
+    {
+        var catalogId = Guid.NewGuid();
+        var fixture = new BusinessFormCaptureFixture("choice", true, catalogId);
+        Assert.Equal("es", fixture.Version.Culture);
+        var fieldId = Guid.ParseExact(fixture.Key[6..], "N");
+        var itemId = Guid.NewGuid();
+        // The catalog was written in English and the option has no Spanish translation: the sealed offer carries only its original.
+        var translations = new Dictionary<string, StructuredFormCatalogOptionText> { ["en"] = new("North branch", "Ground floor") };
+        var offer = new StructuredFormCatalogOffer(fieldId, fixture.Key, "Sucursal", catalogId, 1, "Manual", "Branches",
+            [new(itemId, "North branch", "Ground floor", translations)], new Dictionary<string, string> { ["en"] = "Branches" });
+        var request = fixture.Request(new Dictionary<string, string> { [fixture.Key] = itemId.ToString("D") }) with { Catalogs = [offer] };
+
+        var result = await fixture.Sink.CaptureAsync(request, Ct);
+
+        Assert.Equal("Completed", result.State);
+        Assert.Null(result.ErrorCode);
+        var reference = Assert.Single(fixture.Repository.References);
+        Assert.Equal(["en"], FormDraftPolicy.Read<Dictionary<string, FormRecordReferenceTextResponse>>(reference.TranslationsJson!).Keys);
+        Assert.Equal(1, fixture.Definition.LastRecordNumber);
+    }
+
     [Theory]
     [InlineData("en")]
     [InlineData("es")]
