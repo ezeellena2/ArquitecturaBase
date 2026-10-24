@@ -123,6 +123,18 @@ public sealed class FormRecipientPreviewServiceTests
         Assert.Equal(0, f.Catalogs.OfferReads);
     }
 
+    [Fact]
+    public async Task A_preview_leaves_the_title_check_to_the_question_source()
+    {
+        var f = new FormRecipientPreviewFixture();
+        f.Catalogs.Items.Add(BusinessFormCatalogItem.Create(f.Catalogs.Catalog.Id, "LONG", new string('T', 30) + "x", null, null, null, 0));
+        var result = await f.Service.PreviewAsync(f.Catalogs.DefinitionId, f.Request(), Ct);
+        Assert.True(result.IsSuccess);
+        Assert.Equal("Ready", result.Value.State);
+        using var json = JsonDocument.Parse(JsonSerializer.Serialize(result.Value, JsonSerializerOptions.Web));
+        Assert.False(json.RootElement.TryGetProperty("presentationCheck", out _));
+    }
+
     [Theory]
     [InlineData("choice", 200)]
     [InlineData("multiChoice", 20)]

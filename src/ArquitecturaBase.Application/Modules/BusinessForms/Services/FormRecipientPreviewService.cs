@@ -54,11 +54,9 @@ internal sealed class FormRecipientPreviewService(FormDraftAccessGuard access, I
         if (state == "FilterUnavailable") recipient = recipient with { Values = [] };
         var offered = prepared.Catalogs.Count > 0 ? prepared.Catalogs[0].Options : [];
         var limit = request.Type == "multiChoice" ? 20 : 200;
-        var examples = offered.Where(option => (option.Shown?.Title ?? option.Text).Length > 30)
-            .Select(option => new FormCatalogPresentationExample(option.Id, option.Shown?.Title ?? option.Text)).ToArray();
         var response = new FormRecipientPreviewResponse(recipient, state, offered.Count, limit, offered.Count > limit,
             offered.Take(limit).Select(option => new FormRecipientPreviewOptionResponse(option.Id, option.Shown?.Title ?? option.Text,
-                option.Shown is null ? option.Detail : option.Shown.Description)).ToArray(), new(examples.Length, examples.Take(3).ToArray()));
+                option.Shown is null ? option.Detail : option.Shown.Description)).ToArray());
         allowed = await access.CheckAsync(true, ct);
         return allowed.IsFailure ? allowed.Error : response;
     }

@@ -29,7 +29,7 @@ public sealed record FormRecipientPreviewOptionResponse(Guid Id, string Title, s
 }
 
 public sealed record FormRecipientPreviewResponse(FormRecipientPreviewRecipientResponse Recipient, string State, int OptionCount,
-    int Limit, bool ExceedsLimit, IReadOnlyList<FormRecipientPreviewOptionResponse> Options, FormCatalogPresentationCheck PresentationCheck)
+    int Limit, bool ExceedsLimit, IReadOnlyList<FormRecipientPreviewOptionResponse> Options)
 {
     public override string ToString() => "FormRecipientPreviewResponse { Content = [REDACTED] }";
 }
