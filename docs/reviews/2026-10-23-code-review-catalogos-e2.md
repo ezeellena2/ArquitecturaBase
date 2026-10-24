@@ -277,6 +277,11 @@ Se corrige en un solo chat, back y front juntos, cada arreglo con su test y comm
     - «De dónde salen» y «Tipo de valor» se eligen en el paso anterior y no se cambian después. Se muestran como dato de solo lectura, sin caja ni explicación, por ejemplo «Escritas a mano · Texto» en una línea arriba de Nombre;
     - se sacan los textos que explicaban que no se pueden cambiar.
 
+**Extra: encontrado al relevar el back para el traspaso al multitenant**
+
+40. **La captura responde 500 si el valor de un campo «elegir de un catálogo» apunta a una opción que no es de la fuente actual del campo.** Es un valor sellado de antes de un cambio de fuente.
+    - **Arreglo:** que no sea una excepción. Si después de los puntos 1, 6, 8 y 22 ese estado ya no puede darse, alcanza con la regresión que lo demuestre; si puede darse, se sella sin el texto de la fuente o se rechaza con un motivo estable.
+
 ## Después, sin bloquear
 
 - **Rendimiento:** medir antes de optimizar.
@@ -290,7 +295,10 @@ Se corrige en un solo chat, back y front juntos, cada arreglo con su test y comm
 - **Sin `formcatalogs.read`, quien diseña formularios no ve los filtros guardados de una pregunta.** Es coherente con el punto 20; si hace falta, se suma un resumen de solo lectura.
 - **La búsqueda de personas queda en la URL** (`?search=…`): alinearla con la lista de usuarios.
 - **Con una fila expandida, las celdas fijas de la tabla ancha se transparentan** al desplazar de costado. Es plausible.
-- **Despliegue:** volver a una build anterior a E2 con versiones publicadas que tienen filtros mandaría las listas sin filtrar, porque el código viejo ignora `match`. Hay que anotarlo en la guía de despliegue.
+- **Despliegue:** volver a una build anterior a E2 con versiones publicadas que tienen filtros mandaría las listas sin filtrar, porque el código viejo ignora `match`. Hay que anotarlo en la guía de despliegue. Además, el `Down` de `20261023021502` no mira los filtros dentro de los formularios.
+- **El `Down` de `20261017233619_AddFormAssistantSuggestionsAndAudio`** protege solo los datos de WhatsApp. Borra sin guarda las sugerencias, los pedidos de formularios que faltan, la procedencia de las respuestas y las propuestas de catálogo.
+- **En el PUT de un catálogo, `presentation` no es un delta:** si el pedido no la trae, vuelve a la predeterminada. El front siempre la manda, así que hoy no pasa; hay que confirmar que ningún otro llamador la omita.
+- **Documentación y código no coinciden en el tope de la oferta:** la documentación dice 201 para elegir una y 21 para elegir varias, pero el código usa un solo `Take(201)`. Hay que alinearlos.
 - **Quitar el módulo** se verificó en una copia aislada y no quedó automatizado. Sigue pendiente la guía `quitar-formularios.md`.
 - **El replay de una sesión sellada antes de E2** no tiene una prueba de punta a punta por el recorder nuevo. Por construcción, el riesgo es bajo.
 
