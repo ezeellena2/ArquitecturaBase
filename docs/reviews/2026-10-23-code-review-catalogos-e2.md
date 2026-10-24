@@ -265,7 +265,8 @@ Se corrige en un solo chat, back y front juntos, cada arreglo con su test y comm
         - en `FormRulesSection`, `FormSuggestionsSection` y `FormPdfDesignPage`;
         - el «Revisión N:» del resumen de `AiSettingsPage`;
         - en los historiales de revisiones se conservan;
-      - **errores antes de tiempo:** al agregar una opción (punto 36) y al agregar una acción a una regla («Completá este dato»).
+      - **errores antes de tiempo:** al agregar una opción (punto 36) y al agregar una acción a una regla («Completá este dato»);
+      - **otros lugares que encontró el relevamiento del front:** la insignia de estado del editor del formulario, el compositor del chat y las acciones de D2.
     - **Arreglo:** aplicar en todas las pantallas las reglas de `visual-baseline.md`:
       - un botón está habilitado o deshabilitado, sin textos al lado, y no cambia de lugar ni de forma con cada acción. Si el motivo no es obvio, va como tooltip;
       - no hay «Cambios sin guardar» ni números de revisión en los encabezados ni al lado de los botones. Se conserva el aviso al salir con cambios sin guardar;
@@ -281,6 +282,19 @@ Se corrige en un solo chat, back y front juntos, cada arreglo con su test y comm
 
 40. **La captura responde 500 si el valor de un campo «elegir de un catálogo» apunta a una opción que no es de la fuente actual del campo.** Es un valor sellado de antes de un cambio de fuente.
     - **Arreglo:** que no sea una excepción. Si después de los puntos 1, 6, 8 y 22 ese estado ya no puede darse, alcanza con la regresión que lo demuestre; si puede darse, se sella sin el texto de la fuente o se rechaza con un motivo estable.
+
+**Extra: encontrado al relevar el front para el traspaso al multitenant**
+
+41. **Cambiar el idioma del menú pierde el borrador sin preguntar** en los editores del formulario y del catálogo.
+    - **Qué pasa:** con la regla del punto 35, traducir es cambiar el idioma del menú y editar lo mismo. Hoy, ese gesto descarta lo que no se guardó, sin aviso.
+    - **Arreglo:**
+      - cambiar el idioma con cambios sin guardar pasa por el mismo aviso que salir de la pantalla;
+      - mejor todavía, el borrador se conserva al cambiar de idioma, porque es el mismo objeto;
+      - con su prueba.
+42. **Contratos que quedaron desalineados mientras se corrige,** para el export conjunto del cierre:
+    - la captura `fields-conversion-error.json` no trae las filas que exige el guard del front;
+    - el guard estricto de los usos todavía no acepta el `questionId` que suma el back en el punto 25;
+    - el front no manda `confirmValueRemoval`, que el back pide desde el punto 7.
 
 ## Después, sin bloquear
 
