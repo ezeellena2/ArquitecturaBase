@@ -218,6 +218,34 @@ public sealed class FormCatalogFieldRecorderTests
         Assert.Equal("Norte", FormCatalogFieldPolicy.ReadValues(item.FieldValuesJson)[field.Id.ToString("D")].GetString());
     }
 
+    // The catalog's original is the other language, so only the culture of the request reads the saved text as written.
+    [Theory]
+    [InlineData("en", "es", "1,500", "1500")]
+    [InlineData("es", "en", "1.500", null)]
+    public async Task Converting_text_to_decimal_reads_saved_values_in_the_culture_of_the_request(string culture, string original, string saved,
+        string? expected)
+    {
+        using var scope = new CultureScope(culture);
+        var catalog = BusinessFormCatalog.CreateManual(original, new Dictionary<string, string> { [original] = "Catalog" }, new Dictionary<string, string>());
+        var field = Field() with { Name = new Dictionary<string, string> { [original] = "Field" } };
+        Assert.True(catalog.SetFields([field], null).IsSuccess);
+        var item = catalog.AddManualItem("one", "One", "One", null, null, 1).Value;
+        Assert.True(catalog.SetManualItemFields(item, JsonSerializer.Serialize(new Dictionary<string, string> { [field.Id.ToString("D")] = saved })).IsSuccess);
+
+        var prepared = await new FormCatalogFieldRecorder(new FormCatalogFieldReader()).PrepareAsync(catalog, [item],
+            [Input(field.Id) with { Name = new Dictionary<string, string?> { [original] = "Field" }, Type = "decimal", MaxLength = null }], null, [], true,
+            TestContext.Current.CancellationToken);
+        Assert.True(prepared.IsSuccess);
+        var validated = FormCatalogFieldPolicy.ValidateItems(catalog, [item], [], new Dictionary<Guid, Dictionary<string, JsonElement>>(), prepared.Value.Context);
+
+        if (expected is null) Assert.Equal(FormCatalogErrors.FieldTypeNotConvertible.Code, validated.Error.Code);
+        else
+        {
+            Assert.True(validated.IsSuccess);
+            Assert.Equal(expected, FormCatalogFieldPolicy.Input(FormCatalogFieldPolicy.ReadValues(item.FieldValuesJson)[field.Id.ToString("D")]));
+        }
+    }
+
     private static BusinessFormCatalog Catalog() => BusinessFormCatalog.CreateManual("es", new Dictionary<string, string> { ["es"] = "Catalog" }, new Dictionary<string, string>());
     private static BusinessFormCatalogField Field() => new(Guid.CreateVersion7(), "field", new Dictionary<string, string> { ["es"] = "Field" }, "text", null, false, false, null, null, 300, "data", 0, true);
     // A catalog-type filter field whose source and a second source are both active Manual catalogs, so only the use check can stop the change.
