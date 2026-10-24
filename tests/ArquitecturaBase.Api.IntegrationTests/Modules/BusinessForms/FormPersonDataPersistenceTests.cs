@@ -3,10 +3,12 @@ using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessForms;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
+using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Infrastructure.Identity;
 using ArquitecturaBase.Infrastructure.Modules.BusinessForms.Persistence.Readers;
 using ArquitecturaBase.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -138,6 +140,48 @@ public sealed class FormPersonDataPersistenceTests(ApiFactory factory)
             var recipient = FormCatalogMatchPolicy.RecipientValues(data);
             Assert.Equal(south.Id.ToString("D"), Assert.Single(recipient, pair => pair.Key == valid.Id.ToString("D")).Value);
             Assert.DoesNotContain(kept.Id.ToString("D"), recipient.Keys);
+        }
+        finally { await db.Database.EnsureDeletedAsync(CancellationToken.None); }
+    }
+
+    // The publish warning follows the people table and the send: a catalog value that is not an option of the current source,
+    // active or not, is missing data.
+    [Fact]
+    public async Task Recipients_without_data_count_a_catalog_value_that_is_not_an_option_of_the_current_source()
+    {
+        var connection = factory.NewDatabaseConnectionString("person_data_missing_recipients");
+        await using var host = factory.WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:appdb", connection));
+        await using var scope = host.Services.CreateAsyncScope();
+        await using var db = new ApplicationDbContext(scope.ServiceProvider.GetRequiredService<DbContextOptions<ApplicationDbContext>>());
+        try
+        {
+            await db.GetService<IMigrator>().MigrateAsync(cancellationToken: Ct);
+            var zones = BusinessFormCatalog.CreateManual("es", new Dictionary<string, string> { ["es"] = "Zonas" }, new Dictionary<string, string>());
+            var regions = BusinessFormCatalog.CreateManual("es", new Dictionary<string, string> { ["es"] = "Regiones" }, new Dictionary<string, string>());
+            var north = zones.AddManualItem("NORTE", "Norte", null, null, null, 1).Value;
+            var west = zones.AddManualItem("OESTE", "Oeste", null, null, null, 2).Value;
+            Assert.True(zones.SetManualItemActive(west, false).IsSuccess);
+            var south = regions.AddManualItem("SUR", "Sur", null, null, null, 1).Value;
+            var attribute = BusinessFormPersonAttribute.Create("zone", "es", new Dictionary<string, string> { ["es"] = "Zona" },
+                BusinessFormPersonAttributeType.Catalog, zones.Id, 0).Value;
+            var role = new ApplicationRole("Recipients") { NormalizedName = "RECIPIENTS" };
+            db.AddRange(zones, regions, north, west, south, attribute, role, new IdentityRoleClaim<Guid>
+                { RoleId = role.Id, ClaimType = Permissions.ClaimType, ClaimValue = BusinessFormsPermissions.RecordsCreate });
+            foreach (var (name, value) in new (string, string?)[]
+                { ("Ana Norte", north.Id.ToString("D")), ("Bruno Región", south.Id.ToString("D")), ("Carla Texto", "Norte"), ("Diego Vacío", null), ("Eva Oeste", west.Id.ToString("D")) })
+            {
+                var person = ApplicationUser.Create($"{name.Split(' ')[0].ToLowerInvariant()}-missing@arquitecturabase.test", false, null, false, name, "es");
+                db.AddRange(person, new IdentityUserRole<Guid> { UserId = person.Id, RoleId = role.Id });
+                if (value is not null)
+                    db.Add(BusinessFormPersonData.Create(person.Id, JsonSerializer.Serialize(new Dictionary<string, string> { [attribute.Id.ToString("D")] = value })));
+            }
+            await db.SaveChangesAsync(Ct);
+            db.ChangeTracker.Clear();
+
+            var missing = await new FormPersonDataReader(db).FindRecipientsWithoutDataAsync([attribute.Id], Ct);
+
+            Assert.Equal(3, missing.Count);
+            Assert.Equal(["Bruno Región", "Carla Texto", "Diego Vacío"], missing.People);
         }
         finally { await db.Database.EnsureDeletedAsync(CancellationToken.None); }
     }

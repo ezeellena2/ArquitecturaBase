@@ -44,6 +44,10 @@ public sealed class FormCatalogRecipientStatisticsQueryTests
         Assert.Contains("LEFT JOIN \"BusinessFormPersonData\"", sql, StringComparison.Ordinal);
         Assert.Contains("COUNT(*)::integer", sql, StringComparison.Ordinal);
         Assert.Contains("LIMIT 5", sql, StringComparison.Ordinal);
+        // A catalog value that is not an option of the attribute's current source is missing, as in the people table and the send.
+        Assert.Contains("LEFT JOIN \"BusinessFormPersonAttributes\" AS attribute", sql, StringComparison.Ordinal);
+        Assert.Contains("item.\"CatalogId\" = attribute.\"SourceCatalogId\"", sql, StringComparison.Ordinal);
+        Assert.Contains("pg_input_is_valid", sql, StringComparison.Ordinal);
         Assert.DoesNotContain("Email", sql, StringComparison.Ordinal);
         Assert.Equal(attributes.Select(id => id.ToString("D")), Assert.IsType<string[]>(command.Parameters[0].Value));
         Assert.Equal(Permissions.ClaimType, command.Parameters[1].Value);

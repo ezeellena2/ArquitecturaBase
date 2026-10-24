@@ -58,6 +58,8 @@ internal sealed partial class FormPersonDataReader
             """.ReplaceLineEndings("\n"), attributeIds.Select(id => id.ToString("D")).ToArray(),
             string.IsNullOrWhiteSpace(search) ? "" : LikePatterns.Contains(search.Trim()), LikePatterns.EscapeCharacter);
 
+    // Active people who can answer and lack any of the data, with the same rule as the table: a catalog value that is not an
+    // option of the attribute's current source (active or not) is missing too.
     private IQueryable<MissingRecipientsSqlRow> FindMissingRecipients(IReadOnlyCollection<Guid> attributeIds) =>
         dbContext.Database.SqlQueryRaw<MissingRecipientsSqlRow>("""
             WITH missing AS (
@@ -71,9 +73,15 @@ internal sealed partial class FormPersonDataReader
                         WHERE user_role."UserId" = person."Id" AND claim."ClaimType" = {1} AND claim."ClaimValue" = {2})
                     AND EXISTS (
                         SELECT 1 FROM UNNEST({0}::text[]) AS required(key)
+                        LEFT JOIN "BusinessFormPersonAttributes" AS attribute ON attribute."Id" = required.key::uuid
                         WHERE data."ValuesJson" -> required.key IS NULL
                             OR data."ValuesJson" -> required.key = 'null'::jsonb
-                            OR data."ValuesJson" ->> required.key = ''))
+                            OR data."ValuesJson" ->> required.key = ''
+                            OR attribute."SourceCatalogId" IS NOT NULL AND NOT EXISTS (
+                                SELECT 1 FROM "BusinessFormCatalogItems" AS item
+                                WHERE item."CatalogId" = attribute."SourceCatalogId"
+                                    AND item."Id" = CASE WHEN pg_input_is_valid(data."ValuesJson" ->> required.key, 'uuid')
+                                        THEN (data."ValuesJson" ->> required.key)::uuid END)))
             SELECT COUNT(*)::integer AS "Count", ARRAY(
                 SELECT "DisplayName" FROM missing
                 WHERE NULLIF(BTRIM(COALESCE("DisplayName", '')), '') IS NOT NULL
