@@ -318,6 +318,29 @@ public sealed class FormRecipientPreviewServiceTests
         Assert.Single(f.Catalogs.MaximumReads);
     }
 
+    [Theory]
+    [InlineData("missing-catalog")]
+    [InlineData("unknown-field")]
+    [InlineData("source-mismatch")]
+    public async Task Maximum_revocation_during_the_catalog_read_also_hides_a_catalog_or_match_error(string problem)
+    {
+        var f = new FormRecipientPreviewFixture();
+        var (zone, kind, attribute) = MaximumFields(f);
+        var otherSource = attribute with { Id = Guid.CreateVersion7(), SourceCatalogId = Guid.CreateVersion7() };
+        f.People.Attributes.Add(otherSource);
+        f.Catalogs.CatalogMissing = problem == "missing-catalog";
+        FormCatalogMatch match = problem switch
+        {
+            "unknown-field" => new(Guid.CreateVersion7(), "cold"),
+            "source-mismatch" => new(zone.Id, PersonAttributeId: otherSource.Id),
+            _ => new(kind.Id, "cold"),
+        };
+        f.Catalogs.OnCatalogRead = () => f.Permissions.Permissions[f.Actor] = [BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage];
+        var result = await f.Maximums.FindMaximumAsync(new(new(f.Catalogs.Catalog.Id, [match])), Ct);
+        Assert.Equal(FormDefinitionErrors.Forbidden.Code, result.Error.Code);
+        Assert.Empty(f.Catalogs.MaximumReads);
+    }
+
     private static (BusinessFormCatalogField Zone, BusinessFormCatalogField Kind, FormPersonAttributeStoredRow Attribute) MaximumFields(FormRecipientPreviewFixture f)
     {
         var source = Guid.CreateVersion7();

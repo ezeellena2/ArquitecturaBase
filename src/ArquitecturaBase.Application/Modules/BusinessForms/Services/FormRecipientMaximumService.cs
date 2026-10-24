@@ -21,13 +21,21 @@ internal sealed class FormRecipientMaximumService(FormDraftAccessGuard access, I
         var catalogId = request.Source.Catalog!.Value;
         var matches = request.Source.Match!;
         var catalog = await catalogs.FindAsync(catalogId, ct);
-        if (catalog is not { IsActive: true, Kind: "Manual" }) return FieldErrors.On(FormPublicationErrors.CatalogInvalid, "source.catalog");
+        if (catalog is not { IsActive: true, Kind: "Manual" }) return await RejectAsync(FieldErrors.On(FormPublicationErrors.CatalogInvalid, "source.catalog"), ct);
         var fields = FormCatalogFieldPolicy.ReadFields(catalog.FieldsJson);
         var attributes = matches.Any(match => match.PersonAttributeId is not null) ? await people.ListAttributesAsync(ct) : [];
-        if (FormCatalogMatchPolicy.Validate(matches, fields, attributes) is { } mismatch) return FieldErrors.On(mismatch, "source.match");
+        if (FormCatalogMatchPolicy.Validate(matches, fields, attributes) is { } mismatch) return await RejectAsync(FieldErrors.On(mismatch, "source.match"), ct);
         var uiCulture = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es";
         var (maximum, label) = await maximums.FindAsync(catalogId, fields, matches, uiCulture, ct);
         allowed = await access.CheckRecipientPreviewAsync(ct);
         return allowed.IsFailure ? allowed.Error : new FormRecipientMaximumResponse(maximum, label);
+    }
+
+    // An error found after reading describes the catalog and its setup: like the preview's absences, it is returned only
+    // while the permissions still hold.
+    private async Task<Result<FormRecipientMaximumResponse>> RejectAsync(Error error, CancellationToken ct)
+    {
+        var allowed = await access.CheckRecipientPreviewAsync(ct);
+        return allowed.IsFailure ? allowed.Error : error;
     }
 }
