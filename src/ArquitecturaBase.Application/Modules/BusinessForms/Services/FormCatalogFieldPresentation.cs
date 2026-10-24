@@ -104,11 +104,15 @@ internal static class FormCatalogFieldPresentation
         return values;
     }
 
+    // The screen format of a typed value, the same one the rest of the product shows: grouped numbers, a numeric date and Yes/No.
     private static string? Display(string type, string? value, string culture)
     {
         if (value is null) return null;
         if (type == "boolean") return FormCatalogTexts.Get(value == "true" ? "Yes" : "No", culture);
-        if (type == "decimal") return culture == "es" ? value.Replace('.', ',') : value;
+        var locale = CultureInfo.GetCultureInfo(culture == "en" ? "en-US" : "es-AR");
+        if (type == "integer") return long.Parse(value, CultureInfo.InvariantCulture).ToString("N0", locale);
+        // The canonical decimal has no trailing zeros, so the optional digits keep it exact.
+        if (type == "decimal") return decimal.Parse(value, CultureInfo.InvariantCulture).ToString("#,##0.############################", locale);
         if (type == "date") return DateOnly.ParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture)
             .ToString(culture == "en" ? "MM/dd/yyyy" : "dd/MM/yyyy", CultureInfo.InvariantCulture);
         return value;
