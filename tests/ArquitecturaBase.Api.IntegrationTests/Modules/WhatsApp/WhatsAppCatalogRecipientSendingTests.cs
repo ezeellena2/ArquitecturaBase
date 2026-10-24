@@ -15,7 +15,7 @@ namespace ArquitecturaBase.Api.IntegrationTests.Modules.WhatsApp;
 public sealed partial class WhatsAppFormSendingTests
 {
     [Fact]
-    public async Task Real_recipient_catalogs_send_only_the_chosen_presentation_and_block_missing_or_unavailable_filters()
+    public async Task Real_recipient_catalogs_send_only_the_chosen_presentation_block_missing_data_and_keep_the_role_of_a_filtered_field()
     {
         Assert.SkipUnless(factory.Services.GetService<IStructuredFormPublicationDriver>() is not null,
             "The optional structured form publisher must be installed for this composition test.");
@@ -139,8 +139,11 @@ public sealed partial class WhatsAppFormSendingTests
         var missingContact = await CreateLinkedContactAsync(missingRecipient, clock);
         await AssertBlockedAsync(missingContact, "Forms.Record.RecipientDataMissing", "preparation-recipient-data-missing");
         using var changedRole = await author.PutAsJsonAsync($"/api/forms/catalogs/{catalogId}", CatalogEdit(2, "data", []), Ct);
-        Assert.Equal(HttpStatusCode.OK, changedRole.StatusCode);
-        await AssertBlockedAsync(contactId, "Forms.Record.CatalogFilterUnavailable", "preparation-filter-unavailable");
+        Assert.Equal(HttpStatusCode.Conflict, changedRole.StatusCode);
+        Assert.Equal("Forms.Catalog.FieldInUse", (await changedRole.ReadJsonAsync()).GetProperty("code").GetString());
+        using var stillReady = await sender.GetAsync($"/api/whatsapp/chats/{contactId}/forms/{definitionId}/versions/{versionId}/preparation", Ct);
+        Assert.Equal(HttpStatusCode.OK, stillReady.StatusCode);
+        Assert.True((await stillReady.ReadJsonAsync()).GetProperty("preparation").GetProperty("canSend").GetBoolean());
         Assert.Single(cloud.Messages);
 
         object Send(string? revision) => new { requestId = Guid.NewGuid(), definitionId, versionId,

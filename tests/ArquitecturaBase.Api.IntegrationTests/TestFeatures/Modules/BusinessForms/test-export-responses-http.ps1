@@ -108,9 +108,9 @@ foreach ($case in @("Configuration", "Merge", "Missing", "Collision")) {
                 Assert-Condition (($sourceRoot + "BusinessForms/FormPersonDataHttpTests.cs") -in $personData.Sources) "The person data producer SHA must be included."
                 Assert-Condition (($captureRoot + "Modules/BusinessForms/FormPersonDataContractCapture.cs") -in $personData.Sources) "The person data capture SHA must be included."
                 $catalogSending = @($cohorts | Where-Object { $_.Name -eq "whatsapp-catalogs" })[0]
-                Assert-Condition ($catalogSending.RequiredNames.Count -eq 30) "WhatsApp catalogs must add four recipient failure bodies to the prior twenty-six."
+                Assert-Condition ($catalogSending.RequiredNames.Count -eq 28) "WhatsApp catalogs must add two recipient failure bodies to the prior twenty-six."
                 foreach ($culture in @("es", "en")) {
-                    foreach ($name in @("preparation-recipient-data-missing", "preparation-filter-unavailable")) { Assert-Condition (("$culture/$name.json") -in $catalogSending.RequiredNames) "A blocked recipient preparation body is missing." }
+                    Assert-Condition (("$culture/preparation-recipient-data-missing.json") -in $catalogSending.RequiredNames) "A blocked recipient preparation body is missing."
                 }
                 Assert-Condition (($sourceRoot + "WhatsApp/WhatsAppCatalogRecipientSendingTests.cs") -in $catalogSending.Sources) "The real recipient sending producer SHA must be included."
                 foreach ($helper in @("WhatsAppFormSendingTests.cs", "WhatsAppFormHttpContractTests.cs")) {

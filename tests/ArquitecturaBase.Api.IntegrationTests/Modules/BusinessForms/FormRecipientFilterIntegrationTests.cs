@@ -109,7 +109,7 @@ public sealed class FormRecipientFilterIntegrationTests(ApiFactory factory)
     }
 
     [Fact]
-    public async Task Sending_filters_each_recipient_and_blocks_missing_data_and_a_field_whose_role_changed()
+    public async Task Sending_filters_each_recipient_blocks_missing_data_and_rejects_changing_the_role_of_a_filtered_field()
     {
         await using var scenario = await FormRecipientScenario.CreateAsync(factory, Ct);
         var versionId = await scenario.PublishForPreparationAsync(factory, Ct);
@@ -129,12 +129,46 @@ public sealed class FormRecipientFilterIntegrationTests(ApiFactory factory)
         using var client = scenario.Client();
         var edit = scenario.CatalogEdit(2);
         edit["fields"]![0]!["role"] = "data";
-        using var updated = await client.PutAsJsonAsync($"/api/forms/catalogs/{scenario.CatalogId}", edit, Ct);
-        Assert.Equal(HttpStatusCode.OK, updated.StatusCode);
-        var unavailable = await Prepare(scenario.FirstId);
-        Assert.False(unavailable.CanSend);
-        Assert.Empty(unavailable.Catalogs);
-        Assert.Equal(FormRecordErrors.CatalogFilterUnavailable.Code, Assert.Single(unavailable.Issues).Code);
+        using var rejected = await client.PutAsJsonAsync($"/api/forms/catalogs/{scenario.CatalogId}", edit, Ct);
+        // La versión publicada y el borrador filtran por la zona: son dos usos y el papel queda como estaba.
+        AssertFieldInUse(await rejected.ReadJsonAsync(), rejected.StatusCode, "fields[0].role", "Active", "Draft");
+        var stillReady = await Prepare(scenario.FirstId);
+        Assert.True(stillReady.CanSend);
+        Assert.Equal(scenario.FirstItemId, Assert.Single(Assert.Single(stillReady.Catalogs).Options).Id);
+    }
+
+    [Fact]
+    public async Task A_field_shown_only_in_a_question_presentation_can_change_its_role_while_a_filtered_field_cannot()
+    {
+        await using var scenario = await FormRecipientScenario.CreateAsync(factory, Ct);
+        using var client = scenario.Client();
+        var draft = scenario.CheckPayload();
+        draft["requestId"] = Guid.NewGuid().ToString("D");
+        draft["draft"]!["fields"]![0]!["source"]!["presentation"] = new JsonObject
+        { ["title"] = new JsonArray("code"), ["description"] = new JsonArray(scenario.DataFieldId.ToString("D")) };
+        using var saved = await client.PutAsJsonAsync($"/api/forms/definitions/{scenario.DefinitionId}/draft", draft, Ct);
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+
+        // La pregunta del borrador sólo muestra el CUIT: PostgreSQL marca ese uso como no filtro y el papel puede cambiar.
+        var shown = scenario.CatalogEdit(2);
+        shown["fields"]![2]!["role"] = "filter";
+        using var changed = await client.PutAsJsonAsync($"/api/forms/catalogs/{scenario.CatalogId}", shown, Ct);
+        Assert.Equal(HttpStatusCode.OK, changed.StatusCode);
+        var filtered = scenario.CatalogEdit(3);
+        filtered["fields"]![2]!["role"] = "filter";
+        filtered["fields"]![0]!["role"] = "data";
+        using var rejected = await client.PutAsJsonAsync($"/api/forms/catalogs/{scenario.CatalogId}", filtered, Ct);
+        AssertFieldInUse(await rejected.ReadJsonAsync(), rejected.StatusCode, "fields[0].role", "Draft");
+    }
+
+    private static void AssertFieldInUse(JsonElement problem, HttpStatusCode status, string path, params string[] stages)
+    {
+        Assert.Equal(HttpStatusCode.Conflict, status);
+        Assert.Equal(FormCatalogErrors.FieldInUse.Code, problem.GetProperty("code").GetString());
+        Assert.Equal([path], problem.GetProperty("errors").EnumerateObject().Select(error => error.Name));
+        var uses = problem.GetProperty("uses").EnumerateArray().ToArray();
+        Assert.Equal(stages, uses.Select(use => use.GetProperty("stage").GetString()));
+        Assert.All(uses, use => Assert.Equal("Pedir repuesto", use.GetProperty("formName").GetString()));
     }
 
     [Fact]
