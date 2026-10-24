@@ -104,10 +104,17 @@ internal sealed class FormPublicationGuard(FormPublicationAccessGuard accessGuar
                 if (count > limit) Issue(FormPublicationErrors.CatalogTooLargeForMultiple, ".catalog");
                 continue;
             }
-            if (!includeWarnings) continue;
-            var fixedContainment = FormCatalogMatchPolicy.FixedContainment(matches, fields).Value;
             var personFields = matches.Where(match => match.PersonAttributeId is not null).Select(match => match.FieldId).ToArray();
+            var blocks = question.Type == "multiChoice" && personFields.Length == 0;
+            if (!includeWarnings && !blocks) continue;
+            var fixedContainment = FormCatalogMatchPolicy.FixedContainment(matches, fields).Value;
             var maximum = await catalogReader.FindMaximumOfferSizeAsync(catalogId, fixedContainment, personFields, ct);
+            if (blocks && maximum.Maximum > limit)
+            {
+                Issue(FormPublicationErrors.CatalogTooLargeForMultiple, ".catalog");
+                continue;
+            }
+            if (!includeWarnings) continue;
             string? maximumLabel = null;
             if (maximum.Maximum > 0 && personFields.Length > 0)
             {

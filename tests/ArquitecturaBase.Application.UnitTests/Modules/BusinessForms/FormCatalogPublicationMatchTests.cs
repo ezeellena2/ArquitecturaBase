@@ -84,17 +84,50 @@ public sealed class FormCatalogPublicationMatchTests : IDisposable
     }
 
     [Fact]
-    public async Task A_fixed_filter_over_the_channel_limit_is_an_advisory_maximum_at_publication()
+    public async Task A_fixed_filter_that_leaves_more_than_twenty_options_blocks_a_multiple_choice_without_person_filters()
     {
         var f = new FormPublicationMultipleCatalogFixture { ActiveItems = 1200, Maximum = new(21, "{}") };
         var field = Field("text");
         f.Fields = [field];
         var question = f.Field() with { Source = new(f.CatalogId, [new(field.Id, "cold")]) };
-        var result = await f.Guard.InspectCatalogsAsync([question], Ct);
-        Assert.Empty(result.Issues);
-        Assert.Equal(21, Assert.Single(result.Warnings).Maximum);
+        var inspected = await f.Guard.InspectCatalogsAsync([question], Ct);
+        var validated = await f.Guard.ValidateCatalogsAsync([question], Ct);
+        foreach (var issue in new[] { Assert.Single(inspected.Issues), Assert.Single(validated) })
+        {
+            Assert.Equal(FormPublicationErrors.CatalogTooLargeForMultiple.Code, issue.Code);
+            Assert.Equal("draft.fields[0].source.catalog", issue.Path);
+            Assert.Equal(question.FieldId, issue.FieldId);
+        }
+        Assert.Empty(inspected.Warnings);
         Assert.Empty(f.CountReads);
         Assert.Empty(f.People.MissingReads);
+    }
+
+    [Fact]
+    public async Task A_maximum_over_the_limit_stays_advisory_for_a_single_choice_or_with_person_filters()
+    {
+        var f = new FormPublicationMultipleCatalogFixture { ActiveItems = 1200, Maximum = new(201, "{}") };
+        var kind = Field("text");
+        f.Fields = [kind];
+        var single = f.Field("choice") with { Source = new(f.CatalogId, [new(kind.Id, "cold")]) };
+        Assert.Empty(await f.Guard.ValidateCatalogsAsync([single], Ct));
+        Assert.Empty(f.MaximumReads);
+        var inspected = await f.Guard.InspectCatalogsAsync([single], Ct);
+        Assert.Empty(inspected.Issues);
+        Assert.Equal(201, Assert.Single(inspected.Warnings).Maximum);
+
+        var source = Guid.CreateVersion7();
+        var zone = Field("catalog", source);
+        f.Fields = [zone, kind];
+        f.Maximum = new(21, "{}");
+        var attribute = Attribute(source);
+        f.People.Attributes.Add(attribute);
+        var multiple = f.Field() with { Source = new(f.CatalogId, [new(zone.Id, PersonAttributeId: attribute.Id), new(kind.Id, "cold")]) };
+        Assert.Empty(await f.Guard.ValidateCatalogsAsync([multiple], Ct));
+        var perRecipient = await f.Guard.InspectCatalogsAsync([multiple], Ct);
+        Assert.Empty(perRecipient.Issues);
+        Assert.Equal(21, perRecipient.Warnings.Single(warning => warning.Code == FormPublicationErrors.OptionsPerRecipientHigh.Code).Maximum);
+        Assert.Empty(f.CountReads);
     }
 
     [Fact]
