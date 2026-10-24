@@ -289,18 +289,34 @@ public sealed class FormPersonDataHttpTests(ApiFactory factory)
     public async Task The_people_table_counts_matching_people_without_each_active_attribute()
     {
         var suffix = Guid.NewGuid().ToString("N")[..8];
-        using var manager = await OperatorAsync(BusinessFormsPermissions.PersonDataManage, Permissions.Users.Read, Permissions.Users.Manage);
-        async Task<JsonElement> CreateAsync(string key)
+        using var manager = await OperatorAsync(BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage,
+            BusinessFormsPermissions.PersonDataManage, Permissions.Users.Read, Permissions.Users.Manage);
+        async Task<JsonElement> CreateAsync(string key, Guid? sourceCatalogId = null)
         {
             using var created = await manager.PostAsJsonAsync("/api/forms/person-attributes", new
             {
-                key = key + "_" + suffix, name = new { es = "Dato", en = "Attribute" }, type = "Text",
+                key = key + "_" + suffix, name = new { es = "Dato", en = "Attribute" }, type = sourceCatalogId is null ? "Text" : "Catalog", sourceCatalogId,
             }, Ct);
             Assert.Equal(HttpStatusCode.OK, created.StatusCode);
             return await created.ReadJsonAsync();
         }
+        async Task<(Guid CatalogId, Guid ItemId)> CatalogAsync(string name)
+        {
+            using var created = await manager.PostAsJsonAsync("/api/forms/catalogs", new
+            {
+                name = new { es = name + " " + suffix, en = name + " " + suffix }, description = new { es = "Opciones", en = "Options" },
+                items = new[] { Item("only", "ONLY", "Única", "Only", true) },
+            }, Ct);
+            Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+            var catalogId = (await created.ReadJsonAsync()).GetProperty("catalog").GetProperty("id").GetGuid();
+            return (catalogId, await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormCatalogItem>()
+                .Where(item => item.CatalogId == catalogId).Select(item => item.Id).SingleAsync(Ct)));
+        }
         var zone = (await CreateAsync("missing_zone")).GetProperty("id").GetGuid();
         var branch = (await CreateAsync("missing_branch")).GetProperty("id").GetGuid();
+        var areas = await CatalogAsync("Áreas faltantes");
+        var regions = await CatalogAsync("Regiones faltantes");
+        var area = (await CreateAsync("missing_area", areas.CatalogId)).GetProperty("id").GetGuid();
         var retired = await CreateAsync("missing_retired");
         using var deactivated = await manager.PutAsJsonAsync($"/api/forms/person-attributes/{retired.GetProperty("id").GetGuid()}", new
         {
@@ -310,12 +326,15 @@ public sealed class FormPersonDataHttpTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.OK, deactivated.StatusCode);
         var prefix = "Faltantes " + suffix;
         // Carla matches the search without values; the deleted account and the person outside the search are not counted.
-        var (complete, zoneOnly, deleted) = await factory.InTransactionAsync(async services =>
+        // Dario and Eva keep an area that is not an option of its source (one of another catalog and a text from an earlier Text type),
+        // which the table and the send treat as missing: they count without it.
+        var (complete, zoneOnly, deleted, otherCatalog, earlierText) = await factory.InTransactionAsync(async services =>
         {
             var users = services.GetRequiredService<IUserRepository>();
             async Task<Guid> PersonAsync(string name) =>
                 (await users.CreateAsync(Email.Create(TestEmails.Unique("person-data-missing")).Value, null, false, name, "es", Ct)).Id;
-            var people = (await PersonAsync(prefix + " Ana"), await PersonAsync(prefix + " Beto"), await PersonAsync(prefix + " Borrada"));
+            var people = (await PersonAsync(prefix + " Ana"), await PersonAsync(prefix + " Beto"), await PersonAsync(prefix + " Borrada"),
+                await PersonAsync(prefix + " Dario"), await PersonAsync(prefix + " Eva"));
             await PersonAsync(prefix + " Carla");
             await PersonAsync("Otra persona " + suffix);
             return people;
@@ -326,21 +345,29 @@ public sealed class FormPersonDataHttpTests(ApiFactory factory)
             Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
             return (await saved.ReadJsonAsync()).GetProperty("revision").GetInt64();
         }
-        await SaveAsync(complete, null, new() { [zone.ToString("D")] = "Sur", [branch.ToString("D")] = "Centro" });
+        await SaveAsync(complete, null, new() { [zone.ToString("D")] = "Sur", [branch.ToString("D")] = "Centro", [area.ToString("D")] = areas.ItemId.ToString("D") });
         var zoneOnlyRevision = await SaveAsync(zoneOnly, null, new() { [zone.ToString("D")] = "Norte", [branch.ToString("D")] = "Oeste" });
         await SaveAsync(zoneOnly, zoneOnlyRevision, new() { [branch.ToString("D")] = null });
+        string Stored(string areaValue) => JsonSerializer.Serialize(new Dictionary<string, string>
+        { [zone.ToString("D")] = "Este", [branch.ToString("D")] = "Norte", [area.ToString("D")] = areaValue });
+        await factory.ExecuteDbContextAsync(async db =>
+        {
+            db.AddRange(BusinessFormPersonData.Create(otherCatalog, Stored(regions.ItemId.ToString("D"))), BusinessFormPersonData.Create(earlierText, Stored("Centro")));
+            await db.SaveChangesAsync(Ct);
+        });
         await factory.InTransactionAsync(services => services.GetRequiredService<IUserRepository>().DeleteAsync(deleted, Ct));
 
         using var people = await manager.GetAsync("/api/forms/person-data?page=1&pageSize=1&search=" + Uri.EscapeDataString(prefix), Ct);
 
         Assert.Equal(HttpStatusCode.OK, people.StatusCode);
         var json = await people.ReadJsonAsync();
-        Assert.Equal(3, json.GetProperty("totalCount").GetInt32());
+        Assert.Equal(5, json.GetProperty("totalCount").GetInt32());
         Assert.Single(json.GetProperty("items").EnumerateArray());
         var missing = json.GetProperty("missing").EnumerateArray()
             .ToDictionary(row => row.GetProperty("attributeId").GetGuid(), row => row.GetProperty("count").GetInt32());
         Assert.Equal(1, missing[zone]);
         Assert.Equal(2, missing[branch]);
+        Assert.Equal(4, missing[area]);
         Assert.DoesNotContain(retired.GetProperty("id").GetGuid(), missing.Keys);
     }
 

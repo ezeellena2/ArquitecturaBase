@@ -37,13 +37,20 @@ internal sealed partial class FormPersonDataReader
     }
 
     // The same people as the administrative table (not deleted, active or not, same display name search), one row per requested key.
+    // A catalog value that is not an option of the attribute's current source (active or not) is missing, as in the table and the send.
     private IQueryable<MissingCountSqlRow> CountMissingByAttribute(IReadOnlyCollection<Guid> attributeIds, string? search) =>
         dbContext.Database.SqlQueryRaw<MissingCountSqlRow>("""
             SELECT requested.key AS "AttributeId", (COUNT(person."Id") FILTER (
                     WHERE data."ValuesJson" -> requested.key IS NULL
                         OR data."ValuesJson" -> requested.key = 'null'::jsonb
-                        OR data."ValuesJson" ->> requested.key = ''))::integer AS "Count"
+                        OR data."ValuesJson" ->> requested.key = ''
+                        OR attribute."SourceCatalogId" IS NOT NULL AND NOT EXISTS (
+                            SELECT 1 FROM "BusinessFormCatalogItems" AS item
+                            WHERE item."CatalogId" = attribute."SourceCatalogId"
+                                AND item."Id" = CASE WHEN pg_input_is_valid(data."ValuesJson" ->> requested.key, 'uuid')
+                                    THEN (data."ValuesJson" ->> requested.key)::uuid END)))::integer AS "Count"
             FROM UNNEST({0}::text[]) AS requested(key)
+            LEFT JOIN "BusinessFormPersonAttributes" AS attribute ON attribute."Id" = requested.key::uuid
             LEFT JOIN "AspNetUsers" AS person ON NOT person."IsDeleted"
                 AND ({1} = '' OR person."DisplayName" ILIKE {1} ESCAPE {2})
             LEFT JOIN "BusinessFormPersonData" AS data ON data."UserId" = person."Id"

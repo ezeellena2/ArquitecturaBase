@@ -66,6 +66,11 @@ public sealed class FormPersonDataQueryTests
         Assert.Contains("ILIKE", sql, StringComparison.Ordinal);
         Assert.Contains("COUNT(person.\"Id\") FILTER", sql, StringComparison.Ordinal);
         Assert.Contains("= 'null'::jsonb", sql, StringComparison.Ordinal);
+        // A catalog value that is not an option of the attribute's current source is missing, as in the table and the send.
+        Assert.Contains("LEFT JOIN \"BusinessFormPersonAttributes\" AS attribute", sql, StringComparison.Ordinal);
+        Assert.Contains("NOT EXISTS", sql, StringComparison.Ordinal);
+        Assert.Contains("item.\"CatalogId\" = attribute.\"SourceCatalogId\"", sql, StringComparison.Ordinal);
+        Assert.Contains("pg_input_is_valid", sql, StringComparison.Ordinal);
         Assert.Contains("GROUP BY requested.key", sql, StringComparison.Ordinal);
         Assert.DoesNotContain("IsActive", sql, StringComparison.Ordinal);
         Assert.DoesNotContain("Email", sql, StringComparison.Ordinal);
