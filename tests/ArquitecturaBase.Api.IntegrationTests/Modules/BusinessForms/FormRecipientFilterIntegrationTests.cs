@@ -6,6 +6,7 @@ using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessForms;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Models.StructuredData;
+using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Infrastructure.Persistence;
 using Microsoft.AspNetCore.TestHost;
@@ -134,6 +135,55 @@ public sealed class FormRecipientFilterIntegrationTests(ApiFactory factory)
         Assert.False(unavailable.CanSend);
         Assert.Empty(unavailable.Catalogs);
         Assert.Equal(FormRecordErrors.CatalogFilterUnavailable.Code, Assert.Single(unavailable.Issues).Code);
+    }
+
+    [Fact]
+    public async Task Catalog_detail_reads_from_postgres_the_question_identity_and_stage_of_each_field_use()
+    {
+        await using var scenario = await FormRecipientScenario.CreateAsync(factory, Ct);
+        await scenario.PublishForPreparationAsync(factory, Ct);
+        using var client = scenario.Client();
+        // Después de publicar, el borrador suma una pregunta que filtra sólo por zona: la versión activa no la tiene.
+        var edit = scenario.CheckPayload();
+        edit["requestId"] = Guid.NewGuid().ToString("D");
+        edit["draft"]!["fields"]!.AsArray().Add(new JsonObject
+        {
+            ["localId"] = "other", ["type"] = "choice", ["required"] = false,
+            ["label"] = new JsonObject { ["es"] = "Otro proveedor", ["en"] = "Another supplier" },
+            ["source"] = new JsonObject
+            {
+                ["catalog"] = scenario.CatalogId.ToString("D"),
+                ["match"] = new JsonArray(new JsonObject { ["fieldId"] = scenario.ZoneFieldId.ToString("D"), ["personAttributeId"] = scenario.AttributeId.ToString("D") }),
+                ["presentation"] = new JsonObject { ["title"] = new JsonArray("code"), ["description"] = new JsonArray() },
+            },
+        });
+        using var updated = await client.PutAsJsonAsync($"/api/forms/definitions/{scenario.DefinitionId}/draft", edit, Ct);
+        Assert.Equal(HttpStatusCode.OK, updated.StatusCode);
+        var draftFields = (await updated.ReadJsonAsync()).GetProperty("definition").GetProperty("draft").GetProperty("fields");
+        Assert.Equal(scenario.QuestionId, draftFields[0].GetProperty("fieldId").GetGuid());
+        var draftOnly = draftFields[1].GetProperty("fieldId").GetGuid();
+
+        using var detail = await client.GetAsync($"/api/forms/catalogs/{scenario.CatalogId}", Ct);
+        Assert.Equal(HttpStatusCode.OK, detail.StatusCode);
+        var usedBy = (await detail.ReadJsonAsync()).GetProperty("fields").EnumerateArray().ToDictionary(field => field.GetProperty("id").GetGuid(),
+            field => field.GetProperty("usedBy").EnumerateArray().Select(FieldUse).ToArray());
+        var form = scenario.DefinitionId;
+        // La misma pregunta en la versión activa y en el borrador son dos usos con la misma identidad; la que sólo está en el
+        // borrador trae la suya y la etapa Draft.
+        FormCatalogFieldUsageResponse[] zone = [new(form, "Pedir repuesto", "Otro proveedor", draftOnly, "Draft"),
+            new(form, "Pedir repuesto", "Proveedor", scenario.QuestionId, "Active"), new(form, "Pedir repuesto", "Proveedor", scenario.QuestionId, "Draft")];
+        Assert.Equal(zone, usedBy[scenario.ZoneFieldId]);
+        FormCatalogFieldUsageResponse[] kind = [new(form, "Pedir repuesto", "Proveedor", scenario.QuestionId, "Active"),
+            new(form, "Pedir repuesto", "Proveedor", scenario.QuestionId, "Draft")];
+        Assert.Equal(kind, usedBy[scenario.KindFieldId]);
+        FormCatalogFieldUsageResponse[] own = [new(null, "Proveedores", null, null, "Catalog")];
+        Assert.Equal(own, usedBy[scenario.DataFieldId]);
+
+        static FormCatalogFieldUsageResponse FieldUse(JsonElement use) => new(
+            use.GetProperty("definitionId").ValueKind == JsonValueKind.Null ? null : use.GetProperty("definitionId").GetGuid(),
+            use.GetProperty("formName").GetString()!, use.GetProperty("question").GetString(),
+            use.GetProperty("questionId").ValueKind == JsonValueKind.Null ? null : use.GetProperty("questionId").GetGuid(),
+            use.GetProperty("stage").GetString()!);
     }
 
     [Fact]
