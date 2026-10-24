@@ -25,6 +25,9 @@ internal sealed class FormRecipientMaximumService(FormDraftAccessGuard access, I
         var fields = FormCatalogFieldPolicy.ReadFields(catalog.FieldsJson);
         var attributes = matches.Any(match => match.PersonAttributeId is not null) ? await people.ListAttributesAsync(ct) : [];
         if (FormCatalogMatchPolicy.Validate(matches, fields, attributes) is { } mismatch) return await RejectAsync(FieldErrors.On(mismatch, "source.match"), ct);
+        // The same check as publishing, so the editor shows no maximum for a filter that publishing would block.
+        if (await maximums.CheckFixedValuesAsync(fields, matches, [], ct) is { } unavailable)
+            return await RejectAsync(FieldErrors.On(unavailable, "source.match"), ct);
         var uiCulture = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es";
         var (maximum, label) = await maximums.FindAsync(catalogId, fields, matches, uiCulture, ct);
         allowed = await access.CheckRecipientPreviewAsync(ct);

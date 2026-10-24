@@ -1,6 +1,7 @@
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
+using ArquitecturaBase.Domain.Results;
 
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
@@ -8,6 +9,21 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 // person filters. The label names the person values of that largest group; with only fixed filters everyone sees the same ones.
 internal sealed class FormCatalogRecipientMaximumPolicy(IFormCatalogReader catalogs)
 {
+    // A fixed value on a catalog field must be an active option of the field's source; otherwise publishing blocks the filter, so
+    // neither the warning nor the editor give it a maximum. The sources read are kept in the caller's cache.
+    public async Task<Error?> CheckFixedValuesAsync(IReadOnlyList<BusinessFormCatalogField> fields, IReadOnlyList<FormCatalogMatch>? matches,
+        Dictionary<Guid, IReadOnlyList<FormCatalogStoredItemRow>> sourceItems, CancellationToken ct)
+    {
+        foreach (var match in matches ?? [])
+        {
+            if (match.Value is null || fields.Single(field => field.Id == match.FieldId) is not { Type: "catalog", SourceCatalogId: { } sourceId }) continue;
+            if (!sourceItems.TryGetValue(sourceId, out var options)) sourceItems.Add(sourceId, options = await catalogs.ListAllItemsAsync(sourceId, ct));
+            var itemId = Guid.Parse(match.Value);
+            if (!options.Any(item => item.IsActive && item.Id == itemId)) return FormPublicationErrors.MatchValueUnavailable;
+        }
+        return null;
+    }
+
     public async Task<(int Maximum, string? Label)> FindAsync(Guid catalogId, IReadOnlyList<BusinessFormCatalogField> fields,
         IReadOnlyList<FormCatalogMatch> matches, string culture, CancellationToken ct)
     {

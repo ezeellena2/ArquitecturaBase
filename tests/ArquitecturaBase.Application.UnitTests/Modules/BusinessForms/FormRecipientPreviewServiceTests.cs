@@ -318,10 +318,35 @@ public sealed class FormRecipientPreviewServiceTests
         Assert.Single(f.Catalogs.MaximumReads);
     }
 
+    // Publishing blocks a fixed value that is not an active option of the field's source, so the editor shows no maximum for it.
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Maximum_rejects_a_fixed_value_that_is_not_an_active_option_of_the_field_source(bool deactivated)
+    {
+        var f = new FormRecipientPreviewFixture();
+        var zones = BusinessFormCatalog.CreateManual("es", new Dictionary<string, string> { ["es"] = "Zonas" }, new Dictionary<string, string>());
+        var zone = new BusinessFormCatalogField(Guid.CreateVersion7(), "zone", new Dictionary<string, string> { ["es"] = "Zona" }, "catalog", zones.Id,
+            false, false, null, null, null, "filter", 0, true);
+        Assert.True(f.Catalogs.Catalog.SetFields([zone], null).IsSuccess);
+        var west = zones.AddManualItem("W", "Oeste", null, null, null, 1).Value;
+        Assert.True(zones.SetManualItemActive(west, false).IsSuccess);
+        f.Catalogs.Items.Add(west);
+        f.Catalogs.Maximum = new(3, "{}");
+        var value = deactivated ? west.Id : Guid.CreateVersion7();
+
+        var result = await f.Maximums.FindMaximumAsync(new(new(f.Catalogs.Catalog.Id, [new(zone.Id, value.ToString("D"))])), Ct);
+
+        Assert.Equal(FormPublicationErrors.MatchValueUnavailable.Code, result.Error.Code);
+        Assert.Equal(["source.match"], Assert.IsType<ValidationError>(result.Error).Errors.Keys);
+        Assert.Empty(f.Catalogs.MaximumReads);
+    }
+
     [Theory]
     [InlineData("missing-catalog")]
     [InlineData("unknown-field")]
     [InlineData("source-mismatch")]
+    [InlineData("unavailable-value")]
     public async Task Maximum_revocation_during_the_catalog_read_also_hides_a_catalog_or_match_error(string problem)
     {
         var f = new FormRecipientPreviewFixture();
@@ -333,6 +358,7 @@ public sealed class FormRecipientPreviewServiceTests
         {
             "unknown-field" => new(Guid.CreateVersion7(), "cold"),
             "source-mismatch" => new(zone.Id, PersonAttributeId: otherSource.Id),
+            "unavailable-value" => new(zone.Id, Guid.CreateVersion7().ToString("D")),
             _ => new(kind.Id, "cold"),
         };
         f.Catalogs.OnCatalogRead = () => f.Permissions.Permissions[f.Actor] = [BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage];
