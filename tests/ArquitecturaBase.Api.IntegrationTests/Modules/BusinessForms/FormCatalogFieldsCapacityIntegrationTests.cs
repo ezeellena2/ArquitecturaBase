@@ -74,7 +74,7 @@ public sealed class FormCatalogFieldsCapacityIntegrationTests(ApiFactory factory
             var savedBody = await saved.ReadJsonAsync();
             Assert.Equal(2, savedBody.GetProperty("catalog").GetProperty("revision").GetInt64());
             Assert.Equal(20, savedBody.GetProperty("catalog").GetProperty("fields").GetArrayLength());
-            Assert.All(savedBody.GetProperty("catalog").GetProperty("fields").EnumerateArray(), field => Assert.True(field.GetProperty("hasValues").GetBoolean()));
+            Assert.All(savedBody.GetProperty("catalog").GetProperty("fields").EnumerateArray(), field => Assert.Equal(10000, field.GetProperty("valuesCount").GetInt32()));
             Assert.Equal(2, await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormCatalog>().Where(value => value.Id == catalog.Id).Select(value => value.Revision).SingleAsync(Ct)));
             await factory.ExecuteScopeAsync(async services =>
             {

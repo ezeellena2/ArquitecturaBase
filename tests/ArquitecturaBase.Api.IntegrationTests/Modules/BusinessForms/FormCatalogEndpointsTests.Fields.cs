@@ -73,7 +73,7 @@ public sealed partial class FormCatalogEndpointsTests
         using var detail = await client.GetAsync(path, Ct);
         var current = await detail.ReadJsonAsync();
         Assert.Equal(3, current.GetProperty("revision").GetInt64());
-        Assert.True(current.GetProperty("fields")[0].GetProperty("hasValues").GetBoolean());
+        Assert.Equal(1, current.GetProperty("fields")[0].GetProperty("valuesCount").GetInt32());
         Assert.Equal("integer", current.GetProperty("fields")[0].GetProperty("type").GetString());
         Assert.Equal(1, await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormCatalogItem>().CountAsync(item => item.CatalogId == catalogId, Ct)));
         await ExportBilingualResponseAsync(detail, "fields-detail");

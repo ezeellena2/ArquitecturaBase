@@ -83,7 +83,7 @@ public sealed class FormCatalogExtraTransferTests
             Assert.Equal(1, fixture.Work.Commits);
             Assert.NotNull(applied.Value.FieldIdentityMap);
             Assert.Empty(applied.Value.FieldIdentityMap);
-            Assert.True(Assert.Single(applied.Value.Catalog.Fields!).HasValues);
+            Assert.Equal(1, Assert.Single(applied.Value.Catalog.Fields!).ValuesCount);
             Assert.Equal(2, fixture.FileReads);
         }
         finally { CultureInfo.CurrentUICulture = previous; }

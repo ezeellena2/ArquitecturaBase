@@ -9,7 +9,7 @@ public sealed record FormCatalogFieldSaveRequest(string? LocalId, Guid? Id, stri
 
 public sealed record FormCatalogFieldResponse(Guid Id, string Key, IReadOnlyDictionary<string, string> Name,
     string Type, Guid? SourceCatalogId, bool Required, bool Unique, string? Min, string? Max, int? MaxLength,
-    string Role, int Position, bool IsActive, bool HasValues, IReadOnlyList<FormCatalogFieldUsageResponse> UsedBy);
+    string Role, int Position, bool IsActive, int ValuesCount, IReadOnlyList<FormCatalogFieldUsageResponse> UsedBy);
 
 public sealed record FormCatalogFieldUsageResponse(Guid? DefinitionId, string? FormName, string? Question, Guid? QuestionId, string Stage);
 public sealed record FormCatalogFieldUsageRow(Guid DefinitionId, string FormName, string Question, Guid QuestionId, string Stage, Guid FieldId, bool ByMatch);

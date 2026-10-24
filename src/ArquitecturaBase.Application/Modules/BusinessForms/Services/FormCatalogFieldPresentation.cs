@@ -34,7 +34,7 @@ internal static class FormCatalogFieldPresentation
                 usedBy.Add(new(null, FormRecordPresentationPolicy.Text(detail.Name, culture), null, null, "Catalog"));
             responses.Add(new(field.Id, field.Key, field.Name, field.Type, field.SourceCatalogId, field.Required, field.Unique,
                 field.Min, field.Max, field.MaxLength, field.Role, field.Position, field.IsActive,
-                values.Any(value => value.ContainsKey(field.Id.ToString("D"))),
+                values.Count(value => value.ContainsKey(field.Id.ToString("D"))),
                 usedBy));
         }
         var sources = sourceItems ?? await SourcesAsync(fields, reader, ct);

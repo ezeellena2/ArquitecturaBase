@@ -64,13 +64,39 @@ public sealed class FormCatalogFieldServiceTests
         reader.Items[catalog.Id] = [new(item.Id, catalog.Id, item.Code, item.TextEs, null, null, null, 1, true, FieldValuesJson: fieldValues)];
         var result = await Service(catalog, reader, new()).GetAsync(catalog.Id, TestContext.Current.CancellationToken);
         Assert.True(result.IsSuccess);
-        Assert.True(Assert.Single(result.Value.Fields!).HasValues);
+        Assert.Equal(1, Assert.Single(result.Value.Fields!).ValuesCount);
         Assert.Equal(["es", "en"], result.Value.PresentationCheck!.Cultures.Select(check => check.Culture));
         Assert.All(result.Value.PresentationCheck.Cultures, check =>
         {
             Assert.Equal(1, check.TitleTooLongCount);
             Assert.Equal(item.Id, Assert.Single(check.TitleExamples).ItemId);
         });
+    }
+
+    [Fact]
+    public async Task Detail_counts_the_options_that_hold_a_value_for_each_field()
+    {
+        var catalog = Catalog();
+        BusinessFormCatalogField TextField(string key, int position) => new(Guid.CreateVersion7(), key, new Dictionary<string, string> { ["es"] = key },
+            "text", null, false, false, null, null, 300, "data", position, true);
+        var (zone, notes) = (TextField("zone", 0), TextField("notes", 1));
+        Assert.True(catalog.SetFields([zone, notes], null).IsSuccess);
+        string Values(params BusinessFormCatalogField[] fields) =>
+            JsonSerializer.Serialize(fields.ToDictionary(field => field.Id.ToString("D"), field => field.Key));
+        var reader = new FormCatalogFieldReader();
+        reader.Catalogs[catalog.Id] = Row(catalog);
+        reader.Items[catalog.Id] =
+        [
+            new(Guid.CreateVersion7(), catalog.Id, "one", "Uno", null, null, null, 0, true, FieldValuesJson: Values(zone)),
+            new(Guid.CreateVersion7(), catalog.Id, "two", "Dos", null, null, null, 1, true, FieldValuesJson: Values()),
+            // An inactive option keeps its values, and removing the field removes them too: it counts like the removal confirmation.
+            new(Guid.CreateVersion7(), catalog.Id, "three", "Tres", null, null, null, 2, false, FieldValuesJson: Values(zone, notes)),
+        ];
+
+        var result = await Service(catalog, reader, new()).GetAsync(catalog.Id, TestContext.Current.CancellationToken);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal([2, 1], result.Value.Fields!.Select(field => field.ValuesCount));
     }
 
     [Fact]
