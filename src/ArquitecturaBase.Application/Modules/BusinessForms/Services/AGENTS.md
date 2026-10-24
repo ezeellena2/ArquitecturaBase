@@ -68,7 +68,7 @@ Casos de uso y helpers; contratos en `Interfaces/Services`. Leer [formularios](.
 - Overview: RecordsRead o ApprovalsDecide, revalidando dimensiones; publicados no eliminados, nombre sellado y LastRecordNumber. Pendientes por roles vigentes y sin propias. Sólo aprobar conserva segmento sin respuestas; PendingOnly explícito con ambos permisos incluye bajas. Facetas/paginado SQL.
 - Celdas: `NotAsked` sin pregunta; `Unanswered` vacía, también multiChoice []. El filtro `unanswered` incluye ambas en SQL/facetas/reglas. MultiChoice conserva orden capturado, usa anyOf por intersección y no admite orden por pregunta.
 - Excel: RecordsRead+RecordsExport por lote/tope. MultiChoice une con '; ' y conserva precisión canónica; Choice mantiene tipos y headers sin filas. CatalogFields elige pares pregunta/campo aparte de Columns: null todos, [] ninguno.
-- Campos extra: metadata actual activa más histórica por catálogo; valores/nombres/tipos de cada celda salen del snapshot. Subcolumnas sin sort/facetas. Detalle muestra todos; PDF sólo datos; chat omite Fields. Historia sin snapshot muestra «—».
+- Campos extra: metadata actual activa más histórica por catálogo; valores/nombres/tipos de cada celda salen del snapshot. Subcolumnas sin sort/facetas. Detalle muestra todos; PDF sólo datos; chat y sugerencias omiten Fields (`includeCatalogFields: false`). Historia sin snapshot muestra «—».
 
 ### Reglas, acciones y aprobaciones
 

@@ -590,7 +590,7 @@ La planilla suma subcolumnas de sólo lectura después de su pregunta: las de pa
 
 Excel incluye todos los campos si catalogFields falta o es null, independientemente de la selección de preguntas. Una lista vacía no incluye campos extra y una lista de pares pregunta/campo elige sólo esas subcolumnas, incluso sin su pregunta base; «Solo las columnas visibles» usa esa selección. Una elección simple conserva tipos número/fecha/booleano y los límites numéricos de Excel ya documentados; varias conserva los valores canónicos como texto con «; » entre opciones. Los IDs ajenos se rechazan antes de leer registros o generar bytes.
 
-El PDF agrega sólo campos de papel dato, formateados según su tipo y con etiqueta fuente en los de catálogo. La tarjeta del chat conserva su contrato: el puerto de lectura omite estos campos y no los agrega al contexto del asistente. Las nuevas propiedades opcionales se omiten con null, sin reescribir publicaciones ni respuestas anteriores.
+El PDF agrega sólo campos de papel dato, formateados según su tipo y con etiqueta fuente en los de catálogo. La tarjeta del chat conserva su contrato: el puerto de lectura y los valores de origen de las sugerencias omiten estos campos y no los agregan al contexto del asistente. Las nuevas propiedades opcionales se omiten con null, sin reescribir publicaciones ni respuestas anteriores.
 
 ### Persistencia y alcance de las comprobaciones
 

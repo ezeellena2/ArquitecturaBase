@@ -24,7 +24,7 @@ internal sealed class FormSuggestionCandidatePolicy(IFormResponseReader response
         IReadOnlyList<FormSuggestion> configured = set is null ? [] : FormDraftPolicy.Read<FormSuggestion[]>(set.SuggestionsJson);
         var result = new List<StructuredFormSuggestionCandidate>();
         var preparedCandidates = new Dictionary<Guid, FormPreparedAssistantCandidate>();
-        var sourcePresentation = FormRecordPresentationPolicy.Project(source.Record, (source.Version ?? throw new InvalidOperationException("The source version presentation is missing.")).DisplayCulture(culture), FormDraftPolicy.Read<FormVersionSchema>(source.Record.SchemaJson));
+        var sourcePresentation = FormRecordPresentationPolicy.Project(source.Record, (source.Version ?? throw new InvalidOperationException("The source version presentation is missing.")).DisplayCulture(culture), FormDraftPolicy.Read<FormVersionSchema>(source.Record.SchemaJson), includeCatalogFields: false);
         if (set is not null)
         {
             var published = await suggestions.FindOptionsAsync(source.Record.DefinitionId, ct);

@@ -1,3 +1,5 @@
+using System.Text.Json;
+using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
@@ -17,6 +19,21 @@ public sealed class FormSuggestionRuntimePolicyTests
         Assert.Equal("Always", candidate.Mode); Assert.Null(candidate.When);
         Assert.Equal(f.Assistant.Catalog.Items[0].Id.ToString("D"), Assert.Single(candidate.Fields).Value);
         Assert.Equal(f.Set.Id, result.Value.SuggestionSetId); Assert.Equal(f.SourceId, result.Value.SourceRecordId);
+    }
+
+    [Fact]
+    public async Task Suggestion_source_values_omit_sealed_catalog_fields_like_the_chat()
+    {
+        var f = new FormSuggestionRuntimeFixture();
+        var row = f.Responses.ExportRows[0];
+        var reference = row.Record.References![0] with { FieldValuesJson = FormDraftPolicy.Serialize(new[] { new FormCatalogCapturedField(Guid.NewGuid(), "tax_id",
+            new Dictionary<string, string> { ["es"] = "CUIT", ["en"] = "Tax ID" }, "text", "data", JsonSerializer.SerializeToElement("30712345678")) }) };
+        f.Responses.ExportRows = [row with { Record = row.Record with { References = [reference] } }];
+        var result = await f.Candidates.ListAsync(f.Assistant.UserId, "es", f.SourceId, TestContext.Current.CancellationToken);
+        Assert.True(result.IsSuccess);
+        var choice = Assert.IsType<StructuredRecordChoiceValue>(Assert.Single(result.Value.SourceValues).Value);
+        Assert.Equal(reference.ItemId.ToString("D"), choice.ChoiceId);
+        Assert.Null(choice.Fields);
     }
 
     [Fact]
