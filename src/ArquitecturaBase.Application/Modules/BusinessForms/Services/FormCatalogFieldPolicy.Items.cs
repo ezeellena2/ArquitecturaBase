@@ -69,7 +69,9 @@ internal static partial class FormCatalogFieldPolicy
                     if (converting)
                     {
                         invalidCount++;
-                        if (invalid.Count < 50) invalid.Add(new(item.Id, item.Code, item.Position, Attempted(input), shown.IsFailure ? "invalid"
+                        // A saved option that does not fit the new type or source is reported by the text it showed, not by its identity.
+                        var attempted = sent ? input : OptionText(context.Previous[field.Id], input, catalog.OriginalCulture, sourceIndexes) ?? input;
+                        if (invalid.Count < 50) invalid.Add(new(item.Id, item.Code, item.Position, Attempted(attempted), shown.IsFailure ? "invalid"
                             : InvalidReason(field, input, parsed.Error, unbounded => Convert(context.Previous[field.Id], unbounded, input, sent, context, sourceIndexes))));
                         continue;
                     }
@@ -189,11 +191,15 @@ internal static partial class FormCatalogFieldPolicy
         return previous.Type switch
         {
             "boolean" => FormCatalogTexts.Get(input == "true" ? "Yes" : "No", culture),
-            "catalog" => Guid.TryParseExact(input, "D", out var id) && sourceIndexes[previous.SourceCatalogId!.Value].Text(id, culture) is { } text
-                ? text : FormCatalogErrors.FieldValueInvalid,
+            "catalog" => OptionText(previous, input, culture, sourceIndexes) is { } text ? text : FormCatalogErrors.FieldValueInvalid,
             _ => input,
         };
     }
+
+    // The text a saved value of a catalog field showed in its previous source, or null when it is no option of that source.
+    private static string? OptionText(BusinessFormCatalogField previous, string? input, string culture,
+        Dictionary<Guid, FormCatalogFieldSourceIndex> sourceIndexes) =>
+        previous.Type == "catalog" && Guid.TryParseExact(input, "D", out var id) ? sourceIndexes[previous.SourceCatalogId!.Value].Text(id, culture) : null;
 
     // jsonb comes back with its own spacing, key order and escapes, so the stored map is compared by value, not by text.
     private static bool SameValues(Dictionary<string, JsonElement> stored, Dictionary<string, JsonElement> values) =>

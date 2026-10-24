@@ -91,8 +91,9 @@ internal sealed class FormCatalogFieldRecorder(IFormCatalogReader reader)
             if (source is null || !source.IsActive || source.Kind != "Manual") return FieldErrors.On(FormCatalogErrors.FieldInvalid, $"fields[{resolved.IndexOf(field)}].sourceCatalogId");
             sources.Add(sourceId, await reader.ListAllItemsAsync(sourceId, ct));
         }
-        // A catalog field that changes type or source, active or not, converts its saved options by their text, so its previous
-        // source is read too, inactive options included; it is only read for those texts, so it need not be active.
+        // A catalog field that changes type or source, active or not, shows its saved options by their text (the content when it
+        // becomes text, the attempted value of a row that does not convert), so its previous source is read too, inactive options
+        // included; it is only read for those texts, so it need not be active.
         foreach (var field in resolved.Where(field => byId.TryGetValue(field.Id, out var old) && old.Type == "catalog"
             && (field.Type != old.Type || field.SourceCatalogId != old.SourceCatalogId)))
         {

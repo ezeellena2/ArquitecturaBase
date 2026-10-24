@@ -225,6 +225,34 @@ public sealed class FormCatalogFieldItemPolicyTests
             rows.Select(row => (row.Row, row.Value, row.Reason)));
     }
 
+    [Theory]
+    [InlineData("integer", "es", "Norte")]
+    [InlineData("integer", "en", "North")]
+    [InlineData("catalog", "es", "Norte")]
+    [InlineData("catalog", "en", "North")]
+    public void A_saved_option_that_does_not_convert_reports_its_text_in_the_previous_source_in_the_original_language(string type,
+        string original, string expected)
+    {
+        var field = Field(type);
+        var previous = Field("catalog") with { Id = field.Id };
+        var north = new FormCatalogStoredItemRow(Guid.CreateVersion7(), previous.SourceCatalogId!.Value, "N", "Norte", "North", null, null, 1, true);
+        var sources = new Dictionary<Guid, IReadOnlyList<FormCatalogStoredItemRow>> { [north.CatalogId] = [north] };
+        // A change of source reads the new one too, which has no option for the saved value.
+        if (field.SourceCatalogId is { } target)
+            sources.Add(target, [new FormCatalogStoredItemRow(Guid.CreateVersion7(), target, "W", "Oeste", "West", null, null, 1, true)]);
+        var catalog = Catalog(original);
+        var item = catalog.AddManualItem("acme", "Acme", "Acme", null, null, 1).Value;
+        StoreText(catalog, item, field, north.Id.ToString("D"));
+        var context = new FormCatalogFieldContext([field], sources, new HashSet<Guid> { field.Id }, new HashSet<Guid>(),
+            new Dictionary<Guid, BusinessFormCatalogField> { [field.Id] = previous }, original == "es" ? "en" : "es");
+
+        var result = FormCatalogFieldPolicy.ValidateItems(catalog, [item], [], NoRequest(), context);
+
+        Assert.Equal("Forms.Catalog.FieldTypeNotConvertible", result.Error.Code);
+        var row = Assert.Single(Assert.IsAssignableFrom<IReadOnlyList<FormCatalogInvalidFieldRow>>(result.Error.Metadata!["invalidRows"]));
+        Assert.Equal<(int, string?, string)>((1, expected, "invalid"), (row.Row, row.Value, row.Reason));
+    }
+
     [Fact]
     public void Converting_a_saved_decimal_to_integer_keeps_the_canonical_reading()
     {
