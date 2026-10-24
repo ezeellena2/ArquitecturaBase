@@ -25,14 +25,17 @@ internal sealed class FormRecipientPreviewFixture : IFormDefinitionReader, IForm
     public int SampleReads { get; private set; }
     public Action? OnRead { get; set; }
     public FormRecipientPreviewService Service { get; }
+    public FormRecipientMaximumService Maximums { get; }
     public FormRecipientPreviewFixture()
     {
         Actor = Users.AddUser("preview-manager@example.invalid").Id;
         Subject = Users.AddUser("preview-subject@example.invalid").Id;
         Current.UserId = Actor;
         Permissions.Permissions[Actor] = [BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage, BusinessFormsPermissions.CatalogsRead];
-        Service = new(new(Current, Permissions), RequestValidators.For(new FormRecipientPreviewRequestValidator(), new ListFormRecipientSamplesRequestValidator()),
-            this, Users, People, new(Catalogs, this, People), this);
+        var validators = RequestValidators.For(new FormRecipientPreviewRequestValidator(), new ListFormRecipientSamplesRequestValidator(),
+            new FormRecipientMaximumRequestValidator());
+        Service = new(new(Current, Permissions), validators, this, Users, People, new(Catalogs, this, People), this);
+        Maximums = new(new(Current, Permissions), validators, Catalogs, People, new(Catalogs));
     }
     public FormRecipientPreviewRequest Request(FormQuestionSource? source = null, string type = "choice") => new(type, source ?? new(Catalogs.Catalog.Id), Subject, "es");
     public Task<FormDefinitionStoredRow?> FindAsync(Guid id, CancellationToken ct)

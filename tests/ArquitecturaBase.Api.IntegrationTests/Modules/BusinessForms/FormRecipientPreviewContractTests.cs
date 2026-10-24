@@ -21,6 +21,20 @@ public sealed class FormRecipientPreviewContractTests
         Assert.DoesNotContain("Privado", request.ToString(), StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Recipient_maximum_accepts_only_the_question_source_and_redacts_it()
+    {
+        const string json = """{"source":{"catalog":"01990000-0000-7000-8000-000000000301","match":[{"fieldId":"01990000-0000-7000-8000-000000000302","value":"Privado"},{"fieldId":"01990000-0000-7000-8000-000000000303","personAttributeId":"01990000-0000-7000-8000-000000000304"}]}}""";
+        var request = JsonSerializer.Deserialize<FormRecipientMaximumHttpRequest>(json, JsonSerializerOptions.Web)!;
+        var source = FormDraftRequestMapping.Map(request.Source)!;
+        Assert.Equal(request.Source!.Catalog, source.Catalog);
+        Assert.Equal("Privado", source.Match![0].Value);
+        Assert.Equal(request.Source.Match![1].PersonAttributeId, source.Match[1].PersonAttributeId);
+        Assert.DoesNotContain("Privado", request.ToString(), StringComparison.Ordinal);
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<FormRecipientMaximumHttpRequest>(
+            """{"source":null,"sampleUserId":"01990000-0000-7000-8000-000000000305"}""", JsonSerializerOptions.Web));
+    }
+
     [Theory]
     [InlineData("{\"type\":\"choice\",\"source\":null,\"sampleUserId\":\"01990000-0000-7000-8000-000000000305\",\"culture\":\"es\",\"actorUserId\":null}")]
     [InlineData("{\"type\":\"choice\",\"source\":{\"catalog\":null,\"match\":[{\"fieldId\":\"01990000-0000-7000-8000-000000000302\",\"value\":\"x\",\"personUserId\":null}]},\"sampleUserId\":\"01990000-0000-7000-8000-000000000305\",\"culture\":\"es\"}")]

@@ -18,4 +18,12 @@ internal sealed class FormDraftAccessGuard(ICurrentUser currentUser, IPermission
             return FormDefinitionErrors.Forbidden;
         return actor;
     }
+
+    // Read+Manage+CatalogsRead: the person preview and the editor maximum return what the requested catalog offers.
+    public async Task<Result<Guid>> CheckRecipientPreviewAsync(CancellationToken cancellationToken)
+    {
+        var allowed = await CheckAsync(true, cancellationToken);
+        if (allowed.IsFailure) return allowed;
+        return await permissions.HasPermissionAsync(allowed.Value, BusinessFormsPermissions.CatalogsRead, cancellationToken) ? allowed : FormDefinitionErrors.Forbidden;
+    }
 }

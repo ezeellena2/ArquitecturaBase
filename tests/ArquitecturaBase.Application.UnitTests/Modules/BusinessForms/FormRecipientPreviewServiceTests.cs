@@ -1,8 +1,10 @@
+using System.Globalization;
 using System.Text.Json;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
+using ArquitecturaBase.Domain.Results;
 
 namespace ArquitecturaBase.Application.UnitTests.Modules.BusinessForms;
 
@@ -235,6 +237,98 @@ public sealed class FormRecipientPreviewServiceTests
         var denied = await f.Service.ListSamplesAsync(new(), Ct);
         Assert.Equal(FormDefinitionErrors.Forbidden.Code, denied.Error.Code);
         Assert.Empty(f.Catalogs.Locks);
+    }
+
+    [Fact]
+    public async Task Maximum_reports_the_largest_group_per_person_and_the_shared_count_with_only_fixed_filters()
+    {
+        var previousCulture = CultureInfo.CurrentUICulture;
+        CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("es");
+        try
+        {
+            var f = new FormRecipientPreviewFixture();
+            var (zone, kind, attribute) = MaximumFields(f);
+            var south = BusinessFormCatalogItem.Create(zone.SourceCatalogId!.Value, "S", "Zona Sur", "South zone", null, null, 0);
+            f.Catalogs.Items.Add(south);
+            f.Catalogs.Maximum = new(18, FormDraftPolicy.Serialize(new Dictionary<string, string> { [zone.Id.ToString("D")] = south.Id.ToString("D") }));
+            var perPerson = await f.Maximums.FindMaximumAsync(new(new(f.Catalogs.Catalog.Id,
+                [new(zone.Id, PersonAttributeId: attribute.Id), new(kind.Id, "cold")])), Ct);
+            Assert.True(perPerson.IsSuccess);
+            Assert.Equal(new FormRecipientMaximumResponse(18, "Zona Sur"), perPerson.Value);
+            var grouped = Assert.Single(f.Catalogs.MaximumReads);
+            Assert.Equal([zone.Id], grouped.Fields);
+            using (var fixedJson = JsonDocument.Parse(grouped.Fixed!))
+                Assert.Equal("cold", fixedJson.RootElement.GetProperty(kind.Id.ToString("D")).GetString());
+
+            f.Catalogs.Maximum = new(180, "{}");
+            var shared = await f.Maximums.FindMaximumAsync(new(new(f.Catalogs.Catalog.Id, [new(kind.Id, "cold")])), Ct);
+            Assert.True(shared.IsSuccess);
+            Assert.Equal(new FormRecipientMaximumResponse(180, null), shared.Value);
+            Assert.Empty(f.Catalogs.MaximumReads[1].Fields);
+            Assert.Equal(0, f.People.RecipientReads);
+            Assert.Equal(0, f.DefinitionReads);
+            Assert.Empty(f.Catalogs.Locks);
+        }
+        finally
+        {
+            CultureInfo.CurrentUICulture = previousCulture;
+        }
+    }
+
+    [Fact]
+    public async Task Maximum_rejects_an_invalid_match_and_rechecks_permissions_after_reading()
+    {
+        var f = new FormRecipientPreviewFixture();
+        var (zone, kind, attribute) = MaximumFields(f);
+        var catalogId = f.Catalogs.Catalog.Id;
+        foreach (var (source, path) in new (FormQuestionSource Source, string Path)[]
+        {
+            (new(catalogId), "source.match"),
+            (new(catalogId, []), "source.match"),
+            (new(Guid.Empty, [new(kind.Id, "cold")]), "source.catalog"),
+        })
+        {
+            var invalid = await f.Maximums.FindMaximumAsync(new(source), Ct);
+            Assert.Equal(ValidationError.ErrorCode, invalid.Error.Code);
+            Assert.Equal([path], Assert.IsType<ValidationError>(invalid.Error).Errors.Keys);
+        }
+        var unknownField = await f.Maximums.FindMaximumAsync(new(new(catalogId, [new(Guid.CreateVersion7(), "cold")])), Ct);
+        Assert.Equal(FormPublicationErrors.MatchInvalid.Code, unknownField.Error.Code);
+        Assert.Equal(["source.match"], Assert.IsType<ValidationError>(unknownField.Error).Errors.Keys);
+        var otherSource = attribute with { Id = Guid.CreateVersion7(), SourceCatalogId = Guid.CreateVersion7() };
+        f.People.Attributes.Add(otherSource);
+        var mismatch = await f.Maximums.FindMaximumAsync(new(new(catalogId, [new(zone.Id, PersonAttributeId: otherSource.Id)])), Ct);
+        Assert.Equal(FormPublicationErrors.MatchSourceMismatch.Code, mismatch.Error.Code);
+        f.Catalogs.CatalogMissing = true;
+        var missingCatalog = await f.Maximums.FindMaximumAsync(new(new(catalogId, [new(kind.Id, "cold")])), Ct);
+        Assert.Equal(FormPublicationErrors.CatalogInvalid.Code, missingCatalog.Error.Code);
+        Assert.Equal(["source.catalog"], Assert.IsType<ValidationError>(missingCatalog.Error).Errors.Keys);
+        Assert.Empty(f.Catalogs.MaximumReads);
+
+        f.Catalogs.CatalogMissing = false;
+        f.Permissions.Permissions[f.Actor] = [BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage];
+        var formsOnly = await f.Maximums.FindMaximumAsync(new(new(catalogId, [new(kind.Id, "cold")])), Ct);
+        Assert.Equal(FormDefinitionErrors.Forbidden.Code, formsOnly.Error.Code);
+        Assert.Empty(f.Catalogs.MaximumReads);
+        f.Permissions.Permissions[f.Actor] = [BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage, BusinessFormsPermissions.CatalogsRead];
+        f.Catalogs.Maximum = new(180, "{}");
+        f.Catalogs.OnMaximumRead = () => f.Permissions.Permissions[f.Actor] = [BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage];
+        var revoked = await f.Maximums.FindMaximumAsync(new(new(catalogId, [new(kind.Id, "cold")])), Ct);
+        Assert.Equal(FormDefinitionErrors.Forbidden.Code, revoked.Error.Code);
+        Assert.Single(f.Catalogs.MaximumReads);
+    }
+
+    private static (BusinessFormCatalogField Zone, BusinessFormCatalogField Kind, FormPersonAttributeStoredRow Attribute) MaximumFields(FormRecipientPreviewFixture f)
+    {
+        var source = Guid.CreateVersion7();
+        var zone = new BusinessFormCatalogField(Guid.CreateVersion7(), "zone", new Dictionary<string, string> { ["es"] = "Zona" }, "catalog", source,
+            false, false, null, null, null, "filter", 0, true);
+        var kind = new BusinessFormCatalogField(Guid.CreateVersion7(), "kind", new Dictionary<string, string> { ["es"] = "Tipo" }, "text", null,
+            false, false, null, null, 300, "filter", 1, true);
+        Assert.True(f.Catalogs.Catalog.SetFields([zone, kind], null).IsSuccess);
+        var attribute = new FormPersonAttributeStoredRow(Guid.CreateVersion7(), "zone", "{\"es\":\"Zona\"}", "es", "Catalog", source, 0, true, 1);
+        f.People.Attributes.Add(attribute);
+        return (zone, kind, attribute);
     }
 
     [Fact]

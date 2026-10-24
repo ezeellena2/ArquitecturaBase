@@ -74,7 +74,9 @@ public static class BusinessFormsApplicationRegistration
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<DeactivateFormRequest>, DeactivateFormRequestValidator>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<DeleteFormRequest>, DeleteFormRequestValidator>());
         services.TryAddScoped<IFormRecipientPreviewService, FormRecipientPreviewService>();
+        services.TryAddScoped<IFormRecipientMaximumService, FormRecipientMaximumService>();
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<FormRecipientPreviewRequest>, FormRecipientPreviewRequestValidator>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<FormRecipientMaximumRequest>, FormRecipientMaximumRequestValidator>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<ListFormRecipientSamplesRequest>, ListFormRecipientSamplesRequestValidator>());
         services.TryAddScoped<IFormPersonDataService, FormPersonDataService>();
         services.TryAddScoped<FormPersonDataAccessGuard>();

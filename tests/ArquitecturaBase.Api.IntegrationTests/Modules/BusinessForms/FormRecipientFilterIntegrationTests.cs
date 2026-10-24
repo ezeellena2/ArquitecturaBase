@@ -76,6 +76,34 @@ public sealed class FormRecipientFilterIntegrationTests(ApiFactory factory)
         Assert.Equal("Pablo Sosa", Assert.Single(withoutData.GetProperty("people").EnumerateArray()).GetString());
     }
 
+    [Theory]
+    [InlineData("es")]
+    [InlineData("en")]
+    public async Task Recipient_maximum_reports_the_largest_group_per_person_and_the_shared_count_with_only_fixed_filters(string culture)
+    {
+        await using var scenario = await FormRecipientScenario.CreateAsync(factory, Ct);
+        using var client = scenario.Client(culture);
+        JsonObject Source(JsonObject match) { var source = scenario.Source(); source["match"] = new JsonArray(match); return source; }
+        // Proveedores: Centro tiene dos opciones (FIRST y OTHER) y Sur una; con el filtro fijo «cold» quedan FIRST y SECOND para todos.
+        using var perPerson = await client.PostAsJsonAsync("/api/forms/recipient-maximums", new
+        { source = Source(new JsonObject { ["fieldId"] = scenario.ZoneFieldId.ToString("D"), ["personAttributeId"] = scenario.AttributeId.ToString("D") }) }, Ct);
+        var largest = await CaptureAsync(perPerson, "recipient-maximum-person-" + culture);
+        Assert.Equal(["maximum", "maximumLabel"], largest.EnumerateObject().Select(property => property.Name));
+        Assert.Equal(2, largest.GetProperty("maximum").GetInt32());
+        Assert.Equal(culture == "en" ? "Central" : "Centro", largest.GetProperty("maximumLabel").GetString());
+        using var fixedOnly = await client.PostAsJsonAsync("/api/forms/recipient-maximums", new
+        { source = Source(new JsonObject { ["fieldId"] = scenario.KindFieldId.ToString("D"), ["value"] = "cold" }) }, Ct);
+        var shared = await CaptureAsync(fixedOnly, "recipient-maximum-fixed-" + culture);
+        Assert.Equal(2, shared.GetProperty("maximum").GetInt32());
+        Assert.Equal(JsonValueKind.Null, shared.GetProperty("maximumLabel").ValueKind);
+        using var invalid = await client.PostAsJsonAsync("/api/forms/recipient-maximums", new
+        { source = Source(new JsonObject { ["fieldId"] = scenario.DataFieldId.ToString("D"), ["value"] = "x" }) }, Ct);
+        Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
+        var problem = await invalid.ReadJsonAsync();
+        Assert.Equal(FormPublicationErrors.MatchInvalid.Code, problem.GetProperty("code").GetString());
+        Assert.Equal(["source.match"], problem.GetProperty("errors").EnumerateObject().Select(error => error.Name));
+    }
+
     [Fact]
     public async Task Checking_and_accepting_unsorted_matches_uses_the_same_hash_and_replays_the_in_progress_manifest()
     {
@@ -279,6 +307,11 @@ public sealed class FormRecipientFilterIntegrationTests(ApiFactory factory)
         using var formsOnlyPreview = await formsOnly.PostAsJsonAsync($"/api/forms/definitions/{scenario.DefinitionId}/recipient-previews",
             new { type = "choice", source = scenario.Source(), sampleUserId = scenario.FirstId, culture = "es" }, Ct);
         Assert.Equal(HttpStatusCode.Forbidden, formsOnlyPreview.StatusCode);
+        foreach (var (client, status) in new[] { (anonymous, HttpStatusCode.Unauthorized), (denied, HttpStatusCode.Forbidden), (formsOnly, HttpStatusCode.Forbidden) })
+        {
+            using var maximum = await client.PostAsJsonAsync("/api/forms/recipient-maximums", new { source = scenario.Source() }, Ct);
+            Assert.Equal(status, maximum.StatusCode);
+        }
     }
 
     private static async Task<JsonElement> CaptureAsync(HttpResponseMessage response, string name)

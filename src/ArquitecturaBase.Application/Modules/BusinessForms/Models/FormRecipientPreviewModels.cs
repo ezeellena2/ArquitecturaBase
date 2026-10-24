@@ -33,3 +33,13 @@ public sealed record FormRecipientPreviewResponse(FormRecipientPreviewRecipientR
 {
     public override string ToString() => "FormRecipientPreviewResponse { Content = [REDACTED] }";
 }
+
+public sealed record FormRecipientMaximumRequest(FormQuestionSource Source)
+{
+    public override string ToString() => "FormRecipientMaximumRequest { Content = [REDACTED] }";
+}
+
+public sealed record FormRecipientMaximumResponse(int Maximum, string? MaximumLabel)
+{
+    public override string ToString() => "FormRecipientMaximumResponse { Content = [REDACTED] }";
+}

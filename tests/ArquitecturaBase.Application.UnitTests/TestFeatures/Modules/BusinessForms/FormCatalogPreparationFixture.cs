@@ -63,7 +63,15 @@ internal sealed class FormCatalogPreparationFixture : IFormRecordRepository, IFo
         new(Catalog.Id, Catalog.Key, Catalog.NameJson, Catalog.DescriptionJson, Catalog.OriginalCulture, Catalog.Kind.ToString(), Catalog.Revision, Catalog.IsActive,
             Catalog.CreatedAtUtc, Catalog.CreatedBy, Catalog.ModifiedAtUtc, Catalog.ModifiedBy, Items.Count, Catalog.FiltersJson, ValueType: Catalog.ValueType.ToString(), FieldsJson: Catalog.FieldsJson, PresentationJson: Catalog.PresentationJson));
     public Task<FormCatalogsPageResponse> FindPageAsync(ListFormCatalogsRequest request, bool canEdit, bool canReadForms, CancellationToken ct) => throw new NotSupportedException();
-    public Task<FormCatalogMaximumOfferRow> FindMaximumOfferSizeAsync(Guid catalogId, string? fixedContainmentJson, IReadOnlyCollection<Guid> personFieldIds, CancellationToken ct) => throw new NotSupportedException();
+    public FormCatalogMaximumOfferRow Maximum { get; set; } = new(0, "{}");
+    public List<(string? Fixed, Guid[] Fields)> MaximumReads { get; } = [];
+    public Action? OnMaximumRead { get; set; }
+    public Task<FormCatalogMaximumOfferRow> FindMaximumOfferSizeAsync(Guid catalogId, string? fixedContainmentJson, IReadOnlyCollection<Guid> personFieldIds, CancellationToken ct)
+    {
+        MaximumReads.Add((fixedContainmentJson, personFieldIds.Order().ToArray()));
+        OnMaximumRead?.Invoke();
+        return Task.FromResult(Maximum);
+    }
     public Task<int> CountActiveItemsAsync(Guid catalogId, CancellationToken cancellationToken) => throw new NotSupportedException();
     public Task<int> CountUsageAsync(Guid id, CancellationToken ct) => throw new NotSupportedException();
     public Task<PagedResult<FormCatalogItemResponse>> ListItemsAsync(Guid id, ListFormCatalogItemsRequest request, CancellationToken ct) => throw new NotSupportedException();

@@ -16,17 +16,17 @@ internal sealed class FormRecipientPreviewService(FormDraftAccessGuard access, I
 {
     public async Task<Result<PagedResult<FormCatalogFilterSampleUserResponse>>> ListSamplesAsync(ListFormRecipientSamplesRequest request, CancellationToken ct)
     {
-        var allowed = await CheckAsync(ct);
+        var allowed = await access.CheckRecipientPreviewAsync(ct);
         if (allowed.IsFailure) return allowed.Error;
         if (await validator.ValidateAsync(request, ct) is { } invalid) return invalid;
         var page = await samples.ListSampleUsersAsync(new() { Page = request.Page, PageSize = request.PageSize, Search = request.Search, Sort = request.Sort }, ct);
-        allowed = await CheckAsync(ct);
+        allowed = await access.CheckRecipientPreviewAsync(ct);
         return allowed.IsFailure ? allowed.Error : page;
     }
 
     public async Task<Result<FormRecipientPreviewResponse>> PreviewAsync(Guid definitionId, FormRecipientPreviewRequest request, CancellationToken ct)
     {
-        var allowed = await CheckAsync(ct);
+        var allowed = await access.CheckRecipientPreviewAsync(ct);
         if (allowed.IsFailure) return allowed.Error;
         if (await validator.ValidateAsync(request, ct) is { } invalid) return invalid;
         var definition = await definitions.FindAsync(definitionId, ct);
@@ -57,20 +57,13 @@ internal sealed class FormRecipientPreviewService(FormDraftAccessGuard access, I
         var response = new FormRecipientPreviewResponse(recipient, state, offered.Count, limit, offered.Count > limit,
             offered.Take(limit).Select(option => new FormRecipientPreviewOptionResponse(option.Id, option.Shown?.Title ?? option.Text,
                 option.Shown is null ? option.Detail : option.Shown.Description)).ToArray());
-        allowed = await CheckAsync(ct);
+        allowed = await access.CheckRecipientPreviewAsync(ct);
         return allowed.IsFailure ? allowed.Error : response;
-    }
-
-    private async Task<Result<Guid>> CheckAsync(CancellationToken ct)
-    {
-        var allowed = await access.CheckAsync(true, ct);
-        if (allowed.IsFailure) return allowed.Error;
-        return await access.HasPermissionAsync(allowed.Value, BusinessFormsPermissions.CatalogsRead, ct) ? allowed : FormDefinitionErrors.Forbidden;
     }
 
     private async Task<Result<FormRecipientPreviewResponse>> MissingAsync(Error error, CancellationToken ct)
     {
-        var allowed = await CheckAsync(ct);
+        var allowed = await access.CheckRecipientPreviewAsync(ct);
         return allowed.IsFailure ? allowed.Error : error;
     }
 }

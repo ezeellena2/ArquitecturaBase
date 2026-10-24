@@ -20,7 +20,7 @@ namespace ArquitecturaBase.Api.Modules.BusinessForms.Controllers;
 [EnableRateLimiting(BusinessFormsApiRegistration.ReadPolicy)]
 [RequestSizeLimit(524288)]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public sealed class FormRecipientPreviewsController(IFormRecipientPreviewService service) : ControllerBase
+public sealed class FormRecipientPreviewsController(IFormRecipientPreviewService service, IFormRecipientMaximumService maximums) : ControllerBase
 {
     [HttpGet("recipient-samples")]
     [ProducesResponseType<PagedResult<FormCatalogFilterSampleUserResponse>>(StatusCodes.Status200OK)]
@@ -34,4 +34,11 @@ public sealed class FormRecipientPreviewsController(IFormRecipientPreviewService
     [ProducesProblem(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Preview([FromRoute] Guid id, [FromBody] FormRecipientPreviewHttpRequest request, CancellationToken ct) =>
         (await service.PreviewAsync(id, new(request.Type, FormDraftRequestMapping.Map(request.Source)!, request.SampleUserId, request.Culture), ct)).ToActionResult(this);
+
+    [HttpPost("recipient-maximums")]
+    [EnableRateLimiting(BusinessFormsApiRegistration.WritePolicy)]
+    [ProducesResponseType<FormRecipientMaximumResponse>(StatusCodes.Status200OK)]
+    [ProducesProblem(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> Maximum([FromBody] FormRecipientMaximumHttpRequest request, CancellationToken ct) =>
+        (await maximums.FindMaximumAsync(new(FormDraftRequestMapping.Map(request.Source)!), ct)).ToActionResult(this);
 }
