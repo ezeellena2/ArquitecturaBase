@@ -12,7 +12,7 @@ public sealed class FormCatalogFieldRecorderTests
     public async Task New_field_ids_come_from_the_server_and_map_back_to_local_identity()
     {
         var catalog = Catalog();
-        var result = await new FormCatalogFieldRecorder(new FormCatalogFieldReader()).PrepareAsync(catalog, [], [Input(null)], null, [], TestContext.Current.CancellationToken);
+        var result = await new FormCatalogFieldRecorder(new FormCatalogFieldReader()).PrepareAsync(catalog, [], [Input(null)], null, [], true, TestContext.Current.CancellationToken);
         Assert.True(result.IsSuccess);
         var id = result.Value.IdentityMap["local"];
         Assert.NotEqual(Guid.Empty, id);
@@ -30,10 +30,10 @@ public sealed class FormCatalogFieldRecorderTests
         Assert.True(catalog.SetManualItemFields(item, JsonSerializer.Serialize(new Dictionary<string, string> { [field.Id.ToString()] = "value" })).IsSuccess);
         var recorder = new FormCatalogFieldRecorder(new FormCatalogFieldReader());
         var input = Input(field.Id) with { IsActive = false };
-        var rejected = await recorder.PrepareAsync(catalog, [item], [input], null, [], TestContext.Current.CancellationToken);
+        var rejected = await recorder.PrepareAsync(catalog, [item], [input], null, [], true, TestContext.Current.CancellationToken);
         Assert.Equal("Forms.Catalog.FieldRemovalNotConfirmed", rejected.Error.Code);
         Assert.Equal(1, rejected.Error.Metadata!["count"]);
-        Assert.True((await recorder.PrepareAsync(catalog, [item], [input], null, [field.Id], TestContext.Current.CancellationToken)).IsSuccess);
+        Assert.True((await recorder.PrepareAsync(catalog, [item], [input], null, [field.Id], true, TestContext.Current.CancellationToken)).IsSuccess);
         Assert.False(Assert.Single(FormCatalogFieldPolicy.ReadFields(catalog.FieldsJson)).IsActive);
     }
 
@@ -45,7 +45,7 @@ public sealed class FormCatalogFieldRecorderTests
         Assert.True(catalog.SetFields([field], null).IsSuccess);
         var reader = new FormCatalogFieldReader();
         reader.Uses.Add(new(Guid.CreateVersion7(), "Form", "Question", Guid.CreateVersion7(), "Active", field.Id, ByMatch: true));
-        var result = await new FormCatalogFieldRecorder(reader).PrepareAsync(catalog, [], [Input(field.Id) with { IsActive = false }], null, [], TestContext.Current.CancellationToken);
+        var result = await new FormCatalogFieldRecorder(reader).PrepareAsync(catalog, [], [Input(field.Id) with { IsActive = false }], null, [], true, TestContext.Current.CancellationToken);
         Assert.Equal("Forms.Catalog.FieldInUse", result.Error.Code);
         Assert.Equal(ArquitecturaBase.Domain.Results.ErrorType.Conflict, result.Error.Type);
         Assert.NotNull(result.Error.Metadata!["uses"]);
@@ -64,7 +64,7 @@ public sealed class FormCatalogFieldRecorderTests
         reader.Uses.Add(new(definitionId, "Form", "Question", questionId, "Active", field.Id, ByMatch: true));
         reader.Uses.Add(new(definitionId, "Form", "Question", questionId, "Draft", field.Id, ByMatch: true));
 
-        var result = await new FormCatalogFieldRecorder(reader).PrepareAsync(catalog, [], [Input(field.Id) with { IsActive = false }], null, [], TestContext.Current.CancellationToken);
+        var result = await new FormCatalogFieldRecorder(reader).PrepareAsync(catalog, [], [Input(field.Id) with { IsActive = false }], null, [], true, TestContext.Current.CancellationToken);
 
         Assert.Equal("Forms.Catalog.FieldInUse", result.Error.Code);
         Assert.Equal(
@@ -93,7 +93,7 @@ public sealed class FormCatalogFieldRecorderTests
             _ => (input with { SourceCatalogId = reader.Catalogs.Keys.Single(id => id != field.SourceCatalogId) }, "sourceCatalogId"),
         };
 
-        var result = await new FormCatalogFieldRecorder(reader).PrepareAsync(catalog, [], [edited], null, [], TestContext.Current.CancellationToken);
+        var result = await new FormCatalogFieldRecorder(reader).PrepareAsync(catalog, [], [edited], null, [], true, TestContext.Current.CancellationToken);
 
         Assert.Equal("Forms.Catalog.FieldInUse", result.Error.Code);
         Assert.Equal(ArquitecturaBase.Domain.Results.ErrorType.Conflict, result.Error.Type);
@@ -109,7 +109,7 @@ public sealed class FormCatalogFieldRecorderTests
         var (catalog, field, reader) = FilterField();
         reader.Uses.Add(new(Guid.CreateVersion7(), "Form", "Question", Guid.CreateVersion7(), "Draft", field.Id, ByMatch: false));
 
-        var result = await new FormCatalogFieldRecorder(reader).PrepareAsync(catalog, [], [FilterInput(field) with { Role = "data" }], null, [], TestContext.Current.CancellationToken);
+        var result = await new FormCatalogFieldRecorder(reader).PrepareAsync(catalog, [], [FilterInput(field) with { Role = "data" }], null, [], true, TestContext.Current.CancellationToken);
 
         Assert.True(result.IsSuccess);
         Assert.Equal("data", Assert.Single(FormCatalogFieldPolicy.ReadFields(catalog.FieldsJson)).Role);
@@ -119,7 +119,7 @@ public sealed class FormCatalogFieldRecorderTests
     public async Task A_catalog_presentation_must_only_reference_active_existing_fields()
     {
         var catalog = Catalog();
-        var result = await new FormCatalogFieldRecorder(new FormCatalogFieldReader()).PrepareAsync(catalog, [], [], new([Guid.CreateVersion7().ToString()], []), [], TestContext.Current.CancellationToken);
+        var result = await new FormCatalogFieldRecorder(new FormCatalogFieldReader()).PrepareAsync(catalog, [], [], new([Guid.CreateVersion7().ToString()], []), [], true, TestContext.Current.CancellationToken);
         Assert.Equal("Forms.Catalog.PresentationInvalid", result.Error.Code);
         Assert.Null(catalog.FieldsJson);
         Assert.Null(catalog.PresentationJson);
@@ -130,7 +130,7 @@ public sealed class FormCatalogFieldRecorderTests
     {
         var catalog = Catalog();
         var input = Input(null) with { Type = "integer", MaxLength = null, Min = "0010", Max = "0020" };
-        var result = await new FormCatalogFieldRecorder(new FormCatalogFieldReader()).PrepareAsync(catalog, [], [input], null, [], TestContext.Current.CancellationToken);
+        var result = await new FormCatalogFieldRecorder(new FormCatalogFieldReader()).PrepareAsync(catalog, [], [input], null, [], true, TestContext.Current.CancellationToken);
         Assert.True(result.IsSuccess);
         var field = Assert.Single(FormCatalogFieldPolicy.ReadFields(catalog.FieldsJson));
         Assert.Equal("10", field.Min);
@@ -148,7 +148,7 @@ public sealed class FormCatalogFieldRecorderTests
         var north = new FormCatalogStoredItemRow(Guid.CreateVersion7(), oldSource, "N", "Norte", "North", null, null, 1, false);
         reader.Items[oldSource] = [north];
 
-        var result = await new FormCatalogFieldRecorder(reader).PrepareAsync(catalog, [], [Input(field.Id)], null, [], TestContext.Current.CancellationToken);
+        var result = await new FormCatalogFieldRecorder(reader).PrepareAsync(catalog, [], [Input(field.Id)], null, [], true, TestContext.Current.CancellationToken);
 
         Assert.True(result.IsSuccess);
         Assert.True(result.Value.Context.Sources.TryGetValue(oldSource, out var options));

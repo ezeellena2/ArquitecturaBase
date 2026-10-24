@@ -48,7 +48,7 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
         var detail = Map(row, usageCount, null) with { Proposal = await FormCatalogProposalPresentation.ReadAsync(
             row.ProposalEvidenceJson, row.ProposalState, row.ProposalDecidedByUserId, row.ProposalDecidedAtUtc, users, cancellationToken) };
         var items = row.FieldsJson is null && row.PresentationJson is null ? [] : await reader.ListAllItemsAsync(id, cancellationToken);
-        return await FormCatalogFieldPresentation.DescribeAsync(detail, row.FieldsJson, row.PresentationJson, items, reader, cancellationToken);
+        return await FormCatalogFieldPresentation.DescribeAsync(detail, row.FieldsJson, row.PresentationJson, items, reader, canReadForms, cancellationToken);
     }
 
     public async Task<Result<FormCatalogsPageResponse>> ListAsync(ListFormCatalogsRequest request, CancellationToken cancellationToken)
@@ -81,13 +81,14 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
         await LockCatalogsAsync(catalog.Id, request.Fields, ct);
         var access = await accessGuard.CheckAsync(true, ct);
         if (access.IsFailure) return access.Error;
-        var fields = await fieldRecorder.PrepareAsync(catalog, [], request.Fields, request.Presentation, [], ct);
+        var canReadForms = await accessGuard.HasPermissionAsync(access.Value, BusinessFormsPermissions.Read, ct);
+        var fields = await fieldRecorder.PrepareAsync(catalog, [], request.Fields, request.Presentation, [], canReadForms, ct);
         if (fields.IsFailure) return fields.Error;
         var recorded = recorder.Record(catalog, [], request.Items!, fieldContext: fields.Value.Context);
         if (recorded.IsFailure) return recorded.Error;
         repository.Add(catalog);
         var detail = await FormCatalogFieldPresentation.DescribeAsync(Map(catalog, recorded.Value.Items.Count), catalog.FieldsJson,
-            catalog.PresentationJson, FormCatalogFieldPresentation.ToRows(recorded.Value.Items), reader, ct, fields.Value.Context.Sources);
+            catalog.PresentationJson, FormCatalogFieldPresentation.ToRows(recorded.Value.Items), reader, canReadForms, ct, fields.Value.Context.Sources);
         return new FormCatalogSaveResponse(detail, recorded.Value.IdentityMap, fields.Value.IdentityMap);
     }
 
@@ -96,6 +97,7 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
         await LockCatalogsAsync(id, request.Fields, ct);
         var access = await accessGuard.CheckAsync(true, ct);
         if (access.IsFailure) return access.Error;
+        var canReadForms = await accessGuard.HasPermissionAsync(access.Value, BusinessFormsPermissions.Read, ct);
         var catalog = await repository.GetAsync(id, ct);
         if (catalog is null) return FormCatalogErrors.NotFound;
         if (catalog.Revision != request.ExpectedRevision) return FormCatalogErrors.RevisionConflict;
@@ -103,14 +105,14 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
         if (original.IsFailure) return original.Error;
         if (request.IsActive == false && catalog.IsActive && await reader.ExistsSourceUsageAsync(id, ct)) return FormCatalogErrors.SourceInUse;
         var storedItems = await repository.ListItemsAsync(id, ct);
-        var fields = await fieldRecorder.PrepareAsync(catalog, storedItems, request.Fields, request.Presentation, request.ConfirmFieldRemovals, ct);
+        var fields = await fieldRecorder.PrepareAsync(catalog, storedItems, request.Fields, request.Presentation, request.ConfirmFieldRemovals, canReadForms, ct);
         if (fields.IsFailure) return fields.Error;
         var recorded = recorder.Record(catalog, storedItems, request.Items!, request.Moves, request.SortAlphabetically, fields.Value.Context);
         if (recorded.IsFailure) return recorded.Error;
         var updated = catalog.UpdateManual(request.ExpectedRevision!.Value, FormCatalogProposalPolicy.Texts(request.Name), FormCatalogProposalPolicy.Texts(request.Description), request.IsActive);
         if (updated.IsFailure) return updated.Error;
         var detail = await FormCatalogFieldPresentation.DescribeAsync(Map(catalog, recorded.Value.Items.Count), catalog.FieldsJson,
-            catalog.PresentationJson, FormCatalogFieldPresentation.ToRows(recorded.Value.Items), reader, ct, fields.Value.Context.Sources);
+            catalog.PresentationJson, FormCatalogFieldPresentation.ToRows(recorded.Value.Items), reader, canReadForms, ct, fields.Value.Context.Sources);
         return new FormCatalogSaveResponse(detail, recorded.Value.IdentityMap, fields.Value.IdentityMap);
     }
 

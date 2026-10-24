@@ -11,7 +11,7 @@ internal sealed class FormCatalogFieldRecorder(IFormCatalogReader reader)
 {
     public async Task<Result<FormCatalogFieldPreparation>> PrepareAsync(BusinessFormCatalog catalog,
         IReadOnlyList<BusinessFormCatalogItem> items, IReadOnlyList<FormCatalogFieldSaveRequest?>? inputs,
-        FormCatalogPresentation? presentation, IReadOnlyList<Guid>? confirmedRemovals, CancellationToken ct)
+        FormCatalogPresentation? presentation, IReadOnlyList<Guid>? confirmedRemovals, bool canReadForms, CancellationToken ct)
     {
         var original = FormCatalogFieldPolicy.ReadFields(catalog.FieldsJson);
         var byId = original.ToDictionary(field => field.Id);
@@ -62,7 +62,8 @@ internal sealed class FormCatalogFieldRecorder(IFormCatalogReader reader)
             {
                 // A filter's match needs the field's role, type and source as they are; a question that only shows the field does not.
                 var filters = usesByField[field.Id].Where(use => use.ByMatch).ToArray();
-                if (filters.Length > 0 && ChangedProperty(prior, field) is { } property) return InUse(Uses(filters), $"fields[{index}].{property}");
+                if (filters.Length > 0 && ChangedProperty(prior, field) is { } property)
+                    return InUse(FormCatalogFieldUsagePolicy.Describe(filters, canReadForms), $"fields[{index}].{property}");
                 continue;
             }
             var fieldKey = field.Id.ToString("D");
@@ -71,7 +72,7 @@ internal sealed class FormCatalogFieldRecorder(IFormCatalogReader reader)
                 var names = FormDraftPolicy.Read<Dictionary<string, string>>(catalog.NameJson);
                 return InUse([new(null, FormRecordPresentationPolicy.Text(names, culture), null, null, "Catalog")], $"fields[{index}].isActive");
             }
-            var uses = Uses(usesByField[field.Id]);
+            var uses = FormCatalogFieldUsagePolicy.Describe(usesByField[field.Id], canReadForms);
             if (uses.Length > 0) return InUse(uses, $"fields[{index}].isActive");
             var count = items.Count(item => FormCatalogFieldPolicy.ReadValues(item.FieldValuesJson).ContainsKey(field.Id.ToString("D")));
             if (count > 0 && confirmedRemovals?.Contains(field.Id) != true)
@@ -107,9 +108,6 @@ internal sealed class FormCatalogFieldRecorder(IFormCatalogReader reader)
 
     private static string? ChangedProperty(BusinessFormCatalogField prior, BusinessFormCatalogField field) =>
         field.Role != prior.Role ? "role" : field.Type != prior.Type ? "type" : field.SourceCatalogId != prior.SourceCatalogId ? "sourceCatalogId" : null;
-
-    private static FormCatalogFieldUsageResponse[] Uses(IEnumerable<FormCatalogFieldUsageRow> rows) =>
-        rows.Select(use => new FormCatalogFieldUsageResponse(use.DefinitionId, use.FormName, use.Question, use.QuestionId, use.Stage)).ToArray();
 
     private static ValidationError InUse(IReadOnlyList<FormCatalogFieldUsageResponse> uses, string path) =>
         FieldErrors.OnWithMetadata(FormCatalogErrors.FieldDetails(FormCatalogErrors.FieldInUse, new Dictionary<string, object?> { ["uses"] = uses }), path);

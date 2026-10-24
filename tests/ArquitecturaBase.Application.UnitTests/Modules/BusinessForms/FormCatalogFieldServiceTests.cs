@@ -102,6 +102,69 @@ public sealed class FormCatalogFieldServiceTests
         Assert.False(values.ContainsKey(second));
     }
 
+    [Fact]
+    public async Task Field_uses_show_form_names_only_to_actors_who_can_read_forms()
+    {
+        var (catalog, field) = OneFieldCatalog();
+        var reader = new FormCatalogFieldReader();
+        reader.Catalogs[catalog.Id] = new(catalog.Id, catalog.Key, catalog.NameJson, catalog.DescriptionJson, catalog.OriginalCulture, "Manual", 1, true,
+            catalog.CreatedAtUtc, null, null, null, 0, FieldsJson: catalog.FieldsJson);
+        var (definitionId, supplier, zone) = (Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7());
+        reader.Uses.Add(new(definitionId, "Pedir repuesto", "Proveedor", supplier, "Draft", field.Id, ByMatch: true));
+        reader.Uses.Add(new(definitionId, "Pedir repuesto", "Zona", zone, "Draft", field.Id, ByMatch: false));
+        reader.Uses.Add(new(definitionId, "Pedir repuesto", "Proveedor", supplier, "Active", field.Id, ByMatch: true));
+
+        var hidden = await Service(catalog, reader, new()).GetAsync(catalog.Id, TestContext.Current.CancellationToken);
+        var named = await Service(catalog, reader, new(), canReadForms: true).GetAsync(catalog.Id, TestContext.Current.CancellationToken);
+
+        // Without formtemplates.read the field is still in use, once per form and stage, but nothing names the form or the question.
+        var redacted = Assert.Single(hidden.Value.Fields!).UsedBy;
+        Assert.Equal(new[] { "Active", "Draft" }, redacted.Select(use => use.Stage));
+        Assert.All(redacted, AssertRedacted);
+        var uses = Assert.Single(named.Value.Fields!).UsedBy;
+        Assert.Equal(3, uses.Count);
+        Assert.All(uses, use => Assert.Equal((definitionId, "Pedir repuesto"), (use.DefinitionId, use.FormName)));
+    }
+
+    [Fact]
+    public async Task A_field_in_use_conflict_hides_form_names_without_permission_to_read_forms()
+    {
+        var (catalog, field) = OneFieldCatalog();
+        var reader = new FormCatalogFieldReader();
+        var definitionId = Guid.CreateVersion7();
+        reader.Uses.Add(new(definitionId, "Pedir repuesto", "Proveedor", Guid.CreateVersion7(), "Draft", field.Id, ByMatch: true));
+        reader.Uses.Add(new(definitionId, "Pedir repuesto", "Zona", Guid.CreateVersion7(), "Draft", field.Id, ByMatch: false));
+        var work = new FakeUnitOfWork();
+        var removal = new FormCatalogFieldSaveRequest(null, field.Id, field.Key, new Dictionary<string, string?> { ["es"] = "Field" }, field.Type, null,
+            false, false, null, null, 300, "data", 0, false);
+
+        var result = await Service(catalog, reader, work).UpdateManualAsync(catalog.Id, new(catalog.Revision, Texts(), Texts(), [], Fields: [removal]),
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal("Forms.Catalog.FieldInUse", result.Error.Code);
+        var use = Assert.Single(Assert.IsAssignableFrom<IReadOnlyList<FormCatalogFieldUsageResponse>>(result.Error.Metadata!["uses"]));
+        Assert.Equal("Draft", use.Stage);
+        AssertRedacted(use);
+        Assert.Equal(0, work.Commits);
+    }
+
+    private static void AssertRedacted(FormCatalogFieldUsageResponse use)
+    {
+        Assert.Null(use.DefinitionId);
+        Assert.Null(use.FormName);
+        Assert.Null(use.Question);
+        Assert.Null(use.QuestionId);
+    }
+
+    private static (BusinessFormCatalog Catalog, BusinessFormCatalogField Field) OneFieldCatalog()
+    {
+        var catalog = Catalog();
+        var field = new BusinessFormCatalogField(Guid.CreateVersion7(), "field", new Dictionary<string, string> { ["es"] = "Field" }, "text", null,
+            false, false, null, null, 300, "data", 0, true);
+        Assert.True(catalog.SetFields([field], null).IsSuccess);
+        return (catalog, field);
+    }
+
     private static (BusinessFormCatalog Catalog, BusinessFormCatalogItem Item, string First, string Second) TwoFieldCatalog()
     {
         var catalog = Catalog();
@@ -118,11 +181,13 @@ public sealed class FormCatalogFieldServiceTests
     }
 
     private static FormCatalogService Service(BusinessFormCatalog catalog, FormCatalogFieldReader reader, FakeUnitOfWork work,
-        IFormCatalogRepository? items = null)
+        IFormCatalogRepository? items = null, bool canReadForms = false)
     {
         var actor = Guid.NewGuid();
         var permissions = new FakePermissionService();
-        permissions.Permissions[actor] = [BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage];
+        permissions.Permissions[actor] = canReadForms
+            ? [BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage, BusinessFormsPermissions.Read]
+            : [BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage];
         var repository = items ?? new FormCatalogActivationRepository(catalog);
         return new(repository, reader, work, RequestValidators.For(new UpdateManualCatalogRequestValidator()),
             new FormCatalogAccessGuard(new FakeCurrentUser { UserId = actor }, permissions), null!, new(repository), new(reader));

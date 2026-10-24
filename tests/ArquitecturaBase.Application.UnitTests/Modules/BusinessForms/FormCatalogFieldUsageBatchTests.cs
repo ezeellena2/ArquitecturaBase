@@ -15,7 +15,7 @@ public sealed class FormCatalogFieldUsageBatchTests
         Assert.True(catalog.SetFields(fields, null).IsSuccess);
         var reader = new FormCatalogFieldReader();
         var detail = new FormCatalogDetailResponse(catalog.Id, catalog.Key, fields[0].Name, new Dictionary<string, string>(), catalog.OriginalCulture, "Manual", 1, true, 0, null, null);
-        var result = await FormCatalogFieldPresentation.DescribeAsync(detail, catalog.FieldsJson, null, [], reader, TestContext.Current.CancellationToken);
+        var result = await FormCatalogFieldPresentation.DescribeAsync(detail, catalog.FieldsJson, null, [], reader, true, TestContext.Current.CancellationToken);
         Assert.Equal(2, result.Fields!.Count);
         Assert.Equal(1, reader.UsageReads);
     }
@@ -32,7 +32,7 @@ public sealed class FormCatalogFieldUsageBatchTests
         reader.Uses.Add(new(definitionId, "Form", "Question", questionId, "Draft", field.Id, ByMatch: true));
         var detail = new FormCatalogDetailResponse(catalog.Id, catalog.Key, field.Name, new Dictionary<string, string>(), catalog.OriginalCulture, "Manual", 1, true, 0, null, null);
 
-        var result = await FormCatalogFieldPresentation.DescribeAsync(detail, catalog.FieldsJson, null, [], reader, TestContext.Current.CancellationToken);
+        var result = await FormCatalogFieldPresentation.DescribeAsync(detail, catalog.FieldsJson, null, [], reader, true, TestContext.Current.CancellationToken);
 
         Assert.Equal(new FormCatalogFieldUsageResponse(definitionId, "Form", "Question", questionId, "Draft"),
             Assert.Single(Assert.Single(result.Fields!).UsedBy));
@@ -47,7 +47,7 @@ public sealed class FormCatalogFieldUsageBatchTests
         var reader = new FormCatalogFieldReader();
         var inputs = fields.Select(field => (FormCatalogFieldSaveRequest?)new FormCatalogFieldSaveRequest(null, field.Id, field.Key,
             field.Name.ToDictionary(pair => pair.Key, pair => (string?)pair.Value), field.Type, null, false, false, null, null, 300, "data", field.Position, false)).ToArray();
-        var result = await new FormCatalogFieldRecorder(reader).PrepareAsync(catalog, [], inputs, null, [], TestContext.Current.CancellationToken);
+        var result = await new FormCatalogFieldRecorder(reader).PrepareAsync(catalog, [], inputs, null, [], true, TestContext.Current.CancellationToken);
         Assert.True(result.IsSuccess);
         Assert.Equal(1, reader.UsageReads);
     }

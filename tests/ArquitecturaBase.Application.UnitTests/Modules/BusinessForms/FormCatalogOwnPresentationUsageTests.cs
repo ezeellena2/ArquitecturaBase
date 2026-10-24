@@ -18,7 +18,7 @@ public sealed class FormCatalogOwnPresentationUsageTests
         Assert.True(catalog.SetFields([field], JsonSerializer.Serialize(presentation, JsonSerializerOptions.Web)).IsSuccess);
         var input = new FormCatalogFieldSaveRequest(null, field.Id, field.Key, new Dictionary<string, string?> { ["es"] = "Field" }, field.Type, null,
             false, false, null, null, 300, "data", 0, false);
-        var result = await new FormCatalogFieldRecorder(new FormCatalogFieldReader()).PrepareAsync(catalog, [], [input], presentation, [], TestContext.Current.CancellationToken);
+        var result = await new FormCatalogFieldRecorder(new FormCatalogFieldReader()).PrepareAsync(catalog, [], [input], presentation, [], true, TestContext.Current.CancellationToken);
         Assert.Equal("Forms.Catalog.FieldInUse", result.Error.Code);
         var use = Assert.Single(Assert.IsAssignableFrom<IReadOnlyList<FormCatalogFieldUsageResponse>>(result.Error.Metadata!["uses"]));
         Assert.Equal("Catalog", use.Stage);
@@ -44,8 +44,8 @@ public sealed class FormCatalogOwnPresentationUsageTests
                 false, false, null, null, 300, "data", 0, false);
 
             var described = await FormCatalogFieldPresentation.DescribeAsync(detail, catalog.FieldsJson, catalog.PresentationJson, [],
-                new FormCatalogFieldReader(), TestContext.Current.CancellationToken);
-            var removal = await new FormCatalogFieldRecorder(new FormCatalogFieldReader()).PrepareAsync(catalog, [], [input], presentation, [],
+                new FormCatalogFieldReader(), true, TestContext.Current.CancellationToken);
+            var removal = await new FormCatalogFieldRecorder(new FormCatalogFieldReader()).PrepareAsync(catalog, [], [input], presentation, [], true,
                 TestContext.Current.CancellationToken);
 
             Assert.Equal("Branches", Assert.Single(Assert.Single(described.Fields!).UsedBy).FormName);

@@ -14,7 +14,7 @@ internal static class FormCatalogFieldPresentation
             item.Position, item.IsActive, item.Value, item.FieldValuesJson)).ToArray();
 
     public static async Task<FormCatalogDetailResponse> DescribeAsync(FormCatalogDetailResponse detail, string? fieldsJson,
-        string? presentationJson, IReadOnlyList<FormCatalogStoredItemRow> items, IFormCatalogReader reader, CancellationToken ct,
+        string? presentationJson, IReadOnlyList<FormCatalogStoredItemRow> items, IFormCatalogReader reader, bool canReadForms, CancellationToken ct,
         IReadOnlyDictionary<Guid, IReadOnlyList<FormCatalogStoredItemRow>>? sourceItems = null)
     {
         var fields = FormCatalogFieldPolicy.ReadFields(fieldsJson);
@@ -27,7 +27,7 @@ internal static class FormCatalogFieldPresentation
         var usesByField = uses.ToLookup(use => use.FieldId);
         foreach (var field in fields)
         {
-            var usedBy = usesByField[field.Id].Select(use => new FormCatalogFieldUsageResponse(use.DefinitionId, use.FormName, use.Question, use.QuestionId, use.Stage)).ToList();
+            var usedBy = FormCatalogFieldUsagePolicy.Describe(usesByField[field.Id], canReadForms).ToList();
             if (presentation?.Title.Contains(field.Id.ToString("D")) == true || presentation?.Description.Contains(field.Id.ToString("D")) == true)
                 usedBy.Add(new(null, FormRecordPresentationPolicy.Text(detail.Name, culture), null, null, "Catalog"));
             responses.Add(new(field.Id, field.Key, field.Name, field.Type, field.SourceCatalogId, field.Required, field.Unique,

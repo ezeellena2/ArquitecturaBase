@@ -68,6 +68,7 @@ internal sealed class FormCatalogImportService(IFormCatalogRepository repository
         foreach (var catalogId in sourceIds.Append(id).Distinct().Order()) await repository.LockAsync(catalogId, cancellationToken);
         var actor = await access.CheckAsync(true, cancellationToken);
         if (actor.IsFailure) return actor.Error;
+        var canReadForms = await access.HasPermissionAsync(actor.Value, BusinessFormsPermissions.Read, cancellationToken);
         var catalog = await repository.GetAsync(id, cancellationToken);
         if (catalog is null) return FormCatalogErrors.NotFound;
         if (catalog.Kind != BusinessFormCatalogKind.Manual) return FormCatalogErrors.ManualItemsUnavailable;
@@ -97,7 +98,7 @@ internal sealed class FormCatalogImportService(IFormCatalogRepository repository
             catalog.OriginalCulture, catalog.Kind.ToString(), catalog.Revision, catalog.IsActive, recorded.Value.Items.Count, null, null,
             ValueType: catalog.ValueType.ToString());
         detail = await FormCatalogFieldPresentation.DescribeAsync(detail, catalog.FieldsJson, catalog.PresentationJson,
-            FormCatalogFieldPresentation.ToRows(recorded.Value.Items), reader, cancellationToken, source.Value.Sources);
+            FormCatalogFieldPresentation.ToRows(recorded.Value.Items), reader, canReadForms, cancellationToken, source.Value.Sources);
         return new FormCatalogSaveResponse(detail, new Dictionary<string, Guid>(StringComparer.Ordinal),
             new Dictionary<string, Guid>(StringComparer.Ordinal));
     }
