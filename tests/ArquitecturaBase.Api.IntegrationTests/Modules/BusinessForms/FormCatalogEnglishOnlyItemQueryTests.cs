@@ -46,7 +46,8 @@ public sealed class FormCatalogEnglishOnlyItemQueryTests(ApiFactory factory)
             var catalogs = new FormCatalogReader(db);
             var people = new FormPersonDataReader(db);
 
-            var found = Assert.Single((await catalogs.ListItemsAsync(source.Id, new() { DisplayCulture = "es", Search = "Alpha" }, Ct)).Items);
+            // "branch" is in no code: ALPHA matches through its English fallback and BETA's translation is not searched.
+            var found = Assert.Single((await catalogs.ListItemsAsync(source.Id, new() { DisplayCulture = "es", Search = "branch" }, Ct)).Items);
             var sorted = await catalogs.ListItemsAsync(source.Id, new() { DisplayCulture = "es", Sort = "text" }, Ct);
             var withSource = Assert.Single((await catalogs.ListItemsAsync(visits.Id, new() { DisplayCulture = "es" }, Ct)).Items);
             var option = Assert.Single((await people.ListOptionsAsync(source.Id, new() { DisplayCulture = "es", Search = "Alpha" }, Ct)).Items);
