@@ -38,10 +38,10 @@ internal sealed partial class FormCatalogReader
         }).ToArray();
     }
 
-    private static Dictionary<string, string?> ReadItemFields(string json)
+    private static Dictionary<string, string> ReadItemFields(string json)
     {
         using var document = JsonDocument.Parse(json);
         return document.RootElement.EnumerateObject().ToDictionary(property => property.Name,
-            property => property.Value.ValueKind == JsonValueKind.String ? property.Value.GetString() : property.Value.GetRawText(), StringComparer.Ordinal);
+            property => property.Value.ValueKind == JsonValueKind.String ? property.Value.GetString()! : property.Value.GetRawText(), StringComparer.Ordinal);
     }
 }

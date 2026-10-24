@@ -19,7 +19,7 @@ public sealed class FormRuleOptionsPolicyTests
             var filtersField = manualField with { FieldId = Guid.NewGuid(), Key = "users", Source = new(filtersId) };
             var label = new Dictionary<string,string?> { ["es"] = "Local completo" };
             fixture.Catalogs[manualId] = new(manualId,"manual","{}","{}","Manual",1,true,default,null,null,null,250);
-            fixture.ManualItems[manualId] = Enumerable.Range(0,250).Select(index => new FormCatalogItemResponse(Guid.NewGuid(),index.ToString(CultureInfo.InvariantCulture),label,new Dictionary<string,string?>(),index+1,index%2==0)).ToArray();
+            fixture.ManualItems[manualId] = Enumerable.Range(0,250).Select(index => new FormCatalogItemResponse(Guid.NewGuid(),index.ToString(CultureInfo.InvariantCulture),label,new Dictionary<string,string?>(),index+1,index%2==0,null,new Dictionary<string,string>(),new Dictionary<string,IReadOnlyDictionary<string,string>>())).ToArray();
             fixture.Catalogs[filtersId] = new(filtersId,"filters","{}","{}","Filters",1,true,default,null,null,null,null,
                 FormDraftPolicy.Serialize(new FormCatalogFilterDefinition("active",null,[],false,"name",false)));
             var activeId = Guid.NewGuid();

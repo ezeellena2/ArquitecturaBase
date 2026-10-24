@@ -26,7 +26,8 @@ public sealed class FormConditionChoiceCapacityTests
             var number = index.ToString(CultureInfo.InvariantCulture);
             return new FormCatalogItemResponse(Guid.NewGuid(), "CODE-" + number,
                 new Dictionary<string, string?> { ["es"] = "Opción " + number, ["en"] = "Option " + number },
-                new Dictionary<string, string?>(), index, index % 2 == 0);
+                new Dictionary<string, string?>(), index, index % 2 == 0, null, new Dictionary<string, string>(),
+                new Dictionary<string, IReadOnlyDictionary<string, string>>());
         }).ToArray();
         fixture.ManualItems[catalogId] = items;
         var policy = new FormConditionChoicePolicy(fixture, fixture);

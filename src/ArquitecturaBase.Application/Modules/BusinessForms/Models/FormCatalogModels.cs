@@ -99,8 +99,9 @@ public sealed record FormCatalogItemResponse(
     IReadOnlyDictionary<string, string?> Text,
     IReadOnlyDictionary<string, string?> Detail,
     int Position,
-    bool IsActive, string? Value = null, IReadOnlyDictionary<string, string?>? Fields = null,
-    IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>>? FieldTexts = null);
+    bool IsActive, string? Value,
+    IReadOnlyDictionary<string, string> Fields,
+    IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> FieldTexts);
 
 public sealed record FormCatalogSaveResponse(
     FormCatalogDetailResponse Catalog,
