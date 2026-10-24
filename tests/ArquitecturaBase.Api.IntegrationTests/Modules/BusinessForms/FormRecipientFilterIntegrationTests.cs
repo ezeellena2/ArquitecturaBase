@@ -221,6 +221,43 @@ public sealed class FormRecipientFilterIntegrationTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Field_uses_name_forms_only_for_actors_who_can_read_forms()
+    {
+        await using var scenario = await FormRecipientScenario.CreateAsync(factory, Ct);
+        await scenario.PublishForPreparationAsync(factory, Ct);
+        using var manager = scenario.Client();
+        using var editor = scenario.Client(actor: scenario.CatalogEditorId);
+
+        var named = await ZoneUsesAsync(manager);
+        Assert.Equal(["Active", "Draft"], named.Select(use => use.GetProperty("stage").GetString()));
+        Assert.All(named, use => Assert.Equal("Pedir repuesto", use.GetProperty("formName").GetString()));
+        // Quien sólo administra catálogos ve que la zona está en uso, una vez por etapa, sin el formulario ni la pregunta.
+        AssertRedacted(await ZoneUsesAsync(editor));
+        var edit = scenario.CatalogEdit(2);
+        edit["fields"]![0]!["role"] = "data";
+        using var rejected = await editor.PutAsJsonAsync($"/api/forms/catalogs/{scenario.CatalogId}", edit, Ct);
+        Assert.Equal(HttpStatusCode.Conflict, rejected.StatusCode);
+        var problem = await rejected.ReadJsonAsync();
+        Assert.Equal(FormCatalogErrors.FieldInUse.Code, problem.GetProperty("code").GetString());
+        AssertRedacted(problem.GetProperty("uses").EnumerateArray().ToArray());
+
+        async Task<JsonElement[]> ZoneUsesAsync(HttpClient client)
+        {
+            using var detail = await client.GetAsync($"/api/forms/catalogs/{scenario.CatalogId}", Ct);
+            Assert.Equal(HttpStatusCode.OK, detail.StatusCode);
+            return (await detail.ReadJsonAsync()).GetProperty("fields").EnumerateArray()
+                .Single(field => field.GetProperty("id").GetGuid() == scenario.ZoneFieldId).GetProperty("usedBy").EnumerateArray().ToArray();
+        }
+
+        static void AssertRedacted(JsonElement[] uses)
+        {
+            Assert.Equal(["Active", "Draft"], uses.Select(use => use.GetProperty("stage").GetString()));
+            Assert.All(uses, use => Assert.All(new[] { "definitionId", "formName", "question", "questionId" },
+                name => Assert.Equal(JsonValueKind.Null, use.GetProperty(name).ValueKind)));
+        }
+    }
+
+    [Fact]
     public async Task Recipient_preview_routes_require_a_session_and_both_form_permissions()
     {
         await using var scenario = await FormRecipientScenario.CreateAsync(factory, Ct);
