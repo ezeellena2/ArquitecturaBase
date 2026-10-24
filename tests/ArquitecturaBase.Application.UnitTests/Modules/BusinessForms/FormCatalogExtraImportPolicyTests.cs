@@ -216,6 +216,22 @@ public sealed class FormCatalogExtraImportPolicyTests
     }
 
     [Fact]
+    public void Unique_extra_values_compare_the_decoded_text_of_values_stored_by_postgresql()
+    {
+        var field = Field("supplier", "text") with { Unique = true };
+        // jsonb returns the text without escapes and with a space after the colon.
+        var stored = Item("A", "Primera", $$"""{"{{field.Id:D}}": "Peñalba & Cía + Ñandú"}""");
+        var result = FormCatalogImportPolicy.Build(Source([field], [stored]),
+            Sheet(["Code", "Text", "supplier"], ["B", "Segunda", "Peñalba & Cía + Ñandú"]), FormCatalogImportMode.Append, "es");
+        Assert.True(result.IsSuccess);
+        Assert.Empty(result.Value.Items);
+        Assert.Equal(1, result.Value.Preview.Counts.ErrorRows);
+        var issue = Assert.Single(result.Value.Preview.Issues);
+        Assert.Equal(field.Id.ToString("D"), issue.Column);
+        Assert.Equal("Forms.Catalog.FieldValueDuplicate", issue.Code);
+    }
+
+    [Fact]
     public void A_blank_header_never_matches_a_field_even_when_a_name_translation_is_blank()
     {
         var field = Field("note", "text", "Nota", "");

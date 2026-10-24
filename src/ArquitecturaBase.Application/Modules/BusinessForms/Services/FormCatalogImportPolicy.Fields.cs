@@ -101,24 +101,25 @@ internal static partial class FormCatalogImportPolicy
             errorRows.Add(row.Number);
             var state = states[code];
             foreach (var key in unique)
-                if (state.Active && state.Values.TryGetValue(key, out var raw)) owners[key][raw.GetRawText()].Remove(code);
+                if (state.Active && state.Values.TryGetValue(key, out var raw) && FormCatalogFieldPolicy.Input(raw) is { } text) owners[key][text].Remove(code);
             states.Remove(code);
             if (!originals.TryGetValue(code, out var original)) continue;
             var restored = (original.IsActive, (IReadOnlyDictionary<string, JsonElement>)FormCatalogFieldPolicy.ReadValues(original.FieldValuesJson));
             states.Add(code, restored);
             Add(code, restored);
             foreach (var key in unique)
-                if (restored.IsActive && restored.Item2.TryGetValue(key, out var raw)) Enqueue(key, owners[key][raw.GetRawText()]);
+                if (restored.IsActive && restored.Item2.TryGetValue(key, out var raw) && FormCatalogFieldPolicy.Input(raw) is { } text) Enqueue(key, owners[key][text]);
         }
         rows.RemoveAll(row => invalid.Contains(row.Code));
 
+        // Saved values come from jsonb unescaped and imported ones from the serializer escaped: owners compare the decoded value.
         void Add(string code, (bool Active, IReadOnlyDictionary<string, JsonElement> Values) state)
         {
             if (!state.Active) return;
             foreach (var key in unique)
-                if (state.Values.TryGetValue(key, out var raw))
+                if (state.Values.TryGetValue(key, out var raw) && FormCatalogFieldPolicy.Input(raw) is { } text)
                 {
-                    if (!owners[key].TryGetValue(raw.GetRawText(), out var codes)) owners[key].Add(raw.GetRawText(), codes = new(StringComparer.OrdinalIgnoreCase));
+                    if (!owners[key].TryGetValue(text, out var codes)) owners[key].Add(text, codes = new(StringComparer.OrdinalIgnoreCase));
                     codes.Add(code);
                 }
         }
