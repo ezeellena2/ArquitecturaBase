@@ -72,11 +72,10 @@ public sealed partial class FormAssistantClarificationPolicyTests
     public async Task The_selected_form_carries_one_complete_language_including_its_fixed_selection_reason(bool incompleteEnglish, string expectedCulture, string expectedReason)
     {
         var f = new FormAssistantClarificationFixture(); await f.UseEnglishAsync(Ct);
+        // A notice without English leaves the form complete only in its original language.
         if (incompleteEnglish)
-        {
-            var names = new Dictionary<string, string> { ["es"] = "Personas" };
-            Assert.True(f.Inner.Catalog.Catalog.UpdateManual(1, names, names).IsSuccess);
-        }
+            f.Inner.Catalog.SetRules([new(Guid.NewGuid(), "Approved", [], [new(Guid.NewGuid(), "NotifyAuthor", null,
+                new Dictionary<string, string> { ["es"] = "Aprobamos la visita" }, false)])]);
         var result = await f.Policy.ValidateAsync(Select(f, false), Ct);
         Assert.True(result.IsSuccess);
         var selected = Assert.IsType<StructuredFormPrefillResponse>(result.Value.SelectedForm);

@@ -13,8 +13,9 @@ public sealed class FormSuggestionReasonCultureTests
         var fixture = new FormSuggestionRuntimeFixture();
         var ct = TestContext.Current.CancellationToken;
         await fixture.Assistant.Users.UpdateProfileAsync(fixture.Assistant.UserId, null, "en", "America/Argentina/Buenos_Aires", ct);
-        var names = new Dictionary<string, string> { ["es"] = "Personas" };
-        Assert.True(fixture.Assistant.Catalog.Catalog.UpdateManual(1, names, names).IsSuccess);
+        // A notice without English leaves the target complete only in its original language.
+        fixture.Assistant.Catalog.SetRules([new(Guid.NewGuid(), "Approved", [],
+            [new(Guid.NewGuid(), "NotifyAuthor", null, new Dictionary<string, string> { ["es"] = "Aprobamos la visita" }, false)])]);
 
         var result = await fixture.Policy.PrepareAsync(fixture.Request with { Culture = "en", ForSending = forSending }, ct);
 
