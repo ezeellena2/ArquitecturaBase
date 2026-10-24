@@ -192,6 +192,32 @@ public sealed class FormCatalogFieldRecorderTests
         Assert.Equal(north, Assert.Single(options));
     }
 
+    // The editor can turn a catalog field into text and remove it in the same draft; an already inactive field can change type too.
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Converting_an_inactive_catalog_field_to_text_reads_its_previous_source_and_converts_its_values(bool removedInThisSave)
+    {
+        var catalog = Catalog();
+        var oldSource = Guid.CreateVersion7();
+        var field = Field() with { Type = "catalog", SourceCatalogId = oldSource, MaxLength = null, IsActive = removedInThisSave };
+        Assert.True(catalog.SetFields([field], null).IsSuccess);
+        var reader = new FormCatalogFieldReader();
+        var north = new FormCatalogStoredItemRow(Guid.CreateVersion7(), oldSource, "N", "Norte", "North", null, null, 1, true);
+        reader.Items[oldSource] = [north];
+        var item = catalog.AddManualItem("acme", "Acme", null, null, null, 1).Value;
+        Assert.True(catalog.SetManualItemFields(item, JsonSerializer.Serialize(new Dictionary<string, string> { [field.Id.ToString("D")] = north.Id.ToString("D") })).IsSuccess);
+
+        var prepared = await new FormCatalogFieldRecorder(reader).PrepareAsync(catalog, [item], [Input(field.Id) with { IsActive = false }], null, [field.Id], true,
+            TestContext.Current.CancellationToken);
+        Assert.True(prepared.IsSuccess);
+        var validated = FormCatalogFieldPolicy.ValidateItems(catalog, [item], [], new Dictionary<Guid, Dictionary<string, JsonElement>>(), prepared.Value.Context);
+
+        Assert.True(validated.IsSuccess);
+        Assert.Equal(north, Assert.Single(prepared.Value.Context.Sources[oldSource]));
+        Assert.Equal("Norte", FormCatalogFieldPolicy.ReadValues(item.FieldValuesJson)[field.Id.ToString("D")].GetString());
+    }
+
     private static BusinessFormCatalog Catalog() => BusinessFormCatalog.CreateManual("es", new Dictionary<string, string> { ["es"] = "Catalog" }, new Dictionary<string, string>());
     private static BusinessFormCatalogField Field() => new(Guid.CreateVersion7(), "field", new Dictionary<string, string> { ["es"] = "Field" }, "text", null, false, false, null, null, 300, "data", 0, true);
     // A catalog-type filter field whose source and a second source are both active Manual catalogs, so only the use check can stop the change.
