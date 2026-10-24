@@ -111,7 +111,7 @@ public sealed class FormMultipleChoiceReadPolicyTests
         var fixture = new FormRuleFixture(); var catalog = Guid.NewGuid();
         var field = new CanonicalFormField(Guid.NewGuid(), "risks", "multiChoice", Text("Riesgos", "Risks"), null, false, null, null,
             Source: new(catalog), Selection: new(0, 3));
-        fixture.Catalogs[catalog] = new(catalog, "risk", "{}", "{}", "Manual", 1, true, default, null, null, null, 2);
+        fixture.Catalogs[catalog] = new(catalog, "risk", "{}", "{}", "es", "Manual", 1, true, default, null, null, null, 2);
         fixture.ManualItems[catalog] = [new(Guid.NewGuid(), "RISK", new Dictionary<string, string?> { ["es"] = "Histórica", ["en"] = "Historical" }, new Dictionary<string, string?>(), 0, false, null,
             new Dictionary<string, string>(), new Dictionary<string, IReadOnlyDictionary<string, string>>())];
         var result = await new FormConditionChoicePolicy(fixture, fixture).ReadAsync(fixture.User.UserId!.Value,

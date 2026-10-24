@@ -70,7 +70,7 @@ internal sealed class FormCatalogProposalFixture : IFormCatalogRepository, IForm
     {
         var catalog = Catalogs.SingleOrDefault(value => value.Id == id);
         return Task.FromResult(catalog is null ? null : new FormCatalogStoredRow(catalog.Id, catalog.Key, catalog.NameJson,
-            catalog.DescriptionJson, catalog.Kind.ToString(), catalog.Revision, catalog.IsActive, catalog.CreatedAtUtc,
+            catalog.DescriptionJson, catalog.OriginalCulture, catalog.Kind.ToString(), catalog.Revision, catalog.IsActive, catalog.CreatedAtUtc,
             catalog.CreatedBy, catalog.ModifiedAtUtc, catalog.ModifiedBy, 0, catalog.FiltersJson, catalog.ProposalEvidenceJson,
             catalog.ProposalState, catalog.ProposalDecidedByUserId, catalog.ProposalDecidedAtUtc));
     }

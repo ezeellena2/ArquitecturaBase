@@ -141,8 +141,8 @@ internal sealed partial class FormPersonDataService(IFormPersonDataRepository re
         if (source is null || !source.IsActive || source.Kind != BusinessFormCatalogKind.Manual) return FormPersonDataErrors.SourceUnavailable;
         return source;
     }
-    private static FormPersonAttributeStoredRow Row(BusinessFormPersonAttribute value, string? sourceName) => new(value.Id, value.Key, value.NameJson, value.Type.ToString(), value.SourceCatalogId, value.Position, value.IsActive, value.Revision, sourceName);
-    private static FormPersonAttributeResponse Map(FormPersonAttributeStoredRow row, IReadOnlyList<FormPersonAttributeUseRow> uses) => new(row.Id, row.Key, Texts(row.NameJson), row.Type, row.SourceCatalogId,
+    private static FormPersonAttributeStoredRow Row(BusinessFormPersonAttribute value, string? sourceName) => new(value.Id, value.Key, value.NameJson, value.OriginalCulture, value.Type.ToString(), value.SourceCatalogId, value.Position, value.IsActive, value.Revision, sourceName);
+    private static FormPersonAttributeResponse Map(FormPersonAttributeStoredRow row, IReadOnlyList<FormPersonAttributeUseRow> uses) => new(row.Id, row.Key, Texts(row.NameJson), row.OriginalCulture, row.Type, row.SourceCatalogId,
         row.SourceCatalogNameJson is null ? null : Text(row.SourceCatalogNameJson), row.Position, row.IsActive, row.Revision,
         uses.Where(use => use.AttributeId == row.Id).DistinctBy(use => use.DefinitionId).Select(use => new FormPersonAttributeUseResponse(use.DefinitionId, Text(use.NameJson))).ToArray());
     private static Dictionary<string, string> Names(IReadOnlyDictionary<string, string?> values) => values.Where(pair => !string.IsNullOrWhiteSpace(pair.Value)).ToDictionary(pair => pair.Key, pair => pair.Value!.Trim(), StringComparer.Ordinal);

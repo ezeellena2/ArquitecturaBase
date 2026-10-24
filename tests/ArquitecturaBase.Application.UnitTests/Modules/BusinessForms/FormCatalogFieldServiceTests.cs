@@ -60,7 +60,7 @@ public sealed class FormCatalogFieldServiceTests
         var item = catalog.AddManualItem("one", "One", null, null, null, 1).Value;
         var fieldValues = JsonSerializer.Serialize(new Dictionary<string, string> { [field.Id.ToString()] = new string('x', 30) });
         var reader = new FormCatalogFieldReader();
-        reader.Catalogs[catalog.Id] = new(catalog.Id, catalog.Key, catalog.NameJson, catalog.DescriptionJson, "Manual", 1, true,
+        reader.Catalogs[catalog.Id] = new(catalog.Id, catalog.Key, catalog.NameJson, catalog.DescriptionJson, catalog.OriginalCulture, "Manual", 1, true,
             catalog.CreatedAtUtc, null, null, null, 1, FieldsJson: catalog.FieldsJson, PresentationJson: catalog.PresentationJson);
         reader.Items[catalog.Id] = [new(item.Id, catalog.Id, item.Code, item.TextEs, null, null, null, 1, true, FieldValuesJson: fieldValues)];
         var result = await Service(catalog, reader, new()).GetAsync(catalog.Id, TestContext.Current.CancellationToken);

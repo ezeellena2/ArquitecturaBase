@@ -23,7 +23,7 @@ internal static class FormCatalogProposalPresentation
     }
 
     public static async Task<FormCatalogDetailResponse> MapAsync(BusinessFormCatalog catalog, int? usageCount, IUserReader users, CancellationToken ct) =>
-        new(catalog.Id, catalog.Key, Texts(catalog.NameJson), Texts(catalog.DescriptionJson), catalog.Kind.ToString(), catalog.Revision,
+        new(catalog.Id, catalog.Key, Texts(catalog.NameJson), Texts(catalog.DescriptionJson), catalog.OriginalCulture, catalog.Kind.ToString(), catalog.Revision,
             catalog.IsActive, 0, usageCount, null, catalog.FiltersJson is null ? null : JsonSerializer.Deserialize<FormCatalogFilterDefinition>(catalog.FiltersJson, JsonSerializerOptions.Web),
             await ReadAsync(catalog.ProposalEvidenceJson, catalog.ProposalState, catalog.ProposalDecidedByUserId, catalog.ProposalDecidedAtUtc, users, ct));
 

@@ -124,6 +124,7 @@ public sealed class FormCatalogProposalServiceTests
         Assert.Equal(host.Time.GetUtcNow().UtcDateTime, catalog.ProposalDecidedAtUtc);
         Assert.Equal(evidence, catalog.ProposalEvidenceJson);
         Assert.Equal("Reviewed supervisors", result.Value.Catalog.Name[culture]);
+        Assert.Equal(culture, result.Value.Catalog.OriginalCulture);
         Assert.Equal("Approved", result.Value.Catalog.Proposal!.State);
         Assert.Equal(1, host.Uow.Transactions);
         Assert.Equal(1, host.Uow.Commits);
@@ -171,9 +172,10 @@ public sealed class FormCatalogProposalServiceTests
     public async Task Discard_records_one_inactive_decision_and_a_stale_second_decision_is_a_conflict()
     {
         var host = new FormCatalogProposalFixture();
-        var catalog = host.Pending();
+        var catalog = host.Pending("en");
         var result = await host.Service.DiscardAsync(catalog.Id, new(1), Ct);
         Assert.True(result.IsSuccess);
+        Assert.Equal("en", result.Value.OriginalCulture);
         Assert.Equal("Discarded", result.Value.Proposal!.State);
         Assert.False(catalog.IsActive);
         Assert.Equal(host.Current.UserId, catalog.ProposalDecidedByUserId);
@@ -201,6 +203,7 @@ public sealed class FormCatalogProposalServiceTests
         var result = await reader.GetAsync(catalog.Id, Ct);
         Assert.True(result.IsSuccess);
         Assert.NotNull(result.Value.Proposal);
+        Assert.Equal("en", result.Value.OriginalCulture);
         Assert.Equal("en", result.Value.Proposal.OriginalCulture);
         Assert.Equal(host.Assistant.Actor, result.Value.Proposal.RequestedBy.UserId);
         Assert.Equal("Pending", result.Value.Proposal.State);

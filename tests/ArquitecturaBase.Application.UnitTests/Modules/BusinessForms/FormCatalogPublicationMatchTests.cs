@@ -142,5 +142,5 @@ public sealed class FormCatalogPublicationMatchTests : IDisposable
     private static BusinessFormCatalogField Field(string type, Guid? source = null) => new(Guid.CreateVersion7(), "filter",
         new Dictionary<string, string> { ["es"] = "Filtro" }, type, source, false, false, null, null,
         type == "text" ? 300 : null, "filter", 0, true);
-    private static FormPersonAttributeStoredRow Attribute(Guid source) => new(Guid.CreateVersion7(), "zone", "{\"es\":\"Zona\"}", "Catalog", source, 0, true, 1, null);
+    private static FormPersonAttributeStoredRow Attribute(Guid source) => new(Guid.CreateVersion7(), "zone", "{\"es\":\"Zona\"}", "es", "Catalog", source, 0, true, 1, null);
 }

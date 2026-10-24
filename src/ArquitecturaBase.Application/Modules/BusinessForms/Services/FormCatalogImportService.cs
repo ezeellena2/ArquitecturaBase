@@ -94,7 +94,7 @@ internal sealed class FormCatalogImportService(IFormCatalogRepository repository
             if (marked.IsFailure) return marked.Error;
         }
         var detail = new FormCatalogDetailResponse(catalog.Id, catalog.Key, ReadTexts(catalog.NameJson), ReadTexts(catalog.DescriptionJson),
-            catalog.Kind.ToString(), catalog.Revision, catalog.IsActive, recorded.Value.Items.Count, null, null,
+            catalog.OriginalCulture, catalog.Kind.ToString(), catalog.Revision, catalog.IsActive, recorded.Value.Items.Count, null, null,
             ValueType: catalog.ValueType.ToString());
         detail = await FormCatalogFieldPresentation.DescribeAsync(detail, catalog.FieldsJson, catalog.PresentationJson,
             FormCatalogFieldPresentation.ToRows(recorded.Value.Items), reader, cancellationToken, source.Value.Sources);

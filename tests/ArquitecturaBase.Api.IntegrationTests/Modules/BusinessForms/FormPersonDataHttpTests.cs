@@ -40,6 +40,7 @@ public sealed class FormPersonDataHttpTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.Created, catalogResponse.StatusCode);
         var catalog = (await catalogResponse.ReadJsonAsync()).GetProperty("catalog");
         var catalogId = catalog.GetProperty("id").GetGuid();
+        Assert.Equal(culture, catalog.GetProperty("originalCulture").GetString());
         var items = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormCatalogItem>().Where(item => item.CatalogId == catalogId)
             .ToDictionaryAsync(item => item.Code, item => item.Id, Ct));
 
@@ -49,7 +50,9 @@ public sealed class FormPersonDataHttpTests(ApiFactory factory)
         }, Ct);
         Assert.Equal(HttpStatusCode.OK, attributeCreated.StatusCode);
         await FormPersonDataContractCapture.WriteAsync(attributeCreated, culture, "attribute-created", Ct);
-        var attributeId = (await attributeCreated.ReadJsonAsync()).GetProperty("id").GetGuid();
+        var createdAttribute = await attributeCreated.ReadJsonAsync();
+        var attributeId = createdAttribute.GetProperty("id").GetGuid();
+        Assert.Equal(culture, createdAttribute.GetProperty("originalCulture").GetString());
         var userId = await factory.InTransactionAsync(async services =>
         {
             var users = services.GetRequiredService<IUserRepository>();
@@ -121,7 +124,9 @@ public sealed class FormPersonDataHttpTests(ApiFactory factory)
         using var attributes = await editor.GetAsync("/api/forms/person-attributes", Ct);
         Assert.Equal(HttpStatusCode.OK, attributes.StatusCode);
         await FormPersonDataContractCapture.WriteAsync(attributes, culture, "attributes", Ct);
-        Assert.Contains((await attributes.ReadJsonAsync()).GetProperty("items").EnumerateArray(), row => row.GetProperty("id").GetGuid() == attributeId);
+        var listedAttribute = Assert.Single((await attributes.ReadJsonAsync()).GetProperty("items").EnumerateArray(),
+            row => row.GetProperty("id").GetGuid() == attributeId);
+        Assert.Equal(culture, listedAttribute.GetProperty("originalCulture").GetString());
 
         using var forbiddenReader = await OperatorAsync(BusinessFormsPermissions.PersonDataManage);
         forbiddenReader.DefaultRequestHeaders.AcceptLanguage.ParseAdd(culture);

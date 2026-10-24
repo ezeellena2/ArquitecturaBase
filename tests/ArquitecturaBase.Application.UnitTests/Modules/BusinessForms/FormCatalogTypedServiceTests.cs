@@ -121,6 +121,36 @@ public sealed class FormCatalogTypedServiceTests
         finally { CultureInfo.CurrentUICulture = previous; }
     }
 
+    [Theory]
+    [InlineData("Manual", "es-AR", "es")]
+    [InlineData("Manual", "en-US", "en")]
+    [InlineData("Filters", "es-AR", "es")]
+    [InlineData("Filters", "en-US", "en")]
+    public async Task Created_catalog_details_report_the_request_culture_as_their_original_culture(string kind, string uiCulture, string original)
+    {
+        var previous = CultureInfo.CurrentUICulture;
+        try
+        {
+            var repository = new FormCatalogCapacityRepository();
+            var work = new FakeUnitOfWork();
+            var filters = new FormCatalogFilterDefinition("name", null, [], false, "name", false);
+            CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo(uiCulture);
+            var created = kind == "Manual"
+                ? await Service(repository, work).CreateManualAsync(new(Texts(), Texts(), []), Ct)
+                : await FiltersService(repository, work).CreateAsync(new(Texts(), Texts(), filters), Ct);
+
+            // Editing with the menu in the other language keeps the original the catalog was created in.
+            CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo(original == "en" ? "es-AR" : "en-US");
+            var updated = kind == "Manual"
+                ? await Service(repository, work).UpdateManualAsync(repository.Catalog!.Id, new(1, Texts(), Texts(), []), Ct)
+                : await FiltersService(repository, work).UpdateAsync(repository.Catalog!.Id, new(1, Texts(), Texts(), filters), Ct);
+
+            Assert.Equal(original, created.Value.Catalog.OriginalCulture);
+            Assert.Equal(original, updated.Value.Catalog.OriginalCulture);
+        }
+        finally { CultureInfo.CurrentUICulture = previous; }
+    }
+
     [Fact]
     public async Task A_manual_catalog_is_saved_without_description()
     {

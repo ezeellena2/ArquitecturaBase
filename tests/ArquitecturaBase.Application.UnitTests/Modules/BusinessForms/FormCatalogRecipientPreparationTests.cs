@@ -202,7 +202,7 @@ public sealed class FormCatalogRecipientPreparationTests
     private static CanonicalFormField Question(FormCatalogPreparationFixture f) => Assert.Single(FormDraftPolicy.Read<FormVersionSchema>(f.Version.SchemaJson).Questions);
     private static BusinessFormCatalogField Field(string key, string type, string role, Guid? source = null) => new(Guid.CreateVersion7(), key,
         new Dictionary<string, string> { ["es"] = key }, type, source, false, false, null, null, type == "text" ? 300 : null, role, 0, true);
-    private static FormPersonAttributeStoredRow Attribute(Guid source) => new(Guid.CreateVersion7(), "zone", "{\"es\":\"Zona\"}", "Catalog", source, 0, true, 1, null);
+    private static FormPersonAttributeStoredRow Attribute(Guid source) => new(Guid.CreateVersion7(), "zone", "{\"es\":\"Zona\"}", "es", "Catalog", source, 0, true, 1, null);
     private static void Add(FormCatalogPreparationFixture f, int index, BusinessFormCatalogField zone, string zoneValue, BusinessFormCatalogField category, string categoryValue)
     {
         var item = BusinessFormCatalogItem.Create(f.Catalog.Id, "C" + index, "Proveedor " + index, null, null, null, index);

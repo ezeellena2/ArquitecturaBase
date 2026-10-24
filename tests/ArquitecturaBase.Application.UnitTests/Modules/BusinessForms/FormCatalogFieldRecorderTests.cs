@@ -163,7 +163,7 @@ public sealed class FormCatalogFieldRecorderTests
         var catalog = Catalog();
         var reader = new FormCatalogFieldReader();
         foreach (var source in new[] { Guid.CreateVersion7(), Guid.CreateVersion7() })
-            reader.Catalogs[source] = new(source, "source-" + source.ToString("N"), """{"es":"Source"}""", "{}", "Manual", 1, true, DateTime.UnixEpoch, null, null, null, 0);
+            reader.Catalogs[source] = new(source, "source-" + source.ToString("N"), """{"es":"Source"}""", "{}", "es", "Manual", 1, true, DateTime.UnixEpoch, null, null, null, 0);
         var field = Field() with { Type = "catalog", SourceCatalogId = reader.Catalogs.Keys.First(), MaxLength = null, Role = "filter" };
         Assert.True(catalog.SetFields([field], null).IsSuccess);
         return (catalog, field, reader);

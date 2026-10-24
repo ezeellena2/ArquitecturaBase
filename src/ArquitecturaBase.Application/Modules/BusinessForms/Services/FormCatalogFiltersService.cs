@@ -115,7 +115,7 @@ internal sealed class FormCatalogFiltersService(
 
     private static FormCatalogDetailResponse Map(BusinessFormCatalog catalog, FormCatalogFilterDefinition filters,
         int? usageCount) => new(catalog.Id, catalog.Key, ReadTexts(catalog.NameJson), ReadTexts(catalog.DescriptionJson),
-        catalog.Kind.ToString(), catalog.Revision, catalog.IsActive, 0, usageCount, null, filters);
+        catalog.OriginalCulture, catalog.Kind.ToString(), catalog.Revision, catalog.IsActive, 0, usageCount, null, filters);
 
     private static Dictionary<string, Guid> EmptyIdentityMap() => new(StringComparer.Ordinal);
 

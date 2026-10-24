@@ -29,6 +29,7 @@ public sealed class FormCatalogProposalHttpTests(ApiFactory factory)
         await FormCatalogProposalContractCapture.WriteAsync(detail, "detail-pending-en", Ct);
         var body = await detail.ReadJsonAsync();
         Assert.False(body.GetProperty("isActive").GetBoolean());
+        Assert.Equal("en", body.GetProperty("originalCulture").GetString());
         Assert.False(body.GetProperty("name").TryGetProperty("es", out _));
         Assert.Equal(accepted.Name, body.GetProperty("name").GetProperty("en").GetString());
         var proposal = body.GetProperty("proposal");
@@ -52,6 +53,7 @@ public sealed class FormCatalogProposalHttpTests(ApiFactory factory)
         Assert.True(saved.GetProperty("isActive").GetBoolean());
         Assert.Equal(2, saved.GetProperty("revision").GetInt64());
         Assert.Equal(editedName, saved.GetProperty("name").GetProperty("en").GetString());
+        Assert.Equal("en", saved.GetProperty("originalCulture").GetString());
         Assert.Equal("Approved", saved.GetProperty("proposal").GetProperty("state").GetString());
         Assert.Equal(scenario.ReviewerId, saved.GetProperty("proposal").GetProperty("decidedBy").GetProperty("userId").GetGuid());
         Assert.NotEqual(scenario.RequesterId, scenario.ReviewerId);

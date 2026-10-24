@@ -60,7 +60,7 @@ internal sealed class FormCatalogPreparationFixture : IFormRecordRepository, IFo
             .Select(item => new FormCatalogStoredItemRow(item.Id, item.CatalogId, item.Code, item.TextEs, item.TextEn, item.DetailEs, item.DetailEn, item.Position, item.IsActive, item.Value, item.FieldValuesJson)).ToArray());
     }
     public Task<FormCatalogStoredRow?> FindAsync(Guid id, CancellationToken ct) => Task.FromResult<FormCatalogStoredRow?>(CatalogMissing ? null :
-        new(Catalog.Id, Catalog.Key, Catalog.NameJson, Catalog.DescriptionJson, Catalog.Kind.ToString(), Catalog.Revision, Catalog.IsActive,
+        new(Catalog.Id, Catalog.Key, Catalog.NameJson, Catalog.DescriptionJson, Catalog.OriginalCulture, Catalog.Kind.ToString(), Catalog.Revision, Catalog.IsActive,
             Catalog.CreatedAtUtc, Catalog.CreatedBy, Catalog.ModifiedAtUtc, Catalog.ModifiedBy, Items.Count, Catalog.FiltersJson, ValueType: Catalog.ValueType.ToString(), FieldsJson: Catalog.FieldsJson, PresentationJson: Catalog.PresentationJson));
     public Task<FormCatalogsPageResponse> FindPageAsync(ListFormCatalogsRequest request, bool canEdit, bool canReadForms, CancellationToken ct) => throw new NotSupportedException();
     public Task<FormCatalogMaximumOfferRow> FindMaximumOfferSizeAsync(Guid catalogId, string? fixedContainmentJson, IReadOnlyCollection<Guid> personFieldIds, CancellationToken ct) => throw new NotSupportedException();

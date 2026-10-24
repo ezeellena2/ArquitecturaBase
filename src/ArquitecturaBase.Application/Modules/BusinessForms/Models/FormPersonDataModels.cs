@@ -14,7 +14,7 @@ public sealed record ListFormPersonAttributeOptionsRequest : PagedRequest
 { public static readonly IReadOnlyCollection<string> SortableFields = ["text"]; public string DisplayCulture { get; init; } = "es";
     public override string ToString() => "ListFormPersonAttributeOptionsRequest { Search = [REDACTED] }"; }
 public sealed record FormPersonAttributeUseResponse(Guid DefinitionId, string Name);
-public sealed record FormPersonAttributeResponse(Guid Id, string Key, IReadOnlyDictionary<string, string> Name, string Type, Guid? SourceCatalogId,
+public sealed record FormPersonAttributeResponse(Guid Id, string Key, IReadOnlyDictionary<string, string> Name, string OriginalCulture, string Type, Guid? SourceCatalogId,
     string? SourceCatalogName, int Position, bool IsActive, long Revision, IReadOnlyList<FormPersonAttributeUseResponse> UsedBy);
 public sealed record FormPersonAttributesResponse(IReadOnlyList<FormPersonAttributeResponse> Items);
 public sealed record FormPersonDataValueResponse(string Value, string Text)
@@ -24,7 +24,7 @@ public sealed record FormPersonDataResponse(Guid UserId, long? Revision, IReadOn
 public sealed record FormPersonDataTableResponse(Guid UserId, string? DisplayName, IReadOnlyDictionary<string, FormPersonDataValueResponse> Values)
 { public override string ToString() => "FormPersonDataTableResponse { Content = [REDACTED] }"; }
 public sealed record FormPersonAttributeOptionResponse(Guid Id, string Text);
-public sealed record FormPersonAttributeStoredRow(Guid Id, string Key, string NameJson, string Type, Guid? SourceCatalogId,
+public sealed record FormPersonAttributeStoredRow(Guid Id, string Key, string NameJson, string OriginalCulture, string Type, Guid? SourceCatalogId,
     int Position, bool IsActive, long Revision, string? SourceCatalogNameJson = null);
 public sealed record FormPersonAttributeUseRow(Guid AttributeId, Guid DefinitionId, string NameJson);
 public sealed record FormPersonOptionTextRow(Guid CatalogId, string Text);

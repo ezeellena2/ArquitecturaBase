@@ -45,6 +45,19 @@ public sealed class FormCatalogImportServiceTests
     }
 
     [Theory]
+    [InlineData("es")]
+    [InlineData("en")]
+    public async Task An_applied_import_reports_the_original_culture_of_the_catalog(string original)
+    {
+        using var f = new FormCatalogImportFixture(originalCulture: original);
+
+        var applied = await f.Service.ApplyAsync(f.Catalog.Id, f.Request(), Ct);
+
+        Assert.True(applied.IsSuccess);
+        Assert.Equal(original, applied.Value.Catalog.OriginalCulture);
+    }
+
+    [Theory]
     [InlineData("missing", "Forms.Catalog.NotFound")]
     [InlineData("filters", "Forms.Catalog.ManualItemsUnavailable")]
     [InlineData("stale", "Forms.Catalog.RevisionConflict")]

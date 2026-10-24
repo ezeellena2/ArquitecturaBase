@@ -121,7 +121,7 @@ internal sealed class FormPersonDataFixture : IFormPersonDataRepository, IFormPe
     public void Add(BusinessFormCatalog value) => throw new NotSupportedException();
     public void AddItems(IEnumerable<BusinessFormCatalogItem> values) => throw new NotSupportedException();
     public Task<FormCatalogStoredRow?> FindAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult<FormCatalogStoredRow?>(Source(id) is not { } source ? null : new(
-        source.Id, source.Key, source.NameJson, source.DescriptionJson, source.Kind.ToString(), source.Revision, source.IsActive,
+        source.Id, source.Key, source.NameJson, source.DescriptionJson, source.OriginalCulture, source.Kind.ToString(), source.Revision, source.IsActive,
         source.CreatedAtUtc, source.CreatedBy, source.ModifiedAtUtc, source.ModifiedBy, id == Catalog.Id ? 2 : 0));
     public Task<IReadOnlyList<FormCatalogStoredItemRow>> ListAllItemsAsync(Guid catalogId, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<FormCatalogStoredItemRow>>([Item(ActiveItem), Item(InactiveItem)]);
@@ -136,7 +136,7 @@ internal sealed class FormPersonDataFixture : IFormPersonDataRepository, IFormPe
 
     private BusinessFormCatalog? Source(Guid id) => id == Catalog.Id ? Catalog : id == OtherCatalog.Id ? OtherCatalog : null;
     private FormPersonAttributeStoredRow Row(BusinessFormPersonAttribute value) => new(value.Id, value.Key, value.NameJson,
-        value.Type.ToString(), value.SourceCatalogId, value.Position, value.IsActive, value.Revision, value.SourceCatalogId is null ? null : Catalog.NameJson);
+        value.OriginalCulture, value.Type.ToString(), value.SourceCatalogId, value.Position, value.IsActive, value.Revision, value.SourceCatalogId is null ? null : Catalog.NameJson);
     private static FormCatalogStoredItemRow Item(BusinessFormCatalogItem value) => new(value.Id, value.CatalogId, value.Code,
         value.TextEs, value.TextEn, value.DetailEs, value.DetailEn, value.Position, value.IsActive, value.Value);
     private static Dictionary<string, string> Names() => new() { ["es"] = "Zona", ["en"] = "Zone" };

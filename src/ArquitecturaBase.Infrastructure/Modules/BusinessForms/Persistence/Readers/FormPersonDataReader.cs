@@ -25,7 +25,7 @@ internal sealed partial class FormPersonDataReader(ApplicationDbContext dbContex
                join catalog in dbContext.Set<BusinessFormCatalog>().AsNoTracking() on attribute.SourceCatalogId equals catalog.Id into catalogs
                from catalog in catalogs.DefaultIfEmpty()
                orderby attribute.Position, attribute.Id
-               select new FormPersonAttributeStoredRow(attribute.Id, attribute.Key, attribute.NameJson, attribute.Type.ToString(),
+               select new FormPersonAttributeStoredRow(attribute.Id, attribute.Key, attribute.NameJson, attribute.OriginalCulture, attribute.Type.ToString(),
                    attribute.SourceCatalogId, attribute.Position, attribute.IsActive, attribute.Revision, catalog == null ? null : catalog.NameJson))
             .ToListAsync(cancellationToken);
 

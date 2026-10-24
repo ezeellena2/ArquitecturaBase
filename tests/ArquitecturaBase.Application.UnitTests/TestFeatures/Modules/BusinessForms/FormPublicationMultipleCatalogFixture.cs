@@ -36,7 +36,7 @@ internal sealed class FormPublicationMultipleCatalogFixture : IFormCatalogReader
     public Task<FormCatalogStoredRow?> FindAsync(Guid id, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested(); CatalogReads.Add(id);
-        return Task.FromResult<FormCatalogStoredRow?>(Missing ? null : new(CatalogId, "CATALOG", "{}", "{}", Kind,
+        return Task.FromResult<FormCatalogStoredRow?>(Missing ? null : new(CatalogId, "CATALOG", "{}", "{}", "es", Kind,
             1, IsActive, DateTime.UnixEpoch, null, null, null, ActiveItems,
             FieldsJson: Fields.Count == 0 ? null : FormDraftPolicy.Serialize(Fields), PresentationJson: Presentation is null ? null : FormDraftPolicy.Serialize(Presentation)));
     }

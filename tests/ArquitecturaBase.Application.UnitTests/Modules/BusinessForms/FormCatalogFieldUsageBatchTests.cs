@@ -14,7 +14,7 @@ public sealed class FormCatalogFieldUsageBatchTests
         var catalog = Catalog();
         Assert.True(catalog.SetFields(fields, null).IsSuccess);
         var reader = new FormCatalogFieldReader();
-        var detail = new FormCatalogDetailResponse(catalog.Id, catalog.Key, fields[0].Name, new Dictionary<string, string>(), "Manual", 1, true, 0, null, null);
+        var detail = new FormCatalogDetailResponse(catalog.Id, catalog.Key, fields[0].Name, new Dictionary<string, string>(), catalog.OriginalCulture, "Manual", 1, true, 0, null, null);
         var result = await FormCatalogFieldPresentation.DescribeAsync(detail, catalog.FieldsJson, null, [], reader, TestContext.Current.CancellationToken);
         Assert.Equal(2, result.Fields!.Count);
         Assert.Equal(1, reader.UsageReads);
@@ -30,7 +30,7 @@ public sealed class FormCatalogFieldUsageBatchTests
         var questionId = Guid.CreateVersion7();
         var reader = new FormCatalogFieldReader();
         reader.Uses.Add(new(definitionId, "Form", "Question", questionId, "Draft", field.Id, ByMatch: true));
-        var detail = new FormCatalogDetailResponse(catalog.Id, catalog.Key, field.Name, new Dictionary<string, string>(), "Manual", 1, true, 0, null, null);
+        var detail = new FormCatalogDetailResponse(catalog.Id, catalog.Key, field.Name, new Dictionary<string, string>(), catalog.OriginalCulture, "Manual", 1, true, 0, null, null);
 
         var result = await FormCatalogFieldPresentation.DescribeAsync(detail, catalog.FieldsJson, null, [], reader, TestContext.Current.CancellationToken);
 

@@ -126,11 +126,11 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
     }
 
     private static FormCatalogDetailResponse Map(FormCatalogStoredRow row, int? usageCount, string? unavailableReasonCode) => new(row.Id, row.Key, ReadTexts(row.NameJson),
-        ReadTexts(row.DescriptionJson), row.Kind, row.Revision, row.IsActive, row.ItemsCount, usageCount, unavailableReasonCode,
+        ReadTexts(row.DescriptionJson), row.OriginalCulture, row.Kind, row.Revision, row.IsActive, row.ItemsCount, usageCount, unavailableReasonCode,
         row.FiltersJson is null ? null : JsonSerializer.Deserialize<FormCatalogFilterDefinition>(row.FiltersJson, JsonSerializerOptions.Web), ValueType: row.ValueType);
 
     private static FormCatalogDetailResponse Map(BusinessFormCatalog catalog, int itemCount) => new(catalog.Id, catalog.Key,
-        ReadTexts(catalog.NameJson), ReadTexts(catalog.DescriptionJson), catalog.Kind.ToString(), catalog.Revision, catalog.IsActive,
+        ReadTexts(catalog.NameJson), ReadTexts(catalog.DescriptionJson), catalog.OriginalCulture, catalog.Kind.ToString(), catalog.Revision, catalog.IsActive,
         itemCount, null, null, ValueType: catalog.ValueType.ToString());
 
     private static Dictionary<string, string> ReadTexts(string json) =>

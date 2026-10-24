@@ -40,10 +40,11 @@ internal sealed class FormCatalogImportFixture : IFormCatalogRepository, IFormCa
     public Action? WhileLocking { get; set; }
     public Action<int>? BeforeMetadata { get; set; }
     public Error? FileError { get; set; }
-    public FormCatalogImportFixture(bool filters = false, BusinessFormCatalogValueType valueType = BusinessFormCatalogValueType.Text)
+    public FormCatalogImportFixture(bool filters = false, BusinessFormCatalogValueType valueType = BusinessFormCatalogValueType.Text,
+        string originalCulture = "es")
     {
-        Catalog = filters ? BusinessFormCatalog.CreateFilters("es", Texts(), Texts(), "{}")
-            : BusinessFormCatalog.CreateManual("es", Texts(), Texts(), valueType);
+        Catalog = filters ? BusinessFormCatalog.CreateFilters(originalCulture, Texts(), Texts(), "{}")
+            : BusinessFormCatalog.CreateManual(originalCulture, Texts(), Texts(), valueType);
         Current.UserId = Actor;
         Permissions.Permissions[Actor] = [BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage];
         Service = new(this, this, this, Work, RequestValidators.For(new FormCatalogImportRequestValidator()),
@@ -106,12 +107,12 @@ internal sealed class FormCatalogImportFixture : IFormCatalogRepository, IFormCa
     public Task<FormCatalogStoredRow?> FindAsync(Guid id, CancellationToken ct)
     {
         if (sources.Find(source => source.Id == id) is { } source) return Task.FromResult<FormCatalogStoredRow?>(new(source.Id, source.Key,
-            source.NameJson, source.DescriptionJson, source.Kind.ToString(), source.Revision, source.IsActive, source.CreatedAtUtc,
+            source.NameJson, source.DescriptionJson, source.OriginalCulture, source.Kind.ToString(), source.Revision, source.IsActive, source.CreatedAtUtc,
             source.CreatedBy, source.ModifiedAtUtc, source.ModifiedBy, sourceItems.Count(item => item.CatalogId == id), null,
             ValueType: source.ValueType.ToString()));
         BeforeMetadata?.Invoke(++MetadataReads);
         return Task.FromResult<FormCatalogStoredRow?>(!Exists || id != Catalog.Id ? null : new(Catalog.Id, Catalog.Key,
-            Catalog.NameJson, Catalog.DescriptionJson, Catalog.Kind.ToString(), Catalog.Revision, Catalog.IsActive,
+            Catalog.NameJson, Catalog.DescriptionJson, Catalog.OriginalCulture, Catalog.Kind.ToString(), Catalog.Revision, Catalog.IsActive,
             Catalog.CreatedAtUtc, Catalog.CreatedBy, Catalog.ModifiedAtUtc, Catalog.ModifiedBy, Items.Count,
             Catalog.FiltersJson, ValueType: Catalog.ValueType.ToString(), LastImportSha256: Catalog.LastImportSha256,
             LastImportAtUtc: Catalog.LastImportAtUtc, FieldsJson: Catalog.FieldsJson, PresentationJson: Catalog.PresentationJson));

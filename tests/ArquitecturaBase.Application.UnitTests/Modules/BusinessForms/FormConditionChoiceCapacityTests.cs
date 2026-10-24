@@ -19,7 +19,7 @@ public sealed class FormConditionChoiceCapacityTests
         var first = new CanonicalFormField(Guid.NewGuid(), "first", "choice", labels,
             null, false, null, null, new(catalogId));
         var second = first with { FieldId = Guid.NewGuid(), Key = "second" };
-        fixture.Catalogs[catalogId] = new(catalogId, "own-catalog", "{}", "{}", "Manual",
+        fixture.Catalogs[catalogId] = new(catalogId, "own-catalog", "{}", "{}", "es", "Manual",
             1, true, default, null, null, null, count);
         var items = Enumerable.Range(1, count).Select(index =>
         {

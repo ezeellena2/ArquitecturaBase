@@ -84,6 +84,30 @@ public sealed class FormPersonDataServiceTests
         finally { CultureInfo.CurrentUICulture = previous; }
     }
 
+    [Theory]
+    [InlineData("es-AR", "es")]
+    [InlineData("en-US", "en")]
+    public async Task Attribute_responses_report_their_original_culture(string uiCulture, string original)
+    {
+        var previous = CultureInfo.CurrentUICulture;
+        try
+        {
+            var fixture = new FormPersonDataFixture();
+            CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo(uiCulture);
+            var created = await fixture.Service.CreateAttributeAsync(new("zone", Names(), "Text", null), Ct);
+
+            // Editing and reading with the menu in the other language keep the original the attribute was created in.
+            CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo(original == "en" ? "es-AR" : "en-US");
+            var updated = await fixture.Service.UpdateAttributeAsync(created.Value.Id, new(1, Names(), "Text", null, 0, true), Ct);
+            var listed = await fixture.Service.ListAttributesAsync(Ct);
+
+            Assert.Equal(original, created.Value.OriginalCulture);
+            Assert.Equal(original, updated.Value.OriginalCulture);
+            Assert.Equal(original, Assert.Single(listed.Value.Items).OriginalCulture);
+        }
+        finally { CultureInfo.CurrentUICulture = previous; }
+    }
+
     [Fact]
     public async Task A_used_attribute_can_be_renamed_but_cannot_change_its_type_or_be_deactivated()
     {

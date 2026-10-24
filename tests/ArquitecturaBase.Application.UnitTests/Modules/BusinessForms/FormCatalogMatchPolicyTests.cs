@@ -123,6 +123,6 @@ public sealed class FormCatalogMatchPolicyTests
         new(FlagFieldId, "flag", Names(), "boolean", null, false, false, null, null, null, "filter", 2, true),
         new(PriceFieldId, "price", Names(), "decimal", null, false, false, null, null, null, "filter", 3, true),
         new(TextFieldId, "text", Names(), "text", null, false, false, null, null, 300, "filter", 4, true)];
-    private static FormPersonAttributeStoredRow Attribute() => new(ZoneAttributeId, "zone", "{\"es\":\"Zona\"}", "Catalog", ZoneId, 0, true, 1, null);
+    private static FormPersonAttributeStoredRow Attribute() => new(ZoneAttributeId, "zone", "{\"es\":\"Zona\"}", "es", "Catalog", ZoneId, 0, true, 1, null);
     private static Dictionary<string, string> Names() => new() { ["es"] = "Zona", ["en"] = "Zone" };
 }
