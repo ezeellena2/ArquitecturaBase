@@ -14,6 +14,8 @@ public sealed record FormCatalogFieldResponse(Guid Id, string Key, IReadOnlyDict
 public sealed record FormCatalogFieldUsageResponse(Guid? DefinitionId, string? FormName, string? Question, Guid? QuestionId, string Stage);
 public sealed record FormCatalogFieldUsageRow(Guid DefinitionId, string FormName, string Question, Guid QuestionId, string Stage, Guid FieldId, bool ByMatch);
 public sealed record FormCatalogPresentationExample(Guid ItemId, string Title);
+// A question's own presentation, checked over every active option of its source catalog without saving anything.
+public sealed record FormCatalogPresentationCheckRequest(FormCatalogPresentation? Presentation);
 public sealed record FormCatalogPresentationCheckResponse(IReadOnlyList<FormCatalogPresentationCultureCheckResponse> Cultures);
 public sealed record FormCatalogPresentationCultureCheckResponse(string Culture, int TitleTooLongCount,
     IReadOnlyList<FormCatalogPresentationExample> TitleExamples, int DescriptionTooLongCount, IReadOnlyList<FormCatalogPresentationExample> DescriptionExamples);

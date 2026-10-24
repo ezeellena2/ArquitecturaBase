@@ -152,6 +152,54 @@ public sealed partial class FormCatalogEndpointsTests
     }
 
     [Fact]
+    public async Task Presentation_checks_cover_every_active_option_for_a_question_presentation()
+    {
+        using var client = await OperatorAsync(BusinessFormsPermissions.CatalogsRead);
+        using var manager = await OperatorAsync(BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage);
+        var texts = new { es = "Checks " + Guid.NewGuid().ToString("N"), en = "Checks" };
+        // 25 options whose «code · text» title exceeds 30 characters only in Spanish, and an inactive one that never counts.
+        var items = Enumerable.Range(0, 25).Select(index => Item($"i{index}", null, $"CODE{index:000000}", $"Spanish text number {index:00000}", "Short", true))
+            .Append(Item("inactive", null, "INACTIVE00", new string('S', 30), new string('E', 30), false)).ToArray();
+        using var created = await manager.PostAsJsonAsync("/api/forms/catalogs", new { name = texts, description = texts, items }, Ct);
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var saved = await created.ReadJsonAsync();
+        var path = $"/api/forms/catalogs/{saved.GetProperty("catalog").GetProperty("id").GetGuid()}/presentation-checks";
+        var first = new[] { "i0", "i1", "i2" }.Select(localId => saved.GetProperty("itemIdentityMap").GetProperty(localId).GetGuid()).ToArray();
+        var body = new { presentation = new { title = new[] { "code", "text" }, description = Array.Empty<string>() } };
+
+        using var checkedResponse = await client.PostAsJsonAsync(path, body, Ct);
+
+        Assert.Equal(HttpStatusCode.OK, checkedResponse.StatusCode);
+        Assert.True(checkedResponse.Headers.CacheControl!.NoStore);
+        var cultures = (await checkedResponse.ReadJsonAsync()).GetProperty("cultures").EnumerateArray().ToArray();
+        Assert.Equal(["es", "en"], cultures.Select(check => check.GetProperty("culture").GetString()));
+        Assert.Equal(25, cultures[0].GetProperty("titleTooLongCount").GetInt32());
+        Assert.Equal(first, cultures[0].GetProperty("titleExamples").EnumerateArray().Select(example => example.GetProperty("itemId").GetGuid()));
+        Assert.Equal("CODE000000 · Spanish text number 00000", cultures[0].GetProperty("titleExamples")[0].GetProperty("title").GetString());
+        Assert.Equal(0, cultures[0].GetProperty("descriptionTooLongCount").GetInt32());
+        Assert.Equal(0, cultures[1].GetProperty("titleTooLongCount").GetInt32());
+        Assert.Empty(cultures[1].GetProperty("titleExamples").EnumerateArray());
+
+        using var unknownField = await client.PostAsJsonAsync(path, new { presentation = new { title = new[] { "text", Guid.NewGuid().ToString("D") },
+            description = Array.Empty<string>() } }, Ct);
+        Assert.Equal(HttpStatusCode.BadRequest, unknownField.StatusCode);
+        var invalid = await unknownField.ReadJsonAsync();
+        Assert.Equal("Forms.Catalog.PresentationInvalid", invalid.GetProperty("code").GetString());
+        Assert.True(invalid.GetProperty("errors").TryGetProperty("presentation", out _));
+
+        using var missing = await client.PostAsJsonAsync($"/api/forms/catalogs/{Guid.NewGuid()}/presentation-checks", body, Ct);
+        Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
+
+        using var anonymous = factory.CreateClient();
+        using var unauthenticated = await anonymous.PostAsJsonAsync(path, body, Ct);
+        Assert.Equal(HttpStatusCode.Unauthorized, unauthenticated.StatusCode);
+
+        using var formEditor = await OperatorAsync(BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage);
+        using var forbidden = await formEditor.PostAsJsonAsync(path, body, Ct);
+        Assert.Equal(HttpStatusCode.Forbidden, forbidden.StatusCode);
+    }
+
+    [Fact]
     public async Task Item_fields_are_a_delta_where_an_absent_key_keeps_its_value_and_null_clears_it()
     {
         using var client = await OperatorAsync(BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage);

@@ -54,3 +54,6 @@ public sealed record FormCatalogFieldHttpRequest(string? LocalId, Guid? Id, stri
 
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record FormCatalogPresentationHttpRequest(IReadOnlyList<string>? Title, IReadOnlyList<string>? Description);
+
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+public sealed record FormCatalogPresentationCheckHttpRequest(FormCatalogPresentationHttpRequest? Presentation);

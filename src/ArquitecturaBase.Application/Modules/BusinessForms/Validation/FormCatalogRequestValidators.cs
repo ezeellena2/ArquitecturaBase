@@ -46,6 +46,15 @@ internal sealed class UpdateManualCatalogRequestValidator : AbstractValidator<Up
     });
 }
 
+internal sealed class FormCatalogPresentationCheckRequestValidator : AbstractValidator<FormCatalogPresentationCheckRequest>
+{
+    public FormCatalogPresentationCheckRequestValidator() => RuleFor(request => request).Custom((request, context) =>
+    {
+        if (request.Presentation is null) context.AddFailure("presentation", FormCatalogRequestValidation.InvalidMessage());
+        FormCatalogRequestValidation.ValidateConfiguration(null, request.Presentation, false, context.AddFailure);
+    });
+}
+
 internal sealed class FormCatalogFilterOptionsRequestValidator : PagedRequestValidator<FormCatalogFilterOptionsRequest>
 {
     public FormCatalogFilterOptionsRequestValidator() : base(FormCatalogFilterOptionsRequest.SortableFields) { }

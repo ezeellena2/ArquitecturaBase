@@ -38,6 +38,15 @@ public sealed class FormCatalogsController(IFormCatalogService service, IFormCat
     public async Task<IActionResult> ListItems([FromRoute] Guid id, [FromQuery] FormCatalogItemsQuery query, CancellationToken cancellationToken) =>
         (await service.ListItemsAsync(id, Map(query), cancellationToken)).ToActionResult(this);
 
+    [HttpPost("{id:guid}/presentation-checks")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    [ProducesResponseType<FormCatalogPresentationCheckResponse>(StatusCodes.Status200OK)]
+    [ProducesProblem(StatusCodes.Status400BadRequest)]
+    [ProducesProblem(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> CheckPresentation([FromRoute] Guid id, [FromBody] FormCatalogPresentationCheckHttpRequest request,
+        CancellationToken cancellationToken) =>
+        (await service.CheckPresentationAsync(id, new(Map(request.Presentation)), cancellationToken)).ToActionResult(this);
+
     [HttpPost]
     [HasPermission(BusinessFormsPermissions.CatalogsManage)]
     [EnableRateLimiting(BusinessFormsApiRegistration.WritePolicy)]

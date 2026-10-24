@@ -72,6 +72,25 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
         return await reader.ListItemsAsync(id, localized, cancellationToken);
     }
 
+    // A question's own presentation: the same check as the catalog's, over every active option and in each catalog language.
+    public async Task<Result<FormCatalogPresentationCheckResponse>> CheckPresentationAsync(Guid id, FormCatalogPresentationCheckRequest request,
+        CancellationToken cancellationToken)
+    {
+        var access = await accessGuard.CheckAsync(false, cancellationToken);
+        if (access.IsFailure) return access.Error;
+        if (await validator.ValidateAsync(request, cancellationToken) is { } invalid) return invalid;
+        var row = await reader.FindAsync(id, cancellationToken);
+        if (row is null) return FormCatalogErrors.NotFound;
+        var fields = FormCatalogFieldPolicy.ReadFields(row.FieldsJson);
+        if (row.Kind != "Manual" || !FormCatalogPresentationPolicy.ValidConfiguration(request.Presentation, fields, row.ValueType))
+            return FieldErrors.On(FormCatalogErrors.PresentationInvalid, "presentation");
+        var items = await reader.ListAllItemsAsync(id, cancellationToken);
+        var sources = await FormCatalogFieldPresentation.SourcesAsync(fields, reader, cancellationToken);
+        var choices = sources.Values.SelectMany(options => options).ToDictionary(option => option.Id);
+        return FormCatalogFieldPresentation.Check(request.Presentation, fields, items, choices, row.ValueType,
+            FormCatalogFieldPresentation.Cultures(ReadTexts(row.NameJson)));
+    }
+
     private async Task<Result<FormCatalogSaveResponse>> CreateCoreAsync(CreateManualCatalogRequest request, CancellationToken ct)
     {
         var name = FormCatalogProposalPolicy.Texts(request.Name);

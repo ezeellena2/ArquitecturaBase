@@ -11,4 +11,5 @@ public interface IFormCatalogService
     Task<Result<FormCatalogSaveResponse>> UpdateManualAsync(Guid id, UpdateManualCatalogRequest request, CancellationToken cancellationToken);
     Task<Result<FormCatalogDetailResponse>> GetAsync(Guid id, CancellationToken cancellationToken);
     Task<Result<PagedResult<FormCatalogItemResponse>>> ListItemsAsync(Guid id, ListFormCatalogItemsRequest request, CancellationToken cancellationToken);
+    Task<Result<FormCatalogPresentationCheckResponse>> CheckPresentationAsync(Guid id, FormCatalogPresentationCheckRequest request, CancellationToken cancellationToken);
 }
