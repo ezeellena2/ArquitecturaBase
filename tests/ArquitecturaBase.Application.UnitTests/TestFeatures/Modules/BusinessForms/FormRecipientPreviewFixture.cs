@@ -30,7 +30,7 @@ internal sealed class FormRecipientPreviewFixture : IFormDefinitionReader, IForm
         Actor = Users.AddUser("preview-manager@example.invalid").Id;
         Subject = Users.AddUser("preview-subject@example.invalid").Id;
         Current.UserId = Actor;
-        Permissions.Permissions[Actor] = [BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage];
+        Permissions.Permissions[Actor] = [BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage, BusinessFormsPermissions.CatalogsRead];
         Service = new(new(Current, Permissions), RequestValidators.For(new FormRecipientPreviewRequestValidator(), new ListFormRecipientSamplesRequestValidator()),
             this, Users, People, new(Catalogs, this, People), this);
     }

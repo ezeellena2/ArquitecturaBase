@@ -23,6 +23,8 @@ internal sealed class FormRecipientScenario(WebApplicationFactory<Program> host)
     public Guid ManagerId { get; private set; }
     // Administra catálogos sin leer formularios (sin formtemplates.*).
     public Guid CatalogEditorId { get; private set; }
+    // Administra formularios sin leer catálogos (sin formcatalogs.read).
+    public Guid FormsOnlyId { get; private set; }
     public Guid FirstId { get; private set; }
     public Guid SecondId { get; private set; }
     public Guid MissingId { get; private set; }
@@ -55,6 +57,8 @@ internal sealed class FormRecipientScenario(WebApplicationFactory<Program> host)
                 BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage, BusinessFormsPermissions.PersonDataManage, Permissions.Users.Manage], ct);
             var catalogEditorRole = "recipient-catalog-editor-" + Guid.NewGuid().ToString("N");
             await roles.CreateAsync(catalogEditorRole, null, [BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage], ct);
+            var formsOnlyRole = "recipient-forms-only-" + Guid.NewGuid().ToString("N");
+            await roles.CreateAsync(formsOnlyRole, null, [BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage], ct);
             var recipientRole = "recipient-subject-" + Guid.NewGuid().ToString("N");
             await roles.CreateAsync(recipientRole, null, [BusinessFormsPermissions.RecordsCreate], ct);
             var users = services.GetRequiredService<IUserRepository>();
@@ -66,6 +70,7 @@ internal sealed class FormRecipientScenario(WebApplicationFactory<Program> host)
             }
             scenario.ManagerId = await Add("Administración de formularios", managerRole);
             scenario.CatalogEditorId = await Add("Edición de catálogos", catalogEditorRole);
+            scenario.FormsOnlyId = await Add("Edición de formularios", formsOnlyRole);
             scenario.FirstId = await Add("Juan Gómez", recipientRole);
             scenario.SecondId = await Add("María López", recipientRole);
             scenario.MissingId = await Add("Pablo Sosa", recipientRole);

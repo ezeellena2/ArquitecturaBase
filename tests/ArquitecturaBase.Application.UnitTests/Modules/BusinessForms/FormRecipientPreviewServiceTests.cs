@@ -168,6 +168,31 @@ public sealed class FormRecipientPreviewServiceTests
         Assert.Equal(0, f.SampleReads);
     }
 
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task Recipient_preview_and_samples_require_catalog_read_before_and_after_reading(bool duringRead, bool definitionMissing)
+    {
+        var f = new FormRecipientPreviewFixture { DefinitionMissing = definitionMissing };
+        void FormsOnly() => f.Permissions.Permissions[f.Actor] = [BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage];
+        if (duringRead) f.OnRead = FormsOnly;
+        else FormsOnly();
+        var preview = await f.Service.PreviewAsync(f.Catalogs.DefinitionId, f.Request(), Ct);
+        Assert.True(preview.IsFailure);
+        Assert.Equal(FormDefinitionErrors.Forbidden.Code, preview.Error.Code);
+        if (!duringRead)
+        {
+            Assert.Equal(0, f.DefinitionReads);
+            Assert.Equal(0, f.People.RecipientReads);
+        }
+        if (duringRead) f.Permissions.Permissions[f.Actor] = [BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage, BusinessFormsPermissions.CatalogsRead];
+        var samples = await f.Service.ListSamplesAsync(new(), Ct);
+        Assert.True(samples.IsFailure);
+        Assert.Equal(FormDefinitionErrors.Forbidden.Code, samples.Error.Code);
+        Assert.Equal(duringRead ? 1 : 0, f.SampleReads);
+    }
+
     [Fact]
     public async Task An_unknown_definition_or_non_sample_user_is_absent_before_reading_private_values()
     {

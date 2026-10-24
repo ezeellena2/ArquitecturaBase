@@ -16,6 +16,7 @@ namespace ArquitecturaBase.Api.Modules.BusinessForms.Controllers;
 [Tags("Forms")]
 [HasPermission(BusinessFormsPermissions.Read)]
 [HasPermission(BusinessFormsPermissions.Manage)]
+[HasPermission(BusinessFormsPermissions.CatalogsRead)]
 [EnableRateLimiting(BusinessFormsApiRegistration.ReadPolicy)]
 [RequestSizeLimit(524288)]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]

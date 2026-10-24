@@ -258,7 +258,7 @@ public sealed class FormRecipientFilterIntegrationTests(ApiFactory factory)
     }
 
     [Fact]
-    public async Task Recipient_preview_routes_require_a_session_and_both_form_permissions()
+    public async Task Recipient_preview_routes_require_a_session_and_form_and_catalog_read_permissions()
     {
         await using var scenario = await FormRecipientScenario.CreateAsync(factory, Ct);
         using var anonymous = scenario.Host.CreateClient();
@@ -273,6 +273,12 @@ public sealed class FormRecipientFilterIntegrationTests(ApiFactory factory)
         using var deniedPreview = await denied.PostAsJsonAsync($"/api/forms/definitions/{scenario.DefinitionId}/recipient-previews",
             new { type = "choice", source = scenario.Source(), sampleUserId = scenario.FirstId, culture = "es" }, Ct);
         Assert.Equal(HttpStatusCode.Forbidden, deniedPreview.StatusCode);
+        using var formsOnly = scenario.Client(actor: scenario.FormsOnlyId);
+        using var formsOnlyList = await formsOnly.GetAsync("/api/forms/recipient-samples", Ct);
+        Assert.Equal(HttpStatusCode.Forbidden, formsOnlyList.StatusCode);
+        using var formsOnlyPreview = await formsOnly.PostAsJsonAsync($"/api/forms/definitions/{scenario.DefinitionId}/recipient-previews",
+            new { type = "choice", source = scenario.Source(), sampleUserId = scenario.FirstId, culture = "es" }, Ct);
+        Assert.Equal(HttpStatusCode.Forbidden, formsOnlyPreview.StatusCode);
     }
 
     private static async Task<JsonElement> CaptureAsync(HttpResponseMessage response, string name)
