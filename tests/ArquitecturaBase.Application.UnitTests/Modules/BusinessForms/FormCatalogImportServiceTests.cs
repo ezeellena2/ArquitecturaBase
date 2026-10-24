@@ -1,4 +1,5 @@
 using ArquitecturaBase.Application.Interfaces.Persistence;
+using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.BusinessForms.Validation;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
@@ -232,6 +233,42 @@ public sealed class FormCatalogImportServiceTests
         Assert.True(result.IsSuccess);
         Assert.Equal(4, result.Value.Catalog.UsageCount);
         Assert.Equal(1, f.UsageReads);
+    }
+
+    [Fact]
+    public async Task An_applied_import_names_the_forms_using_a_field_only_to_actors_who_can_read_forms()
+    {
+        var definitionId = Guid.CreateVersion7();
+        var hidden = await ApplyWithFieldUsesAsync(definitionId, canReadForms: false);
+        var named = await ApplyWithFieldUsesAsync(definitionId, canReadForms: true);
+
+        // Without formtemplates.read the receipt keeps the block, once per form and stage, but nothing names the form or the question.
+        Assert.All(hidden, use =>
+        {
+            Assert.Null(use.FormName);
+            Assert.Null(use.DefinitionId);
+            Assert.Null(use.Question);
+            Assert.Null(use.QuestionId);
+        });
+        Assert.Equal(new[] { "Active", "Draft" }, hidden.Select(use => use.Stage));
+        Assert.Equal(3, named.Count);
+        Assert.All(named, use => Assert.Equal((definitionId, "Pedir repuesto"), (use.DefinitionId, use.FormName)));
+        Assert.All(named, use => Assert.NotNull(use.Question));
+    }
+
+    private static async Task<IReadOnlyList<FormCatalogFieldUsageResponse>> ApplyWithFieldUsesAsync(Guid definitionId, bool canReadForms)
+    {
+        using var f = new FormCatalogImportFixture();
+        var field = f.AddTextField();
+        f.FieldUses.Add(new(definitionId, "Pedir repuesto", "Proveedor", Guid.CreateVersion7(), "Draft", field.Id, ByMatch: true));
+        f.FieldUses.Add(new(definitionId, "Pedir repuesto", "Zona", Guid.CreateVersion7(), "Draft", field.Id, ByMatch: false));
+        f.FieldUses.Add(new(definitionId, "Pedir repuesto", "Proveedor", Guid.CreateVersion7(), "Active", field.Id, ByMatch: true));
+        if (canReadForms) f.Permissions.Permissions[f.Actor] = [BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage, BusinessFormsPermissions.Read];
+
+        var applied = await f.Service.ApplyAsync(f.Catalog.Id, f.Request(), Ct);
+
+        Assert.True(applied.IsSuccess);
+        return Assert.Single(applied.Value.Catalog.Fields!).UsedBy;
     }
 
     [Theory]

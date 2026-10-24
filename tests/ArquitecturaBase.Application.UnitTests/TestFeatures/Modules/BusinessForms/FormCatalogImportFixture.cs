@@ -33,6 +33,7 @@ internal sealed class FormCatalogImportFixture : IFormCatalogRepository, IFormCa
     public int UsageReads { get; private set; }
     public int UsageCount { get; set; } = 4;
     public List<Guid> LockedIds { get; } = [];
+    public List<FormCatalogFieldUsageRow> FieldUses { get; } = [];
     public int Locks => LockedIds.Count;
     private readonly List<BusinessFormCatalog> sources = [];
     private readonly List<BusinessFormCatalogItem> sourceItems = [];
@@ -66,6 +67,13 @@ internal sealed class FormCatalogImportFixture : IFormCatalogRepository, IFormCa
             "catalog", sourceId, false, false, null, null, null, "data", position, true)).ToArray();
         Assert.True(Catalog.SetFields(fields, null).IsSuccess);
         return ids;
+    }
+    public BusinessFormCatalogField AddTextField()
+    {
+        var field = new BusinessFormCatalogField(BusinessFormCatalogField.CreateIdentity(), "zone",
+            new Dictionary<string, string> { ["es"] = "Zona", ["en"] = "Zone" }, "text", null, false, false, null, null, 300, "data", 0, true);
+        Assert.True(Catalog.SetFields([field], null).IsSuccess);
+        return field;
     }
     private Guid AddSource()
     {
@@ -137,7 +145,8 @@ internal sealed class FormCatalogImportFixture : IFormCatalogRepository, IFormCa
     public static FormSpreadsheetRow Row(int number, params string[] cells) => new(number, cells.Select(value => new FormSpreadsheetCell(value)).ToArray());
     private static Dictionary<string, string> Texts() => new() { ["es"] = "Propio", ["en"] = "Own" };
     public void Dispose() => Content.Dispose();
-    public Task<IReadOnlyList<FormCatalogFieldUsageRow>> ListFieldUsageAsync(Guid catalogId, IReadOnlyCollection<Guid> fieldIds, CancellationToken ct) => Task.FromResult<IReadOnlyList<FormCatalogFieldUsageRow>>([]);
+    public Task<IReadOnlyList<FormCatalogFieldUsageRow>> ListFieldUsageAsync(Guid catalogId, IReadOnlyCollection<Guid> fieldIds, CancellationToken ct) =>
+        Task.FromResult<IReadOnlyList<FormCatalogFieldUsageRow>>(FieldUses.Where(use => fieldIds.Contains(use.FieldId)).ToArray());
     public Task<bool> ExistsSourceUsageAsync(Guid catalogId, CancellationToken ct) => Task.FromResult(false);
     public Task<FormCatalogMaximumOfferRow> FindMaximumOfferSizeAsync(Guid catalogId, string? fixedContainmentJson,
         IReadOnlyCollection<Guid> personFieldIds, CancellationToken cancellationToken) => throw new NotSupportedException();
