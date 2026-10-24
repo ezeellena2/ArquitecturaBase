@@ -1,5 +1,6 @@
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
+using ArquitecturaBase.Domain.Results;
 
 namespace ArquitecturaBase.Application.UnitTests.Modules.BusinessForms;
 
@@ -85,4 +86,34 @@ public sealed class FormCatalogProposalPolicyTests
     [Fact]
     public void Unsupported_original_culture_is_rejected() =>
         Assert.True(FormCatalogProposalPolicy.Validate(Valid, Metadata, "fr").IsFailure);
+
+    [Theory]
+    [InlineData("omitted")]
+    [InlineData("empty")]
+    [InlineData("blank")]
+    public void Proposal_edits_accept_an_empty_description(string shape)
+    {
+        var description = shape switch
+        {
+            "omitted" => null,
+            "empty" => new Dictionary<string, string?>(),
+            _ => new Dictionary<string, string?> { ["en"] = " ", ["es"] = null },
+        };
+
+        var result = FormCatalogProposalPolicy.ValidateEdits(new Dictionary<string, string?> { ["en"] = "Supervisors" }, description, Valid.Filters, "en");
+
+        Assert.True(result.IsSuccess);
+    }
+
+    [Theory]
+    [InlineData("\0")]
+    [InlineData(null)]
+    public void Proposal_edits_still_check_a_description_that_has_text(string? text)
+    {
+        var description = new Dictionary<string, string?> { ["en"] = text ?? new string('b', 1001) };
+
+        var result = FormCatalogProposalPolicy.ValidateEdits(new Dictionary<string, string?> { ["en"] = "Supervisors" }, description, Valid.Filters, "en");
+
+        Assert.Equal("description.en", Assert.Single(Assert.IsType<ValidationError>(result.Error).Errors).Key);
+    }
 }

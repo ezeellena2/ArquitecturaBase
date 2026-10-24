@@ -89,8 +89,8 @@ internal static class FormCatalogFilterRequestValidation
     public static void ValidateTexts(IReadOnlyDictionary<string, string?>? name,
         IReadOnlyDictionary<string, string?>? description, Action<string, string> fail)
     {
-        CheckMap(name, "name", 120, fail);
-        CheckMap(description, "description", 1000, fail);
+        CheckMap(name, "name", 120, required: true, fail);
+        CheckMap(description, "description", 1000, required: false, fail);
     }
 
     public static void Validate(FormCatalogFilterDefinition? filters, Action<string, string> fail)
@@ -134,18 +134,19 @@ internal static class FormCatalogFilterRequestValidation
         }
     }
 
-    private static void CheckMap(IReadOnlyDictionary<string, string?>? values, string path, int maxLength,
+    private static void CheckMap(IReadOnlyDictionary<string, string?>? values, string path, int maxLength, bool required,
         Action<string, string> fail)
     {
         if (values is null)
         {
-            fail(path, InvalidMessage);
+            if (required) fail(path, InvalidMessage);
             return;
         }
 
         foreach (var (culture, value) in values)
-            if (culture is not ("es" or "en") || string.IsNullOrWhiteSpace(value) || value.Length > maxLength)
+            if (culture is not ("es" or "en") || required && string.IsNullOrWhiteSpace(value) || value?.Length > maxLength)
                 fail(path + "." + culture, InvalidMessage);
+        if (!required) return;
         foreach (var culture in new[] { "es", "en" })
             if (!values.TryGetValue(culture, out var value) || string.IsNullOrWhiteSpace(value))
                 fail(path + "." + culture, InvalidMessage);
@@ -181,7 +182,7 @@ internal static partial class FormCatalogRequestValidation
         }
 
         CheckMap(name, "name", 120, required: true, requiredCultures: ["es", "en"]);
-        CheckMap(description, "description", 1000, required: true, requiredCultures: ["es", "en"]);
+        CheckMap(description, "description", 1000, required: false, allowNulls: true);
         if (items is null) { fail("items", Message()); return; }
         if (items.Count > BusinessFormCatalog.MaxItems) { fail("items", ErrorMessages.Get(FormCatalogErrors.TooManyItems.Code)); return; }
         var localIds = new HashSet<string>(StringComparer.Ordinal);

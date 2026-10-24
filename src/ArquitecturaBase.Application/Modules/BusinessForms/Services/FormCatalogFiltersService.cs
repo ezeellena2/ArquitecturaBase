@@ -69,7 +69,7 @@ internal sealed class FormCatalogFiltersService(
         var filtersJson = JsonSerializer.Serialize(request.Filters, JsonSerializerOptions.Web);
         var created = await unitOfWork.ExecuteInTransactionAsync<Result<FormCatalogSaveResponse>>(async ct =>
         {
-            var catalog = BusinessFormCatalog.CreateFilters(Culture(), RequiredTexts(request.Name!), RequiredTexts(request.Description!), filtersJson);
+            var catalog = BusinessFormCatalog.CreateFilters(Culture(), RequiredTexts(request.Name!), FormCatalogProposalPolicy.Texts(request.Description), filtersJson);
             await repository.LockAsync(catalog.Id, ct);
             repository.Add(catalog);
             return Result<FormCatalogSaveResponse>.Success(
@@ -101,7 +101,7 @@ internal sealed class FormCatalogFiltersService(
             }
             else if (await validator.ValidateAsync(request, ct) is { } invalid) return invalid;
             var result = catalog.UpdateFilters(request.ExpectedRevision.Value, FormCatalogProposalPolicy.Texts(request.Name!),
-                FormCatalogProposalPolicy.Texts(request.Description!), JsonSerializer.Serialize(request.Filters, JsonSerializerOptions.Web), request.IsActive);
+                FormCatalogProposalPolicy.Texts(request.Description), JsonSerializer.Serialize(request.Filters, JsonSerializerOptions.Web), request.IsActive);
             if (result.IsFailure) return result.Error;
             int? usageCount = canReadForms ? await catalogReader.CountUsageAsync(catalog.Id, ct) : null;
             var detail = Map(catalog, request.Filters!, usageCount) with

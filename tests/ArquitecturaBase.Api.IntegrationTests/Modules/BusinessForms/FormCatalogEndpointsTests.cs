@@ -332,6 +332,31 @@ public sealed partial class FormCatalogEndpointsTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task A_manual_catalog_without_description_shows_an_empty_map_in_detail_and_null_in_the_list()
+    {
+        var unique = Guid.NewGuid().ToString("N")[..8];
+        using var client = await OperatorAsync(BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage);
+
+        using var created = await client.PostAsJsonAsync("/api/forms/catalogs", new
+        {
+            name = new { es = "Sin descripción " + unique, en = "No description " + unique },
+            items = Array.Empty<object>(),
+        }, Ct);
+
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        await ExportBilingualResponseAsync(created, "description-optional-created");
+        var catalog = (await created.ReadJsonAsync()).GetProperty("catalog");
+        Assert.Empty(catalog.GetProperty("description").EnumerateObject());
+        using var detail = await client.GetAsync($"/api/forms/catalogs/{catalog.GetProperty("id").GetGuid()}", Ct);
+        Assert.Equal(HttpStatusCode.OK, detail.StatusCode);
+        Assert.Empty((await detail.ReadJsonAsync()).GetProperty("description").EnumerateObject());
+        using var listed = await client.GetAsync("/api/forms/catalogs?search=" + unique, Ct);
+        Assert.Equal(HttpStatusCode.OK, listed.StatusCode);
+        var row = Assert.Single((await listed.ReadJsonAsync()).GetProperty("items").EnumerateArray());
+        Assert.Equal(JsonValueKind.Null, row.GetProperty("description").ValueKind);
+    }
+
+    [Fact]
     public async Task Inactive_item_in_initial_catalog_save_stays_inactive_after_reload()
     {
         using var client = await OperatorAsync(BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage);

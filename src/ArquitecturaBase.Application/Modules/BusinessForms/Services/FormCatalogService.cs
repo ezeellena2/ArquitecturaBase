@@ -73,7 +73,7 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
     private async Task<Result<FormCatalogSaveResponse>> CreateCoreAsync(CreateManualCatalogRequest request, CancellationToken ct)
     {
         var name = RequiredTexts(request.Name!);
-        var description = RequiredTexts(request.Description!);
+        var description = FormCatalogProposalPolicy.Texts(request.Description);
         var catalog = BusinessFormCatalog.CreateManual(Culture(), name, description,
             Enum.Parse<BusinessFormCatalogValueType>(request.ValueType ?? "Text"));
         await LockCatalogsAsync(catalog.Id, request.Fields, ct);
@@ -103,7 +103,7 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
         if (fields.IsFailure) return fields.Error;
         var recorded = recorder.Record(catalog, storedItems, request.Items!, request.Moves, request.SortAlphabetically, fields.Value.Context);
         if (recorded.IsFailure) return recorded.Error;
-        var updated = catalog.UpdateManual(request.ExpectedRevision!.Value, RequiredTexts(request.Name!), RequiredTexts(request.Description!), request.IsActive);
+        var updated = catalog.UpdateManual(request.ExpectedRevision!.Value, RequiredTexts(request.Name!), FormCatalogProposalPolicy.Texts(request.Description), request.IsActive);
         if (updated.IsFailure) return updated.Error;
         var detail = await FormCatalogFieldPresentation.DescribeAsync(Map(catalog, recorded.Value.Items.Count), catalog.FieldsJson,
             catalog.PresentationJson, FormCatalogFieldPresentation.ToRows(recorded.Value.Items), reader, ct, fields.Value.Context.Sources);

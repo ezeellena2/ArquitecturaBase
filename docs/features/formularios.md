@@ -40,7 +40,7 @@ I1–I3 reemplazan la regla de idiomas de E/P1 en el [diseño elegido](../../../
 
 La cultura de la sesión se fija al aceptar el envío. Usa la de la cuenta destinataria si la versión la tiene publicada y están completos los textos usados del formulario, los avisos de la revisión de reglas y el diseño PDF aplicable; si no, usa el original para todo el recorrido. Formulario, CTA, apertura predeterminada, avisos y PDF comparten esa elección. La apertura editada por el operador se conserva; `message:null` permite al servidor elegir su predeterminada. La captura conserva la cultura recibida de la sesión, sin subir luego al autor al secundario por completar traducciones o cambiar su cuenta.
 
-Los catálogos mantienen sus reglas de actividad, disponibilidad y metadata; el alta común sigue siendo bilingüe y H4 conserva su excepción. Cada catálogo y cada dato de las personas guarda su idioma original, fijado al crearlo con el idioma del menú (H4, con el de la conversación) y sin cambios después: el modelo exige en ese idioma el nombre, y en un catálogo también el de cada campo. La excepción al respaldo de toda la presentación es el texto y el detalle de cada ítem: si falta su traducción, se muestra su original sin cambiar por eso la cultura del resto. Ese respaldo no se guarda como una traducción ni modifica las referencias históricas.
+Los catálogos mantienen sus reglas de actividad, disponibilidad y metadata; el alta común sigue pidiendo el nombre en los dos idiomas y H4 conserva su excepción. La descripción es opcional en Manual, Filters y al editar o aprobar una propuesta H4: se guarda sin entradas en blanco, el detalle la devuelve como `{}` y el listado como `null`; sólo la propuesta que arma el asistente la trae siempre. Cada catálogo y cada dato de las personas guarda su idioma original, fijado al crearlo con el idioma del menú (H4, con el de la conversación) y sin cambios después: el modelo exige en ese idioma el nombre, y en un catálogo también el de cada campo. La excepción al respaldo de toda la presentación es el texto y el detalle de cada ítem: si falta su traducción, se muestra su original sin cambiar por eso la cultura del resto. Ese respaldo no se guarda como una traducción ni modifica las referencias históricas.
 
 No se recompilan ni reescriben perfiles, proyecciones, versiones, sesiones o copias PDF ya selladas. La comprobación física ES solo → EN completo → faltante exclusivo de aviso o PDF (P24) sigue [pendiente](../plans/verificacion-y-produccion.md#formularios-idioma-original-y-traducción-opcional); esta regla no acredita un piloto nuevo.
 
@@ -313,7 +313,7 @@ La preparación vuelve a comprobar el registro, la revisión, los mapeos, las op
 
 El chat administrativo puede proponer un catálogo de tipo Filters, nunca SQL. El modelo recibe sólo metadata permitida, sin personas; BusinessForms valida la lectura observada, los filtros, roles y límites, y arma la vista previa. La creación es idempotente por propuesta y deja el catálogo inactivo.
 
-Una cuenta activa con `formcatalogs.read` y `formcatalogs.manage` revisa y aprueba o descarta en la web, con revisión esperada y 409. Aprobar vuelve a probar los filtros con una persona de ejemplo activa antes de activar; guardar o reactivar por la edición común no elude esa decisión. La propuesta, sus limitaciones, procedencia y decisión se conservan después de editar. Para H4 sólo se exige el idioma original; el alta normal de catálogos mantiene su regla bilingüe.
+Una cuenta activa con `formcatalogs.read` y `formcatalogs.manage` revisa y aprueba o descarta en la web, con revisión esperada y 409. Aprobar vuelve a probar los filtros con una persona de ejemplo activa antes de activar; guardar o reactivar por la edición común no elude esa decisión. La propuesta, sus limitaciones, procedencia y decisión se conservan después de editar. Para H4 sólo se exige el nombre en el idioma original; el alta normal de catálogos mantiene su nombre bilingüe.
 
 ## Formularios que faltan — Etapa 5
 
@@ -335,7 +335,7 @@ La [calificación OpenAI](../guides/configurar-ia.md#evidencia-para-habilitar-pe
 del [piloto físico con Meta e IA](#piloto-del-asistente-y-audios--2026-10-18).
 El plan y el review se retiraron con [procedencia](../history/README.md#formularios-etapa-5-y-review-de-la-etapa-4--2026-10-18).
 En ese cierre, la publicación de preguntas y los catálogos de las Etapas 1–3 seguían exigiendo ambos idiomas.
-La regla posterior de [original obligatorio y traducción opcional](#idioma-original-y-traducción-opcional--2026-10-19) sustituye esa exigencia de publicación; los catálogos comunes conservan su metadata bilingüe.
+La regla posterior de [original obligatorio y traducción opcional](#idioma-original-y-traducción-opcional--2026-10-19) sustituye esa exigencia de publicación; los catálogos comunes conservan su nombre bilingüe.
 
 ## Piloto del asistente y audios — 2026-10-18
 

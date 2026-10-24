@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Text;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
@@ -33,43 +34,43 @@ internal static class FormCatalogProposalPolicy
         ? FormCatalogErrors.ContentInvalid
         : ValidateContent(new FormCatalogProposalArguments(proposal.Name, proposal.Description, proposal.Filters, proposal.Limitations));
 
-    public static Result ValidateContent(FormCatalogProposalArguments proposal)
-    {
-        if (
-            !ValidText(proposal.Name, 120, false) || !ValidText(proposal.Description, 1000, true) ||
-            proposal.Filters is null || proposal.Filters.Conditions is not { Count: <= 10 } ||
-            proposal.Limitations is not { Count: <= 5 }) return FormCatalogErrors.ContentInvalid;
-        var invalid = false;
-        FormCatalogFilterRequestValidation.Validate(proposal.Filters, (_, _) => invalid = true);
-        if (invalid) return FormCatalogErrors.ContentInvalid;
-        foreach (var condition in proposal.Filters.Conditions)
-        {
-            if (condition?.Value is not { } value || !ValidText(value, 256, false)) return FormCatalogErrors.ContentInvalid;
-        }
-        if (proposal.Limitations.Any(limitation => limitation is null || limitation.Code != "UnsupportedColumn" ||
-            !ValidText(limitation.Criterion, 80, false))) return FormCatalogErrors.ContentInvalid;
-        return Result.Success();
-    }
+    public static Result ValidateContent(FormCatalogProposalArguments proposal) =>
+        !ValidText(proposal.Name, 120, false) || !ValidText(proposal.Description, 1000, true)
+            ? FormCatalogErrors.ContentInvalid
+            : ValidateFilters(proposal.Filters, proposal.Limitations);
 
     public static Result ValidateEdits(IReadOnlyDictionary<string,string?>? name, IReadOnlyDictionary<string,string?>? description,
         FormCatalogFilterDefinition? filters, string originalCulture)
     {
+        if (name is null || !name.TryGetValue(originalCulture, out var original) || !ValidText(original, 120, false))
+            return FieldErrors.On(FormCatalogErrors.ContentInvalid, "name." + originalCulture);
         foreach (var (texts, path, limit, multiline) in new[] { (name, "name", 120, false), (description, "description", 1000, true) })
-        {
-            if (texts is null || !texts.TryGetValue(originalCulture, out var original) || !ValidText(original, limit, multiline))
-                return FieldErrors.On(FormCatalogErrors.ContentInvalid, path + "." + originalCulture);
-            foreach (var (culture, value) in texts)
+            foreach (var (culture, value) in texts ?? ReadOnlyDictionary<string, string?>.Empty)
                 if (culture is not ("es" or "en") || !string.IsNullOrWhiteSpace(value) && !ValidText(value, limit, multiline))
                     return FieldErrors.On(FormCatalogErrors.ContentInvalid, path + "." + culture);
-        }
         string? first = null;
         FormCatalogFilterRequestValidation.Validate(filters, (path, _) => first ??= path);
         if (first is not null) return FieldErrors.On(FormCatalogErrors.ContentInvalid, first);
-        var content = new FormCatalogProposalArguments(name![originalCulture]!, description![originalCulture]!, filters!, []);
-        return ValidateContent(content);
+        return ValidateFilters(filters, []);
     }
 
-    public static Dictionary<string,string> Texts(IReadOnlyDictionary<string,string?> source) => source
+    private static Result ValidateFilters(FormCatalogFilterDefinition? filters, IReadOnlyList<FormCatalogProposalLimitation?>? limitations)
+    {
+        if (filters is null || filters.Conditions is not { Count: <= 10 } || limitations is not { Count: <= 5 })
+            return FormCatalogErrors.ContentInvalid;
+        var invalid = false;
+        FormCatalogFilterRequestValidation.Validate(filters, (_, _) => invalid = true);
+        if (invalid) return FormCatalogErrors.ContentInvalid;
+        foreach (var condition in filters.Conditions)
+        {
+            if (condition?.Value is not { } value || !ValidText(value, 256, false)) return FormCatalogErrors.ContentInvalid;
+        }
+        if (limitations.Any(limitation => limitation is null || limitation.Code != "UnsupportedColumn" ||
+            !ValidText(limitation.Criterion, 80, false))) return FormCatalogErrors.ContentInvalid;
+        return Result.Success();
+    }
+
+    public static Dictionary<string,string> Texts(IReadOnlyDictionary<string,string?>? source) => (source ?? ReadOnlyDictionary<string, string?>.Empty)
         .Where(pair => !string.IsNullOrWhiteSpace(pair.Value)).ToDictionary(pair => pair.Key, pair => pair.Value!, StringComparer.Ordinal);
 
     private static bool ValidText(string? value, int maximum, bool multiline)

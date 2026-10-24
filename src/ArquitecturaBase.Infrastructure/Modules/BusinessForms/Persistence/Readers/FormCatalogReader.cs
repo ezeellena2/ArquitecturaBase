@@ -71,7 +71,8 @@ internal sealed partial class FormCatalogReader(ApplicationDbContext dbContext) 
             originGroups.SingleOrDefault(group => group.Kind == BusinessFormCatalogKind.Filters)?.Count ?? 0);
         var page = await query.ApplySort(SortDescriptor.Parse(request.Sort), sortable, new("name", false), value => value.Catalog.Id)
             .Select(value => new FormCatalogListItemResponse(value.Catalog.Id, EF.Property<string>(value.Catalog, nameColumn),
-                EF.Property<string>(value.Catalog, descriptionColumn), value.Catalog.Kind.ToString(), value.Catalog.Kind == BusinessFormCatalogKind.Manual
+                EF.Property<string>(value.Catalog, descriptionColumn) == "" ? null : EF.Property<string>(value.Catalog, descriptionColumn),
+                value.Catalog.Kind.ToString(), value.Catalog.Kind == BusinessFormCatalogKind.Manual
                     ? dbContext.Set<BusinessFormCatalogItem>().Count(item => item.CatalogId == value.Catalog.Id && item.IsActive) : (int?)null,
                 canReadForms ? value.UsageCount : null, value.Catalog.IsActive ? "Active" : "Inactive", null, canEdit, value.Catalog.ValueType.ToString()))
             .ToPagedResultAsync(request, cancellationToken);

@@ -75,7 +75,7 @@ internal sealed class FormCatalogProposalService(IFormCatalogRepository reposito
             var preview = await PreviewAsync(request.SampleUserId.Value, request.Filters!, evidence.OriginalCulture, ct);
             if (preview.IsFailure) return preview.Error;
             var approved = catalog.ApproveProposal(request.ExpectedRevision.Value, actor, timeProvider.GetUtcNow().UtcDateTime,
-                FormCatalogProposalPolicy.Texts(request.Name!), FormCatalogProposalPolicy.Texts(request.Description!), JsonSerializer.Serialize(request.Filters, JsonSerializerOptions.Web));
+                FormCatalogProposalPolicy.Texts(request.Name!), FormCatalogProposalPolicy.Texts(request.Description), JsonSerializer.Serialize(request.Filters, JsonSerializerOptions.Web));
             if (approved.IsFailure) return approved.Error;
             return new FormCatalogSaveResponse(await MapAsync(catalog, actor, ct), new Dictionary<string,Guid>());
         }, CommitPolicy.OnSuccess, cancellationToken);

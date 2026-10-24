@@ -129,6 +129,20 @@ public sealed class FormCatalogProposalServiceTests
         Assert.Equal(1, host.Uow.Commits);
     }
 
+    [Fact]
+    public async Task Approval_accepts_a_proposal_without_description()
+    {
+        var host = new FormCatalogProposalFixture();
+        var catalog = host.Pending("en");
+
+        var result = await host.Service.ApproveAsync(catalog.Id, host.Approval(catalog, "en") with { Description = null }, Ct);
+
+        Assert.True(result.IsSuccess);
+        Assert.Empty(result.Value.Catalog.Description);
+        Assert.Equal("{}", catalog.DescriptionJson);
+        Assert.Equal(BusinessFormCatalogProposalState.Approved, catalog.ProposalState);
+    }
+
     [Theory]
     [InlineData("revision")]
     [InlineData("missing")]

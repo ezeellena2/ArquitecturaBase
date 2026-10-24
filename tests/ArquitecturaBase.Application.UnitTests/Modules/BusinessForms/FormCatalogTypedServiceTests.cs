@@ -122,6 +122,48 @@ public sealed class FormCatalogTypedServiceTests
     }
 
     [Fact]
+    public async Task A_manual_catalog_is_saved_without_description()
+    {
+        var repository = new FormCatalogCapacityRepository();
+        var work = new FakeUnitOfWork();
+
+        var created = await Service(repository, work).CreateManualAsync(new(Texts(), null, []), Ct);
+
+        Assert.True(created.IsSuccess);
+        Assert.Empty(created.Value.Catalog.Description);
+        Assert.Equal("{}", repository.Catalog!.DescriptionJson);
+
+        var updated = await Service(repository, work).UpdateManualAsync(repository.Catalog.Id,
+            new(1, Texts(), new Dictionary<string, string?> { ["es"] = " ", ["en"] = null }, []), Ct);
+
+        Assert.True(updated.IsSuccess);
+        Assert.Empty(updated.Value.Catalog.Description);
+        Assert.Equal("{}", repository.Catalog.DescriptionJson);
+        Assert.Equal(2, work.Commits);
+    }
+
+    [Fact]
+    public async Task A_filters_catalog_is_saved_without_description()
+    {
+        var repository = new FormCatalogCapacityRepository();
+        var work = new FakeUnitOfWork();
+        var filters = new FormCatalogFilterDefinition("name", null, [], false, "name", false);
+
+        var created = await FiltersService(repository, work).CreateAsync(new(Texts(), null, filters), Ct);
+
+        Assert.True(created.IsSuccess);
+        Assert.Empty(created.Value.Catalog.Description);
+        Assert.Equal("{}", repository.Catalog!.DescriptionJson);
+
+        var updated = await FiltersService(repository, work).UpdateAsync(repository.Catalog.Id, new(1, Texts(), null, filters), Ct);
+
+        Assert.True(updated.IsSuccess);
+        Assert.Empty(updated.Value.Catalog.Description);
+        Assert.Equal("{}", repository.Catalog.DescriptionJson);
+        Assert.Equal(2, work.Commits);
+    }
+
+    [Fact]
     public async Task Text_is_the_default_and_an_empty_typed_catalog_can_be_saved()
     {
         foreach (var type in new string?[] { null, "Text", "Integer", "Decimal", "Date" })
@@ -175,7 +217,7 @@ public sealed class FormCatalogTypedServiceTests
         var actor = Guid.NewGuid();
         var permissions = new FakePermissionService();
         permissions.Permissions[actor] = [BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage];
-        return new(repository, null!, work, RequestValidators.For(new CreateFiltersCatalogRequestValidator()),
+        return new(repository, null!, work, RequestValidators.For(new CreateFiltersCatalogRequestValidator(), new UpdateFiltersCatalogRequestValidator()),
             new(new FakeCurrentUser { UserId = actor }, permissions), null!, null!);
     }
 }
