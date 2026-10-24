@@ -48,5 +48,20 @@ public sealed class FormCatalogFieldRequestValidationTests
             error => error.PropertyName == "fields[0].name");
     }
 
+    [Theory]
+    [InlineData("text", null, null, 0, "maxLength")]
+    [InlineData("text", null, null, 301, "maxLength")]
+    [InlineData("integer", "123456789012345678901234567890123456789012345678901234567890123456", null, null, "min")]
+    [InlineData("integer", null, "123456789012345678901234567890123456789012345678901234567890123456", null, "max")]
+    public void Rule_lengths_are_reported_on_their_own_control(string type, string? min, string? max, int? maxLength, string control)
+    {
+        var field = new FormCatalogFieldSaveRequest("region", null, "region", new Dictionary<string, string?> { ["es"] = "Región" },
+            type, null, false, false, min, max, maxLength, "data", 0, true);
+
+        var result = new CreateManualCatalogRequestValidator().Validate(new CreateManualCatalogRequest(Texts(), Texts(), [], Fields: [field]));
+
+        Assert.Equal($"fields[0].{control}", Assert.Single(result.Errors).PropertyName);
+    }
+
     private static Dictionary<string, string?> Texts() => new Dictionary<string, string?> { ["es"] = "Catálogo", ["en"] = "Catalog" };
 }

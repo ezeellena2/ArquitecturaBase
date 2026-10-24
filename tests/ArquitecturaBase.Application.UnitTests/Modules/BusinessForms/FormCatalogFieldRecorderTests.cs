@@ -137,6 +137,23 @@ public sealed class FormCatalogFieldRecorderTests
         Assert.Equal("20", field.Max);
     }
 
+    [Theory]
+    [InlineData("integer", "abc", null, "min")]
+    [InlineData("integer", null, "abc", "max")]
+    [InlineData("integer", "10", "5", "max")]
+    [InlineData("text", "1", null, "type")]
+    public async Task Invalid_bounds_are_reported_on_the_control_that_holds_them(string type, string? min, string? max, string control)
+    {
+        var catalog = Catalog();
+        var input = Input(null) with { Type = type, MaxLength = type == "text" ? 300 : null, Min = min, Max = max };
+
+        var result = await new FormCatalogFieldRecorder(new FormCatalogFieldReader()).PrepareAsync(catalog, [], [input], null, [], true, TestContext.Current.CancellationToken);
+
+        Assert.Equal(FormCatalogErrors.FieldInvalid.Code, result.Error.Code);
+        Assert.Equal($"fields[0].{control}", Assert.Single(Assert.IsType<ArquitecturaBase.Domain.Results.ValidationError>(result.Error).Errors.Keys));
+        Assert.Null(catalog.FieldsJson);
+    }
+
     [Fact]
     public async Task Converting_a_catalog_field_loads_its_previous_source_with_inactive_options()
     {

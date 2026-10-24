@@ -73,13 +73,17 @@ internal static partial class FormCatalogFieldPolicy
         JsonSerializer.Deserialize<BusinessFormCatalogField[]>(json, JsonSerializerOptions.Web)
         ?? throw new InvalidOperationException("The stored catalog fields are invalid.");
 
-    public static bool ValidRules(BusinessFormCatalogField field)
+    // The control that holds a broken rule, or null: bounds on a type without a range belong to the type, an unreadable bound
+    // to its own control, and a minimum above the maximum to the maximum.
+    public static string? InvalidRule(BusinessFormCatalogField field)
     {
-        if (field.Type is not ("integer" or "decimal" or "date")) return field.Min is null && field.Max is null;
+        if (field.Type is not ("integer" or "decimal" or "date")) return field.Min is null && field.Max is null ? null : "type";
         var withoutBounds = field with { Required = false, Min = null, Max = null };
-        if (field.Min is not null && (Normalize(withoutBounds, field.Min) is var minimum && (minimum.IsFailure || minimum.Value is null))) return false;
-        if (field.Max is not null && (Normalize(withoutBounds, field.Max) is var maximum && (maximum.IsFailure || maximum.Value is null))) return false;
-        return field.Min is null || field.Max is null || Compare(field.Type, field.Min, field.Max) <= 0;
+        if (Unreadable(field.Min)) return "min";
+        if (Unreadable(field.Max)) return "max";
+        return field.Min is null || field.Max is null || Compare(field.Type, field.Min, field.Max) <= 0 ? null : "max";
+
+        bool Unreadable(string? bound) => bound is not null && Normalize(withoutBounds, bound) is var read && (read.IsFailure || read.Value is null);
     }
 
     public static BusinessFormCatalogField CanonicalRules(BusinessFormCatalogField field)

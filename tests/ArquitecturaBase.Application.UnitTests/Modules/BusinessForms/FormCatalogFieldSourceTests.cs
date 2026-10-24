@@ -82,7 +82,7 @@ public sealed class FormCatalogFieldSourceTests
     public void Empty_bounds_are_invalid_and_do_not_throw_or_drop_a_constraint()
     {
         var field = new BusinessFormCatalogField(Guid.CreateVersion7(), "field", new Dictionary<string, string> { ["es"] = "Field" }, "integer", null, false, false, "", null, null, "data", 0, true);
-        Assert.False(FormCatalogFieldPolicy.ValidRules(field));
+        Assert.Equal("min", FormCatalogFieldPolicy.InvalidRule(field));
     }
 
     private static FormCatalogStoredItemRow Item(Guid sourceId, string code, string text, string? english) => new(Guid.CreateVersion7(), sourceId, code, text, english, null, null, 0, true);

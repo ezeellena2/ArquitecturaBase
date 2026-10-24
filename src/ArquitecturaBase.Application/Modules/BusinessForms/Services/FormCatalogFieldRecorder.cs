@@ -40,7 +40,7 @@ internal sealed class FormCatalogFieldRecorder(IFormCatalogReader reader)
                 var names = input.Name.Where(pair => pair.Value is not null).ToDictionary(pair => pair.Key, pair => pair.Value!.Trim(), StringComparer.Ordinal);
                 var field = new BusinessFormCatalogField(id, input.Key, names, input.Type, input.SourceCatalogId,
                     input.Required, input.Unique, input.Min, input.Max, input.MaxLength, input.Role, input.Position, input.IsActive);
-                if (!FormCatalogFieldPolicy.ValidRules(field)) return FieldErrors.On(FormCatalogErrors.FieldInvalid, path + ".type");
+                if (FormCatalogFieldPolicy.InvalidRule(field) is { } rule) return FieldErrors.On(FormCatalogErrors.FieldInvalid, path + "." + rule);
                 field = FormCatalogFieldPolicy.CanonicalRules(field);
                 if (prior is null && !identityMap.TryAdd(input.LocalId!, id)) return FieldErrors.On(FormCatalogErrors.FieldInvalid, path + ".localId");
                 resolved.Add(field);

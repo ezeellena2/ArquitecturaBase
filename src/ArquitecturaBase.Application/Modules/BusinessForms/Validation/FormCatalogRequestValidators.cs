@@ -236,7 +236,9 @@ internal static partial class FormCatalogRequestValidation
             if ((field.Type == "catalog") != field.SourceCatalogId.HasValue || field.SourceCatalogId == Guid.Empty) fail(path + ".sourceCatalogId", Message());
             if (field.Position < 0) fail(path + ".position", Message());
             if (field.Role is not ("data" or "filter")) fail(path + ".role", Message());
-            if (field.Min?.Length > 64 || field.Max?.Length > 64 || field.MaxLength is < 1 or > 300) fail(path + ".type", Message());
+            if (field.Min?.Length > 64) fail(path + ".min", Message());
+            if (field.Max?.Length > 64) fail(path + ".max", Message());
+            if (field.MaxLength is < 1 or > 300) fail(path + ".maxLength", Message());
         }
     }
 
