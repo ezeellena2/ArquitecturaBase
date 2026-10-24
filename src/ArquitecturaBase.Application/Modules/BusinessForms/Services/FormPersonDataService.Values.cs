@@ -42,7 +42,7 @@ internal sealed partial class FormPersonDataService
                 var option = options.SingleOrDefault(option => option.Id == id && option.IsActive);
                 if (option is null) return FieldErrors.On(FormPersonDataErrors.ValueInvalid, "values." + key);
                 value = id.ToString("D");
-                optionTexts[id] = new(option.CatalogId, Culture() == "en" && !string.IsNullOrWhiteSpace(option.TextEn) ? option.TextEn : option.TextEs);
+                optionTexts[id] = new(option.CatalogId, option.TextFor(Culture()));
             }
             values[key] = value;
         }

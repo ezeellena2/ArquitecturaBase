@@ -53,6 +53,24 @@ public sealed class FormCatalogAlphabeticalOrderTests
     }
 
     [Fact]
+    public async Task Alphabetical_order_of_an_English_original_catalog_uses_its_English_texts()
+    {
+        var catalog = BusinessFormCatalog.CreateManual("en", new Dictionary<string, string> { ["en"] = "Own" },
+            new Dictionary<string, string>(), BusinessFormCatalogValueType.Decimal);
+        var celery = catalog.AddManualItem("A", "Apio", "Celery", null, null, 1, "1").Value;
+        var carrot = catalog.AddManualItem("B", "Zanahoria", "Carrot", null, null, 2, "2").Value;
+        var repository = new FormCatalogCapacityRepository(catalog, [celery, carrot]);
+        var work = new FakeUnitOfWork();
+
+        var result = await Service(repository, work).UpdateManualAsync(catalog.Id,
+            new(1, Texts(), Texts(), [], Moves: [], SortAlphabetically: true), Ct);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(1, carrot.Position);
+        Assert.Equal(2, celery.Position);
+    }
+
+    [Fact]
     public async Task Alphabetical_save_cannot_be_combined_with_explicit_moves()
     {
         var catalog = Catalog();

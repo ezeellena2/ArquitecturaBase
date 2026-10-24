@@ -148,16 +148,17 @@ internal sealed partial class FormCatalogReader(ApplicationDbContext dbContext) 
             var pattern = LikePatterns.Contains(request.Search.Trim());
             query = query.Where(value => EF.Functions.ILike(value.Code, pattern, LikePatterns.EscapeCharacter)
                 || EF.Functions.ILike(request.DisplayCulture == "en"
-                    ? value.TextEn == null || value.TextEn.Trim() == "" ? value.TextEs : value.TextEn
-                    : value.TextEs, pattern, LikePatterns.EscapeCharacter));
+                    ? value.TextEn == null || value.TextEn.Trim() == "" ? value.TextEs! : value.TextEn
+                    : value.TextEs == null || value.TextEs.Trim() == "" ? value.TextEn! : value.TextEs, pattern, LikePatterns.EscapeCharacter));
         }
         var sortable = new Dictionary<string, Expression<Func<BusinessFormCatalogItem, object?>>>(StringComparer.OrdinalIgnoreCase)
         {
             ["position"] = value => value.Position,
             ["code"] = value => value.Code,
+            // The text in the UI culture or, without a translation, the other one (the catalog's original).
             ["text"] = value => request.DisplayCulture == "en"
                 ? value.TextEn == null || value.TextEn.Trim() == "" ? value.TextEs : value.TextEn
-                : value.TextEs,
+                : value.TextEs == null || value.TextEs.Trim() == "" ? value.TextEn : value.TextEs,
             ["isActive"] = value => value.IsActive,
         };
         var rows = await query.ApplySort(SortDescriptor.Parse(request.Sort), sortable, new("position", false), value => value.Id)

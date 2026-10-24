@@ -114,7 +114,7 @@ internal sealed class FormPublicationGuard(FormPublicationAccessGuard accessGuar
                 foreach (var sourceId in fields.Where(field => personFields.Contains(field.Id) && field.SourceCatalogId is not null)
                     .Select(field => field.SourceCatalogId!.Value).Distinct())
                     if (!sourceItems.ContainsKey(sourceId)) sourceItems.Add(sourceId, await catalogReader.ListAllItemsAsync(sourceId, ct));
-                var labels = FormCatalogFieldPresentation.Values(new(Guid.Empty, catalogId, "", "", null, null, null, 0, true, FieldValuesJson: maximum.ValuesJson),
+                var labels = FormCatalogFieldPresentation.Values(new(Guid.Empty, catalogId, "", null, null, null, null, 0, true, FieldValuesJson: maximum.ValuesJson),
                     fields, sourceItems.Values.SelectMany(values => values).ToDictionary(item => item.Id), culture, catalog.ValueType);
                 maximumLabel = string.Join(" · ", personFields.Order().Select(id => labels.GetValueOrDefault(id.ToString("D"))).Where(value => !string.IsNullOrEmpty(value)));
                 if (maximumLabel.Length == 0) maximumLabel = null;

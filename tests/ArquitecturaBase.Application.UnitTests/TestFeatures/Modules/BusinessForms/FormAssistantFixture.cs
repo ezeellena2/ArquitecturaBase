@@ -36,7 +36,7 @@ internal sealed class FormAssistantFixture : IFormSelectionReader, IFormMissingR
     public FormAssistantCandidatesPayload ReadPayload(Guid? recipient = null)
     {
         var row = Rows[0];
-        var choices = Catalog.Items.Where(item => item.IsActive).Select(item => new FormAssistantChoice(item.Id, item.TextEs)).ToArray();
+        var choices = Catalog.Items.Where(item => item.IsActive).Select(item => new FormAssistantChoice(item.Id, item.TextFor("es"))).ToArray();
         return new("complete", recipient ?? UserId, "es", true, [new(row.DefinitionId, row.VersionId, row.DefinitionRevision, "Personas", row.OfferWhen, row.Culture,
             [new(Catalog.FieldId, "choice", "Personas", null, Catalog.Catalog.Id, Catalog.Catalog.Revision, choices)])], []);
     }

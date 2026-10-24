@@ -18,8 +18,8 @@ internal sealed class FormCatalogFieldSourceIndex
         {
             _activeIds.Add(item.Id);
             _codes.Add(item.Code, item.Id);
-            Add(item.TextEs, item.Id);
-            if (!string.IsNullOrWhiteSpace(item.TextEn)) Add(item.TextEn, item.Id);
+            foreach (var culture in new[] { "es", "en" })
+                if (item.TextIn(culture) is { } text) Add(text, item.Id);
         }
     }
 
@@ -28,10 +28,8 @@ internal sealed class FormCatalogFieldSourceIndex
     // Any option of the source, active or deactivated: a saved value may keep an option that was deactivated later.
     public bool ContainsAny(Guid id) => _all.ContainsKey(id);
 
-    // The text of any option of the source in a language, or its Spanish text when it has no translation; null for no option of the source.
-    public string? Text(Guid id, string culture) => _all.TryGetValue(id, out var item)
-        ? culture == "en" && !string.IsNullOrWhiteSpace(item.TextEn) ? item.TextEn : item.TextEs
-        : null;
+    // The text of any option of the source in a language, or in the other one when it has no translation; null for no option of the source.
+    public string? Text(Guid id, string culture) => _all.TryGetValue(id, out var item) ? item.TextFor(culture) : null;
 
     // Active options resolve first; a cell that resolves to none of them but still names the saved option keeps it, even if it was deactivated later.
     public Result<string?> Resolve(string? input, Guid? current = null)
@@ -47,8 +45,8 @@ internal sealed class FormCatalogFieldSourceIndex
     private bool Names(Guid id, string value) => _all.TryGetValue(id, out var item)
         && (Guid.TryParseExact(value, "D", out var named) && named == id
             || string.Equals(value, item.Code, StringComparison.OrdinalIgnoreCase)
-            || string.Equals(value, item.TextEs.Trim(), StringComparison.OrdinalIgnoreCase)
-            || item.TextEn is { } english && string.Equals(value, english.Trim(), StringComparison.OrdinalIgnoreCase));
+            || item.TextIn("es") is { } spanish && string.Equals(value, spanish.Trim(), StringComparison.OrdinalIgnoreCase)
+            || item.TextIn("en") is { } english && string.Equals(value, english.Trim(), StringComparison.OrdinalIgnoreCase));
 
     private void Add(string text, Guid id)
     {

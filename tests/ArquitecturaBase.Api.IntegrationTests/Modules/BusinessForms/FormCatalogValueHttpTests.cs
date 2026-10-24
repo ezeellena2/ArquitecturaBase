@@ -64,8 +64,8 @@ public sealed partial class FormCatalogEndpointsTests
             name = texts, description = texts, valueType = "Decimal",
             items = new[]
             {
-                new { localId = "one", code = "ONE", text = new { es = "Uno" }, isActive = true, value = "1500" },
-                new { localId = "two", code = "TWO", text = new { es = "Dos" }, isActive = false, value = "1,5" },
+                new { localId = "one", code = "ONE", text = new { es = "Uno", en = "One" }, isActive = true, value = "1500" },
+                new { localId = "two", code = "TWO", text = new { es = "Dos", en = "Two" }, isActive = false, value = "1,5" },
             },
         }, Ct);
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);

@@ -108,7 +108,7 @@ internal static partial class FormCatalogImportPolicy
         var reactivated = 0;
         var unchanged = 0;
         var final = new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var item in source.Items) final.Add(item.Code,item.TextEs);
+        foreach (var item in source.Items) final.Add(item.Code,item.TextFor("es"));
         foreach (var row in valid)
         {
             final[row.Code] = row.TextEs;
@@ -135,7 +135,7 @@ internal static partial class FormCatalogImportPolicy
                 mutations.Add(new("item-"+item.Id.ToString("N"),item.Id,item.Code,
                     new Dictionary<string,string?> { ["es"]=item.TextEs,["en"]=item.TextEn },
                     new Dictionary<string,string?> { ["es"]=item.DetailEs,["en"]=item.DetailEn },false,item.Value));
-                deactivated.Add(new(item.Id,item.Code,culture=="en"&&!string.IsNullOrWhiteSpace(item.TextEn)?item.TextEn:item.TextEs));
+                deactivated.Add(new(item.Id,item.Code,item.TextFor(culture)));
             }
         var textCodes = final.GroupBy(pair=>pair.Value,StringComparer.OrdinalIgnoreCase)
             .ToDictionary(group=>group.Key,group=>group.Select(pair=>pair.Key).ToHashSet(StringComparer.OrdinalIgnoreCase),StringComparer.OrdinalIgnoreCase);
@@ -217,7 +217,7 @@ internal static partial class FormCatalogImportPolicy
     {
         if (field.Type != "catalog" || field.SourceCatalogId is not { } sourceId || !Guid.TryParse(value, out var id)
             || !sourceTexts.TryGetValue(sourceId, out var source) || !source.TryGetValue(id, out var item)) return null;
-        return culture == "en" && !string.IsNullOrWhiteSpace(item.TextEn) ? item.TextEn : item.TextEs;
+        return item.TextFor(culture);
     }
     private static bool IsRuleRow(FormSpreadsheetRow row,IReadOnlyDictionary<string,int> columns,BusinessFormCatalogValueType type,
         BusinessFormCatalogField[] fields)

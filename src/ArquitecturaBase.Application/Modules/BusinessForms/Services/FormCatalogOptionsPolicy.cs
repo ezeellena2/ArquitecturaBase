@@ -62,8 +62,7 @@ internal sealed class FormCatalogOptionsPolicy(IFormCatalogReader catalogs, IFor
                     {
                         var shown = presentation is null ? null : FormCatalogPresentationPolicy.Compose(presentation,
                             FormCatalogFieldPresentation.Values(item, fields, sourceItems, culture, catalog.ValueType));
-                        return new StructuredFormCatalogOption(item.Id, culture == "en" && !string.IsNullOrWhiteSpace(item.TextEn) ? item.TextEn : item.TextEs,
-                            culture == "en" && !string.IsNullOrWhiteSpace(item.DetailEn) ? item.DetailEn : item.DetailEs, ManualTexts(item),
+                        return new StructuredFormCatalogOption(item.Id, item.TextFor(culture), item.DetailFor(culture), ManualTexts(item),
                             valueType is null ? null : item.Value, shown is null ? null : new(shown.Title, shown.Description));
                     }).ToArray();
             }
@@ -121,13 +120,12 @@ internal sealed class FormCatalogOptionsPolicy(IFormCatalogReader catalogs, IFor
         return names.OrderBy(pair => pair.Key, StringComparer.Ordinal).First(pair => !string.IsNullOrWhiteSpace(pair.Value)).Value;
     }
 
+    // Only the cultures the option has a text in: its catalog's original and, when present, the translation.
     private static Dictionary<string, StructuredFormCatalogOptionText> ManualTexts(FormCatalogStoredItemRow item)
     {
-        var result = new Dictionary<string, StructuredFormCatalogOptionText>(StringComparer.Ordinal)
-        {
-            ["es"] = new(item.TextEs, item.DetailEs)
-        };
-        if (!string.IsNullOrWhiteSpace(item.TextEn)) result.Add("en", new(item.TextEn, item.DetailEn));
+        var result = new Dictionary<string, StructuredFormCatalogOptionText>(StringComparer.Ordinal);
+        foreach (var culture in Cultures)
+            if (item.TextIn(culture) is { } text) result.Add(culture, new(text, culture == "en" ? item.DetailEn : item.DetailEs));
         return result;
     }
 

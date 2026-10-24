@@ -24,6 +24,8 @@ AddFormPersonData crea las tablas de atributos y valores con revisiones independ
 
 AddCatalogAndPersonAttributeOriginalCulture agrega `OriginalCulture` con default `es` a catálogos y atributos de personas y toma el de cada propuesta H4 de su evidencia. Down bloquea ambas tablas y rechaza, antes del DDL, un catálogo no propuesto o un atributo con original distinto de `es`. FormCatalogOriginalCultureMigrationTests prepara Up/Down/Up con historia conservada y ese rechazo.
 
+AllowCatalogItemsWithoutSpanishText vuelve nullable `TextEs` de las opciones, sin reescribir filas; la imagen anterior siempre lo escribe. Down bloquea la tabla y rechaza, antes del DDL, una opción sin texto en español; no inventa uno ni deja un default. FormCatalogItemSpanishTextMigrationTests prepara Up/Down/Up con historia conservada y ese rechazo.
+
 ## Referencias
 
 - [Comandos y revisión obligatoria](../../../../docs/guides/migracion.md).

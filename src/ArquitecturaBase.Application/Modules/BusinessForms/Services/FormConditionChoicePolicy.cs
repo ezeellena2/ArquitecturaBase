@@ -32,7 +32,6 @@ internal sealed class FormConditionChoicePolicy(IFormCatalogReader catalogs,IFor
                 definition.TextColumn == "active" ? FormCatalogOfferPolicy.LocalizeBoolean(item.Text,culture) : item.Text)).ToArray();
         }
         var items = await catalogs.ListAllItemsAsync(catalogId, cancellationToken);
-        return items.Select(item => new FormRuleConditionChoiceResponse(item.Id,
-            culture == "en" ? item.TextEn ?? item.TextEs : item.TextEs)).ToArray();
+        return items.Select(item => new FormRuleConditionChoiceResponse(item.Id, item.TextFor(culture))).ToArray();
     }
 }

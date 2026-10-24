@@ -42,12 +42,14 @@ internal static class FormCatalogFieldCapturePolicy
             .Select(value => (value.Field, value.Value.Clone())).ToArray();
     }
 
+    // Seals the texts the source option has: its catalog's original and, when present, the translation.
     private static Dictionary<string, string> SourceText(FormCatalogItemFieldValuesRow row, Guid sourceCatalogId)
     {
-        if (row.CatalogId != sourceCatalogId || string.IsNullOrWhiteSpace(row.TextEs))
-            throw new InvalidOperationException("The captured source catalog option is invalid.");
-        var texts = new Dictionary<string, string>(StringComparer.Ordinal) { ["es"] = row.TextEs };
+        var texts = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (!string.IsNullOrWhiteSpace(row.TextEs)) texts["es"] = row.TextEs;
         if (!string.IsNullOrWhiteSpace(row.TextEn)) texts["en"] = row.TextEn;
+        if (row.CatalogId != sourceCatalogId || texts.Count == 0)
+            throw new InvalidOperationException("The captured source catalog option is invalid.");
         return texts;
     }
 }

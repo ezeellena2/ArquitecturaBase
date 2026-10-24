@@ -36,7 +36,7 @@ internal sealed class FormCatalogItemRecorder(IFormCatalogRepository repository)
             if (value.ItemId is { } itemId)
             {
                 recordedItem = byId[itemId];
-                var changed = catalog.UpdateManualItem(byId[itemId], value.Code!.Trim(), text["es"], text.GetValueOrDefault("en"),
+                var changed = catalog.UpdateManualItem(byId[itemId], value.Code!.Trim(), text.GetValueOrDefault("es"), text.GetValueOrDefault("en"),
                     detail.GetValueOrDefault("es"), detail.GetValueOrDefault("en"), byId[itemId].Position, itemValue.Value);
                 if (changed.IsFailure) return changed.Error;
                 var active = catalog.SetManualItemActive(byId[itemId], value.IsActive);
@@ -44,7 +44,7 @@ internal sealed class FormCatalogItemRecorder(IFormCatalogRepository repository)
             }
             else
             {
-                var created = catalog.AddManualItem(value.Code!.Trim(), text["es"], text.GetValueOrDefault("en"),
+                var created = catalog.AddManualItem(value.Code!.Trim(), text.GetValueOrDefault("es"), text.GetValueOrDefault("en"),
                     detail.GetValueOrDefault("es"), detail.GetValueOrDefault("en"), nextPosition++, itemValue.Value);
                 if (created.IsFailure) return created.Error;
                 recordedItem = created.Value;
@@ -79,8 +79,10 @@ internal sealed class FormCatalogItemRecorder(IFormCatalogRepository repository)
 
         if (sortAlphabetically || moves is not null)
         {
+            // A-Z follows the catalog's original text, compared with the rules of that language.
             var orderedItems = sortAlphabetically
-                ? storedItems.Concat(addedItems).OrderBy(item => item.TextEs, StringComparer.Create(CultureInfo.GetCultureInfo("es-AR"), false))
+                ? storedItems.Concat(addedItems).OrderBy(item => item.TextFor(catalog.OriginalCulture),
+                        StringComparer.Create(CultureInfo.GetCultureInfo(catalog.OriginalCulture == "en" ? "en-US" : "es-AR"), false))
                     .ThenBy(item => item.Position).ThenBy(item => item.Id).ToList()
                 : storedItems.Concat(addedItems).OrderBy(item => item.Position).ThenBy(item => item.Id).ToList();
             var requestedMoves = moves ?? [];
@@ -117,11 +119,12 @@ internal sealed class FormCatalogItemRecorder(IFormCatalogRepository repository)
         return new FormCatalogItemsRecorded(identityMap, allItems);
     }
 
+    // A blank text is no text: the catalog requires its original and the other culture is an optional translation.
     private static Dictionary<string, string> Texts(IReadOnlyDictionary<string, string?> source)
     {
         var result = new Dictionary<string, string>(StringComparer.Ordinal);
-        if (source.TryGetValue("es", out var spanish) && spanish is not null) result["es"] = spanish;
-        if (source.TryGetValue("en", out var english) && !string.IsNullOrWhiteSpace(english)) result["en"] = english;
+        foreach (var culture in new[] { "es", "en" })
+            if (source.TryGetValue(culture, out var text) && !string.IsNullOrWhiteSpace(text)) result[culture] = text;
         return result;
     }
 

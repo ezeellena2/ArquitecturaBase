@@ -59,8 +59,8 @@ internal static class FormCatalogFieldPresentation
     {
         var values = new Dictionary<string, string?>(StringComparer.Ordinal)
         {
-            ["text"] = culture == "en" && !string.IsNullOrWhiteSpace(item.TextEn) ? item.TextEn : item.TextEs,
-            ["detail"] = culture == "en" && !string.IsNullOrWhiteSpace(item.DetailEn) ? item.DetailEn : item.DetailEs,
+            ["text"] = item.TextFor(culture),
+            ["detail"] = item.DetailFor(culture),
             ["code"] = item.Code,
             ["value"] = Display(valueType.ToLowerInvariant(), item.Value, culture),
         };
@@ -73,7 +73,7 @@ internal static class FormCatalogFieldPresentation
             if (field.Type == "catalog")
             {
                 var option = Guid.TryParse(input, out var id) ? choices.GetValueOrDefault(id) : null;
-                values[key] = option is null ? null : culture == "en" && !string.IsNullOrWhiteSpace(option.TextEn) ? option.TextEn : option.TextEs;
+                values[key] = option?.TextFor(culture);
             }
             else values[key] = Display(field.Type, input, culture);
         }

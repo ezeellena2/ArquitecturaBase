@@ -132,7 +132,7 @@ public sealed partial class BusinessFormCatalog : Entity, IAuditable
         return Result.Success();
     }
 
-    public Result<BusinessFormCatalogItem> AddManualItem(string code, string textEs, string? textEn,
+    public Result<BusinessFormCatalogItem> AddManualItem(string code, string? textEs, string? textEn,
         string? detailEs, string? detailEn, int position, string? value = null)
     {
         if (Kind != BusinessFormCatalogKind.Manual)
@@ -140,11 +140,12 @@ public sealed partial class BusinessFormCatalog : Entity, IAuditable
             return FormCatalogErrors.ManualItemsUnavailable;
         }
 
+        if (!HasOriginalText(textEs, textEn)) return FormCatalogErrors.ContentInvalid;
         var item = BusinessFormCatalogItem.Create(Id, code, textEs, textEn, detailEs, detailEn, position, value);
         return item;
     }
 
-    public Result UpdateManualItem(BusinessFormCatalogItem item, string code, string textEs,
+    public Result UpdateManualItem(BusinessFormCatalogItem item, string code, string? textEs,
         string? textEn, string? detailEs, string? detailEn, int position, string? value = null)
     {
         ArgumentNullException.ThrowIfNull(item);
@@ -158,6 +159,7 @@ public sealed partial class BusinessFormCatalog : Entity, IAuditable
             return FormCatalogErrors.ItemNotFound;
         }
 
+        if (!HasOriginalText(textEs, textEn)) return FormCatalogErrors.ContentInvalid;
         item.Update(code, textEs, textEn, detailEs, detailEn, position, value);
         return Result.Success();
     }
@@ -193,6 +195,10 @@ public sealed partial class BusinessFormCatalog : Entity, IAuditable
 
     private bool HasOriginalName(IReadOnlyDictionary<string, string> name) =>
         name.TryGetValue(OriginalCulture, out var original) && !string.IsNullOrWhiteSpace(original);
+
+    // An item needs its text in the catalog's original culture; the other culture is an optional translation.
+    private bool HasOriginalText(string? textEs, string? textEn) =>
+        !string.IsNullOrWhiteSpace(OriginalCulture == "en" ? textEn : textEs);
 
     private static string SerializeTexts(IReadOnlyDictionary<string, string> texts)
     {

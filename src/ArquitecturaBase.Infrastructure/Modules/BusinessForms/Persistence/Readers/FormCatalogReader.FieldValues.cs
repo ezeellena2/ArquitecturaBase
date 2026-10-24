@@ -27,7 +27,8 @@ internal sealed partial class FormCatalogReader
                 var key = field.Id.ToString("D");
                 if (!values[item.Id].TryGetValue(key, out var value) || !Guid.TryParseExact(value, "D", out var sourceId)
                     || !sourceItems.TryGetValue(sourceId, out var source) || source.CatalogId != field.SourceCatalogId) continue;
-                var texts = new Dictionary<string, string>(StringComparer.Ordinal) { ["es"] = source.TextEs };
+                var texts = new Dictionary<string, string>(StringComparer.Ordinal);
+                if (!string.IsNullOrWhiteSpace(source.TextEs)) texts["es"] = source.TextEs;
                 if (!string.IsNullOrWhiteSpace(source.TextEn)) texts["en"] = source.TextEn;
                 fieldTexts[key] = texts;
             }

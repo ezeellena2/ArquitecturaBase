@@ -88,6 +88,29 @@ public sealed class FormCatalogFieldCaptureTests
         Assert.Equal(1, f.Definition.LastRecordNumber);
     }
 
+    [Fact]
+    public async Task A_catalog_field_whose_source_option_has_only_English_text_seals_that_text()
+    {
+        var catalogId = Guid.NewGuid();
+        var sourceCatalogId = Guid.NewGuid();
+        var f = new BusinessFormCaptureFixture("choice", true, catalogId);
+        var fields = new[] { Field("region", "catalog", "data", sourceCatalogId: sourceCatalogId) };
+        var itemId = Guid.NewGuid();
+        var sourceItem = Guid.NewGuid();
+        f.Repository.CatalogFieldValues[itemId] = new(itemId, catalogId, FormDraftPolicy.Serialize(fields),
+            FormDraftPolicy.Serialize(new Dictionary<string, object> { [fields[0].Id.ToString("D")] = sourceItem.ToString("D") }));
+        f.Repository.CatalogFieldValues[sourceItem] = new(sourceItem, sourceCatalogId, null, "{}", null, "North area");
+
+        var result = await f.Sink.CaptureAsync(f.Request(new Dictionary<string, string> { [f.Key] = itemId.ToString("D") })
+            with { Catalogs = [Offer(f, "Manual", [new(itemId, "Norte", null)])] }, Ct);
+
+        Assert.Equal("Completed", result.State);
+        var captured = Assert.Single(FormDraftPolicy.Read<FormCatalogCapturedField[]>(Assert.Single(f.Repository.References).FieldValuesJson!));
+        Assert.Equal(sourceItem.ToString("D"), captured.Value.GetString());
+        Assert.Equal(["en"], captured.Text!.Keys);
+        Assert.Equal("North area", captured.Text["en"]);
+    }
+
     [Theory]
     [InlineData("Manual", 1)]
     [InlineData("Filters", 0)]

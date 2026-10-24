@@ -170,6 +170,29 @@ public sealed class FormCatalogTests
         Assert.Equal("en", manual.OriginalCulture);
     }
 
+    [Fact]
+    public void An_item_of_an_English_original_catalog_needs_only_English_text_and_shows_it_in_Spanish()
+    {
+        var catalog = BusinessFormCatalog.CreateManual("en", Only("en", "Branches"), new Dictionary<string, string>());
+
+        var added = catalog.AddManualItem("NORTH", null, "North branch", null, "Main office", 0);
+
+        Assert.True(added.IsSuccess);
+        var item = added.Value;
+        Assert.Null(item.TextEs);
+        Assert.Equal("North branch", item.TextFor("es"));
+        Assert.Equal("Main office", item.DetailFor("es"));
+        Assert.Equal("North branch", item.TextFor("en"));
+        Assert.Equal(FormCatalogErrors.ContentInvalid, catalog.AddManualItem("SOUTH", "Sucursal sur", null, null, null, 1).Error);
+        Assert.Equal(FormCatalogErrors.ContentInvalid, catalog.UpdateManualItem(item, "NORTH", "Sucursal norte", " ", null, null, 0).Error);
+        Assert.Equal("North branch", item.TextFor("es"));
+
+        Assert.True(catalog.UpdateManualItem(item, "NORTH", "Sucursal norte", "North branch", null, "Main office", 0).IsSuccess);
+        Assert.Equal("Sucursal norte", item.TextFor("es"));
+        Assert.Equal("Main office", item.DetailFor("es"));
+        Assert.Throws<ArgumentException>(() => BusinessFormCatalogItem.Create(catalog.Id, "EMPTY", " ", null, null, null, 2));
+    }
+
     private static Dictionary<string, string> Only(string culture, string text) => new(StringComparer.Ordinal) { [culture] = text };
 
     private static BusinessFormCatalog CreateCatalog() =>

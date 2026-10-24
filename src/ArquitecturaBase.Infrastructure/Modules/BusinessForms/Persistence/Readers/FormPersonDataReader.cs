@@ -85,13 +85,16 @@ internal sealed partial class FormPersonDataReader(ApplicationDbContext dbContex
         {
             var pattern = LikePatterns.Contains(request.Search.Trim());
             items = items.Where(value => EF.Functions.ILike(request.DisplayCulture == "en"
-                ? value.TextEn == null || value.TextEn.Trim() == "" ? value.TextEs : value.TextEn : value.TextEs, pattern, LikePatterns.EscapeCharacter));
+                ? value.TextEn == null || value.TextEn.Trim() == "" ? value.TextEs! : value.TextEn
+                : value.TextEs == null || value.TextEs.Trim() == "" ? value.TextEn! : value.TextEs, pattern, LikePatterns.EscapeCharacter));
         }
         var sortable = new Dictionary<string, Expression<Func<BusinessFormCatalogItem, object?>>>(StringComparer.OrdinalIgnoreCase)
-        { ["text"] = value => request.DisplayCulture == "en" ? value.TextEn == null || value.TextEn.Trim() == "" ? value.TextEs : value.TextEn : value.TextEs };
+        { ["text"] = value => request.DisplayCulture == "en" ? value.TextEn == null || value.TextEn.Trim() == "" ? value.TextEs : value.TextEn
+            : value.TextEs == null || value.TextEs.Trim() == "" ? value.TextEn : value.TextEs };
         return items.ApplySort(SortDescriptor.Parse(request.Sort), sortable, new("text", false), value => value.Id)
             .Select(value => new FormPersonAttributeOptionRow(value.Id, request.DisplayCulture == "en"
-                ? value.TextEn == null || value.TextEn.Trim() == "" ? value.TextEs : value.TextEn : value.TextEs));
+                ? value.TextEn == null || value.TextEn.Trim() == "" ? value.TextEs! : value.TextEn
+                : value.TextEs == null || value.TextEs.Trim() == "" ? value.TextEn! : value.TextEs));
     }
 
     private async Task<Dictionary<Guid, FormPersonOptionTextRow>> FindOptionTextsAsync(IReadOnlyList<FormPersonAttributeStoredRow> attributes,
@@ -114,7 +117,8 @@ internal sealed partial class FormPersonDataReader(ApplicationDbContext dbContex
         var ids = requested.Keys.ToArray();
         var items = await dbContext.Set<BusinessFormCatalogItem>().AsNoTracking().Where(value => ids.Contains(value.Id))
             .Select(value => new { value.Id, value.CatalogId, Text = culture == "en"
-                ? value.TextEn == null || value.TextEn.Trim() == "" ? value.TextEs : value.TextEn : value.TextEs }).ToListAsync(cancellationToken);
+                ? value.TextEn == null || value.TextEn.Trim() == "" ? value.TextEs! : value.TextEn
+                : value.TextEs == null || value.TextEs.Trim() == "" ? value.TextEn! : value.TextEs }).ToListAsync(cancellationToken);
         return items.Where(value => requested[value.Id].Contains(value.CatalogId))
             .ToDictionary(value => value.Id, value => new FormPersonOptionTextRow(value.CatalogId, value.Text));
     }

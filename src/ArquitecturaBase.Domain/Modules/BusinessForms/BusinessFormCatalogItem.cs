@@ -15,7 +15,7 @@ public sealed class BusinessFormCatalogItem : Entity, IAuditable
     public string Code { get; private set; } = "";
     public string? Value { get; private set; }
     public string FieldValuesJson { get; private set; } = "{}";
-    public string TextEs { get; private set; } = "";
+    public string? TextEs { get; private set; }
     public string? TextEn { get; private set; }
     public string? DetailEs { get; private set; }
     public string? DetailEn { get; private set; }
@@ -26,12 +26,12 @@ public sealed class BusinessFormCatalogItem : Entity, IAuditable
     public DateTime? ModifiedAtUtc { get; private set; }
     public Guid? ModifiedBy { get; private set; }
 
-    public static BusinessFormCatalogItem Create(Guid catalogId, string code, string textEs, string? textEn,
+    public static BusinessFormCatalogItem Create(Guid catalogId, string code, string? textEs, string? textEn,
         string? detailEs, string? detailEn, int position, string? value = null)
     {
         ArgumentOutOfRangeException.ThrowIfEqual(catalogId, Guid.Empty);
         ArgumentException.ThrowIfNullOrWhiteSpace(code);
-        ArgumentException.ThrowIfNullOrWhiteSpace(textEs);
+        RequireText(textEs, textEn);
         ArgumentOutOfRangeException.ThrowIfNegative(position);
 
         return new()
@@ -47,14 +47,15 @@ public sealed class BusinessFormCatalogItem : Entity, IAuditable
         };
     }
 
-    public string TextFor(string culture) => culture == "en" && !string.IsNullOrWhiteSpace(TextEn) ? TextEn : TextEs;
+    // The text in the requested culture or, without a translation, in the other one: the catalog's original is always present.
+    public string TextFor(string culture) => In(TextEs, TextEn, culture) ?? In(TextEs, TextEn, Other(culture))!;
 
-    public string? DetailFor(string culture) => culture == "en" && !string.IsNullOrWhiteSpace(DetailEn) ? DetailEn : DetailEs;
+    public string? DetailFor(string culture) => In(DetailEs, DetailEn, culture) ?? In(DetailEs, DetailEn, Other(culture));
 
-    internal void Update(string code, string textEs, string? textEn, string? detailEs, string? detailEn, int position, string? value = null)
+    internal void Update(string code, string? textEs, string? textEn, string? detailEs, string? detailEn, int position, string? value = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(code);
-        ArgumentException.ThrowIfNullOrWhiteSpace(textEs);
+        RequireText(textEs, textEn);
         ArgumentOutOfRangeException.ThrowIfNegative(position);
         Code = code;
         Value = value;
@@ -67,4 +68,18 @@ public sealed class BusinessFormCatalogItem : Entity, IAuditable
 
     internal void SetActive(bool isActive) => IsActive = isActive;
     internal void SetFields(string fieldValuesJson) => FieldValuesJson = fieldValuesJson;
+
+    private static void RequireText(string? textEs, string? textEn)
+    {
+        if (string.IsNullOrWhiteSpace(textEs) && string.IsNullOrWhiteSpace(textEn))
+            throw new ArgumentException("The item needs a text in at least one culture.", nameof(textEs));
+    }
+
+    private static string Other(string culture) => culture == "en" ? "es" : "en";
+
+    private static string? In(string? spanish, string? english, string culture)
+    {
+        var text = culture == "en" ? english : spanish;
+        return string.IsNullOrWhiteSpace(text) ? null : text;
+    }
 }

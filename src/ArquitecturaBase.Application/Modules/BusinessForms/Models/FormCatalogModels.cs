@@ -131,12 +131,24 @@ public sealed record FormCatalogStoredItemRow(
     Guid Id,
     Guid CatalogId,
     string Code,
-    string TextEs,
+    string? TextEs,
     string? TextEn,
     string? DetailEs,
     string? DetailEn,
     int Position,
-    bool IsActive, string? Value = null, string FieldValuesJson = "{}");
+    bool IsActive, string? Value = null, string FieldValuesJson = "{}")
+{
+    // The text written in a culture, or null when the option has no text in it.
+    public string? TextIn(string culture) => Present(culture == "en" ? TextEn : TextEs);
+
+    // The text in the requested culture or, without a translation, in the other one: a stored option always has its original.
+    public string TextFor(string culture) => TextIn(culture) ?? TextIn(culture == "en" ? "es" : "en") ?? "";
+
+    public string? DetailFor(string culture) => Present(culture == "en" ? DetailEn : DetailEs)
+        ?? Present(culture == "en" ? DetailEs : DetailEn);
+
+    private static string? Present(string? text) => string.IsNullOrWhiteSpace(text) ? null : text;
+}
 
 public sealed record FormCatalogMaximumOfferRow(int Maximum, string ValuesJson)
 { public override string ToString() => "FormCatalogMaximumOfferRow { Content = [REDACTED] }"; }

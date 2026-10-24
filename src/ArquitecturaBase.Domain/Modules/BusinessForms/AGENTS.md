@@ -2,7 +2,8 @@
 
 Leer [formularios](../../../../docs/features/formularios.md) y el [resumen de la etapa en curso](../../../../docs/plans/formularios/README.md) antes de modificar.
 - Domain usa BCL y Result. Entidades Definition/DraftChange heredan Entity e IAuditable; auditoría exclusivamente por interceptores.
-- Catálogo y PersonAttribute fijan al crear su `OriginalCulture` (es/en), inmutable: el nombre es obligatorio sólo en ese idioma, y en el catálogo también el de cada campo. Los mapas descartan textos en blanco.
+- Catálogo y PersonAttribute fijan al crear su `OriginalCulture` (es/en), inmutable: el nombre es obligatorio sólo en ese idioma, y en el catálogo también el de cada campo y el texto de cada opción (`AddManualItem`/`UpdateManualItem` devuelven ContentInvalid sin él). Los mapas descartan textos en blanco.
+- El ítem guarda `TextEs` nullable y exige algún texto; `TextFor`/`DetailFor` son simétricos: el idioma pedido y, si falta, el otro.
 - PersonAttribute fija clave, fuente Catalog/Text y revisión; al desactivar conserva el último nombre activo. PersonData guarda una fila/revisión por UserId opaco sin FK al núcleo; ValuesJson se valida en Application.
 - `BusinessFormCatalog.MaxItems` fija 10.000 filas, incluidas inactivas. Application verifica el total al guardar bajo el lock del catálogo.
 - `ValueType` se fija al crear Manual (Text/Integer/Decimal/Date); Filters conserva Text. Item guarda Value canónico nullable. Reference sella el par Value/ValueType de la oferta; nunca relee el valor actual para reconstruir lo histórico.

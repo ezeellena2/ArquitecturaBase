@@ -175,7 +175,7 @@ public sealed class FormCatalogFieldItemPolicyTests
         var previous = Field("catalog") with { Id = field.Id };
         var north = new FormCatalogStoredItemRow(Guid.CreateVersion7(), previous.SourceCatalogId!.Value, "N", "Norte", english, null, null, 1, false);
         var catalog = Catalog(original);
-        var item = catalog.AddManualItem("acme", "Acme", null, null, null, 1).Value;
+        var item = catalog.AddManualItem("acme", "Acme", "Acme", null, null, 1).Value;
         StoreText(catalog, item, field, north.Id.ToString("D"));
 
         var result = FormCatalogFieldPolicy.ValidateItems(catalog, [item], [], NoRequest(), Converting(field, previous, culture, north));
@@ -191,8 +191,8 @@ public sealed class FormCatalogFieldItemPolicyTests
     {
         var field = Field("text");
         var catalog = Catalog(original);
-        var accepted = catalog.AddManualItem("accepted", "Accepted", null, null, null, 1).Value;
-        var rejected = catalog.AddManualItem("rejected", "Rejected", null, null, null, 2).Value;
+        var accepted = catalog.AddManualItem("accepted", "Aceptada", "Accepted", null, null, 1).Value;
+        var rejected = catalog.AddManualItem("rejected", "Rechazada", "Rejected", null, null, 2).Value;
         StoreBoolean(catalog, accepted, field, true);
         StoreBoolean(catalog, rejected, field, false);
 
