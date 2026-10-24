@@ -142,6 +142,23 @@ internal sealed class FormRecipientScenario(WebApplicationFactory<Program> host)
     });
 
     public void RememberSaved(JsonElement saved) => Saved = saved;
+    public async Task<JsonElement> SaveDraftAsync(Action<JsonObject> change, CancellationToken ct)
+    {
+        var payload = CheckPayload();
+        payload["requestId"] = Guid.NewGuid().ToString("D");
+        change(payload);
+        using var client = Client();
+        using var response = await client.PutAsJsonAsync($"/api/forms/definitions/{DefinitionId}/draft", payload, ct);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var saved = await response.ReadJsonAsync();
+        RememberSaved(saved);
+        return saved;
+    }
+    public static void DropMatch(JsonObject payload, Guid fieldId)
+    {
+        var match = payload["draft"]!["fields"]![0]!["source"]!["match"]!.AsArray();
+        match.Remove(match.Single(filter => Guid.Parse(filter!["fieldId"]!.GetValue<string>()) == fieldId));
+    }
     public JsonObject CatalogEdit(long revision) => JsonSerializer.SerializeToNode(new
     {
         expectedRevision = revision, name = new { es = "Proveedores", en = "Suppliers" }, description = new { es = "Proveedores", en = "Suppliers" },

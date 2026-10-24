@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using ArquitecturaBase.Api.IntegrationTests.Support;
+using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessForms;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Domain.ValueObjects;
@@ -712,14 +713,8 @@ public sealed partial class FormCatalogEndpointsTests(ApiFactory factory)
         items = Array.Empty<object>(),
     };
 
-    private static async Task ExportBilingualResponseAsync(HttpResponseMessage response, string name)
-    {
-        var output = Environment.GetEnvironmentVariable("FORMS_CATALOG_HTTP_CONTRACT_OUTPUT");
-        if (string.IsNullOrWhiteSpace(output)) return;
-        var directory = Path.Combine(output, "manual-bilingual");
-        Directory.CreateDirectory(directory);
-        await File.WriteAllBytesAsync(Path.Combine(directory, name + ".json"), await response.Content.ReadAsByteArrayAsync(Ct), Ct);
-    }
+    private static Task ExportBilingualResponseAsync(HttpResponseMessage response, string name) =>
+        FormCatalogContractCapture.WriteAsync(response, name, Ct);
 
     private static async Task ExportRequestBodyAsync(object requestBody, string name)
     {
