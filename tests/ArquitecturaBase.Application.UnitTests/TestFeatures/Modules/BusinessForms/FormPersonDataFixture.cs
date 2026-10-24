@@ -26,6 +26,8 @@ internal sealed class FormPersonDataFixture : IFormPersonDataRepository, IFormPe
     public List<BusinessFormPersonData> Data { get; } = [];
     public HashSet<Guid> DeletedUsers { get; } = [];
     public HashSet<Guid> UsedAttributes { get; } = [];
+    public string UsageNameJson { get; set; } = "{\"es\":\"Formulario\"}";
+    public string? SourceNameJson { get; set; }
     public List<string> Events { get; } = [];
     public BusinessFormCatalog Catalog { get; } = BusinessFormCatalog.CreateManual("es", Names(), Names());
     public BusinessFormCatalog OtherCatalog { get; } = BusinessFormCatalog.CreateManual("es", Names(), Names());
@@ -95,7 +97,7 @@ internal sealed class FormPersonDataFixture : IFormPersonDataRepository, IFormPe
     public Task<IReadOnlyList<FormPersonAttributeStoredRow>> ListAttributesAsync(CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<FormPersonAttributeStoredRow>>(Attributes.Select(Row).ToArray());
     public Task<IReadOnlyList<FormPersonAttributeUseRow>> ListAttributeUsagesAsync(IReadOnlyCollection<Guid> attributeIds, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<FormPersonAttributeUseRow>>(attributeIds.Where(UsedAttributes.Contains)
-            .Select(id => new FormPersonAttributeUseRow(id, Guid.CreateVersion7(), "{\"es\":\"Formulario\"}")).ToArray());
+            .Select(id => new FormPersonAttributeUseRow(id, Guid.CreateVersion7(), UsageNameJson)).ToArray());
     public Task<FormPersonRecipientDataRow> FindRecipientDataAsync(Guid userId, CancellationToken cancellationToken)
     {
         RecipientReads++;
@@ -136,7 +138,7 @@ internal sealed class FormPersonDataFixture : IFormPersonDataRepository, IFormPe
 
     private BusinessFormCatalog? Source(Guid id) => id == Catalog.Id ? Catalog : id == OtherCatalog.Id ? OtherCatalog : null;
     private FormPersonAttributeStoredRow Row(BusinessFormPersonAttribute value) => new(value.Id, value.Key, value.NameJson,
-        value.OriginalCulture, value.Type.ToString(), value.SourceCatalogId, value.Position, value.IsActive, value.Revision, value.SourceCatalogId is null ? null : Catalog.NameJson);
+        value.OriginalCulture, value.Type.ToString(), value.SourceCatalogId, value.Position, value.IsActive, value.Revision, value.SourceCatalogId is null ? null : SourceNameJson ?? Catalog.NameJson);
     private static FormCatalogStoredItemRow Item(BusinessFormCatalogItem value) => new(value.Id, value.CatalogId, value.Code,
         value.TextEs, value.TextEn, value.DetailEs, value.DetailEn, value.Position, value.IsActive, value.Value);
     private static Dictionary<string, string> Names() => new() { ["es"] = "Zona", ["en"] = "Zone" };

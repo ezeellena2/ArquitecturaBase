@@ -29,7 +29,7 @@ internal static class FormCatalogFieldPresentation
         {
             var usedBy = usesByField[field.Id].Select(use => new FormCatalogFieldUsageResponse(use.DefinitionId, use.FormName, use.Question, use.QuestionId, use.Stage)).ToList();
             if (presentation?.Title.Contains(field.Id.ToString("D")) == true || presentation?.Description.Contains(field.Id.ToString("D")) == true)
-                usedBy.Add(new(null, detail.Name.GetValueOrDefault(culture) ?? detail.Name["es"], null, null, "Catalog"));
+                usedBy.Add(new(null, FormRecordPresentationPolicy.Text(detail.Name, culture), null, null, "Catalog"));
             responses.Add(new(field.Id, field.Key, field.Name, field.Type, field.SourceCatalogId, field.Required, field.Unique,
                 field.Min, field.Max, field.MaxLength, field.Role, field.Position, field.IsActive,
                 values.Any(value => value.ContainsKey(field.Id.ToString("D"))),

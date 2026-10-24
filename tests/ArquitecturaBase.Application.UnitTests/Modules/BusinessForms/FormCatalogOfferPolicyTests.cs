@@ -32,6 +32,16 @@ public sealed class FormCatalogOfferPolicyTests
     }
 
     [Fact]
+    public void An_option_with_only_its_English_original_text_is_valid_for_a_Spanish_original_form()
+    {
+        // The option comes from a catalog written in English: its original is English whatever the form's language is.
+        var option = new StructuredFormCatalogOption(Guid.NewGuid(), "North branch", null,
+            new Dictionary<string, StructuredFormCatalogOptionText> { ["en"] = new("North branch", null) });
+
+        Assert.Null(FormCatalogOfferPolicy.Validate(true, [option]));
+    }
+
+    [Fact]
     public void Unrepresentable_options_are_rejected_without_cutting_their_text()
     {
         Assert.NotNull(FormCatalogOfferPolicy.Validate(true, [new(Guid.NewGuid(), new string('x', 31), null)]));

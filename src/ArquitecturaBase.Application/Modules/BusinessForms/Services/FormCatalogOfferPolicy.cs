@@ -15,18 +15,14 @@ internal static class FormCatalogOfferPolicy
         || option.Translations is { } translations && (translations.Count == 0
             || translations.Any(pair => pair.Key is not ("es" or "en") || InvalidText(pair.Value.Text, pair.Value.Detail)));
 
-    public static bool IsMissingCulture(StructuredFormCatalogOption option, string? culture) => culture is not null
-        && option.Translations is { } translations && !translations.ContainsKey(culture)
-        && !(culture == "en" && translations.ContainsKey("es"));
-
-    public static string? Validate(bool required, IReadOnlyList<StructuredFormCatalogOption> options, string? originalCulture = null,
-        FormSelectionSettings? selection = null)
+    // An option needs no text in the form's language: it carries its catalog's original, which is shown when the translation is missing.
+    public static string? Validate(bool required, IReadOnlyList<StructuredFormCatalogOption> options, FormSelectionSettings? selection = null)
     {
         if (options.Count > (selection is null ? 200 : 20))
             return selection is null ? FormRecordErrors.CatalogTooLarge.Code : FormRecordErrors.CatalogTooLargeForMultiple.Code;
         if (required && options.Count == 0) return FormRecordErrors.CatalogEmpty.Code;
         if (selection is not null && options.Count < selection.MinSelected) return FormRecordErrors.CatalogInsufficientOptions.Code;
-        if (options.Any(option => IsInvalid(option) || IsMissingCulture(option, originalCulture))
+        if (options.Any(IsInvalid)
             || options.Select(option => option.Id).Distinct().Count() != options.Count)
             return FormRecordErrors.CatalogOptionInvalid.Code;
         return null;

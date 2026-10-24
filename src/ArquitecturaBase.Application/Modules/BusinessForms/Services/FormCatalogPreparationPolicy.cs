@@ -26,6 +26,6 @@ internal sealed class FormCatalogPreparationPolicy(IFormRecordRepository records
         // Shown has already been composed from catalog fields in the requested culture. Recompose it if the form falls back.
         return localized.CanSend && localized.Culture is { } effective && effective != culture
             ? await options.PrepareAsync(recipient, effective, schema, version.Culture, ct)
-            : FormCatalogOptionsPolicy.ValidatePrepared(localized, schema, version.Culture);
+            : FormCatalogOptionsPolicy.ValidatePrepared(localized, schema);
     }
 }

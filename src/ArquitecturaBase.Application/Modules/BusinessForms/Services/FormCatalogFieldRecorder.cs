@@ -69,7 +69,7 @@ internal sealed class FormCatalogFieldRecorder(IFormCatalogReader reader)
             if (presentation?.Title?.Contains(fieldKey) == true || presentation?.Description?.Contains(fieldKey) == true)
             {
                 var names = FormDraftPolicy.Read<Dictionary<string, string>>(catalog.NameJson);
-                return InUse([new(null, names.GetValueOrDefault(culture) ?? names["es"], null, null, "Catalog")], $"fields[{index}].isActive");
+                return InUse([new(null, FormRecordPresentationPolicy.Text(names, culture), null, null, "Catalog")], $"fields[{index}].isActive");
             }
             var uses = Uses(usesByField[field.Id]);
             if (uses.Length > 0) return InUse(uses, $"fields[{index}].isActive");

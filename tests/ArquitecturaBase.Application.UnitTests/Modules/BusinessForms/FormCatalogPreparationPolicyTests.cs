@@ -76,7 +76,7 @@ public sealed class FormCatalogPreparationPolicyTests
         Assert.Equal("Activo", Assert.Single(Assert.Single(offered.Catalogs).Options).Detail);
     }
     [Fact]
-    public async Task A_catalog_without_the_chosen_original_name_is_unpreparable_instead_of_mixing_or_throwing()
+    public async Task A_catalog_without_a_name_in_the_chosen_original_is_offered_with_its_own_original_name()
     {
         var f = new FormCatalogPreparationFixture(filtered: true, catalogCulture: "en");
         var names = new Dictionary<string, string> { ["en"] = "Supervisors" };
@@ -85,9 +85,11 @@ public sealed class FormCatalogPreparationPolicyTests
         f.SetRules([new(Guid.NewGuid(), "Approved", [], [new(Guid.NewGuid(), "NotifyAuthor", null,
             new Dictionary<string, string> { ["es"] = "Aprobamos la visita" }, false)])]);
         var result = await f.Policy.PrepareAsync(Guid.NewGuid(), "en", f.DefinitionId, f.Version.Id, false, Ct);
-        Assert.False(result.CanSend);
-        Assert.Empty(result.Catalogs);
-        Assert.Equal(FormRecordErrors.CatalogUnavailable.Code, Assert.Single(result.Issues).Code);
+        Assert.True(result.CanSend);
+        Assert.Equal("es", result.Culture);
+        var offer = Assert.Single(result.Catalogs);
+        Assert.Equal("Supervisors", offer.CatalogName);
+        Assert.False(offer.CatalogNames!.ContainsKey("es"));
     }
     [Fact]
     public async Task An_over_limit_filter_result_never_becomes_a_partial_offer()

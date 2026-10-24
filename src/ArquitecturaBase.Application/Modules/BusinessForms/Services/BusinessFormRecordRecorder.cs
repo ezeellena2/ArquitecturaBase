@@ -98,7 +98,7 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
         if (offers.Select(offer => offer.FieldId).Distinct().Count() != offers.Count
             || offers.Any(offer => offer.Revision <= 0 || offer.Kind is not ("Manual" or "Filters")
                 || !schema.Questions.Any(question => question.FieldId == offer.FieldId && question.Key == offer.Key && question.Source?.Catalog == offer.CatalogId)
-                || FormCatalogOfferPolicy.Validate(false, offer.Options, version.Culture) is not null
+                || FormCatalogOfferPolicy.Validate(false, offer.Options) is not null
                 || FormCatalogOfferPolicy.InvalidNames(offer.CatalogNames) || FormCatalogOfferPolicy.InvalidValues(offer)))
             return Reject(request, fingerprint, FormRecordErrors.InvalidResponse.Code);
         var answers = Normalize(schema, request.Answers, offers);

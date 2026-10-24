@@ -147,7 +147,7 @@ internal sealed partial class FormPersonDataService(IFormPersonDataRepository re
         uses.Where(use => use.AttributeId == row.Id).DistinctBy(use => use.DefinitionId).Select(use => new FormPersonAttributeUseResponse(use.DefinitionId, Text(use.NameJson))).ToArray());
     private static Dictionary<string, string> Names(IReadOnlyDictionary<string, string?> values) => values.Where(pair => !string.IsNullOrWhiteSpace(pair.Value)).ToDictionary(pair => pair.Key, pair => pair.Value!.Trim(), StringComparer.Ordinal);
     private static Dictionary<string, string> Texts(string json) => JsonSerializer.Deserialize<Dictionary<string, string>>(json, JsonSerializerOptions.Web) ?? throw new InvalidOperationException("The stored person attribute names are invalid.");
-    private static string Text(string json) { var values = Texts(json); return values.GetValueOrDefault(Culture()) ?? values.GetValueOrDefault("es") ?? ""; }
+    private static string Text(string json) => FormRecordPresentationPolicy.Text(Texts(json), Culture());
     private static string Culture() => CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es";
     [LoggerMessage(Level = LogLevel.Information, Message = "Person data configuration {SubjectId} saved.")]
     private static partial void LogSaved(ILogger logger, Guid subjectId);

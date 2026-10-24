@@ -45,7 +45,7 @@ internal sealed class FormAssistantCandidatePolicy(IFormSelectionReader reader, 
         prepared = await presentation.PrepareAsync(row.DefinitionId, row.Culture, culture, row.NameJson, row.SubmitLabelJson, schema, prepared, ct);
         if (prepared.CanSend && prepared.Culture is { } effective && effective != culture)
             prepared = await options.PrepareAsync(recipient, effective, schema, row.Culture, ct);
-        return Project(row, FormCatalogOptionsPolicy.ValidatePrepared(prepared, schema, row.Culture));
+        return Project(row, FormCatalogOptionsPolicy.ValidatePrepared(prepared, schema));
     }
 
     internal static Result<FormPreparedAssistantCandidate> Project(FormAssistantCandidateRow row, StructuredFormPreparationResponse prepared)

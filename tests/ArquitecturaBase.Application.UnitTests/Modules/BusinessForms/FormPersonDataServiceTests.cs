@@ -109,6 +109,27 @@ public sealed class FormPersonDataServiceTests
     }
 
     [Fact]
+    public async Task Source_and_form_names_fall_back_to_their_original_language()
+    {
+        var previous = CultureInfo.CurrentUICulture;
+        CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("es-AR");
+        try
+        {
+            // The source catalog and the form that uses the attribute were written in English and have no Spanish translation.
+            var fixture = new FormPersonDataFixture { SourceNameJson = "{\"en\":\"Branches\"}", UsageNameJson = "{\"en\":\"Visit\"}" };
+            var attribute = fixture.AddAttribute();
+            fixture.UsedAttributes.Add(attribute.Id);
+
+            var listed = await fixture.Service.ListAttributesAsync(Ct);
+
+            var item = Assert.Single(listed.Value.Items);
+            Assert.Equal("Branches", item.SourceCatalogName);
+            Assert.Equal("Visit", Assert.Single(item.UsedBy).Name);
+        }
+        finally { CultureInfo.CurrentUICulture = previous; }
+    }
+
+    [Fact]
     public async Task A_used_attribute_can_be_renamed_but_cannot_change_its_type_or_be_deactivated()
     {
         var fixture = new FormPersonDataFixture();

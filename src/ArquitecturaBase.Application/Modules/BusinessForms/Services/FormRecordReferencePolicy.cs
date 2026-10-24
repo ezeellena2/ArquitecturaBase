@@ -17,7 +17,8 @@ internal static class FormRecordReferencePolicy
     public static FormRecordReferenceTextResponse Text(FormRecordReferenceRow reference, string culture)
     {
         var translations = Read(reference);
-        var original = translations?.GetValueOrDefault("es");
+        // A captured option has no translation only in its catalog's original language, so the other culture is that original.
+        var original = translations?.GetValueOrDefault(culture == "en" ? "es" : "en");
         var text = translations?.GetValueOrDefault(culture)
             ?? new FormRecordReferenceTextResponse(original?.Text ?? reference.Text, original?.Detail ?? reference.Detail, reference.CatalogName);
         return text with { Detail = !string.IsNullOrWhiteSpace(text.Detail) ? text.Detail : original?.Detail };
@@ -39,10 +40,10 @@ internal static class FormRecordReferencePolicy
     {
         var references = (snapshot.Response.Record.References ?? []).Where(reference => usedFields.Contains(reference.FieldId))
             .Select(Read).ToArray();
-        return new[] { snapshot.OriginalCulture, snapshot.OriginalCulture == "es" ? "en" : "es" }
-            .Where(culture => references.All(translations => translations is null
-                || translations.TryGetValue(culture, out var text) && !string.IsNullOrWhiteSpace(text.Text)
-                || culture == "en" && translations.TryGetValue("es", out var original) && !string.IsNullOrWhiteSpace(original.Text))).ToArray();
+        // A reference shows its catalog's original when the culture has no translation, so any captured text completes every culture.
+        var complete = references.All(translations => translations is null
+            || translations.Values.Any(text => !string.IsNullOrWhiteSpace(text.Text)));
+        return complete ? new[] { snapshot.OriginalCulture, snapshot.OriginalCulture == "es" ? "en" : "es" } : [];
     }
 
     private static Dictionary<string, FormRecordReferenceTextResponse>? Read(FormRecordReferenceRow reference) =>

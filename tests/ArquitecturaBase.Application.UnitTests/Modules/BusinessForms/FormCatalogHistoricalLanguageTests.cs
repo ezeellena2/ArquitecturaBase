@@ -271,16 +271,39 @@ public sealed class FormCatalogHistoricalLanguageTests
         Assert.False(FormDraftPolicy.Read<Dictionary<string, FormRecordReferenceTextResponse>>(stored.TranslationsJson!).ContainsKey("en"));
     }
 
+    [Fact]
+    public async Task A_reference_from_an_English_original_catalog_does_not_make_the_Spanish_original_incomplete()
+    {
+        var actions = new FormActionFixture();
+        var captured = ChoiceCapture(actions, [new(Guid.NewGuid(), "Approved", [], [FormActionFixture.Action("GeneratePdf")])], true, spanish: false);
+        var fixture = new FormPdfFixture();
+        fixture.Records.ExportRows = [captured.Snapshot.Response];
+        var service = new FormPdfActionService(fixture, new MemoryPrivateFileStore(), fixture, fixture, fixture.Records,
+            NullLogger<FormPdfActionService>.Instance);
+
+        var prepared = (await service.PrepareAsync(Guid.NewGuid(), captured.Snapshot, Ct)).Value;
+
+        Assert.Contains("es", prepared.Cultures);
+        var outcome = await service.ExecuteAsync(captured.Record.Id, prepared with { Cultures = ["es"] }, false, Ct);
+        Assert.Equal(FormPdfActionState.Completed, outcome.Value.State);
+        Assert.Equal("es", fixture.RenderCulture);
+        var reference = Assert.Single(fixture.Rendered!.Response.Record.References!);
+        Assert.Equal("North branch", reference.Text);
+        Assert.Equal("Ground floor", reference.Detail);
+        Assert.Equal("Branches", reference.CatalogName);
+    }
+
     private static Dictionary<string, string> ConstantTexts() => new() { ["es"] = "Recibimos {número}", ["en"] = "Received {number}" };
 
     private static (BusinessFormRecord Record, FormActionRecordSnapshot Snapshot) ChoiceCapture(FormActionFixture fixture,
-        IReadOnlyList<FormRule> rules, bool translated, string? englishDetail = "Ground floor")
+        IReadOnlyList<FormRule> rules, bool translated, string? englishDetail = "Ground floor", bool spanish = true)
     {
         var captured = fixture.Capture(rules);
         var catalogId = Guid.NewGuid();
         var itemId = Guid.NewGuid();
         var field = fixture.Schema.Questions[0] with { Type = "choice", MaxLength = null, Source = new(catalogId) };
-        var texts = new Dictionary<string, object> { ["es"] = new { text = "Sucursal norte", detail = "Planta baja", catalogName = "Sucursales" } };
+        var texts = new Dictionary<string, object>();
+        if (spanish) texts["es"] = new { text = "Sucursal norte", detail = "Planta baja", catalogName = "Sucursales" };
         if (translated) texts["en"] = new { text = "North branch", detail = englishDetail, catalogName = "Branches" };
         // The JSON path permits a behavioral red against today's model: the extra member is ignored until green adds it.
         var reference = FormDraftPolicy.Read<FormRecordReferenceRow>(FormDraftPolicy.Serialize(new

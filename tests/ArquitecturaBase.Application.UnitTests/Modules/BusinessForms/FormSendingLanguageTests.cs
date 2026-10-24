@@ -91,6 +91,26 @@ public sealed class FormSendingLanguageTests
         Assert.Equal("Detalle original", option.Translations["es"].Detail);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_Spanish_form_keeps_its_culture_with_a_catalog_named_only_in_English(bool forSending)
+    {
+        var fixture = new FormCatalogPreparationFixture(catalogCulture: "en");
+        var names = new Dictionary<string, string> { ["en"] = "Branches" };
+        Assert.True(fixture.Catalog.UpdateManual(1, names, new Dictionary<string, string>()).IsSuccess);
+        fixture.Items.Add(BusinessFormCatalogItem.Create(fixture.Catalog.Id, "NORTH", "Sucursal norte", "North branch", null, null, 0));
+
+        var prepared = await fixture.Policy.PrepareAsync(Guid.NewGuid(), "es", fixture.DefinitionId, fixture.Version.Id, forSending, Ct);
+
+        Assert.True(prepared.CanSend);
+        Assert.Equal("es", prepared.Culture);
+        var offer = Assert.Single(prepared.Catalogs);
+        Assert.Equal("Personas", offer.Label);
+        Assert.Equal("Branches", offer.CatalogName);
+        Assert.Equal("Sucursal norte", Assert.Single(offer.Options).Text);
+    }
+
     [Fact]
     public async Task A_missing_secondary_catalog_name_still_falls_back_the_complete_offer_to_the_original()
     {
