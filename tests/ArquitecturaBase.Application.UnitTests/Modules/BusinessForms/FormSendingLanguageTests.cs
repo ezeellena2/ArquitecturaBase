@@ -150,8 +150,9 @@ public sealed class FormSendingLanguageTests
         Assert.Equal("North branch", option.Translations["en"].Text);
     }
 
+    // The catalog name falls back to its own original like its options, so a complete secondary form keeps its culture.
     [Fact]
-    public async Task A_missing_secondary_catalog_name_still_falls_back_the_complete_offer_to_the_original()
+    public async Task A_missing_secondary_catalog_name_shows_the_catalog_original_without_changing_the_form_culture()
     {
         var fixture = new FormCatalogPreparationFixture(filtered: true);
         var names = new Dictionary<string, string> { ["es"] = "Personas originales" };
@@ -161,9 +162,9 @@ public sealed class FormSendingLanguageTests
         var prepared = await fixture.Policy.PrepareAsync(Guid.NewGuid(), "en", fixture.DefinitionId, fixture.Version.Id, false, Ct);
 
         Assert.True(prepared.CanSend);
-        Assert.Equal("es", prepared.Culture);
+        Assert.Equal("en", prepared.Culture);
         var offer = Assert.Single(prepared.Catalogs);
-        Assert.Equal("Personas", offer.Label);
+        Assert.Equal("People", offer.Label);
         Assert.Equal("Personas originales", offer.CatalogName);
         Assert.False(offer.CatalogNames!.ContainsKey("en"));
     }

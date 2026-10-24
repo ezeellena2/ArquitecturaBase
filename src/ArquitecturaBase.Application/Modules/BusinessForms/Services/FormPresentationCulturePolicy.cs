@@ -15,10 +15,8 @@ internal sealed class FormPresentationCulturePolicy(IFormRuleReader rules, IForm
         var revisionRules = ruleSet is null ? [] : FormDraftPolicy.Read<FormRule[]>(ruleSet.RulesJson);
         var (complete, _) = await CompleteAsync(definitionId, originalCulture, nameJson, schema, revisionRules, ct);
         var submit = FormDraftPolicy.Read<Dictionary<string, string>>(submitLabelJson);
-        var culture = complete.Contains(requestedCulture) && Has(submit, requestedCulture)
-            && prepared.Catalogs.All(catalog => CatalogComplete(catalog, requestedCulture, originalCulture))
-            ? requestedCulture : originalCulture;
-        var unavailable = prepared.Catalogs.Where(catalog => !CatalogComplete(catalog, culture, originalCulture)).ToArray();
+        var culture = complete.Contains(requestedCulture) && Has(submit, requestedCulture) ? requestedCulture : originalCulture;
+        var unavailable = prepared.Catalogs.Where(catalog => !CatalogComplete(catalog)).ToArray();
         if (unavailable.Length > 0)
             return new([], unavailable.Select(catalog => new StructuredFormPreparationIssue(catalog.FieldId,
                 schema.Questions.Single(question => question.FieldId == catalog.FieldId).Label[originalCulture],
@@ -58,10 +56,10 @@ internal sealed class FormPresentationCulturePolicy(IFormRuleReader rules, IForm
         return (complete.Intersect(FormPdfDesignPolicy.CompleteCultures(design, originalCulture, schema, nameJson)).ToArray(), design);
     }
 
-    // A catalog and its options keep their own original language: in the form's original any text will do.
-    // Only the secondary culture asks for the catalog's name in that culture, so a missing name moves the whole offer to the original.
-    private static bool CatalogComplete(StructuredFormCatalogOffer catalog, string culture, string originalCulture) =>
-        catalog.CatalogNames is { } names && (culture == originalCulture ? names.Values.Any(name => !string.IsNullOrWhiteSpace(name)) : Has(names, culture))
+    // A catalog keeps its own original language: its name, texts and details show in the form's culture and, without a
+    // translation, in the catalog's original, so any text will do and the form keeps its culture.
+    private static bool CatalogComplete(StructuredFormCatalogOffer catalog) =>
+        catalog.CatalogNames is { } names && names.Values.Any(name => !string.IsNullOrWhiteSpace(name))
         && catalog.Options.All(option => option.Translations is { } translations
             && translations.Values.Any(text => !string.IsNullOrWhiteSpace(text.Text)));
     private static StructuredFormCatalogOption Localize(StructuredFormCatalogOption option, string culture)

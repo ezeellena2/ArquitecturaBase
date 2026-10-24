@@ -101,7 +101,7 @@ Casos de uso y helpers; contratos en `Interfaces/Services`. Leer [formularios](.
 
 ### Idiomas
 
-- Antes de ofrecer o enviar, `FormPresentationCulturePolicy` elige una cultura común; texto y detalle de un ítem sin traducción, y en el original del formulario el nombre del catálogo, usan el original del catálogo sin cambiarla. En la secundaria, el nombre del catálogo sin traducción lleva la oferta al original. Una opción no necesita texto en el idioma del formulario, y una referencia capturada (`FormRecordReferencePolicy`) se muestra en el otro idioma sin dejar incompleto ninguno.
+- Antes de ofrecer o enviar, `FormPresentationCulturePolicy` elige una cultura común; texto y detalle de un ítem sin traducción y el nombre del catálogo sin traducción usan el original del catálogo sin cambiarla, también en la cultura secundaria. Una opción no necesita texto en el idioma del formulario, y una referencia capturada (`FormRecordReferencePolicy`) se muestra en el otro idioma sin dejar incompleto ninguno.
 - Los nombres que se muestran (catálogo, fuente de un dato, formulario que lo usa) usan `FormRecordPresentationPolicy.Text`: el idioma del menú y, si falta, el otro; nunca suponen el español.
 - Las opciones usan `TextFor`/`DetailFor` (entidad y `FormCatalogStoredItemRow`), con el mismo respaldo; `TextIn` es el texto escrito en un idioma. La oferta (`ManualTexts`), el texto fuente sellado al capturar y el índice de opciones fuente sólo llevan los idiomas con texto.
 - Las acciones recomprueban con lo capturado; quien respondió en el original no pasa al secundario.
