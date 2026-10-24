@@ -1,9 +1,11 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text;
+using System.Text.Json;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
+using ClosedXML.Excel;
 using Microsoft.EntityFrameworkCore;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
@@ -119,5 +121,91 @@ public sealed partial class FormCatalogEndpointsTests
         Assert.Equal(2, issue.GetProperty("row").GetInt32());
         Assert.Equal(fieldId.ToString("D"), issue.GetProperty("column").GetString());
         Assert.Equal("Forms.Catalog.FieldValueDuplicate", issue.GetProperty("code").GetString());
+    }
+
+    [Theory]
+    [InlineData("es", "1.500", "1,234", "22/10/2026", "Sí")]
+    [InlineData("en", "1,500", "1.234", "10/22/2026", "Yes")]
+    public async Task Typed_extra_fields_import_localized_values_as_canonical_json_and_canonical_columns_round_trip_exactly(
+        string culture, string stock, string price, string since, string flag)
+    {
+        using var client = await OperatorAsync(BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage);
+        client.DefaultRequestHeaders.AcceptLanguage.ParseAdd(culture);
+        var texts = new { es = "Tipados " + Guid.NewGuid().ToString("N"), en = "Typed" };
+        using var created = await client.PostAsJsonAsync("/api/forms/catalogs", new
+        {
+            name = texts, description = texts, items = Array.Empty<object>(),
+            fields = new[]
+            {
+                FieldPayload(null, "integer", key: "stock"), FieldPayload(null, "decimal", key: "price"),
+                FieldPayload(null, "date", key: "since"), FieldPayload(null, "boolean", key: "flag"),
+            },
+        }, Ct);
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var catalog = await created.ReadJsonAsync();
+        var id = catalog.GetProperty("catalog").GetProperty("id").GetGuid();
+        var keys = new[] { "stock", "price", "since", "flag" };
+        var fieldIds = keys.Select(key => catalog.GetProperty("fieldIdentityMap").GetProperty(key).GetGuid().ToString("D")).ToArray();
+        var path = $"/api/forms/catalogs/{id}";
+        // Each menu's own spreadsheet: Excel in Spanish separates with «;», in English with «,».
+        var separator = culture == "es" ? ";" : ",";
+        var csv = Encoding.UTF8.GetBytes(string.Join(separator, new[] { "Code", "Text" }.Concat(keys)) + "\n"
+            + string.Join(separator, new[] { "B", "Nueva", stock, price, since, flag }.Select(cell => $"\"{cell}\"")) + "\n");
+        using var previewBody = CatalogImportContent(csv, "typed.csv", 1, "Append");
+        using var preview = await client.PostAsync(path + "/import-previews", previewBody, Ct);
+        Assert.Equal(HttpStatusCode.OK, preview.StatusCode);
+        var plan = await preview.ReadJsonAsync();
+        Assert.Empty(plan.GetProperty("issues").EnumerateArray());
+        var added = Assert.Single(plan.GetProperty("added").EnumerateArray()).GetProperty("fields");
+        Assert.Equal(["1500", "1.234", "2026-10-22", "true"], fieldIds.Select(fieldId => added.GetProperty(fieldId).GetString()));
+
+        using var applyBody = CatalogImportContent(csv, "typed.csv", 1, "Append", plan.GetProperty("sheetSha256").GetString());
+        using var applied = await client.PostAsync(path + "/imports", applyBody, Ct);
+        Assert.Equal(HttpStatusCode.OK, applied.StatusCode);
+        Assert.Equal(2, (await applied.ReadJsonAsync()).GetProperty("catalog").GetProperty("revision").GetInt64());
+        var stored = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormCatalogItem>()
+            .Where(item => item.CatalogId == id && item.Code == "B").Select(item => item.FieldValuesJson).SingleAsync(Ct));
+        using (var json = JsonDocument.Parse(stored))
+        {
+            var values = json.RootElement;
+            Assert.Equal(JsonValueKind.Number, values.GetProperty(fieldIds[0]).ValueKind);
+            Assert.Equal(1500, values.GetProperty(fieldIds[0]).GetInt64());
+            Assert.Equal(JsonValueKind.String, values.GetProperty(fieldIds[1]).ValueKind);
+            Assert.Equal("1.234", values.GetProperty(fieldIds[1]).GetString());
+            Assert.Equal(JsonValueKind.String, values.GetProperty(fieldIds[2]).ValueKind);
+            Assert.Equal("2026-10-22", values.GetProperty(fieldIds[2]).GetString());
+            Assert.Equal(JsonValueKind.True, values.GetProperty(fieldIds[3]).ValueKind);
+        }
+
+        using var exported = await client.GetAsync(path + "/export", Ct);
+        Assert.Equal(HttpStatusCode.OK, exported.StatusCode);
+        var workbookBytes = await exported.Content.ReadAsByteArrayAsync(Ct);
+        using (var stream = new MemoryStream(workbookBytes))
+        using (var workbook = new XLWorkbook(stream))
+        {
+            var sheet = workbook.Worksheet(1);
+            var headers = sheet.Row(1).CellsUsed().Select(cell => cell.GetString()).ToArray();
+            var canonical = culture == "es" ? "[canónico]" : "[canonical]";
+            Assert.Equal(keys.Select(key => $"{key} {canonical}"), headers.TakeLast(4));
+            Assert.Equal(["1500", "1.234", "2026-10-22", "true"], sheet.Row(2).Cells(headers.Length - 3, headers.Length).Select(cell => cell.GetString()));
+        }
+        using var roundTripBody = CatalogImportContent(workbookBytes, "export.xlsx", 2);
+        using var roundTrip = await client.PostAsync(path + "/import-previews", roundTripBody, Ct);
+        Assert.Equal(HttpStatusCode.OK, roundTrip.StatusCode);
+        var roundTripPlan = await roundTrip.ReadJsonAsync();
+        Assert.Empty(roundTripPlan.GetProperty("issues").EnumerateArray());
+        var counts = roundTripPlan.GetProperty("counts");
+        Assert.Equal(1, counts.GetProperty("unchanged").GetInt32());
+        foreach (var key in new[] { "added", "changed", "deactivated", "reactivated", "errorRows" }) Assert.Equal(0, counts.GetProperty(key).GetInt32());
+
+        if (culture != "es") return;
+        // Without «[canónico]», «1.234» in Spanish reads both as 1234 and as 1.234: it is not converted.
+        using var ambiguousBody = CatalogImportContent(Encoding.UTF8.GetBytes("Code;Text;price\nC;Otra;1.234\n"), "ambiguous.csv", 2, "Append");
+        using var ambiguous = await client.PostAsync(path + "/import-previews", ambiguousBody, Ct);
+        Assert.Equal(HttpStatusCode.OK, ambiguous.StatusCode);
+        var ambiguousPlan = await ambiguous.ReadJsonAsync();
+        Assert.Equal(1, ambiguousPlan.GetProperty("counts").GetProperty("errorRows").GetInt32());
+        Assert.Empty(ambiguousPlan.GetProperty("added").EnumerateArray());
+        Assert.Equal(fieldIds[1], Assert.Single(ambiguousPlan.GetProperty("issues").EnumerateArray()).GetProperty("column").GetString());
     }
 }

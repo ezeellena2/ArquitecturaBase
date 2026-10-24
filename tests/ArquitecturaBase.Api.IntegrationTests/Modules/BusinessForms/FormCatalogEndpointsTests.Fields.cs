@@ -390,9 +390,10 @@ public sealed partial class FormCatalogEndpointsTests
         Assert.Equal(afterEdit, await AuditAsync());
     }
 
-    private static object FieldPayload(Guid? id, string type, Guid? sourceId = null, bool required = false, bool unique = false, bool active = true) => new
+    private static object FieldPayload(Guid? id, string type, Guid? sourceId = null, bool required = false, bool unique = false, bool active = true,
+        string key = "field") => new
     {
-        localId = id is null ? "field" : null, id, key = "field", name = new { es = "Field", en = "Field" }, type,
+        localId = id is null ? key : null, id, key, name = new { es = "Field", en = "Field" }, type,
         sourceCatalogId = sourceId, required, unique, min = (string?)null, max = (string?)null, maxLength = type == "text" ? 300 : (int?)null,
         role = "data", position = 0, isActive = active,
     };
