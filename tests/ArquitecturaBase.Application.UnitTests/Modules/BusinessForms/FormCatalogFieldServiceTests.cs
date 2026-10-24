@@ -66,8 +66,60 @@ public sealed class FormCatalogFieldServiceTests
         var result = await Service(catalog, reader, new()).GetAsync(catalog.Id, TestContext.Current.CancellationToken);
         Assert.True(result.IsSuccess);
         Assert.True(Assert.Single(result.Value.Fields!).HasValues);
-        Assert.Equal(1, result.Value.PresentationCheck!.TitleTooLongCount);
-        Assert.Equal(item.Id, Assert.Single(result.Value.PresentationCheck.Examples).ItemId);
+        Assert.Equal(["es", "en"], result.Value.PresentationCheck!.Cultures.Select(check => check.Culture));
+        Assert.All(result.Value.PresentationCheck.Cultures, check =>
+        {
+            Assert.Equal(1, check.TitleTooLongCount);
+            Assert.Equal(item.Id, Assert.Single(check.TitleExamples).ItemId);
+        });
+    }
+
+    [Fact]
+    public async Task Detail_checks_titles_and_descriptions_in_each_language_the_catalog_has()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var presentation = JsonSerializer.Serialize(new FormCatalogPresentation(["text"], ["detail"]), JsonSerializerOptions.Web);
+        var longEnglish = new string('E', 31);
+        var longDetail = new string('d', 301);
+        var catalog = Catalog();
+        Assert.True(catalog.SetFields([], presentation).IsSuccess);
+        var active = Guid.CreateVersion7();
+        var reader = new FormCatalogFieldReader();
+        reader.Catalogs[catalog.Id] = Row(catalog);
+        reader.Items[catalog.Id] =
+        [
+            new(active, catalog.Id, "one", "Uno", longEnglish, longDetail, null, 0, true),
+            new(Guid.CreateVersion7(), catalog.Id, "two", new string('S', 31), new string('E', 31), longDetail, longDetail, 1, false),
+        ];
+
+        var result = await Service(catalog, reader, new()).GetAsync(catalog.Id, ct);
+
+        Assert.True(result.IsSuccess);
+        var cultures = result.Value.PresentationCheck!.Cultures;
+        Assert.Equal(["es", "en"], cultures.Select(check => check.Culture));
+        var spanish = cultures[0];
+        Assert.Equal(0, spanish.TitleTooLongCount);
+        Assert.Empty(spanish.TitleExamples);
+        Assert.Equal(1, spanish.DescriptionTooLongCount);
+        Assert.Equal(new FormCatalogPresentationExample(active, "Uno"), Assert.Single(spanish.DescriptionExamples));
+        var english = cultures[1];
+        Assert.Equal(1, english.TitleTooLongCount);
+        Assert.Equal(new FormCatalogPresentationExample(active, longEnglish), Assert.Single(english.TitleExamples));
+        Assert.Equal(1, english.DescriptionTooLongCount);
+        Assert.Equal(new FormCatalogPresentationExample(active, longEnglish), Assert.Single(english.DescriptionExamples));
+
+        var spanishOnly = BusinessFormCatalog.CreateManual("es", new Dictionary<string, string> { ["es"] = "Catálogo" },
+            new Dictionary<string, string> { ["es"] = "Descripción" });
+        Assert.True(spanishOnly.SetFields([], presentation).IsSuccess);
+        reader.Catalogs[spanishOnly.Id] = Row(spanishOnly);
+        reader.Items[spanishOnly.Id] = [new(Guid.CreateVersion7(), spanishOnly.Id, "one", "Uno", null, longDetail, null, 0, true)];
+
+        var single = await Service(spanishOnly, reader, new()).GetAsync(spanishOnly.Id, ct);
+
+        Assert.True(single.IsSuccess);
+        var only = Assert.Single(single.Value.PresentationCheck!.Cultures);
+        Assert.Equal("es", only.Culture);
+        Assert.Equal(1, only.DescriptionTooLongCount);
     }
 
     [Fact]
@@ -193,6 +245,10 @@ public sealed class FormCatalogFieldServiceTests
             new FormCatalogAccessGuard(new FakeCurrentUser { UserId = actor }, permissions), null!, new(repository), new(reader));
     }
 
-    private static BusinessFormCatalog Catalog() => BusinessFormCatalog.CreateManual("es", new Dictionary<string, string> { ["es"] = "Catalog", ["en"] = "Catalog" }, new Dictionary<string, string> { ["es"] = "Description", ["en"] = "Description" });
+    private static FormCatalogStoredRow Row(BusinessFormCatalog catalog) => new(catalog.Id, catalog.Key, catalog.NameJson, catalog.DescriptionJson,
+        catalog.OriginalCulture, "Manual", 1, true, catalog.CreatedAtUtc, null, null, null, 1, FieldsJson: catalog.FieldsJson,
+        PresentationJson: catalog.PresentationJson);
+
+    private static BusinessFormCatalog Catalog() =>BusinessFormCatalog.CreateManual("es", new Dictionary<string, string> { ["es"] = "Catalog", ["en"] = "Catalog" }, new Dictionary<string, string> { ["es"] = "Description", ["en"] = "Description" });
     private static Dictionary<string, string?> Texts() => new() { ["es"] = "Catalog", ["en"] = "Catalog" };
 }

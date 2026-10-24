@@ -9,6 +9,8 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
 internal static class FormCatalogFieldPresentation
 {
+    private static readonly string[] SupportedCultures = ["es", "en"];
+
     public static FormCatalogStoredItemRow[] ToRows(IReadOnlyList<BusinessFormCatalogItem> items) => items.Select(item =>
         new FormCatalogStoredItemRow(item.Id, item.CatalogId, item.Code, item.TextEs, item.TextEn, item.DetailEs, item.DetailEn,
             item.Position, item.IsActive, item.Value, item.FieldValuesJson)).ToArray();
@@ -37,12 +39,34 @@ internal static class FormCatalogFieldPresentation
         }
         var sources = sourceItems ?? await SourcesAsync(fields, reader, ct);
         var choices = sources.Values.SelectMany(options => options).ToDictionary(option => option.Id);
-        var longTitles = items.Where(item => item.IsActive).Select(item =>
+        return detail with
         {
-            var shown = FormCatalogPresentationPolicy.Compose(presentation, Values(item, fields, choices, culture, detail.ValueType));
-            return new FormCatalogPresentationExample(item.Id, shown.Title);
-        }).Where(item => item.Title.Length > 30).ToArray();
-        return detail with { Fields = responses, Presentation = presentation, PresentationCheck = new(longTitles.Length, longTitles.Take(3).ToArray()) };
+            Fields = responses, Presentation = presentation,
+            PresentationCheck = Check(presentation, fields, items, choices, detail.ValueType, Cultures(detail.Name)),
+        };
+    }
+
+    // The catalog's languages: the original, whose name is required, plus the translation when its name is written.
+    public static IReadOnlyList<string> Cultures(IReadOnlyDictionary<string, string> name) =>
+        SupportedCultures.Where(culture => !string.IsNullOrWhiteSpace(name.GetValueOrDefault(culture))).ToArray();
+
+    // Counts, in each culture, the active options whose composed title or description exceeds what a channel can show.
+    public static FormCatalogPresentationCheckResponse Check(FormCatalogPresentation? presentation, IReadOnlyList<BusinessFormCatalogField> fields,
+        IReadOnlyList<FormCatalogStoredItemRow> items, IReadOnlyDictionary<Guid, FormCatalogStoredItemRow> choices, string valueType,
+        IReadOnlyList<string> cultures)
+    {
+        var active = items.Where(item => item.IsActive).OrderBy(item => item.Position).ThenBy(item => item.Id).ToArray();
+        return new(cultures.Select(culture =>
+        {
+            var shown = active.Select(item => (item.Id, Shown: FormCatalogPresentationPolicy.Compose(presentation,
+                Values(item, fields, choices, culture, valueType)))).ToArray();
+            var titles = shown.Where(option => option.Shown.Title.Length > BusinessFormCatalogItem.MaxTextLength)
+                .Select(option => new FormCatalogPresentationExample(option.Id, option.Shown.Title)).ToArray();
+            var descriptions = shown.Where(option => option.Shown.Description?.Length > BusinessFormCatalogItem.MaxDetailLength)
+                .Select(option => new FormCatalogPresentationExample(option.Id, option.Shown.Title)).ToArray();
+            return new FormCatalogPresentationCultureCheckResponse(culture, titles.Length, titles.Take(3).ToArray(),
+                descriptions.Length, descriptions.Take(3).ToArray());
+        }).ToArray());
     }
 
     public static async Task<IReadOnlyDictionary<Guid, IReadOnlyList<FormCatalogStoredItemRow>>> SourcesAsync(

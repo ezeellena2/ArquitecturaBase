@@ -131,7 +131,15 @@ public sealed partial class FormCatalogEndpointsTests
         using var saved = await client.PutAsJsonAsync(path, new { expectedRevision = 1, name = texts, description = texts, fields = new[] { FieldPayload(fieldId, "catalog", sourceId) }, presentation = new { title = new[] { "text", fieldId.ToString("D") }, description = Array.Empty<string>() }, items = new[] { FieldItem("one", itemId, "ONE", fieldId, optionId.ToString("D"), new string('x', 25)) } }, Ct);
         Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
         var catalog = (await saved.ReadJsonAsync()).GetProperty("catalog");
-        Assert.Equal(1, catalog.GetProperty("presentationCheck").GetProperty("titleTooLongCount").GetInt32());
+        var checks = catalog.GetProperty("presentationCheck").GetProperty("cultures").EnumerateArray().ToArray();
+        Assert.Equal(["es", "en"], checks.Select(check => check.GetProperty("culture").GetString()));
+        Assert.All(checks, check =>
+        {
+            Assert.Equal(1, check.GetProperty("titleTooLongCount").GetInt32());
+            Assert.Equal(itemId, Assert.Single(check.GetProperty("titleExamples").EnumerateArray()).GetProperty("itemId").GetGuid());
+            Assert.Equal(0, check.GetProperty("descriptionTooLongCount").GetInt32());
+        });
+        Assert.Equal(new string('x', 25) + " · Source choice", checks[1].GetProperty("titleExamples")[0].GetProperty("title").GetString());
         await ExportBilingualResponseAsync(saved, "fields-presentation");
         using var items = await client.GetAsync(path + "/items", Ct);
         var choice = (await items.ReadJsonAsync()).GetProperty("items")[0];

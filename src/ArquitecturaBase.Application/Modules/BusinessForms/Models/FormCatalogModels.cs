@@ -92,7 +92,7 @@ public sealed record FormCatalogDetailResponse(
     string? UnavailableReasonCode,
     FormCatalogFilterDefinition? Filters = null, FormCatalogProposalResponse? Proposal = null, string ValueType = "Text",
     IReadOnlyList<FormCatalogFieldResponse>? Fields = null, FormCatalogPresentation? Presentation = null,
-    FormCatalogPresentationCheck? PresentationCheck = null);
+    FormCatalogPresentationCheckResponse? PresentationCheck = null);
 
 public sealed record FormCatalogItemResponse(
     Guid Id,
