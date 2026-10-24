@@ -436,6 +436,38 @@ public sealed class FormCatalogFieldItemPolicyTests
     }
 
     [Fact]
+    public void Turning_on_unique_while_converting_reports_the_values_that_do_not_convert_first()
+    {
+        var field = Field("integer") with { Unique = true };
+        var catalog = Catalog("es");
+        var items = Stored(catalog, field, "1", "1", "abc");
+
+        var result = FormCatalogFieldPolicy.ValidateItems(catalog, items, [], NoRequest(), Context(field, previousType: "text"));
+
+        Assert.Equal("Forms.Catalog.FieldTypeNotConvertible", result.Error.Code);
+        Assert.Equal("fields[0].type", Assert.Single(Assert.IsType<ValidationError>(result.Error).Errors.Keys));
+        Assert.Equal(1, result.Error.Metadata!["invalidCount"]);
+        var row = Assert.Single(Assert.IsAssignableFrom<IReadOnlyList<FormCatalogInvalidFieldRow>>(result.Error.Metadata!["invalidRows"]));
+        Assert.Equal<(int, string?, string)>((3, "abc", "invalid"), (row.Row, row.Value, row.Reason));
+    }
+
+    // Unique switched on, or a unique field brought back, groups every repeat even when the type changes in the same save.
+    [Theory]
+    [InlineData(true, false, "unique")]
+    [InlineData(false, true, "isActive")]
+    public void Turning_on_or_restoring_unique_while_converting_reports_every_repeated_value(bool wasActive, bool wasUnique, string control)
+    {
+        var field = Field("integer") with { Unique = true };
+        var catalog = Catalog("es");
+        var items = Stored(catalog, field, "1", "2", "1", "3", "2");
+        var previous = Field("text") with { Id = field.Id, IsActive = wasActive, Unique = wasUnique };
+
+        var result = FormCatalogFieldPolicy.ValidateItems(catalog, items, [], NoRequest(), Converting(field, previous, "es"));
+
+        AssertIncompatible(result, control, 4, (1, "1", "invalid"), (2, "2", "invalid"), (3, "1", "invalid"), (5, "2", "invalid"));
+    }
+
+    [Fact]
     public void Restoring_a_field_reports_every_incompatible_value_on_its_active_control()
     {
         var field = Field("integer") with { Unique = true };

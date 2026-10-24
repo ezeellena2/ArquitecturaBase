@@ -28,11 +28,14 @@ internal static partial class FormCatalogFieldPolicy
             var previous = context.Previous.GetValueOrDefault(field.Id);
             // A field brought back or whose rules narrowed checks its saved values again, inactive or not, and reports every value
             // that fails on the control that changed; an inactive field is never required.
-            var restored = !converting && previous is { IsActive: false } && field.IsActive;
+            var reactivated = previous is { IsActive: false } && field.IsActive;
+            var restored = !converting && reactivated;
             IReadOnlyList<string> rules = previous is null ? [] : ChangedRules(previous, field);
             if (!field.IsActive && !converting && rules.Count == 0) continue;
             var revalidating = restored || rules.Count > 0;
-            var grouping = restored || rules.Contains("unique");
+            // «Unique» switched on, or a unique field brought back, groups every repeat, also when the type or the source changes
+            // in the same save: the values that do not convert are reported first.
+            var grouping = previous is not null && field.Unique && (reactivated || !previous.Unique);
             var key = field.Id.ToString("D");
             if (context.RequiredTransitions.Contains(field.Id))
             {
@@ -102,7 +105,7 @@ internal static partial class FormCatalogFieldPolicy
             if (invalid.Count > 0) return FieldErrors.OnWithMetadata(FormCatalogErrors.FieldDetails(FormCatalogErrors.FieldTypeNotConvertible,
                 new Dictionary<string, object?> { ["convertedCount"] = converted, ["invalidCount"] = invalidCount, ["invalidRows"] = invalid }), $"fields[{fieldIndex}].type");
             // Every active option that shares its value with another one is repeated, not just the second.
-            foreach (var row in repeated.Values.Where(rows => rows.Count > 1).SelectMany(rows => rows)) Add(incompatible, restored ? "isActive" : "unique", row);
+            foreach (var row in repeated.Values.Where(rows => rows.Count > 1).SelectMany(rows => rows)) Add(incompatible, reactivated ? "isActive" : "unique", row);
             foreach (var control in IncompatibleControls)
                 if (incompatible.TryGetValue(control, out var rows))
                     return FieldErrors.OnWithMetadata(FormCatalogErrors.FieldDetails(FormCatalogErrors.FieldValuesIncompatible, new Dictionary<string, object?>
