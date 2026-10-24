@@ -144,8 +144,9 @@ public sealed record FormCatalogStoredItemRow(
     // The text in the requested culture or, without a translation, in the other one: a stored option always has its original.
     public string TextFor(string culture) => TextIn(culture) ?? TextIn(culture == "en" ? "es" : "en") ?? "";
 
-    public string? DetailFor(string culture) => Present(culture == "en" ? DetailEn : DetailEs)
-        ?? Present(culture == "en" ? DetailEs : DetailEn);
+    public string? DetailIn(string culture) => Present(culture == "en" ? DetailEn : DetailEs);
+
+    public string? DetailFor(string culture) => DetailIn(culture) ?? DetailIn(culture == "en" ? "es" : "en");
 
     private static string? Present(string? text) => string.IsNullOrWhiteSpace(text) ? null : text;
 }

@@ -8,16 +8,18 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
 internal static class FormCatalogImportTemplate
 {
+    // «Texto» and «Detalle» are the catalog's original; the other language has its own optional translation column.
     public static IReadOnlyList<FormCatalogImportTemplateColumn> Columns(BusinessFormCatalogValueType valueType, string culture,
-        bool canonicalValue = false, IReadOnlyList<BusinessFormCatalogField>? fields = null)
+        string originalCulture, bool canonicalValue = false, IReadOnlyList<BusinessFormCatalogField>? fields = null)
     {
+        var translation = TranslationSuffix(originalCulture);
         var columns = new List<FormCatalogImportTemplateColumn>
         {
             new("code", FormCatalogTexts.Get("HeaderCode", culture), ""),
             new("text", FormCatalogTexts.Get("HeaderText", culture), FormCatalogTexts.Get("RuleText", culture)),
-            new("textEn", FormCatalogTexts.Get("HeaderTextEn", culture), FormCatalogTexts.Get("RuleTextEn", culture)),
+            new("text" + translation, FormCatalogTexts.Get("HeaderText" + translation, culture), FormCatalogTexts.Get("RuleTextEn", culture)),
             new("detail", FormCatalogTexts.Get("HeaderDetail", culture), FormCatalogTexts.Get("RuleDetail", culture)),
-            new("detailEn", FormCatalogTexts.Get("HeaderDetailEn", culture), FormCatalogTexts.Get("RuleDetail", culture)),
+            new("detail" + translation, FormCatalogTexts.Get("HeaderDetail" + translation, culture), FormCatalogTexts.Get("RuleDetail", culture)),
             new("active", FormCatalogTexts.Get("HeaderActive", culture), FormCatalogTexts.Get("RuleActive", culture)),
         };
         if (valueType != BusinessFormCatalogValueType.Text)
@@ -26,6 +28,9 @@ internal static class FormCatalogImportTemplate
             columns.Add(new(field.Id.ToString("D"), FieldHeader(field, culture, canonicalValue), FieldRule(field, culture)));
         return columns;
     }
+
+    // The suffix of the translation columns: "En" for a Spanish original, "Es" for an English one.
+    public static string TranslationSuffix(string originalCulture) => originalCulture == "en" ? "Es" : "En";
 
     public static string ValueHeader(BusinessFormCatalogValueType valueType, string culture, bool canonical) =>
         FormCatalogTexts.Get((canonical ? "HeaderCanonicalValue" : "HeaderValue") + valueType, culture);
@@ -41,8 +46,9 @@ internal static class FormCatalogImportTemplate
         return key switch
         {
             "codigo" or "code" => "code", "texto" or "text" => "text", "texto en ingles" or "english text" => "textEn",
-            "detalle" or "detail" => "detail", "detalle en ingles" or "english detail" => "detailEn", "activa" or "active" => "active",
-            "valor" or "value" => "value", _ => null,
+            "texto en espanol" or "spanish text" => "textEs", "detalle" or "detail" => "detail",
+            "detalle en ingles" or "english detail" => "detailEn", "detalle en espanol" or "spanish detail" => "detailEs",
+            "activa" or "active" => "active", "valor" or "value" => "value", _ => null,
         };
     }
 

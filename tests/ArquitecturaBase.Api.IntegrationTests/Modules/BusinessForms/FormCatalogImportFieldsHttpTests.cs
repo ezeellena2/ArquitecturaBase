@@ -16,7 +16,8 @@ public sealed partial class FormCatalogEndpointsTests
     public async Task Import_source_fields_export_their_exact_identity_and_localized_label_and_no_change_receipts(string culture)
     {
         using var client = await OperatorAsync(BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage);
-        client.DefaultRequestHeaders.AcceptLanguage.ParseAdd(culture);
+        // The source is created in Spanish, so its option without English text shows the Spanish original in both menus.
+        client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("es");
         var texts = new { es = "Importación fuente " + Guid.NewGuid().ToString("N"), en = "Source import" };
         using var sourceResponse = await client.PostAsJsonAsync("/api/forms/catalogs", new
         {
@@ -28,6 +29,8 @@ public sealed partial class FormCatalogEndpointsTests
         var sourceId = source.GetProperty("catalog").GetProperty("id").GetGuid();
         var firstId = source.GetProperty("itemIdentityMap").GetProperty("first").GetGuid();
         var secondId = source.GetProperty("itemIdentityMap").GetProperty("second").GetGuid();
+        client.DefaultRequestHeaders.AcceptLanguage.Clear();
+        client.DefaultRequestHeaders.AcceptLanguage.ParseAdd(culture);
         using var created = await client.PostAsJsonAsync("/api/forms/catalogs", new
         {
             name = texts, description = texts, fields = new[] { FieldPayload(null, "catalog", sourceId) },

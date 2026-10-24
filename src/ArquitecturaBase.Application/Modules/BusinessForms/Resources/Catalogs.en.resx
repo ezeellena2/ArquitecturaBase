@@ -7,8 +7,10 @@
   <data name="HeaderCode" xml:space="preserve"><value>Code</value></data>
   <data name="HeaderText" xml:space="preserve"><value>Text</value></data>
   <data name="HeaderTextEn" xml:space="preserve"><value>English text</value></data>
+  <data name="HeaderTextEs" xml:space="preserve"><value>Spanish text</value></data>
   <data name="HeaderDetail" xml:space="preserve"><value>Detail</value></data>
   <data name="HeaderDetailEn" xml:space="preserve"><value>English detail</value></data>
+  <data name="HeaderDetailEs" xml:space="preserve"><value>Spanish detail</value></data>
   <data name="HeaderActive" xml:space="preserve"><value>Active</value></data>
   <data name="HeaderValueInteger" xml:space="preserve"><value>Value (integer)</value></data>
   <data name="HeaderValueDecimal" xml:space="preserve"><value>Value (decimal)</value></data>

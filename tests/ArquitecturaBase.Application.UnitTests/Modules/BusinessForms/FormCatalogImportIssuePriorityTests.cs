@@ -48,7 +48,7 @@ public sealed class FormCatalogImportIssuePriorityTests
         var item = new FormCatalogStoredItemRow(Guid.NewGuid(), catalogId, "OLD", "Repeated", null, null, null, 1, true, null);
         var sheet = new FormSpreadsheet("Options", new string('a', 64),
             [new(1, [new("Code"), new("Text")]), new(2, [new("NEW"), new("Repeated")])]);
-        var result = FormCatalogImportPolicy.Build(new(catalogId, 1, BusinessFormCatalogValueType.Text, [item]),
+        var result = FormCatalogImportPolicy.Build(new(catalogId, 1, BusinessFormCatalogValueType.Text, "es", [item]),
             sheet, FormCatalogImportMode.Append, "en");
 
         Assert.True(result.IsSuccess);
@@ -61,7 +61,7 @@ public sealed class FormCatalogImportIssuePriorityTests
     {
         var sheet = new FormSpreadsheet("Options", new string('a', 64), rows.Select((cells, index) =>
             new FormSpreadsheetRow(index + 1, cells.Select(text => new FormSpreadsheetCell(text)).ToArray())).ToArray());
-        var source = new FormCatalogImportSource(Guid.NewGuid(), 1, BusinessFormCatalogValueType.Text, []);
+        var source = new FormCatalogImportSource(Guid.NewGuid(), 1, BusinessFormCatalogValueType.Text, "es", []);
         var result = FormCatalogImportPolicy.Build(source, sheet, FormCatalogImportMode.Append, "en");
         Assert.True(result.IsSuccess);
         return result.Value.Preview;

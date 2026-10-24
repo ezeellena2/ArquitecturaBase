@@ -93,6 +93,60 @@ public sealed partial class FormCatalogEndpointsTests
     }
 
     [Fact]
+    public async Task English_original_catalog_import_preview_reports_the_Spanish_translation_column()
+    {
+        using var client = await OperatorAsync(BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage);
+        client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("en");
+        using var created = await client.PostAsJsonAsync("/api/forms/catalogs", new
+        {
+            name = new { en = "English original import " + Guid.NewGuid().ToString("N") },
+            items = new object[]
+            {
+                new { localId = "north", code = "N", text = new { en = "North", es = "Norte" }, isActive = true },
+                new { localId = "east", code = "E", text = new { en = "East" }, isActive = true },
+            },
+        }, Ct);
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var id = (await created.ReadJsonAsync()).GetProperty("catalog").GetProperty("id").GetGuid();
+        // A Spanish menu translates the English original: «Texto» stays English and the translation column is Spanish.
+        client.DefaultRequestHeaders.AcceptLanguage.Clear();
+        client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("es");
+        using var exported = await client.GetAsync($"/api/forms/catalogs/{id}/export", Ct);
+        Assert.Equal(HttpStatusCode.OK, exported.StatusCode);
+        await FormCatalogImportContractCapture.WriteAsync(exported, "es", "en-original-export", Ct, true);
+        using (var stream = new MemoryStream(await exported.Content.ReadAsByteArrayAsync(Ct)))
+        using (var workbook = new XLWorkbook(stream))
+        {
+            var sheet = workbook.Worksheet(1);
+            Assert.Equal(["Código", "Texto", "Texto en español", "Detalle", "Detalle en español", "Activa"],
+                sheet.Row(1).Cells(1, 6).Select(cell => cell.GetString()));
+            Assert.Equal(["N", "North", "Norte"], sheet.Row(2).Cells(1, 3).Select(cell => cell.GetString()));
+            Assert.Equal(["E", "East", ""], sheet.Row(3).Cells(1, 3).Select(cell => cell.GetString()));
+        }
+        var csv = Encoding.UTF8.GetBytes("Código,Texto,Texto en español\nN,North,Norte cambiado\nE,East,Este\nW,West,Oeste\n");
+        using var previewBody = CatalogImportContent(csv, "english.csv", 1, "Append");
+        using var preview = await client.PostAsync($"/api/forms/catalogs/{id}/import-previews", previewBody, Ct);
+        Assert.Equal(HttpStatusCode.OK, preview.StatusCode);
+        await FormCatalogImportContractCapture.WriteAsync(preview, "es", "en-original-preview", Ct);
+        var plan = await preview.ReadJsonAsync();
+        Assert.Empty(plan.GetProperty("issues").EnumerateArray());
+        Assert.Equal("Oeste", Assert.Single(plan.GetProperty("added").EnumerateArray()).GetProperty("text").GetString());
+        var changes = plan.GetProperty("changed").EnumerateArray()
+            .Select(row => (Code: row.GetProperty("code").GetString(), Change: Assert.Single(row.GetProperty("changes").EnumerateArray()))).ToArray();
+        Assert.Equal(["N", "E"], changes.Select(row => row.Code));
+        Assert.All(changes, row => Assert.Equal("textEs", row.Change.GetProperty("column").GetString()));
+        Assert.Equal(["Norte", null], changes.Select(row => row.Change.GetProperty("before").GetString()));
+        Assert.Equal(["Norte cambiado", "Este"], changes.Select(row => row.Change.GetProperty("after").GetString()));
+        using var applyBody = CatalogImportContent(csv, "english.csv", 1, "Append", plan.GetProperty("sheetSha256").GetString());
+        using var applied = await client.PostAsync($"/api/forms/catalogs/{id}/imports", applyBody, Ct);
+        Assert.Equal(HttpStatusCode.OK, applied.StatusCode);
+        var stored = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormCatalogItem>().Where(item => item.CatalogId == id)
+            .OrderBy(item => item.Code).Select(item => new { item.Code, item.TextEn, item.TextEs }).ToListAsync(Ct));
+        Assert.Equal([("E", "East", "Este"), ("N", "North", "Norte cambiado"), ("W", "West", "Oeste")],
+            stored.Select(item => (item.Code, item.TextEn, item.TextEs)));
+    }
+
+    [Fact]
     public async Task Import_routes_require_read_and_manage_while_export_needs_only_read_and_the_file_limit_is_enforced()
     {
         using var manager = await OperatorAsync(BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage);

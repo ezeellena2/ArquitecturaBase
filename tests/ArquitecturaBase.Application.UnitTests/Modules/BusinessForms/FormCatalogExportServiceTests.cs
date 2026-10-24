@@ -49,7 +49,7 @@ public sealed class FormCatalogExportServiceTests
             new[] { new FormSpreadsheetRow(1, workbook.Headers.Select(header => new FormSpreadsheetCell(header)).ToArray()) }
                 .Concat(workbook.Rows.Select((row, index) => new FormSpreadsheetRow(index + 2,
                     row.Select(cell => new FormSpreadsheetCell((string?)cell.Value)).ToArray()))).ToArray());
-        var imported = FormCatalogImportPolicy.Build(new(id, 1, Enum.Parse<BusinessFormCatalogValueType>(type), fixture.Reader.Items),
+        var imported = FormCatalogImportPolicy.Build(new(id, 1, Enum.Parse<BusinessFormCatalogValueType>(type), "es", fixture.Reader.Items),
             sheet, FormCatalogImportMode.Replace, culture);
         Assert.True(imported.IsSuccess);
         Assert.Empty(imported.Value.Preview.Issues);
@@ -72,7 +72,7 @@ public sealed class FormCatalogExportServiceTests
         var result = await fixture.Service.ExportAsync(fixture.Reader.Catalog.Id, true, Ct);
 
         Assert.True(result.IsSuccess);
-        var columns = FormCatalogImportTemplate.Columns(type, culture);
+        var columns = FormCatalogImportTemplate.Columns(type, culture, "es");
         Assert.Equal(count, columns.Count);
         Assert.Equal(new[] { "code", "text", "textEn", "detail", "detailEn", "active" }, columns.Take(6).Select(column => column.Key));
         Assert.Equal(columns.Select(column => column.Header), fixture.Writer.Request!.Headers);
@@ -81,6 +81,29 @@ public sealed class FormCatalogExportServiceTests
         Assert.Equal("", row[0].Value);
         Assert.All(columns.Skip(1), column => Assert.False(string.IsNullOrWhiteSpace(column.Rule)));
         Assert.Equal(0, fixture.Reader.AllItemsReads);
+    }
+
+    [Theory]
+    [InlineData("es")]
+    [InlineData("en")]
+    public async Task Exporting_an_English_original_catalog_writes_its_original_text_and_Spanish_translation_columns(string culture)
+    {
+        using var scope = new CultureScope(culture);
+        var fixture = Create();
+        fixture.Reader.Catalog = fixture.Reader.Catalog! with { OriginalCulture = "en" };
+        var id = fixture.Reader.Catalog.Id;
+        fixture.Reader.Items = [new(Guid.NewGuid(), id, "N", "Norte", "North", "Detalle norte", "North detail", 1, true),
+            new(Guid.NewGuid(), id, "E", null, "East", null, null, 2, false)];
+
+        var result = await fixture.Service.ExportAsync(id, false, Ct);
+
+        Assert.True(result.IsSuccess);
+        var workbook = fixture.Writer.Request!;
+        Assert.Equal(culture == "es" ? ["Código", "Texto", "Texto en español", "Detalle", "Detalle en español", "Activa"]
+            : ["Code", "Text", "Spanish text", "Detail", "Spanish detail", "Active"], workbook.Headers);
+        Assert.Equal(new object?[] { "N", "North", "Norte", "North detail", "Detalle norte", culture == "es" ? "Sí" : "Yes" },
+            workbook.Rows[0].Select(cell => cell.Value));
+        Assert.Equal(new object?[] { "E", "East", null, null, null, "No" }, workbook.Rows[1].Select(cell => cell.Value));
     }
 
     [Theory]

@@ -129,7 +129,8 @@ $cohorts = @(
         RequiredNames = @("es/replace-preview.json", "es/append-preview.json", "es/already-applied.json", "es/empty-preview.json", "es/applied.json", "es/conflict.json", "es/confirmation-required.json", "es/round-trip-preview.json", "es/export.xlsx", "es/export.http.json", "es/template.xlsx", "es/template.http.json",
             "en/replace-preview.json", "en/append-preview.json", "en/already-applied.json", "en/empty-preview.json", "en/applied.json", "en/conflict.json", "en/confirmation-required.json", "en/round-trip-preview.json", "en/export.xlsx", "en/export.http.json", "en/template.xlsx", "en/template.http.json",
             "es/extra-source-preview.json", "es/extra-source-applied.json", "es/extra-source-unchanged.json",
-            "en/extra-source-preview.json", "en/extra-source-applied.json", "en/extra-source-unchanged.json");
+            "en/extra-source-preview.json", "en/extra-source-applied.json", "en/extra-source-unchanged.json",
+            "es/en-original-preview.json", "es/en-original-export.xlsx", "es/en-original-export.http.json");
         Sources = @(($sourceRoot + "BusinessForms/FormCatalogImportFieldsHttpTests.cs"), ($sourceRoot + "BusinessForms/FormCatalogImportHttpTests.cs"), ($sourceRoot + "BusinessForms/FormCatalogEndpointsTests.cs"), ($captureRoot + "Modules/BusinessForms/FormCatalogImportContractCapture.cs"),
             "src/ArquitecturaBase.Application/Modules/BusinessForms/Models/FormCatalogImportModels.cs", "src/ArquitecturaBase.Application/Modules/BusinessForms/Services/FormCatalogImportTemplate.cs",
             "src/ArquitecturaBase.Application/Modules/BusinessForms/Resources/Catalogs.resx", "src/ArquitecturaBase.Application/Modules/BusinessForms/Resources/Catalogs.en.resx") },

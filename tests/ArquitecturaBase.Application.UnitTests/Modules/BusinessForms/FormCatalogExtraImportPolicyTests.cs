@@ -120,7 +120,7 @@ public sealed class FormCatalogExtraImportPolicyTests
     {
         var fields = new[] { Field("amount", "decimal"), Field("days", "integer"), Field("code", "text") };
         var item = Item("A", "Opción", Values((fields[0].Id, "0.001"), (fields[1].Id, 123456789012345678L), (fields[2].Id, "Propio")));
-        var columns = FormCatalogImportTemplate.Columns(BusinessFormCatalogValueType.Text, culture, canonicalValue: true, fields: fields);
+        var columns = FormCatalogImportTemplate.Columns(BusinessFormCatalogValueType.Text, culture, "es", canonicalValue: true, fields: fields);
         var values = FormCatalogFieldPolicy.ReadValues(item.FieldValuesJson);
         var row = columns.Select(column => column.Key switch
         {
@@ -132,7 +132,7 @@ public sealed class FormCatalogExtraImportPolicyTests
         Assert.Empty(result.Value.Preview.Issues);
         Assert.Equal(1, result.Value.Preview.Counts.Unchanged);
         Assert.Empty(result.Value.Items);
-        var template = FormCatalogImportTemplate.Columns(BusinessFormCatalogValueType.Text, culture, fields: fields);
+        var template = FormCatalogImportTemplate.Columns(BusinessFormCatalogValueType.Text, culture, "es", fields: fields);
         Assert.Equal(9, template.Count);
         Assert.NotEqual(template[0].Header, template[8].Header);
         var instructions = FormCatalogImportPolicy.Build(Source(fields), Sheet(template.Select(column => column.Header).ToArray(),
@@ -149,7 +149,7 @@ public sealed class FormCatalogExtraImportPolicyTests
     {
         var (field, sources, north, _) = Zones();
         var item = Item("A", "Opción", Values((field.Id, north.Id.ToString("D"))));
-        var columns = FormCatalogImportTemplate.Columns(BusinessFormCatalogValueType.Text, culture, canonicalValue: true, fields: [field]);
+        var columns = FormCatalogImportTemplate.Columns(BusinessFormCatalogValueType.Text, culture, "es", canonicalValue: true, fields: [field]);
         var row = columns.Select(column => column.Key switch
         {
             "code" => "A", "text" => "Opción", "active" => "Yes", "textEn" or "detail" or "detailEn" => null, _ => north.Id.ToString("D"),
@@ -262,7 +262,7 @@ public sealed class FormCatalogExtraImportPolicyTests
 
     private static FormCatalogImportSource Source(IReadOnlyList<BusinessFormCatalogField> fields, IReadOnlyList<FormCatalogStoredItemRow>? items = null,
         IReadOnlyDictionary<Guid, IReadOnlyList<FormCatalogStoredItemRow>>? sources = null) => new(CatalogId, 1, BusinessFormCatalogValueType.Text,
-            items ?? [], Fields: fields, Sources: sources);
+            "es", items ?? [], Fields: fields, Sources: sources);
     private static BusinessFormCatalogField Field(string key, string type, string? es = null, string? en = null) => new(Guid.CreateVersion7(), key,
         new Dictionary<string, string> { ["es"] = es ?? key, ["en"] = en ?? key }, type, null, false, false, null, null, null, "data", 0, true);
     private static FormCatalogStoredItemRow Item(string code, string text, string fields) => new(Guid.CreateVersion7(), CatalogId, code, text, null,

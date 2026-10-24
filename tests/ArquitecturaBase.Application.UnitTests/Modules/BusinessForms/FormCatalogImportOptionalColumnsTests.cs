@@ -78,7 +78,7 @@ public sealed class FormCatalogImportOptionalColumnsTests
         var sheet = new FormSpreadsheet("Options", new string('a', 64),
             [new(1, headers.Select(text => new FormSpreadsheetCell(text)).ToArray()),
              new(2, row.Select(text => new FormSpreadsheetCell(text)).ToArray())]);
-        var result = FormCatalogImportPolicy.Build(new(CatalogId, 1, BusinessFormCatalogValueType.Text, [item]), sheet, mode, "en");
+        var result = FormCatalogImportPolicy.Build(new(CatalogId, 1, BusinessFormCatalogValueType.Text, "es", [item]), sheet, mode, "en");
         Assert.True(result.IsSuccess);
         return result.Value;
     }

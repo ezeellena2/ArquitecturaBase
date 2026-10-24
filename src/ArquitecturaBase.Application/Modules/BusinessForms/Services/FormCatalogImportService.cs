@@ -31,7 +31,7 @@ internal sealed class FormCatalogImportService(IFormCatalogRepository repository
         }
         var items = await reader.ListAllItemsAsync(id, cancellationToken);
         var source = await WithFieldsAsync(new FormCatalogImportSource(id, current.Value.Revision,
-            Enum.Parse<BusinessFormCatalogValueType>(current.Value.ValueType), items,
+            Enum.Parse<BusinessFormCatalogValueType>(current.Value.ValueType), current.Value.OriginalCulture, items,
             current.Value.LastImportSha256, current.Value.LastImportAtUtc), current.Value.FieldsJson, cancellationToken);
         var plan = source.IsFailure ? Result.Failure<FormCatalogImportPlan>(source.Error)
             : FormCatalogImportPolicy.Build(source.Value, sheet.Value, Mode(request.Mode), Culture());
@@ -74,7 +74,7 @@ internal sealed class FormCatalogImportService(IFormCatalogRepository repository
         if (catalog.Revision != request.ExpectedRevision) return FormCatalogErrors.RevisionConflict;
         var items = await repository.ListItemsAsync(id, cancellationToken);
         var source = await WithFieldsAsync(new FormCatalogImportSource(id, catalog.Revision, catalog.ValueType,
-            FormCatalogFieldPresentation.ToRows(items), catalog.LastImportSha256, catalog.LastImportAtUtc), catalog.FieldsJson, cancellationToken);
+            catalog.OriginalCulture, FormCatalogFieldPresentation.ToRows(items), catalog.LastImportSha256, catalog.LastImportAtUtc), catalog.FieldsJson, cancellationToken);
         if (source.IsFailure) return source.Error;
         var finalAccess = await access.CheckAsync(true, cancellationToken);
         if (finalAccess.IsFailure) return finalAccess.Error;

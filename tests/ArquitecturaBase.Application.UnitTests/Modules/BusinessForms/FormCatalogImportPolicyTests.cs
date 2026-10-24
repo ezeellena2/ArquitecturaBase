@@ -11,7 +11,7 @@ public sealed class FormCatalogImportPolicyTests
     private static readonly string[] Header = ["Código", "Texto", "Texto en inglés", "Detalle", "Detalle en inglés", "Activa"];
     private static FormCatalogStoredItemRow Item(string code, string text, int position = 1, bool active = true, string? value = null) =>
         new(Guid.NewGuid(), CatalogId, code, text, null, null, null, position, active, value);
-    private static FormCatalogImportSource Source(params FormCatalogStoredItemRow[] items) => new(CatalogId, 7, BusinessFormCatalogValueType.Text, items);
+    private static FormCatalogImportSource Source(params FormCatalogStoredItemRow[] items) => new(CatalogId, 7, BusinessFormCatalogValueType.Text, "es", items);
     private static FormSpreadsheet Sheet(params string?[][] rows) => new("Opciones", Hash,
         rows.Select((cells,index) => new FormSpreadsheetRow(index + 1, cells.Select(text => new FormSpreadsheetCell(text)).ToArray())).ToArray());
     private static FormCatalogImportPlan Plan(FormCatalogImportSource source, FormSpreadsheet sheet, FormCatalogImportMode mode = FormCatalogImportMode.Replace)
@@ -95,6 +95,40 @@ public sealed class FormCatalogImportPolicyTests
         Assert.Empty(plan.Items);
         Assert.Equal(new[] { 2, 3 }, plan.Preview.Issues.Select(issue => issue.Row));
         Assert.All(plan.Preview.Issues, issue => { Assert.Equal("code", issue.Column); Assert.Equal(FormCatalogImportErrors.DuplicateCode.Code, issue.Code); Assert.NotNull(issue.RelatedRow); });
+    }
+
+    [Fact]
+    public void An_English_original_catalog_reads_Text_as_English_and_the_Spanish_text_column_as_its_translation()
+    {
+        var south = new FormCatalogStoredItemRow(Guid.NewGuid(), CatalogId, "S", "Sur", "South", null, null, 1, true);
+        var plan = Plan(Source(south) with { OriginalCulture = "en" },
+            Sheet(["Código", "Texto", "Texto en español"], ["N", "North", "Norte"], ["S", "South", "Sureño"]), FormCatalogImportMode.Append);
+
+        Assert.Empty(plan.Preview.Issues);
+        var added = Assert.Single(plan.Items, item => item.ItemId is null);
+        Assert.Equal("North", added.Text!["en"]);
+        Assert.Equal("Norte", added.Text["es"]);
+        Assert.Equal("Norte", Assert.Single(plan.Preview.Added).Text);
+        var change = Assert.Single(Assert.Single(plan.Preview.Changed).Changes);
+        Assert.Equal("textEs", change.Column);
+        Assert.Equal("Sur", change.Before);
+        Assert.Equal("Sureño", change.After);
+        Assert.Equal("South", Assert.Single(plan.Items, item => item.ItemId == south.Id).Text!["en"]);
+    }
+
+    [Theory]
+    [InlineData("en", "English text", "English detail")]
+    [InlineData("es", "Spanish text", "Spanish detail")]
+    public void A_translation_column_in_the_original_language_is_an_unknown_column(string original, string text, string detail)
+    {
+        var plan = Plan(Source() with { OriginalCulture = original }, Sheet(["Code", "Text", text, detail], ["A", "Original", "Other", "More"]));
+
+        Assert.Equal(new[] { text, detail }, plan.Preview.Issues.Select(issue => issue.Column));
+        Assert.All(plan.Preview.Issues, issue => Assert.Equal(FormCatalogImportErrors.UnknownColumn.Code, issue.Code));
+        var input = Assert.Single(plan.Items);
+        Assert.Equal("Original", input.Text![original]);
+        Assert.Null(input.Text[original == "en" ? "es" : "en"]);
+        Assert.All(input.Detail!.Values, Assert.Null);
     }
 
     [Fact]

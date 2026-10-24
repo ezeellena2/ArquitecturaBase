@@ -13,7 +13,7 @@ public sealed class FormCatalogExportWorkbookTests
     [InlineData("en", BusinessFormCatalogValueType.Decimal)]
     public void A_template_contains_only_headers_and_the_recognizable_rules_row(string culture, BusinessFormCatalogValueType type)
     {
-        var columns = FormCatalogImportTemplate.Columns(type, culture);
+        var columns = FormCatalogImportTemplate.Columns(type, culture, "es");
         var bytes = new ClosedXmlFormWorkbookWriter().Write(new(columns.Select(column => column.Header).ToArray(),
             [columns.Select(column => new FormWorkbookCell("text", column.Rule)).ToArray()], "Template"), Ct);
         using var stream = new MemoryStream(bytes); using var workbook = new XLWorkbook(stream);
@@ -30,7 +30,7 @@ public sealed class FormCatalogExportWorkbookTests
     [InlineData("en", "0.1234567890123456789012345678")]
     public void Catalog_round_trip_cells_are_exact_text_even_when_they_look_numeric_or_like_formulas(string culture, string canonical)
     {
-        var columns = FormCatalogImportTemplate.Columns(BusinessFormCatalogValueType.Decimal, culture);
+        var columns = FormCatalogImportTemplate.Columns(BusinessFormCatalogValueType.Decimal, culture, "es");
         string[] values = ["=SUM(A1)", "=2+2", "English", "Detail", "English detail", "Yes", canonical];
         var bytes = new ClosedXmlFormWorkbookWriter().Write(new(columns.Select(column => column.Header).ToArray(),
             [values.Select(value => new FormWorkbookCell("text", value)).ToArray()], "Options"), Ct);

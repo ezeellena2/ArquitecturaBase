@@ -19,8 +19,8 @@ public sealed class FormCatalogImportRoundTripTests
     [InlineData("en", BusinessFormCatalogValueType.Date)]
     public void The_unmodified_template_rule_row_is_not_an_option(string culture, BusinessFormCatalogValueType type)
     {
-        var columns = FormCatalogImportTemplate.Columns(type, culture);
-        var source = new FormCatalogImportSource(CatalogId, 1, type, []);
+        var columns = FormCatalogImportTemplate.Columns(type, culture, "es");
+        var source = new FormCatalogImportSource(CatalogId, 1, type, "es", []);
         var result = FormCatalogImportPolicy.Build(source, Sheet(columns.Select(column => column.Header),
             columns.Select(column => (string?)column.Rule).ToArray()), FormCatalogImportMode.Replace, culture);
         Assert.True(result.IsSuccess);
@@ -33,7 +33,7 @@ public sealed class FormCatalogImportRoundTripTests
     [Fact]
     public void A_real_invalid_row_is_not_mistaken_for_template_instructions()
     {
-        var result = FormCatalogImportPolicy.Build(new(CatalogId, 1, BusinessFormCatalogValueType.Text, []),
+        var result = FormCatalogImportPolicy.Build(new(CatalogId, 1, BusinessFormCatalogValueType.Text, "es", []),
             Sheet(["Code", "Text"], ["", "A real option"]), FormCatalogImportMode.Append, "en");
         Assert.True(result.IsSuccess);
         Assert.Equal(1, result.Value.Preview.RowsRead);
@@ -48,10 +48,10 @@ public sealed class FormCatalogImportRoundTripTests
     [InlineData(BusinessFormCatalogValueType.Date, "2026-10-22")]
     public void Exported_canonical_values_and_all_languages_round_trip_without_mutations(BusinessFormCatalogValueType type, string? value)
     {
-        var columns = FormCatalogImportTemplate.Columns(type, "en");
+        var columns = FormCatalogImportTemplate.Columns(type, "en", "es");
         var item = new FormCatalogStoredItemRow(Guid.NewGuid(), CatalogId, "A", "Original", "English", "Detalle", "Detail", 17, false, value);
         var row = new Dictionary<string, string?> { ["code"]="A", ["text"]="Original", ["textEn"]="English", ["detail"]="Detalle", ["detailEn"]="Detail", ["active"]="No", ["value"]=value };
-        var result = FormCatalogImportPolicy.Build(new(CatalogId, 9, type, [item]),
+        var result = FormCatalogImportPolicy.Build(new(CatalogId, 9, type, "es", [item]),
             Sheet(columns.Select(column=>column.Header), columns.Select(column=>row[column.Key]).ToArray()), FormCatalogImportMode.Replace, "en");
         Assert.True(result.IsSuccess);
         Assert.Equal(1, result.Value.Preview.Counts.Unchanged);
@@ -63,11 +63,34 @@ public sealed class FormCatalogImportRoundTripTests
         Assert.Equal(value, item.Value);
     }
 
+    [Theory]
+    [InlineData("es")]
+    [InlineData("en")]
+    public void An_English_original_catalog_round_trips_without_changes(string culture)
+    {
+        var columns = FormCatalogImportTemplate.Columns(BusinessFormCatalogValueType.Text, culture, "en");
+        var translated = new FormCatalogStoredItemRow(Guid.NewGuid(), CatalogId, "N", "Norte", "North", "Detalle norte", "North detail", 0, true);
+        var englishOnly = new FormCatalogStoredItemRow(Guid.NewGuid(), CatalogId, "E", null, "East", null, null, 1, false);
+        string?[] Row(FormCatalogStoredItemRow item) => columns.Select(column => column.Key switch
+        {
+            "code" => item.Code, "text" => item.TextEn, "textEs" => item.TextEs, "detail" => item.DetailEn, "detailEs" => item.DetailEs,
+            "active" => item.IsActive ? "Yes" : "No", _ => null,
+        }).ToArray();
+
+        var result = FormCatalogImportPolicy.Build(new(CatalogId, 4, BusinessFormCatalogValueType.Text, "en", [translated, englishOnly]),
+            Sheet(columns.Select(column => column.Header), Row(translated), Row(englishOnly)), FormCatalogImportMode.Replace, culture);
+
+        Assert.True(result.IsSuccess);
+        Assert.Empty(result.Value.Preview.Issues);
+        Assert.Equal(2, result.Value.Preview.Counts.Unchanged);
+        Assert.Empty(result.Value.Items);
+    }
+
     [Fact]
     public void An_invalid_typed_value_preserves_the_entire_matching_inactive_item()
     {
         var item = new FormCatalogStoredItemRow(Guid.NewGuid(), CatalogId, "A", "Original", "English", "Old", "Old", 17, false, "12.5");
-        var result = FormCatalogImportPolicy.Build(new(CatalogId, 9, BusinessFormCatalogValueType.Decimal, [item]),
+        var result = FormCatalogImportPolicy.Build(new(CatalogId, 9, BusinessFormCatalogValueType.Decimal, "es", [item]),
             Sheet(["Code", "Text", "Value"], ["A", "Changed", "1,2,3"]), FormCatalogImportMode.Replace, "es");
         Assert.True(result.IsSuccess);
         Assert.Empty(result.Value.Items);
@@ -84,7 +107,7 @@ public sealed class FormCatalogImportRoundTripTests
     public void Fatal_header_errors_identify_the_logical_column(string column, bool duplicate)
     {
         string[] header = duplicate ? ["Code", "Texto", "Codigo"] : column == "code" ? ["Text"] : ["Code"];
-        var result = FormCatalogImportPolicy.Build(new(CatalogId, 1, BusinessFormCatalogValueType.Text, []), Sheet(header), FormCatalogImportMode.Replace, "es");
+        var result = FormCatalogImportPolicy.Build(new(CatalogId, 1, BusinessFormCatalogValueType.Text, "es", []), Sheet(header), FormCatalogImportMode.Replace, "es");
         Assert.True(result.IsFailure);
         Assert.NotNull(result.Error.Metadata);
         Assert.Equal(column, result.Error.Metadata["column"]);

@@ -49,7 +49,7 @@ public sealed class FormCatalogExtraTransferTests
                 new[] { new FormSpreadsheetRow(1, workbook.Headers.Select(header => new FormSpreadsheetCell(header)).ToArray()) }
                     .Concat(workbook.Rows.Select((row, index) => new FormSpreadsheetRow(index + 2,
                         row.Select(cell => new FormSpreadsheetCell((string?)cell.Value)).ToArray()))).ToArray());
-            var imported = FormCatalogImportPolicy.Build(new(id, reader.Catalog.Revision, BusinessFormCatalogValueType.Text, reader.Items, Fields: fields),
+            var imported = FormCatalogImportPolicy.Build(new(id, reader.Catalog.Revision, BusinessFormCatalogValueType.Text, reader.Catalog.OriginalCulture, reader.Items, Fields: fields),
                 sheet, FormCatalogImportMode.Replace, culture);
             Assert.True(imported.IsSuccess);
             Assert.Empty(imported.Value.Preview.Issues);

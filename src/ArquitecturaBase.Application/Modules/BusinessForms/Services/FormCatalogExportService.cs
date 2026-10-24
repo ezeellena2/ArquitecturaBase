@@ -24,7 +24,7 @@ internal sealed class FormCatalogExportService(IFormCatalogReader reader, IFormW
         var culture = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es";
         var fields = FormCatalogFieldPolicy.ReadFields(catalog.FieldsJson);
         var columns = FormCatalogImportTemplate.Columns(Enum.Parse<BusinessFormCatalogValueType>(catalog.ValueType), culture,
-            canonicalValue: !template, fields: fields);
+            catalog.OriginalCulture, canonicalValue: !template, fields: fields);
         IReadOnlyList<IReadOnlyList<FormWorkbookCell>> rows;
         if (template) rows = [columns.Select(column => new FormWorkbookCell("text", column.Rule)).ToArray()];
         else
@@ -37,8 +37,9 @@ internal sealed class FormCatalogExportService(IFormCatalogReader reader, IFormW
                 var values = FormCatalogFieldPolicy.ReadValues(item.FieldValuesJson);
                 return (IReadOnlyList<FormWorkbookCell>)columns.Select(column => new FormWorkbookCell("text", column.Key switch
                 {
-                    "code" => item.Code, "text" => item.TextEs, "textEn" => item.TextEn,
-                    "detail" => item.DetailEs, "detailEn" => item.DetailEn,
+                    // «Texto» and «Detalle» are the original; the template has a translation column only for the other language.
+                    "code" => item.Code, "text" => item.TextIn(catalog.OriginalCulture), "detail" => item.DetailIn(catalog.OriginalCulture),
+                    "textEn" => item.TextIn("en"), "textEs" => item.TextIn("es"), "detailEn" => item.DetailIn("en"), "detailEs" => item.DetailIn("es"),
                     "active" => FormCatalogTexts.Get(item.IsActive ? "Yes" : "No", culture), "value" => item.Value,
                     _ => values.TryGetValue(column.Key, out var value) ? FormCatalogFieldPolicy.Input(value) : null,
                 })).ToArray();

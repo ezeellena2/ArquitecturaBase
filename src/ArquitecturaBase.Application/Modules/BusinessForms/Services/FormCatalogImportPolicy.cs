@@ -16,6 +16,10 @@ internal static partial class FormCatalogImportPolicy
         if (sheet.Rows.Any(row => row.Cells.Count > FormCatalogImportLimits.MaximumColumns)) return FormCatalogImportErrors.TooManyColumns;
         if (sheet.Rows.Count == 0) return FormCatalogImportErrors.MissingHeader("code");
         var header = sheet.Rows[0];
+        var original = source.OriginalCulture;
+        var other = Other(original);
+        var translatedTextColumn = "text" + FormCatalogImportTemplate.TranslationSuffix(original);
+        var translatedDetailColumn = "detail" + FormCatalogImportTemplate.TranslationSuffix(original);
         var fields = (source.Fields ?? []).Where(field => field.IsActive).ToArray();
         var resolvers = SourceResolvers(source);
         var sourceTexts = (source.Sources ?? new Dictionary<Guid, IReadOnlyList<FormCatalogStoredItemRow>>())
@@ -28,6 +32,8 @@ internal static partial class FormCatalogImportPolicy
             var match = MatchHeader(header.Cells[index].Text ?? "", fields);
             if (match.Ambiguous) return FormCatalogImportErrors.DuplicateHeader(header.Cells[index].Text ?? "");
             var key = match.Key;
+            // A translation column in the catalog's own original language is not one of its columns.
+            if (key is "textEn" or "textEs" or "detailEn" or "detailEs" && key != translatedTextColumn && key != translatedDetailColumn) key = null;
             if (key is null)
             {
                 if (!string.IsNullOrWhiteSpace(header.Cells[index].Text))
@@ -44,7 +50,7 @@ internal static partial class FormCatalogImportPolicy
             !SupportedCultures.Any(language => NormalizeHeader(valueHeader) ==
                 NormalizeHeader(FormCatalogImportTemplate.ValueHeader(source.ValueType,language,true))));
         var rows = sheet.Rows.Skip(1).Where(row => row.Cells.Any(cell => cell.Error is not null || !string.IsNullOrWhiteSpace(cell.Text))).ToList();
-        if (rows.Count > 0 && rows[0].Number == 2 && IsRuleRow(rows[0],columns,source.ValueType,fields)) rows.RemoveAt(0);
+        if (rows.Count > 0 && rows[0].Number == 2 && IsRuleRow(rows[0],columns,source.ValueType,source.OriginalCulture,fields)) rows.RemoveAt(0);
         if (rows.Count > BusinessFormCatalog.MaxItems) return FormCatalogImportErrors.TooManyRows;
         var current = source.Items.ToDictionary(item => item.Code,StringComparer.OrdinalIgnoreCase);
         var present = rows.Select(row => Cell(row,columns,"code")?.Text?.Trim()).Where(code => !string.IsNullOrEmpty(code)).ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -64,14 +70,15 @@ internal static partial class FormCatalogImportPolicy
             var code = Cell(row,columns,"code")?.Text?.Trim() ?? "";
             var text = Cell(row,columns,"text")?.Text ?? "";
             current.TryGetValue(code,out var existing);
-            var textEn = columns.ContainsKey("textEn") ? Optional(Cell(row,columns,"textEn")?.Text) : existing?.TextEn;
-            var detail = columns.ContainsKey("detail") ? Optional(Cell(row,columns,"detail")?.Text) : existing?.DetailEs;
-            var detailEn = columns.ContainsKey("detailEn") ? Optional(Cell(row,columns,"detailEn")?.Text) : existing?.DetailEn;
+            // An absent column keeps what the option has in that language.
+            var textTranslation = columns.ContainsKey(translatedTextColumn) ? Optional(Cell(row,columns,translatedTextColumn)?.Text) : existing?.TextIn(other);
+            var detail = columns.ContainsKey("detail") ? Optional(Cell(row,columns,"detail")?.Text) : existing?.DetailIn(original);
+            var detailTranslation = columns.ContainsKey(translatedDetailColumn) ? Optional(Cell(row,columns,translatedDetailColumn)?.Text) : existing?.DetailIn(other);
             Check("code",code,true,80,FormCatalogImportErrors.CodeTooLong);
             Check("text",text,true,BusinessFormCatalogItem.MaxTextLength,FormCatalogImportErrors.TextTooLong);
-            Check("textEn",textEn,false,BusinessFormCatalogItem.MaxTextLength,FormCatalogImportErrors.TextTooLong);
+            Check(translatedTextColumn,textTranslation,false,BusinessFormCatalogItem.MaxTextLength,FormCatalogImportErrors.TextTooLong);
             Check("detail",detail,false,BusinessFormCatalogItem.MaxDetailLength,FormCatalogImportErrors.DetailTooLong);
-            Check("detailEn",detailEn,false,BusinessFormCatalogItem.MaxDetailLength,FormCatalogImportErrors.DetailTooLong);
+            Check(translatedDetailColumn,detailTranslation,false,BusinessFormCatalogItem.MaxDetailLength,FormCatalogImportErrors.DetailTooLong);
             if (!invalidCells.Contains("code") && duplicates.TryGetValue(code,out var repeated))
                 issues.Add(Issue(row.Number,"code",FormCatalogImportErrors.DuplicateCode,related:repeated.First(number=>number!=row.Number)));
             var activeText = NormalizeHeader(Cell(row,columns,"active")?.Text ?? "");
@@ -85,7 +92,7 @@ internal static partial class FormCatalogImportPolicy
             if (!invalidCells.Contains("value") && value.IsFailure) issues.Add(Issue(row.Number,"value",value.Error));
             var fieldValues = ParseFields(fields, resolvers, existing, row, columns, canonicalFields, invalidCells, active, culture, issues);
             if (issues.Count != start) errorRows.Add(row.Number);
-            else valid.Add(new(row.Number,code,text,textEn,detail,detailEn,active,value.Value,fieldValues));
+            else valid.Add(new(row.Number,code,text,textTranslation,detail,detailTranslation,active,value.Value,fieldValues));
 
             void Check(string column,string? content,bool required,int maximum,Error lengthError)
             {
@@ -108,25 +115,25 @@ internal static partial class FormCatalogImportPolicy
         var reactivated = 0;
         var unchanged = 0;
         var final = new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var item in source.Items) final.Add(item.Code,item.TextFor("es"));
+        foreach (var item in source.Items) final.Add(item.Code,item.TextFor(original));
         foreach (var row in valid)
         {
-            final[row.Code] = row.TextEs;
+            final[row.Code] = row.Text;
             if (!current.TryGetValue(row.Code,out var item))
             {
-                mutations.Add(Input(row,null,fields)); added.Add(new(row.Number,row.Code,Text(row,culture),row.Value,
+                mutations.Add(Input(row,null,fields,original)); added.Add(new(row.Number,row.Code,Text(row,original,culture),row.Value,
                     fields.Length == 0 ? null : row.Fields.Where(pair => fields.Any(field => field.Id.ToString("D") == pair.Key))
                         .ToDictionary(pair => pair.Key, pair => FormCatalogFieldPolicy.Input(pair.Value), StringComparer.Ordinal),
                     FieldTexts(row, fields, sourceTexts, culture)));
                 continue;
             }
-            var changes = Changes(item,row,fields,sourceTexts,culture);
+            var changes = Changes(item,row,fields,sourceTexts,original,culture);
             if (changes.Count == 0) unchanged++;
             else
             {
-                mutations.Add(Input(row,item.Id,fields)); changed.Add(new(row.Number,item.Id,row.Code,changes));
+                mutations.Add(Input(row,item.Id,fields,original)); changed.Add(new(row.Number,item.Id,row.Code,changes));
                 if (!item.IsActive && row.Active) reactivated++;
-                if (item.IsActive && !row.Active) deactivated.Add(new(item.Id,row.Code,Text(row,culture)));
+                if (item.IsActive && !row.Active) deactivated.Add(new(item.Id,row.Code,Text(row,original,culture)));
             }
         }
         if (mode == FormCatalogImportMode.Replace)
@@ -140,15 +147,15 @@ internal static partial class FormCatalogImportPolicy
         var textCodes = final.GroupBy(pair=>pair.Value,StringComparer.OrdinalIgnoreCase)
             .ToDictionary(group=>group.Key,group=>group.Select(pair=>pair.Key).ToHashSet(StringComparer.OrdinalIgnoreCase),StringComparer.OrdinalIgnoreCase);
         var fileCodes = valid.Select(row=>row.Code).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var textRows = valid.GroupBy(row=>row.TextEs,StringComparer.OrdinalIgnoreCase)
+        var textRows = valid.GroupBy(row=>row.Text,StringComparer.OrdinalIgnoreCase)
             .ToDictionary(group=>group.Key,group=>group.Select(row=>(int?)row.Number).Take(2).ToArray(),StringComparer.OrdinalIgnoreCase);
         var seenTexts = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var row in valid)
         {
-            var owners = textCodes[row.TextEs];
-            if (owners.Count > 1 && (!seenTexts.Add(row.TextEs) || owners.Any(code=>!fileCodes.Contains(code))))
+            var owners = textCodes[row.Text];
+            if (owners.Count > 1 && (!seenTexts.Add(row.Text) || owners.Any(code=>!fileCodes.Contains(code))))
                 issues.Add(Issue(row.Number,"text",FormCatalogImportErrors.DuplicateText,"Warning",
-                    related:textRows[row.TextEs].FirstOrDefault(number=>number!=row.Number)));
+                    related:textRows[row.Text].FirstOrDefault(number=>number!=row.Number)));
         }
         var warnings = issues.Count(issue=>issue.Severity=="Warning");
         var counts = new FormCatalogImportCounts(added.Count,changed.Count,deactivated.Count,reactivated,unchanged,errorRows.Count,warnings);
@@ -174,19 +181,24 @@ internal static partial class FormCatalogImportPolicy
     private static FormSpreadsheetCell? Cell(FormSpreadsheetRow row,IReadOnlyDictionary<string,int> columns,string key) =>
         columns.TryGetValue(key,out var position)?row.Cells.ElementAtOrDefault(position):null;
     private static string? Optional(string? text) => string.IsNullOrWhiteSpace(text)?null:text;
-    private static string Text(FormCatalogImportParsedRow row,string culture) => culture=="en"&&!string.IsNullOrWhiteSpace(row.TextEn)?row.TextEn:row.TextEs;
-    private static FormCatalogManualItemSaveRequest Input(FormCatalogImportParsedRow row,Guid? id,BusinessFormCatalogField[] fields) => new(id is null?"import-row"+row.Number:"item-"+id.Value.ToString("N"),id,row.Code,
-        new Dictionary<string,string?> { ["es"]=row.TextEs,["en"]=row.TextEn },new Dictionary<string,string?> { ["es"]=row.DetailEs,["en"]=row.DetailEn },row.Active,row.Value,
+    private static string Other(string culture) => culture=="en"?"es":"en";
+    // The text in the menu's culture: its translation when that is not the original and there is one, otherwise the original.
+    private static string Text(FormCatalogImportParsedRow row,string original,string culture) => culture!=original&&row.TextTranslation is { } translation?translation:row.Text;
+    private static FormCatalogManualItemSaveRequest Input(FormCatalogImportParsedRow row,Guid? id,BusinessFormCatalogField[] fields,string original) => new(id is null?"import-row"+row.Number:"item-"+id.Value.ToString("N"),id,row.Code,
+        new Dictionary<string,string?> { [original]=row.Text,[Other(original)]=row.TextTranslation },
+        new Dictionary<string,string?> { [original]=row.Detail,[Other(original)]=row.DetailTranslation },row.Active,row.Value,
         fields.Length == 0 ? null : fields.Select(field => field.Id.ToString("D")).ToDictionary(key => key,
             key => row.Fields.TryGetValue(key, out var value) ? FormCatalogFieldPolicy.Input(value) : null, StringComparer.Ordinal));
     private static FormCatalogImportIssue Issue(int row,string column,Error error,string severity="Error",int? related=null,int? length=null) =>
         new(row,column,severity,error.Code,ErrorMessages.Get(error.Code),related,length);
     private static List<FormCatalogImportChange> Changes(FormCatalogStoredItemRow item,FormCatalogImportParsedRow row,BusinessFormCatalogField[] fields,
-        Dictionary<Guid, Dictionary<Guid, FormCatalogStoredItemRow>> sourceTexts,string culture)
+        Dictionary<Guid, Dictionary<Guid, FormCatalogStoredItemRow>> sourceTexts,string original,string culture)
     {
         var changes = new List<FormCatalogImportChange>();
-        Add("code",item.Code,row.Code); Add("text",item.TextEs,row.TextEs); Add("textEn",item.TextEn,row.TextEn);
-        Add("detail",item.DetailEs,row.DetailEs); Add("detailEn",item.DetailEn,row.DetailEn);
+        var other = Other(original);
+        var translation = FormCatalogImportTemplate.TranslationSuffix(original);
+        Add("code",item.Code,row.Code); Add("text",item.TextIn(original),row.Text); Add("text"+translation,item.TextIn(other),row.TextTranslation);
+        Add("detail",item.DetailIn(original),row.Detail); Add("detail"+translation,item.DetailIn(other),row.DetailTranslation);
         Add("active",item.IsActive?"true":"false",row.Active?"true":"false"); Add("value",item.Value,row.Value);
         var previous = FormCatalogFieldPolicy.ReadValues(item.FieldValuesJson);
         foreach (var field in fields)
@@ -220,12 +232,12 @@ internal static partial class FormCatalogImportPolicy
         return item.TextFor(culture);
     }
     private static bool IsRuleRow(FormSpreadsheetRow row,IReadOnlyDictionary<string,int> columns,BusinessFormCatalogValueType type,
-        BusinessFormCatalogField[] fields)
+        string originalCulture,BusinessFormCatalogField[] fields)
     {
         if (!string.IsNullOrEmpty(Cell(row,columns,"code")?.Text) || row.Cells.Any(cell=>cell.Error is not null)) return false;
         foreach (var culture in new[]{"es","en"})
         {
-            var expected = FormCatalogImportTemplate.Columns(type,culture,fields:fields).ToDictionary(column=>column.Key,column=>column.Rule,StringComparer.Ordinal);
+            var expected = FormCatalogImportTemplate.Columns(type,culture,originalCulture,fields:fields).ToDictionary(column=>column.Key,column=>column.Rule,StringComparer.Ordinal);
             if (columns.All(pair=>expected.TryGetValue(pair.Key,out var rule)&&string.Equals(row.Cells.ElementAtOrDefault(pair.Value)?.Text??"",rule,StringComparison.Ordinal))
                 && row.Cells.Select((cell,index)=>(cell,index)).Where(pair=>!columns.Values.Contains(pair.index)).All(pair=>string.IsNullOrEmpty(pair.cell.Text))) return true;
         }

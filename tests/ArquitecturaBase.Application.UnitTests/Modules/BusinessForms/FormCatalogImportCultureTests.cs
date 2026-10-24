@@ -83,7 +83,7 @@ public sealed class FormCatalogImportCultureTests
         var sheet = Sheet([new("Code"), new("Text"), new("Value"), new("Canonical value (decimal)")],
             [new("A"), new("Option"), new("1.2"), new("1.2")]);
 
-        var result = FormCatalogImportPolicy.Build(new(Guid.NewGuid(), 1, BusinessFormCatalogValueType.Decimal, []),
+        var result = FormCatalogImportPolicy.Build(new(Guid.NewGuid(), 1, BusinessFormCatalogValueType.Decimal, "es", []),
             sheet, FormCatalogImportMode.Append, "en");
 
         Assert.True(result.IsFailure);
@@ -105,7 +105,7 @@ public sealed class FormCatalogImportCultureTests
 
     private static ArquitecturaBase.Domain.Results.Result<FormCatalogImportPlan> Build(BusinessFormCatalogValueType type,
         string culture, string valueHeader, FormSpreadsheetCell value) =>
-        FormCatalogImportPolicy.Build(new(Guid.NewGuid(), 1, type, []),
+        FormCatalogImportPolicy.Build(new(Guid.NewGuid(), 1, type, "es", []),
             Sheet([new("Code"), new("Text"), new(valueHeader)], [new("A"), new("Option"), value]),
             FormCatalogImportMode.Append, culture);
 

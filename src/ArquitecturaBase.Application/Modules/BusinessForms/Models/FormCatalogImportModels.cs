@@ -54,13 +54,14 @@ public sealed record FormCatalogImportPreviewResponse(Guid CatalogId, long Revis
 { public override string ToString() => "FormCatalogImportPreviewResponse { Content = [REDACTED] }"; }
 
 internal sealed record FormCatalogImportSource(Guid Id, long Revision, BusinessFormCatalogValueType ValueType,
-    IReadOnlyList<FormCatalogStoredItemRow> Items, string? LastImportSha256 = null, DateTime? LastImportAtUtc = null,
+    string OriginalCulture, IReadOnlyList<FormCatalogStoredItemRow> Items, string? LastImportSha256 = null, DateTime? LastImportAtUtc = null,
     IReadOnlyList<BusinessFormCatalogField>? Fields = null, IReadOnlyDictionary<Guid, IReadOnlyList<FormCatalogStoredItemRow>>? Sources = null)
 { public override string ToString() => "FormCatalogImportSource { Content = [REDACTED] }"; }
 internal sealed record FormCatalogImportPlan(FormCatalogImportPreviewResponse Preview,
     IReadOnlyList<FormCatalogManualItemSaveRequest> Items)
 { public override string ToString() => "FormCatalogImportPlan { Content = [REDACTED] }"; }
 
-internal sealed record FormCatalogImportParsedRow(int Number, string Code, string TextEs, string? TextEn,
-        string? DetailEs, string? DetailEn, bool Active, string? Value, IReadOnlyDictionary<string, JsonElement> Fields)
+// Text and Detail are in the catalog's original culture; the translations are in the other one.
+internal sealed record FormCatalogImportParsedRow(int Number, string Code, string Text, string? TextTranslation,
+        string? Detail, string? DetailTranslation, bool Active, string? Value, IReadOnlyDictionary<string, JsonElement> Fields)
     { public override string ToString() => "FormCatalogImportParsedRow { Content = [REDACTED] }"; }
