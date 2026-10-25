@@ -15,6 +15,9 @@ internal sealed class FormPersonDataAccessGuard(ICurrentUser currentUser, IPermi
             || await permissions.HasPermissionAsync(actor, BusinessFormsPermissions.Manage, ct))) return Result.Success();
         return FormDefinitionErrors.Forbidden;
     }
+    // Uses name the forms only to actors who can read them, with the same criterion as the uses of a catalog field.
+    public async Task<bool> CanReadFormsAsync(CancellationToken ct) =>
+        currentUser.UserId is { } actor && await permissions.HasPermissionAsync(actor, BusinessFormsPermissions.Read, ct);
     public async Task<Result> CheckPeopleAsync(CancellationToken ct)
     {
         if (currentUser.UserId is not { } actor) return FormDefinitionErrors.Unauthorized;

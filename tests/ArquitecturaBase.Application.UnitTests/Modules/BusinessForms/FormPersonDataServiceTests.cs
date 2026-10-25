@@ -188,6 +188,7 @@ public sealed class FormPersonDataServiceTests
         {
             // The source catalog and the form that uses the attribute were written in English and have no Spanish translation.
             var fixture = new FormPersonDataFixture { SourceNameJson = "{\"en\":\"Branches\"}", UsageNameJson = "{\"en\":\"Visit\"}" };
+            fixture.Grant(BusinessFormsPermissions.PersonDataManage, BusinessFormsPermissions.Read);
             var attribute = fixture.AddAttribute();
             fixture.UsedAttributes.Add(attribute.Id);
 
@@ -198,6 +199,23 @@ public sealed class FormPersonDataServiceTests
             Assert.Equal("Visit", Assert.Single(item.UsedBy).Name);
         }
         finally { CultureInfo.CurrentUICulture = previous; }
+    }
+
+    [Fact]
+    public async Task Attribute_uses_name_their_forms_only_to_actors_who_can_read_forms()
+    {
+        var fixture = new FormPersonDataFixture();
+        var attribute = fixture.AddAttribute();
+        fixture.UsedAttributes.Add(attribute.Id);
+
+        var hidden = Assert.Single(Assert.Single((await fixture.Service.ListAttributesAsync(Ct)).Value.Items).UsedBy);
+        Assert.Null(hidden.DefinitionId);
+        Assert.Null(hidden.Name);
+
+        fixture.Grant(BusinessFormsPermissions.PersonDataManage, BusinessFormsPermissions.Read);
+        var shown = Assert.Single(Assert.Single((await fixture.Service.ListAttributesAsync(Ct)).Value.Items).UsedBy);
+        Assert.NotNull(shown.DefinitionId);
+        Assert.Equal("Formulario", shown.Name);
     }
 
     [Fact]

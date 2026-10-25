@@ -13,7 +13,8 @@ public sealed record ListFormPersonDataRequest : PagedRequest
 public sealed record ListFormPersonAttributeOptionsRequest : PagedRequest
 { public static readonly IReadOnlyCollection<string> SortableFields = ["text"]; public string DisplayCulture { get; init; } = "es";
     public override string ToString() => "ListFormPersonAttributeOptionsRequest { Search = [REDACTED] }"; }
-public sealed record FormPersonAttributeUseResponse(Guid DefinitionId, string Name);
+// Without formtemplates.read a use keeps neither the form identity nor its name: one entry per form, both null.
+public sealed record FormPersonAttributeUseResponse(Guid? DefinitionId, string? Name);
 public sealed record FormPersonAttributeResponse(Guid Id, string Key, IReadOnlyDictionary<string, string> Name, string OriginalCulture, string Type, Guid? SourceCatalogId,
     string? SourceCatalogName, int Position, bool IsActive, long Revision, IReadOnlyList<FormPersonAttributeUseResponse> UsedBy);
 public sealed record FormPersonAttributesResponse(IReadOnlyList<FormPersonAttributeResponse> Items);

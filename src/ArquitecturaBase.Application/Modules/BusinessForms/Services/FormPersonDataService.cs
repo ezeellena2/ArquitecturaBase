@@ -22,7 +22,8 @@ internal sealed partial class FormPersonDataService(IFormPersonDataRepository re
         var uses = await reader.ListAttributeUsagesAsync(attributes.Select(row => row.Id).ToArray(), cancellationToken);
         var final = await access.CheckAttributesAsync(false, cancellationToken);
         if (final.IsFailure) return final.Error;
-        return new FormPersonAttributesResponse(attributes.Select(row => Map(row, uses)).ToArray());
+        var canReadForms = await access.CanReadFormsAsync(cancellationToken);
+        return new FormPersonAttributesResponse(attributes.Select(row => Map(row, uses, canReadForms)).ToArray());
     }
     public async Task<Result<FormPersonAttributeResponse>> CreateAttributeAsync(CreateFormPersonAttributeRequest request, CancellationToken cancellationToken)
     {
@@ -106,7 +107,7 @@ internal sealed partial class FormPersonDataService(IFormPersonDataRepository re
         var created = BusinessFormPersonAttribute.Create(request.Key!, Culture(), Names(request.Name!), Enum.Parse<BusinessFormPersonAttributeType>(request.Type!), request.SourceCatalogId, attributes.Count);
         if (created.IsFailure) return created.Error;
         repository.Add(created.Value);
-        return Map(Row(created.Value, source.Value?.NameJson), []);
+        return Map(Row(created.Value, source.Value?.NameJson), [], false);
     }
     private async Task<Result<FormPersonAttributeResponse>> UpdateAttributeCoreAsync(Guid id, UpdateFormPersonAttributeRequest request, CancellationToken ct)
     {
@@ -137,7 +138,7 @@ internal sealed partial class FormPersonDataService(IFormPersonDataRepository re
             var cleared = row.Update(row.Revision, JsonSerializer.Serialize(values, JsonSerializerOptions.Web));
             if (cleared.IsFailure) return cleared.Error;
         }
-        return Map(Row(attribute, source.Value?.NameJson), uses);
+        return Map(Row(attribute, source.Value?.NameJson), uses, await access.CanReadFormsAsync(ct));
     }
     private async Task<Result<BusinessFormCatalog?>> SourceAsync(string type, Guid? sourceId, CancellationToken ct)
     {
@@ -147,9 +148,10 @@ internal sealed partial class FormPersonDataService(IFormPersonDataRepository re
         return source;
     }
     private static FormPersonAttributeStoredRow Row(BusinessFormPersonAttribute value, string? sourceName) => new(value.Id, value.Key, value.NameJson, value.OriginalCulture, value.Type.ToString(), value.SourceCatalogId, value.Position, value.IsActive, value.Revision, sourceName);
-    private static FormPersonAttributeResponse Map(FormPersonAttributeStoredRow row, IReadOnlyList<FormPersonAttributeUseRow> uses) => new(row.Id, row.Key, Texts(row.NameJson), row.OriginalCulture, row.Type, row.SourceCatalogId,
+    private static FormPersonAttributeResponse Map(FormPersonAttributeStoredRow row, IReadOnlyList<FormPersonAttributeUseRow> uses, bool canReadForms) => new(row.Id, row.Key, Texts(row.NameJson), row.OriginalCulture, row.Type, row.SourceCatalogId,
         row.SourceCatalogNameJson is null ? null : Text(row.SourceCatalogNameJson), row.Position, row.IsActive, row.Revision,
-        uses.Where(use => use.AttributeId == row.Id).DistinctBy(use => use.DefinitionId).Select(use => new FormPersonAttributeUseResponse(use.DefinitionId, Text(use.NameJson))).ToArray());
+        uses.Where(use => use.AttributeId == row.Id).DistinctBy(use => use.DefinitionId)
+            .Select(use => canReadForms ? new FormPersonAttributeUseResponse(use.DefinitionId, Text(use.NameJson)) : new FormPersonAttributeUseResponse(null, null)).ToArray());
     // The original culture is the only required language of the name; the other one is an optional translation.
     private static ValidationError? OriginalNameMissing(IReadOnlyDictionary<string, string?> names, string original) =>
         Names(names).ContainsKey(original) ? null : FieldErrors.On(FormPersonDataErrors.AttributeInvalid, "name." + original);
