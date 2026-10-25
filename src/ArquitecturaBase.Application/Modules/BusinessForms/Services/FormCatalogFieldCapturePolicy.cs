@@ -15,20 +15,26 @@ internal static class FormCatalogFieldCapturePolicy
         var rows = (await records.ListCatalogFieldValuesAsync(itemIds, cancellationToken)).ToDictionary(row => row.ItemId);
         var selected = itemIds.Select(itemId => (ItemId: itemId, Fields: ReadFields(rows[itemId]))).ToArray();
         var sourceIds = selected.SelectMany(item => item.Fields).Where(value => value.Field.Type == "catalog")
-            .Select(value => Guid.Parse(value.Value.GetString()!)).Distinct().Order().ToArray();
+            .Select(value => SourceId(value.Value)).OfType<Guid>().Distinct().Order().ToArray();
         var sourceRows = sourceIds.Length == 0 ? new Dictionary<Guid, FormCatalogItemFieldValuesRow>()
             : (await records.ListCatalogFieldValuesAsync(sourceIds, cancellationToken)).ToDictionary(row => row.ItemId);
         var result = new Dictionary<Guid, string>();
         foreach (var item in selected)
         {
-            if (item.Fields.Length == 0) continue;
-            var fields = item.Fields.Select(value => new FormCatalogCapturedField(value.Field.Id, value.Field.Key,
-                value.Field.Name, value.Field.Type, value.Field.Role, value.Value,
-                value.Field.Type == "catalog" ? SourceText(sourceRows[Guid.Parse(value.Value.GetString()!)], value.Field.SourceCatalogId!.Value) : null)).ToArray();
+            var fields = item.Fields.Select(value => value.Field.Type != "catalog" ? Captured(value.Field, value.Value, null)
+                    : SourceText(sourceRows, value.Value, value.Field.SourceCatalogId) is { } text ? Captured(value.Field, value.Value, text) : null)
+                .OfType<FormCatalogCapturedField>().ToArray();
+            if (fields.Length == 0) continue;
             result[item.ItemId] = FormDraftPolicy.Serialize(fields);
         }
         return result;
     }
+
+    private static FormCatalogCapturedField Captured(BusinessFormCatalogField field, JsonElement value, IReadOnlyDictionary<string, string>? text) =>
+        new(field.Id, field.Key, field.Name, field.Type, field.Role, value, text);
+
+    private static Guid? SourceId(JsonElement value) =>
+        value.ValueKind == JsonValueKind.String && Guid.TryParse(value.GetString(), out var id) ? id : null;
 
     private static (BusinessFormCatalogField Field, JsonElement Value)[] ReadFields(FormCatalogItemFieldValuesRow row)
     {
@@ -42,14 +48,16 @@ internal static class FormCatalogFieldCapturePolicy
             .Select(value => (value.Field, value.Value.Clone())).ToArray();
     }
 
-    // Seals the texts the source option has: its catalog's original and, when present, the translation.
-    private static Dictionary<string, string> SourceText(FormCatalogItemFieldValuesRow row, Guid sourceCatalogId)
+    // Seals the texts the source option has: its catalog's original and, when present, the translation. A saved value
+    // that is not an option of the field's current source (one kept from before a source change) has no visible text,
+    // so the field is left out of the seal like a field without a value instead of failing the capture.
+    private static Dictionary<string, string>? SourceText(Dictionary<Guid, FormCatalogItemFieldValuesRow> rows,
+        JsonElement value, Guid? sourceCatalogId)
     {
+        if (SourceId(value) is not { } id || !rows.TryGetValue(id, out var row) || row.CatalogId != sourceCatalogId) return null;
         var texts = new Dictionary<string, string>(StringComparer.Ordinal);
         if (!string.IsNullOrWhiteSpace(row.TextEs)) texts["es"] = row.TextEs;
         if (!string.IsNullOrWhiteSpace(row.TextEn)) texts["en"] = row.TextEn;
-        if (row.CatalogId != sourceCatalogId || texts.Count == 0)
-            throw new InvalidOperationException("The captured source catalog option is invalid.");
-        return texts;
+        return texts.Count == 0 ? null : texts;
     }
 }

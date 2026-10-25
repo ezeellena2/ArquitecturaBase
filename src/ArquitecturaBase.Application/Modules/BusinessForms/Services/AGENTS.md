@@ -59,7 +59,7 @@ Casos de uso y helpers; contratos en `Interfaces/Services`. Leer [formularios](.
 - UoW: recibo → definiciones → versión publicada → valores/oferta → Manual ordenados/actividad → origen → número → registro/valores/referencias/archivos/runs/recibo. Rechazo guarda sólo recibo.
 - Huella: suma catálogos, metadatos de archivos y origen sólo si existen, sin cambiar huellas anteriores. MultiChoice valida GUID D distintos/ofrecidos y rango sellado, sin ordenar/deduplicar. ValuesJson lleva un array por pregunta; cada elección crea valor con Position y referencia por ItemId. Omitida sin entrada; [] explícito sin filas. Manual revalida sólo actividad de elegidas bajo los locks existentes; presentación/valor/tipo salen de la oferta.
 - Origen: `OriginRecordId` y `OriginSuggestionId` de registros reales de la misma persona, validados contra la sugerencia activa del destino (no su versión); de un catálogo, sólo la opción propuesta con su presentación histórica.
-- Campos extra: dos lotes (metadata/valores y textos fuente) sólo de opciones Manual elegidas bajo lock. Entity y FormRecordReferenceRow sellan el mismo JSON activo/presente; la sesión no lo amplía y null conserva los bytes anteriores.
+- Campos extra: dos lotes (metadata/valores y textos fuente) sólo de opciones Manual elegidas bajo lock. Un valor de catálogo que no es opción de la fuente actual del campo (guardado antes de un cambio de fuente) no tiene texto visible y queda fuera del sello, como un campo sin valor. Entity y FormRecordReferenceRow sellan el mismo JSON activo/presente; la sesión no lo amplía y null conserva los bytes anteriores.
 - `FormFileService`: RecordsRead antes y después de abrir el stream, pertenencia y nunca URL ni SAS.
 
 ### Planilla, detalle y Excel

@@ -111,6 +111,28 @@ public sealed class FormCatalogFieldCaptureTests
         Assert.Equal("North area", captured.Text["en"]);
     }
 
+    [Fact]
+    public async Task A_saved_value_that_is_not_an_option_of_the_current_source_is_left_out_of_the_seal()
+    {
+        var catalogId = Guid.NewGuid();
+        var sourceCatalogId = Guid.NewGuid();
+        var f = new BusinessFormCaptureFixture("choice", true, catalogId);
+        var fields = new[] { Field("region", "catalog", "data", sourceCatalogId: sourceCatalogId), Field("cuit", "text", "data") };
+        var itemId = Guid.NewGuid();
+        var previousSourceItem = Guid.NewGuid();
+        f.Repository.CatalogFieldValues[itemId] = new(itemId, catalogId, FormDraftPolicy.Serialize(fields),
+            FormDraftPolicy.Serialize(new Dictionary<string, object> { [fields[0].Id.ToString("D")] = previousSourceItem.ToString("D"),
+                [fields[1].Id.ToString("D")] = "20-1" }));
+        f.Repository.CatalogFieldValues[previousSourceItem] = new(previousSourceItem, Guid.NewGuid(), null, "{}", "Zona vieja", null);
+
+        var result = await f.Sink.CaptureAsync(f.Request(new Dictionary<string, string> { [f.Key] = itemId.ToString("D") })
+            with { Catalogs = [Offer(f, "Manual", [new(itemId, "Norte", null)])] }, Ct);
+
+        Assert.Equal("Completed", result.State);
+        var captured = Assert.Single(FormDraftPolicy.Read<FormCatalogCapturedField[]>(Assert.Single(f.Repository.References).FieldValuesJson!));
+        Assert.Equal("cuit", captured.Key);
+    }
+
     [Theory]
     [InlineData("Manual", 1)]
     [InlineData("Filters", 0)]

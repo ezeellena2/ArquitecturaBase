@@ -592,7 +592,7 @@ Publicar distingue problemas bloqueantes de avisos no vinculantes: cantidad máx
 
 ### Campos sellados en las respuestas
 
-La captura lee campos sólo de opciones Manual elegidas, bajo sus locks y por lote, y sella identidad, clave, nombres, tipo, papel y valor en cada referencia. Si el campo elige de otro catálogo, conserva también el texto de esa opción fuente. La sesión no carga 200×20 valores y ninguna lectura posterior amplía la historia. Referencias antiguas mantienen null y omiten el contrato nuevo; no se completan con el catálogo actual.
+La captura lee campos sólo de opciones Manual elegidas, bajo sus locks y por lote, y sella identidad, clave, nombres, tipo, papel y valor en cada referencia. Si el campo elige de otro catálogo, conserva también el texto de esa opción fuente; un valor que no es opción de la fuente actual del campo (guardado antes de un cambio de fuente) no tiene texto visible y queda fuera del sello, como un campo sin valor, en lugar de frenar la captura. La sesión no carga 200×20 valores y ninguna lectura posterior amplía la historia. Referencias antiguas mantienen null y omiten el contrato nuevo; no se completan con el catálogo actual.
 
 La metadata de la planilla combina campos activos actuales y campos históricos retirados. Se conoce antes de leer respuestas, también en una planilla vacía; la unión histórica no se limita artificialmente a 20. El nombre de cabecera puede ser el actual, pero cada valor del detalle conserva su nombre, tipo, papel y etiqueta fuente sellados. Un nombre o texto de campo sin traducción usa su original individual y no cambia el idioma de formulario, aviso o PDF.
 
