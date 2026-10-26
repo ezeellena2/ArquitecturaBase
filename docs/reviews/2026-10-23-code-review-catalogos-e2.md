@@ -319,3 +319,103 @@ Se corrige en un solo chat, back y front juntos, cada arreglo con su test y comm
 ## Para el piloto
 
 - **Una pregunta opcional de «elegir varias»** filtrada que queda sin opciones para una persona manda un `CheckboxGroup` vacío. La referencia de Meta pide de 1 a 20; E1 solo confirmó el Dropdown vacío. Hay que confirmar qué hace Meta.
+
+## Cierre local — 2026-10-26
+
+Se corrigieron los 42 puntos, back y front juntos, del 23 al 26 de octubre. Antes de cada arreglo se contrastó el punto con el código, y cada uno tiene su regresión, vista en rojo antes de corregir. Al terminar, tres verificaciones de solo lectura dejaron hallazgos menores, agrupados en seis lotes FX ([verificación final](2026-10-25-verificacion-final-e2/README.md)), que también se corrigieron.
+
+Se reprodujeron los 42 puntos. Los que se cumplen en parte o se resolvieron distinto de lo previsto:
+- **22:** cada guardado informa todos los valores incompatibles del primer control afectado; los de otro control salen en el guardado siguiente.
+- **35:** `FormPdfPreview` no tenía selector «Textos en»: estaba en `FormPdfDesignPage` y se quitó ahí.
+- **37:** debajo de «Opciones» no había un «Primero guardá los cambios» literal, sino su equivalente, que también se quitó.
+- **39:** las ayudas del paso anterior, donde se eligen el origen y el tipo, se conservan.
+- **42:** el código ya estaba alineado; faltaba regenerar la captura.
+
+| Punto | Estado y evidencia |
+| --- | --- |
+| 1 | Corregido. Un valor guardado que apunta a una opción dada de baja se acepta, y la opción activa se exige solo a lo nuevo, cambiado o convertido; el guardado que no es opción de la fuente se rechaza. Reimportar sin cambios no es un cambio, e importar toma los locks de las fuentes ordenados, como el PUT. Regresiones unitarias y HTTP. |
+| 2 | Corregido. Solo `Forms.Catalog.RevisionConflict` pasa el editor a revisión. Los demás 409 se corrigen en el editor y muestran sus usos, y quitar un campo lo saca de la presentación del borrador (restaurarlo lo devuelve). |
+| 3 | Corregido. El front no manda traducciones en blanco, el back las descarta al guardar y la importación ignora los encabezados vacíos. El guard no se relajó. |
+| 4 | Corregido. Lo no editado se valida contra la definición guardada, viaja solo lo editado (delta) y el servidor responde el cambio de tipo y el obligatorio. El diálogo «Cambiar el tipo» de CE1 sale de `invalidRows`, con fila, valor visible y motivo, «y N más» y «Ver los N en la tabla» (opciones por `ids`). |
+| 5 | Corregido. Pasar texto a número o fecha usa `NormalizeImport` en la cultura del pedido, y lo ambiguo no convierte. Regresión también por el recorder. |
+| 6 | Corregido. Catálogo o sí/no a texto guardan el texto visible en el idioma original del catálogo. Una opción que no convierte a otro tipo o fuente se informa por su texto, no por su GUID. |
+| 7 | Corregido. Cambiar el tipo o la fuente de un dato con valores pide confirmación (`ValueRemovalNotConfirmed` con `count`) y limpia esos valores. Un valor que no es opción de la fuente cuenta como faltante en el envío, en la tabla y en el aviso de publicar. |
+| 8 | Corregido. Cambiar papel, tipo o fuente de un campo que filtra el borrador o la versión activa da `FieldInUse` con sus usos. El test que fijaba la falla se ajustó, y la captura `preparation-filter-unavailable` se retiró porque ya no se produce por HTTP. |
+| 9 | Corregido. La vista previa compara los únicos por su valor decodificado. Regresión con datos leídos de PostgreSQL. |
+| 10 | Corregido. Solo se escribe la opción cuyo mapa cambió (`JsonElement.DeepEquals`). Un guardado sin cambios no toca `ModifiedAtUtc`. |
+| 11 | Corregido. `usedBy` y los `uses` del 409 nombran formularios solo con `formtemplates.read`; sin él, uno por formulario y etapa, sin nombres ni identidades. Regresión por HTTP. |
+| 12 | Corregido. Importar y pegar usan el catálogo guardado más reciente. |
+| 13 | Corregido. Una celda de catálogo vacía no muestra la opción anterior. |
+| 14 | Corregido. La etiqueta de un valor fijo se resuelve por id (`GET items?ids=`), también en solo lectura y en la revisión de un conflicto, con «…» mientras carga y «Valor no disponible» si no es una opción. |
+| 15 | Corregido. Los filtros y «Propio de esta pregunta» se ofrecen solo con catálogos Manual. |
+| 16 | Corregido. El aviso de títulos de la pregunta lo calcula el servidor (`POST /api/forms/catalogs/{id}/presentation-checks`) sobre todas las opciones activas, en cada idioma del catálogo. |
+| 17 | Corregido. La lista del desplegable de una celda se dibuja en un portal; verificada en las visuales y en el navegador. |
+| 18 | Corregido. Con filtros fijos y sin filtros por persona, un máximo de más de 20 en «elegir varias» vuelve a frenar publicar con `CatalogTooLargeForMultiple`. |
+| 19 | Corregido. Un valor fijo sobre un campo de catálogo tiene que ser una opción activa de su fuente (`MatchValueUnavailable`), al publicar y en el máximo del editor. |
+| 20 | Corregido. «Como si lo recibiera» exige también `formcatalogs.read`, en el back y en el front. |
+| 21 | Corregido. Las sugerencias pasan `includeCatalogFields: false`. |
+| 22 | Corregido en parte, como se explica arriba. Bajar `maxLength`, cambiar `min` o `max`, activar «único» o reactivar un campo acumulan los valores incompatibles con conteo y filas en su control, también en un campo inactivo y junto con un cambio de tipo. |
+| 23 | Corregido. El chequeo de presentación se calcula en cada idioma del catálogo, con títulos de 30 y descripciones de 300. |
+| 24 | Corregido. Los lectores pasan a `ListCatalogFieldValuesAsync` y `ListFieldUsageAsync`, `PersistenceNamingTests` detecta el desvío, y la receta de un área lo dice. |
+| 25 | Corregido. «En uso» dice si es el borrador o la versión activa, no muestra el uso propio como un formulario y suma «Ir a la pregunta» de CE1 (`questionId`). |
+| 26 | Corregido. La carga y el error de una persona se ven en el diálogo, incluido el 403. La tabla se actualiza al cerrar el editor, y un 409 permite «Volver a cargar el dato», con espera y error propios. |
+| 27 | Corregido. `required && isActive` es igual en la página y en el hook; una opción inactiva no marca sus campos como obligatorios. |
+| 28 | Corregido. «Como si lo recibiera» se puede reintentar, respeta la espera de un 429 y no vuelve a pedir solo al recuperar el foco. |
+| 29 | Corregido. Los avisos de publicar son una unión discriminada por `code`, los guards no aceptan null ni topes que el contrato no manda, y las cantidades usan `_one`/`_other`. |
+| 30 | Corregido. Las flechas mueven solo entre campos activos. |
+| 31 | Corregido. Hay una sola pieza de formato por tipo en la tabla, la importación, el resumen, las respuestas, WhatsApp y las líneas de error. |
+| 32 | Corregido. CE1: columna «#», detalle del tipo y «y sus N valores». CE2: línea de error con valor y motivo, indicación de más columnas y ayudas en el celular. CE3-B: los campos de «Como en el catálogo». CE4-A: «Como mucho N por persona» y «Todos ven las mismas N», «N personas · M sin <dato>» y el bloqueo del chat con la persona y el dato. CE5: «Columnas · N ocultas». |
+| 33 | Corregido. Con PostgreSQL: quitar un campo en uso en el borrador y en la versión activa, `PersonAttribute.InUse` con borrador y con versión activa, y el asistente con una persona sin el dato. `FieldInUse` y los usos `Draft` y `Active` están exportados y los consume el front, igual que el formato canónico con cultura al importar por HTTP. |
+| 34 | Corregido. El front lee los estados en minúsculas, con tipos, claves es/en y dobles realistas. Los ejemplos HTTP reales del asistente (bootstrap, enviar, turno, turnos y cancelar) se exportan y se validan con zod estricto. |
+| 35 | Corregido. Catálogos (nombre, descripción y opciones), campos y datos de las personas guardan su idioma original, el del menú al crear, que es el único obligatorio. No hay selector «Textos en» ni pares de campos por idioma; con el menú en el otro idioma, el original se muestra como referencia sin copiarlo. Los respaldos ya no suponen el español, tampoco en WhatsApp ni en la planilla. Reglas en `formularios.md` y en el diseño del front. |
+| 36 | Corregido. «Agregar opción» no marca nada en rojo: un vacío se marca al intentar guardar o al salir de un campo tocado, y el código repetido y el valor inválido siguen al escribir. |
+| 37 | Corregido. Las acciones de «Opciones» van al margen derecho, a la altura del título, y el motivo de un deshabilitado es una ayuda (`DisabledReason`) con mouse, foco y lector de pantalla. |
+| 38 | Corregido en todo el front. Botones sin textos al lado ni debajo y sin cambios de forma; sin «Cambios sin guardar» ni números de revisión fuera de los historiales; acciones al borde derecho; validación al intentar guardar. Las esperas de un 429 son el motivo del control, salvo las que las guías nombran (ingreso público, Inicio y Formularios que faltan). |
+| 39 | Corregido. «El catálogo» tiene solo Nombre y Descripción (opcional en back y front), con la línea de solo lectura «Escritas a mano · Texto» arriba de Nombre. |
+| 40 | Corregido. El estado podía darse con valores guardados antes de un cambio de fuente: la captura deja ese campo fuera del sello, como un campo sin valor, en lugar de responder 500. |
+| 41 | Corregido. El formulario y los catálogos (Manual y de Filtros) conservan el borrador al cambiar el idioma del menú y muestran la otra traducción. El diseño del PDF todavía se reinicia y conserva el aviso de salida. |
+| 42 | Corregido. El front ya mandaba `confirmValueRemoval` y aceptaba `questionId`; la exportación regeneró `fields-conversion-error` con sus filas. |
+| «En uso» de los datos de las personas | Corregido con el criterio del punto 11: los nombres de los formularios solo con `formtemplates.read`; sin él, «En uso en N formularios». Regresiones de servicio, guard y pantalla. |
+| FX01 | Revisado contra su brief: los commits cumplen y cada hallazgo tiene su regresión. |
+| FX02 a FX06 | Corregidos. Se reprodujeron todos los hallazgos, y cada uno tiene su regresión y su commit. |
+
+## Corrida final
+
+**Backend** sobre `34e48bee`:
+- build de la solución con **0 advertencias y 0 errores**;
+- `dotnet test` completo con PostgreSQL y Redis en Docker: **6.498 de 6.498**, sin fallos ni omitidos;
+- la exportación `20261025-233355-14e4887e74f04628a4ea0748e3e0c988` copió al front **23 cohortes** de esa misma corrida, sin editarlas, y quedaron commiteadas en `f330793f`.
+
+**Front** sobre `0cf7aced`:
+- **3.494 tests en 321 archivos**, en verde;
+- `npm run lint` limpio, con los **51 controles de arquitectura**;
+- `npm run build` sin advertencias;
+- visuales **741 de 741**, sin diferencias contra las referencias;
+- los consumidores de las cohortes validan con zod estricto los cuerpos reales, incluidos FieldInUse con sus usos Draft/Active y los ejemplos del asistente de Inicio (bootstrap, enviar, turno, turnos y cancelar).
+
+**Recorrido en el navegador** con la app real:
+- La app se levantó con `aspire run` (CLI 13.5.4). La Api usó el correo en carpeta local (`Email__Delivery=PickupDirectory`, solo para esa corrida) para ingresar con un código.
+- Se recorrió en es y en, a 390 y 320 px, y a lo ancho para la tabla ancha:
+  - **Chat de Inicio:** «¿Qué roles hay?» devolvió una respuesta real y verificada, sin claves sin traducir y sin scroll horizontal, en los dos idiomas.
+  - **Catálogo en español:**
+    - el alta mostró «Escritas a mano · Texto», Nombre y Descripción opcional;
+    - agregar una opción no marcó nada en rojo;
+    - un texto vacío se marcó recién al guardar, con el foco y a la vista.
+  - **Traducción:** con una descripción sin guardar, cambiar el menú a inglés la conservó como «Original (Spanish)». Se tradujeron el nombre, la descripción y las opciones, y se guardó; en español sigue el original.
+  - **Baja en la fuente:** «Proveedores recorrido E2» tiene el campo Zona, de «Zonas recorrido E2». Después de dar de baja «Norte» en la fuente, Proveedores se editó y se guardó, y conserva «Norte».
+  - **Tabla ancha:** el desplegable de la celda se abrió en un portal, hacia arriba en la última fila, sin recortarse. Las acciones de «Opciones» quedaron alineadas a la derecha.
+  - **Reglas y sugerencias:**
+    - sin «Cambios sin guardar» ni revisiones fuera de los historiales, con las acciones a la derecha;
+    - agregar una regla y una acción vacía no marcó nada hasta intentar guardar («Completá este dato.»);
+    - el borrador de reglas siguió después de cambiar el idioma.
+- Al terminar se volvió el idioma de la cuenta a español. `aspire stop` confirmó que no queda ningún AppHost corriendo.
+
+## Queda para después
+
+Además de lo de «Después, sin bloquear»:
+- **El editor del formulario se reinicia y pierde lo escrito** si se cambia el idioma del menú dos veces seguidas antes de que llegue el detalle.
+- **En un catálogo nuevo sin guardar**, el original sigue al idioma del menú hasta guardar.
+- **Los nombres de «En uso»** quedan en el idioma anterior hasta guardar.
+- **El diseño del PDF** no conserva el borrador al cambiar el idioma: lo protege el aviso de salida.
+- **La clave vacía de un campo nuevo** se marca al guardar con el texto general «Revisá los datos del catálogo.», en lugar de uno propio del campo.
+- **El piloto único con Meta** sigue pendiente, con el `CheckboxGroup` vacío sumado a su lista. No se inició.
