@@ -23,6 +23,7 @@
   <data name="RuleValueDecimal" xml:space="preserve"><value>Decimal exacto, hasta 28 decimales. Ejemplo: 1500.25.</value></data>
   <data name="RuleValueDate" xml:space="preserve"><value>Fecha AAAA-MM-DD. Ejemplo: 2026-10-08.</value></data>
   <data name="Sheet" xml:space="preserve"><value>Opciones</value></data>
+  <data name="TemplateFileName" xml:space="preserve"><value>{0} - plantilla</value></data>
   <data name="Yes" xml:space="preserve"><value>Sí</value></data>
   <data name="No" xml:space="preserve"><value>No</value></data>
   <data name="HeaderCanonicalValueInteger" xml:space="preserve"><value>Valor canónico (entero)</value></data>

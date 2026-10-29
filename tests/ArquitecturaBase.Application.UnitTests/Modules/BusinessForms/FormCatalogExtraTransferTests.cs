@@ -42,8 +42,10 @@ public sealed class FormCatalogExtraTransferTests
 
             Assert.True(result.IsSuccess);
             var workbook = writer.Request!;
-            Assert.Equal(9, workbook.Headers.Count);
-            Assert.Equal(["0.001", "123456789012345678", "=2+2"], Assert.Single(workbook.Rows).Skip(6).Select(cell => cell.Value));
+            // The catalog is Spanish, so the English columns appear only with the menu in English.
+            var fixedColumns = culture == "es" ? 4 : 6;
+            Assert.Equal(fixedColumns + 3, workbook.Headers.Count);
+            Assert.Equal(["0.001", "123456789012345678", "=2+2"], Assert.Single(workbook.Rows).Skip(fixedColumns).Select(cell => cell.Value));
             Assert.All(workbook.Rows.SelectMany(row => row), cell => Assert.Equal("text", cell.Kind));
             var sheet = new FormSpreadsheet("Export.xlsx", new('f', 64),
                 new[] { new FormSpreadsheetRow(1, workbook.Headers.Select(header => new FormSpreadsheetCell(header)).ToArray()) }

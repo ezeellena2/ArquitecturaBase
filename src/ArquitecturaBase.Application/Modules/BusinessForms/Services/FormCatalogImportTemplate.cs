@@ -8,20 +8,21 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
 internal static class FormCatalogImportTemplate
 {
-    // «Texto» and «Detalle» are the catalog's original; the other language has its own optional translation column.
+    // «Texto» and «Detalle» are the catalog's original; the other language has its own optional translation column,
+    // which `translation: false` leaves out (an absent column keeps the translation on import).
     public static IReadOnlyList<FormCatalogImportTemplateColumn> Columns(BusinessFormCatalogValueType valueType, string culture,
-        string originalCulture, bool canonicalValue = false, IReadOnlyList<BusinessFormCatalogField>? fields = null)
+        string originalCulture, bool canonicalValue = false, IReadOnlyList<BusinessFormCatalogField>? fields = null, bool translation = true)
     {
-        var translation = TranslationSuffix(originalCulture);
+        var suffix = TranslationSuffix(originalCulture);
         var columns = new List<FormCatalogImportTemplateColumn>
         {
             new("code", FormCatalogTexts.Get("HeaderCode", culture), ""),
             new("text", FormCatalogTexts.Get("HeaderText", culture), FormCatalogTexts.Get("RuleText", culture)),
-            new("text" + translation, FormCatalogTexts.Get("HeaderText" + translation, culture), FormCatalogTexts.Get("RuleTextEn", culture)),
-            new("detail", FormCatalogTexts.Get("HeaderDetail", culture), FormCatalogTexts.Get("RuleDetail", culture)),
-            new("detail" + translation, FormCatalogTexts.Get("HeaderDetail" + translation, culture), FormCatalogTexts.Get("RuleDetail", culture)),
-            new("active", FormCatalogTexts.Get("HeaderActive", culture), FormCatalogTexts.Get("RuleActive", culture)),
         };
+        if (translation) columns.Add(new("text" + suffix, FormCatalogTexts.Get("HeaderText" + suffix, culture), FormCatalogTexts.Get("RuleTextEn", culture)));
+        columns.Add(new("detail", FormCatalogTexts.Get("HeaderDetail", culture), FormCatalogTexts.Get("RuleDetail", culture)));
+        if (translation) columns.Add(new("detail" + suffix, FormCatalogTexts.Get("HeaderDetail" + suffix, culture), FormCatalogTexts.Get("RuleDetail", culture)));
+        columns.Add(new("active", FormCatalogTexts.Get("HeaderActive", culture), FormCatalogTexts.Get("RuleActive", culture)));
         if (valueType != BusinessFormCatalogValueType.Text)
             columns.Add(new("value", ValueHeader(valueType, culture, canonicalValue), FormCatalogTexts.Get("RuleValue" + valueType, culture)));
         foreach (var field in (fields ?? []).Where(field => field.IsActive).OrderBy(field => field.Position))

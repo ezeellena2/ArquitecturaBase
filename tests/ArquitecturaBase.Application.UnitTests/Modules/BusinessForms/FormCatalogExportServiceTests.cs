@@ -32,15 +32,18 @@ public sealed class FormCatalogExportServiceTests
 
         Assert.True(result.IsSuccess);
         var workbook = fixture.Writer.Request!;
-        Assert.Equal(7, workbook.Headers.Count);
-        Assert.Equal(culture == "es" ? "Código" : "Code", workbook.Headers[0]);
-        var valueType = culture == "es" ? type switch { "Integer" => "entero", "Date" => "fecha", _ => "decimal" } : type.ToLowerInvariant();
-        Assert.Equal((culture == "es" ? "Valor canónico (" : "Canonical value (") + valueType + ")", workbook.Headers[6]);
+        // The catalog is Spanish: with the menu in Spanish the English columns stay out, and reimporting keeps them.
+        var spanish = culture == "es";
+        Assert.Equal(spanish ? 5 : 7, workbook.Headers.Count);
+        Assert.Equal(spanish ? "Código" : "Code", workbook.Headers[0]);
+        var valueType = spanish ? type switch { "Integer" => "entero", "Date" => "fecha", _ => "decimal" } : type.ToLowerInvariant();
+        Assert.Equal((spanish ? "Valor canónico (" : "Canonical value (") + valueType + ")", workbook.Headers[^1]);
         Assert.Equal(2, workbook.Rows.Count);
         Assert.All(workbook.Rows.SelectMany(row => row), cell => Assert.Equal("text", cell.Kind));
-        Assert.Equal(["=SUM(A1)", "=2+2", "English", "Detalle", "Detail", culture == "es" ? "Sí" : "Yes", value], workbook.Rows[0].Select(cell => cell.Value));
-        Assert.Equal("No", workbook.Rows[1][5].Value);
-        Assert.Equal(secondValue, workbook.Rows[1][6].Value);
+        Assert.Equal(spanish ? new object?[] { "=SUM(A1)", "=2+2", "Detalle", "Sí", value }
+            : new object?[] { "=SUM(A1)", "=2+2", "English", "Detalle", "Detail", "Yes", value }, workbook.Rows[0].Select(cell => cell.Value));
+        Assert.Equal("No", workbook.Rows[1][^2].Value);
+        Assert.Equal(secondValue, workbook.Rows[1][^1].Value);
         Assert.Equal(1, fixture.Reader.DefinitionReads);
         Assert.Equal(1, fixture.Reader.AllItemsReads);
         Assert.EndsWith(".xlsx", result.Value.FileName, StringComparison.Ordinal);
@@ -58,13 +61,14 @@ public sealed class FormCatalogExportServiceTests
     }
 
     [Theory]
-    [InlineData("es", BusinessFormCatalogValueType.Text, 6)]
+    [InlineData("es", BusinessFormCatalogValueType.Text, 4)]
     [InlineData("en", BusinessFormCatalogValueType.Text, 6)]
-    [InlineData("es", BusinessFormCatalogValueType.Integer, 7)]
+    [InlineData("es", BusinessFormCatalogValueType.Integer, 5)]
     [InlineData("en", BusinessFormCatalogValueType.Integer, 7)]
-    [InlineData("es", BusinessFormCatalogValueType.Decimal, 7)]
+    [InlineData("es", BusinessFormCatalogValueType.Decimal, 5)]
     [InlineData("en", BusinessFormCatalogValueType.Date, 7)]
-    public async Task Template_has_only_the_localized_rules_row_without_fictitious_options(string culture, BusinessFormCatalogValueType type, int count)
+    public async Task Template_has_only_the_localized_rules_row_and_translation_columns_only_for_the_other_language(string culture,
+        BusinessFormCatalogValueType type, int count)
     {
         using var scope = new CultureScope(culture);
         var fixture = Create(); fixture.Reader.Catalog = fixture.Reader.Catalog! with { ValueType = type.ToString() };
@@ -72,9 +76,10 @@ public sealed class FormCatalogExportServiceTests
         var result = await fixture.Service.ExportAsync(fixture.Reader.Catalog.Id, true, Ct);
 
         Assert.True(result.IsSuccess);
-        var columns = FormCatalogImportTemplate.Columns(type, culture, "es");
+        string[] keys = culture == "es" ? ["code", "text", "detail", "active"] : ["code", "text", "textEn", "detail", "detailEn", "active"];
+        var columns = FormCatalogImportTemplate.Columns(type, culture, "es", translation: culture == "en");
         Assert.Equal(count, columns.Count);
-        Assert.Equal(new[] { "code", "text", "textEn", "detail", "detailEn", "active" }, columns.Take(6).Select(column => column.Key));
+        Assert.Equal(keys, columns.Take(keys.Length).Select(column => column.Key));
         Assert.Equal(columns.Select(column => column.Header), fixture.Writer.Request!.Headers);
         var row = Assert.Single(fixture.Writer.Request.Rows);
         Assert.Equal(columns.Select(column => column.Rule), row.Select(cell => cell.Value));
@@ -86,7 +91,7 @@ public sealed class FormCatalogExportServiceTests
     [Theory]
     [InlineData("es")]
     [InlineData("en")]
-    public async Task Exporting_an_English_original_catalog_writes_its_original_text_and_Spanish_translation_columns(string culture)
+    public async Task Exporting_an_English_original_catalog_writes_the_Spanish_translation_only_with_the_menu_in_Spanish(string culture)
     {
         using var scope = new CultureScope(culture);
         var fixture = Create();
@@ -99,11 +104,51 @@ public sealed class FormCatalogExportServiceTests
 
         Assert.True(result.IsSuccess);
         var workbook = fixture.Writer.Request!;
-        Assert.Equal(culture == "es" ? ["Código", "Texto", "Texto en español", "Detalle", "Detalle en español", "Activa"]
-            : ["Code", "Text", "Spanish text", "Detail", "Spanish detail", "Active"], workbook.Headers);
-        Assert.Equal(new object?[] { "N", "North", "Norte", "North detail", "Detalle norte", culture == "es" ? "Sí" : "Yes" },
-            workbook.Rows[0].Select(cell => cell.Value));
-        Assert.Equal(new object?[] { "E", "East", null, null, null, "No" }, workbook.Rows[1].Select(cell => cell.Value));
+        if (culture == "es")
+        {
+            Assert.Equal(["Código", "Texto", "Texto en español", "Detalle", "Detalle en español", "Activa"], workbook.Headers);
+            Assert.Equal(new object?[] { "N", "North", "Norte", "North detail", "Detalle norte", "Sí" }, workbook.Rows[0].Select(cell => cell.Value));
+            Assert.Equal(new object?[] { "E", "East", null, null, null, "No" }, workbook.Rows[1].Select(cell => cell.Value));
+        }
+        else
+        {
+            Assert.Equal(["Code", "Text", "Detail", "Active"], workbook.Headers);
+            Assert.Equal(new object?[] { "N", "North", "North detail", "Yes" }, workbook.Rows[0].Select(cell => cell.Value));
+            Assert.Equal(new object?[] { "E", "East", null, "No" }, workbook.Rows[1].Select(cell => cell.Value));
+        }
+    }
+
+    [Theory]
+    [InlineData("es", false, "Artículos.xlsx")]
+    [InlineData("en", false, "Articles.xlsx")]
+    [InlineData("es", true, "Artículos - plantilla.xlsx")]
+    [InlineData("en", true, "Articles - template.xlsx")]
+    public async Task The_file_is_named_after_the_catalog_in_the_menu_language(string culture, bool template, string expected)
+    {
+        using var scope = new CultureScope(culture);
+        var fixture = Create();
+        fixture.Reader.Catalog = fixture.Reader.Catalog! with { NameJson = """{"es":"Artículos","en":"Articles"}""" };
+
+        var result = await fixture.Service.ExportAsync(fixture.Reader.Catalog.Id, template, Ct);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(expected, result.Value.FileName);
+    }
+
+    [Theory]
+    [InlineData("en", """{"es":"Rubros"}""", "Rubros.xlsx")]
+    [InlineData("es", """{"es":"Lotes 2025/26"}""", "Lotes 2025-26.xlsx")]
+    public async Task The_file_name_falls_back_to_the_other_language_and_replaces_characters_a_file_cannot_have(string culture,
+        string name, string expected)
+    {
+        using var scope = new CultureScope(culture);
+        var fixture = Create();
+        fixture.Reader.Catalog = fixture.Reader.Catalog! with { NameJson = name };
+
+        var result = await fixture.Service.ExportAsync(fixture.Reader.Catalog.Id, false, Ct);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(expected, result.Value.FileName);
     }
 
     [Theory]

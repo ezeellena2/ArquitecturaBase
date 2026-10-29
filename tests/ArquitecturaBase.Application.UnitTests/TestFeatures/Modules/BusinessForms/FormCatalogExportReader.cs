@@ -6,7 +6,7 @@ namespace ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessFo
 
 internal sealed class FormCatalogExportReader : IFormCatalogReader
 {
-    public FormCatalogStoredRow? Catalog { get; set; } = new(Guid.NewGuid(), "catalog-test", "{}", "{}", "es", "Manual", 3,
+    public FormCatalogStoredRow? Catalog { get; set; } = new(Guid.NewGuid(), "catalog-test", """{"es":"Catálogo de prueba"}""", "{}", "es", "Manual", 3,
         true, default, null, null, null, 0);
     public IReadOnlyList<FormCatalogStoredItemRow> Items { get; set; } = [];
     public int DefinitionReads { get; private set; }

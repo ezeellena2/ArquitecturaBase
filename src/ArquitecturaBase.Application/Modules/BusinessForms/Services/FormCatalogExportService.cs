@@ -23,8 +23,9 @@ internal sealed class FormCatalogExportService(IFormCatalogReader reader, IFormW
         if (catalog.Kind != "Manual") return FormCatalogErrors.ManualItemsUnavailable;
         var culture = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es";
         var fields = FormCatalogFieldPolicy.ReadFields(catalog.FieldsJson);
+        // With the menu in the catalog's original language there are no translation columns: reimporting keeps them.
         var columns = FormCatalogImportTemplate.Columns(Enum.Parse<BusinessFormCatalogValueType>(catalog.ValueType), culture,
-            catalog.OriginalCulture, canonicalValue: !template, fields: fields);
+            catalog.OriginalCulture, canonicalValue: !template, fields: fields, translation: culture != catalog.OriginalCulture);
         IReadOnlyList<IReadOnlyList<FormWorkbookCell>> rows;
         if (template) rows = [columns.Select(column => new FormWorkbookCell("text", column.Rule)).ToArray()];
         else
@@ -50,6 +51,16 @@ internal sealed class FormCatalogExportService(IFormCatalogReader reader, IFormW
         cancellationToken.ThrowIfCancellationRequested();
         if (!await access.HasPermissionAsync(actor.Value, BusinessFormsPermissions.CatalogsRead, cancellationToken))
             return FormDefinitionErrors.Forbidden;
-        return new FormExportResponse(bytes, catalog.Key + (template ? "-template" : "") + ".xlsx");
+        return new FormExportResponse(bytes, FileName(catalog, culture, template));
+    }
+
+    // The catalog's name in the menu's language (or the other one), without the characters a file name cannot have.
+    private static string FileName(FormCatalogStoredRow catalog, string culture, bool template)
+    {
+        var name = FormRecordPresentationPolicy.Text(FormDraftPolicy.Read<Dictionary<string, string>>(catalog.NameJson), culture);
+        if (template) name = string.Format(CultureInfo.InvariantCulture, FormCatalogTexts.Get("TemplateFileName", culture), name);
+        var clean = new string(name.Select(character => char.IsControl(character) || "<>:\"/\\|?*".Contains(character) ? '-' : character)
+            .ToArray()).Trim(' ', '.');
+        return (clean.Length == 0 ? catalog.Key : clean) + ".xlsx";
     }
 }

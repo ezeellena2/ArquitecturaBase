@@ -70,10 +70,18 @@ public sealed partial class FormCatalogEndpointsTests
         using var exported = await client.GetAsync($"/api/forms/catalogs/{id}/export", Ct);
         Assert.Equal(HttpStatusCode.OK, exported.StatusCode);
         Assert.True(exported.Headers.CacheControl!.NoStore); Assert.Equal("nosniff", Assert.Single(exported.Headers.GetValues("X-Content-Type-Options")));
+        // The file carries the catalog's name, and with the menu in the original language there are no translation columns.
+        var catalogName = culture == "es" ? texts.es : texts.en;
+        Assert.Equal(catalogName + ".xlsx", exported.Content.Headers.ContentDisposition!.FileNameStar);
         await FormCatalogImportContractCapture.WriteAsync(exported, culture, "export", Ct, true);
         var workbookBytes = await exported.Content.ReadAsByteArrayAsync(Ct);
         using (var stream = new MemoryStream(workbookBytes))
-        using (var workbook = new XLWorkbook(stream)) Assert.Equal(6, workbook.Worksheet(1).LastRowUsed()!.RowNumber());
+        using (var workbook = new XLWorkbook(stream))
+        {
+            Assert.Equal(6, workbook.Worksheet(1).LastRowUsed()!.RowNumber());
+            Assert.Equal(culture == "es" ? ["Código", "Texto", "Detalle", "Activa"] : ["Code", "Text", "Detail", "Active"],
+                workbook.Worksheet(1).Row(1).CellsUsed().Select(cell => cell.GetString()));
+        }
         using var roundTripBody = CatalogImportContent(workbookBytes, "export.xlsx", 2);
         using var roundTrip = await client.PostAsync($"/api/forms/catalogs/{id}/import-previews", roundTripBody, Ct);
         Assert.Equal(HttpStatusCode.OK, roundTrip.StatusCode);
@@ -83,6 +91,7 @@ public sealed partial class FormCatalogEndpointsTests
         await FormCatalogImportContractCapture.WriteAsync(roundTrip, culture, "round-trip-preview", Ct);
         using var template = await client.GetAsync($"/api/forms/catalogs/{id}/export?template=true", Ct);
         Assert.Equal(HttpStatusCode.OK, template.StatusCode);
+        Assert.Equal(catalogName + (culture == "es" ? " - plantilla" : " - template") + ".xlsx", template.Content.Headers.ContentDisposition!.FileNameStar);
         await FormCatalogImportContractCapture.WriteAsync(template, culture, "template", Ct, true);
         using var emptyBody = CatalogImportContent(await template.Content.ReadAsByteArrayAsync(Ct), "template.xlsx", 2);
         using var empty = await client.PostAsync($"/api/forms/catalogs/{id}/import-previews", emptyBody, Ct);

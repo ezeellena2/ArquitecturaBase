@@ -23,6 +23,7 @@
   <data name="RuleValueDecimal" xml:space="preserve"><value>Exact decimal, up to 28 decimal places. Example: 1500.25.</value></data>
   <data name="RuleValueDate" xml:space="preserve"><value>Date YYYY-MM-DD. Example: 2026-10-08.</value></data>
   <data name="Sheet" xml:space="preserve"><value>Options</value></data>
+  <data name="TemplateFileName" xml:space="preserve"><value>{0} - template</value></data>
   <data name="Yes" xml:space="preserve"><value>Yes</value></data>
   <data name="No" xml:space="preserve"><value>No</value></data>
   <data name="HeaderCanonicalValueInteger" xml:space="preserve"><value>Canonical value (integer)</value></data>
