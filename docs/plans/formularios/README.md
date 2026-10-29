@@ -11,7 +11,7 @@ Estado al `2026-10-23`. Las reglas implementadas están en [formularios](../../f
 | 4 · Reglas, aprobación, PDF y avisos | [Reglas y verificación local](../../features/formularios.md#verificación-de-la-etapa-4--2026-10-16) | Verificada localmente y en el [piloto total con Meta y Azure](../verificacion-y-produccion.md#formularios-piloto-total-con-proveedores-reales--2026-10-20), incluidos inglés completo y P24. |
 | 5 · Asistente, sugerencias y audios | [Reglas y cierre local](../../features/formularios.md#cierre-local-de-la-etapa-5-y-del-review-de-la-etapa-4) | Implementada y verificada localmente con [calificación OpenAI](../../guides/configurar-ia.md#evidencia-para-habilitar-perfiles); [piloto físico completado con texto, audio, revisión Manual y continuación tras responder](../verificacion-y-produccion.md#formularios-piloto-total-con-proveedores-reales--2026-10-20). La regla de publicación vigente es [original obligatorio y traducción opcional](../../features/formularios.md#idioma-original-y-traducción-opcional--2026-10-19) |
 
-La carga de respuestas desde la web tiene su [propuesta con tableros](../2026-10-29-cargar-formularios-desde-la-app.md), que espera las decisiones del usuario; la importación de respuestas desde Excel sigue pendiente. La importación de catálogos está implementada en E1.
+La carga de respuestas desde la web tiene su [propuesta con tableros](../2026-10-29-cargar-formularios-desde-la-app.md), con las decisiones del usuario del 2026-10-29 y tres etapas por programar; la importación de respuestas desde Excel sigue pendiente. La importación de catálogos está implementada en E1.
 
 ## Después de la Etapa 5
 
