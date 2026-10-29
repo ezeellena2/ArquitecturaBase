@@ -11,4 +11,5 @@ internal sealed class FormCatalogActivationRepository(BusinessFormCatalog catalo
     public Task<List<BusinessFormCatalogItem>> ListItemsAsync(Guid id, CancellationToken ct) => Task.FromResult(new List<BusinessFormCatalogItem>());
     public void Add(BusinessFormCatalog value) => throw new NotSupportedException();
     public void AddItems(IEnumerable<BusinessFormCatalogItem> items) { }
+    public void RemoveItems(IEnumerable<BusinessFormCatalogItem> items) => throw new NotSupportedException();
 }

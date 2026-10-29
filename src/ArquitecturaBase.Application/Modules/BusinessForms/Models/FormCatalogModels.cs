@@ -45,7 +45,7 @@ public sealed record UpdateManualCatalogRequest(
     IReadOnlyDictionary<string, string?>? Description,
     IReadOnlyList<FormCatalogManualItemSaveRequest?>? Items,
     IReadOnlyList<FormCatalogManualItemMoveRequest?>? Moves = null, bool? IsActive = null, bool SortAlphabetically = false, IReadOnlyList<FormCatalogFieldSaveRequest?>? Fields = null,
-    FormCatalogPresentation? Presentation = null, IReadOnlyList<Guid>? ConfirmFieldRemovals = null);
+    FormCatalogPresentation? Presentation = null, IReadOnlyList<Guid>? ConfirmFieldRemovals = null, IReadOnlyList<Guid>? DeleteItemIds = null);
 
 public sealed record FormCatalogManualItemMoveRequest(Guid? ItemId, string? Direction);
 

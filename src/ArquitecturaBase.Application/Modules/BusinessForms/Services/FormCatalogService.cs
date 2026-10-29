@@ -124,15 +124,39 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
         if (original.IsFailure) return original.Error;
         if (request.IsActive == false && catalog.IsActive && await reader.ExistsSourceUsageAsync(id, ct)) return FormCatalogErrors.SourceInUse;
         var storedItems = await repository.ListItemsAsync(id, ct);
-        var fields = await fieldRecorder.PrepareAsync(catalog, storedItems, request.Fields, request.Presentation, request.ConfirmFieldRemovals, canReadForms, ct);
+        var deletion = await CheckDeletionAsync(id, storedItems, request, ct);
+        if (deletion.IsFailure) return deletion.Error;
+        // The fields are checked against the options that stay: a deleted one does not need to convert or be unique.
+        var keptItems = storedItems.Where(item => request.DeleteItemIds?.Contains(item.Id) != true).ToList();
+        var fields = await fieldRecorder.PrepareAsync(catalog, keptItems, request.Fields, request.Presentation, request.ConfirmFieldRemovals, canReadForms, ct);
         if (fields.IsFailure) return fields.Error;
-        var recorded = recorder.Record(catalog, storedItems, request.Items!, request.Moves, request.SortAlphabetically, fields.Value.Context);
+        var recorded = recorder.Record(catalog, storedItems, request.Items!, request.Moves, request.SortAlphabetically, fields.Value.Context, request.DeleteItemIds);
         if (recorded.IsFailure) return recorded.Error;
         var updated = catalog.UpdateManual(request.ExpectedRevision!.Value, FormCatalogProposalPolicy.Texts(request.Name), FormCatalogProposalPolicy.Texts(request.Description), request.IsActive);
         if (updated.IsFailure) return updated.Error;
         var detail = await FormCatalogFieldPresentation.DescribeAsync(Map(catalog, recorded.Value.Items.Count), catalog.FieldsJson,
             catalog.PresentationJson, FormCatalogFieldPresentation.ToRows(recorded.Value.Items), reader, canReadForms, ct, fields.Value.Context.Sources);
         return new FormCatalogSaveResponse(detail, recorded.Value.IdentityMap, fields.Value.IdentityMap);
+    }
+
+    // Only an option nothing uses is deleted: no response chose it, no option's field or person's data holds it and no filter
+    // or condition of a form names it. Otherwise it can only be deactivated. Read under the catalog lock.
+    private async Task<Result> CheckDeletionAsync(Guid id, IReadOnlyList<BusinessFormCatalogItem> storedItems, UpdateManualCatalogRequest request,
+        CancellationToken ct)
+    {
+        var deletions = request.DeleteItemIds ?? [];
+        if (deletions.Count == 0) return Result.Success();
+        if (deletions.Any(itemId => storedItems.All(item => item.Id != itemId))) return FormCatalogErrors.ItemNotFound;
+        var touched = request.Items!.Where(item => item?.ItemId is not null).Select(item => item!.ItemId!.Value)
+            .Concat(request.Moves?.Where(move => move?.ItemId is not null).Select(move => move!.ItemId!.Value) ?? []).ToHashSet();
+        for (var index = 0; index < deletions.Count; index++)
+            if (touched.Contains(deletions[index])) return FieldErrors.On(FormCatalogErrors.ContentInvalid, $"deleteItemIds[{index}]");
+        var uses = (await reader.ListItemUsesAsync(id, deletions, ct)).ToLookup(use => use.ItemId, use => use.Kind);
+        for (var index = 0; index < deletions.Count; index++)
+            if (uses[deletions[index]].Any())
+                return FieldErrors.OnWithMetadata(FormCatalogErrors.FieldDetails(FormCatalogErrors.ItemInUse,
+                    new Dictionary<string, object?> { ["uses"] = uses[deletions[index]].Distinct().ToArray() }), $"deleteItemIds[{index}]");
+        return Result.Success();
     }
 
     private async Task LockCatalogsAsync(Guid id, IReadOnlyList<FormCatalogFieldSaveRequest?>? fields, CancellationToken ct)

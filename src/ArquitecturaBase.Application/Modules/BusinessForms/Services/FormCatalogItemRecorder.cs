@@ -12,15 +12,24 @@ internal sealed class FormCatalogItemRecorder(IFormCatalogRepository repository)
 {
     public Result<FormCatalogItemsRecorded> Record(BusinessFormCatalog catalog,
         IReadOnlyList<BusinessFormCatalogItem> storedItems, IReadOnlyList<FormCatalogManualItemSaveRequest?> inputs,
-        IReadOnlyList<FormCatalogManualItemMoveRequest?>? moves = null, bool sortAlphabetically = false, FormCatalogFieldContext? fieldContext = null)
+        IReadOnlyList<FormCatalogManualItemMoveRequest?>? moves = null, bool sortAlphabetically = false, FormCatalogFieldContext? fieldContext = null,
+        IReadOnlyList<Guid>? deleteItemIds = null)
     {
         var byId = storedItems.ToDictionary(item => item.Id);
         var requestedIds = inputs.Where(item => item!.ItemId.HasValue).Select(item => item!.ItemId!.Value).ToHashSet();
-        if (requestedIds.Any(itemId => !byId.ContainsKey(itemId))) return FormCatalogErrors.ItemNotFound;
+        if (requestedIds.Concat(deleteItemIds ?? []).Any(itemId => !byId.ContainsKey(itemId))) return FormCatalogErrors.ItemNotFound;
+        // A deleted option leaves its code, its place in the 10,000 and its position: the others close the gap.
+        var deletedItems = (deleteItemIds ?? []).Select(itemId => byId[itemId]).ToArray();
+        foreach (var deletedItem in deletedItems)
+        {
+            var removed = catalog.RemoveManualItem(deletedItem);
+            if (removed.IsFailure) return removed.Error;
+        }
+        var keptItems = storedItems.Except(deletedItems).ToArray();
         var addedCount = inputs.Count(item => item!.ItemId is null);
-        if (storedItems.Count + addedCount > BusinessFormCatalog.MaxItems) return FieldErrors.On(FormCatalogErrors.TooManyItems, "items");
+        if (keptItems.Length + addedCount > BusinessFormCatalog.MaxItems) return FieldErrors.On(FormCatalogErrors.TooManyItems, "items");
         var nextPosition = storedItems.Count == 0 ? 1 : storedItems.Max(item => item.Position) + 1;
-        var codes = new HashSet<string>(storedItems.Where(item => !requestedIds.Contains(item.Id))
+        var codes = new HashSet<string>(keptItems.Where(item => !requestedIds.Contains(item.Id))
             .Select(item => item.Code), StringComparer.OrdinalIgnoreCase);
         var addedItems = new List<BusinessFormCatalogItem>();
         var identityMap = new Dictionary<string, Guid>(StringComparer.Ordinal);
@@ -77,14 +86,14 @@ internal sealed class FormCatalogItemRecorder(IFormCatalogRepository repository)
             }
         }
 
-        if (sortAlphabetically || moves is not null)
+        if (sortAlphabetically || moves is not null || deletedItems.Length > 0)
         {
             // A-Z follows the catalog's original text, compared with the rules of that language.
             var orderedItems = sortAlphabetically
-                ? storedItems.Concat(addedItems).OrderBy(item => item.TextFor(catalog.OriginalCulture),
+                ? keptItems.Concat(addedItems).OrderBy(item => item.TextFor(catalog.OriginalCulture),
                         StringComparer.Create(CultureInfo.GetCultureInfo(catalog.OriginalCulture == "en" ? "en-US" : "es-AR"), false))
                     .ThenBy(item => item.Position).ThenBy(item => item.Id).ToList()
-                : storedItems.Concat(addedItems).OrderBy(item => item.Position).ThenBy(item => item.Id).ToList();
+                : keptItems.Concat(addedItems).OrderBy(item => item.Position).ThenBy(item => item.Id).ToList();
             var requestedMoves = moves ?? [];
             for (var moveIndex = 0; moveIndex < requestedMoves.Count; moveIndex++)
             {
@@ -108,7 +117,7 @@ internal sealed class FormCatalogItemRecorder(IFormCatalogRepository repository)
             }
         }
 
-        var allItems = storedItems.Concat(addedItems).ToArray();
+        var allItems = keptItems.Concat(addedItems).ToArray();
         if (fieldContext is { Fields.Count: > 0 })
         {
             var validationInputs = inputs.Select(input => input!.ItemId is null ? input with { ItemId = identityMap[input.LocalId!] } : input).ToArray();
@@ -116,6 +125,7 @@ internal sealed class FormCatalogItemRecorder(IFormCatalogRepository repository)
             if (validated.IsFailure) return validated.Error;
         }
         repository.AddItems(addedItems);
+        if (deletedItems.Length > 0) repository.RemoveItems(deletedItems);
         return new FormCatalogItemsRecorded(identityMap, allItems);
     }
 

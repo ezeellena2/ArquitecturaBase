@@ -112,6 +112,7 @@ internal sealed class FormCatalogImportFixture : IFormCatalogRepository, IFormCa
     }
     public void Add(BusinessFormCatalog catalog) => throw new NotSupportedException();
     public void AddItems(IEnumerable<BusinessFormCatalogItem> items) { Assert.True(Work.InTransaction); Items.AddRange(items); }
+    public void RemoveItems(IEnumerable<BusinessFormCatalogItem> items) => throw new NotSupportedException();
     public Task<FormCatalogStoredRow?> FindAsync(Guid id, CancellationToken ct)
     {
         if (sources.Find(source => source.Id == id) is { } source) return Task.FromResult<FormCatalogStoredRow?>(new(source.Id, source.Key,
@@ -148,6 +149,7 @@ internal sealed class FormCatalogImportFixture : IFormCatalogRepository, IFormCa
     public Task<IReadOnlyList<FormCatalogFieldUsageRow>> ListFieldUsageAsync(Guid catalogId, IReadOnlyCollection<Guid> fieldIds, CancellationToken ct) =>
         Task.FromResult<IReadOnlyList<FormCatalogFieldUsageRow>>(FieldUses.Where(use => fieldIds.Contains(use.FieldId)).ToArray());
     public Task<bool> ExistsSourceUsageAsync(Guid catalogId, CancellationToken ct) => Task.FromResult(false);
+    public Task<IReadOnlyList<FormCatalogItemUsageRow>> ListItemUsesAsync(Guid catalogId, IReadOnlyCollection<Guid> itemIds, CancellationToken ct) => throw new NotSupportedException();
     public Task<FormCatalogMaximumOfferRow> FindMaximumOfferSizeAsync(Guid catalogId, string? fixedContainmentJson,
         IReadOnlyCollection<Guid> personFieldIds, CancellationToken cancellationToken) => throw new NotSupportedException();
 }

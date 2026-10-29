@@ -462,6 +462,12 @@ Las condiciones leen todas las opciones, incluidas las inactivas, en una consult
 
 En el front, reglas y sugerencias comparten el editor de condiciones; la lectura de opciones de una celda y el rango mínimo/máximo tienen una sola implementación. La tabla y los campos de un ítem del catálogo están separados del dueño de borrador, paginado y foco. Estas extracciones conservan el recorrido y los textos actuales. El [cierre local de E1](#verificación-local-de-catálogos-e1--2026-10-22) distingue sus resultados del [piloto físico pendiente](../plans/verificacion-y-produccion.md#formularios-catálogos-e1).
 
+### Eliminar una opción — 2026-10-29
+
+Una opción Manual que nada usa se puede eliminar; si algo la usa, sólo se da de baja. El PUT recibe `deleteItemIds` (hasta 500 identidades distintas, sin vacías) bajo la misma revisión y Guardar que el resto. Bajo el lock del catálogo, cada identidad debe ser una opción del catálogo (si no, `ItemNotFound`) que no se edite ni se mueva en el mismo pedido (`ContentInvalid` en `deleteItemIds[i]`). Después se leen sus usos y la primera opción usada, en el orden del pedido, da 409 `Forms.Catalog.ItemInUse` en `deleteItemIds[i]` con `uses`, en este orden: `records` (una respuesta la eligió), `options` (el campo de una opción la guarda, en cualquier catálogo y aun en un campo inactivo), `people` (el dato de una persona la guarda, también de una cuenta borrada) y `forms` (la nombra un filtro o una condición del borrador, la versión activa, las reglas activas o las sugerencias activas de un formulario no eliminado). Un formulario eliminado o una versión o revisión anterior no la frenan: un envío abierto de una versión vieja ya rechaza una opción que no está activa. Como la identidad es única, la consulta la busca como valor JSON en esas columnas. Nada se guarda si una falla.
+
+Eliminar es un borrado físico: libera el código, el lugar en las 10.000 y su posición, y las demás opciones cierran el hueco en el mismo guardado. Los campos se revisan contra las opciones que quedan, así que una eliminada no necesita convertir ni ser única. La importación no elimina: Reemplazar sigue dando de baja lo que falta.
+
 
 ## Catálogos con tipo de valor — E1-B, 2026-10-22
 

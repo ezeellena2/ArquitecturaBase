@@ -313,6 +313,7 @@
   <data name="Forms.Catalog.TooManyFields" xml:space="preserve"><value>Un catálogo admite hasta 20 campos.</value></data>
   <data name="Forms.Catalog.FieldKeyDuplicate" xml:space="preserve"><value>Ya hay un campo con esa clave.</value></data>
   <data name="Forms.Catalog.FieldInvalid" xml:space="preserve"><value>Revisá el tipo, las reglas y el papel del campo.</value></data>
+  <data name="Forms.Catalog.ItemInUse" xml:space="preserve"><value>La opción está en uso y no se puede eliminar. Podés darla de baja.</value></data>
   <data name="Forms.Catalog.FieldInUse" xml:space="preserve"><value>El campo está en uso. Sacá esos usos para quitarlo o para cambiarle el papel, el tipo o el catálogo.</value></data>
   <data name="Forms.Catalog.FieldRemovalNotConfirmed" xml:space="preserve"><value>Confirmá que querés quitar el campo y sus valores.</value></data>
   <data name="Forms.Catalog.FieldTypeNotConvertible" xml:space="preserve"><value>Hay valores que no se convierten al tipo nuevo.</value></data>

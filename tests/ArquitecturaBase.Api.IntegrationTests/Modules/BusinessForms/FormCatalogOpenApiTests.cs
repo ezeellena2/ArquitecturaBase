@@ -44,6 +44,16 @@ public sealed class FormCatalogOpenApiTests(ApiFactory factory)
         Assert.False(AdmitsNull(property), $"originalCulture admits null: {property.GetRawText()}");
     }
 
+    [Fact]
+    public async Task Manual_catalog_update_declares_the_options_to_delete_as_identities()
+    {
+        var property = (await OpenApiTests.ReadDocumentAsync(factory)).GetProperty("components").GetProperty("schemas")
+            .GetProperty("UpdateManualCatalogHttpRequest").GetProperty("properties").GetProperty("deleteItemIds");
+
+        // Opcional como confirmFieldRemovals: una lista de identidades de opciones.
+        Assert.Contains("uuid", property.GetRawText(), StringComparison.Ordinal);
+    }
+
     // OpenAPI 3.1 marca null en el tipo ("type": ["null", "object"]) o en una alternativa de oneOf/anyOf.
     private static bool AdmitsNull(JsonElement schema) =>
         (schema.TryGetProperty("nullable", out var nullable) && nullable.ValueKind == JsonValueKind.True)

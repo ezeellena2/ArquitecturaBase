@@ -17,6 +17,13 @@ internal sealed class FormCatalogFieldReader : IFormCatalogReader
         return Task.FromResult<IReadOnlyList<FormCatalogFieldUsageRow>>(Uses.Where(use => fieldIds.Contains(use.FieldId)).ToArray());
     }
     public Task<bool> ExistsSourceUsageAsync(Guid catalogId, CancellationToken ct) => Task.FromResult(SourceInUse);
+    public List<FormCatalogItemUsageRow> ItemUses { get; } = [];
+    public List<Guid[]> ItemUseReads { get; } = [];
+    public Task<IReadOnlyList<FormCatalogItemUsageRow>> ListItemUsesAsync(Guid catalogId, IReadOnlyCollection<Guid> itemIds, CancellationToken ct)
+    {
+        ItemUseReads.Add([.. itemIds]);
+        return Task.FromResult<IReadOnlyList<FormCatalogItemUsageRow>>(ItemUses.Where(use => itemIds.Contains(use.ItemId)).ToArray());
+    }
     public Task<IReadOnlyList<FormCatalogStoredItemRow>> ListAllItemsAsync(Guid catalogId, CancellationToken ct) => Task.FromResult(Items.GetValueOrDefault(catalogId) ?? (IReadOnlyList<FormCatalogStoredItemRow>)[]);
     public Task<IReadOnlyList<FormCatalogStoredItemRow>> ListOfferItemsAsync(Guid catalogId, CancellationToken ct, string? fieldValueContainmentJson = null) => throw new NotSupportedException();
     public Task<FormCatalogStoredRow?> FindAsync(Guid id, CancellationToken ct) => Task.FromResult(Catalogs.GetValueOrDefault(id));

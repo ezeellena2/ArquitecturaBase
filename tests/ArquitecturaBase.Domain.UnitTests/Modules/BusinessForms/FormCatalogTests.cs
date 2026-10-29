@@ -131,6 +131,20 @@ public sealed class FormCatalogTests
     }
 
     [Fact]
+    public void Only_a_manual_item_of_the_same_catalog_can_be_removed()
+    {
+        var catalog = CreateCatalog();
+        var item = catalog.AddManualItem("supervisor", "Supervisora", null, null, null, 1).Value;
+        var other = CreateCatalog().AddManualItem("guest", "Invitada", null, null, null, 1).Value;
+        var filters = BusinessFormCatalog.CreateFilters("es", Texts("Personas", "People"), Texts("Directorio", "Directory"), "{}");
+
+        Assert.True(catalog.RemoveManualItem(item).IsSuccess);
+        Assert.Equal(FormCatalogErrors.ItemNotFound, catalog.RemoveManualItem(other).Error);
+        Assert.Equal(FormCatalogErrors.ManualItemsUnavailable, filters.RemoveManualItem(item).Error);
+        Assert.Equal(1, catalog.Revision);
+    }
+
+    [Fact]
     public void Updating_catalog_text_keeps_both_languages_and_advances_revision_once()
     {
         var catalog = BusinessFormCatalog.CreateManual("es", Texts("Clientes", "Customers"), Texts("A quién se visita", "Who to visit"));

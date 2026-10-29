@@ -61,6 +61,7 @@ internal sealed class FormCatalogProposalFixture : IFormCatalogRepository, IForm
     public Task<List<BusinessFormCatalogItem>> ListItemsAsync(Guid id, CancellationToken ct) => throw new NotSupportedException();
     public void Add(BusinessFormCatalog catalog) { TransactionGuard.Require(() => Uow.InTransaction); Catalogs.Add(catalog); }
     public void AddItems(IEnumerable<BusinessFormCatalogItem> items) => throw new NotSupportedException();
+    public void RemoveItems(IEnumerable<BusinessFormCatalogItem> items) => throw new NotSupportedException();
     public Task<IReadOnlyList<FormCatalogFilterChoiceResponse>> ListRolesAsync(CancellationToken ct) => Task.FromResult(Roles);
     public Task<PagedResult<FormCatalogFilterSampleUserResponse>> ListSampleUsersAsync(FormCatalogFilterOptionsRequest request, CancellationToken ct) => throw new NotSupportedException();
     public Task<bool> ExistsActiveSampleUserAsync(Guid id, CancellationToken ct) => Task.FromResult(SampleExists);
@@ -83,6 +84,7 @@ internal sealed class FormCatalogProposalFixture : IFormCatalogRepository, IForm
 
     public Task<IReadOnlyList<FormCatalogFieldUsageRow>> ListFieldUsageAsync(Guid catalogId, IReadOnlyCollection<Guid> fieldIds, CancellationToken ct) => Task.FromResult<IReadOnlyList<FormCatalogFieldUsageRow>>([]);
     public Task<bool> ExistsSourceUsageAsync(Guid catalogId, CancellationToken ct) => Task.FromResult(false);
+    public Task<IReadOnlyList<FormCatalogItemUsageRow>> ListItemUsesAsync(Guid catalogId, IReadOnlyCollection<Guid> itemIds, CancellationToken ct) => throw new NotSupportedException();
     public Task<FormCatalogMaximumOfferRow> FindMaximumOfferSizeAsync(Guid catalogId, string? fixedContainmentJson,
         IReadOnlyCollection<Guid> personFieldIds, CancellationToken cancellationToken) => throw new NotSupportedException();
 }

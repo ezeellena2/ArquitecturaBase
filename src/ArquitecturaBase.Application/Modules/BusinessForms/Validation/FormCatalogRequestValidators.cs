@@ -30,6 +30,8 @@ internal sealed class UpdateManualCatalogRequestValidator : AbstractValidator<Up
         FormCatalogRequestValidation.ValidateConfiguration(request.Fields, request.Presentation, false, context.AddFailure);
         if (request.ConfirmFieldRemovals is { } removals && (removals.Count > BusinessFormCatalog.MaxFields || removals.Distinct().Count() != removals.Count || removals.Contains(Guid.Empty)))
             context.AddFailure("confirmFieldRemovals", FormCatalogRequestValidation.InvalidMessage());
+        if (request.DeleteItemIds is { } deletions && (deletions.Count > 500 || deletions.Distinct().Count() != deletions.Count || deletions.Contains(Guid.Empty)))
+            context.AddFailure("deleteItemIds", FormCatalogRequestValidation.InvalidMessage());
         if (request.Moves is { } moves)
         {
             if (moves.Count > 500) context.AddFailure("moves", FormCatalogRequestValidation.InvalidMessage());

@@ -185,6 +185,18 @@ public sealed partial class BusinessFormCatalog : Entity, IAuditable
         return Result.Success();
     }
 
+    // Removing is only allowed here; whether anything still uses the item is checked in Application, under the catalog lock.
+    public Result RemoveManualItem(BusinessFormCatalogItem item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        if (Kind != BusinessFormCatalogKind.Manual)
+        {
+            return FormCatalogErrors.ManualItemsUnavailable;
+        }
+
+        return item.CatalogId == Id ? Result.Success() : FormCatalogErrors.ItemNotFound;
+    }
+
     private static void RequireOriginalName(string originalCulture, IReadOnlyDictionary<string, string> name)
     {
         ArgumentNullException.ThrowIfNull(name);

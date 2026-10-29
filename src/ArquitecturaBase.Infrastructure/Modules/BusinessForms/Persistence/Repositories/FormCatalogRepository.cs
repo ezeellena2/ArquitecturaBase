@@ -26,6 +26,13 @@ internal sealed class FormCatalogRepository(ApplicationDbContext dbContext) : IF
         dbContext.Set<BusinessFormCatalog>().Add(catalog);
     }
 
+    // Only an item nothing uses: the service checks it under the catalog lock. The deferred unique keys allow renumbering.
+    public void RemoveItems(IEnumerable<BusinessFormCatalogItem> items)
+    {
+        dbContext.RequireTransaction();
+        dbContext.Set<BusinessFormCatalogItem>().RemoveRange(items);
+    }
+
     public void AddItems(IEnumerable<BusinessFormCatalogItem> items)
     {
         dbContext.RequireTransaction();

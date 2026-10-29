@@ -102,10 +102,12 @@ internal sealed class FormCatalogPreparationFixture : IFormRecordRepository, IFo
     public void Add(BusinessFormCaptureReceipt value) => throw new NotSupportedException();
     public void Add(BusinessFormCatalog value) => throw new NotSupportedException();
     public void AddItems(IEnumerable<BusinessFormCatalogItem> values) => throw new NotSupportedException();
+    public void RemoveItems(IEnumerable<BusinessFormCatalogItem> items) => throw new NotSupportedException();
     public Task<IReadOnlyList<FormCatalogFilterChoiceResponse>> ListRolesAsync(CancellationToken ct) => throw new NotSupportedException();
     public Task<PagedResult<FormCatalogFilterSampleUserResponse>> ListSampleUsersAsync(FormCatalogFilterOptionsRequest request, CancellationToken ct) => throw new NotSupportedException();
     public Task<bool> ExistsActiveSampleUserAsync(Guid id, CancellationToken ct) => throw new NotSupportedException();
     public Task<IReadOnlyList<FormCatalogFieldUsageRow>> ListFieldUsageAsync(Guid catalogId, IReadOnlyCollection<Guid> fieldIds, CancellationToken ct) => Task.FromResult<IReadOnlyList<FormCatalogFieldUsageRow>>([]);
     public Task<bool> ExistsSourceUsageAsync(Guid catalogId, CancellationToken ct) => Task.FromResult(false);
+    public Task<IReadOnlyList<FormCatalogItemUsageRow>> ListItemUsesAsync(Guid catalogId, IReadOnlyCollection<Guid> itemIds, CancellationToken ct) => throw new NotSupportedException();
     public Task<IReadOnlyList<FormCatalogItemFieldValuesRow>> ListCatalogFieldValuesAsync(IReadOnlyCollection<Guid> itemIds, CancellationToken ct) => Task.FromResult<IReadOnlyList<FormCatalogItemFieldValuesRow>>([]);
 }

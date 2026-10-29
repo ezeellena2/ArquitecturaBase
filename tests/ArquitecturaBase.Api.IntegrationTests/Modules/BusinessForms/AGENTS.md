@@ -76,6 +76,8 @@ FormOverviewQueryTests comprueba la proyección SQL de presentación sellada y c
 
 FormApprovalContinuationQueryTests verifica cursores, parámetros tipados, ventanas y lote acotado antes de metadata sin abrir conexión. FormApprovalContinuationHttpTests prepara ancla decidida, empates, posiciones, hasMore, extremos totalmente vacíos y roles/propias, más seis cuerpos es/en;
 
+FormCatalogItemDeletionIntegrationTests usa FormRecipientScenario con una respuesta sembrada y un filtro fijo en el borrador: el 409 `ItemInUse` nombra `records`, `options`, `people` y `forms` sin guardar nada, y la opción que nadie usa se borra y las demás cierran el hueco.
+
 FormCatalogCapacityIntegrationTests prepara 10.000 filas Manual, incluidas 5.000 inactivas, y prueba el lector real sin seguimiento: una SQL ordenada, sin límite ni offset y con limpieza de sus propios IDs.
 
 FormMultipleChoiceMigrationTests prepara Up/Down/Up con datos previos, Position 0, índices por posición/ítem y checks reales. Down debe rechazar también una única elección en Position 0 y una respuesta opcional [] sin filas de valores/referencias, desde la identidad multiChoice del campo o del borrador aun sin versión publicada o con activa escalar, y conservar hechos/migraciones aplicadas al fallar. FormCatalogActiveCountIntegrationTests verifica un agregado por catálogo que excluye inactivos y filas ajenas, sin hidratar ni paginar.

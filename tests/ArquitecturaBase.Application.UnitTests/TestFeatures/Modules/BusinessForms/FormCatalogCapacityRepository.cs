@@ -29,4 +29,5 @@ internal sealed class FormCatalogCapacityRepository(BusinessFormCatalog? catalog
     public void Add(BusinessFormCatalog value) => Catalog = value;
 
     public void AddItems(IEnumerable<BusinessFormCatalogItem> values) => Items.AddRange(values);
+    public void RemoveItems(IEnumerable<BusinessFormCatalogItem> values) { foreach (var value in values.ToArray()) Items.Remove(value); }
 }

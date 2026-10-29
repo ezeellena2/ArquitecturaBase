@@ -30,7 +30,9 @@ public sealed partial class FormDraftEndpointsTests
         await using (var content = new MemoryStream(bytes)) Assert.True(await store.WriteOnceAsync(key, content, "application/pdf", Ct));
         await using (var orphan = new MemoryStream([1])) await store.WriteAsync("orphan-control", orphan, "application/octet-stream", Ct);
         var blob = new BlobServiceClient(emulator.ConnectionString).GetBlobContainerClient("files-content").GetBlobClient(key);
-        var clock = new FakeTimeProvider((await blob.GetPropertiesAsync(cancellationToken: Ct)).Value.LastModified.AddDays(2));
+        // Azurite fecha el blob en hora real y la reserva sembrada usa factory.Clock, que otros tests del grupo adelantan días.
+        var uploaded = (await blob.GetPropertiesAsync(cancellationToken: Ct)).Value.LastModified; var shared = factory.Clock.GetUtcNow();
+        var clock = new FakeTimeProvider((uploaded > shared ? uploaded : shared).AddDays(2));
         await using var recovered = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
         {
             services.RemoveAll<IPrivateFileStore>(); services.AddSingleton<IPrivateFileStore>(store);

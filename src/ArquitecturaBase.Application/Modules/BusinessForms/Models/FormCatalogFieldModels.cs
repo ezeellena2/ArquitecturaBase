@@ -14,6 +14,9 @@ public sealed record FormCatalogFieldResponse(Guid Id, string Key, IReadOnlyDict
 public sealed record FormCatalogFieldUsageResponse(Guid? DefinitionId, string? FormName, string? Question, Guid? QuestionId, string Stage);
 public sealed record FormCatalogFieldUsageRow(Guid DefinitionId, string FormName, string Question, Guid QuestionId, string Stage, Guid FieldId, bool ByMatch);
 public sealed record FormCatalogPresentationExample(Guid ItemId, string Title);
+// What keeps an option from being deleted: records (a response chose it), options (another option's field holds it),
+// people (a person's data holds it) or forms (a filter or condition of a draft or active configuration names it).
+public sealed record FormCatalogItemUsageRow(Guid ItemId, string Kind);
 // A question's own presentation, checked over every active option of its source catalog without saving anything.
 public sealed record FormCatalogPresentationCheckRequest(FormCatalogPresentation? Presentation);
 public sealed record FormCatalogPresentationCheckResponse(IReadOnlyList<FormCatalogPresentationCultureCheckResponse> Cultures);

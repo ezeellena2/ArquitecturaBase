@@ -131,6 +131,7 @@ internal sealed class FormPersonDataFixture : IFormPersonDataRepository, IFormPe
         Task.FromResult(id == Catalog.Id ? new List<BusinessFormCatalogItem> { ActiveItem, InactiveItem } : []);
     public void Add(BusinessFormCatalog value) => throw new NotSupportedException();
     public void AddItems(IEnumerable<BusinessFormCatalogItem> values) => throw new NotSupportedException();
+    public void RemoveItems(IEnumerable<BusinessFormCatalogItem> items) => throw new NotSupportedException();
     public Task<FormCatalogStoredRow?> FindAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult<FormCatalogStoredRow?>(Source(id) is not { } source ? null : new(
         source.Id, source.Key, source.NameJson, source.DescriptionJson, source.OriginalCulture, source.Kind.ToString(), source.Revision, source.IsActive,
         source.CreatedAtUtc, source.CreatedBy, source.ModifiedAtUtc, source.ModifiedBy, id == Catalog.Id ? 2 : 0));
@@ -141,6 +142,7 @@ internal sealed class FormPersonDataFixture : IFormPersonDataRepository, IFormPe
     public Task<int> CountUsageAsync(Guid catalogId, CancellationToken cancellationToken) => throw new NotSupportedException();
     public Task<IReadOnlyList<FormCatalogFieldUsageRow>> ListFieldUsageAsync(Guid catalogId, IReadOnlyCollection<Guid> fieldIds, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<FormCatalogFieldUsageRow>>([]);
     public Task<bool> ExistsSourceUsageAsync(Guid catalogId, CancellationToken cancellationToken) => Task.FromResult(false);
+    public Task<IReadOnlyList<FormCatalogItemUsageRow>> ListItemUsesAsync(Guid catalogId, IReadOnlyCollection<Guid> itemIds, CancellationToken ct) => throw new NotSupportedException();
 
     public Task<int> CountActiveItemsAsync(Guid catalogId, CancellationToken cancellationToken) => throw new NotSupportedException();
     public Task<PagedResult<FormCatalogItemResponse>> ListItemsAsync(Guid catalogId, ListFormCatalogItemsRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();

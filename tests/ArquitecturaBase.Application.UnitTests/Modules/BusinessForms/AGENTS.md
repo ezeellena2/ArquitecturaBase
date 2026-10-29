@@ -4,6 +4,8 @@ Leer [formularios](../../../../docs/features/formularios.md). Probar presupuesto
 Los límites de candidatas se prueban con grafemas compuestos y exclusión individual que conserva la parcialidad. La privacidad de pedidos faltantes se acredita en propuesta y captura, con NFKC, nombres sin tildes por palabra completa, fechas y montos válidos y cambios de cuenta bajo lock.
 Dobles sólo del borde; las garantías PostgreSQL/DataProtection/restore pertenecen a integración real.
 
+Eliminar opciones: borra la que no se usa y renumera, libera su código en el mismo guardado, rechaza una ajena, editada o movida en el pedido y responde `ItemInUse` con los usos de la primera usada sin guardar; el validador rechaza identidades repetidas o vacías.
+
 Capacidad Manual: crear/editar hasta 10.000 filas, delta contra el total almacenado, rechazo de 10.001 y duplicado con `items[i].code`; `moves` conserva 500. Condiciones prueban lectura completa de 10.000, incluidas inactivas, y una lectura por catálogo compartido sin paginado.
 
 Importación: plan puro por código con Append/Replace, errores localizados por fila y columna, ítem existente intacto si su fila falla, confirmaciones exactas y revisión. Cubrir plantilla es/en, la columna de traducción según el original (`textEs`/`detailEs` con original inglés, export y reimportación sin diferencias; la del idioma del original es desconocida) y sólo con el menú en el otro idioma, el nombre del archivo con el del catálogo, todos los códigos ambiguos, capacidad con inactivas y exportación/reimportación sin diferencias ni pérdida de precisión. Lector XLSX/CSV y archivo físico pertenecen a los tests técnicos de Infrastructure; HTTP y locks reales, a integración.

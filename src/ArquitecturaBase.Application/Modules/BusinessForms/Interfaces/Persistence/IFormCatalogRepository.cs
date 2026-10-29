@@ -10,4 +10,5 @@ public interface IFormCatalogRepository
     Task<List<BusinessFormCatalogItem>> ListItemsAsync(Guid catalogId, CancellationToken cancellationToken);
     void Add(BusinessFormCatalog catalog);
     void AddItems(IEnumerable<BusinessFormCatalogItem> items);
+    void RemoveItems(IEnumerable<BusinessFormCatalogItem> items);
 }
