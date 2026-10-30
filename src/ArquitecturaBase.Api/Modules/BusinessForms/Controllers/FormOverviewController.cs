@@ -13,7 +13,7 @@ namespace ArquitecturaBase.Api.Modules.BusinessForms.Controllers;
 [ApiController]
 [Route("api/forms/overview")]
 [Tags("Form overview")]
-[HasAnyPermission(BusinessFormsPermissions.RecordsRead, BusinessFormsPermissions.ApprovalsDecide)]
+[HasAnyPermission(BusinessFormsPermissions.RecordsRead, BusinessFormsPermissions.ApprovalsDecide, BusinessFormsPermissions.RecordsCreate)]
 [EnableRateLimiting(BusinessFormsApiRegistration.ReadPolicy)]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
 public sealed class FormOverviewController(IFormOverviewService service) : ControllerBase

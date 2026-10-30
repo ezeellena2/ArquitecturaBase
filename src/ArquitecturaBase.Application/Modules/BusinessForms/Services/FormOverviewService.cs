@@ -22,15 +22,17 @@ internal sealed class FormOverviewService(ICurrentUser currentUser, IPermissionS
             if (currentUser.UserId is not { } actor) return FormDefinitionErrors.Unauthorized;
             var canRead = await permissions.HasPermissionAsync(actor, BusinessFormsPermissions.RecordsRead, cancellationToken);
             var canDecide = await permissions.HasPermissionAsync(actor, BusinessFormsPermissions.ApprovalsDecide, cancellationToken);
-            if ((!canRead && !canDecide) || await users.FindByIdAsync(actor, cancellationToken) is not { IsActive: true })
+            var canCreate = await permissions.HasPermissionAsync(actor, BusinessFormsPermissions.RecordsCreate, cancellationToken);
+            if ((!canRead && !canDecide && !canCreate) || await users.FindByIdAsync(actor, cancellationToken) is not { IsActive: true })
                 return FormDefinitionErrors.Forbidden;
             if (await validator.ValidateAsync(request, cancellationToken) is { } invalid) return invalid;
             if (request.PendingOnly && !canDecide) return FormDefinitionErrors.Forbidden;
             var culture = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es";
-            var result = await reader.FindPageAsync(actor, request, culture, canRead, canDecide, cancellationToken);
+            var result = await reader.FindPageAsync(actor, request, culture, canRead, canDecide, canCreate, cancellationToken);
             if (currentUser.UserId != actor || await users.FindByIdAsync(actor, cancellationToken) is not { IsActive: true }
                 || canRead && !await permissions.HasPermissionAsync(actor, BusinessFormsPermissions.RecordsRead, cancellationToken)
-                || canDecide && !await permissions.HasPermissionAsync(actor, BusinessFormsPermissions.ApprovalsDecide, cancellationToken))
+                || canDecide && !await permissions.HasPermissionAsync(actor, BusinessFormsPermissions.ApprovalsDecide, cancellationToken)
+                || canCreate && !await permissions.HasPermissionAsync(actor, BusinessFormsPermissions.RecordsCreate, cancellationToken))
                 return FormDefinitionErrors.Forbidden;
             return result;
         });

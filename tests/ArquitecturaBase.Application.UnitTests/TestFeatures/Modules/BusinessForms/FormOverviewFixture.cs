@@ -24,14 +24,16 @@ internal sealed class FormOverviewFixture : IFormOverviewReader, IDisposable
     public ListFormOverviewRequest? Request { get; private set; }
     public bool CanRead { get; private set; }
     public bool CanDecide { get; private set; }
+    public bool CanCreate { get; private set; }
     public Action? OnRead { get; set; }
-    public FormOverviewFixture(bool read = true, bool decide = true)
+    public FormOverviewFixture(bool read = true, bool decide = true, bool create = false)
     {
         Actor = Users.AddUser("overview@example.invalid").Id;
         Current.UserId = Actor;
         Permissions.Permissions[Actor] = [];
         if (read) Permissions.Permissions[Actor] = [.. Permissions.Permissions[Actor], BusinessFormsPermissions.RecordsRead];
         if (decide) Permissions.Permissions[Actor] = [.. Permissions.Permissions[Actor], BusinessFormsPermissions.ApprovalsDecide];
+        if (create) Permissions.Permissions[Actor] = [.. Permissions.Permissions[Actor], BusinessFormsPermissions.RecordsCreate];
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddBusinessFormsApplication();
@@ -45,11 +47,11 @@ internal sealed class FormOverviewFixture : IFormOverviewReader, IDisposable
     public IFormOverviewService Service => _provider.GetRequiredService<IFormOverviewService>();
     public IRequestValidator Validator => _provider.GetRequiredService<IRequestValidator>();
     public Task<FormOverviewResponse> FindPageAsync(Guid actorUserId, ListFormOverviewRequest request, string culture,
-        bool canReadRecords, bool canDecide, CancellationToken cancellationToken)
+        bool canReadRecords, bool canDecide, bool canCreate, CancellationToken cancellationToken)
     {
         if (actorUserId != Actor) throw new InvalidOperationException("The reader must receive the authorized actor.");
         cancellationToken.ThrowIfCancellationRequested();
-        Reads++; Request = request; CanRead = canReadRecords; CanDecide = canDecide;
+        Reads++; Request = request; CanRead = canReadRecords; CanDecide = canDecide; CanCreate = canCreate;
         OnRead?.Invoke();
         return Task.FromResult(new FormOverviewResponse(new([], request.Page, request.PageSize, 0),
             new(0, 0, canDecide ? 0 : null)));

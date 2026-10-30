@@ -11,9 +11,9 @@ namespace ArquitecturaBase.Infrastructure.Modules.BusinessForms.Persistence.Read
 internal sealed class FormOverviewReader(ApplicationDbContext db) : IFormOverviewReader
 {
     public async Task<FormOverviewResponse> FindPageAsync(Guid actorUserId, ListFormOverviewRequest request, string culture,
-        bool canReadRecords, bool canDecide, CancellationToken cancellationToken)
+        bool canReadRecords, bool canDecide, bool canCreate, CancellationToken cancellationToken)
     {
-        var query = Query(actorUserId, request, culture, canReadRecords, canDecide);
+        var query = Query(actorUserId, request, culture, canReadRecords, canDecide, canCreate);
         var counts = await query.GroupBy(_ => 1).Select(group => new FormOverviewCounts(
             group.Count(row => row.DeactivatedAtUtc == null),
             group.Count(row => row.DeactivatedAtUtc != null),
@@ -31,7 +31,7 @@ internal sealed class FormOverviewReader(ApplicationDbContext db) : IFormOvervie
     }
 
     private IQueryable<OverviewRow> Query(Guid actorUserId, ListFormOverviewRequest request, string culture,
-        bool canReadRecords, bool canDecide)
+        bool canReadRecords, bool canDecide, bool canCreate)
     {
         var nameColumn = culture == "en" ? "DisplayNameEn" : "DisplayNameEs";
         var query = from definition in Definitions()
@@ -64,7 +64,7 @@ internal sealed class FormOverviewReader(ApplicationDbContext db) : IFormOvervie
             query = query.Where(row => EF.Functions.ILike(row.Name, pattern, LikePatterns.EscapeCharacter)
                 || EF.Functions.ILike(row.Prefix, pattern, LikePatterns.EscapeCharacter));
         }
-        if (!canReadRecords || request.PendingOnly) query = query.Where(row => row.PendingApprovalCount > 0);
+        if (!canReadRecords && !canCreate || request.PendingOnly) query = query.Where(row => row.PendingApprovalCount > 0);
         return query.OrderByDescending(row => row.PendingApprovalCount > 0)
             .ThenByDescending(row => row.LastSubmittedAtUtc != null).ThenByDescending(row => row.LastSubmittedAtUtc)
             .ThenBy(row => row.Name).ThenBy(row => row.Id);

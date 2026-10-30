@@ -165,12 +165,12 @@ public sealed partial class FormDraftEndpointsTests
                 services.GetRequiredService<DbContextOptions<ApplicationDbContext>>()).AddInterceptors(recorder).Options);
             var overview = new FormOverviewReader(db);
 
-            var page = await overview.FindPageAsync(actor, new ListFormOverviewRequest { Search = expected, PageSize = 1 }, ui, true, false, Ct);
+            var page = await overview.FindPageAsync(actor, new ListFormOverviewRequest { Search = expected, PageSize = 1 }, ui, true, false, false, Ct);
 
             Assert.Equal(expected, Assert.Single(page.Forms.Items).Name);
             Assert.Equal(1, page.Forms.TotalCount);
             Assert.Equal(1, page.FilterCounts.Active);
-            var hidden = await overview.FindPageAsync(actor, new ListFormOverviewRequest { Search = unpublished }, ui, true, false, Ct);
+            var hidden = await overview.FindPageAsync(actor, new ListFormOverviewRequest { Search = unpublished }, ui, true, false, false, Ct);
             Assert.Empty(hidden.Forms.Items);
             Assert.Equal(0, hidden.Forms.TotalCount);
             Assert.Equal(0, hidden.FilterCounts.Active);

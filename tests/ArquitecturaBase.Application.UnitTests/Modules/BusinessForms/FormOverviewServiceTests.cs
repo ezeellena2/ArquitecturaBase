@@ -24,6 +24,18 @@ public sealed class FormOverviewServiceTests
     }
 
     [Fact]
+    public async Task Completing_forms_alone_lists_them_without_responses_or_approvals()
+    {
+        using var fixture = new FormOverviewFixture(read: false, decide: false, create: true);
+        var result = await fixture.Service.ListAsync(new(), TestContext.Current.CancellationToken);
+        Assert.True(result.IsSuccess);
+        Assert.False(fixture.CanRead);
+        Assert.False(fixture.CanDecide);
+        Assert.True(fixture.CanCreate);
+        Assert.Equal(FormDefinitionErrors.Forbidden, (await fixture.Service.ListAsync(new() { PendingOnly = true }, TestContext.Current.CancellationToken)).Error);
+    }
+
+    [Fact]
     public async Task A_record_reader_cannot_use_the_private_pending_filter()
     {
         using var fixture = new FormOverviewFixture(true, false);
