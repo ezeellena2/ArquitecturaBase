@@ -1,6 +1,7 @@
 # Cargar formularios desde la app
 
-Propuesta del 2026-10-29, sin programar, con las decisiones del usuario del 2026-10-29 y el 2026-10-30. La persona elige
+Propuesta del 2026-10-29, con las decisiones del usuario del 2026-10-29 y el 2026-10-30. La Etapa 1 está implementada desde el
+2026-10-30 (su resumen está en el plan por etapas); las etapas 2 a 5 siguen sin programar. La persona elige
 un formulario publicado en «Formularios», lo carga en la app (desde la compu o el celular) y lo cargado se trabaja en la
 planilla, donde además se corrige o se anula. Las reglas de hoy están en [formularios](../features/formularios.md); este plan suma la carga desde la web, que el
 [resumen de formularios](formularios/README.md) dejaba pendiente con tableros propios.
@@ -8,7 +9,9 @@ planilla, donde además se corrige o se anula. Las reglas de hoy están en [form
 **Tableros:** lienzo [Formularios desde la app](https://claude.ai/artifact/Kvbr5KFJrGT951JLiu8i4M), tableros CW0 a CW9 con los catálogos y
 formularios de OCHA (Lluvia, Siembra y Aplicación) y valores de ejemplo. Los elegidos llevan la banda verde y el sello «Elegida».
 Es **provisorio**: el lienzo [Sistema visual](https://claude.ai/artifact/HPbmDPLnr8JZ9TxevtTqJJ) no se pudo abrir desde la cuenta de esta
-sesión. Los tableros elegidos se pasan allí antes de programar; el formato es el mismo. Están armados con los tokens y las
+sesión. Los tableros elegidos se pasan allí antes de programar; el formato es el mismo. El diseño de la Etapa 1 quedó registrado en el
+front, en [carga desde la app](../../../ArquitecturaBaseFront/docs/design/carga-desde-la-app.md); pasarlo al lienzo del sistema visual sigue
+pendiente, porque esa cuenta no lo abre. Están armados con los tokens y las
 medidas de `index.css` y `shared/ui`, con el escritorio al 75 % y el celular a 16 px con áreas táctiles de 44.
 
 ## Decisiones (2026-10-29 y 2026-10-30)
@@ -212,6 +215,15 @@ Etapa 1, los tableros elegidos pasan al lienzo del sistema visual y su diseño s
    - Cierre con la rutina de [validar un cambio](../guides/validar-un-cambio.md): integración con PostgreSQL, Redis y Azurite;
      contratos exportados; front con build, lint, tests y visuales; recorrido es/en a 1440, 390 y 320; y la cámara de un
      celular real por el túnel.
+   - **Hecha el 2026-10-30.** Backend: `api/forms/entries` (versión activa, opciones paginadas con los filtros de quien carga y
+     envío multipart por la captura común), `EnteredInApp` con su migración, el origen «App», el aviso a quien cargó que no
+     aplica sin canal, «Formularios» con «Completar formularios» y el filtro por canal. Front: «Cargar» en «Formularios», la
+     página y el panel con las preguntas armadas según CW12, CW13-A y CW16, las listas, las fotos, «Enviada» y la planilla con
+     «Canal». Las reglas quedaron en [formularios](../features/formularios.md#carga-desde-la-app--etapa-1-2026-10-30).
+     Verificación final: backend con build sin advertencias y 6.548/6.548 tests con PostgreSQL, Redis y Azurite, y las 24
+     cohortes HTTP exportadas juntas; front con build y lint limpios, 3.559/3.559 tests y 775/775 visuales; recorrido en el
+     navegador integrado en es/en a 1440, 390 y 320, sobre el catálogo visual y con la API real.
+   - Pendiente: la cámara de un celular real por el túnel y pasar los tableros elegidos al lienzo del sistema visual.
 2. **Etapa 2 · Lo propio en «Formularios» (CW6-C).**
    - La lectura de lo propio con «Completar formularios», y la planilla y el detalle recortados, con estado, PDF y motivo.
    - En «Formularios», sus cargas y la última para quien sólo carga.
