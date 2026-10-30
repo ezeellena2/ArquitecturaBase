@@ -16,6 +16,8 @@ public sealed class BusinessFormRecord : Entity, IAuditable
     public Guid? OriginSuggestionId { get; private set; }
     public string? CaptureOriginJson { get; private set; }
     public string? PresentationCulture { get; private set; }
+    /// <summary>Loaded in the app by its own author, not received through a channel.</summary>
+    public bool EnteredInApp { get; private set; }
     public long Number { get; private set; }
     public Guid ActorUserId { get; private set; }
     public Guid SourceReceiptId { get; private set; }
@@ -27,7 +29,8 @@ public sealed class BusinessFormRecord : Entity, IAuditable
     public Guid? ModifiedBy { get; private set; }
 
     public static BusinessFormRecord Create(Guid definitionId, Guid versionId, long number, Guid actorUserId,
-        Guid sourceReceiptId, DateTime submittedAtUtc, string valuesJson, Guid? ruleSetId = null, string? presentationCulture = null)
+        Guid sourceReceiptId, DateTime submittedAtUtc, string valuesJson, Guid? ruleSetId = null, string? presentationCulture = null,
+        bool enteredInApp = false)
     {
         foreach (var id in new[] { definitionId, versionId, actorUserId, sourceReceiptId }) ArgumentOutOfRangeException.ThrowIfEqual(id, Guid.Empty);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(number);
@@ -37,7 +40,8 @@ public sealed class BusinessFormRecord : Entity, IAuditable
         if (submittedAtUtc.Kind != DateTimeKind.Utc) throw new ArgumentException("Submission time must be UTC.", nameof(submittedAtUtc));
         ArgumentException.ThrowIfNullOrWhiteSpace(valuesJson);
         return new() { DefinitionId = definitionId, VersionId = versionId, Number = number, ActorUserId = actorUserId,
-            SourceReceiptId = sourceReceiptId, SubmittedAtUtc = submittedAtUtc, ValuesJson = valuesJson, RuleSetId = ruleSetId, PresentationCulture = presentationCulture };
+            SourceReceiptId = sourceReceiptId, SubmittedAtUtc = submittedAtUtc, ValuesJson = valuesJson, RuleSetId = ruleSetId, PresentationCulture = presentationCulture,
+            EnteredInApp = enteredInApp };
     }
     public void SetCaptureOrigin(Guid? originRecordId, Guid? originSuggestionId, string captureOriginJson)
     {

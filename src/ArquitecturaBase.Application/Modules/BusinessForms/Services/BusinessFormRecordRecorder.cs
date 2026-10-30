@@ -19,7 +19,19 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
     IUnitOfWork unitOfWork, TimeProvider timeProvider,
     ILogger<BusinessFormRecordRecorder> logger, BusinessFormFileRecorder fileRecorder, FormActionRunRecorder actions, FormRecordCaptureOriginPolicy origins) : IBusinessFormRecordCaptureService
 {
-    public async Task<StructuredRecordCaptureResponse> CaptureAsync(StructuredRecordCaptureRequest request, CancellationToken cancellationToken)
+    public Task<StructuredRecordCaptureResponse> CaptureAsync(StructuredRecordCaptureRequest request, CancellationToken cancellationToken) =>
+        CaptureAsync(request, false, cancellationToken);
+
+    public Task<StructuredRecordCaptureResponse> CaptureEntryAsync(StructuredRecordCaptureRequest request, CancellationToken cancellationToken) =>
+        CaptureAsync(request, true, cancellationToken);
+
+    public Task<StructuredRecordCaptureResponse?> FindExistingReceiptAsync(StructuredRecordCaptureRequest request,
+        CancellationToken cancellationToken) => FindExistingAsync(request, false, cancellationToken);
+
+    public Task<StructuredRecordCaptureResponse?> FindExistingEntryAsync(StructuredRecordCaptureRequest request,
+        CancellationToken cancellationToken) => FindExistingAsync(request, true, cancellationToken);
+
+    private async Task<StructuredRecordCaptureResponse> CaptureAsync(StructuredRecordCaptureRequest request, bool entry, CancellationToken cancellationToken)
     {
         OperationLog.Handling(logger, "CaptureBusinessFormRecord");
         if (request.SourceReceiptId == Guid.Empty || request.ActorUserId == Guid.Empty
@@ -29,7 +41,7 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
             return new("Rejected", null, null, FormRecordErrors.AuthorizationChanged.Code);
         }
 
-        var replay = await FindExistingReceiptAsync(request, cancellationToken);
+        var replay = await FindExistingAsync(request, entry, cancellationToken);
         if (replay is not null)
         {
             if (replay.State == "Completed") OperationLog.Handled(logger, "CaptureBusinessFormRecord");
@@ -46,25 +58,26 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
             ? Result.Failure<IReadOnlyList<PreparedFormFile>>(FormRecordErrors.InvalidResponse)
             : await fileRecorder.PrepareAsync(request, cancellationToken);
         var result = (await unitOfWork.ExecuteInTransactionAsync(
-            ct => CaptureCoreAsync(request, prepared, ct), CommitPolicy.OnSuccess, cancellationToken)).Value;
+            ct => CaptureCoreAsync(request, entry, prepared, ct), CommitPolicy.OnSuccess, cancellationToken)).Value;
         if (result.State == "Completed") OperationLog.Handled(logger, "CaptureBusinessFormRecord");
         else OperationLog.Failed(logger, "CaptureBusinessFormRecord", result.ErrorCode ?? FormRecordErrors.InvalidResponse.Code);
         return result;
     }
 
-    public async Task<StructuredRecordCaptureResponse?> FindExistingReceiptAsync(StructuredRecordCaptureRequest request,
+    private async Task<StructuredRecordCaptureResponse?> FindExistingAsync(StructuredRecordCaptureRequest request, bool entry,
         CancellationToken cancellationToken)
     {
         if (request.SourceReceiptId == Guid.Empty || request.ActorUserId == Guid.Empty
             || request.SubmittedAtUtc.Kind != DateTimeKind.Utc) return null;
 
-        return await guard.FindExistingAsync(request, Fingerprint(request), cancellationToken);
+        return await guard.FindExistingAsync(request, Fingerprint(request, entry), cancellationToken);
     }
 
-    private async Task<Result<StructuredRecordCaptureResponse>> CaptureCoreAsync(StructuredRecordCaptureRequest request, Result<IReadOnlyList<PreparedFormFile>> prepared, CancellationToken ct)
+    private async Task<Result<StructuredRecordCaptureResponse>> CaptureCoreAsync(StructuredRecordCaptureRequest request, bool entry,
+        Result<IReadOnlyList<PreparedFormFile>> prepared, CancellationToken ct)
     {
         await records.LockSourceReceiptAsync(request.SourceReceiptId, ct);
-        var fingerprint = Fingerprint(request);
+        var fingerprint = Fingerprint(request, entry);
         var prior = await records.GetReceiptAsync(request.SourceReceiptId, ct);
         if (prior is not null)
         {
@@ -123,7 +136,8 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
 
         var number = definition.AllocateRecordNumber();
         var record = BusinessFormRecord.Create(definition.Id, version.Id, number, request.ActorUserId,
-            request.SourceReceiptId, request.SubmittedAtUtc, FormDraftPolicy.Serialize(answers.Select(value => new { value.FieldId, value.Value }).ToArray()), definition.ActiveRuleSetId, request.PresentationCulture);
+            request.SourceReceiptId, request.SubmittedAtUtc, FormDraftPolicy.Serialize(answers.Select(value => new { value.FieldId, value.Value }).ToArray()), definition.ActiveRuleSetId, request.PresentationCulture,
+            entry);
         if (origin.Value is { } captured)
         {
             var proposedReferences = captured.ProposedChoices.Select(choice => new FormRecordReferenceRow(record.Id,
@@ -268,14 +282,16 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
         catch (JsonException) { return null; }
     }
 
-    private static string Fingerprint(StructuredRecordCaptureRequest request)
+    // An entry's offer is rebuilt by the server on every send, so it stays out: the replay compares what the person sent.
+    private static string Fingerprint(StructuredRecordCaptureRequest request, bool entry)
     {
         var canonical = JsonSerializer.Serialize(new
         {
             request.SourceReceiptId, request.DefinitionId, request.VersionId, request.ActorUserId,
             Answers = request.Answers.OrderBy(pair => pair.Key, StringComparer.Ordinal).Select(pair => new { pair.Key, pair.Value }),
         });
-        if (request.Catalogs is { Count: > 0 }) canonical += JsonSerializer.Serialize(request.Catalogs.OrderBy(offer => offer.FieldId));
+        if (entry) canonical += "app";
+        else if (request.Catalogs is { Count: > 0 }) canonical += JsonSerializer.Serialize(request.Catalogs.OrderBy(offer => offer.FieldId));
         if (request.Files is { Count: > 0 }) canonical += JsonSerializer.Serialize(request.Files.OrderBy(file => file.FieldId).ThenBy(file => file.Position));
         if (request.Origin is { } origin) canonical += JsonSerializer.Serialize(origin with
         {
