@@ -53,6 +53,12 @@ $cohorts = @(
             "multi-export-en.xlsx", "extra-fields-sheet-es.json", "extra-fields-detail-es.json", "extra-fields-legacy-es.json", "extra-fields-export-es.xlsx", "extra-fields-visible-export-es.xlsx",
             "extra-fields-sheet-en.json", "extra-fields-detail-en.json", "extra-fields-legacy-en.json", "extra-fields-export-en.xlsx", "extra-fields-visible-export-en.xlsx");
         Sources = @(($sourceRoot + "BusinessForms/FormCatalogFieldsReadHttpTests.cs"), ($sourceRoot + "BusinessForms/FormMultipleChoiceReadHttpTests.cs"), ($sourceRoot + "BusinessForms/FormResponseHttpTests.cs"), ($sourceRoot + "BusinessForms/FormOverviewHttpTests.cs"), ($sourceRoot + "BusinessForms/FormRecordNavigationHttpTests.cs"), ($captureRoot + "Modules/BusinessForms/FormPublishedVersionFixture.cs"), ($sourceRoot + "BusinessForms/FormResponseApprovalHttpTests.cs"), ($sourceRoot + "BusinessForms/FormResponseStateHttpTests.cs"), ($sourceRoot + "WhatsApp/WhatsAppFormFilesIntegrationTests.cs"), ($captureRoot + "ResponseContractCapture.cs")) },
+    @{ Name = "entries"; Environment = "FORM_ENTRIES_HTTP_OUTPUT"; Destination = "forms-entries-http";
+        RequiredNames = @(
+            "entry-es.json", "entry-en.json", "options-es.json", "options-en.json", "entry-missing-data-es.json", "entry-missing-data-en.json",
+            "submitted-es.json", "submitted-en.json", "sheet-app-es.json", "sheet-app-en.json", "detail-app-es.json", "detail-app-en.json",
+            "overview-create-es.json", "overview-create-en.json", "option-unavailable-es.json", "version-changed-es.json", "unavailable-es.json");
+        Sources = @(($sourceRoot + "BusinessForms/FormEntryHttpTests.cs"), ($captureRoot + "Modules/BusinessForms/FormRecipientScenario.cs"), ($captureRoot + "Modules/BusinessForms/FormEntryContractCapture.cs")) },
     @{ Name = "rules"; Environment = "FORM_RULES_HTTP_OUTPUT"; Destination = "forms-rules-http";
         Sources = @(($sourceRoot + "BusinessForms/FormRuleHttpTests.cs"), ($captureRoot + "Modules/BusinessForms/FormRuleContractCapture.cs")) },
     @{ Name = "workflow"; Environment = "FORM_WORKFLOW_HTTP_OUTPUT"; Destination = "forms-workflow-http";
