@@ -20,54 +20,19 @@ internal sealed class FormCatalogOptionsPolicy(IFormCatalogReader catalogs, IFor
         var personData = recipientData;
         foreach (var question in questions)
         {
-            var id = question.Source!.Catalog!.Value;
-            var catalog = await catalogs.FindAsync(id, ct);
             var label = FormRecordPresentationPolicy.Text(question.Label, culture);
-            if (catalog is not { IsActive: true })
+            var source = await ResolveAsync(recipient, question, personData, ct);
+            personData = source.PersonData;
+            if (source.Issue is { } code)
             {
-                issues.Add(new(question.FieldId, label, FormRecordErrors.CatalogUnavailable.Code));
+                issues.Add(new(question.FieldId, label, code, MissingData: source.MissingData));
                 continue;
             }
-            if (catalog.Kind != "Manual" && (question.Source.Match is { Count: > 0 } || question.Source.Presentation is not null))
-            {
-                issues.Add(new(question.FieldId, label, FormRecordErrors.CatalogFilterUnavailable.Code));
-                continue;
-            }
-            var fields = FormCatalogFieldPolicy.ReadFields(catalog.FieldsJson);
-            if (question.Source.Match?.Any(match => match.PersonAttributeId is not null) == true)
-                personData ??= await people.FindRecipientDataAsync(recipient, ct);
-            var personValues = personData is null ? null : FormCatalogMatchPolicy.RecipientValues(personData);
-            var containment = FormCatalogMatchPolicy.Containment(question.Source.Match, fields, personData?.Attributes ?? [], personValues);
-            if (containment.IsFailure)
-            {
-                issues.Add(new(question.FieldId, label, containment.Error.Code, MissingData: containment.Error.Code == FormRecordErrors.RecipientDataMissing.Code
-                    ? MissingData(personData!, FormCatalogMatchPolicy.MissingPersonAttribute(question.Source.Match, personValues)!.Value) : null));
-                continue;
-            }
-            var presentation = question.Source.Presentation ?? (catalog.PresentationJson is null ? null
-                : FormDraftPolicy.Read<FormCatalogPresentation>(catalog.PresentationJson));
-            if (!FormCatalogPresentationPolicy.ValidConfiguration(presentation, fields, catalog.ValueType))
-            {
-                issues.Add(new(question.FieldId, label, FormRecordErrors.CatalogFilterUnavailable.Code));
-                continue;
-            }
-            var valueType = catalog.Kind == "Manual" && catalog.ValueType != "Text" ? catalog.ValueType : null;
+            var catalog = source.Catalog!;
+            var valueType = ValueType(catalog);
             IReadOnlyList<StructuredFormCatalogOption> options;
             if (catalog.Kind == "Manual")
-            {
-                var items = await catalogs.ListOfferItemsAsync(id, ct, containment.Value);
-                HashSet<string> selected = presentation is null ? new(StringComparer.Ordinal) : presentation.Title.Concat(presentation.Description).ToHashSet(StringComparer.Ordinal);
-                var sources = await FormCatalogFieldPresentation.SourcesAsync(fields.Where(field => selected.Contains(field.Id.ToString("D"))).ToArray(), catalogs, ct);
-                var sourceItems = sources.Values.SelectMany(items => items).ToDictionary(item => item.Id);
-                options = items.Where(item => item.IsActive).OrderBy(item => item.Position).ThenBy(item => item.Id)
-                    .Select(item =>
-                    {
-                        var shown = presentation is null ? null : FormCatalogPresentationPolicy.Compose(presentation,
-                            FormCatalogFieldPresentation.Values(item, fields, sourceItems, culture, catalog.ValueType));
-                        return new StructuredFormCatalogOption(item.Id, item.TextFor(culture), item.DetailFor(culture), ManualTexts(item),
-                            valueType is null ? null : item.Value, shown is null ? null : new(shown.Title, shown.Description));
-                    }).ToArray();
-            }
+                options = await ManualOptionsAsync(source, await catalogs.ListOfferItemsAsync(catalog.Id, ct, source.Containment), culture, ct);
             else
             {
                 var definition = FormDraftPolicy.Read<FormCatalogFilterDefinition>(catalog.FiltersJson!);
@@ -78,12 +43,9 @@ internal sealed class FormCatalogOptionsPolicy(IFormCatalogReader catalogs, IFor
                         ? FormRecordErrors.CatalogTooLarge.Code : FormRecordErrors.CatalogTooLargeForMultiple.Code));
                     continue;
                 }
-                options = preview.Items.Select(item => new StructuredFormCatalogOption(item.Id,
-                    definition.TextColumn == "active" ? FormCatalogOfferPolicy.LocalizeBoolean(item.Text, culture) : item.Text,
-                    definition.DetailColumn == "active" && item.Detail is not null
-                        ? FormCatalogOfferPolicy.LocalizeBoolean(item.Detail, culture) : item.Detail, FilterTexts(item, definition))).ToArray();
+                options = FilterOptions(preview.Items, definition, culture);
             }
-            var offer = new StructuredFormCatalogOffer(question.FieldId, question.Key, label, id, catalog.Revision, catalog.Kind,
+            var offer = new StructuredFormCatalogOffer(question.FieldId, question.Key, label, catalog.Id, catalog.Revision, catalog.Kind,
                 Name(catalog.NameJson, culture, originalCulture), options,
                 FormDraftPolicy.Read<Dictionary<string, string>>(catalog.NameJson), valueType);
             var issue = FormCatalogOfferPolicy.InvalidValues(offer) ? FormRecordErrors.CatalogOptionInvalid.Code
@@ -114,12 +76,68 @@ internal sealed class FormCatalogOptionsPolicy(IFormCatalogReader catalogs, IFor
         return prepared with { Catalogs = offers, Issues = issues };
     }
 
+    /// <summary>
+    /// The catalog of a question with its fields, presentation and the containment of its fixed and person filters for
+    /// <paramref name="recipient"/>, or the issue that blocks it. Person data are read once and travel in the result.
+    /// </summary>
+    public async Task<FormCatalogQuestionSource> ResolveAsync(Guid recipient, CanonicalFormField question,
+        FormPersonRecipientDataRow? personData, CancellationToken ct)
+    {
+        var catalog = await catalogs.FindAsync(question.Source!.Catalog!.Value, ct);
+        if (catalog is not { IsActive: true }) return FormCatalogQuestionSource.Blocked(FormRecordErrors.CatalogUnavailable.Code, personData);
+        if (catalog.Kind != "Manual" && (question.Source.Match is { Count: > 0 } || question.Source.Presentation is not null))
+            return FormCatalogQuestionSource.Blocked(FormRecordErrors.CatalogFilterUnavailable.Code, personData);
+        var fields = FormCatalogFieldPolicy.ReadFields(catalog.FieldsJson);
+        if (question.Source.Match?.Any(match => match.PersonAttributeId is not null) == true)
+            personData ??= await people.FindRecipientDataAsync(recipient, ct);
+        var personValues = personData is null ? null : FormCatalogMatchPolicy.RecipientValues(personData);
+        var containment = FormCatalogMatchPolicy.Containment(question.Source.Match, fields, personData?.Attributes ?? [], personValues);
+        if (containment.IsFailure)
+            return FormCatalogQuestionSource.Blocked(containment.Error.Code, personData, containment.Error.Code == FormRecordErrors.RecipientDataMissing.Code
+                ? MissingData(personData!, FormCatalogMatchPolicy.MissingPersonAttribute(question.Source.Match, personValues)!.Value) : null);
+        var presentation = question.Source.Presentation ?? (catalog.PresentationJson is null ? null
+            : FormDraftPolicy.Read<FormCatalogPresentation>(catalog.PresentationJson));
+        if (!FormCatalogPresentationPolicy.ValidConfiguration(presentation, fields, catalog.ValueType))
+            return FormCatalogQuestionSource.Blocked(FormRecordErrors.CatalogFilterUnavailable.Code, personData);
+        return new(catalog, fields, presentation, containment.Value, personData, null, null);
+    }
+
+    /// <summary>The active items as offered options, in order, with their texts, value and shown title and description in <paramref name="culture"/>.</summary>
+    public async Task<IReadOnlyList<StructuredFormCatalogOption>> ManualOptionsAsync(FormCatalogQuestionSource source,
+        IReadOnlyList<FormCatalogStoredItemRow> items, string culture, CancellationToken ct)
+    {
+        var catalog = source.Catalog!;
+        var presentation = source.Presentation;
+        var valueType = ValueType(catalog);
+        HashSet<string> selected = presentation is null ? new(StringComparer.Ordinal) : presentation.Title.Concat(presentation.Description).ToHashSet(StringComparer.Ordinal);
+        var sources = await FormCatalogFieldPresentation.SourcesAsync(source.Fields.Where(field => selected.Contains(field.Id.ToString("D"))).ToArray(), catalogs, ct);
+        var sourceItems = sources.Values.SelectMany(values => values).ToDictionary(item => item.Id);
+        return items.Where(item => item.IsActive).OrderBy(item => item.Position).ThenBy(item => item.Id)
+            .Select(item =>
+            {
+                var shown = presentation is null ? null : FormCatalogPresentationPolicy.Compose(presentation,
+                    FormCatalogFieldPresentation.Values(item, source.Fields, sourceItems, culture, catalog.ValueType));
+                return new StructuredFormCatalogOption(item.Id, item.TextFor(culture), item.DetailFor(culture), ManualTexts(item),
+                    valueType is null ? null : item.Value, shown is null ? null : new(shown.Title, shown.Description));
+            }).ToArray();
+    }
+
+    public static IReadOnlyList<StructuredFormCatalogOption> FilterOptions(IReadOnlyList<FormCatalogFilterOptionResponse> items,
+        FormCatalogFilterDefinition definition, string culture) =>
+        items.Select(item => new StructuredFormCatalogOption(item.Id,
+            definition.TextColumn == "active" ? FormCatalogOfferPolicy.LocalizeBoolean(item.Text, culture) : item.Text,
+            definition.DetailColumn == "active" && item.Detail is not null
+                ? FormCatalogOfferPolicy.LocalizeBoolean(item.Detail, culture) : item.Detail, FilterTexts(item, definition))).ToArray();
+
+    /// <summary>The typed value of a Manual catalog's options; a text catalog and Filters offer none.</summary>
+    public static string? ValueType(FormCatalogStoredRow catalog) => catalog.Kind == "Manual" && catalog.ValueType != "Text" ? catalog.ValueType : null;
+
     // The datum's name is for the operator, so it follows the menu language rather than the form's.
     private static string MissingData(FormPersonRecipientDataRow personData, Guid attributeId) => FormRecordPresentationPolicy.Text(
         FormDraftPolicy.Read<Dictionary<string, string>>(personData.Attributes.Single(attribute => attribute.Id == attributeId).NameJson),
         CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es");
 
-    private static string Name(string json, string culture, string? originalCulture)
+    public static string Name(string json, string culture, string? originalCulture)
     {
         var names = FormDraftPolicy.Read<Dictionary<string, string>>(json);
         if (names.TryGetValue(culture, out var value) && !string.IsNullOrWhiteSpace(value)) return value;
@@ -143,4 +161,13 @@ internal sealed class FormCatalogOptionsPolicy(IFormCatalogReader catalogs, IFor
             definition.DetailColumn == "active" && item.Detail is not null
                 ? FormCatalogOfferPolicy.LocalizeBoolean(item.Detail, culture) : item.Detail), StringComparer.Ordinal);
 
+}
+
+/// <summary>A question's catalog ready to offer, or the issue that blocks it (<see cref="Issue"/>).</summary>
+internal sealed record FormCatalogQuestionSource(FormCatalogStoredRow? Catalog, IReadOnlyList<BusinessFormCatalogField> Fields,
+    FormCatalogPresentation? Presentation, string? Containment, FormPersonRecipientDataRow? PersonData, string? Issue, string? MissingData)
+{
+    public static FormCatalogQuestionSource Blocked(string issue, FormPersonRecipientDataRow? personData, string? missingData = null) =>
+        new(null, [], null, null, personData, issue, missingData);
+    public override string ToString() => "FormCatalogQuestionSource { Content = [REDACTED] }";
 }

@@ -11,11 +11,7 @@ internal sealed class FormPresentationCulturePolicy(IFormRuleReader rules, IForm
         string requestedCulture, string nameJson, string submitLabelJson, FormVersionSchema schema,
         StructuredFormPreparationResponse prepared, CancellationToken ct)
     {
-        var ruleSet = await rules.FindCurrentAsync(definitionId, ct);
-        var revisionRules = ruleSet is null ? [] : FormDraftPolicy.Read<FormRule[]>(ruleSet.RulesJson);
-        var (complete, _) = await CompleteAsync(definitionId, originalCulture, nameJson, schema, revisionRules, ct);
-        var submit = FormDraftPolicy.Read<Dictionary<string, string>>(submitLabelJson);
-        var culture = complete.Contains(requestedCulture) && Has(submit, requestedCulture) ? requestedCulture : originalCulture;
+        var culture = await CultureAsync(definitionId, originalCulture, requestedCulture, nameJson, submitLabelJson, schema, ct);
         var unavailable = prepared.Catalogs.Where(catalog => !CatalogComplete(catalog)).ToArray();
         if (unavailable.Length > 0)
             return new([], unavailable.Select(catalog => new StructuredFormPreparationIssue(catalog.FieldId,
@@ -28,6 +24,20 @@ internal sealed class FormPresentationCulturePolicy(IFormRuleReader rules, IForm
             Options = catalog.Options.Select(option => Localize(option, culture)).ToArray(),
         }).ToArray();
         return prepared with { Culture = culture, Catalogs = catalogs };
+    }
+
+    /// <summary>
+    /// The requested culture when the form, its current rules' messages and PDF design are complete in it; otherwise the
+    /// form's original. The capture keeps it, so notices and the PDF follow it.
+    /// </summary>
+    public async Task<string> CultureAsync(Guid definitionId, string originalCulture, string requestedCulture, string nameJson,
+        string submitLabelJson, FormVersionSchema schema, CancellationToken ct)
+    {
+        var ruleSet = await rules.FindCurrentAsync(definitionId, ct);
+        var revisionRules = ruleSet is null ? [] : FormDraftPolicy.Read<FormRule[]>(ruleSet.RulesJson);
+        var (complete, _) = await CompleteAsync(definitionId, originalCulture, nameJson, schema, revisionRules, ct);
+        var submit = FormDraftPolicy.Read<Dictionary<string, string>>(submitLabelJson);
+        return complete.Contains(requestedCulture) && Has(submit, requestedCulture) ? requestedCulture : originalCulture;
     }
 
     public async Task<IReadOnlyList<string>> CompleteForRecordAsync(FormActionRecordSnapshot snapshot,

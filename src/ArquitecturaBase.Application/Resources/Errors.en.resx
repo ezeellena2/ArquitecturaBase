@@ -203,6 +203,9 @@
   <data name="Forms.Record.CatalogInsufficientOptions" xml:space="preserve"><value>There are not enough available options to meet this question's minimum.</value></data>
   <data name="Forms.Record.CatalogEmpty" xml:space="preserve"><value>The required question has no available options.</value></data>
   <data name="Forms.Record.CatalogOptionInvalid" xml:space="preserve"><value>An option exceeds WhatsApp limits: 30 characters for text and 300 for detail. Adjust the catalog without truncating data.</value></data>
+  <data name="Forms.Entry.VersionChanged" xml:space="preserve"><value>A new version of the form was published.</value></data>
+  <data name="Forms.Entry.Unavailable" xml:space="preserve"><value>The form was deactivated and can no longer be loaded.</value></data>
+  <data name="Forms.Entry.QuestionNotFound" xml:space="preserve"><value>The question has no catalog in this version.</value></data>
   <data name="Forms.Record.CatalogItemInactive" xml:space="preserve"><value>An option was deactivated. The response was not saved. You can send another form.</value></data>
 <data name="WhatsApp.Flow.CatalogPreparationBlocked" xml:space="preserve"><value>The catalog could not be prepared. Review the options before sending.</value></data>
   <data name="WhatsApp.Flow.CaptureFailed" xml:space="preserve"><value>We could not save the response after several attempts. You can send the form again.</value></data>

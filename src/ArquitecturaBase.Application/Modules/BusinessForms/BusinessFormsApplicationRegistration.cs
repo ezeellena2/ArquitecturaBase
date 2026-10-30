@@ -67,6 +67,13 @@ public static class BusinessFormsApplicationRegistration
         services.TryAddScoped<BusinessFormFileRecorder>();
         services.TryAddScoped<IFormFileService, FormFileService>();
         services.TryAddScoped<IBusinessFormRecordCaptureService, Services.BusinessFormRecordRecorder>();
+        services.TryAddScoped<FormEntryAccessGuard>();
+        services.TryAddScoped<FormEntryCatalogPolicy>();
+        services.TryAddScoped<FormEntryRecorder>();
+        services.TryAddScoped<IFormEntryService, FormEntryService>();
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<ListFormEntryOptionsRequest>, ListFormEntryOptionsRequestValidator>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<SubmitFormEntryRequest>, SubmitFormEntryRequestValidator>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IStructuredRecordOriginSource, BusinessFormEntryOriginSource>());
         services.TryAddScoped<IFormDraftService, FormDraftService>();
         services.TryAddScoped<FormDefinitionReadPolicy>();
         services.TryAddScoped<FormLifecycleAccessGuard>();

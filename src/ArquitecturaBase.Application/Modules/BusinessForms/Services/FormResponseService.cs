@@ -85,7 +85,8 @@ internal sealed class FormResponseService(IFormResponseReader reader, FormRecord
             var reply = FormRecordPresentationPolicy.Project(row.Record, contentCulture, FormDraftPolicy.Read<FormVersionSchema>(row.Record.SchemaJson));
             var origin = channels.GetValueOrDefault(row.Record.SourceReceiptId);
             var history = new List<FormResponseHistoryResponse>();
-            if (origin is not null) history.Add(new("Sent", origin.SentAtUtc, origin.SenderUserId is { } senderId ? new(senderId, origin.SenderName) : null));
+            if (origin is not null && origin.ChannelId != FormEntryChannel.Id)
+                history.Add(new("Sent", origin.SentAtUtc, origin.SenderUserId is { } senderId ? new(senderId, origin.SenderName) : null));
             history.Add(new("Submitted", row.SubmittedAtUtc, row.Actor));
             history.Add(new("Saved", row.CreatedAtUtc, null));
             return new FormResponseDetailResponse(id, row.Record.DefinitionId, row.Record.VersionId, row.Record.VersionNumber, reply.Number, reply.Name,

@@ -203,6 +203,9 @@
   <data name="Forms.Record.CatalogInsufficientOptions" xml:space="preserve"><value>No hay suficientes opciones disponibles para el mínimo de esta pregunta.</value></data>
   <data name="Forms.Record.CatalogEmpty" xml:space="preserve"><value>La pregunta obligatoria no tiene opciones disponibles.</value></data>
   <data name="Forms.Record.CatalogOptionInvalid" xml:space="preserve"><value>Una opción supera los límites de WhatsApp: texto de 30 caracteres y detalle de 300. Ajustá el catálogo sin recortar datos.</value></data>
+  <data name="Forms.Entry.VersionChanged" xml:space="preserve"><value>Se publicó una versión nueva del formulario.</value></data>
+  <data name="Forms.Entry.Unavailable" xml:space="preserve"><value>El formulario se dio de baja y ya no se puede cargar.</value></data>
+  <data name="Forms.Entry.QuestionNotFound" xml:space="preserve"><value>La pregunta no tiene catálogo en esta versión.</value></data>
   <data name="Forms.Record.CatalogItemInactive" xml:space="preserve"><value>Una opción se dio de baja. La respuesta no se guardó. Podés mandar otro formulario.</value></data>
 <data name="WhatsApp.Flow.CatalogPreparationBlocked" xml:space="preserve"><value>No se pudo preparar el catálogo. Revisá las opciones antes de mandar.</value></data>
   <data name="WhatsApp.Flow.CaptureFailed" xml:space="preserve"><value>No pudimos guardar la respuesta después de varios intentos. Podés mandar el formulario de nuevo.</value></data>
