@@ -221,7 +221,7 @@ Etapa 1, los tableros elegidos pasan al lienzo del sistema visual y su diseño s
      página y el panel con las preguntas armadas según CW12, CW13-A y CW16, las listas, las fotos, «Enviada» y la planilla con
      «Canal». Las reglas quedaron en [formularios](../features/formularios.md#carga-desde-la-app--etapa-1-2026-10-30).
      Verificación final: backend con build sin advertencias y 6.548/6.548 tests con PostgreSQL, Redis y Azurite, y las 24
-     cohortes HTTP exportadas juntas; front con build y lint limpios, 3.559/3.559 tests y 775/775 visuales; recorrido en el
+     cohortes HTTP exportadas juntas; front con build y lint limpios, 3.560/3.560 tests y 775/775 visuales; recorrido en el
      navegador integrado en es/en a 1440, 390 y 320, sobre el catálogo visual y con la API real.
    - Pendiente: la cámara de un celular real por el túnel y pasar los tableros elegidos al lienzo del sistema visual.
 2. **Etapa 2 · Lo propio en «Formularios» (CW6-C).**
