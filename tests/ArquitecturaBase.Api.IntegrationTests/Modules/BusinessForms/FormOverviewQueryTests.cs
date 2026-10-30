@@ -53,6 +53,17 @@ public sealed class FormOverviewQueryTests
     }
 
     [Fact]
+    public void Who_only_completes_forms_lists_them_without_record_or_approval_dimensions()
+    {
+        using var db = Context();
+        var sql = Query(db, new(), false, false, create: true).ToQueryString();
+        Assert.Contains("\"BusinessFormVersions\"", sql, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"BusinessFormTasks\"", sql, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"BusinessFormRecords\"", sql, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"LastRecordNumber\"", sql, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Open_tasks_have_a_definition_and_role_index_for_overview_and_oldest_first_navigation()
     {
         using var db = Context();
@@ -64,12 +75,12 @@ public sealed class FormOverviewQueryTests
         Assert.False(index.IsUnique);
     }
 
-    private static IQueryable Query(ApplicationDbContext db, ListFormOverviewRequest request, bool read, bool decide)
+    private static IQueryable Query(ApplicationDbContext db, ListFormOverviewRequest request, bool read, bool decide, bool create = false)
     {
         var reader = new FormOverviewReader(db);
         var query = typeof(FormOverviewReader).GetMethod("Query", BindingFlags.NonPublic | BindingFlags.Instance);
         Assert.NotNull(query);
-        return Assert.IsAssignableFrom<IQueryable>(query.Invoke(reader, [Guid.NewGuid(), request, "en", read, decide]));
+        return Assert.IsAssignableFrom<IQueryable>(query.Invoke(reader, [Guid.NewGuid(), request, "en", read, decide, create]));
     }
     private static ApplicationDbContext Context() => new(new DbContextOptionsBuilder<ApplicationDbContext>()
         .UseNpgsql("Host=localhost;Database=not-opened;Username=test;Password=test").Options);
