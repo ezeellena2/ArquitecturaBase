@@ -5,6 +5,8 @@ namespace ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessFo
 internal sealed class FakeFormActionChannel:IStructuredRecordActionChannel
 {
     public string ChannelId=>"phone";public Exception? ReadException { get; set; }
+    public HashSet<Guid> Reachable { get; }=[];
+    public Task<bool> CanReachAsync(Guid recipientUserId,CancellationToken cancellationToken)=>Task.FromResult(Reachable.Contains(recipientUserId));
     public Dictionary<Guid,Exception> ReadExceptions { get; }=[];
     public Dictionary<Guid,StructuredRecordActionResponse> Statuses { get; }=[];
     public List<Guid> Reads { get; }=[];public List<StructuredRecordActionMessage> Messages { get; }=[];public List<Guid> Retries { get; }=[];public List<long> ControlRevisions { get; }=[];

@@ -15,12 +15,20 @@ internal sealed class WhatsAppFormActionPolicy(IUserReader users, IPhoneNumberPa
         if (accepted is not null && (contact is null || contact.UserId != recipientUserId || accepted.ContactId != contact.Id
             || accepted.RecipientLinkRevision != contact.LinkRevision || accepted.RecipientWaId != contact.WaId))
             return WhatsAppFormActionErrors.RecipientChanged;
-        if (contact is null || contact.UserId != recipientUserId) return WhatsAppFormActionErrors.RecipientUnavailable;
-        var account = await users.FindByIdAsync(recipientUserId, cancellationToken);
-        var phone = WhatsAppIds.Parse(phoneNumbers, contact.WaId);
-        if (account is not { IsActive: true, PhoneNumberConfirmed: true } || phone.IsFailure || account.PhoneNumber != phone.Value.Value)
+        if (contact is null || contact.UserId != recipientUserId || !await HasAddressAsync(contact.WaId, recipientUserId, cancellationToken))
             return WhatsAppFormActionErrors.RecipientUnavailable;
         if (!WhatsAppChatService.IsReplyWindowOpen(contact, timeProvider.GetUtcNow().UtcDateTime)) return WhatsAppFormActionErrors.WindowClosed;
         return null;
+    }
+
+    // The reply window is a later, passing condition: only the address decides whether the recipient can be reached.
+    public async Task<bool> CanReachAsync(string? linkedWaId, Guid recipientUserId, CancellationToken cancellationToken) =>
+        availability.IsEnabled && linkedWaId is not null && await HasAddressAsync(linkedWaId, recipientUserId, cancellationToken);
+
+    private async Task<bool> HasAddressAsync(string? waId, Guid recipientUserId, CancellationToken cancellationToken)
+    {
+        var account = await users.FindByIdAsync(recipientUserId, cancellationToken);
+        var phone = WhatsAppIds.Parse(phoneNumbers, waId);
+        return account is { IsActive: true, PhoneNumberConfirmed: true } && phone.IsSuccess && account.PhoneNumber == phone.Value.Value;
     }
 }

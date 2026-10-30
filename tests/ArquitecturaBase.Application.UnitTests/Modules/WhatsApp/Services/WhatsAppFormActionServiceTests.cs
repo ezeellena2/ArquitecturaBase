@@ -156,6 +156,21 @@ public sealed class WhatsAppFormActionServiceTests
         Assert.Null(observed.Status.Receipt!.DeliveredAtUtc);Assert.Equal(readAt,observed.Status.Receipt.ReadAtUtc);
         Assert.Equal(1,host.Reader.Calls);Assert.Equal(0,host.UnitOfWork.Transactions);Assert.Empty(host.Repository.Outgoing);Assert.Equal(0,host.Repository.ContactReads);
     }
+    [Fact]
+    public async Task A_recipient_is_reachable_with_a_linked_contact_and_its_confirmed_number_even_with_the_window_closed()
+    {
+        var host=new Host();host.Reader.LinkedWaIds[host.User.Id]="5493413654813";host.Clock.Advance(TimeSpan.FromDays(3));
+        Assert.True(await host.Service.CanReachAsync(host.User.Id,Ct));
+        Assert.Equal(0,host.UnitOfWork.Transactions);Assert.Equal(0,host.Repository.ContactReads);
+    }
+    [Fact]
+    public async Task A_recipient_without_a_linked_contact_or_with_another_number_is_not_reachable()
+    {
+        var host=new Host();
+        Assert.False(await host.Service.CanReachAsync(host.User.Id,Ct));
+        host.Reader.LinkedWaIds[host.User.Id]="5493410000000";
+        Assert.False(await host.Service.CanReachAsync(host.User.Id,Ct));
+    }
     private sealed class Host
     {
         public Repository Repository { get; } = new();
@@ -178,6 +193,8 @@ public sealed class WhatsAppFormActionServiceTests
     private sealed class Reader:IWhatsAppFormActionReader
     {
         public List<WhatsAppFormActionObservationRow> Rows { get; }=[];public int Calls { get; private set; }
+        public Dictionary<Guid,string> LinkedWaIds { get; }=[];
+        public Task<string?> FindLinkedWaIdAsync(Guid userId,CancellationToken ct)=>Task.FromResult(LinkedWaIds.GetValueOrDefault(userId));
         public Task<IReadOnlyList<WhatsAppFormActionObservationRow>> ListObservationsAsync(IReadOnlyCollection<StructuredRecordActionObservationRequest> requests,CancellationToken ct)
         { Calls++;return Task.FromResult<IReadOnlyList<WhatsAppFormActionObservationRow>>(Rows.Where(row=>requests.Contains(new(row.RunId,row.RecipientUserId))).ToArray()); }
     }

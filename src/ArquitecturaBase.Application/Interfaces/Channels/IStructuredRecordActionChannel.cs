@@ -16,4 +16,7 @@ public interface IStructuredRecordActionChannel
     Task<StructuredRecordActionResponse> ReviewAsync(Guid runId, Guid recipientUserId, StructuredRecordActionReview review, CancellationToken cancellationToken);
 
     Task<StructuredRecordActionResponse> RetryAsync(Guid runId, Guid recipientUserId, long controlRevision, CancellationToken cancellationToken);
+
+    /// <summary>Whether the recipient has an address in this channel, such as a linked contact. A local read: no provider, no reservation.</summary>
+    Task<bool> CanReachAsync(Guid recipientUserId, CancellationToken cancellationToken);
 }

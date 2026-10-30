@@ -15,6 +15,8 @@ internal sealed class WhatsAppFormActionReader(ApplicationDbContext db) : IWhats
         var rows = await QueryObservations(runs, users).ToArrayAsync(cancellationToken);
         return rows.Where(row => requested.Contains(new(row.RunId, row.RecipientUserId))).ToArray();
     }
+    public Task<string?> FindLinkedWaIdAsync(Guid userId, CancellationToken cancellationToken) =>
+        db.Set<WhatsAppContact>().AsNoTracking().Where(contact => contact.UserId == userId).Select(contact => contact.WaId).SingleOrDefaultAsync(cancellationToken);
     private IQueryable<WhatsAppFormActionObservationRow> QueryObservations(IReadOnlyCollection<Guid> runIds, IReadOnlyCollection<Guid> userIds) =>
         from outgoing in db.Set<WhatsAppOutgoingMessage>().AsNoTracking()
         where outgoing.Origin == WhatsAppMessageOrigin.FormAction && runIds.Contains(outgoing.RequestId)

@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
@@ -7,7 +8,8 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
 internal sealed class FormActionRunRecorder(
     IFormRuleRepository rules, IFormActionRunRepository runs, IFormActionRecipientReader recipients,
-    IFormPdfActionService pdf, FormPresentationCulturePolicy presentation, TimeProvider timeProvider)
+    IFormPdfActionService pdf, FormPresentationCulturePolicy presentation, IEnumerable<IStructuredRecordActionChannel> channels,
+    TimeProvider timeProvider)
 {
     public async Task RecordAsync(
         BusinessFormRecord record, FormActionRecordSnapshot snapshot, string eventName, CancellationToken cancellationToken)
@@ -24,6 +26,7 @@ internal sealed class FormActionRunRecorder(
         var completeCultures = await presentation.CompleteForRecordAsync(snapshot, revisionRules, questions, cancellationToken);
         var existing = (await runs.ListForEventAsync(record.Id, eventName, cancellationToken))
             .ToDictionary(run => (run.RuleId, run.ActionId));
+        bool? authorReachable = null;
         foreach (var rule in eventRules)
         {
             var applies = FormRecordConditionEvaluator.Matches(rule.Conditions, snapshot);
@@ -43,13 +46,16 @@ internal sealed class FormActionRunRecorder(
                     continue;
                 }
 
+                // Someone who loaded the response in the app may have no channel to write to: the notice does not apply to them.
+                var actionApplies = applies && (action.Kind != "NotifyAuthor" || !record.EnteredInApp
+                    || (authorReachable ??= await CanReachAsync(record.ActorUserId, cancellationToken)));
                 var run = BusinessFormActionRun.Create(
                     record.DefinitionId, record.Id, ruleSetId, rule.Id, action.Id, eventName, action.Kind, index,
-                    dependency, "", applies, timeProvider.GetUtcNow().UtcDateTime);
+                    dependency, "", actionApplies, timeProvider.GetUtcNow().UtcDateTime);
                 FormPdfActionSnapshotResponse? pdfSnapshot = null;
                 string? failure = null;
                 var targets = new List<FormActionRecipient>();
-                if (applies && action.Kind == "GeneratePdf")
+                if (actionApplies && action.Kind == "GeneratePdf")
                 {
                     var prepared = await pdf.PrepareAsync(run.Id, snapshot, cancellationToken);
                     if (prepared.IsSuccess)
@@ -65,7 +71,7 @@ internal sealed class FormActionRunRecorder(
                     pdfRunId = run.Id;
                 }
 
-                if (applies && action.Kind is "NotifyAuthor" or "NotifyRole")
+                if (actionApplies && action.Kind is "NotifyAuthor" or "NotifyRole")
                 {
                     IReadOnlyList<FormActionRecipientRow> people;
                     if (action.Kind == "NotifyRole")
@@ -98,6 +104,13 @@ internal sealed class FormActionRunRecorder(
                 dependency = run.Id;
             }
         }
+    }
+
+    private async Task<bool> CanReachAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        foreach (var channel in channels)
+            if (await channel.CanReachAsync(userId, cancellationToken)) return true;
+        return false;
     }
 
 }

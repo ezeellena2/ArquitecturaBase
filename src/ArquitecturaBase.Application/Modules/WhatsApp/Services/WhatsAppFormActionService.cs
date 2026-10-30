@@ -42,6 +42,9 @@ internal sealed class WhatsAppFormActionService(IWhatsAppFormActionRepository re
         return result.Value;
     }
 
+    public async Task<bool> CanReachAsync(Guid recipientUserId, CancellationToken cancellationToken) =>
+        await policy.CanReachAsync(await reader.FindLinkedWaIdAsync(recipientUserId, cancellationToken), recipientUserId, cancellationToken);
+
     public async Task<StructuredRecordActionResponse> GetAsync(Guid runId, Guid recipientUserId, CancellationToken cancellationToken)
     {
         OperationLog.Handling(logger, "GetWhatsAppFormAction");

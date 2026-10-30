@@ -9,4 +9,5 @@ public interface IWhatsAppFormActionService
     Task<StructuredRecordActionResponse> GetAsync(Guid runId, Guid recipientUserId, CancellationToken cancellationToken);
     Task<StructuredRecordActionResponse> ReviewAsync(Guid runId, Guid recipientUserId, StructuredRecordActionReview review, CancellationToken cancellationToken);
     Task<StructuredRecordActionResponse> RetryAsync(Guid runId, Guid recipientUserId, long controlRevision, CancellationToken cancellationToken);
+    Task<bool> CanReachAsync(Guid recipientUserId, CancellationToken cancellationToken);
 }
