@@ -1,8 +1,8 @@
 # Cargar formularios desde la app
 
-Propuesta del 2026-10-29, sin programar, con las decisiones del usuario tomadas el mismo día. La persona elige un
-formulario publicado en «Formularios», lo carga en la app (desde la compu o el celular) y lo cargado se trabaja en la
-planilla. Las reglas de hoy están en [formularios](../features/formularios.md); este plan suma la carga desde la web, que el
+Propuesta del 2026-10-29, sin programar, con las decisiones del usuario del 2026-10-29 y el 2026-10-30. La persona elige
+un formulario publicado en «Formularios», lo carga en la app (desde la compu o el celular) y lo cargado se trabaja en la
+planilla, donde además se corrige o se anula. Las reglas de hoy están en [formularios](../features/formularios.md); este plan suma la carga desde la web, que el
 [resumen de formularios](formularios/README.md) dejaba pendiente con tableros propios.
 
 **Tableros:** lienzo [Formularios desde la app](https://claude.ai/artifact/Kvbr5KFJrGT951JLiu8i4M), tableros CW0 a CW9 con los catálogos y
@@ -11,7 +11,7 @@ Es **provisorio**: el lienzo [Sistema visual](https://claude.ai/artifact/HPbmDPL
 sesión. Los tableros elegidos se pasan allí antes de programar; el formato es el mismo. Están armados con los tokens y las
 medidas de `index.css` y `shared/ui`, con el escritorio al 75 % y el celular a 16 px con áreas táctiles de 44.
 
-## Decisiones (2026-10-29)
+## Decisiones (2026-10-29 y 2026-10-30)
 
 1. **Elegir el formulario: CW1-B, desde «Formularios».** No hay entrada nueva.
    - La tabla MF1 suma «Cargar» en cada fila para quien puede completar, y la planilla suma «Agregar respuesta».
@@ -25,6 +25,22 @@ medidas de `index.css` y `shared/ui`, con el escritorio al 75 % y el celular a 1
    - No hay «Mis cargas» aparte (CW6-B).
 4. **Listas dependientes: sí, sólo en la app, en una etapa propia (CW7).**
 5. **Cargar en nombre de otra persona: no por ahora.** Cada uno carga lo suyo; si aparece el caso, se dibuja su tablero.
+6. **Editar: corregir (CW10-A).**
+   - «Corregir», en el detalle, abre lo cargado en la versión activa, con lo de antes a la vista y el motivo obligatorio.
+   - La corrección reemplaza a la anterior con el mismo número, y la anterior queda en el historial tal como se avisó, aprobó o imprimió.
+   - Vuelve a pasar por las reglas. Si el formulario pide aprobación, vuelve a «Por aprobar», aunque ya estuviera aprobada.
+7. **Eliminar: anular con motivo (CW11-A).**
+   - Queda «Anulada» con su número, quién, cuándo y por qué, y cierra la aprobación pendiente.
+   - La planilla la oculta salvo con el filtro «Anulada», no cuenta en «Formularios» y no sale en el Excel salvo que se pida.
+   - No se borra ni se deshace.
+8. **Quién corrige y anula:**
+   - quien la cargó, mientras no esté aprobada (si el formulario no pide aprobación, siempre);
+   - con un permiso nuevo, «Corregir y anular respuestas», cualquiera y siempre;
+   - quien sólo ve respuestas, no.
+
+Las decisiones 6 a 8 cambian la regla de [inmutabilidad](../features/formularios.md#persistencia-y-responsabilidad). Una respuesta
+confirmada sigue sin modificarse, pero puede quedar reemplazada por su corrección o anulada; al implementarlo, la regla se
+reescribe allí.
 
 ## Análisis
 
@@ -78,6 +94,24 @@ medidas de `index.css` y `shared/ui`, con el escritorio al 75 % y el celular a 1
     WhatsApp: es un problema de la preparación, como `CatalogTooLarge`, y la comprobación de publicación lo avisa sin frenar.
   - Las preguntas ya publicadas no cambian.
 
+### Corregir y anular
+
+- **Las reglas siguen siendo de cada formulario.** «Cuando llega una respuesta» decide si se pide aprobación, a qué rol, qué
+  avisos salen y si hay PDF. Sin una regla de aprobación, la respuesta queda «Recibida» y listo. Un cambio de reglas vale
+  para las respuestas que llegan después.
+- **Una corrección es una carga más:**
+  - pasa por la misma captura, con sus validaciones, copias y numeración;
+  - las fotos que no se tocan se conservan;
+  - corre las reglas de «al recibirla», con los valores nuevos.
+  El número sigue siendo único entre las respuestas vigentes; la reemplazada queda enlazada a su corrección.
+- **Anular es un estado nuevo, con motivo y autor.**
+  - Cierra la tarea de aprobación abierta.
+  - Planilla, facetas, navegación, Excel y conteos de «Formularios» excluyen las anuladas por defecto. Hoy «Respuestas» sale de
+    `LastRecordNumber`, así que pasa a contarlas.
+  - El chat de WhatsApp muestra la marca.
+- **El permiso nuevo** sigue la [receta de un permiso](../guides/permiso-nuevo.md). Las acciones van en la vista rápida, en la
+  pantalla completa y en la planilla de lo propio, para quien la cargó.
+
 ### Fotos y documentos
 
 - **Los mismos límites, sellados en la versión:** mínimo y máximo por pregunta, hasta 10 por respuesta,
@@ -103,6 +137,8 @@ medidas de `index.css` y `shared/ui`, con el escritorio al 75 % y el celular a 1
 | **CW7 · Listas dependientes** (elegida) | El filtro nuevo en el editor, el comportamiento en la app y lo que avisa WhatsApp. |
 | CW8 · En el celular | Una lluvia de punta a punta, desde «Formularios». |
 | CW9 · Quién ve qué | Cuatro personas con sus permisos y la interfaz en inglés. |
+| **CW10-A · Corregir** (elegida) | La corrección en el panel con lo de antes y el motivo, «Corregida» en la fila y el detalle, la versión anterior, una aprobada que vuelve a «Por aprobar», quien la cargó y el cuadro de quién puede. CW10-B queda como alternativa. |
+| **CW11-A · Anular con motivo** (elegida) | «Anular» al final de «⋯», el motivo, la fila que sale de la vista, el filtro «Anulada» y el Excel con «Incluir las anuladas». CW11-B queda como alternativa. |
 
 ### Qué se reutiliza y qué es nuevo
 
@@ -117,7 +153,8 @@ medidas de `index.css` y `shared/ui`, con el escritorio al 75 % y el celular a 1
     la versión para cargar, las opciones de una pregunta y enviar (multipart);
   - la lectura paginada de la oferta, el origen «App» y el aviso «No aplica»;
   - «Formularios» con «Completar formularios»;
-  - la lectura de lo propio y el filtro por respuesta.
+  - la lectura de lo propio y el filtro por respuesta;
+  - la corrección, la anulación y su permiso.
   - Cada ruta va al inventario y tiene su test.
 - **Front que se reutiliza:**
   - las piezas de formulario: `Page`, `Surface`, `FormField`, `Input`, `Textarea`, `RadioGroupField`, `SegmentedControl` (Sí/No sin valor inicial) y `Autocomplete`;
@@ -128,7 +165,8 @@ medidas de `index.css` y `shared/ui`, con el escritorio al 75 % y el celular a 1
   - «Cargar» y «Agregar respuesta», la página y el panel de carga;
   - la lista de catálogo con búsqueda en el servidor, que extiende `Autocomplete` con descripción, páginas y estados;
   - la pregunta de archivos con cámara, y el estado «Enviada»;
-  - la planilla recortada a lo propio y el filtro nuevo del editor.
+  - la planilla recortada a lo propio y el filtro nuevo del editor;
+  - «Corregir» y «Anular» en el detalle, y el filtro «Anulada».
 
 ## Plan por etapas
 
@@ -149,11 +187,15 @@ Etapa 1, los tableros elegidos pasan al lienzo del sistema visual y su diseño s
    - La lectura de lo propio con «Completar formularios», y la planilla y el detalle recortados, con estado, PDF y motivo.
    - En «Formularios», sus cargas y la última para quien sólo carga.
    - El panel de carga, también en esa planilla.
-3. **Etapa 3 · Listas dependientes (CW7):** el filtro, el editor, la comprobación de publicación, el bloqueo del envío por
+3. **Etapa 3 · Corregir y anular (CW10-A y CW11-A).**
+   - El permiso nuevo, la corrección como carga que reemplaza y la anulación con motivo.
+   - Las lecturas y conteos sin las anuladas, y las acciones en la vista rápida, la pantalla completa y la planilla de lo propio.
+   - La regla de inmutabilidad se reescribe en [formularios](../features/formularios.md). Vale también para lo que llegó por WhatsApp.
+4. **Etapa 4 · Listas dependientes (CW7):** el filtro, el editor, la comprobación de publicación, el bloqueo del envío por
    WhatsApp y la validación al guardar. La regla nueva va a [formularios](../features/formularios.md).
-4. **Después:** las listas dependientes en WhatsApp con el intercambio con Meta. La carga en nombre de otra persona, si aparece
+5. **Después:** las listas dependientes en WhatsApp con el intercambio con Meta. La carga en nombre de otra persona, si aparece
    el caso, con su tablero.
 
-Fuera de alcance: corregir una respuesta, importar respuestas desde Excel, borradores guardados y carga sin conexión, la carga
-en filas (CW2-C) y grupos con líneas. Aplicación usa pares fijos de producto y dosis; una lista de líneas necesita «grupos y
+El orden de las etapas 3 y 4 es una propuesta: se pueden invertir. Fuera de alcance: importar respuestas desde Excel,
+borradores guardados y carga sin conexión, la carga en filas (CW2-C) y grupos con líneas. Aplicación usa pares fijos de producto y dosis; una lista de líneas necesita «grupos y
 remitos con líneas», que tiene su propio pendiente.

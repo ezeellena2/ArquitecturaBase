@@ -11,7 +11,7 @@ Estado al `2026-10-23`. Las reglas implementadas están en [formularios](../../f
 | 4 · Reglas, aprobación, PDF y avisos | [Reglas y verificación local](../../features/formularios.md#verificación-de-la-etapa-4--2026-10-16) | Verificada localmente y en el [piloto total con Meta y Azure](../verificacion-y-produccion.md#formularios-piloto-total-con-proveedores-reales--2026-10-20), incluidos inglés completo y P24. |
 | 5 · Asistente, sugerencias y audios | [Reglas y cierre local](../../features/formularios.md#cierre-local-de-la-etapa-5-y-del-review-de-la-etapa-4) | Implementada y verificada localmente con [calificación OpenAI](../../guides/configurar-ia.md#evidencia-para-habilitar-perfiles); [piloto físico completado con texto, audio, revisión Manual y continuación tras responder](../verificacion-y-produccion.md#formularios-piloto-total-con-proveedores-reales--2026-10-20). La regla de publicación vigente es [original obligatorio y traducción opcional](../../features/formularios.md#idioma-original-y-traducción-opcional--2026-10-19) |
 
-La carga de respuestas desde la web tiene su [propuesta con tableros](../2026-10-29-cargar-formularios-desde-la-app.md), con las decisiones del usuario del 2026-10-29 y tres etapas por programar; la importación de respuestas desde Excel sigue pendiente. La importación de catálogos está implementada en E1.
+La carga de respuestas desde la web tiene su [propuesta con tableros](../2026-10-29-cargar-formularios-desde-la-app.md), con las decisiones del usuario del 2026-10-29 y el 2026-10-30 y cuatro etapas por programar, entre ellas corregir y anular respuestas; la importación de respuestas desde Excel sigue pendiente. La importación de catálogos está implementada en E1.
 
 ## Después de la Etapa 5
 
@@ -24,7 +24,7 @@ Sin orden fijo; cada una necesita su tablero y su decisión antes de programarse
 - intercambio cifrado con Meta: búsqueda en vivo, listas dependientes y listas largas;
 - grupos y remitos con líneas;
 - descargar todas las fotos juntas desde el detalle de una respuesta;
-- corregir una respuesta (una respuesta nueva que reemplaza a la anterior);
+- corregir una respuesta (la corrección reemplaza a la anterior) y anularla con motivo: decidido el 2026-10-30, en la [carga desde la app](../2026-10-29-cargar-formularios-desde-la-app.md#decisiones-2026-10-29-y-2026-10-30);
 - borrador de formulario armado por la IA a partir de los pedidos de formularios que faltan;
 - **catálogos E1 y E2 implementados:** carga de una vez, tipo de valor, elegir varias, campos extra, presentación y filtros por persona. Las [reglas vigentes](../../features/formularios.md#catálogos-con-campos-extra-y-filtros-por-persona--e2-2026-10-23) y los tableros CA1-A/CA2–CA6 y CE1/CE2/CE3-B/CE4-A/CE5/CE6 sustituyen los resúmenes retirados. El review de E1 está cerrado; el de E2 precede al [piloto único con Meta](../verificacion-y-produccion.md#formularios-piloto-único-con-meta-después-de-e2). Búsqueda en vivo, asistente y orígenes externos conservan su alcance en la [hoja de ruta](../2026-10-21-catalogos-con-origenes-externos.md);
 - copiar definiciones (pendiente en [planes](../README.md)); dar de baja, reactivar, eliminar y deprecar en Meta tienen [reglas implementadas](../../features/formularios.md#dar-de-baja-reactivar-y-eliminar--2026-10-21) y su [piloto después del code review](../verificacion-y-produccion.md#formularios-baja-reactivación-y-eliminación).
