@@ -18,6 +18,7 @@ internal sealed partial class FormResponseReader
             var selected = Enum.Parse<FormRecordState>(state);
             query = query.Where(record => record.State == selected);
         }
+        if (request.EnteredInApp is { } enteredInApp) query = query.Where(record => record.EnteredInApp == enteredInApp);
         if (request.UpToNumber is { } maximum) query = query.Where(record => record.Number <= maximum);
         if (request.VersionIds.Count != 0) query = query.Where(record => request.VersionIds.Contains(record.VersionId));
         if (request.ActorIds.Count != 0) query = query.Where(record => request.ActorIds.Contains(record.ActorUserId));

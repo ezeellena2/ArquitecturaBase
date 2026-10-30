@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Text.Json;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Files;
@@ -118,6 +119,13 @@ public sealed class FormEntryHttpTests(ApiFactory factory)
         var row = (await sheet.ReadJsonAsync()).GetProperty("records").GetProperty("items")[0];
         Assert.Equal(FormEntryChannel.Id, row.GetProperty("channel").GetString());
         Assert.Equal("Juan Gómez", row.GetProperty("actor").GetProperty("displayName").GetString());
+        using var app = await reader.PostAsync($"/api/forms/definitions/{scenario.DefinitionId}/records/search", JsonContent.Create(new { enteredInApp = true }), Ct);
+        Assert.Equal(1, (await app.ReadJsonAsync()).GetProperty("records").GetProperty("totalCount").GetInt32());
+        using var channel = await reader.PostAsync($"/api/forms/definitions/{scenario.DefinitionId}/records/search", JsonContent.Create(new { enteredInApp = false }), Ct);
+        Assert.Equal(0, (await channel.ReadJsonAsync()).GetProperty("records").GetProperty("totalCount").GetInt32());
+        using var counted = await reader.PostAsync($"/api/forms/definitions/{scenario.DefinitionId}/records/filter-counts/search",
+            JsonContent.Create(new { filter = new { enteredInApp = false }, dimension = "version" }), Ct);
+        Assert.Equal(HttpStatusCode.OK, counted.StatusCode);
         using var detail = await reader.GetAsync($"/api/forms/records/{recordId}", Ct);
         await FormEntryContractCapture.WriteAsync(detail, "detail-app-" + culture, Ct);
         var detailBody = await detail.ReadJsonAsync();

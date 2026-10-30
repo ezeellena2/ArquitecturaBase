@@ -1,10 +1,11 @@
 using ArquitecturaBase.Application.Common.Pagination;
 namespace ArquitecturaBase.Api.Modules.BusinessForms.Contracts;
 public sealed record FormRecordsQuery(int Page = PagedRequest.DefaultPage, int PageSize = PagedRequest.DefaultPageSize, string? Sort = null,
-    Guid? SortFieldId = null, IReadOnlyList<Guid>? VersionIds = null, string? State = null);
+    Guid? SortFieldId = null, IReadOnlyList<Guid>? VersionIds = null, string? State = null, bool? EnteredInApp = null);
 public sealed record FormRecordsSearchHttpRequest(int Page = PagedRequest.DefaultPage, int PageSize = PagedRequest.DefaultPageSize, string? Sort = null,
     Guid? SortFieldId = null, IReadOnlyList<Guid>? VersionIds = null, IReadOnlyList<Guid>? ActorIds = null,
-    DateTime? ReceivedFromUtc = null, DateTime? ReceivedToUtc = null, string? Search = null, IReadOnlyList<FormRecordConditionHttpRequest>? Conditions = null, string? State = null)
+    DateTime? ReceivedFromUtc = null, DateTime? ReceivedToUtc = null, string? Search = null, IReadOnlyList<FormRecordConditionHttpRequest>? Conditions = null, string? State = null,
+    bool? EnteredInApp = null)
 { public override string ToString() => "FormRecordsSearchHttpRequest { Content = [REDACTED] }"; }
 public sealed record FormRecordConditionHttpRequest(Guid FieldId, string Operator, IReadOnlyList<string>? Values)
 { public override string ToString() => "FormRecordConditionHttpRequest { Values = [REDACTED] }"; }

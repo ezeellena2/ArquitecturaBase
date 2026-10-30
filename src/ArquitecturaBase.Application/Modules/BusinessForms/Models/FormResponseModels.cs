@@ -40,6 +40,8 @@ public sealed record ListFormRecordsRequest : PagedRequest
     public static readonly IReadOnlyCollection<string> SortableFields = ["number", "submittedAtUtc", "actor", "field"];
     public long? UpToNumber { get; init; }
     public string? State { get; init; }
+    /// <summary>Only responses loaded in the app (true) or only those received through a channel (false).</summary>
+    public bool? EnteredInApp { get; init; }
     public Guid? SortFieldId { get; init; }
     public IReadOnlyList<Guid> VersionIds { get; init; } = [];
     public IReadOnlyList<Guid> ActorIds { get; init; } = [];
