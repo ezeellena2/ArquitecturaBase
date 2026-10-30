@@ -37,6 +37,14 @@ medidas de `index.css` y `shared/ui`, con el escritorio al 75 % y el celular a 1
    - quien la cargó, mientras no esté aprobada (si el formulario no pide aprobación, siempre);
    - con un permiso nuevo, «Corregir y anular respuestas», cualquiera y siempre;
    - quien sólo ve respuestas, no.
+9. **Unidades: en la etiqueta (CW13-A).** Como hoy, «Densidad (kg/ha)», sin un dato «Unidad» nuevo.
+10. **Hasta tres por renglón (CW16).** Reemplaza la «una columna» elegida primero.
+    - En escritorio, cada zona es una grilla de tres columnas, en el orden del editor; en tableta, dos; en el celular y en el panel, una.
+    - El ancho sale del tipo de pregunta; el autor no lo elige.
+11. **Títulos de sección, con zonas plegables (CW15-B y CW16).**
+    - El autor agrega títulos entre las preguntas. La app arma una zona por título y WhatsApp lo muestra como subtítulo.
+    - Todas las zonas, también «Datos» y «Fotos y documentos», se pliegan y arrancan abiertas.
+    - Al enviar, una zona plegada con errores se abre sola.
 
 Las decisiones 6 a 8 cambian la regla de [inmutabilidad](../features/formularios.md#persistencia-y-responsabilidad). Una respuesta
 confirmada sigue sin modificarse, pero puede quedar reemplazada por su corrección o anulada; al implementarlo, la regla se
@@ -94,6 +102,21 @@ reescribe allí.
     WhatsApp: es un problema de la preparación, como `CatalogTooLarge`, y la comprobación de publicación lo avisa sin frenar.
   - Las preguntas ya publicadas no cambian.
 
+### Cómo se arma un formulario
+
+- **Reglas fijas, iguales para todos los formularios (CW12 y CW16).**
+  - El autor decide el contenido: orden, textos, ayuda, obligatoria, opciones, largo máximo, rango de «elegir varias» y límites de fotos.
+  - La app decide la forma con una tabla por tipo de pregunta.
+- **Cuánto ocupa cada pregunta en la grilla de tres:**
+  - una columna: número, fecha, sí o no, texto corto de hasta 30 caracteres y elegir una con lista desplegable;
+  - dos columnas: elegir de un catálogo, elegir una con opciones en fila (hasta 5 cortas) y texto corto de hasta 80;
+  - el renglón entero: texto largo, texto corto de más de 80, elegir varias con opciones propias, fotos y documentos.
+  Las preguntas no se reordenan: una que no entra baja de renglón.
+- **Las zonas** son el `CollapsibleSection` de `shared/ui`. Plegada, la banda dice cuántas preguntas se respondieron.
+- **Los títulos de sección** son un elemento nuevo del borrador, que no es una pregunta. El tipo `Group` sigue reservado para las líneas.
+  - Entran en la huella de publicación como contenido opcional, así no cambian las versiones ya selladas.
+  - En WhatsApp salen como subtítulo de la pantalla. La planilla y el Excel no cambian.
+
 ### Corregir y anular
 
 - **Las reglas siguen siendo de cada formulario.** «Cuando llega una respuesta» decide si se pide aprobación, a qué rol, qué
@@ -138,6 +161,11 @@ reescribe allí.
 | CW8 · En el celular | Una lluvia de punta a punta, desde «Formularios». |
 | CW9 · Quién ve qué | Cuatro personas con sus permisos y la interfaz en inglés. |
 | **CW10-A · Corregir** (elegida) | La corrección en el panel con lo de antes y el motivo, «Corregida» en la fila y el detalle, la versión anterior, una aprobada que vuelve a «Por aprobar», quien la cargó y el cuadro de quién puede. CW10-B queda como alternativa. |
+| CW12 · Cómo se arma un formulario | Las reglas fijas: un control por tipo de pregunta, las dos zonas y un formulario largo entero. |
+| **CW13-A · Unidades en la etiqueta** (elegida) | La unidad va en la etiqueta, igual en todos lados. |
+| CW14 · Preguntas lado a lado | Una columna, pares automáticos o elegidos por el autor; la reemplazó CW16. |
+| **CW15-B · Títulos de sección** (elegida) | Una zona por título, «Agregar título» en el editor y el subtítulo en WhatsApp. |
+| **CW16 · Hasta tres por renglón y zonas plegables** (elegida) | La grilla de tres con el ancho por tipo, zonas plegadas, el error que abre su zona, la regla de anchos y el celular. Manda sobre el dibujo de las preguntas en CW2. |
 | **CW11-A · Anular con motivo** (elegida) | «Anular» al final de «⋯», el motivo, la fila que sale de la vista, el filtro «Anulada» y el Excel con «Incluir las anuladas». CW11-B queda como alternativa. |
 
 ### Qué se reutiliza y qué es nuevo
@@ -177,7 +205,8 @@ Etapa 1, los tableros elegidos pasan al lienzo del sistema visual y su diseño s
    - Backend: el servicio, las rutas, la lectura de opciones y la captura con origen «App».
    - Front, cada parte igual a su tablero:
      - «Formularios» con «Cargar» por fila, abierto a quien completa (CW1-B);
-     - la página de carga (CW2-A) y el panel desde la planilla (CW2-B);
+     - la página de carga (CW2-A) y el panel desde la planilla (CW2-B), con las preguntas armadas según CW12 y CW16:
+       grilla de tres, zonas plegables y la unidad en la etiqueta;
      - las listas (CW3), las fotos (CW4) y lo que pasa después de enviar (CW5);
      - la planilla con «Canal: App» (CW6-A).
    - Cierre con la rutina de [validar un cambio](../guides/validar-un-cambio.md): integración con PostgreSQL, Redis y Azurite;
@@ -193,9 +222,11 @@ Etapa 1, los tableros elegidos pasan al lienzo del sistema visual y su diseño s
    - La regla de inmutabilidad se reescribe en [formularios](../features/formularios.md). Vale también para lo que llegó por WhatsApp.
 4. **Etapa 4 · Listas dependientes (CW7):** el filtro, el editor, la comprobación de publicación, el bloqueo del envío por
    WhatsApp y la validación al guardar. La regla nueva va a [formularios](../features/formularios.md).
-5. **Después:** las listas dependientes en WhatsApp con el intercambio con Meta. La carga en nombre de otra persona, si aparece
+5. **Etapa 5 · Títulos de sección (CW15-B):** el elemento nuevo en el editor y en la vista previa, la publicación, el subtítulo
+   en WhatsApp y una zona por título en la app.
+6. **Después:** las listas dependientes en WhatsApp con el intercambio con Meta. La carga en nombre de otra persona, si aparece
    el caso, con su tablero.
 
-El orden de las etapas 3 y 4 es una propuesta: se pueden invertir. Fuera de alcance: importar respuestas desde Excel,
+El orden de las etapas 3 a 5 es una propuesta: se puede cambiar. Fuera de alcance: importar respuestas desde Excel,
 borradores guardados y carga sin conexión, la carga en filas (CW2-C) y grupos con líneas. Aplicación usa pares fijos de producto y dosis; una lista de líneas necesita «grupos y
 remitos con líneas», que tiene su propio pendiente.
