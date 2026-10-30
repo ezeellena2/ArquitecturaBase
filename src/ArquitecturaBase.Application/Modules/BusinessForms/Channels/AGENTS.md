@@ -5,6 +5,7 @@ Implementa los puertos de `Application/Interfaces/Channels` que el núcleo y otr
 - `BusinessFormSource` → `IStructuredFormSource`: selección, preparación, prellenado, aclaración y sugerencias. Exige destinatario, cultura es/en y `formrecords.create`; lee la versión activa sellada, o la publicada de una sesión aceptada. `LockSelectionAsync` es el lock de definiciones.
 - `BusinessFormRecordCaptureSink` → `IStructuredRecordSink`: delega en `IBusinessFormRecordCaptureService`; la UoW la abre `BusinessFormRecordRecorder`.
 - `BusinessFormRecordSource` → `IStructuredRecordSource`: `formrecords.read` antes y después de leer por lote; proyecta con la cultura de cada versión, sin claves de almacenamiento.
+- `BusinessFormEntryOriginSource` → `IStructuredRecordOriginSource`: el origen «App» (`channelId` `app`, quien cargó y cuándo, sin conversación ni dirección) de los registros `EnteredInApp`, leído por lote.
 - `BusinessFormRetirementSource` → `IStructuredFormRetirementSource`: lock de definiciones e `IFormUnusedVersionReader`.
 - `FormPrivateFileRetentionSource` → `IPrivateFileRetentionSource`: sólo claves que `FormPdfStorageKey.TryParse` reconoce, de runs GeneratePdf existentes, por lote, aun sin `StoredFile` confirmado.
 - `FormPermissionCatalogSource` → `IPermissionCatalogSource`: `BusinessFormsPermissions.All` y textos de `Resources/Permissions`.

@@ -629,3 +629,28 @@ El front aprobó 3.116/3.116 tests en 309 archivos, con build completo sin adver
 La última corrida visual aprobó 719/719 pruebas. El navegador recorrió CE1/CE2, datos de las personas, CE3/CE4 y CE5 en es/en a 390 y 320 px; las escenas también produjeron evidencia de escritorio. Se inspeccionaron campos, valores y errores, nuevo campo opcional apagado, tablas con desplazamiento contenido, foco, guardado parcial, presentación heredada/propia, Juan con 14 opciones y Pablo sin dato con cero opciones, subcolumnas y exportación visible. El ajuste final de dos botones a 320 px conserva el Button compartido y pasó su regresión geométrica.
 
 Las pantallas usan transporte y datos sintéticos; los PDF y XLSX reales corresponden a la integración del backend. No se hizo el piloto con Meta. Capacidades, esquemas e instrucciones de IA no cambiaron y no se repitió su calificación. Se cerraron la pestaña y los servidores propios, se restauró el viewport y se ejecutó aspire stop: no había AppHost en ejecución. El review de E2 precede al [único piloto físico pendiente](../plans/verificacion-y-produccion.md#formularios-piloto-único-con-meta-después-de-e2). Main, sin push.
+
+## Carga desde la app — Etapa 1, 2026-10-30
+
+Quien tiene «Completar formularios» (`formrecords.create`) carga una respuesta desde la app, en su propia página o en un panel junto a la planilla, sobre la versión publicada activa. La respuesta queda a su nombre, igual que la que llega por WhatsApp, y sigue las reglas de su formulario. Pantallas y textos: [carga desde la app](../../../ArquitecturaBaseFront/docs/design/carga-desde-la-app.md); alcance y etapas siguientes: el [plan](../plans/2026-10-29-cargar-formularios-desde-la-app.md).
+
+### Rutas y permisos
+
+- `GET /api/forms/entries/{definitionId}` devuelve la versión activa: las preguntas en el idioma del menú si la versión lo publicó (si no, en el original), el texto del botón, el tamaño máximo de archivo y, en cada pregunta de catálogo, la única opción que dejan los filtros o el dato de la persona que falta (`Forms.Record.RecipientDataMissing` con `missingData`).
+- `GET .../versions/{versionId}/questions/{fieldId}/options` devuelve hasta 50 opciones por página, con búsqueda y los filtros fijos y por persona de quien carga, la misma contención que el envío por WhatsApp. Si la versión ya no es la activa responde 409 `Forms.Entry.VersionChanged`.
+- `POST /api/forms/entries/{definitionId}` recibe un multipart con `requestId`, `versionId`, las respuestas y los archivos, cada uno con su pregunta. Las tres rutas exigen cuenta activa y `formrecords.create`, antes de leer y dentro del límite de guardado.
+- «Formularios» (`GET /api/forms/overview`) también se abre con `formrecords.create`: quien sólo completa ve los formularios activos, sin conteos ni última respuesta, con «Cargar».
+
+### Envío
+
+- Repetir el mismo `requestId` con las mismas respuestas devuelve el primer resultado, antes de mirar la versión o la baja: un reintento después de un corte no duplica ni toma otro número. Otras respuestas son otro envío.
+- Valida como la captura de WhatsApp: tipos, obligatorias, rango de «elegir varias» y archivos (tipo, tamaño, cantidad y contenido). La oferta sella sólo las opciones elegidas; una opción dada de baja entre abrir y enviar responde `Forms.Record.CatalogItemInactive` en `answers.<fieldId>`.
+- Un formulario dado de baja responde 409 `Forms.Entry.Unavailable` y una versión nueva, 409 `Forms.Entry.VersionChanged`; el front ofrece pasar a la nueva conservando lo cargado.
+- El registro guarda `EnteredInApp`. La planilla lo muestra en «Canal» como App, con el filtro `enteredInApp` también en conteos, navegación y Excel, y el detalle dice «Recibida · … · en la app, la cargó …» en el lugar del origen de WhatsApp.
+- Aprobación y PDF siguen las reglas del formulario. «Mandarle un mensaje a quien la cargó» no aplica a lo cargado en la app si quien lo cargó no tiene un canal donde recibirlo, hoy WhatsApp vinculado: la acción queda como no aplicable.
+
+### Cómo se arma el formulario en la app
+
+- El autor decide el contenido (orden, textos, ayuda, obligatoria, opciones, largo máximo, rango de «elegir varias» y límites de fotos) y la app la forma, con una tabla fija por tipo de pregunta (CW12 y CW16). La unidad va en la etiqueta que escribe el autor, «Densidad (kg/ha)», como en WhatsApp, la planilla, el Excel y el PDF (CW13-A).
+- En escritorio, cada zona es una grilla de tres columnas en el orden del editor; en tableta, dos; en el celular y en el panel, una. Ocupan una columna el número, la fecha, sí o no, el texto corto de hasta 30 caracteres y la lista desplegable; dos, el catálogo, las opciones en fila (hasta cinco de hasta 20 caracteres) y el texto corto de hasta 80; el renglón entero, el texto largo, el texto corto de más de 80, elegir varias con opciones propias y los archivos. Una pregunta que no entra baja de renglón; nunca se reordena.
+- «Datos» y «Fotos y documentos» se pliegan, arrancan abiertas y, plegadas, dicen cuántas preguntas se respondieron. Al enviar con algo para corregir, una zona plegada se abre sola y el foco va a la primera pregunta con error.

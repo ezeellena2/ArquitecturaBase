@@ -63,11 +63,18 @@ Casos de uso y helpers; contratos en `Interfaces/Services`. Leer [formularios](.
 - Campos extra: dos lotes (metadata/valores y textos fuente) sólo de opciones Manual elegidas bajo lock. Un valor de catálogo que no es opción de la fuente actual del campo (guardado antes de un cambio de fuente) no tiene texto visible y queda fuera del sello, como un campo sin valor. Entity y FormRecordReferenceRow sellan el mismo JSON activo/presente; la sesión no lo amplía y null conserva los bytes anteriores.
 - `FormFileService`: RecordsRead antes y después de abrir el stream, pertenencia y nunca URL ni SAS.
 
+### Carga desde la app
+
+- `FormEntryService`: `FormEntryAccessGuard` (cuenta activa y RecordsCreate) antes de leer y dentro del límite. Lee la versión activa con `IFormEntryReader` y la cultura con `FormPresentationCulturePolicy`; un formulario dado de baja da 409 `Forms.Entry.Unavailable` y uno ausente, NotFound.
+- Opciones: `FormEntryCatalogPolicy` aplica los filtros fijos y por persona de quien carga, la misma contención que el envío por WhatsApp, con búsqueda y paginado en SQL. Una versión que no es la activa da 409 `Forms.Entry.VersionChanged`. La única opción que dejan los filtros viene en `onlyOption`; sin el dato, el issue y `missingData` de la preparación.
+- Envío: el replay por `requestId` va antes de mirar versión o baja; después, versión (409), oferta sólo de lo elegido (una opción dada de baja da `CatalogItemInactive` en `answers.<fieldId>`) y `BusinessFormRecordRecorder.CaptureEntryAsync`. El registro queda con `EnteredInApp` y la huella no incluye la oferta. La respuesta lleva número, estado y fecha; con aprobación pedida, `PendingApproval`.
+- «Mandarle un mensaje a quien la cargó» no aplica a lo cargado en la app si quien lo cargó no tiene un canal donde recibirlo (`IStructuredRecordActionChannel.CanReachAsync`); la acción se registra como no aplicable.
+
 ### Planilla, detalle y Excel
 
 - RecordsRead revalidado antes de devolver, sin UoW ni caché. Esquemas leídos una vez por versión; origen por `IStructuredRecordOriginSource`.
 - `FindRecordNavigationAsync`: mismo pedido/snapshot de planilla, sólo IDs, posición global desde 1 y total sin paginar. Ancla ajena, excluida o ausente da NotFound; revocar descarta también esa ausencia.
-- Overview: RecordsRead o ApprovalsDecide, revalidando dimensiones; publicados no eliminados, nombre sellado y LastRecordNumber. Pendientes por roles vigentes y sin propias. Sólo aprobar conserva segmento sin respuestas; PendingOnly explícito con ambos permisos incluye bajas. Facetas/paginado SQL.
+- Overview: RecordsRead, ApprovalsDecide o RecordsCreate, revalidando dimensiones; sólo completar ve los activos sin conteos; publicados no eliminados, nombre sellado y LastRecordNumber. Pendientes por roles vigentes y sin propias. Sólo aprobar conserva segmento sin respuestas; PendingOnly explícito con ambos permisos incluye bajas. Facetas/paginado SQL.
 - Celdas: `NotAsked` sin pregunta; `Unanswered` vacía, también multiChoice []. El filtro `unanswered` incluye ambas en SQL/facetas/reglas. MultiChoice conserva orden capturado, usa anyOf por intersección y no admite orden por pregunta.
 - Excel: RecordsRead+RecordsExport por lote/tope. MultiChoice une con '; ' y conserva precisión canónica; Choice mantiene tipos y headers sin filas. CatalogFields elige pares pregunta/campo aparte de Columns: null todos, [] ninguno.
 - Campos extra: metadata actual activa más histórica por catálogo; valores/nombres/tipos de cada celda salen del snapshot. Subcolumnas sin sort/facetas. Detalle muestra todos; PDF sólo datos; chat y sugerencias omiten Fields (`includeCatalogFields: false`). Historia sin snapshot muestra «—».
