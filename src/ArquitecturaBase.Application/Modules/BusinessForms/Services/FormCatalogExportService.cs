@@ -22,29 +22,22 @@ internal sealed class FormCatalogExportService(IFormCatalogReader reader, IFormW
         if (catalog is null) return FormCatalogErrors.NotFound;
         if (catalog.Kind != "Manual") return FormCatalogErrors.ManualItemsUnavailable;
         var culture = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es";
+        var valueType = Enum.Parse<BusinessFormCatalogValueType>(catalog.ValueType);
         var fields = FormCatalogFieldPolicy.ReadFields(catalog.FieldsJson);
         // With the menu in the catalog's original language there are no translation columns: reimporting keeps them.
-        var columns = FormCatalogImportTemplate.Columns(Enum.Parse<BusinessFormCatalogValueType>(catalog.ValueType), culture,
-            catalog.OriginalCulture, canonicalValue: !template, fields: fields, translation: culture != catalog.OriginalCulture);
+        var translation = culture != catalog.OriginalCulture;
+        var columns = template ? FormCatalogImportTemplate.Columns(valueType, culture, catalog.OriginalCulture, fields, translation)
+            : FormCatalogExportPolicy.Columns(valueType, culture, catalog.OriginalCulture, fields, translation);
         IReadOnlyList<IReadOnlyList<FormWorkbookCell>> rows;
         if (template) rows = [columns.Select(column => new FormWorkbookCell("text", column.Rule)).ToArray()];
         else
         {
             var items = await reader.ListAllItemsAsync(id, cancellationToken);
+            // A source option goes by its text: every option of each source, also the deactivated ones.
+            var sources = await FormCatalogFieldPresentation.SourcesAsync(fields, reader, cancellationToken);
             if (!await access.HasPermissionAsync(actor.Value, BusinessFormsPermissions.CatalogsRead, cancellationToken))
                 return FormDefinitionErrors.Forbidden;
-            rows = items.Select(item =>
-            {
-                var values = FormCatalogFieldPolicy.ReadValues(item.FieldValuesJson);
-                return (IReadOnlyList<FormWorkbookCell>)columns.Select(column => new FormWorkbookCell("text", column.Key switch
-                {
-                    // «Texto» and «Detalle» are the original; the template has a translation column only for the other language.
-                    "code" => item.Code, "text" => item.TextIn(catalog.OriginalCulture), "detail" => item.DetailIn(catalog.OriginalCulture),
-                    "textEn" => item.TextIn("en"), "textEs" => item.TextIn("es"), "detailEn" => item.DetailIn("en"), "detailEs" => item.DetailIn("es"),
-                    "active" => FormCatalogTexts.Get(item.IsActive ? "Yes" : "No", culture), "value" => item.Value,
-                    _ => values.TryGetValue(column.Key, out var value) ? FormCatalogFieldPolicy.Input(value) : null,
-                })).ToArray();
-            }).ToArray();
+            rows = FormCatalogExportPolicy.Rows(columns, items, valueType, catalog.OriginalCulture, fields, sources, culture);
         }
         cancellationToken.ThrowIfCancellationRequested();
         var bytes = writer.Write(new(columns.Select(column => column.Header).ToArray(), rows, FormCatalogTexts.Get("Sheet", culture)), cancellationToken);

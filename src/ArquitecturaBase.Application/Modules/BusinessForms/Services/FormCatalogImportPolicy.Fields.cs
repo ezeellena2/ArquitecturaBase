@@ -7,9 +7,10 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
 internal static partial class FormCatalogImportPolicy
 {
-    private readonly record struct HeaderMatch(string? Key, bool Canonical = false, bool Ambiguous = false);
+    internal readonly record struct HeaderMatch(string? Key, bool Canonical = false, bool Ambiguous = false);
 
-    private static HeaderMatch MatchHeader(string text, IReadOnlyList<BusinessFormCatalogField> fields)
+    // The column a header names among the fixed ones and the active fields; the export checks its own headers with it.
+    internal static HeaderMatch MatchHeader(string text, IReadOnlyList<BusinessFormCatalogField> fields)
     {
         var normalized = NormalizeHeader(text);
         if (normalized.Length == 0) return new(null);
@@ -20,6 +21,10 @@ internal static partial class FormCatalogImportPolicy
                 var regular = FormCatalogImportTemplate.FieldHeader(field, culture, false);
                 if (regular != field.Key && normalized == NormalizeHeader(regular)) return new(field.Id.ToString("D"));
             }
+        // The export writes with [campo]/[field] a name that repeats a fixed column or another field.
+        var named = fields.Where(field => field.Name.Values.Any(name => SupportedCultures.Any(culture =>
+            normalized == NormalizeHeader(FormCatalogImportTemplate.ExtraFieldHeader(name, culture))))).ToArray();
+        if (named.Length > 0) return named.Length == 1 ? new(named[0].Id.ToString("D")) : new(null, Ambiguous: true);
         if (FormCatalogImportTemplate.FixedHeaderKey(text) is { } fixedKey) return new(fixedKey);
         var byKey = fields.FirstOrDefault(field => normalized == NormalizeHeader(field.Key));
         if (byKey is not null) return new(byKey.Id.ToString("D"));

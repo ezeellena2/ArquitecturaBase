@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text;
@@ -126,7 +127,7 @@ public sealed partial class FormCatalogEndpointsTests
     [Theory]
     [InlineData("es", "1.500", "1,234", "22/10/2026", "Sí")]
     [InlineData("en", "1,500", "1.234", "10/22/2026", "Yes")]
-    public async Task Typed_extra_fields_import_localized_values_as_canonical_json_and_canonical_columns_round_trip_exactly(
+    public async Task Typed_extra_fields_import_localized_values_as_canonical_json_and_export_them_as_typed_without_changes(
         string culture, string stock, string price, string since, string flag)
     {
         using var client = await OperatorAsync(BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage);
@@ -137,8 +138,10 @@ public sealed partial class FormCatalogEndpointsTests
             name = texts, description = texts, items = Array.Empty<object>(),
             fields = new[]
             {
-                FieldPayload(null, "integer", key: "stock"), FieldPayload(null, "decimal", key: "price"),
-                FieldPayload(null, "date", key: "since"), FieldPayload(null, "boolean", key: "flag"),
+                FieldPayload(null, "integer", key: "stock", name: new { es = "Existencias", en = "Stock" }),
+                FieldPayload(null, "decimal", key: "price", name: new { es = "Precio", en = "Price" }),
+                FieldPayload(null, "date", key: "since", name: new { es = "Alta", en = "Since" }),
+                FieldPayload(null, "boolean", key: "flag", name: new { es = "Propio", en = "Own" }),
             },
         }, Ct);
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
@@ -185,9 +188,12 @@ public sealed partial class FormCatalogEndpointsTests
         {
             var sheet = workbook.Worksheet(1);
             var headers = sheet.Row(1).CellsUsed().Select(cell => cell.GetString()).ToArray();
-            var canonical = culture == "es" ? "[canónico]" : "[canonical]";
-            Assert.Equal(keys.Select(key => $"{key} {canonical}"), headers.TakeLast(4));
-            Assert.Equal(["1500", "1.234", "2026-10-22", "true"], sheet.Row(2).Cells(headers.Length - 3, headers.Length).Select(cell => cell.GetString()));
+            // Each field by its name in the menu's language, and the values as Excel numbers and dates that show what was typed.
+            Assert.Equal(culture == "es" ? ["Existencias", "Precio", "Alta", "Propio"] : ["Stock", "Price", "Since", "Own"], headers.TakeLast(4));
+            var cells = sheet.Row(2).Cells(headers.Length - 3, headers.Length).ToArray();
+            Assert.Equal([XLDataType.Number, XLDataType.Number, XLDataType.DateTime, XLDataType.Text], cells.Select(cell => cell.DataType));
+            var locale = CultureInfo.GetCultureInfo(culture == "es" ? "es-AR" : "en-US");
+            Assert.Equal([stock, price, since, flag], cells.Select(cell => cell.GetFormattedString(locale)));
         }
         using var roundTripBody = CatalogImportContent(workbookBytes, "export.xlsx", 2);
         using var roundTrip = await client.PostAsync(path + "/import-previews", roundTripBody, Ct);
@@ -199,7 +205,7 @@ public sealed partial class FormCatalogEndpointsTests
         foreach (var key in new[] { "added", "changed", "deactivated", "reactivated", "errorRows" }) Assert.Equal(0, counts.GetProperty(key).GetInt32());
 
         if (culture != "es") return;
-        // Without «[canónico]», «1.234» in Spanish reads both as 1234 and as 1.234: it is not converted.
+        // Typed as text in Spanish, «1.234» reads both as 1234 and as 1.234: it is not converted.
         using var ambiguousBody = CatalogImportContent(Encoding.UTF8.GetBytes("Code;Text;price\nC;Otra;1.234\n"), "ambiguous.csv", 2, "Append");
         using var ambiguous = await client.PostAsync(path + "/import-previews", ambiguousBody, Ct);
         Assert.Equal(HttpStatusCode.OK, ambiguous.StatusCode);

@@ -11,7 +11,7 @@ internal static class FormCatalogImportTemplate
     // «Texto» and «Detalle» are the catalog's original; the other language has its own optional translation column,
     // which `translation: false` leaves out (an absent column keeps the translation on import).
     public static IReadOnlyList<FormCatalogImportTemplateColumn> Columns(BusinessFormCatalogValueType valueType, string culture,
-        string originalCulture, bool canonicalValue = false, IReadOnlyList<BusinessFormCatalogField>? fields = null, bool translation = true)
+        string originalCulture, IReadOnlyList<BusinessFormCatalogField>? fields = null, bool translation = true)
     {
         var suffix = TranslationSuffix(originalCulture);
         var columns = new List<FormCatalogImportTemplateColumn>
@@ -24,9 +24,9 @@ internal static class FormCatalogImportTemplate
         if (translation) columns.Add(new("detail" + suffix, FormCatalogTexts.Get("HeaderDetail" + suffix, culture), FormCatalogTexts.Get("RuleDetail", culture)));
         columns.Add(new("active", FormCatalogTexts.Get("HeaderActive", culture), FormCatalogTexts.Get("RuleActive", culture)));
         if (valueType != BusinessFormCatalogValueType.Text)
-            columns.Add(new("value", ValueHeader(valueType, culture, canonicalValue), FormCatalogTexts.Get("RuleValue" + valueType, culture)));
+            columns.Add(new("value", ValueHeader(valueType, culture, false), FormCatalogTexts.Get("RuleValue" + valueType, culture)));
         foreach (var field in (fields ?? []).Where(field => field.IsActive).OrderBy(field => field.Position))
-            columns.Add(new(field.Id.ToString("D"), FieldHeader(field, culture, canonicalValue), FieldRule(field, culture)));
+            columns.Add(new(field.Id.ToString("D"), FieldHeader(field, culture, false), FieldRule(field, culture)));
         return columns;
     }
 
@@ -38,7 +38,10 @@ internal static class FormCatalogImportTemplate
 
     public static string FieldHeader(BusinessFormCatalogField field, string culture, bool canonical) => canonical
         ? Format("HeaderCanonicalField", culture, field.Key)
-        : FixedHeaderKey(field.Key) is not null ? Format("HeaderExtraField", culture, field.Key) : field.Key;
+        : FixedHeaderKey(field.Key) is not null ? ExtraFieldHeader(field.Key, culture) : field.Key;
+
+    // «… [campo]» or «… [field]»: a field's key or name that otherwise would read as a fixed column.
+    public static string ExtraFieldHeader(string text, string culture) => Format("HeaderExtraField", culture, text);
 
     public static string? FixedHeaderKey(string text)
     {

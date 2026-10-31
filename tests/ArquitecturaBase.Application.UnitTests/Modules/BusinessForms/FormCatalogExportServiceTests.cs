@@ -10,15 +10,16 @@ namespace ArquitecturaBase.Application.UnitTests.Modules.BusinessForms;
 public sealed class FormCatalogExportServiceTests
 {
     [Theory]
-    [InlineData("es", "Integer", "123456789012345678")]
-    [InlineData("en", "Integer", "123456789012345678")]
-    [InlineData("es", "Decimal", "0.1234567890123456789012345678")]
-    [InlineData("en", "Decimal", "0.1234567890123456789012345678")]
-    [InlineData("es", "Decimal", "0.001")]
-    [InlineData("es", "Decimal", "12.345")]
-    [InlineData("es", "Date", "2026-10-08")]
-    [InlineData("en", "Date", "2026-10-08")]
-    public async Task Export_includes_inactive_rows_and_canonical_values_as_literal_text(string culture, string type, string value)
+    [InlineData("es", "Integer", "1500", "integer", "#,##0")]
+    [InlineData("en", "Integer", "-1500", "integer", "#,##0")]
+    [InlineData("es", "Decimal", "1234.5", "decimal", "#,##0.0")]
+    [InlineData("en", "Decimal", "0.001", "decimal", "#,##0.000")]
+    [InlineData("es", "Decimal", "-0.25", "decimal", "#,##0.00")]
+    [InlineData("es", "Decimal", "1500", "decimal", "#,##0")]
+    [InlineData("es", "Date", "2026-10-08", "date", "dd/mm/yyyy")]
+    [InlineData("en", "Date", "2026-10-08", "date", "mm/dd/yyyy")]
+    public async Task Export_includes_inactive_rows_and_writes_values_as_Excel_numbers_and_dates_in_the_menu_format(string culture,
+        string type, string value, string kind, string format)
     {
         using var scope = new CultureScope(culture);
         var fixture = Create();
@@ -37,27 +38,84 @@ public sealed class FormCatalogExportServiceTests
         Assert.Equal(spanish ? 5 : 7, workbook.Headers.Count);
         Assert.Equal(spanish ? "Código" : "Code", workbook.Headers[0]);
         var valueType = spanish ? type switch { "Integer" => "entero", "Date" => "fecha", _ => "decimal" } : type.ToLowerInvariant();
-        Assert.Equal((spanish ? "Valor canónico (" : "Canonical value (") + valueType + ")", workbook.Headers[^1]);
+        Assert.Equal((spanish ? "Valor (" : "Value (") + valueType + ")", workbook.Headers[^1]);
         Assert.Equal(2, workbook.Rows.Count);
-        Assert.All(workbook.Rows.SelectMany(row => row), cell => Assert.Equal("text", cell.Kind));
-        Assert.Equal(spanish ? new object?[] { "=SUM(A1)", "=2+2", "Detalle", "Sí", value }
-            : new object?[] { "=SUM(A1)", "=2+2", "English", "Detalle", "Detail", "Yes", value }, workbook.Rows[0].Select(cell => cell.Value));
+        Assert.All(workbook.Rows.SelectMany(row => row.SkipLast(1)), cell => Assert.Equal("text", cell.Kind));
+        Assert.Equal(spanish ? new object?[] { "=SUM(A1)", "=2+2", "Detalle", "Sí" }
+            : new object?[] { "=SUM(A1)", "=2+2", "English", "Detalle", "Detail", "Yes" }, workbook.Rows[0].SkipLast(1).Select(cell => cell.Value));
+        var cell = workbook.Rows[0][^1];
+        Assert.Equal(kind, cell.Kind);
+        Assert.Equal(format, cell.Format);
+        Assert.Equal(Typed(type, value), cell.Value);
         Assert.Equal("No", workbook.Rows[1][^2].Value);
-        Assert.Equal(secondValue, workbook.Rows[1][^1].Value);
+        Assert.Equal(Typed(type, secondValue), workbook.Rows[1][^1].Value);
         Assert.Equal(1, fixture.Reader.DefinitionReads);
         Assert.Equal(1, fixture.Reader.AllItemsReads);
         Assert.EndsWith(".xlsx", result.Value.FileName, StringComparison.Ordinal);
 
-        var sheet = new FormSpreadsheet("Options", new('c', 64),
-            new[] { new FormSpreadsheetRow(1, workbook.Headers.Select(header => new FormSpreadsheetCell(header)).ToArray()) }
-                .Concat(workbook.Rows.Select((row, index) => new FormSpreadsheetRow(index + 2,
-                    row.Select(cell => new FormSpreadsheetCell((string?)cell.Value)).ToArray()))).ToArray());
         var imported = FormCatalogImportPolicy.Build(new(id, 1, Enum.Parse<BusinessFormCatalogValueType>(type), "es", fixture.Reader.Items),
-            sheet, FormCatalogImportMode.Replace, culture);
+            FormCatalogExportSheet.Read(workbook), FormCatalogImportMode.Replace, culture);
         Assert.True(imported.IsSuccess);
         Assert.Empty(imported.Value.Preview.Issues);
         Assert.Equal(2, imported.Value.Preview.Counts.Unchanged);
         Assert.Empty(imported.Value.Items);
+    }
+
+    // An Excel number keeps 15 significant digits: a longer value goes as its exact text, which reimports unambiguously in both menus.
+    [Theory]
+    [InlineData("es", "Integer", "123456789012345678")]
+    [InlineData("en", "Integer", "-1234567890123456")]
+    [InlineData("es", "Decimal", "0.1234567890123456789012345678")]
+    [InlineData("en", "Decimal", "0.1234567890123456789012345678")]
+    [InlineData("es", "Decimal", "1234567.123456789012345")]
+    [InlineData("es", "Decimal", "123.4567890123456")]
+    public async Task A_value_longer_than_an_Excel_number_is_exported_as_its_exact_text(string culture, string type, string value)
+    {
+        using var scope = new CultureScope(culture);
+        var fixture = Create();
+        fixture.Reader.Catalog = fixture.Reader.Catalog! with { ValueType = type };
+        var id = fixture.Reader.Catalog.Id;
+        fixture.Reader.Items = [new(Guid.NewGuid(), id, "A", "Larga", null, null, null, 1, true, value),
+            new(Guid.NewGuid(), id, "B", "Corta", null, null, null, 2, true, "123456789012345")];
+
+        var result = await fixture.Service.ExportAsync(id, false, Ct);
+
+        Assert.True(result.IsSuccess);
+        var workbook = fixture.Writer.Request!;
+        Assert.Equal(new FormWorkbookCell("text", value), workbook.Rows[0][^1]);
+        // Fifteen digits still fit.
+        Assert.Equal(type == "Integer" ? 123456789012345L : (object)123456789012345m, workbook.Rows[1][^1].Value);
+        var imported = FormCatalogImportPolicy.Build(new(id, 1, Enum.Parse<BusinessFormCatalogValueType>(type), "es", fixture.Reader.Items),
+            FormCatalogExportSheet.Read(workbook), FormCatalogImportMode.Replace, culture);
+        Assert.True(imported.IsSuccess);
+        Assert.Empty(imported.Value.Preview.Issues);
+        Assert.Equal(2, imported.Value.Preview.Counts.Unchanged);
+        Assert.Empty(imported.Value.Items);
+    }
+
+    [Theory]
+    [InlineData("es")]
+    [InlineData("en")]
+    public async Task A_date_before_Excel_dates_is_exported_as_its_exact_text(string culture)
+    {
+        using var scope = new CultureScope(culture);
+        var fixture = Create();
+        fixture.Reader.Catalog = fixture.Reader.Catalog! with { ValueType = "Date" };
+        var id = fixture.Reader.Catalog.Id;
+        fixture.Reader.Items = [new(Guid.NewGuid(), id, "A", "Fundación", null, null, null, 1, true, "1899-12-31"),
+            new(Guid.NewGuid(), id, "B", "Siglo", null, null, null, 2, true, "1900-01-01")];
+
+        var result = await fixture.Service.ExportAsync(id, false, Ct);
+
+        Assert.True(result.IsSuccess);
+        var workbook = fixture.Writer.Request!;
+        Assert.Equal(new FormWorkbookCell("text", "1899-12-31"), workbook.Rows[0][^1]);
+        Assert.Equal(new DateTime(1900, 1, 1), workbook.Rows[1][^1].Value);
+        var imported = FormCatalogImportPolicy.Build(new(id, 1, BusinessFormCatalogValueType.Date, "es", fixture.Reader.Items),
+            FormCatalogExportSheet.Read(workbook), FormCatalogImportMode.Replace, culture);
+        Assert.True(imported.IsSuccess);
+        Assert.Empty(imported.Value.Preview.Issues);
+        Assert.Equal(2, imported.Value.Preview.Counts.Unchanged);
     }
 
     [Theory]
@@ -208,6 +266,12 @@ public sealed class FormCatalogExportServiceTests
         return (new(reader, writer, new(current, permissions)), reader, writer, permissions, current);
     }
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
+    private static object Typed(string type, string value) => type switch
+    {
+        "Integer" => long.Parse(value, CultureInfo.InvariantCulture),
+        "Decimal" => decimal.Parse(value, CultureInfo.InvariantCulture),
+        _ => DateTime.ParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture),
+    };
     private sealed class CultureScope : IDisposable
     {
         private readonly CultureInfo previous = CultureInfo.CurrentUICulture;

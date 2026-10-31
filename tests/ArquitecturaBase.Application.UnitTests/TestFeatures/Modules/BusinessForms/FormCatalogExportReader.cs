@@ -9,6 +9,8 @@ internal sealed class FormCatalogExportReader : IFormCatalogReader
     public FormCatalogStoredRow? Catalog { get; set; } = new(Guid.NewGuid(), "catalog-test", """{"es":"Catálogo de prueba"}""", "{}", "es", "Manual", 3,
         true, default, null, null, null, 0);
     public IReadOnlyList<FormCatalogStoredItemRow> Items { get; set; } = [];
+    // The options of the source catalogs of its fields, by catalog.
+    public Dictionary<Guid, IReadOnlyList<FormCatalogStoredItemRow>> SourceItems { get; } = [];
     public int DefinitionReads { get; private set; }
     public int AllItemsReads { get; private set; }
     public Action? AfterDefinition { get; set; }
@@ -21,7 +23,7 @@ internal sealed class FormCatalogExportReader : IFormCatalogReader
     public Task<IReadOnlyList<FormCatalogStoredItemRow>> ListAllItemsAsync(Guid id, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested(); AllItemsReads++; AfterItems?.Invoke();
-        return Task.FromResult(Items);
+        return Task.FromResult(SourceItems.TryGetValue(id, out var source) ? source : Items);
     }
     public Task<IReadOnlyList<FormCatalogStoredItemRow>> ListOfferItemsAsync(Guid id, CancellationToken ct, string? fieldValueContainmentJson = null) => throw new NotSupportedException();
     public Task<int> CountActiveItemsAsync(Guid catalogId, CancellationToken cancellationToken) => throw new NotSupportedException();

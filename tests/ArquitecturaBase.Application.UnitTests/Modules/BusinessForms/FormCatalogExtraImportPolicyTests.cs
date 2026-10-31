@@ -120,14 +120,14 @@ public sealed class FormCatalogExtraImportPolicyTests
     {
         var fields = new[] { Field("amount", "decimal"), Field("days", "integer"), Field("code", "text") };
         var item = Item("A", "Opción", Values((fields[0].Id, "0.001"), (fields[1].Id, 123456789012345678L), (fields[2].Id, "Propio")));
-        var columns = FormCatalogImportTemplate.Columns(BusinessFormCatalogValueType.Text, culture, "es", canonicalValue: true, fields: fields);
+        var columns = FormCatalogImportTemplate.Columns(BusinessFormCatalogValueType.Text, culture, "es", fields: fields);
         var values = FormCatalogFieldPolicy.ReadValues(item.FieldValuesJson);
         var row = columns.Select(column => column.Key switch
         {
             "code" => "A", "text" => "Opción", "active" => "Yes", "textEn" or "detail" or "detailEn" => null,
             _ => FormCatalogFieldPolicy.Input(values[column.Key]),
         }).ToArray();
-        var result = FormCatalogImportPolicy.Build(Source(fields, [item]), Sheet(columns.Select(column => column.Header).ToArray(), row), FormCatalogImportMode.Replace, culture);
+        var result = FormCatalogImportPolicy.Build(Source(fields, [item]), Sheet(CanonicalHeaders(columns, fields, culture), row), FormCatalogImportMode.Replace, culture);
         Assert.True(result.IsSuccess);
         Assert.Empty(result.Value.Preview.Issues);
         Assert.Equal(1, result.Value.Preview.Counts.Unchanged);
@@ -149,12 +149,12 @@ public sealed class FormCatalogExtraImportPolicyTests
     {
         var (field, sources, north, _) = Zones();
         var item = Item("A", "Opción", Values((field.Id, north.Id.ToString("D"))));
-        var columns = FormCatalogImportTemplate.Columns(BusinessFormCatalogValueType.Text, culture, "es", canonicalValue: true, fields: [field]);
+        var columns = FormCatalogImportTemplate.Columns(BusinessFormCatalogValueType.Text, culture, "es", fields: [field]);
         var row = columns.Select(column => column.Key switch
         {
             "code" => "A", "text" => "Opción", "active" => "Yes", "textEn" or "detail" or "detailEn" => null, _ => north.Id.ToString("D"),
         }).ToArray();
-        var result = FormCatalogImportPolicy.Build(Source([field], [item], sources), Sheet(columns.Select(column => column.Header).ToArray(), row),
+        var result = FormCatalogImportPolicy.Build(Source([field], [item], sources), Sheet(CanonicalHeaders(columns, [field], culture), row),
             FormCatalogImportMode.Replace, culture);
         Assert.True(result.IsSuccess);
         Assert.Empty(result.Value.Preview.Issues.Select(issue => issue.Code));
@@ -271,4 +271,8 @@ public sealed class FormCatalogExtraImportPolicyTests
     private static FormSpreadsheet Sheet(string[] header, params string?[][] rows) => new("Extra.csv", Hash,
         new[] { header.Cast<string?>().ToArray() }.Concat(rows).Select((row, index) => new FormSpreadsheetRow(index + 1,
             row.Select(value => new FormSpreadsheetCell(value)).ToArray())).ToArray());
+    // The export before the readable one declared each field as «clave [canónico]».
+    private static string[] CanonicalHeaders(IReadOnlyList<FormCatalogImportTemplateColumn> columns, IReadOnlyList<BusinessFormCatalogField> fields,
+        string culture) => columns.Select(column => fields.FirstOrDefault(field => field.Id.ToString("D") == column.Key) is { } field
+            ? FormCatalogImportTemplate.FieldHeader(field, culture, true) : column.Header).ToArray();
 }
