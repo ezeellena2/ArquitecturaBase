@@ -5,7 +5,8 @@ public sealed record FormExportResponse(byte[] Content, string FileName)
 { public override string ToString() => "FormExportResponse { Content = [REDACTED] }"; }
 public sealed record FormWorkbookRequest(IReadOnlyList<string> Headers, IReadOnlyList<IReadOnlyList<FormWorkbookCell>> Rows, string SheetName)
 { public override string ToString() => "FormWorkbookRequest { Content = [REDACTED] }"; }
-public sealed record FormWorkbookCell(string Kind, object? Value)
+// Format is the cell's Excel number format; without it, the writer uses the one of its kind.
+public sealed record FormWorkbookCell(string Kind, object? Value, string? Format = null)
 { public override string ToString() => "FormWorkbookCell { Value = [REDACTED] }"; }
 
 public sealed record FormExportCatalogField(Guid QuestionId, Guid FieldId);

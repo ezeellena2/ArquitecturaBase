@@ -19,7 +19,8 @@ internal sealed class ClosedXmlFormWorkbookWriter : IFormWorkbookWriter
                 if (source.Value is null) continue;
                 var cell = sheet.Cell(row + 2, column + 1);
                 cell.Value = XLCellValue.FromObject(source.Value, System.Globalization.CultureInfo.InvariantCulture);
-                if (source.Kind == "date") cell.Style.DateFormat.Format = "yyyy-mm-dd";
+                if (source.Format is not null) cell.Style.NumberFormat.Format = source.Format;
+                else if (source.Kind == "date") cell.Style.DateFormat.Format = "yyyy-mm-dd";
                 else if (source.Kind == "dateTime") cell.Style.DateFormat.Format = "yyyy-mm-dd hh:mm:ss";
                 else if (source.Kind == "decimal") cell.Style.NumberFormat.Format = "0.############################";
             }

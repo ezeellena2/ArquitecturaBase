@@ -45,4 +45,20 @@ public sealed class FormWorkbookWriterTests(ITestOutputHelper output)
         Assert.Equal(date, sheet.Cell(2, 3).GetDateTime());
 
     }
+    [Fact]
+    public void Workbook_cells_keep_their_own_number_format()
+    {
+        var bytes = new ClosedXmlFormWorkbookWriter().Write(new(["Integer", "Decimal", "Whole", "Date", "Plain"],
+            [new FormWorkbookCell[] { new("integer", 1234567L, "#,##0"), new("decimal", 1234.5m, "#,##0.0"), new("decimal", 1500m, "#,##0"),
+                new("date", new DateTime(2026, 10, 22), "dd/mm/yyyy"), new("decimal", 0.5m) }], "Options"), TestContext.Current.CancellationToken);
+        using var stream = new MemoryStream(bytes);
+        using var workbook = new XLWorkbook(stream);
+        var cells = workbook.Worksheet(1).Row(2).Cells(1, 5).ToArray();
+        Assert.Equal(["#,##0", "#,##0.0", "#,##0", "dd/mm/yyyy", "0.############################"], cells.Select(cell => cell.Style.NumberFormat.Format));
+        Assert.Equal([XLDataType.Number, XLDataType.Number, XLDataType.Number, XLDataType.DateTime, XLDataType.Number], cells.Select(cell => cell.DataType));
+        // Excel shows the separators of whoever opens it; a whole decimal has no trailing comma.
+        var spanish = CultureInfo.GetCultureInfo("es-AR");
+        Assert.Equal(["1.234.567", "1.234,5", "1.500", "22/10/2026"], cells.Take(4).Select(cell => cell.GetFormattedString(spanish)));
+        Assert.Equal(["1,234,567", "1,234.5", "1,500"], cells.Take(3).Select(cell => cell.GetFormattedString(CultureInfo.GetCultureInfo("en-US"))));
+    }
 }
