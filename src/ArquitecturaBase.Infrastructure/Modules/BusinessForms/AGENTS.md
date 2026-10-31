@@ -6,7 +6,7 @@ Adaptadores del módulo opcional de formularios: implementan los puertos de `App
 - `Workers/`: publicación en canales, motor de acciones y purga de comprobantes de borrador ([guía](Workers/AGENTS.md)).
 - `Pdf/`: renderer de la copia fija y del preview del diseño ([guía](Pdf/AGENTS.md)).
 - `Security/`: Data Protection de comprobantes de guardado y de ticket de chequeo y manifiesto de publicación.
-- `Export/`: `ClosedXmlFormWorkbookWriter`, el XLSX del export de respuestas.
+- `Export/`: `ClosedXmlFormWorkbookWriter`, el XLSX del export de respuestas y del de opciones de un catálogo; aplica el formato de Excel de cada celda y, sin él, el de su tipo.
 - `Import/`: lector acotado XLSX/CSV en memoria, preflight del ZIP y cachés de fórmulas sin evaluación ([guía](Import/AGENTS.md)).
 - `BusinessFormsInfrastructureRegistration`: único lugar que nombra las clases concretas; `Program.cs` lo compone.
 
