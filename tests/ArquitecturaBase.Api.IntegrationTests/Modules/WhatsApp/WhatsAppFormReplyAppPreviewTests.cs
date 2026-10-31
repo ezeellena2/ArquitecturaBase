@@ -29,7 +29,8 @@ public sealed partial class WhatsAppFormSendingTests
     [InlineData("en", true)]
     public async Task Real_http_reply_cards_preserve_exact_values_and_hide_them_without_read_permission(string culture, bool catalog)
     {
-        var clock = new FakeTimeProvider(factory.Clock.GetUtcNow());
+        // Meta sends whole seconds: from a clock another test left mid-second, the reply would date before the form it answers.
+        var clock = new FakeTimeProvider(MetaWebhook.TruncatedToSeconds(factory.Clock.GetUtcNow().UtcDateTime));
         var snapshot = ReplySnapshot(catalog);
         var records = new CapturingStructuredRecordPort(snapshot);
         var selection = new CapturingStructuredFormSource();
