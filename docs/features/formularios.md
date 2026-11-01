@@ -86,6 +86,8 @@ Puerto neutral Interfaces/Channels y DTOs Models/StructuredData; sin tipos de m�
 
 Perfil flow-static-7.3-r4/JSON7.3 para publicaciones nuevas, seis tipos, complete terminal/una pantalla, sin endpoint. Sí/No sin default, false no ausencia; decimal exacto textual; DateOnly CalendarPicker single/required. Ayuda/config/textos no representables se bloquean por identidad/cultura, sin recortar/dividir. El botón de apertura es Abrir formulario/Open form y queda separado de submitLabel.
 
+Un texto más largo que lo que muestra el componente (`WhatsApp.Flow.TextTooLong`) trae su `limit`. Desde el 2026-11-01 el diálogo del front lo dice en concreto («Hasta 20 caracteres; tiene 26.»), con el largo medido sobre el borrador guardado: el nombre sin los espacios de alrededor, como lo guarda el servidor, y los demás textos tal cual. El diálogo sigue el [tablero PU1-A](../../../ArquitecturaBaseFront/docs/design/formularios-whatsapp.md#publicar-en-whatsapp-pu1-a--2026-11-01).
+
 [Perfil del canal](whatsapp.md#perfil-local-de-formularios--2026-10-10). Las notas anteriores a D5/r3 se retiraron al consolidar este cierre: sus pruebas históricas no califican el perfil actual. Publicación implementada y alcance de la verificación se describen abajo.
 
 ## Aceptación durable — primer corte 2b, 2026-10-10
