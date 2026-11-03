@@ -1,0 +1,195 @@
+# Renglones en los formularios
+
+Diseño del 2026-11-02 con las decisiones del usuario del 2026-11-03. Nada está programado. Un formulario suma un bloque de
+preguntas que se repite, como los renglones de un remito o de una factura: en la app se cargan en una tabla y por WhatsApp,
+de a un renglón por pantalla.
+
+**De dónde sale.** En la prueba completa del 2026-11-02, el usuario cargó en «Recepción de insumos» (prefijo INS) el remito
+0003-00004521, que tiene tres artículos. Hoy cada artículo es una respuesta, y dijo: «si son varios artículos, debería dejar
+una lista e ir agregando varios artículos en la misma carga; no tendríamos que agregar varias respuestas aunque respete los
+valores anteriores».
+
+Es la parte de renglones de la Etapa 2, «Motor para documentos», de la [hoja de ruta de ARCA](2026-10-31-arca-formularios-estandar.md),
+adelantada: según su decisión 4, la factura lleva renglones en la app y en WhatsApp. Los cálculos, las condiciones, el
+resultado externo y la biblioteca de estándares siguen en esa hoja. El [resumen de formularios](formularios/README.md) lo
+tenía pendiente como «grupos y remitos con líneas».
+
+**Tableros:** lienzo provisorio [Formularios desde la app](https://claude.ai/artifact/Kvbr5KFJrGT951JLiu8i4M), filas
+«Formularios · renglones · 1» a «· 5» (RG1 a RG5), con la nota naranja de origen y una verde por elección (versión 51).
+El ejemplo es el remito de la prueba:
+- el proveedor «Agroinsumos del Litoral S.A.» y el campo «SAN JULIAN»;
+- tres artículos: GLIFOSATO 64% (200 litros), ATRAZINA 50% (100 litros) y UREA GRANULADA (5.000 kilos);
+- un precio unitario de ejemplo, que el formulario real no tiene.
+
+El lienzo del sistema visual no se abre desde la cuenta de Claude Code, así que los tableros elegidos pasan allí antes de
+programar y su diseño se registra en el front, como el de la [carga desde la app](../../../ArquitecturaBaseFront/docs/design/carga-desde-la-app.md).
+
+## Decisiones del usuario (2026-11-03)
+
+Las eligió de a una, mirando cada fila; en las cinco eligió la recomendada, la A.
+
+1. **El editor: RG1-A, un tipo de pregunta «Renglones».**
+   - «Agregar pregunta» suma «Renglones» al final de los tipos. En la lista, el bloque es un recuadro con sus preguntas
+     adentro, numeradas 5.1, 5.2…, y su propio «Agregar pregunta» en la banda «Preguntas de cada renglón».
+   - Se edita como una pregunta: el nombre («Artículos»), la ayuda y el mínimo y el máximo de renglones. La (i) del máximo
+     dice el tope de WhatsApp.
+   - Con el bloque abierto, la vista previa muestra la pantalla de un renglón en WhatsApp.
+   - Una pregunta que ya existe no se mete al bloque: se agrega de nuevo adentro y es otra pregunta. Las respuestas viejas
+     quedan en su columna.
+   - Descartó RG1-B, una sección que se repite, que necesitaba antes los títulos de sección (CW15-B).
+2. **La carga en la app: RG2-A, una tabla.**
+   - En la página, el bloque ocupa el renglón entero de «Datos», donde lo puso el autor. Cada renglón es una fila y cada
+     pregunta una columna con su etiqueta arriba; el número del renglón va a la izquierda. Si no entra, la tabla se desplaza
+     de costado dentro de su caja.
+   - «Agregar renglón», al pie, suma uno vacío y lleva el foco a su primera pregunta. La tabla arranca con el mínimo de
+     renglones; con el máximo, el botón se apaga y dice por qué («Hasta 20 renglones.»).
+   - En cada fila, ↑ ↓ y el tacho en rojo, que quita sin preguntar, como un archivo. Con el mínimo, el tacho se apaga y dice
+     por qué.
+   - Al enviar, la celda con un error se marca en rojo y el mensaje va debajo de su renglón, con el nombre de la pregunta
+     («Cantidad: completá esta respuesta.»); el foco va a la primera. Si faltan renglones, lo dice debajo de la tabla
+     («Agregá al menos 1 renglón.»).
+   - En el panel junto a la planilla y en el celular, cada renglón va en su recuadro («Renglón 2»), con ↑ ↓ y «Quitar» en la
+     banda y las preguntas una debajo de otra.
+   - «Mantener las respuestas para la siguiente» conserva también los renglones; los archivos, no.
+   - Descartó RG2-B, una tabla de lectura con un diálogo por renglón.
+3. **WhatsApp: RG3-A, una pantalla por renglón, hasta 10.**
+   - Al publicar, el Flow suma una pantalla por renglón, hasta 10 o el máximo del bloque si es menor. Cada pantalla tiene las
+     preguntas del bloque y su número en el título («Artículos · renglón 2»).
+   - Desde el mínimo, cada renglón termina con «¿Agregás otro renglón?», sí o no, obligatoria. Con «Sí» sigue el renglón
+     siguiente; con «No», las preguntas de después del bloque o, si no hay, «Enviar». El último renglón no pregunta.
+   - La flecha de WhatsApp vuelve al renglón anterior, para corregirlo o para decir «No».
+   - Con un máximo mayor que 10, publicar avisa sin frenar: «En WhatsApp se cargan hasta 10 renglones; el máximo es 20.». En
+     la app se sigue cargando hasta el máximo.
+   - Sin intercambio con Meta: es el Flow estático de hoy con más pantallas. Antes de enviar no se ve la lista con los nombres
+     de los artículos, porque el Flow no muestra el texto de una opción elegida en otra pantalla.
+   - Resuelve lo que la hoja de ARCA dejaba para esta etapa: pantallas fijas repetidas y no el intercambio cifrado (RG3-B).
+     El intercambio sigue pendiente para la búsqueda en vivo, las listas dependientes y el total de la factura.
+4. **La planilla, el Excel, el detalle y el PDF: RG4-A, una fila por respuesta.**
+   - La planilla sigue con una fila por respuesta. La columna del bloque dice la cantidad de renglones y los valores de su
+     primera pregunta, en orden y cortados con «…»: «3 · GLIFOSATO 64%, ATRAZINA 50%, UREA GRANULADA…». No se ordena por
+     ella, como «elegir varias». Una respuesta de antes del bloque dice «—».
+   - En «Filtros» (PL1-A), las preguntas del bloque van debajo de su nombre y filtran por algún renglón. Las cantidades cuentan
+     respuestas, no renglones.
+   - La vista rápida (D2) muestra cada renglón con su número y su primer valor en negro, y los demás datos alineados debajo,
+     como los de un catálogo (TL1-A). La pantalla completa (DC1) y el PDF muestran una tabla; en el PDF, la tabla sigue en la
+     página siguiente si no entra.
+   - El Excel deja «Respuestas» como hoy, con la cantidad de renglones en la columna del bloque, y suma una hoja con el nombre
+     del bloque y una fila por renglón: N°, Renglón y sus preguntas.
+   - Descartó RG4-B, una fila por renglón en la planilla y en el Excel.
+5. **Las reglas: RG5-A, «algún renglón con…».**
+   - Una condición sobre una pregunta del bloque se cumple si al menos un renglón la cumple. Varias del mismo bloque buscan un
+     renglón que las cumpla todas.
+   - La condición empieza con «Algún renglón con». La lista de reglas dice «Algún renglón de Artículos con ¿Llegó en buen
+     estado? es No».
+   - «Filtros» usa la misma regla.
+   - En el mensaje (MD1-A), «Artículos» es un dato que trae todos los renglones, uno por línea, numerados y con sus valores
+     separados por « · » en el orden de las preguntas. Las preguntas del bloque no se ofrecen sueltas.
+   - Descartó RG5-B, que elegía «algún» o «todos» en cada condición y contaba renglones.
+
+**Resueltas por defecto** con la opción más simple, dibujadas en los tableros y sin objeción del usuario:
+
+- Un bloque por formulario, sin bloques adentro. Con uno, «Renglones» se apaga y dice por qué («Ya hay un bloque de
+  renglones.»). Más de uno, si aparece el caso.
+- Adentro de un bloque entran texto corto, número, fecha, sí o no y elegir una, propia o de un catálogo. Quedan afuera el
+  texto largo, elegir varias, las fotos y los documentos.
+- El mínimo va de 0 al máximo, y el máximo llega hasta 100. Un bloque nuevo arranca con 1 y 20; con mínimo 0 es opcional.
+- Las preguntas del bloque cuentan para el máximo de 40 del formulario.
+- El borrador se guarda con un bloque sin preguntas, pero no se publica: en «Problemas», «Agregá al menos una pregunta al
+  bloque.».
+- Cambiar el tipo de una pregunta del bloque crea otra, como hoy; renombrar, ordenar y traducir conservan su identidad.
+- Los textos son genéricos («Agregar renglón», «Renglón 2», «¿Agregás otro renglón?»): el bloque no guarda cómo se llama un
+  renglón en singular.
+- Un renglón vacío cuenta como renglón: pide sus obligatorias y se quita con el tacho.
+- El asistente no prellena las preguntas del bloque, como no prellena «elegir varias».
+
+## Cómo se arma
+
+### El modelo
+
+- **El tipo.** `FormQuestionType.Group`, hoy reservado y rechazado al guardar, pasa a ser el bloque: una pregunta `group`
+  con nombre, ayuda, mínimo y máximo de renglones y sus preguntas adentro. Cada pregunta del bloque tiene su FieldId y su
+  lugar en el registro de identidades retiradas.
+- **Lo publicado no cambia.** Los esquemas `format=1` sin bloque siguen iguales. Los campos nuevos de los modelos sellados
+  llevan `JsonIgnore(WhenWritingNull)`, así no cambian las huellas anteriores. La regla del tipo reservado, en
+  [persistencia y responsabilidad](../features/formularios.md#persistencia-y-responsabilidad), se reescribe al programar.
+- **Los valores.** El valor de un bloque es una lista de renglones: `ValuesJson` lleva un array con un objeto por renglón.
+  - `BusinessFormRecordValue` suma el renglón (de 0 a 99) al lado de `Position`.
+  - `BusinessFormRecordReferences` lo suma a su clave.
+  - La migración es aditiva y su Down se frena si hay bloques publicados o capturados, como la de «elegir varias».
+- **La captura.** Valida la cantidad de renglones contra el mínimo y el máximo y, por WhatsApp, contra el tope. Cada renglón
+  se valida como preguntas sueltas: obligatorias, tipos, largos y opciones ofrecidas. La huella incluye los renglones y el
+  replay los conserva; un rechazo no consume número, como hoy.
+
+### WhatsApp
+
+- **Un perfil nuevo del compilador**, la revisión siguiente a `flow-static-7.3-r9`, sólo para publicaciones nuevas. La
+  primera pantalla tiene lo anterior al bloque; después va una pantalla por renglón y, al final, lo de después del bloque. Las
+  versiones publicadas conservan sus bytes.
+- **Flow JSON 7.3 alcanza sin intercambio**, según la [referencia de componentes](https://developers.facebook.com/docs/whatsapp/flows/reference/components)
+  y la de [Flow JSON](https://developers.facebook.com/docs/whatsapp/flows/reference/flowjson), consultadas el 2026-11-02:
+  - el `If` (desde 4.0) admite un `Footer` en cada rama: «Siguiente» con «Sí» y la pantalla que sigue con «No»;
+  - una pantalla lee lo cargado en otra con `${screen.<pantalla>.form.<campo>}` (desde 4.0), así que el envío final junta
+    todos los renglones;
+  - no hay un tope de pantallas documentado: el JSON llega hasta 10 MB, cada pantalla hasta 50 componentes y un Flow puede
+    tener varias pantallas terminales.
+- **A confirmar con Meta al programar**, con un Flow de prueba publicado:
+  - el límite de «10 ramas» del modelo de rutas, que la documentación no define y que, sin intercambio, se arma solo. Si no
+    alcanza para 10 renglones, el tope baja;
+  - cómo llega en el envío final lo de las pantallas que no se visitaron, y que la cantidad de renglones viaje con él;
+  - que las opciones de un catálogo, que viajan en los datos del mensaje, sirvan en cada pantalla de renglón.
+- **Archivos:** el presupuesto no cambia, porque un bloque no lleva fotos ni documentos.
+
+### Lecturas y reglas
+
+- **Planilla, facetas y conteos.** Un filtro sobre una pregunta del bloque es un `EXISTS` sobre sus valores, sin multiplicar
+  la respuesta por sus renglones, como «elegir varias». La columna del bloque no se ordena.
+- **Excel.** Una hoja más, con una fila por renglón y el número de respuesta y de renglón; los tipos y la precisión, como hoy.
+- **PDF.** La tabla del bloque, con su encabezado repetido si pasa de página. El diseño del PDF elige el bloque entero.
+- **Reglas.** Las opciones de condiciones suman las preguntas del bloque debajo de él. La evaluación agrupa las condiciones
+  de un mismo bloque y busca un renglón que las cumpla todas. El dato del mensaje guarda la identidad del bloque, como MD1-A
+  guarda la de una pregunta.
+- **El chat de WhatsApp**, que muestra los valores de una respuesta, muestra el bloque con un renglón por línea.
+
+## Lo que tiene que estar antes
+
+Estos tableros ya están elegidos y siguen por programar al 2026-11-03. Cada etapa de este plan arranca después de los que
+toca:
+
+- **AR1-A** (dos anchos) y **AR2-A** (mantener lo cargado en la página): el bloque ocupa el renglón entero y «Mantener»
+  conserva los renglones.
+- **PL1-A** («Filtros»): las preguntas del bloque se suman a ese desplegable.
+- **TL1-A y TL3-A** (el detalle): los renglones se leen con esa forma.
+- **MD1-A** («Agregar dato»): el bloque es un dato más del mensaje.
+
+## Plan por etapas
+
+Cada paso queda igual a su tablero: al programarlo se abre el tablero y se compara antes de cerrarlo. Antes de la Etapa 1,
+los tableros elegidos pasan al lienzo del sistema visual y su diseño se registra en el front. Cada etapa sigue
+[validar un cambio](../guides/validar-un-cambio.md): TDD en las políticas, integración con PostgreSQL y Redis, contratos
+exportados, y en el front tests, visuales y el recorrido es/en a 1440, 390 y 320.
+
+1. **Etapa 1 · El bloque en el editor y al publicar (RG1-A y RG3-A).**
+   - Backend: el tipo `group` en el borrador, con validación, identidades, mínimo y máximo, tipos permitidos, un solo bloque
+     y las 40 preguntas. El chequeo de publicación (el bloque vacío frena y el máximo mayor que el tope avisa) y la aceptación.
+   - El compilador con el perfil nuevo, una pantalla por renglón con «¿Agregás otro renglón?», y la verificación con Meta de
+     los puntos de arriba, con un Flow de prueba publicado y su vista previa.
+   - Front: «Renglones» en el editor, el recuadro con sus preguntas, el mínimo y el máximo y la vista previa de un renglón.
+2. **Etapa 2 · Cargar renglones (RG2-A y RG3-A).**
+   - Backend: los valores con su renglón y su migración, y la captura de WhatsApp y de la app con los renglones, la huella y
+     el replay.
+   - Front: la tabla en la página, los recuadros en el panel y en el celular, agregar, quitar y mover, los errores por renglón
+     y «Mantener».
+   - Prueba física: «Recepción de insumos» con los tres renglones del remito, desde la app y por WhatsApp.
+3. **Etapa 3 · Ver los renglones (RG4-A).** La columna de la planilla, «Filtros» por algún renglón con sus conteos, la vista
+   rápida, la pantalla completa, el chat de WhatsApp, la hoja del Excel y la tabla del PDF.
+4. **Etapa 4 · Las reglas (RG5-A).** Las condiciones «algún renglón con…» en el editor y en la evaluación, la lista de reglas
+   y el bloque como dato del mensaje, con «Así llega». Con eso, la regla de «Recepción de insumos» avisa al Agrónomo si algún
+   artículo llegó en mal estado.
+
+Al cerrar, las reglas van a [formularios](../features/formularios.md) y a [WhatsApp](../features/whatsapp.md), el diseño
+queda en el front y se ofrece el traspaso al multitenant. La factura de ARCA usa este bloque en su Etapa 3; los cálculos
+(cantidad por precio y suma de renglones) siguen en la Etapa 2 de esa hoja.
+
+Fuera de alcance: más de un bloque, bloques adentro de un bloque, fotos o documentos por renglón, ordenar la planilla por el
+bloque, condiciones sobre todos los renglones o su cantidad, duplicar un renglón, importar renglones desde Excel y la lista
+con los nombres antes de enviar por WhatsApp.
