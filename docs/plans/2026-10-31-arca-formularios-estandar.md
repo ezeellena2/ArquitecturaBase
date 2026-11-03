@@ -25,7 +25,7 @@ tableros y su plan antes de programarse.
 5. **Las etapas y el diseño de esta hoja quedaron aprobados.**
 6. **Carpetas para formularios y catálogos** (2026-11-01). Hay carpetas con subcarpetas, y un mismo formulario o catálogo
    puede estar en varias, porque un catálogo se usa en formularios de categorías distintas. Van en la etapa 2, antes de la
-   biblioteca, y necesitan sus propios tableros.
+   biblioteca. Se diseñaron y decidieron el 2026-11-03 en su [plan](2026-11-03-carpetas-de-formularios-y-catalogos.md).
 7. **La etapa 1 se achica** (2026-11-01). Las tablas de ARCA como catálogos y el autocompletar de la CUIT del cliente pasan
    a la etapa 3 y llegan ya puestos en una carpeta «ARCA». La etapa 1 tiene su [diseño](2026-11-03-arca-etapa-1-conexion.md),
    con sus decisiones del 2026-11-01 al 2026-11-03.
@@ -154,9 +154,10 @@ automático.
 - **Biblioteca de estándares**, como la decidió el [plan de documentos](2026-10-22-documentos-por-whatsapp.md): datos de
   inicio, y «Agregar» crea una copia editable que recuerda de qué estándar viene. Las preguntas que la emisión necesita
   quedan **atadas**: se cambia su texto o su orden, pero no se borran ni cambian de tipo.
-- **Carpetas:** «Formularios» y «Catálogos» se ordenan en carpetas con subcarpetas, y un elemento puede estar en varias.
-  Lo que trae la biblioteca y lo que llega de ARCA viene ya clasificado. Sus pantallas (el árbol, mover, en qué carpetas
-  está cada elemento) se dibujan antes de programarse.
+- **Carpetas:** diseñadas el 2026-11-03 en [carpetas para formularios y catálogos](2026-11-03-carpetas-de-formularios-y-catalogos.md).
+  Es un solo árbol para formularios y catálogos, y un elemento puede estar en varias carpetas. Solo ordenan, sin cambiar
+  permisos. El panel va a la izquierda de cada listado (CP1-A), «Carpetas…» abre un diálogo con casillas (CP2-A) y se
+  administran en el mismo panel (CP3-A). Lo que trae la biblioteca y lo que llega de ARCA viene ya clasificado.
 
 ### Emisión segura (etapa 3)
 
