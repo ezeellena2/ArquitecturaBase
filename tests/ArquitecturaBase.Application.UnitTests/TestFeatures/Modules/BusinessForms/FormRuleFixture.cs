@@ -52,8 +52,9 @@ internal sealed class FormRuleFixture : IFormDraftRepository, IFormRuleRepositor
         var ordered = request.Sort == "revision" ? revisions.OrderBy(rule => rule.Revision) : revisions.OrderByDescending(rule => rule.Revision);
         var rows = ordered.Skip((request.Page - 1) * request.PageSize).Take(request.PageSize)
             .Select(rule => new FormRuleRevisionStoredRow(rule.Id, rule.Revision, rule.CreatedAtUtc, new(User.UserId!.Value,"Manager"), rule.HasApproval,
-                rule.RulesJson, revisions.Where(previous => previous.Revision < rule.Revision).OrderByDescending(previous => previous.Revision)
-                    .Select(previous => previous.RulesJson).FirstOrDefault())).ToArray();
+                rule.RulesJson, rule.QuestionSchemaJson, revisions.Where(previous => previous.Revision < rule.Revision).OrderByDescending(previous => previous.Revision)
+                    .Select(previous => previous.RulesJson).FirstOrDefault(), revisions.Where(previous => previous.Revision < rule.Revision)
+                    .OrderByDescending(previous => previous.Revision).Select(previous => previous.QuestionSchemaJson).FirstOrDefault())).ToArray();
         BeforeHistoryReturn?.Invoke();
         return Task.FromResult(new PagedResult<FormRuleRevisionStoredRow>(rows, request.Page, request.PageSize, revisions.Length));
     }
@@ -62,7 +63,7 @@ internal sealed class FormRuleFixture : IFormDraftRepository, IFormRuleRepositor
         BeforeRolesReturn?.Invoke();
         return Task.FromResult<IReadOnlyList<FormRuleRoleResponse>>(RoleAvailable ? [new(RoleId,"Supervisor")] : []);
     }
-    private FormRuleSetStoredRow? Map(BusinessFormRuleSet? rule) => rule is null ? null : new(rule.Id,rule.DefinitionId,rule.Revision,rule.OriginalCulture,rule.RulesJson,rule.CreatedAtUtc,new(User.UserId!.Value,"Manager"));
+    private FormRuleSetStoredRow? Map(BusinessFormRuleSet? rule) => rule is null ? null : new(rule.Id,rule.DefinitionId,rule.Revision,rule.OriginalCulture,rule.RulesJson,rule.QuestionSchemaJson,rule.CreatedAtUtc,new(User.UserId!.Value,"Manager"));
     public Task LockRequestAsync(Guid actor,Guid request,CancellationToken ct) => throw new NotSupportedException();
     public Task<BusinessFormDraftChange?> GetChangeAsync(Guid actor,Guid request,CancellationToken ct) => throw new NotSupportedException();
     public Task<bool> ExistsPrefixAsync(string prefix,Guid except,CancellationToken ct) => throw new NotSupportedException();

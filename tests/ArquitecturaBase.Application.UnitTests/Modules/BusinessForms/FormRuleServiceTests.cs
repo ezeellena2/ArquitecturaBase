@@ -93,6 +93,31 @@ public sealed class FormRuleServiceTests
         Assert.Equal(revisionReads, fixture.RevisionReads);
     }
     [Fact]
+    public async Task Names_saved_in_a_message_are_read_back_as_references_resolved_with_the_revision_questions()
+    {
+        var fixture = new FormRuleFixture();
+        var rule = new FormRuleInput(Guid.NewGuid(), "Received", [], [new(Guid.NewGuid(), "NotifyAuthor", Text: new Dictionary<string,string?> { ["es"] = "Recibimos {número}: {Visita}", ["en"] = "Received {number}: {Visit}" })]);
+        var saved = await fixture.Service.SaveAsync(fixture.Definition.Id, new(0, [rule]), TestContext.Current.CancellationToken);
+        Assert.True(fixture.Definition.SetDraft(fixture.Definition.Revision, "Visitas", fixture.Definition.NameJson, "VISIT", "es", "{}",
+            FormDraftPolicy.Serialize(new FormQuestionSchema(1, [new(fixture.FieldId, "visit", "shortText", new Dictionary<string,string> { ["es"] = "Visita realizada", ["en"] = "Completed visit" }, null, false, 80, null)])), 1, false).IsSuccess);
+        var current = await fixture.Service.GetCurrentAsync(fixture.Definition.Id, TestContext.Current.CancellationToken);
+        var revision = await fixture.Service.GetRevisionAsync(fixture.Definition.Id, 1, TestContext.Current.CancellationToken);
+        var expected = new Dictionary<string,string> { ["es"] = $"Recibimos {{número}}: {{{fixture.FieldId:D}}}", ["en"] = $"Received {{number}}: {{{fixture.FieldId:D}}}" };
+        foreach (var read in new[] { saved, current, revision })
+            Assert.Equal(expected, Assert.Single(Assert.Single(read.Value.Rules).Actions).Text);
+    }
+    [Fact]
+    public async Task History_does_not_count_a_rule_as_edited_when_its_names_only_became_references()
+    {
+        var fixture = new FormRuleFixture();
+        var ruleId = Guid.NewGuid(); var actionId = Guid.NewGuid();
+        FormRuleInput Rule(string text) => new(ruleId, "Received", [], [new(actionId, "NotifyAuthor", Text: new Dictionary<string,string?> { ["es"] = text })]);
+        Assert.True((await fixture.Service.SaveAsync(fixture.Definition.Id, new(0, [Rule("Recibimos {Visita}")]), TestContext.Current.CancellationToken)).IsSuccess);
+        Assert.True((await fixture.Service.SaveAsync(fixture.Definition.Id, new(1, [Rule($"Recibimos {{{fixture.FieldId:D}}}")]), TestContext.Current.CancellationToken)).IsSuccess);
+        var history = await fixture.Service.ListRevisionsAsync(fixture.Definition.Id, new(), TestContext.Current.CancellationToken);
+        Assert.Equal(new FormRuleChangesResponse(0, 0, 0, false), history.Value.Items[0].Changes);
+    }
+    [Fact]
     public async Task Revocation_during_history_read_discards_the_page()
     {
         var fixture = new FormRuleFixture();

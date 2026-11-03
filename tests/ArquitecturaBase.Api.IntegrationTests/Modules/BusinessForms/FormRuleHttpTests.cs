@@ -123,6 +123,36 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal(FormRuleErrors.PlaceholderInvalid.Code,(await unknown.ReadJsonAsync()).GetProperty("code").GetString());
     }
     [Fact]
+    public async Task A_message_saved_with_a_question_name_is_read_as_its_reference_after_the_question_is_renamed()
+    {
+        using var designer = await AdminAsync();
+        var created = await CreateAsync(designer,Payload("Nombres como referencias"));
+        var id = created.GetProperty("definition").GetProperty("id").GetGuid();
+        var fieldId = created.GetProperty("identityMap").GetProperty("fields")[0].GetProperty("fieldId").GetGuid();
+        var route = $"/api/forms/definitions/{id}/rules";
+        using var manager = await OperatorAsync([BusinessFormsPermissions.RulesManage]);
+        var rule = new { id = Guid.NewGuid(), @event = "Received", conditions = Array.Empty<object>(), actions = new[] { new { id = Guid.NewGuid(), kind = "NotifyAuthor", text = new { es = "Recibimos {número}: {Nombre}" }, includePdf = false } } };
+        using var saved = await manager.PostAsJsonAsync(route,new { expectedRevision = 0, rules = new[] { rule } },Ct);
+        Assert.Equal(HttpStatusCode.Created,saved.StatusCode);
+        var edit = EditPayload(created);
+        edit["draft"]!["fields"]![0]!["label"]!["es"] = "Nombre completo";
+        using var renamed = await designer.PutAsJsonAsync($"/api/forms/definitions/{id}/draft",edit,Ct);
+        Assert.Equal(HttpStatusCode.OK,renamed.StatusCode);
+        var reference = $"Recibimos {{número}}: {{{fieldId:D}}}";
+        using var current = await manager.GetAsync(route,Ct);
+        var read = await current.ReadJsonAsync();
+        Assert.Equal(reference,read.GetProperty("rules")[0].GetProperty("actions")[0].GetProperty("text").GetProperty("es").GetString());
+        await FormRuleContractCapture.WriteAsync(current,"current-reference-es",Ct);
+        using var revision = await manager.GetAsync(route + "/revisions/1",Ct);
+        Assert.Equal(reference,(await revision.ReadJsonAsync()).GetProperty("rules")[0].GetProperty("actions")[0].GetProperty("text").GetProperty("es").GetString());
+        using var resaved = await manager.PostAsJsonAsync(route,new { expectedRevision = 1, rules = read.GetProperty("rules") },Ct);
+        Assert.Equal(HttpStatusCode.Created,resaved.StatusCode);
+        using var history = await manager.GetAsync(route + "/revisions",Ct);
+        var latest = (await history.ReadJsonAsync()).GetProperty("items")[0];
+        Assert.Equal(2,latest.GetProperty("revision").GetInt64());
+        Assert.Equal(0,latest.GetProperty("changes").GetProperty("updatedRules").GetInt32());
+    }
+    [Fact]
     public async Task Removed_rule_permissions_and_missing_roles_cannot_change_a_revision()
     {
         using var designer = await AdminAsync();

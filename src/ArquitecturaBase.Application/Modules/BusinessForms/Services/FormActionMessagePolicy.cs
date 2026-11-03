@@ -21,6 +21,26 @@ internal static class FormActionMessagePolicy
     /// Earlier revisions hold the label in the text's culture, resolved with the questions fixed by the revision.
     /// </summary>
     public static Guid? Reference(string token) => Guid.TryParseExact(token, "D", out var fieldId) ? fieldId : null;
+    /// <summary>The rules with every question token as its FieldId, a label resolved with the questions the revision fixed.</summary>
+    public static IReadOnlyList<FormRule> WithReferences(IReadOnlyList<FormRule> rules, FormVersionSchema questions) =>
+        rules.Select(rule => rule with { Actions = rule.Actions.Select(action => action.Text is null ? action : action with
+        {
+            Text = action.Text.ToDictionary(text => text.Key, text => WithReferences(text.Value, text.Key, questions))
+        }).ToArray() }).ToArray();
+    private static string WithReferences(string template, string culture, FormVersionSchema questions)
+    {
+        var result = new StringBuilder();
+        for (var index = 0; index < template.Length; index++)
+        {
+            if (template[index] != '{') { result.Append(template[index]); continue; }
+            var end = template.IndexOf('}', index + 1);
+            var token = template[(index + 1)..end];
+            result.Append('{').Append(token is "número" or "number" or "motivo" or "reason" || Reference(token) is not null ? token
+                : questions.Questions.Single(question => question.Label.GetValueOrDefault(culture) == token).FieldId.ToString("D")).Append('}');
+            index = end;
+        }
+        return result.ToString();
+    }
     public static HashSet<Guid> UsedFields(IReadOnlyList<FormRule> rules, FormVersionSchema questions)
     {
         var used = new HashSet<Guid>();

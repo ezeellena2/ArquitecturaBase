@@ -77,9 +77,12 @@ internal sealed class FormRuleService(IFormDraftRepository drafts, IFormRuleRepo
         if (!await access.StillAllowedAsync(actor.Value, cancellationToken)) return FormDefinitionErrors.Forbidden;
         return Map(row);
     }
+    // Revisions saved before MD1-A name questions by label: they are read as references, so the editor and the history see one form.
     private static FormRuleRevisionResponse MapHistory(FormRuleRevisionStoredRow row) => new(row.Id, row.Revision, row.CreatedAtUtc, row.Author, row.HasApproval,
-        FormRuleHistoryPolicy.Compare(FormDraftPolicy.Read<FormRule[]>(row.RulesJson),
-            row.PreviousRulesJson is null ? [] : FormDraftPolicy.Read<FormRule[]>(row.PreviousRulesJson)));
+        FormRuleHistoryPolicy.Compare(Rules(row.RulesJson, row.QuestionSchemaJson),
+            row.PreviousRulesJson is null ? [] : Rules(row.PreviousRulesJson, row.PreviousQuestionSchemaJson!)));
     private static FormRuleSetResponse Map(FormRuleSetStoredRow row) => new(row.Id, row.DefinitionId, row.Revision, row.OriginalCulture,
-        FormDraftPolicy.Read<FormRule[]>(row.RulesJson), row.CreatedAtUtc, row.Author);
+        Rules(row.RulesJson, row.QuestionSchemaJson), row.CreatedAtUtc, row.Author);
+    private static IReadOnlyList<FormRule> Rules(string rulesJson, string questionSchemaJson) =>
+        FormActionMessagePolicy.WithReferences(FormDraftPolicy.Read<FormRule[]>(rulesJson), FormDraftPolicy.Read<FormVersionSchema>(questionSchemaJson));
 }

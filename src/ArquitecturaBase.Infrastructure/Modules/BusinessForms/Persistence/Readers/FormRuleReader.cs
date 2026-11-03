@@ -32,15 +32,17 @@ internal sealed class FormRuleReader(ApplicationDbContext dbContext) : IFormRule
             .ApplySort(SortDescriptor.Parse(request.Sort), sortable, new("revision",true), value => value.Id)
             .Select(value => new FormRuleRevisionStoredRow(value.Id, value.Revision, value.CreatedAtUtc,
                 value.CreatedBy == null ? null : new FormAuthorResponse(value.CreatedBy.Value,
-                    dbContext.Users.Where(user => user.Id == value.CreatedBy).Select(user => user.DisplayName).FirstOrDefault()), value.HasApproval, value.RulesJson,
+                    dbContext.Users.Where(user => user.Id == value.CreatedBy).Select(user => user.DisplayName).FirstOrDefault()), value.HasApproval, value.RulesJson, value.QuestionSchemaJson,
                 dbContext.Set<BusinessFormRuleSet>().Where(previous => previous.DefinitionId == value.DefinitionId && previous.Revision < value.Revision)
-                    .OrderByDescending(previous => previous.Revision).Select(previous => previous.RulesJson).FirstOrDefault()))
+                    .OrderByDescending(previous => previous.Revision).Select(previous => previous.RulesJson).FirstOrDefault(),
+                dbContext.Set<BusinessFormRuleSet>().Where(previous => previous.DefinitionId == value.DefinitionId && previous.Revision < value.Revision)
+                    .OrderByDescending(previous => previous.Revision).Select(previous => previous.QuestionSchemaJson).FirstOrDefault()))
             .ToPagedResultAsync(request, cancellationToken);
     }
     public async Task<IReadOnlyList<FormRuleRoleResponse>> ListRolesAsync(CancellationToken cancellationToken) => await dbContext.Roles.AsNoTracking()
         .OrderBy(role => role.Name).ThenBy(role => role.Id).Select(role => new FormRuleRoleResponse(role.Id,role.Name!)).ToArrayAsync(cancellationToken);
     private IQueryable<FormRuleSetStoredRow> Stored(IQueryable<BusinessFormRuleSet> query) => query.Select(value => new FormRuleSetStoredRow(
-        value.Id,value.DefinitionId,value.Revision,value.OriginalCulture,value.RulesJson,value.CreatedAtUtc,
+        value.Id,value.DefinitionId,value.Revision,value.OriginalCulture,value.RulesJson,value.QuestionSchemaJson,value.CreatedAtUtc,
         value.CreatedBy == null ? null : new FormAuthorResponse(value.CreatedBy.Value,
             dbContext.Users.Where(user => user.Id == value.CreatedBy).Select(user => user.DisplayName).FirstOrDefault())));
 }

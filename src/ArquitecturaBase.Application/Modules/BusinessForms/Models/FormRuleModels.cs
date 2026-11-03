@@ -26,9 +26,10 @@ public sealed record ListFormRuleRevisionsRequest : PagedRequest
 public sealed record FormRuleDefinitionRow(Guid Id, string NameJson, string OriginalCulture, string SchemaJson, IReadOnlyList<FormRuleSchemaRow> HistoricalSchemas)
 { public override string ToString() => "FormRuleDefinitionRow { Content = [REDACTED] }"; }
 public sealed record FormRuleSchemaRow(long Number, string SchemaJson);
-public sealed record FormRuleSetStoredRow(Guid Id, Guid DefinitionId, long Revision, string OriginalCulture, string RulesJson, DateTime CreatedAtUtc, FormAuthorResponse? Author)
+public sealed record FormRuleSetStoredRow(Guid Id, Guid DefinitionId, long Revision, string OriginalCulture, string RulesJson, string QuestionSchemaJson, DateTime CreatedAtUtc, FormAuthorResponse? Author)
 { public override string ToString() => "FormRuleSetStoredRow { Content = [REDACTED] }"; }
 
 public sealed record FormRuleChangesResponse(int AddedRules, int UpdatedRules, int RemovedRules, bool OrderChanged);
-public sealed record FormRuleRevisionStoredRow(Guid Id, long Revision, DateTime CreatedAtUtc, FormAuthorResponse? Author, bool HasApproval, string RulesJson, string? PreviousRulesJson)
+public sealed record FormRuleRevisionStoredRow(Guid Id, long Revision, DateTime CreatedAtUtc, FormAuthorResponse? Author, bool HasApproval, string RulesJson, string QuestionSchemaJson,
+    string? PreviousRulesJson, string? PreviousQuestionSchemaJson)
 { public override string ToString() => "FormRuleRevisionStoredRow { Content = [REDACTED] }"; }
