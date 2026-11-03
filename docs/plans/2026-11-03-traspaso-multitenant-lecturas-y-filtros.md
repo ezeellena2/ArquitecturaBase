@@ -39,7 +39,7 @@ cuenta:
 - **Editor y carga** (§9 y §10): las zonas de una pregunta de catálogo arrancan plegadas; el armado tiene dos anchos y la
   página de carga también mantiene lo cargado para la siguiente.
 - **Decidido y sin programar** (§11): los renglones, un bloque de preguntas que se repite, como los artículos de un remito.
-  También se diseñó la conexión con ARCA.
+  También se diseñaron la conexión con ARCA y las carpetas para formularios y catálogos.
 - **La prueba** (§12): lo que se encontró sirve como lista de «no repetir». Lo más importante: el aviso a un rol sale sólo
   por WhatsApp y falló sin que el editor lo anticipara.
 - **El código todavía no está en GitHub:** los commits son locales. Desde esta PC se leen en
@@ -361,6 +361,17 @@ instalación con el certificado de la empresa, probar la conexión, traer los da
 punto de venta, sin emitir. No es parte de este traspaso: se nombra para que el multitenant la tenga en cuenta cuando la
 sume a su hoja de ruta, donde habrá que decidir de quién es la conexión.
 
+### Carpetas para formularios y catálogos (CP1-A a CP3-A, 2026-11-03)
+
+El mismo día quedó decidido, sin programar, el [plan de carpetas](2026-11-03-carpetas-de-formularios-y-catalogos.md):
+- un solo árbol de carpetas por tema para formularios y catálogos, con subcarpetas, y un mismo elemento en varias;
+- las carpetas sólo ordenan: no dan ni quitan acceso;
+- el árbol va en un panel a la izquierda de cada listado (CP1-A), «Carpetas…» abre un diálogo con el árbol y casillas
+  (CP2-A) y las carpetas se administran en el mismo panel (CP3-A);
+- no lleva cantidades junto a las carpetas, como los filtros desde FO1-A.
+
+Tampoco es parte de este traspaso. Llega antes de la biblioteca de estándares, que allá es la E22.
+
 ## 12. Lo que se encontró en la prueba (no repetir)
 
 1. **El aviso a un rol sale sólo por WhatsApp, y el editor no lo anticipa.** En «Recepción de insumos», la regla «si
@@ -442,8 +453,8 @@ de los choques son con esas reglas y no con decisiones numeradas.
   - `formularios-whatsapp.md`: PL1-A, PL2-A, TL1-A y TL2-A, TL3-A, HI1-A, ZP1-A, MD1-A, LR1-A y LR2-A;
   - `carga-desde-la-app.md`: AR1-A y AR2-A.
 - **Las reglas y sus piezas:** `ArquitecturaBaseFront/docs/guides/premisas-de-desarrollo.md` y `estandar-visual.md`.
-- **Planes sin programar:** [renglones en los formularios](2026-11-03-renglones-en-formularios.md) y
-  [ARCA · etapa 1](2026-11-03-arca-etapa-1-conexion.md).
+- **Planes sin programar:** [renglones en los formularios](2026-11-03-renglones-en-formularios.md),
+  [ARCA · etapa 1](2026-11-03-arca-etapa-1-conexion.md) y [carpetas](2026-11-03-carpetas-de-formularios-y-catalogos.md).
 - **Tableros:** el lienzo [Formularios desde la app](https://claude.ai/artifact/Kvbr5KFJrGT951JLiu8i4M), en estas filas:
   - «Formularios · respuestas · dos solapas y un solo «Filtros»» y «el filtro de una pregunta con opciones: un combo
     simple»;
@@ -452,7 +463,8 @@ de los choques son con esas reglas y no con decisiones numeradas.
   - «Formularios · editor de una pregunta · zonas que se pliegan»;
   - «Formularios · reglas · el mensaje con datos»;
   - «Formularios · armado» y «La carga en la página · mantener lo cargado para la siguiente»;
-  - «Formularios · renglones · 0» a «· 6».
+  - «Formularios · renglones · 0» a «· 6»;
+  - «Carpetas», del CP1 al CP4.
 
   La elegida de cada fila es la que nombra este traspaso.
 - **Commits:**
@@ -480,8 +492,8 @@ Cuenta lo que allá se decidió y se programó el 2/11 y el 3/11, siguiendo la p
 trabajar (cada cambio de diseño vale para toda la app), las tablas, cómo se lee lo guardado (pasos, dos columnas y
 comparaciones lado a lado), cómo se marca lo elegido, los filtros (la planilla con dos solapas y un solo «Filtros», y un
 filtro de opciones como desplegable simple), el detalle de una respuesta, las reglas (en pasos, el historial y el mensaje
-con «Agregar dato»), el editor de una pregunta de catálogo y el armado y la carga desde la web. También trae dos diseños
-sin programar: los renglones y la conexión con ARCA. Los commits todavía no están en GitHub: leelos en
+con «Agregar dato»), el editor de una pregunta de catálogo y el armado y la carga desde la web. También trae tres diseños
+sin programar: los renglones, la conexión con ARCA y las carpetas. Los commits todavía no están en GitHub: leelos en
 C:\Users\ezequ\source\repos\ArquitecturaBase y ...\ArquitecturaBaseFront.
 
 1. Si todavía no incorporaste el traspaso 4 (2026-11-02-traspaso-multitenant-ajustes-de-la-prueba.md, en la misma
@@ -494,7 +506,8 @@ C:\Users\ezequ\source\repos\ArquitecturaBase y ...\ArquitecturaBaseFront.
 3. Actualizá cada etapa y su texto de diseño con lo que se adopta del §7 al §10, y sumá la lista de «no repetir» del §12.
    El §13 dice qué dice hoy cada etapa y qué evaluar.
 4. Los renglones del §11 están decididos y sin programar: decí en qué etapa o plan tuyo entrarían y qué cambia con tu
-   modelo, sin programarlos. La conexión con ARCA sólo se nombra: evaluala cuando la sumes a tu hoja de ruta.
+   modelo, sin programarlos. La conexión con ARCA y las carpetas sólo se nombran: evalualas cuando las sumes a tu
+   hoja de ruta.
 5. El §13 termina con los puntos que chocan con decisiones que ya tomaste y con reglas de tu front. No los cambies por tu
    cuenta: preguntale al usuario de a una pregunta, con las opciones y la recomendada marcada. Lo mismo vale para cualquier otra adaptación que
    tenga que decidir él.
