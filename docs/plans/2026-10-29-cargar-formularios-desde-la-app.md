@@ -110,11 +110,13 @@ reescribe allí.
 - **Reglas fijas, iguales para todos los formularios (CW12 y CW16).**
   - El autor decide el contenido: orden, textos, ayuda, obligatoria, opciones, largo máximo, rango de «elegir varias» y límites de fotos.
   - La app decide la forma con una tabla por tipo de pregunta.
-- **Cuánto ocupa cada pregunta en la grilla de tres:**
-  - una columna: número, fecha, sí o no, texto corto de hasta 30 caracteres y elegir una con lista desplegable;
-  - dos columnas: elegir de un catálogo, elegir una con opciones en fila (hasta 5 cortas) y texto corto de hasta 80;
-  - el renglón entero: texto largo, texto corto de más de 80, elegir varias con opciones propias, fotos y documentos.
-  Las preguntas no se reordenan: una que no entra baja de renglón.
+- **Cuánto ocupa cada pregunta en la grilla de tres (dos anchos desde AR1-A, 2026-11-02):**
+  - una columna: número, fecha, sí o no, texto corto de hasta 80, elegir una (hasta cinco opciones en fila, aunque sean
+    largas; más, lista desplegable) y elegir de un catálogo, de una o de varias;
+  - el renglón entero: texto largo, texto corto de más de 80 o sin largo máximo, elegir varias con opciones propias
+    (sus casillas en columnas), fotos y documentos.
+  Las preguntas no se reordenan: una que no entra baja de renglón. El panel junto a la planilla tiene las mismas zonas,
+  en una columna.
 - **Las zonas** son el `CollapsibleSection` de `shared/ui`. Plegada, la banda dice cuántas preguntas se respondieron.
 - **Los títulos de sección** son un elemento nuevo del borrador, que no es una pregunta. El tipo `Group` sigue reservado para las líneas.
   - Entran en la huella de publicación como contenido opcional, así no cambian las versiones ya selladas.
