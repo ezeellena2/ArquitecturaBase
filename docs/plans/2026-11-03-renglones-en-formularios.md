@@ -15,18 +15,21 @@ resultado externo y la biblioteca de estándares siguen en esa hoja. El [resumen
 tenía pendiente como «grupos y remitos con líneas».
 
 **Tableros:** lienzo provisorio [Formularios desde la app](https://claude.ai/artifact/Kvbr5KFJrGT951JLiu8i4M), filas
-«Formularios · renglones · 1» a «· 5» (RG1 a RG5), con la nota naranja de origen y una verde por elección (versión 51).
+«Formularios · renglones · 0» a «· 6» (RG0 a RG6), con las notas naranjas de origen y una verde por elección (versión 55).
 El ejemplo es el remito de la prueba:
 - el proveedor «Agroinsumos del Litoral S.A.» y el campo «SAN JULIAN»;
-- tres artículos: GLIFOSATO 64% (200 litros), ATRAZINA 50% (100 litros) y UREA GRANULADA (5.000 kilos);
-- un precio unitario de ejemplo, que el formulario real no tiene.
+- en RG1 a RG5, tres artículos (GLIFOSATO 64%, 200 litros; ATRAZINA 50%, 100 litros; UREA GRANULADA, 5.000 kilos) y un
+  precio unitario de ejemplo, que el formulario real no tiene;
+- en RG0 y RG6, las cuatro respuestas reales, INS-000001 a INS-000004, con la observación «3 bolsas rotas en la descarga».
+  RG0 compara esas cuatro respuestas con una sola de cuatro renglones.
 
 El lienzo del sistema visual no se abre desde la cuenta de Claude Code, así que los tableros elegidos pasan allí antes de
 programar y su diseño se registra en el front, como el de la [carga desde la app](../../../ArquitecturaBaseFront/docs/design/carga-desde-la-app.md).
 
 ## Decisiones del usuario (2026-11-03)
 
-Las eligió de a una, mirando cada fila; en las cinco eligió la recomendada, la A.
+Las eligió de a una, mirando cada fila; en las seis eligió la recomendada, la A. La sexta ajusta la primera: salió de
+analizar con él la carga del remito como cuatro respuestas.
 
 1. **El editor: RG1-A, un tipo de pregunta «Renglones».**
    - «Agregar pregunta» suma «Renglones» al final de los tipos. En la lista, el bloque es un recuadro con sus preguntas
@@ -34,8 +37,7 @@ Las eligió de a una, mirando cada fila; en las cinco eligió la recomendada, la
    - Se edita como una pregunta: el nombre («Artículos»), la ayuda y el mínimo y el máximo de renglones. La (i) del máximo
      dice el tope de WhatsApp.
    - Con el bloque abierto, la vista previa muestra la pantalla de un renglón en WhatsApp.
-   - Una pregunta que ya existe no se mete al bloque: se agrega de nuevo adentro y es otra pregunta. Las respuestas viejas
-     quedan en su columna.
+   - Una pregunta que ya existe se pasa al bloque con la casilla de la decisión 6.
    - Descartó RG1-B, una sección que se repite, que necesitaba antes los títulos de sección (CW15-B).
 2. **La carga en la app: RG2-A, una tabla.**
    - En la página, el bloque ocupa el renglón entero de «Datos», donde lo puso el autor. Cada renglón es una fila y cada
@@ -85,13 +87,25 @@ Las eligió de a una, mirando cada fila; en las cinco eligió la recomendada, la
    - En el mensaje (MD1-A), «Artículos» es un dato que trae todos los renglones, uno por línea, numerados y con sus valores
      separados por « · » en el orden de las preguntas. Las preguntas del bloque no se ofrecen sueltas.
    - Descartó RG5-B, que elegía «algún» o «todos» en cada condición y contaba renglones.
+6. **Elegir las preguntas: RG6-A, la casilla «Se carga varias veces».** El usuario preguntó cómo se determina al crear el
+   formulario que es de carga múltiple, y pidió elegir qué preguntas se cargan varias veces.
+   - En el editor de cada pregunta, debajo de «Obligatoria», «Se carga varias veces», con su (i): «Se carga una vez por
+     renglón, en la tabla del bloque.». Fotos y documentos no la tienen.
+   - Las marcadas se juntan en el bloque; si no hay, lo crea en el lugar de la primera, llamado «Renglones» hasta que el
+     autor le ponga otro nombre. El lápiz del bloque edita el nombre, el mínimo y el máximo.
+   - Desmarcar una la saca del bloque y queda justo después de él. El «Agregar pregunta» de adentro del bloque sigue.
+   - Una pregunta que ya existía pasa como pregunta nueva: lo cargado antes conserva su columna. Publicar lo dice en una fila
+     de «Qué se publica», «Pasan a renglones», en lugar de mostrarlas como quitadas y agregadas.
+   - Descartó RG6-B (como quedó en RG1-A, rehacer las preguntas adentro) y RG6-C (una zona «Carga múltiple» en el formulario,
+     con la lista para marcar).
 
 **Resueltas por defecto** con la opción más simple, dibujadas en los tableros y sin objeción del usuario:
 
 - Un bloque por formulario, sin bloques adentro. Con uno, «Renglones» se apaga y dice por qué («Ya hay un bloque de
   renglones.»). Más de uno, si aparece el caso.
-- Adentro de un bloque entran texto corto, número, fecha, sí o no y elegir una, propia o de un catálogo. Quedan afuera el
-  texto largo, elegir varias, las fotos y los documentos.
+- Adentro de un bloque entran texto corto, texto largo, número, fecha, sí o no y elegir una, propia o de un catálogo. El
+  texto largo, como las observaciones de cada artículo, es una celda que crece con lo escrito. Quedan afuera elegir varias,
+  las fotos y los documentos.
 - El mínimo va de 0 al máximo, y el máximo llega hasta 100. Un bloque nuevo arranca con 1 y 20; con mínimo 0 es opcional.
 - Las preguntas del bloque cuentan para el máximo de 40 del formulario.
 - El borrador se guarda con un bloque sin preguntas, pero no se publica: en «Problemas», «Agregá al menos una pregunta al
@@ -112,6 +126,8 @@ Las eligió de a una, mirando cada fila; en las cinco eligió la recomendada, la
 - **Lo publicado no cambia.** Los esquemas `format=1` sin bloque siguen iguales. Los campos nuevos de los modelos sellados
   llevan `JsonIgnore(WhenWritingNull)`, así no cambian las huellas anteriores. La regla del tipo reservado, en
   [persistencia y responsabilidad](../features/formularios.md#persistencia-y-responsabilidad), se reescribe al programar.
+- **Pasar a renglones.** Marcar «Se carga varias veces» en una pregunta guardada la pasa al bloque con una identidad nueva,
+  como cambiar el tipo, y desmarcarla también. La versión publicada conserva la pregunta anterior y sus respuestas.
 - **Los valores.** El valor de un bloque es una lista de renglones: `ValuesJson` lleva un array con un objeto por renglón.
   - `BusinessFormRecordValue` suma el renglón (de 0 a 99) al lado de `Position`.
   - `BusinessFormRecordReferences` lo suma a su clave.
@@ -166,14 +182,18 @@ toca:
 Cada paso queda igual a su tablero: al programarlo se abre el tablero y se compara antes de cerrarlo. Antes de la Etapa 1,
 los tableros elegidos pasan al lienzo del sistema visual y su diseño se registra en el front. Cada etapa sigue
 [validar un cambio](../guides/validar-un-cambio.md): TDD en las políticas, integración con PostgreSQL y Redis, contratos
-exportados, y en el front tests, visuales y el recorrido es/en a 1440, 390 y 320.
+exportados, y en el front tests, visuales y el recorrido es/en a 1440, 390 y 320. Las piezas nuevas (la tabla de renglones,
+su versión en recuadros y la casilla) van a `shared/ui` con su ficha en el estándar visual, para que se usen igual en toda
+la app.
 
-1. **Etapa 1 · El bloque en el editor y al publicar (RG1-A y RG3-A).**
+1. **Etapa 1 · El bloque en el editor y al publicar (RG1-A, RG6-A y RG3-A).**
    - Backend: el tipo `group` en el borrador, con validación, identidades, mínimo y máximo, tipos permitidos, un solo bloque
-     y las 40 preguntas. El chequeo de publicación (el bloque vacío frena y el máximo mayor que el tope avisa) y la aceptación.
+     y las 40 preguntas, y pasar una pregunta guardada al bloque o sacarla. El chequeo de publicación (el bloque vacío frena,
+     el máximo mayor que el tope avisa y «Pasan a renglones») y la aceptación.
    - El compilador con el perfil nuevo, una pantalla por renglón con «¿Agregás otro renglón?», y la verificación con Meta de
      los puntos de arriba, con un Flow de prueba publicado y su vista previa.
-   - Front: «Renglones» en el editor, el recuadro con sus preguntas, el mínimo y el máximo y la vista previa de un renglón.
+   - Front: «Renglones» en el editor, la casilla «Se carga varias veces», el recuadro con sus preguntas, el lápiz con el
+     nombre, el mínimo y el máximo, y la vista previa de un renglón.
 2. **Etapa 2 · Cargar renglones (RG2-A y RG3-A).**
    - Backend: los valores con su renglón y su migración, y la captura de WhatsApp y de la app con los renglones, la huella y
      el replay.
