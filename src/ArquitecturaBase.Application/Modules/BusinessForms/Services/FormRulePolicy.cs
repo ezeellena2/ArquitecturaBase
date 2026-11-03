@@ -74,7 +74,9 @@ internal static class FormRulePolicy
             if (end < 0) return false;
             var token = text[position..end];
             if (token is not ("número" or "number" or "motivo" or "reason")
-                && questions.Count(question => question.Label.GetValueOrDefault(culture) == token) != 1) return false;
+                && (FormActionMessagePolicy.Reference(token) is { } fieldId
+                    ? questions.All(question => question.FieldId != fieldId)
+                    : questions.Count(question => question.Label.GetValueOrDefault(culture) == token) != 1)) return false;
             position = end + 1;
         }
         return true;

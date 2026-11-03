@@ -215,12 +215,31 @@ public sealed class FormActionRunRecorderTests
         Assert.Contains("en", pdf.Pdf!.Cultures);
     }
     [Theory]
-    [InlineData("es", "en")]
-    [InlineData("en", "es")]
-    public async Task A_role_notification_uses_the_captured_original_when_a_choice_has_no_secondary_translation(string original, string requested)
+    [InlineData("es", "Recibimos VIS-000001: Answer")]
+    [InlineData("en", "Received VIS-000001: Answer")]
+    public async Task A_question_reference_renders_the_answer_in_each_language(string culture, string body)
+    {
+        var fixture = new FormActionFixture();
+        var action = FormActionFixture.Action() with { Text = References(fixture) };
+        var captured = fixture.Capture([new(Guid.NewGuid(), "Received", [], [action])]);
+        fixture.Recipients.People[captured.Record.ActorUserId] = new(captured.Record.ActorUserId, culture, "Author");
+
+        await fixture.Recorder.RecordAsync(captured.Record, captured.Snapshot, "Received", TestContext.Current.CancellationToken);
+
+        var recipient = Assert.Single(FormDraftPolicy.Read<FormActionSnapshot>(Assert.Single(fixture.Runs.Runs).SnapshotJson).Recipients);
+        Assert.Equal(culture, recipient.Culture);
+        Assert.Equal(body, recipient.Body);
+    }
+    [Theory]
+    [InlineData("es", "en", false)]
+    [InlineData("en", "es", false)]
+    [InlineData("es", "en", true)]
+    [InlineData("en", "es", true)]
+    public async Task A_role_notification_uses_the_captured_original_when_a_choice_has_no_secondary_translation(string original, string requested, bool byReference)
     {
         var fixture = new FormActionFixture(original);
         var action = FormActionFixture.Action("NotifyRole") with { RoleId = fixture.Rules.RoleId };
+        if (byReference) action = action with { Text = References(fixture) };
         var captured = fixture.Capture([new(Guid.NewGuid(), "Received", [], [action])]);
         var choiceId = Guid.NewGuid();
         var schema = fixture.Schema with
@@ -254,4 +273,8 @@ public sealed class FormActionRunRecorderTests
         Assert.Equal(original, recipient.Culture);
         Assert.Equal(original == "es" ? "Recibimos VIS-000001: Original option" : "Received VIS-000001: Original option", recipient.Body);
     }
+    private static Dictionary<string, string> References(FormActionFixture fixture) => new()
+    {
+        ["es"] = $"Recibimos {{número}}: {{{fixture.Rules.FieldId:D}}}", ["en"] = $"Received {{number}}: {{{fixture.Rules.FieldId:D}}}"
+    };
 }

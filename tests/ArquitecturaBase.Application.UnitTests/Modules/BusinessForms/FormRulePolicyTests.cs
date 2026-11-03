@@ -56,6 +56,24 @@ public sealed class FormRulePolicyTests
         Assert.Equal("Forms.Rule.PlaceholderInvalid", FormRulePolicy.Normalize(new(0, [Rule("Received", Action("NotifyAuthor", text: new() { ["es"] = "{Visita}" }))]), context with { Questions = [context.Questions[0], context.Questions[0] with { FieldId = Guid.NewGuid() }] }).Error.Code);
     }
     [Fact]
+    public void A_question_token_can_reference_the_question_by_its_identity_in_either_language()
+    {
+        var action = Action("NotifyAuthor", text: new() { ["es"] = $"Recibimos {{número}}: {{{FieldId:D}}}", ["en"] = $"Received {{number}}: {{{FieldId:D}}}" });
+        var result = FormRulePolicy.Normalize(new(0, [Rule("Received", action)]), Context());
+        Assert.True(result.IsSuccess);
+        Assert.Equal($"Received {{number}}: {{{FieldId:D}}}", result.Value[0].Actions[0].Text!["en"]);
+    }
+    [Fact]
+    public void A_reference_stays_unambiguous_when_two_questions_share_a_label()
+    {
+        var context = Context();
+        var action = Action("NotifyAuthor", text: new() { ["es"] = $"Recibimos {{{FieldId:D}}}" });
+        Assert.True(FormRulePolicy.Normalize(new(0, [Rule("Received", action)]), context with { Questions = [context.Questions[0], context.Questions[0] with { FieldId = Guid.NewGuid() }] }).IsSuccess);
+    }
+    [Fact]
+    public void A_reference_to_a_question_outside_the_options_is_rejected() =>
+        Assert.Equal("Forms.Rule.PlaceholderInvalid", FormRulePolicy.Normalize(new(0, [Rule("Received", Action("NotifyAuthor", text: new() { ["es"] = $"Recibimos {{{Guid.NewGuid():D}}}" }))]), Context()).Error.Code);
+    [Fact]
     public void Conditions_use_stable_fields_and_the_existing_typed_grammar()
     {
         var rule = Rule("Received", Action("NotifyAuthor", text: Text())) with { Conditions = [new(FieldId, "contains", ["cliente"])] };

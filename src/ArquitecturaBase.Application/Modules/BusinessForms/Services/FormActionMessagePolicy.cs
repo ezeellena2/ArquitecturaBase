@@ -16,6 +16,11 @@ internal static class FormActionMessagePolicy
     public static string Culture(
         string requested, string original, IReadOnlyList<string> completeCultures, IReadOnlyList<string>? pdfCultures) =>
         completeCultures.Contains(requested) && (pdfCultures is null || pdfCultures.Contains(requested)) ? requested : original;
+    /// <summary>
+    /// A question token holds its FieldId (MD1-A, 2026-11-02), so it survives a renamed label and serves both languages.
+    /// Earlier revisions hold the label in the text's culture, resolved with the questions fixed by the revision.
+    /// </summary>
+    public static Guid? Reference(string token) => Guid.TryParseExact(token, "D", out var fieldId) ? fieldId : null;
     public static HashSet<Guid> UsedFields(IReadOnlyList<FormRule> rules, FormVersionSchema questions)
     {
         var used = new HashSet<Guid>();
@@ -29,7 +34,7 @@ internal static class FormActionMessagePolicy
                 var end = template.IndexOf('}', index + 1);
                 var token = template[(index + 1)..end];
                 if (token is not ("número" or "number" or "motivo" or "reason"))
-                    used.Add(questions.Questions.Single(question => question.Label.GetValueOrDefault(text.Key) == token).FieldId);
+                    used.Add(Reference(token) ?? questions.Questions.Single(question => question.Label.GetValueOrDefault(text.Key) == token).FieldId);
                 index = end;
             }
         }
@@ -49,8 +54,8 @@ internal static class FormActionMessagePolicy
             else if(token is "motivo" or "reason")result.Append(snapshot.Decision?.Reason??"");
             else
             {
-                var question=ruleQuestions.Questions.Single(question=>question.Label.GetValueOrDefault(culture)==token);
-                if(answers.TryGetValue(question.FieldId,out var answer))result.Append(Value(answer,culture));
+                var fieldId=Reference(token)??ruleQuestions.Questions.Single(question=>question.Label.GetValueOrDefault(culture)==token).FieldId;
+                if(answers.TryGetValue(fieldId,out var answer))result.Append(Value(answer,culture));
             }
             index=end;
         }

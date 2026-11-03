@@ -94,6 +94,35 @@ public sealed partial class FormDraftEndpointsTests
         });
     }
     [Fact]
+    public async Task A_message_that_references_its_question_by_identity_still_saves_after_the_question_is_renamed()
+    {
+        using var designer = await AdminAsync();
+        var created = await CreateAsync(designer,Payload("Referencias en mensajes"));
+        var id = created.GetProperty("definition").GetProperty("id").GetGuid();
+        var fieldId = created.GetProperty("identityMap").GetProperty("fields")[0].GetProperty("fieldId").GetGuid();
+        var route = $"/api/forms/definitions/{id}/rules";
+        using var manager = await OperatorAsync([BusinessFormsPermissions.RulesManage]);
+        var ruleId = Guid.NewGuid(); var actionId = Guid.NewGuid();
+        object Body(long revision,string text) => new { expectedRevision = revision, rules = new[] { new { id = ruleId, @event = "Received", conditions = Array.Empty<object>(), actions = new[] { new { id = actionId, kind = "NotifyAuthor", text = new { es = text }, includePdf = false } } } } };
+        var reference = $"Recibimos {{número}}: {{{fieldId:D}}}";
+        using var saved = await manager.PostAsJsonAsync(route,Body(0,reference),Ct);
+        Assert.Equal(HttpStatusCode.Created,saved.StatusCode);
+        Assert.Equal(reference,(await saved.ReadJsonAsync()).GetProperty("rules")[0].GetProperty("actions")[0].GetProperty("text").GetProperty("es").GetString());
+        await FormRuleContractCapture.WriteAsync(saved,"saved-reference-es",Ct);
+        var edit = EditPayload(created);
+        edit["draft"]!["fields"]![0]!["label"]!["es"] = "Nombre completo";
+        using var renamed = await designer.PutAsJsonAsync($"/api/forms/definitions/{id}/draft",edit,Ct);
+        Assert.Equal(HttpStatusCode.OK,renamed.StatusCode);
+        using var byName = await manager.PostAsJsonAsync(route,Body(1,"Recibimos {número}: {Nombre}"),Ct);
+        Assert.Equal(HttpStatusCode.BadRequest,byName.StatusCode);
+        Assert.Equal(FormRuleErrors.PlaceholderInvalid.Code,(await byName.ReadJsonAsync()).GetProperty("code").GetString());
+        using var byReference = await manager.PostAsJsonAsync(route,Body(1,reference),Ct);
+        Assert.Equal(HttpStatusCode.Created,byReference.StatusCode);
+        using var unknown = await manager.PostAsJsonAsync(route,Body(2,$"Recibimos {{{Guid.NewGuid():D}}}"),Ct);
+        Assert.Equal(HttpStatusCode.BadRequest,unknown.StatusCode);
+        Assert.Equal(FormRuleErrors.PlaceholderInvalid.Code,(await unknown.ReadJsonAsync()).GetProperty("code").GetString());
+    }
+    [Fact]
     public async Task Removed_rule_permissions_and_missing_roles_cannot_change_a_revision()
     {
         using var designer = await AdminAsync();
