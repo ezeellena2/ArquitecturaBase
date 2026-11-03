@@ -509,8 +509,8 @@ C:\Users\ezequ\source\repos\ArquitecturaBase y ...\ArquitecturaBaseFront.
    modelo, sin programarlos. La conexión con ARCA y las carpetas sólo se nombran: evalualas cuando las sumes a tu
    hoja de ruta.
 5. El §13 termina con los puntos que chocan con decisiones que ya tomaste y con reglas de tu front. No los cambies por tu
-   cuenta: preguntale al usuario de a una pregunta, con las opciones y la recomendada marcada. Lo mismo vale para cualquier otra adaptación que
-   tenga que decidir él.
+   cuenta: preguntale al usuario de a una pregunta, con las opciones y la recomendada marcada. Lo mismo vale para
+   cualquier otra adaptación que tenga que decidir él.
 6. Decile al usuario qué maquetas cambian. Como ejemplo para adaptar, tiene los tableros elegidos del lienzo de
    ArquitecturaBase (https://claude.ai/artifact/Kvbr5KFJrGT951JLiu8i4M), en las filas que nombra el §14.
 7. No programes nada. Commits chicos en español, en main, sin push.
