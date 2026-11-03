@@ -26,18 +26,20 @@ IA que protege el ADR 0014, porque además del costo hay efecto legal.
 
 1. **Módulo opcional `Arca`**, en `Modules/Arca` de cada capa:
    - ni el núcleo ni los otros módulos lo nombran;
-   - suma sus permisos con `IPermissionCatalogSource` y publica su capacidad para el front;
+   - suma sus permisos con `IPermissionCatalogSource`, y el menú del front lo muestra por permiso, como a la IA;
    - sus migraciones van en la cadena única;
    - tiene su guía para quitarlo.
 2. **El motor de formularios lo usa por un puerto neutral** en `Application/Interfaces/Channels/`, con versión apagada en
    `Application/Channels/`. El puerto llega con la emisión (etapa 3). No hay un módulo `Integrations` genérico hasta que
    exista un segundo proveedor.
 3. **La clave privada se genera en el servidor** (RSA 2048), con el pedido de certificado que descarga la persona. Nunca
-   se importa ni se descarga. Se cifra con el anillo externo del ADR 0014, con un propósito propio y un AAD que la ata a la
+   se importa ni se descarga. Se cifra con un anillo externo propio del módulo (`Arca:SecretProtection`), del mismo diseño
+   que el del ADR 0014, porque los módulos no comparten código. Lleva un propósito propio y un AAD que la ata a la
    instalación, la conexión y el certificado.
-4. **El ticket de acceso se guarda en PostgreSQL**, cifrado con el mismo anillo y otro propósito:
+4. **El ticket de acceso se guarda en PostgreSQL**, cifrado con ese anillo y otro propósito:
    - lo comparten todos los hosts;
-   - se renueva bajo un advisory lock por certificado y servicio.
+   - lo renueva un solo host por vez, con una reserva corta en la fila del ticket (dueño y vencimiento) que se toma y se
+     confirma en transacciones cortas. El pedido a ARCA va fuera de la transacción, como pide la regla de locks.
 
    No va en Redis: es una credencial, no un dato cacheado del [ADR 0009](0009-redis-como-unico-cache-de-datos.md). Si se
    perdiera, ARCA rechazaría otro pedido durante unos minutos.
@@ -48,13 +50,14 @@ IA que protege el ADR 0014, porque además del costo hay efecto legal.
    - las direcciones de cada ambiente son configuración.
 6. **Una conexión por instalación, con un solo ambiente.** El certificado de la CUIT de la plataforma de los modos de
    delegación (etapas 5 y 6) sigue estas mismas reglas.
-7. **Lo que nunca sale del módulo en claro:** la clave, el token, la firma, el pedido ni el certificado completo, en logs,
-   respuestas o comprobantes. La CUIT va enmascarada en los logs.
+7. **Lo que nunca sale del módulo en claro:** la clave, el token y la firma, ni en logs, ni en respuestas, ni en
+   comprobantes. El pedido y el certificado son públicos, pero tampoco van a los logs; el pedido se descarga solo mientras
+   está pendiente. La CUIT va enmascarada en los logs.
 
 ## Consecuencias
 
-- **Respaldo:** la base y el anillo se respaldan y restauran juntos, como en el ADR 0014. Si se pierde una clave del
-  anillo, no hay recuperación: se genera un certificado nuevo y se repite el alta en ARCA.
+- **Respaldo:** la base y el anillo del módulo se respaldan y restauran juntos, como en el ADR 0014. Si se pierde una
+  clave del anillo, no hay recuperación: se genera un certificado nuevo y se repite el alta en ARCA.
 - **Rotación:** rotar el anillo no recifra nada; renovar el certificado lo cifra con la clave activa.
 - **Pruebas:** un ARCA simulado en los tests, con varios hosts para el ticket compartido, según el
   [ADR 0018](0018-robustez-proporcional-al-efecto.md). La homologación real la hace el usuario con su clave fiscal.

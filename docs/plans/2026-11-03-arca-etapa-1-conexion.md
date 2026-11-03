@@ -3,7 +3,8 @@
 Diseño del 2026-11-03, con las decisiones del usuario del 2026-11-01 al 2026-11-03. Está sin programar. Es la etapa 1 de la
 [hoja de ruta de ARCA](2026-10-31-arca-formularios-estandar.md): conectar una instalación con ARCA usando el certificado
 de la empresa, probar la conexión, traer los datos de la empresa desde el padrón y elegir el punto de venta. No emite
-comprobantes ni tiene efecto legal.
+comprobantes ni tiene efecto legal. El [ADR 0023](../decisions/0023-arca-como-modulo-opcional.md) fija el módulo y sus
+credenciales, y el [plan de implementación](2026-11-03-arca-etapa-1-implementacion.md) lo parte en nueve tareas.
 
 **Tableros:** AC1-A, AC2-A y AC3 en el lienzo provisorio
 [Formularios desde la app](https://claude.ai/artifact/Kvbr5KFJrGT951JLiu8i4M), en las filas «ARCA · conexión». Las
@@ -94,8 +95,8 @@ fallida o un certificado vencido llevan a «requiere atención», y una prueba e
   compone `Program.cs`. El núcleo no lo nombra ([módulos opcionales](../architecture/backend.md#módulos-opcionales)).
 - **Permisos:** `ArcaPermissions` aporta `arca.read` y `arca.manage` con `IPermissionCatalogSource`, según
   [permiso nuevo](../guides/permiso-nuevo.md). El de emitir llega con la etapa 3.
-- **Capacidad:** el módulo publica su capacidad con `IClientCapabilitySource`, así el front muestra «ARCA» en el menú solo
-  si está instalado.
+- **Menú:** «ARCA» aparece con `arca.read`, como «Inteligencia artificial» con `ai.read`. Ese permiso existe solo si el
+  módulo está instalado, así que no hace falta publicar una capacidad.
 - **ADR:** el [ADR 0023](../decisions/0023-arca-como-modulo-opcional.md), aceptado el 2026-11-03, fija el módulo, el
   puerto y las credenciales. Extiende el [ADR 0014](../decisions/0014-credenciales-de-ia-fuera-de-la-base.md) a la clave
   privada del certificado y al ticket de acceso, cada uno con su propósito en el AAD.
@@ -116,11 +117,14 @@ Desconectar borra las tres de verdad, sin eliminación lógica: son secretos.
 
 - **El pedido (TRA)** se arma con `TimeProvider`, restando unos minutos a la hora de generación como recomienda el manual
   del WSAA. Se firma en CMS con `SignedCms` y se manda a `LoginCms`.
-- **Reutilizar:** el ticket se usa mientras le quede margen. Si hay que renovarlo, se toma un advisory lock por certificado
-  y servicio, y adentro se vuelve a mirar si otro host ya lo renovó.
-- **«Ya posee un TA válido»:** si ARCA contesta así, se espera el lapso (2 minutos en producción, 10 en homologación) y se
-  reintenta una vez. Si vuelve a fallar, la prueba lo informa.
-- **El HTTP va fuera de las transacciones**, y la escritura del ticket nuevo es una transacción corta propia.
+- **Reutilizar:** el ticket se usa mientras le quede margen.
+- **Renovar, un host por vez:** en una transacción corta, con la fila del ticket bloqueada, se vuelve a mirar si otro host
+  ya lo renovó. Si no, se toma una reserva con dueño y vencimiento. El pedido a ARCA va fuera de la transacción, y otra
+  transacción corta guarda el ticket solo si la reserva sigue siendo propia. Un host que encuentra la reserva de otro espera
+  unos segundos y vuelve a leer.
+- **«Ya posee un TA válido»:** si ARCA contesta así, el ticket anterior se perdió. La fila guarda hasta cuándo no se puede
+  pedir otro (2 minutos en producción, 10 en homologación) y la prueba lo informa con ese plazo. Ningún pedido HTTP queda
+  esperando minutos.
 
 ### Clientes de ARCA
 
@@ -169,7 +173,7 @@ Lo que contesta ARCA en una prueba no es un error del pedido: es el resultado de
 ### Robustez y privacidad
 
 - **Robustez:** la prueba solo lee y no tiene efecto legal, así que no usa el motor durable. Alcanzan la revisión, el 409 y
-  el lock del ticket ([ADR 0018](../decisions/0018-robustez-proporcional-al-efecto.md)).
+  la reserva del ticket ([ADR 0018](../decisions/0018-robustez-proporcional-al-efecto.md)).
 - **Logs:** con `[LoggerMessage]` y sin token, firma, clave, CSR ni certificado. La CUIT va enmascarada, como los teléfonos.
 - **Fechas:** UTC desde `TimeProvider`. El TRA lleva sus horas con el huso explícito, como pide el manual del WSAA.
 
@@ -181,7 +185,7 @@ Lo que contesta ARCA en una prueba no es un error del pedido: es el resultado de
 - **De arquitectura:** las rutas en `ExplicitRouteInventoryTests`, el módulo sin referencias desde el núcleo y sus aportes
   con `IModuleArchitectureContribution`.
 - **De integración:** un ARCA simulado dentro de los tests, que responde WSAA, WSFEv1 y el padrón con los mismos
-  sobres SOAP, más PostgreSQL con Testcontainers. Cubre el alta completa, el ticket compartido entre dos hosts con el lock,
+  sobres SOAP, más PostgreSQL con Testcontainers. Cubre el alta completa, el ticket compartido entre dos hosts con la reserva,
   «ya posee un TA válido», un servicio sin autorizar, la renovación sin corte, el 409 y desconectar.
   [arcasim](https://github.com/federicomoroz/arcasim) sirve de referencia para los sobres, revisado antes de copiar nada.
 - **Homologación real, al cerrar:** con un certificado de WSASS para la CUIT del usuario. La app genera el CSR, el usuario
