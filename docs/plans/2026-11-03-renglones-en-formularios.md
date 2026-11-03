@@ -1,6 +1,7 @@
 # Renglones en los formularios
 
-Diseño del 2026-11-02 con las decisiones del usuario del 2026-11-03. Nada está programado. Un formulario suma un bloque de
+Diseño del 2026-11-02 con las decisiones del usuario del 2026-11-03, que ese día dio el diseño por cerrado. Nada está
+programado. Un formulario suma un bloque de
 preguntas que se repite, como los renglones de un remito o de una factura: en la app se cargan en una tabla y por WhatsApp,
 de a un renglón por pantalla.
 
