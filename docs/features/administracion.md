@@ -35,8 +35,9 @@ Los filtros de un listado (desde la Fase 5):
 
 Los conteos por opción de filtro (`GET /api/users/filter-counts`):
 
-- cada dimensión se cuenta **con los demás filtros puestos e ignorando el propio**. Es toda la gracia: con "solo activos" puesto, el número de Admin es cuántos activos quedarían al elegir Admin, y "Inactivos" sigue diciendo cuántos hay del otro lado en vez de 0.
-- el catálogo viene **completo**, con los que dan cero: la opción apagada tiene que poder verse, y para eso hay que saber que existe.
+- desde FO1-A (2026-11-03) un filtro de opciones es un desplegable simple, sin cantidades: el front no muestra el número de cada rol ni de cada tramo de «Creado», ni apaga la opción que daría cero. Usa la respuesta para ofrecer el catálogo de roles y los tramos; las cantidades siguen en el contrato.
+- cada dimensión se cuenta **con los demás filtros puestos e ignorando el propio**: con "solo activos" puesto, el número de Admin es cuántos activos quedarían al elegir Admin, y "Inactivos" sigue diciendo cuántos hay del otro lado en vez de 0.
+- el catálogo viene **completo**, con los que dan cero: el desplegable ofrece todos los roles, también los que hoy no traen a nadie.
 - las opciones de un tramo (los días) viven en el backend, al lado del filtro (`ListUsersRequest.CreatedWithinOptions`): el que cuenta y el que dibuja las opciones tienen que estar de acuerdo.
 - es un endpoint aparte y no un campo de `PagedResult<T>`, que es genérico y lo comparten todos los listados: meterle facetas lo ataría a este caso.
 - **Cuesta cuatro consultas de agregación por pedido** (estado, roles y una por tramo). Con miles de usuarios es despreciable; con cientos de miles hay que medir antes de sumar dimensiones.
