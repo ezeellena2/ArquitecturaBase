@@ -23,6 +23,12 @@ tableros y su plan antes de programarse.
 4. **La factura lleva renglones en la app y en WhatsApp.** Hay un solo estándar «Factura» para los dos canales. El usuario
    eligió primero «WhatsApp con un solo concepto» y lo corrigió.
 5. **Las etapas y el diseño de esta hoja quedaron aprobados.**
+6. **Carpetas para formularios y catálogos** (2026-11-01). Hay carpetas con subcarpetas, y un mismo formulario o catálogo
+   puede estar en varias, porque un catálogo se usa en formularios de categorías distintas. Van en la etapa 2, antes de la
+   biblioteca, y necesitan sus propios tableros.
+7. **La etapa 1 se achica** (2026-11-01). Las tablas de ARCA como catálogos y el autocompletar de la CUIT del cliente pasan
+   a la etapa 3 y llegan ya puestos en una carpeta «ARCA». La etapa 1 tiene su [diseño](2026-11-03-arca-etapa-1-conexion.md),
+   con sus decisiones del 2026-11-01 al 2026-11-03.
 
 **Resueltas por defecto**, con la recomendación del estudio y sin objeción del usuario:
 
@@ -62,9 +68,9 @@ describir lo vendido.
 
 | Etapa | Qué incluye | Efecto legal |
 | --- | --- | --- |
-| 1 · Conexión | El modelo de conexión con los tres modos, programando solo el certificado de la empresa. Suma la prueba de conexión, el padrón para autocompletar la CUIT y las tablas de ARCA como catálogos que se actualizan solos (tipos de comprobante, alícuotas, condición frente al IVA y puntos de venta) | No |
-| 2 · Motor para documentos | Renglones (con [plan propio](2026-11-03-renglones-en-formularios.md)), cálculos, condiciones, resultado externo en la respuesta y la biblioteca de estándares | No |
-| 3 · Factura C | Emisión segura, PDF fiscal, el estándar «Factura» en la app y en WhatsApp y la nota de crédito C total, en homologación | Sí, en homologación |
+| 1 · Conexión ([diseño](2026-11-03-arca-etapa-1-conexion.md)) | El modelo de conexión con los tres modos, programando solo el certificado de la empresa. Suma la prueba de conexión, los datos de la empresa desde el padrón y la elección del punto de venta | No |
+| 2 · Motor para documentos | Renglones (con [plan propio](2026-11-03-renglones-en-formularios.md)), cálculos, condiciones, resultado externo en la respuesta, carpetas para formularios y catálogos y la biblioteca de estándares | No |
+| 3 · Factura C | Emisión segura, PDF fiscal, las tablas de ARCA como catálogos que se actualizan solos y el autocompletar de la CUIT del cliente, el estándar «Factura» en la app y en WhatsApp y la nota de crédito C total, en homologación | Sí, en homologación |
 | 4 · Factura A y B | IVA por alícuota, condición frente al IVA obligatoria (RG 5616), el apartado de la RG 5614 y un piloto en producción con una CUIT real | Sí |
 | 5 · Delegación guiada | El certificado de la CUIT de la plataforma en cada instalación, la guía paso a paso para el cliente y la detección de que la delegación llegó | — |
 | 6 · Delegación con robot | El worker con Playwright: del lado del cliente delega y crea el punto de venta; del lado de la plataforma acepta y asigna. Si falla, vuelve a la guía | — |
@@ -76,6 +82,8 @@ ofrecerlo como servicio.
 ## Diseño
 
 ### Conexión (etapa 1)
+
+El detalle, con los tableros elegidos y el contrato, está en el [diseño de la etapa 1](2026-11-03-arca-etapa-1-conexion.md).
 
 - **Módulo opcional `Arca`**, en `Modules/Arca` de cada capa, como WhatsApp o la IA. El núcleo no lo nombra. El motor de
   formularios lo usa a través de un puerto neutral en `Application/Interfaces/Channels/`, con su versión apagada.
@@ -90,8 +98,8 @@ ofrecerlo como servicio.
 - **Modos 2 y 3 en el modelo:** la conexión guarda la CUIT representada y el certificado de la CUIT de la plataforma de esa
   instalación. La delegación se detecta cuando la CUIT aparece en `relations` del ticket de acceso; puede hacer falta pedir
   un ticket nuevo, respetando el lapso.
-- **Consultas:** la constancia de inscripción completa razón social, condición frente al IVA y domicilio a partir de la
-  CUIT. Las tablas de parámetros (`FEParamGet…`) alimentan catálogos de solo lectura.
+- **Consultas:** la constancia de inscripción trae la razón social, la condición frente al IVA y el domicilio de la empresa
+  emisora. Las tablas de parámetros (`FEParamGet…`) como catálogos y el autocompletar del cliente quedan para la etapa 3.
 - **Permisos nuevos:** administrar la conexión y emitir. Siguen [permiso nuevo](../guides/permiso-nuevo.md).
 
 ### Delegación (etapas 5 y 6)
@@ -146,6 +154,9 @@ automático.
 - **Biblioteca de estándares**, como la decidió el [plan de documentos](2026-10-22-documentos-por-whatsapp.md): datos de
   inicio, y «Agregar» crea una copia editable que recuerda de qué estándar viene. Las preguntas que la emisión necesita
   quedan **atadas**: se cambia su texto o su orden, pero no se borran ni cambian de tipo.
+- **Carpetas:** «Formularios» y «Catálogos» se ordenan en carpetas con subcarpetas, y un elemento puede estar en varias.
+  Lo que trae la biblioteca y lo que llega de ARCA viene ya clasificado. Sus pantallas (el árbol, mover, en qué carpetas
+  está cada elemento) se dibujan antes de programarse.
 
 ### Emisión segura (etapa 3)
 
@@ -168,6 +179,9 @@ automático.
   defecto hoy) y «Mandar copia al cliente».
 - **El tipo de comprobante lo decide el sistema,** a partir de la condición del emisor y del receptor (la tabla «Qué
   comprobante corresponde» del estudio). La persona no lo elige.
+- **Catálogos de ARCA (etapa 3):** las tablas de parámetros que la factura usa (alícuotas, condición frente al IVA,
+  monedas) llegan como catálogos de solo lectura que se actualizan solos, en la carpeta «ARCA». Se construyen sobre los
+  catálogos con origen externo de la [hoja de ruta de catálogos](2026-10-21-catalogos-con-origenes-externos.md).
 - **Reglas que trae:** al recibir, la aprobación opcional; después emitir, generar el PDF fiscal y avisar con el PDF a quien
   cargó y, si se marcó, al cliente.
 - **Una respuesta con factura emitida no se corrige ni se anula como las demás.** Las reglas de
