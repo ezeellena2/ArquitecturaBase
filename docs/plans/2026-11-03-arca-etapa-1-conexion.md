@@ -96,9 +96,9 @@ fallida o un certificado vencido llevan a «requiere atención», y una prueba e
   [permiso nuevo](../guides/permiso-nuevo.md). El de emitir llega con la etapa 3.
 - **Capacidad:** el módulo publica su capacidad con `IClientCapabilitySource`, así el front muestra «ARCA» en el menú solo
   si está instalado.
-- **ADR nuevo:** «ARCA como módulo opcional y sus credenciales». Extiende el
-  [ADR 0014](../decisions/0014-credenciales-de-ia-fuera-de-la-base.md) a la clave privada del certificado y al ticket de
-  acceso, cada uno con su propósito en el AAD.
+- **ADR:** el [ADR 0023](../decisions/0023-arca-como-modulo-opcional.md), aceptado el 2026-11-03, fija el módulo, el
+  puerto y las credenciales. Extiende el [ADR 0014](../decisions/0014-credenciales-de-ia-fuera-de-la-base.md) a la clave
+  privada del certificado y al ticket de acceso, cada uno con su propósito en el AAD.
 
 ### Datos
 
