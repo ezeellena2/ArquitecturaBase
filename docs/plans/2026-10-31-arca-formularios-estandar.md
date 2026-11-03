@@ -63,7 +63,7 @@ describir lo vendido.
 | Etapa | Qué incluye | Efecto legal |
 | --- | --- | --- |
 | 1 · Conexión | El modelo de conexión con los tres modos, programando solo el certificado de la empresa. Suma la prueba de conexión, el padrón para autocompletar la CUIT y las tablas de ARCA como catálogos que se actualizan solos (tipos de comprobante, alícuotas, condición frente al IVA y puntos de venta) | No |
-| 2 · Motor para documentos | Renglones, cálculos, condiciones, resultado externo en la respuesta y la biblioteca de estándares | No |
+| 2 · Motor para documentos | Renglones (con [plan propio](2026-11-03-renglones-en-formularios.md)), cálculos, condiciones, resultado externo en la respuesta y la biblioteca de estándares | No |
 | 3 · Factura C | Emisión segura, PDF fiscal, el estándar «Factura» en la app y en WhatsApp y la nota de crédito C total, en homologación | Sí, en homologación |
 | 4 · Factura A y B | IVA por alícuota, condición frente al IVA obligatoria (RG 5616), el apartado de la RG 5614 y un piloto en producción con una CUIT real | Sí |
 | 5 · Delegación guiada | El certificado de la CUIT de la plataforma en cada instalación, la guía paso a paso para el cliente y la detección de que la delegación llegó | — |
@@ -128,14 +128,16 @@ automático.
 
 ### Motor para documentos (etapa 2)
 
-- **Renglones:** el tipo `Group`, hoy reservado y rechazado al guardar, pasa a ser un bloque de preguntas que se repite
-  (artículo, descripción, cantidad, precio, alícuota), con un mínimo y un máximo de renglones.
-  - En la app, una tabla con «Agregar renglón».
-  - En WhatsApp, un tope de renglones con «¿Agregás otro?», porque los Flows no tienen renglones repetibles. Se decide al
-    diseñar la etapa entre pantallas fijas repetidas y el intercambio cifrado con Meta, pendiente en el
-    [resumen de formularios](formularios/README.md). La pantalla con el total probablemente necesite ese intercambio: se
-    verifica contra la documentación de Meta.
-  - La planilla, el Excel y el PDF muestran los renglones.
+- **Renglones:** diseñados y decididos el 2026-11-03 en [renglones en los formularios](2026-11-03-renglones-en-formularios.md),
+  que adelanta esta parte de la etapa. El tipo `Group`, hoy reservado y rechazado al guardar, pasa a ser un bloque de
+  preguntas que se repite, con un mínimo y un máximo de renglones; la factura lo usa para artículo, descripción, cantidad,
+  precio y alícuota.
+  - En la app, una tabla con «Agregar renglón» (RG2-A).
+  - En WhatsApp, una pantalla por renglón, hasta 10, con «¿Agregás otro renglón?» (RG3-A): pantallas fijas repetidas, sin el
+    intercambio cifrado con Meta. El total de la factura dentro del Flow probablemente necesite ese intercambio, que sigue
+    pendiente en el [resumen de formularios](formularios/README.md); se decide con la factura.
+  - La planilla sigue con una fila por respuesta y el Excel suma una hoja por bloque (RG4-A); el detalle y el PDF muestran
+    una tabla. Las reglas miran «algún renglón con…» (RG5-A).
 - **Cálculos:** campos de solo lectura con un conjunto fijo de operaciones (suma de renglones, cantidad por precio e IVA
   por alícuota), sin fórmulas libres. El servidor recalcula y manda; el front muestra una vista previa.
 - **Condiciones:** una pregunta se muestra según otra respuesta, por ejemplo el período solo si es un servicio.
@@ -186,8 +188,8 @@ automático.
 
 ## Antes de programar cada etapa
 
-- **Tableros primero:** la conexión en Administración, los renglones en la app y en WhatsApp, la emisión y su estado en el
-  detalle y la anulación con nota de crédito.
+- **Tableros primero:** la conexión en Administración, los renglones en la app y en WhatsApp (dibujados y elegidos el
+  2026-11-03, RG1 a RG5), la emisión y su estado en el detalle y la anulación con nota de crédito.
 - **ADR:** el módulo `Arca` y su puerto; las credenciales de ARCA (certificados, ticket de acceso y la clave fiscal en
   memoria), que extienden el ADR 0014; el robot sobre la página de ARCA.
 - **Pendientes del estudio a confirmar en la etapa 1:** el algoritmo de firma CMS, la vigencia del certificado y el dominio

@@ -243,4 +243,4 @@ Etapa 1, los tableros elegidos pasan al lienzo del sistema visual y su diseño s
 
 El orden de las etapas 3 a 5 es una propuesta: se puede cambiar. Fuera de alcance: importar respuestas desde Excel,
 borradores guardados y carga sin conexión, la carga en filas (CW2-C) y grupos con líneas. Aplicación usa pares fijos de producto y dosis; una lista de líneas necesita «grupos y
-remitos con líneas», que tiene su propio pendiente.
+remitos con líneas», que tiene su propio plan: [renglones en los formularios](2026-11-03-renglones-en-formularios.md).
