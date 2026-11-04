@@ -33,13 +33,13 @@ internal sealed class FormSelectionReader(ApplicationDbContext dbContext) : IFor
         Active().Where(version => version.DefinitionId == definitionId && version.Id == versionId)
             .Select(version => new StructuredFormSelectionRow(version.DefinitionId, version.Id, version.Number,
                 dbContext.Set<BusinessFormDefinition>().Where(definition => definition.Id == version.DefinitionId).Select(definition => definition.Prefix).Single(),
-                ReadTexts(version.NameJson!), version.QuestionCount!.Value, ReadTexts(version.SubmitLabelJson!), HasCatalogs(version.SchemaJson)) { DefinitionRevision = dbContext.Set<BusinessFormDefinition>().Where(definition => definition.Id == version.DefinitionId).Select(definition => definition.Revision).Single() })
+                ReadTexts(version.NameJson!), version.QuestionCount!.Value, ReadTexts(version.SubmitLabelJson!), HasCatalogs(version.SchemaJson), DependentQuestion(version.SchemaJson)) { DefinitionRevision = dbContext.Set<BusinessFormDefinition>().Where(definition => definition.Id == version.DefinitionId).Select(definition => definition.Revision).Single() })
             .SingleOrDefaultAsync(cancellationToken);
     public Task<StructuredFormSelectionRow?> FindPublishedAsync(Guid definitionId, Guid versionId, CancellationToken cancellationToken) =>
         Published().Where(version => version.DefinitionId == definitionId && version.Id == versionId)
             .Select(version => new StructuredFormSelectionRow(version.DefinitionId, version.Id, version.Number,
                 dbContext.Set<BusinessFormDefinition>().Where(definition => definition.Id == version.DefinitionId).Select(definition => definition.Prefix).Single(),
-                ReadTexts(version.NameJson!), version.QuestionCount!.Value, ReadTexts(version.SubmitLabelJson!), HasCatalogs(version.SchemaJson)) { DefinitionRevision = dbContext.Set<BusinessFormDefinition>().Where(definition => definition.Id == version.DefinitionId).Select(definition => definition.Revision).Single() })
+                ReadTexts(version.NameJson!), version.QuestionCount!.Value, ReadTexts(version.SubmitLabelJson!), HasCatalogs(version.SchemaJson), DependentQuestion(version.SchemaJson)) { DefinitionRevision = dbContext.Set<BusinessFormDefinition>().Where(definition => definition.Id == version.DefinitionId).Select(definition => definition.Revision).Single() })
             .SingleOrDefaultAsync(cancellationToken);
     public Task<PagedResult<StructuredFormSelectionRow>> ListAsync(string recipientCulture, ListStructuredFormsRequest request, CancellationToken cancellationToken)
     {
@@ -58,7 +58,7 @@ internal sealed class FormSelectionReader(ApplicationDbContext dbContext) : IFor
         return query.ApplySort(SortDescriptor.Parse(request.Sort), sortable, new("name", false), version => version.Id)
             .Select(version => new StructuredFormSelectionRow(version.DefinitionId, version.Id, version.Number,
                 dbContext.Set<BusinessFormDefinition>().Where(definition => definition.Id == version.DefinitionId).Select(definition => definition.Prefix).Single(),
-                ReadTexts(version.NameJson!), version.QuestionCount!.Value, ReadTexts(version.SubmitLabelJson!), HasCatalogs(version.SchemaJson)) { DefinitionRevision = dbContext.Set<BusinessFormDefinition>().Where(definition => definition.Id == version.DefinitionId).Select(definition => definition.Revision).Single() })
+                ReadTexts(version.NameJson!), version.QuestionCount!.Value, ReadTexts(version.SubmitLabelJson!), HasCatalogs(version.SchemaJson), DependentQuestion(version.SchemaJson)) { DefinitionRevision = dbContext.Set<BusinessFormDefinition>().Where(definition => definition.Id == version.DefinitionId).Select(definition => definition.Revision).Single() })
             .ToPagedResultAsync(request, cancellationToken);
     }
     private IQueryable<BusinessFormVersion> Active() => FormOfferableVersionQuery.Versions(dbContext);
@@ -67,6 +67,10 @@ internal sealed class FormSelectionReader(ApplicationDbContext dbContext) : IFor
     private static bool HasCatalogs(string json) =>
         (JsonSerializer.Deserialize<ArquitecturaBase.Application.Modules.BusinessForms.Models.FormVersionSchema>(json, JsonSerializerOptions.Web)
             ?? throw new InvalidOperationException("The sealed form schema is invalid.")).Questions.Any(question => question.Source?.Catalog is not null);
+    // The label of the first question whose options depend on another answer: a channel cannot ask it.
+    private static IReadOnlyDictionary<string, string>? DependentQuestion(string json) =>
+        JsonSerializer.Deserialize<ArquitecturaBase.Application.Modules.BusinessForms.Models.FormVersionSchema>(json, JsonSerializerOptions.Web)!
+            .Questions.FirstOrDefault(question => question.Source?.Match?.Any(match => match.QuestionId is not null) == true)?.Label;
     private static Dictionary<string, string> ReadTexts(string json) =>
         JsonSerializer.Deserialize<Dictionary<string, string>>(json, JsonSerializerOptions.Web)
             ?? throw new InvalidOperationException("The sealed form presentation is invalid.");

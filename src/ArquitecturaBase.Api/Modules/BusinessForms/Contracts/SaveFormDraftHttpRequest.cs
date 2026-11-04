@@ -17,7 +17,7 @@ public sealed record FormQuestionSourceHttpRequest(Guid? Catalog, IReadOnlyList<
 { public override string ToString() => "FormQuestionSourceHttpRequest { Content = [REDACTED] }"; }
 
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
-public sealed record FormCatalogMatchHttpRequest(Guid FieldId, string? Value = null, Guid? PersonAttributeId = null)
+public sealed record FormCatalogMatchHttpRequest(Guid FieldId, string? Value = null, Guid? PersonAttributeId = null, Guid? QuestionId = null)
 { public override string ToString() => "FormCatalogMatchHttpRequest { Content = [REDACTED] }"; }
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record FormChoiceHttpRequest(string LocalId, Guid? ChoiceId, IReadOnlyDictionary<string, string> Label)

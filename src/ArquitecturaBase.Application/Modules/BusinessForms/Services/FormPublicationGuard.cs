@@ -60,7 +60,8 @@ internal sealed class FormPublicationGuard(FormPublicationAccessGuard accessGuar
             var fields = FormCatalogFieldPolicy.ReadFields(catalog.FieldsJson);
             if (matches?.Any(match => match.PersonAttributeId is not null) == true)
                 attributes ??= await people.ListAttributesAsync(ct);
-            if (FormCatalogMatchPolicy.Validate(matches, fields, attributes ?? []) is { } invalid)
+            if ((FormCatalogMatchPolicy.Validate(matches, fields, attributes ?? [])
+                ?? FormCatalogMatchPolicy.ValidateQuestions(matches, fields, questions.Take(index).ToArray())) is { } invalid)
             {
                 Issue(invalid, ".match");
                 continue;
@@ -110,19 +111,26 @@ internal sealed class FormPublicationGuard(FormPublicationAccessGuard accessGuar
                 if (count > limit) Issue(FormPublicationErrors.CatalogTooLargeForMultiple, ".catalog");
                 continue;
             }
-            var blocks = question.Type == "multiChoice" && matches.All(match => match.PersonAttributeId is null);
+            var blocks = question.Type == "multiChoice" && matches.All(match => match.Value is not null);
             if (!includeWarnings && !blocks) continue;
-            var (maximum, maximumLabel) = await maximums.FindAsync(catalogId, fields, matches, culture, ct);
-            if (blocks && maximum > limit)
+            // CW7: a list that depends on another answer is loaded only in the app, so the WhatsApp limits do not apply to it.
+            if (matches.Any(match => match.QuestionId is not null))
+                warnings.Add(new(question.FieldId, path + ".match", FormPublicationErrors.DependsOnAnswer.Code,
+                    ErrorMessages.Get(FormPublicationErrors.DependsOnAnswer.Code)));
+            else
             {
-                Issue(FormPublicationErrors.CatalogTooLargeForMultiple, ".catalog");
-                continue;
+                var (maximum, maximumLabel) = await maximums.FindAsync(catalogId, fields, matches, culture, ct);
+                if (blocks && maximum > limit)
+                {
+                    Issue(FormPublicationErrors.CatalogTooLargeForMultiple, ".catalog");
+                    continue;
+                }
+                if (!includeWarnings) continue;
+                // NI3-B (2026-11-03): like the question editor, the maximum warns only when it does not fit or nobody sees an option.
+                if (maximum == 0 || maximum > limit)
+                    warnings.Add(new(question.FieldId, path + ".match", FormPublicationErrors.OptionsPerRecipientHigh.Code,
+                        ErrorMessages.Get(FormPublicationErrors.OptionsPerRecipientHigh.Code), limit, maximum, maximumLabel));
             }
-            if (!includeWarnings) continue;
-            // NI3-B (2026-11-03): like the question editor, the maximum warns only when it does not fit or nobody sees an option.
-            if (maximum == 0 || maximum > limit)
-                warnings.Add(new(question.FieldId, path + ".match", FormPublicationErrors.OptionsPerRecipientHigh.Code,
-                    ErrorMessages.Get(FormPublicationErrors.OptionsPerRecipientHigh.Code), limit, maximum, maximumLabel));
             var attributeIds = matches.Where(match => match.PersonAttributeId is not null).Select(match => match.PersonAttributeId!.Value).Distinct().ToArray();
             if (attributeIds.Length == 0) continue;
             var missing = await people.FindRecipientsWithoutDataAsync(attributeIds, ct);

@@ -12,6 +12,9 @@ internal sealed class ListFormEntryOptionsRequestValidator : PagedRequestValidat
     {
         RuleFor(request => request.PageSize).LessThanOrEqualTo(ListFormEntryOptionsRequest.MaximumPageSize)
             .WithMessage(_ => ValidationMessages.PageSizeInvalid);
+        RuleFor(request => request.Answers).Must(answers => answers is null || answers.Count <= 40
+                && answers.All(answer => answer.Key != Guid.Empty && answer.Value != Guid.Empty))
+            .WithMessage(_ => ErrorMessages.Get(FormRecordErrors.InvalidResponse.Code));
     }
 }
 

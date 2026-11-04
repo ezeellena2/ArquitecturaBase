@@ -12,7 +12,7 @@ internal sealed class FormCatalogPreparationFixture : IFormRecordRepository, IFo
     public static readonly Dictionary<string, string> Texts = new() { ["es"] = "Personas", ["en"] = "People" };
     public FormCatalogPreparationFixture(bool filtered = false, bool required = true, string originalCulture = "es", bool originalOnly = false,
         BusinessFormCatalogValueType valueType = BusinessFormCatalogValueType.Text, string questionType = "choice", FormSelectionSettings? selection = null,
-        string catalogCulture = "es")
+        string catalogCulture = "es", bool dependsOnAnswer = false)
     {
         var filters = new FormCatalogFilterDefinition("name", "active", [], true, "name", false);
         Catalog = filtered ? BusinessFormCatalog.CreateFilters(catalogCulture, Texts, Texts, JsonSerializer.Serialize(filters, JsonSerializerOptions.Web))
@@ -20,8 +20,17 @@ internal sealed class FormCatalogPreparationFixture : IFormRecordRepository, IFo
         FieldId = Guid.NewGuid();
         var formTexts = originalOnly ? new Dictionary<string, string> { [originalCulture] = Texts[originalCulture] } : Texts;
         var field = new CanonicalFormField(FieldId, "field_" + FieldId.ToString("N"), questionType, formTexts, null, required, null, null, new(Catalog.Id), Selection: selection);
+        CanonicalFormField[] questions = [field];
+        if (dependsOnAnswer)
+        {
+            // An optional question of the same catalog gives the answer; the filter field takes its options from that catalog too.
+            if (Catalog.SetFields([new(FilterFieldId, "answer", Texts, "catalog", Catalog.Id, false, false, null, null, null, "filter", 0, true)], null).IsFailure)
+                throw new InvalidOperationException("The filter field of the dependent list is invalid.");
+            questions = [new(AnswerFieldId, "field_" + AnswerFieldId.ToString("N"), "choice", formTexts, null, false, null, null, new(Catalog.Id)),
+                field with { Source = new(Catalog.Id, [new(FilterFieldId, QuestionId: AnswerFieldId)]) }];
+        }
         Version = BusinessFormVersion.Create(DefinitionId, 1, new string('a', 64));
-        Version.SealSchema(JsonSerializer.Serialize(new FormVersionSchema(1, [field]), JsonSerializerOptions.Web));
+        Version.SealSchema(JsonSerializer.Serialize(new FormVersionSchema(1, questions), JsonSerializerOptions.Web));
         Version.SealPresentation(JsonSerializer.Serialize(formTexts), JsonSerializer.Serialize(formTexts), originalCulture, 1);
         Policy = new(this, this, new FormCatalogOptionsPolicy(this, this, new FormCatalogPersonReader()), new(Rules, this));
     }
@@ -38,6 +47,8 @@ internal sealed class FormCatalogPreparationFixture : IFormRecordRepository, IFo
     }
     public Guid DefinitionId { get; } = Guid.NewGuid();
     public Guid FieldId { get; }
+    public Guid AnswerFieldId { get; } = Guid.NewGuid();
+    public Guid FilterFieldId { get; } = Guid.NewGuid();
     public BusinessFormVersion Version { get; }
     public BusinessFormCatalog Catalog { get; }
     public FormCatalogPreparationPolicy Policy { get; }

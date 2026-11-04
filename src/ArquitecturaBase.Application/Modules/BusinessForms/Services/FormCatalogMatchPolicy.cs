@@ -10,9 +10,13 @@ internal static class FormCatalogMatchPolicy
 {
     public static bool HasValidShape(IReadOnlyList<FormCatalogMatch>? matches) => matches is null
         || matches.Count <= BusinessFormCatalog.MaxFields && matches.All(match => match is not null && match.FieldId != Guid.Empty
-            && (match.Value is null) != (match.PersonAttributeId is null) && match.PersonAttributeId != Guid.Empty
+            && OneKind(match) && match.PersonAttributeId != Guid.Empty && match.QuestionId != Guid.Empty
             && (match.Value is null || !string.IsNullOrWhiteSpace(match.Value) && match.Value.Length <= 300 && StorableText.IsStorable(match.Value)))
             && matches.Select(match => match.FieldId).Distinct().Count() == matches.Count;
+
+    // A fixed value, a datum of the person or the answer of another question: exactly one.
+    private static bool OneKind(FormCatalogMatch match) =>
+        (match.Value is null ? 0 : 1) + (match.PersonAttributeId is null ? 0 : 1) + (match.QuestionId is null ? 0 : 1) == 1;
 
     public static Error? Validate(IReadOnlyList<FormCatalogMatch>? matches, IReadOnlyList<BusinessFormCatalogField> fields,
         IReadOnlyList<FormPersonAttributeStoredRow> attributes)
@@ -24,14 +28,17 @@ internal static class FormCatalogMatchPolicy
         {
             if (match is null || !used.Add(match.FieldId)) return FormPublicationErrors.MatchInvalid;
             var field = fields.SingleOrDefault(field => field.Id == match.FieldId);
-            if (field is not { IsActive: true, Role: "filter" }
-                || (match.Value is null) == (match.PersonAttributeId is null)) return FormPublicationErrors.MatchInvalid;
+            if (field is not { IsActive: true, Role: "filter" } || !OneKind(match)) return FormPublicationErrors.MatchInvalid;
             if (match.PersonAttributeId is { } attributeId)
             {
                 var attribute = attributes.SingleOrDefault(attribute => attribute.Id == attributeId);
                 if (attribute is not { IsActive: true }) return FormPublicationErrors.MatchInvalid;
                 if (field.Type != "catalog" || attribute.Type != "Catalog" || field.SourceCatalogId is null
                     || field.SourceCatalogId != attribute.SourceCatalogId) return FormPublicationErrors.MatchSourceMismatch;
+            }
+            else if (match.QuestionId is not null)
+            {
+                if (field.Type != "catalog" || field.SourceCatalogId is null) return FormPublicationErrors.MatchQuestionInvalid;
             }
             else
             {
@@ -42,17 +49,24 @@ internal static class FormCatalogMatchPolicy
         return null;
     }
 
+    /// <summary>
+    /// The typed containment of the filters for one person. A filter by another answer takes the option chosen in that question
+    /// from <paramref name="answers"/> (question FieldId to chosen option); without it the offer is not built.
+    /// </summary>
     public static Result<string?> Containment(IReadOnlyList<FormCatalogMatch>? matches, IReadOnlyList<BusinessFormCatalogField> fields,
-        IReadOnlyList<FormPersonAttributeStoredRow> attributes, IReadOnlyDictionary<string, string>? personValues)
+        IReadOnlyList<FormPersonAttributeStoredRow> attributes, IReadOnlyDictionary<string, string>? personValues,
+        IReadOnlyDictionary<Guid, Guid>? answers = null)
     {
         if (Validate(matches, fields, attributes) is not null) return FormRecordErrors.CatalogFilterUnavailable;
         if (matches is null || matches.Count == 0) return Result.Success<string?>(null);
         if (MissingPersonAttribute(matches, personValues) is not null) return FormRecordErrors.RecipientDataMissing;
+        if (matches.Any(match => match.QuestionId is { } question && answers?.ContainsKey(question) != true)) return FormRecordErrors.CatalogDependsOnAnswer;
         var containment = new SortedDictionary<string, JsonElement>(StringComparer.Ordinal);
         foreach (var match in matches)
         {
             var field = fields.Single(field => field.Id == match.FieldId);
-            var input = match.PersonAttributeId is { } attributeId ? personValues![attributeId.ToString("D")] : match.Value;
+            var input = match.PersonAttributeId is { } attributeId ? personValues![attributeId.ToString("D")]
+                : match.QuestionId is { } question ? answers![question].ToString("D") : match.Value;
             var value = FormCatalogFieldPolicy.Normalize(field with { Required = true }, input);
             if (value.IsFailure || value.Value is null) return FormRecordErrors.CatalogFilterUnavailable;
             containment.Add(field.Id.ToString("D"), value.Value.Value);
@@ -80,7 +94,22 @@ internal static class FormCatalogMatchPolicy
 
     public static Result<string?> FixedContainment(IReadOnlyList<FormCatalogMatch>? matches, IReadOnlyList<BusinessFormCatalogField> fields)
     {
-        var fixedMatches = matches?.Where(match => match.PersonAttributeId is null).ToArray();
+        var fixedMatches = matches?.Where(match => match.Value is not null).ToArray();
         return Containment(fixedMatches, fields, [], null);
+    }
+
+    // A filter by another answer names an earlier single-choice question that chooses from the source catalog of its field, so
+    // the chosen option is a value of that field. Call it after Validate, with the questions before the filtered one.
+    public static Error? ValidateQuestions(IReadOnlyList<FormCatalogMatch>? matches, IReadOnlyList<BusinessFormCatalogField> fields,
+        IReadOnlyList<CanonicalFormField> earlier)
+    {
+        foreach (var match in matches ?? [])
+        {
+            if (match.QuestionId is not { } questionId) continue;
+            var source = fields.Single(field => field.Id == match.FieldId).SourceCatalogId;
+            if (earlier.SingleOrDefault(question => question.FieldId == questionId) is not { Type: "choice", Source.Catalog: { } catalog }
+                || catalog != source) return FormPublicationErrors.MatchQuestionInvalid;
+        }
+        return null;
     }
 }

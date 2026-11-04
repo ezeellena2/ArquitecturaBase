@@ -38,7 +38,7 @@ public sealed class FormEntriesController(IFormEntryService service) : Controlle
     public async Task<IActionResult> ListOptions([FromRoute] Guid definitionId, [FromRoute] Guid versionId, [FromRoute] Guid fieldId,
         [FromQuery] FormEntryOptionsQuery query, CancellationToken cancellationToken) =>
         (await service.ListOptionsAsync(definitionId, versionId, fieldId,
-            new() { Search = query.Search, Page = query.Page, PageSize = query.PageSize }, cancellationToken)).ToActionResult(this);
+            new() { Search = query.Search, Page = query.Page, PageSize = query.PageSize, Answers = query.Answers }, cancellationToken)).ToActionResult(this);
 
     [HttpPost]
     [EnableRateLimiting(BusinessFormsApiRegistration.WritePolicy)]

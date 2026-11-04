@@ -20,9 +20,12 @@ public sealed record FormQuestionSource(Guid? Catalog,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormCatalogPresentation? Presentation = null)
 { public override string ToString() => "FormQuestionSource { Content = [REDACTED] }"; }
 
+// A filter compares a catalog field with a fixed value, a datum of the person or the answer of another question (CW7). In a
+// draft, QuestionId names a question of the same request by its FieldId or, when it is new, by its LocalId; sealed, by its FieldId.
 public sealed record FormCatalogMatch(Guid FieldId,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Value = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] Guid? PersonAttributeId = null)
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] Guid? PersonAttributeId = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] Guid? QuestionId = null)
 { public override string ToString() => "FormCatalogMatch { Content = [REDACTED] }"; }
 public sealed record FormSelectionSettings(int MinSelected, int MaxSelected);
 public sealed record FormFileSettings(int MinFiles, int MaxFiles, string? PhotoSource = null);

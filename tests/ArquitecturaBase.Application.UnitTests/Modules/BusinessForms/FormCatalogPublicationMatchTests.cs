@@ -235,6 +235,49 @@ public sealed class FormCatalogPublicationMatchTests : IDisposable
         Assert.Equal(FormPublicationErrors.PresentationInvalid.Code, Assert.Single(result.Issues).Code);
     }
 
+    [Theory]
+    [InlineData("choice")]
+    [InlineData("multiChoice")]
+    public async Task A_list_that_depends_on_another_answer_warns_that_whatsapp_cannot_send_it_and_publishes_anyway(string type)
+    {
+        var f = new FormPublicationMultipleCatalogFixture { ActiveItems = 1200 };
+        var fields = Guid.CreateVersion7();
+        var field = Field("catalog", fields);
+        f.Fields = [field];
+        var answer = f.Field("choice") with { Source = new(fields) };
+        var lot = f.Field(type) with { Source = new(f.CatalogId, [new(field.Id, QuestionId: answer.FieldId)]) };
+        var result = await f.Guard.InspectCatalogsAsync([answer, lot], Ct);
+        Assert.Empty(result.Issues);
+        var warning = Assert.Single(result.Warnings);
+        Assert.Equal(FormPublicationErrors.DependsOnAnswer.Code, warning.Code);
+        Assert.Equal(lot.FieldId, warning.FieldId);
+        Assert.Equal("draft.fields[1].source.match", warning.Path);
+        Assert.Empty(f.MaximumReads);
+        Assert.Empty((await f.Guard.ValidateCatalogsAsync([answer, lot], Ct)));
+    }
+
+    [Theory]
+    [InlineData("later")]
+    [InlineData("multiple")]
+    [InlineData("other-catalog")]
+    public async Task A_filter_by_another_answer_blocks_unless_it_names_an_earlier_single_choice_of_the_field_source(string problem)
+    {
+        var f = new FormPublicationMultipleCatalogFixture();
+        var fields = Guid.CreateVersion7();
+        var field = Field("catalog", fields);
+        f.Fields = [field];
+        var answer = f.Field(problem == "multiple" ? "multiChoice" : "choice") with { Source = new(problem == "other-catalog" ? Guid.CreateVersion7() : fields) };
+        var lot = f.Field("choice") with { Source = new(f.CatalogId, [new(field.Id, QuestionId: answer.FieldId)]) };
+        CanonicalFormField[] questions = problem == "later" ? [lot, answer] : [answer, lot];
+        var result = await f.Guard.InspectCatalogsAsync(questions, Ct);
+        var issue = Assert.Single(result.Issues);
+        Assert.Equal(FormPublicationErrors.MatchQuestionInvalid.Code, issue.Code);
+        Assert.Equal(lot.FieldId, issue.FieldId);
+        Assert.Equal($"draft.fields[{Array.IndexOf(questions, lot)}].source.match", issue.Path);
+        Assert.Empty(result.Warnings);
+        Assert.Equal(FormPublicationErrors.MatchQuestionInvalid.Code, Assert.Single(await f.Guard.ValidateCatalogsAsync(questions, Ct)).Code);
+    }
+
     private static BusinessFormCatalogField Field(string type, Guid? source = null) => new(Guid.CreateVersion7(), "filter",
         new Dictionary<string, string> { ["es"] = "Filtro" }, type, source, false, false, null, null,
         type == "text" ? 300 : null, "filter", 0, true);

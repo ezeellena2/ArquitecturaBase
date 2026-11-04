@@ -41,9 +41,10 @@ internal sealed class FormEntryFixture : IFormEntryReader, IBusinessFormRecordCa
     public StructuredRecordCaptureResponse Captured { get; set; } = new("Completed", Guid.NewGuid(), 42, null);
     public FormEntryOutcomeRow Outcome { get; set; } = new(new DateTime(2026, 10, 30, 13, 58, 0, DateTimeKind.Utc), "Received", false);
 
-    public FormEntryFixture(bool filtered = false, bool required = true, string questionType = "choice", FormSelectionSettings? selection = null)
+    public FormEntryFixture(bool filtered = false, bool required = true, string questionType = "choice", FormSelectionSettings? selection = null,
+        bool dependsOnAnswer = false)
     {
-        Catalogs = new(filtered, required, questionType: questionType, selection: selection);
+        Catalogs = new(filtered, required, questionType: questionType, selection: selection, dependsOnAnswer: dependsOnAnswer);
         ActiveVersionId = Catalogs.Version.Id;
         Actor = Users.AddUser("entry@example.invalid").Id;
         Current.UserId = Actor;
@@ -70,9 +71,12 @@ internal sealed class FormEntryFixture : IFormEntryReader, IBusinessFormRecordCa
     public IFormEntryService Service => _provider.GetRequiredService<IFormEntryService>();
     public Guid FieldId => Catalogs.FieldId;
 
-    public BusinessFormCatalogItem AddItem(string text, int position, string? detail = null)
+    public BusinessFormCatalogItem AddItem(string text, int position, string? detail = null, BusinessFormCatalogItem? answer = null)
     {
         var item = BusinessFormCatalogItem.Create(Catalogs.Catalog.Id, "C" + position, text, null, detail, null, position);
+        if (answer is not null && Catalogs.Catalog.SetManualItemFields(item,
+            FormDraftPolicy.Serialize(new Dictionary<string, string> { [Catalogs.FilterFieldId.ToString("D")] = answer.Id.ToString("D") })).IsFailure)
+            throw new InvalidOperationException("The option of the dependent list is invalid.");
         Catalogs.Items.Add(item);
         return item;
     }

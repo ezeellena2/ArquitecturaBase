@@ -29,10 +29,13 @@ public sealed record FormEntryChoiceResponse(Guid Id, string Label)
 
 /// <summary>
 /// What the person who loads can choose from a catalog question: the only option the filters leave, already chosen,
-/// or the issue that blocks the question (with the name of the missing person datum).
+/// or the issue that blocks the question (with the name of the missing person datum). A list that depends on other
+/// answers (CW7) names those questions in <see cref="DependsOn"/> and waits for them, without an option chosen beforehand.
 /// </summary>
 public sealed record FormEntryCatalogResponse(FormEntryOptionResponse? OnlyOption, string? Issue, string? MissingData)
 {
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<Guid>? DependsOn { get; init; }
     public override string ToString() => "FormEntryCatalogResponse { Content = [REDACTED] }";
 }
 
@@ -45,6 +48,8 @@ public sealed record ListFormEntryOptionsRequest : PagedRequest
 {
     public const int MaximumPageSize = 50;
     public static readonly IReadOnlyCollection<string> SortableFields = [];
+    /// <summary>The option chosen in each question a dependent list waits for, by the question's FieldId.</summary>
+    public IReadOnlyDictionary<Guid, Guid>? Answers { get; init; }
     public override string ToString() => "ListFormEntryOptionsRequest { Search = [REDACTED] }";
 }
 

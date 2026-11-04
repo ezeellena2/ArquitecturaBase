@@ -29,6 +29,17 @@ public sealed class FormCatalogPreparationPolicyTests
         Assert.Equal(FormRecordErrors.CatalogUnavailable.Code, Assert.Single(result.Issues).Code);
         Assert.Empty(result.Catalogs);
     }
+    [Fact]
+    public async Task A_list_that_depends_on_another_answer_cannot_be_prepared_for_a_channel()
+    {
+        var f = new FormCatalogPreparationFixture(dependsOnAnswer: true);
+        f.Items.Add(BusinessFormCatalogItem.Create(f.Catalog.Id, "OMBU", "El Ombú", null, null, null, 1));
+        var result = await f.Policy.PrepareAsync(Guid.NewGuid(), "es", f.DefinitionId, f.Version.Id, true, Ct);
+        Assert.False(result.CanSend);
+        var issue = Assert.Single(result.Issues);
+        Assert.Equal(f.FieldId, issue.FieldId);
+        Assert.Equal(FormRecordErrors.CatalogDependsOnAnswer.Code, issue.Code);
+    }
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

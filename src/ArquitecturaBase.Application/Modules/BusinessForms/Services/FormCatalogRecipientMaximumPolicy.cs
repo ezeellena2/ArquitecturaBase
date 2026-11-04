@@ -6,7 +6,8 @@ using ArquitecturaBase.Domain.Results;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
 // The most options one person can be offered by a question with valid filters: what the fixed filters leave, grouped by the
-// person filters. The label names the person values of that largest group; with only fixed filters everyone sees the same ones.
+// person filters and those by another answer. The label names the values of that largest group; with only fixed filters
+// everyone sees the same ones.
 internal sealed class FormCatalogRecipientMaximumPolicy(IFormCatalogReader catalogs)
 {
     // A fixed value on a catalog field must be an active option of the field's source; otherwise publishing blocks the filter, so
@@ -27,7 +28,7 @@ internal sealed class FormCatalogRecipientMaximumPolicy(IFormCatalogReader catal
     public async Task<(int Maximum, string? Label)> FindAsync(Guid catalogId, IReadOnlyList<BusinessFormCatalogField> fields,
         IReadOnlyList<FormCatalogMatch> matches, string culture, CancellationToken ct)
     {
-        var personFields = matches.Where(match => match.PersonAttributeId is not null).Select(match => match.FieldId).ToArray();
+        var personFields = matches.Where(match => match.Value is null).Select(match => match.FieldId).ToArray();
         var fixedContainment = FormCatalogMatchPolicy.FixedContainment(matches, fields).Value;
         var maximum = await catalogs.FindMaximumOfferSizeAsync(catalogId, fixedContainment, personFields, ct);
         if (maximum.Maximum == 0 || personFields.Length == 0) return (maximum.Maximum, null);

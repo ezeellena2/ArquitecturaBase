@@ -78,10 +78,11 @@ internal sealed class FormCatalogOptionsPolicy(IFormCatalogReader catalogs, IFor
 
     /// <summary>
     /// The catalog of a question with its fields, presentation and the containment of its fixed and person filters for
-    /// <paramref name="recipient"/>, or the issue that blocks it. Person data are read once and travel in the result.
+    /// <paramref name="recipient"/>, or the issue that blocks it. Person data are read once and travel in the result. A filter by
+    /// another answer takes it from <paramref name="answers"/>; without it the question is blocked (a channel cannot ask it).
     /// </summary>
     public async Task<FormCatalogQuestionSource> ResolveAsync(Guid recipient, CanonicalFormField question,
-        FormPersonRecipientDataRow? personData, CancellationToken ct)
+        FormPersonRecipientDataRow? personData, CancellationToken ct, IReadOnlyDictionary<Guid, Guid>? answers = null)
     {
         var catalog = await catalogs.FindAsync(question.Source!.Catalog!.Value, ct);
         if (catalog is not { IsActive: true }) return FormCatalogQuestionSource.Blocked(FormRecordErrors.CatalogUnavailable.Code, personData);
@@ -91,7 +92,7 @@ internal sealed class FormCatalogOptionsPolicy(IFormCatalogReader catalogs, IFor
         if (question.Source.Match?.Any(match => match.PersonAttributeId is not null) == true)
             personData ??= await people.FindRecipientDataAsync(recipient, ct);
         var personValues = personData is null ? null : FormCatalogMatchPolicy.RecipientValues(personData);
-        var containment = FormCatalogMatchPolicy.Containment(question.Source.Match, fields, personData?.Attributes ?? [], personValues);
+        var containment = FormCatalogMatchPolicy.Containment(question.Source.Match, fields, personData?.Attributes ?? [], personValues, answers);
         if (containment.IsFailure)
             return FormCatalogQuestionSource.Blocked(containment.Error.Code, personData, containment.Error.Code == FormRecordErrors.RecipientDataMissing.Code
                 ? MissingData(personData!, FormCatalogMatchPolicy.MissingPersonAttribute(question.Source.Match, personValues)!.Value) : null);

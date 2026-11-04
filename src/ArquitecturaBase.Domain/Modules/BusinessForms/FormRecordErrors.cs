@@ -21,4 +21,5 @@ public static class FormRecordErrors
     public static readonly Error AuthorizationChanged = Error.Forbidden("Forms.Record.AuthorizationChanged", "The linked account can no longer submit this form.");
     public static readonly Error RecipientDataMissing = Error.Conflict("Forms.Record.RecipientDataMissing", "The recipient is missing data required by the question filter.");
     public static readonly Error CatalogFilterUnavailable = Error.Conflict("Forms.Record.CatalogFilterUnavailable", "The question filter references an unavailable field or person attribute.");
+    public static readonly Error CatalogDependsOnAnswer = Error.Conflict("Forms.Record.CatalogDependsOnAnswer", "The question options depend on another answer, which is not given.");
 }

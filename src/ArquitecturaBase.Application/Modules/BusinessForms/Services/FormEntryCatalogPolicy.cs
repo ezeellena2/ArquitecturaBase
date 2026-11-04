@@ -19,6 +19,10 @@ internal sealed class FormEntryCatalogPolicy(FormCatalogOptionsPolicy options, I
         CanonicalFormField question, string culture, FormPersonRecipientDataRow? personData, CancellationToken ct)
     {
         var source = await options.ResolveAsync(recipient, question, personData, ct);
+        // A list that depends on other answers waits for them: what it can offer is known only once they are chosen.
+        if (source.Issue == FormRecordErrors.CatalogDependsOnAnswer.Code)
+            return (new(null, null, null) { DependsOn = question.Source!.Match!.Where(match => match.QuestionId is not null)
+                .Select(match => match.QuestionId!.Value).Distinct().ToArray() }, source.PersonData);
         if (source.Issue is { } issue) return (new(null, issue, source.MissingData), source.PersonData);
         var page = await PageAsync(recipient, source, new(source.Catalog!.Id, source.Containment, null, null, 1, 2, culture), culture, ct);
         if (page.TotalCount == 0 && question.Required) return (new(null, FormRecordErrors.CatalogEmpty.Code, null), source.PersonData);
@@ -30,7 +34,7 @@ internal sealed class FormEntryCatalogPolicy(FormCatalogOptionsPolicy options, I
     public async Task<Result<PagedResult<FormEntryOptionResponse>>> ListAsync(Guid recipient, CanonicalFormField question, string culture,
         ListFormEntryOptionsRequest request, CancellationToken ct)
     {
-        var source = await options.ResolveAsync(recipient, question, null, ct);
+        var source = await options.ResolveAsync(recipient, question, null, ct, request.Answers);
         if (source.Issue is { } issue) return Blocking(issue);
         return await PageAsync(recipient, source, new(source.Catalog!.Id, source.Containment,
             string.IsNullOrWhiteSpace(request.Search) ? null : request.Search.Trim(), null, request.Page, request.PageSize, culture), culture, ct);
@@ -42,12 +46,16 @@ internal sealed class FormEntryCatalogPolicy(FormCatalogOptionsPolicy options, I
     {
         var offers = new List<StructuredFormCatalogOffer>();
         FormPersonRecipientDataRow? personData = null;
+        // A dependent list filters by the option chosen in its earlier question, which is checked first in this same order.
+        var answers = chosen.Where(pair => pair.Value.Count == 1).ToDictionary(pair => pair.Key, pair => pair.Value[0]);
         foreach (var question in schema.Questions.Where(question => question.Source?.Catalog is not null && chosen.ContainsKey(question.FieldId)))
         {
             var field = "answers." + question.FieldId.ToString("D");
             var ids = chosen[question.FieldId].Distinct().ToArray();
-            var source = await options.ResolveAsync(recipient, question, personData, ct);
+            var source = await options.ResolveAsync(recipient, question, personData, ct, answers);
             personData = source.PersonData;
+            // Without the answer it depends on, no option of the list corresponds to it.
+            if (source.Issue == FormRecordErrors.CatalogDependsOnAnswer.Code) return FieldErrors.On(FormRecordErrors.CatalogItemInactive, field);
             if (source.Issue is { } issue) return FieldErrors.On(Blocking(issue), field);
             var catalog = source.Catalog!;
             var query = new FormEntryItemsQuery(catalog.Id, source.Containment, null, ids, 1, ids.Length, culture);
@@ -89,5 +97,6 @@ internal sealed class FormEntryCatalogPolicy(FormCatalogOptionsPolicy options, I
         new(option.Id, option.Shown?.Title ?? option.Text, option.Shown is null ? option.Detail : option.Shown.Description);
 
     private static Error Blocking(string issue) => issue == FormRecordErrors.RecipientDataMissing.Code ? FormRecordErrors.RecipientDataMissing
-        : issue == FormRecordErrors.CatalogFilterUnavailable.Code ? FormRecordErrors.CatalogFilterUnavailable : FormRecordErrors.CatalogUnavailable;
+        : issue == FormRecordErrors.CatalogFilterUnavailable.Code ? FormRecordErrors.CatalogFilterUnavailable
+        : issue == FormRecordErrors.CatalogDependsOnAnswer.Code ? FormRecordErrors.CatalogDependsOnAnswer : FormRecordErrors.CatalogUnavailable;
 }

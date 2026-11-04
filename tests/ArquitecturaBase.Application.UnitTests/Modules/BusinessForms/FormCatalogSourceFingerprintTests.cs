@@ -60,6 +60,29 @@ public sealed class FormCatalogSourceFingerprintTests
     }
 
     [Fact]
+    public void A_filter_by_another_answer_names_a_new_question_by_its_local_id_and_seals_its_identity()
+    {
+        var (fields, lots, filter, local) = (Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7());
+        Assert.Equal($"{{\"fieldId\":\"{filter:D}\",\"value\":\"3\"}}", FormDraftPolicy.Serialize(new FormCatalogMatch(filter, "3")));
+        var request = Input(new(fields));
+        var field = request.Draft.Fields[0] with { LocalId = local.ToString("D") };
+        request = request with { Draft = request.Draft with { Fields = [field,
+            field with { LocalId = "lot", Source = new(lots, [new(filter, QuestionId: local)]) }] } };
+        var created = FormDraftPolicy.Resolve(FormDraftPolicy.Normalize(request), null, FormRetiredIdentities.Empty).Value;
+        var fieldId = created.Draft.Fields[0].FieldId;
+        Assert.Equal(fieldId, Assert.Single(created.Draft.Fields[1].Source!.Match!).QuestionId);
+        Assert.Contains($"\"questionId\":\"{fieldId:D}\"", FormDraftPolicy.Serialize(created.Draft.Fields[1].Source));
+
+        var definition = BusinessFormDefinition.Create();
+        Assert.True(definition.SetDraft(1, "Formulario", "{\"es\":\"Formulario\"}", "CAT", "es", "{\"es\":\"Enviar\"}",
+            FormDraftPolicy.Serialize(new FormQuestionSchema(1, created.Draft.Fields)), 1, true).IsSuccess);
+        var saved = request with { Draft = request.Draft with { Fields = [field with { FieldId = fieldId },
+            request.Draft.Fields[1] with { FieldId = created.Draft.Fields[1].FieldId, Source = new(lots, [new(filter, QuestionId: fieldId)]) }] } };
+        var edited = FormDraftPolicy.Resolve(FormDraftPolicy.Normalize(saved), definition, FormRetiredIdentities.Empty).Value;
+        Assert.Equal(created.Draft.Fields, edited.Draft.Fields, (left, right) => FormDraftPolicy.Serialize(left) == FormDraftPolicy.Serialize(right));
+    }
+
+    [Fact]
     public void The_shown_presentation_is_sealed_separately_from_the_original_choice_text()
     {
         var option = new StructuredFormCatalogOption(Guid.CreateVersion7(), "Original", "Original detail", Shown: new("Visible", "Visible detail"));

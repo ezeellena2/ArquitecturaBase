@@ -347,6 +347,12 @@
   <data name="Forms.Publication.MatchSourceMismatch" xml:space="preserve">
     <value>The field and person attribute must use the same value catalog.</value>
   </data>
+  <data name="Forms.Publication.MatchQuestionInvalid" xml:space="preserve">
+    <value>The answer it depends on must come from an earlier single-choice question that chooses from the same catalog as the field.</value>
+  </data>
+  <data name="Forms.Publication.DependsOnAnswer" xml:space="preserve">
+    <value>It cannot be sent by WhatsApp while a question depends on another answer. It can still be loaded in the app.</value>
+  </data>
   <data name="Forms.Publication.CatalogTitleTooLong" xml:space="preserve">
     <value>The catalog presentation produces titles longer than 30 characters.</value>
   </data>
@@ -367,5 +373,8 @@
   </data>
   <data name="Forms.Record.CatalogFilterUnavailable" xml:space="preserve">
     <value>The field or person attribute used for filtering is no longer available.</value>
+  </data>
+  <data name="Forms.Record.CatalogDependsOnAnswer" xml:space="preserve">
+    <value>The options depend on another answer: this form is loaded in the app.</value>
   </data>
 </root>

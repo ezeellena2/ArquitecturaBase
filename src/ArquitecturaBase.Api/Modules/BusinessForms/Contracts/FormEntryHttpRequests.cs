@@ -1,6 +1,10 @@
 namespace ArquitecturaBase.Api.Modules.BusinessForms.Contracts;
 
-public sealed record FormEntryOptionsQuery(string? Search = null, int Page = 1, int PageSize = 50)
+/// <summary>
+/// <see cref="Answers"/> carries, as <c>answers[questionId]=optionId</c>, the option chosen in each question that a dependent
+/// list waits for.
+/// </summary>
+public sealed record FormEntryOptionsQuery(string? Search = null, int Page = 1, int PageSize = 50, Dictionary<Guid, Guid>? Answers = null)
 {
     public override string ToString() => "FormEntryOptionsQuery { Search = [REDACTED] }";
 }

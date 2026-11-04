@@ -265,6 +265,13 @@ public sealed class FormRecipientPreviewServiceTests
             Assert.True(shared.IsSuccess);
             Assert.Equal(new FormRecipientMaximumResponse(180, null), shared.Value);
             Assert.Empty(f.Catalogs.MaximumReads[1].Fields);
+
+            // A filter by another answer groups like one by person: the most options for a single answer.
+            f.Catalogs.Maximum = new(4, FormDraftPolicy.Serialize(new Dictionary<string, string> { [zone.Id.ToString("D")] = south.Id.ToString("D") }));
+            var byAnswer = await f.Maximums.FindMaximumAsync(new(new(f.Catalogs.Catalog.Id,
+                [new(zone.Id, QuestionId: Guid.CreateVersion7()), new(kind.Id, "cold")])), Ct);
+            Assert.Equal(new FormRecipientMaximumResponse(4, "Zona Sur"), byAnswer.Value);
+            Assert.Equal([zone.Id], f.Catalogs.MaximumReads[2].Fields);
             Assert.Equal(0, f.People.RecipientReads);
             Assert.Equal(0, f.DefinitionReads);
             Assert.Empty(f.Catalogs.Locks);

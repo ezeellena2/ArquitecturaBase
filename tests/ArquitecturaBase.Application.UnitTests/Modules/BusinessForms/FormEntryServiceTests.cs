@@ -95,6 +95,73 @@ public sealed class FormEntryServiceTests
     }
 
     [Fact]
+    public async Task A_list_that_depends_on_another_answer_says_which_one_and_has_no_option_chosen_beforehand()
+    {
+        using var fixture = new FormEntryFixture(dependsOnAnswer: true);
+        var field = fixture.AddItem("El Ombú", 1);
+        fixture.AddItem("Lote 2", 2, answer: field);
+
+        var questions = (await fixture.Service.GetAsync(fixture.Catalogs.DefinitionId, Ct)).Value.Questions;
+
+        Assert.Equal([fixture.Catalogs.AnswerFieldId, fixture.FieldId], questions.Select(question => question.FieldId));
+        Assert.Null(questions[0].Catalog!.DependsOn);
+        var dependent = questions[1].Catalog!;
+        Assert.Equal([fixture.Catalogs.AnswerFieldId], dependent.DependsOn);
+        Assert.Null(dependent.OnlyOption);
+        Assert.Null(dependent.Issue);
+    }
+
+    [Fact]
+    public async Task The_options_of_a_dependent_list_are_those_of_the_chosen_answer_and_wait_for_it()
+    {
+        using var fixture = new FormEntryFixture(dependsOnAnswer: true);
+        var ombu = fixture.AddItem("El Ombú", 1);
+        var esperanza = fixture.AddItem("La Esperanza", 2);
+        fixture.AddItem("Lote 2", 3, answer: ombu);
+        fixture.AddItem("Lote 5", 4, answer: esperanza);
+        fixture.AddItem("Lote 3", 5, answer: ombu);
+
+        var options = await fixture.Service.ListOptionsAsync(fixture.Catalogs.DefinitionId, fixture.Catalogs.Version.Id, fixture.FieldId,
+            new() { PageSize = 50, Answers = new Dictionary<Guid, Guid> { [fixture.Catalogs.AnswerFieldId] = ombu.Id } }, Ct);
+        var waiting = await fixture.Service.ListOptionsAsync(fixture.Catalogs.DefinitionId, fixture.Catalogs.Version.Id, fixture.FieldId,
+            new() { PageSize = 50 }, Ct);
+        var invalid = await fixture.Service.ListOptionsAsync(fixture.Catalogs.DefinitionId, fixture.Catalogs.Version.Id, fixture.FieldId,
+            new() { PageSize = 50, Answers = new Dictionary<Guid, Guid> { [fixture.Catalogs.AnswerFieldId] = Guid.Empty } }, Ct);
+
+        Assert.Equal(["Lote 2", "Lote 3"], options.Value.Items.Select(option => option.Title));
+        Assert.Equal(FormRecordErrors.CatalogDependsOnAnswer, waiting.Error);
+        Assert.IsType<ValidationError>(invalid.Error);
+    }
+
+    [Fact]
+    public async Task A_send_checks_that_the_chosen_option_belongs_to_the_answer_it_depends_on()
+    {
+        using var fixture = new FormEntryFixture(dependsOnAnswer: true);
+        var ombu = fixture.AddItem("El Ombú", 1);
+        var esperanza = fixture.AddItem("La Esperanza", 2);
+        var lot = fixture.AddItem("Lote 2", 3, answer: ombu);
+        var answer = fixture.Catalogs.AnswerFieldId;
+
+        var otherField = await fixture.Service.SubmitAsync(fixture.Catalogs.DefinitionId, fixture.Send(
+            new FormEntryAnswer(answer, esperanza.Id.ToString("D"), null), new FormEntryAnswer(fixture.FieldId, lot.Id.ToString("D"), null)), Ct);
+        var withoutField = await fixture.Service.SubmitAsync(fixture.Catalogs.DefinitionId, fixture.Send(
+            new FormEntryAnswer(fixture.FieldId, lot.Id.ToString("D"), null)), Ct);
+        Assert.Empty(fixture.Captures);
+        var sent = await fixture.Service.SubmitAsync(fixture.Catalogs.DefinitionId, fixture.Send(
+            new FormEntryAnswer(answer, ombu.Id.ToString("D"), null), new FormEntryAnswer(fixture.FieldId, lot.Id.ToString("D"), null)), Ct);
+
+        Assert.All(new[] { otherField, withoutField }, rejected =>
+        {
+            var error = Assert.IsType<ValidationError>(rejected.Error);
+            Assert.Equal(FormRecordErrors.CatalogItemInactive.Code, error.Code);
+            Assert.Equal(["answers." + fixture.FieldId.ToString("D")], error.Errors.Keys);
+        });
+        Assert.True(sent.IsSuccess);
+        var offer = Assert.Single(Assert.Single(fixture.Captures).Catalogs!, offer => offer.FieldId == fixture.FieldId);
+        Assert.Equal(lot.Id, Assert.Single(offer.Options).Id);
+    }
+
+    [Fact]
     public async Task Options_of_a_superseded_version_are_a_conflict()
     {
         using var fixture = new FormEntryFixture { ActiveVersionId = Guid.NewGuid() };

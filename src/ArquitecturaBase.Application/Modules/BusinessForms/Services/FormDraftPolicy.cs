@@ -104,10 +104,23 @@ internal static class FormDraftPolicy
                 options?.AsReadOnly(), input.Source, input.Files, input.Selection));
             fieldMap.Add(new(input.LocalId, fieldId, key, input.ReplacesFieldId));
         }
+        NameAnsweredQuestions(draft.Fields, fields, currentFieldIds);
         retiredFields.UnionWith(oldFields.Where(field => !currentFieldIds.Contains(field.FieldId)).Select(field => field.FieldId));
         retiredChoices.UnionWith(oldFields.SelectMany(field => field.Options ?? []).Where(option => !currentChoiceIds.Contains(option.ChoiceId)).Select(option => option.ChoiceId));
         return new FormDraftResolution(new(1, draft.Culture, submit, fields.AsReadOnly()), new(fieldMap.AsReadOnly(), choiceMap.AsReadOnly()),
             new(retiredFields.Except(existingRetiredFields).Order().ToArray(), retiredChoices.Except(existingRetiredChoices).Order().ToArray()));
+    }
+    // A filter by another answer may name a new question by its LocalId: sealed, it names it by the FieldId just assigned. A name
+    // that is no question of the draft stays as it is, and checking the publication blocks it.
+    private static void NameAnsweredQuestions(IReadOnlyList<FormFieldInput> inputs, List<CanonicalFormField> fields, HashSet<Guid> fieldIds)
+    {
+        var assigned = new Dictionary<Guid, Guid>();
+        for (var i = 0; i < inputs.Count; i++)
+            if (inputs[i].FieldId is null && Guid.TryParse(inputs[i].LocalId, out var local) && !fieldIds.Contains(local)) assigned.TryAdd(local, fields[i].FieldId);
+        for (var i = 0; i < fields.Count; i++)
+            if (fields[i].Source is { Match: { } matches } source && matches.Any(match => match.QuestionId is { } name && assigned.ContainsKey(name)))
+                fields[i] = fields[i] with { Source = source with { Match = matches.Select(match => match.QuestionId is { } name
+                    && assigned.TryGetValue(name, out var fieldId) ? match with { QuestionId = fieldId } : match).ToArray() } };
     }
     private static bool LostTranslations(IReadOnlyDictionary<string, string> previous, IReadOnlyDictionary<string, string> current) => previous.Any(pair => !string.IsNullOrWhiteSpace(pair.Value) && !current.ContainsKey(pair.Key));
     private static FormQuestionType TypeOf(string type) => type switch

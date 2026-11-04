@@ -16,6 +16,7 @@ public sealed class FormCatalogMatchPolicyTests
     private static readonly Guid PriceFieldId = Guid.Parse("01990000-0000-7000-8000-000000000007");
     private static readonly Guid TextFieldId = Guid.Parse("01990000-0000-7000-8000-000000000008");
     private static readonly Guid CatalogId = Guid.Parse("01990000-0000-7000-8000-000000000009");
+    private static readonly Guid FieldQuestionId = Guid.Parse("01990000-0000-7000-8000-00000000000b");
 
     [Fact]
     public void No_matches_preserve_the_unfiltered_offer_without_requiring_person_data()
@@ -120,9 +121,82 @@ public sealed class FormCatalogMatchPolicyTests
     }
 
     [Fact]
+    public void A_match_by_another_answer_filters_by_the_option_chosen_in_that_question()
+    {
+        FormCatalogMatch[] matches = [new(CountFieldId, "3"), new(ZoneFieldId, QuestionId: FieldQuestionId)];
+        var result = FormCatalogMatchPolicy.Containment(matches, Fields(), [], null, new Dictionary<Guid, Guid> { [FieldQuestionId] = CentralId });
+        Assert.True(result.IsSuccess);
+        using var json = JsonDocument.Parse(result.Value!);
+        Assert.Equal(CentralId.ToString("D"), json.RootElement.GetProperty(ZoneFieldId.ToString("D")).GetString());
+        Assert.Equal(3, json.RootElement.GetProperty(CountFieldId.ToString("D")).GetInt32());
+    }
+
+    [Fact]
+    public void Without_the_answer_it_depends_on_the_offer_is_never_built()
+    {
+        FormCatalogMatch[] matches = [new(CountFieldId, "3"), new(ZoneFieldId, QuestionId: FieldQuestionId)];
+        Assert.Equal(FormRecordErrors.CatalogDependsOnAnswer.Code, FormCatalogMatchPolicy.Containment(matches, Fields(), [], null).Error.Code);
+        Assert.Equal(FormRecordErrors.CatalogDependsOnAnswer.Code, FormCatalogMatchPolicy.Containment(matches, Fields(), [], null,
+            new Dictionary<Guid, Guid> { [CentralId] = CentralId }).Error.Code);
+    }
+
+    [Fact]
+    public void A_missing_person_datum_is_told_before_the_answer_the_offer_waits_for()
+    {
+        var lot = Fields()[0] with { Id = TextFieldId, Key = "lot" };
+        FormCatalogMatch[] matches = [new(ZoneFieldId, PersonAttributeId: ZoneAttributeId), new(TextFieldId, QuestionId: FieldQuestionId)];
+        var result = FormCatalogMatchPolicy.Containment(matches, [Fields()[0], lot], [Attribute()], new Dictionary<string, string>());
+        Assert.Equal(FormRecordErrors.RecipientDataMissing.Code, result.Error.Code);
+    }
+
+    [Theory]
+    [InlineData("value")]
+    [InlineData("person")]
+    [InlineData("empty")]
+    public void A_match_names_exactly_one_fixed_value_person_datum_or_question(string problem)
+    {
+        FormCatalogMatch match = problem switch
+        {
+            "value" => new(ZoneFieldId, CentralId.ToString("D"), QuestionId: FieldQuestionId),
+            "person" => new(ZoneFieldId, PersonAttributeId: ZoneAttributeId, QuestionId: FieldQuestionId),
+            _ => new(ZoneFieldId, QuestionId: Guid.Empty),
+        };
+        Assert.True(FormCatalogMatchPolicy.HasValidShape([new(ZoneFieldId, QuestionId: FieldQuestionId)]));
+        Assert.False(FormCatalogMatchPolicy.HasValidShape([match]));
+    }
+
+    [Theory]
+    [InlineData("inactive", "Forms.Publication.MatchInvalid")]
+    [InlineData("data", "Forms.Publication.MatchInvalid")]
+    [InlineData("text", "Forms.Publication.MatchQuestionInvalid")]
+    public void A_match_by_another_answer_needs_an_active_catalog_filter_field(string problem, string code)
+    {
+        var fields = Fields().Select(field => field.Id != ZoneFieldId ? field : problem switch
+        {
+            "inactive" => field with { IsActive = false },
+            "data" => field with { Role = "data" },
+            _ => field with { Type = "text", SourceCatalogId = null, MaxLength = 300 },
+        }).ToArray();
+        Assert.Null(FormCatalogMatchPolicy.Validate([new(ZoneFieldId, QuestionId: FieldQuestionId)], Fields(), []));
+        Assert.Equal(code, FormCatalogMatchPolicy.Validate([new(ZoneFieldId, QuestionId: FieldQuestionId)], fields, [])!.Code);
+    }
+
+    [Fact]
+    public void Only_an_earlier_single_choice_question_of_the_field_source_can_give_the_answer()
+    {
+        FormCatalogMatch[] matches = [new(CountFieldId, "3"), new(ZoneFieldId, QuestionId: FieldQuestionId)];
+        Assert.Null(FormCatalogMatchPolicy.ValidateQuestions(matches, Fields(), [Question(FieldQuestionId, "choice", ZoneId)]));
+        CanonicalFormField[][] wrong = [[], [Question(FieldQuestionId, "multiChoice", ZoneId)], [Question(FieldQuestionId, "choice", CatalogId)],
+            [Question(FieldQuestionId, "shortText", null)], [Question(CentralId, "choice", ZoneId)]];
+        Assert.All(wrong, earlier => Assert.Equal(FormPublicationErrors.MatchQuestionInvalid.Code,
+            FormCatalogMatchPolicy.ValidateQuestions(matches, Fields(), earlier)!.Code));
+    }
+
+    [Fact]
     public void The_fixed_subset_keeps_its_json_types_without_requiring_a_recipient()
     {
-        var result = FormCatalogMatchPolicy.FixedContainment([new(ZoneFieldId, PersonAttributeId: ZoneAttributeId), new(CountFieldId, "3")], Fields());
+        var result = FormCatalogMatchPolicy.FixedContainment([new(ZoneFieldId, PersonAttributeId: ZoneAttributeId), new(CountFieldId, "3"),
+            new(FlagFieldId, QuestionId: FieldQuestionId)], Fields());
         Assert.True(result.IsSuccess);
         using var json = JsonDocument.Parse(result.Value!);
         var value = Assert.Single(json.RootElement.EnumerateObject());
@@ -137,5 +211,7 @@ public sealed class FormCatalogMatchPolicyTests
         new(PriceFieldId, "price", Names(), "decimal", null, false, false, null, null, null, "filter", 3, true),
         new(TextFieldId, "text", Names(), "text", null, false, false, null, null, 300, "filter", 4, true)];
     private static FormPersonAttributeStoredRow Attribute() => new(ZoneAttributeId, "zone", "{\"es\":\"Zona\"}", "es", "Catalog", ZoneId, 0, true, 1, null);
+    private static CanonicalFormField Question(Guid id, string type, Guid? catalog) => new(id, "field_" + id.ToString("N"), type,
+        Names(), null, true, null, null, catalog is null ? null : new FormQuestionSource(catalog), Selection: type == "multiChoice" ? new(0, 20) : null);
     private static Dictionary<string, string> Names() => new() { ["es"] = "Zona", ["en"] = "Zone" };
 }
