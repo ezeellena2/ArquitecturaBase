@@ -532,16 +532,27 @@ public interface IArcaConnectionReader
 
 ### Tarea 4: credenciales (clave, pedido y certificado)
 
+**Hecha el 2026-11-04.** Diferencias con lo escrito:
+- `SignLoginRequest` llega con la tarea 5, junto con `ArcaCmsSigner` y el paquete `System.Security.Cryptography.Pkcs`
+  que necesita: sin eso quedaba un método de la interfaz sin implementar.
+- `ProtectTicket` y `UnprotectTicket` reciben también la conexión, así el AAD tiene la misma forma para la clave y para
+  el ticket.
+- El modelo se llama `ArcaInspectedCertificate`, con el prefijo de los demás modelos del módulo.
+- El alias ya lo valida `ArcaCertificate.IsValidAlias` desde la tarea 2. El servicio de la tarea 7 lo revisa antes de
+  pedir la clave, y `CreateRequest` lo recibe validado.
+- Si la clave guardada no se descifra con el anillo, `Inspect` lanza: no es un error de la persona sino del anillo.
+- Los tests no usan `ApiFactory` ni Docker, como `AiSecretProtectionTests`: arman el servicio con un anillo inventado.
+
 **Archivos:**
 - Crear: `src/ArquitecturaBase.Application/Modules/Arca/Interfaces/Integrations/Connection/IArcaCredentialService.cs`, `Models/Connection/ArcaCertificateRequest.cs` e `InspectedCertificate.cs`
 - Crear: `src/ArquitecturaBase.Infrastructure/Modules/Arca/Connection/Security/ArcaCredentialService.cs`
 - Crear: `tests/ArquitecturaBase.Api.IntegrationTests/Modules/Arca/Connection/ArcaCredentialServiceTests.cs` y `tests/ArquitecturaBase.Api.IntegrationTests/TestFeatures/Modules/Arca/FakeArcaCertificateAuthority.cs`
 
-- [ ] **Paso 1: la autoridad de prueba.** `FakeArcaCertificateAuthority` crea una CA autofirmada por ambiente, con el CN
+- [x] **Paso 1: la autoridad de prueba.** `FakeArcaCertificateAuthority` crea una CA autofirmada por ambiente, con el CN
   configurado en `ArcaTestModule` (`Computadores Test` y `Computadores`). `Issue(string requestPem, ArcaEnvironment environment, DateTime notAfterUtc)`
   carga el pedido con `CertificateRequest.LoadSigningRequestPem(requestPem, HashAlgorithmName.SHA256)` y firma con la CA
   de ese ambiente.
-- [ ] **Paso 2: tests en rojo:**
+- [x] **Paso 2: tests en rojo:**
   - el pedido tiene `C=AR`, `CN=<alias>` y `serialNumber=CUIT <cuit>`, y su firma verifica;
   - la clave protegida no contiene la clave en claro y no se descifra con otro AAD (otra conexión u otro certificado);
   - un certificado emitido para ese pedido se acepta y devuelve fechas y huella;
@@ -550,7 +561,7 @@ public interface IArcaConnectionReader
   - uno de la CA del otro ambiente da `CertificateEnvironmentMismatch`;
   - uno vencido da `CertificateExpired`;
   - un texto que no es PEM da `CertificateUnreadable`.
-- [ ] **Paso 3: contrato.**
+- [x] **Paso 3: contrato.**
 
 ```csharp
 public interface IArcaCredentialService
@@ -569,7 +580,7 @@ public sealed record ArcaCertificateRequest(string RequestPem, string ProtectedP
 }
 ```
 
-- [ ] **Paso 4: implementación.** El sobre cifrado es el de `AesGcmAiSecretProtector`, con este AAD:
+- [x] **Paso 4: implementación.** El sobre cifrado es el de `AesGcmAiSecretProtector`, con este AAD:
   `ArquitecturaBase.Arca|1|{installation}|{keyId}|{purpose}|{connectionId}|{certificateId}`. Los propósitos son
   `certificate-key` y `access-ticket:{service}`. El pedido:
 
@@ -593,11 +604,11 @@ finally { CryptographicOperations.ZeroMemory(pkcs8); }
     CN con `IssuerCommonName` del ambiente.
   - **Firmar:** la clave se importa con `ImportPkcs8PrivateKey` y se ata con `certificate.CopyWithPrivateKey(rsa)`.
   - **Bytes en claro:** se borran con `CryptographicOperations.ZeroMemory`.
-- [ ] **Paso 5: alias.** Entre 3 y 30 caracteres, solo minúsculas, dígitos y guiones, empezando por letra
+- [x] **Paso 5: alias.** Entre 3 y 30 caracteres, solo minúsculas, dígitos y guiones, empezando por letra
   (`^[a-z][a-z0-9-]{2,29}$`). Se valida en el servicio con `AliasInvalid`. Si ARCA admite otros caracteres, se amplía
   con la homologación.
-- [ ] **Paso 6: correr** `ArcaCredentialServiceTests`.
-- [ ] **Paso 7: commit.** `feat(arca): clave, pedido y certificado con el anillo del módulo`
+- [x] **Paso 6: correr** `ArcaCredentialServiceTests`.
+- [x] **Paso 7: commit.** `feat(arca): clave, pedido y certificado con el anillo del módulo`
 
 ---
 

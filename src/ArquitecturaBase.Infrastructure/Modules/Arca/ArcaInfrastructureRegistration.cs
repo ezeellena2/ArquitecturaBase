@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Modules.Arca.Interfaces.Integrations.Connection;
 using ArquitecturaBase.Application.Modules.Arca.Interfaces.Persistence.Connection;
 using ArquitecturaBase.Application.Modules.Arca.Interfaces.Persistence.Invoicing;
 using ArquitecturaBase.Application.Modules.Arca.Interfaces.Persistence.Registry;
@@ -35,6 +36,7 @@ public static class ArcaInfrastructureRegistration
         services.AddOptions<ArcaOptions>().Bind(configuration.GetSection("Arca"))
             .Validate(x => x.IsValid(), "Configure Arca with HTTPS addresses, the certificate issuer and the ticket retry window of each environment.").ValidateOnStart();
         services.AddSingleton<ArcaKeyRing>();
+        services.AddSingleton<IArcaCredentialService, ArcaCredentialService>();
         services.AddScoped<IArcaConnectionRepository, ArcaConnectionRepository>();
         services.AddScoped<IArcaConnectionReader, ArcaConnectionReader>();
         ConfigureClient(services.AddHttpClient(WsaaHttpClientName));
