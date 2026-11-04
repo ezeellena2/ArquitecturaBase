@@ -25,8 +25,10 @@ El ejemplo es el remito de la prueba:
 - en RG0 y RG6, las cuatro respuestas reales, INS-000001 a INS-000004, con la observación «3 bolsas rotas en la descarga».
   RG0 compara esas cuatro respuestas con una sola de cuatro renglones.
 
-El lienzo del sistema visual no se abre desde la cuenta de Claude Code, así que los tableros elegidos pasan allí antes de
-programar y su diseño se registra en el front, como el de la [carga desde la app](../../../ArquitecturaBaseFront/docs/design/carga-desde-la-app.md).
+El lienzo del sistema visual no se abre desde la cuenta de Claude Code. El diseño elegido quedó registrado en el front, en
+[renglones en los formularios](../../../ArquitecturaBaseFront/docs/design/renglones-en-formularios.md), como el de la
+[carga desde la app](../../../ArquitecturaBaseFront/docs/design/carga-desde-la-app.md); los tableros pasan a ese lienzo
+antes de programar.
 
 ## Decisiones del usuario (2026-11-03 y 2026-11-04)
 
@@ -200,11 +202,11 @@ falta su prueba manual. Cada etapa de este plan se apoya en los que toca:
 ## Plan por etapas
 
 Cada paso queda igual a su tablero: al programarlo se abre el tablero y se compara antes de cerrarlo. Antes de la Etapa 1,
-los tableros elegidos pasan al lienzo del sistema visual y su diseño se registra en el front. Cada etapa sigue
+los tableros elegidos pasan al lienzo del sistema visual; su diseño ya está registrado en el front. Cada etapa sigue
 [validar un cambio](../guides/validar-un-cambio.md): TDD en las políticas, integración con PostgreSQL y Redis, contratos
-exportados, y en el front tests, visuales y el recorrido es/en a 1440, 390 y 320. Las piezas nuevas (la tabla de renglones,
-su versión en recuadros y la casilla) van a `shared/ui` con su ficha en el estándar visual, para que se usen igual en toda
-la app.
+exportados, y en el front tests, visuales y el recorrido es/en a 1440, 390 y 320. Las piezas nuevas (la tabla de renglones y
+su versión en recuadros; la casilla es el `CheckboxField` de siempre) van a `shared/ui` con su ficha en el estándar visual,
+para que se usen igual en toda la app.
 
 1. **Etapa 1 · El bloque en el editor y al publicar (RG1-A, RG6-A y RG3-A).**
    - Backend: el tipo `group` en el borrador, con validación, identidades, mínimo y máximo, tipos permitidos, un solo bloque
