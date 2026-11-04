@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Globalization;
 using ArquitecturaBase.Api.IntegrationTests.Support;
+using ArquitecturaBase.Api.IntegrationTests.TestFeatures;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.WhatsApp;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Interfaces.Persistence;
@@ -28,6 +29,8 @@ public sealed partial class WhatsAppFormSendingTests(ApiFactory factory)
     [Fact]
     public async Task Form_send_uses_neutral_selection_and_creates_one_private_durable_outgoing_session()
     {
+        Assert.SkipUnless(factory.Services.GetService<IStructuredFormPublicationDriver>() is not null,
+            "The optional structured form publisher must be installed for this composition test.");
         var clock = new FakeTimeProvider(factory.Clock.GetUtcNow());
         var provider = new CapturingFlowProvider(clock);
         var cloud = new CapturingWhatsAppCloudClient();

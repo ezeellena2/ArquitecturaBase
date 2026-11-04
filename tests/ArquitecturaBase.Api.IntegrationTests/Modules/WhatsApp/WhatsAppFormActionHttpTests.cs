@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using ArquitecturaBase.Api.IntegrationTests.Support;
+using ArquitecturaBase.Api.IntegrationTests.TestFeatures;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.WhatsApp;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Interfaces.Persistence;
@@ -23,6 +24,8 @@ public sealed class WhatsAppFormActionHttpTests(ApiFactory factory)
     [Fact]
     public async Task Chat_actions_keep_system_origin_and_hide_values_after_record_read_is_revoked()
     {
+        Assert.SkipUnless(factory.Services.GetService<IStructuredFormPublicationDriver>() is not null,
+            "The optional structured form publisher must be installed for this composition test.");
         await using var scenario = await WhatsAppFormActionScenario.CreateAsync(factory, Ct);
         var recipient = await scenario.RecipientAsync(Now, Ct);
         var actor = await scenario.OperatorAsync([WhatsAppPermissions.Read, "formrecords.read"], Ct);

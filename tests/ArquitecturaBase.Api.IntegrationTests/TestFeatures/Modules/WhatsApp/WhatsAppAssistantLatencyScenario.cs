@@ -96,6 +96,8 @@ internal sealed class WhatsAppAssistantLatencyScenario : IAsyncDisposable
 
     public static async Task<WhatsAppAssistantLatencyScenario> CreateAsync(ApiFactory factory, bool publishForm = true)
     {
+        Assert.SkipUnless(!publishForm || factory.Services.GetService<IStructuredFormPublicationDriver>() is not null,
+            "The optional structured form publisher must be installed for this composition test.");
         var scenario = new WhatsAppAssistantLatencyScenario(factory);
         try
         {

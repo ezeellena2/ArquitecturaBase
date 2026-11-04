@@ -5,6 +5,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Nodes;
 using ArquitecturaBase.Api.IntegrationTests.Support;
+using ArquitecturaBase.Api.IntegrationTests.TestFeatures;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.WhatsApp;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
@@ -29,6 +30,8 @@ public sealed partial class WhatsAppFormSendingTests
     [InlineData("flow-static-7.3-r8")]
     public async Task Published_legacy_flow_remains_sendable_and_its_open_session_is_captured_after_r9_publication(string legacyProfile)
     {
+        Assert.SkipUnless(factory.Services.GetService<IStructuredFormPublicationDriver>() is not null,
+            "The optional structured form publisher must be installed for this composition test.");
         var clock = new FakeTimeProvider(factory.Clock.GetUtcNow());
         var flowProvider = new CapturingFlowProvider(clock);
         var cloud = new CapturingWhatsAppCloudClient();

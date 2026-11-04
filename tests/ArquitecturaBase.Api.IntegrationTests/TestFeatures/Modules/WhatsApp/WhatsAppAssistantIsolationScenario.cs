@@ -72,6 +72,8 @@ internal sealed class WhatsAppAssistantIsolationScenario:IAsyncDisposable
 
     public static async Task<WhatsAppAssistantIsolationScenario> CreateAsync(ApiFactory factory,IReadOnlyList<string> markers)
     {
+        Assert.SkipUnless(factory.Services.GetService<IStructuredFormPublicationDriver>() is not null,
+            "The optional structured form publisher must be installed for this composition test.");
         var scenario=new WhatsAppAssistantIsolationScenario(factory,markers);
         try
         {

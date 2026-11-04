@@ -1,4 +1,5 @@
 using ArquitecturaBase.Api.IntegrationTests.Support;
+using ArquitecturaBase.Api.IntegrationTests.TestFeatures;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.WhatsApp;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Models.StructuredData;
@@ -15,6 +16,8 @@ public sealed partial class WhatsAppFormSendingTests
     [Fact]
     public async Task Temporary_account_lookup_failure_retries_the_same_flow_step_without_repeating_external_effects()
     {
+        Assert.SkipUnless(factory.Services.GetService<IStructuredFormPublicationDriver>() is not null,
+            "The optional structured form publisher must be installed for this composition test.");
         var clock = new FakeTimeProvider(factory.Clock.GetUtcNow());
         var provider = new CapturingFlowProvider(clock);
         await using var host = FormsHost(provider, new CapturingWhatsAppCloudClient(), new CapturingStructuredFormSource(), clock);
@@ -61,6 +64,8 @@ public sealed partial class WhatsAppFormSendingTests
     [Fact]
     public async Task A_definitive_account_mismatch_fails_each_target_without_retrying_or_creating_flows()
     {
+        Assert.SkipUnless(factory.Services.GetService<IStructuredFormPublicationDriver>() is not null,
+            "The optional structured form publisher must be installed for this composition test.");
         var clock = new FakeTimeProvider(factory.Clock.GetUtcNow());
         var provider = new CapturingFlowProvider(clock);
         await using var host = FormsHost(provider, new CapturingWhatsAppCloudClient(), new CapturingStructuredFormSource(), clock);

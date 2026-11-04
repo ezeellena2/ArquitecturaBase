@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using ArquitecturaBase.Api.IntegrationTests.Support;
+using ArquitecturaBase.Api.IntegrationTests.TestFeatures;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.WhatsApp;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Models.StructuredData;
@@ -22,6 +23,8 @@ public sealed partial class WhatsAppFormSendingTests
     [InlineData("Provider", "Uncertain", 1)]
     public async Task A_failed_dispatch_is_uncertain_only_after_invoking_the_provider(string phase, string state, int providerCalls)
     {
+        Assert.SkipUnless(factory.Services.GetService<IStructuredFormPublicationDriver>() is not null,
+            "The optional structured form publisher must be installed for this composition test.");
         var clock = new FakeTimeProvider(factory.Clock.GetUtcNow());
         var source = new CapturingStructuredFormSource();
         var failures = new FormSendFailureAdapters(phase);

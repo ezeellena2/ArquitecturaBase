@@ -1,5 +1,6 @@
 using System.Net;
 using ArquitecturaBase.Api.IntegrationTests.Support;
+using ArquitecturaBase.Api.IntegrationTests.TestFeatures;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
@@ -16,6 +17,8 @@ public sealed class WhatsAppFormsEligibilityTests(ApiFactory factory)
     [Fact]
     public async Task Form_choices_require_chat_read_and_send_and_do_not_infer_a_recipient_link_or_inherit_operator_permissions()
     {
+        Assert.SkipUnless(factory.Services.GetService<IStructuredFormPublicationDriver>() is not null,
+            "The optional structured form publisher must be installed for this composition test.");
         using var actor = await OperatorAsync(WhatsAppPermissions.Read, WhatsAppPermissions.Send, "formrecords.create");
         var contactId = await factory.InTransactionAsync(services =>
         {

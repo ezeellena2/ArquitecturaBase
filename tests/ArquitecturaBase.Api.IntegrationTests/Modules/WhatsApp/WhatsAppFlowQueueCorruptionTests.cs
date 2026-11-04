@@ -2,6 +2,7 @@ using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Api.IntegrationTests.Support;
+using ArquitecturaBase.Api.IntegrationTests.TestFeatures;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Domain.ValueObjects;
@@ -22,6 +23,8 @@ public sealed partial class WhatsAppFlowReconciliationTests
     [InlineData(true)]
     public async Task An_unreadable_flow_does_not_block_the_next_operation_or_erase_an_inflight_effect(bool projectionWithInFlightEffect)
     {
+        Assert.SkipUnless(factory.Services.GetService<IStructuredFormPublicationDriver>() is not null,
+            "The optional structured form publisher must be installed for this composition test.");
         await using var isolated = new ApiFactory();
         await isolated.InitializeAsync();
         var clock = new FakeTimeProvider(isolated.Clock.GetUtcNow());

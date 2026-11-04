@@ -28,6 +28,8 @@ public sealed partial class WhatsAppFormSendingTests
     [Fact]
     public async Task Real_files_flow_is_atomic_private_reloadable_and_independent_of_message_retention()
     {
+        Assert.SkipUnless(factory.Services.GetService<IStructuredFormPublicationDriver>() is not null,
+            "The optional structured form publisher must be installed for this composition test.");
         await using var emulator = new AzuriteFixture(); await emulator.StartAsync(Ct);
         var store = new AzureBlobFileStore(Options.Create(new FileStorageOptions { Enabled = true, CredentialMode = "ConnectionString", ConnectionString = emulator.ConnectionString }));
         var clock = new FakeTimeProvider(factory.Clock.GetUtcNow());

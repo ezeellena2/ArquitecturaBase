@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using ArquitecturaBase.Api.IntegrationTests.Support;
+using ArquitecturaBase.Api.IntegrationTests.TestFeatures;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.WhatsApp;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Models.StructuredData;
@@ -18,6 +19,8 @@ public sealed partial class WhatsAppFormSendingTests
     [InlineData("WhatsApp:PhoneNumberId", "444")]
     public async Task A_published_form_cannot_be_queued_from_a_different_meta_account(string setting, string value)
     {
+        Assert.SkipUnless(factory.Services.GetService<IStructuredFormPublicationDriver>() is not null,
+            "The optional structured form publisher must be installed for this composition test.");
         var clock = new FakeTimeProvider(factory.Clock.GetUtcNow());
         var provider = new CapturingFlowProvider(clock);
         var cloud = new CapturingWhatsAppCloudClient();

@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using ArquitecturaBase.Api.IntegrationTests.Support;
+using ArquitecturaBase.Api.IntegrationTests.TestFeatures;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.WhatsApp;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
@@ -29,6 +30,8 @@ public sealed partial class WhatsAppFormSendingTests
     [InlineData("en", true)]
     public async Task Real_http_reply_cards_preserve_exact_values_and_hide_them_without_read_permission(string culture, bool catalog)
     {
+        Assert.SkipUnless(factory.Services.GetService<IStructuredFormPublicationDriver>() is not null,
+            "The optional structured form publisher must be installed for this composition test.");
         // Meta sends whole seconds: from a clock another test left mid-second, the reply would date before the form it answers.
         var clock = new FakeTimeProvider(MetaWebhook.TruncatedToSeconds(factory.Clock.GetUtcNow().UtcDateTime));
         var snapshot = ReplySnapshot(catalog);

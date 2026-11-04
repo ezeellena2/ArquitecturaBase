@@ -1,4 +1,5 @@
 using ArquitecturaBase.Api.IntegrationTests.Support;
+using ArquitecturaBase.Api.IntegrationTests.TestFeatures;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.WhatsApp;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Interfaces.Persistence;
@@ -23,6 +24,8 @@ public sealed partial class WhatsAppFlowReconciliationTests(ApiFactory factory)
     [Fact]
     public async Task Confirmed_phone_mismatch_prevents_any_flow_effect()
     {
+        Assert.SkipUnless(factory.Services.GetService<IStructuredFormPublicationDriver>() is not null,
+            "The optional structured form publisher must be installed for this composition test.");
         var provider = new CapturingFlowProvider(factory.Clock);
         await using var host = factory.WithWebHostBuilder(builder => builder.UseSetting("WhatsApp:WabaId", "222")
             .ConfigureTestServices(services =>
@@ -44,6 +47,8 @@ public sealed partial class WhatsAppFlowReconciliationTests(ApiFactory factory)
     [Fact]
     public async Task Account_lookup_failure_during_reconciliation_does_not_repeat_an_uncertain_publish()
     {
+        Assert.SkipUnless(factory.Services.GetService<IStructuredFormPublicationDriver>() is not null,
+            "The optional structured form publisher must be installed for this composition test.");
         var clock = new FakeTimeProvider(factory.Clock.GetUtcNow());
         var provider = new CapturingFlowProvider(clock) { PublishUncertainOnce = true };
         await using var host = factory.WithWebHostBuilder(builder => builder.UseSetting("WhatsApp:WabaId", "222")

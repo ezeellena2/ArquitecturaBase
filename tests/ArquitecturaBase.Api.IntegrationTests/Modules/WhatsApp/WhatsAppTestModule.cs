@@ -16,5 +16,5 @@ internal sealed class WhatsAppTestModule : IApiTestModule
         services.AddSingleton<IStructuredFormAppPreviewDriver, StructuredFormAppPreviewDriver>();
         services.Configure<ArquitecturaBase.Infrastructure.Modules.WhatsApp.WhatsAppOptions>(options => options.ProcessFlowsInBackground = false);
     }
-    public IReadOnlyCollection<string> Routes => ExplicitRouteInventoryTests.WhatsAppRoutes;
+    public IReadOnlyCollection<string> Routes => ExplicitRouteInventoryTests.InstalledWhatsAppRoutes;
 }
