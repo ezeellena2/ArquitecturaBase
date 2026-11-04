@@ -92,8 +92,10 @@ leer y crear una propuesta, y el cambio del motor para «Cambiar algo» tiene su
 7. **Entradas y sugerencias.** Hecha (front b0eaa847 y b66026ed): «Armar con la IA» en Diseñar formularios, Catálogos y
    Formularios que faltan, con el pedido empezado en el estado de la navegación, y la sugerencia y el texto del editor de Inicio
    vacío. Tests y la escena `assistantEntries`, sin golden.
-8. **Continuar una operación en el motor.** La operación anterior en la aceptación, el turno en su conversación, la huella y la
-   historia de canales, con TDD.
+8. **Continuar una operación en el motor.** Hecha (36923c7b): `PreviousRequestId` en la operación neutral suma el turno a la
+   conversación de la última operación terminada y vigente de las mismas personas y conversación del canal, con la reserva de
+   permisos; la historia de un canal lleva la última propuesta con su contenido y la huella suma la referencia sólo cuando
+   existe. Unitarias y huella; la persistencia usa los métodos existentes del repositorio y se recorre con PostgreSQL en la 9.
 9. **WhatsApp.** El puerto del resumen y crear, las capacidades en el asistente automático, el resumen con «Crear borrador» o
    «Crear catálogo» y «Cambiar algo», el Id de los botones, sólo la última propuesta, el enlace, los textos fijos de «no se
    puede», H4 con el botón y las propuestas fuera del cupo de ofertas. Unitarias e integración.
@@ -125,3 +127,8 @@ la sugerencia «Armame un catálogo con una planilla» llega con el clip en la E
 etapa Inicio vacío suma sólo «Armame un formulario para…», con el permiso de diseñar formularios. De paso se arregló lo que
 encontró la sesión de las listas dependientes: los dobles de Inicio (85bbcd69), el conteo del OpenAPI (90c264ad) y la historia
 de la migración de valores del catálogo (e2ec8fbd). Sigue la tarea 8.
+
+2026-11-04: tarea 8 hecha en el motor, con las unitarias de Application, arquitectura y la huella en verde. Lo que el plan no
+fijaba: la operación anterior tiene que ser la última de su conversación (si no, revisión cambiada, como la revisión esperada
+de Inicio), terminada y vigente; el ámbito compara personas y conversación del canal, no lo ofrecido, que puede cambiar entre
+mensajes. Sigue la tarea 9, WhatsApp.
