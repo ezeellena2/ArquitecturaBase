@@ -21,6 +21,7 @@ En el segundo estilo, Application carga detalles de MVC. El caso más claro son 
 
 - Hay una sola regla, y un test de arquitectura la puede verificar: los parámetros `[FromBody]` y `[FromQuery]` de un controller son tipos de `Api.Contracts`.
 - Los `ToString()` que ocultan datos personales se mudan a los contratos, y Application deja de conocer detalles de MVC.
+  - **Nota posterior (2026-11-03):** lo que registra MVC de los argumentos lo decide el contrato. Los modelos de Application con datos privados (colas, formularios, IA) también ocultan su `ToString()`, para cualquier log o excepción: no es un detalle de MVC.
 - Cada ruta con entrada suma un contrato y un mapeo escrito a mano, como pide `AGENTS.md` para todos los mapeos.
 - Pasar a contratos no tiene que cambiar el JSON que recibe la Api. Si un cambio toca un contrato que consume el front, se revisa antes el cliente en `../ArquitecturaBaseFront`.
 - Como las respuestas salen de los `*Response` de Application, renombrar una propiedad de un `*Response` cambia el contrato HTTP.
