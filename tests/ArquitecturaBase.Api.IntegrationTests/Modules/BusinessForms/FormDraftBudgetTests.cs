@@ -48,8 +48,19 @@ public sealed partial class FormDraftEndpointsTests
     public async Task Openapi_declares_draft_check_acceptance_and_status_operations_with_problem_schemas()
     {
         var document = await OpenApiTests.ReadDocumentAsync(factory); var paths = document.GetProperty("paths");
-        Assert.Equal(76, paths.EnumerateObject().Where(path => path.Name.StartsWith("/api/forms/", StringComparison.Ordinal))
+        Assert.Equal(80, paths.EnumerateObject().Where(path => path.Name.StartsWith("/api/forms/", StringComparison.Ordinal))
             .Sum(path => path.Value.EnumerateObject().Count(operation => operation.Name is "get" or "post" or "put" or "delete")));
+        // Creating from a Home proposal (IA2): 201 with what it created, problems for invalid, unavailable and replaced, and the status.
+        foreach (var (path, schema) in new[] { ("/api/forms/definitions/assistant-proposals", "FormDraftAssistantProposalResponse"),
+            ("/api/forms/catalogs/assistant-proposals", "FormCatalogAssistantProposalResponse") })
+        {
+            var creation = paths.GetProperty(path).GetProperty("post").GetProperty("responses");
+            Assert.Equal("#/components/schemas/" + schema, creation.GetProperty("201").GetProperty("content").GetProperty("application/json").GetProperty("schema").GetProperty("$ref").GetString());
+            foreach (var status in new[] { "400", "404", "409" })
+                Assert.Equal("#/components/schemas/ProblemDetails", creation.GetProperty(status).GetProperty("content").GetProperty("application/problem+json").GetProperty("schema").GetProperty("$ref").GetString());
+            Assert.Equal("#/components/schemas/" + schema, paths.GetProperty(path + "/{proposalId}").GetProperty("get").GetProperty("responses").GetProperty("200")
+                .GetProperty("content").GetProperty("application/json").GetProperty("schema").GetProperty("$ref").GetString());
+        }
         foreach (var (suffix, contentType) in new[] { ("thumbnail", "image/jpeg"), ("content", "application/octet-stream") })
         {
             var file = paths.GetProperty("/api/forms/records/{recordId}/files/{fileId}/" + suffix).GetProperty("get");
