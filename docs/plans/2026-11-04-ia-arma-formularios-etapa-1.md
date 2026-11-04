@@ -24,69 +24,90 @@ Lo que el plan no fijaba, resuelto con la opción más simple que cumple el plan
    | `forms.authoring.propose-catalog` | Proposal | `formcatalogs.read`, `formcatalogs.manage` | un catálogo Manual sin opciones: nombre, descripción, tipo de valor, qué es el código, qué es la opción y campos |
 
    Las propuestas no exigen una lectura observada: los catálogos que usa un formulario se comprueban en la base al proponer y
-   al crear. Un dato inválido devuelve la propuesta rechazada con sus motivos, para que el modelo la corrija en el mismo turno;
-   nunca se recorta. La salida es la propuesta normalizada que muestra la tarjeta.
+   al crear. Un dato inválido vuelve como `rejected`, con la ruta de cada argumento a corregir; el motor no le da Id, así que
+   nunca se elige, y el modelo la corrige en el mismo turno. Nunca se recorta. La salida es la propuesta normalizada que
+   muestra la tarjeta. Las lecturas van en 8 KiB cada una, para dejar lugar a la historia y a una corrección.
 2. **Tope de definiciones: de 12 a 16.** Inicio queda en 12 (cinco consultas, las cuatro capacidades, las dos de H4 y la
    terminal), pero el asistente automático de WhatsApp tiene nueve más la terminal y con las cuatro llega a 14 para una
    cuenta con todos los permisos. El ADR 0024 prevé «agruparlas o revisar ese tope»; agrupar mezclaría permisos. Siguen los seis
    llamados y los cuatro pasos por turno.
-3. **Inicio cierra con `assistant_answer@2`.** Una sola terminal: `kind` suma `proposal` y `proposalId` es obligatorio en ese
-   caso y vacío en los demás. El texto de una propuesta no exige evidencias. Las instrucciones pasan a `home-system@2`; los
-   turnos con la versión 1 se siguen leyendo. La historia de Inicio suma la última propuesta (su contenido normalizado) para
-   poder ajustarla.
+3. **Inicio cierra con `assistant_answer@2`.** Una sola terminal: `kind` suma `proposal` y `proposalId` la nombra en ese caso
+   y es null en los demás. El texto de una propuesta no exige evidencias. Las instrucciones pasan a `home-system@2`, genéricas:
+   el motor no nombra formularios. Inicio suma sólo las capacidades que su dueño marca `OfferedInHome`, y sus sugerencias
+   siguen siendo las de las cinco consultas. Los turnos con la versión 1 se siguen leyendo. La historia de Inicio suma el
+   contenido de la última propuesta para ajustarla, y el listado de turnos carga los resultados de herramientas por página.
+   Con el módulo dueño quitado, la explicación se lee sin la tarjeta.
 4. **Tope de salida: `OutputTokens` de 1500 a 4096.** Un formulario entero viaja como argumentos de la propuesta; con 1500 un
    formulario mediano corta la respuesta.
 5. **Crear lo pide la persona en la web por BusinessForms.** `POST /api/forms/definitions/assistant-proposals` y
    `POST /api/forms/catalogs/assistant-proposals` reciben el `requestId` del turno y el `proposalId`; cada uno lee la propuesta
-   por un método nuevo del puerto del motor, `IAssistantOperations.FindProposalAsync`, que comprueba dueño, vigencia y permisos
-   del turno y dice si sigue siendo la última de su conversación. Crear es idempotente por propuesta: el formulario guarda
+   por un puerto nuevo del motor, `IAssistantProposalLookup`, sólo para turnos de Inicio del mismo actor: comprueba vigencia y
+   permisos del turno y dice si una propuesta posterior de la misma capacidad la reemplazó (pedir un catálogo después de un
+   formulario no reemplaza el formulario). La procedencia usa la hora del turno. Crear busca primero lo ya creado por esa
+   propuesta, así que un segundo toque devuelve lo mismo aunque la propuesta haya vencido. Crear es idempotente por propuesta: el formulario guarda
    `ProposalId` y su procedencia como ya lo hace el catálogo de H4. `GET …/assistant-proposals/{proposalId}` dice si ya se creó,
    para la tarjeta plegada. Un nombre o un prefijo en uso no crea nada.
 6. **Un catálogo Manual propuesto** nace inactivo con la propuesta pendiente, igual que H4, y se aprueba o descarta en su
    página. Aprobar un Manual sólo activa y guarda la decisión; no prueba filtros.
 7. **El front conecta la tarjeta sin que las features se importen:** un contexto en `src/shared/hooks` que provee `src/app`
    con componentes de `business-forms` cargados con lazy, como `UserDataSectionContext`. También aporta las sugerencias de
-   Inicio vacío según los permisos. «Reemplazada» lo calcula el front con los turnos de la conversación; el servidor lo
-   impide al crear.
+   Inicio vacío según los permisos. «Reemplazada» lo calcula el front con los turnos de la conversación (una propuesta
+   posterior de la misma capacidad); el servidor lo impide al crear.
 8. **WhatsApp arma el resumen con un puerto neutral nuevo** (`IStructuredAuthoringProposalChannel`), que BusinessForms
-   implementa: resume una propuesta (título, hasta 10 líneas y cuántas quedan) y la crea. H4 pasa por el mismo puerto. «Cambiar
-   algo» deja la conversación esperando el cambio, y el mensaje siguiente se interpreta con la propuesta anterior: el motor
-   acepta una operación anterior (`PreviousRequestId`) del mismo actor, canal y ámbito y la suma a la historia.
+   implementa, con su versión apagada en `Application/Channels`: resume una propuesta (título, hasta 10 líneas y cuántas
+   quedan) y la crea. H4 pasa por el mismo puerto. «Cambiar algo» deja la conversación esperando el cambio, y el mensaje
+   siguiente se interpreta con la propuesta anterior: el motor recibe la operación anterior y agrega el turno nuevo a la
+   conversación del motor de esa operación, como hace Inicio, así que la reserva de permisos, la historia vencida y la
+   retención ya aplican; la huella suma esa referencia sólo cuando existe. Los casos que hoy no tienen texto (sin permiso,
+   uno que ya existe, un archivo que no se lee) llegan como una propuesta de «no se puede» con su motivo, que el canal
+   traduce a su texto fijo.
 9. **Audio en Inicio:** el navegador sube la grabación (WebM u MP4, hasta 1.000.000 bytes como WhatsApp) como copia privada; el
-   motor la normaliza con `NormalizeAudio` en un canal propio y la transcripción se manda como pregunta del turno, que guarda la
-   referencia al audio para escucharlo después. `NormalizeAudio` suma WebM y MP4, verificados por su contenido.
+   motor la normaliza con `NormalizeAudio` en un canal propio. El turno recibe el `RequestId` de esa normalización y el servidor
+   toma el texto de la operación completada (mismo dueño, vigente), nunca del cliente; la referencia al audio entra en la
+   huella y una fuente de retención del módulo conserva el archivo mientras dure el contenido del turno. El bootstrap dice si
+   hay audio (proveedor, perfil de transcripción para lo que graba el navegador y almacenamiento). `NormalizeAudio` suma WebM y
+   MP4, verificados por su contenido, con un perfil de transcripción nuevo que se califica.
 
 ## Tareas
 
 Cada tarea sigue [validar un cambio](../guides/validar-un-cambio.md): TDD en las políticas, build y tests rápidos del área en
-cada corte. Las del backend exportan los contratos al cerrar.
+cada corte. Las del backend exportan los contratos al cerrar. El orden cambió con la revisión: el canal Inicio va antes de
+leer y crear una propuesta, y el cambio del motor para «Cambiar algo» tiene su propia tarea.
 
-1. **Lecturas de lo que existe.** `forms.authoring.forms` y `forms.authoring.catalogs`, con lector propio, presupuesto de
-   16 KiB y lectura parcial marcada, codec y pruebas.
-2. **Propuestas de formulario y de catálogo.** Esquemas cerrados, validación con `SaveFormDraftRequestValidator` y las reglas
-   de catálogos, catálogos existentes y activos, propuesta normalizada y rechazo con motivos. Pruebas unitarias.
-3. **Puerto para leer una propuesta de Inicio.** `FindProposalAsync` en `IAssistantOperations`, con el adaptador apagado y el
-   del motor, y pruebas de dueño, vigencia, permisos y «sigue siendo la última».
-4. **Crear desde una propuesta.** Columnas de propuesta en el formulario y propuestas Manual en el catálogo (migración),
-   servicios con una UoW, idempotencia y nombre o prefijo en uso; endpoints de crear y de estado; aprobar y descartar un Manual.
+1. **Lecturas de lo que existe.** Hecha (6b113b2e).
+2. **Propuestas de formulario y de catálogo.** Hecha (6b113b2e), con el rechazo con motivos en bd75ea73.
+3. **Canal Inicio.** Hecha en el motor (bd75ea73): capacidades `OfferedInHome`, `assistant_answer@2`, `home-system@2`, tope de 16,
+   `OutputTokens`, historia y listado con la propuesta, `proposal` en el turno HTTP y H4 en Inicio. Falta la captura del
+   contrato HTTP y la integración.
+4. **Leer una propuesta de Inicio.** `IAssistantProposalLookup` con su versión apagada y la del motor: sólo Inicio, dueño,
+   vigencia, permisos y reemplazo por capacidad.
+5. **Crear desde una propuesta.** Columnas de propuesta en el formulario y propuestas Manual en el catálogo (migración),
+   servicios con una UoW, lo ya creado antes de leer la propuesta, idempotencia y nombre o prefijo en uso; endpoints de crear y
+   de estado; aprobar y descartar un Manual; la prueba de arquitectura «sólo el servicio dueño crea desde una propuesta».
    Integración con PostgreSQL, inventario de rutas, OpenAPI y ejemplos HTTP.
-5. **Canal Inicio.** Catálogo con las capacidades nuevas y las de H4 según permisos, `assistant_answer@2`, `home-system@2`
-   es/en, tope de 16, `OutputTokens`, historia con la última propuesta, `proposal` en el turno HTTP (Id, capacidad, versión y
-   contenido) y H4 con el contexto de Inicio. Pruebas unitarias, de integración y la captura del contrato.
 6. **Tarjeta en el hilo.** Pieza de `shared/ui/assistant` con sus estados (abierta, «Reemplazada», «Borrador creado»), el
    contexto de extensión, la tarjeta de formulario, de catálogo y de H4 en `business-forms`, «Ver cómo queda» con
    `FormPreview`, crear y navegar, y la banda de propuesta en un catálogo Manual. Tests, contratos y visuales es/en.
 7. **Entradas y sugerencias.** «Armar con la IA» en Diseñar formularios, Catálogos y Formularios que faltan, con el pedido
    empezado en el estado de la navegación, y la sugerencia de Inicio vacío. Tests y visuales.
-8. **WhatsApp.** El puerto del resumen y crear, las capacidades en el asistente automático, el resumen con «Crear borrador» o
-   «Crear catálogo» y «Cambiar algo», el Id de los botones, sólo la última propuesta, el enlace, «Cambiar algo» con
-   `PreviousRequestId`, H4 con el botón y las propuestas fuera del cupo de ofertas. Unitarias e integración.
-9. **Audio.** WebM y MP4 en `NormalizeAudio`; en Inicio, subir, normalizar, escuchar y la referencia en el turno; en el front,
-   grabar, detener, descartar, escuchar y la transcripción en gris. Tests y visuales.
-10. **Casos de evaluación y cierre.** Casos ficticios del arnés de calificación (pedidos escritos y dictados, ajustes, nombres
-    en uso, sin permiso, ambiguos e instrucciones escondidas) y sus comprobaciones locales; la corrida con el proveedor real
-    espera el visto bueno del usuario. Reglas a `docs/features`, diferencias con el dibujo en el front, suites completas.
+8. **Continuar una operación en el motor.** La operación anterior en la aceptación, el turno en su conversación, la huella y la
+   historia de canales, con TDD.
+9. **WhatsApp.** El puerto del resumen y crear, las capacidades en el asistente automático, el resumen con «Crear borrador» o
+   «Crear catálogo» y «Cambiar algo», el Id de los botones, sólo la última propuesta, el enlace, los textos fijos de «no se
+   puede», H4 con el botón y las propuestas fuera del cupo de ofertas. Unitarias e integración.
+10. **Audio.** WebM y MP4 en `NormalizeAudio` con perfil nuevo; en Inicio, subir, normalizar, escuchar, retener y la referencia en
+    el turno; en el front, grabar, detener, descartar, escuchar y la transcripción en gris. Tests y visuales.
+11. **Casos de evaluación y cierre.** Casos ficticios del arnés de calificación para lo nuevo (pedidos escritos y dictados,
+    ajustes, rechazos corregidos, nombres en uso, sin permiso, ambiguos e instrucciones escondidas) y volver a correr los de
+    Inicio y de WhatsApp, que cambian; la corrida con el proveedor real espera el visto bueno del usuario. Reglas a
+    `docs/features`, diferencias con el dibujo en el front, suites completas.
+
+Riesgos a medir en la calificación: el presupuesto de contexto en un ajuste con historia, dos lecturas, una corrección y la
+terminal (131072 bytes, con la continuación contada aparte), y que una salida larga entre en los 30 segundos del proveedor.
 
 ## Estado
 
-Por empezar.
+2026-11-04: tareas 1 a 3 hechas en el backend (6b113b2e y bd75ea73), con unitarias, de arquitectura y de dominio en verde. La
+revisión del plan (15 hallazgos) cambió el rechazo de propuestas, el mecanismo de Inicio sin nombrar formularios, el
+reemplazo por capacidad, la continuación de WhatsApp en el motor y el audio de Inicio (retención y transcripción del
+servidor). Sigue la tarea 4.
