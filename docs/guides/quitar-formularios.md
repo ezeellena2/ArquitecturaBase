@@ -75,18 +75,35 @@ del otro módulo y se quedan.
 
 Quitá `src/features/business-forms` y lo que la compone afuera:
 
-- En `src/app/routes.tsx`, las rutas de `/formularios…`, `/catalogos…` y `/datos-de-personas`. Quitá también
-  `src/app/FormOverviewShell.tsx`, `FormOverviewCount.tsx` y `UserDataSectionShell.tsx`.
-- En `src/layouts/navigation.ts`, el panel `forms`, `isFormsPath` y el ítem `navigation.personData`. Después, sus usos
-  en `Sidebar.tsx` y `Breadcrumbs.tsx`, y sus textos de `common.json`.
+- En `src/app/routes.tsx`, las rutas de `/formularios…`, `/catalogos…` y `/datos-de-personas`; el `authenticatedShell`
+  queda en `<AppLayout />`. Borrá `src/app/FormOverviewShell.tsx`, `FormOverviewCount.tsx` y `UserDataSectionShell.tsx`
+  con sus tests, y `src/layouts/formsOverviewNavigation.ts`, el contexto del contador.
+- En `src/layouts/navigation.ts`, el panel `forms`, `isFormsPath` y el ítem `navigation.personData`. En `Sidebar.tsx`,
+  el panel, `FormsOverviewLink` y el resaltado de `/formularios…` en `NavItem`; en `Breadcrumbs.tsx`, las migas del PDF,
+  de las respuestas y de la carga. En `common.json`, sus ocho textos: `navigation.forms`, `designForms`, `catalogs`,
+  `missingForms`, `formOverview`, `responses`, `personData` y `layout.sidebar.closeForms`. En los tests,
+  `Sidebar.permissions.test.tsx` entero y los casos de formularios de `Sidebar.test.tsx`, `Breadcrumbs.test.tsx` y
+  `navigation.test.ts`.
 - Los namespaces `forms` y `formEntries`, en español y en inglés.
-- En `src/test` y `src/test/visual`, los fixtures que importan la feature. También las familias de formularios de
-  `src/test/httpCohort.ts`.
-- Las escenas `catalog*.spec.ts`, `form*.spec.ts`, `forms*.spec.ts`, `personData.spec.ts` y `responses*.spec.ts`, con
-  sus capturas.
+- En `src/test` y `src/test/visual`, los archivos que importan la feature, y `src/test/responseAssistanceFixture.ts`.
+- En `src/test/httpCohort.ts`, las 17 familias de formularios: todas menos `formFiles`, que usa WhatsApp, las
+  `whatsapp*` y `aiAssistant`. Con ellas se van sus capturas de `src/test/fixtures` (`catalogs-http` y las 13 que
+  empiezan con `forms-`), sus líneas de `.gitattributes` y sus filas de `httpCohort.test.ts`, cuyo caso sintético pasa
+  de `workflow` a `whatsappForms`.
+- Las escenas `catalog*.spec.ts`, `form*.spec.ts`, `personData.spec.ts` y `responses*.spec.ts`, con las cuatro
+  capturas `catalog-field-in-use-*`. Algunas no son de formularios: `formActionMessages`, `formReplies` y
+  `formSharedControls` prueban WhatsApp y el catálogo de componentes, y se quedan; de `formFiles` sale sólo el caso F1,
+  y de `catalogMultipleChoice` queda sólo el del chat (CA5). De `comparisons.spec.ts` sale la revisión del borrador.
+- En `src/test/visual/fixtures.ts`, los fixtures, escenarios, permisos y manejadores de formularios, y `forms` de
+  `installedFeatures`. Los escenarios `forms-chat-*` y `file-cards` son de WhatsApp y se quedan. En `preview.tsx`, la
+  ruta `/formularios/catalogos-preview`.
 
 WhatsApp no importa la feature: su envío de formularios consulta la API del canal, que sin fuente no ofrece ninguno.
-`installedFeatures` deja de traer `forms` y `form-files`.
+`installedFeatures` deja de traer `forms` y `form-files`. `src/shared/hooks/userDataSectionContext.ts` es el punto de
+extensión neutral de Editar usuario: se queda y, sin proveedor, no agrega nada. Las piezas de `src/shared` que sólo
+usaba la feature, como `FilterPanel`, `PasteGrid`, `StepList`, `PhonePreview` o `useCurrentBreadcrumbParent`, son de
+la biblioteca común y se conservan. Los tests del núcleo que usan rutas o permisos de formularios sólo como datos, como
+`ProtectedRoute`, `httpClient` o `useFilters`, pasan sin cambios.
 
 ```powershell
 npm run build
@@ -100,13 +117,18 @@ npm run test:visual
 Borrá `docs/features/formularios.md`, `docs/plans/formularios/` y los planes de formularios que queden en `docs/plans`.
 Después arreglá lo que los enlaza: `grep -rlE "formularios\.md|plans/formularios" --include=*.md .`, sin
 `docs/history` ni `docs/reviews`. Actualizá `AGENTS.md`, el [índice de premisas](../architecture/premisas-de-la-plantilla.md)
-y el [mapa de instrucciones](../architecture/mapa-de-instrucciones.md), sin las filas de las carpetas borradas. Seguí la
+y el [mapa de instrucciones](../architecture/mapa-de-instrucciones.md), sin las filas de las carpetas borradas. En el
+front, quitá las filas de `src/features/business-forms` de su
+[mapa de instrucciones](../../../ArquitecturaBaseFront/docs/mapa-de-instrucciones.md), su párrafo de
+`src/features/AGENTS.md`, la entrada Formularios de `docs/architecture.md`, las capturas borradas de
+`src/test/AGENTS.md` y los diseños de `docs/design` que enlazan escenas borradas. Seguí la
 [auditoría documental](auditar-documentacion.md).
 
 ## Comprobaciones registradas
 
-El 2026-11-03 se siguió esta guía en una copia descartable del backend: un `git archive` del commit, sin tocar el
-checkout. Resultados:
+El 2026-11-03 se siguió esta guía en copias descartables: un `git archive` del commit, sin tocar los checkouts.
+
+En el backend:
 
 - Build sin advertencias.
 - `RemoveBusinessForms` con las 23 tablas y las cuatro claves foráneas.
@@ -118,5 +140,11 @@ checkout. Resultados:
 esa corrida se corrigieron dos tests del núcleo que dependían del módulo: `ControllerInputContractTests` y el control de
 `ErrorCodeTests`.
 
-No se corrieron la integración con Docker ni el front. Antes de dar la guía por probada falta seguirla en una copia del
-front y correr la integración en la copia del backend.
+En el front, sobre `94b11e5f`:
+
+- `npm run build` sin advertencias.
+- `npm run lint`: oxlint sin diagnósticos en 511 archivos y arquitectura 53/53.
+- `npm run test`: 161 archivos y 1842 tests.
+- `npm run test:visual`: 314/314 en las 24 escenas que quedan.
+
+No se corrió la integración con Docker. Antes de dar la guía por probada falta correrla en la copia del backend.
