@@ -9,7 +9,9 @@ Casos de uso del módulo (`*Service`, detrás de `Interfaces/Services`), sus hel
 
 ### Acceso, códigos y teléfono
 
-`WhatsAppLoginCodeService`, `ProfileWhatsAppService`, `WhatsAppCodeIssuer`, `WhatsAppCodeQuotaGuard`, `WhatsAppContactLinker`, `WhatsAppIds`.
+`WhatsAppLoginCodeService`, `ProfileWhatsAppService`, `ProfileWhatsAppChatService`, `WhatsAppCodeIssuer`, `WhatsAppCodeQuotaGuard`, `WhatsAppContactLinker`, `WhatsAppIds`.
+
+- `ProfileWhatsAppChatService` sólo lee el chat del número de la cuenta para el perfil, con las mismas condiciones que un aviso: vínculo, número confirmado igual al del contacto y ventana de 24 h. No abre límite ni vincula.
 
 - `WhatsAppCodeIssuer` valida el país del número interpretado, aplica el tope diario global de `WhatsAppCodeQuotaGuard` (24 h móviles, todos los números) y emite con `LoginCodeIssuer`, dueño de los límites por destino. Conserva el propósito (SignInCode o VerifyPhoneCode) y marca enviado solo si la cola tomó el mensaje; corre en el límite del llamador.
 - `EnsureEnabled*` va antes del límite. Confirmar el número usa `OnAnyResult` para gastar el código. Verificación y canje de enlaces son del núcleo; `WhatsAppContactLinker` solo actúa en cambios explícitos.

@@ -5,7 +5,7 @@ Aloja controllers, contratos y convenciones de rutas de webhook, códigos y perf
 ## Lectura obligatoria
 
 Antes de tocar esto, leé [`docs/features/whatsapp.md`](../../../../docs/features/whatsapp.md).
-`MeWhatsAppController` pide el código y confirma el número; `DELETE /api/me/whatsapp` vive en el `MeController` del núcleo.
+`MeWhatsAppController` dice cómo está el chat del número, pide el código y confirma el número; `DELETE /api/me/whatsapp` vive en el `MeController` del núcleo.
 
 ## Al modificar
 

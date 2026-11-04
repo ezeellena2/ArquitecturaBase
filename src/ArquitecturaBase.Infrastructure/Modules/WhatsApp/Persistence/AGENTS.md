@@ -2,7 +2,7 @@
 
 Configuraciones EF, repositorios, lectores y claves de lock del módulo, sobre `Set<T>()` del contexto único. Se registran siempre, también con el transporte apagado: retención, estado de invitaciones y estado neutral de formularios los usan. Rigen además las guías de [persistencia del núcleo](../../../Persistence/AGENTS.md).
 
-- **Contactos:** `WhatsAppContacts`; `WhatsAppContactRepository` y `WhatsAppFormRecipientReader` (cuenta, idioma y huella de roles del destinatario).
+- **Contactos:** `WhatsAppContacts`; `WhatsAppContactRepository`, `WhatsAppFormRecipientReader` (cuenta, idioma y huella de roles del destinatario) y `WhatsAppContactReader` (el chat vinculado a una cuenta y si un número ya tiene chat, para el perfil).
 - **Historial:** mensajes, receipts y lecturas por operador; `WhatsAppMessageRepository`, `WhatsAppMessageReader`, `WhatsAppChatReader` (bandeja, no leídos, previews e hilo) y `WhatsAppMessageRetentionRepository`.
 - **Salida durable:** `WhatsAppOutgoingMessages` de chat manual, asistente y avisos de reglas (`Origin`); `WhatsAppConversationRepository`, `WhatsAppFormActionRepository` y `WhatsAppFormActionReader`.
 - **Flows:** operaciones, bindings por versión y cultura (publicación y retiro) y sesiones de envío; `WhatsAppFlowRepository/Reader`, `WhatsAppFlowSession*`, `WhatsAppFormChannelStateReader` (puerto `IStructuredFormChannelStateSource`) y `WhatsAppRecordOriginReader`.
