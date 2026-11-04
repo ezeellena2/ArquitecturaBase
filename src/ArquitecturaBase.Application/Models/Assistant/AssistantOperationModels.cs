@@ -14,6 +14,13 @@ public sealed record AssistantOperationAcceptedResponse(Guid RequestId, string S
 public sealed record AssistantOperationProvenance(string ModelProfileId, int ModelProfileVersion,
     string InstructionsId, int InstructionsVersion, DateTime OccurredAtUtc, string ChannelId);
 
+/// <summary>IsCurrent is false once a later turn of the same conversation closed on a proposal of the same capability.</summary>
+public sealed record AssistantProposalLookupResponse(AssistantChannelContext Context, AssistantObservedProposal Proposal,
+    AssistantOperationProvenance Provenance, bool IsCurrent)
+{
+    public override string ToString() => "AssistantProposalLookupResponse { Content = [REDACTED] }";
+}
+
 public sealed record AssistantOperationResponse(Guid RequestId, string State, AssistantObservedProposal? Proposal,
     AssistantOperationProvenance? Provenance, string? FailureCode)
 {

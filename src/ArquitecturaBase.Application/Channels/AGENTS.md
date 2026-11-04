@@ -23,3 +23,5 @@ DisabledStructuredFormChannelStateSource devuelve evidencia vacía cuando no hay
 DisabledStructuredFormRetirementSource conserva vacío el conjunto de versiones confirmadas como no usadas cuando falta el dueño. Su lock no tiene efectos y ambas operaciones respetan cancelación; no deduce retiro por ausencia del módulo.
 
 DisabledAssistantOperationCompletionSignal conserva el cierre del motor cuando falta un consumidor opcional: Notify es inmediato y no tiene efectos. El canal instalado reemplaza ese singleton con su adaptador; el núcleo nunca interpreta identificadores de módulos.
+
+DisabledAssistantProposalLookup responde Unavailable cuando falta la IA: sin motor no hay propuesta que leer ni crear.

@@ -33,12 +33,14 @@ internal sealed class ObservedReadAssistantScenario
     public AiAssistantDispatchService Dispatch { get; }
 
     public bool Home { get; }
+    public InMemoryUserAccounts Users { get; } = new();
+    public AiAssistantAccessGuard Guard { get; }
 
     // Home closes with assistant_answer@2, which may name one observed proposal; the other channels select it with assistant_proposal.
     public ObservedReadAssistantScenario(Func<Guid, DateTime, string, ObservedReadAssistantStorePorts> createStore, bool home = false)
     {
         Home = home;
-        var users = new InMemoryUserAccounts();
+        var users = Users;
         var actor = users.AddUser("observed-resource-fiction@example.test");
         Permissions.Permissions[actor.Id] = home ? [ArtificialIntelligencePermissions.AssistantUse] : [];
         Store = createStore(actor.Id, Clock.GetUtcNow().UtcDateTime, home ? "home" : "fixture-observed");
@@ -53,6 +55,7 @@ internal sealed class ObservedReadAssistantScenario
         var guard = new AiAssistantAccessGuard(users, Permissions,
             [new AiAssistantModelProfile(AiProvider.OpenAI, "model", limits.ContextBytes, true, true) { Id = "observed-fixture", Version = 1 }],
             limits, new FakeCurrentUser { UserId = Guid.NewGuid() }, catalog, []);
+        Guard = guard;
         if (Store.Turn.SealExecutionProfile(JsonSerializer.Serialize(Profile, AiAssistantResponsePolicy.JsonOptions)).IsFailure)
             throw new InvalidOperationException("The observed-read fixture profile must be sealed before claiming.");
         Store.Turn.ProtectQuestion(Protector.Protect(actor.Id, Store.Conversation.Id, Store.Turn.Id, "question", 1, "Fictional resource request"));

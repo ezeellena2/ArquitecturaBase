@@ -16,6 +16,7 @@ public static class ArtificialIntelligenceApplicationRegistration
         services.TryAddScoped<IAiConnectionService, AiConnectionService>();
         services.TryAddScoped<IAiAssistantService, AiAssistantService>();
         services.Replace(ServiceDescriptor.Scoped<IAssistantOperations, AiAssistantOperations>());
+        services.Replace(ServiceDescriptor.Scoped<IAssistantProposalLookup, AiAssistantProposalLookup>());
         services.TryAddScoped<IAiAssistantDispatchService, AiAssistantDispatchService>();
         services.TryAddScoped<IAiAssistantExecutionService, AiAssistantExecutionService>();
         services.TryAddScoped<IAiAssistantRetentionService, AiAssistantRetentionService>();

@@ -25,3 +25,5 @@ ChannelQuota verifica Inicio y canales separados, interpretación/audio independ
 Dispatch y AudioCompletionSignal comprueban el aviso neutral con ChannelId ficticio opaco después del commit, incluidos cierres terminales por guards. Un rollback o Result fallido no avisa; un cierre conocido puede reiterar el aviso coalescente y los turnos activos conservan la recuperación periódica.
 
 ConversationReservation comprueba Manual con dos ámbitos del mismo actor, con/sin Subject, exclusión del mismo ámbito, Get/Cancel sellados, replay antes de cuota y cuota compartida entre ámbitos. El fallback null conserva la reserva previa; NormalizeAudio mantiene sus controles existentes.
+
+ProposalLookup recorre un turno real de Inicio hasta el cierre con assistant_answer@2: encuentra la propuesta con la hora del turno como procedencia; otro Id, un turno de canal o uno vencido no se encuentran; sin el permiso de Inicio falla antes de leerla. Sólo una propuesta posterior de la misma capacidad la reemplaza: una respuesta o un turno sin terminar, no.

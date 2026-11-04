@@ -50,3 +50,5 @@ NormalizeAudio es un propósito técnico del mismo turno, aceptación, cuotas, c
 Submission conserva replay por UUID antes de contar cuotas. El cupo del actor se separa por canal y propósito capturados; instalación y capacidad permanecen globales. Claim sólo necesita capacidad y no infiere un propósito para calcularla.
 
 El perfil de texto exige Id explícito; no se infiere home. Al capturar el contexto, el catálogo valida un máximo total de dieciséis herramientas, incluidos los terminales y después del filtrado de permisos, antes de aceptar trabajo.
+
+AiAssistantProposalLookup (Channels) adapta IAssistantProposalLookup: busca el turno por el RequestId del actor, sólo de Inicio y completo, revalida sello, acceso y reserva de permisos antes de descifrar y compara el Id de la propuesta observada. IsCurrent recorre los turnos posteriores de la conversación por página, del más nuevo al más viejo: la reemplaza sólo una propuesta posterior de la misma capacidad (un catálogo pedido después de un formulario no lo reemplaza). La procedencia usa SubmittedAtUtc del turno.
