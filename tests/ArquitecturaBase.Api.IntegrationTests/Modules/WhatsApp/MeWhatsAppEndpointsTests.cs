@@ -822,8 +822,12 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
         Assert.Equal(JsonValueKind.Null, body.GetProperty("noticesUntilUtc").ValueKind);
     }
 
+    /// <summary>
+    /// Con WhatsApp apagado no hay chat que leer: la acción sale del registro. La ruta sigue para confirmar el número y
+    /// para el DELETE del núcleo, así que el GET responde 405 y no 404. El front sólo la lee con WhatsApp prendido.
+    /// </summary>
     [Fact]
-    public async Task With_whatsapp_off_reading_the_chat_answers_404()
+    public async Task With_whatsapp_off_reading_the_chat_is_not_an_operation_of_the_route()
     {
         await using var api = factory.WithWebHostBuilder(builder => builder.UseSetting("WhatsApp:PhoneNumberId", ""));
         using var client = api.CreateClient();
@@ -831,8 +835,8 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
 
         using var response = await ReadChatAsync(client, user);
 
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-        Assert.Equal("Http.NotFound", (await response.ReadJsonAsync()).GetProperty("code").GetString());
+        Assert.Equal(HttpStatusCode.MethodNotAllowed, response.StatusCode);
+        Assert.Equal("Http.MethodNotAllowed", (await response.ReadJsonAsync()).GetProperty("code").GetString());
     }
 
     [Fact]
