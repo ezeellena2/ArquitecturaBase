@@ -8,7 +8,7 @@ namespace ArquitecturaBase.Application.Modules.Arca.Services.Connection;
 /// Los servicios que traen las familias instaladas, sin nombrar a ninguna (ADR 0025): cuáles hay, cuáles son
 /// obligatorios, quién prueba cada uno elegido y si las familias elegidas tienen completa su configuración.
 /// </summary>
-internal sealed class ArcaServiceCatalog(IEnumerable<IArcaServiceDefinition> definitions)
+internal sealed class ArcaServiceCatalogPolicy(IEnumerable<IArcaServiceDefinition> definitions)
 {
     private readonly IArcaServiceDefinition[] families = [.. definitions];
 

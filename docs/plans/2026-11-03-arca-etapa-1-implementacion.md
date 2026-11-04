@@ -898,8 +898,8 @@ public sealed record ArcaServiceContext(ArcaCertificateRef Certificate, IArcaAcc
   `Unavailable` y `ServiceRejected`, con sus textos. `ServiceBlocked` lleva `retryAfter` en segundos.
 - **Lecturas nuevas:** `FindPendingRequestAsync` y `FindSigningCertificateAsync`. La segunda devuelve la clave cifrada,
   como `AiConnectionRow`, para la prueba y las familias.
-- **Ayudantes en `Services/Connection`:** `ArcaServiceCatalog` (servicios instalados, obligatorios, quién prueba cada uno
-  y la completitud de las familias) y `ArcaServiceAccess` (certificado activo, ticket y error de cada respuesta).
+- **Ayudantes en `Services/Connection`:** `ArcaServiceCatalogPolicy` (servicios instalados, obligatorios, quién prueba cada uno
+  y la completitud de las familias) y `ArcaServiceSessionIssuer` (certificado activo, ticket y error de cada respuesta).
 - **Dominio:** `ArcaConnection` suma `CertificateRequested` y `RequestCancelled`, que avanzan la revisión.
 - **Prueba de una renovación:** en rojo no guarda nada. Si el certificado probado cambió mientras corría, da
   `RevisionConflict`.

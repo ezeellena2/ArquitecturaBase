@@ -20,7 +20,7 @@ namespace ArquitecturaBase.Application.Modules.Arca.Services.Invoicing;
 /// El punto de venta de la plataforma. Se elige entre los que ARCA devuelve en ese momento y, guardado, la conexión
 /// vuelve a calcular su estado con la configuración de todas las familias elegidas.
 /// </summary>
-internal sealed class ArcaInvoicingSetupService(ArcaServiceAccess access, IArcaInvoicingClient client, IArcaConnectionRepository connections,
+internal sealed class ArcaInvoicingSetupService(ArcaServiceSessionIssuer access, IArcaInvoicingClient client, IArcaConnectionRepository connections,
     IArcaInvoicingRepository repository, IArcaInvoicingReader reader, IArcaConnectionTestService connectionTest, IUnitOfWork unitOfWork,
     ILogger<ArcaInvoicingSetupService> logger) : IArcaInvoicingSetupService
 {
@@ -63,7 +63,7 @@ internal sealed class ArcaInvoicingSetupService(ArcaServiceAccess access, IArcaI
         var reply = await client.ListPointsOfSaleAsync(session.Value.Certificate, session.Value.Ticket, cancellationToken);
         return reply is { Status: ArcaServiceCheckStatus.Ready, Value: { } points }
             ? Result.Success(points)
-            : ArcaServiceAccess.Failure(reply.Status);
+            : ArcaServiceSessionIssuer.Failure(reply.Status);
     }
 
     private async Task<Result> ChooseCoreAsync(int number, CancellationToken cancellationToken)

@@ -12,7 +12,7 @@ using Microsoft.Extensions.Logging;
 namespace ArquitecturaBase.Application.Modules.Arca.Services.Connection;
 
 internal sealed class ArcaConnectionService(IArcaConnectionRepository repository, IArcaConnectionReader reader,
-    IArcaCredentialService credentials, ArcaServiceCatalog catalog, IUnitOfWork unitOfWork, TimeProvider timeProvider,
+    IArcaCredentialService credentials, ArcaServiceCatalogPolicy catalog, IUnitOfWork unitOfWork, TimeProvider timeProvider,
     ILogger<ArcaConnectionService> logger) : IArcaConnectionService
 {
     public Task<Result<ArcaConnectionResponse>> GetAsync(CancellationToken cancellationToken) =>

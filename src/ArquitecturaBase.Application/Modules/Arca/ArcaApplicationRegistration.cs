@@ -28,8 +28,8 @@ public static class ArcaApplicationRegistration
 
     private static void AddConnection(IServiceCollection services)
     {
-        services.TryAddScoped<ArcaServiceCatalog>();
-        services.TryAddScoped<ArcaServiceAccess>();
+        services.TryAddScoped<ArcaServiceCatalogPolicy>();
+        services.TryAddScoped<ArcaServiceSessionIssuer>();
         services.TryAddScoped<IArcaAccessTicketStore, ArcaAccessTicketStore>();
         services.TryAddScoped<IArcaConnectionService, ArcaConnectionService>();
         services.TryAddScoped<IArcaConnectionTestService, ArcaConnectionTestService>();

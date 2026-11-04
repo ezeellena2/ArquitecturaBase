@@ -17,7 +17,7 @@ namespace ArquitecturaBase.Application.Modules.Arca.Services.Connection;
 /// certificado activo sigue andando.
 /// </summary>
 internal sealed class ArcaConnectionTestService(IArcaConnectionRepository repository, IArcaConnectionReader reader,
-    ArcaServiceCatalog catalog, IArcaAccessTicketProvider tickets, IUnitOfWork unitOfWork, TimeProvider timeProvider,
+    ArcaServiceCatalogPolicy catalog, IArcaAccessTicketProvider tickets, IUnitOfWork unitOfWork, TimeProvider timeProvider,
     ILogger<ArcaConnectionTestService> logger) : IArcaConnectionTestService
 {
     public Task<Result<ArcaTestResponse>> TestAsync(CancellationToken cancellationToken) =>
