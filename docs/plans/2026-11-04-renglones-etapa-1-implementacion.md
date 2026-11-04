@@ -195,12 +195,18 @@ que la sesión de las listas dependientes commitee lo suyo.
 ### Tarea 7 · El front: el editor
 
 - [x] Preguntar al usuario por el motivo de «Renglones» en el desplegable: RG9-A.
-- [ ] Un módulo puro `rowsQuestions.ts` (como `selectionQuestions.ts`): crear el bloque, marcar y desmarcar «Se carga varias
+- [x] Un módulo puro `rowsQuestions.ts` (como `selectionQuestions.ts`): crear el bloque, marcar y desmarcar «Se carga varias
   veces» con identidad nueva, mover el bloque con sus preguntas, el «Agregar pregunta» de adentro y los tipos permitidos.
-- [ ] `QuestionEditor` (casilla `CheckboxField` con su (i); editor del bloque con nombre, ayuda, mínimo y máximo, y la (i)
-  del máximo), la lista en `FormEditorPage` con el recuadro y la numeración 5.1, 5.2…, y los textos es/en.
-- [ ] Tests y escena visual del editor con el bloque, es/en a 1440, 390 y 320.
-- [ ] Commit en el front: `feat(formularios): el editor arma el bloque de renglones`.
+  Lo que los tableros no fijaron, con la opción más simple: el tacho del bloque lo quita con sus preguntas (pide confirmar y
+  dice cuántas), un bloque con preguntas no cambia de tipo (su desplegable se apaga con el motivo) y uno vacío sí, y una
+  pregunta del bloque que cambia a otro tipo que entra en un renglón sigue en el bloque.
+- [x] `QuestionEditor` (casilla `CheckboxField` con su (i); editor del bloque con nombre, ayuda, mínimo y máximo, y la (i)
+  del máximo; RG9-A en el desplegable), la lista en `FormEditorPage` con el recuadro y la numeración 5.1, 5.2…, el conteo
+  sin el bloque y los textos es/en.
+- [x] Tests (`rowsQuestions.test.ts`, `QuestionEditor.rows.test.tsx`, `FormEditorRows.test.tsx`) y escena visual
+  `formRows` (`forms-rows`), es/en a 1440, 390 y 320, sin scroll de la página. La vista previa todavía dibuja el bloque
+  como un campo: es de la Tarea 8.
+- [x] Commit en el front: `feat(formularios): el editor arma el bloque de renglones`.
 
 ### Tarea 8 · El front: vista previa y publicar
 
