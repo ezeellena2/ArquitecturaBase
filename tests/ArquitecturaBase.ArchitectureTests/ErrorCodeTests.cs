@@ -69,6 +69,42 @@ public sealed partial class ErrorCodeTests
         Assert.Empty(UndeclaredKeys(ReadErrorKeys(), declared));
     }
 
+    [Fact]
+    public void Every_code_declared_in_domain_has_spanish_and_english_texts()
+    {
+        // Al revés que la regla anterior: cada código tiene su texto, o el usuario vería la descripción técnica en inglés.
+        // La mayoría de los códigos se escriben dentro de la fábrica, sin una constante *Code que se pueda leer por
+        // reflexión.
+        var declared = DeclaredCodes();
+        Assert.Contains("Files.Content.NotFound", declared);
+
+        // Caso de control: falta el texto en los dos idiomas o solo en inglés.
+        Dictionary<string, string> spanish = new(StringComparer.Ordinal)
+        {
+            ["Files.Content.NotFound"] = "No encontramos el archivo.",
+            ["Control.Spanish.Only"] = "Solo en español.",
+        };
+        Dictionary<string, string> english = new(StringComparer.Ordinal) { ["Files.Content.NotFound"] = "File not found." };
+        Assert.Equal(
+            ["Control.Missing.Text", "Control.Spanish.Only"],
+            Untranslated(["Files.Content.NotFound", "Control.Spanish.Only", "Control.Missing.Text"], spanish, english));
+
+        Assert.Empty(Untranslated(declared, ReadErrorTexts("Errors.resx"), ReadErrorTexts("Errors.en.resx")));
+    }
+
+    private static string[] Untranslated(
+        IEnumerable<string> codes,
+        Dictionary<string, string> spanish,
+        Dictionary<string, string> english) =>
+    [
+        .. codes
+            .Where(code => !HasText(spanish, code) || !HasText(english, code))
+            .Order(StringComparer.Ordinal),
+    ];
+
+    private static bool HasText(Dictionary<string, string> texts, string code) =>
+        texts.TryGetValue(code, out var text) && !string.IsNullOrWhiteSpace(text);
+
     private static string[] UndeclaredKeys(IEnumerable<string> keys, HashSet<string> declared) =>
     [
         .. keys
@@ -86,12 +122,14 @@ public sealed partial class ErrorCodeTests
             .Where(value => ErrorCodeFormat().IsMatch(value)),
     ];
 
-    private static string[] ReadErrorKeys() =>
-        XDocument.Load(Path.Combine(SolutionRoot.FullPath, "src", "ArquitecturaBase.Application", "Resources", "Errors.resx"))
+    private static string[] ReadErrorKeys() => [.. ReadErrorTexts("Errors.resx").Keys];
+
+    // Cada clave de un Errors*.resx con su texto.
+    private static Dictionary<string, string> ReadErrorTexts(string file) =>
+        XDocument.Load(Path.Combine(SolutionRoot.FullPath, "src", "ArquitecturaBase.Application", "Resources", file))
             .Root!
             .Elements("data")
-            .Select(data => data.Attribute("name")!.Value)
-            .ToArray();
+            .ToDictionary(data => data.Attribute("name")!.Value, data => data.Element("value")?.Value ?? "", StringComparer.Ordinal);
 
     // Area.Entidad.Motivo: tres segmentos o más, cada uno en PascalCase (por ejemplo, Auth.LoginCode.Expired).
     [GeneratedRegex(@"^[A-Z][A-Za-z]+(\.[A-Z][A-Za-z0-9]+){2,}$")]

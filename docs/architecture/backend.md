@@ -214,7 +214,7 @@ El SPA vive en `../ArquitecturaBaseFront` (React + Vite) y AppHost lo levanta. U
 
 - reglas de capas (NetArchTest y referencias de cada `.csproj`) y `ControllerServiceRepositoryTests` (controllers → servicios, también en módulos);
 - `ApplicationPackagesTests` (paquetes de una lista, sin `FrameworkReference`), `ApplicationPublicApiTests` (sin `IQueryable` ni `Expression` públicos), `MinimalApiRoutesTests` (sin `Map*` fuera de ServiceDefaults), `ApplicationServicesTests` (cada `*Service` con su interfaz), `ApiRequestContextTests` (adaptadores en `Api/RequestContext`) y `EntityConfigurationTests` (una configuración por entidad);
-- `ErrorCodeTests`: claves `Area.Entidad.Motivo`, salvo las reservadas (`Title.*`, `Validation.Failed`, `ApiErrorCodes`), que tienen que seguir existiendo;
+- `ErrorCodeTests`: claves `Area.Entidad.Motivo`, salvo las reservadas (`Title.*`, `Validation.Failed`, `ApiErrorCodes`), que tienen que seguir existiendo, y cada código de una clase `*Errors` de Domain, leído del IL, con texto en `Errors.resx` y `Errors.en.resx`;
 - `IdentityBoundaryTests` (IL): los límites de Identity, listados en [identidad.md](../features/identidad.md);
 - `PersistenceRegistrationTests` (IL): en `src`, solo `PersistenceRegistration`, el `<M>InfrastructureRegistration` (lo suyo), `SeedExtensions` y `DatabaseSeeder` nombran repositorios, lectores o seeders concretos;
 - `ServiceDependencyLimitTests`: hasta 8 dependencias por constructor en `Application.Services`, contando `ILogger`, `IOptions` y `TimeProvider`, sin excepciones: la clase que se pasa se parte por responsabilidad.

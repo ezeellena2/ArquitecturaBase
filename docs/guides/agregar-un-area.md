@@ -86,10 +86,9 @@ En los nombres, `<Entidad>` es el singular en PascalCase (`Product`), `<Área>` 
 - **Qué:** `public static class <Entidad>Errors` en `src/ArquitecturaBase.Domain/<Área>/`. Cada error es un par: una constante `public const string <Motivo>Code = "<Área>.<Entidad>.<Motivo>";` y un `public static readonly Error <Motivo> = Error.NotFound(<Motivo>Code, "<descripción técnica en inglés>");`. El código es la clave del texto en [`Errors.resx`](../../src/ArquitecturaBase.Application/Resources/Errors.resx) (español rioplatense, con voseo) y en [`Errors.en.resx`](../../src/ArquitecturaBase.Application/Resources/Errors.en.resx).
 - **Copiá:** [`RoleErrors.cs`](../../src/ArquitecturaBase.Domain/Authorization/RoleErrors.cs) y sus claves `Roles.Role.*` en los dos `.resx`.
 - **Trampas:**
-  - Sin la constante terminada en `Code`, el test de traducciones no ve el error y el usuario recibe la descripción técnica en inglés.
   - El tipo del `Error` decide el status HTTP (`ProblemDetailsMapper.ToStatusCode`): `NotFound` 404, `Conflict` 409, `Forbidden` 403, `Validation` 400. Un `Conflict` pide además `[ProducesProblem(StatusCodes.Status409Conflict)]` en la acción (paso 11).
   - Un mensaje de validación nuevo (no de negocio) va en `Validation.resx` y `Validation.en.resx`; los que ya existen (`Required`, `MaxLength`) se reutilizan.
-- **Lo verifica:** [`ErrorCodeTranslationTests`](../../tests/ArquitecturaBase.Application.UnitTests/Resources/ErrorCodeTranslationTests.cs) (cada `*Code` con texto en los dos idiomas) y [`ResourceParityTests`](../../tests/ArquitecturaBase.Application.UnitTests/Resources/ResourceParityTests.cs) en Application; [`ErrorCodeTests`](../../tests/ArquitecturaBase.ArchitectureTests/ErrorCodeTests.cs) (el formato `Area.Entidad.Motivo`) en arquitectura.
+- **Lo verifica:** [`ResourceParityTests`](../../tests/ArquitecturaBase.Application.UnitTests/Resources/ResourceParityTests.cs) en Application; [`ErrorCodeTests`](../../tests/ArquitecturaBase.ArchitectureTests/ErrorCodeTests.cs) en arquitectura: el formato `Area.Entidad.Motivo`, y que cada código de una clase `*Errors`, también el que se escribe dentro de la fábrica, tenga texto en los dos idiomas. Sin texto, el usuario recibiría la descripción técnica en inglés.
 
 ### 5. Permisos
 
