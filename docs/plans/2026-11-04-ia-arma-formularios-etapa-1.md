@@ -89,8 +89,9 @@ leer y crear una propuesta, y el cambio del motor para «Cambiar algo» tiene su
    `shared/ui/assistant` con sus estados, el contexto de extensión que compone app, la tarjeta de formulario, de catálogo y de
    H4 en `business-forms`, «Ver cómo queda» con `FormPreview`, crear y navegar, y la banda de propuesta en un catálogo Manual.
    Las escenas visuales es/en están escritas y se capturan al cierre, con los contratos de la cohorte exportada.
-7. **Entradas y sugerencias.** «Armar con la IA» en Diseñar formularios, Catálogos y Formularios que faltan, con el pedido
-   empezado en el estado de la navegación, y la sugerencia de Inicio vacío. Tests y visuales.
+7. **Entradas y sugerencias.** Hecha (front b0eaa847 y b66026ed): «Armar con la IA» en Diseñar formularios, Catálogos y
+   Formularios que faltan, con el pedido empezado en el estado de la navegación, y la sugerencia y el texto del editor de Inicio
+   vacío. Tests y la escena `assistantEntries`, sin golden.
 8. **Continuar una operación en el motor.** La operación anterior en la aceptación, el turno en su conversación, la huella y la
    historia de canales, con TDD.
 9. **WhatsApp.** El puerto del resumen y crear, las capacidades en el asistente automático, el resumen con «Crear borrador» o
@@ -118,3 +119,9 @@ con la opción más simple: el nombre en uso se compara sin mayúsculas con el n
 para H4 desde Inicio); el estado da el Id creado o null, nunca 404; la evidencia dice `requestedIn: "app"` para la banda «en el
 chat de Inicio»; los catálogos que usa un formulario tienen que seguir activos y legibles al crear; aprobar un Manual sólo lo
 activa y la edición común no activa una propuesta pendiente. Sigue la tarea 6, la tarjeta en el front.
+
+2026-11-04: tareas 6 y 7 hechas en el front, con tsc, lint y las tandas de las áreas tocadas en verde. Lo que el plan no fijaba:
+la sugerencia «Armame un catálogo con una planilla» llega con el clip en la Etapa 2, porque sin planilla no lleva a nada; en esta
+etapa Inicio vacío suma sólo «Armame un formulario para…», con el permiso de diseñar formularios. De paso se arregló lo que
+encontró la sesión de las listas dependientes: los dobles de Inicio (85bbcd69), el conteo del OpenAPI (90c264ad) y la historia
+de la migración de valores del catálogo (e2ec8fbd). Sigue la tarea 8.
