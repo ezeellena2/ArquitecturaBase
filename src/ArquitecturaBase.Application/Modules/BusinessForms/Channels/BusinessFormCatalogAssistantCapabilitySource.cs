@@ -21,10 +21,10 @@ internal sealed class BusinessFormCatalogAssistantCapabilitySource(IFormCatalogF
     [
         new(MetadataId, 1, AssistantCapabilityKind.Read, "Read the fixed users filter grammar and exact role IDs. No people, sample identities or SQL are available.",
             "{\"type\":\"object\",\"properties\":{},\"required\":[],\"additionalProperties\":false}", FormCatalogAssistantCodec.MetadataSchema,
-            new([BusinessFormsPermissions.CatalogsRead], []), new(1024, 16384, 200, 5)),
+            new([BusinessFormsPermissions.CatalogsRead], []), new(1024, 16384, 200, 5)) { OfferedInHome = true },
         new(ProposeId, 1, AssistantCapabilityKind.Proposal, "Propose an inactive users Filters catalog for human review, using the latest complete metadata read from this turn. Keep name and description in the conversation language. Use observed role IDs only. Never remove an unknown essential role. Report unsupported columns visibly as limitations; never invent SQL, tables or sample people.",
             FormCatalogAssistantCodec.ArgumentsSchema, FormCatalogAssistantCodec.ProposalSchema,
-            new([BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage], []), new(8192, 16384, 1, 5)),
+            new([BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage], []), new(8192, 16384, 1, 5)) { OfferedInHome = true },
     ];
 
     public async Task<Result<AssistantCapabilityResponse>> ExecuteAsync(AssistantCapabilityRequest request, CancellationToken ct)

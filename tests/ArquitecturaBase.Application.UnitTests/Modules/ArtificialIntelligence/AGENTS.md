@@ -16,7 +16,7 @@ cancelación durable y purga física posterior a la ventana; el FK independiente
 ConversationTitleTests comprueba grafemas Unicode, normalización, contexto original de cifrado
 y ausencia de descifrado ante bloqueo/vencimiento con FakeTimeProvider. ToString no expone títulos.
 
-C0 conserva paridad de las cinco consultas de Inicio y prueba catálogo exacto, identidades sin herencia, perfiles/instrucciones/capacidades/terminales sellados y presupuestos por capacidad. Los casos de observación usan lecturas tipadas previas, rechazan otro turno y el mismo batch y recorren Advance→RecordProgress→Complete→codec nuevo con referencias ordinales protegidas. Inicio tampoco puede cancelar/retirar canales ajenos. Ninguna propuesta ni snapshot sale en su DTO HTTP.
+C0 conserva paridad de las cinco consultas de Inicio y prueba catálogo exacto, identidades sin herencia, perfiles/instrucciones/capacidades/terminales sellados y presupuestos por capacidad. Los casos de observación usan lecturas tipadas previas, rechazan otro turno y el mismo batch y recorren Advance→RecordProgress→Complete→codec nuevo con referencias ordinales protegidas. Inicio tampoco puede cancelar/retirar canales ajenos. La propuesta de Inicio sale en su DTO HTTP con el contenido del dueño; ninguna lectura ni snapshot. HomeProposal recorre assistant_answer@2 con y sin propuesta, la propuesta no observada y el dueño quitado; HistoryPolicy, que sólo la última propuesta viaja con su contenido.
 
 AudioOperations/Execution prueban el mismo Submit/Prepare/Dispatch/Complete/Get con perfil STT separado, actor Read sin Send/Home, cifrado y resultado técnico; modelo textual no calificado no bloquea la normalización. Rechazos antes de efecto y cierre tardío preservan consumo sin contenido.
 

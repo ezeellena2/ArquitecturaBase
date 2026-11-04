@@ -116,11 +116,11 @@ public sealed partial class AiAssistantObservedReadTests
         var codec = new ObservedReadAssistantSource { CurrentName = "different-current-metadata", CurrentRevision = 99 };
         var result = scenario.ReloadedPolicy(codec).Map(row, true, 1);
         Assert.True(result.IsSuccess);
-        Assert.NotNull(result.Value.Proposal);
-        Assert.Equal(selected.Id, result.Value.Proposal.Id);
-        Assert.Equal(selected.Capability, result.Value.Proposal.Capability);
-        Assert.Equal(Assert.IsType<ObservedResourceProposalPayload>(selected.Payload), Assert.IsType<ObservedResourceProposalPayload>(result.Value.Proposal.Payload));
-        var read = Assert.Single(result.Value.Proposal.ObservedReads);
+        Assert.NotNull(result.Value.ObservedProposal);
+        Assert.Equal(selected.Id, result.Value.ObservedProposal.Id);
+        Assert.Equal(selected.Capability, result.Value.ObservedProposal.Capability);
+        Assert.Equal(Assert.IsType<ObservedResourceProposalPayload>(selected.Payload), Assert.IsType<ObservedResourceProposalPayload>(result.Value.ObservedProposal.Payload));
+        var read = Assert.Single(result.Value.ObservedProposal.ObservedReads);
         Assert.Equal(row.Id, read.TurnId);
         Assert.Equal(1, read.Ordinal);
         Assert.Equal(new AssistantCapabilityReference(ObservedReadAssistantSource.ReadId, 1), read.Capability);
@@ -148,18 +148,21 @@ public sealed partial class AiAssistantObservedReadTests
     }
 
     [Fact]
-    public async Task Observed_proposals_and_their_read_snapshots_are_omitted_from_the_public_turn_DTO()
+    public async Task The_public_turn_DTO_shows_the_proposal_content_but_never_its_read_snapshots()
     {
         var scenario = Scenario();
         await CompleteObservedFlowAsync(scenario);
         var mapped = scenario.ReloadedPolicy(new ObservedReadAssistantSource()).Map(scenario.Row(), true, 1);
         Assert.True(mapped.IsSuccess);
-        Assert.NotNull(mapped.Value.Proposal);
+        Assert.NotNull(mapped.Value.ObservedProposal);
         var json = JsonSerializer.Serialize(mapped.Value, AiAssistantResponsePolicy.JsonOptions);
         using var document = JsonDocument.Parse(json);
-        Assert.False(document.RootElement.TryGetProperty("proposal", out _));
+        var proposal = document.RootElement.GetProperty("proposal");
+        Assert.Equal(mapped.Value.ObservedProposal.Id, proposal.GetProperty("id").GetGuid());
+        Assert.Equal(["id", "capability", "version", "content"], proposal.EnumerateObject().Select(property => property.Name));
         Assert.DoesNotContain("observedReads", json, StringComparison.Ordinal);
-        Assert.DoesNotContain(scenario.Source.CurrentName, json, StringComparison.Ordinal);
+        // The owner's proposal may repeat what it read; the read snapshot itself never travels.
+        Assert.Single(document.RootElement.EnumerateObject(), property => property.Value.ValueKind == JsonValueKind.Object && property.Name == "proposal");
     }
 
     private static async Task<AssistantObservedProposal> CompleteObservedFlowAsync(ObservedReadAssistantScenario scenario)

@@ -8,6 +8,8 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 internal static class FormAuthoringAssistantCodec
 {
     public const int MaximumRows = 100;
+    // Two reads and a proposal must leave room for history and a correction within the turn context.
+    public const int ReadBudget = 8192;
     public const int ResponseBudget = 16384;
     public const string EmptySchema = """{"type":"object","properties":{},"required":[],"additionalProperties":false}""";
     public const string FormsSchema = """
@@ -28,6 +30,7 @@ internal static class FormAuthoringAssistantCodec
     public const string CatalogProposalSchema = """
         {"type":"object","properties":{"culture":{"type":"string","enum":["es","en"]},"name":{"type":"string"},"description":{"type":"string"},"valueType":{"type":"string","enum":["text","integer","decimal","date"]},"code":{"type":"string"},"option":{"type":"string"},"fields":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"name":{"type":"string"},"type":{"type":"string","enum":["text","integer","decimal","date","boolean"]}},"required":["name","type"],"additionalProperties":false}}},"required":["culture","name","description","valueType","code","option","fields"],"additionalProperties":false}
         """;
+    public static readonly string[] IssueCodes = ["invalid", "catalogUnavailable", "catalogNotReadable", "tooLarge"];
     private static readonly string[] States = ["draft", "published", "inactive"];
     private static readonly string[] Kinds = ["manual", "filters"];
     private static readonly string[] ValueTypes = ["text", "integer", "decimal", "date"];
@@ -141,11 +144,27 @@ internal static class FormAuthoringAssistantCodec
             var proposal = root.Deserialize<FormAuthoringCatalogProposal>(JsonSerializerOptions.Web);
             if (proposal is not { Culture: not null, Name: not null, Description: not null, ValueType: not null, Code: not null, Option: not null, Fields: not null } ||
                 proposal.Fields.Any(field => field is not { Name: not null, Type: not null })) return FormCatalogErrors.ContentInvalid;
-            var valid = FormAuthoringProposalPolicy.Validate(proposal);
-            return valid.IsSuccess && JsonSerializer.Serialize(valid.Value, JsonSerializerOptions.Web) == JsonSerializer.Serialize(proposal, JsonSerializerOptions.Web)
+            var normalized = FormAuthoringProposalPolicy.Normalize(proposal);
+            return FormAuthoringProposalPolicy.Issues(normalized).Count == 0 &&
+                JsonSerializer.Serialize(normalized, JsonSerializerOptions.Web) == JsonSerializer.Serialize(proposal, JsonSerializerOptions.Web)
                 ? proposal : FormCatalogErrors.ContentInvalid;
         }
         catch (JsonException) { return FormCatalogErrors.ContentInvalid; }
+    }
+
+    public static Result<FormAuthoringRejection> ParseRejection(string json)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            var root = document.RootElement;
+            if (!Exact(root, "issues") || root.GetProperty("issues") is not { ValueKind: JsonValueKind.Array } issues || issues.GetArrayLength() is 0 or > 50 ||
+                issues.EnumerateArray().Any(issue => !Exact(issue, "path", "code"))) return FormDefinitionErrors.ContentInvalid;
+            var rejection = root.Deserialize<FormAuthoringRejection>(JsonSerializerOptions.Web);
+            return rejection is { Issues: not null } && rejection.Issues.All(issue => issue is { Path.Length: > 0 and <= 120, Code: not null } &&
+                IssueCodes.Contains(issue.Code, StringComparer.Ordinal)) ? rejection : FormDefinitionErrors.ContentInvalid;
+        }
+        catch (JsonException) { return FormDefinitionErrors.ContentInvalid; }
     }
 
     private static bool FieldsShape(JsonElement root) => root.GetProperty("fields") is { ValueKind: JsonValueKind.Array } fields &&

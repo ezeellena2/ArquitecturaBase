@@ -72,16 +72,19 @@ internal sealed class AiAssistantAccessGuard(IUserReader users, IPermissionServi
         return requiredPermissions.All(current.Contains);
     }
 
+    public AssistantChannelContext HomeContext(Guid actorUserId, string culture, string timeZoneId) =>
+        AiAssistantChannelPolicy.Home(actorUserId, culture, timeZoneId, catalog.OfferedInHome);
+
     public Task<Result<AiAssistantExecutionProfileSnapshot>> CaptureHomeProfileAsync(AiConnectionRow connection,
         Guid actorUserId, string culture, string timeZoneId, CancellationToken ct) =>
-        CaptureProfileAsync(connection, AiAssistantChannelPolicy.Home(actorUserId, culture, timeZoneId), "home-system", null, ct);
+        CaptureProfileAsync(connection, HomeContext(actorUserId, culture, timeZoneId), "home-system", AiAssistantChannelPolicy.HomeInstructionsVersion, null, ct);
 
     public Task<Result<AiAssistantExecutionProfileSnapshot>> CaptureOperationProfileAsync(AiConnectionRow connection,
         AssistantChannelContext channel, DateTime occurredAtUtc, CancellationToken ct) =>
-        CaptureProfileAsync(connection, channel, "capabilities-v1", occurredAtUtc, ct);
+        CaptureProfileAsync(connection, channel, "capabilities-v1", 1, occurredAtUtc, ct);
 
     private async Task<Result<AiAssistantExecutionProfileSnapshot>> CaptureProfileAsync(AiConnectionRow connection,
-        AssistantChannelContext channel, string instructionsId, DateTime? occurredAtUtc, CancellationToken ct)
+        AssistantChannelContext channel, string instructionsId, int instructionsVersion, DateTime? occurredAtUtc, CancellationToken ct)
     {
         var profile = profiles.Where(p => p.Provider == connection.Provider && p.Model == connection.Model && p.SupportsTools &&
             p.SupportsTerminalAnswer && p.ContextBytes >= limits.ContextBytes).OrderByDescending(p => p.Version).ThenBy(p => p.Id, StringComparer.Ordinal).FirstOrDefault();
@@ -90,13 +93,13 @@ internal sealed class AiAssistantAccessGuard(IUserReader users, IPermissionServi
         if (offered.IsFailure) return offered.Error;
         channel = channel with { AllowedCapabilities = offered.Value.Capabilities.Select(d => new AssistantCapabilityReference(d.Id, d.Version)).ToArray(),
             RequiredPermissions = offered.Value.RequiredPermissions };
-        return new AiAssistantExecutionProfileSnapshot(profile.Id, profile.Version, instructionsId, 1, channel) { OccurredAtUtc = occurredAtUtc };
+        return new AiAssistantExecutionProfileSnapshot(profile.Id, profile.Version, instructionsId, instructionsVersion, channel) { OccurredAtUtc = occurredAtUtc };
     }
 
     public bool IsProfileQualified(AiAssistantExecutionProfileSnapshot snapshot, AiConnectionRow connection) =>
         snapshot.Purpose == AiAssistantPurpose.NormalizeAudio
             ? snapshot.InstructionsId == "audio-none-v1" && snapshot.InstructionsVersion == 1 && connection.Provider == AiProvider.OpenAI && AudioProfile(snapshot, connection) is not null
-            : snapshot.InstructionsVersion == 1 && snapshot.InstructionsId is "home-system" or "capabilities-v1" &&
+            : AiAssistantChannelPolicy.KnownInstructions(snapshot.InstructionsId, snapshot.InstructionsVersion) &&
         profiles.Any(p => p.Id == snapshot.ModelProfileId && p.Version == snapshot.ModelProfileVersion && p.Provider == connection.Provider &&
             p.Model == connection.Model && p.SupportsTools && p.SupportsTerminalAnswer && p.ContextBytes >= limits.ContextBytes);
 

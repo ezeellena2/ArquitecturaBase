@@ -1,5 +1,6 @@
 using ArquitecturaBase.Application.Channels;
 using System.Text.Json;
+using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Configuration;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Persistence;
@@ -31,15 +32,22 @@ internal sealed class ObservedReadAssistantScenario
     public AiAssistantExecutionService Execution { get; }
     public AiAssistantDispatchService Dispatch { get; }
 
-    public ObservedReadAssistantScenario(Func<Guid, DateTime, string, ObservedReadAssistantStorePorts> createStore)
+    public bool Home { get; }
+
+    // Home closes with assistant_answer@2, which may name one observed proposal; the other channels select it with assistant_proposal.
+    public ObservedReadAssistantScenario(Func<Guid, DateTime, string, ObservedReadAssistantStorePorts> createStore, bool home = false)
     {
+        Home = home;
         var users = new InMemoryUserAccounts();
         var actor = users.AddUser("observed-resource-fiction@example.test");
-        Permissions.Permissions[actor.Id] = [];
-        Store = createStore(actor.Id, Clock.GetUtcNow().UtcDateTime, "fixture-observed");
-        Profile = new("observed-fixture", 1, "capabilities-v1", 1,
-            new(Store.Conversation.ChannelId, actor.Id, null, Store.Turn.Culture, Store.Turn.TimeZoneId, new([], []),
-                [new(ObservedReadAssistantSource.ReadId, 1), new(ObservedReadAssistantSource.ProposalId, 1)], [new("assistant_proposal", 1)]));
+        Permissions.Permissions[actor.Id] = home ? [ArtificialIntelligencePermissions.AssistantUse] : [];
+        Store = createStore(actor.Id, Clock.GetUtcNow().UtcDateTime, home ? "home" : "fixture-observed");
+        AssistantCapabilityReference[] capabilities = [new(ObservedReadAssistantSource.ReadId, 1), new(ObservedReadAssistantSource.ProposalId, 1)];
+        Profile = home
+            ? new("observed-fixture", 1, "home-system", 2, new("home", actor.Id, null, Store.Turn.Culture, Store.Turn.TimeZoneId,
+                new([ArtificialIntelligencePermissions.AssistantUse], []), capabilities, [new("assistant_answer", 2)]))
+            : new("observed-fixture", 1, "capabilities-v1", 1,
+                new(Store.Conversation.ChannelId, actor.Id, null, Store.Turn.Culture, Store.Turn.TimeZoneId, new([], []), capabilities, [new("assistant_proposal", 1)]));
         var catalog = new AiAssistantCapabilityCatalogPolicy([Source], Permissions);
         var limits = new AiAssistantLimits();
         var guard = new AiAssistantAccessGuard(users, Permissions,
@@ -76,7 +84,7 @@ internal sealed class ObservedReadAssistantScenario
     public AiAssistantExecutionContextResponse Context() => new(Claim, Row(),
         new(AiProvider.OpenAI, "model", "fictional-key", "Fictional read/proposal policy", [],
             [new(ObservedReadAssistantSource.ReadId, "read", "{}"), new(ObservedReadAssistantSource.ProposalId, "proposal", "{}"),
-                new("assistant_proposal", "select", "{}")], [], null, 1500, 262144, 131072), [], [], 0, 0) { ExecutionProfile = Profile };
+                new(Home ? "assistant_answer" : "assistant_proposal", "close", "{}")], [], null, 1500, 262144, 131072), [], [], 0, 0) { ExecutionProfile = Profile };
 
     public AiAssistantResponsePolicy ReloadedPolicy(ObservedReadAssistantSource codec) =>
         new(Protector, Clock, new AiAssistantCapabilityCatalogPolicy([codec], Permissions));

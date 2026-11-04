@@ -1,4 +1,3 @@
-using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Interfaces.Persistence;
@@ -24,13 +23,13 @@ internal sealed class BusinessFormAuthoringAssistantCapabilitySource(IFormAuthor
     public IReadOnlyList<AssistantCapabilityDefinition> Definitions { get; } =
     [
         new(FormsId, Version, AssistantCapabilityKind.Read, "Read the names, prefixes, states and questions (label and type) of the forms that already exist, so a proposal does not repeat a name or a prefix. No answers, values or people are available.",
-            FormAuthoringAssistantCodec.EmptySchema, FormAuthoringAssistantCodec.FormsSchema, new([BusinessFormsPermissions.Read], []), new(1024, FormAuthoringAssistantCodec.ResponseBudget, FormAuthoringAssistantCodec.MaximumRows, 5)),
+            FormAuthoringAssistantCodec.EmptySchema, FormAuthoringAssistantCodec.FormsSchema, new([BusinessFormsPermissions.Read], []), new(1024, FormAuthoringAssistantCodec.ReadBudget, FormAuthoringAssistantCodec.MaximumRows, 5)) { OfferedInHome = true },
         new(CatalogsId, Version, AssistantCapabilityKind.Read, "Read the IDs, names, kinds, value types and fields of the catalogs that already exist, to reuse one in a proposed form or to avoid repeating a name. No options, values or people are available.",
-            FormAuthoringAssistantCodec.EmptySchema, FormAuthoringAssistantCodec.CatalogsSchema, new([BusinessFormsPermissions.CatalogsRead], []), new(1024, FormAuthoringAssistantCodec.ResponseBudget, FormAuthoringAssistantCodec.MaximumRows, 5)),
-        new(ProposeFormId, Version, AssistantCapabilityKind.Proposal, "Propose one complete new form for a person to review, in the conversation language: name, prefix, final button text and every question with its type, whether it is required and its own options or an existing catalog. Read the existing forms and catalogs first; never repeat a name or a prefix, and use an existing catalog instead of a long list. A person creates the draft; you never create, publish or change anything.",
-            FormAuthoringAssistantCodec.FormArgumentsSchema, FormAuthoringAssistantCodec.FormProposalSchema, new([BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage], []), new(FormAuthoringAssistantCodec.ResponseBudget, FormAuthoringAssistantCodec.ResponseBudget, 1, 5)),
-        new(ProposeCatalogId, Version, AssistantCapabilityKind.Proposal, "Propose one new manual catalog without options for a person to review, in the conversation language: name, description, value type, what the code and the visible text of each option are, and its extra fields with their type. Read the existing catalogs first and never repeat a name. A person creates it inactive; you never create, activate or import anything.",
-            FormAuthoringAssistantCodec.CatalogArgumentsSchema, FormAuthoringAssistantCodec.CatalogProposalSchema, new([BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage], []), new(8192, FormAuthoringAssistantCodec.ResponseBudget, 1, 5)),
+            FormAuthoringAssistantCodec.EmptySchema, FormAuthoringAssistantCodec.CatalogsSchema, new([BusinessFormsPermissions.CatalogsRead], []), new(1024, FormAuthoringAssistantCodec.ReadBudget, FormAuthoringAssistantCodec.MaximumRows, 5)) { OfferedInHome = true },
+        new(ProposeFormId, Version, AssistantCapabilityKind.Proposal, "Propose one complete new form for a person to review, in the conversation language: name, prefix, final button text and every question with its type, whether it is required and its own options or an existing catalog. Read the existing forms and catalogs first; never repeat a name or a prefix, and use an existing catalog instead of a long list. A rejected proposal lists the paths to fix: propose it again corrected. A person creates the draft; you never create, publish or change anything.",
+            FormAuthoringAssistantCodec.FormArgumentsSchema, FormAuthoringAssistantCodec.FormProposalSchema, new([BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage], []), new(FormAuthoringAssistantCodec.ResponseBudget, FormAuthoringAssistantCodec.ResponseBudget, 1, 5)) { OfferedInHome = true },
+        new(ProposeCatalogId, Version, AssistantCapabilityKind.Proposal, "Propose one new manual catalog without options for a person to review, in the conversation language: name, description, value type, what the code and the visible text of each option are, and its extra fields with their type. Read the existing catalogs first and never repeat a name. A rejected proposal lists the paths to fix: propose it again corrected. A person creates it inactive; you never create, activate or import anything.",
+            FormAuthoringAssistantCodec.CatalogArgumentsSchema, FormAuthoringAssistantCodec.CatalogProposalSchema, new([BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage], []), new(8192, FormAuthoringAssistantCodec.ResponseBudget, 1, 5)) { OfferedInHome = true },
     ];
 
     public async Task<Result<AssistantCapabilityResponse>> ExecuteAsync(AssistantCapabilityRequest request, CancellationToken ct)
@@ -44,8 +43,10 @@ internal sealed class BusinessFormAuthoringAssistantCapabilitySource(IFormAuthor
         if (request.Capability.Id == ProposeCatalogId)
         {
             var parsed = FormAuthoringAssistantCodec.ParseCatalogArguments(request.ArgumentsJson, request.Context.Culture);
-            var catalog = parsed.IsFailure ? parsed : FormAuthoringProposalPolicy.Validate(parsed.Value);
-            return catalog.IsFailure ? catalog.Error : new AssistantCapabilityResponse("proposed", catalog.Value, [], 1);
+            if (parsed.IsFailure) return parsed.Error;
+            var catalog = FormAuthoringProposalPolicy.Normalize(parsed.Value);
+            var issues = FormAuthoringProposalPolicy.Issues(catalog);
+            return issues.Count != 0 ? Rejected(issues) : new AssistantCapabilityResponse("proposed", catalog, [], 1);
         }
         if (!FormAuthoringAssistantCodec.EmptyArguments(request.ArgumentsJson)) return FormDefinitionErrors.ContentInvalid;
         if (request.Capability.Id == FormsId)
@@ -74,17 +75,11 @@ internal sealed class BusinessFormAuthoringAssistantCapabilitySource(IFormAuthor
             var catalogs = FormAuthoringAssistantCodec.ParseCatalogs(outputJson);
             return catalogs.IsFailure ? catalogs.Error : catalogs.Value;
         }
-        if (capability.Id == ProposeFormId)
-        {
-            var form = FormAuthoringAssistantCodec.ParseFormProposal(outputJson);
-            return form.IsFailure ? form.Error : form.Value;
-        }
-        if (capability.Id == ProposeCatalogId)
-        {
-            var catalog = FormAuthoringAssistantCodec.ParseCatalogProposal(outputJson);
-            return catalog.IsFailure ? catalog.Error : catalog.Value;
-        }
-        return FormDefinitionErrors.ContentInvalid;
+        if (capability.Id is not (ProposeFormId or ProposeCatalogId)) return FormDefinitionErrors.ContentInvalid;
+        if (capability.Id == ProposeFormId && FormAuthoringAssistantCodec.ParseFormProposal(outputJson) is { IsSuccess: true } form) return form.Value;
+        if (capability.Id == ProposeCatalogId && FormAuthoringAssistantCodec.ParseCatalogProposal(outputJson) is { IsSuccess: true } catalog) return catalog.Value;
+        var rejection = FormAuthoringAssistantCodec.ParseRejection(outputJson);
+        return rejection.IsFailure ? rejection.Error : rejection.Value;
     }
 
     // The proposal obeys the authoring rules and only uses active catalogs the person can read; it is never trimmed to fit.
@@ -92,22 +87,29 @@ internal sealed class BusinessFormAuthoringAssistantCapabilitySource(IFormAuthor
     {
         var arguments = FormAuthoringAssistantCodec.ParseFormArguments(request.ArgumentsJson);
         if (arguments.IsFailure) return arguments.Error;
-        var ids = arguments.Value.Questions.Where(question => question.Type == "catalog" && question.CatalogId is not null)
-            .Select(question => question.CatalogId!.Value).Distinct().ToArray();
-        if (ids.Length != 0 && !await permissions.HasPermissionAsync(request.Context.ActorUserId, BusinessFormsPermissions.CatalogsRead, ct))
-            return FormDefinitionErrors.Forbidden;
-        var catalogs = (await reader.ListCatalogsAsync(ids, ct)).Where(catalog => catalog.IsActive).ToDictionary(catalog => catalog.Id);
-        if (ids.Any(id => !catalogs.ContainsKey(id))) return FormDefinitionErrors.ContentInvalid;
+        var questions = arguments.Value.Questions;
+        var ids = questions.Where(question => question.Type == "catalog" && question.CatalogId is not null).Select(question => question.CatalogId!.Value).Distinct().ToArray();
+        var readable = ids.Length == 0 || await permissions.HasPermissionAsync(request.Context.ActorUserId, BusinessFormsPermissions.CatalogsRead, ct);
+        var catalogs = readable ? (await reader.ListCatalogsAsync(ids, ct)).Where(catalog => catalog.IsActive).ToDictionary(catalog => catalog.Id) : [];
+        var issues = new List<FormAuthoringIssue>();
+        for (var index = 0; index < questions.Count; index++)
+            if (questions[index] is { Type: "catalog", CatalogId: { } catalogId } && !catalogs.ContainsKey(catalogId))
+                issues.Add(new($"questions[{index}].catalogId", readable ? "catalogUnavailable" : "catalogNotReadable"));
         var proposal = FormAuthoringProposalPolicy.Normalize(new FormAuthoringFormProposal(request.Context.Culture, arguments.Value.Name,
-            arguments.Value.Prefix, arguments.Value.SubmitLabel, arguments.Value.Questions.Select(question => new FormAuthoringProposedQuestion(
-                question.Label, question.Type, question.Required, question.Options,
-                question.Type == "catalog" && question.CatalogId is { } id ? new(id, Catalog(catalogs[id]).Name) : null)).ToArray()));
-        if (!FormAuthoringProposalPolicy.HasValidShape(proposal)) return FormDefinitionErrors.ContentInvalid;
-        if (DraftValidator.Validate(FormAuthoringProposalPolicy.Draft(request.TurnId, proposal)).Errors is [var failure, ..])
-            return FieldErrors.On(FormDefinitionErrors.ContentInvalid, failure.PropertyName);
-        return FormAssistantCapabilityCodec.ResponseBytes(proposal, "proposed", true) > FormAuthoringAssistantCodec.ResponseBudget
-            ? FormDefinitionErrors.ContentInvalid : new AssistantCapabilityResponse("proposed", proposal, [], 1);
+            arguments.Value.Prefix, arguments.Value.SubmitLabel, questions.Select(question => new FormAuthoringProposedQuestion(
+                question.Label, question.Type, question.Required, question.Options, question.Type == "catalog" && question.CatalogId is { } id
+                    ? new(id, catalogs.TryGetValue(id, out var catalog) ? Catalog(catalog).Name : "") : null)).ToArray()));
+        issues.AddRange(FormAuthoringProposalPolicy.ShapeIssues(proposal).Where(issue => !issues.Contains(issue)));
+        if (issues.Count == 0)
+            issues.AddRange(DraftValidator.Validate(FormAuthoringProposalPolicy.Draft(request.TurnId, proposal)).Errors
+                .Select(failure => new FormAuthoringIssue(FormAuthoringProposalPolicy.IssuePath(failure.PropertyName), "invalid")).Distinct());
+        if (issues.Count == 0 && FormAssistantCapabilityCodec.ResponseBytes(proposal, "proposed", true) > FormAuthoringAssistantCodec.ResponseBudget)
+            issues.Add(new("questions", "tooLarge"));
+        return issues.Count != 0 ? Rejected(issues) : new AssistantCapabilityResponse("proposed", proposal, [], 1);
     }
+
+    private static AssistantCapabilityResponse Rejected(IReadOnlyList<FormAuthoringIssue> issues) =>
+        new("rejected", new FormAuthoringRejection(issues.Take(50).ToArray()), [], 0);
 
     // Whatever does not fit the budget is left out and the read says it is partial: it never proves absence.
     private static TPayload Bound<TRow, TPayload>(IReadOnlyList<TRow> rows, bool complete, Func<IReadOnlyList<TRow>, bool, TPayload> create)
@@ -116,7 +118,7 @@ internal sealed class BusinessFormAuthoringAssistantCapabilitySource(IFormAuthor
         var selected = new List<TRow>();
         foreach (var row in rows)
         {
-            if (FormAssistantCapabilityCodec.ResponseBytes(create([.. selected, row], false), "partial", false) > FormAuthoringAssistantCodec.ResponseBudget)
+            if (FormAssistantCapabilityCodec.ResponseBytes(create([.. selected, row], false), "partial", false) > FormAuthoringAssistantCodec.ReadBudget)
             {
                 complete = false;
                 continue;

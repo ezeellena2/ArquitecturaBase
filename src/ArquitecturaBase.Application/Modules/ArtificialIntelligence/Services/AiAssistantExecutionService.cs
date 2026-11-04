@@ -71,6 +71,21 @@ internal sealed class AiAssistantExecutionService(AiAssistantContextPolicy conte
                         terminals[0].Name, terminals[0].ArgumentsJson, context.Proposals);
                     return proposal.IsFailure ? proposal.Error : new AiAssistantAdvanceResponse(context, null, [], response.Usage) { Proposal = proposal.Value };
                 }
+                if (profile.ChannelContext.AllowedTerminals.Contains(new AssistantTerminalReference("assistant_answer", 2)))
+                {
+                    var closing = ParseAnswerWithProposal(terminals[0].ArgumentsJson);
+                    if (closing.IsFailure) return closing.Error;
+                    AssistantObservedProposal? selected = null;
+                    if (closing.Value.ProposalId is { } proposalId)
+                    {
+                        var proposal = AiAssistantTerminalPolicy.SelectObserved(profile.ChannelContext, context.Claim.TurnId, proposalId, context.Proposals);
+                        if (proposal.IsFailure) return proposal.Error;
+                        selected = proposal.Value;
+                    }
+                    var checkedAnswer = AiAssistantEvidenceVerifier.Verify(closing.Value.Answer, context.Evidences, selected is not null);
+                    return checkedAnswer.IsFailure ? checkedAnswer.Error
+                        : new AiAssistantAdvanceResponse(context, closing.Value.Answer, [], response.Usage) { Proposal = selected };
+                }
                 if (!profile.ChannelContext.AllowedTerminals.Contains(new AssistantTerminalReference("assistant_answer", 1))) return AiAssistantErrors.InvalidOutput;
                 var answer = ParseAnswer(terminals[0].ArgumentsJson);
                 if (answer.IsFailure) return answer.Error;
@@ -147,7 +162,8 @@ internal sealed class AiAssistantExecutionService(AiAssistantContextPolicy conte
                     var payloadJson = JsonSerializer.Serialize(result.Value.Payload, result.Value.Payload.GetType(), AiAssistantResponsePolicy.JsonOptions);
                     if (catalog.ParseOutput(reference!, payloadJson).IsFailure) return AiAssistantErrors.InvalidOutput;
                     var payload = JsonSerializer.SerializeToElement(result.Value.Payload, result.Value.Payload.GetType(), AiAssistantResponsePolicy.JsonOptions);
-                    var proposalId = definition.Kind == AssistantCapabilityKind.Proposal ? Guid.NewGuid() : (Guid?)null;
+                    // A rejected proposal goes back to the model with its reasons; it gets no Id, so it can never be selected.
+                    var proposalId = definition.Kind == AssistantCapabilityKind.Proposal && result.Value.State != "rejected" ? Guid.NewGuid() : (Guid?)null;
                     // Home retains its existing state/evidence bytes; other owners expose only their typed payload.
                     var json = result.Value.Payload is AssistantSystemQueryPayload ? payloadJson : proposalId is { } id
                         ? JsonSerializer.Serialize(new { result.Value.State, proposalId = id, payload }, AiAssistantResponsePolicy.JsonOptions)
@@ -171,7 +187,7 @@ internal sealed class AiAssistantExecutionService(AiAssistantContextPolicy conte
                     observed.Add(tool);
                     if (proposalId is { } generatedId)
                         proposals.Add(new(context.Claim.TurnId, generatedId, reference!, result.Value.Payload) { ObservedReads = context.ObservedReads });
-                    else reads.Add(new(context.Claim.TurnId, ordinal, reference!, result.Value.Payload));
+                    else if (definition.Kind == AssistantCapabilityKind.Read) reads.Add(new(context.Claim.TurnId, ordinal, reference!, result.Value.Payload));
                 }
             }
             finally { CultureInfo.CurrentCulture = previousCulture; CultureInfo.CurrentUICulture = previousUiCulture; }
@@ -199,6 +215,26 @@ internal sealed class AiAssistantExecutionService(AiAssistantContextPolicy conte
         catch (JsonException) { return AiAssistantErrors.InvalidOutput; }
     }
 
+
+    // assistant_answer@2: proposalId names the proposal of this turn when kind is proposal, and is null otherwise.
+    private static Result<(AiAssistantAnswer Answer, Guid? ProposalId)> ParseAnswerWithProposal(string arguments)
+    {
+        try
+        {
+            using var json = JsonDocument.Parse(arguments);
+            var root = json.RootElement;
+            if (!StrictObject(root, ["kind", "text", "evidenceIds", "proposalId"], 4)) return AiAssistantErrors.InvalidOutput;
+            var proposal = root.GetProperty("proposalId");
+            Guid? proposalId = proposal.ValueKind == JsonValueKind.Null ? null
+                : proposal.ValueKind == JsonValueKind.String && Guid.TryParse(proposal.GetString(), out var id) ? id : Guid.Empty;
+            if (proposalId == Guid.Empty) return AiAssistantErrors.InvalidOutput;
+            var answer = ParseAnswer(JsonSerializer.Serialize(new { kind = root.GetProperty("kind"), text = root.GetProperty("text"),
+                evidenceIds = root.GetProperty("evidenceIds") }, AiAssistantResponsePolicy.JsonOptions));
+            if (answer.IsFailure) return answer.Error;
+            return answer.Value.Kind == "proposal" == proposalId.HasValue ? (answer.Value, proposalId) : AiAssistantErrors.InvalidOutput;
+        }
+        catch (JsonException) { return AiAssistantErrors.InvalidOutput; }
+    }
 
     private static bool StrictObject(JsonElement element, string[] allowed, int? expectedCount)
     {

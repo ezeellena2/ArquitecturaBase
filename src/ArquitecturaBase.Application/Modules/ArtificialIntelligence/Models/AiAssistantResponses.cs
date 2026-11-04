@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using ArquitecturaBase.Application.Models.Assistant;
 
@@ -24,6 +25,12 @@ public sealed record AiAssistantAnswer(string Kind, string Text, IReadOnlyList<G
     public override string ToString() => "AiAssistantAnswer { content: [REDACTED] }";
 }
 public sealed record AiAssistantFailure(string Code, string Detail, string Recovery);
+
+/// <summary>The proposal a Home turn closed on: capability and owner content, never observed reads, prompts or continuation.</summary>
+public sealed record AiAssistantProposalResponse(Guid Id, string Capability, int Version, JsonElement Content)
+{
+    public override string ToString() => "AiAssistantProposalResponse { content: [REDACTED] }";
+}
 public sealed record AiAssistantTurnResponse(Guid TurnId, Guid ConversationId, Guid RequestId, int Ordinal,
     long ConversationRevision, long TurnRevision, string State, string Stage, string ContentAccess,
     string? Question, AiAssistantAnswer? Answer,
@@ -32,8 +39,9 @@ public sealed record AiAssistantTurnResponse(Guid TurnId, Guid ConversationId, G
     DateTime SubmittedAtUtc, DateTime ServerNowUtc, int PollingAfterSeconds)
 {
     public DateTime? CancelRequestedAtUtc { get; init; }
+    public AiAssistantProposalResponse? Proposal { get; init; }
     [JsonIgnore]
-    public AssistantObservedProposal? Proposal { get; init; }
+    public AssistantObservedProposal? ObservedProposal { get; init; }
     [JsonIgnore]
     public AssistantNormalizedAudio? NormalizedAudio { get; init; }
     public override string ToString() => "AiAssistantTurnResponse { content: [REDACTED] }";

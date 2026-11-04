@@ -12,6 +12,7 @@ namespace ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services;
 internal sealed class AiAssistantContextPolicy(IAiAssistantReader reader, IAiConnectionReader connections, AiAssistantAccessGuard guard, AiAssistantResponsePolicy responsePolicy, AiConnectionCandidatePolicy credentialPolicy, AiAssistantCapabilityCatalogPolicy capabilities, AiAssistantLimits limits, TimeProvider timeProvider)
 {
     private const string AnswerSchema = "{\"type\":\"object\",\"properties\":{\"kind\":{\"type\":\"string\",\"enum\":[\"answer\",\"clarification\",\"unsupported\"]},\"text\":{\"type\":\"string\"},\"evidenceIds\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}}},\"required\":[\"kind\",\"text\",\"evidenceIds\"],\"additionalProperties\":false}";
+    private const string AnswerSchemaV2 = "{\"type\":\"object\",\"properties\":{\"kind\":{\"type\":\"string\",\"enum\":[\"answer\",\"clarification\",\"unsupported\",\"proposal\"]},\"text\":{\"type\":\"string\"},\"evidenceIds\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}},\"proposalId\":{\"type\":[\"string\",\"null\"]}},\"required\":[\"kind\",\"text\",\"evidenceIds\",\"proposalId\"],\"additionalProperties\":false}";
     public async Task<Result<AiAssistantExecutionContextResponse>> PrepareAsync(AiAssistantClaimResponse claim, CancellationToken cancellationToken)
     {
         var turn = await reader.FindTurnAsync(claim.TurnId, cancellationToken);
@@ -55,29 +56,28 @@ internal sealed class AiAssistantContextPolicy(IAiAssistantReader reader, IAiCon
         }
         var page = await reader.ListTurnsAsync(claim.OwnerUserId, claim.ConversationId,
             new ListAiAssistantTurnsRequest { PageSize = limits.HistoryTurns + 1, Sort = "-ordinal" }, cancellationToken);
-        var messages = new List<LlmConversationMessage>();
-        var historyCharacters = 0;
         var expiredThroughOrdinal = page.Items.Where(t => t.Ordinal < turn.Ordinal &&
             (t.ContentExpiresAtUtc <= timeProvider.GetUtcNow().UtcDateTime || t.ProtectedQuestion is null)).Select(t => t.Ordinal).DefaultIfEmpty(0).Max();
-        foreach (var previous in page.Items.Where(t => turn.ChannelId == "home" && t.Ordinal < turn.Ordinal && t.Ordinal > expiredThroughOrdinal && t.State == AiAssistantTurnState.Completed).Reverse())
+        var history = new List<AiAssistantTurnResponse>();
+        foreach (var previous in page.Items.Where(t => turn.ChannelId == "home" && t.Ordinal < turn.Ordinal && t.Ordinal > expiredThroughOrdinal && t.State == AiAssistantTurnState.Completed))
         {
             var mapped = responsePolicy.Map(previous, true, limits.PollingAfterSeconds);
             if (mapped.IsFailure) return mapped.Error;
-            if (mapped.Value.ContentAccess != "allowed" || mapped.Value.Answer is null) continue;
-            var length = mapped.Value.Question!.Length + mapped.Value.Answer.Text.Length;
-            if (historyCharacters + length > limits.HistoryCharacters) continue;
-            historyCharacters += length;
-            messages.Add(new("user", mapped.Value.Question));
-            messages.Add(new("assistant", mapped.Value.Answer.Text));
+            if (mapped.Value.ContentAccess == "allowed" && mapped.Value.Answer is not null) history.Add(mapped.Value);
         }
+        var messages = AiAssistantHistoryPolicy.Messages(history, limits.HistoryCharacters, turn.Culture).ToList();
         messages.Add(new("user", question));
         const string proposalSchema = "{\"type\":\"object\",\"properties\":{\"proposalId\":{\"type\":\"string\"}},\"required\":[\"proposalId\"],\"additionalProperties\":false}";
         var tools = offered.Value.Capabilities.Select(d => new LlmToolDefinition(d.Id, d.Description, d.InputSchemaJson)).ToList();
         foreach (var terminal in offered.Value.Terminals)
-            tools.Add(terminal.Id == "assistant_answer"
-                ? new("assistant_answer", AssistantTexts.Get("Prompt.TerminalAnswerDescription", turn.Culture), AnswerSchema)
-                : new("assistant_proposal", AssistantTexts.Get("Prompt.TerminalProposalDescription", turn.Culture), proposalSchema));
-        var system = AssistantTexts.Get(profile.Value.InstructionsId == "home-system" ? "Prompt.SystemV1" : "Prompt.CapabilitiesV1", turn.Culture);
+            tools.Add(terminal switch
+            {
+                { Id: "assistant_answer", Version: 2 } => new("assistant_answer", AssistantTexts.Get("Prompt.TerminalAnswerV2Description", turn.Culture), AnswerSchemaV2),
+                { Id: "assistant_answer" } => new("assistant_answer", AssistantTexts.Get("Prompt.TerminalAnswerDescription", turn.Culture), AnswerSchema),
+                _ => new("assistant_proposal", AssistantTexts.Get("Prompt.TerminalProposalDescription", turn.Culture), proposalSchema),
+            });
+        var system = AssistantTexts.Get(profile.Value.InstructionsId != "home-system" ? "Prompt.CapabilitiesV1"
+            : profile.Value.InstructionsVersion == AiAssistantChannelPolicy.HomeInstructionsVersion ? "Prompt.SystemV2" : "Prompt.SystemV1", turn.Culture);
         if (profile.Value.OccurredAtUtc is { } occurredAtUtc)
             system += "\n" + string.Format(CultureInfo.InvariantCulture, AssistantTexts.Get("Prompt.SourceTime", turn.Culture),
                 occurredAtUtc.ToString("O", CultureInfo.InvariantCulture), turn.TimeZoneId);

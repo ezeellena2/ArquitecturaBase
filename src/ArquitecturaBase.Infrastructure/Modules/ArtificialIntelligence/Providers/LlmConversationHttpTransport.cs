@@ -14,8 +14,8 @@ internal sealed class LlmConversationHttpTransport(AiAssistantLimits limits, Tim
     private static readonly Histogram<int> ContextBytes = Meter.CreateHistogram<int>("ai.assistant.context.bytes", "By");
     private static readonly Histogram<int> ContinuationBytes = Meter.CreateHistogram<int>("ai.assistant.continuation.bytes", "By");
 
-    // Eleven current channel capabilities and one terminal; independent of the number of invocations.
-    private const int MaximumToolDefinitions = 12;
+    // The channel catalog with its terminals, like AiAssistantCapabilityCatalogPolicy; independent of the number of invocations.
+    private const int MaximumToolDefinitions = 16;
     public int MaximumToolCalls => limits.ToolCalls + 1;
 
     public async Task<Result<LlmConversationResponse>> SendAsync(HttpClient client, HttpRequestMessage message,

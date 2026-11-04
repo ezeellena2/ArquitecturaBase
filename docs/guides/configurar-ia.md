@@ -187,7 +187,7 @@ versión; no reescribas la versión que conservan turnos anteriores. Reiniciá l
 de configurar: los perfiles no se recargan en caliente y la revisión de conexión protege cada paso.
 
 El contexto ofrece únicamente capacidades aplicables: las sugerencias de continuación requieren
-una captura fijada por el servidor. El transporte admite hasta doce definiciones entre capacidades
+una captura fijada por el servidor. El transporte admite hasta dieciséis definiciones entre capacidades
 y terminal. Es una cota de catálogo, independiente de las seis invocaciones y
 cuatro pasos máximos de ejecución por turno. No aumentes cuotas, bytes ni llamadas para
 hacer pasar una calificación.
@@ -201,7 +201,7 @@ hacer pasar una calificación.
 | `Limits:ContextBytes` / `ContinuationBytes` | 131072 / 131072 |
 | `Limits:ProviderSteps` / `ToolCalls` | 4 / 6 |
 | `Limits:ToolResultBytes` / `ToolAggregateBytes` | 16384 / 65536 |
-| `Limits:OutputTokens` / `ProviderResponseBytes` | 1500 / 262144 |
+| `Limits:OutputTokens` / `ProviderResponseBytes` | 4096 / 262144 |
 | `Limits:ToolTimeoutSeconds` / `ProviderTimeoutSeconds` | 5 / 30 |
 | `Limits:RunningSeconds` / `PendingSeconds` / `LeaseGraceSeconds` | 90 / 120 / 15 |
 | `Limits:MaintenanceBatchSize` / `PollingAfterSeconds` | 100 / 2 |

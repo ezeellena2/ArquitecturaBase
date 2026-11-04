@@ -19,6 +19,10 @@ public sealed record FormAuthoringProposedQuestion(string Label, string Type, bo
 public sealed record FormAuthoringFormProposal(string Culture, string Name, string Prefix, string SubmitLabel,
     IReadOnlyList<FormAuthoringProposedQuestion> Questions) : AssistantCapabilityPayload;
 public sealed record FormAuthoringProposedField(string Name, string Type);
+
+// What the model has to fix, by the path of its own arguments; a rejected proposal is never selectable.
+public sealed record FormAuthoringIssue(string Path, string Code);
+public sealed record FormAuthoringRejection(IReadOnlyList<FormAuthoringIssue> Issues) : AssistantCapabilityPayload;
 public sealed record FormAuthoringCatalogProposal(string Culture, string Name, string Description, string ValueType, string Code,
     string Option, IReadOnlyList<FormAuthoringProposedField> Fields) : AssistantCapabilityPayload;
 

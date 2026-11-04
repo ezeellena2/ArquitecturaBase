@@ -50,13 +50,33 @@ public sealed partial class AiAssistantContextPolicyTests
         Assert.Equal(0, source.Executions);
     }
 
-    private sealed class BootstrapCatalogSource(IReadOnlyList<string> ids) : IAssistantCapabilitySource
+    [Fact]
+    public async Task A_capability_its_owner_offers_in_Home_joins_the_catalog_without_a_core_suggestion()
+    {
+        var host = new Host("es");
+        var source = new BootstrapCatalogSource([.. HomeQueryIds, "fixture.home-offered"], ["fixture.home-offered"]);
+        var catalog = new AiAssistantCapabilityCatalogPolicy([source], host.Permissions);
+        var limits = new AiAssistantLimits();
+        var guard = new AiAssistantAccessGuard(host.Users, host.Permissions,
+            [new(AiProvider.OpenAI, "model", limits.ContextBytes, true, true) {Id="home"}], limits,
+            new FakeCurrentUser { UserId = host.UserId }, catalog, []);
+        var reads = new AiAssistantReadPolicy(host.Reader, new ConnectionReader(), null!, host.Permissions, guard,
+            new AiAssistantResponsePolicy(host.Protector, new FakeTimeProvider(), catalog), catalog, limits);
+        var result = await reads.BootstrapAsync(TestContext.Current.CancellationToken);
+        Assert.True(result.IsSuccess);
+        Assert.Equal(HomeQueryIds.Order(StringComparer.Ordinal), result.Value.Suggestions.Select(item => item.Id).Order(StringComparer.Ordinal));
+        var context = guard.HomeContext(host.UserId, "es", "UTC");
+        Assert.Contains(new AssistantCapabilityReference("fixture.home-offered", 1), context.AllowedCapabilities);
+        Assert.Equal([new AssistantTerminalReference("assistant_answer", 2)], context.AllowedTerminals);
+    }
+
+    private sealed class BootstrapCatalogSource(IReadOnlyList<string> ids, IReadOnlyCollection<string>? offeredInHome = null) : IAssistantCapabilitySource
     {
         public int Executions { get; private set; }
         public IReadOnlyList<AssistantCapabilityDefinition> Definitions { get; } = ids.Select(id => new AssistantCapabilityDefinition(id, 1,
             id == "fixture.foreign-proposal" ? AssistantCapabilityKind.Proposal : AssistantCapabilityKind.Read, "fixture",
             """{"type":"object","properties":{},"required":[],"additionalProperties":false}""",
-            SystemQueryCapabilityCodec.OutputSchemaJson, new([], []), new(4096, 16384, 50, 5))).ToArray();
+            SystemQueryCapabilityCodec.OutputSchemaJson, new([], []), new(4096, 16384, 50, 5)) { OfferedInHome = offeredInHome?.Contains(id) == true }).ToArray();
         public Task<Result<AssistantCapabilityResponse>> ExecuteAsync(AssistantCapabilityRequest request, CancellationToken cancellationToken)
         {
             Executions++;

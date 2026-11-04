@@ -26,9 +26,13 @@ internal sealed class AiAssistantCapabilityCatalogPolicy
             }
         Definitions = registry.Values.Select(entry => entry.Definition).OrderBy(definition => definition.Id, StringComparer.Ordinal)
             .ThenBy(definition => definition.Version).ToArray();
+        OfferedInHome = Definitions.Where(definition => definition.OfferedInHome && definition.RequiredPermissions.Subject.Count == 0)
+            .Select(definition => new AssistantCapabilityReference(definition.Id, definition.Version)).ToArray();
     }
 
+    public const int MaximumDefinitions = 16;
     public IReadOnlyList<AssistantCapabilityDefinition> Definitions { get; }
+    public IReadOnlyList<AssistantCapabilityReference> OfferedInHome { get; }
 
     public AssistantCapabilityDefinition? Find(AssistantCapabilityReference capability) =>
         registry.TryGetValue(capability, out var entry) ? entry.Definition : null;
@@ -54,7 +58,7 @@ internal sealed class AiAssistantCapabilityCatalogPolicy
             return AiAssistantErrors.Forbidden;
         var offered = selected.Where(definition => definition.RequiredPermissions.Actor.All(actorPermissions.Contains) &&
             definition.RequiredPermissions.Subject.All(subjectPermissions.Contains)).ToArray();
-        if(offered.Length+context.AllowedTerminals.Count>12)return AiAssistantErrors.ToolRejected;
+        if (offered.Length + context.AllowedTerminals.Count > MaximumDefinitions) return AiAssistantErrors.ToolRejected;
         var required = new AssistantPermissionRequirements(
             context.RequiredPermissions.Actor.Concat(offered.SelectMany(definition => definition.RequiredPermissions.Actor)).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray(),
             context.RequiredPermissions.Subject.Concat(offered.SelectMany(definition => definition.RequiredPermissions.Subject)).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray());
@@ -87,6 +91,10 @@ internal sealed class AiAssistantCapabilityCatalogPolicy
         catch (JsonException) { return false; }
     }
 
+    // assistant_answer@2 also closes on one observed proposal of the turn; assistant_proposal only selects one.
+    public static bool KnownTerminal(AssistantTerminalReference terminal) =>
+        terminal is { Id: "assistant_answer", Version: 1 or 2 } or { Id: "assistant_proposal", Version: 1 };
+
     private static bool ValidContext(AssistantChannelContext context)
     {
         if (!Enum.IsDefined(context.InteractionMode) || string.IsNullOrWhiteSpace(context.ChannelId) || context.ChannelId.Length > 80 || context.ActorUserId == Guid.Empty || context.SubjectUserId == Guid.Empty ||
@@ -94,7 +102,7 @@ internal sealed class AiAssistantCapabilityCatalogPolicy
             context.RequiredPermissions.Actor.Concat(context.RequiredPermissions.Subject).Any(string.IsNullOrWhiteSpace) ||
             context.AllowedCapabilities.Select(reference => reference.Id).Distinct(StringComparer.Ordinal).Count() != context.AllowedCapabilities.Count ||
             context.AllowedTerminals.Count == 0 || context.AllowedTerminals.Distinct().Count() != context.AllowedTerminals.Count ||
-            context.AllowedTerminals.Any(terminal => terminal.Version != 1 || terminal.Id is not ("assistant_answer" or "assistant_proposal"))) return false;
+            context.AllowedTerminals.Any(terminal => !KnownTerminal(terminal))) return false;
         try
         {
             _ = CultureInfo.GetCultureInfo(context.Culture);

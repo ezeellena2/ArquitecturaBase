@@ -37,10 +37,10 @@ public sealed class AiAssistantCapabilityCatalogTests
     }
 
     [Theory]
-    [InlineData(11,false,true)]
-    [InlineData(12,false,false)]
-    [InlineData(12,true,true)]
-    public async Task The_twelve_tool_limit_includes_the_terminal_after_permission_filtering(int count,bool filterLast,bool accepted)
+    [InlineData(15,false,true)]
+    [InlineData(16,false,false)]
+    [InlineData(16,true,true)]
+    public async Task The_sixteen_tool_limit_includes_the_terminal_after_permission_filtering(int count,bool filterLast,bool accepted)
     {
         var actor=Guid.NewGuid();var permissions=new FakePermissionService();permissions.Permissions[actor]=[ArtificialIntelligencePermissions.AssistantUse];
         var definitions=Enumerable.Range(0,count).Select(index=>PreparedAssistantCapabilitySource.Definition($"fictional.read-{index}",1,AssistantCapabilityKind.Read,filterLast && index==count-1?["missing.permission"]:[])).ToArray();
@@ -205,7 +205,7 @@ public sealed class AiAssistantCapabilityCatalogTests
             "emptyChannel" => context with { ChannelId = " " },
             "emptyActor" => context with { ActorUserId = Guid.Empty },
             "unknownTerminal" => context with { AllowedTerminals = [new("fictional_terminal", 1)] },
-            "unknownTerminalVersion" => context with { AllowedTerminals = [new("assistant_answer", 2)] },
+            "unknownTerminalVersion" => context with { AllowedTerminals = [new("assistant_answer", 3)] },
             "duplicateTerminal" => context with { AllowedTerminals = [new("assistant_answer", 1), new("assistant_answer", 1)] },
             "duplicateReference" => context with { AllowedCapabilities = [new("fictional.read", 1), new("fictional.read", 1)] },
             "ambiguousVersions" => context with { AllowedCapabilities = [new("fictional.read", 1), new("fictional.read", 2)] },

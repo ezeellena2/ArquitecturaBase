@@ -87,24 +87,30 @@ public sealed class FormAuthoringAssistantProposalTests
         Assert.Equal(new FormSelectionSettings(1, 2), draft.Draft.Fields[0].Selection);
     }
 
+    private static FormAuthoringRejection Rejected(Result<AssistantCapabilityResponse> result)
+    {
+        Assert.True(result.IsSuccess);
+        Assert.Equal("rejected", result.Value.State);
+        return Assert.IsType<FormAuthoringRejection>(result.Value.Payload);
+    }
+
     [Theory]
     [InlineData("1CC")]
     [InlineData("PREFIJODEMASIADOLARGO")]
-    public async Task A_proposal_that_breaks_an_authoring_rule_is_rejected_and_not_trimmed(string prefix)
+    public async Task A_proposal_that_breaks_an_authoring_rule_comes_back_rejected_with_the_path_to_fix(string prefix)
     {
         var host = WithCampos();
         var result = await host.Source.ExecuteAsync(host.Request(ProposeForm, Form(prefix: prefix)), Ct);
-        Assert.True(result.IsFailure);
-        Assert.Equal(ErrorType.Validation, result.Error.Type);
+        Assert.Equal([new FormAuthoringIssue("prefix", "invalid")], Rejected(result).Issues);
     }
 
     [Fact]
-    public async Task More_than_forty_questions_are_rejected()
+    public async Task More_than_forty_questions_are_rejected_without_trimming()
     {
         var host = WithCampos();
         var questions = Enumerable.Range(1, 41).Select(index => Question("Pregunta " + index, "shortText")).ToArray();
         var result = await host.Source.ExecuteAsync(host.Request(ProposeForm, Form(questions: questions)), Ct);
-        Assert.True(result.IsFailure);
+        Assert.Equal([new FormAuthoringIssue("questions", "invalid")], Rejected(result).Issues);
     }
 
     [Theory]
@@ -114,7 +120,7 @@ public sealed class FormAuthoringAssistantProposalTests
     {
         var host = exists ? WithCampos(active: false) : new AuthoringAssistantFixture();
         var result = await host.Source.ExecuteAsync(host.Request(ProposeForm, Form()), Ct);
-        Assert.Equal(FormDefinitionErrors.ContentInvalid, result.Error);
+        Assert.Equal([new FormAuthoringIssue("questions[1].catalogId", "catalogUnavailable")], Rejected(result).Issues);
     }
 
     [Fact]
@@ -122,7 +128,7 @@ public sealed class FormAuthoringAssistantProposalTests
     {
         var host = WithCampos([BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage]);
         var result = await host.Source.ExecuteAsync(host.Request(ProposeForm, Form()), Ct);
-        Assert.Equal(FormDefinitionErrors.Forbidden, result.Error);
+        Assert.Equal([new FormAuthoringIssue("questions[1].catalogId", "catalogNotReadable")], Rejected(result).Issues);
     }
 
     [Theory]
@@ -132,7 +138,16 @@ public sealed class FormAuthoringAssistantProposalTests
     {
         var host = WithCampos();
         var result = await host.Source.ExecuteAsync(host.Request(ProposeForm, Form(questions: Question("Destino", type, options: withOptions ? ["Puerto"] : []))), Ct);
-        Assert.Equal(FormDefinitionErrors.ContentInvalid, result.Error);
+        Assert.Equal([new FormAuthoringIssue("questions[0].options", "invalid")], Rejected(result).Issues);
+    }
+
+    [Fact]
+    public async Task A_rejection_names_every_question_the_validator_rejects()
+    {
+        var host = WithCampos();
+        var result = await host.Source.ExecuteAsync(host.Request(ProposeForm, Form(questions:
+            [Question("Destino", "choice", options: ["Puerto", "puerto"]), Question(new string('x', 200), "shortText")])), Ct);
+        Assert.Equal([new FormAuthoringIssue("questions[0]", "invalid"), new FormAuthoringIssue("questions[1]", "invalid")], Rejected(result).Issues);
     }
 
     [Theory]
@@ -167,13 +182,13 @@ public sealed class FormAuthoringAssistantProposalTests
     }
 
     [Theory]
-    [InlineData("", "CUIT")]
-    [InlineData("Contratistas", "")]
-    public async Task A_catalog_proposal_needs_a_name_and_what_the_code_is(string name, string code)
+    [InlineData("", "CUIT", "name")]
+    [InlineData("Contratistas", "", "code")]
+    public async Task A_catalog_proposal_needs_a_name_and_what_the_code_is(string name, string code, string path)
     {
         var host = new AuthoringAssistantFixture();
         var result = await host.Source.ExecuteAsync(host.Request(ProposeCatalog, Catalog(name, code)), Ct);
-        Assert.Equal(FormCatalogErrors.ContentInvalid, result.Error);
+        Assert.Equal([new FormAuthoringIssue(path, "invalid")], Rejected(result).Issues);
     }
 
     [Fact]
@@ -182,8 +197,18 @@ public sealed class FormAuthoringAssistantProposalTests
         var host = new AuthoringAssistantFixture();
         var repeated = await host.Source.ExecuteAsync(host.Request(ProposeCatalog, Catalog(fields: [new { name = "Zona", type = "text" }, new { name = "zona", type = "text" }])), Ct);
         var catalogField = await host.Source.ExecuteAsync(host.Request(ProposeCatalog, Catalog(fields: [new { name = "Lote", type = "catalog" }])), Ct);
-        Assert.Equal(FormCatalogErrors.ContentInvalid, repeated.Error);
-        Assert.Equal(FormCatalogErrors.ContentInvalid, catalogField.Error);
+        Assert.Equal([new FormAuthoringIssue("fields[1]", "invalid")], Rejected(repeated).Issues);
+        Assert.Equal([new FormAuthoringIssue("fields[0]", "invalid")], Rejected(catalogField).Issues);
+    }
+
+    [Fact]
+    public async Task The_owner_codec_reads_back_a_rejection_but_never_as_a_proposal()
+    {
+        var host = new AuthoringAssistantFixture();
+        var result = await host.Source.ExecuteAsync(host.Request(ProposeCatalog, Catalog(name: "")), Ct);
+        var json = Json(Rejected(result));
+        Assert.IsType<FormAuthoringRejection>(host.Source.ParseOutput(new(ProposeCatalog, 1), json).Value);
+        Assert.True(host.Source.ParseOutput(new(ProposeCatalog, 1), json.Replace("invalid", "anything", StringComparison.Ordinal)).IsFailure);
     }
 
     [Fact]

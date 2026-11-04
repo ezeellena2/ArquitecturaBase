@@ -72,10 +72,20 @@ internal sealed class AiAssistantReader(ApplicationDbContext dbContext, TimeProv
         ProjectConversations(dbContext.Set<AiConversation>().AsNoTracking().Where(conversation => conversation.OwnerUserId == ownerUserId && conversation.ChannelId == "home")
             .ApplySort(SortDescriptor.Parse(request.Sort), ConversationSortMap, new("lastActivityAtUtc", true), conversation => conversation.Id))
             .ToPagedResultAsync(request, cancellationToken);
-    public Task<PagedResult<AiAssistantTurnRow>> ListTurnsAsync(Guid ownerUserId, Guid conversationId, ListAiAssistantTurnsRequest request, CancellationToken cancellationToken) =>
-        ProjectTurns(dbContext.Set<AiAssistantTurn>().AsNoTracking().Where(turn => turn.OwnerUserId == ownerUserId && turn.ConversationId == conversationId)
+    // A Home answer can close on a proposal, so the page brings its protected tool results in one batch.
+    public async Task<PagedResult<AiAssistantTurnRow>> ListTurnsAsync(Guid ownerUserId, Guid conversationId, ListAiAssistantTurnsRequest request, CancellationToken cancellationToken)
+    {
+        var page = await ProjectTurns(dbContext.Set<AiAssistantTurn>().AsNoTracking().Where(turn => turn.OwnerUserId == ownerUserId && turn.ConversationId == conversationId)
             .ApplySort(SortDescriptor.Parse(request.Sort), TurnSortMap, new("ordinal", false), turn => turn.Id))
             .ToPagedResultAsync(request, cancellationToken);
+        var turnIds = page.Items.Where(turn => turn.ProtectedQuestion is not null).Select(turn => turn.Id).ToArray();
+        if (turnIds.Length == 0) return page;
+        var tools = (await dbContext.Set<AiAssistantToolExecution>().AsNoTracking().Where(tool => turnIds.Contains(tool.TurnId))
+            .OrderBy(tool => tool.Ordinal)
+            .Select(tool => new { tool.TurnId, Row = new AiAssistantToolResultRow(tool.Ordinal, tool.ToolId, tool.Version, tool.ProtectedResult) })
+            .ToArrayAsync(cancellationToken)).ToLookup(tool => tool.TurnId, tool => tool.Row);
+        return page with { Items = page.Items.Select(turn => turn.ProtectedQuestion is null ? turn : turn with { ToolResults = tools[turn.Id].ToArray() }).ToArray() };
+    }
 
     private IQueryable<AiConversationRow> ProjectConversations(IQueryable<AiConversation> query) =>
         from conversation in query

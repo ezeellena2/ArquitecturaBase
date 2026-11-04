@@ -19,10 +19,12 @@ internal sealed class AiAssistantReadPolicy(IAiAssistantReader reader, IAiConnec
         if (actor.IsFailure) return actor.Error;
         var connection = await connectionReader.FindAsync(cancellationToken);
         var current = await permissions.GetPermissionsAsync(userId, cancellationToken);
-        var context = AiAssistantChannelPolicy.Home(userId, "es", actor.Value.TimeZoneId);
+        var context = guard.HomeContext(userId, "es", actor.Value.TimeZoneId);
         var offered = await catalog.BuildAsync(context, cancellationToken);
         if (offered.IsFailure) return offered.Error;
-        var suggestions = offered.Value.Capabilities.Select(d => new AiAssistantSuggestion(d.Id, AssistantTexts.Get("Suggestion." + d.Id))).ToArray();
+        // Only the core queries carry a curated suggestion; what an owner offers in Home brings its own entry points.
+        var suggestions = offered.Value.Capabilities.Where(d => AiAssistantChannelPolicy.IsHomeQuery(d.Id))
+            .Select(d => new AiAssistantSuggestion(d.Id, AssistantTexts.Get("Suggestion." + d.Id))).ToArray();
         var availability = guard.Availability(connection);
         if (availability == "available")
         {

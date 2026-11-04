@@ -10,7 +10,8 @@ public sealed record AiAssistantLimits
     public int ToolCalls { get; init; } = 6;
     public int ToolResultBytes { get; init; } = 16384;
     public int ToolAggregateBytes { get; init; } = 65536;
-    public int OutputTokens { get; init; } = 1500;
+    // A whole proposed form travels as the arguments of one call.
+    public int OutputTokens { get; init; } = 4096;
     public int ProviderResponseBytes { get; init; } = 262144;
     public int ContinuationBytes { get; init; } = 131072;
     public int ToolTimeoutSeconds { get; init; } = 5;

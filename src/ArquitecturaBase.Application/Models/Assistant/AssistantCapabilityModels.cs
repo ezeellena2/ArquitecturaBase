@@ -15,7 +15,11 @@ public sealed record AssistantPermissionRequirements(IReadOnlyList<string> Actor
 public sealed record AssistantCapabilityDefinition(
     string Id, int Version, AssistantCapabilityKind Kind, string Description,
     string InputSchemaJson, string OutputSchemaJson, AssistantPermissionRequirements RequiredPermissions,
-    AssistantCapabilityBudget Budget);
+    AssistantCapabilityBudget Budget)
+{
+    /// <summary>The owner allows Home, the actor's own conversation without a Subject, to offer it; Home offers nothing else beyond its core queries.</summary>
+    public bool OfferedInHome { get; init; }
+}
 
 /// <summary>Trusted server context; it is never an HTTP or model-supplied contract.</summary>
 public sealed record AssistantChannelContext(

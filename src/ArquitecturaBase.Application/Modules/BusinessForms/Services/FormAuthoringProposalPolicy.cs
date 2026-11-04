@@ -1,6 +1,5 @@
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
-using ArquitecturaBase.Domain.Results;
 
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
@@ -21,16 +20,41 @@ internal static class FormAuthoringProposalPolicy
         }).ToArray(),
     };
 
-    // A question's kind decides its options, catalog, files and selection; anything else is a malformed proposal.
-    public static bool HasValidShape(FormAuthoringFormProposal proposal) => proposal.Culture is "es" or "en" &&
-        proposal.Questions.Count is >= 1 and <= 40 && proposal.Questions.All(question => QuestionTypes.Contains(question.Type, StringComparer.Ordinal) &&
-            (question.Type is "choice" or "multiChoice" ? question.Options.Count > 0 : question.Options.Count == 0) &&
-            (question.Type == "catalog" ? question.Catalog is { Id: var id } && id != Guid.Empty : question.Catalog is null));
+    public static bool HasValidShape(FormAuthoringFormProposal proposal) => proposal.Culture is "es" or "en" && ShapeIssues(proposal).Count == 0;
+
+    // A question's kind decides its options and catalog; the authoring validator checks everything else.
+    public static IReadOnlyList<FormAuthoringIssue> ShapeIssues(FormAuthoringFormProposal proposal)
+    {
+        if (proposal.Questions.Count is < 1 or > 40) return [new("questions", "invalid")];
+        var issues = new List<FormAuthoringIssue>();
+        for (var index = 0; index < proposal.Questions.Count; index++)
+        {
+            var question = proposal.Questions[index];
+            if (!QuestionTypes.Contains(question.Type, StringComparer.Ordinal)) { issues.Add(new($"questions[{index}].type", "invalid")); continue; }
+            if (question.Type is "choice" or "multiChoice" ? question.Options.Count == 0 : question.Options.Count != 0)
+                issues.Add(new($"questions[{index}].options", "invalid"));
+            if (question.Type == "catalog" ? question.Catalog is not { Id: var id } || id == Guid.Empty : question.Catalog is not null)
+                issues.Add(new($"questions[{index}].catalogId", "invalid"));
+        }
+        return issues;
+    }
 
     public static SaveFormDraftRequest Draft(Guid requestId, FormAuthoringFormProposal proposal) => new(requestId,
         new Dictionary<string, string> { [proposal.Culture] = proposal.Name }, proposal.Prefix,
         new FormDraftInput(1, proposal.Culture, new Dictionary<string, string> { [proposal.Culture] = proposal.SubmitLabel },
             proposal.Questions.Select((question, index) => Field("q" + (index + 1), question, proposal.Culture)).ToArray()));
+
+    // The authoring validator names draft paths; the model fixes the arguments it wrote.
+    public static string IssuePath(string draftPath)
+    {
+        const string fields = "draft.fields[";
+        if (draftPath.StartsWith(fields, StringComparison.Ordinal) && draftPath.IndexOf(']', fields.Length) is var end and > 0)
+            return "questions[" + draftPath[fields.Length..end] + "]";
+        if (draftPath == "draft.fields") return "questions";
+        if (draftPath.StartsWith("name", StringComparison.Ordinal)) return "name";
+        if (draftPath.StartsWith("draft.submitLabel", StringComparison.Ordinal)) return "submitLabel";
+        return draftPath;
+    }
 
     private static FormFieldInput Field(string localId, FormAuthoringProposedQuestion question, string culture)
     {
@@ -54,18 +78,25 @@ internal static class FormAuthoringProposalPolicy
         options.Select((option, index) => new FormChoiceInput(localId + "o" + (index + 1), null,
             new Dictionary<string, string> { [culture] = option })).ToArray();
 
-    public static Result<FormAuthoringCatalogProposal> Validate(FormAuthoringCatalogProposal proposal)
+    public static FormAuthoringCatalogProposal Normalize(FormAuthoringCatalogProposal proposal) => proposal with
     {
-        var normalized = proposal with
-        {
-            Name = proposal.Name.Trim(), Description = proposal.Description.Trim(), Code = proposal.Code.Trim(), Option = proposal.Option.Trim(),
-            Fields = proposal.Fields.Select(field => field with { Name = field.Name.Trim() }).ToArray(),
-        };
-        var valid = normalized.Culture is "es" or "en" && normalized.Name.Length is > 0 and <= 120 && normalized.Description.Length <= 1000 &&
-            ValueTypes.Contains(normalized.ValueType, StringComparer.Ordinal) && normalized.Code.Length is > 0 and <= 80 &&
-            normalized.Option.Length is > 0 and <= 80 && normalized.Fields.Count <= BusinessFormCatalog.MaxFields &&
-            normalized.Fields.All(field => field.Name.Length is > 0 and <= 120 && FieldTypes.Contains(field.Type, StringComparer.Ordinal)) &&
-            normalized.Fields.Select(field => field.Name.ToUpperInvariant()).Distinct(StringComparer.Ordinal).Count() == normalized.Fields.Count;
-        return valid ? normalized : FormCatalogErrors.ContentInvalid;
+        Name = proposal.Name.Trim(), Description = proposal.Description.Trim(), Code = proposal.Code.Trim(), Option = proposal.Option.Trim(),
+        Fields = proposal.Fields.Select(field => field with { Name = field.Name.Trim() }).ToArray(),
+    };
+
+    public static IReadOnlyList<FormAuthoringIssue> Issues(FormAuthoringCatalogProposal proposal)
+    {
+        var issues = new List<FormAuthoringIssue>();
+        if (proposal.Name.Length is 0 or > 120) issues.Add(new("name", "invalid"));
+        if (proposal.Description.Length > 1000) issues.Add(new("description", "invalid"));
+        if (!ValueTypes.Contains(proposal.ValueType, StringComparer.Ordinal)) issues.Add(new("valueType", "invalid"));
+        if (proposal.Code.Length is 0 or > 80) issues.Add(new("code", "invalid"));
+        if (proposal.Option.Length is 0 or > 80) issues.Add(new("option", "invalid"));
+        if (proposal.Fields.Count > BusinessFormCatalog.MaxFields) issues.Add(new("fields", "invalid"));
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        for (var index = 0; index < proposal.Fields.Count; index++)
+            if (proposal.Fields[index].Name.Length is 0 or > 120 || !FieldTypes.Contains(proposal.Fields[index].Type, StringComparer.Ordinal) ||
+                !names.Add(proposal.Fields[index].Name)) issues.Add(new($"fields[{index}]", "invalid"));
+        return proposal.Culture is "es" or "en" ? issues : [new("culture", "invalid")];
     }
 }

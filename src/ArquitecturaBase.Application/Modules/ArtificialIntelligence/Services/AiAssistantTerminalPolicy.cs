@@ -18,11 +18,18 @@ internal static class AiAssistantTerminalPolicy
             if (turnId == Guid.Empty || root.ValueKind != JsonValueKind.Object || root.EnumerateObject().Count() != 1 ||
                 !root.TryGetProperty("proposalId", out var property) || property.ValueKind != JsonValueKind.String ||
                 !Guid.TryParse(property.GetString(), out var proposalId) || proposalId == Guid.Empty) return AiAssistantErrors.InvalidOutput;
-            var selected = observed.Where(proposal => proposal.Id == proposalId).ToArray();
-            if (selected.Length != 1 || selected[0].TurnId != turnId || !context.AllowedCapabilities.Contains(selected[0].Capability))
-                return AiAssistantErrors.InvalidOutput;
-            return selected[0];
+            return SelectObserved(context, turnId, proposalId, observed);
         }
         catch (JsonException) { return AiAssistantErrors.InvalidOutput; }
+    }
+
+    // Exactly one proposal observed in this same turn, from a capability the channel offered.
+    public static Result<AssistantObservedProposal> SelectObserved(AssistantChannelContext context, Guid turnId, Guid proposalId,
+        IReadOnlyList<AssistantObservedProposal> observed)
+    {
+        if (turnId == Guid.Empty || proposalId == Guid.Empty) return AiAssistantErrors.InvalidOutput;
+        var selected = observed.Where(proposal => proposal.Id == proposalId).ToArray();
+        return selected.Length != 1 || selected[0].TurnId != turnId || !context.AllowedCapabilities.Contains(selected[0].Capability)
+            ? AiAssistantErrors.InvalidOutput : selected[0];
     }
 }

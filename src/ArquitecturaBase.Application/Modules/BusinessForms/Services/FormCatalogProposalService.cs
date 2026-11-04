@@ -129,8 +129,10 @@ internal sealed class FormCatalogProposalService(IFormCatalogRepository reposito
 
     private static Result<FormCatalogProposalPayload> ValidateProposal(StructuredCatalogProposalAcceptanceRequest request)
     {
-        if (request.Context.InteractionMode != AssistantInteractionMode.Assistant || string.IsNullOrWhiteSpace(request.Context.ChannelId)
-            || request.Context.SubjectUserId != request.Context.ActorUserId
+        // The person's own conversation: the automatic assistant (Actor equal to Subject) or Home (no Subject, no mode).
+        var ownConversation = request.Context.InteractionMode == AssistantInteractionMode.Assistant && request.Context.SubjectUserId == request.Context.ActorUserId
+            || request.Context.InteractionMode == AssistantInteractionMode.Unspecified && request.Context.SubjectUserId is null;
+        if (!ownConversation || string.IsNullOrWhiteSpace(request.Context.ChannelId)
             || request.Context.Culture is not ("es" or "en") || request.Provenance.ChannelId != request.Context.ChannelId
             || request.Provenance.OccurredAtUtc.Kind != DateTimeKind.Utc || request.Provenance.ModelProfileVersion < 1
             || request.Provenance.InstructionsVersion < 1 || string.IsNullOrWhiteSpace(request.Provenance.ModelProfileId)

@@ -129,8 +129,8 @@ public sealed class AiAssistantProposalPersistenceTests(ApiFactory factory)
             var result = services.GetRequiredService<AiAssistantResponsePolicy>().Map(row, true, 1);
             Assert.True(result.IsSuccess);
             Assert.Null(result.Value.Answer);
-            Assert.NotNull(result.Value.Proposal);
-            var payload = Assert.IsType<RoundtripAssistantPayload>(result.Value.Proposal.Payload);
+            Assert.NotNull(result.Value.ObservedProposal);
+            var payload = Assert.IsType<RoundtripAssistantPayload>(result.Value.ObservedProposal.Payload);
             Assert.Equal(source.ResourceId, payload.ResourceId);
             Assert.Equal(source.PrivateText, payload.PrivateText);
             Assert.Equal("fixture-proposal", JsonSerializer.Deserialize<AiAssistantExecutionProfileSnapshot>(row.ExecutionProfileJson!, AiAssistantResponsePolicy.JsonOptions)!.ChannelContext.ChannelId);

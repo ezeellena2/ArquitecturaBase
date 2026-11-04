@@ -129,8 +129,9 @@ internal sealed class AiAssistantDispatchService(IAiAssistantRepository reposito
                         completion.Context.ObservedTools.Count == 0 && completion.Context.ToolBytes == 0
                         ? Result.Success() : Result.Failure(AiAssistantErrors.InvalidOutput)
                     : completion.NormalizedAudio is not null ? Result.Failure(AiAssistantErrors.InvalidOutput)
-                    : completion.Answer is not null ? AiAssistantEvidenceVerifier.Verify(completion.Answer, completion.Context.Evidences)
-                    : completion.Proposal is not null && completion.Proposal.TurnId == turn.Id ? Result.Success() : Result.Failure(AiAssistantErrors.InvalidOutput);
+                    : completion.Proposal is not null && completion.Proposal.TurnId != turn.Id ? Result.Failure(AiAssistantErrors.InvalidOutput)
+                    : completion.Answer is not null ? AiAssistantEvidenceVerifier.Verify(completion.Answer, completion.Context.Evidences, completion.Proposal is not null)
+                    : completion.Proposal is not null ? Result.Success() : Result.Failure(AiAssistantErrors.InvalidOutput);
                 if (evidence.IsFailure) return turn.Fail(claim.Fence, evidence.Error.Code, false, now);
                 await RecordToolsAsync(turn, completion, ct);
                 turn.RecordProgress(claim.Fence, now, "verifying", completion.Context.ToolCalls - turn.ToolCalls,
@@ -143,7 +144,9 @@ internal sealed class AiAssistantDispatchService(IAiAssistantRepository reposito
                     var selected = completion.Context.ObservedTools.SingleOrDefault(t => t.ProposalId == proposal.Id &&
                         t.ToolId == proposal.Capability.Id && t.Version == proposal.Capability.Version && t.Kind == AssistantCapabilityKind.Proposal);
                     if (selected is null) return turn.Fail(claim.Fence, AiAssistantErrors.InvalidOutput.Code, false, now);
-                    answerJson = JsonSerializer.Serialize(new { kind = "proposal", selected.Ordinal }, AiAssistantResponsePolicy.JsonOptions);
+                    answerJson = completion.Answer is { } explanation
+                        ? JsonSerializer.Serialize(new { kind = "proposal", selected.Ordinal, explanation.Text, explanation.EvidenceIds }, AiAssistantResponsePolicy.JsonOptions)
+                        : JsonSerializer.Serialize(new { kind = "proposal", selected.Ordinal }, AiAssistantResponsePolicy.JsonOptions);
                 }
                 else answerJson = JsonSerializer.Serialize(completion.Answer, AiAssistantResponsePolicy.JsonOptions);
                 var evidenceJson = JsonSerializer.Serialize(completion.Context.Evidences, AiAssistantResponsePolicy.JsonOptions);

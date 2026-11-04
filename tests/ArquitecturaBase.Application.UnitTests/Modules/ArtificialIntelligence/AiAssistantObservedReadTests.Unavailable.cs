@@ -44,7 +44,7 @@ public sealed partial class AiAssistantObservedReadTests
         var codec = new ObservedReadAssistantSource();
         var mapped = scenario.ReloadedPolicy(codec).Map(row, true, 1);
         Assert.True(mapped.IsSuccess);
-        Assert.Equal(2, Assert.Single(mapped.Value.Proposal!.ObservedReads).Ordinal);
+        Assert.Equal(2, Assert.Single(mapped.Value.ObservedProposal!.ObservedReads).Ordinal);
         Assert.Equal(1, codec.ReadParseCalls);
         Assert.Equal(0, codec.ReadExecutions);
     }

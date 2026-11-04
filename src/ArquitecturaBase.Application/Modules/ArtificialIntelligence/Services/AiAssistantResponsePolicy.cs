@@ -55,7 +55,7 @@ internal sealed class AiAssistantResponsePolicy(IAiConversationProtector protect
                 {
                     var decoded = DecodeProposal(row, json);
                     if (decoded.IsFailure) return decoded.Error;
-                    proposal = decoded.Value;
+                    (proposal, answer) = decoded.Value;
                 }
                 else answer = JsonSerializer.Deserialize<AiAssistantAnswer>(json, JsonOptions);
             }
@@ -73,7 +73,12 @@ internal sealed class AiAssistantResponsePolicy(IAiConversationProtector protect
             : row.UsageUnknown || row.InputTokens is null && row.OutputTokens is null ? null : new LlmConversationUsage(row.InputTokens, row.OutputTokens);
         return new AiAssistantTurnResponse(row.Id, row.ConversationId, row.RequestId, row.Ordinal, row.ConversationRevision,
             row.Revision, State(row.State), row.Stage, access, question, answer, evidences, failure, usage,
-            row.Culture, row.TimeZoneId, row.SubmittedAtUtc, now, pollingAfterSeconds) { CancelRequestedAtUtc = row.CancelRequestedAtUtc, Proposal = proposal, NormalizedAudio = normalizedAudio };
+            row.Culture, row.TimeZoneId, row.SubmittedAtUtc, now, pollingAfterSeconds)
+        {
+            CancelRequestedAtUtc = row.CancelRequestedAtUtc, ObservedProposal = proposal, NormalizedAudio = normalizedAudio,
+            Proposal = proposal is null ? null : new AiAssistantProposalResponse(proposal.Id, proposal.Capability.Id, proposal.Capability.Version,
+                JsonSerializer.SerializeToElement(proposal.Payload, proposal.Payload.GetType(), JsonOptions)),
+        };
     }
 
     private static bool IsKind(string json, string expected)
@@ -96,18 +101,30 @@ internal sealed class AiAssistantResponsePolicy(IAiConversationProtector protect
         catch (JsonException) { return AiAssistantErrors.ContentUnavailable; }
     }
 
-    private Result<AssistantObservedProposal> DecodeProposal(AiAssistantTurnRow row, string json)
+    // A channel stores only the selected ordinal; Home also keeps the answer that explains the proposal.
+    private Result<(AssistantObservedProposal? Proposal, AiAssistantAnswer? Answer)> DecodeProposal(AiAssistantTurnRow row, string json)
     {
         try
         {
             using var selected = JsonDocument.Parse(json);
             var root = selected.RootElement;
-            if (!Closed(root, "kind", "ordinal") || root.GetProperty("kind").GetString() != "proposal" ||
+            var explained = Closed(root, "kind", "ordinal", "text", "evidenceIds");
+            if (!explained && !Closed(root, "kind", "ordinal") || root.GetProperty("kind").GetString() != "proposal" ||
                 !root.GetProperty("ordinal").TryGetInt32(out var ordinal)) return AiAssistantErrors.ContentUnavailable;
+            AiAssistantAnswer? answer = null;
+            if (explained)
+            {
+                var text = root.GetProperty("text");
+                var evidence = root.GetProperty("evidenceIds");
+                if (text.ValueKind != JsonValueKind.String || evidence.ValueKind != JsonValueKind.Array) return AiAssistantErrors.ContentUnavailable;
+                answer = new AiAssistantAnswer("proposal", text.GetString()!, evidence.EnumerateArray().Select(id => id.GetGuid()).ToArray());
+            }
             var result = row.ToolResults.SingleOrDefault(t => t.Ordinal == ordinal);
             if (result is null || result.ProtectedResult is null) return AiAssistantErrors.ContentUnavailable;
             var reference = new AssistantCapabilityReference(result.ToolId, result.Version);
-            if (catalog.Find(reference)?.Kind != AssistantCapabilityKind.Proposal) return AiAssistantErrors.ContentUnavailable;
+            // An uninstalled owner leaves Home's explanation readable without its card; a channel needs the proposal itself.
+            if (catalog.Find(reference)?.Kind != AssistantCapabilityKind.Proposal)
+                return answer is not null ? (null, answer) : AiAssistantErrors.ContentUnavailable;
             var stored = Reveal(row, "tool:" + ordinal, result.ProtectedResult);
             if (stored is null) return AiAssistantErrors.ContentUnavailable;
             using var document = JsonDocument.Parse(stored);
@@ -134,7 +151,7 @@ internal sealed class AiAssistantResponsePolicy(IAiConversationProtector protect
                 if (decoded.IsFailure) return AiAssistantErrors.ContentUnavailable;
                 reads.Add(new(row.Id, readOrdinal, readReference, decoded.Value));
             }
-            return new AssistantObservedProposal(row.Id, proposalId, reference, payload.Value) { ObservedReads = reads };
+            return (new AssistantObservedProposal(row.Id, proposalId, reference, payload.Value) { ObservedReads = reads }, answer);
         }
         catch (Exception exception) when (exception is JsonException or InvalidOperationException or FormatException)
         { return AiAssistantErrors.ContentUnavailable; }

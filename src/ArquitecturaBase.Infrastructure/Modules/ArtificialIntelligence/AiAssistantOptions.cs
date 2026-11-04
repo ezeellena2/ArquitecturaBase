@@ -21,7 +21,7 @@ public sealed class AiAssistantOptions
             && limits.ContextBytes is > 0 and <= 131072
             && limits.ProviderSteps is > 0 and <= 4 && limits.ToolCalls is > 0 and <= 6
             && limits.ToolResultBytes is > 0 and <= 16384 && limits.ToolAggregateBytes >= limits.ToolResultBytes
-            && limits.ToolAggregateBytes <= 65536 && limits.OutputTokens is > 0 and <= 1500
+            && limits.ToolAggregateBytes <= 65536 && limits.OutputTokens is > 0 and <= 4096
             && limits.ProviderResponseBytes is > 0 and <= 262144 && limits.ContinuationBytes is > 0 and <= 131072
             && limits.ToolTimeoutSeconds is > 0 and <= 5 && limits.ProviderTimeoutSeconds is > 0 and <= 30
             && limits.RunningSeconds is > 0 and <= 90 && limits.PendingSeconds is > 0 and <= 120

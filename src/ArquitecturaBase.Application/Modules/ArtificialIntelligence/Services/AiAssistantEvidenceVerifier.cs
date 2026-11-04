@@ -7,9 +7,11 @@ namespace ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services;
 
 internal sealed class AiAssistantEvidenceVerifier
 {
-    public static Result Verify(AiAssistantAnswer? answer, IReadOnlyList<SystemQueryEvidence> evidences)
+    // A proposal answer explains the proposal it closes on: it needs that proposal, not evidence, and the card shows the data.
+    public static Result Verify(AiAssistantAnswer? answer, IReadOnlyList<SystemQueryEvidence> evidences, bool closesOnProposal = false)
     {
-        if (answer is null || answer.Kind is not ("answer" or "clarification" or "unsupported") ||
+        if (answer is null || answer.Kind is not ("answer" or "clarification" or "unsupported" or "proposal") ||
+            answer.Kind == "proposal" != closesOnProposal ||
             string.IsNullOrWhiteSpace(answer.Text) || answer.Text.Length > 12000) return AiAssistantErrors.InvalidOutput;
         if (answer.EvidenceIds.Distinct().Count() != answer.EvidenceIds.Count || answer.EvidenceIds.Any(id => !evidences.Any(e => e.Id == id)))
             return AiAssistantErrors.InvalidOutput;

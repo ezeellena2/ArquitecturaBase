@@ -112,8 +112,8 @@ public sealed partial class AiAssistantDispatchServiceTests
         var read = new AiAssistantResponsePolicy(host.Protector, host.Clock, new AiAssistantCapabilityCatalogPolicy([reloadedCodec], host.Permissions)).Map(host.Row(), true, 1);
         Assert.True(read.IsSuccess);
         Assert.Null(read.Value.Answer);
-        Assert.NotNull(read.Value.Proposal);
-        var reloaded = Assert.IsType<RoundtripAssistantPayload>(read.Value.Proposal.Payload);
+        Assert.NotNull(read.Value.ObservedProposal);
+        var reloaded = Assert.IsType<RoundtripAssistantPayload>(read.Value.ObservedProposal.Payload);
         Assert.Equal(payload, reloaded);
         Assert.Equal(1, reloadedCodec.ParseCalls);
         Assert.Equal(0, reloadedCodec.Executions);
@@ -218,8 +218,8 @@ public sealed partial class AiAssistantDispatchServiceTests
         if (variant == "valid")
         {
             Assert.True(read.IsSuccess);
-            Assert.NotNull(read.Value.Proposal);
-            Assert.Equal(new RoundtripAssistantPayload(host.Source.ResourceId, host.Source.PrivateText), Assert.IsType<RoundtripAssistantPayload>(read.Value.Proposal.Payload));
+            Assert.NotNull(read.Value.ObservedProposal);
+            Assert.Equal(new RoundtripAssistantPayload(host.Source.ResourceId, host.Source.PrivateText), Assert.IsType<RoundtripAssistantPayload>(read.Value.ObservedProposal.Payload));
             Assert.Equal(1, codec.ParseCalls);
         }
         else Assert.True(read.IsFailure);
