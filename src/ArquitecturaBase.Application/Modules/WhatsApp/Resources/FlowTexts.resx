@@ -15,4 +15,7 @@
   <data name="AudioPreview" xml:space="preserve"><value>Audio</value></data>
   <data name="AssistantPreview" xml:space="preserve"><value>Mensaje del asistente</value></data>
   <data name="SelectUpTo" xml:space="preserve"><value>Elegí hasta {0}</value></data>
+  <data name="AddRow" xml:space="preserve"><value>¿Agregás un renglón?</value></data>
+  <data name="AddAnotherRow" xml:space="preserve"><value>¿Agregás otro renglón?</value></data>
+  <data name="RowTitle" xml:space="preserve"><value>{0} · renglón {1}</value></data>
 </root>

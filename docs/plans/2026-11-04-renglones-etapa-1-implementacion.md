@@ -144,12 +144,16 @@ que la sesión de las listas dependientes commitee lo suyo.
 ### Tarea 4 · El compilador con renglones (r10)
 
 - [x] Preguntar al usuario por el mínimo 0, con tablero si hace falta: RG8-A (lienzo, versión 82).
-- [ ] Tests en rojo en `WhatsAppFlowRowsCompilerTests`: las pantallas y sus títulos, el `If` con los dos pies, el último
-  renglón sin pregunta, las claves `_r<n>`, cada `complete`, el presupuesto por pantalla y de bytes con 64 KiB, más de 26
-  pantallas, y que sin bloque r10 da los mismos bytes que r9 (fixture nuevo `flow-static-7.3-r10-{es,en}.json`).
-- [ ] `WhatsAppFlowProfile` (r10 y `PrefillRevisions`), `WhatsAppFlowCompiler`, `WhatsAppFlowScreenBuilder`,
+- [x] Tests en rojo en `WhatsAppFlowRowsCompilerTests`: las pantallas y sus títulos, el `If` con los dos pies, el último
+  renglón sin pregunta, las claves `_r<n>`, cada `complete`, el presupuesto por pantalla y de bytes con 64 KiB, y que sin
+  bloque r10 da los mismos bytes que r9 (fixture nuevo `flow-static-7.3-r10-{es,en}.json`). «Más de 26 pantallas» no
+  puede darse: los renglones no llevan archivos y los archivos suman diez como mucho, así que un Flow llega a 23
+  pantallas; no se agregó control.
+- [x] `WhatsAppFlowProfile` (r10 y `PrefillRevisions`), `WhatsAppFlowCompiler`, `WhatsAppFlowScreenBuilder`,
   `WhatsAppFlowPrefillPolicy`, `WhatsAppFlowDispatchService.Map`, `FlowTexts` es/en, y los tests que fijan r9 como actual.
-- [ ] Commit: `feat(whatsapp): el Flow suma una pantalla por renglón con «¿Agregás otro renglón?»`.
+  `WhatsAppFlowScreenBuilder.Plan` ordena las pantallas para las tres piezas; las guías de WhatsApp ya dicen r10.
+- [x] Commit: `feat(whatsapp): el Flow suma una pantalla por renglón con «¿Agregás otro renglón?»`. Verde en la copia de
+  HEAD: 11 casos nuevos, Application.UnitTests 3515 y ArchitectureTests 198; la integración compila (corre al cierre).
 
 ### Tarea 5 · El webhook con renglones
 

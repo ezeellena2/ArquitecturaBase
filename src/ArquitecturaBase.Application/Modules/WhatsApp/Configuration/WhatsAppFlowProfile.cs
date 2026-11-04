@@ -4,10 +4,11 @@ namespace ArquitecturaBase.Application.Modules.WhatsApp.Configuration;
 
 public static class WhatsAppFlowProfile
 {
-    public const string Revision = "flow-static-7.3-r9";
+    // r10 adds the block of rows (a screen per row); without a block it compiles the same bytes as r9.
+    public const string Revision = "flow-static-7.3-r10";
     public static IReadOnlySet<string> PrefillRevisions { get; } = new[]
     {
-        "flow-static-7.3-r8", "flow-static-7.3-r9"
+        "flow-static-7.3-r8", "flow-static-7.3-r9", "flow-static-7.3-r10"
     }.ToFrozenSet(StringComparer.Ordinal);
     public const string GraphApiVersion = "v25.0";
     public const int CodecVersion = 1;

@@ -155,15 +155,16 @@ internal sealed partial class WhatsAppFlowDispatchService(IWhatsAppFlowRepositor
     {
         var culture = projection.Culture;
         if (pointer.Property == "name") return new(null, null, "name." + culture, culture);
-        List<List<int>> screens = [[]];
-        for (var fieldIndex = 0; fieldIndex < projection.Mapping.Count; fieldIndex++)
-        {
-            if (projection.Mapping[fieldIndex].Type is "photo" or "document" && screens[^1].Count > 0) screens.Add([]);
-            screens[^1].Add(fieldIndex);
-        }
+        var screens = WhatsAppFlowScreenBuilder.Plan(projection.Mapping.Select(field =>
+            new WhatsAppFlowSlot(field.Type, field.Type is "photo" or "document", field.Repeated == true, field.Rows)).ToArray());
         if (pointer.ScreenIndex < 0 || pointer.ScreenIndex >= screens.Count || pointer.FieldIndex is not { } position || position < 0)
             return new(null, null, "channel", culture);
-        var indices = screens[pointer.ScreenIndex];
+        var screen = screens[pointer.ScreenIndex];
+        IReadOnlyList<int> indices = screen.Kind == "ask" ? [] : screen.Questions;
+        // After a row's questions comes the block's own question, alone on the screen that asks before the first row.
+        var block = screen.Kind == "ask" ? screen.Questions[0] : screen.Kind == "row" ? screen.Questions[0] - 1 : -1;
+        if (position == indices.Count && block >= 0 && (screen.Kind == "ask" || WhatsAppFlowScreenBuilder.Asks(projection.Mapping[block].Rows!, screen.Row)))
+            return new(projection.Mapping[block].FieldId, null, $"draft.fields[{block}]", culture);
         if (position == indices.Count && pointer.Property == "label" && pointer.ScreenIndex == screens.Count - 1)
             return new(null, null, "draft.submitLabel." + culture, culture);
         if (position >= indices.Count) return new(null, null, "channel", culture);

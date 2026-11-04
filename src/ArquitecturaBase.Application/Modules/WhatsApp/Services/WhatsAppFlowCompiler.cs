@@ -19,7 +19,9 @@ internal static class WhatsAppFlowCompiler
         ArgumentNullException.ThrowIfNull(request);
         var issues = new List<StructuredFormIssueResponse>();
         var flows = new List<WhatsAppCompiledFlowResponse>();
-        if (request.MaxFileSizeMiB is < 1 or > 25 || request.Format != 1 || request.OriginalCulture is not ("es" or "en") || request.Questions.Count > 40
+        // The block of rows is not one of the 40 questions (RG1-A).
+        if (request.MaxFileSizeMiB is < 1 or > 25 || request.Format != 1 || request.OriginalCulture is not ("es" or "en")
+            || request.Questions.Count(question => question.Type != "group") > 40 || request.Questions.Count > 41
             || request.TargetCultures.Count == 0 || request.TargetCultures.Distinct(StringComparer.Ordinal).Count() != request.TargetCultures.Count
             || request.TargetCultures.Any(x => x is not ("es" or "en")))
             return new([], [new(null, null, "draft", FlowErrors.UnsupportedConfiguration)]);
@@ -36,14 +38,28 @@ internal static class WhatsAppFlowCompiler
                     : question.Options is null || question.Options.Count < 1 || question.Options.Count > (question.Type == "multiChoice" ? 20 : 50)
                 : question.SourceCatalogId.HasValue || question.Options is not null;
             if (question.FieldId == Guid.Empty || !ids.Add(question.FieldId) || question.Key != "field_" + question.FieldId.ToString("N")
-                || question.Type is not ("shortText" or "longText" or "decimal" or "date" or "boolean" or "choice" or "multiChoice" or "photo" or "document")
+                || question.Type is not ("shortText" or "longText" or "decimal" or "date" or "boolean" or "choice" or "multiChoice" or "photo" or "document" or "group")
                 || (question.Type is "shortText" or "longText" ? question.MaxLength is not (>= 1 and <= 10000) : question.MaxLength.HasValue)
-                || invalidChoice || !WhatsAppFlowScreenBuilder.ValidFiles(question) || !WhatsAppFlowScreenBuilder.ValidSelection(question))
+                || invalidChoice || !WhatsAppFlowScreenBuilder.ValidFiles(question) || !WhatsAppFlowScreenBuilder.ValidSelection(question)
+                || !WhatsAppFlowScreenBuilder.ValidRows(question))
                 issues.Add(new(question.FieldId, null, "draft.fields", FlowErrors.UnsupportedConfiguration));
             foreach (var option in question.Options ?? [])
                 if (option.ChoiceId == Guid.Empty || !choices.Add(option.ChoiceId)) issues.Add(new(question.FieldId, option.ChoiceId, "draft.fields", FlowErrors.UnsupportedConfiguration));
         }
         if (issues.Count > 0) return new([], issues.AsReadOnly());
+        // One block at most, with its rows' questions right after it and at least one.
+        var block = Enumerable.Range(0, request.Questions.Count).FirstOrDefault(index => request.Questions[index].Type == "group", -1);
+        var end = block + 1;
+        while (block >= 0 && end < request.Questions.Count && request.Questions[end].Repeated == true) end++;
+        if (request.Questions.Count(question => question.Type == "group") > 1 || (block >= 0 && end == block + 1)
+            || request.Questions.Where((question, index) => question.Repeated == true && (index <= block || index >= end)).Any())
+            return new([], [new(null, null, "draft.fields", FlowErrors.UnsupportedConfiguration)]);
+        var screens = WhatsAppFlowScreenBuilder.Plan(request.Questions.Select(question =>
+            new WhatsAppFlowSlot(question.Type, question.Files is not null, question.Repeated == true, question.Rows)).ToArray());
+        var rows = block >= 0 ? request.Questions[block].Rows! : null;
+        var rowCount = rows is null ? 0 : WhatsAppFlowScreenBuilder.RowCount(rows);
+        // «¿Agregás un renglón?» answers under _r0 and each «¿Agregás otro renglón?» under its row (RG8-A).
+        var asked = rows is null ? 0 : (rows.MinRows == 0 ? 1 : 0) + Enumerable.Range(1, rowCount).Count(row => WhatsAppFlowScreenBuilder.Asks(rows, row));
         foreach (var culture in request.TargetCultures.Order(StringComparer.Ordinal))
         {
             var worstCaseBytes = 2L + 12 + 1 + 2 + 128L * 6;
@@ -55,15 +71,18 @@ internal static class WhatsAppFlowCompiler
                     "shortText" or "longText" => 2L + question.MaxLength!.Value * 6L,
                     "decimal" => 2L + ArquitecturaBase.Application.Modules.WhatsApp.Configuration.WhatsAppFlowProfile.DecimalMaxChars,
                     "date" => 12L,
-                    "boolean" => 7L,
+                    "boolean" or "group" => 7L,
                     "choice" => 38L,
                     "multiChoice" => 2L + question.Selection!.MaxSelected * 39L,
                     "photo" or "document" => 2L + (question.Files?.MaxFiles ?? 0) * 2048L,
                     _ => 0L,
                 };
-                worstCaseBytes += 42L + valueBytes;
+                // A row's answers repeat under keys up to four characters longer (_r10).
+                worstCaseBytes += question.Type == "group" ? asked * (46L + valueBytes)
+                    : question.Repeated == true ? rowCount * (46L + valueBytes) : 42L + valueBytes;
             }
-            var responseBudget = request.Questions.Any(question => question.Files is not null)
+            // RG7-A: with a block the response has the room of a Flow with files.
+            var responseBudget = block >= 0 || request.Questions.Any(question => question.Files is not null)
                 ? ArquitecturaBase.Application.Modules.WhatsApp.Configuration.WhatsAppFlowProfile.MaxMediaResponseJsonBytes
                 : ArquitecturaBase.Application.Modules.WhatsApp.Configuration.WhatsAppFlowProfile.MaxResponseJsonBytes;
             if (worstCaseBytes > responseBudget)
@@ -83,12 +102,23 @@ internal static class WhatsAppFlowCompiler
             var mapping = new List<WhatsAppFlowFieldMapping>();
             var name = Resolve(request.Name, "name", null, null, 80);
             var submit = Resolve(request.SubmitLabel, "draft.submitLabel", null, null, 35);
+            string? blockTitle = null;
             for (var index = 0; index < request.Questions.Count; index++)
             {
                 var question = request.Questions[index];
                 var path = $"draft.fields[{index}]";
-                var labelMax = question.Files is not null ? 80 : question.Type == "date" ? 40 : question.Type is "boolean" or "multiChoice" ? 30 : 20;
+                var labelMax = question.Type == "group" ? 60 : question.Files is not null ? 80 : question.Type == "date" ? 40 : question.Type is "boolean" or "multiChoice" ? 30 : 20;
                 var label = Resolve(question.Label, path + ".label", question.FieldId, null, labelMax);
+                mapping.Add(new(question.FieldId, question.Key, question.Type, question.Required, question.MaxLength,
+                    (question.Options?.Select(option => option.ChoiceId).ToList() ?? []).AsReadOnly(), question.Files, question.Selection,
+                    question.Rows, question.Repeated == true ? true : null));
+                if (question.Type == "group")
+                {
+                    // The block titles its screens; WhatsApp does not show its help.
+                    blockTitle = label;
+                    components.Add(new(StringComparer.Ordinal));
+                    continue;
+                }
                 var helpMax = question.Files is not null || question.Type is "boolean" or "multiChoice" ? 300 : 80;
                 var help = question.Help is null ? null : Resolve(question.Help, path + ".help", question.FieldId, null, helpMax, question.Help.Values.Any(value => !string.IsNullOrWhiteSpace(value)));
                 if (question.Type == "choice" && help is not null)
@@ -142,17 +172,24 @@ internal static class WhatsAppFlowCompiler
                         title = Resolve(option.Label, $"{path}.options[{optionIndex}].label", question.FieldId, option.ChoiceId, 30) ?? "",
                     }).ToArray();
                 components.Add(control);
-                mapping.Add(new(question.FieldId, question.Key, question.Type, question.Required, question.MaxLength,
-                    (question.Options?.Select(option => option.ChoiceId).ToList() ?? []).AsReadOnly(), question.Files, question.Selection));
             }
             components.Add(new(StringComparer.Ordinal) { ["type"] = "Footer", ["label"] = submit ?? "", ["on-click-action"] = new
             {
                 name = "complete", payload = request.Questions.ToDictionary(question => question.Key, question => "${form." + question.Key + "}", StringComparer.Ordinal),
             } });
-            var count = components.Count + 1; // Includes the Form container, conservatively.
+            // Includes the Form container, conservatively. With a block the limit applies to each screen: a row adds its own
+            // question, an If and a Footer in each branch.
+            var count = rows is null ? components.Count + 1 : screens.Max(screen => screen.Kind switch
+            {
+                "fields" => screen.Questions.Count + 2,
+                "ask" => 5,
+                _ => screen.Questions.Count + (WhatsAppFlowScreenBuilder.Asks(rows, screen.Row) ? 4 : 1) + 1,
+            });
             if (count > 50) issues.Add(new(null, null, "draft.fields", FlowErrors.ComponentBudgetExceeded, 50, culture));
             if (issues.Count > 0) continue;
-            var json = WhatsAppFlowScreenBuilder.Build(request.Questions, components, screenData, name, submit, culture);
+            var json = rows is null
+                ? WhatsAppFlowScreenBuilder.Build(request.Questions, components, screenData, name, submit, culture)
+                : WhatsAppFlowScreenBuilder.BuildRows(request.Questions, screens, components, screenData, name, blockTitle, submit, culture);
             var bytes = Encoding.UTF8.GetBytes(json);
             if (bytes.Length > 1048576) { issues.Add(new(null, null, "draft", FlowErrors.UnsupportedConfiguration)); continue; }
             flows.Add(new(culture, json, Convert.ToHexStringLower(SHA256.HashData(bytes)), count, mapping.AsReadOnly()));

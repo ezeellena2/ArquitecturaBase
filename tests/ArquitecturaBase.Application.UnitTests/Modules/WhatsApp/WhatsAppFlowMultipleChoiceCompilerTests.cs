@@ -12,12 +12,12 @@ public sealed class WhatsAppFlowMultipleChoiceCompilerTests
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
     [Fact]
-    public void New_compilations_use_revision_nine_without_changing_the_wire_or_codec_version()
+    public void New_compilations_use_revision_ten_without_changing_the_wire_or_codec_version()
     {
         var result = WhatsAppFlowCompiler.Compile(Request([Multiple(1)]));
 
         Assert.Empty(result.Issues);
-        Assert.Equal("flow-static-7.3-r9", WhatsAppFlowCompiler.ProfileRevision);
+        Assert.Equal("flow-static-7.3-r10", WhatsAppFlowCompiler.ProfileRevision);
         Assert.Equal(1, WhatsAppFlowCompiler.CodecVersion);
         foreach (var flow in result.Flows)
         {
@@ -385,7 +385,7 @@ public sealed class WhatsAppFlowMultipleChoiceCompilerTests
         new(2, fingerprint, "publication", new("waba", "phone", "v25.0", "configuration"), ["permission"]);
 
     private static StructuredFormPublicationRequest PublicationRequest(StructuredFormCheckRequest snapshot) =>
-        new(Id(900), Id(901), Id(902), Id(903), ["permission"], "publication", "flow-static-7.3-r9",
+        new(Id(900), Id(901), Id(902), Id(903), ["permission"], "publication", WhatsAppFlowCompiler.ProfileRevision,
             [new("es", "es-hash"), new("en", "en-hash")], snapshot);
 
     private static StructuredFormCheckRequest Request(IReadOnlyList<StructuredFormQuestion> questions) =>

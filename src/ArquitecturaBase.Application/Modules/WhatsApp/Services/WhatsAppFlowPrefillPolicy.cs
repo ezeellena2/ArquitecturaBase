@@ -16,12 +16,15 @@ internal static class WhatsAppFlowPrefillPolicy
         if (projection.CodecVersion != 1 || projection.Format != 1) return FlowErrors.InvalidValue;
         if (!WhatsAppFlowProfile.PrefillRevisions.Contains(projection.ProfileRevision))
             return values.Count == 0 ? Result.Success<IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>>>(new Dictionary<string, IReadOnlyDictionary<string, string>>()) : FlowErrors.UnsupportedConfiguration;
-        if (values.Keys.Any(key => !projection.Mapping.Any(field => field.Key == key && field.Files is null && field.Type != "multiChoice"))) return FlowErrors.InvalidValue;
+        // The block and its rows' questions are never prefilled.
+        if (values.Keys.Any(key => !projection.Mapping.Any(field => field.Key == key && field.Files is null && field.Type is not ("multiChoice" or "group")
+            && field.Repeated != true))) return FlowErrors.InvalidValue;
         var result = new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.Ordinal);
-        var groups = WhatsAppFlowScreenBuilder.Groups(projection.Mapping.Select(field => field.Files is not null).ToArray());
-        for (var screen = 0; screen < groups.Count; screen++)
+        var screens = WhatsAppFlowScreenBuilder.Plan(projection.Mapping.Select(field =>
+            new WhatsAppFlowSlot(field.Type, field.Files is not null, field.Repeated == true, field.Rows)).ToArray());
+        foreach (var screen in screens.Where(screen => screen.Kind == "fields"))
         {
-            var scalars = groups[screen].Select(index => projection.Mapping[index]).Where(field => field.Files is null && field.Type != "multiChoice").ToArray();
+            var scalars = screen.Questions.Select(index => projection.Mapping[index]).Where(field => field.Files is null && field.Type != "multiChoice").ToArray();
             if (scalars.Length == 0) continue;
             var initial = new Dictionary<string, string>(StringComparer.Ordinal);
             foreach (var field in scalars)
@@ -41,7 +44,7 @@ internal static class WhatsAppFlowPrefillPolicy
                 initial.Add(field.Key, value);
             }
             if (initial.Count > 0)
-                result.Add(DataKey(WhatsAppFlowScreenBuilder.ScreenId(screen)), new ReadOnlyDictionary<string, string>(initial));
+                result.Add(DataKey(screen.Id), new ReadOnlyDictionary<string, string>(initial));
         }
         return new ReadOnlyDictionary<string, IReadOnlyDictionary<string, string>>(result);
     }
