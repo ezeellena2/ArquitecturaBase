@@ -66,7 +66,7 @@ internal sealed record FormCatalogValueMigrationFixture(Guid CatalogId, Guid Ite
     }
 
     public static Task<string[]> HistoricalRowsAsync(ApplicationDbContext db, CancellationToken ct) => db.Database.SqlQueryRaw<string>("""
-        SELECT jsonb_build_object('table', 'definition', 'data', to_jsonb(r))::text AS "Value" FROM "FormDefinitions" r
+        SELECT jsonb_build_object('table', 'definition', 'data', to_jsonb(r) - 'ProposalId' - 'ProposalEvidenceJson')::text AS "Value" FROM "FormDefinitions" r
         UNION ALL SELECT jsonb_build_object('table', 'version', 'data', to_jsonb(r))::text FROM "BusinessFormVersions" r
         UNION ALL SELECT jsonb_build_object('table', 'field', 'data', to_jsonb(r))::text FROM "BusinessFormFields" r
         UNION ALL SELECT jsonb_build_object('table', 'record', 'data', to_jsonb(r) - 'EnteredInApp')::text FROM "BusinessFormRecords" r
