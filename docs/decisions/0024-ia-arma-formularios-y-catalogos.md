@@ -2,11 +2,10 @@
 
 ## Estado
 
-**Propuesta**, 2026-11-04. Recoge el diseño que eligió el usuario en [la IA arma formularios y catálogos](../plans/2026-11-04-ia-arma-formularios-y-catalogos.md)
+**Aceptada**, 2026-11-04, por decisión del usuario. Recoge el diseño que eligió en [la IA arma formularios y catálogos](../plans/2026-11-04-ia-arma-formularios-y-catalogos.md)
 (IA1-A e IA3-A). Amplía el [ADR 0017](0017-inicio-asistente-y-operaciones-durables.md) en lo que hace Inicio, el
 [ADR 0020](0020-motor-unico-de-ia-con-capacidades.md) con capacidades que proponen configuración en varios canales y el
-[ADR 0022](0022-lectura-de-documentos-con-ia.md) a leer documentos para armar. Una vez aceptada, rige desde la etapa 1 de
-ese plan.
+[ADR 0022](0022-lectura-de-documentos-con-ia.md) a leer documentos para armar. Rige desde la etapa 1 de ese plan.
 
 ## Contexto
 

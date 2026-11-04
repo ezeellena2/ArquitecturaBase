@@ -164,7 +164,7 @@ contenido y se registra qué se mandó (hash y tamaño), sin el contenido.
 ## El ADR
 
 El [ADR 0024](../decisions/0024-ia-arma-formularios-y-catalogos.md), «La IA arma formularios y catálogos a pedido», quedó
-propuesto el 2026-11-04 y se acepta antes de programar. Amplía el [0017](../decisions/0017-inicio-asistente-y-operaciones-durables.md)
+aceptado el 2026-11-04. Amplía el [0017](../decisions/0017-inicio-asistente-y-operaciones-durables.md)
 (Inicio deja afuera las escrituras de negocio), el [0020](../decisions/0020-motor-unico-de-ia-con-capacidades.md) (capacidades
 que proponen configuración en otros canales) y el [0022](../decisions/0022-lectura-de-documentos-con-ia.md) (leer documentos
 también en el chat de Inicio y para armar, no sólo para cargar). Fija:
@@ -189,7 +189,7 @@ también en el chat de Inicio y para armar, no sólo para cargar). Fija:
 ## Plan por etapas
 
 Cada paso queda igual a su tablero: al programarlo se abre el tablero y se compara antes de cerrarlo. Antes de la Etapa 1,
-el ADR se acepta, los tableros elegidos pasan al lienzo del sistema visual y su diseño se registra en el front. Cada etapa
+los tableros elegidos pasan al lienzo del sistema visual y su diseño se registra en el front. Cada etapa
 sigue [validar un cambio](../guides/validar-un-cambio.md): TDD en las políticas, integración con PostgreSQL y Redis,
 contratos exportados, y en el front tests, visuales y el recorrido es/en a 1440, 390 y 320, más una prueba física con el
 proveedor de IA real y con Meta. Las piezas nuevas del chat (adjuntar, grabar y la tarjeta de la propuesta) van a
