@@ -26,7 +26,8 @@ usar a otro.
 2. **Una familia usa solo `Connection`**, nunca a otra familia. `Connection` no nombra a ninguna familia. Lo verifica una
    prueba de arquitectura del módulo.
 3. **Cada familia se presenta con `IArcaServiceDefinition`,** una interfaz de `Connection` que la familia implementa y
-   registra con `TryAddEnumerable`. Declara:
+   registra con `TryAddEnumerable`. Es un puerto de `Interfaces/Channels/Connection`, y el adaptador de cada familia va
+   en `Channels/<Familia>`. Declara:
    - sus servicios de ARCA (el código WSN, como `wsfe` o `wscpe`) y su nombre;
    - cómo se prueba cada uno;
    - si su configuración propia está completa (Facturación, por ejemplo, necesita el punto de venta).

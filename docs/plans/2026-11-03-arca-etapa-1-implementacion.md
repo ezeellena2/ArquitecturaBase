@@ -46,26 +46,30 @@ src/ArquitecturaBase.Domain/Modules/Arca/
 src/ArquitecturaBase.Application/Modules/Arca/
 ├─ AGENTS.md · CLAUDE.md
 ├─ ArcaApplicationRegistration.cs                          una línea por familia
-├─ Channels/ArcaPermissionCatalogSource.cs
+├─ Channels/            ArcaPermissionCatalogSource
+│  ├─ Registry/         ArcaRegistryServiceDefinition
+│  └─ Invoicing/        ArcaInvoicingServiceDefinition
 ├─ Resources/Permissions.resx · Permissions.en.resx
 ├─ Interfaces/
-│  ├─ Services/Connection/     IArcaConnectionService · IArcaConnectionTestService · IArcaServiceDefinition
+│  ├─ Channels/Connection/     IArcaServiceDefinition
+│  ├─ Services/Connection/     IArcaConnectionService · IArcaConnectionTestService · IArcaAccessTicketStore
+│  ├─ Services/Registry/       IArcaRegistryCompanyService
 │  ├─ Services/Invoicing/      IArcaInvoicingSetupService
 │  ├─ Persistence/Connection/  IArcaConnectionRepository · IArcaConnectionReader
 │  ├─ Persistence/Registry/    IArcaRegistryRepository · IArcaRegistryReader
 │  ├─ Persistence/Invoicing/   IArcaInvoicingRepository · IArcaInvoicingReader
-│  ├─ Integrations/Connection/ IArcaCredentialService · IArcaAuthClient · IArcaAccessTicketProvider
+│  ├─ Integrations/Connection/ IArcaCredentialService · IArcaAccessTicketProvider
 │  ├─ Integrations/Registry/   IArcaRegistryClient
 │  └─ Integrations/Invoicing/  IArcaInvoicingClient
 ├─ Models/Connection/   ArcaConnectionResponse · ArcaConnectionRow · ArcaTicketRow · ArcaTestResponse
-│                       ArcaServiceCheck · ArcaServiceContext · ArcaCertificateRequest · InspectedCertificate
-│                       ArcaCertificateRef · ArcaLoginResult · ArcaTicketOutcome · ArcaInstalledService
+│                       ArcaServiceCheckResponse · ArcaServiceContext · ArcaCertificateRequest · ArcaInspectedCertificate
+│                       ArcaCertificateRef · ArcaTicketOutcome · ArcaTicketLeaseResponse · ArcaInstalledService
 ├─ Models/Registry/     ArcaRegistryPerson · ArcaRegistryCompanyRow · ArcaCompanyResponse
 ├─ Models/Invoicing/    ArcaPointOfSale · ArcaPointOfSaleRow · ArcaInvoicingSettingsRow · ArcaInvoicingSettingsResponse
 └─ Services/
-   ├─ Connection/  ArcaConnectionService · ArcaConnectionTestService · ArcaAccessTicketProvider
-   ├─ Registry/    ArcaRegistryServiceDefinition · ArcaCompanyDataPolicy
-   └─ Invoicing/   ArcaInvoicingServiceDefinition · ArcaInvoicingSetupService
+   ├─ Connection/  ArcaConnectionService · ArcaConnectionTestService · ArcaAccessTicketStore
+   ├─ Registry/    ArcaRegistryCompanyService · ArcaCompanyDataPolicy
+   └─ Invoicing/   ArcaInvoicingSetupService
 
 src/ArquitecturaBase.Infrastructure/Modules/Arca/
 ├─ AGENTS.md · CLAUDE.md
@@ -73,6 +77,7 @@ src/ArquitecturaBase.Infrastructure/Modules/Arca/
 ├─ Connection/   Security: ArcaSecretProtectionOptions · ArcaKeyRing · ArcaCredentialService
 │                          ArcaLoginTicketRequest · ArcaCmsSigner
 │                Soap: SoapEnvelope · ArcaAuthClient
+│                ArcaAccessTicketProvider
 ├─ Registry/     ArcaRegistryClient
 ├─ Invoicing/    ArcaInvoicingClient
 └─ Persistence/  ArcaLockKeys.cs
@@ -614,6 +619,25 @@ finally { CryptographicOperations.ZeroMemory(pkcs8); }
 
 ### Tarea 5: WSAA, el ticket compartido y la interfaz de las familias
 
+**Hecha el 2026-11-04.** Diferencias con lo escrito:
+- **El proveedor de tickets está en Infrastructure** (`Connection/ArcaAccessTicketProvider`), como el coordinador del
+  asistente de IA. `TransactionBoundaryTests` permite un límite por método público, y el ticket necesita dos (reservar y
+  guardar) con el pedido al WSAA en el medio. Cada paso es un método de `IArcaAccessTicketStore` (un servicio de
+  `Connection` con una transacción por método) y corre en un scope propio. Así tampoco se lee un ticket seguido viejo:
+  la unidad de trabajo no vacía el seguimiento después de confirmar.
+- **No hay `IArcaAuthClient` ni `ArcaLoginResult`.** `ArcaAuthClient` es interno de Infrastructure y devuelve
+  `ArcaTicketOutcome`; calcula el bloqueo con la ventana del ambiente, que está en `ArcaOptions`.
+- **`IArcaServiceDefinition` va en `Interfaces/Channels/Connection`,** como puerto «todos avisados», y los adaptadores
+  de cada familia en `Channels/<Familia>`. `DependencyInjectionTests` pide un único registro scoped por interfaz de
+  `Interfaces/Services`, y aquí hay uno por familia. Un adaptador no abre transacciones: lo que guarde una familia lo guarda su
+  servicio (tarea 6). El resultado se llama `ArcaServiceCheckResponse` y lleva el código del servicio como texto.
+- El `uniqueId` del pedido es al azar: con la hora, dos pedidos en el mismo milisegundo chocaban.
+- `cms.bad` no se toma como reloj corrido: da `Unavailable`. El reloj se reconoce por `generationTime` o
+  `expirationTime` en el código o en el texto de la falla.
+- Quien encuentra la reserva tomada espera de a medio segundo con el `TimeProvider`, como mucho lo que dura una reserva.
+- El paquete `System.Security.Cryptography.Pkcs` ya estaba en Infrastructure. La prueba de la firma está en
+  `ArcaCredentialServiceTests`.
+
 **Archivos:**
 - Crear: `src/ArquitecturaBase.Infrastructure/Modules/Arca/Connection/Security/ArcaLoginTicketRequest.cs` y `ArcaCmsSigner.cs` (los usa `ArcaCredentialService.SignLoginRequest`)
 - Crear: `src/ArquitecturaBase.Infrastructure/Modules/Arca/Connection/Soap/SoapEnvelope.cs` y `ArcaAuthClient.cs`
@@ -625,7 +649,7 @@ finally { CryptographicOperations.ZeroMemory(pkcs8); }
 - Modificar: `Directory.Packages.props` y `src/ArquitecturaBase.Infrastructure/ArquitecturaBase.Infrastructure.csproj` (`System.Security.Cryptography.Pkcs`)
 - Crear: `tests/ArquitecturaBase.Api.IntegrationTests/TestFeatures/Modules/Arca/FakeArca.cs`, y en `tests/ArquitecturaBase.Api.IntegrationTests/Modules/Arca/Connection/`, `ArcaLoginTicketRequestTests.cs` y `ArcaAccessTicketProviderTests.cs`
 
-- [ ] **Paso 1: tests en rojo.**
+- [x] **Paso 1: tests en rojo.**
   - **`ArcaLoginTicketRequestTests`:** con `FakeTimeProvider` en `2026-11-03T13:00:00Z`, el pedido tiene `version="1.0"`,
     `generationTime` `2026-11-03T09:50:00-03:00`, `expirationTime` `2026-11-03T10:10:00-03:00`, `service` `wsfe` y un
     `uniqueId` distinto en dos pedidos seguidos. La firma CMS verifica con `SignedCms.Decode` y `CheckSignature(true)`, y
@@ -639,7 +663,7 @@ finally { CryptographicOperations.ZeroMemory(pkcs8); }
       plazo;
     - `coe.notAuthorized` devuelve `NotAuthorized`;
     - un 503 o un timeout devuelve `Unavailable` y suelta la reserva.
-- [ ] **Paso 2: el pedido de ticket.**
+- [x] **Paso 2: el pedido de ticket.**
 
 ```csharp
 internal static class ArcaLoginTicketRequest
@@ -675,7 +699,7 @@ internal static class ArcaCmsSigner
 }
 ```
 
-- [ ] **Paso 3: `LoginCms`.** Es un POST con `Content-Type: text/xml; charset=utf-8` y `SOAPAction: ""`:
+- [x] **Paso 3: `LoginCms`.** Es un POST con `Content-Type: text/xml; charset=utf-8` y `SOAPAction: ""`:
 
 ```xml
 <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:wsaa="http://wsaa.view.sua.dvadac.desein.afip.gov">
@@ -694,7 +718,7 @@ internal static class ArcaCmsSigner
   `SoapEnvelope` es la pieza común que usan las familias para sus servicios. Arma el sobre, manda el POST, lee la
   respuesta con el tope de `MaxResponseBytes`, la parsea con `XmlReaderSettings { DtdProcessing = Prohibit, XmlResolver = null }`
   y nunca la deja en un log.
-- [ ] **Paso 4: el proveedor de tickets.** No usa HTTP dentro de una transacción ([locks](../architecture/backend.md#locks)):
+- [x] **Paso 4: el proveedor de tickets.** No usa HTTP dentro de una transacción ([locks](../architecture/backend.md#locks)):
 
 ```csharp
 public async Task<ArcaTicketOutcome> GetAsync(ArcaCertificateRef certificate, ArcaServiceCode service, CancellationToken cancellationToken)
@@ -741,7 +765,7 @@ public sealed record ArcaCertificateRef(Guid ConnectionId, Guid Id, string Cuit,
   `IArcaAuthClient.LoginAsync(ArcaCertificateRef certificate, ArcaServiceCode service, CancellationToken cancellationToken)`
   arma el pedido, lo firma con `IArcaCredentialService.SignLoginRequest` y devuelve `ArcaLoginResult` (token, firma y
   vencimiento, o el motivo de la falla).
-- [ ] **Paso 5: la interfaz de las familias.** Vive en `Connection` y la implementa cada familia:
+- [x] **Paso 5: la interfaz de las familias.** Vive en `Connection` y la implementa cada familia:
 
 ```csharp
 namespace ArquitecturaBase.Application.Modules.Arca.Interfaces.Services.Connection;
@@ -768,11 +792,11 @@ public sealed record ArcaServiceContext(ArcaCertificateRef Certificate, IArcaAcc
   `ArcaServiceCheck` lleva el código, el resultado (`Ready`, `NotAuthorized`, `Blocked`, `ClockSkew`, `Unavailable` o
   `Failed` con un motivo estable), `TicketExpiresAtUtc?` y `RetryAfterUtc?`. Cada familia lo registra con
   `services.TryAddEnumerable(ServiceDescriptor.Scoped<IArcaServiceDefinition, …>())`.
-- [ ] **Paso 6: `FakeArca`.** Es un `HttpMessageHandler` que enruta por la URL y el `SOAPAction`, responde los sobres de
+- [x] **Paso 6: `FakeArca`.** Es un `HttpMessageHandler` que enruta por la URL y el `SOAPAction`, responde los sobres de
   esta tarea y de la siguiente, cuenta las llamadas por operación y deja programar fallas por servicio: `alreadyAuthenticated`,
   `notAuthorized`, 503 y demora.
-- [ ] **Paso 7: correr** los dos tests de la tarea y `ArcaFamilyBoundaryTests`.
-- [ ] **Paso 8: commit.** `feat(arca): ticket de acceso compartido e interfaz de las familias`
+- [x] **Paso 7: correr** los dos tests de la tarea y `ArcaFamilyBoundaryTests`.
+- [x] **Paso 8: commit.** `feat(arca): ticket de acceso compartido e interfaz de las familias`
 
 ---
 
@@ -782,12 +806,14 @@ public sealed record ArcaServiceContext(ArcaCertificateRef Certificate, IArcaAcc
 - **`Registry`:**
   - `src/ArquitecturaBase.Application/Modules/Arca/Interfaces/Integrations/Registry/IArcaRegistryClient.cs`;
   - `Models/Registry/ArcaRegistryPerson.cs`;
-  - `Services/Registry/ArcaCompanyDataPolicy.cs` y `ArcaRegistryServiceDefinition.cs`;
+  - `Channels/Registry/ArcaRegistryServiceDefinition.cs`;
+  - `Interfaces/Services/Registry/IArcaRegistryCompanyService.cs`, y en `Services/Registry/`,
+    `ArcaRegistryCompanyService.cs` y `ArcaCompanyDataPolicy.cs`;
   - `src/ArquitecturaBase.Infrastructure/Modules/Arca/Registry/ArcaRegistryClient.cs`.
 - **`Invoicing`:**
   - `src/ArquitecturaBase.Application/Modules/Arca/Interfaces/Integrations/Invoicing/IArcaInvoicingClient.cs`;
   - `Models/Invoicing/ArcaPointOfSale.cs`;
-  - `Services/Invoicing/ArcaInvoicingServiceDefinition.cs`;
+  - `Channels/Invoicing/ArcaInvoicingServiceDefinition.cs`;
   - `src/ArquitecturaBase.Infrastructure/Modules/Arca/Invoicing/ArcaInvoicingClient.cs`.
 - **Tests:** `tests/ArquitecturaBase.Application.UnitTests/Modules/Arca/Registry/ArcaCompanyDataPolicyTests.cs`, y en
   `tests/ArquitecturaBase.Api.IntegrationTests/Modules/Arca/`, `Registry/ArcaRegistryClientTests.cs` e
@@ -833,8 +859,9 @@ public sealed record ArcaServiceContext(ArcaCertificateRef Certificate, IArcaAcc
   entrada van sin calificar.
 - [ ] **Paso 4: las definiciones.**
   - **`ArcaRegistryServiceDefinition`** declara `ws_sr_constancia_inscripcion` como obligatorio. Su prueba pide el ticket,
-    consulta la CUIT de la conexión y guarda `ArcaRegistryCompany` con `ArcaCompanyDataPolicy`. `IsCompleteAsync` es
-    siempre `true`.
+    consulta la CUIT de la conexión y guarda los datos con `IArcaRegistryCompanyService`, que arma `ArcaRegistryCompany`
+    con `ArcaCompanyDataPolicy` en su propia transacción con el lock de la conexión: un adaptador de `Channels` no abre
+    transacciones. `IsCompleteAsync` es siempre `true`.
   - **`ArcaInvoicingServiceDefinition`** declara `wsfe`, no obligatorio. Su prueba pide el ticket y llama a `FEDummy`.
     `IsCompleteAsync` mira si `ArcaInvoicingSettings` tiene un punto de venta.
 - [ ] **Paso 5: correr** los tests de la tarea y `ArcaFamilyBoundaryTests`.
@@ -850,7 +877,7 @@ public sealed record ArcaServiceContext(ArcaCertificateRef Certificate, IArcaAcc
   - `Services/Connection/ArcaConnectionService.cs` y `ArcaConnectionTestService.cs`;
   - `Models/Connection/ArcaConnectionResponse.cs` y `ArcaTestResponse.cs`.
 - **`Invoicing`:** `Interfaces/Services/Invoicing/IArcaInvoicingSetupService.cs`, `Services/Invoicing/ArcaInvoicingSetupService.cs`, `Models/Invoicing/ArcaPointOfSaleRow.cs` y `ArcaInvoicingSettingsResponse.cs`
-- **`Registry`:** `Models/Registry/ArcaCompanyResponse.cs`, servido por un método de lectura en `ArcaRegistryServiceDefinition` o un servicio chico propio, a elección de quien programe
+- **`Registry`:** `Models/Registry/ArcaCompanyResponse.cs`, servido por un método de lectura de `IArcaRegistryCompanyService`
 - **Tests:** `tests/ArquitecturaBase.Application.UnitTests/Modules/Arca/Connection/ArcaConnectionServiceTests.cs`, `Invoicing/ArcaInvoicingSetupServiceTests.cs` y los dobles en `TestFeatures/Modules/Arca/`
 
 Referencias: `AiConnectionService`, `AiConnectionTestService` y `RoleService.UpdateAsync`, para la forma de guardar con

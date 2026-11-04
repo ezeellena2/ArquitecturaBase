@@ -28,6 +28,8 @@ public sealed partial class ArcaFamilyBoundaryTests
         "src/ArquitecturaBase.Application/Modules/Arca/Interfaces/Services",
         "src/ArquitecturaBase.Application/Modules/Arca/Interfaces/Persistence",
         "src/ArquitecturaBase.Application/Modules/Arca/Interfaces/Integrations",
+        "src/ArquitecturaBase.Application/Modules/Arca/Interfaces/Channels",
+        "src/ArquitecturaBase.Application/Modules/Arca/Channels",
         "src/ArquitecturaBase.Application/Modules/Arca/Models",
         "src/ArquitecturaBase.Application/Modules/Arca/Services",
         "src/ArquitecturaBase.Api/Modules/Arca/Contracts",

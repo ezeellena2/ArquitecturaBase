@@ -51,6 +51,13 @@ internal sealed class ArcaCredentialService(ArcaKeyRing ring, IOptions<ArcaOptio
             certificate.GetCertHashString(HashAlgorithmName.SHA256));
     }
 
+    public string SignLoginRequest(Guid connectionId, Guid certificateId, string protectedPrivateKey, string certificatePem, byte[] loginTicketRequest)
+    {
+        using var rsa = ImportPrivateKey(connectionId, certificateId, protectedPrivateKey);
+        using var certificate = X509Certificate2.CreateFromPem(certificatePem);
+        return ArcaCmsSigner.Sign(loginTicketRequest, certificate, rsa);
+    }
+
     public string ProtectTicket(Guid connectionId, Guid certificateId, ArcaServiceCode service, string token, string sign)
     {
         var plain = JsonSerializer.SerializeToUtf8Bytes(new[] { token, sign });
@@ -84,13 +91,24 @@ internal sealed class ArcaCredentialService(ArcaKeyRing ring, IOptions<ArcaOptio
 
     private bool MatchesKey(X509Certificate2 certificate, Guid connectionId, Guid certificateId, string protectedPrivateKey)
     {
+        using var rsa = ImportPrivateKey(connectionId, certificateId, protectedPrivateKey);
+        return rsa.ExportSubjectPublicKeyInfo().AsSpan().SequenceEqual(certificate.PublicKey.ExportSubjectPublicKeyInfo());
+    }
+
+    private RSA ImportPrivateKey(Guid connectionId, Guid certificateId, string protectedPrivateKey)
+    {
         var pkcs8 = Unprotect(CertificateKeyPurpose, connectionId, certificateId, protectedPrivateKey)
             ?? throw new InvalidOperationException("The ARCA certificate private key cannot be decrypted with the configured ring.");
+        var rsa = RSA.Create();
         try
         {
-            using var rsa = RSA.Create();
             rsa.ImportPkcs8PrivateKey(pkcs8, out _);
-            return rsa.ExportSubjectPublicKeyInfo().AsSpan().SequenceEqual(certificate.PublicKey.ExportSubjectPublicKeyInfo());
+            return rsa;
+        }
+        catch
+        {
+            rsa.Dispose();
+            throw;
         }
         finally { CryptographicOperations.ZeroMemory(pkcs8); }
     }

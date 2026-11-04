@@ -20,6 +20,9 @@ public interface IArcaCredentialService
     Result<ArcaInspectedCertificate> Inspect(Guid connectionId, Guid certificateId, string protectedPrivateKey, string certificatePem,
         string cuit, ArcaEnvironment environment, DateTime nowUtc);
 
+    /// <summary>Firma el pedido de ticket del WSAA con la clave y el certificado, y devuelve el CMS en base64.</summary>
+    string SignLoginRequest(Guid connectionId, Guid certificateId, string protectedPrivateKey, string certificatePem, byte[] loginTicketRequest);
+
     string ProtectTicket(Guid connectionId, Guid certificateId, ArcaServiceCode service, string token, string sign);
 
     /// <summary>Null si el texto no es de ese certificado y servicio, o si su clave ya no está en el anillo.</summary>

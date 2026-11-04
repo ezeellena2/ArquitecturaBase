@@ -1,5 +1,7 @@
 using System.Security.Cryptography;
+using System.Security.Cryptography.Pkcs;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.Arca;
 using ArquitecturaBase.Application.Modules.Arca.Models.Connection;
 using ArquitecturaBase.Domain.Modules.Arca;
@@ -121,6 +123,22 @@ public sealed class ArcaCredentialServiceTests : IDisposable
         var request = service.CreateRequest(connectionId, certificateId, Cuit, "plataforma");
 
         Assert.Equal(ArcaConnectionErrors.CertificateUnreadable, Inspect(request.ProtectedPrivateKey, pem).Error);
+    }
+
+    [Fact]
+    public void The_login_request_is_signed_with_the_certificate_and_carries_the_request()
+    {
+        var request = service.CreateRequest(connectionId, certificateId, Cuit, "plataforma");
+        var certificatePem = authority.Issue(request.RequestPem, ArcaEnvironment.Testing, NowUtc.AddYears(2));
+        var content = Encoding.UTF8.GetBytes("<loginTicketRequest version=\"1.0\"/>");
+
+        var cms = new SignedCms();
+        cms.Decode(Convert.FromBase64String(service.SignLoginRequest(connectionId, certificateId, request.ProtectedPrivateKey, certificatePem, content)));
+
+        cms.CheckSignature(verifySignatureOnly: true);
+        Assert.Equal(content, cms.ContentInfo.Content);
+        using var certificate = X509Certificate2.CreateFromPem(certificatePem);
+        Assert.Equal(certificate.Thumbprint, Assert.Single(cms.SignerInfos.Cast<SignerInfo>()).Certificate?.Thumbprint);
     }
 
     [Fact]
