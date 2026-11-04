@@ -31,9 +31,37 @@ TanStack Query, Vitest con MSW y Playwright.
 | Infrastructure `Modules/Arca/` | `ArcaInfrastructureRegistration`, `ArcaOptions`; `Security/ArcaKeyRing`, `ArcaSecretProtectionOptions`, `ArcaCredentialService`, `ArcaLoginTicketRequest`, `ArcaCmsSigner`; `Soap/ArcaAuthClient`, `ArcaInvoicingClient`, `ArcaRegistryClient`, `SoapEnvelope`; `Persistence/ArcaLockKeys`, `Configurations/*`, `Repositories/ArcaConnectionRepository`, `Readers/ArcaConnectionReader` |
 | Api `Modules/Arca/` | `ArcaApiRegistration`, `ArcaRateLimitOptions`; `Controllers/ArcaConnectionController`; `Contracts/StartArcaConnectionHttpRequest`, `UploadArcaCertificateHttpRequest`, `ChooseArcaPointOfSaleHttpRequest`, `ArcaRevisionHttpRequest` |
 | Comunes | `Program.cs` (bloque del módulo), `Application/Resources/Errors(.en).resx`, `Directory.Packages.props`, migración `AddArcaConnection` |
-| Tests | `Domain.UnitTests/Modules/Arca/*`, `Application.UnitTests/Modules/Arca/*`, `ArchitectureTests/Modules/Arca/ArcaTransactionContribution`, `Api.IntegrationTests/Modules/Arca/*` (con `ArcaTestModule`, `FakeArca` y `FakeArcaCertificateAuthority`) |
+| Tests | `Domain.UnitTests/Modules/Arca/*`, `Application.UnitTests/Modules/Arca/*` y `TestFeatures/Modules/Arca/*`, `ArchitectureTests/Modules/Arca/ArcaTransactionContribution`, `Api.IntegrationTests/Modules/Arca/*` (con `ArcaTestModule`) y `Api.IntegrationTests/TestFeatures/Modules/Arca/*` (`FakeArca` y `FakeArcaCertificateAuthority`) |
 | Front `src/features/arca/` | `api/arcaConnection.ts`, `pages/ArcaSettingsPage.tsx`, `components/*`, `model.ts`, `locales/{es,en}/arca.json`, la ruta y la entrada del menú |
 | Docs | `docs/features/arca.md`, `docs/guides/configurar-arca.md`, `docs/guides/quitar-arca.md`, `AGENTS.md` y `CLAUDE.md` de cada carpeta nueva, el mapa de instrucciones |
+
+## Desacople
+
+ARCA se tiene que poder quitar entero, como WhatsApp y la IA ([ADR 0007](../decisions/0007-whatsapp-como-modulo-opcional.md),
+[módulos opcionales](../architecture/backend.md#módulos-opcionales)). Todo el código vive en las carpetas `Modules/Arca`
+(cuatro en `src` y cuatro en `tests`, más `TestFeatures/Modules/Arca` en Application.UnitTests y Api.IntegrationTests) y en
+`src/features/arca` del front. El núcleo no las nombra, y `ModuleBoundaryTests` lo verifica en cada corrida.
+
+Fuera de esas carpetas, el módulo toca solo estos lugares, y la guía `quitar-arca.md` los enumera:
+
+| Lugar | Qué hay | Al quitar el módulo |
+| --- | --- | --- |
+| `src/ArquitecturaBase.Api/Program.cs` | Tres `using` marcados `// módulo ARCA` y el bloque del módulo | Se borran |
+| `src/ArquitecturaBase.Api/appsettings.json` | La sección `Arca` (direcciones, emisores, plazos) | Se borra |
+| User-secrets o variables del host | `Arca:SecretProtection:*` | Se guarda una copia segura para los backups y se borra |
+| `Application/Resources/Errors.resx` y `.en.resx` | Las claves `Arca.*` | Se borran; si no, `ErrorCodeTests` falla y las nombra |
+| `Directory.Packages.props` e `Infrastructure.csproj` | `System.Security.Cryptography.Pkcs` | Se quita del `.csproj`, y de `Directory.Packages.props` si nadie más lo usa |
+| La cadena de migraciones | `AddArcaConnection`, que nombra sus entidades con cadenas | Se conserva y se genera `RemoveArca`, que borra solo las tres tablas |
+| Front: `src/app/routes.tsx`, `src/layouts/navigation.ts` y `common.json` | La ruta `/configuracion/arca`, la entrada del menú y su texto | Se borran |
+| Front: `src/test/visual` | La escena y las capturas de ARCA | Se borran |
+| Docs | `features/arca.md`, `guides/configurar-arca.md` y los enlaces a ellos | Se borran; el ADR 0023 y el historial quedan |
+
+**Para las etapas que siguen**, la misma regla:
+- El motor de formularios (BusinessForms) es otro módulo y no puede nombrar a ARCA. La emisión (etapa 3) entra por un
+  puerto neutral del núcleo en `Application/Interfaces/Channels`, con su versión apagada, como el canal de avisos que
+  implementa WhatsApp.
+- El estándar «Factura» y los catálogos de ARCA los aporta el módulo por puertos del núcleo, así que se van con él.
+- Lo genérico del motor (renglones, cálculos, condiciones, resultado externo y carpetas) se queda: no nombra a ARCA.
 
 ---
 
@@ -121,10 +149,10 @@ public sealed record ArcaEndpoints
   - tres `HttpClient` con nombre (`arca-wsaa`, `arca-wsfe`, `arca-registry`), sin redirecciones (`AllowAutoRedirect = false`),
     con `Timeout` de las opciones y los loggers del `HttpClient` apagados como en IA.
 
-  En `Program.cs`, el bloque va debajo del de IA:
+  En `Program.cs` van los tres `using` marcados `// módulo ARCA`, como los de WhatsApp, y el bloque debajo del de IA:
 
 ```csharp
-// Optional ARCA module (ADR 0023): connection with the company certificate. Its external key ring is required.
+// Módulo ARCA (ADR 0023). Para quitarlo: este bloque, los tres using marcados y docs/guides/quitar-arca.md.
 builder.Services
     .AddArcaApplication()
     .AddArcaInfrastructure(builder.Configuration)
@@ -345,7 +373,7 @@ public interface IArcaConnectionReader
 **Archivos:**
 - Crear: `src/ArquitecturaBase.Application/Modules/Arca/Interfaces/Integrations/IArcaCredentialService.cs`, `Models/ArcaCertificateRequest.cs`, `Models/InspectedCertificate.cs`
 - Crear: `src/ArquitecturaBase.Infrastructure/Modules/Arca/Security/ArcaCredentialService.cs`
-- Crear: `tests/ArquitecturaBase.Api.IntegrationTests/Modules/Arca/ArcaCredentialServiceTests.cs`, `Support/FakeArcaCertificateAuthority.cs`
+- Crear: `tests/ArquitecturaBase.Api.IntegrationTests/Modules/Arca/ArcaCredentialServiceTests.cs` y `tests/ArquitecturaBase.Api.IntegrationTests/TestFeatures/Modules/Arca/FakeArcaCertificateAuthority.cs`
 
 - [ ] **Paso 1: la autoridad de prueba.** `FakeArcaCertificateAuthority` crea una CA autofirmada por ambiente, con el CN
   configurado en `ArcaTestModule` (`Computadores Test` y `Computadores`). `Issue(string requestPem, ArcaEnvironment environment, DateTime notAfterUtc)`
@@ -417,7 +445,7 @@ finally { CryptographicOperations.ZeroMemory(pkcs8); }
 - Crear: `src/ArquitecturaBase.Infrastructure/Modules/Arca/Soap/SoapEnvelope.cs`, `ArcaAuthClient.cs`
 - Crear: `src/ArquitecturaBase.Application/Modules/Arca/Interfaces/Integrations/IArcaAuthClient.cs`, `Models/ArcaLoginResult.cs`, `Models/ArcaCertificateRef.cs`, `Services/ArcaAccessTicketProvider.cs`, `Models/ArcaTicketOutcome.cs`
 - Modificar: `Directory.Packages.props` y `src/ArquitecturaBase.Infrastructure/ArquitecturaBase.Infrastructure.csproj` (`System.Security.Cryptography.Pkcs`)
-- Crear: `tests/ArquitecturaBase.Api.IntegrationTests/Modules/Arca/Support/FakeArca.cs`, `ArcaLoginTicketRequestTests.cs`, `ArcaAccessTicketProviderTests.cs`
+- Crear: `tests/ArquitecturaBase.Api.IntegrationTests/TestFeatures/Modules/Arca/FakeArca.cs`, y en `tests/ArquitecturaBase.Api.IntegrationTests/Modules/Arca/`, `ArcaLoginTicketRequestTests.cs` y `ArcaAccessTicketProviderTests.cs`
 
 - [ ] **Paso 1: tests en rojo.**
   - **`ArcaLoginTicketRequestTests`:** con `FakeTimeProvider` en `2026-11-03T13:00:00Z`, el pedido tiene `version="1.0"`,
@@ -739,6 +767,15 @@ Repo `../ArquitecturaBaseFront`. Antes, leer su `AGENTS.md`, el de `src/features
   - `dotnet build ArquitecturaBase.slnx` sin advertencias;
   - en el front: build, lint, tests y la suite visual;
   - `aspire stop` si se levantó la app.
+- [ ] **Prueba de fuego de la retirada:** en una copia descartable de los dos repos, sin tocar las carpetas de trabajo,
+  un agente sigue solo `quitar-arca.md` y comprueba:
+  - el build sin advertencias, `RemoveArca` con solo los tres `DropTable` y `has-pending-model-changes` sin cambios;
+  - `ModuleBoundaryTests`, `ErrorCodeTests` y los tests del núcleo en verde;
+  - en el front, build, lint y tests;
+  - sin rastros: `git grep -nE '\bArca|\barca\b|\bARCA\b' -- src tests` en el backend y `-- src` en el front no
+    devuelven nada (con `-i` aparecería «marca»).
+
+  Lo que encuentre se corrige en la guía, como se hizo con WhatsApp.
 - [ ] **Homologación real con el usuario:**
   - el usuario crea en WSASS el certificado con el `.csr` que da la app y autoriza `wsfe` y `ws_sr_constancia_inscripcion`;
   - después se prueban la conexión, los datos de la empresa y los puntos de venta contra ARCA;
