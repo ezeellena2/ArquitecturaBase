@@ -127,7 +127,9 @@ public sealed class FormAssistantProposalHttpTests(ApiFactory factory)
         using var approved = await author.PostAsJsonAsync($"/api/forms/catalogs/{catalogId}/proposal/approve", new { expectedRevision = 1 }, Ct);
         Assert.Equal(HttpStatusCode.OK, approved.StatusCode);
         await FormAssistantProposalContractCapture.WriteAsync(approved, "catalog-approved", Ct);
-        var saved = (await approved.ReadJsonAsync()).GetProperty("catalog");
+        var approval = await approved.ReadJsonAsync();
+        Assert.Empty(approval.GetProperty("fieldIdentityMap").EnumerateObject());
+        var saved = approval.GetProperty("catalog");
         Assert.Equal((true, 2L, "Approved"), (saved.GetProperty("isActive").GetBoolean(), saved.GetProperty("revision").GetInt64(),
             saved.GetProperty("proposal").GetProperty("state").GetString()));
         Assert.Equal(scenario.AuthorId, saved.GetProperty("proposal").GetProperty("decidedBy").GetProperty("userId").GetGuid());

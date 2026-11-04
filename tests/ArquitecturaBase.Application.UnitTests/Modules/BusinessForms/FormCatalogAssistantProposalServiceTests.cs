@@ -116,6 +116,7 @@ public sealed class FormCatalogAssistantProposalServiceTests
         Assert.Equal((true, BusinessFormCatalogProposalState.Approved, (Guid?)host.Catalogs.Assistant.Actor, 2L),
             (catalog.IsActive, catalog.ProposalState, catalog.ProposalDecidedByUserId, catalog.Revision));
         Assert.Equal(("Integer", 3), (approved.Value.Catalog.ValueType, approved.Value.Catalog.Fields!.Count));
+        Assert.Equal((0, 0), (approved.Value.ItemIdentityMap.Count, approved.Value.FieldIdentityMap!.Count));
         Assert.Equal("Transportistas", approved.Value.Catalog.Proposal!.Manual!.Name);
         Assert.Equal(0, host.Catalogs.PreviewReads);
     }

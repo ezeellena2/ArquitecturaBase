@@ -142,7 +142,7 @@ internal sealed class FormCatalogProposalService(IFormCatalogRepository reposito
         var detail = await MapAsync(catalog, actor, ct) with { ItemsCount = items.Count, ValueType = catalog.ValueType.ToString() };
         var canReadForms = detail.UsageCount is not null;
         return new FormCatalogSaveResponse(await FormCatalogFieldPresentation.DescribeAsync(detail, catalog.FieldsJson, catalog.PresentationJson,
-            items, catalogReader, canReadForms, ct), new Dictionary<string, Guid>());
+            items, catalogReader, canReadForms, ct), new Dictionary<string, Guid>(), new Dictionary<string, Guid>());
     }
 
     private static Result<FormCatalogProposalPayload> ValidateProposal(StructuredCatalogProposalAcceptanceRequest request)
