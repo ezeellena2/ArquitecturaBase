@@ -13,6 +13,7 @@ public sealed class FormDraftRequestMappingTests
     [
         typeof(FormDraftInput).FullName!, typeof(FormFieldInput).FullName!, typeof(FormChoiceInput).FullName!,
         typeof(FormQuestionSource).FullName!, typeof(FormFileSettings).FullName!, typeof(FormSelectionSettings).FullName!,
+        typeof(FormRowSettings).FullName!,
     ];
 
     [Fact]
@@ -45,7 +46,7 @@ public sealed class FormDraftRequestMappingTests
         var input = new FormDraftHttpRequest(1, "es", submit,
         [
             new("local-field", fieldId, replacesFieldId, "multiChoice", labels, help, true, 123,
-                [new("local-choice", choiceId, labels)], new(catalogId), new(1, 4, "camera"), new(1, 3)),
+                [new("local-choice", choiceId, labels)], new(catalogId), new(1, 4, "camera"), new(1, 3), new(2, 30), true),
         ]);
 
         var mapped = Map(input);
@@ -69,6 +70,8 @@ public sealed class FormDraftRequestMappingTests
         Assert.Equal(catalogId, field.Source?.Catalog);
         Assert.Equal(new FormFileSettings(1, 4, "camera"), field.Files);
         Assert.Equal(new FormSelectionSettings(1, 3), field.Selection);
+        Assert.Equal(new FormRowSettings(2, 30), field.Rows);
+        Assert.True(field.Repeated);
     }
 
     [Fact]

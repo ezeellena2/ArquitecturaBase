@@ -118,13 +118,14 @@ que la sesión de las listas dependientes commitee lo suyo.
 
 ### Tarea 2 · El contrato HTTP del borrador
 
-- [ ] Integración en rojo (`FormGroupDraftHttpTests`): guardar con un bloque, la respuesta con `rows` y `repeated`, pasar
+- [x] Integración en rojo (`FormGroupDraftHttpTests`): guardar con un bloque, la respuesta con `rows` y `repeated`, pasar
   una pregunta guardada al bloque y sacarla (identidad nueva, la anterior retirada), y las rutas de los errores.
-- [ ] `FormRowSettingsHttpRequest` y los parámetros `Rows` y `Repeated` en `FormFieldHttpRequest`, `FormDraftRequestMapping`
+- [x] `FormRowSettingsHttpRequest` y los parámetros `Rows` y `Repeated` en `FormFieldHttpRequest`, `FormDraftRequestMapping`
   y la lista de `FormDraftRequestMappingTests`.
-- [ ] Captura para el front (`FORMS_HTTP_CONTRACT_OUTPUT`) en `forms-http/rows/draft.json` y su lugar en
+- [x] Captura para el front (`FORMS_HTTP_CONTRACT_OUTPUT`) en `forms-http/rows/draft.json` y su lugar en
   `export-responses-http.ps1`.
-- [ ] Commit: `feat(formularios): el contrato del borrador lleva el bloque de renglones`.
+- [x] Commit: `feat(formularios): el contrato del borrador lleva el bloque de renglones`. Verde: ArchitectureTests 198 y
+  los dos HTTP nuevos con PostgreSQL.
 
 ### Tarea 3 · Chequeo, aceptación y puerto neutral
 

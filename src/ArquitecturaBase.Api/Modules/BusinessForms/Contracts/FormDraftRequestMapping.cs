@@ -19,7 +19,8 @@ internal static class FormDraftRequestMapping
             field.Options?.Select(option => option is null ? null! : new FormChoiceInput(option.LocalId, option.ChoiceId, option.Label)).ToArray(),
             Map(field.Source),
             field.Files is null ? null : new FormFileSettings(field.Files.MinFiles, field.Files.MaxFiles, field.Files.PhotoSource),
-            field.Selection is null ? null : new FormSelectionSettings(field.Selection.MinSelected, field.Selection.MaxSelected))).ToArray()!);
+            field.Selection is null ? null : new FormSelectionSettings(field.Selection.MinSelected, field.Selection.MaxSelected),
+            field.Rows is null ? null : new FormRowSettings(field.Rows.MinRows, field.Rows.MaxRows), field.Repeated)).ToArray()!);
     public static FormQuestionSource? Map(FormQuestionSourceHttpRequest? source) => source is null ? null : new(source.Catalog,
         source.Match?.Select(match => match is null ? null! : new FormCatalogMatch(match.FieldId, match.Value, match.PersonAttributeId, match.QuestionId)).ToArray(),
         source.Presentation is null ? null : new FormCatalogPresentation(source.Presentation.Title!, source.Presentation.Description!));

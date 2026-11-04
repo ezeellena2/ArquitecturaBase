@@ -9,7 +9,8 @@ public sealed record FormDraftHttpRequest(int Format, string Culture, IReadOnlyD
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record FormFieldHttpRequest(string LocalId, Guid? FieldId, Guid? ReplacesFieldId, string Type,
     IReadOnlyDictionary<string, string> Label, IReadOnlyDictionary<string, string?>? Help, bool Required, int? MaxLength,
-    IReadOnlyList<FormChoiceHttpRequest>? Options, FormQuestionSourceHttpRequest? Source = null, FormFileSettingsHttpRequest? Files = null, FormSelectionSettingsHttpRequest? Selection = null)
+    IReadOnlyList<FormChoiceHttpRequest>? Options, FormQuestionSourceHttpRequest? Source = null, FormFileSettingsHttpRequest? Files = null, FormSelectionSettingsHttpRequest? Selection = null,
+    FormRowSettingsHttpRequest? Rows = null, bool? Repeated = null)
 { public override string ToString() => "FormFieldHttpRequest { Content = [REDACTED] }"; }
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record FormQuestionSourceHttpRequest(Guid? Catalog, IReadOnlyList<FormCatalogMatchHttpRequest>? Match = null,
@@ -25,6 +26,9 @@ public sealed record FormChoiceHttpRequest(string LocalId, Guid? ChoiceId, IRead
 
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record FormSelectionSettingsHttpRequest(int MinSelected, int MaxSelected);
+
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+public sealed record FormRowSettingsHttpRequest(int MinRows, int MaxRows);
 
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record FormFileSettingsHttpRequest(int MinFiles, int MaxFiles, string? PhotoSource = null);
