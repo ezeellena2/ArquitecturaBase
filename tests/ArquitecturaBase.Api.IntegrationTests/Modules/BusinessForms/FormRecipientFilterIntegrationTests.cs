@@ -120,7 +120,8 @@ public sealed class FormRecipientFilterIntegrationTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.OK, check.StatusCode);
         var assessment = await check.ReadJsonAsync();
         Assert.True(assessment.GetProperty("canAccept").GetBoolean());
-        Assert.Equal(2, assessment.GetProperty("warnings").GetArrayLength());
+        // NI3-B (2026-11-03): one option per person fits, so only the people without the data warn.
+        Assert.Equal(FormPublicationErrors.RecipientsWithoutData.Code, Assert.Single(assessment.GetProperty("warnings").EnumerateArray()).GetProperty("code").GetString());
         input["requestId"] = Guid.NewGuid().ToString("D");
         input["checkToken"] = assessment.GetProperty("checkToken").GetString();
         using var accepted = await client.PostAsJsonAsync($"/api/forms/definitions/{scenario.DefinitionId}/publications", input, Ct);
