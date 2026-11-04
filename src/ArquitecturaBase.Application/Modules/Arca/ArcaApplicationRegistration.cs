@@ -4,8 +4,10 @@ using ArquitecturaBase.Application.Modules.Arca.Channels.Invoicing;
 using ArquitecturaBase.Application.Modules.Arca.Channels.Registry;
 using ArquitecturaBase.Application.Modules.Arca.Interfaces.Channels.Connection;
 using ArquitecturaBase.Application.Modules.Arca.Interfaces.Services.Connection;
+using ArquitecturaBase.Application.Modules.Arca.Interfaces.Services.Invoicing;
 using ArquitecturaBase.Application.Modules.Arca.Interfaces.Services.Registry;
 using ArquitecturaBase.Application.Modules.Arca.Services.Connection;
+using ArquitecturaBase.Application.Modules.Arca.Services.Invoicing;
 using ArquitecturaBase.Application.Modules.Arca.Services.Registry;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -24,8 +26,14 @@ public static class ArcaApplicationRegistration
         return services;
     }
 
-    private static void AddConnection(IServiceCollection services) =>
+    private static void AddConnection(IServiceCollection services)
+    {
+        services.TryAddScoped<ArcaServiceCatalog>();
+        services.TryAddScoped<ArcaServiceAccess>();
         services.TryAddScoped<IArcaAccessTicketStore, ArcaAccessTicketStore>();
+        services.TryAddScoped<IArcaConnectionService, ArcaConnectionService>();
+        services.TryAddScoped<IArcaConnectionTestService, ArcaConnectionTestService>();
+    }
 
     private static void AddRegistry(IServiceCollection services)
     {
@@ -33,6 +41,9 @@ public static class ArcaApplicationRegistration
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IArcaServiceDefinition, ArcaRegistryServiceDefinition>());
     }
 
-    private static void AddInvoicing(IServiceCollection services) =>
+    private static void AddInvoicing(IServiceCollection services)
+    {
+        services.TryAddScoped<IArcaInvoicingSetupService, ArcaInvoicingSetupService>();
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IArcaServiceDefinition, ArcaInvoicingServiceDefinition>());
+    }
 }

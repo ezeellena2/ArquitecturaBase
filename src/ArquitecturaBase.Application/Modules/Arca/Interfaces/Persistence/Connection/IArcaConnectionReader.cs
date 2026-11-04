@@ -9,4 +9,9 @@ public interface IArcaConnectionReader
     Task<ArcaConnectionRow?> FindAsync(CancellationToken cancellationToken);
 
     Task<ArcaTicketRow?> FindTicketAsync(Guid certificateId, ArcaServiceCode service, CancellationToken cancellationToken);
+
+    Task<ArcaPendingRequestRow?> FindPendingRequestAsync(CancellationToken cancellationToken);
+
+    /// <summary>El certificado de ese papel si ya está cargado; null si no hay o todavía espera el archivo de ARCA.</summary>
+    Task<ArcaSigningCertificateRow?> FindSigningCertificateAsync(ArcaCertificateRole role, CancellationToken cancellationToken);
 }

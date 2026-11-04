@@ -25,6 +25,20 @@ internal sealed class ArcaConnectionReader(ApplicationDbContext dbContext) : IAr
             connection.EnabledServices, connection.LastTestPassed, connection.LastTestedAtUtc, connection.Revision, certificates);
     }
 
+    public Task<ArcaPendingRequestRow?> FindPendingRequestAsync(CancellationToken cancellationToken) =>
+        dbContext.Set<ArcaCertificate>().AsNoTracking()
+            .Where(x => x.Role == ArcaCertificateRole.Pending)
+            .Select(x => new ArcaPendingRequestRow(x.Alias, x.RequestPem))
+            .SingleOrDefaultAsync(cancellationToken);
+
+    public Task<ArcaSigningCertificateRow?> FindSigningCertificateAsync(ArcaCertificateRole role, CancellationToken cancellationToken) =>
+        (from certificate in dbContext.Set<ArcaCertificate>().AsNoTracking()
+         join connection in dbContext.Set<ArcaConnection>().AsNoTracking() on certificate.ConnectionId equals connection.Id
+         where certificate.Role == role && certificate.CertificatePem != null
+         select new ArcaSigningCertificateRow(connection.Id, certificate.Id, connection.Cuit, connection.Environment,
+             certificate.ProtectedPrivateKey, certificate.CertificatePem!))
+            .SingleOrDefaultAsync(cancellationToken);
+
     public Task<ArcaTicketRow?> FindTicketAsync(Guid certificateId, ArcaServiceCode service, CancellationToken cancellationToken) =>
         dbContext.Set<ArcaAccessTicket>().AsNoTracking()
             .Where(x => x.CertificateId == certificateId && x.ServiceCode == service.Value)

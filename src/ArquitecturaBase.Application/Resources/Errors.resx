@@ -143,6 +143,12 @@
   <data name="Arca.Connection.NoPendingRequest" xml:space="preserve"><value>No hay un pedido de certificado pendiente.</value></data>
   <data name="Arca.Connection.RevisionConflict" xml:space="preserve"><value>Otra persona cambió la conexión. Leé lo actual y volvé a intentar.</value></data>
   <data name="Arca.Connection.NotConnected" xml:space="preserve"><value>Todavía no hay una conexión con ARCA.</value></data>
+  <data name="Arca.Connection.CertificateNotLoaded" xml:space="preserve"><value>Subí el certificado de ARCA antes de seguir.</value></data>
+  <data name="Arca.Connection.ServiceNotAuthorized" xml:space="preserve"><value>ARCA no autorizó ese servicio para el certificado. Asocialo en el Administrador de Relaciones de ARCA y volvé a probar.</value></data>
+  <data name="Arca.Connection.ClockSkew" xml:space="preserve"><value>ARCA rechazó el pedido porque la hora del servidor no coincide con la suya. Revisá la hora del servidor.</value></data>
+  <data name="Arca.Connection.Unavailable" xml:space="preserve"><value>ARCA no respondió. Probá de nuevo en unos minutos.</value></data>
+  <data name="Arca.Connection.ServiceRejected" xml:space="preserve"><value>ARCA rechazó la consulta. Probá la conexión para ver el detalle.</value></data>
+  <data name="Arca.Connection.ServiceBlocked" xml:space="preserve"><value>ARCA todavía no acepta otro pedido para ese servicio. Probá de nuevo en unos minutos.</value></data>
   <data name="Arca.Invoicing.PointOfSaleInvalid" xml:space="preserve"><value>El punto de venta va de 1 a 99998.</value></data>
   <data name="Arca.Invoicing.PointOfSaleUnavailable" xml:space="preserve"><value>ARCA ya no ofrece ese punto de venta. Volvé a buscar los puntos de venta.</value></data>
   <data name="Forms.Draft.RevisionConflict" xml:space="preserve">

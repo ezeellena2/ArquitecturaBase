@@ -57,6 +57,12 @@ public sealed class ArcaConnection : Entity, IAuditable
         return Result.Success();
     }
 
+    /// <summary>Se pidió otro certificado: una renovación, o un pedido nuevo mientras se espera el primero.</summary>
+    public void CertificateRequested() => Advance();
+
+    /// <summary>Se canceló el pedido de certificado pendiente.</summary>
+    public void RequestCancelled() => Advance();
+
     /// <summary>El primer certificado quedó cargado. Uno de renovación no cambia el estado hasta pasar la prueba.</summary>
     public void CertificateLoaded()
     {

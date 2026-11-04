@@ -118,6 +118,7 @@ El módulo [ARCA](../decisions/0023-arca-como-modulo-opcional.md), ordenado por 
 | [Infrastructure/Modules/Arca](../../src/ArquitecturaBase.Infrastructure/Modules/Arca/AGENTS.md) | Anillo propio, opciones por ambiente y servicio, clientes HTTP por familia sin reintentos globales; WSAA, ticket compartido, clientes del padrón y de WSFEv1, persistencia y locks por familia. |
 | [Domain.UnitTests/Modules/Arca](../../tests/ArquitecturaBase.Domain.UnitTests/Modules/Arca/AGENTS.md) | Reglas puras por familia: CUIT, conexión, certificado, ticket, padrón y punto de venta. |
 | [Application.UnitTests/Modules/Arca](../../tests/ArquitecturaBase.Application.UnitTests/Modules/Arca/AGENTS.md) | Permisos, paridad de recursos y pruebas por familia. |
+| [Application.UnitTests/TestFeatures/Modules/Arca](../../tests/ArquitecturaBase.Application.UnitTests/TestFeatures/Modules/Arca/AGENTS.md) | Host con los servicios reales, almacén en memoria y familias de prueba. |
 | [Api.IntegrationTests/Modules/Arca](../../tests/ArquitecturaBase.Api.IntegrationTests/Modules/Arca/AGENTS.md) | Anillo de prueba, clientes sin red, opciones, composición y persistencia por familia. |
 | [Api.IntegrationTests/TestFeatures/Modules/Arca](../../tests/ArquitecturaBase.Api.IntegrationTests/TestFeatures/Modules/Arca/AGENTS.md) | Escenario de persistencia y dobles de ARCA, sin red. |
 | [ArchitectureTests/Modules/Arca](../../tests/ArquitecturaBase.ArchitectureTests/Modules/Arca/AGENTS.md) | Frontera entre familias: cada una usa sólo `Connection`; dueño y prefijos de los locks. |

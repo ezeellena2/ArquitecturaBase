@@ -142,6 +142,39 @@ public sealed class ArcaConnectionPersistenceTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task The_reader_finds_the_pending_request_and_only_loaded_certificates_for_signing()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var connectionId = await ArcaPersistenceScenario.AddConnectionAsync(factory);
+        var active = ArcaPersistenceScenario.NewCertificate(connectionId);
+        try
+        {
+            await factory.InTransactionAsync(services =>
+            {
+                active.Load("-----BEGIN CERTIFICATE-----", NotBeforeUtc, NotBeforeUtc.AddYears(2), "AB12");
+                active.Promote();
+                var repository = services.GetRequiredService<IArcaConnectionRepository>();
+                repository.Add(active);
+                repository.Add(ArcaPersistenceScenario.NewCertificate(connectionId, "renovacion"));
+                return Task.CompletedTask;
+            });
+
+            await factory.ExecuteScopeAsync(async services =>
+            {
+                var reader = services.GetRequiredService<IArcaConnectionReader>();
+                Assert.Equal(new ArcaPendingRequestRow("renovacion", "-----BEGIN CERTIFICATE REQUEST-----"), await reader.FindPendingRequestAsync(ct));
+                Assert.Equal(new ArcaSigningCertificateRow(connectionId, active.Id, "20000000060", ArcaEnvironment.Testing, "protected-key",
+                    "-----BEGIN CERTIFICATE-----"), await reader.FindSigningCertificateAsync(ArcaCertificateRole.Active, ct));
+                Assert.Null(await reader.FindSigningCertificateAsync(ArcaCertificateRole.Pending, ct));
+            });
+        }
+        finally
+        {
+            await ArcaPersistenceScenario.RemoveConnectionAsync(factory);
+        }
+    }
+
+    [Fact]
     public async Task The_reader_returns_an_untracked_row_without_the_private_key()
     {
         var ct = TestContext.Current.CancellationToken;

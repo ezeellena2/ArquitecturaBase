@@ -886,6 +886,29 @@ public sealed record ArcaServiceContext(ArcaCertificateRef Certificate, IArcaAcc
 
 ### Tarea 7: servicios de aplicación
 
+**Hecha el 2026-11-04.** Diferencias con lo escrito:
+- **Nombres de salida:** las salidas de un servicio terminan en `Response` (`ServiceOutputNamingTests`). Por eso
+  `ArcaPointOfSaleRow` es `ArcaPointOfSaleResponse`. `GetPendingRequestPemAsync` pasó a ser `GetPendingRequestAsync`
+  y devuelve `ArcaPendingRequestResponse`, con el alias para el nombre del archivo.
+- **Puntos de venta:** la lista deja afuera los dados de baja y marca los bloqueados, que el diseño (AC2-A) muestra
+  apagados. Elegir uno bloqueado, dado de baja o que ARCA ya no devuelve da `PointOfSaleUnavailable`.
+- **Empezar con una conexión que ya existe** pide otro certificado para ella, una renovación o un pedido nuevo en el
+  alta, y reemplaza el pedido pendiente. La CUIT, el ambiente y los servicios son los de la conexión.
+- **Errores nuevos de `Arca.Connection`:** `CertificateNotLoaded`, `ServiceNotAuthorized`, `ServiceBlocked`, `ClockSkew`,
+  `Unavailable` y `ServiceRejected`, con sus textos. `ServiceBlocked` lleva `retryAfter` en segundos.
+- **Lecturas nuevas:** `FindPendingRequestAsync` y `FindSigningCertificateAsync`. La segunda devuelve la clave cifrada,
+  como `AiConnectionRow`, para la prueba y las familias.
+- **Ayudantes en `Services/Connection`:** `ArcaServiceCatalog` (servicios instalados, obligatorios, quién prueba cada uno
+  y la completitud de las familias) y `ArcaServiceAccess` (certificado activo, ticket y error de cada respuesta).
+- **Dominio:** `ArcaConnection` suma `CertificateRequested` y `RequestCancelled`, que avanzan la revisión.
+- **Prueba de una renovación:** en rojo no guarda nada. Si el certificado probado cambió mientras corría, da
+  `RevisionConflict`.
+- **Elegir servicios** sólo los guarda: la pantalla vuelve a probar.
+- **Elegir el punto de venta** guarda en su transacción y después llama a `ReevaluateAsync`, que abre la suya.
+- **Datos de la empresa:** los lee `IArcaRegistryCompanyService.GetAsync`.
+- **Tests:** la prueba tiene su archivo, `ArcaConnectionTestServiceTests`. Los dobles y el host están en
+  `TestFeatures/Modules/Arca`.
+
 **Archivos:**
 - **`Connection`:**
   - `src/ArquitecturaBase.Application/Modules/Arca/Interfaces/Services/Connection/IArcaConnectionService.cs` e `IArcaConnectionTestService.cs`;
@@ -899,7 +922,7 @@ Referencias: `AiConnectionService`, `AiConnectionTestService` y `RoleService.Upd
 `ExecuteInTransactionAsync(…, CommitPolicy.OnSuccess, …)`. El límite de dependencias por servicio es 8
 (`ServiceDependencyLimitTests`).
 
-- [ ] **Paso 1: tests en rojo.**
+- [x] **Paso 1: tests en rojo.**
   - **`ArcaConnectionServiceTests`:**
     - **empezar** con CUIT, alias y servicios válidos crea la conexión, con el certificado pendiente;
     - **empezar con un servicio no instalado** da `ServiceNotInstalled`;
@@ -924,7 +947,7 @@ Referencias: `AiConnectionService`, `AiConnectionTestService` y `RoleService.Upd
     - elegir uno que ARCA ya no devuelve da `PointOfSaleUnavailable`;
     - elegir uno válido lo guarda y vuelve a evaluar la conexión con `IsCompleteAsync` de todas las familias elegidas,
       sin nombrar a ninguna.
-- [ ] **Paso 2: contratos.**
+- [x] **Paso 2: contratos.**
 
 ```csharp
 public interface IArcaConnectionService
@@ -958,14 +981,14 @@ public interface IArcaInvoicingSetupService
   el ambiente, la CUIT, los certificados sin secretos, la última prueba y la revisión. `ArcaTestResponse` lleva un
   `ArcaServiceCheck` por servicio y la conexión actualizada. `Invoicing` depende de `Connection`
   (`IArcaConnectionTestService.ReevaluateAsync`, el ticket y el certificado activo); nunca al revés.
-- [ ] **Paso 3: implementación.**
+- [x] **Paso 3: implementación.**
   - Cada escritura es un solo `ExecuteInTransactionAsync` con `LockConnectionAsync` adentro.
   - La prueba hace sus llamadas a ARCA fuera de la transacción, y después guarda en otra transacción corta, comparando el
     certificado activo.
   - Los logs van con `[LoggerMessage]` y la CUIT con `Cuit.Mask`.
-- [ ] **Paso 4: correr** los tests de la tarea, `ApplicationServicesTests`, `ServiceDependencyLimitTests`,
+- [x] **Paso 4: correr** los tests de la tarea, `ApplicationServicesTests`, `ServiceDependencyLimitTests`,
   `TransactionBoundaryTests` y `ArcaFamilyBoundaryTests`.
-- [ ] **Paso 5: commit.** `feat(arca): alta, servicios, prueba, renovación y punto de venta`
+- [x] **Paso 5: commit.** `feat(arca): alta, servicios, prueba, renovación y punto de venta`
 
 ---
 
@@ -1003,13 +1026,13 @@ Referencias: `AiConnectionController`, `UpdateAiConnectionHttpRequest` (con su `
 | --- | --- | --- |
 | `ArcaConnectionController` | `GET api/arca/connection` | `GetAsync` |
 | | `POST api/arca/connection/certificate-requests` | `StartCertificateRequestAsync` |
-| | `GET api/arca/connection/certificate-requests/current` | `GetPendingRequestPemAsync`, como archivo |
+| | `GET api/arca/connection/certificate-requests/current` | `GetPendingRequestAsync`, como archivo |
 | | `DELETE api/arca/connection/certificate-requests/current` | `CancelRenewalAsync` (revisión en la query) |
 | | `PUT api/arca/connection/services` | `ChooseServicesAsync` |
 | | `PUT api/arca/connection/certificate` | `UploadCertificateAsync`, y en el alta la prueba |
 | | `POST api/arca/connection/test` | `TestAsync` |
 | | `DELETE api/arca/connection` | `DisconnectAsync` (revisión en la query) |
-| `ArcaRegistryController` | `GET api/arca/registry/company` | los datos de la empresa |
+| `ArcaRegistryController` | `GET api/arca/registry/company` | `IArcaRegistryCompanyService.GetAsync` |
 | `ArcaInvoicingController` | `GET api/arca/invoicing/settings` | `GetAsync` |
 | | `GET api/arca/invoicing/points-of-sale` | `ListPointsOfSaleAsync` |
 | | `PUT api/arca/invoicing/point-of-sale` | `ChoosePointOfSaleAsync` |

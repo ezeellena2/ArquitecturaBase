@@ -159,6 +159,19 @@ public sealed class ArcaConnectionTests
         Assert.Contains("30-*****123-1", text, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Requesting_or_cancelling_a_certificate_advances_the_revision_without_changing_the_status()
+    {
+        var connection = Active();
+        var revision = connection.Revision;
+
+        connection.CertificateRequested();
+        connection.RequestCancelled();
+
+        Assert.Equal(revision + 2, connection.Revision);
+        Assert.Equal(ArcaConnectionStatus.Active, connection.Status);
+    }
+
     private static ArcaConnection Start(ArcaServiceCode[] chosen) =>
         ArcaConnection.Start("30-71000123-1", ArcaEnvironment.Production, chosen, Installed, Required).Value;
 
