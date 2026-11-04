@@ -2,8 +2,8 @@ using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Models.Assistant;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Models;
 
-public sealed record FormMissingTopicMetadata(Guid Id, string Name, string Description, string OriginalCulture)
-{ public override string ToString() => "FormMissingTopicMetadata { Content = [REDACTED] }"; }
+public sealed record FormMissingTopicRow(Guid Id, string Name, string Description, string OriginalCulture)
+{ public override string ToString() => "FormMissingTopicRow { Content = [REDACTED] }"; }
 public sealed record MissingFormRequestProposalPayload(string State, int ReadOrdinal, Guid? ExistingTopicId, string? Name, string? Description) : AssistantCapabilityPayload;
 internal sealed record FormMissingRequestArguments(Guid? ExistingTopicId, string? Name, string? Description)
 { public override string ToString() => "FormMissingRequestArguments { Content = [REDACTED] }"; }

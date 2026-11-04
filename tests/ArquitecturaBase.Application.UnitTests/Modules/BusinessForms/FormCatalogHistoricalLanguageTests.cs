@@ -336,7 +336,7 @@ public sealed class FormCatalogHistoricalLanguageTests
 
     private static Dictionary<string, string> ConstantTexts() => new() { ["es"] = "Recibimos {número}", ["en"] = "Received {number}" };
 
-    private static (BusinessFormRecord Record, FormActionRecordSnapshot Snapshot) ChoiceCapture(FormActionFixture fixture,
+    private static (BusinessFormRecord Record, FormActionRecordRow Snapshot) ChoiceCapture(FormActionFixture fixture,
         IReadOnlyList<FormRule> rules, bool translated, string? englishDetail = "Ground floor", bool spanish = true,
         string? spanishDetail = "Planta baja")
     {

@@ -216,7 +216,7 @@ public sealed partial class AiAssistantDispatchServiceTests
         public Task LockAsync(CancellationToken cancellationToken) => Task.CompletedTask;
         public Task<AiAssistantTurn?> GetTurnAsync(Guid turnId, CancellationToken cancellationToken) => Task.FromResult<AiAssistantTurn?>(Turn);
         public Task<AiConversation?> GetConversationAsync(Guid ownerUserId, Guid conversationId, CancellationToken cancellationToken) => Task.FromResult<AiConversation?>(Conversation);
-        public Task<AiConnectionSnapshot> FindAsync(CancellationToken cancellationToken) => Task.FromResult(new AiConnectionSnapshot(AiProvider.OpenAI, "model", "cipher-key", true, ConnectionRevision));
+        public Task<AiConnectionRow> FindAsync(CancellationToken cancellationToken) => Task.FromResult(new AiConnectionRow(AiProvider.OpenAI, "model", "cipher-key", true, ConnectionRevision));
         public Task<AiAssistantRequestReceipt?> GetReceiptAsync(Guid ownerUserId, Guid requestId, CancellationToken cancellationToken) =>
             Task.FromResult(Receipt is { } receipt && receipt.OwnerUserId == ownerUserId && receipt.RequestId == requestId ? receipt : null);
         public Task<AiAssistantTurn?> GetPendingAsync(CancellationToken cancellationToken) => throw new NotSupportedException();

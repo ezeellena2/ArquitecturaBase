@@ -61,7 +61,7 @@ internal sealed class FormPdfRendererFixture : IFormFileReader, IStoredFileReade
             ]);
         var at = new DateTime(2026, 10, 8, 12, 30, 0, DateTimeKind.Utc);
         var response = new FormResponseStoredRow(captured, at, new(author, "Juan Gómez"));
-        var actionRecord = new FormActionRecordSnapshot(response, "es",
+        var actionRecord = new FormActionRecordRow(response, "es",
             new(Guid.NewGuid(), Guid.NewGuid(), "Ana Pérez", at.AddHours(2), "Approved", null));
         var design = new FormPdfDesign(
             new Dictionary<string, string> { ["es"] = "Comprobante de visita", ["en"] = "Visit receipt" },

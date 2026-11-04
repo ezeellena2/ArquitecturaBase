@@ -4,7 +4,7 @@ using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 internal static class FormRecordConditionEvaluator
 {
-    public static bool Matches(IReadOnlyList<FormRecordCondition> conditions,FormActionRecordSnapshot snapshot)
+    public static bool Matches(IReadOnlyList<FormRecordCondition> conditions,FormActionRecordRow snapshot)
     {
         var row=snapshot.Response.Record;var schema=FormDraftPolicy.Read<FormVersionSchema>(row.SchemaJson);
         using var values=JsonDocument.Parse(row.ValuesJson);

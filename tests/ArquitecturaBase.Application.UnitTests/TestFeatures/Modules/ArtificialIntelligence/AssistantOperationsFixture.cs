@@ -115,7 +115,7 @@ internal sealed class OperationsStore(FakeTimeProvider clock, FakeUnitOfWork wor
     public List<AiAssistantTurn> Turns { get; } = [];
     public List<AiAssistantRequestReceipt> Receipts { get; } = [];
     public List<AiAssistantToolExecution> Tools { get; } = [];
-    public AiConnectionSnapshot Connection { get; set; } = new(AiProvider.OpenAI, "model", "cipher-key", true, 1);
+    public AiConnectionRow Connection { get; set; } = new(AiProvider.OpenAI, "model", "cipher-key", true, 1);
     public int BudgetReads { get; private set; }
     public int ConnectionReads { get; private set; }
     public Guid? LastReadActor { get; private set; }
@@ -157,7 +157,7 @@ internal sealed class OperationsStore(FakeTimeProvider clock, FakeUnitOfWork wor
     public void AddTurn(AiAssistantTurn turn) { RequireTransaction(); Turns.Add(turn); }
     public void AddReceipt(AiAssistantRequestReceipt receipt) { RequireTransaction(); Receipts.Add(receipt); }
     public void AddTool(AiAssistantToolExecution execution) { RequireTransaction(); Tools.Add(execution); }
-    public Task<AiConnectionSnapshot> FindAsync(CancellationToken ct) { ConnectionReads++; return Task.FromResult(Connection); }
+    public Task<AiConnectionRow> FindAsync(CancellationToken ct) { ConnectionReads++; return Task.FromResult(Connection); }
     public Task<AiAssistantTurnRow?> FindTurnByRequestAsync(Guid actor, Guid request, CancellationToken ct)
     {
         LastReadActor = actor; LastReadRequest = request;

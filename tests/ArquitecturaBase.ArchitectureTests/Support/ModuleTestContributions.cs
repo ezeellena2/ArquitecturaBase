@@ -7,6 +7,9 @@ internal interface IModuleArchitectureContribution
     IReadOnlyCollection<string> BulkUpdateOwners { get; }
     IReadOnlyCollection<string> AdditionalUseCaseEntryPoints => [];
     IReadOnlyCollection<Type> CapabilityReadPorts => [];
+
+    /// <summary>Lo que un lector del módulo devuelve sin el sufijo Row ni Response; el aporte dice por qué.</summary>
+    IReadOnlyCollection<Type> ReaderOutputExceptions => [];
 }
 
 internal static class ModuleTestContributions

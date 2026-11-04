@@ -63,7 +63,7 @@ public sealed class FormRecordConditionEvaluatorTests
         Assert.Equal(notAsked, FormRecordConditionEvaluator.Matches([new(field.FieldId, "notAsked", null)], snapshot));
     }
     private static CanonicalFormField Field(string type)=>new(Guid.NewGuid(),type,type,new Dictionary<string,string>{{"es",type},{"en",type}},null,false,null,null);
-    private static FormActionRecordSnapshot Snapshot(IReadOnlyList<CanonicalFormField> fields,Dictionary<Guid,object> values)=>new(
+    private static FormActionRecordRow Snapshot(IReadOnlyList<CanonicalFormField> fields,Dictionary<Guid,object> values)=>new(
         new(new(Guid.NewGuid(),Guid.NewGuid(),1,Guid.NewGuid(),"T",Guid.NewGuid(),1,"{\"es\":\"Form\",\"en\":\"Form\"}",
             JsonSerializer.Serialize(new FormVersionSchema(1,fields),JsonSerializerOptions.Web),JsonSerializer.Serialize(values.Select(pair=>new{fieldId=pair.Key,value=pair.Value}))),
             new DateTime(2026,10,16,12,0,0,DateTimeKind.Utc),new(Guid.NewGuid(),"Author")),"es");

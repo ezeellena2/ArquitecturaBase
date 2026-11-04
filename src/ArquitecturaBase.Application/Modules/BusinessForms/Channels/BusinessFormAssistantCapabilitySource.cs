@@ -93,11 +93,11 @@ internal sealed class BusinessFormAssistantCapabilitySource(FormAssistantCandida
             FormAssistantCandidatePolicy.Text(form.Form.Name, culture, form.OriginalCulture), form.OfferWhen, form.OriginalCulture, questions);
     }
     private static FormAssistantCandidatesPayload BoundCandidates(Guid recipient, string culture,
-        IReadOnlyList<FormAssistantCandidate> forms, IReadOnlyList<FormMissingTopicMetadata> topics, bool complete)
+        IReadOnlyList<FormAssistantCandidate> forms, IReadOnlyList<FormMissingTopicRow> topics, bool complete)
     {
         var payload = new FormAssistantCandidatesPayload("complete", recipient, culture, true, [], []);
         var selectedForms = new List<FormAssistantCandidate>();
-        var selectedTopics = new List<FormMissingTopicMetadata>();
+        var selectedTopics = new List<FormMissingTopicRow>();
         complete &= topics.Count <= 100;
         foreach (var form in forms)
         {

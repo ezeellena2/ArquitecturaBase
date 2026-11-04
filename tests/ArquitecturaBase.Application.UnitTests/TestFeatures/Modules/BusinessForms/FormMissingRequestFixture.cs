@@ -37,7 +37,7 @@ internal sealed class FormMissingRequestFixture : IFormMissingRequestRepository,
     public StructuredMissingFormRequestCaptureRequest Request(Guid? source = null, Guid? subject = null, BusinessFormMissingTopic? existing = null)
     {
         var user = subject ?? Assistant.UserId; var turn = Guid.CreateVersion7();
-        var metadata = Topics.Select(topic => new FormMissingTopicMetadata(topic.Id,topic.Name,topic.Description,topic.OriginalCulture)).ToArray();
+        var metadata = Topics.Select(topic => new FormMissingTopicRow(topic.Id,topic.Name,topic.Description,topic.OriginalCulture)).ToArray();
         var payload = new MissingFormRequestProposalPayload("proposed",1,existing?.Id,existing is null ? "Registrar mantenimiento" : null,
             existing is null ? "Piden registrar tareas de mantenimiento." : null);
         var observed = new AssistantObservedRead(turn,1,new(BusinessFormAssistantCapabilitySource.CandidatesId,1),
@@ -58,8 +58,8 @@ internal sealed class FormMissingRequestFixture : IFormMissingRequestRepository,
     public Task<BusinessFormMissingTopic?> GetByNameAsync(string name,CancellationToken ct) => Task.FromResult(Topics.SingleOrDefault(topic => topic.NormalizedName == name));
     public void Add(BusinessFormMissingTopic topic) { TransactionGuard.Require(() => Uow.InTransaction); Topics.Add(topic); }
     public void Add(BusinessFormMissingRequest request) { TransactionGuard.Require(() => Uow.InTransaction); Requests.Add(request); }
-    public Task<IReadOnlyList<FormMissingTopicMetadata>> ListAssistantTopicsAsync(CancellationToken ct) => Task.FromResult<IReadOnlyList<FormMissingTopicMetadata>>(
-        Topics.Select(topic => new FormMissingTopicMetadata(topic.Id,topic.Name,topic.Description,topic.OriginalCulture)).ToArray());
+    public Task<IReadOnlyList<FormMissingTopicRow>> ListAssistantTopicsAsync(CancellationToken ct) => Task.FromResult<IReadOnlyList<FormMissingTopicRow>>(
+        Topics.Select(topic => new FormMissingTopicRow(topic.Id,topic.Name,topic.Description,topic.OriginalCulture)).ToArray());
     public Task<MissingFormTopicResponse?> FindAsync(Guid id,CancellationToken ct)
     { var topic = Topics.SingleOrDefault(topic => topic.Id == id); var row = topic is null ? null : Map(topic); OnRead?.Invoke(); OnRead = null; return Task.FromResult(row); }
     public Task<MissingFormTopicsPageResponse> FindPageAsync(ListMissingFormTopicsRequest request,CancellationToken ct)

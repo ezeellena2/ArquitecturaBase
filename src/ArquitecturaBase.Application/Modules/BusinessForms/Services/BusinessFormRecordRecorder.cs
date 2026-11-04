@@ -175,7 +175,7 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
         var stored = new FormRecordStoredRow(record.SourceReceiptId, record.Id, record.Number, definition.Id, definition.Prefix,
             version.Id, version.Number, version.NameJson ?? throw new InvalidOperationException("The captured form presentation is missing."),
             version.SchemaJson, record.ValuesJson, references, fileRows);
-        var snapshot = new FormActionRecordSnapshot(new(stored, record.SubmittedAtUtc, new(record.ActorUserId, null), timeProvider.GetUtcNow().UtcDateTime),
+        var snapshot = new FormActionRecordRow(new(stored, record.SubmittedAtUtc, new(record.ActorUserId, null), timeProvider.GetUtcNow().UtcDateTime),
             version.Culture ?? throw new InvalidOperationException("The captured form culture is missing."));
         await actions.RecordAsync(record, snapshot, "Received", ct);
         records.Add(BusinessFormCaptureReceipt.Complete(request.SourceReceiptId, definition.Id, version.Id,

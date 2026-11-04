@@ -12,7 +12,7 @@ internal sealed class FormActionRunRecorder(
     TimeProvider timeProvider)
 {
     public async Task RecordAsync(
-        BusinessFormRecord record, FormActionRecordSnapshot snapshot, string eventName, CancellationToken cancellationToken)
+        BusinessFormRecord record, FormActionRecordRow snapshot, string eventName, CancellationToken cancellationToken)
     {
         if (record.RuleSetId is not { } ruleSetId)
             return;

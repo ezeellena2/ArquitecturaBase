@@ -5,7 +5,7 @@ using ArquitecturaBase.Domain.Results;
 namespace ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services;
 internal sealed class AiConnectionCandidatePolicy(IAiSecretProtector protector)
 {
-    public Result<string?> Resolve(AiConnectionSnapshot current, AiProvider provider, AiCredentialChange change, string? apiKey)
+    public Result<string?> Resolve(AiConnectionRow current, AiProvider provider, AiCredentialChange change, string? apiKey)
     {
         if (change == AiCredentialChange.Keep && current.ProtectedApiKey is not null && provider != current.Provider)
             return AiConnectionErrors.ProviderChanged;
@@ -23,7 +23,7 @@ internal sealed class AiConnectionCandidatePolicy(IAiSecretProtector protector)
         var key = protector.Unprotect(provider, protectedApiKey);
         return key is null ? AiConnectionErrors.CredentialUnavailable : Result.Success(key);
     }
-    public Result<string> RevealCandidate(AiConnectionSnapshot current, AiProvider provider, AiCredentialChange change, string? apiKey)
+    public Result<string> RevealCandidate(AiConnectionRow current, AiProvider provider, AiCredentialChange change, string? apiKey)
     {
         if (change == AiCredentialChange.Replace)
             return string.IsNullOrWhiteSpace(apiKey) ? AiConnectionErrors.CredentialRequired : Result.Success(apiKey);

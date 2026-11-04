@@ -40,8 +40,8 @@ internal sealed class AiConnectionService(IAiConnectionRepository repository, IA
         if (previous is not null)
             return recorder.Matches(request, previous) ? Result.Success(AiConnectionChangeRecorder.Response(previous)) : AiConnectionErrors.RequestConflict;
         var connection = await repository.GetAsync(ct);
-        var current = connection is null ? new AiConnectionSnapshot(AiProvider.OpenAI, "", null, false, 0)
-            : new AiConnectionSnapshot(connection.Provider, connection.Model, connection.ProtectedApiKey, connection.Enabled, connection.Revision);
+        var current = connection is null ? new AiConnectionRow(AiProvider.OpenAI, "", null, false, 0)
+            : new AiConnectionRow(connection.Provider, connection.Model, connection.ProtectedApiKey, connection.Enabled, connection.Revision);
         if (current.Revision != request.ExpectedRevision) return AiConnectionErrors.RevisionConflict;
         var credential = policy.Resolve(current, request.Provider, request.CredentialChange, request.ApiKey);
         if (credential.IsFailure) return credential.Error;

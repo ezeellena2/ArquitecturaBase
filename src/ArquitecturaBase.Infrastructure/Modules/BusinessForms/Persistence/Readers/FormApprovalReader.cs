@@ -31,7 +31,7 @@ internal sealed partial class FormApprovalReader(ApplicationDbContext dbContext,
         var versions = await records.ListVersionsAsync([row.VersionId], cancellationToken);
         return Map(row, actor, culture, versions[row.VersionId]);
     }
-    public async Task<FormActionRecordSnapshot?> FindActionSnapshotAsync(Guid recordId, CancellationToken cancellationToken)
+    public async Task<FormActionRecordRow?> FindActionSnapshotAsync(Guid recordId, CancellationToken cancellationToken)
     {
         var row = await responses.FindRecordAsync(recordId, cancellationToken);
         if (row is null) return null;

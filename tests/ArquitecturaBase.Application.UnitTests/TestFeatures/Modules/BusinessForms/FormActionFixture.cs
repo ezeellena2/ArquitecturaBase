@@ -23,7 +23,7 @@ internal sealed class FormActionFixture : IFormPdfDesignReader
         Schema=new(1,[new(Rules.FieldId,"visit","longText",new Dictionary<string,string>{{"es","Visita"},{"en","Visit"}},null,false,10000,null)]);
         Recorder=new(Rules,Runs,Recipients,Pdf,new(Rules,this),[Channel],Clock);
     }
-    public (BusinessFormRecord Record,FormActionRecordSnapshot Snapshot) Capture(IReadOnlyList<FormRule> rules,string answer="Answer", string? presentationCulture = null, bool enteredInApp = false)
+    public (BusinessFormRecord Record,FormActionRecordRow Snapshot) Capture(IReadOnlyList<FormRule> rules,string answer="Answer", string? presentationCulture = null, bool enteredInApp = false)
     {
         var ruleSet=BusinessFormRuleSet.Create(Rules.Definition.Id,1,Rules.Definition.Culture,FormDraftPolicy.Serialize(rules),rules.SelectMany(rule=>rule.Actions).Any(action=>action.Kind=="RequestApproval"),FormDraftPolicy.Serialize(Schema));
         Rules.RuleSets.Add(ruleSet);Rules.Definition.SetActiveRuleSetId(ruleSet.Id);
@@ -78,7 +78,7 @@ internal sealed class FakeFormPdfActionService:IFormPdfActionService
     public int Prepared { get; private set; }
     public IReadOnlyList<string> Cultures { get; set; }=["es","en"];
     public List<bool> Executed { get; }=[];public Queue<FormPdfActionOutcomeResponse> Outcomes { get; }=[];
-    public Task<Result<FormPdfActionSnapshotResponse>> PrepareAsync(Guid runId,FormActionRecordSnapshot record,CancellationToken ct)
+    public Task<Result<FormPdfActionSnapshotResponse>> PrepareAsync(Guid runId,FormActionRecordRow record,CancellationToken ct)
     {
         Prepared++;return Task.FromResult(Result.Success(new FormPdfActionSnapshotResponse(runId,null,0,new(new Dictionary<string,string>{{"es","PDF"},{"en","PDF"}},[],true,null,true),Cultures,"Arquitectura Base",record.Response.Actor,record.Decision)));
     }

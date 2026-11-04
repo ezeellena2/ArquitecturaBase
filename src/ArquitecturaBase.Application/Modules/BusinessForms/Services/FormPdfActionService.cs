@@ -16,7 +16,7 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 internal sealed class FormPdfActionService(IFormPdfDesignReader reader, IPrivateFileStore store, IFormPdfRenderer renderer,
     IAppName appName, IFormResponseReader records, ILogger<FormPdfActionService> logger) : IFormPdfActionService
 {
-    public Task<Result<FormPdfActionSnapshotResponse>> PrepareAsync(Guid runId, FormActionRecordSnapshot record, CancellationToken cancellationToken) =>
+    public Task<Result<FormPdfActionSnapshotResponse>> PrepareAsync(Guid runId, FormActionRecordRow record, CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<FormPdfActionSnapshotResponse>>(logger, "PrepareFormPdfAction", async () =>
         {
             var captured = record.Response.Record;

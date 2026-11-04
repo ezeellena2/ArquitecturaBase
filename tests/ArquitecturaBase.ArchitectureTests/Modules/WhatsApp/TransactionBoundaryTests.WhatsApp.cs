@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.ArchitectureTests.Support;
 namespace ArquitecturaBase.ArchitectureTests.Modules.WhatsApp;
@@ -21,4 +22,8 @@ internal sealed class WhatsAppTransactionContribution : IModuleArchitectureContr
     // La retención vacía el texto de los mensajes viejos con ExecuteUpdate: WhatsAppMessage no es IAuditable ni
     // ISoftDeletable, así que no hay interceptor que saltear.
     public IReadOnlyCollection<string> BulkUpdateOwners => [WhatsAppMessageRetentionRepository];
+
+    // Los dos son modelos neutrales de puertos (las ofertas de formularios del asistente y el origen de una respuesta):
+    // el lector los devuelve tal cual al adaptador del canal.
+    public IReadOnlyCollection<Type> ReaderOutputExceptions => [typeof(StructuredFormOfferReference), typeof(StructuredRecordOrigin)];
 }

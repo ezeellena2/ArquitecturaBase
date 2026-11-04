@@ -100,7 +100,7 @@ public sealed partial class FormDraftEndpointsTests
             Assert.True(record.MarkPendingApproval().IsSuccess); Assert.True(record.CompleteApproval(true).IsSuccess); db.Set<BusinessFormRecord>().Add(record);
             db.Set<BusinessFormCaptureReceipt>().Add(BusinessFormCaptureReceipt.Complete(record.SourceReceiptId, definition.Id, version.Id, "test-pdf-retention", record.Id, record.Number, now));
             var row = new FormRecordStoredRow(record.SourceReceiptId, record.Id, record.Number, definition.Id, definition.Prefix, version.Id, version.Number, version.NameJson!, version.SchemaJson, record.ValuesJson);
-            var data = new FormActionRecordSnapshot(new(row, now, new(author, "Author")), "es", new(Guid.NewGuid(), Guid.NewGuid(), "Supervisor", now, "Approved", null));
+            var data = new FormActionRecordRow(new(row, now, new(author, "Author")), "es", new(Guid.NewGuid(), Guid.NewGuid(), "Supervisor", now, "Approved", null));
             var run = BusinessFormActionRun.Create(definition.Id, record.Id, ruleSet.Id, rule.Id, action.Id, "Approved", "GeneratePdf", 0, null, "", true, now);
             var snapshot = new FormPdfActionSnapshotResponse(run.Id, null, 0, new(new Dictionary<string,string> { ["es"] = "Visita" }, [], true, null, true), ["es"], "Arquitectura Base", data.Response.Actor, data.Decision);
             run.SealSnapshot(FormDraftPolicy.Serialize(new FormActionSnapshot(null, snapshot, null, [])));

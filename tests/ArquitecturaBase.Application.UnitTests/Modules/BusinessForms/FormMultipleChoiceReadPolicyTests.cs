@@ -124,7 +124,7 @@ public sealed class FormMultipleChoiceReadPolicyTests
     private static readonly Guid firstId = Guid.Parse("01990000-0000-7000-8000-000000000741");
     private static readonly Guid secondId = Guid.Parse("01990000-0000-7000-8000-000000000742");
     private static Dictionary<string, string> Text(string es, string en) => new() { ["es"] = es, ["en"] = en };
-    private static FormActionRecordSnapshot Snapshot(FormRecordStoredRow row) => new(new(row,
+    private static FormActionRecordRow Snapshot(FormRecordStoredRow row) => new(new(row,
         new DateTime(2026, 10, 22, 12, 0, 0, DateTimeKind.Utc), new(Guid.NewGuid(), "Author")), "es");
     private static (CanonicalFormField Field, FormRecordStoredRow Row, Guid CatalogId) Record(bool catalog)
     {

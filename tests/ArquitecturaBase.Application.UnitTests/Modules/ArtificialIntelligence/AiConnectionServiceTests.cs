@@ -210,9 +210,9 @@ public sealed class AiConnectionServiceTests
         public void Add(AiConnection connection) { Assert.True(InTransaction()); Connection = connection; }
         public void AddChange(AiConnectionChange change) { Assert.True(InTransaction()); Changes.Add(change); }
         public Task DeleteExpiredChangesAsync(CancellationToken cancellationToken) => Task.CompletedTask;
-        public Task<AiConnectionSnapshot> FindAsync(CancellationToken cancellationToken) => Task.FromResult(Connection is { } c
-            ? new AiConnectionSnapshot(c.Provider, c.Model, c.ProtectedApiKey, c.Enabled, c.Revision)
-            : new AiConnectionSnapshot(AiProvider.OpenAI, "", null, false, 0));
+        public Task<AiConnectionRow> FindAsync(CancellationToken cancellationToken) => Task.FromResult(Connection is { } c
+            ? new AiConnectionRow(c.Provider, c.Model, c.ProtectedApiKey, c.Enabled, c.Revision)
+            : new AiConnectionRow(AiProvider.OpenAI, "", null, false, 0));
         public Task<AiConnectionChangeResponse?> FindChangeAsync(Guid operatorId, Guid requestId, CancellationToken cancellationToken) =>
             Task.FromResult<AiConnectionChangeResponse?>(null);
     }

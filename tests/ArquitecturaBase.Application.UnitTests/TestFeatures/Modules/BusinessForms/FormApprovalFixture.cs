@@ -17,7 +17,7 @@ internal sealed class FormApprovalFixture : IFormApprovalRepository, IFormApprov
     public FakeUnitOfWork UnitOfWork { get; } = new();
     public BusinessFormRecord Record { get; }
     public BusinessFormTask Task { get; }
-    public FormActionRecordSnapshot Snapshot { get; }
+    public FormActionRecordRow Snapshot { get; }
     public FormApprovalService Service { get; }
     public bool IsInRole { get; set; } = true;
     public Action? BeforeLock { get; set; }
@@ -54,7 +54,7 @@ internal sealed class FormApprovalFixture : IFormApprovalRepository, IFormApprov
         BeforeReadReturn?.Invoke();
         return System.Threading.Tasks.Task.FromResult(Continuation);
     }
-    public Task<FormActionRecordSnapshot?> FindActionSnapshotAsync(Guid recordId, CancellationToken ct) => System.Threading.Tasks.Task.FromResult<FormActionRecordSnapshot?>(Snapshot);
+    public Task<FormActionRecordRow?> FindActionSnapshotAsync(Guid recordId, CancellationToken ct) => System.Threading.Tasks.Task.FromResult<FormActionRecordRow?>(Snapshot);
     private FormApprovalTaskResponse Response(Guid actor) => new(Task.Id, Record.DefinitionId, Record.Id, "VIS-000001", "Visits", new(Record.ActorUserId, "Author"), new(Task.RoleId, "Supervisor"), Task.RequestedAtUtc,
         Task.Revision, Task.State.ToString(), Task.State == FormTaskState.Open && actor != Task.AuthorUserId, actor == Task.AuthorUserId ? "OwnResponse" : null, Task.DecidedAtUtc,
         Task.DecidedByUserId is { } id ? new(id, "Approver") : null, Task.Reason);

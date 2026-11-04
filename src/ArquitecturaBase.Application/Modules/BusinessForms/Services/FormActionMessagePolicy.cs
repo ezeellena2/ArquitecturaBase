@@ -61,7 +61,7 @@ internal static class FormActionMessagePolicy
         return used;
     }
 
-    public static string Render(FormRuleAction action,FormVersionSchema ruleQuestions,FormActionRecordSnapshot snapshot,string culture)
+    public static string Render(FormRuleAction action,FormVersionSchema ruleQuestions,FormActionRecordRow snapshot,string culture)
     {
         var row=snapshot.Response.Record;var schema=FormDraftPolicy.Read<FormVersionSchema>(row.SchemaJson);
         var reply=FormRecordPresentationPolicy.Project(row,culture,schema);var answers=reply.Values.ToDictionary(value=>value.FieldId);

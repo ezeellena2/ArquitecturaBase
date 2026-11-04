@@ -17,7 +17,7 @@ internal sealed class FormPdfFixture : IFormPdfDesignRepository, IFormPdfDesignR
     public Action? BeforeCurrentReturn { get; set; }
     public int Renders { get; private set; }
     public FakeFormResponseReader Records { get; } = new();
-    public FormActionRecordSnapshot RecordSnapshot()
+    public FormActionRecordRow RecordSnapshot()
     {
         var definition=Rules.Definition;
         var schema=new FormVersionSchema(1,FormDraftPolicy.Read<FormQuestionSchema>(definition.SchemaJson).Fields);

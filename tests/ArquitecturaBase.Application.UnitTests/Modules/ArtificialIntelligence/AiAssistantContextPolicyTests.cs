@@ -108,7 +108,7 @@ public sealed partial class AiAssistantContextPolicyTests
     }
     private sealed class ConnectionReader : IAiConnectionReader
     {
-        public Task<AiConnectionSnapshot> FindAsync(CancellationToken cancellationToken) => Task.FromResult(new AiConnectionSnapshot(AiProvider.OpenAI, "model", "encrypted-key", true, 1));
+        public Task<AiConnectionRow> FindAsync(CancellationToken cancellationToken) => Task.FromResult(new AiConnectionRow(AiProvider.OpenAI, "model", "encrypted-key", true, 1));
         public Task<AiConnectionChangeResponse?> FindChangeAsync(Guid operatorId, Guid requestId, CancellationToken cancellationToken) => throw new NotSupportedException();
     }
     private sealed class Reader(AiAssistantTurnRow row) : IAiAssistantReader

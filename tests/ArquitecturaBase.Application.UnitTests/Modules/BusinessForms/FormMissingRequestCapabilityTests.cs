@@ -110,7 +110,7 @@ public sealed class FormMissingRequestCapabilityTests
         Assert.True((await source.ExecuteAsync(Proposal(f, false), Ct)).IsSuccess);
     }
     private static FormAssistantFixture Fixture() { var f = new FormAssistantFixture(); f.Topics.Add(Topic()); return f; }
-    private static FormMissingTopicMetadata Topic() => new(Guid.CreateVersion7(), "Registrar mantenimiento", "Piden registrar tareas de mantenimiento.", "es");
+    private static FormMissingTopicRow Topic() => new(Guid.CreateVersion7(), "Registrar mantenimiento", "Piden registrar tareas de mantenimiento.", "es");
     private static AssistantCapabilityRequest Read(FormAssistantFixture f) => new(Guid.CreateVersion7(), f.Context, new(BusinessFormAssistantCapabilitySource.CandidatesId, 1), "{}", []);
     private static AssistantCapabilityRequest Proposal(FormAssistantFixture f, bool existing)
     {

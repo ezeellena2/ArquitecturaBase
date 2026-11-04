@@ -1,8 +1,8 @@
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Application.Models.StructuredData;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Models;
-public sealed record FormActionRecordSnapshot(FormResponseStoredRow Response,string OriginalCulture,FormActionDecisionSnapshot? Decision=null)
-{ public override string ToString()=>"FormActionRecordSnapshot { Content = [REDACTED] }"; }
+public sealed record FormActionRecordRow(FormResponseStoredRow Response,string OriginalCulture,FormActionDecisionSnapshot? Decision=null)
+{ public override string ToString()=>"FormActionRecordRow { Content = [REDACTED] }"; }
 public sealed record FormActionDecisionSnapshot(Guid TaskId,Guid ActorUserId,string? ActorName,DateTime DecidedAtUtc,string Decision,string? Reason)
 { public override string ToString()=>"FormActionDecisionSnapshot { Content = [REDACTED] }"; }
 public sealed record FormActionRecipientRow(Guid UserId,string Culture,string? DisplayName=null);

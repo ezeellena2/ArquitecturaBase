@@ -40,7 +40,7 @@ internal sealed class FormPresentationCulturePolicy(IFormRuleReader rules, IForm
         return complete.Contains(requestedCulture) && Has(submit, requestedCulture) ? requestedCulture : originalCulture;
     }
 
-    public async Task<IReadOnlyList<string>> CompleteForRecordAsync(FormActionRecordSnapshot snapshot,
+    public async Task<IReadOnlyList<string>> CompleteForRecordAsync(FormActionRecordRow snapshot,
         IReadOnlyList<FormRule> revisionRules, FormVersionSchema ruleQuestions, CancellationToken ct)
     {
         var captured = snapshot.Response.Record;

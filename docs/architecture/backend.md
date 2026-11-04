@@ -182,7 +182,7 @@ Rige para los métodos de `Application/Interfaces/Persistence`, salvo `IUnitOfWo
 ## Modelos: Response y Row
 
 - **La salida de un servicio termina en `Response`:** el tipo de nivel superior que devuelve un método de `Interfaces/Services`, sin contar `Task`, `Result<T>`, `PagedResult<T>` ni la colección. Quedan afuera los tipos anidados, los escalares y `UserFilterCounts` (`ServiceOutputNamingTests`).
-- **Una fila que proyecta un lector termina en `Row`** y vive en `Models/<Área>`, sin subcarpeta. El servicio la traduce a su `Response`, así la consulta cambia sin tocar el contrato HTTP. Queda afuera `UserAccount`, la vista de la cuenta de `IUserReader`. Esta regla no tiene test propio.
+- **Una fila que proyecta un lector termina en `Row`** y vive en `Models/<Área>`, sin subcarpeta. El servicio la traduce a su `Response`, así la consulta cambia sin tocar el contrato HTTP; un lector también puede armar directo el `Response`. Queda afuera `UserAccount`, la vista de la cuenta de `IUserReader`; las excepciones de un módulo, como un lote de filas o un modelo neutral de puerto, van con su motivo en el aporte del módulo (`ReaderOutputExceptions`). Lo verifica `ReaderOutputNamingTests`.
 
 ## Migraciones
 

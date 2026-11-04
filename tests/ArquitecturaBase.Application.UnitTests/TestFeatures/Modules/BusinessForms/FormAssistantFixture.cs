@@ -49,8 +49,8 @@ internal sealed class FormAssistantFixture : IFormSelectionReader, IFormMissingR
         var turnId = turn ?? Guid.CreateVersion7();
         return new(turnId, Guid.CreateVersion7(), new(BusinessFormAssistantCapabilitySource.RegistrationId, 1), Registration()) { ObservedReads = [Read(turnId)] };
     }
-    public List<FormMissingTopicMetadata> Topics { get; } = [];
-    public Task<IReadOnlyList<FormMissingTopicMetadata>> ListAssistantTopicsAsync(CancellationToken ct) => Task.FromResult<IReadOnlyList<FormMissingTopicMetadata>>(Topics.ToArray());
+    public List<FormMissingTopicRow> Topics { get; } = [];
+    public Task<IReadOnlyList<FormMissingTopicRow>> ListAssistantTopicsAsync(CancellationToken ct) => Task.FromResult<IReadOnlyList<FormMissingTopicRow>>(Topics.ToArray());
     public Task<MissingFormTopicsPageResponse> FindPageAsync(ListMissingFormTopicsRequest request, CancellationToken ct) => throw new NotSupportedException();
     public Task<MissingFormTopicResponse?> FindAsync(Guid topicId, CancellationToken ct) => throw new NotSupportedException();
     public Action? OnRead { get; set; }

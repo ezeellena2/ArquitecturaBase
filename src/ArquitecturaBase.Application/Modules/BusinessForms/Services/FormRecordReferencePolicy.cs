@@ -36,7 +36,7 @@ internal static class FormRecordReferencePolicy
         }
     };
 
-    public static IReadOnlyList<string> CompleteCultures(FormActionRecordSnapshot snapshot, IReadOnlySet<Guid> usedFields)
+    public static IReadOnlyList<string> CompleteCultures(FormActionRecordRow snapshot, IReadOnlySet<Guid> usedFields)
     {
         var references = (snapshot.Response.Record.References ?? []).Where(reference => usedFields.Contains(reference.FieldId))
             .Select(Read).ToArray();

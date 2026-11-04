@@ -13,7 +13,7 @@ namespace ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services;
 internal sealed class AiAssistantAccessGuard(IUserReader users, IPermissionService permissions,
     IReadOnlyCollection<AiAssistantModelProfile> profiles, AiAssistantLimits limits, ICurrentUser currentUser, AiAssistantCapabilityCatalogPolicy catalog, IReadOnlyCollection<AiAssistantAudioModelProfile> audioProfiles)
 {
-    public Result<AiAssistantExecutionProfileSnapshot> CaptureAudioProfile(AiConnectionSnapshot connection,
+    public Result<AiAssistantExecutionProfileSnapshot> CaptureAudioProfile(AiConnectionRow connection,
         AssistantChannelContext channel, AssistantAudioInput audio, DateTime occurredAtUtc)
     {
         if (!connection.Enabled || connection.ProtectedApiKey is null || connection.Provider != AiProvider.OpenAI) return AiAssistantErrors.Unavailable;
@@ -24,10 +24,10 @@ internal sealed class AiAssistantAccessGuard(IUserReader users, IPermissionServi
             "audio-none-v1", 1, channel) { Purpose = AiAssistantPurpose.NormalizeAudio, OccurredAtUtc = occurredAtUtc };
     }
 
-    public string? Model(AiAssistantExecutionProfileSnapshot profile, AiConnectionSnapshot connection) =>
+    public string? Model(AiAssistantExecutionProfileSnapshot profile, AiConnectionRow connection) =>
         profile.Purpose == AiAssistantPurpose.NormalizeAudio ? AudioProfile(profile, connection)?.Model : connection.Model;
 
-    public AiAssistantAudioModelProfile? AudioProfile(AiAssistantExecutionProfileSnapshot profile, AiConnectionSnapshot connection) =>
+    public AiAssistantAudioModelProfile? AudioProfile(AiAssistantExecutionProfileSnapshot profile, AiConnectionRow connection) =>
         audioProfiles.SingleOrDefault(p => p.Id == profile.ModelProfileId && p.Version == profile.ModelProfileVersion && p.Provider == connection.Provider);
 
     public Guid? CurrentUserId => currentUser.UserId;
@@ -72,15 +72,15 @@ internal sealed class AiAssistantAccessGuard(IUserReader users, IPermissionServi
         return requiredPermissions.All(current.Contains);
     }
 
-    public Task<Result<AiAssistantExecutionProfileSnapshot>> CaptureHomeProfileAsync(AiConnectionSnapshot connection,
+    public Task<Result<AiAssistantExecutionProfileSnapshot>> CaptureHomeProfileAsync(AiConnectionRow connection,
         Guid actorUserId, string culture, string timeZoneId, CancellationToken ct) =>
         CaptureProfileAsync(connection, AiAssistantChannelPolicy.Home(actorUserId, culture, timeZoneId), "home-system", null, ct);
 
-    public Task<Result<AiAssistantExecutionProfileSnapshot>> CaptureOperationProfileAsync(AiConnectionSnapshot connection,
+    public Task<Result<AiAssistantExecutionProfileSnapshot>> CaptureOperationProfileAsync(AiConnectionRow connection,
         AssistantChannelContext channel, DateTime occurredAtUtc, CancellationToken ct) =>
         CaptureProfileAsync(connection, channel, "capabilities-v1", occurredAtUtc, ct);
 
-    private async Task<Result<AiAssistantExecutionProfileSnapshot>> CaptureProfileAsync(AiConnectionSnapshot connection,
+    private async Task<Result<AiAssistantExecutionProfileSnapshot>> CaptureProfileAsync(AiConnectionRow connection,
         AssistantChannelContext channel, string instructionsId, DateTime? occurredAtUtc, CancellationToken ct)
     {
         var profile = profiles.Where(p => p.Provider == connection.Provider && p.Model == connection.Model && p.SupportsTools &&
@@ -93,14 +93,14 @@ internal sealed class AiAssistantAccessGuard(IUserReader users, IPermissionServi
         return new AiAssistantExecutionProfileSnapshot(profile.Id, profile.Version, instructionsId, 1, channel) { OccurredAtUtc = occurredAtUtc };
     }
 
-    public bool IsProfileQualified(AiAssistantExecutionProfileSnapshot snapshot, AiConnectionSnapshot connection) =>
+    public bool IsProfileQualified(AiAssistantExecutionProfileSnapshot snapshot, AiConnectionRow connection) =>
         snapshot.Purpose == AiAssistantPurpose.NormalizeAudio
             ? snapshot.InstructionsId == "audio-none-v1" && snapshot.InstructionsVersion == 1 && connection.Provider == AiProvider.OpenAI && AudioProfile(snapshot, connection) is not null
             : snapshot.InstructionsVersion == 1 && snapshot.InstructionsId is "home-system" or "capabilities-v1" &&
         profiles.Any(p => p.Id == snapshot.ModelProfileId && p.Version == snapshot.ModelProfileVersion && p.Provider == connection.Provider &&
             p.Model == connection.Model && p.SupportsTools && p.SupportsTerminalAnswer && p.ContextBytes >= limits.ContextBytes);
 
-    public string Availability(AiConnectionSnapshot connection)
+    public string Availability(AiConnectionRow connection)
     {
         if (connection.ProtectedApiKey is null || string.IsNullOrWhiteSpace(connection.Model)) return "notConfigured";
         if (!connection.Enabled) return "paused";
