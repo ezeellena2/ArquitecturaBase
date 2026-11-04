@@ -19,7 +19,8 @@ public sealed record FormCatalogPublicationAssessment(IReadOnlyList<FormPublicat
 public sealed record FormPublicationChannelResponse(string ChannelId, string ProfileRevision, string Compatibility, string ExternalEvidence, IReadOnlyList<string> Cultures);
 public sealed record FormPublicationCultureResponse(string Culture, bool IsOriginal, bool IsComplete, IReadOnlyList<FormPublicationIssueResponse> Missing);
 public sealed record FormPublicationDiffResponse(Guid? BaseVersionId, IReadOnlyList<Guid> Added, IReadOnlyList<Guid> Changed, IReadOnlyList<Guid> Removed,
-    IReadOnlyList<string> AddedCultures, IReadOnlyList<string> RemovedCultures);
+    IReadOnlyList<string> AddedCultures, IReadOnlyList<string> RemovedCultures,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<Guid>? MovedToRows = null);
 public sealed record FormPublicationCheckResponse(Guid DefinitionId, long DraftRevision, string Compatibility, bool CanAccept,
     string AcceptanceAvailability, IReadOnlyList<FormPublicationChannelResponse> Channels, IReadOnlyList<FormPublicationIssueResponse> Issues,
     IReadOnlyList<FormPublicationCultureResponse> Cultures, FormPublicationDiffResponse Diff, long NextVersionNumber, string? CheckToken = null, DateTime? CheckExpiresAtUtc = null)

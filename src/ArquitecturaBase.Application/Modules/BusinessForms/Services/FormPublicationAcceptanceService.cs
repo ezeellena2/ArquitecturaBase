@@ -65,7 +65,8 @@ internal sealed class FormPublicationAcceptanceService(IFormDraftRepository draf
         var number = checked((long)await publicationRepository.CountVersionsAsync(id, ct) + 1);
         var version = BusinessFormVersion.Create(id, number, contentHash);
         version.SealSchema(FormDraftPolicy.Serialize(schema));
-        version.SealPresentation(FormDraftPolicy.Serialize(saved.Name), FormDraftPolicy.Serialize(saved.Draft.SubmitLabel), saved.Draft.Culture, schema.Questions.Count);
+        version.SealPresentation(FormDraftPolicy.Serialize(saved.Name), FormDraftPolicy.Serialize(saved.Draft.SubmitLabel), saved.Draft.Culture,
+            FormDraftPolicy.QuestionCount(schema.Questions));
         version.SealPublishedCultures(profiles.SelectMany(profile => profile.Cultures).Select(culture => culture.Culture)
             .Distinct(StringComparer.Ordinal).ToArray());
         var operation = BusinessFormPublicationOperation.Accept(id, version.Id, actor, input.RequestId, saved.Revision,

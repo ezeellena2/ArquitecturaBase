@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Resources;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
@@ -16,6 +17,44 @@ internal static class FormPublicationPolicy
         return issues;
         void Add(ArquitecturaBase.Domain.Results.Error error, int? limit) =>
             issues.Add(new(null, null, null, "draft.fields", error.Code, ErrorMessages.Get(error.Code), limit, null));
+    }
+
+    // A block of rows is published with at least one question: its first one comes right after it.
+    public static List<FormPublicationIssueResponse> ValidateRows(FormDefinitionResponse definition)
+    {
+        var fields = definition.Draft.Fields;
+        return Enumerable.Range(0, fields.Count).Where(index => fields[index].Type == "group" && (index + 1 == fields.Count || fields[index + 1].Repeated != true))
+            .Select(index => new FormPublicationIssueResponse(null, fields[index].FieldId, null, $"draft.fields[{index}]",
+                FormPublicationErrors.GroupEmpty.Code, ErrorMessages.Get(FormPublicationErrors.GroupEmpty.Code), null, null)).ToList();
+    }
+
+    // Above the rows a channel loads, publishing warns without blocking: the app keeps loading up to the maximum (RG3-A).
+    public static List<FormPublicationWarningResponse> RowWarnings(FormDefinitionResponse definition)
+    {
+        var fields = definition.Draft.Fields;
+        return Enumerable.Range(0, fields.Count).Where(index => fields[index] is { Type: "group", Rows.MaxRows: > StructuredFormLimits.MaxRows })
+            .Select(index => new FormPublicationWarningResponse(fields[index].FieldId, $"draft.fields[{index}].rows",
+                FormPublicationErrors.RowsOverChannelLimit.Code, ErrorMessages.Get(FormPublicationErrors.RowsOverChannelLimit.Code),
+                StructuredFormLimits.MaxRows, fields[index].Rows!.MaxRows)).ToList();
+    }
+
+    // A published question that entered the block comes back with another identity (RG6-A): each new repeated question pairs with
+    // a removed one of the same type, catalog and original name, so publishing says «Pasan a renglones» instead of removed and added.
+    public static IReadOnlyList<(Guid Added, Guid Removed)> MovedToRows(IReadOnlyList<CanonicalFormField> removed,
+        IReadOnlyList<CanonicalFormField> added, string culture)
+    {
+        var free = removed.Where(field => field.Type != "group" && field.Repeated != true).ToList();
+        var pairs = new List<(Guid Added, Guid Removed)>();
+        foreach (var field in added.Where(field => field.Repeated == true))
+        {
+            var match = free.FirstOrDefault(old => old.Type == field.Type && old.Source?.Catalog == field.Source?.Catalog
+                && string.Equals(NameOf(old, culture), NameOf(field, culture), StringComparison.OrdinalIgnoreCase));
+            if (match is null) continue;
+            free.Remove(match);
+            pairs.Add((field.FieldId, match.FieldId));
+        }
+        return pairs;
+        static string? NameOf(CanonicalFormField field, string culture) => field.Label.TryGetValue(culture, out var name) ? name.Normalize().Trim() : null;
     }
 
     public static IReadOnlyList<FormPublicationCultureResponse> CheckCultures(FormDefinitionResponse definition) =>

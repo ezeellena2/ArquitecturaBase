@@ -129,13 +129,16 @@ que la sesión de las listas dependientes commitee lo suyo.
 
 ### Tarea 3 · Chequeo, aceptación y puerto neutral
 
-- [ ] Tests en rojo: el problema del bloque vacío, el aviso del máximo, `movedToRows` (incluido el caso renombrado), la
+- [x] Tests en rojo: el problema del bloque vacío, el aviso del máximo, `movedToRows` (incluido el caso renombrado), la
   aceptación que registra el bloque y sus preguntas en `BusinessFormField`, el sellado con `rows` y `repeated`, el
   `QuestionCount` sin el bloque y los dos mapeos al puerto neutral.
-- [ ] Códigos en `FormPublicationErrors` con sus textos en `Errors.resx` y `.en.resx`; `StructuredFormLimits`; el aviso en
-  `FormPublicationGuard`; `MovedToRows` en `FormPublicationDiffResponse`; `Rows` y `Repeated` en `StructuredFormQuestion`.
-- [ ] Integración (`FormPublicationCheckTests`) y captura `forms-http/rows/publication-check.json`.
-- [ ] Commit: `feat(formularios): publicar revisa el bloque de renglones y dice qué pasa a renglones`.
+- [x] Códigos en `FormPublicationErrors` con sus textos en `Errors.resx` y `.en.resx`; `StructuredFormLimits`; el problema y
+  el aviso en `FormPublicationPolicy` (`ValidateRows`, `RowWarnings`, sólo con un canal instalado); `MovedToRows` en
+  `FormPublicationDiffResponse`, omitido si está vacío; `Rows` y `Repeated` en `StructuredFormQuestion`.
+- [x] Integración (`FormGroupPublicationHttpTests`) y captura `forms-http/rows/publication-check.json`; el autotest del
+  exportador pasa a 66 cuerpos.
+- [x] Commit: `feat(formularios): publicar revisa el bloque de renglones y dice qué pasa a renglones`. Verde: 11 unitarios
+  nuevos, Application 3485, ArchitectureTests 198 y el HTTP nuevo con PostgreSQL.
 
 ### Tarea 4 · El compilador con renglones (r10)
 

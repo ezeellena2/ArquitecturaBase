@@ -378,6 +378,12 @@
   <data name="Forms.Publication.RecipientsWithoutData" xml:space="preserve">
     <value>Some people are missing data required by this filter.</value>
   </data>
+  <data name="Forms.Publication.GroupEmpty" xml:space="preserve">
+    <value>Add at least one question to the block.</value>
+  </data>
+  <data name="Forms.Publication.RowsOverChannelLimit" xml:space="preserve">
+    <value>WhatsApp loads fewer rows than the block maximum.</value>
+  </data>
   <data name="Forms.Publication.PresentationInvalid" xml:space="preserve">
     <value>Review the WhatsApp presentation: the title cannot be empty and the description can contain up to 300 characters.</value>
   </data>

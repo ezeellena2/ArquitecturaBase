@@ -12,7 +12,8 @@ internal static class FormPublicationSnapshotPolicy
         saved.Draft.Fields.Select(field => new StructuredFormQuestion(field.FieldId, field.Key, field.Type, field.Label, field.Help,
             field.Required, field.MaxLength, field.Options?.Select(option => new StructuredFormChoice(option.ChoiceId, option.Label)).ToArray(),
             field.Source?.Catalog, field.Files is null ? null : new StructuredFormFileSettings(field.Files.MinFiles, field.Files.MaxFiles, field.Files.PhotoSource),
-                field.Selection is null ? null : new StructuredFormSelectionSettings(field.Selection.MinSelected, field.Selection.MaxSelected))).ToArray(),
+                field.Selection is null ? null : new StructuredFormSelectionSettings(field.Selection.MinSelected, field.Selection.MaxSelected),
+                field.Rows is null ? null : new StructuredFormRowSettings(field.Rows.MinRows, field.Rows.MaxRows), field.Repeated)).ToArray(),
         FormPublicationPolicy.CheckCultures(saved).Where(culture => culture.IsComplete).Select(culture => culture.Culture).ToArray(),
         saved.Draft.Fields.Any(field => field.Files is not null) ? maxFileSizeMiB ?? 25 : null);
 
@@ -32,7 +33,8 @@ internal static class FormPublicationSnapshotPolicy
                 || (field.Options?.Any(option => !option.ChoiceId.HasValue) ?? false))) return false;
         var fields = input.Draft.Fields.Select(field => new CanonicalFormField(field.FieldId!.Value, "field_" + field.FieldId.Value.ToString("N"),
             field.Type, field.Label, CleanHelp(field.Help), field.Required, field.MaxLength,
-            field.Options?.Select(option => new CanonicalFormChoice(option.ChoiceId!.Value, option.Label)).ToArray(), field.Source, field.Files, field.Selection)).ToArray();
+            field.Options?.Select(option => new CanonicalFormChoice(option.ChoiceId!.Value, option.Label)).ToArray(), field.Source, field.Files, field.Selection,
+            field.Rows, field.Repeated)).ToArray();
         return FormDraftPolicy.Serialize(new FormDraftResponse(input.Draft.Format, input.Draft.Culture, input.Draft.SubmitLabel!, fields))
             == FormDraftPolicy.Serialize(saved.Draft);
     }

@@ -12,7 +12,9 @@ public sealed record StructuredFormQuestion(Guid FieldId, string Key, string Typ
     IReadOnlyDictionary<string, string>? Help, bool Required, int? MaxLength, IReadOnlyList<StructuredFormChoice>? Options,
     Guid? SourceCatalogId = null,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] StructuredFormFileSettings? Files = null,
-    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] StructuredFormSelectionSettings? Selection = null)
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] StructuredFormSelectionSettings? Selection = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] StructuredFormRowSettings? Rows = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] bool? Repeated = null)
 {
     public override string ToString() => "StructuredFormQuestion { Content = [REDACTED] }";
 }
@@ -26,4 +28,6 @@ public sealed record StructuredFormCheckResponse(string ProfileRevision, string 
     IReadOnlyList<StructuredFormCultureResponse> Cultures, IReadOnlyList<StructuredFormIssueResponse> Issues, bool PublicationAvailable = false);
 
 public sealed record StructuredFormSelectionSettings(int MinSelected, int MaxSelected);
+// The block of rows is the "group" question; its questions follow it, marked Repeated.
+public sealed record StructuredFormRowSettings(int MinRows, int MaxRows);
 public sealed record StructuredFormFileSettings(int MinFiles, int MaxFiles, string? PhotoSource = null);
