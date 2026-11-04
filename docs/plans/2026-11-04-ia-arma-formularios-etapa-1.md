@@ -85,9 +85,10 @@ leer y crear una propuesta, y el cambio del motor para «Cambiar algo» tiene su
    el catálogo (migración), lo ya creado antes de leer la propuesta, idempotencia, nombre o prefijo en uso, endpoints de crear y
    de estado, aprobar un Manual y la prueba de arquitectura. La integración con PostgreSQL y la cohorte de ejemplos HTTP
    (`forms-assistant-proposals-http`, 14 cuerpos) están escritas y corren en el cierre conjunto.
-6. **Tarjeta en el hilo.** Pieza de `shared/ui/assistant` con sus estados (abierta, «Reemplazada», «Borrador creado»), el
-   contexto de extensión, la tarjeta de formulario, de catálogo y de H4 en `business-forms`, «Ver cómo queda» con
-   `FormPreview`, crear y navegar, y la banda de propuesta en un catálogo Manual. Tests, contratos y visuales es/en.
+6. **Tarjeta en el hilo.** Hecha (front 5ad868b0 y b2fc0422; backend 72196b2d y a39d5bf2): `AssistantProposalCard` en
+   `shared/ui/assistant` con sus estados, el contexto de extensión que compone app, la tarjeta de formulario, de catálogo y de
+   H4 en `business-forms`, «Ver cómo queda» con `FormPreview`, crear y navegar, y la banda de propuesta en un catálogo Manual.
+   Las escenas visuales es/en están escritas y se capturan al cierre, con los contratos de la cohorte exportada.
 7. **Entradas y sugerencias.** «Armar con la IA» en Diseñar formularios, Catálogos y Formularios que faltan, con el pedido
    empezado en el estado de la navegación, y la sugerencia de Inicio vacío. Tests y visuales.
 8. **Continuar una operación en el motor.** La operación anterior en la aceptación, el turno en su conversación, la huella y la
