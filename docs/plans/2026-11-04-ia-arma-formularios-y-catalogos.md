@@ -33,9 +33,11 @@ entienda qué quiere crear, se lo sugiera, le muestre una vista previa y lo llev
 **Tableros:** lienzo provisorio [Formularios desde la app](https://claude.ai/artifact/Kvbr5KFJrGT951JLiu8i4M), filas «Armar con
 la IA · 0» a «· 3» (IA0 a IA4), con la nota naranja de origen y una verde por elección (versión 73). Los ejemplos son
 «Control de carga de camiones», desde el PDF de una planilla en papel; «Parte de lluvias», con un audio por WhatsApp, y el
-catálogo «Contratistas», desde un Excel de 86 filas. El lienzo del sistema visual no se abre desde la cuenta de Claude Code:
-los tableros elegidos pasan allí antes de programar y su diseño se registra en el front, como el de la
-[carga desde la app](../../../ArquitecturaBaseFront/docs/design/carga-desde-la-app.md).
+catálogo «Contratistas», desde un Excel de 86 filas. El diseño de los elegidos quedó registrado en el front el 2026-11-04, en
+[la IA arma formularios y catálogos](../../../ArquitecturaBaseFront/docs/design/ia-arma-formularios.md), como el de la
+[carga desde la app](../../../ArquitecturaBaseFront/docs/design/carga-desde-la-app.md). El lienzo del sistema visual sigue sin
+abrirse desde la cuenta de Claude Code (se volvió a probar el mismo día): los tableros pasan allí cuando se pueda y, mientras
+tanto, vale el provisorio.
 
 ## Decisiones del usuario (2026-11-04)
 
@@ -188,8 +190,9 @@ también en el chat de Inicio y para armar, no sólo para cargar). Fija:
 
 ## Plan por etapas
 
-Cada paso queda igual a su tablero: al programarlo se abre el tablero y se compara antes de cerrarlo. Antes de la Etapa 1,
-los tableros elegidos pasan al lienzo del sistema visual y su diseño se registra en el front. Cada etapa
+Cada paso queda igual a su tablero: al programarlo se abre el tablero y se compara antes de cerrarlo. El paso previo a la
+Etapa 1 quedó hecho el 2026-11-04: el diseño está registrado en el front, con lo que entra en cada etapa, y el pase al lienzo
+del sistema visual espera a que se pueda abrir. Cada etapa
 sigue [validar un cambio](../guides/validar-un-cambio.md): TDD en las políticas, integración con PostgreSQL y Redis,
 contratos exportados, y en el front tests, visuales y el recorrido es/en a 1440, 390 y 320, más una prueba física con el
 proveedor de IA real y con Meta. Las piezas nuevas del chat (adjuntar, grabar y la tarjeta de la propuesta) van a
