@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using ArquitecturaBase.Api.Contracts.Auth;
 using ArquitecturaBase.Api.Contracts.Users;
 using ArquitecturaBase.Application.Models.Users;
@@ -20,6 +21,13 @@ public sealed class ControllerInputContractTests
         typeof(string), typeof(decimal), typeof(Guid), typeof(DateTime), typeof(DateTimeOffset), typeof(DateOnly),
         typeof(TimeOnly), typeof(TimeSpan),
     ];
+
+    // Cómo se llama en un contrato lo que no puede quedar en un log (backend.md, "Borde HTTP"): el correo, el teléfono, un
+    // código, un token o una clave de API y el nombre del perfil. Cuenta el final del nombre, así CheckToken es un token.
+    private static readonly string[] PrivateDataNames = ["Email", "Phone", "Code", "Token", "ApiKey", "DisplayName"];
+
+    // El número de teléfono que se escribe al lado del país se llama así, a secas: VersionNumber no es un teléfono.
+    private const string PhoneNumber = "Number";
 
     [Fact]
     public void Controller_body_query_and_form_parameters_are_http_contracts()
@@ -81,6 +89,31 @@ public sealed class ControllerInputContractTests
     public void Only_contracts_and_simple_values_are_allowed_as_input(Type type, bool expected) =>
         Assert.Equal(expected, IsAllowedInput(type));
 
+    [Fact]
+    public void Contracts_with_private_data_override_to_string()
+    {
+        // MVC registra los argumentos de una acción con su ToString(), y el que el compilador escribe para un record lista
+        // todas las propiedades. Vale para los contratos del núcleo y para los de un módulo, en Modules/<M>/Contracts.
+        var contracts = ApiAssembly.GetTypes().Where(type => type.ResidesIn(ContractsNamespace)).ToArray();
+
+        // Si la búsqueda no encontrara contratos con datos privados, la regla pasaría en silencio.
+        Assert.Contains(contracts, CarriesPrivateData);
+
+        var leaking = Leaking(contracts).Select(type => type.FullName).ToArray();
+
+        Assert.True(leaking.Length == 0, "Override ToString() in contracts with private data: " + string.Join(", ", leaking));
+    }
+
+    [Fact]
+    public void Detection_flags_private_data_without_its_own_to_string()
+    {
+        // Casos de control, al pie de esta clase: el ToString() que el compilador escribe para un record no cuenta, y
+        // Number cuenta solo a secas.
+        Assert.Equal(
+            [typeof(LeakingHttpRequest), typeof(PhoneHttpRequest)],
+            Leaking([typeof(LeakingHttpRequest), typeof(PhoneHttpRequest), typeof(RedactedHttpRequest), typeof(VersionHttpRequest)]));
+    }
+
     private static bool IsController(Type type) =>
         type is { IsClass: true, IsAbstract: false } && typeof(ControllerBase).IsAssignableFrom(type);
 
@@ -131,6 +164,20 @@ public sealed class ControllerInputContractTests
         return value.IsPrimitive || value.IsEnum || SimpleValueTypes.Contains(value);
     }
 
+    /// <summary>Los contratos con datos privados que no escriben su propio ToString().</summary>
+    private static Type[] Leaking(IEnumerable<Type> types) =>
+        [.. types.Where(type => CarriesPrivateData(type) && !OverridesToString(type))];
+
+    private static bool CarriesPrivateData(Type type) =>
+        type.GetProperties(BindingFlags.Public | BindingFlags.Instance).Any(property => property.Name == PhoneNumber
+            || PrivateDataNames.Any(name => property.Name.EndsWith(name, StringComparison.Ordinal)));
+
+    // El de object no cuenta, ni el que el compilador escribe para un record: ese es el que lista el correo.
+    private static bool OverridesToString(Type type) =>
+        type.GetMethod(nameof(object.ToString), Type.EmptyTypes) is { } method
+        && method.DeclaringType != typeof(object)
+        && !method.IsDefined(typeof(CompilerGeneratedAttribute), inherit: false);
+
     private sealed record ActionInput(string Action, ParameterInfo Parameter, BindingSource Source);
 
     [ApiController]
@@ -155,4 +202,16 @@ public sealed class ControllerInputContractTests
         [HttpPost("form")]
         public OkObjectResult Form([FromForm] UpdateUserRequest form) => Ok(form);
     }
+
+    // Los casos de control de Detection_flags_private_data_without_its_own_to_string.
+    private sealed record LeakingHttpRequest(string? Email, string? Name);
+
+    private sealed record PhoneHttpRequest(string? Country, string? Number);
+
+    private sealed record RedactedHttpRequest(string? CheckToken)
+    {
+        public override string ToString() => nameof(RedactedHttpRequest);
+    }
+
+    private sealed record VersionHttpRequest(long VersionNumber, string? Name);
 }
