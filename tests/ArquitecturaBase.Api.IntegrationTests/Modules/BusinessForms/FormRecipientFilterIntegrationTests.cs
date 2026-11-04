@@ -70,7 +70,8 @@ public sealed class FormRecipientFilterIntegrationTests(ApiFactory factory)
         Assert.Empty(assessment.GetProperty("issues").EnumerateArray());
         Assert.Equal("LocallyValidated", assessment.GetProperty("compatibility").GetString());
         var warnings = assessment.GetProperty("warnings").EnumerateArray().ToArray();
-        Assert.Equal(1, warnings.Single(value => value.GetProperty("code").GetString() == FormPublicationErrors.OptionsPerRecipientHigh.Code).GetProperty("maximum").GetInt32());
+        // NI3-B (2026-11-03): one option per person fits, so the maximum does not warn; the people without the data still do.
+        Assert.DoesNotContain(warnings, value => value.GetProperty("code").GetString() == FormPublicationErrors.OptionsPerRecipientHigh.Code);
         var withoutData = warnings.Single(value => value.GetProperty("code").GetString() == FormPublicationErrors.RecipientsWithoutData.Code);
         Assert.Equal(1, withoutData.GetProperty("count").GetInt32());
         Assert.Equal("Pablo Sosa", Assert.Single(withoutData.GetProperty("people").EnumerateArray()).GetString());

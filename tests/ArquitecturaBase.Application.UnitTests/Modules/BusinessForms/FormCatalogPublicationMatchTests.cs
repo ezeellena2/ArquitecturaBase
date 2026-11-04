@@ -59,7 +59,7 @@ public sealed class FormCatalogPublicationMatchTests : IDisposable
         f.People.Attributes.Add(attribute);
         var south = Guid.CreateVersion7();
         f.Sources[source] = [new(south, source, "S", "Zona Sur", "South zone", null, null, 0, true)];
-        f.Maximum = new(18, FormDraftPolicy.Serialize(new Dictionary<string, string> { [zone.Id.ToString("D")] = south.ToString("D") }));
+        f.Maximum = new(21, FormDraftPolicy.Serialize(new Dictionary<string, string> { [zone.Id.ToString("D")] = south.ToString("D") }));
         f.People.Missing = new(7, ["Ana", "Berta", "Clara", "Dora", "Eva", "Flora", "Gema"]);
         var question = f.Field() with { Source = new(f.CatalogId, [new(zone.Id, PersonAttributeId: attribute.Id), new(quantity.Id, "0")]) };
         var result = await f.Guard.InspectCatalogsAsync([question], Ct);
@@ -67,7 +67,7 @@ public sealed class FormCatalogPublicationMatchTests : IDisposable
         Assert.Equal(2, result.Warnings.Count);
         var maximum = result.Warnings.Single(warning => warning.Code == FormPublicationErrors.OptionsPerRecipientHigh.Code);
         Assert.Equal(20, maximum.Limit);
-        Assert.Equal(18, maximum.Maximum);
+        Assert.Equal(21, maximum.Maximum);
         Assert.Equal("Zona Sur", maximum.MaximumLabel);
         var missing = result.Warnings.Single(warning => warning.Code == FormPublicationErrors.RecipientsWithoutData.Code);
         Assert.Equal(7, missing.Count);
@@ -128,6 +128,26 @@ public sealed class FormCatalogPublicationMatchTests : IDisposable
         Assert.Empty(perRecipient.Issues);
         Assert.Equal(21, perRecipient.Warnings.Single(warning => warning.Code == FormPublicationErrors.OptionsPerRecipientHigh.Code).Maximum);
         Assert.Empty(f.CountReads);
+    }
+
+    // NI3-B (2026-11-03): like the question editor, the maximum warns only when it does not fit or nobody sees an option.
+    [Theory]
+    [InlineData("choice", 200, false)]
+    [InlineData("choice", 4, false)]
+    [InlineData("choice", 0, true)]
+    [InlineData("choice", 201, true)]
+    [InlineData("multiChoice", 20, false)]
+    [InlineData("multiChoice", 0, true)]
+    public async Task The_maximum_per_recipient_warns_only_when_it_does_not_fit_or_nobody_sees_an_option(string type, int maximum, bool warns)
+    {
+        var f = new FormPublicationMultipleCatalogFixture { ActiveItems = 1200, Maximum = new(maximum, "{}") };
+        var kind = Field("text");
+        f.Fields = [kind];
+        var question = f.Field(type) with { Source = new(f.CatalogId, [new(kind.Id, "cold")]) };
+        var inspected = await f.Guard.InspectCatalogsAsync([question], Ct);
+        Assert.Empty(inspected.Issues);
+        Assert.Equal(warns, inspected.Warnings.Any(warning => warning.Code == FormPublicationErrors.OptionsPerRecipientHigh.Code));
+        Assert.Single(f.MaximumReads);
     }
 
     [Theory]
