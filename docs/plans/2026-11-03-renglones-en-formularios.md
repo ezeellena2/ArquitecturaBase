@@ -1,7 +1,8 @@
 # Renglones en los formularios
 
 Diseño del 2026-11-02 con las decisiones del usuario del 2026-11-03, que ese día dio el diseño por cerrado, y las del
-2026-11-04 sobre el tope de la respuesta de WhatsApp (RG7-A) y el bloque con mínimo 0 (RG8-A). Nada está programado. Un formulario suma un bloque de
+2026-11-04 sobre el tope de la respuesta de WhatsApp (RG7-A), el bloque con mínimo 0 (RG8-A) y cómo se elige «Renglones» en el
+editor (RG9-A). La Etapa 1 se está programando ([plan de implementación](2026-11-04-renglones-etapa-1-implementacion.md)). Un formulario suma un bloque de
 preguntas que se repite, como los renglones de un remito o de una factura: en la app se cargan en una tabla y por WhatsApp,
 de a un renglón por pantalla.
 
@@ -121,6 +122,14 @@ plan antes de programar y al programar el Flow.
    - Desde el primero, cada renglón termina con «¿Agregás otro renglón?»; con un mínimo de 1 o más, la pantalla no aparece.
    - En la app no cambia nada: la tabla arranca vacía y «Agregar renglón» suma el primero.
    - Descartó RG8-B (la pregunta al final de la pantalla anterior) y RG8-C (en WhatsApp, al menos un renglón).
+9. **«Renglones» en el tipo de respuesta: RG9-A, apagada con su motivo después de «·»** (2026-11-04). Salió al programar el
+   editor: el tipo se elige en el desplegable «Tipo de respuesta» de la pregunta, no en un menú de «Agregar pregunta» como
+   dibujó RG1-A, y una opción de un desplegable nativo no muestra un tooltip.
+   - «Renglones» es un tipo más, al final del desplegable. Con un bloque ya armado queda apagada como «Renglones · Ya hay un
+     bloque de renglones», igual que hoy «Foto · …» y «Documento · …» cuando falta el almacenamiento.
+   - En una pregunta del bloque, «Foto» y «Documento» se apagan con «· No se carga varias veces», y «Permitir elegir varias»
+     se apaga con su motivo al pasar el mouse.
+   - Descartó RG9-B (un botón «Agregar renglones») y RG9-C («Renglones» sólo mientras no hay un bloque, sin motivo).
 
 **Resueltas por defecto** con la opción más simple, dibujadas en los tableros y sin objeción del usuario:
 

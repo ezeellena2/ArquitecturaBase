@@ -87,7 +87,9 @@ En `SaveFormDraftRequestValidator`, todas `ContentInvalid` en su ruta:
 - **Tarea 4:** un bloque con mínimo 0 en WhatsApp (no se dibujó). Resuelto el 2026-11-04 con RG8-A: una pantalla con el
   nombre del bloque y «¿Agregás un renglón?» antes del primero; desde el primero, cada renglón pregunta.
 - **Tarea 7:** «Renglones» se elige en el desplegable «Tipo de respuesta» (no hay menú en «Agregar pregunta», como dibujó
-  RG1-A), y una opción nativa no muestra el motivo «Ya hay un bloque de renglones.».
+  RG1-A), y una opción nativa no muestra el motivo «Ya hay un bloque de renglones.». Resuelto el 2026-11-04 con RG9-A (lienzo,
+  versión 84): la opción apagada lleva el motivo después de «·», como «Foto · …», y en una pregunta del bloque también foto y
+  documento («· No se carga varias veces»).
 
 ## Por decidir (la revisión del backend, 2026-11-04)
 
@@ -192,7 +194,7 @@ que la sesión de las listas dependientes commitee lo suyo.
 
 ### Tarea 7 · El front: el editor
 
-- [ ] Preguntar al usuario por el motivo de «Renglones» en el desplegable.
+- [x] Preguntar al usuario por el motivo de «Renglones» en el desplegable: RG9-A.
 - [ ] Un módulo puro `rowsQuestions.ts` (como `selectionQuestions.ts`): crear el bloque, marcar y desmarcar «Se carga varias
   veces» con identidad nueva, mover el bloque con sus preguntas, el «Agregar pregunta» de adentro y los tipos permitidos.
 - [ ] `QuestionEditor` (casilla `CheckboxField` con su (i); editor del bloque con nombre, ayuda, mínimo y máximo, y la (i)
