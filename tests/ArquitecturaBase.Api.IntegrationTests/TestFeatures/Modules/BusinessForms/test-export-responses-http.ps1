@@ -59,7 +59,7 @@ foreach ($case in @("Configuration", "Merge", "Missing", "Collision")) {
                 $definitions = @($cohorts | Where-Object { $_.Name -eq "forms" })[0]
                 Assert-Condition ($responses.RequiredNames.Count -eq 55) "Responses must preserve the prior artifacts and add ten captured extra-field artifacts."
                 Assert-Condition ($pdf.RequiredNames.Count -eq 32) "PDF must preserve twenty-eight artifacts and add four multiple-choice artifacts."
-                Assert-Condition ($definitions.RequiredNames.Count -eq 66) "Definitions must preserve the prior bodies, sixteen recipient filter bodies and two rows bodies."
+                Assert-Condition ($definitions.RequiredNames.Count -eq 67) "Definitions must preserve the prior bodies, sixteen recipient filter bodies and three rows bodies."
                 foreach ($culture in @("es", "en")) {
                     foreach ($name in @("sheet", "detail", "counts")) { Assert-Condition ("multi-$name-$culture.json" -in $responses.RequiredNames) "A multiple-choice response capture is missing." }
                     Assert-Condition ("multi-export-$culture.xlsx" -in $responses.RequiredNames) "A multiple-choice workbook capture is missing."

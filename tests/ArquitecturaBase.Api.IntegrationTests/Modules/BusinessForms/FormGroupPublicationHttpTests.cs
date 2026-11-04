@@ -69,9 +69,14 @@ public sealed partial class FormDraftEndpointsTests
         var newBlock = movedFields[1].GetProperty("fieldId").GetGuid();
         var newQuantity = movedFields[2].GetProperty("fieldId").GetGuid();
 
+        // With its publication open the check carries no ticket, so the body with movedToRows can be exported.
+        using var movedAccepted = await client.PostAsJsonAsync($"/api/forms/definitions/{formId}/publications",
+            await PublicationAttemptAsync(client, formId, afterMove), Ct);
+        Assert.Equal(HttpStatusCode.Accepted, movedAccepted.StatusCode);
         using var movedCheck = await client.PostAsJsonAsync($"/api/forms/definitions/{formId}/publication-checks", CheckPayload(afterMove), Ct);
-        Assert.Equal(HttpStatusCode.OK, movedCheck.StatusCode);
-        var diff = (await movedCheck.ReadJsonAsync()).GetProperty("diff");
+        var checkedMove = await CaptureContractAsync(movedCheck, HttpStatusCode.OK, "rows", "publication-check-moved");
+        Assert.Equal("InProgress", checkedMove.GetProperty("acceptanceAvailability").GetString());
+        var diff = checkedMove.GetProperty("diff");
         Assert.Equal(new[] { newQuantity }, diff.GetProperty("movedToRows").EnumerateArray().Select(value => value.GetGuid()));
         Assert.Equal(new[] { newBlock }, diff.GetProperty("added").EnumerateArray().Select(value => value.GetGuid()));
         Assert.DoesNotContain(oldQuantity, diff.GetProperty("removed").EnumerateArray().Select(value => value.GetGuid()));
