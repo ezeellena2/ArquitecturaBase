@@ -46,6 +46,8 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
         if (request.RequestId == Guid.Empty || !Enum.IsDefined(request.Context.InteractionMode) || request.Context.ChannelId == "home" ||
             request.OccurredAtUtc.Kind != DateTimeKind.Utc || request.ContentExpiresAtUtc.Kind != DateTimeKind.Utc ||
             request.ContentExpiresAtUtc <= request.OccurredAtUtc) return AiAssistantErrors.Invalid;
+        if (request.PreviousRequestId is { } previous && (previous == Guid.Empty || previous == request.RequestId || request.Audio is not null))
+            return AiAssistantErrors.Invalid;
         if (request.Audio is { } audio)
         {
             if (request.Text.Length != 0 || request.Context.AllowedCapabilities.Count != 0 || request.Context.AllowedTerminals.Count != 0 ||
@@ -89,6 +91,12 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
             if (conversation.Revision != home.ExpectedRevision) return AiAssistantErrors.RevisionConflict;
             if (!await guard.CanReadAsync(userId, conversation.RequiredPermissions, ct)) return AiAssistantErrors.ContentBlocked;
         }
+        else if (operation?.PreviousRequestId is { } previousRequestId)
+        {
+            var continued = await ContinueAsync(operation.Context, previousRequestId, now, ct);
+            if (continued.IsFailure) return continued.Error;
+            conversation = continued.Value;
+        }
         var connection = await connectionReader.FindAsync(ct);
         if (home is not null && connection.Revision != home.ExpectedConnectionRevision) return AiAssistantErrors.ConnectionChanged;
         if (operation?.Audio is null && guard.Availability(connection) != "available") return AiAssistantErrors.Unavailable;
@@ -128,6 +136,26 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
         repository.AddReceipt(AiAssistantRequestReceipt.Create(userId, requestId, hash,
             fingerprint.ActiveKeyId, conversation.Id, turn.Id, now, now.AddDays(limits.RetentionDays), channelId, profile.Value.Purpose == AiAssistantPurpose.NormalizeAudio));
         return Accepted(turn, conversation.Revision, now);
+    }
+
+    // A channel message that continues its previous operation joins that engine conversation, like Home: only the latest
+    // completed interpretation of the same people and channel conversation, while its content lasts and its reserve is readable.
+    private async Task<Result<AiConversation>> ContinueAsync(AssistantChannelContext context, Guid previousRequestId, DateTime nowUtc, CancellationToken ct)
+    {
+        var receipt = await repository.GetReceiptAsync(context.ActorUserId, previousRequestId, ct);
+        if (receipt is null) return AiAssistantErrors.NotFound;
+        await repository.LockConversationAsync(receipt.ConversationId, ct);
+        var conversation = await repository.GetConversationAsync(context.ActorUserId, receipt.ConversationId, ct);
+        var previous = await repository.GetTurnAsync(receipt.TurnId, ct);
+        if (conversation is null || previous is null || conversation.ChannelId != context.ChannelId || previous.State != AiAssistantTurnState.Completed)
+            return AiAssistantErrors.NotFound;
+        var captured = AiAssistantChannelPolicy.Read(previous.ExecutionProfileJson);
+        if (captured.IsFailure || captured.Value.Purpose != AiAssistantPurpose.Interpret ||
+            !AiAssistantChannelPolicy.SameConversation(context, captured.Value.ChannelContext)) return AiAssistantErrors.NotFound;
+        if (previous.ContentExpiresAtUtc <= nowUtc || previous.ProtectedQuestion is null) return AiAssistantErrors.Expired;
+        if (!await guard.CanReadAsync(context.ActorUserId, conversation.RequiredPermissions, ct)) return AiAssistantErrors.ContentBlocked;
+        if (previous.Ordinal != await repository.CountTurnsAsync(conversation.Id, ct)) return AiAssistantErrors.RevisionConflict;
+        return conversation;
     }
 
     private AiAssistantTurnAcceptedResponse Accepted(AiAssistantTurn turn, long conversationRevision, DateTime nowUtc) =>

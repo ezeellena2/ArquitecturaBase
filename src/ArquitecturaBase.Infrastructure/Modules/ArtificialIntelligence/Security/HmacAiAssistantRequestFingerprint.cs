@@ -31,6 +31,8 @@ internal sealed class HmacAiAssistantRequestFingerprint(AiKeyRing ring) : IAiAss
             values.Add(new object?[] { "assistant-interaction-mode:v1", context.InteractionMode });
         if (context.ChannelConversationId is { } conversationId)
             values.Add(new object?[] { "assistant-channel-conversation:v1", conversationId });
+        if (request.PreviousRequestId is { } previousRequestId)
+            values.Add(new object?[] { "assistant-previous-operation:v1", previousRequestId });
         var payload = JsonSerializer.SerializeToUtf8Bytes(values);
         try { return Convert.ToBase64String(HMACSHA256.HashData(key, payload)); }
         finally { CryptographicOperations.ZeroMemory(key); CryptographicOperations.ZeroMemory(payload); }

@@ -52,6 +52,11 @@ internal static class AiAssistantChannelPolicy
         requested.RequiredPermissions.Actor.All(captured.RequiredPermissions.Actor.Contains) &&
         requested.RequiredPermissions.Subject.All(captured.RequiredPermissions.Subject.Contains);
 
+    // A continuation keeps the people and the channel conversation; what may be offered can change between messages.
+    public static bool SameConversation(AssistantChannelContext requested, AssistantChannelContext captured) =>
+        requested.ChannelId == captured.ChannelId && requested.ActorUserId == captured.ActorUserId &&
+        requested.SubjectUserId == captured.SubjectUserId && requested.ChannelConversationId == captured.ChannelConversationId;
+
     public static bool Matches(AiAssistantExecutionProfileSnapshot profile, Guid actor, string channel, string culture, string timeZoneId) =>
         profile.ChannelContext.ActorUserId == actor && profile.ChannelContext.ChannelId == channel &&
         profile.ChannelContext.Culture == culture && profile.ChannelContext.TimeZoneId == timeZoneId &&

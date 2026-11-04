@@ -112,4 +112,19 @@ public sealed class AssistantOperationFingerprintTests
         };
         Assert.False(original.Matches(modified, "one", fingerprint));
     }
+
+    [Fact]
+    public void A_continuation_binds_its_previous_operation_and_a_request_without_one_keeps_its_fingerprint()
+    {
+        var request = Request();
+        var original = Fingerprint();
+        var alone = original.Create(request, "one");
+        var continued = request with { PreviousRequestId = Guid.NewGuid() };
+        var fingerprint = original.Create(continued, "one");
+        Assert.NotEqual(alone, fingerprint);
+        Assert.True(original.Matches(continued, "one", fingerprint));
+        Assert.False(original.Matches(continued with { PreviousRequestId = Guid.NewGuid() }, "one", fingerprint));
+        Assert.False(original.Matches(request, "one", fingerprint));
+        Assert.True(original.Matches(request with { PreviousRequestId = null }, "one", alone));
+    }
 }

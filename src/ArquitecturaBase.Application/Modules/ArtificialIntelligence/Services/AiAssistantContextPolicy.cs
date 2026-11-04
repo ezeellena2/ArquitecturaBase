@@ -59,11 +59,12 @@ internal sealed class AiAssistantContextPolicy(IAiAssistantReader reader, IAiCon
         var expiredThroughOrdinal = page.Items.Where(t => t.Ordinal < turn.Ordinal &&
             (t.ContentExpiresAtUtc <= timeProvider.GetUtcNow().UtcDateTime || t.ProtectedQuestion is null)).Select(t => t.Ordinal).DefaultIfEmpty(0).Max();
         var history = new List<AiAssistantTurnResponse>();
-        foreach (var previous in page.Items.Where(t => turn.ChannelId == "home" && t.Ordinal < turn.Ordinal && t.Ordinal > expiredThroughOrdinal && t.State == AiAssistantTurnState.Completed))
+        // A channel conversation has earlier turns only when a message continued its previous operation.
+        foreach (var previous in page.Items.Where(t => t.Ordinal < turn.Ordinal && t.Ordinal > expiredThroughOrdinal && t.State == AiAssistantTurnState.Completed))
         {
             var mapped = responsePolicy.Map(previous, true, limits.PollingAfterSeconds);
             if (mapped.IsFailure) return mapped.Error;
-            if (mapped.Value.ContentAccess == "allowed" && mapped.Value.Answer is not null) history.Add(mapped.Value);
+            if (mapped.Value.ContentAccess == "allowed" && (mapped.Value.Answer is not null || mapped.Value.ObservedProposal is not null)) history.Add(mapped.Value);
         }
         var messages = AiAssistantHistoryPolicy.Messages(history, limits.HistoryCharacters, turn.Culture).ToList();
         messages.Add(new("user", question));

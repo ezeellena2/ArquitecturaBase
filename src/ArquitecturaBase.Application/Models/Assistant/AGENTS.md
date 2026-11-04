@@ -11,3 +11,5 @@ Audio es un descriptor privado del servidor, alternativo al texto, con hash/tama
 SourceRecordId es una referencia opcional fijada por el servidor para el origen exacto de una captura. Se omite cuando es null para preservar los contextos y huellas que no tienen origen. Submit sella su valor y Get/Cancel lo comparan sin reconstruirlo desde el historial ni desde argumentos del modelo.
 
 ChannelConversationId es un Guid opcional y opaco del dueño del canal, distinto de la conversación del motor. Se sella y participa en SameScope y en una extensión de huella sólo cuando existe; null conserva el formato anterior y el grupo de reserva sin ámbito. No es un argumento del modelo ni fragmenta cuotas por actor/canal/propósito.
+
+PreviousRequestId nombra la operación que un mensaje del canal continúa: la última de su conversación del motor, de las mismas personas y conversación del canal. Entra en una extensión de huella sólo cuando existe; nunca acompaña un audio ni se nombra a sí misma.

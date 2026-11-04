@@ -6,6 +6,8 @@ public sealed record AssistantOperationRequest(Guid RequestId, AssistantChannelC
     string Text, DateTime OccurredAtUtc, DateTime ContentExpiresAtUtc)
 {
     public AssistantAudioInput? Audio { get; init; }
+    /// <summary>The operation this message continues, the latest of its channel conversation: the turn joins that engine conversation.</summary>
+    public Guid? PreviousRequestId { get; init; }
     public override string ToString() => "AssistantOperationRequest { Content = [REDACTED] }";
 }
 
