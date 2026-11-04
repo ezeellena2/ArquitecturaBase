@@ -77,8 +77,10 @@ En `SaveFormDraftRequestValidator`, todas `ContentInvalid` en su ruta:
   - más de 26 pantallas es `UnsupportedConfiguration`;
   - el prellenado (`WhatsAppFlowPrefillPolicy`) sigue las pantallas nuevas y no prellena el bloque; `PrefillRevisions`
     suma r10. El mapeo de diagnósticos de Meta (`WhatsAppFlowDispatchService.Map`) reconoce las pantallas de renglón.
-- **Webhook:** `WhatsAppWebhookReader` acepta claves `field_<N>_r<1..10>`, sube el tope de campos a 450 cuando hay claves de
-  renglón y usa 64 KiB (`WhatsAppFlowResponseLimits.HasRows`). Decodificar los renglones es de la Etapa 2.
+- **Webhook:** `WhatsAppWebhookReader` acepta claves `field_<N>_r<0..10>` (`_r0` es «¿Agregás un renglón?», RG8-A), sube
+  el tope de campos a 450 cuando hay claves de renglón y usa 64 KiB (`WhatsAppFlowResponseLimits.HasRows`). Decodificar los
+  renglones es de la Etapa 2: hasta entonces, la respuesta de un Flow con bloque se rechaza por claves que el mapping no
+  conoce.
 
 ## Antes de dos tareas, preguntar al usuario
 
@@ -157,10 +159,11 @@ que la sesión de las listas dependientes commitee lo suyo.
 
 ### Tarea 5 · El webhook con renglones
 
-- [ ] Tests en rojo en `WhatsAppWebhookReaderTests` y `WhatsAppFlowResponseLimitsTests`: claves `_r<n>` aceptadas, el tope
+- [x] Tests en rojo en `WhatsAppWebhookReaderTests` y `WhatsAppFlowResponseLimitsTests`: claves `_r<n>` aceptadas, el tope
   de campos con renglones, 64 KiB con renglones y 16 KiB sin ellos, y claves mal formadas rechazadas.
-- [ ] `WhatsAppFlowResponseLimits.HasRows` y `WhatsAppWebhookReader`.
-- [ ] Commit: `feat(whatsapp): el webhook acepta las respuestas con renglones`.
+- [x] `WhatsAppFlowResponseLimits.HasRows` y `IsFieldKey` (el formato de la clave, de `_r0` a `_r10`), y `WhatsAppWebhookReader`.
+- [x] Commit: `feat(whatsapp): el webhook acepta las respuestas con renglones`. Verde en la copia de HEAD: 17 casos nuevos
+  de límites, `WhatsAppWebhookReaderTests` 52 (sin base), Application.UnitTests 3532 y ArchitectureTests 198.
 - [ ] Revisión del backend (un revisor) y correcciones.
 
 ### Tarea 6 · El front: modelo, guards y contrato

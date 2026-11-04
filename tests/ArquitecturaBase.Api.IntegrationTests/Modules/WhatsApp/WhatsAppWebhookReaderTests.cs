@@ -158,6 +158,50 @@ public sealed class WhatsAppWebhookReaderTests
         Assert.DoesNotContain(new string('s', 100), message.FlowResponseJson, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void A_flow_reply_with_rows_has_the_budget_of_one_with_files()
+    {
+        const string key = "field_0123456789abcdef0123456789abcdef";
+        var withRows = JsonSerializer.Serialize(new Dictionary<string, string> { ["flow_token"] = "opaque-token", [key + "_r1"] = new string('s', 20_000) });
+        var withoutRows = JsonSerializer.Serialize(new Dictionary<string, string> { ["flow_token"] = "opaque-token", [key] = new string('s', 20_000) });
+
+        Assert.Equal(withRows, Assert.Single(Read(FlowReply(withRows)).Messages).FlowResponseJson);
+        Assert.Contains("ResponseTooLarge", Assert.Single(Read(FlowReply(withoutRows)).Messages).FlowResponseJson, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Row_keys_raise_the_field_limit_from_fifty_to_four_hundred_fifty()
+    {
+        Assert.Single(Read(FlowReply(Response(450, rows: true))).Messages);
+        Assert.True(Read(FlowReply(Response(451, rows: true))).IsEmpty);
+        Assert.Single(Read(FlowReply(Response(50, rows: false))).Messages);
+        Assert.True(Read(FlowReply(Response(51, rows: false))).IsEmpty);
+
+        // Each field_<question>_r<n> is a distinct key: eleven per question, from _r0 to _r10.
+        static string Response(int fields, bool rows)
+        {
+            var response = new Dictionary<string, string> { ["flow_token"] = "opaque-token" };
+            for (var index = 0; index < fields; index++)
+                response[rows ? $"field_{index / 11:x32}_r{index % 11}" : $"field_{index:x32}"] = "a";
+            return JsonSerializer.Serialize(response);
+        }
+    }
+
+    [Theory]
+    [InlineData("_r11")]
+    [InlineData("_r01")]
+    [InlineData("_r")]
+    [InlineData("_x1")]
+    public void A_malformed_row_key_is_ignored(string suffix)
+    {
+        var responseJson = JsonSerializer.Serialize(new Dictionary<string, string>
+        {
+            ["flow_token"] = "opaque-token", ["field_0123456789abcdef0123456789abcdef" + suffix] = "a",
+        });
+
+        Assert.True(Read(FlowReply(responseJson)).IsEmpty);
+    }
+
     [Theory]
     [InlineData("{\"flow_token\":\"one\",\"flow_token\":\"two\"}")]
     [InlineData("{\"flow_token\":1}")]
@@ -488,6 +532,19 @@ public sealed class WhatsAppWebhookReaderTests
     }
 
     private WhatsAppWebhookBatch Read(byte[] body) => _reader.Read(body);
+
+    private static byte[] FlowReply(string responseJson)
+    {
+        var inbound = MetaWebhook.Text(WaMessageId, WaId, Bsuid, SentAtUtc, "ignored");
+        inbound.Remove("text");
+        inbound["type"] = "interactive";
+        inbound["interactive"] = new JsonObject
+        {
+            ["type"] = "nfm_reply",
+            ["nfm_reply"] = new JsonObject { ["name"] = "flow", ["response_json"] = responseJson },
+        };
+        return MetaWebhook.Build(contacts: [MetaWebhook.Contact(WaId, Bsuid, "Ana")], messages: [inbound]);
+    }
 
     /// <summary>Cambia un pedazo del cuerpo por bytes que un serializador no escribiría nunca.</summary>
     private static byte[] Replace(byte[] body, string placeholder, byte[] replacement)

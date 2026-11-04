@@ -28,6 +28,8 @@ internal sealed partial class WhatsAppWebhookReader(
     private const string MessagesField = "messages";
     private const int MaxFlowResponseDepth = 4;
     private const int MaxFlowResponseFields = 50;
+    // A block answers each of its questions once per row, up to ten, besides «¿Agregás otro renglón?».
+    private const int MaxFlowRowResponseFields = 450;
 
     public WhatsAppWebhookBatch Read(ReadOnlyMemory<byte> body)
     {
@@ -258,7 +260,7 @@ internal sealed partial class WhatsAppWebhookReader(
             return null;
         }
 
-        if (Encoding.UTF8.GetByteCount(responseJson) > (WhatsAppFlowResponseLimits.HasFileLists(responseJson)
+        if (Encoding.UTF8.GetByteCount(responseJson) > (WhatsAppFlowResponseLimits.HasFileLists(responseJson) || WhatsAppFlowResponseLimits.HasRows(responseJson)
                 ? WhatsAppFlowProfile.MaxMediaResponseJsonBytes : WhatsAppFlowProfile.MaxResponseJsonBytes))
         {
             return OversizedResponseMarker(responseJson);
@@ -301,6 +303,7 @@ internal sealed partial class WhatsAppWebhookReader(
             var names = new HashSet<string>(StringComparer.Ordinal);
             var hasToken = false;
             var fields = 0;
+            var rows = false;
 
             foreach (var property in root.EnumerateObject())
             {
@@ -321,21 +324,21 @@ internal sealed partial class WhatsAppWebhookReader(
                     continue;
                 }
 
-                if (!property.Name.StartsWith("field_", StringComparison.Ordinal)
-                    || !Guid.TryParseExact(property.Name.AsSpan("field_".Length), "N", out _)
+                if (!WhatsAppFlowResponseLimits.IsFieldKey(property.Name, out var row)
                     || property.Value.ValueKind is not (JsonValueKind.String or JsonValueKind.Number or JsonValueKind.True or JsonValueKind.False or JsonValueKind.Array))
                 {
                     return false;
                 }
 
+                rows |= row.HasValue;
                 fields++;
-                if (fields > MaxFlowResponseFields)
+                if (fields > MaxFlowRowResponseFields)
                 {
                     return false;
                 }
             }
 
-            return hasToken;
+            return hasToken && fields <= (rows ? MaxFlowRowResponseFields : MaxFlowResponseFields);
         }
         catch (JsonException)
         {

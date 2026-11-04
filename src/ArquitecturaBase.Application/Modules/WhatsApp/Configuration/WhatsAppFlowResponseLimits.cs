@@ -1,4 +1,6 @@
+using System.Globalization;
 using System.Text.Json;
+using ArquitecturaBase.Application.Models.StructuredData;
 namespace ArquitecturaBase.Application.Modules.WhatsApp.Configuration;
 
 public static class WhatsAppFlowResponseLimits
@@ -17,5 +19,32 @@ public static class WhatsAppFlowResponseLimits
             return arrays.Length == 0 ? null : arrays.Sum(property => property.Value.GetArrayLength());
         }
         catch (JsonException) { return null; }
+    }
+
+    public static bool HasRows(string json)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(json, new JsonDocumentOptions { MaxDepth = 4 });
+            return document.RootElement.ValueKind == JsonValueKind.Object
+                && document.RootElement.EnumerateObject().Any(property => IsFieldKey(property.Name, out var row) && row.HasValue);
+        }
+        catch (JsonException) { return false; }
+    }
+
+    // field_<question>, or field_<question>_r<n> in a block: _r0 answers «¿Agregás un renglón?» and the rows go up to the
+    // channel limit.
+    public static bool IsFieldKey(string name, out int? row)
+    {
+        row = null;
+        if (name.Length < 38 || !name.StartsWith("field_", StringComparison.Ordinal) || !Guid.TryParseExact(name.AsSpan(6, 32), "N", out _))
+            return false;
+        if (name.Length == 38) return true;
+        var suffix = name.AsSpan(38);
+        if (!suffix.StartsWith("_r", StringComparison.Ordinal) || !int.TryParse(suffix[2..], NumberStyles.None, CultureInfo.InvariantCulture, out var value)
+            || value > StructuredFormLimits.MaxRows || suffix.Length != (value < 10 ? 3 : 4))
+            return false;
+        row = value;
+        return true;
     }
 }
