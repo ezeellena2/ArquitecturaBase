@@ -152,6 +152,17 @@ ARCA se tiene que poder quitar entero, como WhatsApp y la IA ([ADR 0007](../deci
 
 ### Tarea 1: esqueleto del módulo, permisos, anillo y frontera de familias
 
+**Hecha el 2026-11-04.** Diferencias con lo escrito:
+- `ArcaApiRegistration` llega con la tarea 8: el módulo todavía no tiene tipos en Api, y `ModuleBoundaryTests` pide
+  un registro solo en las capas con tipos. Por eso `Program.cs` tiene, por ahora, dos `using` marcados.
+- Los permisos se prueban en `Application.UnitTests/Modules/Arca/ArcaPermissionCatalogSourceTests`, con su paridad
+  de recursos. Las opciones y la composición, en `Api.IntegrationTests/Modules/Arca/ArcaOptionsTests` y
+  `ArcaCompositionTests`.
+- `ArcaTestModule` deja los clientes sin red (un handler que lanza), como el de IA; `FakeArca` llega con la tarea 5.
+- La guía [configurar ARCA](../guides/configurar-arca.md) empieza ahora con el anillo, porque la Api ya no arranca
+  sin él. El resto de la guía llega al cierre.
+- `EXTEXP0001` se suprime en `.editorconfig` solo para `ArcaInfrastructureRegistration.cs`, como en IA y WhatsApp.
+
 **Archivos:**
 - Crear: `src/ArquitecturaBase.Domain/Modules/Arca/ArcaPermissions.cs`
 - Crear: `src/ArquitecturaBase.Application/Modules/Arca/ArcaApplicationRegistration.cs`, `Channels/ArcaPermissionCatalogSource.cs`, `Resources/Permissions.resx` y `Permissions.en.resx`
@@ -164,7 +175,7 @@ ARCA se tiene que poder quitar entero, como WhatsApp y la IA ([ADR 0007](../deci
 Referencias: `ArtificialIntelligencePermissions`, `AiPermissionCatalogSource`, `AiSecretProtectionOptions`, `AiKeyRing`,
 `ArtificialIntelligenceInfrastructureRegistration` (líneas 24 a 27), `AiTestModule` y `ModuleBoundaryTests`.
 
-- [ ] **Paso 1: tests en rojo.**
+- [x] **Paso 1: tests en rojo.**
   - **`ArcaPermissionsTests`:** el catálogo compuesto de permisos incluye `arca.read` y `arca.manage` con su área y sus
     textos en español y en inglés.
   - **`ArcaOptionsTests`:** la app no arranca sin `Arca:SecretProtection` válido, y arranca con el del `ArcaTestModule`.
@@ -176,9 +187,9 @@ Referencias: `ArtificialIntelligencePermissions`, `AiPermissionCatalogSource`, `
     La familia es el segmento que sigue a la carpeta de capa (`Services.Invoicing`, `Persistence.Repositories.Registry`,
     `Contracts.Connection`) o, en Domain e Infrastructure, el primero después de `Modules.Arca`. Un caso de control con un
     tipo inventado que cruza familias tiene que fallar.
-- [ ] **Paso 2: correr y ver que fallan.**
+- [x] **Paso 2: correr y ver que fallan.**
   `dotnet test --project tests/ArquitecturaBase.Api.IntegrationTests/ArquitecturaBase.Api.IntegrationTests.csproj -- --filter-class "ArquitecturaBase.Api.IntegrationTests.Modules.Arca.Connection.ArcaPermissionsTests"`
-- [ ] **Paso 3: permisos.**
+- [x] **Paso 3: permisos.**
 
 ```csharp
 namespace ArquitecturaBase.Domain.Modules.Arca;
@@ -196,7 +207,7 @@ public static class ArcaPermissions
   `Permission.arca.read` («Ver la conexión con ARCA»), `Permission.arca.manage` («Administrar la conexión con ARCA») y sus
   descripciones, en `.resx` y `.en.resx`.
 
-- [ ] **Paso 4: anillo y opciones.** `ArcaSecretProtectionOptions` copia `AiSecretProtectionOptions` (instalación, clave
+- [x] **Paso 4: anillo y opciones.** `ArcaSecretProtectionOptions` copia `AiSecretProtectionOptions` (instalación, clave
   activa, claves de 256 bits, `IsValid()` y el `ToString` redactado). `ArcaKeyRing` copia `AiKeyRing` sin las derivaciones
   de huellas. Las direcciones van por familia y por ambiente:
 
@@ -239,7 +250,7 @@ public sealed record ArcaEnvironmentOptions
   Los emisores y la dirección de homologación del padrón se confirman en la Tarea 6. El anillo nunca va en appsettings:
   va en user-secrets o en variables de entorno.
 
-- [ ] **Paso 5: registros.** `AddArcaApplication()`, `AddArcaInfrastructure(IConfiguration)` y `AddArcaApi()` tienen la
+- [x] **Paso 5: registros.** `AddArcaApplication()`, `AddArcaInfrastructure(IConfiguration)` y `AddArcaApi()` tienen la
   forma de los de IA, con un método privado por familia, así quitar una es borrar una línea:
 
 ```csharp
@@ -268,11 +279,11 @@ builder.Services
     .AddArcaApi();
 ```
 
-- [ ] **Paso 6: `ArcaTestModule`.** Pone `Arca:SecretProtection` con `ApiFactory.TestHashKey` y rate limits altos, y deja
+- [x] **Paso 6: `ArcaTestModule`.** Pone `Arca:SecretProtection` con `ApiFactory.TestHashKey` y rate limits altos, y deja
   los `HttpClient` del módulo apuntando a `FakeArca`, que en esta tarea responde siempre 503. `Routes` arranca vacío.
-- [ ] **Paso 7: correr** los tests de la tarea y todo `ArchitectureTests`, que tiene que pasar sin cambios en el núcleo.
+- [x] **Paso 7: correr** los tests de la tarea y todo `ArchitectureTests`, que tiene que pasar sin cambios en el núcleo.
   `dotnet test --project tests/ArquitecturaBase.ArchitectureTests/ArquitecturaBase.ArchitectureTests.csproj`
-- [ ] **Paso 8: commit.** `feat(arca): módulo opcional con permisos, anillo propio y frontera de familias`
+- [x] **Paso 8: commit.** `feat(arca): módulo opcional con permisos, anillo propio y frontera de familias`
 
 ---
 

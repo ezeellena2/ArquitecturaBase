@@ -109,6 +109,17 @@ El módulo de [IA](../features/inteligencia-artificial.md) agrega estos ámbitos
 
 La feature [artificial-intelligence del front](../../../ArquitecturaBaseFront/src/features/artificial-intelligence/AGENTS.md) aporta conexión/prueba, negocio/Places e Inicio asistido, compuesto desde app; no importa settings ni WhatsApp.
 
+El módulo [ARCA](../decisions/0023-arca-como-modulo-opcional.md), ordenado por [familias de servicios](../decisions/0025-familias-de-servicios-arca.md), agrega estos ámbitos:
+
+| Ámbito | Responsabilidad |
+| --- | --- |
+| [Domain/Modules/Arca](../../src/ArquitecturaBase.Domain/Modules/Arca/AGENTS.md) | Permisos, entidades y errores; una carpeta por familia y los errores en la raíz. |
+| [Application/Modules/Arca](../../src/ArquitecturaBase.Application/Modules/Arca/AGENTS.md) | Permisos y textos; puertos, modelos y servicios con una carpeta por familia debajo de cada carpeta de capa. |
+| [Infrastructure/Modules/Arca](../../src/ArquitecturaBase.Infrastructure/Modules/Arca/AGENTS.md) | Anillo propio, opciones por ambiente y servicio, clientes HTTP por familia sin reintentos globales. |
+| [Application.UnitTests/Modules/Arca](../../tests/ArquitecturaBase.Application.UnitTests/Modules/Arca/AGENTS.md) | Permisos, paridad de recursos y pruebas por familia. |
+| [Api.IntegrationTests/Modules/Arca](../../tests/ArquitecturaBase.Api.IntegrationTests/Modules/Arca/AGENTS.md) | Anillo de prueba, clientes sin red, opciones y composición. |
+| [ArchitectureTests/Modules/Arca](../../tests/ArquitecturaBase.ArchitectureTests/Modules/Arca/AGENTS.md) | Frontera entre familias: cada una usa sólo `Connection`. |
+
 Domain/Common, Results y ValueObjects siguen Domain. Application/Configuration y los subgrupos de modelos y validadores siguen su capa y área; las reglas técnicas de Json, Localization, RateLimiting y OpenApi están en Api. Templates, recursos de correo y persistencia de módulos siguen su adaptador o módulo. Los detalles de docs siguen docs/AGENTS.md.
 
 No se crean pares en `bin`, `obj`, `node_modules`, `dist`, `artifacts`, archivos individuales ni carpetas vacías. Un subámbito nuevo se justifica por una responsabilidad o riesgo que el padre no explica suficientemente.

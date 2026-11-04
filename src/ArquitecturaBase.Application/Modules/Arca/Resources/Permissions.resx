@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <data name="Area.arca" xml:space="preserve"><value>ARCA</value></data>
+  <data name="Permission.arca.read" xml:space="preserve"><value>Ver conexión</value></data>
+  <data name="PermissionDescription.arca.read" xml:space="preserve"><value>Consultar la conexión con ARCA, el certificado y los servicios, sin ver la clave.</value></data>
+  <data name="Permission.arca.manage" xml:space="preserve"><value>Administrar conexión</value></data>
+  <data name="PermissionDescription.arca.manage" xml:space="preserve"><value>Configurar el certificado, elegir los servicios y probar la conexión con ARCA.</value></data>
+</root>

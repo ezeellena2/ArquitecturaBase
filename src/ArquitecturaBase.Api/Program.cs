@@ -9,10 +9,12 @@ using ArquitecturaBase.Api.OpenApi;
 using ArquitecturaBase.Application;
 using ArquitecturaBase.Application.Modules.WhatsApp;    // módulo WhatsApp
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence;
+using ArquitecturaBase.Application.Modules.Arca;         // módulo ARCA
 using ArquitecturaBase.Infrastructure;
 using ArquitecturaBase.Infrastructure.Caching;
 using ArquitecturaBase.Infrastructure.Modules.WhatsApp; // módulo WhatsApp
 using ArquitecturaBase.Infrastructure.Modules.ArtificialIntelligence;
+using ArquitecturaBase.Infrastructure.Modules.Arca;      // módulo ARCA
 using ArquitecturaBase.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -39,6 +41,12 @@ builder.Services
     .AddArtificialIntelligenceApplication()
     .AddArtificialIntelligenceInfrastructure(builder.Configuration)
     .AddArtificialIntelligenceApi();
+
+// Módulo ARCA (ADR 0023). Para quitarlo: este bloque, los using marcados y docs/guides/quitar-arca.md.
+// Su anillo externo es obligatorio, como el de IA; el certificado de la empresa no.
+builder.Services
+    .AddArcaApplication()
+    .AddArcaInfrastructure(builder.Configuration);
 
 // Optional business forms module: draft authoring and recovery.
 builder.Services.AddBusinessFormsApplication().AddBusinessFormsInfrastructure().AddBusinessFormsApi();

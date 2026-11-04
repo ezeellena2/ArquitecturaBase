@@ -63,6 +63,12 @@ dotnet_diagnostic.EXTEXP0001.severity = none
 # Generation must remove global retries and hedging: a repeated provider POST may incur another charge.
 dotnet_diagnostic.EXTEXP0001.severity = none
 
+[src/ArquitecturaBase.Infrastructure/Modules/Arca/ArcaInfrastructureRegistration.cs]
+# EXTEXP0001: RemoveAllResilienceHandlers es experimental en Microsoft.Extensions.Http.Resilience. Saca la resiliencia que
+# ServiceDefaults pone a todos los clientes: un pedido a ARCA repetido a ciegas puede emitir dos veces o pedir un segundo
+# ticket que ARCA rechaza. Los reintentos de ARCA los decide el módulo, consultando antes de repetir (ADR 0023).
+dotnet_diagnostic.EXTEXP0001.severity = none
+
 [tests/**.cs]
 # Los nombres de tests son frases en inglés separadas por guiones bajos: Deleted_rows_are_hidden_from_queries_and_endpoints.
 dotnet_diagnostic.CA1707.severity = none
