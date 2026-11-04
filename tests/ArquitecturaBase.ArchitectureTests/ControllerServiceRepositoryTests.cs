@@ -87,6 +87,7 @@ public sealed class ControllerServiceRepositoryTests
     {
         // Casos de control: el servicio de un módulo es una interfaz de servicio; su repositorio, no.
         Assert.Empty(ConstructorProblems(typeof(ControlServiceController)));
+        Assert.Empty(ConstructorProblems(typeof(ControlFamilyServiceController)));
         Assert.NotEmpty(ConstructorProblems(typeof(ControlRepositoryController)));
     }
 
@@ -165,8 +166,8 @@ public sealed class ControllerServiceRepositoryTests
         return problems;
     }
 
-    private static bool IsInServiceInterfaces(Type type) =>
-        type.Namespace is { } name && ModuleNamespaces.Canonical(name) == ServiceInterfacesNamespace;
+    // También una subcarpeta: el servicio de una familia de servicios de un módulo (ADR 0025).
+    private static bool IsInServiceInterfaces(Type type) => type.ResidesIn(ServiceInterfacesNamespace);
 
     private static bool CanonicalNamespaceStartsWith(Type type, string prefix) =>
         type.Namespace is { } name && ModuleNamespaces.Canonical(name).StartsWith(prefix, StringComparison.Ordinal);

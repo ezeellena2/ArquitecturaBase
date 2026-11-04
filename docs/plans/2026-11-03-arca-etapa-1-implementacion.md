@@ -994,6 +994,19 @@ public interface IArcaInvoicingSetupService
 
 ### Tarea 8: contrato HTTP
 
+**Hecha el 2026-11-04.** Diferencias con lo escrito:
+- **Revisión en los `DELETE`:** va como `long` en la query, que la regla de contratos admite. No hay `ArcaRevisionHttpRequest`.
+- **Punto de venta:** el contrato lleva `PointOfSale` y no `Number`. `ControllerInputContractTests` toma una propiedad
+  llamada `Number`, a secas, como un teléfono.
+- **Subir el certificado** prueba la conexión siempre y responde `ArcaTestResponse`. En el alta deja la conexión probada;
+  en una renovación, la prueba en verde reemplaza al activo.
+- **Límites por operador:** tres políticas, lectura, escritura y `arca-remote`. La tercera cubre lo que llama a ARCA:
+  subir, probar, listar y elegir el punto de venta. Todos los cuerpos tienen 16 KiB como mucho.
+- **Regla de controllers:** `ControllerServiceRepositoryTests` comparaba el namespace exacto de `Interfaces/Services`.
+  Ahora acepta también la subcarpeta de una familia, con un caso de control.
+- **Tests:** las rutas se prueban con `ArcaHttpScenario`, en el grupo compartido de la integración. Cada test desconecta
+  al terminar.
+
 **Archivos:**
 - Crear en `src/ArquitecturaBase.Api/Modules/Arca/`:
   - `Controllers/`: `ArcaConnectionController.cs`, `ArcaRegistryController.cs` y `ArcaInvoicingController.cs`;
@@ -1005,7 +1018,7 @@ public interface IArcaInvoicingSetupService
 
 Referencias: `AiConnectionController`, `UpdateAiConnectionHttpRequest` (con su `ToString`) y `AiRateLimitOptions`.
 
-- [ ] **Paso 1: tests en rojo,** con `FakeArca` y `FakeArcaCertificateAuthority`:
+- [x] **Paso 1: tests en rojo,** con `FakeArca` y `FakeArcaCertificateAuthority`:
   - **permisos:** 401 sin sesión, y 403 sin `arca.read` o, en las escrituras, sin `arca.manage`;
   - **sin conexión,** `GET api/arca/connection` devuelve `status: null`, los servicios instalados y revisión 0;
   - **el alta completa:**
@@ -1019,7 +1032,7 @@ Referencias: `AiConnectionController`, `UpdateAiConnectionHttpRequest` (con su `
   - **la renovación sin corte:** mientras hay un pendiente, la prueba sigue usando el activo;
   - **desconectar** deja `GET` como sin conexión;
   - **ninguna respuesta** contiene `PRIVATE KEY`, el token ni la firma.
-- [ ] **Paso 2: rutas** (MVC). Las escrituras y las llamadas a ARCA exigen `arca.read` y `arca.manage`; las lecturas,
+- [x] **Paso 2: rutas** (MVC). Las escrituras y las llamadas a ARCA exigen `arca.read` y `arca.manage`; las lecturas,
   `arca.read`.
 
 | Controlador | Verbo y ruta | Servicio |
@@ -1041,9 +1054,9 @@ Referencias: `AiConnectionController`, `UpdateAiConnectionHttpRequest` (con su `
     redacta el certificado y `StartArcaConnectionHttpRequest.ToString` enmascara la CUIT.
   - **Rate limit:** la prueba y la lista de puntos de venta tienen un límite por operador.
   - **Inventario:** las doce rutas van en `ArcaTestModule.Routes`.
-- [ ] **Paso 3: correr** los tests de la tarea, `ExplicitRouteInventoryTests`, `ControllerInputContractTests`,
+- [x] **Paso 3: correr** los tests de la tarea, `ExplicitRouteInventoryTests`, `ControllerInputContractTests`,
   `PermissionAuthorizationTests` y `ArcaFamilyBoundaryTests`.
-- [ ] **Paso 4: commit.** `feat(arca): rutas de la conexión, el padrón y la facturación`
+- [x] **Paso 4: commit.** `feat(arca): rutas de la conexión, el padrón y la facturación`
 
 ---
 

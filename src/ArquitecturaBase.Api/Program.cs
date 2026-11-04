@@ -5,6 +5,7 @@ using ArquitecturaBase.Api;
 using ArquitecturaBase.Api.Hosting;
 using ArquitecturaBase.Api.Modules.WhatsApp;            // módulo WhatsApp
 using ArquitecturaBase.Api.Modules.ArtificialIntelligence;
+using ArquitecturaBase.Api.Modules.Arca;                 // módulo ARCA
 using ArquitecturaBase.Api.OpenApi;
 using ArquitecturaBase.Application;
 using ArquitecturaBase.Application.Modules.WhatsApp;    // módulo WhatsApp
@@ -46,7 +47,8 @@ builder.Services
 // Su anillo externo es obligatorio, como el de IA; el certificado de la empresa no.
 builder.Services
     .AddArcaApplication()
-    .AddArcaInfrastructure(builder.Configuration);
+    .AddArcaInfrastructure(builder.Configuration)
+    .AddArcaApi();
 
 // Optional business forms module: draft authoring and recovery.
 builder.Services.AddBusinessFormsApplication().AddBusinessFormsInfrastructure().AddBusinessFormsApi();

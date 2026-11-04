@@ -55,7 +55,8 @@ usar a otro.
   Granos, hacienda y las demás llegan con sus etapas, sin cambiar la base.
 - **Agregar una familia** es crear sus carpetas, implementar `IArcaServiceDefinition` y sumar su línea a cada registro.
 - **Las reglas:** `ArcaFamilyBoundaryTests` verifica que una familia use solo `Connection`, con casos de control. Las
-  reglas que comparaban el namespace exacto de `Interfaces/Persistence` y de `Persistence/{Repositories,Readers}`
+  reglas que comparaban el namespace exacto de `Interfaces/Persistence`, `Interfaces/Services` (la de controllers) y
+  `Persistence/{Repositories,Readers}`
   revisan también sus subcarpetas, así un contrato o un repositorio de una familia no queda afuera.
 
 ## Alternativas descartadas

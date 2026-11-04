@@ -1,5 +1,6 @@
 using ArquitecturaBase.Application.Modules.Control.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.Control.Interfaces.Services;
+using ArquitecturaBase.Application.Modules.Control.Interfaces.Services.Family;
 
 // Casos de control de ControllerServiceRepositoryTests, en un módulo inventado: un controller que inyecta el servicio de
 // su módulo, como uno del núcleo, y otro que además inyecta un repositorio del módulo. Viven solo en este ensamblado de
@@ -7,6 +8,12 @@ using ArquitecturaBase.Application.Modules.Control.Interfaces.Services;
 namespace ArquitecturaBase.Application.Modules.Control.Interfaces.Services
 {
     public interface IControlService;
+}
+
+// El servicio de una familia de servicios del módulo (ADR 0025) vive en una subcarpeta de Interfaces/Services.
+namespace ArquitecturaBase.Application.Modules.Control.Interfaces.Services.Family
+{
+    public interface IControlFamilyService;
 }
 
 namespace ArquitecturaBase.Application.Modules.Control.Interfaces.Persistence
@@ -19,6 +26,11 @@ namespace ArquitecturaBase.Api.Modules.Control.Controllers
     public sealed class ControlServiceController(IControlService service)
     {
         public IControlService Service { get; } = service;
+    }
+
+    public sealed class ControlFamilyServiceController(IControlFamilyService service)
+    {
+        public IControlFamilyService Service { get; } = service;
     }
 
     public sealed class ControlRepositoryController(IControlService service, IControlRepository repository)

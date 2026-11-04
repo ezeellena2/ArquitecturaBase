@@ -39,3 +39,6 @@ Remove-Variable arcaBytes
 La sección `Arca` de `appsettings.json` trae las direcciones de cada ambiente, el emisor de sus certificados y la ventana
 en la que ARCA no da otro ticket. La Api las valida al arrancar: solo HTTPS, con emisor y ventana. Cada servicio se nombra
 por su código del WSAA (`wsfe`, `ws_sr_constancia_inscripcion`), y cada familia suma los suyos.
+
+`Arca:RateLimiting` fija los pedidos por minuto de cada operador: `ReadPermitLimit` (120), `WritePermitLimit` (20) y
+`RemotePermitLimit` (6), que cubre lo que llama a ARCA: subir el certificado, probar y consultar los puntos de venta.
