@@ -30,10 +30,10 @@ public sealed class ControllerInputContractTests
         var controllers = ApiAssembly.GetTypes().Where(IsController).ToArray();
         var inputs = controllers.SelectMany(ActionInputs).ToArray();
 
-        // Si la búsqueda dejara de encontrar los parámetros, la regla de abajo pasaría en silencio.
+        // Si la búsqueda dejara de encontrar los parámetros, la regla de abajo pasaría en silencio. Sólo se piden los
+        // del núcleo: el único [FromForm] es de un módulo, y que la búsqueda lo encuentra lo prueba ProbeController.
         Assert.Contains(inputs, input => input.Source == BindingSource.Body);
         Assert.Contains(inputs, input => input.Source == BindingSource.Query);
-        Assert.Contains(inputs, input => input.Source == BindingSource.Form);
 
         var offenders = inputs
             .Where(input => !IsAllowedInput(input.Parameter.ParameterType))

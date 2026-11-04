@@ -62,9 +62,9 @@ public sealed partial class ErrorCodeTests
         var declared = DeclaredCodes();
 
         // Caso de control: una clave que nadie declara aparece, y una declarada no. Si el detector no viera los códigos
-        // escritos dentro de una fábrica, como Forms.Catalog.NotFound, la regla fallaría por todos ellos.
-        Assert.Contains("Forms.Catalog.NotFound", declared);
-        Assert.Equal(["Control.Orphan.Key"], UndeclaredKeys(["Forms.Catalog.NotFound", "Control.Orphan.Key"], declared));
+        // escritos dentro de una fábrica, como Files.Content.NotFound, la regla fallaría por todos ellos.
+        Assert.Contains("Files.Content.NotFound", declared);
+        Assert.Equal(["Control.Orphan.Key"], UndeclaredKeys(["Files.Content.NotFound", "Control.Orphan.Key"], declared));
 
         Assert.Empty(UndeclaredKeys(ReadErrorKeys(), declared));
     }
