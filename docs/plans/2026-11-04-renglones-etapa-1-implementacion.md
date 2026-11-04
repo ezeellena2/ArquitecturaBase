@@ -210,10 +210,18 @@ que la sesión de las listas dependientes commitee lo suyo.
 
 ### Tarea 8 · El front: vista previa y publicar
 
-- [ ] `FormPreview` con la pantalla de un renglón cuando el bloque está abierto; `PublicationCheckDialog` con «Pasan a
-  renglones», el problema y el aviso; la revisión lado a lado (LR2-A) con los datos del bloque.
-- [ ] Tests y escenas visuales.
-- [ ] Commit en el front: `feat(formularios): la vista previa y publicar muestran el bloque de renglones`.
+- [x] `FormPreview` sigue las pantallas de WhatsApp (`previewScreens` en `rowsQuestions.ts`): lo de antes, «¿Agregás un
+  renglón?» con mínimo 0, un renglón de ejemplo («Artículos · renglón 1», con «¿Agregás otro renglón?» si pregunta) y lo de
+  después; con el bloque o una de sus preguntas abierta va al renglón. `PublicationCheckDialog` con «Pasan a renglones»,
+  «Preguntas» sin el bloque y el aviso del máximo con «Ir a la pregunta»; el problema del bloque vacío usa el texto del
+  backend, como los demás. La revisión lado a lado (LR2-A) compara el bloque por mínimo y máximo, y cada pregunta del
+  bloque dice que se carga varias veces.
+- [x] Tests (`FormPreview.rows.test.tsx`, `PublicationCheckDialog.rows.test.tsx`, `draftReviewLines.test.ts`,
+  `rowsQuestions.test.ts`) y la escena `formRows` con el renglón en la vista previa. La escena del diálogo de publicar con
+  el bloque va con la exportación conjunta del cierre, sobre los cuerpos reales `rows/publication-check*.json`, como
+  `rowsHttpContract.test.ts`.
+- [x] Commit en el front: `feat(formularios): la vista previa y publicar muestran el bloque de renglones` (e6f3eefb).
+  `tsc`, lint, los tests tocados y la escena en verde.
 
 ### Tarea 9 · Verificación con Meta
 
