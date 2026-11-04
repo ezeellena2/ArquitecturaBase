@@ -6,7 +6,7 @@ de ARCA, y la [hoja de ruta de ARCA](2026-10-31-arca-formularios-estandar.md) lo
 de formularios (BusinessForms), no a ARCA. Las reglas de hoy están en [formularios](../features/formularios.md).
 
 **Tableros:** CP1 a CP4 en el lienzo provisorio [Formularios desde la app](https://claude.ai/artifact/Kvbr5KFJrGT951JLiu8i4M),
-en las filas «Carpetas». Las elegidas llevan la banda verde y el sello «elegida». Se pasan al lienzo
+en las filas «Carpetas», y CP5 a su derecha. Las elegidas llevan la banda verde y el sello «elegida». Se pasan al lienzo
 [Sistema visual](https://claude.ai/artifact/HPbmDPLnr8JZ9TxevtTqJJ) antes de programar, cuando la cuenta lo abra.
 
 ## Decisiones (2026-11-01 y 2026-11-03)
@@ -32,6 +32,21 @@ en las filas «Carpetas». Las elegidas llevan la banda verde y el sello «elegi
 - Las carpetas se ordenan alfabéticamente.
 - Dos carpetas no pueden llamarse igual dentro de la misma carpeta, sin distinguir mayúsculas. En carpetas distintas, sí.
 - La carpeta elegida va en la dirección (`?carpeta=`), así se puede compartir el enlace.
+
+## Por decidir: las carpetas en el menú lateral (CP5)
+
+El 2026-11-04 el usuario pidió mostrar las carpetas como menús del menú lateral: una adentro de Administración, o un menú
+nuevo, como «Repartos», con sus formularios. Los tableros CP5-A, CP5-B y CP5-C están en el lienzo y falta que elija uno:
+
+| Opción | Dónde aparece y quién lo decide | Niveles y catálogos | Panel de los listados (CP1-A) |
+| --- | --- | --- | --- |
+| **CP5-A, recomendada** | Quien administra carpetas elige, en el «…» de cada una, «En el menú…»: fuera del menú (como vienen todas), un menú propio con ícono, o adentro de «Gestión de formularios» o de «Administración» | Dos: las subcarpetas son grupos y lo de más abajo se suma a su grupo. Sin catálogos | Se suma |
+| CP5-B | Una pantalla «Menú» en Administración › Configuración (`settings.manage`) arma los menús propios y pone carpetas o formularios sueltos en cualquier menú, en el orden que se quiera | Dos. Sin catálogos | Se suma |
+| CP5-C | Cada carpeta del primer nivel es un menú, sola, con un ícono que se elige al crearla; su panel tiene el árbol y ahí se administra | Tres, en lugar de cinco. Con catálogos, para quien los administra | Lo reemplaza: los listados filtran con un desplegable «Carpeta» |
+
+Las tres coinciden en lo demás. Un formulario del menú abre su planilla, con «Cargar», y a quien solo carga lo lleva a la
+carga. Solo aparecen los formularios activos, y un menú sin nada para esa persona no aparece. En el celular, cada menú
+propio es un grupo del cajón; con el menú contraído, su ícono abre el panel.
 
 ## Recorrido
 
