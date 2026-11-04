@@ -181,11 +181,14 @@ que la sesión de las listas dependientes commitee lo suyo.
 
 ### Tarea 6 · El front: modelo, guards y contrato
 
-- [ ] Esperar el commit de la sesión de las listas dependientes y revisar `git status`.
-- [ ] `model.ts`, `api/response.ts` (tipo `group`, `rows`, `repeated`, `RowsOverChannelLimit`, `movedToRows`),
-  `draftSession.ts` y `bindResult`, `editorModel.ts`, `validationPaths.ts`, con sus tests y `rowsHttpContract.test.ts` sobre
-  las capturas.
-- [ ] Commit en el front: `feat(formularios): el modelo del editor lleva el bloque de renglones`.
+- [x] Esperar el commit de la sesión de las listas dependientes y revisar `git status`.
+- [x] `model.ts`, `api/response.ts` (tipo `group`, `rows`, `repeated`, `RowsOverChannelLimit`, `movedToRows`),
+  `draftSession.ts` y `bindResult`, `editorModel.ts`, `validationPaths.ts`, con sus tests sobre DTO sintéticos
+  (`api/rows.test.ts`, como los de varias). `rowsHttpContract.test.ts` sobre las capturas `rows/*` queda para la exportación
+  conjunta del cierre, que corre la suite entera. También: el bloque no es condición de reglas ni sugerencias, y las
+  sugerencias no mapean sus preguntas (igual que el backend).
+- [x] Commit en el front: `feat(formularios): el modelo del editor lleva el bloque de renglones` (e994f743). `tsc`, lint y
+  los tests del área en verde; tres que se cortaron por tiempo con la máquina cargada pasan solos.
 
 ### Tarea 7 · El front: el editor
 
