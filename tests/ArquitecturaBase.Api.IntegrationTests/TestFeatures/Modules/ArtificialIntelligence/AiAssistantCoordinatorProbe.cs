@@ -40,7 +40,8 @@ internal sealed class AiAssistantCoordinatorProbe
                 return new LlmConversationResponse("tools", [new("query-" + call, "users.summary", "{}")], "fictional-continuation", new(10, 5));
             using var result = JsonDocument.Parse(request.ToolResults[0].ResultJson);
             var evidenceId = result.RootElement.GetProperty("evidence").GetProperty("id").GetGuid();
-            var arguments = JsonSerializer.Serialize(new { kind = "answer", text = "Usuarios cargados.", evidenceIds = new[] { evidenceId } });
+            // Home closes with assistant_answer@2: an answer without a proposal names none.
+            var arguments = JsonSerializer.Serialize(new { kind = "answer", text = "Usuarios cargados.", evidenceIds = new[] { evidenceId }, proposalId = (Guid?)null });
             return new LlmConversationResponse("tools", [new("answer-" + call, "assistant_answer", arguments)], "fictional-continuation", new(10, 5));
         }
     }

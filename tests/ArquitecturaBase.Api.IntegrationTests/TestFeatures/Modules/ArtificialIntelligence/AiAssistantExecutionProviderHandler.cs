@@ -45,7 +45,8 @@ internal sealed class AiAssistantExecutionProviderHandler(AiProvider provider, s
             var text = string.Join(" | ", value.GetProperty("rows").EnumerateArray()
                 .SelectMany(row => row.GetProperty("values").EnumerateArray())
                 .Select(field => field.GetProperty("value").GetString()));
-            arguments = new { kind = "answer", text, evidenceIds = new[] { value.GetProperty("id").GetGuid() } };
+            // Home closes with assistant_answer@2: an answer without a proposal names none.
+            arguments = new { kind = "answer", text, evidenceIds = new[] { value.GetProperty("id").GetGuid() }, proposalId = (Guid?)null };
             name = "assistant_answer";
         }
         else arguments = toolId switch

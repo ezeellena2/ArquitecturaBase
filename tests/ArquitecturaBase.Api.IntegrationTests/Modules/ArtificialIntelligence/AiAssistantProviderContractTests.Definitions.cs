@@ -26,10 +26,11 @@ public sealed partial class AiAssistantProviderContractTests
     [Theory]
     [InlineData(AiProvider.OpenAI)]
     [InlineData(AiProvider.Anthropic)]
-    public async Task More_than_twelve_definitions_is_rejected_before_any_provider_call(AiProvider provider)
+    public async Task More_than_sixteen_definitions_is_rejected_before_any_provider_call(AiProvider provider)
     {
         using var handler=new RecordingHandler(Stage5Response(provider));using var http=new HttpClient(handler);
-        var request=Stage5Request(provider);var result=await Client(provider,http).SendAsync(request with{Tools=request.Tools.Append(new("fixture.extra","Not in the channel contract.",EmptySchema)).ToArray()},Ct);
+        var extra=Enumerable.Range(1,5).Select(index=>new LlmToolDefinition("fixture.extra-"+index,"Not in the channel contract.",EmptySchema));
+        var request=Stage5Request(provider);var result=await Client(provider,http).SendAsync(request with{Tools=request.Tools.Concat(extra).ToArray()},Ct);
         Assert.True(result.IsFailure);Assert.Equal("Ai.Assistant.Invalid",result.Error.Code);Assert.Empty(handler.Bodies);
     }
     [Theory]
