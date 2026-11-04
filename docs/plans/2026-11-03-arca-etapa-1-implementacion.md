@@ -3,14 +3,21 @@
 > **Para quien lo ejecute:** se trabaja tarea por tarea, con TDD (el test en rojo primero) y en `main`, sin worktrees
 > ([AGENTS.md](../../AGENTS.md)). Es el modo liviano de las etapas: nueve tareas, una revisión por tarea y la suite completa
 > solo al cerrar. Las casillas (`- [ ]`) se marcan al terminar cada paso. Lo que sigue un patrón existente lo nombra con su
-> archivo de referencia; el código nuevo de verdad (CUIT, CSR, firma CMS, sobres SOAP, reserva del ticket) va completo.
+> archivo de referencia; el código nuevo de verdad (CUIT, CSR, firma CMS, sobres SOAP, reserva del ticket y la interfaz de
+> las familias) va completo.
 
-**Objetivo:** conectar una instalación con ARCA usando un certificado nuevo de la empresa, probar la conexión, traer los
-datos de la empresa desde el padrón y elegir el punto de venta, sin emitir comprobantes.
+**Objetivo:** conectar una instalación con ARCA usando un certificado nuevo de la empresa, elegir los servicios que usa,
+probarlos, traer los datos de la empresa desde el padrón y elegir el punto de venta, sin emitir comprobantes.
 
-**Arquitectura:** es el módulo opcional `Arca` en `Modules/Arca` de cada capa ([ADR 0023](../decisions/0023-arca-como-modulo-opcional.md)).
-Copia la forma del módulo de IA en el anillo propio, la conexión única con revisión y 409, la prueba manual y el módulo de
-tests. Los clientes SOAP son propios, y el ticket de acceso se guarda cifrado en PostgreSQL y se renueva con una reserva.
+**Arquitectura:** es el módulo opcional `Arca` ([ADR 0023](../decisions/0023-arca-como-modulo-opcional.md)), ordenado por
+familias de servicios ([ADR 0025](../decisions/0025-familias-de-servicios-arca.md)). La etapa crea tres familias:
+- `Connection`: conexión, certificados, tickets, anillo y el sobre SOAP;
+- `Registry`: el padrón y los datos de la empresa;
+- `Invoicing`: `FEDummy` y el punto de venta.
+
+Cada capa tiene una carpeta por familia. Una familia usa solo `Connection`, y `Connection` conoce a las demás por
+`IArcaServiceDefinition`. Copia la forma del módulo de IA en el anillo propio, la conexión única con revisión y 409, la
+prueba manual y el módulo de tests.
 
 **Tecnología:** .NET 10, EF Core con PostgreSQL, `System.Security.Cryptography` (`CertificateRequest`, `SignedCms` de
 `System.Security.Cryptography.Pkcs`), `HttpClient` con `System.Xml.Linq`, xUnit v3 y Testcontainers. En el front, React,
@@ -22,67 +29,155 @@ TanStack Query, Vitest con MSW y Playwright.
 
 ---
 
-## Archivos
+## Árbol
 
-| Capa | Archivos nuevos |
-| --- | --- |
-| Domain `Modules/Arca/` | `ArcaPermissions`, `Cuit`, `ArcaAccessMode`, `ArcaEnvironment`, `ArcaConnectionStatus`, `ArcaService`, `ArcaVatCondition`, `ArcaCompanyData`, `ArcaConnection`, `ArcaCertificate`, `ArcaCertificateRole`, `ArcaAccessTicket`, `ArcaTicketLease`, `ArcaConnectionErrors` |
-| Application `Modules/Arca/` | `ArcaApplicationRegistration`; `Channels/ArcaPermissionCatalogSource`; `Resources/Permissions(.en).resx`; `Interfaces/Services/IArcaConnectionService`, `IArcaConnectionTestService`; `Interfaces/Persistence/IArcaConnectionRepository`, `IArcaConnectionReader`; `Interfaces/Integrations/IArcaCredentialService`, `IArcaAuthClient`, `IArcaInvoicingClient`, `IArcaRegistryClient`; `Models/*`; `Services/ArcaConnectionService`, `ArcaConnectionTestService`, `ArcaAccessTicketProvider`, `ArcaCompanyDataPolicy` |
-| Infrastructure `Modules/Arca/` | `ArcaInfrastructureRegistration`, `ArcaOptions`; `Security/ArcaKeyRing`, `ArcaSecretProtectionOptions`, `ArcaCredentialService`, `ArcaLoginTicketRequest`, `ArcaCmsSigner`; `Soap/ArcaAuthClient`, `ArcaInvoicingClient`, `ArcaRegistryClient`, `SoapEnvelope`; `Persistence/ArcaLockKeys`, `Configurations/*`, `Repositories/ArcaConnectionRepository`, `Readers/ArcaConnectionReader` |
-| Api `Modules/Arca/` | `ArcaApiRegistration`, `ArcaRateLimitOptions`; `Controllers/ArcaConnectionController`; `Contracts/StartArcaConnectionHttpRequest`, `UploadArcaCertificateHttpRequest`, `ChooseArcaPointOfSaleHttpRequest`, `ArcaRevisionHttpRequest` |
-| Comunes | `Program.cs` (bloque del módulo), `Application/Resources/Errors(.en).resx`, `Directory.Packages.props`, migración `AddArcaConnection` |
-| Tests | `Domain.UnitTests/Modules/Arca/*`, `Application.UnitTests/Modules/Arca/*` y `TestFeatures/Modules/Arca/*`, `ArchitectureTests/Modules/Arca/ArcaTransactionContribution`, `Api.IntegrationTests/Modules/Arca/*` (con `ArcaTestModule`) y `Api.IntegrationTests/TestFeatures/Modules/Arca/*` (`FakeArca` y `FakeArcaCertificateAuthority`) |
-| Front `src/features/arca/` | `api/arcaConnection.ts`, `pages/ArcaSettingsPage.tsx`, `components/*`, `model.ts`, `locales/{es,en}/arca.json`, la ruta y la entrada del menú |
-| Docs | `docs/features/arca.md`, `docs/guides/configurar-arca.md`, `docs/guides/quitar-arca.md`, `AGENTS.md` y `CLAUDE.md` de cada carpeta nueva, el mapa de instrucciones |
+Lo marcado con ✎ es lo único que se toca fuera de las carpetas del módulo.
+
+```
+src/ArquitecturaBase.Domain/Modules/Arca/
+├─ AGENTS.md · CLAUDE.md
+├─ ArcaPermissions.cs
+├─ ArcaConnectionErrors.cs · ArcaInvoicingErrors.cs        los errores van en la raíz (regla del repo)
+├─ Connection/   Cuit · ArcaServiceCode · ArcaAccessMode · ArcaEnvironment · ArcaConnectionStatus
+│                ArcaConnection · ArcaCertificate · ArcaCertificateRole · ArcaAccessTicket · ArcaTicketLease
+├─ Registry/     ArcaRegistryCompany · ArcaVatCondition
+└─ Invoicing/    ArcaInvoicingSettings
+
+src/ArquitecturaBase.Application/Modules/Arca/
+├─ AGENTS.md · CLAUDE.md
+├─ ArcaApplicationRegistration.cs                          una línea por familia
+├─ Channels/ArcaPermissionCatalogSource.cs
+├─ Resources/Permissions.resx · Permissions.en.resx
+├─ Interfaces/
+│  ├─ Services/Connection/     IArcaConnectionService · IArcaConnectionTestService · IArcaServiceDefinition
+│  ├─ Services/Invoicing/      IArcaInvoicingSetupService
+│  ├─ Persistence/Connection/  IArcaConnectionRepository · IArcaConnectionReader
+│  ├─ Persistence/Registry/    IArcaRegistryRepository · IArcaRegistryReader
+│  ├─ Persistence/Invoicing/   IArcaInvoicingRepository · IArcaInvoicingReader
+│  ├─ Integrations/Connection/ IArcaCredentialService · IArcaAuthClient · IArcaAccessTicketProvider
+│  ├─ Integrations/Registry/   IArcaRegistryClient
+│  └─ Integrations/Invoicing/  IArcaInvoicingClient
+├─ Models/Connection/   ArcaConnectionResponse · ArcaConnectionSnapshot · ArcaTicketSnapshot · ArcaTestResponse
+│                       ArcaServiceCheck · ArcaServiceContext · ArcaCertificateRequest · InspectedCertificate
+│                       ArcaCertificateRef · ArcaLoginResult · ArcaTicketOutcome · ArcaInstalledService
+├─ Models/Registry/     ArcaRegistryPerson · ArcaCompanyResponse
+├─ Models/Invoicing/    ArcaPointOfSale · ArcaPointOfSaleRow · ArcaInvoicingSettingsResponse
+└─ Services/
+   ├─ Connection/  ArcaConnectionService · ArcaConnectionTestService · ArcaAccessTicketProvider
+   ├─ Registry/    ArcaRegistryServiceDefinition · ArcaCompanyDataPolicy
+   └─ Invoicing/   ArcaInvoicingServiceDefinition · ArcaInvoicingSetupService
+
+src/ArquitecturaBase.Infrastructure/Modules/Arca/
+├─ AGENTS.md · CLAUDE.md
+├─ ArcaInfrastructureRegistration.cs · ArcaOptions.cs
+├─ Connection/   Security: ArcaSecretProtectionOptions · ArcaKeyRing · ArcaCredentialService
+│                          ArcaLoginTicketRequest · ArcaCmsSigner
+│                Soap: SoapEnvelope · ArcaAuthClient
+├─ Registry/     ArcaRegistryClient
+├─ Invoicing/    ArcaInvoicingClient
+└─ Persistence/  ArcaLockKeys.cs
+   ├─ Configurations/{Connection,Registry,Invoicing}/
+   ├─ Repositories/{Connection,Registry,Invoicing}/
+   └─ Readers/{Connection,Registry,Invoicing}/
+
+src/ArquitecturaBase.Api/Modules/Arca/
+├─ AGENTS.md · CLAUDE.md
+├─ ArcaApiRegistration.cs · ArcaRateLimitOptions.cs
+├─ Controllers/  ArcaConnectionController · ArcaRegistryController · ArcaInvoicingController
+└─ Contracts/{Connection,Invoicing}/
+
+✎ src/ArquitecturaBase.Api/Program.cs                 3 using marcados «// módulo ARCA» y el bloque
+✎ src/ArquitecturaBase.Api/appsettings.json           sección "Arca"
+✎ src/ArquitecturaBase.Application/Resources/Errors(.en).resx   claves Arca.*
+✎ src/ArquitecturaBase.Infrastructure/Persistence/Migrations/   AddArcaConnection
+✎ Directory.Packages.props · Infrastructure.csproj   System.Security.Cryptography.Pkcs
+
+tests/
+├─ ArquitecturaBase.Domain.UnitTests/Modules/Arca/{Connection,Registry,Invoicing}/
+├─ ArquitecturaBase.Application.UnitTests/Modules/Arca/{Connection,Registry,Invoicing}/
+├─ ArquitecturaBase.Application.UnitTests/TestFeatures/Modules/Arca/
+├─ ArquitecturaBase.ArchitectureTests/Modules/Arca/   ArcaTransactionContribution · ArcaFamilyBoundaryTests
+├─ ArquitecturaBase.Api.IntegrationTests/Modules/Arca/{Connection,Registry,Invoicing}/ · ArcaTestModule.cs
+└─ ArquitecturaBase.Api.IntegrationTests/TestFeatures/Modules/Arca/   FakeArca · FakeArcaCertificateAuthority
+
+ArquitecturaBaseFront/src/
+├─ features/arca/
+│  ├─ AGENTS.md · CLAUDE.md
+│  ├─ pages/ArcaSettingsPage.tsx                     arma las zonas de las familias instaladas
+│  ├─ connection/   api · model · ConnectionZones (datos, pedido, certificado, prueba, servicios, certificado activo)
+│  ├─ registry/     api · CompanySection
+│  └─ invoicing/    api · PointOfSaleZone
+├─ locales/{es,en}/arca.json
+✎ app/routes.tsx · layouts/navigation.ts · locales/{es,en}/common.json · test/visual/…
+```
 
 ## Desacople
 
 ARCA se tiene que poder quitar entero, como WhatsApp y la IA ([ADR 0007](../decisions/0007-whatsapp-como-modulo-opcional.md),
-[módulos opcionales](../architecture/backend.md#módulos-opcionales)). Todo el código vive en las carpetas `Modules/Arca`
-(cuatro en `src` y cuatro en `tests`, más `TestFeatures/Modules/Arca` en Application.UnitTests y Api.IntegrationTests) y en
-`src/features/arca` del front. El núcleo no las nombra, y `ModuleBoundaryTests` lo verifica en cada corrida.
+[módulos opcionales](../architecture/backend.md#módulos-opcionales)), y también una familia sola
+([ADR 0025](../decisions/0025-familias-de-servicios-arca.md)). El núcleo no nombra las carpetas del módulo
+(`ModuleBoundaryTests`), y una familia no nombra a otra (`ArcaFamilyBoundaryTests`).
 
-Fuera de esas carpetas, el módulo toca solo estos lugares, y la guía `quitar-arca.md` los enumera:
+**Quitar el módulo entero.** Se borran sus carpetas y se deshacen los lugares marcados con ✎:
 
 | Lugar | Qué hay | Al quitar el módulo |
 | --- | --- | --- |
-| `src/ArquitecturaBase.Api/Program.cs` | Tres `using` marcados `// módulo ARCA` y el bloque del módulo | Se borran |
-| `src/ArquitecturaBase.Api/appsettings.json` | La sección `Arca` (direcciones, emisores, plazos) | Se borra |
+| `Program.cs` | Tres `using` marcados `// módulo ARCA` y el bloque | Se borran |
+| `appsettings.json` | La sección `Arca` | Se borra |
 | User-secrets o variables del host | `Arca:SecretProtection:*` | Se guarda una copia segura para los backups y se borra |
-| `Application/Resources/Errors.resx` y `.en.resx` | Las claves `Arca.*` | Se borran; si no, `ErrorCodeTests` falla y las nombra |
+| `Errors.resx` y `.en.resx` | Las claves `Arca.*` | Se borran; si no, `ErrorCodeTests` falla y las nombra |
 | `Directory.Packages.props` e `Infrastructure.csproj` | `System.Security.Cryptography.Pkcs` | Se quita del `.csproj`, y de `Directory.Packages.props` si nadie más lo usa |
-| La cadena de migraciones | `AddArcaConnection`, que nombra sus entidades con cadenas | Se conserva y se genera `RemoveArca`, que borra solo las tres tablas |
-| Front: `src/app/routes.tsx`, `src/layouts/navigation.ts` y `common.json` | La ruta `/configuracion/arca`, la entrada del menú y su texto | Se borran |
-| Front: `src/test/visual` | La escena y las capturas de ARCA | Se borran |
-| Docs | `features/arca.md`, `guides/configurar-arca.md` y los enlaces a ellos | Se borran; el ADR 0023 y el historial quedan |
+| Migraciones | `AddArcaConnection`, con las entidades nombradas por cadenas | Se conserva y se genera `RemoveArca`, que borra las tablas del módulo |
+| Front | La ruta, la entrada del menú, su texto en `common.json` y las escenas visuales | Se borran |
+| Docs | `features/arca.md`, `guides/configurar-arca.md` y sus enlaces | Se borran; los ADR y el historial quedan |
 
-**Para las etapas que siguen**, la misma regla:
+**Quitar una familia** (por ejemplo, `Invoicing`):
+- se borran sus carpetas `Invoicing` en cada capa, en los tests y en `features/arca/invoicing`;
+- se borran su clase `ArcaInvoicingErrors` y sus claves `Arca.Invoicing.*`;
+- se saca su línea de cada registro y su ruta del inventario;
+- se genera la migración que borra sus tablas (`ArcaInvoicingSettings`);
+- las conexiones que la tenían elegida la pierden sola: un servicio que ya no está instalado no se prueba.
+
+**Para las etapas que siguen,** la misma regla:
 - El motor de formularios (BusinessForms) es otro módulo y no puede nombrar a ARCA. La emisión (etapa 3) entra por un
   puerto neutral del núcleo en `Application/Interfaces/Channels`, con su versión apagada, como el canal de avisos que
   implementa WhatsApp.
-- El estándar «Factura» y los catálogos de ARCA los aporta el módulo por puertos del núcleo, así que se van con él.
+- El estándar «Factura» y los catálogos de ARCA los aporta la familia `Invoicing` por puertos del núcleo, así que se van
+  con ella.
+- Una familia nueva (granos, hacienda) crea sus carpetas, implementa `IArcaServiceDefinition` y suma su línea a cada
+  registro, sin tocar `Connection`.
 - Lo genérico del motor (renglones, cálculos, condiciones, resultado externo y carpetas) se queda: no nombra a ARCA.
 
 ---
 
-### Tarea 1: esqueleto del módulo, permisos y anillo
+### Tarea 1: esqueleto del módulo, permisos, anillo y frontera de familias
 
 **Archivos:**
 - Crear: `src/ArquitecturaBase.Domain/Modules/Arca/ArcaPermissions.cs`
-- Crear: `src/ArquitecturaBase.Application/Modules/Arca/ArcaApplicationRegistration.cs`, `Channels/ArcaPermissionCatalogSource.cs`, `Resources/Permissions.resx`, `Resources/Permissions.en.resx`
-- Crear: `src/ArquitecturaBase.Infrastructure/Modules/Arca/ArcaInfrastructureRegistration.cs`, `ArcaOptions.cs`, `Security/ArcaSecretProtectionOptions.cs`, `Security/ArcaKeyRing.cs`
+- Crear: `src/ArquitecturaBase.Application/Modules/Arca/ArcaApplicationRegistration.cs`, `Channels/ArcaPermissionCatalogSource.cs`, `Resources/Permissions.resx` y `Permissions.en.resx`
+- Crear: `src/ArquitecturaBase.Infrastructure/Modules/Arca/ArcaInfrastructureRegistration.cs`, `ArcaOptions.cs`, `Connection/Security/ArcaSecretProtectionOptions.cs`, `Connection/Security/ArcaKeyRing.cs`
 - Crear: `src/ArquitecturaBase.Api/Modules/Arca/ArcaApiRegistration.cs`
-- Modificar: `src/ArquitecturaBase.Api/Program.cs` (bloque después del de IA)
-- Crear: `tests/ArquitecturaBase.Api.IntegrationTests/Modules/Arca/ArcaTestModule.cs`, `ArcaOptionsTests.cs`, `ArcaPermissionsTests.cs`
+- Modificar: `src/ArquitecturaBase.Api/Program.cs` y `src/ArquitecturaBase.Api/appsettings.json`
+- Crear: `tests/ArquitecturaBase.ArchitectureTests/Modules/Arca/ArcaFamilyBoundaryTests.cs`
+- Crear: `tests/ArquitecturaBase.Api.IntegrationTests/Modules/Arca/ArcaTestModule.cs`, `Connection/ArcaOptionsTests.cs`, `Connection/ArcaPermissionsTests.cs`
 
 Referencias: `ArtificialIntelligencePermissions`, `AiPermissionCatalogSource`, `AiSecretProtectionOptions`, `AiKeyRing`,
-`ArtificialIntelligenceInfrastructureRegistration` (líneas 24 a 27) y `AiTestModule`.
+`ArtificialIntelligenceInfrastructureRegistration` (líneas 24 a 27), `AiTestModule` y `ModuleBoundaryTests`.
 
-- [ ] **Paso 1: tests en rojo.** En `ArcaPermissionsTests`, `GET /api/roles/permissions` (o el catálogo compuesto) incluye
-  `arca.read` y `arca.manage` con su área y sus textos en español y en inglés. En `ArcaOptionsTests`, la app no arranca
-  sin `Arca:SecretProtection` válido y arranca con el del `ArcaTestModule`.
+- [ ] **Paso 1: tests en rojo.**
+  - **`ArcaPermissionsTests`:** el catálogo compuesto de permisos incluye `arca.read` y `arca.manage` con su área y sus
+    textos en español y en inglés.
+  - **`ArcaOptionsTests`:** la app no arranca sin `Arca:SecretProtection` válido, y arranca con el del `ArcaTestModule`.
+  - **`ArcaFamilyBoundaryTests`:** lee los tipos del módulo en los cuatro ensamblados y el fuente:
+    - un tipo de `…Modules.Arca.<capa>.<Familia>` no referencia tipos de otra familia;
+    - `Connection` no referencia ninguna familia;
+    - la raíz del módulo (registros, permisos, errores, opciones) puede nombrar a todas.
+
+    La familia es el segmento que sigue a la carpeta de capa (`Services.Invoicing`, `Persistence.Repositories.Registry`,
+    `Contracts.Connection`) o, en Domain e Infrastructure, el primero después de `Modules.Arca`. Un caso de control con un
+    tipo inventado que cruza familias tiene que fallar.
 - [ ] **Paso 2: correr y ver que fallan.**
-  `dotnet test --project tests/ArquitecturaBase.Api.IntegrationTests/ArquitecturaBase.Api.IntegrationTests.csproj -- --filter-class "ArquitecturaBase.Api.IntegrationTests.Modules.Arca.ArcaPermissionsTests"`
+  `dotnet test --project tests/ArquitecturaBase.Api.IntegrationTests/ArquitecturaBase.Api.IntegrationTests.csproj -- --filter-class "ArquitecturaBase.Api.IntegrationTests.Modules.Arca.Connection.ArcaPermissionsTests"`
 - [ ] **Paso 3: permisos.**
 
 ```csharp
@@ -102,16 +197,16 @@ public static class ArcaPermissions
   descripciones, en `.resx` y `.en.resx`.
 
 - [ ] **Paso 4: anillo y opciones.** `ArcaSecretProtectionOptions` copia `AiSecretProtectionOptions` (instalación, clave
-  activa, claves de 256 bits y `IsValid()`), con su `ToString` redactado. `ArcaKeyRing` copia `AiKeyRing` sin las
-  derivaciones de huellas.
+  activa, claves de 256 bits, `IsValid()` y el `ToString` redactado). `ArcaKeyRing` copia `AiKeyRing` sin las derivaciones
+  de huellas. Las direcciones van por familia y por ambiente:
 
 ```csharp
 namespace ArquitecturaBase.Infrastructure.Modules.Arca;
 
 public sealed record ArcaOptions
 {
-    public ArcaEndpoints Testing { get; init; } = new();
-    public ArcaEndpoints Production { get; init; } = new();
+    public ArcaEnvironmentOptions Testing { get; init; } = new();
+    public ArcaEnvironmentOptions Production { get; init; } = new();
     public TimeSpan RequestTimeout { get; init; } = TimeSpan.FromSeconds(20);
     public int MaxResponseBytes { get; init; } = 512 * 1024;
     public TimeSpan TicketMargin { get; init; } = TimeSpan.FromMinutes(10);
@@ -120,34 +215,48 @@ public sealed record ArcaOptions
     public bool IsValid() => Testing.IsValid() && Production.IsValid() && RequestTimeout > TimeSpan.Zero && MaxResponseBytes > 0;
 }
 
-public sealed record ArcaEndpoints
+public sealed record ArcaEnvironmentOptions
 {
     public Uri? Wsaa { get; init; }
-    public Uri? Wsfe { get; init; }
-    public Uri? Registry { get; init; }
+    /// La dirección de cada servicio por su código WSN: "wsfe", "ws_sr_constancia_inscripcion", y los de cada familia nueva.
+    public Dictionary<string, Uri> Services { get; init; } = new(StringComparer.Ordinal);
     /// El CN del emisor de los certificados de este ambiente; sirve para saber si un .crt es de homologación o de producción.
     public string IssuerCommonName { get; init; } = string.Empty;
     /// Lo que ARCA tarda en aceptar otro pedido de ticket para el mismo servicio (10 min en homologación, 2 en producción).
     public TimeSpan TicketRetryWindow { get; init; }
 
-    public bool IsValid() => new[] { Wsaa, Wsfe, Registry }.All(u => u is { Scheme: "https" })
+    public bool IsValid() => Wsaa is { Scheme: "https" } && Services.Values.All(u => u.Scheme == "https")
         && !string.IsNullOrWhiteSpace(IssuerCommonName) && TicketRetryWindow > TimeSpan.Zero;
 }
 ```
 
-  Los valores por defecto van en `src/ArquitecturaBase.Api/appsettings.json`, en la sección `Arca`. Las direcciones son
-  las del estudio: WSAA `https://wsaahomo.afip.gov.ar/ws/services/LoginCms` y `https://wsaa.afip.gov.ar/ws/services/LoginCms`;
-  WSFEv1 `https://wswhomo.afip.gov.ar/wsfev1/service.asmx` y `https://servicios1.afip.gov.ar/wsfev1/service.asmx`; padrón
-  `https://awshomo.afip.gov.ar/sr-padron/webservices/personaServiceA5` y `https://aws.afip.gov.ar/sr-padron/webservices/personaServiceA5`.
+  Los valores por defecto van en la sección `Arca` de `appsettings.json`. Las direcciones son las del estudio:
+  - WSAA: `https://wsaahomo.afip.gov.ar/ws/services/LoginCms` y `https://wsaa.afip.gov.ar/ws/services/LoginCms`;
+  - `wsfe`: `https://wswhomo.afip.gov.ar/wsfev1/service.asmx` y `https://servicios1.afip.gov.ar/wsfev1/service.asmx`;
+  - `ws_sr_constancia_inscripcion`: `https://awshomo.afip.gov.ar/sr-padron/webservices/personaServiceA5` y
+    `https://aws.afip.gov.ar/sr-padron/webservices/personaServiceA5`.
+
   Los emisores y la dirección de homologación del padrón se confirman en la Tarea 6. El anillo nunca va en appsettings:
   va en user-secrets o en variables de entorno.
 
-- [ ] **Paso 5: registros.** `AddArcaApplication()`, `AddArcaInfrastructure(IConfiguration)` y `AddArcaApi()`, con la
-  forma de los de IA:
-  - las opciones con `Bind`, `Validate` y `ValidateOnStart`;
-  - el `IPermissionCatalogSource` con `TryAddEnumerable`;
-  - tres `HttpClient` con nombre (`arca-wsaa`, `arca-wsfe`, `arca-registry`), sin redirecciones (`AllowAutoRedirect = false`),
-    con `Timeout` de las opciones y los loggers del `HttpClient` apagados como en IA.
+- [ ] **Paso 5: registros.** `AddArcaApplication()`, `AddArcaInfrastructure(IConfiguration)` y `AddArcaApi()` tienen la
+  forma de los de IA, con un método privado por familia, así quitar una es borrar una línea:
+
+```csharp
+public static IServiceCollection AddArcaInfrastructure(this IServiceCollection services, IConfiguration configuration)
+{
+    services.AddArcaConnectionInfrastructure(configuration); // anillo, opciones, WSAA, tickets, persistencia base
+    services.AddArcaRegistryInfrastructure();                 // cliente del padrón y sus tablas
+    services.AddArcaInvoicingInfrastructure();                // cliente de WSFEv1 y sus tablas
+    return services;
+}
+```
+
+  - Las opciones se registran con `Bind`, `Validate` y `ValidateOnStart`, y el `IPermissionCatalogSource` con
+    `TryAddEnumerable`.
+  - Hay un `HttpClient` con nombre para el WSAA y otro por familia (`arca-wsaa`, `arca-registry`, `arca-invoicing`), sin
+    redirecciones (`AllowAutoRedirect = false`), con el `Timeout` de las opciones y los loggers del `HttpClient` apagados,
+    como en IA.
 
   En `Program.cs` van los tres `using` marcados `// módulo ARCA`, como los de WhatsApp, y el bloque debajo del de IA:
 
@@ -159,21 +268,24 @@ builder.Services
     .AddArcaApi();
 ```
 
-- [ ] **Paso 6: `ArcaTestModule`.** Pone `Arca:SecretProtection` con `ApiFactory.TestHashKey`, rate limits altos, y deja los
-  tres `HttpClient` apuntando a `FakeArca`, que en esta tarea responde siempre 503. `Routes` arranca vacío.
-- [ ] **Paso 7: correr los tests de la tarea y los de arquitectura,** que tienen que pasar sin cambios: el módulo no se nombra
-  desde el núcleo.
+- [ ] **Paso 6: `ArcaTestModule`.** Pone `Arca:SecretProtection` con `ApiFactory.TestHashKey` y rate limits altos, y deja
+  los `HttpClient` del módulo apuntando a `FakeArca`, que en esta tarea responde siempre 503. `Routes` arranca vacío.
+- [ ] **Paso 7: correr** los tests de la tarea y todo `ArchitectureTests`, que tiene que pasar sin cambios en el núcleo.
   `dotnet test --project tests/ArquitecturaBase.ArchitectureTests/ArquitecturaBase.ArchitectureTests.csproj`
-- [ ] **Paso 8: commit.** `feat(arca): módulo opcional con permisos y anillo propio`
+- [ ] **Paso 8: commit.** `feat(arca): módulo opcional con permisos, anillo propio y frontera de familias`
 
 ---
 
 ### Tarea 2: dominio
 
 **Archivos:**
-- Crear en `src/ArquitecturaBase.Domain/Modules/Arca/`: `Cuit.cs`, los enums, `ArcaCompanyData.cs`, `ArcaConnection.cs`, `ArcaCertificate.cs`, `ArcaAccessTicket.cs`, `ArcaTicketLease.cs`, `ArcaConnectionErrors.cs`
+- Crear en `src/ArquitecturaBase.Domain/Modules/Arca/`:
+  - `Connection/`: `Cuit.cs`, `ArcaServiceCode.cs`, los enums, `ArcaConnection.cs`, `ArcaCertificate.cs`, `ArcaAccessTicket.cs` y `ArcaTicketLease.cs`;
+  - `Registry/`: `ArcaRegistryCompany.cs` y `ArcaVatCondition.cs`;
+  - `Invoicing/`: `ArcaInvoicingSettings.cs`;
+  - en la raíz: `ArcaConnectionErrors.cs` y `ArcaInvoicingErrors.cs`.
 - Modificar: `src/ArquitecturaBase.Application/Resources/Errors.resx` y `Errors.en.resx`
-- Crear: `tests/ArquitecturaBase.Domain.UnitTests/Modules/Arca/CuitTests.cs`, `ArcaConnectionTests.cs`, `ArcaAccessTicketTests.cs`
+- Crear: `tests/ArquitecturaBase.Domain.UnitTests/Modules/Arca/Connection/CuitTests.cs`, `ArcaServiceCodeTests.cs`, `ArcaConnectionTests.cs`, `ArcaAccessTicketTests.cs`, y `Invoicing/ArcaInvoicingSettingsTests.cs`
 
 - [ ] **Paso 1: tests en rojo.**
 
@@ -201,30 +313,32 @@ public sealed class CuitTests
 }
 ```
 
-  En `ArcaConnectionTests`, con `FakeTimeProvider`:
-  - empezar con una CUIT inválida da `ArcaConnectionErrors.CuitInvalid`;
-  - empezar con una válida deja `AwaitingCertificate`, modo `CompanyCertificate` y revisión 1;
-  - cargar el certificado pasa a `Unverified`;
-  - una prueba en verde sin punto de venta deja `Unverified`;
-  - elegir un punto de venta con la última prueba en verde pasa a `Active`, y con la última prueba fallida da
-    `ArcaConnectionErrors.NotTested`;
-  - una prueba fallida con la conexión activa pasa a `NeedsAttention`, y una en verde la vuelve a `Active`;
-  - cada cambio sube la revisión;
-  - `ToString` no muestra la CUIT completa.
-
-  En `ArcaAccessTicketTests`:
-  - un ticket vigente con margen se reutiliza (`AlreadyValid`);
-  - sin ticket ni reserva, la reserva se toma (`Acquired`);
-  - con la reserva de otro sin vencer da `Busy`, y vencida se toma;
-  - con `BlockedUntilUtc` en el futuro da `Blocked`;
-  - guardar con otro dueño de reserva no cambia nada y devuelve `false`.
-
+  - **`ArcaServiceCodeTests`:** `wsfe`, `ws_sr_constancia_inscripcion` y `wscpe` son válidos; vacío, con mayúsculas, con
+    espacios o de más de 40 caracteres, no.
+  - **`ArcaConnectionTests`**, con `FakeTimeProvider`:
+    - empezar con una CUIT inválida da `ArcaConnectionErrors.CuitInvalid`;
+    - empezar con una válida y los servicios elegidos deja `AwaitingCertificate`, modo `CompanyCertificate` y revisión 1;
+    - elegir un servicio que no está entre los instalados da `ServiceNotInstalled`, y uno obligatorio siempre queda elegido;
+    - cargar el certificado pasa a `Unverified`;
+    - `RecordTest(passed: true, familiesComplete: false)` deja `Unverified`;
+    - `RecordTest(passed: true, familiesComplete: true)` pasa a `Active`;
+    - con la conexión activa, una prueba fallida o una familia incompleta pasan a `NeedsAttention`, y una prueba en verde
+      con todo completo la vuelve a `Active`;
+    - cada cambio sube la revisión, y `ToString` no muestra la CUIT completa.
+  - **`ArcaAccessTicketTests`:**
+    - un ticket vigente con margen se reutiliza (`AlreadyValid`);
+    - sin ticket ni reserva, la reserva se toma (`Acquired`);
+    - con la reserva de otro sin vencer da `Busy`, y vencida se toma;
+    - con `BlockedUntilUtc` en el futuro da `Blocked`;
+    - guardar o bloquear con otro dueño de reserva no cambia nada y devuelve `false`.
+  - **`ArcaInvoicingSettingsTests`:** el punto de venta va de 1 a 99998, y la configuración está completa solo con un punto
+    de venta elegido.
 - [ ] **Paso 2: correr y ver que fallan.**
-  `dotnet test --project tests/ArquitecturaBase.Domain.UnitTests/ArquitecturaBase.Domain.UnitTests.csproj -- --filter-class "ArquitecturaBase.Domain.UnitTests.Modules.Arca.CuitTests"`
-- [ ] **Paso 3: CUIT.** Un dígito verificador 10 no es válido: ARCA nunca lo asigna.
+  `dotnet test --project tests/ArquitecturaBase.Domain.UnitTests/ArquitecturaBase.Domain.UnitTests.csproj -- --filter-class "ArquitecturaBase.Domain.UnitTests.Modules.Arca.Connection.CuitTests"`
+- [ ] **Paso 3: CUIT y código de servicio.** Un dígito verificador 10 no es válido: ARCA nunca lo asigna.
 
 ```csharp
-namespace ArquitecturaBase.Domain.Modules.Arca;
+namespace ArquitecturaBase.Domain.Modules.Arca.Connection;
 
 public static class Cuit
 {
@@ -244,30 +358,38 @@ public static class Cuit
 
     public static string Mask(string cuit) => cuit.Length == 11 ? $"{cuit[..2]}-*****{cuit[7..10]}-{cuit[10]}" : "***";
 }
+
+/// El código de un servicio de ARCA en el WSAA (WSN): "wsfe", "ws_sr_constancia_inscripcion", "wscpe"…
+public readonly record struct ArcaServiceCode
+{
+    private ArcaServiceCode(string value) => Value = value;
+    public string Value { get; }
+
+    public static ArcaServiceCode? Create(string? value) =>
+        value is { Length: >= 2 and <= 40 } && value.All(c => char.IsAsciiLetterLower(c) || char.IsAsciiDigit(c) || c == '_')
+            ? new ArcaServiceCode(value) : null;
+
+    public override string ToString() => Value;
+}
 ```
 
-- [ ] **Paso 4: enums y datos.**
-  - `ArcaAccessMode { CompanyCertificate, PlatformDelegation, PlatformDelegationAutomated }`;
-  - `ArcaEnvironment { Testing, Production }`;
-  - `ArcaConnectionStatus { AwaitingCertificate, Unverified, Active, NeedsAttention }`;
-  - `ArcaService { Invoicing, Registry }`, con los nombres de WSAA `wsfe` y `ws_sr_constancia_inscripcion` en un
-    `ArcaServiceNames.Of(service)`;
-  - `ArcaVatCondition { RegisteredTaxpayer, Monotax, Exempt, NotRegistered }`;
-  - `ArcaCertificateRole { Active, Pending }`;
-  - `ArcaCompanyData(string LegalName, ArcaVatCondition VatCondition, string FiscalAddress)`, un value object guardado como
-    owned.
-- [ ] **Paso 5: entidades.** `ArcaConnection : Entity, IAuditable`, con `Scope = 1` como `AiConnection`, y estos métodos:
-  - `static Result<ArcaConnection> Start(string cuit, ArcaEnvironment environment)`;
-  - `void CertificateLoaded()`;
-  - `void RecordTest(bool passed, ArcaCompanyData? company, DateTime testedAtUtc)`;
-  - `Result ChoosePointOfSale(int number)`, con `number` entre 1 y 99998 y `LastTestPassed` exigido;
-  - `void CertificateExpired()`.
-
-  `ArcaCertificate : Entity` lleva `ConnectionId`, `Role`, `Alias`, `RequestPem`, `ProtectedPrivateKey`,
-  `CertificatePem?`, `NotBeforeUtc?`, `NotAfterUtc?` y `Thumbprint?`, con `Load(...)` y `Promote()` para la renovación.
-
-  `ArcaAccessTicket : Entity` lleva `CertificateId`, `Service`, `ProtectedCredentials?`, `ExpiresAtUtc?`,
-  `LeaseOwner?`, `LeaseUntilUtc?` y `BlockedUntilUtc?`:
+- [ ] **Paso 4: enums y entidades.**
+  - **Enums de `Connection/`:**
+    - `ArcaAccessMode { CompanyCertificate, PlatformDelegation, PlatformDelegationAutomated }`;
+    - `ArcaEnvironment { Testing, Production }`;
+    - `ArcaConnectionStatus { AwaitingCertificate, Unverified, Active, NeedsAttention }`;
+    - `ArcaCertificateRole { Active, Pending }`.
+  - **`ArcaConnection : Entity, IAuditable`**, con `Scope = 1` como `AiConnection` y `EnabledServices` (lista de códigos
+    guardada como arreglo de texto). Sus métodos:
+    - `static Result<ArcaConnection> Start(string cuit, ArcaEnvironment environment, IReadOnlyCollection<ArcaServiceCode> chosen, IReadOnlyCollection<ArcaServiceCode> installed, IReadOnlyCollection<ArcaServiceCode> required)`;
+    - `Result ChooseServices(...)`, con la misma validación;
+    - `void CertificateLoaded()`;
+    - `void RecordTest(bool passed, bool familiesComplete, DateTime testedAtUtc)`;
+    - `void CertificateExpired()`.
+  - **`ArcaCertificate : Entity`** lleva `ConnectionId`, `Role`, `Alias`, `RequestPem`, `ProtectedPrivateKey`,
+    `CertificatePem?`, `NotBeforeUtc?`, `NotAfterUtc?` y `Thumbprint?`, con `Load(...)` y `Promote()` para la renovación.
+  - **`ArcaAccessTicket : Entity`** lleva `CertificateId`, `ServiceCode`, `ProtectedCredentials?`, `ExpiresAtUtc?`,
+    `LeaseOwner?`, `LeaseUntilUtc?` y `BlockedUntilUtc?`:
 
 ```csharp
 public ArcaTicketLease TryLease(Guid owner, DateTime nowUtc, TimeSpan margin, TimeSpan leaseDuration)
@@ -295,46 +417,50 @@ public bool Block(Guid owner, DateTime untilUtc)
 }
 ```
 
-- [ ] **Paso 6: errores.** En `ArcaConnectionErrors`:
-  - `CuitInvalid` y `AliasInvalid` (validación);
-  - `CertificateUnreadable`, `CertificateKeyMismatch`, `CertificateCuitMismatch`, `CertificateEnvironmentMismatch`,
-    `CertificateExpired` y `NoPendingRequest` (validación);
-  - `NotTested` y `PointOfSaleUnavailable` (validación);
-  - `RevisionConflict` (conflicto) y `NotConnected` (no encontrado).
-
-  Los códigos son `Arca.Connection.<Motivo>`, con su texto en `Errors.resx` (voseo) y en `Errors.en.resx`.
-- [ ] **Paso 7: correr** los tres tests de la tarea, `ErrorDeclarationTests` y `ResourceParityTests`.
-- [ ] **Paso 8: commit.** `feat(arca): conexión, certificado y ticket de acceso en el dominio`
+  - **`Registry/`:** `ArcaRegistryCompany : Entity` (conexión, razón social, condición frente al IVA y domicilio fiscal,
+    con `Update(...)`) y `ArcaVatCondition { RegisteredTaxpayer, Monotax, Exempt, NotRegistered }`.
+  - **`Invoicing/`:** `ArcaInvoicingSettings : Entity` (conexión y punto de venta), con `Result ChoosePointOfSale(int number)`
+    e `IsComplete`.
+- [ ] **Paso 5: errores.** Los códigos son `Arca.Connection.<Motivo>` y `Arca.Invoicing.<Motivo>`, con su texto en
+  `Errors.resx` (voseo) y en `Errors.en.resx`.
+  - **`ArcaConnectionErrors`:**
+    - de validación: `CuitInvalid`, `AliasInvalid`, `ServiceNotInstalled`, `CertificateUnreadable`,
+      `CertificateKeyMismatch`, `CertificateCuitMismatch`, `CertificateEnvironmentMismatch`, `CertificateExpired`,
+      `NoPendingRequest` y `NotTested`;
+    - `RevisionConflict` (conflicto) y `NotConnected` (no encontrado).
+  - **`ArcaInvoicingErrors`:** `PointOfSaleInvalid` y `PointOfSaleUnavailable` (validación).
+- [ ] **Paso 6: correr** los tests de la tarea, `ErrorDeclarationTests`, `ResourceParityTests` y `ArcaFamilyBoundaryTests`.
+- [ ] **Paso 7: commit.** `feat(arca): dominio de la conexión, el padrón y la facturación`
 
 ---
 
 ### Tarea 3: persistencia
 
 **Archivos:**
-- Crear: `src/ArquitecturaBase.Infrastructure/Modules/Arca/Persistence/ArcaLockKeys.cs`, `Configurations/ArcaConnectionConfiguration.cs`, `ArcaCertificateConfiguration.cs`, `ArcaAccessTicketConfiguration.cs`, `Repositories/ArcaConnectionRepository.cs`, `Readers/ArcaConnectionReader.cs`
-- Crear: `src/ArquitecturaBase.Application/Modules/Arca/Interfaces/Persistence/IArcaConnectionRepository.cs`, `IArcaConnectionReader.cs`, `Models/ArcaConnectionSnapshot.cs`
-- Crear: migración `AddArcaConnection` (según [migración](../guides/migracion.md))
-- Crear: `tests/ArquitecturaBase.ArchitectureTests/Modules/Arca/ArcaTransactionContribution.cs`, `tests/ArquitecturaBase.Api.IntegrationTests/Modules/Arca/ArcaPersistenceTests.cs`
+- Crear en `src/ArquitecturaBase.Infrastructure/Modules/Arca/Persistence/`: `ArcaLockKeys.cs`, y en `Configurations/`, `Repositories/` y `Readers/` una carpeta `Connection`, `Registry` e `Invoicing` con lo suyo
+- Crear en `src/ArquitecturaBase.Application/Modules/Arca/Interfaces/Persistence/{Connection,Registry,Invoicing}/` los contratos, y en `Models/Connection/` `ArcaConnectionSnapshot.cs` y `ArcaTicketSnapshot.cs`
+- Crear: la migración `AddArcaConnection` (según [migración](../guides/migracion.md))
+- Crear: `tests/ArquitecturaBase.ArchitectureTests/Modules/Arca/ArcaTransactionContribution.cs`, y en `tests/ArquitecturaBase.Api.IntegrationTests/Modules/Arca/`, `Connection/ArcaConnectionPersistenceTests.cs`, `Registry/ArcaRegistryPersistenceTests.cs` e `Invoicing/ArcaInvoicingPersistenceTests.cs`
 
 Referencias: `IAiConnectionRepository`, `IAiConnectionReader`, sus implementaciones y configuraciones, `AiAdvisoryLockKeys`,
 `AiTransactionContribution`, y [nombres de repositorios](../decisions/0008-nombres-de-repositorios-y-lectores.md).
 
-- [ ] **Paso 1: tests en rojo** en `ArcaPersistenceTests`, con PostgreSQL:
+- [ ] **Paso 1: tests en rojo,** con PostgreSQL:
   - un segundo `ArcaConnection` con `Scope = 1` choca con el índice único;
   - un certificado activo y uno pendiente conviven, y un segundo pendiente choca (índice único por conexión y papel);
-  - un ticket por certificado y servicio;
-  - borrar la conexión borra certificados y tickets en cascada;
-  - el lector devuelve la foto sin seguimiento y sin la clave ni las credenciales del ticket.
-- [ ] **Paso 2: contratos.**
+  - hay un ticket por certificado y código de servicio;
+  - borrar la conexión borra en cascada certificados, tickets, `ArcaRegistryCompanies` y `ArcaInvoicingSettings`;
+  - los lectores devuelven fotos sin seguimiento, sin la clave ni las credenciales del ticket.
+- [ ] **Paso 2: contratos de `Connection`.**
 
 ```csharp
 public interface IArcaConnectionRepository
 {
     Task LockConnectionAsync(CancellationToken cancellationToken);
-    Task LockTicketAsync(Guid certificateId, ArcaService service, CancellationToken cancellationToken);
+    Task LockTicketAsync(Guid certificateId, ArcaServiceCode service, CancellationToken cancellationToken);
     Task<ArcaConnection?> GetConnectionAsync(CancellationToken cancellationToken);
     Task<ArcaCertificate?> GetCertificateAsync(Guid connectionId, ArcaCertificateRole role, CancellationToken cancellationToken);
-    Task<ArcaAccessTicket?> GetTicketAsync(Guid certificateId, ArcaService service, CancellationToken cancellationToken);
+    Task<ArcaAccessTicket?> GetTicketAsync(Guid certificateId, ArcaServiceCode service, CancellationToken cancellationToken);
     void Add(ArcaConnection connection);
     void Add(ArcaCertificate certificate);
     void Add(ArcaAccessTicket ticket);
@@ -345,41 +471,41 @@ public interface IArcaConnectionRepository
 public interface IArcaConnectionReader
 {
     Task<ArcaConnectionSnapshot?> FindAsync(CancellationToken cancellationToken);
-    Task<ArcaTicketSnapshot?> FindTicketAsync(Guid certificateId, ArcaService service, CancellationToken cancellationToken);
+    Task<ArcaTicketSnapshot?> FindTicketAsync(Guid certificateId, ArcaServiceCode service, CancellationToken cancellationToken);
 }
 ```
 
-  `ArcaConnectionSnapshot` lleva la conexión, los dos certificados sin `ProtectedPrivateKey` y la revisión.
-  `ArcaTicketSnapshot` lleva el vencimiento, la reserva, el bloqueo y las credenciales protegidas; solo lo usa el proveedor
-  de tickets.
-- [ ] **Paso 3: locks.** En `ArcaLockKeys`: `arca-connection:installation` y `arca-ticket:{certificateId}:{service}`.
-  `ArcaTransactionContribution` declara `LockOwners`, que apunta a `ArcaLockKeys`, y `LockPrefixes` `["arca-connection:", "arca-ticket:"]`.
+  `Registry` e `Invoicing` tienen cada una su repositorio (`Get…Async(Guid connectionId)` y `Add`) y su lector
+  (`Find…Async`). No nombran tipos de `Connection` más allá del `Guid` de la conexión.
+- [ ] **Paso 3: locks.** En `ArcaLockKeys` van `arca-connection:installation` y `arca-ticket:{certificateId}:{service}`. Las
+  escrituras de `Registry` e `Invoicing` toman el de la conexión. `ArcaTransactionContribution` declara `LockOwners`, que
+  apunta a `ArcaLockKeys`, y `LockPrefixes` `["arca-connection:", "arca-ticket:"]`.
 - [ ] **Paso 4: configuraciones EF.**
-  - tablas `ArcaConnections`, `ArcaCertificates` y `ArcaAccessTickets` con `ToTable` explícito, como en los módulos;
-  - `ArcaCompanyData` como owned;
-  - enums como texto;
+  - tablas `ArcaConnections`, `ArcaCertificates`, `ArcaAccessTickets`, `ArcaRegistryCompanies` y `ArcaInvoicingSettings`,
+    con `ToTable` explícito como en los módulos;
+  - enums como texto y `EnabledServices` como `text[]`;
   - `Revision` como token de concurrencia, como en IA;
-  - cascada desde la conexión.
-- [ ] **Paso 5: migración** con la cadena de mentira del pipeline:
+  - claves foráneas a `ArcaConnections` con cascada.
+- [ ] **Paso 5: migración.** Se genera con la cadena de mentira del pipeline, con los parámetros exactos de
+  [migración](../guides/migracion.md):
   `dotnet ef migrations add AddArcaConnection --project src/ArquitecturaBase.Infrastructure --startup-project src/ArquitecturaBase.Api`
-  (los parámetros exactos están en [migración](../guides/migracion.md)).
-- [ ] **Paso 6: correr** `ArcaPersistenceTests`, `MigrationsTests` y `TransactionBoundaryTests`.
-- [ ] **Paso 7: commit.** `feat(arca): persistencia de la conexión, los certificados y los tickets`
+- [ ] **Paso 6: correr** los tests de la tarea, `MigrationsTests`, `TransactionBoundaryTests` y `ArcaFamilyBoundaryTests`.
+- [ ] **Paso 7: commit.** `feat(arca): persistencia de la conexión, el padrón y la facturación`
 
 ---
 
 ### Tarea 4: credenciales (clave, pedido y certificado)
 
 **Archivos:**
-- Crear: `src/ArquitecturaBase.Application/Modules/Arca/Interfaces/Integrations/IArcaCredentialService.cs`, `Models/ArcaCertificateRequest.cs`, `Models/InspectedCertificate.cs`
-- Crear: `src/ArquitecturaBase.Infrastructure/Modules/Arca/Security/ArcaCredentialService.cs`
-- Crear: `tests/ArquitecturaBase.Api.IntegrationTests/Modules/Arca/ArcaCredentialServiceTests.cs` y `tests/ArquitecturaBase.Api.IntegrationTests/TestFeatures/Modules/Arca/FakeArcaCertificateAuthority.cs`
+- Crear: `src/ArquitecturaBase.Application/Modules/Arca/Interfaces/Integrations/Connection/IArcaCredentialService.cs`, `Models/Connection/ArcaCertificateRequest.cs` e `InspectedCertificate.cs`
+- Crear: `src/ArquitecturaBase.Infrastructure/Modules/Arca/Connection/Security/ArcaCredentialService.cs`
+- Crear: `tests/ArquitecturaBase.Api.IntegrationTests/Modules/Arca/Connection/ArcaCredentialServiceTests.cs` y `tests/ArquitecturaBase.Api.IntegrationTests/TestFeatures/Modules/Arca/FakeArcaCertificateAuthority.cs`
 
 - [ ] **Paso 1: la autoridad de prueba.** `FakeArcaCertificateAuthority` crea una CA autofirmada por ambiente, con el CN
   configurado en `ArcaTestModule` (`Computadores Test` y `Computadores`). `Issue(string requestPem, ArcaEnvironment environment, DateTime notAfterUtc)`
   carga el pedido con `CertificateRequest.LoadSigningRequestPem(requestPem, HashAlgorithmName.SHA256)` y firma con la CA
   de ese ambiente.
-- [ ] **Paso 2: tests en rojo** en `ArcaCredentialServiceTests`:
+- [ ] **Paso 2: tests en rojo:**
   - el pedido tiene `C=AR`, `CN=<alias>` y `serialNumber=CUIT <cuit>`, y su firma verifica;
   - la clave protegida no contiene la clave en claro y no se descifra con otro AAD (otra conexión u otro certificado);
   - un certificado emitido para ese pedido se acepta y devuelve fechas y huella;
@@ -397,8 +523,8 @@ public interface IArcaCredentialService
     Result<InspectedCertificate> Inspect(Guid connectionId, Guid certificateId, string protectedPrivateKey, string certificatePem,
         string cuit, ArcaEnvironment environment, DateTime nowUtc);
     string SignLoginRequest(Guid connectionId, Guid certificateId, string protectedPrivateKey, string certificatePem, byte[] loginTicketRequest);
-    string ProtectTicket(Guid certificateId, ArcaService service, string token, string sign);
-    (string Token, string Sign)? UnprotectTicket(Guid certificateId, ArcaService service, string protectedCredentials);
+    string ProtectTicket(Guid certificateId, ArcaServiceCode service, string token, string sign);
+    (string Token, string Sign)? UnprotectTicket(Guid certificateId, ArcaServiceCode service, string protectedCredentials);
 }
 
 public sealed record ArcaCertificateRequest(string RequestPem, string ProtectedPrivateKey)
@@ -425,11 +551,12 @@ try { return new ArcaCertificateRequest(requestPem, Protect("certificate-key", c
 finally { CryptographicOperations.ZeroMemory(pkcs8); }
 ```
 
-  Para inspeccionar, `X509Certificate2.CreateFromPem(certificatePem)`, comparando `ExportSubjectPublicKeyInfo()` del
-  certificado con el de la clave descifrada. El `serialNumber` del sujeto se lee con
-  `X500DistinguishedName.EnumerateRelativeDistinguishedNames()` buscando el OID `2.5.4.5`, y el emisor se compara por su
-  CN con `ArcaOptions.<ambiente>.IssuerCommonName`. Para firmar, la clave se importa con `ImportPkcs8PrivateKey` y se ata
-  con `certificate.CopyWithPrivateKey(rsa)`; los bytes en claro se borran con `CryptographicOperations.ZeroMemory`.
+  - **Inspeccionar:** `X509Certificate2.CreateFromPem(certificatePem)`, comparando `ExportSubjectPublicKeyInfo()` del
+    certificado con el de la clave descifrada. El `serialNumber` del sujeto se lee con
+    `X500DistinguishedName.EnumerateRelativeDistinguishedNames()` buscando el OID `2.5.4.5`, y el emisor se compara por su
+    CN con `IssuerCommonName` del ambiente.
+  - **Firmar:** la clave se importa con `ImportPkcs8PrivateKey` y se ata con `certificate.CopyWithPrivateKey(rsa)`.
+  - **Bytes en claro:** se borran con `CryptographicOperations.ZeroMemory`.
 - [ ] **Paso 5: alias.** Entre 3 y 30 caracteres, solo minúsculas, dígitos y guiones, empezando por letra
   (`^[a-z][a-z0-9-]{2,29}$`). Se valida en el servicio con `AliasInvalid`. Si ARCA admite otros caracteres, se amplía
   con la homologación.
@@ -438,14 +565,18 @@ finally { CryptographicOperations.ZeroMemory(pkcs8); }
 
 ---
 
-### Tarea 5: WSAA y el ticket compartido
+### Tarea 5: WSAA, el ticket compartido y la interfaz de las familias
 
 **Archivos:**
-- Crear: `src/ArquitecturaBase.Infrastructure/Modules/Arca/Security/ArcaLoginTicketRequest.cs`, `ArcaCmsSigner.cs` (los usa `ArcaCredentialService.SignLoginRequest`)
-- Crear: `src/ArquitecturaBase.Infrastructure/Modules/Arca/Soap/SoapEnvelope.cs`, `ArcaAuthClient.cs`
-- Crear: `src/ArquitecturaBase.Application/Modules/Arca/Interfaces/Integrations/IArcaAuthClient.cs`, `Models/ArcaLoginResult.cs`, `Models/ArcaCertificateRef.cs`, `Services/ArcaAccessTicketProvider.cs`, `Models/ArcaTicketOutcome.cs`
+- Crear: `src/ArquitecturaBase.Infrastructure/Modules/Arca/Connection/Security/ArcaLoginTicketRequest.cs` y `ArcaCmsSigner.cs` (los usa `ArcaCredentialService.SignLoginRequest`)
+- Crear: `src/ArquitecturaBase.Infrastructure/Modules/Arca/Connection/Soap/SoapEnvelope.cs` y `ArcaAuthClient.cs`
+- Crear en `src/ArquitecturaBase.Application/Modules/Arca/`:
+  - `Interfaces/Integrations/Connection/`: `IArcaAuthClient.cs` e `IArcaAccessTicketProvider.cs`;
+  - `Interfaces/Services/Connection/IArcaServiceDefinition.cs`;
+  - `Models/Connection/`: `ArcaLoginResult.cs`, `ArcaCertificateRef.cs`, `ArcaTicketOutcome.cs`, `ArcaServiceContext.cs` y `ArcaServiceCheck.cs`;
+  - `Services/Connection/ArcaAccessTicketProvider.cs`.
 - Modificar: `Directory.Packages.props` y `src/ArquitecturaBase.Infrastructure/ArquitecturaBase.Infrastructure.csproj` (`System.Security.Cryptography.Pkcs`)
-- Crear: `tests/ArquitecturaBase.Api.IntegrationTests/TestFeatures/Modules/Arca/FakeArca.cs`, y en `tests/ArquitecturaBase.Api.IntegrationTests/Modules/Arca/`, `ArcaLoginTicketRequestTests.cs` y `ArcaAccessTicketProviderTests.cs`
+- Crear: `tests/ArquitecturaBase.Api.IntegrationTests/TestFeatures/Modules/Arca/FakeArca.cs`, y en `tests/ArquitecturaBase.Api.IntegrationTests/Modules/Arca/Connection/`, `ArcaLoginTicketRequestTests.cs` y `ArcaAccessTicketProviderTests.cs`
 
 - [ ] **Paso 1: tests en rojo.**
   - **`ArcaLoginTicketRequestTests`:** con `FakeTimeProvider` en `2026-11-03T13:00:00Z`, el pedido tiene `version="1.0"`,
@@ -507,18 +638,19 @@ internal static class ArcaCmsSigner
 ```
 
   La respuesta trae `loginCmsReturn` con el XML `loginTicketResponse` escapado: `credentials/token`, `credentials/sign` y
-  `header/expirationTime`. Un `soapenv:Fault` trae `faultcode`; los conocidos se mapean así:
+  `header/expirationTime`. Un `soapenv:Fault` trae `faultcode`, y los conocidos se mapean así:
   - `coe.alreadyAuthenticated` → `Blocked`;
   - `coe.notAuthorized` y `cms.cert.untrusted` → `NotAuthorized`;
   - `cms.bad` y lo que hable del reloj (`GenerationTime`, `expiración`) → `ClockSkew`;
   - lo demás → `Unavailable`.
 
-  `SoapEnvelope` lee la respuesta con el tope de `MaxResponseBytes`, la parsea con `XmlReaderSettings { DtdProcessing = Prohibit, XmlResolver = null }`
-  y nunca deja la respuesta en un log.
-- [ ] **Paso 4: `ArcaAccessTicketProvider`.** No usa HTTP dentro de una transacción ([locks](../architecture/backend.md#locks)):
+  `SoapEnvelope` es la pieza común que usan las familias para sus servicios. Arma el sobre, manda el POST, lee la
+  respuesta con el tope de `MaxResponseBytes`, la parsea con `XmlReaderSettings { DtdProcessing = Prohibit, XmlResolver = null }`
+  y nunca la deja en un log.
+- [ ] **Paso 4: el proveedor de tickets.** No usa HTTP dentro de una transacción ([locks](../architecture/backend.md#locks)):
 
 ```csharp
-public async Task<ArcaTicketOutcome> GetAsync(ArcaCertificateRef certificate, ArcaService service, CancellationToken cancellationToken)
+public async Task<ArcaTicketOutcome> GetAsync(ArcaCertificateRef certificate, ArcaServiceCode service, CancellationToken cancellationToken)
 {
     var owner = Guid.NewGuid();
     for (var attempt = 0; attempt < 20; attempt++)
@@ -527,8 +659,8 @@ public async Task<ArcaTicketOutcome> GetAsync(ArcaCertificateRef certificate, Ar
         await unitOfWork.ExecuteInTransactionAsync(async token =>
         {
             await repository.LockTicketAsync(certificate.Id, service, token);
-            var ticket = await repository.GetTicketAsync(certificate.Id, service, token)
-                ?? throw new InvalidOperationException("Every certificate has one ticket row per service.");
+            var ticket = await repository.GetTicketAsync(certificate.Id, service, token);
+            if (ticket is null) { ticket = ArcaAccessTicket.Create(certificate.Id, service); repository.Add(ticket); }
             lease = ticket.TryLease(owner, time.GetUtcNow().UtcDateTime, options.TicketMargin, options.TicketLease);
             return Result.Success();
         }, CommitPolicy.OnSuccess, cancellationToken);
@@ -548,8 +680,8 @@ public async Task<ArcaTicketOutcome> GetAsync(ArcaCertificateRef certificate, Ar
 ```
 
   `ArcaTicketOutcome` es un record cerrado (`Ready(token, sign)`, `Blocked(untilUtc)`, `NotAuthorized`, `ClockSkew` y
-  `Unavailable`). No es un `Error`: es el resultado que la prueba muestra por servicio. `ArcaCertificateRef`, en `Models`,
-  es lo que el proveedor y los clientes necesitan del certificado activo:
+  `Unavailable`). No es un `Error`: es el resultado que la prueba muestra por servicio. `ArcaCertificateRef` es lo que el
+  proveedor y las familias necesitan del certificado activo:
 
 ```csharp
 public sealed record ArcaCertificateRef(Guid ConnectionId, Guid Id, string Cuit, ArcaEnvironment Environment,
@@ -559,23 +691,60 @@ public sealed record ArcaCertificateRef(Guid ConnectionId, Guid Id, string Cuit,
 }
 ```
 
-  `IArcaAuthClient.LoginAsync(ArcaCertificateRef certificate, ArcaService service, CancellationToken cancellationToken)`
+  `IArcaAuthClient.LoginAsync(ArcaCertificateRef certificate, ArcaServiceCode service, CancellationToken cancellationToken)`
   arma el pedido, lo firma con `IArcaCredentialService.SignLoginRequest` y devuelve `ArcaLoginResult` (token, firma y
   vencimiento, o el motivo de la falla).
-- [ ] **Paso 5: `FakeArca`.** Es un `HttpMessageHandler` que enruta por la URL y el `SOAPAction`, responde los sobres de
+- [ ] **Paso 5: la interfaz de las familias.** Vive en `Connection` y la implementa cada familia:
+
+```csharp
+namespace ArquitecturaBase.Application.Modules.Arca.Interfaces.Services.Connection;
+
+/// Una familia de servicios de ARCA (padrón, facturación, granos…) presentada a la conexión, que no la nombra.
+public interface IArcaServiceDefinition
+{
+    /// Los servicios de ARCA de la familia, con su código WSN y la clave de su nombre en los recursos del front.
+    IReadOnlyCollection<ArcaInstalledService> Services { get; }
+
+    /// Prueba un servicio elegido con el ticket que le da el contexto, y guarda lo que la familia necesite (el padrón,
+    /// los datos de la empresa). Nunca lanza por una respuesta de ARCA: la devuelve en el resultado.
+    Task<ArcaServiceCheck> CheckAsync(ArcaServiceCode service, ArcaServiceContext context, CancellationToken cancellationToken);
+
+    /// Si la configuración propia de la familia está completa (Facturación: un punto de venta elegido).
+    Task<bool> IsCompleteAsync(Guid connectionId, CancellationToken cancellationToken);
+}
+
+public sealed record ArcaInstalledService(ArcaServiceCode Code, string Family, bool Required);
+
+public sealed record ArcaServiceContext(ArcaCertificateRef Certificate, IArcaAccessTicketProvider Tickets);
+```
+
+  `ArcaServiceCheck` lleva el código, el resultado (`Ready`, `NotAuthorized`, `Blocked`, `ClockSkew`, `Unavailable` o
+  `Failed` con un motivo estable), `TicketExpiresAtUtc?` y `RetryAfterUtc?`. Cada familia lo registra con
+  `services.TryAddEnumerable(ServiceDescriptor.Scoped<IArcaServiceDefinition, …>())`.
+- [ ] **Paso 6: `FakeArca`.** Es un `HttpMessageHandler` que enruta por la URL y el `SOAPAction`, responde los sobres de
   esta tarea y de la siguiente, cuenta las llamadas por operación y deja programar fallas por servicio: `alreadyAuthenticated`,
   `notAuthorized`, 503 y demora.
-- [ ] **Paso 6: correr** los dos tests de la tarea.
-- [ ] **Paso 7: commit.** `feat(arca): ticket de acceso compartido entre hosts con reserva`
+- [ ] **Paso 7: correr** los dos tests de la tarea y `ArcaFamilyBoundaryTests`.
+- [ ] **Paso 8: commit.** `feat(arca): ticket de acceso compartido e interfaz de las familias`
 
 ---
 
-### Tarea 6: WSFEv1 y padrón
+### Tarea 6: las familias `Registry` e `Invoicing`
 
 **Archivos:**
-- Crear: `src/ArquitecturaBase.Application/Modules/Arca/Interfaces/Integrations/IArcaInvoicingClient.cs`, `IArcaRegistryClient.cs`, `Models/ArcaPointOfSale.cs`, `Models/ArcaRegistryPerson.cs`, `Services/ArcaCompanyDataPolicy.cs`
-- Crear: `src/ArquitecturaBase.Infrastructure/Modules/Arca/Soap/ArcaInvoicingClient.cs`, `ArcaRegistryClient.cs`
-- Crear: `tests/ArquitecturaBase.Application.UnitTests/Modules/Arca/ArcaCompanyDataPolicyTests.cs`, `tests/ArquitecturaBase.Api.IntegrationTests/Modules/Arca/ArcaSoapClientsTests.cs`
+- **`Registry`:**
+  - `src/ArquitecturaBase.Application/Modules/Arca/Interfaces/Integrations/Registry/IArcaRegistryClient.cs`;
+  - `Models/Registry/ArcaRegistryPerson.cs`;
+  - `Services/Registry/ArcaCompanyDataPolicy.cs` y `ArcaRegistryServiceDefinition.cs`;
+  - `src/ArquitecturaBase.Infrastructure/Modules/Arca/Registry/ArcaRegistryClient.cs`.
+- **`Invoicing`:**
+  - `src/ArquitecturaBase.Application/Modules/Arca/Interfaces/Integrations/Invoicing/IArcaInvoicingClient.cs`;
+  - `Models/Invoicing/ArcaPointOfSale.cs`;
+  - `Services/Invoicing/ArcaInvoicingServiceDefinition.cs`;
+  - `src/ArquitecturaBase.Infrastructure/Modules/Arca/Invoicing/ArcaInvoicingClient.cs`.
+- **Tests:** `tests/ArquitecturaBase.Application.UnitTests/Modules/Arca/Registry/ArcaCompanyDataPolicyTests.cs`, y en
+  `tests/ArquitecturaBase.Api.IntegrationTests/Modules/Arca/`, `Registry/ArcaRegistryClientTests.cs` e
+  `Invoicing/ArcaInvoicingClientTests.cs`.
 
 - [ ] **Paso 0: confirmar en los manuales,** antes del código:
   - en el [manual de WSFEv1](https://www.arca.gob.ar/ws/documentacion/manuales/manual-desarrollador-ARCA-COMPG.pdf), los
@@ -586,10 +755,11 @@ public sealed record ArcaCertificateRef(Guid ConnectionId, Guid Id, string Cuit,
 
   Lo que difiera de este plan se corrige acá y en el [diseño](2026-11-03-arca-etapa-1-conexion.md#a-confirmar-al-programar).
 - [ ] **Paso 1: tests en rojo.**
-  - **`ArcaSoapClientsTests`, contra `FakeArca`:**
+  - **`ArcaInvoicingClientTests`, contra `FakeArca`:**
     - `FEDummy` con `AppServer`, `DbServer` y `AuthServer` en `OK` es `true`, y con alguno distinto es `false`;
     - `FEParamGetPtosVenta` devuelve número, tipo de emisión, bloqueado (`S`/`N`) y baja (`NULL` o fecha);
-    - el error 602 (sin datos) es una lista vacía;
+    - el error 602 (sin datos) es una lista vacía.
+  - **`ArcaRegistryClientTests`, contra `FakeArca`:**
     - `getPersona_v2` devuelve razón social o nombre y apellido, domicilio fiscal, impuestos y si es monotributo;
     - un `errorConstancia` se devuelve como resultado, sin excepción.
   - **`ArcaCompanyDataPolicyTests`:**
@@ -614,108 +784,154 @@ public sealed record ArcaCertificateRef(Guid ConnectionId, Guid Id, string Cuit,
 - [ ] **Paso 3: padrón.** Es `getPersona_v2` en el namespace `http://a5.soap.ws.server.puc.sr/`, con `token`, `sign`,
   `cuitRepresentada` (la CUIT de la conexión) e `idPersona` (la misma CUIT). Va sin `SOAPAction` y los elementos de
   entrada van sin calificar.
-- [ ] **Paso 4: correr** los dos tests.
-- [ ] **Paso 5: commit.** `feat(arca): clientes de WSFEv1 y del padrón`
+- [ ] **Paso 4: las definiciones.**
+  - **`ArcaRegistryServiceDefinition`** declara `ws_sr_constancia_inscripcion` como obligatorio. Su prueba pide el ticket,
+    consulta la CUIT de la conexión y guarda `ArcaRegistryCompany` con `ArcaCompanyDataPolicy`. `IsCompleteAsync` es
+    siempre `true`.
+  - **`ArcaInvoicingServiceDefinition`** declara `wsfe`, no obligatorio. Su prueba pide el ticket y llama a `FEDummy`.
+    `IsCompleteAsync` mira si `ArcaInvoicingSettings` tiene un punto de venta.
+- [ ] **Paso 5: correr** los tests de la tarea y `ArcaFamilyBoundaryTests`.
+- [ ] **Paso 6: commit.** `feat(arca): familias del padrón y de la facturación`
 
 ---
 
 ### Tarea 7: servicios de aplicación
 
 **Archivos:**
-- Crear: `src/ArquitecturaBase.Application/Modules/Arca/Interfaces/Services/IArcaConnectionService.cs`, `IArcaConnectionTestService.cs`, `Services/ArcaConnectionService.cs`, `Services/ArcaConnectionTestService.cs`, `Models/ArcaConnectionResponse.cs`, `Models/ArcaTestResponse.cs`, `Models/ArcaServiceCheck.cs`, `Models/ArcaPointOfSaleRow.cs`
-- Crear: `tests/ArquitecturaBase.Application.UnitTests/Modules/Arca/ArcaConnectionServiceTests.cs`, `TestFeatures/Modules/Arca/*` (fakes de repositorio, credenciales y clientes)
+- **`Connection`:**
+  - `src/ArquitecturaBase.Application/Modules/Arca/Interfaces/Services/Connection/IArcaConnectionService.cs` e `IArcaConnectionTestService.cs`;
+  - `Services/Connection/ArcaConnectionService.cs` y `ArcaConnectionTestService.cs`;
+  - `Models/Connection/ArcaConnectionResponse.cs` y `ArcaTestResponse.cs`.
+- **`Invoicing`:** `Interfaces/Services/Invoicing/IArcaInvoicingSetupService.cs`, `Services/Invoicing/ArcaInvoicingSetupService.cs`, `Models/Invoicing/ArcaPointOfSaleRow.cs` y `ArcaInvoicingSettingsResponse.cs`
+- **`Registry`:** `Models/Registry/ArcaCompanyResponse.cs`, servido por un método de lectura en `ArcaRegistryServiceDefinition` o un servicio chico propio, a elección de quien programe
+- **Tests:** `tests/ArquitecturaBase.Application.UnitTests/Modules/Arca/Connection/ArcaConnectionServiceTests.cs`, `Invoicing/ArcaInvoicingSetupServiceTests.cs` y los dobles en `TestFeatures/Modules/Arca/`
 
 Referencias: `AiConnectionService`, `AiConnectionTestService` y `RoleService.UpdateAsync`, para la forma de guardar con
 `ExecuteInTransactionAsync(…, CommitPolicy.OnSuccess, …)`. El límite de dependencias por servicio es 8
-(`ServiceDependencyLimitTests`): por eso la prueba va en un servicio aparte.
+(`ServiceDependencyLimitTests`).
 
-- [ ] **Paso 1: tests en rojo** en `ArcaConnectionServiceTests`:
-  - **empezar** con CUIT y alias válidos crea la conexión, el certificado pendiente y sus dos tickets vacíos;
-  - **empezar con la conexión ya activa** crea solo el pendiente de la renovación;
-  - **la revisión vieja** da `RevisionConflict`;
-  - **subir un certificado inválido** devuelve el error del inspector y no cambia nada;
-  - **subir uno válido en el alta** lo deja activo y la conexión `Unverified`;
-  - **subir uno válido en la renovación** lo deja guardado como pendiente cargado, sin reemplazar al activo;
-  - **la prueba de una renovación** en verde promueve el nuevo y borra el viejo con sus tickets; en rojo, el activo sigue;
-  - **cancelar la renovación** borra el pendiente;
-  - **la prueba en verde** guarda los datos de la empresa y pasa a `Active` si había punto de venta;
-  - **la prueba en rojo** de una conexión activa pasa a `NeedsAttention`;
-  - **la prueba no pisa:** si el certificado probado dejó de ser el activo mientras corría, el resultado no se guarda;
-  - **elegir un punto de venta** que ARCA ya no devuelve da `PointOfSaleUnavailable`;
-  - **desconectar** borra todo.
+- [ ] **Paso 1: tests en rojo.**
+  - **`ArcaConnectionServiceTests`:**
+    - **empezar** con CUIT, alias y servicios válidos crea la conexión, con el certificado pendiente;
+    - **empezar con un servicio no instalado** da `ServiceNotInstalled`;
+    - **empezar con la conexión ya activa** crea solo el pendiente de la renovación;
+    - **elegir servicios** guarda los nuevos; quitar uno obligatorio no se puede;
+    - **la revisión vieja** da `RevisionConflict`;
+    - **subir un certificado inválido** devuelve el error del inspector y no cambia nada;
+    - **subir uno válido en el alta** lo deja activo y la conexión `Unverified`;
+    - **subir uno válido en la renovación** lo guarda como pendiente cargado, sin reemplazar al activo;
+    - **cancelar la renovación** borra el pendiente;
+    - **desconectar** borra todo.
+  - **`ArcaConnectionTestService`**, con dos definiciones de prueba:
+    - corre `CheckAsync` solo de los servicios elegidos que siguen instalados;
+    - con todo en verde y las familias completas, deja `Active`;
+    - con todo en verde y una familia incompleta, deja `Unverified`; si ya estaba activa, `NeedsAttention`;
+    - un servicio en rojo deja `NeedsAttention` si estaba activa;
+    - la prueba de una renovación en verde promueve el nuevo certificado y borra el viejo con sus tickets; en rojo, el
+      activo sigue;
+    - si el certificado probado dejó de ser el activo mientras corría, el resultado no se guarda.
+  - **`ArcaInvoicingSetupServiceTests`:**
+    - lista los puntos de venta de web service, sin bloqueados ni dados de baja;
+    - elegir uno que ARCA ya no devuelve da `PointOfSaleUnavailable`;
+    - elegir uno válido lo guarda y vuelve a evaluar la conexión con `IsCompleteAsync` de todas las familias elegidas,
+      sin nombrar a ninguna.
 - [ ] **Paso 2: contratos.**
 
 ```csharp
 public interface IArcaConnectionService
 {
     Task<Result<ArcaConnectionResponse>> GetAsync(CancellationToken cancellationToken);
-    Task<Result<ArcaConnectionResponse>> StartCertificateRequestAsync(string cuit, ArcaEnvironment environment, string alias, long expectedRevision, CancellationToken cancellationToken);
+    Task<Result<ArcaConnectionResponse>> StartCertificateRequestAsync(string cuit, ArcaEnvironment environment, string alias,
+        IReadOnlyCollection<string> services, long expectedRevision, CancellationToken cancellationToken);
+    Task<Result<ArcaConnectionResponse>> ChooseServicesAsync(IReadOnlyCollection<string> services, long expectedRevision, CancellationToken cancellationToken);
     Task<Result<string>> GetPendingRequestPemAsync(CancellationToken cancellationToken);
     Task<Result<ArcaConnectionResponse>> CancelRenewalAsync(long expectedRevision, CancellationToken cancellationToken);
     Task<Result<ArcaConnectionResponse>> UploadCertificateAsync(string certificatePem, long expectedRevision, CancellationToken cancellationToken);
-    Task<Result<ArcaConnectionResponse>> ChoosePointOfSaleAsync(int number, long expectedRevision, CancellationToken cancellationToken);
     Task<Result> DisconnectAsync(long expectedRevision, CancellationToken cancellationToken);
 }
 
 public interface IArcaConnectionTestService
 {
     Task<Result<ArcaTestResponse>> TestAsync(CancellationToken cancellationToken);
+    /// Vuelve a calcular el estado con IsCompleteAsync de las familias elegidas; lo llama una familia al guardar lo suyo.
+    Task<Result<ArcaConnectionResponse>> ReevaluateAsync(CancellationToken cancellationToken);
+}
+
+public interface IArcaInvoicingSetupService
+{
+    Task<Result<ArcaInvoicingSettingsResponse>> GetAsync(CancellationToken cancellationToken);
     Task<Result<IReadOnlyList<ArcaPointOfSaleRow>>> ListPointsOfSaleAsync(CancellationToken cancellationToken);
+    Task<Result<ArcaInvoicingSettingsResponse>> ChoosePointOfSaleAsync(int number, CancellationToken cancellationToken);
 }
 ```
 
-  `ArcaTestResponse` lleva un `ArcaServiceCheck` por servicio (`Service`, `Outcome`, `TicketExpiresAtUtc?` y
-  `RetryAfterUtc?`), los datos de la empresa y la conexión actualizada. Subir el certificado en el alta encadena la prueba
-  desde el controller, como dice el diseño.
-- [ ] **Paso 3: implementación.** Cada escritura es un solo `ExecuteInTransactionAsync` con `LockConnectionAsync` adentro.
-  La prueba hace sus llamadas a ARCA fuera de la transacción, y después guarda en otra transacción corta, comparando el
-  certificado activo. Los logs van con `[LoggerMessage]` y la CUIT con `Cuit.Mask`.
-- [ ] **Paso 4: correr** `ArcaConnectionServiceTests`, `ApplicationServicesTests`, `ServiceDependencyLimitTests` y
-  `TransactionBoundaryTests`.
-- [ ] **Paso 5: commit.** `feat(arca): alta, prueba, renovación y punto de venta`
+  `ArcaConnectionResponse` lleva los servicios instalados (código, familia y si es obligatorio), los elegidos, el estado,
+  el ambiente, la CUIT, los certificados sin secretos, la última prueba y la revisión. `ArcaTestResponse` lleva un
+  `ArcaServiceCheck` por servicio y la conexión actualizada. `Invoicing` depende de `Connection`
+  (`IArcaConnectionTestService.ReevaluateAsync`, el ticket y el certificado activo); nunca al revés.
+- [ ] **Paso 3: implementación.**
+  - Cada escritura es un solo `ExecuteInTransactionAsync` con `LockConnectionAsync` adentro.
+  - La prueba hace sus llamadas a ARCA fuera de la transacción, y después guarda en otra transacción corta, comparando el
+    certificado activo.
+  - Los logs van con `[LoggerMessage]` y la CUIT con `Cuit.Mask`.
+- [ ] **Paso 4: correr** los tests de la tarea, `ApplicationServicesTests`, `ServiceDependencyLimitTests`,
+  `TransactionBoundaryTests` y `ArcaFamilyBoundaryTests`.
+- [ ] **Paso 5: commit.** `feat(arca): alta, servicios, prueba, renovación y punto de venta`
 
 ---
 
 ### Tarea 8: contrato HTTP
 
 **Archivos:**
-- Crear: `src/ArquitecturaBase.Api/Modules/Arca/Controllers/ArcaConnectionController.cs`, `Contracts/*.cs`, `ArcaRateLimitOptions.cs`
+- Crear en `src/ArquitecturaBase.Api/Modules/Arca/`:
+  - `Controllers/`: `ArcaConnectionController.cs`, `ArcaRegistryController.cs` y `ArcaInvoicingController.cs`;
+  - `Contracts/Connection/`: `StartArcaConnectionHttpRequest.cs`, `ChooseArcaServicesHttpRequest.cs`, `UploadArcaCertificateHttpRequest.cs` y `ArcaRevisionHttpRequest.cs`;
+  - `Contracts/Invoicing/ChooseArcaPointOfSaleHttpRequest.cs`;
+  - `ArcaRateLimitOptions.cs`.
 - Modificar: `tests/ArquitecturaBase.Api.IntegrationTests/Modules/Arca/ArcaTestModule.cs` (`Routes`)
-- Crear: `tests/ArquitecturaBase.Api.IntegrationTests/Modules/Arca/ArcaConnectionEndpointsTests.cs`
+- Crear: `tests/ArquitecturaBase.Api.IntegrationTests/Modules/Arca/Connection/ArcaConnectionEndpointsTests.cs`, `Registry/ArcaRegistryEndpointsTests.cs` e `Invoicing/ArcaInvoicingEndpointsTests.cs`
 
 Referencias: `AiConnectionController`, `UpdateAiConnectionHttpRequest` (con su `ToString`) y `AiRateLimitOptions`.
 
-- [ ] **Paso 1: tests en rojo** en `ArcaConnectionEndpointsTests`, con `FakeArca` y `FakeArcaCertificateAuthority`:
+- [ ] **Paso 1: tests en rojo,** con `FakeArca` y `FakeArcaCertificateAuthority`:
   - **permisos:** 401 sin sesión, y 403 sin `arca.read` o, en las escrituras, sin `arca.manage`;
-  - **sin conexión,** `GET` devuelve `status: null` y revisión 0;
-  - **el alta completa:** empezar, descargar el `.csr` (`application/pkcs10`, con el nombre `arca-<alias>.csr`), emitirlo con
-    la CA de prueba, subirlo (prueba sola), listar los puntos de venta, elegir el 5 y ver `Active`;
+  - **sin conexión,** `GET api/arca/connection` devuelve `status: null`, los servicios instalados y revisión 0;
+  - **el alta completa:**
+    - empezar con `wsfe` y el padrón;
+    - descargar el `.csr` (`application/pkcs10`, con el nombre `arca-<alias>.csr`) y emitirlo con la CA de prueba;
+    - subirlo (prueba sola) y leer los datos de la empresa en `GET api/arca/registry/company`;
+    - listar los puntos de venta, elegir el 5 y ver `Active`;
+  - **sin elegir `wsfe`,** la conexión queda activa sin punto de venta;
   - **una revisión vieja** da 409 con ProblemDetails y `code` `Arca.Connection.RevisionConflict`;
   - **un servicio sin autorizar** devuelve 200 con ese servicio en `NotAuthorized` y la conexión en `NeedsAttention`;
   - **la renovación sin corte:** mientras hay un pendiente, la prueba sigue usando el activo;
   - **desconectar** deja `GET` como sin conexión;
   - **ninguna respuesta** contiene `PRIVATE KEY`, el token ni la firma.
-- [ ] **Paso 2: rutas** (MVC, `[Route("api/arca/connection")]`):
+- [ ] **Paso 2: rutas** (MVC). Las escrituras y las llamadas a ARCA exigen `arca.read` y `arca.manage`; las lecturas,
+  `arca.read`.
 
-| Verbo y ruta | Permisos | Servicio |
+| Controlador | Verbo y ruta | Servicio |
 | --- | --- | --- |
-| `GET` | `arca.read` | `GetAsync` |
-| `POST certificate-requests` | `arca.read` y `arca.manage` | `StartCertificateRequestAsync` |
-| `GET certificate-requests/current` | `arca.read` y `arca.manage` | `GetPendingRequestPemAsync`, como archivo |
-| `DELETE certificate-requests/current` | `arca.read` y `arca.manage` | `CancelRenewalAsync` (revisión en la query) |
-| `PUT certificate` | `arca.read` y `arca.manage` | `UploadCertificateAsync`, y en el alta la prueba |
-| `POST test` | `arca.read` y `arca.manage` | `TestAsync` |
-| `GET points-of-sale` | `arca.read` y `arca.manage` | `ListPointsOfSaleAsync` |
-| `PUT point-of-sale` | `arca.read` y `arca.manage` | `ChoosePointOfSaleAsync` |
-| `DELETE` | `arca.read` y `arca.manage` | `DisconnectAsync` (revisión en la query) |
+| `ArcaConnectionController` | `GET api/arca/connection` | `GetAsync` |
+| | `POST api/arca/connection/certificate-requests` | `StartCertificateRequestAsync` |
+| | `GET api/arca/connection/certificate-requests/current` | `GetPendingRequestPemAsync`, como archivo |
+| | `DELETE api/arca/connection/certificate-requests/current` | `CancelRenewalAsync` (revisión en la query) |
+| | `PUT api/arca/connection/services` | `ChooseServicesAsync` |
+| | `PUT api/arca/connection/certificate` | `UploadCertificateAsync`, y en el alta la prueba |
+| | `POST api/arca/connection/test` | `TestAsync` |
+| | `DELETE api/arca/connection` | `DisconnectAsync` (revisión en la query) |
+| `ArcaRegistryController` | `GET api/arca/registry/company` | los datos de la empresa |
+| `ArcaInvoicingController` | `GET api/arca/invoicing/settings` | `GetAsync` |
+| | `GET api/arca/invoicing/points-of-sale` | `ListPointsOfSaleAsync` |
+| | `PUT api/arca/invoicing/point-of-sale` | `ChoosePointOfSaleAsync` |
 
   - **Contratos:** el certificado viaja como PEM en JSON, con un tope de 16 KiB. `UploadArcaCertificateHttpRequest.ToString`
     redacta el certificado y `StartArcaConnectionHttpRequest.ToString` enmascara la CUIT.
   - **Rate limit:** la prueba y la lista de puntos de venta tienen un límite por operador.
-  - **Inventario:** las nueve rutas van en `ArcaTestModule.Routes`.
-- [ ] **Paso 3: correr** `ArcaConnectionEndpointsTests`, `ExplicitRouteInventoryTests`, `ControllerInputContractTests` y
-  `PermissionAuthorizationTests`.
-- [ ] **Paso 4: commit.** `feat(arca): rutas de la conexión`
+  - **Inventario:** las doce rutas van en `ArcaTestModule.Routes`.
+- [ ] **Paso 3: correr** los tests de la tarea, `ExplicitRouteInventoryTests`, `ControllerInputContractTests`,
+  `PermissionAuthorizationTests` y `ArcaFamilyBoundaryTests`.
+- [ ] **Paso 4: commit.** `feat(arca): rutas de la conexión, el padrón y la facturación`
 
 ---
 
@@ -725,27 +941,41 @@ Repo `../ArquitecturaBaseFront`. Antes, leer su `AGENTS.md`, el de `src/features
 `src/features/artificial-intelligence`, que es la pantalla más parecida (`AiSettingsPage`).
 
 **Archivos:**
-- Crear: `src/features/arca/AGENTS.md` y `CLAUDE.md`, `api/arcaConnection.ts`, `model.ts`, `pages/ArcaSettingsPage.tsx`, `components/ArcaSetupZones.tsx` (las cinco zonas del alta), `components/ArcaActiveSections.tsx` (empresa, servicios, certificado y punto de venta), `components/ArcaDisconnectDialog.tsx`
-- Crear: `src/locales/es/arca.json` y `src/locales/en/arca.json`
-- Modificar: `src/app/routes.tsx` (`/configuracion/arca` con `ProtectedRoute permission="arca.read"`), `src/layouts/navigation.ts` (entrada `navigation.arca` en «Configuración» con `permission: "arca.read"`), `src/locales/{es,en}/common.json`
-- Crear: `pages/ArcaSettingsPage.test.tsx`, `model.test.ts` y las escenas visuales de `src/test/visual`
+- Crear en `src/features/arca/`:
+  - `AGENTS.md` y `CLAUDE.md`;
+  - `pages/ArcaSettingsPage.tsx`, que arma las zonas de las familias instaladas según `GET api/arca/connection`;
+  - `connection/`: `api.ts`, `model.ts`, `SetupZones.tsx` (datos con «Servicios que usa», pedido, certificado y prueba), `ActiveSections.tsx` (servicios con «Lo usa esta empresa» y certificado) y `DisconnectDialog.tsx`;
+  - `registry/`: `api.ts` y `CompanySection.tsx`;
+  - `invoicing/`: `api.ts` y `PointOfSaleZone.tsx`.
+- Crear: `src/locales/es/arca.json` y `src/locales/en/arca.json`, con una sección por familia
+- Modificar: `src/app/routes.tsx` (`/configuracion/arca` con `ProtectedRoute permission="arca.read"`), `src/layouts/navigation.ts` (entrada `navigation.arca` en «Configuración», con `permission: "arca.read"`) y `src/locales/{es,en}/common.json`
+- Crear: `pages/ArcaSettingsPage.test.tsx`, los tests de cada familia y las escenas visuales de `src/test/visual`
 
-- [ ] **Paso 1: tests en rojo** (Vitest con MSW): cada estado de AC3 tiene su test.
+Una familia del front no importa a otra. La página conoce las zonas por un registro chico (familia → componente), así
+quitar una familia es borrar su carpeta y su línea.
+
+- [ ] **Paso 1: tests en rojo** (Vitest con MSW), uno por estado de AC3 y por zona:
   - **Sin conexión:** con `arca.manage` se ve «Conectar con ARCA», que abre el paso 1; sin él, «Solo lectura».
-  - **Paso 1:** la CUIT con el dígito mal da el error junto al campo, sin pedido al servidor.
+  - **Paso 1:**
+    - la CUIT con el dígito mal da el error junto al campo, sin pedido al servidor;
+    - «Servicios que usa» muestra los instalados, con el padrón marcado y fijo.
   - **«Generar el pedido»** pliega «Datos» con su resumen y ofrece la descarga.
-  - **Subir un certificado que no corresponde** muestra el texto del `detail` junto a la carga.
+  - **Paso 3:** la lista de lo que se hace en ARCA nombra los servicios elegidos, y un certificado que no corresponde
+    muestra el texto del `detail` junto a la carga.
   - **La prueba con un servicio sin autorizar** dice cuál y deja «Probar de nuevo».
-  - **«Activar la conexión»** se habilita solo con un punto de venta elegido y la prueba en verde.
-  - **La conexión activa** muestra las cuatro zonas, y «Renovar» muestra el pendiente dentro de «Certificado».
+  - **La zona «Punto de venta»** aparece solo con Facturación elegida, y «Activar la conexión» se habilita cuando la prueba
+    sale en verde y las zonas están completas.
+  - **La conexión activa** muestra Empresa, Servicios (con «Lo usa esta empresa»), Certificado y Punto de venta; «Renovar»
+    muestra el pendiente dentro de «Certificado».
   - **Avisos de vencimiento:** treinta días antes, amarillo; vencido, rojo.
   - **Un 409** abre «Revisar» con «Leer lo actual».
   - **«Desconectar»** pide confirmación.
   - **«Probando…»:** el botón ocupado.
-- [ ] **Paso 2: implementación.** Usa las piezas de `shared/ui`: `Surface` con banda, `Button`, la (i) con tooltip y
-  `ConfirmDialog`. Todas las medidas van en rem ([escala del 75 %](../../../ArquitecturaBaseFront/docs/design/visual-baseline.md)),
-  sin leyendas fijas (la ayuda va en la (i)) y con los textos en voseo. Las zonas apagadas no son interactivas, y la zona
-  en curso recibe el foco al abrirse.
+- [ ] **Paso 2: implementación.**
+  - Usa las piezas de `shared/ui`: `Surface` con banda, `Button`, la (i) con tooltip y `ConfirmDialog`.
+  - Todas las medidas van en rem ([escala del 75 %](../../../ArquitecturaBaseFront/docs/design/visual-baseline.md)).
+  - Sin leyendas fijas: la ayuda va en la (i). Los textos, en voseo.
+  - Las zonas apagadas no son interactivas, y la zona en curso recibe el foco al abrirse.
 - [ ] **Paso 3: correr** `npm run lint`, `npm run test -- src/features/arca` y `npm run test:visual` para las escenas
   nuevas.
 - [ ] **Paso 4: commit en el front.** `feat(arca): pantalla de la conexión con ARCA`
@@ -755,10 +985,10 @@ Repo `../ArquitecturaBaseFront`. Antes, leer su `AGENTS.md`, el de `src/features
 ### Cierre
 
 - [ ] **Docs:**
-  - `docs/features/arca.md` con la regla vigente;
+  - `docs/features/arca.md`, con la regla vigente y una sección por familia;
   - `docs/guides/configurar-arca.md`, con el anillo en user-secrets, las direcciones, el alta en WSASS y en producción, y la
     renovación;
-  - `docs/guides/quitar-arca.md`, como `quitar-ia.md`;
+  - `docs/guides/quitar-arca.md`, con el módulo entero (como `quitar-ia.md`) y una familia sola;
   - el `AGENTS.md` y el `CLAUDE.md` de cada carpeta nueva y el [mapa de instrucciones](../architecture/mapa-de-instrucciones.md);
   - en este plan y en la [hoja de ruta](2026-10-31-arca-formularios-estandar.md), la etapa cerrada.
 - [ ] **Verificación,** según [validar un cambio](../guides/validar-un-cambio.md#verificación-y-cierre):
@@ -767,13 +997,16 @@ Repo `../ArquitecturaBaseFront`. Antes, leer su `AGENTS.md`, el de `src/features
   - `dotnet build ArquitecturaBase.slnx` sin advertencias;
   - en el front: build, lint, tests y la suite visual;
   - `aspire stop` si se levantó la app.
-- [ ] **Prueba de fuego de la retirada:** en una copia descartable de los dos repos, sin tocar las carpetas de trabajo,
-  un agente sigue solo `quitar-arca.md` y comprueba:
-  - el build sin advertencias, `RemoveArca` con solo los tres `DropTable` y `has-pending-model-changes` sin cambios;
-  - `ModuleBoundaryTests`, `ErrorCodeTests` y los tests del núcleo en verde;
-  - en el front, build, lint y tests;
-  - sin rastros: `git grep -nE '\bArca|\barca\b|\bARCA\b' -- src tests` en el backend y `-- src` en el front no
-    devuelven nada (con `-i` aparecería «marca»).
+- [ ] **Prueba de fuego de la retirada:** en copias descartables de los dos repos, sin tocar las carpetas de trabajo, un
+  agente sigue solo `quitar-arca.md` dos veces.
+  - **Quitando la familia `Invoicing`:** el build sin advertencias, la migración que borra solo `ArcaInvoicingSettings`,
+    los tests del módulo que quedan en verde y la conexión activa sin punto de venta.
+  - **Quitando el módulo entero:**
+    - el build sin advertencias, `RemoveArca` con solo los `DropTable` del módulo y `has-pending-model-changes` sin cambios;
+    - `ModuleBoundaryTests`, `ErrorCodeTests` y los tests del núcleo en verde;
+    - en el front, build, lint y tests;
+    - sin rastros: `git grep -nE '\bArca|\barca\b|\bARCA\b' -- src tests` en el backend y `-- src` en el front no
+      devuelven nada (con `-i` aparecería «marca»).
 
   Lo que encuentre se corrige en la guía, como se hizo con WhatsApp.
 - [ ] **Homologación real con el usuario:**
@@ -785,8 +1018,8 @@ Repo `../ArquitecturaBaseFront`. Antes, leer su `AGENTS.md`, el de `src/features
 ## Autorrevisión
 
 - **Cobertura del diseño:**
-  - recorrido AC1-A → tareas 7, 8 y 9; conexión activa AC2-A y estados AC3 → tarea 9;
-  - módulo y permisos → tarea 1; datos → tareas 2 y 3; ticket → tarea 5; clientes → tareas 5 y 6;
+  - recorrido AC1-A, conexión activa AC2-A y estados AC3 → tareas 7, 8 y 9;
+  - módulo, permisos y familias → tareas 1 y 5; datos → tareas 2 y 3; ticket → tarea 5; clientes → tareas 5 y 6;
   - contrato HTTP → tarea 8; errores → tarea 2; robustez y privacidad → tareas 4, 5 y 8; pruebas → cada tarea y el
     cierre; «A confirmar al programar» → paso 0 de la tarea 6.
 - **Fuera de este plan,** como fija el diseño: emitir, las tablas de ARCA como catálogos, el autocompletar del cliente y

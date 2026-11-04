@@ -46,3 +46,4 @@ Las siete primeras salen de las decisiones D1 a D7 del plan de estandarización 
 - [0022 — Lectura de documentos con IA](0022-lectura-de-documentos-con-ia.md) (aceptada el 2026-10-22; rige desde Documentos por WhatsApp).
 - [0023 — ARCA como módulo opcional y sus credenciales](0023-arca-como-modulo-opcional.md) (aceptada el 2026-11-03; rige desde la etapa 1 de ARCA).
 - [0024 — La IA arma formularios y catálogos a pedido](0024-ia-arma-formularios-y-catalogos.md) (aceptada el 2026-11-04; rige desde la etapa 1 de [su plan](../plans/2026-11-04-ia-arma-formularios-y-catalogos.md)).
+- [0025 — Familias de servicios dentro del módulo ARCA](0025-familias-de-servicios-arca.md) (aceptada el 2026-11-04; rige desde la etapa 1 de ARCA).

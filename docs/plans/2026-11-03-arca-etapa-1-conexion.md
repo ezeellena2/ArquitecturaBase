@@ -4,14 +4,15 @@ Diseño del 2026-11-03, con las decisiones del usuario del 2026-11-01 al 2026-11
 [hoja de ruta de ARCA](2026-10-31-arca-formularios-estandar.md): conectar una instalación con ARCA usando el certificado
 de la empresa, probar la conexión, traer los datos de la empresa desde el padrón y elegir el punto de venta. No emite
 comprobantes ni tiene efecto legal. El [ADR 0023](../decisions/0023-arca-como-modulo-opcional.md) fija el módulo y sus
-credenciales, y el [plan de implementación](2026-11-03-arca-etapa-1-implementacion.md) lo parte en nueve tareas.
+credenciales, el [ADR 0025](../decisions/0025-familias-de-servicios-arca.md) lo ordena por familias de servicios, y el
+[plan de implementación](2026-11-03-arca-etapa-1-implementacion.md) lo parte en nueve tareas.
 
 **Tableros:** AC1-A, AC2-A y AC3 en el lienzo provisorio
 [Formularios desde la app](https://claude.ai/artifact/Kvbr5KFJrGT951JLiu8i4M), en las filas «ARCA · conexión». Las
 descartadas (AC1-B y AC2-B) quedan al lado. El lienzo [Sistema visual](https://claude.ai/artifact/HPbmDPLnr8JZ9TxevtTqJJ)
 sigue sin abrirse desde la cuenta de estas sesiones: los tableros elegidos se pasan allí antes de programar.
 
-## Decisiones (2026-11-01 al 2026-11-03)
+## Decisiones (2026-11-01 al 2026-11-04)
 
 1. **Alcance:** conexión, certificado, prueba, datos de la empresa desde el padrón y punto de venta. Las tablas de ARCA como
    catálogos y el autocompletar de la CUIT del cliente pasan a la etapa 3, cuando ya existan las carpetas de formularios y
@@ -23,6 +24,14 @@ sigue sin abrirse desde la cuenta de estas sesiones: los tableros elegidos se pa
 4. **El alta en la misma página, por zonas (AC1-A).** No es un asistente en un diálogo (AC1-B).
 5. **La conexión activa, por zonas (AC2-A).** No es una ficha con historial (AC2-B).
 6. **Los modos de delegación no se muestran** hasta las etapas 5 y 6, aunque el modelo de datos ya los admite.
+7. **Una carpeta por familia de servicios** (2026-11-04, [ADR 0025](../decisions/0025-familias-de-servicios-arca.md)). En la
+   etapa 1 hay tres familias:
+   - `Connection`: conexión, certificado y ticket;
+   - `Registry`: padrón y datos de la empresa;
+   - `Invoicing`: `FEDummy` y punto de venta.
+
+   Ninguna usa a otra, y cada una se puede quitar sola.
+8. **Cada empresa elige qué servicios de ARCA usa** (2026-11-04). Solo esos se autorizan, se prueban y muestran sus zonas.
 
 **Resueltas por defecto**, sin objeción del usuario:
 
@@ -39,30 +48,36 @@ sigue sin abrirse desde la cuenta de estas sesiones: los tableros elegidos se pa
 La pantalla ARCA muestra cinco zonas. La que está en curso está abierta, las hechas quedan plegadas con su resumen y las
 siguientes, apagadas. Se puede salir y volver, porque cada paso queda guardado.
 
-1. **Datos:** CUIT con el dígito verificador validado, ambiente y alias. El alias es el nombre con el que se crea el
-   certificado en ARCA, y su ayuda va en la (i). «Generar el pedido» crea la clave privada (RSA 2048) en el servidor, la
-   guarda cifrada y arma el CSR con `serialNumber=CUIT …`. No llama a ARCA.
+1. **Datos:**
+   - CUIT con el dígito verificador validado, ambiente y alias. El alias es el nombre con el que se crea el certificado en
+     ARCA, y su ayuda va en la (i).
+   - «Servicios que usa»: una casilla por servicio instalado. La constancia de inscripción viene marcada y fija, porque trae
+     los datos de la empresa. Facturación electrónica viene marcada.
+   - «Generar el pedido» crea la clave privada (RSA 2048) en el servidor, la guarda cifrada y arma el CSR con
+     `serialNumber=CUIT …`. No llama a ARCA.
 2. **Pedido de certificado:** se descarga el `.csr`. Plegado, ofrece «Descargar de nuevo».
-3. **Certificado:** una lista corta de lo que se hace en ARCA, con «Abrir ARCA»: crear el alias con el pedido, descargar el
-   certificado y autorizar «Facturación electrónica» y «Constancia de inscripción» para el alias. En homologación, esos
-   pasos se hacen en WSASS. Después se sube el `.crt`. La app comprueba que corresponda a la clave que generó, que tenga la
-   CUIT de la conexión, que sea del ambiente elegido y que no esté vencido. Si pasa, prueba sola.
-4. **Prueba:** pide un ticket de acceso para cada servicio. Facturación responde a `FEDummy` y el padrón trae los datos de
-   la empresa: razón social, condición frente al IVA y domicilio fiscal. Cada servicio muestra su resultado, y si falla,
-   cuál y por qué.
-5. **Punto de venta:** los puntos de web service que devuelve `FEParamGetPtosVenta`. Los bloqueados se ven apagados y los
-   dados de baja no aparecen. La (i) pide uno que no use otro sistema. «Activar la conexión» se habilita al elegir uno con
-   la última prueba en verde.
+3. **Certificado:**
+   - Una lista corta de lo que se hace en ARCA, con «Abrir ARCA»: crear el alias con el pedido, descargar el certificado y
+     autorizar para el alias los servicios elegidos. En homologación, esos pasos se hacen en WSASS.
+   - Después se sube el `.crt`. La app comprueba que corresponda a la clave que generó, que tenga la CUIT de la conexión,
+     que sea del ambiente elegido y que no esté vencido. Si pasa, prueba sola.
+4. **Prueba:** pide un ticket de acceso para cada servicio elegido y corre la prueba de su familia. Facturación responde a
+   `FEDummy` y el padrón trae los datos de la empresa: razón social, condición frente al IVA y domicilio fiscal. Cada
+   servicio muestra su resultado, y si falla, cuál y por qué.
+5. **Punto de venta**, la zona de Facturación (solo si está elegida): los puntos de web service que devuelve
+   `FEParamGetPtosVenta`. Los bloqueados se ven apagados y los dados de baja no aparecen. La (i) pide uno que no use otro
+   sistema. «Activar la conexión» se habilita cuando la prueba sale en verde y la zona de cada familia elegida está
+   completa. Una familia nueva que necesite su propia configuración suma su zona acá.
 
 ### La conexión activa (AC2-A)
 
 - **Arriba:** el estado y el ambiente junto al título, y «Desconectar» en rojo, con confirmación.
 - **Empresa:** los datos del padrón, que se actualizan con cada prueba.
-- **Servicios:** cada uno dice si responde y hasta cuándo vale su ticket. La banda tiene «Probar» y la hora de la última
-  prueba.
+- **Servicios:** cada servicio instalado tiene «Lo usa esta empresa». Los elegidos dicen si responden y hasta cuándo vale su
+  ticket. La banda tiene «Probar» y la hora de la última prueba. Elegir uno nuevo pide autorizarlo en ARCA y probar.
 - **Certificado:** alias y vencimiento, con «Renovar». Renovar genera un pedido nuevo mientras el certificado actual sigue
   andando; cuando el nuevo pasa la prueba, reemplaza al anterior. La renovación se puede cancelar.
-- **Punto de venta:** número y descripción, con «Cambiar».
+- **Punto de venta**, de Facturación: número y descripción, con «Cambiar».
 
 ### Estados (AC3)
 
@@ -84,8 +99,8 @@ siguientes, apagadas. Se puede salir y volver, porque cada paso queda guardado.
 Nada vive en la URL: es una sola pantalla.
 
 **El ciclo de estados:** sin conexión → esperando el certificado → sin verificar → activa ⇄ requiere atención. Una prueba
-fallida o un certificado vencido llevan a «requiere atención», y una prueba en verde con el certificado vigente vuelve a
-«activa».
+fallida, un certificado vencido o una familia elegida sin su configuración llevan a «requiere atención». Una prueba en verde
+con el certificado vigente y las familias completas vuelve a «activa».
 
 ## Backend
 
@@ -93,6 +108,12 @@ fallida o un certificado vencido llevan a «requiere atención», y una prueba e
 
 - **Ubicación:** `Modules/Arca` en Domain, Application, Infrastructure y Api, con un `Arca<Capa>Registration` por capa que
   compone `Program.cs`. El núcleo no lo nombra ([módulos opcionales](../architecture/backend.md#módulos-opcionales)).
+- **Familias** ([ADR 0025](../decisions/0025-familias-de-servicios-arca.md)): cada capa tiene una carpeta por familia
+  (`Connection`, `Registry`, `Invoicing`), como las áreas del núcleo.
+  - Una familia usa solo `Connection`.
+  - `Connection` conoce a las demás solo por `IArcaServiceDefinition`: sus servicios WSN, su prueba y si su configuración
+    está completa.
+  - Cada registro tiene una línea por familia.
 - **Permisos:** `ArcaPermissions` aporta `arca.read` y `arca.manage` con `IPermissionCatalogSource`, según
   [permiso nuevo](../guides/permiso-nuevo.md). El de emitir llega con la etapa 3.
 - **Menú:** «ARCA» aparece con `arca.read`, como «Inteligencia artificial» con `ai.read`. Ese permiso existe solo si el
@@ -107,11 +128,16 @@ Hay una sola conexión por instalación, con un índice único como el de IA.
 
 | Tabla | Qué guarda |
 | --- | --- |
-| `ArcaConnections` | Modo (los tres; solo se habilita el del certificado de la empresa), ambiente, CUIT, estado, punto de venta, los datos de la empresa del padrón, el resultado y la fecha de la última prueba, y la revisión. Es `IAuditable` |
-| `ArcaCertificates` | Conexión, papel (activo o pendiente), alias, el CSR (público), la clave privada cifrada, el certificado, sus fechas y su huella. Hay a lo sumo uno activo y uno pendiente |
-| `ArcaAccessTickets` | Certificado, servicio, token y firma cifrados, y vencimiento. Uno por certificado y servicio |
+| Familia | Tabla | Qué guarda |
+| --- | --- | --- |
+| Connection | `ArcaConnections` | Modo (los tres; solo se habilita el del certificado de la empresa), ambiente, CUIT, estado, los servicios elegidos (códigos WSN), el resultado y la fecha de la última prueba, y la revisión. Es `IAuditable` |
+| Connection | `ArcaCertificates` | Conexión, papel (activo o pendiente), alias, el CSR (público), la clave privada cifrada, el certificado, sus fechas y su huella. Hay a lo sumo uno activo y uno pendiente |
+| Connection | `ArcaAccessTickets` | Certificado, código WSN, token y firma cifrados, vencimiento, reserva y bloqueo. Uno por certificado y servicio |
+| Registry | `ArcaRegistryCompanies` | Conexión y los datos de la empresa del padrón: razón social, condición frente al IVA y domicilio fiscal |
+| Invoicing | `ArcaInvoicingSettings` | Conexión y punto de venta |
 
-Desconectar borra las tres de verdad, sin eliminación lógica: son secretos.
+Desconectar borra todas de verdad, sin eliminación lógica: hay secretos. Las tablas de una familia tienen su clave
+foránea a la conexión con borrado en cascada, así que se pueden quitar con la familia.
 
 ### Ticket de acceso
 
@@ -138,18 +164,22 @@ Desconectar borra las tres de verdad, sin eliminación lógica: son secretos.
 
 ### Contrato HTTP
 
-Son rutas MVC bajo `api/arca/connection`. Los nombres son indicativos y se fijan en el plan de implementación.
+Son rutas MVC bajo `api/arca/connection` y, las de cada familia, bajo `api/arca/<familia>`. Los nombres son indicativos y se
+fijan en el plan de implementación.
 
 | Verbo y ruta | Permisos | Qué hace |
 | --- | --- | --- |
-| GET `api/arca/connection` | `arca.read` | Estado, ambiente, CUIT, datos de la empresa, certificados sin secretos, punto de venta, última prueba y revisión |
+| GET `api/arca/connection` | `arca.read` | Estado, ambiente, CUIT, servicios instalados (con su familia) y elegidos, certificados sin secretos, última prueba y revisión |
+| GET `api/arca/registry/company` | `arca.read` | Los datos de la empresa que trajo el padrón |
+| GET `api/arca/invoicing/settings` | `arca.read` | El punto de venta elegido |
+| PUT `api/arca/connection/services` | `arca.read` + `arca.manage` | Elige los servicios que usa la empresa, con la revisión esperada |
 | POST `api/arca/connection/certificate-requests` | `arca.read` + `arca.manage` | Con CUIT, ambiente, alias y revisión esperada, genera la clave y el CSR. Sirve para el alta y para renovar |
 | GET `api/arca/connection/certificate-requests/current` | ambos | Descarga el `.csr` pendiente |
 | DELETE `api/arca/connection/certificate-requests/current` | ambos | Cancela la renovación |
 | PUT `api/arca/connection/certificate` | ambos | Sube el `.crt`, lo valida y deja la conexión sin verificar, o reemplaza al activo si es una renovación |
-| POST `api/arca/connection/test` | ambos | Prueba los dos servicios y guarda el resultado y los datos de la empresa |
-| GET `api/arca/connection/points-of-sale` | ambos | Consulta a ARCA los puntos de venta de web service |
-| PUT `api/arca/connection/point-of-sale` | ambos | Elige el punto de venta y activa la conexión si la última prueba salió bien |
+| POST `api/arca/connection/test` | ambos | Prueba los servicios elegidos con la prueba de cada familia, que guarda lo suyo (el padrón, los datos de la empresa) |
+| GET `api/arca/invoicing/points-of-sale` | ambos | Consulta a ARCA los puntos de venta de web service |
+| PUT `api/arca/invoicing/point-of-sale` | ambos | Elige el punto de venta; la conexión se activa si la prueba salió bien y las demás familias elegidas están completas |
 | DELETE `api/arca/connection` | ambos | Desconecta |
 
 - **Revisión:** las escrituras llevan la revisión esperada y responden 409 si cambió.
@@ -161,11 +191,13 @@ Son rutas MVC bajo `api/arca/connection`. Los nombres son indicativos y se fijan
 
 ### Errores
 
-Se declaran en `ArcaConnectionErrors` en Domain y se traducen en `Errors.resx` y `Errors.en.resx`:
+Cada familia declara los suyos en la raíz de `Domain/Modules/Arca/`, y se traducen en `Errors.resx` y `Errors.en.resx`:
 
-- **De validación:** CUIT inválida y alias inválido.
-- **Del certificado:** ilegible, otra clave, otra CUIT, otro ambiente, vencido y sin pedido pendiente.
-- **De la conexión:** revisión desactualizada (409), punto de venta que ARCA ya no devuelve y conexión sin probar.
+- **`ArcaConnectionErrors`:**
+  - de validación: CUIT inválida, alias inválido y un servicio que no está instalado;
+  - del certificado: ilegible, otra clave, otra CUIT, otro ambiente, vencido y sin pedido pendiente;
+  - de la conexión: revisión desactualizada (409) y conexión sin probar.
+- **`ArcaInvoicingErrors`:** punto de venta que ARCA ya no devuelve.
 
 Lo que contesta ARCA en una prueba no es un error del pedido: es el resultado de cada servicio, con un motivo estable
 (servicio sin autorizar, reloj desfasado, ya posee un ticket, no responde).
@@ -183,7 +215,8 @@ Lo que contesta ARCA en una prueba no es un error del pedido: es el resultado de
   verificada con la clave pública, el CSR, la validación del certificado (otra clave, otra CUIT, otro ambiente, vencido) y
   la lectura del padrón.
 - **De arquitectura:** las rutas en `ExplicitRouteInventoryTests`, el módulo sin referencias desde el núcleo y sus aportes
-  con `IModuleArchitectureContribution`.
+  con `IModuleArchitectureContribution`. Una regla nueva del módulo: una familia no referencia a otra y `Connection` no
+  nombra a ninguna; se prueba con una infracción.
 - **De integración:** un ARCA simulado dentro de los tests, que responde WSAA, WSFEv1 y el padrón con los mismos
   sobres SOAP, más PostgreSQL con Testcontainers. Cubre el alta completa, el ticket compartido entre dos hosts con la reserva,
   «ya posee un TA válido», un servicio sin autorizar, la renovación sin corte, el 409 y desconectar.
@@ -204,7 +237,8 @@ Lo que contesta ARCA en una prueba no es un error del pedido: es el resultado de
 ## Al cerrar la etapa
 
 - La regla vigente pasa a `docs/features/arca.md`, junto con la guía `docs/guides/configurar-arca.md` (certificados,
-  ambientes y renovación) y `docs/guides/quitar-arca.md`, como las de IA.
+  ambientes y renovación) y `docs/guides/quitar-arca.md`, como las de IA. La guía de quitar cubre el módulo entero y una
+  familia sola.
 - Cada carpeta nueva lleva su `AGENTS.md` y entra en el [mapa de instrucciones](../architecture/mapa-de-instrucciones.md).
 - Se ofrece el traspaso al multitenant.
 

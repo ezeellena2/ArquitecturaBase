@@ -84,6 +84,9 @@ ofrecerlo como servicio.
 ### Conexión (etapa 1)
 
 El detalle, con los tableros elegidos y el contrato, está en el [diseño de la etapa 1](2026-11-03-arca-etapa-1-conexion.md).
+El [ADR 0025](../decisions/0025-familias-de-servicios-arca.md) ordena el módulo con una carpeta por familia de servicios
+(`Connection`, `Registry`, `Invoicing` y, más adelante, granos, hacienda y las demás). Cada empresa elige qué servicios usa,
+y cada familia se puede quitar sola.
 
 - **Módulo opcional `Arca`**, en `Modules/Arca` de cada capa, como WhatsApp o la IA. El núcleo no lo nombra. El motor de
   formularios lo usa a través de un puerto neutral en `Application/Interfaces/Channels/`, con su versión apagada.
