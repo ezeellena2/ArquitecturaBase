@@ -26,14 +26,25 @@ internal sealed partial class SaveFormDraftRequestValidator : AbstractValidator<
             if (draft.Culture is not ("es" or "en")) { Fail("draft.culture"); return; }
             CheckText(request.Name, draft.Culture, 120, "name", Fail, true);
             if (draft.SubmitLabel is not null) CheckText(draft.SubmitLabel, draft.Culture, 160, "draft.submitLabel", Fail);
-            if (draft.Fields is null || draft.Fields.Count > 40) { Fail("draft.fields"); return; }
+            if (draft.Fields is null || draft.Fields.Count(field => field?.Type != "group") > 40 || draft.Fields.Count > 41) { Fail("draft.fields"); return; }
             var locals = new HashSet<string>(StringComparer.Ordinal);
+            // One block: its questions are the run of Repeated ones right after it.
+            var block = Enumerable.Range(0, draft.Fields.Count).FirstOrDefault(index => draft.Fields[index]?.Type == "group", -1);
+            var rowsEnd = block + 1;
+            while (block >= 0 && rowsEnd < draft.Fields.Count && draft.Fields[rowsEnd]?.Repeated == true) rowsEnd++;
             for (var i = 0; i < draft.Fields.Count; i++)
             {
                 var field = draft.Fields[i]; var path = $"draft.fields[{i}]";
                 if (field is null) { Fail(path); continue; }
                 if (field.LocalId is null || !LocalPattern().IsMatch(field.LocalId) || !locals.Add(field.LocalId)) Fail(path + ".localId");
-                if (field.Type is not ("shortText" or "longText" or "decimal" or "date" or "boolean" or "choice" or "multiChoice" or "photo" or "document")) Fail(path + ".type");
+                if (field.Type is not ("shortText" or "longText" or "decimal" or "date" or "boolean" or "choice" or "multiChoice" or "photo" or "document" or "group")
+                    || (field.Type == "group" && i != block)) Fail(path + ".type");
+                if (field.Repeated == true && (block < 0 || i <= block || i >= rowsEnd
+                    || field.Type is not ("shortText" or "longText" or "decimal" or "date" or "boolean" or "choice"))) Fail(path + ".repeated");
+                if (field.Type == "group"
+                    ? field.Rows is not { MinRows: >= 0 and <= 100, MaxRows: >= 1 and <= 100 } rows
+                        || rows.MinRows > rows.MaxRows || field.Required != (rows.MinRows > 0)
+                    : field.Rows is not null) Fail(path + ".rows");
                 if (field.FieldId == Guid.Empty || field.ReplacesFieldId == Guid.Empty || (field.FieldId.HasValue && field.ReplacesFieldId.HasValue)) Fail(path + ".fieldId");
                 CheckText(field.Label, draft.Culture, 160, path + ".label", Fail);
                 if (field.Help is not null)

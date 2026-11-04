@@ -44,7 +44,7 @@ En `SaveFormDraftRequestValidator`, todas `ContentInvalid` en su ruta:
 1. `group` entra en la lista de tipos (y en `FormQuestionIdentity.Create` y `FormDraftPolicy.TypeOf`).
 2. A lo sumo un `group` (ruta `draft.fields[i].type` del segundo).
 3. `rows` es obligatorio en un `group` y nulo en cualquier otro tipo: `0 ≤ minRows ≤ maxRows ≤ 100`, `maxRows ≥ 1`, y
-   `required` ⇔ `minRows > 0` (ruta `draft.fields[i].rows.minRows` o `.maxRows`).
+   `required` ⇔ `minRows > 0` (ruta `draft.fields[i].rows`, como `selection`).
 4. Un `group` no lleva opciones, `maxLength`, `source`, `files`, `selection` ni `repeated`.
 5. `repeated: true` sólo en los tipos que entran al bloque, y sólo si hay un `group`. Las preguntas con `repeated` forman un
    tramo contiguo que empieza justo después del `group` (ruta `draft.fields[i].repeated`).
@@ -105,15 +105,16 @@ que la sesión de las listas dependientes commitee lo suyo.
 
 ### Tarea 1 · El bloque en el borrador
 
-- [ ] Tests en rojo en `tests/ArquitecturaBase.Application.UnitTests/Modules/BusinessForms/FormGroupDraftTests.cs` y en
+- [x] Tests en rojo en `tests/ArquitecturaBase.Application.UnitTests/Modules/BusinessForms/FormGroupDraftTests.cs` y en
   `tests/ArquitecturaBase.Domain.UnitTests/Modules/BusinessForms/FormDraftModelTests.cs`: cada regla de arriba, la
   normalización de `repeated: false` y de `rows`, la identidad nueva al entrar o salir del bloque, el rechazo de conservar
   el `fieldId` con otro `repeated`, y que un borrador sin bloque conserva su JSON y su huella.
-- [ ] `FormSelectionSettings` como precedente: `FormRowSettings(int MinRows, int MaxRows)` y `bool? Repeated` en
+- [x] `FormSelectionSettings` como precedente: `FormRowSettings(int MinRows, int MaxRows)` y `bool? Repeated` en
   `FormFieldInput` y `CanonicalFormField` (`Models/FormDraftModels.cs`), con `WhenWritingNull`.
-- [ ] Reglas en `SaveFormDraftRequestValidator`, `TypeOf`/`Normalize`/`Resolve` en `FormDraftPolicy`, la lista de
+- [x] Reglas en `SaveFormDraftRequestValidator`, `TypeOf`/`Normalize`/`Resolve` en `FormDraftPolicy`, la lista de
   `FormQuestionIdentity.Create`, y la cuenta sin `group` en `FormDraftService` (`SetDraft`).
-- [ ] Commit: `feat(formularios): el borrador arma un bloque de renglones`.
+- [x] Commit: `feat(formularios): el borrador arma un bloque de renglones`. Verde en una copia de HEAD (la sesión de la IA
+  tenía tests a medias): 35 nuevos, Domain 594, ArchitectureTests 198 y los unitarios de formularios 1934.
 
 ### Tarea 2 · El contrato HTTP del borrador
 

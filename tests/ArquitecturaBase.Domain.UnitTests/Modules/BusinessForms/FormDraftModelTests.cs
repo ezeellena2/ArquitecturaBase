@@ -22,10 +22,20 @@ public sealed class FormDraftModelTests
         Assert.NotEqual(result.Value.FieldId, FormQuestionIdentity.Create(type).Value.FieldId);
     }
 
+    [Fact]
+    public void A_block_of_rows_gets_its_own_server_generated_identity()
+    {
+        var result = FormQuestionIdentity.Create(FormQuestionType.Group);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(FormQuestionType.Group, result.Value.Type);
+        Assert.Equal('7', result.Value.FieldId.ToString("D")[14]);
+    }
+
     [Theory]
-    [InlineData(FormQuestionType.Group)]
     [InlineData((FormQuestionType)999)]
-    public void Reserved_or_unknown_types_cannot_create_an_active_question(FormQuestionType type)
+    [InlineData((FormQuestionType)(-1))]
+    public void Unknown_types_cannot_create_an_active_question(FormQuestionType type)
     {
         var result = FormQuestionIdentity.Create(type);
 
@@ -44,7 +54,7 @@ public sealed class FormDraftModelTests
         Assert.NotEqual(original.FieldId, changed.FieldId);
         Assert.Equal(FormQuestionType.LongText, changed.Type);
         Assert.Equal(FormQuestionType.ShortText, original.Type);
-        Assert.True(original.ChangeType(FormQuestionType.Group).IsFailure);
+        Assert.True(original.ChangeType((FormQuestionType)999).IsFailure);
     }
 
     [Fact]

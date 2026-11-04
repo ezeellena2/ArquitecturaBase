@@ -26,6 +26,7 @@ internal static class FormDraftPolicy
                 Options = field.Options?.Select(option => option with { Label = Sort(option.Label) }).ToArray(),
                 Source = field.Source is null ? null : field.Source with
                 { Match = field.Source.Match is { Count: > 0 } matches ? matches.OrderBy(match => match.FieldId).ToArray() : null },
+                Repeated = field.Repeated == true ? true : null,
             }).ToArray(),
         },
     };
@@ -71,7 +72,11 @@ internal static class FormDraftPolicy
                     return FieldErrors.On(FormDraftErrors.QuestionConfigurationInvalid, path + ".type");
                 if (input.FieldId.HasValue && input.Source?.Catalog != prior.Source?.Catalog)
                     return FieldErrors.On(FormDraftErrors.QuestionConfigurationInvalid, path + ".source.catalog");
-                if (input.ReplacesFieldId.HasValue && input.Type == prior.Type && input.Source?.Catalog == prior.Source?.Catalog)
+                // Entering or leaving the block of rows is another question, like changing the type (RG6-A).
+                if (input.FieldId.HasValue && (input.Repeated ?? false) != (prior.Repeated ?? false))
+                    return FieldErrors.On(FormDraftErrors.QuestionConfigurationInvalid, path + ".repeated");
+                if (input.ReplacesFieldId.HasValue && input.Type == prior.Type && input.Source?.Catalog == prior.Source?.Catalog
+                    && (input.Repeated ?? false) == (prior.Repeated ?? false))
                     return FieldErrors.On(FormDraftErrors.QuestionConfigurationInvalid, path + ".type");
                 if (LostTranslations(prior.Label, input.Label)) return FieldErrors.On(FormDefinitionErrors.TranslationsWouldBeLost, path + ".label");
                 if (prior.Help is not null && prior.Help.Keys.Any(key => input.Help is null || !input.Help.ContainsKey(key)))
@@ -101,7 +106,7 @@ internal static class FormDraftPolicy
             }
             var help = input.Help?.Where(pair => !string.IsNullOrWhiteSpace(pair.Value)).ToDictionary(pair => pair.Key, pair => pair.Value!, StringComparer.Ordinal);
             fields.Add(new(fieldId, key, input.Type, input.Label, help is { Count: > 0 } ? help : null, input.Required, input.MaxLength,
-                options?.AsReadOnly(), input.Source, input.Files, input.Selection));
+                options?.AsReadOnly(), input.Source, input.Files, input.Selection, input.Rows, input.Repeated));
             fieldMap.Add(new(input.LocalId, fieldId, key, input.ReplacesFieldId));
         }
         NameAnsweredQuestions(draft.Fields, fields, currentFieldIds);
@@ -122,11 +127,13 @@ internal static class FormDraftPolicy
                 fields[i] = fields[i] with { Source = source with { Match = matches.Select(match => match.QuestionId is { } name
                     && assigned.TryGetValue(name, out var fieldId) ? match with { QuestionId = fieldId } : match).ToArray() } };
     }
+    // The block of rows is not a question: its questions are ("10, cinco en el bloque").
+    public static int QuestionCount(IEnumerable<CanonicalFormField> fields) => fields.Count(field => field.Type != "group");
     private static bool LostTranslations(IReadOnlyDictionary<string, string> previous, IReadOnlyDictionary<string, string> current) => previous.Any(pair => !string.IsNullOrWhiteSpace(pair.Value) && !current.ContainsKey(pair.Key));
     private static FormQuestionType TypeOf(string type) => type switch
     {
         "shortText" => FormQuestionType.ShortText, "longText" => FormQuestionType.LongText, "decimal" => FormQuestionType.Number,
-        "photo" => FormQuestionType.Photo, "document" => FormQuestionType.Document,
+        "photo" => FormQuestionType.Photo, "document" => FormQuestionType.Document, "group" => FormQuestionType.Group,
         "date" => FormQuestionType.Date, "boolean" => FormQuestionType.Boolean, "choice" => FormQuestionType.Choice, "multiChoice" => FormQuestionType.MultiChoice,
         _ => throw new InvalidOperationException("The validated field type is unsupported."),
     };

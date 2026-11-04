@@ -11,7 +11,9 @@ public sealed record FormFieldInput(string LocalId, Guid? FieldId, Guid? Replace
     int? MaxLength, IReadOnlyList<FormChoiceInput>? Options,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormQuestionSource? Source = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormFileSettings? Files = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormSelectionSettings? Selection = null)
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormSelectionSettings? Selection = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormRowSettings? Rows = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? Repeated = null)
 { public override string ToString() => "FormFieldInput { Content = [REDACTED] }"; }
 public sealed record FormChoiceInput(string LocalId, Guid? ChoiceId, IReadOnlyDictionary<string, string> Label)
 { public override string ToString() => "FormChoiceInput { Content = [REDACTED] }"; }
@@ -28,6 +30,8 @@ public sealed record FormCatalogMatch(Guid FieldId,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] Guid? QuestionId = null)
 { public override string ToString() => "FormCatalogMatch { Content = [REDACTED] }"; }
 public sealed record FormSelectionSettings(int MinSelected, int MaxSelected);
+// The block of rows is the "group" question; its questions follow it, without gaps, marked Repeated.
+public sealed record FormRowSettings(int MinRows, int MaxRows);
 public sealed record FormFileSettings(int MinFiles, int MaxFiles, string? PhotoSource = null);
 public sealed record CanonicalFormChoice(Guid ChoiceId, IReadOnlyDictionary<string, string> Label)
 { public override string ToString() => "CanonicalFormChoice { Content = [REDACTED] }"; }
@@ -35,7 +39,9 @@ public sealed record CanonicalFormField(Guid FieldId, string Key, string Type, I
     IReadOnlyDictionary<string, string>? Help, bool Required, int? MaxLength, IReadOnlyList<CanonicalFormChoice>? Options,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormQuestionSource? Source = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormFileSettings? Files = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormSelectionSettings? Selection = null)
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormSelectionSettings? Selection = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormRowSettings? Rows = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? Repeated = null)
 { public override string ToString() => "CanonicalFormField { Content = [REDACTED] }"; }
 public sealed record FormQuestionSchema(int Format, IReadOnlyList<CanonicalFormField> Fields)
 { public override string ToString() => "FormQuestionSchema { Content = [REDACTED] }"; }
