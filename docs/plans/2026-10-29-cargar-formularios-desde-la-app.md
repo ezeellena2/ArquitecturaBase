@@ -258,8 +258,8 @@ Etapa 1, los tableros elegidos pasan al lienzo del sistema visual y su diseño s
      [formularios](../features/formularios.md#listas-dependientes--etapa-4-2026-11-04) y el diseño en el front, en
      [carga desde la app](../../../ArquitecturaBaseFront/docs/design/carga-desde-la-app.md#listas-dependientes-cw7--2026-11-04).
      Verificación final: backend con build sin advertencias y 6.761/6.775 tests con PostgreSQL, Redis y Azurite
-     en una copia limpia de 4ac52e18: las 14 fallas son de IA, entran con bd75ea73 y en el commit anterior esas clases
-     pasan 62/62. Front con build y lint limpios, 4.026/4.026 tests y 860/860 visuales; recorrido en el navegador
+     en una copia limpia de 4ac52e18: las 14 fallas son de IA, entran con bd75ea73 (en el commit anterior esas clases
+     pasan 62/62) y quedaron arregladas en 85bbcd69. Front con build y lint limpios, 4.026/4.026 tests y 860/860 visuales; recorrido en el navegador
      integrado sobre el catálogo visual y capturas es/en a 1440, 390 y 320 comparadas con el tablero. El contrato de la
      lista dependiente pasa con los cuerpos exportados y entra con las cohortes de la Etapa 2.
    - Pendiente: pasar CW7 al lienzo del sistema visual y, con el intercambio con Meta, las listas dependientes en WhatsApp
