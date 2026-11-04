@@ -79,12 +79,12 @@ leer y crear una propuesta, y el cambio del motor para «Cambiar algo» tiene su
 3. **Canal Inicio.** Hecha en el motor (bd75ea73): capacidades `OfferedInHome`, `assistant_answer@2`, `home-system@2`, tope de 16,
    `OutputTokens`, historia y listado con la propuesta, `proposal` en el turno HTTP y H4 en Inicio. Falta la captura del
    contrato HTTP y la integración.
-4. **Leer una propuesta de Inicio.** `IAssistantProposalLookup` con su versión apagada y la del motor: sólo Inicio, dueño,
-   vigencia, permisos y reemplazo por capacidad.
-5. **Crear desde una propuesta.** Columnas de propuesta en el formulario y propuestas Manual en el catálogo (migración),
-   servicios con una UoW, lo ya creado antes de leer la propuesta, idempotencia y nombre o prefijo en uso; endpoints de crear y
-   de estado; aprobar y descartar un Manual; la prueba de arquitectura «sólo el servicio dueño crea desde una propuesta».
-   Integración con PostgreSQL, inventario de rutas, OpenAPI y ejemplos HTTP.
+4. **Leer una propuesta de Inicio.** Hecha (cb172643): `IAssistantProposalLookup` con su versión apagada y la del motor: sólo
+   Inicio, dueño, vigencia, permisos y reemplazo por capacidad.
+5. **Crear desde una propuesta.** Hecha (da624007 y 50d6f354): `ProposalId` y evidencia en el formulario y propuestas Manual en
+   el catálogo (migración), lo ya creado antes de leer la propuesta, idempotencia, nombre o prefijo en uso, endpoints de crear y
+   de estado, aprobar un Manual y la prueba de arquitectura. La integración con PostgreSQL y la cohorte de ejemplos HTTP
+   (`forms-assistant-proposals-http`, 14 cuerpos) están escritas y corren en el cierre conjunto.
 6. **Tarjeta en el hilo.** Pieza de `shared/ui/assistant` con sus estados (abierta, «Reemplazada», «Borrador creado»), el
    contexto de extensión, la tarjeta de formulario, de catálogo y de H4 en `business-forms`, «Ver cómo queda» con
    `FormPreview`, crear y navegar, y la banda de propuesta en un catálogo Manual. Tests, contratos y visuales es/en.
@@ -111,3 +111,9 @@ terminal (131072 bytes, con la continuación contada aparte), y que una salida l
 revisión del plan (15 hallazgos) cambió el rechazo de propuestas, el mecanismo de Inicio sin nombrar formularios, el
 reemplazo por capacidad, la continuación de WhatsApp en el motor y el audio de Inicio (retención y transcripción del
 servidor). Sigue la tarea 4.
+
+2026-11-04: tareas 4 y 5 hechas en el backend, con unitarias, de dominio y de arquitectura en verde. Lo que el plan no fijaba,
+con la opción más simple: el nombre en uso se compara sin mayúsculas con el nombre visible en el idioma de la propuesta (también
+para H4 desde Inicio); el estado da el Id creado o null, nunca 404; la evidencia dice `requestedIn: "app"` para la banda «en el
+chat de Inicio»; los catálogos que usa un formulario tienen que seguir activos y legibles al crear; aprobar un Manual sólo lo
+activa y la edición común no activa una propuesta pendiente. Sigue la tarea 6, la tarjeta en el front.
