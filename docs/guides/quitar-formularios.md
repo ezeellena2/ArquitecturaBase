@@ -1,0 +1,122 @@
+# Quitar el módulo de formularios
+
+Para un derivado que no usa formularios (`BusinessForms`). No apagues opciones para simular la retirada: quitá
+código, configuración y rutas, y generá la migración del modelo nuevo. Esa migración borra las 23 tablas del módulo
+(definiciones, borradores, versiones, catálogos, respuestas, reglas, diseños de PDF, sugerencias y datos de personas):
+respaldá la base antes.
+
+WhatsApp e IA siguen andando. Sin el módulo, el núcleo usa sus versiones apagadas de los puertos de formularios
+(`DisabledStructuredFormSource`, `UnavailableStructuredRecordSink` y las demás de `Application/Channels`): WhatsApp no
+encuentra formularios para mandar y el asistente pierde las capacidades de formularios. Las tablas `WhatsAppFlow*` son
+del otro módulo y se quedan.
+
+## Backend
+
+1. Leé [módulos opcionales](../architecture/backend.md#módulos-opcionales), la
+   [regla de formularios](../features/formularios.md) y [migración](migracion.md).
+2. Borrá las diez carpetas del módulo: `Modules/BusinessForms` en los cuatro proyectos de `src` y en los cuatro de
+   `tests`, y `TestFeatures/Modules/BusinessForms` en Application.UnitTests y Api.IntegrationTests. Antes de borrar,
+   verificá que cada ruta esté dentro de tu proyecto. No toques los otros módulos.
+
+   ```bash
+   rm -rf src/ArquitecturaBase.Domain/Modules/BusinessForms \
+          src/ArquitecturaBase.Application/Modules/BusinessForms \
+          src/ArquitecturaBase.Infrastructure/Modules/BusinessForms \
+          src/ArquitecturaBase.Api/Modules/BusinessForms \
+          tests/ArquitecturaBase.Domain.UnitTests/Modules/BusinessForms \
+          tests/ArquitecturaBase.Application.UnitTests/Modules/BusinessForms \
+          tests/ArquitecturaBase.ArchitectureTests/Modules/BusinessForms \
+          tests/ArquitecturaBase.Api.IntegrationTests/Modules/BusinessForms \
+          tests/ArquitecturaBase.Application.UnitTests/TestFeatures/Modules/BusinessForms \
+          tests/ArquitecturaBase.Api.IntegrationTests/TestFeatures/Modules/BusinessForms
+   ```
+
+3. En `src/ArquitecturaBase.Api/Program.cs`, quitá los tres `using` de `Modules.BusinessForms` y el bloque del módulo,
+   con su comentario:
+
+   ```csharp
+   // Optional business forms module: draft authoring and recovery.
+   builder.Services.AddBusinessFormsApplication().AddBusinessFormsInfrastructure().AddBusinessFormsApi();
+   ```
+
+4. Quitá lo que nombra al módulo fuera de sus carpetas. El módulo no tiene configuración en `appsettings`.
+   - En `src/ArquitecturaBase.Infrastructure/ArquitecturaBase.Infrastructure.csproj`, el `ItemGroup` de las fuentes del
+     PDF (`Modules\BusinessForms\Pdf\Fonts\*.ttf`).
+   - En `.editorconfig`, las dos secciones de `src/ArquitecturaBase.Domain/Modules/BusinessForms/…`.
+   - Las 149 claves `Forms.*` de `Errors.resx` y `Errors.en.resx`. Si queda una,
+     `ErrorCodeTests.Every_error_key_belongs_to_a_code_declared_in_domain` falla y la nombra.
+   - `FormCatalogStateInvalid` de `ValidationMessages` y de `Validation.resx`/`.en.resx`.
+5. Opcional: en `Infrastructure.csproj` quedan sin uso `ClosedXML`, `SkiaSharp.HarfBuzz` y
+   `HarfBuzzSharp.NativeAssets.Linux`, con sus `PackageVersion` de `Directory.Packages.props`. `SkiaSharp` y `OpenMcdf`
+   se quedan: los usan las miniaturas y la inspección de archivos del núcleo.
+6. **Conservá todas las migraciones anteriores**: nombran las entidades con cadenas y compilan sin el módulo. Generá
+   `RemoveBusinessForms` sobre el código ya borrado, antes de levantar la app:
+
+   ```bash
+   dotnet ef migrations add RemoveBusinessForms --project src/ArquitecturaBase.Infrastructure --startup-project src/ArquitecturaBase.Api --output-dir Persistence/Migrations -- --environment Development --ConnectionStrings:appdb "Host=build;Database=build;Username=build;Password=build" --ConnectionStrings:cache "localhost:6379"
+   dotnet build ArquitecturaBase.slnx
+   dotnet ef migrations has-pending-model-changes --project src/ArquitecturaBase.Infrastructure --startup-project src/ArquitecturaBase.Api -- --environment Development --ConnectionStrings:appdb "Host=build;Database=build;Username=build;Password=build" --ConnectionStrings:cache "localhost:6379"
+   dotnet test
+   ```
+
+   `Up` suelta primero cuatro claves foráneas entre tablas del módulo y después borra sólo sus 23 tablas:
+   `FormDefinitions`, `FormDraftChanges` y las 21 `BusinessForm*` (`ActionRuns`, `CaptureReceipts`, `CatalogItems`,
+   `Catalogs`, `Documents`, `Fields`, `MissingRequests`, `MissingTopics`, `PdfDesigns`, `PersonAttributes`,
+   `PersonData`, `PublicationOperations`, `RecordFiles`, `RecordReferences`, `RecordValues`, `Records`,
+   `RetiredIdentities`, `RuleSets`, `Suggestions`, `Tasks` y `Versions`). Si aparece otra tabla, algo se borró de más.
+   `Down` las recrea.
+
+   Aplicala con el bundle antes de la imagen nueva ([despliegue](despliegue.md#el-orden-bundle-después-imagen)), con
+   las rutas de formularios de la versión vieja detenidas. Los permisos `form*` quedan sin efecto, porque el catálogo ya
+   no los tiene. Los archivos de las respuestas quedan en el almacenamiento privado con su metadata del núcleo
+   (`StoredFiles`): la migración no los borra.
+
+## Front
+
+Quitá `src/features/business-forms` y lo que la compone afuera:
+
+- En `src/app/routes.tsx`, las rutas de `/formularios…`, `/catalogos…` y `/datos-de-personas`. Quitá también
+  `src/app/FormOverviewShell.tsx`, `FormOverviewCount.tsx` y `UserDataSectionShell.tsx`.
+- En `src/layouts/navigation.ts`, el panel `forms`, `isFormsPath` y el ítem `navigation.personData`. Después, sus usos
+  en `Sidebar.tsx` y `Breadcrumbs.tsx`, y sus textos de `common.json`.
+- Los namespaces `forms` y `formEntries`, en español y en inglés.
+- En `src/test` y `src/test/visual`, los fixtures que importan la feature. También las familias de formularios de
+  `src/test/httpCohort.ts`.
+- Las escenas `catalog*.spec.ts`, `form*.spec.ts`, `forms*.spec.ts`, `personData.spec.ts` y `responses*.spec.ts`, con
+  sus capturas.
+
+WhatsApp no importa la feature: su envío de formularios consulta la API del canal, que sin fuente no ofrece ninguno.
+`installedFeatures` deja de traer `forms` y `form-files`.
+
+```powershell
+npm run build
+npm run lint
+npm run test
+npm run test:visual
+```
+
+## Documentación
+
+Borrá `docs/features/formularios.md`, `docs/plans/formularios/` y los planes de formularios que queden en `docs/plans`.
+Después arreglá lo que los enlaza: `grep -rlE "formularios\.md|plans/formularios" --include=*.md .`, sin
+`docs/history` ni `docs/reviews`. Actualizá `AGENTS.md`, el [índice de premisas](../architecture/premisas-de-la-plantilla.md)
+y el [mapa de instrucciones](../architecture/mapa-de-instrucciones.md), sin las filas de las carpetas borradas. Seguí la
+[auditoría documental](auditar-documentacion.md).
+
+## Comprobaciones registradas
+
+El 2026-11-03 se siguió esta guía en una copia descartable del backend: un `git archive` del commit, sin tocar el
+checkout. Resultados:
+
+- Build sin advertencias.
+- `RemoveBusinessForms` con las 23 tablas y las cuatro claves foráneas.
+- `has-pending-model-changes` sin cambios.
+- Domain 384/384, Application 1579/1579 y arquitectura 171/171.
+- Sin los tres paquetes opcionales, también compila.
+
+`dotnet ef` arma la Api en Development, donde el contenedor se valida al construirse, y no faltó ningún servicio. Para
+esa corrida se corrigieron dos tests del núcleo que dependían del módulo: `ControllerInputContractTests` y el control de
+`ErrorCodeTests`.
+
+No se corrieron la integración con Docker ni el front. Antes de dar la guía por probada falta seguirla en una copia del
+front y correr la integración en la copia del backend.

@@ -80,7 +80,7 @@ Dentro de un módulo opcional, las mismas carpetas van bajo `<Proyecto>/Modules/
 
 ## Más documentación
 
-- [`backend.md`](docs/architecture/backend.md): la arquitectura completa. [`docs/guides/`](docs/guides/): recetas (área nueva, permiso, migración, quitar WhatsApp o IA, despliegue).
+- [`backend.md`](docs/architecture/backend.md): la arquitectura completa. [`docs/guides/`](docs/guides/): recetas (área nueva, permiso, migración, quitar WhatsApp, IA o Formularios, despliegue).
 - [`docs/features/`](docs/features/): reglas implementadas de identidad, WhatsApp, administración, [formularios](docs/features/formularios.md) e [IA](docs/features/inteligencia-artificial.md).
 - [ADR](docs/decisions/README.md), [premisas](docs/architecture/premisas-de-la-plantilla.md), [planes pendientes](docs/plans/README.md) e [historial de planes retirados](docs/history/README.md).
 - [Arneses de desarrollo](harnesses/README.md), incluido el auditor documental.
