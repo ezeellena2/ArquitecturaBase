@@ -208,7 +208,8 @@ exportados, y en el front tests, visuales y el recorrido es/en a 1440, 390 y 320
 su versión en recuadros; la casilla es el `CheckboxField` de siempre) van a `shared/ui` con su ficha en el estándar visual,
 para que se usen igual en toda la app.
 
-1. **Etapa 1 · El bloque en el editor y al publicar (RG1-A, RG6-A y RG3-A).**
+1. **Etapa 1 · El bloque en el editor y al publicar (RG1-A, RG6-A y RG3-A).** Su
+   [plan de implementación](2026-11-04-renglones-etapa-1-implementacion.md) tiene diez tareas.
    - Backend: el tipo `group` en el borrador, con validación, identidades, mínimo y máximo, tipos permitidos, un solo bloque
      y las 40 preguntas, y pasar una pregunta guardada al bloque o sacarla. El chequeo de publicación (el bloque vacío frena,
      el máximo mayor que el tope avisa y «Pasan a renglones») y la aceptación.
