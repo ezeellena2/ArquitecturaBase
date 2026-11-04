@@ -1,7 +1,7 @@
 # Cargar formularios desde la app
 
 Propuesta del 2026-10-29, con las decisiones del usuario del 2026-10-29 y el 2026-10-30. La Etapa 1 está implementada desde el
-2026-10-30 y la 2 desde el 2026-11-04 (sus resúmenes están en el plan por etapas); las etapas 3 a 5 siguen sin programar. La persona elige
+2026-10-30 y la 2 y la 4 desde el 2026-11-04 (sus resúmenes están en el plan por etapas); las etapas 3 y 5 siguen sin programar. La persona elige
 un formulario publicado en «Formularios», lo carga en la app (desde la compu o el celular) y lo cargado se trabaja en la
 planilla, donde además se corrige o se anula. Las reglas de hoy están en [formularios](../features/formularios.md); este plan suma la carga desde la web, que el
 [resumen de formularios](formularios/README.md) dejaba pendiente con tableros propios.
@@ -249,11 +249,26 @@ Etapa 1, los tableros elegidos pasan al lienzo del sistema visual y su diseño s
    - La regla de inmutabilidad se reescribe en [formularios](../features/formularios.md). Vale también para lo que llegó por WhatsApp.
 4. **Etapa 4 · Listas dependientes (CW7):** el filtro, el editor, la comprobación de publicación, el bloqueo del envío por
    WhatsApp y la validación al guardar. La regla nueva va a [formularios](../features/formularios.md).
+   - **Hecha el 2026-11-04.** Backend: `match[i].questionId` («según otra respuesta», que en el borrador nombra una pregunta
+     nueva por su `localId`), el bloqueo `MatchQuestionInvalid` y el aviso `DependsOnAnswer` al publicar, la preparación de un
+     canal con `CatalogDependsOnAnswer` (WhatsApp y el asistente no la ofrecen) y `dependentQuestion` en la lista de «Enviar
+     formulario», y en la carga `catalog.dependsOn`, las opciones con `answers[...]` y el envío que rechaza una opción que no
+     corresponde. Front: «Agregar filtro según otra respuesta» y «Respuesta de» en el editor, el aviso de publicar, la lista
+     que espera, filtra y se limpia en la carga, y la tarjeta apagada en el chat. Las reglas quedaron en
+     [formularios](../features/formularios.md#listas-dependientes--etapa-4-2026-11-04) y el diseño en el front, en
+     [carga desde la app](../../../ArquitecturaBaseFront/docs/design/carga-desde-la-app.md#listas-dependientes-cw7--2026-11-04).
+     Verificación final: backend con build sin advertencias y 6.761/6.775 tests con PostgreSQL, Redis y Azurite
+     en una copia limpia de 4ac52e18: las 14 fallas son de IA, entran con bd75ea73 y en el commit anterior esas clases
+     pasan 62/62. Front con build y lint limpios, 4.026/4.026 tests y 860/860 visuales; recorrido en el navegador
+     integrado sobre el catálogo visual y capturas es/en a 1440, 390 y 320 comparadas con el tablero. El contrato de la
+     lista dependiente pasa con los cuerpos exportados y entra con las cohortes de la Etapa 2.
+   - Pendiente: pasar CW7 al lienzo del sistema visual y, con el intercambio con Meta, las listas dependientes en WhatsApp
+     (punto 6).
 5. **Etapa 5 · Títulos de sección (CW15-B):** el elemento nuevo en el editor y en la vista previa, la publicación, el subtítulo
    en WhatsApp y una zona por título en la app.
 6. **Después:** las listas dependientes en WhatsApp con el intercambio con Meta. La carga en nombre de otra persona, si aparece
    el caso, con su tablero.
 
-El orden de las etapas 3 a 5 es una propuesta: se puede cambiar. Fuera de alcance: importar respuestas desde Excel,
+El orden de las etapas 3 y 5 es una propuesta: se puede cambiar. Fuera de alcance: importar respuestas desde Excel,
 borradores guardados y carga sin conexión, la carga en filas (CW2-C) y grupos con líneas. Aplicación usa pares fijos de producto y dosis; una lista de líneas necesita «grupos y
 remitos con líneas», que tiene su propio plan: [renglones en los formularios](2026-11-03-renglones-en-formularios.md).
