@@ -39,6 +39,8 @@ public sealed record AiAssistantTurnResponse(Guid TurnId, Guid ConversationId, G
     DateTime SubmittedAtUtc, DateTime ServerNowUtc, int PollingAfterSeconds)
 {
     public DateTime? CancelRequestedAtUtc { get; init; }
+    // Only a turn that closed on a proposal carries it: the others keep the shape the front already reads.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public AiAssistantProposalResponse? Proposal { get; init; }
     [JsonIgnore]
     public AssistantObservedProposal? ObservedProposal { get; init; }
