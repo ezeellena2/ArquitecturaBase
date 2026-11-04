@@ -25,7 +25,8 @@ Sin orden fijo; cada una necesita su tablero y su decisión antes de programarse
 - grupos y remitos con líneas: decididos el 2026-11-03 en [renglones en los formularios](../2026-11-03-renglones-en-formularios.md);
 - descargar todas las fotos juntas desde el detalle de una respuesta;
 - corregir una respuesta (la corrección reemplaza a la anterior) y anularla con motivo: decidido el 2026-10-30, en la [carga desde la app](../2026-10-29-cargar-formularios-desde-la-app.md#decisiones-2026-10-29-y-2026-10-30);
-- borrador de formulario armado por la IA a partir de los pedidos de formularios que faltan;
+- borrador de formulario armado por la IA a partir de los pedidos de formularios que faltan: decidido el 2026-11-04 en
+  [la IA arma formularios y catálogos](../2026-11-04-ia-arma-formularios-y-catalogos.md), con «Armar con la IA» en cada tema;
 - **catálogos E1 y E2 implementados:** carga de una vez, tipo de valor, elegir varias, campos extra, presentación y filtros por persona. Las [reglas vigentes](../../features/formularios.md#catálogos-con-campos-extra-y-filtros-por-persona--e2-2026-10-23) y los tableros CA1-A/CA2–CA6 y CE1/CE2/CE3-B/CE4-A/CE5/CE6 sustituyen los resúmenes retirados. El review de E1 está cerrado; el de E2 precede al [piloto único con Meta](../verificacion-y-produccion.md#formularios-piloto-único-con-meta-después-de-e2). Búsqueda en vivo, asistente y orígenes externos conservan su alcance en la [hoja de ruta](../2026-10-21-catalogos-con-origenes-externos.md);
 - copiar definiciones (pendiente en [planes](../README.md)); dar de baja, reactivar, eliminar y deprecar en Meta tienen [reglas implementadas](../../features/formularios.md#dar-de-baja-reactivar-y-eliminar--2026-10-21) y su [piloto después del code review](../verificacion-y-produccion.md#formularios-baja-reactivación-y-eliminación).
 

@@ -43,6 +43,10 @@ Sigue la regla de siempre: **la IA propone, una persona aprueba y el sistema eje
   - la importación la hace el sistema, por el [recorrido de E1-A](../features/formularios.md#carga-de-catálogos-desde-una-planilla--e1-a-2026-10-22).
 - **Desde la sección Catálogos:** una entrada del tipo «Pasale tu Excel al asistente».
 
+**Diseñado el 2026-11-04** en [la IA arma formularios y catálogos](2026-11-04-ia-arma-formularios-y-catalogos.md), junto con
+los formularios: la propuesta en una tarjeta en el chat de Inicio (IA1-A), por WhatsApp un resumen con «Crear catálogo» y
+«Cambiar algo» (IA3-A), el catálogo creado inactivo con la importación abierta y «Armar con la IA» en Catálogos.
+
 ## Más de 200 opciones
 
 WhatsApp muestra hasta 200 opciones por pregunta en el desplegable y hasta 20 en elegir varias. Para catálogos grandes:
@@ -104,7 +108,7 @@ WhatsApp muestra hasta 200 opciones por pregunta en el desplegable y hasta 20 en
 | **1** | Carga de una vez, tipo de valor y elegir varias | [Implementado: reglas y verificación local](../features/formularios.md#verificación-local-de-catálogos-e1--2026-10-22); review cerrado y piloto único pendiente |
 | **2** | Campos extra, qué viaja a WhatsApp y filtrar por persona | [Implementada: reglas vigentes](../features/formularios.md#catálogos-con-campos-extra-y-filtros-por-persona--e2-2026-10-23) |
 | **3** | Búsqueda en vivo con Meta | Por diseñar (intercambio cifrado) |
-| **4** | El asistente arma catálogos y mapea el Excel | Por diseñar |
+| **4** | El asistente arma catálogos y mapea el Excel | [Diseñada el 2026-11-04](2026-11-04-ia-arma-formularios-y-catalogos.md), sin programar |
 | **5** | Recepción por API, conector para Macrosistemas y plantillas de origen | Por diseñar |
 | **6** | Lectura de APIs; conexión directa solo si hace falta | Por diseñar |
 

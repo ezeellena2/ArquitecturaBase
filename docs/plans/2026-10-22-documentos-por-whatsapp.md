@@ -127,6 +127,9 @@ La bandeja **agrupa los documentos sin clasificar que se parecen** y avisa: «Ll
 
 Retoma el pendiente «borrador de formulario armado por la IA a partir de los formularios que faltan» ([formularios](formularios/README.md#después-de-la-etapa-5)).
 
+El chat de Inicio y el asistente de WhatsApp usan la misma propuesta y el mismo «Crear borrador», también con un pedido escrito
+o un audio ([la IA arma formularios y catálogos](2026-11-04-ia-arma-formularios-y-catalogos.md), decidido el 2026-11-04).
+
 ### Tableros por formulario
 
 Cada formulario tiene una pestaña **«Tablero»**, armada sola a partir de sus preguntas y ajustable:
