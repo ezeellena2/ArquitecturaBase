@@ -1,6 +1,6 @@
 # BusinessForms/Interfaces/Persistence: repositorios y lectores
 
-Contratos que implementa `Infrastructure/Modules/BusinessForms/Persistence`. Los repositorios devuelven entidades seguidas y dan de alta sin guardar; los lectores proyectan sin seguimiento. Hay uno o dos por área: borrador y definición, publicación, ciclo de vida, versiones sin uso, catálogos y filtros, registros, recibos y archivos, planilla, reglas, acciones, aprobaciones, PDF, selección del asistente, sugerencias y formularios que faltan.
+Contratos que implementa `Infrastructure/Modules/BusinessForms/Persistence`. Los repositorios devuelven entidades seguidas y dan de alta sin guardar; los lectores proyectan sin seguimiento. Hay uno o dos por área: borrador y definición, publicación, ciclo de vida, versiones sin uso, catálogos y filtros, registros, recibos y archivos, planilla, reglas, acciones, aprobaciones, PDF, selección del asistente, sugerencias, formularios que faltan y autoría asistida (`IFormAuthoringReader`: nombres y campos de los formularios y catálogos que existen, los más nuevos primero, sin respuestas ni opciones; un catálogo de una propuesta descartada no cuenta).
 
 ## Datos de personas
 

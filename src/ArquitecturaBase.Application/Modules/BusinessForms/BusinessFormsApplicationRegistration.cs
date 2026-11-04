@@ -113,6 +113,7 @@ public static class BusinessFormsApplicationRegistration
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IAssistantCapabilitySource, BusinessFormAssistantCapabilitySource>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IAssistantCapabilitySource, BusinessFormSuggestionAssistantCapabilitySource>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IAssistantCapabilitySource, BusinessFormCatalogAssistantCapabilitySource>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IAssistantCapabilitySource, BusinessFormAuthoringAssistantCapabilitySource>());
         services.TryAddScoped<FormDraftAccessGuard>();
         services.TryAddScoped<FormPublicationAcceptanceGuard>();
         services.TryAddScoped<FormPublicationChannelVerifier>();
