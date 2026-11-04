@@ -928,6 +928,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("RecordId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("RetryRecipientUserId")
+                        .HasColumnType("uuid");
+
                     b.Property<bool>("RetryRequested")
                         .HasColumnType("boolean");
 

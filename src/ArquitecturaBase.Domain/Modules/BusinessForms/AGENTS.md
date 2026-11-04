@@ -36,13 +36,13 @@ La planilla reutiliza registros, valores, referencias y archivos existentes. `fo
 
 Etapa 4, G1: BusinessFormRuleSet conserva revisiones inmutables y HasApproval. Definition.ActiveRuleSetId es independiente de la revisión del borrador y de la versión publicada; sólo se mueve bajo el lock de definiciones. formrules.manage controla reglas y diseño, sin conceder lectura de valores.
 
-G5: Record fija RuleSetId al capturar y transita de Received a PendingApproval una vez. ActionRun conserva snapshot, evento/regla/acción, dependencia, lease y fence; Completed y NotApplicable no se repiten. Task abierta guarda autor confirmado y rol. Document relaciona respuesta/ejecución/cultura con StoredFile sólo al confirmar un PDF completo bajo el fence vigente.
+G5: Record fija RuleSetId al capturar y transita de Received a PendingApproval una vez. ActionRun conserva snapshot, evento/regla/acción, dependencia, lease y fence; Completed y NotApplicable no se repiten. Un aviso a un rol Completed sólo se reabre para reintentar a una persona (`RequestRecipientRetry`, con el Fence esperado): no repite a las demás ni libera de nuevo la acción siguiente. Task abierta guarda autor confirmado y rol. Document relaciona respuesta/ejecución/cultura con StoredFile sólo al confirmar un PDF completo bajo el fence vigente.
 
 La aprobación de un nivel conserva revisión, autor confirmado, rol y decisión. `formapprovals.decide` no concede lectura de valores o PDF; la decisión revalida rol y permiso, prohíbe al autor y confirma tarea, estado y runs juntos. El rechazo exige motivo de 1–500 caracteres.
 
 G2 guarda diseño PDF por revisión propia y `ActivePdfDesignId`, sin cambiar borrador/publicación. El run fija diseño, autor, decisión, culturas completas y nombre del sistema; los datos inmutables se leen por Id. La emisión usa creación condicional por run/cultura, consulta primero y conserva bytes ya subidos; metadata se confirma sólo con fence vigente. El preview usa ejemplos y no emite ni guarda. Documentos privados sólo por API con `formrecords.read` antes y después de abrir el stream.
 
-Revisión de avisos: sólo NotifyAuthor/NotifyRole inciertos aceptan una decisión humana. El pedido queda durable para el worker; decisión, actor y fecha sobreviven al resultado. Retry sólo parte de Failed+CanRetry; consultar o esperar no autoriza reenviar.
+Revisión de avisos: sólo NotifyAuthor/NotifyRole inciertos aceptan una decisión humana. El pedido queda durable para el worker; decisión, actor y fecha sobreviven al resultado. Retry sólo parte de Failed+CanRetry; consultar o esperar no autoriza reenviar. El de una persona de un aviso a un rol parte de su falla confirmada en el resultado, que verifica Application.
 La revisión humana fija destinatario y Fence esperado y admite replay idéntico sin reabrir después del consumo. Una decisión de otro intento da conflicto.
 
 La referencia histórica conserva opcionalmente TranslationsJson, con textos/detalles/nombres por idioma presentes en la oferta aceptada. No consulta ni copia cambios posteriores del catálogo.

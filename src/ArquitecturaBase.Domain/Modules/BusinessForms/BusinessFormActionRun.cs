@@ -21,6 +21,7 @@ public sealed class BusinessFormActionRun : Entity, IAuditable
     public string? FailureCode { get; private set; }
     public bool CanRetry { get; private set; }
     public bool RetryRequested { get; private set; }
+    public Guid? RetryRecipientUserId { get; private set; }
     public bool DeliveryReviewRequested { get; private set; }
     public Guid? DeliveryReviewRecipientUserId { get; private set; }
     public bool? DeliveryReviewWasSent { get; private set; }
@@ -62,7 +63,7 @@ public sealed class BusinessFormActionRun : Entity, IAuditable
         if(!OwnsLease(fence,nowUtc) || state is not (FormActionRunState.Running or FormActionRunState.Completed or FormActionRunState.Failed or FormActionRunState.Uncertain)) return FormActionErrors.StateConflict;
         State=state;FailureCode=failureCode;CanRetry=state==FormActionRunState.Failed&&canRetry;OutcomeJson=outcomeJson;UpdatedAtUtc=nowUtc;
         LeaseExpiresAtUtc=null;NextCheckAtUtc=state==FormActionRunState.Running?nowUtc.AddSeconds(5):null;
-        CompletedAtUtc=state is FormActionRunState.Completed or FormActionRunState.Failed?nowUtc:null;RetryRequested=false;DeliveryReviewRequested=false;return Result.Success();
+        CompletedAtUtc=state is FormActionRunState.Completed or FormActionRunState.Failed?nowUtc:null;RetryRequested=false;RetryRecipientUserId=null;DeliveryReviewRequested=false;return Result.Success();
     }
     public bool OwnsLease(long fence,DateTime nowUtc)=>Fence==fence&&State==FormActionRunState.Running&&LeaseExpiresAtUtc>nowUtc;
     public Result RequestRetry(DateTime nowUtc)
@@ -72,13 +73,22 @@ public sealed class BusinessFormActionRun : Entity, IAuditable
         State=FormActionRunState.Waiting;FailureCode=null;CompletedAtUtc=null;CanRetry=false;
         RetryRequested=true;NextCheckAtUtc=null;UpdatedAtUtc=nowUtc;return Result.Success();
     }
+    // A role notice is done once every person got it or failed; only a person whose failure is confirmed is sent again,
+    // and the people who got it are never repeated. Application checks the confirmed failure in the outcome.
+    public Result RequestRecipientRetry(Guid recipientUserId,long expectedRevision,DateTime nowUtc)
+    {
+        if(RetryRequested && RetryRecipientUserId==recipientUserId && recipientUserId!=Guid.Empty)return Result.Success();
+        if(Kind!="NotifyRole" || State!=FormActionRunState.Completed || Fence!=expectedRevision || recipientUserId==Guid.Empty)return FormActionErrors.StateConflict;
+        State=FormActionRunState.Waiting;FailureCode=null;CompletedAtUtc=null;CanRetry=false;
+        RetryRequested=true;RetryRecipientUserId=recipientUserId;NextCheckAtUtc=null;UpdatedAtUtc=nowUtc;return Result.Success();
+    }
     public Result RequestDeliveryReview(Guid recipientUserId,long expectedRevision,bool wasSent,Guid reviewedByUserId,DateTime nowUtc)
     {
         if(DeliveryReviewRecipientUserId==recipientUserId && DeliveryReviewExpectedRevision==expectedRevision && DeliveryReviewWasSent==wasSent && DeliveryReviewedByUserId==reviewedByUserId)return Result.Success();
         if(Fence!=expectedRevision || State!=FormActionRunState.Uncertain || Kind is not ("NotifyAuthor" or "NotifyRole") || reviewedByUserId==Guid.Empty || recipientUserId==Guid.Empty)
             return FormActionErrors.StateConflict;
         DeliveryReviewRequested=true;DeliveryReviewRecipientUserId=recipientUserId;DeliveryReviewExpectedRevision=expectedRevision;DeliveryReviewWasSent=wasSent;DeliveryReviewedByUserId=reviewedByUserId;DeliveryReviewedAtUtc=nowUtc;
-        State=FormActionRunState.Running;LeaseExpiresAtUtc=null;RetryRequested=false;NextCheckAtUtc=null;UpdatedAtUtc=nowUtc;
+        State=FormActionRunState.Running;LeaseExpiresAtUtc=null;RetryRequested=false;RetryRecipientUserId=null;NextCheckAtUtc=null;UpdatedAtUtc=nowUtc;
         return Result.Success();
     }
     public Result RequestConsult(DateTime nowUtc)
@@ -86,7 +96,7 @@ public sealed class BusinessFormActionRun : Entity, IAuditable
         if(State is FormActionRunState.Completed or FormActionRunState.NotApplicable) return Result.Success();
         if(State!=FormActionRunState.Uncertain && !(State==FormActionRunState.Running&&LeaseExpiresAtUtc<=nowUtc)) return FormActionErrors.StateConflict;
         State=FormActionRunState.Running;LeaseExpiresAtUtc=null;
-        RetryRequested=false;NextCheckAtUtc=null;UpdatedAtUtc=nowUtc;return Result.Success();
+        RetryRequested=false;RetryRecipientUserId=null;NextCheckAtUtc=null;UpdatedAtUtc=nowUtc;return Result.Success();
     }
     public override string ToString()=>$"BusinessFormActionRun {{ Id = {Id}, State = {State}, Content = [REDACTED] }}";
 }

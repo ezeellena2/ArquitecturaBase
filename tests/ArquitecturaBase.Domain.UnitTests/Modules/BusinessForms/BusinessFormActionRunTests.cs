@@ -154,6 +154,49 @@ public sealed class BusinessFormActionRunTests
         Assert.True(run.RequestDeliveryReview(Guid.NewGuid(),lease.Fence,true,actor,Now).IsFailure);
         Assert.Equal(Recipient,run.DeliveryReviewRecipientUserId);
     }
-    private static BusinessFormActionRun Create() => BusinessFormActionRun.Create(Guid.NewGuid(),Guid.NewGuid(),Guid.NewGuid(),
-        Guid.NewGuid(),Guid.NewGuid(),"Received","NotifyAuthor",0,null,"{}",true,Now);
+    [Fact]
+    public void A_completed_role_notice_reopens_only_for_the_person_whose_retry_was_requested()
+    {
+        var run=Completed(Create("NotifyRole"));
+        Assert.True(run.RequestRecipientRetry(Recipient,run.Fence,Now.AddMinutes(1)).IsSuccess);
+        Assert.Equal(FormActionRunState.Waiting,run.State);Assert.True(run.RetryRequested);Assert.Equal(Recipient,run.RetryRecipientUserId);
+        Assert.Null(run.CompletedAtUtc);Assert.Equal(Now.AddMinutes(1),run.UpdatedAtUtc);
+        var retry=run.Reserve(Now.AddMinutes(1),TimeSpan.FromMinutes(2));
+        Assert.True(retry.IsSuccess);Assert.False(retry.Value.ReconciliationOnly);
+        Assert.True(run.RecordOutcome(retry.Value.Fence,Now.AddMinutes(1),FormActionRunState.Completed,null,false).IsSuccess);
+        Assert.False(run.RetryRequested);Assert.Null(run.RetryRecipientUserId);
+    }
+    [Fact]
+    public void A_person_retry_needs_a_completed_role_notice_and_its_current_revision()
+    {
+        var run=Completed(Create("NotifyRole"));
+        Assert.True(run.RequestRecipientRetry(Recipient,run.Fence-1,Now).IsFailure);
+        Assert.True(run.RequestRecipientRetry(Guid.Empty,run.Fence,Now).IsFailure);
+        var author=Completed(Create());
+        Assert.True(author.RequestRecipientRetry(Recipient,author.Fence,Now).IsFailure);
+        var uncertain=Create("NotifyRole");var lease=uncertain.Reserve(Now,TimeSpan.FromMinutes(2)).Value;
+        Assert.True(uncertain.RequestRecipientRetry(Recipient,lease.Fence,Now).IsFailure);
+        uncertain.RecordOutcome(lease.Fence,Now,FormActionRunState.Uncertain,"unknown",false);
+        Assert.True(uncertain.RequestRecipientRetry(Recipient,lease.Fence,Now).IsFailure);
+        Assert.Equal(FormActionRunState.Completed,run.State);Assert.False(run.RetryRequested);Assert.Null(run.RetryRecipientUserId);
+    }
+    [Fact]
+    public void Repeating_a_person_retry_keeps_it_and_another_person_waits_for_the_notice_to_finish()
+    {
+        var run=Completed(Create("NotifyRole"));var expected=run.Fence;
+        Assert.True(run.RequestRecipientRetry(Recipient,expected,Now).IsSuccess);
+        Assert.True(run.RequestRecipientRetry(Recipient,expected,Now.AddSeconds(1)).IsSuccess);Assert.Equal(Now,run.UpdatedAtUtc);
+        Assert.True(run.RequestRecipientRetry(Guid.NewGuid(),expected,Now).IsFailure);
+        var retry=run.Reserve(Now,TimeSpan.FromMinutes(2)).Value;var expires=run.LeaseExpiresAtUtc;
+        Assert.True(run.RequestRecipientRetry(Recipient,expected,Now.AddSeconds(2)).IsSuccess);
+        Assert.Equal(expires,run.LeaseExpiresAtUtc);Assert.Equal(retry.Fence,run.Fence);Assert.Equal(Recipient,run.RetryRecipientUserId);
+    }
+    private static BusinessFormActionRun Completed(BusinessFormActionRun run)
+    {
+        var lease=run.Reserve(Now,TimeSpan.FromMinutes(2)).Value;
+        Assert.True(run.RecordOutcome(lease.Fence,Now,FormActionRunState.Completed,null,false).IsSuccess);
+        return run;
+    }
+    private static BusinessFormActionRun Create(string kind="NotifyAuthor") => BusinessFormActionRun.Create(Guid.NewGuid(),Guid.NewGuid(),Guid.NewGuid(),
+        Guid.NewGuid(),Guid.NewGuid(),"Received",kind,0,null,"{}",true,Now);
 }
