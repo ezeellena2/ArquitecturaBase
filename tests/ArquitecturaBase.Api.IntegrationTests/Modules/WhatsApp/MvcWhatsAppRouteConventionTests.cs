@@ -36,6 +36,7 @@ public sealed class MvcWhatsAppRouteConventionTests(ApiFactory factory)
         // The production routes also have exactly one registration while this probe runs.
         AssertRouteCount(api, "POST", "/account/login-code/whatsapp", whatsappEnabled ? 1 : 0);
         AssertRouteCount(api, "POST", "/api/me/whatsapp/code", whatsappEnabled ? 1 : 0);
+        AssertRouteCount(api, "GET", "/api/me/whatsapp", whatsappEnabled ? 1 : 0);
         AssertRouteCount(api, "GET", "/webhooks/whatsapp", webhookEnabled ? 1 : 0);
         AssertRouteCount(api, "POST", "/webhooks/whatsapp", webhookEnabled ? 1 : 0);
     }

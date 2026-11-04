@@ -1,7 +1,7 @@
 namespace ArquitecturaBase.Api.IntegrationTests.Contracts;
 
 /// <summary>
-/// La parte del módulo WhatsApp de ExplicitRouteInventoryTests: sus veintiuna combinaciones verbo/ruta. Lleva el namespace de
+/// La parte del módulo WhatsApp de ExplicitRouteInventoryTests: sus veintidós combinaciones verbo/ruta. Lleva el namespace de
 /// la clase del núcleo, no el de su carpeta, para ser otra parte de la misma clase.
 /// </summary>
 public sealed partial class ExplicitRouteInventoryTests
@@ -9,6 +9,7 @@ public sealed partial class ExplicitRouteInventoryTests
     internal static readonly string[] WhatsAppRoutes =
     [
         "POST /account/login-code/whatsapp",
+        "GET /api/me/whatsapp",
         "POST /api/me/whatsapp/code",
         "PUT /api/me/whatsapp",
         "GET /webhooks/whatsapp",
@@ -32,13 +33,13 @@ public sealed partial class ExplicitRouteInventoryTests
     ];
 
     [Fact]
-    public void The_whatsapp_module_adds_its_twenty_one_routes()
+    public void The_whatsapp_module_adds_its_twenty_two_routes()
     {
         List<string> routes = [];
 
         AddModuleRoutes(routes);
 
-        Assert.Equal(21, WhatsAppRoutes.Length);
+        Assert.Equal(22, WhatsAppRoutes.Length);
         Assert.Equal(WhatsAppRoutes, routes.Where(WhatsAppRoutes.Contains));
     }
 

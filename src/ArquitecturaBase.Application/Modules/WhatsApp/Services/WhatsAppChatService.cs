@@ -100,7 +100,11 @@ internal sealed class WhatsAppChatService(
             }, CommitPolicy.OnSuccess, cancellationToken));
 
     internal static bool IsReplyWindowOpen(WhatsAppContact contact, DateTime nowUtc) =>
-        contact.LastInboundAtUtc > nowUtc.AddHours(-24) && contact.LastInboundAtUtc <= nowUtc.AddMinutes(5);
+        IsReplyWindowOpen(contact.LastInboundAtUtc, nowUtc);
+
+    /// <summary>La misma ventana leída desde una proyección: el perfil la muestra como «hasta cuándo llegan los avisos».</summary>
+    internal static bool IsReplyWindowOpen(DateTime lastInboundAtUtc, DateTime nowUtc) =>
+        lastInboundAtUtc > nowUtc.AddHours(-24) && lastInboundAtUtc <= nowUtc.AddMinutes(5);
 
     internal static WhatsAppOutgoingMessageResponse ToResponse(WhatsAppOutgoingMessageRow row) =>
         new(row.Id, row.RequestId, row.OperatorUserId, row.Body, row.RequestedAtUtc, row.State, row.WaMessageId);

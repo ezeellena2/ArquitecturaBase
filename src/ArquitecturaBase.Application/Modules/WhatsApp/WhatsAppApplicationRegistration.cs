@@ -72,6 +72,7 @@ public static class WhatsAppApplicationRegistration
         services.AddScoped<WhatsAppAccessReplyPolicy>();
         services.AddScoped<IWhatsAppLoginCodeService, WhatsAppLoginCodeService>();
         services.AddScoped<IProfileWhatsAppService, ProfileWhatsAppService>();
+        services.AddScoped<IProfileWhatsAppChatService, ProfileWhatsAppChatService>();
         services.AddScoped<IWhatsAppDeliveryService, WhatsAppDeliveryService>();
         services.AddScoped<IWhatsAppWebhookPersistence, WhatsAppWebhookPersistence>();
         services.AddScoped<IWhatsAppWebhookService, WhatsAppWebhookService>();

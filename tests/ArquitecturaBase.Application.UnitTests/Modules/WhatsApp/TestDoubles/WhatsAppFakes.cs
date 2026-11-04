@@ -101,6 +101,18 @@ internal sealed class InMemoryWhatsAppContactRepository(LockLog locks) : IWhatsA
     public void Add(WhatsAppContact contact) => Added.Add(contact);
 }
 
+/// <summary>Lee el chat del perfil sobre los contactos guardados del repositorio en memoria, como la consulta de EF.</summary>
+internal sealed class InMemoryWhatsAppContactReader(InMemoryWhatsAppContactRepository repository) : IWhatsAppContactReader
+{
+    public Task<WhatsAppProfileChatRow> FindProfileChatAsync(Guid userId, string waId, CancellationToken cancellationToken)
+    {
+        var linked = repository.Contacts.SingleOrDefault(contact => contact.UserId == userId);
+
+        return Task.FromResult(new WhatsAppProfileChatRow(
+            linked?.WaId, linked?.LastInboundAtUtc, repository.Contacts.Any(contact => contact.WaId == waId)));
+    }
+}
+
 internal sealed class InMemoryWhatsAppMessageRepository(LockLog locks) : IWhatsAppMessageRepository
 {
     private readonly List<WhatsAppDeliveryReceipt> receipts = [];

@@ -24,6 +24,10 @@ public sealed class WhatsAppOpenApiTests(ApiFactory factory)
         Assert.True(profileWhatsApp.GetProperty("put").GetProperty("requestBody").GetProperty("content")
             .TryGetProperty("application/json", out _));
         Assert.True(profileWhatsApp.GetProperty("put").GetProperty("responses").TryGetProperty("204", out _));
+        var profileChat = profileWhatsApp.GetProperty("get");
+        Assert.Equal("Users", profileChat.GetProperty("tags")[0].GetString());
+        Assert.True(profileChat.GetProperty("responses").GetProperty("200").GetProperty("content")
+            .TryGetProperty("application/json", out _));
 
         var whatsAppLoginCode = paths.GetProperty("/account/login-code/whatsapp").GetProperty("post");
         Assert.Equal("Account", whatsAppLoginCode.GetProperty("tags")[0].GetString());

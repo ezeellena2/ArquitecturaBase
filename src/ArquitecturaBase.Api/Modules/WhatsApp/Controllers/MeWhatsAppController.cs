@@ -12,9 +12,9 @@ using Microsoft.AspNetCore.RateLimiting;
 namespace ArquitecturaBase.Api.Modules.WhatsApp.Controllers;
 
 /// <summary>
-/// El número de WhatsApp del perfil, dentro de <c>/api/me</c>: pedir el código y confirmarlo. Tiene los
-/// mismos atributos que el resto del perfil (<c>MeController</c>); solo el pedido del código depende de que WhatsApp
-/// esté prendido.
+/// El número de WhatsApp del perfil, dentro de <c>/api/me</c>: cómo está su chat, pedir el código y confirmarlo. Tiene
+/// los mismos atributos que el resto del perfil (<c>MeController</c>); leer el chat y pedir el código dependen de que
+/// WhatsApp esté prendido.
 /// </summary>
 [ApiController]
 [Route("api/me/whatsapp")]
@@ -22,8 +22,15 @@ namespace ArquitecturaBase.Api.Modules.WhatsApp.Controllers;
 [Authorize]
 // Todas leen la cuenta de la sesión: si se borró con el token todavía vigente, responden 404.
 [ProducesProblem(StatusCodes.Status404NotFound)]
-public sealed class MeWhatsAppController(IProfileWhatsAppService whatsApp) : ControllerBase
+public sealed class MeWhatsAppController(IProfileWhatsAppService whatsApp, IProfileWhatsAppChatService chat) : ControllerBase
 {
+    /// <summary>Si el chat del número está vinculado a la cuenta y hasta cuándo le pueden llegar los avisos.</summary>
+    [HttpGet]
+    [WhatsAppRoute(WhatsAppRouteFeature.Messaging)]
+    [ProducesResponseType<ProfileWhatsAppChatResponse>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetChat(CancellationToken cancellationToken) =>
+        (await chat.GetChatAsync(cancellationToken)).ToActionResult(this);
+
     [HttpPost("code")]
     [WhatsAppRoute(WhatsAppRouteFeature.Messaging)]
     [EnableRateLimiting(RateLimitingExtensions.LoginCodePolicy)]

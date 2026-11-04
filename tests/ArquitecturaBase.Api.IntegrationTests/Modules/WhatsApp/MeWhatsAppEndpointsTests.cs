@@ -775,6 +775,66 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
         Assert.Equal(LoginLinkErrors.InvalidCode, (await redeem.ReadJsonAsync()).GetProperty("code").GetString());
     }
 
+    /// <summary>
+    /// El caso de la prueba completa del 2026-11-03 (tablero PF2 de Mi perfil): el número quedó confirmado antes de que
+    /// existiera su chat, y el primer mensaje lo creó suelto, porque un mensaje nunca vincula. Leer el chat lo dice, y
+    /// volver a confirmar el mismo número lo vincula, con los avisos hasta 24 horas después de ese mensaje.
+    /// </summary>
+    [Fact]
+    public async Task A_chat_born_after_confirming_the_number_reads_not_linked_until_the_number_is_confirmed_again()
+    {
+        using var client = factory.CreateClient();
+        var phone = TestPhones.Unique();
+        var user = await CreateAccountAsync(email: TestEmails.Unique("chat-suelto"), phone: phone);
+        var bsuid = MetaWebhook.UniqueBsuid();
+        await SayHelloAsync(client, phone, bsuid);
+
+        using var before = await ReadChatAsync(client, user);
+        var unlinked = await before.ReadJsonAsync();
+
+        Assert.Equal(HttpStatusCode.OK, before.StatusCode);
+        Assert.Equal(["noticesUntilUtc", "state"], PropertyNames(unlinked));
+        Assert.Equal("NotLinked", unlinked.GetProperty("state").GetString());
+        Assert.Equal(JsonValueKind.Null, unlinked.GetProperty("noticesUntilUtc").ValueKind);
+
+        var code = await RequestCodeAsync(client, user, phone);
+        using var confirm = await ConfirmAsync(client, user, phone, code);
+        using var after = await ReadChatAsync(client, user);
+        var linked = await after.ReadJsonAsync();
+
+        Assert.Equal(HttpStatusCode.NoContent, confirm.StatusCode);
+        Assert.Equal("Linked", linked.GetProperty("state").GetString());
+        Assert.Equal(
+            (await ContactAsync(bsuid)).LastInboundAtUtc.AddHours(24), linked.GetProperty("noticesUntilUtc").GetDateTime());
+    }
+
+    [Fact]
+    public async Task A_number_that_never_wrote_to_the_business_has_no_chat()
+    {
+        using var client = factory.CreateClient();
+        var user = await CreateAccountAsync(email: TestEmails.Unique("sin-chat"), phone: TestPhones.Unique());
+
+        using var response = await ReadChatAsync(client, user);
+        var body = await response.ReadJsonAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("NoChat", body.GetProperty("state").GetString());
+        Assert.Equal(JsonValueKind.Null, body.GetProperty("noticesUntilUtc").ValueKind);
+    }
+
+    [Fact]
+    public async Task With_whatsapp_off_reading_the_chat_answers_404()
+    {
+        await using var api = factory.WithWebHostBuilder(builder => builder.UseSetting("WhatsApp:PhoneNumberId", ""));
+        using var client = api.CreateClient();
+        var user = await CreateAccountAsync(email: TestEmails.Unique("chat-apagado"), phone: TestPhones.Unique());
+
+        using var response = await ReadChatAsync(client, user);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal("Http.NotFound", (await response.ReadJsonAsync()).GetProperty("code").GetString());
+    }
+
     [Fact]
     public async Task With_whatsapp_off_asking_for_a_code_to_link_answers_404()
     {
@@ -851,6 +911,7 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
     }
 
     [Theory]
+    [InlineData("GET", "/api/me/whatsapp")]
     [InlineData("POST", "/api/me/whatsapp/code")]
     [InlineData("PUT", "/api/me/whatsapp")]
     [InlineData("POST", "/api/me/email/code")]
@@ -860,7 +921,7 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
         using var client = factory.CreateClient();
 
         using var response = await client.SendAsync(
-            new HttpMethod(method), url, method == "DELETE" ? null : JsonContent.Create(new { }));
+            new HttpMethod(method), url, method is "DELETE" or "GET" ? null : JsonContent.Create(new { }));
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
         Assert.Equal("Http.Unauthorized", (await response.ReadJsonAsync()).GetProperty("code").GetString());
@@ -887,6 +948,9 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
 
     private static Task<HttpResponseMessage> UnlinkAsync(HttpClient client, UserAccount user, string? language = null) =>
         SendAsync(client, HttpMethod.Delete, LinkUrl, user, body: null, language);
+
+    private static Task<HttpResponseMessage> ReadChatAsync(HttpClient client, UserAccount user) =>
+        SendAsync(client, HttpMethod.Get, LinkUrl, user);
 
     /// <summary>Pide el código para vincular <paramref name="phone"/> a la cuenta y devuelve el que salió.</summary>
     private async Task<string> RequestCodeAsync(HttpClient client, UserAccount user, PhoneNumber phone)

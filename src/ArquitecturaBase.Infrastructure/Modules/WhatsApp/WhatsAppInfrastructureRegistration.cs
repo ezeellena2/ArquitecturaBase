@@ -51,6 +51,7 @@ public static class WhatsAppInfrastructureRegistration
         services.AddScoped<IWhatsAppMessageReader, WhatsAppMessageReader>();
         services.AddScoped<IWhatsAppChatReader, WhatsAppChatReader>();
         services.AddScoped<IWhatsAppFormRecipientReader, WhatsAppFormRecipientReader>();
+        services.AddScoped<IWhatsAppContactReader, WhatsAppContactReader>();
         services.AddScoped<IWhatsAppRecordOriginReader, WhatsAppRecordOriginReader>();
         services.AddScoped<IWhatsAppFlowSessionReader, WhatsAppFlowSessionReader>();
         services.AddScoped<IWhatsAppFlowSessionRepository, WhatsAppFlowSessionRepository>();
