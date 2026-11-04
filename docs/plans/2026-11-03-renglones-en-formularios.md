@@ -73,8 +73,8 @@ programar.
    - La planilla sigue con una fila por respuesta. La columna del bloque dice la cantidad de renglones y los valores de su
      primera pregunta, en orden y cortados con «…»: «3 · GLIFOSATO 64%, ATRAZINA 50%, UREA GRANULADA…». No se ordena por
      ella, como «elegir varias». Una respuesta de antes del bloque dice «—».
-   - En «Filtros» (PL1-A), las preguntas del bloque van debajo de su nombre y filtran por algún renglón. Las cantidades cuentan
-     respuestas, no renglones.
+   - En «Filtros» (PL1-A), las preguntas del bloque van debajo de su nombre y filtran por algún renglón. Desde PL2-A, una con
+     opciones es un combo de una opción, sin cantidades, y el total de la planilla sigue contando respuestas.
    - La vista rápida (D2) muestra cada renglón con su número y su primer valor en negro, y los demás datos alineados debajo,
      como los de un catálogo (TL1-A). La pantalla completa (DC1) y el PDF muestran una tabla; en el PDF, la tabla sigue en la
      página siguiente si no entra.
@@ -84,8 +84,8 @@ programar.
 5. **Las reglas: RG5-A, «algún renglón con…».**
    - Una condición sobre una pregunta del bloque se cumple si al menos un renglón la cumple. Varias del mismo bloque buscan un
      renglón que las cumpla todas.
-   - La condición empieza con «Algún renglón con». La lista de reglas dice «Algún renglón de Artículos con ¿Llegó en buen
-     estado? es No».
+   - La condición empieza con «Algún renglón con». La lista de reglas, en pasos desde LR1-A, dice «Si algún renglón de
+     Artículos con ¿Llegó en buen estado? es No».
    - «Filtros» usa la misma regla.
    - En el mensaje (MD1-A), «Artículos» es un dato que trae todos los renglones, uno por línea, numerados y con sus valores
      separados por « · » en el orden de las preguntas. Las preguntas del bloque no se ofrecen sueltas.
@@ -188,8 +188,8 @@ programar.
 
 ## Lo que tiene que estar antes
 
-Estos tableros ya están elegidos y siguen por programar al 2026-11-03. Cada etapa de este plan arranca después de los que
-toca:
+Los cinco quedaron programados el 2026-11-03, comprobado el 2026-11-04 en los dos repositorios y en el diseño del front;
+falta su prueba manual. Cada etapa de este plan se apoya en los que toca:
 
 - **AR1-A** (dos anchos) y **AR2-A** (mantener lo cargado en la página): el bloque ocupa el renglón entero y «Mantener»
   conserva los renglones.
