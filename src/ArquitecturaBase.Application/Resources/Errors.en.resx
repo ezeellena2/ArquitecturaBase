@@ -132,6 +132,19 @@
   <data name="Ai.Assistant.ProviderIncomplete" xml:space="preserve"><value>The provider returned an incomplete response. It was not published and its limit was not increased automatically.</value></data>
   <data name="Ai.Assistant.QuotaExceeded" xml:space="preserve"><value>The accepted question quota is exhausted. Wait for the indicated period.</value></data>
   <data name="Ai.Assistant.CapacityLimited" xml:space="preserve"><value>The assistant is busy. Wait for the indicated period before submitting again.</value></data>
+  <data name="Arca.Connection.CuitInvalid" xml:space="preserve"><value>Check the CUIT: it has eleven digits and the last one is the check digit.</value></data>
+  <data name="Arca.Connection.AliasInvalid" xml:space="preserve"><value>The alias has 3 to 30 lowercase letters, digits or hyphens, and starts with a letter.</value></data>
+  <data name="Arca.Connection.ServiceNotInstalled" xml:space="preserve"><value>That ARCA service is not installed in this system.</value></data>
+  <data name="Arca.Connection.CertificateUnreadable" xml:space="preserve"><value>We could not read the certificate. Upload the .crt file ARCA gave you.</value></data>
+  <data name="Arca.Connection.CertificateKeyMismatch" xml:space="preserve"><value>The certificate does not match the request this system generated. Create the alias in ARCA with the latest request.</value></data>
+  <data name="Arca.Connection.CertificateCuitMismatch" xml:space="preserve"><value>The certificate belongs to another CUIT.</value></data>
+  <data name="Arca.Connection.CertificateEnvironmentMismatch" xml:space="preserve"><value>The certificate belongs to the other environment: testing and production use different certificates.</value></data>
+  <data name="Arca.Connection.CertificateExpired" xml:space="preserve"><value>The certificate has expired. Generate a new request to renew it.</value></data>
+  <data name="Arca.Connection.NoPendingRequest" xml:space="preserve"><value>There is no pending certificate request.</value></data>
+  <data name="Arca.Connection.RevisionConflict" xml:space="preserve"><value>Someone else changed the connection. Read the current one and try again.</value></data>
+  <data name="Arca.Connection.NotConnected" xml:space="preserve"><value>There is no ARCA connection yet.</value></data>
+  <data name="Arca.Invoicing.PointOfSaleInvalid" xml:space="preserve"><value>The point of sale goes from 1 to 99998.</value></data>
+  <data name="Arca.Invoicing.PointOfSaleUnavailable" xml:space="preserve"><value>ARCA no longer offers that point of sale. Search the points of sale again.</value></data>
   <data name="Forms.Draft.RevisionConflict" xml:space="preserve">
     <value>The draft changed. Reload it before saving.</value>
   </data>

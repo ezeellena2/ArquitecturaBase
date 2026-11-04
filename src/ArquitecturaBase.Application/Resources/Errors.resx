@@ -132,6 +132,19 @@
   <data name="Ai.Assistant.ProviderIncomplete" xml:space="preserve"><value>El proveedor devolvió una respuesta incompleta. No se publicó ni se amplió el límite automáticamente.</value></data>
   <data name="Ai.Assistant.QuotaExceeded" xml:space="preserve"><value>Alcanzaste la cuota de consultas aceptadas. Esperá el plazo indicado.</value></data>
   <data name="Ai.Assistant.CapacityLimited" xml:space="preserve"><value>El asistente está ocupado. Esperá el plazo indicado antes de volver a enviar.</value></data>
+  <data name="Arca.Connection.CuitInvalid" xml:space="preserve"><value>Revisá la CUIT: tiene once dígitos y el último es el verificador.</value></data>
+  <data name="Arca.Connection.AliasInvalid" xml:space="preserve"><value>El alias va de 3 a 30 letras minúsculas, números o guiones, y empieza con una letra.</value></data>
+  <data name="Arca.Connection.ServiceNotInstalled" xml:space="preserve"><value>Ese servicio de ARCA no está instalado en este sistema.</value></data>
+  <data name="Arca.Connection.CertificateUnreadable" xml:space="preserve"><value>No pudimos leer el certificado. Subí el archivo .crt que te dio ARCA.</value></data>
+  <data name="Arca.Connection.CertificateKeyMismatch" xml:space="preserve"><value>El certificado no corresponde al pedido que generó el sistema. Creá el alias en ARCA con el último pedido.</value></data>
+  <data name="Arca.Connection.CertificateCuitMismatch" xml:space="preserve"><value>El certificado es de otra CUIT.</value></data>
+  <data name="Arca.Connection.CertificateEnvironmentMismatch" xml:space="preserve"><value>El certificado es del otro ambiente: homologación y producción usan certificados distintos.</value></data>
+  <data name="Arca.Connection.CertificateExpired" xml:space="preserve"><value>El certificado está vencido. Generá un pedido nuevo para renovarlo.</value></data>
+  <data name="Arca.Connection.NoPendingRequest" xml:space="preserve"><value>No hay un pedido de certificado pendiente.</value></data>
+  <data name="Arca.Connection.RevisionConflict" xml:space="preserve"><value>Otra persona cambió la conexión. Leé lo actual y volvé a intentar.</value></data>
+  <data name="Arca.Connection.NotConnected" xml:space="preserve"><value>Todavía no hay una conexión con ARCA.</value></data>
+  <data name="Arca.Invoicing.PointOfSaleInvalid" xml:space="preserve"><value>El punto de venta va de 1 a 99998.</value></data>
+  <data name="Arca.Invoicing.PointOfSaleUnavailable" xml:space="preserve"><value>ARCA ya no ofrece ese punto de venta. Volvé a buscar los puntos de venta.</value></data>
   <data name="Forms.Draft.RevisionConflict" xml:space="preserve">
     <value>El borrador cambió. Volvé a cargarlo antes de guardar.</value>
   </data>

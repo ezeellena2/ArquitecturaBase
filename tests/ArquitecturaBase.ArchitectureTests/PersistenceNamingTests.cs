@@ -101,13 +101,24 @@ public sealed class PersistenceNamingTests
         // sus lectores pueden saltearse el seguimiento.
         Assert.True(IsPersistenceContractNamespace("ArquitecturaBase.Application.Modules.Control.Interfaces.Persistence"));
         Assert.False(IsPersistenceContractNamespace("ArquitecturaBase.Application.Modules.Control.Interfaces.Services"));
+
+        // Un módulo con familias de servicios (ADR 0025) guarda sus contratos en una subcarpeta por familia; se revisan
+        // igual, y un nombre que solo empieza parecido no cuenta.
+        Assert.True(IsPersistenceContractNamespace("ArquitecturaBase.Application.Modules.Control.Interfaces.Persistence.Family"));
+        Assert.False(IsPersistenceContractNamespace("ArquitecturaBase.Application.Modules.Control.Interfaces.PersistenceExtra"));
+        Assert.True(IsReader("ArquitecturaBase.Infrastructure.Modules.Control.Persistence.Readers.Family.ControlReader"));
         Assert.True(IsReader("ArquitecturaBase.Infrastructure.Modules.Control.Persistence.Readers.ControlReader"));
         Assert.False(IsReader("ArquitecturaBase.Infrastructure.Modules.Control.Persistence.Repositories.ControlRepository"));
     }
 
-    /// <summary>Si es el namespace de los contratos de persistencia, del núcleo o de un módulo.</summary>
+    /// <summary>
+    /// Si es el namespace de los contratos de persistencia, del núcleo o de un módulo, o una subcarpeta suya (la familia de
+    /// servicios de un módulo, ADR 0025).
+    /// </summary>
     private static bool IsPersistenceContractNamespace(string? @namespace) =>
-        @namespace is not null && ModuleNamespaces.Canonical(@namespace) == PersistenceNamespace;
+        @namespace is not null
+        && ModuleNamespaces.Canonical(@namespace) is var canonical
+        && (canonical == PersistenceNamespace || canonical.StartsWith(PersistenceNamespace + ".", StringComparison.Ordinal));
 
     /// <summary>
     /// Si el dueño de una llamada (un tipo de nivel superior, por su nombre completo) es un lector, del núcleo o de un

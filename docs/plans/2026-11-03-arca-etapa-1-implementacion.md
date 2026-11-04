@@ -57,11 +57,11 @@ src/ArquitecturaBase.Application/Modules/Arca/
 │  ├─ Integrations/Connection/ IArcaCredentialService · IArcaAuthClient · IArcaAccessTicketProvider
 │  ├─ Integrations/Registry/   IArcaRegistryClient
 │  └─ Integrations/Invoicing/  IArcaInvoicingClient
-├─ Models/Connection/   ArcaConnectionResponse · ArcaConnectionSnapshot · ArcaTicketSnapshot · ArcaTestResponse
+├─ Models/Connection/   ArcaConnectionResponse · ArcaConnectionRow · ArcaTicketRow · ArcaTestResponse
 │                       ArcaServiceCheck · ArcaServiceContext · ArcaCertificateRequest · InspectedCertificate
 │                       ArcaCertificateRef · ArcaLoginResult · ArcaTicketOutcome · ArcaInstalledService
-├─ Models/Registry/     ArcaRegistryPerson · ArcaCompanyResponse
-├─ Models/Invoicing/    ArcaPointOfSale · ArcaPointOfSaleRow · ArcaInvoicingSettingsResponse
+├─ Models/Registry/     ArcaRegistryPerson · ArcaRegistryCompanyRow · ArcaCompanyResponse
+├─ Models/Invoicing/    ArcaPointOfSale · ArcaPointOfSaleRow · ArcaInvoicingSettingsRow · ArcaInvoicingSettingsResponse
 └─ Services/
    ├─ Connection/  ArcaConnectionService · ArcaConnectionTestService · ArcaAccessTicketProvider
    ├─ Registry/    ArcaRegistryServiceDefinition · ArcaCompanyDataPolicy
@@ -98,7 +98,7 @@ tests/
 ├─ ArquitecturaBase.Application.UnitTests/TestFeatures/Modules/Arca/
 ├─ ArquitecturaBase.ArchitectureTests/Modules/Arca/   ArcaTransactionContribution · ArcaFamilyBoundaryTests
 ├─ ArquitecturaBase.Api.IntegrationTests/Modules/Arca/{Connection,Registry,Invoicing}/ · ArcaTestModule.cs
-└─ ArquitecturaBase.Api.IntegrationTests/TestFeatures/Modules/Arca/   FakeArca · FakeArcaCertificateAuthority
+└─ ArquitecturaBase.Api.IntegrationTests/TestFeatures/Modules/Arca/   ArcaPersistenceScenario · FakeArca · FakeArcaCertificateAuthority
 
 ArquitecturaBaseFront/src/
 ├─ features/arca/
@@ -289,6 +289,14 @@ builder.Services
 
 ### Tarea 2: dominio
 
+**Hecha el 2026-11-04, con la tarea 3 en el mismo commit:** `EntityConfigurationTests` pide la configuración de EF de
+cada entidad en el mismo cambio. Diferencias con lo escrito:
+- `Cuit` se llama `CuitNumber`, porque `ArcaConnection` ya tiene una propiedad `Cuit`.
+- No hay `NotTested`: ningún caso de la etapa lo devuelve.
+- `ArcaConnection` suma `ReevaluateFamilies`, para cuando una familia completa o pierde su configuración, y
+  `EnabledServices` es un `string[]` con setter privado, como `PublishedCultures` de formularios, para mapearlo a `text[]`.
+- `ArcaAccessTicket` suma `Release`, para soltar la reserva sin guardar nada cuando ARCA no responde.
+
 **Archivos:**
 - Crear en `src/ArquitecturaBase.Domain/Modules/Arca/`:
   - `Connection/`: `Cuit.cs`, `ArcaServiceCode.cs`, los enums, `ArcaConnection.cs`, `ArcaCertificate.cs`, `ArcaAccessTicket.cs` y `ArcaTicketLease.cs`;
@@ -298,7 +306,7 @@ builder.Services
 - Modificar: `src/ArquitecturaBase.Application/Resources/Errors.resx` y `Errors.en.resx`
 - Crear: `tests/ArquitecturaBase.Domain.UnitTests/Modules/Arca/Connection/CuitTests.cs`, `ArcaServiceCodeTests.cs`, `ArcaConnectionTests.cs`, `ArcaAccessTicketTests.cs`, y `Invoicing/ArcaInvoicingSettingsTests.cs`
 
-- [ ] **Paso 1: tests en rojo.**
+- [x] **Paso 1: tests en rojo.**
 
 ```csharp
 public sealed class CuitTests
@@ -344,9 +352,9 @@ public sealed class CuitTests
     - guardar o bloquear con otro dueño de reserva no cambia nada y devuelve `false`.
   - **`ArcaInvoicingSettingsTests`:** el punto de venta va de 1 a 99998, y la configuración está completa solo con un punto
     de venta elegido.
-- [ ] **Paso 2: correr y ver que fallan.**
+- [x] **Paso 2: correr y ver que fallan.**
   `dotnet test --project tests/ArquitecturaBase.Domain.UnitTests/ArquitecturaBase.Domain.UnitTests.csproj -- --filter-class "ArquitecturaBase.Domain.UnitTests.Modules.Arca.Connection.CuitTests"`
-- [ ] **Paso 3: CUIT y código de servicio.** Un dígito verificador 10 no es válido: ARCA nunca lo asigna.
+- [x] **Paso 3: CUIT y código de servicio.** Un dígito verificador 10 no es válido: ARCA nunca lo asigna.
 
 ```csharp
 namespace ArquitecturaBase.Domain.Modules.Arca.Connection;
@@ -384,7 +392,7 @@ public readonly record struct ArcaServiceCode
 }
 ```
 
-- [ ] **Paso 4: enums y entidades.**
+- [x] **Paso 4: enums y entidades.**
   - **Enums de `Connection/`:**
     - `ArcaAccessMode { CompanyCertificate, PlatformDelegation, PlatformDelegationAutomated }`;
     - `ArcaEnvironment { Testing, Production }`;
@@ -432,7 +440,7 @@ public bool Block(Guid owner, DateTime untilUtc)
     con `Update(...)`) y `ArcaVatCondition { RegisteredTaxpayer, Monotax, Exempt, NotRegistered }`.
   - **`Invoicing/`:** `ArcaInvoicingSettings : Entity` (conexión y punto de venta), con `Result ChoosePointOfSale(int number)`
     e `IsComplete`.
-- [ ] **Paso 5: errores.** Los códigos son `Arca.Connection.<Motivo>` y `Arca.Invoicing.<Motivo>`, con su texto en
+- [x] **Paso 5: errores.** Los códigos son `Arca.Connection.<Motivo>` y `Arca.Invoicing.<Motivo>`, con su texto en
   `Errors.resx` (voseo) y en `Errors.en.resx`.
   - **`ArcaConnectionErrors`:**
     - de validación: `CuitInvalid`, `AliasInvalid`, `ServiceNotInstalled`, `CertificateUnreadable`,
@@ -440,29 +448,46 @@ public bool Block(Guid owner, DateTime untilUtc)
       `NoPendingRequest` y `NotTested`;
     - `RevisionConflict` (conflicto) y `NotConnected` (no encontrado).
   - **`ArcaInvoicingErrors`:** `PointOfSaleInvalid` y `PointOfSaleUnavailable` (validación).
-- [ ] **Paso 6: correr** los tests de la tarea, `ErrorDeclarationTests`, `ResourceParityTests` y `ArcaFamilyBoundaryTests`.
-- [ ] **Paso 7: commit.** `feat(arca): dominio de la conexión, el padrón y la facturación`
+- [x] **Paso 6: correr** los tests de la tarea, `ErrorDeclarationTests`, `ResourceParityTests` y `ArcaFamilyBoundaryTests`.
+- [x] **Paso 7: commit.** `feat(arca): dominio de la conexión, el padrón y la facturación`
 
 ---
 
 ### Tarea 3: persistencia
 
+**Hecha el 2026-11-04.** Diferencias con lo escrito:
+- Las fotos de los lectores terminan en `Row`, como pide `ReaderOutputNamingTests`: `ArcaConnectionRow` (con
+  `ArcaCertificateRow`, sin clave ni pedido), `ArcaTicketRow`, `ArcaRegistryCompanyRow` y `ArcaInvoicingSettingsRow`.
+- `ArcaTicketRow` lleva las credenciales cifradas, como `AiConnectionRow` lleva la clave cifrada: el proveedor de tickets
+  de la tarea 5 las necesita. Su `ToString` las oculta. La clave privada del certificado no sale por ningún lector: la
+  tarea 5 arma `ArcaCertificateRef` desde el repositorio, o con un método de lectura propio.
+- Los repositorios de `Registry` e `Invoicing` no tienen lock propio: quien escribe toma el de la conexión con
+  `IArcaConnectionRepository.LockConnectionAsync`, porque una familia puede usar `Connection`.
+- `PersistenceNamingTests` y `PersistenceRegistrationTests` comparaban el namespace exacto y no veían las subcarpetas
+  por familia. Ahora revisan también las subcarpetas, con casos de control. `ControllerServiceRepositoryTests` tiene la
+  misma comparación para `Interfaces/Services`, pero falla a la vista: se amplía en la tarea 8.
+- La migración se corrigió a mano en un punto: `CK_BusinessFormCatalogs_Proposal` es un texto de varias líneas, y con
+  `core.autocrlf` EF lo volcó con `
+` en el snapshot. Se volvió a `
+`, como en `HEAD`, para
+  `MigrationSqlPortabilityTests`.
+
 **Archivos:**
 - Crear en `src/ArquitecturaBase.Infrastructure/Modules/Arca/Persistence/`: `ArcaLockKeys.cs`, y en `Configurations/`, `Repositories/` y `Readers/` una carpeta `Connection`, `Registry` e `Invoicing` con lo suyo
-- Crear en `src/ArquitecturaBase.Application/Modules/Arca/Interfaces/Persistence/{Connection,Registry,Invoicing}/` los contratos, y en `Models/Connection/` `ArcaConnectionSnapshot.cs` y `ArcaTicketSnapshot.cs`
+- Crear en `src/ArquitecturaBase.Application/Modules/Arca/Interfaces/Persistence/{Connection,Registry,Invoicing}/` los contratos, y en `Models/<Familia>/` sus filas
 - Crear: la migración `AddArcaConnection` (según [migración](../guides/migracion.md))
 - Crear: `tests/ArquitecturaBase.ArchitectureTests/Modules/Arca/ArcaTransactionContribution.cs`, y en `tests/ArquitecturaBase.Api.IntegrationTests/Modules/Arca/`, `Connection/ArcaConnectionPersistenceTests.cs`, `Registry/ArcaRegistryPersistenceTests.cs` e `Invoicing/ArcaInvoicingPersistenceTests.cs`
 
 Referencias: `IAiConnectionRepository`, `IAiConnectionReader`, sus implementaciones y configuraciones, `AiAdvisoryLockKeys`,
 `AiTransactionContribution`, y [nombres de repositorios](../decisions/0008-nombres-de-repositorios-y-lectores.md).
 
-- [ ] **Paso 1: tests en rojo,** con PostgreSQL:
+- [x] **Paso 1: tests en rojo,** con PostgreSQL:
   - un segundo `ArcaConnection` con `Scope = 1` choca con el índice único;
   - un certificado activo y uno pendiente conviven, y un segundo pendiente choca (índice único por conexión y papel);
   - hay un ticket por certificado y código de servicio;
   - borrar la conexión borra en cascada certificados, tickets, `ArcaRegistryCompanies` y `ArcaInvoicingSettings`;
   - los lectores devuelven fotos sin seguimiento, sin la clave ni las credenciales del ticket.
-- [ ] **Paso 2: contratos de `Connection`.**
+- [x] **Paso 2: contratos de `Connection`.**
 
 ```csharp
 public interface IArcaConnectionRepository
@@ -481,27 +506,27 @@ public interface IArcaConnectionRepository
 
 public interface IArcaConnectionReader
 {
-    Task<ArcaConnectionSnapshot?> FindAsync(CancellationToken cancellationToken);
-    Task<ArcaTicketSnapshot?> FindTicketAsync(Guid certificateId, ArcaServiceCode service, CancellationToken cancellationToken);
+    Task<ArcaConnectionRow?> FindAsync(CancellationToken cancellationToken);
+    Task<ArcaTicketRow?> FindTicketAsync(Guid certificateId, ArcaServiceCode service, CancellationToken cancellationToken);
 }
 ```
 
   `Registry` e `Invoicing` tienen cada una su repositorio (`Get…Async(Guid connectionId)` y `Add`) y su lector
   (`Find…Async`). No nombran tipos de `Connection` más allá del `Guid` de la conexión.
-- [ ] **Paso 3: locks.** En `ArcaLockKeys` van `arca-connection:installation` y `arca-ticket:{certificateId}:{service}`. Las
+- [x] **Paso 3: locks.** En `ArcaLockKeys` van `arca-connection:installation` y `arca-ticket:{certificateId}:{service}`. Las
   escrituras de `Registry` e `Invoicing` toman el de la conexión. `ArcaTransactionContribution` declara `LockOwners`, que
   apunta a `ArcaLockKeys`, y `LockPrefixes` `["arca-connection:", "arca-ticket:"]`.
-- [ ] **Paso 4: configuraciones EF.**
+- [x] **Paso 4: configuraciones EF.**
   - tablas `ArcaConnections`, `ArcaCertificates`, `ArcaAccessTickets`, `ArcaRegistryCompanies` y `ArcaInvoicingSettings`,
     con `ToTable` explícito como en los módulos;
   - enums como texto y `EnabledServices` como `text[]`;
   - `Revision` como token de concurrencia, como en IA;
   - claves foráneas a `ArcaConnections` con cascada.
-- [ ] **Paso 5: migración.** Se genera con la cadena de mentira del pipeline, con los parámetros exactos de
+- [x] **Paso 5: migración.** Se genera con la cadena de mentira del pipeline, con los parámetros exactos de
   [migración](../guides/migracion.md):
   `dotnet ef migrations add AddArcaConnection --project src/ArquitecturaBase.Infrastructure --startup-project src/ArquitecturaBase.Api`
-- [ ] **Paso 6: correr** los tests de la tarea, `MigrationsTests`, `TransactionBoundaryTests` y `ArcaFamilyBoundaryTests`.
-- [ ] **Paso 7: commit.** `feat(arca): persistencia de la conexión, el padrón y la facturación`
+- [x] **Paso 6: correr** los tests de la tarea, `MigrationsTests`, `TransactionBoundaryTests` y `ArcaFamilyBoundaryTests`.
+- [x] **Paso 7: commit.** `feat(arca): persistencia de la conexión, el padrón y la facturación`
 
 ---
 

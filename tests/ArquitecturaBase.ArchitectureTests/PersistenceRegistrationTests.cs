@@ -102,11 +102,20 @@ public sealed class PersistenceRegistrationTests
         // Y los repositorios, lectores y seeders de un módulo son de persistencia, como los del núcleo.
         Assert.True(IsPersistenceNamespace("ArquitecturaBase.Infrastructure.Modules.Control.Persistence.Repositories"));
         Assert.False(IsPersistenceNamespace("ArquitecturaBase.Infrastructure.Modules.Control.Persistence"));
+
+        // También los de una subcarpeta por familia de servicios (ADR 0025).
+        Assert.True(IsPersistenceNamespace("ArquitecturaBase.Infrastructure.Modules.Control.Persistence.Repositories.Family"));
+        Assert.False(IsPersistenceNamespace("ArquitecturaBase.Infrastructure.Modules.Control.Persistence.RepositoriesExtra"));
     }
 
-    /// <summary>Si es uno de los namespaces de persistencia, del núcleo o de un módulo.</summary>
+    /// <summary>
+    /// Si es uno de los namespaces de persistencia, del núcleo o de un módulo, o una subcarpeta suya (la familia de
+    /// servicios de un módulo, ADR 0025).
+    /// </summary>
     private static bool IsPersistenceNamespace(string? @namespace) =>
-        @namespace is not null && PersistenceNamespaces.Contains(ModuleNamespaces.Canonical(@namespace), StringComparer.Ordinal);
+        @namespace is not null
+        && ModuleNamespaces.Canonical(@namespace) is var canonical
+        && PersistenceNamespaces.Any(name => canonical == name || canonical.StartsWith(name + ".", StringComparison.Ordinal));
 
     /// <summary>Si quien nombra la clase es el registro de Infrastructure de un módulo, y la clase es de ese módulo.</summary>
     private static bool IsTheRegistrationOfItsModule(CallSites.TypeUse use) =>

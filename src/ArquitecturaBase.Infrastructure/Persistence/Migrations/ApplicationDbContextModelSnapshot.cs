@@ -260,6 +260,213 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.Arca.Connection.ArcaAccessTicket", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("BlockedUntilUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CertificateId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("LeaseOwner")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("LeaseUntilUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ProtectedCredentials")
+                        .HasMaxLength(16000)
+                        .HasColumnType("character varying(16000)");
+
+                    b.Property<string>("ServiceCode")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CertificateId", "ServiceCode")
+                        .IsUnique();
+
+                    b.ToTable("ArcaAccessTickets", (string)null);
+                });
+
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.Arca.Connection.ArcaCertificate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Alias")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<string>("CertificatePem")
+                        .HasMaxLength(16000)
+                        .HasColumnType("character varying(16000)");
+
+                    b.Property<Guid>("ConnectionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("NotAfterUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("NotBeforeUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ProtectedPrivateKey")
+                        .IsRequired()
+                        .HasMaxLength(8000)
+                        .HasColumnType("character varying(8000)");
+
+                    b.Property<string>("RequestPem")
+                        .IsRequired()
+                        .HasMaxLength(8000)
+                        .HasColumnType("character varying(8000)");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("Thumbprint")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConnectionId", "Role")
+                        .IsUnique();
+
+                    b.ToTable("ArcaCertificates", (string)null);
+                });
+
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.Arca.Connection.ArcaConnection", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Cuit")
+                        .IsRequired()
+                        .HasMaxLength(11)
+                        .HasColumnType("character varying(11)");
+
+                    b.PrimitiveCollection<string[]>("EnabledServices")
+                        .IsRequired()
+                        .HasColumnType("text[]");
+
+                    b.Property<string>("Environment")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<bool?>("LastTestPassed")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("LastTestedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Mode")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ModifiedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("Scope")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Scope")
+                        .IsUnique();
+
+                    b.ToTable("ArcaConnections", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_ArcaConnections_Scope", "\"Scope\" = 1");
+                        });
+                });
+
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.Arca.Invoicing.ArcaInvoicingSettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ConnectionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int?>("PointOfSale")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConnectionId")
+                        .IsUnique();
+
+                    b.ToTable("ArcaInvoicingSettings", (string)null);
+                });
+
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.Arca.Registry.ArcaRegistryCompany", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ConnectionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("FiscalAddress")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("LegalName")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("VatCondition")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConnectionId")
+                        .IsUnique();
+
+                    b.ToTable("ArcaRegistryCompanies", (string)null);
+                });
+
             modelBuilder.Entity("ArquitecturaBase.Domain.Modules.ArtificialIntelligence.AiAssistantRequestReceipt", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3820,6 +4027,42 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.HasIndex("ApplicationId", "Status", "Subject", "Type");
 
                     b.ToTable("OpenIddictTokens", (string)null);
+                });
+
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.Arca.Connection.ArcaAccessTicket", b =>
+                {
+                    b.HasOne("ArquitecturaBase.Domain.Modules.Arca.Connection.ArcaCertificate", null)
+                        .WithMany()
+                        .HasForeignKey("CertificateId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.Arca.Connection.ArcaCertificate", b =>
+                {
+                    b.HasOne("ArquitecturaBase.Domain.Modules.Arca.Connection.ArcaConnection", null)
+                        .WithMany()
+                        .HasForeignKey("ConnectionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.Arca.Invoicing.ArcaInvoicingSettings", b =>
+                {
+                    b.HasOne("ArquitecturaBase.Domain.Modules.Arca.Connection.ArcaConnection", null)
+                        .WithMany()
+                        .HasForeignKey("ConnectionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.Arca.Registry.ArcaRegistryCompany", b =>
+                {
+                    b.HasOne("ArquitecturaBase.Domain.Modules.Arca.Connection.ArcaConnection", null)
+                        .WithMany()
+                        .HasForeignKey("ConnectionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("ArquitecturaBase.Domain.Modules.ArtificialIntelligence.AiAssistantToolExecution", b =>

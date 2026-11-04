@@ -115,10 +115,12 @@ El módulo [ARCA](../decisions/0023-arca-como-modulo-opcional.md), ordenado por 
 | --- | --- |
 | [Domain/Modules/Arca](../../src/ArquitecturaBase.Domain/Modules/Arca/AGENTS.md) | Permisos, entidades y errores; una carpeta por familia y los errores en la raíz. |
 | [Application/Modules/Arca](../../src/ArquitecturaBase.Application/Modules/Arca/AGENTS.md) | Permisos y textos; puertos, modelos y servicios con una carpeta por familia debajo de cada carpeta de capa. |
-| [Infrastructure/Modules/Arca](../../src/ArquitecturaBase.Infrastructure/Modules/Arca/AGENTS.md) | Anillo propio, opciones por ambiente y servicio, clientes HTTP por familia sin reintentos globales. |
+| [Infrastructure/Modules/Arca](../../src/ArquitecturaBase.Infrastructure/Modules/Arca/AGENTS.md) | Anillo propio, opciones por ambiente y servicio, clientes HTTP por familia sin reintentos globales; persistencia y locks por familia. |
+| [Domain.UnitTests/Modules/Arca](../../tests/ArquitecturaBase.Domain.UnitTests/Modules/Arca/AGENTS.md) | Reglas puras por familia: CUIT, conexión, certificado, ticket, padrón y punto de venta. |
 | [Application.UnitTests/Modules/Arca](../../tests/ArquitecturaBase.Application.UnitTests/Modules/Arca/AGENTS.md) | Permisos, paridad de recursos y pruebas por familia. |
-| [Api.IntegrationTests/Modules/Arca](../../tests/ArquitecturaBase.Api.IntegrationTests/Modules/Arca/AGENTS.md) | Anillo de prueba, clientes sin red, opciones y composición. |
-| [ArchitectureTests/Modules/Arca](../../tests/ArquitecturaBase.ArchitectureTests/Modules/Arca/AGENTS.md) | Frontera entre familias: cada una usa sólo `Connection`. |
+| [Api.IntegrationTests/Modules/Arca](../../tests/ArquitecturaBase.Api.IntegrationTests/Modules/Arca/AGENTS.md) | Anillo de prueba, clientes sin red, opciones, composición y persistencia por familia. |
+| [Api.IntegrationTests/TestFeatures/Modules/Arca](../../tests/ArquitecturaBase.Api.IntegrationTests/TestFeatures/Modules/Arca/AGENTS.md) | Escenario de persistencia y dobles de ARCA, sin red. |
+| [ArchitectureTests/Modules/Arca](../../tests/ArquitecturaBase.ArchitectureTests/Modules/Arca/AGENTS.md) | Frontera entre familias: cada una usa sólo `Connection`; dueño y prefijos de los locks. |
 
 Domain/Common, Results y ValueObjects siguen Domain. Application/Configuration y los subgrupos de modelos y validadores siguen su capa y área; las reglas técnicas de Json, Localization, RateLimiting y OpenApi están en Api. Templates, recursos de correo y persistencia de módulos siguen su adaptador o módulo. Los detalles de docs siguen docs/AGENTS.md.
 
