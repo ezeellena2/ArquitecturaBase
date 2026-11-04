@@ -157,6 +157,38 @@ public sealed class FormActionDispatchServiceTests
     }
 
     [Fact]
+    public async Task A_person_retried_after_a_completed_role_notice_gets_it_alone_without_repeating_the_next_approval()
+    {
+        var fixture=new FormActionFixture();var notify=FormActionFixture.Action("NotifyRole") with { RoleId=fixture.Rules.RoleId };
+        var approval=FormActionFixture.Action("RequestApproval") with { RoleId=fixture.Rules.RoleId };
+        var captured=fixture.Capture([new(Guid.NewGuid(),"Received",[],[notify,approval])]);var first=captured.Record.ActorUserId;var second=Guid.NewGuid();
+        fixture.Recipients.People[second]=new(second,"es","Second employee");
+        fixture.Rules.Permissions.Permissions[fixture.Rules.User.UserId!.Value]=[BusinessFormsPermissions.RecordsRead,BusinessFormsPermissions.RulesManage];
+        await fixture.Recorder.RecordAsync(captured.Record,captured.Snapshot,"Received",CancellationToken.None);
+        var dispatch=Dispatch(fixture);var roleRun=fixture.Runs.Runs[0];var successor=fixture.Runs.Runs[1];
+        var channel=new FakeFormActionChannel();channel.Statuses[second]=new(ArquitecturaBase.Application.Models.StructuredData.StructuredRecordActionState.Failed,"WhatsApp.FormAction.RecipientUnavailable",true);
+        var effect=new FormActionEffectService(fixture.Pdf,[channel],NullLogger<FormActionEffectService>.Instance);
+        var workflow=new FormWorkflowService(new(fixture.Runs,new(fixture.Rules.User,fixture.Rules.Permissions),fixture.Rules.Permissions,[]),fixture.Runs,fixture.Rules,new(fixture.Rules.User,fixture.Rules.Permissions),fixture.Rules.Permissions,fixture.Rules.UnitOfWork,fixture.Clock,NullLogger<FormWorkflowService>.Instance);
+        async Task<FormActionWorkResponse> FinishRoleAsync()
+        {
+            var work=(await dispatch.ReserveAsync(roleRun.Id,CancellationToken.None)).Value;Assert.NotNull(work);
+            var outcome=await effect.ExecuteAsync(work,CancellationToken.None);Assert.True((await dispatch.CompleteAsync(work,outcome,CancellationToken.None)).IsSuccess);
+            return work;
+        }
+        await FinishRoleAsync();Assert.Equal(FormActionRunState.Completed,roleRun.State);
+        Assert.Null((await dispatch.ReserveAsync(successor.Id,CancellationToken.None)).Value);Assert.Single(fixture.Runs.Tasks);
+        Assert.True((await workflow.RetryRecipientAsync(captured.Record.Id,roleRun.Id,second,roleRun.Fence,CancellationToken.None)).IsSuccess);
+        var retried=await FinishRoleAsync();Assert.Equal(second,retried.RetryRecipientUserId);
+        Assert.Equal(FormActionRunState.Completed,roleRun.State);Assert.Null(roleRun.RetryRecipientUserId);
+        Assert.Equal(new[]{second},channel.Retries);Assert.Equal(first,Assert.Single(channel.Messages).RecipientUserId);
+        Assert.All(FormDraftPolicy.Read<FormActionOutcomeResponse>(roleRun.OutcomeJson!).Recipients!,recipient=>
+            Assert.Equal(ArquitecturaBase.Application.Models.StructuredData.StructuredRecordActionState.Accepted,recipient.Status.State));
+        Assert.Null((await dispatch.ReserveAsync(successor.Id,CancellationToken.None)).Value);
+        Assert.Equal(FormActionRunState.Completed,successor.State);Assert.Single(fixture.Runs.Tasks);
+        Assert.Equal(FormActionErrors.StateConflict,(await workflow.RetryRecipientAsync(captured.Record.Id,roleRun.Id,second,roleRun.Fence,CancellationToken.None)).Error);
+    }
+
+    [Fact]
     public async Task An_oversized_role_message_does_not_block_other_people_or_the_next_approval()
     {
         var fixture=new FormActionFixture();var role=FormActionFixture.Action("NotifyRole") with{RoleId=fixture.Rules.RoleId,Text=new Dictionary<string,string>{{"es","{Visita}"},{"en","Short message"}}};

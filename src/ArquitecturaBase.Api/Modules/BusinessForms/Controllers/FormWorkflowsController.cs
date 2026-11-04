@@ -33,6 +33,19 @@ public sealed class FormWorkflowsController(IFormWorkflowService service):Contro
         if(result.IsSuccess)Response.Headers.Location=$"/api/forms/records/{recordId}/workflow";
         return result.ToAcceptedResult(this);
     }
+    [HttpPost("actions/{runId:guid}/recipients/{recipientUserId:guid}/retry")]
+    [ProducesProblem(StatusCodes.Status400BadRequest)]
+    [HasPermission(BusinessFormsPermissions.RulesManage)]
+    [EnableRateLimiting(BusinessFormsApiRegistration.WritePolicy)]
+    [ProducesResponseType<FormWorkflowResponse>(StatusCodes.Status202Accepted)]
+    [ProducesProblem(StatusCodes.Status404NotFound)]
+    [ProducesProblem(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> RetryRecipient([FromRoute]Guid recordId,[FromRoute]Guid runId,[FromRoute]Guid recipientUserId,[FromBody]RetryFormActionRecipientHttpRequest request,CancellationToken cancellationToken)
+    {
+        var result=await service.RetryRecipientAsync(recordId,runId,recipientUserId,request.ExpectedRevision,cancellationToken);
+        if(result.IsSuccess)Response.Headers.Location=$"/api/forms/records/{recordId}/workflow";
+        return result.ToAcceptedResult(this);
+    }
     [HttpPost("actions/{runId:guid}/review")]
     [ProducesProblem(StatusCodes.Status400BadRequest)]
     [HasPermission(BusinessFormsPermissions.RulesManage)]

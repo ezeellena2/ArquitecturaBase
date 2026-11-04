@@ -46,7 +46,7 @@ internal sealed class FormActionRunReader(ApplicationDbContext db,TimeProvider t
                 review=new StructuredRecordActionReview(row.Response.Revision,decision,row.DeliveryReviewedByUserId!.Value,row.DeliveryReviewedAtUtc!.Value);
             return new FormActionRecipientResponse(new(recipient.UserId,recipient.DisplayName),recipient.ChannelId,recipient.Status.State.ToString(),recipient.Status.FailureCode,null,
                 row.Response.State=="Uncertain"&&recipient.Status.State==StructuredRecordActionState.Uncertain,
-                recipient.Status.Receipt?.DeliveredAtUtc,recipient.Status.Receipt?.ReadAtUtc,review is null?null:new(review.WasSent,review.ReviewedAtUtc,new(review.ReviewedByUserId,names.GetValueOrDefault(review.ReviewedByUserId))));
+                recipient.Status.State==StructuredRecordActionState.Failed&&recipient.Status.CanRetry,recipient.Status.Receipt?.DeliveredAtUtc,recipient.Status.Receipt?.ReadAtUtc,review is null?null:new(review.WasSent,review.ReviewedAtUtc,new(review.ReviewedByUserId,names.GetValueOrDefault(review.ReviewedByUserId))));
         }).ToArray()}).ToArray();
         var documents=await (from document in db.Set<BusinessFormDocument>().AsNoTracking() where document.RecordId==recordId
             join file in db.Set<StoredFile>().AsNoTracking() on document.FileId equals file.Id

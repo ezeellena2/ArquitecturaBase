@@ -38,7 +38,7 @@ La lectura de respuestas conserva cinco operaciones: listado GET y búsqueda POS
 
 G1 agrega cinco rutas bajo definitions/{id}/rules: actual, guardar revisión, historial paginado, detalle por revisión y opciones. Requieren formrules.manage, contratos HTTP propios y no-store; guardado con expectedRevision devuelve 409 al quedar atrás.
 
-G5 agrega GET records/{recordId}/workflow y POST actions/{runId}/consult o /retry bajo esa respuesta. Lectura requiere formrecords.read; controles suman formrules.manage, política de escritura, 202 y Location del workflow, sin ejecutar el efecto en la petición ni exponer almacenamiento.
+G5 agrega GET records/{recordId}/workflow y POST actions/{runId}/consult o /retry bajo esa respuesta. Lectura requiere formrecords.read; controles suman formrules.manage, política de escritura, 202 y Location del workflow, sin ejecutar el efecto en la petición ni exponer almacenamiento. POST actions/{runId}/recipients/{recipientUserId}/retry reintenta a una persona de un aviso a un rol, con los mismos permisos y un cuerpo cerrado con `expectedRevision` obligatorio; da 409 si la persona no tiene una falla confirmada o la revisión cambió. Cada destinatario del workflow lleva `canRetry`.
 
 La aprobación de un nivel conserva revisión, autor confirmado, rol y decisión. `formapprovals.decide` no concede lectura de valores o PDF; la decisión revalida rol y permiso, prohíbe al autor y confirma tarea, estado y runs juntos. El rechazo exige motivo de 1–500 caracteres. La continuación por TaskId exige Decide, DefinitionId, dirección Next/Previous y tamaño 1–100; no-store, sin offset, con ancla resuelta autorizada y sin conceder lectura de valores.
 

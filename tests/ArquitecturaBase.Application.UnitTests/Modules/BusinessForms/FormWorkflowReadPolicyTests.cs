@@ -74,6 +74,30 @@ public sealed class FormWorkflowReadPolicyTests
         AssertNoEffects(fixture,channel);
     }
     [Fact]
+    public async Task A_confirmed_failure_in_a_completed_role_notice_offers_a_person_retry_only_to_rule_managers()
+    {
+        var (fixture,recordId,_)=await SeedAsync(FormActionRunState.Completed,StructuredRecordActionState.Failed,role:true,recipientCanRetry:true);
+        var action=Assert.Single((await Policy(fixture,new FakeFormActionChannel()).ReadAsync(recordId,CancellationToken.None)).Value.Actions);
+        Assert.False(action.CanRetry);Assert.Equal(2,action.Recipients.Count);Assert.All(action.Recipients,recipient=>Assert.True(recipient.CanRetry));
+        fixture.Rules.Permissions.Permissions[fixture.Rules.User.UserId!.Value]=[BusinessFormsPermissions.RecordsRead];
+        var read=Assert.Single((await Policy(fixture,new FakeFormActionChannel()).ReadAsync(recordId,CancellationToken.None)).Value.Actions);
+        Assert.All(read.Recipients,recipient=>Assert.False(recipient.CanRetry));
+    }
+    [Fact]
+    public async Task A_person_retry_is_not_offered_for_an_author_message_an_unretryable_failure_or_a_late_acceptance()
+    {
+        var (author,authorRecord,_)=await SeedAsync(FormActionRunState.Failed,StructuredRecordActionState.Failed,canRetry:true,recipientCanRetry:true);
+        var message=Assert.Single((await Policy(author,new FakeFormActionChannel()).ReadAsync(authorRecord,CancellationToken.None)).Value.Actions);
+        Assert.True(message.CanRetry);Assert.False(Assert.Single(message.Recipients).CanRetry);
+        var (unretryable,unretryableRecord,_)=await SeedAsync(FormActionRunState.Completed,StructuredRecordActionState.Failed,role:true);
+        Assert.All(Assert.Single((await Policy(unretryable,new FakeFormActionChannel()).ReadAsync(unretryableRecord,CancellationToken.None)).Value.Actions).Recipients,
+            recipient=>Assert.False(recipient.CanRetry));
+        var (late,lateRecord,_)=await SeedAsync(FormActionRunState.Completed,StructuredRecordActionState.Failed,role:true,recipientCanRetry:true);
+        var channel=new FakeFormActionChannel();foreach(var user in late.Recipients.People.Keys)channel.Statuses[user]=new(StructuredRecordActionState.Accepted);
+        var observed=Assert.Single((await Policy(late,channel).ReadAsync(lateRecord,CancellationToken.None)).Value.Actions);
+        Assert.All(observed.Recipients,recipient=>{Assert.Equal("Accepted",recipient.State);Assert.False(recipient.CanRetry);});
+    }
+    [Fact]
     public void Repeated_channel_identifiers_are_configuration_errors()
     {
         var fixture=new FormActionFixture();Assert.Throws<InvalidOperationException>(()=>new FormWorkflowReadPolicy(fixture.Runs,new(fixture.Rules.User,fixture.Rules.Permissions),fixture.Rules.Permissions,[new FakeFormActionChannel(),new FakeFormActionChannel()]));
@@ -82,7 +106,7 @@ public sealed class FormWorkflowReadPolicyTests
     private static void Allow(FormActionFixture fixture)=>fixture.Rules.Permissions.Permissions[fixture.Rules.User.UserId!.Value]=[BusinessFormsPermissions.RecordsRead,BusinessFormsPermissions.RulesManage];
     private static void AssertNoEffects(FormActionFixture fixture,FakeFormActionChannel channel)
     {Assert.Empty(channel.Reads);Assert.Empty(channel.Messages);Assert.Empty(channel.Retries);Assert.Empty(channel.Reviews);Assert.Equal(0,fixture.Rules.UnitOfWork.Transactions);}
-    private static async Task<(FormActionFixture Fixture,Guid RecordId,IReadOnlyList<BusinessFormActionRun> Runs)> SeedAsync(FormActionRunState state,StructuredRecordActionState recipientState,int count=1,bool role=false,bool review=false,bool canRetry=false)
+    private static async Task<(FormActionFixture Fixture,Guid RecordId,IReadOnlyList<BusinessFormActionRun> Runs)> SeedAsync(FormActionRunState state,StructuredRecordActionState recipientState,int count=1,bool role=false,bool review=false,bool canRetry=false,bool recipientCanRetry=false)
     {
         var fixture=new FormActionFixture();var rules=Enumerable.Range(0,count).Select(_=>new FormRule(Guid.NewGuid(),"Received",[],[FormActionFixture.Action(role?"NotifyRole":"NotifyAuthor") with{RoleId=role?fixture.Rules.RoleId:null}])).ToArray();
         var captured=fixture.Capture(rules);if(role){var user=Guid.NewGuid();fixture.Recipients.People[user]=new(user,"es","Another employee");}Allow(fixture);
@@ -90,7 +114,7 @@ public sealed class FormWorkflowReadPolicyTests
         foreach(var run in fixture.Runs.Runs)
         {
             var reservation=run.Reserve(now,TimeSpan.FromMinutes(2)).Value;
-            var recipients=fixture.Recipients.People.Values.Select(person=>new FormActionRecipientOutcome(person.UserId,person.DisplayName,"phone",new(recipientState,Review:review?new(1,false,fixture.Rules.User.UserId!.Value,now):null))).ToArray();
+            var recipients=fixture.Recipients.People.Values.Select(person=>new FormActionRecipientOutcome(person.UserId,person.DisplayName,"phone",new(recipientState,CanRetry:recipientCanRetry,Review:review?new(1,false,fixture.Rules.User.UserId!.Value,now):null))).ToArray();
             Assert.True(run.RecordOutcome(reservation.Fence,now,state,null,canRetry,FormDraftPolicy.Serialize(new FormActionOutcomeResponse(state,Recipients:recipients))).IsSuccess);
         }
         return(fixture,captured.Record.Id,fixture.Runs.Runs.ToArray());

@@ -98,6 +98,41 @@ public sealed class FormWorkflowServiceTests
         Assert.Equal(FormActionErrors.StateConflict,(await service.ReviewAsync(captured.Record.Id,run.Id,captured.Record.ActorUserId,run.Fence,true,CancellationToken.None)).Error);
         Assert.False(run.DeliveryReviewRequested);Assert.Null(run.DeliveryReviewRecipientUserId);
     }
+    [Fact]
+    public async Task A_person_with_a_confirmed_failure_in_a_completed_role_notice_is_queued_alone_for_a_retry()
+    {
+        var notice=await RoleNoticeAsync();var service=Service(notice.Fixture);var expected=notice.Run.Fence;
+        var response=await service.RetryRecipientAsync(notice.RecordId,notice.Run.Id,notice.Failed,expected,CancellationToken.None);
+        Assert.True(response.IsSuccess);Assert.Equal("Waiting",Assert.Single(response.Value.Actions).State);
+        Assert.Equal(FormActionRunState.Waiting,notice.Run.State);Assert.True(notice.Run.RetryRequested);Assert.Equal(notice.Failed,notice.Run.RetryRecipientUserId);
+        Assert.True((await service.RetryRecipientAsync(notice.RecordId,notice.Run.Id,notice.Failed,expected,CancellationToken.None)).IsSuccess);
+        Assert.Equal(notice.Failed,notice.Run.RetryRecipientUserId);Assert.Equal(expected,notice.Run.Fence);
+    }
+    [Fact]
+    public async Task Retrying_a_person_needs_a_confirmed_failure_the_current_revision_and_rule_management()
+    {
+        var notice=await RoleNoticeAsync();var service=Service(notice.Fixture);var expected=notice.Run.Fence;
+        foreach(var person in new[]{notice.Accepted,notice.Changed,Guid.NewGuid()})
+            Assert.Equal(FormActionErrors.StateConflict,(await service.RetryRecipientAsync(notice.RecordId,notice.Run.Id,person,expected,CancellationToken.None)).Error);
+        Assert.Equal(FormActionErrors.StateConflict,(await service.RetryRecipientAsync(notice.RecordId,notice.Run.Id,notice.Failed,expected-1,CancellationToken.None)).Error);
+        Assert.Equal(FormActionErrors.NotFound,(await service.RetryRecipientAsync(Guid.NewGuid(),notice.Run.Id,notice.Failed,expected,CancellationToken.None)).Error);
+        notice.Fixture.Rules.BeforeLock=()=>notice.Fixture.Rules.Permissions.Permissions.Clear();
+        Assert.Equal(FormDefinitionErrors.Forbidden,(await service.RetryRecipientAsync(notice.RecordId,notice.Run.Id,notice.Failed,expected,CancellationToken.None)).Error);
+        Assert.Equal(FormActionRunState.Completed,notice.Run.State);Assert.False(notice.Run.RetryRequested);Assert.Null(notice.Run.RetryRecipientUserId);
+    }
+    private static async Task<(FormActionFixture Fixture,Guid RecordId,BusinessFormActionRun Run,Guid Accepted,Guid Failed,Guid Changed)> RoleNoticeAsync()
+    {
+        var fixture=new FormActionFixture();var captured=fixture.Capture([new(Guid.NewGuid(),"Received",[],[FormActionFixture.Action("NotifyRole") with{RoleId=fixture.Rules.RoleId}])]);Allow(fixture);
+        var accepted=captured.Record.ActorUserId;var failed=Guid.NewGuid();var changed=Guid.NewGuid();
+        fixture.Recipients.People[failed]=new(failed,"es","Failed employee");fixture.Recipients.People[changed]=new(changed,"es","Changed employee");
+        await fixture.Recorder.RecordAsync(captured.Record,captured.Snapshot,"Received",CancellationToken.None);
+        var run=Assert.Single(fixture.Runs.Runs);var now=fixture.Clock.GetUtcNow().UtcDateTime;var lease=run.Reserve(now,TimeSpan.FromMinutes(2)).Value;
+        run.RecordOutcome(lease.Fence,now,FormActionRunState.Completed,null,false,FormDraftPolicy.Serialize(new FormActionOutcomeResponse(FormActionRunState.Completed,Recipients:[
+            new(accepted,"Author","phone",new(StructuredRecordActionState.Accepted)),
+            new(failed,"Failed employee","phone",new(StructuredRecordActionState.Failed,"WhatsApp.FormAction.RecipientUnavailable",true)),
+            new(changed,"Changed employee","phone",new(StructuredRecordActionState.Failed,"WhatsApp.FormAction.RecipientChanged",false))])));
+        return(fixture,captured.Record.Id,run,accepted,failed,changed);
+    }
     private static void Allow(FormActionFixture fixture)=>fixture.Rules.Permissions.Permissions[fixture.Rules.User.UserId!.Value]=[BusinessFormsPermissions.RecordsRead,BusinessFormsPermissions.RulesManage];
     private static FormWorkflowService Service(FormActionFixture fixture)=>new(new(fixture.Runs,new(fixture.Rules.User,fixture.Rules.Permissions),fixture.Rules.Permissions,[]),fixture.Runs,fixture.Rules,new(fixture.Rules.User,fixture.Rules.Permissions),
         fixture.Rules.Permissions,fixture.Rules.UnitOfWork,fixture.Clock,NullLogger<FormWorkflowService>.Instance);

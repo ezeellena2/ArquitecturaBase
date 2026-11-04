@@ -16,7 +16,7 @@ public sealed record FormActionRunResponse(Guid Id,Guid RuleId,string Kind,strin
     bool CanConsult,bool CanRetry,DateTime CreatedAtUtc,DateTime UpdatedAtUtc,DateTime? CompletedAtUtc,
     long Revision,IReadOnlyList<FormActionRecipientResponse> Recipients);
 public sealed record FormActionRecipientResponse(FormAuthorResponse User,string? ChannelId,string State,string? ReasonCode,string? Reason,
-    bool CanReview,DateTime? DeliveredAtUtc,DateTime? ReadAtUtc,FormActionDeliveryReviewResponse? Review);
+    bool CanReview,bool CanRetry,DateTime? DeliveredAtUtc,DateTime? ReadAtUtc,FormActionDeliveryReviewResponse? Review);
 public sealed record FormActionRecipientOutcome(Guid UserId,string? DisplayName,string? ChannelId,StructuredRecordActionResponse Status);
 public sealed record FormActionDeliveryReviewResponse(bool WasSent,DateTime ReviewedAtUtc,FormAuthorResponse ReviewedBy);
 public sealed record FormWorkflowDocumentResponse(Guid Id,string Culture,string Name,long Size,DateTime CreatedAtUtc)
@@ -25,7 +25,8 @@ public sealed record FormActionSnapshot(Guid? ApprovalRoleId, FormPdfActionSnaps
     Guid? PdfRunId,IReadOnlyList<FormActionRecipient> Recipients,string? PreparationFailureCode=null)
 { public override string ToString()=>"FormActionSnapshot { Content = [REDACTED] }"; }
 public sealed record FormActionWorkResponse(Guid RunId,Guid RecordId,string Kind,long Fence,bool ReconciliationOnly,bool RetryRequested,
-    FormActionSnapshot Snapshot,IReadOnlyList<FormPdfArtifact> PdfArtifacts,StructuredRecordActionReview? DeliveryReview=null,Guid? DeliveryReviewRecipientUserId=null,IReadOnlyList<FormActionRecipientOutcome>? PriorRecipients=null)
+    FormActionSnapshot Snapshot,IReadOnlyList<FormPdfArtifact> PdfArtifacts,StructuredRecordActionReview? DeliveryReview=null,Guid? DeliveryReviewRecipientUserId=null,IReadOnlyList<FormActionRecipientOutcome>? PriorRecipients=null,
+    Guid? RetryRecipientUserId=null)
 { public override string ToString()=>"FormActionWorkResponse { Content = [REDACTED] }"; }
 public sealed record FormActionOutcomeResponse(FormActionRunState State,string? FailureCode=null,bool CanRetry=false,FormPdfActionOutcomeResponse? Pdf=null,IReadOnlyList<FormActionRecipientOutcome>? Recipients=null)
 { public override string ToString()=>"FormActionOutcomeResponse { Content = [REDACTED] }"; }

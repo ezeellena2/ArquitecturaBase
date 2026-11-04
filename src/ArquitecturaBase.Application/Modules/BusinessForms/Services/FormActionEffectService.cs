@@ -60,9 +60,11 @@ internal sealed partial class FormActionEffectService:IFormActionEffectService
             {
                 recipients.Add(new(recipient.UserId,recipient.DisplayName,channel.ChannelId,new(StructuredRecordActionState.Failed,preparationFailure)));continue;
             }
+            // In a role, a known failure stays as it is unless the retry of that very person was requested.
+            var retried=work.RetryRequested&&work.RetryRecipientUserId==recipient.UserId;
             var previous=work.PriorRecipients?.SingleOrDefault(item=>item.UserId==recipient.UserId&&item.ChannelId==channel.ChannelId);
             if(previous is not null&&(previous.Status.State==StructuredRecordActionState.Accepted
-                ||role&&previous.Status.State==StructuredRecordActionState.Failed&&previous.Status.Review?.WasSent!=false)){recipients.Add(previous);continue;}
+                ||role&&!retried&&previous.Status.State==StructuredRecordActionState.Failed&&previous.Status.Review?.WasSent!=false)){recipients.Add(previous);continue;}
             StructuredRecordActionResponse status;
             try
             {
@@ -79,10 +81,10 @@ internal sealed partial class FormActionEffectService:IFormActionEffectService
                     }
                     status=await channel.EnqueueAsync(new(work.RunId,recipient.UserId,recipient.Body,document),ct);
                 }
-                else if(!role&&status.State==StructuredRecordActionState.Failed&&status.CanRetry&&work.RetryRequested)
+                else if((!role||retried)&&status.State==StructuredRecordActionState.Failed&&status.CanRetry&&work.RetryRequested)
                     status=await channel.RetryAsync(work.RunId,recipient.UserId,work.Fence,ct);
                 if(status.State==StructuredRecordActionState.NotFound)
-                    status=status with{State=StructuredRecordActionState.Failed,FailureCode=FormActionErrors.RecipientUnavailable.Code,CanRetry=!role};
+                    status=status with{State=StructuredRecordActionState.Failed,FailureCode=FormActionErrors.RecipientUnavailable.Code,CanRetry=true};
             }
             catch(Exception exception)when(!ct.IsCancellationRequested)
             {

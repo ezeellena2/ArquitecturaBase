@@ -45,6 +45,15 @@ public sealed partial class FormDraftEndpointsTests
             using var allowed = await both.PostAsJsonAsync(control, new { recipientUserId = Guid.NewGuid(), expectedRevision = 0L, wasSent = false }, Ct);
             Assert.Equal(HttpStatusCode.NotFound, allowed.StatusCode);
         }
+        var recipientControl = $"/api/forms/records/{recordId}/actions/{runId}/recipients/{Guid.NewGuid()}/retry";
+        using var recipientUnauthenticated = await anonymous.PostAsJsonAsync(recipientControl, new { expectedRevision = 0L }, Ct);
+        Assert.Equal(HttpStatusCode.Unauthorized, recipientUnauthenticated.StatusCode);
+        using var recipientReadOnly = await reader.PostAsJsonAsync(recipientControl, new { expectedRevision = 0L }, Ct);
+        Assert.Equal(HttpStatusCode.Forbidden, recipientReadOnly.StatusCode);
+        using var recipientManageOnly = await manager.PostAsJsonAsync(recipientControl, new { expectedRevision = 0L }, Ct);
+        Assert.Equal(HttpStatusCode.Forbidden, recipientManageOnly.StatusCode);
+        using var recipientAllowed = await both.PostAsJsonAsync(recipientControl, new { expectedRevision = 0L }, Ct);
+        Assert.Equal(HttpStatusCode.NotFound, recipientAllowed.StatusCode);
     }
 
     [Fact]
@@ -204,7 +213,7 @@ public sealed partial class FormDraftEndpointsTests
     }
 
     [Fact]
-    public async Task Role_notifications_show_each_recipient_and_resolve_uncertainty_without_partial_retry()
+    public async Task Role_notifications_show_each_recipient_and_resolve_uncertainty_one_person_at_a_time()
     {
         using var manager=await OperatorAsync([BusinessFormsPermissions.RecordsRead,BusinessFormsPermissions.RulesManage]);
         using var employee=await OperatorAsync([BusinessFormsPermissions.RecordsRead]);
@@ -236,10 +245,63 @@ public sealed partial class FormDraftEndpointsTests
             Assert.Equal("Completed",action.GetProperty("state").GetString());Assert.False(action.GetProperty("canRetry").GetBoolean());
             var recipients=action.GetProperty("recipients").EnumerateArray().ToArray();
             Assert.Equal("Accepted",recipients.Single(item=>item.GetProperty("user").GetProperty("userId").GetGuid()==first).GetProperty("state").GetString());
-            Assert.Equal("Failed",recipients.Single(item=>item.GetProperty("user").GetProperty("userId").GetGuid()==second).GetProperty("state").GetString());
+            var notSent=recipients.Single(item=>item.GetProperty("user").GetProperty("userId").GetGuid()==second);
+            Assert.Equal("Failed",notSent.GetProperty("state").GetString());Assert.True(notSent.GetProperty("canRetry").GetBoolean());
             Assert.All(recipients,item=>{Assert.Equal(System.Text.Json.JsonValueKind.Null,item.GetProperty("deliveredAtUtc").ValueKind);Assert.Equal(System.Text.Json.JsonValueKind.Null,item.GetProperty("readAtUtc").ValueKind);});
             await FormWorkflowContractCapture.WriteAsync(completed,"role-completed-"+culture,Ct);
         }
+    }
+
+    [Fact]
+    public async Task A_person_of_a_completed_role_notice_is_retried_alone_with_the_current_revision()
+    {
+        using var manager=await OperatorAsync([BusinessFormsPermissions.RecordsRead,BusinessFormsPermissions.RulesManage]);
+        using var employee=await OperatorAsync([BusinessFormsPermissions.RecordsRead]);
+        var first=Guid.Parse(manager.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
+        var second=Guid.Parse(employee.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
+        var seeded=await SeedWorkflowRunAsync(manager,FormActionRunState.Completed,"NotifyRole",[first,second],
+            new Dictionary<Guid,StructuredRecordActionResponse>{[second]=new(StructuredRecordActionState.Failed,"WhatsApp.FormAction.RecipientUnavailable",true)});
+        var channel=new CapturingFormActionChannel();channel.SetState(seeded.RunId,first,new(StructuredRecordActionState.Accepted));
+        await using var workerHost=factory.WithWebHostBuilder(builder=>builder.ConfigureTestServices(services=>
+        {services.RemoveAll<IStructuredRecordActionChannel>();services.AddSingleton<IStructuredRecordActionChannel>(channel);}));
+        var route=$"/api/forms/records/{seeded.RecordId}/workflow";var control=$"/api/forms/records/{seeded.RecordId}/actions/{seeded.RunId}/recipients/";
+        long revision=0;
+        foreach(var culture in new[]{"es","en"})
+        {
+            manager.DefaultRequestHeaders.AcceptLanguage.Clear();manager.DefaultRequestHeaders.AcceptLanguage.ParseAdd(culture);
+            using var offered=await manager.GetAsync(route,Ct);var action=(await offered.ReadJsonAsync()).GetProperty("actions")[0];revision=action.GetProperty("revision").GetInt64();
+            Assert.Equal("Completed",action.GetProperty("state").GetString());Assert.False(action.GetProperty("canRetry").GetBoolean());
+            var recipients=action.GetProperty("recipients").EnumerateArray().ToArray();
+            Assert.False(recipients.Single(item=>item.GetProperty("user").GetProperty("userId").GetGuid()==first).GetProperty("canRetry").GetBoolean());
+            Assert.True(recipients.Single(item=>item.GetProperty("user").GetProperty("userId").GetGuid()==second).GetProperty("canRetry").GetBoolean());
+            await FormWorkflowContractCapture.WriteAsync(offered,"role-retry-offered-"+culture,Ct);
+        }
+        using var readOnly=await employee.GetAsync(route,Ct);
+        Assert.All((await readOnly.ReadJsonAsync()).GetProperty("actions")[0].GetProperty("recipients").EnumerateArray(),item=>Assert.False(item.GetProperty("canRetry").GetBoolean()));
+        using var missingRevision=await manager.PostAsJsonAsync(control+second+"/retry",new{},Ct);Assert.Equal(HttpStatusCode.BadRequest,missingRevision.StatusCode);
+        using var extraRecipient=await manager.PostAsJsonAsync(control+second+"/retry",new{expectedRevision=revision,recipientUserId=second},Ct);Assert.Equal(HttpStatusCode.BadRequest,extraRecipient.StatusCode);
+        using var accepted=await manager.PostAsJsonAsync(control+first+"/retry",new{expectedRevision=revision},Ct);Assert.Equal(HttpStatusCode.Conflict,accepted.StatusCode);
+        using var stale=await manager.PostAsJsonAsync(control+second+"/retry",new{expectedRevision=revision+1},Ct);Assert.Equal(HttpStatusCode.Conflict,stale.StatusCode);
+        using var wrongRecord=await manager.PostAsJsonAsync($"/api/forms/records/{Guid.NewGuid()}/actions/{seeded.RunId}/recipients/{second}/retry",new{expectedRevision=revision},Ct);
+        Assert.Equal(HttpStatusCode.NotFound,wrongRecord.StatusCode);
+        using var retried=await manager.PostAsJsonAsync(control+second+"/retry",new{expectedRevision=revision},Ct);Assert.Equal(HttpStatusCode.Accepted,retried.StatusCode);
+        Assert.Equal(route,retried.Headers.Location!.ToString());
+        Assert.Equal("Waiting",(await retried.ReadJsonAsync()).GetProperty("actions")[0].GetProperty("state").GetString());
+        await FormWorkflowContractCapture.WriteAsync(retried,"role-retry-en",Ct);
+        using var replay=await manager.PostAsJsonAsync(control+second+"/retry",new{expectedRevision=revision},Ct);Assert.Equal(HttpStatusCode.Accepted,replay.StatusCode);
+        await workerHost.Services.GetRequiredService<FormActionBackgroundService>().ProcessNextAsync(seeded.RunId,Ct);
+        Assert.Equal(second,Assert.Single(channel.Messages).RecipientUserId);
+        using var done=await manager.GetAsync(route,Ct);var finished=(await done.ReadJsonAsync()).GetProperty("actions")[0];
+        Assert.Equal("Completed",finished.GetProperty("state").GetString());
+        Assert.All(finished.GetProperty("recipients").EnumerateArray(),item=>{Assert.Equal("Accepted",item.GetProperty("state").GetString());Assert.False(item.GetProperty("canRetry").GetBoolean());});
+        await FormWorkflowContractCapture.WriteAsync(done,"role-retried-en",Ct);
+        using var again=await manager.PostAsJsonAsync(control+second+"/retry",new{expectedRevision=finished.GetProperty("revision").GetInt64()},Ct);
+        Assert.Equal(HttpStatusCode.Conflict,again.StatusCode);
+        await factory.ExecuteDbContextAsync(async db=>
+        {
+            var run=await db.Set<BusinessFormActionRun>().AsNoTracking().SingleAsync(run=>run.Id==seeded.RunId,Ct);
+            Assert.Equal(FormActionRunState.Completed,run.State);Assert.False(run.RetryRequested);Assert.Null(run.RetryRecipientUserId);Assert.Equal(revision+1,run.Fence);
+        });
     }
 
     [Fact]
@@ -304,7 +366,8 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Single(channel.Reviews);
     }
 
-    private async Task<(Guid RecordId, Guid RunId)> SeedWorkflowRunAsync(HttpClient actorClient, FormActionRunState state,string kind="NotifyAuthor",IReadOnlyList<Guid>? recipients=null)
+    private async Task<(Guid RecordId, Guid RunId)> SeedWorkflowRunAsync(HttpClient actorClient, FormActionRunState state,string kind="NotifyAuthor",IReadOnlyList<Guid>? recipients=null,
+        IReadOnlyDictionary<Guid,StructuredRecordActionResponse>? statuses=null)
     {
         var sheet = await SeedSheetAsync(actorClient, 0);
         var actor = Guid.Parse(actorClient.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
@@ -332,7 +395,7 @@ public sealed partial class FormDraftEndpointsTests
                 var reservation = run.Reserve(now, TimeSpan.FromMinutes(2));
                 Assert.True(reservation.IsSuccess);
                 Assert.True(run.RecordOutcome(reservation.Value.Fence, now, state, state == FormActionRunState.Completed ? null : FormActionErrors.EffectUnconfirmed.Code,
-                    state == FormActionRunState.Failed,FormDraftPolicy.Serialize(new FormActionOutcomeResponse(state,Recipients:(recipients??[actor]).Select(id=>new FormActionRecipientOutcome(id,"Employee "+id,"phone",new(state==FormActionRunState.Uncertain?StructuredRecordActionState.Uncertain:state==FormActionRunState.Completed?StructuredRecordActionState.Accepted:StructuredRecordActionState.Failed))).ToArray()))).IsSuccess);
+                    state == FormActionRunState.Failed,FormDraftPolicy.Serialize(new FormActionOutcomeResponse(state,Recipients:(recipients??[actor]).Select(id=>new FormActionRecipientOutcome(id,"Employee "+id,"phone",statuses?.GetValueOrDefault(id)??new(state==FormActionRunState.Uncertain?StructuredRecordActionState.Uncertain:state==FormActionRunState.Completed?StructuredRecordActionState.Accepted:StructuredRecordActionState.Failed))).ToArray()))).IsSuccess);
             }
             db.Set<BusinessFormActionRun>().Add(run);
             await db.SaveChangesAsync(Ct);

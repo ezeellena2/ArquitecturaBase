@@ -73,7 +73,7 @@ public sealed class FormActionEffectServiceTests
     public void Duplicate_channels_fail_configuration_before_any_effect()=>
         Assert.Throws<InvalidOperationException>(()=>new FormActionEffectService(new FakeFormPdfActionService(),[new FakeFormActionChannel(),new FakeFormActionChannel()],NullLogger<FormActionEffectService>.Instance));
     [Fact]
-    public async Task Role_notification_completes_after_known_individual_failures_without_authorizing_partial_retry()
+    public async Task Role_notification_completes_after_known_individual_failures_without_retrying_anyone_on_its_own()
     {
         var accepted=Guid.NewGuid();var failed=Guid.NewGuid();var channel=new FakeFormActionChannel();
         channel.Statuses[accepted]=new(StructuredRecordActionState.Accepted);channel.Statuses[failed]=new(StructuredRecordActionState.Failed,"recipient-unavailable",true);
@@ -130,6 +130,57 @@ public sealed class FormActionEffectServiceTests
         Assert.Equal(FormActionRunState.Completed,result.State);Assert.Equal(new[]{reviewed,pending},channel.Reads);
         var accepted=Assert.Single(result.Recipients!,recipient=>recipient.UserId==reviewed);Assert.Equal(StructuredRecordActionState.Accepted,accepted.Status.State);Assert.Equal(evidence,accepted.Status.Review);
         Assert.Empty(channel.Messages);Assert.Empty(channel.Retries);
+    }
+    [Fact]
+    public async Task A_person_retry_sends_again_only_to_that_person_and_keeps_everyone_else_as_it_was()
+    {
+        var accepted=Guid.NewGuid();var target=Guid.NewGuid();var other=Guid.NewGuid();var channel=new FakeFormActionChannel();
+        channel.Statuses[other]=new(StructuredRecordActionState.Failed,"WhatsApp.FormAction.WindowClosed",true);
+        var work=Work("NotifyRole",retry:true,people:[accepted,target,other]) with{RetryRecipientUserId=target,PriorRecipients=[
+            new(accepted,"Accepted employee","phone",new(StructuredRecordActionState.Accepted)),
+            new(target,"Target employee","phone",new(StructuredRecordActionState.Failed,"WhatsApp.FormAction.RecipientUnavailable",true)),
+            new(other,"Other employee","phone",new(StructuredRecordActionState.Failed,"WhatsApp.FormAction.WindowClosed",true))]};
+        var service=new FormActionEffectService(new FakeFormPdfActionService(),[channel],NullLogger<FormActionEffectService>.Instance);
+        var outcome=await service.ExecuteAsync(work,CancellationToken.None);
+        Assert.Equal(FormActionRunState.Completed,outcome.State);Assert.Equal(new[]{target},channel.Reads);
+        Assert.Equal(target,Assert.Single(channel.Messages).RecipientUserId);Assert.Empty(channel.Retries);
+        Assert.Equal(StructuredRecordActionState.Accepted,Assert.Single(outcome.Recipients!,recipient=>recipient.UserId==target).Status.State);
+        Assert.Equal(StructuredRecordActionState.Accepted,Assert.Single(outcome.Recipients!,recipient=>recipient.UserId==accepted).Status.State);
+        Assert.Equal("WhatsApp.FormAction.WindowClosed",Assert.Single(outcome.Recipients!,recipient=>recipient.UserId==other).Status.FailureCode);
+    }
+    [Fact]
+    public async Task A_person_retry_resumes_the_failed_operation_of_the_channel_under_the_current_fence()
+    {
+        var target=Guid.NewGuid();var channel=new FakeFormActionChannel();channel.Statuses[target]=new(StructuredRecordActionState.Failed,"WhatsApp.FormAction.WindowClosed",true);
+        var work=Work("NotifyRole",retry:true,people:[target]) with{RetryRecipientUserId=target,
+            PriorRecipients=[new(target,"Target employee","phone",new(StructuredRecordActionState.Failed,"WhatsApp.FormAction.WindowClosed",true))]};
+        var service=new FormActionEffectService(new FakeFormPdfActionService(),[channel],NullLogger<FormActionEffectService>.Instance);
+        var outcome=await service.ExecuteAsync(work,CancellationToken.None);
+        Assert.Equal(FormActionRunState.Completed,outcome.State);Assert.Equal(new[]{target},channel.Retries);
+        Assert.Equal(work.Fence,Assert.Single(channel.ControlRevisions));Assert.Empty(channel.Messages);
+    }
+    [Theory]
+    [InlineData(StructuredRecordActionState.Accepted,null)]
+    [InlineData(StructuredRecordActionState.Failed,"WhatsApp.FormAction.RecipientChanged")]
+    public async Task A_person_retry_never_resends_what_the_channel_accepted_or_cannot_retry(StructuredRecordActionState state,string? failure)
+    {
+        var target=Guid.NewGuid();var channel=new FakeFormActionChannel();channel.Statuses[target]=new(state,failure,false);
+        var work=Work("NotifyRole",retry:true,people:[target]) with{RetryRecipientUserId=target,
+            PriorRecipients=[new(target,"Target employee","phone",new(StructuredRecordActionState.Failed,"WhatsApp.FormAction.WindowClosed",true))]};
+        var service=new FormActionEffectService(new FakeFormPdfActionService(),[channel],NullLogger<FormActionEffectService>.Instance);
+        var outcome=await service.ExecuteAsync(work,CancellationToken.None);
+        Assert.Equal(FormActionRunState.Completed,outcome.State);Assert.Equal(state,Assert.Single(outcome.Recipients!).Status.State);
+        Assert.Empty(channel.Messages);Assert.Empty(channel.Retries);
+    }
+    [Fact]
+    public async Task A_role_recipient_without_a_channel_operation_after_a_lost_lease_can_be_retried()
+    {
+        var person=Guid.NewGuid();var channel=new FakeFormActionChannel();
+        var service=new FormActionEffectService(new FakeFormPdfActionService(),[channel],NullLogger<FormActionEffectService>.Instance);
+        var outcome=await service.ExecuteAsync(Work("NotifyRole",reconcile:true,people:[person]),CancellationToken.None);
+        Assert.Equal(FormActionRunState.Completed,outcome.State);Assert.False(outcome.CanRetry);Assert.Empty(channel.Messages);
+        var recipient=Assert.Single(outcome.Recipients!);Assert.Equal(StructuredRecordActionState.Failed,recipient.Status.State);
+        Assert.Equal(FormActionErrors.RecipientUnavailable.Code,recipient.Status.FailureCode);Assert.True(recipient.Status.CanRetry);
     }
     private static FormActionWorkResponse Work(string kind="NotifyAuthor",bool reconcile=false,bool retry=false,IReadOnlyList<Guid>? people=null)
     {

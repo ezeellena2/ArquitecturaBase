@@ -19,6 +19,7 @@ internal sealed class FormsTestModule : IApiTestModule
         "GET /api/forms/entries/{definitionid:guid}", "GET /api/forms/entries/{definitionid:guid}/versions/{versionid:guid}/questions/{fieldid:guid}/options", "POST /api/forms/entries/{definitionid:guid}",
         "GET /api/forms/approvals/{id:guid}", "GET /api/forms/approvals/{id:guid}/continuation", "POST /api/forms/approvals/{id:guid}/decisions",
         "GET /api/forms/records/{recordid:guid}/workflow", "POST /api/forms/records/{recordid:guid}/actions/{runid:guid}/retry", "POST /api/forms/records/{recordid:guid}/actions/{runid:guid}/consult", "POST /api/forms/records/{recordid:guid}/actions/{runid:guid}/review",
+        "POST /api/forms/records/{recordid:guid}/actions/{runid:guid}/recipients/{recipientuserid:guid}/retry",
         "GET /api/forms/definitions/{id:guid}/suggestions", "POST /api/forms/definitions/{id:guid}/suggestions",
         "GET /api/forms/definitions/{id:guid}/suggestions/revisions", "GET /api/forms/definitions/{id:guid}/suggestions/revisions/{revision:long}", "GET /api/forms/definitions/{id:guid}/suggestions/options",
         "GET /api/forms/definitions/{id:guid}/rules", "POST /api/forms/definitions/{id:guid}/rules",

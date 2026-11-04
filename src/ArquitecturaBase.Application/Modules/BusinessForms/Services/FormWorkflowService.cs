@@ -15,11 +15,13 @@ internal sealed class FormWorkflowService(FormWorkflowReadPolicy readPolicy,IFor
         OperationLog.RunAsync<Result<FormWorkflowResponse>>(logger,"ReadFormWorkflow",()=>readPolicy.ReadAsync(recordId,cancellationToken));
     public Task<Result<FormWorkflowResponse>> RetryAsync(Guid recordId,Guid runId,CancellationToken cancellationToken)=>
         OperationLog.RunAsync<Result<FormWorkflowResponse>>(logger,"RetryFormAction",()=>ChangeAsync(recordId,runId,true,cancellationToken));
+    public Task<Result<FormWorkflowResponse>> RetryRecipientAsync(Guid recordId,Guid runId,Guid recipientUserId,long expectedRevision,CancellationToken cancellationToken)=>
+        OperationLog.RunAsync<Result<FormWorkflowResponse>>(logger,"RetryFormActionRecipient",()=>ChangeAsync(recordId,runId,true,cancellationToken,null,expectedRevision,recipientUserId,true));
     public Task<Result<FormWorkflowResponse>> ConsultAsync(Guid recordId,Guid runId,CancellationToken cancellationToken)=>
         OperationLog.RunAsync<Result<FormWorkflowResponse>>(logger,"ConsultFormAction",()=>ChangeAsync(recordId,runId,false,cancellationToken));
     public Task<Result<FormWorkflowResponse>> ReviewAsync(Guid recordId,Guid runId,Guid recipientUserId,long expectedRevision,bool wasSent,CancellationToken cancellationToken)=>
         OperationLog.RunAsync<Result<FormWorkflowResponse>>(logger,"ReviewFormAction",()=>ChangeAsync(recordId,runId,false,cancellationToken,wasSent,expectedRevision,recipientUserId));
-    private async Task<Result<FormWorkflowResponse>> ChangeAsync(Guid recordId,Guid runId,bool retry,CancellationToken cancellationToken,bool? wasSent=null,long expectedRevision=0,Guid recipientUserId=default)
+    private async Task<Result<FormWorkflowResponse>> ChangeAsync(Guid recordId,Guid runId,bool retry,CancellationToken cancellationToken,bool? wasSent=null,long expectedRevision=0,Guid recipientUserId=default,bool onlyRecipient=false)
     {
         var actor=await access.CheckAsync(cancellationToken);if(actor.IsFailure)return actor.Error;
         if(!await permissions.HasPermissionAsync(actor.Value,BusinessFormsPermissions.RulesManage,cancellationToken))return FormDefinitionErrors.Forbidden;
@@ -42,6 +44,14 @@ internal sealed class FormWorkflowService(FormWorkflowReadPolicy readPolicy,IFor
                 if(!replay&&recipients?.Any(recipient=>recipient.UserId==recipientUserId&&recipient.Status.State==ArquitecturaBase.Application.Models.StructuredData.StructuredRecordActionState.Uncertain)!=true)
                     return Result.Failure(FormActionErrors.StateConflict);
                 return run.RequestDeliveryReview(recipientUserId,expectedRevision,decision,actor.Value,now);
+            }
+            if(onlyRecipient)
+            {
+                // Only a confirmed failure that the channel can retry: never an uncertain send nor one that went out.
+                var outcome=run.OutcomeJson is null?null:FormDraftPolicy.Read<FormActionOutcomeResponse>(run.OutcomeJson);
+                if(outcome?.Recipients?.Any(recipient=>recipient.UserId==recipientUserId&&recipient.Status.State==ArquitecturaBase.Application.Models.StructuredData.StructuredRecordActionState.Failed
+                    &&recipient.Status.CanRetry)!=true)return Result.Failure(FormActionErrors.StateConflict);
+                return run.RequestRecipientRetry(recipientUserId,expectedRevision,now);
             }
             return retry?run.RequestRetry(now):run.RequestConsult(now);
         },CommitPolicy.OnSuccess,cancellationToken);

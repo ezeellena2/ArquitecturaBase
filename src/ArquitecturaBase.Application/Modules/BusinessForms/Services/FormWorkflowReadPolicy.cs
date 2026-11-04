@@ -61,6 +61,8 @@ internal sealed class FormWorkflowReadPolicy
             ReasonCode = reasonCode,
             Reason = reasonCode is { } code ? ErrorMessages.Get(code) : null,
             CanReview = manage && action.State == "Uncertain" && (action.Kind is "NotifyAuthor" or "NotifyRole") && state == "Uncertain",
+            // The message to whoever loaded it is retried as a whole action; a person of a finished role notice, alone.
+            CanRetry = manage && action.Kind == "NotifyRole" && action.State == "Completed" && state == "Failed" && recipient.CanRetry,
             DeliveredAtUtc = observation?.Receipt?.DeliveredAtUtc ?? recipient.DeliveredAtUtc,
             ReadAtUtc = observation?.Receipt?.ReadAtUtc ?? recipient.ReadAtUtc
         };
