@@ -115,7 +115,7 @@ El módulo [ARCA](../decisions/0023-arca-como-modulo-opcional.md), ordenado por 
 | --- | --- |
 | [Domain/Modules/Arca](../../src/ArquitecturaBase.Domain/Modules/Arca/AGENTS.md) | Permisos, entidades y errores; una carpeta por familia y los errores en la raíz. |
 | [Application/Modules/Arca](../../src/ArquitecturaBase.Application/Modules/Arca/AGENTS.md) | Permisos y textos; puertos, modelos y servicios con una carpeta por familia debajo de cada carpeta de capa. |
-| [Infrastructure/Modules/Arca](../../src/ArquitecturaBase.Infrastructure/Modules/Arca/AGENTS.md) | Anillo propio, opciones por ambiente y servicio, clientes HTTP por familia sin reintentos globales; WSAA, ticket compartido, persistencia y locks por familia. |
+| [Infrastructure/Modules/Arca](../../src/ArquitecturaBase.Infrastructure/Modules/Arca/AGENTS.md) | Anillo propio, opciones por ambiente y servicio, clientes HTTP por familia sin reintentos globales; WSAA, ticket compartido, clientes del padrón y de WSFEv1, persistencia y locks por familia. |
 | [Domain.UnitTests/Modules/Arca](../../tests/ArquitecturaBase.Domain.UnitTests/Modules/Arca/AGENTS.md) | Reglas puras por familia: CUIT, conexión, certificado, ticket, padrón y punto de venta. |
 | [Application.UnitTests/Modules/Arca](../../tests/ArquitecturaBase.Application.UnitTests/Modules/Arca/AGENTS.md) | Permisos, paridad de recursos y pruebas por familia. |
 | [Api.IntegrationTests/Modules/Arca](../../tests/ArquitecturaBase.Api.IntegrationTests/Modules/Arca/AGENTS.md) | Anillo de prueba, clientes sin red, opciones, composición y persistencia por familia. |

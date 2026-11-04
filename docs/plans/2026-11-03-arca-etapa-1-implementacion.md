@@ -802,6 +802,21 @@ public sealed record ArcaServiceContext(ArcaCertificateRef Certificate, IArcaAcc
 
 ### Tarea 6: las familias `Registry` e `Invoicing`
 
+**Hecha el 2026-11-04.** Diferencias con lo escrito:
+- El paso 0 se confirmó con los WSDL de homologación. WSFEv1 tiene `PtoVenta` con `Nro`, `EmisionTipo`, `Bloqueado` y
+  `FchBaja`, los errores en `Errors/Err/Code`, y el `SOAPAction` con el nombre de la operación. El padrón es
+  `getPersona_v2` en `http://a5.soap.ws.server.puc.sr/`, con entrada y respuesta sin calificar, el `SOAPAction` vacío,
+  y `errorConstancia`, `errorRegimenGeneral` y `errorMonotributo` separados. La fecha de `FchBaja` se lee como
+  `aaaammdd`, como las demás fechas de WSFEv1. Los CN de los emisores siguen a confirmar en la homologación.
+- Los clientes devuelven `ArcaServiceReply<T>`: el valor, o un estado de `ArcaServiceCheckStatus` y un motivo estable
+  (`wsfe.<código>`, `wsfe.fault` o `registry.fault`), nunca una excepción. `ArcaServiceCheckResponse` arma el resultado
+  de la prueba desde el ticket o desde esa respuesta.
+- Las definiciones van en `Channels/<Familia>` (tarea 5). El padrón guarda con `IArcaRegistryCompanyService`, en su
+  transacción y con el lock de la conexión. Una CUIT sin nombre da `registry.withoutData` y no guarda nada.
+- Un `FEDummy` con alguna parte distinta de «OK» deja Facturación en `Unavailable`.
+- El nombre de una persona humana es «nombre apellido». Se juntan los errores de los tres grupos del padrón.
+- Además de los clientes y la política, se prueban las dos definiciones con PostgreSQL y FakeArca.
+
 **Archivos:**
 - **`Registry`:**
   - `src/ArquitecturaBase.Application/Modules/Arca/Interfaces/Integrations/Registry/IArcaRegistryClient.cs`;
@@ -819,7 +834,7 @@ public sealed record ArcaServiceContext(ArcaCertificateRef Certificate, IArcaAcc
   `tests/ArquitecturaBase.Api.IntegrationTests/Modules/Arca/`, `Registry/ArcaRegistryClientTests.cs` e
   `Invoicing/ArcaInvoicingClientTests.cs`.
 
-- [ ] **Paso 0: confirmar en los manuales,** antes del código:
+- [x] **Paso 0: confirmar en los manuales,** antes del código:
   - en el [manual de WSFEv1](https://www.arca.gob.ar/ws/documentacion/manuales/manual-desarrollador-ARCA-COMPG.pdf), los
     campos de `FEParamGetPtosVenta`;
   - en el manual 3.4 de la constancia de inscripción, la dirección de homologación, los nombres de los elementos de
@@ -827,7 +842,7 @@ public sealed record ArcaServiceContext(ArcaCertificateRef Certificate, IArcaAcc
   - los CN de los emisores de cada ambiente.
 
   Lo que difiera de este plan se corrige acá y en el [diseño](2026-11-03-arca-etapa-1-conexion.md#a-confirmar-al-programar).
-- [ ] **Paso 1: tests en rojo.**
+- [x] **Paso 1: tests en rojo.**
   - **`ArcaInvoicingClientTests`, contra `FakeArca`:**
     - `FEDummy` con `AppServer`, `DbServer` y `AuthServer` en `OK` es `true`, y con alguno distinto es `false`;
     - `FEParamGetPtosVenta` devuelve número, tipo de emisión, bloqueado (`S`/`N`) y baja (`NULL` o fecha);
@@ -841,7 +856,7 @@ public sealed record ArcaServiceContext(ArcaCertificateRef Certificate, IArcaAcc
     - con el 32 (IVA exento) → `Exempt`;
     - sin ninguno → `NotRegistered`;
     - el domicilio se arma como «dirección, localidad, provincia».
-- [ ] **Paso 2: WSFEv1.** `FEDummy` va sin `Auth`. `FEParamGetPtosVenta` lleva `Auth` con `Token`, `Sign` y `Cuit`:
+- [x] **Paso 2: WSFEv1.** `FEDummy` va sin `Auth`. `FEParamGetPtosVenta` lleva `Auth` con `Token`, `Sign` y `Cuit`:
 
 ```xml
 <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ar="http://ar.gov.afip.dif.FEV1/">
@@ -854,18 +869,18 @@ public sealed record ArcaServiceContext(ArcaCertificateRef Certificate, IArcaAcc
 ```
 
   El `SOAPAction` es `http://ar.gov.afip.dif.FEV1/<Operación>`. Los errores 600 y 601 se devuelven como `NotAuthorized`.
-- [ ] **Paso 3: padrón.** Es `getPersona_v2` en el namespace `http://a5.soap.ws.server.puc.sr/`, con `token`, `sign`,
+- [x] **Paso 3: padrón.** Es `getPersona_v2` en el namespace `http://a5.soap.ws.server.puc.sr/`, con `token`, `sign`,
   `cuitRepresentada` (la CUIT de la conexión) e `idPersona` (la misma CUIT). Va sin `SOAPAction` y los elementos de
   entrada van sin calificar.
-- [ ] **Paso 4: las definiciones.**
+- [x] **Paso 4: las definiciones.**
   - **`ArcaRegistryServiceDefinition`** declara `ws_sr_constancia_inscripcion` como obligatorio. Su prueba pide el ticket,
     consulta la CUIT de la conexión y guarda los datos con `IArcaRegistryCompanyService`, que arma `ArcaRegistryCompany`
     con `ArcaCompanyDataPolicy` en su propia transacción con el lock de la conexión: un adaptador de `Channels` no abre
     transacciones. `IsCompleteAsync` es siempre `true`.
   - **`ArcaInvoicingServiceDefinition`** declara `wsfe`, no obligatorio. Su prueba pide el ticket y llama a `FEDummy`.
     `IsCompleteAsync` mira si `ArcaInvoicingSettings` tiene un punto de venta.
-- [ ] **Paso 5: correr** los tests de la tarea y `ArcaFamilyBoundaryTests`.
-- [ ] **Paso 6: commit.** `feat(arca): familias del padrón y de la facturación`
+- [x] **Paso 5: correr** los tests de la tarea y `ArcaFamilyBoundaryTests`.
+- [x] **Paso 6: commit.** `feat(arca): familias del padrón y de la facturación`
 
 ---
 

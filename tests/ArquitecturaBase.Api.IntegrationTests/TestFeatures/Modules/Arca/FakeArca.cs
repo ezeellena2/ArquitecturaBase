@@ -16,22 +16,50 @@ internal enum FakeArcaFailure
     Hang,
 }
 
+/// <summary>Un punto de venta como lo devuelve <c>FEParamGetPtosVenta</c>: los textos tal cual, «S»/«N» y «NULL» o una fecha.</summary>
+internal sealed record FakeArcaPointOfSale(int Number, string EmissionType, string Blocked, string DroppedOn);
+
+/// <summary>Lo que devuelve <c>getPersona_v2</c> para la CUIT consultada.</summary>
+internal sealed record FakeArcaPerson(string? BusinessName, string? FirstName, string? LastName, string? Street, string? Locality,
+    string? Province, int[] TaxIds, bool Monotax, string[] ConstanciaErrors);
+
 /// <summary>
 /// Hace de ARCA sin red. Enruta por la operación del sobre SOAP, verifica la firma del pedido de ticket, cuenta las
-/// llamadas por operación y servicio, y deja programar fallas o retener las respuestas. Es uno por factory: cada test
-/// empieza con <see cref="Reset"/>.
+/// llamadas por operación y servicio, guarda el último pedido de cada operación y deja programar respuestas, fallas o
+/// retenerlas. Es uno por factory: cada test empieza con <see cref="Reset"/>.
 /// </summary>
 internal sealed class FakeArca(TimeProvider time)
 {
+    public const string InvoicingService = "wsfe";
+    public const string RegistryService = "ws_sr_constancia_inscripcion";
+
+    public static readonly FakeArcaPerson Company = new("Campo SA", null, null, "Ruta 9 km 400", "Marcos Juárez", "CORDOBA", [30], false, []);
+
     private static readonly XNamespace Soap = "http://schemas.xmlsoap.org/soap/envelope/";
     private static readonly XNamespace Wsaa = "http://wsaa.view.sua.dvadac.desein.afip.gov";
+    private static readonly XNamespace Fev1 = "http://ar.gov.afip.dif.FEV1/";
+    private static readonly XNamespace Registry = "http://a5.soap.ws.server.puc.sr/";
 
     private readonly ConcurrentDictionary<string, int> calls = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, XElement> lastRequests = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, FakeArcaFailure> failures = new(StringComparer.Ordinal);
     private volatile TaskCompletionSource? gate;
     private int issued;
 
+    /// <summary>Lo que responde <c>FEDummy</c>; «OK» es que el servidor anda.</summary>
+    public (string App, string Db, string Auth) ServerStatus { get; set; } = ("OK", "OK", "OK");
+
+    public IReadOnlyList<FakeArcaPointOfSale> PointsOfSale { get; set; } = [];
+
+    /// <summary>Un error de WSFEv1 para <c>FEParamGetPtosVenta</c> (602 sin resultados, 600 token inválido).</summary>
+    public int? PointsOfSaleError { get; set; }
+
+    /// <summary>La persona del padrón; null responde la falla SOAP de una CUIT que no existe.</summary>
+    public FakeArcaPerson? Person { get; set; } = Company;
+
     public int Calls(string operation, string service) => calls.GetValueOrDefault(operation + ":" + service);
+
+    public XElement? LastRequest(string operation) => lastRequests.GetValueOrDefault(operation);
 
     public void Fail(string service, FakeArcaFailure failure) => failures[service] = failure;
 
@@ -43,8 +71,13 @@ internal sealed class FakeArca(TimeProvider time)
     public void Reset()
     {
         calls.Clear();
+        lastRequests.Clear();
         failures.Clear();
         gate = null;
+        ServerStatus = ("OK", "OK", "OK");
+        PointsOfSale = [];
+        PointsOfSaleError = null;
+        Person = Company;
     }
 
     public async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
@@ -52,9 +85,13 @@ internal sealed class FakeArca(TimeProvider time)
         var envelope = XDocument.Parse(await request.Content!.ReadAsStringAsync(cancellationToken));
         var operation = envelope.Root?.Element(Soap + "Body")?.Elements().FirstOrDefault()
             ?? throw new InvalidOperationException("The ARCA test double received a request without a SOAP body.");
+        lastRequests[operation.Name.LocalName] = operation;
         return operation.Name.LocalName switch
         {
             "loginCms" => await LoginAsync(operation, cancellationToken),
+            "FEDummy" => await CountAndFailAsync("FEDummy", InvoicingService, cancellationToken) ?? Dummy(),
+            "FEParamGetPtosVenta" => await CountAndFailAsync("FEParamGetPtosVenta", InvoicingService, cancellationToken) ?? PointsOfSaleResponse(),
+            "getPersona_v2" => await CountAndFailAsync("getPersona_v2", RegistryService, cancellationToken) ?? PersonResponse(),
             _ => throw new InvalidOperationException($"The ARCA test double has no operation {operation.Name.LocalName}."),
         };
     }
@@ -77,6 +114,50 @@ internal sealed class FakeArca(TimeProvider time)
         return Envelope(HttpStatusCode.OK, new XElement(Wsaa + "loginCmsResponse", new XElement(Wsaa + "loginCmsReturn", ticket.ToString())));
     }
 
+    private HttpResponseMessage Dummy() => Envelope(HttpStatusCode.OK, new XElement(Fev1 + "FEDummyResponse",
+        new XElement(Fev1 + "FEDummyResult",
+            new XElement(Fev1 + "AppServer", ServerStatus.App),
+            new XElement(Fev1 + "DbServer", ServerStatus.Db),
+            new XElement(Fev1 + "AuthServer", ServerStatus.Auth))));
+
+    private HttpResponseMessage PointsOfSaleResponse()
+    {
+        XElement result = PointsOfSaleError is { } code
+            ? new XElement(Fev1 + "FEParamGetPtosVentaResult", new XElement(Fev1 + "Errors",
+                new XElement(Fev1 + "Err", new XElement(Fev1 + "Code", code), new XElement(Fev1 + "Msg", "Error de prueba"))))
+            : new XElement(Fev1 + "FEParamGetPtosVentaResult", new XElement(Fev1 + "ResultGet", PointsOfSale.Select(point =>
+                new XElement(Fev1 + "PtoVenta",
+                    new XElement(Fev1 + "Nro", point.Number),
+                    new XElement(Fev1 + "EmisionTipo", point.EmissionType),
+                    new XElement(Fev1 + "Bloqueado", point.Blocked),
+                    new XElement(Fev1 + "FchBaja", point.DroppedOn)))));
+        return Envelope(HttpStatusCode.OK, new XElement(Fev1 + "FEParamGetPtosVentaResponse", result));
+    }
+
+    // Los elementos de la respuesta del padrón van sin calificar, como dice su WSDL.
+    private HttpResponseMessage PersonResponse()
+    {
+        if (Person is not { } person) return Fault("ns0:Server", "No existe persona con ese Id");
+        var general = new XElement("datosGenerales",
+            Optional("apellido", person.LastName),
+            new XElement("domicilioFiscal",
+                new XElement("codPostal", "2580"),
+                Optional("descripcionProvincia", person.Province),
+                Optional("direccion", person.Street),
+                new XElement("idProvincia", 3),
+                Optional("localidad", person.Locality)),
+            Optional("nombre", person.FirstName),
+            Optional("razonSocial", person.BusinessName),
+            new XElement("tipoPersona", person.BusinessName is null ? "FISICA" : "JURIDICA"));
+        var persona = new XElement("personaReturn", general,
+            person.TaxIds.Length == 0 ? null : new XElement("datosRegimenGeneral", person.TaxIds.Select(id =>
+                new XElement("impuesto", new XElement("estadoImpuesto", "AC"), new XElement("idImpuesto", id)))),
+            person.Monotax ? new XElement("datosMonotributo", new XElement("categoriaMonotributo", "A"),
+                new XElement("impuesto", new XElement("idImpuesto", 20))) : null,
+            person.ConstanciaErrors.Length == 0 ? null : new XElement("errorConstancia", person.ConstanciaErrors.Select(error => new XElement("error", error))));
+        return Envelope(HttpStatusCode.OK, new XElement(Registry + "getPersona_v2Response", persona));
+    }
+
     private async Task<HttpResponseMessage?> CountAndFailAsync(string operation, string service, CancellationToken cancellationToken)
     {
         calls.AddOrUpdate(operation + ":" + service, 1, (_, count) => count + 1);
@@ -85,9 +166,9 @@ internal sealed class FakeArca(TimeProvider time)
         switch (failure)
         {
             case FakeArcaFailure.AlreadyAuthenticated:
-                return Fault("coe.alreadyAuthenticated", "El CEE ya posee un TA valido para el acceso al WSN solicitado");
+                return Fault("ns1:coe.alreadyAuthenticated", "El CEE ya posee un TA valido para el acceso al WSN solicitado");
             case FakeArcaFailure.NotAuthorized:
-                return Fault("coe.notAuthorized", "Computador no autorizado a acceder al servicio");
+                return Fault("ns1:coe.notAuthorized", "Computador no autorizado a acceder al servicio");
             case FakeArcaFailure.ServiceUnavailable:
                 return new HttpResponseMessage(HttpStatusCode.ServiceUnavailable);
             default:
@@ -96,13 +177,12 @@ internal sealed class FakeArca(TimeProvider time)
         }
     }
 
-    private static HttpResponseMessage Fault(string code, string message)
-    {
-        XNamespace axis = "http://xml.apache.org/axis/";
-        return Envelope(HttpStatusCode.InternalServerError, new XElement(Soap + "Fault",
-            new XElement("faultcode", new XAttribute(XNamespace.Xmlns + "ns1", axis), "ns1:" + code),
+    private static XElement? Optional(string name, string? value) => value is null ? null : new XElement(name, value);
+
+    private static HttpResponseMessage Fault(string code, string message) => Envelope(HttpStatusCode.InternalServerError,
+        new XElement(Soap + "Fault",
+            new XElement("faultcode", new XAttribute(XNamespace.Xmlns + "ns1", "http://xml.apache.org/axis/"), code),
             new XElement("faultstring", message)));
-    }
 
     private static HttpResponseMessage Envelope(HttpStatusCode status, XElement content)
     {

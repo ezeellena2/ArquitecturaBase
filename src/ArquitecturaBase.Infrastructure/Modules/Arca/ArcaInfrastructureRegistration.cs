@@ -1,16 +1,20 @@
 using ArquitecturaBase.Application.Modules.Arca.Interfaces.Integrations.Connection;
+using ArquitecturaBase.Application.Modules.Arca.Interfaces.Integrations.Invoicing;
+using ArquitecturaBase.Application.Modules.Arca.Interfaces.Integrations.Registry;
 using ArquitecturaBase.Application.Modules.Arca.Interfaces.Persistence.Connection;
 using ArquitecturaBase.Application.Modules.Arca.Interfaces.Persistence.Invoicing;
 using ArquitecturaBase.Application.Modules.Arca.Interfaces.Persistence.Registry;
 using ArquitecturaBase.Infrastructure.Modules.Arca.Connection;
 using ArquitecturaBase.Infrastructure.Modules.Arca.Connection.Security;
 using ArquitecturaBase.Infrastructure.Modules.Arca.Connection.Soap;
+using ArquitecturaBase.Infrastructure.Modules.Arca.Invoicing;
 using ArquitecturaBase.Infrastructure.Modules.Arca.Persistence.Readers.Connection;
 using ArquitecturaBase.Infrastructure.Modules.Arca.Persistence.Readers.Invoicing;
 using ArquitecturaBase.Infrastructure.Modules.Arca.Persistence.Readers.Registry;
 using ArquitecturaBase.Infrastructure.Modules.Arca.Persistence.Repositories.Connection;
 using ArquitecturaBase.Infrastructure.Modules.Arca.Persistence.Repositories.Invoicing;
 using ArquitecturaBase.Infrastructure.Modules.Arca.Persistence.Repositories.Registry;
+using ArquitecturaBase.Infrastructure.Modules.Arca.Registry;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 namespace ArquitecturaBase.Infrastructure.Modules.Arca;
@@ -50,6 +54,7 @@ public static class ArcaInfrastructureRegistration
     {
         services.AddScoped<IArcaRegistryRepository, ArcaRegistryRepository>();
         services.AddScoped<IArcaRegistryReader, ArcaRegistryReader>();
+        services.AddSingleton<IArcaRegistryClient, ArcaRegistryClient>();
         ConfigureClient(services.AddHttpClient(RegistryHttpClientName));
     }
 
@@ -57,6 +62,7 @@ public static class ArcaInfrastructureRegistration
     {
         services.AddScoped<IArcaInvoicingRepository, ArcaInvoicingRepository>();
         services.AddScoped<IArcaInvoicingReader, ArcaInvoicingReader>();
+        services.AddSingleton<IArcaInvoicingClient, ArcaInvoicingClient>();
         ConfigureClient(services.AddHttpClient(InvoicingHttpClientName));
     }
 

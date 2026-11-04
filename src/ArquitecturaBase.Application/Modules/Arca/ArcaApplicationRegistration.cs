@@ -1,16 +1,38 @@
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Modules.Arca.Channels;
+using ArquitecturaBase.Application.Modules.Arca.Channels.Invoicing;
+using ArquitecturaBase.Application.Modules.Arca.Channels.Registry;
+using ArquitecturaBase.Application.Modules.Arca.Interfaces.Channels.Connection;
 using ArquitecturaBase.Application.Modules.Arca.Interfaces.Services.Connection;
+using ArquitecturaBase.Application.Modules.Arca.Interfaces.Services.Registry;
 using ArquitecturaBase.Application.Modules.Arca.Services.Connection;
+using ArquitecturaBase.Application.Modules.Arca.Services.Registry;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+
 namespace ArquitecturaBase.Application.Modules.Arca;
+
+/// Una línea por familia de servicios (ADR 0025): quitar una familia es borrar sus carpetas y su línea.
 public static class ArcaApplicationRegistration
 {
     public static IServiceCollection AddArcaApplication(this IServiceCollection services)
     {
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IPermissionCatalogSource, ArcaPermissionCatalogSource>());
-        services.TryAddScoped<IArcaAccessTicketStore, ArcaAccessTicketStore>();
+        AddConnection(services);
+        AddRegistry(services);
+        AddInvoicing(services);
         return services;
     }
+
+    private static void AddConnection(IServiceCollection services) =>
+        services.TryAddScoped<IArcaAccessTicketStore, ArcaAccessTicketStore>();
+
+    private static void AddRegistry(IServiceCollection services)
+    {
+        services.TryAddScoped<IArcaRegistryCompanyService, ArcaRegistryCompanyService>();
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IArcaServiceDefinition, ArcaRegistryServiceDefinition>());
+    }
+
+    private static void AddInvoicing(IServiceCollection services) =>
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IArcaServiceDefinition, ArcaInvoicingServiceDefinition>());
 }

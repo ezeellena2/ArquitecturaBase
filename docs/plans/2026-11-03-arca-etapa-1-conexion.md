@@ -226,9 +226,10 @@ Lo que contesta ARCA en una prueba no es un error del pedido: es el resultado de
 
 ## A confirmar al programar
 
-- **En el manual 3.4 del padrón:** cómo se deduce la condición frente al IVA a partir de los impuestos inscriptos, y la
-  dirección de homologación de `personaServiceA5`. Producción es `aws.afip.gov.ar/sr-padron/webservices/personaServiceA5`
-  ([referencia](https://docs.afipsdk.com/siguientes-pasos/web-services/padron-de-constancia-de-inscripcion)).
+- **Del padrón:** la dirección de homologación (`awshomo.afip.gov.ar/sr-padron/webservices/personaServiceA5`) y los
+  nombres de `getPersona_v2` quedaron confirmados con su WSDL (tarea 6). La condición frente al IVA se deduce así: el
+  monotributo manda, el impuesto 30 es responsable inscripto y el 32, exento. Falta verla en la homologación con CUIT
+  reales.
 - **Del certificado:** el algoritmo de firma que exige ARCA y los emisores de cada ambiente, que sirven para saber si un
   `.crt` es de homologación o de producción.
 - **El sujeto del CSR:** además de `serialNumber=CUIT …`, `O` y `CN`. El ejemplo usual pone el alias en `CN`
