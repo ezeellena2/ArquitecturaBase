@@ -46,6 +46,9 @@ del otro módulo y se quedan.
    - Las 149 claves `Forms.*` de `Errors.resx` y `Errors.en.resx`. Si queda una,
      `ErrorCodeTests.Every_error_key_belongs_to_a_code_declared_in_domain` falla y la nombra.
    - `FormCatalogStateInvalid` de `ValidationMessages` y de `Validation.resx`/`.en.resx`.
+   - `harnesses/assistant-qualification`, el arnés manual de calificación del asistente. Está fuera de la solución y el
+     build no lo ve, pero usa el módulo y deja de compilar: borralo o dejale sólo los casos de Inicio, y actualizá sus
+     menciones en el mapa de instrucciones y en `configurar-ia.md`.
 5. Opcional: en `Infrastructure.csproj` quedan sin uso `ClosedXML`, `SkiaSharp.HarfBuzz` y
    `HarfBuzzSharp.NativeAssets.Linux`, con sus `PackageVersion` de `Directory.Packages.props`. `SkiaSharp` y `OpenMcdf`
    se quedan: los usan las miniaturas y la inspección de archivos del núcleo.
@@ -53,18 +56,43 @@ del otro módulo y se quedan.
    `RemoveBusinessForms` sobre el código ya borrado, antes de levantar la app:
 
    ```bash
+   dotnet restore ArquitecturaBase.slnx
    dotnet ef migrations add RemoveBusinessForms --project src/ArquitecturaBase.Infrastructure --startup-project src/ArquitecturaBase.Api --output-dir Persistence/Migrations -- --environment Development --ConnectionStrings:appdb "Host=build;Database=build;Username=build;Password=build" --ConnectionStrings:cache "localhost:6379"
-   dotnet build ArquitecturaBase.slnx
-   dotnet ef migrations has-pending-model-changes --project src/ArquitecturaBase.Infrastructure --startup-project src/ArquitecturaBase.Api -- --environment Development --ConnectionStrings:appdb "Host=build;Database=build;Username=build;Password=build" --ConnectionStrings:cache "localhost:6379"
-   dotnet test
    ```
+
+   `dotnet ef` lee el proyecto antes de compilarlo: en un clon sin `obj`, sin el `restore` no lo encuentra.
 
    `Up` suelta primero cuatro claves foráneas entre tablas del módulo y después borra sólo sus 23 tablas:
    `FormDefinitions`, `FormDraftChanges` y las 21 `BusinessForm*` (`ActionRuns`, `CaptureReceipts`, `CatalogItems`,
    `Catalogs`, `Documents`, `Fields`, `MissingRequests`, `MissingTopics`, `PdfDesigns`, `PersonAttributes`,
    `PersonData`, `PublicationOperations`, `RecordFiles`, `RecordReferences`, `RecordValues`, `Records`,
    `RetiredIdentities`, `RuleSets`, `Suggestions`, `Tasks` y `Versions`). Si aparece otra tabla, algo se borró de más.
-   `Down` las recrea.
+
+   `Down` las recrea desde el modelo, que no tiene las dos claves diferibles de `BusinessFormCatalogItems`: EF no modela
+   la diferibilidad, y las crearon a mano `AddUniqueManualCatalogItemPositions` y `DeferCatalogItemCodeUniqueness`. Sus
+   `Down` las borran, así que bajar la base más allá de ellas falla, y los tests de migraciones de IA lo hacen.
+   Agregalas al final del `Down`:
+
+   ```csharp
+   // EF no modela la diferibilidad: las dos claves de las opciones se recrean como en
+   // AddUniqueManualCatalogItemPositions y DeferCatalogItemCodeUniqueness, cuyos Down las borran.
+   migrationBuilder.Sql("""
+       ALTER TABLE "BusinessFormCatalogItems"
+       ADD CONSTRAINT "AK_BusinessFormCatalogItems_CatalogId_Position"
+       UNIQUE ("CatalogId", "Position") DEFERRABLE INITIALLY DEFERRED;
+       ALTER TABLE "BusinessFormCatalogItems"
+       ADD CONSTRAINT "AK_BusinessFormCatalogItems_CatalogId_Code"
+       UNIQUE ("CatalogId", "Code") DEFERRABLE INITIALLY DEFERRED;
+       """.ReplaceLineEndings("\n"));
+   ```
+
+   Después compilá, revisá que el modelo no tenga cambios pendientes y corré todos los tests:
+
+   ```bash
+   dotnet build ArquitecturaBase.slnx
+   dotnet ef migrations has-pending-model-changes --project src/ArquitecturaBase.Infrastructure --startup-project src/ArquitecturaBase.Api -- --environment Development --ConnectionStrings:appdb "Host=build;Database=build;Username=build;Password=build" --ConnectionStrings:cache "localhost:6379"
+   dotnet test
+   ```
 
    Aplicala con el bundle antes de la imagen nueva ([despliegue](despliegue.md#el-orden-bundle-después-imagen)), con
    las rutas de formularios de la versión vieja detenidas. Los permisos `form*` quedan sin efecto, porque el catálogo ya
