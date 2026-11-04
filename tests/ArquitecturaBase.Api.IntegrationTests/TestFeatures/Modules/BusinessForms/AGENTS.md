@@ -46,4 +46,4 @@ FormMultipleChoiceMigrationFixture crea versiones con draft.fields y version.que
 
 FormPersonDataMigrationFixture conserva filas históricas completas, incluidos FieldsJson y snapshots E2-1, y agrega metadata de prueba antes de AddFormPersonData. Usa bases aisladas con limpieza; no altera el AppHost ni ejecuta PostgreSQL fuera del cierre.
 
-La cohorte forms-entries-http exige los 17 cuerpos es/en de FormEntryHttpTests (versión para cargar, opciones, dato faltante, envío, planilla y detalle con origen «App», «Formularios» de quien sólo completa y los tres conflictos) y fija en su procedencia el productor y FormEntryContractCapture.
+La cohorte forms-entries-http exige 19 cuerpos: los 17 es/en de FormEntryHttpTests (versión para cargar, opciones, dato faltante, envío, planilla y detalle con origen «App», «Formularios» de quien sólo completa y los tres conflictos) y los dos de la lista dependiente de FormEntryDependentListHttpTests (entry-depends-es y options-depends-es). Fija en su procedencia los dos productores y FormEntryContractCapture.
