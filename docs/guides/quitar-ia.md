@@ -18,8 +18,11 @@ y el anillo externo para restaurar datos históricos; esta operación elimina la
    no nombran IA; los arneses descubren sólo contribuciones presentes (ADR 0013).
 4. Quitá configuración externa `ArtificialIntelligence:*` del host. Guardá una copia segura
    del anillo/ID para backups históricos, sin incluirla en Git.
-5. Opcionalmente retirás textos `Ai.*` de Errors y los `Ai*` de ValidationMessages/
-   Validation, siempre en ambos idiomas. Dejarlos no crea referencias ni rutas.
+5. Retirá las 54 claves `Ai.*` de `Errors.resx` y `Errors.en.resx`: sin el módulo, ninguna clase
+   `*Errors` las declara, y `ErrorCodeTests.Every_error_key_belongs_to_a_code_declared_in_domain`
+   falla y nombra cada una. Retirá también `AiProviderInvalid`, `AiModelInvalid`, `AiRevisionInvalid`,
+   `AiCredentialInvalid` y `AiPlaceSearchInvalid` de `ValidationMessages` y de `Validation.resx`/`.en.resx`:
+   ningún test los reclama, pero quedarían sin uso.
 6. **Conservá todas las migraciones anteriores**. Generá `RemoveArtificialIntelligence`:
 
 ```powershell
