@@ -3,18 +3,19 @@ using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.ArchitectureTests.Support;
+using ArquitecturaBase.Domain.Results;
 using Microsoft.EntityFrameworkCore;
 
 namespace ArquitecturaBase.ArchitectureTests;
 
 /// <summary>
 /// Una sola forma de guardar (Etapa 1, decisión 0001): el límite transaccional lo abre el punto de entrada de un caso de
-/// uso con IUnitOfWork.ExecuteInTransactionAsync, y solo UnitOfWork abre, confirma, deshace y guarda. Las reglas leen el
-/// IL de Application, Infrastructure y Api (llamadas, tipos nombrados y literales), no el texto de las fuentes. Los
-/// ensamblados de tests no se miran: el arnés puede abrir transacciones para sostener una fila. La única excepción con
-/// nombre es DatabaseSeeder, el seed de arranque (ADR 0001, enmienda del 2026-09-28). Un módulo opcional suma sus claves
-/// de lock y sus excepciones con los ganchos de abajo, en la parte de esta clase que vive en su carpeta
-/// <c>Modules/&lt;M&gt;</c>: sin el módulo, el compilador borra las llamadas.
+/// uso con IUnitOfWork.ExecuteInTransactionAsync, una vez por método público, y solo UnitOfWork abre, confirma, deshace y
+/// guarda. Las reglas leen el IL de Application, Infrastructure y Api (llamadas, tipos nombrados y literales), no el texto
+/// de las fuentes. Los ensamblados de tests no se miran: el arnés puede abrir transacciones para sostener una fila. La
+/// única excepción con nombre es DatabaseSeeder, el seed de arranque (ADR 0001, enmienda del 2026-09-28). Un módulo
+/// opcional suma sus claves de lock y sus excepciones con los ganchos de abajo, en la parte de esta clase que vive en su
+/// carpeta <c>Modules/&lt;M&gt;</c>: sin el módulo, el compilador borra las llamadas.
 /// </summary>
 public sealed partial class TransactionBoundaryTests
 {
@@ -105,12 +106,7 @@ public sealed partial class TransactionBoundaryTests
     {
         // También caza un service locator (GetRequiredService<IUnitOfWork>()) en Infrastructure o en Api. Llamar por la
         // clase concreta lo caza Only_the_registration_names_the_concrete_unit_of_work.
-        var callers = Calls
-            .Where(call => call.DeclaringType == UnitOfWorkContract
-                && call.Method == nameof(IUnitOfWork.ExecuteInTransactionAsync))
-            .Select(call => call.Owner)
-            .Distinct(StringComparer.Ordinal)
-            .ToArray();
+        var callers = UnitOfWorkRunners();
 
         // Si el detector no viera a nadie, la regla pasaría en silencio.
         Assert.NotEmpty(callers);
@@ -121,6 +117,34 @@ public sealed partial class TransactionBoundaryTests
         var violations = callers.Where(owner => !UseCaseEntryPoints.Contains(Scanned, owner) && owner != SeedRunner);
 
         Assert.Empty(violations);
+    }
+
+    [Fact]
+    public void Each_public_method_of_an_entry_point_runs_one_unit_of_work_at_most()
+    {
+        // Un solo límite por método público (ADR 0001). Por la regla anterior, solo los puntos de entrada, con los que suma
+        // un módulo en AdditionalUseCaseEntryPoints, y el seed llaman a ExecuteInTransactionAsync: se cuenta el recorrido de
+        // sus métodos públicos, con los métodos propios que llaman, las lambdas (la de OperationLog.RunAsync) y las
+        // máquinas de estado. Un límite dentro del trabajo de otro también suma: anidarlo lanza.
+        var paths = BoundaryPaths(Scanned);
+
+        // Caso de control, al pie de este archivo: Boundaries abre un límite desde una lambda async, dos al llamar dos veces
+        // a un privado que lo abre y dos al anidarlos. Si el detector no siguiera las lambdas, las máquinas de estado o los
+        // métodos privados, contaría de menos y la regla pasaría en silencio.
+        Assert.Equal(
+            ["NestedAsync: 2", "OnceAsync: 1", "TwiceAsync: 2"],
+            BoundaryPaths([typeof(TransactionBoundaryTests).Assembly])
+                .Where(path => path.Owner == typeof(Boundaries).FullName)
+                .Select(path => $"{path.Method}: {path.Count}")
+                .Order(StringComparer.Ordinal));
+
+        // Quien abre un límite tiene que aparecer, el seed también: si no, ese límite quedaría fuera de todo recorrido.
+        Assert.Empty(UnitOfWorkRunners().Except(paths.Select(path => path.Owner), StringComparer.Ordinal));
+
+        // El mensaje lleva el nombre entero: Assert.Empty corta cada elemento y se perderían el método y la cuenta.
+        var violations = paths.Where(path => path.Count > 1).Select(path => $"{path.Owner}.{path.Method}: {path.Count}").ToArray();
+
+        Assert.True(violations.Length == 0, "Run a single unit of work per public method: " + string.Join(", ", violations));
     }
 
     [Fact]
@@ -312,6 +336,23 @@ public sealed partial class TransactionBoundaryTests
             .Distinct(StringComparer.Ordinal),
     ];
 
+    /// <summary>Quienes llaman a ExecuteInTransactionAsync por el contrato.</summary>
+    private static string[] UnitOfWorkRunners() =>
+    [
+        .. Calls
+            .Where(call => call.DeclaringType == UnitOfWorkContract
+                && call.Method == nameof(IUnitOfWork.ExecuteInTransactionAsync))
+            .Select(call => call.Owner)
+            .Distinct(StringComparer.Ordinal),
+    ];
+
+    /// <summary>Cuántos ExecuteInTransactionAsync hay en el recorrido de cada método público que llega a alguno.</summary>
+    private static CallSites.PathCalls[] BoundaryPaths(IEnumerable<Assembly> assemblies) =>
+    [
+        .. assemblies.SelectMany(assembly =>
+            CallSites.CallsOnPublicPaths(assembly, UnitOfWorkContract, nameof(IUnitOfWork.ExecuteInTransactionAsync))),
+    ];
+
     /// <summary>Quienes llaman a ExecuteUpdate o a ExecuteDelete, que saltean los interceptores.</summary>
     private static string[] BulkUpdaters(IEnumerable<CallSites.Call> calls) =>
     [
@@ -363,9 +404,9 @@ public sealed partial class TransactionBoundaryTests
     }
 }
 
-// Los casos de control de Only_the_unit_of_work_saves_the_context y de
-// Bulk_updates_and_deletes_only_where_documented. Van fuera de TransactionBoundaryTests y cada uno es su propio dueño. No
-// se ejecutan nunca: solo importa su IL.
+// Los casos de control de Only_the_unit_of_work_saves_the_context, de Bulk_updates_and_deletes_only_where_documented y de
+// Each_public_method_of_an_entry_point_runs_one_unit_of_work_at_most. Van fuera de TransactionBoundaryTests y cada uno es
+// su propio dueño. No se ejecutan nunca: solo importa su IL.
 
 /// <summary>
 /// Un contexto que no se llama "DbContext" y esconde SaveChanges con <c>new</c>, así quien lo llama referencia
@@ -408,4 +449,32 @@ file static class Purger
 {
     public static Task<int> Purge(IQueryable<Ledger> rows, CancellationToken cancellationToken) =>
         rows.ExecuteDeleteAsync(cancellationToken);
+}
+
+/// <summary>
+/// Un punto de entrada con los tres caminos que el recorrido tiene que seguir. OnceAsync abre su único límite dentro de una
+/// lambda async, como las que recibe OperationLog.RunAsync: el método público no lo tiene en su propio IL. TwiceAsync
+/// llama dos veces a un privado que abre uno, desde su máquina de estado. NestedAsync abre uno dentro del trabajo de otro.
+/// </summary>
+file sealed class Boundaries(IUnitOfWork unitOfWork)
+{
+    public Task<Result> OnceAsync(CancellationToken cancellationToken) =>
+        Logged(async () => await unitOfWork.ExecuteInTransactionAsync(SaveCoreAsync, CommitPolicy.OnSuccess, cancellationToken));
+
+    public async Task<Result> TwiceAsync(CancellationToken cancellationToken)
+    {
+        await SaveAsync(cancellationToken);
+
+        return await SaveAsync(cancellationToken);
+    }
+
+    public Task<Result> NestedAsync(CancellationToken cancellationToken) =>
+        unitOfWork.ExecuteInTransactionAsync(SaveAsync, CommitPolicy.OnSuccess, cancellationToken);
+
+    private Task<Result> SaveAsync(CancellationToken cancellationToken) =>
+        unitOfWork.ExecuteInTransactionAsync(SaveCoreAsync, CommitPolicy.OnSuccess, cancellationToken);
+
+    private static Task<Result> SaveCoreAsync(CancellationToken cancellationToken) => Task.FromResult(Result.Success());
+
+    private static Task<Result> Logged(Func<Task<Result>> work) => work();
 }

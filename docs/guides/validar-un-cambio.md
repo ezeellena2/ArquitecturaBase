@@ -39,8 +39,9 @@ cambios ajenos al desarrollo. Las decisiones implementadas se consolidan en su f
 instrucciones y el mapa se actualizan cuando cambia una responsabilidad.
 
 La revisión también cubre lo que los tests no demuestran. Por ejemplo, `TransactionBoundaryTests`
-controla quién recibe y usa la unidad de trabajo; no cuenta un único límite por cada método de
-escritura. Los tests visuales con HTTP simulado no acreditan persistencia ni proveedores reales.
+cuenta a lo sumo un límite por método público, pero no comprueba que cada método que escribe abra
+uno ni ve uno repetido en un bucle. Los tests visuales con HTTP simulado no acreditan persistencia
+ni proveedores reales.
 
 ## Verificación y cierre
 
