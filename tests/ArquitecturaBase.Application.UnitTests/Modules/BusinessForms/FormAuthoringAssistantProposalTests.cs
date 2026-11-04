@@ -224,4 +224,22 @@ public sealed class FormAuthoringAssistantProposalTests
         Assert.True(host.Source.ParseOutput(new(ProposeCatalog, 1), catalogJson.Replace("\"Contratistas\"", "\" Contratistas \"", StringComparison.Ordinal)).IsFailure);
         Assert.True(host.Source.ParseOutput(new(ProposeForm, 1), formJson.Replace("\"catalog\":null", "\"catalog\":null,\"x\":1", StringComparison.Ordinal)).IsFailure);
     }
+
+    [Theory]
+    [InlineData("Razón social", "razon_social")]
+    [InlineData("  Teléfono (fijo)  ", "telefono_fijo")]
+    [InlineData("2do. contacto", "do_contacto")]
+    [InlineData("Ñandú", "nandu")]
+    [InlineData("123", "field")]
+    public void A_field_key_comes_from_its_name_as_the_editor_makes_it(string name, string key) =>
+        Assert.Equal(key, FormAuthoringProposalPolicy.FieldKey(name, []));
+
+    [Fact]
+    public void A_repeated_field_key_gets_a_number_within_its_length()
+    {
+        var longest = new string('a', 40);
+        Assert.Equal("razon_social_2", FormAuthoringProposalPolicy.FieldKey("Razón-social", ["razon_social"]));
+        Assert.Equal("razon_social_3", FormAuthoringProposalPolicy.FieldKey("razón social", ["razon_social", "razon_social_2"]));
+        Assert.Equal(new string('a', 38) + "_2", FormAuthoringProposalPolicy.FieldKey(longest, [longest]));
+    }
 }

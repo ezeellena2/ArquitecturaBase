@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 
@@ -98,5 +100,39 @@ internal static class FormAuthoringProposalPolicy
             if (proposal.Fields[index].Name.Length is 0 or > 120 || !FieldTypes.Contains(proposal.Fields[index].Type, StringComparer.Ordinal) ||
                 !names.Add(proposal.Fields[index].Name)) issues.Add(new($"fields[{index}]", "invalid"));
         return proposal.Culture is "es" or "en" ? issues : [new("culture", "invalid")];
+    }
+
+    // The fields of a proposed Manual catalog, in its order: born optional and as data, like a new field in the editor.
+    public static IReadOnlyList<BusinessFormCatalogField> CatalogFields(FormAuthoringCatalogProposal proposal)
+    {
+        var keys = new List<string>();
+        var fields = new List<BusinessFormCatalogField>();
+        foreach (var field in proposal.Fields)
+        {
+            keys.Add(FieldKey(field.Name, keys));
+            fields.Add(new(BusinessFormCatalogField.CreateIdentity(), keys[^1], new Dictionary<string, string> { [proposal.Culture] = field.Name },
+                field.Type, null, false, false, null, null, null, "data", fields.Count, true));
+        }
+        return fields;
+    }
+
+    // A field's key from its name, as the editor makes it: lowercase without accents, anything else as one "_" and never at
+    // the ends, starting with a letter and without repeating another key ("_2", "_3"…).
+    public static string FieldKey(string name, IReadOnlyCollection<string> taken)
+    {
+        const int maximum = 40;
+        var plain = name.ToLowerInvariant().Normalize(NormalizationForm.FormD);
+        var key = new StringBuilder();
+        foreach (var character in plain.Where(character => CharUnicodeInfo.GetUnicodeCategory(character) != UnicodeCategory.NonSpacingMark))
+        {
+            if (character is >= 'a' and <= 'z' || (character is >= '0' and <= '9' && key.Length > 0)) key.Append(character);
+            else if (key.Length > 0 && key[^1] != '_') key.Append('_');
+        }
+        var root = key.ToString(0, Math.Min(key.Length, maximum)).TrimEnd('_');
+        if (root.Length == 0) root = "field";
+        var candidate = root;
+        for (var suffix = 2; taken.Contains(candidate); suffix++)
+            candidate = root[..Math.Min(root.Length, maximum - ("_" + suffix).Length)].TrimEnd('_') + "_" + suffix;
+        return candidate;
     }
 }

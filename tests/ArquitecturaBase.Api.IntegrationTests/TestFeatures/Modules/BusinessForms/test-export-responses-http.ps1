@@ -46,7 +46,9 @@ foreach ($case in @("Configuration", "Merge", "Missing", "Collision")) {
                 Assert-Condition ($extras["WHATSAPP_FORM_REPLIES_HTTP_OUTPUT"] -eq "whatsapp-form-replies") "Replies require their own raw root."
                 Assert-Condition ($extras["WHATSAPP_FORM_PRIVACY_HTTP_OUTPUT"] -eq "whatsapp-form-privacy") "Privacy requires its own raw root."
                 $cohorts = @(Read-ExporterAssignment "cohorts")
-                Assert-Condition ($cohorts.Count -eq 23) "The joint export contains twenty-three cohorts, including the Home assistant."
+                Assert-Condition ($cohorts.Count -eq 25) "The joint export contains twenty-five cohorts, including the Home assistant and its proposals."
+                $proposals = @($cohorts | Where-Object { $_.Name -eq "assistant-proposals" })[0]
+                Assert-Condition ($null -ne $proposals -and $proposals.Environment -eq "FORM_ASSISTANT_PROPOSAL_HTTP_OUTPUT" -and $proposals.RequiredNames.Count -eq 14) "Creating from a Home proposal requires its own output and its fourteen bodies."
                 $assistant = @($cohorts | Where-Object { $_.Name -eq "ai-assistant" })[0]
                 Assert-Condition ($null -ne $assistant -and $assistant.Environment -eq "AI_ASSISTANT_HTTP_OUTPUT" -and $assistant.Destination -eq "ai-assistant-http") "The Home assistant requires its own agreed output and destination."
                 $expectedAssistant = @("bootstrap.json", "submitted.json", "turn-pending.json", "turn-completed.json", "turns.json", "canceled.json")

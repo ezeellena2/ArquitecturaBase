@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 
@@ -32,3 +33,21 @@ public sealed record FormAuthoringDefinitionStoredRow(string NameJson, string Cu
 public sealed record FormAuthoringCatalogStoredRow(Guid Id, string NameJson, string OriginalCulture, BusinessFormCatalogKind Kind,
     BusinessFormCatalogValueType ValueType, bool IsActive, string? FieldsJson)
 { public override string ToString() => "FormAuthoringCatalogStoredRow { Content = [REDACTED] }"; }
+
+// Creating what a Home proposal describes: the turn's request and the proposal; the answer says what was created, if anything.
+public sealed record CreateFromAssistantProposalRequest(Guid? RequestId, Guid? ProposalId);
+public sealed record FormDraftAssistantProposalResponse(Guid ProposalId, Guid? DefinitionId);
+public sealed record FormCatalogAssistantProposalResponse(Guid ProposalId, Guid? CatalogId);
+
+// Where a draft created from a proposal came from, kept once with it. RequestedIn is "app" when the person asked in the app.
+public sealed record FormDraftProposalEvidence(string OriginalCulture, Guid RequestedByUserId, DateTime RequestedAtUtc, Guid TurnId,
+    string CapabilityId, int CapabilityVersion, AssistantOperationProvenance Provenance, FormAuthoringFormProposal OriginalProposal,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? RequestedIn = null)
+{ public override string ToString() => "FormDraftProposalEvidence { Content = [REDACTED] }"; }
+
+/// <summary>The proposal a new draft records; only the service that creates from a proposal sets it.</summary>
+public sealed record FormDraftProposalOrigin(Guid ProposalId, string EvidenceJson)
+{ public override string ToString() => "FormDraftProposalOrigin { Content = [REDACTED] }"; }
+
+public sealed record FormAuthoringCreatedRow(Guid Id, string EvidenceJson)
+{ public override string ToString() => "FormAuthoringCreatedRow { Content = [REDACTED] }"; }

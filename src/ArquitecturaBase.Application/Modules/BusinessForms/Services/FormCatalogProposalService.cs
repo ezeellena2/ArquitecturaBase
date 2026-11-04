@@ -42,9 +42,11 @@ internal sealed class FormCatalogProposalService(IFormCatalogRepository reposito
             }
             var preview = await PreviewAsync(request.Context.ActorUserId, proposal.Value.Filters, request.Context.Culture, ct);
             if (preview.IsFailure) return preview.Error;
+            // Home has neither a mode nor a Subject: the person asked in the app.
             var evidence = new FormCatalogProposalEvidence(request.Context.Culture, request.Context.ActorUserId,
                 request.Provenance.OccurredAtUtc, request.Proposal.TurnId, request.Proposal.Capability.Id,
-                request.Proposal.Capability.Version, request.Provenance, proposal.Value, preview.Value.TotalCount);
+                request.Proposal.Capability.Version, request.Provenance, proposal.Value, preview.Value.TotalCount,
+                RequestedIn: request.Context.InteractionMode == AssistantInteractionMode.Unspecified ? "app" : null);
             var catalog = BusinessFormCatalog.CreateProposedFilters(request.Context.Culture, new Dictionary<string,string> { [request.Context.Culture] = proposal.Value.Name },
                 new Dictionary<string,string> { [request.Context.Culture] = proposal.Value.Description }, JsonSerializer.Serialize(proposal.Value.Filters, JsonSerializerOptions.Web),
                 request.Proposal.Id, JsonSerializer.Serialize(evidence, JsonSerializerOptions.Web));
@@ -59,7 +61,6 @@ internal sealed class FormCatalogProposalService(IFormCatalogRepository reposito
         var access = await CheckActorAsync(actor, cancellationToken);
         if (access.IsFailure) return access.Error;
         if (request.ExpectedRevision is null or < 1 or > 9007199254740991) return FieldErrors.On(FormCatalogErrors.ContentInvalid, "expectedRevision");
-        if (request.SampleUserId is null || request.SampleUserId == Guid.Empty) return FieldErrors.On(FormCatalogErrors.ContentInvalid, "sampleUserId");
         return await unitOfWork.ExecuteInTransactionAsync<Result<FormCatalogSaveResponse>>(async ct =>
         {
             await repository.LockAsync(id, ct);
@@ -69,6 +70,13 @@ internal sealed class FormCatalogProposalService(IFormCatalogRepository reposito
             if (catalog is null) return FormCatalogErrors.NotFound;
             if (catalog.ProposalState != BusinessFormCatalogProposalState.Pending || catalog.Revision != request.ExpectedRevision)
                 return FormCatalogErrors.RevisionConflict;
+            // A Manual proposal is edited like any Manual catalog: approving only activates it, with what it has.
+            if (catalog.Kind == BusinessFormCatalogKind.Manual)
+            {
+                var activated = catalog.ApproveManualProposal(request.ExpectedRevision.Value, actor, timeProvider.GetUtcNow().UtcDateTime);
+                return activated.IsFailure ? activated.Error : await ManualAsync(catalog, actor, ct);
+            }
+            if (request.SampleUserId is null || request.SampleUserId == Guid.Empty) return FieldErrors.On(FormCatalogErrors.ContentInvalid, "sampleUserId");
             var evidence = FormCatalogProposalPresentation.Evidence(catalog.ProposalEvidenceJson!);
             var content = FormCatalogProposalPolicy.ValidateEdits(request.Name, request.Description, request.Filters, evidence.OriginalCulture);
             if (content.IsFailure) return content.Error;
@@ -127,6 +135,16 @@ internal sealed class FormCatalogProposalService(IFormCatalogRepository reposito
         return await FormCatalogProposalPresentation.MapAsync(catalog, usage, users, ct);
     }
 
+    // The detail of a Manual catalog, with its options and fields, as its own page reads it.
+    private async Task<FormCatalogSaveResponse> ManualAsync(BusinessFormCatalog catalog, Guid actor, CancellationToken ct)
+    {
+        var items = await catalogReader.ListAllItemsAsync(catalog.Id, ct);
+        var detail = await MapAsync(catalog, actor, ct) with { ItemsCount = items.Count, ValueType = catalog.ValueType.ToString() };
+        var canReadForms = detail.UsageCount is not null;
+        return new FormCatalogSaveResponse(await FormCatalogFieldPresentation.DescribeAsync(detail, catalog.FieldsJson, catalog.PresentationJson,
+            items, catalogReader, canReadForms, ct), new Dictionary<string, Guid>());
+    }
+
     private static Result<FormCatalogProposalPayload> ValidateProposal(StructuredCatalogProposalAcceptanceRequest request)
     {
         // The person's own conversation: the automatic assistant (Actor equal to Subject) or Home (no Subject, no mode).
@@ -148,6 +166,6 @@ internal sealed class FormCatalogProposalService(IFormCatalogRepository reposito
     }
 
     private static StructuredCatalogProposalAcceptedResponse Receipt(BusinessFormCatalog catalog, FormCatalogProposalEvidence evidence) =>
-        new(catalog.Id, catalog.ProposalState!.Value.ToString(), evidence.OriginalProposal.Name, evidence.OriginalCulture, evidence.PreviewTotalCount,
+        new(catalog.Id, catalog.ProposalState!.Value.ToString(), evidence.OriginalProposal!.Name, evidence.OriginalCulture, evidence.PreviewTotalCount,
             evidence.OriginalProposal.Limitations.Select(item => new StructuredCatalogProposalLimitation(item.Code, item.Criterion)).ToArray());
 }

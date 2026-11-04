@@ -402,4 +402,11 @@
   <data name="Forms.Record.CatalogDependsOnAnswer" xml:space="preserve">
     <value>Las opciones dependen de otra respuesta: este formulario se carga desde la app.</value>
   </data>
+  <data name="Forms.Definition.NameTaken" xml:space="preserve"><value>Ya hay un formulario con ese nombre.</value></data>
+  <data name="Forms.Definition.CatalogUnavailable" xml:space="preserve"><value>Una pregunta usa un catálogo que ya no está disponible.</value></data>
+  <data name="Forms.Definition.ProposalUnavailable" xml:space="preserve"><value>Esta propuesta ya no está disponible. Pedila de nuevo en el chat.</value></data>
+  <data name="Forms.Definition.ProposalReplaced" xml:space="preserve"><value>Esa propuesta ya cambió. Usá la última.</value></data>
+  <data name="Forms.Catalog.NameTaken" xml:space="preserve"><value>Ya hay un catálogo con ese nombre.</value></data>
+  <data name="Forms.Catalog.ProposalUnavailable" xml:space="preserve"><value>Esta propuesta ya no está disponible. Pedila de nuevo en el chat.</value></data>
+  <data name="Forms.Catalog.ProposalReplaced" xml:space="preserve"><value>Esa propuesta ya cambió. Usá la última.</value></data>
 </root>

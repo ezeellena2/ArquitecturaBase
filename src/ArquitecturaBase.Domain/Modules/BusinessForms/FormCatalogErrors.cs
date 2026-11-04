@@ -29,6 +29,9 @@ public static class FormCatalogErrors
     public static readonly Error FieldValueDuplicate = Error.Validation("Forms.Catalog.FieldValueDuplicate", "The unique field value is already used by another active item.");
     public static readonly Error SourceInUse = Error.Conflict("Forms.Catalog.SourceInUse", "A field or person attribute uses this catalog as its source.");
     public static readonly Error PresentationInvalid = Error.Validation("Forms.Catalog.PresentationInvalid", "The title needs at least one existing field.");
+    public static readonly Error NameTaken = Error.Validation("Forms.Catalog.NameTaken", "A catalog with this name already exists.");
+    public static readonly Error ProposalUnavailable = Error.NotFound("Forms.Catalog.ProposalUnavailable", "The assistant proposal is no longer available.");
+    public static readonly Error ProposalReplaced = Error.Conflict("Forms.Catalog.ProposalReplaced", "A later proposal replaced this one.");
 
     public static Error FieldDetails(Error error, IReadOnlyDictionary<string, object?> metadata) => error with { Metadata = metadata };
 }

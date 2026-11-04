@@ -3,7 +3,11 @@ using System.Text.Json.Serialization;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Models;
 public sealed record SaveFormDraftRequest(Guid RequestId, IReadOnlyDictionary<string, string> Name, string Prefix, FormDraftInput Draft, long? ExpectedRevision = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? OfferWhen = null)
-{ public override string ToString() => "SaveFormDraftRequest { Content = [REDACTED] }"; }
+{
+    // Set only by the creation from an assistant proposal; never comes from HTTP.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public FormDraftProposalOrigin? Proposal { get; init; }
+    public override string ToString() => "SaveFormDraftRequest { Content = [REDACTED] }";
+}
 public sealed record FormDraftInput(int Format, string Culture, IReadOnlyDictionary<string, string>? SubmitLabel, IReadOnlyList<FormFieldInput> Fields)
 { public override string ToString() => "FormDraftInput { Content = [REDACTED] }"; }
 public sealed record FormFieldInput(string LocalId, Guid? FieldId, Guid? ReplacesFieldId, string Type,

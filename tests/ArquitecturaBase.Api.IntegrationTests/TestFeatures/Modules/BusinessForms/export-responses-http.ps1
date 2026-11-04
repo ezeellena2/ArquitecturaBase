@@ -112,6 +112,12 @@ $cohorts = @(
         Sources = @(($sourceRoot + "BusinessForms/FormDeactivationHttpTests.cs"), ($sourceRoot + "BusinessForms/FormDeletionHttpTests.cs"), ($sourceRoot + "BusinessForms/FormRetirementStatusHttpTests.cs"), ($captureRoot + "Modules/BusinessForms/FormLifecycleContractCapture.cs"), ($captureRoot + "Modules/BusinessForms/ControlledFormChannelStateSource.cs"), ($sourceRoot + "BusinessForms/FormDraftEditingTests.cs"), ($sourceRoot + "BusinessForms/FormDraftDurabilityTests.cs"), ($sourceRoot + "BusinessForms/FormSuggestionHttpTests.cs"), ($sourceRoot + "BusinessForms/FormPublicationAcceptanceTests.cs"), ($sourceRoot + "BusinessForms/FormPublishedSelectionTests.cs")) },
     @{ Name = "catalog-proposals"; Environment = "FORM_CATALOG_PROPOSAL_HTTP_OUTPUT"; Destination = "forms-catalog-proposals-http";
         Sources = @(($sourceRoot + "BusinessForms/FormCatalogProposalHttpTests.cs"), ($captureRoot + "Modules/BusinessForms/FormCatalogProposalScenario.cs"), ($captureRoot + "Modules/BusinessForms/FormCatalogProposalContractCapture.cs")) },
+    @{ Name = "assistant-proposals"; Environment = "FORM_ASSISTANT_PROPOSAL_HTTP_OUTPUT"; Destination = "forms-assistant-proposals-http";
+        RequiredNames = @("draft-created.json", "draft-status-created.json", "draft-status-not-created.json", "draft-name-taken.json", "draft-prefix-taken.json",
+            "draft-replaced.json", "draft-unavailable.json", "draft-invalid.json", "catalog-created.json", "catalog-status-created.json", "catalog-detail-pending.json",
+            "catalog-approved.json", "catalog-name-taken.json", "catalog-replaced.json");
+        Sources = @(($sourceRoot + "BusinessForms/FormAssistantProposalHttpTests.cs"), ($captureRoot + "Modules/BusinessForms/FormAssistantProposalScenario.cs"),
+            ($captureRoot + "Modules/BusinessForms/ScriptedAssistantProposalLookup.cs"), ($captureRoot + "Modules/BusinessForms/FormAssistantProposalContractCapture.cs")) },
     @{ Name = "suggestion-details"; Environment = "FORM_SUGGESTION_DETAILS_HTTP_OUTPUT"; Destination = "forms-suggestion-detail-http";
         Sources = @(($sourceRoot + "BusinessForms/FormSuggestionCaptureIntegrationTests.cs"), ($captureRoot + "Modules/BusinessForms/FormSuggestionDetailContractCapture.cs")) },
     @{ Name = "whatsapp-audio"; Environment = "WHATSAPP_AUDIO_HTTP_OUTPUT"; Destination = "whatsapp-audio-http";

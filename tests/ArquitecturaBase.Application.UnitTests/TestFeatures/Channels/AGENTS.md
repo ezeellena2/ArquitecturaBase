@@ -4,3 +4,5 @@
 - El compilador real se verifica en Modules/WhatsApp, sin conexión a un proveedor.
 
 RecordingAssistantOperationCompletionSignal conserva sólo identificadores de canal ficticios y permite observar el estado al avisar; no conoce motores ni módulos.
+
+StubAssistantProposalLookup entrega la propuesta configurada sólo a su dueño, pedido e Id; lo demás es Unavailable, como un turno vencido.

@@ -16,4 +16,8 @@ public static class FormDefinitionErrors
     public static readonly Error TranslationsWouldBeLost = Error.Validation("Forms.Draft.TranslationsWouldBeLost", "Preserve existing localized text or explicitly clear optional text.");
     public static readonly Error ContentInvalid = Error.Validation("Forms.Draft.ContentInvalid", "The draft content is invalid.");
     public static readonly Error ResultTooLarge = Error.Validation("Forms.Draft.ResultTooLarge", "The protected result exceeds the authoring budget.");
+    public static readonly Error NameTaken = Error.Validation("Forms.Definition.NameTaken", "A form with this name already exists.");
+    public static readonly Error CatalogUnavailable = Error.Validation("Forms.Definition.CatalogUnavailable", "A question uses a catalog that is no longer available.");
+    public static readonly Error ProposalUnavailable = Error.NotFound("Forms.Definition.ProposalUnavailable", "The assistant proposal is no longer available.");
+    public static readonly Error ProposalReplaced = Error.Conflict("Forms.Definition.ProposalReplaced", "A later proposal replaced this one.");
 }

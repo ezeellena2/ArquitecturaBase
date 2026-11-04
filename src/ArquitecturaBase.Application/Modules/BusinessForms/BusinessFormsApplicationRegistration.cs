@@ -75,6 +75,7 @@ public static class BusinessFormsApplicationRegistration
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<SubmitFormEntryRequest>, SubmitFormEntryRequestValidator>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IStructuredRecordOriginSource, BusinessFormEntryOriginSource>());
         services.TryAddScoped<IFormDraftService, FormDraftService>();
+        services.TryAddScoped<IFormDraftProposalService, FormDraftProposalService>();
         services.TryAddScoped<FormDefinitionReadPolicy>();
         services.TryAddScoped<FormLifecycleAccessGuard>();
         services.TryAddScoped<IFormLifecycleService, FormLifecycleService>();
@@ -100,6 +101,7 @@ public static class BusinessFormsApplicationRegistration
         services.TryAddScoped<IFormCatalogService, FormCatalogService>();
         services.TryAddScoped<IFormCatalogFiltersService, FormCatalogFiltersService>();
         services.TryAddScoped<IFormCatalogProposalService, FormCatalogProposalService>();
+        services.TryAddScoped<IFormCatalogAssistantProposalService, FormCatalogAssistantProposalService>();
         services.TryAddScoped<FormCatalogAccessGuard>();
         services.TryAddScoped<FormPublicationAccessGuard>();
         services.TryAddScoped<FormPublicationGuard>();

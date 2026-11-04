@@ -73,5 +73,22 @@ internal sealed class AuthoringAssistantFixture
             Reads++;
             return Task.FromResult<IReadOnlyList<FormAuthoringCatalogStoredRow>>(Catalogs.Where(catalog => ids.Contains(catalog.Id)).ToArray());
         }
+
+        // What each proposal already created, by its proposal, and the names in use in any language.
+        public Dictionary<Guid, FormAuthoringCreatedRow> CreatedDefinitions { get; } = [];
+        public Dictionary<Guid, FormAuthoringCreatedRow> CreatedCatalogs { get; } = [];
+        public HashSet<string> NamesInUse { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+        public Task<FormAuthoringCreatedRow?> FindDefinitionByProposalAsync(Guid proposalId, CancellationToken cancellationToken) =>
+            Task.FromResult(CreatedDefinitions.GetValueOrDefault(proposalId));
+
+        public Task<FormAuthoringCreatedRow?> FindCatalogByProposalAsync(Guid proposalId, CancellationToken cancellationToken) =>
+            Task.FromResult(CreatedCatalogs.GetValueOrDefault(proposalId));
+
+        public Task<bool> ExistsDefinitionNameAsync(string culture, string name, CancellationToken cancellationToken) =>
+            Task.FromResult(NamesInUse.Contains(name));
+
+        public Task<bool> ExistsCatalogNameAsync(string culture, string name, CancellationToken cancellationToken) =>
+            Task.FromResult(NamesInUse.Contains(name));
     }
 }

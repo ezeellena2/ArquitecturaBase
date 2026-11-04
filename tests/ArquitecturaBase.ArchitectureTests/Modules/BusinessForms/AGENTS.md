@@ -8,3 +8,5 @@ FormsTransactionContribution aporta también los Type exactos de sus lectores de
 FormMultipleChoiceValueModelTests comprueba Position no nullable con default 0 y CHECK 0–19, conserva ExactlyOneValue y exige los índices únicos RecordId/FieldId/Position y RecordId/FieldId/ItemId, sin los anteriores de una fila por pregunta. No abre conexión.
 
 FormPersonDataModelTests exige Key reservado, fuente restrictiva, valores JSON con default vacío y revisión independiente sin FK de UserId; no abre conexión.
+
+FormAssistantProposalCreationTests fija quién crea desde una propuesta del asistente: sólo los dos servicios dueños leen `IAssistantProposalLookup`, sólo `FormDraftProposalService` fija `SaveFormDraftRequest.Proposal`, sólo `FormDraftService` registra la propuesta en la definición y `CreateProposedManual` y `CreateProposedFilters` tienen un único llamador cada una. Un control en el ensamblado de tests comprueba que la regla ve un llamador de más.

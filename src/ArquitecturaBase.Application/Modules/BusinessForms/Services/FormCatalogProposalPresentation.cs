@@ -19,7 +19,7 @@ internal static class FormCatalogProposalPresentation
         var decider = decidedBy is { } actor ? await users.FindByIdAsync(actor, ct) : null;
         return new(state!.Value.ToString(), evidence.OriginalCulture, new(evidence.RequestedByUserId, requester?.DisplayName),
             evidence.RequestedAtUtc, decidedBy is { } id ? new(id, decider?.DisplayName) : null, decidedAtUtc,
-            evidence.Provenance, evidence.OriginalProposal);
+            evidence.Provenance, evidence.OriginalProposal, evidence.Manual, evidence.RequestedIn);
     }
 
     public static async Task<FormCatalogDetailResponse> MapAsync(BusinessFormCatalog catalog, int? usageCount, IUserReader users, CancellationToken ct) =>

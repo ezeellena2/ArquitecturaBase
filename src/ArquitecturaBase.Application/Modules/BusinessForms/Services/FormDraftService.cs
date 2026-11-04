@@ -73,6 +73,7 @@ internal sealed class FormDraftService(IFormDraftRepository repository, FormDefi
         var protectedResult = protector.Protect(Context(change), canonicalRequest, response);
         if (protectedResult.Length > 1048576) return FieldErrors.On(FormDefinitionErrors.ResultTooLarge, "draft");
         change.SetProtectedResult(protectedResult);
+        if (creating && request.Proposal is { } proposal) definition.RecordProposal(proposal.ProposalId, proposal.EvidenceJson);
         if (creating) repository.Add(definition);
         repository.AddRetiredIdentities(definition.Id, resolved.Value.NewlyRetiredIdentities);
         repository.AddChange(change);

@@ -18,6 +18,14 @@ internal static class LikePatterns
         return "%" + Escape(value) + "%";
     }
 
+    /// <summary>"Es igual" sin distinguir mayúsculas con ILIKE: el texto escapado, sin comodines. No recorta.</summary>
+    public static string Exact(string value)
+    {
+        ArgumentNullException.ThrowIfNull(value);
+
+        return Escape(value);
+    }
+
     // Primero la barra: si no, se volverían a escapar las barras que agregan los reemplazos de "%" y "_".
     private static string Escape(string value) =>
         value
