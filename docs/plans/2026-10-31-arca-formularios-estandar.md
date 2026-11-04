@@ -146,7 +146,9 @@ automático.
   - En la app, una tabla con «Agregar renglón» (RG2-A).
   - En WhatsApp, una pantalla por renglón, hasta 10, con «¿Agregás otro renglón?» (RG3-A): pantallas fijas repetidas, sin el
     intercambio cifrado con Meta. El total de la factura dentro del Flow probablemente necesite ese intercambio, que sigue
-    pendiente en el [resumen de formularios](formularios/README.md); se decide con la factura.
+    pendiente en el [resumen de formularios](formularios/README.md); se decide con la factura. Con renglones, la respuesta
+    tiene el tope de 64 KiB de los formularios con archivos (RG7-A, 2026-11-04): una factura sin adjuntos tiene el mismo
+    lugar que una con archivos.
   - La planilla sigue con una fila por respuesta y el Excel suma una hoja por bloque (RG4-A); el detalle y el PDF muestran
     una tabla. Las reglas miran «algún renglón con…» (RG5-A).
 - **Cálculos:** campos de solo lectura con un conjunto fijo de operaciones (suma de renglones, cantidad por precio e IVA

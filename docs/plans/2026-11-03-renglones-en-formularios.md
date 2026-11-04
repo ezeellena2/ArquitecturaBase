@@ -1,7 +1,7 @@
 # Renglones en los formularios
 
-Diseño del 2026-11-02 con las decisiones del usuario del 2026-11-03, que ese día dio el diseño por cerrado. Nada está
-programado. Un formulario suma un bloque de
+Diseño del 2026-11-02 con las decisiones del usuario del 2026-11-03, que ese día dio el diseño por cerrado, y la del
+2026-11-04 sobre el tope de la respuesta de WhatsApp (RG7-A). Nada está programado. Un formulario suma un bloque de
 preguntas que se repite, como los renglones de un remito o de una factura: en la app se cargan en una tabla y por WhatsApp,
 de a un renglón por pantalla.
 
@@ -16,7 +16,8 @@ resultado externo y la biblioteca de estándares siguen en esa hoja. El [resumen
 tenía pendiente como «grupos y remitos con líneas».
 
 **Tableros:** lienzo provisorio [Formularios desde la app](https://claude.ai/artifact/Kvbr5KFJrGT951JLiu8i4M), filas
-«Formularios · renglones · 0» a «· 6» (RG0 a RG6), con las notas naranjas de origen y una verde por elección (versión 55).
+«Formularios · renglones · 0» a «· 7» (RG0 a RG7), con las notas naranjas de origen y una verde por elección (RG0 a RG6
+en la versión 55; RG7, al final del lienzo, en la 79).
 El ejemplo es el remito de la prueba:
 - el proveedor «Agroinsumos del Litoral S.A.» y el campo «SAN JULIAN»;
 - en RG1 a RG5, tres artículos (GLIFOSATO 64%, 200 litros; ATRAZINA 50%, 100 litros; UREA GRANULADA, 5.000 kilos) y un
@@ -27,10 +28,11 @@ El ejemplo es el remito de la prueba:
 El lienzo del sistema visual no se abre desde la cuenta de Claude Code, así que los tableros elegidos pasan allí antes de
 programar y su diseño se registra en el front, como el de la [carga desde la app](../../../ArquitecturaBaseFront/docs/design/carga-desde-la-app.md).
 
-## Decisiones del usuario (2026-11-03)
+## Decisiones del usuario (2026-11-03 y 2026-11-04)
 
-Las eligió de a una, mirando cada fila; en las seis eligió la recomendada, la A. La sexta ajusta la primera: salió de
-analizar con él la carga del remito como cuatro respuestas.
+Las eligió de a una, mirando cada fila; en las siete eligió la recomendada, la A. La sexta ajusta la primera: salió de
+analizar con él la carga del remito como cuatro respuestas. La séptima salió el 2026-11-04 de revisar el plan antes de
+programar.
 
 1. **El editor: RG1-A, un tipo de pregunta «Renglones».**
    - «Agregar pregunta» suma «Renglones» al final de los tipos. En la lista, el bloque es un recuadro con sus preguntas
@@ -99,6 +101,17 @@ analizar con él la carga del remito como cuatro respuestas.
      de «Qué se publica», «Pasan a renglones», en lugar de mostrarlas como quitadas y agregadas.
    - Descartó RG6-B (como quedó en RG1-A, rehacer las preguntas adentro) y RG6-C (una zona «Carga múltiple» en el formulario,
      con la lista para marcar).
+7. **El tope de la respuesta de WhatsApp: RG7-A, 64 KiB como con archivos** (2026-11-04). Al publicar, el compilador suma lo
+   más largo que podría mandar cada pregunta, a 6 bytes por carácter, y frena si pasa 16 KiB, o 64 KiB si el formulario
+   lleva fotos o documentos. El plan no lo tenía en cuenta: con renglones, ese peor caso se cuenta una vez por renglón de
+   WhatsApp. «Recepción de insumos», con Observaciones de 600 caracteres, llega a unos 43 KB con 10 renglones y entra sólo
+   porque lleva el remito adjunto; sin el adjunto entrarían 3.
+   - Un formulario con bloque tiene el tope de uno con archivos. WhatsApp sigue cargando hasta 10 renglones y publicar no
+     muestra nada nuevo.
+   - Si igual no entra, por ejemplo con Observaciones de más de unos 950 caracteres, frena como hoy, con el problema de
+     siempre en cada pregunta de texto.
+   - La (i) del máximo sigue diciendo el tope de WhatsApp.
+   - Descartó RG7-B (WhatsApp carga los renglones que entran y publicar avisa) y RG7-C (frenar como hoy, con 16 KiB).
 
 **Resueltas por defecto** con la opción más simple, dibujadas en los tableros y sin objeción del usuario:
 
@@ -153,7 +166,13 @@ analizar con él la carga del remito como cuatro respuestas.
   - el límite de «10 ramas» del modelo de rutas, que la documentación no define y que, sin intercambio, se arma solo. Si no
     alcanza para 10 renglones, el tope baja;
   - cómo llega en el envío final lo de las pantallas que no se visitaron, y que la cantidad de renglones viaje con él;
-  - que las opciones de un catálogo, que viajan en los datos del mensaje, sirvan en cada pantalla de renglón.
+  - que las opciones de un catálogo, que viajan en los datos del mensaje, sirvan en cada pantalla de renglón;
+  - que una respuesta de unos 40 KB llegue entera (RG7-A). Si no llega, un formulario con bloque se queda con 16 KiB y frena
+    como hoy, como ya preveía la opción elegida.
+- **El tope de la respuesta (RG7-A):** el peor caso cuenta las preguntas del bloque una vez por renglón de WhatsApp. Con un
+  bloque, el tope es `MaxMediaResponseJsonBytes` (64 KiB), el de los formularios con archivos, en el compilador y en el
+  webhook, que hoy elige ese tope cuando la respuesta trae archivos y lo va a elegir también cuando trae un bloque. Si no
+  entra, `WhatsApp.Flow.ResponseTooLarge`, como hoy.
 - **Archivos:** el presupuesto no cambia, porque un bloque no lleva fotos ni documentos.
 
 ### Lecturas y reglas
@@ -191,8 +210,9 @@ la app.
    - Backend: el tipo `group` en el borrador, con validación, identidades, mínimo y máximo, tipos permitidos, un solo bloque
      y las 40 preguntas, y pasar una pregunta guardada al bloque o sacarla. El chequeo de publicación (el bloque vacío frena,
      el máximo mayor que el tope avisa y «Pasan a renglones») y la aceptación.
-   - El compilador con el perfil nuevo, una pantalla por renglón con «¿Agregás otro renglón?», y la verificación con Meta de
-     los puntos de arriba, con un Flow de prueba publicado y su vista previa.
+   - El compilador con el perfil nuevo, una pantalla por renglón con «¿Agregás otro renglón?» y el tope de 64 KiB con bloque
+     (RG7-A), también en el webhook, y la verificación con Meta de los puntos de arriba, con un Flow de prueba publicado y su
+     vista previa.
    - Front: «Renglones» en el editor, la casilla «Se carga varias veces», el recuadro con sus preguntas, el lápiz con el
      nombre, el mínimo y el máximo, y la vista previa de un renglón.
 2. **Etapa 2 · Cargar renglones (RG2-A y RG3-A).**
