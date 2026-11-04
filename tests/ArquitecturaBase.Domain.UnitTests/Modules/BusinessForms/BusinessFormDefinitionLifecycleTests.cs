@@ -81,6 +81,20 @@ public sealed class BusinessFormDefinitionLifecycleTests
         Assert.True(definition.ActivateVersion(definition.ActiveVersionId, definition.ActiveVersionId!.Value).IsFailure);
     }
 
+    [Fact]
+    public void A_draft_records_the_proposal_it_came_from_once_without_changing_its_content()
+    {
+        var definition = BusinessFormDefinition.Create();
+        Assert.True(definition.SetDraft(1, "Original", "{name}", "FORM", "es", "{button}", "{schema}", 2, true).IsSuccess);
+        var proposal = Guid.NewGuid();
+        definition.RecordProposal(proposal, "{\"requestedIn\":\"app\"}");
+        Assert.Equal((proposal, "{\"requestedIn\":\"app\"}"), (definition.ProposalId!.Value, definition.ProposalEvidenceJson));
+        Assert.Equal((1L, "{schema}"), (definition.Revision, definition.SchemaJson));
+        Assert.Throws<InvalidOperationException>(() => definition.RecordProposal(Guid.NewGuid(), "{}"));
+        Assert.Throws<ArgumentOutOfRangeException>(() => BusinessFormDefinition.Create().RecordProposal(Guid.Empty, "{}"));
+        Assert.ThrowsAny<ArgumentException>(() => BusinessFormDefinition.Create().RecordProposal(Guid.NewGuid(), " "));
+    }
+
     private static BusinessFormDefinition Published()
     {
         var definition = BusinessFormDefinition.Create();

@@ -105,6 +105,49 @@ public sealed class FormCatalogProposalTests
     }
 
     [Fact]
+    public void A_manual_proposal_starts_inactive_and_pending_with_its_value_type()
+    {
+        var catalog = BusinessFormCatalog.CreateProposedManual("en", Text("en", "Carriers"), Text("en", "Companies"), BusinessFormCatalogValueType.Integer,
+            ProposalId, "{\"manual\":true}");
+        Assert.Equal((BusinessFormCatalogKind.Manual, false, 1L), (catalog.Kind, catalog.IsActive, catalog.Revision));
+        Assert.Equal((BusinessFormCatalogValueType.Integer, "en"), (catalog.ValueType, catalog.OriginalCulture));
+        Assert.Equal((ProposalId, BusinessFormCatalogProposalState.Pending, "{\"manual\":true}"), (catalog.ProposalId!.Value, catalog.ProposalState!.Value, catalog.ProposalEvidenceJson));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void A_manual_proposal_is_edited_like_any_manual_catalog_but_not_activated_by_it(bool update)
+    {
+        var catalog = BusinessFormCatalog.CreateProposedManual("es", Text("es", "Transportistas"), Text("es", "Empresas"), BusinessFormCatalogValueType.Text,
+            ProposalId, "{}");
+        Assert.Equal(FormCatalogErrors.Inactive, update ? catalog.UpdateManual(1, Text("es", "Otro"), Text("es", "Otra"), true).Error : catalog.SetActive(1, true).Error);
+        Assert.True(catalog.UpdateManual(1, Text("es", "Transportes"), Text("es", "Empresas"), false).IsSuccess);
+        Assert.Equal((false, 2L, BusinessFormCatalogProposalState.Pending), (catalog.IsActive, catalog.Revision, catalog.ProposalState!.Value));
+    }
+
+    [Fact]
+    public void Approving_a_manual_proposal_only_activates_it_and_keeps_the_decision()
+    {
+        var catalog = BusinessFormCatalog.CreateProposedManual("es", Text("es", "Transportistas"), Text("es", "Empresas"), BusinessFormCatalogValueType.Text,
+            ProposalId, "{}");
+        Assert.Equal(FormCatalogErrors.RevisionConflict, catalog.ApproveManualProposal(2, ActorId, Now).Error);
+        Assert.True(catalog.ApproveManualProposal(1, ActorId, Now).IsSuccess);
+        Assert.Equal((true, 2L, BusinessFormCatalogProposalState.Approved), (catalog.IsActive, catalog.Revision, catalog.ProposalState!.Value));
+        Assert.Equal((ActorId, Now), (catalog.ProposalDecidedByUserId!.Value, catalog.ProposalDecidedAtUtc!.Value));
+        Assert.Contains("Transportistas", catalog.NameJson, StringComparison.Ordinal);
+        Assert.Equal(FormCatalogErrors.RevisionConflict, catalog.ApproveManualProposal(2, ActorId, Now).Error);
+    }
+
+    [Fact]
+    public void A_filters_proposal_is_not_approved_as_a_manual_one()
+    {
+        var catalog = New();
+        Assert.Equal(FormCatalogErrors.RevisionConflict, catalog.ApproveManualProposal(1, ActorId, Now).Error);
+        Assert.Equal((false, BusinessFormCatalogProposalState.Pending), (catalog.IsActive, catalog.ProposalState!.Value));
+    }
+
+    [Fact]
     public void A_normal_filters_catalog_keeps_its_existing_creation_behavior()
     {
         var catalog = BusinessFormCatalog.CreateFilters("es", Text("es", "Normal"), Text("es", "Normal"), "{}");

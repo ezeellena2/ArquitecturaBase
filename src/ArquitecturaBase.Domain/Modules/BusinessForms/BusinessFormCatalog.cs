@@ -77,6 +77,10 @@ public sealed partial class BusinessFormCatalog : Entity, IAuditable
             return FormCatalogErrors.RevisionConflict;
         }
 
+        // A proposed Manual catalog is activated only by approving it.
+        if (isActive == true && ProposalState is BusinessFormCatalogProposalState.Pending or BusinessFormCatalogProposalState.Discarded)
+            return FormCatalogErrors.Inactive;
+
         if (!HasOriginalName(name)) return FormCatalogErrors.ContentInvalid;
         NameJson = SerializeTexts(name);
         DescriptionJson = SerializeTexts(description);

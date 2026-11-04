@@ -6,8 +6,11 @@ internal sealed class BusinessFormDefinitionConfiguration : IEntityTypeConfigura
 {
     public void Configure(EntityTypeBuilder<BusinessFormDefinition> builder)
     {
-        builder.ToTable("FormDefinitions", table => table.HasCheckConstraint("CK_FormDefinitions_Deactivation",
-            "(\"DeactivatedAtUtc\" IS NULL) = (\"DeactivatedBy\" IS NULL)"));
+        builder.ToTable("FormDefinitions", table =>
+        {
+            table.HasCheckConstraint("CK_FormDefinitions_Deactivation", "(\"DeactivatedAtUtc\" IS NULL) = (\"DeactivatedBy\" IS NULL)");
+            table.HasCheckConstraint("CK_FormDefinitions_Proposal", "(\"ProposalId\" IS NULL) = (\"ProposalEvidenceJson\" IS NULL)");
+        });
         builder.HasKey(x => x.Id);
         builder.Property(x => x.DeactivatedAtUtc).IsRequired(false);
         builder.Property(x => x.DeactivatedBy).IsRequired(false);
@@ -15,6 +18,9 @@ internal sealed class BusinessFormDefinitionConfiguration : IEntityTypeConfigura
         builder.HasIndex(x => x.Prefix).IsUnique(); builder.Property(x => x.Culture).HasMaxLength(2);
         builder.Property(x => x.NameJson).HasColumnType("jsonb");
         builder.Property(x => x.OfferWhen).HasMaxLength(1000);
+        // A proposal creates one draft at most; a deleted draft keeps its proposal reserved, like its prefix.
+        builder.HasIndex(x => x.ProposalId).IsUnique();
+        builder.Property(x => x.ProposalEvidenceJson).HasColumnType("jsonb");
         // SQL search and order use the same authoring name as the requested UI language.
         // These projections are generated from the single name map; they are never edited independently.
         builder.Property<string>("DisplayNameEs").HasMaxLength(120)

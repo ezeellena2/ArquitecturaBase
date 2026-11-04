@@ -1355,7 +1355,7 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("CK_BusinessFormCatalogs_ManualFields", "\"Kind\" = 'Manual' OR (\"FieldsJson\" IS NULL AND \"PresentationJson\" IS NULL)");
 
-                            t.HasCheckConstraint("CK_BusinessFormCatalogs_Proposal", "(\"ProposalId\" IS NULL AND \"ProposalEvidenceJson\" IS NULL AND \"ProposalState\" IS NULL\n    AND \"ProposalDecidedByUserId\" IS NULL AND \"ProposalDecidedAtUtc\" IS NULL)\nOR (\"Kind\" = 'Filters' AND \"ProposalId\" IS NOT NULL AND \"ProposalEvidenceJson\" IS NOT NULL AND \"ProposalState\" IS NOT NULL AND (\n    (\"ProposalState\" = 'Pending' AND NOT \"IsActive\" AND \"ProposalDecidedByUserId\" IS NULL AND \"ProposalDecidedAtUtc\" IS NULL)\n    OR (\"ProposalState\" = 'Approved' AND \"ProposalDecidedByUserId\" IS NOT NULL AND \"ProposalDecidedAtUtc\" IS NOT NULL)\n    OR (\"ProposalState\" = 'Discarded' AND NOT \"IsActive\" AND \"ProposalDecidedByUserId\" IS NOT NULL AND \"ProposalDecidedAtUtc\" IS NOT NULL)))");
+                            t.HasCheckConstraint("CK_BusinessFormCatalogs_Proposal", "(\"ProposalId\" IS NULL AND \"ProposalEvidenceJson\" IS NULL AND \"ProposalState\" IS NULL AND \"ProposalDecidedByUserId\" IS NULL AND \"ProposalDecidedAtUtc\" IS NULL) OR (\"ProposalId\" IS NOT NULL AND \"ProposalEvidenceJson\" IS NOT NULL AND \"ProposalState\" IS NOT NULL AND ((\"ProposalState\" = 'Pending' AND NOT \"IsActive\" AND \"ProposalDecidedByUserId\" IS NULL AND \"ProposalDecidedAtUtc\" IS NULL) OR (\"ProposalState\" = 'Approved' AND \"ProposalDecidedByUserId\" IS NOT NULL AND \"ProposalDecidedAtUtc\" IS NOT NULL) OR (\"ProposalState\" = 'Discarded' AND NOT \"IsActive\" AND \"ProposalDecidedByUserId\" IS NOT NULL AND \"ProposalDecidedAtUtc\" IS NOT NULL)))");
 
                             t.HasCheckConstraint("CK_BusinessFormCatalogs_ValueType", "\"ValueType\" IN ('Text','Integer','Decimal','Date') AND (\"Kind\" = 'Manual' OR \"ValueType\" = 'Text')");
                         });
@@ -1521,6 +1521,12 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<bool>("PrefixLocked")
                         .HasColumnType("boolean");
 
+                    b.Property<string>("ProposalEvidenceJson")
+                        .HasColumnType("jsonb");
+
+                    b.Property<Guid?>("ProposalId")
+                        .HasColumnType("uuid");
+
                     b.Property<int>("QuestionCount")
                         .HasColumnType("integer");
 
@@ -1541,6 +1547,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.HasIndex("Prefix")
                         .IsUnique();
 
+                    b.HasIndex("ProposalId")
+                        .IsUnique();
+
                     b.HasIndex("Id", "ActivePdfDesignId");
 
                     b.HasIndex("Id", "ActiveRuleSetId");
@@ -1552,6 +1561,8 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.ToTable("FormDefinitions", null, t =>
                         {
                             t.HasCheckConstraint("CK_FormDefinitions_Deactivation", "(\"DeactivatedAtUtc\" IS NULL) = (\"DeactivatedBy\" IS NULL)");
+
+                            t.HasCheckConstraint("CK_FormDefinitions_Proposal", "(\"ProposalId\" IS NULL) = (\"ProposalEvidenceJson\" IS NULL)");
                         });
                 });
 

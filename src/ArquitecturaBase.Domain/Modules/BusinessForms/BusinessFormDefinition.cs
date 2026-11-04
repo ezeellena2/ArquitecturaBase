@@ -28,7 +28,18 @@ public sealed class BusinessFormDefinition : Entity, IAuditable, ISoftDeletable
     public Guid? CreatedBy { get; private set; }
     public DateTime? ModifiedAtUtc { get; private set; }
     public Guid? ModifiedBy { get; private set; }
+    public Guid? ProposalId { get; private set; }
+    public string? ProposalEvidenceJson { get; private set; }
     public static BusinessFormDefinition Create() => new();
+    // A draft created from an assistant proposal keeps which one and where it came from, once.
+    public void RecordProposal(Guid proposalId, string evidenceJson)
+    {
+        ArgumentOutOfRangeException.ThrowIfEqual(proposalId, Guid.Empty);
+        ArgumentException.ThrowIfNullOrWhiteSpace(evidenceJson);
+        if (ProposalId is not null) throw new InvalidOperationException("A draft records its proposal only once.");
+        ProposalId = proposalId;
+        ProposalEvidenceJson = evidenceJson;
+    }
     public Result SetDraft(long expectedRevision, string name, string nameJson, string prefix, string culture,
         string submitLabelJson, string schemaJson, int questionCount, bool creating, string? offerWhen = null)
     {

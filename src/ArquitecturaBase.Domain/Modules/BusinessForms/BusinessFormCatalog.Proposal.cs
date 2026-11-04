@@ -25,6 +25,32 @@ public sealed partial class BusinessFormCatalog
         return catalog;
     }
 
+    public static BusinessFormCatalog CreateProposedManual(string originalCulture, IReadOnlyDictionary<string, string> name,
+        IReadOnlyDictionary<string, string> description, BusinessFormCatalogValueType valueType, Guid proposalId, string evidenceJson)
+    {
+        if (proposalId == Guid.Empty) throw new ArgumentException("A proposal identity is required.", nameof(proposalId));
+        ArgumentException.ThrowIfNullOrWhiteSpace(evidenceJson);
+        var catalog = CreateManual(originalCulture, name, description, valueType);
+        catalog.IsActive = false;
+        catalog.ProposalId = proposalId;
+        catalog.ProposalEvidenceJson = evidenceJson;
+        catalog.ProposalState = BusinessFormCatalogProposalState.Pending;
+        return catalog;
+    }
+
+    // A manual proposal is approved as it is edited: approving only activates it and keeps the decision.
+    public Result ApproveManualProposal(long expectedRevision, Guid actorUserId, DateTime decidedAtUtc)
+    {
+        if (Kind != BusinessFormCatalogKind.Manual || ProposalState != BusinessFormCatalogProposalState.Pending || Revision != expectedRevision
+            || Revision >= 9007199254740991) return FormCatalogErrors.RevisionConflict;
+        ProposalState = BusinessFormCatalogProposalState.Approved;
+        ProposalDecidedByUserId = actorUserId;
+        ProposalDecidedAtUtc = decidedAtUtc;
+        IsActive = true;
+        Revision++;
+        return Result.Success();
+    }
+
     public Result ApproveProposal(long expectedRevision, Guid actorUserId, DateTime decidedAtUtc,
         IReadOnlyDictionary<string, string> name, IReadOnlyDictionary<string, string> description, string filtersJson)
     {

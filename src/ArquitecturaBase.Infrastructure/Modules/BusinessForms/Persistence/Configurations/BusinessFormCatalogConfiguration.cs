@@ -16,14 +16,13 @@ internal sealed class BusinessFormCatalogConfiguration : IEntityTypeConfiguratio
                 "\"ValueType\" IN ('Text','Integer','Decimal','Date') AND (\"Kind\" = 'Manual' OR \"ValueType\" = 'Text')");
             table.HasCheckConstraint("CK_BusinessFormCatalogs_KindFilters",
                 "(\"Kind\" = 'Manual' AND \"FiltersJson\" IS NULL) OR (\"Kind\" = 'Filters' AND \"FiltersJson\" IS NOT NULL)");
-            table.HasCheckConstraint("CK_BusinessFormCatalogs_Proposal", """
-                ("ProposalId" IS NULL AND "ProposalEvidenceJson" IS NULL AND "ProposalState" IS NULL
-                    AND "ProposalDecidedByUserId" IS NULL AND "ProposalDecidedAtUtc" IS NULL)
-                OR ("Kind" = 'Filters' AND "ProposalId" IS NOT NULL AND "ProposalEvidenceJson" IS NOT NULL AND "ProposalState" IS NOT NULL AND (
-                    ("ProposalState" = 'Pending' AND NOT "IsActive" AND "ProposalDecidedByUserId" IS NULL AND "ProposalDecidedAtUtc" IS NULL)
-                    OR ("ProposalState" = 'Approved' AND "ProposalDecidedByUserId" IS NOT NULL AND "ProposalDecidedAtUtc" IS NOT NULL)
-                    OR ("ProposalState" = 'Discarded' AND NOT "IsActive" AND "ProposalDecidedByUserId" IS NOT NULL AND "ProposalDecidedAtUtc" IS NOT NULL)))
-                """);
+            // One line: a multi-line literal takes the checkout's line endings into the SQL.
+            table.HasCheckConstraint("CK_BusinessFormCatalogs_Proposal",
+                "(\"ProposalId\" IS NULL AND \"ProposalEvidenceJson\" IS NULL AND \"ProposalState\" IS NULL AND \"ProposalDecidedByUserId\" IS NULL AND \"ProposalDecidedAtUtc\" IS NULL)"
+                + " OR (\"ProposalId\" IS NOT NULL AND \"ProposalEvidenceJson\" IS NOT NULL AND \"ProposalState\" IS NOT NULL AND ("
+                + "(\"ProposalState\" = 'Pending' AND NOT \"IsActive\" AND \"ProposalDecidedByUserId\" IS NULL AND \"ProposalDecidedAtUtc\" IS NULL)"
+                + " OR (\"ProposalState\" = 'Approved' AND \"ProposalDecidedByUserId\" IS NOT NULL AND \"ProposalDecidedAtUtc\" IS NOT NULL)"
+                + " OR (\"ProposalState\" = 'Discarded' AND NOT \"IsActive\" AND \"ProposalDecidedByUserId\" IS NOT NULL AND \"ProposalDecidedAtUtc\" IS NOT NULL)))");
         });
         builder.HasKey(value => value.Id);
         builder.Property(value => value.Key).HasMaxLength(32);
