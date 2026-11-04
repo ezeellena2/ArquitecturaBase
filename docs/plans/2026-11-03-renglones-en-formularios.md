@@ -1,7 +1,7 @@
 # Renglones en los formularios
 
-Diseño del 2026-11-02 con las decisiones del usuario del 2026-11-03, que ese día dio el diseño por cerrado, y la del
-2026-11-04 sobre el tope de la respuesta de WhatsApp (RG7-A). Nada está programado. Un formulario suma un bloque de
+Diseño del 2026-11-02 con las decisiones del usuario del 2026-11-03, que ese día dio el diseño por cerrado, y las del
+2026-11-04 sobre el tope de la respuesta de WhatsApp (RG7-A) y el bloque con mínimo 0 (RG8-A). Nada está programado. Un formulario suma un bloque de
 preguntas que se repite, como los renglones de un remito o de una factura: en la app se cargan en una tabla y por WhatsApp,
 de a un renglón por pantalla.
 
@@ -16,8 +16,8 @@ resultado externo y la biblioteca de estándares siguen en esa hoja. El [resumen
 tenía pendiente como «grupos y remitos con líneas».
 
 **Tableros:** lienzo provisorio [Formularios desde la app](https://claude.ai/artifact/Kvbr5KFJrGT951JLiu8i4M), filas
-«Formularios · renglones · 0» a «· 7» (RG0 a RG7), con las notas naranjas de origen y una verde por elección (RG0 a RG6
-en la versión 55; RG7, al final del lienzo, en la 79).
+«Formularios · renglones · 0» a «· 8» (RG0 a RG8), con las notas naranjas de origen y una verde por elección (RG0 a RG6
+en la versión 55; RG7 y RG8, al final del lienzo, en las versiones 79 y 82).
 El ejemplo es el remito de la prueba:
 - el proveedor «Agroinsumos del Litoral S.A.» y el campo «SAN JULIAN»;
 - en RG1 a RG5, tres artículos (GLIFOSATO 64%, 200 litros; ATRAZINA 50%, 100 litros; UREA GRANULADA, 5.000 kilos) y un
@@ -32,9 +32,9 @@ antes de programar.
 
 ## Decisiones del usuario (2026-11-03 y 2026-11-04)
 
-Las eligió de a una, mirando cada fila; en las siete eligió la recomendada, la A. La sexta ajusta la primera: salió de
-analizar con él la carga del remito como cuatro respuestas. La séptima salió el 2026-11-04 de revisar el plan antes de
-programar.
+Las eligió de a una, mirando cada fila; en las ocho eligió la recomendada, la A. La sexta ajusta la primera: salió de
+analizar con él la carga del remito como cuatro respuestas. La séptima y la octava salieron el 2026-11-04, al revisar el
+plan antes de programar y al programar el Flow.
 
 1. **El editor: RG1-A, un tipo de pregunta «Renglones».**
    - «Agregar pregunta» suma «Renglones» al final de los tipos. En la lista, el bloque es un recuadro con sus preguntas
@@ -114,6 +114,13 @@ programar.
      siempre en cada pregunta de texto.
    - La (i) del máximo sigue diciendo el tope de WhatsApp.
    - Descartó RG7-B (WhatsApp carga los renglones que entran y publicar avisa) y RG7-C (frenar como hoy, con 16 KiB).
+8. **El bloque con mínimo 0 en WhatsApp: RG8-A, «¿Agregás un renglón?» antes del primero** (2026-11-04). Salió al programar
+   el Flow: con un mínimo de 0, el «desde el mínimo» de RG3-A cae antes del primer renglón.
+   - El Flow suma una pantalla con el nombre del bloque y «¿Agregás un renglón?», sí o no, obligatoria. Con «Sí» sigue el
+     renglón 1; con «No», lo de después del bloque o «Enviar».
+   - Desde el primero, cada renglón termina con «¿Agregás otro renglón?»; con un mínimo de 1 o más, la pantalla no aparece.
+   - En la app no cambia nada: la tabla arranca vacía y «Agregar renglón» suma el primero.
+   - Descartó RG8-B (la pregunta al final de la pantalla anterior) y RG8-C (en WhatsApp, al menos un renglón).
 
 **Resueltas por defecto** con la opción más simple, dibujadas en los tableros y sin objeción del usuario:
 

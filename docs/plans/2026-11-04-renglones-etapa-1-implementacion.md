@@ -82,7 +82,8 @@ En `SaveFormDraftRequestValidator`, todas `ContentInvalid` en su ruta:
 
 ## Antes de dos tareas, preguntar al usuario
 
-- **Tarea 4:** un bloque con mínimo 0 en WhatsApp (no se dibujó). Hace falta «¿Agregás un renglón?» antes del primero.
+- **Tarea 4:** un bloque con mínimo 0 en WhatsApp (no se dibujó). Resuelto el 2026-11-04 con RG8-A: una pantalla con el
+  nombre del bloque y «¿Agregás un renglón?» antes del primero; desde el primero, cada renglón pregunta.
 - **Tarea 7:** «Renglones» se elige en el desplegable «Tipo de respuesta» (no hay menú en «Agregar pregunta», como dibujó
   RG1-A), y una opción nativa no muestra el motivo «Ya hay un bloque de renglones.».
 
@@ -142,7 +143,7 @@ que la sesión de las listas dependientes commitee lo suyo.
 
 ### Tarea 4 · El compilador con renglones (r10)
 
-- [ ] Preguntar al usuario por el mínimo 0, con tablero si hace falta.
+- [x] Preguntar al usuario por el mínimo 0, con tablero si hace falta: RG8-A (lienzo, versión 82).
 - [ ] Tests en rojo en `WhatsAppFlowRowsCompilerTests`: las pantallas y sus títulos, el `If` con los dos pies, el último
   renglón sin pregunta, las claves `_r<n>`, cada `complete`, el presupuesto por pantalla y de bytes con 64 KiB, más de 26
   pantallas, y que sin bloque r10 da los mismos bytes que r9 (fixture nuevo `flow-static-7.3-r10-{es,en}.json`).

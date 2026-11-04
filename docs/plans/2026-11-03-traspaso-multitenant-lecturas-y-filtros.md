@@ -327,13 +327,13 @@ lo mismo» en «Enviada».
 
 ## 11. Decidido y sin programar
 
-### Renglones en los formularios (RG1-A a RG7-A, 2026-11-03 y 2026-11-04)
+### Renglones en los formularios (RG1-A a RG8-A, 2026-11-03 y 2026-11-04)
 
 Cargando el remito de tres artículos, el usuario tuvo que mandar una respuesta por artículo, aunque «Mantener las
 respuestas» le ahorrara volver a escribir el resto. Dijo que debería poder ir agregando varios artículos en la misma
 carga. El diseño quedó cerrado el 2026-11-03, sin programar, en el [plan de renglones](2026-11-03-renglones-en-formularios.md).
 Adelanta la parte de renglones de la Etapa 2 de la [hoja de ruta de ARCA](2026-10-31-arca-formularios-estandar.md). En las
-siete filas eligió la recomendada; la séptima, el 2026-11-04, después de armar este traspaso:
+ocho filas eligió la recomendada; la séptima y la octava, el 2026-11-04, después de armar este traspaso:
 
 | Tablero | Qué decidió |
 | --- | --- |
@@ -342,6 +342,7 @@ siete filas eligió la recomendada; la séptima, el 2026-11-04, después de arma
 | RG2-A · La carga en la app | Una tabla a todo el ancho de «Datos»: un renglón por fila y una pregunta por columna, «Agregar renglón» al pie, ↑ ↓ y el tacho en cada fila, y los errores en su celda. En el panel y en el celular, un recuadro por renglón. «Mantener las respuestas» conserva también los renglones. |
 | RG3-A · WhatsApp | Una pantalla por renglón, hasta 10, con «¿Agregás otro renglón?» desde el mínimo. Sin intercambio con Meta: es el Flow estático con más pantallas. Con un máximo mayor que 10, publicar avisa sin frenar. |
 | RG7-A · El tope de la respuesta | Al publicar se suma lo más largo que podría mandar cada pregunta, y con renglones eso se cuenta una vez por renglón de WhatsApp. Un formulario con bloque tiene el tope de uno con archivos, 64 KiB en lugar de 16 KiB, así que el remito entra con sus 10 renglones aunque no lleve el adjunto; si igual no entra, publicar frena como hoy. Falta confirmar con Meta que una respuesta de unos 40 KB llega entera. |
+| RG8-A · Mínimo 0 en WhatsApp | Con un bloque opcional, una pantalla con el nombre del bloque y «¿Agregás un renglón?» antes del primero; desde el primero, cada renglón pregunta «¿Agregás otro renglón?». Con un mínimo de 1 o más, esa pantalla no aparece. |
 | RG4-A · Planilla, Excel, detalle y PDF | Una fila por respuesta; la columna del bloque dice la cantidad de renglones y los primeros valores. La vista rápida muestra cada renglón como los datos de un catálogo (§7); la pantalla completa y el PDF, una tabla. El Excel suma una hoja por bloque, con una fila por renglón. |
 | RG5-A · Reglas | «Algún renglón con…»: una condición se cumple si al menos un renglón la cumple, y «Filtros» usa la misma regla. En el mensaje, el bloque es un dato con todos los renglones, uno por línea. |
 
