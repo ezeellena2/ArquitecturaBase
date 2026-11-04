@@ -57,8 +57,9 @@ $cohorts = @(
         RequiredNames = @(
             "entry-es.json", "entry-en.json", "options-es.json", "options-en.json", "entry-missing-data-es.json", "entry-missing-data-en.json",
             "submitted-es.json", "submitted-en.json", "sheet-app-es.json", "sheet-app-en.json", "detail-app-es.json", "detail-app-en.json",
-            "overview-create-es.json", "overview-create-en.json", "option-unavailable-es.json", "version-changed-es.json", "unavailable-es.json");
-        Sources = @(($sourceRoot + "BusinessForms/FormEntryHttpTests.cs"), ($captureRoot + "Modules/BusinessForms/FormRecipientScenario.cs"), ($captureRoot + "Modules/BusinessForms/FormEntryContractCapture.cs")) },
+            "overview-create-es.json", "overview-create-en.json", "option-unavailable-es.json", "version-changed-es.json", "unavailable-es.json",
+            "entry-depends-es.json", "options-depends-es.json");
+        Sources = @(($sourceRoot + "BusinessForms/FormEntryHttpTests.cs"), ($sourceRoot + "BusinessForms/FormEntryDependentListHttpTests.cs"), ($captureRoot + "Modules/BusinessForms/FormRecipientScenario.cs"), ($captureRoot + "Modules/BusinessForms/FormEntryContractCapture.cs")) },
     @{ Name = "rules"; Environment = "FORM_RULES_HTTP_OUTPUT"; Destination = "forms-rules-http";
         Sources = @(($sourceRoot + "BusinessForms/FormRuleHttpTests.cs"), ($captureRoot + "Modules/BusinessForms/FormRuleContractCapture.cs")) },
     @{ Name = "workflow"; Environment = "FORM_WORKFLOW_HTTP_OUTPUT"; Destination = "forms-workflow-http";
