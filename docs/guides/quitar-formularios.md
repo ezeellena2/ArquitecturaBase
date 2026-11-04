@@ -31,6 +31,10 @@ del otro módulo y se quedan.
           tests/ArquitecturaBase.Api.IntegrationTests/TestFeatures/Modules/BusinessForms
    ```
 
+   Con ellas se van los controles de migraciones del módulo (`FormMigrationsTests`) y su publicador de prueba, que es
+   la señal de las composiciones de WhatsApp: sin él, esas composiciones se omiten y el inventario de WhatsApp deja
+   afuera sus siete rutas de formularios. No hace falta tocar otros tests.
+
 3. En `src/ArquitecturaBase.Api/Program.cs`, quitá los tres `using` de `Modules.BusinessForms` y el bloque del módulo,
    con su comentario:
 
@@ -154,19 +158,25 @@ front, quitá las filas de `src/features/business-forms` de su
 
 ## Comprobaciones registradas
 
-El 2026-11-03 se siguió esta guía en copias descartables: un `git archive` del commit, sin tocar los checkouts.
+El 2026-11-03 y el 2026-11-04 se siguió esta guía en copias descartables: un `git archive` del commit, sin tocar los
+checkouts.
 
-En el backend:
+En el backend, sobre `d558c421` y con los tests corregidos de abajo:
 
 - Build sin advertencias.
-- `RemoveBusinessForms` con las 23 tablas y las cuatro claves foráneas.
+- `RemoveBusinessForms` con las 23 tablas y las cuatro claves foráneas, más las dos claves diferibles del `Down`.
 - `has-pending-model-changes` sin cambios.
-- Domain 384/384, Application 1579/1579 y arquitectura 171/171.
-- Sin los tres paquetes opcionales, también compila.
+- Domain 384/384, Application 1535/1535 y arquitectura 177/177.
+- Integración con Docker: 1826 casos, 1745 correctos y 81 omitidos, que son las composiciones de WhatsApp que
+  necesitan el módulo. Ninguna falla.
 
-`dotnet ef` arma la Api en Development, donde el contenedor se valida al construirse, y no faltó ningún servicio. Para
-esa corrida se corrigieron dos tests del núcleo que dependían del módulo: `ControllerInputContractTests` y el control de
-`ErrorCodeTests`.
+`dotnet ef` arma la Api en Development, donde el contenedor se valida al construirse, y no faltó ningún servicio. La
+corrida anterior, del 2026-11-03, también compiló sin los tres paquetes opcionales.
+
+Para llegar ahí se corrigieron tests que daban por instalado el módulo: `ControllerInputContractTests` y el control de
+`ErrorCodeTests` en el núcleo, los controles de formularios de `MigrationsTests` (pasaron a `FormMigrationsTests`), 44
+composiciones de WhatsApp que no declaraban la guarda y el inventario de rutas de WhatsApp. Con el módulo, la suite
+completa sigue en verde: Domain 530/530, Application 3385/3385, arquitectura 195/195 e integración 2456/2456.
 
 En el front, sobre `94b11e5f`:
 
@@ -174,5 +184,3 @@ En el front, sobre `94b11e5f`:
 - `npm run lint`: oxlint sin diagnósticos en 511 archivos y arquitectura 53/53.
 - `npm run test`: 161 archivos y 1842 tests.
 - `npm run test:visual`: 314/314 en las 24 escenas que quedan.
-
-No se corrió la integración con Docker. Antes de dar la guía por probada falta correrla en la copia del backend.
