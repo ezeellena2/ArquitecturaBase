@@ -47,11 +47,23 @@ public sealed class FormPdfDocumentServiceTests
         await using var stream = result.Value.Content; using var bytes = new MemoryStream(); await stream.CopyToAsync(bytes, TestContext.Current.CancellationToken);
         Assert.Equal(new byte[] { 1, 2, 3 }, bytes.ToArray());
     }
+    [Fact]
+    public async Task Whoever_only_loads_downloads_the_document_of_their_own_response_and_nothing_else()
+    {
+        var rules = new FormRuleFixture(); rules.Permissions.Permissions[rules.User.UserId!.Value] = [BusinessFormsPermissions.RecordsCreate];
+        var reader = Reader(); var document = reader.Document!; var store = new MemoryPrivateFileStore(); var records = new FakeFormResponseReader();
+        await using var content = new MemoryStream([1, 2, 3]); await store.WriteAsync(document.StorageKey, content, "application/pdf", CancellationToken.None);
+        Assert.Equal(FormPdfErrors.NotFound, (await Service(rules, reader, store, records).GetAsync(document.RecordId, document.Id, CancellationToken.None)).Error);
+        Assert.Equal(0, reader.Reads); Assert.Equal(0, store.ReadCount);
+        records.Owned.Add((document.RecordId, rules.User.UserId.Value));
+        var result = await Service(rules, reader, store, records).GetAsync(document.RecordId, document.Id, CancellationToken.None);
+        Assert.True(result.IsSuccess); await result.Value.Content.DisposeAsync();
+    }
     private static FormRuleFixture Allowed()
     {
         var rules = new FormRuleFixture(); rules.Permissions.Permissions[rules.User.UserId!.Value] = [BusinessFormsPermissions.RecordsRead]; return rules;
     }
     private static FormPdfDocumentReaderDouble Reader() => new() { Document = new FormPdfDocumentRow(Guid.NewGuid(), Guid.NewGuid(), "es", "Constancia.pdf", "private/fixed-document") };
-    private static FormPdfDocumentService Service(FormRuleFixture rules, FormPdfDocumentReaderDouble reader, MemoryPrivateFileStore store) =>
-        new(reader, store, new(rules.User, rules.Permissions), NullLogger<FormPdfDocumentService>.Instance);
+    private static FormPdfDocumentService Service(FormRuleFixture rules, FormPdfDocumentReaderDouble reader, MemoryPrivateFileStore store, FakeFormResponseReader? records = null) =>
+        new(reader, store, new(rules.User, rules.Permissions, records ?? new FakeFormResponseReader()), NullLogger<FormPdfDocumentService>.Instance);
 }

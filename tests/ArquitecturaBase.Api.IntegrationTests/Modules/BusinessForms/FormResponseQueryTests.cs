@@ -83,7 +83,7 @@ public sealed class FormResponseQueryTests
         var ordered=typeof(FormResponseReader).GetMethod("Ordered",BindingFlags.NonPublic|BindingFlags.Instance)!;
         var records=Assert.IsAssignableFrom<IQueryable<BusinessFormRecord>>(ordered.Invoke(reader,[db.Set<BusinessFormRecord>(),definition,new ListFormRecordsRequest{Sort="field",SortFieldId=field.FieldId,DisplayCulture=culture}]));
         var catalogOptions=typeof(FormResponseReader).GetMethod("CatalogOptions",BindingFlags.NonPublic|BindingFlags.Instance)!;
-        var facets=Assert.IsAssignableFrom<IQueryable>(catalogOptions.Invoke(reader,[definition,field.FieldId,catalogId,culture]));
+        var facets=Assert.IsAssignableFrom<IQueryable>(catalogOptions.Invoke(reader,[definition,field.FieldId,catalogId,culture,null]));
         foreach(var sql in new[]{records.Take(20).Select(record=>record.Id).ToQueryString(),facets.ToQueryString()})
         {
             var statement=sql[sql.IndexOf("SELECT",StringComparison.Ordinal)..];

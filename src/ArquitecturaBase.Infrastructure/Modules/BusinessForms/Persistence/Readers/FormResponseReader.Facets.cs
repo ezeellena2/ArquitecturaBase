@@ -17,11 +17,13 @@ internal sealed partial class FormResponseReader
             VersionIds = request.Dimension == "version" ? [] : request.Filter.VersionIds,
         };
         var matching = Filter(definition, filter, request.Dimension is "choice" or "presence" ? request.FieldId : null);
+        // The options come from every response of the form, or only from the owner's: whoever only loads sees nothing of others.
+        var universe = dbContext.Set<BusinessFormRecord>().AsNoTracking().Where(record => record.DefinitionId == definition.Id);
+        var owned = filter.OwnerUserId is { } owner ? universe.Where(record => record.ActorUserId == owner) : null;
         IQueryable<FacetCountRow> options;
         if (request.Dimension == "actor")
         {
-            options = dbContext.Set<BusinessFormRecord>().AsNoTracking().Where(record => record.DefinitionId == definition.Id)
-                .Select(record => record.ActorUserId).Distinct().Select(id => new FacetCountRow { Id = id.ToString(), Label = dbContext.Users.Where(user => user.Id == id).Select(user => user.DisplayName).FirstOrDefault() ?? "", Count = matching.Count(record => record.ActorUserId == id) });
+            options = (owned ?? universe).Select(record => record.ActorUserId).Distinct().Select(id => new FacetCountRow { Id = id.ToString(), Label = dbContext.Users.Where(user => user.Id == id).Select(user => user.DisplayName).FirstOrDefault() ?? "", Count = matching.Count(record => record.ActorUserId == id) });
         }
         else if (request.Dimension == "version")
         {
@@ -53,7 +55,7 @@ internal sealed partial class FormResponseReader
             else
             {
                 var choices = field.Source?.Catalog is not null
-                    ? CatalogOptions(definition,fieldId,field.Source.Catalog.Value,filter.DisplayCulture)
+                    ? CatalogOptions(definition,fieldId,field.Source.Catalog.Value,filter.DisplayCulture,owned)
                     : ConstantOptions(QuestionVersions(definition).Where(item => item.Question.FieldId == fieldId)
                         .SelectMany(item => (item.Question.Options ?? []).Select(option => (item.Version, Option: option)))
                         .DistinctBy(item => item.Option.ChoiceId).Select(item => new FacetLabel(item.Option.ChoiceId.ToString(),
@@ -71,10 +73,11 @@ internal sealed partial class FormResponseReader
             { ["label"] = request.Dimension == "version" ? option => option.VersionNumber : option => option.Label };
         return options.ApplySort(SortDescriptor.Parse(request.Sort), sortable, new("label", false), option => option.Id).Select(option => new FormResponseFacetOptionResponse(option.Id, option.Label, option.Count)).ToPagedResultAsync(request, cancellationToken);
     }
-    private IQueryable<FacetLabel> CatalogOptions(FormResponseDefinitionRow definition,Guid fieldId,Guid catalogId,string culture)
+    private IQueryable<FacetLabel> CatalogOptions(FormResponseDefinitionRow definition,Guid fieldId,Guid catalogId,string culture,IQueryable<BusinessFormRecord>? owned)
     {
-        return ReferenceLabels(definition, culture).Where(value=>value.FieldId==fieldId&&value.CatalogId==catalogId)
-            .GroupBy(value=>value.ItemId).Select(group=>new FacetLabel{Id=group.Key.ToString(),Label=group.OrderByDescending(value=>value.Id).Select(value=>value.Label).First()});
+        var labels = ReferenceLabels(definition, culture).Where(value=>value.FieldId==fieldId&&value.CatalogId==catalogId);
+        if (owned is not null) labels = labels.Where(value=>owned.Any(record=>record.Id==value.RecordId));
+        return labels.GroupBy(value=>value.ItemId).Select(group=>new FacetLabel{Id=group.Key.ToString(),Label=group.OrderByDescending(value=>value.Id).Select(value=>value.Label).First()});
     }
     private IQueryable<FacetLabel> ConstantOptions(IReadOnlyList<FacetLabel> options) => dbContext.Database.SqlQueryRaw<FacetLabel>(
         "SELECT value->>'id' AS \"Id\", value->>'label' AS \"Label\", (value->>'numericOrder')::bigint AS \"NumericOrder\" FROM jsonb_array_elements({0}::jsonb) AS value", JsonSerializer.Serialize(options, JsonSerializerOptions.Web));

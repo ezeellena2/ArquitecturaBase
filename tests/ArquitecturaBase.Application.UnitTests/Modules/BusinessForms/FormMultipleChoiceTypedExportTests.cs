@@ -69,7 +69,7 @@ public sealed class FormMultipleChoiceTypedExportTests
         reader.Definition = new(original.Id, original.Prefix, version.Id, [version], CatalogValueTypes: new Dictionary<Guid, string> { [catalog] = type });
         reader.ExportRows = reader.ExportRows.Select(row => row with { Version = version, Record = row.Record with { SchemaJson = version.SchemaJson } }).ToArray();
         var writer = new FakeFormWorkbookWriter();
-        var service = new FormExportService(reader, writer, new(user, permissions),
+        var service = new FormExportService(reader, writer, new(user, permissions, reader),
             RequestValidators.For(new FormExportRequestValidator(), new ListFormRecordsRequestValidator()), new FakeTimeProvider(), NullLogger<FormExportService>.Instance, new([]));
         return (service, writer, reader, field);
     }

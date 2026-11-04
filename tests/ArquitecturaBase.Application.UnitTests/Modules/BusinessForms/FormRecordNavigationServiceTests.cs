@@ -122,7 +122,7 @@ public sealed class FormRecordNavigationServiceTests
         var user = new FakeCurrentUser { UserId = Guid.NewGuid() };
         var permissions = new FakePermissionService();
         permissions.Permissions[user.UserId.Value] = [BusinessFormsPermissions.RecordsRead];
-        var service = new FormResponseService(reader, new(user, permissions), RequestValidators.For(new ListFormRecordsRequestValidator()),
+        var service = new FormResponseService(reader, new(user, permissions, reader), RequestValidators.For(new ListFormRecordsRequestValidator()),
             NullLogger<FormResponseService>.Instance, new([]), new FormSuggestionFixture());
         return (reader, user, permissions, service);
     }

@@ -45,15 +45,26 @@ internal sealed class FakeFormResponseReader : IFormResponseReader
         return Task.FromResult<IReadOnlyList<FormResponseStoredRow>>(ExportRows.Where(row => ids.Contains(row.Record.SourceReceiptId)).ToArray());
     }
     public Task<FormResponseDefinitionRow?> FindDefinitionAsync(Guid id, CancellationToken cancellationToken) { Reads++; DefinitionReads++; var snapshot = Definition; BeforeDefinitionReturn?.Invoke(); return Task.FromResult(snapshot); }
+    public ListFormRecordsRequest? ListRequest { get; private set; }
     public Task<PagedResult<FormResponseStoredRow>> ListAsync(FormResponseDefinitionRow definition, ListFormRecordsRequest request, CancellationToken cancellationToken)
     {
-        Reads++; BeforeReturn?.Invoke();
+        Reads++; ListRequest = request; BeforeReturn?.Invoke();
         return Task.FromResult(new PagedResult<FormResponseStoredRow>(ExportRows, request.Page, request.PageSize, ExportRows.Count));
     }
+    public FormRecordFacetRequest? FacetRequest { get; private set; }
     public Task<PagedResult<FormResponseFacetOptionResponse>> ListFacetsAsync(FormResponseDefinitionRow definition, FormRecordFacetRequest request, CancellationToken cancellationToken)
     {
-        Reads++; BeforeReturn?.Invoke();
+        Reads++; FacetRequest = request; BeforeReturn?.Invoke();
         return Task.FromResult(new PagedResult<FormResponseFacetOptionResponse>([new("private", "Private", ExportRows.Count)], request.Page, request.PageSize, 1));
+    }
+    /// <summary>Responses that belong to someone without being among the rows, like the ones of a workflow, a file or a PDF.</summary>
+    public HashSet<(Guid RecordId, Guid ActorUserId)> Owned { get; } = [];
+    public int OwnershipReads { get; private set; }
+    public Task<bool> ExistsByActorAsync(Guid recordId, Guid actorUserId, CancellationToken cancellationToken)
+    {
+        OwnershipReads++;
+        return Task.FromResult(Owned.Contains((recordId, actorUserId))
+            || ExportRows.Any(row => row.Record.RecordId == recordId && row.Actor.UserId == actorUserId));
     }
     public Task<FormResponseStoredRow?> FindRecordAsync(Guid id, CancellationToken cancellationToken)
     {

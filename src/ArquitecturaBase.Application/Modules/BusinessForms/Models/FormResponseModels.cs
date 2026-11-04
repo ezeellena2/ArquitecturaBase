@@ -45,6 +45,8 @@ public sealed record ListFormRecordsRequest : PagedRequest
     public Guid? SortFieldId { get; init; }
     public IReadOnlyList<Guid> VersionIds { get; init; } = [];
     public IReadOnlyList<Guid> ActorIds { get; init; } = [];
+    /// <summary>Only this person's responses, also in the options of every count: whoever only loads (CW6-C). Never from the client.</summary>
+    public Guid? OwnerUserId { get; init; }
     public DateTime? ReceivedFromUtc { get; init; }
     /// <summary>Exclusive upper bound of the received interval.</summary>
     public DateTime? ReceivedToUtc { get; init; }

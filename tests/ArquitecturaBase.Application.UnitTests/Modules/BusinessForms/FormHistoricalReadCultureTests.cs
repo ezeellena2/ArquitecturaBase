@@ -26,7 +26,7 @@ public sealed class FormHistoricalReadCultureTests
         var current = new FakeCurrentUser { UserId = Guid.NewGuid() };
         var permissions = new FakePermissionService();
         permissions.Permissions[current.UserId.Value] = [BusinessFormsPermissions.RecordsRead];
-        var service = new FormResponseService(reader, new(current, permissions),
+        var service = new FormResponseService(reader, new(current, permissions, reader),
             RequestValidators.For(new ListFormRecordsRequestValidator()),
             NullLogger<FormResponseService>.Instance, new([]), new FormSuggestionFixture());
         var before = FormDraftPolicy.Serialize(reader.ExportRows[0].Record);
@@ -97,7 +97,7 @@ public sealed class FormHistoricalReadCultureTests
         var permissions = new FakePermissionService();
         permissions.Permissions[current.UserId.Value] = [BusinessFormsPermissions.RecordsRead, BusinessFormsPermissions.RecordsExport];
         var writer = new FakeFormWorkbookWriter();
-        var service = new FormExportService(reader, writer, new(current, permissions),
+        var service = new FormExportService(reader, writer, new(current, permissions, reader),
             RequestValidators.For(new FormExportRequestValidator(), new ListFormRecordsRequestValidator()),
             new FakeTimeProvider(), NullLogger<FormExportService>.Instance, new([]));
         var previous = CultureInfo.CurrentUICulture;

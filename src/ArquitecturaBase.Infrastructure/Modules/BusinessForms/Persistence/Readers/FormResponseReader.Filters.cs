@@ -22,6 +22,7 @@ internal sealed partial class FormResponseReader
         if (request.UpToNumber is { } maximum) query = query.Where(record => record.Number <= maximum);
         if (request.VersionIds.Count != 0) query = query.Where(record => request.VersionIds.Contains(record.VersionId));
         if (request.ActorIds.Count != 0) query = query.Where(record => request.ActorIds.Contains(record.ActorUserId));
+        if (request.OwnerUserId is { } owner) query = query.Where(record => record.ActorUserId == owner);
         if (request.ReceivedFromUtc is { } from) query = query.Where(record => record.SubmittedAtUtc >= from);
         if (request.ReceivedToUtc is { } to) query = query.Where(record => record.SubmittedAtUtc < to);
         if (!string.IsNullOrWhiteSpace(request.Search))

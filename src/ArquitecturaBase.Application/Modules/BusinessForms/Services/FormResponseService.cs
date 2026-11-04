@@ -16,29 +16,29 @@ internal sealed class FormResponseService(IFormResponseReader reader, FormRecord
         ListFormRecordsRequest request, CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<FormRecordNavigationResponse>>(logger, "FindFormRecordNavigation", async () =>
         {
-            var actor = await access.CheckAsync(cancellationToken); if (actor.IsFailure) return actor.Error;
+            var read = await access.CheckReadAsync(cancellationToken); if (read.IsFailure) return read.Error;
             if (await validator.ValidateAsync(request, cancellationToken) is { } invalid) return invalid;
             var definition = await reader.FindDefinitionAsync(definitionId, cancellationToken);
             if (definition is null) return FormRecordErrors.NotFound;
             var filter = FormRecordFilterPolicy.Validate(request, definition); if (filter.IsFailure) return filter.Error;
-            var row = await reader.FindRecordNavigationAsync(definition, recordId, request with { DisplayCulture = Culture() }, cancellationToken);
-            if (!await access.StillAllowedAsync(actor.Value, cancellationToken)) return FormDefinitionErrors.Forbidden;
+            var row = await reader.FindRecordNavigationAsync(definition, recordId, read.Value.Apply(request) with { DisplayCulture = Culture() }, cancellationToken);
+            if (!await access.StillAllowedAsync(read.Value, cancellationToken)) return FormDefinitionErrors.Forbidden;
             if (row is null) return FormRecordErrors.NotFound;
             return new FormRecordNavigationResponse(row.RecordId, row.PreviousId, row.NextId, row.Position, row.TotalCount);
         });
     public Task<Result<FormResponseSheetResponse>> ListAsync(Guid id, ListFormRecordsRequest request, CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<FormResponseSheetResponse>>(logger, "ListFormResponses", async () =>
         {
-            var actor = await access.CheckAsync(cancellationToken); if (actor.IsFailure) return actor.Error;
+            var read = await access.CheckReadAsync(cancellationToken); if (read.IsFailure) return read.Error;
             if (await validator.ValidateAsync(request, cancellationToken) is { } invalid) return invalid;
             var definition = await reader.FindDefinitionAsync(id, cancellationToken);
             if (definition is null) return FormRecordErrors.NotFound;
             var filter = FormRecordFilterPolicy.Validate(request, definition); if (filter.IsFailure) return filter.Error;
             var culture = Culture();
             var columns = FormResponsePresentationPolicy.Columns(definition, culture);
-            var page = await reader.ListAsync(definition, request with { DisplayCulture = culture }, cancellationToken);
-            var channels = await origins.ListAsync(actor.Value, page.Items.Select(row => row.Record.SourceReceiptId).ToArray(), cancellationToken);
-            if (!await access.StillAllowedAsync(actor.Value, cancellationToken)) return FormDefinitionErrors.Forbidden;
+            var page = await reader.ListAsync(definition, read.Value.Apply(request) with { DisplayCulture = culture }, cancellationToken);
+            var channels = await origins.ListAsync(read.Value.Actor, page.Items.Select(row => row.Record.SourceReceiptId).ToArray(), cancellationToken);
+            if (!await access.StillAllowedAsync(read.Value, cancellationToken)) return FormDefinitionErrors.Forbidden;
             var active = definition.Versions.Single(version => version.Id == definition.ActiveVersionId);
             var rows = page.Items.Select(row => {
                 var reply = FormRecordPresentationPolicy.Project(row.Record, definition.VersionsById[row.Record.VersionId].DisplayCulture(culture), definition.Schemas[row.Record.VersionId]);
@@ -52,7 +52,7 @@ internal sealed class FormResponseService(IFormResponseReader reader, FormRecord
     public Task<Result<PagedResult<FormResponseFacetOptionResponse>>> CountFacetsAsync(Guid id, FormRecordFacetRequest request, CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<PagedResult<FormResponseFacetOptionResponse>>>(logger, "CountFormResponseFacets", async () =>
         {
-            var actor = await access.CheckAsync(cancellationToken); if (actor.IsFailure) return actor.Error;
+            var read = await access.CheckReadAsync(cancellationToken); if (read.IsFailure) return read.Error;
             if (await validator.ValidateAsync(request, cancellationToken) is { } invalid) return invalid;
             if (await validator.ValidateAsync(request.Filter, cancellationToken) is { } invalidFilter) return invalidFilter;
             var definition = await reader.FindDefinitionAsync(id, cancellationToken);
@@ -60,15 +60,15 @@ internal sealed class FormResponseService(IFormResponseReader reader, FormRecord
             var filter = FormRecordFilterPolicy.Validate(request.Filter, definition); if (filter.IsFailure) return filter.Error;
             if (request.Dimension is "choice" or "presence"
                 && (request.FieldId is not { } fieldId || !FormResponsePresentationPolicy.Columns(definition, Culture()).Any(field => field.FieldId == fieldId))) return FormRecordErrors.FilterInvalid;
-            var result = await reader.ListFacetsAsync(definition, request with { Filter = request.Filter with { DisplayCulture = Culture() } }, cancellationToken);
-            return await access.StillAllowedAsync(actor.Value, cancellationToken) ? result : FormDefinitionErrors.Forbidden;
+            var result = await reader.ListFacetsAsync(definition, request with { Filter = read.Value.Apply(request.Filter) with { DisplayCulture = Culture() } }, cancellationToken);
+            return await access.StillAllowedAsync(read.Value, cancellationToken) ? result : FormDefinitionErrors.Forbidden;
         });
     public Task<Result<FormResponseDetailResponse>> GetAsync(Guid id, CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<FormResponseDetailResponse>>(logger, "GetFormResponse", async () =>
         {
-            var actor = await access.CheckAsync(cancellationToken); if (actor.IsFailure) return actor.Error;
+            var read = await access.CheckReadAsync(cancellationToken); if (read.IsFailure) return read.Error;
             var row = await reader.FindRecordAsync(id, cancellationToken);
-            if (row is null) return FormRecordErrors.NotFound;
+            if (row is null || read.Value.OwnOnly && row.Actor.UserId != read.Value.Actor) return FormRecordErrors.NotFound;
             FormResponseSuggestionResponse? suggestion = null;
             if (row.CaptureOriginJson is { } captureJson
                 && FormDraftPolicy.Read<FormRecordCaptureOriginSnapshot>(captureJson).Origin.Suggestion is { } lineage)
@@ -79,8 +79,8 @@ internal sealed class FormResponseService(IFormResponseReader reader, FormRecord
                 suggestion = new(lineage.OriginRecordId, historical.Id, historical.Mode);
             }
             var chain = await reader.ListChainAsync(id, cancellationToken);
-            var channels = await origins.ListAsync(actor.Value, [row.Record.SourceReceiptId], cancellationToken);
-            if (!await access.StillAllowedAsync(actor.Value, cancellationToken)) return FormDefinitionErrors.Forbidden;
+            var channels = await origins.ListAsync(read.Value.Actor, [row.Record.SourceReceiptId], cancellationToken);
+            if (!await access.StillAllowedAsync(read.Value, cancellationToken)) return FormDefinitionErrors.Forbidden;
             var contentCulture = (row.Version ?? throw new InvalidOperationException("The response version presentation is missing.")).DisplayCulture(Culture());
             var reply = FormRecordPresentationPolicy.Project(row.Record, contentCulture, FormDraftPolicy.Read<FormVersionSchema>(row.Record.SchemaJson));
             var origin = channels.GetValueOrDefault(row.Record.SourceReceiptId);

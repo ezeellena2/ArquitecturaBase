@@ -20,8 +20,12 @@ internal sealed class FormWorkflowReadPolicy
     }
     public async Task<Result<FormWorkflowResponse>> ReadAsync(Guid recordId, CancellationToken cancellationToken)
     {
-        var actor = await _access.CheckAsync(cancellationToken); if (actor.IsFailure) return actor.Error;
+        var read = await _access.CheckReadAsync(cancellationToken); if (read.IsFailure) return read.Error;
+        if (!await _access.CanReadAsync(read.Value, recordId, cancellationToken)) return FormRecordErrors.NotFound;
         var result = await _reader.FindWorkflowAsync(recordId, cancellationToken); if (result is null) return FormRecordErrors.NotFound;
+        // Whoever only loads sees where their response stands (state, decision and PDF), without the internal actions (CW6-C).
+        if (read.Value.OwnOnly)
+            return await _access.StillAllowedAsync(read.Value, cancellationToken) ? result with { Actions = [] } : FormDefinitionErrors.Forbidden;
         var observations = new Dictionary<(string ChannelId, Guid RunId, Guid UserId), StructuredRecordActionResponse>();
         foreach (var channel in _channels)
         {
@@ -32,8 +36,8 @@ internal sealed class FormWorkflowReadPolicy
                 if (requested.Contains(new(observation.RunId, observation.RecipientUserId)))
                     observations.Add((channel.ChannelId, observation.RunId, observation.RecipientUserId), observation.Status);
         }
-        var manage = await _permissions.HasPermissionAsync(actor.Value, BusinessFormsPermissions.RulesManage, cancellationToken);
-        if (!await _access.StillAllowedAsync(actor.Value, cancellationToken)) return FormDefinitionErrors.Forbidden;
+        var manage = await _permissions.HasPermissionAsync(read.Value.Actor, BusinessFormsPermissions.RulesManage, cancellationToken);
+        if (!await _access.StillAllowedAsync(read.Value, cancellationToken)) return FormDefinitionErrors.Forbidden;
         return result with
         {
             Actions = result.Actions.Select(action =>

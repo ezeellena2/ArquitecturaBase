@@ -34,6 +34,9 @@ internal sealed class FormOverviewReader(ApplicationDbContext db) : IFormOvervie
         bool canReadRecords, bool canDecide, bool canCreate)
     {
         var nameColumn = culture == "en" ? "DisplayNameEn" : "DisplayNameEs";
+        // Whoever only loads counts their own responses and sees their last one (CW6-C).
+        var own = !canReadRecords && canCreate;
+        var mine = db.Set<BusinessFormRecord>().Where(record => record.ActorUserId == actorUserId).OrderByDescending(record => record.Number);
         var query = from definition in Definitions()
                     join version in db.Set<BusinessFormVersion>().AsNoTracking().Where(version => version.PublishedCultures != null)
                         on definition.ActiveVersionId equals version.Id
@@ -48,15 +51,20 @@ internal sealed class FormOverviewReader(ApplicationDbContext db) : IFormOvervie
                             task.DefinitionId == definition.Id && task.State == FormTaskState.Open && task.AuthorUserId != actorUserId
                             && db.Users.Any(user => user.Id == actorUserId && user.IsActive)
                             && db.UserRoles.Any(link => link.UserId == actorUserId && link.RoleId == task.RoleId)) : null,
-                        ResponseCount = canReadRecords ? definition.LastRecordNumber : null,
+                        ResponseCount = canReadRecords ? definition.LastRecordNumber
+                            : own ? mine.LongCount(record => record.DefinitionId == definition.Id) : null,
                         LastRecordId = canReadRecords ? db.Set<BusinessFormRecord>().Where(record => record.DefinitionId == definition.Id
-                            && record.Number == definition.LastRecordNumber).Select(record => (Guid?)record.Id).SingleOrDefault() : null,
+                            && record.Number == definition.LastRecordNumber).Select(record => (Guid?)record.Id).SingleOrDefault()
+                            : own ? mine.Where(record => record.DefinitionId == definition.Id).Select(record => (Guid?)record.Id).FirstOrDefault() : null,
                         LastNumber = canReadRecords ? db.Set<BusinessFormRecord>().Where(record => record.DefinitionId == definition.Id
-                            && record.Number == definition.LastRecordNumber).Select(record => (long?)record.Number).SingleOrDefault() : null,
+                            && record.Number == definition.LastRecordNumber).Select(record => (long?)record.Number).SingleOrDefault()
+                            : own ? mine.Where(record => record.DefinitionId == definition.Id).Select(record => (long?)record.Number).FirstOrDefault() : null,
                         LastSubmittedAtUtc = canReadRecords ? db.Set<BusinessFormRecord>().Where(record => record.DefinitionId == definition.Id
-                            && record.Number == definition.LastRecordNumber).Select(record => (DateTime?)record.SubmittedAtUtc).SingleOrDefault() : null,
+                            && record.Number == definition.LastRecordNumber).Select(record => (DateTime?)record.SubmittedAtUtc).SingleOrDefault()
+                            : own ? mine.Where(record => record.DefinitionId == definition.Id).Select(record => (DateTime?)record.SubmittedAtUtc).FirstOrDefault() : null,
                         LastState = canReadRecords ? db.Set<BusinessFormRecord>().Where(record => record.DefinitionId == definition.Id
-                            && record.Number == definition.LastRecordNumber).Select(record => record.State.ToString()).SingleOrDefault() : null,
+                            && record.Number == definition.LastRecordNumber).Select(record => record.State.ToString()).SingleOrDefault()
+                            : own ? mine.Where(record => record.DefinitionId == definition.Id).Select(record => record.State.ToString()).FirstOrDefault() : null,
                     };
         if (!string.IsNullOrWhiteSpace(request.Search))
         {

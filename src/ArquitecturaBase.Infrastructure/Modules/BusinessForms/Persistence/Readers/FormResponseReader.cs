@@ -62,6 +62,8 @@ internal sealed partial class FormResponseReader(ApplicationDbContext dbContext,
         var stored = batch.Rows.Single();
         return new(stored, record.SubmittedAtUtc, new(record.ActorUserId, record.DisplayName), record.CreatedAtUtc, record.State.ToString(), record.HasPdf) { Version = batch.Versions[stored.VersionId], CaptureOriginJson = record.CaptureOriginJson, CaptureOperator = captureOperator };
     }
+    public Task<bool> ExistsByActorAsync(Guid recordId, Guid actorUserId, CancellationToken cancellationToken) =>
+        dbContext.Set<BusinessFormRecord>().AsNoTracking().AnyAsync(record => record.Id == recordId && record.ActorUserId == actorUserId, cancellationToken);
     public async Task<IReadOnlyList<Guid>> ListExportIdsAsync(FormResponseDefinitionRow definition, ListFormRecordsRequest request, int limit, CancellationToken cancellationToken) =>
         await Ordered(Filter(definition, request), definition, request).Take(limit).Select(record => record.SourceReceiptId).ToArrayAsync(cancellationToken);
     public async Task<IReadOnlyList<FormResponseStoredRow>> ListByReceiptIdsAsync(FormResponseDefinitionRow definition, IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken)

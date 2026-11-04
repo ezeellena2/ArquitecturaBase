@@ -22,6 +22,18 @@ public sealed class FormFileServiceTests
         Assert.Equal(0, setup.Store.ReadCount);
     }
     [Fact]
+    public async Task Whoever_only_loads_opens_the_files_of_their_own_responses_and_nothing_else()
+    {
+        var setup = await CreateAsync(true);
+        setup.Permissions.Permissions[setup.User.UserId!.Value] = [BusinessFormsPermissions.RecordsCreate];
+        Assert.Equal(FileErrors.NotFound, (await setup.Service.OpenAsync(setup.RecordId, setup.File.Id, false, false, CancellationToken.None)).Error);
+        Assert.Equal(0, setup.Store.ReadCount);
+        setup.Records.Owned.Add((setup.RecordId, setup.User.UserId.Value));
+        var result = await setup.Service.OpenAsync(setup.RecordId, setup.File.Id, false, false, CancellationToken.None);
+        Assert.True(result.IsSuccess);
+        await result.Value.Content.DisposeAsync();
+    }
+    [Fact]
     public async Task Revocation_during_the_storage_read_closes_the_stream_without_returning_bytes()
     {
         var setup = await CreateAsync(true);
@@ -50,7 +62,7 @@ public sealed class FormFileServiceTests
         Assert.True(result.IsFailure);
         Assert.Equal(FileErrors.NotFound, result.Error);
     }
-    private static async Task<(FormFileService Service, MemoryPrivateFileStore Store, FakePermissionService Permissions, FakeCurrentUser User, Guid RecordId, StoredFile File)> CreateAsync(bool photo)
+    private static async Task<(FormFileService Service, MemoryPrivateFileStore Store, FakePermissionService Permissions, FakeCurrentUser User, Guid RecordId, StoredFile File, FakeFormResponseReader Records)> CreateAsync(bool photo)
     {
         var user = new FakeCurrentUser { UserId = Guid.CreateVersion7() };
         var permissions = new FakePermissionService(); permissions.Permissions[user.UserId.Value] = [BusinessFormsPermissions.RecordsRead];
@@ -60,7 +72,8 @@ public sealed class FormFileServiceTests
         await using var content = new MemoryStream([1, 2, 3]);
         await store.WriteAsync(file.StorageKey, content, file.ContentType, CancellationToken.None);
         var recordId = Guid.CreateVersion7();
-        var service = new FormFileService(new FakeFormFileReader(recordId, file.Id, photo), metadata, store, user, permissions, NullLogger<FormFileService>.Instance);
-        return (service, store, permissions, user, recordId, file);
+        var records = new FakeFormResponseReader();
+        var service = new FormFileService(new FakeFormFileReader(recordId, file.Id, photo), metadata, store, new(user, permissions, records), NullLogger<FormFileService>.Instance);
+        return (service, store, permissions, user, recordId, file, records);
     }
 }

@@ -12,7 +12,8 @@ namespace ArquitecturaBase.Api.Modules.BusinessForms.Controllers;
 [ApiController]
 [Route("api/forms")]
 [Tags("Form responses")]
-[HasPermission(BusinessFormsPermissions.RecordsRead)]
+// «Completar formularios» alone reads only the person's own responses (CW6-C); the service narrows them.
+[HasAnyPermission(BusinessFormsPermissions.RecordsRead, BusinessFormsPermissions.RecordsCreate)]
 [EnableRateLimiting(BusinessFormsApiRegistration.ReadPolicy)]
 [RequestSizeLimit(524288)]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]

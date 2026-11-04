@@ -138,8 +138,66 @@ public sealed class FormEntryHttpTests(ApiFactory factory)
         await FormEntryContractCapture.WriteAsync(overview, "overview-create-" + culture, Ct);
         var form = Assert.Single((await overview.ReadJsonAsync()).GetProperty("forms").GetProperty("items").EnumerateArray(),
             value => value.GetProperty("id").GetGuid() == scenario.DefinitionId);
-        Assert.Equal(JsonValueKind.Null, form.GetProperty("responseCount").ValueKind);
-        Assert.Equal(JsonValueKind.Null, form.GetProperty("lastResponse").ValueKind);
+        // Whoever only loads counts their own responses and sees their last one (CW6-C).
+        Assert.Equal(1, form.GetProperty("responseCount").GetInt64());
+        Assert.Equal(recordId, form.GetProperty("lastResponse").GetProperty("id").GetGuid());
+        Assert.Equal(prefix + "-000001", form.GetProperty("lastResponse").GetProperty("number").GetString());
+        using var second = scenario.Client(culture, scenario.SecondId);
+        using var nothingYet = await second.GetAsync("/api/forms/overview", Ct);
+        var empty = Assert.Single((await nothingYet.ReadJsonAsync()).GetProperty("forms").GetProperty("items").EnumerateArray(),
+            value => value.GetProperty("id").GetGuid() == scenario.DefinitionId);
+        Assert.Equal(0, empty.GetProperty("responseCount").GetInt64());
+        Assert.Equal(JsonValueKind.Null, empty.GetProperty("lastResponse").ValueKind);
+    }
+
+    [Fact]
+    public async Task Whoever_only_loads_reads_their_own_responses_and_nothing_of_anyone_else()
+    {
+        await using var scenario = await FormRecipientScenario.CreateAsync(factory, Ct);
+        var versionId = await scenario.PublishForPreparationAsync(factory, Ct);
+        using var first = scenario.Client("es", scenario.FirstId);
+        using var second = scenario.Client("es", scenario.SecondId);
+        using var sentByFirst = await first.PostAsync($"/api/forms/entries/{scenario.DefinitionId}", Send(Guid.NewGuid(), versionId, Choice(scenario.QuestionId, scenario.FirstItemId)), Ct);
+        var own = (await sentByFirst.ReadJsonAsync()).GetProperty("recordId").GetGuid();
+        using var sentBySecond = await second.PostAsync($"/api/forms/entries/{scenario.DefinitionId}", Send(Guid.NewGuid(), versionId, Choice(scenario.QuestionId, scenario.SecondItemId)), Ct);
+        var other = (await sentBySecond.ReadJsonAsync()).GetProperty("recordId").GetGuid();
+        var records = $"/api/forms/definitions/{scenario.DefinitionId}/records";
+        static Guid[] Ids(JsonElement sheet) => sheet.GetProperty("records").GetProperty("items").EnumerateArray().Select(row => row.GetProperty("id").GetGuid()).ToArray();
+
+        using var sheet = await first.GetAsync(records, Ct);
+        Assert.Equal(HttpStatusCode.OK, sheet.StatusCode);
+        Assert.Equal([own], Ids(await sheet.ReadJsonAsync()));
+        using var searched = await first.PostAsync(records + "/search", JsonContent.Create(new { actorIds = new[] { scenario.SecondId } }), Ct);
+        Assert.Empty(Ids(await searched.ReadJsonAsync()));
+        using var counted = await first.PostAsync(records + "/filter-counts/search", JsonContent.Create(new { filter = new { }, dimension = "version" }), Ct);
+        Assert.Equal(1, (await counted.ReadJsonAsync()).GetProperty("items")[0].GetProperty("count").GetInt32());
+        // The options of a count come only from their own responses: neither someone else's name nor the option they chose.
+        using var byPerson = await first.PostAsync(records + "/filter-counts/search", JsonContent.Create(new { filter = new { }, dimension = "actor" }), Ct);
+        Assert.Equal([scenario.FirstId.ToString("D")], (await byPerson.ReadJsonAsync()).GetProperty("items").EnumerateArray().Select(item => item.GetProperty("id").GetString()));
+        using var byOption = await first.PostAsync(records + "/filter-counts/search", JsonContent.Create(new { filter = new { }, dimension = "choice", fieldId = scenario.QuestionId }), Ct);
+        Assert.Equal([scenario.FirstItemId.ToString("D")], (await byOption.ReadJsonAsync()).GetProperty("items").EnumerateArray().Select(item => item.GetProperty("id").GetString()));
+        using var navigation = await first.PostAsync($"{records}/{own}/navigation", JsonContent.Create(new { }), Ct);
+        Assert.Equal(1, (await navigation.ReadJsonAsync()).GetProperty("totalCount").GetInt32());
+        using var detail = await first.GetAsync($"/api/forms/records/{own}", Ct);
+        Assert.Equal(HttpStatusCode.OK, detail.StatusCode);
+        using var workflow = await first.GetAsync($"/api/forms/records/{own}/workflow", Ct);
+        Assert.Equal(HttpStatusCode.OK, workflow.StatusCode);
+        Assert.Empty((await workflow.ReadJsonAsync()).GetProperty("actions").EnumerateArray());
+
+        // Someone else's response does not exist for them, not even by its address.
+        foreach (var path in new[] { $"/api/forms/records/{other}", $"/api/forms/records/{other}/workflow",
+            $"/api/forms/records/{other}/files/{Guid.NewGuid()}/content", $"/api/forms/records/{other}/documents/{Guid.NewGuid()}/content" })
+        {
+            using var foreign = await first.GetAsync(path, Ct);
+            Assert.Equal(HttpStatusCode.NotFound, foreign.StatusCode);
+        }
+        using var foreignNavigation = await first.PostAsync($"{records}/{other}/navigation", JsonContent.Create(new { }), Ct);
+        Assert.Equal(HttpStatusCode.NotFound, foreignNavigation.StatusCode);
+        using var export = await first.PostAsync(records + "/export", JsonContent.Create(new { filter = new { } }), Ct);
+        Assert.Equal(HttpStatusCode.Forbidden, export.StatusCode);
+        using var manager = scenario.Client("es");
+        using var withoutLoading = await manager.GetAsync(records, Ct);
+        Assert.Equal(HttpStatusCode.Forbidden, withoutLoading.StatusCode);
     }
 
     [Fact]

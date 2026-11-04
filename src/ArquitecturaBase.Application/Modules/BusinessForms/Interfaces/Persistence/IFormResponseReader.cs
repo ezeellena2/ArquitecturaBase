@@ -10,6 +10,7 @@ public interface IFormResponseReader
     Task<IReadOnlyList<FormRecordChainStoredRow>> ListChainAsync(Guid recordId, CancellationToken cancellationToken);
     Task<IReadOnlyList<Guid>> ListAncestorDefinitionIdsAsync(Guid recordId, CancellationToken cancellationToken);
     Task<FormResponseStoredRow?> FindRecordAsync(Guid id, CancellationToken cancellationToken);
+    Task<bool> ExistsByActorAsync(Guid recordId, Guid actorUserId, CancellationToken cancellationToken);
     Task<IReadOnlyList<Guid>> ListExportIdsAsync(FormResponseDefinitionRow definition, ListFormRecordsRequest request, int limit, CancellationToken cancellationToken);
     Task<IReadOnlyList<FormResponseStoredRow>> ListByReceiptIdsAsync(FormResponseDefinitionRow definition, IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken);
     Task<long?> FindLatestNumberAsync(Guid id, CancellationToken cancellationToken);

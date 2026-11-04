@@ -1,7 +1,5 @@
 using ArquitecturaBase.Application.Common.Logging;
 using ArquitecturaBase.Application.Interfaces.Integrations.Files;
-using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
-using ArquitecturaBase.Application.Interfaces.Integrations.Request;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Services;
@@ -12,13 +10,13 @@ using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Logging;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 internal sealed class FormFileService(IFormFileReader reader, IStoredFileReader files, IPrivateFileStore store,
-    ICurrentUser currentUser, IPermissionService permissions, ILogger<FormFileService> logger) : IFormFileService
+    FormRecordAccessGuard access, ILogger<FormFileService> logger) : IFormFileService
 {
     public Task<Result<FormFileContentResponse>> OpenAsync(Guid recordId, Guid fileId, bool thumbnail, bool download, CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<FormFileContentResponse>>(logger, "ReadFormFile", async () =>
         {
-            if (currentUser.UserId is not { } actor) return FormDefinitionErrors.Unauthorized;
-            if (!await permissions.HasPermissionAsync(actor, BusinessFormsPermissions.RecordsRead, cancellationToken)) return FormDefinitionErrors.Forbidden;
+            var read = await access.CheckReadAsync(cancellationToken); if (read.IsFailure) return read.Error;
+            if (!await access.CanReadAsync(read.Value, recordId, cancellationToken)) return FileErrors.NotFound;
             var reference = await reader.FindAsync(recordId, fileId, cancellationToken);
             if (reference is null) return FileErrors.NotFound;
             var file = await files.FindAsync(fileId, cancellationToken);
@@ -27,7 +25,7 @@ internal sealed class FormFileService(IFormFileReader reader, IStoredFileReader 
             if (stream is null) return FileErrors.NotFound;
             try
             {
-                if (!await permissions.HasPermissionAsync(actor, BusinessFormsPermissions.RecordsRead, cancellationToken))
+                if (!await access.StillAllowedAsync(read.Value, cancellationToken))
                 {
                     await stream.DisposeAsync();
                     return FormDefinitionErrors.Forbidden;

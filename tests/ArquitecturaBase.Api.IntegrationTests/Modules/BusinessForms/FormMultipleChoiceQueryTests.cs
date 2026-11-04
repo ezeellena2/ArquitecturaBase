@@ -88,7 +88,7 @@ public sealed class FormMultipleChoiceQueryTests
         var (definition, field, _, _) = Definition(true);
         var method = typeof(FormResponseReader).GetMethod("CatalogOptions", BindingFlags.NonPublic | BindingFlags.Instance);
         Assert.NotNull(method);
-        var query = Assert.IsAssignableFrom<IQueryable>(method.Invoke(Reader(db), [definition, field.FieldId, field.Source!.Catalog!.Value, culture]));
+        var query = Assert.IsAssignableFrom<IQueryable>(method.Invoke(Reader(db), [definition, field.FieldId, field.Source!.Catalog!.Value, culture, null]));
         var sql = query.ToQueryString();
         var statement = Statement(sql);
         Assert.Contains("BusinessFormRecordReferences", statement, StringComparison.Ordinal);

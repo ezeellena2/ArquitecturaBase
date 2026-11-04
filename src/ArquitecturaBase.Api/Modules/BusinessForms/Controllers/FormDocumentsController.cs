@@ -9,7 +9,8 @@ namespace ArquitecturaBase.Api.Modules.BusinessForms.Controllers;
 [ApiController]
 [Route("api/forms/records/{recordId:guid}/documents/{documentId:guid}")]
 [Tags("Form documents")]
-[HasPermission(BusinessFormsPermissions.RecordsRead)]
+// «Completar formularios» alone downloads only the documents of the person's own responses (CW6-C).
+[HasAnyPermission(BusinessFormsPermissions.RecordsRead, BusinessFormsPermissions.RecordsCreate)]
 [EnableRateLimiting(BusinessFormsApiRegistration.FilesReadPolicy)]
 public sealed class FormDocumentsController(IFormPdfDocumentService service) : ControllerBase
 {

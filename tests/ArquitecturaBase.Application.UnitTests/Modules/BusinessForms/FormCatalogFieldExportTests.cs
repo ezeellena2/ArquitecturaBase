@@ -143,7 +143,7 @@ public sealed class FormCatalogFieldExportTests
             References = [new(row.Record.RecordId, questionId, catalog, 1, item, "Supplier", null, "Suppliers", FieldValuesJson: FormDraftPolicy.Serialize(fields))],
         } }).ToArray();
         var writer = new FakeFormWorkbookWriter();
-        var service = new FormExportService(reader, writer, new(actor, permissions),
+        var service = new FormExportService(reader, writer, new(actor, permissions, reader),
             RequestValidators.For(new FormExportRequestValidator(), new ListFormRecordsRequestValidator()), new FakeTimeProvider(), NullLogger<FormExportService>.Instance, new([]));
         return (service, writer, reader, questionId, days);
     }

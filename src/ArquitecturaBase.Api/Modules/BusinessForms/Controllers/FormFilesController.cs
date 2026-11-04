@@ -9,7 +9,8 @@ namespace ArquitecturaBase.Api.Modules.BusinessForms.Controllers;
 [ApiController]
 [Route("api/forms/records/{recordId:guid}/files/{fileId:guid}")]
 [Tags("Forms")]
-[HasPermission(BusinessFormsPermissions.RecordsRead)]
+// «Completar formularios» alone opens only the files of the person's own responses (CW6-C).
+[HasAnyPermission(BusinessFormsPermissions.RecordsRead, BusinessFormsPermissions.RecordsCreate)]
 public sealed class FormFilesController(IFormFileService service) : ControllerBase
 {
     [HttpGet("thumbnail")]

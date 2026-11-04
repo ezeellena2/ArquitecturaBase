@@ -98,11 +98,23 @@ public sealed class FormWorkflowReadPolicyTests
         Assert.All(observed.Recipients,recipient=>{Assert.Equal("Accepted",recipient.State);Assert.False(recipient.CanRetry);});
     }
     [Fact]
+    public async Task Whoever_only_loads_reads_where_their_response_stands_without_the_internal_actions()
+    {
+        var (fixture,recordId,_)=await SeedAsync(FormActionRunState.Completed,StructuredRecordActionState.Accepted);
+        var user=fixture.Rules.User.UserId!.Value;fixture.Rules.Permissions.Permissions[user]=[BusinessFormsPermissions.RecordsCreate];
+        var channel=new FakeFormActionChannel();var records=new FakeFormResponseReader();
+        Assert.Equal(FormRecordErrors.NotFound,(await Policy(fixture,channel,records).ReadAsync(recordId,CancellationToken.None)).Error);
+        records.Owned.Add((recordId,user));
+        var response=await Policy(fixture,channel,records).ReadAsync(recordId,CancellationToken.None);
+        Assert.True(response.IsSuccess);Assert.Equal(recordId,response.Value.RecordId);Assert.Empty(response.Value.Actions);
+        Assert.Empty(channel.ObservationBatches);AssertNoEffects(fixture,channel);
+    }
+    [Fact]
     public void Repeated_channel_identifiers_are_configuration_errors()
     {
-        var fixture=new FormActionFixture();Assert.Throws<InvalidOperationException>(()=>new FormWorkflowReadPolicy(fixture.Runs,new(fixture.Rules.User,fixture.Rules.Permissions),fixture.Rules.Permissions,[new FakeFormActionChannel(),new FakeFormActionChannel()]));
+        var fixture=new FormActionFixture();Assert.Throws<InvalidOperationException>(()=>new FormWorkflowReadPolicy(fixture.Runs,new(fixture.Rules.User,fixture.Rules.Permissions,new FakeFormResponseReader()),fixture.Rules.Permissions,[new FakeFormActionChannel(),new FakeFormActionChannel()]));
     }
-    private static FormWorkflowReadPolicy Policy(FormActionFixture fixture,FakeFormActionChannel channel)=>new(fixture.Runs,new(fixture.Rules.User,fixture.Rules.Permissions),fixture.Rules.Permissions,[channel]);
+    private static FormWorkflowReadPolicy Policy(FormActionFixture fixture,FakeFormActionChannel channel,FakeFormResponseReader? records=null)=>new(fixture.Runs,new(fixture.Rules.User,fixture.Rules.Permissions,records??new FakeFormResponseReader()),fixture.Rules.Permissions,[channel]);
     private static void Allow(FormActionFixture fixture)=>fixture.Rules.Permissions.Permissions[fixture.Rules.User.UserId!.Value]=[BusinessFormsPermissions.RecordsRead,BusinessFormsPermissions.RulesManage];
     private static void AssertNoEffects(FormActionFixture fixture,FakeFormActionChannel channel)
     {Assert.Empty(channel.Reads);Assert.Empty(channel.Messages);Assert.Empty(channel.Retries);Assert.Empty(channel.Reviews);Assert.Equal(0,fixture.Rules.UnitOfWork.Transactions);}

@@ -10,7 +10,7 @@
   <data name="Permission.formtemplates.manage" xml:space="preserve"><value>Administrar formularios</value></data>
   <data name="Permission.formtemplates.publish" xml:space="preserve"><value>Publicar formularios</value></data>
   <data name="Permission.formtemplates.read" xml:space="preserve"><value>Ver formularios</value></data>
-  <data name="PermissionDescription.formrecords.create" xml:space="preserve"><value>Habilita la carga de respuestas cuando esté disponible.</value></data>
+  <data name="PermissionDescription.formrecords.create" xml:space="preserve"><value>Cargar respuestas en la app o por WhatsApp y consultar las propias.</value></data>
   <data name="PermissionDescription.formcatalogs.manage" xml:space="preserve"><value>Crear y editar catálogos compartidos de formularios.</value></data>
   <data name="PermissionDescription.formcatalogs.read" xml:space="preserve"><value>Consultar los catálogos compartidos de formularios.</value></data>
   <data name="PermissionDescription.formrecords.read" xml:space="preserve"><value>Consultar planillas, detalles y archivos de respuestas.</value></data>

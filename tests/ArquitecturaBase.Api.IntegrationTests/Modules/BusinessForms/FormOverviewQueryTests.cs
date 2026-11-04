@@ -53,14 +53,16 @@ public sealed class FormOverviewQueryTests
     }
 
     [Fact]
-    public void Who_only_completes_forms_lists_them_without_record_or_approval_dimensions()
+    public void Who_only_completes_forms_counts_only_their_own_responses_without_approval_dimensions()
     {
         using var db = Context();
         var sql = Query(db, new(), false, false, create: true).ToQueryString();
         Assert.Contains("\"BusinessFormVersions\"", sql, StringComparison.Ordinal);
+        Assert.Contains("\"BusinessFormRecords\"", sql, StringComparison.Ordinal);
+        Assert.Contains("\"ActorUserId\" =", sql, StringComparison.Ordinal);
         Assert.DoesNotContain("\"BusinessFormTasks\"", sql, StringComparison.Ordinal);
-        Assert.DoesNotContain("\"BusinessFormRecords\"", sql, StringComparison.Ordinal);
         Assert.DoesNotContain("\"LastRecordNumber\"", sql, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"ValuesJson\"", sql, StringComparison.Ordinal);
     }
 
     [Fact]

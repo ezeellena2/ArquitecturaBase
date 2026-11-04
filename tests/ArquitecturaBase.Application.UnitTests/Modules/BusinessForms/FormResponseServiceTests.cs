@@ -32,6 +32,87 @@ public sealed class FormResponseServiceTests
         Assert.True(result.IsFailure);
         Assert.Equal(FormDefinitionErrors.Forbidden, result.Error);
     }
+    [Theory]
+    [InlineData("list")]
+    [InlineData("facets")]
+    [InlineData("detail")]
+    public async Task Losing_the_load_permission_while_reading_discards_the_own_rows_counts_and_detail(string operation)
+    {
+        var user = new FakeCurrentUser { UserId = Guid.NewGuid() };
+        var permissions = new FakePermissionService();
+        permissions.Permissions[user.UserId.Value] = [BusinessFormsPermissions.RecordsCreate];
+        var reader = new FakeFormResponseReader { BeforeReturn = () => permissions.Permissions.Clear() };
+        reader.ArrangeExport(1);
+        reader.ExportRows = [reader.ExportRows[0] with { Actor = new(user.UserId.Value, "Employee") }];
+        var service = Create(reader, user, permissions);
+        Result result = operation switch
+        {
+            "list" => await service.ListAsync(reader.Definition!.Id, new(), CancellationToken.None),
+            "facets" => await service.CountFacetsAsync(reader.Definition!.Id, new(), CancellationToken.None),
+            _ => await service.GetAsync(reader.ExportRows[0].Record.RecordId, CancellationToken.None),
+        };
+        Assert.Equal(FormDefinitionErrors.Forbidden, result.Error);
+    }
+    [Fact]
+    public async Task Whoever_only_loads_reads_the_sheet_counts_and_navigation_of_their_own_responses()
+    {
+        var user = new FakeCurrentUser { UserId = Guid.NewGuid() };
+        var permissions = new FakePermissionService();
+        permissions.Permissions[user.UserId.Value] = [BusinessFormsPermissions.RecordsCreate];
+        var reader = new FakeFormResponseReader();
+        reader.ArrangeExport(1);
+        var service = Create(reader, user, permissions);
+        var someoneElse = new ListFormRecordsRequest { ActorIds = [Guid.NewGuid()] };
+
+        Assert.True((await service.ListAsync(reader.Definition!.Id, someoneElse, CancellationToken.None)).IsSuccess);
+        Assert.Equal(user.UserId, reader.ListRequest!.OwnerUserId);
+        Assert.Equal(someoneElse.ActorIds, reader.ListRequest.ActorIds);
+        Assert.True((await service.CountFacetsAsync(reader.Definition.Id, new() { Filter = someoneElse, Dimension = "actor" }, CancellationToken.None)).IsSuccess);
+        Assert.Equal(user.UserId, reader.FacetRequest!.Filter.OwnerUserId);
+        await service.FindRecordNavigationAsync(reader.Definition.Id, reader.ExportRows[0].Record.RecordId, someoneElse, CancellationToken.None);
+        Assert.Equal(user.UserId, reader.NavigationRequest!.OwnerUserId);
+    }
+    [Fact]
+    public async Task Whoever_reads_responses_keeps_the_people_they_filter_by()
+    {
+        var user = new FakeCurrentUser { UserId = Guid.NewGuid() };
+        var permissions = new FakePermissionService();
+        permissions.Permissions[user.UserId.Value] = [BusinessFormsPermissions.RecordsRead, BusinessFormsPermissions.RecordsCreate];
+        var reader = new FakeFormResponseReader();
+        reader.ArrangeExport(1);
+        var person = Guid.NewGuid();
+
+        Assert.True((await Create(reader, user, permissions).ListAsync(reader.Definition!.Id, new() { ActorIds = [person] }, CancellationToken.None)).IsSuccess);
+        Assert.Equal([person], reader.ListRequest!.ActorIds);
+        Assert.Null(reader.ListRequest.OwnerUserId);
+    }
+    [Fact]
+    public async Task Someone_elses_response_is_not_found_for_whoever_only_loads()
+    {
+        var user = new FakeCurrentUser { UserId = Guid.NewGuid() };
+        var permissions = new FakePermissionService();
+        permissions.Permissions[user.UserId.Value] = [BusinessFormsPermissions.RecordsCreate];
+        var reader = new FakeFormResponseReader();
+        reader.ArrangeExport(2);
+        reader.ExportRows = [reader.ExportRows[0] with { Actor = new(user.UserId.Value, "Employee") }, reader.ExportRows[1]];
+        var service = Create(reader, user, permissions);
+
+        Assert.True((await service.GetAsync(reader.ExportRows[0].Record.RecordId, CancellationToken.None)).IsSuccess);
+        Assert.Equal(FormRecordErrors.NotFound, (await service.GetAsync(reader.ExportRows[1].Record.RecordId, CancellationToken.None)).Error);
+        Assert.Equal(1, reader.ChainReads);
+    }
+    [Fact]
+    public async Task Without_reading_or_loading_responses_the_sheet_is_forbidden()
+    {
+        var user = new FakeCurrentUser { UserId = Guid.NewGuid() };
+        var permissions = new FakePermissionService();
+        permissions.Permissions[user.UserId.Value] = [BusinessFormsPermissions.ApprovalsDecide];
+        var reader = new FakeFormResponseReader();
+        reader.ArrangeExport(1);
+
+        Assert.Equal(FormDefinitionErrors.Forbidden, (await Create(reader, user, permissions).ListAsync(reader.Definition!.Id, new(), CancellationToken.None)).Error);
+        Assert.Equal(0, reader.Reads);
+    }
     [Fact]
     public async Task Invalid_pagination_never_reads_the_database()
     {
@@ -105,5 +186,5 @@ public sealed class FormResponseServiceTests
     }
 
     private static FormResponseService Create(FakeFormResponseReader reader, FakeCurrentUser user, FakePermissionService permissions) =>
-        new(reader, new(user, permissions), RequestValidators.For(new ListFormRecordsRequestValidator()), NullLogger<FormResponseService>.Instance, new([]), new FormSuggestionFixture());
+        new(reader, new(user, permissions, reader), RequestValidators.For(new ListFormRecordsRequestValidator()), NullLogger<FormResponseService>.Instance, new([]), new FormSuggestionFixture());
 }

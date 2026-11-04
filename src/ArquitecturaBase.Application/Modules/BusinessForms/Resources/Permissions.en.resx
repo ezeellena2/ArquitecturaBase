@@ -10,7 +10,7 @@
   <data name="Permission.formtemplates.manage" xml:space="preserve"><value>Manage forms</value></data>
   <data name="Permission.formtemplates.publish" xml:space="preserve"><value>Publish forms</value></data>
   <data name="Permission.formtemplates.read" xml:space="preserve"><value>View forms</value></data>
-  <data name="PermissionDescription.formrecords.create" xml:space="preserve"><value>Allows submitting responses when available.</value></data>
+  <data name="PermissionDescription.formrecords.create" xml:space="preserve"><value>Submit responses in the app or on WhatsApp and read your own.</value></data>
   <data name="PermissionDescription.formcatalogs.manage" xml:space="preserve"><value>Create and edit shared form catalogs.</value></data>
   <data name="PermissionDescription.formcatalogs.read" xml:space="preserve"><value>Read shared form catalogs.</value></data>
   <data name="PermissionDescription.formrecords.read" xml:space="preserve"><value>Read response sheets, details and files.</value></data>

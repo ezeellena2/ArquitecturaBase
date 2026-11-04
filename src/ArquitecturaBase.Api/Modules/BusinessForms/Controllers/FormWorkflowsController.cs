@@ -11,7 +11,8 @@ namespace ArquitecturaBase.Api.Modules.BusinessForms.Controllers;
 [ApiController]
 [Route("api/forms/records/{recordId:guid}")]
 [Tags("Form workflow")]
-[HasPermission(BusinessFormsPermissions.RecordsRead)]
+// «Completar formularios» alone reads where the person's own response stands (CW6-C); the controls keep record read.
+[HasAnyPermission(BusinessFormsPermissions.RecordsRead, BusinessFormsPermissions.RecordsCreate)]
 [EnableRateLimiting(BusinessFormsApiRegistration.ReadPolicy)]
 [ResponseCache(NoStore=true,Location=ResponseCacheLocation.None)]
 public sealed class FormWorkflowsController(IFormWorkflowService service):ControllerBase
@@ -22,6 +23,7 @@ public sealed class FormWorkflowsController(IFormWorkflowService service):Contro
     public async Task<IActionResult> Get([FromRoute]Guid recordId,CancellationToken cancellationToken)=>
         (await service.GetAsync(recordId,cancellationToken)).ToActionResult(this);
     [HttpPost("actions/{runId:guid}/retry")]
+    [HasPermission(BusinessFormsPermissions.RecordsRead)]
     [HasPermission(BusinessFormsPermissions.RulesManage)]
     [EnableRateLimiting(BusinessFormsApiRegistration.WritePolicy)]
     [ProducesResponseType<FormWorkflowResponse>(StatusCodes.Status202Accepted)]
@@ -35,6 +37,7 @@ public sealed class FormWorkflowsController(IFormWorkflowService service):Contro
     }
     [HttpPost("actions/{runId:guid}/recipients/{recipientUserId:guid}/retry")]
     [ProducesProblem(StatusCodes.Status400BadRequest)]
+    [HasPermission(BusinessFormsPermissions.RecordsRead)]
     [HasPermission(BusinessFormsPermissions.RulesManage)]
     [EnableRateLimiting(BusinessFormsApiRegistration.WritePolicy)]
     [ProducesResponseType<FormWorkflowResponse>(StatusCodes.Status202Accepted)]
@@ -48,6 +51,7 @@ public sealed class FormWorkflowsController(IFormWorkflowService service):Contro
     }
     [HttpPost("actions/{runId:guid}/review")]
     [ProducesProblem(StatusCodes.Status400BadRequest)]
+    [HasPermission(BusinessFormsPermissions.RecordsRead)]
     [HasPermission(BusinessFormsPermissions.RulesManage)]
     [EnableRateLimiting(BusinessFormsApiRegistration.WritePolicy)]
     [ProducesResponseType<FormWorkflowResponse>(StatusCodes.Status202Accepted)]
@@ -60,6 +64,7 @@ public sealed class FormWorkflowsController(IFormWorkflowService service):Contro
         return result.ToAcceptedResult(this);
     }
     [HttpPost("actions/{runId:guid}/consult")]
+    [HasPermission(BusinessFormsPermissions.RecordsRead)]
     [HasPermission(BusinessFormsPermissions.RulesManage)]
     [EnableRateLimiting(BusinessFormsApiRegistration.WritePolicy)]
     [ProducesResponseType<FormWorkflowResponse>(StatusCodes.Status202Accepted)]
