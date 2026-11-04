@@ -1,5 +1,6 @@
 using System.Text.Json;
 using ArquitecturaBase.Application.Models.StructuredData;
+using ArquitecturaBase.Application.Modules.WhatsApp.Configuration;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Application.Modules.WhatsApp.Services;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
@@ -144,8 +145,14 @@ public sealed class WhatsAppFlowRowsCompilerTests
     {
         var screens = Screens(Flow(WhatsAppFlowCompiler.Compile(Request(Block(1, 20), Row(Question("decimal"))))));
 
-        Assert.Equal(StructuredFormLimits.MaxRows, screens.Length);
+        Assert.Equal(WhatsAppFlowProfile.MaxRows, screens.Length);
         Assert.Equal(2, Controls(screens[^1]).Length);
+    }
+
+    [Fact]
+    public void The_rows_of_the_profile_are_the_ones_publishing_warns_about()
+    {
+        Assert.Equal(StructuredFormLimits.MaxRows, WhatsAppFlowProfile.MaxRows);
     }
 
     [Fact]

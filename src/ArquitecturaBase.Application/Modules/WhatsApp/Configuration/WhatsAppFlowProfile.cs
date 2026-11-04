@@ -10,6 +10,9 @@ public static class WhatsAppFlowProfile
     {
         "flow-static-7.3-r8", "flow-static-7.3-r9", "flow-static-7.3-r10"
     }.ToFrozenSet(StringComparer.Ordinal);
+    // The rows r10 compiles, prefills and maps from its sealed bytes: another cap is another revision, and the webhook keeps
+    // accepting _r10 from the flows already published. Publishing warns with the same number (StructuredFormLimits).
+    public const int MaxRows = 10;
     public const string GraphApiVersion = "v25.0";
     public const int CodecVersion = 1;
     public const int MaxResponseJsonBytes = 16 * 1024;

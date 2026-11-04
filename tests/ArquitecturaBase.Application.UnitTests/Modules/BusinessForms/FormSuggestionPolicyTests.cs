@@ -93,6 +93,19 @@ public sealed class FormSuggestionPolicyTests
         Assert.True(FormSuggestionPolicy.Normalize(new(0,[suggestion]),Context()).IsFailure);
     }
 
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public void A_question_of_a_block_of_rows_is_never_mapped(bool repeatedSource, bool repeatedTarget)
+    {
+        var suggestion = Suggestion() with { Mappings = [new(new("Field", SourceFieldId), TargetFieldId)] };
+        var context = Context();
+        var source = context.Source with { Questions = [Field(SourceFieldId, "shortText") with { Repeated = repeatedSource ? true : null }] };
+        var destination = context.Destinations[0] with { Questions = [Field(TargetFieldId, "shortText") with { Repeated = repeatedTarget ? true : null }] };
+
+        Assert.True(FormSuggestionPolicy.Normalize(new(0, [suggestion]), context with { Source = source, Destinations = [destination] }).IsFailure);
+    }
+
     [Fact]
     public void A_destination_field_can_receive_only_one_mapping()
     {

@@ -80,5 +80,21 @@ public sealed class FormAssistantCandidatePolicyTests
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => fixture.Candidates.ListAsync(fixture.UserId, "es", cancelled.Token));
         Assert.Equal(0, fixture.Reads);
     }
+    [Fact]
+    public void The_questions_of_a_block_of_rows_are_not_offered_to_prefill()
+    {
+        var supplier = Guid.CreateVersion7();
+        var schema = new FormVersionSchema(1, [Question(supplier, "shortText") with { MaxLength = 80 },
+            Question(Guid.CreateVersion7(), "group") with { Required = true, Rows = new(1, 20) },
+            Question(Guid.CreateVersion7(), "decimal") with { Repeated = true }]);
+        var row = new FormAssistantCandidateRow(Guid.CreateVersion7(), Guid.CreateVersion7(), 1, "REC", """{"es":"Recepción"}""", """{"es":"Enviar"}""",
+            "es", 2, 1, "Cuando llegue mercadería", FormDraftPolicy.Serialize(schema));
+
+        var candidate = FormAssistantCandidatePolicy.Project(row, new([], []) { Culture = "es" });
+
+        Assert.Equal([supplier], candidate.Value.Questions.Select(question => question.FieldId));
+    }
+    private static CanonicalFormField Question(Guid id, string type) =>
+        new(id, "field_" + id.ToString("N"), type, new Dictionary<string, string> { ["es"] = "Pregunta" }, null, false, null, null);
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 }

@@ -52,7 +52,8 @@ internal sealed class FormAssistantCandidatePolicy(IFormSelectionReader reader, 
     {
         if (!prepared.CanSend) return FormRecordErrors.InvalidResponse;
         var schema = FormDraftPolicy.Read<FormVersionSchema>(row.SchemaJson);
-        var questions = schema.Questions.Where(field => field.Type is "shortText" or "longText" or "decimal" or "date" or "boolean" or "choice")
+        // The questions of a block of rows are never prefilled: which row would get the value?
+        var questions = schema.Questions.Where(field => field.Type is "shortText" or "longText" or "decimal" or "date" or "boolean" or "choice" && field.Repeated != true)
             .Select(field => new StructuredFormQuestion(field.FieldId, field.Key, field.Type, field.Label, field.Help, field.Required, field.MaxLength,
                 field.Options?.Select(option => new StructuredFormChoice(option.ChoiceId, option.Label)).ToArray(), field.Source?.Catalog)).ToArray();
         var form = new StructuredFormSelectionRow(row.DefinitionId, row.VersionId, row.VersionNumber, row.Prefix,

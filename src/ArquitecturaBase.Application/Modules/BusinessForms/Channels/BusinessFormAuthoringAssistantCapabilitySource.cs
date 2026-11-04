@@ -133,7 +133,8 @@ internal sealed class BusinessFormAuthoringAssistantCapabilitySource(IFormAuthor
         var schema = FormDraftPolicy.Read<FormQuestionSchema>(row.SchemaJson);
         return new(Text(FormDraftPolicy.Read<Dictionary<string, string>>(row.NameJson), row.Culture), row.Prefix,
             row.IsInactive ? "inactive" : row.IsPublished ? "published" : "draft",
-            schema.Fields.Select(field => new FormAuthoringQuestionRow(Text(field.Label, row.Culture), field.Type)).ToArray());
+            // The block of rows is not one of the forty questions: its questions are listed like the others.
+            schema.Fields.Where(field => field.Type != "group").Select(field => new FormAuthoringQuestionRow(Text(field.Label, row.Culture), field.Type)).ToArray());
     }
 
     private static FormAuthoringCatalogRow Catalog(FormAuthoringCatalogStoredRow row) =>

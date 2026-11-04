@@ -57,6 +57,22 @@ public sealed class FormAuthoringAssistantReadTests
     }
 
     [Fact]
+    public async Task A_block_of_rows_is_not_read_as_one_of_the_forty_questions()
+    {
+        var host = new AuthoringAssistantFixture();
+        host.Reader.Definitions.Add(AuthoringAssistantFixture.Definition("Recepción", "REC", false, false,
+            [("Artículos", "group"), .. Enumerable.Range(1, 40).Select(index => ($"Dato {index}", "shortText"))]));
+
+        var result = await host.Source.ExecuteAsync(host.Request(Forms), Ct);
+
+        Assert.True(result.IsSuccess);
+        var payload = Assert.IsType<FormAuthoringFormsPayload>(result.Value.Payload);
+        Assert.Equal(40, payload.Forms[0].Questions.Count);
+        Assert.DoesNotContain(payload.Forms[0].Questions, question => question.Type == "group");
+        Assert.True(host.Source.ParseOutput(new(Forms, 1), Json(payload)).IsSuccess);
+    }
+
+    [Fact]
     public async Task Reading_catalogs_returns_ids_kinds_and_active_fields_without_options()
     {
         var host = new AuthoringAssistantFixture();

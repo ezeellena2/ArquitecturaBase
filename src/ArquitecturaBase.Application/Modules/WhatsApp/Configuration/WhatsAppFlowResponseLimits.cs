@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.Text.Json;
-using ArquitecturaBase.Application.Models.StructuredData;
 namespace ArquitecturaBase.Application.Modules.WhatsApp.Configuration;
 
 public static class WhatsAppFlowResponseLimits
@@ -42,7 +41,7 @@ public static class WhatsAppFlowResponseLimits
         if (name.Length == 38) return true;
         var suffix = name.AsSpan(38);
         if (!suffix.StartsWith("_r", StringComparison.Ordinal) || !int.TryParse(suffix[2..], NumberStyles.None, CultureInfo.InvariantCulture, out var value)
-            || value > StructuredFormLimits.MaxRows || suffix.Length != (value < 10 ? 3 : 4))
+            || value > WhatsAppFlowProfile.MaxRows || suffix.Length != (value < 10 ? 3 : 4))
             return false;
         row = value;
         return true;

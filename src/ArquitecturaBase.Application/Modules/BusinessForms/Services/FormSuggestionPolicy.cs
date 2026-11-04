@@ -40,7 +40,7 @@ internal static class FormSuggestionPolicy
                 var mappingPath = path + $".mappings[{mappingIndex}]";
                 if (mapping?.Source is null) return Invalid(mappingPath + ".source");
                 var target = destination.Questions.SingleOrDefault(field => field.FieldId == mapping.DestinationFieldId);
-                if (target is null || !targetIds.Add(target.FieldId) || !IsScalar(target.Type)) return Invalid(mappingPath + ".destinationFieldId");
+                if (target is null || !targetIds.Add(target.FieldId) || !IsScalar(target.Type) || target.Repeated == true) return Invalid(mappingPath + ".destinationFieldId");
                 if (mapping.Source.Kind == "RecordNumber")
                 {
                     if (mapping.Source.FieldId is not null || target.Type is not ("shortText" or "longText")) return Invalid(mappingPath + ".source");
@@ -48,7 +48,8 @@ internal static class FormSuggestionPolicy
                 else if (mapping.Source.Kind == "Field")
                 {
                     var field = source.Questions.SingleOrDefault(field => field.FieldId == mapping.Source.FieldId);
-                    if (field is null || !CanMap(field.Type, field.Source?.Catalog, target.Type, target.Source?.Catalog)) return Invalid(mappingPath + ".source");
+                    // A question of a block of rows has one answer per row, never one to carry over.
+                    if (field is null || field.Repeated == true || !CanMap(field.Type, field.Source?.Catalog, target.Type, target.Source?.Catalog)) return Invalid(mappingPath + ".source");
                 }
                 else return Invalid(mappingPath + ".source.kind");
                 mappings.Add(new(new(mapping.Source.Kind, mapping.Source.FieldId), mapping.DestinationFieldId));

@@ -89,6 +89,13 @@ En `SaveFormDraftRequestValidator`, todas `ContentInvalid` en su ruta:
 - **Tarea 7:** «Renglones» se elige en el desplegable «Tipo de respuesta» (no hay menú en «Agregar pregunta», como dibujó
   RG1-A), y una opción nativa no muestra el motivo «Ya hay un bloque de renglones.».
 
+## Por decidir (la revisión del backend, 2026-11-04)
+
+- **Un mínimo mayor que 10** (por ejemplo, de 15 a 20): WhatsApp carga a lo sumo 10 renglones, menos que el mínimo, y el
+  aviso de publicar sólo habla del máximo. Hay que decidir qué hace publicar y contra qué valida la Etapa 2.
+- **Una lista dependiente (CW7) que filtra por una pregunta del bloque:** publicar la acepta desde una pregunta de fuera del
+  bloque, y no queda claro de qué renglón toma la respuesta.
+
 ## Compilar y probar
 
 Con la salida propia, para no chocar con otras sesiones ni con la app abierta:
@@ -164,7 +171,13 @@ que la sesión de las listas dependientes commitee lo suyo.
 - [x] `WhatsAppFlowResponseLimits.HasRows` y `IsFieldKey` (el formato de la clave, de `_r0` a `_r10`), y `WhatsAppWebhookReader`.
 - [x] Commit: `feat(whatsapp): el webhook acepta las respuestas con renglones`. Verde en la copia de HEAD: 17 casos nuevos
   de límites, `WhatsAppWebhookReaderTests` 52 (sin base), Application.UnitTests 3532 y ArchitectureTests 198.
-- [ ] Revisión del backend (un revisor) y correcciones.
+- [x] Revisión del backend (un revisor) y correcciones. Sin cambios de bytes en lo que ya existe. Corregido: el asistente y
+  las sugerencias no ofrecen ni mapean las preguntas del bloque; la lectura de formularios de la IA no cuenta el bloque entre
+  las 40; el tope de renglones del Flow pasa a `WhatsAppFlowProfile.MaxRows`, parte de r10 (un test lo ata a
+  `StructuredFormLimits.MaxRows`, el del aviso); `WhatsAppRowsCompositionTests` publica 40 preguntas y un bloque por el canal
+  real y verifica la proyección sellada; las guías dejan de decir «`Group` reservado» y «lo nuevo compila r9». Con el chequeo
+  de publicar se exporta también `rows/publication-check-moved.json` (c077bd52). Lo que el revisor dejó para Meta va en la
+  Tarea 9; las dos preguntas de diseño, en «Por decidir».
 
 ### Tarea 6 · El front: modelo, guards y contrato
 
@@ -195,7 +208,13 @@ que la sesión de las listas dependientes commitee lo suyo.
 
 - [ ] Con el visto bueno del usuario, publicar un formulario de prueba con un bloque de 10 renglones y comprobar: el límite
   de 10 ramas, lo que llega de los renglones no visitados, las opciones de un catálogo en cada renglón y una respuesta de
-  unos 40 KB. Si algo no alcanza, bajar `StructuredFormLimits.MaxRows` o volver a 16 KiB (RG7-C) y anotarlo en el plan.
+  unos 40 KB. Son tres variantes, porque r10 usa estructuras que ningún perfil anterior publicó (un `If` con `Footer` dentro
+  del `Form`, pantallas terminales que navegan en una rama y completan en la otra, y el mismo `name` en varias pantallas):
+  con preguntas después del bloque, con el bloque al final y con mínimo 0. Si Meta objeta el `If` dentro del `Form`, las
+  pantallas de renglón van sin `Form` (en 7.3 es opcional).
+- [ ] Si algo no alcanza, bajar el tope o volver a 16 KiB (RG7-C) y anotarlo en el plan. El tope está sellado en r10
+  (`WhatsAppFlowProfile.MaxRows`, con `StructuredFormLimits.MaxRows` igual): mientras r10 no salga de esta etapa se cambian
+  los dos y se republica la prueba; después, otro tope es otra revisión, y el webhook sigue aceptando `_r10` de lo publicado.
 
 ### Tarea 10 · Cierre
 
