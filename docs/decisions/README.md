@@ -45,3 +45,4 @@ Las siete primeras salen de las decisiones D1 a D7 del plan de estandarización 
 - [0021 — Respuestas redactadas por el asistente, con límites](0021-respuestas-redactadas-por-el-asistente.md) (aceptada el 2026-10-21; rige desde Casos del asistente).
 - [0022 — Lectura de documentos con IA](0022-lectura-de-documentos-con-ia.md) (aceptada el 2026-10-22; rige desde Documentos por WhatsApp).
 - [0023 — ARCA como módulo opcional y sus credenciales](0023-arca-como-modulo-opcional.md) (aceptada el 2026-11-03; rige desde la etapa 1 de ARCA).
+- [0024 — La IA arma formularios y catálogos a pedido](0024-ia-arma-formularios-y-catalogos.md) (propuesta el 2026-11-04; una vez aceptada, rige desde la etapa 1 de [su plan](../plans/2026-11-04-ia-arma-formularios-y-catalogos.md)).

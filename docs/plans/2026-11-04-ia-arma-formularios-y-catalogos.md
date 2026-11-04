@@ -161,13 +161,13 @@ muestra), y la lectura de lo que existe: nombres y campos. Nunca respuestas, opc
 leído es un dato, nunca una instrucción. Como en el ADR 0022, la cuenta del proveedor usa las opciones de no retener
 contenido y se registra qué se mandó (hash y tamaño), sin el contenido.
 
-## El ADR que hace falta
+## El ADR
 
-Uno nuevo, con el próximo número libre (hoy, el 0024), «La IA arma formularios y catálogos a pedido», aceptado antes de
-programar. Amplía el [0017](../decisions/0017-inicio-asistente-y-operaciones-durables.md) (Inicio deja afuera las escrituras
-de negocio), el [0020](../decisions/0020-motor-unico-de-ia-con-capacidades.md) (capacidades que proponen configuración en
-otros canales) y el [0022](../decisions/0022-lectura-de-documentos-con-ia.md) (leer documentos también en el chat de Inicio y
-para armar, no sólo para cargar). Fija:
+El [ADR 0024](../decisions/0024-ia-arma-formularios-y-catalogos.md), «La IA arma formularios y catálogos a pedido», quedó
+propuesto el 2026-11-04 y se acepta antes de programar. Amplía el [0017](../decisions/0017-inicio-asistente-y-operaciones-durables.md)
+(Inicio deja afuera las escrituras de negocio), el [0020](../decisions/0020-motor-unico-de-ia-con-capacidades.md) (capacidades
+que proponen configuración en otros canales) y el [0022](../decisions/0022-lectura-de-documentos-con-ia.md) (leer documentos
+también en el chat de Inicio y para armar, no sólo para cargar). Fija:
 
 - Inicio, además de consultar, propone formularios y catálogos y acepta archivos y audios. Sigue sin escribir: crear es una
   acción de la persona, que ejecuta BusinessForms con su servicio y su UoW.
