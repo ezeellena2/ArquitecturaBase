@@ -1,7 +1,7 @@
 # Cargar formularios desde la app
 
 Propuesta del 2026-10-29, con las decisiones del usuario del 2026-10-29 y el 2026-10-30. La Etapa 1 está implementada desde el
-2026-10-30 (su resumen está en el plan por etapas); las etapas 2 a 5 siguen sin programar. La persona elige
+2026-10-30 y la 2 desde el 2026-11-04 (sus resúmenes están en el plan por etapas); las etapas 3 a 5 siguen sin programar. La persona elige
 un formulario publicado en «Formularios», lo carga en la app (desde la compu o el celular) y lo cargado se trabaja en la
 planilla, donde además se corrige o se anula. Las reglas de hoy están en [formularios](../features/formularios.md); este plan suma la carga desde la web, que el
 [resumen de formularios](formularios/README.md) dejaba pendiente con tableros propios.
@@ -57,8 +57,8 @@ reescribe allí.
 
 ### Quién carga y con qué permiso
 
-- Alcanza con **«Completar formularios»** (`formrecords.create`), el mismo permiso que pide WhatsApp; su descripción ya dice
-  «cuando esté disponible». No hay permiso nuevo. Ver respuestas y aprobar siguen aparte (CW9).
+- Alcanza con **«Completar formularios»** (`formrecords.create`), el mismo permiso que pide WhatsApp; su descripción dice
+  que carga en la app o por WhatsApp y consulta lo propio. No hay permiso nuevo. Ver respuestas y aprobar siguen aparte (CW9).
 - La respuesta queda a nombre de quien la carga, y los filtros «según quien lo recibe» usan sus datos. Sin el dato, la
   pregunta frena igual que el envío por WhatsApp (`RecipientDataMissing`), con el nombre del dato (CW3).
   Quien carga desde la compu sin ese dato queda cubierto por las listas dependientes.
@@ -230,6 +230,19 @@ Etapa 1, los tableros elegidos pasan al lienzo del sistema visual y su diseño s
    - La lectura de lo propio con «Completar formularios», y la planilla y el detalle recortados, con estado, PDF y motivo.
    - En «Formularios», sus cargas y la última para quien sólo carga.
    - El panel de carga, también en esa planilla.
+   - **Hecha el 2026-11-04.** Backend: las lecturas de respuestas se abren también con «Completar formularios» y el servidor
+     las acota a lo propio (`OwnerUserId` en la planilla, los conteos y la navegación; 404 para el detalle, los archivos, los
+     documentos y el workflow ajenos; el workflow sin las acciones internas); «Formularios» cuenta lo propio y trae la última
+     propia. Front: la misma planilla sin «Cargó» ni el Excel, el detalle con su estado, motivo y PDF sin la actividad (también
+     en pantalla completa), «Mis cargas» y «Mi última carga» en «Formularios», y «Ver en la planilla» al enviar. Las reglas
+     quedaron en [formularios](../features/formularios.md#lo-propio-de-quien-sólo-carga--etapa-2-2026-11-04).
+     Verificación, en copias de HEAD con sólo estos cambios (el checkout tenía trabajo a medias de otras sesiones): backend
+     con build sin advertencias y 6.780/6.795 tests con PostgreSQL y Redis; de las 15 fallas, 14 son de IA y fallan igual en
+     HEAD sin estos cambios, y la del costo de un borrador de 40×50 pasa sola. Front con build y lint limpios, los 4.030 tests
+     en seis tandas y 830/842 visuales; las 12 que fallan son del editor de una pregunta de catálogo (CW7) y ya fallan en HEAD.
+   - Pendiente: regenerar las cohortes en la próxima corrida conjunta, que hoy traban esas fallas de IA. Con eso,
+     `overview-create-es/en` de forms-entries-http trae la carga propia, y `entriesHttpContract.test.ts` pasa a esperar
+     `responseCount` 1 y la última respuesta en lugar de null.
 3. **Etapa 3 · Corregir y anular (CW10-A y CW11-A).**
    - El permiso nuevo, la corrección como carga que reemplaza y la anulación con motivo.
    - Las lecturas y conteos sin las anuladas, y las acciones en la vista rápida, la pantalla completa y la planilla de lo propio.

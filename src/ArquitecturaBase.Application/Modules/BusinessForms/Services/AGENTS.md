@@ -61,7 +61,7 @@ Casos de uso y helpers; contratos en `Interfaces/Services`. Leer [formularios](.
 - Huella: suma catálogos, metadatos de archivos y origen sólo si existen, sin cambiar huellas anteriores. MultiChoice valida GUID D distintos/ofrecidos y rango sellado, sin ordenar/deduplicar. ValuesJson lleva un array por pregunta; cada elección crea valor con Position y referencia por ItemId. Omitida sin entrada; [] explícito sin filas. Manual revalida sólo actividad de elegidas bajo los locks existentes; presentación/valor/tipo salen de la oferta.
 - Origen: `OriginRecordId` y `OriginSuggestionId` de registros reales de la misma persona, validados contra la sugerencia activa del destino (no su versión); de un catálogo, sólo la opción propuesta con su presentación histórica.
 - Campos extra: dos lotes (metadata/valores y textos fuente) sólo de opciones Manual elegidas bajo lock. Un valor de catálogo que no es opción de la fuente actual del campo (guardado antes de un cambio de fuente) no tiene texto visible y queda fuera del sello, como un campo sin valor. Entity y FormRecordReferenceRow sellan el mismo JSON activo/presente; la sesión no lo amplía y null conserva los bytes anteriores.
-- `FormFileService`: RecordsRead antes y después de abrir el stream, pertenencia y nunca URL ni SAS.
+- `FormFileService`: lectura de respuestas (`CheckReadAsync`) antes y después de abrir el stream, pertenencia y nunca URL ni SAS.
 
 ### Carga desde la app
 
@@ -74,8 +74,9 @@ Casos de uso y helpers; contratos en `Interfaces/Services`. Leer [formularios](.
 ### Planilla, detalle y Excel
 
 - RecordsRead revalidado antes de devolver, sin UoW ni caché. Esquemas leídos una vez por versión; origen por `IStructuredRecordOriginSource`.
+- Lo propio (CW6-C): `FormRecordAccessGuard.CheckReadAsync` da todo con RecordsRead y, sólo con RecordsCreate, lo propio (`OwnOnly`), revalidado con el mismo permiso. `Apply` pone `OwnerUserId` en el pedido de planilla, conteos y navegación; `CanReadAsync` da NotFound para el detalle, los archivos, los documentos y el workflow ajenos (el detalle compara su actor). El workflow propio va sin acciones. El Excel y los controles siguen con `CheckAsync` (RecordsRead).
 - `FindRecordNavigationAsync`: mismo pedido/snapshot de planilla, sólo IDs, posición global desde 1 y total sin paginar. Ancla ajena, excluida o ausente da NotFound; revocar descarta también esa ausencia.
-- Overview: RecordsRead, ApprovalsDecide o RecordsCreate, revalidando dimensiones; sólo completar ve los activos sin conteos; publicados no eliminados, nombre sellado y LastRecordNumber. Pendientes por roles vigentes y sin propias. Sólo aprobar conserva segmento sin respuestas; PendingOnly explícito con ambos permisos incluye bajas. Facetas/paginado SQL.
+- Overview: RecordsRead, ApprovalsDecide o RecordsCreate, revalidando dimensiones; sólo completar ve los activos con sus cargas y la última propia; publicados no eliminados, nombre sellado y LastRecordNumber. Pendientes por roles vigentes y sin propias. Sólo aprobar conserva segmento sin respuestas; PendingOnly explícito con ambos permisos incluye bajas. Facetas/paginado SQL.
 - Celdas: `NotAsked` sin pregunta; `Unanswered` vacía, también multiChoice []. El filtro `unanswered` incluye ambas en SQL/facetas/reglas. MultiChoice conserva orden capturado, usa anyOf por intersección y no admite orden por pregunta.
 - Excel: RecordsRead+RecordsExport por lote/tope. MultiChoice une con '; ' y conserva precisión canónica; Choice mantiene tipos y headers sin filas. CatalogFields elige pares pregunta/campo aparte de Columns: null todos, [] ninguno.
 - Campos extra: metadata actual activa más histórica por catálogo; valores/nombres/tipos de cada celda salen del snapshot. Subcolumnas sin sort/facetas. Detalle muestra todos; PDF sólo datos; chat y sugerencias omiten Fields (`includeCatalogFields: false`). Historia sin snapshot muestra «—».
@@ -85,7 +86,7 @@ Casos de uso y helpers; contratos en `Interfaces/Services`. Leer [formularios](.
 - Reglas: RulesManage, revisión inmutable con 409, sin tocar preguntas ni publicar. El historial descarta sus JSON internos sin permiso.
 - `FormActionRunRecorder` agrega runs dentro del límite de captura o decisión, con destinatarios, texto y cultura fijados, sin copiar respuestas ni esquemas; un cuerpo largo falla sin recortar.
 - Despacho: reservar y completar separados, efecto afuera; un Uncertain se consulta antes de repetir y un Accepted no se reenvía. RequestApproval revalida el rol al reservar: si no existe, `Forms.Rule.RoleUnavailable`, sin tarea.
-- Workflow: RecordsRead antes y después de observar el canal por lote, sin efectos ni retry si todos aceptaron. Retry, Consult y revisión humana suman RulesManage dentro del límite. Reintentar a una persona de un aviso a un rol exige su falla confirmada en el resultado (Failed y CanRetry) y la revisión esperada; el efecto la reintenta sola y conserva a las demás como estaban.
+- Workflow: lectura de respuestas antes y después de observar el canal por lote (lo propio no observa: va sin acciones), sin efectos ni retry si todos aceptaron. Retry, Consult y revisión humana suman RulesManage dentro del límite. Reintentar a una persona de un aviso a un rol exige su falla confirmada en el resultado (Failed y CanRetry) y la revisión esperada; el efecto la reintenta sola y conserva a las demás como estaban.
 - Aprobaciones: cuenta activa, permiso y rol vigentes, nunca propias. Continuar revalida permiso tras leer y admite ancla resuelta del mismo formulario; decidir confirma tarea, estado y runs en un commit.
 
 ### PDF
