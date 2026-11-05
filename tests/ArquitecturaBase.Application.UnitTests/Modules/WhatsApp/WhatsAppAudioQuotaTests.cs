@@ -37,6 +37,19 @@ public sealed class WhatsAppAudioQuotaTests
         Assert.Equal(reads, f.Files.ReadCount);
     }
 
+    [Fact]
+    public async Task After_change_something_the_audio_with_the_change_is_not_an_offer_and_goes_on_without_quota()
+    {
+        var f = new WhatsAppAudioFixture();
+        f.Offers.OfferCount = 2;
+        f.Offers.ChangeRequest = Guid.NewGuid();
+        f.Contact.ChangeMode(WhatsAppConversationMode.Assistant);
+        var result = await f.Dispatch.PrepareAsync(f.Contact.Id, Ct);
+        Assert.True(result.IsSuccess);
+        Assert.NotEqual(WhatsAppAudioState.Unavailable, f.Message.AudioState);
+        Assert.NotNull(f.Message.AudioRequestId);
+    }
+
     [Theory]
     [InlineData(1, false)]
     [InlineData(2, true)]

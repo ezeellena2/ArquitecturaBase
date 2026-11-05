@@ -53,7 +53,7 @@ internal sealed class WhatsAppAudioFixture : IWhatsAppFormRecipientReader, IWhat
         Permissions.Permissions[Actor]=[WhatsAppPermissions.Read];
         Message=WhatsAppMessage.Inbound(Contact.Id,"wamid.audio.test",WhatsAppMessageKind.Audio,null,null,Now);
         Message.SetAudioDescriptor("12345","audio/ogg; codecs=opus",Convert.ToHexStringLower(SHA256.HashData(sampleContent)));
-        Access=new(Users,Permissions,Current,this,Settings,new(Offers,Clock));
+        Access=new(Users,Permissions,Current,this,Settings,new(Offers,Clock),Offers);
         Presentation=new(new WhatsAppContentRetention(90),Clock);
         Preparation=new(this,new WhatsAppAudioStoragePolicy(Files));
         Service=new(Access,this,this,new Conversations(this),UnitOfWork,Presentation,this,Microsoft.Extensions.Logging.Abstractions.NullLogger<WhatsAppAudioService>.Instance);
