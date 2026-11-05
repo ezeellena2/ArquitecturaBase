@@ -96,9 +96,11 @@ leer y crear una propuesta, y el cambio del motor para «Cambiar algo» tiene su
    conversación de la última operación terminada y vigente de las mismas personas y conversación del canal, con la reserva de
    permisos; la historia de un canal lleva la última propuesta con su contenido y la huella suma la referencia sólo cuando
    existe. Unitarias y huella; la persistencia usa los métodos existentes del repositorio y se recorre con PostgreSQL en la 9.
-9. **WhatsApp.** El puerto del resumen y crear, las capacidades en el asistente automático, el resumen con «Crear borrador» o
-   «Crear catálogo» y «Cambiar algo», el Id de los botones, sólo la última propuesta, el enlace, los textos fijos de «no se
-   puede», H4 con el botón y las propuestas fuera del cupo de ofertas. Unitarias e integración.
+9. **WhatsApp.** Hecha (b0b9dacc, e14ba38d, fc47be1a, 11882200 y 87024d2b): `IStructuredAuthoringProposalChannel` (BusinessForms
+   resume y crea desde la conversación propia, sin sesión web), el «no se puede» (`forms.authoring.decline`), las cinco
+   capacidades en el asistente automático, el resumen en texto fijo con «Crear borrador» o «Crear catálogo» y «Cambiar algo»
+   (`FORM_AUTHORING:…`), sólo los botones del último resumen, el enlace, H4 con el botón y el resumen fuera del cupo. Unitarias
+   e integración con PostgreSQL en el canal, el dueño y el motor.
 10. **Audio.** WebM y MP4 en `NormalizeAudio` con perfil nuevo; en Inicio, subir, normalizar, escuchar, retener y la referencia en
     el turno; en el front, grabar, detener, descartar, escuchar y la transcripción en gris. Tests y visuales.
 11. **Casos de evaluación y cierre.** Casos ficticios del arnés de calificación para lo nuevo (pedidos escritos y dictados,
@@ -132,3 +134,9 @@ de la migración de valores del catálogo (e2ec8fbd). Sigue la tarea 8.
 fijaba: la operación anterior tiene que ser la última de su conversación (si no, revisión cambiada, como la revisión esperada
 de Inicio), terminada y vigente; el ámbito compara personas y conversación del canal, no lo ofrecido, que puede cambiar entre
 mensajes. Sigue la tarea 9, WhatsApp.
+
+2026-11-04: tarea 9 hecha, con unitarias de Application y dominio, arquitectura y las tres integraciones nuevas con PostgreSQL en
+verde. Lo que el plan no fijaba: el «no se puede» es una capacidad sin permisos que sólo ofrece el canal (Inicio contesta con sus
+palabras) y BusinessForms comprueba el motivo; cada toque se contesta con una referencia propia (la salida exige una), y la de
+«Cambiar algo» guarda la operación que cambia el mensaje siguiente; lo que no entra en 1024 caracteres se suma al conteo de
+preguntas; el audio con el cambio pedido no consulta el cupo de ofertas. Sigue la tarea 10, el audio en Inicio.
