@@ -82,6 +82,12 @@ internal sealed class AuthoringAssistantFixture
         public Task<FormAuthoringCreatedRow?> FindDefinitionByProposalAsync(Guid proposalId, CancellationToken cancellationToken) =>
             Task.FromResult(CreatedDefinitions.GetValueOrDefault(proposalId));
 
+        // The forms that exist, by their prefix.
+        public Dictionary<string, FormAuthoringNamedRow> DefinitionsByPrefix { get; } = new(StringComparer.Ordinal);
+
+        public Task<FormAuthoringNamedRow?> FindDefinitionByPrefixAsync(string prefix, CancellationToken cancellationToken) =>
+            Task.FromResult(DefinitionsByPrefix.GetValueOrDefault(prefix));
+
         public Task<FormAuthoringCreatedRow?> FindCatalogByProposalAsync(Guid proposalId, CancellationToken cancellationToken) =>
             Task.FromResult(CreatedCatalogs.GetValueOrDefault(proposalId));
 

@@ -22,6 +22,8 @@ internal sealed class BusinessFormAuthoringProposalChannel(IFormDraftProposalSer
             FormAuthoringSummaryPolicy.Catalog(manual, culture),
         { Capability: { Id: BusinessFormCatalogAssistantCapabilitySource.ProposeId, Version: 1 }, Payload: FormCatalogProposalPayload people } =>
             FormAuthoringSummaryPolicy.People(people, culture),
+        { Capability: { Id: BusinessFormAuthoringAssistantCapabilitySource.DeclineId, Version: 1 }, Payload: FormAuthoringDecline decline } =>
+            FormAuthoringSummaryPolicy.Declined(decline),
         _ => null,
     };
 
@@ -34,13 +36,13 @@ internal sealed class BusinessFormAuthoringProposalChannel(IFormDraftProposalSer
                 var draft = await drafts.CreateFromChannelAsync(request, cancellationToken);
                 if (draft.IsFailure) return draft.Error;
                 return new StructuredAuthoringCreatedResponse(StructuredAuthoringKind.Form, draft.Value.DefinitionId!.Value, form.Name,
-                    $"/formularios/{draft.Value.DefinitionId:D}");
+                    FormAuthoringSummaryPolicy.FormPath(draft.Value.DefinitionId.Value));
             case FormAuthoringCatalogProposal or FormCatalogProposalPayload:
                 var catalog = await catalogs.CreateFromChannelAsync(request, cancellationToken);
                 if (catalog.IsFailure) return catalog.Error;
                 var name = request.Proposal.Payload is FormAuthoringCatalogProposal manual ? manual.Name : ((FormCatalogProposalPayload)request.Proposal.Payload).Name;
                 return new StructuredAuthoringCreatedResponse(StructuredAuthoringKind.Catalog, catalog.Value.CatalogId!.Value, name,
-                    $"/catalogos/{catalog.Value.CatalogId:D}");
+                    FormAuthoringSummaryPolicy.CatalogPath(catalog.Value.CatalogId.Value));
             default:
                 return FormCatalogErrors.ProposalUnavailable;
         }

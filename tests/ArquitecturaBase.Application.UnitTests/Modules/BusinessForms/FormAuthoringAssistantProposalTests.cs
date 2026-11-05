@@ -48,7 +48,8 @@ public sealed class FormAuthoringAssistantProposalTests
         Assert.Equal([BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage], form.RequiredPermissions.Actor);
         Assert.Equal(AssistantCapabilityKind.Proposal, catalog.Kind);
         Assert.Equal([BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage], catalog.RequiredPermissions.Actor);
-        Assert.Equal(4, definitions.Count);
+        // Two reads, two proposals and the decline that only a channel offers.
+        Assert.Equal(5, definitions.Count);
     }
 
     [Fact]

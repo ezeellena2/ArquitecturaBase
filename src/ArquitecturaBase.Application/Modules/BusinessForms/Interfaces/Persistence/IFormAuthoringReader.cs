@@ -12,6 +12,7 @@ public interface IFormAuthoringReader
     Task<IReadOnlyList<FormAuthoringCatalogStoredRow>> ListCatalogsAsync(int take, CancellationToken cancellationToken);
     Task<IReadOnlyList<FormAuthoringCatalogStoredRow>> ListCatalogsAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken);
     Task<FormAuthoringCreatedRow?> FindDefinitionByProposalAsync(Guid proposalId, CancellationToken cancellationToken);
+    Task<FormAuthoringNamedRow?> FindDefinitionByPrefixAsync(string prefix, CancellationToken cancellationToken);
     Task<FormAuthoringCreatedRow?> FindCatalogByProposalAsync(Guid proposalId, CancellationToken cancellationToken);
     Task<bool> ExistsDefinitionNameAsync(string culture, string name, CancellationToken cancellationToken);
     Task<bool> ExistsCatalogNameAsync(string culture, string name, CancellationToken cancellationToken);

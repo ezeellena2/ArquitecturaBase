@@ -27,6 +27,10 @@ public sealed record FormAuthoringRejection(IReadOnlyList<FormAuthoringIssue> Is
 public sealed record FormAuthoringCatalogProposal(string Culture, string Name, string Description, string ValueType, string Code,
     string Option, IReadOnlyList<FormAuthoringProposedField> Fields) : AssistantCapabilityPayload;
 
+// Why the assistant cannot build what was asked (IA3-A): a channel says it with a fixed text and, for a form or catalog that
+// already exists, its link. Name is that one's name, empty without one.
+public sealed record FormAuthoringDecline(string Reason, Guid? DefinitionId, Guid? CatalogId, string Name) : AssistantCapabilityPayload;
+
 public sealed record FormAuthoringDefinitionStoredRow(string NameJson, string Culture, string Prefix, bool IsPublished, bool IsInactive,
     string SchemaJson)
 { public override string ToString() => "FormAuthoringDefinitionStoredRow { Content = [REDACTED] }"; }
@@ -49,5 +53,7 @@ public sealed record FormDraftProposalEvidence(string OriginalCulture, Guid Requ
 public sealed record FormDraftProposalOrigin(Guid ProposalId, string EvidenceJson)
 { public override string ToString() => "FormDraftProposalOrigin { Content = [REDACTED] }"; }
 
+public sealed record FormAuthoringNamedRow(Guid Id, string NameJson, string Culture)
+{ public override string ToString() => "FormAuthoringNamedRow { Content = [REDACTED] }"; }
 public sealed record FormAuthoringCreatedRow(Guid Id, string EvidenceJson)
 { public override string ToString() => "FormAuthoringCreatedRow { Content = [REDACTED] }"; }

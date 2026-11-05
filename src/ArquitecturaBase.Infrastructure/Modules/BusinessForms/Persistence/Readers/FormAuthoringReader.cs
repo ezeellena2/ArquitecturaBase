@@ -30,6 +30,12 @@ internal sealed class FormAuthoringReader(ApplicationDbContext dbContext) : IFor
             .Select(definition => new FormAuthoringCreatedRow(definition.Id, definition.ProposalEvidenceJson!))
             .SingleOrDefaultAsync(cancellationToken);
 
+    // A deleted form keeps its prefix reserved but no longer exists for the person.
+    public Task<FormAuthoringNamedRow?> FindDefinitionByPrefixAsync(string prefix, CancellationToken cancellationToken) =>
+        dbContext.Set<BusinessFormDefinition>().AsNoTracking().Where(definition => definition.Prefix == prefix)
+            .Select(definition => new FormAuthoringNamedRow(definition.Id, definition.NameJson, definition.Culture))
+            .FirstOrDefaultAsync(cancellationToken);
+
     public Task<FormAuthoringCreatedRow?> FindCatalogByProposalAsync(Guid proposalId, CancellationToken cancellationToken) =>
         dbContext.Set<BusinessFormCatalog>().AsNoTracking().Where(catalog => catalog.ProposalId == proposalId)
             .Select(catalog => new FormAuthoringCreatedRow(catalog.Id, catalog.ProposalEvidenceJson!))

@@ -25,6 +25,16 @@ internal static class FormAuthoringSummaryPolicy
         return new(StructuredAuthoringKind.Catalog, proposal.Name, [Join(culture, parts)], 0);
     }
 
+    // Why nothing can be built; a form or catalog that exists comes with the path to change it in the app.
+    public static StructuredAuthoringSummary Declined(FormAuthoringDecline decline) => new(StructuredAuthoringKind.Declined, decline.Name, [], 0)
+    {
+        Reason = decline.Reason,
+        AppPath = decline.DefinitionId is { } definitionId ? FormPath(definitionId) : decline.CatalogId is { } catalogId ? CatalogPath(catalogId) : null,
+    };
+
+    public static string FormPath(Guid definitionId) => $"/formularios/{definitionId:D}";
+    public static string CatalogPath(Guid catalogId) => $"/catalogos/{catalogId:D}";
+
     // A people catalog (H4) says what its description says about who is in it.
     public static StructuredAuthoringSummary People(FormCatalogProposalPayload proposal, string culture) =>
         new(StructuredAuthoringKind.Catalog, proposal.Name, [proposal.Description.Trim().TrimEnd('.')], 0);

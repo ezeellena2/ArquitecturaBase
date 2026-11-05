@@ -19,6 +19,7 @@ internal sealed class BusinessFormAuthoringAssistantCapabilitySource(IFormAuthor
     public const string CatalogsId = "forms.authoring.catalogs";
     public const string ProposeFormId = "forms.authoring.propose-form";
     public const string ProposeCatalogId = "forms.authoring.propose-catalog";
+    public const string DeclineId = "forms.authoring.decline";
     public const int Version = 1;
     public IReadOnlyList<AssistantCapabilityDefinition> Definitions { get; } =
     [
@@ -30,6 +31,9 @@ internal sealed class BusinessFormAuthoringAssistantCapabilitySource(IFormAuthor
             FormAuthoringAssistantCodec.FormArgumentsSchema, FormAuthoringAssistantCodec.FormProposalSchema, new([BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage], []), new(FormAuthoringAssistantCodec.ResponseBudget, FormAuthoringAssistantCodec.ResponseBudget, 1, 5)) { OfferedInHome = true },
         new(ProposeCatalogId, Version, AssistantCapabilityKind.Proposal, "Propose one new manual catalog without options for a person to review, in the conversation language: name, description, value type, what the code and the visible text of each option are, and its extra fields with their type. Read the existing catalogs first and never repeat a name. A rejected proposal lists the paths to fix: propose it again corrected. A person creates it inactive; you never create, activate or import anything.",
             FormAuthoringAssistantCodec.CatalogArgumentsSchema, FormAuthoringAssistantCodec.CatalogProposalSchema, new([BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage], []), new(8192, FormAuthoringAssistantCodec.ResponseBudget, 1, 5)) { OfferedInHome = true },
+        // A channel says only fixed texts: this tells it why nothing can be built. Home answers in its own words instead.
+        new(DeclineId, Version, AssistantCapabilityKind.Proposal, "Say that a form or catalog cannot be built here, with one reason: noPermission when the person asks to build one and the tool to propose it is not offered; formExists with the prefix of an existing form, or catalogExists with the id of an existing catalog, when the person asks to build or change one that already exists, because existing ones are changed in the app. Never use it for anything else. A rejected one lists the paths to fix.",
+            FormAuthoringAssistantCodec.DeclineArgumentsSchema, FormAuthoringAssistantCodec.DeclineSchema, new([], []), new(1024, 2048, 1, 5)),
     ];
 
     public async Task<Result<AssistantCapabilityResponse>> ExecuteAsync(AssistantCapabilityRequest request, CancellationToken ct)
@@ -40,6 +44,7 @@ internal sealed class BusinessFormAuthoringAssistantCapabilitySource(IFormAuthor
         foreach (var permission in definition.RequiredPermissions.Actor)
             if (!await permissions.HasPermissionAsync(request.Context.ActorUserId, permission, ct)) return FormDefinitionErrors.Forbidden;
         if (request.Capability.Id == ProposeFormId) return await ProposeFormAsync(request, ct);
+        if (request.Capability.Id == DeclineId) return await DeclineAsync(request, ct);
         if (request.Capability.Id == ProposeCatalogId)
         {
             var parsed = FormAuthoringAssistantCodec.ParseCatalogArguments(request.ArgumentsJson, request.Context.Culture);
@@ -75,7 +80,8 @@ internal sealed class BusinessFormAuthoringAssistantCapabilitySource(IFormAuthor
             var catalogs = FormAuthoringAssistantCodec.ParseCatalogs(outputJson);
             return catalogs.IsFailure ? catalogs.Error : catalogs.Value;
         }
-        if (capability.Id is not (ProposeFormId or ProposeCatalogId)) return FormDefinitionErrors.ContentInvalid;
+        if (capability.Id is not (ProposeFormId or ProposeCatalogId or DeclineId)) return FormDefinitionErrors.ContentInvalid;
+        if (capability.Id == DeclineId && FormAuthoringAssistantCodec.ParseDecline(outputJson) is { IsSuccess: true } decline) return decline.Value;
         if (capability.Id == ProposeFormId && FormAuthoringAssistantCodec.ParseFormProposal(outputJson) is { IsSuccess: true } form) return form.Value;
         if (capability.Id == ProposeCatalogId && FormAuthoringAssistantCodec.ParseCatalogProposal(outputJson) is { IsSuccess: true } catalog) return catalog.Value;
         var rejection = FormAuthoringAssistantCodec.ParseRejection(outputJson);
@@ -107,6 +113,41 @@ internal sealed class BusinessFormAuthoringAssistantCapabilitySource(IFormAuthor
             issues.Add(new("questions", "tooLarge"));
         return issues.Count != 0 ? Rejected(issues) : new AssistantCapabilityResponse("proposed", proposal, [], 1);
     }
+
+    // Each reason is checked here: the person really cannot build forms or catalogs, or the one named exists and the person can
+    // read it. A wrong one comes back rejected, so the model proposes instead or names another.
+    private async Task<Result<AssistantCapabilityResponse>> DeclineAsync(AssistantCapabilityRequest request, CancellationToken ct)
+    {
+        var parsed = FormAuthoringAssistantCodec.ParseDeclineArguments(request.ArgumentsJson);
+        if (parsed.IsFailure) return parsed.Error;
+        var (reason, prefix, catalogId) = parsed.Value;
+        var actor = request.Context.ActorUserId;
+        if (reason == "noPermission")
+            return prefix is not null || catalogId is not null ? Rejected([new(prefix is not null ? "prefix" : "catalogId", "invalid")])
+                : await CanBuildAsync(actor, ct) ? Rejected([new("reason", "permissionGranted")]) : Declined(new(reason, null, null, ""));
+        if (reason == "formExists")
+        {
+            if (catalogId is not null) return Rejected([new("catalogId", "invalid")]);
+            if (!await permissions.HasPermissionAsync(actor, BusinessFormsPermissions.Read, ct)) return Rejected([new("reason", "notReadable")]);
+            return prefix is { Length: > 0 } && await reader.FindDefinitionByPrefixAsync(prefix.Trim().ToUpperInvariant(), ct) is { } form
+                ? Declined(new(reason, form.Id, null, Text(FormDraftPolicy.Read<Dictionary<string, string>>(form.NameJson), form.Culture)))
+                : Rejected([new("prefix", "notFound")]);
+        }
+        if (prefix is not null) return Rejected([new("prefix", "invalid")]);
+        if (!await permissions.HasPermissionAsync(actor, BusinessFormsPermissions.CatalogsRead, ct)) return Rejected([new("reason", "notReadable")]);
+        return Guid.TryParse(catalogId, out var id) && (await reader.ListCatalogsAsync([id], ct)).SingleOrDefault() is { } catalog
+            ? Declined(new(reason, null, catalog.Id, Catalog(catalog).Name)) : Rejected([new("catalogId", "notFound")]);
+    }
+
+    // Building needs both areas' read and manage permissions; missing any of them is a real reason to decline.
+    private async Task<bool> CanBuildAsync(Guid actor, CancellationToken ct)
+    {
+        foreach (var permission in new[] { BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage, BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage })
+            if (!await permissions.HasPermissionAsync(actor, permission, ct)) return false;
+        return true;
+    }
+
+    private static AssistantCapabilityResponse Declined(FormAuthoringDecline decline) => new("proposed", decline, [], 1);
 
     private static AssistantCapabilityResponse Rejected(IReadOnlyList<FormAuthoringIssue> issues) =>
         new("rejected", new FormAuthoringRejection(issues.Take(50).ToArray()), [], 0);
