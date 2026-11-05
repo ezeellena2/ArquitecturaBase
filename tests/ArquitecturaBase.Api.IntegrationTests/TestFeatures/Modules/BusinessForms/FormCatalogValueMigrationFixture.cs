@@ -69,7 +69,8 @@ internal sealed record FormCatalogValueMigrationFixture(Guid CatalogId, Guid Ite
         SELECT jsonb_build_object('table', 'definition', 'data', to_jsonb(r) - 'ProposalId' - 'ProposalEvidenceJson')::text AS "Value" FROM "FormDefinitions" r
         UNION ALL SELECT jsonb_build_object('table', 'version', 'data', to_jsonb(r))::text FROM "BusinessFormVersions" r
         UNION ALL SELECT jsonb_build_object('table', 'field', 'data', to_jsonb(r))::text FROM "BusinessFormFields" r
-        UNION ALL SELECT jsonb_build_object('table', 'record', 'data', to_jsonb(r) - 'EnteredInApp')::text FROM "BusinessFormRecords" r
+        UNION ALL SELECT jsonb_build_object('table', 'record', 'data', to_jsonb(r) - 'EnteredInApp' - 'ReplacesRecordId' - 'ReplacedByRecordId'
+            - 'OriginalReceiptId' - 'CorrectedByUserId' - 'CorrectionReason' - 'VoidedByUserId' - 'VoidedAtUtc' - 'VoidReason')::text FROM "BusinessFormRecords" r
         UNION ALL SELECT jsonb_build_object('table', 'recordValue', 'data', jsonb_build_object(
             'Id', r."Id", 'DefinitionId', r."DefinitionId", 'RecordId', r."RecordId", 'FieldId', r."FieldId", 'Type', r."Type",
             'TextValue', r."TextValue", 'DecimalValue', r."DecimalValue", 'DateValue', r."DateValue", 'BooleanValue', r."BooleanValue", 'ChoiceId', r."ChoiceId"))::text
