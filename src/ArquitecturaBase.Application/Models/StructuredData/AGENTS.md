@@ -51,4 +51,6 @@ E2-3: `StructuredFormPreparationIssue.MissingData` es el nombre del dato de la p
 
 E2-4: Choice.Fields contiene campos históricos tipados con valor canónico string exacto y texto fuente localizado; null se omite. El adaptador del chat lo excluye expresamente, conservando su contrato.
 
+CW15-B: `StructuredFormCheckRequest.Sections` lleva los títulos de sección (`StructuredFormSection`: `Start`, cuántas preguntas van antes, y `Title` por idioma), opcional con JsonIgnore(WhenWritingNull) en el chequeo y en el snapshot de publicación; el canal los muestra antes de la primera pregunta de cada sección.
+
 IA3-A: `StructuredAuthoringSummary` (tipo, título, líneas, cuántas más y, en uno que no se puede armar, el motivo y la ruta de lo que existe), `StructuredAuthoringProposalRequest` (contexto, propuesta y procedencia auténticos) y `StructuredAuthoringCreatedResponse` (lo creado y la ruta de la app). Las rutas son relativas a la app; el canal les antepone su origen público. Todo redacta `ToString`.

@@ -276,3 +276,5 @@ La [verificación conjunta de menú, detalle y aislamiento](formularios.md#verif
 ## Selección múltiple y perfil r9
 
 Las publicaciones nuevas usan `flow-static-7.3-r9`, con JSON 7.3, Graph v25.0 y codec 1. Las preguntas de varias se representan con `CheckboxGroup` de hasta 20 opciones; el mapping sellado fija el rango y clasifica los arrays de opciones antes de descargar archivos. La oferta y la captura preservan el orden, el vacío explícito y las sesiones antiguas. Los detalles y las pruebas están en [formularios: E1-C3](formularios.md#elegir-varias-en-whatsapp--e1-c3-2026-10-22). El prellenado escalar admite r8/r9; varias no participa.
+
+Desde los títulos de sección (2026-11-05), `flow-static-7.3-r10` muestra cada título como `TextSubheading` antes de la primera pregunta de su sección, sin sumar pantallas; sin títulos compila los mismos bytes. La regla está en [formularios: títulos de sección](formularios.md#títulos-de-sección--etapa-5-2026-11-05).
