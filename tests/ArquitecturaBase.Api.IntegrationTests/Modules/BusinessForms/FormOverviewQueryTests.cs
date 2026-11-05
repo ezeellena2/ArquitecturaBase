@@ -44,8 +44,10 @@ public sealed class FormOverviewQueryTests
     {
         using var db = Context();
         var sql = Query(db, new(), true, false).ToQueryString();
-        Assert.Contains("\"LastRecordNumber\"", sql, StringComparison.Ordinal);
+        // «Respuestas» counts the current responses that are not voided (Etapa 3), no longer LastRecordNumber.
+        Assert.DoesNotContain("\"LastRecordNumber\"", sql, StringComparison.Ordinal);
         Assert.Contains("\"BusinessFormRecords\"", sql, StringComparison.Ordinal);
+        Assert.Contains("\"ReplacedByRecordId\" IS NULL", sql, StringComparison.Ordinal);
         Assert.DoesNotContain("\"BusinessFormTasks\"", sql, StringComparison.Ordinal);
         Assert.DoesNotContain("\"ValuesJson\"", sql, StringComparison.Ordinal);
         Assert.DoesNotContain("\"SchemaJson\"", sql, StringComparison.Ordinal);

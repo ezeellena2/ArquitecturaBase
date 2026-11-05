@@ -38,7 +38,8 @@ public sealed class FormRecordAmendmentHttpTests(ApiFactory factory)
         Assert.Equal(versionId, correction.GetProperty("entry").GetProperty("versionId").GetGuid());
         var answer = Assert.Single(correction.GetProperty("answers").EnumerateArray());
         Assert.Equal(scenario.FirstItemId.ToString("D"), answer.GetProperty("value").GetString());
-        Assert.Equal("FIRST", answer.GetProperty("options")[0].GetProperty("title").GetString());
+        // The option chosen comes as the catalog presents it, in the language of the request.
+        Assert.Equal(culture == "es" ? "Proveedor Centro" : "Central supplier", answer.GetProperty("options")[0].GetProperty("title").GetString());
 
         using var options = await first.GetAsync(
             $"/api/forms/entries/{scenario.DefinitionId}/records/{original.RecordId}/versions/{versionId}/questions/{scenario.QuestionId}/options", Ct);
@@ -53,12 +54,15 @@ public sealed class FormRecordAmendmentHttpTests(ApiFactory factory)
         var correctedId = corrected.GetProperty("recordId").GetGuid();
         Assert.NotEqual(original.RecordId, correctedId);
 
+        // Both are saved at the same instant of the test clock: each one is found by its id.
         var records = await scenario.ScopeAsync(services => services.GetRequiredService<ApplicationDbContext>().Set<BusinessFormRecord>()
-            .Where(record => record.DefinitionId == scenario.DefinitionId).OrderBy(record => record.CreatedAtUtc).ToArrayAsync(Ct));
+            .Where(record => record.DefinitionId == scenario.DefinitionId).ToArrayAsync(Ct));
         Assert.Equal(2, records.Length);
-        Assert.Equal(correctedId, records[0].ReplacedByRecordId);
-        Assert.Equal((original.RecordId, scenario.FirstId, scenario.FirstId), (records[1].ReplacesRecordId, records[1].ActorUserId, records[1].CorrectedByUserId));
-        Assert.Equal(records[0].Number, records[1].Number);
+        var replacedRecord = records.Single(record => record.Id == original.RecordId);
+        var correctionRecord = records.Single(record => record.Id == correctedId);
+        Assert.Equal(correctedId, replacedRecord.ReplacedByRecordId);
+        Assert.Equal((original.RecordId, scenario.FirstId, scenario.FirstId), (correctionRecord.ReplacesRecordId, correctionRecord.ActorUserId, correctionRecord.CorrectedByUserId));
+        Assert.Equal(replacedRecord.Number, correctionRecord.Number);
         Assert.Equal(1, await scenario.ScopeAsync(services => services.GetRequiredService<ApplicationDbContext>().Set<BusinessFormDefinition>()
             .Where(definition => definition.Id == scenario.DefinitionId).Select(definition => definition.LastRecordNumber).SingleAsync(Ct)));
 
