@@ -1,7 +1,7 @@
 # Cargar formularios desde la app
 
 Propuesta del 2026-10-29, con las decisiones del usuario del 2026-10-29 y el 2026-10-30. La Etapa 1 está implementada desde el
-2026-10-30 y la 2 y la 4 desde el 2026-11-04 (sus resúmenes están en el plan por etapas); las etapas 3 y 5 siguen sin programar. La persona elige
+2026-10-30, la 2 y la 4 desde el 2026-11-04 y la 5 desde el 2026-11-05 (sus resúmenes están en el plan por etapas); la 3 se está programando. La persona elige
 un formulario publicado en «Formularios», lo carga en la app (desde la compu o el celular) y lo cargado se trabaja en la
 planilla, donde además se corrige o se anula. Las reglas de hoy están en [formularios](../features/formularios.md); este plan suma la carga desde la web, que el
 [resumen de formularios](formularios/README.md) dejaba pendiente con tableros propios.
@@ -267,6 +267,22 @@ Etapa 1, los tableros elegidos pasan al lienzo del sistema visual y su diseño s
      (punto 6).
 5. **Etapa 5 · Títulos de sección (CW15-B):** el elemento nuevo en el editor y en la vista previa, la publicación, el subtítulo
    en WhatsApp y una zona por título en la app.
+   - **Hecha el 2026-11-05.** Backend: `draft.sections` con `start` y `title`, aparte de las preguntas (el original obligatorio
+     hasta 80, en orden y nunca adentro del bloque de renglones; sin títulos se omite), `Forms.Publication.SectionEmpty` para un
+     título sin preguntas debajo, los títulos sellados en la versión y en el pedido al canal, el `TextSubheading` de r10 antes de
+     la primera pregunta de cada sección (sin títulos, los mismos bytes) y `section` en la pregunta donde empieza cada título en
+     la carga. Front: «Agregar título» y el renglón del título en la lista de preguntas, los subtítulos de la vista previa, «Ir al
+     título» al publicar y una zona por título en la página y el panel de carga. Las reglas quedaron en
+     [formularios](../features/formularios.md#títulos-de-sección--etapa-5-2026-11-05) y el diseño en el front, en
+     [carga desde la app](../../../ArquitecturaBaseFront/docs/design/carga-desde-la-app.md#títulos-de-sección-cw15-b--2026-11-05).
+     Verificación final, en copias limpias: backend sobre 0f35321e con build sin advertencias y 7.125/7.125 tests con
+     PostgreSQL, Redis y Azurite, y las 25 cohortes HTTP exportadas; front sobre 62112ae4 con build y lint limpios,
+     4.193/4.193 tests (en tandas, la segunda corrida completa; la primera tuvo 7 cortes por tiempo con la máquina cargada, que
+     pasan solos) y 936/936 visuales, con las escenas de `formSections` en es/en a 1440, 390 y 320 comparadas con el tablero.
+   - Pendiente: la prueba manual en el navegador; commitear `entriesSectionsHttpContract.test.ts` (front, ya pasa) con la
+     cohorte de la carga que exportó la Etapa 3; regenerar `forms-http` con `sections/*`, junto con los `rows/*` del cierre de
+     renglones (`multipleChoiceHttpContract.test.ts` cuenta las capturas); publicar en Meta un Flow con títulos (va con la
+     verificación de r10 de renglones), y pasar CW15-B al lienzo del sistema visual.
 6. **Después:** las listas dependientes en WhatsApp con el intercambio con Meta. La carga en nombre de otra persona, si aparece
    el caso, con su tablero.
 
