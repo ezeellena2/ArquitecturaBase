@@ -1,6 +1,6 @@
 # ArquitecturaBase: reglas para agentes
 
-Plantilla .NET 10 + Aspire 13.5 + PostgreSQL; el front vive en `../ArquitecturaBaseFront`. Este archivo es el índice de reglas; el detalle está en [`docs/architecture/backend.md`](docs/architecture/backend.md), que prevalece sobre cualquier descripción histórica. Las reglas de un área del producto están en `docs/features/` y se leen antes de tocarla. WhatsApp, BusinessForms e IA son módulos opcionales en `Modules/<Módulo>`: el núcleo no los nombra.
+Plantilla .NET 10 + Aspire 13.5 + PostgreSQL; el front vive en `../ArquitecturaBaseFront`. Este archivo es el índice de reglas; el detalle está en [`docs/architecture/backend.md`](docs/architecture/backend.md), que prevalece sobre cualquier descripción histórica. Las reglas de un área del producto están en `docs/features/` y se leen antes de tocarla. WhatsApp, BusinessForms, IA y ARCA son módulos opcionales en `Modules/<Módulo>`: el núcleo no los nombra.
 
 ## Forma de trabajo
 
@@ -80,8 +80,8 @@ Dentro de un módulo opcional, las mismas carpetas van bajo `<Proyecto>/Modules/
 
 ## Más documentación
 
-- [`backend.md`](docs/architecture/backend.md): la arquitectura completa. [`docs/guides/`](docs/guides/): recetas (área nueva, permiso, migración, quitar WhatsApp, IA o Formularios, despliegue).
-- [`docs/features/`](docs/features/): reglas implementadas de identidad, WhatsApp, administración, [formularios](docs/features/formularios.md) e [IA](docs/features/inteligencia-artificial.md).
+- [`backend.md`](docs/architecture/backend.md): la arquitectura completa. [`docs/guides/`](docs/guides/): recetas (área nueva, permiso, migración, quitar WhatsApp, IA, Formularios o ARCA, despliegue).
+- [`docs/features/`](docs/features/): reglas implementadas de identidad, WhatsApp, administración, [formularios](docs/features/formularios.md), [IA](docs/features/inteligencia-artificial.md) y [ARCA](docs/features/arca.md).
 - [ADR](docs/decisions/README.md), [premisas](docs/architecture/premisas-de-la-plantilla.md), [planes pendientes](docs/plans/README.md) e [historial de planes retirados](docs/history/README.md).
 - [Arneses de desarrollo](harnesses/README.md), incluido el auditor documental.
 - [`README.md`](README.md): cómo levantar y probar. [`CLAUDE.md`](CLAUDE.md): lo propio de Claude Code.

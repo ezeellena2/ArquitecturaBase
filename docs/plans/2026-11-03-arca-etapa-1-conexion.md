@@ -1,6 +1,7 @@
 # ARCA · Etapa 1: conexión
 
-Diseño del 2026-11-03, con las decisiones del usuario del 2026-11-01 al 2026-11-03. Está sin programar. Es la etapa 1 de la
+Diseño del 2026-11-03, con las decisiones del usuario del 2026-11-01 al 2026-11-03. Programado del 2026-11-04 al 2026-11-05:
+la regla vigente está en [ARCA](../features/arca.md) y falta la homologación real con el usuario. Es la etapa 1 de la
 [hoja de ruta de ARCA](2026-10-31-arca-formularios-estandar.md): conectar una instalación con ARCA usando el certificado
 de la empresa, probar la conexión, traer los datos de la empresa desde el padrón y elegir el punto de venta. No emite
 comprobantes ni tiene efecto legal. El [ADR 0023](../decisions/0023-arca-como-modulo-opcional.md) fija el módulo y sus
@@ -239,11 +240,9 @@ Lo que contesta ARCA en una prueba no es un error del pedido: es el resultado de
 
 ## Al cerrar la etapa
 
-- La regla vigente pasa a `docs/features/arca.md`, junto con la guía `docs/guides/configurar-arca.md` (certificados,
-  ambientes y renovación) y `docs/guides/quitar-arca.md`, como las de IA. La guía de quitar cubre el módulo entero y una
-  familia sola.
-- Cada carpeta nueva lleva su `AGENTS.md` y entra en el [mapa de instrucciones](../architecture/mapa-de-instrucciones.md).
-- Se ofrece el traspaso al multitenant.
+Hecho el 2026-11-05: la regla vigente está en [ARCA](../features/arca.md), con las guías [configurar ARCA](../guides/configurar-arca.md)
+y [quitar ARCA](../guides/quitar-arca.md) (el módulo entero y una familia sola), y cada carpeta nueva tiene su `AGENTS.md` en el
+[mapa de instrucciones](../architecture/mapa-de-instrucciones.md). Quedan la homologación real y ofrecer el traspaso al multitenant.
 
 ## Fuera de la etapa
 

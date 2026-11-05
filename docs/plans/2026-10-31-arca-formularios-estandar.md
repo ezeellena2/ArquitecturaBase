@@ -68,7 +68,7 @@ describir lo vendido.
 
 | Etapa | Qué incluye | Efecto legal |
 | --- | --- | --- |
-| 1 · Conexión ([diseño](2026-11-03-arca-etapa-1-conexion.md)) | El modelo de conexión con los tres modos, programando solo el certificado de la empresa. Suma la prueba de conexión, los datos de la empresa desde el padrón y la elección del punto de venta | No |
+| 1 · Conexión ([diseño](2026-11-03-arca-etapa-1-conexion.md)) | El modelo de conexión con los tres modos, programando solo el certificado de la empresa. Suma la prueba de conexión, los datos de la empresa desde el padrón y la elección del punto de venta. **Programada el 2026-11-05** ([regla](../features/arca.md)); falta la homologación real | No |
 | 2 · Motor para documentos | Renglones (con [plan propio](2026-11-03-renglones-en-formularios.md)), cálculos, condiciones, resultado externo en la respuesta, carpetas para formularios y catálogos y la biblioteca de estándares | No |
 | 3 · Factura C | Emisión segura, PDF fiscal, las tablas de ARCA como catálogos que se actualizan solos y el autocompletar de la CUIT del cliente, el estándar «Factura» en la app y en WhatsApp y la nota de crédito C total, en homologación | Sí, en homologación |
 | 4 · Factura A y B | IVA por alícuota, condición frente al IVA obligatoria (RG 5616), el apartado de la RG 5614 y un piloto en producción con una CUIT real | Sí |
@@ -83,7 +83,10 @@ ofrecerlo como servicio.
 
 ### Conexión (etapa 1)
 
-El detalle, con los tableros elegidos y el contrato, está en el [diseño de la etapa 1](2026-11-03-arca-etapa-1-conexion.md).
+Programada el 2026-11-05: la regla vigente está en [ARCA](../features/arca.md), la operación en
+[configurar ARCA](../guides/configurar-arca.md) y la retirada en [quitar ARCA](../guides/quitar-arca.md). El diseño, con los
+tableros elegidos, está en el [diseño de la etapa 1](2026-11-03-arca-etapa-1-conexion.md). Lo de abajo es el plan de la hoja
+de ruta; donde difiere, vale la regla (por ejemplo, los estados y la pantalla por zonas).
 El [ADR 0025](../decisions/0025-familias-de-servicios-arca.md) ordena el módulo con una carpeta por familia de servicios
 (`Connection`, `Registry`, `Invoicing` y, más adelante, granos, hacienda y las demás). Cada empresa elige qué servicios usa,
 y cada familia se puede quitar sola.
@@ -212,8 +215,9 @@ automático.
   2026-11-03, RG1 a RG5), la emisión y su estado en el detalle y la anulación con nota de crédito.
 - **ADR:** el módulo `Arca` y su puerto; las credenciales de ARCA (certificados, ticket de acceso y la clave fiscal en
   memoria), que extienden el ADR 0014; el robot sobre la página de ARCA.
-- **Pendientes del estudio a confirmar en la etapa 1:** el algoritmo de firma CMS, la vigencia del certificado y el dominio
-  definitivo de los endpoints (`afip.gov.ar` o `arca.gov.ar`), que van como dato de configuración.
+- **Pendientes del estudio, resueltos en la etapa 1:** la firma CMS va con SHA-256 y los endpoints son configuración
+  (`Arca:Testing` y `Arca:Production`). Falta confirmar en la homologación real los emisores de cada ambiente y la
+  condición frente al IVA con CUIT reales ([pendiente](../features/arca.md#pendiente)).
 - **Plazo normativo:** desde el 1/12/2026 ARCA rechaza las solicitudes sin condición frente al IVA del receptor
   (RG 5616). A y B la informan desde el primer día, y la C también.
 - **Multitenant:** al cerrar cada etapa se ofrece el [traspaso](2026-10-30-traspaso-multitenant-carga-desde-la-app.md) a

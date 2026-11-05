@@ -1129,20 +1129,32 @@ quitar una familia es borrar su carpeta y su línea.
 
 ### Cierre
 
-- [ ] **Docs:**
+**Hecho el 2026-11-05, salvo la homologación y el traspaso.** Diferencias con lo escrito:
+- **Docs:** además de lo previsto, ARCA entró en el `AGENTS.md` raíz, en [`backend.md`](../architecture/backend.md#módulos-opcionales)
+  y en el [índice de premisas](../architecture/premisas-de-la-plantilla.md), con su fila.
+- **Verificación:** sobre una copia de HEAD (`0f35321e`), porque el checkout compartido tenía trabajo a medias de otras
+  sesiones: build sin advertencias y `dotnet test` completo con Docker, 7125/7125. En el front: build, lint, vitest en
+  tres tandas (las dos fallas eran de cambios sin commitear de otras sesiones) y la suite visual, 969/969. No se levantó
+  la app.
+- **Prueba de fuego:** dos agentes siguieron la guía en copias. Corrigieron el paso del paquete `Pkcs` (es el pin de
+  seguridad de MailKit, no del módulo), la búsqueda de enlaces y lo que faltaba de documentación; en la familia, los tests
+  compartidos (34 errores de compilación y una regla de `wsfe` demasiado amplia) y el front. Los resultados están en
+  [quitar ARCA](../guides/quitar-arca.md#comprobaciones-registradas).
+
+- [x] **Docs:**
   - `docs/features/arca.md`, con la regla vigente y una sección por familia;
   - `docs/guides/configurar-arca.md`, con el anillo en user-secrets, las direcciones, el alta en WSASS y en producción, y la
     renovación;
   - `docs/guides/quitar-arca.md`, con el módulo entero (como `quitar-ia.md`) y una familia sola;
   - el `AGENTS.md` y el `CLAUDE.md` de cada carpeta nueva y el [mapa de instrucciones](../architecture/mapa-de-instrucciones.md);
   - en este plan y en la [hoja de ruta](2026-10-31-arca-formularios-estandar.md), la etapa cerrada.
-- [ ] **Verificación,** según [validar un cambio](../guides/validar-un-cambio.md#verificación-y-cierre):
+- [x] **Verificación,** según [validar un cambio](../guides/validar-un-cambio.md#verificación-y-cierre):
   - la integración con PostgreSQL;
   - `dotnet test` completo (pedir que la PC no se suspenda: tarda unos 51 minutos);
   - `dotnet build ArquitecturaBase.slnx` sin advertencias;
   - en el front: build, lint, tests y la suite visual;
   - `aspire stop` si se levantó la app.
-- [ ] **Prueba de fuego de la retirada:** en copias descartables de los dos repos, sin tocar las carpetas de trabajo, un
+- [x] **Prueba de fuego de la retirada:** en copias descartables de los dos repos, sin tocar las carpetas de trabajo, un
   agente sigue solo `quitar-arca.md` dos veces.
   - **Quitando la familia `Invoicing`:** el build sin advertencias, la migración que borra solo `ArcaInvoicingSettings`,
     los tests del módulo que quedan en verde y la conexión activa sin punto de venta.
