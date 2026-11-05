@@ -1,7 +1,7 @@
 # Cargar formularios desde la app
 
 Propuesta del 2026-10-29, con las decisiones del usuario del 2026-10-29 y el 2026-10-30. La Etapa 1 está implementada desde el
-2026-10-30, la 2 y la 4 desde el 2026-11-04 y la 5 desde el 2026-11-05 (sus resúmenes están en el plan por etapas); la 3 se está programando. La persona elige
+2026-10-30, la 2 y la 4 desde el 2026-11-04, y la 3 y la 5 desde el 2026-11-05 (sus resúmenes están en el plan por etapas). La persona elige
 un formulario publicado en «Formularios», lo carga en la app (desde la compu o el celular) y lo cargado se trabaja en la
 planilla, donde además se corrige o se anula. Las reglas de hoy están en [formularios](../features/formularios.md); este plan suma la carga desde la web, que el
 [resumen de formularios](formularios/README.md) dejaba pendiente con tableros propios.
@@ -247,6 +247,25 @@ Etapa 1, los tableros elegidos pasan al lienzo del sistema visual y su diseño s
    - El permiso nuevo, la corrección como carga que reemplaza y la anulación con motivo.
    - Las lecturas y conteos sin las anuladas, y las acciones en la vista rápida, la pantalla completa y la planilla de lo propio.
    - La regla de inmutabilidad se reescribe en [formularios](../features/formularios.md). Vale también para lo que llegó por WhatsApp.
+   - **Hecha el 2026-11-05.** Backend: el permiso «Corregir y anular respuestas» (`formrecords.amend`); la corrección como
+     una carga más, que reemplaza a la anterior con el mismo número, la deja enlazada y vuelve a correr las reglas de «al
+     recibirla», con la tarea abierta de la anterior cerrada; la anulación con motivo (`Voided`); las lecturas, los conteos
+     y el Excel sin reemplazadas ni anuladas salvo «Estado: Anulada» o `includeVoided`, y la marca en el chat de WhatsApp.
+     Front: «Corregir» y «⋯ › Anular» en la vista rápida, la pantalla completa y la planilla de lo propio; la corrección en
+     el panel junto a la planilla o en su página, con «Antes: …» y el motivo; el diálogo de anular; «Corregida», la versión
+     anterior, «Por aprobar otra vez», «Anulada» en «Estado» e «Incluir las anuladas» en el Excel. Las reglas quedaron en
+     [formularios](../features/formularios.md#corregir-y-anular--etapa-3-2026-11-05) y el diseño, con sus diferencias con
+     el dibujo, en
+     [carga desde la app](../../../ArquitecturaBaseFront/docs/design/carga-desde-la-app.md#corregir-y-anular-etapa-3--2026-11-05).
+     Verificación final: backend con build sin advertencias y 7.125/7.125 tests con PostgreSQL, Redis y Azurite en una
+     copia de 0f35321e, con la exportación de los ejemplos HTTP en esa misma corrida; las 25 cohortes entraron juntas al
+     front en 15ce4405, con los 29 cuerpos de la carga y `forms-http` con `sections/*` (sus contratos cuentan 69). Front con
+     build y lint limpios, 4.212/4.214 tests (las dos que fallaron son de otras áreas y pasan solas: el detalle K4 del
+     editor de catálogos, al límite de los 5 s, y desvincular WhatsApp en el perfil, que deja un pedido sin manejador)
+     y 968/968 visuales, en una copia con sólo lo commiteado; recorrido en el navegador integrado sobre el catálogo visual
+     (encontró que anular desde la pantalla completa mostraba la clave del motivo, arreglado) y capturas es/en a 1440, 390 y
+     320 comparadas con CW10-A y CW11-A.
+   - Pendiente: la prueba manual y pasar CW10-A y CW11-A al lienzo del sistema visual.
 4. **Etapa 4 · Listas dependientes (CW7):** el filtro, el editor, la comprobación de publicación, el bloqueo del envío por
    WhatsApp y la validación al guardar. La regla nueva va a [formularios](../features/formularios.md).
    - **Hecha el 2026-11-04.** Backend: `match[i].questionId` («según otra respuesta», que en el borrador nombra una pregunta
@@ -279,10 +298,9 @@ Etapa 1, los tableros elegidos pasan al lienzo del sistema visual y su diseño s
      PostgreSQL, Redis y Azurite, y las 25 cohortes HTTP exportadas; front sobre 62112ae4 con build y lint limpios,
      4.193/4.193 tests (en tandas, la segunda corrida completa; la primera tuvo 7 cortes por tiempo con la máquina cargada, que
      pasan solos) y 936/936 visuales, con las escenas de `formSections` en es/en a 1440, 390 y 320 comparadas con el tablero.
-   - Pendiente: la prueba manual en el navegador; commitear `entriesSectionsHttpContract.test.ts` (front, ya pasa) con la
-     cohorte de la carga que exportó la Etapa 3; regenerar `forms-http` con `sections/*`, junto con los `rows/*` del cierre de
-     renglones (`multipleChoiceHttpContract.test.ts` cuenta las capturas); publicar en Meta un Flow con títulos (va con la
-     verificación de r10 de renglones), y pasar CW15-B al lienzo del sistema visual.
+   - Pendiente: la prueba manual en el navegador; commitear `entriesSectionsHttpContract.test.ts` (front, ya pasa con las
+     cohortes de 15ce4405, que traen la de la carga y `forms-http` con `sections/*`); publicar en Meta un Flow con títulos (va
+     con la verificación de r10 de renglones), y pasar CW15-B al lienzo del sistema visual.
 6. **Después:** las listas dependientes en WhatsApp con el intercambio con Meta. La carga en nombre de otra persona, si aparece
    el caso, con su tablero.
 
