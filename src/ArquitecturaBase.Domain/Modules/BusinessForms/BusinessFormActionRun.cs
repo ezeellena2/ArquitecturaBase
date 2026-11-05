@@ -60,10 +60,11 @@ public sealed class BusinessFormActionRun : Entity, IAuditable
     }
     public Result RecordOutcome(long fence,DateTime nowUtc,FormActionRunState state,string? failureCode,bool canRetry,string? outcomeJson=null)
     {
-        if(!OwnsLease(fence,nowUtc) || state is not (FormActionRunState.Running or FormActionRunState.Completed or FormActionRunState.Failed or FormActionRunState.Uncertain)) return FormActionErrors.StateConflict;
+        // NotApplicable after reserving: the response was corrected or voided before the action ran.
+        if(!OwnsLease(fence,nowUtc) || state is not (FormActionRunState.Running or FormActionRunState.Completed or FormActionRunState.Failed or FormActionRunState.Uncertain or FormActionRunState.NotApplicable)) return FormActionErrors.StateConflict;
         State=state;FailureCode=failureCode;CanRetry=state==FormActionRunState.Failed&&canRetry;OutcomeJson=outcomeJson;UpdatedAtUtc=nowUtc;
         LeaseExpiresAtUtc=null;NextCheckAtUtc=state==FormActionRunState.Running?nowUtc.AddSeconds(5):null;
-        CompletedAtUtc=state is FormActionRunState.Completed or FormActionRunState.Failed?nowUtc:null;RetryRequested=false;RetryRecipientUserId=null;DeliveryReviewRequested=false;return Result.Success();
+        CompletedAtUtc=state is FormActionRunState.Completed or FormActionRunState.Failed or FormActionRunState.NotApplicable?nowUtc:null;RetryRequested=false;RetryRecipientUserId=null;DeliveryReviewRequested=false;return Result.Success();
     }
     public bool OwnsLease(long fence,DateTime nowUtc)=>Fence==fence&&State==FormActionRunState.Running&&LeaseExpiresAtUtc>nowUtc;
     public Result RequestRetry(DateTime nowUtc)

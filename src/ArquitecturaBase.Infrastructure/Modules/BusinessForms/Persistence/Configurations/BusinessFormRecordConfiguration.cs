@@ -8,10 +8,22 @@ internal sealed class BusinessFormRecordConfiguration : IEntityTypeConfiguration
 {
     public void Configure(EntityTypeBuilder<BusinessFormRecord> builder)
     {
-        builder.ToTable("BusinessFormRecords");
+        builder.ToTable("BusinessFormRecords", table =>
+        {
+            table.HasCheckConstraint("CK_BusinessFormRecords_Correction", "(\"ReplacesRecordId\" IS NULL) = (\"OriginalReceiptId\" IS NULL) AND (\"ReplacesRecordId\" IS NULL) = (\"CorrectedByUserId\" IS NULL) AND (\"ReplacesRecordId\" IS NULL) = (\"CorrectionReason\" IS NULL)");
+            table.HasCheckConstraint("CK_BusinessFormRecords_Void", "(\"State\" = 'Voided') = (\"VoidedByUserId\" IS NOT NULL) AND (\"VoidedByUserId\" IS NULL) = (\"VoidedAtUtc\" IS NULL) AND (\"VoidedByUserId\" IS NULL) = (\"VoidReason\" IS NULL)");
+        });
         builder.HasKey(value => value.Id);
         builder.HasAlternateKey(value => new { value.DefinitionId, value.Id });
-        builder.HasIndex(value => new { value.DefinitionId, value.Number }).IsUnique();
+        // A correction keeps the number of the response it replaces: the number is unique among the responses as they
+        // arrived, and each one is replaced at most once, so a chain has a single current version.
+        builder.HasIndex(value => new { value.DefinitionId, value.Number }).IsUnique().HasFilter("\"ReplacesRecordId\" IS NULL");
+        builder.HasIndex(value => value.ReplacesRecordId).IsUnique().HasFilter("\"ReplacesRecordId\" IS NOT NULL");
+        builder.HasIndex(value => value.ReplacedByRecordId).IsUnique().HasFilter("\"ReplacedByRecordId\" IS NOT NULL");
+        builder.HasOne<BusinessFormRecord>().WithMany().HasForeignKey(value => value.ReplacesRecordId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<BusinessFormRecord>().WithMany().HasForeignKey(value => value.ReplacedByRecordId).OnDelete(DeleteBehavior.Restrict);
+        builder.Property(value => value.CorrectionReason).HasMaxLength(BusinessFormRecord.MaxReasonLength);
+        builder.Property(value => value.VoidReason).HasMaxLength(BusinessFormRecord.MaxReasonLength);
         builder.HasIndex(value => value.SourceReceiptId).IsUnique();
         builder.Property(value => value.ValuesJson).HasColumnType("jsonb");
         builder.Property(value => value.CaptureOriginJson).HasColumnType("jsonb");

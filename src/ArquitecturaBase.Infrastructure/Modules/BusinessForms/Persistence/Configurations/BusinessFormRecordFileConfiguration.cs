@@ -11,7 +11,8 @@ internal sealed class BusinessFormRecordFileConfiguration : IEntityTypeConfigura
         builder.ToTable("BusinessFormRecordFiles", table => table.HasCheckConstraint("CK_BusinessFormRecordFiles_Position", "\"Position\" >= 0 AND \"Position\" < 10"));
         builder.HasKey(file => file.Id);
         builder.HasIndex(file => new { file.RecordId, file.FieldId, file.Position }).IsUnique();
-        builder.HasIndex(file => file.FileId).IsUnique();
+        // A correction keeps the files nobody touched: its rows point to the same stored file, once per record.
+        builder.HasIndex(file => new { file.FileId, file.RecordId }).IsUnique();
         builder.HasOne<BusinessFormRecord>().WithMany().HasForeignKey(file => new { file.DefinitionId, file.RecordId })
             .HasPrincipalKey(record => new { record.DefinitionId, record.Id }).OnDelete(DeleteBehavior.Cascade);
         builder.HasOne<BusinessFormField>().WithMany().HasForeignKey(file => new { file.DefinitionId, file.FieldId })

@@ -22,4 +22,7 @@ public static class FormRecordErrors
     public static readonly Error RecipientDataMissing = Error.Conflict("Forms.Record.RecipientDataMissing", "The recipient is missing data required by the question filter.");
     public static readonly Error CatalogFilterUnavailable = Error.Conflict("Forms.Record.CatalogFilterUnavailable", "The question filter references an unavailable field or person attribute.");
     public static readonly Error CatalogDependsOnAnswer = Error.Conflict("Forms.Record.CatalogDependsOnAnswer", "The question options depend on another answer, which is not given.");
+    public static readonly Error AmendUnavailable = Error.Conflict("Forms.Record.AmendUnavailable", "The response changed and can no longer be corrected or voided.");
+    public static readonly Error ReasonRequired = Error.Validation("Forms.Record.ReasonRequired", "Correcting or voiding a response requires a reason.");
+    public static readonly Error ReasonInvalid = Error.Validation("Forms.Record.ReasonInvalid", "The reason cannot exceed five hundred characters.");
 }

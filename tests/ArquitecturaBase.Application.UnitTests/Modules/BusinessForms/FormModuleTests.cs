@@ -13,12 +13,13 @@ public sealed class FormModuleTests
     {
         using var provider = new ServiceCollection().AddSingleton<ArquitecturaBase.Application.Interfaces.Integrations.Files.IPrivateFileStore>(new TestFeatures.Files.MemoryPrivateFileStore(false)).AddBusinessFormsApplication().AddBusinessFormsApplication().BuildServiceProvider();
         Assert.Equal(new[] { "forms" }, Assert.Single(provider.GetServices<IClientCapabilitySource>()).InstalledFeatures);
-        Assert.Equal(12, Assert.Single(provider.GetServices<IPermissionCatalogSource>()).Codes.Count);
+        Assert.Equal(13, Assert.Single(provider.GetServices<IPermissionCatalogSource>()).Codes.Count);
         Assert.Contains(BusinessFormsPermissions.SuggestionsManage, Assert.Single(provider.GetServices<IPermissionCatalogSource>()).Codes);
         Assert.Contains(BusinessFormsPermissions.ApprovalsDecide, Assert.Single(provider.GetServices<IPermissionCatalogSource>()).Codes);
         Assert.Contains(BusinessFormsPermissions.RulesManage, Assert.Single(provider.GetServices<IPermissionCatalogSource>()).Codes);
         Assert.Contains(BusinessFormsPermissions.PersonDataManage, Assert.Single(provider.GetServices<IPermissionCatalogSource>()).Codes);
         Assert.Contains(BusinessFormsPermissions.RecordsExport, Assert.Single(provider.GetServices<IPermissionCatalogSource>()).Codes);
+        Assert.Contains(BusinessFormsPermissions.RecordsAmend, Assert.Single(provider.GetServices<IPermissionCatalogSource>()).Codes);
     }
     [Fact]
     public void Defaults_and_empty_help_normalize_without_generating_a_second_translation()

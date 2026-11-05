@@ -2054,6 +2054,13 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<string>("CaptureOriginJson")
                         .HasColumnType("jsonb");
 
+                    b.Property<Guid?>("CorrectedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CorrectionReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -2081,9 +2088,18 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("OriginSuggestionId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("OriginalReceiptId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("PresentationCulture")
                         .HasMaxLength(2)
                         .HasColumnType("character varying(2)");
+
+                    b.Property<Guid?>("ReplacedByRecordId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ReplacesRecordId")
+                        .HasColumnType("uuid");
 
                     b.Property<Guid?>("RuleSetId")
                         .HasColumnType("uuid");
@@ -2109,21 +2125,45 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("VersionId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("VoidReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTime?>("VoidedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("VoidedByUserId")
+                        .HasColumnType("uuid");
+
                     b.HasKey("Id");
 
                     b.HasIndex("OriginRecordId");
+
+                    b.HasIndex("ReplacedByRecordId")
+                        .IsUnique()
+                        .HasFilter("\"ReplacedByRecordId\" IS NOT NULL");
+
+                    b.HasIndex("ReplacesRecordId")
+                        .IsUnique()
+                        .HasFilter("\"ReplacesRecordId\" IS NOT NULL");
 
                     b.HasIndex("SourceReceiptId")
                         .IsUnique();
 
                     b.HasIndex("DefinitionId", "Number")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("\"ReplacesRecordId\" IS NULL");
 
                     b.HasIndex("DefinitionId", "RuleSetId");
 
                     b.HasIndex("DefinitionId", "VersionId");
 
-                    b.ToTable("BusinessFormRecords", (string)null);
+                    b.ToTable("BusinessFormRecords", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_BusinessFormRecords_Correction", "(\"ReplacesRecordId\" IS NULL) = (\"OriginalReceiptId\" IS NULL) AND (\"ReplacesRecordId\" IS NULL) = (\"CorrectedByUserId\" IS NULL) AND (\"ReplacesRecordId\" IS NULL) = (\"CorrectionReason\" IS NULL)");
+
+                            t.HasCheckConstraint("CK_BusinessFormRecords_Void", "(\"State\" = 'Voided') = (\"VoidedByUserId\" IS NOT NULL) AND (\"VoidedByUserId\" IS NULL) = (\"VoidedAtUtc\" IS NULL) AND (\"VoidedByUserId\" IS NULL) = (\"VoidReason\" IS NULL)");
+                        });
                 });
 
             modelBuilder.Entity("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormRecordFile", b =>
@@ -2149,12 +2189,12 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("FileId")
-                        .IsUnique();
-
                     b.HasIndex("DefinitionId", "FieldId");
 
                     b.HasIndex("DefinitionId", "RecordId");
+
+                    b.HasIndex("FileId", "RecordId")
+                        .IsUnique();
 
                     b.HasIndex("RecordId", "FieldId", "Position")
                         .IsUnique();
@@ -4272,6 +4312,16 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.HasOne("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormRecord", null)
                         .WithMany()
                         .HasForeignKey("OriginRecordId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormRecord", null)
+                        .WithMany()
+                        .HasForeignKey("ReplacedByRecordId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormRecord", null)
+                        .WithMany()
+                        .HasForeignKey("ReplacesRecordId")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormRuleSet", null)

@@ -402,6 +402,9 @@
   <data name="Forms.Record.CatalogDependsOnAnswer" xml:space="preserve">
     <value>The options depend on another answer: this form is loaded in the app.</value>
   </data>
+  <data name="Forms.Record.AmendUnavailable" xml:space="preserve"><value>The response changed and can no longer be corrected or voided. Reload to see where it stands.</value></data>
+  <data name="Forms.Record.ReasonRequired" xml:space="preserve"><value>Write the reason.</value></data>
+  <data name="Forms.Record.ReasonInvalid" xml:space="preserve"><value>The reason can have up to 500 characters.</value></data>
   <data name="Forms.Definition.NameTaken" xml:space="preserve"><value>A form with that name already exists.</value></data>
   <data name="Forms.Definition.CatalogUnavailable" xml:space="preserve"><value>A question uses a catalog that is no longer available.</value></data>
   <data name="Forms.Definition.ProposalUnavailable" xml:space="preserve"><value>This proposal is no longer available. Ask for it again in the chat.</value></data>

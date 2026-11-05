@@ -58,5 +58,29 @@ public sealed class BusinessFormTaskTests
         Assert.True(Open().Decide(1, Guid.NewGuid(), true, "Motivo", Now).IsFailure);
         Assert.True(Open().Decide(1, Guid.NewGuid(), false, new string((char)0, 1), Now).IsFailure);
     }
+    [Fact]
+    public void Closing_an_open_task_leaves_it_undecided_and_a_late_decision_conflicts()
+    {
+        var task = Open();
+
+        Assert.True(task.Close().IsSuccess);
+
+        Assert.Equal(FormTaskState.Closed, task.State);
+        Assert.Equal(2, task.Revision);
+        Assert.Null(task.DecidedByUserId);
+        Assert.Null(task.DecidedAtUtc);
+        Assert.Equal(FormApprovalErrors.RevisionConflict, task.Decide(2, Guid.NewGuid(), true, null, Now).Error);
+        Assert.Equal(FormTaskState.Closed, task.State);
+    }
+    [Fact]
+    public void Only_an_open_task_closes()
+    {
+        var task = Open();
+        Assert.True(task.Decide(1, Guid.NewGuid(), true, null, Now).IsSuccess);
+
+        Assert.Equal(FormApprovalErrors.RevisionConflict, task.Close().Error);
+        Assert.Equal(FormTaskState.Approved, task.State);
+        Assert.Equal(2, task.Revision);
+    }
     private static BusinessFormTask Open() => BusinessFormTask.Open(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Now);
 }

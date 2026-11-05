@@ -2,7 +2,8 @@ using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.Common;
 namespace ArquitecturaBase.Domain.Modules.BusinessForms;
 
-public enum FormTaskState { Open, Approved, Rejected }
+/// <summary>Closed: the response was corrected or voided before anyone decided.</summary>
+public enum FormTaskState { Open, Approved, Rejected, Closed }
 public sealed class BusinessFormTask : Entity, IAuditable
 {
     private BusinessFormTask() { }
@@ -35,6 +36,14 @@ public sealed class BusinessFormTask : Entity, IAuditable
         State = approved ? FormTaskState.Approved : FormTaskState.Rejected;
         Revision++;
         DecidedByUserId = actorUserId; DecidedAtUtc = nowUtc; Reason = approved ? null : normalized;
+        return Result.Success();
+    }
+    /// <summary>The response it waited for was corrected or voided: nobody decides it anymore.</summary>
+    public Result Close()
+    {
+        if (State != FormTaskState.Open || Revision >= 9007199254740991) return FormApprovalErrors.RevisionConflict;
+        State = FormTaskState.Closed;
+        Revision++;
         return Result.Success();
     }
     public override string ToString() => $"BusinessFormTask {{ Id = {Id}, State = {State}, Content = [REDACTED] }}";

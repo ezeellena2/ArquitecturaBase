@@ -5,6 +5,19 @@ public sealed class BusinessFormActionRunTests
     private static readonly Guid Recipient=Guid.NewGuid();
     private static readonly DateTime Now = new(2026,10,16,12,0,0,DateTimeKind.Utc);
     [Fact]
+    public void A_reserved_action_whose_response_was_corrected_or_voided_ends_as_not_applicable_and_is_not_reserved_again()
+    {
+        var run = Create();
+        var reserved = run.Reserve(Now,TimeSpan.FromMinutes(2));
+
+        Assert.True(run.RecordOutcome(reserved.Value.Fence,Now,FormActionRunState.NotApplicable,null,true).IsSuccess);
+
+        Assert.Equal(FormActionRunState.NotApplicable,run.State);
+        Assert.False(run.CanRetry);
+        Assert.Equal(Now,run.CompletedAtUtc);
+        Assert.True(run.Reserve(Now.AddMinutes(5),TimeSpan.FromMinutes(2)).IsFailure);
+    }
+    [Fact]
     public void A_lease_excludes_another_worker_and_a_stale_fence_cannot_complete()
     {
         var run = Create();

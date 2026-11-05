@@ -3,10 +3,15 @@ using ArquitecturaBase.Domain.Results;
 
 namespace ArquitecturaBase.Domain.Modules.BusinessForms;
 
-public enum FormRecordState { Received, PendingApproval, Approved, Rejected }
+public enum FormRecordState { Received, PendingApproval, Approved, Rejected, Voided }
 
+/// <summary>
+/// A confirmed response. Its values never change: a correction is another record with the same number that replaces it
+/// (<see cref="Correct"/>), and voiding only changes its state (<see cref="Void"/>). Both keep who, when and why.
+/// </summary>
 public sealed class BusinessFormRecord : Entity, IAuditable
 {
+    public const int MaxReasonLength = 500;
     private BusinessFormRecord() { }
     public Guid DefinitionId { get; private set; }
     public Guid VersionId { get; private set; }
@@ -23,10 +28,26 @@ public sealed class BusinessFormRecord : Entity, IAuditable
     public Guid SourceReceiptId { get; private set; }
     public DateTime SubmittedAtUtc { get; private set; }
     public string ValuesJson { get; private set; } = "{}";
+    /// <summary>The record this correction replaces; null for a response as it arrived.</summary>
+    public Guid? ReplacesRecordId { get; private set; }
+    /// <summary>The correction that replaced this record; a replaced record is no longer current.</summary>
+    public Guid? ReplacedByRecordId { get; private set; }
+    /// <summary>The receipt of the first version, which keeps the channel and who answered across corrections.</summary>
+    public Guid? OriginalReceiptId { get; private set; }
+    public Guid? CorrectedByUserId { get; private set; }
+    public string? CorrectionReason { get; private set; }
+    public Guid? VoidedByUserId { get; private set; }
+    public DateTime? VoidedAtUtc { get; private set; }
+    public string? VoidReason { get; private set; }
     public DateTime CreatedAtUtc { get; private set; }
     public Guid? CreatedBy { get; private set; }
     public DateTime? ModifiedAtUtc { get; private set; }
     public Guid? ModifiedBy { get; private set; }
+
+    /// <summary>The receipt whose channel says how the response arrived: the first version's.</summary>
+    public Guid OriginReceiptId => OriginalReceiptId ?? SourceReceiptId;
+    /// <summary>Only the current version of a response that was not voided is corrected or voided.</summary>
+    public bool CanBeAmended => ReplacedByRecordId is null && State != FormRecordState.Voided;
 
     public static BusinessFormRecord Create(Guid definitionId, Guid versionId, long number, Guid actorUserId,
         Guid sourceReceiptId, DateTime submittedAtUtc, string valuesJson, Guid? ruleSetId = null, string? presentationCulture = null,
@@ -64,6 +85,51 @@ public sealed class BusinessFormRecord : Entity, IAuditable
         if (State != FormRecordState.PendingApproval) return FormRecordErrors.StateConflict;
         State = approved ? FormRecordState.Approved : FormRecordState.Rejected;
         return Result.Success();
+    }
+
+    /// <summary>
+    /// The correction that replaces this response: the same number, who answered, reception and channel, with new values
+    /// that went through the capture again. It starts received; its rules run as for any arrival.
+    /// </summary>
+    public Result<BusinessFormRecord> Correct(Guid versionId, Guid sourceReceiptId, string valuesJson, Guid? ruleSetId,
+        string? presentationCulture, Guid correctedByUserId, string? reason)
+    {
+        if (!CanBeAmended) return FormRecordErrors.AmendUnavailable;
+        var normalized = NormalizeReason(reason);
+        if (normalized.IsFailure) return normalized.Error;
+        ArgumentOutOfRangeException.ThrowIfEqual(correctedByUserId, Guid.Empty);
+        var correction = Create(DefinitionId, versionId, Number, ActorUserId, sourceReceiptId, SubmittedAtUtc, valuesJson,
+            ruleSetId, presentationCulture, EnteredInApp);
+        correction.ReplacesRecordId = Id;
+        correction.OriginalReceiptId = OriginReceiptId;
+        correction.CorrectedByUserId = correctedByUserId;
+        correction.CorrectionReason = normalized.Value;
+        ReplacedByRecordId = correction.Id;
+        return correction;
+    }
+
+    /// <summary>The response stops counting but keeps its number, history and what it already produced; it is not undone.</summary>
+    public Result Void(Guid actorUserId, string? reason, DateTime nowUtc)
+    {
+        if (!CanBeAmended) return FormRecordErrors.AmendUnavailable;
+        var normalized = NormalizeReason(reason);
+        if (normalized.IsFailure) return normalized.Error;
+        ArgumentOutOfRangeException.ThrowIfEqual(actorUserId, Guid.Empty);
+        if (nowUtc.Kind != DateTimeKind.Utc) throw new ArgumentException("The void time must be UTC.", nameof(nowUtc));
+        State = FormRecordState.Voided;
+        VoidedByUserId = actorUserId;
+        VoidedAtUtc = nowUtc;
+        VoidReason = normalized.Value;
+        return Result.Success();
+    }
+
+    /// <summary>A correction or a void says why: visible text of up to <see cref="MaxReasonLength"/> characters.</summary>
+    public static Result<string> NormalizeReason(string? reason)
+    {
+        var normalized = reason?.Trim();
+        if (string.IsNullOrEmpty(normalized)) return FormRecordErrors.ReasonRequired;
+        if (normalized.Length > MaxReasonLength || !StorableText.IsStorable(normalized)) return FormRecordErrors.ReasonInvalid;
+        return normalized;
     }
     public override string ToString() => $"BusinessFormRecord {{ Id = {Id}, Number = {Number}, Values = [REDACTED] }}";
 }
