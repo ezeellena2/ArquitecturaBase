@@ -140,3 +140,11 @@ verde. Lo que el plan no fijaba: el «no se puede» es una capacidad sin permiso
 palabras) y BusinessForms comprueba el motivo; cada toque se contesta con una referencia propia (la salida exige una), y la de
 «Cambiar algo» guarda la operación que cambia el mensaje siguiente; lo que no entra en 1024 caracteres se suma al conteo de
 preguntas; el audio con el cambio pedido no consulta el cupo de ofertas. Sigue la tarea 10, el audio en Inicio.
+
+2026-11-04: tarea 10 hecha. Backend 65fcfa6c, con unitarias de Application y dominio, arquitectura y la integración nueva con
+PostgreSQL en verde; el front, con tsc, lint y las pruebas del área, queda para commitear junto con la cohorte
+`ai-assistant-http` regenerada en el cierre, porque el bootstrap suma `audio`. Lo que el plan no fijaba: la grabación sube por
+`api.upload` como los demás archivos; el formato sale de los bytes (la cabecera EBML se compara con sus cuatro bytes); el
+micrófono aparece con un perfil para WebM o MP4 de al menos 1.000.000 bytes y almacenamiento privado; la retención sigue al
+turno de Inicio que nombra el audio y escucharlo, a la normalización; una normalización fallida pide otro pedido en el
+intento siguiente. Sigue la tarea 11, la evaluación y el cierre.
