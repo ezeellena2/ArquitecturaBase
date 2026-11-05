@@ -11,6 +11,12 @@ public interface IWhatsAppAssistantReader
     Task<WhatsAppAssistantReferenceRow?> FindAsync(Guid contactId, Guid requestId, CancellationToken ct);
     Task<WhatsAppAssistantSourceRow?> FindSourceAsync(Guid contactId, Guid sourceMessageId, CancellationToken ct);
     Task<WhatsAppAssistantChoiceRow?> FindLatestChoiceAsync(Guid contactId, CancellationToken ct);
+    /// <summary>The newest business inbound when it is an unanswered tap on an authoring summary's button (IA3-A).</summary>
+    Task<WhatsAppAssistantChoiceRow?> FindLatestAuthoringTapAsync(Guid contactId, CancellationToken ct);
+    /// <summary>The operation of the latest authoring summary sent to the contact: only its buttons count.</summary>
+    Task<Guid?> FindLatestAuthoringRequestAsync(Guid contactId, CancellationToken ct);
+    /// <summary>The operation the next message changes, when the latest automatic reference is the reply to «Cambiar algo».</summary>
+    Task<Guid?> FindChangeRequestAsync(Guid contactId, CancellationToken ct);
     Task<WhatsAppAssistantSourceRow?> FindLatestSourceAsync(Guid contactId, CancellationToken ct);
     Task<IReadOnlyList<Guid>> ListPendingContactsAsync(IReadOnlyCollection<Guid> excluded, int limit, DateTime nowUtc, CancellationToken ct);
     Task<bool> ExistsPendingAsync(DateTime nowUtc, CancellationToken ct);

@@ -8,7 +8,7 @@ WhatsAppAudioFixture aporta cuentas reales en memoria, Read por operador, recept
 
 Los fixtures Assistant usan Actor/Subject distintos, permisos vigentes y el reloj del negocio. La operación neutral y la consulta de cuenta afirman que se ejecutan fuera de la UoW; la señal afirma postcommit. La confirmación construye la sesión real y sus dos sellos; el dispatch usa ese mismo contenido, sin fabricar valores en el test.
 
-WhatsAppAssistantTerminalFixture captura sólo las peticiones neutrales H4/H7 y devuelve recibos ficticios tipados. Permite comprobar el acuse estático, el contexto exacto y la fecha original, sin ejecutar modelo, Meta ni persistencia.
+WhatsAppAssistantTerminalFixture captura sólo las peticiones neutrales H4/H7 y devuelve recibos ficticios tipados. Permite comprobar el acuse estático, el contexto exacto y la fecha original, sin ejecutar modelo, Meta ni persistencia. Desde IA3-A su dueño de autoría sólo resume (crear desde un terminal lanza) y H7 sigue con su sink.
 
 WhatsAppAssistantPresentationFixture conserva el guard, un lector readonly y contenido ficticio sellado; se comparte con los fixtures de aceptación para comprobar recibos e historial sin duplicar un motor.
 

@@ -60,6 +60,8 @@ internal sealed class WhatsAppAssistantDispatchService(WhatsAppAssistantAccessPo
             row=WhatsAppAssistantRequest.Create(Guid.CreateVersion7(),contactId,latest.Id,captured.Value.Context.ActorUserId,
                 captured.Value.Context.SubjectUserId!.Value,WhatsAppAssistantRequestKind.Automatic,contact.ModeRevision,contact.LinkRevision,
                 JsonSerializer.Serialize(captured.Value.Context,JsonSerializerOptions.Web),proposals.NowUtc,latest.ContentExpiresAtUtc);
+            // After «Cambiar algo» this message is the change: the engine continues that proposal's operation (IA3-A).
+            if(await reader.FindChangeRequestAsync(contactId,ct) is {} previous) row.ContinueFrom(previous);
             requests.Add(row);
         }
         if(row is null)return Result.Success<WhatsAppAssistantWorkResponse?>(null);
@@ -150,7 +152,7 @@ internal sealed class WhatsAppAssistantDispatchService(WhatsAppAssistantAccessPo
         row.IsAlways?new(row.RequestId,null){ShouldSubmit=false}:new(row.RequestId,new(row.RequestId,
             WhatsAppAssistantSuggestionPolicy.Context(WhatsAppAssistantSuggestionPolicy.Reference(row)),row.SourceRecordId is {} recordId
                 ? "A form response was captured. Evaluate only its configured next-form suggestions. Source record: "+recordId.ToString("D")+"."
-                : source.Body,source.OccurredAtUtc,row.ContentExpiresAtUtc)){ShouldSubmit=submit};
+                : source.Body,source.OccurredAtUtc,row.ContentExpiresAtUtc){PreviousRequestId=row.PreviousRequestId}){ShouldSubmit=submit};
 
     public Task<Result> CompleteConfiguredAsync(Guid contactId,Guid requestId,CancellationToken ct)=>
         OperationLog.RunAsync<Result>(logger,"CompleteConfiguredWhatsAppSuggestion",()=>CompleteConfiguredCoreAsync(contactId,requestId,ct));
@@ -203,7 +205,7 @@ internal sealed class WhatsAppAssistantDispatchService(WhatsAppAssistantAccessPo
         if (original.State != WhatsAppAssistantRequestState.Pending && selectedDefinition is null) return Result.Success();
         if (outcome.IsSuccess && outcome.Value.RequestId != requestId) return WhatsAppAssistantErrors.InvalidProposal;
         Result<WhatsAppAssistantTerminalResponse?>? terminal = null;
-        if (outcome.IsSuccess && outcome.Value.Proposal?.Capability is {Version:1,Id:"forms.catalog-filters.propose" or "forms.missing-request.propose"}
+        if (outcome.IsSuccess && outcome.Value.Proposal?.Capability is {} capability && WhatsAppAssistantTerminalPolicy.Handles(capability)
             && await reader.FindSourceAsync(contactId,original.SourceMessageId,ct) is {} terminalSource)
             terminal=await automatic.PrepareTerminalAsync(original,terminalSource,outcome.Value,ct);
         // Owner reads and account verification are outside the contact/request transaction.

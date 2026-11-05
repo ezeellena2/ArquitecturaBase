@@ -2584,6 +2584,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasMaxLength(5)
                         .HasColumnType("character varying(5)");
 
+                    b.Property<Guid?>("ChangeRequestId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("ContactId")
                         .HasColumnType("uuid");
 
@@ -2623,6 +2626,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasColumnType("bigint");
 
                     b.Property<Guid?>("OutgoingId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("PreviousRequestId")
                         .HasColumnType("uuid");
 
                     b.Property<Guid?>("ProposalId")

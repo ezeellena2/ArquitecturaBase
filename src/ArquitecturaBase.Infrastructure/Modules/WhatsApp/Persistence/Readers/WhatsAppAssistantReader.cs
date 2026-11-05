@@ -56,6 +56,28 @@ internal sealed class WhatsAppAssistantReader(ApplicationDbContext db,IOptions<W
                 && message.ReplyId!=null && EF.Functions.Like(message.ReplyId,WhatsAppAssistantReplyCodec.Prefix+"%"))
             .Select(message=>new WhatsAppAssistantChoiceRow(message.Id,message.WaMessageId,message.ReplyId!,message.OccurredAtUtc)).SingleOrDefaultAsync(ct);
     }
+    public Task<WhatsAppAssistantChoiceRow?> FindLatestAuthoringTapAsync(Guid contactId,CancellationToken ct)
+    {
+        var latest=BusinessInbound().Where(message=>message.ContactId==contactId).OrderByDescending(message=>message.InboundSequence)
+            .ThenByDescending(message=>message.Id).Select(message=>(Guid?)message.Id).Take(1);
+        return BusinessInbound().Where(message=>message.ContactId==contactId && latest.Contains(message.Id)
+                && message.Kind==WhatsAppMessageKind.ButtonReply && message.ProcessedAtUtc!=null && message.AssistantProcessedAtUtc==null
+                && message.OccurredAtUtc>clock.GetUtcNow().UtcDateTime.AddDays(-retention.Value.MessageRetentionDays)
+                && message.ReplyId!=null && EF.Functions.Like(message.ReplyId,WhatsAppAssistantAuthoringReplyCodec.Prefix+"%"))
+            .Select(message=>new WhatsAppAssistantChoiceRow(message.Id,message.WaMessageId,message.ReplyId!,message.OccurredAtUtc)).SingleOrDefaultAsync(ct);
+    }
+    // A summary is the only automatic reply whose own outgoing has buttons: a clarification keeps them in its question.
+    public Task<Guid?> FindLatestAuthoringRequestAsync(Guid contactId,CancellationToken ct)=>
+        (from reference in References()
+         join outgoing in db.Set<WhatsAppOutgoingMessage>().AsNoTracking() on reference.OutgoingId equals outgoing.Id
+         where reference.ContactId==contactId && reference.Kind==WhatsAppAssistantRequestKind.Automatic
+            && outgoing.Kind==WhatsAppOutgoingMessageKind.QuickReplies && outgoing.Origin==WhatsAppMessageOrigin.Assistant
+         orderby reference.CreatedAtUtc descending,reference.Id descending
+         select (Guid?)reference.RequestId).FirstOrDefaultAsync(ct);
+    public Task<Guid?> FindChangeRequestAsync(Guid contactId,CancellationToken ct)=>
+        References().Where(reference=>reference.ContactId==contactId && reference.Kind==WhatsAppAssistantRequestKind.Automatic)
+            .OrderByDescending(reference=>reference.CreatedAtUtc).ThenByDescending(reference=>reference.Id)
+            .Select(reference=>reference.ChangeRequestId).FirstOrDefaultAsync(ct);
     private static IQueryable<WhatsAppMessage> CurrentSourceMessages(IQueryable<WhatsAppMessage> messages)
     {
         var latest=messages.OrderByDescending(message=>message.InboundSequence).ThenByDescending(message=>message.Id).Take(1);
@@ -90,7 +112,11 @@ internal sealed class WhatsAppAssistantReader(ApplicationDbContext db,IOptions<W
                         && EF.Functions.Like(message.ReplyId,WhatsAppAssistantReplyCodec.Prefix+"%")
                         && message.OccurredAtUtc>nowUtc.AddDays(-retention.Value.MessageRetentionDays))
                         && References().Any(row=>row.ContactId==contact.Id && row.Kind==WhatsAppAssistantRequestKind.Automatic
-                            && row.State==WhatsAppAssistantRequestState.Ready && row.QuestionOutgoingId!=null))
+                            && row.State==WhatsAppAssistantRequestState.Ready && row.QuestionOutgoingId!=null)
+                    || BusinessInbound().Any(message=>message.Id==latest && message.Kind==WhatsAppMessageKind.ButtonReply
+                        && message.ProcessedAtUtc!=null && message.AssistantProcessedAtUtc==null && message.ReplyId!=null
+                        && EF.Functions.Like(message.ReplyId,WhatsAppAssistantAuthoringReplyCodec.Prefix+"%")
+                        && message.OccurredAtUtc>nowUtc.AddDays(-retention.Value.MessageRetentionDays)))
                 && !References().Any(row=>row.ContactId==contact.Id && row.SourceMessageId==latest && row.Kind==WhatsAppAssistantRequestKind.Automatic)
             select contact.Id;
         var captured=from contact in db.Set<WhatsAppContact>().AsNoTracking()
@@ -111,9 +137,10 @@ internal sealed class WhatsAppAssistantReader(ApplicationDbContext db,IOptions<W
     public Task<int> CountOffersAsync(Guid contactId,DateTime fromUtc,DateTime toUtc,CancellationToken ct,Guid? excludingRequestId=null)=>
         References().CountAsync(reference=>reference.ContactId==contactId && reference.Kind==WhatsAppAssistantRequestKind.Automatic
             && reference.RequestId!=excludingRequestId && db.Set<WhatsAppOutgoingMessage>().Any(outgoing=>
-                (outgoing.Id==reference.OutgoingId || outgoing.Id==reference.QuestionOutgoingId)
+                // A summary of a form or catalog to build (its own outgoing with buttons) is not an offer (IA3-A).
+                (outgoing.Id==reference.OutgoingId && outgoing.Kind==WhatsAppOutgoingMessageKind.Flow
+                    || outgoing.Id==reference.QuestionOutgoingId && outgoing.Kind==WhatsAppOutgoingMessageKind.QuickReplies)
                 && outgoing.Origin==WhatsAppMessageOrigin.Assistant
-                && (outgoing.Kind==WhatsAppOutgoingMessageKind.Flow || outgoing.Kind==WhatsAppOutgoingMessageKind.QuickReplies)
                 && outgoing.State!=WhatsAppOutgoingMessageState.Failed && outgoing.RequestedAtUtc>=fromUtc && outgoing.RequestedAtUtc<toUtc),ct);
     public Task<bool> ExistsCurrentContextAsync(WhatsAppAssistantReferenceRow reference,DateTime nowUtc,CancellationToken ct)=>
         (from row in References()

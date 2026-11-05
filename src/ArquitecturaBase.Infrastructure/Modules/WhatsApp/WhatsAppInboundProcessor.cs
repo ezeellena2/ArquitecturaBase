@@ -131,6 +131,7 @@ internal sealed partial class WhatsAppInboundProcessor(
                 var processed = await service.ProcessContactAsync(contactId, cancellationToken);
                 if (processed.IsFailure || !processed.Value) return;
             }
+            await ProcessAuthoringTapAsync(contactId, cancellationToken);
             // Retire an interpretation superseded by a new audio before attempting its normalization.
             var work = await PrepareAssistantAsync(contactId, cancellationToken);
             var completedAudio = await ProcessAudioAsync(contactId, cancellationToken);
@@ -141,6 +142,13 @@ internal sealed partial class WhatsAppInboundProcessor(
         {
             LogContactFailed(logger, contactId, exception);
         }
+    }
+
+    // IA3-A: a tap on an authoring summary's button is answered with fixed texts and, for «Crear», what its owner created.
+    private async Task ProcessAuthoringTapAsync(Guid contactId, CancellationToken cancellationToken)
+    {
+        await using var scope = scopeFactory.CreateAsyncScope();
+        await scope.ServiceProvider.GetRequiredService<IWhatsAppAssistantAuthoringService>().ProcessTapAsync(contactId, cancellationToken);
     }
 
     private async Task<ArquitecturaBase.Application.Modules.WhatsApp.Models.WhatsAppAssistantWorkResponse?> PrepareAssistantAsync(Guid contactId, CancellationToken cancellationToken)

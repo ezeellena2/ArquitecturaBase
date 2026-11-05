@@ -68,7 +68,8 @@ internal sealed class WhatsAppAssistantInboundFixture : IAsyncDisposable
             .AddScoped<IWhatsAppAudioDispatchService>(sp=>new AudioDispatch(this,sp.GetRequiredService<ScopeIdentity>().Id))
             .AddScoped<IWhatsAppInboundService>(sp=>new Inbound(this,sp.GetRequiredService<ScopeIdentity>().Id))
             .AddScoped<IWhatsAppAssistantDispatchService>(sp=>new Dispatch(this,sp.GetRequiredService<ScopeIdentity>().Id))
-            .AddScoped<IAssistantOperations>(sp=>new Operations(this,sp.GetRequiredService<ScopeIdentity>().Id));
+            .AddScoped<IAssistantOperations>(sp=>new Operations(this,sp.GetRequiredService<ScopeIdentity>().Id))
+            .AddScoped<IWhatsAppAssistantAuthoringService>(_=>new Taps());
         _provider=services.BuildServiceProvider();
         Processor=new(Signal,_provider.GetRequiredService<IServiceScopeFactory>(),Options.Create(new WhatsAppOptions{
             ProcessInboundInBackground=processInBackground,InboundPollSeconds=inboundPollSeconds}),
@@ -97,6 +98,12 @@ internal sealed class WhatsAppAssistantInboundFixture : IAsyncDisposable
         public Task<Result<bool>> ProcessContactAsync(Guid id,CancellationToken ct)
         {host.Events.Add("access");host.Scopes.Add(scope);return Task.FromResult(Result.Success(!host.ContactTaken));}
     }
+    // No tap on an authoring summary reaches these scenarios; the authoring flow has its own tests.
+    private sealed class Taps : IWhatsAppAssistantAuthoringService
+    {
+        public Task<Result> ProcessTapAsync(Guid contactId,CancellationToken ct)=>Task.FromResult(Result.Success());
+    }
+
     private sealed class Dispatch(WhatsAppAssistantInboundFixture host,Guid scope) : IWhatsAppAssistantDispatchService
     {
         public Task<Result<WhatsAppAssistantWorkResponse?>> PrepareAsync(Guid id,CancellationToken ct)
@@ -158,6 +165,10 @@ internal sealed class WhatsAppAssistantInboundFixture : IAsyncDisposable
         public Task<WhatsAppAssistantReferenceRow?> FindAsync(Guid id,Guid requestId,CancellationToken ct)=>throw new NotSupportedException();
         public Task<WhatsAppAssistantSourceRow?> FindSourceAsync(Guid id,Guid source,CancellationToken ct)=>throw new NotSupportedException();
         public Task<WhatsAppAssistantChoiceRow?> FindLatestChoiceAsync(Guid contactId,CancellationToken ct)=>throw new NotSupportedException();
+        // No tap on an authoring summary and no pending change: the processor goes on with the interpretation.
+        public Task<WhatsAppAssistantChoiceRow?> FindLatestAuthoringTapAsync(Guid contactId,CancellationToken ct)=>Task.FromResult<WhatsAppAssistantChoiceRow?>(null);
+        public Task<Guid?> FindLatestAuthoringRequestAsync(Guid contactId,CancellationToken ct)=>Task.FromResult<Guid?>(null);
+        public Task<Guid?> FindChangeRequestAsync(Guid contactId,CancellationToken ct)=>Task.FromResult<Guid?>(null);
         public Task<WhatsAppAssistantSourceRow?> FindLatestSourceAsync(Guid id,CancellationToken ct)=>throw new NotSupportedException();
         public Task<int> CountOffersAsync(Guid id,DateTime from,DateTime to,CancellationToken ct,Guid? excludingRequestId=null)=>throw new NotSupportedException();
         public Task<bool> ExistsCurrentContextAsync(WhatsAppAssistantReferenceRow reference,DateTime nowUtc,CancellationToken ct)=>Task.FromResult(true);

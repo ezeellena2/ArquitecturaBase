@@ -49,7 +49,10 @@ internal sealed class WhatsAppAssistantAccessPolicy(IUserReader users, IPermissi
             [new("assistant_proposal", 1)])
         { InteractionMode = automatic ? AssistantInteractionMode.Assistant : AssistantInteractionMode.Manual,
             ChannelConversationId = automatic ? null : contact.Id };
-        if(automatic)context=context with {AllowedCapabilities=[..context.AllowedCapabilities,new("forms.catalog-filters.metadata",1),new("forms.catalog-filters.propose",1)]};
+        // Only the person's own conversation builds forms and catalogs (IA3-A); each one is offered by its own permissions.
+        if(automatic)context=context with {AllowedCapabilities=[..context.AllowedCapabilities,new("forms.catalog-filters.metadata",1),new("forms.catalog-filters.propose",1),
+            new("forms.authoring.forms",1),new("forms.authoring.catalogs",1),new("forms.authoring.propose-form",1),new("forms.authoring.propose-catalog",1),
+            new("forms.authoring.decline",1)]};
         return new WhatsAppAssistantContextResponse(context, WhatsAppFormRecipientRevision.Create(actorUserId, recipient));
     }
 

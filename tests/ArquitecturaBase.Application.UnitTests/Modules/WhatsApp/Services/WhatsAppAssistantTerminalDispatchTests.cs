@@ -1,5 +1,6 @@
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
+using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.WhatsApp.Services;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.WhatsApp;
@@ -30,12 +31,10 @@ public sealed class WhatsAppAssistantTerminalDispatchTests
             Provenance=host.Assistant.Outcome.Value.Provenance! with {ChannelId=automatic?"whatsapp-assistant":"whatsapp-manual"}};
         return(host,service,sinks,id);
     }
-    [Theory]
-    [InlineData("forms.catalog-filters.propose")]
-    [InlineData("forms.missing-request.propose")]
-    public async Task Automatic_terminal_commits_the_owner_outside_the_channel_transaction_and_one_fixed_ack_without_offer_quota(string capability)
+    [Fact]
+    public async Task Automatic_terminal_commits_the_owner_outside_the_channel_transaction_and_one_fixed_ack_without_offer_quota()
     {
-        var(host,service,sinks,id)=await ArrangeAsync(true,capability);var before=host.Reader.LastCount;host.Reader.OfferCount=2;
+        var(host,service,sinks,id)=await ArrangeAsync(true,"forms.missing-request.propose");var before=host.Reader.LastCount;host.Reader.OfferCount=2;
         Assert.True((await service.CompleteAsync(host.Context.Contact.Id,id,host.Assistant.Outcome,Ct)).IsSuccess);
         Assert.Equal(1,sinks.Calls);Assert.Equal(WhatsAppAssistantRequestState.Sent,host.Requests.Rows[0].State);
         var outgoing=Assert.Single(host.Conversation.Outgoing);Assert.Equal(WhatsAppOutgoingMessageKind.Text,outgoing.Kind);
@@ -46,12 +45,27 @@ public sealed class WhatsAppAssistantTerminalDispatchTests
     }
     [Theory]
     [InlineData("forms.catalog-filters.propose")]
+    [InlineData("forms.authoring.propose-form")]
+    [InlineData("forms.authoring.propose-catalog")]
+    public async Task An_automatic_authoring_proposal_sends_its_summary_with_two_buttons_creates_nothing_and_is_not_an_offer(string capability)
+    {
+        var(host,service,sinks,id)=await ArrangeAsync(true,capability);var before=host.Reader.LastCount;host.Reader.OfferCount=2;
+        Assert.True((await service.CompleteAsync(host.Context.Contact.Id,id,host.Assistant.Outcome,Ct)).IsSuccess);
+        Assert.Equal((0,1),(sinks.Calls,sinks.Summaries));Assert.Equal(WhatsAppAssistantRequestState.Sent,host.Requests.Rows[0].State);
+        var outgoing=Assert.Single(host.Conversation.Outgoing);Assert.Equal(WhatsAppOutgoingMessageKind.QuickReplies,outgoing.Kind);
+        Assert.Equal(host.Requests.Rows[0].OutgoingId,outgoing.Id);Assert.Equal(host.Assistant.Outcome.Value.Proposal!.Id,host.Requests.Rows[0].ProposalId);
+        Assert.Equal([WhatsAppAssistantAuthoringReplyCodec.Create,WhatsAppAssistantAuthoringReplyCodec.Change],outgoing.QuickReplies.Select(reply=>
+            WhatsAppAssistantAuthoringReplyCodec.TryParse(reply.Id,out var request,out var proposal,out var action)&&request==id&&proposal==host.Requests.Rows[0].ProposalId?action:null));
+        Assert.Equal(before,host.Reader.LastCount);Assert.Empty(host.Sessions.Rows);
+    }
+    [Theory]
+    [InlineData("forms.catalog-filters.propose")]
     [InlineData("forms.missing-request.propose")]
     public async Task Manual_analysis_records_the_owner_result_without_sending_to_the_phone(string capability)
     {
         var(host,service,sinks,id)=await ArrangeAsync(false,capability);
         await service.CompleteAsync(host.Context.Contact.Id,id,host.Assistant.Outcome,Ct);
-        Assert.Equal(1,sinks.Calls);Assert.Equal(WhatsAppAssistantRequestState.NoReply,host.Requests.Rows[0].State);
+        Assert.Equal(capability=="forms.missing-request.propose"?1:0,sinks.Calls);Assert.Equal(WhatsAppAssistantRequestState.NoReply,host.Requests.Rows[0].State);
         Assert.Empty(host.Conversation.Outgoing);Assert.Empty(host.Sessions.Rows);
     }
     [Fact]
@@ -76,15 +90,19 @@ public sealed class WhatsAppAssistantTerminalDispatchTests
         await service.CompleteAsync(host.Context.Contact.Id,id,host.Assistant.Outcome,Ct);
         Assert.Equal(1,sinks.Calls);Assert.Empty(host.Conversation.Outgoing);Assert.Equal(WhatsAppAssistantRequestState.Blocked,host.Requests.Rows[0].State);
     }
-    private sealed class Sinks(WhatsAppAssistantSuggestionFixture host):IStructuredCatalogProposalSink,IStructuredMissingFormRequestSink,IPublicOrigin
+    private sealed class Sinks(WhatsAppAssistantSuggestionFixture host):IStructuredAuthoringProposalChannel,IStructuredMissingFormRequestSink,IPublicOrigin
     {
         public int Calls {get;private set;}
+        public int Summaries {get;private set;}
         public bool Failure {get;set;}
         public Action? AfterCommit {get;set;}
         public Uri? Value=>new("https://business.example.test/");
         private void Called(){Assert.False(host.UnitOfWork.InTransaction);Calls++;AfterCommit?.Invoke();}
-        public Task<Result<StructuredCatalogProposalAcceptedResponse>> AcceptAsync(StructuredCatalogProposalAcceptanceRequest request,CancellationToken ct)
-        {Called();return Task.FromResult(Failure?Result.Failure<StructuredCatalogProposalAcceptedResponse>(WhatsAppAssistantErrors.Unavailable):Result.Success(new StructuredCatalogProposalAcceptedResponse(Guid.NewGuid(),"Pending","Private title","es",1,[])));}
+        // The owner's summary is pure; creating only happens from the button, never from a terminal.
+        public StructuredAuthoringSummary? Summarize(AssistantObservedProposal proposal,string culture)
+        {Summaries++;return proposal.Capability.Id=="forms.authoring.propose-form"?new(StructuredAuthoringKind.Form,"Parte de lluvias · LLU",["1. Milímetros · número"],0)
+            :new(StructuredAuthoringKind.Catalog,"Contratistas",["el código es el CUIT y cada opción la razón social"],0);}
+        public Task<Result<StructuredAuthoringCreatedResponse>> CreateAsync(StructuredAuthoringProposalRequest request,CancellationToken ct)=>throw new NotSupportedException();
         public Task<Result<StructuredMissingFormRequestCaptureResponse>> CaptureAsync(StructuredMissingFormRequestCaptureRequest request,CancellationToken ct)
         {Called();Assert.Equal(host.SourceId,request.SourceReceiptId);return Task.FromResult(Failure?Result.Failure<StructuredMissingFormRequestCaptureResponse>(WhatsAppAssistantErrors.Unavailable):Result.Success(new StructuredMissingFormRequestCaptureResponse(Guid.NewGuid(),Guid.NewGuid(),false)));}
     }

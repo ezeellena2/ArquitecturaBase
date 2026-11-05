@@ -43,8 +43,8 @@ public sealed class WhatsAppAssistantAccessPolicyTests
     }
     [Theory]
     [InlineData(false,7)]
-    [InlineData(true,9)]
-    public async Task Only_the_automatic_channel_offers_catalog_filter_proposals(bool automatic,int count)
+    [InlineData(true,14)]
+    public async Task Only_the_automatic_channel_offers_catalog_filter_and_authoring_proposals(bool automatic,int count)
     {
         var h=new WhatsAppAssistantContextFixture();if(automatic)h.Contact.ChangeMode(WhatsAppConversationMode.Assistant);
         var captured=await h.Policy.CaptureAsync(h.Contact,automatic?null:h.Operator.Id,Ct);
@@ -52,6 +52,8 @@ public sealed class WhatsAppAssistantAccessPolicyTests
         Assert.Equal(automatic,captured.Value.Context.AllowedCapabilities.Any(capability=>capability.Id=="forms.catalog-filters.metadata"));
         Assert.Equal(automatic,captured.Value.Context.AllowedCapabilities.Any(capability=>capability.Id=="forms.catalog-filters.propose"));
         Assert.Contains(captured.Value.Context.AllowedCapabilities,capability=>capability.Id=="forms.missing-request.propose");
+        // IA3-A: the person's own conversation reads, proposes or declines forms and catalogs; each by its own permissions.
+        Assert.Equal(automatic?5:0,captured.Value.Context.AllowedCapabilities.Count(capability=>capability.Id.StartsWith("forms.authoring.",StringComparison.Ordinal)));
     }
     [Fact]
     public async Task Only_a_captured_response_context_offers_C4_and_fixes_the_exact_source()

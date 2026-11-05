@@ -27,8 +27,12 @@ internal sealed class WhatsAppAssistantAutomaticPolicy(WhatsAppAssistantAcceptan
         var nowUtc=clock.GetUtcNow().UtcDateTime;
         if(row.Kind==WhatsAppAssistantRequestKind.Manual) return row.FinishWithoutReply(false,nowUtc);
         if(terminal.Body is null) return false;
-        var outgoing=WhatsAppOutgoingMessage.CreateAssistantText(row.SubjectUserId,contact.Id,row.RequestId,terminal.Body,nowUtc,
-            contact.LinkRevision,contact.WaId!,row.ModeRevision);
+        // An authoring summary goes with its two buttons; any other reply is a fixed text.
+        var outgoing=terminal.Buttons is {} buttons
+            ? WhatsAppOutgoingMessage.CreateAssistantQuickReplies(row.SubjectUserId,contact.Id,row.RequestId,terminal.Body,buttons,nowUtc,
+                contact.LinkRevision,contact.WaId!,row.ModeRevision)
+            : WhatsAppOutgoingMessage.CreateAssistantText(row.SubjectUserId,contact.Id,row.RequestId,terminal.Body,nowUtc,
+                contact.LinkRevision,contact.WaId!,row.ModeRevision);
         var fingerprint=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(row.RequestId.ToString("N")+terminal.ProposalId.ToString("N"))));
         if(!row.Ready(terminal.ProposalId,null,nowUtc) || !row.Accept(outgoing.Id,fingerprint,null,nowUtc)) return false;
         conversations.Add(outgoing);

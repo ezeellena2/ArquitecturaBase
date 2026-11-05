@@ -4,6 +4,21 @@
   <resheader name="version"><value>2.0</value></resheader>
   <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
   <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
-  <data name="CatalogPrepared" xml:space="preserve"><value>La propuesta de catálogo está disponible en la web: {0}</value></data>
   <data name="MissingFormRequested" xml:space="preserve"><value>No hay un formulario para eso. Registramos el pedido para que lo revisen.</value></data>
+  <data name="AuthoringFormIntro" xml:space="preserve"><value>Te propongo este formulario:</value></data>
+  <data name="AuthoringMoreOne" xml:space="preserve"><value>y 1 pregunta más</value></data>
+  <data name="AuthoringMoreMany" xml:space="preserve"><value>y {0} preguntas más</value></data>
+  <data name="AuthoringAsk" xml:space="preserve"><value>¿Lo armo?</value></data>
+  <data name="AuthoringCatalog" xml:space="preserve"><value>Te propongo el catálogo {0}: {1}. ¿Lo armo?</value></data>
+  <data name="AuthoringCreateForm" xml:space="preserve"><value>Crear borrador</value></data>
+  <data name="AuthoringCreateCatalog" xml:space="preserve"><value>Crear catálogo</value></data>
+  <data name="AuthoringChange" xml:space="preserve"><value>Cambiar algo</value></data>
+  <data name="AuthoringChangePrompt" xml:space="preserve"><value>Decime qué cambio, por escrito o con un audio.</value></data>
+  <data name="AuthoringFormCreated" xml:space="preserve"><value>Listo: armé el borrador {0}. Revisalo y publicalo desde la app: {1}</value></data>
+  <data name="AuthoringCatalogCreated" xml:space="preserve"><value>Listo: armé el catálogo {0}. Revisalo y activalo desde la app: {1}</value></data>
+  <data name="AuthoringReplaced" xml:space="preserve"><value>Esa propuesta ya cambió. Usá los botones de la última.</value></data>
+  <data name="AuthoringNotCreated" xml:space="preserve"><value>No pude armarlo. Tocá «Cambiar algo» y decime qué cambio, o armalo desde la app.</value></data>
+  <data name="AuthoringNoPermission" xml:space="preserve"><value>Tu cuenta no puede armar formularios ni catálogos. Pedíselo a quien administra el sistema.</value></data>
+  <data name="AuthoringFormExists" xml:space="preserve"><value>Por ahora no cambio formularios que ya existen. Lo podés cambiar desde la app: {0}</value></data>
+  <data name="AuthoringCatalogExists" xml:space="preserve"><value>Por ahora no cambio catálogos que ya existen. Lo podés cambiar desde la app: {0}</value></data>
 </root>

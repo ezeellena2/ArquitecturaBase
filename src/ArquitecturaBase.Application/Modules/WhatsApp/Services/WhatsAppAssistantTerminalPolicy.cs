@@ -1,4 +1,3 @@
-using System.Globalization;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Models.Assistant;
@@ -10,15 +9,20 @@ using ArquitecturaBase.Domain.Results;
 
 namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 
-// The dispatcher calls the owner outside its own UoW, then deduplicates the fixed acknowledgement in its existing outbox.
-internal sealed class WhatsAppAssistantTerminalPolicy(IStructuredCatalogProposalSink catalogs,
+// The dispatcher calls the owner outside its own UoW, then deduplicates the fixed reply in its existing outbox. An authoring
+// proposal (a form, a catalog, H4's people catalog or why nothing can be built) is only summarized here: its button creates it.
+internal sealed class WhatsAppAssistantTerminalPolicy(IStructuredAuthoringProposalChannel authoring,
     IStructuredMissingFormRequestSink missing, IPublicOrigin origin)
 {
+    private static readonly string[] Ids = ["forms.missing-request.propose", "forms.catalog-filters.propose", "forms.authoring.propose-form",
+        "forms.authoring.propose-catalog", "forms.authoring.decline"];
+
+    public static bool Handles(AssistantCapabilityReference capability) => capability.Version == 1 && Ids.Contains(capability.Id, StringComparer.Ordinal);
+
     public async Task<Result<WhatsAppAssistantTerminalResponse?>> ApplyAsync(WhatsAppAssistantReferenceRow reference,
         WhatsAppAssistantSourceRow source, AssistantOperationResponse operation, CancellationToken ct)
     {
-        if (operation.State != "completed" || operation.Proposal is not {} proposal || operation.Provenance is not {} provenance
-            || proposal.Capability is not ({ Id: "forms.catalog-filters.propose", Version: 1 } or { Id: "forms.missing-request.propose", Version: 1 }))
+        if (operation.State != "completed" || operation.Proposal is not {} proposal || operation.Provenance is not {} provenance || !Handles(proposal.Capability))
             return Result.Success<WhatsAppAssistantTerminalResponse?>(null);
         if (operation.RequestId != reference.RequestId || source.Id != reference.SourceMessageId || source.ContactId != reference.ContactId)
             return WhatsAppAssistantErrors.InvalidProposal;
@@ -29,25 +33,15 @@ internal sealed class WhatsAppAssistantTerminalPolicy(IStructuredCatalogProposal
             || reference.Kind == WhatsAppAssistantRequestKind.Automatic && reference.ActorUserId != reference.SubjectUserId)
             return WhatsAppAssistantErrors.InvalidProposal;
         var automatic = reference.Kind == WhatsAppAssistantRequestKind.Automatic;
-        string? body = null;
-        if (proposal.Capability.Id == "forms.catalog-filters.propose")
+        if (proposal.Capability.Id != "forms.missing-request.propose")
         {
-            var publicOrigin = origin.Value;
-            if (automatic && publicOrigin is null) return WhatsAppAssistantErrors.Unavailable;
-            var accepted = await catalogs.AcceptAsync(new StructuredCatalogProposalAcceptanceRequest(context, proposal, provenance), ct);
-            if (accepted.IsFailure) return accepted.Error;
-            if (automatic)
-            {
-                var link = new Uri(publicOrigin!, "catalogos/" + accepted.Value.CatalogId.ToString("D"));
-                body = string.Format(CultureInfo.InvariantCulture, AssistantTerminalTexts.Get("CatalogPrepared", context.Culture), link.AbsoluteUri);
-            }
+            if (!automatic) return new WhatsAppAssistantTerminalResponse(proposal.Id, null, context.Culture);
+            var summary = authoring.Summarize(proposal, context.Culture);
+            var reply = summary is null ? null : WhatsAppAssistantAuthoringText.Summary(reference.RequestId, proposal.Id, summary, context.Culture, origin.Value);
+            return reply is null ? WhatsAppAssistantErrors.Unavailable : reply;
         }
-        else
-        {
-            var captured = await missing.CaptureAsync(new StructuredMissingFormRequestCaptureRequest(source.Id, source.OccurredAtUtc, context, proposal, provenance), ct);
-            if (captured.IsFailure) return captured.Error;
-            if (automatic) body = AssistantTerminalTexts.Get("MissingFormRequested", context.Culture);
-        }
-        return new WhatsAppAssistantTerminalResponse(proposal.Id, body, context.Culture);
+        var captured = await missing.CaptureAsync(new StructuredMissingFormRequestCaptureRequest(source.Id, source.OccurredAtUtc, context, proposal, provenance), ct);
+        if (captured.IsFailure) return captured.Error;
+        return new WhatsAppAssistantTerminalResponse(proposal.Id, automatic ? AssistantTerminalTexts.Get("MissingFormRequested", context.Culture) : null, context.Culture);
     }
 }

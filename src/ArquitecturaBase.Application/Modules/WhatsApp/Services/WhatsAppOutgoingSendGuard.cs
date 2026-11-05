@@ -53,6 +53,12 @@ internal sealed class WhatsAppOutgoingSendGuard(IPhoneNumberParser phoneNumbers,
                 && !await references.ExistsDeclinedAsync(reference.ContactId, session.DefinitionId, ct)
                 && await forms.FindAcceptedSessionAsync(session.UserId, session.Culture, session.DefinitionId, session.VersionId, ct) is not null;
         }
+        // IA3-A: an authoring summary carries exactly «Crear» and «Cambiar algo» of its own operation and proposal.
+        if (outgoing.Kind == WhatsAppOutgoingMessageKind.QuickReplies && outgoing.Id == reference.OutgoingId)
+            return reference.ProposalId is {} proposalId && outgoing.QuickReplies.Select(reply =>
+                    WhatsAppAssistantAuthoringReplyCodec.TryParse(reply.Id, out var requestId, out var proposal, out var action)
+                        && requestId == reference.RequestId && proposal == proposalId ? action : null)
+                .Order(StringComparer.Ordinal).SequenceEqual([WhatsAppAssistantAuthoringReplyCodec.Change, WhatsAppAssistantAuthoringReplyCodec.Create]);
         if (outgoing.Kind != WhatsAppOutgoingMessageKind.QuickReplies || outgoing.QuickReplies.Count is < 2 or > 3 || reference.ContextJson is not {} savedContext) return false;
         AssistantChannelContext? context;
         try { context = JsonSerializer.Deserialize<AssistantChannelContext>(savedContext, JsonSerializerOptions.Web); }

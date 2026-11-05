@@ -10,6 +10,28 @@ public sealed class WhatsAppAssistantRequestTests
             Guid.CreateVersion7(), kind, 3, 7, "{server-context}", Now, Now.AddHours(1));
 
     [Fact]
+    public void An_automatic_interpretation_continues_one_previous_operation_while_pending()
+    {
+        var request = Create(WhatsAppAssistantRequestKind.Automatic); var previous = Guid.CreateVersion7();
+        Assert.False(request.ContinueFrom(Guid.Empty)); Assert.False(request.ContinueFrom(request.RequestId));
+        Assert.True(request.ContinueFrom(previous)); Assert.True(request.ContinueFrom(previous));
+        Assert.False(request.ContinueFrom(Guid.CreateVersion7()));
+        Assert.Equal(previous, request.PreviousRequestId);
+        Assert.False(Create().ContinueFrom(previous));
+        var answered = Create(WhatsAppAssistantRequestKind.Automatic); Assert.True(answered.FinishWithoutReply(false, Now));
+        Assert.False(answered.ContinueFrom(previous));
+    }
+
+    [Fact]
+    public void The_reply_to_change_something_names_once_the_operation_the_next_message_changes()
+    {
+        var reply = Create(WhatsAppAssistantRequestKind.Automatic); var proposal = Guid.CreateVersion7();
+        Assert.True(reply.AwaitChange(proposal)); Assert.True(reply.AwaitChange(proposal));
+        Assert.False(reply.AwaitChange(Guid.CreateVersion7())); Assert.False(Create().AwaitChange(proposal));
+        Assert.Equal(proposal, reply.ChangeRequestId); Assert.Null(reply.PreviousRequestId);
+    }
+
+    [Fact]
     public void A_reference_preserves_its_server_identities_without_creating_an_operator()
     {
         var request = Create(WhatsAppAssistantRequestKind.Automatic);

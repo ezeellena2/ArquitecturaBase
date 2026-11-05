@@ -10,7 +10,7 @@ using ArquitecturaBase.Domain.Results;
 
 namespace ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.WhatsApp;
 
-internal sealed class WhatsAppAssistantTerminalFixture : IStructuredCatalogProposalSink, IStructuredMissingFormRequestSink, IPublicOrigin
+internal sealed class WhatsAppAssistantTerminalFixture : IStructuredAuthoringProposalChannel, IStructuredMissingFormRequestSink, IPublicOrigin
 {
     public Guid RequestId { get; } = Guid.NewGuid();
     public Guid ContactId { get; } = Guid.NewGuid();
@@ -23,11 +23,11 @@ internal sealed class WhatsAppAssistantTerminalFixture : IStructuredCatalogPropo
     public WhatsAppAssistantRequestKind Kind { get; set; }
     public DateTime OccurredAtUtc { get; } = new(2026, 10, 17, 15, 0, 0, DateTimeKind.Utc);
     public Uri? Value { get; set; } = new("https://business.example.test/");
-    public StructuredCatalogProposalAcceptanceRequest? CatalogRequest { get; private set; }
+    // What the owner summarizes; it never creates from a terminal, only from the button.
+    public StructuredAuthoringSummary? Summary { get; set; } = new(StructuredAuthoringKind.Form, "Parte de lluvias · LLU", ["1. Milímetros · número"], 0);
+    public int SummaryCalls { get; private set; }
     public StructuredMissingFormRequestCaptureRequest? MissingRequest { get; private set; }
-    public int CatalogCalls { get; private set; }
     public int MissingCalls { get; private set; }
-    public Result<StructuredCatalogProposalAcceptedResponse> CatalogResult { get; set; } = Result.Success(new StructuredCatalogProposalAcceptedResponse(Guid.NewGuid(), "Pending", "Never echo the model name", "es", 5, []));
     public Result<StructuredMissingFormRequestCaptureResponse> MissingResult { get; set; } = Result.Success(new StructuredMissingFormRequestCaptureResponse(Guid.NewGuid(), Guid.NewGuid(), false));
     public WhatsAppAssistantTerminalPolicy Policy => new(this, this, this);
     public AssistantChannelContext Context => new(Kind == WhatsAppAssistantRequestKind.Manual ? "whatsapp-manual" : "whatsapp-assistant",
@@ -37,8 +37,9 @@ internal sealed class WhatsAppAssistantTerminalFixture : IStructuredCatalogPropo
     public WhatsAppAssistantSourceRow Source => new(SourceId, ContactId, "Never echo the original message", OccurredAtUtc, OccurredAtUtc.AddDays(90));
     public AssistantOperationResponse Operation => new(RequestId, "completed", new(Guid.NewGuid(), ProposalId, new(CapabilityId, 1), new TerminalPayload()),
         new("qualified-model", 3, "qualified-instructions", 7, OccurredAtUtc, Context.ChannelId), null);
-    public Task<Result<StructuredCatalogProposalAcceptedResponse>> AcceptAsync(StructuredCatalogProposalAcceptanceRequest request, CancellationToken ct)
-    { ct.ThrowIfCancellationRequested(); CatalogCalls++; CatalogRequest = request; return Task.FromResult(CatalogResult); }
+    public StructuredAuthoringSummary? Summarize(AssistantObservedProposal proposal, string culture) { SummaryCalls++; return Summary; }
+    public Task<Result<StructuredAuthoringCreatedResponse>> CreateAsync(StructuredAuthoringProposalRequest request, CancellationToken cancellationToken) =>
+        throw new NotSupportedException("A terminal never creates an authoring proposal.");
     public Task<Result<StructuredMissingFormRequestCaptureResponse>> CaptureAsync(StructuredMissingFormRequestCaptureRequest request, CancellationToken ct)
     { ct.ThrowIfCancellationRequested(); MissingCalls++; MissingRequest = request; return Task.FromResult(MissingResult); }
     private sealed record TerminalPayload : AssistantCapabilityPayload;

@@ -4,6 +4,21 @@
   <resheader name="version"><value>2.0</value></resheader>
   <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
   <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
-  <data name="CatalogPrepared" xml:space="preserve"><value>The catalog proposal is available on the web: {0}</value></data>
   <data name="MissingFormRequested" xml:space="preserve"><value>There is no form for that. We recorded the request for review.</value></data>
+  <data name="AuthoringFormIntro" xml:space="preserve"><value>I propose this form:</value></data>
+  <data name="AuthoringMoreOne" xml:space="preserve"><value>and 1 more question</value></data>
+  <data name="AuthoringMoreMany" xml:space="preserve"><value>and {0} more questions</value></data>
+  <data name="AuthoringAsk" xml:space="preserve"><value>Shall I build it?</value></data>
+  <data name="AuthoringCatalog" xml:space="preserve"><value>I propose the catalog {0}: {1}. Shall I build it?</value></data>
+  <data name="AuthoringCreateForm" xml:space="preserve"><value>Create draft</value></data>
+  <data name="AuthoringCreateCatalog" xml:space="preserve"><value>Create catalog</value></data>
+  <data name="AuthoringChange" xml:space="preserve"><value>Change something</value></data>
+  <data name="AuthoringChangePrompt" xml:space="preserve"><value>Tell me what to change, in writing or with an audio.</value></data>
+  <data name="AuthoringFormCreated" xml:space="preserve"><value>Done: I built the draft {0}. Review and publish it from the app: {1}</value></data>
+  <data name="AuthoringCatalogCreated" xml:space="preserve"><value>Done: I built the catalog {0}. Review and activate it from the app: {1}</value></data>
+  <data name="AuthoringReplaced" xml:space="preserve"><value>That proposal changed. Use the buttons of the latest one.</value></data>
+  <data name="AuthoringNotCreated" xml:space="preserve"><value>I could not build it. Tap "Change something" and tell me what to change, or build it from the app.</value></data>
+  <data name="AuthoringNoPermission" xml:space="preserve"><value>Your account cannot build forms or catalogs. Ask whoever manages the system.</value></data>
+  <data name="AuthoringFormExists" xml:space="preserve"><value>For now I do not change forms that already exist. You can change it from the app: {0}</value></data>
+  <data name="AuthoringCatalogExists" xml:space="preserve"><value>For now I do not change catalogs that already exist. You can change it from the app: {0}</value></data>
 </root>
