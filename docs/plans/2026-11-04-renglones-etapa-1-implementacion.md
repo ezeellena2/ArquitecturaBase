@@ -240,5 +240,10 @@ que la sesión de las listas dependientes commitee lo suyo.
 - [ ] Docs: [formularios](../features/formularios.md) (la regla del tipo reservado y el bloque),
   [WhatsApp](../features/whatsapp.md) (r10 y el tope), los `AGENTS.md` del módulo y del compilador, el plan de renglones y
   el diseño del front (el desplegable en lugar del menú).
+- [ ] Exportación conjunta y la cohorte `forms-http` del front, que suma `rows/draft.json`, `rows/publication-check.json` y
+  `rows/publication-check-moved.json` (de 64 a 67 capturas): `httpContract.test.ts` (la lista de nombres y el título) y
+  `multipleChoiceHttpContract.test.ts` cuentan las de renglones, y se suman `rowsHttpContract.test.ts` y la escena del
+  diálogo de publicar con el bloque. La sesión de las listas dependientes regeneró sólo la cohorte de la carga (front
+  0f0f037a) y avisó que, con las capturas nuevas, esos dos tests fallan hasta este paso.
 - [ ] Verificación de cierre: build sin advertencias, `dotnet test` completo con Docker en tandas, `vitest` y visuales del
   front en tandas, y `aspire stop` si se levantó la app.
