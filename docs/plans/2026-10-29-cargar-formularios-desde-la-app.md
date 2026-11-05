@@ -240,9 +240,9 @@ Etapa 1, los tableros elegidos pasan al lienzo del sistema visual y su diseño s
      con build sin advertencias y 6.780/6.795 tests con PostgreSQL y Redis; de las 15 fallas, 14 son de IA y fallan igual en
      HEAD sin estos cambios, y la del costo de un borrador de 40×50 pasa sola. Front con build y lint limpios, los 4.030 tests
      en seis tandas y 830/842 visuales; las 12 que fallan son del editor de una pregunta de catálogo (CW7) y ya fallan en HEAD.
-   - Pendiente: regenerar las cohortes en la próxima corrida conjunta, que hoy traban esas fallas de IA. Con eso,
-     `overview-create-es/en` de forms-entries-http trae la carga propia, y `entriesHttpContract.test.ts` pasa a esperar
-     `responseCount` 1 y la última respuesta en lugar de null.
+   - La cohorte de la carga se regeneró el 2026-11-04, en una exportación en verde sobre e2ec8fbd (front 0f0f037a):
+     `overview-create-es/en` trae la carga propia y `entriesHttpContract.test.ts` espera `responseCount` 1 y la última
+     respuesta.
 3. **Etapa 3 · Corregir y anular (CW10-A y CW11-A).**
    - El permiso nuevo, la corrección como carga que reemplaza y la anulación con motivo.
    - Las lecturas y conteos sin las anuladas, y las acciones en la vista rápida, la pantalla completa y la planilla de lo propio.
@@ -259,9 +259,10 @@ Etapa 1, los tableros elegidos pasan al lienzo del sistema visual y su diseño s
      [carga desde la app](../../../ArquitecturaBaseFront/docs/design/carga-desde-la-app.md#listas-dependientes-cw7--2026-11-04).
      Verificación final: backend con build sin advertencias y 6.761/6.775 tests con PostgreSQL, Redis y Azurite
      en una copia limpia de 4ac52e18: las 14 fallas son de IA, entran con bd75ea73 (en el commit anterior esas clases
-     pasan 62/62) y quedaron arregladas en 85bbcd69. Front con build y lint limpios, 4.026/4.026 tests y 860/860 visuales; recorrido en el navegador
-     integrado sobre el catálogo visual y capturas es/en a 1440, 390 y 320 comparadas con el tablero. El contrato de la
-     lista dependiente pasa con los cuerpos exportados y entra con las cohortes de la Etapa 2.
+     pasan 62/62) y quedaron arregladas en 85bbcd69; la exportación de los ejemplos HTTP sobre e2ec8fbd dio 6.959/6.959.
+     Front con build y lint limpios, 4.026/4.026 tests y 860/860 visuales; recorrido en el navegador integrado sobre el
+     catálogo visual y capturas es/en a 1440, 390 y 320 comparadas con el tablero. El contrato de la lista dependiente
+     entró con la cohorte de la carga regenerada (front 0f0f037a).
    - Pendiente: pasar CW7 al lienzo del sistema visual y, con el intercambio con Meta, las listas dependientes en WhatsApp
      (punto 6).
 5. **Etapa 5 · Títulos de sección (CW15-B):** el elemento nuevo en el editor y en la vista previa, la publicación, el subtítulo
