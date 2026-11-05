@@ -408,7 +408,7 @@ public sealed class FormEntryHttpTests(ApiFactory factory)
         {
             new CanonicalFormField(textId, "field_" + textId.ToString("N"), "shortText", labels, null, true, 80, null),
             new CanonicalFormField(photoId, "field_" + photoId.ToString("N"), "photo", new Dictionary<string, string> { ["es"] = "Fotos del lote", ["en"] = "Field photos" },
-                null, true, null, null, Files: new(1, 3, null)),
+                null, true, null, null, Files: new(1, 3, "cameraOrGallery")),
         };
         var definition = BusinessFormDefinition.Create();
         var version = BusinessFormVersion.Create(definition.Id, 1, new string('c', 64));
