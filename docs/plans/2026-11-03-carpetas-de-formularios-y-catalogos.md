@@ -7,8 +7,10 @@ biblioteca de estándares y lo de ARCA. Lo pidió el usuario al decidir la etapa
 (BusinessForms), no a ARCA. Las reglas de hoy están en [formularios](../features/formularios.md).
 
 **Tableros:** CP1 a CP4 en el lienzo provisorio [Formularios desde la app](https://claude.ai/artifact/Kvbr5KFJrGT951JLiu8i4M),
-en las filas «Carpetas», y CP5 a su derecha. Las elegidas llevan la banda verde y el sello «elegida». Se pasan al lienzo
-[Sistema visual](https://claude.ai/artifact/HPbmDPLnr8JZ9TxevtTqJJ) antes de programar, cuando la cuenta lo abra.
+en las filas «Carpetas», y CP5 a su derecha. Las elegidas llevan la banda verde y el sello «elegida». El lienzo
+[Sistema visual](https://claude.ai/artifact/HPbmDPLnr8JZ9TxevtTqJJ) no se abre desde la cuenta de estas sesiones. Por eso,
+el 2026-11-05 el usuario decidió hacer lo mismo que con renglones y la IA: antes de programar, el diseño elegido se registra
+en el front (`docs/design`). Pasar los tableros a ese lienzo queda para cuando se pueda abrir.
 
 ## Decisiones (2026-11-01, 2026-11-03 y 2026-11-04)
 

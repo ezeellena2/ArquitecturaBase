@@ -1063,7 +1063,9 @@ Referencias: `AiConnectionController`, `UpdateAiConnectionHttpRequest` (con su `
 ### Tarea 9: front (AC1-A, AC2-A y AC3)
 
 Repo `../ArquitecturaBaseFront`. Antes, leer su `AGENTS.md`, el de `src/features` y el de
-`src/features/artificial-intelligence`, que es la pantalla más parecida (`AiSettingsPage`).
+`src/features/artificial-intelligence`, que es la pantalla más parecida (`AiSettingsPage`). Antes de los tests, registrar el
+diseño de AC1-A, AC2-A y AC3 en `docs/design` del front, como los de renglones y la IA: el usuario decidió el 2026-11-05 no
+esperar el lienzo del sistema visual.
 
 **Archivos:**
 - Crear en `src/features/arca/`:

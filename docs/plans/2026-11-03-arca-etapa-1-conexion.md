@@ -10,7 +10,9 @@ credenciales, el [ADR 0025](../decisions/0025-familias-de-servicios-arca.md) lo 
 **Tableros:** AC1-A, AC2-A y AC3 en el lienzo provisorio
 [Formularios desde la app](https://claude.ai/artifact/Kvbr5KFJrGT951JLiu8i4M), en las filas «ARCA · conexión». Las
 descartadas (AC1-B y AC2-B) quedan al lado. El lienzo [Sistema visual](https://claude.ai/artifact/HPbmDPLnr8JZ9TxevtTqJJ)
-sigue sin abrirse desde la cuenta de estas sesiones: los tableros elegidos se pasan allí antes de programar.
+sigue sin abrirse desde la cuenta de estas sesiones. El 2026-11-05 el usuario decidió hacer lo mismo que con renglones y la
+IA: antes de programar el front, el diseño elegido se registra en el front (`docs/design`), y pasar los tableros a ese lienzo
+queda para cuando se pueda abrir.
 
 ## Decisiones (2026-11-01 al 2026-11-04)
 
