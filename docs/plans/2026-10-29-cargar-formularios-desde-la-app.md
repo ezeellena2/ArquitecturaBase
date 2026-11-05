@@ -298,9 +298,10 @@ Etapa 1, los tableros elegidos pasan al lienzo del sistema visual y su diseño s
      PostgreSQL, Redis y Azurite, y las 25 cohortes HTTP exportadas; front sobre 62112ae4 con build y lint limpios,
      4.193/4.193 tests (en tandas, la segunda corrida completa; la primera tuvo 7 cortes por tiempo con la máquina cargada, que
      pasan solos) y 936/936 visuales, con las escenas de `formSections` en es/en a 1440, 390 y 320 comparadas con el tablero.
-   - Pendiente: la prueba manual en el navegador; commitear `entriesSectionsHttpContract.test.ts` (front, ya pasa con las
-     cohortes de 15ce4405, que traen la de la carga y `forms-http` con `sections/*`); publicar en Meta un Flow con títulos (va
-     con la verificación de r10 de renglones), y pasar CW15-B al lienzo del sistema visual.
+     El contrato de la carga con títulos entró con las cohortes de 15ce4405, que traen `forms-http` con `sections/*` (front
+     96062932).
+   - Pendiente: la prueba manual en el navegador, publicar en Meta un Flow con títulos (va con la verificación de r10 de
+     renglones) y pasar CW15-B al lienzo del sistema visual.
 6. **Después:** las listas dependientes en WhatsApp con el intercambio con Meta. La carga en nombre de otra persona, si aparece
    el caso, con su tablero.
 
