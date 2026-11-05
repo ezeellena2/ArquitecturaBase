@@ -13,3 +13,5 @@ AiAssistantExecutionScenario permite abrir un segundo host con la misma composic
 AiAssistantContractCapture escribe bytes HTTP intactos del asistente de Inicio sólo con AI_ASSISTANT_HTTP_OUTPUT; no completa ni reescribe los cuerpos.
 
 AudioTranscriptionHandler y AudioNormalizationFiles/Client son dobles técnicos sin red ni facturación; sus bytes ficticios prueban límites y preservación, nunca compatibilidad del codec real. El fixture común del coordinador permite Proposal o NormalizedAudio y sólo acredita coordinación, no persistencia PostgreSQL.
+
+AiAssistantContinuationProviderDouble propone y elige lo observado en cada operación y guarda los pedidos para leer la historia que recibió el proveedor; no acredita un modelo real.
