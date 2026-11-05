@@ -216,6 +216,16 @@ internal sealed class FormRecipientScenario(WebApplicationFactory<Program> host)
     { using var response = await client.PostAsJsonAsync(path, payload, ct); Assert.Equal(status, response.StatusCode); return await response.ReadJsonAsync(); }
     public HttpClient Client(string culture = "es", Guid? actor = null)
     { var client = Host.CreateClient(); client.DefaultRequestHeaders.Add(TestAuthHandler.UserIdHeader, (actor ?? ManagerId).ToString("D")); client.DefaultRequestHeaders.AcceptLanguage.ParseAdd(culture); return client; }
+    /// <summary>Another person with a role of their own, for a test that needs permissions the scenario does not give.</summary>
+    public Task<Guid> AddPersonAsync(string name, IReadOnlyList<string> permissions, CancellationToken ct) => InTransactionAsync(async services =>
+    {
+        var role = "recipient-extra-" + Guid.NewGuid().ToString("N");
+        await services.GetRequiredService<IRoleRepository>().CreateAsync(role, null, permissions, ct);
+        var users = services.GetRequiredService<IUserRepository>();
+        var account = await users.CreateAsync(Email.Create(TestEmails.Unique("recipient")).Value, null, false, name, "es", ct);
+        await users.SetRolesAsync(account.Id, [role], ct);
+        return account.Id;
+    }, ct);
     public async Task<T> ScopeAsync<T>(Func<IServiceProvider, Task<T>> action)
     { await using var scope = Host.Services.CreateAsyncScope(); return await action(scope.ServiceProvider); }
     private Task<T> InTransactionAsync<T>(Func<IServiceProvider, Task<T>> action, CancellationToken ct) => ScopeAsync(async services =>

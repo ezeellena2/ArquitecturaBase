@@ -16,7 +16,7 @@ internal sealed class FormsTestModule : IApiTestModule
         "GET /api/forms/definitions/{id:guid}/pdf-design", "POST /api/forms/definitions/{id:guid}/pdf-design", "POST /api/forms/definitions/{id:guid}/pdf-design/preview",
         "GET /api/forms/records/{recordid:guid}/documents/{documentid:guid}/content",
         "GET /api/forms/overview", "GET /api/forms/approvals", "GET /api/forms/approvals/count",
-        "GET /api/forms/entries/{definitionid:guid}", "GET /api/forms/entries/{definitionid:guid}/versions/{versionid:guid}/questions/{fieldid:guid}/options", "POST /api/forms/entries/{definitionid:guid}",
+        "GET /api/forms/entries/{definitionid:guid}", "GET /api/forms/entries/{definitionid:guid}/versions/{versionid:guid}/questions/{fieldid:guid}/options", "POST /api/forms/entries/{definitionid:guid}", "GET /api/forms/entries/{definitionid:guid}/records/{recordid:guid}", "GET /api/forms/entries/{definitionid:guid}/records/{recordid:guid}/versions/{versionid:guid}/questions/{fieldid:guid}/options", "POST /api/forms/entries/{definitionid:guid}/records/{recordid:guid}", "POST /api/forms/definitions/{definitionid:guid}/records/{recordid:guid}/void",
         "GET /api/forms/approvals/{id:guid}", "GET /api/forms/approvals/{id:guid}/continuation", "POST /api/forms/approvals/{id:guid}/decisions",
         "GET /api/forms/records/{recordid:guid}/workflow", "POST /api/forms/records/{recordid:guid}/actions/{runid:guid}/retry", "POST /api/forms/records/{recordid:guid}/actions/{runid:guid}/consult", "POST /api/forms/records/{recordid:guid}/actions/{runid:guid}/review",
         "POST /api/forms/records/{recordid:guid}/actions/{runid:guid}/recipients/{recipientuserid:guid}/retry",
