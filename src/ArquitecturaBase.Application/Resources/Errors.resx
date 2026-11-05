@@ -387,6 +387,9 @@
   <data name="Forms.Publication.GroupEmpty" xml:space="preserve">
     <value>Agregá al menos una pregunta al bloque.</value>
   </data>
+  <data name="Forms.Publication.SectionEmpty" xml:space="preserve">
+    <value>Agregá al menos una pregunta debajo del título.</value>
+  </data>
   <data name="Forms.Publication.RowsOverChannelLimit" xml:space="preserve">
     <value>En WhatsApp se cargan menos renglones que el máximo del bloque.</value>
   </data>

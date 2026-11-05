@@ -28,6 +28,8 @@ internal static class FormDraftPolicy
                 { Match = field.Source.Match is { Count: > 0 } matches ? matches.OrderBy(match => match.FieldId).ToArray() : null },
                 Repeated = field.Repeated == true ? true : null,
             }).ToArray(),
+            // Without titles there is no list, so a draft without them keeps its bytes.
+            Sections = request.Draft.Sections is { Count: > 0 } sections ? sections.Select(section => section with { Title = Sort(section.Title) }).ToArray() : null,
         },
     };
     public static IReadOnlyDictionary<string, string>? NormalizeName(IReadOnlyDictionary<string, string>? values) => values is null ? null :
@@ -40,7 +42,9 @@ internal static class FormDraftPolicy
         value.PrefixLocked, value.Revision, value.Culture, value.SubmitLabelJson, value.SchemaJson, value.OfferWhen);
     public static FormDefinitionResponse Definition(Guid id, string nameJson, string prefix, bool prefixLocked, long revision,
         string culture, string submitLabelJson, string schemaJson, string? offerWhen = null) => new(id, Read<Dictionary<string, string>>(nameJson), prefix, prefixLocked, revision,
-            new(1, culture, Read<Dictionary<string, string>>(submitLabelJson), Read<FormQuestionSchema>(schemaJson).Fields), offerWhen);
+            Draft(culture, Read<Dictionary<string, string>>(submitLabelJson), Read<FormQuestionSchema>(schemaJson)), offerWhen);
+    private static FormDraftResponse Draft(string culture, IReadOnlyDictionary<string, string> submitLabel, FormQuestionSchema schema) =>
+        new(1, culture, submitLabel, schema.Fields, schema.Sections);
     public static Result<FormDraftResolution> Resolve(SaveFormDraftRequest request, BusinessFormDefinition? existing,
         FormRetiredIdentities existingRetiredIdentities)
     {
@@ -112,7 +116,7 @@ internal static class FormDraftPolicy
         NameAnsweredQuestions(draft.Fields, fields, currentFieldIds);
         retiredFields.UnionWith(oldFields.Where(field => !currentFieldIds.Contains(field.FieldId)).Select(field => field.FieldId));
         retiredChoices.UnionWith(oldFields.SelectMany(field => field.Options ?? []).Where(option => !currentChoiceIds.Contains(option.ChoiceId)).Select(option => option.ChoiceId));
-        return new FormDraftResolution(new(1, draft.Culture, submit, fields.AsReadOnly()), new(fieldMap.AsReadOnly(), choiceMap.AsReadOnly()),
+        return new FormDraftResolution(new(1, draft.Culture, submit, fields.AsReadOnly(), draft.Sections), new(fieldMap.AsReadOnly(), choiceMap.AsReadOnly()),
             new(retiredFields.Except(existingRetiredFields).Order().ToArray(), retiredChoices.Except(existingRetiredChoices).Order().ToArray()));
     }
     // A filter by another answer may name a new question by its LocalId: sealed, it names it by the FieldId just assigned. A name

@@ -10,8 +10,13 @@ public sealed record SaveFormDraftRequest(Guid RequestId, IReadOnlyDictionary<st
     [JsonIgnore] public Guid? ActorUserId { get; init; }
     public override string ToString() => "SaveFormDraftRequest { Content = [REDACTED] }";
 }
-public sealed record FormDraftInput(int Format, string Culture, IReadOnlyDictionary<string, string>? SubmitLabel, IReadOnlyList<FormFieldInput> Fields)
+public sealed record FormDraftInput(int Format, string Culture, IReadOnlyDictionary<string, string>? SubmitLabel, IReadOnlyList<FormFieldInput> Fields,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<FormSection>? Sections = null)
 { public override string ToString() => "FormDraftInput { Content = [REDACTED] }"; }
+// A section title (CW15-B) is not a question: Start is how many questions go before it, and its title follows the language
+// rules of a label. Without titles the list is null, so drafts, versions and their fingerprints keep their bytes.
+public sealed record FormSection(int Start, IReadOnlyDictionary<string, string> Title)
+{ public override string ToString() => "FormSection { Content = [REDACTED] }"; }
 public sealed record FormFieldInput(string LocalId, Guid? FieldId, Guid? ReplacesFieldId, string Type,
     IReadOnlyDictionary<string, string> Label, IReadOnlyDictionary<string, string?>? Help, bool Required,
     int? MaxLength, IReadOnlyList<FormChoiceInput>? Options,
@@ -49,9 +54,11 @@ public sealed record CanonicalFormField(Guid FieldId, string Key, string Type, I
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormRowSettings? Rows = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? Repeated = null)
 { public override string ToString() => "CanonicalFormField { Content = [REDACTED] }"; }
-public sealed record FormQuestionSchema(int Format, IReadOnlyList<CanonicalFormField> Fields)
+public sealed record FormQuestionSchema(int Format, IReadOnlyList<CanonicalFormField> Fields,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<FormSection>? Sections = null)
 { public override string ToString() => "FormQuestionSchema { Content = [REDACTED] }"; }
-public sealed record FormDraftResponse(int Format, string Culture, IReadOnlyDictionary<string, string> SubmitLabel, IReadOnlyList<CanonicalFormField> Fields)
+public sealed record FormDraftResponse(int Format, string Culture, IReadOnlyDictionary<string, string> SubmitLabel, IReadOnlyList<CanonicalFormField> Fields,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<FormSection>? Sections = null)
 { public override string ToString() => "FormDraftResponse { Content = [REDACTED] }"; }
 public sealed record FormDefinitionResponse(Guid Id, IReadOnlyDictionary<string, string> Name, string Prefix, bool PrefixLocked, long Revision, FormDraftResponse Draft, string? OfferWhen = null)
 { public override string ToString() => "FormDefinitionResponse { Content = [REDACTED] }"; }

@@ -4,9 +4,15 @@ namespace ArquitecturaBase.Application.Models.StructuredData;
 
 public sealed record StructuredFormCheckRequest(int Format, string OriginalCulture, IReadOnlyDictionary<string, string> Name,
     IReadOnlyDictionary<string, string> SubmitLabel, IReadOnlyList<StructuredFormQuestion> Questions, IReadOnlyList<string> TargetCultures,
-    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] int? MaxFileSizeMiB = null)
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] int? MaxFileSizeMiB = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<StructuredFormSection>? Sections = null)
 {
     public override string ToString() => "StructuredFormCheckRequest { Content = [REDACTED] }";
+}
+// A section title: Start is how many questions go before it; a channel shows it before its first question.
+public sealed record StructuredFormSection(int Start, IReadOnlyDictionary<string, string> Title)
+{
+    public override string ToString() => "StructuredFormSection { Content = [REDACTED] }";
 }
 public sealed record StructuredFormQuestion(Guid FieldId, string Key, string Type, IReadOnlyDictionary<string, string> Label,
     IReadOnlyDictionary<string, string>? Help, bool Required, int? MaxLength, IReadOnlyList<StructuredFormChoice>? Options,

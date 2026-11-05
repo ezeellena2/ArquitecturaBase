@@ -13,7 +13,7 @@ public sealed class FormDraftRequestMappingTests
     [
         typeof(FormDraftInput).FullName!, typeof(FormFieldInput).FullName!, typeof(FormChoiceInput).FullName!,
         typeof(FormQuestionSource).FullName!, typeof(FormFileSettings).FullName!, typeof(FormSelectionSettings).FullName!,
-        typeof(FormRowSettings).FullName!,
+        typeof(FormRowSettings).FullName!, typeof(FormSection).FullName!,
     ];
 
     [Fact]
@@ -47,7 +47,7 @@ public sealed class FormDraftRequestMappingTests
         [
             new("local-field", fieldId, replacesFieldId, "multiChoice", labels, help, true, 123,
                 [new("local-choice", choiceId, labels)], new(catalogId), new(1, 4, "camera"), new(1, 3), new(2, 30), true),
-        ]);
+        ], [new(1, labels)]);
 
         var mapped = Map(input);
 
@@ -72,6 +72,9 @@ public sealed class FormDraftRequestMappingTests
         Assert.Equal(new FormSelectionSettings(1, 3), field.Selection);
         Assert.Equal(new FormRowSettings(2, 30), field.Rows);
         Assert.True(field.Repeated);
+        var section = Assert.Single(mapped.Sections!);
+        Assert.Equal(1, section.Start);
+        Assert.Equal(labels, section.Title);
     }
 
     [Fact]

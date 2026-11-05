@@ -28,6 +28,16 @@ internal static class FormPublicationPolicy
                 FormPublicationErrors.GroupEmpty.Code, ErrorMessages.Get(FormPublicationErrors.GroupEmpty.Code), null, null)).ToList();
     }
 
+    // A section title is published with at least one question below it, before the next title or the end (CW15-B).
+    public static List<FormPublicationIssueResponse> ValidateSections(FormDefinitionResponse definition)
+    {
+        var sections = definition.Draft.Sections ?? [];
+        var count = definition.Draft.Fields.Count;
+        return Enumerable.Range(0, sections.Count).Where(index => sections[index].Start >= (index + 1 < sections.Count ? sections[index + 1].Start : count))
+            .Select(index => new FormPublicationIssueResponse(null, null, null, $"draft.sections[{index}]",
+                FormPublicationErrors.SectionEmpty.Code, ErrorMessages.Get(FormPublicationErrors.SectionEmpty.Code), null, null)).ToList();
+    }
+
     // Above the rows a channel loads, publishing warns without blocking: the app keeps loading up to the maximum (RG3-A).
     public static List<FormPublicationWarningResponse> RowWarnings(FormDefinitionResponse definition)
     {
@@ -85,6 +95,8 @@ internal static class FormPublicationPolicy
                 Check(option.Label, $"{path}.options[{optionIndex}].label", field.FieldId, option.ChoiceId);
             }
         }
+        for (var index = 0; index < (definition.Draft.Sections?.Count ?? 0); index++)
+            Check(definition.Draft.Sections![index].Title, $"draft.sections[{index}].title");
         return issues;
         void Check(IReadOnlyDictionary<string, string> texts, string path, Guid? fieldId = null, Guid? choiceId = null)
         {

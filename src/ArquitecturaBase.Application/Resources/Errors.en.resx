@@ -387,6 +387,9 @@
   <data name="Forms.Publication.GroupEmpty" xml:space="preserve">
     <value>Add at least one question to the block.</value>
   </data>
+  <data name="Forms.Publication.SectionEmpty" xml:space="preserve">
+    <value>Add at least one question below the title.</value>
+  </data>
   <data name="Forms.Publication.RowsOverChannelLimit" xml:space="preserve">
     <value>WhatsApp loads fewer rows than the block maximum.</value>
   </data>

@@ -91,6 +91,18 @@ internal sealed partial class SaveFormDraftRequestValidator : AbstractValidator<
                         && label is not null && !labels.Add(label.Normalize().Trim())) Fail(optionPath + ".label." + draft.Culture);
                 }
             }
+            if (draft.Sections is not { } sections) return;
+            if (sections.Count > 40) { Fail("draft.sections"); return; }
+            var previous = 0;
+            for (var i = 0; i < sections.Count; i++)
+            {
+                var section = sections[i]; var path = $"draft.sections[{i}]";
+                if (section is null) { Fail(path); continue; }
+                // A title starts among the questions, in their order, and never between the block of rows and its questions.
+                if (section.Start < previous || section.Start > draft.Fields.Count || (block >= 0 && section.Start > block && section.Start < rowsEnd)) Fail(path + ".start");
+                else previous = section.Start;
+                CheckText(section.Title, draft.Culture, 80, path + ".title", Fail);
+            }
         });
     }
     private static void CheckText(IReadOnlyDictionary<string, string>? texts, string culture, int limit, string path, Action<string> fail, bool utf16 = false)

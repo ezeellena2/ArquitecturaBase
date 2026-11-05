@@ -15,7 +15,9 @@ internal static class FormPublicationSnapshotPolicy
                 field.Selection is null ? null : new StructuredFormSelectionSettings(field.Selection.MinSelected, field.Selection.MaxSelected),
                 field.Rows is null ? null : new StructuredFormRowSettings(field.Rows.MinRows, field.Rows.MaxRows), field.Repeated)).ToArray(),
         FormPublicationPolicy.CheckCultures(saved).Where(culture => culture.IsComplete).Select(culture => culture.Culture).ToArray(),
-        saved.Draft.Fields.Any(field => field.Files is not null) ? maxFileSizeMiB ?? 25 : null);
+        saved.Draft.Fields.Any(field => field.Files is not null) ? maxFileSizeMiB ?? 25 : null, Sections(saved.Draft.Sections));
+    public static StructuredFormSection[]? Sections(IReadOnlyList<FormSection>? sections) =>
+        sections?.Select(section => new StructuredFormSection(section.Start, section.Title)).ToArray();
 
     public static string Hash(string canonical)
     {
@@ -35,7 +37,7 @@ internal static class FormPublicationSnapshotPolicy
             field.Type, field.Label, CleanHelp(field.Help), field.Required, field.MaxLength,
             field.Options?.Select(option => new CanonicalFormChoice(option.ChoiceId!.Value, option.Label)).ToArray(), field.Source, field.Files, field.Selection,
             field.Rows, field.Repeated)).ToArray();
-        return FormDraftPolicy.Serialize(new FormDraftResponse(input.Draft.Format, input.Draft.Culture, input.Draft.SubmitLabel!, fields))
+        return FormDraftPolicy.Serialize(new FormDraftResponse(input.Draft.Format, input.Draft.Culture, input.Draft.SubmitLabel!, fields, input.Draft.Sections))
             == FormDraftPolicy.Serialize(saved.Draft);
     }
     private static Dictionary<string, string>? CleanHelp(IReadOnlyDictionary<string, string?>? input)

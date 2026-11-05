@@ -4,8 +4,12 @@ namespace ArquitecturaBase.Api.Modules.BusinessForms.Contracts;
 public sealed record SaveFormDraftHttpRequest(Guid RequestId, IReadOnlyDictionary<string, string> Name, string Prefix, FormDraftHttpRequest Draft, long? ExpectedRevision = null, string? OfferWhen = null)
 { public override string ToString() => "SaveFormDraftHttpRequest { Content = [REDACTED] }"; }
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
-public sealed record FormDraftHttpRequest(int Format, string Culture, IReadOnlyDictionary<string, string>? SubmitLabel, IReadOnlyList<FormFieldHttpRequest> Fields)
+public sealed record FormDraftHttpRequest(int Format, string Culture, IReadOnlyDictionary<string, string>? SubmitLabel, IReadOnlyList<FormFieldHttpRequest> Fields,
+    IReadOnlyList<FormSectionHttpRequest>? Sections = null)
 { public override string ToString() => "FormDraftHttpRequest { Content = [REDACTED] }"; }
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+public sealed record FormSectionHttpRequest(int Start, IReadOnlyDictionary<string, string> Title)
+{ public override string ToString() => "FormSectionHttpRequest { Content = [REDACTED] }"; }
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record FormFieldHttpRequest(string LocalId, Guid? FieldId, Guid? ReplacesFieldId, string Type,
     IReadOnlyDictionary<string, string> Label, IReadOnlyDictionary<string, string?>? Help, bool Required, int? MaxLength,

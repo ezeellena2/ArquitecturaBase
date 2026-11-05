@@ -60,7 +60,7 @@ internal sealed class FormPublicationAcceptanceService(IFormDraftRepository draf
             if (existing is not null && (existing.Type != field.Type || existing.StableKey != field.Key)) return FormPublicationErrors.StateConflict;
             if (existing is null) publicationRepository.AddField(BusinessFormField.Register(field.FieldId, id, field.Key, field.Type));
         }
-        var schema = new FormVersionSchema(1, saved.Draft.Fields);
+        var schema = new FormVersionSchema(1, saved.Draft.Fields, saved.Draft.Sections);
         var contentHash = FormPublicationSnapshotPolicy.Hash(FormDraftPolicy.Serialize(schema));
         var number = checked((long)await publicationRepository.CountVersionsAsync(id, ct) + 1);
         var version = BusinessFormVersion.Create(id, number, contentHash);

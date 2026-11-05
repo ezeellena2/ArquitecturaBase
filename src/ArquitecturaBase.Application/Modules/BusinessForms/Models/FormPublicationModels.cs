@@ -12,7 +12,8 @@ public sealed record FormPublicationReceiptResponse(Guid RequestId, Guid Operati
 public sealed record FormPublicationStatusResponse(Guid RequestId, Guid OperationId, Guid DefinitionId, Guid VersionId,
     long VersionNumber, long DraftRevision, string State, string Stage, DateTime AcceptedAtUtc, DateTime UpdatedAtUtc,
     DateTime? NextCheckAtUtc, bool CanRetry, bool RequiresReview, IReadOnlyList<string> Cultures, IReadOnlyList<FormPublicationIssueResponse>? Issues = null);
-public sealed record FormVersionSchema(int Format, IReadOnlyList<CanonicalFormField> Questions)
+public sealed record FormVersionSchema(int Format, IReadOnlyList<CanonicalFormField> Questions,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<FormSection>? Sections = null)
 {
     public override string ToString() => "FormVersionSchema { Content = [REDACTED] }";
 }
