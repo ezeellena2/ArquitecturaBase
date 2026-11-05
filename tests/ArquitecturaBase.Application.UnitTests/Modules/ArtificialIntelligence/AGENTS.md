@@ -28,4 +28,6 @@ ConversationReservation comprueba Manual con dos ámbitos del mismo actor, con/s
 
 ProposalLookup recorre un turno real de Inicio hasta el cierre con assistant_answer@2: encuentra la propuesta con la hora del turno como procedencia; otro Id, un turno de canal o uno vencido no se encuentran; sin el permiso de Inicio falla antes de leerla. Sólo una propuesta posterior de la misma capacidad la reemplaza: una respuesta o un turno sin terminar, no.
 
+HomeAudio (IA4) prueba la detección por bytes, la clave privada, el guardado único, la retención, el micrófono del bootstrap, el servicio (rechazo antes de guardar, consulta primero y falla con nuevo intento) y la aceptación del turno dictado: la transcripción de la normalización propia y los rechazos sin guardar. ContextPolicy combina lo escrito con lo dicho en el contexto, el hilo y el título.
+
 OperationContinuation recorre la continuación de una operación de canal: el turno en la conversación anterior, el replay y el mismo UUID sin la referencia, los rechazos sin guardar ni descifrar (desconocida, otro canal u otra conversación del canal, sin terminar, no la última, vencida y reserva perdida) y la validación. ContextPolicy, que el turno continuado manda el pedido y la propuesta anteriores, y una operación nueva, sin historia.

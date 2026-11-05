@@ -13,8 +13,12 @@ public sealed class AiAssistantBoundaryTests
     {
         var contract = Assembly.Load("ArquitecturaBase.Api").GetType("ArquitecturaBase.Api.Modules.ArtificialIntelligence.Contracts.Assistant.SubmitAiAssistantTurnHttpRequest");
         Assert.NotNull(contract);
-        Assert.Equal(["ConversationId", "ExpectedConnectionRevision", "ExpectedRevision", "Question", "RequestId"],
+        Assert.Equal(["AudioRequestId", "ConversationId", "ExpectedConnectionRevision", "ExpectedRevision", "Question", "RequestId"],
             contract.GetProperties().Select(property => property.Name).Order(StringComparer.Ordinal));
+        // IA4: a recording names only its request; the culture comes from the localization and the type from its bytes.
+        var audio = Assembly.Load("ArquitecturaBase.Api").GetType("ArquitecturaBase.Api.Modules.ArtificialIntelligence.Contracts.Assistant.SubmitAiAssistantAudioHttpRequest");
+        Assert.NotNull(audio);
+        Assert.Equal(["File", "RequestId"], audio.GetProperties().Select(property => property.Name).Order(StringComparer.Ordinal));
     }
 
     [Fact]

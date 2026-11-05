@@ -13,6 +13,7 @@ using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
+using ArquitecturaBase.Application.UnitTests.TestFeatures.Files;
 
 namespace ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.ArtificialIntelligence;
 
@@ -54,7 +55,7 @@ internal sealed class ObservedReadAssistantScenario
         var limits = new AiAssistantLimits();
         var guard = new AiAssistantAccessGuard(users, Permissions,
             [new AiAssistantModelProfile(AiProvider.OpenAI, "model", limits.ContextBytes, true, true) { Id = "observed-fixture", Version = 1 }],
-            limits, new FakeCurrentUser { UserId = Guid.NewGuid() }, catalog, []);
+            limits, new FakeCurrentUser { UserId = Guid.NewGuid() }, catalog, [], new MemoryPrivateFileStore());
         Guard = guard;
         if (Store.Turn.SealExecutionProfile(JsonSerializer.Serialize(Profile, AiAssistantResponsePolicy.JsonOptions)).IsFailure)
             throw new InvalidOperationException("The observed-read fixture profile must be sealed before claiming.");

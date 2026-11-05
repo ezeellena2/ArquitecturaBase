@@ -48,8 +48,11 @@ internal sealed class HmacAiAssistantRequestFingerprint(AiKeyRing ring) : IAiAss
     {
         ArgumentNullException.ThrowIfNull(request);
         var key = ring.AssistantFingerprintKey(keyId);
-        var payload = JsonSerializer.SerializeToUtf8Bytes(new object?[] { ownerUserId, request.RequestId, request.ConversationId,
-            request.ExpectedRevision, request.ExpectedConnectionRevision, request.NormalizedQuestion });
+        var values = new List<object?> { ownerUserId, request.RequestId, request.ConversationId,
+            request.ExpectedRevision, request.ExpectedConnectionRevision, request.NormalizedQuestion };
+        // A dictated turn binds its normalization; a typed one keeps the original fingerprint.
+        if (request.AudioRequestId is { } audioRequestId) values.Add(new object?[] { "home-audio:v1", audioRequestId });
+        var payload = JsonSerializer.SerializeToUtf8Bytes(values);
         try { return Convert.ToBase64String(HMACSHA256.HashData(key, payload)); }
         finally { CryptographicOperations.ZeroMemory(key); CryptographicOperations.ZeroMemory(payload); }
     }

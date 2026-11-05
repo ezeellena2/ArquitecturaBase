@@ -4,6 +4,7 @@ using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.ArtificialIntelligence;
 using Microsoft.Extensions.Logging.Abstractions;
+using ArquitecturaBase.Application.UnitTests.TestFeatures.Files;
 
 namespace ArquitecturaBase.Application.UnitTests.Modules.ArtificialIntelligence;
 
@@ -19,7 +20,7 @@ public sealed partial class AiAssistantContextPolicyTests
         var request = fixture.Request() with { Text = "Fictitious change to the proposal", PreviousRequestId = previous.RequestId };
         Assert.True((await fixture.Service.SubmitAsync(request, ct)).IsSuccess);
         var catalog = new AiAssistantCapabilityCatalogPolicy([fixture.Source], fixture.Permissions);
-        var guard = new AiAssistantAccessGuard(fixture.Users, fixture.Permissions, fixture.Profiles, limits, new FakeCurrentUser { UserId = fixture.ActorId }, catalog, []);
+        var guard = new AiAssistantAccessGuard(fixture.Users, fixture.Permissions, fixture.Profiles, limits, new FakeCurrentUser { UserId = fixture.ActorId }, catalog, [], new MemoryPrivateFileStore());
         var responses = new AiAssistantResponsePolicy(fixture.Protector, fixture.Clock, catalog);
         var dispatch = new AiAssistantDispatchService(fixture.Store, fixture.Work, new(fixture.Store, fixture.Store, fixture.Store, guard, catalog), fixture.Protector,
             limits, fixture.Clock, NullLogger<AiAssistantDispatchService>.Instance, new DisabledAssistantOperationCompletionSignal());
@@ -47,7 +48,7 @@ public sealed partial class AiAssistantContextPolicyTests
         var request = fixture.Request();
         Assert.True((await fixture.Service.SubmitAsync(request, ct)).IsSuccess);
         var catalog = new AiAssistantCapabilityCatalogPolicy([fixture.Source], fixture.Permissions);
-        var guard = new AiAssistantAccessGuard(fixture.Users, fixture.Permissions, fixture.Profiles, limits, new FakeCurrentUser { UserId = fixture.ActorId }, catalog, []);
+        var guard = new AiAssistantAccessGuard(fixture.Users, fixture.Permissions, fixture.Profiles, limits, new FakeCurrentUser { UserId = fixture.ActorId }, catalog, [], new MemoryPrivateFileStore());
         var responses = new AiAssistantResponsePolicy(fixture.Protector, fixture.Clock, catalog);
         var dispatch = new AiAssistantDispatchService(fixture.Store, fixture.Work, new(fixture.Store, fixture.Store, fixture.Store, guard, catalog), fixture.Protector,
             limits, fixture.Clock, NullLogger<AiAssistantDispatchService>.Instance, new DisabledAssistantOperationCompletionSignal());

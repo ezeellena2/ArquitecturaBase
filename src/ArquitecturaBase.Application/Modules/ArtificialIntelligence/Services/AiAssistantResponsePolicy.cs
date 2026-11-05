@@ -23,6 +23,10 @@ internal sealed class AiAssistantResponsePolicy(IAiConversationProtector protect
         var plaintext = protector.Unprotect(row.OwnerUserId, row.Id, question.TurnId, "question",
             question.PayloadRevision, question.ProtectedQuestion);
         if (plaintext is null) return AiAssistantErrors.ContentUnavailable;
+        // A dictated first turn without typed text is named after what was said.
+        if (plaintext.Trim().Length == 0 && question.ProtectedTranscript is { } protectedTranscript)
+            plaintext = protector.Unprotect(row.OwnerUserId, row.Id, question.TurnId, "transcript", question.PayloadRevision, protectedTranscript);
+        if (plaintext is null) return AiAssistantErrors.ContentUnavailable;
         var title = AiAssistantConversationTitlePolicy.Normalize(plaintext);
         return title.Length == 0 ? AssistantTexts.Get("Conversation.Title") : title;
     }
@@ -35,11 +39,18 @@ internal sealed class AiAssistantResponsePolicy(IAiConversationProtector protect
         AiAssistantAnswer? answer = null;
         AssistantObservedProposal? proposal = null;
         AssistantNormalizedAudio? normalizedAudio = null;
+        AiAssistantTurnAudioResponse? audio = null;
         IReadOnlyList<SystemQueryEvidence> evidences = [];
         if (access == "allowed")
         {
             question = Reveal(row, "question", row.ProtectedQuestion!);
             if (question is null) return AiAssistantErrors.ContentUnavailable;
+            if (row.AudioRequestId is { } audioRequestId && row.ProtectedTranscript is { } protectedTranscript)
+            {
+                var transcript = Reveal(row, "transcript", protectedTranscript);
+                if (transcript is null) return AiAssistantErrors.ContentUnavailable;
+                audio = new AiAssistantTurnAudioResponse(audioRequestId, transcript);
+            }
             if (row.ProtectedAnswer is { } protectedAnswer)
             {
                 var json = Reveal(row, "answer", protectedAnswer);
@@ -75,7 +86,7 @@ internal sealed class AiAssistantResponsePolicy(IAiConversationProtector protect
             row.Revision, State(row.State), row.Stage, access, question, answer, evidences, failure, usage,
             row.Culture, row.TimeZoneId, row.SubmittedAtUtc, now, pollingAfterSeconds)
         {
-            CancelRequestedAtUtc = row.CancelRequestedAtUtc, ObservedProposal = proposal, NormalizedAudio = normalizedAudio,
+            CancelRequestedAtUtc = row.CancelRequestedAtUtc, ObservedProposal = proposal, NormalizedAudio = normalizedAudio, Audio = audio,
             Proposal = proposal is null ? null : new AiAssistantProposalResponse(proposal.Id, proposal.Capability.Id, proposal.Capability.Version,
                 JsonSerializer.SerializeToElement(proposal.Payload, proposal.Payload.GetType(), JsonOptions)),
         };

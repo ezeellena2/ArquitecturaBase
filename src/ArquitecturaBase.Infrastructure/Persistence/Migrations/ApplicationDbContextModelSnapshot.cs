@@ -612,6 +612,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("AttemptId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("AudioRequestId")
+                        .HasColumnType("uuid");
+
                     b.Property<decimal?>("AudioSeconds")
                         .HasColumnType("numeric");
 
@@ -701,6 +704,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<string>("ProtectedQuestion")
                         .HasColumnType("text");
 
+                    b.Property<string>("ProtectedTranscript")
+                        .HasColumnType("text");
+
                     b.Property<string>("Provider")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -747,6 +753,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasColumnType("boolean");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("AudioRequestId")
+                        .HasFilter("\"AudioRequestId\" IS NOT NULL");
 
                     b.HasIndex("ContentExpiresAtUtc");
 

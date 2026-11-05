@@ -4,5 +4,7 @@ public sealed record SubmitAiAssistantTurnRequest(Guid RequestId, Guid? Conversa
     long ExpectedConnectionRevision, string Question, string Culture)
 {
     public string NormalizedQuestion => Question.Trim().Replace("\r\n", "\n", StringComparison.Ordinal);
+    /// <summary>A dictated turn (IA4): the completed normalization whose transcript the server takes; the question is then optional.</summary>
+    public Guid? AudioRequestId { get; init; }
     public override string ToString() => "SubmitAiAssistantTurnRequest { question: [REDACTED] }";
 }

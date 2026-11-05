@@ -39,6 +39,12 @@ internal sealed class AiAssistantContextPolicy(IAiAssistantReader reader, IAiCon
         if (credential.IsFailure) return credential.Error;
         var question = responsePolicy.Reveal(turn, "question", turn.ProtectedQuestion);
         if (question is null) return AiAssistantErrors.ContentUnavailable;
+        if (turn.ProtectedTranscript is { } protectedTranscript)
+        {
+            var transcript = responsePolicy.Reveal(turn, "transcript", protectedTranscript);
+            if (transcript is null) return AiAssistantErrors.ContentUnavailable;
+            question = AiAssistantAudioPolicy.Spoken(question, transcript);
+        }
         if (profile.Value.Purpose == AiAssistantPurpose.NormalizeAudio)
         {
             try

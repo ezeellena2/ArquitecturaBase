@@ -15,6 +15,9 @@ public static class ArtificialIntelligenceApplicationRegistration
         services.TryAddSingleton(new AiAssistantLimits());
         services.TryAddScoped<IAiConnectionService, AiConnectionService>();
         services.TryAddScoped<IAiAssistantService, AiAssistantService>();
+        services.TryAddScoped<IAiAssistantAudioService, AiAssistantAudioService>();
+        services.TryAddScoped<AiAssistantHomeAudioPolicy>();
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IPrivateFileRetentionSource, AiAssistantAudioRetentionSource>());
         services.Replace(ServiceDescriptor.Scoped<IAssistantOperations, AiAssistantOperations>());
         services.Replace(ServiceDescriptor.Scoped<IAssistantProposalLookup, AiAssistantProposalLookup>());
         services.TryAddScoped<IAiAssistantDispatchService, AiAssistantDispatchService>();

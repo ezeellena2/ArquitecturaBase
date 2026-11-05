@@ -96,6 +96,7 @@ internal sealed class AiAssistantProposalCoordinatorFixture : IAiAssistantDispat
     public Task<AiAssistantTurnRow?> FindTurnAsync(Guid turnId, CancellationToken cancellationToken) => Task.FromResult<AiAssistantTurnRow?>(Row);
     public Task<AiAssistantTurnRow?> FindTurnByRequestAsync(Guid actor, Guid requestId, CancellationToken cancellationToken) => Task.FromResult<AiAssistantTurnRow?>(Row);
     public Task<PagedResult<AiAssistantTurnRow>> ListTurnsAsync(Guid actor, Guid conversationId, ListAiAssistantTurnsRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
+    public Task<IReadOnlyList<Guid>> ListRetainedAudioRequestIdsAsync(IReadOnlyCollection<Guid> audioRequestIds, CancellationToken cancellationToken) => throw new NotSupportedException();
     public Task<AiAssistantWorkloadRow> FindWorkloadAsync(DateTime nowUtc, int leaseGraceSeconds, CancellationToken cancellationToken) => throw new NotSupportedException();
     public Task<AiConversationRow?> FindConversationAsync(Guid actor, Guid conversationId, CancellationToken cancellationToken) => throw new NotSupportedException();
     public Task<PagedResult<AiConversationRow>> ListConversationsAsync(Guid actor, ListAiConversationsRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();

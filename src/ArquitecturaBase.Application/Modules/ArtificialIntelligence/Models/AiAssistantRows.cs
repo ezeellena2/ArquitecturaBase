@@ -9,6 +9,7 @@ public sealed record AiConversationRow(Guid Id, Guid OwnerUserId, AiConversation
 }
 public sealed record AiConversationQuestionRow(Guid TurnId, long PayloadRevision, string? ProtectedQuestion, DateTime ContentExpiresAtUtc)
 {
+    public string? ProtectedTranscript { get; init; }
     public override string ToString() => "AiConversationQuestionRow { content: [REDACTED] }";
 }
 public sealed record AiAssistantTurnRow(Guid Id, Guid OwnerUserId, Guid ConversationId, Guid RequestId, int Ordinal,
@@ -20,6 +21,8 @@ public sealed record AiAssistantTurnRow(Guid Id, Guid OwnerUserId, Guid Conversa
     long? InputTokens, long? OutputTokens, bool UsageUnknown, string? FailureCode)
 {
     public decimal? AudioSeconds { get; init; }
+    public Guid? AudioRequestId { get; init; }
+    public string? ProtectedTranscript { get; init; }
     public string ChannelId { get; init; } = "home";
     public string? ExecutionProfileJson { get; init; }
     public IReadOnlyList<AiAssistantToolResultRow> ToolResults { get; init; } = [];

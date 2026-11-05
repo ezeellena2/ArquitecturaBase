@@ -21,6 +21,10 @@ public sealed class AiAssistantTurn : Entity, IAuditable
     public string Stage { get; private set; } = "pending";
     public long Revision { get; private set; } = 1;
     public string? ProtectedQuestion { get; private set; }
+    // A Home turn dictated by audio (IA4): the normalization its transcript came from, and that transcript, sealed apart from
+    // the text the person typed, so the thread shows it in gray and the model reads both.
+    public Guid? AudioRequestId { get; private set; }
+    public string? ProtectedTranscript { get; private set; }
     public string? ProtectedAnswer { get; private set; }
     public string? ProtectedEvidences { get; private set; }
     public long PayloadRevision { get; private set; } = 1;
@@ -74,6 +78,13 @@ public sealed class AiAssistantTurn : Entity, IAuditable
     }
 
     public void ProtectQuestion(string protectedQuestion) => ProtectedQuestion = protectedQuestion;
+
+    public void AttachAudio(Guid audioRequestId, string protectedTranscript)
+    {
+        if (audioRequestId == Guid.Empty || string.IsNullOrEmpty(protectedTranscript))
+            throw new ArgumentException("A dictated turn names its normalization and seals its transcript.");
+        AudioRequestId = audioRequestId; ProtectedTranscript = protectedTranscript;
+    }
 
     public Result Claim(Guid attemptId, DateTime deadlineAtUtc)
     {
@@ -167,6 +178,7 @@ public sealed class AiAssistantTurn : Entity, IAuditable
     public void PurgeContent()
     {
         ProtectedQuestion = null;
+        ProtectedTranscript = null;
         ProtectedAnswer = null;
         ProtectedEvidences = null;
         AdvanceRevision();

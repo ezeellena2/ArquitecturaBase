@@ -4,6 +4,7 @@ using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
+using ArquitecturaBase.Application.UnitTests.TestFeatures.Files;
 
 namespace ArquitecturaBase.Application.UnitTests.Modules.ArtificialIntelligence;
 
@@ -52,5 +53,5 @@ public sealed class AiAssistantChannelAccessTests
         new(["fictional.channel.read", "fictional.channel.send"], ["fictional.records.create"]), [new("fictional.propose", 1)], [new("assistant_proposal", 1)]);
     private static AiAssistantAccessGuard Guard(InMemoryUserAccounts users, FakePermissionService permissions, Guid ambientActor) =>
         new(users, permissions, [], new AiAssistantLimits(), new FakeCurrentUser { UserId = ambientActor },
-            new AiAssistantCapabilityCatalogPolicy([], permissions), []);
+            new AiAssistantCapabilityCatalogPolicy([], permissions), [], new MemoryPrivateFileStore());
 }

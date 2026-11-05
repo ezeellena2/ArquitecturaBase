@@ -16,6 +16,7 @@ using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
+using ArquitecturaBase.Application.UnitTests.TestFeatures.Files;
 
 namespace ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.ArtificialIntelligence;
 
@@ -48,7 +49,7 @@ internal sealed class AssistantOperationsFixture
         Profiles = qualified ? [new AiAssistantModelProfile(AiProvider.OpenAI, "model", limits.ContextBytes, true, true) { Id = "fixture-profile", Version = 3 }] : [];
         AudioProfiles = audioQualified ? [new(AiProvider.OpenAI, "audio-model", "fixture-audio", 2, ["audio/ogg"], 25000000)] : [];
         var catalog = new AiAssistantCapabilityCatalogPolicy([Source], Permissions);
-        var guard = new AiAssistantAccessGuard(Users, Permissions, Profiles, limits, new FakeCurrentUser { UserId = Guid.NewGuid() }, catalog, AudioProfiles);
+        var guard = new AiAssistantAccessGuard(Users, Permissions, Profiles, limits, new FakeCurrentUser { UserId = Guid.NewGuid() }, catalog, AudioProfiles, new MemoryPrivateFileStore());
         var submissions = new AiAssistantSubmissionPolicy(Store, Store, Store, guard, Protector, new OperationsFingerprint(), limits, Clock);
         Service = new(Store, guard, submissions, Work, Store, new AiAssistantResponsePolicy(Protector, Clock, catalog), NullLogger<AiAssistantOperations>.Instance);
     }
@@ -193,6 +194,7 @@ internal sealed class OperationsStore(FakeTimeProvider clock, FakeUnitOfWork wor
         var rows=Turns.Where(turn=>turn.OwnerUserId==actor && turn.ConversationId==conversation).OrderByDescending(turn=>turn.Ordinal).ToArray();
         return Task.FromResult(new PagedResult<AiAssistantTurnRow>(rows.Skip((request.Page-1)*request.PageSize).Take(request.PageSize).Select(Project).ToArray(),request.Page,request.PageSize,rows.Length));
     }
+    public Task<IReadOnlyList<Guid>> ListRetainedAudioRequestIdsAsync(IReadOnlyCollection<Guid> audioRequestIds, CancellationToken cancellationToken) => throw new NotSupportedException();
     public Task<AiAssistantWorkloadRow> FindWorkloadAsync(DateTime now, int grace, CancellationToken ct) => throw new NotSupportedException();
     public Task<IReadOnlyList<AiAssistantTurn>> ListExpiredAsync(DateTime now, int pending, int grace, int limit, CancellationToken ct) => throw new NotSupportedException();
     public Task<IReadOnlyList<AiAssistantTurn>> ListPurgeableAsync(DateTime now, int limit, CancellationToken ct) => throw new NotSupportedException();

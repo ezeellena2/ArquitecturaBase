@@ -83,7 +83,9 @@ public sealed class AiAssistantConversationScopeMigrationTests(ApiFactory factor
             var downgrade = await Assert.ThrowsAsync<PostgresException>(() => db.GetService<IMigrator>().MigrateAsync(PreviousMigration, Ct));
             Assert.Equal("P0001", downgrade.SqlState);
             Assert.Contains(ScopeMigration, await db.Database.GetAppliedMigrationsAsync(Ct));
-            var after = await db.Set<AiAssistantTurn>().AsNoTracking().Where(turn => turn.OwnerUserId == actor).ToArrayAsync(Ct);
+            // Later migrations already rolled back their own columns, so read only what this one keeps.
+            var after = await db.Set<AiAssistantTurn>().AsNoTracking().Where(turn => turn.OwnerUserId == actor).Select(turn => new
+                { turn.Id, turn.ChannelConversationId, turn.ProtectedQuestion, turn.ExecutionProfileJson, turn.State, turn.Fence }).ToArrayAsync(Ct);
             Assert.Equal(before.Length, after.Length);
             foreach (var original in before)
             {

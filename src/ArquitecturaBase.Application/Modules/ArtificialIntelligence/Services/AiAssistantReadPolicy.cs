@@ -32,7 +32,8 @@ internal sealed class AiAssistantReadPolicy(IAiAssistantReader reader, IAiConnec
             if (workload.Pending >= limits.PendingCapacity) availability = "capacityLimited";
         }
         return new AiAssistantBootstrapResponse(availability, connection.Revision, suggestions,
-            new AiAssistantPublicLimits(limits.QuestionCharacters), current.Contains(ArtificialIntelligencePermissions.Read) ? "aiConfiguration" : null);
+            new AiAssistantPublicLimits(limits.QuestionCharacters), current.Contains(ArtificialIntelligencePermissions.Read) ? "aiConfiguration" : null)
+            { Audio = guard.HearsHomeAudio(connection) };
     }
 
     public async Task<Result<PagedResult<AiConversationSummaryResponse>>> ListConversationsAsync(ListAiConversationsRequest request, CancellationToken cancellationToken)

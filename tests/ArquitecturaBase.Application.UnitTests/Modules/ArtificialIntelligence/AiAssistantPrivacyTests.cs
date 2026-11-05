@@ -10,6 +10,7 @@ using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
 using Microsoft.Extensions.Time.Testing;
+using ArquitecturaBase.Application.UnitTests.TestFeatures.Files;
 
 namespace ArquitecturaBase.Application.UnitTests.Modules.ArtificialIntelligence;
 
@@ -26,7 +27,7 @@ public sealed class AiAssistantPrivacyTests
         var clock = new FakeTimeProvider();
         var limits = new AiAssistantLimits();
         var catalog = new AiAssistantCapabilityCatalogPolicy([], permissions);
-        var guard = new AiAssistantAccessGuard(users, permissions, [], limits, current, catalog, []);
+        var guard = new AiAssistantAccessGuard(users, permissions, [], limits, current, catalog, [], new MemoryPrivateFileStore());
         var reader = new Reader(actor.Id, clock.GetUtcNow().UtcDateTime);
         var policy = new AiAssistantReadPolicy(reader, null!, RequestValidators.For(), permissions, guard,
             new AiAssistantResponsePolicy(new NeverDecrypt(), clock, catalog), catalog, limits);
@@ -47,7 +48,7 @@ public sealed class AiAssistantPrivacyTests
         var clock = new FakeTimeProvider();
         var limits = new AiAssistantLimits();
         var catalog = new AiAssistantCapabilityCatalogPolicy([], permissions);
-        var guard = new AiAssistantAccessGuard(users, permissions, [], limits, new FakeCurrentUser { UserId = actor.Id }, catalog, []);
+        var guard = new AiAssistantAccessGuard(users, permissions, [], limits, new FakeCurrentUser { UserId = actor.Id }, catalog, [], new MemoryPrivateFileStore());
         var reader = new Reader(actor.Id, clock.GetUtcNow().UtcDateTime);
         var policy = new AiAssistantReadPolicy(reader, null!, RequestValidators.For(), permissions, guard,
             new AiAssistantResponsePolicy(new NeverDecrypt(), clock, catalog), catalog, limits);
@@ -86,6 +87,7 @@ public sealed class AiAssistantPrivacyTests
         public Task<AiAssistantTurnRow?> FindTurnAsync(Guid turnId, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<PagedResult<AiConversationRow>> ListConversationsAsync(Guid ownerUserId, ListAiConversationsRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<PagedResult<AiAssistantTurnRow>> ListTurnsAsync(Guid ownerUserId, Guid conversationId, ListAiAssistantTurnsRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<IReadOnlyList<Guid>> ListRetainedAudioRequestIdsAsync(IReadOnlyCollection<Guid> audioRequestIds, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<AiAssistantWorkloadRow> FindWorkloadAsync(DateTime nowUtc, int leaseGraceSeconds, CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 }

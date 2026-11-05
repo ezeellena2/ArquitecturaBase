@@ -33,15 +33,22 @@ public sealed class AiAssistantEndpointsTests(ApiFactory factory)
     [InlineData("GET", "/api/ai/assistant/turns/00000000-0000-0000-0000-000000000001")]
     [InlineData("POST", "/api/ai/assistant/turns/00000000-0000-0000-0000-000000000001/cancel")]
     [InlineData("DELETE", "/api/ai/assistant/conversations/00000000-0000-0000-0000-000000000001")]
+    [InlineData("POST", "/api/ai/assistant/audio")]
+    [InlineData("GET", "/api/ai/assistant/audio/00000000-0000-0000-0000-000000000001")]
+    [InlineData("GET", "/api/ai/assistant/audio/00000000-0000-0000-0000-000000000001/file")]
     public async Task Every_assistant_route_requires_session_and_its_independent_permission(string method, string path)
     {
         using var anonymous = factory.CreateClient();
-        using var response = await anonymous.SendAsync(new(new HttpMethod(method), path) { Content = method == "POST" ? JsonContent.Create(new { }) : null }, Ct);
+        using var response = await anonymous.SendAsync(new(new HttpMethod(method), path) { Content = Body(method, path) }, Ct);
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
         using var reader = await OperatorAsync([ArtificialIntelligencePermissions.Read]);
-        using var forbidden = await reader.SendAsync(new(new HttpMethod(method), path) { Content = method == "POST" ? JsonContent.Create(new { }) : null }, Ct);
+        using var forbidden = await reader.SendAsync(new(new HttpMethod(method), path) { Content = Body(method, path) }, Ct);
         Assert.Equal(HttpStatusCode.Forbidden, forbidden.StatusCode);
     }
+
+    // A recording goes in multipart; every other assistant body is JSON.
+    private static HttpContent? Body(string method, string path) => method != "POST" ? null
+        : path.EndsWith("/audio", StringComparison.Ordinal) ? new MultipartFormDataContent() : JsonContent.Create(new { });
 
     [Fact]
     public async Task Lost_acceptance_is_recovered_with_the_same_UUID_without_starting_generation()

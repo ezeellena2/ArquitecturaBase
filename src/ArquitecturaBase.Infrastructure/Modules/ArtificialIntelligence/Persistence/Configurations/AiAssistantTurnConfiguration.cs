@@ -29,6 +29,8 @@ internal sealed class AiAssistantTurnConfiguration : IEntityTypeConfiguration<Ai
         builder.HasIndex(turn => new { turn.State, turn.SubmittedAtUtc, turn.Id });
         builder.HasIndex(turn => new { turn.State, turn.DeadlineAtUtc });
         builder.HasIndex(turn => turn.ContentExpiresAtUtc);
+        // The private audio of a dictated Home turn is kept while a turn that names it keeps its content.
+        builder.HasIndex(turn => turn.AudioRequestId).HasFilter("\"AudioRequestId\" IS NOT NULL");
         builder.HasOne(turn => turn.Conversation).WithMany()
             .HasForeignKey(turn => new { turn.ConversationId, turn.OwnerUserId })
             .HasPrincipalKey(conversation => new { conversation.Id, conversation.OwnerUserId })

@@ -58,6 +58,15 @@ internal sealed class AiAssistantReader(ApplicationDbContext dbContext, TimeProv
         return await AttachToolResultsAsync(row, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Guid>> ListRetainedAudioRequestIdsAsync(IReadOnlyCollection<Guid> audioRequestIds, CancellationToken cancellationToken)
+    {
+        var nowUtc = timeProvider.GetUtcNow().UtcDateTime;
+        return await dbContext.Set<AiAssistantTurn>().AsNoTracking()
+            .Where(turn => turn.AudioRequestId != null && audioRequestIds.Contains(turn.AudioRequestId.Value)
+                && turn.ProtectedQuestion != null && turn.ContentExpiresAtUtc > nowUtc)
+            .Select(turn => turn.AudioRequestId!.Value).Distinct().ToArrayAsync(cancellationToken);
+    }
+
     private async Task<AiAssistantTurnRow?> AttachToolResultsAsync(AiAssistantTurnRow? row, CancellationToken cancellationToken)
     {
         if (row?.ProtectedQuestion is null) return row;
@@ -99,7 +108,8 @@ internal sealed class AiAssistantReader(ApplicationDbContext dbContext, TimeProv
             dbContext.Set<AiAssistantTurn>().Where(turn => turn.ConversationId == conversation.Id
                 && (turn.State == AiAssistantTurnState.Pending || turn.State == AiAssistantTurnState.Running))
                 .Select(turn => (Guid?)turn.RequestId).FirstOrDefault(),
-            question == null ? null : new AiConversationQuestionRow(question.Id, question.PayloadRevision, question.ProtectedQuestion, question.ContentExpiresAtUtc));
+            question == null ? null : new AiConversationQuestionRow(question.Id, question.PayloadRevision, question.ProtectedQuestion, question.ContentExpiresAtUtc)
+                { ProtectedTranscript = question.ProtectedTranscript });
 
     private static IQueryable<AiAssistantTurnRow> ProjectTurns(IQueryable<AiAssistantTurn> query) => query.Select(turn =>
         new AiAssistantTurnRow(turn.Id, turn.OwnerUserId, turn.ConversationId, turn.RequestId, turn.Ordinal,
@@ -111,5 +121,7 @@ internal sealed class AiAssistantReader(ApplicationDbContext dbContext, TimeProv
             turn.AttemptId, turn.Fence, turn.SubmittedAtUtc, turn.ContentExpiresAtUtc, turn.DeadlineAtUtc,
             turn.CancelRequestedAtUtc, turn.ProviderSteps, turn.ToolCalls, turn.ToolBytes,
             turn.InputTokens, turn.OutputTokens, turn.UsageUnknown, turn.FailureCode)
-        { AudioSeconds = turn.AudioSeconds, ChannelId = turn.Conversation.ChannelId, ExecutionProfileJson = turn.ExecutionProfileJson });
+        { AudioSeconds = turn.AudioSeconds, ChannelId = turn.Conversation.ChannelId, ExecutionProfileJson = turn.ExecutionProfileJson,
+            AudioRequestId = turn.AudioRequestId,
+            ProtectedTranscript = turn.Conversation.State == AiConversationState.Active ? turn.ProtectedTranscript : null });
 }

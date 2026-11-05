@@ -5,6 +5,32 @@ namespace ArquitecturaBase.Domain.UnitTests.Modules.ArtificialIntelligence;
 public sealed class AiAssistantTurnTests
 {
     [Fact]
+    public void A_dictated_turn_names_its_normalization_and_purging_drops_the_transcript_with_the_question()
+    {
+        var now = new DateTime(2026, 11, 4, 12, 0, 0, DateTimeKind.Utc);
+        var turn = AiAssistantTurn.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), 1, "cipher", "es", "UTC",
+            AiProvider.OpenAI, "model", 1, now, now.AddDays(30));
+        var audioRequestId = Guid.NewGuid();
+        turn.AttachAudio(audioRequestId, "transcript-cipher");
+        Assert.Equal((audioRequestId, "transcript-cipher"), (turn.AudioRequestId, turn.ProtectedTranscript));
+        turn.PurgeContent();
+        Assert.Null(turn.ProtectedTranscript);
+        Assert.Null(turn.ProtectedQuestion);
+        Assert.Equal(audioRequestId, turn.AudioRequestId);
+    }
+
+    [Fact]
+    public void A_dictated_turn_needs_its_normalization_and_a_sealed_transcript()
+    {
+        var now = new DateTime(2026, 11, 4, 12, 0, 0, DateTimeKind.Utc);
+        var turn = AiAssistantTurn.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), 1, "cipher", "es", "UTC",
+            AiProvider.OpenAI, "model", 1, now, now.AddDays(30));
+        Assert.Throws<ArgumentException>(() => turn.AttachAudio(Guid.Empty, "transcript-cipher"));
+        Assert.Throws<ArgumentException>(() => turn.AttachAudio(Guid.NewGuid(), ""));
+        Assert.Null(turn.AudioRequestId);
+    }
+
+    [Fact]
     public void A_confirmed_cancel_request_prevents_late_completion()
     {
         var now = new DateTime(2026, 10, 4, 12, 0, 0, DateTimeKind.Utc);

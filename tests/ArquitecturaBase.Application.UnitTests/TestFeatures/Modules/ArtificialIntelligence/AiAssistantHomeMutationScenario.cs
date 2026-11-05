@@ -10,6 +10,7 @@ using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
+using ArquitecturaBase.Application.UnitTests.TestFeatures.Files;
 
 namespace ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.ArtificialIntelligence;
 
@@ -28,7 +29,7 @@ internal sealed class AiAssistantHomeMutationScenario
         Store = createStore(actor.Id, clock.GetUtcNow().UtcDateTime, "fixture-neutral");
         var catalog = new AiAssistantCapabilityCatalogPolicy([], permissions);
         var guard = new AiAssistantAccessGuard(users, permissions, [], new AiAssistantLimits(),
-            new FakeCurrentUser { UserId = actor.Id }, catalog, []);
+            new FakeCurrentUser { UserId = actor.Id }, catalog, [], new MemoryPrivateFileStore());
         Service = new(Store.Repository, new FakeUnitOfWork(), RequestValidators.For(new CancelAiAssistantTurnRequestValidator()),
             guard, new AiAssistantReadPolicy(new MissingReader(), null!, null!, permissions, guard, null!, catalog, new AiAssistantLimits()),
             null!, clock, NullLogger<AiAssistantService>.Instance);
@@ -40,6 +41,7 @@ internal sealed class AiAssistantHomeMutationScenario
         public Task<AiConversationRow?> FindConversationAsync(Guid ownerUserId, Guid conversationId, CancellationToken ct) => throw new InvalidOperationException("Unexpected lookup.");
         public Task<PagedResult<AiConversationRow>> ListConversationsAsync(Guid ownerUserId, ListAiConversationsRequest request, CancellationToken ct) => throw new InvalidOperationException("Unexpected lookup.");
         public Task<PagedResult<AiAssistantTurnRow>> ListTurnsAsync(Guid ownerUserId, Guid conversationId, ListAiAssistantTurnsRequest request, CancellationToken ct) => throw new InvalidOperationException("Unexpected lookup.");
+        public Task<IReadOnlyList<Guid>> ListRetainedAudioRequestIdsAsync(IReadOnlyCollection<Guid> audioRequestIds, CancellationToken cancellationToken) => throw new InvalidOperationException("Unexpected lookup.");
         public Task<AiAssistantWorkloadRow> FindWorkloadAsync(DateTime nowUtc, int graceSeconds, CancellationToken ct) => throw new InvalidOperationException("Unexpected lookup.");
     }
 }

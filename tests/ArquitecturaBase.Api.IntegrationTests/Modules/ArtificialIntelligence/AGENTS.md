@@ -28,4 +28,6 @@ Los tests técnicos AudioTranscriptionProvider/AudioProviderDispatch/AudioOption
 
 ConversationScopeQuery verifica traducción SQL de scope explícito/null y modelo del índice con nulls no distintos, sin ApiFactory ni Docker. Las migraciones conservan contenido/sellos y rechazan bajar de versión si varios ámbitos activos no caben en el índice anterior; no cerrar ni borrar trabajo para hacer posible el Down.
 
+AiAssistantHomeAudioTests recorre IA4 con PostgreSQL: el bootstrap con audio, bytes que no son audio rechazados, la subida, la normalización con el cliente STT ficticio, el turno dictado con la transcripción del servidor, la grabación sólo para su persona y la retención. HomeAudioFiles es almacenamiento privado en memoria con WriteOnce; no acredita el almacenamiento real.
+
 AiAssistantOperationContinuationTests recorre «Cambiar algo» con el motor real y PostgreSQL: la operación siguiente queda en la conversación de la anterior (ordinal 2), el proveedor recibe la pregunta y la propuesta anteriores como historia y continuar una operación que ya no es la última da RevisionConflict.

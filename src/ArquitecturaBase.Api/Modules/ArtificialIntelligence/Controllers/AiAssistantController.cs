@@ -20,8 +20,11 @@ namespace ArquitecturaBase.Api.Modules.ArtificialIntelligence.Controllers;
 [EnableRateLimiting(ArtificialIntelligenceApiRegistration.ReadPolicy)]
 [RequestSizeLimit(16384)]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public sealed class AiAssistantController(IAiAssistantService service, ISystemSettingsService settings) : ControllerBase
+public sealed class AiAssistantController(IAiAssistantService service, IAiAssistantAudioService audio, ISystemSettingsService settings) : ControllerBase
 {
+    // A Home recording (IA4) plus its multipart envelope.
+    private const long MaximumAudioRequestBytes = SubmitAiAssistantAudioRequest.MaximumBytes + 64 * 1024;
+
     [HttpGet("bootstrap")]
     [ProducesResponseType<AiAssistantBootstrapResponse>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Bootstrap(CancellationToken cancellationToken) =>
@@ -58,7 +61,38 @@ public sealed class AiAssistantController(IAiAssistantService service, ISystemSe
     [ProducesProblem(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Submit([FromBody] SubmitAiAssistantTurnHttpRequest request, CancellationToken cancellationToken) =>
         (await service.SubmitAsync(new(request.RequestId, request.ConversationId, request.ExpectedRevision,
-            request.ExpectedConnectionRevision, request.Question, CultureInfo.CurrentUICulture.TwoLetterISOLanguageName), cancellationToken)).ToAcceptedResult(this);
+            request.ExpectedConnectionRevision, request.Question, CultureInfo.CurrentUICulture.TwoLetterISOLanguageName)
+            { AudioRequestId = request.AudioRequestId }, cancellationToken)).ToAcceptedResult(this);
+
+    [HttpPost("audio")]
+    [EnableRateLimiting(ArtificialIntelligenceApiRegistration.AssistantSubmitPolicy)]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(MaximumAudioRequestBytes)]
+    [RequestFormLimits(MultipartBodyLengthLimit = MaximumAudioRequestBytes)]
+    [ProducesResponseType<AiAssistantAudioResponse>(StatusCodes.Status202Accepted)]
+    [ProducesProblem(StatusCodes.Status400BadRequest)]
+    [ProducesProblem(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> SubmitAudio([FromForm] SubmitAiAssistantAudioHttpRequest request, CancellationToken cancellationToken)
+    {
+        await using var content = new MemoryStream();
+        await request.File.CopyToAsync(content, cancellationToken);
+        return (await audio.SubmitAsync(new(request.RequestId, CultureInfo.CurrentUICulture.TwoLetterISOLanguageName, content.ToArray()),
+            cancellationToken)).ToAcceptedResult(this);
+    }
+
+    [HttpGet("audio/{requestId:guid}")]
+    [ProducesResponseType<AiAssistantAudioResponse>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAudio([FromRoute] Guid requestId, CancellationToken cancellationToken) =>
+        (await audio.GetAsync(requestId, CultureInfo.CurrentUICulture.TwoLetterISOLanguageName, cancellationToken)).ToActionResult(this);
+
+    [HttpGet("audio/{requestId:guid}/file")]
+    [ProducesResponseType(typeof(FileStreamResult), StatusCodes.Status200OK, "audio/webm", "audio/mp4")]
+    public async Task<IActionResult> OpenAudio([FromRoute] Guid requestId, CancellationToken cancellationToken)
+    {
+        Response.Headers.XContentTypeOptions = "nosniff";
+        var result = await audio.OpenAsync(requestId, cancellationToken);
+        return result.IsFailure ? result.ToActionResult(this) : File(result.Value.Content, result.Value.ContentType);
+    }
 
     [HttpGet("turns/{requestId:guid}")]
     [ProducesResponseType<AiAssistantTurnResponse>(StatusCodes.Status200OK)]

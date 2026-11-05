@@ -16,7 +16,8 @@ internal sealed class AiTestModule : IApiTestModule
         "GET /api/ai/business-information", "PUT /api/ai/business-information", "GET /api/ai/business-information/changes/{requestid:guid}", "POST /api/ai/business-information/places/search",
         "GET /api/ai/assistant/bootstrap", "GET /api/ai/assistant/conversations", "GET /api/ai/assistant/conversations/{conversationid:guid}",
         "GET /api/ai/assistant/conversations/{conversationid:guid}/turns", "POST /api/ai/assistant/turns", "GET /api/ai/assistant/turns/{requestid:guid}",
-        "POST /api/ai/assistant/turns/{requestid:guid}/cancel", "DELETE /api/ai/assistant/conversations/{conversationid:guid}"];
+        "POST /api/ai/assistant/turns/{requestid:guid}/cancel", "DELETE /api/ai/assistant/conversations/{conversationid:guid}",
+        "POST /api/ai/assistant/audio", "GET /api/ai/assistant/audio/{requestid:guid}", "GET /api/ai/assistant/audio/{requestid:guid}/file"];
     public void ConfigureSettings(IWebHostBuilder builder)
     {
         builder.UseSetting("ArtificialIntelligence:SecretProtection:InstallationId", "integration-installation");

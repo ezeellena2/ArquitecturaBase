@@ -17,6 +17,7 @@ using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
+using ArquitecturaBase.Application.UnitTests.TestFeatures.Files;
 
 namespace ArquitecturaBase.Application.UnitTests.Modules.ArtificialIntelligence;
 
@@ -145,7 +146,7 @@ public sealed partial class AiAssistantDispatchServiceTests
             var limits = new AiAssistantLimits();
             var catalog = new AiAssistantCapabilityCatalogPolicy([Source], Permissions);
             var guard = new AiAssistantAccessGuard(users, Permissions, [new(AiProvider.OpenAI, "model", 131072, true, true) {Id="home"}], limits,
-                new FakeCurrentUser { UserId = actor.Id }, catalog, []);
+                new FakeCurrentUser { UserId = actor.Id }, catalog, [], new MemoryPrivateFileStore());
             Store = new Store(actor.Id, Clock.GetUtcNow().UtcDateTime);
             Profile = new("home", 1, "home-system", 1,
                 new("home", actor.Id, null, "es", "UTC", new(sealCapabilityPermissions

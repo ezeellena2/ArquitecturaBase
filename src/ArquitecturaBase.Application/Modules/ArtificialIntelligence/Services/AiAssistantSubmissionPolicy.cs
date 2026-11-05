@@ -97,6 +97,13 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
             if (continued.IsFailure) return continued.Error;
             conversation = continued.Value;
         }
+        string? transcript = null;
+        if (home?.AudioRequestId is { } audioRequestId)
+        {
+            var heard = await TranscriptAsync(userId, audioRequestId, now, ct);
+            if (heard.IsFailure) return heard.Error;
+            transcript = heard.Value;
+        }
         var connection = await connectionReader.FindAsync(ct);
         if (home is not null && connection.Revision != home.ExpectedConnectionRevision) return AiAssistantErrors.ConnectionChanged;
         if (operation?.Audio is null && guard.Availability(connection) != "available") return AiAssistantErrors.Unavailable;
@@ -130,6 +137,8 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
         var question = operation?.Audio is { } audio ? JsonSerializer.Serialize(audio, AiAssistantResponsePolicy.JsonOptions)
             : home?.NormalizedQuestion ?? operation!.Text.Trim().Replace("\r\n", "\n", StringComparison.Ordinal);
         turn.ProtectQuestion(protector.Protect(userId, conversation.Id, turn.Id, "question", turn.PayloadRevision, question));
+        if (transcript is not null)
+            turn.AttachAudio(home!.AudioRequestId!.Value, protector.Protect(userId, conversation.Id, turn.Id, "transcript", turn.PayloadRevision, transcript));
         conversation.Touch(now);
         repository.AddTurn(turn);
         var hash = home is not null ? fingerprint.Create(userId, home, fingerprint.ActiveKeyId) : fingerprint.Create(operation!, fingerprint.ActiveKeyId);
@@ -156,6 +165,22 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
         if (!await guard.CanReadAsync(context.ActorUserId, conversation.RequiredPermissions, ct)) return AiAssistantErrors.ContentBlocked;
         if (previous.Ordinal != await repository.CountTurnsAsync(conversation.Id, ct)) return AiAssistantErrors.RevisionConflict;
         return conversation;
+    }
+
+    // The text of a dictated Home turn comes from its completed normalization of the same person, never from the browser (IA4).
+    private async Task<Result<string>> TranscriptAsync(Guid userId, Guid audioRequestId, DateTime nowUtc, CancellationToken ct)
+    {
+        var receipt = await repository.GetReceiptAsync(userId, audioRequestId, ct);
+        if (receipt is null) return AiAssistantErrors.NotFound;
+        var conversation = await repository.GetConversationAsync(userId, receipt.ConversationId, ct);
+        var normalization = await repository.GetTurnAsync(receipt.TurnId, ct);
+        if (conversation?.ChannelId != AiAssistantChannelPolicy.HomeAudioChannelId || normalization is null || normalization.OwnerUserId != userId)
+            return AiAssistantErrors.NotFound;
+        if (normalization.State != AiAssistantTurnState.Completed) return AiAssistantErrors.ContentUnavailable;
+        if (normalization.ContentExpiresAtUtc <= nowUtc || normalization.ProtectedAnswer is null) return AiAssistantErrors.Expired;
+        var json = protector.Unprotect(userId, normalization.ConversationId, normalization.Id, "answer", normalization.PayloadRevision, normalization.ProtectedAnswer);
+        return json is not null && AiAssistantAudioPolicy.ReadNormalized(json, AiAssistantAudioPolicy.MaximumTranscriptCharacters) is { } audio
+            ? audio.Text : AiAssistantErrors.ContentUnavailable;
     }
 
     private AiAssistantTurnAcceptedResponse Accepted(AiAssistantTurn turn, long conversationRevision, DateTime nowUtc) =>

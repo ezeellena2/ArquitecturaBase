@@ -7,6 +7,7 @@ using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services;
 using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Time.Testing;
+using ArquitecturaBase.Application.UnitTests.TestFeatures.Files;
 
 namespace ArquitecturaBase.Application.UnitTests.Modules.ArtificialIntelligence;
 
@@ -23,7 +24,7 @@ public sealed partial class AiAssistantContextPolicyTests
         var limits = new AiAssistantLimits();
         var guard = new AiAssistantAccessGuard(host.Users, host.Permissions,
             [new(AiProvider.OpenAI, "model", limits.ContextBytes, true, true) {Id="home"}], limits,
-            new FakeCurrentUser { UserId = host.UserId }, catalog, []);
+            new FakeCurrentUser { UserId = host.UserId }, catalog, [], new MemoryPrivateFileStore());
         var reads = new AiAssistantReadPolicy(host.Reader, new ConnectionReader(), null!, host.Permissions, guard,
             new AiAssistantResponsePolicy(host.Protector, new FakeTimeProvider(), catalog), catalog, limits);
         var result = await reads.BootstrapAsync(TestContext.Current.CancellationToken);
@@ -42,7 +43,7 @@ public sealed partial class AiAssistantContextPolicyTests
         var limits = new AiAssistantLimits();
         var guard = new AiAssistantAccessGuard(host.Users, host.Permissions,
             [new(AiProvider.OpenAI, "model", limits.ContextBytes, true, true) {Id="home"}], limits,
-            new FakeCurrentUser { UserId = host.UserId }, catalog, []);
+            new FakeCurrentUser { UserId = host.UserId }, catalog, [], new MemoryPrivateFileStore());
         var reads = new AiAssistantReadPolicy(host.Reader, new ConnectionReader(), null!, host.Permissions, guard,
             new AiAssistantResponsePolicy(host.Protector, new FakeTimeProvider(), catalog), catalog, limits);
         var result = await reads.BootstrapAsync(TestContext.Current.CancellationToken);
@@ -59,7 +60,7 @@ public sealed partial class AiAssistantContextPolicyTests
         var limits = new AiAssistantLimits();
         var guard = new AiAssistantAccessGuard(host.Users, host.Permissions,
             [new(AiProvider.OpenAI, "model", limits.ContextBytes, true, true) {Id="home"}], limits,
-            new FakeCurrentUser { UserId = host.UserId }, catalog, []);
+            new FakeCurrentUser { UserId = host.UserId }, catalog, [], new MemoryPrivateFileStore());
         var reads = new AiAssistantReadPolicy(host.Reader, new ConnectionReader(), null!, host.Permissions, guard,
             new AiAssistantResponsePolicy(host.Protector, new FakeTimeProvider(), catalog), catalog, limits);
         var result = await reads.BootstrapAsync(TestContext.Current.CancellationToken);

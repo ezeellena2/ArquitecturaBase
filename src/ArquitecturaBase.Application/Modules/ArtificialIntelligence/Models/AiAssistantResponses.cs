@@ -7,7 +7,11 @@ namespace ArquitecturaBase.Application.Modules.ArtificialIntelligence.Models;
 public sealed record AiAssistantSuggestion(string Id, string Question);
 public sealed record AiAssistantPublicLimits(int QuestionMaxLength);
 public sealed record AiAssistantBootstrapResponse(string Availability, long ConnectionRevision,
-    IReadOnlyList<AiAssistantSuggestion> Suggestions, AiAssistantPublicLimits Limits, string? ConfigurationDestination);
+    IReadOnlyList<AiAssistantSuggestion> Suggestions, AiAssistantPublicLimits Limits, string? ConfigurationDestination)
+{
+    /// <summary>IA4: whether Home takes a recording (a provider that hears what the browser records and private storage).</summary>
+    public bool Audio { get; init; }
+}
 public sealed record AiConversationSummaryResponse(Guid ConversationId, long Revision, string Title,
     DateTime LastActivityAtUtc, string ContentAccess)
 {
@@ -42,9 +46,15 @@ public sealed record AiAssistantTurnResponse(Guid TurnId, Guid ConversationId, G
     // Only a turn that closed on a proposal carries it: the others keep the shape the front already reads.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public AiAssistantProposalResponse? Proposal { get; init; }
+    // Only a dictated turn (IA4) carries its audio and the transcript the model read; a typed one keeps its shape.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public AiAssistantTurnAudioResponse? Audio { get; init; }
     [JsonIgnore]
     public AssistantObservedProposal? ObservedProposal { get; init; }
     [JsonIgnore]
     public AssistantNormalizedAudio? NormalizedAudio { get; init; }
     public override string ToString() => "AiAssistantTurnResponse { content: [REDACTED] }";
 }
+
+public sealed record AiAssistantTurnAudioResponse(Guid RequestId, string Transcript)
+{ public override string ToString() => "AiAssistantTurnAudioResponse { Transcript = [REDACTED] }"; }

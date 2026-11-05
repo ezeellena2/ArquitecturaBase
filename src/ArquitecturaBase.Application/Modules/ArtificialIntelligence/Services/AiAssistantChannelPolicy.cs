@@ -15,6 +15,11 @@ internal static class AiAssistantChannelPolicy
 
     public static bool IsHomeQuery(string capabilityId) => HomeQueries.Contains(capabilityId, StringComparer.Ordinal);
 
+    // IA4: a Home recording is normalized in a channel of its own, by the same person with the Home permission, before the turn.
+    public const string HomeAudioChannelId = "home-audio";
+    public static AssistantChannelContext HomeAudio(Guid actorUserId, string culture, string timeZoneId) =>
+        new(HomeAudioChannelId, actorUserId, null, culture, timeZoneId, new([ArtificialIntelligencePermissions.AssistantUse], []), [], []);
+
     // Home keeps its core queries and adds only what an owner explicitly offers in Home; the catalog filters both by permission.
     public static AssistantChannelContext Home(Guid actorUserId, string culture, string timeZoneId, IReadOnlyList<AssistantCapabilityReference> offeredInHome) =>
         new("home", actorUserId, null, culture, timeZoneId, new([ArtificialIntelligencePermissions.AssistantUse], []),

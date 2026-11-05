@@ -230,8 +230,12 @@ OpenAI guardada, Disponible y con su clave vigente, y un perfil STT calificado b
 | --- | --- |
 | `Provider` / `Model` | OpenAI y el modelo STT exacto que se probó. No modifica el modelo de texto guardado. |
 | `Id` / `Version` | Identidad explícita y versión positiva que se fijan al aceptar la operación. |
-| `ContentTypes` | Formatos realmente calificados entre `audio/ogg` y `audio/wav`. |
+| `ContentTypes` | Formatos realmente calificados entre `audio/ogg`, `audio/wav`, `audio/webm` y `audio/mp4` (los dos últimos son lo que graba el navegador en Inicio). |
 | `MaximumAudioBytes` | Límite calificado de hasta 25.000.000 bytes; puede ser menor. |
+
+El micrófono de Inicio aparece sólo si un perfil califica `audio/webm` o `audio/mp4` con `MaximumAudioBytes` de al
+menos 1.000.000 y hay almacenamiento privado. Un perfil para WebM o MP4 se califica con el arnés antes de declararlo,
+como el de Ogg: el formato no se hereda de otro perfil.
 
 El motor usa la misma conexión, credencial cifrada y revisión. No cargues otra API key ni cambies
 `AiConnection.Model` para transcribir. Las instrucciones capturadas son `audio-none-v1@1`,

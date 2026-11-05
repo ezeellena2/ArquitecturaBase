@@ -10,6 +10,7 @@ using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
 using Microsoft.Extensions.Time.Testing;
+using ArquitecturaBase.Application.UnitTests.TestFeatures.Files;
 
 namespace ArquitecturaBase.Application.UnitTests.Modules.ArtificialIntelligence;
 
@@ -85,7 +86,7 @@ public sealed partial class AiAssistantContextPolicyTests
             var profiles = (profileVersions ?? [1]).Select(version => new AiAssistantModelProfile(AiProvider.OpenAI, "model", limits.ContextBytes, true, true) { Id = "home", Version = version }).ToArray();
             var catalog = new AiAssistantCapabilityCatalogPolicy([], permissions);
             var guard = new AiAssistantAccessGuard(users, permissions, profiles, limits,
-                new FakeCurrentUser { UserId = actor.Id }, catalog, []);
+                new FakeCurrentUser { UserId = actor.Id }, catalog, [], new MemoryPrivateFileStore());
             Guard = guard;
             Policy = new(Reader, new ConnectionReader(), guard, new AiAssistantResponsePolicy(Protector, clock, catalog),
                 new AiConnectionCandidatePolicy(new SecretProtector()), catalog, limits, clock);
@@ -98,7 +99,13 @@ public sealed partial class AiAssistantContextPolicyTests
         public string? Unprotect(Guid ownerUserId, Guid conversationId, Guid turnId, string purpose, long payloadRevision, string ciphertext)
         {
             Decryptions++;
-            return ciphertext == "current-content" ? "Current question" : throw new InvalidOperationException("Older history must not be decrypted.");
+            return ciphertext switch
+            {
+                "current-content" => "Current question",
+                "transcript-content" => "Dictated request",
+                "blank-content" => "   ",
+                _ => throw new InvalidOperationException("Older history must not be decrypted."),
+            };
         }
     }
     private sealed class SecretProtector : IAiSecretProtector
@@ -117,6 +124,7 @@ public sealed partial class AiAssistantContextPolicyTests
         public IReadOnlyList<AiAssistantTurnRow> History { get; set; } = [];
         public Task<AiAssistantTurnRow?> FindTurnAsync(Guid turnId, CancellationToken cancellationToken) => Task.FromResult<AiAssistantTurnRow?>(Row);
         public Task<PagedResult<AiAssistantTurnRow>> ListTurnsAsync(Guid ownerUserId, Guid conversationId, ListAiAssistantTurnsRequest request, CancellationToken cancellationToken) => Task.FromResult(new PagedResult<AiAssistantTurnRow>(History, 1, request.PageSize, History.Count));
+        public Task<IReadOnlyList<Guid>> ListRetainedAudioRequestIdsAsync(IReadOnlyCollection<Guid> audioRequestIds, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<AiAssistantWorkloadRow> FindWorkloadAsync(DateTime nowUtc, int leaseGraceSeconds, CancellationToken cancellationToken) => Task.FromResult(new AiAssistantWorkloadRow(0, 0, 0, null, null));
         public Task<AiConversationRow?> FindConversationAsync(Guid ownerUserId, Guid conversationId, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<AiAssistantTurnRow?> FindTurnByRequestAsync(Guid ownerUserId, Guid requestId, CancellationToken cancellationToken) => throw new NotSupportedException();

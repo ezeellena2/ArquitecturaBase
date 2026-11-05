@@ -4,7 +4,7 @@ namespace ArquitecturaBase.Api.Modules.ArtificialIntelligence.Contracts.Assistan
 
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record SubmitAiAssistantTurnHttpRequest(Guid RequestId, Guid? ConversationId,
-    long? ExpectedRevision, long ExpectedConnectionRevision, string Question)
+    long? ExpectedRevision, long ExpectedConnectionRevision, string Question, Guid? AudioRequestId = null)
 {
     public override string ToString() => "SubmitAiAssistantTurnHttpRequest { question: [REDACTED] }";
 }

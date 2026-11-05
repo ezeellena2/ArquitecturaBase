@@ -19,14 +19,15 @@ internal static class AiAssistantHistoryPolicy
         {
             var latest = ReferenceEquals(turn, latestProposal);
             if (turn.Question is null || turn.Answer is null && !latest) continue;
+            var asked = AiAssistantAudioPolicy.Spoken(turn.Question, turn.Audio?.Transcript);
             var answer = turn.Answer?.Text ?? "";
             if (latest)
                 answer += (answer.Length == 0 ? "" : "\n\n") + string.Format(CultureInfo.InvariantCulture, AssistantTexts.Get("Prompt.PreviousProposal", culture),
                     JsonSerializer.Serialize(turn.ObservedProposal!.Payload, turn.ObservedProposal.Payload.GetType(), AiAssistantResponsePolicy.JsonOptions));
-            var length = turn.Question.Length + answer.Length;
+            var length = asked.Length + answer.Length;
             if (used + length > historyCharacters) continue;
             used += length;
-            messages.Add(new("user", turn.Question));
+            messages.Add(new("user", asked));
             messages.Add(new("assistant", answer));
         }
         return messages;
