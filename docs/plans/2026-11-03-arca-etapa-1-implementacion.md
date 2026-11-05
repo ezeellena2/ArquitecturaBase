@@ -1062,6 +1062,24 @@ Referencias: `AiConnectionController`, `UpdateAiConnectionHttpRequest` (con su `
 
 ### Tarea 9: front (AC1-A, AC2-A y AC3)
 
+**Hecha el 2026-11-05.** Diferencias con lo escrito:
+- **Diseño:** quedó en `docs/design/arca-conexion.md` del front, con una entrada en su `visual-baseline.md`. Ahí está lo
+  que se fijó al registrar.
+- **Piezas comunes de `connection/`:** además de lo previsto, `ArcaZone`, `CertificatePicker` (con la zona para soltar el
+  `.crt`), `ServiceRows`, `families.ts` (el contrato de las zonas de una familia), `useArcaAction` y `useArcaFormat`.
+  `invoicing/PointOfSaleZone.tsx` exporta la zona del alta y la sección activa, y `CompanySection` recibe la CUIT de la
+  conexión.
+- **Tests:** los de las familias van en `ArcaSettingsPage.test.tsx` (14 casos), más `connection/model.test.ts` (4). Las
+  escenas visuales son 16 tests con 18 capturas `arca-*.png`.
+- **El estado de cada servicio** vive en la prueba de la visita: el servidor guarda sólo el resultado general y la hora, y
+  un servicio sumado después no se probó. Al volver, los renglones quedan sin estado; «Sin probar» aparece sólo si nunca
+  hubo una prueba.
+- **«Activar la conexión»** aparece desde «Sin verificar» y llama a lo que cada familia avisó con `onReady` (el punto de
+  venta). «Cambiar» en Datos con otra CUIT u otro ambiente reemplaza la conexión del alta.
+- **El punto de venta** muestra el número y el tipo de emisión; `FEParamGetPtosVenta` no trae el domicilio del tablero.
+- **Ejemplos HTTP:** sin cohorte exportada, como la configuración de IA. El contrato lo cubren los tests de contratos y el
+  OpenAPI del backend; las respuestas del front están escritas a mano en los tests y en `arcaFixtures.ts`.
+
 Repo `../ArquitecturaBaseFront`. Antes, leer su `AGENTS.md`, el de `src/features` y el de
 `src/features/artificial-intelligence`, que es la pantalla más parecida (`AiSettingsPage`). Antes de los tests, registrar el
 diseño de AC1-A, AC2-A y AC3 en `docs/design` del front, como los de renglones y la IA: el usuario decidió el 2026-11-05 no
@@ -1081,7 +1099,7 @@ esperar el lienzo del sistema visual.
 Una familia del front no importa a otra. La página conoce las zonas por un registro chico (familia → componente), así
 quitar una familia es borrar su carpeta y su línea.
 
-- [ ] **Paso 1: tests en rojo** (Vitest con MSW), uno por estado de AC3 y por zona:
+- [x] **Paso 1: tests en rojo** (Vitest con MSW), uno por estado de AC3 y por zona:
   - **Sin conexión:** con `arca.manage` se ve «Conectar con ARCA», que abre el paso 1; sin él, «Solo lectura».
   - **Paso 1:**
     - la CUIT con el dígito mal da el error junto al campo, sin pedido al servidor;
@@ -1098,14 +1116,14 @@ quitar una familia es borrar su carpeta y su línea.
   - **Un 409** abre «Revisar» con «Leer lo actual».
   - **«Desconectar»** pide confirmación.
   - **«Probando…»:** el botón ocupado.
-- [ ] **Paso 2: implementación.**
+- [x] **Paso 2: implementación.**
   - Usa las piezas de `shared/ui`: `Surface` con banda, `Button`, la (i) con tooltip y `ConfirmDialog`.
   - Todas las medidas van en rem ([escala del 75 %](../../../ArquitecturaBaseFront/docs/design/visual-baseline.md)).
   - Sin leyendas fijas: la ayuda va en la (i). Los textos, en voseo.
   - Las zonas apagadas no son interactivas, y la zona en curso recibe el foco al abrirse.
-- [ ] **Paso 3: correr** `npm run lint`, `npm run test -- src/features/arca` y `npm run test:visual` para las escenas
+- [x] **Paso 3: correr** `npm run lint`, `npm run test -- src/features/arca` y `npm run test:visual` para las escenas
   nuevas.
-- [ ] **Paso 4: commit en el front.** `feat(arca): pantalla de la conexión con ARCA`
+- [x] **Paso 4: commit en el front.** `feat(arca): pantalla de la conexión con ARCA`
 
 ---
 
