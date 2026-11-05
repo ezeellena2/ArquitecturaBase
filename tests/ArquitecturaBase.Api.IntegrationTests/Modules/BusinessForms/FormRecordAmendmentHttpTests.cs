@@ -68,6 +68,8 @@ public sealed class FormRecordAmendmentHttpTests(ApiFactory factory)
         var row = Assert.Single((await sheet.ReadJsonAsync()).GetProperty("records").GetProperty("items").EnumerateArray());
         Assert.Equal(correctedId, row.GetProperty("id").GetGuid());
         Assert.True(row.GetProperty("corrected").GetBoolean());
+        using var own = await first.GetAsync($"/api/forms/records/{correctedId}", Ct);
+        Assert.True((await own.ReadJsonAsync()).GetProperty("canAmend").GetBoolean());
         Assert.Equal("app", row.GetProperty("channel").GetString());
 
         using var detail = await reader.GetAsync($"/api/forms/records/{correctedId}", Ct);
@@ -77,13 +79,13 @@ public sealed class FormRecordAmendmentHttpTests(ApiFactory factory)
         Assert.Equal("Era otro proveedor.", body.GetProperty("correction").GetProperty("reason").GetString());
         Assert.Equal("Juan Gómez", body.GetProperty("correction").GetProperty("by").GetProperty("displayName").GetString());
         Assert.Equal("app", body.GetProperty("origin").GetProperty("channelId").GetString());
-        Assert.False(body.GetProperty("canAmend").GetBoolean());
+        Assert.False(body.TryGetProperty("canAmend", out _));
 
         using var previous = await first.GetAsync($"/api/forms/records/{original.RecordId}", Ct);
         if (culture == "es") await FormEntryContractCapture.WriteAsync(previous, "detail-replaced-es", Ct);
         var previousBody = await previous.ReadJsonAsync();
         Assert.Equal(correctedId, previousBody.GetProperty("replacedBy").GetProperty("recordId").GetGuid());
-        Assert.False(previousBody.GetProperty("canAmend").GetBoolean());
+        Assert.False(previousBody.TryGetProperty("canAmend", out _));
 
         using var again = await first.PostAsync($"/api/forms/entries/{scenario.DefinitionId}/records/{original.RecordId}",
             Correct(Guid.NewGuid(), versionId, "Otra vez", Choice(scenario.QuestionId, scenario.FirstItemId)), Ct);
@@ -156,7 +158,6 @@ public sealed class FormRecordAmendmentHttpTests(ApiFactory factory)
         using var detail = await reader.GetAsync($"/api/forms/records/{voided.RecordId}", Ct);
         await FormEntryContractCapture.WriteAsync(detail, "detail-voided-es", Ct);
         var body = await detail.ReadJsonAsync();
-        Assert.Equal("Voided", body.GetProperty("state").GetString());
         Assert.Equal("Cargada dos veces.", body.GetProperty("void").GetProperty("reason").GetString());
         Assert.Equal("Juan Gómez", body.GetProperty("void").GetProperty("by").GetProperty("displayName").GetString());
 
@@ -195,7 +196,7 @@ public sealed class FormRecordAmendmentHttpTests(ApiFactory factory)
         using var decided = await first.PostAsJsonAsync($"/api/forms/definitions/{scenario.DefinitionId}/records/{original.RecordId}/void", new { reason = "Tarde" }, Ct);
         Assert.Equal(HttpStatusCode.Conflict, decided.StatusCode);
         using var detail = await first.GetAsync($"/api/forms/records/{original.RecordId}", Ct);
-        Assert.False((await detail.ReadJsonAsync()).GetProperty("canAmend").GetBoolean());
+        Assert.False((await detail.ReadJsonAsync()).TryGetProperty("canAmend", out _));
     }
 
     private static async Task<int> ExportedRowsAsync(HttpClient client, Guid definitionId, bool includeVoided)

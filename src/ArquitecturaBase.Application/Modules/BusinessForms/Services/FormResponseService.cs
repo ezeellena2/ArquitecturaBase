@@ -102,7 +102,7 @@ internal sealed class FormResponseService(IFormResponseReader reader, FormRecord
                     .Select(record => new FormResponseChainRecordResponse(record.Id, record.DefinitionId, record.OriginRecordId,
                         record.Prefix + "-" + record.Number.ToString("D6", CultureInfo.InvariantCulture),
                         FormRecordPresentationPolicy.Text(FormDraftPolicy.Read<Dictionary<string,string>>(record.NameJson), (record.Version ?? throw new InvalidOperationException("The chain version presentation is missing.")).DisplayCulture(Culture())), record.SubmittedAtUtc)).ToArray() : [],
-                State = row.State, Correction = amendment.Correction, ReplacedBy = amendment.ReplacedBy, Void = amendment.Void,
+                Correction = amendment.Correction, ReplacedBy = amendment.ReplacedBy, Void = amendment.Void,
                 CanAmend = amend is not null && FormRecordAmendmentGuard.Allows(amend, row.Actor.UserId, Enum.Parse<FormRecordState>(row.State),
                     row.ReplacedByRecordId is not null).IsSuccess,
             };

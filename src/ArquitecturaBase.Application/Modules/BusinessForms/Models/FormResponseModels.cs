@@ -28,7 +28,8 @@ public sealed record FormResponseCell(Guid FieldId, string Type, string State, o
     public override string ToString() => "FormResponseCell { Value = [REDACTED] }";
 }
 public sealed record FormResponseRow(Guid Id, Guid VersionId, long VersionNumber, string Number, DateTime SubmittedAtUtc,
-    FormAuthorResponse Actor, string Channel, IReadOnlyList<FormResponseCell> Cells, string State = "Received", bool HasPdf = false, bool Corrected = false)
+    FormAuthorResponse Actor, string Channel, IReadOnlyList<FormResponseCell> Cells, string State = "Received", bool HasPdf = false,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)] bool Corrected = false)
 {
     public override string ToString() => "FormResponseRow { Content = [REDACTED] }";
 }
@@ -94,11 +95,15 @@ public sealed record FormResponseDetailResponse(Guid Id, Guid DefinitionId, Guid
 {
     public FormResponseAssistanceResponse? Assistance { get; init; }
     public IReadOnlyList<FormResponseChainRecordResponse> Chain { get; init; } = [];
-    public string State { get; init; } = "Received";
+    // Omitted when they do not apply: a response as it arrived, current and not voided, keeps the body it had.
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public FormResponseCorrectionResponse? Correction { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public FormResponseReplacementResponse? ReplacedBy { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public FormResponseVoidResponse? Void { get; init; }
-    /// <summary>Whether the person reading it may correct or void it now (decision 8); the server checks again.</summary>
+    /// <summary>Whether the person reading it may correct or void it now (decision 8); the server checks again. Omitted when false.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
     public bool CanAmend { get; init; }
 }
 public sealed record FormResponseHistoryResponse(string Kind, DateTime AtUtc, FormAuthorResponse? Actor);
