@@ -40,6 +40,19 @@ public sealed class FormAuthoringDeclineTests
         Assert.Equal(new FormAuthoringDecline("catalogExists", null, Contractors, "Contratistas"), catalog.Value.Payload);
     }
 
+    [Fact]
+    public async Task What_already_exists_is_named_in_the_conversation_language_or_in_its_original()
+    {
+        var host = Host();
+        host.Reader.DefinitionsByPrefix["LLU"] = new(Rains,
+            FormDraftPolicy.Serialize(new Dictionary<string, string> { ["es"] = "Parte de lluvias", ["en"] = "Rain report" }), "es");
+        var english = host.Context with { Culture = "en" };
+        var form = await host.Source.ExecuteAsync(host.Request(Decline, Json("formExists", "LLU")) with { Context = english }, Ct);
+        var catalog = await host.Source.ExecuteAsync(host.Request(Decline, Json("catalogExists", catalogId: Contractors.ToString())) with { Context = english }, Ct);
+        Assert.Equal(new FormAuthoringDecline("formExists", Rains, null, "Rain report"), form.Value.Payload);
+        Assert.Equal(new FormAuthoringDecline("catalogExists", null, Contractors, "Contratistas"), catalog.Value.Payload);
+    }
+
     [Theory]
     [InlineData("noPermission", null, null, "reason", "permissionGranted")]
     [InlineData("noPermission", "LLU", null, "prefix", "invalid")]

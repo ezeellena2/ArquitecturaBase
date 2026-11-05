@@ -57,12 +57,14 @@ internal sealed class BusinessFormAuthoringAssistantCapabilitySource(IFormAuthor
         if (request.Capability.Id == FormsId)
         {
             var rows = await reader.ListDefinitionsAsync(FormAuthoringAssistantCodec.MaximumRows + 1, ct);
-            var forms = Bound(rows.Take(FormAuthoringAssistantCodec.MaximumRows).Select(Form).ToArray(), rows.Count <= FormAuthoringAssistantCodec.MaximumRows,
+            var forms = Bound(rows.Take(FormAuthoringAssistantCodec.MaximumRows).Select(row => Form(row, request.Context.Culture)).ToArray(),
+                rows.Count <= FormAuthoringAssistantCodec.MaximumRows,
                 (selected, complete) => new FormAuthoringFormsPayload(complete, selected));
             return new AssistantCapabilityResponse(forms.IsComplete ? "complete" : "partial", forms, [], forms.Forms.Count);
         }
         var stored = await reader.ListCatalogsAsync(FormAuthoringAssistantCodec.MaximumRows + 1, ct);
-        var catalogs = Bound(stored.Take(FormAuthoringAssistantCodec.MaximumRows).Select(Catalog).ToArray(), stored.Count <= FormAuthoringAssistantCodec.MaximumRows,
+        var catalogs = Bound(stored.Take(FormAuthoringAssistantCodec.MaximumRows).Select(row => Catalog(row, request.Context.Culture)).ToArray(),
+            stored.Count <= FormAuthoringAssistantCodec.MaximumRows,
             (selected, complete) => new FormAuthoringCatalogsPayload(complete, selected));
         return new AssistantCapabilityResponse(catalogs.IsComplete ? "complete" : "partial", catalogs, [], catalogs.Catalogs.Count);
     }
@@ -104,7 +106,7 @@ internal sealed class BusinessFormAuthoringAssistantCapabilitySource(IFormAuthor
         var proposal = FormAuthoringProposalPolicy.Normalize(new FormAuthoringFormProposal(request.Context.Culture, arguments.Value.Name,
             arguments.Value.Prefix, arguments.Value.SubmitLabel, questions.Select(question => new FormAuthoringProposedQuestion(
                 question.Label, question.Type, question.Required, question.Options, question.Type == "catalog" && question.CatalogId is { } id
-                    ? new(id, catalogs.TryGetValue(id, out var catalog) ? Catalog(catalog).Name : "") : null)).ToArray()));
+                    ? new(id, catalogs.TryGetValue(id, out var catalog) ? Catalog(catalog, request.Context.Culture).Name : "") : null)).ToArray()));
         issues.AddRange(FormAuthoringProposalPolicy.ShapeIssues(proposal).Where(issue => !issues.Contains(issue)));
         if (issues.Count == 0)
             issues.AddRange(DraftValidator.Validate(FormAuthoringProposalPolicy.Draft(request.TurnId, proposal)).Errors
@@ -130,13 +132,13 @@ internal sealed class BusinessFormAuthoringAssistantCapabilitySource(IFormAuthor
             if (catalogId is not null) return Rejected([new("catalogId", "invalid")]);
             if (!await permissions.HasPermissionAsync(actor, BusinessFormsPermissions.Read, ct)) return Rejected([new("reason", "notReadable")]);
             return prefix is { Length: > 0 } && await reader.FindDefinitionByPrefixAsync(prefix.Trim().ToUpperInvariant(), ct) is { } form
-                ? Declined(new(reason, form.Id, null, Text(FormDraftPolicy.Read<Dictionary<string, string>>(form.NameJson), form.Culture)))
+                ? Declined(new(reason, form.Id, null, Text(FormDraftPolicy.Read<Dictionary<string, string>>(form.NameJson), request.Context.Culture, form.Culture)))
                 : Rejected([new("prefix", "notFound")]);
         }
         if (prefix is not null) return Rejected([new("prefix", "invalid")]);
         if (!await permissions.HasPermissionAsync(actor, BusinessFormsPermissions.CatalogsRead, ct)) return Rejected([new("reason", "notReadable")]);
         return Guid.TryParse(catalogId, out var id) && (await reader.ListCatalogsAsync([id], ct)).SingleOrDefault() is { } catalog
-            ? Declined(new(reason, null, catalog.Id, Catalog(catalog).Name)) : Rejected([new("catalogId", "notFound")]);
+            ? Declined(new(reason, null, catalog.Id, Catalog(catalog, request.Context.Culture).Name)) : Rejected([new("catalogId", "notFound")]);
     }
 
     // Building needs both areas' read and manage permissions; missing any of them is a real reason to decline.
@@ -169,22 +171,24 @@ internal sealed class BusinessFormAuthoringAssistantCapabilitySource(IFormAuthor
         return create(selected, complete);
     }
 
-    private static FormAuthoringFormRow Form(FormAuthoringDefinitionStoredRow row)
+    // Each text reads in the conversation language, or in its original without a translation: the same name creating compares.
+    private static FormAuthoringFormRow Form(FormAuthoringDefinitionStoredRow row, string culture)
     {
         var schema = FormDraftPolicy.Read<FormQuestionSchema>(row.SchemaJson);
-        return new(Text(FormDraftPolicy.Read<Dictionary<string, string>>(row.NameJson), row.Culture), row.Prefix,
+        return new(Text(FormDraftPolicy.Read<Dictionary<string, string>>(row.NameJson), culture, row.Culture), row.Prefix,
             row.IsInactive ? "inactive" : row.IsPublished ? "published" : "draft",
             // The block of rows is not one of the forty questions: its questions are listed like the others.
-            schema.Fields.Where(field => field.Type != "group").Select(field => new FormAuthoringQuestionRow(Text(field.Label, row.Culture), field.Type)).ToArray());
+            schema.Fields.Where(field => field.Type != "group").Select(field => new FormAuthoringQuestionRow(Text(field.Label, culture, row.Culture), field.Type)).ToArray());
     }
 
-    private static FormAuthoringCatalogRow Catalog(FormAuthoringCatalogStoredRow row) =>
-        new(row.Id, Text(FormDraftPolicy.Read<Dictionary<string, string>>(row.NameJson), row.OriginalCulture), row.Kind.ToString().ToLowerInvariant(),
+    private static FormAuthoringCatalogRow Catalog(FormAuthoringCatalogStoredRow row, string culture) =>
+        new(row.Id, Text(FormDraftPolicy.Read<Dictionary<string, string>>(row.NameJson), culture, row.OriginalCulture), row.Kind.ToString().ToLowerInvariant(),
             row.ValueType.ToString().ToLowerInvariant(), row.IsActive,
             FormCatalogFieldPolicy.ReadFields(row.FieldsJson).Where(field => field.IsActive).OrderBy(field => field.Position)
-                .Select(field => new FormAuthoringCatalogFieldRow(Text(field.Name, row.OriginalCulture), field.Type)).ToArray());
+                .Select(field => new FormAuthoringCatalogFieldRow(Text(field.Name, culture, row.OriginalCulture), field.Type)).ToArray());
 
-    private static string Text(IReadOnlyDictionary<string, string> texts, string culture) =>
+    private static string Text(IReadOnlyDictionary<string, string> texts, string culture, string original) =>
         texts.TryGetValue(culture, out var text) && !string.IsNullOrWhiteSpace(text) ? text
+            : texts.TryGetValue(original, out var source) && !string.IsNullOrWhiteSpace(source) ? source
             : texts.Values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)) ?? "";
 }

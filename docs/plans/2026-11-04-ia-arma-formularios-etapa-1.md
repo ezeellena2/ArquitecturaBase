@@ -160,3 +160,7 @@ nuevo); el dictado por WhatsApp como caso combinado; y dos hallazgos para decidi
 original del formulario mientras crear compara el visible en el de la propuesta (en inglés el modelo no ve el nombre traducido; el
 servidor igual lo frena al crear), y el canal no tiene cómo pedir una aclaración en un pedido de autoría ambiguo («pregunta y espera»
 del dibujo).
+
+2026-11-05: el primer hallazgo quedó corregido antes de la corrida real. Las lecturas de autoría, el «no se puede» y el catálogo que
+reusa una propuesta nombran lo que existe en el idioma de la conversación, o en el original sin traducción, que es el nombre visible
+que compara crear. Queda el segundo hallazgo, la aclaración por WhatsApp, para decidir.

@@ -2,6 +2,7 @@ using System.Text.Json;
 using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Modules.BusinessForms.Channels;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
+using ArquitecturaBase.Application.Modules.BusinessForms.Services;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 
@@ -36,7 +37,7 @@ public sealed class FormAuthoringAssistantReadTests
     }
 
     [Fact]
-    public async Task Reading_forms_returns_names_prefixes_states_and_question_types_in_the_original_language()
+    public async Task Reading_forms_returns_names_prefixes_states_and_question_types()
     {
         var host = new AuthoringAssistantFixture();
         host.Reader.Definitions.Add(AuthoringAssistantFixture.Definition("Control de carga", "CCC", published: true, inactive: false,
@@ -54,6 +55,30 @@ public sealed class FormAuthoringAssistantReadTests
         Assert.Equal([new FormAuthoringQuestionRow("Patente", "shortText"), new FormAuthoringQuestionRow("Kilos", "decimal")], first.Questions);
         Assert.Equal(3, result.Value.ItemCount);
         Assert.Empty(result.Value.Evidences);
+    }
+
+    [Theory]
+    [InlineData("en", "Register maintenance", "Equipment", "Colors")]
+    [InlineData("es", "Registrar mantenimiento", "Equipo", "Colores")]
+    public async Task Each_name_reads_in_the_conversation_language_as_creating_compares_it_or_in_its_original_without_a_translation(
+        string culture, string form, string question, string catalog)
+    {
+        var host = new AuthoringAssistantFixture();
+        host.Reader.Definitions.Add(new(FormDraftPolicy.Serialize(new Dictionary<string, string> { ["es"] = "Registrar mantenimiento", ["en"] = "Register maintenance" }),
+            "es", "MAN", true, false, FormDraftPolicy.Serialize(new FormQuestionSchema(1, [new CanonicalFormField(Guid.NewGuid(), "q0", "shortText",
+                new Dictionary<string, string> { ["es"] = "Equipo", ["en"] = "Equipment" }, null, false, null, null)]))));
+        host.Reader.Definitions.Add(AuthoringAssistantFixture.Definition("Parte de lluvias", "LLU", questions: [("Milímetros", "decimal")]));
+        host.Reader.Catalogs.Add(AuthoringAssistantFixture.Catalog(Guid.NewGuid(), "Colores") with
+            { NameJson = FormDraftPolicy.Serialize(new Dictionary<string, string> { ["es"] = "Colores", ["en"] = "Colors" }) });
+        host.Reader.Catalogs.Add(AuthoringAssistantFixture.Catalog(Guid.NewGuid(), "Zonas"));
+        var context = host.Context with { Culture = culture };
+
+        var forms = Assert.IsType<FormAuthoringFormsPayload>((await host.Source.ExecuteAsync(host.Request(Forms) with { Context = context }, Ct)).Value.Payload);
+        var catalogs = Assert.IsType<FormAuthoringCatalogsPayload>((await host.Source.ExecuteAsync(host.Request(Catalogs) with { Context = context }, Ct)).Value.Payload);
+
+        Assert.Equal([form, "Parte de lluvias"], forms.Forms.Select(row => row.Name));
+        Assert.Equal([question, "Milímetros"], forms.Forms.Select(row => row.Questions[0].Label));
+        Assert.Equal([catalog, "Zonas"], catalogs.Catalogs.Select(row => row.Name));
     }
 
     [Fact]
