@@ -10,7 +10,8 @@ using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Logging;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 internal sealed class FormResponseService(IFormResponseReader reader, FormRecordAccessGuard access,
-    IRequestValidator validator, ILogger<FormResponseService> logger, FormRecordOriginPolicy origins, IFormSuggestionReader suggestions) : IFormResponseService
+    IRequestValidator validator, ILogger<FormResponseService> logger, FormRecordOriginPolicy origins, IFormSuggestionReader suggestions,
+    FormRecordAmendmentGuard amendments) : IFormResponseService
 {
     public Task<Result<FormRecordNavigationResponse>> FindRecordNavigationAsync(Guid definitionId, Guid recordId,
         ListFormRecordsRequest request, CancellationToken cancellationToken) =>
@@ -37,13 +38,15 @@ internal sealed class FormResponseService(IFormResponseReader reader, FormRecord
             var culture = Culture();
             var columns = FormResponsePresentationPolicy.Columns(definition, culture);
             var page = await reader.ListAsync(definition, read.Value.Apply(request) with { DisplayCulture = culture }, cancellationToken);
-            var channels = await origins.ListAsync(read.Value.Actor, page.Items.Select(row => row.Record.SourceReceiptId).ToArray(), cancellationToken);
+            // A correction arrived through the channel of its first version.
+            var channels = await origins.ListAsync(read.Value.Actor, page.Items.Select(row => row.OriginReceiptId).ToArray(), cancellationToken);
             if (!await access.StillAllowedAsync(read.Value, cancellationToken)) return FormDefinitionErrors.Forbidden;
             var active = definition.Versions.Single(version => version.Id == definition.ActiveVersionId);
             var rows = page.Items.Select(row => {
                 var reply = FormRecordPresentationPolicy.Project(row.Record, definition.VersionsById[row.Record.VersionId].DisplayCulture(culture), definition.Schemas[row.Record.VersionId]);
                 return new FormResponseRow(row.Record.RecordId, row.Record.VersionId, row.Record.VersionNumber, reply.Number,
-                    row.SubmittedAtUtc, row.Actor, channels.GetValueOrDefault(row.Record.SourceReceiptId)?.ChannelId ?? "", FormResponsePresentationPolicy.Cells(columns, reply), row.State, row.HasPdf);
+                    row.SubmittedAtUtc, row.Actor, channels.GetValueOrDefault(row.OriginReceiptId)?.ChannelId ?? "", FormResponsePresentationPolicy.Cells(columns, reply), row.State, row.HasPdf,
+                    row.ReplacesRecordId is not null);
             }).ToArray();
             return new FormResponseSheetResponse(id, FormRecordPresentationPolicy.Text(FormDraftPolicy.Read<Dictionary<string,string>>(active.NameJson), active.DisplayCulture(culture)), definition.Prefix,
                 active.Number, columns, definition.Versions.Select(version => new FormResponseVersionResponse(version.Id, version.Number)).ToArray(),
@@ -79,11 +82,13 @@ internal sealed class FormResponseService(IFormResponseReader reader, FormRecord
                 suggestion = new(lineage.OriginRecordId, historical.Id, historical.Mode);
             }
             var chain = await reader.ListChainAsync(id, cancellationToken);
-            var channels = await origins.ListAsync(read.Value.Actor, [row.Record.SourceReceiptId], cancellationToken);
+            var amendment = await reader.FindAmendmentAsync(id, cancellationToken);
+            var channels = await origins.ListAsync(read.Value.Actor, [row.OriginReceiptId], cancellationToken);
+            var amend = await amendments.FindAsync(cancellationToken);
             if (!await access.StillAllowedAsync(read.Value, cancellationToken)) return FormDefinitionErrors.Forbidden;
             var contentCulture = (row.Version ?? throw new InvalidOperationException("The response version presentation is missing.")).DisplayCulture(Culture());
             var reply = FormRecordPresentationPolicy.Project(row.Record, contentCulture, FormDraftPolicy.Read<FormVersionSchema>(row.Record.SchemaJson));
-            var origin = channels.GetValueOrDefault(row.Record.SourceReceiptId);
+            var origin = channels.GetValueOrDefault(row.OriginReceiptId);
             var history = new List<FormResponseHistoryResponse>();
             if (origin is not null && origin.ChannelId != FormEntryChannel.Id)
                 history.Add(new("Sent", origin.SentAtUtc, origin.SenderUserId is { } senderId ? new(senderId, origin.SenderName) : null));
@@ -96,7 +101,10 @@ internal sealed class FormResponseService(IFormResponseReader reader, FormRecord
                 Chain = chain.Count > 1 ? chain.OrderBy(record => record.SubmittedAtUtc).ThenBy(record => record.Id)
                     .Select(record => new FormResponseChainRecordResponse(record.Id, record.DefinitionId, record.OriginRecordId,
                         record.Prefix + "-" + record.Number.ToString("D6", CultureInfo.InvariantCulture),
-                        FormRecordPresentationPolicy.Text(FormDraftPolicy.Read<Dictionary<string,string>>(record.NameJson), (record.Version ?? throw new InvalidOperationException("The chain version presentation is missing.")).DisplayCulture(Culture())), record.SubmittedAtUtc)).ToArray() : []
+                        FormRecordPresentationPolicy.Text(FormDraftPolicy.Read<Dictionary<string,string>>(record.NameJson), (record.Version ?? throw new InvalidOperationException("The chain version presentation is missing.")).DisplayCulture(Culture())), record.SubmittedAtUtc)).ToArray() : [],
+                State = row.State, Correction = amendment.Correction, ReplacedBy = amendment.ReplacedBy, Void = amendment.Void,
+                CanAmend = amend is not null && FormRecordAmendmentGuard.Allows(amend, row.Actor.UserId, Enum.Parse<FormRecordState>(row.State),
+                    row.ReplacedByRecordId is not null).IsSuccess,
             };
         });
     private static string Culture() => CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es";

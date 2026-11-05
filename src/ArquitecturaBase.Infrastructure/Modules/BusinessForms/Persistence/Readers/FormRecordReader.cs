@@ -10,6 +10,10 @@ namespace ArquitecturaBase.Infrastructure.Modules.BusinessForms.Persistence.Read
 
 internal sealed partial class FormRecordReader(ApplicationDbContext dbContext, IFormPublicationProtector protector) : IFormRecordReader
 {
+    public async Task<IReadOnlyDictionary<Guid, string>> ListAmendmentsAsync(IReadOnlyCollection<Guid> sourceReceiptIds, CancellationToken cancellationToken) =>
+        await dbContext.Set<BusinessFormRecord>().AsNoTracking()
+            .Where(record => sourceReceiptIds.Contains(record.SourceReceiptId) && (record.ReplacedByRecordId != null || record.State == FormRecordState.Voided))
+            .ToDictionaryAsync(record => record.SourceReceiptId, record => record.ReplacedByRecordId != null ? "Replaced" : "Voided", cancellationToken);
     public async Task<FormRecordReadBatch> FindBatchAsync(IReadOnlyCollection<Guid> sourceReceiptIds, IReadOnlyDictionary<Guid, FormResponseVersionRow>? versions, CancellationToken cancellationToken)
     {
         if (sourceReceiptIds.Count == 0) return new([], versions ?? new Dictionary<Guid, FormResponseVersionRow>());

@@ -61,7 +61,8 @@ public sealed class FormResponseLanguageTests
         permissions.Permissions[user.UserId.Value] = [BusinessFormsPermissions.RecordsRead];
         var service = new FormResponseService(reader, new(user, permissions, reader),
             RequestValidators.For(new ListFormRecordsRequestValidator()),
-            NullLogger<FormResponseService>.Instance, new([]), new FormSuggestionFixture());
+            NullLogger<FormResponseService>.Instance, new([]), new FormSuggestionFixture(),
+            new(user, permissions, new ArquitecturaBase.Application.UnitTests.TestDoubles.Users.InMemoryUserAccounts()));
         var previousCulture = CultureInfo.CurrentUICulture;
         CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo(secondary);
         try

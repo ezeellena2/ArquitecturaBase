@@ -36,17 +36,20 @@ internal sealed partial class FormResponseReader(ApplicationDbContext dbContext,
     {
         var page = await Ordered(Filter(definition, request), definition, request)
             .Select(record => new { record.SourceReceiptId, record.SubmittedAtUtc, record.CreatedAtUtc, record.ActorUserId, record.State,
+                record.OriginalReceiptId, record.ReplacesRecordId,
                 HasPdf = dbContext.Set<BusinessFormDocument>().Any(document => document.RecordId == record.Id),
                 DisplayName = dbContext.Users.Where(user => user.Id == record.ActorUserId).Select(user => user.DisplayName).FirstOrDefault() })
             .ToPagedResultAsync(request, cancellationToken);
         var hydrated = (await records.FindBatchAsync(page.Items.Select(record => record.SourceReceiptId).ToArray(), definition.VersionsById, cancellationToken)).Rows.ToDictionary(record => record.SourceReceiptId);
         return new(page.Items.Select(record => new FormResponseStoredRow(hydrated[record.SourceReceiptId], record.SubmittedAtUtc,
-            new(record.ActorUserId, record.DisplayName), record.CreatedAtUtc, record.State.ToString(), record.HasPdf) { Version = definition.VersionsById[hydrated[record.SourceReceiptId].VersionId] }).ToArray(), page.Page, page.PageSize, page.TotalCount);
+            new(record.ActorUserId, record.DisplayName), record.CreatedAtUtc, record.State.ToString(), record.HasPdf) { Version = definition.VersionsById[hydrated[record.SourceReceiptId].VersionId],
+                OriginalReceiptId = record.OriginalReceiptId, ReplacesRecordId = record.ReplacesRecordId }).ToArray(), page.Page, page.PageSize, page.TotalCount);
     }
     public async Task<FormResponseStoredRow?> FindRecordAsync(Guid id, CancellationToken cancellationToken)
     {
         var record = await dbContext.Set<BusinessFormRecord>().AsNoTracking().Where(value => value.Id == id)
             .Select(value => new { value.SourceReceiptId, value.SubmittedAtUtc, value.CreatedAtUtc, value.ActorUserId, value.State, value.CaptureOriginJson,
+                value.OriginalReceiptId, value.ReplacesRecordId, value.ReplacedByRecordId,
                 HasPdf = dbContext.Set<BusinessFormDocument>().Any(document => document.RecordId == value.Id),
                 DisplayName = dbContext.Users.Where(user => user.Id == value.ActorUserId).Select(user => user.DisplayName).FirstOrDefault() }).SingleOrDefaultAsync(cancellationToken);
         if (record is null) return null;
@@ -60,7 +63,8 @@ internal sealed partial class FormResponseReader(ApplicationDbContext dbContext,
         }
         var batch = await records.FindBatchAsync([record.SourceReceiptId], null, cancellationToken);
         var stored = batch.Rows.Single();
-        return new(stored, record.SubmittedAtUtc, new(record.ActorUserId, record.DisplayName), record.CreatedAtUtc, record.State.ToString(), record.HasPdf) { Version = batch.Versions[stored.VersionId], CaptureOriginJson = record.CaptureOriginJson, CaptureOperator = captureOperator };
+        return new(stored, record.SubmittedAtUtc, new(record.ActorUserId, record.DisplayName), record.CreatedAtUtc, record.State.ToString(), record.HasPdf) { Version = batch.Versions[stored.VersionId], CaptureOriginJson = record.CaptureOriginJson, CaptureOperator = captureOperator,
+            OriginalReceiptId = record.OriginalReceiptId, ReplacesRecordId = record.ReplacesRecordId, ReplacedByRecordId = record.ReplacedByRecordId };
     }
     public Task<bool> ExistsByActorAsync(Guid recordId, Guid actorUserId, CancellationToken cancellationToken) =>
         dbContext.Set<BusinessFormRecord>().AsNoTracking().AnyAsync(record => record.Id == recordId && record.ActorUserId == actorUserId, cancellationToken);
@@ -70,11 +74,13 @@ internal sealed partial class FormResponseReader(ApplicationDbContext dbContext,
     {
         var rows = await dbContext.Set<BusinessFormRecord>().AsNoTracking().Where(record => ids.Contains(record.SourceReceiptId))
             .Select(record => new { record.SourceReceiptId, record.SubmittedAtUtc, record.CreatedAtUtc, record.ActorUserId, record.State,
+                record.OriginalReceiptId, record.ReplacesRecordId,
                 HasPdf = dbContext.Set<BusinessFormDocument>().Any(document => document.RecordId == record.Id),
                 DisplayName = dbContext.Users.Where(user => user.Id == record.ActorUserId).Select(user => user.DisplayName).FirstOrDefault() }).ToArrayAsync(cancellationToken);
         var hydrated = (await records.FindBatchAsync(ids, definition.VersionsById, cancellationToken)).Rows.ToDictionary(record => record.SourceReceiptId);
         return rows.Select(record => new FormResponseStoredRow(hydrated[record.SourceReceiptId], record.SubmittedAtUtc,
-            new(record.ActorUserId, record.DisplayName), record.CreatedAtUtc,record.State.ToString(), record.HasPdf) { Version = definition.VersionsById[hydrated[record.SourceReceiptId].VersionId] }).ToArray();
+            new(record.ActorUserId, record.DisplayName), record.CreatedAtUtc,record.State.ToString(), record.HasPdf) { Version = definition.VersionsById[hydrated[record.SourceReceiptId].VersionId],
+                OriginalReceiptId = record.OriginalReceiptId, ReplacesRecordId = record.ReplacesRecordId }).ToArray();
     }
     public Task<long?> FindLatestNumberAsync(Guid id, CancellationToken cancellationToken) => dbContext.Set<BusinessFormDefinition>().AsNoTracking()
         .Where(value => value.Id == id && value.ActiveVersionId != null).Select(value => (long?)value.LastRecordNumber).SingleOrDefaultAsync(cancellationToken);

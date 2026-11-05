@@ -9,6 +9,8 @@ internal sealed class FakeFormRecordReadBatch : IFormRecordReader
     public int Reads { get; private set; }
     public Task<IReadOnlyDictionary<Guid, FormResponseVersionRow>> ListVersionsAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct) =>
         Task.FromResult(Batch.Versions);
+    public Task<IReadOnlyDictionary<Guid, string>> ListAmendmentsAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct) =>
+        Task.FromResult<IReadOnlyDictionary<Guid, string>>(new Dictionary<Guid, string>());
     public Task<FormRecordReadBatch> FindBatchAsync(IReadOnlyCollection<Guid> ids, IReadOnlyDictionary<Guid, FormResponseVersionRow>? versions, CancellationToken ct)
     {
         Reads++;

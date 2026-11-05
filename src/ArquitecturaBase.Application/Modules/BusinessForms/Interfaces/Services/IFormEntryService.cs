@@ -13,4 +13,10 @@ public interface IFormEntryService
         ListFormEntryOptionsRequest request, CancellationToken cancellationToken);
 
     Task<Result<FormEntrySubmitResponse>> SubmitAsync(Guid definitionId, SubmitFormEntryRequest request, CancellationToken cancellationToken);
+
+    /// <summary>What a correction opens (CW10-A): the active version with the response as it was, for whoever may correct it.</summary>
+    Task<Result<FormEntryCorrectionResponse>> GetCorrectionAsync(Guid definitionId, Guid recordId, CancellationToken cancellationToken);
+
+    /// <summary>Saves a correction: another record with the same number replaces the response, which stays in its history.</summary>
+    Task<Result<FormEntrySubmitResponse>> CorrectAsync(Guid definitionId, Guid recordId, CorrectFormEntryRequest request, CancellationToken cancellationToken);
 }

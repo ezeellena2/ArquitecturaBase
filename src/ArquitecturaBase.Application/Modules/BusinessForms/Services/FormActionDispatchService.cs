@@ -31,6 +31,13 @@ internal sealed class FormActionDispatchService(IFormActionRunRepository runs,IF
         if(snapshot.PreparationFailureCode is {} failure){run.RecordOutcome(reserved.Value.Fence,now,FormActionRunState.Failed,failure,false);return Result.Success<FormActionWorkResponse?>(null);}
         if(run.Kind=="RequestApproval")
         {
+            // A response corrected or voided before its approval was asked no longer waits for one: its correction asks again.
+            var target=await runs.GetRecordAsync(run.RecordId,ct)??throw new InvalidOperationException("The action response is missing.");
+            if(!target.CanBeAmended)
+            {
+                var skipped=run.RecordOutcome(reserved.Value.Fence,now,FormActionRunState.NotApplicable,null,false);
+                return skipped.IsFailure?Result.Failure<FormActionWorkResponse?>(skipped.Error):Result.Success<FormActionWorkResponse?>(null);
+            }
             var availableRoles=await ruleReader.ListRolesAsync(ct);
             if(!availableRoles.Any(role=>role.Id==snapshot.ApprovalRoleId))
             {

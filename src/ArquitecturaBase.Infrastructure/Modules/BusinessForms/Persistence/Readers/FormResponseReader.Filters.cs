@@ -11,13 +11,15 @@ internal sealed partial class FormResponseReader
     private IQueryable<BusinessFormRecord> Filter(FormResponseDefinitionRow definition, ListFormRecordsRequest request, Guid? ignoredField = null)
     {
         var versionIds = definition.Versions.Select(version => version.Id).ToArray();
+        // A replaced version is never listed: its correction stands for it. A voided response only when it is asked for.
         var query = dbContext.Set<BusinessFormRecord>().AsNoTracking()
-            .Where(record => record.DefinitionId == definition.Id && versionIds.Contains(record.VersionId));
+            .Where(record => record.DefinitionId == definition.Id && versionIds.Contains(record.VersionId) && record.ReplacedByRecordId == null);
         if (request.State is { } state)
         {
             var selected = Enum.Parse<FormRecordState>(state);
             query = query.Where(record => record.State == selected);
         }
+        else if (!request.IncludeVoided) query = query.Where(record => record.State != FormRecordState.Voided);
         if (request.EnteredInApp is { } enteredInApp) query = query.Where(record => record.EnteredInApp == enteredInApp);
         if (request.UpToNumber is { } maximum) query = query.Where(record => record.Number <= maximum);
         if (request.VersionIds.Count != 0) query = query.Where(record => request.VersionIds.Contains(record.VersionId));

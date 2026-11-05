@@ -64,6 +64,12 @@ internal sealed class FormEntryRecorder(IBusinessFormRecordCaptureService captur
     public Task<StructuredRecordCaptureResponse> CaptureAsync(StructuredRecordCaptureRequest entry, CancellationToken cancellationToken) =>
         capture.CaptureEntryAsync(entry, cancellationToken);
 
+    public Task<StructuredRecordCaptureResponse?> FindExistingCorrectionAsync(StructuredRecordCaptureRequest entry, FormRecordCorrection correction,
+        CancellationToken cancellationToken) => capture.FindExistingCorrectionAsync(entry, correction, cancellationToken);
+
+    public Task<StructuredRecordCaptureResponse> CaptureCorrectionAsync(StructuredRecordCaptureRequest entry, FormRecordCorrection correction,
+        CancellationToken cancellationToken) => capture.CaptureCorrectionAsync(entry, correction, cancellationToken);
+
     /// <summary>The saved number and state; a rule that asks for approval already shows it as pending. A rejection goes to its question.</summary>
     public async Task<Result<FormEntrySubmitResponse>> OutcomeAsync(string prefix, StructuredRecordCaptureResponse captured, CancellationToken cancellationToken)
     {
@@ -82,6 +88,9 @@ internal sealed class FormEntryRecorder(IBusinessFormRecordCaptureService captur
             var code when code == FormRecordErrors.CatalogItemInactive.Code => FormRecordErrors.CatalogItemInactive,
             var code when code == FormRecordErrors.ReplayConflict.Code => FormRecordErrors.ReplayConflict,
             var code when code == FormRecordErrors.AuthorizationChanged.Code => FormRecordErrors.AuthorizationChanged,
+            var code when code == FormRecordErrors.AmendUnavailable.Code => FormRecordErrors.AmendUnavailable,
+            var code when code == FormRecordErrors.NotFound.Code => FormRecordErrors.NotFound,
+            var code when code == FormDefinitionErrors.Forbidden.Code => FormDefinitionErrors.Forbidden,
             var code when code == FileErrors.TooLarge.Code => FileErrors.TooLarge,
             var code when code == FileErrors.InvalidType.Code => FileErrors.InvalidType,
             var code when code == FileErrors.HashMismatch.Code => FileErrors.HashMismatch,

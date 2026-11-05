@@ -57,15 +57,31 @@ internal sealed class BusinessFormFileRecorder(IPrivateFileStore store, IFileCon
         }
         return prepared;
     }
-    public IReadOnlyList<FormRecordFileRow> Record(BusinessFormRecord record, IReadOnlyList<PreparedFormFile> files)
+    /// <summary>
+    /// Attaches the uploaded files to the record. A correction also keeps files of the response it replaces: they point to the
+    /// same stored file and go first in their question, in their order, followed by the new ones.
+    /// </summary>
+    public IReadOnlyList<FormRecordFileRow> Record(BusinessFormRecord record, IReadOnlyList<PreparedFormFile> files,
+        IReadOnlyList<FormRecordFileRow>? kept = null)
     {
+        var rows = new List<FormRecordFileRow>();
+        var keptCount = new Dictionary<Guid, int>();
+        foreach (var file in (kept ?? []).OrderBy(file => file.Position))
+        {
+            var position = keptCount.GetValueOrDefault(file.FieldId);
+            keptCount[file.FieldId] = position + 1;
+            records.Add(BusinessFormRecordFile.Create(record.DefinitionId, record.Id, file.FieldId, file.FileId, position));
+            rows.Add(file with { RecordId = record.Id, Position = position });
+        }
         foreach (var file in files)
         {
+            var position = keptCount.GetValueOrDefault(file.FieldId) + file.Position;
             storedFiles.Add(file.File);
-            records.Add(BusinessFormRecordFile.Create(record.DefinitionId, record.Id, file.FieldId, file.File.Id, file.Position));
+            records.Add(BusinessFormRecordFile.Create(record.DefinitionId, record.Id, file.FieldId, file.File.Id, position));
+            rows.Add(new(record.Id, file.FieldId, file.File.Id, position, file.File.Name, file.File.ContentType, file.File.Size,
+                file.File.ThumbnailKey is not null));
         }
-        return files.Select(file => new FormRecordFileRow(record.Id, file.FieldId, file.File.Id, file.Position,
-            file.File.Name, file.File.ContentType, file.File.Size, file.File.ThumbnailKey is not null)).ToArray();
+        return rows;
     }
     private static string DownloadName(string original, string contentType)
     {

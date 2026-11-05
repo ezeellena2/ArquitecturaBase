@@ -96,7 +96,10 @@ internal sealed class WhatsAppChatQueryService(IWhatsAppChatReader reader, IWhat
             recognized ? row.VersionNumber : null, name,
             row.State == "Completed" ? row.RecordId : null,
             row.State == "Completed" ? row.Number : null,
-            values, row.State == "Rejected" ? row.RejectionCode : null, row.State == "Rejected" ? row.RejectedQuestion : null, row.FileCount, row.FileCount.HasValue ? receivedAtUtc : null);
+            values, row.State == "Rejected" ? row.RejectionCode : null, row.State == "Rejected" ? row.RejectedQuestion : null, row.FileCount, row.FileCount.HasValue ? receivedAtUtc : null)
+        {
+            Amendment = record?.Amendment,
+        };
     }
 
     private WhatsAppChatResponse ToResponse(WhatsAppChatRow row)

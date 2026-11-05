@@ -4,7 +4,12 @@ public sealed record StructuredRecordReadResult(bool CanReadRecords,
     IReadOnlyDictionary<Guid, StructuredRecordReadReply> Replies);
 
 public sealed record StructuredRecordReadReply(Guid SourceReceiptId, Guid RecordId, string Number,
-    Guid DefinitionId, Guid VersionId, long VersionNumber, string Name, IReadOnlyList<StructuredRecordReadValue> Values);
+    Guid DefinitionId, Guid VersionId, long VersionNumber, string Name, IReadOnlyList<StructuredRecordReadValue> Values)
+{
+    /// <summary>«Replaced» when a correction replaced the response, «Voided» when it was voided; null while it stands as it arrived.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? Amendment { get; init; }
+}
 
 public sealed record StructuredRecordReadValue(Guid FieldId, string Key, string Type, string Label, object? Value);
 public sealed record StructuredRecordChoiceValue(string ChoiceId, string Label,

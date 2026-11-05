@@ -10,6 +10,8 @@ public interface IFormResponseReader
     Task<IReadOnlyList<FormRecordChainStoredRow>> ListChainAsync(Guid recordId, CancellationToken cancellationToken);
     Task<IReadOnlyList<Guid>> ListAncestorDefinitionIdsAsync(Guid recordId, CancellationToken cancellationToken);
     Task<FormResponseStoredRow?> FindRecordAsync(Guid id, CancellationToken cancellationToken);
+    /// <summary>Who corrected or voided a response, when it was replaced and how the version it replaced ended, for its detail.</summary>
+    Task<FormResponseAmendmentRow> FindAmendmentAsync(Guid recordId, CancellationToken cancellationToken);
     Task<bool> ExistsByActorAsync(Guid recordId, Guid actorUserId, CancellationToken cancellationToken);
     Task<IReadOnlyList<Guid>> ListExportIdsAsync(FormResponseDefinitionRow definition, ListFormRecordsRequest request, int limit, CancellationToken cancellationToken);
     Task<IReadOnlyList<FormResponseStoredRow>> ListByReceiptIdsAsync(FormResponseDefinitionRow definition, IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken);

@@ -52,13 +52,17 @@ internal sealed class BusinessFormCaptureFixture
         StoredFiles = new TestFeatures.Files.MemoryStoredFileRepository();
         var preparer = new BusinessFormFileRecorder(FileStore, new TestFeatures.Files.FakeFileContentProcessor(), Microsoft.Extensions.Options.Options.Create(new ArquitecturaBase.Application.Modules.BusinessForms.Configuration.BusinessFormsOptions()), Repository, StoredFiles);
         UnitOfWork = new FakeUnitOfWork { OnCommit = onCommit };
-        Sink = new BusinessFormRecordRecorder(Repository, new(ReceiptReader, Permission), UnitOfWork, Actions.Clock,
+        Actor = Users.AddUser("capture@example.invalid").Id;
+        Current.UserId = Actor;
+        Sink = new BusinessFormRecordRecorder(Repository, new(ReceiptReader, Permission, new(Current, Permission, Users)), UnitOfWork, Actions.Clock,
             NullLogger<BusinessFormRecordRecorder>.Instance, preparer, Actions.Recorder, new(OriginResponses, Suggestions));
         VersionId = version.Id;
     }
 
     public const string SourcePrefix = "unused";
-    public Guid Actor { get; } = Guid.NewGuid();
+    public Guid Actor { get; }
+    public TestDoubles.Users.InMemoryUserAccounts Users { get; } = new();
+    public TestDoubles.Auth.FakeCurrentUser Current { get; } = new();
     public string Key { get; }
     public Guid? PhotoFieldId { get; }
     public Guid VersionId { get; }
@@ -94,6 +98,7 @@ internal sealed class FakeRecordRepository(BusinessFormDefinition definition, Bu
         var definition = BusinessFormDefinition.Create();
         return new(definition, BusinessFormVersion.Create(definition.Id, 1, "test"));
     }
+    public Guid DefinitionId => definition.Id;
     public Dictionary<Guid, FormCatalogItemFieldValuesRow> CatalogFieldValues { get; } = [];
     public List<Guid[]> FieldValueBatches { get; } = [];
     public List<Guid[]> FieldValueReadLocks { get; } = [];
@@ -133,6 +138,17 @@ internal sealed class FakeRecordRepository(BusinessFormDefinition definition, Bu
     public Task<BusinessFormVersion?> GetVersionAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult<BusinessFormVersion?>(id == version.Id ? version : null);
     public Task<bool> ExistsPublishedAsync(Guid versionId, CancellationToken cancellationToken) => Task.FromResult(versionId == version.Id);
     public List<BusinessFormRecordFile> FileReferences { get; } = [];
+    public List<BusinessFormTask> Tasks { get; } = [];
+    /// <summary>Stored metadata of the files a correction may keep, by file.</summary>
+    public Dictionary<Guid, FormRecordFileRow> StoredFileRows { get; } = [];
+    public Task<BusinessFormRecord?> GetRecordAsync(Guid recordId, CancellationToken cancellationToken) =>
+        Task.FromResult(Records.SingleOrDefault(record => record.Id == recordId));
+    public Task<BusinessFormTask?> GetOpenTaskAsync(Guid recordId, CancellationToken cancellationToken) =>
+        Task.FromResult(Tasks.SingleOrDefault(task => task.RecordId == recordId && task.State == FormTaskState.Open));
+    public Task<IReadOnlyList<FormRecordFileRow>> ListFilesAsync(Guid recordId, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<FormRecordFileRow>>(FileReferences.Where(file => file.RecordId == recordId).OrderBy(file => file.Position)
+            .Select(file => StoredFileRows.TryGetValue(file.FileId, out var row) ? row with { RecordId = recordId, FieldId = file.FieldId, Position = file.Position }
+                : new FormRecordFileRow(recordId, file.FieldId, file.FileId, file.Position, "photo.png", "image/png", 3, false)).ToArray());
     public void Add(BusinessFormRecordFile file) => FileReferences.Add(file);
     public void Add(BusinessFormRecord record) => Records.Add(record);
     public void Add(BusinessFormRecordValue value) => Values.Add(value);
@@ -144,12 +160,14 @@ internal sealed class MutablePermissionService : IPermissionService
     private int _checks;
     public bool Allowed { get; set; }
     public bool RevokeOnSecondCheck { get; set; }
+    /// <summary>Only «Completar formularios»: whoever loads corrects their own response only before a decision.</summary>
+    public bool OnlyCreate { get; set; }
     public Task<IReadOnlyCollection<string>> GetPermissionsAsync(Guid userId, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyCollection<string>>(Allowed ? [BusinessFormsPermissions.RecordsCreate] : []);
     public Task<bool> HasPermissionAsync(Guid userId, string permission, CancellationToken cancellationToken)
     {
         var count = Interlocked.Increment(ref _checks);
-        return Task.FromResult(Allowed && !(RevokeOnSecondCheck && count >= 2));
+        return Task.FromResult(Allowed && !(RevokeOnSecondCheck && count >= 2) && (!OnlyCreate || permission == BusinessFormsPermissions.RecordsCreate));
     }
 
 }

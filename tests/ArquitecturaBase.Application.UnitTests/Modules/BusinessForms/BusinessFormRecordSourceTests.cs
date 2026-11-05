@@ -25,6 +25,28 @@ public sealed class BusinessFormRecordSourceTests
     }
 
     [Fact]
+    public async Task The_chat_keeps_the_response_as_it_arrived_and_says_when_it_was_later_corrected_or_voided()
+    {
+        var corrected = Guid.NewGuid();
+        var voided = Guid.NewGuid();
+        var standing = Guid.NewGuid();
+        var reader = new FakeReader
+        {
+            Rows = [MinimalRow(corrected), MinimalRow(voided), MinimalRow(standing)],
+            Amendments = { [corrected] = "Replaced", [voided] = "Voided" },
+        };
+        var source = new BusinessFormRecordSource(reader, new MutablePermissionService { Allowed = true });
+
+        var result = await source.ReadAsync(Guid.NewGuid(), "es", [corrected, voided, standing], CancellationToken.None);
+
+        Assert.Equal("Replaced", result.Replies[corrected].Amendment);
+        Assert.Equal("Voided", result.Replies[voided].Amendment);
+        Assert.Null(result.Replies[standing].Amendment);
+        Assert.DoesNotContain("amendment", System.Text.Json.JsonSerializer.Serialize(result.Replies[standing], System.Text.Json.JsonSerializerOptions.Web),
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task A_permission_revoked_while_receipts_are_read_discards_the_projection()
     {
         var permissions = new MutablePermissionService { Allowed = true };
@@ -140,6 +162,9 @@ public sealed class BusinessFormRecordSourceTests
         public IReadOnlyList<FormRecordStoredRow> Rows { get; init; } = [];
         public Action? BeforeReturn { get; init; }
         public int ReadCount { get; private set; }
+        public Dictionary<Guid, string> Amendments { get; init; } = [];
+        public Task<IReadOnlyDictionary<Guid, string>> ListAmendmentsAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct) =>
+            Task.FromResult<IReadOnlyDictionary<Guid, string>>(Amendments.Where(pair => ids.Contains(pair.Key)).ToDictionary());
         public Task<IReadOnlyDictionary<Guid, FormResponseVersionRow>> ListVersionsAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct) =>
             Task.FromResult<IReadOnlyDictionary<Guid, FormResponseVersionRow>>(Rows.DistinctBy(row => row.VersionId).ToDictionary(row => row.VersionId, row => new FormResponseVersionRow(row.VersionId, row.VersionNumber, row.NameJson, row.SchemaJson, "es", ["es", "en"])));
         public async Task<FormRecordReadBatch> FindBatchAsync(IReadOnlyCollection<Guid> sourceReceiptIds, IReadOnlyDictionary<Guid, FormResponseVersionRow>? versions,

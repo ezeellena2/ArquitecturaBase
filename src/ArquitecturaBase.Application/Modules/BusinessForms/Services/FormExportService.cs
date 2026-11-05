@@ -41,6 +41,9 @@ internal sealed class FormExportService(IFormResponseReader reader, IFormWorkboo
                 var ids = await reader.ListExportIdsAsync(definition, filter, MaximumRecords + 1, ct);
                 if (ids.Count > MaximumRecords) return FormRecordErrors.ExportTooLarge;
                 var headers = new List<string> { FormResponseTexts.Get("Number", culture), FormResponseTexts.Get("ReceivedUtc", culture), FormResponseTexts.Get("Actor", culture), FormResponseTexts.Get("Channel", culture) };
+                // With «Incluir las anuladas» a column says which ones were voided; otherwise there are none.
+                var voided = request.Filter.IncludeVoided && request.Filter.State is null;
+                if (voided) headers.Add(FormResponseTexts.Get("Voided", culture));
                 headers.AddRange(selectedColumns.Select(column => column.Header));
                 var rows = new List<IReadOnlyList<FormWorkbookCell>>(ids.Count);
                 foreach (var batch in ids.Chunk(100))
@@ -48,16 +51,18 @@ internal sealed class FormExportService(IFormResponseReader reader, IFormWorkboo
                     ct.ThrowIfCancellationRequested();
                     if (!await access.StillAllowedAsync(actor.Value, ct, true)) return FormDefinitionErrors.Forbidden;
                     var records = (await reader.ListByReceiptIdsAsync(definition, batch, ct)).ToDictionary(row => row.Record.SourceReceiptId);
-                    var channels = await origins.ListAsync(actor.Value, batch, ct);
+                    // A correction arrived through the channel of its first version.
+                    var channels = await origins.ListAsync(actor.Value, records.Values.Select(row => row.OriginReceiptId).ToArray(), ct);
                     foreach (var receiptId in batch)
                     {
                         var row = records[receiptId];
                         var reply = FormRecordPresentationPolicy.Project(row.Record, definition.VersionsById[row.Record.VersionId].DisplayCulture(culture), definition.Schemas[row.Record.VersionId]);
                         var values = FormResponsePresentationPolicy.Cells(availableColumns, reply).ToDictionary(value => value.FieldId);
-                        var channel = channels.GetValueOrDefault(receiptId)?.ChannelId ?? "";
+                        var channel = channels.GetValueOrDefault(row.OriginReceiptId)?.ChannelId ?? "";
                         var cells = new List<FormWorkbookCell> { new("text", reply.Number), new("dateTime", row.SubmittedAtUtc),
                             new("text", row.Actor.DisplayName ?? FormResponseTexts.Get("unknown", culture)),
                             new("text", FormResponseTexts.Get(channel.Length == 0 ? "unknown" : channel, culture)) };
+                        if (voided) cells.Add(new("text", row.State == nameof(FormRecordState.Voided) ? FormResponseTexts.Get("true", culture) : ""));
                         foreach (var column in selectedColumns)
                         {
                             var cell = values[column.QuestionId];

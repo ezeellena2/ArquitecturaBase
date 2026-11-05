@@ -1,4 +1,5 @@
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
+using ArquitecturaBase.Domain.Files;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Infrastructure.Persistence;
@@ -32,6 +33,17 @@ internal sealed class FormRecordRepository(ApplicationDbContext dbContext) : IFo
                where itemIds.Contains(item.Id)
                select new FormCatalogItemFieldValuesRow(item.Id, item.CatalogId, catalog.FieldsJson, item.FieldValuesJson,
                    item.TextEs, item.TextEn)).ToListAsync(cancellationToken);
+    public Task<BusinessFormRecord?> GetRecordAsync(Guid recordId, CancellationToken cancellationToken) =>
+        dbContext.Set<BusinessFormRecord>().SingleOrDefaultAsync(record => record.Id == recordId, cancellationToken);
+    public Task<BusinessFormTask?> GetOpenTaskAsync(Guid recordId, CancellationToken cancellationToken) =>
+        dbContext.Set<BusinessFormTask>().SingleOrDefaultAsync(task => task.RecordId == recordId && task.State == FormTaskState.Open, cancellationToken);
+    public async Task<IReadOnlyList<FormRecordFileRow>> ListFilesAsync(Guid recordId, CancellationToken cancellationToken) =>
+        await (from file in dbContext.Set<BusinessFormRecordFile>()
+               join stored in dbContext.Set<StoredFile>() on file.FileId equals stored.Id
+               where file.RecordId == recordId
+               orderby file.FieldId, file.Position
+               select new FormRecordFileRow(file.RecordId, file.FieldId, file.FileId, file.Position, stored.Name, stored.ContentType,
+                   stored.Size, stored.ThumbnailKey != null)).ToListAsync(cancellationToken);
     public void Add(BusinessFormRecordFile file) { dbContext.RequireTransaction(); dbContext.Set<BusinessFormRecordFile>().Add(file); }
     public void Add(BusinessFormRecordReference reference) { dbContext.RequireTransaction(); dbContext.Set<BusinessFormRecordReference>().Add(reference); }
     public void Add(BusinessFormRecord record) { dbContext.RequireTransaction(); dbContext.Set<BusinessFormRecord>().Add(record); }

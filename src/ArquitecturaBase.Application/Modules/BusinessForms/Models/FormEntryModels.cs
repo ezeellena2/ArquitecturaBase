@@ -50,6 +50,8 @@ public sealed record ListFormEntryOptionsRequest : PagedRequest
     public static readonly IReadOnlyCollection<string> SortableFields = [];
     /// <summary>The option chosen in each question a dependent list waits for, by the question's FieldId.</summary>
     public IReadOnlyDictionary<Guid, Guid>? Answers { get; init; }
+    /// <summary>While correcting this response: the options are those of whoever answered it, for whoever may correct it.</summary>
+    public Guid? RecordId { get; init; }
     public override string ToString() => "ListFormEntryOptionsRequest { Search = [REDACTED] }";
 }
 

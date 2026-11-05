@@ -11,4 +11,5 @@
 <data name="true" xml:space="preserve"><value>Sí</value></data>
 <data name="false" xml:space="preserve"><value>No</value></data>
 <data name="Value" xml:space="preserve"><value>valor</value></data>
+<data name="Voided" xml:space="preserve"><value>Anulada</value></data>
 </root>

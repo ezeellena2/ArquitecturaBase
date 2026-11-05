@@ -1,4 +1,5 @@
 using ArquitecturaBase.Application.Models.StructuredData;
+using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Services;
 
@@ -13,4 +14,14 @@ public interface IBusinessFormRecordCaptureService
     Task<StructuredRecordCaptureResponse> CaptureEntryAsync(StructuredRecordCaptureRequest request, CancellationToken cancellationToken);
 
     Task<StructuredRecordCaptureResponse?> FindExistingEntryAsync(StructuredRecordCaptureRequest request, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Records a correction loaded in the app (CW10-A): another record with the replaced response's number, author, reception
+    /// and channel, through the same capture. <paramref name="request"/>'s actor is who corrects; the files that stay are kept.
+    /// </summary>
+    Task<StructuredRecordCaptureResponse> CaptureCorrectionAsync(StructuredRecordCaptureRequest request, FormRecordCorrection correction,
+        CancellationToken cancellationToken);
+
+    Task<StructuredRecordCaptureResponse?> FindExistingCorrectionAsync(StructuredRecordCaptureRequest request, FormRecordCorrection correction,
+        CancellationToken cancellationToken);
 }

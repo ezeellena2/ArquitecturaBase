@@ -37,6 +37,8 @@ internal sealed class FormEntryFixture : IFormEntryReader, IBusinessFormRecordCa
     public bool Missing { get; set; }
     public List<FormEntryItemsQuery> ItemQueries { get; } = [];
     public List<StructuredRecordCaptureRequest> Captures { get; } = [];
+    /// <summary>The responses a correction opens, by their stored rows.</summary>
+    public FakeFormResponseReader Responses { get; } = new();
     public StructuredRecordCaptureResponse? Existing { get; set; }
     public StructuredRecordCaptureResponse Captured { get; set; } = new("Completed", Guid.NewGuid(), 42, null);
     public FormEntryOutcomeRow Outcome { get; set; } = new(new DateTime(2026, 10, 30, 13, 58, 0, DateTimeKind.Utc), "Received", false);
@@ -57,6 +59,7 @@ internal sealed class FormEntryFixture : IFormEntryReader, IBusinessFormRecordCa
         services.AddSingleton<IPermissionService>(Permissions);
         services.AddSingleton<IUserReader>(Users);
         services.AddSingleton<IFormEntryReader>(this);
+        services.AddSingleton<IFormResponseReader>(Responses);
         services.AddSingleton<IFormCatalogReader>(Catalogs);
         services.AddSingleton<IFormCatalogFilterReader>(Catalogs);
         services.AddSingleton<IFormPersonDataReader>(People);
@@ -126,6 +129,15 @@ internal sealed class FormEntryFixture : IFormEntryReader, IBusinessFormRecordCa
         return Task.FromResult(Captured);
     }
     public Task<StructuredRecordCaptureResponse?> FindExistingEntryAsync(StructuredRecordCaptureRequest request, CancellationToken ct) => Task.FromResult(Existing);
+    public List<(StructuredRecordCaptureRequest Request, FormRecordCorrection Correction)> Corrections { get; } = [];
+    public StructuredRecordCaptureResponse? ExistingCorrection { get; set; }
+    public Task<StructuredRecordCaptureResponse> CaptureCorrectionAsync(StructuredRecordCaptureRequest request, FormRecordCorrection correction, CancellationToken ct)
+    {
+        Corrections.Add((request, correction));
+        return Task.FromResult(Captured);
+    }
+    public Task<StructuredRecordCaptureResponse?> FindExistingCorrectionAsync(StructuredRecordCaptureRequest request, FormRecordCorrection correction,
+        CancellationToken ct) => Task.FromResult(ExistingCorrection);
     public Task<StructuredRecordCaptureResponse> CaptureAsync(StructuredRecordCaptureRequest request, CancellationToken ct) => throw new NotSupportedException();
     public Task<StructuredRecordCaptureResponse?> FindExistingReceiptAsync(StructuredRecordCaptureRequest request, CancellationToken ct) => throw new NotSupportedException();
 

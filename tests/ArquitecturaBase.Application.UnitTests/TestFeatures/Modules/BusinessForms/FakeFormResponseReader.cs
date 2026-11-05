@@ -66,6 +66,8 @@ internal sealed class FakeFormResponseReader : IFormResponseReader
         return Task.FromResult(Owned.Contains((recordId, actorUserId))
             || ExportRows.Any(row => row.Record.RecordId == recordId && row.Actor.UserId == actorUserId));
     }
+    public FormResponseAmendmentRow Amendment { get; set; } = new(null, null, null);
+    public Task<FormResponseAmendmentRow> FindAmendmentAsync(Guid recordId, CancellationToken cancellationToken) => Task.FromResult(Amendment);
     public Task<FormResponseStoredRow?> FindRecordAsync(Guid id, CancellationToken cancellationToken)
     {
         Reads++; BeforeReturn?.Invoke();

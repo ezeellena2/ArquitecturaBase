@@ -14,6 +14,12 @@ public interface IFormRecordRepository
     Task LockCatalogAsync(Guid catalogId, CancellationToken cancellationToken);
     Task<bool> ExistsActiveCatalogItemAsync(Guid catalogId, Guid itemId, CancellationToken cancellationToken);
     Task<IReadOnlyList<FormCatalogItemFieldValuesRow>> ListCatalogFieldValuesAsync(IReadOnlyCollection<Guid> itemIds, CancellationToken cancellationToken);
+    /// <summary>The record, tracked, to correct or void it under the definitions lock.</summary>
+    Task<BusinessFormRecord?> GetRecordAsync(Guid recordId, CancellationToken cancellationToken);
+    /// <summary>The open approval task of a record, tracked: correcting or voiding the record closes it.</summary>
+    Task<BusinessFormTask?> GetOpenTaskAsync(Guid recordId, CancellationToken cancellationToken);
+    /// <summary>The files of a record with their stored metadata, in order: a correction keeps the ones nobody touched.</summary>
+    Task<IReadOnlyList<FormRecordFileRow>> ListFilesAsync(Guid recordId, CancellationToken cancellationToken);
     void Add(BusinessFormRecordFile file);
     void Add(BusinessFormRecordReference reference);
     void Add(BusinessFormRecord record);

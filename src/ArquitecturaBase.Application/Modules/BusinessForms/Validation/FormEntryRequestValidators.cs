@@ -26,14 +26,52 @@ internal sealed class SubmitFormEntryRequestValidator : AbstractValidator<Submit
         RuleFor(request => request.RequestId).NotEqual(Guid.Empty).WithMessage(_ => ValidationMessages.Required);
         RuleFor(request => request.VersionId).NotEqual(Guid.Empty).WithMessage(_ => ValidationMessages.Required);
         RuleFor(request => request.Answers).NotNull().WithMessage(_ => ErrorMessages.Get(FormRecordErrors.InvalidResponse.Code))
-            .Must(answers => answers is null || answers.Count <= 40 && answers.All(answer => answer is not null && answer.FieldId != Guid.Empty
-                && (answer.Value is null || answer.Value.Length <= 10_000)
-                && (answer.ChoiceIds is null || answer.ChoiceIds.Count <= 20 && answer.ChoiceIds.All(choice => choice != Guid.Empty)))
-                && answers.Select(answer => answer.FieldId).Distinct().Count() == answers.Count)
-            .WithMessage(_ => ErrorMessages.Get(FormRecordErrors.InvalidResponse.Code));
-        RuleFor(request => request.Files).NotNull().Must(files => files is null || files.Count <= 10 && files.All(file => file is not null
-                && file.FieldId != Guid.Empty && file.Content is { Length: > 0 } && !string.IsNullOrWhiteSpace(file.Name)
-                && !string.IsNullOrWhiteSpace(file.ContentType)))
+            .Must(FormEntrySendRules.ValidAnswers).WithMessage(_ => ErrorMessages.Get(FormRecordErrors.InvalidResponse.Code));
+        RuleFor(request => request.Files).NotNull().Must(FormEntrySendRules.ValidFiles)
             .WithMessage(_ => ErrorMessages.Get(FormRecordErrors.InvalidResponse.Code));
     }
+}
+
+/// <summary>A correction is a send plus why and the files of the replaced version that stay, up to ten files in all.</summary>
+internal sealed class CorrectFormEntryRequestValidator : AbstractValidator<CorrectFormEntryRequest>
+{
+    public CorrectFormEntryRequestValidator()
+    {
+        RuleFor(request => request.RequestId).NotEqual(Guid.Empty).WithMessage(_ => ValidationMessages.Required);
+        RuleFor(request => request.VersionId).NotEqual(Guid.Empty).WithMessage(_ => ValidationMessages.Required);
+        RuleFor(request => request.Answers).NotNull().WithMessage(_ => ErrorMessages.Get(FormRecordErrors.InvalidResponse.Code))
+            .Must(FormEntrySendRules.ValidAnswers).WithMessage(_ => ErrorMessages.Get(FormRecordErrors.InvalidResponse.Code));
+        RuleFor(request => request.Files).NotNull().Must(FormEntrySendRules.ValidFiles)
+            .WithMessage(_ => ErrorMessages.Get(FormRecordErrors.InvalidResponse.Code));
+        RuleFor(request => request.KeptFileIds).NotNull().Must((request, kept) => kept is null || kept.All(id => id != Guid.Empty)
+                && kept.Distinct().Count() == kept.Count && kept.Count + (request.Files?.Count ?? 0) <= 10)
+            .WithMessage(_ => ErrorMessages.Get(FormRecordErrors.InvalidResponse.Code));
+        FormEntrySendRules.Reason(RuleFor(request => request.Reason));
+    }
+}
+
+internal sealed class VoidFormRecordRequestValidator : AbstractValidator<VoidFormRecordRequest>
+{
+    public VoidFormRecordRequestValidator() => FormEntrySendRules.Reason(RuleFor(request => request.Reason));
+}
+
+/// <summary>The shape shared by a send and a correction, and the reason of a correction or a void.</summary>
+internal static class FormEntrySendRules
+{
+    public static bool ValidAnswers(IReadOnlyList<FormEntryAnswer>? answers) =>
+        answers is null || answers.Count <= 40 && answers.All(answer => answer is not null && answer.FieldId != Guid.Empty
+            && (answer.Value is null || answer.Value.Length <= 10_000)
+            && (answer.ChoiceIds is null || answer.ChoiceIds.Count <= 20 && answer.ChoiceIds.All(choice => choice != Guid.Empty)))
+            && answers.Select(answer => answer.FieldId).Distinct().Count() == answers.Count;
+
+    public static bool ValidFiles(IReadOnlyList<FormEntryFileInput>? files) =>
+        files is null || files.Count <= 10 && files.All(file => file is not null
+            && file.FieldId != Guid.Empty && file.Content is { Length: > 0 } && !string.IsNullOrWhiteSpace(file.Name)
+            && !string.IsNullOrWhiteSpace(file.ContentType));
+
+    public static void Reason<T>(IRuleBuilderInitial<T, string?> rule) => rule
+        .Must(reason => BusinessFormRecord.NormalizeReason(reason).Error != FormRecordErrors.ReasonRequired)
+        .WithMessage(_ => ErrorMessages.Get(FormRecordErrors.ReasonRequired.Code))
+        .Must(reason => BusinessFormRecord.NormalizeReason(reason).Error != FormRecordErrors.ReasonInvalid)
+        .WithMessage(_ => ErrorMessages.Get(FormRecordErrors.ReasonInvalid.Code));
 }

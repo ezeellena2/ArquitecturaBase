@@ -12,27 +12,39 @@ internal static class FormEntryRequestMapping
         UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
     };
 
-    public static async Task<SubmitFormEntryRequest> MapAsync(SubmitFormEntryHttpRequest request, CancellationToken cancellationToken)
+    public static async Task<SubmitFormEntryRequest> MapAsync(SubmitFormEntryHttpRequest request, CancellationToken cancellationToken) =>
+        new(request.RequestId, request.VersionId, Answers(request.Answers),
+            await FilesAsync(request.Files, request.FileFieldIds, cancellationToken));
+
+    public static async Task<CorrectFormEntryRequest> MapAsync(CorrectFormEntryHttpRequest request, CancellationToken cancellationToken) =>
+        new(request.RequestId, request.VersionId, Answers(request.Answers), await FilesAsync(request.Files, request.FileFieldIds, cancellationToken),
+            request.Reason, request.KeptFileIds);
+
+    private static FormEntryAnswer[]? Answers(string json)
     {
-        IReadOnlyList<FormEntryAnswer>? answers;
         try
         {
-            answers = JsonSerializer.Deserialize<FormEntryAnswerHttpItem[]>(request.Answers, AnswerOptions)?
+            return JsonSerializer.Deserialize<FormEntryAnswerHttpItem[]>(json, AnswerOptions)?
                 .Select(answer => new FormEntryAnswer(answer.FieldId, answer.Value, answer.ChoiceIds)).ToArray();
         }
         catch (JsonException)
         {
-            answers = null;
+            return null;
         }
-        if (request.Files.Count != request.FileFieldIds.Count) return new(request.RequestId, request.VersionId, answers, null);
-        var files = new List<FormEntryFileInput>(request.Files.Count);
-        for (var index = 0; index < request.Files.Count; index++)
+    }
+
+    private static async Task<List<FormEntryFileInput>?> FilesAsync(List<IFormFile> uploaded, List<Guid> fieldIds,
+        CancellationToken cancellationToken)
+    {
+        if (uploaded.Count != fieldIds.Count) return null;
+        var files = new List<FormEntryFileInput>(uploaded.Count);
+        for (var index = 0; index < uploaded.Count; index++)
         {
-            var file = request.Files[index];
+            var file = uploaded[index];
             await using var content = new MemoryStream();
             await file.CopyToAsync(content, cancellationToken);
-            files.Add(new(request.FileFieldIds[index], Path.GetFileName(file.FileName), file.ContentType, content.ToArray()));
+            files.Add(new(fieldIds[index], Path.GetFileName(file.FileName), file.ContentType, content.ToArray()));
         }
-        return new(request.RequestId, request.VersionId, answers, files);
+        return files;
     }
 }

@@ -21,12 +21,15 @@ internal sealed class BusinessFormRecordSource(IFormRecordReader reader, IPermis
             return new(true, new Dictionary<Guid, StructuredRecordReadReply>());
 
         var batch = await reader.FindBatchAsync(sourceReceiptIds.Distinct().ToArray(), null, cancellationToken);
+        // The chat keeps the response as it arrived and says when it was later corrected or voided.
+        var amendments = await reader.ListAmendmentsAsync(sourceReceiptIds.Distinct().ToArray(), cancellationToken);
         if (!await permissions.HasPermissionAsync(actorUserId, BusinessFormsPermissions.RecordsRead, cancellationToken))
             return new(false, new Dictionary<Guid, StructuredRecordReadReply>());
         var rows = batch.Rows;
         var schemas = rows.DistinctBy(row => row.VersionId).ToDictionary(row => row.VersionId,
             row => FormDraftPolicy.Read<FormVersionSchema>(row.SchemaJson));
-        return new(true, rows.Select(row => (row.SourceReceiptId, Reply: FormRecordPresentationPolicy.Project(row, batch.Versions[row.VersionId].DisplayCulture(culture), schemas[row.VersionId], includeCatalogFields: false)))
+        return new(true, rows.Select(row => (row.SourceReceiptId, Reply: FormRecordPresentationPolicy.Project(row, batch.Versions[row.VersionId].DisplayCulture(culture), schemas[row.VersionId], includeCatalogFields: false)
+                with { Amendment = amendments.GetValueOrDefault(row.SourceReceiptId) }))
             .ToDictionary(item => item.SourceReceiptId, item => item.Reply));
     }
 

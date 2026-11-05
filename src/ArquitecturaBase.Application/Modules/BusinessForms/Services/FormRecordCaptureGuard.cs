@@ -5,8 +5,11 @@ using ArquitecturaBase.Domain.Modules.BusinessForms;
 
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
-internal sealed class FormRecordCaptureGuard(IFormCaptureReceiptReader receipts, IPermissionService permissions)
+internal sealed class FormRecordCaptureGuard(IFormCaptureReceiptReader receipts, IPermissionService permissions, FormRecordAmendmentGuard amendments)
 {
+    /// <summary>How the person correcting may change responses: a correction is not a new response of theirs.</summary>
+    public Task<FormRecordAmendAccess?> FindAmendAccessAsync(CancellationToken ct) => amendments.FindAsync(ct);
+
     public Task<bool> CanCaptureAsync(Guid actorUserId, CancellationToken ct) =>
         permissions.HasPermissionAsync(actorUserId, BusinessFormsPermissions.RecordsCreate, ct);
 
