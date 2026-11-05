@@ -148,3 +148,15 @@ PostgreSQL en verde; el front, con tsc, lint y las pruebas del área, queda para
 micrófono aparece con un perfil para WebM o MP4 de al menos 1.000.000 bytes y almacenamiento privado; la retención sigue al
 turno de Inicio que nombra el audio y escucharlo, a la normalización; una normalización fallida pide otro pedido en el
 intento siguiente. Sigue la tarea 11, la evaluación y el cierre.
+
+2026-11-05: tarea 11 hecha, salvo la corrida real. El arnés suma 24 casos de Inicio y 18 del canal automático (es/en: formulario,
+catálogo Manual, personas H4, ajuste, corrección, nombre en uso, sin permiso, ambiguo, instrucciones escondidas y cuatro dictados
+WebM/MP4 por `home-audio`), con oráculos en memoria y 158 controles offline en verde (662e72b4); la regla quedó en
+[formularios](../features/formularios.md#la-ia-arma-formularios-y-catálogos--etapa-1-2026-11-04) (a6c699a0). El exportador conjunto
+compiló sin advertencias, pasó la suite completa con Docker (7047) y regeneró las 25 cohortes; el front, con su contrato nuevo de
+propuestas, tsc, lint, la suite en tandas (4147) y la visual con las referencias nuevas, quedó en 261c470b, 9973da3f y fd36e494.
+Queda: la corrida con el proveedor real (con visto bueno, RunId y base nuevos; `home-existing` y `channel-stage5` también piden run
+nuevo); el dictado por WhatsApp como caso combinado; y dos hallazgos para decidir: las lecturas de autoría dan el nombre en el idioma
+original del formulario mientras crear compara el visible en el de la propuesta (en inglés el modelo no ve el nombre traducido; el
+servidor igual lo frena al crear), y el canal no tiene cómo pedir una aclaración en un pedido de autoría ambiguo («pregunta y espera»
+del dibujo).
