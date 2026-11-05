@@ -327,6 +327,32 @@ Una cuenta activa con `formcatalogs.read` y `formcatalogs.manage` revisa y aprue
 
 Por WhatsApp (IA3-A), la propuesta llega como resumen con «Crear catálogo» y «Cambiar algo»: el catálogo se crea con el botón, desde la conversación propia de la persona, y la evidencia no lleva `requestedIn`.
 
+## La IA arma formularios y catálogos — Etapa 1, 2026-11-04
+
+Quien puede diseñar formularios (`formtemplates.read` y `formtemplates.manage`) o administrar catálogos (`formcatalogs.read` y
+`formcatalogs.manage`) le pide al asistente, por escrito o con un audio, que arme un formulario o un catálogo Manual sin planilla,
+en Inicio (IA1-A) y por WhatsApp (IA3-A). El asistente lee los nombres y campos de lo que existe (`forms.authoring.forms` y
+`forms.authoring.catalogs`, cada uno con su permiso de leer y en 16 KiB) y propone con `forms.authoring.propose-form` o
+`forms.authoring.propose-catalog`. BusinessForms valida la propuesta: el formulario, con `SaveFormDraftRequestValidator` y sólo con
+catálogos activos que la persona puede leer; el catálogo, con `FormAuthoringProposalPolicy`. Un dato inválido vuelve al modelo como
+`rejected` con las rutas de sus argumentos para que lo corrija; nunca se elige ni se recorta. La IA no publica, no activa ni importa.
+
+En Inicio la propuesta es una tarjeta bajo la respuesta que la trae: «Ver cómo queda» abre la vista previa del editor, y «Crear
+borrador» o «Crear catálogo» llama a `POST api/forms/definitions/assistant-proposals` o `POST api/forms/catalogs/assistant-proposals`
+con el `requestId` del turno y el `proposalId`. El servidor relee la propuesta con `IAssistantProposalLookup` (sólo un turno completo
+de Inicio del mismo actor, con su sello, su acceso y la reserva de permisos revalidados), la crea una sola vez (repetir devuelve lo
+creado) y rechaza una propuesta que otra posterior de la misma capacidad ya reemplazó: un catálogo pedido después de un formulario
+no reemplaza al formulario.
+El formulario queda en borrador. El catálogo Manual queda inactivo y pendiente con la banda «Propuesta del asistente», que dice «en el
+chat de Inicio», y se activa con «Aprobar y activar», que recibe sólo `expectedRevision`; la edición común no activa una propuesta
+pendiente. Un nombre o un prefijo en uso lo dice la tarjeta (400 con su código): el nombre se compara sin mayúsculas con el nombre visible en el
+idioma de la propuesta. Los catálogos que usa un formulario tienen que seguir activos y legibles al crearlo.
+
+Por WhatsApp la propuesta es un resumen en texto fijo con «Crear borrador» o «Crear catálogo» y «Cambiar algo», y sólo valen los
+botones del último ([WhatsApp](whatsapp.md)). Allí `forms.authoring.decline` dice por qué no se arma nada (falta un permiso de leer o
+administrar, o lo nombrado ya existe y la persona puede leerlo): BusinessForms comprueba el motivo y uno equivocado vuelve `rejected`.
+El catálogo de personas con filtros (H4) se crea con el mismo botón.
+
 ## Formularios que faltan — Etapa 5
 
 La misma lectura de formularios incluye temas generalizados existentes. Una intención clara de registrar algo sin formulario accesible puede proponer uno de esos temas o un nombre y frase en el idioma de la conversación; una consulta, un cupo agotado o el rechazo de un formulario conocido no son pedidos faltantes. El motor no guarda: BusinessForms valida la propuesta y registra un recibo estable del mensaje original fuera de la transacción del canal. El nombre y la descripción generalizados se inspeccionan antes de devolver la propuesta y otra vez al capturarla, antes y dentro del lock. La copia de inspección usa NFKC para detectar también `＠`, direcciones con esquema o `www` y secuencias de siete o más dígitos, incluso separadas como un teléfono con guiones Unicode o signo menos. Se admiten fechas ISO válidas y montos con moneda explícita sólo si cubren el tramo numérico entero. Los identificadores conocidos del actor y destinatario se comparan como palabras completas y sin distinguir tildes, sin confundir «Ana» con «mañana». La inspección no reescribe el texto guardado ni filtra el relato de una visita o su prellenado.
