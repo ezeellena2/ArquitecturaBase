@@ -30,6 +30,8 @@ BusinessFormRecord y BusinessFormRecordValue conservan origen, versión, actor, 
 
 BusinessFormRecordReference es un hecho inmutable asociado al registro: catálogo/revisión/ítem y presentación ofrecida. El recibo rechazado conserva sólo FieldId de la pregunta, sin respuesta ni número. Auditoría del registro por los interceptores existentes; sin una tabla nueva de auditoría.
 
+Etapa 3 (corregir y anular): lo guardado no se edita. `Correct`, sobre la respuesta vigente, crea la que la reemplaza con el mismo número, autor, recepción y `EnteredInApp`; guarda `ReplacesRecordId`, `OriginalReceiptId` (el recibo de la primera versión, que `OriginReceiptId` resuelve), quién corrigió y el motivo, y marca `ReplacedByRecordId` en la anterior. `Void` la deja `Voided` con autor, UTC y motivo, sin deshacer. `CanBeAmended` es falso para una reemplazada o anulada; `NormalizeReason` exige un motivo visible, guardable y de hasta 500 caracteres. `BusinessFormTask.Close` cierra una tarea abierta sin decidirla (`Closed`) y un run puede terminar `NotApplicable`. `formrecords.amend` es «Corregir y anular respuestas».
+
 F1 agrega identidades Photo y Document; cambiar el tipo conserva la regla de identidad nueva. Las versiones ya publicadas no se reescriben.
 
 La planilla reutiliza registros, valores, referencias y archivos existentes. `formrecords.export` es independiente y adicional a `formrecords.read`; no hay permisos por formulario ni entidades de exportación. Los errores FilterInvalid, ExportTooLarge y ExportBudgetExceeded son de Domain.
