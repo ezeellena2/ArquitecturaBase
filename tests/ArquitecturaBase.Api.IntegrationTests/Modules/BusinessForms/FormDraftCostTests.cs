@@ -29,6 +29,12 @@ public sealed partial class FormDraftEndpointsTests
         await using (var reader = await command.ExecuteReaderAsync(Ct))
         { Assert.True(await reader.ReadAsync(Ct)); schemaBytes = reader.GetInt32(0); protectedBytes = reader.GetInt32(1); receiptBytes = reader.GetInt32(2); }
         Assert.InRange(protectedBytes, 1, 1048576);
+        // The database is shared and the purge takes the 100 oldest expired results: this draft's expires first, so it is in the batch.
+        await using (var oldest = new NpgsqlCommand("UPDATE \"FormDraftChanges\" SET \"ResultExpiresAtUtc\"=@expires WHERE \"DefinitionId\"=@id", connection))
+        {
+            oldest.Parameters.AddWithValue("expires", new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc)); oldest.Parameters.AddWithValue("id", id);
+            Assert.Equal(1, await oldest.ExecuteNonQueryAsync(Ct));
+        }
         var clock = new FakeTimeProvider(factory.Clock.GetUtcNow().AddDays(31));
         await using var host = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services => services.Replace(ServiceDescriptor.Singleton<TimeProvider>(clock))));
         await using (var scope = host.Services.CreateAsyncScope()) Assert.True((await scope.ServiceProvider.GetRequiredService<IFormDraftRetentionService>().PurgeExpiredResultsAsync(Ct)).IsSuccess);
