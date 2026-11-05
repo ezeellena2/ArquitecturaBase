@@ -19,6 +19,9 @@ public sealed record FormEntryQuestionResponse(Guid FieldId, string Type, string
     IReadOnlyList<FormEntryChoiceResponse>? Options, FormSelectionSettings? Selection, FormFileSettings? Files,
     FormEntryCatalogResponse? Catalog)
 {
+    /// <summary>The title of the section that starts at this question (CW15-B), in the content language: the app opens a zone with it.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? Section { get; init; }
     public override string ToString() => "FormEntryQuestionResponse { Content = [REDACTED] }";
 }
 

@@ -125,8 +125,9 @@ internal sealed class FormRecipientScenario(WebApplicationFactory<Program> host)
     {
         var db = services.GetRequiredService<ApplicationDbContext>();
         var definition = await db.Set<BusinessFormDefinition>().SingleAsync(value => value.Id == DefinitionId, ct);
-        var questions = JsonSerializer.Deserialize<FormQuestionSchema>(definition.SchemaJson, JsonSerializerOptions.Web)!.Fields;
-        var schema = JsonSerializer.Serialize(new FormVersionSchema(1, questions), JsonSerializerOptions.Web);
+        var draft = JsonSerializer.Deserialize<FormQuestionSchema>(definition.SchemaJson, JsonSerializerOptions.Web)!;
+        var questions = draft.Fields;
+        var schema = JsonSerializer.Serialize(new FormVersionSchema(1, questions, draft.Sections), JsonSerializerOptions.Web);
         var hash = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(schema)));
         var version = BusinessFormVersion.Create(definition.Id, 1, hash);
         version.SealSchema(schema);

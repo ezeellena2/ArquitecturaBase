@@ -26,6 +26,8 @@ internal sealed class FormEntryVersionPolicy(IFormEntryReader reader, FormEntryC
         var culture = await CultureAsync(definitionId, version, schema, cancellationToken);
         FormPersonRecipientDataRow? personData = null;
         var questions = new List<FormEntryQuestionResponse>(schema.Questions.Count);
+        // A published section has questions below it: its title goes on the first one.
+        var sections = (schema.Sections ?? []).GroupBy(section => section.Start).ToDictionary(group => group.Key, group => group.Last().Title);
         foreach (var question in schema.Questions)
         {
             FormEntryCatalogResponse? catalog = null;
@@ -34,7 +36,8 @@ internal sealed class FormEntryVersionPolicy(IFormEntryReader reader, FormEntryC
             questions.Add(new(question.FieldId, question.Type, FormRecordPresentationPolicy.Text(question.Label, culture),
                 question.Help is { Count: > 0 } help ? FormRecordPresentationPolicy.Text(help, culture) : null, question.Required, question.MaxLength,
                 question.Options?.Select(option => new FormEntryChoiceResponse(option.ChoiceId, FormRecordPresentationPolicy.Text(option.Label, culture))).ToArray(),
-                question.Selection, question.Files, catalog));
+                question.Selection, question.Files, catalog)
+            { Section = sections.TryGetValue(questions.Count, out var title) ? FormRecordPresentationPolicy.Text(title, culture) : null });
         }
         return (new FormEntryResponse(definitionId, version.VersionId, version.Number, definition.Prefix,
             FormRecordPresentationPolicy.Text(FormDraftPolicy.Read<Dictionary<string, string>>(version.NameJson), culture), culture,

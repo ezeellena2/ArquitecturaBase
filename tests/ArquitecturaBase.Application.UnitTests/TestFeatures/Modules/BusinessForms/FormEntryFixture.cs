@@ -35,6 +35,8 @@ internal sealed class FormEntryFixture : IFormEntryReader, IBusinessFormRecordCa
     public Guid? ActiveVersionId { get; set; }
     public bool Deactivated { get; set; }
     public bool Missing { get; set; }
+    /// <summary>Another sealed schema for the active version, such as one with section titles.</summary>
+    public string? SchemaJson { get; set; }
     public List<FormEntryItemsQuery> ItemQueries { get; } = [];
     public List<StructuredRecordCaptureRequest> Captures { get; } = [];
     /// <summary>The responses a correction opens, by their stored rows.</summary>
@@ -91,7 +93,7 @@ internal sealed class FormEntryFixture : IFormEntryReader, IBusinessFormRecordCa
         if (Missing || definitionId != Catalogs.DefinitionId) return Task.FromResult<FormEntryDefinitionRow?>(null);
         var version = Catalogs.Version;
         var row = (versionId ?? ActiveVersionId) == version.Id
-            ? new FormEntryVersionRow(version.Id, version.Number, version.NameJson!, version.SubmitLabelJson!, version.Culture!, version.SchemaJson) : null;
+            ? new FormEntryVersionRow(version.Id, version.Number, version.NameJson!, version.SubmitLabelJson!, version.Culture!, SchemaJson ?? version.SchemaJson) : null;
         return Task.FromResult<FormEntryDefinitionRow?>(new(definitionId, "SIE", ActiveVersionId, Deactivated, row));
     }
 

@@ -1,5 +1,6 @@
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
+using ArquitecturaBase.Application.Modules.BusinessForms.Services;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Files;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
@@ -45,6 +46,24 @@ public sealed class FormEntryServiceTests
         Assert.Equal(fixture.Catalogs.Version.Id, result.Value.VersionId);
         Assert.Equal("SIE", result.Value.Prefix);
         Assert.Equal(label, Assert.Single(result.Value.Questions).Label);
+    }
+
+    [Theory]
+    [InlineData("es", "Datos del lote")]
+    [InlineData("en", "Lot data")]
+    public async Task The_question_where_a_section_starts_carries_its_title_in_the_content_language(string culture, string title)
+    {
+        using var fixture = new FormEntryFixture();
+        var schema = FormDraftPolicy.Read<FormVersionSchema>(fixture.Catalogs.Version.SchemaJson);
+        var second = schema.Questions[0] with { FieldId = Guid.CreateVersion7() };
+        fixture.SchemaJson = FormDraftPolicy.Serialize(new FormVersionSchema(1, [schema.Questions[0], second],
+            [new FormSection(1, new Dictionary<string, string> { ["es"] = "Datos del lote", ["en"] = "Lot data" })]));
+        using var scope = new CultureScope(culture);
+
+        var questions = (await fixture.Service.GetAsync(fixture.Catalogs.DefinitionId, Ct)).Value.Questions;
+
+        Assert.Equal([null, title], questions.Select(question => question.Section));
+        Assert.DoesNotContain("section", FormDraftPolicy.Serialize(questions[0]), StringComparison.Ordinal);
     }
 
     [Fact]
