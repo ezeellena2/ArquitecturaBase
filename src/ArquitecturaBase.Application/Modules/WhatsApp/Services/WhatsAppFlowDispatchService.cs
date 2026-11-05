@@ -151,6 +151,16 @@ internal sealed partial class WhatsAppFlowDispatchService(IWhatsAppFlowRepositor
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Unreadable WhatsApp Flow {PayloadKind}; retry scheduled without altering external-effect uncertainty ({ExceptionType}).")]
     private static partial void LogUnreadablePayload(ILogger logger, string payloadKind, string exceptionType);
+    // The subtitles of a sealed screen by position, and how many the screens before it have; none without titles.
+    private static (int Before, int[] Positions) Subtitles(string json, int screenIndex)
+    {
+        if (!json.Contains("\"TextSubheading\"", StringComparison.Ordinal)) return (0, []);
+        using var document = System.Text.Json.JsonDocument.Parse(json);
+        var screens = document.RootElement.GetProperty("screens").EnumerateArray().Select(screen => screen.GetProperty("layout").GetProperty("children")[0]
+            .GetProperty("children").EnumerateArray().Select((child, at) => (Subtitle: child.GetProperty("type").GetString() == "TextSubheading", At: at))
+            .Where(child => child.Subtitle).Select(child => child.At).ToArray()).ToArray();
+        return screenIndex < screens.Length ? (screens.Take(screenIndex).Sum(positions => positions.Length), screens[screenIndex]) : (0, []);
+    }
     internal static WhatsAppFlowDiagnostic Map(WhatsAppFlowValidationPointer pointer, WhatsAppFlowProjection projection)
     {
         var culture = projection.Culture;
@@ -159,6 +169,11 @@ internal sealed partial class WhatsAppFlowDispatchService(IWhatsAppFlowRepositor
             new WhatsAppFlowSlot(field.Type, field.Type is "photo" or "document", field.Repeated == true, field.Rows)).ToArray());
         if (pointer.ScreenIndex < 0 || pointer.ScreenIndex >= screens.Count || pointer.FieldIndex is not { } position || position < 0)
             return new(null, null, "channel", culture);
+        // A section subtitle (CW15-B) points to its title; the components after it count without the subtitles before them.
+        var (before, subtitles) = Subtitles(projection.Json, pointer.ScreenIndex);
+        if (subtitles.Contains(position))
+            return new(null, null, $"draft.sections[{before + subtitles.Count(at => at < position)}].title.{culture}", culture);
+        position -= subtitles.Count(at => at < position);
         var screen = screens[pointer.ScreenIndex];
         IReadOnlyList<int> indices = screen.Kind == "ask" ? [] : screen.Questions;
         // After a row's questions comes the block's own question, alone on the screen that asks before the first row.

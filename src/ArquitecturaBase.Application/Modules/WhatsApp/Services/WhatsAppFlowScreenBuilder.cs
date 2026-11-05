@@ -42,7 +42,7 @@ internal static class WhatsAppFlowScreenBuilder
     }
 
     public static string Build(IReadOnlyList<StructuredFormQuestion> questions, List<Dictionary<string, object>> controls,
-        Dictionary<string, object> initialData, string? title, string? submit, string culture)
+        Dictionary<string, object> initialData, string? title, string? submit, string culture, IReadOnlyDictionary<int, Dictionary<string, object>> subtitles)
     {
         var groups = Groups(questions.Select(question => question.Files is not null).ToArray());
         var owners = groups.SelectMany((group, screen) => group.Select(index => (index, screen))).ToDictionary(value => value.index, value => value.screen);
@@ -51,7 +51,7 @@ internal static class WhatsAppFlowScreenBuilder
         {
             var current = screen;
             var last = screen == groups.Count - 1;
-            var children = groups[screen].Select(index => controls[index]).ToList();
+            var children = groups[screen].SelectMany(index => WithSubtitle(index, controls[index], subtitles)).ToList();
             if (screen > 0)
                 foreach (var index in groups[screen].Where(index => questions[index].SourceCatalogId.HasValue))
                     controls[index]["data-source"] = "${screen.FORM.data." + questions[index].Key + "_options}";
@@ -128,13 +128,22 @@ internal static class WhatsAppFlowScreenBuilder
         }
     }
 
+    // A section title goes right before its first question; a section that starts with the block, atop the block's first screen.
+    private static IEnumerable<Dictionary<string, object>> WithSubtitle(int index, Dictionary<string, object> control,
+        IReadOnlyDictionary<int, Dictionary<string, object>> subtitles) => subtitles.TryGetValue(index, out var subtitle) ? [subtitle, control] : [control];
+
+    internal static int Subtitled(WhatsAppFlowScreen screen, int block, StructuredFormRowSettings rows, IReadOnlyDictionary<int, Dictionary<string, object>> subtitles) =>
+        screen.Kind == "fields" ? screen.Questions.Count(subtitles.ContainsKey)
+            : subtitles.ContainsKey(block) && (screen.Kind == "ask" || (rows.MinRows > 0 && screen.Row == 1)) ? 1 : 0;
+
     internal static int RowCount(StructuredFormRowSettings rows) => Math.Min(Configuration.WhatsAppFlowProfile.MaxRows, rows.MaxRows);
 
     // From the minimum, a row ends with «¿Agregás otro renglón?»; the last one asks nothing.
     internal static bool Asks(StructuredFormRowSettings rows, int row) => row >= Math.Max(rows.MinRows, 1) && row < RowCount(rows);
 
     public static string BuildRows(IReadOnlyList<StructuredFormQuestion> questions, IReadOnlyList<WhatsAppFlowScreen> screens,
-        List<Dictionary<string, object>> controls, Dictionary<string, object> initialData, string? title, string? blockTitle, string? submit, string culture)
+        List<Dictionary<string, object>> controls, Dictionary<string, object> initialData, string? title, string? blockTitle, string? submit, string culture,
+        IReadOnlyDictionary<int, Dictionary<string, object>> subtitles)
     {
         var block = questions.Select((question, index) => (question, index)).First(value => value.question.Type == "group");
         var rows = block.question.Rows!;
@@ -146,9 +155,10 @@ internal static class WhatsAppFlowScreenBuilder
             var terminal = false;
             var children = new List<Dictionary<string, object>>();
             var form = new Dictionary<string, object?> { ["type"] = "Form", ["name"] = "form", ["children"] = children };
+            if (screen.Kind != "fields" && Subtitled(screen, block.index, rows, subtitles) > 0) children.Add(subtitles[block.index]);
             if (screen.Kind == "fields")
             {
-                children.AddRange(screen.Questions.Select(index => Control(index, current)));
+                children.AddRange(screen.Questions.SelectMany(index => WithSubtitle(index, Control(index, current), subtitles)));
                 children.Add(current == screens.Count - 1 ? Footer(submit, Complete()) : Footer(FlowTexts.Get("Continue", culture), Navigate(screens[current + 1].Id)));
                 var scalars = screen.Questions.Where(index => questions[index].Files is null && questions[index].Type != "multiChoice").Select(index => questions[index]).ToArray();
                 if (scalars.Length > 0)

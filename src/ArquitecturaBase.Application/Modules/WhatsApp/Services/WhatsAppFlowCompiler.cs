@@ -54,6 +54,12 @@ internal static class WhatsAppFlowCompiler
         if (request.Questions.Count(question => question.Type == "group") > 1 || (block >= 0 && end == block + 1)
             || request.Questions.Where((question, index) => question.Repeated == true && (index <= block || index >= end)).Any())
             return new([], [new(null, null, "draft.fields", FlowErrors.UnsupportedConfiguration)]);
+        // Each section title has questions below it, in order, and none starts between the block and its questions (CW15-B).
+        var sections = request.Sections ?? [];
+        if (sections.Count > 40 || sections.Where((section, index) => section is null || section.Title is null || section.Start < 0
+                || section.Start >= (index + 1 < sections.Count ? sections[index + 1]?.Start ?? -1 : request.Questions.Count)
+                || (block >= 0 && section.Start > block && section.Start < end)).Any())
+            return new([], [new(null, null, "draft.sections", FlowErrors.UnsupportedConfiguration)]);
         var screens = WhatsAppFlowScreenBuilder.Plan(request.Questions.Select(question =>
             new WhatsAppFlowSlot(question.Type, question.Files is not null, question.Repeated == true, question.Rows)).ToArray());
         var rows = block >= 0 ? request.Questions[block].Rows! : null;
@@ -102,6 +108,13 @@ internal static class WhatsAppFlowCompiler
             var mapping = new List<WhatsAppFlowFieldMapping>();
             var name = Resolve(request.Name, "name", null, null, 80);
             var submit = Resolve(request.SubmitLabel, "draft.submitLabel", null, null, 35);
+            // A title is a subtitle before the first question of its section, keyed by that question's position.
+            var subtitles = new Dictionary<int, Dictionary<string, object>>();
+            for (var index = 0; index < sections.Count; index++)
+                subtitles[sections[index].Start] = new(StringComparer.Ordinal)
+                {
+                    ["type"] = "TextSubheading", ["text"] = Resolve(sections[index].Title, $"draft.sections[{index}].title", null, null, 80) ?? "",
+                };
             string? blockTitle = null;
             for (var index = 0; index < request.Questions.Count; index++)
             {
@@ -179,7 +192,7 @@ internal static class WhatsAppFlowCompiler
             } });
             // Includes the Form container, conservatively. With a block the limit applies to each screen: a row adds its own
             // question, an If and a Footer in each branch.
-            var count = rows is null ? components.Count + 1 : screens.Max(screen => screen.Kind switch
+            var count = rows is null ? components.Count + 1 + subtitles.Count : screens.Max(screen => WhatsAppFlowScreenBuilder.Subtitled(screen, block, rows, subtitles) + screen.Kind switch
             {
                 "fields" => screen.Questions.Count + 2,
                 "ask" => 5,
@@ -188,8 +201,8 @@ internal static class WhatsAppFlowCompiler
             if (count > 50) issues.Add(new(null, null, "draft.fields", FlowErrors.ComponentBudgetExceeded, 50, culture));
             if (issues.Count > 0) continue;
             var json = rows is null
-                ? WhatsAppFlowScreenBuilder.Build(request.Questions, components, screenData, name, submit, culture)
-                : WhatsAppFlowScreenBuilder.BuildRows(request.Questions, screens, components, screenData, name, blockTitle, submit, culture);
+                ? WhatsAppFlowScreenBuilder.Build(request.Questions, components, screenData, name, submit, culture, subtitles)
+                : WhatsAppFlowScreenBuilder.BuildRows(request.Questions, screens, components, screenData, name, blockTitle, submit, culture, subtitles);
             var bytes = Encoding.UTF8.GetBytes(json);
             if (bytes.Length > 1048576) { issues.Add(new(null, null, "draft", FlowErrors.UnsupportedConfiguration)); continue; }
             flows.Add(new(culture, json, Convert.ToHexStringLower(SHA256.HashData(bytes)), count, mapping.AsReadOnly()));
