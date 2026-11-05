@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Resources;
 using System.Text.Json;
 using ArquitecturaBase.Application.Interfaces.Channels;
+using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Persistence;
@@ -22,6 +23,15 @@ internal static partial class Program
         "AiAssistantAccessGuard.cs","AiAssistantOperations.cs","AiAssistantCapabilityCatalogPolicy.cs","AiAssistantBackgroundService.cs",
         "AiAssistantCoordinator.cs","EmailBackgroundService.cs","WhatsAppInboundProcessor.cs","FormActionBackgroundService.cs"];
 
+    private static readonly string[] CaseSets=["home-existing","channel-stage5","audio-es-en","stage5-all","home-authoring","channel-authoring","ia-authoring"];
+    private const string HomeAuthoringFile="home-authoring-cases.json";
+    // IA4: the public candidate for what the browser records in Home, separate from the Ogg/Wav one.
+    private static readonly (string File,string Model,string Id) BrowserAudioCandidate=("audio-browser-candidate-profile.json","gpt-transcribe","openai-stt-browser-candidate");
+    private const string ChannelAuthoringFile="channel-authoring-cases.json";
+    // Home stamps for authoring cases: the five reads plus what BusinessForms offers in Home (authoring and H4).
+    private static readonly string[] HomeAuthoringCapabilities=[..QualificationSeed.HomeCapabilities,"forms.authoring.catalogs","forms.authoring.forms",
+        "forms.authoring.propose-catalog","forms.authoring.propose-form","forms.catalog-filters.metadata","forms.catalog-filters.propose"];
+
     private static async Task<int> Main(string[] args)
     {
         if(args.Contains("--self-test",StringComparer.Ordinal))return OfflineChecks.Run();
@@ -34,13 +44,18 @@ internal static partial class Program
             if(diagnose && (!args.Contains("--live",StringComparer.Ordinal) || args.Contains("--resume",StringComparer.Ordinal)))
                 throw new InvalidOperationException("Existing-fixture diagnostics require explicit live mode without resume.");
             var selected=Option(args,"--case-set") ?? "stage5-all";
-            if(selected is not ("home-existing" or "channel-stage5" or "audio-es-en" or "stage5-all"))
+            if(!CaseSets.Contains(selected,StringComparer.Ordinal))
                 throw new InvalidOperationException("Unknown qualification case set.");
+            // IA1-A/IA3-A authoring sets run on their own run and database: other quotas, seeded accounts and contracts.
+            var homeAuthoring=selected is "home-authoring" or "ia-authoring";
+            var channelAuthoring=selected is "channel-authoring" or "ia-authoring";
             if(!args.Contains("--live",StringComparer.Ordinal))
             {
                 if(selected is "home-existing" or "stage5-all")foreach(var item in await CasesAsync<HomeCase>("home-cases.json",CancellationToken.None))Console.WriteLine(item.Id);
                 if(selected is "channel-stage5" or "stage5-all")foreach(var item in await CasesAsync<ChannelCase>("channel-cases.json",CancellationToken.None))Console.WriteLine(item.Id);
                 if(selected is "audio-es-en" or "stage5-all")foreach(var item in await CasesAsync<AudioCase>("audio-cases.json",CancellationToken.None))Console.WriteLine(item.Id);
+                if(homeAuthoring)foreach(var item in await CasesAsync<HomeCase>(HomeAuthoringFile,CancellationToken.None))Console.WriteLine(item.Id);
+                if(channelAuthoring)foreach(var item in await CasesAsync<ChannelCase>(ChannelAuthoringFile,CancellationToken.None))Console.WriteLine(item.Id);
                 Console.WriteLine("Prepared only. No connection or secret store was opened.");return 0;
             }
             // Nothing above this explicit gate reads environment, credentials, services or a database.
@@ -64,13 +79,17 @@ internal static partial class Program
                 await RefuseNonemptyEvaluationDatabaseAsync(db,ct);
                 await db.Database.MigrateAsync(ct); // Isolated evaluation DB only.
                 fixture=await scope.ServiceProvider.GetRequiredService<QualificationSeed>().CreateAsync(ct);
-                if(selected is "channel-stage5" or "stage5-all")forms=await scope.ServiceProvider.GetRequiredService<QualificationFormSeed>().CreateAsync(fixture,ct);
+                if(selected is "channel-stage5" or "stage5-all" || homeAuthoring || channelAuthoring)
+                    forms=await scope.ServiceProvider.GetRequiredService<QualificationFormSeed>().CreateAsync(fixture,ct);
+                if(homeAuthoring || channelAuthoring)fixture=await scope.ServiceProvider.GetRequiredService<QualificationAuthoringSeed>().CreateAsync(fixture,ct);
             }
             await host.StartAsync(ct); // Existing IA worker, never its coordinator or transport.
             try
             {
-                if(selected is "home-existing" or "stage5-all")if(!await RunHomeAsync(host,settings,fixture,ct))return 1;
-                if(selected is "channel-stage5" or "stage5-all")if(!await RunChannelsAsync(host,settings,fixture,forms!,ct))return 1;
+                if(selected is "home-existing" or "stage5-all")if(!await RunHomeAsync(host,settings,fixture,null,"home-cases.json",QualificationSeed.HomeCapabilities,ct))return 1;
+                if(homeAuthoring)if(!await RunHomeAsync(host,settings,fixture,forms,HomeAuthoringFile,HomeAuthoringCapabilities,ct))return 1;
+                if(selected is "channel-stage5" or "stage5-all")if(!await RunChannelsAsync(host,settings,fixture,forms!,"channel-cases.json",ct))return 1;
+                if(channelAuthoring)if(!await RunChannelsAsync(host,settings,fixture,forms!,ChannelAuthoringFile,ct))return 1;
                 if(selected is "audio-es-en" or "stage5-all")if(!await RunAudioAsync(host,settings,fixture,ct))return 1;
                 return 0; // Mechanical checks do not declare production qualification.
             }
@@ -167,34 +186,53 @@ internal static partial class Program
         }
     }
 
-    private static async Task<bool> RunHomeAsync(IHost host,QualificationSettings settings,QualificationFixture fixture,CancellationToken ct)
+    private static async Task<bool> RunHomeAsync(IHost host,QualificationSettings settings,QualificationFixture fixture,QualificationChannelFixture? forms,
+        string fixtureFile,IReadOnlyCollection<string> capabilities,CancellationToken ct)
     {
-        var cases=await CasesAsync<HomeCase>("home-cases.json",ct);
-        var definitions=Definitions(host,QualificationSeed.HomeCapabilities);
-        var conversations=new Dictionary<string,(Guid Id,long Revision,QualificationActor Actor)>(StringComparer.Ordinal);
+        var cases=await CasesAsync<HomeCase>(fixtureFile,ct);
+        var definitions=Definitions(host,capabilities);
+        // A follow-up keeps its actor, conversation revision and, for an authoring adjustment, the proposal that turn showed.
+        var conversations=new Dictionary<string,(Guid Id,long Revision,QualificationActor Actor,AssistantObservedProposal? Proposal)>(StringComparer.Ordinal);
         foreach(var testCase in cases)
         {
             await using var scope=host.Services.CreateAsyncScope();
-            var actor=fixture.Actors.Where(item=>item.Culture==testCase.Culture).ElementAt(Array.IndexOf(cases,testCase)%4);
-            (Guid Id,long Revision)? previous=null;
-            if(testCase.ConversationKey is {} key && conversations.TryGetValue(key,out var history)){actor=history.Actor;previous=(history.Id,history.Revision);}
-            var observed=await scope.ServiceProvider.GetRequiredService<HomeRunner>().RunAsync(testCase,actor,previous,ct);
-            if(testCase.ConversationKey is {} saved)conversations[saved]=(observed.ConversationId,observed.ConversationRevision,actor);
+            var pool=(testCase.ActorKind switch{"home"=>fixture.Actors,"author"=>fixture.Authors,_=>[]}).Where(item=>item.Culture==testCase.Culture).ToArray();
+            if(pool.Length==0)throw new InvalidOperationException("Unknown Home qualification actor.");
+            var actor=pool[Array.IndexOf(cases,testCase)%pool.Length];
+            (Guid Id,long Revision)? previous=null;AssistantObservedProposal? shown=null;
+            if(testCase.ConversationKey is {} key && conversations.TryGetValue(key,out var history)){actor=history.Actor;previous=(history.Id,history.Revision);shown=history.Proposal;}
+            var runner=scope.ServiceProvider.GetRequiredService<HomeRunner>();
+            HomeAudioObservation? dictated=null;
+            if(testCase.Audio is not null)
+            {
+                // IA4: the normalization is its own operation and evidence (browser STT candidate); a failed check stops before the turn.
+                dictated=await runner.NormalizeAsync(testCase,actor,ct);
+                var heard=await EvidenceAsync(testCase.Id+"-audio","home-audio",testCase.Culture,dictated.Result.State,dictated.Result.Failure?.Code,
+                    dictated.Metadata,dictated.ElapsedSeconds,dictated.Measurements,dictated.Checks,[],fixtureFile,true,ct,BrowserAudioCandidate);
+                if(!await SaveAsync(settings,heard,ct))return false;
+            }
+            var observed=await runner.RunAsync(testCase,actor,previous,ct,fixture,forms,shown,dictated);
+            if(testCase.ConversationKey is {} saved)conversations[saved]=(observed.ConversationId,observed.ConversationRevision,actor,observed.Turn.ObservedProposal);
             var evidence=await EvidenceAsync(testCase.Id,"home",testCase.Culture,observed.Turn.State,observed.Turn.Failure?.Code,
-                observed.Metadata,observed.ElapsedSeconds,observed.Measurements,observed.Checks,definitions,"home-cases.json",false,ct);
+                observed.Metadata,observed.ElapsedSeconds,observed.Measurements,observed.Checks,definitions,fixtureFile,false,ct);
             if(!await SaveAsync(settings,evidence,ct))return false;
         }
         return true;
     }
-    private static async Task<bool> RunChannelsAsync(IHost host,QualificationSettings settings,QualificationFixture fixture,QualificationChannelFixture forms,CancellationToken ct)
+    private static async Task<bool> RunChannelsAsync(IHost host,QualificationSettings settings,QualificationFixture fixture,QualificationChannelFixture forms,
+        string fixtureFile,CancellationToken ct)
     {
         var definitions=Definitions(host,QualificationChannelContexts.Capabilities);
-        foreach(var testCase in await CasesAsync<ChannelCase>("channel-cases.json",ct))
+        // IA3-A: an adjustment continues the observed operation of its start case (PreviousRequestId), as after «Cambiar algo».
+        var observedCases=new Dictionary<string,ChannelObservation>(StringComparer.Ordinal);
+        foreach(var testCase in await CasesAsync<ChannelCase>(fixtureFile,ct))
         {
             await using var scope=host.Services.CreateAsyncScope();
-            var observed=await scope.ServiceProvider.GetRequiredService<ChannelRunner>().RunAsync(testCase,fixture,forms,ct);
+            var previous=testCase.Authoring?.Continues is {} continues ? observedCases[continues] : null;
+            var observed=await scope.ServiceProvider.GetRequiredService<ChannelRunner>().RunAsync(testCase,fixture,forms,ct,previous);
+            observedCases[testCase.Id]=observed;
             var evidence=await EvidenceAsync(testCase.Id,observed.Metadata.Stamps.ChannelId,testCase.Culture,observed.Result.State,observed.Result.FailureCode,
-                observed.Metadata,observed.ElapsedSeconds,observed.Measurements,observed.Checks,definitions,"channel-cases.json",false,ct);
+                observed.Metadata,observed.ElapsedSeconds,observed.Measurements,observed.Checks,definitions,fixtureFile,false,ct);
             if(!await SaveAsync(settings,evidence,ct))return false;
         }
         return true;
@@ -215,12 +253,13 @@ internal static partial class Program
         return true;
     }
     private static async Task<CaseEvidence> EvidenceAsync(string id,string channel,string culture,string state,string? failure,
-        TurnMetadata metadata,double elapsed,MeasurementSnapshot measured,IReadOnlyList<CheckEvidence> checks,CapabilityStamp[] definitions,string fixtureFile,bool audio,CancellationToken ct)
+        TurnMetadata metadata,double elapsed,MeasurementSnapshot measured,IReadOnlyList<CheckEvidence> checks,CapabilityStamp[] definitions,string fixtureFile,bool audio,CancellationToken ct,
+        (string File,string Model,string Id)? candidate=null)
     {
-        var profile=audio?"audio-candidate-profile.json":"candidate-profile.json";
-        return new(id,channel,culture,state,audio?"gpt-transcribe":"gpt-6.1-sol",audio?"openai-stt-candidate":"gpt-6.1-sol-candidate-1",
+        var (profile,model,candidateId)=candidate ?? (audio?("audio-candidate-profile.json","gpt-transcribe","openai-stt-candidate"):("candidate-profile.json","gpt-6.1-sol","gpt-6.1-sol-candidate-1"));
+        return new(id,channel,culture,state,model,candidateId,
             EvidenceWriter.HashPublicBytes(await File.ReadAllBytesAsync(FixturePath(profile),ct)),metadata.Stamps.ProfileId,metadata.Stamps.ProfileVersion,metadata.Stamps.ProfileSha256,
-            metadata.Stamps.InstructionsId,metadata.Stamps.InstructionsVersion,HashPublicInstructions(metadata.Stamps.InstructionsId,culture),
+            metadata.Stamps.InstructionsId,metadata.Stamps.InstructionsVersion,HashPublicInstructions(metadata.Stamps.InstructionsId,metadata.Stamps.InstructionsVersion,culture),
             definitions.Where(item=>metadata.Capabilities.Any(actual=>actual.Id==item.Id && actual.Version==item.Version)).ToArray(),
             EvidenceWriter.HashPublicBytes(await File.ReadAllBytesAsync(FixturePath(fixtureFile),ct)),metadata.ProviderSteps,metadata.ToolCalls,metadata.ToolBytes,
             new(metadata.InputTokens,metadata.OutputTokens,metadata.UsageUnknown,metadata.AudioSeconds),elapsed,measured.MaximumContextBytes,measured.MaximumContinuationBytes,
@@ -252,7 +291,12 @@ internal static partial class Program
                 var entry=JsonSerializer.Deserialize<QualificationLedgerEntry>(await File.ReadAllBytesAsync(path,ct),JsonSerializerOptions.Web)
                     ??throw new InvalidOperationException("Invalid qualification ledger.");
                 await using var scope=host.Services.CreateAsyncScope();var runner=scope.ServiceProvider.GetRequiredService<StatusRunner>();
-                var state=entry.OperationKind=="home"?(await runner.WaitAsync(entry,ct))?.State:(await runner.WaitNeutralAsync(entry,ct))?.State;
+                var state=entry.OperationKind switch
+                {
+                    "home"=>(await runner.WaitAsync(entry,ct))?.State,
+                    "home-audio"=>(await runner.WaitHomeAudioAsync(entry,ct))?.State,
+                    _=>(await runner.WaitNeutralAsync(entry,ct))?.State,
+                };
                 complete &= state=="completed";Console.WriteLine(entry.CaseId+": "+(state??"not-observable"));
             }
         }
@@ -277,11 +321,18 @@ internal static partial class Program
         if(Convert.ToInt64(await command.ExecuteScalarAsync(ct),CultureInfo.InvariantCulture)!=0)throw new InvalidOperationException("Evaluation database is not empty; use status recovery.");
         await db.Database.CloseConnectionAsync();
     }
-    private static string HashPublicInstructions(string id,string culture)
+    internal static string HashPublicInstructions(string id,int version,string culture)
     {
         if(id=="audio-none-v1")return EvidenceWriter.HashPublicText(string.Empty); // NormalizeAudio has no model prompt.
         var manager=new ResourceManager("ArquitecturaBase.Application.Modules.ArtificialIntelligence.Resources.Assistant",typeof(IAiAssistantService).Assembly);
-        var key=id=="home-system"?"Prompt.SystemV1":id=="capabilities-v1"?"Prompt.CapabilitiesV1":throw new InvalidOperationException("Unknown instruction stamp.");
+        // The sealed Id and version name the exact public prompt: Home turns accepted since IA1-A use home-system@2.
+        var key=(id,version) switch
+        {
+            ("home-system",1)=>"Prompt.SystemV1",
+            ("home-system",2)=>"Prompt.SystemV2",
+            ("capabilities-v1",1)=>"Prompt.CapabilitiesV1",
+            _=>throw new InvalidOperationException("Unknown instruction stamp."),
+        };
         return EvidenceWriter.HashPublicText(manager.GetString(key,CultureInfo.GetCultureInfo(culture))??throw new InvalidOperationException("Missing public instructions."));
     }
 }

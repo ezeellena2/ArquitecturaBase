@@ -17,6 +17,9 @@ internal sealed record QualificationLedgerEntry(string CaseId, Guid RequestId, G
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public Guid? SourceRecordId { get; init; }
     public string? ChannelKind { get; init; }
+    // IA3-A continuation after «Cambiar algo»: the operation this message continues. Absent in every other ledger.
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public Guid? PreviousRequestId { get; init; }
 }
 
 internal sealed record QualificationRunBinding(string RunId, string EvaluationIdentitySha256);
@@ -52,7 +55,8 @@ internal sealed class SafeRunLedger(QualificationSettings settings)
             var previous = JsonSerializer.Deserialize<QualificationLedgerEntry>(await File.ReadAllBytesAsync(path, cancellationToken), JsonSerializerOptions.Web);
             if (previous is null || previous.RequestId != entry.RequestId || previous.ActorUserId != entry.ActorUserId
                 || previous.OperationKind != entry.OperationKind || previous.ChannelId != entry.ChannelId || previous.InteractionMode != entry.InteractionMode || previous.Culture != entry.Culture
-                || previous.SubjectUserId != entry.SubjectUserId || previous.ChannelKind != entry.ChannelKind || previous.SourceRecordId != entry.SourceRecordId)
+                || previous.SubjectUserId != entry.SubjectUserId || previous.ChannelKind != entry.ChannelKind || previous.SourceRecordId != entry.SourceRecordId
+                || previous.PreviousRequestId != entry.PreviousRequestId)
                 throw new InvalidOperationException("Qualification case already has an immutable request identity and scope.");
         }
         var temporary = path + ".new";

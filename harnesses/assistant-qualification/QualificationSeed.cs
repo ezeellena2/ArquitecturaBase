@@ -18,6 +18,10 @@ internal sealed record QualificationFixture(IReadOnlyList<QualificationActor> Ac
     public IReadOnlyList<QualificationActor> AudioActors { get; init; } = [];
     public IReadOnlyList<QualificationActor> Subjects { get; init; } = [];
     public IReadOnlyList<QualificationActor> Operators { get; init; } = [];
+    // Authoring sets only (QualificationAuthoringSeed): Home accounts that may build forms and catalogs, and the WhatsApp
+    // automatic recipients that build in their own conversation.
+    public IReadOnlyList<QualificationActor> Authors { get; init; } = [];
+    public IReadOnlyList<QualificationActor> ChannelAuthors { get; init; } = [];
 }
 
 internal sealed class QualificationSeed(IUnitOfWork unitOfWork, IUserRepository users, IRoleRepository roles,

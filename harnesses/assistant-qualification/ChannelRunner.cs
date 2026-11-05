@@ -10,29 +10,43 @@ namespace AssistantQualification;
 
 internal sealed record ScalarExpectation(string Key, string Type, string Value);
 internal sealed record ChannelCase(string Id, string Culture, string ActorKind, string Question, string ExpectedPayload,
-    string[] RequiredTools, string? FormAlias = null, ScalarExpectation[]? Values = null, bool RequireLimitation = false);
+    string[] RequiredTools, string? FormAlias = null, ScalarExpectation[]? Values = null, bool RequireLimitation = false,
+    AuthoringExpectation? Authoring = null);
 internal sealed record ChannelObservation(Guid RequestId, AssistantOperationResponse Result, TurnMetadata Metadata,
     double ElapsedSeconds, IReadOnlyList<CheckEvidence> Checks, MeasurementSnapshot Measurements);
 
 internal static class QualificationChannelContexts
 {
+    // IA3-A: WhatsApp's own automatic conversation also offers authoring; the engine filters each one by the person's permissions.
+    public static readonly string[] AuthoringCapabilities = ["forms.authoring.forms", "forms.authoring.catalogs", "forms.authoring.propose-form",
+        "forms.authoring.propose-catalog", "forms.authoring.decline"];
     public static readonly string[] Capabilities = ["whatsapp.offered-forms", "whatsapp.no-reply", "whatsapp.decline-form",
         "forms.assistant-candidates", "forms.propose-registration", "forms.clarify-registration",
         "forms.suggestion-candidates", "forms.propose-suggestion", "forms.catalog-filters.metadata", "forms.catalog-filters.propose",
-        "forms.missing-request.propose"];
+        "forms.missing-request.propose", ..AuthoringCapabilities];
+    // "author" is the automatic conversation of a recipient who may build forms and catalogs (Actor equal to Subject).
+    private static readonly string[] Kinds = ["auto", "manual", "catalog", "no-forms", "author"];
     public static AssistantChannelContext Create(QualificationActor actor, Guid subject, string kind, Guid? sourceRecordId = null)
     {
-        if(kind is not ("auto" or "manual" or "catalog" or "no-forms")) throw new ArgumentException("Unknown qualification channel kind.",nameof(kind));
-        return new(kind == "manual" ? "whatsapp-manual" : "whatsapp-assistant", actor.UserId, subject, actor.Culture, "America/Argentina/Buenos_Aires",
-            new(kind == "manual" ? ["whatsapp.read", "whatsapp.send"] : [], []),
+        if(!Kinds.Contains(kind,StringComparer.Ordinal)) throw new ArgumentException("Unknown qualification channel kind.",nameof(kind));
+        var manual = kind == "manual";
+        return new(manual ? "whatsapp-manual" : "whatsapp-assistant", actor.UserId, subject, actor.Culture, "America/Argentina/Buenos_Aires",
+            new(manual ? ["whatsapp.read", "whatsapp.send"] : [], []),
             Capabilities.Where(id => sourceRecordId.HasValue
                 ? id is "whatsapp.offered-forms" or "whatsapp.no-reply" or "whatsapp.decline-form" or "forms.suggestion-candidates" or "forms.propose-suggestion"
-                : id is not ("forms.suggestion-candidates" or "forms.propose-suggestion") && (kind!="manual" || !id.StartsWith("forms.catalog-filters.",StringComparison.Ordinal)))
-                .Select(id => new AssistantCapabilityReference(id,1)).ToArray(), [new("assistant_proposal",1)]) { SourceRecordId = sourceRecordId, InteractionMode = kind == "manual" ? AssistantInteractionMode.Manual : AssistantInteractionMode.Assistant };
+                : id is not ("forms.suggestion-candidates" or "forms.propose-suggestion")
+                    && (!manual || !id.StartsWith("forms.catalog-filters.",StringComparison.Ordinal) && !AuthoringCapabilities.Contains(id,StringComparer.Ordinal)))
+                .Select(id => new AssistantCapabilityReference(id,1)).ToArray(), [new("assistant_proposal",1)]) { SourceRecordId = sourceRecordId, InteractionMode = manual ? AssistantInteractionMode.Manual : AssistantInteractionMode.Assistant };
     }
 
     public static AssistantChannelContext CreateAudio(Guid actorUserId,string culture) => new("whatsapp-manual",actorUserId,null,culture,
         "America/Argentina/Buenos_Aires",new(["whatsapp.read"],[]),[],[]) { InteractionMode = AssistantInteractionMode.Manual };
+
+    // IA4: a Home recording's normalization is read back through the Home audio service of its actor, never through a context
+    // the harness builds; its ledger names only that actor, home-audio and the culture.
+    public static bool IsHomeAudio(QualificationLedgerEntry entry) => entry is { OperationKind: "home-audio", ChannelId: "home-audio",
+        SubjectUserId: null, ChannelKind: null, SourceRecordId: null, PreviousRequestId: null, InteractionMode: AssistantInteractionMode.Unspecified }
+        && entry.Culture is "es" or "en" && entry.CaseId.EndsWith("-audio", StringComparison.Ordinal);
 
     public static AssistantChannelContext Resume(QualificationLedgerEntry entry)
     {
@@ -42,7 +56,7 @@ internal static class QualificationChannelContexts
             if(entry.ChannelId!="whatsapp-manual" || entry.SubjectUserId is not null) throw new InvalidOperationException("Invalid audio ledger scope.");
             return CreateAudio(entry.ActorUserId,entry.Culture) with { InteractionMode = entry.InteractionMode };
         }
-        if(entry.OperationKind!="channel" || entry.ChannelKind is not ("auto" or "manual" or "catalog" or "no-forms") || entry.SubjectUserId is not {} subject)
+        if(entry.OperationKind!="channel" || entry.ChannelKind is not ("auto" or "manual" or "catalog" or "no-forms" or "author") || entry.SubjectUserId is not {} subject)
             throw new InvalidOperationException("Invalid channel ledger scope.");
         var context=Create(new(entry.ActorUserId,"resumed",entry.Culture,"fictitious"),subject,entry.ChannelKind,entry.SourceRecordId) with { InteractionMode = entry.InteractionMode };
         if(context.ChannelId!=entry.ChannelId) throw new InvalidOperationException("Ledger channel identity changed.");
@@ -51,14 +65,17 @@ internal static class QualificationChannelContexts
 }
 
 internal sealed class ChannelRunner(IAssistantOperations operations, SafeRunLedger ledger, SafeTurnMetadata metadata,
-    QualificationCurrentUser currentUser, TimeProvider clock, QualificationMeasurements measurements)
+    QualificationCurrentUser currentUser, TimeProvider clock, QualificationMeasurements measurements, IEnumerable<IAssistantCapabilitySource> sources)
 {
     private static readonly string[] ClarificationAliases=["visit","maintenance"];
 
+    // previous: the observed operation an IA3-A adjustment continues (PreviousRequestId), as after «Cambiar algo».
     public async Task<ChannelObservation> RunAsync(ChannelCase testCase, QualificationFixture actors,
-        QualificationChannelFixture forms, CancellationToken ct)
+        QualificationChannelFixture forms, CancellationToken ct, ChannelObservation? previous = null)
     {
-        var subject = actors.Subjects.Single(actor => actor.Culture == testCase.Culture);
+        if ((testCase.Authoring?.Continues is null) != (previous is null)) throw new InvalidOperationException("A continuation needs exactly its previous operation.");
+        var subject = testCase.ActorKind == "author" ? actors.ChannelAuthors.Single(actor => actor.Culture == testCase.Culture)
+            : actors.Subjects.Single(actor => actor.Culture == testCase.Culture);
         var actor = testCase.ActorKind is "manual" or "catalog" ? actors.Operators.Single(actor => actor.Culture == testCase.Culture) : subject;
         if (testCase.ActorKind == "no-forms") actor = subject = actors.AudioActors.Single(actor => actor.Culture == testCase.Culture);
         if (testCase.ActorKind == "catalog") subject = actor;
@@ -67,7 +84,7 @@ internal sealed class ChannelRunner(IAssistantOperations operations, SafeRunLedg
         var context = QualificationChannelContexts.Create(actor,subject.UserId,testCase.ActorKind,sourceRecordId);
         currentUser.Set(actor.UserId);
         var requestId = Guid.CreateVersion7();
-        await ledger.SaveAsync(new QualificationLedgerEntry(testCase.Id,requestId,actor.UserId,null,null,"before-submit") {OperationKind="channel",ChannelId=context.ChannelId,InteractionMode=context.InteractionMode,Culture=context.Culture,SubjectUserId=subject.UserId,ChannelKind=testCase.ActorKind,SourceRecordId=context.SourceRecordId},ct);
+        await ledger.SaveAsync(new QualificationLedgerEntry(testCase.Id,requestId,actor.UserId,null,null,"before-submit") {OperationKind="channel",ChannelId=context.ChannelId,InteractionMode=context.InteractionMode,Culture=context.Culture,SubjectUserId=subject.UserId,ChannelKind=testCase.ActorKind,SourceRecordId=context.SourceRecordId,PreviousRequestId=previous?.RequestId},ct);
         var text = testCase.Question;
         if(text.Contains("{otherRecipient}",StringComparison.Ordinal))
             text=text.Replace("{otherRecipient}",actors.Subjects.Single(item=>item.UserId!=subject.UserId).UserId.ToString("D"),StringComparison.Ordinal);
@@ -75,9 +92,9 @@ internal sealed class ChannelRunner(IAssistantOperations operations, SafeRunLedg
         measurements.BeginCase();
         var elapsed=Stopwatch.StartNew();
         var now=clock.GetUtcNow().UtcDateTime;
-        var accepted=await operations.SubmitAsync(new(requestId,context,text,now,now.AddDays(1)),ct);
+        var accepted=await operations.SubmitAsync(new(requestId,context,text,now,now.AddDays(1)) { PreviousRequestId = previous?.RequestId },ct);
         if(accepted.IsFailure) throw new InvalidOperationException("Qualification channel submission was rejected.");
-        await ledger.SaveAsync(new QualificationLedgerEntry(testCase.Id,requestId,actor.UserId,null,null,"accepted") {OperationKind="channel",ChannelId=context.ChannelId,InteractionMode=context.InteractionMode,Culture=context.Culture,SubjectUserId=subject.UserId,ChannelKind=testCase.ActorKind,SourceRecordId=context.SourceRecordId},ct);
+        await ledger.SaveAsync(new QualificationLedgerEntry(testCase.Id,requestId,actor.UserId,null,null,"accepted") {OperationKind="channel",ChannelId=context.ChannelId,InteractionMode=context.InteractionMode,Culture=context.Culture,SubjectUserId=subject.UserId,ChannelKind=testCase.ActorKind,SourceRecordId=context.SourceRecordId,PreviousRequestId=previous?.RequestId},ct);
         AssistantOperationResponse? outcome=null;
         var deadline=clock.GetUtcNow().AddSeconds(240);
         while(clock.GetUtcNow()<deadline)
@@ -104,7 +121,46 @@ internal sealed class ChannelRunner(IAssistantOperations operations, SafeRunLedg
         };
         AddSemanticChecks(checks,testCase,outcome.Proposal?.Payload,forms,actors,subject.UserId,outcome.Proposal);
         AddObservedChecks(checks,testCase,outcome.Proposal,forms,subject.UserId);
+        var proposals=sources.SelectMany(source=>source.Definitions).Where(definition=>definition.Kind==AssistantCapabilityKind.Proposal)
+            .Select(definition=>definition.Id).ToHashSet(StringComparer.Ordinal);
+        AddAuthoringChecks(checks,testCase,outcome,technical,forms,actors,proposals,previous);
         return new(requestId,outcome,technical,elapsed.Elapsed.TotalSeconds,checks,measurements.EndCase());
+    }
+
+    // IA3-A in the automatic own conversation: the permission-filtered offer, the expected owner proposal resting on earlier reads,
+    // a rejection followed by a corrected proposal, one proposal per turn and, after «Cambiar algo», the next turn of the same
+    // engine conversation keeping the previous name and prefix. Payload facts come from AuthoringOracle.
+    internal static void AddAuthoringChecks(List<CheckEvidence> checks,ChannelCase testCase,AssistantOperationResponse outcome,TurnMetadata technical,
+        QualificationChannelFixture fixture,QualificationFixture actors,IReadOnlySet<string> proposalCapabilities,ChannelObservation? previous)
+    {
+        if(testCase.Authoring is not {Capability:{} capability} expected)return;
+        var proposal=outcome.Proposal;
+        var building=QualificationChannelContexts.AuthoringCapabilities.Where(id=>id!=AuthoringOracle.Decline).ToArray();
+        checks.Add(new("authoring-offer-matches-permissions",testCase.ActorKind=="author"
+            ? AuthoringOracle.Offered(technical.OfferedCapabilities,QualificationChannelContexts.AuthoringCapabilities,[])
+            : AuthoringOracle.Offered(technical.OfferedCapabilities,[AuthoringOracle.Decline],building)));
+        checks.Add(new("authoring-terminal-from-expected-capability",outcome.State=="completed" && proposal is {Capability.Version:1} && proposal.Capability.Id==capability));
+        checks.Add(new("authoring-reads-before-proposal",AuthoringOracle.ReadsBeforeProposal(proposal,testCase.RequiredTools)));
+        checks.Add(new("rejection-recovered-if-any",AuthoringOracle.RejectionsRecovered(technical.Capabilities,capability)));
+        checks.Add(new("only-expected-proposal-capability",AuthoringOracle.OnlyProposalsOf(technical.Capabilities,proposalCapabilities,capability)));
+        if(expected.Continues is not null)
+            checks.Add(new("continued-same-engine-conversation",previous is not null && technical.ConversationId!=Guid.Empty
+                && technical.ConversationId==previous.Metadata.ConversationId && technical.Ordinal==previous.Metadata.Ordinal+1));
+        checks.AddRange(AuthoringOracle.PayloadChecks(expected,testCase.Culture,proposal?.Payload,fixture,actors,previous?.Result.Proposal?.Payload));
+    }
+
+    internal static IReadOnlyList<CheckEvidence> CatalogFilterChecks(FormCatalogProposalPayload? catalog,QualificationFixture actors,bool requireLimitation)
+    {
+        var conditions=catalog?.Filters.Conditions??[];
+        var checks=new List<CheckEvidence>
+        {
+            new("active-supervisors-filter",catalog is not null && conditions.Any(item=>item is {Column:"active",Operator:"equals",Value:"true"})
+                && conditions.Any(item=>item is {Column:"role",Operator:"has"} && item.Value==actors.SupervisorRoleId.ToString("D"))),
+            new("exact-requested-filters",catalog is not null && catalog.Filters.Conditions?.Count==2 && !catalog.Filters.ExcludeRecipient),
+        };
+        if(requireLimitation)checks.Add(new("unsupported-criterion-explained",catalog is not null && catalog.Limitations.Any(limitation=>
+            Regex.IsMatch(limitation.Criterion,@"\b(ojos?|eyes?)\b",RegexOptions.IgnoreCase|RegexOptions.CultureInvariant))));
+        return checks;
     }
 
     internal static void AddObservedChecks(List<CheckEvidence> checks,ChannelCase testCase,AssistantObservedProposal? proposal,QualificationChannelFixture fixture,Guid subject)
@@ -116,6 +172,8 @@ internal sealed class ChannelRunner(IAssistantOperations operations, SafeRunLedg
             FormSuggestionAssistantCandidatesPayload suggestions=>suggestions.RecipientUserId==subject && suggestions.Culture==testCase.Culture && suggestions.IsComplete,
             StructuredFormOffersPayload offers=>offers.SubjectUserId==subject && offers.Culture==testCase.Culture,
             FormCatalogMetadataPayload=>true,
+            // IA3-A authoring reads list only names and fields of what exists, with no recipient, values or people.
+            FormAuthoringFormsPayload or FormAuthoringCatalogsPayload=>true,
             _=>false,
         }))));
         if(proposal is null)return;
@@ -234,6 +292,9 @@ internal sealed class ChannelRunner(IAssistantOperations operations, SafeRunLedg
             "catalog"=>payload is FormCatalogProposalPayload,
             "suggestion"=>payload is FormSuggestionAssistantRegistrationPayload,
             "decline"=>payload is WhatsAppAssistantDeclinePayload,
+            "authoring-form"=>payload is FormAuthoringFormProposal,
+            "authoring-catalog"=>payload is FormAuthoringCatalogProposal,
+            "authoring-decline"=>payload is FormAuthoringDecline,
             _=>false,
         };
         checks.Add(new("expected-owner-payload",validKind));
@@ -253,12 +314,7 @@ internal sealed class ChannelRunner(IAssistantOperations operations, SafeRunLedg
         }
         if(payload is FormAssistantClarificationPayload clarification)
             checks.Add(new("two-or-three-current-forms",clarification.Forms.Count==2 && ClarificationAliases.All(alias=>clarification.Forms.Count(item=>item.DefinitionId==fixture.Form(alias).DefinitionId && item.VersionId==fixture.Form(alias).VersionId)==1)));
-        if(payload is FormCatalogProposalPayload catalog)
-        {
-            checks.Add(new("active-supervisors-filter",catalog.Filters.Conditions?.Any(item=>item is {Column:"active",Operator:"equals",Value:"true"})==true && catalog.Filters.Conditions.Any(item=>item is {Column:"role",Operator:"has"} && item.Value==actors.SupervisorRoleId.ToString("D"))));
-            checks.Add(new("exact-requested-filters",catalog.Filters.Conditions?.Count==2 && !catalog.Filters.ExcludeRecipient));
-            if(testCase.RequireLimitation)checks.Add(new("unsupported-criterion-explained",catalog.Limitations.Any(limitation=>Regex.IsMatch(limitation.Criterion,@"\b(ojos?|eyes?)\b",RegexOptions.IgnoreCase|RegexOptions.CultureInvariant))));
-        }
+        if(payload is FormCatalogProposalPayload catalog)checks.AddRange(CatalogFilterChecks(catalog,actors,testCase.RequireLimitation));
         if(payload is MissingFormRequestProposalPayload missing)
             checks.Add(new("generalized-topic",missing.ExistingTopicId is not null || !string.IsNullOrWhiteSpace(missing.Name) && !string.IsNullOrWhiteSpace(missing.Description) && !(missing.Name+missing.Description).Contains('@') && MissingTopicMatches(testCase,missing.Name,missing.Description)));
         if(payload is FormSuggestionAssistantRegistrationPayload suggestion)

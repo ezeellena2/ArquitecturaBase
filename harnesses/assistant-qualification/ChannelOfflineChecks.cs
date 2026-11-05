@@ -12,7 +12,17 @@ internal static class ChannelOfflineChecks
         Check("manual-fixes-neutral-interaction-mode",context.InteractionMode==AssistantInteractionMode.Manual);
         var automatic=QualificationChannelContexts.Create(actor,context.SubjectUserId!.Value,"auto");
         Check("automatic-fixes-neutral-interaction-mode",automatic.InteractionMode==AssistantInteractionMode.Assistant);
-        Check("automatic-keeps-catalog-proposals",automatic.AllowedCapabilities.Count==9 && automatic.AllowedCapabilities.Count(capability=>capability.Id.StartsWith("forms.catalog-filters.",StringComparison.Ordinal))==2);
+        Check("automatic-keeps-catalog-proposals",automatic.AllowedCapabilities.Count==14 && automatic.AllowedCapabilities.Count(capability=>capability.Id.StartsWith("forms.catalog-filters.",StringComparison.Ordinal))==2);
+        // IA3-A: only the person's own automatic conversation offers authoring; the engine then filters it by permissions.
+        Check("automatic-offers-authoring-in-own-conversation",QualificationChannelContexts.AuthoringCapabilities.All(id=>automatic.AllowedCapabilities.Count(capability=>capability.Id==id && capability.Version==1)==1)
+            && automatic.AllowedCapabilities.Select(capability=>capability.Id).Distinct(StringComparer.Ordinal).Count()==automatic.AllowedCapabilities.Count);
+        var author=QualificationChannelContexts.Create(actor,actor.UserId,"author");
+        Check("author-context-is-the-automatic-own-conversation",author.ChannelId=="whatsapp-assistant" && author.InteractionMode==AssistantInteractionMode.Assistant
+            && author.SubjectUserId==actor.UserId && author.RequiredPermissions.Actor.Count==0
+            && author.AllowedCapabilities.Select(capability=>capability.Id).SequenceEqual(automatic.AllowedCapabilities.Select(capability=>capability.Id)));
+        var catalogContext=QualificationChannelContexts.Create(actor,actor.UserId,"catalog");
+        Check("catalog-context-keeps-authoring-next-to-people-catalogs",QualificationChannelContexts.AuthoringCapabilities.All(id=>catalogContext.AllowedCapabilities.Any(capability=>capability.Id==id)));
+        Check("manual-excludes-authoring",context.AllowedCapabilities.All(capability=>!capability.Id.StartsWith("forms.authoring.",StringComparison.Ordinal)));
         using var inventory=System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"fixtures","channel-cases.json")));
         var cases=inventory.RootElement.GetProperty("cases").EnumerateArray().ToArray();
         var injections=cases.Where(item=>item.GetProperty("id").GetString()!.StartsWith("channel-injection-",StringComparison.Ordinal)).ToArray();
@@ -25,7 +35,7 @@ internal static class ChannelOfflineChecks
         var captured = QualificationChannelContexts.Create(actor,context.SubjectUserId!.Value,"manual",source);
         Check("captured-context-fixes-exact-source-and-catalog",captured.SourceRecordId==source && captured.AllowedCapabilities.Count==5
             && captured.AllowedCapabilities.Any(capability=>capability.Id=="forms.suggestion-candidates")
-            && captured.AllowedCapabilities.All(capability=>capability.Id!="forms.propose-registration"));
+            && captured.AllowedCapabilities.All(capability=>capability.Id!="forms.propose-registration" && !capability.Id.StartsWith("forms.authoring.",StringComparison.Ordinal)));
         var audio=QualificationChannelContexts.CreateAudio(actor.UserId,"es");
         Check("audio-only-read-no-tools",audio.SubjectUserId is null && audio.RequiredPermissions.Actor.SequenceEqual(["whatsapp.read"]) && audio.AllowedCapabilities.Count==0 && audio.AllowedTerminals.Count==0);
         Check("audio-fixes-manual-interaction-mode",audio.InteractionMode==AssistantInteractionMode.Manual);

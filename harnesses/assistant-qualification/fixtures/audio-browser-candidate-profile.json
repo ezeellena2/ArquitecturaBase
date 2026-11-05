@@ -1,0 +1,25 @@
+{
+  "status": "UNQUALIFIED CANDIDATE; isolated host only; no production declaration",
+  "provider": "OpenAI",
+  "model": "gpt-transcribe",
+  "id": "openai-stt-browser-candidate",
+  "version": 1,
+  "contentTypes": [
+    "audio/webm",
+    "audio/mp4"
+  ],
+  "maximumAudioBytes": 1000000,
+  "channel": "home-audio",
+  "api": "audio/transcriptions",
+  "responseFormat": "json",
+  "forcedLanguage": null,
+  "translation": false,
+  "transportRetry": false,
+  "sameSavedConnection": true,
+  "requiredTools": false,
+  "officialReferences": [
+    "https://developers.openai.com/api/docs/models/gpt-transcribe",
+    "https://developers.openai.com/api/reference/resources/audio/subresources/transcriptions/methods/create"
+  ],
+  "qualification": "four real Home recordings (WebM and MP4, es/en) through IAiAssistantAudioService and the real NormalizeAudio purpose in home-audio; stop on first failure; check exact public fixture words in memory; the format is not inherited from the Ogg/Wav candidate; no automatic model substitution or waveform conversion"
+}

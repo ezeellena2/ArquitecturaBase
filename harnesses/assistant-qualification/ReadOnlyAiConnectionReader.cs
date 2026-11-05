@@ -17,7 +17,7 @@ internal sealed class SourceConnectionServices(ServiceProvider services) : IDisp
 // This bridge never resolves or calls a protector, provider client, plaintext key or connection writer.
 internal sealed class ReadOnlyAiConnectionReader(SourceConnectionServices source) : IAiConnectionReader
 {
-    public Task<AiConnectionSnapshot> FindAsync(CancellationToken cancellationToken) =>
+    public Task<AiConnectionRow> FindAsync(CancellationToken cancellationToken) =>
         ReadAsync(reader => reader.FindAsync(cancellationToken), cancellationToken);
 
     public Task<AiConnectionChangeResponse?> FindChangeAsync(Guid operatorId, Guid requestId, CancellationToken cancellationToken) =>

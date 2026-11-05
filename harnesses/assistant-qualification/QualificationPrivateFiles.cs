@@ -11,7 +11,7 @@ internal sealed class QualificationPrivateFiles : IPrivateFileStore
     public async Task<bool> WriteOnceAsync(string key,Stream content,string contentType,CancellationToken ct)
     {
         var target=Resolve(key);
-        if((Path.GetExtension(target),contentType) is not ((".ogg","audio/ogg") or (".wav","audio/wav")))
+        if((Path.GetExtension(target),contentType) is not ((".ogg","audio/ogg") or (".wav","audio/wav") or (".webm","audio/webm") or (".m4a","audio/mp4")))
             throw new InvalidOperationException("Unsupported isolated audio format.");
         Directory.CreateDirectory(Path.GetDirectoryName(target)!);
         var temporary=target+"."+Guid.NewGuid().ToString("N")+".pending";
@@ -49,5 +49,7 @@ internal sealed class QualificationPrivateFiles : IPrivateFileStore
         if(!ValidKey(key))throw new InvalidOperationException("Invalid isolated private audio key.");
         return Path.Combine(directory,key.Replace('/',Path.DirectorySeparatorChar));
     }
-    private static bool ValidKey(string key)=>Regex.IsMatch(key,"^qualification/audio/[a-f0-9]{32}\\.(ogg|wav)$",RegexOptions.CultureInvariant);
+    // WhatsApp audio fixtures keep their own prefix; a Home recording (IA4) uses the key the real AiAssistantHomeAudioPolicy derives.
+    private static bool ValidKey(string key)=>Regex.IsMatch(key,"^qualification/audio/[a-f0-9]{32}\\.(ogg|wav)$",RegexOptions.CultureInvariant)
+        || Regex.IsMatch(key,"^ai/assistant/audio/[a-f0-9]{32}\\.(webm|m4a)$",RegexOptions.CultureInvariant);
 }

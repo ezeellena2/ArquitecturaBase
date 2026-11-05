@@ -1,5 +1,7 @@
 using System.Diagnostics;
 using System.Text.RegularExpressions;
+using ArquitecturaBase.Application.Interfaces.Channels;
+using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Models.SystemQueries;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Services;
@@ -9,16 +11,66 @@ namespace AssistantQualification;
 
 internal sealed record HomeCase(string Id, string Culture, string Question, string[] RequiredTools,
     string ExpectedKind = "answer", int MinimumProviderSteps = 2, string[]? ExpectedAnswerFragments = null,
-    string? ConversationKey = null, bool RevokeBeforeWorkerStarts = false);
+    string? ConversationKey = null, bool RevokeBeforeWorkerStarts = false, string ActorKind = "home",
+    AuthoringExpectation? Authoring = null, HomeAudioFixture? Audio = null);
 internal sealed record HomeObservation(Guid RequestId, Guid ConversationId, long ConversationRevision,
     AiAssistantTurnResponse Turn, TurnMetadata Metadata, double ElapsedSeconds, IReadOnlyList<CheckEvidence> Checks, MeasurementSnapshot Measurements);
+internal sealed record HomeAudioObservation(Guid RequestId, AiAssistantAudioResponse Result, TurnMetadata Metadata, double ElapsedSeconds,
+    IReadOnlyList<CheckEvidence> Checks, MeasurementSnapshot Measurements);
 
 internal sealed class HomeRunner(QualificationCurrentUser currentUser, IAiAssistantService assistant,
-    IAiConnectionReader connections, SafeTurnMetadata metadata, SafeRunLedger ledger, TimeProvider clock, QualificationMeasurements measurements)
+    IAiConnectionReader connections, SafeTurnMetadata metadata, SafeRunLedger ledger, TimeProvider clock, QualificationMeasurements measurements,
+    IEnumerable<IAssistantCapabilitySource> sources, IAiAssistantAudioService audioService)
 {
-    public async Task<HomeObservation> RunAsync(HomeCase testCase, QualificationActor actor,
-        (Guid Id, long Revision)? conversation, CancellationToken cancellationToken)
+    private static readonly string[] HomeAuthoringOffered = ["forms.authoring.forms", "forms.authoring.catalogs", "forms.authoring.propose-form",
+        "forms.authoring.propose-catalog", "forms.catalog-filters.metadata", "forms.catalog-filters.propose"];
+
+    // IA4: the real Home audio service stores the public recording privately and normalizes it in home-audio. Its own ledger
+    // identity ("<case>-audio") is fixed before the submit; resume only reads it back.
+    public async Task<HomeAudioObservation> NormalizeAsync(HomeCase testCase, QualificationActor actor, CancellationToken cancellationToken)
     {
+        if (testCase.Audio is not { } audio || !AudioFixtureRules.IsValidBrowser(audio) || actor.Culture != testCase.Culture)
+            throw new InvalidOperationException("Invalid public Home audio fixture.");
+        var bytes = await File.ReadAllBytesAsync(Path.Combine(AppContext.BaseDirectory, "fixtures", "audio", audio.FileName), cancellationToken);
+        if (bytes.LongLength != audio.ByteCount || EvidenceWriter.HashPublicBytes(bytes) != audio.Sha256 || AudioFixtureRules.DetectBrowser(bytes) != audio.ContentType)
+            throw new InvalidOperationException("Public Home audio fixture changed.");
+        currentUser.Set(actor.UserId);
+        var requestId = Guid.CreateVersion7();
+        var entry = new QualificationLedgerEntry(testCase.Id + "-audio", requestId, actor.UserId, null, null, "before-submit")
+            { OperationKind = "home-audio", ChannelId = "home-audio", Culture = testCase.Culture };
+        await ledger.SaveAsync(entry, cancellationToken);
+        measurements.BeginCase();
+        var elapsed = Stopwatch.StartNew();
+        var accepted = await audioService.SubmitAsync(new SubmitAiAssistantAudioRequest(requestId, testCase.Culture, bytes), cancellationToken);
+        if (accepted.IsFailure) throw new InvalidOperationException("Qualification Home audio submission was rejected.");
+        await ledger.SaveAsync(entry with { Phase = "accepted" }, cancellationToken);
+        AiAssistantAudioResponse? result = null;
+        var deadline = clock.GetUtcNow().AddSeconds(240);
+        while (clock.GetUtcNow() < deadline)
+        {
+            var observed = await audioService.GetAsync(requestId, testCase.Culture, cancellationToken);
+            if (observed.IsFailure) throw new InvalidOperationException("Qualification Home audio status was rejected.");
+            result = observed.Value;
+            if (result.State is not ("pending" or "running" or "queued")) break;
+            await Task.Delay(TimeSpan.FromSeconds(Math.Clamp(result.PollingAfterSeconds, 1, 30)), clock, cancellationToken);
+        }
+        if (result is null || result.State is "pending" or "running" or "queued")
+            throw new TimeoutException("Retain the accepted Home audio request identity.");
+        var technical = await metadata.FindByRequestAsync(actor.UserId, requestId, cancellationToken);
+        // The transcript is compared in memory only; the observation is never serialized.
+        return new(requestId, result, technical, elapsed.Elapsed.TotalSeconds, AudioChecks(audio, result, technical), measurements.EndCase());
+    }
+
+    // Authoring cases (IA1-A) also need the seeded forms/catalogs and, for an adjustment, the proposal its conversation showed last.
+    // A dictated case (IA4) names its completed normalization; the typed question stays empty and the server takes the transcript.
+    public async Task<HomeObservation> RunAsync(HomeCase testCase, QualificationActor actor,
+        (Guid Id, long Revision)? conversation, CancellationToken cancellationToken, QualificationFixture? fixture = null,
+        QualificationChannelFixture? forms = null, AssistantObservedProposal? previousProposal = null, HomeAudioObservation? dictated = null)
+    {
+        if (testCase.Authoring is not null && (fixture is null || forms is null))
+            throw new InvalidOperationException("Authoring cases need the seeded forms and catalogs.");
+        if ((testCase.Audio is null) != (dictated is null) || dictated is { Result.Transcript: null })
+            throw new InvalidOperationException("A dictated case needs exactly its completed normalization.");
         currentUser.Set(actor.UserId);
         Console.WriteLine("qualification-home-bootstrap-start");
         var bootstrap = await assistant.BootstrapAsync(cancellationToken);
@@ -36,7 +88,7 @@ internal sealed class HomeRunner(QualificationCurrentUser currentUser, IAiAssist
         measurements.BeginCase();
         var elapsed = Stopwatch.StartNew();
         var accepted = await assistant.SubmitAsync(new SubmitAiAssistantTurnRequest(requestId,
-            conversation?.Id, conversation?.Revision, connection.Revision, testCase.Question, testCase.Culture), cancellationToken);
+            conversation?.Id, conversation?.Revision, connection.Revision, testCase.Question, testCase.Culture) { AudioRequestId = dictated?.RequestId }, cancellationToken);
         if (accepted.IsFailure) throw new InvalidOperationException("Qualification submission was rejected.");
         await ledger.SaveAsync(new(testCase.Id, requestId, actor.UserId, accepted.Value.ConversationId,
             accepted.Value.ConversationRevision, "accepted"), cancellationToken);
@@ -68,10 +120,66 @@ internal sealed class HomeRunner(QualificationCurrentUser currentUser, IAiAssist
             new("culture-context-matches", result.Culture == testCase.Culture),
             new("expected-fixture-facts", FixedFactsMatch(testCase,result.Answer?.Text,result.Evidences)),
         };
+        if (testCase.Authoring is not null)
+            AddAuthoringChecks(checks, testCase, result, technical, forms!, fixture!, sources.SelectMany(source => source.Definitions)
+                .Where(definition => definition.Kind == AssistantCapabilityKind.Proposal).Select(definition => definition.Id)
+                .ToHashSet(StringComparer.Ordinal), conversation, previousProposal);
+        if (dictated is not null) AddDictationChecks(checks, result, dictated.RequestId, dictated.Result.Transcript!);
         // Text is examined in memory and immediately discarded after checks. Never serialize this observation itself.
         return new(requestId, result.ConversationId, result.ConversationRevision, result,
             technical, elapsed.Elapsed.TotalSeconds, checks, measurements.EndCase());
     }
+    // IA1-A: home-system@2, the permission-filtered offer and either no proposal at all, or the expected owner proposal named by
+    // assistant_answer@2, resting on earlier reads, recovered after a rejection, alone in its turn and, for an adjustment, in the
+    // same conversation with the previous name and prefix. Payload facts come from AuthoringOracle.
+    internal static void AddAuthoringChecks(List<CheckEvidence> checks,HomeCase testCase,AiAssistantTurnResponse result,TurnMetadata technical,
+        QualificationChannelFixture fixture,QualificationFixture actors,IReadOnlySet<string> proposalCapabilities,
+        (Guid Id,long Revision)? conversation,AssistantObservedProposal? previous)
+    {
+        if (testCase.Authoring is not { } expected) return;
+        checks.Add(new("home-instructions-v2", technical.Stamps is { InstructionsId: "home-system", InstructionsVersion: 2 }));
+        checks.Add(new("authoring-offer-matches-permissions", testCase.ActorKind == "author"
+            ? AuthoringOracle.Offered(technical.OfferedCapabilities, HomeAuthoringOffered, [AuthoringOracle.Decline])
+            : AuthoringOracle.Offered(technical.OfferedCapabilities, [], [..HomeAuthoringOffered, AuthoringOracle.Decline])));
+        if (expected.Capability is not { } capability)
+        {
+            checks.Add(new("no-proposal", result.Proposal is null && result.ObservedProposal is null));
+            checks.Add(new("no-proposal-attempted", AuthoringOracle.OnlyProposalsOf(technical.Capabilities, proposalCapabilities, null)));
+            return;
+        }
+        var proposal = result.ObservedProposal;
+        checks.Add(new("proposal-terminal-matches-observed", result.Answer?.Kind == "proposal" && proposal is not null && result.Proposal is { } shown
+            && shown.Id == proposal.Id && proposal.TurnId == result.TurnId && proposal.Capability == new AssistantCapabilityReference(capability, 1)
+            && shown.Capability == capability && shown.Version == 1));
+        checks.Add(new("authoring-reads-before-proposal", AuthoringOracle.ReadsBeforeProposal(proposal, testCase.RequiredTools)));
+        checks.Add(new("rejection-recovered-if-any", AuthoringOracle.RejectionsRecovered(technical.Capabilities, capability)));
+        checks.Add(new("only-expected-proposal-capability", AuthoringOracle.OnlyProposalsOf(technical.Capabilities, proposalCapabilities, capability)));
+        if (expected.Continues is not null)
+            checks.Add(new("continued-same-conversation", conversation is { } current && result.ConversationId == current.Id
+                && technical.ConversationId == current.Id));
+        checks.AddRange(AuthoringOracle.PayloadChecks(expected, testCase.Culture, proposal?.Payload, fixture, actors, previous?.Payload));
+    }
+
+    // IA4 normalization of a Home recording: the browser STT candidate in home-audio, one model effect, no text tools, and the whole
+    // spoken fixture compared in memory (only punctuation, case and accents are ignored). Never exported: fixed IDs and booleans.
+    internal static IReadOnlyList<CheckEvidence> AudioChecks(HomeAudioFixture audio,AiAssistantAudioResponse response,TurnMetadata technical) =>
+    [
+        new("completed", response.State == "completed"),
+        new("whole-original-transcript", response.Transcript is { Length: > 0 and <= 4000 } transcript
+            && AudioFixtureRules.Matches(audio.ExpectedTranscript, transcript, audio.RequiredWords)),
+        new("audio-purpose-stamp", technical.Stamps is { ProfileId: "openai-stt-browser-candidate", ProfileVersion: 1, InstructionsId: "audio-none-v1", InstructionsVersion: 1 }),
+        new("real-channel-provenance", technical.Stamps.ChannelId == "home-audio"),
+        new("single-model-effect", technical.ProviderSteps == 1),
+        new("no-text-tools-or-proposals", technical.ToolCalls == 0 && technical.ToolBytes == 0 && technical.Capabilities.Count == 0
+            && technical.OfferedCapabilities.Count == 0),
+        new("reported-audio-usage-only", technical.AudioSeconds is null or >= 0),
+    ];
+
+    // The dictated turn names its normalization and the server took that same transcript; nothing was typed.
+    internal static void AddDictationChecks(List<CheckEvidence> checks,AiAssistantTurnResponse result,Guid audioRequestId,string transcript) =>
+        checks.Add(new("turn-took-server-transcript", result.Audio is { } audio && audio.RequestId == audioRequestId
+            && string.Equals(audio.Transcript, transcript, StringComparison.Ordinal) && string.IsNullOrWhiteSpace(result.Question)));
+
     internal static bool FixedFactsMatch(HomeCase testCase,string? answer,IReadOnlyList<SystemQueryEvidence> evidence)
     {
         if(string.IsNullOrWhiteSpace(answer))return false;

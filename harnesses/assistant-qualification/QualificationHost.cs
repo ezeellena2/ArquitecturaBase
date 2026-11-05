@@ -24,6 +24,13 @@ internal static class QualificationHost
 {
     // Public metadata from Api.csproj; this is NOT a key. Never list the secret store.
     private const string ApiUserSecretsId = "4f8d2c1a-9b3e-4d7f-a6c5-2e1b8f9d0a47";
+    // Isolated STT candidates: the WhatsApp Ogg/Wav one already evaluated and, for IA4, a separate one for what the browser records
+    // in Home (the format is never inherited from another profile). Neither is a production declaration.
+    internal static readonly AiAssistantAudioModelProfile[] AudioProfiles =
+    [
+        new(AiProvider.OpenAI, "gpt-transcribe", "openai-stt-candidate", 1, ["audio/ogg", "audio/wav"], 25000000),
+        new(AiProvider.OpenAI, "gpt-transcribe", "openai-stt-browser-candidate", 1, ["audio/webm", "audio/mp4"], 1000000),
+    ];
 
     public static IHost Build(QualificationSettings settings)
     {
@@ -65,7 +72,7 @@ internal static class QualificationHost
         {
             options.ProcessInBackground = true;
             options.ModelProfiles = [new(AiProvider.OpenAI, "gpt-6.1-sol", 131072, true, true) { Id = "gpt-6.1-sol-candidate-1", Version = 1 }];
-            options.AudioModelProfiles = [new(AiProvider.OpenAI, "gpt-transcribe", "openai-stt-candidate", 1, ["audio/ogg", "audio/wav"], 25000000)];
+            options.AudioModelProfiles = [..AudioProfiles];
             options.Limits = new AiAssistantLimits();
         });
         builder.Services.AddSingleton<SourceConnectionServices>(_ => source);
@@ -81,6 +88,7 @@ internal static class QualificationHost
         builder.Services.AddScoped<ChannelRunner>();
         builder.Services.AddScoped<AudioRunner>();
         builder.Services.AddScoped<QualificationFormSeed>();
+        builder.Services.AddScoped<QualificationAuthoringSeed>();
         builder.Services.RemoveAll<IPrivateFileStore>();
         builder.Services.AddSingleton<IPrivateFileStore>(_ => new QualificationPrivateFiles(Path.Combine(settings.OutputDirectory, "private-audio")));
         builder.Services.AddScoped<StatusRunner>();

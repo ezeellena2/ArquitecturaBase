@@ -11,7 +11,14 @@ internal sealed record ExecutionStamps(string ProfileId, int ProfileVersion, str
     string InstructionsId, int InstructionsVersion, string ChannelId);
 internal sealed record TurnMetadata(int ProviderSteps, int ToolCalls, int ToolBytes,
     long? InputTokens, long? OutputTokens, bool UsageUnknown, decimal? AudioSeconds,
-    ExecutionStamps Stamps, IReadOnlyList<ObservedCapability> Capabilities);
+    ExecutionStamps Stamps, IReadOnlyList<ObservedCapability> Capabilities)
+{
+    // In-memory only: the engine conversation and ordinal (continuations) and the capability IDs the sealed context offered
+    // after the permission filter. Never exported; checks keep only fixed IDs and booleans.
+    public Guid ConversationId { get; init; }
+    public int Ordinal { get; init; }
+    public IReadOnlyList<string> OfferedCapabilities { get; init; } = [];
+}
 
 internal sealed class SafeTurnMetadata(ApplicationDbContext db)
 {
@@ -27,7 +34,7 @@ internal sealed class SafeTurnMetadata(ApplicationDbContext db)
     {
         var turn = await db.Set<AiAssistantTurn>().AsNoTracking().Where(row => row.Id == turnId)
             .Select(row => new { row.ProviderSteps, row.ToolCalls, row.ToolBytes, row.InputTokens, row.OutputTokens,
-                row.UsageUnknown, row.AudioSeconds, row.ExecutionProfileJson, row.Provider, row.Model, row.ConversationId })
+                row.UsageUnknown, row.AudioSeconds, row.ExecutionProfileJson, row.Provider, row.Model, row.ConversationId, row.Ordinal })
             .SingleAsync(cancellationToken);
         var profile = JsonSerializer.Deserialize<AiAssistantExecutionProfileSnapshot>(turn.ExecutionProfileJson!, JsonSerializerOptions.Web)
             ?? throw new InvalidOperationException("The execution has no sealed profile.");
@@ -43,6 +50,10 @@ internal sealed class SafeTurnMetadata(ApplicationDbContext db)
             .OrderBy(row => row.Ordinal).Select(row => new ObservedCapability(row.ToolId, row.Version, row.Bytes, row.State))
             .ToArrayAsync(cancellationToken);
         return new(turn.ProviderSteps, turn.ToolCalls, turn.ToolBytes, turn.InputTokens, turn.OutputTokens,
-            turn.UsageUnknown, turn.AudioSeconds, stamps, tools);
+            turn.UsageUnknown, turn.AudioSeconds, stamps, tools)
+        {
+            ConversationId = turn.ConversationId, Ordinal = turn.Ordinal,
+            OfferedCapabilities = profile.ChannelContext.AllowedCapabilities.Select(capability => capability.Id).ToArray(),
+        };
     }
 }
