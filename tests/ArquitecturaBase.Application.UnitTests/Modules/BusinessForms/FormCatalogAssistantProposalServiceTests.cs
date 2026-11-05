@@ -1,5 +1,6 @@
 using System.Text.Json;
 using ArquitecturaBase.Application.Models.Assistant;
+using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Channels;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
@@ -121,6 +122,55 @@ public sealed class FormCatalogAssistantProposalServiceTests
         Assert.Equal(0, host.Catalogs.PreviewReads);
     }
 
+    [Fact]
+    public async Task A_channel_creates_its_manual_proposal_for_its_own_person_without_a_web_session()
+    {
+        var host = new Host();
+        host.Catalogs.Current.UserId = null;
+        var result = await host.Service.CreateFromChannelAsync(host.ChannelRequest(), Ct);
+        Assert.True(result.IsSuccess);
+        var catalog = Assert.Single(host.Catalogs.Catalogs);
+        Assert.Equal((BusinessFormCatalogKind.Manual, false, BusinessFormCatalogProposalState.Pending), (catalog.Kind, catalog.IsActive, catalog.ProposalState));
+        var evidence = FormCatalogProposalPresentation.Evidence(catalog.ProposalEvidenceJson!);
+        Assert.Equal((host.Catalogs.Assistant.Actor, (string?)null, "whatsapp-assistant"), (evidence.RequestedByUserId, evidence.RequestedIn, evidence.Provenance.ChannelId));
+        Assert.Equal(new FormCatalogAssistantProposalResponse(host.ProposalId, catalog.Id), result.Value);
+        Assert.Equal(0, host.Lookup.Reads);
+    }
+
+    [Fact]
+    public async Task A_channel_people_proposal_goes_through_its_own_acceptance_on_the_tap()
+    {
+        var host = new Host();
+        var assistant = host.Catalogs.Assistant;
+        host.Catalogs.Current.UserId = null;
+        var request = host.ChannelRequest() with
+        {
+            Proposal = new(assistant.TurnId, host.ProposalId, new(BusinessFormCatalogAssistantCapabilitySource.ProposeId, 1), CatalogAssistantFixture.Proposal)
+                { ObservedReads = [assistant.Observed()] },
+        };
+        var result = await host.Service.CreateFromChannelAsync(request, Ct);
+        Assert.True(result.IsSuccess);
+        var catalog = Assert.Single(host.Catalogs.Catalogs);
+        Assert.Equal((BusinessFormCatalogKind.Filters, BusinessFormCatalogProposalState.Pending), (catalog.Kind, catalog.ProposalState));
+        Assert.Null(FormCatalogProposalPresentation.Evidence(catalog.ProposalEvidenceJson!).RequestedIn);
+        Assert.Equal(catalog.Id, result.Value.CatalogId);
+    }
+
+    [Theory]
+    [InlineData("manual")]
+    [InlineData("another-subject")]
+    [InlineData("permission")]
+    public async Task A_channel_creates_only_from_its_own_conversation_with_the_permission_to_manage_catalogs(string reason)
+    {
+        var host = new Host();
+        var request = host.ChannelRequest();
+        if (reason == "manual") request = request with { Context = request.Context with { InteractionMode = AssistantInteractionMode.Manual } };
+        if (reason == "another-subject") request = request with { Context = request.Context with { SubjectUserId = Guid.NewGuid() } };
+        if (reason == "permission") host.Catalogs.Assistant.Permissions.Permissions[host.Catalogs.Assistant.Actor] = [BusinessFormsPermissions.CatalogsRead];
+        Assert.Equal(FormDefinitionErrors.Forbidden, (await host.Service.CreateFromChannelAsync(request, Ct)).Error);
+        Assert.Empty(host.Catalogs.Catalogs);
+    }
+
     private sealed class Host
     {
         public FormCatalogProposalFixture Catalogs { get; } = new();
@@ -143,5 +193,9 @@ public sealed class FormCatalogAssistantProposalServiceTests
         }
 
         public CreateFromAssistantProposalRequest Request => new(Lookup.RequestId, ProposalId);
+
+        // WhatsApp's own conversation, where the person is both Actor and Subject, in the assistant mode.
+        public StructuredAuthoringProposalRequest ChannelRequest() => new(Catalogs.Assistant.Context, Lookup.Response!.Proposal,
+            Lookup.Response.Provenance with { ChannelId = "whatsapp-assistant" });
     }
 }

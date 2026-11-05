@@ -50,3 +50,5 @@ StructuredFormVersionReference contiene sólo el par opaco DefinitionId/VersionI
 E2-3: `StructuredFormPreparationIssue.MissingData` es el nombre del dato de la persona que falta, sólo en `Forms.Record.RecipientDataMissing` y null en los demás issues. Va en el idioma del menú de quien prepara, con respaldo al otro; no se sella ni entra en huellas.
 
 E2-4: Choice.Fields contiene campos históricos tipados con valor canónico string exacto y texto fuente localizado; null se omite. El adaptador del chat lo excluye expresamente, conservando su contrato.
+
+IA3-A: `StructuredAuthoringSummary` (tipo, título, líneas, cuántas más y, en uno que no se puede armar, el motivo y la ruta de lo que existe), `StructuredAuthoringProposalRequest` (contexto, propuesta y procedencia auténticos) y `StructuredAuthoringCreatedResponse` (lo creado y la ruta de la app). Las rutas son relativas a la app; el canal les antepone su origen público. Todo redacta `ToString`.

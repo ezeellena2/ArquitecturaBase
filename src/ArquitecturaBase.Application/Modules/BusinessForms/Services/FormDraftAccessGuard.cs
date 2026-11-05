@@ -10,9 +10,12 @@ internal sealed class FormDraftAccessGuard(ICurrentUser currentUser, IPermission
     public Task<bool> HasPermissionAsync(Guid actor, string permission, CancellationToken cancellationToken) =>
         permissions.HasPermissionAsync(actor, permission, cancellationToken);
 
-    public async Task<Result<Guid>> CheckAsync(bool writing, CancellationToken cancellationToken)
+    public async Task<Result<Guid>> CheckAsync(bool writing, CancellationToken cancellationToken) =>
+        currentUser.UserId is { } actor ? await CheckActorAsync(actor, writing, cancellationToken) : FormDefinitionErrors.Unauthorized;
+
+    // The same permissions for a named account, such as the person of a channel proposal.
+    public async Task<Result<Guid>> CheckActorAsync(Guid actor, bool writing, CancellationToken cancellationToken)
     {
-        if (currentUser.UserId is not { } actor) return FormDefinitionErrors.Unauthorized;
         if (!await permissions.HasPermissionAsync(actor, BusinessFormsPermissions.Read, cancellationToken)
             || (writing && !await permissions.HasPermissionAsync(actor, BusinessFormsPermissions.Manage, cancellationToken)))
             return FormDefinitionErrors.Forbidden;

@@ -6,6 +6,8 @@ public sealed record SaveFormDraftRequest(Guid RequestId, IReadOnlyDictionary<st
 {
     // Set only by the creation from an assistant proposal; never comes from HTTP.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public FormDraftProposalOrigin? Proposal { get; init; }
+    // Set only by that same creation: whose proposal it was, also for a channel's person, who has no web session.
+    [JsonIgnore] public Guid? ActorUserId { get; init; }
     public override string ToString() => "SaveFormDraftRequest { Content = [REDACTED] }";
 }
 public sealed record FormDraftInput(int Format, string Culture, IReadOnlyDictionary<string, string>? SubmitLabel, IReadOnlyList<FormFieldInput> Fields)

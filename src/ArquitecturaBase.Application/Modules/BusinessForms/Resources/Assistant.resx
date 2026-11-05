@@ -7,4 +7,19 @@
   <data name="ClarificationSelectedReason" xml:space="preserve">
     <value>Eligió este formulario entre las opciones ofrecidas.</value>
   </data>
+  <data name="Authoring.Type.shortText" xml:space="preserve"><value>texto corto</value></data>
+  <data name="Authoring.Type.longText" xml:space="preserve"><value>texto largo</value></data>
+  <data name="Authoring.Type.number" xml:space="preserve"><value>número</value></data>
+  <data name="Authoring.Type.date" xml:space="preserve"><value>fecha</value></data>
+  <data name="Authoring.Type.yesNo" xml:space="preserve"><value>sí o no</value></data>
+  <data name="Authoring.Type.choice" xml:space="preserve"><value>elegir una</value></data>
+  <data name="Authoring.Type.multiChoice" xml:space="preserve"><value>elegir varias</value></data>
+  <data name="Authoring.Type.catalog" xml:space="preserve"><value>elegir de {0}</value></data>
+  <data name="Authoring.Type.photo" xml:space="preserve"><value>foto</value></data>
+  <data name="Authoring.Type.document" xml:space="preserve"><value>documento</value></data>
+  <data name="Authoring.Catalog.Code" xml:space="preserve"><value>el código es {0}</value></data>
+  <data name="Authoring.Catalog.Option" xml:space="preserve"><value>cada opción {0}</value></data>
+  <data name="Authoring.Catalog.Field" xml:space="preserve"><value>el campo {0}</value></data>
+  <data name="Authoring.Catalog.Fields" xml:space="preserve"><value>los campos {0}</value></data>
+  <data name="Authoring.Pair" xml:space="preserve"><value>{0} y {1}</value></data>
 </root>

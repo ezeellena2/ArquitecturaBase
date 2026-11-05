@@ -18,7 +18,7 @@ internal sealed class FormDraftService(IFormDraftRepository repository, FormDefi
     public Task<Result<FormDraftCommitResponse>> CreateAsync(SaveFormDraftRequest request, CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<FormDraftCommitResponse>>(logger, "CreateFormDraft", async () =>
     {
-        var access = await accessGuard.CheckAsync(true, cancellationToken); if (access.IsFailure) return access.Error;
+        var access = await CheckCreatorAsync(request, cancellationToken); if (access.IsFailure) return access.Error;
         request = request with { Name = FormDraftPolicy.NormalizeName(request.Name)!, Prefix = request.Prefix?.Trim().ToUpperInvariant()! };
         if (await validator.ValidateAsync(request, cancellationToken) is { } invalid) return invalid;
         if (request.ExpectedRevision.HasValue) return FieldErrors.On(FormDefinitionErrors.ContentInvalid, "expectedRevision");
@@ -35,6 +35,9 @@ internal sealed class FormDraftService(IFormDraftRepository repository, FormDefi
         request = FormDraftPolicy.Normalize(request, supplyMissingSubmitLabel: false);
         return await unitOfWork.ExecuteInTransactionAsync(ct => SaveAsync(id, request, access.Value, ct), CommitPolicy.OnSuccess, cancellationToken);
     });
+    // The creation from a proposal names whose it is, also a channel's person without a web session; the rest is the session's.
+    private Task<Result<Guid>> CheckCreatorAsync(SaveFormDraftRequest? request, CancellationToken ct) => request?.ActorUserId is { } actor
+        ? accessGuard.CheckActorAsync(actor, true, ct) : accessGuard.CheckAsync(true, ct);
     private async Task<Result<FormDraftCommitResponse>> SaveAsync(Guid? id, SaveFormDraftRequest request, Guid actor, CancellationToken ct)
     {
         var kind = id.HasValue ? "Update" : "Create";

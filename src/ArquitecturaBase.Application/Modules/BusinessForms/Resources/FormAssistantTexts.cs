@@ -13,4 +13,13 @@ internal static class FormAssistantTexts
         ?? throw new InvalidOperationException("The form clarification selection reason is missing.");
     public static string ClarificationQuestion(string culture) => Texts.GetString("ClarificationQuestion", CultureInfo.GetCultureInfo(culture))
         ?? throw new InvalidOperationException("The form clarification question is missing.");
+    public static string AuthoringQuestionType(string culture, string type, string? catalog) =>
+        Format(culture, "Authoring.Type." + type, catalog ?? "");
+    public static string AuthoringCatalogCode(string culture, string code) => Format(culture, "Authoring.Catalog.Code", code);
+    public static string AuthoringCatalogOption(string culture, string option) => Format(culture, "Authoring.Catalog.Option", option);
+    public static string AuthoringCatalogFields(string culture, int count, string names) =>
+        Format(culture, count == 1 ? "Authoring.Catalog.Field" : "Authoring.Catalog.Fields", names);
+    public static string AuthoringPair(string culture, string first, string last) => Format(culture, "Authoring.Pair", first, last);
+    private static string Format(string culture, string name, params object[] values) => string.Format(CultureInfo.GetCultureInfo(culture),
+        Texts.GetString(name, CultureInfo.GetCultureInfo(culture)) ?? throw new InvalidOperationException($"The authoring text {name} is missing."), values);
 }

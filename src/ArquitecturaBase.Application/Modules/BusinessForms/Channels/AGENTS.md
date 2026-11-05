@@ -14,6 +14,8 @@ Implementa los puertos de `Application/Interfaces/Channels` que el núcleo y otr
 
 Dos sinks los implementan servicios: `FormCatalogProposalService` (`IStructuredCatalogProposalSink`) y `FormMissingRequestService` (`IStructuredMissingFormRequestSink`).
 
+`BusinessFormAuthoringProposalChannel` → `IStructuredAuthoringProposalChannel`: resume con `FormAuthoringSummaryPolicy` las propuestas de formulario, de catálogo Manual y de personas (H4), y crea delegando en `IFormDraftProposalService` o `IFormCatalogAssistantProposalService` (`CreateFromChannelAsync`), con la ruta `/formularios/{id}` o `/catalogos/{id}`.
+
 ## Al modificar
 
 - No importés WhatsApp, IA ni otro módulo: sólo puertos y DTO de `Models/StructuredData` o `Models/Assistant`. Los puertos únicos se registran con `Replace`, idempotente en cualquier orden respecto del fallback del núcleo; las colecciones, con `TryAddEnumerable`.

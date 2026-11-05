@@ -1,6 +1,7 @@
 using System.Text.Json;
 using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Models.Assistant;
+using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Channels;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
@@ -129,6 +130,54 @@ public sealed class FormDraftProposalServiceTests
         Assert.Equal(FormDefinitionErrors.PrefixTaken, result.Error);
     }
 
+    [Fact]
+    public async Task A_channel_creates_the_draft_of_its_proposal_for_its_own_person_without_a_web_session()
+    {
+        var host = new Host();
+        host.Current.UserId = null;
+        var result = await host.Service.CreateFromChannelAsync(host.ChannelRequest(), Ct);
+        Assert.True(result.IsSuccess);
+        var saved = Assert.Single(host.Drafts.Created);
+        Assert.Equal((host.ProposalId, host.Authoring.Actor), (saved.RequestId, saved.ActorUserId));
+        var evidence = JsonSerializer.Deserialize<FormDraftProposalEvidence>(saved.Proposal!.EvidenceJson, JsonSerializerOptions.Web)!;
+        Assert.Equal((host.Authoring.Actor, (string?)null, "whatsapp-assistant"), (evidence.RequestedByUserId, evidence.RequestedIn, evidence.Provenance.ChannelId));
+        Assert.Equal(new FormDraftAssistantProposalResponse(host.ProposalId, host.Drafts.DefinitionId), result.Value);
+        Assert.Equal(0, host.Lookup.Reads);
+    }
+
+    [Theory]
+    [InlineData("manual")]
+    [InlineData("another-subject")]
+    [InlineData("permission")]
+    [InlineData("other-capability")]
+    public async Task A_channel_creates_only_from_its_own_conversation_with_the_permission_to_manage_forms(string reason)
+    {
+        var host = new Host();
+        var request = host.ChannelRequest();
+        request = reason switch
+        {
+            "manual" => request with { Context = request.Context with { InteractionMode = AssistantInteractionMode.Manual } },
+            "another-subject" => request with { Context = request.Context with { SubjectUserId = Guid.NewGuid() } },
+            "other-capability" => request with { Proposal = request.Proposal with { Capability = new(BusinessFormAuthoringAssistantCapabilitySource.ProposeCatalogId, 1) } },
+            _ => request,
+        };
+        if (reason == "permission") host.Authoring.Permissions.Permissions[host.Authoring.Actor] = [BusinessFormsPermissions.Read];
+        var result = await host.Service.CreateFromChannelAsync(request, Ct);
+        Assert.Equal(reason == "other-capability" ? FormDefinitionErrors.ProposalUnavailable : FormDefinitionErrors.Forbidden, result.Error);
+        Assert.Empty(host.Drafts.Created);
+    }
+
+    [Fact]
+    public async Task A_channel_tap_after_the_draft_exists_gets_the_same_draft()
+    {
+        var host = new Host();
+        var definitionId = Guid.NewGuid();
+        host.Authoring.Reader.CreatedDefinitions[host.ProposalId] = new(definitionId, host.Evidence(host.Authoring.Actor));
+        var result = await host.Service.CreateFromChannelAsync(host.ChannelRequest(), Ct);
+        Assert.Equal(definitionId, result.Value.DefinitionId);
+        Assert.Empty(host.Drafts.Created);
+    }
+
     private sealed class Host
     {
         public AuthoringAssistantFixture Authoring { get; } = new();
@@ -152,6 +201,11 @@ public sealed class FormDraftProposalServiceTests
         }
 
         public CreateFromAssistantProposalRequest Request => new(Lookup.RequestId, ProposalId);
+
+        // WhatsApp's own conversation: the person is both Actor and Subject, in the assistant mode.
+        public StructuredAuthoringProposalRequest ChannelRequest() => new(
+            Authoring.Context with { ChannelId = "whatsapp-assistant", SubjectUserId = Authoring.Actor, InteractionMode = AssistantInteractionMode.Assistant },
+            Lookup.Response!.Proposal, Lookup.Response.Provenance with { ChannelId = "whatsapp-assistant" });
 
         public string Evidence(Guid requestedBy) => JsonSerializer.Serialize(new FormDraftProposalEvidence("es", requestedBy,
             Lookup.Response!.Provenance.OccurredAtUtc, Authoring.TurnId, BusinessFormAuthoringAssistantCapabilitySource.ProposeFormId, 1,

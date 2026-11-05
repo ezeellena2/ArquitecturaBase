@@ -25,3 +25,5 @@ DisabledStructuredFormRetirementSource conserva vacío el conjunto de versiones 
 DisabledAssistantOperationCompletionSignal conserva el cierre del motor cuando falta un consumidor opcional: Notify es inmediato y no tiene efectos. El canal instalado reemplaza ese singleton con su adaptador; el núcleo nunca interpreta identificadores de módulos.
 
 DisabledAssistantProposalLookup responde Unavailable cuando falta la IA: sin motor no hay propuesta que leer ni crear.
+
+UnavailableStructuredAuthoringProposalChannel no resume nada (null) y no crea (NotFound) cuando falta el dueño de las propuestas de autoría.
