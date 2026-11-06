@@ -110,6 +110,8 @@ La consola muestra la URL del dashboard de Aspire. Se levantan:
 
 También funciona con `dotnet run --project src/ArquitecturaBase.AppHost` o con F5 sobre el AppHost en Visual Studio.
 
+Con F5, la ventana Salida muestra solo los avisos y errores de la Api (`Logging:Debug` en `appsettings.Development.json`): con el depurador enganchado, escribir ahí cada línea frena toda la Api. El log completo, con cada consulta SQL, está en el dashboard de Aspire.
+
 Si el arranque se detiene en `RedisCache.RemoveAsync` con `RedisConnectionException`, el cliente
 no pudo conectarse a Redis al invalidar el caché del seed. Un contenedor `Running` no demuestra
 esa conexión: revisá los logs de `cache` y `api`, levantá desde el AppHost y conservá el puerto
