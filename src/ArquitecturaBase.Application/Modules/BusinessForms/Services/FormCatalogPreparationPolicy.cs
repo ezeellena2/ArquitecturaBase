@@ -28,4 +28,16 @@ internal sealed class FormCatalogPreparationPolicy(IFormRecordRepository records
             ? await options.PrepareAsync(recipient, effective, schema, version.Culture, ct)
             : FormCatalogOptionsPolicy.ValidatePrepared(localized, schema);
     }
+
+    /// <summary>
+    /// VO1-A (2026-11-06): sample options of each catalog list of a published version, for its official preview
+    /// (<see cref="FormCatalogOptionsPolicy.PreviewAsync"/>). A version of another form has none.
+    /// </summary>
+    public async Task<IReadOnlyList<StructuredFormCatalogOffer>> PreviewAsync(Guid viewer, string culture, Guid definitionId, Guid versionId,
+        CancellationToken ct)
+    {
+        var version = await records.GetVersionAsync(versionId, ct);
+        if (version is null || version.DefinitionId != definitionId) return [];
+        return await options.PreviewAsync(viewer, culture, FormDraftPolicy.Read<FormVersionSchema>(version.SchemaJson), version.Culture, ct);
+    }
 }

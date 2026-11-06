@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Services;
@@ -101,6 +102,47 @@ public sealed partial class FormDraftEndpointsTests
             using var facets = await client.GetAsync("/api/forms/definitions/facets?search=" + search, Ct);
             var counts = await facets.ReadJsonAsync(); Assert.Equal(1, counts.GetProperty("published").GetInt32()); Assert.Equal(0, counts.GetProperty("drafts").GetInt32());
         }
+    }
+
+    // VO1-A (2026-11-06): the official preview is gone through like on the phone, so the channel gets sample options of each catalog
+    // list: the first twenty, in order and in the culture asked for.
+    [Fact]
+    public async Task Official_preview_gives_the_channel_sample_options_of_each_catalog_list()
+    {
+        using var writer = await OperatorAsync([BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage,
+            BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage, BusinessFormsPermissions.Publish]);
+        await using var host = PublicationHost();
+        using var client = DeactivationClient(host, writer, "es");
+        var unique = "PreviewOptions" + Guid.NewGuid().ToString("N")[..10];
+        using var catalog = await client.PostAsJsonAsync("/api/forms/catalogs", new
+        {
+            name = new { es = unique, en = unique }, description = new { es = "Vista", en = "Preview" },
+            items = Enumerable.Range(0, 22).Select(index => new { localId = "o" + index, code = "C" + index,
+                text = new { es = "Opción " + index, en = "Option " + index }, detail = new { es = (string?)null, en = (string?)null }, isActive = true }).ToArray(),
+        }, Ct);
+        Assert.Equal(HttpStatusCode.Created, catalog.StatusCode);
+        var catalogId = (await catalog.ReadJsonAsync()).GetProperty("catalog").GetProperty("id").GetGuid();
+        var form = Payload(unique);
+        form["draft"]!["fields"] = new JsonArray(new JsonObject
+        {
+            ["localId"] = "article", ["type"] = "choice", ["required"] = true,
+            ["label"] = new JsonObject { ["es"] = "Artículo", ["en"] = "Article" }, ["source"] = new JsonObject { ["catalog"] = catalogId },
+        });
+        var saved = await CreateAsync(client, form);
+        var definitionId = saved.GetProperty("definition").GetProperty("id").GetGuid();
+        var attempt = await PublicationAttemptAsync(client, definitionId, saved);
+        using var accepted = await client.PostAsJsonAsync($"/api/forms/definitions/{definitionId}/publications", attempt, Ct);
+        Assert.Equal(HttpStatusCode.Accepted, accepted.StatusCode);
+        var receipt = await accepted.ReadJsonAsync();
+        await CompletePublicationAsync(host, receipt.GetProperty("operationId").GetGuid(), definitionId);
+
+        using var preview = await client.GetAsync($"/api/forms/definitions/{definitionId}/versions/{receipt.GetProperty("versionId").GetGuid()}/preview?culture=en", Ct);
+        Assert.Equal(HttpStatusCode.OK, preview.StatusCode);
+        var channel = Assert.IsType<ReadyStructuredFormChannel>(Assert.Single(host.Services.GetServices<IStructuredFormChannel>()));
+        var offer = Assert.Single(channel.LastPreviewQuery!.Catalogs!);
+        Assert.Equal(catalogId, offer.CatalogId);
+        Assert.Equal("Article", offer.Label);
+        Assert.Equal(Enumerable.Range(0, 20).Select(index => "Option " + index), offer.Options.Select(option => option.Text));
     }
 
     [Theory]

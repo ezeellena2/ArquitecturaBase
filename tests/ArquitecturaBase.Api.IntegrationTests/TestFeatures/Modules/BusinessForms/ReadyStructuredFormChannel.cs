@@ -11,8 +11,12 @@ internal sealed class ReadyStructuredFormChannel(TimeProvider timeProvider) : IS
     public Task<Result<StructuredFormPublicationResponse>> GetPublicationAsync(StructuredFormPublicationQuery query, CancellationToken cancellationToken) =>
         Task.FromResult<Result<StructuredFormPublicationResponse>>(PublicationResponse ?? throw new NotSupportedException());
     public TimeSpan PreviewLifetime { get; set; } = TimeSpan.FromMinutes(5);
-    public Task<Result<StructuredFormPreviewResponse>> GetPreviewAsync(StructuredFormPreviewQuery query, CancellationToken cancellationToken) =>
-        Task.FromResult<Result<StructuredFormPreviewResponse>>(new StructuredFormPreviewResponse("https://business.facebook.com/wa/manage/flows/test/preview/", timeProvider.GetUtcNow().UtcDateTime.Add(PreviewLifetime)));
+    public StructuredFormPreviewQuery? LastPreviewQuery { get; private set; }
+    public Task<Result<StructuredFormPreviewResponse>> GetPreviewAsync(StructuredFormPreviewQuery query, CancellationToken cancellationToken)
+    {
+        LastPreviewQuery = query;
+        return Task.FromResult<Result<StructuredFormPreviewResponse>>(new StructuredFormPreviewResponse("https://business.facebook.com/wa/manage/flows/test/preview/", timeProvider.GetUtcNow().UtcDateTime.Add(PreviewLifetime)));
+    }
 
     public string ChannelId => "test";
     public Task<Result<StructuredFormCheckResponse>> CheckAsync(StructuredFormCheckRequest request, CancellationToken cancellationToken) =>

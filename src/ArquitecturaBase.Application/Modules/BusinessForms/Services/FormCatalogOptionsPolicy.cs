@@ -10,6 +10,9 @@ internal sealed class FormCatalogOptionsPolicy(IFormCatalogReader catalogs, IFor
 {
     private static readonly string[] Cultures = ["es", "en"];
 
+    /// <summary>How many options of each list the official preview offers (VO1-A).</summary>
+    public const int PreviewOptionLimit = 20;
+
     public async Task<StructuredFormPreparationResponse> PrepareAsync(Guid recipient, string culture,
         FormVersionSchema schema, string? originalCulture, CancellationToken ct, bool inspectOnly = false,
         FormPersonRecipientDataRow? recipientData = null)
@@ -57,6 +60,45 @@ internal sealed class FormCatalogOptionsPolicy(IFormCatalogReader catalogs, IFor
         }
         return new(offers, issues) { Culture = culture };
     }
+    /// <summary>
+    /// VO1-A (2026-11-06): sample options for the official preview of a published version, so it can be gone through like on the
+    /// phone: the first <see cref="PreviewOptionLimit"/> options of each catalog question, in order, with their shown texts in
+    /// <paramref name="culture"/>. The preview is for nobody in particular: without person filters or filters by another answer,
+    /// while fixed filters still apply; a people list is the one <paramref name="viewer"/> would get. A catalog that cannot be
+    /// offered is left out, so its list stays empty.
+    /// </summary>
+    public async Task<IReadOnlyList<StructuredFormCatalogOffer>> PreviewAsync(Guid viewer, string culture, FormVersionSchema schema,
+        string? originalCulture, CancellationToken ct)
+    {
+        var offers = new List<StructuredFormCatalogOffer>();
+        foreach (var question in schema.Questions.Where(question => question.Source?.Catalog is not null))
+        {
+            var catalog = await catalogs.FindAsync(question.Source!.Catalog!.Value, ct);
+            if (catalog is not { IsActive: true }) continue;
+            IReadOnlyList<StructuredFormCatalogOption> options;
+            if (catalog.Kind == "Manual")
+            {
+                var fields = FormCatalogFieldPolicy.ReadFields(catalog.FieldsJson);
+                var containment = FormCatalogMatchPolicy.FixedContainment(question.Source.Match, fields);
+                var presentation = question.Source.Presentation ?? (catalog.PresentationJson is null ? null
+                    : FormDraftPolicy.Read<FormCatalogPresentation>(catalog.PresentationJson));
+                if (containment.IsFailure || !FormCatalogPresentationPolicy.ValidConfiguration(presentation, fields, catalog.ValueType)) continue;
+                var source = new FormCatalogQuestionSource(catalog, fields, presentation, containment.Value, null, null, null);
+                options = await ManualOptionsAsync(source, await catalogs.ListOfferItemsAsync(catalog.Id, ct, containment.Value), culture, ct);
+            }
+            else
+            {
+                if (question.Source.Match is { Count: > 0 } || question.Source.Presentation is not null) continue;
+                var definition = FormDraftPolicy.Read<FormCatalogFilterDefinition>(catalog.FiltersJson!);
+                options = FilterOptions((await filters.FindPreviewAsync(viewer, definition, ct)).Items, definition, culture);
+            }
+            offers.Add(new(question.FieldId, question.Key, FormRecordPresentationPolicy.Text(question.Label, culture), catalog.Id, catalog.Revision,
+                catalog.Kind, Name(catalog.NameJson, culture, originalCulture), options.Take(PreviewOptionLimit).ToArray(),
+                FormDraftPolicy.Read<Dictionary<string, string>>(catalog.NameJson), ValueType(catalog)));
+        }
+        return offers;
+    }
+
     public static StructuredFormPreparationResponse ValidatePrepared(StructuredFormPreparationResponse prepared, FormVersionSchema schema)
     {
         if (!prepared.CanSend) return prepared;

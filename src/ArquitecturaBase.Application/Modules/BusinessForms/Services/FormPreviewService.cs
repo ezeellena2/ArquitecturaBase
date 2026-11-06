@@ -13,7 +13,7 @@ using Microsoft.Extensions.Logging;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 internal sealed class FormPreviewService(IFormPublicationReader reader, IFormPublicationProtector protector,
     IEnumerable<IStructuredFormChannel> channels, ICurrentUser currentUser, IPermissionService permissions, TimeProvider timeProvider,
-    ILogger<FormPreviewService> logger) : IFormPreviewService
+    FormCatalogPreparationPolicy preparation, ILogger<FormPreviewService> logger) : IFormPreviewService
 {
     public Task<Result<StructuredFormPreviewResponse>> GetAsync(Guid definitionId, Guid versionId, string? culture, CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<StructuredFormPreviewResponse>>(logger, "GetFormPreview", async () =>
@@ -27,7 +27,9 @@ internal sealed class FormPreviewService(IFormPublicationReader reader, IFormPub
         var profile = manifest.Profiles.SingleOrDefault(value => value.Cultures.Any(target => target.Culture == culture));
         if (profile is null) return FormPreviewErrors.NotAvailable;
         var channel = channels.SingleOrDefault(value => value.ChannelId == profile.ChannelId); if (channel is null) return FormPreviewErrors.NotAvailable;
-        var result = await channel.GetPreviewAsync(new(version.Id, definitionId, versionId, manifest.PublicationFingerprint, culture), cancellationToken);
+        // VO1-A (2026-11-06): its catalog lists carry sample options, so the preview can be gone through like on the phone.
+        var catalogs = await preparation.PreviewAsync(actor, culture, definitionId, versionId, cancellationToken);
+        var result = await channel.GetPreviewAsync(new(version.Id, definitionId, versionId, manifest.PublicationFingerprint, culture, catalogs), cancellationToken);
         if (result.IsFailure) return result.Error;
         return result.Value.ExpiresAtUtc <= timeProvider.GetUtcNow().UtcDateTime ? FormPreviewErrors.Expired : result;
     });

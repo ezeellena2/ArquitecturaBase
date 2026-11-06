@@ -16,7 +16,12 @@ public sealed record StructuredFormPublicationResponse(Guid OperationId, Guid De
 {
     public override string ToString() => "StructuredFormPublicationResponse { Content = [REDACTED] }";
 }
-public sealed record StructuredFormPreviewQuery(Guid OperationId, Guid DefinitionId, Guid VersionId, string PublicationFingerprint, string Culture)
+/// <summary>
+/// The official preview of a published version in a culture. <paramref name="Catalogs"/> are sample options for its catalog
+/// questions (VO1-A, 2026-11-06), so a channel that can show the preview interactively lets it be gone through.
+/// </summary>
+public sealed record StructuredFormPreviewQuery(Guid OperationId, Guid DefinitionId, Guid VersionId, string PublicationFingerprint, string Culture,
+    IReadOnlyList<StructuredFormCatalogOffer>? Catalogs = null)
 {
     public override string ToString() => "StructuredFormPreviewQuery { Content = [REDACTED] }";
 }
