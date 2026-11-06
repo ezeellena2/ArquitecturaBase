@@ -43,5 +43,5 @@ internal sealed class WhatsAppFlowDeprecationWorkerFixture : IWhatsAppFlowDeprec
     public Task<WhatsAppFlowEffectResponse> PublishAsync(WhatsAppFlowAccountContext account,string id,CancellationToken ct)=>throw new NotSupportedException();
     public Task<WhatsAppFlowVerificationResponse> VerifyAsync(WhatsAppFlowAccountContext account,string id,string name,string hash,CancellationToken ct)=>throw new NotSupportedException();
     public Task<WhatsAppFlowVerificationResponse> InspectUnknownCreationAsync(WhatsAppFlowAccountContext account,string name,CancellationToken ct)=>throw new NotSupportedException();
-    public Task<Result<StructuredFormPreviewResponse>> GetPreviewAsync(WhatsAppFlowAccountContext account,string id,CancellationToken ct)=>throw new NotSupportedException();
+    public Task<Result<StructuredFormPreviewResponse>> GetPreviewAsync(WhatsAppFlowAccountContext account,string id,WhatsAppFlowPreviewStart start,CancellationToken ct)=>throw new NotSupportedException();
 }

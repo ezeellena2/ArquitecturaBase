@@ -15,6 +15,6 @@ internal sealed class DisabledWhatsAppFlowProvider : IWhatsAppFlowProvider
     public Task<WhatsAppFlowStateResponse> GetStateAsync(WhatsAppFlowAccountContext account, string metaFlowId, string technicalName, CancellationToken cancellationToken) => Task.FromResult(new WhatsAppFlowStateResponse(false, WhatsAppFlowRemoteState.Unknown));
     public Task<WhatsAppFlowVerificationResponse> VerifyAsync(WhatsAppFlowAccountContext account, string metaFlowId, string technicalName, string expectedHash, CancellationToken cancellationToken) => Task.FromResult(new WhatsAppFlowVerificationResponse(false, false, false, false, false));
     public Task<WhatsAppFlowVerificationResponse> InspectUnknownCreationAsync(WhatsAppFlowAccountContext account, string technicalName, CancellationToken cancellationToken) => Task.FromResult(new WhatsAppFlowVerificationResponse(false, false, false, false, false));
-    public Task<Result<StructuredFormPreviewResponse>> GetPreviewAsync(WhatsAppFlowAccountContext account, string metaFlowId, CancellationToken cancellationToken) => Task.FromResult<Result<StructuredFormPreviewResponse>>(FlowErrors.PreviewUnavailable);
+    public Task<Result<StructuredFormPreviewResponse>> GetPreviewAsync(WhatsAppFlowAccountContext account, string metaFlowId, WhatsAppFlowPreviewStart start, CancellationToken cancellationToken) => Task.FromResult<Result<StructuredFormPreviewResponse>>(FlowErrors.PreviewUnavailable);
     private static WhatsAppFlowEffectResponse Unavailable() => new(false, false, null, [], FlowErrors.AccountUnavailable.Code);
 }

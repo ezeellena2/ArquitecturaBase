@@ -14,5 +14,7 @@ public interface IWhatsAppFlowProvider
     Task<WhatsAppFlowStateResponse> GetStateAsync(WhatsAppFlowAccountContext account, string metaFlowId, string technicalName, CancellationToken cancellationToken);
     Task<WhatsAppFlowVerificationResponse> VerifyAsync(WhatsAppFlowAccountContext account, string metaFlowId, string technicalName, string expectedHash, CancellationToken cancellationToken);
     Task<WhatsAppFlowVerificationResponse> InspectUnknownCreationAsync(WhatsAppFlowAccountContext account, string technicalName, CancellationToken cancellationToken);
-    Task<Result<StructuredFormPreviewResponse>> GetPreviewAsync(WhatsAppFlowAccountContext account, string metaFlowId, CancellationToken cancellationToken);
+    /// <summary>Meta's official preview, running interactively from <paramref name="start"/> (VO1-A).</summary>
+    Task<Result<StructuredFormPreviewResponse>> GetPreviewAsync(WhatsAppFlowAccountContext account, string metaFlowId, WhatsAppFlowPreviewStart start,
+        CancellationToken cancellationToken);
 }

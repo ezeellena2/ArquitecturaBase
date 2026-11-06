@@ -216,6 +216,8 @@ public sealed partial class WhatsAppFormSendingTests
                 publicationFingerprint, "es"), Ct);
             Assert.True(preview.IsSuccess);
             Assert.Equal("771003", flowProvider.LastPreviewFlowId);
+            // VO1-A (2026-11-06): it runs interactively from the first screen of the Flow that was published.
+            Assert.False(string.IsNullOrWhiteSpace(flowProvider.LastPreviewStart?.Screen));
 
             var responseJson = new JsonObject
             {

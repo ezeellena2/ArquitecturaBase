@@ -59,9 +59,11 @@ internal sealed class CapturingFlowProvider(TimeProvider timeProvider) : IWhatsA
         return Task.FromResult(new WhatsAppFlowVerificationResponse(existing.Published, !existing.Published, matches, !RejectUpload, true));
     }
     public Task<WhatsAppFlowVerificationResponse> InspectUnknownCreationAsync(WhatsAppFlowAccountContext account, string technicalName, CancellationToken cancellationToken) => Task.FromResult(new WhatsAppFlowVerificationResponse(false, false, false, false, false, _flows.Count(flow => flow.Value.Name == technicalName)));
-    public Task<Result<StructuredFormPreviewResponse>> GetPreviewAsync(WhatsAppFlowAccountContext account, string metaFlowId, CancellationToken cancellationToken)
+    public WhatsAppFlowPreviewStart? LastPreviewStart { get; private set; }
+    public Task<Result<StructuredFormPreviewResponse>> GetPreviewAsync(WhatsAppFlowAccountContext account, string metaFlowId, WhatsAppFlowPreviewStart start, CancellationToken cancellationToken)
     {
         LastPreviewFlowId = metaFlowId;
+        LastPreviewStart = start;
         return Task.FromResult<Result<StructuredFormPreviewResponse>>(new StructuredFormPreviewResponse("https://business.facebook.com/wa/manage/flows/" + metaFlowId + "/preview/?token=private", timeProvider.GetUtcNow().UtcDateTime.Add(PreviewLifetime)));
     }
 }

@@ -48,7 +48,10 @@ internal sealed class WhatsAppFlowStatusService(IWhatsAppFlowReader reader, IWha
         var binding = row.Bindings.SingleOrDefault(value => value.Culture == query.Culture);
         if (binding?.MetaFlowId is null) return FlowErrors.PreviewUnavailable;
         var manifest = protector.ReadManifest(row.Id, row.NeutralOperationId, row.VersionId, row.ProtectedManifest);
-        var preview = await provider.GetPreviewAsync(manifest.Account, binding.MetaFlowId, cancellationToken);
+        // VO1-A (2026-11-06): it runs interactively from the Flow's first screen, with the sample options of its catalog lists.
+        var projection = protector.ReadProjection(row.Id, binding.Id, row.VersionId, binding.Culture, binding.ProtectedProjection);
+        if (WhatsAppFlowStartScreen.Of(projection) is not { } screen) return FlowErrors.PreviewUnavailable;
+        var preview = await provider.GetPreviewAsync(manifest.Account, binding.MetaFlowId, new(screen, query.Catalogs ?? []), cancellationToken);
         if (preview.IsFailure) return preview.Error;
         return preview.Value.ExpiresAtUtc > timeProvider.GetUtcNow().UtcDateTime ? preview : FlowErrors.PreviewUnavailable;
     });

@@ -1,4 +1,7 @@
 using System.Net;
+using System.Text.Json.Nodes;
+using System.Web;
+using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.WhatsApp;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Infrastructure.Modules.WhatsApp;
@@ -45,7 +48,7 @@ public sealed class WhatsAppFlowClientTests
         var assetHash = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(json)));
 
         var verification = await provider.VerifyAsync(account, "333", "technical_name", assetHash, TestContext.Current.CancellationToken);
-        var preview = await provider.GetPreviewAsync(account, "333", TestContext.Current.CancellationToken);
+        var preview = await provider.GetPreviewAsync(account, "333", new("FORM", []), TestContext.Current.CancellationToken);
 
         Assert.Equal(expected, verification.Published);
         Assert.Equal(expected, verification.AssetAndOwnerMatch);
@@ -178,7 +181,7 @@ public sealed class WhatsAppFlowClientTests
                 "{\"id\":\"333\",\"preview\":{\"preview_url\":\"" + origin + "\",\"expires_at\":\"2026-10-11T13:00:00+0000\"}}") });
             using var http = new HttpClient(handler) { BaseAddress = new Uri("https://graph.facebook.com/") };
             var settings = Settings(); var provider = new WhatsAppFlowClient(http, Options.Create(settings));
-            var result = await provider.GetPreviewAsync(Account(settings), "333", TestContext.Current.CancellationToken);
+            var result = await provider.GetPreviewAsync(Account(settings), "333", new("FORM", []), TestContext.Current.CancellationToken);
             Assert.Equal(origin.StartsWith("https://business.facebook.com/", StringComparison.Ordinal), result.IsSuccess);
             Assert.Contains("invalidate(false)", Assert.Single(handler.Requests).RequestUri!.ToString(), StringComparison.Ordinal);
             if (result.IsSuccess)
@@ -320,6 +323,59 @@ public sealed class WhatsAppFlowClientTests
         Assert.DoesNotContain(handler.Requests, request => request.RequestUri!.Host == "evil.example");
         if (scenario == "duplicate") Assert.DoesNotContain(handler.Requests, request => request.RequestUri!.Host == "mmg.whatsapp.net");
     }
+    // VO1-A (2026-11-06): the official preview runs interactively from the Flow's first screen, with the sample options of its lists:
+    // the same data a message that opens the form sends.
+    [Fact]
+    public async Task Official_preview_runs_interactively_from_the_first_screen_with_the_sample_options()
+    {
+        const string origin = "https://business.facebook.com/wa/manage/flows/333/preview/?token=private";
+        using var handler = PreviewHandler(origin);
+        var provider = PreviewProvider(handler);
+        var shown = new StructuredFormCatalogOption(Guid.CreateVersion7(), "Glifosato", "Herbicida", Shown: new("GLIFOSATO 64%", "Bidón de 20 L"));
+        var plain = new StructuredFormCatalogOption(Guid.CreateVersion7(), "Urea", null);
+        var result = await provider.GetPreviewAsync(Account(Settings()), "333", new("FORM", [Offer("articulo", [shown, plain])]), TestContext.Current.CancellationToken);
+        Assert.True(result.IsSuccess);
+        Assert.StartsWith(origin + "&interactive=true&flow_action=navigate&flow_action_payload=", result.Value.Url, StringComparison.Ordinal);
+        var query = HttpUtility.ParseQueryString(new Uri(result.Value.Url).Query);
+        Assert.Equal("private", query["token"]);
+        Assert.Null(query["debug"]);
+        var payload = JsonNode.Parse(query["flow_action_payload"]!)!;
+        Assert.Equal("FORM", (string?)payload["screen"]);
+        var options = payload["data"]!["articulo_options"]!.AsArray();
+        Assert.Equal([shown.Id.ToString("D"), plain.Id.ToString("D")], options.Select(option => (string?)option!["id"]));
+        Assert.Equal(["GLIFOSATO 64%", "Urea"], options.Select(option => (string?)option!["title"]));
+        Assert.Equal("Bidón de 20 L", (string?)options[0]!["description"]);
+        Assert.Null(options[1]!["description"]);
+    }
+
+    // The data travels in the link: each list keeps fewer of its first options when the link would grow too long.
+    [Fact]
+    public async Task Official_preview_keeps_fewer_options_of_each_list_when_the_link_would_grow_too_long()
+    {
+        using var handler = PreviewHandler("https://business.facebook.com/wa/manage/flows/333/preview/?token=private");
+        var provider = PreviewProvider(handler);
+        var catalogs = Enumerable.Range(0, 4).Select(list => Offer("lista_" + list, Enumerable.Range(0, 20).Select(index =>
+            new StructuredFormCatalogOption(Guid.CreateVersion7(), "Opción " + index, new string('x', 200))).ToArray())).ToArray();
+        var result = await provider.GetPreviewAsync(Account(Settings()), "333", new("FORM", catalogs), TestContext.Current.CancellationToken);
+        Assert.True(result.IsSuccess);
+        var escaped = result.Value.Url[(result.Value.Url.IndexOf("flow_action_payload=", StringComparison.Ordinal) + "flow_action_payload=".Length)..];
+        Assert.InRange(escaped.Length, 1, WhatsAppFlowNavigation.PreviewPayloadLimit);
+        var data = JsonNode.Parse(HttpUtility.ParseQueryString(new Uri(result.Value.Url).Query)["flow_action_payload"]!)!["data"]!.AsObject();
+        Assert.Equal(catalogs.Select(catalog => catalog.Key + "_options"), data.Select(pair => pair.Key));
+        foreach (var catalog in catalogs)
+        {
+            var kept = data[catalog.Key + "_options"]!.AsArray().Select(option => (string?)option!["id"]).ToArray();
+            Assert.InRange(kept.Length, 1, 19);
+            Assert.Equal(catalog.Options.Take(kept.Length).Select(option => option.Id.ToString("D")), kept);
+        }
+    }
+
+    private static StubFlowHttpHandler PreviewHandler(string origin) => new(_ => new(HttpStatusCode.OK) { Content = new StringContent(
+        "{\"id\":\"333\",\"preview\":{\"preview_url\":\"" + origin + "\",\"expires_at\":\"2026-10-11T13:00:00+0000\"}}") });
+    private static WhatsAppFlowClient PreviewProvider(StubFlowHttpHandler handler) =>
+        new(new HttpClient(handler, disposeHandler: false) { BaseAddress = new Uri("https://graph.facebook.com/") }, Options.Create(Settings()));
+    private static StructuredFormCatalogOffer Offer(string key, IReadOnlyList<StructuredFormCatalogOption> options) =>
+        new(Guid.CreateVersion7(), key, "Artículo", Guid.CreateVersion7(), 1, "Manual", "Insumos", options);
     private static WhatsAppOptions Settings() => new() { PhoneNumberId = "111", WabaId = "222", AccessToken = "test-token", GraphApiVersion = "v25.0" };
     private static WhatsAppFlowAccountContext Account(WhatsAppOptions settings) => new("222", "111", "v25.0", WhatsAppFlowEnvironment.Fingerprint(settings));
 }

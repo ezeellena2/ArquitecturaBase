@@ -1,4 +1,3 @@
-using System.Text.Json;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
@@ -57,17 +56,8 @@ internal sealed class WhatsAppFormSendPolicy(
         if (binding is null) return FlowErrors.FormUnavailable;
         var projection = flowProtector.ReadProjection(binding.OperationId, binding.BindingId, binding.VersionId,
             binding.Culture, binding.ProtectedProjection);
-        string? startScreen;
-        try
-        {
-            using var document = JsonDocument.Parse(projection.Json);
-            startScreen = document.RootElement.GetProperty("screens").EnumerateArray().FirstOrDefault().GetProperty("id").GetString();
-        }
-        catch (Exception exception) when (exception is JsonException or InvalidOperationException)
-        {
-            return FlowErrors.FormUnavailable;
-        }
-        if (string.IsNullOrWhiteSpace(startScreen)) return FlowErrors.FormUnavailable;
+        var startScreen = WhatsAppFlowStartScreen.Of(projection);
+        if (startScreen is null) return FlowErrors.FormUnavailable;
         if (!environment.IsConfigured) return FlowErrors.AccountUnavailable;
         var account = await environment.VerifyAccountAsync(cancellationToken);
         if (account.IsFailure) return account.Error;

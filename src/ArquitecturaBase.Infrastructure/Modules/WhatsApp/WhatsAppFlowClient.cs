@@ -145,7 +145,8 @@ internal sealed partial class WhatsAppFlowClient(HttpClient httpClient, IOptions
         }
         return Unverified;
     }
-    public async Task<Result<StructuredFormPreviewResponse>> GetPreviewAsync(WhatsAppFlowAccountContext account, string metaFlowId, CancellationToken cancellationToken)
+    public async Task<Result<StructuredFormPreviewResponse>> GetPreviewAsync(WhatsAppFlowAccountContext account, string metaFlowId, WhatsAppFlowPreviewStart start,
+        CancellationToken cancellationToken)
     {
         if (!Matches(account)) return FlowErrors.AccountMismatch;
         using var document = await ReadGraphAsync(options.Value.GraphApiVersion + "/" + Uri.EscapeDataString(metaFlowId) + "?fields=preview.invalidate(false)", cancellationToken);
@@ -157,7 +158,7 @@ internal sealed partial class WhatsAppFlowClient(HttpClient httpClient, IOptions
         if (expiry is not null && CompactOffsetPattern().IsMatch(expiry)) expiry = expiry.Insert(expiry.Length - 2, ":");
         if (expiry is null || !ExplicitOffsetPattern().IsMatch(expiry)) return FlowErrors.PreviewUnavailable;
         if (!DateTimeOffset.TryParse(expiry, CultureInfo.InvariantCulture, DateTimeStyles.None, out var expires)) return FlowErrors.PreviewUnavailable;
-        return new StructuredFormPreviewResponse(value!, expires.UtcDateTime);
+        return new StructuredFormPreviewResponse(WhatsAppFlowNavigation.InteractivePreview(value!, start.Screen, start.Catalogs), expires.UtcDateTime);
     }
     private bool Matches(WhatsAppFlowAccountContext account) => account.WabaId == options.Value.WabaId && account.PhoneNumberId == options.Value.PhoneNumberId
         && account.GraphApiVersion == options.Value.GraphApiVersion;
