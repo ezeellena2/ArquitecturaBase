@@ -6,7 +6,8 @@ internal static class SecurityHeadersExtensions
     /// Encabezados de seguridad de la sección 6.9 del spec. La CSP permite exactamente lo que hace el SPA: sus
     /// propios archivos (scripts, estilos y fuentes con hash, servidos desde este mismo origen), los estilos en
     /// línea que escriben los componentes accesibles, sus llamadas a esta misma Api, el iframe de renovación
-    /// silenciosa (/silent-renew.html, del mismo origen), las copias PDF privadas en blob y el formulario que puede terminar en Google.
+    /// silenciosa (/silent-renew.html, del mismo origen), las copias PDF privadas en blob, la vista oficial de un formulario en
+    /// WhatsApp (la página de Meta en business.facebook.com, en un iframe) y el formulario que puede terminar en Google.
     /// </summary>
     private const string ContentSecurityPolicy =
         "default-src 'self'; " +
@@ -16,7 +17,7 @@ internal static class SecurityHeadersExtensions
         "font-src 'self' data:; " +
         "connect-src 'self'; " +
         "media-src 'self' blob:; " +
-        "frame-src 'self' blob:; " +
+        "frame-src 'self' blob: https://business.facebook.com; " +
         "frame-ancestors 'self'; " +
         "form-action 'self' https://accounts.google.com; " +
         "base-uri 'self'";

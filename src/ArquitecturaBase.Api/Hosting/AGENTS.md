@@ -17,4 +17,6 @@ Configura headers de seguridad, proxies de confianza y el fallback del SPA. El n
 
 Los PDF privados se previsualizan en iframe con URL blob del mismo navegador; `frame-src` admite blob, pero `script-src` conserva sólo el origen propio. La API sigue sirviendo el contenido con permiso y no-store.
 
+La vista oficial de un formulario en WhatsApp es la página de Meta en un iframe (VO1-A, 2026-11-06): `frame-src` suma sólo `https://business.facebook.com`, el host que valida `WhatsAppFlowClient`. Sin esa entrada el marco quedaba bloqueado en producción; en desarrollo Vite sirve la página sin esta política.
+
 Los audios privados se reproducen con una URL blob creada desde el GET autenticado; `media-src` permite sólo self y blob. No amplía `script-src` ni `connect-src`, y el GET conserva permiso y no-store.
