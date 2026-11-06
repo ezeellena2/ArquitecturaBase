@@ -37,8 +37,8 @@ PL2-A, la corrección usa las zonas y los dos anchos de AR1-A y sus acciones van
   muestra como subtítulo. La planilla, el Excel y el PDF no cambian.
 - **Lo que difiere del multitenant** (§5): casi todo coincide con lo que ya escribió. Hay una sola decisión para el usuario
   («Mis cargas» en «Formularios») y varios detalles para sumar a sus etapas.
-- **Falta acá** (§6): la prueba manual de las cuatro etapas, publicar en Meta un Flow con títulos y la cámara de un celular
-  real, que quedó de la Etapa 1.
+- **Falta acá** (§6): la prueba manual de las cuatro etapas, cerrar la verificación con Meta (que ya aceptó los títulos) y la
+  cámara de un celular real, que quedó de la Etapa 1.
 - **Parte de los commits no está en GitHub.** Desde esta PC se leen en `C:\Users\ezequ\source\repos\ArquitecturaBase` y
   `C:\Users\ezequ\source\repos\ArquitecturaBaseFront` (§7).
 
@@ -156,7 +156,9 @@ Backend:
   canal llevan los títulos.
 - **WhatsApp.** El Flow pone un subtítulo (`TextSubheading`) justo antes de la primera pregunta de cada sección, en la
   pantalla de esa pregunta, sin sumar pantallas. Cuenta entre los 50 componentes de la pantalla. Sin títulos, el Flow sale
-  con los mismos bytes. Va en el perfil nuevo de los renglones (r10), que todavía no se verificó con Meta.
+  con los mismos bytes. Va en el perfil nuevo de los renglones (r10). El 2026-11-06, en la verificación de renglones con
+  Meta, la primera variante (preguntas después del bloque y dos títulos de sección) quedó aceptada y publicada; esa
+  verificación sigue en curso.
 - **La carga.** La pregunta donde empieza cada título trae `section`.
 
 Front:
@@ -212,7 +214,7 @@ están escritas allá, así que la tabla dice en qué difieren y qué conviene s
 | **Lo propio** (83, 85 y 101; E20 «Lo propio»; E21 «Lo propio») | Rutas propias, `/{id}/own-records/…`, con `formrecords.create`, filtradas por quien respondió; lo ajeno da 404. La E21 suma el estado, el PDF y el motivo. Con sólo completar, «Formularios» muestra sus formularios con «Cargar», **sin conteos** (83). «Dados de baja» en «Estado» (101). | Las mismas rutas de la planilla, el detalle, los archivos y el workflow, abiertas también con «Completar formularios», con un guard que acota. «Formularios» suma «Mis cargas» y «Mi última carga», y quien sólo carga no tiene el segmento de los dados de baja. | Rutas propias o las mismas con un guard es una elección técnica suya: el efecto es el mismo. Su 101 (lo suyo de los dados de baja) va más allá de lo de acá y conviene conservarla. «Mis cargas» y «Mi última carga» en «Formularios» chocan con su 83: **lo decide el usuario.** |
 | **Listas dependientes** (94; E20 «Las listas dependientes (94)»; E16 y E12 «Fuera») | Las mismas condiciones; se validan al guardar (`Forms.Draft.DependentListInvalid` y `DependentListForCustomers`); sólo en una pregunta suelta, no en una columna de un grupo; se ocultan con la pregunta de origen (E19); el formulario sale «solo para la app» (`AppOnly`). WhatsApp, después del bloque. | El mismo filtro, que frena al publicar y avisa que por WhatsApp no se manda. | Coincide. Para sumar: que el asistente no ofrezca el formulario y que «Enviar formulario» lo muestre apagado con su motivo; que la lista no lleve los límites de WhatsApp (máximo por persona y 20 en «elegir varias»); y que al enviar se revise con la opción elegida en la pregunta de la que depende. |
 | **Corregir y anular** (91 a 93; E21 «Corregir y anular (91 a 93)») | Las mismas reglas, con el permiso `formrecords.correct` y rutas propias para quien cargó (`own-records/{recordId}/correction`, `corrections` y `void`). Suma que quien corrigió no puede aprobar y que la copia de «Mis mensajes» de un cliente no cambia. No dice qué pasa con los avisos ya emitidos ni con la tarea abierta de la anterior. | §3, Etapa 3. Acá se puede aprobar lo que corrigió otra persona: la regla compara con el autor de la respuesta, que la corrección copia de la anterior. | Coincide en lo de producto; su regla de que quien corrigió no aprueba es más estricta y conviene conservarla. Para sumar a su E21: los avisos salen otra vez y lo emitido queda en la historia; la tarea abierta se cierra sin decisión; las listas de la corrección son las de quien la cargó; el conteo de «Formularios» no sale del último número; y el `Down` que se niega a perder datos. |
-| **Títulos de sección** (88; T24 de la E14; E20 «Zonas»; c339b58d) | Un elemento del borrador de hasta 80 caracteres, que no cuenta entre las 40 preguntas; `TextSubheading` dentro de los 50 componentes; publicar frena un título sin preguntas (`Forms.Publication.Incomplete`, con «Ir al título»); una zona por título en la web; con la E19, un título con todas sus preguntas ocultas no se ve. | §3, Etapa 5. | Coincide. Para sumar: el tope de 40 títulos; que un título no cae entre las columnas de un grupo de líneas (su E19); que sin títulos el Flow sale con los mismos bytes; y que una sección de sólo archivos no arma zona si los archivos van al final (AR1-A, traspaso 5). La traducción del título no aplica (su 35). El subtítulo sigue sin probarse con Meta, acá también. |
+| **Títulos de sección** (88; T24 de la E14; E20 «Zonas»; c339b58d) | Un elemento del borrador de hasta 80 caracteres, que no cuenta entre las 40 preguntas; `TextSubheading` dentro de los 50 componentes; publicar frena un título sin preguntas (`Forms.Publication.Incomplete`, con «Ir al título»); una zona por título en la web; con la E19, un título con todas sus preguntas ocultas no se ve. | §3, Etapa 5. | Coincide. Para sumar: el tope de 40 títulos; que un título no cae entre las columnas de un grupo de líneas (su E19); que sin títulos el Flow sale con los mismos bytes; y que una sección de sólo archivos no arma zona si los archivos van al final (AR1-A, traspaso 5). La traducción del título no aplica (su 35). Meta aceptó el subtítulo el 2026-11-06, en la primera variante de la verificación de renglones, y su E14 todavía lo da por «sin probar» en ArquitecturaBase. |
 | **Permisos** (hoja de ruta §2) | 13 permisos de formularios, con `formrecords.correct` en la E21. | 13, con `formrecords.amend`. Corregir lo ajeno pide además «Ver respuestas». | Sólo cambia el nombre. Decidir si su `formrecords.correct` también exige leer respuestas para corregir lo ajeno. |
 | **Alcance por organización y empresa** | RLS, `ITenantOwned`, `[FeatureGate("forms")]` y el alcance de empresa de sus roles. | Una instalación. | Lo propio es de la persona dentro de su organización (y de su empresa, si el formulario es de una). Las columnas de la corrección y la anulación van en las tablas del esquema `tenant`, con su test de aislamiento por ruta. El número único entre las originales es por organización, como su numeración. Con el módulo apagado, las rutas nuevas responden 404. |
 
@@ -223,8 +225,8 @@ su decisión 83.
 
 - **La prueba manual** de las cuatro etapas: con una cuenta que sólo tenga «Completar formularios», con una lista
   dependiente en la carga, corrigiendo y anulando de punta a punta, y con un formulario con títulos.
-- **Publicar en Meta un Flow con títulos.** El subtítulo va en el perfil de los renglones (r10), que espera su verificación
-  con Meta; conviene hacer las dos juntas.
+- **Cerrar la verificación con Meta.** El 2026-11-06 Meta aceptó un Flow con dos títulos de sección, en la primera variante
+  de la verificación de renglones (r10); esa verificación sigue en curso.
 - **De la Etapa 1:** la cámara de un celular real por el túnel.
 - **Después del plan:** las listas dependientes por WhatsApp, con el intercambio cifrado con Meta, y cargar en nombre de otra
   persona, si aparece el caso. Ninguna tiene chat ni fecha.
