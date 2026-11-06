@@ -2,7 +2,7 @@
 
 Diseño del 2026-11-02 con las decisiones del usuario del 2026-11-03, que ese día dio el diseño por cerrado, y las del
 2026-11-04 sobre el tope de la respuesta de WhatsApp (RG7-A), el bloque con mínimo 0 (RG8-A) y cómo se elige «Renglones» en el
-editor (RG9-A). La Etapa 1 se está programando ([plan de implementación](2026-11-04-renglones-etapa-1-implementacion.md)). Un formulario suma un bloque de
+editor (RG9-A), y la del 2026-11-06, «Agregar bloque» (RG10-D). La Etapa 1 se está programando ([plan de implementación](2026-11-04-renglones-etapa-1-implementacion.md)). Un formulario suma un bloque de
 preguntas que se repite, como los renglones de un remito o de una factura: en la app se cargan en una tabla y por WhatsApp,
 de a un renglón por pantalla.
 
@@ -31,7 +31,7 @@ El lienzo del sistema visual no se abre desde la cuenta de Claude Code. El dise�
 [carga desde la app](../../../ArquitecturaBaseFront/docs/design/carga-desde-la-app.md); los tableros pasan a ese lienzo
 antes de programar.
 
-## Decisiones del usuario (2026-11-03 y 2026-11-04)
+## Decisiones del usuario (2026-11-03 al 2026-11-06)
 
 Las eligió de a una, mirando cada fila; en las ocho eligió la recomendada, la A. La sexta ajusta la primera: salió de
 analizar con él la carga del remito como cuatro respuestas. La séptima y la octava salieron el 2026-11-04, al revisar el
@@ -130,10 +130,22 @@ plan antes de programar y al programar el Flow.
    - En una pregunta del bloque, «Foto» y «Documento» se apagan con «· No se carga varias veces», y «Permitir elegir varias»
      se apaga con su motivo al pasar el mouse.
    - Descartó RG9-B (un botón «Agregar renglones») y RG9-C («Renglones» sólo mientras no hay un bloque, sin motivo).
+   - Desde el 2026-11-06, RG10-D saca «Renglones» del desplegable; lo de foto, documento y «Permitir elegir varias» sigue.
+10. **Cómo se agrega el bloque: RG10-D, «Agregar bloque», como una pregunta más** (2026-11-06). Salió en la verificación
+   con Meta: armando el formulario de prueba no quedó claro cómo se arma el bloque, escondido en «Tipo de respuesta». El
+   usuario no eligió ninguna de las tres opciones dibujadas, propuso esta y la aprobó sobre su maqueta (lienzo, versión 86).
+   - «Agregar bloque» va en la franja «Preguntas», al lado de «Agregar pregunta»; «Agregar título» no cambia.
+   - El bloque se suma al final de la lista como una pregunta más, abierto: el nombre, que arranca en «Bloque» (también
+     cuando lo crea «Se carga varias veces»), el mínimo y el máximo de renglones, la ayuda y su propio «Agregar pregunta».
+     En la lista dice «Bloque · de 1 a 10 renglones · 3 preguntas».
+   - Con un bloque ya armado, el botón se apaga con el tooltip «Ya hay un bloque de renglones.».
+   - «Tipo de respuesta» deja de ofrecer «Renglones»: el bloque se agrega sólo con su botón o con «Se carga varias veces».
+   - Descartó RG10-A («Agregar renglones», con el bloque como algo distinto de una pregunta), RG10-B (un solo «Agregar»
+     con menú) y RG10-C (como hoy). El nombre del botón (RG11) quedó resuelto con «Agregar bloque».
 
 **Resueltas por defecto** con la opción más simple, dibujadas en los tableros y sin objeción del usuario:
 
-- Un bloque por formulario, sin bloques adentro. Con uno, «Renglones» se apaga y dice por qué («Ya hay un bloque de
+- Un bloque por formulario, sin bloques adentro. Con uno, «Agregar bloque» se apaga y dice por qué («Ya hay un bloque de
   renglones.»). Más de uno, si aparece el caso.
 - Adentro de un bloque entran texto corto, texto largo, número, fecha, sí o no y elegir una, propia o de un catálogo. El
   texto largo, como las observaciones de cada artículo, es una celda que crece con lo escrito. Quedan afuera elegir varias,

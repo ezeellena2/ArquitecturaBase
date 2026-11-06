@@ -207,6 +207,10 @@ que la sesión de las listas dependientes commitee lo suyo.
   `formRows` (`forms-rows`), es/en a 1440, 390 y 320, sin scroll de la página. La vista previa todavía dibuja el bloque
   como un campo: es de la Tarea 8.
 - [x] Commit en el front: `feat(formularios): el editor arma el bloque de renglones`.
+- [ ] RG10-D (2026-11-06, en la verificación con Meta): «Agregar bloque» en la franja «Preguntas», el bloque como una
+  pregunta más y con «Bloque» de nombre al crearlo, también desde «Se carga varias veces»; «Renglones» sale de «Tipo de
+  respuesta». Se programa al terminar la prueba con Meta, con la app apagada: textos es/en, `QuestionEditor`,
+  `FormEditorPage`, `rowsQuestions.ts`, sus tests, la escena `formRows` y el `AGENTS.md` del área.
 
 ### Tarea 8 · El front: vista previa y publicar
 
@@ -231,6 +235,10 @@ que la sesión de las listas dependientes commitee lo suyo.
   del `Form`, pantallas terminales que navegan en una rama y completan en la otra, y el mismo `name` en varias pantallas):
   con preguntas después del bloque, con el bloque al final y con mínimo 0. Si Meta objeta el `If` dentro del `Form`, las
   pantallas de renglón van sin `Form` (en 7.3 es opcional).
+  - 2026-11-06, en curso con el visto bueno del usuario («Completa ahora»). Variante 1, preguntas después del bloque (de 1
+    a 10, con un catálogo) y dos títulos de sección: Meta la aceptó y quedó publicada y verificada. Acepta el `If` con
+    `Footer` dentro del `Form`, el mismo `name` en las diez pantallas, las referencias a renglones que pueden no visitarse
+    y los `TextSubheading` de los títulos (CW15-B). Lo que llega del celular se lee de la respuesta guardada, sin valores.
 - [ ] Si algo no alcanza, bajar el tope o volver a 16 KiB (RG7-C) y anotarlo en el plan. El tope está sellado en r10
   (`WhatsAppFlowProfile.MaxRows`, con `StructuredFormLimits.MaxRows` igual): mientras r10 no salga de esta etapa se cambian
   los dos y se republica la prueba; después, otro tope es otra revisión, y el webhook sigue aceptando `_r10` de lo publicado.
