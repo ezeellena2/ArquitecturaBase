@@ -263,14 +263,19 @@ su clase. Otras sesiones trabajan en el mismo checkout: se preparan sólo los ar
 
 ### Tarea 3 · WhatsApp guarda los renglones
 
-- [ ] Tests en rojo en `WhatsAppFlowRowsCodecTests` y `WhatsAppFlowReplyServiceTests.Rows.cs`: un ítem con «No», tres con
+- [x] Tests en rojo en `WhatsAppFlowRowsCodecTests` y `WhatsAppFlowReplyServiceTests.Rows.cs`: un ítem con «No», tres con
   «Sí», «Sí» y «No», el mínimo 0 con «No» en `_r0`, un ítem que no pregunta antes del mínimo, el último sin pregunta, los
   ítems después del «No» ignorados, cada rechazo de arriba, un catálogo en el bloque con la oferta de la sesión, y la
   proyección mal formada que queda `Rejected`. La respuesta real que llegó del celular el 2026-11-07 (15 claves, `_r1` a
   `_r3`) se reproduce con valores sintéticos.
-- [ ] `WhatsAppFlowRowsCodec`, `ProjectionIsWellFormed` y `ProcessOneAsync` en `WhatsAppFlowReplyService`.
-- [ ] `WhatsAppRowsCompositionTests` suma la captura de una respuesta con ítems por el sink real.
-- [ ] Commit: `feat(whatsapp): la respuesta de un Flow con renglones se guarda`.
+- [x] `WhatsAppFlowRowsCodec`, `ProjectionIsWellFormed` y `ProcessOneAsync` en `WhatsAppFlowReplyService`.
+- [x] `WhatsAppRowsCompositionTests` suma la captura de una respuesta con ítems por el sink real.
+- [x] Commit: `feat(whatsapp): la respuesta de un Flow con renglones se guarda`.
+
+  Hecho: el mapping con la oferta de la sesión y el valor canónico pasaron a `WhatsAppFlowValueCodec` (`ForReply` y
+  `Canonical`), que comparten la respuesta y el codec de ítems; el tope de 40 cuenta las preguntas sin el bloque. La
+  composición corrió con PostgreSQL: publicar r10, enviar, la respuesta con tres ítems por el webhook firmado y la captura
+  real con su número.
 
 ### Tarea 4 · La carga desde la app con renglones
 

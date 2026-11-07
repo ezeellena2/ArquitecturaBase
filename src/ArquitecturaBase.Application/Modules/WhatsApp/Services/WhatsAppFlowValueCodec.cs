@@ -3,6 +3,7 @@ using System.Numerics;
 using System.Text.RegularExpressions;
 using System.Text.Json;
 using ArquitecturaBase.Domain.Common;
+using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Results;
@@ -15,6 +16,21 @@ internal static partial class WhatsAppFlowValueCodec
     public const string DecimalPattern = "^-?(0|[1-9][0-9]*)([.,][0-9]+)?$";
     public const int DecimalMaxChars = 60;
     private static readonly BigInteger MaxCoefficient = BigInteger.Parse("79228162514264337593543950335", CultureInfo.InvariantCulture);
+
+    // The sealed mapping of a reply's question: a catalog question takes the options of the session's offer.
+    internal static WhatsAppFlowFieldMapping ForReply(WhatsAppFlowProjectionField field, IReadOnlyList<StructuredFormCatalogOffer> catalogs) =>
+        new(field.FieldId, field.Key, field.Type, field.Required, field.MaxLength,
+            field.Choices.Count == 0 ? catalogs.SingleOrDefault(catalog => catalog.FieldId == field.FieldId)?.Options.Select(option => option.Id).ToArray() ?? field.Choices : field.Choices,
+            Selection: field.Selection);
+
+    // The canonical value the owner receives: decimal with a point, ISO date, true/false, GUID D or the JSON array of options.
+    internal static string? Canonical(WhatsAppFlowValueResponse value) => !value.IsPresent ? null
+        : value.Text
+            ?? value.Decimal
+            ?? value.Date?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+            ?? (value.Boolean is { } boolean ? boolean ? "true" : "false" : null)
+            ?? value.ChoiceId?.ToString("D")
+            ?? (value.ChoiceIds is { } selected ? JsonSerializer.Serialize(selected) : null);
 
     public static Result<WhatsAppFlowValueResponse> Decode(WhatsAppFlowFieldMapping mapping, string? value)
     {

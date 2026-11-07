@@ -102,9 +102,16 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
             return;
         }
         var verified = sessionVerifier.VerifyReply(session, token, projection);
-        if (verified.IsFailure || !ProjectionIsWellFormed(projection))
+        if (verified.IsFailure)
         {
             await stateService.MarkProcessedAsync(message.WaMessageId, session.SessionId, WhatsAppFlowCaptureState.Unrecognized, null, null, null, cancellationToken);
+            return;
+        }
+        // The reply belongs to its session, but this app cannot read its projection: it is not saved, with the usual notice.
+        if (!ProjectionIsWellFormed(projection))
+        {
+            await stateService.MarkProcessedAsync(message.WaMessageId, session.SessionId, WhatsAppFlowCaptureState.Rejected, null, null,
+                FlowErrors.InvalidValue.Code, cancellationToken);
             return;
         }
 
@@ -271,13 +278,16 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
 
     private static bool ProjectionIsWellFormed(WhatsAppFlowProjection projection)
     {
-        if (projection.Format != 1 || projection.Mapping.Count > 40 || projection.Culture is not ("es" or "en")) return false;
+        // The block does not count among the 40 questions.
+        if (projection.Format != 1 || projection.Mapping.Count(field => field.Type != "group") > 40 || projection.Mapping.Count > 41
+            || projection.Culture is not ("es" or "en")) return false;
         var keys = new HashSet<string>(StringComparer.Ordinal);
         var fieldIds = new HashSet<Guid>();
         return projection.Mapping.All(field => field.FieldId != Guid.Empty
             && field.Key == "field_" + field.FieldId.ToString("N")
             && keys.Add(field.Key) && fieldIds.Add(field.FieldId)
-            && field.Type is "shortText" or "longText" or "decimal" or "date" or "boolean" or "choice" or "multiChoice" or "photo" or "document");
+            && field.Type is "shortText" or "longText" or "decimal" or "date" or "boolean" or "choice" or "multiChoice" or "photo" or "document" or "group")
+            && WhatsAppFlowRowsCodec.IsWellFormed(projection.Mapping);
     }
 
     private static Result<Dictionary<string, string>> DecodeAnswers(WhatsAppFlowProjection projection,
@@ -289,26 +299,22 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
         var decoded = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var field in projection.Mapping)
         {
-            if (field.Type is "photo" or "document") continue;
+            // The block and its questions arrive per item, under their suffixes.
+            if (field.Type is "photo" or "document" or "group" || field.Repeated == true) continue;
             if (field.Type == "multiChoice" && answers.ContainsKey(field.Key)) return FlowErrors.InvalidValue;
             (field.Type == "multiChoice" ? arrays : answers).TryGetValue(field.Key, out var raw);
-            var value = WhatsAppFlowValueCodec.Decode(new WhatsAppFlowFieldMapping(field.FieldId, field.Key,
-                field.Type, field.Required, field.MaxLength, field.Choices.Count == 0 ? catalogs.SingleOrDefault(catalog => catalog.FieldId == field.FieldId)?.Options.Select(option => option.Id).ToArray() ?? field.Choices : field.Choices,
-                Selection: field.Selection), raw);
+            var value = WhatsAppFlowValueCodec.Decode(WhatsAppFlowValueCodec.ForReply(field, catalogs), raw);
             if (value.IsFailure)
                 return FlowErrors.InvalidValue;
-            if (!value.Value.IsPresent) continue;
-            var canonical = value.Value.Text
-                ?? value.Value.Decimal
-                ?? value.Value.Date?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
-                ?? (value.Value.Boolean is { } boolean ? boolean ? "true" : "false" : null)
-                ?? value.Value.ChoiceId?.ToString("D")
-                ?? (value.Value.ChoiceIds is { } selected ? JsonSerializer.Serialize(selected) : null);
-            if (canonical is not null) decoded[field.Key] = canonical;
+            if (WhatsAppFlowValueCodec.Canonical(value.Value) is { } canonical) decoded[field.Key] = canonical;
         }
+        var rows = WhatsAppFlowRowsCodec.Decode(projection.Mapping, answers, catalogs);
+        if (rows.IsFailure) return rows.Error;
+        if (rows.Value is { } items) decoded[projection.Mapping.Single(field => field.Type == "group").Key] = items;
 
         foreach (var answer in answers)
-            if (!projection.Mapping.Any(field => field.Key == answer.Key)) decoded[answer.Key] = answer.Value;
+            if (!projection.Mapping.Any(field => field.Key == answer.Key) && !WhatsAppFlowRowsCodec.IsRowKey(projection.Mapping, answer.Key))
+                decoded[answer.Key] = answer.Value;
         return decoded;
     }
 

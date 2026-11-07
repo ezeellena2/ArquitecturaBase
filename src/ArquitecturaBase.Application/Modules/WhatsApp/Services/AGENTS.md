@@ -76,6 +76,7 @@ Casos de uso del módulo (`*Service`, detrás de `Interfaces/Services`), sus hel
 - Los arrays se clasifican por mapping: multiChoice exige strings GUID D ofrecidos, distintos y dentro del rango; sólo photo/document pasan objetos a MediaPolicy. Claves ajenas, escalares sustituidos y mezclas se rechazan antes de I/O. El contador preliminar excluye strings; [] ambiguo conserva presupuesto64, pero sólo un conteo > 0 marca descarga.
 - Mensaje y sesión guardan su estado final aparte. Datos o contenido inválidos son terminales; medio o sink no disponibles y fallas técnicas usan el contador existente. Los bytes van como archivos, nunca en las respuestas, y se descargan fuera de UoW en 90 s por captura.
 - Vencida o sin vínculo, solo se recupera un recibo idéntico; un mensaje distinto tras purgar el contenido privado no altera la sesión completada.
+- Un bloque de renglones (r10) llega por ítem: `WhatsAppFlowRowsCodec` arma los ítems con `Asks` y `RowCount` del compilador desde `<clave>_r<n>` y la respuesta a «¿Agregás otro ítem?» (`<bloque>_r<n>`, y `_r0` con mínimo 0), y entrega al dueño la clave del bloque con un array JSON de un objeto por ítem; las claves `_r` no pasan sueltas. Una obligatoria que falta en un ítem cargado, una pregunta sin responder, una clave `_r` fuera del bloque o en un ítem que no pregunta y una pregunta del bloque sin sufijo son `InvalidValue`; lo de los ítems después del «No» se ignora. Una proyección que la app no sabe leer queda Rejected con `InvalidValue` (el aviso de siempre), no Unrecognized.
 
 ### Avisos de reglas
 
