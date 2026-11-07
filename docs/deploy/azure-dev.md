@@ -157,7 +157,7 @@ Los nombres exactos de SMTP se contrastan con la [tabla canónica](../guides/des
 
 La identidad de la Container App recibe AcrPull sobre el registry. GitHub recibe permisos de despliegue distintos: subir imágenes, actualizar la app y abrir/cerrar el firewall de PostgreSQL. Contributor sobre el grupo dev simplifica el arranque; declarar además AcrPush sobre el registry hace explícito el permiso de publicar imágenes y permite acotar Contributor más adelante. Esta receta usa el modo RBAC clásico, sin ABAC; los roles de repositorio para ABAC son distintos. [Roles de ACR](https://learn.microsoft.com/en-us/azure/container-registry/container-registry-rbac-built-in-roles-overview).
 
-Configurar probes: /alive para liveness y /health para readiness, como muestra la [receta](azure-setup.md#probes-opcional). Sin readiness, la comprobación final de la pipeline puede detectar la falla después de que Azure asignó tráfico. Un smoke test no reemplaza una prueba de ingreso en el navegador.
+Configurar los probes de la [receta](azure-setup.md#probes): Startup y Liveness en /alive, Readiness en /health. El workflow no despliega sin ellos: sin readiness, Azure asignaría tráfico a una revisión sin base o sin Redis antes de la comprobación final. Un smoke test no reemplaza una prueba de ingreso en el navegador.
 
 ## Etapa 4: conectar GitHub con Azure
 
@@ -203,7 +203,7 @@ Este PAT entre repositorios no es una contraseña de Azure; OIDC sigue resolvien
 1. Verificar recursos, red, certificados y configuración de la aplicación.
 2. Tener ambos workflows en main de GitHub. Ejecutar build con deploy deshabilitado y revisar el paquete y su manifest.
 3. Activar DEV_DEPLOY_ENABLED=true en el backend y ejecutar Actions → Verificar y desplegar Azure dev → Run workflow → main.
-4. Seguir los pasos: subir imagen → acceso temporal PostgreSQL → migraciones → cierre de acceso → revisión nueva → espera → comprobación pública.
+4. Seguir los pasos: probes → subir imagen → acceso temporal PostgreSQL → migraciones → cierre de acceso → revisión nueva → espera → comprobación pública.
 5. Abrir la URL, crear la cuenta del correo Seed__AdminEmail y probar ingreso, roles, sesión, actualización y un reinicio.
 6. Activar DEV_DEPLOY_ENABLED=true en el front. Desde ahí, pushes exitosos de cualquiera de los dos repos actualizan dev.
 
@@ -218,6 +218,7 @@ Si llegan muchos pushes, GitHub ejecuta uno y conserva el último pendiente; no 
 | Checkout / npm ci | Repos públicos/acceso; package-lock; versiones de Node. |
 | Lint / test / build | Código y dependencias. Azure todavía no recibió cambios. |
 | Azure login | IDs, permisos y subject exacto de OIDC/environment. |
+| Probes | Falta Startup o Liveness en /alive, o Readiness en /health, en la Container App ([receta](azure-setup.md#probes)). Azure todavía no recibió cambios. |
 | Subir imagen | AcrPush para GitHub, modo RBAC y nombre de ACR. |
 | Migraciones | Conexión, TLS, firewall y migración. La nueva imagen aún no se activó. |
 | Crear/esperar revisión | AcrPull de la app, variables, certificados, Redis y logs de arranque. |

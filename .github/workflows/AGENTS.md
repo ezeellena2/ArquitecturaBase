@@ -8,6 +8,7 @@ El workflow obtiene ambos repositorios, verifica React y .NET, genera una imagen
 
 - Conservá el orden migración antes de revisión nueva: una migración fallida no debe publicar código contra un esquema incompatible.
 - Incluí todo dist en wwwroot, verificá la integridad del publicado y registrá ambos commits. Un paquete superado por main se omite; no uses latest para elegir la revisión.
+- Antes de subir la imagen, el deploy exige los probes Startup y Liveness en `/alive` y Readiness en `/health`, sin configurarlos.
 - Conservá la exclusión entre despliegues y la espera de la revisión concreta antes de probar salud, SPA y discovery. La pipeline no resetea la base ni crea infraestructura.
 - Los secretos salen de GitHub/Azure; no escribir conexiones o credenciales reales en YAML ni logs. La identidad de Azure usa OIDC.
 - Los valores de conexión de diseño del bundle permiten construir el contexto; no sustituyen las conexiones de ejecución de PostgreSQL y Redis.

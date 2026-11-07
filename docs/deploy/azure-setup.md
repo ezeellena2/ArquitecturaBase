@@ -119,6 +119,60 @@ APP_IDENTITY=$(az containerapp show --resource-group $RG --name $APP --query ide
 az containerapp registry set --resource-group $RG --name $APP --server $ACR.azurecr.io --identity system
 ```
 
+### Probes
+
+Son obligatorios: el workflow no despliega si a la aplicación le falta alguno. En modo Single, Container Apps
+mueve el tráfico a la revisión nueva cuando su readiness responde bien; sin un probe propio, la da por lista apenas el
+puerto acepta conexiones, aunque PostgreSQL o Redis no respondan.
+
+| Probe | Ruta | Para qué |
+|---|---|---|
+| Startup | `/alive` | Da tiempo al arranque: la Api no escucha hasta validar opciones, comprobar migraciones y sembrar, y el seed puede esperar su lock hasta 30 s. Liveness y Readiness esperan a que pase. |
+| Liveness | `/alive` | Reinicia el contenedor si el proceso queda colgado. No consulta PostgreSQL ni Redis a propósito: si lo hiciera, una caída de esas dependencias reiniciaría los contenedores en cadena sin arreglar nada. |
+| Readiness | `/health` | Saca la réplica del tráfico mientras PostgreSQL o Redis no responden. El check de WhatsApp queda en Degraded, que responde 200: un token vencido no corta el tráfico. |
+
+Los probes no se configuran por parámetros de la CLI: hay que exportar el YAML de la
+aplicación, agregarlos y volver a aplicarlo.
+
+```bash
+az containerapp show --resource-group $RG --name $APP --output yaml > app.yaml
+```
+
+Dentro de `properties.template.containers[0]`, agregar:
+
+```yaml
+probes:
+  - type: Startup
+    httpGet: { path: /alive, port: 8080 }
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 3
+    failureThreshold: 10
+  - type: Liveness
+    httpGet: { path: /alive, port: 8080 }
+    periodSeconds: 30
+    timeoutSeconds: 5
+  - type: Readiness
+    httpGet: { path: /health, port: 8080 }
+    periodSeconds: 10
+    timeoutSeconds: 5
+```
+
+```bash
+az containerapp update --resource-group $RG --name $APP --yaml app.yaml
+```
+
+Los valores respetan los límites de Container Apps: `failureThreshold` admite hasta 10 y `timeoutSeconds` vale
+1 s si no se declara ([referencia](https://learn.microsoft.com/en-us/azure/container-apps/health-probes)).
+
+- **Startup** tolera unos 100 s de arranque antes de reiniciar el contenedor.
+- **Readiness** espera 5 s cada respuesta, porque un comando de Redis puede tardar hasta 3 s. Con tres fallos
+  seguidos (30 s) la réplica sale del tráfico; con una sola réplica, la app deja de atender hasta que la
+  dependencia vuelve. Sin Redis ya fallaban casi todos los pedidos de `/api`, porque los permisos pasan por el caché.
+- **Liveness** reinicia después de tres fallos seguidos (90 s).
+
+La imagen de ejemplo no es la Api y puede no pasar estos probes; el primer despliegue la reemplaza.
+
 ## 6. Configuración de la aplicación
 
 La Api fuera de Aspire no recibe nada automáticamente: hay que darle todo. Los valores
@@ -226,7 +280,7 @@ Para dev automático no configurar revisores obligatorios. Eso se decide aparte 
 
 ## 9. Probar
 
-Primero completá recursos, Redis, configuración y permisos. Con ambos workflows en GitHub, verificá build con `DEV_DEPLOY_ENABLED=false`. Después activá el interruptor del backend y ejecutá manualmente en `main`; seguí la corrida en *Actions*. Activá el front cuando funcione la primera publicación. La pipeline comprueba salud, SPA y discovery; todavía hay que probar ingreso y renovación en el navegador.
+Primero completá recursos, [probes](#probes), Redis, configuración y permisos. Con ambos workflows en GitHub, verificá build con `DEV_DEPLOY_ENABLED=false`. Después activá el interruptor del backend y ejecutá manualmente en `main`; seguí la corrida en *Actions*. Activá el front cuando funcione la primera publicación. La pipeline comprueba salud, SPA y discovery; todavía hay que probar ingreso y renovación en el navegador.
 
 La URL de la aplicación:
 
@@ -265,37 +319,3 @@ archivo que exige cada clave, está en la [guía de despliegue](../guides/despli
 Los certificados de OpenIddict ya no están en esta lista: se resuelven con la carga en
 base64 del paso 6. Tampoco las migraciones: las aplica el bundle del pipeline antes de
 desplegar la imagen, y el seed corre solo en cada arranque.
-
-## Probes (opcional)
-
-La aplicación expone `/alive` y `/health` en todos los entornos. Container Apps funciona
-sin configurarlos —da el contenedor por listo cuando el puerto acepta conexiones—, pero
-declararlos mejora dos cosas: no recibir tráfico hasta que PostgreSQL y Redis estén alcanzables (y el check de WhatsApp pase, si está habilitado), y
-reiniciar el contenedor si el proceso queda colgado.
-
-Los probes no se configuran por parámetros de la CLI: hay que exportar el YAML de la
-aplicación, agregarlos y volver a aplicarlo.
-
-```bash
-az containerapp show --resource-group $RG --name $APP --output yaml > app.yaml
-```
-
-Dentro de `properties.template.containers[0]`, agregar:
-
-```yaml
-probes:
-  - type: Liveness
-    httpGet: { path: /alive, port: 8080 }
-    periodSeconds: 30
-  - type: Readiness
-    httpGet: { path: /health, port: 8080 }
-    periodSeconds: 10
-```
-
-```bash
-az containerapp update --resource-group $RG --name $APP --yaml app.yaml
-```
-
-`/alive` no consulta PostgreSQL ni Redis a propósito: si lo hiciera, una caída de esas dependencias marcaría el
-proceso como muerto y Container Apps reiniciaría los contenedores en cadena sin arreglar
-nada.

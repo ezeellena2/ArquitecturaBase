@@ -277,6 +277,22 @@ jobs:
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
+      # Antes de cambiar algo en Azure: sin Readiness, la revisión nueva recibe tráfico aunque no tenga base ni Redis.
+      - name: Exigir los probes de la Container App
+        if: steps.current.outputs.deploy == 'true'
+        run: |
+          probes=$(az containerapp show --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$AZURE_CONTAINER_APP" --query "properties.template.containers[0].probes" --output json)
+          for expected in Startup:/alive Liveness:/alive Readiness:/health; do
+            type=${expected%%:*}
+            path=${expected#*:}
+            if ! jq -e --arg type "$type" --arg path "$path" \
+              'any(.[]?; .type == $type and .httpGet.path == $path)' <<< "$probes" > /dev/null; then
+              echo "::error::Falta el probe $type en $path. Configuralo según docs/deploy/azure-setup.md#probes."
+              exit 1
+            fi
+          done
+
       - name: Subir imagen al registry
         if: steps.current.outputs.deploy == 'true'
         run: |
