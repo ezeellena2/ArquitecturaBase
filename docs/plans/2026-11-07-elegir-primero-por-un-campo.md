@@ -1,6 +1,6 @@
 # Elegir primero por un campo: un combo que filtra el siguiente
 
-Decidido el 2026-11-07, sin programar. Una pregunta de catálogo puede pedir primero el valor de un campo del mismo catálogo,
+Decidido el 2026-11-07, con el backend hecho. Una pregunta de catálogo puede pedir primero el valor de un campo del mismo catálogo,
 como «Rubro», y después listar sólo las opciones con ese valor. Lo pidió el usuario en el editor de «Prueba renglones 2»: la
 pregunta «Artículos», adentro del bloque, tenía «Tipo» fijo en Agroquímicos y 125 opciones, y quería elegir primero
 «Herbicidas» y que la lista trajera sólo esos artículos, «en vez de mostrar el listado completo y filtrarlo». Las reglas de
@@ -127,7 +127,7 @@ borró el Flow. LD2-A queda confirmada:
 
 1. **La prueba con Meta**, sin código de la app: hecha el 2026-11-07.
 2. **El backend:** el borrador y su validación, publicar, la descripción de la carga (los valores) y las opciones con el
-   valor, corregir, los textos es/en y sus tests (TDD). Hecho el 2026-11-07: la regla quedó en
+   valor, corregir, los textos es/en y sus tests (TDD). Hecho el 2026-11-07 (78c9eca2): la regla quedó en
    [formularios](../features/formularios.md#elegir-primero-por-un-campo--ld1-a-2026-11-07), con las rutas `…/groups` de la
    carga y de la corrección y tres capturas para la cohorte de la carga. El resumen por valor del editor («en 3 rubros. El más
    grande tiene 75») va con el corte de WhatsApp, porque es el tope de 200 por valor.
