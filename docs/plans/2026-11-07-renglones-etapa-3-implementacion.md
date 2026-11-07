@@ -312,8 +312,11 @@ permiso.
 
 ### Tarea 7 · El front: contrato y modelo
 
-- [ ] Esperar que la sesión de la Etapa 2 haya commiteado el front que toque los mismos archivos, revisar `git status` y
-  pedirle permiso al usuario para editar el `src` del front.
+- [x] Esperar que la sesión de la Etapa 2 haya commiteado el front que toque los mismos archivos, revisar `git status` y
+  pedirle permiso al usuario para editar el `src` del front. El usuario lo dio el 2026-11-07. Hecha en aba058bc: el
+  contrato, el modelo (`responseRowsSummary`, `responseQuestionColumns`) y WhatsApp (`formatFormReplyItem`), con
+  `rowsRead.test.ts`, `formRepliesRows.test.ts` y los casos de `responses.test.ts` y `formReplyValue.test.ts`; los fixtures
+  que arman el detalle desde la planilla convierten la celda del bloque (`detailValue`).
 - [ ] `api/responses.ts`:
   - el tipo `group` en columnas, celdas y valores, con `questions` sólo en el bloque y sólo con los tipos que entran en
     un ítem;
@@ -326,22 +329,28 @@ permiso.
 
 ### Tarea 8 · El front: la planilla y «Filtros»
 
-- [ ] La columna del bloque en `FormResponsesPage` («3 · …», sin ordenar) y en «Columnas».
-- [ ] `FilterPanel` con el encabezado de grupo y la línea gris, más su ficha en el estándar visual.
-- [ ] `ResponseFiltersMenu` con las preguntas del bloque debajo de su nombre y «En algún ítem de {bloque}».
-- [ ] Textos es y en en `forms.json`.
-- [ ] Tests: `FormResponsesPage.rows.test.tsx`, `ResponseFiltersMenu.rows.test.tsx` y el de `FilterPanel`.
-- [ ] Escena visual `responsesRows`: la planilla y «Filtros», es y en, a 1440, 390 y 320.
-- [ ] Commit en el front: `feat(formularios): la planilla muestra el bloque y filtra por algún ítem`.
+- [x] La columna del bloque en `FormResponsesPage` («3 · …», sin ordenar, en `ResponseValue`) y en «Columnas», que ya la
+  trae como una columna más.
+- [x] `FilterPanel` con el encabezado de grupo (`group`) y la línea gris (`note`), descriptos en su guía de `shared/ui`.
+- [x] `ResponseFiltersMenu` con las preguntas del bloque debajo de su nombre y «En algún ítem de {bloque}».
+- [x] Textos es y en en `forms.json` (`responses.inSomeItem`).
+- [x] Tests: `FormResponsesPage.rows.test.tsx`, `ResponseFiltersMenu.rows.test.tsx` y `FilterPanel.test.tsx`.
+- [ ] Escena visual `responsesRows`: la planilla y «Filtros», es y en, a 1440, 390 y 320. Va con la corrida de
+  `test:visual` del cierre.
+- [x] Commit en el front: `feat(formularios): la planilla muestra el bloque y filtra por algún ítem` (8fbd531f).
 
 ### Tarea 9 · El front: vista rápida, pantalla completa, diseño del PDF y chat
 
-- [ ] Los ítems en D2 (`ResponseRowsValue`, con la forma de `CapturedFields`) y la tabla de DC1, desde `ResponseAnswer`.
-- [ ] La página del diseño del PDF con el bloque y sin sus preguntas.
-- [ ] La tarjeta del chat (`FormReplyValues`) con un ítem por línea.
-- [ ] Tests: `ResponseDetail.rows.test.tsx`, `FormPdfDesignPage.test.tsx` y `FormReplyValues.rows.test.tsx`.
+- [x] Los ítems en D2 (`ResponseRowsList`, con la forma de `CapturedFields`) y la tabla de DC1 (`ResponseRowsTable`, con
+  `WideTable`), en `ResponseRows.tsx` y desde `ResponseAnswer`; cada respuesta de un ítem se muestra con `ResponseValue`.
+- [x] La página del diseño del PDF con el bloque y sin sus preguntas; una que eligió un diseño viejo aparece como
+  «Pregunta retirada», para poder destildarla.
+- [x] La tarjeta del chat (`FormReplyValues`) con un ítem por línea.
+- [x] Tests: `ResponseAnswer.rows.test.tsx`, el caso nuevo de `FormPdfDesignPage.test.tsx` (escrito después del cambio,
+  que era de dos líneas) y `FormReplyValues.rows.test.tsx`.
 - [ ] Escenas `responsesRows` (D2 y DC1), `chatForms` con el bloque y `formPdf` con el bloque, es y en, a 1440, 390 y 320.
-- [ ] Commit en el front: `feat(formularios): el detalle y el chat muestran los ítems del bloque`.
+  Van con la corrida de `test:visual` del cierre.
+- [x] Commit en el front: `feat(formularios): el detalle y el chat muestran los ítems del bloque`.
 
 ### Tarea 10 · Cierre
 
