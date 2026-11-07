@@ -347,11 +347,17 @@ su clase. Otras sesiones trabajan en el mismo checkout: se preparan sólo los ar
 
 ### Tarea 8 · El front: la página, el panel y el celular
 
-- [ ] `FormEntryForm`, `useEntryEditor`, `FormEntryPage`, `FormEntryPanel`, `FormEntryCorrectionPage` y `FormEntrySent`, con
+- [x] `FormEntryForm`, `useEntryEditor`, `FormEntryPage`, `FormEntryPanel`, `FormEntryCorrectionPage` y `FormEntrySent`, con
   los textos es/en (`formEntries.json`).
-- [ ] Tests (`FormEntryRows.test.tsx`, `FormEntryPanel.rows.test.tsx`, la corrección) y la escena visual `formEntryRows`, es/en
+- [x] Tests (`FormEntryRows.test.tsx`, `FormEntryPanel.rows.test.tsx`, la corrección) y la escena visual `formEntryRows`, es/en
   a 1440, 390 y 320, más el panel, sin scroll de la página.
-- [ ] Commit en el front: `feat(formularios): la carga desde la app con la tabla de renglones`.
+- [x] Commit en el front: `feat(formularios): la carga desde la app con la tabla de renglones`.
+
+  Hecho (front 9c0a7210): las páginas y el panel no cambiaron; el bloque es `EntryBlock` dentro de `FormEntryForm`, tabla
+  donde la zona tiene columnas y recuadros en una columna (el panel y el celular), y la corrección lo abre con sus ítems
+  en orden. El error del servidor `answers.<bloque>.<n>.<pregunta>` es la misma clave que el problema del ítem
+  (`entryItemPath`); el primero en el orden del formulario (`entryProblemKeys`) se lleva el foco y el aviso lo nombra
+  «Artículos · Ítem 2 · Cantidad». La escena usa dos escenarios nuevos, `entries-rows` y `responses-app-rows`.
 
 ### Tarea 9 · El front: publicar y el editor
 
