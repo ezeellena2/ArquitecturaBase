@@ -10,7 +10,7 @@ if ($null -eq $mergeAst) { throw "The exporter does not define its capture merge
 . ([scriptblock]::Create($mergeAst.Extent.Text))
 $testRoot = Join-Path $backendRoot (".artifacts/assistant-validation/exporter-script-tests/" + [Guid]::NewGuid().ToString("N"))
 $baseNames = @("choices-forbidden", "choices", "preparation", "manifest", "outgoing-accepted", "outgoing-failed", "outgoing-pending", "outgoing-uncertain", "send-before-failed", "send-before-uncertain", "send-context-changed", "send-pending", "send-version-unavailable", "thread-accepted", "thread-before-send", "thread-failed", "thread-pending", "thread-reloaded", "thread-uncertain")
-$replyNames = @("reply-all-states", "reply-completed", "reply-inbox-read", "reply-inbox-without-read", "reply-latest-page", "reply-multiple-choice", "reply-older-page", "reply-pending", "reply-rejected", "reply-reloaded", "reply-unrecognized", "reply-without-read")
+$replyNames = @("reply-all-states", "reply-completed", "reply-inbox-read", "reply-inbox-without-read", "reply-latest-page", "reply-multiple-choice", "reply-older-page", "reply-pending", "reply-rejected", "reply-reloaded", "reply-rows", "reply-unrecognized", "reply-without-read")
 $privacyNames = @("thread-read-only", "thread-send-with-users-read", "thread-send-without-users-read")
 $originalPresentationNames = @("original-only-choices", "original-only-preparation", "original-only-receipt", "original-only-history", "empty-secondary-choices", "empty-secondary-preparation", "empty-secondary-receipt", "empty-secondary-history")
 function Assert-Condition([bool]$Condition, [string]$Message) { if (-not $Condition) { throw $Message } }
@@ -59,8 +59,8 @@ foreach ($case in @("Configuration", "Merge", "Missing", "Collision")) {
                 $responses = @($cohorts | Where-Object { $_.Name -eq "responses" })[0]
                 $pdf = @($cohorts | Where-Object { $_.Name -eq "pdf" })[0]
                 $definitions = @($cohorts | Where-Object { $_.Name -eq "forms" })[0]
-                Assert-Condition ($responses.RequiredNames.Count -eq 55) "Responses must preserve the prior artifacts and add ten captured extra-field artifacts."
-                Assert-Condition ($pdf.RequiredNames.Count -eq 32) "PDF must preserve twenty-eight artifacts and add four multiple-choice artifacts."
+                Assert-Condition ($responses.RequiredNames.Count -eq 63) "Responses must preserve the prior artifacts, ten captured extra-field artifacts and eight rows artifacts."
+                Assert-Condition ($pdf.RequiredNames.Count -eq 36) "PDF must preserve twenty-eight artifacts and add four multiple-choice and four rows artifacts."
                 Assert-Condition ($definitions.RequiredNames.Count -eq 67) "Definitions must preserve the prior bodies, sixteen recipient filter bodies and three rows bodies."
                 foreach ($culture in @("es", "en")) {
                     foreach ($name in @("sheet", "detail", "counts")) { Assert-Condition ("multi-$name-$culture.json" -in $responses.RequiredNames) "A multiple-choice response capture is missing." }
@@ -148,7 +148,7 @@ foreach ($case in @("Configuration", "Merge", "Missing", "Collision")) {
                 Assert-Condition (($captureRoot + "Modules/BusinessForms/ControlledFormChannelStateSource.cs") -in $lifecycle.Sources) "The controlled local channel source SHA must be included."
                 $forms = @($cohorts | Where-Object { $_.Name -eq "whatsapp-forms" })[0]
                 $expected = @(@("es", "en") | ForEach-Object { $culture = $_; @($baseNames + $replyNames + $privacyNames) | ForEach-Object { "$culture/$_.json" } }) + @($originalPresentationNames | ForEach-Object { "en/$_.json" })
-                Assert-Condition ($forms.RequiredNames.Count -eq 76) "The canonical WhatsApp form inventory must contain all seventy-six captures."
+                Assert-Condition ($forms.RequiredNames.Count -eq 78) "The canonical WhatsApp form inventory must contain all seventy-eight captures."
                 Assert-Condition (@(Compare-Object $expected $forms.RequiredNames).Count -eq 0) "The canonical capture names differ."
                 Assert-Condition (($sourceRoot + "WhatsApp/WhatsAppFormReplyAppPreviewTests.cs") -in $forms.Sources) "Reply producer SHA must be included."
                 Assert-Condition (($sourceRoot + "WhatsApp/WhatsAppMultipleChoiceCompositionTests.cs") -in $forms.Sources) "The real multiple-choice composition producer SHA must be included."
@@ -163,7 +163,7 @@ foreach ($case in @("Configuration", "Merge", "Missing", "Collision")) {
                 $before = @{}
                 Get-ChildItem -LiteralPath $paths.Destination -File -Recurse | ForEach-Object { $before[$_.FullName] = (Get-FileHash -LiteralPath $_.FullName).Hash }
                 Merge-WhatsAppFormCaptures $paths.Replies $paths.Privacy $paths.Destination
-                Assert-Condition (@(Get-ChildItem -LiteralPath $paths.Destination -File -Recurse).Count -eq 76) "Merge must add exactly twenty-four replies and six privacy bodies."
+                Assert-Condition (@(Get-ChildItem -LiteralPath $paths.Destination -File -Recurse).Count -eq 78) "Merge must add exactly twenty-six replies and six privacy bodies."
                 foreach ($path in $before.Keys) { Assert-Condition ((Get-FileHash -LiteralPath $path).Hash -eq $before[$path]) "Existing C1 bytes, including choices, must remain unchanged." }
                 foreach ($culture in @("es", "en")) {
                     foreach ($name in $replyNames) { Assert-Condition ((Get-FileHash -LiteralPath (Join-Path $paths.Replies "$culture/$name.json")).Hash -eq (Get-FileHash -LiteralPath (Join-Path $paths.Destination "$culture/$name.json")).Hash) "Reply bytes changed during merge." }

@@ -285,10 +285,15 @@ permiso.
 
 ### Tarea 5 · La respuesta con ítems en el chat
 
-- [ ] Integración en `WhatsAppFormReplyAppPreviewTests`, o el productor de `whatsapp-forms-http` que corresponda: el hilo
-  trae la respuesta con el bloque y sus ítems, sin campos del catálogo, es y en, con captura `reply-rows`.
-- [ ] Si algo del canal no deja pasar el bloque, arreglarlo ahí, sin que WhatsApp nombre a BusinessForms.
-- [ ] Commit: `test(whatsapp): la respuesta con renglones llega al chat con sus ítems`, o `feat` si hubo código.
+- [x] Integración en `WhatsAppRowsCompositionTests`, la composición de la Etapa 2 que ya manda el formulario por el chat y
+  recibe tres ítems por el webhook firmado: el hilo trae la respuesta con el bloque y sus ítems, es y en, con captura
+  `reply-rows` en `whatsapp-forms-http`. Que los ítems no llevan los campos del catálogo lo prueba
+  `FormRecordRowsPresentationTests` con la lectura del chat (`includeCatalogFields: false`).
+- [x] El canal deja pasar el bloque tal cual: no hizo falta código.
+- [x] El exportador suma `reply-rows` a las respuestas que une y a su inventario, y su autotest pasa a 63 respuestas,
+  36 del PDF y 78 de WhatsApp. El autotest ya fallaba antes de esta etapa en «Definitions» (pide 67 y `forms-http` tiene
+  70): queda como pendiente de quien sumó esas capturas.
+- [x] Commit: `test(whatsapp): la respuesta con renglones llega al chat con sus ítems`.
 
 ### Tarea 6 · Revisión del backend
 

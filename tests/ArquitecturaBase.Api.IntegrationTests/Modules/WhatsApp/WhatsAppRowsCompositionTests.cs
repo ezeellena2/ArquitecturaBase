@@ -232,5 +232,33 @@ public sealed partial class WhatsAppFormSendingTests
         Assert.Equal(2, reply.Values.Count);
         Assert.Equal("Proveedor del norte", reply.Values[0].Value);
         Assert.Equal(3, Assert.IsAssignableFrom<IReadOnlyList<StructuredRecordReadRow>>(reply.Values[1].Value).Count);
+
+        // The card of the chat brings the block with its items, in the language of whoever reads it.
+        foreach (var culture in new[] { "es", "en" })
+        {
+            author.DefaultRequestHeaders.AcceptLanguage.Clear();
+            author.DefaultRequestHeaders.AcceptLanguage.ParseAdd(culture);
+            using var thread = await author.GetAsync($"/api/whatsapp/chats/{contactId}/messages", Ct);
+            Assert.Equal(HttpStatusCode.OK, thread.StatusCode);
+            var bytes = await thread.Content.ReadAsByteArrayAsync(Ct);
+            using var captured = JsonDocument.Parse(bytes);
+            var card = captured.RootElement.GetProperty("messages").EnumerateArray()
+                .Where(message => message.TryGetProperty("formReply", out var value) && value.ValueKind == JsonValueKind.Object
+                    && value.TryGetProperty("recordId", out var recordId) && recordId.ValueKind == JsonValueKind.String && recordId.GetGuid() == reply.RecordId)
+                .Select(message => message.GetProperty("formReply")).First();
+            var block = Assert.Single(card.GetProperty("values").EnumerateArray(), value => value.GetProperty("type").GetString() == "group");
+            Assert.Equal(culture == "es" ? "Artículos" : "Items", block.GetProperty("label").GetString());
+            var items = block.GetProperty("value").EnumerateArray().ToArray();
+            Assert.Equal(["200.5", "100", "7"], items.Select(item => item.GetProperty("values")[0].GetProperty("value").GetString()));
+            Assert.All(items, item => Assert.Equal(culture == "es" ? "Litros" : "Liters",
+                item.GetProperty("values")[1].GetProperty("value").GetProperty("label").GetString()));
+            var output = Environment.GetEnvironmentVariable("WHATSAPP_FORM_REPLIES_HTTP_OUTPUT");
+            if (!string.IsNullOrWhiteSpace(output))
+            {
+                var directory = Path.Combine(output, culture);
+                Directory.CreateDirectory(directory);
+                await File.WriteAllBytesAsync(Path.Combine(directory, "reply-rows.json"), bytes, Ct);
+            }
+        }
     }
 }

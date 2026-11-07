@@ -72,6 +72,19 @@ public sealed class FormRecordRowsPresentationTests
     }
 
     [Fact]
+    public void The_items_leave_out_the_catalog_fields_for_a_reader_that_does_not_take_them_like_the_chat()
+    {
+        var fields = FormDraftPolicy.Serialize(new[] { new FormCatalogCapturedField(Guid.NewGuid(), "days",
+            new Dictionary<string, string> { ["es"] = "Días" }, "integer", "data", JsonSerializer.SerializeToElement(30)) });
+        var stored = Stored(new[] { Item(First, 1m) }, Reference(First, "Primero", 0) with { FieldValuesJson = fields });
+        static StructuredRecordChoiceValue Choice(StructuredRecordReadReply reply) => Assert.IsType<StructuredRecordChoiceValue>(
+            Assert.IsAssignableFrom<IReadOnlyList<StructuredRecordReadRow>>(reply.Values[1].Value)[0].Values[0].Value);
+
+        Assert.NotNull(Choice(FormRecordPresentationPolicy.Project(stored, "es", Schema)).Fields);
+        Assert.Null(Choice(FormRecordPresentationPolicy.Project(stored, "es", Schema, includeCatalogFields: false)).Fields);
+    }
+
+    [Fact]
     public void A_rule_message_that_names_the_block_leaves_it_empty_until_the_rules_read_its_items()
     {
         var stored = Stored(new[] { Item(First, 1m) }, Reference(First, "Primero", 0));
