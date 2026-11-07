@@ -18,6 +18,12 @@ internal sealed class BusinessFormRecordConfiguration : IEntityTypeConfiguration
         // A correction keeps the number of the response it replaces: the number is unique among the responses as they
         // arrived, and each one is replaced at most once, so a chain has a single current version.
         builder.HasIndex(value => new { value.DefinitionId, value.Number }).IsUnique().HasFilter("\"ReplacesRecordId\" IS NULL");
+        // The table, the overview and the last response read the current ones (ReplacedByRecordId IS NULL) by number. The
+        // unique index above filters the originals and cannot serve them: without this one, each sorts the whole form.
+        builder.HasIndex(value => new { value.DefinitionId, value.Number }, "IX_BusinessFormRecords_Current_DefinitionId_Number")
+            .HasFilter("\"ReplacedByRecordId\" IS NULL");
+        // Whoever only loads sees their own responses, and the person facet counts each actor's.
+        builder.HasIndex(value => new { value.DefinitionId, value.ActorUserId, value.Number });
         builder.HasIndex(value => value.ReplacesRecordId).IsUnique().HasFilter("\"ReplacesRecordId\" IS NOT NULL");
         builder.HasIndex(value => value.ReplacedByRecordId).IsUnique().HasFilter("\"ReplacedByRecordId\" IS NOT NULL");
         builder.HasOne<BusinessFormRecord>().WithMany().HasForeignKey(value => value.ReplacesRecordId).OnDelete(DeleteBehavior.Restrict);

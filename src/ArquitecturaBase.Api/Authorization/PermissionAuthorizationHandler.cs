@@ -17,13 +17,12 @@ internal sealed class PermissionAuthorizationHandler(ICurrentUser currentUser, I
             return;
         }
 
-        foreach (var permission in requirement.Permissions)
+        // Una lectura por requisito: preguntar permiso por permiso repetiría la consulta de roles por cada alternativa.
+        var granted = await permissionService.GetPermissionsAsync(userId, cancellationToken);
+
+        if (requirement.Permissions.Any(permission => granted.Contains(permission)))
         {
-            if (await permissionService.HasPermissionAsync(userId, permission, cancellationToken))
-            {
-                context.Succeed(requirement);
-                return;
-            }
+            context.Succeed(requirement);
         }
     }
 }

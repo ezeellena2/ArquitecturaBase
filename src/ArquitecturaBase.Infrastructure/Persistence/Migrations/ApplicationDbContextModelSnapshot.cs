@@ -63,7 +63,7 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("OccurredAtUtc");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("UserId", "OccurredAtUtc");
 
                     b.ToTable("LoginAudits");
                 });
@@ -2157,6 +2157,11 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.HasIndex("DefinitionId", "RuleSetId");
 
                     b.HasIndex("DefinitionId", "VersionId");
+
+                    b.HasIndex("DefinitionId", "ActorUserId", "Number");
+
+                    b.HasIndex(new[] { "DefinitionId", "Number" }, "IX_BusinessFormRecords_Current_DefinitionId_Number")
+                        .HasFilter("\"ReplacedByRecordId\" IS NULL");
 
                     b.ToTable("BusinessFormRecords", null, t =>
                         {

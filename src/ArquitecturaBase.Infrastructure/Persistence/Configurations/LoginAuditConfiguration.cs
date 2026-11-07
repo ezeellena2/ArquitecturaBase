@@ -21,6 +21,8 @@ internal sealed class LoginAuditConfiguration : IEntityTypeConfiguration<LoginAu
         builder.Property(audit => audit.UserAgent).HasMaxLength(LoginAudit.MaxUserAgentLength);
 
         builder.HasIndex(audit => audit.OccurredAtUtc);
-        builder.HasIndex(audit => audit.UserId);
+        // El último ingreso de la sesión (GET /api/me) busca por persona y fecha. Sólo con la fecha, recorre los ingresos
+        // de todos desde el último de esa persona.
+        builder.HasIndex(audit => new { audit.UserId, audit.OccurredAtUtc });
     }
 }

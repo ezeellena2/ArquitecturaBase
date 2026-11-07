@@ -41,6 +41,19 @@ public sealed class HasAnyPermissionAttributeTests
     }
 
     [Fact]
+    public async Task A_requirement_with_several_alternatives_reads_the_permissions_once()
+    {
+        var fixture = new PermissionAuthorizationFixture(Permissions.Settings.Manage);
+        var requirement = new PermissionRequirement([Permissions.Users.Read, Permissions.Roles.Manage, Permissions.Roles.Read]);
+        var context = new AuthorizationHandlerContext([requirement], new ClaimsPrincipal(), null);
+
+        await new PermissionAuthorizationHandler(fixture, fixture).HandleAsync(context);
+
+        Assert.False(context.HasSucceeded);
+        Assert.Equal(1, fixture.Reads);
+    }
+
+    [Fact]
     public async Task Separate_attributes_still_require_every_requirement()
     {
         var fixture = new PermissionAuthorizationFixture(Permissions.Users.Read);
