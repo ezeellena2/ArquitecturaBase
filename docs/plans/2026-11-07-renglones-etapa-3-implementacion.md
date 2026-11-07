@@ -28,6 +28,8 @@ con MSW y Playwright.
 guarda: los valores con su renglón, su migración y la captura. No se programa hasta que el backend de esa etapa esté
 commiteado.
 
+**Visto bueno:** el usuario aprobó este plan el 2026-11-07, con lo que el tablero no fija resuelto como dice abajo.
+
 ---
 
 ## Lo que pone la Etapa 2
