@@ -75,6 +75,8 @@ internal sealed partial class SaveFormDraftRequestValidator : AbstractValidator<
                     if (field.Options is not null) Fail(path + ".options");
                     if (!Services.FormCatalogMatchPolicy.HasValidShape(field.Source.Match)) Fail(path + ".source.match");
                     if (!Services.FormCatalogPresentationPolicy.HasValidShape(field.Source.Presentation)) Fail(path + ".source.presentation");
+                    // LD1-A: the field to choose first is a catalog field; a multiple choice does not have it.
+                    if (field.Source.GroupBy == Guid.Empty || (field.Source.GroupBy is not null && field.Type == "multiChoice")) Fail(path + ".source.groupBy");
                     continue;
                 }
                 if (field.Options is null || field.Options.Count < 1 || field.Options.Count > (field.Type == "multiChoice" ? 20 : 50)) { Fail(path + ".options"); continue; }

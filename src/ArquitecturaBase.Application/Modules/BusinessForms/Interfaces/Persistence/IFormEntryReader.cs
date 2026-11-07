@@ -12,6 +12,12 @@ public interface IFormEntryReader
     /// <summary>Active options of a Manual catalog that pass the containment, searched by texts, details and code, in their order.</summary>
     Task<PagedResult<FormCatalogStoredItemRow>> ListItemsAsync(FormEntryItemsQuery query, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// The values a field has among the active options of a Manual catalog that pass the containment, as text, with how many
+    /// options have each (LD1-A); the options without a value come together, with a null value. Unordered.
+    /// </summary>
+    Task<IReadOnlyList<FormEntryGroupRow>> ListGroupsAsync(Guid catalogId, string? containment, Guid fieldId, CancellationToken cancellationToken);
+
     /// <summary>People of a Filters catalog for the person who loads, searched by the shown texts, in the catalog's order.</summary>
     Task<PagedResult<FormCatalogFilterOptionResponse>> ListPeopleAsync(Guid recipientUserId, FormCatalogFilterDefinition filters,
         FormEntryItemsQuery query, CancellationToken cancellationToken);

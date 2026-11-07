@@ -55,9 +55,16 @@ internal sealed class FormPublicationGuard(FormPublicationAccessGuard accessGuar
             if (catalog.Kind != "Manual")
             {
                 if (matches is { Count: > 0 } || source.Presentation is not null) Issue(FormPublicationErrors.MatchInvalid, ".match");
+                if (source.GroupBy is not null) Issue(FormPublicationErrors.GroupByInvalid, ".groupBy");
                 continue;
             }
             var fields = FormCatalogFieldPolicy.ReadFields(catalog.FieldsJson);
+            // LD1-A: the value chosen first is that of an active text or catalog field of the same catalog, whatever its role.
+            if (source.GroupBy is { } groupBy && fields.SingleOrDefault(field => field.Id == groupBy) is not { IsActive: true, Type: "text" or "catalog" })
+            {
+                Issue(FormPublicationErrors.GroupByInvalid, ".groupBy");
+                continue;
+            }
             if (matches?.Any(match => match.PersonAttributeId is not null) == true)
                 attributes ??= await people.ListAttributesAsync(ct);
             if ((FormCatalogMatchPolicy.Validate(matches, fields, attributes ?? [])

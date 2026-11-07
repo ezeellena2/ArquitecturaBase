@@ -13,22 +13,23 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 /// for the person who loads, and nothing is sealed until sending: then the offer holds only the chosen options, checked
 /// again against those filters.
 /// </summary>
-internal sealed class FormEntryCatalogPolicy(FormCatalogOptionsPolicy options, IFormEntryReader reader)
+internal sealed class FormEntryCatalogPolicy(FormCatalogOptionsPolicy options, IFormEntryReader reader, IFormCatalogReader catalogs)
 {
     public async Task<(FormEntryCatalogResponse Catalog, FormPersonRecipientDataRow? PersonData)> DescribeAsync(Guid recipient,
         CanonicalFormField question, string culture, FormPersonRecipientDataRow? personData, CancellationToken ct)
     {
         var source = await options.ResolveAsync(recipient, question, personData, ct);
+        var groupBy = await GroupByAsync(question, culture, ct);
         // A list that depends on other answers waits for them: what it can offer is known only once they are chosen.
         if (source.Issue == FormRecordErrors.CatalogDependsOnAnswer.Code)
             return (new(null, null, null) { DependsOn = question.Source!.Match!.Where(match => match.QuestionId is not null)
-                .Select(match => match.QuestionId!.Value).Distinct().ToArray() }, source.PersonData);
+                .Select(match => match.QuestionId!.Value).Distinct().ToArray(), GroupBy = groupBy }, source.PersonData);
         if (source.Issue is { } issue) return (new(null, issue, source.MissingData), source.PersonData);
         var page = await PageAsync(recipient, source, new(source.Catalog!.Id, source.Containment, null, null, 1, 2, culture), culture, ct);
         if (page.TotalCount == 0 && question.Required) return (new(null, FormRecordErrors.CatalogEmpty.Code, null), source.PersonData);
         if (question.Selection is { } selection && page.TotalCount < selection.MinSelected)
             return (new(null, FormRecordErrors.CatalogInsufficientOptions.Code, null), source.PersonData);
-        return (new(page.TotalCount == 1 ? page.Items[0] : null, null, null), source.PersonData);
+        return (new(page.TotalCount == 1 ? page.Items[0] : null, null, null) { GroupBy = groupBy }, source.PersonData);
     }
 
     public async Task<Result<PagedResult<FormEntryOptionResponse>>> ListAsync(Guid recipient, CanonicalFormField question, string culture,
@@ -36,8 +37,42 @@ internal sealed class FormEntryCatalogPolicy(FormCatalogOptionsPolicy options, I
     {
         var source = await options.ResolveAsync(recipient, question, null, ct, request.Answers);
         if (source.Issue is { } issue) return Blocking(issue);
-        return await PageAsync(recipient, source, new(source.Catalog!.Id, source.Containment,
-            string.IsNullOrWhiteSpace(request.Search) ? null : request.Search.Trim(), null, request.Page, request.PageSize, culture), culture, ct);
+        var containment = source.Containment;
+        string? without = null;
+        // LD1-A: the value chosen first is one more filter, on the field the question chooses first by.
+        if (question.Source!.GroupBy is { } groupBy && source.Catalog!.Kind == "Manual")
+        {
+            if (request.WithoutGroup) without = groupBy.ToString("D");
+            else if (request.Group is { } group)
+            {
+                containment = FormCatalogGroupPolicy.Containment(containment, groupBy, group);
+                if (containment is null) return new PagedResult<FormEntryOptionResponse>([], request.Page, request.PageSize, 0);
+            }
+        }
+        return await PageAsync(recipient, source, new(source.Catalog!.Id, containment,
+            string.IsNullOrWhiteSpace(request.Search) ? null : request.Search.Trim(), null, request.Page, request.PageSize, culture, without), culture, ct);
+    }
+
+    /// <summary>LD1-A: the values the options of the question have in the field it chooses first by, after its filters.</summary>
+    public async Task<Result<FormEntryGroupsResponse>> ListGroupsAsync(Guid recipient, CanonicalFormField question, string culture,
+        ListFormEntryGroupsRequest request, CancellationToken ct)
+    {
+        var source = await options.ResolveAsync(recipient, question, null, ct, request.Answers);
+        if (source.Issue is { } issue) return Blocking(issue);
+        var field = source.Fields.SingleOrDefault(value => value.Id == question.Source!.GroupBy);
+        if (source.Catalog!.Kind != "Manual" || field is null) return FormRecordErrors.CatalogFilterUnavailable;
+        var rows = await reader.ListGroupsAsync(source.Catalog.Id, source.Containment, field.Id, ct);
+        var sourceItems = field.Type == "catalog" && field.SourceCatalogId is { } sourceId ? await catalogs.ListAllItemsAsync(sourceId, ct) : [];
+        return new FormEntryGroupsResponse(FormCatalogGroupPolicy.Present(field, rows, sourceItems, culture));
+    }
+
+    // The field a question chooses first by, named in the content language; none if its catalog no longer has it.
+    private async Task<FormEntryGroupByResponse?> GroupByAsync(CanonicalFormField question, string culture, CancellationToken ct)
+    {
+        if (question.Source?.GroupBy is not { } groupBy || await catalogs.FindAsync(question.Source.Catalog!.Value, ct) is not { Kind: "Manual" } catalog)
+            return null;
+        var field = FormCatalogFieldPolicy.ReadFields(catalog.FieldsJson).SingleOrDefault(value => value.Id == groupBy);
+        return field is null ? null : new(field.Id, FormRecordPresentationPolicy.Text(field.Name, culture));
     }
 
     /// <summary>The offer of each answered catalog question with only the chosen options, still active and within the filters.</summary>

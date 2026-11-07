@@ -77,6 +77,7 @@ public static class BusinessFormsApplicationRegistration
         services.TryAddScoped<FormEntryRecorder>();
         services.TryAddScoped<IFormEntryService, FormEntryService>();
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<ListFormEntryOptionsRequest>, ListFormEntryOptionsRequestValidator>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<ListFormEntryGroupsRequest>, ListFormEntryGroupsRequestValidator>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<SubmitFormEntryRequest>, SubmitFormEntryRequestValidator>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<CorrectFormEntryRequest>, CorrectFormEntryRequestValidator>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<VoidFormRecordRequest>, VoidFormRecordRequestValidator>());

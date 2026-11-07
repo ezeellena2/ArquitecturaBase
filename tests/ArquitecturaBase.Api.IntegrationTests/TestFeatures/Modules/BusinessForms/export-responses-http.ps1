@@ -60,8 +60,8 @@ $cohorts = @(
             "overview-create-es.json", "overview-create-en.json", "option-unavailable-es.json", "version-changed-es.json", "unavailable-es.json",
             "entry-depends-es.json", "options-depends-es.json", "correction-es.json", "correction-en.json", "corrected-es.json",
             "sheet-corrected-es.json", "detail-corrected-es.json", "detail-corrected-en.json", "detail-replaced-es.json",
-            "sheet-voided-es.json", "detail-voided-es.json", "entry-sections-es.json");
-        Sources = @(($sourceRoot + "BusinessForms/FormEntryHttpTests.cs"), ($sourceRoot + "BusinessForms/FormEntryDependentListHttpTests.cs"), ($sourceRoot + "BusinessForms/FormRecordAmendmentHttpTests.cs"), ($sourceRoot + "BusinessForms/FormEntrySectionHttpTests.cs"), ($captureRoot + "Modules/BusinessForms/FormRecipientScenario.cs"), ($captureRoot + "Modules/BusinessForms/FormEntryContractCapture.cs")) },
+            "sheet-voided-es.json", "detail-voided-es.json", "entry-sections-es.json", "entry-groupby-es.json", "groups-es.json", "options-group-es.json");
+        Sources = @(($sourceRoot + "BusinessForms/FormEntryHttpTests.cs"), ($sourceRoot + "BusinessForms/FormEntryDependentListHttpTests.cs"), ($sourceRoot + "BusinessForms/FormRecordAmendmentHttpTests.cs"), ($sourceRoot + "BusinessForms/FormEntrySectionHttpTests.cs"), ($sourceRoot + "BusinessForms/FormEntryGroupByHttpTests.cs"), ($captureRoot + "Modules/BusinessForms/FormRecipientScenario.cs"), ($captureRoot + "Modules/BusinessForms/FormEntryContractCapture.cs")) },
     @{ Name = "rules"; Environment = "FORM_RULES_HTTP_OUTPUT"; Destination = "forms-rules-http";
         Sources = @(($sourceRoot + "BusinessForms/FormRuleHttpTests.cs"), ($captureRoot + "Modules/BusinessForms/FormRuleContractCapture.cs")) },
     @{ Name = "workflow"; Environment = "FORM_WORKFLOW_HTTP_OUTPUT"; Destination = "forms-workflow-http";

@@ -46,9 +46,9 @@ internal sealed class FormEntryFixture : IFormEntryReader, IBusinessFormRecordCa
     public FormEntryOutcomeRow Outcome { get; set; } = new(new DateTime(2026, 10, 30, 13, 58, 0, DateTimeKind.Utc), "Received", false);
 
     public FormEntryFixture(bool filtered = false, bool required = true, string questionType = "choice", FormSelectionSettings? selection = null,
-        bool dependsOnAnswer = false)
+        bool dependsOnAnswer = false, string? groupBy = null)
     {
-        Catalogs = new(filtered, required, questionType: questionType, selection: selection, dependsOnAnswer: dependsOnAnswer);
+        Catalogs = new(filtered, required, questionType: questionType, selection: selection, dependsOnAnswer: dependsOnAnswer, groupByType: groupBy);
         ActiveVersionId = Catalogs.Version.Id;
         Actor = Users.AddUser("entry@example.invalid").Id;
         Current.UserId = Actor;
@@ -88,6 +88,42 @@ internal sealed class FormEntryFixture : IFormEntryReader, IBusinessFormRecordCa
 
     public SubmitFormEntryRequest Send(params FormEntryAnswer[] answers) => new(Guid.NewGuid(), Catalogs.Version.Id, answers, []);
 
+    /// <summary>LD1-A: an option whose field to choose first holds <paramref name="group"/> (a text or a source option's id), or nothing.</summary>
+    public BusinessFormCatalogItem AddGrouped(string text, int position, string? group)
+    {
+        var item = BusinessFormCatalogItem.Create(Catalogs.Catalog.Id, "G" + position, text, null, null, null, position);
+        var values = group is null ? new Dictionary<string, string>() : new Dictionary<string, string> { [Catalogs.GroupFieldId.ToString("D")] = group };
+        if (Catalogs.Catalog.SetManualItemFields(item, FormDraftPolicy.Serialize(values)).IsFailure)
+            throw new InvalidOperationException("The grouped option is invalid.");
+        Catalogs.Items.Add(item);
+        return item;
+    }
+
+    /// <summary>An option of the catalog the field to choose first takes its values from.</summary>
+    public BusinessFormCatalogItem AddSource(string es, string en, int position)
+    {
+        var item = BusinessFormCatalogItem.Create(Catalogs.GroupSourceId, "S" + position, es, en, null, null, position);
+        Catalogs.Items.Add(item);
+        return item;
+    }
+
+    public List<(Guid CatalogId, string? Containment, Guid FieldId)> GroupQueries { get; } = [];
+
+    public Task<IReadOnlyList<FormEntryGroupRow>> ListGroupsAsync(Guid catalogId, string? containment, Guid fieldId, CancellationToken ct)
+    {
+        GroupQueries.Add((catalogId, containment, fieldId));
+        var matches = FormCatalogFieldPolicy.ReadValues(containment ?? "{}");
+        var rows = Catalogs.Items.Where(item => item.CatalogId == catalogId && item.IsActive)
+            .Where(item => { var values = FormCatalogFieldPolicy.ReadValues(item.FieldValuesJson); return matches.All(match => values.TryGetValue(match.Key, out var value) && value.GetRawText() == match.Value.GetRawText()); })
+            .GroupBy(item => GroupValue(item, fieldId.ToString("D")))
+            .Select(group => new FormEntryGroupRow(group.Key, group.Count())).ToArray();
+        return Task.FromResult<IReadOnlyList<FormEntryGroupRow>>(rows);
+    }
+
+    private static string? GroupValue(BusinessFormCatalogItem item, string key) =>
+        FormCatalogFieldPolicy.ReadValues(item.FieldValuesJson).TryGetValue(key, out var value) && value.ValueKind == System.Text.Json.JsonValueKind.String
+            && value.GetString() is { Length: > 0 } text ? text : null;
+
     public Task<FormEntryDefinitionRow?> FindDefinitionAsync(Guid definitionId, Guid? versionId, CancellationToken ct)
     {
         if (Missing || definitionId != Catalogs.DefinitionId) return Task.FromResult<FormEntryDefinitionRow?>(null);
@@ -104,6 +140,7 @@ internal sealed class FormEntryFixture : IFormEntryReader, IBusinessFormRecordCa
         var items = Catalogs.Items.Where(item => item.CatalogId == query.CatalogId && item.IsActive)
             .Where(item => { var values = FormCatalogFieldPolicy.ReadValues(item.FieldValuesJson); return matches.All(match => values.TryGetValue(match.Key, out var value) && value.GetRawText() == match.Value.GetRawText()); })
             .Where(item => query.Ids is null || query.Ids.Contains(item.Id))
+            .Where(item => query.WithoutField is null || GroupValue(item, query.WithoutField) is null)
             .Where(item => query.Search is null || new[] { item.Code, item.TextEs, item.TextEn, item.DetailEs, item.DetailEn }
                 .Any(text => text?.Contains(query.Search, StringComparison.OrdinalIgnoreCase) == true))
             .OrderBy(item => item.Position).ThenBy(item => item.Id).ToArray();

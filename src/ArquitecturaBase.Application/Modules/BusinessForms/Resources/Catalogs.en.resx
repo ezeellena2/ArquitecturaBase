@@ -42,4 +42,5 @@
   <data name="RuleFieldUnique" xml:space="preserve"><value>No duplicate values among active options.</value></data>
   <data name="RuleFieldMin" xml:space="preserve"><value>Minimum: {0}.</value></data>
   <data name="RuleFieldMax" xml:space="preserve"><value>Maximum: {0}.</value></data>
+  <data name="GroupWithoutValue" xml:space="preserve"><value>No {0}</value></data>
 </root>

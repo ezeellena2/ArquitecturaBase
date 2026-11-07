@@ -372,6 +372,9 @@
   <data name="Forms.Publication.DependsOnAnswer" xml:space="preserve">
     <value>It cannot be sent by WhatsApp while a question depends on another answer. It can still be loaded in the app.</value>
   </data>
+  <data name="Forms.Publication.GroupByInvalid" xml:space="preserve">
+    <value>The field to choose first is no longer in the catalog, is inactive, or is neither text nor a catalog option.</value>
+  </data>
   <data name="Forms.Publication.CatalogTitleTooLong" xml:space="preserve">
     <value>The catalog presentation produces titles longer than 30 characters.</value>
   </data>

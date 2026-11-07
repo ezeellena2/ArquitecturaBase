@@ -12,10 +12,19 @@ internal sealed class ListFormEntryOptionsRequestValidator : PagedRequestValidat
     {
         RuleFor(request => request.PageSize).LessThanOrEqualTo(ListFormEntryOptionsRequest.MaximumPageSize)
             .WithMessage(_ => ValidationMessages.PageSizeInvalid);
-        RuleFor(request => request.Answers).Must(answers => answers is null || answers.Count <= 40
-                && answers.All(answer => answer.Key != Guid.Empty && answer.Value != Guid.Empty))
+        RuleFor(request => request.Answers).Must(FormEntrySendRules.ValidChosen)
+            .WithMessage(_ => ErrorMessages.Get(FormRecordErrors.InvalidResponse.Code));
+        // LD1-A: one value chosen first, as long as a fixed filter value, or the options without one; not both.
+        RuleFor(request => request.Group).Must((request, group) => group is null || !request.WithoutGroup && group.Length is > 0 and <= 300
+                && ArquitecturaBase.Domain.Common.StorableText.IsStorable(group))
             .WithMessage(_ => ErrorMessages.Get(FormRecordErrors.InvalidResponse.Code));
     }
+}
+
+internal sealed class ListFormEntryGroupsRequestValidator : AbstractValidator<ListFormEntryGroupsRequest>
+{
+    public ListFormEntryGroupsRequestValidator() => RuleFor(request => request.Answers).Must(FormEntrySendRules.ValidChosen)
+        .WithMessage(_ => ErrorMessages.Get(FormRecordErrors.InvalidResponse.Code));
 }
 
 /// <summary>The shape of a send; the published version decides types, required answers and file limits.</summary>
@@ -58,6 +67,10 @@ internal sealed class VoidFormRecordRequestValidator : AbstractValidator<VoidFor
 /// <summary>The shape shared by a send and a correction, and the reason of a correction or a void.</summary>
 internal static class FormEntrySendRules
 {
+    /// <summary>The option chosen in each question a dependent list waits for: up to 40, without empty identities.</summary>
+    public static bool ValidChosen(IReadOnlyDictionary<Guid, Guid>? answers) =>
+        answers is null || answers.Count <= 40 && answers.All(answer => answer.Key != Guid.Empty && answer.Value != Guid.Empty);
+
     public static bool ValidAnswers(IReadOnlyList<FormEntryAnswer>? answers) =>
         answers is null || answers.Count <= 40 && answers.All(answer => answer is not null && answer.FieldId != Guid.Empty
             && (answer.Value is null || answer.Value.Length <= 10_000)

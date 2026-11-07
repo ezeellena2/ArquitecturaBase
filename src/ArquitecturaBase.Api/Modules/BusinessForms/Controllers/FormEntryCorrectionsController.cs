@@ -44,7 +44,20 @@ public sealed class FormEntryCorrectionsController(IFormEntryService service) : 
     public async Task<IActionResult> ListOptions([FromRoute] Guid definitionId, [FromRoute] Guid recordId, [FromRoute] Guid versionId,
         [FromRoute] Guid fieldId, [FromQuery] FormEntryOptionsQuery query, CancellationToken cancellationToken) =>
         (await service.ListOptionsAsync(definitionId, versionId, fieldId,
-            new() { Search = query.Search, Page = query.Page, PageSize = query.PageSize, Answers = query.Answers, RecordId = recordId },
+            new() { Search = query.Search, Page = query.Page, PageSize = query.PageSize, Answers = query.Answers, RecordId = recordId,
+                Group = query.Group, WithoutGroup = query.WithoutGroup },
+            cancellationToken)).ToActionResult(this);
+
+    [HttpGet("versions/{versionId:guid}/questions/{fieldId:guid}/groups")]
+    [EnableRateLimiting(BusinessFormsApiRegistration.ReadPolicy)]
+    [ProducesResponseType<FormEntryGroupsResponse>(StatusCodes.Status200OK)]
+    [ProducesProblem(StatusCodes.Status400BadRequest)]
+    [ProducesProblem(StatusCodes.Status403Forbidden)]
+    [ProducesProblem(StatusCodes.Status404NotFound)]
+    [ProducesProblem(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> ListGroups([FromRoute] Guid definitionId, [FromRoute] Guid recordId, [FromRoute] Guid versionId,
+        [FromRoute] Guid fieldId, [FromQuery] FormEntryGroupsQuery query, CancellationToken cancellationToken) =>
+        (await service.ListGroupsAsync(definitionId, versionId, fieldId, new() { Answers = query.Answers, RecordId = recordId },
             cancellationToken)).ToActionResult(this);
 
     [HttpPost]

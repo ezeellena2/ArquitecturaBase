@@ -28,6 +28,14 @@ internal sealed class FormEntryReader(ApplicationDbContext dbContext) : IFormEnt
     {
         var items = dbContext.Set<BusinessFormCatalogItem>().AsNoTracking().Where(item => item.CatalogId == query.CatalogId && item.IsActive);
         if (query.Containment is not null) items = items.Where(item => EF.Functions.JsonContains(item.FieldValuesJson, query.Containment));
+        if (query.WithoutField is { } key)
+        {
+            // LD1-A: the options without a value in the field chosen first: the key is missing, null or an empty text.
+            var nullValue = "{\"" + Guid.Parse(key).ToString("D") + "\":null}";
+            var emptyValue = "{\"" + Guid.Parse(key).ToString("D") + "\":\"\"}";
+            items = items.Where(item => !EF.Functions.JsonExists(item.FieldValuesJson, key)
+                || EF.Functions.JsonContains(item.FieldValuesJson, nullValue) || EF.Functions.JsonContains(item.FieldValuesJson, emptyValue));
+        }
         if (query.Ids is { } ids) items = items.Where(item => ids.Contains(item.Id));
         if (query.Search is not null)
         {
@@ -44,6 +52,16 @@ internal sealed class FormEntryReader(ApplicationDbContext dbContext) : IFormEnt
             .ToListAsync(cancellationToken);
         return new(rows, query.Page, query.PageSize, total);
     }
+
+    public async Task<IReadOnlyList<FormEntryGroupRow>> ListGroupsAsync(Guid catalogId, string? containment, Guid fieldId,
+        CancellationToken cancellationToken) =>
+        (await dbContext.Database.SqlQueryRaw<GroupSqlRow>("""
+            SELECT NULLIF(item."FieldValuesJson" ->> {2}, '') AS "Value", COUNT(*)::integer AS "Count"
+            FROM "BusinessFormCatalogItems" AS item
+            WHERE item."CatalogId" = {0} AND item."IsActive" AND item."FieldValuesJson" @> {1}::jsonb
+            GROUP BY 1
+            """.ReplaceLineEndings("\n"), catalogId, containment ?? "{}", fieldId.ToString("D")).ToListAsync(cancellationToken))
+        .Select(row => new FormEntryGroupRow(row.Value, row.Count)).ToArray();
 
     public Task<PagedResult<FormCatalogFilterOptionResponse>> ListPeopleAsync(Guid recipientUserId, FormCatalogFilterDefinition filters,
         FormEntryItemsQuery query, CancellationToken cancellationToken) =>
@@ -101,4 +119,10 @@ internal sealed class FormEntryReader(ApplicationDbContext dbContext) : IFormEnt
             .Select(record => new FormEntryOriginRow(record.SourceReceiptId, record.ActorUserId,
                 dbContext.Users.Where(user => user.Id == record.ActorUserId).Select(user => user.DisplayName).FirstOrDefault(), record.SubmittedAtUtc))
             .ToListAsync(cancellationToken);
+
+    private sealed class GroupSqlRow
+    {
+        public string? Value { get; init; }
+        public int Count { get; init; }
+    }
 }

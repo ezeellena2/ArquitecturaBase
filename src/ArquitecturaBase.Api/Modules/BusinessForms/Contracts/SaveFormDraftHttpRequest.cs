@@ -18,7 +18,7 @@ public sealed record FormFieldHttpRequest(string LocalId, Guid? FieldId, Guid? R
 { public override string ToString() => "FormFieldHttpRequest { Content = [REDACTED] }"; }
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record FormQuestionSourceHttpRequest(Guid? Catalog, IReadOnlyList<FormCatalogMatchHttpRequest>? Match = null,
-    FormCatalogPresentationHttpRequest? Presentation = null)
+    FormCatalogPresentationHttpRequest? Presentation = null, Guid? GroupBy = null)
 { public override string ToString() => "FormQuestionSourceHttpRequest { Content = [REDACTED] }"; }
 
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]

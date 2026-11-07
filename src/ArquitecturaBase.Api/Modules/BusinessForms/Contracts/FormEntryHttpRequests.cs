@@ -4,9 +4,16 @@ namespace ArquitecturaBase.Api.Modules.BusinessForms.Contracts;
 /// <see cref="Answers"/> carries, as <c>answers[questionId]=optionId</c>, the option chosen in each question that a dependent
 /// list waits for.
 /// </summary>
-public sealed record FormEntryOptionsQuery(string? Search = null, int Page = 1, int PageSize = 50, Dictionary<Guid, Guid>? Answers = null)
+public sealed record FormEntryOptionsQuery(string? Search = null, int Page = 1, int PageSize = 50, Dictionary<Guid, Guid>? Answers = null,
+    string? Group = null, bool WithoutGroup = false)
 {
     public override string ToString() => "FormEntryOptionsQuery { Search = [REDACTED] }";
+}
+
+/// <summary>The values to choose first (LD1-A), with the same <see cref="Answers"/> as the options of a dependent list.</summary>
+public sealed record FormEntryGroupsQuery(Dictionary<Guid, Guid>? Answers = null)
+{
+    public override string ToString() => "FormEntryGroupsQuery";
 }
 
 /// <summary>

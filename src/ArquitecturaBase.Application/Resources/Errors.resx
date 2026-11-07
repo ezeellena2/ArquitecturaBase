@@ -372,6 +372,9 @@
   <data name="Forms.Publication.DependsOnAnswer" xml:space="preserve">
     <value>Por WhatsApp no se puede mandar mientras una pregunta dependa de otra respuesta. En la app se carga igual.</value>
   </data>
+  <data name="Forms.Publication.GroupByInvalid" xml:space="preserve">
+    <value>El campo para elegir primero ya no está en el catálogo, está dado de baja o no es de texto ni una opción de un catálogo.</value>
+  </data>
   <data name="Forms.Publication.CatalogTitleTooLong" xml:space="preserve">
     <value>La presentación del catálogo arma títulos de más de 30 caracteres.</value>
   </data>

@@ -20,6 +20,7 @@ public static class FormPublicationErrors
     public static readonly Error MatchSourceMismatch = Error.Validation("Forms.Publication.MatchSourceMismatch", "The catalog field and person attribute must use the same source catalog.");
     public static readonly Error MatchQuestionInvalid = Error.Validation("Forms.Publication.MatchQuestionInvalid", "A filter by another answer must name an earlier single-choice question of the field's source catalog.");
     public static readonly Error DependsOnAnswer = Error.Validation("Forms.Publication.DependsOnAnswer", "A question whose options depend on another answer cannot be sent by a channel; it is loaded in the app.");
+    public static readonly Error GroupByInvalid = Error.Validation("Forms.Publication.GroupByInvalid", "The field to choose first is missing, inactive or neither a text nor a catalog field of a Manual catalog.");
     public static readonly Error CatalogTitleTooLong = Error.Validation("Forms.Publication.CatalogTitleTooLong", "The catalog presentation produces option titles longer than thirty characters.");
     public static readonly Error QuestionTitleTooLong = Error.Validation("Forms.Publication.QuestionTitleTooLong", "The question presentation produces option titles longer than thirty characters.");
     public static readonly Error OptionsPerRecipientHigh = Error.Validation("Forms.Publication.OptionsPerRecipientHigh", "The maximum number of options per recipient is compared with the channel limit.");

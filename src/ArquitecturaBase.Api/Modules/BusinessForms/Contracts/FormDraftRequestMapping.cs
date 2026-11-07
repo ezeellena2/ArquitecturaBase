@@ -24,5 +24,5 @@ internal static class FormDraftRequestMapping
         draft.Sections?.Select(section => section is null ? null! : new FormSection(section.Start, section.Title)).ToArray());
     public static FormQuestionSource? Map(FormQuestionSourceHttpRequest? source) => source is null ? null : new(source.Catalog,
         source.Match?.Select(match => match is null ? null! : new FormCatalogMatch(match.FieldId, match.Value, match.PersonAttributeId, match.QuestionId)).ToArray(),
-        source.Presentation is null ? null : new FormCatalogPresentation(source.Presentation.Title!, source.Presentation.Description!));
+        source.Presentation is null ? null : new FormCatalogPresentation(source.Presentation.Title!, source.Presentation.Description!), source.GroupBy);
 }

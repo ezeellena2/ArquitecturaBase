@@ -39,7 +39,38 @@ public sealed record FormEntryCatalogResponse(FormEntryOptionResponse? OnlyOptio
 {
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyList<Guid>? DependsOn { get; init; }
+    /// <summary>LD1-A: the field whose value is chosen first; the options are then read with that value as their group.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public FormEntryGroupByResponse? GroupBy { get; init; }
     public override string ToString() => "FormEntryCatalogResponse { Content = [REDACTED] }";
+}
+
+/// <summary>The field of the catalog whose value is chosen first (LD1-A), with its name in the content language.</summary>
+public sealed record FormEntryGroupByResponse(Guid FieldId, string Name)
+{
+    public override string ToString() => "FormEntryGroupByResponse { Content = [REDACTED] }";
+}
+
+/// <summary>
+/// The values to choose first, in order. <see cref="FormEntryGroupResponse.Id"/> is the value the options take as their group: a text, or the id of the
+/// source option of a catalog field; null groups the options without a value, which are read with «withoutGroup».
+/// </summary>
+public sealed record FormEntryGroupsResponse(IReadOnlyList<FormEntryGroupResponse> Groups)
+{
+    public override string ToString() => "FormEntryGroupsResponse { Content = [REDACTED] }";
+}
+
+public sealed record FormEntryGroupResponse(string? Id, string Text)
+{
+    public override string ToString() => "FormEntryGroupResponse { Content = [REDACTED] }";
+}
+
+/// <summary>The values of a question that chooses first by a field (LD1-A), with the same answers and correction as its options.</summary>
+public sealed record ListFormEntryGroupsRequest
+{
+    public IReadOnlyDictionary<Guid, Guid>? Answers { get; init; }
+    public Guid? RecordId { get; init; }
+    public override string ToString() => "ListFormEntryGroupsRequest";
 }
 
 public sealed record FormEntryOptionResponse(Guid Id, string Title, string? Description)
@@ -55,6 +86,9 @@ public sealed record ListFormEntryOptionsRequest : PagedRequest
     public IReadOnlyDictionary<Guid, Guid>? Answers { get; init; }
     /// <summary>While correcting this response: the options are those of whoever answered it, for whoever may correct it.</summary>
     public Guid? RecordId { get; init; }
+    /// <summary>LD1-A: the value chosen first, as the values give it; <see cref="WithoutGroup"/> asks for the options without one.</summary>
+    public string? Group { get; init; }
+    public bool WithoutGroup { get; init; }
     public override string ToString() => "ListFormEntryOptionsRequest { Search = [REDACTED] }";
 }
 
@@ -89,10 +123,17 @@ public sealed record FormEntryVersionRow(Guid VersionId, long Number, string Nam
     public override string ToString() => "FormEntryVersionRow { Content = [REDACTED] }";
 }
 
+/// <summary><see cref="WithoutField"/> keeps only the options without a value in that field (LD1-A), by its id.</summary>
 public sealed record FormEntryItemsQuery(Guid CatalogId, string? Containment, string? Search, IReadOnlyCollection<Guid>? Ids,
-    int Page, int PageSize, string Culture)
+    int Page, int PageSize, string Culture, string? WithoutField = null)
 {
     public override string ToString() => "FormEntryItemsQuery { Search = [REDACTED] }";
+}
+
+/// <summary>A value of a field among the options, with how many have it; null for those without a value.</summary>
+public sealed record FormEntryGroupRow(string? Value, int Count)
+{
+    public override string ToString() => "FormEntryGroupRow { Content = [REDACTED] }";
 }
 
 public sealed record FormEntryOutcomeRow(DateTime SubmittedAtUtc, string State, bool ApprovalRequested);

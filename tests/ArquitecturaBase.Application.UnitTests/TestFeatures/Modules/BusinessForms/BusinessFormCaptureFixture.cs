@@ -21,26 +21,19 @@ internal sealed class BusinessFormCaptureFixture
     public BusinessFormVersion Version { get; }
     public BusinessFormCaptureFixture(string type, bool required, Guid? catalogId = null, Action? onCommit = null, bool withPhoto = false,
         FormSelectionSettings? selection = null, IReadOnlyList<CanonicalFormChoice>? choices = null)
+        : this(Questions(type, required, catalogId, withPhoto, selection, choices), onCommit) { }
+
+    // A published version with these questions, such as a block of rows; Key is the first question's.
+    public BusinessFormCaptureFixture(IReadOnlyList<CanonicalFormField> questions, Action? onCommit = null)
     {
-        var fieldId = Guid.NewGuid();
-        Key = $"field_{fieldId:N}";
+        Key = questions[0].Key;
+        PhotoFieldId = questions.SingleOrDefault(question => question.Key == "photo")?.FieldId;
         Definition = BusinessFormDefinition.Create();
         var definition = new Dictionary<string, string> { ["es"] = "Formulario" };
         var schemaDraft = "{}";
         Assert.True(Definition.SetDraft(1, "Formulario", JsonSerializer.Serialize(definition), "FORM", "es",
             "{\"es\":\"Enviar\"}", schemaDraft, 1, creating: true).IsSuccess);
         var version = BusinessFormVersion.Create(Definition.Id, 1, new string('a', 64));
-        var questions = new List<CanonicalFormField>
-        {
-            new(fieldId, Key, type, definition, null, required, type is "choice" or "multiChoice" or "photo" or "document" ? null : 100, choices,
-                catalogId.HasValue ? new FormQuestionSource(catalogId) : null,
-                type is "photo" or "document" ? new(required ? 1 : 0, 3, type == "photo" ? "camera" : null) : null, Selection: selection)
-        };
-        if (withPhoto)
-        {
-            PhotoFieldId = Guid.NewGuid();
-            questions.Add(new(PhotoFieldId.Value, "photo", "photo", definition, null, true, null, null, null, new(1, 3, "camera")));
-        }
         version.SealSchema(JsonSerializer.Serialize(new FormVersionSchema(1, questions), SerializerOptions));
         version.SealPresentation("{\"es\":\"Formulario\"}", "{\"es\":\"Enviar\"}", "es", questions.Count);
         Assert.True(Definition.ActivateVersion(null, version.Id).IsSuccess);
@@ -57,6 +50,21 @@ internal sealed class BusinessFormCaptureFixture
         Sink = new BusinessFormRecordRecorder(Repository, new(ReceiptReader, Permission, new(Current, Permission, Users)), UnitOfWork, Actions.Clock,
             NullLogger<BusinessFormRecordRecorder>.Instance, preparer, Actions.Recorder, new(OriginResponses, Suggestions));
         VersionId = version.Id;
+    }
+
+    private static List<CanonicalFormField> Questions(string type, bool required, Guid? catalogId, bool withPhoto,
+        FormSelectionSettings? selection, IReadOnlyList<CanonicalFormChoice>? choices)
+    {
+        var fieldId = Guid.NewGuid();
+        var label = new Dictionary<string, string> { ["es"] = "Formulario" };
+        var questions = new List<CanonicalFormField>
+        {
+            new(fieldId, $"field_{fieldId:N}", type, label, null, required, type is "choice" or "multiChoice" or "photo" or "document" ? null : 100, choices,
+                catalogId.HasValue ? new FormQuestionSource(catalogId) : null,
+                type is "photo" or "document" ? new(required ? 1 : 0, 3, type == "photo" ? "camera" : null) : null, Selection: selection)
+        };
+        if (withPhoto) questions.Add(new(Guid.NewGuid(), "photo", "photo", label, null, true, null, null, null, new(1, 3, "camera")));
+        return questions;
     }
 
     public const string SourcePrefix = "unused";

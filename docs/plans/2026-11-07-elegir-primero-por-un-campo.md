@@ -64,9 +64,9 @@ El usuario eligió las recomendadas, de a una, viendo los tableros:
 - **El resumen de «Qué opciones ve cada persona»** cuenta por valor: «Todos ven las mismas 125, en 3 rubros. El más grande
   tiene 75: entra en el desplegable (200).» El tope de 200 de WhatsApp vale para cada valor y para la lista de valores, no
   para el total.
-- **El borrador** guarda el campo en la fuente de la pregunta, con un nombre en inglés como `source.groupBy` (el `fieldId`).
-  Se omite cuando es null, así las preguntas publicadas y sus huellas no cambian. Publicar frena un campo que no existe, no
-  está activo o no es de un tipo que sirve, y la pregunta de «elegir varias» con el ajuste.
+- **El borrador** guarda el campo en `source.groupBy` (el `fieldId`). Se omite cuando es null, así las preguntas publicadas y
+  sus huellas no cambian. Guardar rechaza el ajuste en «elegir varias» y publicar frena (`GroupByInvalid`) un campo que no
+  existe, no está activo o no es de un tipo que sirve, o un catálogo que no es Manual.
 
 ### En la app
 
@@ -127,7 +127,10 @@ borró el Flow. LD2-A queda confirmada:
 
 1. **La prueba con Meta**, sin código de la app: hecha el 2026-11-07.
 2. **El backend:** el borrador y su validación, publicar, la descripción de la carga (los valores) y las opciones con el
-   valor, corregir, los textos es/en y sus tests (TDD).
+   valor, corregir, los textos es/en y sus tests (TDD). Hecho el 2026-11-07: la regla quedó en
+   [formularios](../features/formularios.md#elegir-primero-por-un-campo--ld1-a-2026-11-07), con las rutas `…/groups` de la
+   carga y de la corrección y tres capturas para la cohorte de la carga. El resumen por valor del editor («en 3 rubros. El más
+   grande tiene 75») va con el corte de WhatsApp, porque es el tope de 200 por valor.
 3. **El front:** el editor, la carga y la tabla del bloque, con la app apagada (Vite recarga la página de quien prueba). La
    tabla del bloque va con la Etapa 2 de renglones.
 4. **WhatsApp:** r11, el mensaje, la vista oficial y el chequeo de los 200 por valor.

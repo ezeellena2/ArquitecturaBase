@@ -59,7 +59,29 @@ public sealed class FormCatalogSourceValidationTests
         Assert.True(result.IsValid);
     }
 
-    private static SaveFormDraftRequest Input(FormQuestionSource source) => new(Guid.CreateVersion7(),
+    // LD1-A (2026-11-07): the field to choose first is one of the catalog's, and a multiple choice does not have it.
+    [Theory]
+    [InlineData("empty")]
+    [InlineData("multiple")]
+    public async Task A_field_to_choose_first_needs_an_identity_and_a_single_choice(string problem)
+    {
+        var source = new FormQuestionSource(Guid.CreateVersion7(), GroupBy: problem == "empty" ? Guid.Empty : Guid.CreateVersion7());
+        var result = await new SaveFormDraftRequestValidator().ValidateAsync(Input(source, problem == "multiple" ? "multiChoice" : "choice"),
+            TestContext.Current.CancellationToken);
+        Assert.False(result.IsValid);
+        Assert.Equal(["draft.fields[0].source.groupBy"], result.Errors.Select(error => error.PropertyName));
+    }
+
+    [Fact]
+    public async Task A_single_choice_can_choose_first_by_a_field_together_with_its_filters()
+    {
+        var source = new FormQuestionSource(Guid.CreateVersion7(), [new(Guid.CreateVersion7(), "fixed")], GroupBy: Guid.CreateVersion7());
+        var result = await new SaveFormDraftRequestValidator().ValidateAsync(Input(source), TestContext.Current.CancellationToken);
+        Assert.True(result.IsValid);
+    }
+
+    private static SaveFormDraftRequest Input(FormQuestionSource source, string type = "choice") => new(Guid.CreateVersion7(),
         new Dictionary<string, string> { ["es"] = "Formulario" }, "CAT", new(1, "es", null,
-            [new("question", null, null, "choice", new Dictionary<string, string> { ["es"] = "Opciones" }, null, true, null, null, source)]));
+            [new("question", null, null, type, new Dictionary<string, string> { ["es"] = "Opciones" }, null, true, null, null, source,
+                Selection: type == "multiChoice" ? new(1, 3) : null)]));
 }

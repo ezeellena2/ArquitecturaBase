@@ -12,7 +12,7 @@ internal sealed class FormCatalogPreparationFixture : IFormRecordRepository, IFo
     public static readonly Dictionary<string, string> Texts = new() { ["es"] = "Personas", ["en"] = "People" };
     public FormCatalogPreparationFixture(bool filtered = false, bool required = true, string originalCulture = "es", bool originalOnly = false,
         BusinessFormCatalogValueType valueType = BusinessFormCatalogValueType.Text, string questionType = "choice", FormSelectionSettings? selection = null,
-        string catalogCulture = "es", bool dependsOnAnswer = false)
+        string catalogCulture = "es", bool dependsOnAnswer = false, string? groupByType = null)
     {
         var filters = new FormCatalogFilterDefinition("name", "active", [], true, "name", false);
         Catalog = filtered ? BusinessFormCatalog.CreateFilters(catalogCulture, Texts, Texts, JsonSerializer.Serialize(filters, JsonSerializerOptions.Web))
@@ -28,6 +28,14 @@ internal sealed class FormCatalogPreparationFixture : IFormRecordRepository, IFo
                 throw new InvalidOperationException("The filter field of the dependent list is invalid.");
             questions = [new(AnswerFieldId, "field_" + AnswerFieldId.ToString("N"), "choice", formTexts, null, false, null, null, new(Catalog.Id)),
                 field with { Source = new(Catalog.Id, [new(FilterFieldId, QuestionId: AnswerFieldId)]) }];
+        }
+        if (groupByType is not null)
+        {
+            // LD1-A: the question asks first for this field's value; a catalog field takes its values from another catalog.
+            if (Catalog.SetFields([new(GroupFieldId, "rubro", GroupNames, groupByType, groupByType == "catalog" ? GroupSourceId : null, false, false,
+                    null, null, groupByType == "text" ? 300 : null, "data", 0, true)], null).IsFailure)
+                throw new InvalidOperationException("The field to choose first is invalid.");
+            questions = [field with { Source = new(Catalog.Id, GroupBy: GroupFieldId) }];
         }
         Version = BusinessFormVersion.Create(DefinitionId, 1, new string('a', 64));
         Version.SealSchema(JsonSerializer.Serialize(new FormVersionSchema(1, questions), JsonSerializerOptions.Web));
@@ -49,6 +57,9 @@ internal sealed class FormCatalogPreparationFixture : IFormRecordRepository, IFo
     public Guid FieldId { get; }
     public Guid AnswerFieldId { get; } = Guid.NewGuid();
     public Guid FilterFieldId { get; } = Guid.NewGuid();
+    public Guid GroupFieldId { get; } = Guid.NewGuid();
+    public Guid GroupSourceId { get; } = Guid.NewGuid();
+    public static readonly Dictionary<string, string> GroupNames = new() { ["es"] = "Rubro", ["en"] = "Category" };
     public BusinessFormVersion Version { get; }
     public BusinessFormCatalog Catalog { get; }
     public FormCatalogPreparationPolicy Policy { get; }

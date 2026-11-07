@@ -12,6 +12,10 @@ public interface IFormEntryService
     Task<Result<PagedResult<FormEntryOptionResponse>>> ListOptionsAsync(Guid definitionId, Guid versionId, Guid fieldId,
         ListFormEntryOptionsRequest request, CancellationToken cancellationToken);
 
+    /// <summary>LD1-A: the values to choose first in a catalog question, among the options its filters leave.</summary>
+    Task<Result<FormEntryGroupsResponse>> ListGroupsAsync(Guid definitionId, Guid versionId, Guid fieldId,
+        ListFormEntryGroupsRequest request, CancellationToken cancellationToken);
+
     Task<Result<FormEntrySubmitResponse>> SubmitAsync(Guid definitionId, SubmitFormEntryRequest request, CancellationToken cancellationToken);
 
     /// <summary>What a correction opens (CW10-A): the active version with the response as it was, for whoever may correct it.</summary>
