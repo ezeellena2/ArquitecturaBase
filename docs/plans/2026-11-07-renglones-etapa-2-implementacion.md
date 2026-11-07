@@ -375,6 +375,9 @@ su clase. Otras sesiones trabajan en el mismo checkout: se preparan sólo los ar
   «Artículos» y publicarlo; cargar el remito con sus tres artículos desde la página, revisar con «Corregir» que vuelvan los
   tres en orden, y lo mismo en el panel y en el celular; por WhatsApp, los tres ítems con «Sí», «Sí» y «No», y la vuelta con
   la flecha antes del «No». Lo que llegue se mira en la base sin valores.
+
+  El 2026-11-07 el usuario eligió hacerla dentro de la prueba integral final de las etapas de renglones, después de
+  RG10-D/RG12-A (Etapa 1), la Tarea 9 y la exportación conjunta, en lugar de hacerla aparte.
 - [ ] Docs: [formularios](../features/formularios.md) (los valores con su renglón, la captura y la corrección),
   [WhatsApp](../features/whatsapp.md) (la respuesta con ítems y el aviso), los `AGENTS.md` de Services, Persistence,
   Migrations, los Services de WhatsApp y las áreas del front, el diseño de la carga en el front, este plan y el de renglones.
