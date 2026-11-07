@@ -141,6 +141,10 @@ LD3-A se programa con la Etapa 2 de renglones.
 
 - El compilador de Flows y el bloque los está tocando la sesión de renglones: r11 se programa después de su cierre o
   coordinado con ella.
+- El front se hace por turnos con la Etapa 2 de renglones, acordado el 2026-11-07. Esa sesión va primero con la carga:
+  `api/entries.ts`, `entryForm.ts`, `useEntryEditor`, `FormEntryForm`/`Page`/`Panel`/`CorrectionPage`, `formEntries.json` y
+  la tabla de carga del bloque en `shared/ui`. LD1-A empieza por el editor, que no se cruza con esos archivos. La carga (el
+  combo del valor en `EntryCatalogField` y la ruta `…/groups`) y el par de columnas de la tabla van encima de su commit.
 - Es un contrato todavía no publicado: el front y el backend se cambian juntos, sin capas de compatibilidad.
 
 ## Para después
