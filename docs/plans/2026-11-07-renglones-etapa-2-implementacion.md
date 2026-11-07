@@ -17,6 +17,8 @@ pantallas y textos (RG12-A: «ítem» en lugar de «renglón»), y [elegir prime
 
 **Tecnología:** .NET 10, xUnit v3, Testcontainers con PostgreSQL; en el front, React, Zod, Vitest con MSW y Playwright.
 
+**Visto bueno:** el usuario aprobó este plan el 2026-11-07, con lo que el tablero no fija resuelto como dice abajo.
+
 ---
 
 ## Decisiones de esta etapa
@@ -270,8 +272,9 @@ su clase. Otras sesiones trabajan en el mismo checkout: se preparan sólo los ar
 - [ ] `FormEntryModels`, `FormRecordAmendmentModels`, `FormEntryRequestValidators`, `FormEntryVersionPolicy`,
   `FormEntryRecorder`, `FormEntryCatalogPolicy`, `FormEntryService.GetCorrectionAsync`, y en la Api
   `FormEntryHttpRequests` y `FormEntryRequestMapping` con la lista de `FormEntryRequestMappingTests`.
-- [ ] Capturas para el front (`FORMS_HTTP_CONTRACT_OUTPUT`): `forms-http/rows/entry.json`, `rows/entry-submitted.json` y
-  `rows/correction.json`, en `export-responses-http.ps1`, con su cuenta en el autotest del exportador.
+- [ ] Capturas para el front en la cohorte de la carga (`FORM_ENTRIES_HTTP_OUTPUT`, `forms-entries-http`, que LD1-A deja
+  en 32): la carga con el bloque, el envío y la corrección con sus ítems, en `export-responses-http.ps1` y con su cuenta en
+  el autotest del exportador.
 - [ ] Commit: `feat(formularios): la carga desde la app guarda los renglones`.
 
 ### Tarea 5 · Publicar: el mínimo y las listas dependientes
