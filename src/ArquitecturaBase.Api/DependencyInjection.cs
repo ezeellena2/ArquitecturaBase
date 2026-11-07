@@ -40,6 +40,12 @@ public static class DependencyInjection
         services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
         services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
 
+        // Brotli o gzip, según pida el navegador, para el SPA y el JSON; los tipos por defecto dejan afuera los PDF,
+        // los audios y las imágenes, que ya vienen comprimidos o se piden por rangos. Detrás del proxy toda petición
+        // es HTTPS, y sin EnableForHttps no se comprimiría nada. No abre BREACH porque otro sitio no puede hacer que el
+        // navegador pida algo con sesión: la Api se autentica con el token en un encabezado y /account sólo acepta JSON.
+        services.AddResponseCompression(options => options.EnableForHttps = true);
+
         services.AddRequestLocalizationDefaults();
         services.AddRateLimitingPolicies();
         services.AddOpenApiDocumentation();

@@ -16,6 +16,36 @@ internal static class SpaExtensions
     private static readonly string[] BackendPrefixes =
         ["/api", "/account", "/connect", "/signin-google", "/.well-known", "/webhooks", "/swagger", "/openapi", "/health", "/alive"];
 
+    /// <summary>La carpeta donde Vite deja los archivos con el hash del contenido en el nombre (su `build.assetsDir`).</summary>
+    private const string HashedAssetsPath = "/assets";
+
+    private const string CachedForAYear = "public, max-age=31536000, immutable";
+
+    /// <summary>
+    /// Sirve los archivos del build del SPA con el caché que corresponde a cada uno.
+    /// <para>
+    /// Lo de /assets lleva el hash del contenido en el nombre: un cambio sale con otro nombre, así que el navegador
+    /// lo guarda un año sin volver a preguntar. El resto (silent-renew.html, favicon.svg) se revalida siempre, como
+    /// el index.html: silent-renew.html se abre en cada carga del SPA para recuperar la sesión y nombra los assets
+    /// por hash, así que guardado apuntaría, después de un despliegue, a archivos que ya no existen. Un archivo que
+    /// no está no pasa por acá: su 404 no se guarda.
+    /// </para>
+    /// </summary>
+    public static WebApplication UseSpaStaticFiles(this WebApplication app)
+    {
+        ArgumentNullException.ThrowIfNull(app);
+
+        app.UseStaticFiles(new StaticFileOptions
+        {
+            OnPrepareResponse = file => file.Context.Response.Headers.CacheControl =
+                file.Context.Request.Path.StartsWithSegments(HashedAssetsPath, StringComparison.OrdinalIgnoreCase)
+                    ? CachedForAYear
+                    : "no-cache",
+        });
+
+        return app;
+    }
+
     /// <summary>
     /// Sirve el index.html del build del SPA en las rutas del navegador, para que las resuelva su router
     /// (sección 5.1). Va después de UseStaticFiles: los archivos que existen se sirven como archivos.

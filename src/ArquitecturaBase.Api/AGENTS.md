@@ -5,7 +5,7 @@
 ## Al modificar
 
 - Los controllers consumen interfaces de servicios de Application. Infrastructure solo se referencia desde `Program.cs` para registrar.
-- `Json`, `Localization`, `RateLimiting` y `OpenApi` son componentes del borde: sus opciones comunes se registran en `DependencyInjection.cs`. MVC y HTTP comparten la configuración JSON.
+- `Json`, `Localization`, `RateLimiting` y `OpenApi` son componentes del borde: sus opciones comunes se registran en `DependencyInjection.cs`. MVC y HTTP comparten la configuración JSON. La compresión (Brotli o gzip, también por HTTPS) se registra ahí y va en el pipeline dentro de `UseExceptionHandler`.
 - `ErrorHandling` traduce resultados y errores del framework; `Hosting` conserva el origen único, los headers y el fallback SPA. Leé su guía antes de cambiar el orden del pipeline.
 - Un contrato nuevo preserva cuerpos, status, permisos, rate limit y esquemas OpenAPI; agregá la combinación verbo/ruta al inventario y sus pruebas.
 - Los endpoints de OpenIddict y Aspire mantienen sus protocolos. Las rutas de negocio usan controllers MVC.

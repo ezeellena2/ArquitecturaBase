@@ -107,6 +107,54 @@ public sealed class SpaHostingTests(ApiFactory factory)
         Assert.Equal("no-cache", response.Headers.CacheControl?.ToString());
     }
 
+    /// <summary>
+    /// Lo que está en /assets lleva el hash del contenido en el nombre: un cambio sale con otro nombre, así que el
+    /// navegador lo guarda un año sin volver a preguntar.
+    /// </summary>
+    [Fact]
+    public async Task Hashed_assets_are_cached_for_a_year()
+    {
+        using var client = factory.CreateClient();
+
+        using var response = await client.SendAsync(HttpMethod.Get, "/assets/main.js");
+        var cacheControl = response.Headers.CacheControl;
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(cacheControl);
+        Assert.True(cacheControl.Public);
+        Assert.Equal(TimeSpan.FromDays(365), cacheControl.MaxAge);
+        Assert.Contains(cacheControl.Extensions, directive => directive.Name == "immutable");
+    }
+
+    /// <summary>
+    /// Los archivos sin hash se revalidan. silent-renew.html se abre en cada carga del SPA y nombra los assets por
+    /// hash: si quedara guardado, después de un despliegue el iframe pediría archivos que ya no existen.
+    /// </summary>
+    [Fact]
+    public async Task Files_outside_the_assets_folder_are_not_cached()
+    {
+        using var client = factory.CreateClient();
+
+        using var response = await client.SendAsync(HttpMethod.Get, "/silent-renew.html");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("no-cache", response.Headers.CacheControl?.ToString());
+    }
+
+    /// <summary>
+    /// Una pestaña abierta durante un despliegue pide chunks que ya no están: ese 404 no puede quedar guardado.
+    /// </summary>
+    [Fact]
+    public async Task A_missing_asset_is_not_cached()
+    {
+        using var client = factory.CreateClient();
+
+        using var response = await client.SendAsync(HttpMethod.Get, "/assets/main-old0hash.js");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Null(response.Headers.CacheControl?.MaxAge);
+    }
+
     [Fact]
     public async Task Api_responses_are_not_cached_by_mistake()
     {

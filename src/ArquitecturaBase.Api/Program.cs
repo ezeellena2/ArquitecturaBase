@@ -66,6 +66,10 @@ app.UseSecurityHeaders();
 // También cubre la lectura de configuración que hace el proveedor de idioma.
 app.UseExceptionHandler();
 
+// Adentro del manejador de errores, así el 500 se arma sin un cuerpo comprimido a medias, y antes de todo lo que
+// escribe un cuerpo: los archivos del SPA, el index.html y el JSON de la Api.
+app.UseResponseCompression();
+
 // Localiza los errores y usa la configuración general si no hay un idioma admitido en la petición.
 app.UseRequestLocalization();
 
@@ -100,7 +104,7 @@ app.UseHttpsRedirection();
 // Después de la autenticación a propósito: el SPA es público, pero así sale dentro de UseStatusCodePages.
 // El orden entre estos dos importa: un archivo que existe se sirve como archivo; el resto de las rutas del
 // navegador abren el index.html.
-app.UseStaticFiles();
+app.UseSpaStaticFiles();
 app.UseSpaFallback();
 
 app.MapDefaultEndpoints();

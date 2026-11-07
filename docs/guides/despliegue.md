@@ -23,7 +23,7 @@ No se consideran completados por pasar las suites automáticas.
 
 ## Front dentro de la imagen
 
-El workflow descarga ambos repositorios, verifica y compila React y copia **todo** `dist/` a `src/ArquitecturaBase.Api/wwwroot/` antes de publicar .NET. Incluye `silent-renew.html` y compara por SHA-256 todos los archivos del front con los del publicado. `wwwroot/` es generado e ignorado por Git: la fuente se conserva en el repo del front. La Api sirve el SPA desde ese directorio con un solo origen. Sin `wwwroot/index.html`, `UseSpaFallback` no se instala y `/` devuelve 404; empaquetar el front es parte obligatoria de esta pipeline.
+El workflow descarga ambos repositorios, verifica y compila React y copia **todo** `dist/` a `src/ArquitecturaBase.Api/wwwroot/` antes de publicar .NET. Incluye `silent-renew.html` y compara por SHA-256 todos los archivos del front con los del publicado. `wwwroot/` es generado e ignorado por Git: la fuente se conserva en el repo del front. La Api sirve el SPA desde ese directorio con un solo origen. Sin `wwwroot/index.html`, `UseSpaFallback` no se instala y `/` devuelve 404; empaquetar el front es parte obligatoria de esta pipeline. La Api comprime con Brotli o gzip y fija el caché: `/assets` (nombres con hash) un año e `immutable`; `index.html` y el resto de los archivos, `no-cache`. Un proxy o CDN delante no necesita repetirlo, pero tiene que respetar `Cache-Control` y `Vary: Accept-Encoding`.
 
 ## El orden: bundle, después imagen
 

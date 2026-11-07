@@ -7,6 +7,7 @@ Configura headers de seguridad, proxies de confianza y el fallback del SPA. El n
 - `BackendPrefixes` es una lista manual. Un prefijo nuevo se agrega junto a sus pruebas y al proxy de Vite para que un 404 técnico no sea HTML con 200.
 - Preservá cookies, issuer y Host público al configurar proxies. No agregar CORS para separar el SPA del backend.
 - Los headers y el fallback tienen comportamiento diferente en Development y Production; verificá archivos estáticos, rutas SPA y rutas técnicas inexistentes.
+- `UseSpaStaticFiles` guarda un año (`immutable`) sólo lo de `/assets`, que Vite nombra por hash. El resto de los archivos y el `index.html` van con `no-cache`: `silent-renew.html` se abre en cada carga y nombra assets por hash. Un archivo sin hash no va en `/assets`.
 - No aceptar forwarded headers de cualquier origen sin la configuración de confianza documentada.
 
 ## Referencias
