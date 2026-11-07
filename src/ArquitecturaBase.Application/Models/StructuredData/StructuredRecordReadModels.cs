@@ -12,6 +12,8 @@ public sealed record StructuredRecordReadReply(Guid SourceReceiptId, Guid Record
 }
 
 public sealed record StructuredRecordReadValue(Guid FieldId, string Key, string Type, string Label, object? Value);
+/// <summary>An item of a block of rows: every question of its block, in order, with a null value where the item left it empty.</summary>
+public sealed record StructuredRecordReadRow(IReadOnlyList<StructuredRecordReadValue> Values);
 public sealed record StructuredRecordChoiceValue(string ChoiceId, string Label,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] Guid? CatalogId = null,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? CatalogName = null,

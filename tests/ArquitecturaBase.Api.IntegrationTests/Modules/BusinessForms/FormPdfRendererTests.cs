@@ -147,6 +147,18 @@ public sealed class FormPdfRendererTests
     }
 
     [Fact]
+    public async Task A_block_in_the_design_stays_out_of_the_copy_until_its_items_are_shown()
+    {
+        var fixture = new FormPdfRendererFixture();
+        var plain = await fixture.Renderer.RenderAsync(fixture.Snapshot, "es", false, TestContext.Current.CancellationToken);
+
+        var bytes = await fixture.Renderer.RenderAsync(fixture.BlockSnapshot(), "es", false, TestContext.Current.CancellationToken);
+
+        Assert.Equal(plain.Length, bytes.Length);
+        await fixture.ExportAsync(bytes, "block-es");
+    }
+
+    [Fact]
     public async Task Long_responses_flow_to_multiple_A4_pages()
     {
         var fixture = new FormPdfRendererFixture();

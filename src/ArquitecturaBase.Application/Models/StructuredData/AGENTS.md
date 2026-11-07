@@ -53,4 +53,6 @@ E2-4: Choice.Fields contiene campos históricos tipados con valor canónico stri
 
 CW15-B: `StructuredFormCheckRequest.Sections` lleva los títulos de sección (`StructuredFormSection`: `Start`, cuántas preguntas van antes, y `Title` por idioma), opcional con JsonIgnore(WhenWritingNull) en el chequeo y en el snapshot de publicación; el canal los muestra antes de la primera pregunta de cada sección.
 
+Renglones (Etapa 2): el bloque viaja en `Answers` bajo su clave como un array JSON con un objeto por ítem (`{"<clave de la pregunta>": "<valor canónico>"}`), como «elegir varias» manda su array, sin cambiar la forma del puerto ni la huella. `StructuredRecordCaptureResponse.RejectedRow` es el ítem de la pregunta rechazada, desde 0 y null fuera del bloque. `StructuredRecordReadRow` es un ítem en la lectura: todas las preguntas de su bloque en orden, con `Value` null en las vacías.
+
 IA3-A: `StructuredAuthoringSummary` (tipo, título, líneas, cuántas más y, en uno que no se puede armar, el motivo y la ruta de lo que existe), `StructuredAuthoringProposalRequest` (contexto, propuesta y procedencia auténticos) y `StructuredAuthoringCreatedResponse` (lo creado y la ruta de la app). Las rutas son relativas a la app; el canal les antepone su origen público. Todo redacta `ToString`.

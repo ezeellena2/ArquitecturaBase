@@ -108,6 +108,29 @@ internal sealed class FormPdfRendererFixture : IFormFileReader, IStoredFileReade
         return Snapshot with { Response = Snapshot.Response with { Record = record } };
     }
 
+    // The same response with a block of rows in its version, its answer and its design: an item with a quantity.
+    public FormPdfRenderRequest BlockSnapshot()
+    {
+        var group = Field("group", "Artículos", "Items") with { Rows = new(0, 3) };
+        var quantity = Field("decimal", "Cantidad recibida", "Quantity received") with { Required = true, Repeated = true };
+        var record = Snapshot.Response.Record;
+        var schema = JsonSerializer.Deserialize<FormVersionSchema>(record.SchemaJson, JsonSerializerOptions.Web)!;
+        using var document = JsonDocument.Parse(record.ValuesJson);
+        var values = document.RootElement.EnumerateArray().Select(value => (object)value.Clone())
+            .Append(new { fieldId = group.FieldId, value = new[] { new[] { new { fieldId = quantity.FieldId, value = 12m } } } }).ToArray();
+        var captured = record with
+        {
+            SchemaJson = JsonSerializer.Serialize(schema with { Questions = [.. schema.Questions, group, quantity] }, JsonSerializerOptions.Web),
+            ValuesJson = JsonSerializer.Serialize(values),
+        };
+        var design = Snapshot.Snapshot.Design with { QuestionIds = [.. Snapshot.Snapshot.Design.QuestionIds, group.FieldId, quantity.FieldId] };
+        return Snapshot with
+        {
+            Snapshot = Snapshot.Snapshot with { Design = design },
+            Response = Snapshot.Response with { Record = captured },
+        };
+    }
+
     public async Task ExportAsync(byte[] content, string name)
     {
         var output = Environment.GetEnvironmentVariable("FORM_PDF_RENDERER_OUTPUT");

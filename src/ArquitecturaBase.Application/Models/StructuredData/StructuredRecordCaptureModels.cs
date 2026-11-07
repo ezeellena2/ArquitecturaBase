@@ -10,7 +10,9 @@ public sealed record StructuredRecordCaptureRequest(Guid SourceReceiptId, Guid D
     public override string ToString() => "StructuredRecordCaptureRequest { Content = [REDACTED] }";
 }
 
-public sealed record StructuredRecordCaptureResponse(string State, Guid? RecordId, long? Number, string? ErrorCode, Guid? RejectedFieldId = null);
+// RejectedRow is the item of a block of the rejected question, from 0; null outside a block.
+public sealed record StructuredRecordCaptureResponse(string State, Guid? RecordId, long? Number, string? ErrorCode, Guid? RejectedFieldId = null,
+    int? RejectedRow = null);
 
 public sealed record StructuredRecordFileInput(Guid FieldId, int Position, string SourceId, string Type, string Name,
     string ContentType, string Sha256,

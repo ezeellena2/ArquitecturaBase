@@ -30,7 +30,7 @@ public sealed record FormRecordReferenceRow(Guid RecordId, Guid FieldId, Guid Ca
 public sealed record FormRecordReferenceTextResponse(string Text, string? Detail, string CatalogName)
 { public override string ToString() => "FormRecordReferenceTextResponse { Content = [REDACTED] }"; }
 public sealed record FormCaptureReceiptRow(Guid SourceReceiptId, Guid DefinitionId, Guid VersionId, string Fingerprint,
-    Guid? RecordId, long? Number, string State, string? ErrorCode, Guid? RejectedFieldId = null)
+    Guid? RecordId, long? Number, string State, string? ErrorCode, Guid? RejectedFieldId = null, int? RejectedRow = null)
 {
     public override string ToString() => "FormCaptureReceiptRow { Receipt = [REDACTED] }";
 }

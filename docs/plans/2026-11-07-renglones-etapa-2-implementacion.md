@@ -244,17 +244,22 @@ su clase. Otras sesiones trabajan en el mismo checkout: se preparan sólo los ar
 
 ### Tarea 2 · La captura con renglones
 
-- [ ] Tests en rojo en `FormRowsCaptureTests` (como `FormMultipleChoiceCaptureTests`) y `FormRecordAnswerPolicyTests`:
+- [x] Tests en rojo en `FormRowsCaptureTests` (como `FormMultipleChoiceCaptureTests`) y `FormRecordAnswerPolicyTests`:
   guardar uno, tres y cero ítems; el `ValuesJson` exacto; un valor y una referencia por pregunta de cada ítem con su `Row`;
   el mismo artículo en dos ítems; el replay con la misma huella y el conflicto con otra; los rechazos (menos que el mínimo,
   más que el máximo, una obligatoria vacía en un ítem, una clave ajena o repetida en un ítem, una pregunta del bloque
   arriba, una opción no ofrecida, una opción Manual dada de baja con `RejectedRow`); y la huella sin bloque igual a la de
   hoy.
-- [ ] `FormRecordAnswerPolicy` (el `Normalize` de hoy más el bloque), `BusinessFormRecordRecorder` y
+- [x] `FormRecordAnswerPolicy` (el `Normalize` de hoy más el bloque), `BusinessFormRecordRecorder` y
   `StructuredRecordCaptureResponse.RejectedRow`.
-- [ ] Las lecturas: `Project` sin el bloque ni sus preguntas, `StructuredRecordReadRow` con `Rows`, y el PDF sin el bloque,
+- [x] Las lecturas: `Project` sin el bloque ni sus preguntas, `StructuredRecordReadRow` con `Rows`, y el PDF sin el bloque,
   con sus tests (`FormRecordPresentationPolicyTests` y el del renderer).
-- [ ] Commit: `feat(formularios): la captura guarda los renglones del bloque`.
+- [x] Commit: `feat(formularios): la captura guarda los renglones del bloque`.
+
+  Hecho: `Rows(row, culture, schema)` lee el bloque de la respuesta (uno por formulario) y da `[]` sin bloque o sin su
+  respuesta; las celdas de las preguntas del bloque en la planilla pasan a «—» (NotAsked). La huella de una captura sin
+  bloque quedó fijada con su valor (canal y carga desde la app). `FormRowsCaptureIntegrationTests` corrió con PostgreSQL:
+  la oferta del catálogo del bloque, los ítems con su `Row` y el replay del ítem rechazado por el lector real.
 
 ### Tarea 3 · WhatsApp guarda los renglones
 

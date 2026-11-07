@@ -30,7 +30,8 @@ internal sealed class SkiaFormPdfRenderer(IFormFileReader references, IStoredFil
         using var values = JsonDocument.Parse(record.ValuesJson);
         var answers = values.RootElement.EnumerateArray().ToDictionary(value => value.GetProperty("fieldId").GetGuid(), value => value.GetProperty("value"));
         var selected = snapshot.Design.QuestionIds.ToHashSet();
-        foreach (var question in schema.Questions.Where(question => selected.Contains(question.FieldId)))
+        // The block of rows and its questions stay out of the copy until it shows the items, even when the design has them.
+        foreach (var question in schema.Questions.Where(question => selected.Contains(question.FieldId) && question.Type != "group" && question.Repeated != true))
         {
             cancellationToken.ThrowIfCancellationRequested();
             var label = question.Label[culture];

@@ -19,6 +19,6 @@ internal sealed class FormRecordCaptureGuard(IFormCaptureReceiptReader receipts,
         var prior = await receipts.FindAsync(request.SourceReceiptId, ct);
         if (prior is null || prior.SourceReceiptId != request.SourceReceiptId || prior.DefinitionId != request.DefinitionId
             || prior.VersionId != request.VersionId || prior.Fingerprint != fingerprint) return null;
-        return new(prior.State, prior.RecordId, prior.Number, prior.ErrorCode, prior.RejectedFieldId);
+        return new(prior.State, prior.RecordId, prior.Number, prior.ErrorCode, prior.RejectedFieldId, prior.RejectedRow);
     }
 }

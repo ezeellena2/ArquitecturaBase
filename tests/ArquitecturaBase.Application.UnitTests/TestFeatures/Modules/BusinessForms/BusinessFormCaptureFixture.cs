@@ -95,7 +95,7 @@ internal sealed class FakeCaptureReceiptReader(FakeRecordRepository repository) 
         var receipt = repository.Receipts.SingleOrDefault(value => value.SourceReceiptId == sourceReceiptId);
         return Task.FromResult(receipt is null ? null : new FormCaptureReceiptRow(receipt.SourceReceiptId,
             receipt.DefinitionId, receipt.VersionId, receipt.Fingerprint, receipt.RecordId, receipt.Number,
-            receipt.State, receipt.ErrorCode, receipt.RejectedFieldId));
+            receipt.State, receipt.ErrorCode, receipt.RejectedFieldId, receipt.RejectedRow));
     }
 }
 

@@ -1,8 +1,6 @@
-using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using ArquitecturaBase.Domain.Common;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Common.Logging;
@@ -95,7 +93,7 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
         if (prior is not null)
         {
             return prior.Fingerprint == fingerprint
-                ? new StructuredRecordCaptureResponse(prior.State, prior.RecordId, prior.Number, prior.ErrorCode, prior.RejectedFieldId)
+                ? new StructuredRecordCaptureResponse(prior.State, prior.RecordId, prior.Number, prior.ErrorCode, prior.RejectedFieldId, prior.RejectedRow)
                 : new StructuredRecordCaptureResponse("Rejected", null, null, FormRecordErrors.ReplayConflict.Code);
         }
 
@@ -146,19 +144,24 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
                 || FormCatalogOfferPolicy.Validate(false, offer.Options) is not null
                 || FormCatalogOfferPolicy.InvalidNames(offer.CatalogNames) || FormCatalogOfferPolicy.InvalidValues(offer)))
             return Reject(request, fingerprint, FormRecordErrors.InvalidResponse.Code);
-        var answers = Normalize(schema, request.Answers, offers);
+        var answers = FormRecordAnswerPolicy.Normalize(schema, request.Answers, offers);
         if (answers is null)
             return Reject(request, fingerprint, FormRecordErrors.InvalidResponse.Code);
 
-        var selected = answers.Where(answer => schema.Questions.Single(question => question.FieldId == answer.FieldId).Source?.Catalog is not null)
-            .SelectMany(answer => (answer.ChoiceIds ?? [answer.ChoiceId!.Value])
-                .Select(choiceId => (Answer: answer, ChoiceId: choiceId,
-                    Offer: offers.Single(offer => offer.FieldId == answer.FieldId)))).ToArray();
+        // Each answer with its item of the block, null outside it; the block itself is not a value.
+        static IEnumerable<(FormRecordAnswer Answer, int? Item)> Placed(FormRecordAnswer answer) => answer.Rows is { } rows
+            ? rows.SelectMany((items, row) => items.Select(item => (item, (int?)row)))
+            : [(answer, null)];
+        var placed = answers.SelectMany(Placed).ToArray();
+        var selected = placed.Where(value => schema.Questions.Single(question => question.FieldId == value.Answer.FieldId).Source?.Catalog is not null)
+            .SelectMany(value => (value.Answer.ChoiceIds ?? [value.Answer.ChoiceId!.Value])
+                .Select(choiceId => (value.Answer, value.Item, ChoiceId: choiceId,
+                    Offer: offers.Single(offer => offer.FieldId == value.Answer.FieldId)))).ToArray();
         foreach (var catalogId in selected.Where(value => value.Offer.Kind == "Manual").Select(value => value.Offer.CatalogId).Distinct().Order())
             await records.LockCatalogAsync(catalogId, ct);
         foreach (var value in selected.Where(value => value.Offer.Kind == "Manual"))
             if (!await records.ExistsActiveCatalogItemAsync(value.Offer.CatalogId, value.ChoiceId, ct))
-                return Reject(request, fingerprint, FormRecordErrors.CatalogItemInactive.Code, value.Answer.FieldId);
+                return Reject(request, fingerprint, FormRecordErrors.CatalogItemInactive.Code, value.Answer.FieldId, value.Item);
 
         var catalogFields = await FormCatalogFieldCapturePolicy.CaptureAsync(records,
             selected.Where(value => value.Offer.Kind == "Manual").Select(value => value.ChoiceId).Distinct().ToArray(), ct);
@@ -193,17 +196,17 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
                 FormDraftPolicy.Serialize(snapshotOrigin));
         }
         records.Add(record);
-        foreach (var value in answers)
+        foreach (var (value, item) in placed)
         {
             if (value.Type == "multiChoice")
             {
                 for (var position = 0; position < value.ChoiceIds!.Length; position++)
                     records.Add(BusinessFormRecordValue.Create(record.Id, definition.Id, value.FieldId, value.Type,
-                        choiceId: value.ChoiceIds[position], position: position));
+                        choiceId: value.ChoiceIds[position], position: position, row: item ?? 0));
             }
             else
                 records.Add(BusinessFormRecordValue.Create(record.Id, definition.Id, value.FieldId, value.Type,
-                    value.Text, value.Decimal, value.Date, value.Boolean, value.ChoiceId));
+                    value.Text, value.Decimal, value.Date, value.Boolean, value.ChoiceId, row: item ?? 0));
         }
         var references = new List<FormRecordReferenceRow>();
         foreach (var value in selected)
@@ -212,8 +215,10 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
             var translations = FormRecordReferencePolicy.Capture(option, value.Offer);
             var fieldValuesJson = value.Offer.Kind == "Manual" ? catalogFields.GetValueOrDefault(option.Id) : null;
             records.Add(BusinessFormRecordReference.Create(record.Id, definition.Id, value.Answer.FieldId,
-                value.Offer.CatalogId, value.Offer.Revision, option.Id, option.Text, option.Detail, value.Offer.CatalogName, translations, option.Value, value.Offer.ValueType, fieldValuesJson));
-            references.Add(new(record.Id, value.Answer.FieldId, value.Offer.CatalogId, value.Offer.Revision, option.Id, option.Text, option.Detail, value.Offer.CatalogName, translations, option.Value, value.Offer.ValueType, fieldValuesJson));
+                value.Offer.CatalogId, value.Offer.Revision, option.Id, option.Text, option.Detail, value.Offer.CatalogName, translations, option.Value, value.Offer.ValueType, fieldValuesJson,
+                value.Item ?? 0));
+            references.Add(new(record.Id, value.Answer.FieldId, value.Offer.CatalogId, value.Offer.Revision, option.Id, option.Text, option.Detail, value.Offer.CatalogName, translations, option.Value, value.Offer.ValueType, fieldValuesJson,
+                value.Item ?? 0));
         }
         var fileRows = fileRecorder.Record(record, files, kept);
         var stored = new FormRecordStoredRow(record.SourceReceiptId, record.Id, record.Number, definition.Id, definition.Prefix,
@@ -227,103 +232,12 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
         return new StructuredRecordCaptureResponse("Completed", record.Id, number, null);
     }
 
-    private Result<StructuredRecordCaptureResponse> Reject(StructuredRecordCaptureRequest request, string fingerprint, string code, Guid? rejectedFieldId = null)
+    private Result<StructuredRecordCaptureResponse> Reject(StructuredRecordCaptureRequest request, string fingerprint, string code,
+        Guid? rejectedFieldId = null, int? rejectedRow = null)
     {
         records.Add(BusinessFormCaptureReceipt.Reject(request.SourceReceiptId, request.DefinitionId, request.VersionId,
-            fingerprint, code, timeProvider.GetUtcNow().UtcDateTime, rejectedFieldId));
-        return new StructuredRecordCaptureResponse("Rejected", null, null, code, rejectedFieldId);
-    }
-
-    private static List<NormalizedAnswer>? Normalize(FormVersionSchema schema, IReadOnlyDictionary<string, string> answers, IReadOnlyList<StructuredFormCatalogOffer> offers)
-    {
-        if (schema.Format != 1 || schema.Questions.Count > 40) return null;
-        var questions = schema.Questions;
-        if (answers.Keys.Any(key => !questions.Any(question => question.Key == key))) return null;
-        var result = new List<NormalizedAnswer>();
-        foreach (var question in questions)
-        {
-            if (question.Type is "photo" or "document") continue;
-            if (!answers.TryGetValue(question.Key, out var raw))
-            {
-                if (question.Required) return null;
-                continue;
-            }
-            if (question.Type == "multiChoice")
-            {
-                var choices = MultipleChoices(question, raw, offers);
-                if (choices is null) return null;
-                result.Add(new(question.FieldId, question.Type, null, null, null, null, null, choices));
-                continue;
-            }
-            if (raw.Length == 0)
-            {
-                if (question.Required) return null;
-                continue;
-            }
-            switch (question.Type)
-            {
-                case "shortText":
-                case "longText":
-                    if (raw.Length > question.MaxLength || !StorableText.IsStorable(raw.AsSpan())) return null;
-                    result.Add(new(question.FieldId, question.Type, raw, null, null, null, null));
-                    break;
-                case "decimal":
-                    if (!decimal.TryParse(raw, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var number)
-                        || FormScalarPrefillPolicy.CanonicalDecimal(raw) != FormScalarPrefillPolicy.CanonicalDecimal(number.ToString("0.############################", CultureInfo.InvariantCulture))) return null;
-                    result.Add(new(question.FieldId, question.Type, null, number, null, null, null));
-                    break;
-                case "date":
-                    if (!DateOnly.TryParseExact(raw, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date)) return null;
-                    result.Add(new(question.FieldId, question.Type, null, null, date, null, null));
-                    break;
-                case "boolean":
-                    if (!bool.TryParse(raw, out var boolean)) return null;
-                    result.Add(new(question.FieldId, question.Type, null, null, null, boolean, null));
-                    break;
-                case "choice":
-                    if (!Guid.TryParseExact(raw, "D", out var choice)) return null;
-                    if (question.Source?.Catalog is { } catalogId)
-                    {
-                        var offer = offers.SingleOrDefault(value => value.FieldId == question.FieldId && value.CatalogId == catalogId);
-                        if (offer?.Options.Any(option => option.Id == choice) != true) return null;
-                    }
-                    else if (question.Options?.All(option => option.ChoiceId != choice) != false) return null;
-                    result.Add(new(question.FieldId, question.Type, null, null, null, null, choice));
-                    break;
-                default: return null;
-            }
-        }
-        return result;
-    }
-
-    private static Guid[]? MultipleChoices(CanonicalFormField question, string raw, IReadOnlyList<StructuredFormCatalogOffer> offers)
-    {
-        if (question.Selection is not { } range || range.MinSelected < 0 || range.MaxSelected is < 1 or > 20
-            || range.MinSelected > range.MaxSelected || question.Required != (range.MinSelected > 0)) return null;
-        try
-        {
-            using var json = JsonDocument.Parse(raw);
-            if (json.RootElement.ValueKind != JsonValueKind.Array) return null;
-            var count = json.RootElement.GetArrayLength();
-            if (count < range.MinSelected || count > range.MaxSelected) return null;
-            var choices = new Guid[count];
-            var distinct = new HashSet<Guid>();
-            for (var index = 0; index < count; index++)
-            {
-                var value = json.RootElement[index];
-                if (value.ValueKind != JsonValueKind.String || !Guid.TryParseExact(value.GetString(), "D", out var choice)
-                    || choice == Guid.Empty || !distinct.Add(choice)) return null;
-                if (question.Source?.Catalog is { } catalogId)
-                {
-                    var offer = offers.SingleOrDefault(offer => offer.FieldId == question.FieldId && offer.CatalogId == catalogId);
-                    if (offer?.Options.Any(option => option.Id == choice) != true) return null;
-                }
-                else if (question.Options?.Any(option => option.ChoiceId == choice) != true) return null;
-                choices[index] = choice;
-            }
-            return choices;
-        }
-        catch (JsonException) { return null; }
+            fingerprint, code, timeProvider.GetUtcNow().UtcDateTime, rejectedFieldId, rejectedRow));
+        return new StructuredRecordCaptureResponse("Rejected", null, null, code, rejectedFieldId, rejectedRow);
     }
 
     // An entry's offer is rebuilt by the server on every send, so it stays out: the replay compares what the person sent.
@@ -349,15 +263,5 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
             } : null
         });
         return Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));
-    }
-
-    private sealed record NormalizedAnswer(Guid FieldId, string Type, string? Text, decimal? Decimal,
-        DateOnly? Date, bool? Boolean, Guid? ChoiceId, Guid[]? ChoiceIds = null)
-    {
-        public object Value => Type switch
-        {
-            "shortText" or "longText" => Text!, "decimal" => Decimal!.Value, "date" => Date!.Value,
-            "boolean" => Boolean!.Value, "choice" => ChoiceId!.Value, "multiChoice" => ChoiceIds!, _ => throw new InvalidOperationException("Unknown form answer type."),
-        };
     }
 }
