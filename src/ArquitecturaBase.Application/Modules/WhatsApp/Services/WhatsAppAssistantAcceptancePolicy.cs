@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text.Json;
 using ArquitecturaBase.Application.Interfaces.Channels;
@@ -90,7 +91,7 @@ internal sealed class WhatsAppAssistantAcceptancePolicy(WhatsAppFormSendPolicy s
         var fingerprint = Fingerprint(request,actor,proposal?.Id);
         var issue = issuer.CreateProposed(context,request.RequestId,row.ModeRevision,actor,fingerprint,
             Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(32)),content,row.ContentExpiresAtUtc,prefill.Catalogs);
-        var body = AssistantTexts.Get("CompleteForm",prefill.Culture);
+        var body = string.Format(CultureInfo.GetCultureInfo(prefill.Culture),AssistantTexts.Get("CompleteForm",prefill.Culture),prefill.Form.Name[prefill.Culture]);
         var outgoing = actor is {} operatorId
             ? WhatsAppOutgoingMessage.CreateFlow(operatorId,contact.Id,request.RequestId,body,issue.Session.Id,issue.CreatedAtUtc)
             : WhatsAppOutgoingMessage.CreateAssistantFlow(row.SubjectUserId,contact.Id,request.RequestId,body,issue.Session.Id,issue.CreatedAtUtc,

@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text.Json;
 using ArquitecturaBase.Application.Common.Logging;
@@ -36,8 +37,10 @@ internal sealed partial class WhatsAppFormSendService(
         var contextResult = await policy.ResolveAsync(request, Actor, cancellationToken);
         if (contextResult.IsFailure) return contextResult.Error;
         var context = contextResult.Value;
+        // Without a message of the operator, the default names the form in the language it goes out in.
+        var culture = context.Binding.Culture;
         var body = string.IsNullOrWhiteSpace(request.Message)
-            ? FlowTexts.Get("CompleteForm", context.Binding.Culture)
+            ? string.Format(CultureInfo.GetCultureInfo(culture), FlowTexts.Get("CompleteForm", culture), context.Form.Name[culture])
             : request.Message.Trim();
 
         return await unitOfWork.ExecuteInTransactionAsync(async ct =>

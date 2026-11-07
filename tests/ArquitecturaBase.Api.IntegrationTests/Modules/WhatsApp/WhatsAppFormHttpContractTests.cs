@@ -200,7 +200,7 @@ public sealed partial class WhatsAppFormSendingTests
                 expectedRecipientContextRevision = originalChoices.GetProperty("recipientContextRevision").GetString(),
                 message = (string?)null
             }, Ct), HttpStatusCode.Accepted);
-            Assert.Equal("Completá este formulario.", originalReceipt.GetProperty("body").GetString());
+            Assert.Equal("Completá el formulario «Formulario original».", originalReceipt.GetProperty("body").GetString());
             Assert.Equal("es", originalReceipt.GetProperty("form").GetProperty("culture").GetString());
             AssertOriginalMap(originalReceipt.GetProperty("form").GetProperty("name"), "Formulario original");
             transport.NextResult = WhatsAppSendResult.Sent("wamid.fixture-" + Guid.NewGuid().ToString("N"));

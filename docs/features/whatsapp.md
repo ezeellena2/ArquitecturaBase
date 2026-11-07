@@ -144,6 +144,8 @@ La selección se pagina, busca y ordena en SQL según el idioma del destinatario
 
 `POST .../form-messages` crea en un commit la sesión y la salida, en la [cultura completa preparada](formularios.md#idioma-original-y-traducción-opcional--2026-10-19) para la cuenta. Si su idioma no está publicado en la versión o falta una traducción usada por formulario, avisos o PDF, todo el recorrido usa el original; un texto/detalle de ítem de catálogo sin traducción conserva su original individual. El mensaje es `interactive.type=flow` (`flow_message_version="3"`, `flow_action=navigate`, `flow_token` aleatorio) con el botón «Abrir formulario» / «Open form». `Message:null` usa la apertura predeterminada en esa cultura; un texto explícito del operador se conserva y debe ser visible, de hasta 1024 caracteres. El token se compara por hash y no se registra.
 
+**El mensaje nombra el formulario (2026-11-07).** La apertura predeterminada dice «Completá el formulario «<nombre>».» («Complete the form “<name>”.»), con el nombre del formulario en la cultura de la sesión. Las ofertas del asistente salen con «Te preparé el formulario «<nombre>» para que lo completes.» («I prepared the form “<name>” for you to complete.»). Eso vale para el modo automático y para las sugerencias que el operador acepta en Atención manual, incluidas las de «Qué sugerir después». El nombre tiene hasta 120 caracteres, así que el texto entra siempre en los 1024 del cuerpo.
+
 ## Recepción de respuestas de Flow
 
 El `nfm_reply` se procesa sin esperar el Delivered del envío. El webhook guarda la respuesta protegida, fuera del texto del historial, y marca rechazada una de más de 16 KiB (`WhatsAppFlowProfile.MaxResponseJsonBytes`), tope que el compilador ya impide al publicar. `WhatsAppFlowReplyBackgroundService` la procesa aparte y respeta `ProcessFlowsInBackground`.
@@ -241,7 +243,7 @@ El polling de una normalización Transcribing con sello privado válido reutiliz
 
 Una corrida diaria de retención vacía todos los lotes vencidos del asistente hasta recibir cero. Cada lote conserva su máximo de 500 y abre un scope y una UoW nuevos; no se amplía la transacción para compensar volumen.
 
-La preparación del selector de formularios siempre devuelve la cultura efectiva completa resuelta por BusinessForms, incluso para formularios sin catálogos. La cuenta y su revisión siguen siendo el contexto real de autorización; binding, proyección, botón, apertura automática y sesión usan la cultura preparada. La confirmación revalida esa elección antes de guardar. Un mensaje del operador se conserva; sin texto explícito, el servidor localiza el mensaje predeterminado actual. La respuesta recibida transmite la cultura fija de sesión al registro, sin alterar la huella de replay.
+La preparación del selector de formularios siempre devuelve la cultura efectiva completa resuelta por BusinessForms, incluso para formularios sin catálogos. La cuenta y su revisión siguen siendo el contexto real de autorización; binding, proyección, botón, apertura automática y sesión usan la cultura preparada. La confirmación revalida esa elección antes de guardar. Un mensaje del operador se conserva; sin texto explícito, el servidor localiza el mensaje predeterminado actual, con el [nombre del formulario](#envío-durable-de-formularios) en la cultura preparada. La respuesta recibida transmite la cultura fija de sesión al registro, sin alterar la huella de replay.
 
 ## Espera del asistente y avisos locales — 2026-10-21
 

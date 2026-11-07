@@ -42,4 +42,6 @@ C4 prueba creación desde FlowReply Completed, primer POST antes del worker, Alw
 
 WhatsAppFlowTechnicalNameTests prueba el nombre del Flow en Meta: el del formulario en su idioma o el original, la versión, el idioma y el final del id; el corte con «…» en 80 caracteres, los espacios y caracteres que se descartan (NFC), el nombre vacío y el pedido sin versión, y que la versión no cambia las huellas del pedido.
 
+WhatsAppFormDefaultMessageTests prueba el mensaje que acompaña al formulario: sin texto del operador nombra el formulario en la cultura de la sesión (es, en y el original cuando falta la traducción), un texto del operador sale como lo escribió y la oferta del asistente nombra el formulario en es y en.
+
 FlowDeprecationServiceTests verifica orden Definitions→Flow, versión no usada y trabajo pendiente al reservar y marcar, lease/fence entre dueños, recuperación por GET tras incertidumbre o rechazo, y fallas de cuenta/manifiesto con NeedsAttention, espera creciente y sin perder evidencia de un POST; todo con puertos falsos, sin red ni PostgreSQL.

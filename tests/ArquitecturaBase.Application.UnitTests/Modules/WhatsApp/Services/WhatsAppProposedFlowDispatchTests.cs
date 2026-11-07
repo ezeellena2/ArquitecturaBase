@@ -39,7 +39,7 @@ public sealed class WhatsAppProposedFlowDispatchTests
         var host=await QueuedAsync("en");var row=WhatsAppAssistantAcceptanceFixture.DispatchRow(host);
         Assert.Equal("es",row.Culture);
         var prepared=await WhatsAppAssistantAcceptanceFixture.CreateDispatch(host,row).PrepareAsync(row.OutgoingId,Ct);
-        Assert.True(prepared.IsSuccess);Assert.Equal("Te preparé el formulario para que lo completes.",prepared.Value.Body);
+        Assert.True(prepared.IsSuccess);Assert.Equal("Te preparé el formulario «Visita» para que lo completes.",prepared.Value.Body);
     }
     [Fact]
     public async Task An_inactive_operator_cannot_dispatch_a_previously_confirmed_manual_proposal()

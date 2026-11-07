@@ -233,7 +233,7 @@ public sealed partial class WhatsAppFormSendingTests
             await host.Services.GetRequiredService<WhatsAppOutgoingBackgroundService>().ProcessNextAsync(Ct);
             Assert.Equal(previousCount + 1, transport.Messages.Count);
             var sent = transport.Messages.Last();
-            Assert.Equal(expectedCulture == "en" ? "Complete this form." : "Completá este formulario.", sent.Body);
+            Assert.Equal(expectedCulture == "en" ? "Complete the form “Translated visit”." : "Completá el formulario «Visita original».", sent.Body);
             Assert.Equal(expectedCulture == "en" ? "Open form" : "Abrir formulario", sent.ButtonText);
             var session = await factory.ExecuteDbContextAsync(db => db.Set<WhatsAppFlowSession>()
                 .SingleAsync(row => row.ContactId == contactId && row.VersionId == versionId, Ct));
