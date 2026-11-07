@@ -289,7 +289,9 @@ para que se usen igual en toda la app.
      y «Mantener».
    - Prueba física: «Recepción de insumos» con los tres renglones del remito, desde la app y por WhatsApp.
 3. **Etapa 3 · Ver los renglones (RG4-A).** La columna de la planilla, «Filtros» por algún renglón con sus conteos, la vista
-   rápida, la pantalla completa, el chat de WhatsApp, la hoja del Excel y la tabla del PDF.
+   rápida, la pantalla completa, el chat de WhatsApp, la hoja del Excel y la tabla del PDF. Programada el 2026-11-07 según
+   su [plan](2026-11-07-renglones-etapa-3-implementacion.md); las reglas que quedaron están en
+   [formularios](../features/formularios.md#el-bloque-de-renglones-en-la-lectura--rg4-a-2026-11-07).
 4. **Etapa 4 · Las reglas (RG5-A).** Las condiciones «algún renglón con…» en el editor y en la evaluación, la lista de reglas
    y el bloque como dato del mensaje, con «Así llega». Con eso, la regla de «Recepción de insumos» avisa al Agrónomo si algún
    artículo llegó en mal estado.

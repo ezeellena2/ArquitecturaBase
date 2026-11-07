@@ -152,6 +152,11 @@ El `nfm_reply` se procesa sin esperar el Delivered del envío. El webhook guarda
 
 Las claves `field_{Guid:N}` se decodifican con el codec de la proyección sellada; una respuesta ilegible queda Unrecognized o Rejected. El mensaje y la sesión guardan su estado final por separado, para que un replay alterado no pueda presentarse como completado. La sesión vence según la fecha firmada por Meta. Sin vínculo o vencida, solo se recupera un recibo idéntico (`FindExistingReceiptAsync`). La captura no envía desde su transacción: las reglas configuradas pueden crear avisos durables mediante el canal de acciones descrito abajo. Sin `formrecords.read` se ocultan los valores, pero se ve el número; el preview del listado es el texto fijo «Respuesta del formulario». No se registran token ni valores ([captura](formularios.md)).
 
+Una respuesta con un bloque de renglones llega a la tarjeta del chat con el bloque en su lugar: su nombre y un ítem por
+línea («1. GLIFOSATO 64% · 200 · Litros · Sí»), con las respuestas en el orden de sus preguntas y sin las que quedaron sin
+responder, como «Así llega» (RG4-A). Viene por la lectura neutral, sin campos del catálogo, y el bloque cuenta como un dato
+más para plegar la tarjeta. Sin ítems dice «Sin respuesta».
+
 ## Piloto de formularios
 
 El piloto real con r3 publicó, envió desde el chat y capturó una respuesta con los seis tipos. Falta calificar r4 y, en dispositivos, ambos separadores decimales (la preview aceptó punto y rechazó coma, y el celular respondió un entero), los límites completos y ausencia frente a false: [Etapa 2](../plans/formularios/etapa-2-catalogos.md) y [verificación de cierre](formularios.md#verificación-de-cierre--2026-10-11).

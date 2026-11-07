@@ -265,6 +265,46 @@ D2 abre la respuesta en un panel junto a la planilla o a Por aprobar, manteniend
 
 La captura fija la revisión y crea sus runs antes de confirmar recibo y número, junto con valores, referencias y archivos. Los avisos usan el [canal neutral de acciones](whatsapp.md#avisos-de-reglas-de-formularios--etapa-4-g6), con un commit separado en el canal y sin referencias entre módulos. Al preparar cada evento, el idioma de quien recibe debe estar completo en todos los avisos de esa revisión de reglas y en el diseño PDF vigente si la revisión lo genera. Si falta cualquier texto, los mensajes y las copias usan íntegramente el original del formulario; esa elección queda fijada en los runs.
 
+## El bloque de renglones en la lectura — RG4-A, 2026-11-07
+
+Una respuesta con un bloque de renglones se lee entera: la planilla, «Filtros», la vista rápida, la pantalla completa, la
+tarjeta del chat, el Excel y el PDF. Los textos dicen «ítem» (RG12-A); el código y los documentos siguen diciendo renglón.
+
+- **La lectura neutral.** `FormRecordPresentationPolicy.Project` trae el bloque en su lugar como valor `group`, con sus
+  ítems (`StructuredRecordReadRow`, de `Rows`): todas las preguntas del bloque de su versión, en orden, null en las vacías y
+  la referencia de catálogo de su propio `Row`. Las preguntas `repeated` van sólo adentro. Un bloque sin ítems es `[]`.
+- **La planilla.** Una fila por respuesta. El bloque tiene una columna `group` con `options: []` y `questions`, sus
+  preguntas unidas por FieldId entre las versiones que tuvieron ese bloque, primero en el orden de la activa; sus preguntas
+  no tienen columna suelta. La celda es NotAsked, Unanswered (`[]`) o Answered con un `{ cells }` por ítem y una celda por
+  pregunta de `questions` (NotAsked la que el bloque de su versión no tenía). No se ordena por el bloque ni por sus
+  preguntas (`Forms.Record.FilterInvalid`). El front muestra «3 · GLIFOSATO 64%, …»: la cantidad en gris y el primer valor
+  respondido de cada ítem.
+- **«Filtros».** Las preguntas del bloque filtran con los operadores de su tipo; el bloque mismo, no. Varias condiciones
+  con valor sobre preguntas del bloque las tiene que cumplir un mismo ítem (RG5-A): un `EXISTS` sobre la respuesta con cada
+  condición buscada en el `Row` de la anterior, sin multiplicar respuestas. La presencia mira la respuesta entera. Cada
+  opción de los conteos cuenta las respuestas con un ítem que la tiene y cumple ahí las otras condiciones del bloque; la de
+  un catálogo sale de las referencias de todos los ítems. «Buscar en textos largos» lee también los de los ítems y el
+  total cuenta respuestas. En el front, las preguntas van bajo el nombre del bloque con «En algún ítem de {bloque}».
+- **El detalle.** `values` trae el bloque con un `{ values }` por ítem. La vista rápida (D2) lista cada ítem con su número
+  y su primera respuesta en negro y las demás alineadas debajo; la pantalla completa (DC1), una tabla con el número a la
+  derecha y una columna por pregunta. Sin ítems, «Sin respuesta».
+- **El chat.** La tarjeta recibe el bloque por la misma lectura, sin campos del catálogo, y pone un ítem por línea.
+- **El Excel.** «Respuestas» pone la cantidad de ítems (vacía sin ítems, «—» si su versión no tenía el bloque) y cada bloque
+  exportado suma una hoja con «Número», «Ítem» y sus preguntas, con su «· valor» y los campos que elige `catalogFields`,
+  una fila por ítem en el orden de las respuestas. La hoja se llama como el bloque, sin lo que Excel no admite, hasta 31
+  caracteres sin partir un emoji y sin apóstrofes ni espacios en los extremos; «Ítems» si queda vacía, igual a «Respuestas»
+  o «History», y « (2)» si otra ya tiene ese nombre.
+- **El PDF.** El diseño elige el bloque entero: el inicial, el de una respuesta sin diseño guardado y las preguntas que se
+  pueden elegir dejan afuera las del bloque, y un idioma está completo si también lo están ellas. La copia pone el bloque
+  bajo su nombre en una tabla: el número del ítem y una columna por pregunta de su versión, línea entre columnas, números
+  a la derecha, texto partido en su celda y el encabezado repetido si sigue en la página siguiente. La vista previa suma
+  dos ítems de ejemplo. Una pregunta del bloque elegida sola en un diseño viejo no sale.
+- **Reglas.** Un mensaje que nombra el bloque lo deja vacío hasta la Etapa 4 de renglones, que lo pone un ítem por línea.
+
+Límites conocidos, sin caso real hoy: un bloque con muchas preguntas angosta las columnas de la tabla del PDF, un ítem
+partido entre páginas no repite su número y la hoja del bloque no tiene tope propio de filas (corta el presupuesto de 30
+segundos del export).
+
 ## Diseño y copia fija del PDF — Etapa 4, G2
 
 El diseño tiene revisiones inmutables en `BusinessFormPdfDesigns` y puntero `ActivePdfDesignId`. Guardar exige `formrules.manage`, revisión esperada y el lock de definiciones; un guardado atrasado devuelve 409. El nombre original es obligatorio (hasta 160 caracteres), la traducción opcional y el pie opcional (hasta 1000). La selección conserva identidades: una pregunta nueva no se agrega a un diseño guardado; una retirada que ya estaba seleccionada puede seguir, pero sólo se dibuja si existe en la versión capturada. El diseño inicial no guardado incluye las preguntas de esa versión, aprobación y fotos, con revisión cero. No cambia el borrador ni publica nada.
