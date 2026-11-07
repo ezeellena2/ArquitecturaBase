@@ -40,54 +40,75 @@ internal sealed partial class FormResponseReader
             var versions = definition.Versions.Where(version => definition.Schemas[version.Id].Questions.Any(question => question.FieldId == fieldId)).Select(version => version.Id).ToArray();
             var values = dbContext.Set<BusinessFormRecordValue>().Where(value => value.FieldId == fieldId);
             var files = dbContext.Set<BusinessFormRecordFile>().Where(value => value.FieldId == fieldId);
+            // Presence looks at the whole response, also for a question of the block: some item, none, or not asked.
             switch (condition.Operator)
             {
                 case "notAsked": query = query.Where(record => !versions.Contains(record.VersionId)); continue;
                 case "unanswered": query = query.Where(record => !values.Any(value => value.RecordId == record.Id) && !files.Any(value => value.RecordId == record.Id)); continue;
                 case "answered": query = query.Where(record => values.Any(value => value.RecordId == record.Id) || files.Any(value => value.RecordId == record.Id)); continue;
             }
-            var text = condition.Values![0];
-            if (field.Type is "shortText" or "longText")
-            {
-                if (condition.Operator == "equals") query = query.Where(record => values.Any(value => value.RecordId == record.Id && value.TextValue == text));
-                else
-                {
-                    var pattern = LikePatterns.Contains(text);
-                    query = query.Where(record => values.Any(value => value.RecordId == record.Id && value.TextValue != null && EF.Functions.ILike(value.TextValue, pattern, LikePatterns.EscapeCharacter)));
-                }
-            }
-            else if (field.Type == "decimal")
-            {
-                var number = decimal.Parse(text, CultureInfo.InvariantCulture);
-                query = condition.Operator switch
-                {
-                    "gte" => query.Where(record => values.Any(value => value.RecordId == record.Id && value.DecimalValue >= number)),
-                    "lte" => query.Where(record => values.Any(value => value.RecordId == record.Id && value.DecimalValue <= number)),
-                    _ => query.Where(record => values.Any(value => value.RecordId == record.Id && value.DecimalValue == number)),
-                };
-            }
-            else if (field.Type == "date")
-            {
-                var date = DateOnly.ParseExact(text, "yyyy-MM-dd", CultureInfo.InvariantCulture);
-                query = condition.Operator switch
-                {
-                    "gte" => query.Where(record => values.Any(value => value.RecordId == record.Id && value.DateValue >= date)),
-                    "lte" => query.Where(record => values.Any(value => value.RecordId == record.Id && value.DateValue <= date)),
-                    _ => query.Where(record => values.Any(value => value.RecordId == record.Id && value.DateValue == date)),
-                };
-            }
-            else if (field.Type == "boolean")
-            {
-                var selected = condition.Values.Select(bool.Parse).ToArray();
-                query = query.Where(record => values.Any(value => value.RecordId == record.Id && value.BooleanValue != null && selected.Contains(value.BooleanValue.Value)));
-            }
-            else if (field.Type is "choice" or "multiChoice")
-            {
-                var selected = condition.Values.Select(Guid.Parse).ToArray();
-                query = query.Where(record => values.Any(value => value.RecordId == record.Id && value.ChoiceId != null && selected.Contains(value.ChoiceId.Value)));
-            }
+            if (field.Repeated == true) continue;
+            var matching = Matching(field, condition);
+            query = query.Where(record => matching.Any(value => value.RecordId == record.Id));
         }
+        if (SameItem(ItemConditions(definition, request, ignoredField)) is { } item) query = query.Where(record => item.Any(value => value.RecordId == record.Id));
         return query;
+    }
+    /// <summary>
+    /// The values of the conditions on questions of the block of rows, apart from the ignored one: they are met by one same item
+    /// (RG5-A), so each one is looked up in the row of the others.
+    /// </summary>
+    private IQueryable<BusinessFormRecordValue>[] ItemConditions(FormResponseDefinitionRow definition, ListFormRecordsRequest request, Guid? ignoredField) =>
+        request.Conditions.Where(condition => condition.FieldId != ignoredField && condition.Operator is not ("answered" or "unanswered" or "notAsked"))
+            .Select(condition => (Condition: condition, Field: Questions(definition).First(question => question.FieldId == condition.FieldId)))
+            .Where(item => item.Field.Repeated == true).Select(item => Matching(item.Field, item.Condition)).ToArray();
+    /// <summary>The values of the first condition whose item, by its row, also has values for every other one; null without conditions.</summary>
+    private static IQueryable<BusinessFormRecordValue>? SameItem(IQueryable<BusinessFormRecordValue>[] conditions)
+    {
+        if (conditions.Length == 0) return null;
+        var item = conditions[0];
+        foreach (var other in conditions.Skip(1))
+            item = item.Where(value => other.Any(same => same.RecordId == value.RecordId && same.Row == value.Row));
+        return item;
+    }
+    /// <summary>The values of a question that meet a condition with a value, by the operator of its type.</summary>
+    private IQueryable<BusinessFormRecordValue> Matching(CanonicalFormField field, FormRecordCondition condition)
+    {
+        var fieldId = field.FieldId;
+        var values = dbContext.Set<BusinessFormRecordValue>().Where(value => value.FieldId == fieldId);
+        var text = condition.Values![0];
+        switch (field.Type)
+        {
+            case "shortText" or "longText" when condition.Operator == "equals":
+                return values.Where(value => value.TextValue == text);
+            case "shortText" or "longText":
+                var pattern = LikePatterns.Contains(text);
+                return values.Where(value => value.TextValue != null && EF.Functions.ILike(value.TextValue, pattern, LikePatterns.EscapeCharacter));
+            case "decimal":
+                var number = decimal.Parse(text, CultureInfo.InvariantCulture);
+                return condition.Operator switch
+                {
+                    "gte" => values.Where(value => value.DecimalValue >= number),
+                    "lte" => values.Where(value => value.DecimalValue <= number),
+                    _ => values.Where(value => value.DecimalValue == number),
+                };
+            case "date":
+                var date = DateOnly.ParseExact(text, "yyyy-MM-dd", CultureInfo.InvariantCulture);
+                return condition.Operator switch
+                {
+                    "gte" => values.Where(value => value.DateValue >= date),
+                    "lte" => values.Where(value => value.DateValue <= date),
+                    _ => values.Where(value => value.DateValue == date),
+                };
+            case "boolean":
+                var answers = condition.Values.Select(bool.Parse).ToArray();
+                return values.Where(value => value.BooleanValue != null && answers.Contains(value.BooleanValue.Value));
+            case "choice" or "multiChoice":
+                var selected = condition.Values.Select(Guid.Parse).ToArray();
+                return values.Where(value => value.ChoiceId != null && selected.Contains(value.ChoiceId.Value));
+            default:
+                throw new InvalidOperationException("The condition was validated for another question type.");
+        }
     }
     private IQueryable<BusinessFormRecord> Ordered(IQueryable<BusinessFormRecord> query, FormResponseDefinitionRow definition, ListFormRecordsRequest request)
     {

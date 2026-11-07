@@ -185,6 +185,29 @@ public sealed class FormResponseServiceTests
             JsonSerializer.SerializeToElement(row, JsonSerializerOptions.Web).GetProperty("hasPdf").GetBoolean()));
     }
 
+    [Theory]
+    [InlineData("choice")]
+    [InlineData("presence")]
+    public async Task Counts_accept_a_question_of_the_block_but_not_the_block_itself(string dimension)
+    {
+        var user = new FakeCurrentUser { UserId = Guid.NewGuid() };
+        var permissions = new FakePermissionService(); permissions.Permissions[user.UserId.Value] = [BusinessFormsPermissions.RecordsRead];
+        var label = new Dictionary<string, string> { ["es"] = "Pregunta", ["en"] = "Question" };
+        var block = new CanonicalFormField(Guid.NewGuid(), "items", "group", label, null, true, null, null, Rows: new(1, 10));
+        var quantity = new CanonicalFormField(Guid.NewGuid(), "quantity", "decimal", label, null, true, null, null, Repeated: true);
+        var version = new FormResponseVersionRow(Guid.NewGuid(), 1, "{\"es\":\"Formulario\",\"en\":\"Form\"}",
+            JsonSerializer.Serialize(new FormVersionSchema(1, [block, quantity]), JsonSerializerOptions.Web), "es", ["es", "en"]);
+        var reader = new FakeFormResponseReader { Definition = new(Guid.NewGuid(), "T", version.Id, [version]) };
+        var service = Create(reader, user, permissions);
+
+        var counted = await service.CountFacetsAsync(reader.Definition.Id, new() { Dimension = dimension, FieldId = quantity.FieldId }, CancellationToken.None);
+        var onTheBlock = await service.CountFacetsAsync(reader.Definition.Id, new() { Dimension = dimension, FieldId = block.FieldId }, CancellationToken.None);
+
+        Assert.True(counted.IsSuccess);
+        Assert.Equal(quantity.FieldId, reader.FacetRequest!.FieldId);
+        Assert.Equal(FormRecordErrors.FilterInvalid, onTheBlock.Error);
+    }
+
     private static FormResponseService Create(FakeFormResponseReader reader, FakeCurrentUser user, FakePermissionService permissions) =>
         new(reader, new(user, permissions, reader), RequestValidators.For(new ListFormRecordsRequestValidator()), NullLogger<FormResponseService>.Instance, new([]), new FormSuggestionFixture(),
             new(user, permissions, new ArquitecturaBase.Application.UnitTests.TestDoubles.Users.InMemoryUserAccounts()));

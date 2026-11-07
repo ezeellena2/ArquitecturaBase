@@ -16,11 +16,8 @@ public sealed partial class FormDraftEndpointsTests
     [InlineData("en")]
     public async Task A_block_of_rows_reads_one_column_with_its_items_in_the_sheet_and_the_detail(string culture)
     {
-        using var reader = await OperatorAsync([BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage,
-            BusinessFormsPermissions.RecordsCreate, BusinessFormsPermissions.RecordsRead]);
-        reader.DefaultRequestHeaders.AcceptLanguage.ParseAdd(culture);
-        var actorId = Guid.Parse(reader.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
-        var rows = await SeedRowsReadAsync(reader, actorId);
+        using var reader = await RowsReaderAsync(culture);
+        var rows = await SeedRowsReadAsync(reader, [new("seed", "200.5", "Sin daños"), new("seed", "100"), new("fertilizer", "7")], []);
         var path = $"/api/forms/definitions/{rows.DefinitionId}/records";
 
         using var sheet = await reader.PostAsJsonAsync(path + "/search", new { pageSize = 20, sort = "number" }, Ct);
@@ -36,7 +33,7 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal(0, columns[1].GetProperty("options").GetArrayLength());
         var questions = columns[1].GetProperty("questions").EnumerateArray().ToArray();
         Assert.Equal(new[] { rows.Item, rows.Quantity, rows.Note }, questions.Select(question => question.GetProperty("fieldId").GetGuid()));
-        Assert.Equal(new[] { "choice", "decimal", "shortText" }, questions.Select(question => question.GetProperty("type").GetString()));
+        Assert.Equal(new[] { "choice", "decimal", "longText" }, questions.Select(question => question.GetProperty("type").GetString()));
         var records = body.GetProperty("records").GetProperty("items").EnumerateArray().ToArray();
         Assert.Equal(2, records.Length);
         JsonElement Block(JsonElement record) => record.GetProperty("cells").EnumerateArray().Single(cell => cell.GetProperty("fieldId").GetGuid() == rows.Group);
@@ -48,7 +45,7 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal(["Answered", "Unanswered", "Unanswered"], items.Select(item => item.GetProperty("cells")[2].GetProperty("state").GetString()));
         Assert.Equal("Unanswered", Block(records[1]).GetProperty("state").GetString());
 
-        using var detail = await reader.GetAsync("/api/forms/records/" + rows.Answered, Ct);
+        using var detail = await reader.GetAsync("/api/forms/records/" + rows.Records[0], Ct);
 
         Assert.Equal(HttpStatusCode.OK, detail.StatusCode);
         await ResponseContractCapture.WriteAsync(detail, "rows-detail-" + culture, Ct);
@@ -69,12 +66,77 @@ public sealed partial class FormDraftEndpointsTests
         }
     }
 
-    private sealed record RowsReadForm(Guid DefinitionId, Guid Supplier, Guid Group, Guid Item, Guid Quantity, Guid Note, Guid Answered);
+    [Theory]
+    [InlineData("es")]
+    [InlineData("en")]
+    public async Task Filters_on_the_block_look_for_one_item_that_meets_every_condition_and_count_responses(string culture)
+    {
+        using var reader = await RowsReaderAsync(culture);
+        var rows = await SeedRowsReadAsync(reader, [new("seed", "200.5", "Sin daños"), new("seed", "100"), new("fertilizer", "7")], [],
+            [new("fertilizer", "200.5"), new("seed", "5", "Con daños")]);
+        var path = $"/api/forms/definitions/{rows.DefinitionId}/records";
+        var (seed, fertilizer) = (rows.Seed.ToString("D"), rows.Fertilizer.ToString("D"));
+        static object Condition(Guid fieldId, string operation, params string[]? values) => new { fieldId, @operator = operation, values };
+        async Task<Guid[]> FoundAsync(object[] conditions, string? search = null)
+        {
+            using var response = await reader.PostAsJsonAsync(path + "/search", new { sort = "number", search, conditions }, Ct);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var page = (await response.ReadJsonAsync()).GetProperty("records");
+            var found = page.GetProperty("items").EnumerateArray().Select(record => record.GetProperty("id").GetGuid()).ToArray();
+            Assert.Equal(found.Length, page.GetProperty("totalCount").GetInt32());
+            return found;
+        }
+        async Task<Dictionary<string, int>> CountsAsync(object[] conditions, Guid fieldId, string dimension = "choice", string? capture = null)
+        {
+            using var response = await reader.PostAsJsonAsync(path + "/filter-counts/search", new { filter = new { conditions }, dimension, fieldId }, Ct);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            if (capture is not null) await ResponseContractCapture.WriteAsync(response, capture, Ct);
+            return (await response.ReadJsonAsync()).GetProperty("items").EnumerateArray()
+                .ToDictionary(option => option.GetProperty("id").GetString()!, option => option.GetProperty("count").GetInt32());
+        }
 
-    /// <summary>A form with a block of 0 to 3 items and two responses captured for real: three items (the same option in two) and none.</summary>
-    private async Task<RowsReadForm> SeedRowsReadAsync(HttpClient reader, Guid actorId)
+        // One condition is met by any item, and a response with the option in two items counts once.
+        Assert.Equal([rows.Records[0], rows.Records[2]], await FoundAsync([Condition(rows.Item, "in", seed)]));
+        // Several conditions of the block are met by one same item: the third response has the seed and 200.5 in different items.
+        Assert.Equal([rows.Records[0]], await FoundAsync([Condition(rows.Item, "in", seed), Condition(rows.Quantity, "gte", "200")]));
+        Assert.Equal([rows.Records[2]], await FoundAsync([Condition(rows.Item, "in", fertilizer), Condition(rows.Quantity, "gte", "200")]));
+        // Presence looks at the whole response, not at the item of the other conditions.
+        Assert.Equal([rows.Records[0], rows.Records[2]], await FoundAsync([Condition(rows.Item, "in", fertilizer), Condition(rows.Note, "answered", null)]));
+        Assert.Equal([rows.Records[1]], await FoundAsync([Condition(rows.Quantity, "unanswered", null)]));
+        // «Buscar en textos largos» also reads the long texts of the items.
+        Assert.Equal([rows.Records[0], rows.Records[2]], await FoundAsync([], "daños"));
+
+        Assert.Equal(new Dictionary<string, int> { [seed] = 2, [fertilizer] = 2 }, await CountsAsync([], rows.Item));
+        // Each option counts the responses with an item that has it and meets, in that same item, the other conditions of the block.
+        Assert.Equal(new Dictionary<string, int> { [seed] = 1, [fertilizer] = 1 },
+            await CountsAsync([Condition(rows.Quantity, "gte", "200")], rows.Item, capture: "rows-counts-" + culture));
+        Assert.Equal(new Dictionary<string, int> { ["answered"] = 2, ["unanswered"] = 1, ["notAsked"] = 0 }, await CountsAsync([], rows.Note, "presence"));
+
+        using var onTheBlock = await reader.PostAsJsonAsync(path + "/search", new { conditions = new[] { Condition(rows.Group, "answered", null) } }, Ct);
+        Assert.Equal(HttpStatusCode.BadRequest, onTheBlock.StatusCode);
+        using var countsOfTheBlock = await reader.PostAsJsonAsync(path + "/filter-counts/search", new { filter = new { }, dimension = "presence", fieldId = rows.Group }, Ct);
+        Assert.Equal(HttpStatusCode.BadRequest, countsOfTheBlock.StatusCode);
+    }
+
+    private async Task<HttpClient> RowsReaderAsync(string culture)
+    {
+        var reader = await OperatorAsync([BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage,
+            BusinessFormsPermissions.RecordsCreate, BusinessFormsPermissions.RecordsRead]);
+        reader.DefaultRequestHeaders.AcceptLanguage.ParseAdd(culture);
+        return reader;
+    }
+
+    /// <summary>An item to capture: the option of the catalog by its local id, the quantity and an optional note.</summary>
+    private sealed record RowsItem(string Option, string Quantity, string? Note = null);
+
+    private sealed record RowsReadForm(Guid DefinitionId, Guid Supplier, Guid Group, Guid Item, Guid Quantity, Guid Note, Guid Seed, Guid Fertilizer,
+        IReadOnlyList<Guid> Records);
+
+    /// <summary>A form with a block of 0 to 3 items (an option of a catalog, a quantity and a long note) and its responses, captured for real.</summary>
+    private async Task<RowsReadForm> SeedRowsReadAsync(HttpClient reader, params RowsItem[][] responses)
     {
         static Dictionary<string, string> Text(string es, string en) => new() { ["es"] = es, ["en"] = en };
+        var actorId = Guid.Parse(reader.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
         using var created = await reader.PostAsJsonAsync("/api/forms/catalogs", new
         {
             name = new { es = "Insumos " + Guid.NewGuid().ToString("N"), en = "Supplies" }, description = new { es = "Lista", en = "List" },
@@ -87,32 +149,31 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
         var catalog = await created.ReadJsonAsync();
         var catalogId = catalog.GetProperty("catalog").GetProperty("id").GetGuid();
-        var seed = catalog.GetProperty("itemIdentityMap").GetProperty("seed").GetGuid();
-        var fertilizer = catalog.GetProperty("itemIdentityMap").GetProperty("fertilizer").GetGuid();
+        var options = catalog.GetProperty("itemIdentityMap");
         var supplier = Field("shortText", true) with { Label = Text("Proveedor", "Supplier") };
         var group = Field("group", false) with { Label = Text("Artículos", "Items"), Rows = new(0, 3) };
         var item = Field("choice", true) with { Label = Text("Artículo", "Item"), Source = new(catalogId), Repeated = true };
         var quantity = Field("decimal", true) with { Label = Text("Cantidad", "Quantity"), Repeated = true };
-        var note = Field("shortText", false) with { Label = Text("Observación", "Note"), Repeated = true };
+        var note = Field("longText", false) with { Label = Text("Observación", "Note"), Repeated = true };
         var form = await SeedVersionAsync(actorId, [supplier, group, item, quantity, note]);
-        async Task<Guid> CaptureAsync(params Dictionary<string, string>[] items)
+        var records = new List<Guid>();
+        foreach (var response in responses)
         {
             using var scope = factory.Services.CreateScope();
             var preparation = await scope.ServiceProvider.GetRequiredService<IStructuredFormSource>()
                 .PrepareAsync(actorId, "es", form.DefinitionId, form.VersionId, false, Ct);
+            var items = response.Select(value => value.Note is null
+                ? new Dictionary<string, string> { [item.Key] = options.GetProperty(value.Option).GetGuid().ToString("D"), [quantity.Key] = value.Quantity }
+                : new Dictionary<string, string> { [item.Key] = options.GetProperty(value.Option).GetGuid().ToString("D"), [quantity.Key] = value.Quantity, [note.Key] = value.Note });
             var captured = await scope.ServiceProvider.GetRequiredService<IStructuredRecordSink>().CaptureAsync(new(Guid.NewGuid(), form.DefinitionId,
                 form.VersionId, actorId, factory.Clock.GetUtcNow().UtcDateTime, new Dictionary<string, string>
                 {
                     [supplier.Key] = "Proveedor del norte", [group.Key] = JsonSerializer.Serialize(items),
                 }, [Assert.Single(preparation.Catalogs)]), Ct);
             Assert.Equal("Completed", captured.State);
-            return captured.RecordId!.Value;
+            records.Add(captured.RecordId!.Value);
         }
-        var answered = await CaptureAsync(
-            new() { [item.Key] = seed.ToString("D"), [quantity.Key] = "200.5", [note.Key] = "Sin daños" },
-            new() { [item.Key] = seed.ToString("D"), [quantity.Key] = "100" },
-            new() { [item.Key] = fertilizer.ToString("D"), [quantity.Key] = "7" });
-        await CaptureAsync();
-        return new(form.DefinitionId, supplier.FieldId, group.FieldId, item.FieldId, quantity.FieldId, note.FieldId, answered);
+        return new(form.DefinitionId, supplier.FieldId, group.FieldId, item.FieldId, quantity.FieldId, note.FieldId,
+            options.GetProperty("seed").GetGuid(), options.GetProperty("fertilizer").GetGuid(), records);
     }
 }

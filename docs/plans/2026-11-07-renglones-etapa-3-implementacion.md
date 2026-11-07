@@ -236,17 +236,20 @@ permiso.
 
 ### Tarea 2 · «Filtros» por algún ítem
 
-- [ ] Tests en rojo:
-  - `FormRecordFilterPolicyTests`: aceptar condiciones sobre las preguntas del bloque y rechazar las del bloque;
-  - `FormResponseServiceTests`: los conteos aceptan una pregunta del bloque;
-  - integración con PostgreSQL (`FormRowsQueryTests`): una condición en cualquier ítem; dos en el mismo ítem contra dos
-    en ítems distintos; la presencia por respuesta; el conteo de una opción en el mismo ítem; la búsqueda en los textos
-    largos de los ítems, y el total que cuenta respuestas, sin repetir una respuesta por sus ítems.
-- [ ] `FormResponseReader.Filters`: agrupar las condiciones de cada bloque en un `EXISTS` por `Row`. `.Facets`: el conteo
-  de una opción con las otras condiciones del bloque en el mismo ítem. `FormResponseService.CountFacetsAsync`: buscar el
-  `fieldId` también en `questions`.
-- [ ] Capturas `rows-counts-{es,en}`.
-- [ ] Commit: `feat(formularios): «Filtros» busca un ítem del bloque que cumpla todo`.
+- [x] Tests en rojo:
+  - `FormRecordFilterPolicyTests`: aceptar condiciones sobre las preguntas del bloque y rechazar las del bloque, también
+    las de presencia;
+  - `FormResponseServiceTests`: los conteos aceptan una pregunta del bloque y no el bloque;
+  - `FormRowsQueryTests`, sin abrir una base como `FormMultipleChoiceQueryTests`: dos condiciones del bloque son un
+    `EXISTS` sobre la respuesta con la segunda buscada en el `Row` de la primera, sin `JOIN`;
+  - integración con PostgreSQL, en `FormRowsReadHttpTests`: una condición en cualquier ítem; dos en el mismo ítem contra
+    dos en ítems distintos; la presencia por respuesta; el conteo de una opción en el mismo ítem; la búsqueda en los
+    textos largos de los ítems, y el total que cuenta respuestas, sin repetir una respuesta por sus ítems.
+- [x] `FormResponseReader.Filters`: las condiciones con valor sobre preguntas del bloque van juntas en un `EXISTS` por
+  `Row` (`ItemConditions` y `SameItem`). `.Facets`: el conteo de una opción con las otras condiciones del bloque en el
+  mismo ítem. `FormResponseService.CountFacetsAsync`: buscar el `fieldId` también en `questions`.
+- [x] Capturas `rows-counts-{es,en}`.
+- [x] Commit: `feat(formularios): «Filtros» busca un ítem del bloque que cumpla todo`.
 
 ### Tarea 3 · La hoja del bloque en el Excel
 

@@ -21,7 +21,8 @@ internal static class FormRecordFilterPolicy
             || request.ReceivedFromUtc > request.ReceivedToUtc) return FormRecordErrors.FilterInvalid;
         foreach (var condition in request.Conditions)
         {
-            if (!fields.TryGetValue(condition.FieldId, out var field)) return FormRecordErrors.FilterInvalid;
+            // The block itself is never a condition: its questions are (RG4-A).
+            if (!fields.TryGetValue(condition.FieldId, out var field) || field.Type == "group") return FormRecordErrors.FilterInvalid;
             var values = condition.Values ?? [];
             if (condition.Operator is "answered" or "unanswered" or "notAsked")
             {

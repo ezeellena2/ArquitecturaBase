@@ -66,6 +66,25 @@ public sealed class FormRecordFilterPolicyTests
             Assert.Equal("Forms.Record.FilterInvalid", result.Error.Code);
         }
     }
+    [Theory]
+    [InlineData("answered", null)]
+    [InlineData("unanswered", null)]
+    [InlineData("notAsked", null)]
+    [InlineData("in", "true")]
+    public void A_condition_on_the_block_itself_is_rejected_while_its_questions_keep_their_operators(string operation, string? value)
+    {
+        var label = new Dictionary<string, string> { ["es"] = "Pregunta", ["en"] = "Question" };
+        var block = new CanonicalFormField(Guid.NewGuid(), "items", "group", label, null, true, null, null, Rows: new(1, 10));
+        var quantity = new CanonicalFormField(Guid.NewGuid(), "quantity", "decimal", label, null, true, null, null, Repeated: true);
+        var version = new FormResponseVersionRow(Guid.NewGuid(), 1, "{}", JsonSerializer.Serialize(new FormVersionSchema(1, [block, quantity]), JsonSerializerOptions.Web), "es", ["es", "en"]);
+        var definition = new FormResponseDefinitionRow(Guid.NewGuid(), "T", version.Id, [version]);
+
+        var result = FormRecordFilterPolicy.Validate(new() { Conditions = [new(block.FieldId, operation, value is null ? null : [value])] }, definition);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("Forms.Record.FilterInvalid", result.Error.Code);
+        Assert.True(FormRecordFilterPolicy.Validate(new() { Conditions = [new(quantity.FieldId, "gte", ["200"]), new(quantity.FieldId, "answered", null)] }, definition).IsSuccess);
+    }
     [Fact]
     public void Unknown_questions_versions_and_sort_fields_are_rejected()
     {

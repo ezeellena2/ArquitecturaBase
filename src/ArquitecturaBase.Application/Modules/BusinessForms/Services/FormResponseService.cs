@@ -61,8 +61,10 @@ internal sealed class FormResponseService(IFormResponseReader reader, FormRecord
             var definition = await reader.FindDefinitionAsync(id, cancellationToken);
             if (definition is null) return FormRecordErrors.NotFound;
             var filter = FormRecordFilterPolicy.Validate(request.Filter, definition); if (filter.IsFailure) return filter.Error;
+            // A question of the block of rows counts by itself; the block does not.
             if (request.Dimension is "choice" or "presence"
-                && (request.FieldId is not { } fieldId || !FormResponsePresentationPolicy.Columns(definition, Culture()).Any(field => field.FieldId == fieldId))) return FormRecordErrors.FilterInvalid;
+                && (request.FieldId is not { } fieldId || !FormResponsePresentationPolicy.Columns(definition, Culture())
+                    .SelectMany(column => column.Questions ?? [column]).Any(field => field.FieldId == fieldId))) return FormRecordErrors.FilterInvalid;
             var result = await reader.ListFacetsAsync(definition, request with { Filter = read.Value.Apply(request.Filter) with { DisplayCulture = Culture() } }, cancellationToken);
             return await access.StillAllowedAsync(read.Value, cancellationToken) ? result : FormDefinitionErrors.Forbidden;
         });

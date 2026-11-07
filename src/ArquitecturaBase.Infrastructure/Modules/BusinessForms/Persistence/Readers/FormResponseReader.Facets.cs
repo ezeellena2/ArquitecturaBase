@@ -36,6 +36,11 @@ internal sealed partial class FormResponseReader
         {
             var fieldId = request.FieldId!.Value;
             var field = Questions(definition).First(question => question.FieldId == fieldId);
+            // A question of the block counts the responses with an item that has the option and meets, in that same item, the
+            // other conditions of the block.
+            var values = dbContext.Set<BusinessFormRecordValue>().Where(value => value.FieldId == fieldId);
+            if (field.Repeated == true && SameItem(ItemConditions(definition, filter, fieldId)) is { } item)
+                values = values.Where(value => item.Any(same => same.RecordId == value.RecordId && same.Row == value.Row));
             if (request.Dimension == "presence")
             {
                 var versions = definition.Versions.Where(version => definition.Schemas[version.Id].Questions.Any(question => question.FieldId == fieldId)).Select(version => version.Id).ToArray();
@@ -49,8 +54,8 @@ internal sealed partial class FormResponseReader
             else if (field.Type == "boolean")
             {
                 options = ConstantOptions([new("true", "true"), new("false", "false")])
-                    .Select(option => new FacetCountRow { Id = option.Id, Label = option.Label, Count = matching.Count(record => dbContext.Set<BusinessFormRecordValue>()
-                        .Any(value => value.RecordId == record.Id && value.FieldId == fieldId && value.BooleanValue == (option.Id == "true"))) });
+                    .Select(option => new FacetCountRow { Id = option.Id, Label = option.Label, Count = matching.Count(record => values
+                        .Any(value => value.RecordId == record.Id && value.BooleanValue == (option.Id == "true"))) });
             }
             else
             {
@@ -60,8 +65,8 @@ internal sealed partial class FormResponseReader
                         .SelectMany(item => (item.Question.Options ?? []).Select(option => (item.Version, Option: option)))
                         .DistinctBy(item => item.Option.ChoiceId).Select(item => new FacetLabel(item.Option.ChoiceId.ToString(),
                             Text(item.Option.Label, item.Version.DisplayCulture(filter.DisplayCulture)))).ToArray());
-                options = choices.Select(option => new FacetCountRow { Id = option.Id, Label = option.Label, Count = matching.Count(record => dbContext.Set<BusinessFormRecordValue>()
-                    .Any(value => value.RecordId == record.Id && value.FieldId == fieldId && value.ChoiceId != null && value.ChoiceId.Value.ToString() == option.Id)) });
+                options = choices.Select(option => new FacetCountRow { Id = option.Id, Label = option.Label, Count = matching.Count(record => values
+                    .Any(value => value.RecordId == record.Id && value.ChoiceId != null && value.ChoiceId.Value.ToString() == option.Id)) });
             }
         }
         if (!string.IsNullOrWhiteSpace(request.Search))
