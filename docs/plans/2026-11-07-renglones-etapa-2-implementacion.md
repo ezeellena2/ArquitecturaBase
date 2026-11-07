@@ -309,7 +309,13 @@ su clase. Otras sesiones trabajan en el mismo checkout: se preparan sólo los ar
   integración siempre tiene el canal de WhatsApp registrado, así que «sin canal» no se prueba por HTTP (sin canal el chequeo
   ya frena con `ChannelUnavailable`). La cohorte forms-http pasa a 70 (la guía decía 64 y no contaba las de renglones ni las
   de títulos de sección).
-- [ ] Revisión del backend (un revisor) y correcciones, sin cambios de bytes en lo que ya existe.
+- [x] Revisión del backend (un revisor) y correcciones, sin cambios de bytes en lo que ya existe.
+
+  Hecho: la revisión no encontró defectos de corrección (captura, invariancia de huella y bytes, migración, WhatsApp, carga,
+  publicar, reglas del proyecto). Señaló dos de rendimiento, corregidos con su test: la oferta de la carga resolvía el catálogo
+  una vez por ítem (ahora una vez por pregunta, o una por respuesta distinta de su ítem cuando la lista depende de otra pregunta
+  del bloque, y el error sigue en el primer ítem que eligió la opción), y la captura revisaba la actividad de una opción Manual
+  una vez por ítem bajo el lock de definiciones (ahora una vez por opción, donde aparece primero).
 
 ### Tarea 6 · El front: modelo y contrato
 

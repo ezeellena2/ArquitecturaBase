@@ -93,6 +93,17 @@ public sealed class FormRowsCaptureTests
     }
 
     [Fact]
+    public async Task An_option_chosen_in_several_items_is_checked_once_under_the_lock()
+    {
+        var f = Block();
+
+        var result = await f.Sink.CaptureAsync(Request(f, Item(First, "1"), Item(Second, "2"), Item(First, "3")), Ct);
+
+        Assert.Equal("Completed", result.State);
+        Assert.Equal([First, Second], f.Repository.ActivityReads.Select(read => read.ItemId));
+    }
+
+    [Fact]
     public async Task A_replay_with_the_same_items_returns_the_same_record_and_other_items_conflict()
     {
         var f = Block();

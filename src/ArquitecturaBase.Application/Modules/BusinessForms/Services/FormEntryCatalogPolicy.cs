@@ -87,48 +87,57 @@ internal sealed class FormEntryCatalogPolicy(FormCatalogOptionsPolicy options, I
         var answers = chosen.Where(pair => pair.Value.Count == 1).ToDictionary(pair => pair.Key, pair => pair.Value[0]);
         foreach (var question in schema.Questions.Where(question => question.Source?.Catalog is not null && chosen.ContainsKey(question.FieldId)))
         {
+            var field = "answers." + question.FieldId.ToString("D");
             var offer = await OfferAsync(recipient, question, chosen[question.FieldId].Distinct().ToArray(), answers, personData, culture,
-                originalCulture, "answers." + question.FieldId.ToString("D"), ct);
+                originalCulture, _ => field, ct);
             if (offer.IsFailure) return offer.Error;
             personData = offer.Value.PersonData;
             offers.Add(offer.Value.Offer);
         }
         if (items is not { Count: > 0 }) return offers;
-        // LD3-A: each item is checked with the answers outside the block and those of its own item, so a list of the block takes the
-        // answer of the same item; the options chosen in every item of a question go in a single offer.
+        // LD3-A: a list of the block filters by the answer of its own item when the filter names a question of the block, and by the
+        // answer outside the block otherwise. The items go together, once per distinct answer of their own they depend on, with the
+        // options chosen in them, in a single offer per question; an option that does not correspond goes to the first item that chose it.
         var group = schema.Questions.First(question => question.Type == "group");
         var block = schema.Questions.SkipWhile(question => question.FieldId != group.FieldId).Skip(1)
-            .TakeWhile(question => question.Repeated == true).Where(question => question.Source?.Catalog is not null).ToArray();
-        var merged = new Dictionary<Guid, StructuredFormCatalogOffer>();
-        for (var row = 0; row < items.Count; row++)
+            .TakeWhile(question => question.Repeated == true).ToArray();
+        foreach (var question in block.Where(question => question.Source?.Catalog is not null))
         {
-            var own = new Dictionary<Guid, Guid>(answers);
-            foreach (var (fieldId, choice) in items[row]) own[fieldId] = choice;
-            foreach (var question in block.Where(question => items[row].ContainsKey(question.FieldId)))
+            var own = (question.Source!.Match ?? []).Select(match => match.QuestionId).OfType<Guid>()
+                .Where(id => block.Any(other => other.FieldId == id)).Distinct().ToArray();
+            var rows = Enumerable.Range(0, items.Count).Where(row => items[row].ContainsKey(question.FieldId)).ToArray();
+            StructuredFormCatalogOffer? merged = null;
+            foreach (var batch in rows.GroupBy(row => string.Join("|", own.Select(id => items[row].TryGetValue(id, out var choice) ? choice.ToString("D") : ""))))
             {
-                var offer = await OfferAsync(recipient, question, [items[row][question.FieldId]], own, personData, culture, originalCulture,
-                    $"answers.{group.FieldId:D}.{row.ToString(CultureInfo.InvariantCulture)}.{question.FieldId:D}", ct);
+                var dependencies = new Dictionary<Guid, Guid>(answers);
+                foreach (var id in own)
+                    if (items[batch.First()].TryGetValue(id, out var choice)) dependencies[id] = choice;
+                var offer = await OfferAsync(recipient, question, batch.Select(row => items[row][question.FieldId]).Distinct().ToArray(), dependencies,
+                    personData, culture, originalCulture, missing => Cell(group, question,
+                        missing is { } id ? batch.First(row => items[row][question.FieldId] == id) : batch.First()), ct);
                 if (offer.IsFailure) return offer.Error;
                 personData = offer.Value.PersonData;
-                merged[question.FieldId] = merged.TryGetValue(question.FieldId, out var earlier)
-                    ? earlier with { Options = [.. earlier.Options, .. offer.Value.Offer.Options.Where(option => earlier.Options.All(known => known.Id != option.Id))] }
-                    : offer.Value.Offer;
+                merged = merged is null ? offer.Value.Offer
+                    : merged with { Options = [.. merged.Options, .. offer.Value.Offer.Options.Where(option => merged.Options.All(known => known.Id != option.Id))] };
             }
+            if (merged is not null) offers.Add(merged);
         }
-        offers.AddRange(merged.Values);
         return offers;
     }
 
-    // The offer of a catalog question with the options chosen in it, for the person whose data its filters use; an option that does
-    // not correspond goes to the field given.
+    private static string Cell(CanonicalFormField group, CanonicalFormField question, int row) =>
+        $"answers.{group.FieldId:D}.{row.ToString(CultureInfo.InvariantCulture)}.{question.FieldId:D}";
+
+    // The offer of a catalog question with the options chosen in it, for the person whose data its filters use. An error goes to
+    // field: given the option that does not correspond, or null when the whole list does not.
     private async Task<Result<(StructuredFormCatalogOffer Offer, FormPersonRecipientDataRow? PersonData)>> OfferAsync(Guid recipient,
         CanonicalFormField question, Guid[] ids, IReadOnlyDictionary<Guid, Guid> answers, FormPersonRecipientDataRow? personData,
-        string culture, string originalCulture, string field, CancellationToken ct)
+        string culture, string originalCulture, Func<Guid?, string> field, CancellationToken ct)
     {
         var source = await options.ResolveAsync(recipient, question, personData, ct, answers);
         // Without the answer it depends on, no option of the list corresponds to it.
-        if (source.Issue == FormRecordErrors.CatalogDependsOnAnswer.Code) return FieldErrors.On(FormRecordErrors.CatalogItemInactive, field);
-        if (source.Issue is { } issue) return FieldErrors.On(Blocking(issue), field);
+        if (source.Issue == FormRecordErrors.CatalogDependsOnAnswer.Code) return FieldErrors.On(FormRecordErrors.CatalogItemInactive, field(null));
+        if (source.Issue is { } issue) return FieldErrors.On(Blocking(issue), field(null));
         var catalog = source.Catalog!;
         var query = new FormEntryItemsQuery(catalog.Id, source.Containment, null, ids, 1, ids.Length, culture);
         IReadOnlyList<StructuredFormCatalogOption> offered;
@@ -139,12 +148,13 @@ internal sealed class FormEntryCatalogPolicy(FormCatalogOptionsPolicy options, I
             var definition = FormDraftPolicy.Read<FormCatalogFilterDefinition>(catalog.FiltersJson!);
             offered = FormCatalogOptionsPolicy.FilterOptions((await reader.ListPeopleAsync(recipient, definition, query, ct)).Items, definition, culture);
         }
-        if (ids.Any(id => offered.All(option => option.Id != id))) return FieldErrors.On(FormRecordErrors.CatalogItemInactive, field);
+        if (ids.Where(id => offered.All(option => option.Id != id)).Select(id => (Guid?)id).FirstOrDefault() is { } missing)
+            return FieldErrors.On(FormRecordErrors.CatalogItemInactive, field(missing));
         var offer = new StructuredFormCatalogOffer(question.FieldId, question.Key, FormRecordPresentationPolicy.Text(question.Label, culture),
             catalog.Id, catalog.Revision, catalog.Kind, FormCatalogOptionsPolicy.Name(catalog.NameJson, culture, originalCulture), offered,
             FormDraftPolicy.Read<Dictionary<string, string>>(catalog.NameJson), FormCatalogOptionsPolicy.ValueType(catalog));
         if (FormCatalogOfferPolicy.InvalidValues(offer) || FormCatalogOfferPolicy.Validate(false, offered) is not null)
-            return FieldErrors.On(FormRecordErrors.CatalogOptionInvalid, field);
+            return FieldErrors.On(FormRecordErrors.CatalogOptionInvalid, field(null));
         return (offer, source.PersonData);
     }
 

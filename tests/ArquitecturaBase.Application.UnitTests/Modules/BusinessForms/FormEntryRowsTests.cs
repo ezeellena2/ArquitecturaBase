@@ -133,6 +133,33 @@ public sealed class FormEntryRowsTests
     }
 
     [Fact]
+    public async Task Items_read_a_catalog_once_per_question_or_once_per_answer_of_their_own_item_it_depends_on()
+    {
+        using var fixture = new FormEntryFixture(dependsOnAnswer: true);
+        var answer = fixture.Catalogs.AnswerFieldId;
+        var catalog = fixture.Catalogs.Catalog.Id;
+        fixture.SchemaJson = Schema([Field(GroupId, "group", rows: new(1, 3)), Field(answer, "choice", false, repeated: true, source: new(catalog)),
+            Field(fixture.FieldId, "choice", repeated: true, source: new(catalog, [new(fixture.Catalogs.FilterFieldId, QuestionId: answer)]))]);
+        var ombu = fixture.AddItem("El Ombú", 1);
+        var ceibo = fixture.AddItem("El Ceibo", 2);
+        var north = fixture.AddItem("Lote norte", 3, answer: ombu);
+        var east = fixture.AddItem("Lote este", 4, answer: ombu);
+        var south = fixture.AddItem("Lote sur", 5, answer: ceibo);
+
+        var sent = await fixture.Service.SubmitAsync(fixture.Catalogs.DefinitionId, fixture.Send(Rows(
+            [Item(answer, ombu.Id.ToString("D")), Item(fixture.FieldId, north.Id.ToString("D"))],
+            [Item(answer, ombu.Id.ToString("D")), Item(fixture.FieldId, east.Id.ToString("D"))],
+            [Item(answer, ceibo.Id.ToString("D")), Item(fixture.FieldId, south.Id.ToString("D"))])), Ct);
+
+        Assert.True(sent.IsSuccess);
+        // The list without a filter is read once with every option chosen; the dependent one, once per answer of its items.
+        Assert.Single(fixture.ItemQueries, query => query.Containment is null);
+        Assert.Equal(2, fixture.ItemQueries.Count(query => query.Containment is not null));
+        var offer = Assert.Single(Assert.Single(fixture.Captures).Catalogs!, offer => offer.FieldId == fixture.FieldId);
+        Assert.Equal(new[] { north.Id, east.Id, south.Id }.Order(), offer.Options.Select(option => option.Id).Order());
+    }
+
+    [Fact]
     public async Task A_list_of_the_block_that_depends_on_a_question_outside_takes_that_answer_for_every_item()
     {
         using var fixture = new FormEntryFixture(dependsOnAnswer: true);

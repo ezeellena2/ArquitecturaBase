@@ -159,7 +159,8 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
                     Offer: offers.Single(offer => offer.FieldId == value.Answer.FieldId)))).ToArray();
         foreach (var catalogId in selected.Where(value => value.Offer.Kind == "Manual").Select(value => value.Offer.CatalogId).Distinct().Order())
             await records.LockCatalogAsync(catalogId, ct);
-        foreach (var value in selected.Where(value => value.Offer.Kind == "Manual"))
+        // An option chosen in several items is checked once, where it first appears, which names its question and item.
+        foreach (var value in selected.Where(value => value.Offer.Kind == "Manual").DistinctBy(value => (value.Offer.CatalogId, value.ChoiceId)))
             if (!await records.ExistsActiveCatalogItemAsync(value.Offer.CatalogId, value.ChoiceId, ct))
                 return Reject(request, fingerprint, FormRecordErrors.CatalogItemInactive.Code, value.Answer.FieldId, value.Item);
 
