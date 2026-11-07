@@ -70,6 +70,8 @@ En `SaveFormDraftRequestValidator`, todas `ContentInvalid` en su ruta:
   - desde el mínimo, el renglón termina con «¿Agregás otro renglón?» (RadioButtonsGroup `field_<bloque>`, «Sí»/«No»
     obligatoria) y un `If` con un `Footer` por rama: con «Sí», `navigate` al renglón siguiente; con «No», `navigate` a lo
     de después o `complete`. El último renglón no pregunta;
+  - el Flow declara `routing_model` con cada `navigate` de cada pantalla, las dos ramas del `If` incluidas (2026-11-06): el
+    que Meta deduce de los `navigate` deja afuera la rama «No»;
   - las claves de la respuesta de un renglón son `field_<pregunta>_r<n>` y las de «¿Agregás otro?», `field_<bloque>_r<n>`.
     Cada `complete` junta lo visitado con `${screen.<pantalla>.form.<campo>}`;
   - el presupuesto de componentes pasa a contarse por pantalla (50); el de bytes cuenta cada pregunta del bloque una vez por
@@ -239,6 +241,11 @@ que la sesión de las listas dependientes commitee lo suyo.
     a 10, con un catálogo) y dos títulos de sección: Meta la aceptó y quedó publicada y verificada. Acepta el `If` con
     `Footer` dentro del `Form`, el mismo `name` en las diez pantallas, las referencias a renglones que pueden no visitarse
     y los `TextSubheading` de los títulos (CW15-B). Lo que llega del celular se lee de la respuesta guardada, sin valores.
+  - 2026-11-06, el celular mostraba «Se produjo un error» al responder «¿Agregás otro renglón?», y la vista oficial
+    interactiva (VO1-A), con «No» en el renglón 1: «Can't perform a transition from [FORM_A] to [FORM_K], because it doesn't
+    satisfy provided routing_model». El Flow no declaraba `routing_model` y Meta lo deduce de los `navigate` sin la rama
+    `else`. Ahora r10 con bloque lo declara con las dos ramas (sin bloque no cambia). Falta republicar la prueba (una
+    versión nueva del formulario) y probar «Sí» y «No» en la vista oficial y en el celular.
 - [ ] Si algo no alcanza, bajar el tope o volver a 16 KiB (RG7-C) y anotarlo en el plan. El tope está sellado en r10
   (`WhatsAppFlowProfile.MaxRows`, con `StructuredFormLimits.MaxRows` igual): mientras r10 no salga de esta etapa se cambian
   los dos y se republica la prueba; después, otro tope es otra revisión, y el webhook sigue aceptando `_r10` de lo publicado.

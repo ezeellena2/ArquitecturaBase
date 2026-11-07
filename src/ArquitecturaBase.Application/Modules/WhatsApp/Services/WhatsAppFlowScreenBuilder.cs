@@ -149,17 +149,19 @@ internal static class WhatsAppFlowScreenBuilder
         var rows = block.question.Rows!;
         var after = screens.FirstOrDefault(screen => screen.Kind == "fields" && screen.Questions[0] > block.index);
         var built = new List<Dictionary<string, object?>>();
+        var routing = new Dictionary<string, string[]>(StringComparer.Ordinal);
         for (var current = 0; current < screens.Count; current++)
         {
             var screen = screens[current];
             var terminal = false;
+            var routes = new List<string>();
             var children = new List<Dictionary<string, object>>();
             var form = new Dictionary<string, object?> { ["type"] = "Form", ["name"] = "form", ["children"] = children };
             if (screen.Kind != "fields" && Subtitled(screen, block.index, rows, subtitles) > 0) children.Add(subtitles[block.index]);
             if (screen.Kind == "fields")
             {
                 children.AddRange(screen.Questions.SelectMany(index => WithSubtitle(index, Control(index, current), subtitles)));
-                children.Add(current == screens.Count - 1 ? Footer(submit, Complete()) : Footer(FlowTexts.Get("Continue", culture), Navigate(screens[current + 1].Id)));
+                children.Add(current == screens.Count - 1 ? Footer(submit, Complete()) : Footer(FlowTexts.Get("Continue", culture), To(screens[current + 1].Id)));
                 var scalars = screen.Questions.Where(index => questions[index].Files is null && questions[index].Type != "multiChoice").Select(index => questions[index]).ToArray();
                 if (scalars.Length > 0)
                 {
@@ -186,7 +188,7 @@ internal static class WhatsAppFlowScreenBuilder
                     children.Add(Question("AddAnotherRow"));
                     children.Add(Branch(screens[current + 1].Id));
                 }
-                else if (screen.Row < RowCount(rows)) children.Add(Footer(FlowTexts.Get("Continue", culture), Navigate(screens[current + 1].Id)));
+                else if (screen.Row < RowCount(rows)) children.Add(Footer(FlowTexts.Get("Continue", culture), To(screens[current + 1].Id)));
                 else children.Add(Exit());
             }
             var item = new Dictionary<string, object?>
@@ -198,6 +200,7 @@ internal static class WhatsAppFlowScreenBuilder
             };
             if (terminal) item["terminal"] = true;
             built.Add(item);
+            routing[screen.Id] = [.. routes];
 
             Dictionary<string, object> Control(int index, int at)
             {
@@ -213,9 +216,16 @@ internal static class WhatsAppFlowScreenBuilder
             Dictionary<string, object> Branch(string next) => new(StringComparer.Ordinal)
             {
                 ["type"] = "If", ["condition"] = "${form." + block.question.Key + "} == 'true'",
-                ["then"] = new[] { Footer(FlowTexts.Get("Continue", culture), Navigate(next)) }, ["else"] = new[] { Exit() },
+                ["then"] = new[] { Footer(FlowTexts.Get("Continue", culture), To(next)) }, ["else"] = new[] { Exit() },
             };
-            Dictionary<string, object> Exit() => after is null ? Footer(submit, Complete()) : Footer(FlowTexts.Get("Continue", culture), Navigate(after.Id));
+            Dictionary<string, object> Exit() => after is null ? Footer(submit, Complete()) : Footer(FlowTexts.Get("Continue", culture), To(after.Id));
+            // Meta deduces the transitions from the navigate actions and leaves out the else branch of an If (2026-11-06):
+            // every navigate goes into the routing model, both branches included.
+            object To(string next)
+            {
+                routes.Add(next);
+                return Navigate(next);
+            }
             object Complete()
             {
                 terminal = true;
@@ -241,7 +251,7 @@ internal static class WhatsAppFlowScreenBuilder
             string Reference(int visited, string name) => visited == current ? "${form." + name + "}" : "${screen." + screens[visited].Id + ".form." + name + "}";
         }
         if (initialData.Count > 0) built[0]["data"] = initialData;
-        return JsonSerializer.Serialize(new { version = "7.3", screens = built });
+        return JsonSerializer.Serialize(new { version = "7.3", routing_model = routing, screens = built });
 
         static Dictionary<string, object> Footer(string? label, object action) => new(StringComparer.Ordinal)
         {

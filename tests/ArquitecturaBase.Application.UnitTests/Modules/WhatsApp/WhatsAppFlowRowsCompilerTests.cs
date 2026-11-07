@@ -91,6 +91,29 @@ public sealed class WhatsAppFlowRowsCompilerTests
         Assert.Equal(new bool?[] { null, null, true, true, null }, mapping.Select(field => field.Repeated));
     }
 
+    // Meta deduces the transitions from the navigate actions and leaves out the «No» branch of the If (2026-11-06): the Flow
+    // declares them all, both branches included, and a screen that only completes has none.
+    [Fact]
+    public void A_block_declares_every_transition_of_its_screens_in_the_routing_model()
+    {
+        var after = Flow(WhatsAppFlowCompiler.Compile(Request(Question("shortText", "Proveedor"), Block(1, 3),
+            Row(Question("decimal", "Cantidad")), Question("shortText", "Remito"))));
+        var atTheEnd = Flow(WhatsAppFlowCompiler.Compile(Request(Block(0, 2), Row(Question("decimal", "Cantidad")))));
+
+        Assert.Equal(new Dictionary<string, string[]>
+        {
+            ["FORM"] = ["FORM_A"], ["FORM_A"] = ["FORM_B", "FORM_D"], ["FORM_B"] = ["FORM_C", "FORM_D"], ["FORM_C"] = ["FORM_D"], ["FORM_D"] = [],
+        }, Routes(after));
+        Assert.Equal(new Dictionary<string, string[]> { ["FORM"] = ["FORM_A"], ["FORM_A"] = ["FORM_B"], ["FORM_B"] = [] }, Routes(atTheEnd));
+
+        static Dictionary<string, string[]> Routes(WhatsAppCompiledFlowResponse flow)
+        {
+            using var document = JsonDocument.Parse(flow.Json);
+            return document.RootElement.GetProperty("routing_model").EnumerateObject()
+                .ToDictionary(screen => screen.Name, screen => screen.Value.EnumerateArray().Select(next => next.GetString()!).ToArray());
+        }
+    }
+
     [Fact]
     public void Without_questions_after_the_block_each_row_that_can_end_completes_with_what_was_visited()
     {
