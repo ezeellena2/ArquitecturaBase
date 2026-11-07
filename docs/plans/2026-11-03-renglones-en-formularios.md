@@ -2,8 +2,8 @@
 
 Diseño del 2026-11-02 con las decisiones del usuario del 2026-11-03, que ese día dio el diseño por cerrado, y las del
 2026-11-04 sobre el tope de la respuesta de WhatsApp (RG7-A), el bloque con mínimo 0 (RG8-A) y cómo se elige «Renglones» en el
-editor (RG9-A), la del 2026-11-06, «Agregar bloque» (RG10-D), y la del 2026-11-07, «ítem» en lugar de «renglón» en los textos
-(RG12-A). La Etapa 1 se está programando ([plan de implementación](2026-11-04-renglones-etapa-1-implementacion.md)). Un formulario suma un bloque de
+editor (RG9-A), la del 2026-11-06, «Agregar bloque» (RG10-D), y las del 2026-11-07, «ítem» en lugar de «renglón» en los textos
+(RG12-A) y un mínimo mayor que el tope de WhatsApp (RG13-A). La Etapa 1 se está programando ([plan de implementación](2026-11-04-renglones-etapa-1-implementacion.md)). Un formulario suma un bloque de
 preguntas que se repite, como los renglones de un remito o de una factura: en la app se cargan en una tabla y por WhatsApp,
 de a un renglón por pantalla.
 
@@ -168,6 +168,15 @@ Los documentos y el código siguen llamándolo renglón (`rows`).
    - Lo que dice «renglón» en Importar opciones («Cada fila copiada ocupa un renglón…») es la línea de lo pegado y queda.
    - Descartó RG12-B (en WhatsApp, el nombre del bloque: «¿Agregás más artículos?», con el nombre en plural y de hasta 16
      caracteres) y RG12-C (el editor del bloque suma «Cada ítem es [un/una] [artículo]»: «¿Agregás otro artículo?»).
+12. **Un mínimo mayor que el tope de WhatsApp: RG13-A, publicar frena** (2026-11-07). Salió al planear la Etapa 2, de la
+   revisión del backend de la Etapa 1: WhatsApp carga 10 ítems como mucho, y un mínimo de 15 no se podía completar. Lo
+   eligió con la pregunta del chat, sin tablero.
+   - Con WhatsApp instalado, publicar frena con un problema en el bloque, con «Ir a la pregunta»: «En WhatsApp se cargan
+     hasta 10 ítems; el mínimo es 15.».
+   - Al guardar una respuesta, la app y WhatsApp validan siempre contra el mínimo y el máximo del bloque: ninguna respuesta
+     queda con menos ítems que el mínimo.
+   - Descartó RG13-B (publicar avisa y WhatsApp pide los 10 sin preguntar, con respuestas de menos ítems que el mínimo) y
+     RG13-C (el editor no deja un mínimo mayor que 10 en ningún formulario).
 
 **Resueltas por defecto** con la opción más simple, dibujadas en los tableros y sin objeción del usuario:
 
@@ -272,7 +281,8 @@ para que se usen igual en toda la app.
      vista previa.
    - Front: «Renglones» en el editor, la casilla «Se carga varias veces», el recuadro con sus preguntas, el lápiz con el
      nombre, el mínimo y el máximo, y la vista previa de un renglón.
-2. **Etapa 2 · Cargar renglones (RG2-A y RG3-A).**
+2. **Etapa 2 · Cargar renglones (RG2-A y RG3-A).** Su [plan de implementación](2026-11-07-renglones-etapa-2-implementacion.md)
+   tiene diez tareas y suma RG13-A y LD3-A.
    - Backend: los valores con su renglón y su migración, y la captura de WhatsApp y de la app con los renglones, la huella y
      el replay.
    - Front: la tabla en la página, los recuadros en el panel y en el celular, agregar, quitar y mover, los errores por renglón

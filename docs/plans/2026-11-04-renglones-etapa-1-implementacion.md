@@ -95,8 +95,9 @@ En `SaveFormDraftRequestValidator`, todas `ContentInvalid` en su ruta:
 
 ## Por decidir (la revisión del backend, 2026-11-04)
 
-- **Un mínimo mayor que 10** (por ejemplo, de 15 a 20): WhatsApp carga a lo sumo 10 renglones, menos que el mínimo, y el
-  aviso de publicar sólo habla del máximo. Hay que decidir qué hace publicar y contra qué valida la Etapa 2.
+- **Un mínimo mayor que 10** (por ejemplo, de 15 a 20): decidido el 2026-11-07 con RG13-A, en el
+  [plan de la Etapa 2](2026-11-07-renglones-etapa-2-implementacion.md). Con WhatsApp instalado, publicar frena («En WhatsApp
+  se cargan hasta 10 ítems; el mínimo es 15.»), y la captura valida siempre contra el mínimo y el máximo del bloque.
 - **Una lista dependiente (CW7) que filtra por una pregunta del bloque:** decidido el 2026-11-07 con LD3-A, en
   [elegir primero por un campo](2026-11-07-elegir-primero-por-un-campo.md). Si las dos están en el bloque, la lista usa la
   respuesta del mismo renglón; una pregunta de afuera vale para todos los renglones; y publicar frena
