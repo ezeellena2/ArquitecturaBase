@@ -268,16 +268,20 @@ permiso.
 
 ### Tarea 4 · La tabla del PDF
 
-- [ ] Tests en rojo:
+- [x] Tests en rojo:
   - `FormPdfDesignPolicyTests`: el diseño inicial y `Resolve` sin las preguntas del bloque, las preguntas conocidas y el
     idioma completo con las preguntas del bloque;
-  - `FormMultipleChoicePdfPreviewTests` como modelo: la vista previa con dos ítems;
-  - técnicos sin Docker (`FormPdfRendererTests`): la tabla con su título y encabezado, una tabla que sigue en la página
-    siguiente con el encabezado repetido, los números a la derecha y una celda larga partida.
-- [ ] `FormPdfDesignPolicy`, `FormPdfPreviewIssuer` y `SkiaFormPdfRenderer`, con `WriteTable` en su `DocumentLayout`.
-- [ ] Exportar los PDF técnicos y revisar los PNG de Poppler. Capturas `rows-preview-{es,en}.pdf` con su companion
-  `.http.json`, en `forms-pdf-http`, como `multi-preview`.
-- [ ] Commit: `feat(formularios): el PDF muestra el bloque en una tabla`.
+  - `FormRowsPdfPreviewTests`, como `FormMultipleChoicePdfPreviewTests`: la vista previa con dos ítems;
+  - técnicos sin Docker (`FormPdfRendererTests`): la tabla que arma `Table` (título, encabezados, columnas numéricas y
+    celdas, con la vacía), el bloque que suma su tabla y la pregunta del bloque elegida sola que no sale, una tabla de 60
+    ítems en tres páginas y un bloque sin ítems. El encabezado repetido, los números a la derecha y la celda partida no
+    se pueden leer desde el test (Skia no deja texto que se pueda buscar): se revisaron en los PNG.
+- [x] `FormPdfDesignPolicy`, `FormPdfPreviewIssuer` y `SkiaFormPdfRenderer`, con `WriteTable` en su `DocumentLayout`.
+- [x] Exportar los PDF técnicos y revisar los PNG (PyMuPDF, y `pdftotext -layout` de Poppler para el encabezado en cada
+  página): `block-es`, `block-long-en` (tres páginas, con el encabezado arriba de cada tramo) y `block-empty-es`
+  («Artículos · Sin respuesta»). Capturas `rows-preview-{es,en}.pdf` con su companion `.http.json`, en `forms-pdf-http`,
+  como `multi-preview`.
+- [x] Commit: `feat(formularios): el PDF muestra el bloque en una tabla`.
 
 ### Tarea 5 · La respuesta con ítems en el chat
 

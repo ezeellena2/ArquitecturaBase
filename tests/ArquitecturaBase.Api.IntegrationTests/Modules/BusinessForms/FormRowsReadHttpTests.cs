@@ -3,7 +3,9 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures;
+using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessForms;
 using ArquitecturaBase.Application.Interfaces.Channels;
+using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ClosedXML.Excel;
 using Microsoft.Extensions.DependencyInjection;
@@ -149,10 +151,35 @@ public sealed partial class FormDraftEndpointsTests
         Assert.True(items.Row(5).IsEmpty());
     }
 
+    [Theory]
+    [InlineData("es")]
+    [InlineData("en")]
+    public async Task The_preview_of_the_pdf_takes_the_block_with_two_example_items(string culture)
+    {
+        using var reader = await RowsReaderAsync(culture);
+        var rows = await SeedRowsReadAsync(reader);
+
+        using var pdf = await reader.PostAsJsonAsync($"/api/forms/definitions/{rows.DefinitionId}/pdf-design/preview", new
+        {
+            design = new FormPdfDesign(new Dictionary<string, string> { ["es"] = "Constancia de recepción", ["en"] = "Receipt" }, [rows.Supplier, rows.Group], false, null, true),
+            culture,
+        }, Ct);
+
+        Assert.Equal(HttpStatusCode.OK, pdf.StatusCode);
+        Assert.Equal("application/pdf", pdf.Content.Headers.ContentType!.MediaType);
+        await FormPdfContractCapture.WriteAsync(pdf, "rows-preview-" + culture, Ct, "pdf");
+        using var invalid = await reader.PostAsJsonAsync($"/api/forms/definitions/{rows.DefinitionId}/pdf-design/preview", new
+        {
+            design = new FormPdfDesign(new Dictionary<string, string> { ["es"] = "Constancia", ["en"] = "Receipt" }, [rows.Quantity], false, null, true), culture,
+        }, Ct);
+        Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
+    }
+
     private async Task<HttpClient> RowsReaderAsync(string culture)
     {
         var reader = await OperatorAsync([BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage,
-            BusinessFormsPermissions.RecordsCreate, BusinessFormsPermissions.RecordsRead, BusinessFormsPermissions.RecordsExport]);
+            BusinessFormsPermissions.RecordsCreate, BusinessFormsPermissions.RecordsRead, BusinessFormsPermissions.RecordsExport,
+            BusinessFormsPermissions.RulesManage]);
         reader.DefaultRequestHeaders.AcceptLanguage.ParseAdd(culture);
         return reader;
     }

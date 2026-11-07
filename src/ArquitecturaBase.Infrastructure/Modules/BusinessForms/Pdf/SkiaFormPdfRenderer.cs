@@ -30,11 +30,18 @@ internal sealed class SkiaFormPdfRenderer(IFormFileReader references, IStoredFil
         using var values = JsonDocument.Parse(record.ValuesJson);
         var answers = values.RootElement.EnumerateArray().ToDictionary(value => value.GetProperty("fieldId").GetGuid(), value => value.GetProperty("value"));
         var selected = snapshot.Design.QuestionIds.ToHashSet();
-        // The block of rows and its questions stay out of the copy until it shows the items, even when the design has them.
-        foreach (var question in schema.Questions.Where(question => selected.Contains(question.FieldId) && question.Type != "group" && question.Repeated != true))
+        // A question of the block of rows goes only in its table, even when an old design chose it apart.
+        foreach (var question in schema.Questions.Where(question => selected.Contains(question.FieldId) && question.Repeated != true))
         {
             cancellationToken.ThrowIfCancellationRequested();
             var label = question.Label[culture];
+            if (question.Type == "group")
+            {
+                var table = Table(question, schema, answers, culture, record);
+                if (table.Rows.Count == 0) layout.WriteField(label, FormPdfTexts.Get("NoAnswer", culture));
+                else layout.WriteTable(table);
+                continue;
+            }
             var attached = (record.Files ?? []).Where(file => file.FieldId == question.FieldId).OrderBy(file => file.Position).ToArray();
             if (question.Type == "photo" && snapshot.Design.IncludePhotos && attached.Length > 0)
             {
@@ -72,6 +79,27 @@ internal sealed class SkiaFormPdfRenderer(IFormFileReader references, IStoredFil
         if (!string.IsNullOrEmpty(footer))
             layout.WriteFooter(footer);
         return layout.Finish();
+    }
+
+    /// <summary>
+    /// The items of the block in a table: a column per question of the block in its version, the decimals as numbers, each cell
+    /// with the catalog references of its own item and empty where the item left the question unanswered.
+    /// </summary>
+    private static FormPdfTable Table(CanonicalFormField group, FormVersionSchema schema, Dictionary<Guid, JsonElement> answers, string culture,
+        FormRecordStoredRow record)
+    {
+        var questions = schema.Questions.SkipWhile(question => question.FieldId != group.FieldId).Skip(1)
+            .TakeWhile(question => question.Repeated == true).ToArray();
+        var items = answers.TryGetValue(group.FieldId, out var answer) ? answer.EnumerateArray().ToArray() : [];
+        var rows = items.Select((item, position) =>
+        {
+            var values = item.EnumerateArray().ToDictionary(value => value.GetProperty("fieldId").GetGuid(), value => value.GetProperty("value"));
+            var own = record with { References = (record.References ?? []).Where(reference => reference.Row == position).ToArray() };
+            return (IReadOnlyList<string>)questions.Select(question => values.TryGetValue(question.FieldId, out var value)
+                ? Value(question, value, culture, own) : "").ToArray();
+        }).ToArray();
+        return new(group.Label[culture], questions.Select(question => question.Label[culture]).ToArray(),
+            questions.Select(question => question.Type == "decimal").ToArray(), rows);
     }
 
     private static string Value(CanonicalFormField question, JsonElement answer, string culture, FormRecordStoredRow record)
@@ -187,6 +215,7 @@ internal sealed class SkiaFormPdfRenderer(IFormFileReader references, IStoredFil
         private SKPictureRecorder? recorder;
         private SKCanvas canvas = null!;
         private float y;
+        private float pageTop;
         private float photoTop;
         private bool photosOpen;
 
@@ -243,6 +272,7 @@ internal sealed class SkiaFormPdfRenderer(IFormFileReader references, IStoredFil
                 y += 13;
             }
             y += 12;
+            pageTop = y;
         }
 
         private bool Ensure(float height)
@@ -277,6 +307,82 @@ internal sealed class SkiaFormPdfRenderer(IFormFileReader references, IStoredFil
                 y += LineHeight;
             }
             y += 10;
+        }
+
+        /// <summary>
+        /// The block as a table under its name: the number of the item and a column per question, with a line between columns,
+        /// numbers to the right and text wrapped in its cell. An item that does not fit goes on the next page under the header again.
+        /// </summary>
+        public void WriteTable(FormPdfTable table)
+        {
+            const float numberWidth = 28;
+            const float padding = 4;
+            const float headerLine = 11;
+            float[] widths = [numberWidth, .. table.Headers.Select(_ => (Width - Margin * 2 - numberWidth) / table.Headers.Count)];
+            var lefts = widths.Select((_, column) => Margin + widths.Take(column).Sum()).ToArray();
+            bool[] numeric = [true, .. table.Numeric];
+            string[] names = ["", .. table.Headers];
+            var headers = names.Select((text, column) => small.Wrap(text, widths[column] - padding * 2)).ToArray();
+            var headerHeight = 6 + headers.Max(lines => lines.Count) * headerLine;
+            var rows = table.Rows.Select((row, index) => ((string[])[(index + 1).ToString(CultureInfo.InvariantCulture), .. row])
+                .Select((text, column) => body.Wrap(text, widths[column] - padding * 2)).ToArray()).ToArray();
+            var titles = body.Wrap(table.Title, Width - Margin * 2);
+            // The name, the header and the first line of the first item go together.
+            Ensure(titles.Count * LineHeight + 6 + headerHeight + LineHeight + 6);
+            canvas.DrawLine(Margin, y - 5, Width - Margin, y - 5, line);
+            foreach (var part in titles)
+            {
+                body.DrawText(canvas, part, Margin, y + 10, muted);
+                y += LineHeight;
+            }
+            y += 6;
+            var top = y;
+            Header();
+            foreach (var cells in rows)
+            {
+                var count = cells.Max(lines => lines.Count);
+                var height = 6 + count * LineHeight;
+                // A whole item moves to the next page; one longer than a page goes on there line by line.
+                if (y + height > Bottom && height <= Bottom - pageTop - headerHeight) Break();
+                for (var index = 0; index < count; index++)
+                {
+                    if (y + LineHeight + 6 > Bottom) Break();
+                    for (var column = 0; column < cells.Length; column++)
+                        if (index < cells[column].Count) Draw(body, cells[column][index], column, y + 13, ink);
+                    y += LineHeight;
+                }
+                y += 6;
+                canvas.DrawLine(Margin, y, Width - Margin, y, line);
+            }
+            Columns(top, y);
+            y += 16;
+
+            void Header()
+            {
+                canvas.DrawLine(Margin, y, Width - Margin, y, line);
+                for (var column = 0; column < headers.Length; column++)
+                    for (var index = 0; index < headers[column].Count; index++)
+                        Draw(small, headers[column][index], column, y + 9 + index * headerLine, muted);
+                y += headerHeight;
+                canvas.DrawLine(Margin, y, Width - Margin, y, line);
+            }
+            void Break()
+            {
+                Columns(top, y);
+                EndPage();
+                StartPage();
+                top = y;
+                Header();
+            }
+            void Columns(float from, float to)
+            {
+                for (var column = 1; column < lefts.Length; column++) canvas.DrawLine(lefts[column], from, lefts[column], to, line);
+            }
+            void Draw(FormPdfTextLayout font, string text, int column, float baseline, SKPaint paint)
+            {
+                var x = numeric[column] ? lefts[column] + widths[column] - padding - font.MeasureText(text.TrimEnd()) : lefts[column] + padding;
+                font.DrawText(canvas, numeric[column] ? text.TrimEnd() : text, x, baseline, paint);
+            }
         }
 
         public void WritePhoto(SKImage? image, int index, int count)

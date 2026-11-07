@@ -54,6 +54,28 @@ public sealed class FormPdfDesignPolicyTests
         Assert.True(FormPdfDesignPolicy.Normalize(design with {Footer=new Dictionary<string,string>{["es"]="Pie"}},"en",[id]).IsFailure);
     }
 
+    [Fact]
+    public void The_design_takes_the_whole_block_and_a_complete_language_needs_its_questions_too()
+    {
+        static CanonicalFormField Field(string type, string es, string? en) => new(Guid.NewGuid(), "field", type,
+            en is null ? new Dictionary<string, string> { ["es"] = es } : new Dictionary<string, string> { ["es"] = es, ["en"] = en }, null, false, null, null);
+        var supplier = Field("shortText", "Proveedor", "Supplier");
+        var group = Field("group", "Artículos", "Articles") with { Rows = new(1, 3) };
+        var quantity = Field("decimal", "Cantidad", null) with { Repeated = true };
+        var schema = new FormVersionSchema(1, [supplier, group, quantity]);
+        var definition = new FormRuleDefinitionRow(Guid.NewGuid(), Names, "es", FormDraftPolicy.Serialize(new FormQuestionSchema(1, schema.Questions)), []);
+
+        var resolved = FormPdfDesignPolicy.Resolve(null, Names, schema);
+
+        // The initial design and a response without a saved design take the block, and a question of the block is not one to choose.
+        Assert.Equal([supplier.FieldId, group.FieldId], resolved.QuestionIds);
+        Assert.Equal([supplier.FieldId, group.FieldId], FormPdfDesignPolicy.Default(definition).QuestionIds);
+        Assert.Equal([supplier.FieldId, group.FieldId], FormPdfDesignPolicy.KnownQuestions(definition));
+        var design = resolved with { Name = new Dictionary<string, string> { ["es"] = "Constancia", ["en"] = "Receipt" } };
+        Assert.Equal(["es"], FormPdfDesignPolicy.CompleteCultures(design, "es", schema, Names));
+        Assert.Equal(["es", "en"], FormPdfDesignPolicy.CompleteCultures(design with { QuestionIds = [supplier.FieldId] }, "es", schema, Names));
+    }
+
     [Theory]
     [InlineData(161, 0)]
     [InlineData(1, 1001)]

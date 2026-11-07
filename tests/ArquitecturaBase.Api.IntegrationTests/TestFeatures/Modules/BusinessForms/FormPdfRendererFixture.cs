@@ -108,22 +108,36 @@ internal sealed class FormPdfRendererFixture : IFormFileReader, IStoredFileReade
         return Snapshot with { Response = Snapshot.Response with { Record = record } };
     }
 
-    // The same response with a block of rows in its version, its answer and its design: an item with a quantity.
-    public FormPdfRenderRequest BlockSnapshot()
+    // The same response with a block of rows in its version, its answer and its design: each item with a quantity and a unit, and
+    // the first one also with a long note. An old design may have chosen a question of the block; without the block, only that.
+    public FormPdfRenderRequest BlockSnapshot(int items = 2, bool blockInDesign = true)
     {
-        var group = Field("group", "Artículos", "Items") with { Rows = new(0, 3) };
+        var group = Field("group", "Artículos", "Items") with { Rows = new(0, 99) };
         var quantity = Field("decimal", "Cantidad recibida", "Quantity received") with { Required = true, Repeated = true };
+        var liter = Guid.NewGuid();
+        var unit = Field("choice", "Unidad", "Unit") with
+        {
+            Repeated = true, Options = [new(liter, new Dictionary<string, string> { ["es"] = "Litros", ["en"] = "Liters" })],
+        };
+        var note = Field("longText", "Observación", "Note") with { Repeated = true, MaxLength = 2000 };
         var record = Snapshot.Response.Record;
         var schema = JsonSerializer.Deserialize<FormVersionSchema>(record.SchemaJson, JsonSerializerOptions.Web)!;
         using var document = JsonDocument.Parse(record.ValuesJson);
+        var answer = Enumerable.Range(0, items).Select(index => index == 0
+            ? new object[] { new { fieldId = quantity.FieldId, value = 12.5m }, new { fieldId = unit.FieldId, value = liter },
+                new { fieldId = note.FieldId, value = "Llegó con el envase golpeado; se revisó el contenido y quedó apartado hasta la respuesta del proveedor." } }
+            : [new { fieldId = quantity.FieldId, value = 25m * index }, new { fieldId = unit.FieldId, value = liter }]).ToArray();
         var values = document.RootElement.EnumerateArray().Select(value => (object)value.Clone())
-            .Append(new { fieldId = group.FieldId, value = new[] { new[] { new { fieldId = quantity.FieldId, value = 12m } } } }).ToArray();
+            .Append(new { fieldId = group.FieldId, value = answer }).ToArray();
         var captured = record with
         {
-            SchemaJson = JsonSerializer.Serialize(schema with { Questions = [.. schema.Questions, group, quantity] }, JsonSerializerOptions.Web),
+            SchemaJson = JsonSerializer.Serialize(schema with { Questions = [.. schema.Questions, group, quantity, unit, note] }, JsonSerializerOptions.Web),
             ValuesJson = JsonSerializer.Serialize(values),
         };
-        var design = Snapshot.Snapshot.Design with { QuestionIds = [.. Snapshot.Snapshot.Design.QuestionIds, group.FieldId, quantity.FieldId] };
+        var design = Snapshot.Snapshot.Design with
+        {
+            QuestionIds = blockInDesign ? [.. Snapshot.Snapshot.Design.QuestionIds, group.FieldId, quantity.FieldId] : [.. Snapshot.Snapshot.Design.QuestionIds, quantity.FieldId],
+        };
         return Snapshot with
         {
             Snapshot = Snapshot.Snapshot with { Design = design },

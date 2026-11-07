@@ -146,16 +146,72 @@ public sealed class FormPdfRendererTests
         await fixture.ExportAsync(bytes, "photos-off-es");
     }
 
+    [Theory]
+    [InlineData("es", "12,5", "Litros")]
+    [InlineData("en", "12.5", "Liters")]
+    public void The_block_reads_its_items_in_a_table_with_a_column_per_question_of_its_version(string culture, string quantity, string unit)
+    {
+        var table = Table(new FormPdfRendererFixture().BlockSnapshot(), culture);
+
+        Assert.Equal(culture == "es" ? "Artículos" : "Items", table.Title);
+        Assert.Equal(culture == "es" ? ["Cantidad recibida", "Unidad", "Observación"] : ["Quantity received", "Unit", "Note"], table.Headers);
+        Assert.Equal([true, false, false], table.Numeric);
+        Assert.Equal(2, table.Rows.Count);
+        Assert.Equal([quantity, unit], table.Rows[0].Take(2));
+        Assert.StartsWith("Llegó con el envase golpeado", table.Rows[0][2], StringComparison.Ordinal);
+        // The second item left its note empty.
+        Assert.Equal(["25", unit, ""], table.Rows[1]);
+    }
+
     [Fact]
-    public async Task A_block_in_the_design_stays_out_of_the_copy_until_its_items_are_shown()
+    public async Task A_block_in_the_design_draws_its_table_and_its_questions_never_go_apart()
     {
         var fixture = new FormPdfRendererFixture();
         var plain = await fixture.Renderer.RenderAsync(fixture.Snapshot, "es", false, TestContext.Current.CancellationToken);
 
         var bytes = await fixture.Renderer.RenderAsync(fixture.BlockSnapshot(), "es", false, TestContext.Current.CancellationToken);
+        var apart = await fixture.Renderer.RenderAsync(fixture.BlockSnapshot(blockInDesign: false), "es", false, TestContext.Current.CancellationToken);
 
-        Assert.Equal(plain.Length, bytes.Length);
+        Assert.True(bytes.Length > plain.Length);
+        Assert.Equal(plain.Length, apart.Length);
+        Assert.Equal(1, Regex.Count(Encoding.Latin1.GetString(bytes), @"/Type\s*/Page\b"));
         await fixture.ExportAsync(bytes, "block-es");
+    }
+
+    [Fact]
+    public async Task A_long_block_continues_on_the_next_page()
+    {
+        var fixture = new FormPdfRendererFixture();
+
+        var bytes = await fixture.Renderer.RenderAsync(fixture.BlockSnapshot(items: 60), "en", false, TestContext.Current.CancellationToken);
+
+        Assert.True(Regex.Count(Encoding.Latin1.GetString(bytes), @"/Type\s*/Page\b") >= 2);
+        await fixture.ExportAsync(bytes, "block-long-en");
+    }
+
+    [Fact]
+    public async Task A_block_without_items_has_no_rows_and_the_copy_still_renders()
+    {
+        var fixture = new FormPdfRendererFixture();
+        var request = fixture.BlockSnapshot(items: 0);
+
+        var bytes = await fixture.Renderer.RenderAsync(request, "es", false, TestContext.Current.CancellationToken);
+
+        Assert.Empty(Table(request, "es").Rows);
+        Assert.Equal("%PDF-", Encoding.ASCII.GetString(bytes, 0, 5));
+        await fixture.ExportAsync(bytes, "block-empty-es");
+    }
+
+    private static FormPdfTable Table(ArquitecturaBase.Application.Modules.BusinessForms.Models.FormPdfRenderRequest request, string culture)
+    {
+        var record = request.Response.Record;
+        var schema = System.Text.Json.JsonSerializer.Deserialize<ArquitecturaBase.Application.Modules.BusinessForms.Models.FormVersionSchema>(
+            record.SchemaJson, System.Text.Json.JsonSerializerOptions.Web)!;
+        using var document = System.Text.Json.JsonDocument.Parse(record.ValuesJson);
+        var answers = document.RootElement.EnumerateArray().ToDictionary(value => value.GetProperty("fieldId").GetGuid(), value => value.GetProperty("value").Clone());
+        var method = typeof(SkiaFormPdfRenderer).GetMethod("Table", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+        Assert.NotNull(method);
+        return Assert.IsType<FormPdfTable>(method.Invoke(null, [schema.Questions.Single(question => question.Type == "group"), schema, answers, culture, record]));
     }
 
     [Fact]

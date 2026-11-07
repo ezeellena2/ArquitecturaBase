@@ -21,10 +21,13 @@ internal static class FormPdfDesignPolicy
     public static IReadOnlyList<string> CompleteCultures(FormPdfDesign design, string originalCulture, FormVersionSchema schema, string formNameJson)
     {
         var formName = FormDraftPolicy.Read<Dictionary<string, string>>(formNameJson);
+        // A chosen block prints its questions in its table: their texts count too.
+        var withBlock = schema.Questions.Any(question => question.Type == "group" && design.QuestionIds.Contains(question.FieldId));
+        var printed = schema.Questions.Where(question => design.QuestionIds.Contains(question.FieldId) || withBlock && question.Repeated == true).ToArray();
         return new[] { originalCulture, originalCulture == "es" ? "en" : "es" }
             .Where(culture => formName.TryGetValue(culture, out var formLabel) && !string.IsNullOrWhiteSpace(formLabel)
                 && design.Name.TryGetValue(culture, out var name) && !string.IsNullOrWhiteSpace(name)
-                && schema.Questions.Where(question => design.QuestionIds.Contains(question.FieldId)).All(question =>
+                && printed.All(question =>
                     !string.IsNullOrWhiteSpace(question.Label.GetValueOrDefault(culture))
                     && (question.Options ?? []).All(option => !string.IsNullOrWhiteSpace(option.Label.GetValueOrDefault(culture))))
                 && (design.Footer is null || design.Footer.Count == 0
@@ -33,15 +36,18 @@ internal static class FormPdfDesignPolicy
     }
     public static FormPdfDesign Resolve(FormPdfDesignStoredRow? current, FormRecordStoredRow record, FormVersionSchema schema) =>
         Resolve(current, record.NameJson, schema);
+    // The design chooses a block of rows whole: its questions go in its table, never apart (RG4-A).
     public static FormPdfDesign Resolve(FormPdfDesignStoredRow? current, string nameJson, FormVersionSchema schema) =>
         current is null
             ? new(FormDraftPolicy.Read<Dictionary<string,string>>(nameJson),
-                schema.Questions.Select(question => question.FieldId).ToArray(), true, null, true)
+                schema.Questions.Where(question => question.Repeated != true).Select(question => question.FieldId).ToArray(), true, null, true)
             : FormDraftPolicy.Read<FormPdfDesign>(current.DesignJson);
     public static FormPdfDesign Default(FormRuleDefinitionRow definition) => new(FormDraftPolicy.Read<Dictionary<string,string>>(definition.NameJson),
-        FormDraftPolicy.Read<FormQuestionSchema>(definition.SchemaJson).Fields.Select(field => field.FieldId).ToArray(), true, null, true);
-    public static IReadOnlyList<Guid> KnownQuestions(FormRuleDefinitionRow definition) => FormDraftPolicy.Read<FormQuestionSchema>(definition.SchemaJson).Fields.Select(field => field.FieldId)
-        .Concat(definition.HistoricalSchemas.SelectMany(row => FormDraftPolicy.Read<FormVersionSchema>(row.SchemaJson).Questions.Select(field => field.FieldId))).Distinct().ToArray();
+        FormDraftPolicy.Read<FormQuestionSchema>(definition.SchemaJson).Fields.Where(field => field.Repeated != true).Select(field => field.FieldId).ToArray(), true, null, true);
+    public static IReadOnlyList<Guid> KnownQuestions(FormRuleDefinitionRow definition) => FormDraftPolicy.Read<FormQuestionSchema>(definition.SchemaJson).Fields
+        .Where(field => field.Repeated != true).Select(field => field.FieldId)
+        .Concat(definition.HistoricalSchemas.SelectMany(row => FormDraftPolicy.Read<FormVersionSchema>(row.SchemaJson).Questions
+            .Where(field => field.Repeated != true).Select(field => field.FieldId))).Distinct().ToArray();
     private static Dictionary<string,string>? Text(IReadOnlyDictionary<string,string>? text, string originalCulture, int maxLength, bool required)
     {
         if (text?.Keys.Any(culture => culture is not ("es" or "en")) == true) return null;

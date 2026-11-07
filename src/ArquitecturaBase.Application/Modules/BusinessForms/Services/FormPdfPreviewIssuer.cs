@@ -15,7 +15,11 @@ internal sealed class FormPdfPreviewIssuer(IFormPdfRenderer renderer, IAppName a
         var culture = cultures.Contains(requestedCulture) ? requestedCulture : definition.OriginalCulture;
         var example = Texts.GetString("answer", CultureInfo.GetCultureInfo(culture))!;
         var actorName = Texts.GetString("actor", CultureInfo.GetCultureInfo(culture))!;
-        var values = fields.Where(field => field.Type is not ("photo" or "document")).Select(field => new { field.FieldId, Value = Example(field, example) }).Where(value => value.Value is not null).ToArray();
+        // The block shows two items with the examples of its questions, which only go inside it.
+        var block = fields.Where(field => field.Repeated == true).ToArray();
+        var values = fields.Where(field => field.Type is not ("photo" or "document") && field.Repeated != true)
+            .Select(field => new { field.FieldId, Value = field.Type == "group" ? Items(block, example) : Example(field, example) })
+            .Where(value => value.Value is not null).ToArray();
         var recordId = Guid.NewGuid();
         var photos = fields.Where(field => field.Type == "photo").Select(field =>
             new FormRecordFileRow(recordId, field.FieldId, Guid.NewGuid(), 0, "example.jpg", "image/jpeg", 1, false)).ToArray();
@@ -26,6 +30,8 @@ internal sealed class FormPdfPreviewIssuer(IFormPdfRenderer renderer, IAppName a
         var bytes = await renderer.RenderAsync(new(snapshot, response), culture, true, cancellationToken);
         return new(new MemoryStream(bytes, false), "preview.pdf", culture);
     }
+    private static object[][] Items(IReadOnlyList<CanonicalFormField> block, string text) => Enumerable.Range(0, 2)
+        .Select(_ => block.Select(field => new { field.FieldId, Value = Example(field, text) }).Where(value => value.Value is not null).ToArray<object>()).ToArray();
     private static object? Example(CanonicalFormField field, string text) => field.Type switch
     {
         "shortText" or "longText" => text, "decimal" => 12500.5m, "boolean" => true,
