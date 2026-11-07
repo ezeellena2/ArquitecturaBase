@@ -246,6 +246,11 @@ que la sesión de las listas dependientes commitee lo suyo.
     satisfy provided routing_model». El Flow no declaraba `routing_model` y Meta lo deduce de los `navigate` sin la rama
     `else`. Ahora r10 con bloque lo declara con las dos ramas (sin bloque no cambia). Falta republicar la prueba (una
     versión nueva del formulario) y probar «Sí» y «No» en la vista oficial y en el celular.
+  - 2026-11-07, con la versión 4 (con `routing_model`): el usuario completó el formulario entero en el celular, con un
+    renglón y «No». Llegaron 7 claves y 415 bytes: las del renglón 1 con `_r1` (incluida `field_<bloque>_r1`), las de fuera
+    del bloque y el `flow_token`. De los renglones no visitados no llega ninguna clave: ni vacía ni con `${…}`. La app
+    la marca `Unrecognized` («no pudimos relacionar con un envío»), porque `ProjectionIsWellFormed` no acepta el tipo
+    `group`: guardar la respuesta con renglones es de la Etapa 2, que además tiene que cambiar ese aviso.
 - [ ] Si algo no alcanza, bajar el tope o volver a 16 KiB (RG7-C) y anotarlo en el plan. El tope está sellado en r10
   (`WhatsAppFlowProfile.MaxRows`, con `StructuredFormLimits.MaxRows` igual): mientras r10 no salga de esta etapa se cambian
   los dos y se republica la prueba; después, otro tope es otra revisión, y el webhook sigue aceptando `_r10` de lo publicado.
