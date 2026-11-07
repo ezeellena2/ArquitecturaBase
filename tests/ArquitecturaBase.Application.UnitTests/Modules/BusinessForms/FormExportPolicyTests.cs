@@ -31,5 +31,22 @@ public sealed class FormExportPolicyTests
         Assert.Null(FormExportPolicy.Cell(Cell("group", "Unanswered", Array.Empty<FormResponseRowCells>())).Value);
         Assert.Equal("—", FormExportPolicy.Cell(Cell("group", "NotAsked", null)).Value);
     }
+    [Theory]
+    [InlineData("Artículos", "es", "Artículos")]
+    [InlineData("Insumos: semillas/fertilizantes [lote]*?\\", "es", "Insumos semillasfertilizantes l")]
+    [InlineData("'Artículos'", "es", "Artículos")]
+    [InlineData("Respuestas", "es", "Ítems")]
+    [InlineData("responses", "en", "Items")]
+    [InlineData(" :/?* ", "en", "Items")]
+    public void The_sheet_of_a_block_takes_its_name_without_what_excel_rejects(string label, string culture, string expected) =>
+        Assert.Equal(expected, FormExportPolicy.SheetName(label, [], culture));
+    [Fact]
+    public void A_sheet_name_already_taken_gets_its_number_within_31_characters()
+    {
+        Assert.Equal("Artículos (2)", FormExportPolicy.SheetName("Artículos", ["Respuestas", "artículos"], "es"));
+        Assert.Equal("Artículos (3)", FormExportPolicy.SheetName("Artículos", ["Respuestas", "Artículos", "Artículos (2)"], "es"));
+        Assert.Equal(new string('a', 27) + " (2)", FormExportPolicy.SheetName(new string('a', 40), [new string('a', 31)], "es"));
+        Assert.Equal("Ítems (2)", FormExportPolicy.SheetName("", ["Respuestas", "Ítems"], "es"));
+    }
     private static FormResponseCell Cell(string type, string state, object? value) => new(Guid.NewGuid(), type, state, value);
 }

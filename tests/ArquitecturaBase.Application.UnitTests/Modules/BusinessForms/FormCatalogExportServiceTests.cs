@@ -32,7 +32,7 @@ public sealed class FormCatalogExportServiceTests
         var result = await fixture.Service.ExportAsync(id, false, Ct);
 
         Assert.True(result.IsSuccess);
-        var workbook = fixture.Writer.Request!;
+        var workbook = fixture.Writer.Request!.Sheets[0];
         // The catalog is Spanish: with the menu in Spanish the English columns stay out, and reimporting keeps them.
         var spanish = culture == "es";
         Assert.Equal(spanish ? 5 : 7, workbook.Headers.Count);
@@ -81,7 +81,7 @@ public sealed class FormCatalogExportServiceTests
         var result = await fixture.Service.ExportAsync(id, false, Ct);
 
         Assert.True(result.IsSuccess);
-        var workbook = fixture.Writer.Request!;
+        var workbook = fixture.Writer.Request!.Sheets[0];
         Assert.Equal(new FormWorkbookCell("text", value), workbook.Rows[0][^1]);
         // Fifteen digits still fit.
         Assert.Equal(type == "Integer" ? 123456789012345L : (object)123456789012345m, workbook.Rows[1][^1].Value);
@@ -108,7 +108,7 @@ public sealed class FormCatalogExportServiceTests
         var result = await fixture.Service.ExportAsync(id, false, Ct);
 
         Assert.True(result.IsSuccess);
-        var workbook = fixture.Writer.Request!;
+        var workbook = fixture.Writer.Request!.Sheets[0];
         Assert.Equal(new FormWorkbookCell("text", "1899-12-31"), workbook.Rows[0][^1]);
         Assert.Equal(new DateTime(1900, 1, 1), workbook.Rows[1][^1].Value);
         var imported = FormCatalogImportPolicy.Build(new(id, 1, BusinessFormCatalogValueType.Date, "es", fixture.Reader.Items),
@@ -138,8 +138,8 @@ public sealed class FormCatalogExportServiceTests
         var columns = FormCatalogImportTemplate.Columns(type, culture, "es", translation: culture == "en");
         Assert.Equal(count, columns.Count);
         Assert.Equal(keys, columns.Take(keys.Length).Select(column => column.Key));
-        Assert.Equal(columns.Select(column => column.Header), fixture.Writer.Request!.Headers);
-        var row = Assert.Single(fixture.Writer.Request.Rows);
+        Assert.Equal(columns.Select(column => column.Header), fixture.Writer.Request!.Sheets[0].Headers);
+        var row = Assert.Single(fixture.Writer.Request.Sheets[0].Rows);
         Assert.Equal(columns.Select(column => column.Rule), row.Select(cell => cell.Value));
         Assert.Equal("", row[0].Value);
         Assert.All(columns.Skip(1), column => Assert.False(string.IsNullOrWhiteSpace(column.Rule)));
@@ -161,7 +161,7 @@ public sealed class FormCatalogExportServiceTests
         var result = await fixture.Service.ExportAsync(id, false, Ct);
 
         Assert.True(result.IsSuccess);
-        var workbook = fixture.Writer.Request!;
+        var workbook = fixture.Writer.Request!.Sheets[0];
         if (culture == "es")
         {
             Assert.Equal(["Código", "Texto", "Texto en español", "Detalle", "Detalle en español", "Activa"], workbook.Headers);

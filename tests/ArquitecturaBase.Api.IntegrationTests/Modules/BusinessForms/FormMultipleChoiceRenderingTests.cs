@@ -26,8 +26,8 @@ public sealed class FormMultipleChoiceRenderingTests
         var field = Guid.NewGuid();
         FormWorkbookCell Cell(string state, IReadOnlyList<StructuredRecordChoiceValue> selected) =>
             FormExportPolicy.CatalogValue(new(field, "multiChoice", state, selected));
-        var bytes = new ClosedXmlFormWorkbookWriter().Write(new(["Riesgos · valor"],
-            [new[] { Cell("Unanswered", []) }, new[] { Cell("Answered", [values[0]]) }, new[] { Cell("Answered", [values[1], values[0]]) }], "Responses"), TestContext.Current.CancellationToken);
+        var bytes = new ClosedXmlFormWorkbookWriter().Write(new([new(["Riesgos · valor"],
+            [new[] { Cell("Unanswered", []) }, new[] { Cell("Answered", [values[0]]) }, new[] { Cell("Answered", [values[1], values[0]]) }], "Responses")]), TestContext.Current.CancellationToken);
         using var workbook = new XLWorkbook(new MemoryStream(bytes)); var sheet = workbook.Worksheet(1);
         Assert.True(sheet.Cell(2, 1).IsEmpty());
         Assert.Equal(XLDataType.Text, sheet.Cell(3, 1).DataType); Assert.Equal(first, sheet.Cell(3, 1).GetString());

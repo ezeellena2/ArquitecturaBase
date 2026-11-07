@@ -21,12 +21,12 @@ public sealed class FormExportServiceTests
         ports.Reader.ArrangeExport(count);
         var result = await ports.Service.ExportAsync(ports.Reader.Definition!.Id, new(new(), null), CancellationToken.None);
         Assert.True(result.IsSuccess);
-        Assert.Equal(count, ports.Writer.Request!.Rows.Count);
+        Assert.Equal(count, ports.Writer.Request!.Sheets[0].Rows.Count);
         Assert.Equal(1, ports.Reader.DefinitionReads);
         Assert.Equal(1, ports.Reader.ExportSnapshotReads);
         Assert.Equal(Enumerable.Range(0, (count + 99) / 100).Select(index => Math.Min(100, count - index * 100)), ports.Reader.ExportBatchSizes);
-        Assert.Equal("T-000001", ports.Writer.Request.Rows[0][0].Value);
-        Assert.Equal("T-" + count.ToString("D6", System.Globalization.CultureInfo.InvariantCulture), ports.Writer.Request.Rows[^1][0].Value);
+        Assert.Equal("T-000001", ports.Writer.Request.Sheets[0].Rows[0][0].Value);
+        Assert.Equal("T-" + count.ToString("D6", System.Globalization.CultureInfo.InvariantCulture), ports.Writer.Request.Sheets[0].Rows[^1][0].Value);
     }
     [Fact]
     public async Task Export_projects_rows_using_the_definition_schema_for_their_version()
@@ -36,7 +36,7 @@ public sealed class FormExportServiceTests
         ports.Reader.ExportRows = ports.Reader.ExportRows.Select(row => row with { Record = row.Record with { SchemaJson = "not-read" } }).ToArray();
         var result = await ports.Service.ExportAsync(ports.Reader.Definition!.Id, new(new(), null), CancellationToken.None);
         Assert.True(result.IsSuccess);
-        Assert.Equal(2, ports.Writer.Request!.Rows.Count);
+        Assert.Equal(2, ports.Writer.Request!.Sheets[0].Rows.Count);
     }
     [Fact]
     public async Task Export_excludes_a_new_version_captured_while_loading_the_definition()
@@ -51,8 +51,8 @@ public sealed class FormExportServiceTests
         };
         var result = await ports.Service.ExportAsync(ports.Reader.Definition!.Id, new(new(), null), CancellationToken.None);
         Assert.True(result.IsSuccess);
-        Assert.Single(ports.Writer.Request!.Rows);
-        Assert.Equal("T-000001", ports.Writer.Request.Rows[0][0].Value);
+        Assert.Single(ports.Writer.Request!.Sheets[0].Rows);
+        Assert.Equal("T-000001", ports.Writer.Request.Sheets[0].Rows[0][0].Value);
     }
     [Fact]
     public async Task Export_requires_its_own_permission_before_reading_responses()
@@ -94,7 +94,7 @@ public sealed class FormExportServiceTests
         if(phase=="definition")Assert.Null(ports.Writer.Request);
         ports.Reader.BeforeDefinitionReturn=null;ports.Writer.BeforeReturn=null;
         var fresh=await ports.Service.ExportAsync(ports.Reader.Definition.Id,new(new(),null),CancellationToken.None);
-        Assert.True(fresh.IsSuccess);Assert.Single(ports.Writer.Request!.Rows);
+        Assert.True(fresh.IsSuccess);Assert.Single(ports.Writer.Request!.Sheets[0].Rows);
     }
     [Fact]
     public async Task Caller_cancellation_is_not_misreported_as_an_export_processing_deadline()
@@ -165,7 +165,7 @@ public sealed class FormExportServiceTests
             var result = await ports.Service.ExportAsync(initial.Id, new(new(), null), CancellationToken.None);
 
             Assert.True(result.IsSuccess);
-            var request = ports.Writer.Request!;
+            var request = ports.Writer.Request!.Sheets[0];
             Assert.Equal(culture == "es" ? new[] { "Zona", "Zona · valor" } : ["Zone", "Zone · value"], request.Headers.Skip(4));
             Assert.Equal(count, request.Rows.Count);
             Assert.Equal(1, ports.Reader.DefinitionReads);
@@ -216,8 +216,8 @@ public sealed class FormExportServiceTests
         var result = await ports.Service.ExportAsync(initial.Id, new(new(), null), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        var rows = ports.Writer.Request!.Rows;
-        Assert.Equal(6, ports.Writer.Request.Headers.Count);
+        var rows = ports.Writer.Request!.Sheets[0].Rows;
+        Assert.Equal(6, ports.Writer.Request.Sheets[0].Headers.Count);
         Assert.Equal("—", rows[0][4].Value);
         Assert.Equal("—", rows[0][5].Value);
         Assert.Null(rows[1][4].Value);

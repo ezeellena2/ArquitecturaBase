@@ -17,8 +17,8 @@ public sealed class FormCatalogExportWorkbookTests
     public void A_template_contains_only_headers_and_the_recognizable_rules_row(string culture, BusinessFormCatalogValueType type)
     {
         var columns = FormCatalogImportTemplate.Columns(type, culture, "es");
-        var bytes = new ClosedXmlFormWorkbookWriter().Write(new(columns.Select(column => column.Header).ToArray(),
-            [columns.Select(column => new FormWorkbookCell("text", column.Rule)).ToArray()], "Template"), Ct);
+        var bytes = new ClosedXmlFormWorkbookWriter().Write(new([new(columns.Select(column => column.Header).ToArray(),
+            [columns.Select(column => new FormWorkbookCell("text", column.Rule)).ToArray()], "Template")]), Ct);
         using var stream = new MemoryStream(bytes); using var workbook = new XLWorkbook(stream);
         var sheet = workbook.Worksheet(1);
         Assert.Equal(2, sheet.LastRowUsed()!.RowNumber());
@@ -35,8 +35,8 @@ public sealed class FormCatalogExportWorkbookTests
     {
         var columns = FormCatalogImportTemplate.Columns(BusinessFormCatalogValueType.Decimal, culture, "es");
         string[] values = ["=SUM(A1)", "=2+2", "English", "Detail", "English detail", "Yes", canonical];
-        var bytes = new ClosedXmlFormWorkbookWriter().Write(new(columns.Select(column => column.Header).ToArray(),
-            [values.Select(value => new FormWorkbookCell("text", value)).ToArray()], "Options"), Ct);
+        var bytes = new ClosedXmlFormWorkbookWriter().Write(new([new(columns.Select(column => column.Header).ToArray(),
+            [values.Select(value => new FormWorkbookCell("text", value)).ToArray()], "Options")]), Ct);
         using var stream = new MemoryStream(bytes); using var workbook = new XLWorkbook(stream);
         var row = workbook.Worksheet(1).Row(2).Cells(1, values.Length).ToArray();
         Assert.All(row, cell => { Assert.Equal(XLDataType.Text, cell.DataType); Assert.False(cell.HasFormula); });
@@ -75,7 +75,7 @@ public sealed class FormCatalogExportWorkbookTests
         var columns = FormCatalogExportPolicy.Columns(BusinessFormCatalogValueType.Decimal, culture, "es", fields, translation: culture != "es");
         var rows = FormCatalogExportPolicy.Rows(columns, items, BusinessFormCatalogValueType.Decimal, "es", fields, sources, culture);
 
-        var bytes = new ClosedXmlFormWorkbookWriter().Write(new(columns.Select(column => column.Header).ToArray(), rows, "Opciones"), Ct);
+        var bytes = new ClosedXmlFormWorkbookWriter().Write(new([new(columns.Select(column => column.Header).ToArray(), rows, "Opciones")]), Ct);
 
         using (var stream = new MemoryStream(bytes))
         using (var workbook = new XLWorkbook(stream))

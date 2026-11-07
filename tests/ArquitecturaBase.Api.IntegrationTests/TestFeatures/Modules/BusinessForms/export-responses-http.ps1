@@ -52,7 +52,8 @@ $cohorts = @(
             "multi-sheet-en.json", "multi-detail-en.json", "multi-counts-en.json", "multi-export-es.xlsx",
             "multi-export-en.xlsx", "extra-fields-sheet-es.json", "extra-fields-detail-es.json", "extra-fields-legacy-es.json", "extra-fields-export-es.xlsx", "extra-fields-visible-export-es.xlsx",
             "extra-fields-sheet-en.json", "extra-fields-detail-en.json", "extra-fields-legacy-en.json", "extra-fields-export-en.xlsx", "extra-fields-visible-export-en.xlsx",
-            "rows-sheet-es.json", "rows-detail-es.json", "rows-sheet-en.json", "rows-detail-en.json", "rows-counts-es.json", "rows-counts-en.json");
+            "rows-sheet-es.json", "rows-detail-es.json", "rows-sheet-en.json", "rows-detail-en.json", "rows-counts-es.json", "rows-counts-en.json",
+            "rows-export-es.xlsx", "rows-export-en.xlsx");
         Sources = @(($sourceRoot + "BusinessForms/FormCatalogFieldsReadHttpTests.cs"), ($sourceRoot + "BusinessForms/FormMultipleChoiceReadHttpTests.cs"),
             ($sourceRoot + "BusinessForms/FormRowsReadHttpTests.cs"), ($sourceRoot + "BusinessForms/FormRowsCaptureIntegrationTests.cs"), ($sourceRoot + "BusinessForms/FormResponseHttpTests.cs"), ($sourceRoot + "BusinessForms/FormOverviewHttpTests.cs"), ($sourceRoot + "BusinessForms/FormRecordNavigationHttpTests.cs"), ($captureRoot + "Modules/BusinessForms/FormPublishedVersionFixture.cs"), ($sourceRoot + "BusinessForms/FormResponseApprovalHttpTests.cs"), ($sourceRoot + "BusinessForms/FormResponseStateHttpTests.cs"), ($sourceRoot + "WhatsApp/WhatsAppFormFilesIntegrationTests.cs"), ($captureRoot + "ResponseContractCapture.cs")) },
     @{ Name = "entries"; Environment = "FORM_ENTRIES_HTTP_OUTPUT"; Destination = "forms-entries-http";

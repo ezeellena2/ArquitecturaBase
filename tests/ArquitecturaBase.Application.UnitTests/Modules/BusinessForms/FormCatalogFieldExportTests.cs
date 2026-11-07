@@ -70,11 +70,11 @@ public sealed class FormCatalogFieldExportTests
             var result = await ports.Service.ExportAsync(ports.Reader.Definition!.Id, new(new(), null), Ct);
             Assert.True(result.IsSuccess);
             Assert.Equal(culture == "es" ? new[] { "Proveedor", "Proveedor · Días", "Proveedor · Zona" }
-                : ["Supplier", "Supplier · Days", "Supplier · Zona"], ports.Writer.Request!.Headers.Skip(4));
-            Assert.Equal(count, ports.Writer.Request.Rows.Count);
+                : ["Supplier", "Supplier · Days", "Supplier · Zona"], ports.Writer.Request!.Sheets[0].Headers.Skip(4));
+            Assert.Equal(count, ports.Writer.Request.Sheets[0].Rows.Count);
             if (count == 1)
             {
-                var row = Assert.Single(ports.Writer.Request.Rows);
+                var row = Assert.Single(ports.Writer.Request.Sheets[0].Rows);
                 Assert.Equal("integer", row[5].Kind); Assert.Equal(30L, row[5].Value);
                 Assert.Equal("Center", row[6].Value);
             }
@@ -88,9 +88,9 @@ public sealed class FormCatalogFieldExportTests
         var ports = Ports(1); var selected = new[] { new FormExportCatalogField(ports.Question, ports.Days) };
         var result = await ports.Service.ExportAsync(ports.Reader.Definition!.Id, new(new(), [], selected), Ct);
         Assert.True(result.IsSuccess);
-        Assert.Single(ports.Writer.Request!.Headers.Skip(4));
-        var row = Assert.Single(ports.Writer.Request.Rows); Assert.Equal(5, row.Count); Assert.Equal(30L, row[4].Value);
-        Assert.DoesNotContain(ports.Writer.Request.Headers, header => header.EndsWith(" · Zona", StringComparison.Ordinal));
+        Assert.Single(ports.Writer.Request!.Sheets[0].Headers.Skip(4));
+        var row = Assert.Single(ports.Writer.Request.Sheets[0].Rows); Assert.Equal(5, row.Count); Assert.Equal(30L, row[4].Value);
+        Assert.DoesNotContain(ports.Writer.Request.Sheets[0].Headers, header => header.EndsWith(" · Zona", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -99,8 +99,8 @@ public sealed class FormCatalogFieldExportTests
         var ports = Ports(1);
         var result = await ports.Service.ExportAsync(ports.Reader.Definition!.Id, new(new(), [ports.Question], []), Ct);
         Assert.True(result.IsSuccess);
-        Assert.Equal(5, ports.Writer.Request!.Headers.Count);
-        Assert.Equal("Supplier", Assert.Single(ports.Writer.Request.Rows)[4].Value);
+        Assert.Equal(5, ports.Writer.Request!.Sheets[0].Headers.Count);
+        Assert.Equal("Supplier", Assert.Single(ports.Writer.Request.Sheets[0].Rows)[4].Value);
     }
 
     [Fact]

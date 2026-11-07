@@ -6,7 +6,7 @@ namespace ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessFo
 // The sheet the XLSX reader returns for an exported workbook: numbers and dates come back canonical, the rest as text.
 internal static class FormCatalogExportSheet
 {
-    public static FormSpreadsheet Read(FormWorkbookRequest workbook) => new("Options", new('e', 64),
+    public static FormSpreadsheet Read(FormWorkbookSheet workbook) => new("Options", new('e', 64),
         new[] { new FormSpreadsheetRow(1, workbook.Headers.Select(header => new FormSpreadsheetCell(header)).ToArray()) }
             .Concat(workbook.Rows.Select((row, index) => new FormSpreadsheetRow(index + 2, row.Select(Read).ToArray()))).ToArray());
 

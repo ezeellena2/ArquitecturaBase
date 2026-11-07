@@ -32,7 +32,7 @@ public sealed class FormCatalogExtraTransferTests
             var result = await service.ExportAsync(id, false, Ct);
 
             Assert.True(result.IsSuccess);
-            var workbook = writer.Request!;
+            var workbook = writer.Request!.Sheets[0];
             // The catalog is Spanish, so the English columns appear only with the menu in English.
             var fixedColumns = culture == "es" ? 4 : 6;
             Assert.Equal(["stock", "price", "since", "flag", "note"], workbook.Headers.Skip(fixedColumns));
@@ -71,7 +71,7 @@ public sealed class FormCatalogExtraTransferTests
             var result = await service.ExportAsync(id, false, Ct);
 
             Assert.True(result.IsSuccess);
-            var workbook = writer.Request!;
+            var workbook = writer.Request!.Sheets[0];
             Assert.Equal(culture == "es" ? ["Rubro", "Proveedor habitual"] : ["Category", "Proveedor habitual"], workbook.Headers.TakeLast(2));
             var imported = FormCatalogImportPolicy.Build(new(id, reader.Catalog.Revision, BusinessFormCatalogValueType.Text, reader.Catalog.OriginalCulture,
                 reader.Items, Fields: fields), FormCatalogExportSheet.Read(workbook), FormCatalogImportMode.Replace, culture);
@@ -109,7 +109,7 @@ public sealed class FormCatalogExtraTransferTests
             var result = await service.ExportAsync(id, false, Ct);
 
             Assert.True(result.IsSuccess);
-            var workbook = writer.Request!;
+            var workbook = writer.Request!.Sheets[0];
             Assert.Equal(culture == "es"
                 ? ["Detalle [campo]", "zona_a", "zona_b", "ciudad [campo]", "Ciudad del lote", "Valor (USD) [campo]"]
                 : ["Detail [field]", "zona_a", "zona_b", "City", "Lot city", "Value (USD) [field]"], workbook.Headers.TakeLast(6));
@@ -142,7 +142,7 @@ public sealed class FormCatalogExtraTransferTests
             var result = await service.ExportAsync(id, false, Ct);
 
             Assert.True(result.IsSuccess);
-            var workbook = writer.Request!;
+            var workbook = writer.Request!.Sheets[0];
             Assert.Equal(culture == "es" ? "propio [canónico] [campo]" : "propio [canonical] [field]", workbook.Headers[^1]);
             var imported = FormCatalogImportPolicy.Build(new(id, reader.Catalog.Revision, BusinessFormCatalogValueType.Text, reader.Catalog.OriginalCulture,
                 reader.Items, Fields: [field]), FormCatalogExportSheet.Read(workbook), FormCatalogImportMode.Replace, culture);
@@ -179,7 +179,7 @@ public sealed class FormCatalogExtraTransferTests
             var result = await service.ExportAsync(id, false, Ct);
 
             Assert.True(result.IsSuccess);
-            var workbook = writer.Request!;
+            var workbook = writer.Request!.Sheets[0];
             Assert.Equal(culture == "es" ? "Tipo de producto" : "Product type", workbook.Headers[^1]);
             Assert.Equal(culture == "es" ? ["Insumos", "Insumos", "Semillas", "GRA-OLD", "Granos", hidden.Id.ToString("D")]
                 : ["Supplies", "Inputs", "Seeds", "GRA-OLD", "Grains", hidden.Id.ToString("D")], workbook.Rows.Select(row => row[^1].Value));

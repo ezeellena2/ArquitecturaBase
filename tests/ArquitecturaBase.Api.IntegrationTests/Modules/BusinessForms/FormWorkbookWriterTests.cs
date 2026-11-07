@@ -8,8 +8,8 @@ public sealed class FormWorkbookWriterTests(ITestOutputHelper output)
     [Fact]
     public void Workbook_keeps_text_literal_and_never_converts_a_supplied_formula_to_an_executable_formula()
     {
-        var bytes = new ClosedXmlFormWorkbookWriter().Write(new(["Text", "Empty", "Missing", "False", "Zero"],
-            [new FormWorkbookCell[] { new("text", "=HYPERLINK(\"https://example.invalid\")"), new("text", null), new("text", "—"), new("boolean", false), new("decimal", 0m) }], "Responses"), TestContext.Current.CancellationToken);
+        var bytes = new ClosedXmlFormWorkbookWriter().Write(new([new(["Text", "Empty", "Missing", "False", "Zero"],
+            [new FormWorkbookCell[] { new("text", "=HYPERLINK(\"https://example.invalid\")"), new("text", null), new("text", "—"), new("boolean", false), new("decimal", 0m) }], "Responses")]), TestContext.Current.CancellationToken);
         using var stream = new MemoryStream(bytes);
         using var workbook = new XLWorkbook(stream);
         var sheet = workbook.Worksheet(1);
@@ -26,8 +26,8 @@ public sealed class FormWorkbookWriterTests(ITestOutputHelper output)
         const decimal integer = 123456789012345678m;
         const decimal fraction = 0.1234567890123456789012345678m;
         var date = new DateTime(2026, 10, 8);
-        var bytes = new ClosedXmlFormWorkbookWriter().Write(new(["Integer", "Decimal", "Date"],
-            [new FormWorkbookCell[] { new("integer", (long)integer), new("decimal", fraction), new("date", date) }], "Values"), TestContext.Current.CancellationToken);
+        var bytes = new ClosedXmlFormWorkbookWriter().Write(new([new(["Integer", "Decimal", "Date"],
+            [new FormWorkbookCell[] { new("integer", (long)integer), new("decimal", fraction), new("date", date) }], "Values")]), TestContext.Current.CancellationToken);
         using var stream = new MemoryStream(bytes);
         using var workbook = new XLWorkbook(stream);
         var sheet = workbook.Worksheet(1);
@@ -48,9 +48,9 @@ public sealed class FormWorkbookWriterTests(ITestOutputHelper output)
     [Fact]
     public void Workbook_cells_keep_their_own_number_format()
     {
-        var bytes = new ClosedXmlFormWorkbookWriter().Write(new(["Integer", "Decimal", "Whole", "Date", "Plain"],
+        var bytes = new ClosedXmlFormWorkbookWriter().Write(new([new(["Integer", "Decimal", "Whole", "Date", "Plain"],
             [new FormWorkbookCell[] { new("integer", 1234567L, "#,##0"), new("decimal", 1234.5m, "#,##0.0"), new("decimal", 1500m, "#,##0"),
-                new("date", new DateTime(2026, 10, 22), "dd/mm/yyyy"), new("decimal", 0.5m) }], "Options"), TestContext.Current.CancellationToken);
+                new("date", new DateTime(2026, 10, 22), "dd/mm/yyyy"), new("decimal", 0.5m) }], "Options")]), TestContext.Current.CancellationToken);
         using var stream = new MemoryStream(bytes);
         using var workbook = new XLWorkbook(stream);
         var cells = workbook.Worksheet(1).Row(2).Cells(1, 5).ToArray();
@@ -60,5 +60,21 @@ public sealed class FormWorkbookWriterTests(ITestOutputHelper output)
         var spanish = CultureInfo.GetCultureInfo("es-AR");
         Assert.Equal(["1.234.567", "1.234,5", "1.500", "22/10/2026"], cells.Take(4).Select(cell => cell.GetFormattedString(spanish)));
         Assert.Equal(["1,234,567", "1,234.5", "1,500"], cells.Take(3).Select(cell => cell.GetFormattedString(CultureInfo.GetCultureInfo("en-US"))));
+    }
+    [Fact]
+    public void Several_sheets_keep_their_order_names_bold_headers_and_typed_cells()
+    {
+        var bytes = new ClosedXmlFormWorkbookWriter().Write(new([
+            new(["Número", "Artículos"], [new FormWorkbookCell[] { new("text", "T-000001"), new("integer", 2L) }], "Respuestas"),
+            new(["Número", "Ítem", "Cantidad"], [new FormWorkbookCell[] { new("text", "T-000001"), new("integer", 1L), new("decimal", 200.5m) }], "Artículos")]),
+            TestContext.Current.CancellationToken);
+        using var workbook = new XLWorkbook(new MemoryStream(bytes));
+        Assert.Equal(["Respuestas", "Artículos"], workbook.Worksheets.Select(sheet => sheet.Name));
+        var items = workbook.Worksheet("Artículos");
+        Assert.Equal("Ítem", items.Cell(1, 2).GetString());
+        Assert.True(items.Cell(1, 2).Style.Font.Bold);
+        Assert.Equal(XLDataType.Number, items.Cell(2, 2).DataType);
+        Assert.Equal(200.5m, items.Cell(2, 3).GetValue<decimal>());
+        Assert.Equal(2, workbook.Worksheet("Respuestas").Cell(2, 2).GetValue<int>());
     }
 }

@@ -253,14 +253,18 @@ permiso.
 
 ### Tarea 3 · La hoja del bloque en el Excel
 
-- [ ] Tests en rojo:
-  - `FormWorkbookWriterTests`: varias hojas, y los nombres sin caracteres prohibidos, cortados y sin repetir;
-  - `FormExportPolicyTests` y `FormExportServiceTests`: la cantidad en «Respuestas», las columnas y filas de la hoja del
-    bloque, «—» y la celda vacía, `catalogFields` y el bloque oculto con «sólo las visibles».
-- [ ] `FormWorkbookSheet` en `FormExportModels`, el escritor, `FormExportService`, el export de opciones de un catálogo
-  (`FormCatalogExportService`) e «Ítem» en `Responses.resx` y `.en.resx`.
-- [ ] Capturas `rows-export-{es,en}.xlsx`, como `multi-export`.
-- [ ] Commit: `feat(formularios): el Excel suma una hoja por bloque`.
+- [x] Tests en rojo:
+  - `FormWorkbookWriterTests`: varias hojas con su orden, sus nombres y sus celdas tipadas;
+  - `FormExportPolicyTests`: el nombre de la hoja sin caracteres prohibidos, cortado, «Ítems» y sin repetir (lo decide
+    Application, que tiene los textos; el escritor sólo escribe);
+  - `FormRowsExportTests`, con dos versiones del bloque: la cantidad en «Respuestas», las columnas y filas de la hoja del
+    bloque, «—» y la celda vacía, `catalogFields` y el bloque oculto con «sólo las visibles»;
+  - integración con PostgreSQL, en `FormRowsReadHttpTests`: lo que se lee en las dos hojas, es y en.
+- [x] `FormWorkbookSheet(Headers, Rows, Name)` en `FormExportModels`, el escritor, `FormExportService`, el export de
+  opciones de un catálogo (`FormCatalogExportService`) e «Ítem» e «Ítems» en `Responses.resx` y `.en.resx`. Los tests
+  que leían la única hoja pasan a `Sheets[0]`.
+- [x] Capturas `rows-export-{es,en}.xlsx`, como `multi-export`.
+- [x] Commit: `feat(formularios): el Excel suma una hoja por bloque`.
 
 ### Tarea 4 · La tabla del PDF
 

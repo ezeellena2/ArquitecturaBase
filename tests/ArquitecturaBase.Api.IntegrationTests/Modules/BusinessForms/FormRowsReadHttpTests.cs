@@ -5,6 +5,7 @@ using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
+using ClosedXML.Excel;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
@@ -118,10 +119,40 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal(HttpStatusCode.BadRequest, countsOfTheBlock.StatusCode);
     }
 
+    [Theory]
+    [InlineData("es")]
+    [InlineData("en")]
+    public async Task The_excel_counts_the_items_in_the_responses_and_adds_a_sheet_with_them(string culture)
+    {
+        using var reader = await RowsReaderAsync(culture);
+        var rows = await SeedRowsReadAsync(reader, [new("seed", "200.5", "Sin daños"), new("seed", "100"), new("fertilizer", "7")], []);
+
+        using var export = await reader.PostAsJsonAsync($"/api/forms/definitions/{rows.DefinitionId}/records/export", new { filter = new { sort = "number" } }, Ct);
+
+        Assert.Equal(HttpStatusCode.OK, export.StatusCode);
+        await ResponseContractCapture.WriteAsync(export, "rows-export-" + culture, Ct, "xlsx");
+        using var workbook = new XLWorkbook(new MemoryStream(await export.Content.ReadAsByteArrayAsync(Ct)));
+        Assert.Equal(culture == "en" ? ["Responses", "Items"] : ["Respuestas", "Artículos"], workbook.Worksheets.Select(sheet => sheet.Name));
+        var responses = workbook.Worksheet(1);
+        Assert.Equal(culture == "en" ? "Items" : "Artículos", responses.Cell(1, 6).GetString());
+        Assert.Equal(XLDataType.Number, responses.Cell(2, 6).DataType);
+        Assert.Equal(3, responses.Cell(2, 6).GetValue<int>());
+        Assert.True(responses.Cell(3, 6).IsEmpty());
+        var items = workbook.Worksheet(2);
+        Assert.Equal(culture == "en" ? ["Number", "Item", "Product", "Quantity", "Note"] : ["Número", "Ítem", "Artículo", "Cantidad", "Observación"],
+            items.Row(1).Cells(1, 5).Select(cell => cell.GetString()));
+        Assert.Equal([1, 2, 3], items.Column(2).Cells(2, 4).Select(cell => cell.GetValue<int>()));
+        Assert.Equal(culture == "en" ? ["Seed", "Seed", "Fertilizer"] : ["Semilla", "Semilla", "Fertilizante"], items.Column(3).Cells(2, 4).Select(cell => cell.GetString()));
+        Assert.Equal([200.5m, 100m, 7m], items.Column(4).Cells(2, 4).Select(cell => cell.GetValue<decimal>()));
+        Assert.Equal("Sin daños", items.Cell(2, 5).GetString());
+        Assert.True(items.Cell(3, 5).IsEmpty());
+        Assert.True(items.Row(5).IsEmpty());
+    }
+
     private async Task<HttpClient> RowsReaderAsync(string culture)
     {
         var reader = await OperatorAsync([BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage,
-            BusinessFormsPermissions.RecordsCreate, BusinessFormsPermissions.RecordsRead]);
+            BusinessFormsPermissions.RecordsCreate, BusinessFormsPermissions.RecordsRead, BusinessFormsPermissions.RecordsExport]);
         reader.DefaultRequestHeaders.AcceptLanguage.ParseAdd(culture);
         return reader;
     }
@@ -152,7 +183,7 @@ public sealed partial class FormDraftEndpointsTests
         var options = catalog.GetProperty("itemIdentityMap");
         var supplier = Field("shortText", true) with { Label = Text("Proveedor", "Supplier") };
         var group = Field("group", false) with { Label = Text("Artículos", "Items"), Rows = new(0, 3) };
-        var item = Field("choice", true) with { Label = Text("Artículo", "Item"), Source = new(catalogId), Repeated = true };
+        var item = Field("choice", true) with { Label = Text("Artículo", "Product"), Source = new(catalogId), Repeated = true };
         var quantity = Field("decimal", true) with { Label = Text("Cantidad", "Quantity"), Repeated = true };
         var note = Field("longText", false) with { Label = Text("Observación", "Note"), Repeated = true };
         var form = await SeedVersionAsync(actorId, [supplier, group, item, quantity, note]);

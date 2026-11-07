@@ -106,9 +106,9 @@ public sealed class FormHistoricalReadCultureTests
         try
         {
             Assert.True((await service.ExportAsync(reader.Definition!.Id, new(new(), null), TestContext.Current.CancellationToken)).IsSuccess);
-            Assert.Equal(ui == "en" ? "Number" : "Número", writer.Request!.Headers[0]);
-            Assert.Equal("Original choice", writer.Request.Headers[4]);
-            Assert.Equal("Original option", writer.Request.Rows[0][4].Value);
+            Assert.Equal(ui == "en" ? "Number" : "Número", writer.Request!.Sheets[0].Headers[0]);
+            Assert.Equal("Original choice", writer.Request.Sheets[0].Headers[4]);
+            Assert.Equal("Original option", writer.Request.Sheets[0].Rows[0][4].Value);
             Assert.Equal(ui, CultureInfo.CurrentUICulture.TwoLetterISOLanguageName);
         }
         finally { CultureInfo.CurrentUICulture = previous; }

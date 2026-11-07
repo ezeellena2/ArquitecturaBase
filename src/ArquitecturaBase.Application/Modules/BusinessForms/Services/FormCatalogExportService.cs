@@ -40,7 +40,7 @@ internal sealed class FormCatalogExportService(IFormCatalogReader reader, IFormW
             rows = FormCatalogExportPolicy.Rows(columns, items, valueType, catalog.OriginalCulture, fields, sources, culture);
         }
         cancellationToken.ThrowIfCancellationRequested();
-        var bytes = writer.Write(new(columns.Select(column => column.Header).ToArray(), rows, FormCatalogTexts.Get("Sheet", culture)), cancellationToken);
+        var bytes = writer.Write(new([new(columns.Select(column => column.Header).ToArray(), rows, FormCatalogTexts.Get("Sheet", culture))]), cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
         if (!await access.HasPermissionAsync(actor.Value, BusinessFormsPermissions.CatalogsRead, cancellationToken))
             return FormDefinitionErrors.Forbidden;

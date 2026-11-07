@@ -34,9 +34,13 @@ internal sealed class FormExportService(IFormResponseReader reader, IFormWorkboo
                 var culture = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es";
                 var availableColumns = FormResponsePresentationPolicy.Columns(definition, culture);
                 if (request.Columns?.Any(fieldId => !availableColumns.Any(column => column.FieldId == fieldId)) == true) return FormRecordErrors.FilterInvalid;
-                if (request.CatalogFields?.Any(field => !availableColumns.Any(column => column.FieldId == field!.QuestionId
+                // The catalog fields of a question of the block go to the sheet of its block.
+                if (request.CatalogFields?.Any(field => !availableColumns.SelectMany(column => column.Questions ?? [column]).Any(column => column.FieldId == field!.QuestionId
                     && column.Fields?.Any(extra => extra.FieldId == field.FieldId) == true)) == true) return FormRecordErrors.FilterInvalid;
                 var selectedColumns = SelectColumns(availableColumns, request, culture);
+                // A block exported in «Respuestas» has a sheet with a row per item: every question of the block, with their extra columns.
+                var blocks = availableColumns.Where(column => column.Type == "group" && (request.Columns is null || request.Columns.Contains(column.FieldId)))
+                    .Select(column => new ExportBlock(column, SelectColumns(column.Questions ?? [], request with { Columns = null }, culture))).ToArray();
                 var filter = request.Filter with { UpToNumber = maximum, DisplayCulture = culture };
                 var ids = await reader.ListExportIdsAsync(definition, filter, MaximumRecords + 1, ct);
                 if (ids.Count > MaximumRecords) return FormRecordErrors.ExportTooLarge;
@@ -63,17 +67,26 @@ internal sealed class FormExportService(IFormResponseReader reader, IFormWorkboo
                             new("text", row.Actor.DisplayName ?? FormResponseTexts.Get("unknown", culture)),
                             new("text", FormResponseTexts.Get(channel.Length == 0 ? "unknown" : channel, culture)) };
                         if (voided) cells.Add(new("text", row.State == nameof(FormRecordState.Voided) ? FormResponseTexts.Get("true", culture) : ""));
-                        foreach (var column in selectedColumns)
-                        {
-                            var cell = values[column.QuestionId];
-                            cells.Add(column.ExtraId is { } extraId ? FormExportPolicy.CatalogField(cell, extraId)
-                                : column.IsValue ? FormExportPolicy.CatalogValue(cell) : FormExportPolicy.Cell(cell));
-                        }
+                        cells.AddRange(selectedColumns.Select(column => Export(values[column.QuestionId], column)));
                         rows.Add(cells);
+                        foreach (var block in blocks)
+                        {
+                            if (values[block.Column.FieldId].Value is not IReadOnlyList<FormResponseRowCells> items) continue;
+                            foreach (var (item, index) in items.Select((item, index) => (item, index)))
+                            {
+                                var answers = item.Cells.ToDictionary(cell => cell.FieldId);
+                                block.Rows.Add([new("text", reply.Number), new("integer", (long)index + 1),
+                                    ..block.Columns.Select(column => Export(answers[column.QuestionId], column))]);
+                            }
+                        }
                     }
                 }
                 if (!await access.StillAllowedAsync(actor.Value, ct, true)) return FormDefinitionErrors.Forbidden;
-                var bytes = writer.Write(new(headers, rows, FormResponseTexts.Get("Sheet", culture)), ct);
+                var sheets = new List<FormWorkbookSheet> { new(headers, rows, FormResponseTexts.Get("Sheet", culture)) };
+                foreach (var block in blocks)
+                    sheets.Add(new([FormResponseTexts.Get("Number", culture), FormResponseTexts.Get("Item", culture), ..block.Columns.Select(column => column.Header)],
+                        block.Rows, FormExportPolicy.SheetName(block.Column.Label, sheets.Select(sheet => sheet.Name).ToArray(), culture)));
+                var bytes = writer.Write(new(sheets), ct);
                 ct.ThrowIfCancellationRequested();
                 if (!await access.StillAllowedAsync(actor.Value, ct, true)) return FormDefinitionErrors.Forbidden;
                 return new FormExportResponse(bytes, definition.Prefix + "-" + timeProvider.GetUtcNow().ToString("yyyyMMdd", CultureInfo.InvariantCulture) + ".xlsx");
@@ -85,6 +98,14 @@ internal sealed class FormExportService(IFormResponseReader reader, IFormWorkboo
         });
 
     private sealed record ExportColumn(Guid QuestionId, string Header, bool IsValue = false, Guid? ExtraId = null);
+
+    private sealed record ExportBlock(FormResponseColumn Column, IReadOnlyList<ExportColumn> Columns)
+    {
+        public List<IReadOnlyList<FormWorkbookCell>> Rows { get; } = [];
+    }
+
+    private static FormWorkbookCell Export(FormResponseCell cell, ExportColumn column) => column.ExtraId is { } extraId
+        ? FormExportPolicy.CatalogField(cell, extraId) : column.IsValue ? FormExportPolicy.CatalogValue(cell) : FormExportPolicy.Cell(cell);
 
     private static List<ExportColumn> SelectColumns(IReadOnlyList<FormResponseColumn> available, FormExportRequest request, string culture)
     {

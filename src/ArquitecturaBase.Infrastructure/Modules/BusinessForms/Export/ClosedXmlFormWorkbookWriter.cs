@@ -8,7 +8,16 @@ internal sealed class ClosedXmlFormWorkbookWriter : IFormWorkbookWriter
     public byte[] Write(FormWorkbookRequest request, CancellationToken cancellationToken)
     {
         using var workbook = new XLWorkbook();
-        var sheet = workbook.Worksheets.Add(request.SheetName);
+        foreach (var source in request.Sheets) Write(workbook.Worksheets.Add(source.Name), source, cancellationToken);
+        using var stream = new MemoryStream();
+        cancellationToken.ThrowIfCancellationRequested();
+        workbook.SaveAs(stream);
+        cancellationToken.ThrowIfCancellationRequested();
+        return stream.ToArray();
+    }
+
+    private static void Write(IXLWorksheet sheet, FormWorkbookSheet request, CancellationToken cancellationToken)
+    {
         for (var column = 0; column < request.Headers.Count; column++) sheet.Cell(1, column + 1).Value = request.Headers[column];
         for (var row = 0; row < request.Rows.Count; row++)
         {
@@ -29,10 +38,5 @@ internal sealed class ClosedXmlFormWorkbookWriter : IFormWorkbookWriter
         sheet.Columns(1, request.Headers.Count).Width = 26;
         sheet.SheetView.FreezeRows(1);
         if (request.Rows.Count > 0) sheet.Range(1, 1, request.Rows.Count + 1, request.Headers.Count).SetAutoFilter();
-        using var stream = new MemoryStream();
-        cancellationToken.ThrowIfCancellationRequested();
-        workbook.SaveAs(stream);
-        cancellationToken.ThrowIfCancellationRequested();
-        return stream.ToArray();
     }
 }

@@ -3,8 +3,11 @@ public sealed record FormExportRequest(ListFormRecordsRequest Filter, IReadOnlyL
 { public override string ToString() => "FormExportRequest { Content = [REDACTED] }"; }
 public sealed record FormExportResponse(byte[] Content, string FileName)
 { public override string ToString() => "FormExportResponse { Content = [REDACTED] }"; }
-public sealed record FormWorkbookRequest(IReadOnlyList<string> Headers, IReadOnlyList<IReadOnlyList<FormWorkbookCell>> Rows, string SheetName)
+public sealed record FormWorkbookRequest(IReadOnlyList<FormWorkbookSheet> Sheets)
 { public override string ToString() => "FormWorkbookRequest { Content = [REDACTED] }"; }
+/// <summary>A sheet of the workbook, in its order: headers, rows and a name Excel accepts that no other sheet has.</summary>
+public sealed record FormWorkbookSheet(IReadOnlyList<string> Headers, IReadOnlyList<IReadOnlyList<FormWorkbookCell>> Rows, string Name)
+{ public override string ToString() => "FormWorkbookSheet { Content = [REDACTED] }"; }
 // Format is the cell's Excel number format; without it, the writer uses the one of its kind.
 public sealed record FormWorkbookCell(string Kind, object? Value, string? Format = null)
 { public override string ToString() => "FormWorkbookCell { Value = [REDACTED] }"; }

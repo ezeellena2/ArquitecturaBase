@@ -12,4 +12,6 @@
 <data name="false" xml:space="preserve"><value>No</value></data>
 <data name="Value" xml:space="preserve"><value>value</value></data>
 <data name="Voided" xml:space="preserve"><value>Voided</value></data>
+<data name="Item" xml:space="preserve"><value>Item</value></data>
+<data name="Items" xml:space="preserve"><value>Items</value></data>
 </root>

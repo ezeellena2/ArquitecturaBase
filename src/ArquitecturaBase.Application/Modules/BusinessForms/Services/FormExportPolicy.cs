@@ -1,9 +1,27 @@
 using System.Globalization;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
+using ArquitecturaBase.Application.Modules.BusinessForms.Resources;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 internal static class FormExportPolicy
 {
+    /// <summary>
+    /// The name of the sheet of a block: its own, without what Excel rejects and up to 31 characters; «Ítems» if it ends empty or
+    /// like the responses' sheet, and « (2)» if another sheet has it already. Excel compares sheet names without case.
+    /// </summary>
+    public static string SheetName(string label, IReadOnlyCollection<string> taken, string culture)
+    {
+        var name = new string(label.Where(character => character is not (':' or '\\' or '/' or '?' or '*' or '[' or ']')).ToArray()).Trim().Trim('\'').Trim();
+        if (name.Length > 31) name = name[..31].TrimEnd();
+        if (name.Length == 0 || name.Equals(FormResponseTexts.Get("Sheet", culture), StringComparison.OrdinalIgnoreCase)) name = FormResponseTexts.Get("Items", culture);
+        var candidate = name;
+        for (var copy = 2; taken.Contains(candidate, StringComparer.OrdinalIgnoreCase); copy++)
+        {
+            var suffix = " (" + copy.ToString(CultureInfo.InvariantCulture) + ")";
+            candidate = name[..Math.Min(name.Length, 31 - suffix.Length)].TrimEnd() + suffix;
+        }
+        return candidate;
+    }
     public static FormWorkbookCell Cell(FormResponseCell cell)
     {
         if (cell.State == "NotAsked") return new("text", "—");
