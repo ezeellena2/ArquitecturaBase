@@ -132,7 +132,9 @@ borró el Flow. LD2-A queda confirmada:
    carga y de la corrección y tres capturas para la cohorte de la carga. El resumen por valor del editor («en 3 rubros. El más
    grande tiene 75») va con el corte de WhatsApp, porque es el tope de 200 por valor.
 3. **El front:** el editor, la carga y la tabla del bloque, con la app apagada (Vite recarga la página de quien prueba). La
-   tabla del bloque va con la Etapa 2 de renglones.
+   tabla del bloque va con la Etapa 2 de renglones. El editor quedó el 2026-11-07 (front 90211dc3): la casilla con su campo,
+   «Permitir elegir varias» apagada con su motivo, la línea de la pregunta y la revisión de conflictos. Faltan la carga, la
+   tabla del bloque y, al cerrar el front, `npm run test:visual` entero.
 4. **WhatsApp:** r11, el mensaje, la vista oficial y el chequeo de los 200 por valor.
 
 LD3-A se programa con la Etapa 2 de renglones.
@@ -146,7 +148,7 @@ LD3-A se programa con la Etapa 2 de renglones.
   la tabla de carga del bloque en `shared/ui`. LD1-A empieza por el editor, que no se cruza con esos archivos. La carga (el
   combo del valor en `EntryCatalogField` y la ruta `…/groups`) y el par de columnas de la tabla van encima de su commit.
   En el editor se cruzan con la Tarea 9 de renglones, en `CatalogQuestionFilters.tsx`, `publicationPresentation.ts` y
-  `forms.json`. Va primero la que esté lista antes, y se avisa al commitear.
+  `forms.json`. Va primero la que esté lista antes, y se avisa al commitear. El editor de LD1-A fue primero (90211dc3).
 - Es un contrato todavía no publicado: el front y el backend se cambian juntos, sin capas de compatibilidad.
 
 ## Para después
