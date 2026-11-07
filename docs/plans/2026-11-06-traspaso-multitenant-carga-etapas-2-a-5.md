@@ -227,7 +227,8 @@ su decisión 83.
   dependiente en la carga, corrigiendo y anulando de punta a punta, y con un formulario con títulos.
 - **Cerrar la verificación con Meta.** El 2026-11-06 Meta aceptó un Flow con dos títulos de sección, en la primera variante
   de la verificación de renglones (r10); esa verificación sigue en curso.
-- **De la Etapa 1:** la cámara de un celular real por el túnel.
+- **De la Etapa 1:** la cámara de un celular real, por USB y con la red limitada
+  ([probar en el celular](../guides/probar-en-el-celular.md)). El túnel no sirve para esto: solo publica la Api para Meta.
 - **Después del plan:** las listas dependientes por WhatsApp, con el intercambio cifrado con Meta, y cargar en nombre de otra
   persona, si aparece el caso. Ninguna tiene chat ni fecha.
 

@@ -216,7 +216,7 @@ Etapa 1, los tableros elegidos pasan al lienzo del sistema visual y su diseño s
      - la planilla con «Canal: App» (CW6-A).
    - Cierre con la rutina de [validar un cambio](../guides/validar-un-cambio.md): integración con PostgreSQL, Redis y Azurite;
      contratos exportados; front con build, lint, tests y visuales; recorrido es/en a 1440, 390 y 320; y la cámara de un
-     celular real por el túnel.
+     celular real por USB ([probar en el celular](../guides/probar-en-el-celular.md)).
    - **Hecha el 2026-10-30.** Backend: `api/forms/entries` (versión activa, opciones paginadas con los filtros de quien carga y
      envío multipart por la captura común), `EnteredInApp` con su migración, el origen «App», el aviso a quien cargó que no
      aplica sin canal, «Formularios» con «Completar formularios» y el filtro por canal. Front: «Cargar» en «Formularios», la
@@ -225,7 +225,8 @@ Etapa 1, los tableros elegidos pasan al lienzo del sistema visual y su diseño s
      Verificación final: backend con build sin advertencias y 6.548/6.548 tests con PostgreSQL, Redis y Azurite, y las 24
      cohortes HTTP exportadas juntas; front con build y lint limpios, 3.560/3.560 tests y 775/775 visuales; recorrido en el
      navegador integrado en es/en a 1440, 390 y 320, sobre el catálogo visual y con la API real.
-   - Pendiente: la cámara de un celular real por el túnel y pasar los tableros elegidos al lienzo del sistema visual.
+   - Pendiente: la cámara de un celular real con [probar en el celular](../guides/probar-en-el-celular.md) (el túnel solo
+     publica la Api para Meta y no abre la app) y pasar los tableros elegidos al lienzo del sistema visual.
 2. **Etapa 2 · Lo propio en «Formularios» (CW6-C).**
    - La lectura de lo propio con «Completar formularios», y la planilla y el detalle recortados, con estado, PDF y motivo.
    - En «Formularios», sus cargas y la última para quien sólo carga.

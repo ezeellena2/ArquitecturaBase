@@ -52,7 +52,9 @@ una vez, al terminar la tarea. Al cerrar un paso o un
 desarrollo ([ADR 0018](../decisions/0018-robustez-proporcional-al-efecto.md)), ejecutá los checks
 completos de los repositorios afectados: build sin advertencias y `dotnet test` completo para
 backend, con integración Docker; `npm run build`, `npm run lint` y `npm run test` para front. Los
-cambios visuales también requieren navegador, `npm run test:visual` y revisión de capturas. Si levantaste Aspire, terminá con `aspire stop`; los servidores de pruebas también deben
+cambios visuales también requieren navegador, `npm run test:visual` y revisión de capturas. Lo que se
+usa desde el celular (cámara, toque, fotos sobre una red lenta) se prueba además una vez en un teléfono real,
+con [probar en el celular](probar-en-el-celular.md). Si levantaste Aspire, terminá con `aspire stop`; los servidores de pruebas también deben
 cerrarse.
 
 **Si la corrida final falla:** se corrige y se repite solo lo que falló, con `--filter-class` o el
