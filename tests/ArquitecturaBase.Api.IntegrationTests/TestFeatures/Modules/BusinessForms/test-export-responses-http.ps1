@@ -118,8 +118,8 @@ foreach ($case in @("Configuration", "Merge", "Missing", "Collision")) {
                 $personData = @($cohorts | Where-Object { $_.Name -eq "person-data" })[0]
                 Assert-Condition ($null -ne $personData -and $personData.Environment -eq "FORM_PERSON_DATA_HTTP_OUTPUT" -and $personData.Destination -eq "forms-person-data-http") "Person data require their own agreed output and destination."
                 $personNames = @("attribute-created", "person-options", "person-data-empty", "person-data-saved", "person-data", "people", "conflict", "invalid-value", "attribute-updated", "attributes", "forbidden", "source-in-use", "attribute-value-removal-confirmation", "attribute-conflict")
-                $expectedPersonData = @(@("es", "en") | ForEach-Object { $culture = $_; $personNames | ForEach-Object { "$_-$culture.json" } }) + @("attribute-created-english-original-en.json")
-                Assert-Condition (@(Compare-Object $expectedPersonData $personData.RequiredNames).Count -eq 0) "Person data must contain all twenty-nine actual HTTP bodies, including the English original attribute."
+                $expectedPersonData = @(@("es", "en") | ForEach-Object { $culture = $_; $personNames | ForEach-Object { "$_-$culture.json" } }) + @("attribute-created-english-original-en.json", "attributes-english-original-es.json")
+                Assert-Condition (@(Compare-Object $expectedPersonData $personData.RequiredNames).Count -eq 0) "Person data must contain all thirty actual HTTP bodies, including the English original attribute and its own list."
                 Assert-Condition (($sourceRoot + "BusinessForms/FormPersonDataHttpTests.cs") -in $personData.Sources) "The person data producer SHA must be included."
                 Assert-Condition (($captureRoot + "Modules/BusinessForms/FormPersonDataContractCapture.cs") -in $personData.Sources) "The person data capture SHA must be included."
                 $catalogSending = @($cohorts | Where-Object { $_.Name -eq "whatsapp-catalogs" })[0]

@@ -217,6 +217,17 @@ public sealed class FormPersonDataHttpTests(ApiFactory factory)
         Assert.Equal(2, saved.GetProperty("revision").GetInt64());
         Assert.Equal("en", saved.GetProperty("originalCulture").GetString());
         Assert.Equal("Sucursal", saved.GetProperty("name").GetProperty("es").GetString());
+
+        // The list is captured here, where this attribute surely exists: the list of another test holds whatever the
+        // shared database has at that moment.
+        using var listed = await manager.GetAsync("/api/forms/person-attributes", Ct);
+        Assert.Equal(HttpStatusCode.OK, listed.StatusCode);
+        await FormPersonDataContractCapture.WriteAsync(listed, "es", "attributes-english-original", Ct);
+        var row = Assert.Single((await listed.ReadJsonAsync()).GetProperty("items").EnumerateArray(),
+            item => item.GetProperty("id").GetGuid() == attributeId);
+        Assert.Equal("en", row.GetProperty("originalCulture").GetString());
+        Assert.Equal("Branch", row.GetProperty("name").GetProperty("en").GetString());
+        Assert.Equal("Sucursal", row.GetProperty("name").GetProperty("es").GetString());
     }
 
     [Fact]
