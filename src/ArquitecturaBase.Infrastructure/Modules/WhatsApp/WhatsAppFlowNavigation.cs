@@ -43,7 +43,10 @@ internal static class WhatsAppFlowNavigation
         foreach (var limit in PreviewOptionSteps)
         {
             var limited = catalogs.Select(catalog => catalog with { Options = catalog.Options.Take(limit).ToArray() }).ToArray();
-            escaped = Uri.EscapeDataString(Build(screen, limited, Empty).ToJsonString());
+            // Meta decodes the parameter twice (the browser and then its own decodeURIComponent): a literal % in an option, like
+            // «2 4 D 100%», breaks the second one. The JSON escape \u0025 reads the same decoded once or twice; % only appears
+            // inside JSON strings and is never part of another escape.
+            escaped = Uri.EscapeDataString(Build(screen, limited, Empty).ToJsonString().Replace("%", "\\u0025", StringComparison.Ordinal));
             if (escaped.Length <= PreviewPayloadLimit) break;
         }
         return url + (url.Contains('?', StringComparison.Ordinal) ? "&" : "?") + "interactive=true&flow_action=navigate&flow_action_payload=" + escaped;

@@ -370,6 +370,24 @@ public sealed class WhatsAppFlowClientTests
         }
     }
 
+    // Meta decodes flow_action_payload twice: the browser decodes the query string and Meta decodes it again. A literal % in an
+    // option («2 4 D 100%») broke that second decoding: «flow_action_payload debe codificarse en formato de URI». Written as the JSON
+    // escape \u0025, the payload reads the same decoded once or twice.
+    [Fact]
+    public async Task Official_preview_payload_reads_the_same_when_Meta_decodes_it_twice()
+    {
+        using var handler = PreviewHandler("https://business.facebook.com/wa/manage/flows/333/preview/?token=private");
+        var provider = PreviewProvider(handler);
+        var option = new StructuredFormCatalogOption(Guid.CreateVersion7(), "2 4 D 100%", "ATRAZINA 90 % (bidón)");
+        var result = await provider.GetPreviewAsync(Account(Settings()), "333", new("FORM", [Offer("articulo", [option])]), TestContext.Current.CancellationToken);
+        Assert.True(result.IsSuccess);
+        var once = HttpUtility.ParseQueryString(result.Value.Url[(result.Value.Url.IndexOf('?', StringComparison.Ordinal) + 1)..])["flow_action_payload"]!;
+        Assert.DoesNotContain('%', once);
+        var item = JsonNode.Parse(once)!["data"]!["articulo_options"]![0]!;
+        Assert.Equal("2 4 D 100%", (string?)item["title"]);
+        Assert.Equal("ATRAZINA 90 % (bidón)", (string?)item["description"]);
+    }
+
     private static StubFlowHttpHandler PreviewHandler(string origin) => new(_ => new(HttpStatusCode.OK) { Content = new StringContent(
         "{\"id\":\"333\",\"preview\":{\"preview_url\":\"" + origin + "\",\"expires_at\":\"2026-10-11T13:00:00+0000\"}}") });
     private static WhatsAppFlowClient PreviewProvider(StubFlowHttpHandler handler) =>
