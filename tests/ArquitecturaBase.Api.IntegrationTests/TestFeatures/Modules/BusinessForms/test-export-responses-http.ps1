@@ -61,7 +61,11 @@ foreach ($case in @("Configuration", "Merge", "Missing", "Collision")) {
                 $definitions = @($cohorts | Where-Object { $_.Name -eq "forms" })[0]
                 Assert-Condition ($responses.RequiredNames.Count -eq 63) "Responses must preserve the prior artifacts, ten captured extra-field artifacts and eight rows artifacts."
                 Assert-Condition ($pdf.RequiredNames.Count -eq 36) "PDF must preserve twenty-eight artifacts and add four multiple-choice and four rows artifacts."
-                Assert-Condition ($definitions.RequiredNames.Count -eq 67) "Definitions must preserve the prior bodies, sixteen recipient filter bodies and three rows bodies."
+                Assert-Condition ($definitions.RequiredNames.Count -eq 70) "Definitions must preserve the prior bodies, sixteen recipient filter bodies, four rows bodies and two section title bodies."
+                foreach ($name in @("rows/draft", "rows/publication-check", "rows/publication-check-moved", "rows/publication-check-minimum", "sections/draft", "sections/publication-check")) {
+                    Assert-Condition ("$name.json" -in $definitions.RequiredNames) "A rows or section title definition capture is missing."
+                }
+                foreach ($directory in @("rows", "sections")) { Assert-Condition ($directory -in $definitions.IncludeDirectories) "The definition cohort must retain rows and section title captures." }
                 foreach ($culture in @("es", "en")) {
                     foreach ($name in @("sheet", "detail", "counts")) { Assert-Condition ("multi-$name-$culture.json" -in $responses.RequiredNames) "A multiple-choice response capture is missing." }
                     Assert-Condition ("multi-export-$culture.xlsx" -in $responses.RequiredNames) "A multiple-choice workbook capture is missing."
