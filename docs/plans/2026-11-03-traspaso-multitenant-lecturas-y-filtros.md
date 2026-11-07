@@ -346,6 +346,10 @@ ocho filas eligió la recomendada; la séptima y la octava, el 2026-11-04, despu
 | RG4-A · Planilla, Excel, detalle y PDF | Una fila por respuesta; la columna del bloque dice la cantidad de renglones y los primeros valores. La vista rápida muestra cada renglón como los datos de un catálogo (§7); la pantalla completa y el PDF, una tabla. El Excel suma una hoja por bloque, con una fila por renglón. |
 | RG5-A · Reglas | «Algún renglón con…»: una condición se cumple si al menos un renglón la cumple, y «Filtros» usa la misma regla. En el mensaje, el bloque es un dato con todos los renglones, uno por línea. |
 
+Desde el 2026-11-07 (**RG12-A**, en el [traspaso 9](2026-11-06-traspaso-multitenant-ajustes-de-toda-la-app.md)), los textos que
+ve el usuario dicen «ítem» en lugar de «renglón»: «Agregar ítem», «Ítem 2», «¿Agregás otro ítem?», «¿Agregás un ítem?»,
+«Pasan al bloque» y «Algún ítem con…».
+
 Resueltas por defecto, sin objeción del usuario:
 - un bloque por formulario, sin bloques adentro;
 - adentro entran texto corto y largo, número, fecha, sí o no y elegir una, propia o de catálogo; quedan afuera elegir

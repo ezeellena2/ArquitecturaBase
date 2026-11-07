@@ -2,7 +2,8 @@
 
 Diseño del 2026-11-02 con las decisiones del usuario del 2026-11-03, que ese día dio el diseño por cerrado, y las del
 2026-11-04 sobre el tope de la respuesta de WhatsApp (RG7-A), el bloque con mínimo 0 (RG8-A) y cómo se elige «Renglones» en el
-editor (RG9-A), y la del 2026-11-06, «Agregar bloque» (RG10-D). La Etapa 1 se está programando ([plan de implementación](2026-11-04-renglones-etapa-1-implementacion.md)). Un formulario suma un bloque de
+editor (RG9-A), la del 2026-11-06, «Agregar bloque» (RG10-D), y la del 2026-11-07, «ítem» en lugar de «renglón» en los textos
+(RG12-A). La Etapa 1 se está programando ([plan de implementación](2026-11-04-renglones-etapa-1-implementacion.md)). Un formulario suma un bloque de
 preguntas que se repite, como los renglones de un remito o de una factura: en la app se cargan en una tabla y por WhatsApp,
 de a un renglón por pantalla.
 
@@ -17,8 +18,8 @@ resultado externo y la biblioteca de estándares siguen en esa hoja. El [resumen
 tenía pendiente como «grupos y remitos con líneas».
 
 **Tableros:** lienzo provisorio [Formularios desde la app](https://claude.ai/artifact/Kvbr5KFJrGT951JLiu8i4M), filas
-«Formularios · renglones · 0» a «· 8» (RG0 a RG8), con las notas naranjas de origen y una verde por elección (RG0 a RG6
-en la versión 55; RG7 y RG8, al final del lienzo, en las versiones 79 y 82).
+«Formularios · renglones · 0» a «· 12» (RG0 a RG12), con las notas naranjas de origen y una verde por elección (RG0 a RG6
+en la versión 55; RG7 y RG8, al final del lienzo, en las versiones 79 y 82; RG12 en la versión 92).
 El ejemplo es el remito de la prueba:
 - el proveedor «Agroinsumos del Litoral S.A.» y el campo «SAN JULIAN»;
 - en RG1 a RG5, tres artículos (GLIFOSATO 64%, 200 litros; ATRAZINA 50%, 100 litros; UREA GRANULADA, 5.000 kilos) y un
@@ -31,11 +32,16 @@ El lienzo del sistema visual no se abre desde la cuenta de Claude Code. El dise�
 [carga desde la app](../../../ArquitecturaBaseFront/docs/design/carga-desde-la-app.md); los tableros pasan a ese lienzo
 antes de programar.
 
-## Decisiones del usuario (2026-11-03 al 2026-11-06)
+## Decisiones del usuario (2026-11-03 al 2026-11-07)
 
 Las eligió de a una, mirando cada fila; en las ocho eligió la recomendada, la A. La sexta ajusta la primera: salió de
 analizar con él la carga del remito como cuatro respuestas. La séptima y la octava salieron el 2026-11-04, al revisar el
 plan antes de programar y al programar el Flow.
+
+Desde el 2026-11-07, todo texto de la app dice «ítem» donde estas decisiones citan «renglón» («Agregar ítem», «Ítem 2»,
+«¿Agregás otro ítem?», «Algún ítem con…»): es la decisión 11, y la lista completa de textos está en el
+[diseño del front](../../../ArquitecturaBaseFront/docs/design/renglones-en-formularios.md#los-textos-ítem-en-lugar-de-renglón-rg12-a--2026-11-07).
+Los documentos y el código siguen llamándolo renglón (`rows`).
 
 1. **El editor: RG1-A, un tipo de pregunta «Renglones».**
    - «Agregar pregunta» suma «Renglones» al final de los tipos. En la lista, el bloque es un recuadro con sus preguntas
@@ -142,6 +148,26 @@ plan antes de programar y al programar el Flow.
    - «Tipo de respuesta» deja de ofrecer «Renglones»: el bloque se agrega sólo con su botón o con «Se carga varias veces».
    - Descartó RG10-A («Agregar renglones», con el bloque como algo distinto de una pregunta), RG10-B (un solo «Agregar»
      con menú) y RG10-C (como hoy). El nombre del botón (RG11) quedó resuelto con «Agregar bloque».
+11. **Los textos: RG12-A, «ítem» en lugar de «renglón», en toda la app** (2026-11-07). Salió en la verificación con Meta:
+   completando el formulario de prueba en el celular, el usuario preguntó si «¿Agregás otro renglón?» no tendría que decir
+   «agregar otro {nombre del ítem}» o el nombre del bloque y, mirando la lista del editor («Renglones · de 1 a 1 · 2
+   preguntas», «Preguntas de cada renglón»), propuso «Items en vez de la palabra renglones». Eligió la recomendada sobre el
+   tablero RG12 (lienzo, versión 92).
+   - Todo texto que ve el usuario dice «ítem» donde decía «renglón», en el editor, al publicar, en WhatsApp y su vista
+     previa, en la carga, en las lecturas y en las reglas; en inglés, «item». «Ítem» va siempre con «otro» y «un», así que
+     se lee bien con cualquier nombre de bloque.
+   - En la lista del editor, «Bloque · de 1 a 10 ítems · 3 preguntas»; con mínimo y máximo iguales, la cantidad («Bloque ·
+     1 ítem · 2 preguntas»), y con mínimo 0, «hasta 10 ítems». El recuadro dice «Preguntas de cada ítem» y el editor del
+     bloque titula «Ítems» el mínimo y el máximo.
+   - WhatsApp: «Artículos · ítem 2» y «¿Agregás otro ítem?», 19 de los 30 caracteres que admite Meta en la pregunta de un
+     sí o no (`RadioButtonsGroup`, según la referencia de componentes consultada el 2026-11-07); con mínimo 0, «¿Agregás
+     un ítem?».
+   - Al publicar, «Pasan al bloque» y «En WhatsApp se cargan hasta 10 ítems; el máximo es 20.». En la carga, «Agregar
+     ítem», «Ítem 2», «Agregá al menos 1 ítem.» y «Hasta 20 ítems.»; en las lecturas, «En algún ítem de Artículos» y la
+     columna «Ítem» del Excel; en las reglas, «Algún ítem con…».
+   - Lo que dice «renglón» en Importar opciones («Cada fila copiada ocupa un renglón…») es la línea de lo pegado y queda.
+   - Descartó RG12-B (en WhatsApp, el nombre del bloque: «¿Agregás más artículos?», con el nombre en plural y de hasta 16
+     caracteres) y RG12-C (el editor del bloque suma «Cada ítem es [un/una] [artículo]»: «¿Agregás otro artículo?»).
 
 **Resueltas por defecto** con la opción más simple, dibujadas en los tableros y sin objeción del usuario:
 
@@ -155,8 +181,8 @@ plan antes de programar y al programar el Flow.
 - El borrador se guarda con un bloque sin preguntas, pero no se publica: en «Problemas», «Agregá al menos una pregunta al
   bloque.».
 - Cambiar el tipo de una pregunta del bloque crea otra, como hoy; renombrar, ordenar y traducir conservan su identidad.
-- Los textos son genéricos («Agregar renglón», «Renglón 2», «¿Agregás otro renglón?»): el bloque no guarda cómo se llama un
-  renglón en singular.
+- Los textos dicen «ítem» («Agregar ítem», «Ítem 2», «¿Agregás otro ítem?», RG12-A): el bloque no guarda cómo se llama uno
+  en singular.
 - Un renglón vacío cuenta como renglón: pide sus obligatorias y se quita con el tacho.
 - El asistente no prellena las preguntas del bloque, como no prellena «elegir varias».
 

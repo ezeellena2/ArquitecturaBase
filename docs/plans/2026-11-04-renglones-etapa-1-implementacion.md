@@ -213,6 +213,13 @@ que la sesión de las listas dependientes commitee lo suyo.
   pregunta más y con «Bloque» de nombre al crearlo, también desde «Se carga varias veces»; «Renglones» sale de «Tipo de
   respuesta». Se programa al terminar la prueba con Meta, con la app apagada: textos es/en, `QuestionEditor`,
   `FormEditorPage`, `rowsQuestions.ts`, sus tests, la escena `formRows` y el `AGENTS.md` del área.
+- [ ] RG12-A (2026-11-07, en la verificación con Meta): los textos dicen «ítem» en lugar de «renglón», según la lista del
+  [diseño del front](../../../ArquitecturaBaseFront/docs/design/renglones-en-formularios.md#los-textos-ítem-en-lugar-de-renglón-rg12-a--2026-11-07).
+  Va con RG10-D, con la app apagada. Backend: `FlowTexts` es/en (`AddRow`, `AddAnotherRow`, `RowTitle`), el mensaje de
+  `Forms.Publication.RowsOverChannelLimit` en `Errors.resx` y `.en.resx`, los tests que fijan esos textos y los `AGENTS.md`
+  que los citan. Front: los textos `rows.*` y `publication.*` es/en, el resumen del bloque en la lista («1 ítem», «hasta 10
+  ítems», «de 1 a 10 ítems»), los tests de la vista previa, el editor y publicar, y la escena `formRows`. r10 sigue abierto:
+  no hace falta otra revisión, y lo ya publicado conserva sus bytes.
 
 ### Tarea 8 · El front: vista previa y publicar
 
