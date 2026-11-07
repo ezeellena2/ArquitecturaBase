@@ -251,6 +251,14 @@ que la sesión de las listas dependientes commitee lo suyo.
     del bloque y el `flow_token`. De los renglones no visitados no llega ninguna clave: ni vacía ni con `${…}`. La app
     la marca `Unrecognized` («no pudimos relacionar con un envío»), porque `ProjectionIsWellFormed` no acepta el tipo
     `group`: guardar la respuesta con renglones es de la Etapa 2, que además tiene que cambiar ese aviso.
+  - 2026-11-07, más pruebas:
+    - Otra corrida de la versión 4 en el celular, con «Sí», «Sí» y «No»: 15 claves y 886 bytes, con `_r1` a `_r3` en cada
+      pregunta del bloque y en `field_<bloque>`.
+    - Variante 2 (bloque al final, de 1 a 3) y variante 3 (mínimo 0, de 0 a 2, con un texto largo y una pregunta
+      después): Meta las aceptó y quedaron publicadas y verificadas, con el `routing_model` declarado, las pantallas
+      terminales que navegan en una rama y la pantalla «¿Agregás un renglón?».
+    - El usuario las recorrió en la vista oficial interactiva sin errores.
+    - Falta la respuesta de unos 40 KB.
 - [ ] Si algo no alcanza, bajar el tope o volver a 16 KiB (RG7-C) y anotarlo en el plan. El tope está sellado en r10
   (`WhatsAppFlowProfile.MaxRows`, con `StructuredFormLimits.MaxRows` igual): mientras r10 no salga de esta etapa se cambian
   los dos y se republica la prueba; después, otro tope es otra revisión, y el webhook sigue aceptando `_r10` de lo publicado.
