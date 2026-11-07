@@ -319,12 +319,18 @@ su clase. Otras sesiones trabajan en el mismo checkout: se preparan sólo los ar
 
 ### Tarea 6 · El front: modelo y contrato
 
-- [ ] Pedirle al usuario permiso para editar el `src` del front y mirar `git status`.
-- [ ] Tests en rojo en `entryFormRows.test.ts`: el borrador inicial con el mínimo y la opción única, agregar, quitar y
+- [x] Pedirle al usuario permiso para editar el `src` del front y mirar `git status`.
+- [x] Tests en rojo en `entryFormRows.test.ts`: el borrador inicial con el mínimo y la opción única, agregar, quitar y
   mover, la validación por ítem y de la cantidad, el envío, la versión nueva, «Mantener», la corrección, la firma y LD3-A por
   ítem; y `entriesRowsHttpContract.test.ts` sobre las capturas de la Tarea 4.
-- [ ] `api/entries.ts` y `entryForm.ts`.
-- [ ] Commit en el front: `feat(formularios): el modelo de la carga lleva los renglones`.
+- [x] `api/entries.ts` y `entryForm.ts`.
+- [x] Commit en el front: `feat(formularios): el modelo de la carga lleva los renglones`.
+
+  Hecho (front 61235552): el guard se prueba en `entriesRows.test.ts` (bloque y preguntas repetidas, 40 más el bloque, la
+  corrección con sus ítems). `entriesRowsHttpContract.test.ts` pasa a la Tarea 10: `httpCohort` verifica la procedencia de
+  la cohorte entera, así que consume las capturas de la exportación conjunta; mientras, el guard leyó las tres capturas de
+  `FormEntryRowsHttpTests` copiadas aparte. Los problemas de un ítem van en `entryItemPath` (`<bloque>.<n>.<pregunta>`) y
+  los de la cantidad (`rowsAtLeast`, `rowsAtMost`), en el id del bloque.
 
 ### Tarea 7 · El front: la tabla y los recuadros
 
