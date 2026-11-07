@@ -75,7 +75,7 @@ internal sealed record FormCatalogValueMigrationFixture(Guid CatalogId, Guid Ite
             'Id', r."Id", 'DefinitionId', r."DefinitionId", 'RecordId', r."RecordId", 'FieldId', r."FieldId", 'Type', r."Type",
             'TextValue', r."TextValue", 'DecimalValue', r."DecimalValue", 'DateValue', r."DateValue", 'BooleanValue', r."BooleanValue", 'ChoiceId', r."ChoiceId"))::text
             FROM "BusinessFormRecordValues" r
-        UNION ALL SELECT jsonb_build_object('table', 'receipt', 'data', to_jsonb(r))::text FROM "BusinessFormCaptureReceipts" r
+        UNION ALL SELECT jsonb_build_object('table', 'receipt', 'data', to_jsonb(r) - 'RejectedRow')::text FROM "BusinessFormCaptureReceipts" r
         UNION ALL SELECT jsonb_build_object('table', 'catalog', 'data', jsonb_build_object(
             'Id', r."Id", 'Key', r."Key", 'Kind', r."Kind", 'NameJson', r."NameJson", 'DescriptionJson', r."DescriptionJson",
             'FiltersJson', r."FiltersJson", 'IsActive', r."IsActive", 'Revision', r."Revision", 'CreatedAtUtc', r."CreatedAtUtc",
