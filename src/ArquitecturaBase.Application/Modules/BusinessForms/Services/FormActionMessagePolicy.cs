@@ -86,6 +86,8 @@ internal static class FormActionMessagePolicy
         null=>"",bool value=>FormResponseTexts.Get(value?"true":"false",culture),StructuredRecordChoiceValue value=>value.Label,
         IReadOnlyList<StructuredRecordChoiceValue> choices=>string.Join(", ",choices.Select(choice=>choice.Label)),
         IReadOnlyList<StructuredRecordFileValue> files=>string.Join(", ",files.Select(file=>file.Name)),
+        // The block of rows is not a datum of the messages yet: the rules learn to read its items in their own stage.
+        IReadOnlyList<StructuredRecordReadRow> => "",
         string value when answer.Type=="decimal"=>decimal.Parse(value,CultureInfo.InvariantCulture).ToString("0.############################",CultureInfo.GetCultureInfo(culture)),
         string value when answer.Type=="date"=>DateOnly.ParseExact(value,"yyyy-MM-dd",CultureInfo.InvariantCulture).ToString("d",CultureInfo.GetCultureInfo(culture)),
         string value=>value,_=>throw new InvalidOperationException("The action value type is unsupported."),

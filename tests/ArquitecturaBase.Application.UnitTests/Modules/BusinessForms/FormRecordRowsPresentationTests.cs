@@ -43,15 +43,43 @@ public sealed class FormRecordRowsPresentationTests
         : new object[] { new { fieldId = ItemId, value = item }, new { fieldId = QuantityId, value = quantity }, new { fieldId = NoteId, value = note } };
 
     [Fact]
-    public void A_response_leaves_out_the_block_and_its_questions_until_its_items_are_shown()
+    public void A_response_reads_the_block_in_its_place_with_its_items_and_not_its_questions_apart()
     {
-        var stored = Stored(new[] { Item(First, 200.5m, "Sin daños") }, Reference(First, "Primero", 0));
+        var stored = Stored(new[] { Item(First, 200.5m, "Sin daños"), Item(First, 100m) },
+            Reference(First, "Primero del ítem dos", 1), Reference(First, "Primero", 0));
 
         var reply = FormRecordPresentationPolicy.Project(stored, "es", Schema);
 
-        var value = Assert.Single(reply.Values);
-        Assert.Equal(SupplierId, value.FieldId);
-        Assert.Equal("Proveedor del norte", value.Value);
+        Assert.Equal([SupplierId, GroupId], reply.Values.Select(value => value.FieldId));
+        var block = reply.Values[1];
+        Assert.Equal(("group", "Artículos"), (block.Type, block.Label));
+        var rows = Assert.IsAssignableFrom<IReadOnlyList<StructuredRecordReadRow>>(block.Value);
+        Assert.Equal(["Primero", "Primero del ítem dos"], rows.Select(row => Assert.IsType<StructuredRecordChoiceValue>(row.Values[0].Value).Label));
+        Assert.Equal(["200.5", "100"], rows.Select(row => row.Values[1].Value));
+        using var json = JsonDocument.Parse(JsonSerializer.Serialize(block, JsonSerializerOptions.Web));
+        Assert.Equal("Cantidad", json.RootElement.GetProperty("value")[1].GetProperty("values")[1].GetProperty("label").GetString());
+    }
+
+    [Fact]
+    public void A_block_without_items_reads_an_empty_list_and_a_version_without_the_block_has_no_value_for_it()
+    {
+        var empty = FormRecordPresentationPolicy.Project(Stored(Array.Empty<object>()), "es", Schema);
+        Assert.Empty(Assert.IsAssignableFrom<IReadOnlyList<StructuredRecordReadRow>>(empty.Values.Single(value => value.FieldId == GroupId).Value));
+
+        var schema = new FormVersionSchema(1, [Schema.Questions[0]]);
+        var without = FormRecordPresentationPolicy.Project(Stored(null) with { SchemaJson = JsonSerializer.Serialize(schema, JsonSerializerOptions.Web) }, "es", schema);
+        Assert.Equal([SupplierId], without.Values.Select(value => value.FieldId));
+    }
+
+    [Fact]
+    public void A_rule_message_that_names_the_block_leaves_it_empty_until_the_rules_read_its_items()
+    {
+        var stored = Stored(new[] { Item(First, 1m) }, Reference(First, "Primero", 0));
+        var action = new FormRuleAction(Guid.NewGuid(), "NotifyAuthor", null,
+            new Dictionary<string, string> { ["es"] = "Llegó {Artículos}de {Proveedor}", ["en"] = "Received {Artículos (en)}from {Proveedor (en)}" }, false);
+        var snapshot = new FormActionRecordRow(new(stored, new DateTime(2026, 11, 7, 12, 0, 0, DateTimeKind.Utc), new(Guid.NewGuid(), "Author")), "es");
+
+        Assert.Equal("Llegó de Proveedor del norte", FormActionMessagePolicy.Render(action, Schema, snapshot, "es"));
     }
 
     [Fact]

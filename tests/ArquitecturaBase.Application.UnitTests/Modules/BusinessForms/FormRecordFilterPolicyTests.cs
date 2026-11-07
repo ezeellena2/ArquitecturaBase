@@ -49,6 +49,23 @@ public sealed class FormRecordFilterPolicyTests
         var result=FormRecordFilterPolicy.Validate(new(){Sort=sort},definition);
         Assert.True(result.IsFailure);Assert.Equal("Forms.Record.FilterInvalid",result.Error.Code);
     }
+    [Theory]
+    [InlineData("field")]
+    [InlineData("-field")]
+    public void Sorting_by_the_block_or_one_of_its_questions_is_rejected(string sort)
+    {
+        var label = new Dictionary<string, string> { ["es"] = "Pregunta", ["en"] = "Question" };
+        var block = new CanonicalFormField(Guid.NewGuid(), "items", "group", label, null, true, null, null, Rows: new(1, 10));
+        var quantity = new CanonicalFormField(Guid.NewGuid(), "quantity", "decimal", label, null, true, null, null, Repeated: true);
+        var version = new FormResponseVersionRow(Guid.NewGuid(), 1, "{}", JsonSerializer.Serialize(new FormVersionSchema(1, [block, quantity]), JsonSerializerOptions.Web), "es", ["es", "en"]);
+        var definition = new FormResponseDefinitionRow(Guid.NewGuid(), "T", version.Id, [version]);
+        foreach (var fieldId in new[] { block.FieldId, quantity.FieldId })
+        {
+            var result = FormRecordFilterPolicy.Validate(new() { Sort = sort, SortFieldId = fieldId }, definition);
+            Assert.True(result.IsFailure);
+            Assert.Equal("Forms.Record.FilterInvalid", result.Error.Code);
+        }
+    }
     [Fact]
     public void Unknown_questions_versions_and_sort_fields_are_rejected()
     {

@@ -72,7 +72,9 @@ public sealed partial class FormDraftEndpointsTests
         using var readScope = factory.Services.CreateScope();
         var read = await readScope.ServiceProvider.GetRequiredService<IStructuredRecordSource>()
             .ReadAsync(actorId, "es", [request.SourceReceiptId], Ct);
-        Assert.Equal([supplier.FieldId], Assert.Single(read.Replies).Value.Values.Select(value => value.FieldId));
+        var reply = Assert.Single(read.Replies).Value;
+        Assert.Equal([supplier.FieldId, group.FieldId], reply.Values.Select(value => value.FieldId));
+        Assert.Equal(3, Assert.IsAssignableFrom<IReadOnlyList<StructuredRecordReadRow>>(reply.Values[1].Value).Count);
 
         using var retired = await actor.PutAsJsonAsync($"/api/forms/catalogs/{catalogId}", new
         {

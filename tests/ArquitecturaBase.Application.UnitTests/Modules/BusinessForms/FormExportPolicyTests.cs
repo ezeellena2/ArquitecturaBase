@@ -22,5 +22,14 @@ public sealed class FormExportPolicyTests
             new(Guid.NewGuid(), "a.pdf", "application/pdf", 10, false), new(Guid.NewGuid(), "b.pdf", "application/pdf", 20, false) })).Value);
         Assert.Equal("=SUM(A1)", FormExportPolicy.Cell(Cell("shortText", "Answered", "=SUM(A1)")).Value);
     }
+    [Fact]
+    public void The_block_exports_how_many_items_it_has()
+    {
+        var cell = FormExportPolicy.Cell(Cell("group", "Answered", new FormResponseRowCells[] { new([]), new([]), new([]) }));
+
+        Assert.Equal(("integer", (object?)3L), (cell.Kind, cell.Value));
+        Assert.Null(FormExportPolicy.Cell(Cell("group", "Unanswered", Array.Empty<FormResponseRowCells>())).Value);
+        Assert.Equal("—", FormExportPolicy.Cell(Cell("group", "NotAsked", null)).Value);
+    }
     private static FormResponseCell Cell(string type, string state, object? value) => new(Guid.NewGuid(), type, state, value);
 }

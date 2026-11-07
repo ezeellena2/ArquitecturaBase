@@ -16,6 +16,7 @@ internal static class FormExportPolicy
             "choice" when cell.Value is StructuredRecordChoiceValue choice => new("text", choice.Label + (string.IsNullOrEmpty(choice.Detail) ? "" : " · " + choice.Detail)),
             "multiChoice" when cell.Value is IReadOnlyList<StructuredRecordChoiceValue> choices => new("text", string.Join("; ", choices.Select(choice => choice.Label))),
             "photo" or "document" when cell.Value is IReadOnlyList<StructuredRecordFileValue> files => new("text", files.Count.ToString(CultureInfo.InvariantCulture) + " · " + string.Join("; ", files.Select(file => file.Name))),
+            "group" when cell.Value is IReadOnlyCollection<FormResponseRowCells> rows => new("integer", (long)rows.Count),
             _ => new("text", cell.Value),
         };
     }

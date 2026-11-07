@@ -34,7 +34,7 @@ commiteado.
 
 ## Lo que pone la Etapa 2
 
-Acordado el 2026-11-07 con la sesión de la Etapa 2. Está en la carpeta de notas compartidas
+Quedó así en 5ae579b4, e5e1d4d1 y 6c1c484e. Acordado el 2026-11-07 con la sesión de la Etapa 2. Está en la carpeta de notas compartidas
 (`renglones-etapa-3-lectura-2026-11-07.md` y la respuesta, `renglones-etapa-2-modelo-2026-11-07.md`) y en su
 [plan](2026-11-07-renglones-etapa-2-implementacion.md), en «Cómo se guardan los renglones» y «Las lecturas hasta la
 Etapa 3».
@@ -209,24 +209,30 @@ permiso.
 
 ### Tarea 1 · La lectura del bloque y la planilla
 
-- [ ] Esperar el commit del backend de la Etapa 2, revisar `git status` y ajustar «Lo que pone la Etapa 2» a lo que
+- [x] Esperar el commit del backend de la Etapa 2, revisar `git status` y ajustar «Lo que pone la Etapa 2» a lo que
   quedó.
-- [ ] Tests en rojo:
-  - `FormRowsReadPolicyTests`, como `FormMultipleChoiceReadPolicyTests`: `Project` con el valor `group` y los ítems de
-    `Rows` en orden, también con el mismo ítem del catálogo en dos; las preguntas `repeated` fuera de `Values`; un bloque
-    sin ítems, y una versión sin el bloque;
+- [x] Tests en rojo:
+  - en `FormRecordRowsPresentationTests`, la clase que creó la Etapa 2 con el mismo escenario: `Project` con el valor
+    `group` y los ítems de `Rows` en orden, también con el mismo ítem del catálogo en dos; las preguntas `repeated` fuera
+    de `Values`; un bloque sin ítems, y una versión sin el bloque;
   - `FormResponsePresentationPolicyTests`: la columna `group` con `questions` unidas entre versiones, sin columnas
     sueltas para sus preguntas, y las celdas con sus estados. Reemplaza
     `The_block_of_rows_has_no_column_and_its_questions_keep_theirs`;
   - `FormRecordFilterPolicyTests`: ordenar por el bloque o por una de sus preguntas es `FilterInvalid`.
-- [ ] El bloque en `Project`, con `Rows`; `Questions` en `FormResponseColumn` y
+- [x] El bloque en `Project`, con `Rows`; `Questions` en `FormResponseColumn` y
   `FormResponseRowCells` en `FormResponseModels`, con `WhenWritingNull`; `Columns` y `Cells`; el orden en
   `FormRecordFilterPolicy`.
-- [ ] Integración (`FormRowsReadHttpTests`, como `FormMultipleChoiceReadHttpTests`): la planilla y el detalle de un
+- [x] Para que ningún commit rompa lo que ya proyecta, en la misma tarea:
+  - «Respuestas» del Excel ya pone la cantidad de ítems (`FormExportPolicy`); la hoja del bloque sigue en la Tarea 3;
+  - un mensaje de una regla que nombra el bloque lo deja vacío, como hasta ahora (`FormActionMessagePolicy`), hasta que
+    las reglas lean ítems en la Etapa 4;
+  - la captura real de la Etapa 2 y la composición de WhatsApp con ítems esperan el bloque en la lectura.
+- [x] Integración (`FormRowsReadHttpTests`, como `FormMultipleChoiceReadHttpTests`): la planilla y el detalle de un
   formulario con bloque, es y en, con capturas `rows-sheet-{es,en}` y `rows-detail-{es,en}` para la cohorte
   `forms-responses-http`. Reemplaza
-  `FormResponseHttpTests.A_published_block_of_rows_without_responses_lists_an_empty_sheet_without_a_block_column`.
-- [ ] Commit: `feat(formularios): la planilla y el detalle leen el bloque de renglones`.
+  `FormResponseHttpTests.A_published_block_of_rows_without_responses_lists_an_empty_sheet_without_a_block_column`. La
+  lista del exportador suma cada captura en la tarea que la produce, para que la corrida de otra sesión no falle.
+- [x] Commit: `feat(formularios): la planilla y el detalle leen el bloque de renglones`.
 
 ### Tarea 2 · «Filtros» por algún ítem
 

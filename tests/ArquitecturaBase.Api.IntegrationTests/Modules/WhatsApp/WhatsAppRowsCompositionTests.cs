@@ -229,6 +229,8 @@ public sealed partial class WhatsAppFormSendingTests
         var reply = Assert.Single(read.Replies.Values);
         Assert.Equal(completed.CompletedRecordId, reply.RecordId);
         Assert.EndsWith("-000001", reply.Number, StringComparison.Ordinal);
-        Assert.Equal("Proveedor del norte", Assert.Single(reply.Values).Value);
+        Assert.Equal(2, reply.Values.Count);
+        Assert.Equal("Proveedor del norte", reply.Values[0].Value);
+        Assert.Equal(3, Assert.IsAssignableFrom<IReadOnlyList<StructuredRecordReadRow>>(reply.Values[1].Value).Count);
     }
 }

@@ -25,13 +25,16 @@ internal static class FormRecordPresentationPolicy
                 throw new InvalidOperationException("The captured form record values are invalid.");
         }
 
-        // The block and its questions stay out until its items are shown (Rows reads them).
-        var values = schema.Questions.Where(question => question.Type != "group" && question.Repeated != true).Select(question => new StructuredRecordReadValue(question.FieldId,
-            question.Key, question.Type, Text(question.Label, culture), question.Type is "photo" or "document"
-                ? (row.Files ?? []).Where(file => file.FieldId == question.FieldId).OrderBy(file => file.Position)
-                    .Select(file => new StructuredRecordFileValue(file.FileId, file.Name, file.ContentType, file.Size, file.HasThumbnail)).ToArray()
-                : saved.TryGetValue(question.FieldId, out var answer)
-                ? Decode(question, answer, culture, row.References ?? [], includeCatalogFields) : null)).ToArray();
+        // The block reads its items in its place; its questions only inside them.
+        var values = schema.Questions.Where(question => question.Repeated != true).Select(question => new StructuredRecordReadValue(question.FieldId,
+            question.Key, question.Type, Text(question.Label, culture), question.Type switch
+            {
+                "photo" or "document" => (row.Files ?? []).Where(file => file.FieldId == question.FieldId).OrderBy(file => file.Position)
+                    .Select(file => new StructuredRecordFileValue(file.FileId, file.Name, file.ContentType, file.Size, file.HasThumbnail)).ToArray(),
+                "group" => saved.TryGetValue(question.FieldId, out var items)
+                    ? Items(schema, question, items, row.References ?? [], culture, includeCatalogFields) : Array.Empty<StructuredRecordReadRow>(),
+                _ => saved.TryGetValue(question.FieldId, out var answer) ? Decode(question, answer, culture, row.References ?? [], includeCatalogFields) : null,
+            })).ToArray();
         var number = row.Prefix + "-" + row.Number.ToString("D6", CultureInfo.InvariantCulture);
         return new(row.SourceReceiptId, row.RecordId, number, row.DefinitionId, row.VersionId,
             row.VersionNumber, localizedName, values);
@@ -43,16 +46,20 @@ internal static class FormRecordPresentationPolicy
     /// </summary>
     public static IReadOnlyList<StructuredRecordReadRow> Rows(FormRecordStoredRow row, string culture, FormVersionSchema schema, bool includeCatalogFields = true)
     {
-        var questions = schema.Questions;
-        var index = Enumerable.Range(0, questions.Count).FirstOrDefault(position => questions[position].Type == "group", -1);
-        if (index < 0) return [];
-        var group = questions[index];
-        var block = questions.Skip(index + 1).TakeWhile(question => question.Repeated == true).ToArray();
+        var group = schema.Questions.FirstOrDefault(question => question.Type == "group");
+        if (group is null) return [];
         using var document = JsonDocument.Parse(row.ValuesJson);
         var entry = document.RootElement.EnumerateArray().SingleOrDefault(value => value.GetProperty("fieldId").GetGuid() == group.FieldId);
-        if (entry.ValueKind == JsonValueKind.Undefined) return [];
-        var references = row.References ?? [];
-        return entry.GetProperty("value").EnumerateArray().Select((item, position) =>
+        return entry.ValueKind == JsonValueKind.Undefined ? []
+            : Items(schema, group, entry.GetProperty("value"), row.References ?? [], culture, includeCatalogFields);
+    }
+
+    private static StructuredRecordReadRow[] Items(FormVersionSchema schema, CanonicalFormField group, JsonElement items,
+        IReadOnlyList<FormRecordReferenceRow> references, string culture, bool includeCatalogFields)
+    {
+        var block = schema.Questions.SkipWhile(question => question.FieldId != group.FieldId).Skip(1)
+            .TakeWhile(question => question.Repeated == true).ToArray();
+        return items.EnumerateArray().Select((item, position) =>
         {
             var answers = item.EnumerateArray().ToDictionary(value => value.GetProperty("fieldId").GetGuid(), value => value.GetProperty("value"));
             var own = references.Where(reference => reference.Row == position).ToArray();

@@ -22,10 +22,17 @@ public sealed record FormResponseDefinitionRow(Guid Id, string Prefix, Guid Acti
 public sealed record FormResponseOption(Guid Id, string Label);
 public sealed record FormResponseColumn(Guid FieldId, string Type, string Label, long IntroducedInVersion, IReadOnlyList<FormResponseOption> Options,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? ValueType = null,
-    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<FormResponseCatalogField>? Fields = null);
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<FormResponseCatalogField>? Fields = null,
+    // The questions of a block of rows, in their order; omitted outside a block.
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<FormResponseColumn>? Questions = null);
 public sealed record FormResponseCell(Guid FieldId, string Type, string State, object? Value)
 {
     public override string ToString() => "FormResponseCell { Value = [REDACTED] }";
+}
+/// <summary>An item of a block of rows in the sheet: one cell per question of the block's column, in its order.</summary>
+public sealed record FormResponseRowCells(IReadOnlyList<FormResponseCell> Cells)
+{
+    public override string ToString() => "FormResponseRowCells { Cells = [REDACTED] }";
 }
 public sealed record FormResponseRow(Guid Id, Guid VersionId, long VersionNumber, string Number, DateTime SubmittedAtUtc,
     FormAuthorResponse Actor, string Channel, IReadOnlyList<FormResponseCell> Cells, string State = "Received", bool HasPdf = false,

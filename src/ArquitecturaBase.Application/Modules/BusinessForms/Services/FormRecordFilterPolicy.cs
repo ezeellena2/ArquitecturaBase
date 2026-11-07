@@ -16,7 +16,8 @@ internal static class FormRecordFilterPolicy
             || request.SortFieldId is { } sortId && !fields.ContainsKey(sortId)
             || sort?.Field.Equals("field", StringComparison.OrdinalIgnoreCase) == true && request.SortFieldId is null
             || sort?.Field.Equals("field", StringComparison.OrdinalIgnoreCase) == true
-                && request.SortFieldId is { } selected && fields.TryGetValue(selected, out var sortField) && sortField.Type == "multiChoice"
+                && request.SortFieldId is { } selected && fields.TryGetValue(selected, out var sortField)
+                && (sortField.Type is "multiChoice" or "group" || sortField.Repeated == true)
             || request.ReceivedFromUtc > request.ReceivedToUtc) return FormRecordErrors.FilterInvalid;
         foreach (var condition in request.Conditions)
         {
