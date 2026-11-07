@@ -17,8 +17,9 @@ public sealed record FormEntryGroupsQuery(Dictionary<Guid, Guid>? Answers = null
 }
 
 /// <summary>
-/// A send in multipart: <see cref="Answers"/> is a JSON array of <c>{ fieldId, value }</c> or, in a multiple choice,
-/// <c>{ fieldId, choiceIds }</c>; each file goes with the question it answers, at the same position of <see cref="FileFieldIds"/>.
+/// A send in multipart: <see cref="Answers"/> is a JSON array of <c>{ fieldId, value }</c>, in a multiple choice
+/// <c>{ fieldId, choiceIds }</c> and in the block <c>{ fieldId, rows: [[{ fieldId, value }, …], …] }</c>; each file goes with the
+/// question it answers, at the same position of <see cref="FileFieldIds"/>.
 /// </summary>
 public sealed record SubmitFormEntryHttpRequest
 {
@@ -30,7 +31,8 @@ public sealed record SubmitFormEntryHttpRequest
     public override string ToString() => "SubmitFormEntryHttpRequest { Content = [REDACTED] }";
 }
 
-public sealed record FormEntryAnswerHttpItem(Guid FieldId, string? Value = null, IReadOnlyList<Guid>? ChoiceIds = null)
+public sealed record FormEntryAnswerHttpItem(Guid FieldId, string? Value = null, IReadOnlyList<Guid>? ChoiceIds = null,
+    IReadOnlyList<IReadOnlyList<FormEntryAnswerHttpItem>>? Rows = null)
 {
     public override string ToString() => "FormEntryAnswerHttpItem { Content = [REDACTED] }";
 }

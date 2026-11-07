@@ -1,3 +1,4 @@
+using System.Globalization;
 using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Models.StructuredData;
@@ -77,7 +78,8 @@ internal sealed class FormEntryCatalogPolicy(FormCatalogOptionsPolicy options, I
 
     /// <summary>The offer of each answered catalog question with only the chosen options, still active and within the filters.</summary>
     public async Task<Result<IReadOnlyList<StructuredFormCatalogOffer>>> OffersAsync(Guid recipient, FormVersionSchema schema,
-        IReadOnlyDictionary<Guid, IReadOnlyList<Guid>> chosen, string culture, string originalCulture, CancellationToken ct)
+        IReadOnlyDictionary<Guid, IReadOnlyList<Guid>> chosen, string culture, string originalCulture, CancellationToken ct,
+        IReadOnlyList<IReadOnlyDictionary<Guid, Guid>>? items = null)
     {
         var offers = new List<StructuredFormCatalogOffer>();
         FormPersonRecipientDataRow? personData = null;
@@ -85,32 +87,65 @@ internal sealed class FormEntryCatalogPolicy(FormCatalogOptionsPolicy options, I
         var answers = chosen.Where(pair => pair.Value.Count == 1).ToDictionary(pair => pair.Key, pair => pair.Value[0]);
         foreach (var question in schema.Questions.Where(question => question.Source?.Catalog is not null && chosen.ContainsKey(question.FieldId)))
         {
-            var field = "answers." + question.FieldId.ToString("D");
-            var ids = chosen[question.FieldId].Distinct().ToArray();
-            var source = await options.ResolveAsync(recipient, question, personData, ct, answers);
-            personData = source.PersonData;
-            // Without the answer it depends on, no option of the list corresponds to it.
-            if (source.Issue == FormRecordErrors.CatalogDependsOnAnswer.Code) return FieldErrors.On(FormRecordErrors.CatalogItemInactive, field);
-            if (source.Issue is { } issue) return FieldErrors.On(Blocking(issue), field);
-            var catalog = source.Catalog!;
-            var query = new FormEntryItemsQuery(catalog.Id, source.Containment, null, ids, 1, ids.Length, culture);
-            IReadOnlyList<StructuredFormCatalogOption> offered;
-            if (catalog.Kind == "Manual")
-                offered = await options.ManualOptionsAsync(source, (await reader.ListItemsAsync(query, ct)).Items, culture, ct);
-            else
-            {
-                var definition = FormDraftPolicy.Read<FormCatalogFilterDefinition>(catalog.FiltersJson!);
-                offered = FormCatalogOptionsPolicy.FilterOptions((await reader.ListPeopleAsync(recipient, definition, query, ct)).Items, definition, culture);
-            }
-            if (ids.Any(id => offered.All(option => option.Id != id))) return FieldErrors.On(FormRecordErrors.CatalogItemInactive, field);
-            var offer = new StructuredFormCatalogOffer(question.FieldId, question.Key, FormRecordPresentationPolicy.Text(question.Label, culture),
-                catalog.Id, catalog.Revision, catalog.Kind, FormCatalogOptionsPolicy.Name(catalog.NameJson, culture, originalCulture), offered,
-                FormDraftPolicy.Read<Dictionary<string, string>>(catalog.NameJson), FormCatalogOptionsPolicy.ValueType(catalog));
-            if (FormCatalogOfferPolicy.InvalidValues(offer) || FormCatalogOfferPolicy.Validate(false, offered) is not null)
-                return FieldErrors.On(FormRecordErrors.CatalogOptionInvalid, field);
-            offers.Add(offer);
+            var offer = await OfferAsync(recipient, question, chosen[question.FieldId].Distinct().ToArray(), answers, personData, culture,
+                originalCulture, "answers." + question.FieldId.ToString("D"), ct);
+            if (offer.IsFailure) return offer.Error;
+            personData = offer.Value.PersonData;
+            offers.Add(offer.Value.Offer);
         }
+        if (items is not { Count: > 0 }) return offers;
+        // LD3-A: each item is checked with the answers outside the block and those of its own item, so a list of the block takes the
+        // answer of the same item; the options chosen in every item of a question go in a single offer.
+        var group = schema.Questions.First(question => question.Type == "group");
+        var block = schema.Questions.SkipWhile(question => question.FieldId != group.FieldId).Skip(1)
+            .TakeWhile(question => question.Repeated == true).Where(question => question.Source?.Catalog is not null).ToArray();
+        var merged = new Dictionary<Guid, StructuredFormCatalogOffer>();
+        for (var row = 0; row < items.Count; row++)
+        {
+            var own = new Dictionary<Guid, Guid>(answers);
+            foreach (var (fieldId, choice) in items[row]) own[fieldId] = choice;
+            foreach (var question in block.Where(question => items[row].ContainsKey(question.FieldId)))
+            {
+                var offer = await OfferAsync(recipient, question, [items[row][question.FieldId]], own, personData, culture, originalCulture,
+                    $"answers.{group.FieldId:D}.{row.ToString(CultureInfo.InvariantCulture)}.{question.FieldId:D}", ct);
+                if (offer.IsFailure) return offer.Error;
+                personData = offer.Value.PersonData;
+                merged[question.FieldId] = merged.TryGetValue(question.FieldId, out var earlier)
+                    ? earlier with { Options = [.. earlier.Options, .. offer.Value.Offer.Options.Where(option => earlier.Options.All(known => known.Id != option.Id))] }
+                    : offer.Value.Offer;
+            }
+        }
+        offers.AddRange(merged.Values);
         return offers;
+    }
+
+    // The offer of a catalog question with the options chosen in it, for the person whose data its filters use; an option that does
+    // not correspond goes to the field given.
+    private async Task<Result<(StructuredFormCatalogOffer Offer, FormPersonRecipientDataRow? PersonData)>> OfferAsync(Guid recipient,
+        CanonicalFormField question, Guid[] ids, IReadOnlyDictionary<Guid, Guid> answers, FormPersonRecipientDataRow? personData,
+        string culture, string originalCulture, string field, CancellationToken ct)
+    {
+        var source = await options.ResolveAsync(recipient, question, personData, ct, answers);
+        // Without the answer it depends on, no option of the list corresponds to it.
+        if (source.Issue == FormRecordErrors.CatalogDependsOnAnswer.Code) return FieldErrors.On(FormRecordErrors.CatalogItemInactive, field);
+        if (source.Issue is { } issue) return FieldErrors.On(Blocking(issue), field);
+        var catalog = source.Catalog!;
+        var query = new FormEntryItemsQuery(catalog.Id, source.Containment, null, ids, 1, ids.Length, culture);
+        IReadOnlyList<StructuredFormCatalogOption> offered;
+        if (catalog.Kind == "Manual")
+            offered = await options.ManualOptionsAsync(source, (await reader.ListItemsAsync(query, ct)).Items, culture, ct);
+        else
+        {
+            var definition = FormDraftPolicy.Read<FormCatalogFilterDefinition>(catalog.FiltersJson!);
+            offered = FormCatalogOptionsPolicy.FilterOptions((await reader.ListPeopleAsync(recipient, definition, query, ct)).Items, definition, culture);
+        }
+        if (ids.Any(id => offered.All(option => option.Id != id))) return FieldErrors.On(FormRecordErrors.CatalogItemInactive, field);
+        var offer = new StructuredFormCatalogOffer(question.FieldId, question.Key, FormRecordPresentationPolicy.Text(question.Label, culture),
+            catalog.Id, catalog.Revision, catalog.Kind, FormCatalogOptionsPolicy.Name(catalog.NameJson, culture, originalCulture), offered,
+            FormDraftPolicy.Read<Dictionary<string, string>>(catalog.NameJson), FormCatalogOptionsPolicy.ValueType(catalog));
+        if (FormCatalogOfferPolicy.InvalidValues(offer) || FormCatalogOfferPolicy.Validate(false, offered) is not null)
+            return FieldErrors.On(FormRecordErrors.CatalogOptionInvalid, field);
+        return (offer, source.PersonData);
     }
 
     private async Task<PagedResult<FormEntryOptionResponse>> PageAsync(Guid recipient, FormCatalogQuestionSource source,

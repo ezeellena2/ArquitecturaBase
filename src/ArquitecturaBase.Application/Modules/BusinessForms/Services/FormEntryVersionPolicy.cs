@@ -37,7 +37,10 @@ internal sealed class FormEntryVersionPolicy(IFormEntryReader reader, FormEntryC
                 question.Help is { Count: > 0 } help ? FormRecordPresentationPolicy.Text(help, culture) : null, question.Required, question.MaxLength,
                 question.Options?.Select(option => new FormEntryChoiceResponse(option.ChoiceId, FormRecordPresentationPolicy.Text(option.Label, culture))).ToArray(),
                 question.Selection, question.Files, catalog)
-            { Section = sections.TryGetValue(questions.Count, out var title) ? FormRecordPresentationPolicy.Text(title, culture) : null });
+            {
+                Section = sections.TryGetValue(questions.Count, out var title) ? FormRecordPresentationPolicy.Text(title, culture) : null,
+                Rows = question.Rows, Repeated = question.Repeated,
+            });
         }
         return (new FormEntryResponse(definitionId, version.VersionId, version.Number, definition.Prefix,
             FormRecordPresentationPolicy.Text(FormDraftPolicy.Read<Dictionary<string, string>>(version.NameJson), culture), culture,

@@ -36,9 +36,11 @@ internal sealed class FormEntryService(FormEntryLoaderGuard loaders, FormEntryVe
             var described = await describer.DescribeAsync(definitionId, loader.Person, cancellationToken); if (described.IsFailure) return described.Error;
             var (entry, schema) = described.Value;
             // What was there before, mapped to the active version: the questions that remain keep their answers and files.
-            var reply = FormRecordPresentationPolicy.Project(row.Record, entry.Culture, FormDraftPolicy.Read<FormVersionSchema>(row.Record.SchemaJson));
+            var recorded = FormDraftPolicy.Read<FormVersionSchema>(row.Record.SchemaJson);
+            var reply = FormRecordPresentationPolicy.Project(row.Record, entry.Culture, recorded);
             var answers = reply.Values.Select(value => schema.Questions.SingleOrDefault(question => question.FieldId == value.FieldId) is { } question
-                ? Answer(question, value.Value) : null).OfType<FormEntryCorrectionAnswer>().ToArray();
+                ? Answer(question, value.Value) : null).OfType<FormEntryCorrectionAnswer>().ToList();
+            if (BlockAnswer(schema, recorded, row.Record, entry.Culture) is { } block) answers.Add(block);
             var files = (row.Record.Files ?? []).Where(file => schema.Questions.Any(question => question.FieldId == file.FieldId && question.Files is not null))
                 .OrderBy(file => file.FieldId).ThenBy(file => file.Position)
                 .Select(file => new FormEntryCorrectionFile(file.FileId, file.FieldId, file.Name, file.ContentType, file.Size, file.HasThumbnail)).ToArray();
@@ -106,19 +108,20 @@ internal sealed class FormEntryService(FormEntryLoaderGuard loaders, FormEntryVe
             var schema = FormDraftPolicy.Read<FormVersionSchema>(version.SchemaJson);
             var entry = recorder.Prepare(definitionId, version, schema, actor, request);
             if (entry.IsFailure) return entry.Error;
+            var group = FormEntryRecorder.Group(schema);
             // A repeated send returns its first result, even after a new version or a deactivation.
             if (await recorder.FindExistingAsync(entry.Value.Request, cancellationToken) is { } prior)
-                return await recorder.OutcomeAsync(definition.Prefix, prior, cancellationToken);
+                return await recorder.OutcomeAsync(definition.Prefix, prior, group, cancellationToken);
             if (definition.Deactivated) return FormEntryErrors.Unavailable;
             if (version.VersionId != definition.ActiveVersionId) return FormEntryErrors.VersionChanged;
             var culture = await describer.CultureAsync(definitionId, version, schema, cancellationToken);
-            var offers = await catalogs.OffersAsync(actor, schema, entry.Value.Chosen, culture, version.Culture, cancellationToken);
+            var offers = await catalogs.OffersAsync(actor, schema, entry.Value.Chosen, culture, version.Culture, cancellationToken, entry.Value.Items);
             if (offers.IsFailure) return offers.Error;
             var captured = await recorder.CaptureAsync(entry.Value.Request with
             {
                 Catalogs = offers.Value.Count == 0 ? null : offers.Value, PresentationCulture = culture,
             }, cancellationToken);
-            return await recorder.OutcomeAsync(definition.Prefix, captured, cancellationToken);
+            return await recorder.OutcomeAsync(definition.Prefix, captured, group, cancellationToken);
         });
 
     public Task<Result<FormEntrySubmitResponse>> CorrectAsync(Guid definitionId, Guid recordId, CorrectFormEntryRequest request,
@@ -133,22 +136,39 @@ internal sealed class FormEntryService(FormEntryLoaderGuard loaders, FormEntryVe
             var schema = FormDraftPolicy.Read<FormVersionSchema>(version.SchemaJson);
             var entry = recorder.Prepare(definitionId, version, schema, amend.Value.Actor, request.Entry);
             if (entry.IsFailure) return entry.Error;
+            var group = FormEntryRecorder.Group(schema);
             var correction = new FormRecordCorrection(recordId, request.Reason!.Trim(), request.KeptFileIds!);
             // A repeated send returns its first result, even after the response changed again.
             if (await recorder.FindExistingCorrectionAsync(entry.Value.Request, correction, cancellationToken) is { } prior)
-                return await recorder.OutcomeAsync(definition.Prefix, prior, cancellationToken);
+                return await recorder.OutcomeAsync(definition.Prefix, prior, group, cancellationToken);
             var loaded = await loaders.CorrectionAsync(definitionId, recordId, cancellationToken); if (loaded.IsFailure) return loaded.Error;
             if (definition.Deactivated) return FormEntryErrors.Unavailable;
             if (version.VersionId != definition.ActiveVersionId) return FormEntryErrors.VersionChanged;
             var culture = await describer.CultureAsync(definitionId, version, schema, cancellationToken);
-            var offers = await catalogs.OffersAsync(loaded.Value.Loader.Person, schema, entry.Value.Chosen, culture, version.Culture, cancellationToken);
+            var offers = await catalogs.OffersAsync(loaded.Value.Loader.Person, schema, entry.Value.Chosen, culture, version.Culture, cancellationToken,
+                entry.Value.Items);
             if (offers.IsFailure) return offers.Error;
             var captured = await recorder.CaptureCorrectionAsync(entry.Value.Request with
             {
                 Catalogs = offers.Value.Count == 0 ? null : offers.Value, PresentationCulture = culture,
             }, correction, cancellationToken);
-            return await recorder.OutcomeAsync(definition.Prefix, captured, cancellationToken);
+            return await recorder.OutcomeAsync(definition.Prefix, captured, group, cancellationToken);
         });
+
+    // The items of the block as the form sends them, when the active version keeps that block: each item with its answers to the
+    // questions that remain in it. A block the active version no longer has does not come back.
+    private static FormEntryCorrectionAnswer? BlockAnswer(FormVersionSchema active, FormVersionSchema recorded, FormRecordStoredRow record, string culture)
+    {
+        var group = active.Questions.FirstOrDefault(question => question.Type == "group");
+        if (group is null || !recorded.Questions.Any(question => question.FieldId == group.FieldId && question.Type == "group")) return null;
+        var block = active.Questions.SkipWhile(question => question.FieldId != group.FieldId).Skip(1).TakeWhile(question => question.Repeated == true).ToArray();
+        return new(group.FieldId, null, null, null)
+        {
+            Rows = FormRecordPresentationPolicy.Rows(record, culture, recorded).Select(item => (IReadOnlyList<FormEntryCorrectionAnswer>)item.Values
+                .Select(value => block.SingleOrDefault(question => question.FieldId == value.FieldId) is { } question ? Answer(question, value.Value) : null)
+                .OfType<FormEntryCorrectionAnswer>().ToArray()).ToArray(),
+        };
+    }
 
     // An answer as the form sends it: canonical text, or the options chosen; a choice the active version no longer has is dropped.
     private static FormEntryCorrectionAnswer? Answer(CanonicalFormField question, object? value)

@@ -72,10 +72,16 @@ internal static class FormEntrySendRules
         answers is null || answers.Count <= 40 && answers.All(answer => answer.Key != Guid.Empty && answer.Value != Guid.Empty);
 
     public static bool ValidAnswers(IReadOnlyList<FormEntryAnswer>? answers) =>
-        answers is null || answers.Count <= 40 && answers.All(answer => answer is not null && answer.FieldId != Guid.Empty
-            && (answer.Value is null || answer.Value.Length <= 10_000)
-            && (answer.ChoiceIds is null || answer.ChoiceIds.Count <= 20 && answer.ChoiceIds.All(choice => choice != Guid.Empty)))
+        answers is null || answers.Count <= 40 && answers.All(answer => ValidAnswer(answer, false))
             && answers.Select(answer => answer.FieldId).Distinct().Count() == answers.Count;
+
+    // The block takes up to 100 items of up to 40 answers, each question once; an answer of an item is only a value.
+    private static bool ValidAnswer(FormEntryAnswer? answer, bool inItem) => answer is not null && answer.FieldId != Guid.Empty
+        && (answer.Value is null || answer.Value.Length <= 10_000)
+        && (answer.ChoiceIds is null || !inItem && answer.ChoiceIds.Count <= 20 && answer.ChoiceIds.All(choice => choice != Guid.Empty))
+        && (answer.Rows is null || !inItem && answer.Value is null && answer.ChoiceIds is null && answer.Rows.Count <= BusinessFormRecordValue.MaxRows
+            && answer.Rows.All(item => item is not null && item.Count <= 40 && item.All(inner => ValidAnswer(inner, true))
+                && item.Select(inner => inner.FieldId).Distinct().Count() == item.Count));
 
     public static bool ValidFiles(IReadOnlyList<FormEntryFileInput>? files) =>
         files is null || files.Count <= 10 && files.All(file => file is not null

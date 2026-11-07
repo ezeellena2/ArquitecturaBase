@@ -24,10 +24,21 @@ internal sealed class FormEntryRecorder(IBusinessFormRecordCaptureService captur
     {
         var answers = new Dictionary<string, string>(StringComparer.Ordinal);
         var chosen = new Dictionary<Guid, IReadOnlyList<Guid>>();
+        IReadOnlyList<IReadOnlyDictionary<Guid, Guid>>? items = null;
         foreach (var answer in request.Answers!)
         {
             var question = schema.Questions.SingleOrDefault(value => value.FieldId == answer.FieldId);
-            if (question is null || question.Type is "photo" or "document") return FormRecordErrors.InvalidResponse;
+            // A question of the block is answered only inside its items, and only the block takes items.
+            if (question is null || question.Type is "photo" or "document" || question.Repeated == true
+                || (answer.Rows is not null) != (question.Type == "group")) return FormRecordErrors.InvalidResponse;
+            if (question.Type == "group")
+            {
+                if (answer.Value is not null || answer.ChoiceIds is not null || Items(schema, question, answer.Rows!) is not { } block)
+                    return FormRecordErrors.InvalidResponse;
+                answers[question.Key] = block.Json;
+                items = block.Chosen;
+                continue;
+            }
             if (question.Type == "multiChoice")
             {
                 if (answer.ChoiceIds is not { } choices || answer.Value is not null) return FormRecordErrors.InvalidResponse;
@@ -55,7 +66,37 @@ internal sealed class FormEntryRecorder(IBusinessFormRecordCaptureService captur
                     Convert.ToHexStringLower(SHA256.HashData(file.Content)), file.Content));
         }
         return new FormEntryCapture(new(request.RequestId, definitionId, version.VersionId, actor, timeProvider.GetUtcNow().UtcDateTime,
-            answers, Files: files), chosen);
+            answers, Files: files), chosen, items);
+    }
+
+    /// <summary>The block's question, which names the item of a rejected answer in its error path.</summary>
+    public static Guid? Group(FormVersionSchema schema) => schema.Questions.FirstOrDefault(question => question.Type == "group")?.FieldId;
+
+    // The items in the capture's shape: a JSON array with an object per item, keyed in the order of the block's questions, and the
+    // catalog option each item chose, by question, so that its offer is checked item by item.
+    private static (string Json, IReadOnlyList<IReadOnlyDictionary<Guid, Guid>> Chosen)? Items(FormVersionSchema schema, CanonicalFormField group,
+        IReadOnlyList<IReadOnlyList<FormEntryAnswer>> rows)
+    {
+        var block = schema.Questions.SkipWhile(question => question.FieldId != group.FieldId).Skip(1).TakeWhile(question => question.Repeated == true).ToArray();
+        var items = new List<Dictionary<string, string>>(rows.Count);
+        var chosen = new List<IReadOnlyDictionary<Guid, Guid>>(rows.Count);
+        foreach (var row in rows)
+        {
+            if (row.Any(answer => answer.Value is null || block.All(question => question.FieldId != answer.FieldId))) return null;
+            var item = new Dictionary<string, string>(StringComparer.Ordinal);
+            var options = new Dictionary<Guid, Guid>();
+            foreach (var question in block)
+            {
+                if (row.SingleOrDefault(answer => answer.FieldId == question.FieldId)?.Value is not { Length: > 0 } value) continue;
+                item[question.Key] = value;
+                if (question.Type != "choice" || question.Source?.Catalog is null) continue;
+                if (!Guid.TryParseExact(value, "D", out var choice)) return null;
+                options[question.FieldId] = choice;
+            }
+            items.Add(item);
+            chosen.Add(options);
+        }
+        return (JsonSerializer.Serialize(items), chosen);
     }
 
     public Task<StructuredRecordCaptureResponse?> FindExistingAsync(StructuredRecordCaptureRequest entry, CancellationToken cancellationToken) =>
@@ -71,17 +112,18 @@ internal sealed class FormEntryRecorder(IBusinessFormRecordCaptureService captur
         CancellationToken cancellationToken) => capture.CaptureCorrectionAsync(entry, correction, cancellationToken);
 
     /// <summary>The saved number and state; a rule that asks for approval already shows it as pending. A rejection goes to its question.</summary>
-    public async Task<Result<FormEntrySubmitResponse>> OutcomeAsync(string prefix, StructuredRecordCaptureResponse captured, CancellationToken cancellationToken)
+    public async Task<Result<FormEntrySubmitResponse>> OutcomeAsync(string prefix, StructuredRecordCaptureResponse captured, Guid? group,
+        CancellationToken cancellationToken)
     {
         if (captured.State != "Completed" || captured.RecordId is not { } recordId || captured.Number is not { } number)
-            return Rejection(captured);
+            return Rejection(captured, group);
         var outcome = await reader.FindOutcomeAsync(recordId, cancellationToken)
             ?? throw new InvalidOperationException("The captured response is missing.");
         return new FormEntrySubmitResponse(recordId, prefix + "-" + number.ToString("D6", CultureInfo.InvariantCulture),
             outcome.State == "Received" && outcome.ApprovalRequested ? "PendingApproval" : outcome.State, outcome.SubmittedAtUtc);
     }
 
-    private static Error Rejection(StructuredRecordCaptureResponse captured)
+    private static Error Rejection(StructuredRecordCaptureResponse captured, Guid? group)
     {
         Error error = captured.ErrorCode switch
         {
@@ -98,13 +140,16 @@ internal sealed class FormEntryRecorder(IBusinessFormRecordCaptureService captur
             var code when code == FileErrors.Unavailable.Code => FileErrors.Unavailable,
             _ => FormRecordErrors.InvalidResponse,
         };
-        return captured.RejectedFieldId is not { } fieldId || error.Type != ErrorType.Validation ? error
-            : FieldErrors.On(error, "answers." + fieldId.ToString("D"));
+        if (captured.RejectedFieldId is not { } fieldId || error.Type != ErrorType.Validation) return error;
+        // The answer of an item goes to its cell: answers.<block>.<item from 0>.<question>.
+        return FieldErrors.On(error, captured.RejectedRow is { } row && group is { } block
+            ? $"answers.{block:D}.{row.ToString(CultureInfo.InvariantCulture)}.{fieldId:D}" : "answers." + fieldId.ToString("D"));
     }
 }
 
 /// <summary>The capture request of a send and the catalog options each answered question chose.</summary>
-internal sealed record FormEntryCapture(StructuredRecordCaptureRequest Request, IReadOnlyDictionary<Guid, IReadOnlyList<Guid>> Chosen)
+internal sealed record FormEntryCapture(StructuredRecordCaptureRequest Request, IReadOnlyDictionary<Guid, IReadOnlyList<Guid>> Chosen,
+    IReadOnlyList<IReadOnlyDictionary<Guid, Guid>>? Items = null)
 {
     public override string ToString() => "FormEntryCapture { Content = [REDACTED] }";
 }

@@ -22,6 +22,11 @@ public sealed record FormEntryQuestionResponse(Guid FieldId, string Type, string
     /// <summary>The title of the section that starts at this question (CW15-B), in the content language: the app opens a zone with it.</summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public string? Section { get; init; }
+    /// <summary>The block of rows (type «group»): how many items it takes; its questions follow it, marked <see cref="Repeated"/>.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public FormRowSettings? Rows { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public bool? Repeated { get; init; }
     public override string ToString() => "FormEntryQuestionResponse { Content = [REDACTED] }";
 }
 
@@ -102,8 +107,12 @@ public sealed record SubmitFormEntryRequest(Guid RequestId, Guid VersionId, IRea
     public override string ToString() => "SubmitFormEntryRequest { Content = [REDACTED] }";
 }
 
-/// <summary>A question's answer: <see cref="Value"/> in its canonical form, or the chosen <see cref="ChoiceIds"/> of a multiple choice.</summary>
-public sealed record FormEntryAnswer(Guid FieldId, string? Value, IReadOnlyList<Guid>? ChoiceIds)
+/// <summary>
+/// A question's answer: <see cref="Value"/> in its canonical form, the chosen <see cref="ChoiceIds"/> of a multiple choice, or the
+/// <see cref="Rows"/> of the block, each item with the values of its questions.
+/// </summary>
+public sealed record FormEntryAnswer(Guid FieldId, string? Value, IReadOnlyList<Guid>? ChoiceIds,
+    IReadOnlyList<IReadOnlyList<FormEntryAnswer>>? Rows = null)
 {
     public override string ToString() => "FormEntryAnswer { Content = [REDACTED] }";
 }

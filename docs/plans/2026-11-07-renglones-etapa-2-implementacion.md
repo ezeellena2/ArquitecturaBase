@@ -279,17 +279,22 @@ su clase. Otras sesiones trabajan en el mismo checkout: se preparan sólo los ar
 
 ### Tarea 4 · La carga desde la app con renglones
 
-- [ ] Esperar el commit del backend de LD1-A y revisar `git status`.
-- [ ] Tests en rojo: `FormEntryRowsTests` (la descripción con el bloque, `Prepare`, la oferta por ítem con LD3-A, el error en
+- [x] Esperar el commit del backend de LD1-A y revisar `git status`.
+- [x] Tests en rojo: `FormEntryRowsTests` (la descripción con el bloque, `Prepare`, la oferta por ítem con LD3-A, el error en
   `answers.<bloque>.<n>.<pregunta>`, la corrección con sus ítems) y la integración `FormEntryRowsHttpTests` (cargar, enviar
   tres ítems, el replay con el mismo `requestId`, los rechazos, corregir y una lista dependiente en el bloque).
-- [ ] `FormEntryModels`, `FormRecordAmendmentModels`, `FormEntryRequestValidators`, `FormEntryVersionPolicy`,
+- [x] `FormEntryModels`, `FormRecordAmendmentModels`, `FormEntryRequestValidators`, `FormEntryVersionPolicy`,
   `FormEntryRecorder`, `FormEntryCatalogPolicy`, `FormEntryService.GetCorrectionAsync`, y en la Api
   `FormEntryHttpRequests` y `FormEntryRequestMapping` con la lista de `FormEntryRequestMappingTests`.
-- [ ] Capturas para el front en la cohorte de la carga (`FORM_ENTRIES_HTTP_OUTPUT`, `forms-entries-http`, que LD1-A deja
+- [x] Capturas para el front en la cohorte de la carga (`FORM_ENTRIES_HTTP_OUTPUT`, `forms-entries-http`, que LD1-A deja
   en 32): la carga con el bloque, el envío y la corrección con sus ítems, en `export-responses-http.ps1` y con su cuenta en
   el autotest del exportador.
-- [ ] Commit: `feat(formularios): la carga desde la app guarda los renglones`.
+- [x] Commit: `feat(formularios): la carga desde la app guarda los renglones`.
+
+  Hecho: el backend de LD1-A entró en 78c9eca2 (un commit «avance» del usuario). Las capturas son entry-rows-es (la carga con
+  el bloque), entry-rows-error-es (el 400 con la celda del ítem) y correction-rows-es (la corrección con sus ítems): la
+  cohorte pasa a 35; el autotest del exportador cuenta cohortes, no cuerpos, y no cambia. No había `FormEntryRequestMappingTests`:
+  el mapeo lo prueba la integración. `FormEntryRowsHttpTests` corrió con PostgreSQL.
 
 ### Tarea 5 · Publicar: el mínimo y las listas dependientes
 
