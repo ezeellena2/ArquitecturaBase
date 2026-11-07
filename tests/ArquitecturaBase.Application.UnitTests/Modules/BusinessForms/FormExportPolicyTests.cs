@@ -38,6 +38,10 @@ public sealed class FormExportPolicyTests
     [InlineData("Respuestas", "es", "Ítems")]
     [InlineData("responses", "en", "Items")]
     [InlineData(" :/?* ", "en", "Items")]
+    [InlineData("Products applied by the farmer's crew", "en", "Products applied by the farmer")]
+    [InlineData("Items' '", "en", "Items")]
+    [InlineData("Insumos para la cosecha 🌽🌽🌽🌽", "es", "Insumos para la cosecha 🌽🌽🌽")]
+    [InlineData("History", "en", "Items")]
     public void The_sheet_of_a_block_takes_its_name_without_what_excel_rejects(string label, string culture, string expected) =>
         Assert.Equal(expected, FormExportPolicy.SheetName(label, [], culture));
     [Fact]
@@ -47,6 +51,8 @@ public sealed class FormExportPolicyTests
         Assert.Equal("Artículos (3)", FormExportPolicy.SheetName("Artículos", ["Respuestas", "Artículos", "Artículos (2)"], "es"));
         Assert.Equal(new string('a', 27) + " (2)", FormExportPolicy.SheetName(new string('a', 40), [new string('a', 31)], "es"));
         Assert.Equal("Ítems (2)", FormExportPolicy.SheetName("", ["Respuestas", "Ítems"], "es"));
+        // The cut for the number never splits an emoji.
+        Assert.Equal("Insumos para la cosecha 🌽 (2)", FormExportPolicy.SheetName("Insumos para la cosecha 🌽🌽🌽🌽", ["Insumos para la cosecha 🌽🌽🌽"], "es"));
     }
     private static FormResponseCell Cell(string type, string state, object? value) => new(Guid.NewGuid(), type, state, value);
 }

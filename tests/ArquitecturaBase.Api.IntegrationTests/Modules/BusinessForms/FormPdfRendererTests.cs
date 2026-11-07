@@ -185,20 +185,22 @@ public sealed class FormPdfRendererTests
 
         var bytes = await fixture.Renderer.RenderAsync(fixture.BlockSnapshot(items: 60), "en", false, TestContext.Current.CancellationToken);
 
-        Assert.True(Regex.Count(Encoding.Latin1.GetString(bytes), @"/Type\s*/Page\b") >= 2);
+        Assert.Equal(3, Regex.Count(Encoding.Latin1.GetString(bytes), @"/Type\s*/Page\b"));
         await fixture.ExportAsync(bytes, "block-long-en");
     }
 
     [Fact]
-    public async Task A_block_without_items_has_no_rows_and_the_copy_still_renders()
+    public async Task A_block_without_items_has_no_rows_and_still_has_its_line_in_the_copy()
     {
         var fixture = new FormPdfRendererFixture();
         var request = fixture.BlockSnapshot(items: 0);
+        var plain = await fixture.Renderer.RenderAsync(fixture.Snapshot, "es", false, TestContext.Current.CancellationToken);
 
         var bytes = await fixture.Renderer.RenderAsync(request, "es", false, TestContext.Current.CancellationToken);
 
         Assert.Empty(Table(request, "es").Rows);
-        Assert.Equal("%PDF-", Encoding.ASCII.GetString(bytes, 0, 5));
+        // «Artículos · Sin respuesta» is one more line of the copy.
+        Assert.True(bytes.Length > plain.Length);
         await fixture.ExportAsync(bytes, "block-empty-es");
     }
 

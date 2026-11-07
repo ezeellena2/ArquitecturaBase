@@ -6,21 +6,44 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 internal static class FormExportPolicy
 {
     /// <summary>
-    /// The name of the sheet of a block: its own, without what Excel rejects and up to 31 characters; «Ítems» if it ends empty or
-    /// like the responses' sheet, and « (2)» if another sheet has it already. Excel compares sheet names without case.
+    /// The name of the sheet of a block: its own, without what Excel rejects, up to 31 characters without splitting a character
+    /// and without an apostrophe or a space at either end; «Ítems» if it ends empty, like the responses' sheet or like the one
+    /// Excel keeps («History»), and « (2)» if another sheet has it already. Excel compares sheet names without case.
     /// </summary>
     public static string SheetName(string label, IReadOnlyCollection<string> taken, string culture)
     {
-        var name = new string(label.Where(character => character is not (':' or '\\' or '/' or '?' or '*' or '[' or ']')).ToArray()).Trim().Trim('\'').Trim();
-        if (name.Length > 31) name = name[..31].TrimEnd();
-        if (name.Length == 0 || name.Equals(FormResponseTexts.Get("Sheet", culture), StringComparison.OrdinalIgnoreCase)) name = FormResponseTexts.Get("Items", culture);
+        var name = Clean(Cut(Clean(new string(label.Where(character => character is not (':' or '\\' or '/' or '?' or '*' or '[' or ']')).ToArray())), 31));
+        if (name.Length == 0 || name.Equals(FormResponseTexts.Get("Sheet", culture), StringComparison.OrdinalIgnoreCase)
+            || name.Equals("History", StringComparison.OrdinalIgnoreCase)) name = FormResponseTexts.Get("Items", culture);
         var candidate = name;
         for (var copy = 2; taken.Contains(candidate, StringComparer.OrdinalIgnoreCase); copy++)
         {
             var suffix = " (" + copy.ToString(CultureInfo.InvariantCulture) + ")";
-            candidate = name[..Math.Min(name.Length, 31 - suffix.Length)].TrimEnd() + suffix;
+            candidate = Clean(Cut(name, 31 - suffix.Length)) + suffix;
         }
         return candidate;
+    }
+
+    private static string Clean(string text)
+    {
+        string previous;
+        do
+        {
+            previous = text;
+            text = text.Trim().Trim('\'');
+        }
+        while (text != previous);
+        return text;
+    }
+
+    // Up to the given length in UTF-16 units, without splitting a character such as an emoji.
+    private static string Cut(string text, int length)
+    {
+        var end = 0;
+        var elements = StringInfo.GetTextElementEnumerator(text);
+        while (elements.MoveNext() && elements.ElementIndex + elements.GetTextElement().Length <= length)
+            end = elements.ElementIndex + elements.GetTextElement().Length;
+        return text[..end];
     }
     public static FormWorkbookCell Cell(FormResponseCell cell)
     {

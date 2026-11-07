@@ -297,8 +297,18 @@ permiso.
 
 ### Tarea 6 · Revisión del backend
 
-- [ ] Un revisor sobre las tareas 1 a 5 y sus correcciones. Unitarios de formularios y ArchitectureTests enteros antes de
+- [x] Un revisor sobre las tareas 1 a 5 y sus correcciones. Unitarios de formularios y ArchitectureTests enteros antes de
   cada commit; la integración que tocan, con PostgreSQL.
+  - La lógica central quedó bien: el `EXISTS` por ítem, los conteos, la planilla, el detalle, el PDF y el chat, y nada
+    cambia en un formulario sin bloque.
+  - Un bug real, corregido: el nombre de la hoja podía terminar en apóstrofe, partir un emoji o ser «History», y ClosedXML
+    rechazaba el libro entero con un 500. `SheetName` limpia hasta que no cambia y corta por caracteres.
+  - Corregidos también: la tabla del PDF reserva su primer ítem entero con el nombre y el encabezado, para no dejarlos
+    solos al pie; el test de la tabla larga pide sus tres páginas y el del bloque sin ítems, su renglón; la guía de
+    Services ya no dice que el bloque queda afuera.
+  - Quedan como límites conocidos, sin caso real hoy: un bloque con muchísimas preguntas angosta las columnas del PDF; un
+    ítem partido entre páginas no repite su número, y la hoja del bloque no tiene tope propio de filas (el presupuesto de
+    30 segundos corta el export).
 
 ### Tarea 7 · El front: contrato y modelo
 

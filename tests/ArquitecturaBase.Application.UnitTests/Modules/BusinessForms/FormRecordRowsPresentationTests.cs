@@ -72,7 +72,7 @@ public sealed class FormRecordRowsPresentationTests
     }
 
     [Fact]
-    public void The_items_leave_out_the_catalog_fields_for_a_reader_that_does_not_take_them_like_the_chat()
+    public void The_items_leave_out_the_catalog_fields_when_the_projection_does_not_take_them()
     {
         var fields = FormDraftPolicy.Serialize(new[] { new FormCatalogCapturedField(Guid.NewGuid(), "days",
             new Dictionary<string, string> { ["es"] = "Días" }, "integer", "data", JsonSerializer.SerializeToElement(30)) });

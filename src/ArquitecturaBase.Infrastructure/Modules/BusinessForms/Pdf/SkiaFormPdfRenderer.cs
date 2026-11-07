@@ -327,8 +327,9 @@ internal sealed class SkiaFormPdfRenderer(IFormFileReader references, IStoredFil
             var rows = table.Rows.Select((row, index) => ((string[])[(index + 1).ToString(CultureInfo.InvariantCulture), .. row])
                 .Select((text, column) => body.Wrap(text, widths[column] - padding * 2)).ToArray()).ToArray();
             var titles = body.Wrap(table.Title, Width - Margin * 2);
-            // The name, the header and the first line of the first item go together.
-            Ensure(titles.Count * LineHeight + 6 + headerHeight + LineHeight + 6);
+            // The name, the header and the first item go together; an item longer than a page, with as much of it as fits.
+            var above = titles.Count * LineHeight + 6 + headerHeight;
+            Ensure(above + Math.Min(6 + rows[0].Max(lines => lines.Count) * LineHeight, Bottom - pageTop - above));
             canvas.DrawLine(Margin, y - 5, Width - Margin, y - 5, line);
             foreach (var part in titles)
             {
