@@ -34,31 +34,39 @@ commiteado.
 
 ## Lo que pone la Etapa 2
 
-Propuesto el 2026-11-07 en la carpeta de notas compartidas (`renglones-etapa-3-lectura-2026-11-07.md`). **A confirmar con
-la Etapa 2**; lo que ella fije manda y este plan se ajusta.
+Acordado el 2026-11-07 con la sesión de la Etapa 2. Está en la carpeta de notas compartidas
+(`renglones-etapa-3-lectura-2026-11-07.md` y la respuesta, `renglones-etapa-2-modelo-2026-11-07.md`) y en su
+[plan](2026-11-07-renglones-etapa-2-implementacion.md), en «Cómo se guardan los renglones» y «Las lecturas hasta la
+Etapa 3».
 
-- **`ValuesJson`:** la entrada del bloque lleva los renglones en orden, un objeto por renglón. Una pregunta opcional sin
-  respuesta no tiene entrada en su renglón, un renglón vacío existe igual y las preguntas `repeated` no tienen entrada
-  suelta arriba.
-- **`BusinessFormRecordValue.Row`** (`int?`, null fuera del bloque, de 0 a 99), con un índice que sirva a
-  `(RecordId, FieldId, Row)`.
-- **`Row` en la clave de `BusinessFormRecordReference`** y en `FormRecordReferenceRow`: el mismo ítem del catálogo puede
-  ir en dos renglones.
-- **El decodificador de un renglón** en `FormRecordPresentationPolicy`, con la lectura neutral de abajo, si la corrección
-  lo necesita para abrir una respuesta con renglones. Si no, lo escribe esta etapa.
-- **La lectura general no cambia hasta esta etapa.** `Project` omite el bloque y sus preguntas, y el PDF lo ignora. Así
-  ningún commit intermedio rompe la planilla, el detalle ni el chat del front, que hoy rechazan el tipo `group` en zod.
-  Esta etapa prende el bloque con los contratos nuevos, backend y front a la vez.
+- **`ValuesJson`:** la entrada del bloque es `{ fieldId: <bloque>, value: [ [ {fieldId, value}, … ], … ] }`, con cada
+  ítem en la forma del nivel de arriba y en orden.
+  - Una pregunta sin respuesta no tiene entrada en su ítem, y un ítem vacío es `[]`.
+  - Las preguntas `repeated` no tienen entrada arriba.
+  - Un bloque sin ítems es `[]`: la app y WhatsApp siempre lo mandan.
+- **`BusinessFormRecordValue.Row`:** `int` de 0 a 99, como `Position`, y 0 fuera del bloque. El índice único
+  `(RecordId, FieldId, Row, Position)` sirve a los `EXISTS` por ítem, que correlacionan por `Row` entre los valores de las
+  preguntas del bloque.
+- **Las referencias:** `Row` va en la clave (única por `RecordId, FieldId, Row, ItemId`) y en `FormRecordReferenceRow`
+  (`int`, omitido en 0 al serializar). El mismo ítem del catálogo puede ir en dos renglones.
+- **La lectura de los ítems:** la Etapa 2 crea `StructuredRecordReadRow(Values)` y `FormRecordPresentationPolicy.Rows(...)`,
+  porque la corrección abre los ítems. Devuelve un ítem por renglón, con todas las preguntas del bloque de su versión en
+  orden, null en las vacías y la referencia de su renglón. Esta etapa la usa en `Project` para el valor `group`.
+- **Hasta esta etapa,** `Project` y el PDF van sin el bloque ni sus preguntas, y las columnas de las preguntas del bloque
+  que conserva c9db6d2c dicen «—». Así ningún commit intermedio rompe la planilla, el detalle ni el chat del front, que
+  rechazan el tipo `group` en zod. Esta etapa prende el bloque con los contratos nuevos, backend y front a la vez.
+- **Turnos:** la Tarea 2 de la Etapa 2 toca `FormRecordPresentationPolicy`, `StructuredRecordReadModels` y
+  `SkiaFormPdfRenderer`. Esta etapa los toca después del commit de su backend, que la Etapa 2 avisa por mensaje.
 
 ## Cómo se lee el bloque
 
 ### La lectura neutral
 
-En `Application/Models/StructuredData/StructuredRecordReadModels.cs`:
+En `Application/Models/StructuredData/StructuredRecordReadModels.cs`, con lo que crea la Etapa 2:
 
 - el valor del bloque es un `StructuredRecordReadValue` con `Type = "group"`;
-- su `Value` es la lista de ítems, `StructuredRecordReadRow(IReadOnlyList<StructuredRecordReadValue> Values)`, uno por
-  renglón y en orden; sin ítems, la lista vacía;
+- su `Value` es la lista de ítems que da `FormRecordPresentationPolicy.Rows(...)`, `StructuredRecordReadRow(Values)`, uno
+  por renglón y en orden; sin ítems, la lista vacía;
 - cada ítem trae todas las preguntas del bloque de su versión, en su orden, decodificadas como hoy: con `Value` null si
   quedó sin respuesta y con las referencias de catálogo de su renglón;
 - las preguntas `repeated` no van sueltas en `Values`: están adentro del bloque.
@@ -204,14 +212,14 @@ permiso.
 - [ ] Esperar el commit del backend de la Etapa 2, revisar `git status` y ajustar «Lo que pone la Etapa 2» a lo que
   quedó.
 - [ ] Tests en rojo:
-  - `FormRowsReadPolicyTests`, como `FormMultipleChoiceReadPolicyTests`: los ítems en orden, con todas las preguntas de
-    su versión y null en las vacías; la referencia de catálogo de cada renglón, también con el mismo ítem en dos; las
-    preguntas `repeated` fuera de `Values`, y un bloque sin ítems;
+  - `FormRowsReadPolicyTests`, como `FormMultipleChoiceReadPolicyTests`: `Project` con el valor `group` y los ítems de
+    `Rows` en orden, también con el mismo ítem del catálogo en dos; las preguntas `repeated` fuera de `Values`; un bloque
+    sin ítems, y una versión sin el bloque;
   - `FormResponsePresentationPolicyTests`: la columna `group` con `questions` unidas entre versiones, sin columnas
     sueltas para sus preguntas, y las celdas con sus estados. Reemplaza
     `The_block_of_rows_has_no_column_and_its_questions_keep_theirs`;
   - `FormRecordFilterPolicyTests`: ordenar por el bloque o por una de sus preguntas es `FilterInvalid`.
-- [ ] `StructuredRecordReadRow` y el bloque en `FormRecordPresentationPolicy`; `Questions` en `FormResponseColumn` y
+- [ ] El bloque en `Project`, con `Rows`; `Questions` en `FormResponseColumn` y
   `FormResponseRowCells` en `FormResponseModels`, con `WhenWritingNull`; `Columns` y `Cells`; el orden en
   `FormRecordFilterPolicy`.
 - [ ] Integración (`FormRowsReadHttpTests`, como `FormMultipleChoiceReadHttpTests`): la planilla y el detalle de un
