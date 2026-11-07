@@ -145,6 +145,8 @@ LD3-A se programa con la Etapa 2 de renglones.
   `api/entries.ts`, `entryForm.ts`, `useEntryEditor`, `FormEntryForm`/`Page`/`Panel`/`CorrectionPage`, `formEntries.json` y
   la tabla de carga del bloque en `shared/ui`. LD1-A empieza por el editor, que no se cruza con esos archivos. La carga (el
   combo del valor en `EntryCatalogField` y la ruta `…/groups`) y el par de columnas de la tabla van encima de su commit.
+  En el editor se cruzan con la Tarea 9 de renglones, en `CatalogQuestionFilters.tsx`, `publicationPresentation.ts` y
+  `forms.json`. Va primero la que esté lista antes, y se avisa al commitear.
 - Es un contrato todavía no publicado: el front y el backend se cambian juntos, sin capas de compatibilidad.
 
 ## Para después
