@@ -82,4 +82,36 @@ public sealed partial class FormDraftEndpointsTests
         Assert.DoesNotContain(oldQuantity, diff.GetProperty("removed").EnumerateArray().Select(value => value.GetGuid()));
         Assert.Empty(diff.GetProperty("removed").EnumerateArray());
     }
+
+    // RG13-A: with a channel installed, a block whose minimum is over the rows WhatsApp loads blocks publication at its rows.
+    // Without a channel the check already blocks with ChannelUnavailable, so the minimum is not added.
+    [Fact]
+    public async Task A_minimum_over_the_channel_rows_blocks_publication_at_the_rows_of_the_block()
+    {
+        using var writer = await OperatorAsync([BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage, BusinessFormsPermissions.Publish]);
+        await using var host = PublicationHost();
+        using var client = DeactivationClient(host, writer, "es");
+        var form = Payload("Rows minimum " + Guid.NewGuid().ToString("N")[..10]);
+        var fields = form["draft"]!["fields"]!.AsArray();
+        fields.Add(RowsBlock(minimum: 15, maximum: 20));
+        fields.Add(new JsonObject
+        {
+            ["localId"] = "cantidad", ["type"] = "decimal", ["repeated"] = true, ["required"] = true,
+            ["label"] = new JsonObject { ["es"] = "Cantidad", ["en"] = "Quantity" },
+        });
+        var saved = await CreateAsync(client, form);
+        var id = saved.GetProperty("definition").GetProperty("id").GetGuid();
+        var blockId = saved.GetProperty("definition").GetProperty("draft").GetProperty("fields")[1].GetProperty("fieldId").GetGuid();
+
+        using var withChannel = await client.PostAsJsonAsync($"/api/forms/definitions/{id}/publication-checks", CheckPayload(saved), Ct);
+        var check = await CaptureContractAsync(withChannel, HttpStatusCode.OK, "rows", "publication-check-minimum");
+
+        Assert.False(check.GetProperty("canAccept").GetBoolean());
+        var issue = Assert.Single(check.GetProperty("issues").EnumerateArray());
+        Assert.Equal(FormPublicationErrors.MinRowsOverChannelLimit.Code, issue.GetProperty("code").GetString());
+        Assert.Equal(blockId, issue.GetProperty("fieldId").GetGuid());
+        Assert.Equal("draft.fields[1].rows", issue.GetProperty("path").GetString());
+        Assert.Equal(10, issue.GetProperty("limit").GetInt32());
+        Assert.False(string.IsNullOrWhiteSpace(issue.GetProperty("message").GetString()));
+    }
 }

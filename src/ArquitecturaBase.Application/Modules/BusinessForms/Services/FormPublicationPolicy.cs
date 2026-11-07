@@ -38,6 +38,16 @@ internal static class FormPublicationPolicy
                 FormPublicationErrors.SectionEmpty.Code, ErrorMessages.Get(FormPublicationErrors.SectionEmpty.Code), null, null)).ToList();
     }
 
+    // A minimum above the rows a channel loads blocks publishing with that channel (RG13-A): no response would reach it.
+    public static List<FormPublicationIssueResponse> RowIssues(FormDefinitionResponse definition)
+    {
+        var fields = definition.Draft.Fields;
+        return Enumerable.Range(0, fields.Count).Where(index => fields[index] is { Type: "group", Rows.MinRows: > StructuredFormLimits.MaxRows })
+            .Select(index => new FormPublicationIssueResponse(null, fields[index].FieldId, null, $"draft.fields[{index}].rows",
+                FormPublicationErrors.MinRowsOverChannelLimit.Code, ErrorMessages.Get(FormPublicationErrors.MinRowsOverChannelLimit.Code),
+                StructuredFormLimits.MaxRows, null)).ToList();
+    }
+
     // Above the rows a channel loads, publishing warns without blocking: the app keeps loading up to the maximum (RG3-A).
     public static List<FormPublicationWarningResponse> RowWarnings(FormDefinitionResponse definition)
     {

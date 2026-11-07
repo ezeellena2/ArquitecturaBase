@@ -57,6 +57,27 @@ public sealed class FormGroupPublicationTests
         Assert.Equal(maximum,warnings[0].Maximum);
     }
 
+    [Theory]
+    [InlineData(15,true)]
+    [InlineData(11,true)]
+    [InlineData(10,false)]
+    [InlineData(0,false)]
+    public void A_minimum_over_the_channel_rows_blocks_publication_at_the_rows_of_the_block(int minimum, bool blocks)
+    {
+        var block = Field("group",rows: new(minimum,20));
+        var definition = Definition(Field("shortText"),block,Field("decimal",repeated: true));
+
+        var issues = FormPublicationPolicy.RowIssues(definition);
+
+        Assert.Equal(blocks ? 1 : 0,issues.Count);
+        if (!blocks) return;
+        Assert.Equal(FormPublicationErrors.MinRowsOverChannelLimit.Code,issues[0].Code);
+        Assert.Equal(block.FieldId,issues[0].FieldId);
+        Assert.Equal("draft.fields[1].rows",issues[0].Path);
+        Assert.Equal(StructuredFormLimits.MaxRows,issues[0].Limit);
+        Assert.False(string.IsNullOrWhiteSpace(issues[0].Message));
+    }
+
     [Fact]
     public void Questions_entering_the_block_pair_with_removed_ones_of_the_same_type_catalog_and_name()
     {

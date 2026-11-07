@@ -185,11 +185,25 @@ public sealed class FormCatalogMatchPolicyTests
     public void Only_an_earlier_single_choice_question_of_the_field_source_can_give_the_answer()
     {
         FormCatalogMatch[] matches = [new(CountFieldId, "3"), new(ZoneFieldId, QuestionId: FieldQuestionId)];
-        Assert.Null(FormCatalogMatchPolicy.ValidateQuestions(matches, Fields(), [Question(FieldQuestionId, "choice", ZoneId)]));
+        var filtered = Question(Guid.NewGuid(), "choice", CatalogId);
+        Assert.Null(FormCatalogMatchPolicy.ValidateQuestions(filtered, matches, Fields(), [Question(FieldQuestionId, "choice", ZoneId)]));
         CanonicalFormField[][] wrong = [[], [Question(FieldQuestionId, "multiChoice", ZoneId)], [Question(FieldQuestionId, "choice", CatalogId)],
             [Question(FieldQuestionId, "shortText", null)], [Question(CentralId, "choice", ZoneId)]];
         Assert.All(wrong, earlier => Assert.Equal(FormPublicationErrors.MatchQuestionInvalid.Code,
-            FormCatalogMatchPolicy.ValidateQuestions(matches, Fields(), earlier)!.Code));
+            FormCatalogMatchPolicy.ValidateQuestions(filtered, matches, Fields(), earlier)!.Code));
+    }
+
+    [Fact]
+    public void A_question_outside_the_block_cannot_filter_by_an_answer_of_the_block()
+    {
+        FormCatalogMatch[] matches = [new(ZoneFieldId, QuestionId: FieldQuestionId)];
+        var inBlock = Question(FieldQuestionId, "choice", ZoneId) with { Repeated = true };
+        var outside = Question(Guid.NewGuid(), "choice", CatalogId);
+        var repeated = outside with { Repeated = true };
+
+        Assert.Equal(FormPublicationErrors.MatchQuestionInvalid.Code, FormCatalogMatchPolicy.ValidateQuestions(outside, matches, Fields(), [inBlock])!.Code);
+        Assert.Null(FormCatalogMatchPolicy.ValidateQuestions(repeated, matches, Fields(), [inBlock]));
+        Assert.Null(FormCatalogMatchPolicy.ValidateQuestions(repeated, matches, Fields(), [Question(FieldQuestionId, "choice", ZoneId)]));
     }
 
     [Fact]

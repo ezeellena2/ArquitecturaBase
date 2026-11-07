@@ -68,7 +68,7 @@ internal sealed class FormPublicationGuard(FormPublicationAccessGuard accessGuar
             if (matches?.Any(match => match.PersonAttributeId is not null) == true)
                 attributes ??= await people.ListAttributesAsync(ct);
             if ((FormCatalogMatchPolicy.Validate(matches, fields, attributes ?? [])
-                ?? FormCatalogMatchPolicy.ValidateQuestions(matches, fields, questions.Take(index).ToArray())) is { } invalid)
+                ?? FormCatalogMatchPolicy.ValidateQuestions(question, matches, fields, questions.Take(index).ToArray())) is { } invalid)
             {
                 Issue(invalid, ".match");
                 continue;

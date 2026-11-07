@@ -396,6 +396,9 @@
   <data name="Forms.Publication.RowsOverChannelLimit" xml:space="preserve">
     <value>WhatsApp loads fewer rows than the block maximum.</value>
   </data>
+  <data name="Forms.Publication.MinRowsOverChannelLimit" xml:space="preserve">
+    <value>WhatsApp loads fewer items than the block minimum.</value>
+  </data>
   <data name="Forms.Publication.PresentationInvalid" xml:space="preserve">
     <value>Review the WhatsApp presentation: the title cannot be empty and the description can contain up to 300 characters.</value>
   </data>

@@ -99,16 +99,17 @@ internal static class FormCatalogMatchPolicy
     }
 
     // A filter by another answer names an earlier single-choice question that chooses from the source catalog of its field, so
-    // the chosen option is a value of that field. Call it after Validate, with the questions before the filtered one.
-    public static Error? ValidateQuestions(IReadOnlyList<FormCatalogMatch>? matches, IReadOnlyList<BusinessFormCatalogField> fields,
-        IReadOnlyList<CanonicalFormField> earlier)
+    // the chosen option is a value of that field. Call it after Validate, with the questions before the filtered one. A question of
+    // the block takes the answer of its own item; one outside the block cannot depend on the block (LD3-A).
+    public static Error? ValidateQuestions(CanonicalFormField question, IReadOnlyList<FormCatalogMatch>? matches,
+        IReadOnlyList<BusinessFormCatalogField> fields, IReadOnlyList<CanonicalFormField> earlier)
     {
         foreach (var match in matches ?? [])
         {
             if (match.QuestionId is not { } questionId) continue;
             var source = fields.Single(field => field.Id == match.FieldId).SourceCatalogId;
-            if (earlier.SingleOrDefault(question => question.FieldId == questionId) is not { Type: "choice", Source.Catalog: { } catalog }
-                || catalog != source) return FormPublicationErrors.MatchQuestionInvalid;
+            if (earlier.SingleOrDefault(other => other.FieldId == questionId) is not { Type: "choice", Source.Catalog: { } catalog } answer
+                || catalog != source || answer.Repeated == true && question.Repeated != true) return FormPublicationErrors.MatchQuestionInvalid;
         }
         return null;
     }

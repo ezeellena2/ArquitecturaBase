@@ -298,12 +298,17 @@ su clase. Otras sesiones trabajan en el mismo checkout: se preparan sólo los ar
 
 ### Tarea 5 · Publicar: el mínimo y las listas dependientes
 
-- [ ] Tests en rojo (con el backend de LD1-A ya commiteado): el problema de RG13-A (con canal, en su ruta, con `limit`; sin canal no aparece) en
+- [x] Tests en rojo (con el backend de LD1-A ya commiteado): el problema de RG13-A (con canal, en su ruta, con `limit`; sin canal no aparece) en
   `FormGroupPublicationTests`, y LD3-A en los de `FormCatalogMatchPolicy`; en la integración, `FormGroupPublicationHttpTests`.
-- [ ] `FormPublicationErrors.MinRowsOverChannelLimit` con su texto en `Errors.resx` y `.en.resx`, `FormPublicationPolicy`,
+- [x] `FormPublicationErrors.MinRowsOverChannelLimit` con su texto en `Errors.resx` y `.en.resx`, `FormPublicationPolicy`,
   `BusinessFormPublicationService` y `FormCatalogMatchPolicy.ValidateQuestions` con sus llamadores.
-- [ ] Captura `rows/publication-check-minimum.json`.
-- [ ] Commit: `feat(formularios): publicar frena un mínimo de ítems que WhatsApp no carga`.
+- [x] Captura `rows/publication-check-minimum.json`.
+- [x] Commit: `feat(formularios): publicar frena un mínimo de ítems que WhatsApp no carga`.
+
+  Hecho: `FormPublicationPolicy.RowIssues` se suma al chequeo sólo con un canal instalado, como `RowWarnings`. El host de
+  integración siempre tiene el canal de WhatsApp registrado, así que «sin canal» no se prueba por HTTP (sin canal el chequeo
+  ya frena con `ChannelUnavailable`). La cohorte forms-http pasa a 70 (la guía decía 64 y no contaba las de renglones ni las
+  de títulos de sección).
 - [ ] Revisión del backend (un revisor) y correcciones, sin cambios de bytes en lo que ya existe.
 
 ### Tarea 6 · El front: modelo y contrato

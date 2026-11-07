@@ -396,6 +396,9 @@
   <data name="Forms.Publication.RowsOverChannelLimit" xml:space="preserve">
     <value>En WhatsApp se cargan menos renglones que el máximo del bloque.</value>
   </data>
+  <data name="Forms.Publication.MinRowsOverChannelLimit" xml:space="preserve">
+    <value>En WhatsApp se cargan menos ítems que el mínimo del bloque.</value>
+  </data>
   <data name="Forms.Publication.PresentationInvalid" xml:space="preserve">
     <value>Revisá lo que viaja a WhatsApp: el título no puede quedar vacío y la descripción admite hasta 300 caracteres.</value>
   </data>
