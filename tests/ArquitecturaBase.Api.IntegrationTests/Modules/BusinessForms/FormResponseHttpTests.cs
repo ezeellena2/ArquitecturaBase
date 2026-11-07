@@ -136,6 +136,21 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal("Forms.Record.FilterInvalid", (await response.ReadJsonAsync()).GetProperty("code").GetString());
     }
     [Fact]
+    public async Task A_published_block_of_rows_without_responses_lists_an_empty_sheet_without_a_block_column()
+    {
+        using var reader = await OperatorAsync([BusinessFormsPermissions.RecordsRead]);
+        var block = Field("group", true) with { Rows = new FormRowSettings(1, 10) };
+        var quantity = Field("decimal", true) with { Repeated = true };
+        var seeded = await SeedSheetAsync(reader, 0, block, quantity);
+        using var response = await reader.PostAsJsonAsync($"/api/forms/definitions/{seeded.Id}/records/search", new { page = 1, pageSize = 20 }, Ct);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var json = await response.ReadJsonAsync();
+        Assert.Equal(0, json.GetProperty("records").GetProperty("totalCount").GetInt32());
+        var columns = json.GetProperty("columns").EnumerateArray().Select(column => column.GetProperty("fieldId").GetGuid()).ToArray();
+        Assert.DoesNotContain(block.FieldId, columns);
+        Assert.Contains(quantity.FieldId, columns);
+    }
+    [Fact]
     public async Task Overview_only_lists_published_forms_and_uses_sealed_translations()
     {
         using var reader = await OperatorAsync([BusinessFormsPermissions.RecordsRead]);

@@ -9,7 +9,9 @@ internal static class FormResponsePresentationPolicy
     {
         var versions = definition.Versions.OrderByDescending(version => version.Id == definition.ActiveVersionId)
             .ThenByDescending(version => version.Number).ToArray();
+        // The block of rows has no column until the sheet shows its rows (RG4-A); its questions keep theirs.
         var questions = versions.SelectMany(version => definition.Schemas[version.Id].Questions
+            .Where(question => question.Type != "group")
             .Select(question => (Version: version, Question: question))).ToArray();
         return questions.DistinctBy(item => item.Question.FieldId)
             .Select(item => new FormResponseColumn(item.Question.FieldId, item.Question.Type,

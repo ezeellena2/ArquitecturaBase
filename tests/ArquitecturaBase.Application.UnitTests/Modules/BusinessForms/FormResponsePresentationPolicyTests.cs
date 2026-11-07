@@ -20,6 +20,17 @@ public sealed class FormResponsePresentationPolicyTests
         Assert.Equal(new long[] { 1, 2, 1 }, columns.Select(column => column.IntroducedInVersion));
     }
     [Fact]
+    public void The_block_of_rows_has_no_column_and_its_questions_keep_theirs()
+    {
+        // Until the sheet shows the rows (RG4-A), the front only reads question types: a "group" column broke the whole sheet.
+        var supplier = Field("shortText", "Proveedor", "Supplier");
+        var block = Field("group", "Artículos", "Items") with { Rows = new FormRowSettings(1, 10) };
+        var quantity = Field("decimal", "Cantidad", "Quantity") with { Repeated = true };
+        var active = Version(1, [supplier, block, quantity]);
+        var columns = FormResponsePresentationPolicy.Columns(new FormResponseDefinitionRow(Guid.NewGuid(), "TEST", active.Id, [active]), "es");
+        Assert.Equal(new[] { supplier.FieldId, quantity.FieldId }, columns.Select(column => column.FieldId));
+    }
+    [Fact]
     public void Missing_question_unanswered_zero_and_false_remain_distinct()
     {
         var ids = Enumerable.Range(0, 4).Select(_ => Guid.NewGuid()).ToArray();
