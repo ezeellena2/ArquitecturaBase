@@ -334,10 +334,16 @@ su clase. Otras sesiones trabajan en el mismo checkout: se preparan sólo los ar
 
 ### Tarea 7 · El front: la tabla y los recuadros
 
-- [ ] Abrir el tablero RG2-A del lienzo provisorio y anotar los textos que falten.
-- [ ] Las dos piezas de `shared/ui` con sus tests (agregar, quitar, mover, el máximo y el mínimo con su motivo, los errores
+- [x] Abrir el tablero RG2-A del lienzo provisorio y anotar los textos que falten.
+- [x] Las dos piezas de `shared/ui` con sus tests (agregar, quitar, mover, el máximo y el mínimo con su motivo, los errores
   y el foco) y su ficha en el catálogo del [estándar visual](../../../ArquitecturaBaseFront/docs/guides/estandar-visual.md).
-- [ ] Commit en el front: `feat(ui): la tabla de renglones y su versión en recuadros`.
+- [x] Commit en el front: `feat(ui): la tabla de renglones y su versión en recuadros`.
+
+  Hecho (front 5f3d50c8): `ItemTable` e `ItemCards`, con la ficha `?scenario=item-table` y la escena `itemTable` sin golden.
+  El tablero no dibujaba cuatro textos, que quedaron en la tabla de textos del diseño: el motivo del tacho con el mínimo
+  («Al menos 1 ítem.»), los nombres de ↑ ↓ y del tacho («Subir el ítem 2»…), el de cada celda («Ítem 2 · Cantidad») y el
+  anuncio al mover («Ahora es el ítem 1 de 3.»). Quitar lleva el foco a «Agregar ítem»; las flechas son las del resto de la
+  app (el chevrón), no las del tablero.
 
 ### Tarea 8 · El front: la página, el panel y el celular
 
