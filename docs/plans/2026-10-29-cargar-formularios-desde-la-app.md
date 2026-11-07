@@ -104,6 +104,11 @@ reescribe allí.
     [hoja de ruta de catálogos](2026-10-21-catalogos-con-origenes-externos.md)), un formulario con este filtro no se manda por
     WhatsApp: es un problema de la preparación, como `CatalogTooLarge`, y la comprobación de publicación lo avisa sin frenar.
   - Las preguntas ya publicadas no cambian.
+  - Con renglones, la respuesta sale del mismo renglón o de una pregunta de afuera, para todos (LD3-A, 2026-11-07, en
+    [elegir primero por un campo](2026-11-07-elegir-primero-por-un-campo.md)).
+- **Elegir primero por un campo (LD1-A y LD2-A, 2026-11-07):** una pregunta de catálogo pide primero el valor de un campo del
+  mismo catálogo («Rubro») y lista sólo sus opciones, sin otro catálogo ni otra pregunta, en la app y por WhatsApp. Es otro
+  desarrollo, con su [plan](2026-11-07-elegir-primero-por-un-campo.md).
 
 ### Cómo se arma un formulario
 
