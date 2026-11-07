@@ -1,3 +1,4 @@
+using System.Text.Json;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms;
@@ -132,5 +133,44 @@ public sealed class FormEntryGroupByTests
 
         Assert.IsType<ValidationError>(result.Error);
         Assert.Empty(fixture.ItemQueries);
+    }
+
+    // A correction (CW10-A) starts the first list with the value the saved option has now, or with the options without one.
+    [Theory]
+    [InlineData("Herbicidas", "Herbicidas")]
+    [InlineData(null, "Sin rubro")]
+    public async Task A_correction_starts_with_the_value_of_the_saved_option(string? group, string text)
+    {
+        using var fixture = new FormEntryFixture(groupBy: "text");
+        var saved = fixture.AddGrouped("2,4-D 100 %", 1, group);
+        var recordId = Saved(fixture, saved);
+
+        var answer = Assert.Single((await fixture.Service.GetCorrectionAsync(fixture.Catalogs.DefinitionId, recordId, Ct)).Value.Answers);
+
+        Assert.Equal(new FormEntryGroupResponse(group, text), answer.Group);
+        Assert.Equal(saved.Id, Assert.Single(answer.Options!).Id);
+    }
+
+    [Fact]
+    public async Task A_correction_of_a_question_without_a_field_to_choose_first_says_no_value()
+    {
+        using var fixture = new FormEntryFixture();
+        var recordId = Saved(fixture, fixture.AddItem("Lote 7", 1));
+
+        var answer = Assert.Single((await fixture.Service.GetCorrectionAsync(fixture.Catalogs.DefinitionId, recordId, Ct)).Value.Answers);
+
+        Assert.Null(answer.Group);
+        Assert.DoesNotContain("group", FormDraftPolicy.Serialize(answer), StringComparison.Ordinal);
+    }
+
+    // A response of whoever loads with the given option in the question of the version, as a correction opens it.
+    private static Guid Saved(FormEntryFixture fixture, BusinessFormCatalogItem option)
+    {
+        var recordId = Guid.NewGuid();
+        var values = JsonSerializer.Serialize(new[] { new { fieldId = fixture.FieldId, value = option.Id } }, JsonSerializerOptions.Web);
+        fixture.Responses.ExportRows = [new(new(Guid.NewGuid(), recordId, 7, fixture.Catalogs.DefinitionId, "SIE", fixture.Catalogs.Version.Id, 1,
+            """{"es":"Pedido"}""", fixture.Catalogs.Version.SchemaJson!, values, [new(recordId, fixture.FieldId, fixture.Catalogs.Catalog.Id, 1, option.Id, option.TextEs!, null, "Artículos")]),
+            new DateTime(2026, 11, 7, 12, 0, 0, DateTimeKind.Utc), new(fixture.Actor, "Autor"))];
+        return recordId;
     }
 }

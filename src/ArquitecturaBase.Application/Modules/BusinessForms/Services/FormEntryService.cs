@@ -41,11 +41,12 @@ internal sealed class FormEntryService(FormEntryLoaderGuard loaders, FormEntryVe
             var answers = reply.Values.Select(value => schema.Questions.SingleOrDefault(question => question.FieldId == value.FieldId) is { } question
                 ? Answer(question, value.Value) : null).OfType<FormEntryCorrectionAnswer>().ToList();
             if (BlockAnswer(schema, recorded, row.Record, entry.Culture) is { } block) answers.Add(block);
+            var grouped = await catalogs.WithGroupsAsync(schema, answers, entry.Culture, cancellationToken);
             var files = (row.Record.Files ?? []).Where(file => schema.Questions.Any(question => question.FieldId == file.FieldId && question.Files is not null))
                 .OrderBy(file => file.FieldId).ThenBy(file => file.Position)
                 .Select(file => new FormEntryCorrectionFile(file.FileId, file.FieldId, file.Name, file.ContentType, file.Size, file.HasThumbnail)).ToArray();
             if (!await loaders.StillAllowedAsync(loader, cancellationToken)) return FormDefinitionErrors.Forbidden;
-            return new FormEntryCorrectionResponse(entry, recordId, reply.Number, answers, files);
+            return new FormEntryCorrectionResponse(entry, recordId, reply.Number, grouped, files);
         });
 
     public Task<Result<PagedResult<FormEntryOptionResponse>>> ListOptionsAsync(Guid definitionId, Guid versionId, Guid fieldId,

@@ -76,6 +76,56 @@ internal sealed class FormEntryCatalogPolicy(FormCatalogOptionsPolicy options, I
         return field is null ? null : new(field.Id, FormRecordPresentationPolicy.Text(field.Name, culture));
     }
 
+    /// <summary>
+    /// LD1-A: a correction starts the first list with the value the saved option has now in the field to choose first, presented
+    /// like the values of the list, in the items of the block too. An option the catalog no longer has gets no value.
+    /// </summary>
+    public async Task<IReadOnlyList<FormEntryCorrectionAnswer>> WithGroupsAsync(FormVersionSchema schema, IReadOnlyList<FormEntryCorrectionAnswer> answers,
+        string culture, CancellationToken ct)
+    {
+        var questions = schema.Questions.Where(question => question.Source is { Catalog: not null, GroupBy: not null }).ToDictionary(question => question.FieldId);
+        if (questions.Count == 0) return answers;
+        var values = new Dictionary<Guid, Func<Guid, FormEntryGroupResponse?>?>();
+        async Task<FormEntryCorrectionAnswer> Grouped(FormEntryCorrectionAnswer answer)
+        {
+            if (answer.Rows is { } rows)
+            {
+                var items = new List<IReadOnlyList<FormEntryCorrectionAnswer>>();
+                foreach (var row in rows)
+                {
+                    var item = new List<FormEntryCorrectionAnswer>();
+                    foreach (var inner in row) item.Add(await Grouped(inner));
+                    items.Add(item);
+                }
+                return answer with { Rows = items };
+            }
+            if (!questions.TryGetValue(answer.FieldId, out var question) || answer.Options is not [var option]) return answer;
+            if (!values.TryGetValue(question.FieldId, out var group)) values[question.FieldId] = group = await GroupValuesAsync(question, culture, ct);
+            return group?.Invoke(option.Id) is { } value ? answer with { Group = value } : answer;
+        }
+        var grouped = new List<FormEntryCorrectionAnswer>();
+        foreach (var answer in answers) grouped.Add(await Grouped(answer));
+        return grouped;
+    }
+
+    // The value each option of the question's catalog has in its field to choose first, or null without that field.
+    private async Task<Func<Guid, FormEntryGroupResponse?>?> GroupValuesAsync(CanonicalFormField question, string culture, CancellationToken ct)
+    {
+        if (await catalogs.FindAsync(question.Source!.Catalog!.Value, ct) is not { Kind: "Manual" } catalog) return null;
+        var field = FormCatalogFieldPolicy.ReadFields(catalog.FieldsJson).SingleOrDefault(value => value.Id == question.Source.GroupBy);
+        if (field is null) return null;
+        var items = (await catalogs.ListAllItemsAsync(catalog.Id, ct)).ToDictionary(item => item.Id);
+        var sourceItems = field.Type == "catalog" && field.SourceCatalogId is { } sourceId ? await catalogs.ListAllItemsAsync(sourceId, ct) : [];
+        var key = field.Id.ToString("D");
+        return itemId => items.TryGetValue(itemId, out var item)
+            ? FormCatalogGroupPolicy.Present(field, [new FormEntryGroupRow(GroupValue(item.FieldValuesJson, key), 1)], sourceItems, culture).Single() : null;
+    }
+
+    // The stored value of the field as the list of values reads it: a text, or nothing for an empty one.
+    private static string? GroupValue(string fieldValuesJson, string key) =>
+        FormCatalogFieldPolicy.ReadValues(fieldValuesJson).TryGetValue(key, out var value) && value.ValueKind == System.Text.Json.JsonValueKind.String
+            && value.GetString() is { Length: > 0 } text ? text : null;
+
     /// <summary>The offer of each answered catalog question with only the chosen options, still active and within the filters.</summary>
     public async Task<Result<IReadOnlyList<StructuredFormCatalogOffer>>> OffersAsync(Guid recipient, FormVersionSchema schema,
         IReadOnlyDictionary<Guid, IReadOnlyList<Guid>> chosen, string culture, string originalCulture, CancellationToken ct,

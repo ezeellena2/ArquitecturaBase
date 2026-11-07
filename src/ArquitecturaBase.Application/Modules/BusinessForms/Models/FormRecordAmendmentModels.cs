@@ -34,6 +34,9 @@ public sealed record FormEntryCorrectionAnswer(Guid FieldId, string? Value, IRea
     /// <summary>The items of the block, each with its answers to the questions that remain in the block of the active version.</summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyList<IReadOnlyList<FormEntryCorrectionAnswer>>? Rows { get; init; }
+    /// <summary>LD1-A: the value the saved option has now in the field to choose first, which the first list starts with.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public FormEntryGroupResponse? Group { get; init; }
     public override string ToString() => "FormEntryCorrectionAnswer { Content = [REDACTED] }";
 }
 

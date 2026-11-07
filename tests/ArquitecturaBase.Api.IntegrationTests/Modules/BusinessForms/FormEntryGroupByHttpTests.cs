@@ -86,6 +86,13 @@ public sealed class FormEntryGroupByHttpTests(ApiFactory factory)
         using var correcting = await first.GetAsync($"/api/forms/entries/{scenario.DefinitionId}/records/{recordId}/versions/{versionId}/questions/{byZone}/groups", Ct);
         Assert.Equal(HttpStatusCode.OK, correcting.StatusCode);
         Assert.Equal(2, Groups(await correcting.ReadJsonAsync()).Length);
+        // The correction starts the first list with the value of the saved option.
+        using var correction = await first.GetAsync($"/api/forms/entries/{scenario.DefinitionId}/records/{recordId}", Ct);
+        Assert.Equal(HttpStatusCode.OK, correction.StatusCode);
+        await FormEntryContractCapture.WriteAsync(correction, "correction-groupby-es", Ct);
+        var corrected = Assert.Single((await correction.ReadJsonAsync()).GetProperty("answers").EnumerateArray(), answer => answer.GetProperty("fieldId").GetGuid() == byZone);
+        Assert.Equal(scenario.SouthId.ToString("D"), corrected.GetProperty("group").GetProperty("id").GetString());
+        Assert.Equal("Sur", corrected.GetProperty("group").GetProperty("text").GetString());
     }
 
     private static JsonObject Question(string localId, string label, Guid catalogId, Guid groupBy, bool required) => new()
