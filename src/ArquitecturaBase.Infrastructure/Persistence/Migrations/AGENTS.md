@@ -26,6 +26,8 @@ AddCatalogAndPersonAttributeOriginalCulture agrega `OriginalCulture` con default
 
 AllowCatalogItemsWithoutSpanishText vuelve nullable `TextEs` de las opciones, sin reescribir filas; la imagen anterior siempre lo escribe. Down bloquea la tabla y rechaza, antes del DDL, una opción sin texto en español; no inventa uno ni deja un default. FormCatalogItemSpanishTextMigrationTests prepara Up/Down/Up con historia conservada y ese rechazo.
 
+AddFormRecordRows agrega `Row` (de 0 a 99, default 0) a valores y referencias, con los índices únicos `RecordId, FieldId, Row, Position` y `RecordId, FieldId, Row, ItemId`, y `RejectedRow` nullable al recibo, que exige `RejectedFieldId`. No reescribe filas: lo guardado queda en el ítem 0. Down toma locks de respuestas, valores, referencias y recibos y rechaza, antes del DDL, una respuesta de una versión con bloque (aun sin ítems), un `Row` mayor que 0 o un `RejectedRow`; los bloques de borradores y versiones sin respuestas no lo frenan. FormRecordRowsMigrationTests prepara Up/Down/Up con historia conservada, los índices y CHECK reales, el lector de referencias y cada rechazo.
+
 ## Referencias
 
 - [Comandos y revisión obligatoria](../../../../docs/guides/migracion.md).

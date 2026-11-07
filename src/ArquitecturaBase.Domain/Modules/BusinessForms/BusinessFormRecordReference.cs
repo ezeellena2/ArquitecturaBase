@@ -18,18 +18,21 @@ public sealed class BusinessFormRecordReference : Entity
     public string? Value { get; private set; }
     public string? ValueType { get; private set; }
     public string? FieldValuesJson { get; private set; }
+    /// <summary>The item of a block the option was chosen in, from 0; 0 for a question outside the block.</summary>
+    public int Row { get; private set; }
     public static BusinessFormRecordReference Create(Guid recordId, Guid definitionId, Guid fieldId,
         Guid catalogId, long revision, Guid itemId, string text, string? detail, string catalogName, string? translationsJson = null,
-        string? value = null, string? valueType = null, string? fieldValuesJson = null)
+        string? value = null, string? valueType = null, string? fieldValuesJson = null, int row = 0)
     {
         foreach (var id in new[] { recordId, definitionId, fieldId, catalogId, itemId }) ArgumentOutOfRangeException.ThrowIfEqual(id, Guid.Empty);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(revision);
+        BusinessFormRecordValue.CheckRow(row, nameof(row));
         ArgumentException.ThrowIfNullOrWhiteSpace(text);
         if (!StorableText.IsStorable(text.AsSpan()) || detail is not null && !StorableText.IsStorable(detail.AsSpan()))
             throw new ArgumentException("Reference text must be storable.");
         return new() { RecordId = recordId, DefinitionId = definitionId, FieldId = fieldId, CatalogId = catalogId,
             CatalogRevision = revision, ItemId = itemId, Text = text, Detail = detail, CatalogName = catalogName, TranslationsJson = translationsJson,
-            Value = value, ValueType = valueType, FieldValuesJson = fieldValuesJson };
+            Value = value, ValueType = valueType, FieldValuesJson = fieldValuesJson, Row = row };
     }
     public override string ToString() => "BusinessFormRecordReference { Content = [REDACTED] }";
 }

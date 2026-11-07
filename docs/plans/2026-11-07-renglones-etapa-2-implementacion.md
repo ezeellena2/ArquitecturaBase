@@ -230,13 +230,17 @@ su clase. Otras sesiones trabajan en el mismo checkout: se preparan sólo los ar
 
 ### Tarea 1 · Los valores con su renglón
 
-- [ ] Tests en rojo: `BusinessFormRecordValue.Create` y `BusinessFormRecordReference.Create` con `row` de 0 a 99 (fuera de
+- [x] Tests en rojo: `BusinessFormRecordValue.Create` y `BusinessFormRecordReference.Create` con `row` de 0 a 99 (fuera de
   rango lanza), `BusinessFormCaptureReceipt.Reject` con `RejectedRow`, y `FormRecordRowsMigrationTests` (Up/Down/Up con la
   historia conservada, los índices nuevos y el rechazo del Down por cada caso), como `FormMultipleChoiceMigrationTests`.
-- [ ] Dominio (`BusinessFormRecord.cs`, `BusinessFormRecordReference.cs`), configuraciones EF, `FormRecordReferenceRow.Row`
+- [x] Dominio (`BusinessFormRecord.cs`, `BusinessFormRecordReference.cs`), configuraciones EF, `FormRecordReferenceRow.Row`
   y los lectores que arman referencias (`FormRecordReader` y los que leen `BusinessFormRecordReferences`).
-- [ ] Migración `AddFormRecordRows` según [la guía](../guides/migracion.md), con el snapshot en LF.
-- [ ] Commit: `feat(formularios): los valores y las referencias guardan su renglón`.
+- [x] Migración `AddFormRecordRows` según [la guía](../guides/migracion.md), con el snapshot en LF.
+- [x] Commit: `feat(formularios): los valores y las referencias guardan su renglón`.
+
+  Hecho: el recibo exige la pregunta para guardar el ítem (CHECK `CK_BusinessFormCaptureReceipts_RejectedRow`); los otros
+  lectores de referencias (etiquetas de la planilla, usos de una opción, campos históricos) no necesitan el ítem. La
+  migración corrió con PostgreSQL (7 tests); `FormMultipleChoiceValueModelTests` fija los índices nuevos.
 
 ### Tarea 2 · La captura con renglones
 

@@ -1214,6 +1214,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("RejectedFieldId")
                         .HasColumnType("uuid");
 
+                    b.Property<int?>("RejectedRow")
+                        .HasColumnType("integer");
+
                     b.Property<Guid>("SourceReceiptId")
                         .HasColumnType("uuid");
 
@@ -1232,7 +1235,10 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("DefinitionId", "VersionId");
 
-                    b.ToTable("BusinessFormCaptureReceipts", (string)null);
+                    b.ToTable("BusinessFormCaptureReceipts", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_BusinessFormCaptureReceipts_RejectedRow", "\"RejectedRow\" IS NULL OR \"RejectedFieldId\" IS NOT NULL AND \"RejectedRow\" >= 0 AND \"RejectedRow\" < 100");
+                        });
                 });
 
             modelBuilder.Entity("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormCatalog", b =>
@@ -2246,6 +2252,11 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("RecordId")
                         .HasColumnType("uuid");
 
+                    b.Property<int>("Row")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
                     b.Property<string>("Text")
                         .IsRequired()
                         .HasMaxLength(30)
@@ -2270,11 +2281,13 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("DefinitionId", "RecordId");
 
-                    b.HasIndex("RecordId", "FieldId", "ItemId")
+                    b.HasIndex("RecordId", "FieldId", "Row", "ItemId")
                         .IsUnique();
 
                     b.ToTable("BusinessFormRecordReferences", null, t =>
                         {
+                            t.HasCheckConstraint("CK_BusinessFormRecordReferences_Row", "\"Row\" >= 0 AND \"Row\" < 100");
+
                             t.HasCheckConstraint("CK_BusinessFormRecordReferences_Value", "(\"Value\" IS NULL) = (\"ValueType\" IS NULL)");
                         });
                 });
@@ -2311,6 +2324,11 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("RecordId")
                         .HasColumnType("uuid");
 
+                    b.Property<int>("Row")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
                     b.Property<string>("TextValue")
                         .HasMaxLength(10000)
                         .HasColumnType("character varying(10000)");
@@ -2326,7 +2344,7 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("DefinitionId", "RecordId");
 
-                    b.HasIndex("RecordId", "FieldId", "Position")
+                    b.HasIndex("RecordId", "FieldId", "Row", "Position")
                         .IsUnique();
 
                     b.ToTable("BusinessFormRecordValues", null, t =>
@@ -2334,6 +2352,8 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                             t.HasCheckConstraint("CK_BusinessFormRecordValues_ExactlyOneValue", "(CASE WHEN \"TextValue\" IS NULL THEN 0 ELSE 1 END + CASE WHEN \"DecimalValue\" IS NULL THEN 0 ELSE 1 END + CASE WHEN \"DateValue\" IS NULL THEN 0 ELSE 1 END + CASE WHEN \"BooleanValue\" IS NULL THEN 0 ELSE 1 END + CASE WHEN \"ChoiceId\" IS NULL THEN 0 ELSE 1 END) = 1");
 
                             t.HasCheckConstraint("CK_BusinessFormRecordValues_Position", "\"Position\" >= 0 AND \"Position\" < 20");
+
+                            t.HasCheckConstraint("CK_BusinessFormRecordValues_Row", "\"Row\" >= 0 AND \"Row\" < 100");
                         });
                 });
 

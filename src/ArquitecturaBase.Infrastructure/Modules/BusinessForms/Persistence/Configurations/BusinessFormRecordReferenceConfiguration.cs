@@ -8,10 +8,15 @@ internal sealed class BusinessFormRecordReferenceConfiguration : IEntityTypeConf
 {
     public void Configure(EntityTypeBuilder<BusinessFormRecordReference> builder)
     {
-        builder.ToTable("BusinessFormRecordReferences", table => table.HasCheckConstraint("CK_BusinessFormRecordReferences_Value",
-            "(\"Value\" IS NULL) = (\"ValueType\" IS NULL)"));
+        builder.ToTable("BusinessFormRecordReferences", table =>
+        {
+            table.HasCheckConstraint("CK_BusinessFormRecordReferences_Value", "(\"Value\" IS NULL) = (\"ValueType\" IS NULL)");
+            table.HasCheckConstraint("CK_BusinessFormRecordReferences_Row", "\"Row\" >= 0 AND \"Row\" < 100");
+        });
         builder.HasKey(value => value.Id);
-        builder.HasIndex(value => new { value.RecordId, value.FieldId, value.ItemId }).IsUnique();
+        // The same option can be chosen in two items of a block, never twice in one.
+        builder.HasIndex(value => new { value.RecordId, value.FieldId, value.Row, value.ItemId }).IsUnique();
+        builder.Property(value => value.Row).HasDefaultValue(0);
         builder.Property(value => value.Text).HasMaxLength(30);
         builder.Property(value => value.Detail).HasMaxLength(300);
         builder.Property(value => value.CatalogName).HasMaxLength(200);

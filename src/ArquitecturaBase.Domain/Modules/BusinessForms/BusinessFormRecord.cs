@@ -136,6 +136,8 @@ public sealed class BusinessFormRecord : Entity, IAuditable
 
 public sealed class BusinessFormRecordValue : Entity
 {
+    /// <summary>The most items a block holds: <see cref="Row"/> goes from 0 to one less.</summary>
+    public const int MaxRows = 100;
     private BusinessFormRecordValue() { }
     public Guid RecordId { get; private set; }
     public Guid DefinitionId { get; private set; }
@@ -147,21 +149,32 @@ public sealed class BusinessFormRecordValue : Entity
     public bool? BooleanValue { get; private set; }
     public Guid? ChoiceId { get; private set; }
     public int Position { get; private set; }
+    /// <summary>The item of a block the answer belongs to, from 0; 0 for a question outside the block.</summary>
+    public int Row { get; private set; }
 
     public static BusinessFormRecordValue Create(Guid recordId, Guid definitionId, Guid fieldId, string type,
         string? textValue = null, decimal? decimalValue = null, DateOnly? dateValue = null,
-        bool? booleanValue = null, Guid? choiceId = null, int position = 0)
+        bool? booleanValue = null, Guid? choiceId = null, int position = 0, int row = 0)
     {
         foreach (var id in new[] { recordId, definitionId, fieldId }) ArgumentOutOfRangeException.ThrowIfEqual(id, Guid.Empty);
         ArgumentOutOfRangeException.ThrowIfNegative(position);
         ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(position, 20);
+        CheckRow(row, nameof(row));
         var count = (textValue is not null ? 1 : 0) + (decimalValue.HasValue ? 1 : 0) + (dateValue.HasValue ? 1 : 0)
             + (booleanValue.HasValue ? 1 : 0) + (choiceId.HasValue ? 1 : 0);
         if (count != 1) throw new ArgumentException("A record value must contain exactly one typed value.");
         if (textValue is not null && !StorableText.IsStorable(textValue.AsSpan()))
             throw new ArgumentException("Record text must be storable.", nameof(textValue));
         return new() { RecordId = recordId, DefinitionId = definitionId, FieldId = fieldId, Type = type,
-            TextValue = textValue, DecimalValue = decimalValue, DateValue = dateValue, BooleanValue = booleanValue, ChoiceId = choiceId, Position = position };
+            TextValue = textValue, DecimalValue = decimalValue, DateValue = dateValue, BooleanValue = booleanValue, ChoiceId = choiceId, Position = position,
+            Row = row };
+    }
+
+    /// <summary>An item index of a block: from 0 to <see cref="MaxRows"/> minus one.</summary>
+    public static void CheckRow(int row, string paramName)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(row, paramName);
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(row, MaxRows, paramName);
     }
 }
 
@@ -177,6 +190,8 @@ public sealed class BusinessFormCaptureReceipt : Entity
     public string State { get; private set; } = "";
     public string? ErrorCode { get; private set; }
     public Guid? RejectedFieldId { get; private set; }
+    /// <summary>The item of the rejected answer when its question is in a block; null outside a block.</summary>
+    public int? RejectedRow { get; private set; }
     public DateTime CreatedAtUtc { get; private set; }
     public static BusinessFormCaptureReceipt Complete(Guid sourceReceiptId, Guid definitionId, Guid versionId,
         string fingerprint, Guid recordId, long number, DateTime nowUtc) => new()
@@ -185,10 +200,18 @@ public sealed class BusinessFormCaptureReceipt : Entity
         RecordId = recordId, Number = number, State = "Completed", CreatedAtUtc = nowUtc,
     };
     public static BusinessFormCaptureReceipt Reject(Guid sourceReceiptId, Guid definitionId, Guid versionId,
-        string fingerprint, string errorCode, DateTime nowUtc, Guid? rejectedFieldId = null) => new()
+        string fingerprint, string errorCode, DateTime nowUtc, Guid? rejectedFieldId = null, int? rejectedRow = null)
     {
-        SourceReceiptId = sourceReceiptId, DefinitionId = definitionId, VersionId = versionId, Fingerprint = fingerprint,
-        State = "Rejected", ErrorCode = errorCode, RejectedFieldId = rejectedFieldId, CreatedAtUtc = nowUtc,
-    };
+        if (rejectedRow is { } row)
+        {
+            if (rejectedFieldId is null) throw new ArgumentException("A rejected item needs its rejected question.", nameof(rejectedRow));
+            BusinessFormRecordValue.CheckRow(row, nameof(rejectedRow));
+        }
+        return new()
+        {
+            SourceReceiptId = sourceReceiptId, DefinitionId = definitionId, VersionId = versionId, Fingerprint = fingerprint,
+            State = "Rejected", ErrorCode = errorCode, RejectedFieldId = rejectedFieldId, RejectedRow = rejectedRow, CreatedAtUtc = nowUtc,
+        };
+    }
     public override string ToString() => $"BusinessFormCaptureReceipt {{ State = {State}, RecordId = {RecordId} }}";
 }

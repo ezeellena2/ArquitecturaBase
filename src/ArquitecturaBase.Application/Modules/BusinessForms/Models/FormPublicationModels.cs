@@ -23,7 +23,9 @@ public sealed record FormRecordReferenceRow(Guid RecordId, Guid FieldId, Guid Ca
     Guid ItemId, string Text, string? Detail, string CatalogName, string? TranslationsJson = null,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? Value = null,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? ValueType = null,
-    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? FieldValuesJson = null)
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? FieldValuesJson = null,
+    // The item of a block, omitted at 0 so the snapshots sealed before blocks keep their bytes.
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)] int Row = 0)
 { public override string ToString() => "FormRecordReferenceRow { Content = [REDACTED] }"; }
 public sealed record FormRecordReferenceTextResponse(string Text, string? Detail, string CatalogName)
 { public override string ToString() => "FormRecordReferenceTextResponse { Content = [REDACTED] }"; }

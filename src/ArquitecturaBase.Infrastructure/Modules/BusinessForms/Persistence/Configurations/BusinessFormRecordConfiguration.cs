@@ -54,10 +54,13 @@ internal sealed class BusinessFormRecordValueConfiguration : IEntityTypeConfigur
             table.HasCheckConstraint("CK_BusinessFormRecordValues_ExactlyOneValue",
                 "(CASE WHEN \"TextValue\" IS NULL THEN 0 ELSE 1 END + CASE WHEN \"DecimalValue\" IS NULL THEN 0 ELSE 1 END + CASE WHEN \"DateValue\" IS NULL THEN 0 ELSE 1 END + CASE WHEN \"BooleanValue\" IS NULL THEN 0 ELSE 1 END + CASE WHEN \"ChoiceId\" IS NULL THEN 0 ELSE 1 END) = 1");
             table.HasCheckConstraint("CK_BusinessFormRecordValues_Position", "\"Position\" >= 0 AND \"Position\" < 20");
+            table.HasCheckConstraint("CK_BusinessFormRecordValues_Row", "\"Row\" >= 0 AND \"Row\" < 100");
         });
         builder.HasKey(value => value.Id);
-        builder.HasIndex(value => new { value.RecordId, value.FieldId, value.Position }).IsUnique();
+        // One row per answered question of each item of a block (Row 0 outside it); it also serves the per-item EXISTS.
+        builder.HasIndex(value => new { value.RecordId, value.FieldId, value.Row, value.Position }).IsUnique();
         builder.Property(value => value.Position).HasDefaultValue(0);
+        builder.Property(value => value.Row).HasDefaultValue(0);
         builder.Property(value => value.Type).HasMaxLength(32);
         builder.Property(value => value.TextValue).HasMaxLength(10000);
         builder.HasOne<BusinessFormRecord>().WithMany().HasForeignKey(value => new { value.DefinitionId, value.RecordId })
@@ -71,7 +74,8 @@ internal sealed class BusinessFormCaptureReceiptConfiguration : IEntityTypeConfi
 {
     public void Configure(EntityTypeBuilder<BusinessFormCaptureReceipt> builder)
     {
-        builder.ToTable("BusinessFormCaptureReceipts");
+        builder.ToTable("BusinessFormCaptureReceipts", table => table.HasCheckConstraint("CK_BusinessFormCaptureReceipts_RejectedRow",
+            "\"RejectedRow\" IS NULL OR \"RejectedFieldId\" IS NOT NULL AND \"RejectedRow\" >= 0 AND \"RejectedRow\" < 100"));
         builder.HasKey(value => value.Id);
         builder.HasIndex(value => value.SourceReceiptId).IsUnique();
         builder.HasIndex(value => new { value.DefinitionId, value.VersionId });
