@@ -40,4 +40,6 @@ C3 automático cubre replay antes del cupo, dos ofertas por día del negocio, in
 
 C4 prueba creación desde FlowReply Completed, primer POST antes del worker, Always sin ninguna consulta a Operations aun con IA pausada, replay por registro con otro recibo, Actor real para la interpretación Manual, cupo/bucle automáticos y confirmación humana. Una lectura temporalmente no disponible conserva la fuente pendiente; el idioma de conversación no hereda el fallback del formulario capturado.
 
+WhatsAppFlowTechnicalNameTests prueba el nombre del Flow en Meta: el del formulario en su idioma o el original, la versión, el idioma y el final del id; el corte con «…» en 80 caracteres, los espacios y caracteres que se descartan (NFC), el nombre vacío y el pedido sin versión, y que la versión no cambia las huellas del pedido.
+
 FlowDeprecationServiceTests verifica orden Definitions→Flow, versión no usada y trabajo pendiente al reservar y marcar, lease/fence entre dueños, recuperación por GET tras incertidumbre o rechazo, y fallas de cuenta/manifiesto con NeedsAttention, espera creciente y sin perder evidencia de un POST; todo con puertos falsos, sin red ni PostgreSQL.

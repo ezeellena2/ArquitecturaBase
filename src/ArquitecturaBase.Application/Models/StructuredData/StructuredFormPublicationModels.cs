@@ -1,9 +1,14 @@
 namespace ArquitecturaBase.Application.Models.StructuredData;
 
 public sealed record StructuredFormPublicationCulture(string Culture, string CompilationFingerprint);
+/// <summary>
+/// A version to publish in a channel. <paramref name="VersionNumber"/> only names what the channel creates (2026-11-06, the Flow's
+/// name in Meta): it is left out of the request's serialization, so the fingerprints of earlier requests stay the same.
+/// </summary>
 public sealed record StructuredFormPublicationRequest(Guid OperationId, Guid DefinitionId, Guid VersionId, Guid ActorUserId,
     IReadOnlyList<string> RequiredPermissions, string PublicationFingerprint, string ProfileRevision,
-    IReadOnlyList<StructuredFormPublicationCulture> Cultures, StructuredFormCheckRequest Snapshot)
+    IReadOnlyList<StructuredFormPublicationCulture> Cultures, StructuredFormCheckRequest Snapshot,
+    [property: System.Text.Json.Serialization.JsonIgnore] long? VersionNumber = null)
 {
     public override string ToString() => "StructuredFormPublicationRequest { Content = [REDACTED] }";
 }

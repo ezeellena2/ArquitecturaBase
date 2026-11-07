@@ -85,7 +85,7 @@ internal sealed partial class FormPublicationDispatchService(IFormDraftRepositor
             new StructuredFormPublicationRequest(operation.Id, operation.DefinitionId, operation.VersionId, operation.OperatorUserId,
                 RequiredPermissions, manifest.PublicationFingerprint, profile.ProfileRevision,
                 profile.Cultures.Select(culture => new StructuredFormPublicationCulture(culture.Culture, culture.CompilationFingerprint)).ToArray(),
-                snapshot))).ToArray();
+                snapshot, operation.VersionNumber))).ToArray();
     }
     public Task<Result> CompleteAsync(FormPublicationWorkResponse work, IReadOnlyList<FormPublicationChannelProgress> progress, CancellationToken cancellationToken) =>
         OperationLog.RunAsync(logger, "CompleteFormPublication",
