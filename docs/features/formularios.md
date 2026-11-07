@@ -265,6 +265,42 @@ D2 abre la respuesta en un panel junto a la planilla o a Por aprobar, manteniend
 
 La captura fija la revisión y crea sus runs antes de confirmar recibo y número, junto con valores, referencias y archivos. Los avisos usan el [canal neutral de acciones](whatsapp.md#avisos-de-reglas-de-formularios--etapa-4-g6), con un commit separado en el canal y sin referencias entre módulos. Al preparar cada evento, el idioma de quien recibe debe estar completo en todos los avisos de esa revisión de reglas y en el diseño PDF vigente si la revisión lo genera. Si falta cualquier texto, los mensajes y las copias usan íntegramente el original del formulario; esa elección queda fijada en los runs.
 
+## El bloque de renglones en la carga — RG2-A y RG3-A, 2026-11-07
+
+Un bloque de renglones se carga desde la app y desde WhatsApp y se guarda como una respuesta más, con sus ítems. El editor,
+publicar y las pantallas del Flow son de la Etapa 1 de renglones; acá va lo que guarda y valida la carga. Los textos dicen
+«ítem» (RG12-A).
+
+- **El bloque.** Una pregunta `group` con `rows` (mínimo de 0 a 100, no mayor que el máximo, de 1 a 100; obligatoria si el
+  mínimo es mayor que 0) seguida sin huecos por sus preguntas `repeated`: texto, decimal, fecha, sí o no, o elegir una. Hay
+  a lo sumo uno y no cuenta entre las 40 preguntas. En la app se cargan hasta el máximo; en WhatsApp, hasta 10, o el máximo
+  si es menor.
+- **Cómo se guarda.** La entrada del bloque en `ValuesJson` es `{ fieldId: <bloque>, value: [ [ {fieldId, value}, … ], … ] }`:
+  los ítems en orden, una pregunta sin respuesta sin entrada en su ítem, un ítem vacío `[]` y un bloque sin ítems `[]`. Las
+  preguntas `repeated` no tienen entrada arriba. Cada valor y cada referencia de catálogo llevan su `Row` (de 0 a 99, 0
+  fuera del bloque), que entra en sus índices únicos (`RecordId, FieldId, Row, Position` y `RecordId, FieldId, Row,
+  ItemId`): el mismo artículo puede ir en dos ítems. La migración `AddFormRecordRows` no reescribe filas; su Down rechaza
+  una respuesta de una versión con bloque, un `Row` mayor que 0 o un recibo con `RejectedRow`.
+- **La captura.** El bloque llega en su clave como un arreglo JSON con un objeto por ítem y sus valores canónicos, en el orden
+  de las preguntas (`FormRecordAnswerPolicy`), con tantos ítems como admiten el mínimo y el máximo: fuera de ese rango, la
+  respuesta es inválida. Cada ítem se valida como preguntas sueltas: obligatorias, tipo, largo y que la opción siga
+  ofrecida. La oferta de un catálogo se resuelve una vez por pregunta, o una por respuesta distinta cuando la lista depende
+  de otra pregunta del ítem, y la actividad de una opción Manual se revisa una vez, donde aparece primero. Una opción dada
+  de baja en un ítem rechaza la respuesta, y el recibo dice la pregunta y el ítem (`RejectedFieldId`, `RejectedRow`). Sin
+  bloque, la huella y los bytes guardados no cambian.
+- **La app (RG2-A).** La carga trae el bloque con `rows` y sus preguntas con `repeated: true`; el envío manda el bloque como
+  `{ fieldId, rows: [[{ fieldId, value }, …], …] }`, aun sin ítems. El error de un ítem vuelve en
+  `answers.<bloque>.<n>.<pregunta>` (n desde 0), también el de una opción dada de baja. Una lista del bloque que depende de
+  otra pregunta del bloque usa la respuesta de su propio ítem, y una que depende de una pregunta de afuera, esa (LD3-A).
+  Corregir abre la respuesta con sus ítems en orden, con las preguntas que siguen en el bloque de la versión activa. En la
+  página el bloque es una tabla y en el panel y el celular, un recuadro por ítem
+  ([diseño](../../../ArquitecturaBaseFront/docs/design/renglones-en-formularios.md)).
+- **WhatsApp (RG3-A).** La respuesta trae cada ítem por su número y el «¿Agregás otro ítem?» de cada uno; los ítems llegan
+  hasta el primer «No» y lo que viene después no cuenta ([recepción](whatsapp.md#recepción-de-respuestas-de-flow)).
+- **Publicar (RG13-A).** Con un canal instalado, un mínimo mayor que 10 frena la publicación
+  (`Forms.Publication.MinRowsOverChannelLimit` en `draft.fields[i].rows`, con `limit`): WhatsApp no podría cargar ese
+  mínimo. Un máximo mayor que 10 sólo avisa.
+
 ## El bloque de renglones en la lectura — RG4-A, 2026-11-07
 
 Una respuesta con un bloque de renglones se lee entera: la planilla, «Filtros», la vista rápida, la pantalla completa, la

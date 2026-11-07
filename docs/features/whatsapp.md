@@ -152,6 +152,14 @@ El `nfm_reply` se procesa sin esperar el Delivered del envío. El webhook guarda
 
 Las claves `field_{Guid:N}` se decodifican con el codec de la proyección sellada; una respuesta ilegible queda Unrecognized o Rejected. El mensaje y la sesión guardan su estado final por separado, para que un replay alterado no pueda presentarse como completado. La sesión vence según la fecha firmada por Meta. Sin vínculo o vencida, solo se recupera un recibo idéntico (`FindExistingReceiptAsync`). La captura no envía desde su transacción: las reglas configuradas pueden crear avisos durables mediante el canal de acciones descrito abajo. Sin `formrecords.read` se ocultan los valores, pero se ve el número; el preview del listado es el texto fijo «Respuesta del formulario». No se registran token ni valores ([captura](formularios.md)).
 
+Una respuesta de un Flow r10 con un bloque de renglones (RG3-A) trae las preguntas del ítem n bajo
+`field_<pregunta>_r<n>` (n desde 1), «¿Agregás otro ítem?» bajo `field_<bloque>_r<n>` en los ítems que la preguntan (desde
+el mínimo y antes del último) y, con mínimo 0, «¿Agregás un ítem?» bajo `field_<bloque>_r0`. `WhatsAppFlowRowsCodec` arma
+los ítems hasta el primer «No»: lo que llega de ítems posteriores (volvió con la flecha y dijo «No») no cuenta. Se los pasa
+a la captura como el bloque de la carga desde la app; una clave sin sufijo, un sufijo fuera del bloque o una decisión que
+falta dejan la respuesta Rejected, y un ítem que la captura rechaza guarda su número en el recibo (`RejectedRow`). Una
+respuesta con ítems, como una con archivos, tiene un tope de 64 KiB (`MaxMediaResponseJsonBytes`) en lugar de 16 KiB.
+
 Una respuesta con un bloque de renglones llega a la tarjeta del chat con el bloque en su lugar: su nombre y un ítem por
 línea («1. GLIFOSATO 64% · 200 · Litros · Sí»), con las respuestas en el orden de sus preguntas y sin las que quedaron sin
 responder, como «Así llega» (RG4-A). Viene por la lectura neutral, sin campos del catálogo, y el bloque cuenta como un dato
