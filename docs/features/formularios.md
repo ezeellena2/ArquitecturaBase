@@ -335,7 +335,9 @@ tarjeta del chat, el Excel y el PDF. Los textos dicen «ítem» (RG12-A); el có
   bajo su nombre en una tabla: el número del ítem y una columna por pregunta de su versión, línea entre columnas, números
   a la derecha, texto partido en su celda y el encabezado repetido si sigue en la página siguiente. La vista previa suma
   dos ítems de ejemplo. Una pregunta del bloque elegida sola en un diseño viejo no sale.
-- **Reglas.** Un mensaje que nombra el bloque lo deja vacío hasta la Etapa 4 de renglones, que lo pone un ítem por línea.
+- **Reglas.** Las condiciones de una regla y de una sugerencia deciden como «Filtros» (Etapa 4 de renglones, RG5-A): las
+  que tienen valor sobre preguntas del bloque las cumple un mismo ítem, y la presencia mira la respuesta entera. Un mensaje
+  que nombra el bloque todavía lo deja vacío; la misma etapa lo pone un ítem por línea.
 
 Límites conocidos, sin caso real hoy: un bloque con muchas preguntas angosta las columnas de la tabla del PDF, un ítem
 partido entre páginas no repite su número y la hoja del bloque no tiene tope propio de filas (corta el presupuesto de 30

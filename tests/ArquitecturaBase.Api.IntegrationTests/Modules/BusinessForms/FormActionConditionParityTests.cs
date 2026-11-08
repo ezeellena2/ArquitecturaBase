@@ -95,4 +95,46 @@ public sealed partial class FormDraftEndpointsTests
             }
         });
     }
+    [Fact]
+    public async Task Rule_conditions_and_sheet_SQL_agree_on_one_same_item_of_a_block_and_on_presence_in_the_whole_response()
+    {
+        using var reader = await RowsReaderAsync("es");
+        var rows = await SeedRowsReadAsync(reader, [new("seed", "200.5", "Sin daños"), new("seed", "100"), new("fertilizer", "7")], [],
+            [new("fertilizer", "200.5"), new("seed", "5", "Con daños")]);
+        var (seed, fertilizer) = (rows.Seed.ToString("D"), rows.Fertilizer.ToString("D"));
+        await factory.ExecuteScopeAsync(async services =>
+        {
+            var responses = services.GetRequiredService<IFormResponseReader>();
+            var definition = await responses.FindDefinitionAsync(rows.DefinitionId, Ct);
+            Assert.NotNull(definition);
+            var all = await responses.ListAsync(definition, new() { PageSize = 100 }, Ct);
+            Assert.Equal(3, all.TotalCount);
+            (IReadOnlyList<FormRecordCondition> Conditions, long[] Expected)[] cases =
+            [
+                ([new(rows.Item, "in", [seed])], [1, 3]),
+                ([new(rows.Quantity, "gte", ["200"])], [1, 3]),
+                // The third response has the seed and 200.5 in different items.
+                ([new(rows.Item, "in", [seed]), new(rows.Quantity, "gte", ["200"])], [1]),
+                ([new(rows.Item, "in", [fertilizer]), new(rows.Quantity, "gte", ["200"])], [3]),
+                ([new(rows.Supplier, "contains", ["norte"]), new(rows.Quantity, "gte", ["200"])], [1, 3]),
+                ([new(rows.Supplier, "equals", ["Otro proveedor"]), new(rows.Quantity, "gte", ["200"])], []),
+                ([new(rows.Note, "contains", ["DAÑOS"])], [1, 3]),
+                ([new(rows.Note, "contains", ["con daños"]), new(rows.Item, "in", [seed])], [3]),
+                ([new(rows.Note, "contains", ["con daños"]), new(rows.Item, "in", [fertilizer])], []),
+                // Presence looks at the whole response, not at the item of the other conditions.
+                ([new(rows.Note, "answered", null)], [1, 3]),
+                ([new(rows.Note, "unanswered", null)], [2]),
+                ([new(rows.Note, "notAsked", null)], []),
+                ([new(rows.Item, "in", [fertilizer]), new(rows.Note, "answered", null)], [1, 3]),
+                // The second response has a block without items.
+                ([new(rows.Quantity, "gte", ["0"])], [1, 3]),
+            ];
+            foreach (var (conditions, expected) in cases)
+            {
+                var sql = await responses.ListAsync(definition, new() { PageSize = 100, Conditions = conditions }, Ct);
+                Assert.Equal(expected, all.Items.Where(row => FormRecordConditionEvaluator.Matches(conditions, new(row, "es"))).Select(row => row.Record.Number).Order());
+                Assert.Equal(expected, sql.Items.Select(row => row.Record.Number).Order());
+            }
+        });
+    }
 }

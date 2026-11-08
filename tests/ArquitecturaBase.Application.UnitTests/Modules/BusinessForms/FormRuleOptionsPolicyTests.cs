@@ -40,4 +40,36 @@ public sealed class FormRuleOptionsPolicyTests
         }
         finally { CultureInfo.CurrentUICulture = previousCulture; }
     }
+    [Fact]
+    public async Task The_options_bring_the_block_with_its_rows_and_its_questions_behind_it_with_the_choices_of_their_catalog()
+    {
+        var previousCulture = CultureInfo.CurrentUICulture;
+        CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("es");
+        try
+        {
+            var fixture = new FormRuleFixture();
+            var catalogId = Guid.NewGuid();
+            static Dictionary<string,string> Label(string text) => new() { ["es"] = text, ["en"] = text };
+            static FormCatalogItemResponse Item(string code, string label, int position) => new(Guid.NewGuid(), code, new Dictionary<string,string?> { ["es"] = label },
+                new Dictionary<string,string?>(), position, true, null, new Dictionary<string,string>(), new Dictionary<string,IReadOnlyDictionary<string,string>>());
+            var remito = new CanonicalFormField(Guid.NewGuid(), "remito", "shortText", Label("Remito"), null, true, 80, null);
+            var block = new CanonicalFormField(Guid.NewGuid(), "items", "group", Label("Artículos"), null, false, null, null, Rows: new(1, 10));
+            var article = new CanonicalFormField(Guid.NewGuid(), "article", "choice", Label("Artículo"), null, true, null, null, new(catalogId), Repeated: true);
+            var quantity = new CanonicalFormField(Guid.NewGuid(), "quantity", "decimal", Label("Cantidad"), null, true, null, null, Repeated: true);
+            fixture.Catalogs[catalogId] = new(catalogId, "manual", "{}", "{}", "es", "Manual", 1, true, default, null, null, null, 2);
+            fixture.ManualItems[catalogId] = [Item("SEM", "Semilla", 1), Item("FER", "Fertilizante", 2)];
+            Assert.True(fixture.Definition.SetDraft(fixture.Definition.Revision, fixture.Definition.Name, fixture.Definition.NameJson,
+                fixture.Definition.Prefix, fixture.Definition.Culture, fixture.Definition.SubmitLabelJson,
+                FormDraftPolicy.Serialize(new FormQuestionSchema(1, [remito, block, article, quantity])), 3, false).IsSuccess);
+
+            var result = await fixture.Service.GetOptionsAsync(fixture.Definition.Id, TestContext.Current.CancellationToken);
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal([remito.FieldId, block.FieldId, article.FieldId, quantity.FieldId], result.Value.Questions.Select(question => question.FieldId));
+            Assert.Equal(new FormRowSettings(1, 10), result.Value.Questions[1].Rows);
+            Assert.All(result.Value.Questions.Skip(2), question => Assert.True(question.Repeated));
+            Assert.Equal(["Semilla", "Fertilizante"], result.Value.ConditionChoices[article.FieldId].Select(choice => choice.Label));
+        }
+        finally { CultureInfo.CurrentUICulture = previousCulture; }
+    }
 }

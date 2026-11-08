@@ -28,8 +28,8 @@ siguen diciendo renglón (`rows`).
 **Tecnología:** .NET 10, xUnit v3, Testcontainers con PostgreSQL; en el front, React, Zod, Vitest con MSW y Playwright.
 
 **Depende de las etapas 2 y 3.** Las reglas leen lo que guarda la 2 (los ítems en `ValuesJson`) y deciden como el
-«Filtros» de la 3 (`ItemConditions` y `SameItem`). Se programa cuando cierren las dos, con la exportación conjunta de sus
-capturas.
+«Filtros» de la 3 (`ItemConditions` y `SameItem`). El 2026-11-08 el usuario aprobó arrancar apenas saliera la exportación
+conjunta de sus capturas, sin esperar sus pruebas manuales: salió en el front 60fcff31, sobre el backend 735add83.
 
 **Visto bueno:** el usuario aprobó este plan el 2026-11-07, con lo que el tablero no fija resuelto como dice abajo.
 
@@ -216,25 +216,28 @@ checkout: se preparan sólo los archivos y los fragmentos propios.
 
 ### Tarea 1 · Las condiciones buscan un mismo ítem
 
-- [ ] Esperar el cierre de las etapas 2 y 3, revisar `git status` y ajustar «Lo que hay hoy» a lo que quedó.
-- [ ] Tests en rojo en `FormRecordConditionEvaluatorTests`, con una respuesta de tres ítems (Semilla, 200,5 y «Sin
+- [x] Esperar el cierre de las etapas 2 y 3, revisar `git status` y ajustar «Lo que hay hoy» a lo que quedó.
+- [x] Tests en rojo en `FormRecordConditionEvaluatorTests`, con una respuesta de tres ítems (Semilla, 200,5 y «Sin
   daños»; Semilla y 100; Fertilizante y 7) y otra de una versión sin el bloque:
   - una condición que cumple cualquier ítem;
   - dos en el mismo ítem contra dos en ítems distintos: «Semilla y desde 200» se cumple, y «Fertilizante y desde 200», no;
   - una condición de afuera del bloque junto a una del bloque, que se cumple aparte;
   - la presencia por respuesta: algún ítem, ninguno y la versión sin la pregunta;
   - un bloque sin ítems (`[]`) y una respuesta de antes del bloque, que no cumplen ninguna condición con valor.
-- [ ] Tests que fijan lo que ya anda:
+- [x] Tests que fijan lo que ya anda:
   - en `FormRulePolicyTests`, una condición sobre una pregunta del bloque se guarda, y una sobre el bloque da
     `ContentInvalid` en `rules[0].conditions`;
   - en `FormRuleOptionsPolicyTests`, el bloque con `rows` y sus preguntas `repeated` detrás, con las opciones del catálogo
     de una pregunta del bloque.
-- [ ] `FormRecordConditionEvaluator`.
-- [ ] Integración en `FormActionConditionParityTests`, con la semilla de la Etapa 3 (`SeedRowsReadAsync`). El evaluador y
+- [x] `FormRecordConditionEvaluator`.
+- [x] Integración en `FormActionConditionParityTests`, con la semilla de la Etapa 3 (`SeedRowsReadAsync`). El evaluador y
   el SQL de la planilla dan los números esperados en cada caso: una condición en cualquier ítem, dos en el mismo ítem y en
   ítems distintos, una de afuera junto a una del bloque, «contiene» en las notas de los ítems, la presencia y un bloque
   sin ítems. Se compara contra conjuntos fijos, no sólo entre sí, y corre con PostgreSQL al cierre.
-- [ ] Commit: `feat(formularios): las condiciones de una regla buscan un mismo ítem del bloque`.
+- [x] Commit: `feat(formularios): las condiciones de una regla buscan un mismo ítem del bloque`.
+
+Hecho el 2026-11-08: el bloque sin ítems ya no cumplía ninguna condición con valor, y su test quedó para fijarlo; los otros
+cuatro del evaluador estaban en rojo. Unitarios (3954) y arquitectura (207) en verde; la paridad corre al cierre.
 
 ### Tarea 2 · El bloque en el mensaje
 
@@ -323,7 +326,9 @@ checkout: se preparan sólo los archivos y los fragmentos propios.
 - [ ] Docs:
   - [formularios](../features/formularios.md), en las reglas (G1 y el mensaje con datos) y en «El bloque de renglones en
     la lectura», que hoy dice que el mensaje deja el bloque vacío;
-  - los `AGENTS.md` de Services y de sus tests (unitarios e integración); en el front, el de `components`, «Lo que cambia
+  - en cada tarea, la sección de su tema en `formularios-servicios.md`, `formularios-pruebas-unitarias.md` y
+    `formularios-pruebas-de-integracion.md`, y en cada guía sólo el renglón del índice (`InstructionChainSizeTests` corta las
+    cadenas de más de 30 KB); en el front, el de `components`, «Lo que cambia
     de lo que hay» del diseño de renglones, y las reglas en pasos y el mensaje con datos de `formularios-whatsapp.md`;
   - este plan y el de renglones.
 - [ ] Prueba física, guiando al usuario clic por clic y sin cargar datos por él. Va dentro de la prueba integral final de

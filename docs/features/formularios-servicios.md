@@ -87,6 +87,7 @@ Es el detalle de la guía [`src/ArquitecturaBase.Application/Modules/BusinessFor
 ## Reglas, acciones y aprobaciones
 
 - Reglas: RulesManage, revisión inmutable con 409, sin tocar preguntas ni publicar. El historial descarta sus JSON internos sin permiso.
+- Condiciones (RG5-A): `FormRecordConditionEvaluator` decide en memoria igual que el SQL de «Filtros», para las reglas (`FormActionRunRecorder`) y las sugerencias (`FormSuggestionCandidatePolicy`, `FormRecordCaptureOriginPolicy`). Las condiciones con valor sobre preguntas del bloque las tiene que cumplir un mismo ítem de `ValuesJson`; la presencia mira todos los ítems, y una versión sin la pregunta o un bloque sin ítems no cumplen ninguna con valor.
 - `FormActionRunRecorder` agrega runs dentro del límite de captura o decisión, con destinatarios, texto y cultura fijados, sin copiar respuestas ni esquemas; un cuerpo largo falla sin recortar.
 - Despacho: reservar y completar separados, efecto afuera; un Uncertain se consulta antes de repetir y un Accepted no se reenvía. RequestApproval revalida el rol al reservar: si no existe, `Forms.Rule.RoleUnavailable`, sin tarea.
 - Workflow: lectura de respuestas antes y después de observar el canal por lote (lo propio no observa: va sin acciones), sin efectos ni retry si todos aceptaron. Retry, Consult y revisión humana suman RulesManage dentro del límite. Reintentar a una persona de un aviso a un rol exige su falla confirmada en el resultado (Failed y CanRetry) y la revisión esperada; el efecto la reintenta sola y conserva a las demás como estaban.

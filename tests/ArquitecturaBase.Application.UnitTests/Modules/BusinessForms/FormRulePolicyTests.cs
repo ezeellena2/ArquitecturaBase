@@ -1,5 +1,6 @@
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
+using ArquitecturaBase.Domain.Results;
 namespace ArquitecturaBase.Application.UnitTests.Modules.BusinessForms;
 public sealed class FormRulePolicyTests
 {
@@ -82,6 +83,15 @@ public sealed class FormRulePolicyTests
         Assert.True(FormRulePolicy.Normalize(new(0, [rule with { Conditions = [new(Guid.NewGuid(), "answered", [])] }]), Context()).IsFailure);
     }
     [Fact]
+    public void A_condition_can_ask_for_a_question_of_the_block_but_not_for_the_block_itself()
+    {
+        var rule = Rule("Received", Action("NotifyAuthor", text: Text())) with { Conditions = [new(QuantityId, "gte", ["200"])] };
+        Assert.True(FormRulePolicy.Normalize(new(0, [rule]), BlockContext()).IsSuccess);
+        var result = FormRulePolicy.Normalize(new(0, [rule with { Conditions = [new(BlockId, "answered", [])] }]), BlockContext());
+        Assert.Equal("Forms.Rule.ContentInvalid", result.Error.Code);
+        Assert.Equal(["rules[0].conditions"], Assert.IsType<ValidationError>(result.Error).Errors.Keys);
+    }
+    [Fact]
     public void Conditions_cannot_store_invalid_database_text()
     {
         var rule = Rule("Received", Action("NotifyAuthor", text: Text())) with { Conditions = [new(FieldId,"contains",[new string((char)0,1)])] };
@@ -100,6 +110,16 @@ public sealed class FormRulePolicyTests
     private static readonly Guid RoleId = Guid.NewGuid();
     private static FormRuleOptionsResponse Context() => new(Guid.NewGuid(), new Dictionary<string,string> { ["es"] = "Visitas", ["en"] = "Visits" }, "es",
         [new(FieldId,"visit","shortText",new Dictionary<string,string> { ["es"] = "Visita", ["en"] = "Visit" },null,false,80,null)], [new(RoleId,"Supervisor")]);
+    private static readonly Guid BlockId = Guid.NewGuid();
+    private static readonly Guid QuantityId = Guid.NewGuid();
+    /// <summary>The options with a block of rows, «Artículos», and its question «Cantidad» behind it.</summary>
+    private static FormRuleOptionsResponse BlockContext()
+    {
+        var context = Context();
+        return context with { Questions = [.. context.Questions,
+            new(BlockId, "items", "group", new Dictionary<string,string> { ["es"] = "Artículos", ["en"] = "Items" }, null, false, null, null, Rows: new(1, 10)),
+            new(QuantityId, "quantity", "decimal", new Dictionary<string,string> { ["es"] = "Cantidad", ["en"] = "Quantity" }, null, true, null, null, Repeated: true)] };
+    }
     private static Dictionary<string,string?> Text() => new() { ["es"] = "Recibimos {número}" };
     private static FormRuleActionInput Action(string kind, Guid? role = null, Dictionary<string,string?>? text = null, bool includePdf = false) => new(Guid.NewGuid(),kind,role,text,includePdf);
     private static FormRuleInput Rule(string trigger, params FormRuleActionInput[] actions) => new(Guid.NewGuid(),trigger,[],actions);

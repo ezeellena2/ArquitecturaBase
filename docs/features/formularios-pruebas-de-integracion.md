@@ -117,7 +117,7 @@ D2 verifica Estado contra conjuntos fijos 1/2/3,5/4 en GET/POST/total/Excel y co
 
 FormActionBackgroundServiceTests prueba el bucle técnico real con ServiceCollection, scopes y reloj controlado, sin ApiFactory ni Docker. Comprueba que candidatos inciertos o con excepción no frenan el lote; no acredita persistencia ni transporte externos.
 
-La paridad entre condiciones y SQL compara ambos resultados contra conjuntos numéricos esperados, no sólo entre sí. Para tres respuestas de una versión sin pregunta y dos posteriores (una respondida y otra vacía), answered=[4], unanswered=[1,2,3,5] y notAsked=[1,2,3]; las facetas son 1/4/3 y la celda histórica sigue NotAsked.
+La paridad entre condiciones y SQL compara ambos resultados contra conjuntos numéricos esperados, no sólo entre sí. Para tres respuestas de una versión sin pregunta y dos posteriores (una respondida y otra vacía), answered=[4], unanswered=[1,2,3,5] y notAsked=[1,2,3]; las facetas son 1/4/3 y la celda histórica sigue NotAsked. Con el bloque de renglones (Etapa 4), la semilla de FormRowsReadHttpTests (tres ítems, ninguno, y dos con la semilla y 200,5 en ítems distintos) da los mismos números en memoria y en SQL para una condición en cualquier ítem, dos en un mismo ítem, una de afuera junto a una del bloque, «contiene» en las notas, la presencia y el bloque sin ítems.
 
 D2 acredita por HTTP la fecha real de solicitud, distinta de la aceptación previa del run, antes y después de una decisión. Un pedido fallido por rol ausente conserva su acción, sin tarea ni estado pendiente ficticios. El origen inexistente permanece null. Los ejemplos de Workflow se exportan sólo desde los productores al cierre.
 
