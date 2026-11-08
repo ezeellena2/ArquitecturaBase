@@ -103,7 +103,7 @@ public sealed partial class WhatsAppFormSendingTests
             Assert.Equal(new StructuredFormRowSettings(0, 20), projection.Mapping[1].Rows);
             Assert.Equal(new bool?[] { null, null, true, true, null }, projection.Mapping.Take(5).Select(field => field.Repeated));
             using var json = JsonDocument.Parse(projection.Json);
-            // The supplier, «¿Agregás un renglón?», ten rows and the rest of the questions.
+            // The supplier, «¿Agregás un ítem?», ten rows and the rest of the questions.
             Assert.Equal(13, json.RootElement.GetProperty("screens").GetArrayLength());
         }
     }

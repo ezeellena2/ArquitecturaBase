@@ -28,7 +28,7 @@ internal sealed partial class WhatsAppWebhookReader(
     private const string MessagesField = "messages";
     private const int MaxFlowResponseDepth = 4;
     private const int MaxFlowResponseFields = 50;
-    // A block answers each of its questions once per row, up to ten, besides «¿Agregás otro renglón?».
+    // A block answers each of its questions once per row, up to ten, besides «¿Agregás otro ítem?».
     private const int MaxFlowRowResponseFields = 450;
 
     public WhatsAppWebhookBatch Read(ReadOnlyMemory<byte> body)

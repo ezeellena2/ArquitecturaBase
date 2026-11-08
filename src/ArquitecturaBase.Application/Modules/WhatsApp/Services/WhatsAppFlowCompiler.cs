@@ -64,7 +64,7 @@ internal static class WhatsAppFlowCompiler
             new WhatsAppFlowSlot(question.Type, question.Files is not null, question.Repeated == true, question.Rows)).ToArray());
         var rows = block >= 0 ? request.Questions[block].Rows! : null;
         var rowCount = rows is null ? 0 : WhatsAppFlowScreenBuilder.RowCount(rows);
-        // «¿Agregás un renglón?» answers under _r0 and each «¿Agregás otro renglón?» under its row (RG8-A).
+        // «¿Agregás un ítem?» answers under _r0 and each «¿Agregás otro ítem?» under its row (RG8-A).
         var asked = rows is null ? 0 : (rows.MinRows == 0 ? 1 : 0) + Enumerable.Range(1, rowCount).Count(row => WhatsAppFlowScreenBuilder.Asks(rows, row));
         foreach (var culture in request.TargetCultures.Order(StringComparer.Ordinal))
         {

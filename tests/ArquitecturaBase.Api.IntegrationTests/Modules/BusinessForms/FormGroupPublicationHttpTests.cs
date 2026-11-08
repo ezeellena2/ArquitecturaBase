@@ -7,7 +7,7 @@ using ArquitecturaBase.Domain.Modules.BusinessForms;
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 
 // Publishing the block of rows over HTTP: the empty block blocks, a maximum over the channel rows warns and the published
-// questions that entered the block come back in diff.movedToRows («Pasan a renglones»).
+// questions that entered the block come back in diff.movedToRows («Pasan al bloque»).
 public sealed partial class FormDraftEndpointsTests
 {
     [Fact]

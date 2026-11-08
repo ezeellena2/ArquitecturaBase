@@ -59,7 +59,7 @@ internal static class FormPublicationPolicy
     }
 
     // A published question that entered the block comes back with another identity (RG6-A): each new repeated question pairs with
-    // a removed one of the same type, catalog and original name, so publishing says «Pasan a renglones» instead of removed and added.
+    // a removed one of the same type, catalog and original name, so publishing says «Pasan al bloque» instead of removed and added.
     public static IReadOnlyList<(Guid Added, Guid Removed)> MovedToRows(IReadOnlyList<CanonicalFormField> removed,
         IReadOnlyList<CanonicalFormField> added, string culture)
     {

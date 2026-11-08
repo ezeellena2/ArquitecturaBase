@@ -6,7 +6,7 @@ using ArquitecturaBase.Domain.Modules.BusinessForms;
 namespace ArquitecturaBase.Application.UnitTests.Modules.BusinessForms;
 
 // Publishing the block of rows: the empty block blocks, a maximum over the channel rows warns (RG3-A) and the questions that
-// entered the block read as «Pasan a renglones» (RG6-A).
+// entered the block read as «Pasan al bloque» (RG6-A, RG12-A).
 public sealed class FormGroupPublicationTests
 {
     private static readonly IReadOnlyDictionary<string,string> Text = new Dictionary<string,string> { ["es"]="Artículos" };

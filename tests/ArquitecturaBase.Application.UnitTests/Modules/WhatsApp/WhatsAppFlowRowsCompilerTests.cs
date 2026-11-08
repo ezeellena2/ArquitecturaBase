@@ -7,7 +7,7 @@ using ArquitecturaBase.Domain.Modules.WhatsApp;
 
 namespace ArquitecturaBase.Application.UnitTests.Modules.WhatsApp;
 
-// The block of rows in the Flow (RG3-A, RG7-A, RG8-A): a screen per row up to ten, «¿Agregás otro renglón?» from the minimum
+// The block of rows in the Flow (RG3-A, RG7-A, RG8-A, RG12-A): a screen per row up to ten, «¿Agregás otro ítem?» from the minimum
 // with a Footer in each branch of an If, and each row's answers under field_<question>_r<n> in the complete payload.
 public sealed class WhatsAppFlowRowsCompilerTests
 {
@@ -63,13 +63,15 @@ public sealed class WhatsAppFlowRowsCompilerTests
         var screens = Screens(Flow(result));
 
         Assert.Equal(new[] { "FORM", "FORM_A", "FORM_B", "FORM_C", "FORM_D" }, screens.Select(screen => screen.GetProperty("id").GetString()));
-        Assert.Equal(new[] { "Artículos · renglón 1", "Artículos · renglón 2", "Artículos · renglón 3" },
+        Assert.Equal(new[] { "Artículos · ítem 1", "Artículos · ítem 2", "Artículos · ítem 3" },
             screens[1..4].Select(screen => screen.GetProperty("title").GetString()));
-        Assert.Equal("Items · row 2", Screens(Flow(result, "en"))[2].GetProperty("title").GetString());
+        var english = Screens(Flow(result, "en"));
+        Assert.Equal("Items · item 2", english[2].GetProperty("title").GetString());
+        Assert.Equal("Add another item?", Controls(english[1])[2].GetProperty("label").GetString());
         var first = Controls(screens[1]);
         Assert.Equal(new[] { quantity.Key, notes.Key, block.Key }, first[..3].Select(control => control.GetProperty("name").GetString()));
         Assert.Equal("RadioButtonsGroup", first[2].GetProperty("type").GetString());
-        Assert.Equal("¿Agregás otro renglón?", first[2].GetProperty("label").GetString());
+        Assert.Equal("¿Agregás otro ítem?", first[2].GetProperty("label").GetString());
         Assert.True(first[2].GetProperty("required").GetBoolean());
         Assert.Equal("If", first[3].GetProperty("type").GetString());
         Assert.Equal("${form." + block.Key + "} == 'true'", first[3].GetProperty("condition").GetString());
@@ -147,13 +149,15 @@ public sealed class WhatsAppFlowRowsCompilerTests
         var quantity = Row(Question("decimal", "Cantidad"));
         var remito = Question("shortText", "Remito");
 
-        var screens = Screens(Flow(WhatsAppFlowCompiler.Compile(Request(block, quantity, remito))));
+        var result = WhatsAppFlowCompiler.Compile(Request(block, quantity, remito));
+        var screens = Screens(Flow(result));
 
         Assert.Equal(new[] { "FORM", "FORM_A", "FORM_B", "FORM_C" }, screens.Select(screen => screen.GetProperty("id").GetString()));
         Assert.Equal("Artículos", screens[0].GetProperty("title").GetString());
         var ask = Controls(screens[0]);
         Assert.Equal(block.Key, ask[0].GetProperty("name").GetString());
-        Assert.Equal("¿Agregás un renglón?", ask[0].GetProperty("label").GetString());
+        Assert.Equal("¿Agregás un ítem?", ask[0].GetProperty("label").GetString());
+        Assert.Equal("Add an item?", Controls(Screens(Flow(result, "en"))[0])[0].GetProperty("label").GetString());
         Assert.Equal("FORM_A", Next(ask[1].GetProperty("then")[0]));
         Assert.Equal("FORM_C", Next(ask[1].GetProperty("else")[0]));
         Assert.Equal("If", Controls(screens[1])[^1].GetProperty("type").GetString());

@@ -31,7 +31,7 @@ public static class WhatsAppFlowResponseLimits
         catch (JsonException) { return false; }
     }
 
-    // field_<question>, or field_<question>_r<n> in a block: _r0 answers «¿Agregás un renglón?» and the rows go up to the
+    // field_<question>, or field_<question>_r<n> in a block: _r0 answers «¿Agregás un ítem?» and the rows go up to the
     // channel limit.
     public static bool IsFieldKey(string name, out int? row)
     {

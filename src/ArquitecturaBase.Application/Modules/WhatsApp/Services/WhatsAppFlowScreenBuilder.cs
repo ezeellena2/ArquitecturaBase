@@ -138,7 +138,7 @@ internal static class WhatsAppFlowScreenBuilder
 
     internal static int RowCount(StructuredFormRowSettings rows) => Math.Min(Configuration.WhatsAppFlowProfile.MaxRows, rows.MaxRows);
 
-    // From the minimum, a row ends with «¿Agregás otro renglón?»; the last one asks nothing.
+    // From the minimum, a row ends with «¿Agregás otro ítem?»; the last one asks nothing.
     internal static bool Asks(StructuredFormRowSettings rows, int row) => row >= Math.Max(rows.MinRows, 1) && row < RowCount(rows);
 
     public static string BuildRows(IReadOnlyList<StructuredFormQuestion> questions, IReadOnlyList<WhatsAppFlowScreen> screens,
