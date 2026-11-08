@@ -1,0 +1,150 @@
+# Formularios: detalle de las pruebas de integración
+
+Este documento es el detalle de la guía [`tests/ArquitecturaBase.Api.IntegrationTests/Modules/BusinessForms/AGENTS.md`](../../tests/ArquitecturaBase.Api.IntegrationTests/Modules/BusinessForms/AGENTS.md). Antes de tocar esas pruebas se lee la sección de su tema. La guía es el índice: tiene las reglas comunes y, por tema, qué garantizan sus pruebas, con el enlace a su sección.
+
+## Borradores y chequeo
+
+- Verificar seis rutas/inventario, permisos y actor, snapshot anterior, retired IDs/traducciones y transacción única.
+- Carreras: lock PostgreSQL, dos hosts, espera, ganador/replay y recibos.
+- FakeTimeProvider para expiración. Restaurar anillo cifrado de PostgreSQL con certificado de test; propósito/actor equivocados no abren payload.
+- Medir 40x50 y tombstone indicando qué costos excluye.
+
+- Chequeo: sesión/Read+Publish sin Manage, revisión e identidad guardadas, cuerpo cerrado, errores traducidos, ausencia real del adaptador y ausencia de escrituras. Mantener recorridos de seis rutas; D5 actualiza name a mapa y admite secundarios pendientes, sin contratos legados ficticios.
+- OpenAPI/inventario incluyen la consulta y aceptación/status.
+
+D5: mapas en todas las respuestas/comprobantes, vaciados explícitos/replay/IDs, búsqueda/orden/facetas por idioma UI, migración inicial sobre esquema anterior/base vacía y Down. No usar la base AppHost ni inventar datos v1 históricos.
+
+## Publicación y vista previa
+
+2b mínimo: aceptación/replay tras edición/expiración, rollback técnico sin Fields/Version/Operation/prefix parciales, actor/token/permisos, dos hosts y una operación abierta. El canal ReadyStructuredFormChannel sólo vive en TestFeatures: no acredita Meta real.
+
+2b prueba activación preservando borrador, CAS/fences/replay, otro host y ambos workers reales con proveedor de TestFeatures: es/en, upload con errores, caída después de Create y revocación. URLs de preview/estado sin secretos; inventario/OpenAPI diez rutas. Sin red Meta; workers automáticos apagados y ejecución controlada por operación.
+
+Mínimo2: recarga propia/ajena y revocación Publish; última operación sin borrar activa anterior/listado/facetas. Preview es/en independiente de Accept-Language, cultura ausente/ajena400, expiración sin URL en canal real y guard neutral, renovación sólo por GET nuevo. La consulta al canal lleva las primeras 20 opciones de cada lista en la cultura pedida (VO1-A).
+
+FormPublicationLanguageTests verifica tres versiones con original solo, secundaria completa y secundaria retirada para originales es/en. Afirma culturas del chequeo, manifiesto, activa y status; captura dieciocho cuerpos HTTP íntegros sin ticket para el exportador existente. El cierre de backend ejecutó los casos con PostgreSQL y exportó esos cuerpos sin reconstruirlos.
+
+## Listado, baja, eliminación y retiro
+
+SelectionQueryTests y DefinitionQueryTests caracterizan SQL sin conexión: selección vigente/histórica, filtros de estado y auditoría por revisión, sin contenido protegido. PostgreSQL acredita persistencia/conteos/empates.
+
+FormDeactivationHttpTests prepara baja por Read+Publish sin Manage, CAS, cuatro filtros/facetas y privacidad de conteos. Usa publicaciones y capturas reales del módulo para conservar historia y numeración, opciones BA6 sin alterar conjuntos y el inverso BA3 sólo desde conjuntos actuales de orígenes ofertables. Baja y Guardar posterior comparten el mismo FakeTimeProvider: la revisión distingue el último autor. La reactivación conserva la baja en Accepted y la limpia al activar Published. Se ejecuta con PostgreSQL sólo en el cierre integrado; no acredita sesiones ni deprecación física de Meta.
+
+FormDeletionHttpTests prepara eliminación HTTP de borrador o publicado sin respuestas con el interceptor real, prefijo reservado y recuperación del recibo anterior. Conserva conjuntos hacia destinos eliminados como Deleted y permite quitarlos; las respuestas capturadas y publicaciones Accepted bloquean la eliminación. El puerto neutral controlado cubre el bloqueo por sesión abierta o recibo pendiente, sin afirmar la consulta de WhatsApp ni el efecto externo. Sólo se ejecuta con PostgreSQL en el cierre integrado.
+
+FormRetirementSourceIntegrationTests prueba la autoridad neutral con versiones reemplazadas, fallidas y eliminadas, bloqueo durante cualquier publicación abierta y pertenencia exacta DefinitionId/VersionId. FormRetirementStatusHttpTests comprueba que listado, editor y preview comparten los tres estados locales del canal y que sus metadatos no revelan contadores sin RecordsRead. La persistencia y conciliación de Meta se verifican en WhatsApp; estos escenarios no la simulan.
+
+FormOverviewQueryTests comprueba la proyección SQL de presentación sellada y culturas publicadas sin esquemas ni manifiestos; no abre conexión. La cobertura PostgreSQL preparada conserva búsqueda/facetas sin protector, excluye borrador, primera publicación abierta y eliminado, y mantiene la activa durante un reemplazo abierto. FormVersionPresentationTests prepara aceptación y backfill idempotente desde perfiles originales en es/en, incluida metadata de culturas ausente con la presentación ya sellada; conserva schema, hash y manifiesto.
+
+## Catálogos
+
+### Opciones, orden y capacidad
+
+Catálogo Manual: pruebas HTTP con PostgreSQL real cubren alta positionless, rechazo de Position enviado por cliente, secuencias de movimientos entre páginas, unicidad final y auditoría; un movimiento fuera del límite revierte metadatos/orden. FormCatalogCodeUniquenessMigrationTests usa una base propia migrada para preparar Up/Down/Up, intercambio de códigos y reserva inactiva al commit; EnsureCreated no instala estas restricciones SQL.
+
+FormMigrationsTests comprueba en una base nueva la clave diferible de posición y la vista de usuarios retirada, y las idas y vueltas de esa vista y de las identidades retiradas. Vive con el módulo para que las migraciones del núcleo no nombren sus tablas.
+
+FormCatalogItemDeletionIntegrationTests usa FormRecipientScenario con una respuesta sembrada y un filtro fijo en el borrador: el 409 `ItemInUse` nombra `records`, `options`, `people` y `forms` sin guardar nada, y la opción que nadie usa se borra y las demás cierran el hueco.
+
+FormCatalogCapacityIntegrationTests prepara 10.000 filas Manual, incluidas 5.000 inactivas, y prueba el lector real sin seguimiento: una SQL ordenada, sin límite ni offset y con limpieza de sus propios IDs.
+
+### Valores tipados
+
+FormCatalogPresentationCheckContractTests cierra sin DB el cuerpo de presentation-checks; FormCatalogEndpointsTests prueba la ruta por HTTP (conteos por idioma sobre todas las opciones activas, 400, 404, 401 y 403 sin formcatalogs.read). FormCatalogValueContractTests verifica los tres contratos sin DB; FormCatalogValueModelTests en Architecture inspecciona defaults, tipos y checks reales. HTTP tipado prepara alta/edición, tipo inmutable y errores por fila; FormCatalogValueMigrationTests prepara historia Up/Down/Up, intercambio por HTTP en una base migrada y Down que rechaza datos no representables. No usa EnsureCreated para acreditar restricciones SQL.
+FormCatalogTypedReadIntegrationTests prepara con PostgreSQL la metadata en un solo lote aun con cero respuestas y dos preguntas del mismo catálogo, y el XLSX vacío con encabezados de valor.
+FormWorkbookWriterTests abre bytes XLSX reales y caracteriza 15 cifras significativas numéricas al guardar/reabrir con ClosedXML; la captura canónica conserva el string exacto. También comprueba que cada celda conserva su formato y cómo se ve en es-AR y en-US. FormCatalogValuePdfTests verifica formato es/en de entero, fecha y hasta 28 decimales con el formatter y renderer reales, sin consultar el catálogo actual; FormMultipleChoiceRenderingTests agrega listas en orden y XLSX de valores canónicos como texto. Exportan PDF técnicos para revisión final.
+
+### Importar y exportar
+
+E1-A: FormCatalogTransferContractTests controla multipart, permisos y límites sin DB; FormCatalogExportWorkbookTests abre la plantilla y texto literal, y exporta un catálogo con campos a bytes XLSX reales: comprueba lo que se lee en es-AR y en-US (nombres, opción fuente con repetidos y bajas, Sí/No, números, fechas y texto exacto) y que el lector real y la importación lo devuelven sin cambios, sin Docker. FormCatalogImportHttpTests y su parcial Fields preparan revisión/confirmaciones/replay, marca, bajas, etiquetas fuente es/en, roundtrip sin diferencias y el nombre del archivo, sin columnas de traducción con el menú en el idioma original, y con el menú en español exportan, previsualizan y aplican un catálogo con original inglés (columna `textEs`); FormCatalogInactiveSourceHttpTests, que un catálogo con una opción fuente dada de baja sigue editable y se reimporta sin diferencias; FormCatalogImportMarkerMigrationTests prepara Up/Down/Up y CHECK real con columnas históricas. PostgreSQL y capturas sólo en el cierre conjunto.
+
+### Catálogos de personas (Filters)
+
+K4 Filters: `FormCatalogFiltersEndpointsTests` comprueba con PostgreSQL/Redis las opciones de roles/personas, orden/página de la muestra, preview por rol/activo/usuario elegido, permisos Read/Manage, persistencia de filtros, detalle y 409 por revisión. Verifica que los roles sin miembros aparecen, que una cuenta sin nombre se excluye y que al renombrar un rol se conserva su RoleId y se muestra el nombre actual. El lector consulta las tablas actuales de Identity; no hay vista ni fixture de vista para `EnsureCreated`. `FormCatalogEndpointsTests` verifica conteos `ByKind` sobre el conjunto completo, aun con filtro de origen y página. K6 verifica que lista y detalle cuentan una vez cada definición aunque varias preguntas refieran al mismo catálogo.
+
+### Elegir varias
+
+FormMultipleChoiceMigrationTests prepara Up/Down/Up con datos previos, Position 0, índices por posición/ítem y checks reales. Down debe rechazar también una única elección en Position 0 y una respuesta opcional [] sin filas de valores/referencias, desde la identidad multiChoice del campo o del borrador aun sin versión publicada o con activa escalar, y conservar hechos/migraciones aplicadas al fallar. FormCatalogActiveCountIntegrationTests verifica un agregado por catálogo que excluye inactivos y filas ajenas, sin hidratar ni paginar.
+
+### Idioma original
+
+FormCatalogOriginalCultureMigrationTests prepara Up/Down/Up del idioma original: propuesta tomada de su evidencia, filas previas en `es`, historia intacta y Down que rechaza un original inglés fuera de una propuesta.
+
+FormCatalogItemSpanishTextMigrationTests prepara Up/Down/Up de `TextEs` nullable con historia intacta y Down que rechaza una opción sin texto en español. Por HTTP, un catálogo Manual o Filters y un dato de las personas se crean sólo en el idioma del menú, y con el menú en el otro idioma se edita exigiendo el original guardado (400 en el path del original). FormCatalogEnglishOnlyItemQueryTests lee con PostgreSQL una opción sólo en inglés con la UI en español: búsqueda, orden y texto de ítems y de opciones de personas, `fieldTexts` con un solo idioma y el texto de la opción en los datos de una persona.
+
+## Datos de las personas y destinatarios
+
+Datos de personas: FormPersonDataContractTests cierra JSON/redacción sin DB. FormPersonDataHttpTests: siete rutas, OR/AND, opciones id/text sin CatalogsRead, CAS/delta, 409 al editar un dato desactualizado (captura attribute-conflict), rollback/fuente usada, confirmación para borrar valores al cambiar tipo o fuente (cuenta sólo personas no borradas y limpia también las borradas), `missing` de la tabla (personas de toda la búsqueda, con página de uno, sin cada dato activo, también con un valor de catálogo que no es opción de su fuente; no cuenta cuentas borradas ni lista datos inactivos) y capturas es/en; FormPersonDataQueryTests fija sin DB la forma y los parámetros de esa SQL. Migración y persistencia usan PostgreSQL real; FormPersonDataPersistenceTests comprueba que el lector deja fuera de los textos de opción un ítem de otro catálogo Manual que la fuente del dato, que el mismo ítem guardado por dos datos con fuentes distintas no esconde el valor válido ni valida el heredado, y que el aviso de publicar (`FindRecipientsWithoutDataAsync`) cuenta como sin el dato un valor que no es opción de la fuente actual (de otro catálogo o texto), pero no una opción dada de baja. No acredita Meta.
+
+E2-3: RecipientFilterIntegrationTests y FormRecipientScenario usan base aislada, HTTP real y puertos neutrales para Juan/María/sin dato, Match desordenado, replay de publicación en curso y el 409 `FieldInUse` en `fields[0].role` al pasar a dato un campo que filtra (usos Active y Draft), con el envío todavía posible; un campo que una pregunta sólo muestra en su presentación cambia de papel. El detalle del catálogo lee de PostgreSQL cada uso de un campo con su pregunta, `questionId` y etapa: la misma pregunta en la versión activa y en el borrador, otra sólo en el borrador y el uso propio `Catalog`. Una cuenta que sólo administra catálogos (`CatalogEditorId`, sin `formtemplates.read`) ve esos usos y el 409 uno por etapa, sin formulario, pregunta ni IDs. El máximo por persona (`recipient-maximums`) devuelve el grupo más grande con su etiqueta en el idioma del menú y, con sólo filtros fijos, el conteo compartido sin etiqueta; un filtro sobre un campo de dato da 400 en `source.match`, y sus 401/403 van con los de la vista previa. Exportan 16 cuerpos recipient-filters es/en al cierre. RecipientPreviewContractTests y RecipientStatisticsQueryTests son técnicos sin Docker: JSON cerrado/mapeo y SQL parametrizado/grupado. Captura de cuerpo no reconstruida.
+
+Con el mismo escenario, aun confirmando borrar valores, quitar un campo que filtra da 409 `FieldInUse` en `fields[i].isActive` (FormCatalogFieldInUseIntegrationTests) y cambiar tipo, fuente o actividad del dato Zona, 409 `Forms.PersonAttribute.InUse` (FormPersonAttributeInUseIntegrationTests), con uso en el borrador o sólo en la activa, y no guardan; renombrar Zona da 200. FormCatalogContractCapture exporta fields-in-use y fields-usage-detail a catalogs-http/manual-current. FormAssistantRecipientDataIntegrationTests: `forms.assistant-candidates` ofrece a Juan sólo su proveedor y a Pablo, sin el dato, no.
+
+## Captura de respuestas
+
+La captura de mínimo 3 usa PostgreSQL/Redis reales para verificar valores tipados, recibo idempotente, conflicto de replay y pertenencia compuesta del FieldId. No usa el sink/source ficticio de los tests HTTP de WhatsApp.
+
+La captura de catálogo comprueba que PostgreSQL conserva el mapa ofrecido y devuelve etiquetas, detalles y nombre históricos es/en aun después de editar el catálogo. La migración agrega una columna nullable sin reescribir datos existentes.
+
+## Carga desde la app, corregir y anular
+
+Carga desde la app: FormEntryHttpTests recorre con PostgreSQL y Azurite las tres rutas de `entries` con 401/403, la versión activa con la única opción y el dato faltante, opciones paginadas con búsqueda, el envío multipart con fotos y su replay, la versión cambiada, el formulario dado de baja, la opción dada de baja entre abrir y enviar, el origen «App» en la planilla y el detalle, el filtro por canal y «Formularios» de quien sólo completa, con sus cargas y la última. Lo propio (Etapa 2): quien sólo completa lee su planilla, sus conteos (las personas y las opciones de catálogo, sólo de lo suyo), su navegación, su detalle y su workflow sin acciones; lo ajeno da 404 (detalle, workflow, archivos, documentos y navegación) y el Excel, 403. `FormOverviewQueryTests` fija el COUNT propio por `ActorUserId`. FormEntryContractCapture exporta sus 17 cuerpos es/en con FORM_ENTRIES_HTTP_OUTPUT a la cohorte forms-entries-http.
+
+Corregir y anular (Etapa 3): FormRecordAmendmentHttpTests corrige en es/en con el mismo número y la anterior en su historia, corrige con el permiso la respuesta de otra persona con los filtros de catálogo de quien la respondió, anula con motivo y deja la anulada fuera de la planilla, los conteos y el Excel salvo que se pidan, y prueba que quien sólo ve respuestas no corrige ni anula y que una respuesta decidida ya no es de su autor. Captura los nueve cuerpos de corregir y anular de la cohorte de la carga.
+
+## Bloques de ítems
+
+Renglones (Etapa 3): FormRowsReadHttpTests captura por el sink real un formulario con bloque y lee con PostgreSQL la planilla, el detalle, «Filtros» (una condición en cualquier ítem, dos en el mismo, la presencia, la búsqueda y los conteos), el Excel con la hoja del bloque y la vista previa del PDF, es y en; exporta rows-sheet, rows-detail, rows-counts y rows-export a forms-responses-http y rows-preview a forms-pdf-http. FormRowsQueryTests fija sin abrir una base el `EXISTS` por `Row`; FormPdfRendererTests, la tabla del bloque (`Table`), su paginado y el bloque sin ítems; FormWorkbookWriterTests, el libro con varias hojas.
+
+Renglones (Etapa 2): FormRecordRowsMigrationTests prepara Up/Down/Up de `AddFormRecordRows` con historia conservada, los índices y CHECK de `Row` y `RejectedRow`, el lector de referencias y cada rechazo del Down. FormRowsCaptureIntegrationTests captura por el sink real tres ítems con su `Row` (el mismo artículo en dos) y repite el rechazo de un ítem por el lector real. FormEntryRowsHttpTests carga el bloque (`rows`, `repeated`), envía tres ítems, repite con el mismo `requestId`, rechaza la opción de otra zona en la celda del ítem (`answers.<bloque>.1.<pregunta>`) y un bloque sin ítems, corrige con los ítems, y una lista del bloque sigue la zona de su propio ítem; exporta entry-rows-es, entry-rows-error-es y correction-rows-es a forms-entries-http. FormGroupPublicationHttpTests suma el mínimo mayor que el tope de WhatsApp, que frena con el canal en `draft.fields[i].rows` (RG13-A), y exporta rows/publication-check-minimum a forms-http.
+
+## Listas dependientes, elegir primero y títulos de sección
+
+Listas dependientes (CW7): FormEntryDependentListHttpTests usa FormRecipientScenario con una pregunta de Zonas y otra de Proveedores que depende de ella. El borrador sella el `fieldId` de la pregunta nueva, publicar avisa `DependsOnAnswer`, la carga dice `dependsOn`, lista sólo los proveedores de la zona elegida (`answers[...]`), da 409 sin la respuesta y `CatalogItemInactive` con un proveedor de otra zona, y el lector de selección trae `dependentQuestion`. Exporta entry-depends-es y options-depends-es a forms-entries-http.
+
+Elegir primero por un campo (LD1-A): FormEntryGroupByHttpTests usa FormRecipientScenario con dos preguntas de Proveedores, una por Zona (opción de catálogo) y otra por Tipo (texto). Guarda `source.groupBy`, el chequeo frena `GroupByInvalid` en el campo que no es del catálogo, la carga dice `groupBy`, los valores salen en el orden de su fuente o alfabéticos, las opciones filtran por `group` o `withoutGroup` (los dos, 400), con 401/403, el envío, los valores de la corrección y la corrección con el valor de la opción guardada (`group`). Exporta entry-groupby-es, groups-es, options-group-es y correction-groupby-es a forms-entries-http.
+
+Títulos de sección (CW15-B): FormSectionHttpTests guarda los títulos con PostgreSQL, frena el vacío al chequear, publica y lee de la versión sellada; los inválidos dan 400 por campo. Exporta `sections/draft` y `sections/publication-check` a forms-http. FormEntrySectionHttpTests lee `section` en la carga en es/en y exporta `entry-sections-es` a forms-entries-http.
+
+## Planilla, detalle y navegación
+
+Etapa 3: filtros, orden, conteos y paginado con PostgreSQL; preguntas históricas y opciones retiradas; 401/403 y revocación; exportación tipada y rechazo sobre 10.000. `FormResponseHttpTests` ejecuta EXPLAIN sobre el comando y los parámetros reales de EF con 10.001 respuestas, verifica encabezados en inglés, excluye borradores reales y conserva un snapshot de versiones ante una captura concurrente; `FormCatalogCaptureIntegrationTests` prueba búsqueda/orden de facetas históricas sin materializar en memoria. FormMultipleChoiceReadHttpTests agrega array histórico ordenado, catálogos editados/inactivos, anyOf, facetas por respuesta y sort400; FormMultipleChoiceQueryTests exige EXISTS sin duplicación. Sin pruebas de varios hosts para estas lecturas.
+`FormRecordNavigationQueryTests` comprueba ventanas sobre el conjunto filtrado completo, ancla exterior de una sola fila, orden y parámetros Npgsql clonados, incluido el paso de llaves literales por EF; no abre conexión. `FormRecordNavigationSqlTests` verifica subconsultas y textos entre comillas y el rechazo de otra forma SQL. `FormRecordNavigationHttpTests` conserva extremos/posición, filtros fuera de página, nulos y desempates, permisos y errores; su ejecución PostgreSQL y ocho capturas quedan para el cierre conjunto.
+
+D2 verifica Estado contra conjuntos fijos 1/2/3,5/4 en GET/POST/total/Excel y conserva ese filtro en las facetas existentes. La presencia PDF diferencia aprobada con copia fija de aprobada sin copia, mantiene HasApproval histórico y se obtiene por un EXISTS de página con cantidad de consultas independiente de las filas.
+
+## Reglas, acciones y aprobaciones
+
+FormActionBackgroundServiceTests prueba el bucle técnico real con ServiceCollection, scopes y reloj controlado, sin ApiFactory ni Docker. Comprueba que candidatos inciertos o con excepción no frenan el lote; no acredita persistencia ni transporte externos.
+
+La paridad entre condiciones y SQL compara ambos resultados contra conjuntos numéricos esperados, no sólo entre sí. Para tres respuestas de una versión sin pregunta y dos posteriores (una respondida y otra vacía), answered=[4], unanswered=[1,2,3,5] y notAsked=[1,2,3]; las facetas son 1/4/3 y la celda histórica sigue NotAsked.
+
+D2 acredita por HTTP la fecha real de solicitud, distinta de la aceptación previa del run, antes y después de una decisión. Un pedido fallido por rol ausente conserva su acción, sin tarea ni estado pendiente ficticios. El origen inexistente permanece null. Los ejemplos de Workflow se exportan sólo desde los productores al cierre.
+
+WorkflowEndToEndHttpTests cubre captura/foto/catálogo, aprobación ajena y PDF Skia privado; respaldo entero al original salvo ítem sin inglés. Aviso Accepted simulado no inventa entrega/lectura. ExportRateLimitTests técnico verifica liberación tras cualquier salida del pipeline.
+
+FormApprovalContinuationQueryTests verifica cursores, parámetros tipados, ventanas y lote acotado antes de metadata sin abrir conexión. FormApprovalContinuationHttpTests prepara ancla decidida, empates, posiciones, hasMore, extremos totalmente vacíos y roles/propias, más seis cuerpos es/en;
+
+## PDF
+
+FormPdfRendererTests también ejecuta FormPdfPreviewIssuer con Skia real: nombre alternativo ausente cae entero al original, muestra la foto de ejemplo y no abre archivos privados. Es una prueba técnica sin ApiFactory ni Docker; exporta el PDF para revisar su PNG con Poppler.
+
+PDF técnico: EmojiTests verifica shaping/bitmap Noto Emoji y RendererTests emite el PDF mixto para Poppler. Windows no acredita el nativo Linux de HarfBuzz.
+
+## Asistente y sugerencias
+
+OfferWhen se verifica por HTTP con guardado/recuperación/replay normalizado, limpieza, conflicto de revisión sin guardado parcial y rechazo del campo en publication-checks. PostgreSQL conserva el schema y no crea versiones por guardar las instrucciones.
+
+C2: FormAssistantSelectionTests comprueba con PostgreSQL la lectura de instrucciones/revisión actuales y preguntas publicadas aunque el borrador cambie, el descarte al deshabilitar OfferWhen y el prellenado sin crear una respuesta ni una versión nueva. Se ejecuta junto con el cierre integrado.
+
+FormSuggestionHttpTests prepara las cinco rutas con 401/403, guardado/historial propio y 409, destino publicado con OfferWhen vacío, exclusión de borradores, origen sin publicar y propiedades desconocidas. FormSuggestionContractCapture exporta ocho cuerpos íntegros mediante FORM_SUGGESTIONS_HTTP_OUTPUT; la ejecución PostgreSQL y exportación se hacen sólo en el cierre conjunto.
+
+H5 prepara con PostgreSQL dos formularios realmente publicados, valida la pregunta y nombres actuales por el puerto neutral y comprueba que deshabilitar una instrucción invalida la aclaración completa. No crea respuestas ni acredita botones o envíos de Meta; se ejecuta en el cierre integrado.
+
+SuggestionCaptureIntegrationTests cubre puertos reales, destino sin OfferWhen, autor/replay/ramas y modo histórico; GET es/en sin IDs del motor. Sólo cierre PostgreSQL.
+
+FormAssistantMigrationTests recorre Up/Down/Up desde EnableWhatsAppAssistant con datos guardados del esquema anterior. Conserva snapshot y numeración, false tipado, actor/recibo y catálogo bilingüe; las nuevas atribuciones y punteros quedan null. Se compila por corte y se ejecuta sólo en la integración final.
+
+La regresión de descubrimiento ejecuta los tres métodos reales de FormSelectionReader en PostgreSQL: ListAssistant, FindAssistant y ListSuggestionTargets, con orden por definición, instrucciones actuales, esquema publicado, borrador excluido y destino de sugerencia sin OfferWhen. Deshabilitar instrucciones retira sólo la oferta del asistente y no el destino publicado de sugerencias.
+
+Crear desde una propuesta: FormAssistantProposalHttpTests usa un host propio con `ScriptedAssistantProposalLookup` (el puerto real se prueba en las unitarias de IA) y PostgreSQL para el borrador con su procedencia, el repetido, dos toques a la vez con un solo borrador, nombre o prefijo en uso, propuesta reemplazada o desconocida, el catálogo Manual pendiente que aprobar activa y los 401/403 de las cuatro rutas. FormAssistantProposalContractCapture exporta 14 cuerpos con FORM_ASSISTANT_PROPOSAL_HTTP_OUTPUT a forms-assistant-proposals-http, sólo en el cierre conjunto. FormAssistantProposalChannelTests crea desde el canal (IA3-A) con PostgreSQL y en un scope sin sesión web: el borrador y el catálogo Manual de la persona del contexto, una vez por propuesta, con la ruta de la app y sin `requestedIn`, y nada para quien no administra.

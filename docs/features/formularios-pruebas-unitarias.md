@@ -1,0 +1,109 @@
+# Formularios: detalle de las pruebas unitarias
+
+Es el detalle de la guía [`tests/ArquitecturaBase.Application.UnitTests/Modules/BusinessForms/AGENTS.md`](../../tests/ArquitecturaBase.Application.UnitTests/Modules/BusinessForms/AGENTS.md): qué garantizan las pruebas unitarias de Formularios, agrupado por tema. Antes de tocar esas pruebas, leé la sección de su tema; la guía es el índice y conserva las reglas que valen para todas.
+
+## Opciones, capacidad e importación de catálogos
+
+Eliminar opciones: borra la que no se usa y renumera, libera su código en el mismo guardado, rechaza una ajena, editada o movida en el pedido y responde `ItemInUse` con los usos de la primera usada sin guardar; el validador rechaza identidades repetidas o vacías.
+
+Capacidad Manual: crear/editar hasta 10.000 filas, delta contra el total almacenado, rechazo de 10.001 y duplicado con `items[i].code`; `moves` conserva 500. Condiciones prueban lectura completa de 10.000, incluidas inactivas, y una lectura por catálogo compartido sin paginado.
+
+Importación: plan puro por código con Append/Replace, errores localizados por fila y columna, ítem existente intacto si su fila falla, confirmaciones exactas y revisión. Cubrir plantilla es/en, la columna de traducción según el original (`textEs`/`detailEs` con original inglés, export y reimportación sin diferencias; la del idioma del original es desconocida) y sólo con el menú en el otro idioma, el nombre del archivo con el del catálogo, todos los códigos ambiguos, capacidad con inactivas y exportación/reimportación sin diferencias ni pérdida de precisión. El export legible se prueba con la reimportación: campos por nombre (y sus choques con columnas fijas, claves y nombres repetidos), opción fuente por texto con textos repetidos y bajas, Sí/No, números y fechas tipados con su formato y texto exacto pasadas 15 cifras o antes de 1900; los exports « [canónico]» anteriores se siguen importando. Lector XLSX/CSV y archivo físico pertenecen a los tests técnicos de Infrastructure; HTTP y locks reales, a integración.
+
+Importación: permisos y revisión antes del archivo y después de leer; parseo fuera del límite, hash y confirmaciones antes de mutar, locks del catálogo y sus fuentes ordenados, un commit y una revisión con marca UTC. Preview no guarda ni devuelve mapas locales; las filas inválidas conservan ítems/posiciones. PUT ordena todo por el texto original con es-AR o en-US según el original del catálogo, preserva valores y rechaza combinar A–Z con movimientos. El aislamiento real de rollback y lector físico queda en integración.
+
+## Campos del catálogo y valores tipados
+
+Campos extra: la captura prueba un lote para elegidas y otro para textos fuente, ambos después de los locks Manual. Sella sólo campos activos con valor, incluido cero/false y los nombres originales incompletos; replay conserva ese snapshot después de editar los datos. Filters e historia sin campos mantienen null y omiten la propiedad nueva al serializar.
+
+Oferta/captura tipadas: pares Value/ValueType canónicos, tipo cerrado y validación antes de subir archivos. Una edición del catálogo no cambia la oferta ya sellada ni sus referencias finales/propuestas. Text, Filters y filas históricas mantienen los bytes JSON sin propiedades nuevas nulas; cambiar un valor ofrecido invalida el replay.
+
+E2-4 verifica nombres/valores históricos es/en, precisión, ausencia y orden; selección Excel independiente por pregunta/campo, nulos/duplicados y tipos escalares. Chat omite extras; columnas no habilitan sort ni condiciones.
+
+## Datos de las personas y filtros por destinatario
+
+Datos de personas: permisos OR/AND y revocación, revisión por fila/atributo, delta que conserva ausentes/inactivos y limpia null, source/opción activa, aislamiento por persona, máximo20, usados y confirmación que limpia sólo ese valor al cambiar tipo o fuente; la confirmación cuenta sólo personas no borradas y la limpieza alcanza a las borradas. La tabla pide los faltantes sólo de los datos activos, con su búsqueda, y descarta todo si el permiso cae durante esa lectura. El lector de opciones devuelve sólo id/text sin CatalogsRead. Casos PostgreSQL y locks reales van a integración.
+
+E2-3 cubre canónico de Match, ausencia que nunca amplía oferta, huella exacta del esquema anterior y Source/Shown nulos omitidos. Preparación y asistente comparten cultura efectiva y límites; preview conserva exceso/títulos inválidos sólo para diagnóstico y revalida permisos también al devolver ausencia. El máximo por persona del editor da el grupo más grande con su etiqueta (o el conteo compartido sin etiqueta con sólo filtros fijos), rechaza un Match inválido, o un valor fijo que no es opción activa de su fuente (como publicar), sin leer el máximo y revalida permisos después de leerlo y antes de devolver el error del catálogo o del Match (revocar durante la lectura del catálogo da 403). Publicación separa bloqueos/avisos, máximo y unión de faltantes.
+
+## Elegir varias
+
+Publicación multiChoice: límite de 20 activos sólo para catálogo Manual, conteo SQL delegado una vez por catálogo compartido y error con FieldId/path propios. Choice ordinario, Filters y catálogos inválidos conservan sus recorridos.
+Captura multiChoice: array GUID D distinto, min/max sellados, orden Position 0..N-1 y referencia ofertada por opción; omitida no agrega entrada, [] conserva array real sin filas; replay/huella escalar y atomicidad de metadata junto a archivos permanecen.
+
+## Listas dependientes, elegir primero y vista oficial
+
+Listas dependientes (CW7): FormCatalogMatchPolicyTests cubre las tres clases de filtro, la contención con la respuesta elegida y sin ella, el dato de la persona que se dice primero y la pregunta anterior de elegir una del catálogo del campo; FormCatalogPublicationMatchTests, el aviso que no frena y el bloqueo; FormCatalogSourceFingerprintTests, el `localId` que se sella como `fieldId`; FormEntryServiceTests, `dependsOn`, las opciones de la respuesta elegida y el envío que no corresponde; FormCatalogPreparationPolicyTests, que un canal no la prepara.
+
+Elegir primero por un campo (LD1-A): FormCatalogSourceValidationTests rechaza el id vacío y el ajuste en «elegir varias»; FormCatalogGroupByPublicationTests acepta un campo de texto u opción de catálogo de cualquier papel y frena `GroupByInvalid` si falta, está dado de baja, es de otro tipo o el catálogo es Filters; FormEntryGroupByTests, el nombre del campo por idioma, los valores (texto alfabético, catálogo por su fuente, «Sin rubro» al final), las opciones del valor elegido o sin valor con la búsqueda adentro, el envío que no mira el valor, los pedidos inválidos y la corrección que arranca con el valor de la opción guardada (o «Sin rubro»), sin `group` en una pregunta sin el ajuste. FormCatalogGroupedOfferTests (LD2-A) prueba la oferta para un canal: cada opción con su valor y los valores en orden por idioma, la oferta de siempre sin el ajuste, el tope de 200 por valor y para la lista de valores, el campo que ya no está, la vista oficial con los primeros 20 valores y 20 opciones de cada uno, y la validación agrupada; FormAssistantCandidatePolicyTests y FormSuggestionPolicyTests, que esas preguntas no se prellenan ni reciben un mapeo.
+
+Vista oficial (VO1-A): FormCatalogPreviewOptionsTests prueba las primeras 20 opciones activas de cada lista, en orden, sin filtros por persona ni por otra respuesta (los fijos siguen), la lista de personas como la vería quien mira, el catálogo que no se ofrece y la versión sellada de otro formulario.
+
+## Renglones
+
+Renglones (Etapa 3): FormRecordRowsPresentationTests cubre `Project` con el bloque y sus ítems (el mismo artículo en dos), sin el bloque, sin ítems, sin campos del catálogo y el mensaje de una regla que lo nombra; FormResponsePresentationPolicyTests, la columna `group` con sus preguntas unidas entre versiones, la pregunta que pasó al bloque y las celdas por ítem; FormRecordFilterPolicyTests, el orden y las condiciones sobre el bloque; FormResponseServiceTests, los conteos de una pregunta del bloque; FormExportPolicyTests, la cantidad de ítems y el nombre de la hoja; FormRowsExportTests, la hoja del bloque con dos versiones, `catalogFields` y el bloque oculto; FormPdfDesignPolicyTests y FormRowsPdfPreviewTests, el diseño con el bloque entero y la vista previa con dos ítems.
+
+Renglones (Etapa 2): FormRecordAnswerPolicyTests cubre el bloque como array por ítem (orden de las preguntas, mínimo y máximo, obligatorias, claves ajenas o repetidas, una pregunta del bloque respondida afuera, valores canónicos y opción ofrecida); FormRowsCaptureTests, uno, tres y cero ítems con el ValuesJson exacto, un valor y una referencia por pregunta de cada ítem con su `Row`, el mismo artículo en dos, replay y conflicto, rechazos sin número, la opción dada de baja con `RejectedRow` y la huella de una captura sin bloque fijada con su valor; FormRecordRowsPresentationTests, `Rows` con la referencia de cada ítem; FormRecordReferenceRowTests, los bytes de una referencia sin `Row`; FormEntryRowsTests, la carga con `rows` y `repeated`, el envío en el orden de las preguntas, las respuestas fuera de lugar, los topes del envío, LD3-A por ítem, la ruta `answers.<bloque>.<n>.<pregunta>` y la corrección con las preguntas que siguen en el bloque. Al publicar, FormGroupPublicationTests prueba el mínimo que frena (RG13-A) y FormCatalogMatchPolicyTests, la pregunta de afuera que depende del bloque (LD3-A).
+
+## Títulos de sección
+
+Títulos de sección (CW15-B): FormSectionDraftTests cubre el guardado aparte de las preguntas, el JSON sin títulos, el original hasta 80, el orden, el bloque y el tope de 40, y `Matches`; FormSectionPublicationTests, `SectionEmpty`, el idioma incompleto, el pedido al canal y la versión sellada; FormEntryServiceTests, `section` en la pregunta donde empieza cada título.
+
+## Idioma original y traducción
+
+D5: nombre por cultura, vacíos secundarios/normalización, original obligatorio, ayuda opcional/parcial y completitud con paths/cultura/IDs. Publicación distingue original bloqueante y secundaria informativa; compara culturas sumadas/perdidas y conserva las culturas selladas de activa/status. Duplicados sólo originales, sin nueva regla secundaria por inferencia.
+
+FormCatalogHistoricalLanguageTests cubre oferta y referencia por idioma, respaldo individual al texto/detalle original del ítem sin traducción (también al inglés cuando es el original del catálogo), una referencia sólo en el idioma de su catálogo que no deja incompleto el original del formulario, la captura de una opción ofrecida sólo en ese idioma dentro de un formulario de otro y ausencia de respuestas duplicadas en nuevos snapshots. El respaldo total al original responde a los demás textos usados de la presentación. FormCatalogOriginalLanguageTests y los casos de idioma de FormPersonDataServiceTests prueban que sólo el original es obligatorio (la cultura del pedido al crear y la guardada al editar) y el path del primer texto original que falta. PDF verifica lectura por Id con autor/decisión fijados y referencias históricas localizadas antes del renderer.
+
+Preview PDF verifica fotos y arrays de ejemplo dentro de Selection sin persistencia. La completitud incluye el nombre del formulario es/en y usa el NameJson capturado para PDF y avisos aunque el borrador actual esté completo; nunca mezcla el idioma secundario incompleto.
+
+## Canales: composición, captura y lectura
+
+Composición de chequeo rechaza ChannelId duplicado/vacío.
+
+BusinessFormRecordSinkTests y BusinessFormRecordSourceTests verifican autorización, schema sellado, replay/conflicto, precisión y distinción de ausencia/false con dobles de repositorio/puertos; PostgreSQL y constraints se prueban en Api.IntegrationTests.
+
+## Carga desde la app, corregir y anular
+
+Carga desde la app: FormEntryServiceTests cubre permisos antes y dentro del límite, baja y versión cambiada, replay antes de esos controles, filtros por persona y dato faltante, la oferta sólo de lo elegido y los errores por pregunta. FormEntryCaptureTests prueba la huella sin la oferta y el registro `EnteredInApp`; FormEntryAuthorNoticeTests, que el aviso a quien cargó no aplica sin un canal. Lo propio (Etapa 2): FormResponseServiceTests prueba que quien sólo completa lleva `OwnerUserId` en planilla, conteos y navegación, conserva el filtro de personas de quien lee, ve NotFound en el detalle ajeno y pierde todo si cae su permiso al leer; FormWorkflowReadPolicyTests, FormFileServiceTests y FormPdfDocumentServiceTests, lo ajeno como NotFound antes de leer y el workflow propio sin acciones.
+
+Corregir y anular (Etapa 3): FormEntryCorrectionCaptureTests prueba que la corrección conserva número y autor, cierra la aprobación abierta y reemplaza la respuesta; su replay y el conflicto con otro motivo; que una reemplazada no se corrige otra vez ni quien sólo carga corrige una decidida; las fotos que siguen y cuentan para los límites, y el archivo de otra respuesta que la rechaza. FormRecordVoidServiceTests cubre quién anula y cuándo (decisión 8), el motivo antes de la transacción, las reemplazadas y anuladas, otra definición y la pérdida del permiso adentro. En Domain, BusinessFormRecordAmendmentTests prueba el reemplazo, el recibo de la primera versión, la anulación y el motivo.
+
+## Planilla, Excel y navegación
+
+Planilla/Excel: FieldId/versión, ausencia/vacía/[] y cero/false; multiChoice conserva lista, orden y referencias selladas, anyOf por intersección, opciones de reglas por catálogo compartido y rechazo de sort. El export prueba permisos/tope/revocación, etiquetas y valores canónicos unidos por '; ' y headers sin filas; SQL/XLSX físicos pertenecen a integración.
+La navegación anclada prueba permiso propio, validación antes de leer, snapshot del filtro, cultura y descarte ante revocación sin exponer contenido ni el resultado de ausencia.
+
+La presencia tiene expectativas explícitas para pregunta ausente, opcional vacía y respondida, tanto escalar como archivo: answered false/false/true, unanswered true/true/false y notAsked true/false/false; cero y false son respuestas presentes.
+
+FormExportServiceTests verifica el presupuesto de 30 segundos en lectura/escritura, su renovación por pedido y la precedencia de cancelación del caller, incluso si vence el presupuesto al mismo tiempo. Un resultado tardío se descarta; no se afirma que ClosedXML síncrono pueda interrumpirse a los 30 segundos.
+
+FormApprovalContinuationServiceTests cubre contrato, dirección/tamaño/definición, actor, permiso antes y después de leer, ancla ausente y ausencia de transacción en esta lectura.
+
+## Asistente: candidatas, prellenado y aclaración
+
+Los límites de candidatas se prueban con grafemas compuestos y exclusión individual que conserva la parcialidad. La privacidad de pedidos faltantes se acredita en propuesta y captura, con NFKC, nombres sin tildes por palabra completa, fechas y montos válidos y cambios de cuenta bajo lock.
+
+FormOfferWhenTests verifica normalización, límite, controles/persistibilidad, ausencia de traducción y aislamiento del schema/huella de publicación. La serialización de instrucciones deshabilitadas conserva los bytes del request anterior para el replay de comprobantes existentes.
+
+C2 prueba normalización de seis escalares, precisión decimal, cuenta activa y permiso propio, lectura acotada por destinatario sin locks, observación de una sola instantánea y codec cerrado, exclusión de archivos, opciones actuales y selección de campos sin sustitución. Una elección sin formato GUID D se omite sin perder los otros valores; GUID ajeno o vacío, identidad y tipo discrepantes rechazan la propuesta. El recorrido Execute→ParseOutput comprueba la salida normalizada. Los formularios no preparables se excluyen sin retirar otras candidatas. El presupuesto de cantidad/bytes conserva referencias válidas y marca parcial, incluyendo el envelope completo de la herramienta; H7 no permite probar ausencia con ese snapshot.
+
+H5 verifica dos/tres elecciones realmente incluidas, codec cerrado sin pregunta libre, revisiones derivadas y una única lectura observada del mismo turno/cultura/destinatario. Revalida publicación/configuración/permisos y catálogos actuales; pregunta fija es/en, cero locks y ningún registro confirmado.
+
+H5 selección prueba revisión auténtica por botón, pertenencia a la propuesta, preparación real sin prellenado inventado, catálogo vigente y locks sólo al enviar. La cultura del Flow y el motivo fijo de selección pasan enteros al original si el secundario está incompleto.
+
+FormAssistantChannelContextTests usa IDs opacos y modo neutral explícito para sugerencias, catálogos y pedidos faltantes. Manual, Unspecified y valores no definidos no reciben la excepción automática por llevar un ID privado conocido; conserva permisos propios, Actor/Subject y procedencia.
+
+## Sugerencias de qué completar después
+
+FormSuggestionPolicy/Mapping/History/Service verifican revisión independiente, permisos, orden y activación, gramática de condiciones existente, seis tipos escalares y RecordNumber a texto, ausencia frente a cero/false y opciones efectivamente ofrecidas. El helper de opciones conserva la cobertura de reglas. Los snapshots de versión se usan para evitar atribuir etiquetas actuales a una revisión histórica distinta.
+
+Sugerencias s1–s4: cubrir Always sin propuesta, origen exacto del contexto del servidor y lecturas de candidatas del mismo turno/destinatario, propuesta derivada de una sola lectura, mapeos inalterables, revisión y catálogos actuales, publicación nueva válida para Always y bloqueo automático de ancestros como hecho. Asistencia conserva incluidos/cambiados/mapeados; el detalle usa modo del set capturado aunque cambie la configuración y descarta toda la respuesta ante revocación durante esa lectura.
+
+La privacidad de sugerencias históricas prueba Always y Assistant en vista previa/envío: actor activo y permiso propio antes/después, revocación durante la lectura y retiro completo antes de entregar valores al modelo. Sólo el contexto automático exacto Actor igual a Subject puede consultar su propia captura sin RecordsRead; H2 nuevo no recibe ese requisito.
+
+FormSuggestionAuthenticSelectionTests verifica derivación de IDs sólo desde propuesta/observación auténticas, conflicto de set actual, discrepancia explícita y ausencia de autoridad sin lecturas; conserva selección del operador, campos propuestos y mapeos. Always no obtiene IDs implícitos. FormSuggestionAssistantBudgetTests verifica el envoltorio completo de lectura/propuesta en el límite exacto y un byte por encima; una lectura excedida es Failure recuperable, sin truncar datos ni conceder autoridad.
+
+## La IA arma formularios y catálogos
+
+Crear desde una propuesta: FormDraftProposalServiceTests y FormCatalogAssistantProposalServiceTests prueban lo ya creado antes de leer la propuesta (sólo de la misma persona), la propuesta reemplazada, la que no se lee o es de otra capacidad, el nombre en uso, el catálogo inactivo o sin permiso, el borrador por el guardado del editor con su procedencia, el Manual inactivo y pendiente con sus claves y dos toques que dan el mismo. H4 pasa por su propia aceptación; aprobar un Manual lo activa sin persona de muestra. Desde un canal, los mismos tests prueban la creación sin sesión web con la persona del contexto, sólo en su conversación propia y con su permiso, y lo ya creado; FormAuthoringSummaryPolicyTests, el resumen es/en (diez preguntas y las que quedan, el catálogo en una línea), y BusinessFormAuthoringProposalChannelTests, que sólo resume lo propio y devuelve la ruta de lo creado. FormAuthoringAssistantReadTests prueba que las lecturas dan los nombres y las preguntas en el idioma de la conversación, o en el original sin traducción. FormAuthoringDeclineTests prueba el «no se puede»: cada motivo real con lo que existe (nombrado en el idioma de la conversación), los motivos equivocados con su ruta, lo que existe sólo para quien puede leerlo, `unclear` para quien puede armar un formulario o un catálogo (si no, `permissionMissing`), los motivos del esquema iguales a los que acepta, el contrato cerrado sin permisos ni Inicio y el resumen con la ruta de la app.

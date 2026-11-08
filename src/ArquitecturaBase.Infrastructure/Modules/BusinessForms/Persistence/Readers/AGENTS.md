@@ -1,0 +1,24 @@
+# Readers: proyecciones de formularios
+
+Lectores del módulo: proyecciones sin seguimiento para la tabla de formularios, la planilla y su export, la carga desde la app, la oferta, los pendientes y los historiales. Comparten consultas EF (`FormOfferableVersionQuery`, `FormVersionPresentationQuery`) y SQL fija (`FormCatalogFilterSql`, `FormRecordNavigationSql`). Los lectores de catálogos y de datos de personas, y las reglas que también tocan configuraciones o repositorios, están por tema en el [detalle](../../../../../../docs/features/formularios-persistencia.md): leé el tema del lector que cambiás.
+
+## Al modificar
+
+- Filtros, conteos, búsqueda y orden en SQL antes de `ApplySort`/`ToPagedResultAsync`, con desempate único y sin consultas por fila. El SQL fijo se parametriza (`jsonb_array_elements`, contención JSONB); nada de SQL configurable.
+- Las proyecciones que EF compone usan clases con `init`. Sobre `FormAssistantCandidateRow` (constructor posicional) no se compone `Where`/`OrderBy`: filtrá y ordená antes de proyectar.
+- La última modificación sale del último DraftChange con revisión menor o igual a la actual, o de la baja si es posterior; nunca de `ModifiedAtUtc`, que también cambia al numerar.
+- `PublishedVersions` exige presentación sellada y operación Published; `FormSelectionReader` exige además una definición no eliminada también para sesiones aceptadas, sin exigir que la versión siga activa ni excluir una baja. `Versions` suma puntero activo y definición sin baja. El asistente exige además `OfferWhen` y lee 101 filas (la 101 marca lectura incompleta); las opciones de catálogo, 201 para detectar exceso sin truncar. Un comprobante viejo sin `OfferWhen` equivale a deshabilitado.
+- `FormUnusedVersionReader` devuelve sólo los pares pedidos exactos con operación Published o Failed y definición dada de baja, eliminada o con otra activa, y nada mientras haya una publicación abierta. Los destinos no disponibles se leen ignorando sólo `SoftDelete`, sin volverlos ofertables.
+- Las respuestas leen Value/ValueType de su referencia histórica. `FindDefinitionAsync` reúne tipos por catálogo en un único lote, aun sin registros, para columnas y encabezados Excel; el tipo del catálogo es inmutable y no sustituye el valor capturado.
+- `OwnerUserId` (lo propio de quien sólo completa) entra en `Filter` y acota también las opciones de los conteos: las personas y las opciones de catálogo salen sólo de las respuestas del dueño. `ExistsByActorAsync` responde si una respuesta es de esa persona.
+- La hidratación carga versiones/referencias/archivos por lote, sin schema por registro. MultiChoice anyOf usa EXISTS sobre filas, sin duplicar registros; facetas cuentan respuestas. Las condiciones con valor sobre preguntas de un bloque de renglones van en un solo EXISTS con cada una buscada en el `Row` de la anterior (`ItemConditions`, `SameItem`), y el conteo de una opción del bloque exige las otras en ese mismo `Row`. `unanswered` incluye NotAsked, cuya celda sigue distinta. La planilla desempata por Number; la cadena usa dos CTE recursivas fijas.
+- La navegación anclada reutiliza `Filter` y `Ordered`: obtiene su comando sin ejecutarlo, conserva parámetros tipados y calcula vecinos/posición/total con ventanas SQL y el mismo orden completo. `FormRecordNavigationSql` acepta sólo la proyección exterior de Id que produce EF; rechaza otra forma. El ancla se filtra después de las ventanas y `SqlQueryRaw` materializa como máximo una fila, sin listas de IDs ni valores.
+- La continuación de pendientes reutiliza autorización actual, admite ancla decidida y compara RequestedAtUtc/Id sin offset. Una sentencia calcula posiciones y total sobre tareas Open, limita N+1 y proyecta metadata sólo de las N elegidas; la cabecera conserva el total aun sin resultados. Versiones y nombres inmutables se leen por lote después.
+- Los historiales de reglas y sugerencias traen la revisión anterior con subconsulta correlacionada, para que Application resuma sin exponer ese JSON. Las versiones que fija una sugerencia son metadata histórica, no bindings de envío.
+
+E2-4: columnas extra combinan campos activos actuales con metadata histórica más reciente por campo. Una SQL parametrizada expande JSON y proyecta sólo metadata, sin cargar valores por respuesta ni consultas por fila.
+
+## Referencias
+
+- [Lectores del núcleo](../../../../Persistence/Readers/AGENTS.md).
+- Pruebas: [navegación](../../../../../../tests/ArquitecturaBase.Api.IntegrationTests/Modules/BusinessForms/FormRecordNavigationSqlTests.cs), [tabla de formularios](../../../../../../tests/ArquitecturaBase.Api.IntegrationTests/Modules/BusinessForms/FormOverviewQueryTests.cs) y [pendientes](../../../../../../tests/ArquitecturaBase.Api.IntegrationTests/Modules/BusinessForms/FormApprovalContinuationQueryTests.cs).

@@ -1,0 +1,38 @@
+# Formularios: detalle del borde HTTP
+
+Es el detalle de las guías del borde HTTP de Formularios en la Api: el [índice del módulo](../../src/ArquitecturaBase.Api/Modules/BusinessForms/AGENTS.md), [Controllers](../../src/ArquitecturaBase.Api/Modules/BusinessForms/Controllers/AGENTS.md) y [Contracts](../../src/ArquitecturaBase.Api/Modules/BusinessForms/Contracts/AGENTS.md). Cada sección reúne familias de rutas con sus permisos, respuestas y cuerpos. Antes de tocar ese código, leé la sección del tema que toca el cambio; si cambia una regla, se actualiza acá en el mismo cambio. La regla funcional completa está en [formularios](formularios.md).
+
+## Respuestas, archivos y corrección
+
+F4: GET records/{recordId}/files/{fileId}/thumbnail y /content consumen IFormFileService y exigen formrecords.read o, sobre lo propio, formrecords.create. content recibe download opcional. No-store/nosniff también en errores; documentos como attachment y fotos en línea sólo JPEG/PNG. Inventario/OpenAPI binario y tests de 401/403/404; no loguear nombres ni bytes.
+
+La lectura de respuestas conserva cinco operaciones: listado GET y búsqueda POST de records por definición; POST de conteos; detalle GET por record; exportación POST. Todas exigen formrecords.read o formrecords.create (`HasAnyPermission`): con sólo completar, el servicio las acota a lo propio (CW6-C). Export exige formrecords.read y formrecords.export. Controllers sólo consumen servicios y comparten el mapeo HTTP fuera de los controllers. Exportación usa una política propia de una ejecución concurrente por usuario, sin cola; no consume el cupo de lectura. Búsqueda, personas y condiciones privadas van en cuerpos redactados de hasta 512 KiB; lecturas no-store y Excel binario nosniff. DTO/OpenAPI/inventario son el contrato, sin Markdown de contratos.
+
+`GET /api/forms/overview` consume IFormOverviewService con RecordsRead, ApprovalsDecide o RecordsCreate mediante HasAnyPermission; quien sólo completa recibe los formularios activos con sus cargas y la última propia. Página y facetas salen del servidor; el filtro privado PendingOnly exige decidir. Quien sólo aprueba recibe únicamente formularios con tareas decidibles y sus conteos, sin respuestas ni última respuesta; conserva el segmento Activos/Dados de baja elegido. No-store y política de lectura.
+
+`POST definitions/{definitionId}/records/{recordId}/navigation` comparte el contrato cerrado de búsqueda y su mapeo, con RecordsRead. Devuelve sólo recordId, previousId, nextId, position (desde 1) y totalCount globales; página/tamaño no acotan los vecinos. Conserva no-store, límite de cuerpo y errores existentes.
+
+Corregir y anular (Etapa 3): `FormEntryCorrectionsController`, en `api/forms/entries/{definitionId}/records/{recordId}`, abre la corrección (GET), sus opciones (GET `versions/{versionId}/questions/{fieldId}/options`) y la guarda (POST con el multipart de la carga más `reason` y `keptFileIds`), con formrecords.create o formrecords.amend (`HasAnyPermission`); el servicio decide sobre qué respuesta. `FormRecordVoidsController` anula con POST `api/forms/definitions/{definitionId}/records/{recordId}/void` y `reason`, con los mismos permisos, 204. El export suma `includeVoided`.
+
+## Reglas, efectos, aprobaciones y PDF
+
+G1 agrega cinco rutas bajo definitions/{id}/rules: actual, guardar revisión, historial paginado, detalle por revisión y opciones. Requieren formrules.manage, contratos HTTP propios y no-store; guardado con expectedRevision devuelve 409 al quedar atrás.
+
+G5 agrega GET records/{recordId}/workflow y POST actions/{runId}/consult o /retry bajo esa respuesta. Lectura requiere formrecords.read o, sobre lo propio y sin acciones, formrecords.create; controles exigen formrecords.read y formrules.manage, política de escritura, 202 y Location del workflow, sin ejecutar el efecto en la petición ni exponer almacenamiento. POST actions/{runId}/recipients/{recipientUserId}/retry reintenta a una persona de un aviso a un rol, con los mismos permisos y un cuerpo cerrado con `expectedRevision` obligatorio; da 409 si la persona no tiene una falla confirmada o la revisión cambió. Cada destinatario del workflow lleva `canRetry`.
+
+La aprobación de un nivel conserva revisión, autor confirmado, rol y decisión. `formapprovals.decide` no concede lectura de valores o PDF; la decisión revalida rol y permiso, prohíbe al autor y confirma tarea, estado y runs juntos. El rechazo exige motivo de 1–500 caracteres. La continuación por TaskId exige Decide, DefinitionId, dirección Next/Previous y tamaño 1–100; no-store, sin offset, con ancla resuelta autorizada y sin conceder lectura de valores.
+
+G2 guarda diseño PDF por revisión propia y `ActivePdfDesignId`, sin cambiar borrador/publicación. El run fija diseño, datos, culturas completas y nombre del sistema. La emisión usa creación condicional por run/cultura, consulta primero y conserva bytes ya subidos; metadata se confirma sólo con fence vigente. El preview usa ejemplos y no emite ni guarda. Documentos privados sólo por API con `formrecords.read` (o, sobre lo propio, `formrecords.create`) antes y después de abrir el stream.
+
+POST actions/{runId}/review recibe únicamente wasSent obligatorio y devuelve 202 con el workflow. Comparte RecordsRead+RulesManage, no-store, límite de escritura y Location; identidad/fecha se obtienen del servidor. Review nullable y canReview forman parte del contrato de cada ejecución.
+La acción expone revision=Fence; review exige expectedRevision y wasSent explícitos. Un replay idéntico conserva actor/fecha y no reabre el run; una revisión obsoleta devuelve409.
+
+## Sugerencias, pedidos faltantes, datos de personas y asistente
+
+Etapa 5, s2: cinco rutas de suggestions bajo definitions/{id}: GET actual, POST nueva revisión y GET options/revisions/revisions/{revision}. Sólo formsuggestions.manage, no-store, cuerpo cerrado de 512 KiB y revisión esperada; POST devuelve 201/Location o 409. Origen sin publicar da Forms.Suggestion.SourceNotPublished. SourceVersionId nullable en el set y DestinationVersionId en cada sugerencia son metadata del servidor, nunca entrada del cliente.
+
+H7: GET /api/forms/missing-requests y POST /{id}/discard consumen IFormMissingRequestService y exigen únicamente formtemplates.manage. La lista pagina con búsqueda y State Pending/Discarded, no-store; los conteos por estado respetan búsqueda antes del filtro de estado. Descartar recibe sólo expectedRevision en un cuerpo cerrado y devuelve la fila confirmada o409. No existe HTTP de captura de pedidos ni se admiten personas/mensajes/actor del cliente.
+
+Datos de personas: siete rutas bajo person-attributes/person-data consumen IFormPersonDataService, no-store. Atributos/opciones: leer con PersonDataManage o UsersManage o Manage; crear/editar sólo PersonDataManage. Opciones entrega id/text paginados sin CatalogsRead. Tabla requiere PersonDataManage+UsersRead y responde `FormPersonDataPageResponse` (página más `missing` por dato activo); GET/PUT por persona, UsersManage. PUT cerrado con revisión propia y delta: ausencia conserva, null limpia; nunca recibe actor/userId en cuerpo.
+
+IA2: `POST api/forms/definitions/assistant-proposals` y `GET …/{proposalId}` consumen IFormDraftProposalService (Read, y Manage al crear); `POST api/forms/catalogs/assistant-proposals` y `GET …/{proposalId}`, IFormCatalogAssistantProposalService (CatalogsRead, y CatalogsManage al crear). El cuerpo cerrado lleva sólo el `requestId` del turno y el `proposalId`. Crear responde 201 con Location al estado, también al repetirse; el estado (no-store) da `definitionId` o `catalogId`, o null si esa persona no lo creó. Aprobar un Manual recibe sólo `expectedRevision`.
