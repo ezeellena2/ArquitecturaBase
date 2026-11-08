@@ -92,6 +92,18 @@ public sealed class FormRulePolicyTests
         Assert.Equal(["rules[0].conditions"], Assert.IsType<ValidationError>(result.Error).Errors.Keys);
     }
     [Fact]
+    public void The_block_is_a_datum_of_the_message_but_its_questions_are_not()
+    {
+        static Result<IReadOnlyList<FormRule>> Normalize(string datum) =>
+            FormRulePolicy.Normalize(new(0, [Rule("Received", Action("NotifyAuthor", text: new() { ["es"] = "Llegó: " + datum }))]), BlockContext());
+        Assert.True(Normalize("{Artículos}").IsSuccess);
+        Assert.True(Normalize($"{{{BlockId:D}}}").IsSuccess);
+        Assert.Equal("Forms.Rule.PlaceholderInvalid", Normalize("{Cantidad}").Error.Code);
+        var byIdentity = Normalize($"{{{QuantityId:D}}}");
+        Assert.Equal("Forms.Rule.PlaceholderInvalid", byIdentity.Error.Code);
+        Assert.Equal(["rules[0].actions[0].text.es"], Assert.IsType<ValidationError>(byIdentity.Error).Errors.Keys);
+    }
+    [Fact]
     public void Conditions_cannot_store_invalid_database_text()
     {
         var rule = Rule("Received", Action("NotifyAuthor", text: Text())) with { Conditions = [new(FieldId,"contains",[new string((char)0,1)])] };

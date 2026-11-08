@@ -241,7 +241,7 @@ cuatro del evaluador estaban en rojo. Unitarios (3954) y arquitectura (207) en v
 
 ### Tarea 2 · El bloque en el mensaje
 
-- [ ] Tests en rojo:
+- [x] Tests en rojo:
   - en `FormRecordRowsPresentationTests`, el mensaje con los ítems reemplaza a
     `A_rule_message_that_names_the_block_leaves_it_empty_until_the_rules_read_its_items`. Cubre un ítem por línea,
     numerado, con los valores en orden, separados por « · » y sin los vacíos, en es y en (el decimal con coma, el sí o no
@@ -249,8 +249,11 @@ cuatro del evaluador estaban en rojo. Unitarios (3954) y arquitectura (207) en v
     de otro salto; el bloque sin ítems, vacío; el ítem vacío, «2.», y la versión sin el bloque, vacío;
   - en `FormRulePolicyTests`, `PlaceholderInvalid` con una pregunta del bloque como dato, por su identidad y por su nombre
     entre llaves, y el bloque como dato, que se guarda.
-- [ ] `FormActionMessagePolicy.Render` y `FormRulePolicy.ValidPlaceholders`.
-- [ ] Commit: `feat(formularios): el mensaje de una regla trae el bloque con un ítem por línea`.
+- [x] `FormActionMessagePolicy.Render` y `FormRulePolicy.ValidPlaceholders`.
+- [x] Commit: `feat(formularios): el mensaje de una regla trae el bloque con un ítem por línea`.
+
+Hecho el 2026-11-08. El salto antes del primer ítem no quita el espacio que lo precede («Llegó: » y la línea nueva), que en
+el aviso no se ve; «Así llega» sigue la misma regla.
 
 ### Tarea 3 · Las reglas con el bloque por HTTP
 

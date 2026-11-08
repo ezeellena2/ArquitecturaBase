@@ -265,11 +265,47 @@ D2 abre la respuesta en un panel junto a la planilla o a Por aprobar, manteniend
 
 La captura fija la revisión y crea sus runs antes de confirmar recibo y número, junto con valores, referencias y archivos. Los avisos usan el [canal neutral de acciones](whatsapp.md#avisos-de-reglas-de-formularios--etapa-4-g6), con un commit separado en el canal y sin referencias entre módulos. Al preparar cada evento, el idioma de quien recibe debe estar completo en todos los avisos de esa revisión de reglas y en el diseño PDF vigente si la revisión lo genera. Si falta cualquier texto, los mensajes y las copias usan íntegramente el original del formulario; esa elección queda fijada en los runs.
 
+## El bloque de renglones al armar y publicar — RG1-A, RG3-A y RG6-A, 2026-11-04
+
+Un formulario puede llevar un bloque de preguntas que se cargan una vez por ítem, como los artículos de un remito con su
+cantidad y sus observaciones. El editor lo arma como una pregunta más, y publicar lo revisa y lo compila para WhatsApp. Los
+textos dicen «ítem» (RG12-A); el código y los documentos siguen diciendo renglón (`rows`). Pantallas y textos:
+[renglones en los formularios](../../../ArquitecturaBaseFront/docs/design/renglones-en-formularios.md).
+
+- **El borrador.** El bloque es una pregunta `group` con nombre, ayuda y `rows`, el mínimo y el máximo de ítems. Sus
+  preguntas van contiguas detrás, marcadas `repeated` («Se carga varias veces», RG6-A): texto corto, texto largo, decimal,
+  fecha, sí o no y elegir una, propia o de un catálogo. Elegir varias, las fotos y los documentos no entran en un ítem. Hay
+  uno por formulario y ningún título de sección cae adentro. El bloque no cuenta entre las 40 preguntas y sus preguntas sí:
+  el tope, `QuestionCount` y «Preguntas» en «Qué se publica» cuentan las que no son `group`. Un bloque nuevo arranca con 1
+  y 20 («Agregar bloque», RG10-D) y con mínimo 0 es opcional; vacío se guarda, pero no se publica. Los campos nuevos se
+  omiten cuando son null (`repeated: false` se guarda como null), así un formulario sin bloque conserva sus bytes, huellas y
+  hashes.
+- **Entrar y salir del bloque.** Pasar una pregunta guardada al bloque, o sacarla, le da una identidad nueva
+  (`replacesFieldId`), como cambiar el tipo: la versión publicada conserva la anterior y sus respuestas. Renombrar, ordenar
+  y traducir conservan la identidad; conservar el FieldId con otro `repeated` da `QuestionConfigurationInvalid`.
+- **Publicar.** Un bloque sin preguntas frena (`Forms.Publication.GroupEmpty` en `draft.fields[i]`). Con un canal
+  instalado, un máximo mayor que lo que carga el canal avisa sin frenar (`RowsOverChannelLimit` en `draft.fields[i].rows`,
+  con `limit` y `maximum`: «En WhatsApp se cargan hasta 10 ítems; el máximo es 20.») y un mínimo mayor frena (RG13-A,
+  [en la carga](#el-bloque-de-renglones-en-la-carga--rg2-a-y-rg3-a-2026-11-07)). «Pasan al bloque» (`diff.movedToRows`,
+  omitido si está vacío) nombra las preguntas publicadas que entraron al bloque, en lugar de mostrarlas quitadas y
+  agregadas: cada pregunta nueva del bloque se empareja con una quitada de afuera del mismo tipo, el mismo catálogo y el
+  mismo nombre en el idioma original; si además se renombró, queda como quitada y agregada. La aceptación registra el bloque
+  y sus preguntas en `BusinessFormField` y sella `rows` y `repeated`.
+- **WhatsApp (RG3-A, RG7-A y RG8-A).** El perfil `flow-static-7.3-r10` suma una pantalla por ítem, hasta 10 o el máximo si
+  es menor, titulada «Artículos · ítem 2». Desde el mínimo, cada ítem termina con «¿Agregás otro ítem?», sí o no y
+  obligatoria: con «Sí» sigue el siguiente y con «No», lo de después del bloque o «Enviar»; el último no pregunta. Con
+  mínimo 0, una pantalla pregunta antes «¿Agregás un ítem?». Con bloque, la respuesta tiene el tope de 64 KiB de los
+  formularios con archivos. El detalle y la verificación con Meta están en
+  [WhatsApp](whatsapp.md#selección-múltiple-y-perfil-r9).
+- **Lo que no toma el bloque.** El asistente no prellena sus preguntas, las sugerencias no las mapean y la lectura de
+  formularios de la IA no cuenta el bloque entre las 40. Las condiciones de reglas sobre sus preguntas llegan con la Etapa 4
+  del [plan de renglones](../plans/2026-11-03-renglones-en-formularios.md).
+
 ## El bloque de renglones en la carga — RG2-A y RG3-A, 2026-11-07
 
 Un bloque de renglones se carga desde la app y desde WhatsApp y se guarda como una respuesta más, con sus ítems. El editor,
-publicar y las pantallas del Flow son de la Etapa 1 de renglones; acá va lo que guarda y valida la carga. Los textos dicen
-«ítem» (RG12-A).
+publicar y las pantallas del Flow están [al armar y publicar](#el-bloque-de-renglones-al-armar-y-publicar--rg1-a-rg3-a-y-rg6-a-2026-11-04);
+acá va lo que guarda y valida la carga. Los textos dicen «ítem» (RG12-A).
 
 - **El bloque.** Una pregunta `group` con `rows` (mínimo de 0 a 100, no mayor que el máximo, de 1 a 100; obligatoria si el
   mínimo es mayor que 0) seguida sin huecos por sus preguntas `repeated`: texto, decimal, fecha, sí o no, o elegir una. Hay
@@ -336,8 +372,11 @@ tarjeta del chat, el Excel y el PDF. Los textos dicen «ítem» (RG12-A); el có
   a la derecha, texto partido en su celda y el encabezado repetido si sigue en la página siguiente. La vista previa suma
   dos ítems de ejemplo. Una pregunta del bloque elegida sola en un diseño viejo no sale.
 - **Reglas.** Las condiciones de una regla y de una sugerencia deciden como «Filtros» (Etapa 4 de renglones, RG5-A): las
-  que tienen valor sobre preguntas del bloque las cumple un mismo ítem, y la presencia mira la respuesta entera. Un mensaje
-  que nombra el bloque todavía lo deja vacío; la misma etapa lo pone un ítem por línea.
+  que tienen valor sobre preguntas del bloque las cumple un mismo ítem, y la presencia mira la respuesta entera. En un
+  mensaje, el bloque es un dato: cada ítem va en su línea, numerado desde 1, con sus respuestas en el orden de las preguntas
+  del bloque, separadas por « · » y sin las vacías. El primero empieza en una línea nueva, salvo al comienzo del mensaje o
+  después de un salto de línea. Sin ítems, o en una versión sin el bloque, el dato queda vacío, y un ítem vacío deja sólo su
+  número. Una pregunta del bloque no es un dato: guardarla da `Forms.Rule.PlaceholderInvalid`.
 
 Límites conocidos, sin caso real hoy: un bloque con muchas preguntas angosta las columnas de la tabla del PDF, un ítem
 partido entre páginas no repite su número y la hoja del bloque no tiene tope propio de filas (corta el presupuesto de 30

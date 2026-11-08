@@ -75,19 +75,34 @@ internal static class FormActionMessagePolicy
             else
             {
                 var fieldId=Reference(token)??ruleQuestions.Questions.Single(question=>question.Label.GetValueOrDefault(culture)==token).FieldId;
-                if(answers.TryGetValue(fieldId,out var answer))result.Append(Value(answer,culture));
+                if(answers.TryGetValue(fieldId,out var answer))Append(result,answer,culture);
             }
             index=end;
         }
         return result.ToString();
+    }
+    /// <summary>
+    /// An answer of the response. The block of rows writes one item per line (RG5-A), and its first item starts on a new line
+    /// unless the message starts there or a line break comes before it.
+    /// </summary>
+    private static void Append(StringBuilder result,StructuredRecordReadValue answer,string culture)
+    {
+        if(answer.Value is not IReadOnlyList<StructuredRecordReadRow> items){result.Append(Value(answer,culture));return;}
+        if(items.Count>0&&result.Length>0&&result[^1]!='\n')result.Append('\n');
+        result.AppendJoin('\n',items.Select((item,index)=>Item(item,index,culture)));
+    }
+    /// <summary>An item, numbered from 1, with its answers in the order of its block joined by « · » and without the empty ones.</summary>
+    private static string Item(StructuredRecordReadRow item,int index,string culture)
+    {
+        var number=(index+1).ToString(CultureInfo.InvariantCulture)+".";
+        var answers=string.Join(" · ",item.Values.Select(value=>Value(value,culture)).Where(text=>text.Length>0));
+        return answers.Length==0?number:number+" "+answers;
     }
     private static string Value(StructuredRecordReadValue answer,string culture)=>answer.Value switch
     {
         null=>"",bool value=>FormResponseTexts.Get(value?"true":"false",culture),StructuredRecordChoiceValue value=>value.Label,
         IReadOnlyList<StructuredRecordChoiceValue> choices=>string.Join(", ",choices.Select(choice=>choice.Label)),
         IReadOnlyList<StructuredRecordFileValue> files=>string.Join(", ",files.Select(file=>file.Name)),
-        // The block of rows is not a datum of the messages yet: the rules learn to read its items in their own stage.
-        IReadOnlyList<StructuredRecordReadRow> => "",
         string value when answer.Type=="decimal"=>decimal.Parse(value,CultureInfo.InvariantCulture).ToString("0.############################",CultureInfo.GetCultureInfo(culture)),
         string value when answer.Type=="date"=>DateOnly.ParseExact(value,"yyyy-MM-dd",CultureInfo.InvariantCulture).ToString("d",CultureInfo.GetCultureInfo(culture)),
         string value=>value,_=>throw new InvalidOperationException("The action value type is unsupported."),

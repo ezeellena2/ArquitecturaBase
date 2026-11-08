@@ -74,12 +74,20 @@ internal static class FormRulePolicy
             if (end < 0) return false;
             var token = text[position..end];
             if (token is not ("número" or "number" or "motivo" or "reason")
-                && (FormActionMessagePolicy.Reference(token) is { } fieldId
-                    ? questions.All(question => question.FieldId != fieldId)
-                    : questions.Count(question => question.Label.GetValueOrDefault(culture) == token) != 1)) return false;
+                && (Question(token, culture, questions) is not { } question || question.Repeated == true)) return false;
             position = end + 1;
         }
         return true;
+    }
+    /// <summary>
+    /// The question of a token, by its identity or by its only label in the culture of the text. A question of the block of rows
+    /// is not a datum: its block is, and writes its answers item by item (RG5-A).
+    /// </summary>
+    private static CanonicalFormField? Question(string token, string culture, IReadOnlyList<CanonicalFormField> questions)
+    {
+        if (FormActionMessagePolicy.Reference(token) is { } fieldId) return questions.FirstOrDefault(question => question.FieldId == fieldId);
+        var named = questions.Where(question => question.Label.GetValueOrDefault(culture) == token).ToArray();
+        return named.Length == 1 ? named[0] : null;
     }
     private static ValidationError Invalid(string path) => FieldErrors.On(FormRuleErrors.ContentInvalid, path);
 }

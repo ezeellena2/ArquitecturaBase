@@ -42,6 +42,34 @@ public sealed class FormRecordRowsPresentationTests
         ? new object[] { new { fieldId = ItemId, value = item }, new { fieldId = QuantityId, value = quantity } }
         : new object[] { new { fieldId = ItemId, value = item }, new { fieldId = QuantityId, value = quantity }, new { fieldId = NoteId, value = note } };
 
+    private static readonly Guid GoodId = Guid.Parse("00000000-0000-7000-8000-0000000000a5");
+    /// <summary>The block of the messages: a choice of its own, the quantity, whether it arrived in good condition and a note.</summary>
+    private static FormVersionSchema MessageSchema => new(1,
+    [
+        Field(SupplierId, "shortText", "Proveedor"),
+        Field(GroupId, "group", "Artículos", false, new(0, 3)),
+        Field(ItemId, "choice", "Artículo", repeated: true) with
+        {
+            Options = [new(First, new Dictionary<string, string> { ["es"] = "Semilla", ["en"] = "Seed" }),
+                new(Second, new Dictionary<string, string> { ["es"] = "Fertilizante", ["en"] = "Fertilizer" })],
+        },
+        Field(QuantityId, "decimal", "Cantidad", repeated: true),
+        Field(GoodId, "boolean", "¿Llegó bien?", repeated: true),
+        Field(NoteId, "shortText", "Observación", false, repeated: true),
+    ]);
+    private static object[] Arrived(Guid item, decimal quantity, bool good, string? note = null) => note is null
+        ? new object[] { new { fieldId = ItemId, value = item }, new { fieldId = QuantityId, value = quantity }, new { fieldId = GoodId, value = good } }
+        : new object[] { new { fieldId = ItemId, value = item }, new { fieldId = QuantityId, value = quantity }, new { fieldId = GoodId, value = good }, new { fieldId = NoteId, value = note } };
+    private static string Message(string culture, string template, params object[][] items) => Message(culture, template, MessageSchema, items);
+    /// <summary>The text of a notice with the template in the culture, for a response of the schema with these items (no entry with null).</summary>
+    private static string Message(string culture, string template, FormVersionSchema schema, object[][]? items)
+    {
+        var stored = Stored(items) with { SchemaJson = JsonSerializer.Serialize(schema, JsonSerializerOptions.Web) };
+        var action = new FormRuleAction(Guid.NewGuid(), "NotifyAuthor", null, new Dictionary<string, string> { [culture] = template }, false);
+        var snapshot = new FormActionRecordRow(new(stored, new DateTime(2026, 11, 8, 12, 0, 0, DateTimeKind.Utc), new(Guid.NewGuid(), "Author")), culture);
+        return FormActionMessagePolicy.Render(action, MessageSchema, snapshot, culture);
+    }
+
     [Fact]
     public void A_response_reads_the_block_in_its_place_with_its_items_and_not_its_questions_apart()
     {
@@ -84,15 +112,29 @@ public sealed class FormRecordRowsPresentationTests
         Assert.Null(Choice(FormRecordPresentationPolicy.Project(stored, "es", Schema, includeCatalogFields: false)).Fields);
     }
 
-    [Fact]
-    public void A_rule_message_that_names_the_block_leaves_it_empty_until_the_rules_read_its_items()
-    {
-        var stored = Stored(new[] { Item(First, 1m) }, Reference(First, "Primero", 0));
-        var action = new FormRuleAction(Guid.NewGuid(), "NotifyAuthor", null,
-            new Dictionary<string, string> { ["es"] = "Llegó {Artículos}de {Proveedor}", ["en"] = "Received {Artículos (en)}from {Proveedor (en)}" }, false);
-        var snapshot = new FormActionRecordRow(new(stored, new DateTime(2026, 11, 7, 12, 0, 0, DateTimeKind.Utc), new(Guid.NewGuid(), "Author")), "es");
+    [Theory]
+    [InlineData("es", "Llegó de Proveedor del norte: \n1. Semilla · 200,5 · Sí · Sin daños\n2. Semilla · 100 · No\n3. Fertilizante · 7 · Sí")]
+    [InlineData("en", "Llegó de Proveedor del norte: \n1. Seed · 200.5 · Yes · Sin daños\n2. Seed · 100 · No\n3. Fertilizer · 7 · Yes")]
+    public void A_rule_message_writes_the_block_with_one_numbered_item_per_line_and_its_answers_in_order(string culture, string expected) =>
+        Assert.Equal(expected, Message(culture, $"Llegó de {{{SupplierId:D}}}: {{{GroupId:D}}}",
+            Arrived(First, 200.5m, true, "Sin daños"), Arrived(First, 100m, false), Arrived(Second, 7m, true)));
 
-        Assert.Equal("Llegó de Proveedor del norte", FormActionMessagePolicy.Render(action, Schema, snapshot, "es"));
+    [Fact]
+    public void The_first_item_starts_on_a_new_line_unless_the_message_starts_there_or_after_a_line_break()
+    {
+        var item = Arrived(First, 1m, true);
+        Assert.Equal("1. Semilla · 1 · Sí", Message("es", $"{{{GroupId:D}}}", item));
+        Assert.Equal("Llegó:\n1. Semilla · 1 · Sí", Message("es", $"Llegó:\n{{{GroupId:D}}}", item));
+        Assert.Equal("Llegó: \n1. Semilla · 1 · Sí\nGracias", Message("es", $"Llegó: {{{GroupId:D}}}\nGracias", item));
+    }
+
+    [Fact]
+    public void A_block_without_items_or_from_a_version_without_it_leaves_the_datum_empty_and_an_empty_item_keeps_its_number()
+    {
+        var template = $"Llegó: {{{GroupId:D}}}";
+        Assert.Equal("Llegó: ", Message("es", template));
+        Assert.Equal("Llegó: \n1. Semilla · 1 · Sí\n2.", Message("es", template, Arrived(First, 1m, true), []));
+        Assert.Equal("Llegó: ", Message("es", template, new FormVersionSchema(1, [MessageSchema.Questions[0]]), null));
     }
 
     [Fact]
