@@ -22,6 +22,8 @@ El key ring de DataProtection del host aislado se conserva en `private-keys/` de
 
 En Windows, un antivirus o un indexador puede retener un momento el archivo que el arnés acaba de cerrar, y entonces mover o reemplazar ese archivo da «Access denied». El 2026-11-08 eso cortó una corrida real al grabar la fase aceptada del ledger. Desde entonces, la entrada del ledger y el audio privado reintentan esa denegación hasta diez segundos antes de cortar la corrida. El audio privado sigue escribiéndose una sola vez.
 
+En un caso dictado de Inicio, la normalización del audio corre en su propio scope, separado del scope del turno, igual que en la app: el navegador sube la grabación y manda el turno en pedidos distintos. Si comparten scope, EF le devuelve al turno la normalización que guardó al aceptarla, todavía pendiente, y el turno se rechaza con `Ai.Assistant.ContentUnavailable`. Así se cortó una corrida real el 2026-11-08.
+
 Los cuatro audios se comparan en memoria con la secuencia completa de palabras del fixture público, ignorando sólo puntuación, mayúsculas y acentos. Una negación perdida o una paráfrasis no pasa el oráculo. Nunca se exporta el texto ni su hash.
 
 Inicio contrasta los conteos con las etiquetas de la evidencia observada, no con subcadenas de cifras; rechaza hechos negados y horarios invertidos. Esto acredita hechos finitos del fixture, no estilo ni una evaluación exhaustiva del texto libre.

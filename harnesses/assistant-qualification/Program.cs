@@ -206,7 +206,10 @@ internal static partial class Program
             if(testCase.Audio is not null)
             {
                 // IA4: the normalization is its own operation and evidence (browser STT candidate); a failed check stops before the turn.
-                dictated=await runner.NormalizeAsync(testCase,actor,ct);
+                // Its own scope too, as the browser uploads in a request of its own: in the turn's scope EF would hand back the
+                // normalization it tracked when accepting it, still pending, and the turn fails with ContentUnavailable (2026-11-08).
+                await using(var audioScope=host.Services.CreateAsyncScope())
+                    dictated=await audioScope.ServiceProvider.GetRequiredService<HomeRunner>().NormalizeAsync(testCase,actor,ct);
                 var heard=await EvidenceAsync(testCase.Id+"-audio","home-audio",testCase.Culture,dictated.Result.State,dictated.Result.Failure?.Code,
                     dictated.Metadata,dictated.ElapsedSeconds,dictated.Measurements,dictated.Checks,[],fixtureFile,true,ct,BrowserAudioCandidate);
                 if(!await SaveAsync(settings,heard,ct))return false;
