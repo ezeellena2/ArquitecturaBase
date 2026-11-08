@@ -333,9 +333,10 @@ acá va lo que guarda y valida la carga. Los textos dicen «ítem» (RG12-A).
   ([diseño](../../../ArquitecturaBaseFront/docs/design/renglones-en-formularios.md)).
 - **WhatsApp (RG3-A).** La respuesta trae cada ítem por su número y el «¿Agregás otro ítem?» de cada uno; los ítems llegan
   hasta el primer «No» y lo que viene después no cuenta ([recepción](whatsapp.md#recepción-de-respuestas-de-flow)).
-- **Publicar (RG13-A).** Con un canal instalado, un mínimo mayor que 10 frena la publicación
+- **Publicar (RG13-A y LD3-A).** Con un canal instalado, un mínimo mayor que 10 frena la publicación
   (`Forms.Publication.MinRowsOverChannelLimit` en `draft.fields[i].rows`, con `limit`): WhatsApp no podría cargar ese
-  mínimo. Un máximo mayor que 10 sólo avisa.
+  mínimo. Un máximo mayor que 10 sólo avisa. Una pregunta de afuera del bloque que filtra por la respuesta de una del
+  bloque frena con `Forms.Publication.MatchQuestionInvalid`: no hay un solo ítem del que tomarla (LD3-A).
 
 ## El bloque de renglones en la lectura — RG4-A, 2026-11-07
 

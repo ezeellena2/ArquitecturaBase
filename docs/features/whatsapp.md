@@ -157,8 +157,9 @@ Una respuesta de un Flow r10 con un bloque de renglones (RG3-A) trae las pregunt
 el mínimo y antes del último) y, con mínimo 0, «¿Agregás un ítem?» bajo `field_<bloque>_r0`. `WhatsAppFlowRowsCodec` arma
 los ítems hasta el primer «No»: lo que llega de ítems posteriores (volvió con la flecha y dijo «No») no cuenta. Se los pasa
 a la captura como el bloque de la carga desde la app; una clave sin sufijo, un sufijo fuera del bloque o una decisión que
-falta dejan la respuesta Rejected, y un ítem que la captura rechaza guarda su número en el recibo (`RejectedRow`). Una
-respuesta con ítems, como una con archivos, tiene un tope de 64 KiB (`MaxMediaResponseJsonBytes`) en lugar de 16 KiB.
+falta dejan la respuesta Rejected, y un ítem que la captura rechaza guarda su número en el recibo (`RejectedRow`); el aviso
+del chat nombra la pregunta, sin el ítem. Una respuesta con ítems, como una con archivos, tiene un tope de 64 KiB
+(`MaxMediaResponseJsonBytes`) en lugar de 16 KiB.
 
 Una respuesta con un bloque de renglones llega a la tarjeta del chat con el bloque en su lugar: su nombre y un ítem por
 línea («1. GLIFOSATO 64% · 200 · Litros · Sí»), con las respuestas en el orden de sus preguntas y sin las que quedaron sin

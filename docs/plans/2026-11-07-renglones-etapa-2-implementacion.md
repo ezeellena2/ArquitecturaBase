@@ -375,26 +375,33 @@ su clase. Otras sesiones trabajan en el mismo checkout: se preparan sólo los ar
 
 ### Tarea 10 · Cierre
 
-- [ ] Verificación: la integración con PostgreSQL y Redis, `dotnet test` completo en tandas, el build sin advertencias; en el
+- [x] Verificación: la integración con PostgreSQL y Redis, `dotnet test` completo en tandas, el build sin advertencias; en el
   front, `build`, `lint`, `test` y `test:visual` en tandas; `aspire stop` si se levantó la app.
 
-  El backend ya está: la corrida del exportador sobre 735add83 compiló sin errores y dio 7408 de 7408 con PostgreSQL y Redis.
-  La del front va en una sola verificación conjunta de las etapas 1 a 3, después de lo que la Etapa 1 suma sobre la
-  exportación.
+  Hecho junto con las etapas 1 y 3. El backend, con la corrida del exportador sobre 735add83: compiló sin errores y dio 7408
+  de 7408 con PostgreSQL y Redis. El front, en una copia de f6bc5973: lint y build limpios y 1005 escenas visuales, con una
+  que falló por carga y pasó sola. De los 4364 tests de vitest, 21 vencieron por tiempo con la PC al 100 % y con plazos
+  mayores pasaron sus 14 archivos enteros; repetirlos con los plazos normales quedó en el
+  [plan de renglones](2026-11-03-renglones-en-formularios.md).
 - [x] Exportación conjunta de la cohorte `forms-http` del front con las capturas de esta etapa.
 
   Hecho (front 60fcff31): las 25 cohortes de la corrida sobre 735add83, con los contratos de esta etapa
   (`entriesRowsHttpContract`, `rowsPublicationHttpContract`), el de LD1-A (`entriesGroupByHttpContract`) y los cuatro de la
   Etapa 3. Pasan los 60 tests del front que leen cohortes y las escenas visuales que las usan. Una primera corrida sobre
   54ffc60b no exportó: dos casos de `FormCatalogOfferQueryTests`, de LD2-A, que se arreglaron en 735add83.
-- [ ] Prueba física, guiando al usuario clic por clic y sin cargar datos por él: pasar «Recepción de insumos» al bloque
+- [x] Trasladada a la prueba integral final. Prueba física, guiando al usuario clic por clic y sin cargar datos por él: pasar «Recepción de insumos» al bloque
   «Artículos» y publicarlo; cargar el remito con sus tres artículos desde la página, revisar con «Corregir» que vuelvan los
   tres en orden, y lo mismo en el panel y en el celular; por WhatsApp, los tres ítems con «Sí», «Sí» y «No», y la vuelta con
   la flecha antes del «No». Lo que llegue se mira en la base sin valores.
 
   El 2026-11-07 el usuario eligió hacerla dentro de la prueba integral final de las etapas de renglones, después de
-  RG10-D/RG12-A (Etapa 1), la Tarea 9 y la exportación conjunta, en lugar de hacerla aparte.
-- [ ] Docs: [formularios](../features/formularios.md) (los valores con su renglón, la captura y la corrección),
+  RG10-D/RG12-A (Etapa 1), la Tarea 9 y la exportación conjunta, en lugar de hacerla aparte. Queda, con sus pasos, en el
+  plan de renglones.
+- [x] Docs: [formularios](../features/formularios.md) (los valores con su renglón, la captura y la corrección),
   [WhatsApp](../features/whatsapp.md) (la respuesta con ítems y el aviso), los `AGENTS.md` de Services, Persistence,
   Migrations, los Services de WhatsApp y las áreas del front, el diseño de la carga en el front, este plan y el de renglones.
-- [ ] Ofrecer el traspaso al multitenant.
+
+  Hecho: las reglas en formularios.md y whatsapp.md, con el detalle de servicios y pruebas en sus guías de `docs/features`
+  y un resumen en el `AGENTS.md` de cada carpeta; en el front, el diseño de la carga y los `AGENTS.md` de sus áreas. Al
+  cerrar se sumaron LD3-A al publicar, el aviso del chat, «Antes» en la corrección y los ítems con una versión nueva.
+- [x] Ofrecer el traspaso al multitenant: ofrecido al cerrar, el 2026-11-08.
