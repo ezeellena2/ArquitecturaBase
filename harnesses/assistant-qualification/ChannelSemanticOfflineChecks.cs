@@ -108,17 +108,48 @@ internal static class ChannelSemanticOfflineChecks
     }
     public static void Channel_fallback_cannot_mix_a_question_language()
     {
-        var testCase=Registration("local-visit");var read=Read(testCase);var form=read.Forms.Single();
-        var questions=form.Questions.Where(question=>question.FieldId!=Fixture.Form("local-visit").Fields["color"]).Select(question=>
-            question.FieldId==Fixture.Form("local-visit").Fields["notes"]?question with {Label="Notes"}:question).ToArray();
-        Require(!Accepted(testCase,Payload(testCase),read with {Forms=[form with {Questions=questions}]}));
+        var testCase=Registration("local-visit");var form=LocalVisit("en");
+        Require(!Presents(testCase,form with {Questions=form.Questions.Select(question=>
+            question.FieldId==Fixture.Form("local-visit").Fields["notes"]?question with {Label="Notas"}:question).ToArray()}));
     }
     public static void Channel_fallback_cannot_translate_only_a_catalog_option()
     {
-        var testCase=Registration("local-visit");var read=Read(testCase);var form=read.Forms.Single();
-        var questions=form.Questions.Where(question=>question.FieldId!=Fixture.Form("local-visit").Fields["color"]).Select(question=>
-            question.FieldId==Fixture.Form("local-visit").Fields["branch"]?question with {Choices=[new(Guid.NewGuid(),"North branch")]}:question).ToArray();
-        Require(!Accepted(testCase,Payload(testCase),read with {Forms=[form with {Questions=questions}]}));
+        // The branch item has no English: an English conversation shows it in its catalog's original, never a made-up translation.
+        var testCase=Registration("local-visit");var form=LocalVisit("en");
+        Require(!Presents(testCase,form with {Questions=form.Questions.Select(question=>
+            question.FieldId==Fixture.Form("local-visit").Fields["branch"]?question with {Choices=[new(Guid.NewGuid(),"North branch")]}:question).ToArray()}));
+    }
+    // Since 2026-10-19 a form complete in the conversation's culture shows whole in it, and only a catalog item without a
+    // translation keeps its catalog's original: the whole-original presentation of the 2026-10-18 evidence no longer applies.
+    public static void Channel_original_language_presentation_follows_the_conversation_culture()
+    {
+        foreach(var culture in new[]{"es","en"})
+        {
+            var testCase=Registration("local-visit") with {Culture=culture};
+            Require(Presents(testCase,LocalVisit(culture)));
+            Require(!Presents(testCase,LocalVisit(culture=="es"?"en":"es")));
+        }
+        var english=Registration("local-visit");var form=LocalVisit("en");
+        Require(!Presents(english,form with {OriginalCulture="en"}));
+        Require(!Presents(english,form with {VersionId=Guid.NewGuid()}));
+        Require(!Presents(english,form with {Name="Visita local"}));
+        Require(!Presents(english,form with {Questions=form.Questions.Take(2).ToArray()}));
+        Require(!Presents(english,form with {Questions=[form.Questions[0],form.Questions[0],form.Questions[1]]}));
+    }
+    private static FormAssistantCandidate LocalVisit(string culture)
+    {
+        var form=Fixture.Form("local-visit");var english=culture=="en";
+        return new(form.DefinitionId,form.VersionId,3,english?"Local visit":"Visita local","Public instruction.","es",
+            [new(form.Fields["place"],"shortText",english?"Place":"Lugar",80,null,null,[]),
+             new(form.Fields["notes"],"longText",english?"Notes":"Notas",600,null,null,[]),
+             new(form.Fields["branch"],"choice",english?"Branch":"Sede",null,Guid.NewGuid(),1,[new(Guid.NewGuid(),"Sucursal Norte")])]);
+    }
+    private static bool Presents(ChannelCase testCase,FormAssistantCandidate form)
+    {
+        var checks=new List<CheckEvidence>();
+        ChannelRunner.AddObservedChecks(checks,testCase,Observed(Payload(testCase),
+            new FormAssistantCandidatesPayload("complete",Subject,testCase.Culture,true,[form],[])),Fixture,Subject);
+        return checks.Single(check=>check.Id=="conversation-culture-presentation").Passed;
     }
     public static void Channel_reads_cannot_belong_to_another_subject()
     {

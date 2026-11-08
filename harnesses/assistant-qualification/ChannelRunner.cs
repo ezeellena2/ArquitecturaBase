@@ -214,13 +214,22 @@ internal sealed class ChannelRunner(IAssistantOperations operations, SafeRunLedg
         {
             var form=proposal.ObservedReads.Select(read=>read.Payload).OfType<FormAssistantCandidatesPayload>()
                 .SelectMany(read=>read.Forms).FirstOrDefault(item=>item.DefinitionId==fixture.Form("local-visit").DefinitionId);
-            var expected=fixture.Form("local-visit");
-            var labels=new Dictionary<Guid,string>{{expected.Fields["place"],"Lugar"},{expected.Fields["notes"],"Notas"},{expected.Fields["branch"],"Sede"}};
-            checks.Add(new("whole-original-presentation",form is not null && form.VersionId==expected.VersionId && form.OriginalCulture=="es"
-                && form.Name=="Visita local" && form.Questions.Count==labels.Count && form.Questions.All(question=>
-                    labels.TryGetValue(question.FieldId,out var label) && question.Label==label)
-                && form.Questions.Single(question=>question.FieldId==expected.Fields["branch"]).Choices is [{Text:"Sucursal Norte"}]));
+            checks.Add(new("conversation-culture-presentation",PresentsLocalVisit(testCase.Culture,form,fixture.Form("local-visit"))));
         }
+    }
+
+    // Since 2026-10-19 the bilingual form shows whole in the conversation's culture; only its catalog item without a translation
+    // keeps the catalog's original (Sucursal Norte), without changing the rest. The 2026-10-18 whole-original fallback is gone.
+    internal static bool PresentsLocalVisit(string culture,FormAssistantCandidate? form,QualificationForm expected)
+    {
+        var english=culture=="en";
+        var labels=new Dictionary<Guid,string>{{expected.Fields["place"],english?"Place":"Lugar"},
+            {expected.Fields["notes"],english?"Notes":"Notas"},{expected.Fields["branch"],english?"Branch":"Sede"}};
+        return form is not null && form.VersionId==expected.VersionId && form.OriginalCulture=="es"
+            && form.Name==(english?"Local visit":"Visita local")
+            && form.Questions.Select(question=>question.FieldId).Order().SequenceEqual(labels.Keys.Order())
+            && form.Questions.All(question=>question.Label==labels[question.FieldId])
+            && form.Questions.Single(question=>question.FieldId==expected.Fields["branch"]).Choices is [{Text:"Sucursal Norte"}];
     }
 
     internal static bool PreservesObservedSuggestionMapping(ChannelCase testCase,AssistantObservedProposal proposal,
