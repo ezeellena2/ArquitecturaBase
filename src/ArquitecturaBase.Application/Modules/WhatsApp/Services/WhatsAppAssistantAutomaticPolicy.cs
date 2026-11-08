@@ -27,6 +27,8 @@ internal sealed class WhatsAppAssistantAutomaticPolicy(WhatsAppAssistantAcceptan
         var nowUtc=clock.GetUtcNow().UtcDateTime;
         if(row.Kind==WhatsAppAssistantRequestKind.Manual) return row.FinishWithoutReply(false,nowUtc);
         if(terminal.Body is null) return false;
+        // A question about what to build waits for the answer: the next message continues this operation (IA3-A).
+        if(terminal.AwaitsAnswer && !row.AwaitAnswer()) return false;
         // An authoring summary goes with its two buttons; any other reply is a fixed text.
         var outgoing=terminal.Buttons is {} buttons
             ? WhatsAppOutgoingMessage.CreateAssistantQuickReplies(row.SubjectUserId,contact.Id,row.RequestId,terminal.Body,buttons,nowUtc,

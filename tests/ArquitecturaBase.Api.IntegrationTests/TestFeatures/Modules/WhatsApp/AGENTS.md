@@ -38,4 +38,4 @@ WhatsAppFlowReplyWorkerFixture prueba el worker real con un servicio capturador 
 
 El recorrido de actualización de Flow usa copias locales byteidénticas de los JSON r8 inmutables de los fixtures unitarios; no los exporta otra vez con el compilador vigente. CapturingStructuredFormSource aporta la oferta del catálogo r8 y CapturingStructuredRecordPort observa la versión y el recibo anteriores sin imports BusinessForms ni afirmar captura real de ese módulo.
 
-WhatsAppAuthoringChannelDouble resume un formulario ficticio y registra lo que crea el botón (IA3-A), con un Id y una ruta propios; no importa BusinessForms ni acredita su creación.
+WhatsAppAuthoringChannelDouble resume un formulario ficticio, contesta `unclear` a un «no se puede» y registra lo que crea el botón (IA3-A), con un Id y una ruta propios; no importa BusinessForms ni acredita su creación.

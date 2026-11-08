@@ -430,6 +430,13 @@ botones del último ([WhatsApp](whatsapp.md)). Allí `forms.authoring.decline` d
 administrar, o lo nombrado ya existe y la persona puede leerlo): BusinessForms comprueba el motivo y uno equivocado vuelve `rejected`.
 El catálogo de personas con filtros (H4) se crea con el mismo botón.
 
+Un pedido que no dice qué armar («Armame un formulario nuevo para el taller») pregunta y espera, como en Inicio (decidido el
+2026-11-07). Por WhatsApp el motivo es `unclear`: el canal contesta con un texto fijo («No me queda claro qué querés que arme. Contame
+si es un formulario o un catálogo, para qué es y qué datos lleva, por escrito o con un audio.») y el mensaje siguiente, escrito o
+dictado, continúa esa misma operación, como después de «Cambiar algo», así que la IA propone con el pedido y la respuesta juntos.
+`unclear` no nombra nada y sólo vale para quien puede armar un formulario o un catálogo; si no, vuelve `rejected` con
+`permissionMissing`. La pregunta no es una oferta ni gasta cupo.
+
 ## Formularios que faltan — Etapa 5
 
 La misma lectura de formularios incluye temas generalizados existentes. Una intención clara de registrar algo sin formulario accesible puede proponer uno de esos temas o un nombre y frase en el idioma de la conversación; una consulta, un cupo agotado o el rechazo de un formulario conocido no son pedidos faltantes. El motor no guarda: BusinessForms valida la propuesta y registra un recibo estable del mensaje original fuera de la transacción del canal. El nombre y la descripción generalizados se inspeccionan antes de devolver la propuesta y otra vez al capturarla, antes y dentro del lock. La copia de inspección usa NFKC para detectar también `＠`, direcciones con esquema o `www` y secuencias de siete o más dígitos, incluso separadas como un teléfono con guiones Unicode o signo menos. Se admiten fechas ISO válidas y montos con moneda explícita sólo si cubren el tramo numérico entero. Los identificadores conocidos del actor y destinatario se comparan como palabras completas y sin distinguir tildes, sin confundir «Ana» con «mañana». La inspección no reescribe el texto guardado ni filtra el relato de una visita o su prellenado.

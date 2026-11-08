@@ -31,8 +31,9 @@ internal sealed class BusinessFormAuthoringAssistantCapabilitySource(IFormAuthor
             FormAuthoringAssistantCodec.FormArgumentsSchema, FormAuthoringAssistantCodec.FormProposalSchema, new([BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage], []), new(FormAuthoringAssistantCodec.ResponseBudget, FormAuthoringAssistantCodec.ResponseBudget, 1, 5)) { OfferedInHome = true },
         new(ProposeCatalogId, Version, AssistantCapabilityKind.Proposal, "Propose one new manual catalog without options for a person to review, in the conversation language: name, description, value type, what the code and the visible text of each option are, and its extra fields with their type. Read the existing catalogs first and never repeat a name. A rejected proposal lists the paths to fix: propose it again corrected. A person creates it inactive; you never create, activate or import anything.",
             FormAuthoringAssistantCodec.CatalogArgumentsSchema, FormAuthoringAssistantCodec.CatalogProposalSchema, new([BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage], []), new(8192, FormAuthoringAssistantCodec.ResponseBudget, 1, 5)) { OfferedInHome = true },
-        // A channel says only fixed texts: this tells it why nothing can be built. Home answers in its own words instead.
-        new(DeclineId, Version, AssistantCapabilityKind.Proposal, "Say that a form or catalog cannot be built here, with one reason: noPermission when the person asks to build one and the tool to propose it is not offered; formExists with the prefix of an existing form, or catalogExists with the id of an existing catalog, when the person asks to build or change one that already exists, because existing ones are changed in the app. Never use it for anything else. A rejected one lists the paths to fix.",
+        // A channel says only fixed texts: this tells it why nothing is built yet, or that it has to ask what to build first
+        // («pregunta y espera»). Home answers in its own words instead.
+        new(DeclineId, Version, AssistantCapabilityKind.Proposal, "Say why no form or catalog is proposed yet, with one reason: noPermission when the person asks to build one and the tool to propose it is not offered; formExists with the prefix of an existing form, or catalogExists with the id of an existing catalog, when the person asks to build or change one that already exists, because existing ones are changed in the app; unclear when the person asks to build something but does not say enough to propose it (what it is for, what it asks or holds, or whether it is a form or a catalog): the person is asked, and the answer comes as their next message, so never guess a proposal. Never use it for anything else. A rejected one lists the paths to fix.",
             FormAuthoringAssistantCodec.DeclineArgumentsSchema, FormAuthoringAssistantCodec.DeclineSchema, new([], []), new(1024, 2048, 1, 5)),
     ];
 
@@ -116,8 +117,9 @@ internal sealed class BusinessFormAuthoringAssistantCapabilitySource(IFormAuthor
         return issues.Count != 0 ? Rejected(issues) : new AssistantCapabilityResponse("proposed", proposal, [], 1);
     }
 
-    // Each reason is checked here: the person really cannot build forms or catalogs, or the one named exists and the person can
-    // read it. A wrong one comes back rejected, so the model proposes instead or names another.
+    // Each reason is checked here: the person really cannot build forms or catalogs, the one named exists and the person can
+    // read it, or, to ask what to build, the person can build a form or a catalog. A wrong one comes back rejected, so the model
+    // proposes instead or names another.
     private async Task<Result<AssistantCapabilityResponse>> DeclineAsync(AssistantCapabilityRequest request, CancellationToken ct)
     {
         var parsed = FormAuthoringAssistantCodec.ParseDeclineArguments(request.ArgumentsJson);
@@ -127,6 +129,9 @@ internal sealed class BusinessFormAuthoringAssistantCapabilitySource(IFormAuthor
         if (reason == "noPermission")
             return prefix is not null || catalogId is not null ? Rejected([new(prefix is not null ? "prefix" : "catalogId", "invalid")])
                 : await CanBuildAsync(actor, ct) ? Rejected([new("reason", "permissionGranted")]) : Declined(new(reason, null, null, ""));
+        if (reason == "unclear")
+            return prefix is not null || catalogId is not null ? Rejected([new(prefix is not null ? "prefix" : "catalogId", "invalid")])
+                : await CanBuildAnyAsync(actor, ct) ? Declined(new(reason, null, null, "")) : Rejected([new("reason", "permissionMissing")]);
         if (reason == "formExists")
         {
             if (catalogId is not null) return Rejected([new("catalogId", "invalid")]);
@@ -148,6 +153,11 @@ internal sealed class BusinessFormAuthoringAssistantCapabilitySource(IFormAuthor
             if (!await permissions.HasPermissionAsync(actor, permission, ct)) return false;
         return true;
     }
+
+    // Asking what to build only helps whoever can build a form (read and manage forms) or a catalog (read and manage catalogs).
+    private async Task<bool> CanBuildAnyAsync(Guid actor, CancellationToken ct) =>
+        await permissions.HasPermissionAsync(actor, BusinessFormsPermissions.Read, ct) && await permissions.HasPermissionAsync(actor, BusinessFormsPermissions.Manage, ct)
+        || await permissions.HasPermissionAsync(actor, BusinessFormsPermissions.CatalogsRead, ct) && await permissions.HasPermissionAsync(actor, BusinessFormsPermissions.CatalogsManage, ct);
 
     private static AssistantCapabilityResponse Declined(FormAuthoringDecline decline) => new("proposed", decline, [], 1);
 

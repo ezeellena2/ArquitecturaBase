@@ -58,6 +58,19 @@ public sealed class WhatsAppAssistantTerminalDispatchTests
             WhatsAppAssistantAuthoringReplyCodec.TryParse(reply.Id,out var request,out var proposal,out var action)&&request==id&&proposal==host.Requests.Rows[0].ProposalId?action:null));
         Assert.Equal(before,host.Reader.LastCount);Assert.Empty(host.Sessions.Rows);
     }
+    // «Pregunta y espera»: the question is a fixed text, not an offer, and its reference waits for the answer that continues it.
+    [Fact]
+    public async Task An_unclear_request_sends_its_fixed_question_and_waits_for_the_answer_without_an_offer()
+    {
+        var(host,service,sinks,id)=await ArrangeAsync(true,"forms.authoring.decline");var before=host.Reader.LastCount;host.Reader.OfferCount=2;
+        Assert.True((await service.CompleteAsync(host.Context.Contact.Id,id,host.Assistant.Outcome,Ct)).IsSuccess);
+        var row=host.Requests.Rows[0];
+        Assert.Equal((0,1,WhatsAppAssistantRequestState.Sent,(Guid?)id),(sinks.Calls,sinks.Summaries,row.State,row.ChangeRequestId));
+        var outgoing=Assert.Single(host.Conversation.Outgoing);
+        Assert.Equal((WhatsAppOutgoingMessageKind.Text,row.OutgoingId),(outgoing.Kind,(Guid?)outgoing.Id));
+        Assert.StartsWith("No me queda claro qué querés que arme.",outgoing.Body,StringComparison.Ordinal);
+        Assert.Equal(before,host.Reader.LastCount);Assert.Empty(host.Sessions.Rows);
+    }
     [Theory]
     [InlineData("forms.catalog-filters.propose")]
     [InlineData("forms.missing-request.propose")]
@@ -100,8 +113,12 @@ public sealed class WhatsAppAssistantTerminalDispatchTests
         private void Called(){Assert.False(host.UnitOfWork.InTransaction);Calls++;AfterCommit?.Invoke();}
         // The owner's summary is pure; creating only happens from the button, never from a terminal.
         public StructuredAuthoringSummary? Summarize(AssistantObservedProposal proposal,string culture)
-        {Summaries++;return proposal.Capability.Id=="forms.authoring.propose-form"?new(StructuredAuthoringKind.Form,"Parte de lluvias · LLU",["1. Milímetros · número"],0)
-            :new(StructuredAuthoringKind.Catalog,"Contratistas",["el código es el CUIT y cada opción la razón social"],0);}
+        {Summaries++;return proposal.Capability.Id switch
+        {
+            "forms.authoring.propose-form"=>new(StructuredAuthoringKind.Form,"Parte de lluvias · LLU",["1. Milímetros · número"],0),
+            "forms.authoring.decline"=>new(StructuredAuthoringKind.Declined,"",[],0){Reason="unclear"},
+            _=>new(StructuredAuthoringKind.Catalog,"Contratistas",["el código es el CUIT y cada opción la razón social"],0),
+        };}
         public Task<Result<StructuredAuthoringCreatedResponse>> CreateAsync(StructuredAuthoringProposalRequest request,CancellationToken ct)=>throw new NotSupportedException();
         public Task<Result<StructuredMissingFormRequestCaptureResponse>> CaptureAsync(StructuredMissingFormRequestCaptureRequest request,CancellationToken ct)
         {Called();Assert.Equal(host.SourceId,request.SourceReceiptId);return Task.FromResult(Failure?Result.Failure<StructuredMissingFormRequestCaptureResponse>(WhatsAppAssistantErrors.Unavailable):Result.Success(new StructuredMissingFormRequestCaptureResponse(Guid.NewGuid(),Guid.NewGuid(),false)));}

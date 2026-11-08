@@ -63,6 +63,20 @@ public sealed class WhatsAppAssistantTerminalPolicyTests
         var response = Assert.IsType<WhatsAppAssistantTerminalResponse>((await host.Policy.ApplyAsync(host.Reference, host.Source, host.Operation, Ct)).Value);
         Assert.Equal(expected, response.Body);
         Assert.Null(response.Buttons);
+        Assert.False(response.AwaitsAnswer);
+    }
+
+    // «Pregunta y espera»: the channel never says the model's words, so it asks with a fixed text and the next message answers.
+    [Theory]
+    [InlineData("es", "No me queda claro qué querés que arme. Contame si es un formulario o un catálogo, para qué es y qué datos lleva, por escrito o con un audio.")]
+    [InlineData("en", "I am not sure what you want me to build. Tell me whether it is a form or a catalog, what it is for and what information it holds, in writing or with an audio.")]
+    public async Task An_unclear_request_asks_what_to_build_with_a_fixed_text_and_waits_for_the_answer(string culture, string expected)
+    {
+        var host = new WhatsAppAssistantTerminalFixture { CapabilityId = "forms.authoring.decline", Culture = culture, Value = null,
+            Summary = new(StructuredAuthoringKind.Declined, "", [], 0) { Reason = "unclear" } };
+        var response = Assert.IsType<WhatsAppAssistantTerminalResponse>((await host.Policy.ApplyAsync(host.Reference, host.Source, host.Operation, Ct)).Value);
+        Assert.Equal((expected, true, host.ProposalId), (response.Body, response.AwaitsAnswer, response.ProposalId));
+        Assert.Null(response.Buttons);
     }
 
     [Fact]

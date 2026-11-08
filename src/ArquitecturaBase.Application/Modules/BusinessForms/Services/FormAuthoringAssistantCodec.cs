@@ -31,13 +31,14 @@ internal static class FormAuthoringAssistantCodec
         {"type":"object","properties":{"culture":{"type":"string","enum":["es","en"]},"name":{"type":"string"},"description":{"type":"string"},"valueType":{"type":"string","enum":["text","integer","decimal","date"]},"code":{"type":"string"},"option":{"type":"string"},"fields":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"name":{"type":"string"},"type":{"type":"string","enum":["text","integer","decimal","date","boolean"]}},"required":["name","type"],"additionalProperties":false}}},"required":["culture","name","description","valueType","code","option","fields"],"additionalProperties":false}
         """;
     public const string DeclineArgumentsSchema = """
-        {"type":"object","properties":{"reason":{"type":"string","enum":["noPermission","formExists","catalogExists"],"description":"noPermission when the request needs a proposal tool that is not offered to this person; formExists or catalogExists when the person asks to build one that already exists."},"prefix":{"type":["string","null"],"maxLength":10,"description":"With formExists, the prefix of the existing form as the forms read shows it; otherwise null."},"catalogId":{"type":["string","null"],"description":"With catalogExists, the id of the existing catalog as the catalogs read shows it; otherwise null."}},"required":["reason","prefix","catalogId"],"additionalProperties":false}
+        {"type":"object","properties":{"reason":{"type":"string","enum":["noPermission","formExists","catalogExists","unclear"],"description":"noPermission when the request needs a proposal tool that is not offered to this person; formExists or catalogExists when the person asks to build one that already exists; unclear when the person asks to build something but does not say enough to propose it."},"prefix":{"type":["string","null"],"maxLength":10,"description":"With formExists, the prefix of the existing form as the forms read shows it; otherwise null."},"catalogId":{"type":["string","null"],"description":"With catalogExists, the id of the existing catalog as the catalogs read shows it; otherwise null."}},"required":["reason","prefix","catalogId"],"additionalProperties":false}
         """;
     public const string DeclineSchema = """
-        {"type":"object","properties":{"reason":{"type":"string","enum":["noPermission","formExists","catalogExists"]},"definitionId":{"type":["string","null"]},"catalogId":{"type":["string","null"]},"name":{"type":"string"}},"required":["reason","definitionId","catalogId","name"],"additionalProperties":false}
+        {"type":"object","properties":{"reason":{"type":"string","enum":["noPermission","formExists","catalogExists","unclear"]},"definitionId":{"type":["string","null"]},"catalogId":{"type":["string","null"]},"name":{"type":"string"}},"required":["reason","definitionId","catalogId","name"],"additionalProperties":false}
         """;
-    public static readonly string[] IssueCodes = ["invalid", "catalogUnavailable", "catalogNotReadable", "tooLarge", "permissionGranted", "notReadable", "notFound"];
-    public static readonly string[] DeclineReasons = ["noPermission", "formExists", "catalogExists"];
+    public static readonly string[] IssueCodes = ["invalid", "catalogUnavailable", "catalogNotReadable", "tooLarge", "permissionGranted", "notReadable", "notFound",
+        "permissionMissing"];
+    public static readonly string[] DeclineReasons = ["noPermission", "formExists", "catalogExists", "unclear"];
     private static readonly string[] States = ["draft", "published", "inactive"];
     private static readonly string[] Kinds = ["manual", "filters"];
     private static readonly string[] ValueTypes = ["text", "integer", "decimal", "date"];
@@ -184,10 +185,10 @@ internal static class FormAuthoringAssistantCodec
         catch (JsonException) { return FormDefinitionErrors.ContentInvalid; }
     }
 
-    // Each reason names exactly what exists: a form, a catalog, or nothing when the person cannot build it.
+    // Each reason names exactly what exists: a form, a catalog, or nothing when the person cannot build it or did not say what.
     public static bool ValidDecline(FormAuthoringDecline decline) => decline.Reason switch
     {
-        "noPermission" => decline is { DefinitionId: null, CatalogId: null, Name.Length: 0 },
+        "noPermission" or "unclear" => decline is { DefinitionId: null, CatalogId: null, Name.Length: 0 },
         "formExists" => decline is { DefinitionId: not null, CatalogId: null, Name.Length: > 0 },
         "catalogExists" => decline is { DefinitionId: null, CatalogId: not null, Name.Length: > 0 },
         _ => false,

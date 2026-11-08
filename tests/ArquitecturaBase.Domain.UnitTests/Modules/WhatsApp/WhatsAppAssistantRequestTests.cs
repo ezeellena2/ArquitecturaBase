@@ -32,6 +32,19 @@ public sealed class WhatsAppAssistantRequestTests
     }
 
     [Fact]
+    public void A_question_about_what_to_build_waits_for_the_answer_that_continues_its_own_operation()
+    {
+        var question = Create(WhatsAppAssistantRequestKind.Automatic);
+        Assert.True(question.AwaitAnswer()); Assert.True(question.AwaitAnswer());
+        Assert.Equal(question.RequestId, question.ChangeRequestId);
+        Assert.False(Create().AwaitAnswer());
+        var change = Create(WhatsAppAssistantRequestKind.Automatic); Assert.True(change.AwaitChange(Guid.CreateVersion7()));
+        Assert.False(change.AwaitAnswer());
+        var answered = Create(WhatsAppAssistantRequestKind.Automatic); Assert.True(answered.FinishWithoutReply(false, Now));
+        Assert.False(answered.AwaitAnswer());
+    }
+
+    [Fact]
     public void A_reference_preserves_its_server_identities_without_creating_an_operator()
     {
         var request = Create(WhatsAppAssistantRequestKind.Automatic);

@@ -6,7 +6,8 @@ using ArquitecturaBase.Application.Modules.WhatsApp.Resources;
 namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 
 // IA3-A in fixed texts: the owner's summary is the preview, in the person's language, and a message with buttons holds 1024
-// characters, so the questions that do not fit join the ones counted at the end. Nothing comes from the model's own words.
+// characters, so the questions that do not fit join the ones counted at the end. Nothing comes from the model's own words: a
+// request that does not say what to build gets a fixed question and waits for the answer («pregunta y espera»).
 internal static class WhatsAppAssistantAuthoringText
 {
     private const int MaximumBody = 1024;
@@ -18,11 +19,12 @@ internal static class WhatsAppAssistantAuthoringText
             var declined = summary.Reason switch
             {
                 "noPermission" => Text("AuthoringNoPermission", culture),
+                "unclear" => Text("AuthoringClarify", culture),
                 "formExists" when Link(publicOrigin, summary.AppPath) is { } link => Text("AuthoringFormExists", culture, link),
                 "catalogExists" when Link(publicOrigin, summary.AppPath) is { } link => Text("AuthoringCatalogExists", culture, link),
                 _ => null,
             };
-            return declined is null ? null : new(proposalId, declined, culture);
+            return declined is null ? null : new(proposalId, declined, culture) { AwaitsAnswer = summary.Reason == "unclear" };
         }
         var form = summary.Kind == StructuredAuthoringKind.Form;
         var body = form ? FormBody(summary, culture) : CatalogBody(summary, culture);

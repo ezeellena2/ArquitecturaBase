@@ -74,13 +74,48 @@ public sealed class WhatsAppAssistantAuthoringIntegrationTests(ApiFactory factor
         Assert.Single(owner.Created);
     }
 
-    private static async Task<WhatsAppAssistantWorkResponse> SummaryAsync(WhatsAppAssistantScenario host, Guid contactId)
+    // «Pregunta y espera»: the question is a fixed text, not an offer nor a summary, and the answer continues the same operation.
+    [Fact]
+    public async Task An_unclear_request_asks_what_to_build_and_the_answer_continues_its_operation()
+    {
+        var owner = new WhatsAppAuthoringChannelDouble();
+        await using var host = await WhatsAppAssistantScenario.CreateAsync(factory, Ct, builder => builder.ConfigureTestServices(services =>
+            services.Replace(ServiceDescriptor.Singleton<IStructuredAuthoringProposalChannel>(owner))));
+        var contact = await host.ContactAsync(Ct, automatic: true);
+
+        var asked = await SummaryAsync(host, contact.ContactId, WhatsAppAuthoringChannelDouble.DeclineId);
+        var question = await ReferenceAsync(host, asked.RequestId);
+        Assert.Equal((WhatsAppAssistantRequestState.Sent, (Guid?)asked.RequestId), (question.State, question.ChangeRequestId));
+        var text = await OutgoingAsync(host, question.OutgoingId!.Value);
+        Assert.Equal((WhatsAppOutgoingMessageKind.Text,
+            "No me queda claro qué querés que arme. Contame si es un formulario o un catálogo, para qué es y qué datos lleva, por escrito o con un audio."),
+            (text.Kind, text.Body));
+        var day = host.Clock.GetUtcNow().UtcDateTime.Date;
+        var reads = await host.ScopeAsync(async services =>
+        {
+            var reader = services.GetRequiredService<IWhatsAppAssistantReader>();
+            return (Offers: await reader.CountOffersAsync(contact.ContactId, day, day.AddDays(1), Ct), Continues: await reader.FindChangeRequestAsync(contact.ContactId, Ct),
+                Latest: await reader.FindLatestAuthoringRequestAsync(contact.ContactId, Ct));
+        });
+        Assert.Equal((0, (Guid?)asked.RequestId, (Guid?)null), reads);
+
+        await host.AddNewerSourceAsync(contact, Ct);
+        var answered = await SummaryAsync(host, contact.ContactId);
+        Assert.Equal(asked.RequestId, answered.Operation!.PreviousRequestId);
+        var summary = await ReferenceAsync(host, answered.RequestId);
+        Assert.Equal(((Guid?)asked.RequestId, (Guid?)null), (summary.PreviousRequestId, summary.ChangeRequestId));
+        Assert.Equal(WhatsAppOutgoingMessageKind.QuickReplies, (await OutgoingAsync(host, summary.OutgoingId!.Value)).Kind);
+        Assert.Null(await host.ScopeAsync(services => services.GetRequiredService<IWhatsAppAssistantReader>().FindChangeRequestAsync(contact.ContactId, Ct)));
+    }
+
+    private static async Task<WhatsAppAssistantWorkResponse> SummaryAsync(WhatsAppAssistantScenario host, Guid contactId,
+        string capability = WhatsAppAuthoringChannelDouble.ProposeFormId)
     {
         var work = await host.ScopeAsync(async services => (await services.GetRequiredService<IWhatsAppAssistantDispatchService>().PrepareAsync(contactId, Ct)).Value);
         Assert.NotNull(work);
         var operation = Assert.IsType<AssistantOperationRequest>(work.Operation);
         var outcome = new AssistantOperationResponse(work.RequestId, "completed",
-            new AssistantObservedProposal(Guid.NewGuid(), Guid.NewGuid(), new(WhatsAppAuthoringChannelDouble.ProposeFormId, 1), new AuthoringPayload()),
+            new AssistantObservedProposal(Guid.NewGuid(), Guid.NewGuid(), new(capability, 1), new AuthoringPayload()),
             new("http-fixture", 1, "http-fixture", 1, operation.OccurredAtUtc, operation.Context.ChannelId), null);
         host.Operations.Complete(outcome);
         await host.CompleteOutcomeAsync(contactId, outcome, Ct);

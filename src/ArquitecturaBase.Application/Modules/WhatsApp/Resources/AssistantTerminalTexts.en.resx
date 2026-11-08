@@ -21,4 +21,5 @@
   <data name="AuthoringNoPermission" xml:space="preserve"><value>Your account cannot build forms or catalogs. Ask whoever manages the system.</value></data>
   <data name="AuthoringFormExists" xml:space="preserve"><value>For now I do not change forms that already exist. You can change it from the app: {0}</value></data>
   <data name="AuthoringCatalogExists" xml:space="preserve"><value>For now I do not change catalogs that already exist. You can change it from the app: {0}</value></data>
+  <data name="AuthoringClarify" xml:space="preserve"><value>I am not sure what you want me to build. Tell me whether it is a form or a catalog, what it is for and what information it holds, in writing or with an audio.</value></data>
 </root>

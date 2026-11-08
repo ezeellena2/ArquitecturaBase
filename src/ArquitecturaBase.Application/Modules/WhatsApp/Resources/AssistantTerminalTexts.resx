@@ -21,4 +21,5 @@
   <data name="AuthoringNoPermission" xml:space="preserve"><value>Tu cuenta no puede armar formularios ni catálogos. Pedíselo a quien administra el sistema.</value></data>
   <data name="AuthoringFormExists" xml:space="preserve"><value>Por ahora no cambio formularios que ya existen. Lo podés cambiar desde la app: {0}</value></data>
   <data name="AuthoringCatalogExists" xml:space="preserve"><value>Por ahora no cambio catálogos que ya existen. Lo podés cambiar desde la app: {0}</value></data>
+  <data name="AuthoringClarify" xml:space="preserve"><value>No me queda claro qué querés que arme. Contame si es un formulario o un catálogo, para qué es y qué datos lleva, por escrito o con un audio.</value></data>
 </root>

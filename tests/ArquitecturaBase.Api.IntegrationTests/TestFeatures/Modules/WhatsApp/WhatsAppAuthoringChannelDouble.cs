@@ -10,11 +10,17 @@ namespace ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.WhatsApp;
 internal sealed class WhatsAppAuthoringChannelDouble : IStructuredAuthoringProposalChannel
 {
     public const string ProposeFormId = "forms.authoring.propose-form";
+    public const string DeclineId = "forms.authoring.decline";
     public List<StructuredAuthoringProposalRequest> Created { get; } = [];
     public Guid DefinitionId { get; } = Guid.NewGuid();
 
-    public StructuredAuthoringSummary? Summarize(AssistantObservedProposal proposal, string culture) => proposal.Capability.Id == ProposeFormId
-        ? new(StructuredAuthoringKind.Form, "Parte de lluvias · LLU", ["1. Fecha · fecha", "2. Milímetros · número"], 0) : null;
+    // A decline here is always «it is not clear what to build», the one that asks and waits.
+    public StructuredAuthoringSummary? Summarize(AssistantObservedProposal proposal, string culture) => proposal.Capability.Id switch
+    {
+        ProposeFormId => new(StructuredAuthoringKind.Form, "Parte de lluvias · LLU", ["1. Fecha · fecha", "2. Milímetros · número"], 0),
+        DeclineId => new(StructuredAuthoringKind.Declined, "", [], 0) { Reason = "unclear" },
+        _ => null,
+    };
 
     public Task<Result<StructuredAuthoringCreatedResponse>> CreateAsync(StructuredAuthoringProposalRequest request, CancellationToken cancellationToken)
     {

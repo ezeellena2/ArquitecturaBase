@@ -60,6 +60,8 @@ public sealed class FormAuthoringDeclineTests
     [InlineData("formExists", "LLU", "0193f2c4-7a1e-7c10-9d4e-2b1f3a4c5d70", "catalogId", "invalid")]
     [InlineData("catalogExists", null, "not-an-id", "catalogId", "notFound")]
     [InlineData("catalogExists", "LLU", null, "prefix", "invalid")]
+    [InlineData("unclear", "LLU", null, "prefix", "invalid")]
+    [InlineData("unclear", null, "0193f2c4-7a1e-7c10-9d4e-2b1f3a4c5d70", "catalogId", "invalid")]
     public async Task A_wrong_reason_comes_back_rejected_with_the_path_to_fix(string reason, string? prefix, string? catalogId, string path, string code)
     {
         var host = Host();
@@ -79,6 +81,36 @@ public sealed class FormAuthoringDeclineTests
         }
     }
 
+    // «Pregunta y espera»: a request that does not say what to build is asked about, never guessed; asking only makes sense
+    // to whoever can build a form or a catalog.
+    [Fact]
+    public async Task An_unclear_request_is_asked_about_when_the_person_can_build_a_form_or_a_catalog()
+    {
+        foreach (var permissions in new[] { new[] { BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage },
+                     new[] { BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage } })
+        {
+            var host = Host(permissions);
+            var asked = await host.Source.ExecuteAsync(host.Request(Decline, Json("unclear")), Ct);
+            Assert.Equal(("proposed", new FormAuthoringDecline("unclear", null, null, "")), (asked.Value.State, (FormAuthoringDecline)asked.Value.Payload));
+        }
+        var readOnly = Host([BusinessFormsPermissions.Read, BusinessFormsPermissions.CatalogsRead]);
+        var cannot = await readOnly.Source.ExecuteAsync(readOnly.Request(Decline, Json("unclear")), Ct);
+        Assert.Equal(new FormAuthoringIssue("reason", "permissionMissing"), Assert.Single(((FormAuthoringRejection)cannot.Value.Payload).Issues));
+    }
+
+    [Fact]
+    public void The_reasons_offered_to_the_model_are_the_ones_it_accepts()
+    {
+        foreach (var schema in new[] { FormAuthoringAssistantCodec.DeclineArgumentsSchema, FormAuthoringAssistantCodec.DeclineSchema })
+        {
+            using var document = JsonDocument.Parse(schema);
+            Assert.Equal(FormAuthoringAssistantCodec.DeclineReasons, document.RootElement.GetProperty("properties").GetProperty("reason").GetProperty("enum")
+                .EnumerateArray().Select(reason => reason.GetString()!).ToArray());
+        }
+        Assert.Contains("unclear", FormAuthoringAssistantCodec.DeclineReasons);
+        Assert.Contains("permissionMissing", FormAuthoringAssistantCodec.IssueCodes);
+    }
+
     [Fact]
     public void It_needs_no_permission_is_not_offered_in_Home_and_its_output_is_closed()
     {
@@ -90,6 +122,10 @@ public sealed class FormAuthoringDeclineTests
         Assert.Equal(new FormAuthoringDecline("formExists", Rains, null, "Parte de lluvias"), source.ParseOutput(new(Decline, 1), stored).Value);
         var mixed = JsonSerializer.Serialize(new FormAuthoringDecline("noPermission", Rains, null, ""), JsonSerializerOptions.Web);
         Assert.True(source.ParseOutput(new(Decline, 1), mixed).IsFailure);
+        var unclear = JsonSerializer.Serialize(new FormAuthoringDecline("unclear", null, null, ""), JsonSerializerOptions.Web);
+        Assert.Equal(new FormAuthoringDecline("unclear", null, null, ""), source.ParseOutput(new(Decline, 1), unclear).Value);
+        var named = JsonSerializer.Serialize(new FormAuthoringDecline("unclear", null, Contractors, "Contratistas"), JsonSerializerOptions.Web);
+        Assert.True(source.ParseOutput(new(Decline, 1), named).IsFailure);
     }
 
     [Fact]
