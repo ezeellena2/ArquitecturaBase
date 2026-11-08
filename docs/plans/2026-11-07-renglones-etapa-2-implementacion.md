@@ -361,10 +361,15 @@ su clase. Otras sesiones trabajan en el mismo checkout: se preparan sólo los ar
 
 ### Tarea 9 · El front: publicar y el editor
 
-- [ ] Esperar el aviso del chat de la Etapa 1 (RG10-D y RG12-A commiteados).
-- [ ] El texto de RG13-A en `publicationPresentation.ts` y `forms.json` es/en, con su test y la escena del diálogo.
-- [ ] LD3-A en `CatalogQuestionFilters`: «· del mismo ítem», «· para todos los ítems» y «Está en el bloque», con sus tests.
-- [ ] Commit en el front: `feat(formularios): publicar y las listas dependientes con el bloque`.
+- [x] Esperar el aviso del chat de la Etapa 1 (RG10-D y RG12-A commiteados).
+- [x] El texto de RG13-A en `publicationPresentation.ts` y `forms.json` es/en, con su test y la escena del diálogo.
+- [x] LD3-A en `CatalogQuestionFilters`: «· del mismo ítem», «· para todos los ítems» y «Está en el bloque», con sus tests.
+- [x] Commit en el front: `feat(formularios): publicar y las listas dependientes con el bloque`.
+
+  Hecho (front 53a57ca0, sobre RG10-D/RG12-A 06666b14): el problema de RG13-A lo arma `publicationIssueNames` con el `limit`
+  del servidor y el mínimo del bloque del borrador; la escena es `forms-publication-rows-minimum` en `formRows`. LD3-A vive
+  en `answerChoices` (`dependentLists.ts`): el motivo `inBlock` y de qué ítem sale la respuesta (`items`); la pregunta se
+  nombra con su número de la lista (`questionNumbers`, «2.1»).
 
 ### Tarea 10 · Cierre
 
