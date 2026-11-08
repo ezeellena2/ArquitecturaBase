@@ -360,25 +360,22 @@ permiso.
   - los `AGENTS.md` de Services, Persistence, Pdf y sus tests;
   - en el front, los de `components`, `api` y `whatsapp`, y «Lo que cambia de lo que hay» del diseño de renglones;
   - este plan y el de renglones.
-- [ ] Exportación de las cohortes que toca. La hace la Etapa 2 en una sola corrida conjunta al final, después de RG10-D y
-  RG12-A, que cambian textos que salen en las capturas (acordado el 2026-11-07). Una corrida de verificación desde una copia
-  de dc4df3a4 dio 7357 de 7358 en la suite completa del backend; la falla es de la Etapa 2
-  (`FormCatalogValueMigrationTests` no espera `RejectedRow`), y mis tests de contrato pasaron contra sus capturas crudas
-  salvo la procedencia, que llega con la exportación. Esos tests y los conteos (63, 36 y 78) quedan sin commitear en el
-  front hasta entonces:
+- [x] Exportación de las cohortes que toca, en la corrida conjunta que hizo la Etapa 2 después de RG10-D y RG12-A (front
+  06666b14), que cambian textos que salen en las capturas: front 60fcff31, sobre el backend 735add83, con 7408 de 7408 en
+  la suite completa. Entraron en ese commit los contratos de esta etapa, que pasan con las capturas nuevas (34 de 34):
   - `forms-responses-http`, de 55 a 63 archivos;
   - `forms-pdf-http`, de 32 a 36, con `rows-preview` y sus companions;
   - `whatsapp-forms-http`, con `reply-rows` es y en.
-  Con sus listas en `export-responses-http.ps1` y su autotest, y en el front `rowsReadHttpContract.test.ts`, con las
-  listas de los tests de contrato que cuentan capturas. Se exporta desde una copia: el exportador corre la suite entera y
-  escribe en el front.
+  Las listas están en `export-responses-http.ps1` y su autotest; en el front, `rowsReadHttpContract.test.ts`,
+  `formRepliesRowsHttp.test.ts` y los conteos de los tests de contrato que cuentan capturas. Se exporta desde una copia:
+  el exportador corre la suite entera y escribe en el front.
 - [x] Verificación de cierre (2026-11-07):
   - build sin advertencias: el de la corrida completa, con `TreatWarningsAsErrors`;
   - `dotnet test` completo con Docker, desde una copia de dc4df3a4: 7357 de 7358, y la falla (una prueba de migraciones que
     no esperaba `RejectedRow`) la corrigió la Etapa 2;
-  - `vitest` en ocho tandas: 4341 tests. Fallan los ocho contratos que esperan la exportación conjunta, dos de «Agregar
-    bloque» (RG10-D, en curso en la sesión de renglones) y seis que vencen a los 5 segundos con la máquina cargada y pasan
-    solos;
+  - `vitest` en ocho tandas: 4341 tests. Fallaron los ocho contratos que esperaban la exportación conjunta (pasan desde
+    60fcff31), dos de «Agregar bloque» (RG10-D, entonces en curso en la sesión de renglones) y seis que vencen a los
+    5 segundos con la máquina cargada y pasan solos;
   - `test:visual`: 992 de 992, con la escena `responsesRows` nueva (la planilla, «Filtros» y la pantalla completa, es y en
     a 1440, 390 y 320). D2, la tarjeta del chat y el diseño del PDF quedan cubiertos por sus tests de componente; sumarlos a
     sus escenas (`responses`, `chatForms`, `formPdf`) queda pendiente;
