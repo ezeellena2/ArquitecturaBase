@@ -50,6 +50,7 @@ alguno, saltealo. Si no, leelos en este orden antes del 01.
 | [8](../2026-11-06-traspaso-multitenant-ia-arma-formularios.md) | 2026-11-06 | La IA que arma formularios y catálogos, etapa 1. |
 | [9](../2026-11-06-traspaso-multitenant-ajustes-de-toda-la-app.md) | 2026-11-06 | Idioma, reintentar un aviso, Mi perfil, el menú sin saltos y controles de la plantilla. |
 | **10** | 2026-11-07 | Este paquete. |
+| [11](../2026-11-08-traspaso-multitenant-ia-pregunta-y-corrida.md) | 2026-11-08 | Completa el 8: el pedido ambiguo por WhatsApp pregunta y espera, la corrida con el proveedor real y dos ajustes. Se escribió después de este paquete y deja al día lo que el 02 decía de la IA. |
 
 ## Dónde ver los diseños desde la otra cuenta
 
@@ -74,8 +75,8 @@ Este traspaso es distinto de los anteriores. El usuario quiere que vuelvas a rev
 rehagas la maqueta y la documentación del multitenant con lo que allá quedó decidido y programado, basándote también en
 su código. Esta cuenta no tiene la memoria ni los chats donde se decidió: todo lo que hace falta está en los dos repos.
 
-1. Leé el README del traspaso 10 y, en orden, los traspasos 2 a 9 que todavía no hayas incorporado. Después leé el 01
-   (qué cambió), el 02 (en curso y pendiente), el 03 (reglas del usuario) y el 04 (dónde leer cada cosa).
+1. Leé el README del traspaso 10 y, en orden, los traspasos 2 a 9 y el 11 que todavía no hayas incorporado. Después leé
+   el 01 (qué cambió), el 02 (en curso y pendiente), el 03 (reglas del usuario) y el 04 (dónde leer cada cosa).
 2. Desde ahora, trabajá con este usuario según las reglas del 03. Las que choquen con tus reglas o con tu hoja de ruta,
    anotalas para preguntárselas.
 3. Recorré las fuentes canónicas de ArquitecturaBase: docs/features, docs/architecture/backend.md y docs/decisions, y en
