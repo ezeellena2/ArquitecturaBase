@@ -183,6 +183,7 @@ proveedor. Los intentos fallidos dejaron arreglos:
 
 Queda:
 - el dictado por WhatsApp como caso combinado;
-- declarar el perfil STT del navegador (`openai-stt-browser-candidate@1`) en cada instalación, porque sin él no aparece el micrófono
-  de Inicio;
+- declarar el perfil STT del navegador (`openai-stt-browser-candidate@1`) en cada instalación que no sea la local, porque sin él no
+  aparece el micrófono de Inicio; en la local quedó declarado el 2026-11-08 (`AudioModelProfiles:1`) y aceptado por la
+  validación de arranque;
 - el traspaso al multitenant.
