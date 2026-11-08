@@ -294,8 +294,8 @@ para que se usen igual en toda la app.
    [formularios](../features/formularios.md#el-bloque-de-renglones-en-la-lectura--rg4-a-2026-11-07).
 4. **Etapa 4 · Las reglas (RG5-A).** Las condiciones «algún renglón con…» en el editor y en la evaluación, la lista de reglas
    y el bloque como dato del mensaje, con «Así llega». Con eso, la regla de «Recepción de insumos» avisa al Agrónomo si algún
-   artículo llegó en mal estado. Su [plan de implementación](2026-11-07-renglones-etapa-4-implementacion.md) tiene ocho tareas
-   y espera el visto bueno del usuario.
+   artículo llegó en mal estado. Su [plan de implementación](2026-11-07-renglones-etapa-4-implementacion.md) tiene ocho tareas;
+   el usuario lo aprobó el 2026-11-07 y se programa cuando cierren las etapas 2 y 3.
 
 Al cerrar, las reglas van a [formularios](../features/formularios.md) y a [WhatsApp](../features/whatsapp.md), el diseño
 queda en el front y se ofrece el traspaso al multitenant. La factura de ARCA usa este bloque en su Etapa 3; los cálculos

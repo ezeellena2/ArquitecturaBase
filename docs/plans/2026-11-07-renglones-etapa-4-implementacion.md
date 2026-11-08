@@ -31,7 +31,7 @@ siguen diciendo renglón (`rows`).
 «Filtros» de la 3 (`ItemConditions` y `SameItem`). Se programa cuando cierren las dos, con la exportación conjunta de sus
 capturas.
 
-**Visto bueno:** pendiente del usuario.
+**Visto bueno:** el usuario aprobó este plan el 2026-11-07, con lo que el tablero no fija resuelto como dice abajo.
 
 ---
 
