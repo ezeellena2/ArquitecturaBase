@@ -93,14 +93,14 @@ internal sealed class ChannelRunner(IAssistantOperations operations, SafeRunLedg
         var elapsed=Stopwatch.StartNew();
         var now=clock.GetUtcNow().UtcDateTime;
         var accepted=await operations.SubmitAsync(new(requestId,context,text,now,now.AddDays(1)) { PreviousRequestId = previous?.RequestId },ct);
-        if(accepted.IsFailure) throw new InvalidOperationException("Qualification channel submission was rejected.");
+        if(accepted.IsFailure) throw QualificationRejections.Stop("channel-submit",accepted.Error);
         await ledger.SaveAsync(new QualificationLedgerEntry(testCase.Id,requestId,actor.UserId,null,null,"accepted") {OperationKind="channel",ChannelId=context.ChannelId,InteractionMode=context.InteractionMode,Culture=context.Culture,SubjectUserId=subject.UserId,ChannelKind=testCase.ActorKind,SourceRecordId=context.SourceRecordId,PreviousRequestId=previous?.RequestId},ct);
         AssistantOperationResponse? outcome=null;
         var deadline=clock.GetUtcNow().AddSeconds(240);
         while(clock.GetUtcNow()<deadline)
         {
             var read=await operations.GetAsync(context,requestId,ct);
-            if(read.IsFailure) throw new InvalidOperationException("Qualification channel status was rejected.");
+            if(read.IsFailure) throw QualificationRejections.Stop("channel-status",read.Error);
             outcome=read.Value;
             if(outcome.State is not ("pending" or "running" or "queued")) break;
             await Task.Delay(TimeSpan.FromSeconds(2),clock,ct);

@@ -42,14 +42,14 @@ internal sealed class HomeRunner(QualificationCurrentUser currentUser, IAiAssist
         measurements.BeginCase();
         var elapsed = Stopwatch.StartNew();
         var accepted = await audioService.SubmitAsync(new SubmitAiAssistantAudioRequest(requestId, testCase.Culture, bytes), cancellationToken);
-        if (accepted.IsFailure) throw new InvalidOperationException("Qualification Home audio submission was rejected.");
+        if (accepted.IsFailure) throw QualificationRejections.Stop("home-audio-submit", accepted.Error);
         await ledger.SaveAsync(entry with { Phase = "accepted" }, cancellationToken);
         AiAssistantAudioResponse? result = null;
         var deadline = clock.GetUtcNow().AddSeconds(240);
         while (clock.GetUtcNow() < deadline)
         {
             var observed = await audioService.GetAsync(requestId, testCase.Culture, cancellationToken);
-            if (observed.IsFailure) throw new InvalidOperationException("Qualification Home audio status was rejected.");
+            if (observed.IsFailure) throw QualificationRejections.Stop("home-audio-status", observed.Error);
             result = observed.Value;
             if (result.State is not ("pending" or "running" or "queued")) break;
             await Task.Delay(TimeSpan.FromSeconds(Math.Clamp(result.PollingAfterSeconds, 1, 30)), clock, cancellationToken);
@@ -89,7 +89,7 @@ internal sealed class HomeRunner(QualificationCurrentUser currentUser, IAiAssist
         var elapsed = Stopwatch.StartNew();
         var accepted = await assistant.SubmitAsync(new SubmitAiAssistantTurnRequest(requestId,
             conversation?.Id, conversation?.Revision, connection.Revision, testCase.Question, testCase.Culture) { AudioRequestId = dictated?.RequestId }, cancellationToken);
-        if (accepted.IsFailure) throw new InvalidOperationException("Qualification submission was rejected.");
+        if (accepted.IsFailure) throw QualificationRejections.Stop("home-submit", accepted.Error);
         await ledger.SaveAsync(new(testCase.Id, requestId, actor.UserId, accepted.Value.ConversationId,
             accepted.Value.ConversationRevision, "accepted"), cancellationToken);
         AiAssistantTurnResponse? result = null;
@@ -97,7 +97,7 @@ internal sealed class HomeRunner(QualificationCurrentUser currentUser, IAiAssist
         while (clock.GetUtcNow() < deadline)
         {
             var observed = await assistant.GetTurnAsync(requestId, cancellationToken);
-            if (observed.IsFailure) throw new InvalidOperationException("Qualification status read was rejected.");
+            if (observed.IsFailure) throw QualificationRejections.Stop("home-status", observed.Error);
             result = observed.Value;
             if (result.State is not ("pending" or "running")) break;
             await Task.Delay(TimeSpan.FromSeconds(Math.Clamp(result.PollingAfterSeconds, 1, 30)), clock, cancellationToken);
