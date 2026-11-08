@@ -1,6 +1,10 @@
 using System.Globalization;
+using System.Net;
+using System.Net.Sockets;
 using ArquitecturaBase.Application.Models.Emails;
 using ArquitecturaBase.Infrastructure.Emails;
+using MailKit.Security;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -53,6 +57,40 @@ public sealed class EmailDeliveryTests
         {
             Directory.Delete(directory, recursive: true);
         }
+    }
+
+    [Fact]
+    public async Task Smtp_sender_gives_up_on_a_server_that_never_answers()
+    {
+        using var server = new TcpListener(IPAddress.Loopback, 0);
+        server.Start();
+        var accepted = server.AcceptTcpClientAsync(Ct).AsTask();
+        var options = new SmtpOptions
+        {
+            Host = IPAddress.Loopback.ToString(),
+            Port = ((IPEndPoint)server.LocalEndpoint).Port,
+            Security = SecureSocketOptions.None,
+            UserName = "user",
+            Password = "password",
+            FromName = Sender.FromName,
+            FromAddress = Sender.FromAddress,
+        };
+        var sender = new SmtpEmailSender(Options.Create(options), TimeSpan.FromSeconds(1));
+
+        var sending = sender.SendAsync(new EmailMessage("ana@example.com", "Asunto", "<p>Hola</p>", "Hola"), Ct);
+        var finished = await Task.WhenAny(sending, Task.Delay(TimeSpan.FromSeconds(15), Ct));
+
+        Assert.Same(sending, finished);
+        Assert.True(sending.IsFaulted);
+        using var silent = await accepted;
+    }
+
+    [Fact]
+    public void Registration_builds_the_smtp_sender_with_its_own_timeout()
+    {
+        using var provider = new ServiceCollection().AddSingleton(Options.Create(Sender)).BuildServiceProvider();
+
+        Assert.IsType<SmtpEmailSender>(ActivatorUtilities.CreateInstance<SmtpEmailSender>(provider));
     }
 
     [Fact]
