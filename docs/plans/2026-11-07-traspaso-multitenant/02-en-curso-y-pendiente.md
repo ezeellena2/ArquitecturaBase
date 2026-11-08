@@ -25,8 +25,6 @@ traspaso cuando cierre: no armes etapas con eso.
 - IA: qué hace WhatsApp ante un pedido ambiguo.
 - Roles: qué hacen Re Pág, Av Pág, Espacio y las flechas cuando el foco está fuera del contenido.
 - Azure: cuándo salir a la nube. Sin eso no hay ambiente dev ni Container App donde cargar los probes.
-- La plantilla sin el módulo de WhatsApp: «Desvincular» en el perfil da 404. Hay que decidir si la ruta pasa al núcleo o si
-  se esconde el botón.
 
 ## Pruebas manuales pendientes en ArquitecturaBase
 
