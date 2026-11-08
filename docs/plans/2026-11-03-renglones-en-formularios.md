@@ -3,7 +3,7 @@
 Diseño del 2026-11-02 con las decisiones del usuario del 2026-11-03, que ese día dio el diseño por cerrado, y las del
 2026-11-04 sobre el tope de la respuesta de WhatsApp (RG7-A), el bloque con mínimo 0 (RG8-A) y cómo se elige «Renglones» en el
 editor (RG9-A), la del 2026-11-06, «Agregar bloque» (RG10-D), y las del 2026-11-07, «ítem» en lugar de «renglón» en los textos
-(RG12-A) y un mínimo mayor que el tope de WhatsApp (RG13-A). La Etapa 1 cerró el 2026-11-08 (abajo, en el plan por etapas). Un formulario suma un bloque de
+(RG12-A) y un mínimo mayor que el tope de WhatsApp (RG13-A). Las etapas 1 a 3 cerraron el 2026-11-08 (abajo, en el plan por etapas). Un formulario suma un bloque de
 preguntas que se repite, como los renglones de un remito o de una factura: en la app se cargan en una tabla y por WhatsApp,
 de a un renglón por pantalla.
 
@@ -289,13 +289,19 @@ para que se usen igual en toda la app.
      `CatalogFieldsDialog`, `AssistantEntries`, `CatalogEditorPage.http`, `FormEditorSections`, `FormEntryGroupBy`,
      `FormResponseFullPage`, `FormResponsesPage`, `ResponsePanel`, `ProfilePage`, `RoleEditorPage`,
      `WhatsAppFormRepliesHttp`, `designArchitecture` y `featureDependencies`.
-2. **Etapa 2 · Cargar renglones (RG2-A y RG3-A).** Su [plan de implementación](2026-11-07-renglones-etapa-2-implementacion.md)
-   tiene diez tareas y suma RG13-A y LD3-A.
-   - Backend: los valores con su renglón y su migración, y la captura de WhatsApp y de la app con los renglones, la huella y
-     el replay.
-   - Front: la tabla en la página, los recuadros en el panel y en el celular, agregar, quitar y mover, los errores por renglón
-     y «Mantener».
-   - Prueba física: «Recepción de insumos» con los tres renglones del remito, desde la app y por WhatsApp.
+2. **Etapa 2 · Cargar renglones (RG2-A y RG3-A).** Los valores con su renglón y su migración, la captura desde la app y por
+   WhatsApp con la huella y el replay, la corrección con sus ítems, y en el front la tabla, los recuadros, los errores por
+   ítem y «Mantener»; sumó RG13-A y LD3-A. Cerrada el 2026-11-08. Las reglas están en
+   [formularios](../features/formularios.md#el-bloque-de-renglones-en-la-carga--rg2-a-y-rg3-a-2026-11-07) y en
+   [WhatsApp](../features/whatsapp.md#recepción-de-respuestas-de-flow), y su plan, en la
+   [procedencia](../history/README.md#renglones--etapa-2-cargar-los-renglones--2026-11-08). Sus capturas entraron en la
+   exportación conjunta (front 60fcff31) y su verificación de cierre es la conjunta, en la Etapa 1.
+   - Pendiente: la prueba física pasó a la prueba integral final. Con la Api reiniciada (migración `AddFormRecordRows`),
+     guiando al usuario clic por clic y sin cargar datos por él: pasar «Recepción de insumos» al bloque «Artículos» y
+     publicarlo; cargar el remito con sus tres artículos desde la página, revisar con «Corregir» que vuelvan los tres en
+     orden, y lo mismo en el panel y en el celular; por WhatsApp, los tres ítems con «Sí», «Sí» y «No», y la vuelta con la
+     flecha antes del «No», que confirma qué manda Meta de los ítems que siguen. Lo que llegue se mira en la base sin
+     valores.
 3. **Etapa 3 · Ver los renglones (RG4-A).** La columna de la planilla, «Filtros» por algún renglón con sus conteos, la vista
    rápida, la pantalla completa, el chat de WhatsApp, la hoja del Excel y la tabla del PDF. Cerrada el 2026-11-08. Las reglas
    están en [formularios](../features/formularios.md#el-bloque-de-renglones-en-la-lectura--rg4-a-2026-11-07) y en
@@ -310,7 +316,7 @@ para que se usen igual en toda la app.
 4. **Etapa 4 · Las reglas (RG5-A).** Las condiciones «algún renglón con…» en el editor y en la evaluación, la lista de reglas
    y el bloque como dato del mensaje, con «Así llega». Con eso, la regla de «Recepción de insumos» avisa al Agrónomo si algún
    artículo llegó en mal estado. Su [plan de implementación](2026-11-07-renglones-etapa-4-implementacion.md) tiene ocho tareas;
-   el usuario lo aprobó el 2026-11-07 y se programa cuando cierren las etapas 2 y 3.
+   el usuario lo aprobó el 2026-11-07 y se está programando.
 
 Al cerrar, las reglas van a [formularios](../features/formularios.md) y a [WhatsApp](../features/whatsapp.md), el diseño
 queda en el front y se ofrece el traspaso al multitenant. La factura de ARCA usa este bloque en su Etapa 3; los cálculos

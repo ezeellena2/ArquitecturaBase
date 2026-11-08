@@ -47,9 +47,10 @@ Después del límite sólo se retocaron el 5, el 7 y el 9, con RG10-D, RG12-A y 
   backend armaba una columna para el bloque y el esquema del front la rechazaba. Ahora sale sin la columna del bloque, y
   las preguntas del bloque conservan la suya. La columna vuelve en la Etapa 3.
 - **Planes nuevos, con el visto bueno del usuario:**
-  - **Etapa 2, «Cargar renglones»** (`docs/plans/2026-11-07-renglones-etapa-2-implementacion.md`, 10 tareas): `Row` en
-    los valores y las referencias, con migración; la captura desde la app y por WhatsApp, con huella y replay; la
-    corrección con sus ítems; en el front, la tabla, los recuadros, los errores por ítem y «Mantener». Suma RG13-A y LD3-A.
+  - **Etapa 2, «Cargar renglones»** (10 tareas; el plan se retiró el 2026-11-08 y sus reglas están en
+    `docs/features/formularios.md`, en «El bloque de renglones en la carga»): `Row` en los valores y las referencias, con
+    migración; la captura desde la app y por WhatsApp, con huella y replay; la corrección con sus ítems; en el front, la
+    tabla, los recuadros, los errores por ítem y «Mantener». Suma RG13-A y LD3-A.
   - **Etapa 3, «Ver los renglones»** (9 tareas; el plan se retiró el 2026-11-08 y sus reglas están en
     `docs/features/formularios.md`, en «El bloque de renglones en la lectura»): la columna del bloque, «Filtros» por algún
     ítem con sus conteos, la vista rápida, la pantalla completa, la tarjeta del chat, la hoja del Excel y la tabla del PDF.

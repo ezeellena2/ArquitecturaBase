@@ -153,12 +153,14 @@ borró el Flow. LD2-A queda confirmada:
    «Permitir elegir varias» apagada con su motivo, la línea de la pregunta y la revisión de conflictos. La carga quedó el mismo
    día (front 7af6c766): los dos combos en la página, dos columnas en la tabla de ítems y uno debajo del otro en una columna;
    con un solo valor, viene elegido; otro valor limpia la opción. Al corregir, el primer combo arranca con el valor de la
-   opción guardada, que da el backend en `group` (57866e49, con la captura correction-groupby-es). Falta la exportación conjunta
-   de las cohortes, con el test de contrato del front sobre las cuatro capturas de LD1-A.
+   opción guardada, que da el backend en `group` (57866e49, con la captura correction-groupby-es). La exportación conjunta
+   de las cohortes entró en el front 60fcff31, con el test de contrato sobre las cuatro capturas de LD1-A
+   (`entriesGroupByHttpContract.test.ts`).
 4. **WhatsApp:** r11, el mensaje, la vista oficial y el chequeo de los 200 por valor. La oferta agrupada con el tope por valor quedó el 2026-11-07 (54ffc60b) y r11, el mensaje y la vista oficial el 2026-11-08, probados con Meta con dos borradores compilados por la app (dos pantallas, y renglones con mínimo 0) que se recorrieron en la vista oficial y se borraron. La regla quedó en [formularios](../features/formularios.md#elegir-primero-por-un-campo--ld1-a-2026-11-07). El resumen por valor del editor quedó el 2026-11-08, con «en 3 valores de «Rubro»» porque el nombre del campo no se pasa a plural
    (el usuario lo confirmó ese día).
 
-LD3-A se programa con la Etapa 2 de renglones.
+LD3-A quedó programada con la Etapa 2 de renglones, que cerró el 2026-11-08 (el editor en el front 53a57ca0): la regla está
+en [formularios](../features/formularios.md#el-bloque-de-renglones-en-la-carga--rg2-a-y-rg3-a-2026-11-07).
 
 ## Coordinación
 
