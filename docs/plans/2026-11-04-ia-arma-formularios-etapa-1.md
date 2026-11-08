@@ -185,5 +185,7 @@ Queda:
 - el dictado por WhatsApp como caso combinado;
 - declarar el perfil STT del navegador (`openai-stt-browser-candidate@1`) en cada instalación que no sea la local, porque sin él no
   aparece el micrófono de Inicio; en la local quedó declarado el 2026-11-08 (`AudioModelProfiles:1`) y aceptado por la
-  validación de arranque;
-- el traspaso al multitenant.
+  validación de arranque.
+
+2026-11-08: el traspaso al multitenant es el [traspaso 11](2026-11-08-traspaso-multitenant-ia-pregunta-y-corrida.md), que
+completa el 8 con «pregunta y espera», la corrida real y los dos ajustes; el traspaso 10 lo enlaza.

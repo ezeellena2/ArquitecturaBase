@@ -28,8 +28,8 @@ El 2026-11-04 eligió el diseño y aceptó el [ADR 0024](../decisions/0024-ia-ar
 - **Lo que choca con el multitenant** (§5): en su E25, dos herramientas del chat crean el borrador y el catálogo al pedirlo
   (el pedido es la confirmación); además, no arma nada por WhatsApp y no tiene audio en el chat del Inicio. Las tres cosas
   las decide el usuario.
-- **Falta acá** (§6): la corrida con el proveedor real, decidir qué hace WhatsApp ante un pedido ambiguo y la prueba manual.
-  Las etapas 2 (planillas) y 3 (documentos) siguen sin programar.
+- **Falta acá** (§6): lo pendiente quedó al día en el [traspaso 11](2026-11-08-traspaso-multitenant-ia-pregunta-y-corrida.md),
+  que completa este. Las etapas 2 (planillas) y 3 (documentos) siguen sin programar.
 - **Parte de los commits no está en GitHub.** Desde esta PC se leen en `C:\Users\ezequ\source\repos\ArquitecturaBase` y
   `C:\Users\ezequ\source\repos\ArquitecturaBaseFront` (§7).
 
@@ -170,15 +170,10 @@ Leído en el multitenant en `c339b58d` (front `c5172e65`), con la hoja de ruta h
 
 ## 6. Lo que falta acá
 
-- **La corrida con el proveedor real** de los casos nuevos. El usuario la aprobó el 2026-11-05, pero el primer intento cortó
-  antes de llamar al proveedor: la base local no tiene guardada la conexión de IA, y la tiene que cargar el usuario en
-  Configuración. Después se repite con otra corrida.
-- **El dictado por WhatsApp** como caso combinado del arnés.
-- **Decidir qué hace WhatsApp ante un pedido ambiguo.** El dibujo dice «pregunta y espera», pero el canal no tiene cómo pedir
-  una aclaración en un pedido de autoría.
-- **La prueba manual**, en Inicio y por WhatsApp.
-- **Las etapas 2 y 3:** planillas (Excel y CSV, con la importación abierta) y documentos (PDF, fotos y Word, sobre la lectura
-  del ADR 0022). Sin programar.
+Está al día en el [traspaso 11](2026-11-08-traspaso-multitenant-ia-pregunta-y-corrida.md) (2026-11-08), que completa este. El
+usuario decidió que un pedido ambiguo por WhatsApp pregunte y espere (2026-11-07), y la corrida con el proveedor real quedó en
+verde, con dos ajustes del producto. Lo que sigue pendiente está en el §7 de ese traspaso: el dictado por WhatsApp como caso
+del arnés, la prueba manual, el perfil de transcripción del navegador en las demás instalaciones y las etapas 2 y 3.
 
 ## 7. Dónde está cada cosa en ArquitecturaBase
 
