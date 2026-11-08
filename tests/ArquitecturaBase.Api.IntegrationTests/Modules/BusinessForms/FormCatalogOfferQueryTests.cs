@@ -16,7 +16,8 @@ public sealed class FormCatalogOfferQueryTests
             .UseNpgsql("Host=localhost;Database=not-opened;Username=test;Password=test").Options);
         var method = typeof(FormCatalogReader).GetMethod("FindOfferItems", BindingFlags.NonPublic | BindingFlags.Instance);
         Assert.NotNull(method);
-        var query = Assert.IsAssignableFrom<IQueryable>(method.Invoke(new FormCatalogReader(db), [Guid.NewGuid(), containment]));
+        // The offer reads 201 rows unless a question that chooses first by a field asks for all of them (LD2-A).
+        var query = Assert.IsAssignableFrom<IQueryable>(method.Invoke(new FormCatalogReader(db), [Guid.NewGuid(), containment, 201]));
 
         var sql = query.ToQueryString();
 
