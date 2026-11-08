@@ -316,6 +316,26 @@ No se exportan preguntas, transcripciones, propuestas, credenciales ni hashes de
 
 La reevaluación `review5_20261018_03`, sobre `761b564c`, usó la misma conexión guardada y el mismo perfil de texto `gpt-6.1-sol-candidate-1@1` con `gpt-6.1-sol`. Completó 30/30 casos de canal y 434/434 checks, incluidos seis casos de inyección: 108 pasos de proveedor, 78 invocaciones de herramientas, 198.572 tokens de entrada y 6.618 de salida; máximo local por caso de 14,2365 s. Conserva el alcance `fixture-facts-checked-in-memory; style/free-text-not-exhaustively-assessed`, sin acreditar estilo exhaustivo ni rendimiento de producción. Inicio 20/20 y STT 4/4 conservan la calificación anterior porque sus capacidades, esquemas e instrucciones no cambiaron. La descripción propia de la herramienta evaluada se identifica por ese commit; los intentos previos, su ledger y evidencia se conservan sin repetir una aceptación.
 
+El `2026-11-08`, la Etapa 1 de [la IA arma formularios](../features/formularios.md#la-ia-arma-formularios-y-catálogos--etapa-1-2026-11-04) se calificó con la misma conexión guardada, `gpt-6.1-sol` y el perfil de texto `gpt-6.1-sol-candidate-1@1`. Fueron tres corridas, cada una con su base vacía:
+
+| Corrida | Commit | Resultado |
+| --- | --- | --- |
+| `ia1_authoring_20261108_07` (`ia-authoring`) | `162db253` | 46/46 casos: 24 de Inicio con `home-system@2` y 22 del automático con `capabilities-v1@1`. Además, 4/4 normalizaciones WebM/MP4 y 976/976 checks. |
+| `ia1_home_existing_20261108_01` (`home-existing`) | `162db253` | 20/20 casos de Inicio con `home-system@2`; 200/200 checks. |
+| `ia1_channel_stage5_20261108_02` (`channel-stage5`) | `98b0d50c` | 30/30 casos del canal, incluidas las seis inyecciones; 434/434 checks. |
+
+Entre las tres sumaron 306 pasos de proveedor, 206 invocaciones de herramientas, 621.116 tokens de entrada y 17.190 de salida, más 45 segundos de audio en cuatro STT cuyos tokens no se informaron. Los máximos fueron:
+- contexto: 19.031 bytes, en un ajuste con historia;
+- continuación: 10.821 bytes;
+- herramientas: 5.256 bytes;
+- por caso: cuatro pasos y tres invocaciones.
+
+La mediana local por caso fue de 16,04 s en `ia-authoring`, 6,86 s en `home-existing` y 10,91 s en `channel-stage5`. El caso más largo tardó 33,76 s repartidos en varios pasos, y ningún paso llegó a los 30 s del proveedor.
+
+El perfil STT del navegador, `openai-stt-browser-candidate@1` (`gpt-transcribe`, `audio/webm` y `audio/mp4`, 1.000.000 bytes, `audio-none-v1@1`), quedó calificado para declararse en `AudioModelProfiles`. El arnés no lo declara, y el micrófono de Inicio no aparece hasta que una instalación lo declare. El alcance sigue siendo `fixture-facts-checked-in-memory; style/free-text-not-exhaustively-assessed`.
+
+Los intentos anteriores de ese día no cuentan para la calificación. Se cortaron por fallas del arnés (un archivo retenido por Windows, un scope compartido en el dictado y un control con la regla de idioma del 2026-10-18), por la carga de la máquina (un `ProviderUncertain` y un timeout de Redis) o por dos ajustes del producto (`b09aed3c`: el prefijo inválido y la aclaración con cifras).
+
 Para otra calificación, ejecutá el [arnés](../../harnesses/assistant-qualification/README.md)
 con fixtures ficticios y presupuesto controlado. Detenelo ante el primer check fallido. Conservá
 la base, ledger, archivos privados y key ring DPAPI propio del run: `--resume` consulta Get

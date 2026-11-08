@@ -170,3 +170,19 @@ el motivo `unclear`, que BusinessForms acepta sólo para quien puede armar un fo
 canal contesta con un texto fijo y el mensaje siguiente continúa la misma operación por el camino de «Cambiar algo» (`AwaitAnswer`
 deja su propia operación como `ChangeRequestId`). La pregunta no es oferta ni gasta cupo. El arnés suma la pregunta y su respuesta en
 es/en (22 casos del canal, 159 controles offline). La corrida con el proveedor real sigue pendiente y ya evalúa este cambio.
+
+2026-11-08: corrida real hecha con OpenAI `gpt-6.1-sol`, con la conexión que guardó el usuario. Las tres quedaron en verde:
+`ia-authoring` 46/46 y 4/4 audios, `home-existing` 20/20 y `channel-stage5` 30/30. La evidencia está en
+[configurar IA](../guides/configurar-ia.md#evidencia-para-habilitar-perfiles). Los dos riesgos medidos entraron con margen: un
+ajuste con historia llegó a 19.031 bytes de contexto, contra los 131.072 del perfil, y ningún paso alcanzó los 30 s del
+proveedor. Los intentos fallidos dejaron arreglos:
+- el producto normaliza un prefijo pedido que no cumple el formato y aclara sin cifras (b09aed3c);
+- el arnés reintenta el archivo que Windows retiene (88b7abdc), imprime el código de un rechazo (7a2cb140) y normaliza el dictado en un
+  scope propio (162db253);
+- el control de presentación sigue la regla de idioma del 2026-10-19 (98b0d50c, 162 controles offline).
+
+Queda:
+- el dictado por WhatsApp como caso combinado;
+- declarar el perfil STT del navegador (`openai-stt-browser-candidate@1`) en cada instalación, porque sin él no aparece el micrófono
+  de Inicio;
+- el traspaso al multitenant.
