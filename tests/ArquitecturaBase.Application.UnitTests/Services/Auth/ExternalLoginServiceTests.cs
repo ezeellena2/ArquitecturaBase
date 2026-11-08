@@ -251,6 +251,23 @@ public sealed class ExternalLoginServiceTests
         Assert.Empty(_signIn.SignedInUsers);
     }
 
+    // With registration closed there is no account to create and no "Create account" to offer: entering asks for an
+    // invitation, as registering does.
+    [Fact]
+    public async Task With_registration_closed_an_explicit_google_login_without_an_account_asks_for_an_invitation()
+    {
+        _settings.Mode = RegistrationMode.InviteOnly;
+        _signIn.PendingExternalLogin = GoogleLogin();
+
+        var result = await Service().SignInAsync(new ExternalSignInRequest(ReturnUrl, Register: false), Ct);
+
+        Assert.Equal(AccountErrors.NotInvitedCode, result.Error.Code);
+        Assert.Empty(_accounts.Users);
+        Assert.Empty(_signIn.SignedInUsers);
+        Assert.Equal(UserEmail, Assert.Single(_audits.Audits).Identifier);
+        Assert.Equal(CommitPolicy.OnAnyResult, _unitOfWork.LastPolicy);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

@@ -53,10 +53,6 @@ Primera versión con correo y Google; WhatsApp después, por los puertos del mó
 
 ## Antes de implementar
 
-- Corregir el recorrido actual, que no requiere esta funcionalidad: con `InviteOnly`, un ingreso
-  con Google de un correo sin cuenta devuelve `Auth.Account.NotRegistered`
-  (`ExternalLoginService`) y el front muestra «Elegí Crear cuenta para registrarte»
-  (`login.errors.notRegistered`), aunque el registro esté cerrado.
 - Tableros de solicitud, verificación, resultado, listado/detalle y modales, con sus estados
   (carga, error, vacío, duplicado, rechazo, cuenta existente o deshabilitada, sin permiso, móvil
   y teclado), elegidos por el usuario.

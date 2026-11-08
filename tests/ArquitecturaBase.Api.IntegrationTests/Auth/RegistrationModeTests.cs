@@ -146,6 +146,30 @@ public sealed class RegistrationModeTests(ApiFactory factory)
             db.LoginAudits.AnyAsync(audit => audit.Identifier == email && audit.FailureReason == "Auth.Account.NotInvited", Ct)));
     }
 
+    // Desde /login el front pide con register=false. Con el registro cerrado no hay «Crear cuenta» que ofrecer: entrar
+    // sin cuenta también dice que hace falta una invitación, y el returnUrl vuelve para el intento siguiente.
+    [Fact]
+    public async Task Invite_only_answers_an_explicit_google_login_without_an_account_with_the_invitation_error()
+    {
+        await using var mode = await RegistrationModeScope.SetAsync(factory, RegistrationMode.InviteOnly);
+        using var client = factory.CreateClient();
+        var email = TestEmails.Unique("notinvitedlogin");
+        using var external = await client.PostJsonAsync(
+            "/test/external-login",
+            new { providerKey = "google-" + email, email, name = "Ana", emailVerified = true });
+
+        using var callback = await client.SendAsync(
+            HttpMethod.Get, "/account/external/callback?register=false&returnUrl=" + Uri.EscapeDataString(AuthFlow.AuthorizeReturnUrl));
+
+        Assert.True(external.IsSuccessStatusCode);
+        Assert.Equal(HttpStatusCode.Redirect, callback.StatusCode);
+        var location = callback.Headers.Location!.OriginalString;
+        Assert.StartsWith("/login?", location, StringComparison.Ordinal);
+        Assert.Contains("error=" + AccountErrors.NotInvitedCode, location, StringComparison.Ordinal);
+        Assert.Contains("returnUrl=", location, StringComparison.Ordinal);
+        Assert.False(await factory.ExecuteDbContextAsync(db => db.Users.AnyAsync(user => user.Email == email, Ct)));
+    }
+
     [Fact]
     public async Task Invite_only_lets_google_in_when_the_account_already_exists()
     {
@@ -183,7 +207,7 @@ public sealed class RegistrationModeTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         Assert.Equal(AccountErrors.NotInvitedCode, problem.GetProperty("code").GetString());
         Assert.Equal(
-            "Todavía no tenés acceso al sistema. Pedile a un administrador que te dé de alta.",
+            "Todavía no tenés acceso al sistema. Para ingresar, pedile una invitación a un administrador.",
             problem.GetProperty("detail").GetString());
         Assert.False(response.Headers.TryGetValues("Set-Cookie", out var cookies)
             && cookies.Any(cookie => cookie.StartsWith(".AspNetCore.Identity.Application=", StringComparison.Ordinal)));

@@ -17,6 +17,9 @@ El registro por código requiere `displayName` (hasta 100 caracteres); Google ap
 
 Recién después de comprobar identidad, una intención incorrecta responde `403 Auth.Account.NotRegistered`
 o `403 Auth.Account.AlreadyRegistered`; el código correcto queda consumido y auditado, sin abrir sesión.
+Con Google, la política de alta va antes que la intención (2026-11-07): con el registro cerrado, entrar sin cuenta
+(`register=false`) responde `Auth.Account.NotInvited`, que dice que hace falta una invitación, porque no hay
+«Crear cuenta» que ofrecer. Por código no pasa: en `InviteOnly` el código no se manda a un destino sin cuenta.
 El pedido de código responde igual exista o no una cuenta activa. Una cuenta deshabilitada se rechaza antes de emitir o enviar el código, como se detalla abajo. No hay migraciones ni cambio de permisos.
 El callback de Google conserva el error y el `returnUrl` para los nuevos pedidos explícitos, y mantiene el
 redirect histórico si se omitió `register`.

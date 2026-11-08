@@ -99,14 +99,16 @@ internal sealed class ExternalLoginService(
                 }
                 if (user is null)
                 {
-                    if (register == false && !accountCreation.IsInitialAdmin(email.Value))
-                    {
-                        return Fail(email.Value.Value, user: null, AccountErrors.NotRegistered);
-                    }
-
+                    // Primero la política y después la intención: con el registro cerrado no hay cuenta que crear ni
+                    // «Crear cuenta» que ofrecer, así que entrar sin cuenta también dice que hace falta una invitación.
                     if (!await accountCreation.AllowsNewAccountAsync(email.Value, cancellationToken))
                     {
                         return Fail(email.Value.Value, user: null, AccountErrors.NotInvited);
+                    }
+
+                    if (register == false && !accountCreation.IsInitialAdmin(email.Value))
+                    {
+                        return Fail(email.Value.Value, user: null, AccountErrors.NotRegistered);
                     }
 
                     if (await users.ExistsDeletedByEmailAsync(email.Value, cancellationToken))
