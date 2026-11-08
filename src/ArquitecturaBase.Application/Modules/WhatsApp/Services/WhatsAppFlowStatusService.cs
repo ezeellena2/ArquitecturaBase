@@ -13,6 +13,8 @@ internal sealed class WhatsAppFlowStatusService(IWhatsAppFlowReader reader, IWha
     IWhatsAppFlowProvider provider, IWhatsAppFlowEnvironment environment, TimeProvider timeProvider,
     ILogger<WhatsAppFlowStatusService> logger) : IWhatsAppFlowStatusService
 {
+    private static readonly TimeSpan PreviewDeadline = TimeSpan.FromSeconds(30);
+
     public Task<Result<StructuredFormPublicationResponse>> GetAsync(StructuredFormPublicationQuery query, CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<StructuredFormPublicationResponse>>(logger, "GetWhatsAppFlowPublicationStatus",
             () => GetCoreAsync(query, cancellationToken));
@@ -41,6 +43,21 @@ internal sealed class WhatsAppFlowStatusService(IWhatsAppFlowReader reader, IWha
     public Task<Result<StructuredFormPreviewResponse>> GetPreviewAsync(StructuredFormPreviewQuery query, CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<StructuredFormPreviewResponse>>(logger, "GetWhatsAppFlowPreview", async () =>
     {
+        // The preview chains several Meta calls, each with its own cap; if Meta stops answering, the dialog gets an answer in 30 s.
+        using var deadline = new CancellationTokenSource(PreviewDeadline, timeProvider);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, deadline.Token);
+        try
+        {
+            return await GetPreviewCoreAsync(query, linked.Token);
+        }
+        catch (OperationCanceledException) when (deadline.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+        {
+            return FlowErrors.PreviewUnavailable;
+        }
+    });
+
+    private async Task<Result<StructuredFormPreviewResponse>> GetPreviewCoreAsync(StructuredFormPreviewQuery query, CancellationToken cancellationToken)
+    {
         var checkedResult = await GetCoreAsync(new(query.OperationId, query.DefinitionId, query.VersionId, query.PublicationFingerprint), cancellationToken);
         if (checkedResult.IsFailure) return checkedResult.Error;
         if (checkedResult.Value.State != "Published") return FlowErrors.PreviewUnavailable;
@@ -54,5 +71,5 @@ internal sealed class WhatsAppFlowStatusService(IWhatsAppFlowReader reader, IWha
         var preview = await provider.GetPreviewAsync(manifest.Account, binding.MetaFlowId, new(screen, query.Catalogs ?? []), cancellationToken);
         if (preview.IsFailure) return preview.Error;
         return preview.Value.ExpiresAtUtc > timeProvider.GetUtcNow().UtcDateTime ? preview : FlowErrors.PreviewUnavailable;
-    });
+    }
 }
