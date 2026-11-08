@@ -278,34 +278,42 @@ productores del bloque (4 de 4). Las pruebas con PostgreSQL corren al cierre.
 
 ### Tarea 4 · Revisión del backend
 
-- [ ] Un revisor sobre las tareas 1 a 3 y sus correcciones, sin cambios de bytes en lo que ya existe. Mira la paridad con
+- [x] Un revisor sobre las tareas 1 a 3 y sus correcciones, sin cambios de bytes en lo que ya existe. Mira la paridad con
   «Filtros», que un formulario sin bloque siga igual que hoy, el mensaje y los datos. Unitarios de formularios y
   ArchitectureTests enteros antes de cada commit.
 
+Hecho el 2026-11-08, sin bugs. En una copia con el código anterior confirmó que fallan los nueve tests que el plan pide en
+rojo y pasan los que fijan lo que ya andaba. Se corrigieron sus dos detalles: la viñeta «Lo que no toma el bloque» de
+`formularios.md`, que todavía decía que las condiciones llegaban con esta etapa, y la procedencia de las cohortes `rules` y
+`responses`, que suman `FormRecordCaptureIntegrationTests.cs` (el `Field` de la semilla).
+
 ### Tarea 5 · El front: las condiciones sobre el bloque
 
-- [ ] Esperar el cierre de las etapas 2 y 3 en el front, pedirle permiso al usuario para editar el `src` y mirar
-  `git status`.
-- [ ] Abrir el tablero RG5-A del lienzo provisorio y anotar lo que falte.
-- [ ] Tests en rojo:
+- [x] Esperar el cierre de las etapas 2 y 3 en el front, pedirle permiso al usuario para editar el `src` y mirar
+  `git status`. Lo dio el 2026-11-08.
+- [x] Abrir el tablero RG5-A del lienzo provisorio y anotar lo que falte.
+- [x] Tests en rojo:
   - `rules.test.ts`: `conditionColumns` con el bloque y sus preguntas, también una retirada al final;
   - `FormConditionsEditor.test.tsx`: «Artículos › ¿Llegó en buen estado?», «Algún ítem con», los operadores con valor, el
     operador y el valor al elegir una pregunta del bloque, «Agregar condición» con el bloque primero y las filas
     alineadas;
   - `FormSuggestionsSection.test.tsx`: la misma condición en una sugerencia.
-- [ ] `rules.ts`, `FormConditionsEditor`, `FormRulesSection`, `FormSuggestionsSection` y los textos es y en de
+- [x] `rules.ts`, `FormConditionsEditor`, `FormRulesSection`, `FormSuggestionsSection` y los textos es y en de
   `forms.json`.
 - [ ] Comparar con el tablero.
-- [ ] Commit en el front: `feat(formularios): las condiciones sobre el bloque dicen «Algún ítem con»`.
+- [x] Commit en el front: `feat(formularios): las condiciones sobre el bloque dicen «Algún ítem con»` (84d6c5c9). La comparación
+  con el tablero va con la escena visual de la Tarea 7.
 
 ### Tarea 6 · El front: la lista en pasos
 
-- [ ] Tests en rojo:
+- [x] Tests en rojo:
   - de `ruleConditionSummaries`, donde está hoy: una y dos condiciones del bloque, también separadas por una de afuera;
   - `FormRulesSection.test.tsx`: la regla plegada, la lista y el historial.
-- [ ] `responses.ts` y `ConditionLines`.
+- [x] `responses.ts` y `ConditionLines`.
 - [ ] Comparar con el tablero (la lista, con LR1-A).
-- [ ] Commit en el front: `feat(formularios): la lista lee juntas las condiciones del bloque`.
+- [x] Commit en el front: `feat(formularios): la lista lee juntas las condiciones del bloque` (fb6c177c). Junta sólo las
+  condiciones con valor, como `ItemConditions`: la presencia sobre una pregunta del bloque mira la respuesta entera y va
+  aparte.
 
 ### Tarea 7 · El front: el bloque en el mensaje
 

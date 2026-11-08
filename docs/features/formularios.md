@@ -298,8 +298,8 @@ textos dicen «ítem» (RG12-A); el código y los documentos siguen diciendo ren
   formularios con archivos. El detalle y la verificación con Meta están en
   [WhatsApp](whatsapp.md#selección-múltiple-y-perfil-r9).
 - **Lo que no toma el bloque.** El asistente no prellena sus preguntas, las sugerencias no las mapean y la lectura de
-  formularios de la IA no cuenta el bloque entre las 40. Las condiciones de reglas sobre sus preguntas llegan con la Etapa 4
-  del [plan de renglones](../plans/2026-11-03-renglones-en-formularios.md).
+  formularios de la IA no cuenta el bloque entre las 40. Las reglas sí lo leen: ver «Reglas» en
+  [la lectura](#el-bloque-de-renglones-en-la-lectura--rg4-a-2026-11-07).
 
 ## El bloque de renglones en la carga — RG2-A y RG3-A, 2026-11-07
 

@@ -120,7 +120,7 @@ foreach ($case in @("Configuration", "Merge", "Missing", "Collision")) {
                 Assert-Condition (($captureRoot + "Modules/BusinessForms/FormRecipientScenario.cs") -in $definitions.Sources) "The recipient scenario SHA must be included."
                 Assert-Condition (($sourceRoot + "BusinessForms/FormCatalogFieldsReadHttpTests.cs") -in $responses.Sources) "The extra-field response producer SHA must be included."
                 $rules = @($cohorts | Where-Object { $_.Name -eq "rules" })[0]
-                foreach ($producer in @("FormRowsRuleHttpTests.cs", "FormRowsReadHttpTests.cs", "FormRowsCaptureIntegrationTests.cs")) {
+                foreach ($producer in @("FormRowsRuleHttpTests.cs", "FormRowsReadHttpTests.cs", "FormRowsCaptureIntegrationTests.cs", "FormRecordCaptureIntegrationTests.cs")) {
                     Assert-Condition (($sourceRoot + "BusinessForms/" + $producer) -in $rules.Sources) "The rules of the block of rows, their seed and its capture SHA must be included."
                 }
                 $personData = @($cohorts | Where-Object { $_.Name -eq "person-data" })[0]
