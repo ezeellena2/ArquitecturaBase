@@ -133,8 +133,11 @@ borró el Flow. LD2-A queda confirmada:
    grande tiene 75») va con el corte de WhatsApp, porque es el tope de 200 por valor.
 3. **El front:** el editor, la carga y la tabla del bloque, con la app apagada (Vite recarga la página de quien prueba). La
    tabla del bloque va con la Etapa 2 de renglones. El editor quedó el 2026-11-07 (front 90211dc3): la casilla con su campo,
-   «Permitir elegir varias» apagada con su motivo, la línea de la pregunta y la revisión de conflictos. Faltan la carga, la
-   tabla del bloque y, al cerrar el front, `npm run test:visual` entero.
+   «Permitir elegir varias» apagada con su motivo, la línea de la pregunta y la revisión de conflictos. La carga quedó el mismo
+   día (front 7af6c766): los dos combos en la página, dos columnas en la tabla de ítems y uno debajo del otro en una columna;
+   con un solo valor, viene elegido; otro valor limpia la opción. Al corregir, el primer combo arranca con el valor de la
+   opción guardada, que da el backend en `group` (57866e49, con la captura correction-groupby-es). Falta la exportación conjunta
+   de las cohortes, con el test de contrato del front sobre las cuatro capturas de LD1-A.
 4. **WhatsApp:** r11, el mensaje, la vista oficial y el chequeo de los 200 por valor.
 
 LD3-A se programa con la Etapa 2 de renglones.
