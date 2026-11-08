@@ -320,7 +320,8 @@ para que se usen igual en toda la app.
    verificada con la exportación conjunta (7428 de 7428). Falta la prueba física, que va en la prueba integral final.
 
 Al cerrar, las reglas van a [formularios](../features/formularios.md) y a [WhatsApp](../features/whatsapp.md), el diseño
-queda en el front y se ofrece el traspaso al multitenant. La factura de ARCA usa este bloque en su Etapa 3; los cálculos
+queda en el front y se ofrece el traspaso al multitenant: uno solo con todo renglones, sin traspasos por etapa (lo eligió
+el usuario el 2026-11-08, al cerrar la Etapa 2). La factura de ARCA usa este bloque en su Etapa 3; los cálculos
 (cantidad por precio y suma de renglones) siguen en la Etapa 2 de esa hoja.
 
 Fuera de alcance: más de un bloque, bloques adentro de un bloque, fotos o documentos por renglón, ordenar la planilla por el
