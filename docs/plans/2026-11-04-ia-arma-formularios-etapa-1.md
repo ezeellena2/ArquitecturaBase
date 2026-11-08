@@ -164,3 +164,9 @@ del dibujo).
 2026-11-05: el primer hallazgo quedó corregido antes de la corrida real. Las lecturas de autoría, el «no se puede» y el catálogo que
 reusa una propuesta nombran lo que existe en el idioma de la conversación, o en el original sin traducción, que es el nombre visible
 que compara crear. Queda el segundo hallazgo, la aclaración por WhatsApp, para decidir.
+
+2026-11-07: el usuario decidió el segundo hallazgo: «pregunta y espera», como en Inicio. Por WhatsApp, `forms.authoring.decline` suma
+el motivo `unclear`, que BusinessForms acepta sólo para quien puede armar un formulario o un catálogo (si no, `permissionMissing`); el
+canal contesta con un texto fijo y el mensaje siguiente continúa la misma operación por el camino de «Cambiar algo» (`AwaitAnswer`
+deja su propia operación como `ChangeRequestId`). La pregunta no es oferta ni gasta cupo. El arnés suma la pregunta y su respuesta en
+es/en (22 casos del canal, 159 controles offline). La corrida con el proveedor real sigue pendiente y ya evalúa este cambio.
