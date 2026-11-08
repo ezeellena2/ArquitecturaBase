@@ -61,9 +61,9 @@ El usuario eligió las recomendadas, de a una, viendo los tableros:
 
 - **«Elegir primero por un campo»**, una casilla con su (i) debajo de «Permitir elegir varias». Marcada, muestra «Campo» con
   los campos que sirven. La línea de la pregunta dice «Elegir de un catálogo, primero por Rubro».
-- **El resumen de «Qué opciones ve cada persona»** cuenta por valor: «Todos ven las mismas 125, en 3 rubros. El más grande
-  tiene 75: entra en el desplegable (200).» El tope de 200 de WhatsApp vale para cada valor y para la lista de valores, no
-  para el total.
+- **El resumen de «Qué opciones ve cada persona»** cuenta por valor: «Todos ven las mismas 125, en 3 valores de «Rubro». El
+  más grande tiene 75: entra en el desplegable (200).» El usuario confirmó el 2026-11-08 que el nombre del campo no se pasa a
+  plural. El tope de 200 de WhatsApp vale para cada valor y para la lista de valores, no para el total.
 - **El borrador** guarda el campo en `source.groupBy` (el `fieldId`). Se omite cuando es null, así las preguntas publicadas y
   sus huellas no cambian. Guardar rechaza el ajuste en «elegir varias» y publicar frena (`GroupByInvalid`) un campo que no
   existe, no está activo o no es de un tipo que sirve, o un catálogo que no es Manual.
@@ -155,7 +155,8 @@ borró el Flow. LD2-A queda confirmada:
    con un solo valor, viene elegido; otro valor limpia la opción. Al corregir, el primer combo arranca con el valor de la
    opción guardada, que da el backend en `group` (57866e49, con la captura correction-groupby-es). Falta la exportación conjunta
    de las cohortes, con el test de contrato del front sobre las cuatro capturas de LD1-A.
-4. **WhatsApp:** r11, el mensaje, la vista oficial y el chequeo de los 200 por valor. La oferta agrupada con el tope por valor quedó el 2026-11-07 (54ffc60b) y r11, el mensaje y la vista oficial el 2026-11-08, probados con Meta con dos borradores compilados por la app (dos pantallas, y renglones con mínimo 0) que se recorrieron en la vista oficial y se borraron. La regla quedó en [formularios](../features/formularios.md#elegir-primero-por-un-campo--ld1-a-2026-11-07). El resumen por valor del editor quedó el 2026-11-08, con «en 3 valores de «Rubro»» porque el nombre del campo no se pasa a plural.
+4. **WhatsApp:** r11, el mensaje, la vista oficial y el chequeo de los 200 por valor. La oferta agrupada con el tope por valor quedó el 2026-11-07 (54ffc60b) y r11, el mensaje y la vista oficial el 2026-11-08, probados con Meta con dos borradores compilados por la app (dos pantallas, y renglones con mínimo 0) que se recorrieron en la vista oficial y se borraron. La regla quedó en [formularios](../features/formularios.md#elegir-primero-por-un-campo--ld1-a-2026-11-07). El resumen por valor del editor quedó el 2026-11-08, con «en 3 valores de «Rubro»» porque el nombre del campo no se pasa a plural
+   (el usuario lo confirmó ese día).
 
 LD3-A se programa con la Etapa 2 de renglones.
 
