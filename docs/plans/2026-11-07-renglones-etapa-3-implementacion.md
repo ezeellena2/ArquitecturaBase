@@ -354,13 +354,18 @@ permiso.
 
 ### Tarea 10 · Cierre
 
-- [ ] Docs:
+- [x] Docs (backend dc4df3a4, front fb538560):
   - [formularios](../features/formularios.md), en la planilla, el Excel, el PDF y la persistencia;
   - [WhatsApp](../features/whatsapp.md), en la tarjeta de la respuesta;
   - los `AGENTS.md` de Services, Persistence, Pdf y sus tests;
   - en el front, los de `components`, `api` y `whatsapp`, y «Lo que cambia de lo que hay» del diseño de renglones;
   - este plan y el de renglones.
-- [ ] Exportación de las cohortes que toca:
+- [ ] Exportación de las cohortes que toca. La hace la Etapa 2 en una sola corrida conjunta al final, después de RG10-D y
+  RG12-A, que cambian textos que salen en las capturas (acordado el 2026-11-07). Una corrida de verificación desde una copia
+  de dc4df3a4 dio 7357 de 7358 en la suite completa del backend; la falla es de la Etapa 2
+  (`FormCatalogValueMigrationTests` no espera `RejectedRow`), y mis tests de contrato pasaron contra sus capturas crudas
+  salvo la procedencia, que llega con la exportación. Esos tests y los conteos (63, 36 y 78) quedan sin commitear en el
+  front hasta entonces:
   - `forms-responses-http`, de 55 a 63 archivos;
   - `forms-pdf-http`, de 32 a 36, con `rows-preview` y sus companions;
   - `whatsapp-forms-http`, con `reply-rows` es y en.
