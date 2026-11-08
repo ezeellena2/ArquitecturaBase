@@ -95,6 +95,23 @@ El usuario eligió las recomendadas, de a una, viendo los tableros:
 - **La respuesta** no cambia: llega sólo la opción. El webhook y la captura siguen igual.
 - Suma un componente por pregunta a su pantalla (tope de 50).
 
+**Cómo se programa r11** (decidido el 2026-11-07, al empezar el corte):
+
+- **La etiqueta del primer desplegable sale de los datos** (`${data.<clave>_group_label}`), no del Flow. El Flow que se
+  publica se vuelve a compilar al despachar y tiene que dar los mismos bytes, y el nombre del campo no está sellado en la
+  versión. Así el Flow compilado no depende del nombre, que llega en el mensaje en el idioma de quien lo recibe. Meta lo acepta
+  al subir el Flow y lo muestra en la vista oficial interactiva: se probó el mismo día con un borrador, que después se borró.
+- **Los datos de una pregunta con el ajuste** son `<clave>_groups` y `<clave>_group_label` en la primera pantalla, donde llega
+  el mensaje, y `<clave>_options` y `<clave>_visible` en la pantalla que muestra la pregunta. Una pantalla que no es la primera
+  toma los valores y la etiqueta con `${screen.FORM.data…}`, y el `navigate` que entra en ella le pasa `[]` y `false`.
+- **El primer desplegable** se llama `<clave>_group`, es obligatorio si la pregunta lo es (si no, se podría completar sin
+  elegir, porque la pregunta oculta no es obligatoria) y no va en lo que se manda al completar. Cada valor tiene un id propio
+  del mensaje (`g1`, `g2`…), porque su elección no viaja.
+- **La oferta** suma el valor de cada opción y los valores en orden con su texto, como en la app («Sin …» al final), y el
+  nombre del campo. El tope de 200 vale para cada valor y para la lista de valores, también al validar la captura.
+- **Con un solo valor**, en WhatsApp también hay que elegirlo (un toque): preseleccionarlo pediría otro dato en cada pantalla.
+- **El prellenado del asistente** no toca una pregunta con el ajuste: su lista está vacía hasta elegir el valor.
+
 ### Listas dependientes con renglones (LD3-A)
 
 - **En el editor,** «Respuesta de» dice de dónde sale: en una pregunta del bloque, «Elige de Rubros · del mismo renglón» o,
