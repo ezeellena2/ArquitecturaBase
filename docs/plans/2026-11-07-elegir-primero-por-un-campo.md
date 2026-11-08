@@ -39,8 +39,8 @@ El usuario eligió las recomendadas, de a una, viendo los tableros:
 3. **Listas dependientes en el bloque de renglones: cada renglón con su respuesta (LD3-A).** Para CW7: si las dos preguntas
    están en el bloque, la lista usa la respuesta del mismo renglón; una pregunta de afuera vale para todos los renglones; y
    una pregunta de afuera no puede depender de una del bloque. Descartó LD3-B, no permitir CW7 con preguntas del bloque.
-   Resuelve el «Por decidir» del
-   [plan de la Etapa 1 de renglones](2026-11-04-renglones-etapa-1-implementacion.md#por-decidir-la-revisión-del-backend-2026-11-04).
+   Resuelve el «Por decidir» del plan de la Etapa 1 de renglones, retirado el 2026-11-08
+   ([procedencia](../history/README.md#renglones--etapa-1-el-bloque-al-armar-y-publicar--2026-11-08)).
    Con LD1-A, el rubro y el artículo son la misma pregunta y van juntos en cada renglón: no necesita esta regla.
 
 **Resueltas por defecto**, con la opción más simple que cumple las decisiones:

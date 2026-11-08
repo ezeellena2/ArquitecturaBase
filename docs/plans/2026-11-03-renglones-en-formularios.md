@@ -3,7 +3,7 @@
 Diseño del 2026-11-02 con las decisiones del usuario del 2026-11-03, que ese día dio el diseño por cerrado, y las del
 2026-11-04 sobre el tope de la respuesta de WhatsApp (RG7-A), el bloque con mínimo 0 (RG8-A) y cómo se elige «Renglones» en el
 editor (RG9-A), la del 2026-11-06, «Agregar bloque» (RG10-D), y las del 2026-11-07, «ítem» en lugar de «renglón» en los textos
-(RG12-A) y un mínimo mayor que el tope de WhatsApp (RG13-A). La Etapa 1 se está programando ([plan de implementación](2026-11-04-renglones-etapa-1-implementacion.md)). Un formulario suma un bloque de
+(RG12-A) y un mínimo mayor que el tope de WhatsApp (RG13-A). La Etapa 1 cerró el 2026-11-08 (abajo, en el plan por etapas). Un formulario suma un bloque de
 preguntas que se repite, como los renglones de un remito o de una factura: en la app se cargan en una tabla y por WhatsApp,
 de a un renglón por pantalla.
 
@@ -276,16 +276,19 @@ exportados, y en el front tests, visuales y el recorrido es/en a 1440, 390 y 320
 su versión en recuadros; la casilla es el `CheckboxField` de siempre) van a `shared/ui` con su ficha en el estándar visual,
 para que se usen igual en toda la app.
 
-1. **Etapa 1 · El bloque en el editor y al publicar (RG1-A, RG6-A y RG3-A).** Su
-   [plan de implementación](2026-11-04-renglones-etapa-1-implementacion.md) tiene diez tareas.
-   - Backend: el tipo `group` en el borrador, con validación, identidades, mínimo y máximo, tipos permitidos, un solo bloque
-     y las 40 preguntas, y pasar una pregunta guardada al bloque o sacarla. El chequeo de publicación (el bloque vacío frena,
-     el máximo mayor que el tope avisa y «Pasan a renglones») y la aceptación.
-   - El compilador con el perfil nuevo, una pantalla por renglón con «¿Agregás otro renglón?» y el tope de 64 KiB con bloque
-     (RG7-A), también en el webhook, y la verificación con Meta de los puntos de arriba, con un Flow de prueba publicado y su
-     vista previa.
-   - Front: «Renglones» en el editor, la casilla «Se carga varias veces», el recuadro con sus preguntas, el lápiz con el
-     nombre, el mínimo y el máximo, y la vista previa de un renglón.
+1. **Etapa 1 · El bloque en el editor y al publicar (RG1-A, RG6-A y RG3-A).** Cerrada el 2026-11-08. Las reglas están en
+   [formularios](../features/formularios.md#el-bloque-de-renglones-al-armar-y-publicar--rg1-a-rg3-a-y-rg6-a-2026-11-04) y en
+   [WhatsApp](../features/whatsapp.md#selección-múltiple-y-perfil-r9), y su plan, en la
+   [procedencia](../history/README.md#renglones--etapa-1-el-bloque-al-armar-y-publicar--2026-11-08). Meta aceptó las tres
+   variantes del Flow; la respuesta de unos 40 KB pasó a la prueba integral final.
+   - La verificación de cierre fue conjunta con las etapas 2 y 3. El backend corrió entero sobre 735add83 con el exportador:
+     7408 de 7408 con PostgreSQL y Redis; después sólo cambiaron documentos y un test de arquitectura. El front se verificó en
+     una copia de f6bc5973: lint y build limpios, y 1005 escenas visuales, con una que falló por carga y pasó al repetirla
+     sola. De los 4364 tests de vitest, 21 vencieron por tiempo con la PC al 100 %, y con plazos mayores pasaron 303 de 303.
+   - Pendiente: repetir esos 14 archivos con los plazos normales cuando la PC esté tranquila. Son `AiSettingsPage`,
+     `CatalogFieldsDialog`, `AssistantEntries`, `CatalogEditorPage.http`, `FormEditorSections`, `FormEntryGroupBy`,
+     `FormResponseFullPage`, `FormResponsesPage`, `ResponsePanel`, `ProfilePage`, `RoleEditorPage`,
+     `WhatsAppFormRepliesHttp`, `designArchitecture` y `featureDependencies`.
 2. **Etapa 2 · Cargar renglones (RG2-A y RG3-A).** Su [plan de implementación](2026-11-07-renglones-etapa-2-implementacion.md)
    tiene diez tareas y suma RG13-A y LD3-A.
    - Backend: los valores con su renglón y su migración, y la captura de WhatsApp y de la app con los renglones, la huella y

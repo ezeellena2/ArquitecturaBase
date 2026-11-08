@@ -10,7 +10,8 @@ formulario con bloque se arma y se publica (Etapa 1), pero la respuesta de Whats
 (`WhatsAppFlowReplyService.ProjectionIsWellFormed` no acepta `group`) y la carga desde la app no conoce el bloque.
 
 **Fuentes:** el [plan de renglones](2026-11-03-renglones-en-formularios.md) (decisiones RG1-A a RG13-A y el modelo), el
-[plan de la Etapa 1](2026-11-04-renglones-etapa-1-implementacion.md) (cómo se representa el bloque y lo que llega de Meta),
+[bloque al armar y publicar](../features/formularios.md#el-bloque-de-renglones-al-armar-y-publicar--rg1-a-rg3-a-y-rg6-a-2026-11-04)
+y [WhatsApp](../features/whatsapp.md#selección-múltiple-y-perfil-r9) (cómo se representa el bloque y lo que llega de Meta),
 el [diseño registrado en el front](../../../ArquitecturaBaseFront/docs/design/renglones-en-formularios.md), que manda en
 pantallas y textos (RG12-A: «ítem» en lugar de «renglón»), y [elegir primero por un campo](2026-11-07-elegir-primero-por-un-campo.md)
 (LD3-A).
