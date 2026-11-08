@@ -41,7 +41,9 @@ internal static class WhatsAppFlowCompiler
                 || question.Type is not ("shortText" or "longText" or "decimal" or "date" or "boolean" or "choice" or "multiChoice" or "photo" or "document" or "group")
                 || (question.Type is "shortText" or "longText" ? question.MaxLength is not (>= 1 and <= 10000) : question.MaxLength.HasValue)
                 || invalidChoice || !WhatsAppFlowScreenBuilder.ValidFiles(question) || !WhatsAppFlowScreenBuilder.ValidSelection(question)
-                || !WhatsAppFlowScreenBuilder.ValidRows(question))
+                || !WhatsAppFlowScreenBuilder.ValidRows(question)
+                // Choosing first by a field (LD2-A) is for a single choice from a catalog.
+                || (question.ChoosesFirst == true && (question.Type != "choice" || question.SourceCatalogId is null)))
                 issues.Add(new(question.FieldId, null, "draft.fields", FlowErrors.UnsupportedConfiguration));
             foreach (var option in question.Options ?? [])
                 if (option.ChoiceId == Guid.Empty || !choices.Add(option.ChoiceId)) issues.Add(new(question.FieldId, option.ChoiceId, "draft.fields", FlowErrors.UnsupportedConfiguration));
@@ -124,7 +126,7 @@ internal static class WhatsAppFlowCompiler
                 var label = Resolve(question.Label, path + ".label", question.FieldId, null, labelMax);
                 mapping.Add(new(question.FieldId, question.Key, question.Type, question.Required, question.MaxLength,
                     (question.Options?.Select(option => option.ChoiceId).ToList() ?? []).AsReadOnly(), question.Files, question.Selection,
-                    question.Rows, question.Repeated == true ? true : null));
+                    question.Rows, question.Repeated == true ? true : null, question.ChoosesFirst == true ? true : null));
                 if (question.Type == "group")
                 {
                     // The block titles its screens; WhatsApp does not show its help.
@@ -162,21 +164,8 @@ internal static class WhatsAppFlowCompiler
                 if (question.SourceCatalogId.HasValue)
                 {
                     control["data-source"] = "${data." + question.Key + "_options}";
-                    screenData[question.Key + "_options"] = new
-                    {
-                        type = "array",
-                        items = new
-                        {
-                            type = "object",
-                            properties = new
-                            {
-                                id = new { type = "string" },
-                                title = new { type = "string" },
-                                description = new { type = "string" },
-                            },
-                        },
-                        __example__ = Array.Empty<object>(),
-                    };
+                    screenData[question.Key + "_options"] = WhatsAppFlowScreenBuilder.OptionsSchema();
+                    if (question.ChoosesFirst == true) WhatsAppFlowScreenBuilder.ChooseFirst(control, question, screenData, culture);
                 }
                 else if (question.Options is { } options)
                     control["data-source"] = options.Select((option, optionIndex) => new
@@ -191,8 +180,10 @@ internal static class WhatsAppFlowCompiler
                 name = "complete", payload = request.Questions.ToDictionary(question => question.Key, question => "${form." + question.Key + "}", StringComparer.Ordinal),
             } });
             // Includes the Form container, conservatively. With a block the limit applies to each screen: a row adds its own
-            // question, an If and a Footer in each branch.
-            var count = rows is null ? components.Count + 1 + subtitles.Count : screens.Max(screen => WhatsAppFlowScreenBuilder.Subtitled(screen, block, rows, subtitles) + screen.Kind switch
+            // question, an If and a Footer in each branch. The dropdown of values of a question that chooses first is one more.
+            var count = rows is null ? components.Count + 1 + subtitles.Count + request.Questions.Count(question => question.ChoosesFirst == true)
+                : screens.Max(screen => WhatsAppFlowScreenBuilder.Subtitled(screen, block, rows, subtitles)
+                    + screen.Questions.Count(index => request.Questions[index].ChoosesFirst == true) + screen.Kind switch
             {
                 "fields" => screen.Questions.Count + 2,
                 "ask" => 5,

@@ -41,6 +41,69 @@ internal static class WhatsAppFlowScreenBuilder
         else control["allowed-mime-types"] = DocumentMimeTypes;
     }
 
+    // The options of a catalog question arrive as data: with the message, or with the update_data of a value (LD2-A).
+    internal static object OptionsSchema() => new
+    {
+        type = "array",
+        items = new
+        {
+            type = "object",
+            properties = new
+            {
+                id = new { type = "string" },
+                title = new { type = "string" },
+                description = new { type = "string" },
+            },
+        },
+        __example__ = Array.Empty<object>(),
+    };
+
+    // LD2-A (r11): a catalog question that chooses first by a field shows a dropdown of values before its own list, which waits
+    // empty and hidden until the value chosen fills it with update_data. The values and their label come with the message to the
+    // first screen, so the compiled Flow does not depend on the field's name. A required dropdown cannot be hidden («Required
+    // Dropdown … cannot be invisible» when the Flow opens): the question is required while it shows.
+    internal static void ChooseFirst(Dictionary<string, object> control, StructuredFormQuestion question, Dictionary<string, object> firstScreenData, string culture)
+    {
+        control["visible"] = "${data." + question.Key + "_visible}";
+        if (question.Required) control["required"] = "${data." + question.Key + "_visible}";
+        firstScreenData[question.Key + "_groups"] = new
+        {
+            type = "array",
+            items = new { type = "object", properties = new { id = new { type = "string" }, title = new { type = "string" } } },
+            __example__ = Array.Empty<object>(),
+        };
+        firstScreenData[question.Key + "_group_label"] = new { type = "string", __example__ = FlowTexts.Get("ChooseFirst", culture) };
+        firstScreenData[question.Key + "_visible"] = VisibleSchema();
+    }
+
+    private static object VisibleSchema() => new { type = "boolean", __example__ = false };
+
+    // The dropdown of values goes right before its question; on a later screen it reads the values from the first one.
+    private static IEnumerable<Dictionary<string, object>> WithPicker(StructuredFormQuestion question, Dictionary<string, object> control, bool first)
+    {
+        if (question.ChoosesFirst != true) return [control];
+        var data = first ? "${data." : "${screen.FORM.data.";
+        return [new(StringComparer.Ordinal)
+        {
+            ["type"] = "Dropdown", ["name"] = question.Key + "_group", ["label"] = data + question.Key + "_group_label}",
+            ["required"] = question.Required, ["data-source"] = data + question.Key + "_groups}",
+        }, control];
+    }
+
+    // A screen after the first declares the list of each question that chooses first, and the navigate into it passes them
+    // empty and hidden (Meta rejects a navigate without the data of its screen).
+    private static Dictionary<string, object> Lists(IReadOnlyList<StructuredFormQuestion> questions, IEnumerable<int> indices) =>
+        indices.Where(index => questions[index].ChoosesFirst == true).SelectMany(index => new KeyValuePair<string, object>[]
+        {
+            new(questions[index].Key + "_options", OptionsSchema()), new(questions[index].Key + "_visible", VisibleSchema()),
+        }).ToDictionary(StringComparer.Ordinal);
+
+    private static Dictionary<string, object> Entry(IReadOnlyList<StructuredFormQuestion> questions, IEnumerable<int> indices) =>
+        indices.Where(index => questions[index].ChoosesFirst == true).SelectMany(index => new KeyValuePair<string, object>[]
+        {
+            new(questions[index].Key + "_options", Array.Empty<object>()), new(questions[index].Key + "_visible", false),
+        }).ToDictionary(StringComparer.Ordinal);
+
     public static string Build(IReadOnlyList<StructuredFormQuestion> questions, List<Dictionary<string, object>> controls,
         Dictionary<string, object> initialData, string? title, string? submit, string culture, IReadOnlyDictionary<int, Dictionary<string, object>> subtitles)
     {
@@ -51,17 +114,19 @@ internal static class WhatsAppFlowScreenBuilder
         {
             var current = screen;
             var last = screen == groups.Count - 1;
-            var children = groups[screen].SelectMany(index => WithSubtitle(index, controls[index], subtitles)).ToList();
             if (screen > 0)
-                foreach (var index in groups[screen].Where(index => questions[index].SourceCatalogId.HasValue))
+                foreach (var index in groups[screen].Where(index => questions[index].SourceCatalogId.HasValue && questions[index].ChoosesFirst != true))
                     controls[index]["data-source"] = "${screen.FORM.data." + questions[index].Key + "_options}";
+            var children = groups[screen].SelectMany(index => WithSubtitle(index, WithPicker(questions[index], controls[index], current == 0), subtitles)).ToList();
             object action = last
                 ? new { name = "complete", payload = questions.Select((question, index) => new { question.Key, Value = owners[index] == current
                     ? "${form." + question.Key + "}" : "${screen." + ScreenId(owners[index]) + ".form." + question.Key + "}" }).ToDictionary(value => value.Key, value => value.Value, StringComparer.Ordinal) }
-                : new { name = "navigate", next = new { type = "screen", name = ScreenId(screen + 1) }, payload = new Dictionary<string, string>() };
+                : new { name = "navigate", next = new { type = "screen", name = ScreenId(screen + 1) }, payload = Entry(questions, groups[screen + 1]) };
             children.Add(new() { ["type"] = "Footer", ["label"] = last ? submit ?? "" : FlowTexts.Get("Continue", culture), ["on-click-action"] = action });
             var form = new Dictionary<string, object?> { ["type"] = "Form", ["name"] = "form", ["children"] = children };
-            var scalarQuestions = groups[screen].Where(index => questions[index].Files is null && questions[index].Type != "multiChoice").Select(index => questions[index]).ToArray();
+            // The list of a question that chooses first is empty until a value is chosen: it is never prefilled.
+            var scalarQuestions = groups[screen].Where(index => questions[index].Files is null && questions[index].Type != "multiChoice"
+                && questions[index].ChoosesFirst != true).Select(index => questions[index]).ToArray();
             if (scalarQuestions.Length > 0)
             {
                 var key = WhatsAppFlowPrefillPolicy.DataKey(ScreenId(screen));
@@ -77,6 +142,7 @@ internal static class WhatsAppFlowScreenBuilder
                 ["layout"] = new { type = "SingleColumnLayout", children = new[] { form } } };
             if (last) item["terminal"] = true;
             if (screen == 0 && initialData.Count > 0) item["data"] = initialData;
+            else if (screen > 0 && Lists(questions, groups[screen]) is { Count: > 0 } lists) item["data"] = lists;
             screens.Add(item);
         }
         if (initialData.Count > 0) screens[0]["data"] = initialData;
@@ -129,8 +195,8 @@ internal static class WhatsAppFlowScreenBuilder
     }
 
     // A section title goes right before its first question; a section that starts with the block, atop the block's first screen.
-    private static IEnumerable<Dictionary<string, object>> WithSubtitle(int index, Dictionary<string, object> control,
-        IReadOnlyDictionary<int, Dictionary<string, object>> subtitles) => subtitles.TryGetValue(index, out var subtitle) ? [subtitle, control] : [control];
+    private static IEnumerable<Dictionary<string, object>> WithSubtitle(int index, IEnumerable<Dictionary<string, object>> components,
+        IReadOnlyDictionary<int, Dictionary<string, object>> subtitles) => subtitles.TryGetValue(index, out var subtitle) ? components.Prepend(subtitle) : components;
 
     internal static int Subtitled(WhatsAppFlowScreen screen, int block, StructuredFormRowSettings rows, IReadOnlyDictionary<int, Dictionary<string, object>> subtitles) =>
         screen.Kind == "fields" ? screen.Questions.Count(subtitles.ContainsKey)
@@ -160,9 +226,10 @@ internal static class WhatsAppFlowScreenBuilder
             if (screen.Kind != "fields" && Subtitled(screen, block.index, rows, subtitles) > 0) children.Add(subtitles[block.index]);
             if (screen.Kind == "fields")
             {
-                children.AddRange(screen.Questions.SelectMany(index => WithSubtitle(index, Control(index, current), subtitles)));
-                children.Add(current == screens.Count - 1 ? Footer(submit, Complete()) : Footer(FlowTexts.Get("Continue", culture), To(screens[current + 1].Id)));
-                var scalars = screen.Questions.Where(index => questions[index].Files is null && questions[index].Type != "multiChoice").Select(index => questions[index]).ToArray();
+                children.AddRange(screen.Questions.SelectMany(index => WithSubtitle(index, WithPicker(questions[index], Control(index, current), current == 0), subtitles)));
+                children.Add(current == screens.Count - 1 ? Footer(submit, Complete()) : Footer(FlowTexts.Get("Continue", culture), To(screens[current + 1])));
+                var scalars = screen.Questions.Where(index => questions[index].Files is null && questions[index].Type != "multiChoice"
+                    && questions[index].ChoosesFirst != true).Select(index => questions[index]).ToArray();
                 if (scalars.Length > 0)
                 {
                     var key = WhatsAppFlowPrefillPolicy.DataKey(screen.Id);
@@ -178,17 +245,17 @@ internal static class WhatsAppFlowScreenBuilder
             else if (screen.Kind == "ask")
             {
                 children.Add(Question("AddRow"));
-                children.Add(Branch(screens[current + 1].Id));
+                children.Add(Branch(screens[current + 1]));
             }
             else
             {
-                children.AddRange(screen.Questions.Select(index => Control(index, current)));
+                children.AddRange(screen.Questions.SelectMany(index => WithPicker(questions[index], Control(index, current), current == 0)));
                 if (Asks(rows, screen.Row))
                 {
                     children.Add(Question("AddAnotherRow"));
-                    children.Add(Branch(screens[current + 1].Id));
+                    children.Add(Branch(screens[current + 1]));
                 }
-                else if (screen.Row < RowCount(rows)) children.Add(Footer(FlowTexts.Get("Continue", culture), To(screens[current + 1].Id)));
+                else if (screen.Row < RowCount(rows)) children.Add(Footer(FlowTexts.Get("Continue", culture), To(screens[current + 1])));
                 else children.Add(Exit());
             }
             var item = new Dictionary<string, object?>
@@ -199,13 +266,15 @@ internal static class WhatsAppFlowScreenBuilder
                 ["layout"] = new { type = "SingleColumnLayout", children = new[] { form } },
             };
             if (terminal) item["terminal"] = true;
+            if (current > 0 && Lists(questions, screen.Questions) is { Count: > 0 } lists) item["data"] = lists;
             built.Add(item);
             routing[screen.Id] = [.. routes];
 
             Dictionary<string, object> Control(int index, int at)
             {
                 var control = new Dictionary<string, object>(controls[index], StringComparer.Ordinal);
-                if (at > 0 && questions[index].SourceCatalogId.HasValue) control["data-source"] = "${screen.FORM.data." + questions[index].Key + "_options}";
+                if (at > 0 && questions[index].SourceCatalogId.HasValue && questions[index].ChoosesFirst != true)
+                    control["data-source"] = "${screen.FORM.data." + questions[index].Key + "_options}";
                 return control;
             }
             Dictionary<string, object> Question(string text) => new(StringComparer.Ordinal)
@@ -213,18 +282,18 @@ internal static class WhatsAppFlowScreenBuilder
                 ["type"] = "RadioButtonsGroup", ["name"] = block.question.Key, ["label"] = FlowTexts.Get(text, culture), ["required"] = true,
                 ["data-source"] = new[] { new { id = "true", title = FlowTexts.Get("Yes", culture) }, new { id = "false", title = FlowTexts.Get("No", culture) } },
             };
-            Dictionary<string, object> Branch(string next) => new(StringComparer.Ordinal)
+            Dictionary<string, object> Branch(WhatsAppFlowScreen next) => new(StringComparer.Ordinal)
             {
                 ["type"] = "If", ["condition"] = "${form." + block.question.Key + "} == 'true'",
                 ["then"] = new[] { Footer(FlowTexts.Get("Continue", culture), To(next)) }, ["else"] = new[] { Exit() },
             };
-            Dictionary<string, object> Exit() => after is null ? Footer(submit, Complete()) : Footer(FlowTexts.Get("Continue", culture), To(after.Id));
+            Dictionary<string, object> Exit() => after is null ? Footer(submit, Complete()) : Footer(FlowTexts.Get("Continue", culture), To(after));
             // Meta deduces the transitions from the navigate actions and leaves out the else branch of an If (2026-11-06):
             // every navigate goes into the routing model, both branches included.
-            object To(string next)
+            object To(WhatsAppFlowScreen next)
             {
-                routes.Add(next);
-                return Navigate(next);
+                routes.Add(next.Id);
+                return Navigate(next.Id, Entry(questions, next.Questions));
             }
             object Complete()
             {
@@ -257,7 +326,7 @@ internal static class WhatsAppFlowScreenBuilder
         {
             ["type"] = "Footer", ["label"] = label ?? "", ["on-click-action"] = action,
         };
-        static object Navigate(string next) => new { name = "navigate", next = new { type = "screen", name = next }, payload = new Dictionary<string, string>() };
+        static object Navigate(string next, Dictionary<string, object> payload) => new { name = "navigate", next = new { type = "screen", name = next }, payload };
     }
 }
 

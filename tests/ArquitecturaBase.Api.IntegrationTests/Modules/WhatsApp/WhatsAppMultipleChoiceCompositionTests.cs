@@ -168,7 +168,7 @@ public sealed partial class WhatsAppFormSendingTests
             foreach (var binding in bindings)
             {
                 var projection = protector.ReadProjection(binding.OperationId, binding.Id, binding.VersionId, binding.Culture, binding.ProtectedProjection);
-                Assert.Equal("flow-static-7.3-r10", projection.ProfileRevision);
+                Assert.Equal("flow-static-7.3-r11", projection.ProfileRevision);
                 var mapping = Assert.Single(projection.Mapping, field => field.Type == "multiChoice");
                 Assert.Equal(20, mapping.Selection!.MaxSelected);
                 using var json = JsonDocument.Parse(projection.Json);

@@ -16,7 +16,9 @@ public sealed record WhatsAppFlowProjectionField(Guid FieldId, string Key, strin
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] ArquitecturaBase.Application.Models.StructuredData.StructuredFormFileSettings? Files = null,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] ArquitecturaBase.Application.Models.StructuredData.StructuredFormSelectionSettings? Selection = null,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] ArquitecturaBase.Application.Models.StructuredData.StructuredFormRowSettings? Rows = null,
-    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] bool? Repeated = null);
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] bool? Repeated = null,
+    // LD2-A (r11): the question shows a dropdown of values before its own list, which the diagnostics and the prefill skip.
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] bool? ChoosesFirst = null);
 public sealed record WhatsAppFlowDiagnostic(Guid? FieldId, Guid? ChoiceId, string Path, string Culture);
 public sealed record WhatsAppFlowOperationRow(Guid Id, Guid NeutralOperationId, Guid DefinitionId, Guid VersionId, Guid ActorUserId,
     byte[] ProtectedManifest, DateTime? NextCheckAtUtc, IReadOnlyList<WhatsAppFlowBindingRow> Bindings)

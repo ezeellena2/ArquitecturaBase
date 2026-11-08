@@ -18,4 +18,5 @@
   <data name="AddRow" xml:space="preserve"><value>¿Agregás un ítem?</value></data>
   <data name="AddAnotherRow" xml:space="preserve"><value>¿Agregás otro ítem?</value></data>
   <data name="RowTitle" xml:space="preserve"><value>{0} · ítem {1}</value></data>
+  <data name="ChooseFirst" xml:space="preserve"><value>Elegí primero</value></data>
 </root>

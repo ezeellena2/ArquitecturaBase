@@ -161,6 +161,14 @@ internal sealed partial class WhatsAppFlowDispatchService(IWhatsAppFlowRepositor
             .Where(child => child.Subtitle).Select(child => child.At).ToArray()).ToArray();
         return screenIndex < screens.Length ? (screens.Take(screenIndex).Sum(positions => positions.Length), screens[screenIndex]) : (0, []);
     }
+    // LD2-A (r11): the positions of the dropdowns of values, each right before its question.
+    private static int[] Pickers(IReadOnlyList<int> indices, IReadOnlyList<WhatsAppFlowProjectionField> mapping)
+    {
+        var positions = new List<int>();
+        for (var order = 0; order < indices.Count; order++)
+            if (mapping[indices[order]].ChoosesFirst == true) positions.Add(order + positions.Count);
+        return [.. positions];
+    }
     internal static WhatsAppFlowDiagnostic Map(WhatsAppFlowValidationPointer pointer, WhatsAppFlowProjection projection)
     {
         var culture = projection.Culture;
@@ -176,6 +184,14 @@ internal sealed partial class WhatsAppFlowDispatchService(IWhatsAppFlowRepositor
         position -= subtitles.Count(at => at < position);
         var screen = screens[pointer.ScreenIndex];
         IReadOnlyList<int> indices = screen.Kind == "ask" ? [] : screen.Questions;
+        // The dropdown of values points to its question; the components after it count without it.
+        var pickers = Pickers(indices, projection.Mapping);
+        if (pickers.Contains(position))
+        {
+            var chosen = indices[position - pickers.Count(at => at < position)];
+            return new(projection.Mapping[chosen].FieldId, null, $"draft.fields[{chosen}]", culture);
+        }
+        position -= pickers.Count(at => at < position);
         // After a row's questions comes the block's own question, alone on the screen that asks before the first row.
         var block = screen.Kind == "ask" ? screen.Questions[0] : screen.Kind == "row" ? screen.Questions[0] - 1 : -1;
         if (position == indices.Count && block >= 0 && (screen.Kind == "ask" || WhatsAppFlowScreenBuilder.Asks(projection.Mapping[block].Rows!, screen.Row)))
