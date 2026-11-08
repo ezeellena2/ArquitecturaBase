@@ -61,7 +61,7 @@ internal sealed class SafeRunLedger(QualificationSettings settings)
         }
         var temporary = path + ".new";
         await File.WriteAllTextAsync(temporary, JsonSerializer.Serialize(entry, JsonSerializerOptions.Web), cancellationToken);
-        File.Move(temporary, path, overwrite: true);
+        await QualificationFileMoves.MoveAsync(temporary, path, overwrite: true, cancellationToken);
     }
     // Do not remove this ledger or the evaluation DB on timeout/uncertainty. Resume status using RequestId.
 }

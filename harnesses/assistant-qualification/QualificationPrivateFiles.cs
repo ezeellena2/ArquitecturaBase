@@ -19,8 +19,7 @@ internal sealed class QualificationPrivateFiles : IPrivateFileStore
         {
             await using(var file=new FileStream(temporary,FileMode.CreateNew,FileAccess.Write,FileShare.None,81920,FileOptions.Asynchronous))
                 await content.CopyToAsync(file,ct);
-            try{File.Move(temporary,target,overwrite:false);return true;}
-            catch(IOException)when(File.Exists(target)){return false;}
+            return await QualificationFileMoves.MoveAsync(temporary,target,overwrite:false,ct);
         }
         finally{File.Delete(temporary);}
     }
