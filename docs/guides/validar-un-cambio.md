@@ -43,6 +43,40 @@ cuenta a lo sumo un límite por método público, pero no comprueba que cada mé
 uno ni ve uno repetido en un bucle. Los tests visuales con HTTP simulado no acreditan persistencia
 ni proveedores reales.
 
+### Antes de cerrar: lo que más se repite en las revisiones
+
+Estos errores aparecen una y otra vez en [`docs/reviews/`](../reviews/). Contestá las preguntas que
+apliquen al cambio:
+
+1. **Tablero:** ¿comparé la pantalla con su tablero elemento por elemento (textos, estados, vacíos,
+   320 px) y anoté cada diferencia aceptada?
+2. **Textos:** ¿cada texto que toqué sigue siendo cierto sin datos, con un filtro sin resultados, sin
+   permiso y después de un error, y nombra la causa y la salida reales?
+3. **Errores en pantalla:** ¿400, 403, 409, red o 5xx y 429 tienen un solo dueño y un solo aviso,
+   conservan lo escrito y sólo ofrecen reintentar lo que se puede reintentar? ¿El foco queda en un
+   control visible al cerrar, apagar o sacar uno?
+4. **Datos al día:** después de cada escritura, ¿se invalidan todas las consultas que muestran el dato,
+   también en otras páginas?
+5. **Ofertas:** ¿cada botón, ítem u oferta usa la misma condición con la que el servidor la acepta
+   (permiso, elegibilidad, tipo)?
+6. **Fallas:** ¿cada falla nueva tiene su clase y su test? Una permanente no se reintenta para siempre,
+   una transitoria espera, una anterior al envío no queda incierta y una esperable es 4xx, no 500.
+7. **Topes y costo:** ¿cada tope sale de una sola constante que respetan todas las capas y se mide
+   antes de cargar o de pagarle al proveedor? Con el máximo permitido, ¿cada lectura está acotada en
+   SQL, sin una consulta por fila?
+8. **Uno malo no frena al resto:** si un elemento es inválido, enorme o falla siempre, ¿se excluye
+   sólo ese, con su motivo?
+9. **Lo que ya existe:** ¿anda con los datos que ya hay (sellados, dados de baja, eliminados, de otro
+   tipo)? ¿Un blanco viaja como ausente o null sin borrar lo guardado, y guardar sin cambios no
+   escribe ni sube la revisión?
+10. **Tests que ven la falla:** ¿cada test falla si saco el arreglo? ¿Cubre 403, 409, red y el
+    máximo, con datos de forma real (y PostgreSQL si hay SQL), y crea y limpia sus propios datos?
+11. **El mismo error en otro camino:** ¿lo busqué en los demás caminos y llamadores, y corrí los tests
+    de todos los consumidores de lo que cambié?
+12. **Contrato y documentos:** ¿cada cuerpo nuevo, también los 4xx, está exportado y el guard estricto
+    del front lo acepta tal cual? ¿Cada guía o regla que toqué dice lo que hace el código final? Si
+    hay migración, ¿el `Down` no pierde datos y el snapshot quedó sin `\r`?
+
 ## Verificación y cierre
 
 En cada corte, alcanza con el build y los tests rápidos del área afectada (en backend, unitarios y de
