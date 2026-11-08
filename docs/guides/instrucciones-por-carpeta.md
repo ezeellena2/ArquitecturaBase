@@ -28,13 +28,15 @@ Apuntá a unos pocos párrafos y reglas concretas. Las guías de áreas existent
 
 ## Tamaño de las guías
 
-Codex combina las guías desde la raíz hasta la carpeta en la que trabaja, con un límite predeterminado de 32 KiB, y corta lo que sobra sin avisar. Cada cadena, desde la raíz hasta el ámbito más profundo, queda por debajo de 30 KB:
+Codex combina las guías desde la raíz hasta la carpeta en la que trabaja, con un límite predeterminado de 32 KiB, y corta lo que sobra sin avisar. Cada cadena, desde la raíz hasta el ámbito más profundo, queda por debajo de 30 KB (30.000 bytes):
 
+- La cadena de una carpeta es lo que lee un agente que trabaja en ella: los `AGENTS.md` y `CLAUDE.md` desde la raíz, con lo que importan con `@`, cada archivo una vez, en bytes con fin de línea LF. En el backend lo comprueba `InstructionChainSizeTests` (ArchitectureTests) para cada carpeta con `AGENTS.md`.
 - La guía de un área o de un módulo es un índice corto, de unos 4 KB: qué hay en cada subcarpeta, las invariantes que cruzan todo y los enlaces. El detalle va en la guía de la subcarpeta donde está el código: `Services`, `Channels` o `Persistence` en el backend; `api`, `hooks`, `components` o `pages` en el front.
+- Si la carpeta del código no tiene subcarpetas (los `Services` de un módulo, sus pruebas), el detalle va tal cual a un documento de la feature en `docs/features/` (por ejemplo, `formularios-servicios.md`), que la guía enlaza por tema. La guía queda con el índice y las invariantes que cruzan todo.
 - Una guía no es la bitácora de las etapas.
   - Al cerrar una etapa, sus reglas se integran donde corresponden, con nombres funcionales y no con códigos de etapa como K4, G5 o H7. Los ids de tableros de diseño sí sirven como referencia.
   - Las cifras de verificación, los pilotos y los pendientes van a la fuente funcional, a los planes o a Git.
-- Al tocar una guía, medí su cadena sumando con `wc -c` cada `AGENTS.md` desde la raíz.
+- Al tocar una guía del backend, corré `dotnet test --project tests/ArquitecturaBase.ArchitectureTests/ArquitecturaBase.ArchitectureTests.csproj -- --filter-class "ArquitecturaBase.ArchitectureTests.InstructionChainSizeTests"`, que dice qué cadena se pasa y por cuánto. En el front, sumá con `wc -c` cada `AGENTS.md` y `CLAUDE.md` desde la raíz.
 
 ## Plantilla
 
@@ -69,7 +71,7 @@ Las reglas generales viven en la raíz; las de una capa, en su proyecto; las fun
 2. Implementá en las ubicaciones fijadas por la arquitectura. Una guía local orienta dentro de esa estructura; no autoriza una dependencia prohibida.
 3. Al agregar un área, adaptador o regla nueva, creá o actualizá su `AGENTS.md`, mantené la importación de Claude y agregá el ámbito al mapa de su repo.
 4. Si cambia una decisión estructural, agregá ADR y actualizá la arquitectura. Si cambia una regla funcional, actualizá `features`; si cambia una receta, `guides`. Las instrucciones solo resumen y enlazan.
-5. Verificá que los archivos citados existan, los enlaces resuelvan, el par no forme un ciclo y las instrucciones de ancestros no se contradigan. Revisá el tamaño combinado de las guías hasta el ámbito más profundo.
+5. Verificá que los archivos citados existan, los enlaces resuelvan, el par no forme un ciclo y las instrucciones de ancestros no se contradigan. Revisá el tamaño combinado de las guías hasta el ámbito más profundo (en el backend, `InstructionChainSizeTests`).
 6. Corré los checks propios del desarrollo y los de cierre del repo. Un cambio solo documental no necesita pruebas nuevas que repliquen su texto.
 
 Al cerrar un plan, seguí [auditar documentación](auditar-documentacion.md): consolidá premisas
@@ -86,5 +88,7 @@ El arnés documental agrega `harnesses/AGENTS.md` el 2026-10-02: el backend tien
 Con el estándar visual se agregaron los ámbitos `src/test/architecture` y `src/test/visual`; después, `src/features/whatsapp` y `design-lab/whatsapp-chat`: el front tiene **26 pares** al 2026-10-02. Los mapas de cada repo reflejan el inventario actual; las cifras del párrafo anterior conservan la procedencia del relevamiento inicial.
 
 El 2026-10-21 se reorganizaron las guías de Formularios y WhatsApp en ambos repos. Habían crecido como bitácora de etapas y pasaban el límite de Codex: la de Application de Formularios llegaba a 42 KB de cadena y la de business-forms del front, a 58 KB. Quedaron como índices, con guías nuevas en sus subcarpetas, y todas las cadenas por debajo de 30 KB.
+
+El 2026-11-07 seis cadenas del backend volvieron a pasarse: la de los servicios de Formularios llegaba a 55 KB. El detalle de las carpetas planas (los servicios de Formularios y WhatsApp y las pruebas unitarias y de integración de Formularios) pasó tal cual a documentos de su feature, y el de la persistencia y el borde HTTP de Formularios, a guías de sus subcarpetas. Desde entonces lo controla `InstructionChainSizeTests`.
 
 Las reglas generales que estaban en el `CLAUDE.md` del front se conservaron en `docs/architecture.md`. Su `AGENTS.md` exige leer esa fuente y conserva las premisas y el diseño vigentes. Así ambos agentes parten de las mismas reglas y las cadenas de instrucciones quedan breves.

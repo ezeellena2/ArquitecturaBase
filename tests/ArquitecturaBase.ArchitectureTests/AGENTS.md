@@ -1,6 +1,6 @@
 # ArchitectureTests: reglas ejecutables
 
-Verifica capas, paquetes, ubicación, llamadas, nombres y límites de la arquitectura. Algunas reglas leen ensamblados y otras el código fuente; `Support` contiene mecanismos de inspección.
+Verifica capas, paquetes, ubicación, llamadas, nombres y límites de la arquitectura, y que la cadena de guías de cada carpeta no pase de 30 KB (`InstructionChainSizeTests`). Algunas reglas leen ensamblados y otras el código fuente o los documentos; `Support` contiene mecanismos de inspección.
 
 ## Al modificar
 
