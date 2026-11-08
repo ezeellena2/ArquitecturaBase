@@ -148,6 +148,9 @@ Los documentos y el código siguen llamándolo renglón (`rows`).
    - «Tipo de respuesta» deja de ofrecer «Renglones»: el bloque se agrega sólo con su botón o con «Se carga varias veces».
    - Descartó RG10-A («Agregar renglones», con el bloque como algo distinto de una pregunta), RG10-B (un solo «Agregar»
      con menú) y RG10-C (como hoy). El nombre del botón (RG11) quedó resuelto con «Agregar bloque».
+   - Programado el 2026-11-07 (front 06666b14). Lo que el tablero no fijaba: el editor del bloque ya no muestra «Tipo de
+     respuesta» y el bloque se quita con su tacho; el nombre «Bloque» va en el idioma original del formulario, y «Agregar
+     bloque» no se apaga con 40 preguntas, porque el bloque no es una de ellas.
 11. **Los textos: RG12-A, «ítem» en lugar de «renglón», en toda la app** (2026-11-07). Salió en la verificación con Meta:
    completando el formulario de prueba en el celular, el usuario preguntó si «¿Agregás otro renglón?» no tendría que decir
    «agregar otro {nombre del ítem}» o el nombre del bloque y, mirando la lista del editor («Renglones · de 1 a 1 · 2
@@ -168,6 +171,8 @@ Los documentos y el código siguen llamándolo renglón (`rows`).
    - Lo que dice «renglón» en Importar opciones («Cada fila copiada ocupa un renglón…») es la línea de lo pegado y queda.
    - Descartó RG12-B (en WhatsApp, el nombre del bloque: «¿Agregás más artículos?», con el nombre en plural y de hasta 16
      caracteres) y RG12-C (el editor del bloque suma «Cada ítem es [un/una] [artículo]»: «¿Agregás otro artículo?»).
+   - Programado el 2026-11-07 en lo de la Etapa 1: WhatsApp y el aviso del máximo en el backend (3c54efae), y el editor,
+     publicar y la vista previa en el front (06666b14). La carga, las lecturas y las reglas lo traen en sus etapas.
 12. **Un mínimo mayor que el tope de WhatsApp: RG13-A, publicar frena** (2026-11-07). Salió al planear la Etapa 2, de la
    revisión del backend de la Etapa 1: WhatsApp carga 10 ítems como mucho, y un mínimo de 15 no se podía completar. Lo
    eligió con la pregunta del chat, sin tablero.

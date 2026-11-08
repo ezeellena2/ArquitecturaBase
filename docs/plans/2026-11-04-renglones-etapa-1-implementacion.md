@@ -212,17 +212,21 @@ que la sesión de las listas dependientes commitee lo suyo.
   `formRows` (`forms-rows`), es/en a 1440, 390 y 320, sin scroll de la página. La vista previa todavía dibuja el bloque
   como un campo: es de la Tarea 8.
 - [x] Commit en el front: `feat(formularios): el editor arma el bloque de renglones`.
-- [ ] RG10-D (2026-11-06, en la verificación con Meta): «Agregar bloque» en la franja «Preguntas», el bloque como una
+- [x] RG10-D (2026-11-06, en la verificación con Meta): «Agregar bloque» en la franja «Preguntas», el bloque como una
   pregunta más y con «Bloque» de nombre al crearlo, también desde «Se carga varias veces»; «Renglones» sale de «Tipo de
   respuesta». Se programa al terminar la prueba con Meta, con la app apagada: textos es/en, `QuestionEditor`,
-  `FormEditorPage`, `rowsQuestions.ts`, sus tests, la escena `formRows` y el `AGENTS.md` del área.
-- [ ] RG12-A (2026-11-07, en la verificación con Meta): los textos dicen «ítem» en lugar de «renglón», según la lista del
+  `FormEditorPage`, `rowsQuestions.ts`, sus tests, la escena `formRows` y el `AGENTS.md` del área. Hecho el 2026-11-07 en el
+  front (06666b14, diseño ca5c760c): el editor del bloque ya no muestra «Tipo de respuesta», el nombre va en el idioma
+  original y el botón no cuenta el tope de 40 preguntas.
+- [x] RG12-A (2026-11-07, en la verificación con Meta): los textos dicen «ítem» en lugar de «renglón», según la lista del
   [diseño del front](../../../ArquitecturaBaseFront/docs/design/renglones-en-formularios.md#los-textos-ítem-en-lugar-de-renglón-rg12-a--2026-11-07).
   Va con RG10-D, con la app apagada. Backend: `FlowTexts` es/en (`AddRow`, `AddAnotherRow`, `RowTitle`), el mensaje de
   `Forms.Publication.RowsOverChannelLimit` en `Errors.resx` y `.en.resx`, los tests que fijan esos textos y los `AGENTS.md`
   que los citan. Front: los textos `rows.*` y `publication.*` es/en, el resumen del bloque en la lista («1 ítem», «hasta 10
   ítems», «de 1 a 10 ítems»), los tests de la vista previa, el editor y publicar, y la escena `formRows`. r10 sigue abierto:
-  no hace falta otra revisión, y lo ya publicado conserva sus bytes.
+  no hace falta otra revisión, y lo ya publicado conserva sus bytes. Hecho el 2026-11-07: backend 3c54efae (Domain 644,
+  Application 3921 y ArchitectureTests 202) y front 06666b14. Queda un comentario con «Pasan a renglones» en
+  `api/response.ts` del front, de las sesiones de contratos, para el cierre.
 
 ### Tarea 8 · El front: vista previa y publicar
 
