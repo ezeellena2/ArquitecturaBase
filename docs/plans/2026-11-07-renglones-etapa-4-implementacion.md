@@ -301,7 +301,7 @@ rojo y pasan los que fijan lo que ya andaba. Se corrigieron sus dos detalles: la
   - `FormSuggestionsSection.test.tsx`: la misma condición en una sugerencia.
 - [x] `rules.ts`, `FormConditionsEditor`, `FormRulesSection`, `FormSuggestionsSection` y los textos es y en de
   `forms.json`.
-- [ ] Comparar con el tablero.
+- [x] Comparar con el tablero.
 - [x] Commit en el front: `feat(formularios): las condiciones sobre el bloque dicen «Algún ítem con»` (84d6c5c9). La comparación
   con el tablero va con la escena visual de la Tarea 7.
 
@@ -311,36 +311,41 @@ rojo y pasan los que fijan lo que ya andaba. Se corrigieron sus dos detalles: la
   - de `ruleConditionSummaries`, donde está hoy: una y dos condiciones del bloque, también separadas por una de afuera;
   - `FormRulesSection.test.tsx`: la regla plegada, la lista y el historial.
 - [x] `responses.ts` y `ConditionLines`.
-- [ ] Comparar con el tablero (la lista, con LR1-A).
+- [x] Comparar con el tablero (la lista, con LR1-A).
 - [x] Commit en el front: `feat(formularios): la lista lee juntas las condiciones del bloque` (fb6c177c). Junta sólo las
   condiciones con valor, como `ItemConditions`: la presencia sobre una pregunta del bloque mira la respuesta entera y va
   aparte.
 
 ### Tarea 7 · El front: el bloque en el mensaje
 
-- [ ] Tests en rojo:
+- [x] Tests en rojo:
   - `ruleMessage.test.ts`: el bloque en «Agregar dato» sin sus preguntas, y «Así llega» con un ítem en su línea, sin
     salto al comienzo y con el ejemplo de cada tipo;
   - `RuleMessageField.test.tsx`: el menú y el ejemplo.
-- [ ] `ruleMessage.ts` (`repeated` en `RuleMessageQuestion`, `ruleMessageData` y `ruleMessagePreview`). En
+- [x] `ruleMessage.ts` (`repeated` en `RuleMessageQuestion`, `ruleMessageData` y `ruleMessagePreview`). En
   `prepareRules`, `hasMissingRuleData` busca en todas las preguntas (`responseQuestionColumns`).
-- [ ] Escena visual en `formRules.spec.ts`, con un escenario de reglas con el bloque en `formRuleFixtures.ts`: el editor
+- [x] Escena visual en `formRules.spec.ts`, con un escenario de reglas con el bloque en `formRuleFixtures.ts`: el editor
   con dos condiciones del bloque y el mensaje con «Así llega», y la lista, en es y en a 1440, 390 y 320. Va con la corrida
   de `test:visual` del cierre.
-- [ ] Comparar con el tablero.
-- [ ] Commit en el front: `feat(formularios): el bloque es un dato del mensaje, con un ítem por línea`.
+- [x] Comparar con el tablero.
+- [x] Commit en el front: `feat(formularios): el bloque es un dato del mensaje, con un ítem por línea` (b841e662).
+
+Hecho el 2026-11-08. La escena `forms-rules-rows` pasa en es y en a 1440, 390 y 320. Comparada con RG5-A: la lista, «Algún
+ítem con» a la izquierda de «Pregunta» y arriba en una columna, y «Así llega» con el ítem en su línea, como el tablero. El
+editor conserva sus tres columnas iguales, aunque el tablero dibujó «Pregunta» el doble de ancha. Las tareas 5 y 6 se
+compararon en esta misma escena.
 
 ### Tarea 8 · Cierre
 
-- [ ] Exportar la cohorte `forms-rules-http` desde una copia, como en las etapas 2 y 3, porque el exportador corre la suite
+- [x] Exportar la cohorte `forms-rules-http` desde una copia, como en las etapas 2 y 3, porque el exportador corre la suite
   entera y escribe en el front. En el front, `rulesHttpContract.test.ts` suma `rows-options-{es,en}` y `rows-saved-es`, y
   se actualizan las listas de los tests de contrato que cuentan capturas.
-- [ ] Verificación:
+- [x] Verificación:
   - la integración con PostgreSQL y Redis, `dotnet test` completo en tandas y el build sin advertencias;
   - en el front, `build`, `lint`, `test` y `test:visual` en tandas;
   - el recorrido es y en a 1440, 390 y 320;
   - `aspire stop` si se levantó la app.
-- [ ] Docs:
+- [x] Docs:
   - [formularios](../features/formularios.md), en las reglas (G1 y el mensaje con datos) y en «El bloque de renglones en
     la lectura», que hoy dice que el mensaje deja el bloque vacío;
   - en cada tarea, la sección de su tema en `formularios-servicios.md`, `formularios-pruebas-unitarias.md` y
@@ -348,6 +353,21 @@ rojo y pasan los que fijan lo que ya andaba. Se corrigieron sus dos detalles: la
     cadenas de más de 30 KB); en el front, el de `components`, «Lo que cambia
     de lo que hay» del diseño de renglones, y las reglas en pasos y el mensaje con datos de `formularios-whatsapp.md`;
   - este plan y el de renglones.
+Cierre del 2026-11-08, sin la prueba física:
+
+- **Exportación conjunta.** Desde una copia de HEAD 7a2cb140 en `.artifacts/renglones-e4/export`. La primera corrida dio
+  7413 de 7428 en 3 h 21 min, con la CPU al 100 % por otras sesiones. Fallaron Redis en la fixture de
+  `AiConnectionEndpointsTests` (14) y un aislamiento del asistente de WhatsApp (1), y solos pasan. La segunda corrida
+  completa dio **7428 de 7428** y dejó las 25 cohortes, commiteadas en el front en d3642fb1 con el contrato de
+  `rows-options-{es,en}` y `rows-saved-es` en `rulesHttpContract.test.ts`.
+- **Front.** `build` limpio. `lint` limpio: con la máquina cargada, las tres pruebas de arquitectura que recorren el código
+  vencen a los 5 s y pasan con más tiempo. Pasan los 61 archivos que leen cohortes, salvo `FormPublicationBudgetHttp` y
+  un caso de `FormsPage` («Unable to find a label with the text of: Nombre»). Esos dos, `FormEntryPanel` (3) y
+  `MissingFormsPage` (1) fallan igual en una copia de f6bc5973, de antes de esta etapa: no son de este trabajo. Pasan las
+  escenas que leen las cohortes de formularios y catálogos (90) y las de reglas (30, con `forms-rules-rows`).
+- **Pendiente.** `npm run test` y `test:visual` enteros quedan para cuando la máquina esté libre: cargada, vencen
+  tiempos en archivos que solos pasan. Lo mismo vale para la prueba física, con el recorrido en el navegador.
+
 - [ ] Prueba física, guiando al usuario clic por clic y sin cargar datos por él. Va dentro de la prueba integral final de
   renglones, como eligió para la Etapa 2:
   - en «Recepción de insumos», ya con el bloque «Artículos», cambiar la regla que avisa al Agrónomo. La condición pasa a
