@@ -372,9 +372,14 @@ permiso.
   Con sus listas en `export-responses-http.ps1` y su autotest, y en el front `rowsReadHttpContract.test.ts`, con las
   listas de los tests de contrato que cuentan capturas. Se exporta desde una copia: el exportador corre la suite entera y
   escribe en el front.
-- [ ] Verificación de cierre:
-  - build sin advertencias;
-  - `dotnet test` completo con Docker, en tandas;
-  - `vitest` y `test:visual` del front, en tandas;
-  - el recorrido es y en a 1440, 390 y 320;
-  - `aspire stop` si se levantó la app.
+- [x] Verificación de cierre (2026-11-07):
+  - build sin advertencias: el de la corrida completa, con `TreatWarningsAsErrors`;
+  - `dotnet test` completo con Docker, desde una copia de dc4df3a4: 7357 de 7358, y la falla (una prueba de migraciones que
+    no esperaba `RejectedRow`) la corrigió la Etapa 2;
+  - `vitest` en ocho tandas: 4341 tests. Fallan los ocho contratos que esperan la exportación conjunta, dos de «Agregar
+    bloque» (RG10-D, en curso en la sesión de renglones) y seis que vencen a los 5 segundos con la máquina cargada y pasan
+    solos;
+  - `test:visual`: 992 de 992, con la escena `responsesRows` nueva (la planilla, «Filtros» y la pantalla completa, es y en
+    a 1440, 390 y 320). D2, la tarjeta del chat y el diseño del PDF quedan cubiertos por sus tests de componente; sumarlos a
+    sus escenas (`responses`, `chatForms`, `formPdf`) queda pendiente;
+  - el recorrido con la app real queda para la prueba manual del usuario, que tiene la app levantada; no se levantó Aspire.
