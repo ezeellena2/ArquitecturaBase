@@ -197,7 +197,8 @@ Con la opción más simple que cumple el plan y las reglas:
   que avise que está commiteado no se tocan el editor del bloque, `WhatsAppFlowScreenBuilder`, `FlowTexts`, la vista previa
   ni los textos `forms.json` del front. El codec sólo lee `Asks` y `RowCount`. Su cierre exporta las capturas `rows/*`
   (de 64 a 67): las de esta etapa se suman después.
-- **El chat de la Etapa 3** ([su plan](2026-11-07-renglones-etapa-3-implementacion.md), con el visto bueno del usuario)
+- **El chat de la Etapa 3** (su plan, con el visto bueno del usuario, se retiró el 2026-11-08:
+  [procedencia](../history/README.md#renglones--etapa-3-el-bloque-en-la-lectura--2026-11-08))
   lee este modelo y programa después del backend de esta etapa. Lo acordado está arriba: cada ítem con la forma de arriba,
   `[]` sin ítems, los dos `Row` no nullables, `StructuredRecordReadRow` y `Rows` desde esta etapa, y `Project` y el PDF sin
   el bloque hasta que la Etapa 3 los prenda. La respuesta a su propuesta queda en la carpeta de notas compartidas

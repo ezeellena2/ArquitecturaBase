@@ -361,16 +361,17 @@ tarjeta del chat, el Excel y el PDF. Los textos dicen «ítem» (RG12-A); el có
   y su primera respuesta en negro y las demás alineadas debajo; la pantalla completa (DC1), una tabla con el número a la
   derecha y una columna por pregunta. Sin ítems, «Sin respuesta».
 - **El chat.** La tarjeta recibe el bloque por la misma lectura, sin campos del catálogo, y pone un ítem por línea.
-- **El Excel.** «Respuestas» pone la cantidad de ítems (vacía sin ítems, «—» si su versión no tenía el bloque) y cada bloque
-  exportado suma una hoja con «Número», «Ítem» y sus preguntas, con su «· valor» y los campos que elige `catalogFields`,
-  una fila por ítem en el orden de las respuestas. La hoja se llama como el bloque, sin lo que Excel no admite, hasta 31
-  caracteres sin partir un emoji y sin apóstrofes ni espacios en los extremos; «Ítems» si queda vacía, igual a «Respuestas»
-  o «History», y « (2)» si otra ya tiene ese nombre.
+- **El Excel.** «Respuestas» pone la cantidad de ítems (vacía sin ítems, «—» si su versión no tenía el bloque). Cada bloque
+  exportado, con todas las preguntas o con su columna visible, suma una hoja con «Número», «Ítem» y sus preguntas, con su
+  «· valor» y los campos que elige `catalogFields`, una fila por ítem en el orden de las respuestas. La hoja se llama como
+  el bloque, sin lo que Excel no admite, hasta 31 caracteres sin partir un emoji y sin apóstrofes ni espacios en los
+  extremos; «Ítems» si queda vacía, igual a «Respuestas» o «History», y « (2)» si otra ya tiene ese nombre.
 - **El PDF.** El diseño elige el bloque entero: el inicial, el de una respuesta sin diseño guardado y las preguntas que se
   pueden elegir dejan afuera las del bloque, y un idioma está completo si también lo están ellas. La copia pone el bloque
-  bajo su nombre en una tabla: el número del ítem y una columna por pregunta de su versión, línea entre columnas, números
-  a la derecha, texto partido en su celda y el encabezado repetido si sigue en la página siguiente. La vista previa suma
-  dos ítems de ejemplo. Una pregunta del bloque elegida sola en un diseño viejo no sale.
+  bajo su nombre en una tabla: el número del ítem en una columna angosta y sin encabezado, y una columna por pregunta de su
+  versión, que se reparten el resto por igual; línea entre columnas, números a la derecha, texto partido en su celda y el
+  encabezado repetido si sigue en la página siguiente. La vista previa suma dos ítems de ejemplo. Una pregunta del bloque
+  elegida sola en un diseño viejo no sale.
 - **Reglas.** Las condiciones de una regla y de una sugerencia deciden como «Filtros» (Etapa 4 de renglones, RG5-A): las
   que tienen valor sobre preguntas del bloque las cumple un mismo ítem, y la presencia mira la respuesta entera. En un
   mensaje, el bloque es un dato: cada ítem va en su línea, numerado desde 1, con sus respuestas en el orden de las preguntas

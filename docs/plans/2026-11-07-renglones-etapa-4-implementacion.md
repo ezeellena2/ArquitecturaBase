@@ -17,8 +17,9 @@ estado.
   pantallas y textos;
 - el tablero RG5-A del lienzo provisorio [Formularios desde la app](https://claude.ai/artifact/Kvbr5KFJrGT951JLiu8i4M),
   versión 55;
-- el plan de la [Etapa 2](2026-11-07-renglones-etapa-2-implementacion.md), que dice cómo se guardan los ítems, y el de la
-  [Etapa 3](2026-11-07-renglones-etapa-3-implementacion.md), con la lectura neutral y «Filtros» por algún ítem;
+- el plan de la [Etapa 2](2026-11-07-renglones-etapa-2-implementacion.md), que dice cómo se guardan los ítems, y la
+  [lectura del bloque](../features/formularios.md#el-bloque-de-renglones-en-la-lectura--rg4-a-2026-11-07) de la Etapa 3,
+  con la lectura neutral y «Filtros» por algún ítem;
 - en [formularios](../features/formularios.md), las reglas (G1), el motor de acciones, el mensaje con datos (MD1-A) y las
   reglas en pasos (LR1-A).
 

@@ -297,9 +297,16 @@ para que se usen igual en toda la app.
      y «Mantener».
    - Prueba física: «Recepción de insumos» con los tres renglones del remito, desde la app y por WhatsApp.
 3. **Etapa 3 · Ver los renglones (RG4-A).** La columna de la planilla, «Filtros» por algún renglón con sus conteos, la vista
-   rápida, la pantalla completa, el chat de WhatsApp, la hoja del Excel y la tabla del PDF. Programada el 2026-11-07 según
-   su [plan](2026-11-07-renglones-etapa-3-implementacion.md); las reglas que quedaron están en
-   [formularios](../features/formularios.md#el-bloque-de-renglones-en-la-lectura--rg4-a-2026-11-07).
+   rápida, la pantalla completa, el chat de WhatsApp, la hoja del Excel y la tabla del PDF. Cerrada el 2026-11-08. Las reglas
+   están en [formularios](../features/formularios.md#el-bloque-de-renglones-en-la-lectura--rg4-a-2026-11-07) y en
+   [WhatsApp](../features/whatsapp.md#recepción-de-respuestas-de-flow), y su plan, en la
+   [procedencia](../history/README.md#renglones--etapa-3-el-bloque-en-la-lectura--2026-11-08). Sus capturas entraron en la
+   exportación conjunta (front 60fcff31) y su verificación de cierre es la conjunta, en la Etapa 1.
+   - Pendiente: la prueba manual pasó a la prueba integral final. Con la Api reiniciada, una respuesta con tres ítems se ve
+     en la planilla («3 · …»), en la vista rápida, en la pantalla completa y en la tarjeta del chat; «Filtros» la encuentra
+     por algún ítem, con sus conteos; y salen el Excel con la hoja del bloque y el PDF con la tabla, en es y en.
+   - Opcional: sumar el bloque a las escenas visuales `responses` (vista rápida), `chatForms` y `formPdf`; hoy lo cubren
+     sus tests de componente.
 4. **Etapa 4 · Las reglas (RG5-A).** Las condiciones «algún renglón con…» en el editor y en la evaluación, la lista de reglas
    y el bloque como dato del mensaje, con «Así llega». Con eso, la regla de «Recepción de insumos» avisa al Agrónomo si algún
    artículo llegó en mal estado. Su [plan de implementación](2026-11-07-renglones-etapa-4-implementacion.md) tiene ocho tareas;
