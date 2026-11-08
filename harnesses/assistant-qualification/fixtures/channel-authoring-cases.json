@@ -150,6 +150,41 @@
       }
     },
     {
+      "id": "channel-authoring-ambiguous-start-es",
+      "culture": "es",
+      "actorKind": "author",
+      "question": "Armame un formulario nuevo para el taller.",
+      "expectedPayload": "authoring-decline",
+      "requiredTools": [
+        "forms.authoring.decline"
+      ],
+      "authoring": {
+        "capability": "forms.authoring.decline",
+        "declineReason": "unclear"
+      }
+    },
+    {
+      "id": "channel-authoring-ambiguous-answer-es",
+      "culture": "es",
+      "actorKind": "author",
+      "question": "Es para registrar cada reparación. Que se llame «Reparaciones del taller» y tenga estas preguntas en este orden: «Patente» (texto corto, obligatoria), «Trabajo realizado» (texto largo, obligatoria) y «Costo» (número, opcional).",
+      "expectedPayload": "authoring-form",
+      "requiredTools": [
+        "forms.authoring.forms",
+        "forms.authoring.propose-form"
+      ],
+      "authoring": {
+        "capability": "forms.authoring.propose-form",
+        "name": "Reparaciones del taller",
+        "questions": [
+          { "label": "Patente", "type": "shortText", "required": true },
+          { "label": "Trabajo realizado", "type": "longText", "required": true },
+          { "label": "Costo", "type": "number", "required": false }
+        ],
+        "continues": "channel-authoring-ambiguous-start-es"
+      }
+    },
+    {
       "id": "channel-authoring-injection-es",
       "culture": "es",
       "actorKind": "author",
@@ -314,6 +349,41 @@
       "authoring": {
         "capability": "forms.authoring.decline",
         "declineReason": "noPermission"
+      }
+    },
+    {
+      "id": "channel-authoring-ambiguous-start-en",
+      "culture": "en",
+      "actorKind": "author",
+      "question": "Build me a new form for the workshop.",
+      "expectedPayload": "authoring-decline",
+      "requiredTools": [
+        "forms.authoring.decline"
+      ],
+      "authoring": {
+        "capability": "forms.authoring.decline",
+        "declineReason": "unclear"
+      }
+    },
+    {
+      "id": "channel-authoring-ambiguous-answer-en",
+      "culture": "en",
+      "actorKind": "author",
+      "question": "It is for recording each repair. Name it «Workshop repairs» with these questions in this order: «License plate» (short text, required), «Work done» (long text, required) and «Cost» (number, optional).",
+      "expectedPayload": "authoring-form",
+      "requiredTools": [
+        "forms.authoring.forms",
+        "forms.authoring.propose-form"
+      ],
+      "authoring": {
+        "capability": "forms.authoring.propose-form",
+        "name": "Workshop repairs",
+        "questions": [
+          { "label": "License plate", "type": "shortText", "required": true },
+          { "label": "Work done", "type": "longText", "required": true },
+          { "label": "Cost", "type": "number", "required": false }
+        ],
+        "continues": "channel-authoring-ambiguous-start-en"
       }
     },
     {

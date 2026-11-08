@@ -33,7 +33,7 @@ internal static partial class AuthoringOracle
     public static IReadOnlyList<CheckEvidence> PayloadChecks(AuthoringExpectation expected, string culture, AssistantCapabilityPayload? payload,
         QualificationChannelFixture fixture, QualificationFixture actors, AssistantCapabilityPayload? previous) => expected.Capability switch
     {
-        ProposeForm => FormChecks(expected, culture, payload as FormAuthoringFormProposal, fixture, previous as FormAuthoringFormProposal),
+        ProposeForm => FormChecks(expected, culture, payload as FormAuthoringFormProposal, fixture, previous),
         ProposeCatalog => CatalogChecks(expected, culture, payload as FormAuthoringCatalogProposal, fixture),
         Decline => DeclineChecks(expected, payload as FormAuthoringDecline, fixture),
         PeopleCatalog => [new("authoring-payload-type", payload is FormCatalogProposalPayload),
@@ -43,7 +43,7 @@ internal static partial class AuthoringOracle
     };
 
     private static List<CheckEvidence> FormChecks(AuthoringExpectation expected, string culture, FormAuthoringFormProposal? proposal,
-        QualificationChannelFixture fixture, FormAuthoringFormProposal? previous)
+        QualificationChannelFixture fixture, AssistantCapabilityPayload? previous)
     {
         var checks = new List<CheckEvidence>
         {
@@ -57,9 +57,12 @@ internal static partial class AuthoringOracle
             new("authoring-exact-questions", proposal is not null && ExactQuestions(expected.Questions ?? [], proposal.Questions, fixture)),
         };
         // An adjustment proposes the whole form again: the same name and prefix the previous proposal of the conversation had.
+        // The answer to «what should I build?» proposes for the first time, right after that question («pregunta y espera»).
         if (expected.Continues is not null)
-            checks.Add(new("authoring-keeps-previous-identity", proposal is not null && previous is not null
-                && SameText(previous.Name, proposal.Name) && string.Equals(previous.Prefix, proposal.Prefix, StringComparison.Ordinal)));
+            checks.Add(previous is FormAuthoringDecline asked
+                ? new("authoring-answers-the-question", proposal is not null && asked is { Reason: "unclear" })
+                : new("authoring-keeps-previous-identity", proposal is not null && previous is FormAuthoringFormProposal shown
+                    && SameText(shown.Name, proposal.Name) && string.Equals(shown.Prefix, proposal.Prefix, StringComparison.Ordinal)));
         return checks;
     }
 
@@ -108,7 +111,7 @@ internal static partial class AuthoringOracle
             new("authoring-decline-reason", decline is not null && string.Equals(expected.DeclineReason, decline.Reason, StringComparison.Ordinal)),
             new("authoring-decline-target", decline is not null && expected.DeclineReason switch
             {
-                "noPermission" => decline is { DefinitionId: null, CatalogId: null, Name.Length: 0 },
+                "noPermission" or "unclear" => decline is { DefinitionId: null, CatalogId: null, Name.Length: 0 },
                 "formExists" => form is not null && decline.DefinitionId == form.DefinitionId && decline.CatalogId is null
                     && form.Names.Values.Any(name => SameText(name, decline.Name)),
                 "catalogExists" => catalog is not null && decline.CatalogId == catalog.Id && decline.DefinitionId is null

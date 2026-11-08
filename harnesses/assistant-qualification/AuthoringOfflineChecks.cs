@@ -26,7 +26,7 @@ internal static class AuthoringOfflineChecks
         Home_authoring_checks_accept_the_observed_proposal_turn, Home_authoring_checks_reject_a_mismatched_terminal_or_stamp,
         Home_authoring_checks_require_no_proposal_without_permission_or_details, Home_authoring_adjustment_requires_the_same_conversation,
         Channel_authoring_checks_accept_the_observed_proposal_and_decline, Channel_authoring_checks_reject_wrong_offer_or_reason,
-        Channel_authoring_continuation_requires_the_next_turn_of_the_same_conversation,
+        Channel_authoring_continuation_requires_the_next_turn_of_the_same_conversation, Channel_authoring_answer_follows_the_question_of_the_same_conversation,
         Home_instruction_hash_follows_the_sealed_version, Ledger_continuation_keeps_its_previous_request_identity];
 
     private const string IdealPrefix = "QAFIXTURE";
@@ -70,6 +70,7 @@ internal static class AuthoringOfflineChecks
         {
             "formExists" => new FormAuthoringDecline("formExists", Fixture.Form(expected.ExistingForm!).DefinitionId, null, Fixture.Form(expected.ExistingForm!).Names["es"]),
             "catalogExists" => new FormAuthoringDecline("catalogExists", null, Fixture.Catalog(expected.ExistingCatalog!).Id, Fixture.Catalog(expected.ExistingCatalog!).Names["es"]),
+            "unclear" => new FormAuthoringDecline("unclear", null, null, ""),
             _ => new FormAuthoringDecline("noPermission", null, null, ""),
         },
         "forms.catalog-filters.propose" => People(),
@@ -96,13 +97,14 @@ internal static class AuthoringOfflineChecks
     public static void Authoring_fixtures_cover_the_stage_cases_in_both_cultures()
     {
         var home = HomeCases();var channel = ChannelCases();
-        Require(home.Length == 24 && channel.Length == 18);
-        Require(home.Select(testCase => testCase.Id).Concat(channel.Select(testCase => testCase.Id)).Distinct(StringComparer.Ordinal).Count() == 42);
+        Require(home.Length == 24 && channel.Length == 22);
+        Require(home.Select(testCase => testCase.Id).Concat(channel.Select(testCase => testCase.Id)).Distinct(StringComparer.Ordinal).Count() == 46);
         Require(home.All(testCase => Regex.IsMatch(testCase.Id, "^home-authoring-[a-z0-9-]+-(es|en)$", RegexOptions.CultureInvariant) && testCase.Id.EndsWith("-" + testCase.Culture, StringComparison.Ordinal)));
         Require(channel.All(testCase => Regex.IsMatch(testCase.Id, "^channel-authoring-[a-z0-9-]+-(es|en)$", RegexOptions.CultureInvariant) && testCase.Id.EndsWith("-" + testCase.Culture, StringComparison.Ordinal)));
         string[] homeStems = ["form", "catalog", "people-catalog", "adjust-start", "adjust-change", "corrected", "name-in-use", "no-permission", "ambiguous", "injection",
             "dictated-webm", "dictated-mp4"];
-        string[] channelStems = ["form", "catalog", "adjust-start", "adjust-change", "corrected", "form-exists", "catalog-exists", "no-permission", "injection"];
+        string[] channelStems = ["form", "catalog", "adjust-start", "adjust-change", "corrected", "form-exists", "catalog-exists", "no-permission",
+            "ambiguous-start", "ambiguous-answer", "injection"];
         foreach (var culture in new[] { "es", "en" })
         {
             Require(home.Where(testCase => testCase.Culture == culture).Select(testCase => Stem(testCase.Id, "home-authoring-")).Order(StringComparer.Ordinal).SequenceEqual(homeStems.Order(StringComparer.Ordinal)));
@@ -127,12 +129,18 @@ internal static class AuthoringOfflineChecks
             Require(Array.IndexOf(home, start) < Array.IndexOf(home, change) && start.ConversationKey is { } key && change.ConversationKey == key
                 && start.Culture == change.Culture && start.ActorKind == change.ActorKind && start.Authoring!.Name == change.Authoring!.Name);
         }
+        // In the channel the start is right before; an answer to «what should I build?» names the form for the first time.
         foreach (var change in channel.Where(testCase => testCase.Authoring!.Continues is not null))
         {
             var start = channel.Single(testCase => testCase.Id == change.Authoring!.Continues);
             Require(Array.IndexOf(channel, start) == Array.IndexOf(channel, change) - 1 && start.Culture == change.Culture
-                && start.ActorKind == change.ActorKind && start.Authoring!.Name == change.Authoring!.Name);
+                && start.ActorKind == change.ActorKind && (start.Authoring!.DeclineReason == "unclear" ? change.Authoring!.Name is not null
+                    : start.Authoring!.Name == change.Authoring!.Name));
         }
+        Require(channel.Where(testCase => Stem(testCase.Id, "channel-authoring-") == "ambiguous-start")
+            .All(testCase => testCase.Authoring is { Capability: "forms.authoring.decline", DeclineReason: "unclear" })
+            && channel.Where(testCase => Stem(testCase.Id, "channel-authoring-") == "ambiguous-answer")
+                .All(testCase => testCase.Authoring!.Continues == "channel-authoring-ambiguous-start-" + testCase.Culture));
     }
 
     public static void Authoring_fixtures_stay_fictitious_and_generic()
@@ -141,7 +149,7 @@ internal static class AuthoringOfflineChecks
         var texts = HomeCases().Select(testCase => (testCase.Question, Spoken: testCase.Audio?.ExpectedTranscript, testCase.Authoring))
             .Concat(ChannelCases().Select(testCase => (testCase.Question, Spoken: (string?)null, testCase.Authoring)))
             .Select(item => item.Question + "\n" + item.Spoken + "\n" + JsonSerializer.Serialize(item.Authoring, JsonSerializerOptions.Web)).ToArray();
-        Require(texts.Length == 42 && texts.All(text => !Regex.IsMatch(text, @"macrosistemas|\bocha\b|https?:|www\.|[\w.+-]+@[\w-]+\.\w", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)
+        Require(texts.Length == 46 && texts.All(text => !Regex.IsMatch(text, @"macrosistemas|\bocha\b|https?:|www\.|[\w.+-]+@[\w-]+\.\w", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)
             && !Regex.IsMatch(text, @"\d[\d\s().-]{5,}\d", RegexOptions.CultureInvariant)));
         // A typed case says something; a dictated one says it only through its recording.
         Require(HomeCases().All(testCase => testCase.Audio is null ? testCase.Question.Length is > 0 and <= 4000 : testCase.Question.Length == 0)
@@ -260,10 +268,12 @@ internal static class AuthoringOfflineChecks
         }
     }
 
+    // An adjustment continues a shown form; the answer to «what should I build?» has its own check.
     public static void Authoring_adjustment_keeps_the_previous_name_and_prefix()
     {
         foreach (var testCase in HomeCases().Where(item => item.Authoring!.Continues is not null).Select(item => (item.Authoring!, item.Culture))
-            .Concat(ChannelCases().Where(item => item.Authoring!.Continues is not null).Select(item => (item.Authoring!, item.Culture))))
+            .Concat(ChannelCases().Where(item => item.Authoring!.Continues is not null).Select(item => (item.Authoring!, item.Culture)))
+            .Where(item => Expectations()[item.Item1.Continues!].Capability == "forms.authoring.propose-form"))
         {
             var (expected, culture) = testCase;
             var previous = (FormAuthoringFormProposal)Ideal(Expectations()[expected.Continues!], culture);
@@ -314,6 +324,9 @@ internal static class AuthoringOfflineChecks
             Require(!Passes(none, culture, noneDecline with { DefinitionId = Fixture.Form("visit").DefinitionId }));
             Require(!Passes(none, culture, noneDecline with { Name = "Registrar visita" }));
             Require(!Passes(none, culture, formDecline) && !Passes(form, culture, noneDecline) && !Passes(form, culture, catalogDecline));
+            var unclear = Channel("channel-authoring-ambiguous-start-" + culture).Authoring!;var unclearDecline = (FormAuthoringDecline)Ideal(unclear, culture);
+            Require(Passes(unclear, culture, unclearDecline) && !Passes(unclear, culture, noneDecline) && !Passes(none, culture, unclearDecline));
+            Require(!Passes(unclear, culture, unclearDecline with { Name = "Registrar visita" }) && !Passes(unclear, culture, formDecline));
         }
     }
 
@@ -564,6 +577,26 @@ internal static class AuthoringOfflineChecks
             Require(!ChannelAccepted(change, result, technical with { ConversationId = Guid.NewGuid() }, previous));
             Require(!ChannelAccepted(change, result, technical with { Ordinal = 3 }, previous));
             Require(!ChannelAccepted(change, result, technical, previous with { Result = first with { Proposal = first.Proposal! with { Payload = Form("home-authoring-form-es") } } }));
+        }
+    }
+
+    // «Pregunta y espera»: the answer is the next turn of the conversation whose last proposal asked what to build.
+    public static void Channel_authoring_answer_follows_the_question_of_the_same_conversation()
+    {
+        foreach (var culture in new[] { "es", "en" })
+        {
+            var start = Channel("channel-authoring-ambiguous-start-" + culture);var answer = Channel("channel-authoring-ambiguous-answer-" + culture);
+            var conversation = Guid.NewGuid();
+            var (first, firstTechnical) = ChannelTurn(start, conversation, 1);
+            Require(ChannelAccepted(start, first, firstTechnical));
+            var previous = new ChannelObservation(first.RequestId, first, firstTechnical, 1, [], new(null, null));
+            var (result, technical) = ChannelTurn(answer, conversation, 2);
+            Require(ChannelAccepted(answer, result, technical, previous));
+            Require(!ChannelAccepted(answer, result, technical, null));
+            Require(!ChannelAccepted(answer, result, technical with { ConversationId = Guid.NewGuid() }, previous));
+            Require(!ChannelAccepted(answer, result, technical, previous with { Result = first with { Proposal = first.Proposal! with {
+                Payload = new FormAuthoringDecline("noPermission", null, null, "") } } }));
+            Require(!ChannelAccepted(answer, result, technical, previous with { Result = first with { Proposal = first.Proposal! with { Payload = Form("home-authoring-form-es") } } }));
         }
     }
 
