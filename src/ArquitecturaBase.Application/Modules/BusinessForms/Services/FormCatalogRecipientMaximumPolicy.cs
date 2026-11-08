@@ -7,7 +7,8 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
 // The most options one person can be offered by a question with valid filters: what the fixed filters leave, grouped by the
 // person filters and those by another answer. The label names the values of that largest group; with only fixed filters
-// everyone sees the same ones.
+// everyone sees the same ones. A question that chooses first by a field (LD1-A) also counts its values and the options of the
+// largest one, the most any person gets.
 internal sealed class FormCatalogRecipientMaximumPolicy(IFormCatalogReader catalogs)
 {
     // A fixed value on a catalog field must be an active option of the field's source; otherwise publishing blocks the filter, so
@@ -25,13 +26,13 @@ internal sealed class FormCatalogRecipientMaximumPolicy(IFormCatalogReader catal
         return null;
     }
 
-    public async Task<(int Maximum, string? Label)> FindAsync(Guid catalogId, IReadOnlyList<BusinessFormCatalogField> fields,
-        IReadOnlyList<FormCatalogMatch> matches, string culture, CancellationToken ct)
+    public async Task<(int Maximum, string? Label, int? Groups, int? LargestGroup)> FindAsync(Guid catalogId, IReadOnlyList<BusinessFormCatalogField> fields,
+        IReadOnlyList<FormCatalogMatch> matches, string culture, CancellationToken ct, Guid? groupBy = null)
     {
         var personFields = matches.Where(match => match.Value is null).Select(match => match.FieldId).ToArray();
         var fixedContainment = FormCatalogMatchPolicy.FixedContainment(matches, fields).Value;
-        var maximum = await catalogs.FindMaximumOfferSizeAsync(catalogId, fixedContainment, personFields, ct);
-        if (maximum.Maximum == 0 || personFields.Length == 0) return (maximum.Maximum, null);
+        var maximum = await catalogs.FindMaximumOfferSizeAsync(catalogId, fixedContainment, personFields, ct, groupBy);
+        if (maximum.Maximum == 0 || personFields.Length == 0) return (maximum.Maximum, null, maximum.Groups, maximum.LargestGroup);
         var choices = new Dictionary<Guid, FormCatalogStoredItemRow>();
         foreach (var sourceId in fields.Where(field => personFields.Contains(field.Id) && field.SourceCatalogId is not null)
             .Select(field => field.SourceCatalogId!.Value).Distinct())
@@ -40,6 +41,6 @@ internal sealed class FormCatalogRecipientMaximumPolicy(IFormCatalogReader catal
         var labels = FormCatalogFieldPresentation.Values(new(Guid.Empty, catalogId, "", null, null, null, null, 0, true, FieldValuesJson: maximum.ValuesJson),
             fields, choices, culture, "Text");
         var label = string.Join(" · ", personFields.Order().Select(id => labels.GetValueOrDefault(id.ToString("D"))).Where(value => !string.IsNullOrEmpty(value)));
-        return (maximum.Maximum, label.Length == 0 ? null : label);
+        return (maximum.Maximum, label.Length == 0 ? null : label, maximum.Groups, maximum.LargestGroup);
     }
 }

@@ -39,7 +39,11 @@ public sealed record FormRecipientMaximumRequest(FormQuestionSource Source)
     public override string ToString() => "FormRecipientMaximumRequest { Content = [REDACTED] }";
 }
 
-public sealed record FormRecipientMaximumResponse(int Maximum, string? MaximumLabel)
+// LD1-A: a question that chooses first by a field also says how many values there are and how many options the largest has;
+// both are omitted otherwise.
+public sealed record FormRecipientMaximumResponse(int Maximum, string? MaximumLabel,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] int? Groups = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] int? LargestGroup = null)
 {
     public override string ToString() => "FormRecipientMaximumResponse { Content = [REDACTED] }";
 }

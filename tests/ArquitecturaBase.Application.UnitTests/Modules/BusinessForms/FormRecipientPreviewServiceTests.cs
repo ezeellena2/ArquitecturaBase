@@ -282,6 +282,30 @@ public sealed class FormRecipientPreviewServiceTests
         }
     }
 
+    // LD1-A: a question that chooses first by a field counts by value, because WhatsApp's 200 apply to each value and to the list
+    // of values. It needs no filter; a field that does not serve gives the error of publishing.
+    [Fact]
+    public async Task Maximum_counts_by_value_for_a_question_that_chooses_first_even_without_filters()
+    {
+        var f = new FormRecipientPreviewFixture();
+        var (zone, kind, attribute) = MaximumFields(f);
+        f.Catalogs.Maximum = new(125, "{}", Groups: 3, LargestGroup: 75);
+
+        var unfiltered = await f.Maximums.FindMaximumAsync(new(new(f.Catalogs.Catalog.Id, GroupBy: kind.Id)), Ct);
+        var byPerson = await f.Maximums.FindMaximumAsync(new(new(f.Catalogs.Catalog.Id, [new(zone.Id, PersonAttributeId: attribute.Id)], GroupBy: kind.Id)), Ct);
+
+        Assert.Equal(new FormRecipientMaximumResponse(125, null, 3, 75), unfiltered.Value);
+        Assert.True(byPerson.IsSuccess);
+        Assert.Equal([(Fields: Array.Empty<Guid>(), GroupBy: (Guid?)kind.Id), (Fields: [zone.Id], GroupBy: kind.Id)],
+            f.Catalogs.MaximumReads.Select(read => (read.Fields, read.GroupBy)));
+        var unknown = await f.Maximums.FindMaximumAsync(new(new(f.Catalogs.Catalog.Id, GroupBy: Guid.CreateVersion7())), Ct);
+        Assert.Equal(FormPublicationErrors.GroupByInvalid.Code, unknown.Error.Code);
+        Assert.Equal(["source.groupBy"], Assert.IsType<ValidationError>(unknown.Error).Errors.Keys);
+        var empty = await f.Maximums.FindMaximumAsync(new(new(f.Catalogs.Catalog.Id, GroupBy: Guid.Empty)), Ct);
+        Assert.Equal(["source.groupBy"], Assert.IsType<ValidationError>(empty.Error).Errors.Keys);
+        Assert.Equal(2, f.Catalogs.MaximumReads.Count);
+    }
+
     [Fact]
     public async Task Maximum_rejects_an_invalid_match_and_rechecks_permissions_after_reading()
     {

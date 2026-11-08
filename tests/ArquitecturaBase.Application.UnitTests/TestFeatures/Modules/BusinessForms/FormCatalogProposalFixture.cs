@@ -86,5 +86,5 @@ internal sealed class FormCatalogProposalFixture : IFormCatalogRepository, IForm
     public Task<bool> ExistsSourceUsageAsync(Guid catalogId, CancellationToken ct) => Task.FromResult(false);
     public Task<IReadOnlyList<FormCatalogItemUsageRow>> ListItemUsesAsync(Guid catalogId, IReadOnlyCollection<Guid> itemIds, CancellationToken ct) => throw new NotSupportedException();
     public Task<FormCatalogMaximumOfferRow> FindMaximumOfferSizeAsync(Guid catalogId, string? fixedContainmentJson,
-        IReadOnlyCollection<Guid> personFieldIds, CancellationToken cancellationToken) => throw new NotSupportedException();
+        IReadOnlyCollection<Guid> personFieldIds, CancellationToken cancellationToken, Guid? groupByFieldId = null) => throw new NotSupportedException();
 }

@@ -105,6 +105,39 @@ public sealed class FormRecipientFilterIntegrationTests(ApiFactory factory)
         Assert.Equal(["source.match"], problem.GetProperty("errors").EnumerateObject().Select(error => error.Name));
     }
 
+    // LD1-A: a question that chooses first by a field counts by value and needs no filter. Proveedores: FIRST y SECOND son «cold»
+    // y OTHER «hot»; Centro ve FIRST y OTHER, uno de cada valor.
+    [Fact]
+    public async Task Recipient_maximum_counts_by_value_for_a_question_that_chooses_first()
+    {
+        await using var scenario = await FormRecipientScenario.CreateAsync(factory, Ct);
+        using var client = scenario.Client("es");
+        JsonObject Source(JsonArray? match, string groupBy)
+        {
+            var source = scenario.Source();
+            source.Remove("match");
+            if (match is not null) source["match"] = match;
+            source["groupBy"] = groupBy;
+            return source;
+        }
+        var kind = scenario.KindFieldId.ToString("D");
+        using var unfiltered = await client.PostAsJsonAsync("/api/forms/recipient-maximums", new { source = Source(null, kind) }, Ct);
+        Assert.Equal(HttpStatusCode.OK, unfiltered.StatusCode);
+        var shared = await unfiltered.ReadJsonAsync();
+        Assert.Equal(["maximum", "maximumLabel", "groups", "largestGroup"], shared.EnumerateObject().Select(property => property.Name));
+        Assert.Equal((3, 2, 2), (shared.GetProperty("maximum").GetInt32(), shared.GetProperty("groups").GetInt32(), shared.GetProperty("largestGroup").GetInt32()));
+        using var perPerson = await client.PostAsJsonAsync("/api/forms/recipient-maximums", new { source = Source(new JsonArray(new JsonObject
+            { ["fieldId"] = scenario.ZoneFieldId.ToString("D"), ["personAttributeId"] = scenario.AttributeId.ToString("D") }), kind) }, Ct);
+        var largest = await perPerson.ReadJsonAsync();
+        Assert.Equal((2, "Centro", 2, 1), (largest.GetProperty("maximum").GetInt32(), largest.GetProperty("maximumLabel").GetString(),
+            largest.GetProperty("groups").GetInt32(), largest.GetProperty("largestGroup").GetInt32()));
+        using var invalid = await client.PostAsJsonAsync("/api/forms/recipient-maximums", new { source = Source(null, Guid.NewGuid().ToString("D")) }, Ct);
+        Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
+        var problem = await invalid.ReadJsonAsync();
+        Assert.Equal(FormPublicationErrors.GroupByInvalid.Code, problem.GetProperty("code").GetString());
+        Assert.Equal(["source.groupBy"], problem.GetProperty("errors").EnumerateObject().Select(error => error.Name));
+    }
+
     [Fact]
     public async Task Checking_and_accepting_unsorted_matches_uses_the_same_hash_and_replays_the_in_progress_manifest()
     {

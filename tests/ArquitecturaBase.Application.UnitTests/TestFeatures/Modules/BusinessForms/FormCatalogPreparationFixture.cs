@@ -91,11 +91,12 @@ internal sealed class FormCatalogPreparationFixture : IFormRecordRepository, IFo
     }
     public Task<FormCatalogsPageResponse> FindPageAsync(ListFormCatalogsRequest request, bool canEdit, bool canReadForms, CancellationToken ct) => throw new NotSupportedException();
     public FormCatalogMaximumOfferRow Maximum { get; set; } = new(0, "{}");
-    public List<(string? Fixed, Guid[] Fields)> MaximumReads { get; } = [];
+    public List<(string? Fixed, Guid[] Fields, Guid? GroupBy)> MaximumReads { get; } = [];
     public Action? OnMaximumRead { get; set; }
-    public Task<FormCatalogMaximumOfferRow> FindMaximumOfferSizeAsync(Guid catalogId, string? fixedContainmentJson, IReadOnlyCollection<Guid> personFieldIds, CancellationToken ct)
+    public Task<FormCatalogMaximumOfferRow> FindMaximumOfferSizeAsync(Guid catalogId, string? fixedContainmentJson, IReadOnlyCollection<Guid> personFieldIds, CancellationToken ct,
+        Guid? groupByFieldId = null)
     {
-        MaximumReads.Add((fixedContainmentJson, personFieldIds.Order().ToArray()));
+        MaximumReads.Add((fixedContainmentJson, personFieldIds.Order().ToArray(), groupByFieldId));
         OnMaximumRead?.Invoke();
         return Task.FromResult(Maximum);
     }

@@ -23,7 +23,7 @@ internal sealed class FormPublicationMultipleCatalogFixture : IFormCatalogReader
     public IReadOnlyList<FormCatalogStoredItemRow> Items { get; set; } = [];
     public Dictionary<Guid, IReadOnlyList<FormCatalogStoredItemRow>> Sources { get; } = [];
     public FormCatalogMaximumOfferRow Maximum { get; set; } = new(0, "{}");
-    public List<(string? Fixed, Guid[] Fields)> MaximumReads { get; } = [];
+    public List<(string? Fixed, Guid[] Fields, Guid? GroupBy)> MaximumReads { get; } = [];
 
     public FormPublicationGuard Guard => new(null!, this, null!, Options.Create(new BusinessFormsOptions()), People, new(this));
     public CanonicalFormField Field(string type = "multiChoice")
@@ -46,9 +46,10 @@ internal sealed class FormPublicationMultipleCatalogFixture : IFormCatalogReader
     }
     public Task<IReadOnlyList<FormCatalogStoredItemRow>> ListAllItemsAsync(Guid id, CancellationToken ct) =>
         Task.FromResult(id == CatalogId ? Items : Sources.GetValueOrDefault(id) ?? []);
-    public Task<FormCatalogMaximumOfferRow> FindMaximumOfferSizeAsync(Guid catalogId, string? fixedContainmentJson, IReadOnlyCollection<Guid> personFieldIds, CancellationToken ct)
+    public Task<FormCatalogMaximumOfferRow> FindMaximumOfferSizeAsync(Guid catalogId, string? fixedContainmentJson, IReadOnlyCollection<Guid> personFieldIds, CancellationToken ct,
+        Guid? groupByFieldId = null)
     {
-        MaximumReads.Add((fixedContainmentJson, personFieldIds.Order().ToArray()));
+        MaximumReads.Add((fixedContainmentJson, personFieldIds.Order().ToArray(), groupByFieldId));
         return Task.FromResult(Maximum);
     }
     public Task<IReadOnlyList<FormCatalogStoredItemRow>> ListOfferItemsAsync(Guid id, CancellationToken ct, string? fieldValueContainmentJson = null, int limit = 201) => throw new NotSupportedException();

@@ -83,6 +83,29 @@ public sealed class FormCatalogPublicationMatchTests : IDisposable
         Assert.DoesNotContain("maximum", FormDraftPolicy.Serialize(missing));
     }
 
+    // LD1-A: with a question that chooses first by a field, WhatsApp's 200 apply to each value and to the list of values, not to
+    // the total; the warning reports the largest of the two.
+    [Theory]
+    [InlineData(250, 3, 120, false)]
+    [InlineData(250, 3, 230, true)]
+    [InlineData(450, 230, 2, true)]
+    public async Task A_question_that_chooses_first_warns_only_when_a_value_or_the_list_of_values_does_not_fit(int maximum, int groups, int largest, bool warns)
+    {
+        var f = new FormPublicationMultipleCatalogFixture { Maximum = new(maximum, "{}", groups, largest) };
+        var filter = Field("text");
+        var kind = Field("text") with { Role = "data" };
+        f.Fields = [filter, kind];
+        var question = f.Field("choice") with { Source = new(f.CatalogId, [new(filter.Id, "cold")], GroupBy: kind.Id) };
+
+        var result = await f.Guard.InspectCatalogsAsync([question], Ct);
+
+        Assert.Empty(result.Issues);
+        var warning = result.Warnings.SingleOrDefault(value => value.Code == FormPublicationErrors.OptionsPerRecipientHigh.Code);
+        Assert.Equal(warns, warning is not null);
+        if (warning is not null) Assert.Equal((200, Math.Max(groups, largest)), (warning.Limit, warning.Maximum));
+        Assert.Equal(kind.Id, Assert.Single(f.MaximumReads).GroupBy);
+    }
+
     [Fact]
     public async Task A_fixed_filter_that_leaves_more_than_twenty_options_blocks_a_multiple_choice_without_person_filters()
     {

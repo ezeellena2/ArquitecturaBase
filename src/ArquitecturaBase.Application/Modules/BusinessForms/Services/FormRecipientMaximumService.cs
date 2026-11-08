@@ -19,19 +19,22 @@ internal sealed class FormRecipientMaximumService(FormDraftAccessGuard access, I
         if (allowed.IsFailure) return allowed.Error;
         if (await validator.ValidateAsync(request, ct) is { } invalid) return invalid;
         var catalogId = request.Source.Catalog!.Value;
-        var matches = request.Source.Match!;
+        // LD1-A: a question that chooses first by a field has a maximum by value even without filters.
+        var matches = request.Source.Match ?? [];
         var catalog = await catalogs.FindAsync(catalogId, ct);
         if (catalog is not { IsActive: true, Kind: "Manual" }) return await RejectAsync(FieldErrors.On(FormPublicationErrors.CatalogInvalid, "source.catalog"), ct);
         var fields = FormCatalogFieldPolicy.ReadFields(catalog.FieldsJson);
+        if (request.Source.GroupBy is { } groupBy && fields.SingleOrDefault(field => field.Id == groupBy) is not { IsActive: true, Type: "text" or "catalog" })
+            return await RejectAsync(FieldErrors.On(FormPublicationErrors.GroupByInvalid, "source.groupBy"), ct);
         var attributes = matches.Any(match => match.PersonAttributeId is not null) ? await people.ListAttributesAsync(ct) : [];
         if (FormCatalogMatchPolicy.Validate(matches, fields, attributes) is { } mismatch) return await RejectAsync(FieldErrors.On(mismatch, "source.match"), ct);
         // The same check as publishing, so the editor shows no maximum for a filter that publishing would block.
         if (await maximums.CheckFixedValuesAsync(fields, matches, [], ct) is { } unavailable)
             return await RejectAsync(FieldErrors.On(unavailable, "source.match"), ct);
         var uiCulture = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es";
-        var (maximum, label) = await maximums.FindAsync(catalogId, fields, matches, uiCulture, ct);
+        var (maximum, label, groups, largestGroup) = await maximums.FindAsync(catalogId, fields, matches, uiCulture, ct, request.Source.GroupBy);
         allowed = await access.CheckRecipientPreviewAsync(ct);
-        return allowed.IsFailure ? allowed.Error : new FormRecipientMaximumResponse(maximum, label);
+        return allowed.IsFailure ? allowed.Error : new FormRecipientMaximumResponse(maximum, label, groups, largestGroup);
     }
 
     // An error found after reading describes the catalog and its setup: like the preview's absences, it is returned only

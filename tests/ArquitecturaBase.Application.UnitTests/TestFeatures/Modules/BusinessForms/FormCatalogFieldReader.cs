@@ -32,5 +32,5 @@ internal sealed class FormCatalogFieldReader : IFormCatalogReader
     public Task<int> CountActiveItemsAsync(Guid catalogId, CancellationToken ct) => throw new NotSupportedException();
     public Task<PagedResult<FormCatalogItemResponse>> ListItemsAsync(Guid id, ListFormCatalogItemsRequest request, CancellationToken ct) => throw new NotSupportedException();
     public Task<FormCatalogMaximumOfferRow> FindMaximumOfferSizeAsync(Guid catalogId, string? fixedContainmentJson,
-        IReadOnlyCollection<Guid> personFieldIds, CancellationToken cancellationToken) => throw new NotSupportedException();
+        IReadOnlyCollection<Guid> personFieldIds, CancellationToken cancellationToken, Guid? groupByFieldId = null) => throw new NotSupportedException();
 }

@@ -151,5 +151,5 @@ public sealed record FormCatalogStoredItemRow(
     private static string? Present(string? text) => string.IsNullOrWhiteSpace(text) ? null : text;
 }
 
-public sealed record FormCatalogMaximumOfferRow(int Maximum, string ValuesJson)
+public sealed record FormCatalogMaximumOfferRow(int Maximum, string ValuesJson, int? Groups = null, int? LargestGroup = null)
 { public override string ToString() => "FormCatalogMaximumOfferRow { Content = [REDACTED] }"; }

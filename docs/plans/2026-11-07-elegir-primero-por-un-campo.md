@@ -155,7 +155,7 @@ borró el Flow. LD2-A queda confirmada:
    con un solo valor, viene elegido; otro valor limpia la opción. Al corregir, el primer combo arranca con el valor de la
    opción guardada, que da el backend en `group` (57866e49, con la captura correction-groupby-es). Falta la exportación conjunta
    de las cohortes, con el test de contrato del front sobre las cuatro capturas de LD1-A.
-4. **WhatsApp:** r11, el mensaje, la vista oficial y el chequeo de los 200 por valor. La oferta agrupada con el tope por valor quedó el 2026-11-07 (54ffc60b) y r11, el mensaje y la vista oficial el 2026-11-08, probados con Meta con dos borradores compilados por la app (dos pantallas, y renglones con mínimo 0) que se recorrieron en la vista oficial y se borraron. La regla quedó en [formularios](../features/formularios.md#elegir-primero-por-un-campo--ld1-a-2026-11-07). Falta el resumen por valor del editor («en 3 rubros. El más grande tiene 75»).
+4. **WhatsApp:** r11, el mensaje, la vista oficial y el chequeo de los 200 por valor. La oferta agrupada con el tope por valor quedó el 2026-11-07 (54ffc60b) y r11, el mensaje y la vista oficial el 2026-11-08, probados con Meta con dos borradores compilados por la app (dos pantallas, y renglones con mínimo 0) que se recorrieron en la vista oficial y se borraron. La regla quedó en [formularios](../features/formularios.md#elegir-primero-por-un-campo--ld1-a-2026-11-07). El resumen por valor del editor quedó el 2026-11-08, con «en 3 valores de «Rubro»» porque el nombre del campo no se pasa a plural.
 
 LD3-A se programa con la Etapa 2 de renglones.
 

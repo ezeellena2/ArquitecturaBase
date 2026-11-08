@@ -126,7 +126,7 @@ internal sealed class FormPublicationGuard(FormPublicationAccessGuard accessGuar
                     ErrorMessages.Get(FormPublicationErrors.DependsOnAnswer.Code)));
             else
             {
-                var (maximum, maximumLabel) = await maximums.FindAsync(catalogId, fields, matches, culture, ct);
+                var (maximum, maximumLabel, groups, largestGroup) = await maximums.FindAsync(catalogId, fields, matches, culture, ct, source.GroupBy);
                 if (blocks && maximum > limit)
                 {
                     Issue(FormPublicationErrors.CatalogTooLargeForMultiple, ".catalog");
@@ -134,9 +134,11 @@ internal sealed class FormPublicationGuard(FormPublicationAccessGuard accessGuar
                 }
                 if (!includeWarnings) continue;
                 // NI3-B (2026-11-03): like the question editor, the maximum warns only when it does not fit or nobody sees an option.
-                if (maximum == 0 || maximum > limit)
+                // LD1-A: choosing first by a field, the limit applies to each value and to the list of values, not to the total.
+                var largest = groups is null ? maximum : Math.Max(groups.Value, largestGroup!.Value);
+                if (maximum == 0 || largest > limit)
                     warnings.Add(new(question.FieldId, path + ".match", FormPublicationErrors.OptionsPerRecipientHigh.Code,
-                        ErrorMessages.Get(FormPublicationErrors.OptionsPerRecipientHigh.Code), limit, maximum, maximumLabel));
+                        ErrorMessages.Get(FormPublicationErrors.OptionsPerRecipientHigh.Code), limit, largest, maximumLabel));
             }
             var attributeIds = matches.Where(match => match.PersonAttributeId is not null).Select(match => match.PersonAttributeId!.Value).Distinct().ToArray();
             if (attributeIds.Length == 0) continue;

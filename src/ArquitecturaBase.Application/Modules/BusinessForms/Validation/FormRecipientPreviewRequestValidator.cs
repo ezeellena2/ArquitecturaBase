@@ -27,7 +27,9 @@ internal sealed class FormRecipientMaximumRequestValidator : AbstractValidator<F
     {
         void Fail(string path) => context.AddFailure(path, ErrorMessages.Get(FormDefinitionErrors.ContentInvalid.Code));
         if (request.Source?.Catalog is null || request.Source.Catalog == Guid.Empty) Fail("source.catalog");
-        if (request.Source?.Match is not { Count: > 0 } || !FormCatalogMatchPolicy.HasValidShape(request.Source.Match)) Fail("source.match");
+        // LD1-A: a question that chooses first by a field needs no filter.
+        if (request.Source?.GroupBy == Guid.Empty) Fail("source.groupBy");
+        if (request.Source?.Match is { Count: > 0 } match ? !FormCatalogMatchPolicy.HasValidShape(match) : request.Source?.GroupBy is null) Fail("source.match");
     });
 }
 

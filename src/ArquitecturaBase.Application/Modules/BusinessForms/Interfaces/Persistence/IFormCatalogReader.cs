@@ -16,7 +16,9 @@ public interface IFormCatalogReader
     Task<IReadOnlyList<FormCatalogFieldUsageRow>> ListFieldUsageAsync(Guid catalogId, IReadOnlyCollection<Guid> fieldIds, CancellationToken cancellationToken);
     Task<bool> ExistsSourceUsageAsync(Guid catalogId, CancellationToken cancellationToken);
     Task<IReadOnlyList<FormCatalogItemUsageRow>> ListItemUsesAsync(Guid catalogId, IReadOnlyCollection<Guid> itemIds, CancellationToken cancellationToken);
-    Task<FormCatalogMaximumOfferRow> FindMaximumOfferSizeAsync(Guid catalogId, string? fixedContainmentJson, IReadOnlyCollection<Guid> personFieldIds, CancellationToken cancellationToken);
+    // LD1-A: with the field a question chooses first by, it also counts the values and the options of the largest one.
+    Task<FormCatalogMaximumOfferRow> FindMaximumOfferSizeAsync(Guid catalogId, string? fixedContainmentJson, IReadOnlyCollection<Guid> personFieldIds,
+        CancellationToken cancellationToken, Guid? groupByFieldId = null);
     Task<int> CountActiveItemsAsync(Guid catalogId, CancellationToken cancellationToken);
     Task<PagedResult<FormCatalogItemResponse>> ListItemsAsync(Guid id, ListFormCatalogItemsRequest request, CancellationToken cancellationToken);
 }
