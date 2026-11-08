@@ -6,8 +6,9 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persiste
 public interface IFormCatalogReader
 {
     Task<IReadOnlyList<FormCatalogStoredItemRow>> ListAllItemsAsync(Guid catalogId, CancellationToken cancellationToken);
+    /// <summary>The active options within the containment, in order, up to <paramref name="limit"/> (one more than a list takes, to tell it passed).</summary>
     Task<IReadOnlyList<FormCatalogStoredItemRow>> ListOfferItemsAsync(Guid catalogId, CancellationToken cancellationToken,
-        string? fieldValueContainmentJson = null);
+        string? fieldValueContainmentJson = null, int limit = 201);
     Task<FormCatalogsPageResponse> FindPageAsync(ListFormCatalogsRequest request, bool canEdit, bool canReadForms,
         CancellationToken cancellationToken);
     Task<FormCatalogStoredRow?> FindAsync(Guid id, CancellationToken cancellationToken);

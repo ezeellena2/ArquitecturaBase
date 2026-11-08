@@ -94,6 +94,21 @@ public sealed class FormAssistantCandidatePolicyTests
 
         Assert.Equal([supplier], candidate.Value.Questions.Select(question => question.FieldId));
     }
+    // LD2-A: a question that chooses first by a field starts with its list empty, so it is not prefilled either.
+    [Fact]
+    public void A_question_that_chooses_first_by_a_field_is_not_offered_to_prefill()
+    {
+        var supplier = Guid.CreateVersion7();
+        var catalog = Guid.CreateVersion7();
+        var schema = new FormVersionSchema(1, [Question(supplier, "choice") with { Source = new(catalog) },
+            Question(Guid.CreateVersion7(), "choice") with { Source = new(catalog, GroupBy: Guid.CreateVersion7()) }]);
+        var row = new FormAssistantCandidateRow(Guid.CreateVersion7(), Guid.CreateVersion7(), 1, "PED", """{"es":"Pedido"}""", """{"es":"Enviar"}""",
+            "es", 2, 1, "Cuando falte un insumo", FormDraftPolicy.Serialize(schema));
+
+        var candidate = FormAssistantCandidatePolicy.Project(row, new([], []) { Culture = "es" });
+
+        Assert.Equal([supplier], candidate.Value.Questions.Select(question => question.FieldId));
+    }
     private static CanonicalFormField Question(Guid id, string type) =>
         new(id, "field_" + id.ToString("N"), type, new Dictionary<string, string> { ["es"] = "Pregunta" }, null, false, null, null);
     private static CancellationToken Ct => TestContext.Current.CancellationToken;

@@ -16,9 +16,19 @@ internal static class FormCatalogOfferPolicy
             || translations.Any(pair => pair.Key is not ("es" or "en") || InvalidText(pair.Value.Text, pair.Value.Detail)));
 
     // An option needs no text in the form's language: it carries its catalog's original, which is shown when the translation is missing.
-    public static string? Validate(bool required, IReadOnlyList<StructuredFormCatalogOption> options, FormSelectionSettings? selection = null)
+    // LD2-A: a grouped offer (the question chooses first by a field) is limited for each value and for the list of values, not for
+    // the total, and each option belongs to one of its values.
+    public static string? Validate(bool required, IReadOnlyList<StructuredFormCatalogOption> options, FormSelectionSettings? selection = null,
+        StructuredFormCatalogGrouping? grouping = null)
     {
-        if (options.Count > (selection is null ? 200 : 20))
+        if (grouping is not null)
+        {
+            if (grouping.Groups.Count > 200 || options.GroupBy(option => option.Group).Any(group => group.Count() > 200)) return FormRecordErrors.CatalogTooLarge.Code;
+            if (grouping.Groups.Select(group => group.Value).Distinct().Count() != grouping.Groups.Count
+                || options.Any(option => !grouping.Groups.Any(group => group.Value == option.Group)))
+                return FormRecordErrors.CatalogOptionInvalid.Code;
+        }
+        else if (options.Count > (selection is null ? 200 : 20))
             return selection is null ? FormRecordErrors.CatalogTooLarge.Code : FormRecordErrors.CatalogTooLargeForMultiple.Code;
         if (required && options.Count == 0) return FormRecordErrors.CatalogEmpty.Code;
         if (selection is not null && options.Count < selection.MinSelected) return FormRecordErrors.CatalogInsufficientOptions.Code;

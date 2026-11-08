@@ -40,7 +40,9 @@ internal static class FormSuggestionPolicy
                 var mappingPath = path + $".mappings[{mappingIndex}]";
                 if (mapping?.Source is null) return Invalid(mappingPath + ".source");
                 var target = destination.Questions.SingleOrDefault(field => field.FieldId == mapping.DestinationFieldId);
-                if (target is null || !targetIds.Add(target.FieldId) || !IsScalar(target.Type) || target.Repeated == true) return Invalid(mappingPath + ".destinationFieldId");
+                // LD2-A: a question that chooses first by a field starts with its list empty, so nothing is carried into it.
+                if (target is null || !targetIds.Add(target.FieldId) || !IsScalar(target.Type) || target.Repeated == true || target.Source?.GroupBy is not null)
+                    return Invalid(mappingPath + ".destinationFieldId");
                 if (mapping.Source.Kind == "RecordNumber")
                 {
                     if (mapping.Source.FieldId is not null || target.Type is not ("shortText" or "longText")) return Invalid(mappingPath + ".source");

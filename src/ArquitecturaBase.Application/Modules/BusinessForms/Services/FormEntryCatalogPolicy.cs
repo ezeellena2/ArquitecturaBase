@@ -118,13 +118,8 @@ internal sealed class FormEntryCatalogPolicy(FormCatalogOptionsPolicy options, I
         var sourceItems = field.Type == "catalog" && field.SourceCatalogId is { } sourceId ? await catalogs.ListAllItemsAsync(sourceId, ct) : [];
         var key = field.Id.ToString("D");
         return itemId => items.TryGetValue(itemId, out var item)
-            ? FormCatalogGroupPolicy.Present(field, [new FormEntryGroupRow(GroupValue(item.FieldValuesJson, key), 1)], sourceItems, culture).Single() : null;
+            ? FormCatalogGroupPolicy.Present(field, [new FormEntryGroupRow(FormCatalogGroupPolicy.Value(item.FieldValuesJson, key), 1)], sourceItems, culture).Single() : null;
     }
-
-    // The stored value of the field as the list of values reads it: a text, or nothing for an empty one.
-    private static string? GroupValue(string fieldValuesJson, string key) =>
-        FormCatalogFieldPolicy.ReadValues(fieldValuesJson).TryGetValue(key, out var value) && value.ValueKind == System.Text.Json.JsonValueKind.String
-            && value.GetString() is { Length: > 0 } text ? text : null;
 
     /// <summary>The offer of each answered catalog question with only the chosen options, still active and within the filters.</summary>
     public async Task<Result<IReadOnlyList<StructuredFormCatalogOffer>>> OffersAsync(Guid recipient, FormVersionSchema schema,

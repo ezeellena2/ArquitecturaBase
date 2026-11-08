@@ -109,17 +109,17 @@ internal sealed partial class FormCatalogReader(ApplicationDbContext dbContext) 
                 item.DetailEs, item.DetailEn, item.Position, item.IsActive, item.Value, item.FieldValuesJson)).ToListAsync(cancellationToken);
 
     public async Task<IReadOnlyList<FormCatalogStoredItemRow>> ListOfferItemsAsync(Guid catalogId, CancellationToken cancellationToken,
-        string? fieldValueContainmentJson = null) =>
-        await FindOfferItems(catalogId, fieldValueContainmentJson)
+        string? fieldValueContainmentJson = null, int limit = 201) =>
+        await FindOfferItems(catalogId, fieldValueContainmentJson, limit)
             .Select(item => new FormCatalogStoredItemRow(item.Id, item.CatalogId, item.Code, item.TextEs, item.TextEn,
                 item.DetailEs, item.DetailEn, item.Position, item.IsActive, item.Value, item.FieldValuesJson)).ToListAsync(cancellationToken);
 
-    private IQueryable<BusinessFormCatalogItem> FindOfferItems(Guid catalogId, string? fieldValueContainmentJson)
+    private IQueryable<BusinessFormCatalogItem> FindOfferItems(Guid catalogId, string? fieldValueContainmentJson, int limit)
     {
         var items = dbContext.Set<BusinessFormCatalogItem>().AsNoTracking().Where(item => item.CatalogId == catalogId && item.IsActive);
         if (fieldValueContainmentJson is not null)
             items = items.Where(item => EF.Functions.JsonContains(item.FieldValuesJson, fieldValueContainmentJson));
-        return items.OrderBy(item => item.Position).ThenBy(item => item.Id).Take(201);
+        return items.OrderBy(item => item.Position).ThenBy(item => item.Id).Take(limit);
     }
 
     public Task<FormCatalogStoredRow?> FindAsync(Guid id, CancellationToken cancellationToken) =>

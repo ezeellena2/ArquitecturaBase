@@ -50,6 +50,11 @@ internal static class FormCatalogGroupPolicy
         return JsonSerializer.Serialize(values, JsonSerializerOptions.Web);
     }
 
+    /// <summary>The value an option holds in the field, as the values read it: its stored text, or null when it has none.</summary>
+    public static string? Value(string fieldValuesJson, string key) =>
+        FormCatalogFieldPolicy.ReadValues(fieldValuesJson).TryGetValue(key, out var value) && value.ValueKind == JsonValueKind.String
+            && value.GetString() is { Length: > 0 } text ? text : null;
+
     private static StringComparer Comparer(string culture) =>
         StringComparer.Create(CultureInfo.GetCultureInfo(culture == "en" ? "en-US" : "es-AR"), CompareOptions.IgnoreCase);
 

@@ -25,7 +25,7 @@ internal sealed class FormCatalogFieldReader : IFormCatalogReader
         return Task.FromResult<IReadOnlyList<FormCatalogItemUsageRow>>(ItemUses.Where(use => itemIds.Contains(use.ItemId)).ToArray());
     }
     public Task<IReadOnlyList<FormCatalogStoredItemRow>> ListAllItemsAsync(Guid catalogId, CancellationToken ct) => Task.FromResult(Items.GetValueOrDefault(catalogId) ?? (IReadOnlyList<FormCatalogStoredItemRow>)[]);
-    public Task<IReadOnlyList<FormCatalogStoredItemRow>> ListOfferItemsAsync(Guid catalogId, CancellationToken ct, string? fieldValueContainmentJson = null) => throw new NotSupportedException();
+    public Task<IReadOnlyList<FormCatalogStoredItemRow>> ListOfferItemsAsync(Guid catalogId, CancellationToken ct, string? fieldValueContainmentJson = null, int limit = 201) => throw new NotSupportedException();
     public Task<FormCatalogStoredRow?> FindAsync(Guid id, CancellationToken ct) => Task.FromResult(Catalogs.GetValueOrDefault(id));
     public Task<FormCatalogsPageResponse> FindPageAsync(ListFormCatalogsRequest request, bool canEdit, bool canReadForms, CancellationToken ct) => throw new NotSupportedException();
     public Task<int> CountUsageAsync(Guid catalogId, CancellationToken ct) => Task.FromResult(0);

@@ -13,9 +13,12 @@ internal static class FormPublicationSnapshotPolicy
             field.Required, field.MaxLength, field.Options?.Select(option => new StructuredFormChoice(option.ChoiceId, option.Label)).ToArray(),
             field.Source?.Catalog, field.Files is null ? null : new StructuredFormFileSettings(field.Files.MinFiles, field.Files.MaxFiles, field.Files.PhotoSource),
                 field.Selection is null ? null : new StructuredFormSelectionSettings(field.Selection.MinSelected, field.Selection.MaxSelected),
-                field.Rows is null ? null : new StructuredFormRowSettings(field.Rows.MinRows, field.Rows.MaxRows), field.Repeated)).ToArray(),
+                field.Rows is null ? null : new StructuredFormRowSettings(field.Rows.MinRows, field.Rows.MaxRows), field.Repeated,
+                ChoosesFirst(field.Source?.GroupBy))).ToArray(),
         FormPublicationPolicy.CheckCultures(saved).Where(culture => culture.IsComplete).Select(culture => culture.Culture).ToArray(),
         saved.Draft.Fields.Any(field => field.Files is not null) ? maxFileSizeMiB ?? 25 : null, Sections(saved.Draft.Sections));
+    /// <summary>LD2-A: whether the question asks first for a field's value; null without it, so the request keeps its bytes.</summary>
+    public static bool? ChoosesFirst(Guid? groupBy) => groupBy is null ? null : true;
     public static StructuredFormSection[]? Sections(IReadOnlyList<FormSection>? sections) =>
         sections?.Select(section => new StructuredFormSection(section.Start, section.Title)).ToArray();
 

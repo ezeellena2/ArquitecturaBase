@@ -106,6 +106,19 @@ public sealed class FormSuggestionPolicyTests
         Assert.True(FormSuggestionPolicy.Normalize(new(0, [suggestion]), context with { Source = source, Destinations = [destination] }).IsFailure);
     }
 
+    // LD2-A: a question that chooses first by a field starts with its list empty, so nothing is carried into it.
+    [Fact]
+    public void Nothing_is_mapped_into_a_question_that_chooses_first_by_a_field()
+    {
+        var catalog = Guid.CreateVersion7();
+        var suggestion = Suggestion() with { Mappings = [new(new("Field", SourceFieldId), TargetFieldId)] };
+        var context = Context();
+        var source = context.Source with { Questions = [Field(SourceFieldId, "choice") with { Source = new(catalog) }] };
+        var destination = context.Destinations[0] with { Questions = [Field(TargetFieldId, "choice") with { Source = new(catalog, GroupBy: Guid.CreateVersion7()) }] };
+
+        Assert.True(FormSuggestionPolicy.Normalize(new(0, [suggestion]), context with { Source = source, Destinations = [destination] }).IsFailure);
+    }
+
     [Fact]
     public void A_destination_field_can_receive_only_one_mapping()
     {

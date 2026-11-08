@@ -34,8 +34,20 @@ internal sealed class FormCatalogOptionsPolicy(IFormCatalogReader catalogs, IFor
             var catalog = source.Catalog!;
             var valueType = ValueType(catalog);
             IReadOnlyList<StructuredFormCatalogOption> options;
+            StructuredFormCatalogGrouping? grouping = null;
             if (catalog.Kind == "Manual")
-                options = await ManualOptionsAsync(source, await catalogs.ListOfferItemsAsync(catalog.Id, ct, source.Containment), culture, ct);
+            {
+                // LD2-A: a question that chooses first by a field needs that field, and all its options, which are limited per value.
+                var groupBy = GroupByField(question, source.Fields);
+                if (question.Source!.GroupBy is not null && groupBy is null)
+                {
+                    issues.Add(new(question.FieldId, label, FormRecordErrors.CatalogFilterUnavailable.Code));
+                    continue;
+                }
+                var items = await catalogs.ListOfferItemsAsync(catalog.Id, ct, source.Containment, groupBy is null ? OfferReadLimit : BusinessFormCatalog.MaxItems);
+                options = await ManualOptionsAsync(source, items, culture, ct);
+                if (groupBy is not null) (options, grouping) = await GroupAsync(groupBy, items, options, culture, ct);
+            }
             else
             {
                 var definition = FormDraftPolicy.Read<FormCatalogFilterDefinition>(catalog.FiltersJson!);
@@ -50,9 +62,9 @@ internal sealed class FormCatalogOptionsPolicy(IFormCatalogReader catalogs, IFor
             }
             var offer = new StructuredFormCatalogOffer(question.FieldId, question.Key, label, catalog.Id, catalog.Revision, catalog.Kind,
                 Name(catalog.NameJson, culture, originalCulture), options,
-                FormDraftPolicy.Read<Dictionary<string, string>>(catalog.NameJson), valueType);
+                FormDraftPolicy.Read<Dictionary<string, string>>(catalog.NameJson), valueType, grouping);
             var issue = FormCatalogOfferPolicy.InvalidValues(offer) ? FormRecordErrors.CatalogOptionInvalid.Code
-                : inspectOnly ? null : FormCatalogOfferPolicy.Validate(question.Required, options, question.Selection);
+                : inspectOnly ? null : FormCatalogOfferPolicy.Validate(question.Required, options, question.Selection, grouping);
             if (issue is not null) issues.Add(new(question.FieldId, label, issue, offer.CatalogName,
                 issue == FormRecordErrors.CatalogOptionInvalid.Code ? options.Count(option => FormCatalogOfferPolicy.IsInvalid(option)
                     || FormCatalogOfferPolicy.InvalidValue(option, valueType)) : null));
@@ -84,7 +96,21 @@ internal sealed class FormCatalogOptionsPolicy(IFormCatalogReader catalogs, IFor
                     : FormDraftPolicy.Read<FormCatalogPresentation>(catalog.PresentationJson));
                 if (containment.IsFailure || !FormCatalogPresentationPolicy.ValidConfiguration(presentation, fields, catalog.ValueType)) continue;
                 var source = new FormCatalogQuestionSource(catalog, fields, presentation, containment.Value, null, null, null);
-                options = await ManualOptionsAsync(source, await catalogs.ListOfferItemsAsync(catalog.Id, ct, containment.Value), culture, ct);
+                var groupBy = GroupByField(question, fields);
+                if (question.Source.GroupBy is not null && groupBy is null) continue;
+                var items = await catalogs.ListOfferItemsAsync(catalog.Id, ct, containment.Value, groupBy is null ? OfferReadLimit : BusinessFormCatalog.MaxItems);
+                options = await ManualOptionsAsync(source, items, culture, ct);
+                if (groupBy is not null)
+                {
+                    // LD2-A: the first values, each with its first options.
+                    var (grouped, grouping) = await GroupAsync(groupBy, items, options, culture, ct);
+                    var shown = grouping.Groups.Take(PreviewOptionLimit).ToArray();
+                    var kept = shown.SelectMany(group => grouped.Where(option => option.Group == group.Value).Take(PreviewOptionLimit)).Select(option => option.Id).ToHashSet();
+                    offers.Add(new(question.FieldId, question.Key, FormRecordPresentationPolicy.Text(question.Label, culture), catalog.Id, catalog.Revision,
+                        catalog.Kind, Name(catalog.NameJson, culture, originalCulture), grouped.Where(option => kept.Contains(option.Id)).ToArray(),
+                        FormDraftPolicy.Read<Dictionary<string, string>>(catalog.NameJson), ValueType(catalog), grouping with { Groups = shown }));
+                    continue;
+                }
             }
             else
             {
@@ -109,7 +135,7 @@ internal sealed class FormCatalogOptionsPolicy(IFormCatalogReader catalogs, IFor
         {
             var question = questions[offer.FieldId];
             var code = FormCatalogOfferPolicy.InvalidValues(offer) ? FormRecordErrors.CatalogOptionInvalid.Code
-                : FormCatalogOfferPolicy.Validate(question.Required, offer.Options, question.Selection);
+                : FormCatalogOfferPolicy.Validate(question.Required, offer.Options, question.Selection, offer.Grouping);
             if (code is null) offers.Add(offer);
             else issues.Add(new(offer.FieldId, offer.Label, code, offer.CatalogName,
                 code == FormRecordErrors.CatalogOptionInvalid.Code ? offer.Options.Count(option => FormCatalogOfferPolicy.IsInvalid(option)
@@ -171,6 +197,27 @@ internal sealed class FormCatalogOptionsPolicy(IFormCatalogReader catalogs, IFor
             definition.TextColumn == "active" ? FormCatalogOfferPolicy.LocalizeBoolean(item.Text, culture) : item.Text,
             definition.DetailColumn == "active" && item.Detail is not null
                 ? FormCatalogOfferPolicy.LocalizeBoolean(item.Detail, culture) : item.Detail, FilterTexts(item, definition))).ToArray();
+
+    // Enough options to tell when a list passes its limit of 200.
+    private const int OfferReadLimit = 201;
+
+    // LD1-A: the field a question chooses first by, while it is an active field of text or catalog type.
+    private static BusinessFormCatalogField? GroupByField(CanonicalFormField question, IReadOnlyList<BusinessFormCatalogField> fields) =>
+        question.Source?.GroupBy is { } groupBy ? fields.SingleOrDefault(field => field.Id == groupBy && field.IsActive && field.Type is "text" or "catalog") : null;
+
+    // LD2-A: each option with its value in the field to choose first, and the values in order with their texts, as the app lists
+    // them (`FormCatalogGroupPolicy.Present`), under the field's name in the offer's culture.
+    private async Task<(IReadOnlyList<StructuredFormCatalogOption> Options, StructuredFormCatalogGrouping Grouping)> GroupAsync(BusinessFormCatalogField field,
+        IReadOnlyList<FormCatalogStoredItemRow> items, IReadOnlyList<StructuredFormCatalogOption> options, string culture, CancellationToken ct)
+    {
+        var key = field.Id.ToString("D");
+        var values = items.ToDictionary(item => item.Id, item => FormCatalogGroupPolicy.Value(item.FieldValuesJson, key));
+        var grouped = options.Select(option => option with { Group = values[option.Id] }).ToArray();
+        var rows = grouped.GroupBy(option => option.Group).Select(group => new FormEntryGroupRow(group.Key, group.Count())).ToArray();
+        var sourceItems = field.Type == "catalog" && field.SourceCatalogId is { } sourceId ? await catalogs.ListAllItemsAsync(sourceId, ct) : [];
+        var groups = FormCatalogGroupPolicy.Present(field, rows, sourceItems, culture).Select(group => new StructuredFormCatalogGroup(group.Id, group.Text)).ToArray();
+        return (grouped, new(FormRecordPresentationPolicy.Text(field.Name, culture), groups));
+    }
 
     /// <summary>The typed value of a Manual catalog's options; a text catalog and Filters offer none.</summary>
     public static string? ValueType(FormCatalogStoredRow catalog) => catalog.Kind == "Manual" && catalog.ValueType != "Text" ? catalog.ValueType : null;
