@@ -453,7 +453,9 @@ en Inicio (IA1-A) y por WhatsApp (IA3-A). El asistente lee los nombres y campos 
 tienen traducción: es el mismo nombre que compara crear. Propone con `forms.authoring.propose-form` o
 `forms.authoring.propose-catalog`. BusinessForms valida la propuesta: el formulario, con `SaveFormDraftRequestValidator` y sólo con
 catálogos activos que la persona puede leer; el catálogo, con `FormAuthoringProposalPolicy`. Un dato inválido vuelve al modelo como
-`rejected` con las rutas de sus argumentos para que lo corrija; nunca se elige ni se recorta. La IA no publica, no activa ni importa.
+`rejected` con las rutas de sus argumentos para que lo corrija; nunca se elige ni se recorta. Un prefijo pedido que no cumple el formato
+(de 1 a 12 mayúsculas o cifras, empezando con una letra) se cambia, sin preguntar, por el válido más parecido, en mayúsculas y sin
+espacios ni símbolos: la propuesta lo muestra y la persona decide. La IA no publica, no activa ni importa.
 
 En Inicio la propuesta es una tarjeta bajo la respuesta que la trae: «Ver cómo queda» abre la vista previa del editor, y «Crear
 borrador» o «Crear catálogo» llama a `POST api/forms/definitions/assistant-proposals` o `POST api/forms/catalogs/assistant-proposals`
