@@ -252,14 +252,15 @@ cuatro del evaluador estaban en rojo. Unitarios (3954) y arquitectura (207) en v
 - [x] `FormActionMessagePolicy.Render` y `FormRulePolicy.ValidPlaceholders`.
 - [x] Commit: `feat(formularios): el mensaje de una regla trae el bloque con un ítem por línea`.
 
-Hecho el 2026-11-08. El salto antes del primer ítem no quita el espacio que lo precede («Llegó: » y la línea nueva), que en
-el aviso no se ve; «Así llega» sigue la misma regla.
+Hecho el 2026-11-08 y commiteado dentro del «avance» ae60b950 del usuario, que se llevó todo lo pendiente del checkout. El
+salto antes del primer ítem no quita el espacio que lo precede («Llegó: » y la línea nueva), que en el aviso no se ve; «Así
+llega» sigue la misma regla.
 
 ### Tarea 3 · Las reglas con el bloque por HTTP
 
-- [ ] Sacar la captura de `SeedRowsReadAsync` a `CaptureRowsAsync`, en `FormRowsReadHttpTests.cs` y sin cambiar sus tests,
+- [x] Sacar la captura de `SeedRowsReadAsync` a `CaptureRowsAsync`, en `FormRowsReadHttpTests.cs` y sin cambiar sus tests,
   para poder guardar las reglas antes de capturar.
-- [ ] Integración en rojo en `FormRowsRuleHttpTests`, parcial de `FormDraftEndpointsTests` como `FormRowsReadHttpTests`, con
+- [x] Integración en rojo en `FormRowsRuleHttpTests`, parcial de `FormDraftEndpointsTests` como `FormRowsReadHttpTests`, con
   un operador que administra reglas y lee respuestas:
   - las opciones traen el bloque y sus preguntas, en es y en, con las capturas `rows-options-{es,en}`;
   - se guarda una regla «Algún ítem con Artículo es Semilla y Cantidad desde 200» que le avisa a quien cargó «Llegó:
@@ -267,9 +268,13 @@ el aviso no se ve; «Así llega» sigue la misma regla.
   - una condición sobre el bloque y una pregunta del bloque como dato dan 400 en su ruta;
   - una respuesta con Semilla y 200,5 en el mismo ítem crea el aviso con el cuerpo de tres líneas, y otra con Semilla y
     200,5 en ítems distintos lo deja «No aplica». Los runs se leen de la base.
-- [ ] La cohorte `forms-rules-http` suma `FormRowsRuleHttpTests.cs` y `FormRowsReadHttpTests.cs` a su procedencia en
+- [x] La cohorte `forms-rules-http` suma `FormRowsRuleHttpTests.cs` y `FormRowsReadHttpTests.cs` a su procedencia en
   `export-responses-http.ps1`. No fija inventario.
-- [ ] Commit: `test(formularios): las reglas con el bloque por HTTP, con sus capturas`.
+- [x] Commit: `test(formularios): las reglas con el bloque por HTTP, con sus capturas`.
+
+Hecho el 2026-11-08. La procedencia suma también `FormRowsCaptureIntegrationTests.cs` y `FormPublishedVersionFixture.cs`,
+que arman la versión de la semilla, como en la cohorte de respuestas, y la autoprueba del exportador exige los tres
+productores del bloque (4 de 4). Las pruebas con PostgreSQL corren al cierre.
 
 ### Tarea 4 · Revisión del backend
 

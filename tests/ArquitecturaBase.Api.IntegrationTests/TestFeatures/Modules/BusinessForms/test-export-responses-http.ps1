@@ -119,6 +119,10 @@ foreach ($case in @("Configuration", "Merge", "Missing", "Collision")) {
                 Assert-Condition (($sourceRoot + "BusinessForms/FormRecipientFilterIntegrationTests.cs") -in $definitions.Sources) "The recipient filter producer SHA must be included."
                 Assert-Condition (($captureRoot + "Modules/BusinessForms/FormRecipientScenario.cs") -in $definitions.Sources) "The recipient scenario SHA must be included."
                 Assert-Condition (($sourceRoot + "BusinessForms/FormCatalogFieldsReadHttpTests.cs") -in $responses.Sources) "The extra-field response producer SHA must be included."
+                $rules = @($cohorts | Where-Object { $_.Name -eq "rules" })[0]
+                foreach ($producer in @("FormRowsRuleHttpTests.cs", "FormRowsReadHttpTests.cs", "FormRowsCaptureIntegrationTests.cs")) {
+                    Assert-Condition (($sourceRoot + "BusinessForms/" + $producer) -in $rules.Sources) "The rules of the block of rows, their seed and its capture SHA must be included."
+                }
                 $personData = @($cohorts | Where-Object { $_.Name -eq "person-data" })[0]
                 Assert-Condition ($null -ne $personData -and $personData.Environment -eq "FORM_PERSON_DATA_HTTP_OUTPUT" -and $personData.Destination -eq "forms-person-data-http") "Person data require their own agreed output and destination."
                 $personNames = @("attribute-created", "person-options", "person-data-empty", "person-data-saved", "person-data", "people", "conflict", "invalid-value", "attribute-updated", "attributes", "forbidden", "source-in-use", "attribute-value-removal-confirmation", "attribute-conflict")

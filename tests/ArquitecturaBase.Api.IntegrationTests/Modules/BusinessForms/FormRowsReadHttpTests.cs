@@ -187,8 +187,9 @@ public sealed partial class FormDraftEndpointsTests
     /// <summary>An item to capture: the option of the catalog by its local id, the quantity and an optional note.</summary>
     private sealed record RowsItem(string Option, string Quantity, string? Note = null);
 
+    /// <summary>The form of the block and its captured responses; `Keys` holds the key of each question by its FieldId.</summary>
     private sealed record RowsReadForm(Guid DefinitionId, Guid Supplier, Guid Group, Guid Item, Guid Quantity, Guid Note, Guid Seed, Guid Fertilizer,
-        IReadOnlyList<Guid> Records);
+        IReadOnlyList<Guid> Records, Guid VersionId, IReadOnlyDictionary<Guid, string> Keys);
 
     /// <summary>A form with a block of 0 to 3 items (an option of a catalog, a quantity and a long note) and its responses, captured for real.</summary>
     private async Task<RowsReadForm> SeedRowsReadAsync(HttpClient reader, params RowsItem[][] responses)
@@ -213,25 +214,39 @@ public sealed partial class FormDraftEndpointsTests
         var item = Field("choice", true) with { Label = Text("Artículo", "Product"), Source = new(catalogId), Repeated = true };
         var quantity = Field("decimal", true) with { Label = Text("Cantidad", "Quantity"), Repeated = true };
         var note = Field("longText", false) with { Label = Text("Observación", "Note"), Repeated = true };
-        var form = await SeedVersionAsync(actorId, [supplier, group, item, quantity, note]);
+        var fields = new[] { supplier, group, item, quantity, note };
+        var form = await SeedVersionAsync(actorId, fields);
+        var rows = new RowsReadForm(form.DefinitionId, supplier.FieldId, group.FieldId, item.FieldId, quantity.FieldId, note.FieldId,
+            options.GetProperty("seed").GetGuid(), options.GetProperty("fertilizer").GetGuid(), [], form.VersionId,
+            fields.ToDictionary(field => field.FieldId, field => field.Key));
+        return rows with { Records = await CaptureRowsAsync(reader, rows, responses) };
+    }
+
+    /// <summary>
+    /// Captures these responses of the form for real, through the sink and as the reader, with «Proveedor del norte» as the
+    /// supplier: their ids, in order. Apart from the seed, so the rules can be saved before.
+    /// </summary>
+    private async Task<IReadOnlyList<Guid>> CaptureRowsAsync(HttpClient reader, RowsReadForm rows, params RowsItem[][] responses)
+    {
+        var actorId = Guid.Parse(reader.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
+        var options = new Dictionary<string, Guid> { ["seed"] = rows.Seed, ["fertilizer"] = rows.Fertilizer };
         var records = new List<Guid>();
         foreach (var response in responses)
         {
             using var scope = factory.Services.CreateScope();
             var preparation = await scope.ServiceProvider.GetRequiredService<IStructuredFormSource>()
-                .PrepareAsync(actorId, "es", form.DefinitionId, form.VersionId, false, Ct);
+                .PrepareAsync(actorId, "es", rows.DefinitionId, rows.VersionId, false, Ct);
             var items = response.Select(value => value.Note is null
-                ? new Dictionary<string, string> { [item.Key] = options.GetProperty(value.Option).GetGuid().ToString("D"), [quantity.Key] = value.Quantity }
-                : new Dictionary<string, string> { [item.Key] = options.GetProperty(value.Option).GetGuid().ToString("D"), [quantity.Key] = value.Quantity, [note.Key] = value.Note });
-            var captured = await scope.ServiceProvider.GetRequiredService<IStructuredRecordSink>().CaptureAsync(new(Guid.NewGuid(), form.DefinitionId,
-                form.VersionId, actorId, factory.Clock.GetUtcNow().UtcDateTime, new Dictionary<string, string>
+                ? new Dictionary<string, string> { [rows.Keys[rows.Item]] = options[value.Option].ToString("D"), [rows.Keys[rows.Quantity]] = value.Quantity }
+                : new Dictionary<string, string> { [rows.Keys[rows.Item]] = options[value.Option].ToString("D"), [rows.Keys[rows.Quantity]] = value.Quantity, [rows.Keys[rows.Note]] = value.Note });
+            var captured = await scope.ServiceProvider.GetRequiredService<IStructuredRecordSink>().CaptureAsync(new(Guid.NewGuid(), rows.DefinitionId,
+                rows.VersionId, actorId, factory.Clock.GetUtcNow().UtcDateTime, new Dictionary<string, string>
                 {
-                    [supplier.Key] = "Proveedor del norte", [group.Key] = JsonSerializer.Serialize(items),
+                    [rows.Keys[rows.Supplier]] = "Proveedor del norte", [rows.Keys[rows.Group]] = JsonSerializer.Serialize(items),
                 }, [Assert.Single(preparation.Catalogs)]), Ct);
             Assert.Equal("Completed", captured.State);
             records.Add(captured.RecordId!.Value);
         }
-        return new(form.DefinitionId, supplier.FieldId, group.FieldId, item.FieldId, quantity.FieldId, note.FieldId,
-            options.GetProperty("seed").GetGuid(), options.GetProperty("fertilizer").GetGuid(), records);
+        return records;
     }
 }
