@@ -375,7 +375,16 @@ su clase. Otras sesiones trabajan en el mismo checkout: se preparan sólo los ar
 
 - [ ] Verificación: la integración con PostgreSQL y Redis, `dotnet test` completo en tandas, el build sin advertencias; en el
   front, `build`, `lint`, `test` y `test:visual` en tandas; `aspire stop` si se levantó la app.
-- [ ] Exportación conjunta de la cohorte `forms-http` del front con las capturas de esta etapa.
+
+  El backend ya está: la corrida del exportador sobre 735add83 compiló sin errores y dio 7408 de 7408 con PostgreSQL y Redis.
+  La del front va en una sola verificación conjunta de las etapas 1 a 3, después de lo que la Etapa 1 suma sobre la
+  exportación.
+- [x] Exportación conjunta de la cohorte `forms-http` del front con las capturas de esta etapa.
+
+  Hecho (front 60fcff31): las 25 cohortes de la corrida sobre 735add83, con los contratos de esta etapa
+  (`entriesRowsHttpContract`, `rowsPublicationHttpContract`), el de LD1-A (`entriesGroupByHttpContract`) y los cuatro de la
+  Etapa 3. Pasan los 60 tests del front que leen cohortes y las escenas visuales que las usan. Una primera corrida sobre
+  54ffc60b no exportó: dos casos de `FormCatalogOfferQueryTests`, de LD2-A, que se arreglaron en 735add83.
 - [ ] Prueba física, guiando al usuario clic por clic y sin cargar datos por él: pasar «Recepción de insumos» al bloque
   «Artículos» y publicarlo; cargar el remito con sus tres artículos desde la página, revisar con «Corregir» que vuelvan los
   tres en orden, y lo mismo en el panel y en el celular; por WhatsApp, los tres ítems con «Sí», «Sí» y «No», y la vuelta con
