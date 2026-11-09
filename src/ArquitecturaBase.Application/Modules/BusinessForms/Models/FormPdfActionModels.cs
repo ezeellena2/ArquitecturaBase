@@ -15,7 +15,18 @@ public sealed record FormPdfActionSnapshotResponse(Guid RunId, Guid? DesignId, l
 /// <summary>Localized response data used only while rendering; it is never stored in an action run.</summary>
 public sealed record FormPdfRenderRequest(FormPdfActionSnapshotResponse Snapshot, FormResponseStoredRow Response)
 {
+    /// <summary>RE1-A: what external actions returned, already in the copy's language; a zone each, above the answers.</summary>
+    public IReadOnlyList<FormPdfResult> Results { get; init; } = [];
     public override string ToString() => "FormPdfRenderRequest { Content = [REDACTED] }";
+}
+/// <summary>A result in the PDF (RE1-A): the action's name and each datum with its name, its kind and its canonical value.</summary>
+public sealed record FormPdfResult(string Name, IReadOnlyList<FormPdfResultValue> Values)
+{
+    public override string ToString() => "FormPdfResult { Content = [REDACTED] }";
+}
+public sealed record FormPdfResultValue(string Label, string Kind, string? Value)
+{
+    public override string ToString() => "FormPdfResultValue { Content = [REDACTED] }";
 }
 
 public enum FormPdfActionState { Completed, Failed, Uncertain, NotFound }

@@ -14,7 +14,7 @@ using Microsoft.Extensions.Logging;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
 internal sealed class FormPdfActionService(IFormPdfDesignReader reader, IPrivateFileStore store, IFormPdfRenderer renderer,
-    IAppName appName, IFormResponseReader records, ILogger<FormPdfActionService> logger) : IFormPdfActionService
+    IAppName appName, IFormResponseReader records, ILogger<FormPdfActionService> logger, IFormRecordResultReader resultReader) : IFormPdfActionService
 {
     public Task<Result<FormPdfActionSnapshotResponse>> PrepareAsync(Guid runId, FormActionRecordRow record, CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<FormPdfActionSnapshotResponse>>(logger, "PrepareFormPdfAction", async () =>
@@ -38,13 +38,15 @@ internal sealed class FormPdfActionService(IFormPdfDesignReader reader, IPrivate
             var record = await records.FindRecordAsync(recordId, cancellationToken);
             if (record is null) return FormRecordErrors.NotFound;
             record = record with { Actor = snapshot.Author };
+            var results = await resultReader.ListAsync([recordId], cancellationToken);
             var artifacts = new List<FormPdfArtifact>();
             foreach (var culture in snapshot.Cultures)
             {
                 var artifact = await FindAsync(snapshot, record.Record, culture, cancellationToken);
                 if (artifact is null && !reconciliationOnly)
                 {
-                    var request = new FormPdfRenderRequest(snapshot, FormRecordReferencePolicy.Localize(record, culture));
+                    var request = new FormPdfRenderRequest(snapshot, FormRecordReferencePolicy.Localize(record, culture))
+                        { Results = FormRecordResultPresentationPolicy.Pdf(results, culture) };
                     var bytes = await renderer.RenderAsync(request, culture, false, cancellationToken);
                     await using var content = new MemoryStream(bytes, false);
                     await store.WriteOnceAsync(FormPdfStorageKey.Create(snapshot.RunId, culture), content, "application/pdf", cancellationToken);

@@ -11,7 +11,7 @@ public sealed class FormPdfActionServiceTests
     public async Task Preparing_freezes_the_current_design_and_never_implicitly_saves_a_default()
     {
         var fixture=new FormPdfFixture(); var store=new MemoryPrivateFileStore();
-        var service=new FormPdfActionService(fixture,store,fixture,fixture,fixture.Records,NullLogger<FormPdfActionService>.Instance);
+        var service=new FormPdfActionService(fixture,store,fixture,fixture,fixture.Records,NullLogger<FormPdfActionService>.Instance,new ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms.FormRecordResultReaderDouble());
         var record=fixture.RecordSnapshot();
         var prepared=await service.PrepareAsync(Guid.NewGuid(),record,TestContext.Current.CancellationToken);
         Assert.True(prepared.IsSuccess); Assert.Null(prepared.Value.DesignId); Assert.Equal(0,prepared.Value.DesignRevision);
@@ -28,7 +28,7 @@ public sealed class FormPdfActionServiceTests
     public async Task Reconciliation_reads_partial_copies_without_rendering_and_only_missing_copies_are_generated()
     {
         var fixture=new FormPdfFixture(); var store=new MemoryPrivateFileStore();
-        var service=new FormPdfActionService(fixture,store,fixture,fixture,fixture.Records,NullLogger<FormPdfActionService>.Instance);
+        var service=new FormPdfActionService(fixture,store,fixture,fixture,fixture.Records,NullLogger<FormPdfActionService>.Instance,new ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms.FormRecordResultReaderDouble());
         var snapshot=(await service.PrepareAsync(Guid.NewGuid(),fixture.RecordSnapshot(),TestContext.Current.CancellationToken)).Value;
         var original=new byte[]{8,9,10};
         await using(var bytes=new MemoryStream(original))await store.WriteAsync(FormPdfStorageKey.Create(snapshot.RunId,"es"),bytes,"application/pdf",TestContext.Current.CancellationToken);
@@ -45,7 +45,7 @@ public sealed class FormPdfActionServiceTests
     public async Task Unconfigured_storage_is_a_known_failure_without_an_external_effect()
     {
         var fixture=new FormPdfFixture(); var store=new MemoryPrivateFileStore(false);
-        var service=new FormPdfActionService(fixture,store,fixture,fixture,fixture.Records,NullLogger<FormPdfActionService>.Instance);
+        var service=new FormPdfActionService(fixture,store,fixture,fixture,fixture.Records,NullLogger<FormPdfActionService>.Instance,new ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms.FormRecordResultReaderDouble());
         var snapshot=(await service.PrepareAsync(Guid.NewGuid(),fixture.RecordSnapshot(),TestContext.Current.CancellationToken)).Value;
         var result=await service.ExecuteAsync(fixture.Records.ExportRows[0].Record.RecordId,snapshot,false,TestContext.Current.CancellationToken);
         Assert.Equal(FormPdfActionState.Failed,result.Value.State); Assert.Equal(0,fixture.Renders);
@@ -56,7 +56,7 @@ public sealed class FormPdfActionServiceTests
     {
         var fixture = new FormPdfFixture();
         var service = new FormPdfActionService(fixture, new MemoryPrivateFileStore(), fixture, fixture, fixture.Records,
-            NullLogger<FormPdfActionService>.Instance);
+            NullLogger<FormPdfActionService>.Instance,new ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms.FormRecordResultReaderDouble());
         var record = fixture.RecordSnapshot();
         var capturedSchema = FormDraftPolicy.Read<FormVersionSchema>(record.Response.Record.SchemaJson);
         var definition = fixture.Rules.Definition;
@@ -77,7 +77,7 @@ public sealed class FormPdfActionServiceTests
     {
         var fixture = new FormPdfFixture();
         var service = new FormPdfActionService(fixture, new MemoryPrivateFileStore(), fixture, fixture, fixture.Records,
-            NullLogger<FormPdfActionService>.Instance);
+            NullLogger<FormPdfActionService>.Instance,new ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms.FormRecordResultReaderDouble());
         var captured = fixture.RecordSnapshot();
         var snapshot = (await service.PrepareAsync(Guid.NewGuid(), captured, TestContext.Current.CancellationToken)).Value;
         fixture.Records.ExportRows = [captured.Response with { Actor = captured.Response.Actor with { DisplayName = "Changed after approval" } }];
@@ -107,7 +107,7 @@ public sealed class FormPdfActionServiceTests
             }
         };
         var service = new FormPdfActionService(fixture, new MemoryPrivateFileStore(), fixture, fixture, fixture.Records,
-            NullLogger<FormPdfActionService>.Instance);
+            NullLogger<FormPdfActionService>.Instance,new ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms.FormRecordResultReaderDouble());
 
         var prepared = await service.PrepareAsync(Guid.NewGuid(), captured, TestContext.Current.CancellationToken);
 

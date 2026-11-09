@@ -277,7 +277,7 @@ public sealed class FormCatalogHistoricalLanguageTests
         var fixture = new FormPdfFixture();
         fixture.Records.ExportRows = [captured.Snapshot.Response];
         var service = new FormPdfActionService(fixture, new MemoryPrivateFileStore(), fixture, fixture, fixture.Records,
-            NullLogger<FormPdfActionService>.Instance);
+            NullLogger<FormPdfActionService>.Instance,new ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms.FormRecordResultReaderDouble());
         var prepared = (await service.PrepareAsync(Guid.NewGuid(), captured.Snapshot, Ct)).Value;
         Assert.Contains("en", prepared.Cultures);
 
@@ -297,7 +297,7 @@ public sealed class FormCatalogHistoricalLanguageTests
         var fixture = new FormPdfFixture();
         fixture.Records.ExportRows = [captured.Snapshot.Response];
         var service = new FormPdfActionService(fixture, new MemoryPrivateFileStore(), fixture, fixture, fixture.Records,
-            NullLogger<FormPdfActionService>.Instance);
+            NullLogger<FormPdfActionService>.Instance,new ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms.FormRecordResultReaderDouble());
 
         var prepared = (await service.PrepareAsync(Guid.NewGuid(), captured.Snapshot, Ct)).Value;
 
@@ -320,7 +320,7 @@ public sealed class FormCatalogHistoricalLanguageTests
         var fixture = new FormPdfFixture();
         fixture.Records.ExportRows = [captured.Snapshot.Response];
         var service = new FormPdfActionService(fixture, new MemoryPrivateFileStore(), fixture, fixture, fixture.Records,
-            NullLogger<FormPdfActionService>.Instance);
+            NullLogger<FormPdfActionService>.Instance,new ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms.FormRecordResultReaderDouble());
 
         var prepared = (await service.PrepareAsync(Guid.NewGuid(), captured.Snapshot, Ct)).Value;
 

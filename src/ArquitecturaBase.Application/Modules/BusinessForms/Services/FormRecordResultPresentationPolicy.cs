@@ -24,6 +24,12 @@ internal static class FormRecordResultPresentationPolicy
 
     public static string ColumnId(string source, string key) => source + "." + key;
 
+    /// <summary>The results for the PDF copy, in a language; the renderer writes each value like an answer of its kind.</summary>
+    public static IReadOnlyList<FormPdfResult> Pdf(IReadOnlyList<FormRecordResultRow> rows, string culture) =>
+        rows.OrderBy(row => row.RecordedAtUtc).Select(row => FormRecordResultRecorder.Read(row.Source, row.SourceNameJson, row.ValuesJson)).Select(result =>
+            new FormPdfResult(FormRecordPresentationPolicy.Text(result.SourceName, culture), result.Values.Select(value =>
+                new FormPdfResultValue(FormRecordPresentationPolicy.Text(value.Label, culture), value.Kind, value.Value)).ToArray())).ToArray();
+
     public static FormResponseResultResponse Project(FormRecordResultRow row, string culture)
     {
         var result = FormRecordResultRecorder.Read(row.Source, row.SourceNameJson, row.ValuesJson);

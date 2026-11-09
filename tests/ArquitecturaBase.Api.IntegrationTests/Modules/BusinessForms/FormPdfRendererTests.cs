@@ -179,6 +179,23 @@ public sealed class FormPdfRendererTests
     }
 
     [Fact]
+    public async Task The_results_of_external_actions_go_above_the_answers()
+    {
+        var fixture = new FormPdfRendererFixture();
+        var plain = await fixture.Renderer.RenderAsync(fixture.Snapshot, "es", false, TestContext.Current.CancellationToken);
+        var request = fixture.Snapshot with
+        {
+            Results = [new("Emitir comprobante en ARCA", [new("Comprobante", "text", "Factura C 0004-00000012"),
+                new("Código de autorización", "text", "74512345678901"), new("Vencimiento del código", "date", "2026-11-19")])],
+        };
+
+        var bytes = await fixture.Renderer.RenderAsync(request, "es", false, TestContext.Current.CancellationToken);
+
+        Assert.True(bytes.Length > plain.Length);
+        await fixture.ExportAsync(bytes, "result-es");
+    }
+
+    [Fact]
     public async Task A_long_block_continues_on_the_next_page()
     {
         var fixture = new FormPdfRendererFixture();

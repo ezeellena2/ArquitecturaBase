@@ -30,6 +30,13 @@ internal sealed class SkiaFormPdfRenderer(IFormFileReader references, IStoredFil
         using var values = JsonDocument.Parse(record.ValuesJson);
         var answers = values.RootElement.EnumerateArray().ToDictionary(value => value.GetProperty("fieldId").GetGuid(), value => value.GetProperty("value"));
         var selected = snapshot.Design.QuestionIds.ToHashSet();
+        // RE1-A: what external actions returned goes above the answers, a zone each under the action's name.
+        foreach (var result in request.Results)
+        {
+            layout.WriteSection(result.Name);
+            foreach (var value in result.Values) layout.WriteField(value.Label, ResultValue(value, culture));
+            layout.Space(14);
+        }
         // A question of the block of rows goes only in its table, even when an old design chose it apart.
         foreach (var question in schema.Questions.Where(question => selected.Contains(question.FieldId) && question.Repeated != true))
         {
@@ -100,6 +107,18 @@ internal sealed class SkiaFormPdfRenderer(IFormFileReader references, IStoredFil
         }).ToArray();
         return new(group.Label[culture], questions.Select(question => question.Label[culture]).ToArray(),
             questions.Select(question => question.Type == "decimal").ToArray(), rows);
+    }
+
+    // A datum of a result (RE1-A), written like an answer of its kind.
+    private static string ResultValue(FormPdfResultValue value, string culture)
+    {
+        var locale = CultureInfo.GetCultureInfo(culture == "es" ? "es-AR" : "en-US");
+        return value.Value is not { } raw ? FormPdfTexts.Get("NoAnswer", culture) : value.Kind switch
+        {
+            "number" => decimal.Parse(raw, CultureInfo.InvariantCulture).ToString("#,0.############################", locale),
+            "date" => DateOnly.ParseExact(raw, "yyyy-MM-dd", CultureInfo.InvariantCulture).ToString("d MMM yyyy", locale),
+            _ => raw,
+        };
     }
 
     private static string Value(CanonicalFormField question, JsonElement answer, string culture, FormRecordStoredRow record)
@@ -421,6 +440,22 @@ internal sealed class SkiaFormPdfRenderer(IFormFileReader references, IStoredFil
                 y = Math.Max(y, photoTop + PhotoHeight + 24);
                 photosOpen = false;
             }
+        }
+
+        /// <summary>Room between a zone of results and what follows (RE1-A).</summary>
+        public void Space(float points) => y += points;
+
+        /// <summary>The name of a zone above its fields, in the small muted style of the approval's label (RE1-A).</summary>
+        public void WriteSection(string title)
+        {
+            y += 6;
+            Ensure(48);
+            foreach (var part in small.Wrap(title, Width - Margin * 2))
+            {
+                small.DrawText(canvas, part, Margin, y + 10, muted);
+                y += 14;
+            }
+            y += 8;
         }
 
         public void WriteApproval()
