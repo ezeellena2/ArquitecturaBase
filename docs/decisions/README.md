@@ -48,3 +48,4 @@ Las siete primeras salen de las decisiones D1 a D7 del plan de estandarización 
 - [0024 — La IA arma formularios y catálogos a pedido](0024-ia-arma-formularios-y-catalogos.md) (aceptada el 2026-11-04; rige desde la etapa 1 de [su plan](../plans/2026-11-04-ia-arma-formularios-y-catalogos.md)).
 - [0025 — Familias de servicios dentro del módulo ARCA](0025-familias-de-servicios-arca.md) (aceptada el 2026-11-04; rige desde la etapa 1 de ARCA).
 - [0026 — Robot de delegación sobre la página de ARCA y la clave fiscal en memoria](0026-robot-de-delegacion-arca.md) (propuesta el 2026-11-09; con el [plan de la etapa 6](../plans/2026-11-09-arca-etapa-6-robot.md)).
+- [0028 — Emisión de comprobantes en ARCA: cola, numeración y reconciliación](0028-emision-de-comprobantes-arca.md) (propuesta el 2026-11-09 con la [etapa 3 de ARCA](../plans/2026-11-09-arca-etapa-3-factura-c.md)).
