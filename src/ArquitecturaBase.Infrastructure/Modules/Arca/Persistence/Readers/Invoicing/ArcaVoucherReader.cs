@@ -28,6 +28,9 @@ internal sealed class ArcaVoucherReader(ApplicationDbContext dbContext) : IArcaV
             .Take(limit)
             .ToListAsync(cancellationToken);
 
+    public async Task<IReadOnlyList<Guid>> ListExistingIdsAsync(IReadOnlyCollection<Guid> voucherIds, CancellationToken cancellationToken) =>
+        await dbContext.Set<ArcaVoucher>().AsNoTracking().Where(x => voucherIds.Contains(x.Id)).Select(x => x.Id).ToListAsync(cancellationToken);
+
     public async Task<IReadOnlyList<ArcaVoucherRow>> ListByRequestsAsync(IReadOnlyCollection<Guid> requestKeys, CancellationToken cancellationToken) =>
         await dbContext.Set<ArcaVoucher>().AsNoTracking()
             .Where(x => requestKeys.Contains(x.RequestKey))

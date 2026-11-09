@@ -19,6 +19,7 @@
     <PackageReference Include="Azure.Identity" />
     <!-- Miniaturas JPEG/PNG en Windows y Linux; el dominio y Application no conocen el decodificador. -->
     <PackageReference Include="SkiaSharp" />
+    <PackageReference Include="QRCoder" />
     <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" />
     <!-- Shaping de grafemas y emojis del PDF con fuentes embebidas, también en Linux. -->
     <PackageReference Include="SkiaSharp.HarfBuzz" />
@@ -56,5 +57,6 @@
   <ItemGroup>
     <!-- Public Sans y Noto Emoji oficiales OFL: sin fuentes instaladas en el host. -->
     <EmbeddedResource Include="Modules\BusinessForms\Pdf\Fonts\*.ttf" LogicalName="BusinessForms.Pdf.Fonts.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="Modules\Arca\Invoicing\Pdf\Fonts\*.ttf" LogicalName="Arca.Pdf.Fonts.%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>

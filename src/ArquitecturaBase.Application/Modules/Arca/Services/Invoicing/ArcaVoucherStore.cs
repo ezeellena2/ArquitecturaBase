@@ -38,6 +38,28 @@ internal sealed class ArcaVoucherStore(IArcaConnectionRepository connections, IA
         (await unitOfWork.ExecuteInTransactionAsync(token => ChangeCoreAsync(work, (voucher, _, nowUtc) => Wait(voucher, failureCode, nowUtc), token),
             CommitPolicy.OnSuccess, cancellationToken)).Value;
 
+    public async Task<ArcaFiscalPdfWorkResponse?> FindPdfAsync(Guid voucherId, CancellationToken cancellationToken) =>
+        await vouchers.GetVoucherAsync(voucherId, cancellationToken) is { State: ArcaVoucherState.Authorized, PdfStorageKey: null } voucher
+            ? new ArcaFiscalPdfWorkResponse(voucher.Id, ArcaFiscalDocumentPolicy.StorageKey(voucher.Id),
+                ArcaFiscalDocumentPolicy.Build(voucher, ArcaVoucherRequestPolicy.FromJson(voucher.PayloadJson)))
+            : null;
+
+    public async Task<bool> AttachPdfAsync(Guid voucherId, string storageKey, string sha256, long size, CancellationToken cancellationToken) =>
+        (await unitOfWork.ExecuteInTransactionAsync(token => PdfCoreAsync(voucherId, voucher => voucher.AttachPdf(storageKey, sha256, size), token),
+            CommitPolicy.OnSuccess, cancellationToken)).Value;
+
+    public async Task<bool> PostponePdfAsync(Guid voucherId, string failureCode, CancellationToken cancellationToken) =>
+        (await unitOfWork.ExecuteInTransactionAsync(token => PdfCoreAsync(voucherId,
+            voucher => voucher.PostponePdf(failureCode, timeProvider.GetUtcNow().UtcDateTime), token), CommitPolicy.OnSuccess, cancellationToken)).Value;
+
+    private async Task<Result<bool>> PdfCoreAsync(Guid voucherId, Action<ArcaVoucher> change, CancellationToken cancellationToken)
+    {
+        await connections.LockConnectionAsync(cancellationToken);
+        if (await vouchers.GetVoucherAsync(voucherId, cancellationToken) is not { State: ArcaVoucherState.Authorized, PdfStorageKey: null } voucher) return false;
+        change(voucher);
+        return true;
+    }
+
     private async Task<Result<ArcaVoucherWorkResponse?>> ReserveCoreAsync(ArcaVoucherSequenceRow key, Guid owner, TimeSpan lease, CancellationToken cancellationToken)
     {
         await connections.LockConnectionAsync(cancellationToken);

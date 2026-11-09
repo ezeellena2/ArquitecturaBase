@@ -16,6 +16,7 @@ internal sealed partial class ArcaVoucherBackgroundService(ArcaVoucherProcessor 
             try
             {
                 await processor.ProcessDueAsync(stoppingToken);
+                await processor.ProcessDuePdfsAsync(stoppingToken);
             }
             catch (Exception exception) when (!stoppingToken.IsCancellationRequested)
             {

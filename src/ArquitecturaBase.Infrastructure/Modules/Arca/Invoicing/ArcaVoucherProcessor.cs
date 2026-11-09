@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using ArquitecturaBase.Application.Interfaces.Integrations.Files;
 using ArquitecturaBase.Application.Modules.Arca.Interfaces.Integrations.Connection;
 using ArquitecturaBase.Application.Modules.Arca.Interfaces.Integrations.Invoicing;
 using ArquitecturaBase.Application.Modules.Arca.Interfaces.Persistence.Invoicing;
@@ -18,7 +20,8 @@ namespace ArquitecturaBase.Infrastructure.Modules.Arca.Invoicing;
 /// encuentra la reserva tomada por otro host, se detiene sin guardar: el otro reconcilia.
 /// </summary>
 internal sealed partial class ArcaVoucherProcessor(IServiceScopeFactory scopes, IArcaAccessTicketProvider tickets, IArcaInvoicingClient client,
-    IOptions<ArcaVoucherWorkerOptions> options, TimeProvider timeProvider, ILogger<ArcaVoucherProcessor> logger)
+    IArcaFiscalPdfRenderer renderer, IPrivateFileStore files, IOptions<ArcaVoucherWorkerOptions> options, TimeProvider timeProvider,
+    ILogger<ArcaVoucherProcessor> logger)
 {
     private static readonly ArcaServiceCode Wsfe = ArcaServiceCode.Create("wsfe")!.Value;
 
@@ -42,6 +45,49 @@ internal sealed partial class ArcaVoucherProcessor(IServiceScopeFactory scopes, 
             {
                 LogFailed(exception.GetType().Name, sequence.PointOfSale, sequence.VoucherType);
             }
+        }
+    }
+
+    /// <summary>Los PDF fiscales que faltan, de a uno.</summary>
+    public async Task ProcessDuePdfsAsync(CancellationToken cancellationToken)
+    {
+        IReadOnlyList<Guid> due;
+        await using (var scope = scopes.CreateAsyncScope())
+        {
+            due = await scope.ServiceProvider.GetRequiredService<IArcaVoucherReader>()
+                .ListDuePdfsAsync(timeProvider.GetUtcNow().UtcDateTime, options.Value.BatchSize, cancellationToken);
+        }
+
+        foreach (var voucherId in due) await ProcessPdfAsync(voucherId, cancellationToken);
+    }
+
+    /// <summary>
+    /// Dibuja el PDF fiscal, lo escribe una sola vez (si otro host lo escribió antes, queda el suyo), lo relee para confirmar
+    /// su SHA-256 y guarda la referencia. Si el almacén falla, el comprobante sigue autorizado y el PDF espera.
+    /// </summary>
+    public async Task ProcessPdfAsync(Guid voucherId, CancellationToken cancellationToken)
+    {
+        var work = await StepAsync(store => store.FindPdfAsync(voucherId, cancellationToken));
+        if (work is null) return;
+        try
+        {
+            if (!files.IsAvailable) throw new InvalidOperationException("The private file store is not configured.");
+            await using (var content = new MemoryStream(renderer.Render(work.Document)))
+            {
+                await files.WriteOnceAsync(work.StorageKey, content, "application/pdf", cancellationToken);
+            }
+
+            await using var stored = await files.OpenReadAsync(work.StorageKey, cancellationToken)
+                ?? throw new InvalidOperationException("The fiscal PDF is missing right after writing it.");
+            using var buffer = new MemoryStream();
+            await stored.CopyToAsync(buffer, cancellationToken);
+            var sha = Convert.ToHexStringLower(SHA256.HashData(buffer.ToArray()));
+            await StepAsync(store => store.AttachPdfAsync(voucherId, work.StorageKey, sha, buffer.Length, cancellationToken));
+        }
+        catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            LogPdfFailed(exception.GetType().Name);
+            await StepAsync(store => store.PostponePdfAsync(voucherId, "Files.Unavailable", cancellationToken));
         }
     }
 
@@ -145,6 +191,9 @@ internal sealed partial class ArcaVoucherProcessor(IServiceScopeFactory scopes, 
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Reconciled voucher type {VoucherType} number {Number} of point of sale {PointOfSale}; found in ARCA: {Found}.")]
     private partial void LogReconciled(int pointOfSale, int voucherType, long number, bool found);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "A fiscal PDF could not be stored after {ExceptionType}; the voucher stays authorized and the PDF waits.")]
+    private partial void LogPdfFailed(string exceptionType);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "The ARCA voucher sequence of type {VoucherType} at point of sale {PointOfSale} failed with {ExceptionType}; it is retried later.")]
     private partial void LogFailed(string exceptionType, int pointOfSale, int voucherType);

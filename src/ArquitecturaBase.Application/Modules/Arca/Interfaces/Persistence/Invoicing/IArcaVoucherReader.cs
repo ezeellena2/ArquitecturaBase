@@ -11,5 +11,8 @@ public interface IArcaVoucherReader
     /// <summary>Los comprobantes autorizados que todavía no tienen su PDF fiscal y ya pueden intentarlo.</summary>
     Task<IReadOnlyList<Guid>> ListDuePdfsAsync(DateTime nowUtc, int limit, CancellationToken cancellationToken);
 
+    /// <summary>De esos comprobantes, los que existen: sus PDF fiscales no se borran.</summary>
+    Task<IReadOnlyList<Guid>> ListExistingIdsAsync(IReadOnlyCollection<Guid> voucherIds, CancellationToken cancellationToken);
+
     Task<IReadOnlyList<ArcaVoucherRow>> ListByRequestsAsync(IReadOnlyCollection<Guid> requestKeys, CancellationToken cancellationToken);
 }

@@ -8,6 +8,7 @@ using ArquitecturaBase.Infrastructure.Modules.Arca.Connection;
 using ArquitecturaBase.Infrastructure.Modules.Arca.Connection.Security;
 using ArquitecturaBase.Infrastructure.Modules.Arca.Connection.Soap;
 using ArquitecturaBase.Infrastructure.Modules.Arca.Invoicing;
+using ArquitecturaBase.Infrastructure.Modules.Arca.Invoicing.Pdf;
 using ArquitecturaBase.Infrastructure.Modules.Arca.Persistence.Readers.Connection;
 using ArquitecturaBase.Infrastructure.Modules.Arca.Persistence.Readers.Invoicing;
 using ArquitecturaBase.Infrastructure.Modules.Arca.Persistence.Readers.Registry;
@@ -67,6 +68,7 @@ public static class ArcaInfrastructureRegistration
         services.AddScoped<IArcaVoucherRepository, ArcaVoucherRepository>();
         services.AddScoped<IArcaVoucherReader, ArcaVoucherReader>();
         services.AddSingleton<IArcaInvoicingClient, ArcaInvoicingClient>();
+        services.AddSingleton<IArcaFiscalPdfRenderer, ArcaFiscalPdfRenderer>();
         services.AddSingleton<ArcaVoucherProcessor>();
         services.AddHostedService<ArcaVoucherBackgroundService>();
         ConfigureClient(services.AddHttpClient(InvoicingHttpClientName));

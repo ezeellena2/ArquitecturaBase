@@ -30,4 +30,13 @@ public interface IArcaVoucherStore
 
     /// <summary>No se pudo intentar o no se sabe qué pasó: espera con su espera creciente, y suelta la reserva.</summary>
     Task<bool> PostponeAsync(ArcaVoucherWorkResponse work, string failureCode, CancellationToken cancellationToken);
+
+    /// <summary>Lo que muestra el PDF fiscal de un comprobante autorizado que todavía no lo tiene; null si ya lo tiene. Sólo lee.</summary>
+    Task<ArcaFiscalPdfWorkResponse?> FindPdfAsync(Guid voucherId, CancellationToken cancellationToken);
+
+    /// <summary>Guarda la referencia del PDF ya escrito; si otro host la guardó antes, deja la suya.</summary>
+    Task<bool> AttachPdfAsync(Guid voucherId, string storageKey, string sha256, long size, CancellationToken cancellationToken);
+
+    /// <summary>El almacén falló: el comprobante sigue autorizado y el PDF se reintenta con su espera creciente.</summary>
+    Task<bool> PostponePdfAsync(Guid voucherId, string failureCode, CancellationToken cancellationToken);
 }
