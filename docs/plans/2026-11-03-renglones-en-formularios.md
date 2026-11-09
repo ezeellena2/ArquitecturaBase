@@ -280,7 +280,9 @@ para que se usen igual en toda la app.
    [formularios](../features/formularios.md#el-bloque-de-renglones-al-armar-y-publicar--rg1-a-rg3-a-y-rg6-a-2026-11-04) y en
    [WhatsApp](../features/whatsapp.md#selección-múltiple-y-perfil-r9), y su plan, en la
    [procedencia](../history/README.md#renglones--etapa-1-el-bloque-al-armar-y-publicar--2026-11-08). Meta aceptó las
-   variantes con preguntas después del bloque, con y sin mínimo 0; la respuesta de unos 40 KB pasó a la prueba integral final.
+   variantes con preguntas después del bloque, con y sin mínimo 0. La respuesta de unos 40 KB pasó a la prueba integral
+   final, donde llegó entera el 2026-11-09: diez ítems de 600 caracteres con eñes y tildes pesaron 34,6 KB, porque Meta
+   escapa cada carácter que no es ASCII en seis bytes, como supone el compilador.
    - La prueba integral del 2026-11-09 publicó por primera vez un bloque al final, y Meta lo rechazó: el «No» completaba en
      la pantalla del ítem, terminal, junto al `navigate` del ítem siguiente. Lo arregla el perfil r12, con una pantalla de
      cierre, y el aviso de un error de Meta que no cae en una pregunta ya no promete campos marcados

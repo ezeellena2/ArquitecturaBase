@@ -159,7 +159,8 @@ los ítems hasta el primer «No»: lo que llega de ítems posteriores (volvió c
 a la captura como el bloque de la carga desde la app; una clave sin sufijo, un sufijo fuera del bloque o una decisión que
 falta dejan la respuesta Rejected, y un ítem que la captura rechaza guarda su número en el recibo (`RejectedRow`); el aviso
 del chat nombra la pregunta, sin el ítem. Una respuesta con ítems, como una con archivos, tiene un tope de 64 KiB
-(`MaxMediaResponseJsonBytes`) en lugar de 16 KiB.
+(`MaxMediaResponseJsonBytes`) en lugar de 16 KiB. En la prueba integral (2026-11-09) llegó entera una de 34,6 KB: diez
+ítems de 600 caracteres con eñes y tildes, que Meta manda escapadas, a seis bytes cada una, como las cuenta el compilador.
 
 Una respuesta con un bloque de renglones llega a la tarjeta del chat con el bloque en su lugar: su nombre y un ítem por
 línea («1. GLIFOSATO 64% · 200 · Litros · Sí»), con las respuestas en el orden de sus preguntas y sin las que quedaron sin
