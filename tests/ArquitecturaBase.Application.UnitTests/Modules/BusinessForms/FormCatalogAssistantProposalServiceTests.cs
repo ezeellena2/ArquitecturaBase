@@ -34,6 +34,7 @@ public sealed class FormCatalogAssistantProposalServiceTests
         Assert.Equal(host.ProposalId, Assert.Single(host.Catalogs.Locks));
         Assert.Equal(1, host.Catalogs.Uow.Commits);
         Assert.Equal(new FormCatalogAssistantProposalResponse(host.ProposalId, catalog.Id), result.Value);
+        Assert.Equal([BusinessFormAuthoringAssistantCapabilitySource.ProposeCatalogId], host.Lookup.LastCapabilityGroup);
     }
 
     [Fact]

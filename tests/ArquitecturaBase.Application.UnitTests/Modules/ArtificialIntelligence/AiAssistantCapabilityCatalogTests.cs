@@ -48,6 +48,51 @@ public sealed class AiAssistantCapabilityCatalogTests
         var result=await new AiAssistantCapabilityCatalogPolicy([new PreparedAssistantCapabilitySource(definitions)],permissions).BuildAsync(context,Ct);
         Assert.Equal(accepted,result.IsSuccess);if(!accepted)Assert.Equal(AiAssistantErrors.ToolRejected,result.Error);
     }
+    // Stage 2: what needs the turn's spreadsheet is left out of a turn without one, before counting the sixteen definitions.
+    [Theory]
+    [InlineData("home")]
+    [InlineData("channel")]
+    public async Task A_capability_that_requires_a_spreadsheet_is_offered_only_in_a_turn_with_one(string channel)
+    {
+        var actor = Guid.NewGuid();
+        var permissions = new FakePermissionService();
+        permissions.Permissions[actor] = [ArtificialIntelligencePermissions.AssistantUse, "fictional.channel.use", "fictional.catalogs.manage"];
+        var source = new PreparedAssistantCapabilitySource([
+            PreparedAssistantCapabilitySource.Definition("fictional.propose", 1, AssistantCapabilityKind.Proposal),
+            PreparedAssistantCapabilitySource.Definition("fictional.import", 1, AssistantCapabilityKind.Proposal, "fictional.catalogs.manage")
+                with { RequiresAttachment = true }]);
+        var catalog = new AiAssistantCapabilityCatalogPolicy([source], permissions);
+        AssistantCapabilityReference[] allowed = [new("fictional.propose", 1), new("fictional.import", 1)];
+        var context = channel == "home" ? Context(actor, allowed)
+            : new AssistantChannelContext("owner-channel", actor, null, "es", "UTC", new(["fictional.channel.use"], []), allowed, [new("assistant_proposal", 1)]);
+        var without = await catalog.BuildAsync(context, false, Ct);
+        Assert.Equal(["fictional.propose"], without.Value.Capabilities.Select(definition => definition.Id));
+        Assert.DoesNotContain("fictional.catalogs.manage", without.Value.RequiredPermissions.Actor);
+        Assert.Equal(["fictional.propose"], (await catalog.BuildAsync(context, Ct)).Value.Capabilities.Select(definition => definition.Id));
+        var with = await catalog.BuildAsync(context, true, Ct);
+        Assert.Equal(["fictional.propose", "fictional.import"], with.Value.Capabilities.Select(definition => definition.Id));
+        Assert.Contains("fictional.catalogs.manage", with.Value.RequiredPermissions.Actor);
+        Assert.Equal(0, source.Calls);
+    }
+
+    [Theory]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    public async Task The_sixteen_tool_limit_counts_after_leaving_out_what_requires_a_spreadsheet(bool hasAttachment, bool accepted)
+    {
+        var actor = Guid.NewGuid();
+        var permissions = new FakePermissionService();
+        permissions.Permissions[actor] = [ArtificialIntelligencePermissions.AssistantUse];
+        var definitions = Enumerable.Range(0, 15).Select(index => PreparedAssistantCapabilitySource.Definition($"fictional.read-{index}"))
+            .Append(PreparedAssistantCapabilitySource.Definition("fictional.import", 1, AssistantCapabilityKind.Proposal) with { RequiresAttachment = true })
+            .ToArray();
+        var context = Context(actor, definitions.Select(definition => new AssistantCapabilityReference(definition.Id, definition.Version)).ToArray());
+        var result = await new AiAssistantCapabilityCatalogPolicy([new PreparedAssistantCapabilitySource(definitions)], permissions)
+            .BuildAsync(context, hasAttachment, Ct);
+        Assert.Equal(accepted, result.IsSuccess);
+        if (!accepted) Assert.Equal(AiAssistantErrors.ToolRejected, result.Error);
+    }
+
     [Fact]
     public async Task An_unknown_version_is_not_silently_replaced_with_the_installed_version()
     {

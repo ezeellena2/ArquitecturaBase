@@ -1,4 +1,8 @@
+using System.Security.Cryptography;
+using System.Text.Json;
 using ArquitecturaBase.Application.Models.Assistant;
+using ArquitecturaBase.Application.Models.StructuredData;
+using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Models;
 using ArquitecturaBase.Infrastructure.Modules.ArtificialIntelligence.Security;
 using Microsoft.Extensions.Options;
 
@@ -126,5 +130,74 @@ public sealed class AssistantOperationFingerprintTests
         Assert.False(original.Matches(continued with { PreviousRequestId = Guid.NewGuid() }, "one", fingerprint));
         Assert.False(original.Matches(request, "one", fingerprint));
         Assert.True(original.Matches(request with { PreviousRequestId = null }, "one", alone));
+    }
+
+    // Stage 2: a spreadsheet binds its private copy and source expiry; what was prepared comes from those bytes and stays out.
+    private static AssistantAttachmentInput Attachment() => new("private/attachments/clientes.xlsx", "Clientes.xlsx",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", 2048, new string('a', 64),
+        new DateTime(2026, 10, 18, 0, 0, 0, DateTimeKind.Utc), Sheet("Hoja 1"));
+
+    // The prepared sheet is opaque here: only its own type reads it.
+    private static StructuredSpreadsheet Sheet(string name) =>
+        JsonSerializer.Deserialize<StructuredSpreadsheet>(JsonSerializer.Serialize(new { sheetName = name }), JsonSerializerOptions.Web)!;
+
+    private static AssistantAttachmentInput Changed(AssistantAttachmentInput attachment, string changed) => changed switch
+    {
+        "key" => attachment with { StorageKey = "private/attachments/otra.xlsx" },
+        "name" => attachment with { Name = "Otra.xlsx" },
+        "mime" => attachment with { ContentType = "text/csv" },
+        "size" => attachment with { Size = 2049 },
+        "hash" => attachment with { Sha256 = new string('b', 64) },
+        _ => attachment with { ExpiresAtUtc = attachment.ExpiresAtUtc.AddHours(1) },
+    };
+
+    [Theory]
+    [InlineData("key")]
+    [InlineData("name")]
+    [InlineData("mime")]
+    [InlineData("size")]
+    [InlineData("hash")]
+    [InlineData("expiry")]
+    public void A_spreadsheet_binds_its_private_copy_but_not_what_was_prepared(string changed)
+    {
+        var request = Request() with { Attachment = Attachment() };
+        var original = Fingerprint();
+        var hash = original.Create(request, "one");
+        Assert.NotEqual(original.Create(request with { Attachment = null }, "one"), hash);
+        Assert.True(original.Matches(request with { Attachment = request.Attachment! with { Spreadsheet = Sheet("Hoja 2") } }, "one", hash));
+        Assert.False(original.Matches(request with { Attachment = Changed(request.Attachment!, changed) }, "one", hash));
+        Assert.False(original.Matches(request with { Attachment = null }, "one", hash));
+    }
+
+    [Theory]
+    [InlineData("key")]
+    [InlineData("name")]
+    [InlineData("mime")]
+    [InlineData("size")]
+    [InlineData("hash")]
+    [InlineData("expiry")]
+    public void A_Home_turn_with_a_spreadsheet_binds_its_private_copy_but_not_what_was_prepared(string changed)
+    {
+        var owner = Guid.NewGuid();
+        var turn = new SubmitAiAssistantTurnRequest(Guid.NewGuid(), Guid.NewGuid(), 3, 7, "", "es") { Attachment = Attachment() };
+        var original = Fingerprint();
+        var hash = original.Create(owner, turn, "one");
+        Assert.True(original.Matches(owner, turn with { Attachment = turn.Attachment! with { Spreadsheet = Sheet("Hoja 2") } }, "one", hash));
+        Assert.False(original.Matches(owner, turn with { Attachment = Changed(turn.Attachment!, changed) }, "one", hash));
+        Assert.False(original.Matches(owner, turn with { Attachment = null }, "one", hash));
+    }
+
+    [Fact]
+    public void A_typed_Home_turn_keeps_its_original_fingerprint()
+    {
+        var owner = Guid.NewGuid();
+        var turn = new SubmitAiAssistantTurnRequest(Guid.NewGuid(), Guid.NewGuid(), 3, 7, "  Fictitious question  ", "es");
+        var ring = new AiKeyRing(Options.Create(new AiSecretProtectionOptions
+        {
+            InstallationId = "fictitious-installation", ActiveKeyId = "one", Keys = new() { ["one"] = Convert.ToBase64String(new byte[32]) }
+        }));
+        object?[] originalValues = [owner, turn.RequestId, turn.ConversationId, turn.ExpectedRevision, turn.ExpectedConnectionRevision, "Fictitious question"];
+        var expected = Convert.ToBase64String(HMACSHA256.HashData(ring.AssistantFingerprintKey("one"), JsonSerializer.SerializeToUtf8Bytes(originalValues)));
+        Assert.Equal(expected, Fingerprint().Create(owner, turn, "one"));
     }
 }

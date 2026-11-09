@@ -27,6 +27,8 @@ internal sealed class HmacAiAssistantRequestFingerprint(AiKeyRing ring) : IAiAss
             request.Text.Trim().Replace("\r\n", "\n", StringComparison.Ordinal), request.OccurredAtUtc, request.ContentExpiresAtUtc
         };
         if (request.Audio is { } audio) values.Add(new object?[] { "normalize-audio:v1", audio.StorageKey, audio.Name, audio.ContentType, audio.Size, audio.Sha256, audio.ExpiresAtUtc });
+        // A spreadsheet binds its private copy; what was prepared comes from those bytes. One a turn inherits is not part of the request.
+        if (request.Attachment is { } attachment) values.Add(Attachment("attachment:v1", attachment));
         if (context.InteractionMode != AssistantInteractionMode.Unspecified)
             values.Add(new object?[] { "assistant-interaction-mode:v1", context.InteractionMode });
         if (context.ChannelConversationId is { } conversationId)
@@ -52,6 +54,7 @@ internal sealed class HmacAiAssistantRequestFingerprint(AiKeyRing ring) : IAiAss
             request.ExpectedRevision, request.ExpectedConnectionRevision, request.NormalizedQuestion };
         // A dictated turn binds its normalization; a typed one keeps the original fingerprint.
         if (request.AudioRequestId is { } audioRequestId) values.Add(new object?[] { "home-audio:v1", audioRequestId });
+        if (request.Attachment is { } attachment) values.Add(Attachment("home-attachment:v1", attachment));
         var payload = JsonSerializer.SerializeToUtf8Bytes(values);
         try { return Convert.ToBase64String(HMACSHA256.HashData(key, payload)); }
         finally { CryptographicOperations.ZeroMemory(key); CryptographicOperations.ZeroMemory(payload); }
@@ -62,4 +65,7 @@ internal sealed class HmacAiAssistantRequestFingerprint(AiKeyRing ring) : IAiAss
         try { return CryptographicOperations.FixedTimeEquals(Convert.FromBase64String(Create(ownerUserId, request, keyId)), Convert.FromBase64String(fingerprint)); }
         catch (FormatException) { return false; }
     }
+
+    private static object?[] Attachment(string version, AssistantAttachmentInput attachment) =>
+        [version, attachment.StorageKey, attachment.Name, attachment.ContentType, attachment.Size, attachment.Sha256, attachment.ExpiresAtUtc];
 }

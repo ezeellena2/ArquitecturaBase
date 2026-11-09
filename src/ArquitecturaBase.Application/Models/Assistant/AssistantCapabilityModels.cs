@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Models.SystemQueries;
 using System.Text.Json.Serialization;
 
@@ -19,6 +20,9 @@ public sealed record AssistantCapabilityDefinition(
 {
     /// <summary>The owner allows Home, the actor's own conversation without a Subject, to offer it; Home offers nothing else beyond its core queries.</summary>
     public bool OfferedInHome { get; init; }
+
+    /// <summary>The owner needs the turn's spreadsheet: a turn without one does not offer it, in Home or in a channel.</summary>
+    public bool RequiresAttachment { get; init; }
 }
 
 /// <summary>Trusted server context; it is never an HTTP or model-supplied contract.</summary>
@@ -45,6 +49,8 @@ public sealed record AssistantCapabilityRequest(
     Guid TurnId, AssistantChannelContext Context, AssistantCapabilityReference Capability, string ArgumentsJson,
     IReadOnlyList<AssistantObservedRead> ObservedReads)
 {
+    /// <summary>The turn's prepared spreadsheet, or null: the owner reads it here and never opens the private copy.</summary>
+    public StructuredSpreadsheet? Attachment { get; init; }
     public override string ToString() => "AssistantCapabilityRequest { Content = [REDACTED] }";
 }
 

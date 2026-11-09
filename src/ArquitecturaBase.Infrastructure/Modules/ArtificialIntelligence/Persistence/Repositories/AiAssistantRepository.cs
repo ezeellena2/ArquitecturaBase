@@ -44,6 +44,9 @@ internal sealed class AiAssistantRepository(ApplicationDbContext dbContext, Time
             && (turn.State == AiAssistantTurnState.Pending || turn.State == AiAssistantTurnState.Running), cancellationToken);
     public Task<int> CountTurnsAsync(Guid conversationId, CancellationToken cancellationToken) =>
         dbContext.Set<AiAssistantTurn>().CountAsync(turn => turn.ConversationId == conversationId, cancellationToken);
+    public Task<AiAssistantTurn?> GetLatestWithAttachmentAsync(Guid conversationId, CancellationToken cancellationToken) =>
+        dbContext.Set<AiAssistantTurn>().Where(turn => turn.ConversationId == conversationId && turn.AttachmentKey != null)
+            .OrderByDescending(turn => turn.Ordinal).FirstOrDefaultAsync(cancellationToken);
 
     public async Task<AiAssistantBudgetCounts> CountBudgetAsync(Guid ownerUserId, DateOnly dayUtc, string? channelId, bool? isAudio, CancellationToken cancellationToken)
     {

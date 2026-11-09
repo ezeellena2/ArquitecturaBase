@@ -1,5 +1,6 @@
 using System.Reflection;
 using ArquitecturaBase.Application.Interfaces.Channels;
+using ArquitecturaBase.Application.Interfaces.Integrations.Files;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Interfaces.Services;
@@ -56,8 +57,10 @@ public sealed class AiAssistantCapabilityBoundaryTests
     [Fact]
     public void The_dependency_detector_rejects_writers_and_transports_and_accepts_local_read_ports()
     {
+        // A capability reads a spreadsheet only from its request: never the private copy or the reader that prepares it.
         Type[] forbidden = [typeof(IUnitOfWork), typeof(IServiceProvider), typeof(IRoleService), typeof(IUserRepository),
-            typeof(ILlmConversationClient), typeof(HttpClient), typeof(IEnumerable<IUnitOfWork>),typeof(IOrdinaryDependency),typeof(IInnocentReader),typeof(IEnumerable<IInnocentReader>)];
+            typeof(ILlmConversationClient), typeof(HttpClient), typeof(IEnumerable<IUnitOfWork>),typeof(IOrdinaryDependency),typeof(IInnocentReader),typeof(IEnumerable<IInnocentReader>),
+            typeof(IPrivateFileStore), typeof(IStructuredAttachmentReader)];
         Assert.All(forbidden, dependency => Assert.True(IsForbiddenDependency(dependency), dependency.FullName));
         Type[] allowed = [typeof(IUserReader), typeof(IPermissionService), typeof(TimeProvider), typeof(IEnumerable<IUserReader>)];
         Assert.All(allowed, dependency => Assert.False(IsForbiddenDependency(dependency), dependency.FullName));

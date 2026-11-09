@@ -23,6 +23,8 @@ public sealed record AiAssistantTurnRow(Guid Id, Guid OwnerUserId, Guid Conversa
     public decimal? AudioSeconds { get; init; }
     public Guid? AudioRequestId { get; init; }
     public string? ProtectedTranscript { get; init; }
+    public string? AttachmentKey { get; init; }
+    public string? ProtectedAttachment { get; init; }
     public string ChannelId { get; init; } = "home";
     public string? ExecutionProfileJson { get; init; }
     public IReadOnlyList<AiAssistantToolResultRow> ToolResults { get; init; } = [];

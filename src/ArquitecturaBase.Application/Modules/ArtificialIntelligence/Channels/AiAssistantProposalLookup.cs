@@ -16,9 +16,11 @@ internal sealed class AiAssistantProposalLookup(IAiAssistantReader reader, AiAss
 {
     private const int PageSize = 50;
 
-    public Task<Result<AssistantProposalLookupResponse>> FindAsync(Guid actorUserId, Guid requestId, Guid proposalId, CancellationToken cancellationToken) =>
+    public Task<Result<AssistantProposalLookupResponse>> FindAsync(Guid actorUserId, Guid requestId, Guid proposalId,
+        IReadOnlyCollection<string> capabilityGroup, CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<AssistantProposalLookupResponse>>(logger, "FindAssistantProposal", async () =>
         {
+            ArgumentNullException.ThrowIfNull(capabilityGroup);
             if (actorUserId == Guid.Empty || requestId == Guid.Empty || proposalId == Guid.Empty) return AiAssistantErrors.NotFound;
             var row = await reader.FindTurnByRequestAsync(actorUserId, requestId, cancellationToken);
             if (row is null || row.ChannelId != "home" || row.State != AiAssistantTurnState.Completed) return AiAssistantErrors.NotFound;
@@ -34,13 +36,16 @@ internal sealed class AiAssistantProposalLookup(IAiAssistantReader reader, AiAss
             // Home does not seal the original instant: the turn's own submission is when it was asked.
             var provenance = new AssistantOperationProvenance(captured.Value.ModelProfileId, captured.Value.ModelProfileVersion,
                 captured.Value.InstructionsId, captured.Value.InstructionsVersion, row.SubmittedAtUtc, row.ChannelId);
+            // The group replaces only its own members; any other proposal keeps the rule of its own capability.
+            IReadOnlyCollection<string> replacing = capabilityGroup.Contains(proposal.Capability.Id, StringComparer.Ordinal)
+                ? capabilityGroup : [proposal.Capability.Id];
             return new AssistantProposalLookupResponse(captured.Value.ChannelContext, proposal, provenance,
-                await IsCurrentAsync(row, proposal.Capability.Id, cancellationToken));
+                await IsCurrentAsync(row, replacing, cancellationToken));
         });
 
-    // A later turn of the same conversation that closed on a proposal of the same capability replaced this one; asking for
-    // a catalog after a form does not replace the form.
-    private async Task<bool> IsCurrentAsync(AiAssistantTurnRow row, string capabilityId, CancellationToken cancellationToken)
+    // A later turn of the same conversation that closed on a proposal of the same capability, or of its group, replaced this one;
+    // asking for a catalog after a form does not replace the form.
+    private async Task<bool> IsCurrentAsync(AiAssistantTurnRow row, IReadOnlyCollection<string> replacing, CancellationToken cancellationToken)
     {
         for (var page = 1; ; page++)
         {
@@ -51,7 +56,8 @@ internal sealed class AiAssistantProposalLookup(IAiAssistantReader reader, AiAss
                 if (turn.Ordinal <= row.Ordinal) return true;
                 if (turn.State != AiAssistantTurnState.Completed) continue;
                 var later = responsePolicy.Map(turn, true, 0);
-                if (later.IsSuccess && later.Value.ObservedProposal?.Capability.Id == capabilityId) return false;
+                if (later.IsSuccess && later.Value.ObservedProposal is { } replacement
+                    && replacing.Contains(replacement.Capability.Id, StringComparer.Ordinal)) return false;
             }
             if (turns.Items.Count < PageSize || page * PageSize >= turns.TotalCount) return true;
         }

@@ -65,7 +65,7 @@ public sealed partial class AiAssistantContextPolicyTests
         public Protector Protector { get; } = new();
         public AiAssistantClaimResponse Claim { get; }
         public AiAssistantContextPolicy Policy { get; }
-        public Host(string culture, int[]? profileVersions = null)
+        public Host(string culture, int[]? profileVersions = null, AiAssistantLimits? limits = null)
         {
             var users = Users;
             var actor = users.AddUser("fictional@example.test");
@@ -73,7 +73,7 @@ public sealed partial class AiAssistantContextPolicyTests
             var permissions = Permissions;
             permissions.Permissions[actor.Id] = [ArtificialIntelligencePermissions.AssistantUse];
             var clock = new FakeTimeProvider();
-            var limits = new AiAssistantLimits();
+            limits ??= new AiAssistantLimits();
             var now = clock.GetUtcNow().UtcDateTime;
             Reader = new Reader(new(Guid.NewGuid(), actor.Id, Guid.NewGuid(), Guid.NewGuid(), 3, AiAssistantTurnState.Running,
                 "preparing", 2, 1, [], "current-content", null, null, 1, culture, "UTC", AiProvider.OpenAI, "model", 1,
@@ -95,10 +95,12 @@ public sealed partial class AiAssistantContextPolicyTests
     private sealed class Protector : IAiConversationProtector
     {
         public int Decryptions { get; private set; }
+        public Dictionary<string, string> Contents { get; } = [];
         public string Protect(Guid ownerUserId, Guid conversationId, Guid turnId, string purpose, long payloadRevision, string plaintext) => throw new NotSupportedException();
         public string? Unprotect(Guid ownerUserId, Guid conversationId, Guid turnId, string purpose, long payloadRevision, string ciphertext)
         {
             Decryptions++;
+            if (Contents.TryGetValue(ciphertext, out var content)) return content;
             return ciphertext switch
             {
                 "current-content" => "Current question",

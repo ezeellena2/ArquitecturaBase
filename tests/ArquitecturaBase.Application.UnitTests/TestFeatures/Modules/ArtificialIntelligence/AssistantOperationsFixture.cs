@@ -146,6 +146,8 @@ internal sealed class OperationsStore(FakeTimeProvider clock, FakeUnitOfWork wor
     public Task<AiAssistantTurn?> GetActiveForConversationAsync(Guid conversation, CancellationToken ct) =>
         Task.FromResult(Turns.FirstOrDefault(item => item.ConversationId == conversation && item.State is AiAssistantTurnState.Pending or AiAssistantTurnState.Running));
     public Task<int> CountTurnsAsync(Guid conversation, CancellationToken ct) => Task.FromResult(Turns.Count(item => item.ConversationId == conversation));
+    public Task<AiAssistantTurn?> GetLatestWithAttachmentAsync(Guid conversation, CancellationToken ct) =>
+        Task.FromResult(Turns.Where(item => item.ConversationId == conversation && item.AttachmentKey is not null).MaxBy(item => item.Ordinal));
     public Task<AiAssistantBudgetCounts> CountBudgetAsync(Guid actor, DateOnly day, string? channelId, bool? isAudio, CancellationToken ct)
     {
         BudgetReads++;
@@ -179,6 +181,7 @@ internal sealed class OperationsStore(FakeTimeProvider clock, FakeUnitOfWork wor
             turn.SubmittedAtUtc, turn.ContentExpiresAtUtc, turn.DeadlineAtUtc, turn.CancelRequestedAtUtc, turn.ProviderSteps, turn.ToolCalls,
             turn.ToolBytes, turn.InputTokens, turn.OutputTokens, turn.UsageUnknown, turn.FailureCode)
         { AudioSeconds = turn.AudioSeconds, ChannelId = conversation.ChannelId, ExecutionProfileJson = turn.ExecutionProfileJson,
+            AttachmentKey = turn.AttachmentKey, ProtectedAttachment = turn.ProtectedAttachment,
             ToolResults = Tools.Where(tool => tool.TurnId == turn.Id).Select(tool => new AiAssistantToolResultRow(tool.Ordinal, tool.ToolId, tool.Version, tool.ProtectedResult)).ToArray() };
     }
     public Task<AiConnection?> GetAsync(CancellationToken ct) => throw new NotSupportedException();

@@ -19,6 +19,7 @@ internal sealed class AiAssistantTurnConfiguration : IEntityTypeConfiguration<Ai
         builder.Property(turn => turn.Model).HasMaxLength(150);
         builder.Property(turn => turn.ExecutionProfileJson).HasMaxLength(AiAssistantTurn.MaximumExecutionProfileBytes);
         builder.Property(turn => turn.AudioSeconds).HasColumnType("numeric");
+        builder.Property(turn => turn.AttachmentKey).HasMaxLength(AiAssistantTurn.MaximumAttachmentKeyLength);
         builder.Property(turn => turn.FailureCode).HasMaxLength(100);
         builder.Property(turn => turn.Revision).IsConcurrencyToken();
         builder.Property(turn => turn.Fence).IsConcurrencyToken();
@@ -31,6 +32,8 @@ internal sealed class AiAssistantTurnConfiguration : IEntityTypeConfiguration<Ai
         builder.HasIndex(turn => turn.ContentExpiresAtUtc);
         // The private audio of a dictated Home turn is kept while a turn that names it keeps its content.
         builder.HasIndex(turn => turn.AudioRequestId).HasFilter("\"AudioRequestId\" IS NOT NULL");
+        // The private copy of a spreadsheet is kept while a turn that has it, own or inherited, keeps its content.
+        builder.HasIndex(turn => turn.AttachmentKey).HasFilter("\"AttachmentKey\" IS NOT NULL");
         builder.HasOne(turn => turn.Conversation).WithMany()
             .HasForeignKey(turn => new { turn.ConversationId, turn.OwnerUserId })
             .HasPrincipalKey(conversation => new { conversation.Id, conversation.OwnerUserId })

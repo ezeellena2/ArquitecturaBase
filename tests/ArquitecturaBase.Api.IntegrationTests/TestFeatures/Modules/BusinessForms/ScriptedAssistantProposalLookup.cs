@@ -17,7 +17,8 @@ internal sealed class ScriptedAssistantProposalLookup : IAssistantProposalLookup
     public void Add(Guid ownerUserId, Guid requestId, AssistantProposalLookupResponse response) =>
         proposals[(ownerUserId, requestId, response.Proposal.Id)] = response;
 
-    public Task<Result<AssistantProposalLookupResponse>> FindAsync(Guid actorUserId, Guid requestId, Guid proposalId, CancellationToken cancellationToken)
+    public Task<Result<AssistantProposalLookupResponse>> FindAsync(Guid actorUserId, Guid requestId, Guid proposalId,
+        IReadOnlyCollection<string> capabilityGroup, CancellationToken cancellationToken)
     {
         Interlocked.Increment(ref reads);
         return Task.FromResult<Result<AssistantProposalLookupResponse>>(proposals.TryGetValue((actorUserId, requestId, proposalId), out var response)

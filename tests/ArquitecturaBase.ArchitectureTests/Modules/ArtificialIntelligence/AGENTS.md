@@ -7,3 +7,5 @@ Hereda las instrucciones del proyecto. Su fuente funcional es [inteligencia arti
 El límite de dependencias de capacidades usa identidades Type permitidas de puertos de lectura, no sufijos ni namespaces. IEnumerable se desenvuelve y los helpers concretos locales se recorren transitivamente; dependencias desconocidas quedan prohibidas, aunque se llamen Reader. Negativos de transporte/escritura con nombres inocuos y helpers anidados prueban el detector.
 
 La lista de puertos de capacidades combina los del núcleo con CapabilityReadPorts de las contribuciones descubiertas. Cada módulo declara sólo sus Type propios; esta regla no importa ni nombra a los otros. El detector transitivo y sus negativos de escritura/transporte permanecen sin cambios.
+
+El detector prohíbe a las capacidades el almacenamiento privado y el lector de planillas: leen la planilla sólo de su pedido.

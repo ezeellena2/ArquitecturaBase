@@ -30,6 +30,36 @@ public sealed class AiAssistantTurnTests
         Assert.Null(turn.AudioRequestId);
     }
 
+    // Stage 2: the key of the private copy stays in the clear for its retention; purging drops the sealed sheet with the question.
+    [Fact]
+    public void A_turn_with_a_spreadsheet_names_its_copy_and_purging_drops_what_was_prepared()
+    {
+        var now = new DateTime(2026, 11, 9, 12, 0, 0, DateTimeKind.Utc);
+        var turn = AiAssistantTurn.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), 1, "cipher", "es", "UTC",
+            AiProvider.OpenAI, "model", 1, now, now.AddDays(30));
+        turn.Attach("ai/assistant/attachments/fixture.xlsx", "attachment-cipher");
+        Assert.Equal(("ai/assistant/attachments/fixture.xlsx", "attachment-cipher"), (turn.AttachmentKey, turn.ProtectedAttachment));
+        turn.PurgeContent();
+        Assert.Null(turn.ProtectedAttachment);
+        Assert.Null(turn.ProtectedQuestion);
+        Assert.Equal("ai/assistant/attachments/fixture.xlsx", turn.AttachmentKey);
+    }
+
+    [Theory]
+    [InlineData("", "attachment-cipher")]
+    [InlineData(" ", "attachment-cipher")]
+    [InlineData("long", "attachment-cipher")]
+    [InlineData("ai/assistant/attachments/fixture.xlsx", "")]
+    public void A_turn_with_a_spreadsheet_needs_a_bounded_key_and_a_sealed_sheet(string key, string protectedAttachment)
+    {
+        var now = new DateTime(2026, 11, 9, 12, 0, 0, DateTimeKind.Utc);
+        var turn = AiAssistantTurn.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), 1, "cipher", "es", "UTC",
+            AiProvider.OpenAI, "model", 1, now, now.AddDays(30));
+        if (key == "long") key = new string('k', AiAssistantTurn.MaximumAttachmentKeyLength + 1);
+        Assert.Throws<ArgumentException>(() => turn.Attach(key, protectedAttachment));
+        Assert.Null(turn.AttachmentKey);
+    }
+
     [Fact]
     public void A_confirmed_cancel_request_prevents_late_completion()
     {

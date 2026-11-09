@@ -41,3 +41,5 @@ Las aceptaciones del actor se cuentan por canal y propósito desde el recibo, no
 NormalizeAudio convierte las excepciones de almacenamiento no canceladas (incluido AggregateException al agotar reintentos, apertura, lectura y cierre del stream) a ContentUnavailable sólo dentro del tramo previo al cliente STT. No transforma en incierto un archivo que no llegó al proveedor; cancelación y errores del POST conservan su clasificación propia.
 
 Retención física: Inicio conserva la retirada explícita; otros canales no la necesitan cuando vencieron contenido y recibos y no hay turnos activos. La consulta usa ConversationId de recibos independientes, sin FK/cascade ni inferencia desde el vencimiento del turno.
+
+AttachmentKey del turno tiene un índice filtrado para la retención de la copia de una planilla; el repositorio da el último turno de la conversación con planilla para heredarla. Lo cifrado se proyecta sólo con la conversación activa.

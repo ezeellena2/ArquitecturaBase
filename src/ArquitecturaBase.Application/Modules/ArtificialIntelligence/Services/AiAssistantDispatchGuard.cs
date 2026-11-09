@@ -42,7 +42,7 @@ internal sealed class AiAssistantDispatchGuard(IAiAssistantRepository repository
         if (!await guard.CanReadAsync(turn.OwnerUserId, conversation.RequiredPermissions, ct)) return AiAssistantErrors.ContentBlocked;
         if (profile.Value.Purpose == AiAssistantPurpose.Interpret)
         {
-            var offered = await catalog.BuildAsync(profile.Value.ChannelContext, ct);
+            var offered = await catalog.BuildAsync(profile.Value.ChannelContext, turn.AttachmentKey is not null, ct);
             if (offered.IsFailure) return offered.Error;
             if (offered.Value.Capabilities.Count != profile.Value.ChannelContext.AllowedCapabilities.Count) return AiAssistantErrors.ContentBlocked;
         }

@@ -803,6 +803,10 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("AttachmentKey")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
                     b.Property<Guid?>("AttemptId")
                         .HasColumnType("uuid");
 
@@ -892,6 +896,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<string>("ProtectedAnswer")
                         .HasColumnType("text");
 
+                    b.Property<string>("ProtectedAttachment")
+                        .HasColumnType("text");
+
                     b.Property<string>("ProtectedEvidences")
                         .HasColumnType("text");
 
@@ -947,6 +954,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasColumnType("boolean");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("AttachmentKey")
+                        .HasFilter("\"AttachmentKey\" IS NOT NULL");
 
                     b.HasIndex("AudioRequestId")
                         .HasFilter("\"AudioRequestId\" IS NOT NULL");

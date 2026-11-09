@@ -26,7 +26,7 @@ internal sealed class FormCatalogAssistantProposalService(IAssistantProposalLook
         if (request.RequestId is not { } requestId || requestId == Guid.Empty) return FieldErrors.On(FormCatalogErrors.ContentInvalid, "requestId");
         if (request.ProposalId is not { } proposalId || proposalId == Guid.Empty) return FieldErrors.On(FormCatalogErrors.ContentInvalid, "proposalId");
         if (await CreatedAsync(access.Value, proposalId, cancellationToken) is { } created) return created;
-        var found = await lookup.FindAsync(access.Value, requestId, proposalId, cancellationToken);
+        var found = await lookup.FindAsync(access.Value, requestId, proposalId, [BusinessFormAuthoringAssistantCapabilitySource.ProposeCatalogId], cancellationToken);
         if (found.IsFailure) return FormCatalogErrors.ProposalUnavailable;
         if (!found.Value.IsCurrent) return FormCatalogErrors.ProposalReplaced;
         return await CreateCatalogAsync(access.Value, found.Value.Context, found.Value.Proposal, found.Value.Provenance, "app", cancellationToken);

@@ -83,21 +83,22 @@ internal sealed class AiAssistantAccessGuard(IUserReader users, IPermissionServi
     public AssistantChannelContext HomeContext(Guid actorUserId, string culture, string timeZoneId) =>
         AiAssistantChannelPolicy.Home(actorUserId, culture, timeZoneId, catalog.OfferedInHome);
 
+    // A turn without a spreadsheet does not offer what requires one; what is offered is sealed in the turn.
     public Task<Result<AiAssistantExecutionProfileSnapshot>> CaptureHomeProfileAsync(AiConnectionRow connection,
-        Guid actorUserId, string culture, string timeZoneId, CancellationToken ct) =>
-        CaptureProfileAsync(connection, HomeContext(actorUserId, culture, timeZoneId), "home-system", AiAssistantChannelPolicy.HomeInstructionsVersion, null, ct);
+        Guid actorUserId, string culture, string timeZoneId, bool hasAttachment, CancellationToken ct) =>
+        CaptureProfileAsync(connection, HomeContext(actorUserId, culture, timeZoneId), "home-system", AiAssistantChannelPolicy.HomeInstructionsVersion, null, hasAttachment, ct);
 
     public Task<Result<AiAssistantExecutionProfileSnapshot>> CaptureOperationProfileAsync(AiConnectionRow connection,
-        AssistantChannelContext channel, DateTime occurredAtUtc, CancellationToken ct) =>
-        CaptureProfileAsync(connection, channel, "capabilities-v1", 1, occurredAtUtc, ct);
+        AssistantChannelContext channel, DateTime occurredAtUtc, bool hasAttachment, CancellationToken ct) =>
+        CaptureProfileAsync(connection, channel, "capabilities-v1", 1, occurredAtUtc, hasAttachment, ct);
 
     private async Task<Result<AiAssistantExecutionProfileSnapshot>> CaptureProfileAsync(AiConnectionRow connection,
-        AssistantChannelContext channel, string instructionsId, int instructionsVersion, DateTime? occurredAtUtc, CancellationToken ct)
+        AssistantChannelContext channel, string instructionsId, int instructionsVersion, DateTime? occurredAtUtc, bool hasAttachment, CancellationToken ct)
     {
         var profile = profiles.Where(p => p.Provider == connection.Provider && p.Model == connection.Model && p.SupportsTools &&
             p.SupportsTerminalAnswer && p.ContextBytes >= limits.ContextBytes).OrderByDescending(p => p.Version).ThenBy(p => p.Id, StringComparer.Ordinal).FirstOrDefault();
         if (profile is null) return AiAssistantErrors.Unavailable;
-        var offered = await catalog.BuildAsync(channel, ct);
+        var offered = await catalog.BuildAsync(channel, hasAttachment, ct);
         if (offered.IsFailure) return offered.Error;
         channel = channel with { AllowedCapabilities = offered.Value.Capabilities.Select(d => new AssistantCapabilityReference(d.Id, d.Version)).ToArray(),
             RequiredPermissions = offered.Value.RequiredPermissions };

@@ -24,7 +24,7 @@ internal sealed class FormDraftProposalService(IAssistantProposalLookup lookup, 
         if (request.RequestId is not { } requestId || requestId == Guid.Empty) return FieldErrors.On(FormDefinitionErrors.ContentInvalid, "requestId");
         if (request.ProposalId is not { } proposalId || proposalId == Guid.Empty) return FieldErrors.On(FormDefinitionErrors.ContentInvalid, "proposalId");
         if (await CreatedAsync(access.Value, proposalId, cancellationToken) is { } created) return created;
-        var found = await lookup.FindAsync(access.Value, requestId, proposalId, cancellationToken);
+        var found = await lookup.FindAsync(access.Value, requestId, proposalId, [BusinessFormAuthoringAssistantCapabilitySource.ProposeFormId], cancellationToken);
         if (found.IsFailure || found.Value.Proposal is not { Capability: { Id: BusinessFormAuthoringAssistantCapabilitySource.ProposeFormId, Version: 1 },
                 Payload: FormAuthoringFormProposal proposal })
             return FormDefinitionErrors.ProposalUnavailable;

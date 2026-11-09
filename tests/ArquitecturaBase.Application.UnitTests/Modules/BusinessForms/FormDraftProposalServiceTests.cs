@@ -68,6 +68,7 @@ public sealed class FormDraftProposalServiceTests
         var result = await host.Service.CreateAsync(host.Request, Ct);
         Assert.Equal(FormDefinitionErrors.ProposalReplaced, result.Error);
         Assert.Empty(host.Drafts.Created);
+        Assert.Equal([BusinessFormAuthoringAssistantCapabilitySource.ProposeFormId], host.Lookup.LastCapabilityGroup);
     }
 
     [Theory]

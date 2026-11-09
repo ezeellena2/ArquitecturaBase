@@ -123,5 +123,7 @@ internal sealed class AiAssistantReader(ApplicationDbContext dbContext, TimeProv
             turn.InputTokens, turn.OutputTokens, turn.UsageUnknown, turn.FailureCode)
         { AudioSeconds = turn.AudioSeconds, ChannelId = turn.Conversation.ChannelId, ExecutionProfileJson = turn.ExecutionProfileJson,
             AudioRequestId = turn.AudioRequestId,
-            ProtectedTranscript = turn.Conversation.State == AiConversationState.Active ? turn.ProtectedTranscript : null });
+            ProtectedTranscript = turn.Conversation.State == AiConversationState.Active ? turn.ProtectedTranscript : null,
+            AttachmentKey = turn.AttachmentKey,
+            ProtectedAttachment = turn.Conversation.State == AiConversationState.Active ? turn.ProtectedAttachment : null });
 }

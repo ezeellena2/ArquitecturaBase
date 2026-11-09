@@ -1,10 +1,14 @@
 using System.Text.Json;
 using ArquitecturaBase.Application.Common.Pagination;
+using ArquitecturaBase.Application.Interfaces.Channels;
+using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Channels;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Models;
+using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
+using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ArquitecturaBase.Application.UnitTests.Modules.ArtificialIntelligence;
@@ -12,6 +16,7 @@ namespace ArquitecturaBase.Application.UnitTests.Modules.ArtificialIntelligence;
 public sealed class AiAssistantProposalLookupTests
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
+    private static readonly string[] Group = [ObservedReadAssistantSource.ProposalId];
 
     private static async Task<(ObservedReadAssistantScenario Scenario, Guid ProposalId)> CompletedAsync(bool home = true)
     {
@@ -41,7 +46,7 @@ public sealed class AiAssistantProposalLookupTests
     {
         var (scenario, proposalId) = await CompletedAsync();
         var row = scenario.Row();
-        var result = await Lookup(scenario, new Reader(row, [row])).FindAsync(row.OwnerUserId, row.RequestId, proposalId, Ct);
+        var result = await Lookup(scenario, new Reader(row, [row])).FindAsync(row.OwnerUserId, row.RequestId, proposalId, Group, Ct);
         Assert.True(result.IsSuccess);
         Assert.Equal(proposalId, result.Value.Proposal.Id);
         Assert.Equal(("home", row.SubmittedAtUtc), (result.Value.Provenance.ChannelId, result.Value.Provenance.OccurredAtUtc));
@@ -55,8 +60,24 @@ public sealed class AiAssistantProposalLookupTests
         var (scenario, proposalId) = await CompletedAsync();
         var row = scenario.Row();
         var later = row with { Id = Guid.NewGuid(), Ordinal = row.Ordinal + 1 };
-        var result = await Lookup(scenario, new Reader(row, [later, row])).FindAsync(row.OwnerUserId, row.RequestId, proposalId, Ct);
+        var result = await Lookup(scenario, new Reader(row, [later, row])).FindAsync(row.OwnerUserId, row.RequestId, proposalId, Group, Ct);
         Assert.False(result.Value.IsCurrent);
+    }
+
+    // Stage 2: capabilities that replace each other form a group; a proposal outside it keeps the rule of its own capability.
+    [Fact]
+    public async Task A_later_proposal_of_another_capability_replaces_it_only_within_its_group()
+    {
+        var (scenario, proposalId) = await CompletedAsync();
+        var row = scenario.Row();
+        var later = row with { Id = Guid.NewGuid(), Ordinal = row.Ordinal + 1, ToolResults = row.ToolResults
+            .Select(tool => tool.ToolId == ObservedReadAssistantSource.ProposalId ? tool with { ToolId = ReplacementSource.Id } : tool).ToArray() };
+        var lookup = new AiAssistantProposalLookup(new Reader(row, [later, row]), scenario.Guard, new AiAssistantResponsePolicy(scenario.Protector,
+            scenario.Clock, new AiAssistantCapabilityCatalogPolicy([new ObservedReadAssistantSource(), new ReplacementSource()], scenario.Permissions)),
+            NullLogger<AiAssistantProposalLookup>.Instance);
+        Assert.True((await lookup.FindAsync(row.OwnerUserId, row.RequestId, proposalId, Group, Ct)).Value.IsCurrent);
+        Assert.False((await lookup.FindAsync(row.OwnerUserId, row.RequestId, proposalId, [ObservedReadAssistantSource.ProposalId, ReplacementSource.Id], Ct)).Value.IsCurrent);
+        Assert.True((await lookup.FindAsync(row.OwnerUserId, row.RequestId, proposalId, [ReplacementSource.Id], Ct)).Value.IsCurrent);
     }
 
     [Fact]
@@ -68,7 +89,7 @@ public sealed class AiAssistantProposalLookupTests
             JsonSerializer.Serialize(new AiAssistantAnswer("answer", "Hay 12.", []), JsonSerializerOptions.Web));
         var text = row with { Id = Guid.NewGuid(), Ordinal = row.Ordinal + 1, ProtectedAnswer = answer, ToolResults = [] };
         var failed = row with { Id = Guid.NewGuid(), Ordinal = row.Ordinal + 2, State = AiAssistantTurnState.Failed };
-        var result = await Lookup(scenario, new Reader(row, [failed, text, row])).FindAsync(row.OwnerUserId, row.RequestId, proposalId, Ct);
+        var result = await Lookup(scenario, new Reader(row, [failed, text, row])).FindAsync(row.OwnerUserId, row.RequestId, proposalId, Group, Ct);
         Assert.True(result.Value.IsCurrent);
     }
 
@@ -77,10 +98,10 @@ public sealed class AiAssistantProposalLookupTests
     {
         var (home, proposalId) = await CompletedAsync();
         var row = home.Row();
-        Assert.Equal(AiAssistantErrors.NotFound, (await Lookup(home, new Reader(row, [row])).FindAsync(row.OwnerUserId, row.RequestId, Guid.NewGuid(), Ct)).Error);
+        Assert.Equal(AiAssistantErrors.NotFound, (await Lookup(home, new Reader(row, [row])).FindAsync(row.OwnerUserId, row.RequestId, Guid.NewGuid(), Group, Ct)).Error);
         var (channel, channelProposal) = await CompletedAsync(home: false);
         var channelRow = channel.Row();
-        Assert.Equal(AiAssistantErrors.NotFound, (await Lookup(channel, new Reader(channelRow, [channelRow])).FindAsync(channelRow.OwnerUserId, channelRow.RequestId, channelProposal, Ct)).Error);
+        Assert.Equal(AiAssistantErrors.NotFound, (await Lookup(channel, new Reader(channelRow, [channelRow])).FindAsync(channelRow.OwnerUserId, channelRow.RequestId, channelProposal, Group, Ct)).Error);
     }
 
     [Fact]
@@ -89,7 +110,7 @@ public sealed class AiAssistantProposalLookupTests
         var (scenario, proposalId) = await CompletedAsync();
         scenario.Clock.Advance(TimeSpan.FromDays(400));
         var row = scenario.Row();
-        var result = await Lookup(scenario, new Reader(row, [row])).FindAsync(row.OwnerUserId, row.RequestId, proposalId, Ct);
+        var result = await Lookup(scenario, new Reader(row, [row])).FindAsync(row.OwnerUserId, row.RequestId, proposalId, Group, Ct);
         Assert.Equal(AiAssistantErrors.NotFound, result.Error);
     }
 
@@ -99,8 +120,21 @@ public sealed class AiAssistantProposalLookupTests
         var (scenario, proposalId) = await CompletedAsync();
         var row = scenario.Row();
         scenario.Permissions.Permissions[row.OwnerUserId] = [];
-        var result = await Lookup(scenario, new Reader(row, [row])).FindAsync(row.OwnerUserId, row.RequestId, proposalId, Ct);
+        var result = await Lookup(scenario, new Reader(row, [row])).FindAsync(row.OwnerUserId, row.RequestId, proposalId, Group, Ct);
         Assert.True(result.IsFailure);
+    }
+
+    // Another proposal capability that reads the same payload as the fixture's.
+    private sealed class ReplacementSource : IAssistantCapabilitySource
+    {
+        public const string Id = "fixture.observed-replacement";
+        private readonly ObservedReadAssistantSource codec = new();
+        public IReadOnlyList<AssistantCapabilityDefinition> Definitions { get; } = [new ObservedReadAssistantSource().Definitions[1] with { Id = Id }];
+        public Task<Result<AssistantCapabilityResponse>> ExecuteAsync(AssistantCapabilityRequest request, CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("Looking up a proposal never runs a capability.");
+        public Result<AssistantCapabilityPayload> ParseOutput(AssistantCapabilityReference capability, string outputJson) =>
+            capability == new AssistantCapabilityReference(Id, 1)
+                ? codec.ParseOutput(new(ObservedReadAssistantSource.ProposalId, 1), outputJson) : AiAssistantErrors.InvalidOutput;
     }
 
     private sealed class Reader(AiAssistantTurnRow row, IReadOnlyList<AiAssistantTurnRow> turns) : IAiAssistantReader

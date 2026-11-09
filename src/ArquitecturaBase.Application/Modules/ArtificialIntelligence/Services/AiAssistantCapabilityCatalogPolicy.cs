@@ -40,7 +40,10 @@ internal sealed class AiAssistantCapabilityCatalogPolicy
     public Result<AssistantCapabilityPayload> ParseOutput(AssistantCapabilityReference capability, string outputJson) =>
         registry.TryGetValue(capability, out var entry) ? entry.Source.ParseOutput(capability, outputJson) : AiAssistantErrors.ToolRejected;
 
-    public async Task<Result<AiAssistantCapabilityCatalogResponse>> BuildAsync(AssistantChannelContext context, CancellationToken ct)
+    public Task<Result<AiAssistantCapabilityCatalogResponse>> BuildAsync(AssistantChannelContext context, CancellationToken ct) =>
+        BuildAsync(context, false, ct);
+
+    public async Task<Result<AiAssistantCapabilityCatalogResponse>> BuildAsync(AssistantChannelContext context, bool hasAttachment, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(context);
         if (!ValidContext(context)) return AiAssistantErrors.ToolRejected;
@@ -56,7 +59,9 @@ internal sealed class AiAssistantCapabilityCatalogPolicy
             ? await permissions.GetPermissionsAsync(subjectId, ct) : [];
         if (!context.RequiredPermissions.Actor.All(actorPermissions.Contains) || !context.RequiredPermissions.Subject.All(subjectPermissions.Contains))
             return AiAssistantErrors.Forbidden;
-        var offered = selected.Where(definition => definition.RequiredPermissions.Actor.All(actorPermissions.Contains) &&
+        // A turn without a spreadsheet leaves out what needs one before counting the sixteen definitions.
+        var offered = selected.Where(definition => (hasAttachment || !definition.RequiresAttachment) &&
+            definition.RequiredPermissions.Actor.All(actorPermissions.Contains) &&
             definition.RequiredPermissions.Subject.All(subjectPermissions.Contains)).ToArray();
         if (offered.Length + context.AllowedTerminals.Count > MaximumDefinitions) return AiAssistantErrors.ToolRejected;
         var required = new AssistantPermissionRequirements(

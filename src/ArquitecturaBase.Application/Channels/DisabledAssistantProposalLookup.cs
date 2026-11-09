@@ -7,7 +7,8 @@ namespace ArquitecturaBase.Application.Channels;
 
 internal sealed class DisabledAssistantProposalLookup : IAssistantProposalLookup
 {
-    public Task<Result<AssistantProposalLookupResponse>> FindAsync(Guid actorUserId, Guid requestId, Guid proposalId, CancellationToken cancellationToken)
+    public Task<Result<AssistantProposalLookupResponse>> FindAsync(Guid actorUserId, Guid requestId, Guid proposalId,
+        IReadOnlyCollection<string> capabilityGroup, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         return Task.FromResult<Result<AssistantProposalLookupResponse>>(AssistantOperationErrors.Unavailable);

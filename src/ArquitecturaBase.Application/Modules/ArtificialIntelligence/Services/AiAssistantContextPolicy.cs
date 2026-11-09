@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
+using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Configuration;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Models;
@@ -32,7 +33,7 @@ internal sealed class AiAssistantContextPolicy(IAiAssistantReader reader, IAiCon
             guard.Model(profile.Value, connection) != turn.Model) return AiAssistantErrors.Unavailable;
         Result<AiAssistantCapabilityCatalogResponse> offered = profile.Value.Purpose == AiAssistantPurpose.NormalizeAudio
             ? new AiAssistantCapabilityCatalogResponse([], [], profile.Value.ChannelContext.RequiredPermissions)
-            : await capabilities.BuildAsync(profile.Value.ChannelContext, cancellationToken);
+            : await capabilities.BuildAsync(profile.Value.ChannelContext, turn.AttachmentKey is not null, cancellationToken);
         if (offered.IsFailure) return offered.Error;
         if (offered.Value.Capabilities.Count != profile.Value.ChannelContext.AllowedCapabilities.Count) return AiAssistantErrors.ContentBlocked;
         var credential = credentialPolicy.Reveal(connection.Provider, connection.ProtectedApiKey);
@@ -59,6 +60,16 @@ internal sealed class AiAssistantContextPolicy(IAiAssistantReader reader, IAiCon
                 return new AiAssistantExecutionContextResponse(claim, turn, normalized, [], [], 0, 0) { ExecutionProfile = profile.Value };
             }
             catch (JsonException) { return AiAssistantErrors.ContentUnavailable; }
+        }
+        // The conversation's spreadsheet goes as data at the end of the current message: outside the history's characters, inside
+        // the context budget.
+        StructuredSpreadsheet? spreadsheet = null;
+        if (turn.ProtectedAttachment is { } protectedAttachment)
+        {
+            var attachment = AiAssistantAttachmentPolicy.Read(responsePolicy.Reveal(turn, AiAssistantAttachmentPolicy.Purpose, protectedAttachment));
+            if (attachment is null) return AiAssistantErrors.ContentUnavailable;
+            spreadsheet = attachment.Spreadsheet;
+            question = AiAssistantAttachmentPolicy.Message(question, spreadsheet, turn.Culture);
         }
         var page = await reader.ListTurnsAsync(claim.OwnerUserId, claim.ConversationId,
             new ListAiAssistantTurnsRequest { PageSize = limits.HistoryTurns + 1, Sort = "-ordinal" }, cancellationToken);
@@ -91,7 +102,7 @@ internal sealed class AiAssistantContextPolicy(IAiAssistantReader reader, IAiCon
         var request = new LlmConversationRequest(turn.Provider, turn.Model, credential.Value, system, messages, tools, [], null,
             limits.OutputTokens, limits.ProviderResponseBytes, limits.ContinuationBytes);
         if (RequestBytes(request) > limits.ContextBytes) return AiAssistantErrors.LimitExceeded;
-        return new AiAssistantExecutionContextResponse(claim, turn, request, [], [], 0, 0) { ExecutionProfile = profile.Value };
+        return new AiAssistantExecutionContextResponse(claim, turn, request, [], [], 0, 0) { ExecutionProfile = profile.Value, Attachment = spreadsheet };
     }
 
     private static int RequestBytes(LlmConversationRequest request) => Encoding.UTF8.GetByteCount(JsonSerializer.Serialize(

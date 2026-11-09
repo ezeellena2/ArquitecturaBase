@@ -117,7 +117,8 @@ internal sealed class AiAssistantExecutionService(AiAssistantContextPolicy conte
                     if (Encoding.UTF8.GetByteCount(call.ArgumentsJson) > definition.Budget.InputBytes) return AiAssistantErrors.LimitExceeded;
                     // The provider has not observed this batch's fresh reads yet. Only prior confirmed steps may authorize a proposal.
                     if (context.ObservedReads.Any(r => r.TurnId != context.Claim.TurnId)) return AiAssistantErrors.ToolRejected;
-                    var request = new AssistantCapabilityRequest(context.Claim.TurnId, profile.ChannelContext, reference!, call.ArgumentsJson, context.ObservedReads);
+                    var request = new AssistantCapabilityRequest(context.Claim.TurnId, profile.ChannelContext, reference!, call.ArgumentsJson, context.ObservedReads)
+                        { Attachment = context.Attachment };
                     var remaining = context.Claim.DeadlineAtUtc - timeProvider.GetUtcNow().UtcDateTime;
                     if (remaining <= TimeSpan.Zero) return AiAssistantErrors.Expired;
                     var timeoutLimit = TimeSpan.FromSeconds(Math.Min(limits.ToolTimeoutSeconds, definition.Budget.TimeoutSeconds));

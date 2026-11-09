@@ -16,6 +16,8 @@ public interface IAiAssistantRepository
     Task<AiAssistantTurn?> GetActiveForActorChannelAsync(Guid ownerUserId, string channelId, Guid? channelConversationId, CancellationToken cancellationToken);
     Task<AiAssistantTurn?> GetActiveForConversationAsync(Guid conversationId, CancellationToken cancellationToken);
     Task<int> CountTurnsAsync(Guid conversationId, CancellationToken cancellationToken);
+    /// <summary>The latest turn of the conversation that has a spreadsheet, own or inherited, even once its content was purged.</summary>
+    Task<AiAssistantTurn?> GetLatestWithAttachmentAsync(Guid conversationId, CancellationToken cancellationToken);
     Task<AiAssistantBudgetCounts> CountBudgetAsync(Guid ownerUserId, DateOnly dayUtc, string? channelId, bool? isAudio, CancellationToken cancellationToken);
     Task<IReadOnlyList<AiAssistantTurn>> ListExpiredAsync(DateTime nowUtc, int pendingSeconds, int graceSeconds, int limit, CancellationToken cancellationToken);
     Task<IReadOnlyList<AiAssistantTurn>> ListPurgeableAsync(DateTime nowUtc, int limit, CancellationToken cancellationToken);
