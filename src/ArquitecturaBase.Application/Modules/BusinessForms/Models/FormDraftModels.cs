@@ -27,7 +27,8 @@ public sealed record FormFieldInput(string LocalId, Guid? FieldId, Guid? Replace
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormSelectionSettings? Selection = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormRowSettings? Rows = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? Repeated = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormCalculation? Calculation = null)
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormCalculation? Calculation = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormShowWhen? ShowWhen = null)
 { public override string ToString() => "FormFieldInput { Content = [REDACTED] }"; }
 public sealed record FormChoiceInput(string LocalId, Guid? ChoiceId, IReadOnlyDictionary<string, string> Label)
 { public override string ToString() => "FormChoiceInput { Content = [REDACTED] }"; }
@@ -57,6 +58,14 @@ public sealed record FormCalculation(string Operation, IReadOnlyList<Guid> Opera
     public const int MaxSumOperands = 20;
     public override string ToString() => "FormCalculation { Content = [REDACTED] }";
 }
+// CO1-A: the question shows only when an earlier question outside the block has one of these answers: the identity of an own
+// option or of a catalog option, or "true"/"false" for yes or no. A new question or option is named by its LocalId; sealed, by
+// its identity.
+public sealed record FormShowWhen(Guid QuestionId, IReadOnlyList<string> Values)
+{
+    public const int MaxValues = 50;
+    public override string ToString() => "FormShowWhen { Content = [REDACTED] }";
+}
 public sealed record FormFileSettings(int MinFiles, int MaxFiles, string? PhotoSource = null);
 public sealed record CanonicalFormChoice(Guid ChoiceId, IReadOnlyDictionary<string, string> Label)
 { public override string ToString() => "CanonicalFormChoice { Content = [REDACTED] }"; }
@@ -67,7 +76,8 @@ public sealed record CanonicalFormField(Guid FieldId, string Key, string Type, I
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormSelectionSettings? Selection = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormRowSettings? Rows = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? Repeated = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormCalculation? Calculation = null)
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormCalculation? Calculation = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormShowWhen? ShowWhen = null)
 { public override string ToString() => "CanonicalFormField { Content = [REDACTED] }"; }
 public sealed record FormQuestionSchema(int Format, IReadOnlyList<CanonicalFormField> Fields,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<FormSection>? Sections = null)

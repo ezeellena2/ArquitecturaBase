@@ -62,6 +62,7 @@ internal sealed partial class SaveFormDraftRequestValidator : AbstractValidator<
                         || field.Source is null && field.Options is { } ownOptions && selection.MinSelected > ownOptions.Count
                     : field.Selection is not null) Fail(path + ".selection");
                 if (field.Calculation is { } calculation && !HasValidShape(calculation, field)) Fail(path + ".calculation");
+                if (field.ShowWhen is { } showWhen && !HasValidShape(showWhen, field)) Fail(path + ".showWhen");
                 var textType = field.Type is "shortText" or "longText";
                 if ((textType && field.MaxLength is < 1 or > 10000) || (!textType && field.MaxLength.HasValue)) Fail(path + ".maxLength");
                 if (field.Type is not ("choice" or "multiChoice"))
@@ -121,6 +122,15 @@ internal sealed partial class SaveFormDraftRequestValidator : AbstractValidator<
         };
         Guid? self = field.FieldId ?? (Guid.TryParse(field.LocalId, out var local) ? local : null);
         return count && operands.All(operand => operand != Guid.Empty && operand != self) && operands.Distinct().Count() == operands.Count;
+    }
+    // CO1-A: a question outside the block names another question and between one and fifty different answers.
+    private static bool HasValidShape(FormShowWhen showWhen, FormFieldInput field)
+    {
+        if (field.Type == "group" || field.Repeated == true || showWhen.QuestionId == Guid.Empty
+            || showWhen.Values is not { Count: > 0 and <= FormShowWhen.MaxValues } values) return false;
+        Guid? self = field.FieldId ?? (Guid.TryParse(field.LocalId, out var local) ? local : null);
+        return showWhen.QuestionId != self && values.All(value => value is { Length: > 0 and <= 64 })
+            && values.Distinct(StringComparer.Ordinal).Count() == values.Count;
     }
     private static void CheckText(IReadOnlyDictionary<string, string>? texts, string culture, int limit, string path, Action<string> fail, bool utf16 = false)
     {

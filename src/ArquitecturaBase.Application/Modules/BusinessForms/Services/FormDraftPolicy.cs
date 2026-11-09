@@ -111,10 +111,11 @@ internal static class FormDraftPolicy
             }
             var help = input.Help?.Where(pair => !string.IsNullOrWhiteSpace(pair.Value)).ToDictionary(pair => pair.Key, pair => pair.Value!, StringComparer.Ordinal);
             fields.Add(new(fieldId, key, input.Type, input.Label, help is { Count: > 0 } ? help : null, input.Required, input.MaxLength,
-                options?.AsReadOnly(), input.Source, input.Files, input.Selection, input.Rows, input.Repeated, input.Calculation));
+                options?.AsReadOnly(), input.Source, input.Files, input.Selection, input.Rows, input.Repeated, input.Calculation, input.ShowWhen));
             fieldMap.Add(new(input.LocalId, fieldId, key, input.ReplacesFieldId));
         }
         NameAnsweredQuestions(draft.Fields, fields, currentFieldIds);
+        NameConditions(draft.Fields, fields, currentFieldIds, choiceMap);
         retiredFields.UnionWith(oldFields.Where(field => !currentFieldIds.Contains(field.FieldId)).Select(field => field.FieldId));
         retiredChoices.UnionWith(oldFields.SelectMany(field => field.Options ?? []).Where(option => !currentChoiceIds.Contains(option.ChoiceId)).Select(option => option.ChoiceId));
         return new FormDraftResolution(new(1, draft.Culture, submit, fields.AsReadOnly(), draft.Sections), new(fieldMap.AsReadOnly(), choiceMap.AsReadOnly()),
@@ -136,6 +137,22 @@ internal static class FormDraftPolicy
             if (fields[i].Calculation is { } calculation && calculation.Operands.Any(assigned.ContainsKey))
                 fields[i] = fields[i] with { Calculation = calculation with { Operands = calculation.Operands
                     .Select(operand => assigned.TryGetValue(operand, out var fieldId) ? fieldId : operand).ToArray() } };
+    }
+    // CO1-A: a condition names its question like a filter, and the new options of that question by their LocalId.
+    private static void NameConditions(IReadOnlyList<FormFieldInput> inputs, List<CanonicalFormField> fields, HashSet<Guid> fieldIds,
+        List<FormChoiceIdentityMap> choices)
+    {
+        var assigned = new Dictionary<Guid, Guid>();
+        for (var i = 0; i < inputs.Count; i++)
+            if (inputs[i].FieldId is null && Guid.TryParse(inputs[i].LocalId, out var local) && !fieldIds.Contains(local)) assigned.TryAdd(local, fields[i].FieldId);
+        for (var i = 0; i < fields.Count; i++)
+        {
+            if (fields[i].ShowWhen is not { } showWhen) continue;
+            var questionId = assigned.GetValueOrDefault(showWhen.QuestionId, showWhen.QuestionId);
+            var options = choices.Where(choice => choice.FieldId == questionId).ToDictionary(choice => choice.LocalId, choice => choice.ChoiceId, StringComparer.Ordinal);
+            fields[i] = fields[i] with { ShowWhen = new(questionId, showWhen.Values
+                .Select(value => options.TryGetValue(value, out var choiceId) ? choiceId.ToString("D") : value).ToArray()) };
+        }
     }
     // The block of rows is not a question: its questions are ("10, cinco en el bloque").
     public static int QuestionCount(IEnumerable<CanonicalFormField> fields) => fields.Count(field => field.Type != "group");

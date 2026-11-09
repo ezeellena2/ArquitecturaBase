@@ -55,6 +55,7 @@ internal sealed class BusinessFormPublicationService : IBusinessFormPublicationS
         if (_channels.Length > 0) issues.AddRange(FormPublicationPolicy.RowIssues(saved));
         issues.AddRange(FormPublicationPolicy.ValidateSections(saved));
         issues.AddRange(FormPublicationPolicy.ValidateCalculations(saved));
+        issues.AddRange(FormPublicationPolicy.ValidateConditions(saved));
         var catalogs = await _guard.InspectCatalogsAsync(saved.Draft.Fields, cancellationToken,
             cultures.Where(culture => culture.IsComplete).Select(culture => culture.Culture).ToArray());
         issues.AddRange(catalogs.Issues);

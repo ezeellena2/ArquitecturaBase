@@ -30,6 +30,9 @@ public sealed record FormEntryQuestionResponse(Guid FieldId, string Type, string
     /// <summary>CA1-A: how the server computes this read-only decimal; the app shows a preview with the same rounding and never sends it.</summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public FormCalculation? Calculation { get; init; }
+    /// <summary>CO1-A: the earlier question and answers that show this one; hidden, it is neither required nor sent.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public FormShowWhen? ShowWhen { get; init; }
     public override string ToString() => "FormEntryQuestionResponse { Content = [REDACTED] }";
 }
 

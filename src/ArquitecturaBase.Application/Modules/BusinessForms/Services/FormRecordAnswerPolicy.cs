@@ -27,6 +27,12 @@ internal static class FormRecordAnswerPolicy
         {
             var question = questions[index];
             if (question.Type is "photo" or "document" || question.Repeated == true) continue;
+            // CO1-A: a hidden question is not required and cannot bring an answer.
+            if (question.ShowWhen is { } showWhen && !Shown(showWhen, result))
+            {
+                if (answers.TryGetValue(question.Key, out var hidden) && hidden.Length > 0) return null;
+                continue;
+            }
             if (question.Calculation is { } calculation)
             {
                 if (answers.ContainsKey(question.Key) || !TryCalculate(question, calculation, result, out var calculated)) return null;
@@ -100,6 +106,12 @@ internal static class FormRecordAnswerPolicy
         }
         catch (JsonException) { return null; }
     }
+
+    // CO1-A: whether the earlier question a condition names has one of its answers.
+    private static bool Shown(FormShowWhen showWhen, IReadOnlyList<FormRecordAnswer> known) =>
+        known.FirstOrDefault(answer => answer.FieldId == showWhen.QuestionId) is { } answer && (answer.ChoiceId is { } choice
+            ? showWhen.Values.Contains(choice.ToString("D"))
+            : answer.Boolean is { } boolean && showWhen.Values.Contains(boolean ? "true" : "false"));
 
     // CA1-A: a calculation from the answers before it (those of its item, in the block), rounded to 2 decimals half-even. A product
     // or a percentage with an empty operand is left empty; a sum adds what there is, also a question of the block over all the

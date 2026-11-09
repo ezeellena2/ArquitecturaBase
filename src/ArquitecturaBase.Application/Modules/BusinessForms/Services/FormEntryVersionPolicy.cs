@@ -40,7 +40,7 @@ internal sealed class FormEntryVersionPolicy(IFormEntryReader reader, FormEntryC
             {
                 Section = sections.TryGetValue(questions.Count, out var title) ? FormRecordPresentationPolicy.Text(title, culture) : null,
                 Rows = question.Rows, Repeated = question.Repeated,
-                Calculation = question.Calculation,
+                Calculation = question.Calculation, ShowWhen = question.ShowWhen,
             });
         }
         return (new FormEntryResponse(definitionId, version.VersionId, version.Number, definition.Prefix,

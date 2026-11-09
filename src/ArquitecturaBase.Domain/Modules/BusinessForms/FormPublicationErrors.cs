@@ -29,6 +29,7 @@ public static class FormPublicationErrors
     public static readonly Error GroupEmpty = Error.Validation("Forms.Publication.GroupEmpty", "A block of rows needs at least one question to be published.");
     public static readonly Error SectionEmpty = Error.Validation("Forms.Publication.SectionEmpty", "A section title needs at least one question below it to be published.");
     public static readonly Error CalculationInvalid = Error.Validation("Forms.Publication.CalculationInvalid", "A calculation must use earlier number questions within its reach.");
+    public static readonly Error ConditionInvalid = Error.Validation("Forms.Publication.ConditionInvalid", "A condition must name an earlier choice or yes/no question outside the block and answers it has.");
     public static readonly Error RowsOverChannelLimit = Error.Validation("Forms.Publication.RowsOverChannelLimit", "The channel loads fewer items than the block maximum.");
     public static readonly Error MinRowsOverChannelLimit = Error.Validation("Forms.Publication.MinRowsOverChannelLimit", "The channel loads fewer items than the block minimum.");
 }

@@ -39,7 +39,7 @@ internal static class FormPublicationSnapshotPolicy
         var fields = input.Draft.Fields.Select(field => new CanonicalFormField(field.FieldId!.Value, "field_" + field.FieldId.Value.ToString("N"),
             field.Type, field.Label, CleanHelp(field.Help), field.Required, field.MaxLength,
             field.Options?.Select(option => new CanonicalFormChoice(option.ChoiceId!.Value, option.Label)).ToArray(), field.Source, field.Files, field.Selection,
-            field.Rows, field.Repeated, field.Calculation)).ToArray();
+            field.Rows, field.Repeated, field.Calculation, field.ShowWhen)).ToArray();
         return FormDraftPolicy.Serialize(new FormDraftResponse(input.Draft.Format, input.Draft.Culture, input.Draft.SubmitLabel!, fields, input.Draft.Sections))
             == FormDraftPolicy.Serialize(saved.Draft);
     }

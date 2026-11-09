@@ -41,7 +41,8 @@ internal static class FormSuggestionPolicy
                 if (mapping?.Source is null) return Invalid(mappingPath + ".source");
                 var target = destination.Questions.SingleOrDefault(field => field.FieldId == mapping.DestinationFieldId);
                 // LD2-A: a question that chooses first by a field starts with its list empty, so nothing is carried into it.
-                if (target is null || !targetIds.Add(target.FieldId) || !IsScalar(target.Type) || target.Repeated == true || target.Source?.GroupBy is not null)
+                if (target is null || !targetIds.Add(target.FieldId) || !IsScalar(target.Type) || target.Repeated == true || target.Source?.GroupBy is not null
+                    || target.Calculation is not null || target.ShowWhen is not null)
                     return Invalid(mappingPath + ".destinationFieldId");
                 if (mapping.Source.Kind == "RecordNumber")
                 {

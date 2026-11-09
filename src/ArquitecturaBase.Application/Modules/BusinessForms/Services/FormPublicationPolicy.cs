@@ -60,6 +60,30 @@ internal static class FormPublicationPolicy
         return issues;
     }
 
+    // CO1-A: a condition names an earlier question outside the block, of choose one (own or from a catalog) or yes or no, and
+    // answers it has: options of its own, identities of catalog options, or "true"/"false".
+    public static List<FormPublicationIssueResponse> ValidateConditions(FormDefinitionResponse definition)
+    {
+        var fields = definition.Draft.Fields;
+        var issues = new List<FormPublicationIssueResponse>();
+        for (var index = 0; index < fields.Count; index++)
+        {
+            if (fields[index].ShowWhen is not { } showWhen) continue;
+            var question = fields.Take(index).FirstOrDefault(field => field.FieldId == showWhen.QuestionId);
+            var valid = fields[index].Type != "group" && fields[index].Repeated != true && question is { Repeated: not true } && question.Type switch
+            {
+                "boolean" => showWhen.Values.All(value => value is "true" or "false"),
+                "choice" when question.Source?.Catalog is not null => showWhen.Values.All(value => Guid.TryParseExact(value, "D", out _)),
+                "choice" => showWhen.Values.All(value => question.Options?.Any(option => option.ChoiceId.ToString("D") == value) == true),
+                _ => false,
+            };
+            if (!valid)
+                issues.Add(new(null, fields[index].FieldId, null, $"draft.fields[{index}].showWhen", FormPublicationErrors.ConditionInvalid.Code,
+                    ErrorMessages.Get(FormPublicationErrors.ConditionInvalid.Code), null, null));
+        }
+        return issues;
+    }
+
     // A minimum above the rows a channel loads blocks publishing with that channel (RG13-A): no response would reach it.
     public static List<FormPublicationIssueResponse> RowIssues(FormDefinitionResponse definition)
     {
