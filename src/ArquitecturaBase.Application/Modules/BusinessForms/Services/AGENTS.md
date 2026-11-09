@@ -27,7 +27,7 @@ Casos de uso y helpers; contratos en `Interfaces/Services`. Leer [formularios](.
 - [Formularios que faltan](../../../../../docs/features/formularios-servicios.md#formularios-que-faltan): `FormMissingRequestService`. Sólo una lectura completa justifica un pedido, y la privacidad se revisa al proponer y al capturar.
 - [Idiomas](../../../../../docs/features/formularios-servicios.md#idiomas): cultura común, nombres y opciones mostrados y lecturas históricas. Antes de ofrecer o enviar, `FormPresentationCulturePolicy` elige una cultura común; quien respondió en el original no pasa al secundario.
 - [Preguntas filtradas y presentación](../../../../../docs/features/formularios-servicios.md#preguntas-filtradas-y-presentación): filtros (`FormCatalogMatchPolicy`), presentación, vista previa por persona y máximo por persona. Aviso, bloqueo y máximo del editor salen de `FormCatalogRecipientMaximumPolicy`; los avisos nunca frenan aceptar.
-- [Crear desde una propuesta del asistente](../../../../../docs/features/formularios-servicios.md#crear-desde-una-propuesta-del-asistente): `FormDraftProposalService` y `FormCatalogAssistantProposalService`, desde Inicio o un canal. Piden Manage del área y buscan lo ya creado antes de leer la propuesta; el borrador usa el `ProposalId` como `RequestId`.
+- [Crear desde una propuesta del asistente](../../../../../docs/features/formularios-servicios.md#crear-desde-una-propuesta-del-asistente): `FormDraftProposalService` y `FormCatalogAssistantProposalService`, desde Inicio o un canal. Piden Manage del área y buscan lo ya creado antes de leer la propuesta; el borrador usa el `ProposalId` como `RequestId`. `FormAttachmentPreparationPolicy` prepara la planilla adjunta al asistente en 12 KiB.
 
 ## Referencias
 

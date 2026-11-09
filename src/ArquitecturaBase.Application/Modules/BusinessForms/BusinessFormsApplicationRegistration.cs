@@ -19,6 +19,7 @@ public static class BusinessFormsApplicationRegistration
         services.Replace(ServiceDescriptor.Scoped<IStructuredRecordSource, BusinessFormRecordSource>());
         services.Replace(ServiceDescriptor.Scoped<IStructuredCatalogProposalSink, FormCatalogProposalService>());
         services.Replace(ServiceDescriptor.Scoped<IStructuredAuthoringProposalChannel, BusinessFormAuthoringProposalChannel>());
+        services.Replace(ServiceDescriptor.Scoped<IStructuredAttachmentReader, BusinessFormAttachmentReader>());
         services.Replace(ServiceDescriptor.Scoped<IStructuredMissingFormRequestSink, FormMissingRequestService>());
         services.TryAddScoped<IFormMissingRequestService, FormMissingRequestService>();
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<ListMissingFormTopicsRequest>, ListMissingFormTopicsRequestValidator>());

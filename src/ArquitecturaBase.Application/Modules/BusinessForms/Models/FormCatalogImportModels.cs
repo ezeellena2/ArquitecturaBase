@@ -17,6 +17,9 @@ public static class FormCatalogImportLimits
 
 public enum FormCatalogImportMode { Replace, Append }
 
+// An old Excel and one with a password are the same OLE2 container: they are not told apart without another parser.
+public enum FormSpreadsheetFormat { Unknown, Xlsx, Csv, MacroEnabled, LegacyOrProtected }
+
 public sealed record FormSpreadsheetCell(string? Text, Error? Error = null, bool IsCanonicalValue = false)
 { public override string ToString() => "FormSpreadsheetCell { Content = [REDACTED] }"; }
 public sealed record FormSpreadsheetRow(int Number, IReadOnlyList<FormSpreadsheetCell> Cells)

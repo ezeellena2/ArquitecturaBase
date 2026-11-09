@@ -2486,63 +2486,6 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         });
                 });
 
-            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormRecordResult", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("DefinitionId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("ModifiedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("ModifiedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("RecordId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("RecordedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("RunId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Source")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<string>("SourceNameJson")
-                        .IsRequired()
-                        .HasColumnType("jsonb");
-
-                    b.Property<string>("ValuesJson")
-                        .IsRequired()
-                        .HasColumnType("jsonb");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("RunId")
-                        .IsUnique();
-
-                    b.HasIndex("DefinitionId", "RecordId");
-
-                    b.HasIndex("RecordId", "RunId");
-
-                    b.HasIndex("DefinitionId", "Source", "RecordedAtUtc");
-
-                    b.ToTable("BusinessFormRecordResults", (string)null);
-                });
-
             modelBuilder.Entity("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormRecordValue", b =>
                 {
                     b.Property<Guid>("Id")
@@ -4665,23 +4608,6 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasForeignKey("DefinitionId", "RecordId")
                         .HasPrincipalKey("DefinitionId", "Id")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormRecordResult", b =>
-                {
-                    b.HasOne("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormRecord", null)
-                        .WithMany()
-                        .HasForeignKey("DefinitionId", "RecordId")
-                        .HasPrincipalKey("DefinitionId", "Id")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormActionRun", null)
-                        .WithMany()
-                        .HasForeignKey("RecordId", "RunId")
-                        .HasPrincipalKey("RecordId", "Id")
-                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 

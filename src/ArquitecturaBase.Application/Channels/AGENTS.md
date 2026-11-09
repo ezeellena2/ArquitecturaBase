@@ -27,3 +27,5 @@ DisabledAssistantOperationCompletionSignal conserva el cierre del motor cuando f
 DisabledAssistantProposalLookup responde Unavailable cuando falta la IA: sin motor no hay propuesta que leer ni crear.
 
 UnavailableStructuredAuthoringProposalChannel no resume nada (null) y no crea (NotFound) cuando falta el dueño de las propuestas de autoría.
+
+UnavailableStructuredAttachmentReader: sin el dueño de las planillas nadie puede adjuntar una y prepararla da `Unavailable`.

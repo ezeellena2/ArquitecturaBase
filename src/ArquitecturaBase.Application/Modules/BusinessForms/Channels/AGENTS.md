@@ -16,6 +16,8 @@ Dos sinks los implementan servicios: `FormCatalogProposalService` (`IStructuredC
 
 `BusinessFormAuthoringProposalChannel` → `IStructuredAuthoringProposalChannel`: resume con `FormAuthoringSummaryPolicy` las propuestas de formulario, de catálogo Manual y de personas (H4), y crea delegando en `IFormDraftProposalService` o `IFormCatalogAssistantProposalService` (`CreateFromChannelAsync`), con la ruta `/formularios/{id}` o `/catalogos/{id}`.
 
+`BusinessFormAttachmentReader` → `IStructuredAttachmentReader`: adjunta quien administra catálogos (`CheckActorAsync` de `FormCatalogAccessGuard`, con la cuenta nombrada). Prepara con el lector de la importación: `DetectFormat` dice qué son los bytes y `ReadAsync` recibe la extensión de ese tipo con el nombre de la persona; sus topes son `TooLarge` y cualquier otra falla, `Unreadable`. `FormAttachmentPreparationPolicy` arma la hoja.
+
 ## Al modificar
 
 - No importés WhatsApp, IA ni otro módulo: sólo puertos y DTO de `Models/StructuredData` o `Models/Assistant`. Los puertos únicos se registran con `Replace`, idempotente en cualquier orden respecto del fallback del núcleo; las colecciones, con `TryAddEnumerable`.

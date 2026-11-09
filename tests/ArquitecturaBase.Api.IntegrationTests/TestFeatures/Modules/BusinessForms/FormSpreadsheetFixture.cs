@@ -7,7 +7,11 @@ using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Infrastructure.Modules.BusinessForms;
 using ClosedXML.Excel;
+using DocumentFormat.OpenXml;
+using DocumentFormat.OpenXml.Packaging;
 using Microsoft.Extensions.DependencyInjection;
+using OpenMcdf;
+using W = DocumentFormat.OpenXml.Wordprocessing;
 
 namespace ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessForms;
 
@@ -125,6 +129,40 @@ internal static class FormSpreadsheetFixture
 
     public static byte[] Csv(string text, bool bom = false) => bom
         ? [.. Encoding.UTF8.GetPreamble(), .. Encoding.UTF8.GetBytes(text)] : Encoding.UTF8.GetBytes(text);
+
+    // An OLE2 (CFB) container as Excel writes them: an old .xls keeps its sheets in «Workbook»; a workbook with a password,
+    // its encrypted package in «EncryptionInfo» and «EncryptedPackage».
+    public static byte[] Compound(params string[] streams)
+    {
+        using var content = new MemoryStream();
+        using (var root = RootStorage.Create(content, OpenMcdf.Version.V3, StorageModeFlags.LeaveOpen))
+            foreach (var name in streams)
+            {
+                using var stream = root.CreateStream(name);
+                stream.Write(Encoding.ASCII.GetBytes("fictional " + name));
+            }
+        return content.ToArray();
+    }
+
+    // The same workbook as Excel saves it with macros (.xlsm): the type of its main part says so in the manifest.
+    public static byte[] MacroEnabled(byte[] workbook)
+    {
+        using var content = new MemoryStream();
+        content.Write(workbook);
+        content.Position = 0;
+        using (var document = SpreadsheetDocument.Open(content, true))
+            document.ChangeDocumentType(SpreadsheetDocumentType.MacroEnabledWorkbook);
+        return content.ToArray();
+    }
+
+    // A ZIP with an OOXML manifest that is not a spreadsheet.
+    public static byte[] WordDocument()
+    {
+        using var content = new MemoryStream();
+        using (var document = WordprocessingDocument.Create(content, WordprocessingDocumentType.Document))
+            document.AddMainDocumentPart().Document = new W.Document(new W.Body(new W.Paragraph(new W.Run(new W.Text("Proveedores")))));
+        return content.ToArray();
+    }
 }
 
 internal sealed class FormSpreadsheetInputStream(long length, bool seekable = false, byte[]? content = null) : Stream
