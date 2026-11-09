@@ -22,7 +22,7 @@ internal static class DictationOfflineChecks
         return document.RootElement.GetProperty("cases").Deserialize<HomeCase[]>(JsonSerializerOptions.Web)!;
     }
     private static HomeCase[] Dictated() => Cases().Where(testCase => testCase.Audio is not null).ToArray();
-    private static HomeAudioFixture Sample() => new("authoring-es.webm", "audio/webm", 44183, new string('a', 64),
+    private static DictationAudioFixture Sample() => new("authoring-es.webm", "audio/webm", 44183, new string('a', 64),
         "Armame un formulario que se llame Parte de lluvias.", ["formulario", "lluvias"]);
 
     public static void Dictated_cases_cover_both_browser_formats_in_both_cultures()

@@ -23,7 +23,10 @@ internal static partial class Program
         "AiAssistantAccessGuard.cs","AiAssistantOperations.cs","AiAssistantCapabilityCatalogPolicy.cs","AiAssistantBackgroundService.cs",
         "AiAssistantCoordinator.cs","EmailBackgroundService.cs","WhatsAppInboundProcessor.cs","FormActionBackgroundService.cs"];
 
-    private static readonly string[] CaseSets=["home-existing","channel-stage5","audio-es-en","stage5-all","home-authoring","channel-authoring","ia-authoring"];
+    internal static readonly string[] CaseSets=["home-existing","channel-stage5","audio-es-en","stage5-all","home-authoring","channel-authoring","ia-authoring","channel-dictation"];
+    // channel-dictation runs only the voice notes of channel-authoring (IA3-A by voice), without repeating the typed cases already qualified.
+    internal static ChannelCase[] SelectChannelCases(string? selected,ChannelCase[] cases)=>
+        selected=="channel-dictation"?cases.Where(item=>item.Audio is not null).ToArray():cases;
     private const string HomeAuthoringFile="home-authoring-cases.json";
     // IA4: the public candidate for what the browser records in Home, separate from the Ogg/Wav one.
     private static readonly (string File,string Model,string Id) BrowserAudioCandidate=("audio-browser-candidate-profile.json","gpt-transcribe","openai-stt-browser-candidate");
@@ -48,14 +51,14 @@ internal static partial class Program
                 throw new InvalidOperationException("Unknown qualification case set.");
             // IA1-A/IA3-A authoring sets run on their own run and database: other quotas, seeded accounts and contracts.
             var homeAuthoring=selected is "home-authoring" or "ia-authoring";
-            var channelAuthoring=selected is "channel-authoring" or "ia-authoring";
+            var channelAuthoring=selected is "channel-authoring" or "ia-authoring" or "channel-dictation";
             if(!args.Contains("--live",StringComparer.Ordinal))
             {
                 if(selected is "home-existing" or "stage5-all")foreach(var item in await CasesAsync<HomeCase>("home-cases.json",CancellationToken.None))Console.WriteLine(item.Id);
                 if(selected is "channel-stage5" or "stage5-all")foreach(var item in await CasesAsync<ChannelCase>("channel-cases.json",CancellationToken.None))Console.WriteLine(item.Id);
                 if(selected is "audio-es-en" or "stage5-all")foreach(var item in await CasesAsync<AudioCase>("audio-cases.json",CancellationToken.None))Console.WriteLine(item.Id);
                 if(homeAuthoring)foreach(var item in await CasesAsync<HomeCase>(HomeAuthoringFile,CancellationToken.None))Console.WriteLine(item.Id);
-                if(channelAuthoring)foreach(var item in await CasesAsync<ChannelCase>(ChannelAuthoringFile,CancellationToken.None))Console.WriteLine(item.Id);
+                if(channelAuthoring)foreach(var item in SelectChannelCases(selected,await CasesAsync<ChannelCase>(ChannelAuthoringFile,CancellationToken.None)))Console.WriteLine(item.Id);
                 Console.WriteLine("Prepared only. No connection or secret store was opened.");return 0;
             }
             // Nothing above this explicit gate reads environment, credentials, services or a database.
@@ -89,7 +92,7 @@ internal static partial class Program
                 if(selected is "home-existing" or "stage5-all")if(!await RunHomeAsync(host,settings,fixture,null,"home-cases.json",QualificationSeed.HomeCapabilities,ct))return 1;
                 if(homeAuthoring)if(!await RunHomeAsync(host,settings,fixture,forms,HomeAuthoringFile,HomeAuthoringCapabilities,ct))return 1;
                 if(selected is "channel-stage5" or "stage5-all")if(!await RunChannelsAsync(host,settings,fixture,forms!,"channel-cases.json",ct))return 1;
-                if(channelAuthoring)if(!await RunChannelsAsync(host,settings,fixture,forms!,ChannelAuthoringFile,ct))return 1;
+                if(channelAuthoring)if(!await RunChannelsAsync(host,settings,fixture,forms!,ChannelAuthoringFile,ct,selected))return 1;
                 if(selected is "audio-es-en" or "stage5-all")if(!await RunAudioAsync(host,settings,fixture,ct))return 1;
                 return 0; // Mechanical checks do not declare production qualification.
             }
@@ -223,16 +226,28 @@ internal static partial class Program
         return true;
     }
     private static async Task<bool> RunChannelsAsync(IHost host,QualificationSettings settings,QualificationFixture fixture,QualificationChannelFixture forms,
-        string fixtureFile,CancellationToken ct)
+        string fixtureFile,CancellationToken ct,string? selected=null)
     {
         var definitions=Definitions(host,QualificationChannelContexts.Capabilities);
         // IA3-A: an adjustment continues the observed operation of its start case (PreviousRequestId), as after «Cambiar algo».
         var observedCases=new Dictionary<string,ChannelObservation>(StringComparer.Ordinal);
-        foreach(var testCase in await CasesAsync<ChannelCase>(fixtureFile,ct))
+        foreach(var testCase in SelectChannelCases(selected,await CasesAsync<ChannelCase>(fixtureFile,ct)))
         {
+            AudioObservation? dictated=null;
+            if(testCase.Audio is not null)
+            {
+                // IA3-A by voice: the Ogg candidate normalizes the note in its own scope, as the app does in a round of its own before
+                // interpreting the stored transcript (WhatsAppInboundProcessor). A failed check stops before the interpretation.
+                await using(var audioScope=host.Services.CreateAsyncScope())
+                    dictated=await audioScope.ServiceProvider.GetRequiredService<AudioRunner>()
+                        .NormalizeDictationAsync(testCase,ChannelRunner.People(testCase,fixture).Actor,ct);
+                var heard=await EvidenceAsync(testCase.Id+"-audio",dictated.Metadata.Stamps.ChannelId,testCase.Culture,dictated.Result.State,dictated.Result.FailureCode,
+                    dictated.Metadata,dictated.ElapsedSeconds,dictated.Measurements,dictated.Checks,[],fixtureFile,true,ct);
+                if(!await SaveAsync(settings,heard,ct))return false;
+            }
             await using var scope=host.Services.CreateAsyncScope();
             var previous=testCase.Authoring?.Continues is {} continues ? observedCases[continues] : null;
-            var observed=await scope.ServiceProvider.GetRequiredService<ChannelRunner>().RunAsync(testCase,fixture,forms,ct,previous);
+            var observed=await scope.ServiceProvider.GetRequiredService<ChannelRunner>().RunAsync(testCase,fixture,forms,ct,previous,dictated);
             observedCases[testCase.Id]=observed;
             var evidence=await EvidenceAsync(testCase.Id,observed.Metadata.Stamps.ChannelId,testCase.Culture,observed.Result.State,observed.Result.FailureCode,
                 observed.Metadata,observed.ElapsedSeconds,observed.Measurements,observed.Checks,definitions,fixtureFile,false,ct);

@@ -12,7 +12,7 @@ namespace AssistantQualification;
 internal sealed record HomeCase(string Id, string Culture, string Question, string[] RequiredTools,
     string ExpectedKind = "answer", int MinimumProviderSteps = 2, string[]? ExpectedAnswerFragments = null,
     string? ConversationKey = null, bool RevokeBeforeWorkerStarts = false, string ActorKind = "home",
-    AuthoringExpectation? Authoring = null, HomeAudioFixture? Audio = null);
+    AuthoringExpectation? Authoring = null, DictationAudioFixture? Audio = null);
 internal sealed record HomeObservation(Guid RequestId, Guid ConversationId, long ConversationRevision,
     AiAssistantTurnResponse Turn, TurnMetadata Metadata, double ElapsedSeconds, IReadOnlyList<CheckEvidence> Checks, MeasurementSnapshot Measurements);
 internal sealed record HomeAudioObservation(Guid RequestId, AiAssistantAudioResponse Result, TurnMetadata Metadata, double ElapsedSeconds,
@@ -162,7 +162,7 @@ internal sealed class HomeRunner(QualificationCurrentUser currentUser, IAiAssist
 
     // IA4 normalization of a Home recording: the browser STT candidate in home-audio, one model effect, no text tools, and the whole
     // spoken fixture compared in memory (only punctuation, case and accents are ignored). Never exported: fixed IDs and booleans.
-    internal static IReadOnlyList<CheckEvidence> AudioChecks(HomeAudioFixture audio,AiAssistantAudioResponse response,TurnMetadata technical) =>
+    internal static IReadOnlyList<CheckEvidence> AudioChecks(DictationAudioFixture audio,AiAssistantAudioResponse response,TurnMetadata technical) =>
     [
         new("completed", response.State == "completed"),
         new("whole-original-transcript", response.Transcript is { Length: > 0 and <= 4000 } transcript

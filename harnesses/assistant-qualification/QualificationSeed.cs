@@ -22,6 +22,8 @@ internal sealed record QualificationFixture(IReadOnlyList<QualificationActor> Ac
     // automatic recipients that build in their own conversation.
     public IReadOnlyList<QualificationActor> Authors { get; init; } = [];
     public IReadOnlyList<QualificationActor> ChannelAuthors { get; init; } = [];
+    // IA3-A by voice: recipients of the same role who dictate, with a daily quota of their own (ChannelAuthors already use all ten).
+    public IReadOnlyList<QualificationActor> VoiceAuthors { get; init; } = [];
 }
 
 internal sealed class QualificationSeed(IUnitOfWork unitOfWork, IUserRepository users, IRoleRepository roles,

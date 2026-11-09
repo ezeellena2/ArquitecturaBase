@@ -23,6 +23,7 @@ internal sealed class QualificationAuthoringSeed(IUnitOfWork unitOfWork, IUserRe
             .SelectMany(definition => definition.RequiredPermissions.Actor).Append(ArtificialIntelligencePermissions.AssistantUse);
         var authors = new List<QualificationActor>();
         var channelAuthors = new List<QualificationActor>();
+        var voiceAuthors = new List<QualificationActor>();
         var result = await unitOfWork.ExecuteInTransactionAsync(async token =>
         {
             // Home: the five reads plus designing forms and managing catalogs, so Home offers the authoring and H4 capabilities.
@@ -45,10 +46,15 @@ internal sealed class QualificationAuthoringSeed(IUnitOfWork unitOfWork, IUserRe
                     $"Authoring recipient {culture}", culture, token);
                 await users.SetRolesAsync(recipient.Id, ["QualificationChannelAuthor"], token);
                 channelAuthors.Add(new(recipient.Id, $"author-subject-{culture}", culture, "QualificationChannelAuthor"));
+                // IA3-A by voice: another recipient of the same role dictates, with a daily quota of their own.
+                var voice = await users.CreateAsync(Email.Create($"author-voice-{culture}@example.invalid").Value, null, false,
+                    $"Dictating recipient {culture}", culture, token);
+                await users.SetRolesAsync(voice.Id, ["QualificationChannelAuthor"], token);
+                voiceAuthors.Add(new(voice.Id, $"author-voice-{culture}", culture, "QualificationChannelAuthor"));
             }
             return Result.Success();
         }, CommitPolicy.OnSuccess, cancellationToken);
         if (result.IsFailure) throw new InvalidOperationException("Qualification authoring seed validation failed.");
-        return fixture with { Authors = authors, ChannelAuthors = channelAuthors };
+        return fixture with { Authors = authors, ChannelAuthors = channelAuthors, VoiceAuthors = voiceAuthors };
     }
 }

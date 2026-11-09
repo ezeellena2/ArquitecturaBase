@@ -1,4 +1,5 @@
 using System.Text.Json;
+using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Models;
 using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Infrastructure.Persistence;
@@ -18,6 +19,9 @@ internal sealed record TurnMetadata(int ProviderSteps, int ToolCalls, int ToolBy
     public Guid ConversationId { get; init; }
     public int Ordinal { get; init; }
     public IReadOnlyList<string> OfferedCapabilities { get; init; } = [];
+    // The sealed context's mode and Subject: an automatic voice note belongs to the person's own conversation (IA3-A).
+    public AssistantInteractionMode InteractionMode { get; init; }
+    public Guid? SubjectUserId { get; init; }
 }
 
 internal sealed class SafeTurnMetadata(ApplicationDbContext db)
@@ -54,6 +58,7 @@ internal sealed class SafeTurnMetadata(ApplicationDbContext db)
         {
             ConversationId = turn.ConversationId, Ordinal = turn.Ordinal,
             OfferedCapabilities = profile.ChannelContext.AllowedCapabilities.Select(capability => capability.Id).ToArray(),
+            InteractionMode = profile.ChannelContext.InteractionMode, SubjectUserId = profile.ChannelContext.SubjectUserId,
         };
     }
 }

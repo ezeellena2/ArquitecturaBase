@@ -1,5 +1,5 @@
 {
-  "status": "IA3-A authoring draft (WhatsApp automatic channel, capabilities-v1); not executed; no model qualified",
+  "status": "IA3-A authoring cases (WhatsApp automatic channel, capabilities-v1) and dictated Ogg voice notes (openai-stt-candidate@1 in whatsapp-assistant); fictitious; no model qualified by this file",
   "cases": [
     {
       "id": "channel-authoring-form-es",
@@ -204,6 +204,39 @@
       }
     },
     {
+      "id": "channel-authoring-dictated-ogg-es",
+      "culture": "es",
+      "actorKind": "author",
+      "question": "",
+      "audio": {
+        "fileName": "authoring-es.ogg",
+        "contentType": "audio/ogg",
+        "byteCount": 41334,
+        "sha256": "8e087620796d0f65e97c5ae5a3e20e78a8ff4465012507bd7fc9f8439ce2c660",
+        "expectedTranscript": "Armame un formulario que se llame Parte de lluvias, con estas preguntas: Lugar, texto corto, obligatoria; y Milímetros, número, obligatoria.",
+        "requiredWords": [
+          "formulario",
+          "lluvias",
+          "lugar",
+          "milímetros",
+          "obligatoria"
+        ]
+      },
+      "expectedPayload": "authoring-form",
+      "requiredTools": [
+        "forms.authoring.forms",
+        "forms.authoring.propose-form"
+      ],
+      "authoring": {
+        "capability": "forms.authoring.propose-form",
+        "name": "Parte de lluvias",
+        "questions": [
+          { "label": "Lugar", "type": "shortText", "required": true },
+          { "label": "Milímetros", "type": "number", "required": true }
+        ]
+      }
+    },
+    {
       "id": "channel-authoring-form-en",
       "culture": "en",
       "actorKind": "author",
@@ -402,6 +435,39 @@
         "questions": [
           { "label": "Product", "type": "shortText", "required": true },
           { "label": "Units", "type": "number", "required": true }
+        ]
+      }
+    },
+    {
+      "id": "channel-authoring-dictated-ogg-en",
+      "culture": "en",
+      "actorKind": "author",
+      "question": "",
+      "audio": {
+        "fileName": "authoring-en.ogg",
+        "contentType": "audio/ogg",
+        "byteCount": 36427,
+        "sha256": "a1188eefd28e1666be901dd978d573266473b3c1fa3c67594985604a573d78df",
+        "expectedTranscript": "Build me a form named Rain report, with these questions: Place, short text, required; and Rainfall, number, required.",
+        "requiredWords": [
+          "form",
+          "rain",
+          "report",
+          "place",
+          "rainfall"
+        ]
+      },
+      "expectedPayload": "authoring-form",
+      "requiredTools": [
+        "forms.authoring.forms",
+        "forms.authoring.propose-form"
+      ],
+      "authoring": {
+        "capability": "forms.authoring.propose-form",
+        "name": "Rain report",
+        "questions": [
+          { "label": "Place", "type": "shortText", "required": true },
+          { "label": "Rainfall", "type": "number", "required": true }
         ]
       }
     }

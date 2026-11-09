@@ -97,14 +97,14 @@ internal static class AuthoringOfflineChecks
     public static void Authoring_fixtures_cover_the_stage_cases_in_both_cultures()
     {
         var home = HomeCases();var channel = ChannelCases();
-        Require(home.Length == 24 && channel.Length == 22);
-        Require(home.Select(testCase => testCase.Id).Concat(channel.Select(testCase => testCase.Id)).Distinct(StringComparer.Ordinal).Count() == 46);
+        Require(home.Length == 24 && channel.Length == 24);
+        Require(home.Select(testCase => testCase.Id).Concat(channel.Select(testCase => testCase.Id)).Distinct(StringComparer.Ordinal).Count() == 48);
         Require(home.All(testCase => Regex.IsMatch(testCase.Id, "^home-authoring-[a-z0-9-]+-(es|en)$", RegexOptions.CultureInvariant) && testCase.Id.EndsWith("-" + testCase.Culture, StringComparison.Ordinal)));
         Require(channel.All(testCase => Regex.IsMatch(testCase.Id, "^channel-authoring-[a-z0-9-]+-(es|en)$", RegexOptions.CultureInvariant) && testCase.Id.EndsWith("-" + testCase.Culture, StringComparison.Ordinal)));
         string[] homeStems = ["form", "catalog", "people-catalog", "adjust-start", "adjust-change", "corrected", "name-in-use", "no-permission", "ambiguous", "injection",
             "dictated-webm", "dictated-mp4"];
         string[] channelStems = ["form", "catalog", "adjust-start", "adjust-change", "corrected", "form-exists", "catalog-exists", "no-permission",
-            "ambiguous-start", "ambiguous-answer", "injection"];
+            "ambiguous-start", "ambiguous-answer", "injection", "dictated-ogg"];
         foreach (var culture in new[] { "es", "en" })
         {
             Require(home.Where(testCase => testCase.Culture == culture).Select(testCase => Stem(testCase.Id, "home-authoring-")).Order(StringComparer.Ordinal).SequenceEqual(homeStems.Order(StringComparer.Ordinal)));
@@ -147,13 +147,13 @@ internal static class AuthoringOfflineChecks
     {
         // Only generic fictitious business facts: no real company, address, link, email or phone-like number in what is said or expected.
         var texts = HomeCases().Select(testCase => (testCase.Question, Spoken: testCase.Audio?.ExpectedTranscript, testCase.Authoring))
-            .Concat(ChannelCases().Select(testCase => (testCase.Question, Spoken: (string?)null, testCase.Authoring)))
+            .Concat(ChannelCases().Select(testCase => (testCase.Question, Spoken: testCase.Audio?.ExpectedTranscript, testCase.Authoring)))
             .Select(item => item.Question + "\n" + item.Spoken + "\n" + JsonSerializer.Serialize(item.Authoring, JsonSerializerOptions.Web)).ToArray();
-        Require(texts.Length == 46 && texts.All(text => !Regex.IsMatch(text, @"macrosistemas|\bocha\b|https?:|www\.|[\w.+-]+@[\w-]+\.\w", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)
+        Require(texts.Length == 48 && texts.All(text => !Regex.IsMatch(text, @"macrosistemas|\bocha\b|https?:|www\.|[\w.+-]+@[\w-]+\.\w", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)
             && !Regex.IsMatch(text, @"\d[\d\s().-]{5,}\d", RegexOptions.CultureInvariant)));
         // A typed case says something; a dictated one says it only through its recording.
         Require(HomeCases().All(testCase => testCase.Audio is null ? testCase.Question.Length is > 0 and <= 4000 : testCase.Question.Length == 0)
-            && ChannelCases().All(testCase => testCase.Question.Length is > 0 and <= 4000));
+            && ChannelCases().All(testCase => testCase.Audio is null ? testCase.Question.Length is > 0 and <= 4000 : testCase.Question.Length == 0));
     }
 
     public static void Authoring_fixtures_reference_known_capabilities_and_aliases()

@@ -11,7 +11,7 @@ namespace AssistantQualification;
 internal sealed record ScalarExpectation(string Key, string Type, string Value);
 internal sealed record ChannelCase(string Id, string Culture, string ActorKind, string Question, string ExpectedPayload,
     string[] RequiredTools, string? FormAlias = null, ScalarExpectation[]? Values = null, bool RequireLimitation = false,
-    AuthoringExpectation? Authoring = null);
+    AuthoringExpectation? Authoring = null, DictationAudioFixture? Audio = null);
 internal sealed record ChannelObservation(Guid RequestId, AssistantOperationResponse Result, TurnMetadata Metadata,
     double ElapsedSeconds, IReadOnlyList<CheckEvidence> Checks, MeasurementSnapshot Measurements);
 
@@ -42,6 +42,11 @@ internal static class QualificationChannelContexts
     public static AssistantChannelContext CreateAudio(Guid actorUserId,string culture) => new("whatsapp-manual",actorUserId,null,culture,
         "America/Argentina/Buenos_Aires",new(["whatsapp.read"],[]),[],[]) { InteractionMode = AssistantInteractionMode.Manual };
 
+    // IA3-A by voice: a note of the person's own automatic conversation, normalized as WhatsAppAudioAccessPolicy captures it, with the
+    // person as Actor and Subject and nothing required or offered. Its interpretation is another operation, with the author context.
+    public static AssistantChannelContext CreateAutomaticAudio(Guid personUserId,string culture) => new("whatsapp-assistant",personUserId,personUserId,culture,
+        "America/Argentina/Buenos_Aires",new([],[]),[],[]) { InteractionMode = AssistantInteractionMode.Assistant };
+
     // IA4: a Home recording's normalization is read back through the Home audio service of its actor, never through a context
     // the harness builds; its ledger names only that actor, home-audio and the culture.
     public static bool IsHomeAudio(QualificationLedgerEntry entry) => entry is { OperationKind: "home-audio", ChannelId: "home-audio",
@@ -53,6 +58,12 @@ internal static class QualificationChannelContexts
         if(entry.Culture is not ("es" or "en") || !Enum.IsDefined(entry.InteractionMode)) throw new InvalidOperationException("Invalid ledger culture.");
         if(entry.OperationKind=="audio")
         {
+            if(entry.ChannelId=="whatsapp-assistant")
+            {
+                if(entry.SubjectUserId!=entry.ActorUserId || entry.InteractionMode!=AssistantInteractionMode.Assistant || entry.ChannelKind is not null
+                    || entry.SourceRecordId is not null || entry.PreviousRequestId is not null) throw new InvalidOperationException("Invalid audio ledger scope.");
+                return CreateAutomaticAudio(entry.ActorUserId,entry.Culture);
+            }
             if(entry.ChannelId!="whatsapp-manual" || entry.SubjectUserId is not null) throw new InvalidOperationException("Invalid audio ledger scope.");
             return CreateAudio(entry.ActorUserId,entry.Culture) with { InteractionMode = entry.InteractionMode };
         }
@@ -70,22 +81,21 @@ internal sealed class ChannelRunner(IAssistantOperations operations, SafeRunLedg
     private static readonly string[] ClarificationAliases=["visit","maintenance"];
 
     // previous: the observed operation an IA3-A adjustment continues (PreviousRequestId), as after «Cambiar algo».
+    // dictated: the voice note's completed normalization, observed in its own scope; the interpretation reads its server transcript.
     public async Task<ChannelObservation> RunAsync(ChannelCase testCase, QualificationFixture actors,
-        QualificationChannelFixture forms, CancellationToken ct, ChannelObservation? previous = null)
+        QualificationChannelFixture forms, CancellationToken ct, ChannelObservation? previous = null, AudioObservation? dictated = null)
     {
         if ((testCase.Authoring?.Continues is null) != (previous is null)) throw new InvalidOperationException("A continuation needs exactly its previous operation.");
-        var subject = testCase.ActorKind == "author" ? actors.ChannelAuthors.Single(actor => actor.Culture == testCase.Culture)
-            : actors.Subjects.Single(actor => actor.Culture == testCase.Culture);
-        var actor = testCase.ActorKind is "manual" or "catalog" ? actors.Operators.Single(actor => actor.Culture == testCase.Culture) : subject;
-        if (testCase.ActorKind == "no-forms") actor = subject = actors.AudioActors.Single(actor => actor.Culture == testCase.Culture);
-        if (testCase.ActorKind == "catalog") subject = actor;
+        if ((testCase.Audio is null) != (dictated is null)) throw new InvalidOperationException("A dictated case needs exactly its completed normalization.");
+        var dictatedText = dictated is null ? null : DictatedText(testCase, dictated);
+        var (actor, subject) = People(testCase, actors);
         Guid? sourceRecordId = testCase.ExpectedPayload == "suggestion"
             ? forms.Suggestions.Single(item => item.SubjectUserId == subject.UserId).SourceRecordId : null;
         var context = QualificationChannelContexts.Create(actor,subject.UserId,testCase.ActorKind,sourceRecordId);
         currentUser.Set(actor.UserId);
         var requestId = Guid.CreateVersion7();
         await ledger.SaveAsync(new QualificationLedgerEntry(testCase.Id,requestId,actor.UserId,null,null,"before-submit") {OperationKind="channel",ChannelId=context.ChannelId,InteractionMode=context.InteractionMode,Culture=context.Culture,SubjectUserId=subject.UserId,ChannelKind=testCase.ActorKind,SourceRecordId=context.SourceRecordId,PreviousRequestId=previous?.RequestId},ct);
-        var text = testCase.Question;
+        var text = dictatedText ?? testCase.Question;
         if(text.Contains("{otherRecipient}",StringComparison.Ordinal))
             text=text.Replace("{otherRecipient}",actors.Subjects.Single(item=>item.UserId!=subject.UserId).UserId.ToString("D"),StringComparison.Ordinal);
         if (testCase.ExpectedPayload == "suggestion") text = text.Replace("{record}",forms.Suggestions.Single(item => item.SubjectUserId == subject.UserId).SourceNumber,StringComparison.Ordinal);
@@ -124,7 +134,20 @@ internal sealed class ChannelRunner(IAssistantOperations operations, SafeRunLedg
         var proposals=sources.SelectMany(source=>source.Definitions).Where(definition=>definition.Kind==AssistantCapabilityKind.Proposal)
             .Select(definition=>definition.Id).ToHashSet(StringComparer.Ordinal);
         AddAuthoringChecks(checks,testCase,outcome,technical,forms,actors,proposals,previous);
+        if(dictated is not null)AddDictationChecks(checks,testCase,text,dictated,technical,subject.UserId,requestId);
         return new(requestId,outcome,technical,elapsed.Elapsed.TotalSeconds,checks,measurements.EndCase());
+    }
+
+    // Who acts and for whom in each kind of case; a voice note and its interpretation use the same pair. Each typed author already makes
+    // the ten interpretations a day the engine accepts per person, so the voice notes come from another author of the same role.
+    internal static (QualificationActor Actor, QualificationActor Subject) People(ChannelCase testCase, QualificationFixture actors)
+    {
+        QualificationActor In(IReadOnlyList<QualificationActor> pool) => pool.Single(person => person.Culture == testCase.Culture);
+        var subject = testCase.ActorKind == "author" ? In(testCase.Audio is null ? actors.ChannelAuthors : actors.VoiceAuthors) : In(actors.Subjects);
+        var actor = testCase.ActorKind is "manual" or "catalog" ? In(actors.Operators) : subject;
+        if (testCase.ActorKind == "no-forms") actor = subject = In(actors.AudioActors);
+        if (testCase.ActorKind == "catalog") subject = actor;
+        return (actor, subject);
     }
 
     // IA3-A in the automatic own conversation: the permission-filtered offer, the expected owner proposal resting on earlier reads,
@@ -148,6 +171,21 @@ internal sealed class ChannelRunner(IAssistantOperations operations, SafeRunLedg
                 && technical.ConversationId==previous.Metadata.ConversationId && technical.Ordinal==previous.Metadata.Ordinal+1));
         checks.AddRange(AuthoringOracle.PayloadChecks(expected,testCase.Culture,proposal?.Payload,fixture,actors,previous?.Result.Proposal?.Payload));
     }
+
+    // IA3-A by voice: the interpretation reads exactly what the server transcribed (in the app, the completed note's Body); nothing is typed.
+    internal static string DictatedText(ChannelCase testCase, AudioObservation dictated) =>
+        testCase is { Audio: not null, Question.Length: 0 } && dictated.Result is { State: "completed", NormalizedAudio.Text: { Length: > 0 and <= 4000 } heard }
+            ? heard : throw new InvalidOperationException("A dictated case needs exactly its completed normalization.");
+
+    // The interpretation took that same transcript, from a note normalized before it in the same person's automatic conversation: both
+    // sealed contexts name that person in Assistant mode, and the interpretation is an operation of its own, not a turn of the note's.
+    internal static void AddDictationChecks(List<CheckEvidence> checks, ChannelCase testCase, string text, AudioObservation dictated, TurnMetadata technical,
+        Guid subject, Guid requestId) =>
+        checks.Add(new("interpreted-server-transcript", testCase.Question.Length == 0 && dictated.Result is { State: "completed", NormalizedAudio.Text: { } heard }
+            && string.Equals(text, heard, StringComparison.Ordinal) && dictated.Result.RequestId != requestId
+            && dictated.Metadata is { Stamps.ChannelId: "whatsapp-assistant", InteractionMode: AssistantInteractionMode.Assistant } && dictated.Metadata.SubjectUserId == subject
+            && technical.InteractionMode == AssistantInteractionMode.Assistant && technical.SubjectUserId == subject
+            && technical.ConversationId != dictated.Metadata.ConversationId));
 
     internal static IReadOnlyList<CheckEvidence> CatalogFilterChecks(FormCatalogProposalPayload? catalog,QualificationFixture actors,bool requireLimitation)
     {
