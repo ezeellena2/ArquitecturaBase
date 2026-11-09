@@ -201,7 +201,8 @@ delegación», publicados el 2026-11-09:
 2. **Backend:** el modelo, el alta en modo delegación, la detección en el proveedor de tickets y el contrato, con TDD.
    Hecho el 2026-11-09 (aec47d2d). Al programarlo se fijó que `ArcaServiceSessionIssuer.OpenAsync` abre para operar en
    nombre de la empresa (exige la relación de ese servicio) y que el alta con robot responde `Arca.Connection.ModeUnavailable`
-   hasta la etapa 6.
+   hasta la etapa 6. Verificado en una copia de 8cd1673f: build sin advertencias y `dotnet test` completo con Docker, 7475
+   de 7475.
 3. **Front,** cuando el usuario termine la prueba integral: el diseño elegido en `docs/design` del front y la pantalla.
 4. **Cierre:** la verificación de `AGENTS.md`, `features/arca.md` y `configurar-arca.md` al día, la fila de la etapa 5 en
    la hoja de ruta, la auditoría que retira este plan y el traspaso al multitenant ofrecido.
