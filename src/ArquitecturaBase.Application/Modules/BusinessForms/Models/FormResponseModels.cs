@@ -112,6 +112,9 @@ public sealed record FormResponseDetailResponse(Guid Id, Guid DefinitionId, Guid
     /// <summary>Whether the person reading it may correct or void it now (decision 8); the server checks again. Omitted when false.</summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
     public bool CanAmend { get; init; }
+    /// <summary>What external actions returned (RE1-A), in the order they were recorded; omitted when there is none.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<FormResponseResultResponse>? Results { get; init; }
 }
 public sealed record FormResponseHistoryResponse(string Kind, DateTime AtUtc, FormAuthorResponse? Actor);
 

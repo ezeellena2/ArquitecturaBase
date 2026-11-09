@@ -102,7 +102,8 @@ public sealed class FormResponseChainTests
             Reader.ArrangeExport(2); Permissions.Permissions[User.UserId!.Value] = [BusinessFormsPermissions.RecordsRead];
             Service = new(Reader, new(User, Permissions, Reader), RequestValidators.For(new ListFormRecordsRequestValidator()),
                 NullLogger<FormResponseService>.Instance, new([]), Suggestions,
-                new(User, Permissions, new ArquitecturaBase.Application.UnitTests.TestDoubles.Users.InMemoryUserAccounts()));
+                new(User, Permissions, new ArquitecturaBase.Application.UnitTests.TestDoubles.Users.InMemoryUserAccounts()),
+            new ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms.FormRecordResultReaderDouble());
         }
     }
 }

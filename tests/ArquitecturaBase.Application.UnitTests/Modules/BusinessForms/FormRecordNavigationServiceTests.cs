@@ -124,7 +124,8 @@ public sealed class FormRecordNavigationServiceTests
         permissions.Permissions[user.UserId.Value] = [BusinessFormsPermissions.RecordsRead];
         var service = new FormResponseService(reader, new(user, permissions, reader), RequestValidators.For(new ListFormRecordsRequestValidator()),
             NullLogger<FormResponseService>.Instance, new([]), new FormSuggestionFixture(),
-            new(user, permissions, new ArquitecturaBase.Application.UnitTests.TestDoubles.Users.InMemoryUserAccounts()));
+            new(user, permissions, new ArquitecturaBase.Application.UnitTests.TestDoubles.Users.InMemoryUserAccounts()),
+            new ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms.FormRecordResultReaderDouble());
         return (reader, user, permissions, service);
     }
 }

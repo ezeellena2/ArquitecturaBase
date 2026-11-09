@@ -11,7 +11,7 @@ using Microsoft.Extensions.Logging;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 internal sealed class FormResponseService(IFormResponseReader reader, FormRecordAccessGuard access,
     IRequestValidator validator, ILogger<FormResponseService> logger, FormRecordOriginPolicy origins, IFormSuggestionReader suggestions,
-    FormRecordAmendmentGuard amendments) : IFormResponseService
+    FormRecordAmendmentGuard amendments, IFormRecordResultReader resultReader) : IFormResponseService
 {
     public Task<Result<FormRecordNavigationResponse>> FindRecordNavigationAsync(Guid definitionId, Guid recordId,
         ListFormRecordsRequest request, CancellationToken cancellationToken) =>
@@ -87,6 +87,7 @@ internal sealed class FormResponseService(IFormResponseReader reader, FormRecord
             var amendment = await reader.FindAmendmentAsync(id, cancellationToken);
             var channels = await origins.ListAsync(read.Value.Actor, [row.OriginReceiptId], cancellationToken);
             var amend = await amendments.FindAsync(cancellationToken);
+            var results = await resultReader.ListAsync([id], cancellationToken);
             if (!await access.StillAllowedAsync(read.Value, cancellationToken)) return FormDefinitionErrors.Forbidden;
             var contentCulture = (row.Version ?? throw new InvalidOperationException("The response version presentation is missing.")).DisplayCulture(Culture());
             var reply = FormRecordPresentationPolicy.Project(row.Record, contentCulture, FormDraftPolicy.Read<FormVersionSchema>(row.Record.SchemaJson));
@@ -105,6 +106,7 @@ internal sealed class FormResponseService(IFormResponseReader reader, FormRecord
                         record.Prefix + "-" + record.Number.ToString("D6", CultureInfo.InvariantCulture),
                         FormRecordPresentationPolicy.Text(FormDraftPolicy.Read<Dictionary<string,string>>(record.NameJson), (record.Version ?? throw new InvalidOperationException("The chain version presentation is missing.")).DisplayCulture(Culture())), record.SubmittedAtUtc)).ToArray() : [],
                 Correction = amendment.Correction, ReplacedBy = amendment.ReplacedBy, Void = amendment.Void,
+                Results = results.Count == 0 ? null : results.Select(result => FormRecordResultPresentationPolicy.Project(result, contentCulture)).ToArray(),
                 CanAmend = amend is not null && FormRecordAmendmentGuard.Allows(amend, row.Actor.UserId, Enum.Parse<FormRecordState>(row.State),
                     row.ReplacedByRecordId is not null).IsSuccess,
             };

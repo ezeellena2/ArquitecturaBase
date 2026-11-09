@@ -43,6 +43,7 @@ public static class BusinessFormsApplicationRegistration
         services.TryAddScoped<IFormWorkflowService, FormWorkflowService>();
         services.TryAddScoped<IFormActionDispatchService, FormActionDispatchService>();
         services.TryAddScoped<FormPdfDocumentRecorder>();
+        services.TryAddScoped<FormRecordResultRecorder>();
         services.TryAddScoped<FormConditionChoicePolicy>();
         services.TryAddScoped<FormSuggestionCandidatePolicy>();
         services.TryAddScoped<FormSuggestionRuntimePolicy>();

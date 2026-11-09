@@ -29,7 +29,8 @@ public sealed class FormHistoricalReadCultureTests
         var service = new FormResponseService(reader, new(current, permissions, reader),
             RequestValidators.For(new ListFormRecordsRequestValidator()),
             NullLogger<FormResponseService>.Instance, new([]), new FormSuggestionFixture(),
-            new(current, permissions, new ArquitecturaBase.Application.UnitTests.TestDoubles.Users.InMemoryUserAccounts()));
+            new(current, permissions, new ArquitecturaBase.Application.UnitTests.TestDoubles.Users.InMemoryUserAccounts()),
+            new ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms.FormRecordResultReaderDouble());
         var before = FormDraftPolicy.Serialize(reader.ExportRows[0].Record);
         var previous = CultureInfo.CurrentUICulture;
         CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo(ui);

@@ -30,6 +30,8 @@ public static class BusinessFormsInfrastructureRegistration
         services.TryAddScoped<IFormActionRunReader, FormActionRunReader>();
         services.TryAddScoped<IFormActionRecipientReader, FormActionRecipientReader>();
         services.TryAddScoped<IFormDocumentRepository, FormDocumentRepository>();
+        services.TryAddScoped<IFormRecordResultRepository, FormRecordResultRepository>();
+        services.TryAddScoped<IFormRecordResultReader, FormRecordResultReader>();
         services.TryAddScoped<IFormMissingRequestReader, FormMissingRequestReader>();
         services.TryAddScoped<IFormMissingRequestRepository, FormMissingRequestRepository>();
         services.TryAddScoped<IFormSuggestionRepository, FormSuggestionRepository>();
