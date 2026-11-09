@@ -1,12 +1,13 @@
 # Formularios sólo en la app
 
-Propuesta del 2026-11-09, **sin elegir ni programar**: falta el visto bueno del usuario a las preguntas de abajo. Lo pidió
-durante la prueba integral: «Quiero poder crear formularios que no vayan a WhatsApp, que sean sólo de la app». Hoy no se
-puede, porque publicar una versión siempre pasa por un canal.
+Decidido el 2026-11-09, **sin programar**: el usuario eligió las siete recomendadas («Sí, las recomendadas»). Se programa con
+su visto bueno y sin tocar el `src` del front mientras dura la prueba integral. Lo pidió durante esa prueba: «Quiero poder
+crear formularios que no vayan a WhatsApp, que sean sólo de la app». Hoy no se puede, porque publicar una versión siempre pasa
+por un canal.
 
 **Tableros:** SA0 a SA5 en el lienzo aparte [Formularios sólo en la app](https://claude.ai/artifact/GjxDspdmg3xtZzG4oH2Hzu)
-(versión 4), una fila por pregunta con la recomendada primero. El Sistema visual es de otra cuenta, así que, como en renglones,
-carpetas y la IA, el diseño queda registrado en el front:
+(versión 5, con las elegidas marcadas y una nota verde por fila). El Sistema visual es de otra cuenta, así que, como en
+renglones, carpetas y la IA, el diseño elegido queda registrado en el front:
 [formularios sólo en la app](../../../ArquitecturaBaseFront/docs/design/formularios-solo-en-la-app.md).
 
 ## Lo que hay hoy
@@ -28,38 +29,38 @@ carpetas y la IA, el diseño queda registrado en el front:
   (`OptionsPerRecipientHigh` con su 200 y `DependsOnAnswer`), «Cuándo lo ofrece el asistente», «Qué sugerir después», la vista
   oficial y la vista previa del celular.
 
-## Las preguntas, con la recomendada
+## Decisiones (2026-11-09)
 
-1. **¿Dónde se elige? (SA1)** Recomiendo **SA1-A**: un ajuste «Dónde se completa» en la zona «El formulario», al lado del
-   prefijo, con «En la app y por WhatsApp» y «Sólo en la app»; se guarda con el borrador y cada versión lo sella. Las otras:
-   SA1-B, elegirlo en el diálogo de publicar en cada versión (el editor no puede adaptar avisos ni límites), y SA1-C, elegirlo
-   al crear y que quede fijo (pasarlo a WhatsApp exige otro formulario, con otro prefijo y otra planilla).
-2. **¿Con qué arranca un formulario nuevo?** Recomiendo **«En la app y por WhatsApp», como hoy**, también el que arma la IA.
-   La otra es arrancar con «Sólo en la app».
-3. **¿Qué cambia con «Sólo en la app»? (SA2)** Recomiendo **SA2-A**: se va todo lo de WhatsApp y el formulario no aparece en
-   WhatsApp. Eso incluye «Enviar formulario» en el chat (no lo lista), el asistente (no lo ofrece), «Qué sugerir después» (ni
-   como origen ni como destino), la vista oficial, «Cuándo lo ofrece el asistente», el máximo de 10 ítems del bloque (llega a
-   100 sin avisos), el desplegable de 200 de «Elegir primero por un campo» y los topes de textos de Meta. La otra, SA2-B, deja
-   los límites de WhatsApp para todos, para que pasar a WhatsApp no sorprenda; pero no evita los rechazos de Meta (el del 9/11
-   no lo veía ningún chequeo) y sin el módulo no hay chequeo que correr.
-4. **¿Las reglas siguen avisando por WhatsApp?** Recomiendo **que sí**: avisar no es completar. Cada regla ya elige si avisa,
-   a quién y con qué; «Sólo en la app» no las toca.
-5. **¿Qué dice el estado y dónde se ve el lugar? (SA3)** Recomiendo **SA3-A**: publicar algo de la app es instantáneo, el
-   encabezado sigue diciendo sólo el estado («Publicado · versión 4», EP1-A), «Qué se publica» suma la fila «Dónde se
-   completa» y el listado suma la columna «Dónde se completa», al lado de la que hoy se llama «En WhatsApp» y pasa a «Estado».
-   Las otras cambian sólo el encabezado: SA3-B, el estado dice el lugar («Publicado en la app · versión 4»), y SA3-C, una
-   etiqueta gris aparte. En el listado no hay opción: «Un dato por columna», la regla elegida el mismo día, no deja el lugar
-   en un renglón gris debajo del estado ni en una etiqueta junto al nombre.
-6. **¿Cómo se pasa de la app a WhatsApp y al revés? (SA4)** Recomiendo **SA4-A**: se cambia «Dónde se completa», se guarda y se
-   publica una versión nueva. A WhatsApp espera a Meta como hoy, y mientras tanto o si la rechaza la app sigue con la anterior;
-   a la app es instantáneo, con el aviso «Deja de completarse por WhatsApp. Los envíos abiertos se pueden responder hasta que
-   vencen.». La otra, SA4-B, hace que la app nunca espere a Meta: dos versiones activas a la vez (una en la app y otra en
-   WhatsApp), dos estados en pantalla y un cambio para todos los formularios de WhatsApp.
-7. **¿Qué hace la plantilla sin el módulo de WhatsApp? (SA5)** Recomiendo **que todo formulario sea de la app**: no aparece el
-   ajuste, el botón dice «Publicar» y la versión queda activa al instante. Lo que se publicó por WhatsApp antes de quitar el
-   módulo se sigue cargando en la app.
+El usuario eligió las siete recomendadas.
 
-## Cómo queda con las recomendadas
+1. **¿Dónde se elige? SA1-A.** Un ajuste «Dónde se completa» en la zona «El formulario», al lado del prefijo, con «En la app y
+   por WhatsApp» y «Sólo en la app»; se guarda con el borrador y cada versión lo sella. Descartó SA1-B, elegirlo en el diálogo
+   de publicar en cada versión (el editor no puede adaptar avisos ni límites), y SA1-C, elegirlo al crear y que quede fijo
+   (pasarlo a WhatsApp exige otro formulario, con otro prefijo y otra planilla).
+2. **¿Con qué arranca un formulario nuevo?** Con «En la app y por WhatsApp», como hoy, también el que arma la IA.
+3. **¿Qué cambia con «Sólo en la app»? SA2-A.** Se va todo lo de WhatsApp y el formulario no aparece en WhatsApp: «Enviar
+   formulario» en el chat no lo lista, el asistente no lo ofrece, «Qué sugerir después» no lo usa como origen ni como destino,
+   y se van la vista oficial, «Cuándo lo ofrece el asistente», el máximo de 10 ítems del bloque (llega a 100 sin avisos), el
+   desplegable de 200 de «Elegir primero por un campo» y los topes de textos de Meta. Descartó SA2-B, los límites de WhatsApp
+   para todos: no evita los rechazos de Meta (el del 9/11 no lo veía ningún chequeo) y sin el módulo no hay chequeo que correr.
+4. **¿Las reglas siguen avisando por WhatsApp?** Sí: avisar no es completar. Cada regla ya elige si avisa, a quién y con qué;
+   «Sólo en la app» no las toca.
+5. **¿Qué dice el estado y dónde se ve el lugar? SA3-A.** Publicar algo de la app es instantáneo, el encabezado sigue diciendo
+   sólo el estado («Publicado · versión 4», EP1-A), «Qué se publica» suma la fila «Dónde se completa» y el listado suma la
+   columna «Dónde se completa», al lado de la que hoy se llama «En WhatsApp» y pasa a «Estado». Descartó SA3-B, el estado dice
+   el lugar («Publicado en la app · versión 4»), y SA3-C, una etiqueta gris aparte. En el listado no había opción: «Un dato por
+   columna», la regla elegida el mismo día, no deja el lugar en un renglón gris debajo del estado ni en una etiqueta junto al
+   nombre.
+6. **¿Cómo se pasa de la app a WhatsApp y al revés? SA4-A.** Se cambia «Dónde se completa», se guarda y se publica una versión
+   nueva. A WhatsApp espera a Meta como hoy, y mientras tanto o si la rechaza la app sigue con la anterior; a la app es
+   instantáneo, con el aviso «Deja de completarse por WhatsApp. Los envíos abiertos se pueden responder hasta que vencen.».
+   Descartó SA4-B, que la app nunca espere a Meta: dos versiones activas a la vez (una en la app y otra en WhatsApp), dos
+   estados en pantalla y un cambio para todos los formularios de WhatsApp.
+7. **¿Qué hace la plantilla sin el módulo de WhatsApp? SA5.** Todo formulario es de la app: no aparece el ajuste, el botón dice
+   «Publicar» y la versión queda activa al instante. Lo que se publicó por WhatsApp antes de quitar el módulo se sigue
+   cargando en la app.
+
+## Cómo queda
 
 ### En el editor
 
@@ -180,5 +181,5 @@ durable ([ADR 0018](../decisions/0018-robustez-proporcional-al-efecto.md)): se a
 
 - «Sólo WhatsApp»: lo publicado por WhatsApp también se carga en la app.
 - Cambiar los límites propios de la app (40 preguntas, 20 opciones en «Elegir varias», 10 archivos, 100 ítems).
-- Que la app no espere a Meta (SA4-B), salvo que el usuario lo elija.
+- Que la app no espere a Meta (SA4-B), descartado.
 - Copiar formularios, que sigue esperando su tablero.
