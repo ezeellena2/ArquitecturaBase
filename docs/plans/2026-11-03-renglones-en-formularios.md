@@ -284,8 +284,10 @@ para que se usen igual en toda la app.
    - La prueba integral del 2026-11-09 publicó por primera vez un bloque al final, y Meta lo rechazó: el «No» completaba en
      la pantalla del ítem, terminal, junto al `navigate` del ítem siguiente. Lo arregla el perfil r12, con una pantalla de
      cierre, y el aviso de un error de Meta que no cae en una pregunta ya no promete campos marcados
-     ([WhatsApp](../features/whatsapp.md#selección-múltiple-y-perfil-r9)). Falta publicarlo de verdad con la Api reiniciada.
-     Los ejemplos HTTP exportados al front todavía dicen r11: se actualizan en la próxima exportación conjunta.
+     ([WhatsApp](../features/whatsapp.md#selección-múltiple-y-perfil-r9)). El mismo día se publicó de verdad: la versión 4 de
+     «Remito de prueba», con la misma huella que la 2 y la 3 rechazadas, quedó publicada. En el celular, el bloque terminó en
+     la pantalla de cierre, y la respuesta llegó y se guardó con sus dos ítems. Los ejemplos HTTP exportados al front todavía
+     dicen r11: se actualizan en la próxima exportación conjunta.
    - La verificación de cierre fue conjunta con las etapas 2 y 3. El backend corrió entero sobre 735add83 con el exportador:
      7408 de 7408 con PostgreSQL y Redis; después sólo cambiaron documentos y un test de arquitectura. El front se verificó en
      una copia de f6bc5973: lint y build limpios, y 1005 escenas visuales, con una que falló por carga y pasó al repetirla
