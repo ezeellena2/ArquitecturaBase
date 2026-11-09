@@ -88,24 +88,32 @@ public sealed class ArcaVoucher : Entity
             CreatedAtUtc = nowUtc,
         };
 
-    /// <summary>Le toca un intento: en cola o incierto, y ya pasó su espera.</summary>
-    public bool IsDue(DateTime nowUtc) => State is ArcaVoucherState.Queued or ArcaVoucherState.Uncertain && NextAttemptAtUtc <= nowUtc;
+    /// <summary>
+    /// Le toca un intento: en cola o incierto con su espera cumplida, o «enviando» de un host que se cayó (venció la reserva
+    /// con la que pidió).
+    /// </summary>
+    public bool IsDue(DateTime nowUtc) =>
+        State is ArcaVoucherState.Queued or ArcaVoucherState.Uncertain or ArcaVoucherState.Sending && NextAttemptAtUtc <= nowUtc;
 
     /// <summary>Autorizado, todavía sin su PDF fiscal, y ya pasó su espera.</summary>
     public bool IsPdfDue(DateTime nowUtc) => State == ArcaVoucherState.Authorized && PdfStorageKey is null && NextAttemptAtUtc <= nowUtc;
 
-    public void AssignNumber(long number, string dataHash, DateTime nowUtc)
+    /// <summary>
+    /// Guarda el número y la huella antes de pedir. Si para <paramref name="reconcileAfterUtc"/> (cuando vence la reserva de la
+    /// secuencia) no se supo qué pasó, el host se cayó y el comprobante se reconcilia.
+    /// </summary>
+    public void AssignNumber(long number, string dataHash, DateTime reconcileAfterUtc)
     {
         Require(State == ArcaVoucherState.Queued && Number is null, "assign a number");
-        (Number, DataHash, State, NextAttemptAtUtc) = (number, dataHash, ArcaVoucherState.Sending, nowUtc);
+        (Number, DataHash, State, NextAttemptAtUtc) = (number, dataHash, ArcaVoucherState.Sending, reconcileAfterUtc);
         Revision++;
     }
 
     /// <summary>La reconciliación dijo que ARCA no lo emitió: se vuelve a pedir con el mismo número.</summary>
-    public void Resend(DateTime nowUtc)
+    public void Resend(DateTime reconcileAfterUtc)
     {
         Require(State is ArcaVoucherState.Uncertain or ArcaVoucherState.Sending && Number is not null, "resend");
-        (State, NextAttemptAtUtc) = (ArcaVoucherState.Sending, nowUtc);
+        (State, NextAttemptAtUtc) = (ArcaVoucherState.Sending, reconcileAfterUtc);
         Revision++;
     }
 

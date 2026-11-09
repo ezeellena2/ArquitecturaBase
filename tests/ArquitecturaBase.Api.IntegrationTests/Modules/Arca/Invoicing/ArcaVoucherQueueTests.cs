@@ -296,11 +296,12 @@ public sealed class ArcaVoucherQueueTests(ApiFactory factory) : IDisposable
                 Assert.NotNull(await store.AssignNumberAsync(work!, 0, ct));
             });
 
-            await ProcessAsync();
+            var processor = factory.Services.GetRequiredService<ArcaVoucherProcessor>();
+            await processor.ProcessDueAsync(ct);
             Assert.Equal(ArcaVoucherState.Sending, (await VoucherAsync(order.RequestKey)).State);
 
             factory.Clock.Advance(TimeSpan.FromMinutes(2));
-            await ProcessAsync();
+            await processor.ProcessDueAsync(ct);
 
             var issued = await VoucherAsync(order.RequestKey);
             Assert.Equal((ArcaVoucherState.Authorized, (long?)1), (issued.State, issued.Number));

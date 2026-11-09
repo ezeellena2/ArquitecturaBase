@@ -5,7 +5,10 @@ namespace ArquitecturaBase.Application.Modules.Arca.Interfaces.Persistence.Invoi
 /// <summary>Lecturas de la cola de emisión, sin seguimiento.</summary>
 public interface IArcaVoucherReader
 {
-    /// <summary>Las secuencias con un comprobante en cola o incierto cuya espera ya pasó, de la más atrasada a la más nueva.</summary>
+    /// <summary>
+    /// Las secuencias con un comprobante en cola o incierto cuya espera ya pasó, o «enviando» de un host que se cayó, de la más
+    /// atrasada a la más nueva.
+    /// </summary>
     Task<IReadOnlyList<ArcaVoucherSequenceRow>> ListDueSequencesAsync(DateTime nowUtc, int limit, CancellationToken cancellationToken);
 
     /// <summary>Los comprobantes autorizados que todavía no tienen su PDF fiscal y ya pueden intentarlo.</summary>

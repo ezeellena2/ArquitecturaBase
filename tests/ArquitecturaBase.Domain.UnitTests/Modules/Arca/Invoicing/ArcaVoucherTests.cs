@@ -41,6 +41,17 @@ public sealed class ArcaVoucherTests
     }
 
     [Fact]
+    public void A_voucher_sending_is_due_only_once_the_lease_it_was_sent_with_ends()
+    {
+        var voucher = New();
+
+        voucher.AssignNumber(12, "hash", Now.AddMinutes(2));
+
+        Assert.False(voucher.IsDue(Now.AddSeconds(119)));
+        Assert.True(voucher.IsDue(Now.AddMinutes(2)));
+    }
+
+    [Fact]
     public void An_authorized_voucher_keeps_its_cae_and_is_issued_on_the_requested_date()
     {
         var voucher = Sending();

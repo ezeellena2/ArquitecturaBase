@@ -106,7 +106,7 @@ internal sealed class ArcaVoucherStore(IArcaConnectionRepository connections, IA
         }
 
         var request = work.Request with { Number = lastAuthorized + 1 };
-        voucher.AssignNumber(request.Number, ArcaVoucherRequestPolicy.Fingerprint(request), nowUtc);
+        voucher.AssignNumber(request.Number, ArcaVoucherRequestPolicy.Fingerprint(request), sequence.LeaseUntilUtc ?? nowUtc);
         sequence.Hold(voucher.Id);
         return Result.Success<ArcaVoucherWorkResponse?>(work with { Request = request, HasNumber = true });
     }
@@ -118,7 +118,7 @@ internal sealed class ArcaVoucherStore(IArcaConnectionRepository connections, IA
         switch (ArcaReconciliationPolicy.Decide(work.Request, found, lastAuthorized))
         {
             case ArcaReconciliation.NotIssued:
-                voucher.Resend(nowUtc);
+                voucher.Resend(sequence.LeaseUntilUtc ?? nowUtc);
                 return Result.Success<ArcaVoucherWorkResponse?>(work);
             case ArcaReconciliation.Issued when found!.AuthorizationDueOn is { } due:
                 voucher.Authorize(found.AuthorizationCode!, due, null, nowUtc);

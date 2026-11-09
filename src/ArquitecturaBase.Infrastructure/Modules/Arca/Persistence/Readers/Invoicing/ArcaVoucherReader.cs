@@ -11,7 +11,8 @@ internal sealed class ArcaVoucherReader(ApplicationDbContext dbContext) : IArcaV
     public async Task<IReadOnlyList<ArcaVoucherSequenceRow>> ListDueSequencesAsync(DateTime nowUtc, int limit, CancellationToken cancellationToken)
     {
         var due = await dbContext.Set<ArcaVoucher>().AsNoTracking()
-            .Where(x => (x.State == ArcaVoucherState.Queued || x.State == ArcaVoucherState.Uncertain) && x.NextAttemptAtUtc <= nowUtc)
+            .Where(x => (x.State == ArcaVoucherState.Queued || x.State == ArcaVoucherState.Uncertain || x.State == ArcaVoucherState.Sending)
+                && x.NextAttemptAtUtc <= nowUtc)
             .GroupBy(x => new { x.Environment, x.Cuit, x.PointOfSale, x.VoucherType })
             .Select(group => new { group.Key.Environment, group.Key.Cuit, group.Key.PointOfSale, group.Key.VoucherType, Oldest = group.Min(x => x.NextAttemptAtUtc) })
             .OrderBy(x => x.Oldest)
