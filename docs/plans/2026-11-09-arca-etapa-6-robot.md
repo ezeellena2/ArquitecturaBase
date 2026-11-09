@@ -10,9 +10,9 @@ ella: el certificado de la CUIT de la plataforma en cada instalación, la detecc
 que es la vuelta cuando el robot no puede seguir. Este plan nombra esas piezas por lo que hacen; los nombres de clases,
 rutas y pantallas se toman de la etapa 5 cuando esté commiteada.
 
-La decisión estructural va en un ADR propio, que la hoja de ruta y el
-[ADR 0023](../decisions/0023-arca-como-modulo-opcional.md) piden antes de programar: el robot sobre la página de ARCA y
-cómo se protege la clave fiscal en memoria.
+La decisión estructural está en el [ADR 0026](../decisions/0026-robot-de-delegacion-arca.md), propuesto el 2026-11-09,
+que la hoja de ruta y el [ADR 0023](../decisions/0023-arca-como-modulo-opcional.md) piden antes de programar: el robot
+sobre la página de ARCA y cómo se protege la clave fiscal en memoria.
 
 ## Alcance
 
@@ -112,7 +112,7 @@ Una falla se traduce a un motivo estable, como las fallas del WSAA en la etapa 1
 
 ### La clave fiscal
 
-El detalle va en el ADR; en corto:
+El detalle va en el [ADR 0026](../decisions/0026-robot-de-delegacion-arca.md); en corto:
 
 - La clave del cliente es un **tipo propio** que no se imprime (`ToString` oculto) ni se serializa, desde el contrato
   HTTP hasta el robot. Se usa para llenar el campo de ingreso y se suelta apenas ARCA acepta el ingreso; después el robot
