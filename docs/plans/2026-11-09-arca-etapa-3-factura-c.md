@@ -137,10 +137,11 @@ clave de idempotencia natural.
 
 ### Tipo de comprobante
 
-- **Las reglas puras las programa la etapa 4** en `Domain/Modules/Arca/Invoicing/` (acuerdo del 2026-11-09 entre las dos
-  sesiones): la clase según el emisor y el receptor (C para monotributo o exento; A o B para responsable inscripto), el
-  código de cada clase y tipo (C: 11 factura y 13 nota de crédito; A: 1 y 3; B: 6 y 8), las condiciones del receptor con sus
-  códigos y cuáles admite cada clase, y los importes. Esta etapa no escribe las suyas: las usa para la C.
+- **El reparto con la etapa 4** (su plan del 2026-11-09): esta etapa programa en `Domain/Modules/Arca/Invoicing/` la clase
+  según el emisor y el receptor (`ArcaVoucherClassPolicy`: C para monotributo o exento; A o B para responsable inscripto), el
+  código de cada clase y tipo (`ArcaVoucherTypes`; C: 11 factura y 13 nota de crédito; A: 1 y 3; B: 6 y 8), las condiciones
+  del receptor con sus códigos y cuáles admite cada clase (`ArcaReceiverVatConditions`) y el importe de cada renglón
+  (`ArcaInvoiceLine`). La etapa 4 programó el desglose del IVA (`ArcaVatBreakdown`) y suma las filas A y B.
 - **En esta etapa** la cola emite sólo la clase C: si la regla da A o B, el pedido no se encola
   (`Arca.Invoicing.ClassNotSupported`) hasta que la etapa 4 lo habilite.
 - La condición del emisor sale de los datos de la empresa que guarda el padrón (`ArcaRegistryCompany`). Si cambia (por
@@ -294,12 +295,14 @@ El backend va en orden. Lo de ARCA no depende de la etapa 2 y va primero; lo que
 haya commiteado lo suyo. El front espera a que el usuario termine la prueba integral.
 
 1. **Plan, ADR 0028, tableros y preguntas.**
-2. **Clientes de WSFEv1:** `FECompUltimoAutorizado`, `FECAESolicitar`, `FECompConsultar` y las tablas (`FEParamGetTiposDoc`,
+2. **Hecho (8a81ab4b). Clientes de WSFEv1:** `FECompUltimoAutorizado`, `FECAESolicitar`, `FECompConsultar` y las tablas (`FEParamGetTiposDoc`,
    `…TiposConcepto`, `…TiposMonedas`, `…TiposIva` y `FEParamGetCondicionIvaReceptor`), con `FakeArca`.
-3. **Dominio:** comprobante, secuencia, ventana de la fecha, hash y QR. La clase, los códigos, la condición del receptor y
-   los importes vienen de la etapa 4.
-4. **Persistencia y migración** `AddArcaVouchers`.
-5. **La cola:** encolar, el paso del worker (numeración, reconciliación y espera), la revisión y la cancelación, con las
+3. **Hecho (b6fdae26). Dominio:** comprobante, secuencia, clase y códigos, condiciones del receptor, importe de cada
+   renglón, ventana de la fecha y espera creciente. La huella quedó en Application (`ArcaVoucherRequestPolicy`) y el QR va
+   con el PDF fiscal.
+4. **Hecho (c9bf65a9 y ed22a602). Persistencia y migración** `AddArcaVouchers`, con ingresos brutos e inicio de
+   actividades en Facturación y la referencia del PDF fiscal en el comprobante. Sin clave foránea a la conexión.
+5. **Hecho (1b9ece7a). La cola:** encolar, el paso del worker (numeración, reconciliación y espera), la revisión y la cancelación, con las
    pruebas de varios hosts.
 6. **PDF fiscal,** ingresos brutos e inicio de actividades en Facturación, almacén y retención.
 7. **Padrón de un tercero** y el adaptador de `IStructuredPartyLookup`.
