@@ -19,4 +19,5 @@
   <data name="AddAnotherRow" xml:space="preserve"><value>¿Agregás otro ítem?</value></data>
   <data name="RowTitle" xml:space="preserve"><value>{0} · ítem {1}</value></data>
   <data name="ChooseFirst" xml:space="preserve"><value>Elegí primero</value></data>
+  <data name="Closing" xml:space="preserve"><value>Tocá «{0}» para mandar el formulario.</value></data>
 </root>

@@ -140,11 +140,13 @@ public sealed class WhatsAppFlowChooseFirstCompilerTests
         var next = first[^1].GetProperty("then")[0];
         Assert.Equal("FORM_B", Action(next).GetProperty("next").GetProperty("name").GetString());
         AssertEmptyList(Action(next).GetProperty("payload"), article.Key);
-        foreach (var row in screens.Skip(1))
+        // The block is the last thing: after the rows comes the closing screen (r12), which shows no question.
+        foreach (var row in screens[1..^1])
         {
             Assert.True(row.GetProperty("data").TryGetProperty(article.Key + "_options", out _));
             Assert.True(row.GetProperty("data").TryGetProperty(article.Key + "_visible", out _));
         }
+        Assert.False(screens[^1].TryGetProperty("data", out _));
     }
 
     [Fact]

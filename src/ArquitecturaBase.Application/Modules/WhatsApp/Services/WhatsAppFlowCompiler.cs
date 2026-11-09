@@ -187,6 +187,7 @@ internal static class WhatsAppFlowCompiler
             {
                 "fields" => screen.Questions.Count + 2,
                 "ask" => 5,
+                "end" => 3,
                 _ => screen.Questions.Count + (WhatsAppFlowScreenBuilder.Asks(rows, screen.Row) ? 4 : 1) + 1,
             });
             if (count > 50) issues.Add(new(null, null, "draft.fields", FlowErrors.ComponentBudgetExceeded, 50, culture));

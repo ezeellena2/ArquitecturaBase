@@ -293,7 +293,8 @@ textos dicen «ítem» (RG12-A); el código y los documentos siguen diciendo ren
   y sus preguntas en `BusinessFormField` y sella `rows` y `repeated`.
 - **WhatsApp (RG3-A, RG7-A y RG8-A).** El perfil `flow-static-7.3-r10` suma una pantalla por ítem, hasta 10 o el máximo si
   es menor, titulada «Artículos · ítem 2». Desde el mínimo, cada ítem termina con «¿Agregás otro ítem?», sí o no y
-  obligatoria: con «Sí» sigue el siguiente y con «No», lo de después del bloque o «Enviar»; el último no pregunta. Con
+  obligatoria: con «Sí» sigue el siguiente y con «No», lo de después del bloque o, si el bloque es lo último, una
+  pantalla de cierre con el botón final (r12, 2026-11-09); el último no pregunta. Con
   mínimo 0, una pantalla pregunta antes «¿Agregás un ítem?». Con bloque, la respuesta tiene el tope de 64 KiB de los
   formularios con archivos. El detalle y la verificación con Meta están en
   [WhatsApp](whatsapp.md#selección-múltiple-y-perfil-r9).

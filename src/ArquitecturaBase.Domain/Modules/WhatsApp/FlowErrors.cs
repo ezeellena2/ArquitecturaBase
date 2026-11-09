@@ -12,6 +12,7 @@ public static class FlowErrors
     public static readonly Error DeprecationRejected = Error.Validation("WhatsApp.Flow.DeprecationRejected", "The provider rejected Flow deprecation; verify its state before retrying.");
     public static readonly Error ProviderRejected = Error.Validation("WhatsApp.Flow.ProviderRejected", "The provider rejected the Flow operation.");
     public static readonly Error ValidationFailed = Error.Validation("WhatsApp.Flow.ValidationFailed", "The provider reported Flow validation errors.");
+    public static readonly Error ValidationUnlocated = Error.Validation("WhatsApp.Flow.ValidationUnlocated", "The provider reported Flow validation errors outside the form questions.");
     public static readonly Error AuthorizationChanged = Error.Validation("WhatsApp.Flow.AuthorizationChanged", "Publication authorization changed.");
     public static readonly Error NotFound = Error.NotFound("WhatsApp.Flow.NotFound", "The Flow publication was not found.");
     public static readonly Error PreviewUnavailable = Error.Validation("WhatsApp.Flow.PreviewUnavailable", "The official preview is unavailable.");

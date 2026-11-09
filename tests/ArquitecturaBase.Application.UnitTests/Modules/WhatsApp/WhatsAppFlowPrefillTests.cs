@@ -13,7 +13,7 @@ public sealed class WhatsAppFlowPrefillTests
         var request = Request();
         var result = WhatsAppFlowCompiler.Compile(request);
         Assert.Empty(result.Issues);
-        Assert.Equal("flow-static-7.3-r11", WhatsAppFlowCompiler.ProfileRevision);
+        Assert.Equal("flow-static-7.3-r12", WhatsAppFlowCompiler.ProfileRevision);
         Assert.Equal(1, WhatsAppFlowCompiler.CodecVersion);
         using var json = JsonDocument.Parse(result.Flows[0].Json);
         var screen = json.RootElement.GetProperty("screens")[0];
@@ -99,6 +99,7 @@ public sealed class WhatsAppFlowPrefillTests
     [InlineData("flow-static-7.3-r9")]
     [InlineData("flow-static-7.3-r10")]
     [InlineData("flow-static-7.3-r11")]
+    [InlineData("flow-static-7.3-r12")]
     public void Every_supported_profile_accepts_scalar_prefill(string profile)
     {
         var request = Request();
@@ -119,8 +120,8 @@ public sealed class WhatsAppFlowPrefillTests
         var initial = Assert.Single(result.Value).Value;
         Assert.Equal(values.Count, initial.Count);
         foreach (var value in values) Assert.Equal(value.Value, initial[value.Key]);
-        Assert.Equal("flow-static-7.3-r11", WhatsAppFlowCompiler.ProfileRevision);
-        Assert.Equal("flow-static-7.3-r11", compiled.ProfileRevision);
+        Assert.Equal("flow-static-7.3-r12", WhatsAppFlowCompiler.ProfileRevision);
+        Assert.Equal("flow-static-7.3-r12", compiled.ProfileRevision);
         Assert.Equal(compiled.Json, projection.Json);
         Assert.Equal(compiled.Hash, projection.Hash);
     }

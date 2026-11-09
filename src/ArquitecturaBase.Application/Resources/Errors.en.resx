@@ -198,6 +198,7 @@
   <data name="WhatsApp.Flow.PayloadMismatch" xml:space="preserve"><value>The publication attempt belongs to different content.</value></data>
   <data name="WhatsApp.Flow.ProviderRejected" xml:space="preserve"><value>WhatsApp rejected the publication. Check its state before trying again.</value></data>
   <data name="WhatsApp.Flow.ValidationFailed" xml:space="preserve"><value>WhatsApp found problems in the form. Check the indicated fields.</value></data>
+  <data name="WhatsApp.Flow.ValidationUnlocated" xml:space="preserve"><value>WhatsApp did not accept how the app built the form. It is not a problem with your questions: if it happens again, let the team know.</value></data>
   <data name="WhatsApp.Flow.AuthorizationChanged" xml:space="preserve"><value>Publication permissions changed. Check the current access.</value></data>
   <data name="WhatsApp.Flow.NotFound" xml:space="preserve"><value>The form publication was not found.</value></data>
   <data name="WhatsApp.Flow.PreviewUnavailable" xml:space="preserve"><value>The official preview is unavailable. Check the publication state.</value></data>

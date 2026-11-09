@@ -198,6 +198,7 @@
   <data name="WhatsApp.Flow.PayloadMismatch" xml:space="preserve"><value>El intento de publicación corresponde a otro contenido.</value></data>
   <data name="WhatsApp.Flow.ProviderRejected" xml:space="preserve"><value>WhatsApp rechazó la publicación. Revisá su estado antes de volver a intentar.</value></data>
   <data name="WhatsApp.Flow.ValidationFailed" xml:space="preserve"><value>WhatsApp encontró problemas en el formulario. Revisá los campos indicados.</value></data>
+  <data name="WhatsApp.Flow.ValidationUnlocated" xml:space="preserve"><value>WhatsApp no aceptó cómo la app armó el formulario. No es un problema de tus preguntas: si vuelve a pasar, avisá al equipo.</value></data>
   <data name="WhatsApp.Flow.AuthorizationChanged" xml:space="preserve"><value>Los permisos para publicar cambiaron. Revisá el acceso actual.</value></data>
   <data name="WhatsApp.Flow.NotFound" xml:space="preserve"><value>No se encontró la publicación del formulario.</value></data>
   <data name="WhatsApp.Flow.PreviewUnavailable" xml:space="preserve"><value>El preview oficial no está disponible. Revisá el estado de publicación.</value></data>

@@ -106,7 +106,10 @@ public sealed class WhatsAppFlowRowsCompilerTests
         {
             ["FORM"] = ["FORM_A"], ["FORM_A"] = ["FORM_B", "FORM_D"], ["FORM_B"] = ["FORM_C", "FORM_D"], ["FORM_C"] = ["FORM_D"], ["FORM_D"] = [],
         }, Routes(after));
-        Assert.Equal(new Dictionary<string, string[]> { ["FORM"] = ["FORM_A"], ["FORM_A"] = ["FORM_B"], ["FORM_B"] = [] }, Routes(atTheEnd));
+        Assert.Equal(new Dictionary<string, string[]>
+        {
+            ["FORM"] = ["FORM_A", "FORM_C"], ["FORM_A"] = ["FORM_B", "FORM_C"], ["FORM_B"] = ["FORM_C"], ["FORM_C"] = [],
+        }, Routes(atTheEnd));
 
         static Dictionary<string, string[]> Routes(WhatsAppCompiledFlowResponse flow)
         {
@@ -116,30 +119,44 @@ public sealed class WhatsAppFlowRowsCompilerTests
         }
     }
 
+    // Meta rejects a terminal screen whose If also navigates («Expected 'complete'», 2026-11-09). Without questions after the
+    // block, «No» and the last row go on to a closing screen (r12) that completes with what was visited; no row is terminal.
     [Fact]
-    public void Without_questions_after_the_block_each_row_that_can_end_completes_with_what_was_visited()
+    public void Without_questions_after_the_block_the_rows_end_on_a_closing_screen_that_completes_with_what_was_visited()
     {
         var supplier = Question("shortText", "Proveedor");
         var block = Block(2, 4);
         var quantity = Row(Question("decimal", "Cantidad"));
+        var result = WhatsAppFlowCompiler.Compile(Request(supplier, block, quantity));
 
-        var screens = Screens(Flow(WhatsAppFlowCompiler.Compile(Request(supplier, block, quantity))));
+        var screens = Screens(Flow(result));
 
-        Assert.Equal(5, screens.Length);
+        Assert.Equal(new[] { "FORM", "FORM_A", "FORM_B", "FORM_C", "FORM_D", "FORM_E" }, screens.Select(screen => screen.GetProperty("id").GetString()));
+        Assert.All(screens[..5], screen => Assert.False(screen.TryGetProperty("terminal", out _)));
         var underMinimum = Controls(screens[1]);
         Assert.Equal(2, underMinimum.Length);
         Assert.Equal("FORM_B", Next(underMinimum[^1]));
-        Assert.False(screens[1].TryGetProperty("terminal", out _));
         var ending = Controls(screens[2])[^1].GetProperty("else")[0];
-        Assert.Equal("Enviar", ending.GetProperty("label").GetString());
-        var payload = ending.GetProperty("on-click-action").GetProperty("payload");
-        Assert.Equal(new[] { supplier.Key, quantity.Key + "_r1", quantity.Key + "_r2", block.Key + "_r2" }.Order(StringComparer.Ordinal),
-            payload.EnumerateObject().Select(value => value.Name).Order(StringComparer.Ordinal));
-        Assert.Equal("${form." + quantity.Key + "}", payload.GetProperty(quantity.Key + "_r2").GetString());
-        Assert.True(screens[2].GetProperty("terminal").GetBoolean());
-        Assert.True(screens[3].GetProperty("terminal").GetBoolean());
-        Assert.True(screens[4].GetProperty("terminal").GetBoolean());
-        Assert.Equal(1 + 4 + 2, Controls(screens[4])[^1].GetProperty("on-click-action").GetProperty("payload").EnumerateObject().Count());
+        Assert.Equal("Continuar", ending.GetProperty("label").GetString());
+        Assert.Equal("FORM_E", Next(ending));
+        Assert.Equal("FORM_E", Next(Controls(screens[4])[^1]));
+        var closing = screens[5];
+        Assert.True(closing.GetProperty("terminal").GetBoolean());
+        Assert.Equal("Recepción", closing.GetProperty("title").GetString());
+        var controls = Controls(closing);
+        Assert.Equal(2, controls.Length);
+        Assert.Equal("TextBody", controls[0].GetProperty("type").GetString());
+        Assert.Equal("Tocá «Enviar» para mandar el formulario.", controls[0].GetProperty("text").GetString());
+        Assert.Equal("Tap “Send” to send the form.", Controls(Screens(Flow(result, "en"))[5])[0].GetProperty("text").GetString());
+        Assert.Equal("Enviar", controls[1].GetProperty("label").GetString());
+        var action = controls[1].GetProperty("on-click-action");
+        Assert.Equal("complete", action.GetProperty("name").GetString());
+        var payload = action.GetProperty("payload");
+        Assert.Equal(new[] { supplier.Key, quantity.Key + "_r1", quantity.Key + "_r2", quantity.Key + "_r3", quantity.Key + "_r4", block.Key + "_r2",
+            block.Key + "_r3" }.Order(StringComparer.Ordinal), payload.EnumerateObject().Select(value => value.Name).Order(StringComparer.Ordinal));
+        Assert.Equal("${screen.FORM.form." + supplier.Key + "}", payload.GetProperty(supplier.Key).GetString());
+        Assert.Equal("${screen.FORM_B.form." + quantity.Key + "}", payload.GetProperty(quantity.Key + "_r2").GetString());
+        Assert.Equal("${screen.FORM_C.form." + block.Key + "}", payload.GetProperty(block.Key + "_r3").GetString());
     }
 
     [Fact]
@@ -172,8 +189,9 @@ public sealed class WhatsAppFlowRowsCompilerTests
     {
         var screens = Screens(Flow(WhatsAppFlowCompiler.Compile(Request(Block(1, 20), Row(Question("decimal"))))));
 
-        Assert.Equal(WhatsAppFlowProfile.MaxRows, screens.Length);
-        Assert.Equal(2, Controls(screens[^1]).Length);
+        Assert.Equal(WhatsAppFlowProfile.MaxRows + 1, screens.Length);
+        Assert.Equal(2, Controls(screens[^2]).Length);
+        Assert.Equal(screens[^1].GetProperty("id").GetString(), Next(Controls(screens[^2])[^1]));
     }
 
     [Fact]

@@ -17,7 +17,7 @@ public sealed class WhatsAppFlowMultipleChoiceCompilerTests
         var result = WhatsAppFlowCompiler.Compile(Request([Multiple(1)]));
 
         Assert.Empty(result.Issues);
-        Assert.Equal("flow-static-7.3-r11", WhatsAppFlowCompiler.ProfileRevision);
+        Assert.Equal("flow-static-7.3-r12", WhatsAppFlowCompiler.ProfileRevision);
         Assert.Equal(1, WhatsAppFlowCompiler.CodecVersion);
         foreach (var flow in result.Flows)
         {

@@ -163,7 +163,8 @@ internal static class WhatsAppFlowScreenBuilder
     internal static string ScreenId(int index) => index == 0 ? "FORM" : "FORM_" + (char)('A' + index - 1);
 
     // Screens in question order. Without a block, each file question starts a screen, as r9. With one: what comes before it,
-    // the question of a minimum of zero (RG8-A), a screen per row up to the channel limit (RG3-A) and what comes after.
+    // the question of a minimum of zero (RG8-A), a screen per row up to the channel limit (RG3-A) and what comes after. With
+    // nothing after the block, a closing screen ends it (r12): Meta does not let a screen that may go on to another row complete.
     internal static IReadOnlyList<WhatsAppFlowScreen> Plan(IReadOnlyList<WhatsAppFlowSlot> slots)
     {
         var screens = new List<(string Kind, List<int> Questions, int Row)>();
@@ -180,6 +181,7 @@ internal static class WhatsAppFlowScreenBuilder
             var children = Enumerable.Range(block + 1, end - block - 1).ToList();
             for (var row = 1; row <= RowCount(rows); row++) screens.Add(("row", children, row));
             AddFields(end, slots.Count);
+            if (end == slots.Count) screens.Add(("end", [], 0));
         }
         return screens.Select((screen, index) => new WhatsAppFlowScreen(ScreenId(index), screen.Kind, screen.Questions.AsReadOnly(), screen.Row)).ToArray();
 
@@ -213,7 +215,8 @@ internal static class WhatsAppFlowScreenBuilder
     {
         var block = questions.Select((question, index) => (question, index)).First(value => value.question.Type == "group");
         var rows = block.question.Rows!;
-        var after = screens.FirstOrDefault(screen => screen.Kind == "fields" && screen.Questions[0] > block.index);
+        // What follows the block: its next questions or, without them, the closing screen (r12).
+        var after = screens.First(screen => screen.Kind == "end" || (screen.Kind == "fields" && screen.Questions[0] > block.index));
         var built = new List<Dictionary<string, object?>>();
         var routing = new Dictionary<string, string[]>(StringComparer.Ordinal);
         for (var current = 0; current < screens.Count; current++)
@@ -247,6 +250,14 @@ internal static class WhatsAppFlowScreenBuilder
                 children.Add(Question("AddRow"));
                 children.Add(Branch(screens[current + 1]));
             }
+            else if (screen.Kind == "end")
+            {
+                children.Add(new(StringComparer.Ordinal)
+                {
+                    ["type"] = "TextBody", ["text"] = string.Format(CultureInfo.GetCultureInfo(culture), FlowTexts.Get("Closing", culture), submit),
+                });
+                children.Add(Footer(submit, Complete()));
+            }
             else
             {
                 children.AddRange(screen.Questions.SelectMany(index => WithPicker(questions[index], Control(index, current), current == 0)));
@@ -261,7 +272,7 @@ internal static class WhatsAppFlowScreenBuilder
             var item = new Dictionary<string, object?>
             {
                 ["id"] = screen.Id,
-                ["title"] = screen.Kind == "fields" ? title : screen.Kind == "ask" ? blockTitle
+                ["title"] = screen.Kind is "fields" or "end" ? title : screen.Kind == "ask" ? blockTitle
                     : string.Format(CultureInfo.GetCultureInfo(culture), FlowTexts.Get("RowTitle", culture), blockTitle, screen.Row),
                 ["layout"] = new { type = "SingleColumnLayout", children = new[] { form } },
             };
@@ -287,7 +298,7 @@ internal static class WhatsAppFlowScreenBuilder
                 ["type"] = "If", ["condition"] = "${form." + block.question.Key + "} == 'true'",
                 ["then"] = new[] { Footer(FlowTexts.Get("Continue", culture), To(next)) }, ["else"] = new[] { Exit() },
             };
-            Dictionary<string, object> Exit() => after is null ? Footer(submit, Complete()) : Footer(FlowTexts.Get("Continue", culture), To(after));
+            Dictionary<string, object> Exit() => Footer(FlowTexts.Get("Continue", culture), To(after));
             // Meta deduces the transitions from the navigate actions and leaves out the else branch of an If (2026-11-06):
             // every navigate goes into the routing model, both branches included.
             object To(WhatsAppFlowScreen next)
@@ -309,7 +320,7 @@ internal static class WhatsAppFlowScreenBuilder
                     var at = screens[visited];
                     if (at.Kind == "fields") foreach (var index in at.Questions) payload[questions[index].Key] = Reference(visited, questions[index].Key);
                     else if (at.Kind == "ask") payload[block.question.Key + "_r0"] = Reference(visited, block.question.Key);
-                    else
+                    else if (at.Kind == "row")
                     {
                         foreach (var index in at.Questions) payload[questions[index].Key + "_r" + at.Row] = Reference(visited, questions[index].Key);
                         if (Asks(rows, at.Row)) payload[block.question.Key + "_r" + at.Row] = Reference(visited, block.question.Key);

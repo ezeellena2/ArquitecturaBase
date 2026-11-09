@@ -77,7 +77,11 @@ internal static class WhatsAppFlowPublicationPolicy
         {
             var error = ErrorFor(binding.FailureCode!);
             var diagnostics = JsonSerializer.Deserialize<WhatsAppFlowDiagnostic[]>(binding.DiagnosticsJson, Options) ?? [];
-            if (diagnostics.Length == 0) issues.Add(new(null, null, "channel", error, Culture: binding.Culture));
+            // Meta's errors that the sealed mapping places on no question are about what the app built (2026-11-09): one problem
+            // says so, instead of promising marked fields. Meta's text is still neither stored nor shown.
+            if (error == FlowErrors.ValidationFailed && diagnostics.All(value => value.FieldId is null))
+                issues.Add(new(null, null, "channel", FlowErrors.ValidationUnlocated, Culture: binding.Culture));
+            else if (diagnostics.Length == 0) issues.Add(new(null, null, "channel", error, Culture: binding.Culture));
             else issues.AddRange(diagnostics.Select(value => new StructuredFormIssueResponse(value.FieldId, value.ChoiceId, value.Path, error, Culture: value.Culture)));
         }
         return new(row.NeutralOperationId, row.DefinitionId, row.VersionId, manifest.PublicationFingerprint, state, stage,
