@@ -1,6 +1,6 @@
 # El Excel de respuestas, en una sola hoja
 
-Fecha: **2026-11-09**. Estado: **propuesta, sin elegir**. Nada está programado.
+Fecha: **2026-11-09**. Estado: **XL1-A elegida por el usuario el mismo día; sin programar**.
 
 En la prueba integral, exportando «Remito de prueba» (RMP-20261109.xlsx, dos respuestas y cinco ítems), el usuario pidió
 que el Excel de «Exportar a Excel» quede en una sola hoja y bien diseñado. Los tableros están en el lienzo aparte
@@ -26,11 +26,11 @@ Lo arma `FormExportService` con `FormExportPolicy` y lo escribe `ClosedXmlFormWo
 
 | Forma | Cómo queda | A favor | En contra |
 | --- | --- | --- | --- |
-| **XL1-A · Una fila por ítem** (recomendada) | Una hoja. Cada ítem es una fila, con los datos de su respuesta repetidos a la izquierda; en el lugar del bloque, «Ítem» y sus preguntas. Una respuesta sin ítems ocupa una fila con «Ítem» vacío. Una línea más marcada separa las respuestas. | Es la forma que Excel espera para renglones: se filtra («Estado» = «Dañado»), se ordena y se arma una tabla dinámica sin unir hojas. Sirve igual con 3 ítems o con 100. | Los datos de la respuesta se repiten: sumar una pregunta de la respuesta suma cada fila. Para contar respuestas, «Ítem» = 1 o vacío, o «N°» sin repetir. |
+| **XL1-A · Una fila por ítem** (elegida) | Una hoja. Cada ítem es una fila, con los datos de su respuesta repetidos a la izquierda; en el lugar del bloque, «Ítem» y sus preguntas. Una respuesta sin ítems ocupa una fila con «Ítem» vacío. Una línea más marcada separa las respuestas. | Es la forma que Excel espera para renglones: se filtra («Estado» = «Dañado»), se ordena y se arma una tabla dinámica sin unir hojas. Sirve igual con 3 ítems o con 100. | Los datos de la respuesta se repiten: sumar una pregunta de la respuesta suma cada fila. Para contar respuestas, «Ítem» = 1 o vacío, o «N°» sin repetir. |
 | **XL1-B · Una fila por respuesta, los ítems en columnas** | «Ítems» con la cantidad y, a la derecha, «Ítem 1 · Artículo», «Ítem 1 · Estado», «Ítem 2 · …», hasta el que más ítems tenga en el archivo. | Una fila por respuesta, como la planilla. | Con 100 ítems y tres preguntas, 300 columnas. Un mismo dato repartido en muchas columnas: no se filtra ni se arma una tabla dinámica por ítem. |
 | **XL1-C · Cada respuesta con sus ítems debajo** | La fila de la respuesta y, debajo, una fila por ítem con sólo sus columnas, agrupadas con el esquema de Excel (se pliegan con «−»). | Se lee como el detalle de la app, sin repetir datos. | Dos clases de fila en una tabla: el filtro de un ítem deja afuera su respuesta, ordenar los separa y no hay tabla dinámica. |
 
-**Recomendación: XL1-A.** Es la forma en que se trabajan renglones en Excel. Filtrar o contar ítems es lo que se
+**Elegida: XL1-A** («Sí, XL1-A», 2026-11-09), la recomendada. Es la forma en que se trabajan renglones en Excel. Filtrar o contar ítems es lo que se
 quiere hacer con un bloque, como el filtro «en algún ítem de Artículo» de la planilla, y lo único que se repite son
 datos que ya existen. El diálogo dice cómo quedan las filas.
 
@@ -87,6 +87,7 @@ Cierre: `dotnet test` completo con Docker y el build sin advertencias; en el fro
 
 ## Antes de empezar
 
-- La elección del usuario: XL1 (A, B o C) y los puntos de XL2.
+- La forma está elegida (XL1-A) y lo de XL2 va con ella, como se mostró. Falta el visto bueno para programarlo y un
+  momento con la máquina quieta: la integración corre con Docker.
 - El front quieto para la tarea 7, que va con el diálogo (EX1-A).
 - Si UD4 saca «(desde vN)» del encabezado de la planilla, el Excel lo conserva igual.
