@@ -163,7 +163,8 @@ espera» va con esa respuesta, como acá.
   `WhatsAppAssistantAutomaticPolicy` (la espera de la respuesta), `AiAssistantEvidenceVerifier` (las cifras) y los recursos
   `Assistant.resx` (`Prompt.TerminalAnswerV2Description`).
 - **GitHub:** se subió el 2026-11-08 a `ezeellena2/ArquitecturaBase`, a pedido del usuario, con lo que faltaba desde
-  `ae60b950`: los ajustes, la evidencia y el perfil del navegador. Desde otra PC se lee con un pull de `main`.
+  `ae60b950`: los ajustes, la evidencia y el perfil del navegador. El 2026-11-09 se subió, también a su pedido, el dictado por
+  WhatsApp con su corrida. Desde otra PC se lee con un pull de `main`.
 
 ## 9. Prompt para el chat guía del multitenant
 
