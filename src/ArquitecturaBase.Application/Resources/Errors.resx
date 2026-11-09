@@ -154,6 +154,17 @@
   <data name="Arca.Connection.ServiceNotDelegated" xml:space="preserve"><value>La empresa todavía no delegó ese servicio en la plataforma, o la plataforma no lo aceptó. Seguí la guía de la delegación y verificá de nuevo.</value></data>
   <data name="Arca.Invoicing.PointOfSaleInvalid" xml:space="preserve"><value>El punto de venta va de 1 a 99998.</value></data>
   <data name="Arca.Invoicing.PointOfSaleUnavailable" xml:space="preserve"><value>ARCA ya no ofrece ese punto de venta. Volvé a buscar los puntos de venta.</value></data>
+  <data name="Arca.Invoicing.VoucherNotFound" xml:space="preserve"><value>No encontramos esa emisión.</value></data>
+  <data name="Arca.Invoicing.PointOfSaleMissing" xml:space="preserve"><value>Elegí el punto de venta de ARCA antes de emitir.</value></data>
+  <data name="Arca.Invoicing.IssuerDataMissing" xml:space="preserve"><value>Probá la conexión con ARCA para traer los datos de la empresa antes de emitir.</value></data>
+  <data name="Arca.Invoicing.ReceiverInvalid" xml:space="preserve"><value>Revisá los datos del cliente: el nombre y el documento.</value></data>
+  <data name="Arca.Invoicing.ConceptInvalid" xml:space="preserve"><value>El concepto es productos, servicios o los dos.</value></data>
+  <data name="Arca.Invoicing.ServicePeriodInvalid" xml:space="preserve"><value>Con servicios, completá el período y el vencimiento del pago, en orden.</value></data>
+  <data name="Arca.Invoicing.IssueDateOutOfRange" xml:space="preserve"><value>ARCA no acepta esa fecha: con productos, hasta 5 días antes o después de hoy; con servicios, hasta 10.</value></data>
+  <data name="Arca.Invoicing.ItemsInvalid" xml:space="preserve"><value>Revisá los ítems: cada uno con descripción, cantidad y precio, y un total mayor que cero.</value></data>
+  <data name="Arca.Invoicing.TotalMismatch" xml:space="preserve"><value>El total no coincide con el de los ítems. Volvé a calcularlo.</value></data>
+  <data name="Arca.Invoicing.InvoiceNotAuthorized" xml:space="preserve"><value>Esa factura todavía no está emitida.</value></data>
+  <data name="Arca.Invoicing.InvoiceAlreadyCancelled" xml:space="preserve"><value>Esa factura ya tiene una nota de crédito.</value></data>
   <data name="Arca.Invoicing.GrossIncomeInvalid" xml:space="preserve"><value>Escribí el número de ingresos brutos, de hasta 30 caracteres.</value></data>
   <data name="Arca.Invoicing.ActivityStartInvalid" xml:space="preserve"><value>Elegí la fecha de inicio de actividades.</value></data>
   <data name="Arca.Invoicing.ClassNotSupported" xml:space="preserve"><value>Todavía no se emiten facturas A ni B.</value></data>

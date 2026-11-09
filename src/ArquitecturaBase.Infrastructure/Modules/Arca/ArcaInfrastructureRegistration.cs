@@ -31,7 +31,7 @@ public static class ArcaInfrastructureRegistration
         if (services.Any(x => x.ServiceType == typeof(ArcaKeyRing))) return services;
         AddConnection(services, configuration);
         AddRegistry(services);
-        AddInvoicing(services);
+        AddInvoicing(services, configuration);
         return services;
     }
 
@@ -58,13 +58,17 @@ public static class ArcaInfrastructureRegistration
         ConfigureClient(services.AddHttpClient(RegistryHttpClientName));
     }
 
-    private static void AddInvoicing(IServiceCollection services)
+    private static void AddInvoicing(IServiceCollection services, IConfiguration configuration)
     {
+        services.AddOptions<ArcaVoucherWorkerOptions>().Bind(configuration.GetSection("Arca:Invoicing:Worker"))
+            .Validate(x => x.IsValid(), "Configure Arca:Invoicing:Worker with a positive interval and lease and a batch of 1 to 500.").ValidateOnStart();
         services.AddScoped<IArcaInvoicingRepository, ArcaInvoicingRepository>();
         services.AddScoped<IArcaInvoicingReader, ArcaInvoicingReader>();
         services.AddScoped<IArcaVoucherRepository, ArcaVoucherRepository>();
         services.AddScoped<IArcaVoucherReader, ArcaVoucherReader>();
         services.AddSingleton<IArcaInvoicingClient, ArcaInvoicingClient>();
+        services.AddSingleton<ArcaVoucherProcessor>();
+        services.AddHostedService<ArcaVoucherBackgroundService>();
         ConfigureClient(services.AddHttpClient(InvoicingHttpClientName));
     }
 

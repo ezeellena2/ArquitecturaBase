@@ -18,6 +18,9 @@ public interface IArcaVoucherRepository
     /// </summary>
     Task<ArcaVoucher?> GetNextAsync(ArcaVoucherSequence sequence, CancellationToken cancellationToken);
 
+    /// <summary>Si la factura ya tiene una nota de crédito que no se rechazó ni se canceló.</summary>
+    Task<bool> ExistsCreditNoteAsync(Guid invoiceId, CancellationToken cancellationToken);
+
     void Add(ArcaVoucher voucher);
 
     void Add(ArcaVoucherSequence sequence);

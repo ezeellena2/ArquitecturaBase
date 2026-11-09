@@ -41,12 +41,16 @@ public static class ArcaApplicationRegistration
     private static void AddRegistry(IServiceCollection services)
     {
         services.TryAddScoped<IArcaRegistryCompanyService, ArcaRegistryCompanyService>();
+        services.TryAddScoped<IArcaCompanyProfileSource, ArcaRegistryCompanyProfileSource>();
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IArcaServiceDefinition, ArcaRegistryServiceDefinition>());
     }
 
     private static void AddInvoicing(IServiceCollection services)
     {
         services.TryAddScoped<IArcaInvoicingSetupService, ArcaInvoicingSetupService>();
+        services.TryAddScoped<IArcaVoucherService, ArcaVoucherService>();
+        services.TryAddScoped<IArcaVoucherReviewService, ArcaVoucherReviewService>();
+        services.TryAddScoped<IArcaVoucherStore, ArcaVoucherStore>();
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IArcaServiceDefinition, ArcaInvoicingServiceDefinition>());
     }
 }

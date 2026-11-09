@@ -26,6 +26,8 @@ internal sealed class ArcaTestModule : IApiTestModule
         builder.UseSetting("Arca:RateLimiting:ReadPermitLimit", "100000");
         builder.UseSetting("Arca:RateLimiting:WritePermitLimit", "100000");
         builder.UseSetting("Arca:RateLimiting:RemotePermitLimit", "100000");
+        // La cola de emisión la procesa cada test, con el reloj del factory.
+        builder.UseSetting("Arca:Invoicing:Worker:ProcessInBackground", "false");
     }
 
     // Los clientes de ARCA hablan con FakeArca, que no abre red y falla ante una operación que no conoce.

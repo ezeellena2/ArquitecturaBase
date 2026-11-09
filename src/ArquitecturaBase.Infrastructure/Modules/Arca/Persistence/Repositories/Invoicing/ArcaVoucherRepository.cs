@@ -29,6 +29,10 @@ internal sealed class ArcaVoucherRepository(ApplicationDbContext dbContext) : IA
             .FirstOrDefaultAsync(cancellationToken);
     }
 
+    public Task<bool> ExistsCreditNoteAsync(Guid invoiceId, CancellationToken cancellationToken) =>
+        dbContext.Set<ArcaVoucher>().AnyAsync(x => x.CancelsVoucherId == invoiceId
+            && x.State != ArcaVoucherState.Rejected && x.State != ArcaVoucherState.Cancelled, cancellationToken);
+
     public void Add(ArcaVoucher voucher) { dbContext.RequireTransaction(); dbContext.Set<ArcaVoucher>().Add(voucher); }
 
     public void Add(ArcaVoucherSequence sequence) { dbContext.RequireTransaction(); dbContext.Set<ArcaVoucherSequence>().Add(sequence); }

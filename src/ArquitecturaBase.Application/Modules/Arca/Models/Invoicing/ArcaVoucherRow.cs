@@ -2,7 +2,7 @@ using ArquitecturaBase.Domain.Modules.Arca.Invoicing;
 
 namespace ArquitecturaBase.Application.Modules.Arca.Models.Invoicing;
 
-/// <summary>Una emisión de la cola tal como se lee, sin seguimiento: lo que se responde al que la pidió.</summary>
+/// <summary>Una emisión de la cola tal como se lee, sin seguimiento: como la devuelve el lector.</summary>
 public sealed record ArcaVoucherRow(
     Guid Id,
     Guid RequestKey,

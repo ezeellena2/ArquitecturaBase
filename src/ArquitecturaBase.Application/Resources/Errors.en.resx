@@ -154,6 +154,17 @@
   <data name="Arca.Connection.ServiceNotDelegated" xml:space="preserve"><value>The company has not delegated that service to the platform yet, or the platform has not accepted it. Follow the delegation guide and check again.</value></data>
   <data name="Arca.Invoicing.PointOfSaleInvalid" xml:space="preserve"><value>The point of sale goes from 1 to 99998.</value></data>
   <data name="Arca.Invoicing.PointOfSaleUnavailable" xml:space="preserve"><value>ARCA no longer offers that point of sale. Search the points of sale again.</value></data>
+  <data name="Arca.Invoicing.VoucherNotFound" xml:space="preserve"><value>We could not find that issuance.</value></data>
+  <data name="Arca.Invoicing.PointOfSaleMissing" xml:space="preserve"><value>Choose the ARCA point of sale before issuing.</value></data>
+  <data name="Arca.Invoicing.IssuerDataMissing" xml:space="preserve"><value>Test the ARCA connection to bring the company data before issuing.</value></data>
+  <data name="Arca.Invoicing.ReceiverInvalid" xml:space="preserve"><value>Check the client data: the name and the document.</value></data>
+  <data name="Arca.Invoicing.ConceptInvalid" xml:space="preserve"><value>The concept is products, services or both.</value></data>
+  <data name="Arca.Invoicing.ServicePeriodInvalid" xml:space="preserve"><value>For services, fill in the period and the payment due date, in order.</value></data>
+  <data name="Arca.Invoicing.IssueDateOutOfRange" xml:space="preserve"><value>ARCA does not take that date: up to 5 days before or after today for products, 10 for services.</value></data>
+  <data name="Arca.Invoicing.ItemsInvalid" xml:space="preserve"><value>Check the items: each one with a description, a quantity and a price, and a total above zero.</value></data>
+  <data name="Arca.Invoicing.TotalMismatch" xml:space="preserve"><value>The total does not match the items. Calculate it again.</value></data>
+  <data name="Arca.Invoicing.InvoiceNotAuthorized" xml:space="preserve"><value>That invoice has not been issued yet.</value></data>
+  <data name="Arca.Invoicing.InvoiceAlreadyCancelled" xml:space="preserve"><value>That invoice already has a credit note.</value></data>
   <data name="Arca.Invoicing.GrossIncomeInvalid" xml:space="preserve"><value>Enter the gross income number, up to 30 characters.</value></data>
   <data name="Arca.Invoicing.ActivityStartInvalid" xml:space="preserve"><value>Choose the activity start date.</value></data>
   <data name="Arca.Invoicing.ClassNotSupported" xml:space="preserve"><value>Invoices of classes A and B are not available yet.</value></data>
