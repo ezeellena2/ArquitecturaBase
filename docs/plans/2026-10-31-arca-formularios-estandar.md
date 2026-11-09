@@ -73,7 +73,7 @@ describir lo vendido.
 | 3 · Factura C | Emisión segura, PDF fiscal, las tablas de ARCA como catálogos que se actualizan solos y el autocompletar de la CUIT del cliente, el estándar «Factura» en la app y en WhatsApp y la nota de crédito C total, en homologación | Sí, en homologación |
 | 4 · Factura A y B ([diseño](2026-11-09-arca-etapa-4-factura-a-y-b.md)) | IVA por alícuota, condición frente al IVA obligatoria (RG 5616), el apartado de la RG 5614 y un piloto en producción con una CUIT real. Diseñada el 2026-11-09, con las normas confirmadas y sin programar: extiende la etapa 3 | Sí |
 | 5 · Delegación guiada | El certificado de la CUIT de la plataforma en cada instalación, la guía paso a paso para el cliente y la detección de que la delegación llegó | — |
-| 6 · Delegación con robot | El worker con Playwright: del lado del cliente delega y crea el punto de venta; del lado de la plataforma acepta y asigna. Si falla, vuelve a la guía | — |
+| 6 · Delegación con robot ([plan](2026-11-09-arca-etapa-6-robot.md)) | El worker con Playwright: del lado del cliente delega y crea el punto de venta; del lado de la plataforma crea el certificado de la instalación, acepta y asigna. Si falla, vuelve a la guía. **Decidida el 2026-11-09** ([ADR 0026](../decisions/0026-robot-de-delegacion-arca.md)), sin programar | — |
 | Después | Hacienda (WSLSP con porcinos y el remito cárnico), granos (carta de porte y liquidación primaria), la constatación de facturas recibidas, exportación y los demás sectores, de a una familia | — |
 
 Las etapas 1 y 2 no dependen una de otra. La 5 y la 6 solo necesitan la 1, así que se pueden adelantar si la prioridad es
@@ -137,7 +137,8 @@ automático.
 - **Sin homologación:** el Administrador de Relaciones existe solo en producción. Se prueba con cuentas reales y lo corre
   el usuario.
 - **Legal:** ARCA define la clave fiscal como personal e intransferible. Antes de ofrecer el modo 3, lo revisa un contador
-  o un abogado.
+  o un abogado. El usuario confirmó esa revisión el 2026-11-09; igual el robot queda apagado por defecto en cada
+  instalación.
 - **Despliegue:** Playwright necesita Chromium en la imagen del worker.
 
 ### Motor para documentos (etapa 2)

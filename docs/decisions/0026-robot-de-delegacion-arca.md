@@ -2,14 +2,17 @@
 
 ## Estado
 
-**Propuesta**, 2026-11-09. Recoge las decisiones 2 y 3 de la [hoja de ruta de ARCA](../plans/2026-10-31-arca-formularios-estandar.md)
-y el [plan de la etapa 6](../plans/2026-11-09-arca-etapa-6-robot.md). Pasa a aceptada con el diseño de la etapa. Extiende el
-[ADR 0023](0023-arca-como-modulo-opcional.md), que pidió este ADR antes de programar el robot.
+**Aceptada**, 2026-11-09, con el diseño de la etapa 6. Recoge las decisiones 2 y 3 de la
+[hoja de ruta de ARCA](../plans/2026-10-31-arca-formularios-estandar.md) y las del
+[plan de la etapa 6](../plans/2026-11-09-arca-etapa-6-robot.md). Extiende el [ADR 0023](0023-arca-como-modulo-opcional.md),
+que pidió este ADR antes de programar el robot, y se apoya en el [ADR 0027](0027-delegacion-guiada-arca.md) de la delegación
+guiada.
 
 ## Contexto
 
-En el modo 3 de acceso nadie entra a mano a ARCA: un robot delega los web services del cliente en la CUIT de la plataforma,
-da de alta el punto de venta, acepta la delegación del lado de la plataforma y la asigna a su computador fiscal. ARCA no
+En el modo 3 de acceso nadie entra a mano a ARCA: un robot crea el certificado de la plataforma para la instalación,
+delega los web services del cliente en la CUIT de la plataforma, da de alta el punto de venta, acepta la delegación del
+lado de la plataforma y la asigna a su computador fiscal. ARCA no
 publica una API para el Administrador de Relaciones, así que el robot maneja la página web con un navegador. Esa página:
 
 - existe sólo en producción y cambia sin aviso;
@@ -27,9 +30,11 @@ usuario decidió que el robot sea propio, con Playwright para .NET, y que la cla
    worker por un canal en memoria: nunca viaja por la red interna, por la cola cifrada del
    [ADR 0015](0015-colas-transaccionales-cifradas.md) ni por la base. El avance se guarda sin secretos, con una reserva que
    vence: si el host se cae, la corrida queda interrumpida y el cliente vuelve a poner la clave o sigue con la guía.
-3. **El lado de la plataforma es durable.** La aceptación pendiente se guarda en la base y la toma cualquier host con una
-   reserva, como el ticket de acceso. La clave de la plataforma es un secreto de la instalación (user-secrets, Key Vault o
-   variables protegidas), nunca de la base. Un ingreso rechazado no se reintenta: frena las aceptaciones y avisa.
+3. **El lado de la plataforma es durable.** Su trabajo (crear el certificado de la instalación con el pedido que genera
+   la app, aceptar la delegación y asignarla al alias) se guarda en la base sin secretos y lo toma cualquier host con una
+   reserva, como el ticket de acceso. El certificado se carga por el mismo camino que usa la persona, con sus
+   validaciones. La clave de la plataforma es un secreto de la instalación (user-secrets, Key Vault o variables
+   protegidas), nunca de la base. Un ingreso rechazado no se reintenta: frena el trabajo y avisa.
 4. **La clave del cliente:**
    - es un tipo propio que no se imprime ni se serializa, desde el contrato HTTP hasta el robot;
    - se usa sólo para llenar el campo de ingreso y se suelta cuando ARCA acepta el ingreso;
@@ -43,10 +48,12 @@ usuario decidió que el robot sea propio, con Playwright para .NET, y que la cla
    pantalla.
 6. **Una falla es un motivo estable:** ingreso rechazado, captcha, validación extra, pantalla cambiada (con el paso), ARCA
    no responde o interrumpida. El robot no resuelve captchas ni pide un segundo factor: el cliente sigue con la guía de la
-   etapa 5 en el paso donde quedó. Una pantalla cambiada avisa al dueño de la plataforma.
+   etapa 5 en el paso donde quedó. Una pantalla cambiada avisa al dueño de la plataforma por correo, por la cola de
+   siempre y como mucho una vez por motivo y paso por día, sin datos del cliente.
 7. **Cada familia aporta sus pasos del lado del cliente,** como aporta su prueba con `IArcaServiceDefinition`
    ([ADR 0025](0025-familias-de-servicios-arca.md)): Facturación da de alta el punto de venta. `Connection` no la nombra.
-8. **Apagado por defecto** (`Arca:Robot:Enabled`), hasta que la revisión legal lo habilite. Con el robot prendido y sin
+8. **Apagado por defecto** (`Arca:Robot:Enabled`) en cada instalación; se prende donde se ofrece. La revisión legal que
+   pedía la hoja de ruta la confirmó el usuario el 2026-11-09. Con el robot prendido y sin
    Chromium, la Api no arranca. Las direcciones de las páginas de ARCA son configuración y los selectores viven en un
    objeto por pantalla.
 
