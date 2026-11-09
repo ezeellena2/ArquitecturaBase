@@ -66,7 +66,7 @@ Usa los rate limits existentes y un cuerpo de hasta 256 KiB. `AiBusinessInformat
 - **Horario:** siete días (lunes=0) en `unknown/open/closed/allDay`, hasta cuatro franjas HH:mm cada 15 minutos y `nextDay` para cruzar la medianoche, sin intervalos vacíos, de más de 24 horas ni superpuestos (también domingo-lunes). Zona IANA o UTC, tomada de la presentación general solo para un horario nuevo. Hasta 32 excepciones DateOnly únicas (1900–9998) reemplazan el día y se validan contra los vecinos. No se infieren feriados.
 - **FAQ:** hasta 20 entradas con UUID único, pregunta de 200 y respuesta opcional de 1000. Solo los pares completos cuentan como hechos; una pregunta sin respuesta no inventa una ni genera.
 
-En un conflicto, cada grupo se combina entero; los errores usan `details.location`, `details.openingHours` y `details.faq`. La migración `20261003215957_AddGuidedAiBusinessInformation` solo agrega la columna, conserva datos y comprobantes y no interpreta el texto libre. `LocationMap` (Leaflet/OSM) ya no se usa en este formulario; sus teselas se configuran con `VITE_BUSINESS_MAP_TILE_URL`, plantilla pública sin claves ([verificación](../reviews/2026-10-03-informacion-del-negocio-guiada.md)).
+En un conflicto, cada grupo se combina entero; los errores usan `details.location`, `details.openingHours` y `details.faq`. La migración `20261003215957_AddGuidedAiBusinessInformation` solo agrega la columna, conserva datos y comprobantes y no interpreta el texto libre. El mapa Leaflet/OSM de la primera entrega se retiró del front ([verificación de esa entrega](../reviews/2026-10-03-informacion-del-negocio-guiada.md)).
 
 ### Búsqueda de lugares — 2026-10-04
 
