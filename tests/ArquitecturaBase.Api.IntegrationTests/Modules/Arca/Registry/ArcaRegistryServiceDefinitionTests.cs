@@ -22,7 +22,7 @@ public sealed class ArcaRegistryServiceDefinitionTests(ApiFactory factory) : IDi
         await factory.ExecuteScopeAsync(async services =>
         {
             var definition = Definition(services);
-            Assert.Equal([new ArcaInstalledService(ArcaPersistenceScenario.Registry, "Registry", true)], definition.Services);
+            Assert.Equal([new ArcaInstalledService(ArcaPersistenceScenario.Registry, "Registry", true, Delegated: false)], definition.Services);
             Assert.True(await definition.IsCompleteAsync(Guid.CreateVersion7(), TestContext.Current.CancellationToken));
         });
     }

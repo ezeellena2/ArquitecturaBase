@@ -57,6 +57,12 @@ internal sealed class FakeArca(TimeProvider time)
     /// <summary>La persona del padrón; null responde la falla SOAP de una CUIT que no existe.</summary>
     public FakeArcaPerson? Person { get; set; } = Company;
 
+    /// <summary>
+    /// Las CUIT representadas que van en las relaciones del token, como un <c>&lt;sso&gt;</c> en base64; null emite el token
+    /// corto de siempre, que no se lee.
+    /// </summary>
+    public IReadOnlyCollection<string>? Relations { get; set; }
+
     public int Calls(string operation, string service) => calls.GetValueOrDefault(operation + ":" + service);
 
     public XElement? LastRequest(string operation) => lastRequests.GetValueOrDefault(operation);
@@ -78,6 +84,7 @@ internal sealed class FakeArca(TimeProvider time)
         PointsOfSale = [];
         PointsOfSaleError = null;
         Person = Company;
+        Relations = null;
     }
 
     public async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
@@ -110,9 +117,19 @@ internal sealed class FakeArca(TimeProvider time)
             .ToString("yyyy-MM-dd'T'HH:mm:ss.fffzzz", CultureInfo.InvariantCulture);
         var ticket = new XElement("loginTicketResponse", new XAttribute("version", "1.0"),
             new XElement("header", new XElement("expirationTime", expires)),
-            new XElement("credentials", new XElement("token", $"token-{service}-{number}"), new XElement("sign", $"sign-{service}-{number}")));
+            new XElement("credentials", new XElement("token", Token(service, number)), new XElement("sign", $"sign-{service}-{number}")));
         return Envelope(HttpStatusCode.OK, new XElement(Wsaa + "loginCmsResponse", new XElement(Wsaa + "loginCmsReturn", ticket.ToString())));
     }
+
+    // El token del WSAA es un <sso> en base64 con el login y las CUIT representadas (manual del WSAA, 6.3).
+    private string Token(string service, int number) => Relations is not { } relations
+        ? $"token-{service}-{number}"
+        : Convert.ToBase64String(Encoding.UTF8.GetBytes(new XElement("sso", new XAttribute("version", "2.0"),
+            new XElement("id", new XAttribute("unique_id", number)),
+            new XElement("operation", new XAttribute("type", "login"), new XAttribute("value", "granted"),
+                new XElement("login", new XAttribute("service", service),
+                    new XElement("relations", relations.Select(cuit => new XElement("relation", new XAttribute("key", cuit), new XAttribute("reltype", 4)))))))
+            .ToString(SaveOptions.DisableFormatting)));
 
     private HttpResponseMessage Dummy() => Envelope(HttpStatusCode.OK, new XElement(Fev1 + "FEDummyResponse",
         new XElement(Fev1 + "FEDummyResult",

@@ -13,11 +13,12 @@ public interface IArcaConnectionService
     Task<Result<ArcaConnectionResponse>> GetAsync(CancellationToken cancellationToken);
 
     /// <summary>
-    /// Genera la clave y el pedido de certificado. Sin conexión, la crea con la CUIT, el ambiente y los servicios; con una,
-    /// pide otro certificado para ella (una renovación o un pedido nuevo en el alta) y reemplaza el pedido pendiente.
+    /// Genera la clave y el pedido de certificado. Sin conexión, la crea con la CUIT, el ambiente, los servicios y el modo:
+    /// en modo delegación el pedido es de la CUIT de la plataforma. Con una conexión, pide otro certificado para ella (una
+    /// renovación o un pedido nuevo en el alta), con su modo, y reemplaza el pedido pendiente.
     /// </summary>
     Task<Result<ArcaConnectionResponse>> StartCertificateRequestAsync(string cuit, ArcaEnvironment environment, string alias,
-        IReadOnlyCollection<string> services, long expectedRevision, CancellationToken cancellationToken);
+        IReadOnlyCollection<string> services, long expectedRevision, ArcaAccessMode mode, CancellationToken cancellationToken);
 
     Task<Result<ArcaConnectionResponse>> ChooseServicesAsync(IReadOnlyCollection<string> services, long expectedRevision,
         CancellationToken cancellationToken);

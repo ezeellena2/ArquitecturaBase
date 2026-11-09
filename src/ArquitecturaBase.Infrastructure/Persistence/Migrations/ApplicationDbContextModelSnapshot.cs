@@ -392,6 +392,10 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("ModifiedBy")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("PlatformCuit")
+                        .HasMaxLength(11)
+                        .HasColumnType("character varying(11)");
+
                     b.Property<long>("Revision")
                         .IsConcurrencyToken()
                         .HasColumnType("bigint");

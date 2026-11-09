@@ -21,6 +21,8 @@ internal sealed class ArcaTestModule : IApiTestModule
         builder.UseSetting("Arca:SecretProtection:InstallationId", "integration-installation");
         builder.UseSetting("Arca:SecretProtection:ActiveKeyId", "test");
         builder.UseSetting("Arca:SecretProtection:Keys:test", ApiFactory.TestHashKey);
+        builder.UseSetting("Arca:Platform:Cuit", "30-71999888-3");
+        builder.UseSetting("Arca:Platform:Name", "Plataforma Ejemplo S.A.");
         builder.UseSetting("Arca:RateLimiting:ReadPermitLimit", "100000");
         builder.UseSetting("Arca:RateLimiting:WritePermitLimit", "100000");
         builder.UseSetting("Arca:RateLimiting:RemotePermitLimit", "100000");

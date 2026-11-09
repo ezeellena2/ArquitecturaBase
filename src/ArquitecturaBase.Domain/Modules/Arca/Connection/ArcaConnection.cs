@@ -6,6 +6,8 @@ namespace ArquitecturaBase.Domain.Modules.Arca.Connection;
 /// <summary>
 /// La conexión de la instalación con ARCA: una sola (Scope = 1), con un ambiente y los servicios que eligió la empresa.
 /// Está activa cuando la última prueba salió bien y la configuración de cada familia elegida está completa (ADR 0025).
+/// En los modos de delegación la CUIT sigue siendo la de la empresa y el certificado es el de la plataforma, que firma
+/// (ADR 0027).
 /// </summary>
 public sealed class ArcaConnection : Entity, IAuditable
 {
@@ -15,6 +17,12 @@ public sealed class ArcaConnection : Entity, IAuditable
     public ArcaAccessMode Mode { get; private set; }
     public ArcaEnvironment Environment { get; private set; }
     public string Cuit { get; private set; } = string.Empty;
+
+    /// <summary>La CUIT de la plataforma en los modos de delegación; null con el certificado de la empresa.</summary>
+    public string? PlatformCuit { get; private set; }
+
+    /// <summary>La CUIT del certificado: la de la plataforma en los modos de delegación, la de la empresa en el modo 1.</summary>
+    public string SignerCuit => PlatformCuit ?? Cuit;
     public ArcaConnectionStatus Status { get; private set; }
     public string[] EnabledServices { get; private set; } = [];
     public bool? LastTestPassed { get; private set; }
@@ -30,19 +38,24 @@ public sealed class ArcaConnection : Entity, IAuditable
         ArcaEnvironment environment,
         IReadOnlyCollection<ArcaServiceCode> chosen,
         IReadOnlyCollection<ArcaServiceCode> installed,
+        IReadOnlyCollection<ArcaServiceCode> required) =>
+        Create(ArcaAccessMode.CompanyCertificate, cuit, platformCuit: null, environment, chosen, installed, required);
+
+    /// <summary>
+    /// El alta en modo delegación: la empresa delega sus servicios en la CUIT de la plataforma, que llega validada desde la
+    /// configuración de la instalación.
+    /// </summary>
+    public static Result<ArcaConnection> StartDelegated(
+        string cuit,
+        string platformCuit,
+        ArcaEnvironment environment,
+        IReadOnlyCollection<ArcaServiceCode> chosen,
+        IReadOnlyCollection<ArcaServiceCode> installed,
         IReadOnlyCollection<ArcaServiceCode> required)
     {
-        if (CuitNumber.Normalize(cuit) is not { } normalized) return ArcaConnectionErrors.CuitInvalid;
-        if (Services(chosen, installed, required) is not { } services) return ArcaConnectionErrors.ServiceNotInstalled;
-        return new ArcaConnection
-        {
-            Mode = ArcaAccessMode.CompanyCertificate,
-            Environment = environment,
-            Cuit = normalized,
-            Status = ArcaConnectionStatus.AwaitingCertificate,
-            EnabledServices = services,
-            Revision = 1,
-        };
+        var platform = CuitNumber.Normalize(platformCuit)
+            ?? throw new ArgumentException("The platform CUIT must come validated from the configuration.", nameof(platformCuit));
+        return Create(ArcaAccessMode.PlatformDelegation, cuit, platform, environment, chosen, installed, required);
     }
 
     /// <summary>Reemplaza los servicios elegidos; los obligatorios quedan siempre.</summary>
@@ -105,6 +118,29 @@ public sealed class ArcaConnection : Entity, IAuditable
     }
 
     private void Advance() => Revision = checked(Revision + 1);
+
+    private static Result<ArcaConnection> Create(
+        ArcaAccessMode mode,
+        string cuit,
+        string? platformCuit,
+        ArcaEnvironment environment,
+        IReadOnlyCollection<ArcaServiceCode> chosen,
+        IReadOnlyCollection<ArcaServiceCode> installed,
+        IReadOnlyCollection<ArcaServiceCode> required)
+    {
+        if (CuitNumber.Normalize(cuit) is not { } normalized) return ArcaConnectionErrors.CuitInvalid;
+        if (Services(chosen, installed, required) is not { } services) return ArcaConnectionErrors.ServiceNotInstalled;
+        return new ArcaConnection
+        {
+            Mode = mode,
+            Environment = environment,
+            Cuit = normalized,
+            PlatformCuit = platformCuit,
+            Status = ArcaConnectionStatus.AwaitingCertificate,
+            EnabledServices = services,
+            Revision = 1,
+        };
+    }
 
     private static string[]? Services(
         IReadOnlyCollection<ArcaServiceCode> chosen,

@@ -11,10 +11,11 @@ internal sealed class ArcaAccessTicketStore(IArcaConnectionRepository repository
     : IArcaAccessTicketStore
 {
     public async Task<ArcaTicketLeaseResponse> LeaseAsync(Guid certificateId, ArcaServiceCode service, Guid owner, TimeSpan margin,
-        TimeSpan leaseDuration, CancellationToken cancellationToken)
+        TimeSpan leaseDuration, DateTime? staleExpiresAtUtc, CancellationToken cancellationToken)
     {
         var result = await unitOfWork.ExecuteInTransactionAsync(
-            token => LeaseCoreAsync(certificateId, service, owner, margin, leaseDuration, token), CommitPolicy.OnSuccess, cancellationToken);
+            token => LeaseCoreAsync(certificateId, service, owner, margin, leaseDuration, staleExpiresAtUtc, token), CommitPolicy.OnSuccess,
+            cancellationToken);
         return result.Value;
     }
 
@@ -42,7 +43,7 @@ internal sealed class ArcaAccessTicketStore(IArcaConnectionRepository repository
     }
 
     private async Task<Result<ArcaTicketLeaseResponse>> LeaseCoreAsync(Guid certificateId, ArcaServiceCode service, Guid owner,
-        TimeSpan margin, TimeSpan leaseDuration, CancellationToken cancellationToken)
+        TimeSpan margin, TimeSpan leaseDuration, DateTime? staleExpiresAtUtc, CancellationToken cancellationToken)
     {
         await repository.LockTicketAsync(certificateId, service, cancellationToken);
         var ticket = await repository.GetTicketAsync(certificateId, service, cancellationToken);
@@ -52,7 +53,7 @@ internal sealed class ArcaAccessTicketStore(IArcaConnectionRepository repository
             repository.Add(ticket);
         }
 
-        var lease = ticket.TryLease(owner, timeProvider.GetUtcNow().UtcDateTime, margin, leaseDuration);
+        var lease = ticket.TryLease(owner, timeProvider.GetUtcNow().UtcDateTime, margin, leaseDuration, staleExpiresAtUtc);
         return new ArcaTicketLeaseResponse(lease, ticket.ProtectedCredentials, ticket.ExpiresAtUtc, ticket.BlockedUntilUtc);
     }
 

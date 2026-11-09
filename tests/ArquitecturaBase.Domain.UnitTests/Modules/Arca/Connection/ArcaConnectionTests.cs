@@ -172,6 +172,48 @@ public sealed class ArcaConnectionTests
         Assert.Equal(ArcaConnectionStatus.Active, connection.Status);
     }
 
+    [Fact]
+    public void Starting_by_delegation_keeps_the_company_as_the_cuit_and_signs_with_the_platform()
+    {
+        var connection = ArcaConnection.StartDelegated("30-71000123-1", "30-71999888-3", ArcaEnvironment.Production, [Invoicing],
+            Installed, Required).Value;
+
+        Assert.Equal(ArcaAccessMode.PlatformDelegation, connection.Mode);
+        Assert.Equal("30710001231", connection.Cuit);
+        Assert.Equal("30719998883", connection.PlatformCuit);
+        Assert.Equal("30719998883", connection.SignerCuit);
+        Assert.Equal(ArcaConnectionStatus.AwaitingCertificate, connection.Status);
+        Assert.Equal(["ws_sr_constancia_inscripcion", "wsfe"], connection.EnabledServices);
+        Assert.Equal(1, connection.Revision);
+    }
+
+    [Fact]
+    public void A_connection_with_the_company_certificate_signs_with_the_company()
+    {
+        var connection = Start([Invoicing]);
+
+        Assert.Null(connection.PlatformCuit);
+        Assert.Equal("30710001231", connection.SignerCuit);
+    }
+
+    [Fact]
+    public void Starting_by_delegation_checks_the_company_cuit_and_the_services()
+    {
+        var unknown = ArcaServiceCode.Create("wscpe")!.Value;
+
+        Assert.Equal(ArcaConnectionErrors.CuitInvalid,
+            ArcaConnection.StartDelegated("30-71000123-2", "30719998883", ArcaEnvironment.Production, [Invoicing], Installed, Required).Error);
+        Assert.Equal(ArcaConnectionErrors.ServiceNotInstalled,
+            ArcaConnection.StartDelegated("30710001231", "30719998883", ArcaEnvironment.Production, [unknown], Installed, Required).Error);
+    }
+
+    [Fact]
+    public void The_platform_cuit_arrives_already_checked_by_the_configuration()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            ArcaConnection.StartDelegated("30710001231", "30-71999888-4", ArcaEnvironment.Production, [Invoicing], Installed, Required));
+    }
+
     private static ArcaConnection Start(ArcaServiceCode[] chosen) =>
         ArcaConnection.Start("30-71000123-1", ArcaEnvironment.Production, chosen, Installed, Required).Value;
 

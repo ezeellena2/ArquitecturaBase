@@ -1,5 +1,6 @@
 using ArquitecturaBase.Application.Common.Logging;
 using ArquitecturaBase.Application.Interfaces.Persistence;
+using ArquitecturaBase.Application.Modules.Arca.Configuration;
 using ArquitecturaBase.Application.Modules.Arca.Interfaces.Integrations.Connection;
 using ArquitecturaBase.Application.Modules.Arca.Interfaces.Persistence.Connection;
 using ArquitecturaBase.Application.Modules.Arca.Interfaces.Services.Connection;
@@ -8,6 +9,7 @@ using ArquitecturaBase.Domain.Modules.Arca;
 using ArquitecturaBase.Domain.Modules.Arca.Connection;
 using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace ArquitecturaBase.Application.Modules.Arca.Services.Connection;
 
@@ -17,8 +19,8 @@ namespace ArquitecturaBase.Application.Modules.Arca.Services.Connection;
 /// certificado activo sigue andando.
 /// </summary>
 internal sealed class ArcaConnectionTestService(IArcaConnectionRepository repository, IArcaConnectionReader reader,
-    ArcaServiceCatalogPolicy catalog, IArcaAccessTicketProvider tickets, IUnitOfWork unitOfWork, TimeProvider timeProvider,
-    ILogger<ArcaConnectionTestService> logger) : IArcaConnectionTestService
+    ArcaServiceCatalogPolicy catalog, IArcaAccessTicketProvider tickets, IOptions<ArcaPlatformOptions> platform, IUnitOfWork unitOfWork,
+    TimeProvider timeProvider, ILogger<ArcaConnectionTestService> logger) : IArcaConnectionTestService
 {
     public Task<Result<ArcaTestResponse>> TestAsync(CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<ArcaTestResponse>>(logger, "TestArcaConnection", async () =>
@@ -28,7 +30,9 @@ internal sealed class ArcaConnectionTestService(IArcaConnectionRepository reposi
             if ((renewal ?? await reader.FindSigningCertificateAsync(ArcaCertificateRole.Active, cancellationToken)) is not { } tested)
                 return ArcaConnectionErrors.CertificateNotLoaded;
 
-            var context = new ArcaServiceContext(tested.ToRef(), tickets);
+            // En modo delegación, la prueba es la detección: un servicio delegado cuyo ticket no incluye a la empresa queda
+            // «sin delegar» (ADR 0027).
+            var context = new ArcaServiceContext(tested.ToRef(catalog.DelegatedCodes), tickets);
             List<ArcaServiceCheckResponse> checks = [];
             foreach (var (service, family) in catalog.Chosen(connection.EnabledServices))
                 checks.Add(await family.CheckAsync(service, context, cancellationToken));
@@ -81,5 +85,5 @@ internal sealed class ArcaConnectionTestService(IArcaConnectionRepository reposi
     }
 
     private async Task<ArcaConnectionResponse> ResponseAsync(CancellationToken cancellationToken) =>
-        ArcaConnectionResponse.From(await reader.FindAsync(cancellationToken), catalog.Installed);
+        ArcaConnectionResponse.From(await reader.FindAsync(cancellationToken), catalog.Installed, platform.Value.ToResponse());
 }

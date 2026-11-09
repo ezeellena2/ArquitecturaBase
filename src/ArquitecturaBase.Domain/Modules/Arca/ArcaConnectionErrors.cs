@@ -22,6 +22,9 @@ public static class ArcaConnectionErrors
     public static readonly Error ClockSkew = Error.Failure("Arca.Connection.ClockSkew", "ARCA rejected the time window of the request.");
     public static readonly Error Unavailable = Error.Failure("Arca.Connection.Unavailable", "ARCA is unavailable.");
     public static readonly Error ServiceRejected = Error.Failure("Arca.Connection.ServiceRejected", "ARCA rejected the request.");
+    public static readonly Error PlatformNotConfigured = Error.Validation("Arca.Connection.PlatformNotConfigured", "The installation has no platform CUIT to delegate to.");
+    public static readonly Error ModeUnavailable = Error.Validation("Arca.Connection.ModeUnavailable", "That access mode is not available yet.");
+    public static readonly Error ServiceNotDelegated = Error.Validation("Arca.Connection.ServiceNotDelegated", "The company has not delegated the service to the platform.");
 
     /// <summary>ARCA ya dio un ticket que no tenemos y no acepta otro pedido hasta dentro de <paramref name="retryAfterSeconds"/>.</summary>
     public static Error ServiceBlocked(int retryAfterSeconds) =>

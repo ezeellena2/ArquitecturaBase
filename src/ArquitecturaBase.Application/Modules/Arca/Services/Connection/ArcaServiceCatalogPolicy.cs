@@ -18,6 +18,10 @@ internal sealed class ArcaServiceCatalogPolicy(IEnumerable<IArcaServiceDefinitio
 
     public IReadOnlyCollection<ArcaServiceCode> RequiredCodes => [.. Installed.Where(service => service.Required).Select(service => service.Code)];
 
+    /// <summary>Los códigos de los servicios que, en modo delegación, la empresa delega en la plataforma.</summary>
+    public IReadOnlySet<string> DelegatedCodes =>
+        Installed.Where(service => service.Delegated).Select(service => service.Code.Value).ToHashSet(StringComparer.Ordinal);
+
     /// <summary>Los servicios elegidos que siguen instalados, cada uno con la familia que lo prueba.</summary>
     public IEnumerable<(ArcaServiceCode Service, IArcaServiceDefinition Family)> Chosen(IReadOnlyCollection<string> enabled) =>
         families.SelectMany(family => family.Services

@@ -2,6 +2,7 @@ using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Modules.Arca.Channels;
 using ArquitecturaBase.Application.Modules.Arca.Channels.Invoicing;
 using ArquitecturaBase.Application.Modules.Arca.Channels.Registry;
+using ArquitecturaBase.Application.Modules.Arca.Configuration;
 using ArquitecturaBase.Application.Modules.Arca.Interfaces.Channels.Connection;
 using ArquitecturaBase.Application.Modules.Arca.Interfaces.Services.Connection;
 using ArquitecturaBase.Application.Modules.Arca.Interfaces.Services.Invoicing;
@@ -28,6 +29,8 @@ public static class ArcaApplicationRegistration
 
     private static void AddConnection(IServiceCollection services)
     {
+        services.AddOptions<ArcaPlatformOptions>().BindConfiguration("Arca:Platform")
+            .Validate(x => x.IsValid(), "Configure Arca:Platform with a valid CUIT and the name the guide shows, or leave both empty.").ValidateOnStart();
         services.TryAddScoped<ArcaServiceCatalogPolicy>();
         services.TryAddScoped<ArcaServiceSessionIssuer>();
         services.TryAddScoped<IArcaAccessTicketStore, ArcaAccessTicketStore>();

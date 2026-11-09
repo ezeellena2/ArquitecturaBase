@@ -40,6 +40,8 @@ public sealed class ArcaInvoicingSetupServiceTests
 
         host.Tickets.Outcome = new ArcaTicketOutcome.NotAuthorized();
         Assert.Equal(ArcaConnectionErrors.ServiceNotAuthorized, (await Setup(host).ListPointsOfSaleAsync(Ct)).Error);
+        host.Tickets.Outcome = new ArcaTicketOutcome.NotDelegated();
+        Assert.Equal(ArcaConnectionErrors.ServiceNotDelegated, (await Setup(host).ListPointsOfSaleAsync(Ct)).Error);
         host.Tickets.Outcome = new ArcaTicketOutcome.Blocked(ArcaApplicationHost.NowUtc.AddMinutes(10));
         Assert.Equal(600, (await Setup(host).ListPointsOfSaleAsync(Ct)).Error.Metadata!["retryAfter"]);
         host.Tickets.Outcome = new ArcaTicketOutcome.Ready("token", "sign", ArcaApplicationHost.NowUtc.AddHours(12));

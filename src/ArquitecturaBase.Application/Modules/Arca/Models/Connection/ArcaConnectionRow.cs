@@ -7,6 +7,7 @@ public sealed record ArcaConnectionRow(
     ArcaAccessMode Mode,
     ArcaEnvironment Environment,
     string Cuit,
+    string? PlatformCuit,
     ArcaConnectionStatus Status,
     IReadOnlyList<string> EnabledServices,
     bool? LastTestPassed,

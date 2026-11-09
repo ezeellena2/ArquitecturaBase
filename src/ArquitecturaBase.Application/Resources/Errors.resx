@@ -149,6 +149,9 @@
   <data name="Arca.Connection.Unavailable" xml:space="preserve"><value>ARCA no respondió. Probá de nuevo en unos minutos.</value></data>
   <data name="Arca.Connection.ServiceRejected" xml:space="preserve"><value>ARCA rechazó la consulta. Probá la conexión para ver el detalle.</value></data>
   <data name="Arca.Connection.ServiceBlocked" xml:space="preserve"><value>ARCA todavía no acepta otro pedido para ese servicio. Probá de nuevo en unos minutos.</value></data>
+  <data name="Arca.Connection.PlatformNotConfigured" xml:space="preserve"><value>La instalación no tiene configurada la CUIT de la plataforma, así que no se puede delegar. Conectá con el certificado de la empresa.</value></data>
+  <data name="Arca.Connection.ModeUnavailable" xml:space="preserve"><value>Ese modo de conexión todavía no está disponible.</value></data>
+  <data name="Arca.Connection.ServiceNotDelegated" xml:space="preserve"><value>La empresa todavía no delegó ese servicio en la plataforma, o la plataforma no lo aceptó. Seguí la guía de la delegación y verificá de nuevo.</value></data>
   <data name="Arca.Invoicing.PointOfSaleInvalid" xml:space="preserve"><value>El punto de venta va de 1 a 99998.</value></data>
   <data name="Arca.Invoicing.PointOfSaleUnavailable" xml:space="preserve"><value>ARCA ya no ofrece ese punto de venta. Volvé a buscar los puntos de venta.</value></data>
   <data name="Forms.Draft.RevisionConflict" xml:space="preserve">

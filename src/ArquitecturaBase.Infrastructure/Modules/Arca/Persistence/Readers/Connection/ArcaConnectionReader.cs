@@ -11,7 +11,7 @@ internal sealed class ArcaConnectionReader(ApplicationDbContext dbContext) : IAr
     public async Task<ArcaConnectionRow?> FindAsync(CancellationToken cancellationToken)
     {
         var connection = await dbContext.Set<ArcaConnection>().AsNoTracking()
-            .Select(x => new { x.Id, x.Mode, x.Environment, x.Cuit, x.Status, x.EnabledServices, x.LastTestPassed, x.LastTestedAtUtc, x.Revision })
+            .Select(x => new { x.Id, x.Mode, x.Environment, x.Cuit, x.PlatformCuit, x.Status, x.EnabledServices, x.LastTestPassed, x.LastTestedAtUtc, x.Revision })
             .SingleOrDefaultAsync(cancellationToken);
         if (connection is null) return null;
 
@@ -21,7 +21,7 @@ internal sealed class ArcaConnectionReader(ApplicationDbContext dbContext) : IAr
             .Select(x => new ArcaCertificateRow(x.Id, x.Role, x.Alias, x.CertificatePem != null, x.NotBeforeUtc, x.NotAfterUtc, x.Thumbprint))
             .ToListAsync(cancellationToken);
 
-        return new ArcaConnectionRow(connection.Id, connection.Mode, connection.Environment, connection.Cuit, connection.Status,
+        return new ArcaConnectionRow(connection.Id, connection.Mode, connection.Environment, connection.Cuit, connection.PlatformCuit, connection.Status,
             connection.EnabledServices, connection.LastTestPassed, connection.LastTestedAtUtc, connection.Revision, certificates);
     }
 
@@ -36,7 +36,7 @@ internal sealed class ArcaConnectionReader(ApplicationDbContext dbContext) : IAr
          join connection in dbContext.Set<ArcaConnection>().AsNoTracking() on certificate.ConnectionId equals connection.Id
          where certificate.Role == role && certificate.CertificatePem != null
          select new ArcaSigningCertificateRow(connection.Id, certificate.Id, connection.Cuit, connection.Environment,
-             certificate.ProtectedPrivateKey, certificate.CertificatePem!))
+             certificate.ProtectedPrivateKey, certificate.CertificatePem!, connection.PlatformCuit))
             .SingleOrDefaultAsync(cancellationToken);
 
     public Task<ArcaTicketRow?> FindTicketAsync(Guid certificateId, ArcaServiceCode service, CancellationToken cancellationToken) =>

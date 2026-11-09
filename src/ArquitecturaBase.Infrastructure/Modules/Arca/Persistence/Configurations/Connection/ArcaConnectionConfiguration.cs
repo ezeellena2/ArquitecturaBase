@@ -15,6 +15,7 @@ internal sealed class ArcaConnectionConfiguration : IEntityTypeConfiguration<Arc
         builder.Property(x => x.Environment).HasConversion<string>().HasMaxLength(20);
         builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(30);
         builder.Property(x => x.Cuit).HasMaxLength(11);
+        builder.Property(x => x.PlatformCuit).HasMaxLength(11);
         builder.Property(x => x.EnabledServices).HasColumnType("text[]");
         builder.Property(x => x.Revision).IsConcurrencyToken();
     }

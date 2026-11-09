@@ -16,6 +16,7 @@ internal static class ArcaPersistenceScenario
     public static readonly ArcaServiceCode Invoicing = ArcaServiceCode.Create("wsfe")!.Value;
     public static readonly ArcaServiceCode Registry = ArcaServiceCode.Create("ws_sr_constancia_inscripcion")!.Value;
     public const string Cuit = "20000000060";
+    public const string PlatformCuit = "30719998883";
 
     public static ArcaConnection NewConnection() =>
         ArcaConnection.Start("20-00000006-0", ArcaEnvironment.Testing, [Invoicing], [Invoicing, Registry], [Registry]).Value;
@@ -57,6 +58,17 @@ internal static class ArcaPersistenceScenario
         });
         return new ArcaCertificateRef(connectionId, certificateId, Cuit, ArcaEnvironment.Testing, request.ProtectedPrivateKey, inspected.CertificatePem);
     }
+
+    /// <summary>
+    /// El mismo certificado visto en modo delegación: la empresa delega Facturación en la plataforma, así que su ticket tiene
+    /// que incluirla.
+    /// </summary>
+    public static async Task<ArcaCertificateRef> AddDelegatedCertificateAsync(ApiFactory factory, FakeArcaCertificateAuthority authority) =>
+        await AddActiveCertificateAsync(factory, authority) with
+        {
+            PlatformCuit = PlatformCuit,
+            DelegatedServices = new HashSet<string>(StringComparer.Ordinal) { Invoicing.Value },
+        };
 
     public static Task RemoveConnectionAsync(ApiFactory factory) => factory.InTransactionAsync(async services =>
     {

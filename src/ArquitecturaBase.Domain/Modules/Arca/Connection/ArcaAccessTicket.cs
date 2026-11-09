@@ -22,9 +22,14 @@ public sealed class ArcaAccessTicket : Entity
     public static ArcaAccessTicket Create(Guid certificateId, ArcaServiceCode service) =>
         new() { CertificateId = certificateId, ServiceCode = service.Value };
 
-    public ArcaTicketLease TryLease(Guid owner, DateTime nowUtc, TimeSpan margin, TimeSpan leaseDuration)
+    /// <summary>
+    /// Toma la reserva para pedir otro ticket. <paramref name="staleExpiresAtUtc"/> es el vencimiento de un ticket vigente que
+    /// no sirvió (no incluía a la empresa representada): se renueva sólo si sigue siendo ese, y no uno que otro host ya
+    /// renovó.
+    /// </summary>
+    public ArcaTicketLease TryLease(Guid owner, DateTime nowUtc, TimeSpan margin, TimeSpan leaseDuration, DateTime? staleExpiresAtUtc = null)
     {
-        if (ExpiresAtUtc is { } expires && expires - nowUtc > margin) return ArcaTicketLease.AlreadyValid;
+        if (ExpiresAtUtc is { } expires && expires - nowUtc > margin && expires != staleExpiresAtUtc) return ArcaTicketLease.AlreadyValid;
         if (BlockedUntilUtc is { } blocked && blocked > nowUtc) return ArcaTicketLease.Blocked;
         if (LeaseOwner is { } current && current != owner && LeaseUntilUtc > nowUtc) return ArcaTicketLease.Busy;
         LeaseOwner = owner;

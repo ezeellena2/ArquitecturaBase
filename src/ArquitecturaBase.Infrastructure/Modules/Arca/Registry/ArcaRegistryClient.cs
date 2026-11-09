@@ -29,7 +29,7 @@ internal sealed class ArcaRegistryClient(IHttpClientFactory httpClients, IOption
             ?? throw new InvalidOperationException("Configure the ARCA address of the ws_sr_constancia_inscripcion service.");
         var operation = new XElement(Registry + "getPersona_v2", new XAttribute(XNamespace.Xmlns + "a5", Registry),
             new XElement("token", ticket.Token), new XElement("sign", ticket.Sign),
-            new XElement("cuitRepresentada", certificate.Cuit), new XElement("idPersona", cuit));
+            new XElement("cuitRepresentada", certificate.SignerCuit), new XElement("idPersona", cuit));
         var result = await SoapEnvelope.SendAsync(httpClients.CreateClient(ArcaInfrastructureRegistration.RegistryHttpClientName), endpoint,
             soapAction: string.Empty, operation, settings, timeProvider, cancellationToken);
         return result switch

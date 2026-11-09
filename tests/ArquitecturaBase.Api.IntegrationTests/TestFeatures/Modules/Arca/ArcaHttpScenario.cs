@@ -51,10 +51,10 @@ internal sealed class ArcaHttpScenario(ApiFactory factory, FakeArcaCertificateAu
 
     public async Task<JsonElement> GetConnectionAsync() => await ReadAsync(await Client.GetAsync("/api/arca/connection", Ct), HttpStatusCode.OK);
 
-    public async Task<JsonElement> StartAsync(string[] services, string alias = "plataforma", long? expectedRevision = null)
+    public async Task<JsonElement> StartAsync(string[] services, string alias = "plataforma", long? expectedRevision = null, string? mode = null)
     {
         var revision = expectedRevision ?? (await GetConnectionAsync()).GetProperty("revision").GetInt64();
-        var body = new { cuit = "20-00000006-0", environment = "Testing", alias, services, expectedRevision = revision };
+        var body = new { cuit = "20-00000006-0", environment = "Testing", alias, services, expectedRevision = revision, mode };
         return await ReadAsync(await Client.PostAsJsonAsync("/api/arca/connection/certificate-requests", body, Ct), HttpStatusCode.OK);
     }
 

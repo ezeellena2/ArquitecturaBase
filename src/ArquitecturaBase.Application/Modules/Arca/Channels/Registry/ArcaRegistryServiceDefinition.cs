@@ -15,7 +15,8 @@ internal sealed class ArcaRegistryServiceDefinition(IArcaRegistryClient client, 
 {
     private static readonly ArcaServiceCode Constancia = ArcaServiceCode.Create("ws_sr_constancia_inscripcion")!.Value;
 
-    public IReadOnlyCollection<ArcaInstalledService> Services { get; } = [new(Constancia, "Registry", Required: true)];
+    // Una consulta: en modo delegación la hace la plataforma con su CUIT, sin que la empresa la delegue (ADR 0027).
+    public IReadOnlyCollection<ArcaInstalledService> Services { get; } = [new(Constancia, "Registry", Required: true, Delegated: false)];
 
     public async Task<ArcaServiceCheckResponse> CheckAsync(ArcaServiceCode service, ArcaServiceContext context, CancellationToken cancellationToken)
     {

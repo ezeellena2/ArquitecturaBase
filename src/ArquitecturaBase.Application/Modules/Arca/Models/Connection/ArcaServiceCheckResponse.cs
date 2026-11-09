@@ -6,6 +6,7 @@ public enum ArcaServiceCheckStatus
 {
     Ready,
     NotAuthorized,
+    NotDelegated,
     Blocked,
     ClockSkew,
     Unavailable,
@@ -32,6 +33,7 @@ public sealed record ArcaServiceCheckResponse(string Service, ArcaServiceCheckSt
         ArcaTicketOutcome.Ready ready => Passed(service, ready.ExpiresAtUtc),
         ArcaTicketOutcome.Blocked blocked => new(service.Value, ArcaServiceCheckStatus.Blocked, null, null, blocked.UntilUtc),
         ArcaTicketOutcome.NotAuthorized => Failed(service, ArcaServiceCheckStatus.NotAuthorized, null),
+        ArcaTicketOutcome.NotDelegated => Failed(service, ArcaServiceCheckStatus.NotDelegated, null),
         ArcaTicketOutcome.ClockSkew => Failed(service, ArcaServiceCheckStatus.ClockSkew, null),
         _ => Failed(service, ArcaServiceCheckStatus.Unavailable, null),
     };

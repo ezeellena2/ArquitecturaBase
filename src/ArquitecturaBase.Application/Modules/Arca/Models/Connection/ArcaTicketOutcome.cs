@@ -19,6 +19,12 @@ public abstract record ArcaTicketOutcome
     /// <summary>El certificado no tiene autorizado el servicio, o ARCA no confía en él.</summary>
     public sealed record NotAuthorized : ArcaTicketOutcome;
 
+    /// <summary>
+    /// En modo delegación, el ticket de la plataforma no incluye a la empresa en sus relaciones: no delegó el servicio, la
+    /// plataforma no lo aceptó o se revocó.
+    /// </summary>
+    public sealed record NotDelegated : ArcaTicketOutcome;
+
     /// <summary>ARCA rechazó la ventana del pedido: el reloj del servidor está corrido.</summary>
     public sealed record ClockSkew : ArcaTicketOutcome;
 

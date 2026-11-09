@@ -2,8 +2,10 @@ using ArquitecturaBase.Application.Modules.Arca.Interfaces.Integrations.Connecti
 using ArquitecturaBase.Application.Modules.Arca.Interfaces.Services.Connection;
 using ArquitecturaBase.Application.Modules.Arca.Models.Connection;
 using ArquitecturaBase.Domain.Modules.Arca.Connection;
+using ArquitecturaBase.Infrastructure.Modules.Arca.Connection.Security;
 using ArquitecturaBase.Infrastructure.Modules.Arca.Connection.Soap;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace ArquitecturaBase.Infrastructure.Modules.Arca.Connection;
@@ -11,10 +13,12 @@ namespace ArquitecturaBase.Infrastructure.Modules.Arca.Connection;
 /// <summary>
 /// Coordina el ticket compartido como el coordinador del asistente de IA: cada paso guardado corre en un scope propio,
 /// con su DbContext y su transacción, y el pedido al WSAA va entre uno y otro, sin transacción (ADR 0023). Quien no
-/// consigue la reserva espera de a medio segundo, como mucho lo que dura una reserva, y vuelve a mirar.
+/// consigue la reserva espera de a medio segundo, como mucho lo que dura una reserva, y vuelve a mirar. En modo
+/// delegación, un ticket que no incluye a la empresa no se entrega: si el guardado no la incluye, se renueva una vez,
+/// porque pudo pedirse antes de que llegara la delegación (ADR 0027).
 /// </summary>
-internal sealed class ArcaAccessTicketProvider(IServiceScopeFactory scopes, ArcaAuthClient auth, IArcaCredentialService credentials,
-    IOptions<ArcaOptions> options, TimeProvider timeProvider) : IArcaAccessTicketProvider
+internal sealed partial class ArcaAccessTicketProvider(IServiceScopeFactory scopes, ArcaAuthClient auth, IArcaCredentialService credentials,
+    IOptions<ArcaOptions> options, TimeProvider timeProvider, ILogger<ArcaAccessTicketProvider> logger) : IArcaAccessTicketProvider
 {
     private static readonly TimeSpan BusyPoll = TimeSpan.FromMilliseconds(500);
 
@@ -23,11 +27,21 @@ internal sealed class ArcaAccessTicketProvider(IServiceScopeFactory scopes, Arca
         var settings = options.Value;
         var owner = Guid.NewGuid();
         var deadline = timeProvider.GetUtcNow() + settings.TicketLease;
+        var required = certificate.RequiredRelation(service);
+        DateTime? stale = null;
         while (true)
         {
             var lease = await InScopeAsync(store =>
-                store.LeaseAsync(certificate.Id, service, owner, settings.TicketMargin, settings.TicketLease, cancellationToken));
-            if (lease.Lease == ArcaTicketLease.AlreadyValid) return Stored(certificate, service, lease);
+                store.LeaseAsync(certificate.Id, service, owner, settings.TicketMargin, settings.TicketLease, stale, cancellationToken));
+            if (lease.Lease == ArcaTicketLease.AlreadyValid)
+            {
+                var stored = Stored(certificate, service, lease);
+                if (stored is not ArcaTicketOutcome.Ready ready || Represents(ready, required, service)) return stored;
+                if (stale is not null) return new ArcaTicketOutcome.NotDelegated();
+                stale = ready.ExpiresAtUtc;
+                continue;
+            }
+
             if (lease.Lease == ArcaTicketLease.Blocked) return new ArcaTicketOutcome.Blocked(lease.BlockedUntilUtc!.Value);
             if (lease.Lease == ArcaTicketLease.Busy)
             {
@@ -44,9 +58,24 @@ internal sealed class ArcaAccessTicketProvider(IServiceScopeFactory scopes, Arca
                 ArcaTicketOutcome.Blocked blocked => store.BlockAsync(certificate.Id, service, owner, blocked.UntilUtc, cancellationToken),
                 _ => store.ReleaseAsync(certificate.Id, service, owner, cancellationToken),
             });
-            return outcome;
+            return outcome is ArcaTicketOutcome.Ready fresh && !Represents(fresh, required, service) ? new ArcaTicketOutcome.NotDelegated() : outcome;
         }
     }
+
+    /// <summary>
+    /// Si el ticket incluye a la empresa que tiene que representar. Un token que no se puede leer no frena: decide ARCA, que
+    /// rechaza igual el servicio de una CUIT que no está en las relaciones.
+    /// </summary>
+    private bool Represents(ArcaTicketOutcome.Ready ticket, string? required, ArcaServiceCode service)
+    {
+        if (required is null) return true;
+        if (ArcaTicketToken.ReadRelations(ticket.Token) is { } relations) return relations.Contains(required);
+        LogUnreadableRelations(service.Value);
+        return true;
+    }
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The ARCA ticket for {Service} has no readable relations; ARCA decides whether the company delegated it.")]
+    private partial void LogUnreadableRelations(string service);
 
     private ArcaTicketOutcome Stored(ArcaCertificateRef certificate, ArcaServiceCode service, ArcaTicketLeaseResponse lease) =>
         lease.ProtectedCredentials is { } stored

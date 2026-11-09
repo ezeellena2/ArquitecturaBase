@@ -1,5 +1,6 @@
 using ArquitecturaBase.Application.Common.Logging;
 using ArquitecturaBase.Application.Interfaces.Persistence;
+using ArquitecturaBase.Application.Modules.Arca.Configuration;
 using ArquitecturaBase.Application.Modules.Arca.Interfaces.Integrations.Connection;
 using ArquitecturaBase.Application.Modules.Arca.Interfaces.Persistence.Connection;
 using ArquitecturaBase.Application.Modules.Arca.Interfaces.Services.Connection;
@@ -8,23 +9,24 @@ using ArquitecturaBase.Domain.Modules.Arca;
 using ArquitecturaBase.Domain.Modules.Arca.Connection;
 using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace ArquitecturaBase.Application.Modules.Arca.Services.Connection;
 
 internal sealed class ArcaConnectionService(IArcaConnectionRepository repository, IArcaConnectionReader reader,
-    IArcaCredentialService credentials, ArcaServiceCatalogPolicy catalog, IUnitOfWork unitOfWork, TimeProvider timeProvider,
-    ILogger<ArcaConnectionService> logger) : IArcaConnectionService
+    IArcaCredentialService credentials, ArcaServiceCatalogPolicy catalog, IOptions<ArcaPlatformOptions> platform, IUnitOfWork unitOfWork,
+    TimeProvider timeProvider, ILogger<ArcaConnectionService> logger) : IArcaConnectionService
 {
     public Task<Result<ArcaConnectionResponse>> GetAsync(CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<ArcaConnectionResponse>>(logger, "GetArcaConnection", async () => await ResponseAsync(cancellationToken));
 
     public Task<Result<ArcaConnectionResponse>> StartCertificateRequestAsync(string cuit, ArcaEnvironment environment, string alias,
-        IReadOnlyCollection<string> services, long expectedRevision, CancellationToken cancellationToken) =>
+        IReadOnlyCollection<string> services, long expectedRevision, ArcaAccessMode mode, CancellationToken cancellationToken) =>
         OperationLog.RunAsync(logger, "StartArcaCertificateRequest", async () =>
         {
             if (!ArcaCertificate.IsValidAlias(alias)) return ArcaConnectionErrors.AliasInvalid;
             if (Codes(services) is not { } chosen) return ArcaConnectionErrors.ServiceNotInstalled;
-            return await SaveAsync(token => StartCoreAsync(cuit, environment, alias, chosen, expectedRevision, token), cancellationToken);
+            return await SaveAsync(token => StartCoreAsync(cuit, environment, alias, chosen, expectedRevision, mode, token), cancellationToken);
         });
 
     public Task<Result<ArcaConnectionResponse>> ChooseServicesAsync(IReadOnlyCollection<string> services, long expectedRevision,
@@ -57,7 +59,7 @@ internal sealed class ArcaConnectionService(IArcaConnectionRepository repository
         {
             if (await repository.GetCertificateAsync(connection.Id, ArcaCertificateRole.Pending, ct) is not { } pending)
                 return ArcaConnectionErrors.NoPendingRequest;
-            var inspected = credentials.Inspect(connection.Id, pending.Id, pending.ProtectedPrivateKey, certificatePem, connection.Cuit,
+            var inspected = credentials.Inspect(connection.Id, pending.Id, pending.ProtectedPrivateKey, certificatePem, connection.SignerCuit,
                 connection.Environment, timeProvider.GetUtcNow().UtcDateTime);
             if (inspected.IsFailure) return inspected.Error;
 
@@ -76,7 +78,7 @@ internal sealed class ArcaConnectionService(IArcaConnectionRepository repository
         }, token), CommitPolicy.OnSuccess, cancellationToken));
 
     private async Task<Result> StartCoreAsync(string cuit, ArcaEnvironment environment, string alias, IReadOnlyCollection<ArcaServiceCode> chosen,
-        long expectedRevision, CancellationToken cancellationToken)
+        long expectedRevision, ArcaAccessMode mode, CancellationToken cancellationToken)
     {
         await repository.LockConnectionAsync(cancellationToken);
         var connection = await repository.GetConnectionAsync(cancellationToken);
@@ -84,7 +86,7 @@ internal sealed class ArcaConnectionService(IArcaConnectionRepository repository
 
         if (connection is null)
         {
-            var started = ArcaConnection.Start(cuit, environment, chosen, catalog.InstalledCodes, catalog.RequiredCodes);
+            var started = Start(cuit, environment, chosen, mode);
             if (started.IsFailure) return started.Error;
             connection = started.Value;
             repository.Add(connection);
@@ -98,11 +100,21 @@ internal sealed class ArcaConnectionService(IArcaConnectionRepository repository
         }
 
         var certificateId = Guid.CreateVersion7();
-        var request = credentials.CreateRequest(connection.Id, certificateId, connection.Cuit, alias);
+        var request = credentials.CreateRequest(connection.Id, certificateId, connection.SignerCuit, alias);
         var certificate = ArcaCertificate.Request(certificateId, connection.Id, alias, request.RequestPem, request.ProtectedPrivateKey);
         if (certificate.IsFailure) return certificate.Error;
         repository.Add(certificate.Value);
         return Result.Success();
+    }
+
+    /// <summary>El alta según el modo: en delegación, con la CUIT de la plataforma de la configuración (ADR 0027).</summary>
+    private Result<ArcaConnection> Start(string cuit, ArcaEnvironment environment, IReadOnlyCollection<ArcaServiceCode> chosen, ArcaAccessMode mode)
+    {
+        if (mode == ArcaAccessMode.CompanyCertificate)
+            return ArcaConnection.Start(cuit, environment, chosen, catalog.InstalledCodes, catalog.RequiredCodes);
+        if (mode != ArcaAccessMode.PlatformDelegation) return ArcaConnectionErrors.ModeUnavailable;
+        if (platform.Value.ToResponse() is not { } configured) return ArcaConnectionErrors.PlatformNotConfigured;
+        return ArcaConnection.StartDelegated(cuit, configured.Cuit, environment, chosen, catalog.InstalledCodes, catalog.RequiredCodes);
     }
 
     private async Task<Result> ChangeCoreAsync(long expectedRevision, Func<ArcaConnection, CancellationToken, Task<Result>> change,
@@ -121,7 +133,7 @@ internal sealed class ArcaConnectionService(IArcaConnectionRepository repository
     }
 
     private async Task<ArcaConnectionResponse> ResponseAsync(CancellationToken cancellationToken) =>
-        ArcaConnectionResponse.From(await reader.FindAsync(cancellationToken), catalog.Installed);
+        ArcaConnectionResponse.From(await reader.FindAsync(cancellationToken), catalog.Installed, platform.Value.ToResponse());
 
     /// <summary>Los códigos pedidos; null si alguno no es un código de servicio válido.</summary>
     private static ArcaServiceCode[]? Codes(IReadOnlyCollection<string> services)

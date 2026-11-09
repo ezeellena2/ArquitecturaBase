@@ -99,6 +99,16 @@ public sealed class ArcaAccessTicketTests
     }
 
     [Fact]
+    public void A_valid_ticket_found_stale_is_renewed_but_not_one_another_host_renewed_meanwhile()
+    {
+        var ticket = Stored(expiresAtUtc: Now.AddHours(1));
+
+        Assert.Equal(ArcaTicketLease.AlreadyValid, ticket.TryLease(Other, Now, Margin, Lease, staleExpiresAtUtc: Now.AddHours(2)));
+        Assert.Equal(ArcaTicketLease.Acquired, ticket.TryLease(Other, Now, Margin, Lease, staleExpiresAtUtc: Now.AddHours(1)));
+        Assert.Equal("CREDENTIALS", ticket.ProtectedCredentials);
+    }
+
+    [Fact]
     public void The_text_representation_never_shows_the_credentials()
     {
         Assert.DoesNotContain("CREDENTIALS", Stored(Now.AddHours(1)).ToString(), StringComparison.Ordinal);

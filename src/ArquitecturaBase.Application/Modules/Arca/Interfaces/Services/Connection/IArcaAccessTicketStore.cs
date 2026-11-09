@@ -10,8 +10,12 @@ namespace ArquitecturaBase.Application.Modules.Arca.Interfaces.Services.Connecti
 /// </summary>
 public interface IArcaAccessTicketStore
 {
+    /// <summary>
+    /// Toma la reserva si hace falta otro ticket. Con <paramref name="staleExpiresAtUtc"/>, el ticket vigente que vence a esa
+    /// hora no sirvió (en modo delegación no incluía a la empresa) y se renueva, salvo que otro host ya lo haya cambiado.
+    /// </summary>
     Task<ArcaTicketLeaseResponse> LeaseAsync(Guid certificateId, ArcaServiceCode service, Guid owner, TimeSpan margin,
-        TimeSpan leaseDuration, CancellationToken cancellationToken);
+        TimeSpan leaseDuration, DateTime? staleExpiresAtUtc, CancellationToken cancellationToken);
 
     Task<bool> StoreAsync(Guid certificateId, ArcaServiceCode service, Guid owner, string protectedCredentials, DateTime expiresAtUtc,
         CancellationToken cancellationToken);

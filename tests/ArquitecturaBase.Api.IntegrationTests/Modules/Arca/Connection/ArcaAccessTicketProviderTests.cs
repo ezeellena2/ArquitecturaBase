@@ -163,6 +163,91 @@ public sealed class ArcaAccessTicketProviderTests(ApiFactory factory) : IDisposa
         }
     }
 
+    [Fact]
+    public async Task By_delegation_a_ticket_that_includes_the_company_is_ready()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var arca = Arca();
+        arca.Relations = [ArcaPersistenceScenario.PlatformCuit, ArcaPersistenceScenario.Cuit];
+        var certificate = await ArcaPersistenceScenario.AddDelegatedCertificateAsync(factory, authority);
+        try
+        {
+            Assert.IsType<ArcaTicketOutcome.Ready>(await Provider().GetAsync(certificate, ArcaPersistenceScenario.Invoicing, ct));
+            Assert.IsType<ArcaTicketOutcome.Ready>(await Provider().GetAsync(certificate, ArcaPersistenceScenario.Invoicing, ct));
+            Assert.Equal(1, arca.Calls("loginCms", Wsfe));
+        }
+        finally
+        {
+            await ArcaPersistenceScenario.RemoveConnectionAsync(factory);
+        }
+    }
+
+    [Fact]
+    public async Task By_delegation_a_ticket_without_the_company_is_not_delegated_and_is_renewed_once_when_asked_again()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var arca = Arca();
+        arca.Relations = [ArcaPersistenceScenario.PlatformCuit];
+        var certificate = await ArcaPersistenceScenario.AddDelegatedCertificateAsync(factory, authority);
+        try
+        {
+            Assert.IsType<ArcaTicketOutcome.NotDelegated>(await Provider().GetAsync(certificate, ArcaPersistenceScenario.Invoicing, ct));
+            Assert.Equal(1, arca.Calls("loginCms", Wsfe));
+
+            // Todavía no llegó: el ticket guardado se renueva una vez y el nuevo tampoco la incluye.
+            Assert.IsType<ArcaTicketOutcome.NotDelegated>(await Provider().GetAsync(certificate, ArcaPersistenceScenario.Invoicing, ct));
+            Assert.Equal(2, arca.Calls("loginCms", Wsfe));
+
+            // La plataforma aceptó y asignó: el próximo pedido renueva y ya la incluye.
+            arca.Relations = [ArcaPersistenceScenario.PlatformCuit, ArcaPersistenceScenario.Cuit];
+            Assert.IsType<ArcaTicketOutcome.Ready>(await Provider().GetAsync(certificate, ArcaPersistenceScenario.Invoicing, ct));
+            Assert.Equal(3, arca.Calls("loginCms", Wsfe));
+        }
+        finally
+        {
+            await ArcaPersistenceScenario.RemoveConnectionAsync(factory);
+        }
+    }
+
+    [Fact]
+    public async Task By_delegation_renewing_a_stale_ticket_respects_the_window_of_arca()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var arca = Arca();
+        arca.Relations = [ArcaPersistenceScenario.PlatformCuit];
+        var certificate = await ArcaPersistenceScenario.AddDelegatedCertificateAsync(factory, authority);
+        try
+        {
+            Assert.IsType<ArcaTicketOutcome.NotDelegated>(await Provider().GetAsync(certificate, ArcaPersistenceScenario.Invoicing, ct));
+            arca.Fail(Wsfe, FakeArcaFailure.AlreadyAuthenticated);
+
+            Assert.IsType<ArcaTicketOutcome.Blocked>(await Provider().GetAsync(certificate, ArcaPersistenceScenario.Invoicing, ct));
+            Assert.IsType<ArcaTicketOutcome.Blocked>(await Provider().GetAsync(certificate, ArcaPersistenceScenario.Invoicing, ct));
+            Assert.Equal(2, arca.Calls("loginCms", Wsfe));
+        }
+        finally
+        {
+            await ArcaPersistenceScenario.RemoveConnectionAsync(factory);
+        }
+    }
+
+    [Fact]
+    public async Task A_service_the_company_does_not_delegate_ignores_the_relations()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var arca = Arca();
+        arca.Relations = [ArcaPersistenceScenario.PlatformCuit];
+        var certificate = await ArcaPersistenceScenario.AddDelegatedCertificateAsync(factory, authority);
+        try
+        {
+            Assert.IsType<ArcaTicketOutcome.Ready>(await Provider().GetAsync(certificate, ArcaPersistenceScenario.Registry, ct));
+        }
+        finally
+        {
+            await ArcaPersistenceScenario.RemoveConnectionAsync(factory);
+        }
+    }
+
     public void Dispose() => authority.Dispose();
 
     private FakeArca Arca()

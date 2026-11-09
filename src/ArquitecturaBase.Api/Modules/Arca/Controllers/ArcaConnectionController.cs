@@ -6,6 +6,7 @@ using ArquitecturaBase.Api.OpenApi;
 using ArquitecturaBase.Application.Modules.Arca.Interfaces.Services.Connection;
 using ArquitecturaBase.Application.Modules.Arca.Models.Connection;
 using ArquitecturaBase.Domain.Modules.Arca;
+using ArquitecturaBase.Domain.Modules.Arca.Connection;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 
@@ -34,7 +35,7 @@ public sealed class ArcaConnectionController(IArcaConnectionService service, IAr
     [ProducesProblem(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> StartCertificateRequest([FromBody] StartArcaConnectionHttpRequest request, CancellationToken cancellationToken) =>
         (await service.StartCertificateRequestAsync(request.Cuit, request.Environment, request.Alias, request.Services ?? [],
-            request.ExpectedRevision, cancellationToken)).ToActionResult(this);
+            request.ExpectedRevision, request.Mode ?? ArcaAccessMode.CompanyCertificate, cancellationToken)).ToActionResult(this);
 
     [HttpGet("certificate-requests/current")]
     [HasPermission(ArcaPermissions.Manage)]

@@ -67,7 +67,7 @@ internal sealed class FakeArcaStore : IArcaConnectionRepository, IArcaConnection
     }
 
     public Task<ArcaConnectionRow?> FindAsync(CancellationToken cancellationToken) => Task.FromResult(Connection is { } connection
-        ? new ArcaConnectionRow(connection.Id, connection.Mode, connection.Environment, connection.Cuit, connection.Status,
+        ? new ArcaConnectionRow(connection.Id, connection.Mode, connection.Environment, connection.Cuit, connection.PlatformCuit, connection.Status,
             [.. connection.EnabledServices], connection.LastTestPassed, connection.LastTestedAtUtc, connection.Revision,
             [.. Certificates.OrderBy(certificate => certificate.Role).Select(certificate => new ArcaCertificateRow(certificate.Id, certificate.Role,
                 certificate.Alias, certificate.IsLoaded, certificate.NotBeforeUtc, certificate.NotAfterUtc, certificate.Thumbprint))])
@@ -82,7 +82,7 @@ internal sealed class FakeArcaStore : IArcaConnectionRepository, IArcaConnection
     public Task<ArcaSigningCertificateRow?> FindSigningCertificateAsync(ArcaCertificateRole role, CancellationToken cancellationToken) =>
         Task.FromResult(Connection is { } connection && Certificate(role) is { IsLoaded: true } certificate
             ? new ArcaSigningCertificateRow(connection.Id, certificate.Id, connection.Cuit, connection.Environment,
-                certificate.ProtectedPrivateKey, certificate.CertificatePem!)
+                certificate.ProtectedPrivateKey, certificate.CertificatePem!, connection.PlatformCuit)
             : null);
 
     public Task<ArcaInvoicingSettings?> GetSettingsAsync(Guid connectionId, CancellationToken cancellationToken) =>

@@ -11,6 +11,7 @@ using ArquitecturaBase.Application.Modules.Arca.Models.Invoicing;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
 using ArquitecturaBase.Domain.Modules.Arca.Connection;
 using ArquitecturaBase.Domain.Results;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Time.Testing;
@@ -19,15 +20,22 @@ namespace ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.Arca;
 
 /// <summary>
 /// Los servicios reales del módulo con la base, ARCA y las familias en memoria: el padrón obligatorio y la facturación
-/// opcional, cada una con su prueba y su completitud programables.
+/// opcional, cada una con su prueba y su completitud programables. Con <c>withPlatform</c>, la instalación tiene
+/// configurada la CUIT de la plataforma para el modo delegación.
 /// </summary>
 internal sealed class ArcaApplicationHost : IDisposable
 {
     public static readonly DateTime NowUtc = new(2026, 11, 4, 12, 0, 0, DateTimeKind.Utc);
+    public const string PlatformCuit = "30719998883";
+    public const string PlatformName = "Plataforma Ejemplo S.A.";
 
-    public ArcaApplicationHost()
+    public ArcaApplicationHost(bool withPlatform = false)
     {
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(withPlatform
+            ? new Dictionary<string, string?> { ["Arca:Platform:Cuit"] = "30-71999888-3", ["Arca:Platform:Name"] = PlatformName }
+            : []).Build();
         var services = new ServiceCollection().AddLogging().AddApplication().AddArcaApplication();
+        services.AddSingleton<IConfiguration>(configuration);
         services.RemoveAll<IArcaServiceDefinition>();
         services.AddSingleton<IArcaServiceDefinition>(RegistryFamily);
         services.AddSingleton<IArcaServiceDefinition>(InvoicingFamily);
@@ -49,7 +57,7 @@ internal sealed class ArcaApplicationHost : IDisposable
     public FakeArcaCredentials Credentials { get; } = new();
     public FakeArcaTickets Tickets { get; } = new();
     public FakeArcaInvoicingClient Invoicing { get; } = new();
-    public FakeArcaDefinition RegistryFamily { get; } = new("ws_sr_constancia_inscripcion", "Registry", required: true);
+    public FakeArcaDefinition RegistryFamily { get; } = new("ws_sr_constancia_inscripcion", "Registry", required: true, delegated: false);
     public FakeArcaDefinition InvoicingFamily { get; } = new("wsfe", "Invoicing", required: false);
     public FakeTimeProvider Clock { get; } = new(new DateTimeOffset(NowUtc));
     public ServiceProvider Provider { get; }
@@ -62,7 +70,7 @@ internal sealed class ArcaApplicationHost : IDisposable
     /// <summary>El alta hasta el certificado subido: la conexión queda sin verificar, con el certificado activo.</summary>
     public async Task<ArcaConnectionResponse> StartAndUploadAsync(params string[] services)
     {
-        var started = await Connection.StartCertificateRequestAsync("20-00000006-0", ArcaEnvironment.Testing, "plataforma", services, 0, Ct);
+        var started = await Connection.StartCertificateRequestAsync("20-00000006-0", ArcaEnvironment.Testing, "plataforma", services, 0, ArcaAccessMode.CompanyCertificate, Ct);
         return (await Connection.UploadCertificateAsync("CERT", started.Value.Revision, Ct)).Value;
     }
 
@@ -78,7 +86,7 @@ internal sealed class ArcaApplicationHost : IDisposable
     /// <summary>Una renovación con su certificado ya cargado, pendiente de la prueba.</summary>
     public async Task<ArcaConnectionResponse> LoadRenewalAsync(ArcaConnectionResponse active)
     {
-        var requested = await Connection.StartCertificateRequestAsync("20-00000006-0", ArcaEnvironment.Testing, "renovacion", [], active.Revision, Ct);
+        var requested = await Connection.StartCertificateRequestAsync("20-00000006-0", ArcaEnvironment.Testing, "renovacion", [], active.Revision, ArcaAccessMode.CompanyCertificate, Ct);
         return (await Connection.UploadCertificateAsync("RENEWED", requested.Value.Revision, Ct)).Value;
     }
 
@@ -90,12 +98,20 @@ internal sealed class FakeArcaCredentials : IArcaCredentialService
     /// <summary>Lo que responde el inspector en lugar de aceptar el certificado.</summary>
     public Error? InspectError { get; set; }
 
-    public ArcaCertificateRequest CreateRequest(Guid connectionId, Guid certificateId, string cuit, string alias) =>
-        new("CSR:" + alias, $"protected:{certificateId}");
+    /// <summary>Las CUIT con que se pidieron e inspeccionaron los certificados, en orden.</summary>
+    public List<string> RequestedCuits { get; } = [];
+    public List<string> InspectedCuits { get; } = [];
+
+    public ArcaCertificateRequest CreateRequest(Guid connectionId, Guid certificateId, string cuit, string alias)
+    {
+        RequestedCuits.Add(cuit);
+        return new("CSR:" + alias, $"protected:{certificateId}");
+    }
 
     public Result<ArcaInspectedCertificate> Inspect(Guid connectionId, Guid certificateId, string protectedPrivateKey, string certificatePem,
         string cuit, ArcaEnvironment environment, DateTime nowUtc)
     {
+        InspectedCuits.Add(cuit);
         if (InspectError is { } error) return error;
         return new ArcaInspectedCertificate("PEM:" + certificatePem, nowUtc.AddDays(-1), nowUtc.AddYears(2), $"THUMB:{certificateId}");
     }
@@ -129,21 +145,35 @@ internal sealed class FakeArcaInvoicingClient : IArcaInvoicingClient
     public Task<ArcaServiceReply<IReadOnlyList<ArcaPointOfSale>>> ListPointsOfSaleAsync(ArcaCertificateRef certificate, ArcaTicketOutcome.Ready ticket,
         CancellationToken cancellationToken) =>
         Task.FromResult(Status == ArcaServiceCheckStatus.Ready ? ArcaServiceReply.Ready(Points) : ArcaServiceReply.Failed<IReadOnlyList<ArcaPointOfSale>>(Status));
+
+    public Task<ArcaServiceReply<long>> GetLastAuthorizedAsync(ArcaCertificateRef certificate, ArcaTicketOutcome.Ready ticket, int pointOfSale,
+        int voucherType, CancellationToken cancellationToken) => throw new NotSupportedException("The setup services never issue vouchers.");
+
+    public Task<ArcaServiceReply<ArcaAuthorization>> RequestAuthorizationAsync(ArcaCertificateRef certificate, ArcaTicketOutcome.Ready ticket,
+        ArcaVoucherRequest voucher, CancellationToken cancellationToken) => throw new NotSupportedException("The setup services never issue vouchers.");
+
+    public Task<ArcaServiceReply<ArcaIssuedVoucher?>> FindVoucherAsync(ArcaCertificateRef certificate, ArcaTicketOutcome.Ready ticket, int pointOfSale,
+        int voucherType, long number, CancellationToken cancellationToken) => throw new NotSupportedException("The setup services never issue vouchers.");
+
+    public Task<ArcaServiceReply<IReadOnlyList<ArcaParameter>>> ListParametersAsync(ArcaCertificateRef certificate, ArcaTicketOutcome.Ready ticket,
+        ArcaParameterTable table, CancellationToken cancellationToken) => throw new NotSupportedException("The setup services never read ARCA tables.");
 }
 
 /// <summary>Una familia de prueba: su resultado, su completitud y lo que pasa mientras prueba se programan desde el test.</summary>
-internal sealed class FakeArcaDefinition(string code, string family, bool required) : IArcaServiceDefinition
+internal sealed class FakeArcaDefinition(string code, string family, bool required, bool delegated = true) : IArcaServiceDefinition
 {
     public ArcaServiceCode Code { get; } = ArcaServiceCode.Create(code)!.Value;
-    public IReadOnlyCollection<ArcaInstalledService> Services => [new(Code, family, required)];
+    public IReadOnlyCollection<ArcaInstalledService> Services => [new(Code, family, required, delegated)];
     public ArcaServiceCheckStatus Status { get; set; } = ArcaServiceCheckStatus.Ready;
     public Func<bool> Complete { get; set; } = () => true;
     public Action? OnCheck { get; set; }
     public List<Guid> CheckedCertificates { get; } = [];
+    public ArcaCertificateRef? LastCertificate { get; private set; }
 
     public Task<ArcaServiceCheckResponse> CheckAsync(ArcaServiceCode service, ArcaServiceContext context, CancellationToken cancellationToken)
     {
         CheckedCertificates.Add(context.Certificate.Id);
+        LastCertificate = context.Certificate;
         OnCheck?.Invoke();
         return Task.FromResult(Status == ArcaServiceCheckStatus.Ready
             ? ArcaServiceCheckResponse.Passed(service, ArcaApplicationHost.NowUtc.AddHours(12))

@@ -159,7 +159,59 @@ public sealed class ArcaConnectionEndpointsTests(ApiFactory factory) : IDisposab
         Assert.Equal(0, (await scenario.GetConnectionAsync()).GetProperty("revision").GetInt64());
     }
 
+    [Fact]
+    public async Task The_delegated_alta_requests_for_the_platform_detects_the_delegation_and_consults_the_registry_as_the_platform()
+    {
+        await using var scenario = await ArcaHttpScenario.CreateAsync(factory, authority);
+        scenario.Arca.Relations = [ArcaPersistenceScenario.PlatformCuit];
+
+        var empty = await scenario.GetConnectionAsync();
+        Assert.Equal((ArcaPersistenceScenario.PlatformCuit, "Plataforma Ejemplo S.A."),
+            (empty.GetProperty("platform").GetProperty("cuit").GetString(), empty.GetProperty("platform").GetProperty("name").GetString()));
+        Assert.Equal([("ws_sr_constancia_inscripcion", false), ("wsfe", true)], empty.GetProperty("installedServices").EnumerateArray()
+            .Select(service => (service.GetProperty("code").GetString(), service.GetProperty("delegated").GetBoolean())));
+
+        var started = await scenario.StartAsync([FakeArca.InvoicingService], mode: "PlatformDelegation");
+        Assert.Equal(("PlatformDelegation", ArcaPersistenceScenario.Cuit, ArcaPersistenceScenario.PlatformCuit),
+            (started.GetProperty("mode").GetString(), started.GetProperty("cuit").GetString(), started.GetProperty("platformCuit").GetString()));
+
+        // Todavía no llegó la delegación: el padrón responde con la CUIT de la plataforma y Facturación queda sin delegar.
+        var waiting = await scenario.UploadAsync();
+        Assert.Equal([("ws_sr_constancia_inscripcion", "Ready"), ("wsfe", "NotDelegated")], Checks(waiting));
+        Assert.Equal("Unverified", waiting.GetProperty("connection").GetProperty("status").GetString());
+        var consulted = scenario.Arca.LastRequest("getPersona_v2")!;
+        Assert.Equal((ArcaPersistenceScenario.PlatformCuit, ArcaPersistenceScenario.Cuit),
+            (consulted.Element("cuitRepresentada")?.Value, consulted.Element("idPersona")?.Value));
+
+        // La empresa delegó y la plataforma aceptó y asignó: verificar renueva el ticket y Facturación responde.
+        scenario.Arca.Relations = [ArcaPersistenceScenario.PlatformCuit, ArcaPersistenceScenario.Cuit];
+        var delegated = await scenario.ReadAsync(await scenario.Client.PostAsync("/api/arca/connection/test", null, Ct), HttpStatusCode.OK);
+        Assert.Equal([("ws_sr_constancia_inscripcion", "Ready"), ("wsfe", "Ready")], Checks(delegated));
+
+        scenario.Arca.PointsOfSale = [new FakeArcaPointOfSale(5, "CAE - Factura", "N", "NULL")];
+        await scenario.ReadAsync(await scenario.Client.PutAsJsonAsync("/api/arca/invoicing/point-of-sale", new { pointOfSale = 5 }, Ct), HttpStatusCode.OK);
+        Assert.Equal(ArcaPersistenceScenario.Cuit, scenario.Arca.LastRequest("FEParamGetPtosVenta")!.Descendants().Single(element => element.Name.LocalName == "Cuit").Value);
+        Assert.Equal("Active", (await scenario.GetConnectionAsync()).GetProperty("status").GetString());
+    }
+
+    [Fact]
+    public async Task The_delegated_alta_by_robot_is_not_available_yet()
+    {
+        await using var scenario = await ArcaHttpScenario.CreateAsync(factory, authority);
+
+        var body = new { cuit = "20-00000006-0", environment = "Testing", alias = "plataforma", services = Array.Empty<string>(), expectedRevision = 0,
+            mode = "PlatformDelegationAutomated" };
+        var problem = await scenario.ReadAsync(await scenario.Client.PostAsJsonAsync("/api/arca/connection/certificate-requests", body, Ct),
+            HttpStatusCode.BadRequest);
+
+        Assert.Equal("Arca.Connection.ModeUnavailable", problem.GetProperty("code").GetString());
+        Assert.Equal(0, (await scenario.GetConnectionAsync()).GetProperty("revision").GetInt64());
+    }
+
     public void Dispose() => authority.Dispose();
+
+    private static (string?, string?)[] Checks(System.Text.Json.JsonElement tested) =>
+        [.. tested.GetProperty("checks").EnumerateArray().Select(check => (check.GetProperty("service").GetString(), check.GetProperty("status").GetString()))];
 
     private static (string?, string?)[] Certificates(System.Text.Json.JsonElement connection) =>
         [.. connection.GetProperty("certificates").EnumerateArray()

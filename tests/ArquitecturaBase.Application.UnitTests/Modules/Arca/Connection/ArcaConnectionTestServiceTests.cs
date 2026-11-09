@@ -128,7 +128,7 @@ public sealed class ArcaConnectionTestServiceTests
         using var host = new ArcaApplicationHost();
         Assert.Equal(ArcaConnectionErrors.NotConnected, (await host.Test.TestAsync(Ct)).Error);
 
-        await host.Connection.StartCertificateRequestAsync("20-00000006-0", ArcaEnvironment.Testing, "plataforma", [], 0, Ct);
+        await host.Connection.StartCertificateRequestAsync("20-00000006-0", ArcaEnvironment.Testing, "plataforma", [], 0, ArcaAccessMode.CompanyCertificate, Ct);
 
         Assert.Equal(ArcaConnectionErrors.CertificateNotLoaded, (await host.Test.TestAsync(Ct)).Error);
         Assert.Empty(host.RegistryFamily.CheckedCertificates);
@@ -148,4 +148,42 @@ public sealed class ArcaConnectionTestServiceTests
         Assert.Equal(ArcaConnectionStatus.Active, connection.Status);
         Assert.Single(host.InvoicingFamily.CheckedCertificates);
     }
+
+    [Fact]
+    public async Task By_delegation_the_families_get_the_platform_certificate_with_the_company_and_what_it_delegates()
+    {
+        using var host = new ArcaApplicationHost(withPlatform: true);
+        var started = (await host.Connection.StartCertificateRequestAsync("20-00000006-0", ArcaEnvironment.Production, "plataforma",
+            [Invoicing], 0, ArcaAccessMode.PlatformDelegation, Ct)).Value;
+        await host.Connection.UploadCertificateAsync("CERT", started.Revision, Ct);
+
+        await host.Test.TestAsync(Ct);
+
+        var certificate = host.InvoicingFamily.LastCertificate!;
+        Assert.Equal(("20000000060", ArcaApplicationHost.PlatformCuit), (certificate.Cuit, certificate.SignerCuit));
+        Assert.Equal("20000000060", certificate.RequiredRelation(host.InvoicingFamily.Code));
+        Assert.Null(certificate.RequiredRelation(host.RegistryFamily.Code));
+    }
+
+    [Fact]
+    public async Task With_the_company_certificate_nothing_has_to_be_in_the_relations()
+    {
+        using var host = new ArcaApplicationHost();
+        await host.StartAndUploadAsync(Invoicing);
+
+        await host.Test.TestAsync(Ct);
+
+        var certificate = host.InvoicingFamily.LastCertificate!;
+        Assert.Equal(certificate.Cuit, certificate.SignerCuit);
+        Assert.Null(certificate.RequiredRelation(host.InvoicingFamily.Code));
+    }
+
+    [Fact]
+    public void A_ticket_that_does_not_include_the_company_is_a_service_not_delegated()
+    {
+        var check = ArcaServiceCheckResponse.FromTicket(ArcaServiceCode.Create(Invoicing)!.Value, new ArcaTicketOutcome.NotDelegated());
+
+        Assert.Equal((Invoicing, ArcaServiceCheckStatus.NotDelegated), (check.Service, check.Status));
+    }
 }
+
