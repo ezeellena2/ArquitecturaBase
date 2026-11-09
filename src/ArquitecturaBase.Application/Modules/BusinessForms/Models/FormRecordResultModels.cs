@@ -22,3 +22,9 @@ public sealed record FormResponseResultValueResponse(string Key, string Label, s
 {
     public override string ToString() => "FormResponseResultValueResponse { Content = [REDACTED] }";
 }
+
+/// <summary>
+/// A column of the sheet and the Excel for a datum of a result (RE1-A), after the questions: its id is «&lt;source&gt;.&lt;key&gt;»,
+/// and its names come from the latest result of its source among the form's responses.
+/// </summary>
+public sealed record FormResponseResultColumn(string Id, string Source, string SourceName, string Key, string Label, string Kind);

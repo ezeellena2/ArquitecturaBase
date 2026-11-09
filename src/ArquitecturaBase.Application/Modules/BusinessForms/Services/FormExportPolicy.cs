@@ -5,6 +5,14 @@ using ArquitecturaBase.Application.Modules.BusinessForms.Resources;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 internal static class FormExportPolicy
 {
+    /// <summary>A datum of a result (RE1-A) as an Excel cell of its kind; empty without a value.</summary>
+    public static FormWorkbookCell ResultCell(string kind, string? value) => value is null ? new("text", null) : kind switch
+    {
+        StructuredRecordResultField.Date => new("date", DateOnly.ParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture).ToDateTime(TimeOnly.MinValue)),
+        StructuredRecordResultField.Number => new("decimal", decimal.Parse(value, CultureInfo.InvariantCulture)),
+        _ => new("text", value),
+    };
+
     /// <summary>
     /// The name of the sheet of a block: its own, without what Excel rejects, up to 31 characters without splitting a character
     /// and without an apostrophe or a space at either end; «Ítems» if it ends empty, like the responses' sheet or like the one

@@ -12,7 +12,7 @@ using Microsoft.Extensions.Logging;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 internal sealed class FormExportService(IFormResponseReader reader, IFormWorkbookWriter writer,
     FormRecordAccessGuard access, IRequestValidator validator, TimeProvider timeProvider, ILogger<FormExportService> logger,
-    FormRecordOriginPolicy origins) : IFormExportService
+    FormRecordOriginPolicy origins, IFormRecordResultReader resultReader) : IFormExportService
 {
     internal const int MaximumRecords = 10000;
     public Task<Result<FormExportResponse>> ExportAsync(Guid id, FormExportRequest request, CancellationToken cancellationToken) =>
@@ -49,6 +49,9 @@ internal sealed class FormExportService(IFormResponseReader reader, IFormWorkboo
                 var voided = request.Filter.IncludeVoided && request.Filter.State is null;
                 if (voided) headers.Add(FormResponseTexts.Get("Voided", culture));
                 headers.AddRange(selectedColumns.Select(column => column.Header));
+                // RE1-A: the data of the results go after the questions, a column each.
+                var resultColumns = FormRecordResultPresentationPolicy.Columns(await resultReader.ListLatestBySourceAsync(id, ct), culture);
+                headers.AddRange(resultColumns.Select(column => column.Label));
                 var rows = new List<IReadOnlyList<FormWorkbookCell>>(ids.Count);
                 foreach (var batch in ids.Chunk(100))
                 {
@@ -57,6 +60,8 @@ internal sealed class FormExportService(IFormResponseReader reader, IFormWorkboo
                     var records = (await reader.ListByReceiptIdsAsync(definition, batch, ct)).ToDictionary(row => row.Record.SourceReceiptId);
                     // A correction arrived through the channel of its first version.
                     var channels = await origins.ListAsync(actor.Value, records.Values.Select(row => row.OriginReceiptId).ToArray(), ct);
+                    var resultValues = resultColumns.Count == 0 ? new Dictionary<Guid, IReadOnlyDictionary<string, string?>>()
+                        : FormRecordResultPresentationPolicy.Values(await resultReader.ListAsync(records.Values.Select(row => row.Record.RecordId).ToArray(), ct));
                     foreach (var receiptId in batch)
                     {
                         var row = records[receiptId];
@@ -68,6 +73,8 @@ internal sealed class FormExportService(IFormResponseReader reader, IFormWorkboo
                             new("text", FormResponseTexts.Get(channel.Length == 0 ? "unknown" : channel, culture)) };
                         if (voided) cells.Add(new("text", row.State == nameof(FormRecordState.Voided) ? FormResponseTexts.Get("true", culture) : ""));
                         cells.AddRange(selectedColumns.Select(column => Export(values[column.QuestionId], column)));
+                        var results = resultValues.GetValueOrDefault(row.Record.RecordId);
+                        cells.AddRange(resultColumns.Select(column => FormExportPolicy.ResultCell(column.Kind, results?.GetValueOrDefault(column.Id))));
                         rows.Add(cells);
                         foreach (var block in blocks)
                         {

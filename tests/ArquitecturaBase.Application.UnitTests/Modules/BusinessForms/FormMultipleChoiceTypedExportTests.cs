@@ -70,7 +70,7 @@ public sealed class FormMultipleChoiceTypedExportTests
         reader.ExportRows = reader.ExportRows.Select(row => row with { Version = version, Record = row.Record with { SchemaJson = version.SchemaJson } }).ToArray();
         var writer = new FakeFormWorkbookWriter();
         var service = new FormExportService(reader, writer, new(user, permissions, reader),
-            RequestValidators.For(new FormExportRequestValidator(), new ListFormRecordsRequestValidator()), new FakeTimeProvider(), NullLogger<FormExportService>.Instance, new([]));
+            RequestValidators.For(new FormExportRequestValidator(), new ListFormRecordsRequestValidator()), new FakeTimeProvider(), NullLogger<FormExportService>.Instance, new([]), new ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms.FormRecordResultReaderDouble());
         return (service, writer, reader, field);
     }
 }

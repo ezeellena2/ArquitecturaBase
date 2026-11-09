@@ -236,7 +236,7 @@ public sealed class FormExportServiceTests
         reader.ArrangeExport(10001);
         var clock = new FakeTimeProvider();
         var service = new FormExportService(reader, writer, new(user, permissions, reader),
-            RequestValidators.For(new FormExportRequestValidator(), new ListFormRecordsRequestValidator()), clock, NullLogger<FormExportService>.Instance, new([]));
+            RequestValidators.For(new FormExportRequestValidator(), new ListFormRecordsRequestValidator()), clock, NullLogger<FormExportService>.Instance, new([]), new ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms.FormRecordResultReaderDouble());
         return (service, writer, permissions, reader, clock);
     }
 }

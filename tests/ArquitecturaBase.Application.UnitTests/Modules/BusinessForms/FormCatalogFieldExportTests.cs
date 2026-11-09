@@ -144,7 +144,7 @@ public sealed class FormCatalogFieldExportTests
         } }).ToArray();
         var writer = new FakeFormWorkbookWriter();
         var service = new FormExportService(reader, writer, new(actor, permissions, reader),
-            RequestValidators.For(new FormExportRequestValidator(), new ListFormRecordsRequestValidator()), new FakeTimeProvider(), NullLogger<FormExportService>.Instance, new([]));
+            RequestValidators.For(new FormExportRequestValidator(), new ListFormRecordsRequestValidator()), new FakeTimeProvider(), NullLogger<FormExportService>.Instance, new([]), new ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms.FormRecordResultReaderDouble());
         return (service, writer, reader, questionId, days);
     }
     private static Dictionary<string, string> Text(string es, string en) => new() { ["es"] = es, ["en"] = en };

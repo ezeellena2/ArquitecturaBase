@@ -40,17 +40,20 @@ internal sealed class FormResponseService(IFormResponseReader reader, FormRecord
             var page = await reader.ListAsync(definition, read.Value.Apply(request) with { DisplayCulture = culture }, cancellationToken);
             // A correction arrived through the channel of its first version.
             var channels = await origins.ListAsync(read.Value.Actor, page.Items.Select(row => row.OriginReceiptId).ToArray(), cancellationToken);
+            var resultColumns = FormRecordResultPresentationPolicy.Columns(await resultReader.ListLatestBySourceAsync(id, cancellationToken), culture);
+            var resultValues = resultColumns.Count == 0 ? new Dictionary<Guid, IReadOnlyDictionary<string, string?>>()
+                : FormRecordResultPresentationPolicy.Values(await resultReader.ListAsync(page.Items.Select(row => row.Record.RecordId).ToArray(), cancellationToken));
             if (!await access.StillAllowedAsync(read.Value, cancellationToken)) return FormDefinitionErrors.Forbidden;
             var active = definition.Versions.Single(version => version.Id == definition.ActiveVersionId);
             var rows = page.Items.Select(row => {
                 var reply = FormRecordPresentationPolicy.Project(row.Record, definition.VersionsById[row.Record.VersionId].DisplayCulture(culture), definition.Schemas[row.Record.VersionId]);
                 return new FormResponseRow(row.Record.RecordId, row.Record.VersionId, row.Record.VersionNumber, reply.Number,
                     row.SubmittedAtUtc, row.Actor, channels.GetValueOrDefault(row.OriginReceiptId)?.ChannelId ?? "", FormResponsePresentationPolicy.Cells(columns, reply), row.State, row.HasPdf,
-                    row.ReplacesRecordId is not null);
+                    row.ReplacesRecordId is not null) { Results = resultValues.GetValueOrDefault(row.Record.RecordId) };
             }).ToArray();
             return new FormResponseSheetResponse(id, FormRecordPresentationPolicy.Text(FormDraftPolicy.Read<Dictionary<string,string>>(active.NameJson), active.DisplayCulture(culture)), definition.Prefix,
                 active.Number, columns, definition.Versions.Select(version => new FormResponseVersionResponse(version.Id, version.Number)).ToArray(),
-                new(rows, page.Page, page.PageSize, page.TotalCount), definition.HasApproval);
+                new(rows, page.Page, page.PageSize, page.TotalCount), definition.HasApproval) { ResultColumns = resultColumns.Count == 0 ? null : resultColumns };
         });
     public Task<Result<PagedResult<FormResponseFacetOptionResponse>>> CountFacetsAsync(Guid id, FormRecordFacetRequest request, CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<PagedResult<FormResponseFacetOptionResponse>>>(logger, "CountFormResponseFacets", async () =>

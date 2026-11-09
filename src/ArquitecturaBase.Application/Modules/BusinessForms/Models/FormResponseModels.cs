@@ -38,10 +38,18 @@ public sealed record FormResponseRow(Guid Id, Guid VersionId, long VersionNumber
     FormAuthorResponse Actor, string Channel, IReadOnlyList<FormResponseCell> Cells, string State = "Received", bool HasPdf = false,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)] bool Corrected = false)
 {
+    /// <summary>RE1-A: the canonical value of each datum of its results, by the id of its column; omitted without results.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyDictionary<string, string?>? Results { get; init; }
     public override string ToString() => "FormResponseRow { Content = [REDACTED] }";
 }
 public sealed record FormResponseSheetResponse(Guid DefinitionId, string Name, string Prefix, long ActiveVersionNumber,
-    IReadOnlyList<FormResponseColumn> Columns, IReadOnlyList<FormResponseVersionResponse> Versions, PagedResult<FormResponseRow> Records, bool HasApproval = false);
+    IReadOnlyList<FormResponseColumn> Columns, IReadOnlyList<FormResponseVersionResponse> Versions, PagedResult<FormResponseRow> Records, bool HasApproval = false)
+{
+    /// <summary>RE1-A: a column per datum of the results external actions left in this form's responses; omitted without results.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<FormResponseResultColumn>? ResultColumns { get; init; }
+}
 public sealed record FormResponseVersionResponse(Guid Id, long Number);
 public sealed record ListFormRecordsRequest : PagedRequest
 {

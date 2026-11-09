@@ -101,7 +101,7 @@ public sealed class FormHistoricalReadCultureTests
         var writer = new FakeFormWorkbookWriter();
         var service = new FormExportService(reader, writer, new(current, permissions, reader),
             RequestValidators.For(new FormExportRequestValidator(), new ListFormRecordsRequestValidator()),
-            new FakeTimeProvider(), NullLogger<FormExportService>.Instance, new([]));
+            new FakeTimeProvider(), NullLogger<FormExportService>.Instance, new([]), new ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms.FormRecordResultReaderDouble());
         var previous = CultureInfo.CurrentUICulture;
         CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo(ui);
         try
