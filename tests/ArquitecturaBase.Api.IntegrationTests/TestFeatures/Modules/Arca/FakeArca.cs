@@ -63,6 +63,9 @@ internal sealed class FakeArca(TimeProvider time)
     /// </summary>
     public IReadOnlyCollection<string>? Relations { get; set; }
 
+    /// <summary>La emisión de WSFEv1: números, comprobantes autorizados, tablas y fallas programadas.</summary>
+    public FakeArcaVouchers Vouchers { get; } = new();
+
     public int Calls(string operation, string service) => calls.GetValueOrDefault(operation + ":" + service);
 
     public XElement? LastRequest(string operation) => lastRequests.GetValueOrDefault(operation);
@@ -85,6 +88,7 @@ internal sealed class FakeArca(TimeProvider time)
         PointsOfSaleError = null;
         Person = Company;
         Relations = null;
+        Vouchers.Reset();
     }
 
     public async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
@@ -99,6 +103,11 @@ internal sealed class FakeArca(TimeProvider time)
             "FEDummy" => await CountAndFailAsync("FEDummy", InvoicingService, cancellationToken) ?? Dummy(),
             "FEParamGetPtosVenta" => await CountAndFailAsync("FEParamGetPtosVenta", InvoicingService, cancellationToken) ?? PointsOfSaleResponse(),
             "getPersona_v2" => await CountAndFailAsync("getPersona_v2", RegistryService, cancellationToken) ?? PersonResponse(),
+            "FECompUltimoAutorizado" => await CountAndFailAsync("FECompUltimoAutorizado", InvoicingService, cancellationToken) ?? Ok(Vouchers.LastAuthorized(operation)),
+            "FECAESolicitar" => await CountAndFailAsync("FECAESolicitar", InvoicingService, cancellationToken) ?? Ok(Vouchers.Authorize(operation)),
+            "FECompConsultar" => await CountAndFailAsync("FECompConsultar", InvoicingService, cancellationToken) ?? Ok(Vouchers.Find(operation)),
+            var name when name.StartsWith("FEParamGet", StringComparison.Ordinal) && name != "FEParamGetPtosVenta" =>
+                await CountAndFailAsync(name, InvoicingService, cancellationToken) ?? Ok(Vouchers.Parameters(name)),
             _ => throw new InvalidOperationException($"The ARCA test double has no operation {operation.Name.LocalName}."),
         };
     }
@@ -193,6 +202,10 @@ internal sealed class FakeArca(TimeProvider time)
                 throw new InvalidOperationException("A held ARCA call can only end by cancellation.");
         }
     }
+
+    // Sin respuesta es una conexión cortada: el cliente la ve como un pedido que no llegó.
+    private static HttpResponseMessage Ok(XElement? content) =>
+        content is null ? throw new HttpRequestException("The ARCA test double dropped the connection.") : Envelope(HttpStatusCode.OK, content);
 
     private static XElement? Optional(string name, string? value) => value is null ? null : new XElement(name, value);
 
