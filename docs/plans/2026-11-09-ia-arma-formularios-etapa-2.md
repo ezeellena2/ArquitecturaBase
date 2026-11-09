@@ -46,11 +46,13 @@ Lo que el plan no fijaba, resuelto con la opción más simple que cumple el plan
    `Application/Interfaces/Channels` y con su versión apagada, dice quién puede adjuntar planillas (en esta etapa, quien administra
    catálogos) y recibe el contenido y el nombre: devuelve la planilla preparada o el motivo del rechazo, sin `Error` entre
    módulos. BusinessForms lo implementa con el lector de la importación. El tipo sale de los bytes (un ZIP con el manifiesto de una
-   hoja de cálculo, o texto UTF-8), nunca de la extensión. Los rechazos son explícitos: Excel viejo o con contraseña (los dos son
-   OLE2 y no se distinguen sin otro parser), con macros (por el manifiesto), más grande que los topes de la importación, ilegible
-   o sin filas. Lo preparado es la primera hoja: su nombre, cuántas filas con contenido y cuántas columnas tiene, y sus seis
-   primeras filas con la letra de cada columna, en 12 KiB como mucho. Para entrar en el tope van siempre la fila 1 y todas las
-   columnas: primero se quitan filas de muestra y después se acortan las celdas, hasta 80 caracteres. Inicio y WhatsApp lo llaman
+   hoja de cálculo, o texto UTF-8), nunca de la extensión. Los rechazos son explícitos: Excel viejo (OLE2 con `Workbook`), con
+   contraseña (OLE2 con `EncryptedPackage`; los dos se distinguen con OpenMcdf, que ya usa el proyecto), con macros (por el
+   manifiesto), más grande que los topes de la importación, ilegible o sin filas. Lo preparado es la primera hoja: su nombre,
+   cuántas filas con contenido y cuántas columnas tiene, y sus seis primeras filas, cada una con un mapa de la letra de la columna
+   a su texto, en 12 KiB como mucho. Para entrar en el tope van siempre la fila 1 y todas las columnas: cada celda va hasta 80
+   caracteres; si no entra, se quitan filas hasta dejar cuatro (la 1 y tres de muestra, las de la tarjeta); después se acortan las
+   celdas a la mitad, y sólo al final se quitan las que quedan. El nombre del archivo se acota aparte. Inicio y WhatsApp lo llaman
    al recibir el archivo; el motor no lee archivos. La huella y el turno guardan el SHA-256 y el tamaño, como pide el ADR 0022.
 2. **La planilla en el motor.**
    - La operación neutral suma `Attachment`, con el descriptor privado (como el del audio) y lo preparado, y su huella
@@ -200,4 +202,15 @@ Vite le recarga la página.
 ## Estado
 
 2026-11-09: plan escrito y revisado (17 hallazgos, incorporados). El usuario eligió que importar en un catálogo que existe
-reemplace la lista, como subir un Excel hoy. Espera su visto bueno.
+reemplace la lista, como subir un Excel hoy, y aprobó el plan el mismo día.
+
+2026-11-09: tarea 1 hecha (3577b62b). `IStructuredAttachmentReader` recibe los bytes y el nombre, y `CanAttachAsync` resuelve
+quién puede adjuntar sin usuario actual. BusinessForms detecta el formato con una operación nueva del lector y prepara la
+planilla con `FormAttachmentPreparationPolicy`. Cualquier parte de Excel habilitada para macros cuenta como «con macros»,
+también un `.xlsb`. El commit se llevó por error un arreglo del snapshot que otra sesión tenía en el índice compartido; HEAD quedó
+correcto. La revisión (9 hallazgos, ninguno bloqueante) quedó corregida en 28b4268e. Cada fila de la muestra es un mapa de letra a
+texto. El recorte deja siempre cuatro filas, y la memoria queda acotada aunque las celdas sean gigantes. `CompoundDocument`,
+extraído de `FileContentProcessor`, separa el Excel viejo del protegido con contraseña, y otro OLE2 es ilegible. Los motivos de
+rechazo quedan en siete: no disponible, Excel viejo, con contraseña, con macros, pasado de tope, ilegible y vacío. Unitarias
+4070/4070, arquitectura 207/207 y las técnicas del lector en verde, sobre una copia de HEAD, porque el árbol compartido no compila
+por trabajo ajeno sin commitear.
