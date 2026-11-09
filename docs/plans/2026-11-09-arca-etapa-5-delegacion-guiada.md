@@ -1,7 +1,8 @@
 # ARCA · Etapa 5: delegación guiada
 
-Plan del 2026-11-09, decidido el mismo día (DG1-A, DG2-A y la constancia sin delegar); el backend se programa ya y el front,
-después de la prueba integral. Es la etapa 5 de la [hoja de ruta de ARCA](2026-10-31-arca-formularios-estandar.md)
+Plan del 2026-11-09, decidido el mismo día (DG1-A, DG2-A y la constancia sin delegar). El backend quedó programado el mismo
+día (aec47d2d): la regla está en [ARCA](../features/arca.md#delegación-guiada-etapa-5) y los pasos en ARCA, en
+[configurar ARCA](../guides/configurar-arca.md#conectar-por-delegación). Falta el front, después de la prueba integral. Es la etapa 5 de la [hoja de ruta de ARCA](2026-10-31-arca-formularios-estandar.md)
 y el modo 2 de acceso: la empresa no genera un certificado propio, sino que delega sus web services en la CUIT de la
 plataforma, que firma con su certificado y opera en nombre de la empresa. Sólo depende de la etapa 1
 ([regla](../features/arca.md)), cuyo modelo de conexión ya contempla los tres modos y sólo programó el certificado de la
@@ -198,6 +199,9 @@ delegación», publicados el 2026-11-09:
 
 1. **Diseño:** este plan, el ADR 0027, los tableros y las decisiones.
 2. **Backend:** el modelo, el alta en modo delegación, la detección en el proveedor de tickets y el contrato, con TDD.
+   Hecho el 2026-11-09 (aec47d2d). Al programarlo se fijó que `ArcaServiceSessionIssuer.OpenAsync` abre para operar en
+   nombre de la empresa (exige la relación de ese servicio) y que el alta con robot responde `Arca.Connection.ModeUnavailable`
+   hasta la etapa 6.
 3. **Front,** cuando el usuario termine la prueba integral: el diseño elegido en `docs/design` del front y la pantalla.
 4. **Cierre:** la verificación de `AGENTS.md`, `features/arca.md` y `configurar-arca.md` al día, la fila de la etapa 5 en
    la hoja de ruta, la auditoría que retira este plan y el traspaso al multitenant ofrecido.

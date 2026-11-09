@@ -1,9 +1,11 @@
 # ARCA: la conexión con los web services
 
-Regla vigente desde la etapa 1 (2026-11-05). Una instalación se conecta con ARCA con el certificado de la empresa,
-prueba la conexión, trae del padrón los datos de la empresa y elige el punto de venta. Todavía no emite comprobantes ni
-tiene efecto legal. Las decisiones están en el [ADR 0023](../decisions/0023-arca-como-modulo-opcional.md) (módulo y
-credenciales) y el [ADR 0025](../decisions/0025-familias-de-servicios-arca.md) (familias); la operación, en
+Regla vigente desde la etapa 1 (2026-11-05). Una instalación se conecta con ARCA con el certificado de la empresa o, desde
+el backend de la etapa 5 (2026-11-09), delegando los servicios de la empresa en la CUIT de la plataforma. Prueba la
+conexión, trae del padrón los datos de la empresa y elige el punto de venta. Todavía no emite comprobantes ni tiene efecto
+legal. Las decisiones están en el [ADR 0023](../decisions/0023-arca-como-modulo-opcional.md) (módulo y credenciales), el
+[ADR 0025](../decisions/0025-familias-de-servicios-arca.md) (familias) y el
+[ADR 0027](../decisions/0027-delegacion-guiada-arca.md) (delegación guiada); la operación, en
 [configurar ARCA](../guides/configurar-arca.md), y la retirada, en [quitar ARCA](../guides/quitar-arca.md). Las etapas
 que siguen están en la [hoja de ruta](../plans/2026-10-31-arca-formularios-estandar.md).
 
@@ -19,6 +21,8 @@ que siguen están en la [hoja de ruta](../plans/2026-10-31-arca-formularios-esta
   trae los datos de la empresa. Sólo los elegidos se prueban y muestran su zona.
 - **Un ambiente por vez:** la conexión es de homologación o de producción. Pasar a producción es configurarla de nuevo.
 - **Sólo certificados nuevos**, generados en la app. No se importa uno existente.
+- **Dos modos:** con el certificado de la empresa o en delegación (abajo). Pasar de uno a otro es empezar de nuevo. El
+  tercero, la delegación con robot, es de la etapa 6: hoy el alta lo rechaza con `Arca.Connection.ModeUnavailable`.
 
 ## Permisos y pantalla
 
@@ -46,8 +50,8 @@ revisión esperada y responden 409 con `Arca.Connection.RevisionConflict` si cam
 
 | Verbo y ruta | Qué hace |
 | --- | --- |
-| `GET api/arca/connection` | Estado, ambiente, CUIT, servicios instalados (con su familia) y elegidos, certificados sin secretos, última prueba y revisión |
-| `POST api/arca/connection/certificate-requests` | Con CUIT, ambiente, alias y servicios genera la clave y el pedido. Sin conexión la crea; con conexión pide otro certificado para ella (renovación, o un pedido nuevo en el alta) y reemplaza el pendiente |
+| `GET api/arca/connection` | Estado, modo, ambiente, CUIT, la CUIT de la plataforma (en delegación), la plataforma configurada, servicios instalados (con su familia y si se delegan) y elegidos, certificados sin secretos, última prueba y revisión |
+| `POST api/arca/connection/certificate-requests` | Con CUIT, ambiente, alias, servicios y modo (por defecto, el certificado de la empresa) genera la clave y el pedido. Sin conexión la crea; con conexión pide otro certificado para ella (renovación, o un pedido nuevo en el alta), con su modo, y reemplaza el pendiente |
 | `GET api/arca/connection/certificate-requests/current` | Descarga el `.csr` pendiente (`application/pkcs10`, `arca-<alias>.csr`) |
 | `DELETE api/arca/connection/certificate-requests/current` | Cancela la renovación (revisión en la query) |
 | `PUT api/arca/connection/services` | Elige los servicios que usa la empresa |
@@ -86,6 +90,7 @@ revisión esperada y responden 409 con `Arca.Connection.RevisionConflict` si cam
 - **«Ya posee un TA válido»:** la fila guarda hasta cuándo no se puede pedir otro (la ventana del ambiente:
   `TicketRetryWindow`) y la prueba lo informa con ese plazo. Ningún pedido HTTP espera minutos.
 - Las fallas del WSAA se traducen a un motivo estable: servicio sin autorizar, reloj desfasado, bloqueado o sin respuesta.
+- **En delegación,** el ticket de un servicio que la empresa delega tiene que incluirla en sus `relations` (abajo).
 
 ## La prueba
 
@@ -98,7 +103,8 @@ revisión esperada y responden 409 con `Arca.Connection.RevisionConflict` si cam
 
 ### Registry: padrón y datos de la empresa
 
-- `ws_sr_constancia_inscripcion`, `getPersona_v2` sobre la CUIT de la conexión.
+- `ws_sr_constancia_inscripcion`, `getPersona_v2` sobre la CUIT de la conexión (`idPersona`), con la CUIT de quien firma
+  en `cuitRepresentada`: la de la empresa en el modo 1 y la de la plataforma en delegación. Es una consulta: no se delega.
 - La prueba guarda razón social, condición frente al IVA y domicilio fiscal con `IArcaRegistryCompanyService`, en su
   transacción y con el lock de la conexión. Una CUIT sin nombre no guarda nada.
 - La condición frente al IVA: el monotributo manda; si no, el impuesto 30 es responsable inscripto y el 32, exento. Una
@@ -110,6 +116,28 @@ revisión esperada y responden 409 con `Arca.Connection.RevisionConflict` si cam
 - Los puntos de venta salen de `FEParamGetPtosVenta`: quedan afuera los dados de baja y se marcan los bloqueados. Elegir
   uno bloqueado, dado de baja o que ARCA ya no devuelve da `Arca.Invoicing.PointOfSaleUnavailable`.
 - La configuración de la familia está completa con el punto de venta elegido.
+
+## Delegación guiada (etapa 5)
+
+La empresa delega sus servicios en la CUIT de la plataforma, que firma con su certificado y opera en su nombre. Está
+programado el backend; la pantalla espera el fin de la prueba integral, con los tableros elegidos (DG1-A y DG2-A) en el
+[plan](../plans/2026-11-09-arca-etapa-5-delegacion-guiada.md).
+
+- **La plataforma es configuración de la instalación:** `Arca:Platform:Cuit` y `Arca:Platform:Name` (el nombre de la guía),
+  las dos o ninguna. Sin ellas, el alta en delegación da `Arca.Connection.PlatformNotConfigured`.
+- **La conexión guarda la CUIT de la plataforma** (`PlatformCuit`) al empezar, y su certificado es el de la plataforma para
+  esta instalación: el mismo ciclo, anillo, renovación y tickets que en el modo 1, con la CUIT de la plataforma en el
+  pedido y en la inspección. Su alias es el computador fiscal de la plataforma; conviene uno por instalación y renovar con
+  el mismo.
+- **La CUIT de la conexión es la de la empresa,** y va en `Auth.Cuit`. Cada servicio declara si se delega: Facturación sí;
+  la constancia de inscripción no, porque la plataforma la consulta con su CUIT.
+- **Detectar es probar:** «Verificar la delegación» corre la prueba. Un servicio delegado cuyo ticket no incluye a la empresa
+  queda `NotDelegated`; si el alias todavía no tiene el servicio, `NotAuthorized`. Si el ticket guardado no la incluye, se
+  pide otro una vez (la delegación pudo llegar después), y vale el bloqueo de la ventana si ARCA no da otro. Una familia
+  que llama a un servicio sin delegar recibe `Arca.Connection.ServiceNotDelegated`.
+- **Un token que no se puede leer no frena:** queda un log de advertencia y decide ARCA.
+- **La app no pide ninguna clave fiscal:** la empresa delega y da de alta el punto de venta con la suya; la plataforma
+  acepta y asigna con la suya. Los pasos están en [configurar ARCA](../guides/configurar-arca.md#conectar-por-delegación).
 
 ## Robustez y privacidad
 
@@ -125,3 +153,7 @@ revisión esperada y responden 409 con `Arca.Connection.RevisionConflict` si cam
 - **Homologación real** con un certificado de WSASS para una CUIT del usuario: confirmar los CN de los emisores de cada
   ambiente y la condición frente al IVA con CUIT reales. Se cierra cuando la conexión, los datos de la empresa y los
   puntos de venta respondan contra ARCA.
+- **La delegación de verdad:** en homologación, con una autorización de WSASS con «CUIT representado»; en producción, con
+  la clave fiscal de la plataforma y la de una empresa. Confirma el formato del token y que un ticket nuevo traiga la CUIT
+  después de aceptar.
+- **La pantalla del modo delegación,** después de la prueba integral.
