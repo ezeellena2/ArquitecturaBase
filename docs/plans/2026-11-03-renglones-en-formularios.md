@@ -285,10 +285,11 @@ para que se usen igual en toda la app.
      7408 de 7408 con PostgreSQL y Redis; después sólo cambiaron documentos y un test de arquitectura. El front se verificó en
      una copia de f6bc5973: lint y build limpios, y 1005 escenas visuales, con una que falló por carga y pasó al repetirla
      sola. De los 4364 tests de vitest, 21 vencieron por tiempo con la PC al 100 %, y con plazos mayores pasaron 303 de 303.
-   - Pendiente: repetir esos 14 archivos con los plazos normales cuando la PC esté tranquila. Son `AiSettingsPage`,
-     `CatalogFieldsDialog`, `AssistantEntries`, `CatalogEditorPage.http`, `FormEditorSections`, `FormEntryGroupBy`,
-     `FormResponseFullPage`, `FormResponsesPage`, `ResponsePanel`, `ProfilePage`, `RoleEditorPage`,
-     `WhatsAppFormRepliesHttp`, `designArchitecture` y `featureDependencies`.
+   - La verificación final conjunta del 2026-11-08, antes de la prueba integral, cerró lo que había quedado pendiente de esa
+     verificación. El backend pasó 7428 de 7428 sobre 9f721e5d, con PostgreSQL y Redis y el build sin advertencias. El front
+     pasó lint, build y las 1013 escenas visuales sobre 98cf7f38, y vitest entero sobre c29c363b: 4384 de 4384 con los plazos
+     normales, incluidos los 14 archivos que habían vencido. La única falla de la primera corrida fue una carrera de la propia
+     prueba de la tarjeta de la IA, que se corrigió en c29c363b.
 2. **Etapa 2 · Cargar renglones (RG2-A y RG3-A).** Los valores con su renglón y su migración, la captura desde la app y por
    WhatsApp con la huella y el replay, la corrección con sus ítems, y en el front la tabla, los recuadros, los errores por
    ítem y «Mantener»; sumó RG13-A y LD3-A. Cerrada el 2026-11-08. Las reglas están en
