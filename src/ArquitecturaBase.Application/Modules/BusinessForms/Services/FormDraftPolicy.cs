@@ -110,7 +110,7 @@ internal static class FormDraftPolicy
             }
             var help = input.Help?.Where(pair => !string.IsNullOrWhiteSpace(pair.Value)).ToDictionary(pair => pair.Key, pair => pair.Value!, StringComparer.Ordinal);
             fields.Add(new(fieldId, key, input.Type, input.Label, help is { Count: > 0 } ? help : null, input.Required, input.MaxLength,
-                options?.AsReadOnly(), input.Source, input.Files, input.Selection, input.Rows, input.Repeated));
+                options?.AsReadOnly(), input.Source, input.Files, input.Selection, input.Rows, input.Repeated, input.Calculation));
             fieldMap.Add(new(input.LocalId, fieldId, key, input.ReplacesFieldId));
         }
         NameAnsweredQuestions(draft.Fields, fields, currentFieldIds);
@@ -130,6 +130,11 @@ internal static class FormDraftPolicy
             if (fields[i].Source is { Match: { } matches } source && matches.Any(match => match.QuestionId is { } name && assigned.ContainsKey(name)))
                 fields[i] = fields[i] with { Source = source with { Match = matches.Select(match => match.QuestionId is { } name
                     && assigned.TryGetValue(name, out var fieldId) ? match with { QuestionId = fieldId } : match).ToArray() } };
+        // The operands of a calculation (CA1-A) are named the same way.
+        for (var i = 0; i < fields.Count; i++)
+            if (fields[i].Calculation is { } calculation && calculation.Operands.Any(assigned.ContainsKey))
+                fields[i] = fields[i] with { Calculation = calculation with { Operands = calculation.Operands
+                    .Select(operand => assigned.TryGetValue(operand, out var fieldId) ? fieldId : operand).ToArray() } };
     }
     // The block of rows is not a question: its questions are ("10, cinco en el bloque").
     public static int QuestionCount(IEnumerable<CanonicalFormField> fields) => fields.Count(field => field.Type != "group");

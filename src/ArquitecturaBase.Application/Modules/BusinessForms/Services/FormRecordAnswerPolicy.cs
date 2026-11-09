@@ -27,6 +27,12 @@ internal static class FormRecordAnswerPolicy
         {
             var question = questions[index];
             if (question.Type is "photo" or "document" || question.Repeated == true) continue;
+            if (question.Calculation is { } calculation)
+            {
+                if (answers.ContainsKey(question.Key) || !TryCalculate(question, calculation, result, out var calculated)) return null;
+                if (calculated is not null) result.Add(calculated);
+                continue;
+            }
             if (!answers.TryGetValue(question.Key, out var raw))
             {
                 if (question.Required) return null;
@@ -74,6 +80,12 @@ internal static class FormRecordAnswerPolicy
                 var answers = new List<FormRecordAnswer>();
                 foreach (var question in block)
                 {
+                    if (question.Calculation is { } calculation)
+                    {
+                        if (item.ContainsKey(question.Key) || !TryCalculate(question, calculation, answers, out var calculated)) return null;
+                        if (calculated is not null) answers.Add(calculated);
+                        continue;
+                    }
                     if (!item.TryGetValue(question.Key, out var value))
                     {
                         if (question.Required) return null;
@@ -88,6 +100,41 @@ internal static class FormRecordAnswerPolicy
         }
         catch (JsonException) { return null; }
     }
+
+    // CA1-A: a calculation from the answers before it (those of its item, in the block), rounded to 2 decimals half-even. A product
+    // or a percentage with an empty operand is left empty; a sum adds what there is, also a question of the block over all the
+    // items, and is left empty without values. False only when the numbers do not fit.
+    private static bool TryCalculate(CanonicalFormField question, FormCalculation calculation, IReadOnlyList<FormRecordAnswer> known,
+        out FormRecordAnswer? answer)
+    {
+        answer = null;
+        try
+        {
+            decimal? value;
+            if (calculation.Operation == FormCalculation.Sum)
+            {
+                var values = calculation.Operands.SelectMany(operand => Values(operand, known)).ToArray();
+                value = values.Length == 0 ? null : values.Sum();
+            }
+            else
+            {
+                var first = Values(calculation.Operands[0], known).Cast<decimal?>().FirstOrDefault();
+                var second = Values(calculation.Operands[1], known).Cast<decimal?>().FirstOrDefault();
+                value = first is null || second is null ? null
+                    : calculation.Operation == FormCalculation.Multiply ? first * second : first * second / 100m;
+            }
+            if (value is { } number)
+                answer = new(question.FieldId, "decimal", null, Math.Round(number, 2, MidpointRounding.ToEven), null, null, null);
+            return true;
+        }
+        catch (OverflowException) { return false; }
+    }
+
+    // The value of a question already answered, or of a question of the block in every item.
+    private static IEnumerable<decimal> Values(Guid fieldId, IReadOnlyList<FormRecordAnswer> known) =>
+        known.Where(answer => answer.FieldId == fieldId && answer.Decimal is not null).Select(answer => answer.Decimal!.Value)
+            .Concat(known.Where(answer => answer.Rows is not null).SelectMany(answer => answer.Rows!).SelectMany(row => row)
+                .Where(answer => answer.FieldId == fieldId && answer.Decimal is not null).Select(answer => answer.Decimal!.Value));
 
     // True with a null answer for an optional question left empty.
     private static bool TryScalar(CanonicalFormField question, string raw, IReadOnlyList<StructuredFormCatalogOffer> offers,

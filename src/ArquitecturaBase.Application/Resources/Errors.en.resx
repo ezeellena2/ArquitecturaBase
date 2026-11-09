@@ -404,6 +404,9 @@
   <data name="Forms.Publication.SectionEmpty" xml:space="preserve">
     <value>Add at least one question below the title.</value>
   </data>
+  <data name="Forms.Publication.CalculationInvalid" xml:space="preserve">
+    <value>Choose number questions that come earlier. In the block, multiply and percent use the same item, and a sum goes outside.</value>
+  </data>
   <data name="Forms.Publication.RowsOverChannelLimit" xml:space="preserve">
     <value>WhatsApp loads fewer items than the block maximum.</value>
   </data>

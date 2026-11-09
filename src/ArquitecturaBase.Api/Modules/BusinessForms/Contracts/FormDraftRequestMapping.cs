@@ -20,7 +20,8 @@ internal static class FormDraftRequestMapping
             Map(field.Source),
             field.Files is null ? null : new FormFileSettings(field.Files.MinFiles, field.Files.MaxFiles, field.Files.PhotoSource),
             field.Selection is null ? null : new FormSelectionSettings(field.Selection.MinSelected, field.Selection.MaxSelected),
-            field.Rows is null ? null : new FormRowSettings(field.Rows.MinRows, field.Rows.MaxRows), field.Repeated)).ToArray()!,
+            field.Rows is null ? null : new FormRowSettings(field.Rows.MinRows, field.Rows.MaxRows), field.Repeated,
+            field.Calculation is null ? null : new FormCalculation(field.Calculation.Operation, field.Calculation.Operands))).ToArray()!,
         draft.Sections?.Select(section => section is null ? null! : new FormSection(section.Start, section.Title)).ToArray());
     public static FormQuestionSource? Map(FormQuestionSourceHttpRequest? source) => source is null ? null : new(source.Catalog,
         source.Match?.Select(match => match is null ? null! : new FormCatalogMatch(match.FieldId, match.Value, match.PersonAttributeId, match.QuestionId)).ToArray(),

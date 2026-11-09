@@ -404,6 +404,9 @@
   <data name="Forms.Publication.SectionEmpty" xml:space="preserve">
     <value>Agregá al menos una pregunta debajo del título.</value>
   </data>
+  <data name="Forms.Publication.CalculationInvalid" xml:space="preserve">
+    <value>Elegí preguntas de número que vayan antes. En el bloque, multiplicar y porcentaje usan las del mismo ítem, y una suma va afuera.</value>
+  </data>
   <data name="Forms.Publication.RowsOverChannelLimit" xml:space="preserve">
     <value>En WhatsApp se cargan menos ítems que el máximo del bloque.</value>
   </data>

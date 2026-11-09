@@ -24,7 +24,8 @@ public sealed record FormFieldInput(string LocalId, Guid? FieldId, Guid? Replace
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormFileSettings? Files = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormSelectionSettings? Selection = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormRowSettings? Rows = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? Repeated = null)
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? Repeated = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormCalculation? Calculation = null)
 { public override string ToString() => "FormFieldInput { Content = [REDACTED] }"; }
 public sealed record FormChoiceInput(string LocalId, Guid? ChoiceId, IReadOnlyDictionary<string, string> Label)
 { public override string ToString() => "FormChoiceInput { Content = [REDACTED] }"; }
@@ -46,6 +47,14 @@ public sealed record FormCatalogMatch(Guid FieldId,
 public sealed record FormSelectionSettings(int MinSelected, int MaxSelected);
 // The block of rows is the "group" question; its questions follow it, without gaps, marked Repeated.
 public sealed record FormRowSettings(int MinRows, int MaxRows);
+// CA1-A: a read-only decimal the server computes with a fixed operation ("multiply", "sum" or "percent") over questions that
+// go before it. In a draft an operand names a question by its FieldId or, when it is new, by its LocalId; sealed, by its FieldId.
+public sealed record FormCalculation(string Operation, IReadOnlyList<Guid> Operands)
+{
+    public const string Multiply = "multiply", Sum = "sum", Percent = "percent";
+    public const int MaxSumOperands = 20;
+    public override string ToString() => "FormCalculation { Content = [REDACTED] }";
+}
 public sealed record FormFileSettings(int MinFiles, int MaxFiles, string? PhotoSource = null);
 public sealed record CanonicalFormChoice(Guid ChoiceId, IReadOnlyDictionary<string, string> Label)
 { public override string ToString() => "CanonicalFormChoice { Content = [REDACTED] }"; }
@@ -55,7 +64,8 @@ public sealed record CanonicalFormField(Guid FieldId, string Key, string Type, I
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormFileSettings? Files = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormSelectionSettings? Selection = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormRowSettings? Rows = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? Repeated = null)
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? Repeated = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormCalculation? Calculation = null)
 { public override string ToString() => "CanonicalFormField { Content = [REDACTED] }"; }
 public sealed record FormQuestionSchema(int Format, IReadOnlyList<CanonicalFormField> Fields,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<FormSection>? Sections = null)

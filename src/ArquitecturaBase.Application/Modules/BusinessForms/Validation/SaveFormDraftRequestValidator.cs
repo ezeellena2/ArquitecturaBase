@@ -61,6 +61,7 @@ internal sealed partial class SaveFormDraftRequestValidator : AbstractValidator<
                         || selection.MinSelected > selection.MaxSelected || field.Required != (selection.MinSelected > 0)
                         || field.Source is null && field.Options is { } ownOptions && selection.MinSelected > ownOptions.Count
                     : field.Selection is not null) Fail(path + ".selection");
+                if (field.Calculation is { } calculation && !HasValidShape(calculation, field)) Fail(path + ".calculation");
                 var textType = field.Type is "shortText" or "longText";
                 if ((textType && field.MaxLength is < 1 or > 10000) || (!textType && field.MaxLength.HasValue)) Fail(path + ".maxLength");
                 if (field.Type is not ("choice" or "multiChoice"))
@@ -106,6 +107,20 @@ internal sealed partial class SaveFormDraftRequestValidator : AbstractValidator<
                 CheckText(section.Title, draft.Culture, 80, path + ".title", Fail);
             }
         });
+    }
+    // CA1-A: only an optional decimal is calculated; multiply and percent take two operands and sum up to twenty, each another
+    // question named once. Whether they exist and go before is checked when publishing.
+    private static bool HasValidShape(FormCalculation calculation, FormFieldInput field)
+    {
+        if (field.Type != "decimal" || field.Required || calculation.Operands is not { } operands) return false;
+        var count = calculation.Operation switch
+        {
+            FormCalculation.Multiply or FormCalculation.Percent => operands.Count == 2,
+            FormCalculation.Sum => operands.Count is >= 1 and <= FormCalculation.MaxSumOperands,
+            _ => false,
+        };
+        Guid? self = field.FieldId ?? (Guid.TryParse(field.LocalId, out var local) ? local : null);
+        return count && operands.All(operand => operand != Guid.Empty && operand != self) && operands.Distinct().Count() == operands.Count;
     }
     private static void CheckText(IReadOnlyDictionary<string, string>? texts, string culture, int limit, string path, Action<string> fail, bool utf16 = false)
     {

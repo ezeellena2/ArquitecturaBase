@@ -48,6 +48,8 @@ internal sealed class FormEntryRecorder(IBusinessFormRecordCaptureService captur
             }
             if (answer.ChoiceIds is not null || answer.Value is not { } value) return FormRecordErrors.InvalidResponse;
             if (value.Length == 0) continue;
+            // A calculation (CA1-A) is computed by the server: the app shows a preview and does not send it.
+            if (question.Calculation is not null) return FormRecordErrors.InvalidResponse;
             answers[question.Key] = value;
             if (question.Type == "choice" && question.Source?.Catalog is not null)
             {
@@ -88,6 +90,7 @@ internal sealed class FormEntryRecorder(IBusinessFormRecordCaptureService captur
             foreach (var question in block)
             {
                 if (row.SingleOrDefault(answer => answer.FieldId == question.FieldId)?.Value is not { Length: > 0 } value) continue;
+                if (question.Calculation is not null) return null;
                 item[question.Key] = value;
                 if (question.Type != "choice" || question.Source?.Catalog is null) continue;
                 if (!Guid.TryParseExact(value, "D", out var choice)) return null;

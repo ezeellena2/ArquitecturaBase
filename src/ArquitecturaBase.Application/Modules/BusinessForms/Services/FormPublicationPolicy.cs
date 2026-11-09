@@ -38,6 +38,28 @@ internal static class FormPublicationPolicy
                 FormPublicationErrors.SectionEmpty.Code, ErrorMessages.Get(FormPublicationErrors.SectionEmpty.Code), null, null)).ToList();
     }
 
+    // A calculation (CA1-A) uses earlier number questions within its reach: multiply and percent take those of the same item when
+    // the calculation is in the block and those outside it otherwise; a sum goes outside the block and adds a question of the block
+    // over all the items. Earlier operands also rule out cycles.
+    public static List<FormPublicationIssueResponse> ValidateCalculations(FormDefinitionResponse definition)
+    {
+        var fields = definition.Draft.Fields;
+        var issues = new List<FormPublicationIssueResponse>();
+        for (var index = 0; index < fields.Count; index++)
+        {
+            if (fields[index].Calculation is not { } calculation) continue;
+            var inBlock = fields[index].Repeated == true;
+            var earlier = fields.Take(index).ToDictionary(field => field.FieldId);
+            var valid = (calculation.Operation != FormCalculation.Sum || !inBlock) && calculation.Operands.All(operand =>
+                earlier.TryGetValue(operand, out var field) && field.Type == "decimal"
+                && (calculation.Operation == FormCalculation.Sum || (field.Repeated == true) == inBlock));
+            if (!valid)
+                issues.Add(new(null, fields[index].FieldId, null, $"draft.fields[{index}].calculation", FormPublicationErrors.CalculationInvalid.Code,
+                    ErrorMessages.Get(FormPublicationErrors.CalculationInvalid.Code), null, null));
+        }
+        return issues;
+    }
+
     // A minimum above the rows a channel loads blocks publishing with that channel (RG13-A): no response would reach it.
     public static List<FormPublicationIssueResponse> RowIssues(FormDefinitionResponse definition)
     {

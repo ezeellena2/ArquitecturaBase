@@ -27,6 +27,9 @@ public sealed record FormEntryQuestionResponse(Guid FieldId, string Type, string
     public FormRowSettings? Rows { get; init; }
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public bool? Repeated { get; init; }
+    /// <summary>CA1-A: how the server computes this read-only decimal; the app shows a preview with the same rounding and never sends it.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public FormCalculation? Calculation { get; init; }
     public override string ToString() => "FormEntryQuestionResponse { Content = [REDACTED] }";
 }
 
