@@ -1,14 +1,16 @@
 # ARCA · Etapa 2: el motor para documentos
 
-Plan del 2026-11-09, sin programar. Es la etapa 2 de la [hoja de ruta de ARCA](2026-10-31-arca-formularios-estandar.md):
+Plan del 2026-11-09, decidido el mismo día y sin programar. Es la etapa 2 de la [hoja de ruta de ARCA](2026-10-31-arca-formularios-estandar.md):
 lo que el motor de formularios necesita para armar documentos como la factura, sin emitir nada. Todo va en el módulo de
 formularios (BusinessForms) y no nombra a ARCA: la etapa 3 lo usa para la factura C. Las reglas de hoy están en
 [formularios](../features/formularios.md).
 
-**Tableros:** en el lienzo aparte «ARCA · motor para documentos» (enlace al dibujarlos), una fila por pregunta con la
+**Tableros:** CA1, RE1, BI1 y CO1 en el lienzo aparte
+[ARCA · motor para documentos](https://claude.ai/artifact/JPwMtoM9TqM8fyqGCr9QVP), una fila por pregunta con la
 recomendada primero. El lienzo provisorio «Formularios desde la app» lo comparten a la vez las sesiones de las etapas 3 a 6,
 y el Sistema visual es de otra cuenta, así que, como en renglones, carpetas, la IA y «Formularios sólo en la app», el
-diseño elegido se registra en el front (`docs/design`) antes de programarlo.
+diseño elegido está registrado en el front:
+[motor para documentos](../../../ArquitecturaBaseFront/docs/design/motor-para-documentos.md).
 
 **Orden:** primero lo que necesita la etapa 3 (cálculos, resultado externo y la biblioteca con preguntas atadas), después
 las carpetas, que la biblioteca usa para ubicar lo que agrega, y al final las condiciones. El backend va ahora; el front,
@@ -30,16 +32,19 @@ al usuario cuando queda commiteada.
 cantidad o un precio negativos los rechaza la emisión (etapa 3, «antes de emitir, el servidor recalcula y valida»), no el
 formulario.
 
-## Decisiones
+## Decisiones del usuario (2026-11-09)
 
-Se preguntan de a una, con su tablero y la recomendada primero.
+Eligió las cuatro recomendadas. No se vuelven a preguntar.
 
-| Tablero | Pregunta | Estado |
-| --- | --- | --- |
-| CA1 | Cómo se arma y se ve un cálculo | Por preguntar |
-| RE1 | Dónde se ve el resultado externo y cómo lo usan los avisos | Por preguntar |
-| BI1 | Qué trae la biblioteca en esta etapa y cómo se ve una pregunta atada | Por preguntar |
-| CO1 | Cómo se arma una condición y si vale también en WhatsApp | Por preguntar |
+1. **CA1-A: el cálculo es una pregunta más,** de tipo «Cálculo», con multiplicar, sumar o porcentaje entre preguntas de
+   número anteriores. Al cargar se ve en gris y no se escribe. Se descartó CA1-B (columnas calculadas y totales al pie).
+2. **RE1-A: el resultado externo es una zona en la respuesta,** arriba de «Datos» en el detalle y en la copia PDF, con una
+   columna por dato en la planilla y el Excel. Los avisos de la misma regla que van después de la acción usan sus datos.
+   Se descartó RE1-B (en la actividad).
+3. **BI1-A: un candado en cada pregunta atada,** en la lista del editor, y los controles que no se cambian apagados con su
+   motivo. Se descartó BI1-B (una lista en «El formulario»).
+4. **CO1-A: la condición va en cada pregunta,** «Se muestra: Siempre / Según otra respuesta», en la app y por WhatsApp. Se
+   descartó CO1-B (en el título de sección).
 
 **Resueltas por defecto** (lo más simple que cumple la hoja de ruta):
 
@@ -53,6 +58,10 @@ Se preguntan de a una, con su tablero y la recomendada primero.
 - Una pregunta atada conserva lo que la emisión necesita: no se borra, no cambia de tipo, no entra ni sale del bloque y
   conserva sus opciones, su catálogo, su cálculo y si es obligatoria. Se cambian su texto, su ayuda y su orden.
 - Las carpetas siguen su plan sin cambios.
+- La biblioteca no trae un estándar propio en esta etapa: el primero es la factura de la etapa 3. Sin estándares
+  instalados, «Biblioteca» no aparece.
+- Las condiciones valen también por WhatsApp (con un `If` sobre la respuesta, como el bloque de r12), porque la factura es
+  un solo estándar para los dos canales (decisión 4 de la hoja de ruta).
 
 ## Diseño
 
@@ -128,8 +137,7 @@ aunque la renombren (la usan ARCA y la biblioteca).
   reglas, como sin responder.
 - **Publicar** frena `Forms.Publication.ConditionInvalid` en `draft.fields[i].showWhen` si la pregunta no va antes, no es de
   un tipo que sirve o un valor ya no existe.
-- **WhatsApp**, según CO1: con un `If` sobre la respuesta, como el bloque de r12, o sólo en la app, como las listas
-  dependientes.
+- **WhatsApp:** el Flow la muestra con un `If` sobre la respuesta, como el bloque de r12; se prueba con Meta.
 
 ## ADR
 
@@ -143,7 +151,7 @@ Cada tarea con su test en rojo primero, el build y los tests rápidos del área,
 
 **Cálculos**
 
-1. CA1: tablero y decisión.
+1. ~~CA1: tablero y decisión.~~ Hecho: CA1-A.
 2. El borrador: `calculation` en `FormFieldInput` y `CanonicalFormField` (omitido si es null), su validación y el sellado
    de los operandos.
 3. Publicar: `CalculationInvalid` con el alcance de cada operación; la versión sellada y el pedido al canal lo llevan.
@@ -156,7 +164,7 @@ Cada tarea con su test en rojo primero, el build y los tests rápidos del área,
 
 **Resultado externo**
 
-9. RE1: tablero y decisión; el contrato con la etapa 3 en las notas.
+9. ~~RE1: tablero y decisión; el contrato con la etapa 3 en las notas.~~ Hecho: RE1-A.
 10. Los DTO, `BusinessFormRecordResults` con su migración y el helper que lo guarda.
 11. Las lecturas: detalle, planilla, Excel y PDF.
 12. Los avisos con datos del resultado, resueltos al ejecutar, y el punto donde una acción declara sus datos.
@@ -165,7 +173,7 @@ Cada tarea con su test en rojo primero, el build y los tests rápidos del área,
 
 **Biblioteca**
 
-15. BI1: tablero y decisión.
+15. ~~BI1: tablero y decisión.~~ Hecho: BI1-A.
 16. El puerto de estándares y `GET api/forms/library`.
 17. «Agregar»: la copia con su origen sellado y su migración.
 18. Las preguntas atadas en el guardado y en la lectura del borrador.
@@ -181,10 +189,10 @@ Cada tarea con su test en rojo primero, el build y los tests rápidos del área,
 
 **Condiciones**
 
-25. CO1: tablero y decisión.
+25. ~~CO1: tablero y decisión.~~ Hecho: CO1-A.
 26. El borrador y publicar.
 27. La captura y la carga.
-28. WhatsApp, según CO1, con prueba con Meta.
+28. WhatsApp con un `If`, con prueba con Meta.
 29. Front: el editor y la carga.
 
 **Cierre**
