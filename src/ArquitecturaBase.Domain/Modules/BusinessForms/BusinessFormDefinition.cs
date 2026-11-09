@@ -30,6 +30,11 @@ public sealed class BusinessFormDefinition : Entity, IAuditable, ISoftDeletable
     public Guid? ModifiedBy { get; private set; }
     public Guid? ProposalId { get; private set; }
     public string? ProposalEvidenceJson { get; private set; }
+    /// <summary>BI1-A: the standard of the library this form was added from, its version and which question holds each datum it needs.</summary>
+    public string? StandardKey { get; private set; }
+    public int? StandardVersion { get; private set; }
+    public string? StandardBindingsJson { get; private set; }
+    public const int MaxStandardKeyLength = 64;
     public static BusinessFormDefinition Create() => new();
     // A draft created from an assistant proposal keeps which one and where it came from, once.
     public void RecordProposal(Guid proposalId, string evidenceJson)
@@ -39,6 +44,18 @@ public sealed class BusinessFormDefinition : Entity, IAuditable, ISoftDeletable
         if (ProposalId is not null) throw new InvalidOperationException("A draft records its proposal only once.");
         ProposalId = proposalId;
         ProposalEvidenceJson = evidenceJson;
+    }
+    // A form added from the library keeps its standard, version and bound questions, once.
+    public void RecordStandard(string key, int version, string bindingsJson)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        if (key.Length > MaxStandardKeyLength) throw new ArgumentException("The standard key is too long.", nameof(key));
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(version);
+        ArgumentException.ThrowIfNullOrWhiteSpace(bindingsJson);
+        if (StandardKey is not null) throw new InvalidOperationException("A form records its standard only once.");
+        StandardKey = key;
+        StandardVersion = version;
+        StandardBindingsJson = bindingsJson;
     }
     public Result SetDraft(long expectedRevision, string name, string nameJson, string prefix, string culture,
         string submitLabelJson, string schemaJson, int questionCount, bool creating, string? offerWhen = null)

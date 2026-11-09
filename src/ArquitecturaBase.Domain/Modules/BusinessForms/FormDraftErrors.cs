@@ -21,4 +21,5 @@ public static class FormDraftErrors
 
     public static readonly Error ChoiceLabelRequired = Error.Validation(
         "Forms.Draft.ChoiceLabelRequired", "A choice requires a nonblank label.");
+    public static readonly Error BoundQuestionChanged = Error.Validation("Forms.Draft.BoundQuestionChanged", "A question the form's standard needs keeps everything but its text, help and order.");
 }

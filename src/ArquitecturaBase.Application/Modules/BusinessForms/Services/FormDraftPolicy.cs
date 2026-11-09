@@ -39,7 +39,8 @@ internal static class FormDraftPolicy
     private static ReadOnlyDictionary<string, string?> SortNullable(IReadOnlyDictionary<string, string?> values) =>
         new ReadOnlyDictionary<string, string?>(new SortedDictionary<string, string?>(values.ToDictionary(pair => pair.Key, pair => string.IsNullOrWhiteSpace(pair.Value) ? null : pair.Value), StringComparer.Ordinal));
     public static FormDefinitionResponse Definition(BusinessFormDefinition value) => Definition(value.Id, value.NameJson, value.Prefix,
-        value.PrefixLocked, value.Revision, value.Culture, value.SubmitLabelJson, value.SchemaJson, value.OfferWhen);
+        value.PrefixLocked, value.Revision, value.Culture, value.SubmitLabelJson, value.SchemaJson, value.OfferWhen) with
+        { Standard = FormStandardPolicy.Response(value.StandardKey, value.StandardVersion, value.StandardBindingsJson) };
     public static FormDefinitionResponse Definition(Guid id, string nameJson, string prefix, bool prefixLocked, long revision,
         string culture, string submitLabelJson, string schemaJson, string? offerWhen = null) => new(id, Read<Dictionary<string, string>>(nameJson), prefix, prefixLocked, revision,
             Draft(culture, Read<Dictionary<string, string>>(submitLabelJson), Read<FormQuestionSchema>(schemaJson)), offerWhen);

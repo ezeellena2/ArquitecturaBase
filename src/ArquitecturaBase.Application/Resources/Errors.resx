@@ -184,6 +184,9 @@
   <data name="Forms.Draft.IdentityRetired" xml:space="preserve"><value>Una identidad retirada no se puede volver a usar.</value></data>
   <data name="Forms.Draft.QuestionConfigurationInvalid" xml:space="preserve"><value>La configuración de la pregunta no corresponde a su tipo.</value></data>
   <data name="Forms.Draft.ChoiceLabelRequired" xml:space="preserve"><value>Escribí el texto de la opción.</value></data>
+  <data name="Forms.Draft.BoundQuestionChanged" xml:space="preserve"><value>Esta pregunta la necesita el estándar del que viene el formulario: sólo se le cambian el texto, la ayuda y el orden.</value></data>
+  <data name="Forms.Library.StandardNotFound" xml:space="preserve"><value>No está ese estándar en la biblioteca.</value></data>
+  <data name="Forms.Library.CatalogUnavailable" xml:space="preserve"><value>Falta un catálogo que necesita el estándar.</value></data>
   <data name="Forms.Definition.Forbidden" xml:space="preserve"><value>No tenés el permiso necesario para este formulario.</value></data>
   <data name="Forms.Definition.NotFound" xml:space="preserve"><value>No se encontró el formulario.</value></data>
   <data name="Forms.Definition.PrefixLocked" xml:space="preserve"><value>El prefijo ya no se puede cambiar.</value></data>

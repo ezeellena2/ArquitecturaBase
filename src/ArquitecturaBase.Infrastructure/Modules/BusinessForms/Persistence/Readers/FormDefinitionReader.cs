@@ -18,7 +18,8 @@ internal sealed class FormDefinitionReader(ApplicationDbContext dbContext, IForm
                 row.Definition.SchemaJson, row.Definition.CreatedAtUtc, row.Definition.ModifiedAtUtc, row.LastChangedAtUtc,
                 row.LastChangedByUserId == null ? null : new FormAuthorResponse(row.LastChangedByUserId.Value,
                     dbContext.Users.Where(user => user.Id == row.LastChangedByUserId).Select(user => user.DisplayName).FirstOrDefault()),
-                row.Definition.OfferWhen)).SingleOrDefaultAsync(cancellationToken);
+                row.Definition.OfferWhen) { StandardKey = row.Definition.StandardKey, StandardVersion = row.Definition.StandardVersion,
+                    StandardBindingsJson = row.Definition.StandardBindingsJson }).SingleOrDefaultAsync(cancellationToken);
     public async Task<FormPublicationOverviewResponse> FindPublicationAsync(Guid id, Guid? recoveryActor, CancellationToken cancellationToken)
     {
         var activeRow = await (from definition in dbContext.Set<BusinessFormDefinition>().AsNoTracking().Where(value => value.Id == id)

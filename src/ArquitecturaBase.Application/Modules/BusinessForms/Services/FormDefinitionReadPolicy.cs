@@ -24,7 +24,7 @@ internal sealed class FormDefinitionReadPolicy(IFormDefinitionReader reader, IFo
         var current = await access.CheckAsync(false, ct);
         if (current.IsFailure || current.Value != actor) return FormDefinitionErrors.Forbidden;
         return new FormDefinitionDetailResponse(FormDraftPolicy.Definition(row.Id, row.NameJson, row.Prefix, row.PrefixLocked, row.Revision,
-            row.Culture, row.SubmitLabelJson, row.SchemaJson, row.OfferWhen), new(canSave, canPublish, publication.ActiveVersion is not null),
+            row.Culture, row.SubmitLabelJson, row.SchemaJson, row.OfferWhen) with { Standard = FormStandardPolicy.Response(row.StandardKey, row.StandardVersion, row.StandardBindingsJson) }, new(canSave, canPublish, publication.ActiveVersion is not null),
             new(row.CreatedAtUtc, row.ModifiedAtUtc, row.LastChangedAtUtc, row.Author), publication,
             FormDefinitionLifecyclePolicy.View(facts, state, nowUtc, canSave, canPublish, canReadRecords));
     }

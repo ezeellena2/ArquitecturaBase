@@ -1757,6 +1757,16 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("jsonb");
 
+                    b.Property<string>("StandardBindingsJson")
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("StandardKey")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<int?>("StandardVersion")
+                        .HasColumnType("integer");
+
                     b.Property<string>("SubmitLabelJson")
                         .IsRequired()
                         .HasColumnType("jsonb");
@@ -1768,6 +1778,8 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ProposalId")
                         .IsUnique();
+
+                    b.HasIndex("StandardKey");
 
                     b.HasIndex("Id", "ActivePdfDesignId");
 

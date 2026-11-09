@@ -64,12 +64,20 @@ internal sealed class FormDraftService(IFormDraftRepository repository, FormDefi
         var retiredIdentities = definition is null ? FormRetiredIdentities.Empty
             : await repository.FindRetiredIdentitiesAsync(definition.Id, inputFieldIds, inputChoiceIds, ct);
         var resolved = FormDraftPolicy.Resolve(request, definition, retiredIdentities); if (resolved.IsFailure) return resolved.Error;
+        // BI1-A: a form added from the library keeps what its standard needs in the bound questions.
+        if (definition?.StandardBindingsJson is { } bindings)
+        {
+            var bound = FormStandardPolicy.CheckBound(bindings, FormDraftPolicy.Read<FormQuestionSchema>(definition.SchemaJson).Fields, resolved.Value.Draft.Fields);
+            if (bound.IsFailure) return bound.Error;
+        }
         var creating = definition is null; definition ??= BusinessFormDefinition.Create();
         if (await repository.ExistsPrefixAsync(request.Prefix, definition.Id, ct)) return FieldErrors.On(FormDefinitionErrors.PrefixTaken, "prefix");
         var draft = resolved.Value.Draft;
         var updated = definition.SetDraft(request.ExpectedRevision ?? 1, request.Name[draft.Culture], FormDraftPolicy.Serialize(request.Name), request.Prefix, draft.Culture,
             FormDraftPolicy.Serialize(draft.SubmitLabel), FormDraftPolicy.Serialize(new FormQuestionSchema(1, draft.Fields, draft.Sections)), FormDraftPolicy.QuestionCount(draft.Fields), creating, request.OfferWhen);
         if (updated.IsFailure) return updated.Error;
+        if (creating && request.Standard is { } standard)
+            definition.RecordStandard(standard.Key, standard.Version, FormDraftPolicy.Serialize(FormStandardPolicy.Bindings(standard, resolved.Value.IdentityMap)));
         var change = BusinessFormDraftChange.Create(actor, request.RequestId, definition.Id, kind, request.ExpectedRevision, definition.Revision, nowUtc.AddDays(30));
         var response = new FormDraftCommitResponse(request.RequestId, FormDraftPolicy.Definition(definition), resolved.Value.IdentityMap,
             new(change.ResultExpiresAtUtc));

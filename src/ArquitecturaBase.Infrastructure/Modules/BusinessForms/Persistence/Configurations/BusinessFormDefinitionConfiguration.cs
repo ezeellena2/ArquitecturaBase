@@ -21,6 +21,10 @@ internal sealed class BusinessFormDefinitionConfiguration : IEntityTypeConfigura
         // A proposal creates one draft at most; a deleted draft keeps its proposal reserved, like its prefix.
         builder.HasIndex(x => x.ProposalId).IsUnique();
         builder.Property(x => x.ProposalEvidenceJson).HasColumnType("jsonb");
+        // BI1-A: the standard of the library a form came from.
+        builder.Property(x => x.StandardKey).HasMaxLength(BusinessFormDefinition.MaxStandardKeyLength);
+        builder.Property(x => x.StandardBindingsJson).HasColumnType("jsonb");
+        builder.HasIndex(x => x.StandardKey);
         // SQL search and order use the same authoring name as the requested UI language.
         // These projections are generated from the single name map; they are never edited independently.
         builder.Property<string>("DisplayNameEs").HasMaxLength(120)

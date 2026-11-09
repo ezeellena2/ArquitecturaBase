@@ -184,6 +184,9 @@
   <data name="Forms.Draft.IdentityRetired" xml:space="preserve"><value>A retired identity cannot be reused.</value></data>
   <data name="Forms.Draft.QuestionConfigurationInvalid" xml:space="preserve"><value>The question configuration is not valid for its type.</value></data>
   <data name="Forms.Draft.ChoiceLabelRequired" xml:space="preserve"><value>Enter the choice text.</value></data>
+  <data name="Forms.Draft.BoundQuestionChanged" xml:space="preserve"><value>The standard this form comes from needs this question: only its text, help and order can change.</value></data>
+  <data name="Forms.Library.StandardNotFound" xml:space="preserve"><value>That standard is not in the library.</value></data>
+  <data name="Forms.Library.CatalogUnavailable" xml:space="preserve"><value>A catalog the standard needs is missing.</value></data>
   <data name="Forms.Definition.Forbidden" xml:space="preserve"><value>You do not have the required form permission.</value></data>
   <data name="Forms.Definition.NotFound" xml:space="preserve"><value>The form was not found.</value></data>
   <data name="Forms.Definition.PrefixLocked" xml:space="preserve"><value>The prefix can no longer be changed.</value></data>

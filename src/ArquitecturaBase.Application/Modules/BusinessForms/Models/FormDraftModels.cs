@@ -8,6 +8,8 @@ public sealed record SaveFormDraftRequest(Guid RequestId, IReadOnlyDictionary<st
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public FormDraftProposalOrigin? Proposal { get; init; }
     // Set only by that same creation: whose proposal it was, also for a channel's person, who has no web session.
     [JsonIgnore] public Guid? ActorUserId { get; init; }
+    // Set only by «Agregar» from the library (BI1-A): the standard the draft comes from; never comes from HTTP.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public FormDraftStandardOrigin? Standard { get; init; }
     public override string ToString() => "SaveFormDraftRequest { Content = [REDACTED] }";
 }
 public sealed record FormDraftInput(int Format, string Culture, IReadOnlyDictionary<string, string>? SubmitLabel, IReadOnlyList<FormFieldInput> Fields,
@@ -74,7 +76,11 @@ public sealed record FormDraftResponse(int Format, string Culture, IReadOnlyDict
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<FormSection>? Sections = null)
 { public override string ToString() => "FormDraftResponse { Content = [REDACTED] }"; }
 public sealed record FormDefinitionResponse(Guid Id, IReadOnlyDictionary<string, string> Name, string Prefix, bool PrefixLocked, long Revision, FormDraftResponse Draft, string? OfferWhen = null)
-{ public override string ToString() => "FormDefinitionResponse { Content = [REDACTED] }"; }
+{
+    /// <summary>BI1-A: the standard of the library it came from and its bound questions; omitted for any other form.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public FormDefinitionStandardResponse? Standard { get; init; }
+    public override string ToString() => "FormDefinitionResponse { Content = [REDACTED] }";
+}
 public sealed record FormFieldIdentityMap(string LocalId, Guid FieldId, string Key, Guid? ReplacesFieldId);
 public sealed record FormChoiceIdentityMap(string FieldLocalId, string LocalId, Guid FieldId, Guid ChoiceId);
 public sealed record FormIdentityMap(IReadOnlyList<FormFieldIdentityMap> Fields, IReadOnlyList<FormChoiceIdentityMap> Choices);
@@ -111,7 +117,13 @@ public sealed record ListFormDefinitionsRequest : PagedRequest
     public string DisplayCulture { get; init; } = "es";
 }
 public sealed record FormDefinitionStoredRow(Guid Id, string NameJson, string Prefix, bool PrefixLocked, long Revision,
-    string Culture, string SubmitLabelJson, string SchemaJson, DateTime CreatedAtUtc, DateTime? ModifiedAtUtc, DateTime LastChangedAtUtc, FormAuthorResponse? Author, string? OfferWhen = null);
+    string Culture, string SubmitLabelJson, string SchemaJson, DateTime CreatedAtUtc, DateTime? ModifiedAtUtc, DateTime LastChangedAtUtc, FormAuthorResponse? Author, string? OfferWhen = null)
+{
+    // BI1-A: the standard it came from, its version and its bound questions (datum key → field id).
+    public string? StandardKey { get; init; }
+    public int? StandardVersion { get; init; }
+    public string? StandardBindingsJson { get; init; }
+}
 public sealed record FormChangeStoredRow(FormChangeProtectionContext Context, byte[]? ProtectedResult,
     DateTime ResultExpiresAtUtc, DateTime CommittedAtUtc, long CurrentRevision);
 public sealed record FormDefinitionFacetsResponse(int Active, int Published, int Drafts, int Deactivated);
