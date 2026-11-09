@@ -1,8 +1,9 @@
 # ARCA · Etapa 4: factura A y B
 
-Diseño del 2026-11-09, **sin programar y con preguntas pendientes del usuario** (abajo). Es la etapa 4 de la
+Diseño del 2026-11-09, **decidido el mismo día y sin programar** (decisiones abajo). Es la etapa 4 de la
 [hoja de ruta de ARCA](2026-10-31-arca-formularios-estandar.md): la factura A y B y sus notas de crédito, con el IVA por
-alícuota, la condición frente al IVA del receptor, el apartado de la RG 5614 y un piloto en producción con una CUIT real.
+alícuota, la condición frente al IVA del receptor, el apartado de la RG 5614 y la prueba en homologación con la CUIT del
+usuario, que reemplaza al piloto en producción (decisión 3).
 
 Extiende lo que deja la [etapa 3](2026-11-09-arca-etapa-3-factura-c.md) y no lo duplica: la cola de emisión con su
 numeración y reconciliación ([ADR 0028](../decisions/0028-emision-de-comprobantes-arca.md)), el cliente de
@@ -87,7 +88,8 @@ de producción (revisión del 1/9/2026), el [manual v4.8 de homologación](https
 - **Nota de crédito A y B** por el total, que referencia la factura en `CbtesAsoc`, con la misma anulación de la etapa 3.
 - **PDF:** IVA discriminado en la A, la leyenda de la RG 5003 en la A a un monotributista, y precios con IVA y el apartado de
   la RG 5614 en la B.
-- **Piloto en producción** con una CUIT real responsable inscripta. Lo corre el usuario con su clave fiscal.
+- **Prueba en homologación** con la CUIT responsable inscripta del usuario, que la corre con su clave fiscal. Reemplaza al
+  piloto en producción de la hoja de ruta (decisión 3).
 
 ## Diseño
 
@@ -102,12 +104,12 @@ de producción (revisión del 1/9/2026), el [manual v4.8 de homologación](https
 
 ### IVA en los renglones y en los totales
 
-- Cada renglón tiene su alícuota, elegida del catálogo de alícuotas de ARCA (**pregunta 2** para exento y no gravado),
+- Cada renglón tiene su alícuota, elegida del catálogo de alícuotas de ARCA más «Exento» y «No gravado» (decisión 2),
   con 21 % por defecto.
 - **El cálculo**, puro y en el servidor (el front sólo muestra la vista previa de los cálculos de la etapa 2):
   - importe del renglón = cantidad × precio unitario, redondeado a 2 decimales con half-even;
   - por alícuota, la base es la suma de los renglones y el IVA, la base por la alícuota, redondeado igual;
-  - si los precios incluyen IVA (**pregunta 1**), por alícuota la base es la suma dividida por (1 + alícuota), redondeada,
+  - si el formulario dice «Los precios incluyen IVA» (decisión 1), por alícuota la base es la suma dividida por (1 + alícuota), redondeada,
     y el IVA es la suma menos la base. El error contra base × alícuota es como mucho 0,005 × 1,27, dentro de la tolerancia
     de 0,01 de la 10051;
   - `ImpNeto` es la suma de las bases, `ImpIVA` la de los IVA y `ImpTotal` la de todo, con `ImpTrib` en 0.
@@ -152,31 +154,36 @@ homologación ya rechaza sin la condición (manual v4.8), así que sus pruebas l
 llega a producción antes del 1/12/2026, no hay emisión, no una emisión rechazada. Si cambia el plan de la etapa 3, se avisa
 al usuario.
 
-## Preguntas para el usuario
+## Decisiones del usuario (2026-11-09)
 
-Se hacen de a una, con la recomendada primero. Las respuestas se anotan acá.
+Se preguntaron de a una, con la recomendada primero.
 
-1. **El precio de cada renglón:** lo elige cada formulario con «Los precios incluyen IVA» (recomendada), siempre sin IVA, o
-   siempre con IVA.
-2. **Exento y no gravado:** opciones de la alícuota del renglón, junto a las de ARCA (recomendada), o sólo alícuotas
-   gravadas por ahora.
-3. **El piloto en producción:** qué CUIT responsable inscripta y qué se emite. Recomendada: una factura A y una B por un
-   importe mínimo a receptores conocidos, cada una anulada con su nota de crédito, y comprobadas en «Mis comprobantes» y con
-   el QR.
+1. **El precio de cada renglón.** El usuario eligió (2026-11-09) que **lo elija cada formulario**: la copia del estándar
+   «Factura» tiene «Los precios incluyen IVA», y el servidor separa o suma el IVA. Descartadas: siempre sin IVA y siempre
+   con IVA.
+2. **Exento y no gravado.** El usuario eligió (2026-11-09) que **sean opciones de la alícuota del renglón**, junto a las de
+   ARCA: una factura puede mezclar renglones gravados y exentos. Van a `ImpOpEx` e `ImpTotConc` y tienen su renglón en los
+   totales del PDF. Descartada: sólo alícuotas gravadas por ahora.
+3. **El piloto.** El usuario lo corre con **su CUIT responsable inscripta** (2026-11-09). Ante qué emitir en producción,
+   contestó que no hace falta: **todas las pruebas van en homologación**, que admite las que hagan falta. El piloto en
+   producción de la hoja de ruta sale de la etapa. La prueba: una factura A (a responsable inscripto y a monotributista,
+   con la leyenda) y una B a consumidor final, con alícuotas distintas y un renglón exento, cada una anulada con su nota de
+   crédito. Lo que homologación no muestra (los datos reales del padrón y si ARCA autoriza al emisor a la clase A o le pide
+   la A con leyenda) se ve en la primera factura real, fuera de la etapa.
 
 ## Tareas
 
 Lo puro va ya; lo demás espera a que la etapa 3 commitee lo suyo. El front espera a que el usuario termine la prueba
 integral.
 
-1. **Plan, normas, preguntas y tableros IV** (estos, con los de la etapa 3 elegidos).
-2. **El desglose del IVA por alícuota** con TDD, en Domain, según las preguntas 1 y 2.
+1. **Plan, normas y decisiones** (hechos el 2026-11-09) **y tableros IV**, con los de la etapa 3 elegidos.
+2. **El desglose del IVA por alícuota** con TDD, en Domain, según las decisiones 1 y 2.
 3. *(con la etapa 3)* **Las filas A y B** de la clase y el pedido con `Iva` y `DocTipo` 80, con `FakeArca`.
 4. *(con la etapa 3)* **Nota de crédito A y B.**
 5. *(con la etapa 3)* **PDF:** IVA discriminado, la leyenda de la RG 5003 y el apartado de la RG 5614.
 6. *(con las etapas 2 y 3)* **La alícuota en el estándar «Factura»** y «Los precios incluyen IVA» si se elige.
 7. **Front,** después de la prueba integral, con el diseño registrado en `docs/design`.
-8. **Homologación de A y B y piloto en producción**, que corre el usuario con su clave fiscal.
+8. **Prueba en homologación de A y B** con la CUIT del usuario, que la corre con su clave fiscal.
 9. **Cierre:** la verificación de `AGENTS.md`, `docs/features/arca.md`, la fila de la etapa 4 en la hoja de ruta, el retiro
    de este plan con la auditoría y el traspaso al multitenant ofrecido.
 
@@ -186,8 +193,8 @@ integral.
   y las tolerancias de 10051, 10061 y 10023); la clase A o B para cada condición; el PDF de la A y la B con y sin leyendas.
 - **De integración con `FakeArca`:** una A y una B autorizadas con su array `Iva`; los rechazos 10243 y 10000; la nota de
   crédito de cada clase con `CbtesAsoc`.
-- **Homologación real:** una factura A y una B con su nota de crédito, corridas por el usuario.
-- **Piloto en producción:** la pregunta 3.
+- **Homologación real:** la prueba de la decisión 3, corrida por el usuario con su CUIT.
+- **Sin piloto en producción** (decisión 3).
 
 ## Fuera de la etapa
 
