@@ -336,6 +336,14 @@ El perfil STT del navegador, `openai-stt-browser-candidate@1` (`gpt-transcribe`,
 
 Los intentos anteriores de ese día no cuentan para la calificación. Se cortaron por fallas del arnés (un archivo retenido por Windows, un scope compartido en el dictado y un control con la regla de idioma del 2026-10-18), por la carga de la máquina (un `ProviderUncertain` y un timeout de Redis) o por dos ajustes del producto (`b09aed3c`: el prefijo inválido y la aclaración con cifras).
 
+El `2026-11-09` se sumó el dictado por WhatsApp: `ia1_channel_dictation_20261109_01` (`channel-dictation`, sobre `5f61a087`), con la misma conexión guardada. Una nota de voz Ogg ficticia por idioma, con el mismo audio que el WebM del dictado de Inicio, se normalizó con el perfil Ogg/WAV ya declarado, `openai-stt-candidate@1` (`gpt-transcribe`, `audio-none-v1@1`), en la conversación automática propia de la persona, como la captura de WhatsApp. Después, en otra operación, `gpt-6.1-sol` con `gpt-6.1-sol-candidate-1@1` y `capabilities-v1@1` interpretó el texto que transcribió el servidor y propuso el formulario pedido. Resultado: 2/2 normalizaciones, 2/2 casos y 62/62 checks.
+- Las dos interpretaciones sumaron 8 pasos de proveedor, 6 invocaciones de herramientas, 20.407 tokens de entrada y 307 de salida.
+- Las dos STT informaron 22 segundos de audio y ningún token.
+- Los máximos fueron 17.806 bytes de contexto, 4.848 de continuación y 1.582 de herramientas, con notas de hasta 41.334 bytes.
+- Cada STT tardó menos de 5 s y la interpretación más larga, 12,34 s.
+
+El alcance sigue siendo `fixture-facts-checked-in-memory; style/free-text-not-exhaustively-assessed`.
+
 Para otra calificación, ejecutá el [arnés](../../harnesses/assistant-qualification/README.md)
 con fixtures ficticios y presupuesto controlado. Detenelo ante el primer check fallido. Conservá
 la base, ledger, archivos privados y key ring DPAPI propio del run: `--resume` consulta Get

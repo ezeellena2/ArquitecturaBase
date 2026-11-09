@@ -182,8 +182,6 @@ proveedor. Los intentos fallidos dejaron arreglos:
 - el control de presentación sigue la regla de idioma del 2026-10-19 (98b0d50c, 162 controles offline).
 
 Queda:
-- la corrida real del dictado por WhatsApp (`channel-dictation`), que ya está en el arnés (ver abajo) y espera el visto bueno del
-  usuario;
 - declarar el perfil STT del navegador (`openai-stt-browser-candidate@1`) en cada instalación que no sea la local, porque sin él no
   aparece el micrófono de Inicio; en la local quedó declarado el 2026-11-08 (`AudioModelProfiles:1`) y aceptado por la
   validación de arranque.
@@ -197,3 +195,8 @@ idioma, con el mismo audio que el WebM del dictado de Inicio y la cabecera que v
 capacidades de autoría la transcripción del servidor. La dicta otra cuenta del mismo rol, porque cada autor de los casos escritos
 ya hace las diez interpretaciones diarias que acepta el motor por persona. `channel-dictation` corre sólo esos dos casos; 172
 controles offline. La corrida con el proveedor real espera el visto bueno del usuario.
+
+2026-11-09: la corrida real del dictado por WhatsApp quedó en verde con OpenAI (`ia1_channel_dictation_20261109_01`, sobre
+5f61a087). Las dos notas de voz Ogg se normalizaron con `openai-stt-candidate@1`, y las dos interpretaciones tomaron la transcripción
+del servidor y propusieron el formulario pedido: 62/62 checks. La evidencia está en
+[configurar IA](../guides/configurar-ia.md#evidencia-para-habilitar-perfiles).
