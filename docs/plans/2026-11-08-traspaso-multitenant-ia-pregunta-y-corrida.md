@@ -11,7 +11,8 @@ escribirlo, que su §6 daba como pendiente:
 - lo nuevo para no repetir (§5), la adaptación (§6), lo que falta acá (§7) y dónde está cada cosa (§8).
 
 **Como los anteriores, no es código para copiar** (decisión 18 de su hoja de ruta) ni hace falta para dibujar (decisión 108).
-**Se lee después del 8** y no depende de los demás traspasos.
+**Se lee después del 8** y no depende de los demás traspasos. El 2026-11-09 se le sumó la corrida del dictado por WhatsApp
+(§3).
 
 ## 1. En pocas palabras
 
@@ -19,11 +20,13 @@ escribirlo, que su §6 daba como pendiente:
   mensaje siguiente, escrito o con un audio, continúa el mismo pedido (§2).
 - **La corrida real, el 2026-11-08,** con OpenAI `gpt-6.1-sol`: `ia-authoring` 46/46 y cuatro audios, `home-existing` 20/20 y
   `channel-stage5` 30/30. Los dos riesgos que el plan pedía medir entraron con margen (§3).
+- **El dictado por WhatsApp, el 2026-11-09:** una nota de voz que pide armar un formulario se transcribe, y la IA arma con lo que
+  transcribió el servidor. Su corrida también quedó en verde (§3).
 - **Dos ajustes del producto** que encontró esa corrida (§4): un prefijo pedido que no cumple el formato se cambia por el válido
   más parecido, sin preguntar, y las aclaraciones y los «no se puede» van sin cifras.
 - **Para el multitenant no hay decisiones nuevas.** Siguen las tres del §5 del traspaso 8; si el usuario adopta armar por
   WhatsApp, la pregunta va con esa respuesta. Las reglas del §4 y la lista del §5 valen con cualquier opción (§6).
-- **Falta acá** el dictado por WhatsApp como caso del arnés, la prueba manual y las etapas 2 y 3 (§7).
+- **Falta acá** la prueba manual y las etapas 2 y 3 (§7).
 
 ## 2. «Pregunta y espera» por WhatsApp
 
@@ -74,6 +77,14 @@ Lo que midió, para dimensionar topes:
 El alcance es el de las calificaciones anteriores: comprueba los hechos de los casos ficticios, sin evaluar a fondo el estilo ni
 el texto libre. Los intentos anteriores de ese día no cuentan: se cortaron por fallas del arnés, por la carga de la máquina o por
 los dos ajustes del §4.
+
+**El dictado por WhatsApp, el 2026-11-09.** Faltaba un caso: una nota de voz al asistente automático que pide armar un
+formulario. Como en la app, son dos operaciones. Primero se transcribe en la conversación propia de la persona, con el perfil
+de transcripción de los audios de WhatsApp (OpenAI `gpt-transcribe`, Ogg y WAV), que ya estaba declarado. Después, la IA arma
+con lo que transcribió el servidor, con las mismas herramientas que un pedido escrito. En español y en inglés, las dos notas se
+transcribieron (11 segundos de audio cada una, en menos de 5 s) y las dos propuestas fueron el formulario pedido, con sus
+preguntas exactas. Cada interpretación usó cuatro pasos, tres llamadas a herramientas y unos 10.000 tokens de entrada, con un
+contexto de hasta 17.806 bytes; la más larga tardó 12,34 s. El alcance es el mismo.
 
 ## 4. Dos ajustes del producto (b09aed3c)
 
@@ -128,7 +139,6 @@ espera» va con esa respuesta, como acá.
 
 ## 7. Lo que falta acá
 
-- **El dictado por WhatsApp** como caso combinado del arnés, que se está programando.
 - **La prueba manual,** en Inicio y por WhatsApp.
 - **El perfil de transcripción del navegador** en cada instalación que no sea la local.
 - **Las etapas 2 y 3** (planillas y documentos), sin programar. El usuario las dejó para después de la prueba integral final.
@@ -138,14 +148,16 @@ espera» va con esa respuesta, como acá.
 - **Regla vigente:** [formularios](../features/formularios.md#la-ia-arma-formularios-y-catálogos--etapa-1-2026-11-04), con el
   prefijo y «pregunta y espera»; [WhatsApp](../features/whatsapp.md), en «Armar formularios y catálogos (IA3-A)»; e
   [IA](../features/inteligencia-artificial.md), en la salida final `assistant_answer`.
-- **Evidencia:** [configurar IA](../guides/configurar-ia.md#evidencia-para-habilitar-perfiles), en la corrida del 2026-11-08.
-- **Estado:** el [plan de la etapa 1](2026-11-04-ia-arma-formularios-etapa-1.md), en sus entradas del 2026-11-07 y el
-  2026-11-08.
+- **Evidencia:** [configurar IA](../guides/configurar-ia.md#evidencia-para-habilitar-perfiles), en las corridas del 2026-11-08
+  y en la del dictado, del 2026-11-09.
+- **Estado:** el [plan de la etapa 1](2026-11-04-ia-arma-formularios-etapa-1.md), en sus entradas del 2026-11-07 al
+  2026-11-09.
 - **Diseño del front:** `ArquitecturaBaseFront/docs/design/ia-arma-formularios.md`. IA3-A e IA4 ya decían que un pedido que no
   queda claro pregunta; el front no cambió.
 - **Commits del backend:** «pregunta y espera», `87ed0482`, con sus casos del arnés en `c44f932e` y el plan en `d976c442`; los
-  dos ajustes, `b09aed3c`; la evidencia, `74f30093`; el perfil del navegador declarado en la instalación local, `c9b5a299`. Los
-  arreglos del arnés (`88b7abdc`, `7a2cb140`, `162db253` y `98b0d50c`) no aplican allá.
+  dos ajustes, `b09aed3c`; la evidencia, `74f30093`; el perfil del navegador declarado en la instalación local, `c9b5a299`; el
+  caso del dictado por WhatsApp en el arnés, `5f61a087`, y su evidencia, `add19c45`. Los arreglos del arnés (`88b7abdc`,
+  `7a2cb140`, `162db253` y `98b0d50c`) no aplican allá.
 - **Código de referencia:** `BusinessFormAuthoringAssistantCapabilitySource` (`unclear` y su comprobación),
   `FormAuthoringAssistantCodec` (los motivos y la descripción del prefijo), `WhatsAppAssistantAuthoringText` (el texto fijo),
   `WhatsAppAssistantAutomaticPolicy` (la espera de la respuesta), `AiAssistantEvidenceVerifier` (las cifras) y los recursos
@@ -159,9 +171,10 @@ espera» va con esa respuesta, como acá.
 Leé el traspaso 11 de ArquitecturaBase: docs/plans/2026-11-08-traspaso-multitenant-ia-pregunta-y-corrida.md. En esta PC
 está en C:\Users\ezequ\source\repos\ArquitecturaBase; desde otra PC, en GitHub (ezeellena2/ArquitecturaBase, rama main:
 hacé pull). Completa el traspaso 8, la etapa 1 de «la IA arma formularios y catálogos», con lo que pasó después: por
-WhatsApp, un pedido ambiguo pregunta y espera (decidido el 7/11); la corrida con el proveedor real quedó en verde (8/11),
-y esa corrida dejó dos ajustes: el prefijo pedido que no cumple el formato se normaliza sin preguntar y las aclaraciones
-van sin cifras. Toca tu E25 («Armar desde el asistente de la web», decisiones 75 y 102), tu E23 y tu módulo assistant.
+WhatsApp, un pedido ambiguo pregunta y espera (decidido el 7/11); la corrida con el proveedor real quedó en verde (8/11,
+y la del dictado por WhatsApp el 9/11), y la del 8/11 dejó dos ajustes: el prefijo pedido que no cumple el formato se
+normaliza sin preguntar y las aclaraciones van sin cifras. Toca tu E25 («Armar desde el asistente de la web», decisiones
+75 y 102), tu E23 y tu módulo assistant.
 
 1. Si todavía no incorporaste el traspaso 8, leelo antes y seguí su prompt: este lo completa y no cambia sus tres
    decisiones.

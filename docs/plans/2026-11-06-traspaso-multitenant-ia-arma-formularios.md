@@ -172,8 +172,8 @@ Leído en el multitenant en `c339b58d` (front `c5172e65`), con la hoja de ruta h
 
 Está al día en el [traspaso 11](2026-11-08-traspaso-multitenant-ia-pregunta-y-corrida.md) (2026-11-08), que completa este. El
 usuario decidió que un pedido ambiguo por WhatsApp pregunte y espere (2026-11-07), y la corrida con el proveedor real quedó en
-verde, con dos ajustes del producto. Lo que sigue pendiente está en el §7 de ese traspaso: el dictado por WhatsApp como caso
-del arnés, la prueba manual, el perfil de transcripción del navegador en las demás instalaciones y las etapas 2 y 3.
+verde, con dos ajustes del producto; la del dictado por WhatsApp, el 2026-11-09. Lo que sigue pendiente está en el §7 de ese
+traspaso: la prueba manual, el perfil de transcripción del navegador en las demás instalaciones y las etapas 2 y 3.
 
 ## 7. Dónde está cada cosa en ArquitecturaBase
 
