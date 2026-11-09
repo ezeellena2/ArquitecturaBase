@@ -1,0 +1,184 @@
+# Formularios sólo en la app
+
+Propuesta del 2026-11-09, **sin elegir ni programar**: falta el visto bueno del usuario a las preguntas de abajo. Lo pidió
+durante la prueba integral: «Quiero poder crear formularios que no vayan a WhatsApp, que sean sólo de la app». Hoy no se
+puede, porque publicar una versión siempre pasa por un canal.
+
+**Tableros:** SA0 a SA5 en el lienzo aparte [Formularios sólo en la app](https://claude.ai/artifact/GjxDspdmg3xtZzG4oH2Hzu)
+(versión 4), una fila por pregunta con la recomendada primero. El Sistema visual es de otra cuenta, así que, como en renglones,
+carpetas y la IA, el diseño queda registrado en el front:
+[formularios sólo en la app](../../../ArquitecturaBaseFront/docs/design/formularios-solo-en-la-app.md).
+
+## Lo que hay hoy
+
+- **Publicar siempre pasa por un canal.** `BusinessFormPublicationService.CheckAsync` agrega
+  `Forms.Publication.ChannelUnavailable` («No hay un canal de formularios instalado.») cuando no hay ningún
+  `IStructuredFormChannel`, y `FormPublicationChannelVerifier` devuelve el mismo error al aceptar. El único canal es
+  `WhatsAppStructuredFormChannel`: sin el módulo no se publica nada, aunque [formularios](../features/formularios.md) y
+  [quitar WhatsApp](../guides/quitar-whatsapp.md) declaran a BusinessForms independiente.
+- **La versión espera a Meta.** La aceptación sella la versión sin activarla; el worker la despacha y la activa recién con el
+  canal en `Published` (Accepted → Preparing → Publishing → ActivationPending → Published). Si Meta la rechaza, la operación
+  termina `Failed` y la versión activa anterior sigue. El 2026-11-09 Meta rechazó las versiones 2 y 3 de «Remito de prueba»
+  (el bloque al final, que arregló e42cc2a1) y la app siguió cargando la 1.
+- **La carga desde la app no depende de WhatsApp.** La carga, la planilla, el detalle, el Excel, las reglas, las aprobaciones y
+  el PDF trabajan sobre la versión activa. Lo único que falta es una forma de activar una versión sin canal.
+- **WhatsApp aparece en el editor para todos los formularios:** los topes de textos del compilador
+  (`WhatsApp.Flow.TextTooLong`), los ítems del bloque (`RowsOverChannelLimit` y `MinRowsOverChannelLimit`, ya condicionados a
+  que haya canal), los avisos de catálogo de `FormPublicationGuard` que sólo valen para el desplegable de Meta
+  (`OptionsPerRecipientHigh` con su 200 y `DependsOnAnswer`), «Cuándo lo ofrece el asistente», «Qué sugerir después», la vista
+  oficial y la vista previa del celular.
+
+## Las preguntas, con la recomendada
+
+1. **¿Dónde se elige? (SA1)** Recomiendo **SA1-A**: un ajuste «Dónde se completa» en la zona «El formulario», al lado del
+   prefijo, con «En la app y por WhatsApp» y «Sólo en la app»; se guarda con el borrador y cada versión lo sella. Las otras:
+   SA1-B, elegirlo en el diálogo de publicar en cada versión (el editor no puede adaptar avisos ni límites), y SA1-C, elegirlo
+   al crear y que quede fijo (pasarlo a WhatsApp exige otro formulario, con otro prefijo y otra planilla).
+2. **¿Con qué arranca un formulario nuevo?** Recomiendo **«En la app y por WhatsApp», como hoy**, también el que arma la IA.
+   La otra es arrancar con «Sólo en la app».
+3. **¿Qué cambia con «Sólo en la app»? (SA2)** Recomiendo **SA2-A**: se va todo lo de WhatsApp y el formulario no aparece en
+   WhatsApp. Eso incluye «Enviar formulario» en el chat (no lo lista), el asistente (no lo ofrece), «Qué sugerir después» (ni
+   como origen ni como destino), la vista oficial, «Cuándo lo ofrece el asistente», el máximo de 10 ítems del bloque (llega a
+   100 sin avisos), el desplegable de 200 de «Elegir primero por un campo» y los topes de textos de Meta. La otra, SA2-B, deja
+   los límites de WhatsApp para todos, para que pasar a WhatsApp no sorprenda; pero no evita los rechazos de Meta (el del 9/11
+   no lo veía ningún chequeo) y sin el módulo no hay chequeo que correr.
+4. **¿Las reglas siguen avisando por WhatsApp?** Recomiendo **que sí**: avisar no es completar. Cada regla ya elige si avisa,
+   a quién y con qué; «Sólo en la app» no las toca.
+5. **¿Qué dice el estado y dónde se ve el lugar? (SA3)** Recomiendo **SA3-A**: publicar algo de la app es instantáneo, el
+   encabezado sigue diciendo sólo el estado («Publicado · versión 4», EP1-A), «Qué se publica» suma la fila «Dónde se
+   completa» y el listado suma la columna «Dónde se completa», al lado de la que hoy se llama «En WhatsApp» y pasa a «Estado».
+   Las otras cambian sólo el encabezado: SA3-B, el estado dice el lugar («Publicado en la app · versión 4»), y SA3-C, una
+   etiqueta gris aparte. En el listado no hay opción: «Un dato por columna», la regla elegida el mismo día, no deja el lugar
+   en un renglón gris debajo del estado ni en una etiqueta junto al nombre.
+6. **¿Cómo se pasa de la app a WhatsApp y al revés? (SA4)** Recomiendo **SA4-A**: se cambia «Dónde se completa», se guarda y se
+   publica una versión nueva. A WhatsApp espera a Meta como hoy, y mientras tanto o si la rechaza la app sigue con la anterior;
+   a la app es instantáneo, con el aviso «Deja de completarse por WhatsApp. Los envíos abiertos se pueden responder hasta que
+   vencen.». La otra, SA4-B, hace que la app nunca espere a Meta: dos versiones activas a la vez (una en la app y otra en
+   WhatsApp), dos estados en pantalla y un cambio para todos los formularios de WhatsApp.
+7. **¿Qué hace la plantilla sin el módulo de WhatsApp? (SA5)** Recomiendo **que todo formulario sea de la app**: no aparece el
+   ajuste, el botón dice «Publicar» y la versión queda activa al instante. Lo que se publicó por WhatsApp antes de quitar el
+   módulo se sigue cargando en la app.
+
+## Cómo queda con las recomendadas
+
+### En el editor
+
+- «Dónde se completa» va en «El formulario», al lado del prefijo, con su (i). Aparece sólo si hay un canal de formularios
+  instalado. Es un cambio del borrador: se guarda con «Guardar borrador» y rige desde la próxima versión.
+- El botón del encabezado dice «Publicar en WhatsApp» o «Publicar» según lo elegido, aunque no esté guardado.
+- Con «Sólo en la app» se van «Cuándo lo ofrece el asistente» (lo escrito se conserva), la zona «Qué sugerir después» (las
+  sugerencias guardadas se conservan), «Ver vista oficial» y las menciones de WhatsApp de la (i) del máximo del bloque, de
+  «Elegir varias» y de la línea de «Elegir primero» («entra en el desplegable (200)»).
+- La vista previa del costado pasa a ser la de la app: el panel de «Nueva respuesta», en una columna y con un recuadro por ítem
+  del bloque, en lugar del celular de WhatsApp.
+
+### Al publicar
+
+- El diálogo es «Publicar la versión N» (sin «en WhatsApp»), con «Problemas» y «Avisos» sólo si hay (PU1-A) y la fila «Dónde se
+  completa» en «Qué se publica», con el valor de la versión nueva.
+- Al aceptar, la versión queda activa: el aviso es «Publicamos la versión N.» y la etiqueta, «Publicado · versión N». No hay
+  «Publicación aceptada», «Publicando» ni consulta.
+- Reactivar un formulario de la app también es instantáneo.
+
+### En el listado y en los diálogos de baja y eliminación
+
+- En «Diseñar formularios», la columna «En WhatsApp» pasa a «Estado», el segmentado deja de llamarse «Estado en WhatsApp» y se
+  suma la columna «Dónde se completa», con el lugar de la versión activa (en un borrador sin versión, el del borrador). Va sólo
+  con un canal instalado. Las columnas siguen [un dato por columna](../../../ArquitecturaBaseFront/docs/plans/2026-11-09-un-dato-por-columna.md):
+  si su UD2 («En WhatsApp», «Versión activa», «Último cambio» y «Cambió») se programa antes, este cambio renombra su «En
+  WhatsApp» y suma la columna; si se programa después, UD2 parte de «Estado».
+- La baja dice «No se carga más en la app» para todos; «No se manda más desde el chat» y «El asistente no lo ofrece», sólo si la
+  versión activa se publicó por WhatsApp. La advertencia de WhatsApp al eliminar aparece sólo si alguna versión se publicó ahí.
+- «Formularios» (la pantalla con «Cargar») no cambia.
+
+### En WhatsApp y el asistente
+
+- Un formulario cuya versión activa es de la app no aparece en «Enviar formulario», el asistente no lo ofrece ni lo prellena,
+  no es destino de una sugerencia y un pedido por WhatsApp va a «Formularios que faltan», como todo lo que no se puede
+  completar ahí.
+
+### Pasar de un lado al otro
+
+- A WhatsApp: los problemas y avisos de WhatsApp aparecen al publicar, con «Ir a la pregunta»; la versión espera a Meta.
+- A la app: los envíos abiertos de la versión anterior se responden hasta que vencen y sus Flows se deprecan después, como con
+  cualquier versión reemplazada.
+- Es el mismo formulario: respuestas, numeración, prefijo, reglas, PDF y planilla siguen.
+
+## Diseño técnico (lo que no se pregunta)
+
+La opción más simple que cumple lo anterior. Publicar en la app no tiene efectos fuera del sistema, así que no lleva recuperación
+durable ([ADR 0018](../decisions/0018-robustez-proporcional-al-efecto.md)): se acepta y se activa en un solo límite.
+
+### Backend
+
+- **El borrador.** `FormDraftInput` suma `appOnly` (`true` o null; `false` se guarda como null y se omite al escribir, como
+  `repeated`), así un borrador de siempre conserva sus bytes y sus huellas. La definición lo guarda con la misma revisión.
+  Entra en la comparación del chequeo y la aceptación (`FormPublicationSnapshotPolicy.Matches`) y en la huella de la
+  publicación, así un comprobante de un modo no sirve para el otro.
+- **Publica sólo en la app** cuando el borrador lo dice o cuando no hay canales instalados.
+- **El chequeo** no llama al canal ni agrega `ChannelUnavailable`, `RowIssues`, `RowWarnings`, `OptionsPerRecipientHigh` ni
+  `DependsOnAnswer` (`FormPublicationGuard.InspectCatalogsAsync` recibe si la publicación va a un canal). Responde
+  `LocallyValidated` y `Available` sin canales y suma `appOnly`. Si la versión activa se publicó en un canal y la nueva no,
+  agrega el aviso `Forms.Publication.LeavesChannels` (neutral en el backend; el front lo dice con WhatsApp).
+- **La aceptación** conserva lo local del verificador (almacenamiento de archivos, 10 archivos, catálogos válidos) y se saltea
+  los canales. Sella la versión con las culturas completas del chequeo (`PublishedCultures`, original y secundario completo) y
+  con `AppOnly` (columna nueva de `BusinessFormVersions`, en false para las anteriores: todas pasaron por un canal). La
+  operación nace `Published` en el mismo límite (un método de Domain que sólo parte de `Accepted`) y la definición activa la
+  versión con `ActivateVersion`, que también retira una baja. El recibo dice `Published` y la repetición del pedido devuelve el
+  mismo. El worker no la ve: no queda abierta.
+- **Las lecturas.** El detalle y el listado suman `appOnly` de la versión activa y del borrador; `canPreview` exige una versión
+  activa publicada en un canal; el ciclo de vida dice si alguna versión se publicó en un canal (para la advertencia al eliminar).
+- **La selección.** `FormSelectionReader` excluye las versiones activas `AppOnly`: alcanza a «Enviar formulario», a los
+  candidatos y el prellenado del asistente, a la aclaración y a las sugerencias en tiempo de ejecución. El editor de
+  sugerencias no ofrece ni guarda un destino de la app («Elegí un formulario publicado disponible.»).
+- **La capacidad del front.** `FormClientCapabilitySource` suma `form-channels` cuando hay al menos un `IStructuredFormChannel`.
+  Es neutral: el núcleo y BusinessForms siguen sin nombrar a WhatsApp.
+- **El retiro de Flows** no cambia: la versión de WhatsApp reemplazada por una de la app ya figura como no usada
+  (`IFormUnusedVersionReader`) y WhatsApp la depreca cuando vencen los envíos abiertos. Se agrega una prueba de integración.
+- **`ChannelUnavailable`** deja de existir: se quitan el código, sus textos y sus pruebas.
+- **La migración** suma las dos columnas (definición y versión). El snapshot generado se revisa por el CRLF escapado de
+  `CK_BusinessFormCatalogs_Proposal`.
+- **Docs:** una sección nueva en [formularios](../features/formularios.md) (y se corrige «Quitar módulo produce
+  ChannelUnavailable»), «Publicación» en [el detalle de los servicios](../features/formularios-servicios.md), la selección en
+  [WhatsApp](../features/whatsapp.md) y [quitar WhatsApp](../guides/quitar-whatsapp.md): Formularios sigue entero y publica en
+  la app.
+- **Contrato con el front:** se regeneran los ejemplos HTTP de publicación, detalle y listado con el exportador.
+
+### Front
+
+- El ajuste, con `SegmentedControl` (OE1-A) en un `FormField` con su `InfoTip`, sólo con `form-channels`; el borrador lo manda
+  en `appOnly`. En el celular, la opción que no entra baja de renglón.
+- Con «Sólo en la app»: sin `offerWhen`, sin `FormSuggestionsSection`, sin «Ver vista oficial», sin las menciones de WhatsApp
+  de las (i) y de la línea de «Elegir primero», y la vista previa con las piezas de la carga en el panel en lugar de
+  `PhonePreview`.
+- «Publicar» o «Publicar en WhatsApp»; el diálogo con su título y la fila «Dónde se completa»; un recibo `Published` termina en
+  el aviso «Publicamos la versión N.» sin pasar por «Publicación aceptada».
+- El listado con «Estado» y la columna «Dónde se completa»; la baja y la eliminación como arriba.
+- Textos en es y en; vitest del editor, el diálogo y el listado; escenas de test:visual del editor y del diálogo «Sólo en la
+  app» a 1440, 390 y 320 px; contratos HTTP con los ejemplos nuevos.
+
+## Cortes
+
+1. **Backend**, con TDD: Domain (la operación que nace publicada y el sello de la versión), el chequeo, la aceptación, las
+   lecturas, la selección, la capacidad, la migración, las docs y los ejemplos HTTP. Build, unitarios y arquitectura en cada
+   paso; la integración afectada al final del corte.
+2. **Front**, con los ejemplos nuevos y el front quieto (sin la app levantada ni otra sesión probando): editor, vista previa de
+   la app, diálogo, listado, baja y eliminación.
+3. **Cierre:** la corrida completa con Docker y el front entero (build, lint, vitest y test:visual); la prueba a mano (crear un
+   formulario de la app, publicarlo, cargarlo, pasarlo a WhatsApp con Meta y volverlo a la app) y volver a probar «Quitar
+   WhatsApp» en una copia. Las decisiones pasan a formularios y al front, y el plan se retira.
+
+## Coordinación
+
+- Nada se programa sin el visto bueno del usuario. Mientras dura la prueba integral no se edita el `src` del front.
+- Carpetas en el menú lateral (CP5-A, sin programar): no cambian; muestran los formularios activos sin mirar dónde se completan.
+- El motivo de lo apagado (MA1-A): «Publicar» apagado sigue diciendo su motivo sobre el control.
+- Un dato por columna (UD): ver «En el listado» arriba; los dos cambios tocan `FormsPage.tsx` y van uno después del otro.
+- Al cerrar, se suma a un traspaso al multitenant.
+
+## Fuera de alcance
+
+- «Sólo WhatsApp»: lo publicado por WhatsApp también se carga en la app.
+- Cambiar los límites propios de la app (40 preguntas, 20 opciones en «Elegir varias», 10 archivos, 100 ítems).
+- Que la app no espere a Meta (SA4-B), salvo que el usuario lo elija.
+- Copiar formularios, que sigue esperando su tablero.
