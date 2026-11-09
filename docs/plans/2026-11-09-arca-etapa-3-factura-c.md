@@ -1,6 +1,6 @@
 # ARCA · Etapa 3: factura C
 
-Diseño del 2026-11-09, **sin programar y con preguntas pendientes del usuario** (abajo). Es la etapa 3 de la
+Diseño del 2026-11-09, **decidido por el usuario el mismo día** (abajo) y sin programar. Es la etapa 3 de la
 [hoja de ruta de ARCA](2026-10-31-arca-formularios-estandar.md): emitir la factura C y su nota de crédito en homologación,
 desde un formulario estándar «Factura» que se carga en la app y por WhatsApp. Se apoya en la [etapa 1](../features/arca.md)
 (conexión, ticket, padrón y punto de venta) y en las piezas de la etapa 2, que se diseñan en otro chat: los cálculos, el
@@ -9,7 +9,8 @@ resultado externo en la respuesta, las carpetas y la biblioteca de estándares c
 
 **Tableros:** EM1, EM2, NC1 y CA1 en el lienzo provisorio
 [Formularios desde la app](https://claude.ai/artifact/Kvbr5KFJrGT951JLiu8i4M), en las filas «ARCA · factura C». El diseño
-elegido se registra en el front (`docs/design`) antes de programar el front, como en la etapa 1.
+elegido se registra en el front (`docs/design`) antes de programar el front, como en la etapa 1. El plan y el ADR entraron en
+`main` dentro del commit 5bbad70c de la etapa 2, que se llevó lo que estaba preparado en el índice compartido.
 
 ## Lo que ya está decidido
 
@@ -115,7 +116,8 @@ clave de idempotencia natural.
 - **La ventana de `CbteFch`** (manual 4.7): con concepto 1 (productos), hasta 5 días antes o después de la fecha de
   generación y sin salirse del mes; con concepto 2 o 3, hasta 10 días. Las fechas son de la Argentina (UTC−3, sin horario de
   verano). Antes de tomar número se controla que la fecha pedida entre en la ventana de hoy. Si ya no entra, el comprobante
-  va a `NeedsReview` con el motivo «La fecha quedó fuera de lo que acepta ARCA» (**pregunta 5**).
+  va a `NeedsReview` con el motivo «La fecha quedó fuera de lo que acepta ARCA» y una persona elige «Emitir con la fecha de
+  hoy» o «No emitir» (decisión 5).
 - **El aviso a la persona:** la primera vez que un comprobante queda esperando por ARCA, la acción de formularios le manda a
   quien cargó un aviso fijo por el canal («ARCA no responde. Tu factura sale apenas vuelva.»). Uno solo por emisión.
 
@@ -213,17 +215,25 @@ de «Armar el PDF».
   ARCA. Formularios lo usa al agregar o editar una opción del catálogo «Clientes»: «Completar con ARCA» junto a la CUIT llena
   la razón social, la condición y el domicilio (tablero CA1). El catálogo «Clientes» llega con el estándar y su campo CUIT
   queda atado a esa búsqueda.
-- **En WhatsApp** se elige un cliente del catálogo o «Consumidor final»; un cliente nuevo por WhatsApp es la **pregunta 4**.
+- **Un cliente nuevo, también al facturar** (decisión 4): la pregunta «Cliente» ofrece los del catálogo, «Consumidor final»
+  y «Otro: escribir la CUIT», que muestra la pregunta «CUIT del cliente» (condición de la etapa 2). Al recibir, el servidor
+  la completa con el padrón y el «¿La emito?» ya dice el nombre que trajo ARCA; con «Emitir», el cliente se suma a «Clientes».
+  Vale en la app y en WhatsApp. Si ARCA no tiene esa CUIT o no responde, el resumen lo dice y ofrece «Volver a probar» y «No
+  emitir»: sin nombre no se emite.
 
 ### El estándar «Factura»
 
-- **Preguntas atadas:** Cliente (catálogo «Clientes», con «Consumidor final»), Concepto (catálogo de ARCA), el bloque de
+- **Preguntas atadas:** Cliente (catálogo «Clientes», con «Consumidor final» y «Otro: escribir la CUIT»), CUIT del cliente
+  (se ve con «Otro»), Concepto (catálogo de ARCA), el bloque de
   renglones (Descripción, Cantidad, Precio unitario e Importe calculado), Total (cálculo), Período desde y hasta y
   Vencimiento del pago (se ven si el concepto no es «Productos»), Fecha (hoy por defecto) y Mandar copia al cliente.
 - **Reglas que trae:** «Cuando llega»: emitir (o pedir la aprobación, si el formulario la usa, y emitir «Cuando se aprueba»);
   después avisar a quien cargó con el PDF fiscal y, si se marcó, mandar la copia al cliente.
-- **El «¿La emito?»:** en la app, al tocar «Enviar», un resumen con el tipo que decidió el sistema, el cliente y el total
-  (`PreviewAsync`), con «Emitir» y «Volver» (tablero EM2). En WhatsApp, la **pregunta 3**.
+- **El «¿La emito?»** (EM2-A): en la app, al tocar «Enviar», un resumen con el tipo que decidió el sistema, el cliente y el
+  total (`PreviewAsync`), con «Emitir factura» y «Volver». En WhatsApp, al terminar el Flow llega el mismo resumen como mensaje,
+  con «Emitir» y «No emitir», sin el intercambio cifrado con Meta. Mientras no contesta, la emisión espera y el detalle le
+  muestra a quien cargó «Esperando que lo confirmes» con los mismos dos botones. «No emitir» anula la respuesta con el motivo
+  «No se emitió» y no va nada a ARCA.
 - **La copia al cliente** va por correo, con el PDF, a la dirección del catálogo «Clientes»; sin dirección, la opción no se
   ofrece. Usa el correo que ya manda la app.
 
@@ -232,7 +242,10 @@ de «Armar el PDF».
 - «Anular» una respuesta con factura autorizada pide el motivo, como hoy, y encola la nota de crédito C por el total: los
   mismos renglones e importes, el mismo concepto, período y receptor, la fecha de hoy y la factura en `CbtesAsoc` (tipo,
   punto de venta, número, CUIT y fecha). Sigue la misma cola, numeración y reconciliación.
-- **Cuándo queda anulada la respuesta** es el tablero NC1 (**pregunta 2**).
+- **Cuándo queda anulada la respuesta** (NC1-A): cuando ARCA autoriza la nota de crédito. Mientras tanto el título dice
+  «Anulándose», sigue en la planilla y la zona «Comprobante» suma la nota con su estado. Si ARCA la rechaza, la respuesta sigue
+  vigente con el motivo y se puede volver a anular. Anulada, sale de la planilla como cualquier anulada, con la factura y la
+  nota (y sus dos PDF) en el detalle.
 - **Corregir** una respuesta con una emisión encolada no se puede (`Forms.Record.AmendUnavailable`): se anula y se carga
   otra. Mientras la emisión no tiene número, anular la cancela y la respuesta queda anulada sin factura. Con número y sin
   resolver, «Anular» espera a que se resuelva.
@@ -257,19 +270,23 @@ de «Armar el PDF».
   una factura C de punta a punta con su nota de crédito. Riesgo de la etapa 1 que sigue abierto: que homologación no devuelva
   puntos de venta.
 
-## Preguntas para el usuario
+## Decisiones del usuario (2026-11-09)
 
-Se hacen de a una, con la recomendada primero. Las respuestas se anotan acá.
+1. **EM1-A:** el detalle de una respuesta con factura tiene una zona «Comprobante», la primera, con número, CAE, vencimiento,
+   cliente y total; su banda dice el estado de la emisión (Emitiendo, En cola, Emitida, Rechazada o Para revisar) y «PDF
+   fiscal» va con los íconos del título. La actividad sigue contando el paso. El número es una columna para elegir en la
+   planilla. Descartó EM1-B (todo dentro de la actividad).
+2. **NC1-A:** la respuesta queda anulada cuando ARCA autoriza la nota de crédito; mientras tanto, «Anulándose». Descartó NC1-B
+   (anulada al confirmar).
+3. **EM2-A:** en WhatsApp, el «¿La emito?» es un mensaje después del Flow con «Emitir» y «No emitir». Descartó EM2-B (el total
+   dentro del Flow con el intercambio cifrado).
+4. **Un cliente nuevo también se puede escribir al facturar,** en la app y en WhatsApp: «Otro: escribir la CUIT» y el padrón la
+   completa antes del «¿La emito?». Eligió esto en lugar de la recomendada (sólo desde la app).
+5. **La fecha fuera de la ventana frena la emisión** y la persona elige «Emitir con la fecha de hoy» o «No emitir». Descartó
+   cambiarla sola.
 
-1. **El estado de la emisión en el detalle (EM1).**
-2. **Cuándo queda anulada una respuesta con factura (NC1).**
-3. **El «¿La emito?» en WhatsApp:** un mensaje con el resumen y los botones «Emitir» y «No emitir» después del Flow
-   (recomendada: no necesita el intercambio cifrado con Meta), o el total dentro del Flow con el intercambio cifrado.
-4. **Un cliente nuevo desde WhatsApp:** sólo desde la app, y en WhatsApp se elige del catálogo o «Consumidor final»
-   (recomendada), o también escribiendo la CUIT, que el servidor completa con el padrón antes del «¿La emito?» y suma a
-   «Clientes».
-5. **La fecha fuera de la ventana:** la emisión se frena y la persona elige «Emitir con fecha de hoy» o «No emitir»
-   (recomendada), o se cambia sola a la fecha de hoy y se avisa.
+CA1 no tenía opciones: las tablas de ARCA de sólo lectura en la carpeta «ARCA», «Completar con ARCA» en «Clientes» y los datos
+del comprobante en la zona «Facturación».
 
 ## Tareas
 
@@ -292,7 +309,7 @@ haya commiteado lo suyo. El front espera a que el usuario termine la prueba inte
 10. *(con la etapa 2)* Los catálogos de sólo lectura y su actualización en formularios, en la carpeta «ARCA».
 11. *(con la etapa 2)* El estándar «Factura» y el catálogo «Clientes» con «Completar con ARCA».
 12. **Anular con nota de crédito.**
-13. **El «¿La emito?» en WhatsApp** según la pregunta 3.
+13. **El «¿La emito?» en WhatsApp** (EM2-A) y el cliente nuevo por su CUIT.
 14. **Front,** después de la prueba integral, con el diseño registrado en `docs/design`.
 15. **Cierre:** la verificación de `AGENTS.md`, `docs/features/arca.md`, la fila de la etapa 3 en la hoja de ruta, la guía de
     homologación, el retiro de este plan con la auditoría y el traspaso al multitenant ofrecido.
