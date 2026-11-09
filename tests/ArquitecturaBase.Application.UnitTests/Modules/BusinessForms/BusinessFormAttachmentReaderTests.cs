@@ -40,27 +40,35 @@ public sealed class BusinessFormAttachmentReaderTests
     }
 
     [Theory]
-    [InlineData(FormSpreadsheetFormat.Csv, "proveedores.xlsx", "proveedores.xlsx", "proveedores.csv", StructuredSpreadsheetKind.Csv, "text/csv")]
-    [InlineData(FormSpreadsheetFormat.Xlsx, "C:\\fakepath\\proveedores.csv", "proveedores.csv", "proveedores.xlsx", StructuredSpreadsheetKind.Xlsx,
+    [InlineData(FormSpreadsheetFormat.Csv, "proveedores.xlsx", "proveedores.xlsx", StructuredSpreadsheetKind.Csv, "text/csv")]
+    [InlineData(FormSpreadsheetFormat.Xlsx, "C:\\fakepath\\proveedores.csv", "proveedores.csv", StructuredSpreadsheetKind.Xlsx,
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")]
-    [InlineData(FormSpreadsheetFormat.Csv, "carpeta/proveedores", "proveedores", "proveedores.csv", StructuredSpreadsheetKind.Csv, "text/csv")]
-    public async Task The_kind_comes_from_the_bytes_and_the_reader_gets_its_extension(FormSpreadsheetFormat format, string name, string shown,
-        string read, StructuredSpreadsheetKind kind, string mediaType)
+    public async Task The_kind_comes_from_the_bytes_and_the_reader_reads_them_with_it(FormSpreadsheetFormat format, string name, string shown,
+        StructuredSpreadsheetKind kind, string mediaType)
     {
         var spreadsheets = new Spreadsheets { Format = format };
 
         var preparation = await Reader(spreadsheets).PrepareAsync(Content, name, Ct);
 
-        Assert.Equal(read, spreadsheets.ReadName);
-        Assert.Equal(Content, spreadsheets.ReadBytes);
+        Assert.Equal(format, spreadsheets.ReadFormat);
+        Assert.Same(Content, spreadsheets.ReadBytes);
         var prepared = preparation.Spreadsheet!;
-        Assert.Equal((shown, kind, mediaType, (long)Content.Length, Spreadsheets.Sha, "proveedores", 2),
-            (prepared.FileName, prepared.Kind, prepared.MediaType, prepared.Size, prepared.Sha256, prepared.SheetName, prepared.RowCount));
+        Assert.Equal((shown, kind, mediaType, (long)Content.Length, Spreadsheets.Sha, 2),
+            (prepared.FileName, prepared.Kind, prepared.MediaType, prepared.Size, prepared.Sha256, prepared.RowCount));
+    }
+
+    [Fact]
+    public async Task The_file_name_is_bounded_at_the_border()
+    {
+        var preparation = await Reader(new()).PrepareAsync(Content, "carpeta/" + new string('n', 300) + ".csv", Ct);
+
+        Assert.Equal(new string('n', 119) + "…", preparation.Spreadsheet!.FileName);
     }
 
     [Theory]
     [InlineData(FormSpreadsheetFormat.MacroEnabled, StructuredAttachmentRejection.MacroEnabled)]
-    [InlineData(FormSpreadsheetFormat.LegacyOrProtected, StructuredAttachmentRejection.LegacyOrProtected)]
+    [InlineData(FormSpreadsheetFormat.Legacy, StructuredAttachmentRejection.Legacy)]
+    [InlineData(FormSpreadsheetFormat.Protected, StructuredAttachmentRejection.Protected)]
     [InlineData(FormSpreadsheetFormat.Unknown, StructuredAttachmentRejection.Unreadable)]
     public async Task What_the_bytes_are_rejects_before_reading_them(FormSpreadsheetFormat format, StructuredAttachmentRejection rejection)
     {
@@ -70,7 +78,7 @@ public sealed class BusinessFormAttachmentReaderTests
 
         Assert.Equal(rejection, preparation.Rejection);
         Assert.Null(preparation.Spreadsheet);
-        Assert.Null(spreadsheets.ReadName);
+        Assert.Null(spreadsheets.ReadFormat);
     }
 
     [Fact]
@@ -123,7 +131,7 @@ public sealed class BusinessFormAttachmentReaderTests
         public FormSpreadsheetFormat Format { get; init; } = FormSpreadsheetFormat.Csv;
         public Error? Error { get; init; }
         public bool Detected { get; private set; }
-        public string? ReadName { get; private set; }
+        public FormSpreadsheetFormat? ReadFormat { get; private set; }
         public byte[]? ReadBytes { get; private set; }
 
         public FormSpreadsheetFormat DetectFormat(byte[] content)
@@ -132,15 +140,15 @@ public sealed class BusinessFormAttachmentReaderTests
             return Format;
         }
 
-        public async Task<Result<FormSpreadsheet>> ReadAsync(Stream content, string fileName, CancellationToken cancellationToken)
+        public Result<FormSpreadsheet> Read(byte[] content, FormSpreadsheetFormat format, CancellationToken cancellationToken)
         {
-            ReadName = fileName;
-            using var copy = new MemoryStream();
-            await content.CopyToAsync(copy, cancellationToken);
-            ReadBytes = copy.ToArray();
+            (ReadBytes, ReadFormat) = (content, format);
             Result<FormSpreadsheet> result = Error is { } error ? error
-                : new FormSpreadsheet("proveedores", Sha, [new(1, [new("CUIT"), new("Razón social")]), new(2, [new("30-71234567-8"), new("Agro Sur")])]);
+                : new FormSpreadsheet("", Sha, [new(1, [new("CUIT"), new("Razón social")]), new(2, [new("30-71234567-8"), new("Agro Sur")])]);
             return result;
         }
+
+        public Task<Result<FormSpreadsheet>> ReadAsync(Stream content, string fileName, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
     }
 }

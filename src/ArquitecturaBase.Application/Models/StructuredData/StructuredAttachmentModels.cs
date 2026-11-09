@@ -3,23 +3,20 @@ namespace ArquitecturaBase.Application.Models.StructuredData;
 public enum StructuredSpreadsheetKind { Xlsx, Csv }
 
 /// <summary>
-/// Why an attachment was not prepared. <see cref="Unavailable"/> when no owner is installed; an old Excel or one with a password
-/// is a single reason, because both are the same OLE2 container.
+/// Why an attachment was not prepared: <see cref="Unavailable"/> when no owner is installed, <see cref="Legacy"/> for an Excel
+/// older than 2007 (.xls) and <see cref="Protected"/> for a file with a password.
 /// </summary>
-public enum StructuredAttachmentRejection { Unavailable, LegacyOrProtected, MacroEnabled, TooLarge, Unreadable, Empty }
+public enum StructuredAttachmentRejection { Unavailable, Legacy, Protected, MacroEnabled, TooLarge, Unreadable, Empty }
 
-/// <summary>A cell of the sample, with the letter of its column (A, B… BL) and the text the owner's reader gives.</summary>
-public sealed record StructuredSpreadsheetCell(string Column, string Text)
-{ public override string ToString() => "StructuredSpreadsheetCell { Content = [REDACTED] }"; }
-
-/// <summary>A row of the sample with its number in the sheet; only the cells that have text.</summary>
-public sealed record StructuredSpreadsheetRow(int Number, IReadOnlyList<StructuredSpreadsheetCell> Cells)
+/// <summary>A row of the sample with its number in the sheet and its cells with text, by the letter of their column (A, B… BL).</summary>
+public sealed record StructuredSpreadsheetRow(int Number, IReadOnlyDictionary<string, string> Cells)
 { public override string ToString() => "StructuredSpreadsheetRow { Content = [REDACTED] }"; }
 
 /// <summary>
 /// The first sheet of a spreadsheet prepared for the assistant: the file (name, kind, media type, size and SHA-256 of the
-/// original bytes), how many rows have content (row 1 included) and how many columns, and the first rows with content as a
-/// sample. Serialized with the web defaults it takes at most <see cref="MaximumBytes"/>: a text cut to fit ends in «…».
+/// original bytes), the name of the sheet (empty in a CSV), how many rows have content (row 1 included) and how many columns,
+/// and the first rows with content as a sample. Serialized with the web defaults it takes at most <see cref="MaximumBytes"/>;
+/// a cut text ends in «…».
 /// </summary>
 public sealed record StructuredSpreadsheet(string FileName, StructuredSpreadsheetKind Kind, string MediaType, long Size, string Sha256,
     string SheetName, int RowCount, int ColumnCount, IReadOnlyList<StructuredSpreadsheetRow> Rows)

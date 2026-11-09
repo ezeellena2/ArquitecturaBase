@@ -16,7 +16,7 @@ Dos sinks los implementan servicios: `FormCatalogProposalService` (`IStructuredC
 
 `BusinessFormAuthoringProposalChannel` → `IStructuredAuthoringProposalChannel`: resume con `FormAuthoringSummaryPolicy` las propuestas de formulario, de catálogo Manual y de personas (H4), y crea delegando en `IFormDraftProposalService` o `IFormCatalogAssistantProposalService` (`CreateFromChannelAsync`), con la ruta `/formularios/{id}` o `/catalogos/{id}`.
 
-`BusinessFormAttachmentReader` → `IStructuredAttachmentReader`: adjunta quien administra catálogos (`CheckActorAsync` de `FormCatalogAccessGuard`, con la cuenta nombrada). Prepara con el lector de la importación: `DetectFormat` dice qué son los bytes y `ReadAsync` recibe la extensión de ese tipo con el nombre de la persona; sus topes son `TooLarge` y cualquier otra falla, `Unreadable`. `FormAttachmentPreparationPolicy` arma la hoja.
+`BusinessFormAttachmentReader` → `IStructuredAttachmentReader`: adjunta quien administra catálogos (`CheckActorAsync` de `FormCatalogAccessGuard`, con la cuenta nombrada). Prepara con el lector de la importación: `DetectFormat` dice qué son los bytes y `Read` los lee con ese formato, sin copiarlos; un Excel viejo es `Legacy`, uno con contraseña `Protected`, sus topes `TooLarge` y cualquier otra falla `Unreadable`. El nombre del archivo se acota una vez, a 120 caracteres, y `FormAttachmentPreparationPolicy` arma la hoja.
 
 ## Al modificar
 

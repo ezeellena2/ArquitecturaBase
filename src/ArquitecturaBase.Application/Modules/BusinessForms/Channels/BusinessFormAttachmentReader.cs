@@ -8,7 +8,7 @@ using ArquitecturaBase.Domain.Modules.BusinessForms;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Channels;
 
 // Stage 2 of the assistant authoring: Home and a channel read a spreadsheet through the neutral port. Who manages catalogs
-// attaches one; the import reader reads it by what its bytes are, with its limits, and nothing is stored.
+// attaches one; the import reader says what its bytes are and reads them as that, with its limits, and nothing is stored.
 internal sealed class BusinessFormAttachmentReader(FormCatalogAccessGuard access, IFormSpreadsheetReader spreadsheets) : IStructuredAttachmentReader
 {
     private static readonly string[] Limits = [FormCatalogImportErrors.FileTooLarge.Code, FormCatalogImportErrors.TooManyRows.Code,
@@ -17,29 +17,32 @@ internal sealed class BusinessFormAttachmentReader(FormCatalogAccessGuard access
     public async Task<bool> CanAttachAsync(Guid actorUserId, CancellationToken cancellationToken) =>
         (await access.CheckActorAsync(actorUserId, writing: true, cancellationToken)).IsSuccess;
 
-    public async Task<StructuredAttachmentPreparation> PrepareAsync(byte[] content, string fileName, CancellationToken cancellationToken)
+    public Task<StructuredAttachmentPreparation> PrepareAsync(byte[] content, string fileName, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(content);
         ArgumentNullException.ThrowIfNull(fileName);
         cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(Prepare(content, FormAttachmentPreparationPolicy.FileName(fileName), cancellationToken));
+    }
+
+    private StructuredAttachmentPreparation Prepare(byte[] content, string fileName, CancellationToken cancellationToken)
+    {
         if (content.Length > FormCatalogImportLimits.MaximumFileBytes) return Rejected(StructuredAttachmentRejection.TooLarge);
+        var format = spreadsheets.DetectFormat(content);
         StructuredSpreadsheetKind kind;
-        switch (spreadsheets.DetectFormat(content))
+        switch (format)
         {
             case FormSpreadsheetFormat.Xlsx: kind = StructuredSpreadsheetKind.Xlsx; break;
             case FormSpreadsheetFormat.Csv: kind = StructuredSpreadsheetKind.Csv; break;
             case FormSpreadsheetFormat.MacroEnabled: return Rejected(StructuredAttachmentRejection.MacroEnabled);
-            case FormSpreadsheetFormat.LegacyOrProtected: return Rejected(StructuredAttachmentRejection.LegacyOrProtected);
+            case FormSpreadsheetFormat.Legacy: return Rejected(StructuredAttachmentRejection.Legacy);
+            case FormSpreadsheetFormat.Protected: return Rejected(StructuredAttachmentRejection.Protected);
             default: return Rejected(StructuredAttachmentRejection.Unreadable);
         }
-        var name = Path.GetFileName(fileName.Replace('\\', '/'));
-        using var stream = new MemoryStream(content, writable: false);
-        // The import reader decides by the extension: it gets the one of what the bytes are, with the person's file name.
-        var sheet = await spreadsheets.ReadAsync(stream,
-            Path.GetFileNameWithoutExtension(name) + (kind == StructuredSpreadsheetKind.Xlsx ? ".xlsx" : ".csv"), cancellationToken);
+        var sheet = spreadsheets.Read(content, format, cancellationToken);
         if (sheet.IsFailure)
             return Rejected(Limits.Contains(sheet.Error.Code) ? StructuredAttachmentRejection.TooLarge : StructuredAttachmentRejection.Unreadable);
-        return FormAttachmentPreparationPolicy.Prepare(name, kind, content.LongLength, sheet.Value);
+        return FormAttachmentPreparationPolicy.Prepare(fileName, kind, content.LongLength, sheet.Value);
     }
 
     private static StructuredAttachmentPreparation Rejected(StructuredAttachmentRejection rejection) =>

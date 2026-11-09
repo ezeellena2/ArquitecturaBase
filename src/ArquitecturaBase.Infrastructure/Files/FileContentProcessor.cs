@@ -5,7 +5,6 @@ using ArquitecturaBase.Application.Interfaces.Integrations.Files;
 using ArquitecturaBase.Application.Models.Files;
 using ArquitecturaBase.Domain.Files;
 using ArquitecturaBase.Domain.Results;
-using OpenMcdf;
 using SkiaSharp;
 
 namespace ArquitecturaBase.Infrastructure.Files;
@@ -56,22 +55,12 @@ internal sealed class FileContentProcessor : IFileContentProcessor
     private static bool IsDocument(byte[] content, string type) => type switch
     {
         "application/pdf" => content.AsSpan().StartsWith("%PDF-"u8) && content.AsSpan(Math.Max(0, content.Length - 1024)).IndexOf("%%EOF"u8) >= 0,
-        "application/msword" => IsCompound(content, "WordDocument"),
-        "application/vnd.ms-excel" => IsCompound(content, "Workbook") || IsCompound(content, "Book"),
+        "application/msword" => CompoundDocument.HasStream(content, "WordDocument"),
+        "application/vnd.ms-excel" => CompoundDocument.HasStream(content, "Workbook", "Book"),
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document" => IsOpenXml(content, "word/document.xml", "application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"),
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" => IsOpenXml(content, "xl/workbook.xml", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"),
         _ => false,
     };
-
-    private static bool IsCompound(byte[] content, string name)
-    {
-        ReadOnlySpan<byte> signature = [0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1];
-        if (!content.AsSpan().StartsWith(signature)) return false;
-        using var stream = new MemoryStream(content, false);
-        using var root = RootStorage.Open(stream);
-        if (!root.TryOpenStream(name, out var document)) return false;
-        using (document) return document.Length > 0;
-    }
 
     private static bool IsOpenXml(byte[] content, string mainPart, string contentType)
     {

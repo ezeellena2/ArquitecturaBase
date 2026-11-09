@@ -155,6 +155,30 @@ internal static class FormSpreadsheetFixture
         return content.ToArray();
     }
 
+    // A ZIP whose OOXML manifest gives each part its content type, with an empty entry for each part.
+    public static byte[] Package(params (string Part, string ContentType)[] parts)
+    {
+        XNamespace types = "http://schemas.openxmlformats.org/package/2006/content-types";
+        var manifest = new XElement(types + "Types", new XElement(types + "Default", new XAttribute("Extension", "xml"), new XAttribute("ContentType", "application/xml")),
+            parts.Select(part => new XElement(types + "Override", new XAttribute("PartName", part.Part), new XAttribute("ContentType", part.ContentType))));
+        using var content = new MemoryStream();
+        using (var archive = new ZipArchive(content, ZipArchiveMode.Create, true))
+        {
+            using (var target = archive.CreateEntry("[Content_Types].xml").Open()) new XDocument(manifest).Save(target);
+            foreach (var (part, _) in parts) archive.CreateEntry(part.TrimStart('/'));
+        }
+        return content.ToArray();
+    }
+
+    // A ZIP with those empty entries and no OOXML manifest.
+    public static byte[] Zip(params string[] entries)
+    {
+        using var content = new MemoryStream();
+        using (var archive = new ZipArchive(content, ZipArchiveMode.Create, true))
+            foreach (var entry in entries) archive.CreateEntry(entry);
+        return content.ToArray();
+    }
+
     // A ZIP with an OOXML manifest that is not a spreadsheet.
     public static byte[] WordDocument()
     {

@@ -96,6 +96,7 @@ internal sealed class FormCatalogImportFixture : IFormCatalogRepository, IFormCa
     }
     // The import decides by the extension of the uploaded file; only the assistant's attachment reads what the bytes are.
     public FormSpreadsheetFormat DetectFormat(byte[] content) => throw new NotSupportedException();
+    public Result<FormSpreadsheet> Read(byte[] content, FormSpreadsheetFormat format, CancellationToken cancellationToken) => throw new NotSupportedException();
     public Task LockAsync(Guid id, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();

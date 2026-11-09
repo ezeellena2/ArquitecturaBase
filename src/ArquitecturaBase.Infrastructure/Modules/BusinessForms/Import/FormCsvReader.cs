@@ -72,7 +72,7 @@ internal static class FormCsvReader
                 rows.Add(new(recordNumber, cells.ToArray()));
             }
         }
-        return new FormSpreadsheet(string.IsNullOrEmpty(name) ? "CSV" : name, sha, rows);
+        return new FormSpreadsheet(name, sha, rows);
     }
 
     private static char Delimiter(string text)

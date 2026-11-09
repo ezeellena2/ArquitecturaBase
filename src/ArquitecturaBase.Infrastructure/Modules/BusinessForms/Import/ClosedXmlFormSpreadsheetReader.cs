@@ -26,18 +26,46 @@ internal sealed partial class ClosedXmlFormSpreadsheetReader : IFormSpreadsheetR
             var bytes = source.Value;
             var sha = Convert.ToHexStringLower(SHA256.HashData(bytes));
             if (Path.GetExtension(fileName).Equals(".csv", StringComparison.OrdinalIgnoreCase))
-                return FormCsvReader.Read(bytes, Path.GetFileNameWithoutExtension(fileName.Replace('\\', '/')), sha, cancellationToken);
+            {
+                var name = Path.GetFileNameWithoutExtension(fileName.Replace('\\', '/'));
+                return FormCsvReader.Read(bytes, string.IsNullOrEmpty(name) ? "CSV" : name, sha, cancellationToken);
+            }
             if (!Path.GetExtension(fileName).Equals(".xlsx", StringComparison.OrdinalIgnoreCase)
                 || bytes.Length < 4 || bytes[0] != 'P' || bytes[1] != 'K' || bytes[2] != 3 || bytes[3] != 4)
                 return FormCatalogImportErrors.FileUnreadable;
             return ReadWorkbook(bytes, sha, cancellationToken);
         }
-        catch (Exception exception) when (exception is IOException or InvalidDataException or XmlException or FormatException
-            or ArgumentException or NotSupportedException or OpenXmlPackageException)
+        catch (Exception exception) when (IsUnreadable(exception))
         {
             return FormCatalogImportErrors.FileUnreadable;
         }
     }
+
+    // The assistant's attachment: the bytes are already in memory and DetectFormat said what they are, so nothing is copied
+    // and no extension decides. A CSV has no sheet name.
+    public Result<FormSpreadsheet> Read(byte[] content, FormSpreadsheetFormat format, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+        cancellationToken.ThrowIfCancellationRequested();
+        if (content.Length > FormCatalogImportLimits.MaximumFileBytes) return FormCatalogImportErrors.FileTooLarge;
+        try
+        {
+            var sha = Convert.ToHexStringLower(SHA256.HashData(content));
+            return format switch
+            {
+                FormSpreadsheetFormat.Csv => FormCsvReader.Read(content, "", sha, cancellationToken),
+                FormSpreadsheetFormat.Xlsx => ReadWorkbook(content, sha, cancellationToken),
+                _ => FormCatalogImportErrors.FileUnreadable,
+            };
+        }
+        catch (Exception exception) when (IsUnreadable(exception))
+        {
+            return FormCatalogImportErrors.FileUnreadable;
+        }
+    }
+
+    private static bool IsUnreadable(Exception exception) => exception is IOException or InvalidDataException or XmlException
+        or FormatException or ArgumentException or NotSupportedException or OpenXmlPackageException;
 
     private static async Task<Result<byte[]>> ReadBoundedAsync(Stream content, CancellationToken ct)
     {

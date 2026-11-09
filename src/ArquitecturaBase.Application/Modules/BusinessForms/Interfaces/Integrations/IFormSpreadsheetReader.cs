@@ -11,4 +11,7 @@ public interface IFormSpreadsheetReader
 
     /// <summary>What the bytes are, never the name: a workbook by its OOXML manifest, an OLE2 container or UTF-8 text.</summary>
     FormSpreadsheetFormat DetectFormat(byte[] content);
+
+    /// <summary>The bytes as <see cref="DetectFormat"/> said (Xlsx or Csv), with the same limits, without copying them; a CSV has no sheet name.</summary>
+    Result<FormSpreadsheet> Read(byte[] content, FormSpreadsheetFormat format, CancellationToken cancellationToken);
 }

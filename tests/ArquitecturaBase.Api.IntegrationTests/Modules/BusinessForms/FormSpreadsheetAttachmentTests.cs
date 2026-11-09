@@ -18,15 +18,52 @@ namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 public sealed class FormSpreadsheetAttachmentTests
 {
     private const string Csv = "Código;Descripción\n1;Café\n2;Azúcar\n";
+    private const string WorkbookType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml";
+
+    [Theory]
+    [InlineData("xls", FormSpreadsheetFormat.Legacy)]
+    [InlineData("xls95", FormSpreadsheetFormat.Legacy)]
+    [InlineData("encrypted", FormSpreadsheetFormat.Protected)]
+    [InlineData("doc", FormSpreadsheetFormat.Unknown)]
+    [InlineData("xlsx", FormSpreadsheetFormat.Xlsx)]
+    [InlineData("xlsm", FormSpreadsheetFormat.MacroEnabled)]
+    [InlineData("xlsb", FormSpreadsheetFormat.MacroEnabled)]
+    [InlineData("macros-next-to-a-workbook", FormSpreadsheetFormat.MacroEnabled)]
+    [InlineData("zip-without-manifest", FormSpreadsheetFormat.Unknown)]
+    [InlineData("docx", FormSpreadsheetFormat.Unknown)]
+    [InlineData("csv", FormSpreadsheetFormat.Csv)]
+    [InlineData("windows-1252", FormSpreadsheetFormat.Unknown)]
+    public async Task The_format_comes_from_the_bytes(string sample, FormSpreadsheetFormat format)
+    {
+        await using var services = new ServiceCollection().AddBusinessFormsInfrastructure().BuildServiceProvider();
+
+        Assert.Equal(format, services.GetRequiredService<IFormSpreadsheetReader>().DetectFormat(Sample(sample)));
+    }
 
     [Theory]
     [InlineData("precios.xls", "Workbook")]
-    [InlineData("precios.xlsx", "EncryptionInfo", "EncryptedPackage")]
-    public async Task An_old_excel_or_one_with_a_password_is_one_reason(string name, params string[] streams)
+    [InlineData("precios95.xls", "Book")]
+    public async Task An_old_excel_is_legacy(string name, string stream)
     {
-        var preparation = await PrepareAsync(FormSpreadsheetFixture.Compound(streams), name);
+        var preparation = await PrepareAsync(FormSpreadsheetFixture.Compound(stream), name);
 
-        Assert.Equal(StructuredAttachmentRejection.LegacyOrProtected, preparation.Rejection);
+        Assert.Equal(StructuredAttachmentRejection.Legacy, preparation.Rejection);
+    }
+
+    [Fact]
+    public async Task A_workbook_with_a_password_is_protected()
+    {
+        var preparation = await PrepareAsync(FormSpreadsheetFixture.Compound("EncryptionInfo", "EncryptedPackage"), "precios.xlsx");
+
+        Assert.Equal(StructuredAttachmentRejection.Protected, preparation.Rejection);
+    }
+
+    [Fact]
+    public async Task Another_ole2_file_is_unreadable()
+    {
+        var preparation = await PrepareAsync(FormSpreadsheetFixture.Compound("WordDocument"), "precios.xls");
+
+        Assert.Equal(StructuredAttachmentRejection.Unreadable, preparation.Rejection);
     }
 
     [Theory]
@@ -49,20 +86,29 @@ public sealed class FormSpreadsheetAttachmentTests
         Assert.Equal(("contratistas.csv", StructuredSpreadsheetKind.Xlsx, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Options", 3, 4),
             (prepared.FileName, prepared.Kind, prepared.MediaType, prepared.SheetName, prepared.RowCount, prepared.ColumnCount));
         Assert.Equal((bytes.LongLength, Convert.ToHexStringLower(SHA256.HashData(bytes))), (prepared.Size, prepared.Sha256));
-        Assert.Equal(["CUIT", "Razón social", "Alta", "Saldo"], prepared.Rows[0].Cells.Select(cell => cell.Text));
-        Assert.Equal(["30-71234567-8", "Agro Sur", "2026-11-09", "1500.25"], prepared.Rows[1].Cells.Select(cell => cell.Text));
-        Assert.Equal(["A", "B", "C", "D"], prepared.Rows[1].Cells.Select(cell => cell.Column));
+        Assert.Equal(["CUIT", "Razón social", "Alta", "Saldo"], prepared.Rows[0].Cells.Values);
+        Assert.Equal(["30-71234567-8", "Agro Sur", "2026-11-09", "1500.25"], prepared.Rows[1].Cells.Values);
+        Assert.Equal(["A", "B", "C", "D"], prepared.Rows[1].Cells.Keys);
     }
 
     [Fact]
-    public async Task A_csv_named_xlsx_is_read_as_text()
+    public async Task A_csv_named_xlsx_is_read_as_text_without_a_sheet_name()
     {
         var prepared = await PreparedAsync(FormSpreadsheetFixture.Csv(Csv), "insumos.xlsx");
 
-        Assert.Equal(("insumos.xlsx", StructuredSpreadsheetKind.Csv, "text/csv", "insumos", 3, 2),
+        Assert.Equal(("insumos.xlsx", StructuredSpreadsheetKind.Csv, "text/csv", "", 3, 2),
             (prepared.FileName, prepared.Kind, prepared.MediaType, prepared.SheetName, prepared.RowCount, prepared.ColumnCount));
-        Assert.Equal(["Código", "Descripción"], prepared.Rows[0].Cells.Select(cell => cell.Text));
-        Assert.Equal(["2", "Azúcar"], prepared.Rows[2].Cells.Select(cell => cell.Text));
+        Assert.Equal(["Código", "Descripción"], prepared.Rows[0].Cells.Values);
+        Assert.Equal("Azúcar", prepared.Rows[2].Cells["B"]);
+    }
+
+    [Fact]
+    public async Task The_import_still_names_a_csv_without_a_name_while_the_attachment_leaves_it_empty()
+    {
+        var imported = await FormSpreadsheetFixture.ReadAsync(FormSpreadsheetFixture.Csv(Csv), ".csv");
+
+        Assert.Equal("CSV", imported.Value.Name);
+        Assert.Equal("", (await PreparedAsync(FormSpreadsheetFixture.Csv(Csv), ".csv")).SheetName);
     }
 
     [Theory]
@@ -74,16 +120,15 @@ public sealed class FormSpreadsheetAttachmentTests
 
         var prepared = await PreparedAsync(bytes, "insumos.csv");
 
-        Assert.Equal("Código", prepared.Rows[0].Cells[0].Text);
-        Assert.Equal(["1", "Café"], prepared.Rows[1].Cells.Select(cell => cell.Text));
+        Assert.Equal("Código", prepared.Rows[0].Cells["A"]);
+        Assert.Equal(["1", "Café"], prepared.Rows[1].Cells.Values);
         Assert.Equal((bytes.LongLength, Convert.ToHexStringLower(SHA256.HashData(bytes))), (prepared.Size, prepared.Sha256));
     }
 
     [Fact]
     public async Task A_csv_saved_in_windows_1252_is_unreadable()
     {
-        // Excel in Spanish saves «CSV» in ANSI; for these letters Latin-1 writes the same bytes as Windows-1252.
-        var preparation = await PrepareAsync(Encoding.Latin1.GetBytes(Csv), "insumos.csv");
+        var preparation = await PrepareAsync(Windows1252(), "insumos.csv");
 
         Assert.Equal(StructuredAttachmentRejection.Unreadable, preparation.Rejection);
     }
@@ -102,8 +147,8 @@ public sealed class FormSpreadsheetAttachmentTests
         var prepared = await PreparedAsync(FormSpreadsheetFixture.Csv("Provincia\nBuenos Aires\nCórdoba\nSanta Fe\n"), "provincias.csv");
 
         Assert.Equal((4, 1), (prepared.RowCount, prepared.ColumnCount));
-        Assert.All(prepared.Rows, row => Assert.Equal("A", Assert.Single(row.Cells).Column));
-        Assert.Equal("Córdoba", prepared.Rows[2].Cells[0].Text);
+        Assert.All(prepared.Rows, row => Assert.Equal("A", Assert.Single(row.Cells).Key));
+        Assert.Equal("Córdoba", prepared.Rows[2].Cells["A"]);
     }
 
     [Fact]
@@ -125,6 +170,27 @@ public sealed class FormSpreadsheetAttachmentTests
         Assert.Equal(StructuredAttachmentRejection.TooLarge, (await PrepareAsync(columns, "ancha.csv")).Rejection);
         Assert.Equal(StructuredAttachmentRejection.TooLarge, (await PrepareAsync(rows, "larga.csv")).Rejection);
     }
+
+    private static byte[] Sample(string sample) => sample switch
+    {
+        "xls" => FormSpreadsheetFixture.Compound("Workbook"),
+        "xls95" => FormSpreadsheetFixture.Compound("Book"),
+        "encrypted" => FormSpreadsheetFixture.Compound("EncryptionInfo", "EncryptedPackage"),
+        "doc" => FormSpreadsheetFixture.Compound("WordDocument"),
+        "xlsx" => Workbook(),
+        "xlsm" => FormSpreadsheetFixture.MacroEnabled(Workbook()),
+        "xlsb" => FormSpreadsheetFixture.Package(("/xl/workbook.bin", "application/vnd.ms-excel.sheet.binary.macroEnabled.main")),
+        "macros-next-to-a-workbook" => FormSpreadsheetFixture.Package(("/xl/workbook.xml", WorkbookType),
+            ("/xl/macros.xml", "application/vnd.ms-excel.sheet.macroEnabled.main+xml")),
+        "zip-without-manifest" => FormSpreadsheetFixture.Zip("xl/workbook.xml"),
+        "docx" => FormSpreadsheetFixture.WordDocument(),
+        "csv" => FormSpreadsheetFixture.Csv(Csv),
+        "windows-1252" => Windows1252(),
+        _ => throw new ArgumentOutOfRangeException(nameof(sample)),
+    };
+
+    // Excel in Spanish saves «CSV» in ANSI; for these letters Latin-1 writes the same bytes as Windows-1252.
+    private static byte[] Windows1252() => Encoding.Latin1.GetBytes(Csv);
 
     private static byte[] Workbook() => FormSpreadsheetFixture.Workbook(sheet =>
     {
