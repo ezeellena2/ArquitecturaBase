@@ -304,9 +304,16 @@ haya commiteado lo suyo. El front espera a que el usuario termine la prueba inte
    actividades en Facturación y la referencia del PDF fiscal en el comprobante. Sin clave foránea a la conexión.
 5. **Hecho (1b9ece7a). La cola:** encolar, el paso del worker (numeración, reconciliación y espera), la revisión y la cancelación, con las
    pruebas de varios hosts.
-6. **PDF fiscal,** ingresos brutos e inicio de actividades en Facturación, almacén y retención.
+6. **Hecho (61c466ca). PDF fiscal,** almacén y retención. Ingresos brutos e inicio de actividades quedaron en la entidad
+   (tarea 4); su ruta y el cambio de completitud de Facturación van con el front, para no dejar «requiere atención» una
+   conexión que todavía no puede cargarlos.
 7. **Padrón de un tercero** y el adaptador de `IStructuredPartyLookup`.
 8. **Tablas de ARCA:** el adaptador de `IStructuredCatalogFeed`.
+**Lo que espera (2026-11-09):** la acción necesita el mapa «dato → pregunta» que sella la biblioteca de estándares (BI1-A
+de la etapa 2) para armar el pedido desde una respuesta; la anulación con nota de crédito y el «¿La emito?» dependen de la
+acción; los catálogos de ARCA, de las carpetas; el autocompletar, del catálogo «Clientes» del estándar. Las tareas 7 y 8 van
+con su consumidor (no se agrega un puerto sin quien lo use). El resultado externo y los cálculos de la etapa 2 ya están.
+
 9. *(con la etapa 2)* El puerto `IStructuredRecordIssuer` y la acción `IssueDocument` en formularios, con el resultado en la
    respuesta, la revisión y el aviso de espera.
 10. *(con la etapa 2)* Los catálogos de sólo lectura y su actualización en formularios, en la carpeta «ARCA».

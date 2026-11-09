@@ -115,7 +115,39 @@ revisión esperada y responden 409 con `Arca.Connection.RevisionConflict` si cam
 - `wsfe` (WSFEv1). La prueba responde a `FEDummy`: una parte distinta de «OK» la deja sin respuesta.
 - Los puntos de venta salen de `FEParamGetPtosVenta`: quedan afuera los dados de baja y se marcan los bloqueados. Elegir
   uno bloqueado, dado de baja o que ARCA ya no devuelve da `Arca.Invoicing.PointOfSaleUnavailable`.
-- La configuración de la familia está completa con el punto de venta elegido.
+- La configuración de la familia está completa con el punto de venta elegido. Guarda además ingresos brutos e inicio de
+  actividades, que el PDF fiscal muestra y el padrón no trae (sin ruta todavía: la zona de la pantalla llega con el front de
+  la etapa 3).
+
+### Emisión de comprobantes (etapa 3, en curso)
+
+La cola del [ADR 0028](../decisions/0028-emision-de-comprobantes-arca.md) está programada; todavía no la pide ningún
+formulario (la acción «Emitir comprobante», el estándar «Factura» y la anulación con nota de crédito siguen en el
+[plan](../plans/2026-11-09-arca-etapa-3-factura-c.md)).
+
+- **Encolar** (`IArcaVoucherService`) valida el receptor (CUIT con su dígito, DNI, o consumidor final sin identificar),
+  el concepto, el período y el vencimiento del pago de un servicio, la fecha que ARCA acepta hoy y los renglones, y
+  recalcula cada importe con half-even: un total distinto del pedido no se encola. La clase la decide el sistema con la
+  condición frente al IVA de la empresa (`IArcaCompanyProfileSource`, del padrón): monotributo o exento, C; responsable
+  inscripto, `Arca.Invoicing.ClassNotSupported` hasta la etapa 4. Fija lo que va a emitir, con los datos del emisor de ese
+  momento, y la clave del pedido la hace idempotente. La nota de crédito anula por el total una factura autorizada, una
+  sola vez, con la factura en `CbtesAsoc` y la fecha de hoy.
+- **Numeración:** `ArcaVoucherSequences` tiene una fila por ambiente, CUIT, punto de venta y tipo, con una reserva corta y
+  el comprobante pendiente. El worker (`Arca:Invoicing:Worker`) toma una secuencia por vez y su comprobante más viejo sin
+  resolver; nadie toma otro número mientras haya un pendiente. El número (último autorizado más 1) y la huella SHA-256 se
+  guardan antes de `FECAESolicitar`.
+- **Reconciliación:** ante un 10016, una respuesta que no llega, un 500, un 501, un 502 o una falla SOAP, el comprobante
+  queda incierto y el próximo intento consulta `FECompConsultar`: si ARCA lo tiene con el mismo documento, fecha, concepto
+  y total, queda autorizado con ese CAE; si no lo tiene y el número sigue siendo el siguiente, se manda otra vez con el
+  mismo número. Un número tomado con otros datos o que falta va a revisión humana y frena su secuencia.
+- **Espera creciente:** 30 s, 1, 2, 5, 10 y 30 minutos y después cada hora, sin tope; sin ticket o sin conexión, espera sin
+  número. Una fecha que salió de la ventana (5 días con productos, 10 con servicios, en hora de la Argentina) va a revisión:
+  «Emitir con la fecha de hoy» o «No emitir». Revisar exige la revisión esperada; cancelar, que no tenga número.
+- **PDF fiscal:** al autorizarse, el worker lo dibuja con diseño fijo y el QR de ARCA, lo escribe una vez en el almacén
+  privado (`arca-vouchers/{id}.pdf`) y confirma su SHA-256. Si el almacén falla, el comprobante sigue autorizado y el PDF
+  espera. Esos PDF no se limpian mientras exista su comprobante.
+- **Desconectar no borra comprobantes ni secuencias:** son registros con valor legal y no tienen clave foránea a la
+  conexión. El worker sólo trabaja los del ambiente y la CUIT de la conexión activa.
 
 ## Delegación guiada (etapa 5)
 

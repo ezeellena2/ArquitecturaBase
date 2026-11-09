@@ -4,8 +4,9 @@ Para un derivado que no usa ARCA, o que no usa una de sus familias de servicios.
 retirada: quitá código, configuración y rutas, y generá la migración del modelo nuevo. La regla del área está en
 [ARCA](../features/arca.md) y las familias, en el [ADR 0025](../decisions/0025-familias-de-servicios-arca.md).
 
-Quitar el módulo borra sus cinco tablas, con la clave privada y los tickets: respaldá la base y guardá aparte el anillo
-`Arca:SecretProtection` si querés poder leer un backup viejo. El certificado sigue existiendo en ARCA hasta que se lo
+Quitar el módulo borra sus siete tablas, con la clave privada, los tickets y la cola de emisión: respaldá la base y guardá
+aparte el anillo `Arca:SecretProtection` si querés poder leer un backup viejo. Los comprobantes ya emitidos siguen en ARCA
+y sus PDF fiscales, en el almacén privado (`arca-vouchers/`); sin el módulo, la limpieza de archivos deja de retenerlos. El certificado sigue existiendo en ARCA hasta que se lo
 revoque allá. El núcleo no nombra el módulo: WhatsApp, formularios e IA siguen igual.
 
 ## El módulo entero
@@ -63,8 +64,8 @@ revoque allá. El núcleo no nombra el módulo: WhatsApp, formularios e IA sigue
    dotnet ef migrations add RemoveArca --project src/ArquitecturaBase.Infrastructure --startup-project src/ArquitecturaBase.Api --output-dir Persistence/Migrations -- --environment Development --ConnectionStrings:appdb "Host=build;Database=build;Username=build;Password=build" --ConnectionStrings:cache "localhost:6379"
    ```
 
-   `Up` borra sólo las cinco tablas del módulo: `ArcaAccessTickets`, `ArcaCertificates`, `ArcaInvoicingSettings`,
-   `ArcaRegistryCompanies` y `ArcaConnections`. Si aparece otra tabla, algo se borró de más. `Down` las recrea.
+   `Up` borra sólo las siete tablas del módulo: `ArcaAccessTickets`, `ArcaCertificates`, `ArcaInvoicingSettings`,
+   `ArcaRegistryCompanies`, `ArcaConnections`, `ArcaVouchers` y `ArcaVoucherSequences`. Si aparece otra tabla, algo se borró de más. `Down` las recrea.
 
    Después compilá, revisá que el modelo no tenga cambios pendientes y corré todos los tests:
 
@@ -148,7 +149,7 @@ inscripción, que es obligatoria: quitarla deja la conexión sin datos de la emp
 ### Backend
 
 1. Borrá lo de la familia en cada capa: las carpetas `Invoicing` debajo de las carpetas de capa del módulo y los
-   archivos de la raíz que la nombran (24 archivos).
+   archivos de la raíz que la nombran (105 archivos el 2026-11-09, con la cola de emisión y el PDF fiscal).
 
    ```bash
    git ls-files -- 'src/**/Modules/Arca/**' 'tests/**/Modules/Arca/**' | grep -E '/Invoicing/|ArcaInvoicing[A-Za-z]*\.cs$' | xargs rm --
@@ -160,7 +161,9 @@ inscripción, que es obligatoria: quitarla deja la conexión sin datos de la emp
    en Infrastructure, y la carpeta `Invoicing` de los tests de Domain, Application e integración.
 2. En `ArcaApplicationRegistration` y `ArcaInfrastructureRegistration`, el método `AddInvoicing`, su llamada y sus
    `using`. En Infrastructure se va también `InvoicingHttpClientName`.
-3. Las dos claves `Arca.Invoicing.*` de `Errors.resx` y `Errors.en.resx`.
+3. Las claves `Arca.Invoicing.*` de `Errors.resx` y `Errors.en.resx` (22 el 2026-11-09). QRCoder sólo lo usa el PDF fiscal:
+   sacá su `PackageReference` de `ArquitecturaBase.Infrastructure.csproj` y su `PackageVersion` de `Directory.Packages.props`,
+   y en el `.csproj`, el `EmbeddedResource` de `Modules\Arca\Invoicing\Pdf\Fonts`.
 4. En `appsettings.json`, el servicio `wsfe` de los dos ambientes (`Arca:Testing:Services` y `Arca:Production:Services`).
    `ArcaCompositionTests` revisa las direcciones publicadas: sacale `wsfe`.
 5. En los tests que comparten las familias:
@@ -168,8 +171,9 @@ inscripción, que es obligatoria: quitarla deja la conexión sin datos de la emp
      `IArcaInvoicingClient`, `IArcaInvoicingRepository` e `IArcaInvoicingReader` de `ArcaApplicationHost`, y lo de
      facturación de `FakeArcaStore`. `InvoicingFamily` se queda: es una definición de prueba genérica, sin código de la
      familia, y los tests de `Connection` la usan como el servicio que se puede elegir o no;
-   - en `TestFeatures/Modules/Arca` de Api.IntegrationTests: en `FakeArca`, `InvoicingService`, `FakeArcaPointOfSale` y
-     las respuestas de `FEDummy` y `FEParamGetPtosVenta`; en `ArcaHttpScenario.ActivateAsync`, el punto de venta; en
+   - en `TestFeatures/Modules/Arca` de Api.IntegrationTests: `FakeArcaVouchers`, `ArcaVoucherScenario` y `ArcaMemoryFiles`;
+     en `FakeArca`, `InvoicingService`, `FakeArcaPointOfSale`, `Vouchers` y sus operaciones, y las respuestas de `FEDummy` y
+     `FEParamGetPtosVenta`; en `ArcaTestModule`, `Arca:Invoicing:Worker:ProcessInBackground`; en `ArcaHttpScenario.ActivateAsync`, el punto de venta; en
      `ArcaPersistenceScenario`, `Invoicing`, y quien lo use pasa a `Registry`;
    - en `ArcaTestModule`, las tres rutas de `api/arca/invoicing` y `InvoicingHttpClientName` de `ConfigureServices`;
    - en `ArcaConnectionEndpointsTests`, los tres `InlineData` de `api/arca/invoicing`, `wsfe` de los servicios instalados
@@ -183,8 +187,9 @@ inscripción, que es obligatoria: quitarla deja la conexión sin datos de la emp
      segundo va como dato con otro código (`ArcaServiceCode.Create("otro_servicio")`), y una falla programada del WSAA ya
      no llega (el caso del servicio sin autorizar pasa a un ARCA que no responde: `Unavailable` y `NeedsAttention`). Los
      tests de Domain, de credenciales, del pedido de ticket y de opciones usan `wsfe` como dato y no cambian.
-6. Generá `RemoveArcaInvoicing` con el mismo comando de arriba. `Up` borra sólo `ArcaInvoicingSettings` y `Down` la
-   recrea. Después: `dotnet build ArquitecturaBase.slnx`, `has-pending-model-changes` y `dotnet test`.
+6. Generá `RemoveArcaInvoicing` con el mismo comando de arriba. `Up` borra sólo `ArcaInvoicingSettings`, `ArcaVouchers` y
+   `ArcaVoucherSequences`, y `Down` las recrea. Con comprobantes emitidos, respaldá antes la base: la cola es la única copia
+   local de lo que se emitió. Después: `dotnet build ArquitecturaBase.slnx`, `has-pending-model-changes` y `dotnet test`.
 
 Sin la familia, la conexión se activa con la prueba en verde: no queda ninguna configuración por completar.
 

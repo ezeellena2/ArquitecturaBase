@@ -44,6 +44,11 @@ por su código del WSAA (`wsfe`, `ws_sr_constancia_inscripcion`), y cada familia
 `Arca:RateLimiting` fija los pedidos por minuto de cada operador: `ReadPermitLimit` (120), `WritePermitLimit` (20) y
 `RemotePermitLimit` (6), que cubre lo que llama a ARCA: subir el certificado, probar y consultar los puntos de venta.
 
+`Arca:Invoicing:Worker` gobierna la cola de emisión ([ADR 0028](../decisions/0028-emision-de-comprobantes-arca.md)):
+`ProcessInBackground` (prendido), `PollInterval` (2 s), `Lease` (2 minutos, la reserva de una secuencia: tiene que durar más
+que dos pedidos a ARCA seguidos con `RequestTimeout`) y `BatchSize` (20 secuencias por vuelta). En los tests de integración
+va apagado y cada prueba procesa la cola a mano.
+
 Los emisores (`IssuerCommonName`: «Computadores Test» en homologación y «Computadores» en producción) sirven para saber
 de qué ambiente es un certificado. Falta confirmarlos con certificados reales en la homologación.
 
