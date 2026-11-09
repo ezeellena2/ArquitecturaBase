@@ -177,7 +177,12 @@ Lo puro va ya; lo demás espera a que la etapa 3 commitee lo suyo. El front espe
 integral.
 
 1. **Plan, normas y decisiones** (hechos el 2026-11-09) **y tableros IV**, con los de la etapa 3 elegidos.
-2. **El desglose del IVA por alícuota** con TDD, en Domain, según las decisiones 1 y 2.
+2. **El desglose del IVA por alícuota** con TDD, en Domain, según las decisiones 1 y 2. **Hecho el 2026-11-09**
+   (33b631f3): `ArcaVatBreakdown.Calculate` recibe los importes de los renglones ya redondeados (los calcula la etapa 3) con
+   su `ArcaVatTreatment` (una `ArcaVatRate`, exento o no gravado) y si incluyen IVA, y devuelve los cinco importes y el
+   array `Iva` (`ArcaVatRateTotal`). Un importe negativo o con más de 2 decimales es un error del sistema: la carga los
+   rechaza antes. 21 pruebas, entre ellas las tolerancias de la 10051 para todos los importes de 0,01 a 50 con cada
+   alícuota.
 3. *(con la etapa 3)* **Las filas A y B** de la clase y el pedido con `Iva` y `DocTipo` 80, con `FakeArca`.
 4. *(con la etapa 3)* **Nota de crédito A y B.**
 5. *(con la etapa 3)* **PDF:** IVA discriminado, la leyenda de la RG 5003 y el apartado de la RG 5614.
