@@ -152,22 +152,23 @@ Cada tarea con su test en rojo primero, el build y los tests rápidos del área,
 **Cálculos**
 
 1. ~~CA1: tablero y decisión.~~ Hecho: CA1-A.
-2. El borrador: `calculation` en `FormFieldInput` y `CanonicalFormField` (omitido si es null), su validación y el sellado
-   de los operandos.
-3. Publicar: `CalculationInvalid` con el alcance de cada operación; la versión sellada y el pedido al canal lo llevan.
-4. La captura: calcular en `BusinessFormRecordRecorder` (también en los ítems y al corregir) y rechazar una respuesta a un
-   cálculo.
-5. La carga: `calculation` en `GET /api/forms/entries/{definitionId}` y en la corrección.
-6. WhatsApp r13 sin los cálculos, más el prellenado, las sugerencias y la IA; prueba con Meta de un borrador compilado.
+2. ~~El borrador: `calculation` en `FormFieldInput` y `CanonicalFormField` (omitido si es null), su validación y el sellado
+   de los operandos.~~ Hecho (3c15292e).
+3. ~~Publicar: `CalculationInvalid` con el alcance de cada operación; la versión sellada lo lleva.~~ Hecho (3c15292e); el
+   pedido al canal lo suma la tarea 6.
+4. ~~La captura: calcular (también en los ítems y al corregir) y rechazar una respuesta a un cálculo.~~ Hecho en
+   `FormRecordAnswerPolicy` (3c15292e).
+5. ~~La carga: `calculation` en `GET /api/forms/entries/{definitionId}` y en la corrección.~~ Hecho (3c15292e).
+6. WhatsApp sin los cálculos, más el prellenado, las sugerencias y la IA. Va junto con la tarea 28 en un solo perfil r13, para cambiar fixtures y probar con Meta una vez.
 7. La alícuota desde un catálogo con valor numérico.
 8. Front (después de la prueba integral): el editor, la vista previa en la página, el panel y la tabla del bloque.
 
 **Resultado externo**
 
 9. ~~RE1: tablero y decisión; el contrato con la etapa 3 en las notas.~~ Hecho: RE1-A.
-10. Los DTO, `BusinessFormRecordResults` con su migración y el helper que lo guarda.
-11. Las lecturas: detalle, planilla, Excel y PDF.
-12. Los avisos con datos del resultado, resueltos al ejecutar, y el punto donde una acción declara sus datos.
+10. ~~Los DTO, `BusinessFormRecordResults` con su migración y el helper que lo guarda.~~ Hecho (dea532ec).
+11. ~~Las lecturas: detalle, planilla, Excel y PDF.~~ Hecho: detalle (dea532ec), planilla y Excel (4a391b3d), PDF (f204664b).
+12. ~~Los avisos con datos del resultado, resueltos al ejecutar, y el punto donde una acción declara sus datos.~~ Hecho (c1f7f4ff); la etapa 3 pasa `declared` con los datos de su emisor.
 13. Front: el editor de reglas, el detalle y la planilla.
 14. *(sin tarea propia)* La etapa 3 conecta `IssueDocument`.
 
@@ -192,7 +193,7 @@ Cada tarea con su test en rojo primero, el build y los tests rápidos del área,
 25. ~~CO1: tablero y decisión.~~ Hecho: CO1-A.
 26. El borrador y publicar.
 27. La captura y la carga.
-28. WhatsApp con un `If`, con prueba con Meta.
+28. WhatsApp con un `If`, junto con la tarea 6 en el perfil r13, con prueba con Meta.
 29. Front: el editor y la carga.
 
 **Cierre**
