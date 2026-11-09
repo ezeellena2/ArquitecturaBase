@@ -154,6 +154,13 @@
   <data name="Arca.Connection.ServiceNotDelegated" xml:space="preserve"><value>The company has not delegated that service to the platform yet, or the platform has not accepted it. Follow the delegation guide and check again.</value></data>
   <data name="Arca.Invoicing.PointOfSaleInvalid" xml:space="preserve"><value>The point of sale goes from 1 to 99998.</value></data>
   <data name="Arca.Invoicing.PointOfSaleUnavailable" xml:space="preserve"><value>ARCA no longer offers that point of sale. Search the points of sale again.</value></data>
+  <data name="Arca.Invoicing.ClassNotSupported" xml:space="preserve"><value>Invoices of classes A and B are not available yet.</value></data>
+  <data name="Arca.Invoicing.IssuerNotRegistered" xml:space="preserve"><value>The company has no VAT condition it can invoice with.</value></data>
+  <data name="Arca.Invoicing.ReceiverConditionInvalid" xml:space="preserve"><value>The VAT condition of the client does not fit this voucher.</value></data>
+  <data name="Arca.Invoicing.VoucherNotInReview" xml:space="preserve"><value>This issuance is no longer waiting for a review.</value></data>
+  <data name="Arca.Invoicing.VoucherRevisionConflict" xml:space="preserve"><value>The issuance changed. Reload it before deciding.</value></data>
+  <data name="Arca.Invoicing.ReviewDecisionInvalid" xml:space="preserve"><value>That decision does not fit what the issuance is waiting for.</value></data>
+  <data name="Arca.Invoicing.VoucherNotCancellable" xml:space="preserve"><value>The issuance already has a number: it cannot be cancelled.</value></data>
   <data name="Forms.Draft.RevisionConflict" xml:space="preserve">
     <value>The draft changed. Reload it before saving.</value>
   </data>
