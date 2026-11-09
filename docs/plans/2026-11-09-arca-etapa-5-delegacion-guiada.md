@@ -205,4 +205,5 @@ delegación», publicados el 2026-11-09:
    de 7475.
 3. **Front,** cuando el usuario termine la prueba integral: el diseño elegido en `docs/design` del front y la pantalla.
 4. **Cierre:** la verificación de `AGENTS.md`, `features/arca.md` y `configurar-arca.md` al día, la fila de la etapa 5 en
-   la hoja de ruta, la auditoría que retira este plan y el traspaso al multitenant ofrecido.
+   la hoja de ruta, la auditoría que retira este plan y el traspaso al multitenant. El usuario eligió el 2026-11-09 escribir
+   el traspaso uno solo, al cerrar el front, con el backend, la pantalla y las decisiones.
