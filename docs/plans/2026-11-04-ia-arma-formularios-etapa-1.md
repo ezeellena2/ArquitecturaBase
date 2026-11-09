@@ -182,10 +182,18 @@ proveedor. Los intentos fallidos dejaron arreglos:
 - el control de presentación sigue la regla de idioma del 2026-10-19 (98b0d50c, 162 controles offline).
 
 Queda:
-- el dictado por WhatsApp como caso combinado;
+- la corrida real del dictado por WhatsApp (`channel-dictation`), que ya está en el arnés (ver abajo) y espera el visto bueno del
+  usuario;
 - declarar el perfil STT del navegador (`openai-stt-browser-candidate@1`) en cada instalación que no sea la local, porque sin él no
   aparece el micrófono de Inicio; en la local quedó declarado el 2026-11-08 (`AudioModelProfiles:1`) y aceptado por la
   validación de arranque.
 
 2026-11-08: el traspaso al multitenant es el [traspaso 11](2026-11-08-traspaso-multitenant-ia-pregunta-y-corrida.md), que
 completa el 8 con «pregunta y espera», la corrida real y los dos ajustes; el traspaso 10 lo enlaza.
+
+2026-11-08: el dictado por WhatsApp quedó en el arnés (5f61a087). `channel-authoring` suma una nota de voz Ogg ficticia por
+idioma, con el mismo audio que el WebM del dictado de Inicio y la cabecera que valida WhatsApp. El arnés la normaliza con
+`openai-stt-candidate@1` en la conversación automática propia, como la captura la app, y en otro scope interpreta con las
+capacidades de autoría la transcripción del servidor. La dicta otra cuenta del mismo rol, porque cada autor de los casos escritos
+ya hace las diez interpretaciones diarias que acepta el motor por persona. `channel-dictation` corre sólo esos dos casos; 172
+controles offline. La corrida con el proveedor real espera el visto bueno del usuario.
