@@ -50,3 +50,4 @@ Las siete primeras salen de las decisiones D1 a D7 del plan de estandarización 
 - [0026 — Robot de delegación sobre la página de ARCA y la clave fiscal en memoria](0026-robot-de-delegacion-arca.md) (aceptada el 2026-11-09; rige desde la etapa 6 de ARCA, con [su plan](../plans/2026-11-09-arca-etapa-6-robot.md)).
 - [0027 — Delegación guiada en ARCA](0027-delegacion-guiada-arca.md) (aceptada el 2026-11-09; rige desde la [etapa 5 de ARCA](../plans/2026-11-09-arca-etapa-5-delegacion-guiada.md)).
 - [0028 — Emisión de comprobantes en ARCA: cola, numeración y reconciliación](0028-emision-de-comprobantes-arca.md) (aceptada el 2026-11-09; rige desde la [etapa 3 de ARCA](../plans/2026-11-09-arca-etapa-3-factura-c.md)).
+- [0029 — La biblioteca de estándares, aportada por los módulos como datos](0029-biblioteca-de-estandares.md) (aceptada el 2026-11-09; rige desde la [etapa 2 de ARCA](../plans/2026-11-09-arca-etapa-2-motor.md)).
