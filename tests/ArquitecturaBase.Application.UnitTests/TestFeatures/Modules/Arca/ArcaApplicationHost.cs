@@ -145,18 +145,6 @@ internal sealed class FakeArcaInvoicingClient : IArcaInvoicingClient
     public Task<ArcaServiceReply<IReadOnlyList<ArcaPointOfSale>>> ListPointsOfSaleAsync(ArcaCertificateRef certificate, ArcaTicketOutcome.Ready ticket,
         CancellationToken cancellationToken) =>
         Task.FromResult(Status == ArcaServiceCheckStatus.Ready ? ArcaServiceReply.Ready(Points) : ArcaServiceReply.Failed<IReadOnlyList<ArcaPointOfSale>>(Status));
-
-    public Task<ArcaServiceReply<long>> GetLastAuthorizedAsync(ArcaCertificateRef certificate, ArcaTicketOutcome.Ready ticket, int pointOfSale,
-        int voucherType, CancellationToken cancellationToken) => throw new NotSupportedException("The setup services never issue vouchers.");
-
-    public Task<ArcaServiceReply<ArcaAuthorization>> RequestAuthorizationAsync(ArcaCertificateRef certificate, ArcaTicketOutcome.Ready ticket,
-        ArcaVoucherRequest voucher, CancellationToken cancellationToken) => throw new NotSupportedException("The setup services never issue vouchers.");
-
-    public Task<ArcaServiceReply<ArcaIssuedVoucher?>> FindVoucherAsync(ArcaCertificateRef certificate, ArcaTicketOutcome.Ready ticket, int pointOfSale,
-        int voucherType, long number, CancellationToken cancellationToken) => throw new NotSupportedException("The setup services never issue vouchers.");
-
-    public Task<ArcaServiceReply<IReadOnlyList<ArcaParameter>>> ListParametersAsync(ArcaCertificateRef certificate, ArcaTicketOutcome.Ready ticket,
-        ArcaParameterTable table, CancellationToken cancellationToken) => throw new NotSupportedException("The setup services never read ARCA tables.");
 }
 
 /// <summary>Una familia de prueba: su resultado, su completitud y lo que pasa mientras prueba se programan desde el test.</summary>
