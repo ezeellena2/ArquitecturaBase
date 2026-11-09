@@ -35,7 +35,8 @@ internal static class FormActionMessagePolicy
             if (template[index] != '{') { result.Append(template[index]); continue; }
             var end = template.IndexOf('}', index + 1);
             var token = template[(index + 1)..end];
-            result.Append('{').Append(token is "número" or "number" or "motivo" or "reason" || Reference(token) is not null ? token
+            result.Append('{').Append(token is "número" or "number" or "motivo" or "reason" || Reference(token) is not null
+                || FormActionResultTokenPolicy.IsResult(token) ? token
                 : questions.Questions.Single(question => question.Label.GetValueOrDefault(culture) == token).FieldId.ToString("D")).Append('}');
             index = end;
         }
@@ -53,7 +54,7 @@ internal static class FormActionMessagePolicy
                 if (template[index] != '{') continue;
                 var end = template.IndexOf('}', index + 1);
                 var token = template[(index + 1)..end];
-                if (token is not ("número" or "number" or "motivo" or "reason"))
+                if (token is not ("número" or "number" or "motivo" or "reason") && !FormActionResultTokenPolicy.IsResult(token))
                     used.Add(Reference(token) ?? questions.Questions.Single(question => question.Label.GetValueOrDefault(text.Key) == token).FieldId);
                 index = end;
             }
@@ -72,6 +73,8 @@ internal static class FormActionMessagePolicy
             var end=template.IndexOf('}',index+1);var token=template[(index+1)..end];
             if(token is "número" or "number")result.Append(reply.Number);
             else if(token is "motivo" or "reason")result.Append(snapshot.Decision?.Reason??"");
+            // A datum of a result (RE1-A) does not exist yet: it stays marked and is filled in when the message is sent.
+            else if(FormActionResultTokenPolicy.IsResult(token))result.Append(FormActionResultTokenPolicy.Mark(token));
             else
             {
                 var fieldId=Reference(token)??ruleQuestions.Questions.Single(question=>question.Label.GetValueOrDefault(culture)==token).FieldId;
@@ -98,7 +101,9 @@ internal static class FormActionMessagePolicy
         var answers=string.Join(" · ",item.Values.Select(value=>Value(value,culture)).Where(text=>text.Length>0));
         return answers.Length==0?number:number+" "+answers;
     }
-    private static string Value(StructuredRecordReadValue answer,string culture)=>answer.Value switch
+    // An answer never carries the mark of a datum of a result (RE1-A): only the template places one.
+    private static string Value(StructuredRecordReadValue answer,string culture)=>FormActionResultTokenPolicy.Unmarked(RawValue(answer,culture));
+    private static string RawValue(StructuredRecordReadValue answer,string culture)=>answer.Value switch
     {
         null=>"",bool value=>FormResponseTexts.Get(value?"true":"false",culture),StructuredRecordChoiceValue value=>value.Label,
         IReadOnlyList<StructuredRecordChoiceValue> choices=>string.Join(", ",choices.Select(choice=>choice.Label)),

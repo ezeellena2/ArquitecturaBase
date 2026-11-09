@@ -2,6 +2,7 @@ using ArquitecturaBase.Application.Common.Logging;
 using Microsoft.Extensions.Logging;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Models.StructuredData;
+using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
@@ -10,9 +11,11 @@ internal sealed partial class FormActionEffectService:IFormActionEffectService
 {
     private readonly ILogger<FormActionEffectService> _logger;
     private readonly IFormPdfActionService _pdf;private readonly IStructuredRecordActionChannel[] _channels;
-    public FormActionEffectService(IFormPdfActionService pdf,IEnumerable<IStructuredRecordActionChannel> channels,ILogger<FormActionEffectService> logger)
+    private readonly IFormRecordResultReader _results;
+    public FormActionEffectService(IFormPdfActionService pdf,IEnumerable<IStructuredRecordActionChannel> channels,ILogger<FormActionEffectService> logger,
+        IFormRecordResultReader results)
     {
-        _pdf=pdf;_channels=channels.ToArray();_logger=logger;
+        _pdf=pdf;_channels=channels.ToArray();_logger=logger;_results=results;
         if(_channels.Any(channel=>string.IsNullOrWhiteSpace(channel.ChannelId))||_channels.DistinctBy(channel=>channel.ChannelId).Count()!=_channels.Length)
             throw new InvalidOperationException("Action channel identifiers must be unique and nonempty.");
     }
@@ -53,6 +56,9 @@ internal sealed partial class FormActionEffectService:IFormActionEffectService
             ?new(FormActionRunState.Completed,Recipients:work.Snapshot.Recipients.Select(recipient=>new FormActionRecipientOutcome(recipient.UserId,recipient.DisplayName,null,new(StructuredRecordActionState.Failed,FormActionErrors.ChannelUnavailable.Code))).ToArray())
             :new(FormActionRunState.Failed,FormActionErrors.ChannelUnavailable.Code,true);
         var recipients=new List<FormActionRecipientOutcome>();
+        // RE1-A: a message with data of a result reads the results the earlier actions of its rule left, to fill them in.
+        IReadOnlyList<FormRecordResultRow> results=work.Snapshot.Recipients.Any(recipient=>FormActionResultTokenPolicy.HasData(recipient.Body))
+            ?await _results.ListAsync([work.RecordId],ct):[];
         foreach(var recipient in work.Snapshot.Recipients)
         foreach(var channel in _channels)
         {
@@ -79,7 +85,8 @@ internal sealed partial class FormActionEffectService:IFormActionEffectService
                         var artifact=work.PdfArtifacts.Single(artifact=>artifact.Culture==recipient.Culture);
                         document=new(artifact.StorageKey,artifact.Name,artifact.ContentType,artifact.Size,artifact.Sha256);
                     }
-                    status=await channel.EnqueueAsync(new(work.RunId,recipient.UserId,recipient.Body,document),ct);
+                    status=await channel.EnqueueAsync(new(work.RunId,recipient.UserId,
+                        FormActionResultTokenPolicy.Resolve(recipient.Body,results,recipient.Culture),document),ct);
                 }
                 else if((!role||retried)&&status.State==StructuredRecordActionState.Failed&&status.CanRetry&&work.RetryRequested)
                     status=await channel.RetryAsync(work.RunId,recipient.UserId,work.Fence,ct);

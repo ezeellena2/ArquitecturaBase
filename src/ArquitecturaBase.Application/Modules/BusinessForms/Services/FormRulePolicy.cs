@@ -6,7 +6,9 @@ using ArquitecturaBase.Domain.Results;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 internal static class FormRulePolicy
 {
-    public static Result<IReadOnlyList<FormRule>> Normalize(SaveFormRulesRequest request, FormRuleOptionsResponse options)
+    // RE1-A: declared says which result data an action returns, so the messages after it in its rule may use them.
+    public static Result<IReadOnlyList<FormRule>> Normalize(SaveFormRulesRequest request, FormRuleOptionsResponse options,
+        Func<FormRuleAction, IReadOnlyList<FormActionResultDatum>>? declared = null)
     {
         if (request.ExpectedRevision is null or < 0 or >= 9007199254740991) return Invalid("expectedRevision");
         if (request.Rules is not { Count: <= 20 }) return Invalid("rules");
@@ -28,6 +30,7 @@ internal static class FormRulePolicy
             if (rule.Actions is not { Count: > 0 and <= 10 }) return Invalid(rulePath + ".actions");
             var actions = new List<FormRuleAction>();
             var generatedPdf = false;
+            var resultData = new List<FormActionResultDatum>();
             foreach (var (action, actionIndex) in rule.Actions.Select((action,index) => (action,index)))
             {
                 var actionPath = rulePath + $".actions[{actionIndex}]";
@@ -51,19 +54,22 @@ internal static class FormRulePolicy
                         if (string.IsNullOrWhiteSpace(value)) continue;
                         var content = value.Trim();
                         if (content.Length > limit || !StorableText.IsStorable(content)) return Invalid(actionPath + ".text." + culture);
-                        if (!ValidPlaceholders(content, culture, options.Questions)) return FieldErrors.On(FormRuleErrors.PlaceholderInvalid, actionPath + ".text." + culture);
+                        if (!ValidPlaceholders(content, culture, options.Questions, resultData)) return FieldErrors.On(FormRuleErrors.PlaceholderInvalid, actionPath + ".text." + culture);
                         text.Add(culture, content);
                     }
                 }
                 else if (action.Text is not null) return Invalid(actionPath + ".text");
                 actions.Add(new(action.Id, action.Kind, action.RoleId, text, action.IncludePdf));
+                if (declared is not null) resultData.AddRange(declared(actions[^1]));
                 generatedPdf |= action.Kind == "GeneratePdf";
             }
             normalized.Add(new(rule.Id, rule.Event, conditions.Select(condition => condition with { Values = condition.Values?.ToArray() }).ToArray(), actions));
         }
         return normalized;
     }
-    private static bool ValidPlaceholders(string text, string culture, IReadOnlyList<CanonicalFormField> questions)
+    // A datum of a result (RE1-A) is valid only when an earlier action of the same rule declares it.
+    internal static bool ValidPlaceholders(string text, string culture, IReadOnlyList<CanonicalFormField> questions,
+        IReadOnlyList<FormActionResultDatum> resultData)
     {
         var position = 0;
         while (position < text.Length)
@@ -73,7 +79,11 @@ internal static class FormRulePolicy
             var end = text.IndexOf('}', position);
             if (end < 0) return false;
             var token = text[position..end];
-            if (token is not ("número" or "number" or "motivo" or "reason")
+            if (FormActionResultTokenPolicy.IsResult(token))
+            {
+                if (!FormActionResultTokenPolicy.TryParse(token, out var datum) || !resultData.Contains(datum)) return false;
+            }
+            else if (token is not ("número" or "number" or "motivo" or "reason")
                 && (Question(token, culture, questions) is not { } question || question.Repeated == true)) return false;
             position = end + 1;
         }

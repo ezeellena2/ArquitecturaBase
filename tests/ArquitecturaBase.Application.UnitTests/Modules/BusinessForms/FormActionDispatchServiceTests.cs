@@ -117,7 +117,7 @@ public sealed class FormActionDispatchServiceTests
         await fixture.Recorder.RecordAsync(captured.Record,captured.Snapshot,"Received",CancellationToken.None);
         var dispatch=Dispatch(fixture);var roleRun=fixture.Runs.Runs[0];var successor=fixture.Runs.Runs[1];
         var channel=new FakeFormActionChannel();channel.Statuses[first]=new(ArquitecturaBase.Application.Models.StructuredData.StructuredRecordActionState.Uncertain);channel.Statuses[second]=new(ArquitecturaBase.Application.Models.StructuredData.StructuredRecordActionState.Uncertain);
-        var effect=new FormActionEffectService(fixture.Pdf,[channel],NullLogger<FormActionEffectService>.Instance);
+        var effect=new FormActionEffectService(fixture.Pdf,[channel],NullLogger<FormActionEffectService>.Instance,new ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms.FormRecordResultReaderDouble());
         var workflow=new FormWorkflowService(new(fixture.Runs,new(fixture.Rules.User,fixture.Rules.Permissions,new FakeFormResponseReader()),fixture.Rules.Permissions,[]),fixture.Runs,fixture.Rules,new(fixture.Rules.User,fixture.Rules.Permissions,new FakeFormResponseReader()),fixture.Rules.Permissions,fixture.Rules.UnitOfWork,fixture.Clock,NullLogger<FormWorkflowService>.Instance);
         async Task FinishRoleAsync()
         {
@@ -167,7 +167,7 @@ public sealed class FormActionDispatchServiceTests
         await fixture.Recorder.RecordAsync(captured.Record,captured.Snapshot,"Received",CancellationToken.None);
         var dispatch=Dispatch(fixture);var roleRun=fixture.Runs.Runs[0];var successor=fixture.Runs.Runs[1];
         var channel=new FakeFormActionChannel();channel.Statuses[second]=new(ArquitecturaBase.Application.Models.StructuredData.StructuredRecordActionState.Failed,"WhatsApp.FormAction.RecipientUnavailable",true);
-        var effect=new FormActionEffectService(fixture.Pdf,[channel],NullLogger<FormActionEffectService>.Instance);
+        var effect=new FormActionEffectService(fixture.Pdf,[channel],NullLogger<FormActionEffectService>.Instance,new ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms.FormRecordResultReaderDouble());
         var workflow=new FormWorkflowService(new(fixture.Runs,new(fixture.Rules.User,fixture.Rules.Permissions,new FakeFormResponseReader()),fixture.Rules.Permissions,[]),fixture.Runs,fixture.Rules,new(fixture.Rules.User,fixture.Rules.Permissions,new FakeFormResponseReader()),fixture.Rules.Permissions,fixture.Rules.UnitOfWork,fixture.Clock,NullLogger<FormWorkflowService>.Instance);
         async Task<FormActionWorkResponse> FinishRoleAsync()
         {
@@ -197,7 +197,7 @@ public sealed class FormActionDispatchServiceTests
         var oversized=Guid.NewGuid();fixture.Recipients.People[oversized]=new(oversized,"es","Oversized recipient");
         await fixture.Recorder.RecordAsync(captured.Record,captured.Snapshot,"Received",CancellationToken.None);
         var dispatch=Dispatch(fixture);var work=(await dispatch.ReserveAsync(fixture.Runs.Runs[0].Id,CancellationToken.None)).Value;Assert.NotNull(work);
-        var channel=new FakeFormActionChannel();var effect=new FormActionEffectService(fixture.Pdf,[channel],NullLogger<FormActionEffectService>.Instance);
+        var channel=new FakeFormActionChannel();var effect=new FormActionEffectService(fixture.Pdf,[channel],NullLogger<FormActionEffectService>.Instance,new ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms.FormRecordResultReaderDouble());
         var result=await effect.ExecuteAsync(work,CancellationToken.None);
         Assert.Equal(FormActionRunState.Completed,result.State);Assert.Equal(captured.Record.ActorUserId,Assert.Single(channel.Messages).RecipientUserId);
         var failed=Assert.Single(result.Recipients!,recipient=>recipient.UserId==oversized);Assert.Equal(FormActionErrors.MessageTooLong.Code,failed.Status.FailureCode);
@@ -214,7 +214,7 @@ public sealed class FormActionDispatchServiceTests
         var captured=fixture.Capture([new(Guid.NewGuid(),"Received",[],[role,approval])]);var other=Guid.NewGuid();fixture.Recipients.People[other]=new(other,"es","Other employee");
         await fixture.Recorder.RecordAsync(captured.Record,captured.Snapshot,"Received",CancellationToken.None);
         var dispatch=Dispatch(fixture);var work=(await dispatch.ReserveAsync(fixture.Runs.Runs[0].Id,CancellationToken.None)).Value;Assert.NotNull(work);
-        var effect=new FormActionEffectService(fixture.Pdf,[],NullLogger<FormActionEffectService>.Instance);var result=await effect.ExecuteAsync(work,CancellationToken.None);
+        var effect=new FormActionEffectService(fixture.Pdf,[],NullLogger<FormActionEffectService>.Instance,new ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms.FormRecordResultReaderDouble());var result=await effect.ExecuteAsync(work,CancellationToken.None);
         Assert.Equal(FormActionRunState.Completed,result.State);Assert.False(result.CanRetry);
         Assert.Equal(2,result.Recipients!.Count);Assert.All(result.Recipients!,recipient=>
         {Assert.Null(recipient.ChannelId);Assert.Equal(FormActionErrors.ChannelUnavailable.Code,recipient.Status.FailureCode);Assert.Equal(ArquitecturaBase.Application.Models.StructuredData.StructuredRecordActionState.Failed,recipient.Status.State);});
