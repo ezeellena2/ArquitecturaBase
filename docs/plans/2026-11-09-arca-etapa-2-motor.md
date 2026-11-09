@@ -92,7 +92,7 @@ Eligió las cuatro recomendadas. No se vuelven a preguntar.
 ### Resultado externo
 
 - **Lo trae la acción «Emitir comprobante»** (`IssueDocument`) de la etapa 3, sobre su puerto `IStructuredRecordIssuer`
-  ([diseño de la etapa 3](2026-11-09-arca-etapa-3-factura-c.md), ADR 0026 propuesto). Esta etapa no hace ningún puerto de
+  ([diseño de la etapa 3](2026-11-09-arca-etapa-3-factura-c.md), [ADR 0028](../decisions/0028-emision-de-comprobantes-arca.md)). Esta etapa no hace ningún puerto de
   acciones: pone dónde se guarda, cómo se lee y cómo lo usan los avisos.
 - **DTO neutrales** en `Models/StructuredData`: `StructuredRecordResult` (nombre de la fuente por idioma y sus datos, cada
   uno con clave, nombre por idioma, tipo —texto, fecha o número— y valor) y `StructuredRecordResultField`, el mismo dato sin
@@ -141,7 +141,7 @@ aunque la renombren (la usan ARCA y la biblioteca).
 
 ## ADR
 
-El puerto de emisión es del ADR 0026 de la etapa 3. Esta etapa suma uno, antes de programar la biblioteca: **los estándares
+El puerto de emisión es del [ADR 0028](../decisions/0028-emision-de-comprobantes-arca.md) de la etapa 3. Esta etapa suma uno, antes de programar la biblioteca: **los estándares
 de la biblioteca los aportan los módulos como datos**, la copia recuerda su origen y las preguntas atadas protegen lo que
 el módulo necesita. El número se elige al escribirlo, porque las etapas 3, 5 y 6 también escriben los suyos.
 
@@ -175,9 +175,9 @@ Cada tarea con su test en rojo primero, el build y los tests rápidos del área,
 **Biblioteca**
 
 15. ~~BI1: tablero y decisión.~~ Hecho: BI1-A.
-16. El puerto de estándares y `GET api/forms/library`.
-17. «Agregar»: la copia con su origen sellado y su migración.
-18. Las preguntas atadas en el guardado y en la lectura del borrador.
+16. ~~El puerto de estándares y `GET api/forms/library`.~~ Hecho (e2cb8606).
+17. ~~«Agregar»: la copia con su origen sellado y su migración.~~ Hecho (e2cb8606); un catálogo que trae el propio estándar, cuando la etapa 3 lo necesite.
+18. ~~Las preguntas atadas en el guardado y en la lectura del borrador.~~ Hecho (e2cb8606).
 19. Front: la pantalla «Biblioteca», «Agregar» y el candado en el editor.
 
 **Carpetas** (los cortes de su plan)
