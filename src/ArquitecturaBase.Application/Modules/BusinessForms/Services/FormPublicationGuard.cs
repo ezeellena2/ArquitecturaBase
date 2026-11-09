@@ -146,6 +146,16 @@ internal sealed class FormPublicationGuard(FormPublicationAccessGuard accessGuar
             if (missing.Count > 0) warnings.Add(new(question.FieldId, path + ".match", FormPublicationErrors.RecipientsWithoutData.Code,
                 ErrorMessages.Get(FormPublicationErrors.RecipientsWithoutData.Code), Count: missing.Count, People: missing.People.Take(5).ToArray()));
         }
+        // CA1-A: the rate of a percentage that comes from a catalog needs a catalog of numbers.
+        for (var index = 0; index < questions.Count; index++)
+        {
+            if (questions[index].Calculation is not { Operation: FormCalculation.Percent } calculation) continue;
+            if (questions.FirstOrDefault(field => field.FieldId == calculation.Operands[1]) is not { Source.Catalog: { } rateCatalog }) continue;
+            if (!catalogs.TryGetValue(rateCatalog, out var rate)) { rate = await catalogReader.FindAsync(rateCatalog, ct); catalogs.Add(rateCatalog, rate); }
+            if (rate?.ValueType is not ("Integer" or "Decimal"))
+                issues.Add(new(null, questions[index].FieldId, null, $"draft.fields[{index}].calculation", FormPublicationErrors.CalculationInvalid.Code,
+                    ErrorMessages.Get(FormPublicationErrors.CalculationInvalid.Code), null, null));
+        }
         return new(issues.AsReadOnly(), warnings.AsReadOnly());
     }
 }

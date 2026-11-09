@@ -77,6 +77,24 @@ public sealed class FormCalculationCaptureTests
     }
 
     [Fact]
+    public void The_rate_of_a_catalog_option_is_its_value()
+    {
+        var group = Field("items","group");
+        var amount = Field("amount",repeated: true);
+        var rate = new CanonicalFormField(Guid.CreateVersion7(),"rate","choice",new Dictionary<string,string>{ ["es"]="Alícuota" },null,false,null,null,
+            new FormQuestionSource(Guid.CreateVersion7()),Repeated: true);
+        var vat = Calc("vat",FormCalculation.Percent,true,amount,rate);
+        var general = Guid.CreateVersion7();
+        var offer = new ArquitecturaBase.Application.Models.StructuredData.StructuredFormCatalogOffer(rate.FieldId,"rate","Alícuota",rate.Source!.Catalog!.Value,1,"Manual","Alícuotas",
+            [new(general,"21 %",null,Value: "21"),new(Guid.CreateVersion7(),"10,5 %",null,Value: "10.5")],ValueType: "Decimal");
+
+        var answers = FormRecordAnswerPolicy.Normalize(new FormVersionSchema(1,[group,amount,rate,vat]),
+            new Dictionary<string,string> { ["items"]=$$"""[{"amount":"1000.10","rate":"{{general:D}}"}]""" },[offer])!;
+
+        Assert.Equal(210.02m,answers.Single(answer => answer.Type == "group").Rows![0].Single(answer => answer.FieldId == vat.FieldId).Decimal);
+    }
+
+    [Fact]
     public void An_answer_sent_for_a_calculation_is_invalid()
     {
         var invoice = Build();

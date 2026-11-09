@@ -35,7 +35,7 @@ internal static class FormRecordAnswerPolicy
             }
             if (question.Calculation is { } calculation)
             {
-                if (answers.ContainsKey(question.Key) || !TryCalculate(question, calculation, result, out var calculated)) return null;
+                if (answers.ContainsKey(question.Key) || !TryCalculate(question, calculation, result, offers, out var calculated)) return null;
                 if (calculated is not null) result.Add(calculated);
                 continue;
             }
@@ -88,7 +88,7 @@ internal static class FormRecordAnswerPolicy
                 {
                     if (question.Calculation is { } calculation)
                     {
-                        if (item.ContainsKey(question.Key) || !TryCalculate(question, calculation, answers, out var calculated)) return null;
+                        if (item.ContainsKey(question.Key) || !TryCalculate(question, calculation, answers, offers, out var calculated)) return null;
                         if (calculated is not null) answers.Add(calculated);
                         continue;
                     }
@@ -117,7 +117,7 @@ internal static class FormRecordAnswerPolicy
     // or a percentage with an empty operand is left empty; a sum adds what there is, also a question of the block over all the
     // items, and is left empty without values. False only when the numbers do not fit.
     private static bool TryCalculate(CanonicalFormField question, FormCalculation calculation, IReadOnlyList<FormRecordAnswer> known,
-        out FormRecordAnswer? answer)
+        IReadOnlyList<StructuredFormCatalogOffer> offers, out FormRecordAnswer? answer)
     {
         answer = null;
         try
@@ -131,7 +131,7 @@ internal static class FormRecordAnswerPolicy
             else
             {
                 var first = Values(calculation.Operands[0], known).Cast<decimal?>().FirstOrDefault();
-                var second = Values(calculation.Operands[1], known).Cast<decimal?>().FirstOrDefault();
+                var second = Values(calculation.Operands[1], known).Cast<decimal?>().FirstOrDefault() ?? Rate(calculation.Operands[1], known, offers);
                 value = first is null || second is null ? null
                     : calculation.Operation == FormCalculation.Multiply ? first * second : first * second / 100m;
             }
@@ -141,6 +141,12 @@ internal static class FormRecordAnswerPolicy
         }
         catch (OverflowException) { return false; }
     }
+
+    // The rate a catalog option brings as its value (CA1-A): the value the offer sealed, an integer or a decimal.
+    private static decimal? Rate(Guid fieldId, IReadOnlyList<FormRecordAnswer> known, IReadOnlyList<StructuredFormCatalogOffer> offers) =>
+        known.FirstOrDefault(answer => answer.FieldId == fieldId)?.ChoiceId is { } choice
+        && offers.FirstOrDefault(offer => offer.FieldId == fieldId)?.Options.FirstOrDefault(option => option.Id == choice)?.Value is { } value
+        && decimal.TryParse(value, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var rate) ? rate : null;
 
     // The value of a question already answered, or of a question of the block in every item.
     private static IEnumerable<decimal> Values(Guid fieldId, IReadOnlyList<FormRecordAnswer> known) =>

@@ -50,9 +50,11 @@ internal static class FormPublicationPolicy
             if (fields[index].Calculation is not { } calculation) continue;
             var inBlock = fields[index].Repeated == true;
             var earlier = fields.Take(index).ToDictionary(field => field.FieldId);
-            var valid = (calculation.Operation != FormCalculation.Sum || !inBlock) && calculation.Operands.All(operand =>
-                earlier.TryGetValue(operand, out var field) && field.Type == "decimal"
-                && (calculation.Operation == FormCalculation.Sum || (field.Repeated == true) == inBlock));
+            // The rate of a percentage may also be a choice from a catalog: its option's value is the rate (the guard checks the type).
+            var valid = (calculation.Operation != FormCalculation.Sum || !inBlock) && calculation.Operands.Select((operand, position) =>
+                earlier.TryGetValue(operand, out var field)
+                && (field.Type == "decimal" || (calculation.Operation == FormCalculation.Percent && position == 1 && field.Type == "choice" && field.Source?.Catalog is not null))
+                && (calculation.Operation == FormCalculation.Sum || (field.Repeated == true) == inBlock)).All(ok => ok);
             if (!valid)
                 issues.Add(new(null, fields[index].FieldId, null, $"draft.fields[{index}].calculation", FormPublicationErrors.CalculationInvalid.Code,
                     ErrorMessages.Get(FormPublicationErrors.CalculationInvalid.Code), null, null));

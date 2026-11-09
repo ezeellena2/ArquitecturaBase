@@ -64,6 +64,16 @@ public sealed class FormCalculationPublicationTests
     }
 
     [Fact]
+    public void The_rate_of_a_percentage_may_be_a_choice_from_a_catalog()
+    {
+        var amount = Field("decimal",true);
+        var rate = new CanonicalFormField(Guid.CreateVersion7(),"field_rate","choice",new Dictionary<string,string>{ ["es"]="Alícuota" },null,true,null,null,
+            new FormQuestionSource(Guid.CreateVersion7()),Repeated: true);
+        Assert.Empty(FormPublicationPolicy.ValidateCalculations(Definition(Field("group"),amount,rate,Calc(FormCalculation.Percent,true,amount,rate))));
+        Assert.Single(FormPublicationPolicy.ValidateCalculations(Definition(Field("group"),amount,rate,Calc(FormCalculation.Multiply,true,amount,rate))));
+    }
+
+    [Fact]
     public void A_sum_goes_outside_the_block()
     {
         var quantity = Field("decimal",true);
