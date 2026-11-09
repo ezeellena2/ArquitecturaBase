@@ -425,8 +425,15 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<DateOnly?>("ActivityStartOn")
+                        .HasColumnType("date");
+
                     b.Property<Guid>("ConnectionId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("GrossIncomeNumber")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
 
                     b.Property<int?>("PointOfSale")
                         .HasColumnType("integer");
@@ -437,6 +444,189 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("ArcaInvoicingSettings", (string)null);
+                });
+
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.Arca.Invoicing.ArcaVoucher", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Cae")
+                        .HasMaxLength(14)
+                        .HasColumnType("character varying(14)");
+
+                    b.Property<DateOnly?>("CaeDueOn")
+                        .HasColumnType("date");
+
+                    b.Property<Guid?>("CancelsVoucherId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Class")
+                        .IsRequired()
+                        .HasMaxLength(2)
+                        .HasColumnType("character varying(2)");
+
+                    b.Property<DateTime?>("CompletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Concept")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("ConnectionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Cuit")
+                        .IsRequired()
+                        .HasMaxLength(11)
+                        .HasColumnType("character varying(11)");
+
+                    b.Property<string>("DataHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<long>("DocumentNumber")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("DocumentType")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Environment")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("FailureCode")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<int>("Failures")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly?>("IssuedOn")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("MessagesJson")
+                        .HasColumnType("jsonb");
+
+                    b.Property<DateTime>("NextAttemptAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long?>("Number")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("PayloadJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("PdfSha256")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<long?>("PdfSize")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("PdfStorageKey")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("PointOfSale")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("RequestKey")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly>("RequestedOn")
+                        .HasColumnType("date");
+
+                    b.Property<string>("ReviewReason")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<int>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<decimal>("Total")
+                        .HasPrecision(15, 2)
+                        .HasColumnType("numeric(15,2)");
+
+                    b.Property<int>("VoucherType")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("WaitedForArca")
+                        .HasColumnType("boolean");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CancelsVoucherId");
+
+                    b.HasIndex("RequestKey")
+                        .IsUnique();
+
+                    b.HasIndex("State", "NextAttemptAtUtc");
+
+                    b.HasIndex("Environment", "Cuit", "PointOfSale", "VoucherType", "Number")
+                        .IsUnique()
+                        .HasFilter("\"Number\" IS NOT NULL");
+
+                    b.ToTable("ArcaVouchers", (string)null);
+                });
+
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.Arca.Invoicing.ArcaVoucherSequence", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Cuit")
+                        .IsRequired()
+                        .HasMaxLength(11)
+                        .HasColumnType("character varying(11)");
+
+                    b.Property<string>("Environment")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<long>("Fence")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid?>("LeaseOwner")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("LeaseUntilUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("PendingVoucherId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("PointOfSale")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("VoucherType")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Environment", "Cuit", "PointOfSale", "VoucherType")
+                        .IsUnique();
+
+                    b.ToTable("ArcaVoucherSequences", (string)null);
                 });
 
             modelBuilder.Entity("ArquitecturaBase.Domain.Modules.Arca.Registry.ArcaRegistryCompany", b =>
@@ -2296,6 +2486,63 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormRecordResult", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("DefinitionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ModifiedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("RecordId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("RecordedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("RunId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("SourceNameJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("ValuesJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RunId")
+                        .IsUnique();
+
+                    b.HasIndex("DefinitionId", "RecordId");
+
+                    b.HasIndex("RecordId", "RunId");
+
+                    b.HasIndex("DefinitionId", "Source", "RecordedAtUtc");
+
+                    b.ToTable("BusinessFormRecordResults", (string)null);
+                });
+
             modelBuilder.Entity("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormRecordValue", b =>
                 {
                     b.Property<Guid>("Id")
@@ -4151,6 +4398,14 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.Arca.Invoicing.ArcaVoucher", b =>
+                {
+                    b.HasOne("ArquitecturaBase.Domain.Modules.Arca.Invoicing.ArcaVoucher", null)
+                        .WithMany()
+                        .HasForeignKey("CancelsVoucherId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
             modelBuilder.Entity("ArquitecturaBase.Domain.Modules.Arca.Registry.ArcaRegistryCompany", b =>
                 {
                     b.HasOne("ArquitecturaBase.Domain.Modules.Arca.Connection.ArcaConnection", null)
@@ -4410,6 +4665,23 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasForeignKey("DefinitionId", "RecordId")
                         .HasPrincipalKey("DefinitionId", "Id")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormRecordResult", b =>
+                {
+                    b.HasOne("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormRecord", null)
+                        .WithMany()
+                        .HasForeignKey("DefinitionId", "RecordId")
+                        .HasPrincipalKey("DefinitionId", "Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormActionRun", null)
+                        .WithMany()
+                        .HasForeignKey("RecordId", "RunId")
+                        .HasPrincipalKey("RecordId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 

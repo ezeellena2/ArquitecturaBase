@@ -1,3 +1,4 @@
+using ArquitecturaBase.Domain.Modules.Arca.Connection;
 using ArquitecturaBase.Domain.Modules.Arca.Invoicing;
 
 namespace ArquitecturaBase.Domain.UnitTests.Modules.Arca.Invoicing;
@@ -58,5 +59,5 @@ public sealed class ArcaVoucherSequenceTests
         Assert.Null(sequence.PendingVoucherId);
     }
 
-    private static ArcaVoucherSequence New() => ArcaVoucherSequence.Create(Guid.CreateVersion7(), "27287654338", 4, 11);
+    private static ArcaVoucherSequence New() => ArcaVoucherSequence.Create(ArcaEnvironment.Testing, "27287654338", 4, 11);
 }

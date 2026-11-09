@@ -1,4 +1,5 @@
 using ArquitecturaBase.Domain.Modules.Arca;
+using ArquitecturaBase.Domain.Modules.Arca.Connection;
 using ArquitecturaBase.Domain.Modules.Arca.Invoicing;
 
 namespace ArquitecturaBase.Domain.UnitTests.Modules.Arca.Invoicing;
@@ -21,7 +22,7 @@ public sealed class ArcaVoucherTests
     public void A_credit_note_of_class_c_has_the_code_13_and_remembers_what_it_cancels()
     {
         var cancelled = Guid.CreateVersion7();
-        var voucher = ArcaVoucher.Create(Guid.CreateVersion7(), Guid.CreateVersion7(), ArcaVoucherClass.C, ArcaVoucherKind.CreditNote, "27287654338", 4, 1, 80,
+        var voucher = ArcaVoucher.Create(Guid.CreateVersion7(), ArcaEnvironment.Testing, Guid.CreateVersion7(), ArcaVoucherClass.C, ArcaVoucherKind.CreditNote, "27287654338", 4, 1, 80,
             30712345671, RequestedOn, 605500m, "{}", cancelled, Now);
 
         Assert.Equal((13, cancelled), (voucher.VoucherType, voucher.CancelsVoucherId));
@@ -158,7 +159,32 @@ public sealed class ArcaVoucherTests
         Assert.Equal(ArcaInvoicingErrors.VoucherNotCancellable, Sending().Cancel(Now).Error);
     }
 
-    private static ArcaVoucher New() => ArcaVoucher.Create(Guid.CreateVersion7(), Guid.CreateVersion7(), ArcaVoucherClass.C, ArcaVoucherKind.Invoice,
+    [Fact]
+    public void An_authorized_voucher_is_due_for_its_pdf_until_it_has_one()
+    {
+        var voucher = Sending();
+        voucher.MarkUncertain("wsfe.unavailable", Now);
+        voucher.Authorize("76451234567890", new DateOnly(2026, 11, 19), null, Now);
+        Assert.True(voucher.IsPdfDue(Now));
+
+        voucher.PostponePdf("Files.Unavailable", Now);
+        Assert.False(voucher.IsPdfDue(Now.AddSeconds(29)));
+        Assert.True(voucher.IsPdfDue(Now.AddSeconds(30)));
+
+        voucher.AttachPdf("arca-vouchers/x.pdf", "sha", 1234);
+        Assert.Equal(("arca-vouchers/x.pdf", "sha", (long?)1234), (voucher.PdfStorageKey, voucher.PdfSha256, voucher.PdfSize));
+        Assert.False(voucher.IsPdfDue(Now.AddDays(1)));
+        Assert.Equal(ArcaVoucherState.Authorized, voucher.State);
+    }
+
+    [Fact]
+    public void A_voucher_that_is_not_authorized_has_no_pdf()
+    {
+        Assert.False(Sending().IsPdfDue(Now));
+        Assert.Throws<InvalidOperationException>(() => Sending().AttachPdf("key", "sha", 1));
+    }
+
+    private static ArcaVoucher New() => ArcaVoucher.Create(Guid.CreateVersion7(), ArcaEnvironment.Testing, Guid.CreateVersion7(), ArcaVoucherClass.C, ArcaVoucherKind.Invoice,
         "27287654338", 4, 1, 80, 30712345671, RequestedOn, 605500m, "{}", null, Now);
 
     private static ArcaVoucher Sending()

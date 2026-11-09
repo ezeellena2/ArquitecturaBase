@@ -62,6 +62,8 @@ public static class ArcaInfrastructureRegistration
     {
         services.AddScoped<IArcaInvoicingRepository, ArcaInvoicingRepository>();
         services.AddScoped<IArcaInvoicingReader, ArcaInvoicingReader>();
+        services.AddScoped<IArcaVoucherRepository, ArcaVoucherRepository>();
+        services.AddScoped<IArcaVoucherReader, ArcaVoucherReader>();
         services.AddSingleton<IArcaInvoicingClient, ArcaInvoicingClient>();
         ConfigureClient(services.AddHttpClient(InvoicingHttpClientName));
     }

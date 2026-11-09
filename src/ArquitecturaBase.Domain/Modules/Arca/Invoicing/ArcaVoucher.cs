@@ -1,4 +1,5 @@
 using ArquitecturaBase.Domain.Common;
+using ArquitecturaBase.Domain.Modules.Arca.Connection;
 using ArquitecturaBase.Domain.Results;
 
 namespace ArquitecturaBase.Domain.Modules.Arca.Invoicing;
@@ -13,8 +14,10 @@ public sealed class ArcaVoucher : Entity
 {
     private ArcaVoucher() { }
 
+    /// <summary>La conexión que la pidió. Sin clave foránea: desconectar no borra comprobantes, que tienen valor legal.</summary>
     public Guid ConnectionId { get; private set; }
     public Guid RequestKey { get; private set; }
+    public ArcaEnvironment Environment { get; private set; }
     public ArcaVoucherClass Class { get; private set; }
     public ArcaVoucherKind Kind { get; private set; }
     public int VoucherType { get; private set; }
@@ -50,17 +53,23 @@ public sealed class ArcaVoucher : Entity
     public DateTime CreatedAtUtc { get; private set; }
     public DateTime? CompletedAtUtc { get; private set; }
 
+    /// <summary>El PDF fiscal en el almacén privado: se arma una vez autorizado y nunca provoca otra emisión.</summary>
+    public string? PdfStorageKey { get; private set; }
+    public string? PdfSha256 { get; private set; }
+    public long? PdfSize { get; private set; }
+
     /// <summary>Cambia con cada transición: una revisión humana la espera para no decidir sobre algo que ya cambió.</summary>
     public int Revision { get; private set; }
 
     /// <summary>Tiene un número que ARCA puede haber usado: su secuencia no da otro hasta resolverlo.</summary>
     public bool HoldsNumber => Number is not null && State is ArcaVoucherState.Sending or ArcaVoucherState.Uncertain or ArcaVoucherState.NeedsReview;
 
-    public static ArcaVoucher Create(Guid connectionId, Guid requestKey, ArcaVoucherClass voucherClass, ArcaVoucherKind kind, string cuit, int pointOfSale,
+    public static ArcaVoucher Create(Guid connectionId, ArcaEnvironment environment, Guid requestKey, ArcaVoucherClass voucherClass, ArcaVoucherKind kind, string cuit, int pointOfSale,
         int concept, int documentType, long documentNumber, DateOnly requestedOn, decimal total, string payloadJson, Guid? cancelsVoucherId, DateTime nowUtc) =>
         new()
         {
             ConnectionId = connectionId,
+            Environment = environment,
             RequestKey = requestKey,
             Class = voucherClass,
             Kind = kind,
@@ -82,6 +91,9 @@ public sealed class ArcaVoucher : Entity
     /// <summary>Le toca un intento: en cola o incierto, y ya pasó su espera.</summary>
     public bool IsDue(DateTime nowUtc) => State is ArcaVoucherState.Queued or ArcaVoucherState.Uncertain && NextAttemptAtUtc <= nowUtc;
 
+    /// <summary>Autorizado, todavía sin su PDF fiscal, y ya pasó su espera.</summary>
+    public bool IsPdfDue(DateTime nowUtc) => State == ArcaVoucherState.Authorized && PdfStorageKey is null && NextAttemptAtUtc <= nowUtc;
+
     public void AssignNumber(long number, string dataHash, DateTime nowUtc)
     {
         Require(State == ArcaVoucherState.Queued && Number is null, "assign a number");
@@ -101,6 +113,7 @@ public sealed class ArcaVoucher : Entity
     {
         Require(State is ArcaVoucherState.Sending or ArcaVoucherState.Uncertain && Number is not null, "authorize");
         (Cae, CaeDueOn, IssuedOn, MessagesJson, FailureCode) = (cae, caeDueOn, RequestedOn, messagesJson, null);
+        (Failures, NextAttemptAtUtc) = (0, nowUtc);
         Complete(ArcaVoucherState.Authorized, nowUtc);
     }
 
@@ -164,6 +177,20 @@ public sealed class ArcaVoucher : Entity
         if (Number is not null || State is not (ArcaVoucherState.Queued or ArcaVoucherState.NeedsReview)) return ArcaInvoicingErrors.VoucherNotCancellable;
         Complete(ArcaVoucherState.Cancelled, nowUtc);
         return Result.Success();
+    }
+
+    public void AttachPdf(string storageKey, string sha256, long size)
+    {
+        Require(State == ArcaVoucherState.Authorized && PdfStorageKey is null, "attach its PDF");
+        (PdfStorageKey, PdfSha256, PdfSize, FailureCode) = (storageKey, sha256, size, null);
+        Revision++;
+    }
+
+    /// <summary>El almacén falló al guardar el PDF: el comprobante sigue autorizado y el PDF se reintenta con espera.</summary>
+    public void PostponePdf(string failureCode, DateTime nowUtc)
+    {
+        Require(State == ArcaVoucherState.Authorized && PdfStorageKey is null, "postpone its PDF");
+        Wait(failureCode, nowUtc);
     }
 
     public override string ToString() => $"ArcaVoucher {{ id: {Id}, type: {VoucherType}, pointOfSale: {PointOfSale}, number: {Number}, state: {State} }}";

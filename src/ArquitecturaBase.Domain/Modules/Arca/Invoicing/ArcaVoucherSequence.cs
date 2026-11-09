@@ -1,17 +1,19 @@
 using ArquitecturaBase.Domain.Common;
+using ArquitecturaBase.Domain.Modules.Arca.Connection;
 
 namespace ArquitecturaBase.Domain.Modules.Arca.Invoicing;
 
 /// <summary>
 /// El candado de numeración de una CUIT, un punto de venta y un tipo (ADR 0028): una reserva corta con dueño, vencimiento y
 /// fence para que un solo host trabaje la secuencia, y el comprobante pendiente, el que tiene número sin resolver. Mientras
-/// haya pendiente nadie toma otro número: si ARCA no lo emitió, ese número sigue siendo suyo.
+/// haya pendiente nadie toma otro número: si ARCA no lo emitió, ese número sigue siendo suyo. Es del ambiente y la CUIT, no
+/// de la conexión: desconectar y volver a conectar no puede olvidar un pendiente.
 /// </summary>
 public sealed class ArcaVoucherSequence : Entity
 {
     private ArcaVoucherSequence() { }
 
-    public Guid ConnectionId { get; private set; }
+    public ArcaEnvironment Environment { get; private set; }
     public string Cuit { get; private set; } = string.Empty;
     public int PointOfSale { get; private set; }
     public int VoucherType { get; private set; }
@@ -20,8 +22,8 @@ public sealed class ArcaVoucherSequence : Entity
     public long Fence { get; private set; }
     public Guid? PendingVoucherId { get; private set; }
 
-    public static ArcaVoucherSequence Create(Guid connectionId, string cuit, int pointOfSale, int voucherType) =>
-        new() { ConnectionId = connectionId, Cuit = cuit, PointOfSale = pointOfSale, VoucherType = voucherType };
+    public static ArcaVoucherSequence Create(ArcaEnvironment environment, string cuit, int pointOfSale, int voucherType) =>
+        new() { Environment = environment, Cuit = cuit, PointOfSale = pointOfSale, VoucherType = voucherType };
 
     /// <summary>Toma la reserva con un fence nuevo, o null si otro host la tiene vigente.</summary>
     public long? TryReserve(Guid owner, DateTime nowUtc, TimeSpan duration)

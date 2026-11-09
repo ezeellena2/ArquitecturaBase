@@ -13,5 +13,6 @@ internal sealed class ArcaInvoicingSettingsConfiguration : IEntityTypeConfigurat
         builder.HasKey(x => x.Id);
         builder.HasIndex(x => x.ConnectionId).IsUnique();
         builder.HasOne<ArcaConnection>().WithMany().HasForeignKey(x => x.ConnectionId).OnDelete(DeleteBehavior.Cascade);
+        builder.Property(x => x.GrossIncomeNumber).HasMaxLength(30);
     }
 }

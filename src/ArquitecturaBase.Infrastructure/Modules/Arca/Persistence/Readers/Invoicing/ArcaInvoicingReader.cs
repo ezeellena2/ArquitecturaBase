@@ -11,6 +11,6 @@ internal sealed class ArcaInvoicingReader(ApplicationDbContext dbContext) : IArc
     public Task<ArcaInvoicingSettingsRow?> FindSettingsAsync(Guid connectionId, CancellationToken cancellationToken) =>
         dbContext.Set<ArcaInvoicingSettings>().AsNoTracking()
             .Where(x => x.ConnectionId == connectionId)
-            .Select(x => new ArcaInvoicingSettingsRow(x.PointOfSale))
+            .Select(x => new ArcaInvoicingSettingsRow(x.PointOfSale, x.GrossIncomeNumber, x.ActivityStartOn))
             .SingleOrDefaultAsync(cancellationToken);
 }
