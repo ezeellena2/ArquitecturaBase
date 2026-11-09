@@ -1,0 +1,203 @@
+# La IA arma formularios y catálogos · Etapa 2: planillas
+
+Plan de implementación del 2026-11-09 para la Etapa 2 del [plan](2026-11-04-ia-arma-formularios-y-catalogos.md), con el
+[ADR 0024](../decisions/0024-ia-arma-formularios-y-catalogos.md) y el diseño congelado en el front
+([la IA arma formularios y catálogos](../../../ArquitecturaBaseFront/docs/design/ia-arma-formularios.md), fila «2 · Planillas»).
+Se trabaja en modo liviano, como la Etapa 1: este diseño con un revisor, diez tareas, una revisión por tarea y la suite completa
+al cerrar.
+
+Alcance: una planilla, Excel `.xlsx` o CSV, una por mensaje, en Inicio con el clip y por WhatsApp como documento. Con ella la IA
+propone un catálogo Manual con el mapeo de sus columnas, o importarla en un catálogo Manual que existe. En Inicio la propuesta es
+la tarjeta de IA1-A con las columnas y tres filas de muestra, o la tarjeta «Importación» con «Revisar la importación»; por
+WhatsApp, el resumen de IA3-A con «Son N filas». «Crear catálogo» lo deja inactivo con «Importar opciones» abierto y la planilla
+ya revisada (IA2): importar sigue siendo de la persona. Inicio vacío suma «Armame un catálogo con una planilla». Un archivo que no
+se lee lo dice y no llega a la IA. Quedan afuera los PDF, las fotos y los Word (Etapa 3), más de una hoja, varias planillas en un
+mensaje y cambiar los campos de un catálogo que existe.
+
+## Lo que hay
+
+Verificado en el código el 2026-11-09:
+
+- **La importación de opciones (E1-A)** recibe el archivo sólo por multipart: la vista previa no lo guarda y aplicar lo vuelve a
+  mandar y compara el SHA-256. Los encabezados son fijos («Código», «Texto», el valor y los campos) y van siempre en la fila 1, así
+  que una planilla con «CUIT» y «Razón social» da `MissingColumn`; el único mapeo vive en el front, al pegar. El lector
+  (`IFormSpreadsheetReader`: ClosedXML y un lector CSV propio) acepta hasta 10 MiB, 64 columnas y 10.000 filas y decide el tipo
+  por la extensión; un `.xls`, un `.xlsm` o uno con contraseña dan el mismo `FileUnreadable`.
+- **`forms.authoring.propose-catalog@1`** propone un catálogo «sin opciones»: el código y la opción son descripciones libres y los
+  campos no dicen de qué columna salen. Crear guarda la propuesta entera en la evidencia del catálogo, que ve cualquiera que pueda
+  leerlo.
+- **Inicio** acepta texto y audio. El audio es el patrón de esta etapa: copia privada `WriteOnce` antes de la UoW, huella con el
+  descriptor, el servidor toma lo que necesita de su lado y nunca del navegador, y una fuente de retención conserva el archivo
+  mientras el turno tenga contenido. La historia entra en 24.000 caracteres, del turno más viejo al más nuevo, y saltea lo que no
+  entra; en un canal sólo viaja la última propuesta.
+- **Las capacidades** ven sólo los argumentos del modelo y el contexto que fija el servidor; `AiAssistantCapabilityBoundaryTests`
+  no les deja abrir archivos privados ni el lector de planillas. El reemplazo de una propuesta es por Id de capacidad.
+- **Por WhatsApp**, un documento entrante queda como `Media`: no se baja, pierde su `caption` y, si es el último mensaje, corta la
+  interpretación. La fuente es siempre el último mensaje, sin buscar hacia atrás, y una interpretación sin texto no se acepta. Los
+  botones tienen hasta 20 caracteres.
+- **Definiciones por turno:** Inicio usa 12 de 16, y el asistente automático 15 de 16 para una cuenta con todos los permisos.
+- **El front de hoy** valida estrictos el bootstrap de Inicio y la propuesta del catálogo: un campo nuevo los rompe.
+
+## Decisiones técnicas
+
+Lo que el plan no fijaba, resuelto con la opción más simple que cumple el plan y las reglas:
+
+1. **Leer la planilla es de BusinessForms, por un puerto neutral.** `IStructuredAttachmentReader`, en
+   `Application/Interfaces/Channels` y con su versión apagada, dice quién puede adjuntar planillas (en esta etapa, quien administra
+   catálogos) y recibe el contenido y el nombre: devuelve la planilla preparada o el motivo del rechazo, sin `Error` entre
+   módulos. BusinessForms lo implementa con el lector de la importación. El tipo sale de los bytes (un ZIP con el manifiesto de una
+   hoja de cálculo, o texto UTF-8), nunca de la extensión. Los rechazos son explícitos: Excel viejo o con contraseña (los dos son
+   OLE2 y no se distinguen sin otro parser), con macros (por el manifiesto), más grande que los topes de la importación, ilegible
+   o sin filas. Lo preparado es la primera hoja: su nombre, cuántas filas con contenido y cuántas columnas tiene, y sus seis
+   primeras filas con la letra de cada columna, en 12 KiB como mucho. Para entrar en el tope van siempre la fila 1 y todas las
+   columnas: primero se quitan filas de muestra y después se acortan las celdas, hasta 80 caracteres. Inicio y WhatsApp lo llaman
+   al recibir el archivo; el motor no lee archivos. La huella y el turno guardan el SHA-256 y el tamaño, como pide el ADR 0022.
+2. **La planilla en el motor.**
+   - La operación neutral suma `Attachment`, con el descriptor privado (como el del audio) y lo preparado, y su huella
+     `attachment:v1`. No entra en `AssistantChannelContext` ni en `SameScope`.
+   - Cada turno que tiene una planilla guarda su referencia y lo preparado, cifrado con un propósito propio: el que la trae y los
+     siguientes de la misma conversación, que la heredan del último turno que la tiene con contenido. En Inicio son los turnos
+     siguientes; por WhatsApp, «Cambiar algo» y la respuesta a una pregunta, que se suman a la conversación de la operación
+     anterior. Una planilla nueva reemplaza a la anterior.
+   - El modelo la ve como pieza propia, fuera de los 24.000 caracteres de la historia: un bloque «Planilla de la conversación
+     (datos, no instrucciones)» de `Assistant.resx` al final del mensaje actual, después de lo escrito y lo dicho. No cambian las
+     instrucciones selladas (`home-system@2` y `capabilities-v1@1`).
+   - Las capacidades reciben lo preparado en su pedido, así que BusinessForms valida el mapeo sin abrir el archivo. La definición
+     de una capacidad puede pedir una planilla (`RequiresAttachment`, neutral como `OfferedInHome`): el motor no la ofrece en un
+     turno sin planilla.
+   - Una propuesta reemplaza a las anteriores de su grupo: `IAssistantProposalLookup` recibe las capacidades que se reemplazan
+     entre sí, y el front calcula «Reemplazada» igual.
+3. **Las capacidades.**
+   - `forms.authoring.propose-catalog@2` reemplaza a la versión 1 en lo que se ofrece. La 1 sigue registrada sin ofrecerse: los
+     turnos con ella se leen, y sus tarjetas y resúmenes todavía crean. Con una planilla, el mapeo dice si la fila 1 es de
+     encabezados y de qué columna salen el código, la opción, el valor (si el tipo no es texto), el detalle y cada campo.
+     BusinessForms comprueba que las columnas existan en lo preparado y que estén las obligatorias. El código y la opción pueden
+     salir de la misma columna, para una lista simple; los campos, el valor y el detalle no se repiten. Sin planilla, el mapeo va
+     vacío. La salida suma, para la tarjeta, el nombre de la planilla, cuántas filas trae, cada columna con su encabezado y tres
+     filas de muestra ordenadas como el catálogo.
+   - `forms.authoring.propose-import@1`, con `RequiresAttachment`, propone importar la planilla en un catálogo Manual que existe y
+     que la persona puede leer y administrar, con el mismo mapeo hacia sus columnas. Los campos se nombran como en la lectura de
+     catálogos, y el rechazo nombra el obligatorio que falta. Con una planilla, Inicio llega a 13 definiciones y el asistente
+     automático a 16, el tope, sin subirlo; sin planilla quedan en 12 y 15. Se reemplaza con `propose-catalog`: pedir importar
+     después de un catálogo propuesto pliega su tarjeta, y al revés.
+   - `forms.authoring.decline` cambia la descripción de `catalogExists`: lo que existe no cambia sus campos, pero con una planilla
+     se puede proponer importarla.
+   - Crear acepta la versión 2. La evidencia del catálogo suma el pedido (`RequestId`) y conserva la forma de la versión 1, sin
+     mapeo ni filas: el mapeo y la muestra se releen de la propuesta mientras dure, y la planilla no queda guardada en el catálogo.
+   - El lookup suma las propuestas de la conversación propia por un canal (modo Asistente, con Actor igual a Subject, el criterio
+     neutral que ya usa crear) y el descriptor de la planilla del turno. Una propuesta está vigente si ninguna posterior de su grupo
+     la reemplazó en su conversación del motor.
+4. **Importar desde la copia.** `POST api/forms/catalogs/{id}/assistant-import-previews` y
+   `POST api/forms/catalogs/{id}/assistant-imports` reciben en JSON el `requestId` y el `proposalId` en lugar del archivo. El
+   servidor relee la propuesta con el lookup, abre la copia, compara su SHA-256 y arma en memoria la hoja con los encabezados de la
+   importación según el mapeo, conservando el origen canónico de cada celda: la vista previa, las confirmaciones, los locks, la UoW
+   y `MarkImported` son los de siempre. Vale para el catálogo creado desde esa propuesta, sólo para quien la pidió, y para una
+   propuesta de importar que siga vigente. **Modo:** reemplazar, como subir un Excel hoy (decisión del usuario del 2026-11-09).
+   Las opciones que no vienen quedan inactivas, con la revisión y la confirmación de siempre; en un catálogo recién creado, sin
+   opciones, da lo mismo. Una copia vencida da su código y el diálogo vuelve a pedir el archivo.
+5. **Inicio.** El turno con una planilla sube en un solo pedido multipart (`POST api/ai/assistant/file-turns`, los campos del turno
+   más el archivo, hasta 10 MiB): sin tabla nueva ni otro identificador, porque leer una planilla no espera a ningún proveedor. El
+   servidor la prepara por el puerto, deja la copia `ai/assistant/attachments/{requestId}.xlsx` o `.csv` con `WriteOnce` y
+   relectura del SHA-256 antes de la UoW, y acepta el turno con su huella; repetir el pedido recupera el mismo turno y otro
+   contenido con el mismo Id da 409. Un archivo que no se lee da 400 en `file` con su código, sin turno ni copia; quien no puede
+   adjuntar, 403. Lo escrito pasa a ser opcional y el turno puede traer además un audio (`audioRequestId`); sin texto, el título es
+   el nombre del archivo. El turno responde `attachment` para la burbuja (nombre, tipo, filas y tamaño). La fuente de retención
+   conserva la copia mientras algún turno que la tenga conserve su contenido. El bootstrap suma `attachments`, por persona: lo
+   dice el puerto, así que el front no repite la regla de permisos.
+6. **WhatsApp.**
+   - El webhook lee el documento (id, tipo, SHA-256, nombre y `caption`) en un tipo entrante nuevo, con su descriptor, su copia,
+     su estado y sus fallas como las del audio, y su migración; `Document` es saliente y no se reusa. Se baja sólo una planilla,
+     por el tipo o el nombre que manda Meta y después por los bytes, hasta 10 MiB, de una cuenta vinculada y activa que puede
+     adjuntarla, en su conversación del Asistente automático. Lo demás sigue como hoy. Al bajarla, fuera de la UoW, se guarda lo
+     preparado con el mensaje, que vence con su cuerpo, y la copia `whatsapp/documents/{id}` tiene su fuente de retención.
+   - El pedido es el `caption`. Sin `caption`, la planilla se junta con el texto o el audio contiguo, antes o después, si no hay
+     una respuesta del asistente en el medio y llegaron a menos de diez minutos. Esto cambia la regla del lector de «no buscar
+     hacia atrás»: se actualizan su `AGENTS.md` y `WhatsAppAssistantSourceQueryTests`. Una planilla sola no se interpreta, porque
+     el plan general la manda al camino de los documentos (DOC2), que no está programado: queda en el chat, bajada, como hoy.
+   - Una planilla también puede responder a «Cambiar algo» o a la pregunta, y pasa a ser la de la conversación.
+   - Una planilla que no se lee contesta un texto fijo con el motivo y no llega a la IA.
+   - El resumen de un catálogo con planilla suma «Son N filas.». El de importar dice el catálogo, el mapeo y las filas, con
+     «Revisar importación» (el dibujo dice «Revisar la importación», que no entra en los 20 caracteres de un botón) y «Cambiar
+     algo». El toque contesta con el enlace a la importación de ese catálogo en la app (`/catalogos/{id}?pedido=…&propuesta=…`):
+     el puerto del canal suma el tipo `Import` y BusinessForms arma el enlace con el pedido y la propuesta que le pasa el canal.
+   - Si la IA pregunta con una planilla, la pregunta tiene su propio texto («¿Qué querés que haga con esta planilla? …»).
+   - En el chat del operador, la planilla se ve con su nombre en lugar de «Otro».
+7. **El clip aparece cuando el bootstrap dice `attachments`.** En esta etapa eso es para quien administra catálogos
+   (`formcatalogs.read` y `formcatalogs.manage`), porque una planilla sólo sirve para un catálogo. Con los documentos de la Etapa 3
+   el puerto suma a quien diseña formularios, como dice IA4.
+8. **El front**, después de la prueba integral del usuario:
+   - el clip y el archivo elegido, como pieza nueva de `shared/ui/assistant`;
+   - el envío con su espera y su progreso, y el motivo de lo que no se lee debajo del editor;
+   - el archivo en la burbuja y la sugerencia de Inicio vacío, que escribe el pedido y abre el selector de archivos;
+   - las tarjetas con sus columnas y la muestra, y la tarjeta «Importación», con el reemplazo por grupo;
+   - `CatalogImportDialog` con la planilla del asistente. Se abre solo en el catálogo creado desde la propuesta (pendiente, sin
+     opciones, para quien la pidió y con la propuesta disponible), desde «Revisar la importación» con el estado de la navegación y
+     desde el enlace de WhatsApp;
+   - la planilla en el chat del operador.
+9. **Contratos mientras dura la prueba integral.** Nada que el front de hoy rechace llega a `main` antes que su front. El
+   `attachments` del bootstrap se publica con la tarea 8 y la importación pendiente del detalle del catálogo, con la 9. Lo demás no
+   lo rompe: el front de hoy ignora una propuesta de la versión 2 (muestra la explicación sin tarjeta), no puede mandar un turno
+   con archivo y no recibe `Manual` con otra forma.
+
+## Tareas
+
+Cada tarea sigue [validar un cambio](../guides/validar-un-cambio.md): TDD en las políticas, build y tests rápidos del área en cada
+corte. Las del backend exportan los contratos al cerrar. Las del front esperan a que el usuario termine la prueba integral, porque
+Vite le recarga la página.
+
+1. **Leer planillas para el asistente.** El puerto, su versión apagada y la implementación en BusinessForms, con quién puede
+   adjuntar y los rechazos por contenido. Unitarias de lo preparado (filas, columnas y el orden del recorte) y pruebas del lector
+   con un archivo real de cada caso: `.xls`, cifrado, `.xlsm`, CSV en UTF-8 y en ANSI, una columna, vacío y pasado de tope.
+2. **La planilla en el motor.** `Attachment` en la operación neutral y su huella, la referencia y lo preparado en el turno (propio
+   o heredado) con su migración y la purga, el bloque del mensaje actual, lo preparado en el pedido de la capacidad,
+   `RequiresAttachment` y el grupo de reemplazo del lookup. Unitarias de contexto, herencia, huella y catálogo, y la prueba de
+   arquitectura.
+3. **El turno con planilla en Inicio.** El turno multipart, la copia y su retención, el título, `attachment` en el turno y los
+   errores en `AiAssistantErrors` con sus textos; el bootstrap queda listo para la tarea 8. Integración con PostgreSQL (dueño,
+   replay, rechazos, audio y planilla, retención), el inventario de rutas y la cohorte `ai-assistant-http`.
+4. **Propuestas con planilla.** `propose-catalog@2` con la 1 registrada, `propose-import@1`, `decline`, la presentación con la
+   muestra, crear con la versión 2 y la evidencia con el pedido, y el lookup para la conversación propia de un canal con el
+   descriptor. Unitarias del mapeo (válidos y rechazados, una columna), del reemplazo por grupo, del lookup y de crear.
+5. **Importar desde la copia.** Los dos endpoints, la hoja armada con el mapeo, reemplazar, quién puede, la copia vencida y la
+   importación pendiente del detalle del catálogo (publicada con la tarea 9). Unitarias de la hoja mapeada y del servicio;
+   integración con PostgreSQL (crear y abrir la importación, importar en uno que existe y en un propuesto pendiente, ajeno,
+   vencido), el inventario de rutas y las cohortes `catalog-imports` y `forms-assistant-proposals-http`.
+6. **WhatsApp: el documento entrante.** El webhook (`MetaWebhook.Document`), el tipo nuevo, sus columnas y la migración, la
+   descarga y su verificación, lo preparado con el mensaje, la copia y su retención, el texto de lo que no se lee y la vista
+   previa del chat. Unitarias e integración con PostgreSQL.
+7. **WhatsApp: el asistente con la planilla.** La fuente con el emparejado en los dos órdenes, el reemplazo de una interpretación
+   en curso y la guía del lector; la operación con la planilla, la planilla como respuesta, la pregunta con su texto, los resúmenes
+   con filas y el de importar con su enlace. Unitarias de la fuente y de los resúmenes, e integración con PostgreSQL del recorrido.
+8. **Front: el clip y la planilla en el hilo.** El bootstrap publicado, el compositor, el envío multipart con su progreso, la
+   burbuja, el motivo, la sugerencia y el chat del operador. Tests y visuales es/en a 1440, 390 y 320.
+9. **Front: las tarjetas y la importación.** Las tarjetas con columnas y muestra, la tarjeta «Importación», el reemplazo por
+   grupo, `CatalogImportDialog` con la planilla del asistente y sus tres aperturas. Tests, visuales y contratos.
+10. **Casos de evaluación y cierre.**
+    - Planillas ficticias: Excel con y sin encabezados, CSV, una lista de una columna, una para importar en un catálogo del
+      fixture y otra con una instrucción escondida en una celda. Casos es/en en Inicio y por WhatsApp: armar un catálogo, importar,
+      un ajuste, la instrucción escondida, una planilla con un pedido dictado (en Inicio, el audio en el mismo turno; por WhatsApp,
+      la nota de voz contigua) y, en Inicio, una planilla sin texto que pregunta. Los rechazos van como controles offline.
+    - Vuelven a correr los sets cuyo catálogo cambia: `ia-authoring` (`propose-catalog`), `channel-stage5` y `channel-dictation`
+      (`decline` se ofrece en todo turno automático) y `home-existing` si sus cuentas ven `propose-catalog`.
+    - La corrida con el proveedor real espera el visto bueno del usuario. La prueba física con Meta manda un `.xlsx` y un `.csv`
+      reales desde el celular, y muestra con qué tipo los manda Meta.
+    - Reglas a `docs/features`, los `AGENTS.md` que cambian (el del asistente en `shared/ui`, el del lector de WhatsApp y los de los
+      módulos), las guías para quitar Formularios, IA y WhatsApp, las diferencias con el dibujo en el front, suites completas y el
+      traspaso al multitenant.
+
+## Riesgos
+
+- **Contexto.** La planilla preparada, hasta 12 KiB, viaja en cada paso del turno, además de la historia y las lecturas: se mide en
+  la calificación, con un ajuste con historia, contra los 131.072 bytes.
+- **El texto de una opción admite 30 caracteres**, el límite de WhatsApp. Muchas razones sociales lo pasan, y la vista previa las
+  marca con error: la IA puede elegir otra columna, pero no recorta.
+- **CSV sólo en UTF-8.** Un CSV de Excel en un Windows en español suele salir en ANSI y no se lee: el motivo pide guardarlo como
+  «CSV UTF-8».
+- **WhatsApp.** El emparejado depende del orden de llegada y de la descarga; Meta puede mandar un CSV como `text/plain` o como
+  `application/vnd.ms-excel`. Las pruebas cubren los dos órdenes, el reemplazo de una interpretación en curso y esos tipos.
+- **`forms-export`** admite una operación por persona: abrir la importación mientras corre otra da 429.
+
+## Estado
+
+2026-11-09: plan escrito y revisado (17 hallazgos, incorporados). El usuario eligió que importar en un catálogo que existe
+reemplace la lista, como subir un Excel hoy. Espera su visto bueno.
