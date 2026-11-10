@@ -14,8 +14,9 @@ Es el detalle de la guía [`src/ArquitecturaBase.Application/Modules/BusinessFor
 ## Publicación
 
 - Read+Publish. El chequeo es consulta: compara la entrada normalizada con lo guardado, sin `Resolve`, IDs nuevos, UoW ni locks.
-- Canales ordenados por `ChannelId`: vacío o repetido lanza; ninguno da `ChannelUnavailable`.
+- Canales ordenados por `ChannelId`: vacío o repetido lanza. Sin canales, o con `draft.appOnly`, se publica sólo en la app: el chequeo no llama al canal y `FormPublicationGuard` recibe `forChannels: false` (sin los topes de WhatsApp).
 - Sólo el original incompleto bloquea por idioma; al canal van las culturas completas. Un multiChoice de Manual bloquea con más de 20 ítems activos; el guard cuenta en SQL una vez por catálogo compartido, sin hidratar ítems. Con filtros fijos y sin filtros por persona bloquea igual (`CatalogTooLargeForMultiple` en `.catalog`) si el máximo de la oferta pasa 20, en el chequeo y en la aceptación; con filtros por persona o en Choice el máximo es aviso. Choice y Filters conservan sus recorridos.
+- Sólo en la app, la aceptación sella `AppOnly`, nace `Published` (`PublishWithoutChannels`) y activa la versión en el mismo límite; el recibo dice `Published`.
 - Aceptación: lock actor/RequestId → replay, antes del token y la revisión → lock de definiciones → revalidación → sella campos, versión, culturas de los perfiles verificados, operación y manifiesto protegido y bloquea el prefijo, sin activar ni llamar al proveedor.
 - Despacho: reservar y completar son límites separados y el pedido sale de lo sellado; el canal se llama fuera de toda UoW y un error queda `Uncertain` con los mismos IDs. Se activa por `BaseActiveVersionId` y fence sin pisar un borrador posterior; `CanRetry` es false.
 - Status devuelve sólo la operación propia; preview consulta al canal sin UoW, con opciones de ejemplo de cada lista (VO1-A: las primeras 20, sin filtros por persona ni por otra respuesta).

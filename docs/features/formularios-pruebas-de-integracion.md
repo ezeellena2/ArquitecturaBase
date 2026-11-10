@@ -16,6 +16,8 @@ D5: mapas en todas las respuestas/comprobantes, vaciados explícitos/replay/IDs,
 
 ## Publicación y vista previa
 
+Sólo en la app (SA1-A a SA5): FormAppOnlyPublicationTests publica sin consultar al canal (que en las pruebas no puede publicar), activa al instante con recibo `Published` y replay igual, y lee `appOnly`, los idiomas sellados, `publishedOnlyInApp` y `canPreview` false; el selector no la ofrece. Lo de un canal conserva sus respuestas sin las claves nuevas, y sin canal todo se publica en la app y `form-channels` no aparece. FormSelectionQueryTests exige `AppOnly` en lo que ofrecen los canales y no en una sesión aceptada.
+
 2b mínimo: aceptación/replay tras edición/expiración, rollback técnico sin Fields/Version/Operation/prefix parciales, actor/token/permisos, dos hosts y una operación abierta. El canal ReadyStructuredFormChannel sólo vive en TestFeatures: no acredita Meta real.
 
 2b prueba activación preservando borrador, CAS/fences/replay, otro host y ambos workers reales con proveedor de TestFeatures: es/en, upload con errores, caída después de Create y revocación. URLs de preview/estado sin secretos; inventario/OpenAPI diez rutas. Sin red Meta; workers automáticos apagados y ejecución controlada por operación.

@@ -170,6 +170,7 @@ La oferta de acceso y perfil existente depende de `GET /account/login-methods`, 
 `"whatsapp": false`, sin países y sin número, y se adapta automáticamente:
 
 - El ingreso ofrece solo el correo (y Google, si está configurado), y `/ingresar` no muestra "Volver a WhatsApp".
+- Formularios sigue entero y publica sólo en la app: la versión queda activa al aceptar, sin canal, y el editor no ofrece «Dónde se completa» porque falta `form-channels` ([formularios sólo en la app](../features/formularios.md#formularios-sólo-en-la-app--sa1-a-a-sa5-2026-11-09)).
 - El alta de un usuario pide el correo y no ofrece el número ni la invitación por WhatsApp. La Api igual acepta una cuenta con solo teléfono, de cualquier país, pero desde la web no se cargan números nuevos: sin canal, nadie les manda un código.
 - La edición muestra el número solo si la cuenta ya tiene uno, y un administrador lo puede desvincular (`DELETE /api/users/{id}/whatsapp`, que es del núcleo).
 - En `/perfil`, una cuenta con número lo sigue viendo y lo puede desvincular (`DELETE /api/me/whatsapp`, del núcleo), sin cerrar sus sesiones. Si es su único medio de ingreso, responde `409 Users.User.LastLoginMethod`: primero tiene que agregar un correo verificado o vincular Google.

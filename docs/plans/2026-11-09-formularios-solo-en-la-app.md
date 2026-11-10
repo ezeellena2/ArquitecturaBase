@@ -1,7 +1,8 @@
 # Formularios sólo en la app
 
-Decidido el 2026-11-09, **sin programar**: el usuario eligió las siete recomendadas («Sí, las recomendadas»). Se programa con
-su visto bueno y sin tocar el `src` del front mientras dura la prueba integral. Lo pidió durante esa prueba: «Quiero poder
+Decidido el 2026-11-09: el usuario eligió las siete recomendadas («Sí, las recomendadas»). **El backend quedó programado el
+mismo día** (corte 1, con el visto bueno del usuario: «Ahora, el backend»); falta el front, que espera el fin de la prueba integral.
+Las reglas vigentes están en [formularios](../features/formularios.md#formularios-sólo-en-la-app--sa1-a-a-sa5-2026-11-09). Lo pidió durante esa prueba: «Quiero poder
 crear formularios que no vayan a WhatsApp, que sean sólo de la app». Hoy no se puede, porque publicar una versión siempre pasa
 por un canal.
 
@@ -119,24 +120,28 @@ durable ([ADR 0018](../decisions/0018-robustez-proporcional-al-efecto.md)): se a
 - **Publica sólo en la app** cuando el borrador lo dice o cuando no hay canales instalados.
 - **El chequeo** no llama al canal ni agrega `ChannelUnavailable`, `RowIssues`, `RowWarnings`, `OptionsPerRecipientHigh` ni
   `DependsOnAnswer` (`FormPublicationGuard.InspectCatalogsAsync` recibe si la publicación va a un canal). Responde
-  `LocallyValidated` y `Available` sin canales y suma `appOnly`. Si la versión activa se publicó en un canal y la nueva no,
-  agrega el aviso `Forms.Publication.LeavesChannels` (neutral en el backend; el front lo dice con WhatsApp).
+  `LocallyValidated` y `Available` sin canales. El aviso «Deja de completarse por WhatsApp» lo arma el front con lo que ya
+  tiene: `publication.activeVersion` sin `appOnly` y el borrador con `appOnly` (sin código de error nuevo).
 - **La aceptación** conserva lo local del verificador (almacenamiento de archivos, 10 archivos, catálogos válidos) y se saltea
   los canales. Sella la versión con las culturas completas del chequeo (`PublishedCultures`, original y secundario completo) y
   con `AppOnly` (columna nueva de `BusinessFormVersions`, en false para las anteriores: todas pasaron por un canal). La
   operación nace `Published` en el mismo límite (un método de Domain que sólo parte de `Accepted`) y la definición activa la
   versión con `ActivateVersion`, que también retira una baja. El recibo dice `Published` y la repetición del pedido devuelve el
   mismo. El worker no la ve: no queda abierta.
-- **Las lecturas.** El detalle y el listado suman `appOnly` de la versión activa y del borrador; `canPreview` exige una versión
-  activa publicada en un canal; el ciclo de vida dice si alguna versión se publicó en un canal (para la advertencia al eliminar).
+- **Las lecturas.** El detalle y el listado suman `appOnly` de la versión activa y del borrador, sólo cuando es true (el front
+  valida con `strictObject`, así que lo que existía no cambia); `canPreview` exige una versión activa publicada en un canal; el
+  ciclo de vida suma `publishedOnlyInApp` cuando toda versión fue de la app (para la advertencia al eliminar). Los idiomas de
+  una versión de la app salen de los que selló, también en el estado de la publicación y en la comparación del chequeo.
 - **La selección.** `FormSelectionReader` excluye las versiones activas `AppOnly`: alcanza a «Enviar formulario», a los
   candidatos y el prellenado del asistente, a la aclaración y a las sugerencias en tiempo de ejecución. El editor de
   sugerencias no ofrece ni guarda un destino de la app («Elegí un formulario publicado disponible.»).
-- **La capacidad del front.** `FormClientCapabilitySource` suma `form-channels` cuando hay al menos un `IStructuredFormChannel`.
-  Es neutral: el núcleo y BusinessForms siguen sin nombrar a WhatsApp.
+- **La capacidad del front.** `FormClientCapabilitySource` suma `form-channels` cuando hay al menos un `IStructuredFormChannel`
+  registrado; como los canales son scoped y la fuente es singleton, lo pregunta con `IServiceProviderIsService`. Es neutral: el
+  núcleo y BusinessForms siguen sin nombrar a WhatsApp.
 - **El retiro de Flows** no cambia: la versión de WhatsApp reemplazada por una de la app ya figura como no usada
   (`IFormUnusedVersionReader`) y WhatsApp la depreca cuando vencen los envíos abiertos. Se agrega una prueba de integración.
-- **`ChannelUnavailable`** deja de existir: se quitan el código, sus textos y sus pruebas.
+- **`ChannelUnavailable`** sale del chequeo y de la aceptación; queda sólo para el estado de una publicación vieja cuyo canal ya
+  no está instalado.
 - **La migración** suma las dos columnas (definición y versión). El snapshot generado se revisa por el CRLF escapado de
   `CK_BusinessFormCatalogs_Proposal`.
 - **Docs:** una sección nueva en [formularios](../features/formularios.md) (y se corrige «Quitar módulo produce
@@ -161,8 +166,8 @@ durable ([ADR 0018](../decisions/0018-robustez-proporcional-al-efecto.md)): se a
 ## Cortes
 
 1. **Backend**, con TDD: Domain (la operación que nace publicada y el sello de la versión), el chequeo, la aceptación, las
-   lecturas, la selección, la capacidad, la migración, las docs y los ejemplos HTTP. Build, unitarios y arquitectura en cada
-   paso; la integración afectada al final del corte.
+   lecturas, la selección, la capacidad, la migración (`AddFormAppOnly`) y las docs. **Programado el 2026-11-09.** Los ejemplos
+   HTTP no cambian para lo que existía; los de un formulario de la app se exportan con el front.
 2. **Front**, con los ejemplos nuevos y el front quieto (sin la app levantada ni otra sesión probando): editor, vista previa de
    la app, diálogo, listado, baja y eliminación.
 3. **Cierre:** la corrida completa con Docker y el front entero (build, lint, vitest y test:visual); la prueba a mano (crear un

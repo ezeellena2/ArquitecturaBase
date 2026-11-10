@@ -82,7 +82,7 @@ FormPublicationPolicy exige el original completo en name, submitLabel, labels, o
 
 Response200: definitionId/draftRevision, compatibility, canAccept, acceptanceAvailability, channels, cultures, issues y diff. Compatibility LocallyValidated/Blocked/Unavailable; ausencia de canal explícita, IDs de canal únicos/no vacíos. Sin versión activa, diff.baseVersionId=null y added son las preguntas guardadas. Con activa, se leen preguntas selladas y se comparan added/changed/removed por ID, además de addedCultures/removedCultures. En el corte 2a no existía aceptación; en 2b canAccept y acceptanceAvailability consideran configuración y operación abierta; ExternalEvidence=Pending separada, sin bloquear sólo por piloto pendiente. No JSON Flow/mapping/hash privado/Meta ID/credencial/preview en HTTP.
 
-Puerto neutral Interfaces/Channels y DTOs Models/StructuredData; sin tipos de módulos/HTTP/EF. WhatsApp aporta phone con TryAddEnumerable incluso si transporte apagado, porque consulta pura. Quitar módulo produce ChannelUnavailable. Compilador/codec/JSON/mapping/perfil pertenecen al canal; defensa de textos por cultura exacta, sin importar BusinessForms.
+Puerto neutral Interfaces/Channels y DTOs Models/StructuredData; sin tipos de módulos/HTTP/EF. WhatsApp aporta phone con TryAddEnumerable incluso si transporte apagado, porque consulta pura. Sin un canal instalado, todo formulario se publica sólo en la app ([formularios sólo en la app](#formularios-sólo-en-la-app--sa1-a-a-sa5-2026-11-09)). Compilador/codec/JSON/mapping/perfil pertenecen al canal; defensa de textos por cultura exacta, sin importar BusinessForms.
 
 Perfil flow-static-7.3-r4/JSON7.3 para publicaciones nuevas, seis tipos, complete terminal/una pantalla, sin endpoint. Sí/No sin default, false no ausencia; decimal exacto textual; DateOnly CalendarPicker single/required. Ayuda/config/textos no representables se bloquean por identidad/cultura, sin recortar/dividir. El botón de apertura es Abrir formulario/Open form y queda separado de submitLabel.
 
@@ -953,3 +953,32 @@ aparece.
 - **Las preguntas atadas** conservan todo menos su texto, su ayuda y su lugar: guardar el borrador rechaza quitarlas (en
   `draft.fields`) o cambiarles tipo, bloque, catálogo, opciones, cálculo, condición, renglones, largo o si son obligatorias (en
   `draft.fields[i]`), con `Forms.Draft.BoundQuestionChanged`. La migración es `AddFormDefinitionStandard`.
+
+## Formularios sólo en la app — SA1-A a SA5, 2026-11-09
+
+Un formulario puede completarse sólo en la app, sin pasar por WhatsApp. Lo eligió el usuario en los tableros SA1 a SA5 (el
+[plan](../plans/2026-11-09-formularios-solo-en-la-app.md) y las [pantallas](../../../ArquitecturaBaseFront/docs/design/formularios-solo-en-la-app.md)).
+Está el backend; el front, por programar.
+
+- **El borrador.** `draft.appOnly` es «Dónde se completa»: `true` para «Sólo en la app»; si no, se omite (se guarda como false
+  en `FormDefinitions.AppOnly`), así lo que existía conserva sus bytes y sus huellas. Se guarda con el borrador y su revisión,
+  y entra en la comparación del chequeo y de la aceptación y en la huella del comprobante: un comprobante de un modo no sirve
+  para el otro.
+- **Sin canal.** Se publica sólo en la app cuando el borrador lo dice o cuando no hay ningún canal de formularios instalado
+  (SA5): el chequeo ya no da `ChannelUnavailable`, que queda sólo para el estado de una publicación vieja cuyo canal no está.
+- **El chequeo** no llama al canal y aplica sólo las reglas de la app: sin los ítems de WhatsApp (`RowsOverChannelLimit` y
+  `MinRowsOverChannelLimit`), sin el tope de 30 caracteres del título de una opción, sin `DependsOnAnswer` y sin el exceso
+  sobre 200 de `OptionsPerRecipientHigh` (sigue el aviso de que nadie ve una opción). Responde `LocallyValidated` y
+  `Available` con `channels` vacío.
+- **La aceptación** revisa lo local (almacenamiento de archivos, diez archivos, catálogos) y, sin efectos fuera del sistema
+  ([ADR 0018](../decisions/0018-robustez-proporcional-al-efecto.md)), activa la versión en el mismo límite: la operación nace
+  `Published` y el worker no la ve. La versión sella `AppOnly` y, como idiomas, el original y el secundario completo. El
+  recibo dice `Published` (también al repetir el pedido); el de un canal sigue diciendo `Accepted`. Reactivar es igual.
+- **Las lecturas.** `appOnly` aparece sólo cuando es true: en `publication.activeVersion` del detalle, en el listado (la versión
+  activa o, sin versión, el borrador) y en el borrador; el ciclo de vida suma `publishedOnlyInApp` cuando toda versión fue de
+  la app. Los idiomas de una versión de la app salen de los que selló. `canPreview` exige una versión de un canal.
+- **Los canales no la ofrecen.** `FormOfferableVersionQuery.ChannelVersions` deja afuera las versiones de la app en «Enviar
+  formulario», el asistente (candidatos, prellenado y aclaración) y los destinos de una sugerencia; un destino que pasó a la
+  app figura en las opciones como no disponible (`AppOnly`). La carga desde la app no cambia. Un pedido por WhatsApp de un
+  formulario de la app va a «Formularios que faltan».
+- **El front** sabe que hay un canal por `form-channels` en `installedFeatures`.

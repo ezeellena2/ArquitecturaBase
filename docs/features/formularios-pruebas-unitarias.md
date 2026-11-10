@@ -61,7 +61,7 @@ Preview PDF verifica fotos y arrays de ejemplo dentro de Selection sin persisten
 
 ## Canales: composición, captura y lectura
 
-Composición de chequeo rechaza ChannelId duplicado/vacío.
+Composición de chequeo rechaza ChannelId duplicado/vacío. FormAppOnlyDraftTests: «Sólo en la app» viaja como true y lo demás se omite, el borrador guardado lo devuelve, el chequeo y la aceptación sólo coinciden con un borrador del mismo modo y `form-channels` aparece sólo con un canal registrado.
 
 BusinessFormRecordSinkTests y BusinessFormRecordSourceTests verifican autorización, schema sellado, replay/conflicto, precisión y distinción de ausencia/false con dobles de repositorio/puertos; PostgreSQL y constraints se prueban en Api.IntegrationTests.
 
