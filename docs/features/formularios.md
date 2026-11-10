@@ -869,3 +869,87 @@ El autor ordena un formulario largo con títulos entre las preguntas (CW15-B). U
 - **Publicar.** Frena `Forms.Publication.SectionEmpty` en `draft.sections[i]` un título sin preguntas debajo, antes del siguiente título o del final. Un título sin traducción deja ese idioma incompleto, como una etiqueta (`draft.sections[i].title.<idioma>`). La versión sellada (`FormVersionSchema.Sections`) y el pedido al canal (`StructuredFormCheckRequest.Sections`) llevan los títulos; «Qué se publica» no los lista.
 - **WhatsApp.** El perfil `flow-static-7.3-r10` pone un `TextSubheading` justo antes de la primera pregunta de cada sección, en la pantalla de esa pregunta; una sección que empieza con el bloque de renglones lo lleva arriba de su primera pantalla («¿Agregás un renglón?» o el renglón 1). No suma pantallas ni cambia el prellenado ni las respuestas. El subtítulo admite hasta 80 caracteres y necesita su traducción (`TextTooLong` o `MissingTranslation` en `draft.sections[i].title.<idioma>`), cuenta entre los 50 componentes de su pantalla y un diagnóstico de Meta sobre él señala su título. Sin títulos, r10 compila los mismos bytes.
 - **La carga.** `GET /api/forms/entries/{definitionId}` suma `section`, el título en el idioma del contenido, a la pregunta donde empieza cada sección. La página y el panel abren una zona plegable por título, en el orden del editor: lo que va antes del primer título sigue en «Datos», y las fotos y los documentos van al final, en «Fotos y documentos» (AR1-A), así que una sección de sólo archivos no arma zona.
+
+## Cálculos — CA1-A, 2026-11-09
+
+Un cálculo es una pregunta de número de sólo lectura que calcula el servidor (CA1-A), como el importe de cada ítem y el total de
+una factura. Es parte del [motor para documentos](../plans/2026-11-09-arca-etapa-2-motor.md) de ARCA. Pantallas:
+[motor para documentos](../../../ArquitecturaBaseFront/docs/design/motor-para-documentos.md).
+
+- **El borrador.** Una pregunta `decimal` con `calculation`: `operation` (`multiply`, `sum` o `percent`) y `operands`, las
+  preguntas que usa, por `fieldId` o, si son nuevas, por su `localId` UUID, que el guardado sella. Multiplicar y porcentaje
+  (base y alícuota) llevan dos datos y la suma, de uno a veinte, todos distintos y ninguno la misma pregunta. No puede ser
+  obligatoria. Prender o cambiar el cálculo conserva la identidad de la pregunta. Sin cálculo la propiedad se omite, así las
+  preguntas, versiones y huellas anteriores conservan sus bytes.
+- **Publicar.** Frena `Forms.Publication.CalculationInvalid` en `draft.fields[i].calculation` si un dato no existe, va después o
+  no es un número (un decimal u otro cálculo), o si no respeta su alcance: multiplicar y porcentaje usan las del mismo ítem si el
+  cálculo está en el bloque y las de afuera si no; la suma va afuera del bloque y suma una pregunta del bloque en todos los
+  ítems. La alícuota de un porcentaje puede ser una elección de un catálogo entero o decimal, cuyo valor es la alícuota; con un
+  catálogo de texto o de fechas, frena.
+- **La captura** (app y WhatsApp, `FormRecordAnswerPolicy`) calcula cada uno en orden y lo guarda como una respuesta decimal más,
+  redondeada a 2 decimales con half-even (`MidpointRounding.ToEven`): el total suma los importes ya redondeados. Un producto o
+  un porcentaje con un dato vacío queda vacío; la suma suma lo que haya y queda vacía sin valores. Una respuesta enviada para un
+  cálculo es inválida, también dentro de un ítem. Corregir recalcula.
+- **La carga.** `GET /api/forms/entries/{definitionId}` trae `calculation` en la pregunta, para la vista previa con el mismo
+  redondeo; el envío no lo manda.
+- **Lo demás lo lee como un número:** planilla, «Filtros», Excel, PDF, reglas y avisos. El asistente no lo prellena, una
+  sugerencia no lo tiene de destino y la IA no lo propone.
+
+## Condiciones — CO1-A, 2026-11-09
+
+Una pregunta se muestra según la respuesta de otra (CO1-A), como el período de una factura sólo si es un servicio.
+
+- **El borrador.** `showWhen` con `questionId` (la pregunta, por `fieldId` o por su `localId` UUID) y `values`, de una a
+  cincuenta respuestas distintas que la muestran: el id de una opción propia (una nueva, por su `localId`, que el guardado sella),
+  el id de una opción de catálogo o `"true"`/`"false"`. Ni el bloque ni sus preguntas llevan condición, y una pregunta no se
+  nombra a sí misma. Sin condición se omite.
+- **Publicar.** Frena `Forms.Publication.ConditionInvalid` en `draft.fields[i].showWhen` si la pregunta no va antes, está en el
+  bloque o no es de elegir una (propia o de catálogo) o de sí o no, o si una respuesta no es suya.
+- **La captura.** Oculta, la pregunta no es obligatoria y no puede traer respuesta: una con valor rechaza el envío. Un cálculo la
+  toma vacía y las reglas, sin responder. Mostrada, sigue sus reglas.
+- **La carga** trae `showWhen` en la pregunta; la app la muestra u oculta al cambiar la respuesta y no manda lo escrito en una
+  oculta. Un título de sección sin preguntas a la vista también se oculta.
+- **WhatsApp** la muestra con la misma condición (perfil r13, ver [WhatsApp](whatsapp.md)). El asistente no prellena una
+  pregunta con condición y una sugerencia no la tiene de destino.
+
+## Resultado externo — RE1-A, 2026-11-09
+
+Lo que devuelve una acción externa, como el comprobante que autoriza ARCA, se guarda en la respuesta (RE1-A). La acción que lo
+trae es de la etapa 3 (`IssueDocument`, [ADR 0028](../decisions/0028-emision-de-comprobantes-arca.md)).
+
+- **Qué se guarda.** Una fila por run en `BusinessFormRecordResults` (única por run y del run de esa respuesta): la fuente
+  (`arca.invoice`), su nombre por idioma y los datos, cada uno con clave, nombre por idioma, tipo (`text`, `date` o `number`) y
+  valor canónico, sellados al confirmar, así se leen igual aunque se quite el módulo. Los trae el DTO neutral
+  `StructuredRecordResult`; los guarda `FormRecordResultRecorder` en la transacción que confirma el run, bajo el fence vigente.
+  Un resultado mal armado es un error del módulo que lo produjo: lanza y no se guarda nada.
+- **El detalle** (`GET api/forms/records/{id}`) trae `results` en el idioma del contenido, en el orden en que llegaron; sin
+  resultados se omite. El front lo muestra como una zona con el nombre de la acción, arriba de «Datos».
+- **La planilla** trae `resultColumns` (una por dato, con id `<fuente>.<clave>`, después de las preguntas, con los nombres del
+  último resultado de cada fuente) y `results` en cada fila; sin resultados se omiten. No se filtra ni se ordena por ellos.
+- **El Excel** suma esas columnas después de las preguntas, con celdas del tipo de cada dato; sin valor, vacía.
+- **La copia PDF** pone una zona por resultado arriba de las respuestas, con el nombre de la acción y sus datos escritos como
+  una respuesta de su tipo.
+- **Los avisos.** Un dato del resultado se escribe `{result:<fuente>.<clave>}` y sólo vale en un aviso que va después, en la
+  misma regla, de una acción que lo declara; si no, `Forms.Rule.PlaceholderInvalid`. El texto se arma al recibir con el dato
+  marcado y se completa al mandar, en el idioma de quien lo recibe (fecha corta, número con sus decimales); sin resultado queda
+  vacío. Las respuestas citadas no pueden traer la marca.
+- **La migración** es `AddFormRecordResults`.
+
+## Biblioteca de estándares — BI1-A, 2026-11-09
+
+Los módulos traen formularios estándar como datos y «Agregar» crea un borrador propio que recuerda de dónde viene (BI1-A,
+[ADR 0029](../decisions/0029-biblioteca-de-estandares.md)). La factura llega con la etapa 3; sin estándares, «Biblioteca» no
+aparece.
+
+- **Los estándares.** `IStructuredFormStandardSource` (colección opcional): clave, versión, nombre y descripción por idioma,
+  prefijo sugerido, el formulario en el formato del borrador (`localId` UUID), qué pregunta guarda cada dato (`Bindings`), los
+  catálogos por su `Key` y la carpeta del sistema.
+- **Leer.** `GET api/forms/library` («Ver formularios») lista los estándares en el idioma del menú, con cuántos formularios
+  salieron de cada uno.
+- **Agregar.** `POST api/forms/library/{key}/copies` («Administrar formularios») recibe `requestId`, nombre y prefijo y crea el
+  borrador por el guardado de siempre: el mismo pedido devuelve el mismo borrador. La definición sella una vez el estándar, su
+  versión y `dato → fieldId`, que el detalle trae en `standard`. Un estándar que no está da 404
+  `Forms.Library.StandardNotFound` y un catálogo que falta o está inactivo, 409 `Forms.Library.CatalogUnavailable`.
+- **Las preguntas atadas** conservan todo menos su texto, su ayuda y su lugar: guardar el borrador rechaza quitarlas (en
+  `draft.fields`) o cambiarles tipo, bloque, catálogo, opciones, cálculo, condición, renglones, largo o si son obligatorias (en
+  `draft.fields[i]`), con `Forms.Draft.BoundQuestionChanged`. La migración es `AddFormDefinitionStandard`.

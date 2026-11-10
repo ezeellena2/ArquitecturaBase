@@ -33,3 +33,5 @@ Casos de uso y helpers; contratos en `Interfaces/Services`. Leer [formularios](.
 
 - [Detalle de los servicios por tema](../../../../../docs/features/formularios-servicios.md).
 - [Pruebas unitarias](../../../../../tests/ArquitecturaBase.Application.UnitTests/Modules/BusinessForms/AGENTS.md).
+
+- [Motor para documentos](../../../../../docs/features/formularios.md#cálculos--ca1-a-2026-11-09): cálculos (`FormPublicationPolicy.ValidateCalculations` y `FormRecordAnswerPolicy`), condiciones (`ValidateConditions`), resultado externo (`FormRecordResultRecorder`, `FormRecordResultPresentationPolicy` y los datos `{result:…}` de `FormActionResultTokenPolicy`) y biblioteca (`FormLibraryService` y `FormStandardPolicy`). Los cálculos y las condiciones se resuelven en la captura común a la app y a WhatsApp; el resultado lo guarda la acción que confirma su run, sin UoW propia.
