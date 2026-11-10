@@ -60,7 +60,9 @@ Lo que el plan no fijaba, resuelto con la opción más simple que cumple el plan
    - Cada turno que tiene una planilla guarda su referencia y lo preparado, cifrado con un propósito propio: el que la trae y los
      siguientes de la misma conversación, que la heredan del último turno que la tiene con contenido. En Inicio son los turnos
      siguientes; por WhatsApp, «Cambiar algo» y la respuesta a una pregunta, que se suman a la conversación de la operación
-     anterior. Una planilla nueva reemplaza a la anterior.
+     anterior. Una planilla nueva reemplaza a la anterior. El turno sabe si la trajo él o la heredó, y guarda en claro el SHA-256 y
+     el tamaño, que quedan después de la purga, como el uso. Una planilla propia acota el vencimiento del turno. La heredada lo
+     acota sólo si su copia vence por su cuenta, como la de WhatsApp con su mensaje; la de Inicio vive mientras algún turno la tenga.
    - El modelo la ve como pieza propia, fuera de los 24.000 caracteres de la historia: un bloque «Planilla de la conversación
      (datos, no instrucciones)» de `Assistant.resx` al final del mensaje actual, después de lo escrito y lo dicho. No cambian las
      instrucciones selladas (`home-system@2` y `capabilities-v1@1`).
@@ -70,8 +72,8 @@ Lo que el plan no fijaba, resuelto con la opción más simple que cumple el plan
    - Una propuesta reemplaza a las anteriores de su grupo: `IAssistantProposalLookup` recibe las capacidades que se reemplazan
      entre sí, y el front calcula «Reemplazada» igual.
 3. **Las capacidades.**
-   - `forms.authoring.propose-catalog@2` reemplaza a la versión 1 en lo que se ofrece. La 1 sigue registrada sin ofrecerse: los
-     turnos con ella se leen, y sus tarjetas y resúmenes todavía crean. Con una planilla, el mapeo dice si la fila 1 es de
+   - `forms.authoring.propose-catalog@2` reemplaza a la versión 1 en lo que se ofrece (en Inicio desde la tarea 9 y por WhatsApp
+     desde la 7, por el punto 9). La 1 sigue registrada: los turnos con ella se leen, y sus tarjetas y resúmenes todavía crean. Con una planilla, el mapeo dice si la fila 1 es de
      encabezados y de qué columna salen el código, la opción, el valor (si el tipo no es texto), el detalle y cada campo.
      BusinessForms comprueba que las columnas existan en lo preparado y que estén las obligatorias. El código y la opción pueden
      salir de la misma columna, para una lista simple; los campos, el valor y el detalle no se repiten. Sin planilla, el mapeo va
@@ -116,7 +118,9 @@ Lo que el plan no fijaba, resuelto con la opción más simple que cumple el plan
      una respuesta del asistente en el medio y llegaron a menos de diez minutos. Esto cambia la regla del lector de «no buscar
      hacia atrás»: se actualizan su `AGENTS.md` y `WhatsAppAssistantSourceQueryTests`. Una planilla sola no se interpreta, porque
      el plan general la manda al camino de los documentos (DOC2), que no está programado: queda en el chat, bajada, como hoy.
-   - Una planilla también puede responder a «Cambiar algo» o a la pregunta, y pasa a ser la de la conversación.
+   - Una planilla también puede responder a «Cambiar algo» o a la pregunta, y pasa a ser la de la conversación. Si llega sin texto,
+     el motor la acepta sólo como continuación (con `PreviousRequestId`); fuera de una continuación, una interpretación sigue
+     necesitando texto.
    - Una planilla que no se lee contesta un texto fijo con el motivo y no llega a la IA.
    - El resumen de un catálogo con planilla suma «Son N filas.». El de importar dice el catálogo, el mapeo y las filas, con
      «Revisar importación» (el dibujo dice «Revisar la importación», que no entra en los 20 caracteres de un botón) y «Cambiar
@@ -136,10 +140,12 @@ Lo que el plan no fijaba, resuelto con la opción más simple que cumple el plan
      opciones, para quien la pidió y con la propuesta disponible), desde «Revisar la importación» con el estado de la navegación y
      desde el enlace de WhatsApp;
    - la planilla en el chat del operador.
-9. **Contratos mientras dura la prueba integral.** Nada que el front de hoy rechace llega a `main` antes que su front. El
-   `attachments` del bootstrap se publica con la tarea 8 y la importación pendiente del detalle del catálogo, con la 9. Lo demás no
-   lo rompe: el front de hoy ignora una propuesta de la versión 2 (muestra la explicación sin tarjeta), no puede mandar un turno
-   con archivo y no recibe `Manual` con otra forma.
+9. **Contratos mientras dura la prueba integral.** Nada que el front de hoy rechace, ni nada que le saque algo que hoy muestra,
+   llega a `main` antes que su front. El `attachments` del bootstrap se publica con la tarea 8, y la importación pendiente del
+   detalle del catálogo, con la 9. El front de hoy dibuja sólo la versión 1 de `propose-catalog`, así que Inicio la sigue
+   ofreciendo hasta la tarea 9: la versión 2 y `propose-import` quedan registradas sin `OfferedInHome` y la 9 da vuelta las
+   marcas. WhatsApp, que no depende del front, pasa a la 2 y suma `propose-import` en la tarea 7. Lo demás no rompe nada: el front
+   de hoy no puede mandar un turno con archivo y no recibe `Manual` con otra forma.
 
 ## Tareas
 
@@ -157,9 +163,10 @@ Vite le recarga la página.
 3. **El turno con planilla en Inicio.** El turno multipart, la copia y su retención, el título, `attachment` en el turno y los
    errores en `AiAssistantErrors` con sus textos; el bootstrap queda listo para la tarea 8. Integración con PostgreSQL (dueño,
    replay, rechazos, audio y planilla, retención), el inventario de rutas y la cohorte `ai-assistant-http`.
-4. **Propuestas con planilla.** `propose-catalog@2` con la 1 registrada, `propose-import@1`, `decline`, la presentación con la
-   muestra, crear con la versión 2 y la evidencia con el pedido, y el lookup para la conversación propia de un canal con el
-   descriptor. Unitarias del mapeo (válidos y rechazados, una columna), del reemplazo por grupo, del lookup y de crear.
+4. **Propuestas con planilla.** `propose-catalog@2` y `propose-import@1` registradas sin `OfferedInHome` (Inicio sigue con la 1),
+   `decline`, la presentación con la muestra, crear con las dos versiones y la evidencia con el pedido, y el lookup para la
+   conversación propia de un canal con el descriptor. Unitarias del mapeo (válidos y rechazados, una columna), del reemplazo por
+   grupo, del lookup y de crear.
 5. **Importar desde la copia.** Los dos endpoints, la hoja armada con el mapeo, reemplazar, quién puede, la copia vencida y la
    importación pendiente del detalle del catálogo (publicada con la tarea 9). Unitarias de la hoja mapeada y del servicio;
    integración con PostgreSQL (crear y abrir la importación, importar en uno que existe y en un propuesto pendiente, ajeno,
@@ -168,12 +175,13 @@ Vite le recarga la página.
    descarga y su verificación, lo preparado con el mensaje, la copia y su retención, el texto de lo que no se lee y la vista
    previa del chat. Unitarias e integración con PostgreSQL.
 7. **WhatsApp: el asistente con la planilla.** La fuente con el emparejado en los dos órdenes, el reemplazo de una interpretación
-   en curso y la guía del lector; la operación con la planilla, la planilla como respuesta, la pregunta con su texto, los resúmenes
-   con filas y el de importar con su enlace. Unitarias de la fuente y de los resúmenes, e integración con PostgreSQL del recorrido.
+   en curso y la guía del lector; la operación con la planilla, la planilla como respuesta, la pregunta con su texto, el pase a
+   `propose-catalog@2` y `propose-import@1` del asistente automático, los resúmenes con filas y el de importar con su enlace. Unitarias de la fuente y de los resúmenes, e integración con PostgreSQL del recorrido.
 8. **Front: el clip y la planilla en el hilo.** El bootstrap publicado, el compositor, el envío multipart con su progreso, la
    burbuja, el motivo, la sugerencia y el chat del operador. Tests y visuales es/en a 1440, 390 y 320.
-9. **Front: las tarjetas y la importación.** Las tarjetas con columnas y muestra, la tarjeta «Importación», el reemplazo por
-   grupo, `CatalogImportDialog` con la planilla del asistente y sus tres aperturas. Tests, visuales y contratos.
+9. **Front: las tarjetas y la importación.** Inicio pasa a ofrecer `propose-catalog@2` y `propose-import@1` (se dan vuelta las
+   marcas `OfferedInHome` en el backend). Las tarjetas con columnas y muestra, la tarjeta «Importación», el reemplazo por grupo,
+   `CatalogImportDialog` con la planilla del asistente y sus tres aperturas. Tests, visuales y contratos.
 10. **Casos de evaluación y cierre.**
     - Planillas ficticias: Excel con y sin encabezados, CSV, una lista de una columna, una para importar en un catálogo del
       fixture y otra con una instrucción escondida en una celda. Casos es/en en Inicio y por WhatsApp: armar un catálogo, importar,
@@ -214,3 +222,16 @@ extraído de `FileContentProcessor`, separa el Excel viejo del protegido con con
 rechazo quedan en siete: no disponible, Excel viejo, con contraseña, con macros, pasado de tope, ilegible y vacío. Unitarias
 4070/4070, arquitectura 207/207 y las técnicas del lector en verde, sobre una copia de HEAD, porque el árbol compartido no compila
 por trabajo ajeno sin commitear.
+
+2026-11-09: tarea 2 hecha (515397a4): `AssistantAttachmentInput`, las huellas `attachment:v1` y `home-attachment:v1`, el turno con
+`AttachmentKey` y `ProtectedAttachment` (migración `AddAssistantTurnAttachment`), la herencia, el bloque `Prompt.Attachment`, la
+planilla en el pedido de la capacidad, `RequiresAttachment` y el grupo del lookup. Su revisión encontró un punto que importa: la
+huella de Inicio llevaba el vencimiento, y un reintento daba 409. También encontró siete menores, que se corrigen después de la
+tarea 3.
+
+2026-11-09: tarea 3 hecha (c77c741f): `POST api/ai/assistant/file-turns`. El reintento compara la planilla con el descriptor
+guardado, el validador corre después de preparar, hay ocho códigos de error, y el turno propio se distingue del heredado por la
+clave de la copia, sin columna nueva. También suman el título y la historia de un turno sin texto, la fuente de retención y la
+regla del bootstrap sin publicar. La captura de la cohorte `ai-assistant-http` va con la tarea 8, junto con el inventario del
+exportador y el test del front, porque los dos fijan seis cuerpos. Para publicar `attachments`, `AiAssistantReadPolicy` ya tiene
+ocho dependencias, el tope de `ServiceDependencyLimitTests`.
