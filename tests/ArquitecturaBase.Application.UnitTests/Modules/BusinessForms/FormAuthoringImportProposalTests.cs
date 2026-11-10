@@ -3,6 +3,7 @@ using System.Text.Json.Nodes;
 using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Modules.BusinessForms.Channels;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
+using ArquitecturaBase.Application.Modules.BusinessForms.Services;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Results;
@@ -129,7 +130,39 @@ public sealed class FormAuthoringImportProposalTests
         Assert.Equal(FormDefinitionErrors.Forbidden, (await ProposeAsync(reader, Import())).Error);
         Assert.Equal(0, reader.Reader.Reads);
         var host = Host();
-        Assert.True((await host.Source.ExecuteAsync(host.Request(ProposeImport, Import()), Ct)).IsFailure);
+        Assert.Equal(FormCatalogErrors.ContentInvalid, (await host.Source.ExecuteAsync(host.Request(ProposeImport, Import()), Ct)).Error);
+        Assert.Equal(0, host.Reader.Reads);
+    }
+
+    // Two fields that read the same in the conversation language: the rejection names each one in the catalog's original language,
+    // and that name picks it; a name that is both the visible and the original one of a field also settles it.
+    [Fact]
+    public async Task A_name_two_fields_share_comes_back_ambiguous_with_their_original_names()
+    {
+        var host = new AuthoringAssistantFixture();
+        var north = AuthoringAssistantFixture.Field("zona_norte", "Zona Norte") with { Name = new Dictionary<string, string> { ["es"] = "Zona Norte", ["en"] = "Zone" } };
+        var south = AuthoringAssistantFixture.Field("zona_sur", "Zona Sur", position: 1) with { Name = new Dictionary<string, string> { ["es"] = "Zona Sur", ["en"] = "Zone" } };
+        var region = AuthoringAssistantFixture.Field("region", "Región", position: 2) with { Name = new Dictionary<string, string> { ["es"] = "Región", ["en"] = "Area" } };
+        var area = AuthoringAssistantFixture.Field("area", "Area", position: 3);
+        host.Reader.Catalogs.Add(AuthoringAssistantFixture.Catalog(Contractors, "Contratistas", BusinessFormCatalogKind.Manual, true, north, south, region, area));
+        var rejected = Rejected(await ProposeAsync(host, Import(fields: [("Zone", "C")]), "en"));
+        Assert.Equal([new FormAuthoringIssue("fields[0].name", "ambiguous") { Name = "Zona Norte" }, new FormAuthoringIssue("fields[0].name", "ambiguous") { Name = "Zona Sur" }],
+            rejected.Issues);
+        Assert.IsType<FormAuthoringRejection>(host.Source.ParseOutput(new(ProposeImport, 1), Json(rejected)).Value);
+        var picked = Proposed(await ProposeAsync(host, Import(fields: [("zona sur", "C"), ("Area", "D")]), "en")).Spreadsheet.Columns.Skip(2).ToArray();
+        Assert.Equal([("zona_sur", "C"), ("area", "D")], picked.Select(column => (column.Key!, column.Letter)));
+        Assert.Contains("ambiguous", FormAuthoringAssistantCodec.IssueCodes);
+    }
+
+    // Never trimmed: a summary that does not fit the proposal's budget is rejected, for the model to map less.
+    [Fact]
+    public async Task A_summary_beyond_the_budget_is_rejected_without_trimming()
+    {
+        var host = Host();
+        var wide = new string('x', 3000);
+        var sheet = AuthoringAssistantFixture.Sheet(4, [[wide, wide], [wide, wide], [wide, wide], [wide, wide]]);
+        var result = await host.Source.ExecuteAsync(host.Request(ProposeImport, Import(fields: []), 1, sheet), Ct);
+        Assert.Equal([new FormAuthoringIssue("fields", "tooLarge")], Rejected(result).Issues);
     }
 
     [Fact]

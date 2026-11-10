@@ -69,6 +69,37 @@ public sealed class FormAuthoringCatalogMappingTests
         Assert.Equal(["CUIT|Razón social|Rubro|Zona", "20-11111111-1|Transportes Sur|Cereales|Norte", "20-22222222-2|Logística Pampa||Sur"], Rows(sheet));
     }
 
+    // The prepared sheet skips empty rows: its first row with content holds the headers, also below an empty title row.
+    [Fact]
+    public async Task The_headers_are_the_first_row_with_content_even_below_an_empty_row()
+    {
+        var host = new AuthoringAssistantFixture();
+        var lower = AuthoringAssistantFixture.Sheet() with { Rows = [.. AuthoringAssistantFixture.Sheet().Rows.Select(row => row with { Number = row.Number + 2 })] };
+        var sheet = Proposed(await host.Source.ExecuteAsync(host.Request(ProposeCatalog, Catalog(Mapping()), Mapped, lower), Ct)).Spreadsheet!;
+        Assert.Equal(("CUIT", "Razón social", 86), (sheet.Columns[0].Header, sheet.Columns[1].Header, sheet.RowCount));
+        Assert.Equal("20-11111111-1|Transportes Sur|Cereales|Norte", Rows(sheet)[0]);
+    }
+
+    // Never trimmed: a summary that does not fit the proposal's budget is rejected, for the model to map less.
+    [Fact]
+    public async Task A_summary_beyond_the_budget_is_rejected_without_trimming()
+    {
+        var host = new AuthoringAssistantFixture();
+        var wide = new string('x', 3000);
+        var sheet = AuthoringAssistantFixture.Sheet(4, [[wide, wide], [wide, wide], [wide, wide], [wide, wide]]);
+        var result = await host.Source.ExecuteAsync(host.Request(ProposeCatalog, Catalog(Mapping(fields: []), fields: []), Mapped, sheet), Ct);
+        Assert.Equal([new FormAuthoringIssue("mapping", "tooLarge")], Rejected(result).Issues);
+    }
+
+    [Fact]
+    public void A_mapped_column_never_shows_the_spreadsheet_text()
+    {
+        var column = new FormAuthoringMappedColumn("field", "Razón social", "razon_social", "B", "Razón social");
+        Assert.DoesNotContain("Razón", column.ToString(), StringComparison.Ordinal);
+        Assert.DoesNotContain("Razón", new FormAuthoringSpreadsheetSummary("contratistas.xlsx", "Hoja1", 1, true, [column], [["Transportes Sur"]]).ToString(),
+            StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task A_typed_catalog_maps_its_value_next_to_the_option()
     {

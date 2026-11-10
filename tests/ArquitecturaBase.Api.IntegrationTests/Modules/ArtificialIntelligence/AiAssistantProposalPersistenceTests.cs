@@ -196,13 +196,14 @@ public sealed class AiAssistantProposalPersistenceTests(ApiFactory factory)
         Assert.Equal(1, source.Executions);
     }
 
-    // Stage 2: the lookup also finds a proposal of the actor's own conversation in a channel (the assistant mode with the actor as its
-    // Subject), with the instant its seal keeps and the spreadsheet its turn sealed in PostgreSQL.
+    // Stage 2: the lookup also finds the proposals of the actor's own conversation in a channel (the assistant mode with the actor as
+    // its Subject), with the instant each seal keeps. «Cambiar algo» continues the conversation: its turn inherits the spreadsheet,
+    // whose descriptor comes back from PostgreSQL, and its proposal replaces the first one in that engine conversation.
     [Fact]
-    public async Task The_lookup_finds_a_proposal_of_the_actors_own_channel_conversation_with_its_spreadsheet()
+    public async Task The_lookup_finds_the_proposals_of_the_actors_own_channel_conversation_with_their_spreadsheet()
     {
         var source = new RoundtripAssistantSource();
-        var provider = new AiAssistantProposalProviderDouble();
+        var provider = new AiAssistantContinuationProviderDouble();
         await using var scenario = await AiAssistantExecutionScenario.CreateAsync(factory, AiProvider.OpenAI, "fixture.proposal", services =>
         {
             services.AddSingleton<IAssistantCapabilitySource>(source);
@@ -214,7 +215,6 @@ public sealed class AiAssistantProposalPersistenceTests(ApiFactory factory)
         });
         var actor = Guid.Parse(scenario.Client.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
         var now = factory.Clock.GetUtcNow().UtcDateTime;
-        var occurredAtUtc = now.AddMinutes(-10);
         var context = new AssistantChannelContext("fixture-operation", actor, actor, "es", "UTC", new([], []),
             [new("fixture.proposal", 1)], [new("assistant_proposal", 1)]) { InteractionMode = AssistantInteractionMode.Assistant };
         const string sha256 = "8f434346648f6b96df89dda901c5176b10a6d83961dd3c1ac88b59b2dc327aa4";
@@ -222,21 +222,30 @@ public sealed class AiAssistantProposalPersistenceTests(ApiFactory factory)
             [new(1, new Dictionary<string, string> { ["A"] = "CUIT", ["B"] = "Razón social" })]);
         var attachment = new AssistantAttachmentInput("fixture/attachments/" + Guid.NewGuid().ToString("N"), "clientes.csv", "text/csv", 64, sha256,
             now.AddHours(2), sheet);
-        var request = new AssistantOperationRequest(Guid.NewGuid(), context, "Armame un catálogo con esta planilla", occurredAtUtc, now.AddHours(1))
+        var first = new AssistantOperationRequest(Guid.NewGuid(), context, "Armame un catálogo con esta planilla", now.AddMinutes(-10), now.AddHours(1))
             { Attachment = attachment };
-        Assert.True((await scenario.ScopeAsync(services => services.GetRequiredService<IAssistantOperations>().SubmitAsync(request, Ct))).IsSuccess);
+        Assert.True((await scenario.ScopeAsync(services => services.GetRequiredService<IAssistantOperations>().SubmitAsync(first, Ct))).IsSuccess);
         Assert.True(await scenario.ProcessNextAsync());
-        var completed = await scenario.ScopeAsync(services => services.GetRequiredService<IAssistantOperations>().GetAsync(context, request.RequestId, Ct));
-        var proposalId = completed.Value.Proposal!.Id;
-        var found = await scenario.ScopeAsync(services => services.GetRequiredService<IAssistantProposalLookup>()
-            .FindAsync(actor, request.RequestId, proposalId, ["fixture.proposal"], Ct));
-        Assert.True(found.IsSuccess);
-        Assert.Equal(new AssistantAttachmentDescriptor(attachment.StorageKey, "clientes.csv", "text/csv", 64, sha256), found.Value.Attachment);
-        Assert.Equal(completed.Value.Provenance, found.Value.Provenance);
-        Assert.Equal(new RoundtripAssistantPayload(source.ResourceId, source.PrivateText), found.Value.Proposal.Payload);
-        Assert.True(found.Value.IsCurrent);
+        var change = new AssistantOperationRequest(Guid.NewGuid(), context, "Cambiale el nombre", now.AddMinutes(-5), now.AddHours(1))
+            { PreviousRequestId = first.RequestId };
+        Assert.True((await scenario.ScopeAsync(services => services.GetRequiredService<IAssistantOperations>().SubmitAsync(change, Ct))).IsSuccess);
+        Assert.True(await scenario.ProcessNextAsync());
+        var operations = await scenario.ScopeAsync(async services =>
+        {
+            var port = services.GetRequiredService<IAssistantOperations>();
+            return (First: (await port.GetAsync(context, first.RequestId, Ct)).Value, Change: (await port.GetAsync(context, change.RequestId, Ct)).Value);
+        });
+        var (firstProposalId, changeProposalId) = (operations.First.Proposal!.Id, operations.Change.Proposal!.Id);
+        var replaced = await scenario.ScopeAsync(services => services.GetRequiredService<IAssistantProposalLookup>()
+            .FindAsync(actor, first.RequestId, firstProposalId, ["fixture.proposal"], Ct));
+        var current = await scenario.ScopeAsync(services => services.GetRequiredService<IAssistantProposalLookup>()
+            .FindAsync(actor, change.RequestId, changeProposalId, ["fixture.proposal"], Ct));
+        var descriptor = new AssistantAttachmentDescriptor(attachment.StorageKey, "clientes.csv", "text/csv", 64, sha256);
+        Assert.Equal((false, descriptor, operations.First.Provenance), (replaced.Value.IsCurrent, replaced.Value.Attachment, replaced.Value.Provenance));
+        Assert.Equal((true, descriptor, operations.Change.Provenance), (current.Value.IsCurrent, current.Value.Attachment, current.Value.Provenance));
+        Assert.Equal(new RoundtripAssistantPayload(source.ResourceId, source.PrivateText), current.Value.Proposal.Payload);
         var stranger = await scenario.ScopeAsync(services => services.GetRequiredService<IAssistantProposalLookup>()
-            .FindAsync(Guid.NewGuid(), request.RequestId, proposalId, ["fixture.proposal"], Ct));
+            .FindAsync(Guid.NewGuid(), change.RequestId, changeProposalId, ["fixture.proposal"], Ct));
         Assert.True(stranger.IsFailure);
     }
 

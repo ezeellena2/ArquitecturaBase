@@ -37,7 +37,7 @@ internal static partial class FormAuthoringAssistantCodec
         {"type":"object","properties":{"reason":{"type":"string","enum":["noPermission","formExists","catalogExists","unclear"]},"definitionId":{"type":["string","null"]},"catalogId":{"type":["string","null"]},"name":{"type":"string"}},"required":["reason","definitionId","catalogId","name"],"additionalProperties":false}
         """;
     public static readonly string[] IssueCodes = ["invalid", "catalogUnavailable", "catalogNotReadable", "tooLarge", "permissionGranted", "notReadable", "notFound",
-        "permissionMissing", "required", "outOfRange", "repeated", "noSpreadsheet", "notManual"];
+        "permissionMissing", "required", "outOfRange", "repeated", "noSpreadsheet", "notManual", "ambiguous"];
     public static readonly string[] DeclineReasons = ["noPermission", "formExists", "catalogExists", "unclear"];
     private static readonly string[] States = ["draft", "published", "inactive"];
     private static readonly string[] Kinds = ["manual", "filters"];

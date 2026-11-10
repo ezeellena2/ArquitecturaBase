@@ -28,7 +28,8 @@ internal sealed class FormCatalogAssistantProposalService(IAssistantProposalLook
         if (await CreatedAsync(access.Value, proposalId, cancellationToken) is { } created) return created;
         // A later import proposal replaces a proposed catalog, as a later catalog does.
         var found = await lookup.FindAsync(access.Value, requestId, proposalId, BusinessFormAuthoringAssistantCapabilitySource.CatalogGroup, cancellationToken);
-        if (found.IsFailure) return FormCatalogErrors.ProposalUnavailable;
+        // Only a Home turn (no interaction mode): a channel's own conversation creates with that channel's button.
+        if (found.IsFailure || found.Value.Context.InteractionMode != AssistantInteractionMode.Unspecified) return FormCatalogErrors.ProposalUnavailable;
         if (!found.Value.IsCurrent) return FormCatalogErrors.ProposalReplaced;
         return await CreateCatalogAsync(access.Value, found.Value.Context, found.Value.Proposal, found.Value.Provenance, "app", requestId, cancellationToken);
     }

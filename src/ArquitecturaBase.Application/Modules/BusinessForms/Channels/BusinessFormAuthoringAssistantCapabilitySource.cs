@@ -39,9 +39,9 @@ internal sealed class BusinessFormAuthoringAssistantCapabilitySource(IFormAuthor
             FormAuthoringAssistantCodec.FormArgumentsSchema, FormAuthoringAssistantCodec.FormProposalSchema, new([BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage], []), new(FormAuthoringAssistantCodec.ResponseBudget, FormAuthoringAssistantCodec.ResponseBudget, 1, 5)) { OfferedInHome = true },
         new(ProposeCatalogId, Version, AssistantCapabilityKind.Proposal, "Propose one new manual catalog without options for a person to review, in the conversation language: name, description, value type, what the code and the visible text of each option are, and its extra fields with their type. Read the existing catalogs first and never repeat a name. A rejected proposal lists the paths to fix: propose it again corrected. A person creates it inactive; you never create, activate or import anything.",
             FormAuthoringAssistantCodec.CatalogArgumentsSchema, FormAuthoringAssistantCodec.CatalogProposalSchema, new([BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage], []), new(8192, FormAuthoringAssistantCodec.ResponseBudget, 1, 5)) { OfferedInHome = true },
-        new(ProposeCatalogId, MappedCatalogVersion, AssistantCapabilityKind.Proposal, "Propose one new manual catalog for a person to review, in the conversation language: name, description, value type, what the code and the visible text of each option are, and its extra fields with their type. With the conversation's spreadsheet, also map where its options come from: whether row 1 holds headers and the column letter of the code, of the visible text (the same column for a simple list), of the value (only when the value type is not text), of the detail (optional) and of each field (optional); without a spreadsheet the mapping is null. Read the existing catalogs first and never repeat a name. A rejected proposal lists the paths to fix: propose it again corrected. A person creates it inactive and reviews the import of the spreadsheet; you never create, activate or import anything.",
+        new(ProposeCatalogId, MappedCatalogVersion, AssistantCapabilityKind.Proposal, "Propose one new manual catalog for a person to review, in the conversation language: name, description, value type, what the code and the visible text of each option are, and its extra fields with their type. With the conversation's spreadsheet, also map where its options come from: whether its first row with content (empty rows are skipped) holds headers and the column letter of the code, of the visible text (the same column for a simple list), of the value (only when the value type is not text), of the detail (optional) and of each field (optional); without a spreadsheet the mapping is null. Read the existing catalogs first and never repeat a name. A rejected proposal lists the paths to fix: propose it again corrected. A person creates it inactive and reviews the import of the spreadsheet; you never create, activate or import anything.",
             FormAuthoringAssistantCodec.MappedCatalogArgumentsSchema, FormAuthoringAssistantCodec.MappedCatalogProposalSchema, new([BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage], []), new(8192, FormAuthoringAssistantCodec.ResponseBudget, 1, 5)),
-        new(ProposeImportId, Version, AssistantCapabilityKind.Proposal, "Propose importing the conversation's spreadsheet into an existing manual catalog, for a person to review: the catalog id as the catalogs read shows it, whether row 1 holds headers, the column letter of the code of each option, of its visible text (the same column for a simple list), of its value (only when the catalog's value type is not text) and of its detail (optional), and the column of each field to fill, named as the catalogs read names it. The options the spreadsheet does not bring are deactivated by the import. A rejected proposal lists the paths to fix, and a required field left out comes back named: propose it again corrected. A person reviews the import and imports it; you never import or change anything.",
+        new(ProposeImportId, Version, AssistantCapabilityKind.Proposal, "Propose importing the conversation's spreadsheet into an existing manual catalog, for a person to review: the catalog id as the catalogs read shows it, whether the spreadsheet's first row with content (empty rows are skipped) holds headers, the column letter of the code of each option, of its visible text (the same column for a simple list), of its value (only when the catalog's value type is not text) and of its detail (optional), and the column of each field to fill, named as the catalogs read names it. The options the spreadsheet does not bring are deactivated by the import. A rejected proposal lists the paths to fix: a required field left out comes back named, and a name two fields share comes back ambiguous with each one's name in the catalog's original language, to use instead. Propose it again corrected. A person reviews the import and imports it; you never import or change anything.",
             FormAuthoringAssistantCodec.ImportArgumentsSchema, FormAuthoringAssistantCodec.ImportProposalSchema, new([BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage], []), new(8192, FormAuthoringAssistantCodec.ResponseBudget, 1, 5)) { RequiresAttachment = true },
         // A channel says only fixed texts: this tells it why nothing is built yet, or that it has to ask what to build first
         // («pregunta y espera»). Home answers in its own words instead.
@@ -190,14 +190,15 @@ internal sealed class BusinessFormAuthoringAssistantCapabilitySource(IFormAuthor
         var chosen = new List<(BusinessFormCatalogField Field, int Index, string? Letter)>();
         for (var index = 0; index < arguments.Fields.Count; index++)
         {
-            var name = arguments.Fields[index].Name.Trim();
-            var matches = active.Where(field => string.Equals(Text(field.Name, culture, catalog.OriginalCulture), name, StringComparison.OrdinalIgnoreCase) ||
-                field.Name.TryGetValue(catalog.OriginalCulture, out var original) && string.Equals(original, name, StringComparison.OrdinalIgnoreCase)).ToArray();
-            if (matches.Length != 1) issues.Add(new($"fields[{index}].name", "notFound"));
-            else if (chosen.Any(item => item.Field.Id == matches[0].Id)) issues.Add(new($"fields[{index}].name", "repeated"));
+            var (field, candidates) = Field(active, arguments.Fields[index].Name.Trim(), culture, catalog.OriginalCulture);
+            if (field is null && candidates.Count == 0) issues.Add(new($"fields[{index}].name", "notFound"));
+            else if (field is null)
+                issues.AddRange(candidates.Select(candidate => new FormAuthoringIssue($"fields[{index}].name", "ambiguous")
+                    { Name = Original(candidate.Name, catalog.OriginalCulture) }));
+            else if (chosen.Any(item => item.Field.Id == field.Id)) issues.Add(new($"fields[{index}].name", "repeated"));
             else
             {
-                chosen.Add((matches[0], index, arguments.Fields[index].Column));
+                chosen.Add((field, index, arguments.Fields[index].Column));
                 if (FormAuthoringSpreadsheetPolicy.Given(arguments.Fields[index].Column) is null) issues.Add(new($"fields[{index}].column", "required"));
             }
         }
@@ -214,6 +215,24 @@ internal sealed class BusinessFormAuthoringAssistantCapabilitySource(IFormAuthor
         return FormAssistantCapabilityCodec.ResponseBytes(proposal, "proposed", true) > FormAuthoringAssistantCodec.ResponseBudget
             ? Rejected([new("fields", "tooLarge")]) : new AssistantCapabilityResponse("proposed", proposal, [], 1);
     }
+
+    // A field named as the catalogs read shows it (the conversation language, or its original without a translation), or in the
+    // catalog's original language, without case. When two fields read the same, the one whose original name it is settles it; if
+    // none does, the candidates come back for the model to name one in the original language.
+    private static (BusinessFormCatalogField? Field, IReadOnlyList<BusinessFormCatalogField> Candidates) Field(IReadOnlyList<BusinessFormCatalogField> active,
+        string name, string culture, string original)
+    {
+        var visible = active.Where(field => string.Equals(Text(field.Name, culture, original), name, StringComparison.OrdinalIgnoreCase)).ToArray();
+        var named = active.Where(field => string.Equals(Original(field.Name, original), name, StringComparison.OrdinalIgnoreCase)).ToArray();
+        if (visible.Length == 1) return (visible[0], visible);
+        var candidates = visible.Length > 1 ? visible : named;
+        var settled = candidates.Intersect(named).ToArray();
+        return (candidates.Length == 1 ? candidates[0] : settled.Length == 1 ? settled[0] : null, candidates);
+    }
+
+    private static string Original(IReadOnlyDictionary<string, string> texts, string original) =>
+        texts.TryGetValue(original, out var text) && !string.IsNullOrWhiteSpace(text) ? text : "";
+
 
     // Each reason is checked here: the person really cannot build forms or catalogs, the one named exists and the person can
     // read it, or, to ask what to build, the person can build a form or a catalog. A wrong one comes back rejected, so the model

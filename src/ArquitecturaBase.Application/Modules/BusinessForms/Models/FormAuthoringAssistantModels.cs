@@ -33,10 +33,12 @@ public sealed record FormAuthoringCatalogProposal(string Culture, string Name, s
     string Option, IReadOnlyList<FormAuthoringProposedField> Fields) : AssistantCapabilityPayload;
 
 // Stage 2: what a proposal takes from the turn's spreadsheet, for its card (IA1-A). Each mapped column, ordered as the catalog
-// (code, option, value, detail and fields), says what it fills (Target), its letter and its header, row 1's text when that row
-// holds headers. Field names the field and Key is the key of an existing catalog's field. RowCount counts the rows of data and
-// each row of the sample (the first ones after the headers, up to three) has one text per column, empty without one.
-public sealed record FormAuthoringMappedColumn(string Target, string? Field, string? Key, string Letter, string? Header);
+// (code, option, value, detail and fields), says what it fills (Target), its letter and its header: the text of the first row with
+// content when it holds headers, since the prepared sheet skips empty rows. Field names the field and Key is the key of an existing
+// catalog's field. RowCount counts the rows of data and each row of the sample (the first ones after the headers, up to three) has
+// one text per column, empty without one.
+public sealed record FormAuthoringMappedColumn(string Target, string? Field, string? Key, string Letter, string? Header)
+{ public override string ToString() => "FormAuthoringMappedColumn { Content = [REDACTED] }"; }
 public sealed record FormAuthoringSpreadsheetSummary(string FileName, string SheetName, int RowCount, bool HasHeaders,
     IReadOnlyList<FormAuthoringMappedColumn> Columns, IReadOnlyList<IReadOnlyList<string>> Sample)
 { public override string ToString() => "FormAuthoringSpreadsheetSummary { Content = [REDACTED] }"; }

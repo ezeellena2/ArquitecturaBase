@@ -25,7 +25,9 @@ internal sealed class FormDraftProposalService(IAssistantProposalLookup lookup, 
         if (request.ProposalId is not { } proposalId || proposalId == Guid.Empty) return FieldErrors.On(FormDefinitionErrors.ContentInvalid, "proposalId");
         if (await CreatedAsync(access.Value, proposalId, cancellationToken) is { } created) return created;
         var found = await lookup.FindAsync(access.Value, requestId, proposalId, [BusinessFormAuthoringAssistantCapabilitySource.ProposeFormId], cancellationToken);
-        if (found.IsFailure || found.Value.Proposal is not { Capability: { Id: BusinessFormAuthoringAssistantCapabilitySource.ProposeFormId, Version: 1 },
+        // Only a Home turn (no interaction mode): a channel's own conversation creates with that channel's button.
+        if (found.IsFailure || found.Value.Context.InteractionMode != AssistantInteractionMode.Unspecified ||
+            found.Value.Proposal is not { Capability: { Id: BusinessFormAuthoringAssistantCapabilitySource.ProposeFormId, Version: 1 },
                 Payload: FormAuthoringFormProposal proposal })
             return FormDefinitionErrors.ProposalUnavailable;
         if (!found.Value.IsCurrent) return FormDefinitionErrors.ProposalReplaced;

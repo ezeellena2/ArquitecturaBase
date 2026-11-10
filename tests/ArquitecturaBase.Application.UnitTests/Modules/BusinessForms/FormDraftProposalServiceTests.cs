@@ -85,6 +85,17 @@ public sealed class FormDraftProposalServiceTests
         Assert.Empty(host.Drafts.Created);
     }
 
+    // The web creates only from a Home turn: a proposal of a channel's own conversation is created with that channel's button.
+    [Fact]
+    public async Task Creating_from_Home_never_reads_a_proposal_of_a_channel_conversation()
+    {
+        var host = new Host();
+        host.Lookup.Response = host.Lookup.Response! with { Context = host.ChannelRequest().Context };
+        var result = await host.Service.CreateAsync(host.Request, Ct);
+        Assert.Equal(FormDefinitionErrors.ProposalUnavailable, result.Error);
+        Assert.Empty(host.Drafts.Created);
+    }
+
     [Fact]
     public async Task A_name_in_use_creates_nothing()
     {

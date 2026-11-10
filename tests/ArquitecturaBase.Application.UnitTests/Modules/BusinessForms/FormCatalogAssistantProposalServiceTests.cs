@@ -74,6 +74,25 @@ public sealed class FormCatalogAssistantProposalServiceTests
         Assert.Equal(JsonSerializer.Serialize(host.Manual, JsonSerializerOptions.Web), JsonSerializer.Serialize(evidence.Manual, JsonSerializerOptions.Web));
     }
 
+    // The web creates only from a Home turn, for a Manual catalog and for a people one (H4): a proposal of a channel's own
+    // conversation is created with that channel's button.
+    [Theory]
+    [InlineData("manual")]
+    [InlineData("people")]
+    public async Task Creating_from_Home_never_reads_a_proposal_of_a_channel_conversation(string kind)
+    {
+        var host = new Host();
+        var assistant = host.Catalogs.Assistant;
+        host.Lookup.Response = host.Lookup.Response! with { Context = host.ChannelRequest().Context };
+        if (kind == "people") host.Lookup.Response = host.Lookup.Response with
+        {
+            Proposal = new(assistant.TurnId, host.ProposalId, new(BusinessFormCatalogAssistantCapabilitySource.ProposeId, 1), CatalogAssistantFixture.Proposal)
+                { ObservedReads = [assistant.Observed()] },
+        };
+        Assert.Equal(FormCatalogErrors.ProposalUnavailable, (await host.Service.CreateAsync(host.Request, Ct)).Error);
+        Assert.Empty(host.Catalogs.Catalogs);
+    }
+
     // An import proposal is not a catalog to create: «Crear catálogo» never reads it.
     [Fact]
     public async Task An_import_proposal_creates_nothing()

@@ -8,8 +8,9 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 // Stage 2: a proposal names the columns of the turn's spreadsheet by their letter, against the sheet the engine prepared (the
 // file is never opened here). The code and the option are required, and the value only when the value type is not text. Each
 // letter has to be one of the sheet's columns: the code and the option may share one (a simple list), and the value, the detail
-// and the fields never repeat a column. The card shows each mapped column, ordered as the catalog, with row 1's text when that
-// row holds headers, and the first three rows after them.
+// and the fields never repeat a column. The card shows each mapped column, ordered as the catalog, with the text of the first row
+// with content when it holds headers (the prepared sheet skips empty rows, so it may not be the sheet's row 1), and the first
+// three rows after it; the rows of data are the ones with content but that one.
 internal static partial class FormAuthoringSpreadsheetPolicy
 {
     public const int SampleRows = 3;
