@@ -1,13 +1,14 @@
 # El Excel de respuestas, en una sola hoja
 
-Fecha: **2026-11-09**. Estado: **XL1-A elegida por el usuario el mismo día; sin programar**.
+Fecha: **2026-11-09**. Estado: **XL1-A elegida por el usuario el mismo día y programada en el backend (tareas 1 a 6), con
+el tope de 100.000 filas que eligió al ver la medición; faltan el front (tarea 7) y la prueba a mano**.
 
 En la prueba integral, exportando «Remito de prueba» (RMP-20261109.xlsx, dos respuestas y cinco ítems), el usuario pidió
 que el Excel de «Exportar a Excel» quede en una sola hoja y bien diseñado. Los tableros están en el lienzo aparte
 [Diálogos con la lista de chequeo](https://claude.ai/artifact/NUTGFtcXh7QPq8wnpJ6K6c), fila «El Excel de respuestas, en
 una sola hoja»: XL0 (hoy), XL1-A, XL1-B y XL1-C (las formas) y XL2 (lo que vale con cualquiera y el diálogo).
 
-## Hoy
+## Antes de este cambio
 
 Lo arma `FormExportService` con `FormExportPolicy` y lo escribe `ClosedXmlFormWorkbookWriter`; los textos están en
 `Modules/BusinessForms/Resources/Responses.resx`. La regla vigente está en
@@ -77,6 +78,11 @@ Cada tarea arranca con su test en rojo y cierra con el build y los tests unitari
    bloque; ahora también repiten las columnas de su respuesta. Se mide con el máximo (10.000 respuestas con 100 ítems)
    dentro de los 30 segundos de hoy. Si no entra, se decide con el usuario un tope de filas, con su motivo en «Exportar
    a Excel».
+   **Medido** en una copia, con la PC cargada y 13 columnas: el máximo (1.000.000 de filas) tardó 84 s en escribirse y
+   usó 2,8 GB; el de dos hojas ya tardaba 51 s. Con 100.000 filas, 11 s y 0,4 GB; con 200.000, 17 s y 0,7 GB. **El
+   usuario eligió un tope de 100.000 filas**: al pasarlo, la exportación se corta antes de escribir el archivo con
+   `Forms.Record.ExportTooManyRows` («El Excel tendría más de 100.000 filas, una por ítem. Acotá los filtros o sacá el
+   bloque de las columnas.»). Sin bloque nunca se llega, por el tope de 10.000 respuestas.
 6. **Integración y documentos.** Los tests de exportación con PostgreSQL (`FormResponseHttpTests`, `FormRowsReadHttpTests`
    y `FormRecordAmendmentHttpTests`) esperan una hoja. «El Excel» en [formularios](../features/formularios.md) y en
    [formularios-servicios](../features/formularios-servicios.md#planilla-detalle-y-excel) dicen lo que hace el código.
@@ -85,9 +91,10 @@ Cada tarea arranca con su test en rojo y cierra con el build y los tests unitari
 Cierre: `dotnet test` completo con Docker y el build sin advertencias; en el front, los tests del diálogo. A mano: exportar
 «Remito de prueba» y abrirlo en Excel, con el filtro de un ítem y una tabla dinámica.
 
-## Antes de empezar
+## Lo que falta
 
-- La forma está elegida (XL1-A) y lo de XL2 va con ella, como se mostró. Falta el visto bueno para programarlo y un
-  momento con la máquina quieta: la integración corre con Docker.
-- El front quieto para la tarea 7, que va con el diálogo (EX1-A).
+- **El front (tarea 7)**, con el diálogo (EX1-A) y la app quieta: «Filas» y su (i), que también dice el tope de
+  100.000 filas. Con el front quieto, volver a exportar las capturas de las cohortes: cambian las 13 `.xlsx` de
+  `src/test/fixtures/forms-responses-http/`, de `export.xlsx` a `rows-export-en.xlsx`.
+- **La prueba a mano:** exportar «Remito de prueba» y abrirlo en Excel, con el filtro de un ítem y una tabla dinámica.
 - Si UD4 saca «(desde vN)» del encabezado de la planilla, el Excel lo conserva igual.
