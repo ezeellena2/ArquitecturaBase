@@ -177,8 +177,10 @@ Vite le recarga la página.
 7. **WhatsApp: el asistente con la planilla.** La fuente con el emparejado en los dos órdenes, el reemplazo de una interpretación
    en curso y la guía del lector; la operación con la planilla, la planilla como respuesta, la pregunta con su texto, el pase a
    `propose-catalog@2` y `propose-import@1` del asistente automático, los resúmenes con filas y el de importar con su enlace. Unitarias de la fuente y de los resúmenes, e integración con PostgreSQL del recorrido.
-8. **Front: el clip y la planilla en el hilo.** El bootstrap publicado, el compositor, el envío multipart con su progreso, la
-   burbuja, el motivo, la sugerencia y el chat del operador. Tests y visuales es/en a 1440, 390 y 320.
+8. **Front: el clip y la planilla en el hilo.** El bootstrap publicado (`AiAssistantReadPolicy` está en el tope de dependencias), el
+   compositor, el envío multipart con su progreso, la burbuja, el motivo, la sugerencia y el chat del operador. La captura del turno
+   con planilla entra a la cohorte `ai-assistant-http` acá, con el inventario del exportador, su autotest y el test del front, que
+   fijan seis cuerpos. Tests y visuales es/en a 1440, 390 y 320.
 9. **Front: las tarjetas y la importación.** Inicio pasa a ofrecer `propose-catalog@2` y `propose-import@1` (se dan vuelta las
    marcas `OfferedInHome` en el backend). Las tarjetas con columnas y muestra, la tarjeta «Importación», el reemplazo por grupo,
    `CatalogImportDialog` con la planilla del asistente y sus tres aperturas. Tests, visuales y contratos.
