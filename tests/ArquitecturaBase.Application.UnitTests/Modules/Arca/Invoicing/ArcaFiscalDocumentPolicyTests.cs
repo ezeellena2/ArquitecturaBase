@@ -68,10 +68,125 @@ public sealed class ArcaFiscalDocumentPolicyTests
     }
 
     [Fact]
+    public void A_class_c_invoice_shows_its_lines_as_they_are_and_no_vat()
+    {
+        var (voucher, payload) = ArcaVoucherRequestPolicyTests.Invoice();
+
+        var document = ArcaFiscalDocumentPolicy.Build(Authorized(voucher), payload);
+
+        Assert.Equal([new ArcaFiscalLine("Semilla de soja", 10m, 52000m, 520000m), new ArcaFiscalLine("Flete", 1m, 85500m, 85500m)], document.Lines);
+        Assert.Empty(document.Subtotals);
+        Assert.Equal(((decimal?)null, (string?)null), (document.VatContained, document.Legend));
+    }
+
+    [Fact]
+    public void A_class_a_invoice_shows_net_prices_with_their_rate_and_the_vat_of_each_rate()
+    {
+        var (voucher, payload) = ArcaVoucherRequestPolicyTests.Invoice(ArcaVoucherClass.A, pricesIncludeVat: false);
+
+        var document = ArcaFiscalDocumentPolicy.Build(Authorized(voucher), payload);
+
+        Assert.Equal(("A", "COD. 01", 629200.21m), (document.ClassLetter, document.TypeCode, document.Total));
+        Assert.Equal([new ArcaFiscalLine("Semilla de soja", 10m, 52000m, 520000m, "21 %"), new ArcaFiscalLine("Flete", 1.5m, 0.125m, 0.19m, "10,5 %")],
+            document.Lines);
+        Assert.Equal([new ArcaFiscalAmount("Importe neto gravado", 520000.19m), new ArcaFiscalAmount("IVA 10,5 %", 0.02m), new ArcaFiscalAmount("IVA 21 %", 109200m)],
+            document.Subtotals);
+        Assert.Equal(((decimal?)null, (string?)null), (document.VatContained, document.Legend));
+    }
+
+    [Fact]
+    public void A_class_a_invoice_with_prices_with_vat_shows_them_without_it()
+    {
+        var (voucher, payload) = ArcaVoucherRequestPolicyTests.Invoice(ArcaVoucherClass.A, pricesIncludeVat: true);
+
+        var document = ArcaFiscalDocumentPolicy.Build(Authorized(voucher), payload);
+
+        Assert.Equal([new ArcaFiscalLine("Semilla de soja", 10m, 42975.21m, 429752.07m, "21 %"), new ArcaFiscalLine("Flete", 1.5m, 0.11m, 0.17m, "10,5 %")],
+            document.Lines);
+        Assert.Equal([new ArcaFiscalAmount("Importe neto gravado", 429752.24m), new ArcaFiscalAmount("IVA 10,5 %", 0.02m), new ArcaFiscalAmount("IVA 21 %", 90247.93m)],
+            document.Subtotals);
+        Assert.Equal(520000.19m, document.Total);
+    }
+
+    [Fact]
+    public void A_class_a_invoice_shows_exempt_and_not_taxed_lines_and_their_subtotals()
+    {
+        var (voucher, payload) = ArcaVoucherRequestPolicyTests.Invoice(ArcaVoucherClass.A, pricesIncludeVat: false);
+        payload = payload with
+        {
+            Lines =
+            [
+                payload.Lines[0],
+                new ArcaVoucherLine("Libro", 1m, 15000m, 15000m, new(ArcaVatTreatmentKind.Exempt)),
+                new ArcaVoucherLine("Sellado", 1m, 500m, 500m, new(ArcaVatTreatmentKind.NotTaxed)),
+            ],
+        };
+
+        var document = ArcaFiscalDocumentPolicy.Build(Authorized(voucher), payload);
+
+        Assert.Equal(["21 %", "Exento", "No gravado"], document.Lines.Select(line => line.Vat));
+        Assert.Equal(
+            [
+                new ArcaFiscalAmount("Importe neto gravado", 520000m), new ArcaFiscalAmount("IVA 21 %", 109200m),
+                new ArcaFiscalAmount("Importe exento", 15000m), new ArcaFiscalAmount("Importe no gravado", 500m),
+            ],
+            document.Subtotals);
+    }
+
+    [Theory]
+    [InlineData(6)]
+    [InlineData(13)]
+    [InlineData(16)]
+    public void A_class_a_invoice_to_a_monotax_receiver_carries_the_legend_of_rg_5003(int condition)
+    {
+        var (voucher, payload) = ArcaVoucherRequestPolicyTests.Invoice(ArcaVoucherClass.A, pricesIncludeVat: false);
+
+        var document = ArcaFiscalDocumentPolicy.Build(Authorized(voucher), payload with { Receiver = payload.Receiver with { VatConditionId = condition } });
+
+        Assert.Equal("El crédito fiscal discriminado en el presente comprobante, sólo podrá ser computado a efectos del Régimen de Sostenimiento e "
+            + "Inclusión Fiscal para Pequeños Contribuyentes de la Ley Nº 27.618", document.Legend);
+    }
+
+    [Fact]
+    public void A_class_b_invoice_to_a_final_consumer_shows_prices_with_vat_and_the_vat_it_contains()
+    {
+        var (voucher, payload) = ArcaVoucherRequestPolicyTests.Invoice(ArcaVoucherClass.B, pricesIncludeVat: false);
+
+        var document = ArcaFiscalDocumentPolicy.Build(Authorized(voucher), payload);
+
+        Assert.Equal(("B", "COD. 06", 629200.21m), (document.ClassLetter, document.TypeCode, document.Total));
+        Assert.Equal([new ArcaFiscalLine("Semilla de soja", 10m, 62920m, 629200m), new ArcaFiscalLine("Flete", 1.5m, 0.14m, 0.21m)], document.Lines);
+        Assert.Empty(document.Subtotals);
+        Assert.Equal(((decimal?)109200.02m, (string?)null), (document.VatContained, document.Legend));
+    }
+
+    [Theory]
+    [InlineData(4, true)]
+    [InlineData(5, true)]
+    [InlineData(15, true)]
+    [InlineData(7, false)]
+    [InlineData(10, false)]
+    public void Only_a_class_b_invoice_to_an_exempt_a_not_subject_or_a_final_consumer_has_the_transparency_box(int condition, bool shown)
+    {
+        var (voucher, payload) = ArcaVoucherRequestPolicyTests.Invoice(ArcaVoucherClass.B, pricesIncludeVat: true);
+
+        var document = ArcaFiscalDocumentPolicy.Build(Authorized(voucher), payload with { Receiver = payload.Receiver with { VatConditionId = condition } });
+
+        Assert.Equal(shown ? 90247.95m : null, document.VatContained);
+    }
+
+    [Fact]
     public void Only_an_authorized_voucher_has_a_fiscal_pdf()
     {
         var (voucher, payload) = ArcaVoucherRequestPolicyTests.Invoice();
 
         Assert.Throws<InvalidOperationException>(() => ArcaFiscalDocumentPolicy.Build(voucher, payload));
+    }
+
+    private static ArcaVoucher Authorized(ArcaVoucher voucher)
+    {
+        voucher.AssignNumber(7, "hash", Now);
+        voucher.Authorize("76451234567890", new DateOnly(2026, 11, 19), null, Now);
+        return voucher;
     }
 }

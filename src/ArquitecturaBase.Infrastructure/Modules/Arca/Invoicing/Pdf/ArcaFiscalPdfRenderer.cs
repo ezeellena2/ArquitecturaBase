@@ -9,8 +9,9 @@ namespace ArquitecturaBase.Infrastructure.Modules.Arca.Invoicing.Pdf;
 /// <summary>
 /// El PDF fiscal con su diseño fijo, en A4: «ORIGINAL», el emisor y el comprobante con la letra y el código en el recuadro del
 /// medio, el receptor, el período si es un servicio, los renglones (en varias páginas si hace falta, con el encabezado de la
-/// tabla repetido), el total, el CAE con su vencimiento y el QR de ARCA. Usa las fuentes incrustadas del módulo y QRCoder
-/// sólo para la matriz del QR, que se dibuja con Skia.
+/// tabla repetido), el total, el CAE con su vencimiento y el QR de ARCA. En la A, la tabla suma la alícuota y, arriba del pie,
+/// van a la derecha el neto y el IVA de cada alícuota; abajo a la izquierda, la leyenda de la RG 5003 o, en la B, el recuadro
+/// de la RG 5614. Usa las fuentes incrustadas del módulo y QRCoder sólo para la matriz del QR, que se dibuja con Skia.
 /// </summary>
 internal sealed class ArcaFiscalPdfRenderer : IArcaFiscalPdfRenderer
 {
@@ -20,6 +21,9 @@ internal sealed class ArcaFiscalPdfRenderer : IArcaFiscalPdfRenderer
     private const float Right = Width - Margin;
     private const float RowHeight = 16;
     private const float FooterHeight = 150;
+    private const float SubtotalHeight = 13;
+    private const float LegendWidth = 260;
+    private const float SubtotalLabel = 215;
     private static readonly CultureInfo Spanish = CultureInfo.GetCultureInfo("es-AR");
 
     public byte[] Render(ArcaFiscalDocument document)
@@ -53,6 +57,7 @@ internal sealed class ArcaFiscalPdfRenderer : IArcaFiscalPdfRenderer
         private readonly SKDocument pdf;
         private readonly SKFont body;
         private readonly SKFont small;
+        private readonly SKFont smallStrong;
         private readonly SKFont strong;
         private readonly SKFont title;
         private readonly SKFont letter;
@@ -61,12 +66,14 @@ internal sealed class ArcaFiscalPdfRenderer : IArcaFiscalPdfRenderer
         private readonly SKPaint rule = new() { Color = SKColor.Parse("#BBBBBB"), IsAntialias = true, StrokeWidth = 0.5f };
         private SKCanvas canvas = null!;
         private int page;
+        private bool withVat;
 
         public Layout(SKDocument pdf, SKTypeface regular, SKTypeface bold)
         {
             this.pdf = pdf;
             body = new SKFont(regular, 9);
             small = new SKFont(regular, 7.5f);
+            smallStrong = new SKFont(bold, 7.5f);
             strong = new SKFont(bold, 9);
             title = new SKFont(bold, 13);
             letter = new SKFont(bold, 30);
@@ -74,27 +81,32 @@ internal sealed class ArcaFiscalPdfRenderer : IArcaFiscalPdfRenderer
 
         public void Draw(ArcaFiscalDocument document)
         {
+            withVat = document.Lines.Any(line => line.Vat is not null);
+            var legend = document.Legend is { } text ? Wrap(text, small, LegendWidth) : [];
+            var reserve = Reserve(document, legend);
             var y = StartPage(document);
             y = Receiver(document, y);
             y = TableHeader(y);
             foreach (var line in document.Lines)
             {
-                var description = Wrap(line.Description, body, 280);
+                var description = Wrap(line.Description, body, withVat ? 240 : 280);
                 var height = RowHeight + (description.Count - 1) * 11;
-                if (y + height > Height - Margin - FooterHeight)
+                if (y + height > Height - Margin - FooterHeight - reserve)
                 {
                     pdf.EndPage();
                     y = TableHeader(StartPage(document));
                 }
 
                 for (var index = 0; index < description.Count; index++) Text(body, description[index], Margin + 6, y + 11 + index * 11);
-                Number(body, line.Quantity.ToString("0.####", Spanish), Margin + 340, y + 11);
-                Number(body, Money(line.UnitPrice), Margin + 430, y + 11);
+                Number(body, line.Quantity.ToString("0.####", Spanish), Margin + (withVat ? 300 : 340), y + 11);
+                Number(body, Money(line.UnitPrice), Margin + (withVat ? 385 : 430), y + 11);
+                if (line.Vat is { } vat) Number(body, vat, Margin + 450, y + 11);
                 Number(body, Money(line.Amount), Right - 6, y + 11);
                 canvas.DrawLine(Margin, y + height, Right, y + height, rule);
                 y += height;
             }
 
+            Above(document, legend, reserve);
             Footer(document);
             pdf.EndPage();
         }
@@ -103,6 +115,7 @@ internal sealed class ArcaFiscalPdfRenderer : IArcaFiscalPdfRenderer
         {
             body.Dispose();
             small.Dispose();
+            smallStrong.Dispose();
             strong.Dispose();
             title.Dispose();
             letter.Dispose();
@@ -164,10 +177,45 @@ internal sealed class ArcaFiscalPdfRenderer : IArcaFiscalPdfRenderer
         {
             canvas.DrawRect(Margin, y, Right - Margin, RowHeight, stroke);
             Text(strong, "Descripción", Margin + 6, y + 11);
-            Number(strong, "Cantidad", Margin + 340, y + 11);
-            Number(strong, "Precio unit.", Margin + 430, y + 11);
+            Number(strong, "Cantidad", Margin + (withVat ? 300 : 340), y + 11);
+            Number(strong, "Precio unit.", Margin + (withVat ? 385 : 430), y + 11);
+            if (withVat) Number(strong, "Alícuota", Margin + 450, y + 11);
             Number(strong, "Subtotal", Right - 6, y + 11);
             return y + RowHeight;
+        }
+
+        /// <summary>
+        /// Lo que va arriba del pie se reserva en cada hoja, para que la tabla no lo pise: los subtotales de la A a la derecha, y
+        /// el recuadro de la RG 5614 o la leyenda de la RG 5003 a la izquierda.
+        /// </summary>
+        private static float Reserve(ArcaFiscalDocument document, List<string> legend)
+        {
+            var right = document.Subtotals.Count == 0 ? 0 : document.Subtotals.Count * SubtotalHeight + 6;
+            var left = document.VatContained is not null ? 46 : legend.Count == 0 ? 0 : legend.Count * 10 + 6;
+            var height = Math.Max(right, left);
+            return height == 0 ? 0 : height + 8;
+        }
+
+        private void Above(ArcaFiscalDocument document, List<string> legend, float reserve)
+        {
+            if (reserve == 0) return;
+            var top = Height - Margin - FooterHeight + 20 - reserve;
+            for (var index = 0; index < document.Subtotals.Count; index++)
+            {
+                var subtotal = document.Subtotals[index];
+                Text(body, subtotal.Label, Right - SubtotalLabel, top + 11 + index * SubtotalHeight);
+                Number(body, $"$ {Money(subtotal.Amount)}", Right - 10, top + 11 + index * SubtotalHeight);
+            }
+
+            if (document.VatContained is { } vat)
+            {
+                canvas.DrawRect(Margin, top, 270, 46, stroke);
+                Text(smallStrong, "Régimen de Transparencia Fiscal al Consumidor (Ley 27.743)", Margin + 6, top + 12);
+                Text(body, $"IVA Contenido: $ {Money(vat)}", Margin + 6, top + 26);
+                Text(body, $"Otros Impuestos Nacionales Indirectos: $ {Money(0m)}", Margin + 6, top + 39);
+            }
+
+            for (var index = 0; index < legend.Count; index++) Text(small, legend[index], Margin, top + 10 + index * 10);
         }
 
         /// <summary>El pie de la última página: el total, el CAE con su vencimiento y el QR.</summary>

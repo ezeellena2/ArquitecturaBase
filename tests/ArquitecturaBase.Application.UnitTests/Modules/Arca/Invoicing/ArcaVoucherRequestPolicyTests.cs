@@ -102,7 +102,7 @@ public sealed class ArcaVoucherRequestPolicyTests
         return (voucher, payload);
     }
 
-    private static (ArcaVoucher Voucher, ArcaVoucherPayload Payload) Invoice(ArcaVoucherClass voucherClass, bool pricesIncludeVat)
+    internal static (ArcaVoucher Voucher, ArcaVoucherPayload Payload) Invoice(ArcaVoucherClass voucherClass, bool pricesIncludeVat)
     {
         var receiver = voucherClass == ArcaVoucherClass.A ? new ArcaVoucherParty(80, 30712345671, "Agro del Sur S.A.", 1, "Ruta 8 km 225")
             : new ArcaVoucherParty(99, 0, "Consumidor final", 5, null);
