@@ -22,9 +22,19 @@ public sealed record StructuredFormQuestion(Guid FieldId, string Key, string Typ
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] StructuredFormRowSettings? Rows = null,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] bool? Repeated = null,
     // LD2-A: the question asks first for the value of a field of its catalog; the values and their options come with the offer.
-    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] bool? ChoosesFirst = null)
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] bool? ChoosesFirst = null,
+    // CA1-A: the owner computes the question when it receives the answers; a channel neither shows it nor sends an answer for it.
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] bool? Calculated = null,
+    // CO1-A: the question shows only when an earlier question has one of these answers.
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] StructuredFormShowWhen? ShowWhen = null)
 {
     public override string ToString() => "StructuredFormQuestion { Content = [REDACTED] }";
+}
+// CO1-A: the earlier question outside the block, by its FieldId, and the answers that show the question: option identities in
+// the "D" format for choose one (own or from a catalog), "true" or "false" for yes or no.
+public sealed record StructuredFormShowWhen(Guid FieldId, IReadOnlyList<string> Values)
+{
+    public override string ToString() => "StructuredFormShowWhen { Content = [REDACTED] }";
 }
 public sealed record StructuredFormChoice(Guid ChoiceId, IReadOnlyDictionary<string, string> Label)
 {

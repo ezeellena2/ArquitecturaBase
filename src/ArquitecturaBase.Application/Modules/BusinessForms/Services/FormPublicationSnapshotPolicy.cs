@@ -14,11 +14,15 @@ internal static class FormPublicationSnapshotPolicy
             field.Source?.Catalog, field.Files is null ? null : new StructuredFormFileSettings(field.Files.MinFiles, field.Files.MaxFiles, field.Files.PhotoSource),
                 field.Selection is null ? null : new StructuredFormSelectionSettings(field.Selection.MinSelected, field.Selection.MaxSelected),
                 field.Rows is null ? null : new StructuredFormRowSettings(field.Rows.MinRows, field.Rows.MaxRows), field.Repeated,
-                ChoosesFirst(field.Source?.GroupBy))).ToArray(),
+                ChoosesFirst(field.Source?.GroupBy), Calculated(field.Calculation), ShowWhen(field.ShowWhen))).ToArray(),
         FormPublicationPolicy.CheckCultures(saved).Where(culture => culture.IsComplete).Select(culture => culture.Culture).ToArray(),
         saved.Draft.Fields.Any(field => field.Files is not null) ? maxFileSizeMiB ?? 25 : null, Sections(saved.Draft.Sections));
     /// <summary>LD2-A: whether the question asks first for a field's value; null without it, so the request keeps its bytes.</summary>
     public static bool? ChoosesFirst(Guid? groupBy) => groupBy is null ? null : true;
+    /// <summary>CA1-A: a calculation is computed on receiving; null without it, so the request keeps its bytes.</summary>
+    public static bool? Calculated(FormCalculation? calculation) => calculation is null ? null : true;
+    /// <summary>CO1-A: the earlier question, by its FieldId, and the answers that show the question; null without a condition.</summary>
+    public static StructuredFormShowWhen? ShowWhen(FormShowWhen? showWhen) => showWhen is null ? null : new(showWhen.QuestionId, showWhen.Values);
     public static StructuredFormSection[]? Sections(IReadOnlyList<FormSection>? sections) =>
         sections?.Select(section => new StructuredFormSection(section.Start, section.Title)).ToArray();
 

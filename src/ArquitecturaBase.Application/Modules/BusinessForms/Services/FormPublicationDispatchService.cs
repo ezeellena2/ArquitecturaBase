@@ -80,7 +80,8 @@ internal sealed partial class FormPublicationDispatchService(IFormDraftRepositor
                 field.Source?.Catalog, field.Files is null ? null : new StructuredFormFileSettings(field.Files.MinFiles, field.Files.MaxFiles, field.Files.PhotoSource),
                 field.Selection is null ? null : new StructuredFormSelectionSettings(field.Selection.MinSelected, field.Selection.MaxSelected),
                 field.Rows is null ? null : new StructuredFormRowSettings(field.Rows.MinRows, field.Rows.MaxRows), field.Repeated,
-                FormPublicationSnapshotPolicy.ChoosesFirst(field.Source?.GroupBy))).ToArray(),
+                FormPublicationSnapshotPolicy.ChoosesFirst(field.Source?.GroupBy), FormPublicationSnapshotPolicy.Calculated(field.Calculation),
+                FormPublicationSnapshotPolicy.ShowWhen(field.ShowWhen))).ToArray(),
             targetCultures, manifest.MaxFileSizeMiB, FormPublicationSnapshotPolicy.Sections(schema.Sections));
         return manifest.Profiles.Select(profile => new FormPublicationChannelRequest(profile.ChannelId,
             new StructuredFormPublicationRequest(operation.Id, operation.DefinitionId, operation.VersionId, operation.OperatorUserId,
