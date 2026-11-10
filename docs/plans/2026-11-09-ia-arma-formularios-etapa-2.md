@@ -273,3 +273,11 @@ confirmar en la corrida real que OpenAI acepte un objeto que puede ser null en e
 bloqueante, y su corrección entró en f84711cc. Crear desde la web vale sólo para un turno de Inicio, también en H4. El encabezado
 es la primera fila con contenido. En la importación, dos campos con el mismo nombre visible dan `ambiguous`, y el modelo elige por
 el nombre original. Unitarias 4374/4374 e integración 11/11.
+
+2026-11-10: tarea 5 hecha (9354af77). Las dos rutas de importar desde la copia responden la misma vista previa y el mismo recibo
+que subir un Excel, en modo reemplazar, y lo que corre dentro de la UoW pasó a `FormCatalogImportRecorder`, compartido con la
+subida. `FormCatalogAssistantImportPolicy` decide qué propuesta vale. Una copia que falta o no coincide da
+`Forms.CatalogImport.SheetUnavailable` (409). El `GET assistant-import` devuelve la importación pendiente o `pending: null`. La
+hoja mapeada usa los encabezados de la plantilla y conserva el origen de cada celda. Unitarias 4417/4417, arquitectura 207/207,
+dominio 821/821 e integración 73/73 en las clases tocadas. Las capturas de las cohortes de importación y de propuestas van con la
+tarea 9.
