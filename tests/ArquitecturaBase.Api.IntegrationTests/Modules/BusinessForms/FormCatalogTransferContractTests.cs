@@ -61,6 +61,8 @@ public sealed class FormCatalogTransferContractTests
         var method = typeof(FormCatalogTransfersController).GetMethod("GetAssistantImport")!;
         Assert.Equal("assistant-import", method.GetCustomAttribute<HttpGetAttribute>()!.Template);
         Assert.Null(method.GetCustomAttribute<HasPermissionAttribute>());
+        // The front asks for it on opening the catalog: the module's read quota, not the one-at-a-time export quota of the class.
+        Assert.Equal(BusinessFormsApiRegistration.ReadPolicy, method.GetCustomAttribute<EnableRateLimitingAttribute>()!.PolicyName);
         var response = Assert.Single(method.GetCustomAttributes<ProducesResponseTypeAttribute>(), attribute => attribute.StatusCode == StatusCodes.Status200OK);
         Assert.Equal(typeof(FormCatalogAssistantImportResponse), response.Type);
     }

@@ -49,7 +49,7 @@ internal static partial class FormCatalogImportPolicy
         var invalidValueHeader = canonicalValueColumn && (source.ValueType == BusinessFormCatalogValueType.Text ||
             !SupportedCultures.Any(language => NormalizeHeader(valueHeader) ==
                 NormalizeHeader(FormCatalogImportTemplate.ValueHeader(source.ValueType,language,true))));
-        var rows = sheet.Rows.Skip(1).Where(row => row.Cells.Any(cell => cell.Error is not null || !string.IsNullOrWhiteSpace(cell.Text))).ToList();
+        var rows = sheet.Rows.Skip(1).Where(FormSpreadsheetContentPolicy.HasContent).ToList();
         if (rows.Count > 0 && rows[0].Number == 2 && IsRuleRow(rows[0],columns,source.ValueType,source.OriginalCulture,fields)) rows.RemoveAt(0);
         if (rows.Count > BusinessFormCatalog.MaxItems) return FormCatalogImportErrors.TooManyRows;
         var current = source.Items.ToDictionary(item => item.Code,StringComparer.OrdinalIgnoreCase);

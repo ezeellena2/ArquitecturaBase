@@ -71,21 +71,45 @@ public sealed class FormCatalogAssistantImportPolicyTests
         Assert.Equal([cells[2], cells[0], cells[1]], mapped.Rows[1].Cells);
     }
 
+    // Each column takes the header an upload of the template would have: a field by its key, also one that is no longer active,
+    // which the import then warns as a column that is not the catalog's, as it would for an uploaded file.
     [Fact]
-    public void Columns_take_the_headers_of_the_import_and_leave_out_a_field_that_is_no_longer_active()
+    public void Columns_take_the_headers_of_the_import_and_keep_a_field_that_is_no_longer_active()
     {
         var phone = Field("telefono", "Teléfono", "text");
         var fax = Field("fax", "Fax", "text", active: false, position: 1);
-        var template = FormCatalogImportTemplate.Columns(BusinessFormCatalogValueType.Integer, "es", "es", [phone, fax], translation: false);
+        var detail = Field("detalle", "Detalle", "text", active: false, position: 2);
         var summary = Summary(new("code", null, null, "A", "CUIT"), new("option", null, null, "B", "Razón social"),
             new("value", null, null, "C", "Kilos"), new("detail", null, null, "D", "Notas"), new("field", "Teléfono", "telefono", "E", "Tel"),
-            new("field", "Fax", "fax", "F", "Fax"));
+            new("field", "Fax", "fax", "F", "Fax"), new("field", "Detalle", "detalle", "G", "Detalle"));
 
-        var columns = FormCatalogAssistantImportPolicy.Columns(summary, template,
-            column => (column.Key == "telefono" ? phone : column.Key == "fax" ? fax : null)?.Id.ToString("D"));
+        var columns = FormCatalogAssistantImportPolicy.Columns(summary, BusinessFormCatalogValueType.Integer, "es", [phone, fax, detail],
+            column => column.Key);
 
-        Assert.Equal([("A", "Código"), ("B", "Texto"), ("C", "Valor (entero)"), ("D", "Detalle"), ("E", "telefono")],
+        // A key that is also a fixed header keeps its «[campo]», so it never reads as the detail.
+        Assert.Equal([("A", "Código"), ("B", "Texto"), ("C", "Valor (entero)"), ("D", "Detalle"), ("E", "telefono"), ("F", "fax"), ("G", "detalle [campo]")],
             columns.Select(column => (column.Letter, column.Header)));
+    }
+
+    [Fact]
+    public void A_column_of_a_field_that_is_no_longer_active_is_warned_as_unknown_and_imports_nothing()
+    {
+        var phone = Field("telefono", "Teléfono", "text");
+        var fax = Field("fax", "Fax", "text", active: false, position: 1);
+        var source = new FormCatalogImportSource(Guid.NewGuid(), 1, BusinessFormCatalogValueType.Text, "es", [], Fields: [phone, fax]);
+        var columns = FormCatalogAssistantImportPolicy.Columns(Summary(new("code", null, null, "A", "CUIT"), new("option", null, null, "B", "Razón social"),
+            new("field", "Teléfono", "telefono", "C", "Tel"), new("field", "Fax", "fax", "D", "Fax")), BusinessFormCatalogValueType.Text, "es",
+            [phone, fax], column => column.Key);
+        var sheet = Sheet(Row(1, "CUIT", "Razón social", "Tel", "Fax"), Row(2, "20-1", "Transportes Sur", "11 5555-0001", "11 5555-0002"));
+
+        var plan = FormCatalogImportPolicy.Build(source, FormCatalogAssistantImportPolicy.Sheet(sheet, true, columns), FormCatalogImportMode.Replace, "es");
+
+        Assert.True(plan.IsSuccess);
+        var warning = Assert.Single(plan.Value.Preview.Issues);
+        Assert.Equal(("fax", "Warning", FormCatalogImportErrors.UnknownColumn.Code, 1), (warning.Column, warning.Severity, warning.Code, warning.Row));
+        var added = Assert.Single(plan.Value.Preview.Added);
+        Assert.Equal(["11 5555-0001"], added.Fields!.Values);
+        Assert.Equal(phone.Id.ToString("D"), Assert.Single(added.Fields).Key);
     }
 
     // The field's header does not make its cells canonical: a typed text is read in the menu's culture, a number cell canonically.
@@ -94,10 +118,9 @@ public sealed class FormCatalogAssistantImportPolicyTests
     {
         var weight = Field("peso", "Peso", "decimal");
         var source = new FormCatalogImportSource(Guid.NewGuid(), 1, BusinessFormCatalogValueType.Integer, "es", [], Fields: [weight]);
-        var template = FormCatalogImportTemplate.Columns(BusinessFormCatalogValueType.Integer, "es", "es", [weight], translation: false);
         var columns = FormCatalogAssistantImportPolicy.Columns(Summary(new("code", null, null, "A", "CUIT"),
                 new("option", null, null, "B", "Razón social"), new("value", null, null, "C", "Kilos"), new("field", "Peso", "peso", "D", "Peso")),
-            template, column => column.Key == "peso" ? weight.Id.ToString("D") : null);
+            BusinessFormCatalogValueType.Integer, "es", [weight], column => column.Key);
         var sheet = Sheet(Row(1, "CUIT", "Razón social", "Kilos", "Peso"),
             new FormSpreadsheetRow(2, [new("20-1"), new("Transportes Sur"), new("1200", IsCanonicalValue: true), new("1234.5", IsCanonicalValue: true)]),
             Row(3, "20-2", "Logística Pampa", "800", "1.234,5"));

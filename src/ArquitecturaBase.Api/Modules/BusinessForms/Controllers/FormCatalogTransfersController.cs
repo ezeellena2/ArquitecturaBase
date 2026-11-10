@@ -84,8 +84,10 @@ public sealed class FormCatalogTransfersController(IFormCatalogImportService imp
             request.ConfirmDeactivations, request.ConfirmEmpty, request.ConfirmErrors), cancellationToken)).ToActionResult(this);
     }
 
-    // Nothing pending answers 200 without data, so the catalog's detail keeps its shape.
+    // Nothing pending answers 200 without data, so the catalog's detail keeps its shape. The front asks on opening the catalog: the
+    // module's read quota, not the class's one-at-a-time export quota, which would refuse it while the person exports or reviews.
     [HttpGet("assistant-import")]
+    [EnableRateLimiting(BusinessFormsApiRegistration.ReadPolicy)]
     [ProducesResponseType<FormCatalogAssistantImportResponse>(StatusCodes.Status200OK)]
     [ProducesProblem(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetAssistantImport([FromRoute] Guid id, CancellationToken cancellationToken)

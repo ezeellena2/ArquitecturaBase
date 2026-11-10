@@ -60,13 +60,15 @@ internal sealed class FormCatalogImportService(IFormCatalogReader reader, IFormS
             (catalog, ct) => assistant.ReadAsync(actor.Value, catalog, request.RequestId!.Value, request.ProposalId!.Value, ct), cancellationToken);
     }
 
-    // Nothing pending answers without data, never as not found: only a missing catalog is.
+    // Nothing pending answers without data, never as not found: only a missing catalog is. Reading catalogs is enough to ask, but only
+    // who can import has an import pending, as the turn's reserved permissions would say anyway.
     public async Task<Result<FormCatalogAssistantImportResponse>> GetAssistantImportAsync(Guid id, CancellationToken cancellationToken)
     {
         var actor = await access.CheckAsync(false, cancellationToken);
         if (actor.IsFailure) return actor.Error;
         var catalog = await reader.FindAsync(id, cancellationToken);
-        var pending = catalog is null ? null : await assistant.FindPendingAsync(actor.Value, catalog, cancellationToken);
+        var pending = catalog is null || !await access.HasPermissionAsync(actor.Value, BusinessFormsPermissions.CatalogsManage, cancellationToken)
+            ? null : await assistant.FindPendingAsync(actor.Value, catalog, cancellationToken);
         var finalAccess = await access.CheckAsync(false, cancellationToken);
         if (finalAccess.IsFailure) return finalAccess.Error;
         return catalog is null ? FormCatalogErrors.NotFound : new FormCatalogAssistantImportResponse(id, pending);

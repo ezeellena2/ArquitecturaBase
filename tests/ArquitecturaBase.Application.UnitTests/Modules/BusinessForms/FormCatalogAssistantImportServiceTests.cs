@@ -240,16 +240,28 @@ public sealed class FormCatalogAssistantImportServiceTests
 
         Assert.Equal(new FormCatalogAssistantImportResponse(f.Catalog.Id, new(f.Lookup.RequestId, f.ProposalId, "transportistas.xlsx", 2)), pending.Value);
         Assert.Equal((0, 0), (f.Work.Transactions, f.CopyReads));
-        // Reading needs only the read permission of catalogs.
-        f.Revoke();
-        Assert.NotNull((await f.Service.GetAssistantImportAsync(f.Catalog.Id, Ct)).Value.Pending);
+    }
+
+    // The pending import only needs the proposal: the review opens the copy and says when it is gone, so asking for it never reads it.
+    [Fact]
+    public async Task The_pending_import_does_not_open_the_copy_and_the_review_finds_it_gone()
+    {
+        using var f = new FormCatalogImportFixture();
+        f.ProposeCatalog();
+        await f.HandAsync(f.Mapped, store: false);
+
+        var pending = await f.Service.GetAssistantImportAsync(f.Catalog.Id, Ct);
+
+        Assert.NotNull(pending.Value.Pending);
+        Assert.Equal(0, f.Files.ReadCount);
+        Assert.Equal(FormCatalogImportErrors.SheetUnavailable, (await f.Service.PreviewFromAssistantAsync(f.Catalog.Id, f.AssistantRequest(), Ct)).Error);
     }
 
     [Theory]
     [InlineData("another-person")]
+    [InlineData("without-manage")]
     [InlineData("with-options")]
     [InlineData("approved")]
-    [InlineData("copy-gone")]
     [InlineData("from-a-channel")]
     [InlineData("version-one")]
     [InlineData("not-proposed")]
@@ -257,12 +269,15 @@ public sealed class FormCatalogAssistantImportServiceTests
     {
         using var f = new FormCatalogImportFixture();
         if (kind != "not-proposed") f.ProposeCatalog(fromHome: kind != "from-a-channel");
-        await (kind == "version-one" ? f.HandAsync(f.Mapped.ToCatalog(), version: 1) : f.HandAsync(f.Mapped, store: kind != "copy-gone"));
+        await (kind == "version-one" ? f.HandAsync(f.Mapped.ToCatalog(), version: 1) : f.HandAsync(f.Mapped));
         if (kind == "another-person")
         {
             f.Current.UserId = Guid.NewGuid();
             f.Permissions.Permissions[f.Current.UserId.Value] = [BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage];
         }
+        // Reading catalogs is enough to ask, but only who can import has an import pending, as the lookup that checks the turn's
+        // reserved permissions would say.
+        if (kind == "without-manage") f.Revoke();
         if (kind == "with-options") f.Add("A", "Uno");
         if (kind == "approved") Assert.True(f.Catalog.ApproveManualProposal(f.Catalog.Revision, f.Actor, f.Clock.GetUtcNow().UtcDateTime).IsSuccess);
 
@@ -270,7 +285,28 @@ public sealed class FormCatalogAssistantImportServiceTests
 
         Assert.True(result.IsSuccess);
         Assert.Equal(new FormCatalogAssistantImportResponse(f.Catalog.Id, null), result.Value);
-        if (kind is "another-person" or "with-options" or "approved" or "from-a-channel" or "not-proposed") Assert.Equal(0, f.Lookup.Reads);
+        if (kind != "version-one") Assert.Equal(0, f.Lookup.Reads);
+        Assert.Equal(0, f.Files.ReadCount);
+    }
+
+    // As when uploading the file: the column a proposal mapped to a field that is no longer active goes with that field's header, and
+    // the review warns it as a column that is not the catalog's instead of dropping it.
+    [Fact]
+    public async Task A_column_mapped_to_a_field_that_is_no_longer_active_is_warned_in_the_review()
+    {
+        using var f = new FormCatalogImportFixture();
+        f.ProposeCatalog();
+        var fields = JsonSerializer.Deserialize<BusinessFormCatalogField[]>(f.Catalog.FieldsJson!, JsonSerializerOptions.Web)!;
+        Assert.True(f.Catalog.SetFields([.. fields.Select(field => field with { IsActive = false })], null).IsSuccess);
+        await f.HandAsync(f.Mapped);
+
+        var preview = await f.Service.PreviewFromAssistantAsync(f.Catalog.Id, f.AssistantRequest(), Ct);
+
+        Assert.True(preview.IsSuccess);
+        var warning = Assert.Single(preview.Value.Issues);
+        Assert.Equal(("telefono", "Warning", FormCatalogImportErrors.UnknownColumn.Code), (warning.Column, warning.Severity, warning.Code));
+        Assert.Equal(2, preview.Value.Counts.Added);
+        Assert.All(preview.Value.Added, row => Assert.Null(row.Fields));
     }
 
     [Fact]

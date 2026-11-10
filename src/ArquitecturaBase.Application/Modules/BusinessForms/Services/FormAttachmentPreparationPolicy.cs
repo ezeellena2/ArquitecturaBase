@@ -31,9 +31,9 @@ internal static class FormAttachmentPreparationPolicy
         ArgumentNullException.ThrowIfNull(fileName);
         ArgumentNullException.ThrowIfNull(sheet);
         // A row has content as in the import: some text, or a cell the reader could not read (which has no text to show).
-        var rows = sheet.Rows.Where(row => row.Cells.Any(HasContent)).ToList();
+        var rows = sheet.Rows.Where(FormSpreadsheetContentPolicy.HasContent).ToList();
         if (rows.Count == 0) return StructuredAttachmentPreparation.Rejected(StructuredAttachmentRejection.Empty);
-        var columns = rows.Max(row => row.Cells.Select((cell, index) => HasContent(cell) ? index + 1 : 0).Max());
+        var columns = rows.Max(row => row.Cells.Select((cell, index) => FormSpreadsheetContentPolicy.HasContent(cell) ? index + 1 : 0).Max());
         var prepared = new StructuredSpreadsheet(fileName, kind, kind == StructuredSpreadsheetKind.Xlsx ? XlsxMediaType : CsvMediaType, size,
             sheet.Sha256, Shorten(sheet.Name, NameLength), rows.Count, columns, []);
         var envelope = Bytes(prepared);
@@ -57,8 +57,6 @@ internal static class FormAttachmentPreparationPolicy
             sizes.RemoveAt(sizes.Count - 1);
         }
     }
-
-    private static bool HasContent(FormSpreadsheetCell cell) => cell.Error is not null || !string.IsNullOrWhiteSpace(cell.Text);
 
     private static StructuredSpreadsheetRow Sample(FormSpreadsheetRow row)
     {

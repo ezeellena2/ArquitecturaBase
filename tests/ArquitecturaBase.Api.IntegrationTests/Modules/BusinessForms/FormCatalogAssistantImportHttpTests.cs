@@ -196,11 +196,17 @@ public sealed class FormCatalogAssistantImportHttpTests(ApiFactory factory)
         Assert.Equal(0, await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormCatalogItem>().CountAsync(item => item.CatalogId == catalogId, Ct)));
         Assert.Equal(1, await RevisionAsync(catalogId));
 
-        // A catalog whose own copy is gone has nothing pending.
-        using var orphan = await author.PostAsJsonAsync(Proposals, scenario.MappedCatalog("Sin copia " + scenario.Suffix, Csv, "transportistas.csv", 2, store: false), Ct);
-        Assert.Equal(HttpStatusCode.Created, orphan.StatusCode);
-        using var none = await author.GetAsync($"/api/forms/catalogs/{(await orphan.ReadJsonAsync()).GetProperty("catalogId").GetGuid()}/assistant-import", Ct);
-        Assert.Equal(JsonValueKind.Null, (await none.ReadJsonAsync()).GetProperty("pending").ValueKind);
+        // Asking for the pending import does not open the copy: the review finds it gone and the dialog asks for the file.
+        var orphan = scenario.MappedCatalog("Sin copia " + scenario.Suffix, Csv, "transportistas.csv", 2, store: false);
+        using var orphaned = await author.PostAsJsonAsync(Proposals, orphan, Ct);
+        Assert.Equal(HttpStatusCode.Created, orphaned.StatusCode);
+        var orphanPath = $"/api/forms/catalogs/{(await orphaned.ReadJsonAsync()).GetProperty("catalogId").GetGuid()}";
+        var reads = scenario.Files.Reads;
+        using var stillPending = await author.GetAsync(orphanPath + "/assistant-import", Ct);
+        Assert.Equal(orphan.ProposalId, (await stillPending.ReadJsonAsync()).GetProperty("pending").GetProperty("proposalId").GetGuid());
+        Assert.Equal(reads, scenario.Files.Reads);
+        await AssertProblemAsync(author.PostAsJsonAsync(orphanPath + "/assistant-import-previews", new { orphan.RequestId, orphan.ProposalId, expectedRevision = 1 }, Ct),
+            HttpStatusCode.Conflict, "Forms.CatalogImport.SheetUnavailable");
     }
 
     [Fact]

@@ -35,12 +35,9 @@ internal sealed class FormCatalogAssistantImportPolicy(IAssistantProposalLookup 
         if (format is not (FormSpreadsheetFormat.Xlsx or FormSpreadsheetFormat.Csv)) return FormCatalogImportErrors.FileUnreadable;
         var sheet = spreadsheets.Read(content.Value, format, cancellationToken);
         if (sheet.IsFailure) return sheet.Error;
-        var fields = FormCatalogFieldPolicy.ReadFields(catalog.FieldsJson).Where(field => field.IsActive).ToArray();
         // The headers' language does not matter: the import reads es and en.
-        var template = FormCatalogImportTemplate.Columns(Enum.Parse<BusinessFormCatalogValueType>(catalog.ValueType), catalog.OriginalCulture,
-            catalog.OriginalCulture, fields, translation: false);
-        var columns = Columns(source.Value.Summary, template, column => source.Value.FieldKey(column) is { } key
-            ? fields.FirstOrDefault(field => field.Key == key)?.Id.ToString("D") : null);
+        var columns = Columns(source.Value.Summary, Enum.Parse<BusinessFormCatalogValueType>(catalog.ValueType), catalog.OriginalCulture,
+            FormCatalogFieldPolicy.ReadFields(catalog.FieldsJson), source.Value.FieldKey);
         // A CSV has no sheet: the review names it after its file, as an upload's.
         var read = sheet.Value.Name.Length > 0 ? sheet.Value
             : sheet.Value with { Name = Path.GetFileNameWithoutExtension(source.Value.Summary.FileName) is { Length: > 0 } name ? name : "CSV" };
@@ -48,8 +45,8 @@ internal sealed class FormCatalogAssistantImportPolicy(IAssistantProposalLookup 
     }
 
     // What a catalog created from a proposal with a spreadsheet still has to import, for the person who asked for it, while it is
-    // pending and without options and the proposal and its copy are there; null otherwise. A catalog created from a channel has no
-    // request in its evidence yet.
+    // pending and without options and its proposal is there; null otherwise. The copy is not opened: the review checks it and says
+    // when it is gone. A catalog created from a channel has no request in its evidence yet.
     public async Task<FormCatalogAssistantImportPending?> FindPendingAsync(Guid actor, FormCatalogStoredRow catalog, CancellationToken cancellationToken)
     {
         if (catalog is not { Kind: "Manual", ProposalState: BusinessFormCatalogProposalState.Pending, ItemsCount: 0, ProposalId: { } proposalId,
@@ -57,24 +54,29 @@ internal sealed class FormCatalogAssistantImportPolicy(IAssistantProposalLookup 
         var evidence = FormCatalogProposalPresentation.Evidence(evidenceJson);
         if (evidence.RequestedByUserId != actor || evidence.RequestId is not { } requestId) return null;
         var source = await FindAsync(actor, catalog, requestId, proposalId, cancellationToken);
-        if (source.IsFailure || (await OpenAsync(source.Value.Copy, cancellationToken)).IsFailure) return null;
-        return new(requestId, proposalId, source.Value.Summary.FileName, source.Value.Summary.RowCount);
+        return source.IsFailure ? null : new(requestId, proposalId, source.Value.Summary.FileName, source.Value.Summary.RowCount);
     }
 
-    // The import's headers for what a proposal maps, in its order: the code, the option, the value and the detail, and each field
-    // that is still active, which field gives by its id. A column whose header the catalog no longer has is left out.
-    public static IReadOnlyList<Column> Columns(FormAuthoringSpreadsheetSummary summary, IReadOnlyList<FormCatalogImportTemplateColumn> template,
-        Func<FormAuthoringMappedColumn, string?> field)
+    // The import's headers for what a proposal maps, in its order, as an upload of the template would have them: the code, the option,
+    // the value and the detail, and each field by the key fieldKey gives. A field that is no longer active keeps its own header, so the
+    // import warns it as a column that is not the catalog's, as it would for an uploaded file; a key the catalog never had goes as is.
+    public static IReadOnlyList<Column> Columns(FormAuthoringSpreadsheetSummary summary, BusinessFormCatalogValueType valueType, string culture,
+        IReadOnlyList<BusinessFormCatalogField> fields, Func<FormAuthoringMappedColumn, string?> fieldKey)
     {
         ArgumentNullException.ThrowIfNull(summary);
-        ArgumentNullException.ThrowIfNull(field);
-        var headers = template.ToDictionary(column => column.Key, column => column.Header, StringComparer.Ordinal);
-        return summary.Columns.Select(column => (column.Letter, Key: column.Target switch
+        ArgumentNullException.ThrowIfNull(fields);
+        ArgumentNullException.ThrowIfNull(fieldKey);
+        var headers = FormCatalogImportTemplate.Columns(valueType, culture, culture, fields, translation: false)
+            .ToDictionary(column => column.Key, column => column.Header, StringComparer.Ordinal);
+        string? Field(FormAuthoringMappedColumn column) => fieldKey(column) is { } key
+            ? fields.FirstOrDefault(field => field.Key == key) is { } field ? FormCatalogImportTemplate.FieldHeader(field, culture, false) : key
+            : null;
+        return summary.Columns.Select(column => (column.Letter, Header: column.Target switch
             {
-                "code" => "code", "option" => "text", "value" => "value", "detail" => "detail", _ => field(column),
+                "code" => headers.GetValueOrDefault("code"), "option" => headers.GetValueOrDefault("text"),
+                "value" => headers.GetValueOrDefault("value"), "detail" => headers.GetValueOrDefault("detail"), _ => Field(column),
             }))
-            .Where(column => column.Key is not null && headers.ContainsKey(column.Key))
-            .Select(column => new Column(column.Letter, headers[column.Key!])).ToArray();
+            .Where(column => column.Header is not null).Select(column => new Column(column.Letter, column.Header!)).ToArray();
     }
 
     // The sheet the import reads: a row of headers, then the rows of data with each cell in its new column, keeping its text, its
@@ -84,7 +86,7 @@ internal sealed class FormCatalogAssistantImportPolicy(IAssistantProposalLookup 
     {
         ArgumentNullException.ThrowIfNull(sheet);
         ArgumentNullException.ThrowIfNull(columns);
-        var rows = sheet.Rows.Where(row => row.Cells.Any(cell => cell.Error is not null || !string.IsNullOrWhiteSpace(cell.Text))).ToList();
+        var rows = sheet.Rows.Where(FormSpreadsheetContentPolicy.HasContent).ToList();
         var header = hasHeaders && rows.Count > 0 ? rows[0] : null;
         var indexes = columns.Select(column => FormAuthoringSpreadsheetPolicy.Number(column.Letter) is { } number ? number - 1 : -1).ToArray();
         FormSpreadsheetRow Map(FormSpreadsheetRow row) => new(row.Number,
