@@ -173,9 +173,9 @@ Vite le recarga la página.
    conversación propia de un canal con el descriptor. Unitarias del mapeo (válidos y rechazados, una columna), del reemplazo por
    grupo, del lookup y de crear.
 5. **Importar desde la copia.** Los dos endpoints, la hoja armada con el mapeo, reemplazar, quién puede, la copia vencida y el
-   `GET` de la importación pendiente. Unitarias de la hoja mapeada y del servicio;
-   integración con PostgreSQL (crear y abrir la importación, importar en uno que existe y en un propuesto pendiente, ajeno,
-   vencido), el inventario de rutas y las cohortes `catalog-imports` y `forms-assistant-proposals-http`.
+   `GET` de la importación pendiente. Unitarias de la hoja mapeada y del servicio, integración con PostgreSQL (crear y abrir la
+   importación, importar en uno que existe y en un propuesto pendiente, ajeno, vencido) y el inventario de rutas. Las capturas de
+   las cohortes `catalog-imports` y `forms-assistant-proposals-http` van con la tarea 9.
 6. **WhatsApp: el documento entrante.** El webhook (`MetaWebhook.Document`), el tipo nuevo, sus columnas y la migración, la
    descarga y su verificación, lo preparado con el mensaje, la copia y su retención, el texto de lo que no se lee y la vista
    previa del chat. Unitarias e integración con PostgreSQL.
@@ -188,7 +188,9 @@ Vite le recarga la página.
    fijan seis cuerpos. Tests y visuales es/en a 1440, 390 y 320.
 9. **Front: las tarjetas y la importación.** Inicio pasa a ofrecer `propose-catalog@2` y `propose-import@1` (se dan vuelta las
    marcas `OfferedInHome` en el backend). Las tarjetas con columnas y muestra, la tarjeta «Importación», el reemplazo por grupo,
-   `CatalogImportDialog` con la planilla del asistente y sus tres aperturas. Tests, visuales y contratos.
+   `CatalogImportDialog` con la planilla del asistente y sus tres aperturas. Si la planilla ya no está (`ProposalUnavailable` o
+   `SheetUnavailable`), el diálogo vuelve a pedir el archivo. Las capturas de `catalog-imports` y `forms-assistant-proposals-http`
+   entran acá, con el inventario del exportador y el test del front. Tests, visuales y contratos.
 10. **Casos de evaluación y cierre.**
     - Planillas ficticias: Excel con y sin encabezados, CSV, una lista de una columna, una para importar en un catálogo del
       fixture y otra con una instrucción escondida en una celda. Casos es/en en Inicio y por WhatsApp: armar un catálogo, importar,
