@@ -50,9 +50,10 @@ Lo que el plan no fijaba, resuelto con la opción más simple que cumple el plan
    contraseña (OLE2 con `EncryptedPackage`; los dos se distinguen con OpenMcdf, que ya usa el proyecto), con macros (por el
    manifiesto), más grande que los topes de la importación, ilegible o sin filas. Lo preparado es la primera hoja: su nombre,
    cuántas filas con contenido y cuántas columnas tiene, y sus seis primeras filas, cada una con un mapa de la letra de la columna
-   a su texto, en 12 KiB como mucho. Para entrar en el tope van siempre la fila 1 y todas las columnas: cada celda va hasta 80
-   caracteres; si no entra, se quitan filas hasta dejar cuatro (la 1 y tres de muestra, las de la tarjeta); después se acortan las
-   celdas a la mitad, y sólo al final se quitan las que quedan. El nombre del archivo se acota aparte. Inicio y WhatsApp lo llaman
+   a su texto, en 12 KiB como mucho. Las filas vacías se saltean: «la fila 1» es la primera con contenido. Para entrar en el tope
+   van siempre esa fila y todas las columnas: cada celda va hasta 80 caracteres; si no entra, se quitan filas hasta dejar cuatro (la
+   primera y tres de muestra, las de la tarjeta); después se acortan las celdas a la mitad, y sólo al final se quitan las que
+   quedan. El nombre del archivo se acota aparte. Inicio y WhatsApp lo llaman
    al recibir el archivo; el motor no lee archivos. La huella y el turno guardan el SHA-256 y el tamaño, como pide el ADR 0022.
 2. **La planilla en el motor.**
    - La operación neutral suma `Attachment`, con el descriptor privado (como el del audio) y lo preparado, y su huella
@@ -73,8 +74,9 @@ Lo que el plan no fijaba, resuelto con la opción más simple que cumple el plan
      entre sí, y el front calcula «Reemplazada» igual.
 3. **Las capacidades.**
    - `forms.authoring.propose-catalog@2` reemplaza a la versión 1 en lo que se ofrece (en Inicio desde la tarea 9 y por WhatsApp
-     desde la 7, por el punto 9). La 1 sigue registrada: los turnos con ella se leen, y sus tarjetas y resúmenes todavía crean. Con una planilla, el mapeo dice si la fila 1 es de
-     encabezados y de qué columna salen el código, la opción, el valor (si el tipo no es texto), el detalle y cada campo.
+     desde la 7, por el punto 9). La 1 sigue registrada: los turnos con ella se leen, y sus tarjetas y resúmenes todavía crean. Con una
+     planilla, el mapeo dice si la primera fila con contenido es de encabezados y de qué columna salen el código, la opción, el valor
+     (si el tipo no es texto), el detalle y cada campo.
      BusinessForms comprueba que las columnas existan en lo preparado y que estén las obligatorias. El código y la opción pueden
      salir de la misma columna, para una lista simple; los campos, el valor y el detalle no se repiten. Sin planilla, el mapeo va
      vacío. La salida suma, para la tarjeta, el nombre de la planilla, cuántas filas trae, cada columna con su encabezado y tres
@@ -88,6 +90,7 @@ Lo que el plan no fijaba, resuelto con la opción más simple que cumple el plan
      se puede proponer importarla.
    - Crear acepta la versión 2. La evidencia del catálogo suma el pedido (`RequestId`) y conserva la forma de la versión 1, sin
      mapeo ni filas: el mapeo y la muestra se releen de la propuesta mientras dure, y la planilla no queda guardada en el catálogo.
+     Crear desde la web vale sólo para un turno de Inicio; lo pedido por WhatsApp se crea con su botón.
    - El lookup suma las propuestas de la conversación propia por un canal (modo Asistente, con Actor igual a Subject, el criterio
      neutral que ya usa crear) y el descriptor de la planilla del turno. Una propuesta está vigente si ninguna posterior de su grupo
      la reemplazó en su conversación del motor.
@@ -191,6 +194,8 @@ Vite le recarga la página.
       fixture y otra con una instrucción escondida en una celda. Casos es/en en Inicio y por WhatsApp: armar un catálogo, importar,
       un ajuste, la instrucción escondida, una planilla con un pedido dictado (en Inicio, el audio en el mismo turno; por WhatsApp,
       la nota de voz contigua) y, en Inicio, una planilla sin texto que pregunta. Los rechazos van como controles offline.
+    - El inventario del arnés compara los Ids de las capacidades y corta con las dos versiones de `propose-catalog` registradas:
+      pasa a comparar Id y versión del contexto.
     - Vuelven a correr los sets cuyo catálogo cambia: `ia-authoring` (`propose-catalog`), `channel-stage5` y `channel-dictation`
       (`decline` se ofrece en todo turno automático) y `home-existing` si sus cuentas ven `propose-catalog`.
     - La corrida con el proveedor real espera el visto bueno del usuario. La prueba física con Meta manda un `.xlsx` y un `.csv`
@@ -201,6 +206,9 @@ Vite le recarga la página.
 
 ## Riesgos
 
+- **Historia.** La última propuesta viaja entera en la historia, y con planilla lleva sus encabezados y tres filas de muestra, que
+  repiten lo que ya va en el bloque de la planilla. Como la historia se llena de la más vieja a la más nueva, puede quedar afuera la
+  propuesta a ajustar: se mide en la calificación y, si hace falta, la muestra sale de la historia.
 - **Contexto.** La planilla preparada, hasta 12 KiB, viaja en cada paso del turno, además de la historia y las lecturas: se mide en
   la calificación, con un ajuste con historia, contra los 131.072 bytes.
 - **El texto de una opción admite 30 caracteres**, el límite de WhatsApp. Muchas razones sociales lo pasan, y la vista previa las
