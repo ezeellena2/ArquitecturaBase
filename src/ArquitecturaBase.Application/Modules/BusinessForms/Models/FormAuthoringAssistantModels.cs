@@ -21,11 +21,38 @@ public sealed record FormAuthoringFormProposal(string Culture, string Name, stri
     IReadOnlyList<FormAuthoringProposedQuestion> Questions) : AssistantCapabilityPayload;
 public sealed record FormAuthoringProposedField(string Name, string Type);
 
-// What the model has to fix, by the path of its own arguments; a rejected proposal is never selectable.
-public sealed record FormAuthoringIssue(string Path, string Code);
+// What the model has to fix, by the path of its own arguments; a rejected proposal is never selectable. Name is the required
+// field a mapping leaves out, as the catalogs read names it, which has no argument of its own.
+public sealed record FormAuthoringIssue(string Path, string Code)
+{
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Name { get; init; }
+}
 public sealed record FormAuthoringRejection(IReadOnlyList<FormAuthoringIssue> Issues) : AssistantCapabilityPayload;
 public sealed record FormAuthoringCatalogProposal(string Culture, string Name, string Description, string ValueType, string Code,
     string Option, IReadOnlyList<FormAuthoringProposedField> Fields) : AssistantCapabilityPayload;
+
+// Stage 2: what a proposal takes from the turn's spreadsheet, for its card (IA1-A). Each mapped column, ordered as the catalog
+// (code, option, value, detail and fields), says what it fills (Target), its letter and its header, row 1's text when that row
+// holds headers. Field names the field and Key is the key of an existing catalog's field. RowCount counts the rows of data and
+// each row of the sample (the first ones after the headers, up to three) has one text per column, empty without one.
+public sealed record FormAuthoringMappedColumn(string Target, string? Field, string? Key, string Letter, string? Header);
+public sealed record FormAuthoringSpreadsheetSummary(string FileName, string SheetName, int RowCount, bool HasHeaders,
+    IReadOnlyList<FormAuthoringMappedColumn> Columns, IReadOnlyList<IReadOnlyList<string>> Sample)
+{ public override string ToString() => "FormAuthoringSpreadsheetSummary { Content = [REDACTED] }"; }
+
+// forms.authoring.propose-catalog@2: version 1's catalog and, when it maps the spreadsheet, what it takes from it. Creating keeps
+// version 1's shape: the spreadsheet is never kept with the catalog.
+public sealed record FormAuthoringMappedCatalogProposal(string Culture, string Name, string Description, string ValueType, string Code,
+    string Option, IReadOnlyList<FormAuthoringProposedField> Fields, FormAuthoringSpreadsheetSummary? Spreadsheet) : AssistantCapabilityPayload
+{
+    public FormAuthoringCatalogProposal ToCatalog() => new(Culture, Name, Description, ValueType, Code, Option, Fields);
+}
+
+// forms.authoring.propose-import@1: importing the turn's spreadsheet into a Manual catalog that exists. A person reviews the
+// import and imports it; the assistant never does.
+public sealed record FormAuthoringImportCatalog(Guid Id, string Name, string ValueType);
+public sealed record FormAuthoringImportProposal(FormAuthoringImportCatalog Catalog, FormAuthoringSpreadsheetSummary Spreadsheet) : AssistantCapabilityPayload;
 
 // Why the assistant cannot build what was asked (IA3-A): a channel says it with a fixed text and, for a form or catalog that
 // already exists, its link. Name is that one's name, empty without one.

@@ -4,6 +4,7 @@ using System.Text.Json;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessForms;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
+using ArquitecturaBase.Domain.Modules.BusinessForms;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 
@@ -93,6 +94,33 @@ public sealed class FormAssistantProposalHttpTests(ApiFactory factory)
             HttpStatusCode.NotFound, "Forms.Definition.ProposalUnavailable", "draft-unavailable");
         await AssertProblemAsync(author.PostAsJsonAsync(Definitions, new { requestId = Guid.NewGuid() }, Ct),
             HttpStatusCode.BadRequest, "Forms.Draft.ContentInvalid", "draft-invalid");
+    }
+
+    private static readonly string[] VersionOneShape = ["code", "culture", "description", "fields", "name", "option", "valueType"];
+
+    // Stage 2: version 2 creates the same catalog; its evidence keeps the turn's request and version 1's shape, never the spreadsheet.
+    [Fact]
+    public async Task A_catalog_proposal_with_a_spreadsheet_creates_the_same_catalog_without_keeping_the_spreadsheet()
+    {
+        await using var scenario = await FormAssistantProposalScenario.CreateAsync(factory, Ct);
+        var request = scenario.MappedCatalog("Fleteros " + scenario.Suffix);
+        using var author = scenario.Client(scenario.AuthorId);
+        using var created = await author.PostAsJsonAsync(Catalogs, request, Ct);
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var catalogId = (await created.ReadJsonAsync()).GetProperty("catalogId").GetGuid();
+        var catalog = await scenario.CatalogAsync(catalogId, Ct);
+        Assert.Equal((BusinessFormCatalogKind.Manual, false, BusinessFormCatalogProposalState.Pending), (catalog.Kind, catalog.IsActive, catalog.ProposalState));
+        using var evidence = JsonDocument.Parse(catalog.ProposalEvidenceJson!);
+        Assert.Equal((request.RequestId, 2), (evidence.RootElement.GetProperty("requestId").GetGuid(), evidence.RootElement.GetProperty("capabilityVersion").GetInt32()));
+        // PostgreSQL keeps jsonb keys in its own order: what matters is which ones.
+        Assert.Equal(VersionOneShape, evidence.RootElement.GetProperty("manual").EnumerateObject().Select(property => property.Name).Order(StringComparer.Ordinal));
+        Assert.DoesNotContain("transportistas.xlsx", catalog.ProposalEvidenceJson!, StringComparison.Ordinal);
+        Assert.DoesNotContain("Transportes Sur", catalog.ProposalEvidenceJson!, StringComparison.Ordinal);
+
+        using var detail = await author.GetAsync($"/api/forms/catalogs/{catalogId}", Ct);
+        var proposal = (await detail.ReadJsonAsync()).GetProperty("proposal");
+        Assert.Equal(VersionOneShape, proposal.GetProperty("manual").EnumerateObject().Select(property => property.Name).Order(StringComparer.Ordinal));
+        Assert.False(proposal.TryGetProperty("requestId", out _));
     }
 
     [Fact]

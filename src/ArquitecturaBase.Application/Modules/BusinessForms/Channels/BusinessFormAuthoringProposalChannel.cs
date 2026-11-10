@@ -37,10 +37,15 @@ internal sealed class BusinessFormAuthoringProposalChannel(IFormDraftProposalSer
                 if (draft.IsFailure) return draft.Error;
                 return new StructuredAuthoringCreatedResponse(StructuredAuthoringKind.Form, draft.Value.DefinitionId!.Value, form.Name,
                     FormAuthoringSummaryPolicy.FormPath(draft.Value.DefinitionId.Value));
-            case FormAuthoringCatalogProposal or FormCatalogProposalPayload:
+            case FormAuthoringCatalogProposal or FormAuthoringMappedCatalogProposal or FormCatalogProposalPayload:
                 var catalog = await catalogs.CreateFromChannelAsync(request, cancellationToken);
                 if (catalog.IsFailure) return catalog.Error;
-                var name = request.Proposal.Payload is FormAuthoringCatalogProposal manual ? manual.Name : ((FormCatalogProposalPayload)request.Proposal.Payload).Name;
+                var name = request.Proposal.Payload switch
+                {
+                    FormAuthoringCatalogProposal manual => manual.Name,
+                    FormAuthoringMappedCatalogProposal mapped => mapped.Name,
+                    _ => ((FormCatalogProposalPayload)request.Proposal.Payload).Name,
+                };
                 return new StructuredAuthoringCreatedResponse(StructuredAuthoringKind.Catalog, catalog.Value.CatalogId!.Value, name,
                     FormAuthoringSummaryPolicy.CatalogPath(catalog.Value.CatalogId.Value));
             default:

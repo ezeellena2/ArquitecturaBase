@@ -48,6 +48,19 @@ public sealed class BusinessFormAuthoringProposalChannelTests
         Assert.Equal(FormCatalogErrors.NameTaken, (await channel.CreateAsync(Request(Observed(BusinessFormAuthoringAssistantCapabilitySource.ProposeCatalogId, Manual)), Ct)).Error);
     }
 
+    [Fact]
+    public async Task A_catalog_that_maps_a_spreadsheet_is_created_the_same_way()
+    {
+        var catalogs = new Catalogs();
+        var channel = new BusinessFormAuthoringProposalChannel(new Drafts(), catalogs);
+        var mapped = new FormAuthoringMappedCatalogProposal(Manual.Culture, Manual.Name, Manual.Description, Manual.ValueType, Manual.Code, Manual.Option,
+            Manual.Fields, null);
+        var proposal = Observed(BusinessFormAuthoringAssistantCapabilitySource.ProposeCatalogId, mapped) with
+            { Capability = new(BusinessFormAuthoringAssistantCapabilitySource.ProposeCatalogId, 2) };
+        var created = await channel.CreateAsync(Request(proposal), Ct);
+        Assert.Equal(new StructuredAuthoringCreatedResponse(StructuredAuthoringKind.Catalog, catalogs.Id, "Contratistas", $"/catalogos/{catalogs.Id:D}"), created.Value);
+    }
+
     private sealed class Drafts : IFormDraftProposalService
     {
         public Guid Id { get; } = Guid.NewGuid();

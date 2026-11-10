@@ -30,11 +30,62 @@ public sealed class FormCatalogAssistantProposalServiceTests
         Assert.All(fields, field => Assert.Equal((false, "data", true), (field.Required, field.Role, field.IsActive)));
         var evidence = FormCatalogProposalPresentation.Evidence(catalog.ProposalEvidenceJson!);
         Assert.Equal((host.Catalogs.Assistant.Actor, "app", (FormCatalogProposalPayload?)null), (evidence.RequestedByUserId, evidence.RequestedIn, evidence.OriginalProposal));
+        Assert.Equal(((Guid?)host.Lookup.RequestId, 1), (evidence.RequestId, evidence.CapabilityVersion));
         Assert.Equal(JsonSerializer.Serialize(host.Manual, JsonSerializerOptions.Web), JsonSerializer.Serialize(evidence.Manual, JsonSerializerOptions.Web));
         Assert.Equal(host.ProposalId, Assert.Single(host.Catalogs.Locks));
         Assert.Equal(1, host.Catalogs.Uow.Commits);
         Assert.Equal(new FormCatalogAssistantProposalResponse(host.ProposalId, catalog.Id), result.Value);
-        Assert.Equal([BusinessFormAuthoringAssistantCapabilitySource.ProposeCatalogId], host.Lookup.LastCapabilityGroup);
+        // A proposal to import into a catalog that exists replaces a proposed catalog, and the other way around.
+        Assert.Equal([BusinessFormAuthoringAssistantCapabilitySource.ProposeCatalogId, BusinessFormAuthoringAssistantCapabilitySource.ProposeImportId],
+            host.Lookup.LastCapabilityGroup);
+    }
+
+    // Version 2 maps the turn's spreadsheet; the catalog keeps version 1's shape and the request, never the spreadsheet.
+    [Fact]
+    public async Task A_version_two_proposal_creates_the_same_catalog_and_keeps_its_request_without_the_spreadsheet()
+    {
+        var host = new Host();
+        host.Lookup.Response = host.Lookup.Response! with { Proposal = host.Lookup.Response.Proposal with
+            { Capability = new(BusinessFormAuthoringAssistantCapabilitySource.ProposeCatalogId, 2), Payload = host.Mapped } };
+        var result = await host.Service.CreateAsync(host.Request, Ct);
+        var catalog = Assert.Single(host.Catalogs.Catalogs);
+        Assert.Equal(catalog.Id, result.Value.CatalogId);
+        Assert.Equal(["razon_social", "telefono", "razon_social_2"],
+            JsonSerializer.Deserialize<BusinessFormCatalogField[]>(catalog.FieldsJson!, JsonSerializerOptions.Web)!.Select(field => field.Key));
+        var evidence = FormCatalogProposalPresentation.Evidence(catalog.ProposalEvidenceJson!);
+        Assert.Equal(((Guid?)host.Lookup.RequestId, 2, "app"), (evidence.RequestId, evidence.CapabilityVersion, evidence.RequestedIn));
+        Assert.Equal(JsonSerializer.Serialize(host.Manual, JsonSerializerOptions.Web), JsonSerializer.Serialize(evidence.Manual, JsonSerializerOptions.Web));
+        Assert.DoesNotContain("transportistas.xlsx", catalog.ProposalEvidenceJson!, StringComparison.Ordinal);
+        Assert.DoesNotContain("Transportes Sur", catalog.ProposalEvidenceJson!, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task A_channel_creates_its_version_two_proposal_as_well()
+    {
+        var host = new Host();
+        host.Catalogs.Current.UserId = null;
+        var request = host.ChannelRequest() with { Proposal = host.Lookup.Response!.Proposal with
+            { Capability = new(BusinessFormAuthoringAssistantCapabilitySource.ProposeCatalogId, 2), Payload = host.Mapped } };
+        var result = await host.Service.CreateFromChannelAsync(request, Ct);
+        var catalog = Assert.Single(host.Catalogs.Catalogs);
+        Assert.Equal(catalog.Id, result.Value.CatalogId);
+        var evidence = FormCatalogProposalPresentation.Evidence(catalog.ProposalEvidenceJson!);
+        Assert.Equal((2, (string?)null), (evidence.CapabilityVersion, evidence.RequestedIn));
+        Assert.Equal(JsonSerializer.Serialize(host.Manual, JsonSerializerOptions.Web), JsonSerializer.Serialize(evidence.Manual, JsonSerializerOptions.Web));
+    }
+
+    // An import proposal is not a catalog to create: «Crear catálogo» never reads it.
+    [Fact]
+    public async Task An_import_proposal_creates_nothing()
+    {
+        var host = new Host();
+        host.Lookup.Response = host.Lookup.Response! with { Proposal = host.Lookup.Response.Proposal with
+        {
+            Capability = new(BusinessFormAuthoringAssistantCapabilitySource.ProposeImportId, 1),
+            Payload = new FormAuthoringImportProposal(new(Guid.NewGuid(), "Transportistas", "integer"), host.Mapped.Spreadsheet!),
+        } };
+        Assert.Equal(FormCatalogErrors.ProposalUnavailable, (await host.Service.CreateAsync(host.Request, Ct)).Error);
+        Assert.Empty(host.Catalogs.Catalogs);
     }
 
     [Fact]
@@ -180,6 +231,12 @@ public sealed class FormCatalogAssistantProposalServiceTests
         public Guid ProposalId { get; } = Guid.NewGuid();
         public FormAuthoringCatalogProposal Manual { get; } = new("es", "Transportistas", "Empresas que traen la carga", "integer", "CUIT",
             "Razón social", [new("Razón social", "text"), new("Teléfono", "text"), new("Razón-social", "text")]);
+
+        // The same catalog with the columns of the turn's spreadsheet.
+        public FormAuthoringMappedCatalogProposal Mapped => new(Manual.Culture, Manual.Name, Manual.Description, Manual.ValueType, Manual.Code,
+            Manual.Option, Manual.Fields, new("transportistas.xlsx", "Hoja1", 2, true,
+                [new("code", null, null, "A", "CUIT"), new("option", null, null, "B", "Razón social"), new("value", null, null, "C", "Kilos")],
+                [["20-11111111-1", "Transportes Sur", "1200"], ["20-22222222-2", "Logística Pampa", "800"]]));
         public FormCatalogAssistantProposalService Service { get; }
 
         public Host()

@@ -67,6 +67,18 @@ internal sealed class FormAssistantProposalScenario(ApiFactory factory, WebAppli
         Hand(new(BusinessFormAuthoringAssistantCapabilitySource.ProposeCatalogId, 1), new FormAuthoringCatalogProposal("es", name,
             "Empresas de transporte ficticias", "text", "CUIT", "Razón social", [new("Razón social", "text"), new("Teléfono", "text")]), current);
 
+    // Version 2: the same catalog with the columns of the turn's spreadsheet and three rows of it.
+    public CreateFromAssistantProposalRequest MappedCatalog(string name) =>
+        Hand(new(BusinessFormAuthoringAssistantCapabilitySource.ProposeCatalogId, BusinessFormAuthoringAssistantCapabilitySource.MappedCatalogVersion),
+            new FormAuthoringMappedCatalogProposal("es", name, "Empresas de transporte ficticias", "text", "CUIT", "Razón social",
+                [new("Razón social", "text"), new("Teléfono", "text")], new("transportistas.xlsx", "Hoja1", 86, true,
+                    [new("code", null, null, "A", "CUIT"), new("option", null, null, "B", "Razón social"), new("field", "Teléfono", null, "C", "Teléfono")],
+                    [["20-11111111-1", "Transportes Sur", "11 5555-0001"], ["20-22222222-2", "Logística Pampa", ""], ["20-33333333-3", "Acopio Centro", "11 5555-0003"]])),
+            true);
+
+    public Task<BusinessFormCatalog> CatalogAsync(Guid id, CancellationToken ct) => factory.ExecuteScopeAsync(services =>
+        services.GetRequiredService<ApplicationDbContext>().Set<BusinessFormCatalog>().AsNoTracking().SingleAsync(catalog => catalog.Id == id, ct));
+
     public Task<BusinessFormDefinition> DefinitionAsync(Guid id, CancellationToken ct) => factory.ExecuteScopeAsync(services =>
         services.GetRequiredService<ApplicationDbContext>().Set<BusinessFormDefinition>().AsNoTracking().SingleAsync(definition => definition.Id == id, ct));
 

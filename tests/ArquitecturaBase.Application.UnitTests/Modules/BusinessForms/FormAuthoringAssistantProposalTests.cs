@@ -43,13 +43,13 @@ public sealed class FormAuthoringAssistantProposalTests
     {
         var definitions = new AuthoringAssistantFixture().Source.Definitions;
         var form = definitions.Single(definition => definition.Id == ProposeForm);
-        var catalog = definitions.Single(definition => definition.Id == ProposeCatalog);
+        var catalog = definitions.Single(definition => definition is { Id: ProposeCatalog, Version: 1 });
         Assert.Equal(AssistantCapabilityKind.Proposal, form.Kind);
         Assert.Equal([BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage], form.RequiredPermissions.Actor);
         Assert.Equal(AssistantCapabilityKind.Proposal, catalog.Kind);
         Assert.Equal([BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage], catalog.RequiredPermissions.Actor);
-        // Two reads, two proposals and the decline that only a channel offers.
-        Assert.Equal(5, definitions.Count);
+        // Two reads, the form, both versions of the catalog, the import and the decline that only a channel offers.
+        Assert.Equal(7, definitions.Count);
     }
 
     [Fact]

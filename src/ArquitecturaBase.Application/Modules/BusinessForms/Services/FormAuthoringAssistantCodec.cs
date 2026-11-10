@@ -5,7 +5,7 @@ using ArquitecturaBase.Domain.Results;
 
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
-internal static class FormAuthoringAssistantCodec
+internal static partial class FormAuthoringAssistantCodec
 {
     public const int MaximumRows = 100;
     // Two reads and a proposal must leave room for history and a correction within the turn context.
@@ -37,7 +37,7 @@ internal static class FormAuthoringAssistantCodec
         {"type":"object","properties":{"reason":{"type":"string","enum":["noPermission","formExists","catalogExists","unclear"]},"definitionId":{"type":["string","null"]},"catalogId":{"type":["string","null"]},"name":{"type":"string"}},"required":["reason","definitionId","catalogId","name"],"additionalProperties":false}
         """;
     public static readonly string[] IssueCodes = ["invalid", "catalogUnavailable", "catalogNotReadable", "tooLarge", "permissionGranted", "notReadable", "notFound",
-        "permissionMissing"];
+        "permissionMissing", "required", "outOfRange", "repeated", "noSpreadsheet", "notManual"];
     public static readonly string[] DeclineReasons = ["noPermission", "formExists", "catalogExists", "unclear"];
     private static readonly string[] States = ["draft", "published", "inactive"];
     private static readonly string[] Kinds = ["manual", "filters"];
@@ -201,10 +201,11 @@ internal static class FormAuthoringAssistantCodec
             using var document = JsonDocument.Parse(json);
             var root = document.RootElement;
             if (!Exact(root, "issues") || root.GetProperty("issues") is not { ValueKind: JsonValueKind.Array } issues || issues.GetArrayLength() is 0 or > 50 ||
-                issues.EnumerateArray().Any(issue => !Exact(issue, "path", "code"))) return FormDefinitionErrors.ContentInvalid;
+                issues.EnumerateArray().Any(issue => !Exact(issue, "path", "code") && !Exact(issue, "path", "code", "name"))) return FormDefinitionErrors.ContentInvalid;
             var rejection = root.Deserialize<FormAuthoringRejection>(JsonSerializerOptions.Web);
             return rejection is { Issues: not null } && rejection.Issues.All(issue => issue is { Path.Length: > 0 and <= 120, Code: not null } &&
-                IssueCodes.Contains(issue.Code, StringComparer.Ordinal)) ? rejection : FormDefinitionErrors.ContentInvalid;
+                IssueCodes.Contains(issue.Code, StringComparer.Ordinal) && issue.Name is null or { Length: > 0 and <= 120 })
+                ? rejection : FormDefinitionErrors.ContentInvalid;
         }
         catch (JsonException) { return FormDefinitionErrors.ContentInvalid; }
     }

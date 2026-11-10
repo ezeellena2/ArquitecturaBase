@@ -1,4 +1,5 @@
 using ArquitecturaBase.Application.Models.Assistant;
+using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Channels;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
@@ -31,7 +32,30 @@ internal sealed class AuthoringAssistantFixture
         Source.Definitions.Select(definition => new AssistantCapabilityReference(definition.Id, definition.Version)).ToArray(),
         [new("assistant_answer", 1)]);
 
-    public AssistantCapabilityRequest Request(string capability, string json = "{}") => new(TurnId, Context, new(capability, 1), json, []);
+    public AssistantCapabilityRequest Request(string capability, string json = "{}", int version = 1) => new(TurnId, Context, new(capability, version), json, []);
+
+    // A turn with the spreadsheet the engine prepared: the capability reads it from its request.
+    public AssistantCapabilityRequest Request(string capability, string json, int version, StructuredSpreadsheet attachment) =>
+        Request(capability, json, version) with { Attachment = attachment };
+
+    // «Contratistas»: headers in row 1 and four rows of data in the sample, out of the 86 the file has.
+    public static readonly string[][] ContractorRows =
+    [
+        ["CUIT", "Razón social", "Rubro", "Zona"],
+        ["20-11111111-1", "Transportes Sur", "Cereales", "Norte"],
+        ["20-22222222-2", "Logística Pampa", "", "Sur"],
+        ["20-33333333-3", "Acopio Centro", "Hacienda", "Centro"],
+        ["20-44444444-4", "Fletes del Oeste", "Cereales", "Oeste"],
+    ];
+
+    public static StructuredSpreadsheet Sheet(int rowCount = 87, string[][]? rows = null)
+    {
+        rows ??= ContractorRows;
+        return new("contratistas.xlsx", StructuredSpreadsheetKind.Xlsx, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", 2048,
+            new string('a', 64), "Hoja1", rowCount, rows.Max(row => row.Length), rows.Select((cells, index) => new StructuredSpreadsheetRow(index + 1,
+                cells.Select((text, column) => (Letter: ((char)('A' + column)).ToString(), Text: text)).Where(cell => cell.Text.Length > 0)
+                    .ToDictionary(cell => cell.Letter, cell => cell.Text, StringComparer.Ordinal))).ToArray());
+    }
 
     public static FormAuthoringDefinitionStoredRow Definition(string name, string prefix, bool published = false, bool inactive = false,
         params (string Label, string Type)[] questions) =>

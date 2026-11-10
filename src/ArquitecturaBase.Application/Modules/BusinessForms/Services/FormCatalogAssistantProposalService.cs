@@ -26,10 +26,11 @@ internal sealed class FormCatalogAssistantProposalService(IAssistantProposalLook
         if (request.RequestId is not { } requestId || requestId == Guid.Empty) return FieldErrors.On(FormCatalogErrors.ContentInvalid, "requestId");
         if (request.ProposalId is not { } proposalId || proposalId == Guid.Empty) return FieldErrors.On(FormCatalogErrors.ContentInvalid, "proposalId");
         if (await CreatedAsync(access.Value, proposalId, cancellationToken) is { } created) return created;
-        var found = await lookup.FindAsync(access.Value, requestId, proposalId, [BusinessFormAuthoringAssistantCapabilitySource.ProposeCatalogId], cancellationToken);
+        // A later import proposal replaces a proposed catalog, as a later catalog does.
+        var found = await lookup.FindAsync(access.Value, requestId, proposalId, BusinessFormAuthoringAssistantCapabilitySource.CatalogGroup, cancellationToken);
         if (found.IsFailure) return FormCatalogErrors.ProposalUnavailable;
         if (!found.Value.IsCurrent) return FormCatalogErrors.ProposalReplaced;
-        return await CreateCatalogAsync(access.Value, found.Value.Context, found.Value.Proposal, found.Value.Provenance, "app", cancellationToken);
+        return await CreateCatalogAsync(access.Value, found.Value.Context, found.Value.Proposal, found.Value.Provenance, "app", requestId, cancellationToken);
     }
 
     // IA3-A: the channel's own conversation, where the person is both Actor and Subject, tapped «Crear catálogo» on the latest
@@ -41,7 +42,7 @@ internal sealed class FormCatalogAssistantProposalService(IAssistantProposalLook
         var access = await accessGuard.CheckActorAsync(context.ActorUserId, true, cancellationToken);
         if (access.IsFailure) return access.Error;
         if (await CreatedAsync(access.Value, request.Proposal.Id, cancellationToken) is { } created) return created;
-        return await CreateCatalogAsync(access.Value, context, request.Proposal, request.Provenance, null, cancellationToken);
+        return await CreateCatalogAsync(access.Value, context, request.Proposal, request.Provenance, null, null, cancellationToken);
     }
 
     public async Task<Result<FormCatalogAssistantProposalResponse>> GetAsync(Guid proposalId, CancellationToken cancellationToken)
@@ -52,10 +53,18 @@ internal sealed class FormCatalogAssistantProposalService(IAssistantProposalLook
     }
 
     private async Task<Result<FormCatalogAssistantProposalResponse>> CreateCatalogAsync(Guid actor, AssistantChannelContext context,
-        AssistantObservedProposal proposal, AssistantOperationProvenance provenance, string? requestedIn, CancellationToken cancellationToken)
+        AssistantObservedProposal proposal, AssistantOperationProvenance provenance, string? requestedIn, Guid? requestId, CancellationToken cancellationToken)
     {
-        if (proposal is { Capability: { Id: BusinessFormAuthoringAssistantCapabilitySource.ProposeCatalogId, Version: 1 }, Payload: FormAuthoringCatalogProposal manual })
-            return await CreateManualAsync(actor, proposal, manual, provenance, requestedIn, cancellationToken);
+        // Both versions create the same Manual catalog: version 2's spreadsheet is never kept with it.
+        var manual = proposal switch
+        {
+            { Capability: { Id: BusinessFormAuthoringAssistantCapabilitySource.ProposeCatalogId, Version: BusinessFormAuthoringAssistantCapabilitySource.Version },
+                Payload: FormAuthoringCatalogProposal first } => first,
+            { Capability: { Id: BusinessFormAuthoringAssistantCapabilitySource.ProposeCatalogId, Version: BusinessFormAuthoringAssistantCapabilitySource.MappedCatalogVersion },
+                Payload: FormAuthoringMappedCatalogProposal mapped } => mapped.ToCatalog(),
+            _ => null,
+        };
+        if (manual is not null) return await CreateManualAsync(actor, proposal, manual, provenance, requestedIn, requestId, cancellationToken);
         if (proposal is not { Capability: { Id: BusinessFormCatalogAssistantCapabilitySource.ProposeId, Version: 1 }, Payload: FormCatalogProposalPayload filters })
             return FormCatalogErrors.ProposalUnavailable;
         if (await reader.ExistsCatalogNameAsync(context.Culture, filters.Name, cancellationToken)) return FieldErrors.On(FormCatalogErrors.NameTaken, "name");
@@ -64,11 +73,11 @@ internal sealed class FormCatalogAssistantProposalService(IAssistantProposalLook
     }
 
     private async Task<Result<FormCatalogAssistantProposalResponse>> CreateManualAsync(Guid actor, AssistantObservedProposal observed,
-        FormAuthoringCatalogProposal proposal, AssistantOperationProvenance provenance, string? requestedIn, CancellationToken cancellationToken)
+        FormAuthoringCatalogProposal proposal, AssistantOperationProvenance provenance, string? requestedIn, Guid? requestId, CancellationToken cancellationToken)
     {
         if (await reader.ExistsCatalogNameAsync(proposal.Culture, proposal.Name, cancellationToken)) return FieldErrors.On(FormCatalogErrors.NameTaken, "name");
         var evidence = JsonSerializer.Serialize(new FormCatalogProposalEvidence(proposal.Culture, actor, provenance.OccurredAtUtc,
-            observed.TurnId, observed.Capability.Id, observed.Capability.Version, provenance, null, 0, proposal, requestedIn),
+            observed.TurnId, observed.Capability.Id, observed.Capability.Version, provenance, null, 0, proposal, requestedIn, requestId),
             JsonSerializerOptions.Web);
         return await unitOfWork.ExecuteInTransactionAsync<Result<FormCatalogAssistantProposalResponse>>(async ct =>
         {
