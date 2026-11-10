@@ -7,8 +7,9 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 /// <summary>
 /// Files what the system creates (the catalogs of ARCA, a standard of the library) in the folder it keeps under a key. The folder is
 /// found by its key even after a rename or a move; if someone deleted it, it is created again at the top, outside the menu, like any
-/// new folder. A top folder with that same name and no key is adopted instead of repeating the name. It runs inside its caller's
-/// transaction, takes the folders lock after the caller's own locks and never saves; it has no route of its own.
+/// new folder. A top folder with that same name and no key is adopted instead of repeating the name. The library can instead file in a
+/// folder chosen when adding. It runs inside its caller's transaction, takes the folders lock after the caller's own locks and never
+/// saves; it has no route of its own.
 /// </summary>
 internal sealed class FormSystemFolderLinker(IFormFolderRepository repository)
 {
@@ -28,8 +29,22 @@ internal sealed class FormSystemFolderLinker(IFormFolderRepository repository)
             else repository.Add(created.Value);
             folder = sameName ?? created.Value;
         }
-        if ((await repository.ListMembershipsAsync(kind, itemId, cancellationToken)).All(value => value.FolderId != folder.Id))
-            repository.Add(BusinessFormFolderMembership.Create(folder.Id, kind, itemId));
+        await AddMembershipAsync(kind, itemId, folder.Id, cancellationToken);
         return folder.Id;
+    }
+
+    /// <summary>Files the item in a folder someone chose; one deleted in the meantime is not found.</summary>
+    public async Task<Result<Guid>> FileAsync(FormFolderItemKind kind, Guid itemId, Guid folderId, CancellationToken cancellationToken)
+    {
+        await repository.LockAsync(cancellationToken);
+        if ((await repository.ListAsync(cancellationToken)).All(value => value.Id != folderId)) return FormFolderErrors.NotFound;
+        await AddMembershipAsync(kind, itemId, folderId, cancellationToken);
+        return folderId;
+    }
+
+    private async Task AddMembershipAsync(FormFolderItemKind kind, Guid itemId, Guid folderId, CancellationToken cancellationToken)
+    {
+        if ((await repository.ListMembershipsAsync(kind, itemId, cancellationToken)).All(value => value.FolderId != folderId))
+            repository.Add(BusinessFormFolderMembership.Create(folderId, kind, itemId));
     }
 }

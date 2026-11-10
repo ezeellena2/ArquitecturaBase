@@ -5,7 +5,7 @@ namespace ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessFor
 
 /// <summary>
 /// A standard of the library only for tests (BI1-A): a delivery note with a block of items, the amount of each item and the total,
-/// where every question but «Observaciones» is bound.
+/// where every question but «Observaciones» is bound; a sale that brings its own catalog of customers and files both in its folder.
 /// </summary>
 internal sealed class TestFormStandardSource : IStructuredFormStandardSource
 {
@@ -42,6 +42,7 @@ internal sealed class TestFormStandardSource : IStructuredFormStandardSource
                 {"format":1,"culture":"es","submitLabel":{"es":"Enviar"},"fields":[
                 {"localId":"{{{Buyer}}}","type":"choice","label":{"es":"Cliente"},"required":true}]}
                 """, new Dictionary<string, string> { [Buyer] = "customer" }, new Dictionary<string, string> { [Buyer] = CustomersCatalog },
+            Folder: new(SalesFolder, new Dictionary<string, string> { ["es"] = "Ventas de prueba", ["en"] = "Test sales" }),
             OwnCatalogs: [new(CustomersCatalog, "es", new Dictionary<string, string> { ["es"] = "Clientes de prueba" }, new Dictionary<string, string>(),
                 [new("cuit", new Dictionary<string, string> { ["es"] = "CUIT" }, "text", MaxLength: 11)])]),
         new(MissingKey, 1, new Dictionary<string, string> { ["es"] = "Sin catálogo" }, new Dictionary<string, string> { ["es"] = "Nombra un catálogo que no está." },
@@ -51,5 +52,6 @@ internal sealed class TestFormStandardSource : IStructuredFormStandardSource
                 """, new Dictionary<string, string>(), new Dictionary<string, string> { [Buyer] = "test.nowhere" }),
     ];
     public const string CustomersKey = "test.sale", MissingKey = "test.missing-catalog", CustomersCatalog = "test.customers",
+        SalesFolder = "test.sales",
         Buyer = "0196f2a0-0000-7000-8000-0000000000e1";
 }

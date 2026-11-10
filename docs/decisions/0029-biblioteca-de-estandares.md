@@ -21,6 +21,8 @@ sirviendo al módulo aunque la empresa la edite: si borra el total o lo cambia d
    uno nuevo es otra entrada de datos. Sin fuentes, la biblioteca está vacía y no se muestra.
 2. **«Agregar» crea un borrador propio por el guardado de siempre** (`FormDraftService`), con el pedido del cliente como
    comprobante, y la definición sella una vez el estándar, su versión y `dato → FieldId`. Se puede agregar más de una vez.
+   La copia y los catálogos que crea van, en la misma transacción, a la carpeta elegida o, si no, a la que trae el estándar
+   (una carpeta del sistema, que se encuentra por su clave aunque la renombren).
 3. **Las preguntas atadas** (las que guardan un dato) conservan todo menos su texto, su ayuda y su lugar: el guardado del
    borrador rechaza quitarlas o cambiar su tipo, su bloque, su catálogo, sus opciones, su cálculo o si son obligatorias
    (`Forms.Draft.BoundQuestionChanged`). El módulo lee la respuesta por los `FieldId` sellados.

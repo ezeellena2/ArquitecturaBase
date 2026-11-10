@@ -12,7 +12,8 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 /// <summary>
 /// The library (BI1-A, as DOC1 without reading documents). It lists the standards of the installed modules and «Agregar» creates
 /// an own draft through the same save as any other, which seals the standard, its version and its bound questions. A standard
-/// names its catalogs by Key: one that is missing or inactive stops the copy.
+/// names its catalogs by Key: one that is missing or inactive stops the copy. The copy and the catalogs it creates go, in the same save,
+/// to the folder chosen or else to the standard's (<see cref="FormSystemFolderLinker"/>).
 /// </summary>
 internal sealed class FormLibraryService : IFormLibraryService
 {
@@ -20,15 +21,16 @@ internal sealed class FormLibraryService : IFormLibraryService
     private readonly IFormDraftService _drafts;
     private readonly IFormLibraryReader _reader;
     private readonly FormDraftAccessGuard _access;
+    private readonly FormSystemFolderLinker _folders;
     private readonly ILogger<FormLibraryService> _logger;
 
     public FormLibraryService(IEnumerable<IStructuredFormStandardSource> sources, IFormDraftService drafts, IFormLibraryReader reader,
-        FormDraftAccessGuard access, ILogger<FormLibraryService> logger)
+        FormDraftAccessGuard access, FormSystemFolderLinker folders, ILogger<FormLibraryService> logger)
     {
         _standards = sources.SelectMany(source => source.Standards).ToArray();
         if (_standards.DistinctBy(standard => standard.Key, StringComparer.Ordinal).Count() != _standards.Length)
             throw new InvalidOperationException("Library standard keys must be unique.");
-        (_drafts, _reader, _access, _logger) = (drafts, reader, access, logger);
+        (_drafts, _reader, _access, _folders, _logger) = (drafts, reader, access, folders, logger);
     }
 
     public Task<Result<FormLibraryResponse>> ListAsync(CancellationToken cancellationToken) =>
@@ -74,6 +76,31 @@ internal sealed class FormLibraryService : IFormLibraryService
             draft = draft with { Fields = draft.Fields.Select(field => named.TryGetValue(field.LocalId, out var catalogKey)
                 ? field with { Source = (field.Source ?? new FormQuestionSource(null)) with { Catalog = ids[catalogKey] } } : field).ToArray() };
             return await _drafts.CreateAsync(new SaveFormDraftRequest(request.RequestId, request.Name, request.Prefix, draft)
-                { Standard = new FormDraftStandardOrigin(standard.Key, standard.Version, standard.Bindings) { NewCatalogs = created } }, cancellationToken);
+            {
+                Standard = new FormDraftStandardOrigin(standard.Key, standard.Version, standard.Bindings)
+                    { NewCatalogs = created, FileAsync = Filer(request.FolderId, standard.Folder) is { } file ? (id, ct) => FileAsync(file, id, created, ct) : null },
+            }, cancellationToken);
         });
+
+    // The folder chosen when adding or, by default, the standard's own, created in the language of whoever adds the copy.
+    private Func<FormFolderItemKind, Guid, CancellationToken, Task<Result<Guid>>>? Filer(Guid? chosen,
+        ArquitecturaBase.Application.Models.StructuredData.StructuredFormStandardFolder? standard)
+    {
+        if (chosen is { } folderId) return (kind, id, ct) => _folders.FileAsync(kind, id, folderId, ct);
+        if (standard is null) return null;
+        var name = FormRecordPresentationPolicy.Text(standard.Name, System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es");
+        return (kind, id, ct) => _folders.FileAsync(kind, id, standard.Key, name, ct);
+    }
+
+    private static async Task<Result> FileAsync(Func<FormFolderItemKind, Guid, CancellationToken, Task<Result<Guid>>> file, Guid definitionId,
+        IReadOnlyList<BusinessFormCatalog> catalogs, CancellationToken cancellationToken)
+    {
+        var filed = await file(FormFolderItemKind.Form, definitionId, cancellationToken);
+        foreach (var catalog in catalogs)
+        {
+            if (filed.IsFailure) break;
+            filed = await file(FormFolderItemKind.Catalog, catalog.Id, cancellationToken);
+        }
+        return filed.IsFailure ? filed.Error : Result.Success();
+    }
 }

@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 
 // BI1-A with PostgreSQL: the library lists the installed standards, «Agregar» creates an own draft that remembers its standard and
-// its bound questions (once per request), and a save that removes a bound question or changes its type is refused at it, while
+// its bound questions (once per request) in the folder chosen or the standard's, and a save that removes a bound question or changes its type is refused at it, while
 // its text changes.
 public sealed partial class FormDraftEndpointsTests
 {
@@ -83,13 +83,46 @@ public sealed partial class FormDraftEndpointsTests
             .Where(catalog => catalog.Key == TestFormStandardSource.CustomersCatalog).Select(catalog => new { catalog.Id, catalog.FieldsJson }).ToListAsync(Ct));
         var catalog = Assert.Single(catalogs);
         Assert.Contains("\"cuit\"", catalog.FieldsJson);
+        var copies = new List<Guid>();
         foreach (var created in new[] { first, second })
-            Assert.Equal(catalog.Id, (await created.ReadJsonAsync()).GetProperty("definition").GetProperty("draft").GetProperty("fields")[0]
-                .GetProperty("source").GetProperty("catalog").GetGuid());
+        {
+            var definition = (await created.ReadJsonAsync()).GetProperty("definition");
+            Assert.Equal(catalog.Id, definition.GetProperty("draft").GetProperty("fields")[0].GetProperty("source").GetProperty("catalog").GetGuid());
+            copies.Add(definition.GetProperty("id").GetGuid());
+        }
+        // Both copies and the catalog they brought go to the standard's folder, created once and found again by its key.
+        var folder = Assert.Single(await factory.ExecuteDbContextAsync(db => db.Set<ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormFolder>()
+            .Where(value => value.SystemKey == TestFormStandardSource.SalesFolder).Select(value => new { value.Id, value.Name, value.ParentId }).ToListAsync(Ct)));
+        Assert.Equal(("Ventas de prueba", (Guid?)null), (folder.Name, folder.ParentId));
+        var filed = await factory.ExecuteDbContextAsync(db => db.Set<ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormFolderMembership>()
+            .Where(value => value.FolderId == folder.Id).Select(value => value.ItemId).ToListAsync(Ct));
+        Assert.Equal(copies.Append(catalog.Id).Order(), filed.Order());
 
         using var missing = await designer.PostAsJsonAsync($"/api/forms/library/{TestFormStandardSource.MissingKey}/copies", Add(Guid.NewGuid(), Prefix()), Ct);
         Assert.Equal(HttpStatusCode.Conflict, missing.StatusCode);
         Assert.Equal("Forms.Library.CatalogUnavailable", (await missing.ReadJsonAsync()).GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task A_standard_goes_to_the_folder_chosen_when_it_is_added_and_a_folder_that_is_gone_is_not_found()
+    {
+        using var designer = await OperatorAsync(["formtemplates.read", "formtemplates.manage"]);
+        string Prefix() => "C" + Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
+        using var createdFolder = await designer.PostAsJsonAsync("/api/forms/folders", new { name = "Remitos " + Prefix() }, Ct);
+        Assert.Equal(HttpStatusCode.OK, createdFolder.StatusCode);
+        var folderId = (await createdFolder.ReadJsonAsync()).GetProperty("id").GetGuid();
+
+        using var added = await designer.PostAsJsonAsync($"/api/forms/library/{TestFormStandardSource.Key}/copies",
+            new { requestId = Guid.NewGuid(), name = new { es = "Remito en carpeta" }, prefix = Prefix(), folderId }, Ct);
+        Assert.Equal(HttpStatusCode.Created, added.StatusCode);
+        var id = (await added.ReadJsonAsync()).GetProperty("definition").GetProperty("id").GetGuid();
+        using var folders = await designer.GetAsync($"/api/forms/definitions/{id}/folders", Ct);
+        Assert.Equal([folderId], (await folders.ReadJsonAsync()).GetProperty("folderIds").EnumerateArray().Select(value => value.GetGuid()));
+
+        using var gone = await designer.PostAsJsonAsync($"/api/forms/library/{TestFormStandardSource.Key}/copies",
+            new { requestId = Guid.NewGuid(), name = new { es = "Remito sin carpeta" }, prefix = Prefix(), folderId = Guid.NewGuid() }, Ct);
+        Assert.Equal(HttpStatusCode.NotFound, gone.StatusCode);
+        Assert.Equal("Forms.Folder.NotFound", (await gone.ReadJsonAsync()).GetProperty("code").GetString());
     }
 
     private static object Add(Guid requestId, string prefix) => new { requestId, name = new { es = "Remito propio " + prefix }, prefix };

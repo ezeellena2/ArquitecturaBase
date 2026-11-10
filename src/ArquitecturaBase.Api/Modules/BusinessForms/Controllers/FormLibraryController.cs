@@ -34,7 +34,7 @@ public sealed class FormLibraryController(IFormLibraryService service) : Control
     [ProducesProblem(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Add([FromRoute] string key, [FromBody] AddFormStandardHttpRequest request, CancellationToken cancellationToken)
     {
-        var result = await service.AddAsync(key, new AddFormStandardRequest(request.RequestId, request.Name, request.Prefix), cancellationToken);
+        var result = await service.AddAsync(key, new AddFormStandardRequest(request.RequestId, request.Name, request.Prefix, request.FolderId), cancellationToken);
         if (result.IsFailure) return result.ToActionResult(this);
         var location = Url.Action(nameof(FormDefinitionsController.Get), "FormDefinitions", new { id = result.Value.Definition.Id })
             ?? throw new InvalidOperationException("The form route could not be generated.");

@@ -8,7 +8,7 @@ public sealed record FormLibraryStandardResponse(string Key, int Version, string
 public sealed record FormLibraryResponse(IReadOnlyList<FormLibraryStandardResponse> Standards);
 
 /// <summary>«Agregar»: the new form's name and prefix, under its own request id so that a repeat gets the same draft.</summary>
-public sealed record AddFormStandardRequest(Guid RequestId, IReadOnlyDictionary<string, string> Name, string Prefix)
+public sealed record AddFormStandardRequest(Guid RequestId, IReadOnlyDictionary<string, string> Name, string Prefix, Guid? FolderId = null)
 {
     public override string ToString() => "AddFormStandardRequest { Content = [REDACTED] }";
 }
@@ -19,6 +19,9 @@ public sealed record FormDraftStandardOrigin(string Key, int Version, IReadOnlyD
     /// <summary>The catalogs the standard brings that do not exist yet: created in the same save as the draft.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public IReadOnlyList<ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormCatalog> NewCatalogs { get; init; } = [];
+    /// <summary>Files the new definition (by its id) and the new catalogs in the folder chosen or the standard's, inside the same save.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public Func<Guid, CancellationToken, Task<ArquitecturaBase.Domain.Results.Result>>? FileAsync { get; init; }
     public override string ToString() => "FormDraftStandardOrigin { Content = [REDACTED] }";
 }
 /// <summary>A catalog a standard names, by Key: whether it is active.</summary>
