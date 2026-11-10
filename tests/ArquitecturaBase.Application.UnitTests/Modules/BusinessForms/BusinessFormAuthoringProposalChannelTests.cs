@@ -19,19 +19,19 @@ public sealed class BusinessFormAuthoringProposalChannelTests
     private static AssistantObservedProposal Observed(string capability, AssistantCapabilityPayload payload) =>
         new(Guid.NewGuid(), Guid.NewGuid(), new(capability, 1), payload);
 
-    private static StructuredAuthoringProposalRequest Request(AssistantObservedProposal proposal) => new(new CatalogAssistantFixture().Context, proposal,
+    private static StructuredAuthoringProposalRequest Request(AssistantObservedProposal proposal) => new(Guid.NewGuid(), new CatalogAssistantFixture().Context, proposal,
         new("fictitious-profile", 3, "capabilities-v1", 1, new DateTime(2026, 11, 4, 15, 0, 0, DateTimeKind.Utc), "whatsapp-assistant"));
 
     [Fact]
     public void It_summarizes_its_own_authoring_proposals_and_nothing_else()
     {
         var channel = new BusinessFormAuthoringProposalChannel(new Drafts(), new Catalogs());
-        Assert.Equal(StructuredAuthoringKind.Form, channel.Summarize(Observed(BusinessFormAuthoringAssistantCapabilitySource.ProposeFormId, Form), "es")!.Kind);
-        Assert.Equal("Contratistas", channel.Summarize(Observed(BusinessFormAuthoringAssistantCapabilitySource.ProposeCatalogId, Manual), "es")!.Title);
-        var people = channel.Summarize(Observed(BusinessFormCatalogAssistantCapabilitySource.ProposeId, CatalogAssistantFixture.Proposal), "es")!;
+        Assert.Equal(StructuredAuthoringKind.Form, channel.Summarize(Guid.NewGuid(), Observed(BusinessFormAuthoringAssistantCapabilitySource.ProposeFormId, Form), "es")!.Kind);
+        Assert.Equal("Contratistas", channel.Summarize(Guid.NewGuid(), Observed(BusinessFormAuthoringAssistantCapabilitySource.ProposeCatalogId, Manual), "es")!.Title);
+        var people = channel.Summarize(Guid.NewGuid(), Observed(BusinessFormCatalogAssistantCapabilitySource.ProposeId, CatalogAssistantFixture.Proposal), "es")!;
         Assert.Equal((StructuredAuthoringKind.Catalog, CatalogAssistantFixture.Proposal.Name), (people.Kind, people.Title));
-        Assert.Null(channel.Summarize(Observed("forms.missing-request.propose", Form), "es"));
-        Assert.Null(channel.Summarize(Observed(BusinessFormAuthoringAssistantCapabilitySource.ProposeFormId, Manual), "es"));
+        Assert.Null(channel.Summarize(Guid.NewGuid(), Observed("forms.missing-request.propose", Form), "es"));
+        Assert.Null(channel.Summarize(Guid.NewGuid(), Observed(BusinessFormAuthoringAssistantCapabilitySource.ProposeFormId, Manual), "es"));
     }
 
     [Fact]
@@ -61,6 +61,60 @@ public sealed class BusinessFormAuthoringProposalChannelTests
         Assert.Equal(new StructuredAuthoringCreatedResponse(StructuredAuthoringKind.Catalog, catalogs.Id, "Contratistas", $"/catalogos/{catalogs.Id:D}"), created.Value);
     }
 
+    // IA, Stage 2: version 2's catalog says how many rows of data its spreadsheet brings; an import names the catalog, which column
+    // fills each part of its options and the rows, and its path opens that catalog's import with the operation and the proposal.
+    private static FormAuthoringSpreadsheetSummary Spreadsheet(bool headers = true, string optionLetter = "B") => new("clientes.csv", "", 86, headers,
+        [new("code", null, null, "A", headers ? "CUIT" : null), new("option", null, null, optionLetter, headers ? "Razón\nsocial" : null),
+            new("field", "Rubro", "rubro", "C", headers ? "Rubro" : null)], []);
+
+    [Theory]
+    [InlineData("es", "el código de la columna A (CUIT), cada opción de la columna B (Razón social) y el campo Rubro de la columna C (Rubro)")]
+    [InlineData("en", "the code from column A (CUIT), each option from column B (Razón social) and the field Rubro from column C (Rubro)")]
+    public void An_import_names_its_catalog_its_columns_and_rows_and_the_path_to_review_it(string culture, string mapping)
+    {
+        var channel = new BusinessFormAuthoringProposalChannel(new Drafts(), new Catalogs());
+        var catalogId = Guid.NewGuid(); var requestId = Guid.NewGuid();
+        var proposal = Observed(BusinessFormAuthoringAssistantCapabilitySource.ProposeImportId,
+            new FormAuthoringImportProposal(new(catalogId, "Clientes", "text"), Spreadsheet()));
+        var summary = channel.Summarize(requestId, proposal, culture)!;
+        Assert.Equal((StructuredAuthoringKind.Import, "Clientes", (int?)86), (summary.Kind, summary.Title, summary.RowCount));
+        Assert.Equal([mapping], summary.Lines);
+        Assert.Equal($"/catalogos/{catalogId:D}?pedido={requestId:N}&propuesta={proposal.Id:N}", summary.AppPath);
+    }
+
+    [Fact]
+    public void A_simple_list_shares_its_column_and_a_sheet_without_headers_names_only_the_letters()
+    {
+        var channel = new BusinessFormAuthoringProposalChannel(new Drafts(), new Catalogs());
+        var simple = channel.Summarize(Guid.NewGuid(), Observed(BusinessFormAuthoringAssistantCapabilitySource.ProposeImportId,
+            new FormAuthoringImportProposal(new(Guid.NewGuid(), "Productos", "text"), Spreadsheet(headers: false, optionLetter: "A"))), "es")!;
+        Assert.Equal(["el código y cada opción de la columna A y el campo Rubro de la columna C"], simple.Lines);
+    }
+
+    [Fact]
+    public void A_catalog_that_maps_a_spreadsheet_says_how_many_rows_it_takes()
+    {
+        var channel = new BusinessFormAuthoringProposalChannel(new Drafts(), new Catalogs());
+        FormAuthoringMappedCatalogProposal Mapped(FormAuthoringSpreadsheetSummary? spreadsheet) => new(Manual.Culture, Manual.Name, Manual.Description,
+            Manual.ValueType, Manual.Code, Manual.Option, Manual.Fields, spreadsheet);
+        AssistantObservedProposal Version2(FormAuthoringMappedCatalogProposal mapped) =>
+            Observed(BusinessFormAuthoringAssistantCapabilitySource.ProposeCatalogId, mapped) with { Capability = new(BusinessFormAuthoringAssistantCapabilitySource.ProposeCatalogId, 2) };
+        var first = channel.Summarize(Guid.NewGuid(), Observed(BusinessFormAuthoringAssistantCapabilitySource.ProposeCatalogId, Manual), "es")!;
+        var mapped = channel.Summarize(Guid.NewGuid(), Version2(Mapped(Spreadsheet())), "es")!;
+        Assert.Equal((first.Kind, first.Title, first.Lines[0], (int?)86, (string?)null), (mapped.Kind, mapped.Title, mapped.Lines[0], mapped.RowCount, mapped.AppPath));
+        Assert.Null(channel.Summarize(Guid.NewGuid(), Version2(Mapped(null)), "es")!.RowCount);
+        Assert.Null(first.RowCount);
+    }
+
+    [Fact]
+    public async Task Creating_passes_the_request_of_its_operation_to_the_owner()
+    {
+        var catalogs = new Catalogs();
+        var request = Request(Observed(BusinessFormAuthoringAssistantCapabilitySource.ProposeCatalogId, Manual));
+        await new BusinessFormAuthoringProposalChannel(new Drafts(), catalogs).CreateAsync(request, Ct);
+        Assert.Equal(request.RequestId, catalogs.Requests.Single().RequestId);
+    }
+
     private sealed class Drafts : IFormDraftProposalService
     {
         public Guid Id { get; } = Guid.NewGuid();
@@ -74,8 +128,12 @@ public sealed class BusinessFormAuthoringProposalChannelTests
     {
         public Guid Id { get; } = Guid.NewGuid();
         public Error? Outcome { get; set; }
-        public Task<Result<FormCatalogAssistantProposalResponse>> CreateFromChannelAsync(StructuredAuthoringProposalRequest request, CancellationToken cancellationToken) =>
-            Task.FromResult<Result<FormCatalogAssistantProposalResponse>>(Outcome is { } error ? error : new FormCatalogAssistantProposalResponse(request.Proposal.Id, Id));
+        public List<StructuredAuthoringProposalRequest> Requests { get; } = [];
+        public Task<Result<FormCatalogAssistantProposalResponse>> CreateFromChannelAsync(StructuredAuthoringProposalRequest request, CancellationToken cancellationToken)
+        {
+            Requests.Add(request);
+            return Task.FromResult<Result<FormCatalogAssistantProposalResponse>>(Outcome is { } error ? error : new FormCatalogAssistantProposalResponse(request.Proposal.Id, Id));
+        }
         public Task<Result<FormCatalogAssistantProposalResponse>> CreateAsync(CreateFromAssistantProposalRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<Result<FormCatalogAssistantProposalResponse>> GetAsync(Guid proposalId, CancellationToken cancellationToken) => throw new NotSupportedException();
     }

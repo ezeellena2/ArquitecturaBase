@@ -46,7 +46,7 @@ internal sealed class FormCatalogAssistantImportPolicy(IAssistantProposalLookup 
 
     // What a catalog created from a proposal with a spreadsheet still has to import, for the person who asked for it, while it is
     // pending and without options and its proposal is there; null otherwise. The copy is not opened: the review checks it and says
-    // when it is gone. A catalog created from a channel has no request in its evidence yet.
+    // when it is gone. A catalog created from a channel keeps its request too.
     public async Task<FormCatalogAssistantImportPending?> FindPendingAsync(Guid actor, FormCatalogStoredRow catalog, CancellationToken cancellationToken)
     {
         if (catalog is not { Kind: "Manual", ProposalState: BusinessFormCatalogProposalState.Pending, ItemsCount: 0, ProposalId: { } proposalId,

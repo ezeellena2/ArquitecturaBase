@@ -8,7 +8,7 @@ namespace ArquitecturaBase.Application.Channels;
 
 internal sealed class UnavailableStructuredAuthoringProposalChannel : IStructuredAuthoringProposalChannel
 {
-    public StructuredAuthoringSummary? Summarize(AssistantObservedProposal proposal, string culture) => null;
+    public StructuredAuthoringSummary? Summarize(Guid requestId, AssistantObservedProposal proposal, string culture) => null;
 
     public Task<Result<StructuredAuthoringCreatedResponse>> CreateAsync(StructuredAuthoringProposalRequest request, CancellationToken cancellationToken)
     {

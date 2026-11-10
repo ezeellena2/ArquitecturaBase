@@ -3115,6 +3115,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("ActorUserId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("AttachmentMessageId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("CapturedCulture")
                         .HasMaxLength(5)
                         .HasColumnType("character varying(5)");
@@ -3216,6 +3219,8 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.ToTable("WhatsAppAssistantRequests", null, t =>
                         {
                             t.HasCheckConstraint("CK_WhatsAppAssistantRequests_ActorContext", "(\"ActorUserId\" IS NOT NULL AND \"ContextJson\" IS NOT NULL) OR (\"IsAlways\" AND \"Kind\" = 'Manual')");
+
+                            t.HasCheckConstraint("CK_WhatsAppAssistantRequests_Attachment", "\"AttachmentMessageId\" IS NULL OR \"SourceRecordId\" IS NULL");
                         });
                 });
 

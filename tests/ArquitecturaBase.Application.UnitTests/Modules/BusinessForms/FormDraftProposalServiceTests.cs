@@ -215,7 +215,7 @@ public sealed class FormDraftProposalServiceTests
         public CreateFromAssistantProposalRequest Request => new(Lookup.RequestId, ProposalId);
 
         // WhatsApp's own conversation: the person is both Actor and Subject, in the assistant mode.
-        public StructuredAuthoringProposalRequest ChannelRequest() => new(
+        public StructuredAuthoringProposalRequest ChannelRequest() => new(Lookup.RequestId,
             Authoring.Context with { ChannelId = "whatsapp-assistant", SubjectUserId = Authoring.Actor, InteractionMode = AssistantInteractionMode.Assistant },
             Lookup.Response!.Proposal, Lookup.Response.Provenance with { ChannelId = "whatsapp-assistant" });
 

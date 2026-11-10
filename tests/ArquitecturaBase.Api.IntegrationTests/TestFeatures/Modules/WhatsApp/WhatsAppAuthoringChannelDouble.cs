@@ -15,7 +15,7 @@ internal sealed class WhatsAppAuthoringChannelDouble : IStructuredAuthoringPropo
     public Guid DefinitionId { get; } = Guid.NewGuid();
 
     // A decline here is always «it is not clear what to build», the one that asks and waits.
-    public StructuredAuthoringSummary? Summarize(AssistantObservedProposal proposal, string culture) => proposal.Capability.Id switch
+    public StructuredAuthoringSummary? Summarize(Guid requestId, AssistantObservedProposal proposal, string culture) => proposal.Capability.Id switch
     {
         ProposeFormId => new(StructuredAuthoringKind.Form, "Parte de lluvias · LLU", ["1. Fecha · fecha", "2. Milímetros · número"], 0),
         DeclineId => new(StructuredAuthoringKind.Declined, "", [], 0) { Reason = "unclear" },

@@ -29,7 +29,9 @@ internal sealed class WhatsAppAssistantService(WhatsAppAssistantAccessPolicy acc
             if(contact is null)return Result.Failure<WhatsAppAssistantReferenceRow>(WhatsAppChatErrors.NotFound);
             if(contact.Mode!=WhatsAppConversationMode.Manual || contact.ModeRevision!=request.ExpectedModeRevision) return Result.Failure<WhatsAppAssistantReferenceRow>(WhatsAppAssistantErrors.StateConflict);
             var source=await policy.FindLatestSourceAsync(contact.Id,token);
-            if(source is null || source.ContentExpiresAtUtc<=policy.NowUtc)return Result.Failure<WhatsAppAssistantReferenceRow>(WhatsAppAssistantErrors.StateConflict);
+            // A spreadsheet without a request, or a text waiting for or answered by its spreadsheet, is no source for a suggestion.
+            if(source is null || source.ContentExpiresAtUtc<=policy.NowUtc || source.State!=WhatsAppAssistantSourceState.Ready)
+                return Result.Failure<WhatsAppAssistantReferenceRow>(WhatsAppAssistantErrors.StateConflict);
             if(source.Id!=request.SourceMessageId)
             {
                 var requested=await policy.FindSourceAsync(contact.Id,request.SourceMessageId,token);
@@ -75,6 +77,8 @@ internal sealed class WhatsAppAssistantService(WhatsAppAssistantAccessPolicy acc
                 WhatsAppAssistantRequestKind.Manual,contact.ModeRevision,contact.LinkRevision,JsonSerializer.Serialize(context,JsonSerializerOptions.Web),policy.NowUtc,source.ContentExpiresAtUtc);
             if(source.CapturedRecordId is {} originRecord && !row.SetCapturedSuggestion(originRecord,null,null,context.Culture,false,policy.NowUtc))
                 return Result.Failure<WhatsAppAssistantReferenceRow>(WhatsAppAssistantErrors.StateConflict);
+            // The same request the latest source makes, with its spreadsheet when it carries one (IA, Stage 2).
+            if(source.Spreadsheet is {} spreadsheet) row.CarryAttachment(spreadsheet.MessageId);
             if(!hasConfiguredAssistant)row.FinishWithoutReply(false,policy.NowUtc);
             requests.Add(row);return Result.Success(WhatsAppAssistantSuggestionPolicy.Reference(row));
         },CommitPolicy.OnSuccess,ct);

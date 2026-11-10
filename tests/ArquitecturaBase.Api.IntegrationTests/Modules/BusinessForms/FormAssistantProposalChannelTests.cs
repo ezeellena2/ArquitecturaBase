@@ -30,7 +30,7 @@ public sealed class FormAssistantProposalChannelTests(ApiFactory factory)
         var provenance = new AssistantOperationProvenance("fictitious-profile", 1, "capabilities-v1", 1, factory.Clock.GetUtcNow().UtcDateTime, "whatsapp-assistant");
         var form = new AssistantObservedProposal(Guid.NewGuid(), Guid.NewGuid(), new(BusinessFormAuthoringAssistantCapabilitySource.ProposeFormId, 1),
             new FormAuthoringFormProposal("es", "Canal " + scenario.Suffix, scenario.Prefix, "Enviar", [new("Fecha", "date", true, [], null), new("Milímetros", "number", true, [], null)]));
-        var created = await CreateAsync(new(Context(scenario.AuthorId), form, provenance));
+        var created = await CreateAsync(new(Guid.NewGuid(), Context(scenario.AuthorId), form, provenance));
         Assert.True(created.IsSuccess);
         Assert.Equal((StructuredAuthoringKind.Form, "Canal " + scenario.Suffix, $"/formularios/{created.Value.Id:D}"), (created.Value.Kind, created.Value.Name, created.Value.AppPath));
         var stored = await scenario.DefinitionAsync(created.Value.Id, Ct);
@@ -40,16 +40,16 @@ public sealed class FormAssistantProposalChannelTests(ApiFactory factory)
             Assert.Equal(scenario.AuthorId, evidence.RootElement.GetProperty("requestedByUserId").GetGuid());
             Assert.False(evidence.RootElement.TryGetProperty("requestedIn", out _));
         }
-        Assert.Equal(created.Value.Id, (await CreateAsync(new(Context(scenario.AuthorId), form, provenance))).Value.Id);
+        Assert.Equal(created.Value.Id, (await CreateAsync(new(Guid.NewGuid(), Context(scenario.AuthorId), form, provenance))).Value.Id);
         Assert.Equal(1, await scenario.CountDefinitionsAsync(form.Id, Ct));
 
         var denied = form with { Id = Guid.NewGuid() };
-        Assert.Equal(FormDefinitionErrors.Forbidden, (await CreateAsync(new(Context(scenario.ReaderId), denied, provenance))).Error);
+        Assert.Equal(FormDefinitionErrors.Forbidden, (await CreateAsync(new(Guid.NewGuid(), Context(scenario.ReaderId), denied, provenance))).Error);
         Assert.Equal(0, await scenario.CountDefinitionsAsync(denied.Id, Ct));
 
         var manual = new AssistantObservedProposal(Guid.NewGuid(), Guid.NewGuid(), new(BusinessFormAuthoringAssistantCapabilitySource.ProposeCatalogId, 1),
             new FormAuthoringCatalogProposal("es", "Contratistas " + scenario.Suffix, "Empresas ficticias", "text", "CUIT", "Razón social", [new("Rubro", "text")]));
-        var catalog = await CreateAsync(new(Context(scenario.AuthorId), manual, provenance));
+        var catalog = await CreateAsync(new(Guid.NewGuid(), Context(scenario.AuthorId), manual, provenance));
         Assert.True(catalog.IsSuccess);
         Assert.Equal($"/catalogos/{catalog.Value.Id:D}", catalog.Value.AppPath);
         var row = await factory.ExecuteScopeAsync(services => services.GetRequiredService<ApplicationDbContext>().Set<BusinessFormCatalog>().AsNoTracking()

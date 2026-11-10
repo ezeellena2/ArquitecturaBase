@@ -22,6 +22,14 @@
   <data name="AuthoringFormExists" xml:space="preserve"><value>For now I do not change forms that already exist. You can change it from the app: {0}</value></data>
   <data name="AuthoringCatalogExists" xml:space="preserve"><value>For now I do not change catalogs that already exist. You can change it from the app: {0}</value></data>
   <data name="AuthoringClarify" xml:space="preserve"><value>I am not sure what you want me to build. Tell me whether it is a form or a catalog, what it is for and what information it holds, in writing or with an audio.</value></data>
+  <data name="AuthoringCatalogRows" xml:space="preserve"><value>I propose the catalog {0}: {1}. {2} Shall I build it?</value></data>
+  <data name="AuthoringRowsOne" xml:space="preserve"><value>There is 1 row.</value></data>
+  <data name="AuthoringRowsMany" xml:space="preserve"><value>There are {0} rows.</value></data>
+  <data name="AuthoringImport" xml:space="preserve"><value>I propose importing the spreadsheet into the catalog {0}: {1}. {2} Do you want to review it?</value></data>
+  <data name="AuthoringReviewImport" xml:space="preserve"><value>Review import</value></data>
+  <data name="AuthoringImportReview" xml:space="preserve"><value>Review the import from the app: {0}</value></data>
+  <data name="AuthoringImportUnavailable" xml:space="preserve"><value>I could not open the import. Tap "Change something" and tell me what to change, or import it from the app.</value></data>
+  <data name="AuthoringClarifySpreadsheet" xml:space="preserve"><value>What do you want me to do with this spreadsheet? I can build a catalog with it or import it into one that already exists. Tell me in writing or with an audio.</value></data>
   <data name="SpreadsheetLegacy" xml:space="preserve"><value>I cannot read an old Excel file (.xls). Save it as an Excel Workbook (.xlsx) or as CSV UTF-8 and send it again.</value></data>
   <data name="SpreadsheetProtected" xml:space="preserve"><value>I cannot read a password-protected spreadsheet. Save it without the password and send it again.</value></data>
   <data name="SpreadsheetMacroEnabled" xml:space="preserve"><value>I cannot read an Excel file with macros or in binary format (.xlsm or .xlsb). Save it as an Excel Workbook (.xlsx) and send it again.</value></data>

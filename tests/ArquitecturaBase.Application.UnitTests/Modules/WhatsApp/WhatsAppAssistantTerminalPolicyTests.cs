@@ -41,6 +41,49 @@ public sealed class WhatsAppAssistantTerminalPolicyTests
         Assert.Equal(["Crear catálogo", "Cambiar algo"], response.Buttons!.Select(button => button.Title));
     }
 
+    // IA, Stage 2: a catalog that maps a spreadsheet adds its rows; an import is reviewed in the app, never created from here.
+    [Theory]
+    [InlineData("es", 86, "Te propongo el catálogo Contratistas: el código es el CUIT y cada opción la razón social. Son 86 filas. ¿Lo armo?")]
+    [InlineData("es", 1, "Te propongo el catálogo Contratistas: el código es el CUIT y cada opción la razón social. Es 1 fila. ¿Lo armo?")]
+    [InlineData("es", 1234, "Te propongo el catálogo Contratistas: el código es el CUIT y cada opción la razón social. Son 1.234 filas. ¿Lo armo?")]
+    [InlineData("en", 1234, "I propose the catalog Contratistas: el código es el CUIT y cada opción la razón social. There are 1,234 rows. Shall I build it?")]
+    public async Task A_catalog_that_maps_a_spreadsheet_says_how_many_rows_it_takes(string culture, int rows, string expected)
+    {
+        var host = new WhatsAppAssistantTerminalFixture { CapabilityId = "forms.authoring.propose-catalog", CapabilityVersion = 2, Culture = culture,
+            Summary = new(StructuredAuthoringKind.Catalog, "Contratistas", ["el código es el CUIT y cada opción la razón social"], 0) { RowCount = rows } };
+        var response = Assert.IsType<WhatsAppAssistantTerminalResponse>((await host.Policy.ApplyAsync(host.Reference, host.Source, host.Operation, Ct)).Value);
+        Assert.Equal(expected, response.Body);
+        Assert.Equal(WhatsAppAssistantAuthoringReplyCodec.Encode(host.RequestId, host.ProposalId, WhatsAppAssistantAuthoringReplyCodec.Create), response.Buttons![0].Id);
+    }
+
+    [Theory]
+    [InlineData("es", "Te propongo importar la planilla en el catálogo Clientes: el código de la columna A (CUIT) y cada opción de la columna B (Razón social). Son 86 filas. ¿La revisás?",
+        "Revisar importación", "Cambiar algo")]
+    [InlineData("en", "I propose importing the spreadsheet into the catalog Clientes: el código de la columna A (CUIT) y cada opción de la columna B (Razón social). There are 86 rows. Do you want to review it?",
+        "Review import", "Change something")]
+    public async Task An_import_is_one_sentence_with_review_import_and_change_something(string culture, string body, string review, string change)
+    {
+        var host = new WhatsAppAssistantTerminalFixture { CapabilityId = "forms.authoring.propose-import", Culture = culture,
+            Summary = new(StructuredAuthoringKind.Import, "Clientes", ["el código de la columna A (CUIT) y cada opción de la columna B (Razón social)"], 0)
+                { RowCount = 86, AppPath = "/catalogos/0193f2c4-7a1e-7c10-9d4e-2b1f3a4c5d70?pedido=a&propuesta=b" } };
+        var response = Assert.IsType<WhatsAppAssistantTerminalResponse>((await host.Policy.ApplyAsync(host.Reference, host.Source, host.Operation, Ct)).Value);
+        Assert.Equal(body, response.Body);
+        Assert.Equal([review, change], response.Buttons!.Select(button => button.Title));
+        Assert.All(response.Buttons!, button => Assert.True(button.Title.Length <= 20));
+        Assert.Equal([WhatsAppAssistantAuthoringReplyCodec.Encode(host.RequestId, host.ProposalId, WhatsAppAssistantAuthoringReplyCodec.Review),
+            WhatsAppAssistantAuthoringReplyCodec.Encode(host.RequestId, host.ProposalId, WhatsAppAssistantAuthoringReplyCodec.Change)], response.Buttons!.Select(button => button.Id));
+        Assert.DoesNotContain("catalogos", response.Body, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("forms.authoring.propose-catalog", 2, true)]
+    [InlineData("forms.authoring.propose-catalog", 1, true)]
+    [InlineData("forms.authoring.propose-import", 1, true)]
+    [InlineData("forms.authoring.propose-import", 2, false)]
+    [InlineData("forms.authoring.propose-form", 2, false)]
+    public void The_catalog_with_its_mapping_and_the_import_close_the_operation_and_version_one_still_does(string id, int version, bool handled) =>
+        Assert.Equal(handled, WhatsAppAssistantTerminalPolicy.Handles(new(id, version)));
+
     [Fact]
     public async Task Questions_that_do_not_fit_one_message_join_the_ones_counted_at_the_end()
     {
@@ -77,6 +120,31 @@ public sealed class WhatsAppAssistantTerminalPolicyTests
         var response = Assert.IsType<WhatsAppAssistantTerminalResponse>((await host.Policy.ApplyAsync(host.Reference, host.Source, host.Operation, Ct)).Value);
         Assert.Equal((expected, true, host.ProposalId), (response.Body, response.AwaitsAnswer, response.ProposalId));
         Assert.Null(response.Buttons);
+    }
+
+    // IA, Stage 2: a question with a spreadsheet in the conversation, the request's own or one the conversation brought before (the
+    // engine inherits it along the operations each one continues), asks what to do with it.
+    [Theory]
+    [InlineData("es", "own", "¿Qué querés que haga con esta planilla? Puedo armar un catálogo con ella o importarla en uno que ya existe. Contame por escrito o con un audio.")]
+    [InlineData("en", "own", "What do you want me to do with this spreadsheet? I can build a catalog with it or import it into one that already exists. Tell me in writing or with an audio.")]
+    [InlineData("es", "inherited", "¿Qué querés que haga con esta planilla? Puedo armar un catálogo con ella o importarla en uno que ya existe. Contame por escrito o con un audio.")]
+    [InlineData("es", "none", "No me queda claro qué querés que arme. Contame si es un formulario o un catálogo, para qué es y qué datos lleva, por escrito o con un audio.")]
+    public async Task An_unclear_request_with_a_spreadsheet_in_the_conversation_asks_what_to_do_with_it(string culture, string spreadsheet, string expected)
+    {
+        var host = new WhatsAppAssistantTerminalFixture { CapabilityId = "forms.authoring.decline", Culture = culture,
+            Summary = new(StructuredAuthoringKind.Declined, "", [], 0) { Reason = "unclear" } };
+        var reference = host.Reference;
+        if (spreadsheet == "own") reference = reference with { AttachmentMessageId = Guid.NewGuid() };
+        else
+        {
+            var first = Guid.NewGuid(); var second = Guid.NewGuid();
+            reference = reference with { PreviousRequestId = second };
+            host.Reader.References[second] = reference with { RequestId = second, PreviousRequestId = first };
+            host.Reader.References[first] = reference with { RequestId = first, PreviousRequestId = null,
+                AttachmentMessageId = spreadsheet == "inherited" ? Guid.NewGuid() : null };
+        }
+        var response = Assert.IsType<WhatsAppAssistantTerminalResponse>((await host.Policy.ApplyAsync(reference, host.Source, host.Operation, Ct)).Value);
+        Assert.Equal((expected, true), (response.Body, response.AwaitsAnswer));
     }
 
     [Fact]

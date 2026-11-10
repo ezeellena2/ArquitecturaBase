@@ -19,7 +19,7 @@ public sealed class WhatsAppAssistantTerminalDispatchTests
         var sinks=new Sinks(host);
         var service=new WhatsAppAssistantDispatchService(host.Context.Policy,new(host.Reader,host.Assistant,host.Forms,host.Context.Clock,host.Presentation),
             host.Reader,host.Requests,host.Conversation,host.UnitOfWork,new(WhatsAppAssistantAcceptanceFixture.Create(host),host.Reader,
-            host.Context.Clock,host.Conversation,host.Messages,new(sinks,sinks,sinks),new(host.Reader,host.Context.Clock)),NullLogger<WhatsAppAssistantDispatchService>.Instance);
+            host.Context.Clock,host.Conversation,host.Messages,new(sinks,sinks,sinks,host.Reader),new(host.Reader,host.Context.Clock)),NullLogger<WhatsAppAssistantDispatchService>.Instance);
         var id=host.Request.RequestId;
         if(automatic)
         {
@@ -112,7 +112,7 @@ public sealed class WhatsAppAssistantTerminalDispatchTests
         public Uri? Value=>new("https://business.example.test/");
         private void Called(){Assert.False(host.UnitOfWork.InTransaction);Calls++;AfterCommit?.Invoke();}
         // The owner's summary is pure; creating only happens from the button, never from a terminal.
-        public StructuredAuthoringSummary? Summarize(AssistantObservedProposal proposal,string culture)
+        public StructuredAuthoringSummary? Summarize(Guid requestId,AssistantObservedProposal proposal,string culture)
         {Summaries++;return proposal.Capability.Id switch
         {
             "forms.authoring.propose-form"=>new(StructuredAuthoringKind.Form,"Parte de lluvias · LLU",["1. Milímetros · número"],0),

@@ -106,4 +106,56 @@ public sealed class WhatsAppAssistantSourceQueryTests
         Assert.DoesNotContain("UNION",sql,StringComparison.Ordinal);
         Assert.DoesNotContain("WhatsAppMessages",sql,StringComparison.Ordinal);
         Assert.DoesNotContain("ContextJson",sql,StringComparison.Ordinal);
+    }
+
+    // IA, Stage 2: a stored spreadsheet is a source while its copy and its prepared sheet last, with or without a caption.
+    [Theory]
+    [InlineData("Spreadsheet")]
+    [InlineData("Stored")]
+    [InlineData("SpreadsheetPreparedJson")]
+    [InlineData("SpreadsheetStorageKey")]
+    public void A_stored_spreadsheet_is_a_source_with_SQL_guards(string expected)
+    {
+        using var db=new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql("Host=localhost;Database=not-opened;Username=test;Password=test").Options);
+        var reader=new WhatsAppAssistantReader(db,Options.Create(new WhatsAppMessageRetentionOptions()),new FakeTimeProvider(new DateTime(2026,11,10,12,0,0,DateTimeKind.Utc)));
+        var query=Assert.IsAssignableFrom<IQueryable<WhatsAppMessage>>(typeof(WhatsAppAssistantReader).GetMethod("Sources",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(reader,null));
+        Assert.Contains(expected,query.Select(message=>message.Id).ToQueryString(),StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("Importala en Clientes","Importala en Clientes")]
+    [InlineData(null,"")]
+    public void A_stored_spreadsheet_projects_its_caption_its_copy_and_the_lifetime_of_its_message(string? caption,string body)
+    {
+        var now=new DateTime(2026,11,10,12,0,0,DateTimeKind.Utc);
+        using var db=new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql("Host=localhost;Database=not-opened;Username=test;Password=test").Options);
+        var reader=new WhatsAppAssistantReader(db,Options.Create(new WhatsAppMessageRetentionOptions{MessageRetentionDays=30}),new FakeTimeProvider(now));
+        var message=WhatsAppMessage.Inbound(Guid.NewGuid(),"wamid.source-spreadsheet",WhatsAppMessageKind.Spreadsheet,caption,null,now.AddHours(-1));
+        Assert.True(message.SetSpreadsheetDescriptor("1234","text/csv",new string('a',64),"clientes.csv"));
+        Assert.True(message.StoreSpreadsheet($"whatsapp/documents/{message.Id:N}.csv",27,new string('b',64),"{\"rowCount\":3}").IsSuccess);
+        var rows=Assert.IsAssignableFrom<IQueryable<ArquitecturaBase.Application.Modules.WhatsApp.Models.WhatsAppAssistantSourceRow>>(
+            typeof(WhatsAppAssistantReader).GetMethod("SourceRows",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(reader,[new[]{message}.AsQueryable()]));
+        var source=Assert.Single(rows);
+        Assert.Equal((message.Id,body,WhatsAppMessageKind.Spreadsheet,message.OccurredAtUtc.AddDays(30)),(source.Id,source.Body,source.Kind,source.ContentExpiresAtUtc));
+        var spreadsheet=Assert.IsType<ArquitecturaBase.Application.Modules.WhatsApp.Models.WhatsAppAssistantSpreadsheetRow>(source.Spreadsheet);
+        Assert.Equal((message.Id,$"whatsapp/documents/{message.Id:N}.csv","clientes.csv",27L,new string('b',64),message.OccurredAtUtc.AddDays(30),"{\"rowCount\":3}"),
+            (spreadsheet.MessageId,spreadsheet.StorageKey,spreadsheet.FileName,spreadsheet.Size,spreadsheet.Sha256,spreadsheet.ExpiresAtUtc,spreadsheet.PreparedJson));
+    }
+
+    // The rule changed: a source no longer stands alone, it pairs with the business message just before it, and an assistant reply
+    // requested between the two (one that did not fail) keeps them apart.
+    [Theory]
+    [InlineData("\"InboundSequence\" <")]
+    [InlineData("ORDER BY")]
+    [InlineData("WhatsAppOutgoingMessages")]
+    [InlineData("\"RequestedAtUtc\" >")]
+    [InlineData("\"Origin\"")]
+    public void The_message_before_a_source_and_the_replies_in_between_are_read_in_SQL(string expected)
+    {
+        var now=new DateTime(2026,11,10,12,0,0,DateTimeKind.Utc);
+        using var db=new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql("Host=localhost;Database=not-opened;Username=test;Password=test").Options);
+        var reader=new WhatsAppAssistantReader(db,Options.Create(new WhatsAppMessageRetentionOptions()),new FakeTimeProvider(now));
+        var source=new ArquitecturaBase.Application.Modules.WhatsApp.Models.WhatsAppAssistantSourceRow(Guid.NewGuid(),Guid.NewGuid(),"Armame un catálogo",now,now.AddDays(90)){InboundSequence=4};
+        var query=Assert.IsAssignableFrom<IQueryable>(typeof(WhatsAppAssistantReader).GetMethod("PreviousRows",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(reader,[source]));
+        Assert.Contains(expected,query.ToQueryString(),StringComparison.Ordinal);
     }}

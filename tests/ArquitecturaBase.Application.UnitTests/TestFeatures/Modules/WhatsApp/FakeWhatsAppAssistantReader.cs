@@ -35,7 +35,9 @@ internal sealed class FakeWhatsAppAssistantReader : IWhatsAppAssistantReader
     public Task<WhatsAppAssistantSuggestionPointerResponse?> FindCurrentAsync(Guid contactId,CancellationToken ct) => Task.FromResult<WhatsAppAssistantSuggestionPointerResponse?>(CurrentIsVisible && Reference is { } row ? new(row.RequestId,row.SourceMessageId,row.State):null);
     public Task<WhatsAppOutgoingMessageRow?> FindOutgoingAsync(Guid contactId,Guid requestId,CancellationToken ct) => Task.FromResult(Outgoing);
     public Task<WhatsAppAssistantReferenceRow?> FindByOutgoingAsync(Guid outgoingId,CancellationToken ct)=>Task.FromResult(Reference);
-    public Task<WhatsAppAssistantReferenceRow?> FindAsync(Guid contactId,Guid requestId,CancellationToken ct) => Task.FromResult(Reference);
+    // IA, Stage 2: the references of a conversation by their request, for the walk along the operations they continue.
+    public Dictionary<Guid,WhatsAppAssistantReferenceRow> References { get; } = [];
+    public Task<WhatsAppAssistantReferenceRow?> FindAsync(Guid contactId,Guid requestId,CancellationToken ct) => Task.FromResult(References.TryGetValue(requestId,out var row)?row:Reference);
     public Task<WhatsAppAssistantSourceRow?> FindSourceAsync(Guid contactId,Guid id,CancellationToken ct) => Task.FromResult(PinnedSource??Source);
     public Task<WhatsAppAssistantSourceRow?> FindLatestSourceAsync(Guid contactId,CancellationToken ct) => Task.FromResult(Source);
     public Task<IReadOnlyList<Guid>> ListPendingContactsAsync(IReadOnlyCollection<Guid> excluded,int limit,DateTime nowUtc,CancellationToken ct) => Task.FromResult<IReadOnlyList<Guid>>([]);

@@ -44,6 +44,23 @@ public sealed class WhatsAppAssistantRequestTests
         Assert.False(answered.AwaitAnswer());
     }
 
+    // IA, Stage 2: the reference names the spreadsheet message its request carries, so a recovery makes the same request.
+    [Fact]
+    public void A_reference_carries_once_the_spreadsheet_its_request_brings_while_pending()
+    {
+        var request = Create(WhatsAppAssistantRequestKind.Automatic); var spreadsheet = Guid.CreateVersion7();
+        Assert.False(request.CarryAttachment(Guid.Empty));
+        Assert.True(request.CarryAttachment(spreadsheet)); Assert.True(request.CarryAttachment(spreadsheet));
+        Assert.False(request.CarryAttachment(Guid.CreateVersion7()));
+        Assert.Equal(spreadsheet, request.AttachmentMessageId);
+        Assert.True(Create().CarryAttachment(spreadsheet));
+        var answered = Create(WhatsAppAssistantRequestKind.Automatic); Assert.True(answered.FinishWithoutReply(false, Now));
+        Assert.False(answered.CarryAttachment(spreadsheet)); Assert.Null(answered.AttachmentMessageId);
+        var captured = Create(WhatsAppAssistantRequestKind.Automatic);
+        Assert.True(captured.SetCapturedSuggestion(Guid.CreateVersion7(), null, null, "es", false, Now));
+        Assert.False(captured.CarryAttachment(spreadsheet));
+    }
+
     [Fact]
     public void A_reference_preserves_its_server_identities_without_creating_an_operator()
     {

@@ -35,7 +35,8 @@ internal sealed class FormCatalogAssistantProposalService(IAssistantProposalLook
     }
 
     // IA3-A: the channel's own conversation, where the person is both Actor and Subject, tapped «Crear catálogo» on the latest
-    // proposal it showed; the channel checks that it is the latest one.
+    // proposal it showed; the channel checks that it is the latest one. Its request goes to the evidence, as Home's, so a catalog
+    // created from a proposal with a spreadsheet keeps its pending import in the app (IA, Stage 2).
     public async Task<Result<FormCatalogAssistantProposalResponse>> CreateFromChannelAsync(StructuredAuthoringProposalRequest request, CancellationToken cancellationToken)
     {
         var context = request.Context;
@@ -43,7 +44,7 @@ internal sealed class FormCatalogAssistantProposalService(IAssistantProposalLook
         var access = await accessGuard.CheckActorAsync(context.ActorUserId, true, cancellationToken);
         if (access.IsFailure) return access.Error;
         if (await CreatedAsync(access.Value, request.Proposal.Id, cancellationToken) is { } created) return created;
-        return await CreateCatalogAsync(access.Value, context, request.Proposal, request.Provenance, null, null, cancellationToken);
+        return await CreateCatalogAsync(access.Value, context, request.Proposal, request.Provenance, null, request.RequestId, cancellationToken);
     }
 
     public async Task<Result<FormCatalogAssistantProposalResponse>> GetAsync(Guid proposalId, CancellationToken cancellationToken)

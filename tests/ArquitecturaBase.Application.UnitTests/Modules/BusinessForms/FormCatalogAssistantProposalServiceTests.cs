@@ -70,7 +70,8 @@ public sealed class FormCatalogAssistantProposalServiceTests
         var catalog = Assert.Single(host.Catalogs.Catalogs);
         Assert.Equal(catalog.Id, result.Value.CatalogId);
         var evidence = FormCatalogProposalPresentation.Evidence(catalog.ProposalEvidenceJson!);
-        Assert.Equal((2, (string?)null), (evidence.CapabilityVersion, evidence.RequestedIn));
+        // The channel's request goes to the evidence, so the catalog keeps its pending import in the app (IA, Stage 2).
+        Assert.Equal((2, (string?)null, (Guid?)host.Lookup.RequestId), (evidence.CapabilityVersion, evidence.RequestedIn, evidence.RequestId));
         Assert.Equal(JsonSerializer.Serialize(host.Manual, JsonSerializerOptions.Web), JsonSerializer.Serialize(evidence.Manual, JsonSerializerOptions.Web));
     }
 
@@ -204,6 +205,7 @@ public sealed class FormCatalogAssistantProposalServiceTests
         Assert.Equal((BusinessFormCatalogKind.Manual, false, BusinessFormCatalogProposalState.Pending), (catalog.Kind, catalog.IsActive, catalog.ProposalState));
         var evidence = FormCatalogProposalPresentation.Evidence(catalog.ProposalEvidenceJson!);
         Assert.Equal((host.Catalogs.Assistant.Actor, (string?)null, "whatsapp-assistant"), (evidence.RequestedByUserId, evidence.RequestedIn, evidence.Provenance.ChannelId));
+        Assert.Equal(host.Lookup.RequestId, evidence.RequestId);
         Assert.Equal(new FormCatalogAssistantProposalResponse(host.ProposalId, catalog.Id), result.Value);
         Assert.Equal(0, host.Lookup.Reads);
     }
@@ -272,7 +274,7 @@ public sealed class FormCatalogAssistantProposalServiceTests
         public CreateFromAssistantProposalRequest Request => new(Lookup.RequestId, ProposalId);
 
         // WhatsApp's own conversation, where the person is both Actor and Subject, in the assistant mode.
-        public StructuredAuthoringProposalRequest ChannelRequest() => new(Catalogs.Assistant.Context, Lookup.Response!.Proposal,
+        public StructuredAuthoringProposalRequest ChannelRequest() => new(Lookup.RequestId, Catalogs.Assistant.Context, Lookup.Response!.Proposal,
             Lookup.Response.Provenance with { ChannelId = "whatsapp-assistant" });
     }
 }

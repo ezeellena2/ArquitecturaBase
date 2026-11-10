@@ -8,8 +8,13 @@ internal sealed class WhatsAppAssistantRequestConfiguration : IEntityTypeConfigu
 {
     public void Configure(EntityTypeBuilder<WhatsAppAssistantRequest> builder)
     {
-        builder.ToTable("WhatsAppAssistantRequests",table=>table.HasCheckConstraint("CK_WhatsAppAssistantRequests_ActorContext",
-            "(\"ActorUserId\" IS NOT NULL AND \"ContextJson\" IS NOT NULL) OR (\"IsAlways\" AND \"Kind\" = 'Manual')"));
+        // IA, Stage 2: what follows a captured response never carries a spreadsheet.
+        builder.ToTable("WhatsAppAssistantRequests",table=>
+        {
+            table.HasCheckConstraint("CK_WhatsAppAssistantRequests_ActorContext",
+                "(\"ActorUserId\" IS NOT NULL AND \"ContextJson\" IS NOT NULL) OR (\"IsAlways\" AND \"Kind\" = 'Manual')");
+            table.HasCheckConstraint("CK_WhatsAppAssistantRequests_Attachment","\"AttachmentMessageId\" IS NULL OR \"SourceRecordId\" IS NULL");
+        });
         builder.HasKey(request => request.Id);
         builder.Property(request => request.Kind).HasConversion<string>().HasMaxLength(16);
         builder.Property(request => request.State).HasConversion<string>().HasMaxLength(16);

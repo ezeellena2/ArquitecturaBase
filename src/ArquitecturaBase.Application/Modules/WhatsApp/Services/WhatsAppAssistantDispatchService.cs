@@ -49,10 +49,16 @@ internal sealed class WhatsAppAssistantDispatchService(WhatsAppAssistantAccessPo
             return await PrepareCapturedAsync(contact,latest,recordId,ct);
         if(row is null && contact.Mode==WhatsAppConversationMode.Assistant)
         {
-            if(latest is null || latest.AssistantProcessedAtUtc is not null || await requests.GetBySourceAsync(contactId,latest.Id,WhatsAppAssistantRequestKind.Automatic,ct) is not null)
+            // A text whose spreadsheet is still downloading waits for it (IA, Stage 2).
+            if(latest is null || latest.AssistantProcessedAtUtc is not null || latest.State==WhatsAppAssistantSourceState.Waiting
+                || await requests.GetBySourceAsync(contactId,latest.Id,WhatsAppAssistantRequestKind.Automatic,ct) is not null)
                 return Result.Success<WhatsAppAssistantWorkResponse?>(null);
-            var captured=await access.CaptureAsync(contact,null,ct);
-            if(captured.IsFailure || latest.ContentExpiresAtUtc<=proposals.NowUtc)
+            // After «Cambiar algo» or a question this message is the answer: the engine continues that operation (IA3-A).
+            var previous=await reader.FindChangeRequestAsync(contactId,ct);
+            // A spreadsheet without a request is only that answer, and a text whose spreadsheet was rejected was already answered.
+            var interpretable=latest.State==WhatsAppAssistantSourceState.Ready || latest.State==WhatsAppAssistantSourceState.Alone && previous is not null;
+            var captured=interpretable?await access.CaptureAsync(contact,null,ct):null;
+            if(captured is not {IsSuccess:true} || latest.ContentExpiresAtUtc<=proposals.NowUtc)
             {
                 await automatic.MarkSourceAsync(latest,ct);
                 return Result.Success<WhatsAppAssistantWorkResponse?>(null);
@@ -60,8 +66,8 @@ internal sealed class WhatsAppAssistantDispatchService(WhatsAppAssistantAccessPo
             row=WhatsAppAssistantRequest.Create(Guid.CreateVersion7(),contactId,latest.Id,captured.Value.Context.ActorUserId,
                 captured.Value.Context.SubjectUserId!.Value,WhatsAppAssistantRequestKind.Automatic,contact.ModeRevision,contact.LinkRevision,
                 JsonSerializer.Serialize(captured.Value.Context,JsonSerializerOptions.Web),proposals.NowUtc,latest.ContentExpiresAtUtc);
-            // After «Cambiar algo» this message is the change: the engine continues that proposal's operation (IA3-A).
-            if(await reader.FindChangeRequestAsync(contactId,ct) is {} previous) row.ContinueFrom(previous);
+            if(previous is {} change) row.ContinueFrom(change);
+            if(latest.Spreadsheet is {} spreadsheet) row.CarryAttachment(spreadsheet.MessageId);
             requests.Add(row);
         }
         if(row is null)return Result.Success<WhatsAppAssistantWorkResponse?>(null);
@@ -146,13 +152,21 @@ internal sealed class WhatsAppAssistantDispatchService(WhatsAppAssistantAccessPo
             proposals.NowUtc,source.ContentExpiresAtUtc);
 
     private static bool MatchesSource(WhatsAppAssistantRequest row,WhatsAppAssistantSourceRow? source)=>source is not null
-        && (source.Id==row.SourceMessageId || row.SourceRecordId.HasValue && source.CapturedRecordId==row.SourceRecordId);
+        && (MakesRequest(row,source) || row.SourceRecordId.HasValue && source.CapturedRecordId==row.SourceRecordId);
+
+    // The latest source still makes this reference's request: the same message, with the same spreadsheet (IA, Stage 2), interpreted
+    // now or, a spreadsheet without a request, as the answer the reference continues.
+    private static bool MakesRequest(WhatsAppAssistantRequest row,WhatsAppAssistantSourceRow source)=>source.Id==row.SourceMessageId
+        && source.Spreadsheet?.MessageId==row.AttachmentMessageId
+        && (source.State==WhatsAppAssistantSourceState.Ready || source.State==WhatsAppAssistantSourceState.Alone && row.PreviousRequestId.HasValue);
 
     private static WhatsAppAssistantWorkResponse Work(WhatsAppAssistantRequest row,WhatsAppAssistantSourceRow source,bool submit)=>
         row.IsAlways?new(row.RequestId,null){ShouldSubmit=false}:new(row.RequestId,new(row.RequestId,
             WhatsAppAssistantSuggestionPolicy.Context(WhatsAppAssistantSuggestionPolicy.Reference(row)),row.SourceRecordId is {} recordId
                 ? "A form response was captured. Evaluate only its configured next-form suggestions. Source record: "+recordId.ToString("D")+"."
-                : source.Body,source.OccurredAtUtc,row.ContentExpiresAtUtc){PreviousRequestId=row.PreviousRequestId}){ShouldSubmit=submit};
+                : source.Body,source.OccurredAtUtc,row.ContentExpiresAtUtc)
+            {PreviousRequestId=row.PreviousRequestId,Attachment=row.AttachmentMessageId is {} attachment && source.Spreadsheet is {} spreadsheet
+                && spreadsheet.MessageId==attachment ? WhatsAppAssistantSourcePolicy.Attachment(spreadsheet) : null}){ShouldSubmit=submit};
 
     public Task<Result> CompleteConfiguredAsync(Guid contactId,Guid requestId,CancellationToken ct)=>
         OperationLog.RunAsync<Result>(logger,"CompleteConfiguredWhatsAppSuggestion",()=>CompleteConfiguredCoreAsync(contactId,requestId,ct));
@@ -239,7 +253,7 @@ internal sealed class WhatsAppAssistantDispatchService(WhatsAppAssistantAccessPo
                 }
             }
             else if (await access.RevalidateAsync(contact, WhatsAppAssistantSuggestionPolicy.Reference(row), token) is not null
-                || await reader.FindLatestSourceAsync(contactId, token) is not {} latest || latest.Id != row.SourceMessageId || observed.IsFailure)
+                || await reader.FindLatestSourceAsync(contactId, token) is not {} latest || !MakesRequest(row, latest) || observed.IsFailure)
             {
                 row.FinishWithoutReply(true, proposals.NowUtc);
                 return Result.Success();

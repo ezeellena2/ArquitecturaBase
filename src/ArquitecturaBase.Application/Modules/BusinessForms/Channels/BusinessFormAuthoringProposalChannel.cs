@@ -10,16 +10,21 @@ using ArquitecturaBase.Domain.Results;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Channels;
 
 // IA3-A: a channel shows an authoring proposal as its own summary and creates it with a button; creating is the same as from
-// Home, with the channel's person, and returns the app path where that person reviews and publishes it.
+// Home, with the channel's person, and returns the app path where that person reviews and publishes it. An import (IA, Stage 2)
+// creates nothing: its summary brings the path to review it in the app, with the operation and the proposal.
 internal sealed class BusinessFormAuthoringProposalChannel(IFormDraftProposalService drafts, IFormCatalogAssistantProposalService catalogs)
     : IStructuredAuthoringProposalChannel
 {
-    public StructuredAuthoringSummary? Summarize(AssistantObservedProposal proposal, string culture) => proposal switch
+    public StructuredAuthoringSummary? Summarize(Guid requestId, AssistantObservedProposal proposal, string culture) => proposal switch
     {
         { Capability: { Id: BusinessFormAuthoringAssistantCapabilitySource.ProposeFormId, Version: 1 }, Payload: FormAuthoringFormProposal form } =>
             FormAuthoringSummaryPolicy.Form(form, culture),
         { Capability: { Id: BusinessFormAuthoringAssistantCapabilitySource.ProposeCatalogId, Version: 1 }, Payload: FormAuthoringCatalogProposal manual } =>
             FormAuthoringSummaryPolicy.Catalog(manual, culture),
+        { Capability: { Id: BusinessFormAuthoringAssistantCapabilitySource.ProposeCatalogId, Version: BusinessFormAuthoringAssistantCapabilitySource.MappedCatalogVersion },
+            Payload: FormAuthoringMappedCatalogProposal mapped } => FormAuthoringSummaryPolicy.Catalog(mapped, culture),
+        { Capability: { Id: BusinessFormAuthoringAssistantCapabilitySource.ProposeImportId, Version: BusinessFormAuthoringAssistantCapabilitySource.Version },
+            Payload: FormAuthoringImportProposal import } => FormAuthoringSummaryPolicy.Import(import, requestId, proposal.Id, culture),
         { Capability: { Id: BusinessFormCatalogAssistantCapabilitySource.ProposeId, Version: 1 }, Payload: FormCatalogProposalPayload people } =>
             FormAuthoringSummaryPolicy.People(people, culture),
         { Capability: { Id: BusinessFormAuthoringAssistantCapabilitySource.DeclineId, Version: 1 }, Payload: FormAuthoringDecline decline } =>

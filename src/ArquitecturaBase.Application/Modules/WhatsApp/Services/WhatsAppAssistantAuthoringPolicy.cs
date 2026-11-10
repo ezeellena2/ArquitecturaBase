@@ -7,7 +7,8 @@ using ArquitecturaBase.Domain.Modules.WhatsApp;
 namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 
 // The owners' part of a tap on an authoring summary, outside any channel transaction: only the latest summary's buttons count,
-// «Cambiar algo» waits for the change, and «Crear» reads the operation again and lets its owner create it once.
+// «Cambiar algo» waits for the change, and «Crear» reads the operation again and lets its owner create it once. «Revisar
+// importación» (IA, Stage 2) reads it again too and answers with the link the owner builds, without creating anything.
 internal sealed class WhatsAppAssistantAuthoringPolicy(IWhatsAppAssistantReader reader, IAssistantOperations operations,
     IStructuredAuthoringProposalChannel authoring, IPublicOrigin origin)
 {
@@ -22,12 +23,17 @@ internal sealed class WhatsAppAssistantAuthoringPolicy(IWhatsAppAssistantReader 
             return new(reference, WhatsAppAssistantAuthoringText.Text("AuthoringReplaced", culture), culture, null);
         if (action == WhatsAppAssistantAuthoringReplyCodec.Change)
             return new(reference, WhatsAppAssistantAuthoringText.Text("AuthoringChangePrompt", culture), culture, requestId);
+        var review = action == WhatsAppAssistantAuthoringReplyCodec.Review;
+        var failed = WhatsAppAssistantAuthoringText.Text(review ? "AuthoringImportUnavailable" : "AuthoringNotCreated", culture);
         var context = WhatsAppAssistantSuggestionPolicy.Context(reference);
         var operation = await operations.GetAsync(context, requestId, ct);
         if (operation.IsFailure || operation.Value is not { Proposal: {} proposal, Provenance: {} provenance } || proposal.Id != proposalId
             || origin.Value is not {} publicOrigin)
-            return new(reference, WhatsAppAssistantAuthoringText.Text("AuthoringNotCreated", culture), culture, null);
-        var created = await authoring.CreateAsync(new(context, proposal, provenance), ct);
+            return new(reference, failed, culture, null);
+        if (review)
+            return new(reference, WhatsAppAssistantAuthoringText.Review(authoring.Summarize(requestId, proposal, culture), culture, publicOrigin) ?? failed,
+                culture, null);
+        var created = await authoring.CreateAsync(new(requestId, context, proposal, provenance), ct);
         return new(reference, created.IsSuccess ? WhatsAppAssistantAuthoringText.Created(created.Value, culture, publicOrigin)
             : WhatsAppAssistantAuthoringText.Text("AuthoringNotCreated", culture), culture, null);
     }

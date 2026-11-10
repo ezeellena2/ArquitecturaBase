@@ -18,12 +18,12 @@ public sealed class WhatsAppAssistantAuthoringTests
     private sealed record Arranged(WhatsAppAssistantSuggestionFixture Host, WhatsAppAssistantDispatchService Dispatch,
         WhatsAppAssistantAuthoringService Taps, Owner Owner, WhatsAppAssistantRequest Summary);
 
-    private static async Task<Arranged> SummarizedAsync()
+    private static async Task<Arranged> SummarizedAsync(string capability = "forms.authoring.propose-form")
     {
         var host = await WhatsAppAssistantSuggestionFixture.ReadyAsync();
         var owner = new Owner(host);
         var automatic = new WhatsAppAssistantAutomaticPolicy(WhatsAppAssistantAcceptanceFixture.Create(host), host.Reader, host.Context.Clock, host.Conversation,
-            host.Messages, new(owner, owner, owner), new(host.Reader, host.Context.Clock));
+            host.Messages, new(owner, owner, owner, host.Reader), new(host.Reader, host.Context.Clock));
         var dispatch = new WhatsAppAssistantDispatchService(host.Context.Policy, new(host.Reader, host.Assistant, host.Forms, host.Context.Clock, host.Presentation),
             host.Reader, host.Requests, host.Conversation, host.UnitOfWork, automatic, NullLogger<WhatsAppAssistantDispatchService>.Instance);
         var taps = new WhatsAppAssistantAuthoringService(host.Reader, host.Requests, host.Conversation, host.UnitOfWork, automatic,
@@ -32,7 +32,7 @@ public sealed class WhatsAppAssistantAuthoringTests
         var work = await dispatch.PrepareAsync(host.Context.Contact.Id, Ct);
         var id = work.Value!.RequestId;
         host.Assistant.Outcome = host.Assistant.Outcome.Value with { RequestId = id,
-            Proposal = host.Assistant.Outcome.Value.Proposal! with { Capability = new("forms.authoring.propose-form", 1) },
+            Proposal = host.Assistant.Outcome.Value.Proposal! with { Capability = new(capability, 1) },
             Provenance = host.Assistant.Outcome.Value.Provenance! with { ChannelId = "whatsapp-assistant" } };
         Assert.True((await dispatch.CompleteAsync(host.Context.Contact.Id, id, host.Assistant.Outcome, Ct)).IsSuccess);
         var summary = Assert.Single(host.Requests.Rows);
@@ -53,6 +53,8 @@ public sealed class WhatsAppAssistantAuthoringTests
         Assert.True((await arranged.Taps.ProcessTapAsync(arranged.Host.Context.Contact.Id, Ct)).IsSuccess);
         var request = Assert.Single(arranged.Owner.Created);
         Assert.Equal((arranged.Summary.ProposalId, "whatsapp-assistant"), (request.Proposal.Id, request.Context.ChannelId));
+        // The owner keeps the operation's request with what it creates (IA, Stage 2).
+        Assert.Equal(arranged.Summary.RequestId, request.RequestId);
         var reply = arranged.Host.Requests.Rows.Single(row => row.SourceMessageId == arranged.Host.Reader.AuthoringTap!.Id);
         Assert.Equal((WhatsAppAssistantRequestState.Sent, (Guid?)null), (reply.State, reply.ChangeRequestId));
         var outgoing = arranged.Host.Conversation.Outgoing.Single(row => row.Id == reply.OutgoingId);
@@ -76,6 +78,40 @@ public sealed class WhatsAppAssistantAuthoringTests
         var work = await arranged.Dispatch.PrepareAsync(arranged.Host.Context.Contact.Id, Ct);
         Assert.Equal(arranged.Summary.RequestId, work.Value!.Operation!.PreviousRequestId);
         Assert.Equal(arranged.Summary.RequestId, arranged.Host.Requests.Rows.Single(row => row.RequestId == work.Value.RequestId).PreviousRequestId);
+    }
+
+    // IA, Stage 2: an import's button reads the operation again and answers with the link its owner builds; it creates nothing.
+    [Fact]
+    public async Task Reviewing_an_import_replies_with_the_link_to_its_import_in_the_app_and_creates_nothing()
+    {
+        var arranged = await SummarizedAsync("forms.authoring.propose-import");
+        Tap(arranged, WhatsAppAssistantAuthoringReplyCodec.Review);
+        Assert.True((await arranged.Taps.ProcessTapAsync(arranged.Host.Context.Contact.Id, Ct)).IsSuccess);
+        var reply = arranged.Host.Requests.Rows.Single(row => row.SourceMessageId == arranged.Host.Reader.AuthoringTap!.Id);
+        Assert.Equal((WhatsAppAssistantRequestState.Sent, (Guid?)null), (reply.State, reply.ChangeRequestId));
+        var outgoing = arranged.Host.Conversation.Outgoing.Single(row => row.Id == reply.OutgoingId);
+        Assert.Equal(WhatsAppOutgoingMessageKind.Text, outgoing.Kind);
+        Assert.Equal($"Revisá la importación desde la app: https://business.example.test/catalogos/{arranged.Owner.CatalogId:D}?pedido={arranged.Summary.RequestId:N}&propuesta={arranged.Summary.ProposalId:N}",
+            outgoing.Body);
+        Assert.Empty(arranged.Owner.Created);
+    }
+
+    [Fact]
+    public async Task A_review_button_of_an_earlier_summary_says_that_it_changed_and_a_review_that_is_no_import_cannot_open()
+    {
+        var arranged = await SummarizedAsync("forms.authoring.propose-import");
+        arranged.Host.Reader.LatestAuthoringRequest = Guid.NewGuid();
+        Tap(arranged, WhatsAppAssistantAuthoringReplyCodec.Review);
+        await arranged.Taps.ProcessTapAsync(arranged.Host.Context.Contact.Id, Ct);
+        var stale = arranged.Host.Requests.Rows.Single(row => row.SourceMessageId == arranged.Host.Reader.AuthoringTap!.Id);
+        Assert.Equal("Esa propuesta ya cambió. Usá los botones de la última.", arranged.Host.Conversation.Outgoing.Single(row => row.Id == stale.OutgoingId).Body);
+
+        var form = await SummarizedAsync();
+        Tap(form, WhatsAppAssistantAuthoringReplyCodec.Review);
+        await form.Taps.ProcessTapAsync(form.Host.Context.Contact.Id, Ct);
+        var reply = form.Host.Requests.Rows.Single(row => row.SourceMessageId == form.Host.Reader.AuthoringTap!.Id);
+        Assert.StartsWith("No pude abrir la importación.", form.Host.Conversation.Outgoing.Single(row => row.Id == reply.OutgoingId).Body, StringComparison.Ordinal);
+        Assert.Empty(form.Owner.Created);
     }
 
     [Fact]
@@ -126,6 +162,9 @@ public sealed class WhatsAppAssistantAuthoringTests
         Assert.True(WhatsAppAssistantAuthoringReplyCodec.TryParse(WhatsAppAssistantAuthoringReplyCodec.Encode(requestId, proposalId, WhatsAppAssistantAuthoringReplyCodec.Change),
             out var request, out var proposal, out var action));
         Assert.Equal((requestId, proposalId, WhatsAppAssistantAuthoringReplyCodec.Change), (request, proposal, action));
+        Assert.True(WhatsAppAssistantAuthoringReplyCodec.TryParse(WhatsAppAssistantAuthoringReplyCodec.Encode(requestId, proposalId, WhatsAppAssistantAuthoringReplyCodec.Review),
+            out _, out _, out var review));
+        Assert.Equal(WhatsAppAssistantAuthoringReplyCodec.Review, review);
         Assert.False(WhatsAppAssistantAuthoringReplyCodec.TryParse(invalid, out _, out _, out _));
     }
 
@@ -134,10 +173,15 @@ public sealed class WhatsAppAssistantAuthoringTests
     {
         public List<StructuredAuthoringProposalRequest> Created { get; } = [];
         public Guid CreatedId { get; } = Guid.NewGuid();
+        public Guid CatalogId { get; } = Guid.NewGuid();
         public bool Failure { get; set; }
         public Uri? Value => new("https://business.example.test/");
-        public StructuredAuthoringSummary? Summarize(AssistantObservedProposal proposal, string culture) =>
-            new(StructuredAuthoringKind.Form, "Parte de lluvias · LLU", ["1. Milímetros · número"], 0);
+        // An import's path names the operation and the proposal, as the owner builds it.
+        public StructuredAuthoringSummary? Summarize(Guid requestId, AssistantObservedProposal proposal, string culture) =>
+            proposal.Capability.Id == "forms.authoring.propose-import"
+                ? new(StructuredAuthoringKind.Import, "Clientes", ["el código de la columna A (CUIT) y cada opción de la columna B (Razón social)"], 0)
+                    { RowCount = 2, AppPath = $"/catalogos/{CatalogId:D}?pedido={requestId:N}&propuesta={proposal.Id:N}" }
+                : new(StructuredAuthoringKind.Form, "Parte de lluvias · LLU", ["1. Milímetros · número"], 0);
         public Task<Result<StructuredAuthoringCreatedResponse>> CreateAsync(StructuredAuthoringProposalRequest request, CancellationToken ct)
         {
             Assert.False(host.UnitOfWork.InTransaction);

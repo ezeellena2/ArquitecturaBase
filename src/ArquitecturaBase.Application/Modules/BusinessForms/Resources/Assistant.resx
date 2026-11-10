@@ -22,4 +22,12 @@
   <data name="Authoring.Catalog.Field" xml:space="preserve"><value>el campo {0}</value></data>
   <data name="Authoring.Catalog.Fields" xml:space="preserve"><value>los campos {0}</value></data>
   <data name="Authoring.Pair" xml:space="preserve"><value>{0} y {1}</value></data>
+  <data name="Authoring.Import.Code" xml:space="preserve"><value>el código</value></data>
+  <data name="Authoring.Import.CodeAndOption" xml:space="preserve"><value>el código y cada opción</value></data>
+  <data name="Authoring.Import.Option" xml:space="preserve"><value>cada opción</value></data>
+  <data name="Authoring.Import.Value" xml:space="preserve"><value>el valor</value></data>
+  <data name="Authoring.Import.Detail" xml:space="preserve"><value>el detalle</value></data>
+  <data name="Authoring.Import.Field" xml:space="preserve"><value>el campo {0}</value></data>
+  <data name="Authoring.Import.Column" xml:space="preserve"><value>{0} de la columna {1}</value></data>
+  <data name="Authoring.Import.HeadedColumn" xml:space="preserve"><value>{0} de la columna {1} ({2})</value></data>
 </root>

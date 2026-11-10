@@ -37,6 +37,7 @@ public sealed class WhatsAppSpreadsheetPostgresTests(ApiFactory factory)
     {
         var probe = new WhatsAppDocumentProbe { Bytes = Csv };
         await using var host = await CreateAsync(probe);
+        host.Operations.AllowSubmit = true;
         var person = await host.ContactAsync(Ct, automatic: true);
         await GrantCatalogsAsync(host, person.RecipientId);
         var waMessageId = await ReceiveAsync(host, person, probe, "clientes.csv", "text/csv", "Armame un catálogo con esta planilla");
@@ -54,16 +55,12 @@ public sealed class WhatsAppSpreadsheetPostgresTests(ApiFactory factory)
         Assert.Equal(("clientes.csv", StructuredSpreadsheetKind.Csv, 3, 2), (prepared.FileName, prepared.Kind, prepared.RowCount, prepared.ColumnCount));
         Assert.Equal("Uno", prepared.Rows[1].Cells["B"]);
 
-        // The assistant does not take it yet: it is not a source and, being the last message, the earlier text is not interpreted.
-        var assistant = await host.ScopeAsync(async services =>
-        {
-            var reader = services.GetRequiredService<IWhatsAppAssistantReader>();
-            return (Source: await reader.FindLatestSourceAsync(person.ContactId, Ct),
-                Pending: await reader.ListPendingContactsAsync([], 50, host.Clock.GetUtcNow().UtcDateTime, Ct));
-        });
-        Assert.Null(assistant.Source);
-        Assert.DoesNotContain(person.ContactId, assistant.Pending);
-        Assert.Empty(await ReferencesAsync(host, person.ContactId));
+        // Stored, it is the source of its caption in the same round, and the reference names it (Task 7 of the stage).
+        var source = await host.ScopeAsync(services => services.GetRequiredService<IWhatsAppAssistantReader>().FindLatestSourceAsync(person.ContactId, Ct));
+        Assert.Equal((message.Id, "Armame un catálogo con esta planilla", (Guid?)message.Id), (source!.Id, source.Body, source.Spreadsheet?.MessageId));
+        var reference = Assert.Single(await ReferencesAsync(host, person.ContactId));
+        Assert.Equal((message.Id, (Guid?)message.Id), (reference.SourceMessageId, reference.AttachmentMessageId));
+        Assert.Equal($"whatsapp/documents/{message.Id:N}.csv", Assert.Single(host.Operations.SubmitRequests).Attachment!.StorageKey);
 
         // The chat of today keeps showing it as the media it was, without its caption or its name, also in the inbox.
         using var client = host.Client(host.FirstOperator);
