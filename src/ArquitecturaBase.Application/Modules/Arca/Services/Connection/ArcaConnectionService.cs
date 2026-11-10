@@ -1,6 +1,5 @@
 using ArquitecturaBase.Application.Common.Logging;
 using ArquitecturaBase.Application.Interfaces.Persistence;
-using ArquitecturaBase.Application.Modules.Arca.Configuration;
 using ArquitecturaBase.Application.Modules.Arca.Interfaces.Integrations.Connection;
 using ArquitecturaBase.Application.Modules.Arca.Interfaces.Persistence.Connection;
 using ArquitecturaBase.Application.Modules.Arca.Interfaces.Services.Connection;
@@ -9,12 +8,11 @@ using ArquitecturaBase.Domain.Modules.Arca;
 using ArquitecturaBase.Domain.Modules.Arca.Connection;
 using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace ArquitecturaBase.Application.Modules.Arca.Services.Connection;
 
 internal sealed class ArcaConnectionService(IArcaConnectionRepository repository, IArcaConnectionReader reader,
-    IArcaCredentialService credentials, ArcaServiceCatalogPolicy catalog, IOptions<ArcaPlatformOptions> platform, IUnitOfWork unitOfWork,
+    IArcaCredentialService credentials, ArcaServiceCatalogPolicy catalog, ArcaAccessModePolicy modes, IUnitOfWork unitOfWork,
     TimeProvider timeProvider, ILogger<ArcaConnectionService> logger) : IArcaConnectionService
 {
     public Task<Result<ArcaConnectionResponse>> GetAsync(CancellationToken cancellationToken) =>
@@ -107,14 +105,17 @@ internal sealed class ArcaConnectionService(IArcaConnectionRepository repository
         return Result.Success();
     }
 
-    /// <summary>El alta según el modo: en delegación, con la CUIT de la plataforma de la configuración (ADR 0027).</summary>
+    /// <summary>
+    /// El alta según el modo: en delegación, con la CUIT de la plataforma de la configuración (ADR 0027); la del robot, sólo
+    /// con el robot prendido en la instalación (ADR 0026).
+    /// </summary>
     private Result<ArcaConnection> Start(string cuit, ArcaEnvironment environment, IReadOnlyCollection<ArcaServiceCode> chosen, ArcaAccessMode mode)
     {
         if (mode == ArcaAccessMode.CompanyCertificate)
             return ArcaConnection.Start(cuit, environment, chosen, catalog.InstalledCodes, catalog.RequiredCodes);
-        if (mode != ArcaAccessMode.PlatformDelegation) return ArcaConnectionErrors.ModeUnavailable;
-        if (platform.Value.ToResponse() is not { } configured) return ArcaConnectionErrors.PlatformNotConfigured;
-        return ArcaConnection.StartDelegated(cuit, configured.Cuit, environment, chosen, catalog.InstalledCodes, catalog.RequiredCodes);
+        if (!modes.Offers(mode)) return ArcaConnectionErrors.ModeUnavailable;
+        if (modes.Platform is not { } configured) return ArcaConnectionErrors.PlatformNotConfigured;
+        return ArcaConnection.StartDelegated(cuit, configured.Cuit, environment, chosen, catalog.InstalledCodes, catalog.RequiredCodes, mode);
     }
 
     private async Task<Result> ChangeCoreAsync(long expectedRevision, Func<ArcaConnection, CancellationToken, Task<Result>> change,
@@ -133,7 +134,7 @@ internal sealed class ArcaConnectionService(IArcaConnectionRepository repository
     }
 
     private async Task<ArcaConnectionResponse> ResponseAsync(CancellationToken cancellationToken) =>
-        ArcaConnectionResponse.From(await reader.FindAsync(cancellationToken), catalog.Installed, platform.Value.ToResponse());
+        ArcaConnectionResponse.From(await reader.FindAsync(cancellationToken), catalog.Installed, modes.Platform);
 
     /// <summary>Los códigos pedidos; null si alguno no es un código de servicio válido.</summary>
     private static ArcaServiceCode[]? Codes(IReadOnlyCollection<string> services)

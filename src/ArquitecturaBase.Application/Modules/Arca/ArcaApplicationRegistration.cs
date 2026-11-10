@@ -36,6 +36,13 @@ public static class ArcaApplicationRegistration
         services.TryAddScoped<IArcaAccessTicketStore, ArcaAccessTicketStore>();
         services.TryAddScoped<IArcaConnectionService, ArcaConnectionService>();
         services.TryAddScoped<IArcaConnectionTestService, ArcaConnectionTestService>();
+        services.AddOptions<ArcaRobotOptions>().BindConfiguration("Arca:Robot")
+            .Validate(x => x.IsValid(), "Configure Arca:Robot with positive lapses, a lease of 30 seconds or more, 1 to 20 attempts and a valid alert email, or leave it empty.")
+            .ValidateOnStart();
+        services.TryAddScoped<ArcaAccessModePolicy>();
+        services.TryAddScoped<ArcaRobotAlertPolicy>();
+        services.TryAddScoped<IArcaRobotRunStore, ArcaRobotRunStore>();
+        services.TryAddScoped<IArcaRobotService, ArcaRobotService>();
     }
 
     private static void AddRegistry(IServiceCollection services)

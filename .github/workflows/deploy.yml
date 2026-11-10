@@ -145,6 +145,11 @@ jobs:
         working-directory: backend
         run: dotnet build ArquitecturaBase.slnx --configuration Release --no-restore
 
+      # Las pruebas del robot de ARCA (ADR 0026) recorren páginas simuladas con Chromium, en la versión que pide Playwright.
+      - name: Instalar Chromium para el robot de ARCA
+        working-directory: backend
+        run: pwsh tests/ArquitecturaBase.Api.IntegrationTests/bin/Release/net10.0/playwright.ps1 install --with-deps chromium
+
       - name: Probar .NET con PostgreSQL y Redis reales
         working-directory: backend
         run: dotnet test --solution ArquitecturaBase.slnx --configuration Release --no-build

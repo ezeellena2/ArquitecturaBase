@@ -195,17 +195,15 @@ public sealed class ArcaConnectionEndpointsTests(ApiFactory factory) : IDisposab
     }
 
     [Fact]
-    public async Task The_delegated_alta_by_robot_is_not_available_yet()
+    public async Task The_delegated_alta_by_robot_keeps_the_delegation_model_with_its_own_mode()
     {
+        // Con el robot prendido en ArcaTestModule (ADR 0026); apagado, el modo 3 responde ModeUnavailable (pruebas de Application).
         await using var scenario = await ArcaHttpScenario.CreateAsync(factory, authority);
 
-        var body = new { cuit = "20-00000006-0", environment = "Testing", alias = "plataforma", services = Array.Empty<string>(), expectedRevision = 0,
-            mode = "PlatformDelegationAutomated" };
-        var problem = await scenario.ReadAsync(await scenario.Client.PostAsJsonAsync("/api/arca/connection/certificate-requests", body, Ct),
-            HttpStatusCode.BadRequest);
+        var started = await scenario.StartAsync([FakeArca.InvoicingService], mode: "PlatformDelegationAutomated");
 
-        Assert.Equal("Arca.Connection.ModeUnavailable", problem.GetProperty("code").GetString());
-        Assert.Equal(0, (await scenario.GetConnectionAsync()).GetProperty("revision").GetInt64());
+        Assert.Equal("PlatformDelegationAutomated", started.GetProperty("mode").GetString());
+        Assert.Equal("30719998883", started.GetProperty("platformCuit").GetString());
     }
 
     public void Dispose() => authority.Dispose();

@@ -43,7 +43,7 @@ public sealed class ArcaConnection : Entity, IAuditable
 
     /// <summary>
     /// El alta en modo delegación: la empresa delega sus servicios en la CUIT de la plataforma, que llega validada desde la
-    /// configuración de la instalación.
+    /// configuración de la instalación. La guiada y la del robot (ADR 0026) comparten el modelo; cambia sólo el modo.
     /// </summary>
     public static Result<ArcaConnection> StartDelegated(
         string cuit,
@@ -51,11 +51,14 @@ public sealed class ArcaConnection : Entity, IAuditable
         ArcaEnvironment environment,
         IReadOnlyCollection<ArcaServiceCode> chosen,
         IReadOnlyCollection<ArcaServiceCode> installed,
-        IReadOnlyCollection<ArcaServiceCode> required)
+        IReadOnlyCollection<ArcaServiceCode> required,
+        ArcaAccessMode mode = ArcaAccessMode.PlatformDelegation)
     {
+        if (mode is not (ArcaAccessMode.PlatformDelegation or ArcaAccessMode.PlatformDelegationAutomated))
+            throw new ArgumentOutOfRangeException(nameof(mode), mode, "Only the delegation modes start a delegated connection.");
         var platform = CuitNumber.Normalize(platformCuit)
             ?? throw new ArgumentException("The platform CUIT must come validated from the configuration.", nameof(platformCuit));
-        return Create(ArcaAccessMode.PlatformDelegation, cuit, platform, environment, chosen, installed, required);
+        return Create(mode, cuit, platform, environment, chosen, installed, required);
     }
 
     /// <summary>Reemplaza los servicios elegidos; los obligatorios quedan siempre.</summary>

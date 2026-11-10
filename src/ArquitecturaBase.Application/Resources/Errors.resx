@@ -160,6 +160,12 @@
   <data name="Arca.Connection.PlatformNotConfigured" xml:space="preserve"><value>La instalación no tiene configurada la CUIT de la plataforma, así que no se puede delegar. Conectá con el certificado de la empresa.</value></data>
   <data name="Arca.Connection.ModeUnavailable" xml:space="preserve"><value>Ese modo de conexión todavía no está disponible.</value></data>
   <data name="Arca.Connection.ServiceNotDelegated" xml:space="preserve"><value>La empresa todavía no delegó ese servicio en la plataforma, o la plataforma no lo aceptó. Seguí la guía de la delegación y verificá de nuevo.</value></data>
+  <data name="Arca.Connection.RobotDisabled" xml:space="preserve"><value>La delegación automática no está prendida en esta instalación. Usá la delegación guiada.</value></data>
+  <data name="Arca.Connection.RobotModeMismatch" xml:space="preserve"><value>Esta conexión no usa la delegación automática.</value></data>
+  <data name="Arca.Connection.RobotConsentMissing" xml:space="preserve"><value>Marcá la autorización para usar tu clave fiscal.</value></data>
+  <data name="Arca.Connection.RobotKeyMissing" xml:space="preserve"><value>Escribí tu clave fiscal.</value></data>
+  <data name="Arca.Connection.RobotRunInProgress" xml:space="preserve"><value>El robot ya está trabajando en esta conexión. Esperá a que termine.</value></data>
+  <data name="Arca.Connection.RobotBusy" xml:space="preserve"><value>El robot no puede tomar otro trámite ahora. Probá de nuevo en unos minutos o seguí con la guía.</value></data>
   <data name="Arca.Invoicing.PointOfSaleInvalid" xml:space="preserve"><value>El punto de venta va de 1 a 99998.</value></data>
   <data name="Arca.Invoicing.PointOfSaleUnavailable" xml:space="preserve"><value>ARCA ya no ofrece ese punto de venta. Volvé a buscar los puntos de venta.</value></data>
   <data name="Arca.Invoicing.VoucherNotFound" xml:space="preserve"><value>No encontramos esa emisión.</value></data>

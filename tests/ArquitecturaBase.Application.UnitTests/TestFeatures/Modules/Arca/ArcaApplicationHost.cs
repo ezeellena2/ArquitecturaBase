@@ -1,3 +1,5 @@
+using ArquitecturaBase.Application.Interfaces.Integrations.Emails;
+using ArquitecturaBase.Application.Interfaces.Integrations.Request;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.Arca;
 using ArquitecturaBase.Application.Modules.Arca.Interfaces.Channels.Connection;
@@ -9,6 +11,7 @@ using ArquitecturaBase.Application.Modules.Arca.Interfaces.Services.Connection;
 using ArquitecturaBase.Application.Modules.Arca.Models.Connection;
 using ArquitecturaBase.Application.Modules.Arca.Models.Invoicing;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
+using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Domain.Modules.Arca.Connection;
 using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Configuration;
@@ -21,7 +24,8 @@ namespace ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.Arca;
 /// <summary>
 /// Los servicios reales del módulo con la base, ARCA y las familias en memoria: el padrón obligatorio y la facturación
 /// opcional, cada una con su prueba y su completitud programables. Con <c>withPlatform</c>, la instalación tiene
-/// configurada la CUIT de la plataforma para el modo delegación.
+/// configurada la CUIT de la plataforma para el modo delegación; con <c>withRobot</c>, también el robot prendido, con la
+/// dirección del aviso, y sus lados, la cola del host, los correos y el operador en memoria.
 /// </summary>
 internal sealed class ArcaApplicationHost : IDisposable
 {
@@ -29,11 +33,24 @@ internal sealed class ArcaApplicationHost : IDisposable
     public const string PlatformCuit = "30719998883";
     public const string PlatformName = "Plataforma Ejemplo S.A.";
 
-    public ArcaApplicationHost(bool withPlatform = false)
+    public const string AlertEmail = "plataforma@ejemplo.com";
+
+    public ArcaApplicationHost(bool withPlatform = false, bool withRobot = false, string? alertEmail = AlertEmail)
     {
-        var configuration = new ConfigurationBuilder().AddInMemoryCollection(withPlatform
-            ? new Dictionary<string, string?> { ["Arca:Platform:Cuit"] = "30-71999888-3", ["Arca:Platform:Name"] = PlatformName }
-            : []).Build();
+        var settings = new Dictionary<string, string?>();
+        if (withPlatform || withRobot)
+        {
+            settings["Arca:Platform:Cuit"] = "30-71999888-3";
+            settings["Arca:Platform:Name"] = PlatformName;
+        }
+
+        if (withRobot)
+        {
+            settings["Arca:Robot:Enabled"] = "true";
+            settings["Arca:Robot:AlertEmail"] = alertEmail;
+        }
+
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(settings).Build();
         var services = new ServiceCollection().AddLogging().AddApplication().AddArcaApplication();
         services.AddSingleton<IConfiguration>(configuration);
         services.RemoveAll<IArcaServiceDefinition>();
@@ -48,7 +65,13 @@ internal sealed class ArcaApplicationHost : IDisposable
         services.AddSingleton<IArcaCredentialService>(Credentials);
         services.AddSingleton<IArcaAccessTicketProvider>(Tickets);
         services.AddSingleton<IArcaInvoicingClient>(Invoicing);
+        services.AddSingleton<IArcaRobotRunRepository>(Runs);
+        services.AddSingleton<IArcaRobotRunReader>(Runs);
+        services.AddSingleton<IArcaCompanyRobotQueue>(RobotQueue);
+        services.AddSingleton<IEmailQueue>(Emails);
+        services.AddSingleton<ICurrentUser>(User);
         Store.InTransaction = () => Work.InTransaction;
+        Runs.InTransaction = () => Work.InTransaction;
         Provider = services.BuildServiceProvider();
     }
 
@@ -57,6 +80,10 @@ internal sealed class ArcaApplicationHost : IDisposable
     public FakeArcaCredentials Credentials { get; } = new();
     public FakeArcaTickets Tickets { get; } = new();
     public FakeArcaInvoicingClient Invoicing { get; } = new();
+    public FakeArcaRobotRuns Runs { get; } = new();
+    public FakeArcaRobotQueue RobotQueue { get; } = new();
+    public FakeEmailQueue Emails { get; } = new();
+    public FakeCurrentUser User { get; } = new() { UserId = Guid.CreateVersion7() };
     public FakeArcaDefinition RegistryFamily { get; } = new("ws_sr_constancia_inscripcion", "Registry", required: true, delegated: false);
     public FakeArcaDefinition InvoicingFamily { get; } = new("wsfe", "Invoicing", required: false);
     public FakeTimeProvider Clock { get; } = new(new DateTimeOffset(NowUtc));
@@ -64,6 +91,8 @@ internal sealed class ArcaApplicationHost : IDisposable
 
     public IArcaConnectionService Connection => Provider.GetRequiredService<IArcaConnectionService>();
     public IArcaConnectionTestService Test => Provider.GetRequiredService<IArcaConnectionTestService>();
+    public IArcaRobotService Robot => Provider.GetRequiredService<IArcaRobotService>();
+    public IArcaRobotRunStore RobotStore => Provider.GetRequiredService<IArcaRobotRunStore>();
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -82,6 +111,11 @@ internal sealed class ArcaApplicationHost : IDisposable
         Assert.Equal(ArcaConnectionStatus.Active, tested.Value.Connection.Status);
         return tested.Value.Connection;
     }
+
+    /// <summary>El alta en modo 3, con el pedido del certificado de la plataforma pendiente (ADR 0026).</summary>
+    public async Task<ArcaConnectionResponse> StartAutomatedAsync(params string[] services) =>
+        (await Connection.StartCertificateRequestAsync("20-00000006-0", ArcaEnvironment.Production, "plataforma-demo", services, 0,
+            ArcaAccessMode.PlatformDelegationAutomated, Ct)).Value;
 
     /// <summary>Una renovación con su certificado ya cargado, pendiente de la prueba.</summary>
     public async Task<ArcaConnectionResponse> LoadRenewalAsync(ArcaConnectionResponse active)

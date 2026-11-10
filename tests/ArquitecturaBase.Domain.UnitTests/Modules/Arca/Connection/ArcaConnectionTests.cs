@@ -208,6 +208,18 @@ public sealed class ArcaConnectionTests
     }
 
     [Fact]
+    public void The_automated_delegation_keeps_the_same_model_with_its_own_mode()
+    {
+        var connection = ArcaConnection.StartDelegated("30-71000123-1", "30-71999888-3", ArcaEnvironment.Production, [Invoicing],
+            Installed, Required, ArcaAccessMode.PlatformDelegationAutomated).Value;
+
+        Assert.Equal(ArcaAccessMode.PlatformDelegationAutomated, connection.Mode);
+        Assert.Equal("30719998883", connection.SignerCuit);
+        Assert.Throws<ArgumentOutOfRangeException>(() => ArcaConnection.StartDelegated("30710001231", "30719998883",
+            ArcaEnvironment.Production, [Invoicing], Installed, Required, ArcaAccessMode.CompanyCertificate));
+    }
+
+    [Fact]
     public void The_platform_cuit_arrives_already_checked_by_the_configuration()
     {
         Assert.Throws<ArgumentException>(() =>

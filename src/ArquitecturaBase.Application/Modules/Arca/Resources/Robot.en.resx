@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <data name="Alert.Subject" xml:space="preserve"><value>The ARCA robot stopped</value></data>
+  <data name="Alert.Body" xml:space="preserve"><value>The ARCA delegation robot stopped at step "{0}", on the {1}: {2}. It happened on {3} (UTC). The guide to run and maintain the robot says what to check.</value></data>
+  <data name="Side.Company" xml:space="preserve"><value>client side</value></data>
+  <data name="Side.Platform" xml:space="preserve"><value>platform side</value></data>
+  <data name="Failure.LoginRejected" xml:space="preserve"><value>ARCA rejected the platform sign-in</value></data>
+  <data name="Failure.Captcha" xml:space="preserve"><value>ARCA asked for a captcha</value></data>
+  <data name="Failure.ExtraValidation" xml:space="preserve"><value>ARCA asked for an extra validation</value></data>
+  <data name="Failure.ScreenChanged" xml:space="preserve"><value>an ARCA screen was not the expected one</value></data>
+  <data name="Failure.Unavailable" xml:space="preserve"><value>ARCA did not answer</value></data>
+  <data name="Failure.Interrupted" xml:space="preserve"><value>the server restarted in the middle of the run</value></data>
+</root>

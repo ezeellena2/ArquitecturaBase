@@ -419,6 +419,84 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.Arca.Connection.ArcaRobotRun", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AlertKey")
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)");
+
+                    b.Property<DateTime?>("AlertedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("integer");
+
+                    b.PrimitiveCollection<string[]>("CompletedSteps")
+                        .IsRequired()
+                        .HasColumnType("text[]");
+
+                    b.Property<Guid>("ConnectionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ConsentedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ConsentedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CurrentStep")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<string>("FailedStep")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<string>("Failure")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<DateTime?>("FinishedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("LeaseExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("LeaseOwner")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("NextAttemptAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Outputs")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("Side")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime>("StartedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConnectionId", "Side")
+                        .IsUnique();
+
+                    b.ToTable("ArcaRobotRuns", (string)null);
+                });
+
             modelBuilder.Entity("ArquitecturaBase.Domain.Modules.Arca.Invoicing.ArcaInvoicingSettings", b =>
                 {
                     b.Property<Guid>("Id")
@@ -4409,6 +4487,15 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                 });
 
             modelBuilder.Entity("ArquitecturaBase.Domain.Modules.Arca.Connection.ArcaCertificate", b =>
+                {
+                    b.HasOne("ArquitecturaBase.Domain.Modules.Arca.Connection.ArcaConnection", null)
+                        .WithMany()
+                        .HasForeignKey("ConnectionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.Arca.Connection.ArcaRobotRun", b =>
                 {
                     b.HasOne("ArquitecturaBase.Domain.Modules.Arca.Connection.ArcaConnection", null)
                         .WithMany()

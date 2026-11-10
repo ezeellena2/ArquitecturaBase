@@ -5,10 +5,12 @@ using ArquitecturaBase.Application.Modules.Arca.Interfaces.Persistence.Connectio
 using ArquitecturaBase.Application.Modules.Arca.Interfaces.Persistence.Invoicing;
 using ArquitecturaBase.Application.Modules.Arca.Interfaces.Persistence.Registry;
 using ArquitecturaBase.Infrastructure.Modules.Arca.Connection;
+using ArquitecturaBase.Infrastructure.Modules.Arca.Connection.Robot;
 using ArquitecturaBase.Infrastructure.Modules.Arca.Connection.Security;
 using ArquitecturaBase.Infrastructure.Modules.Arca.Connection.Soap;
 using ArquitecturaBase.Infrastructure.Modules.Arca.Invoicing;
 using ArquitecturaBase.Infrastructure.Modules.Arca.Invoicing.Pdf;
+using ArquitecturaBase.Infrastructure.Modules.Arca.Invoicing.Robot;
 using ArquitecturaBase.Infrastructure.Modules.Arca.Persistence.Readers.Connection;
 using ArquitecturaBase.Infrastructure.Modules.Arca.Persistence.Readers.Invoicing;
 using ArquitecturaBase.Infrastructure.Modules.Arca.Persistence.Readers.Registry;
@@ -18,6 +20,7 @@ using ArquitecturaBase.Infrastructure.Modules.Arca.Persistence.Repositories.Regi
 using ArquitecturaBase.Infrastructure.Modules.Arca.Registry;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 namespace ArquitecturaBase.Infrastructure.Modules.Arca;
 
 /// Una línea por familia de servicios (ADR 0025): quitar una familia es borrar sus carpetas y su línea.
@@ -49,6 +52,24 @@ public static class ArcaInfrastructureRegistration
         services.AddScoped<IArcaConnectionRepository, ArcaConnectionRepository>();
         services.AddScoped<IArcaConnectionReader, ArcaConnectionReader>();
         ConfigureClient(services.AddHttpClient(WsaaHttpClientName));
+        AddRobot(services, configuration);
+    }
+
+    /// El robot de delegación (ADR 0026): registrado siempre, pero sus workers y el chequeo de Chromium sólo corren prendido.
+    private static void AddRobot(IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddOptions<ArcaRobotBrowserOptions>().Bind(configuration.GetSection("Arca:Robot"))
+            .Validate(x => x.IsValid(), "With Arca:Robot:Enabled, configure an HTTPS login page, positive timeouts, a queue of 1 to 50 and the platform login CUIT and tax key.")
+            .ValidateOnStart();
+        services.AddScoped<IArcaRobotRunRepository, ArcaRobotRunRepository>();
+        services.AddScoped<IArcaRobotRunReader, ArcaRobotRunReader>();
+        services.AddSingleton<ArcaCompanyRobotQueue>();
+        services.AddSingleton<IArcaCompanyRobotQueue>(provider => provider.GetRequiredService<ArcaCompanyRobotQueue>());
+        services.AddSingleton<IArcaDelegationRobot, PlaywrightArcaDelegationRobot>();
+        services.AddSingleton<ArcaRobotProcessor>();
+        services.AddHostedService<ArcaRobotBrowserCheck>();
+        services.AddHostedService<ArcaCompanyRobotBackgroundService>();
+        services.AddHostedService<ArcaPlatformRobotBackgroundService>();
     }
 
     private static void AddRegistry(IServiceCollection services)
@@ -71,6 +92,7 @@ public static class ArcaInfrastructureRegistration
         services.AddSingleton<IArcaFiscalPdfRenderer, ArcaFiscalPdfRenderer>();
         services.AddSingleton<ArcaVoucherProcessor>();
         services.AddHostedService<ArcaVoucherBackgroundService>();
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IArcaRobotCompanyStep, ArcaPointOfSaleRobotStep>());
         ConfigureClient(services.AddHttpClient(InvoicingHttpClientName));
     }
 

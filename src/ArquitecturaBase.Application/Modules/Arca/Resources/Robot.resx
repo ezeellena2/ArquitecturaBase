@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <data name="Alert.Subject" xml:space="preserve"><value>El robot de ARCA se frenó</value></data>
+  <data name="Alert.Body" xml:space="preserve"><value>El robot de delegación de ARCA se frenó en el paso «{0}», del {1}: {2}. Pasó el {3} (UTC). La guía para correr y mantener el robot dice qué revisar.</value></data>
+  <data name="Side.Company" xml:space="preserve"><value>lado del cliente</value></data>
+  <data name="Side.Platform" xml:space="preserve"><value>lado de la plataforma</value></data>
+  <data name="Failure.LoginRejected" xml:space="preserve"><value>ARCA no aceptó el ingreso de la plataforma</value></data>
+  <data name="Failure.Captcha" xml:space="preserve"><value>ARCA pidió un captcha</value></data>
+  <data name="Failure.ExtraValidation" xml:space="preserve"><value>ARCA pidió una validación extra</value></data>
+  <data name="Failure.ScreenChanged" xml:space="preserve"><value>una pantalla de ARCA no era la esperada</value></data>
+  <data name="Failure.Unavailable" xml:space="preserve"><value>ARCA no respondió</value></data>
+  <data name="Failure.Interrupted" xml:space="preserve"><value>el servidor se reinició en medio del trámite</value></data>
+</root>

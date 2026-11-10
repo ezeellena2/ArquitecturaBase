@@ -25,6 +25,12 @@ public static class ArcaConnectionErrors
     public static readonly Error PlatformNotConfigured = Error.Validation("Arca.Connection.PlatformNotConfigured", "The installation has no platform CUIT to delegate to.");
     public static readonly Error ModeUnavailable = Error.Validation("Arca.Connection.ModeUnavailable", "That access mode is not available yet.");
     public static readonly Error ServiceNotDelegated = Error.Validation("Arca.Connection.ServiceNotDelegated", "The company has not delegated the service to the platform.");
+    public static readonly Error RobotDisabled = Error.Validation("Arca.Connection.RobotDisabled", "The delegation robot is turned off in this installation.");
+    public static readonly Error RobotModeMismatch = Error.Validation("Arca.Connection.RobotModeMismatch", "The connection does not use the automated delegation.");
+    public static readonly Error RobotConsentMissing = Error.Validation("Arca.Connection.RobotConsentMissing", "The consent to use the tax key is missing.");
+    public static readonly Error RobotKeyMissing = Error.Validation("Arca.Connection.RobotKeyMissing", "The tax key is missing.");
+    public static readonly Error RobotRunInProgress = Error.Conflict("Arca.Connection.RobotRunInProgress", "The robot is already running for this connection.");
+    public static readonly Error RobotBusy = Error.TooManyRequests("Arca.Connection.RobotBusy", "The robot cannot take another run right now.");
 
     /// <summary>ARCA ya dio un ticket que no tenemos y no acepta otro pedido hasta dentro de <paramref name="retryAfterSeconds"/>.</summary>
     public static Error ServiceBlocked(int retryAfterSeconds) =>
