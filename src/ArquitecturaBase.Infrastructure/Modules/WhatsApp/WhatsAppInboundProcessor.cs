@@ -112,7 +112,9 @@ internal sealed partial class WhatsAppInboundProcessor(
             .ListPendingContactsAsync(attempted, BatchSize, timeProvider.GetUtcNow().UtcDateTime, cancellationToken);
         var audio = await scope.ServiceProvider.GetRequiredService<IWhatsAppAudioReader>()
             .ListPendingContactsAsync(attempted, BatchSize, timeProvider.GetUtcNow().UtcDateTime, cancellationToken);
-        return inbound.Concat(audio).Concat(pending).Distinct().Take(BatchSize).ToArray();
+        var spreadsheets = await scope.ServiceProvider.GetRequiredService<IWhatsAppSpreadsheetReader>()
+            .ListPendingContactsAsync(attempted, BatchSize, timeProvider.GetUtcNow().UtcDateTime, cancellationToken);
+        return inbound.Concat(audio).Concat(spreadsheets).Concat(pending).Distinct().Take(BatchSize).ToArray();
     }
 
     /// <summary>
@@ -137,6 +139,8 @@ internal sealed partial class WhatsAppInboundProcessor(
             var completedAudio = await ProcessAudioAsync(contactId, cancellationToken);
             if (work is null && completedAudio) work = await PrepareAssistantAsync(contactId, cancellationToken);
             if (work is not null) await ProcessAssistantAsync(contactId, work, cancellationToken);
+            // A received spreadsheet is downloaded, prepared and copied after everything else: the assistant does not take it yet.
+            await PrepareSpreadsheetAsync(contactId, cancellationToken);
         }
         catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
         {
@@ -173,6 +177,12 @@ internal sealed partial class WhatsAppInboundProcessor(
         await using var completeScope = scopeFactory.CreateAsyncScope();
         await completeScope.ServiceProvider.GetRequiredService<IWhatsAppAssistantDispatchService>()
             .CompleteAsync(contactId, work.RequestId, outcome, cancellationToken);
+    }
+
+    private async Task PrepareSpreadsheetAsync(Guid contactId, CancellationToken cancellationToken)
+    {
+        await using var scope = scopeFactory.CreateAsyncScope();
+        await scope.ServiceProvider.GetRequiredService<IWhatsAppSpreadsheetDispatchService>().PrepareAsync(contactId, cancellationToken);
     }
 
     private async Task<bool> ProcessAudioAsync(Guid contactId, CancellationToken cancellationToken)

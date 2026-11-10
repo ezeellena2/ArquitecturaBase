@@ -48,3 +48,5 @@ WhatsAppFormDefaultMessageTests prueba el mensaje que acompaña al formulario: s
 WhatsAppFlowPreviewDeadlineTests prueba el tope de 30 s de la vista oficial con `FakeTimeProvider`: Meta callado en la cuenta, en la verificación o en la vista da `PreviewUnavailable` a los 30 s y no antes, y cerrar el diálogo sigue cancelando.
 
 FlowDeprecationServiceTests verifica orden Definitions→Flow, versión no usada y trabajo pendiente al reservar y marcar, lease/fence entre dueños, recuperación por GET tras incertidumbre o rechazo, y fallas de cuenta/manifiesto con NeedsAttention, espera creciente y sin perder evidencia de un POST; todo con puertos falsos, sin red ni PostgreSQL.
+
+IA, Etapa 2: `WhatsAppSpreadsheetDispatchServiceTests` cubre quién baja y quién no, el tope que declara Meta y el de los bytes, el SHA-256, cada motivo con su texto es/en contestado una vez, la ventana, el «Cambiar algo» pendiente, la copia releída y los reintentos; `WhatsAppSpreadsheetRetentionSourceTests`, las claves que se conservan.

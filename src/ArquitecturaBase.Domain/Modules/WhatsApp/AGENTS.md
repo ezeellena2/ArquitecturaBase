@@ -46,4 +46,6 @@ Las referencias Assistant conservan decisiones compartidas y la correlación con
 
 Una referencia posterior a captura conserva SourceRecordId, configuración y cultura capturada sin copiar valores. Always permite ProposalId null real y, sólo en Manual previo al humano, Actor/Context ausentes; el envío sella al confirmador real. La identidad de registro es única por contacto y evita otra oferta por un segundo recibo de la misma captura.
 
+IA, Etapa 2: `Spreadsheet` es un tipo sólo de entrada (`Document` es saliente). El mensaje fija una vez el descriptor de Meta y queda Pending, o No disponible con su nombre si no sirve; después guarda una vez la copia y lo preparado, el motivo de un rechazo (cierto sólo la primera vez, la que se contesta) o No disponible. Las fallas de descarga saturan como las del audio.
+
 La deprecación de cada binding tiene estado, lease, fence, marcador de efecto y fechas propios; no cambia State/Step/Fence ni los sellos de publicación. Reservar no afirma un POST: MarkDeprecationStarted fija el efecto antes del proveedor. Un lease vencido con efecto iniciado exige consulta; sólo identidad correcta y PUBLISHED observado permiten otro intento posterior, y DEPRECATED confirmado es terminal.

@@ -3785,6 +3785,51 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
 
+                    b.Property<string>("SpreadsheetContentType")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("SpreadsheetCopySha256")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("SpreadsheetFailureCode")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<int>("SpreadsheetFailureCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("SpreadsheetFileName")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<DateTime?>("SpreadsheetFirstFailureAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("SpreadsheetMediaId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("SpreadsheetPreparedJson")
+                        .HasMaxLength(16384)
+                        .HasColumnType("character varying(16384)");
+
+                    b.Property<string>("SpreadsheetSha256")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<long?>("SpreadsheetSize")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("SpreadsheetState")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("SpreadsheetStorageKey")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
                     b.Property<string>("Status")
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
@@ -3821,6 +3866,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasFilter("\"Direction\" = 'Inbound' AND \"Kind\" = 'FlowReply' AND \"ProcessedAtUtc\" IS NULL");
 
                     b.HasIndex("ContactId", "OccurredAtUtc", "Id");
+
+                    b.HasIndex(new[] { "ContactId" }, "IX_WhatsAppMessages_PendingSpreadsheets")
+                        .HasFilter("\"SpreadsheetState\" = 'Pending'");
 
                     b.ToTable("WhatsAppMessages", (string)null);
                 });

@@ -14,7 +14,7 @@ internal sealed class WhatsAppAudioPreparationPolicy(IWhatsAppMediaClient media,
             return new WhatsAppStoredAudio(source.StorageKey,source.Size.Value);
         var found=await storage.FindAsync(source.MessageId,source.Sha256,ct);
         if(found.IsFailure)return found.Error;if(found.Value is {} value)return value;
-        var downloaded=await media.DownloadAsync(source.MediaId,source.ContentType,source.Sha256,ct);
+        var downloaded=await media.DownloadAsync(source.MediaId,source.ContentType,source.Sha256,WhatsAppMediaContent.MaximumBytes,ct);
         return downloaded.IsFailure?downloaded.Error:await storage.SaveAsync(source.MessageId,downloaded.Value.Content,source.Sha256,ct);
     }
 }

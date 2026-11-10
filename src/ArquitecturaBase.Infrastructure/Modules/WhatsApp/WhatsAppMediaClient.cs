@@ -10,11 +10,13 @@ namespace ArquitecturaBase.Infrastructure.Modules.WhatsApp;
 
 internal sealed class WhatsAppMediaClient(HttpClient http, IOptions<WhatsAppOptions> options, TimeProvider timeProvider) : IWhatsAppMediaClient
 {
-    private const int MaximumFileBytes = 25 * 1024 * 1024;
-    public async Task<Result<WhatsAppMediaContent>> DownloadAsync(string mediaId, string contentType, string sha256, CancellationToken cancellationToken)
+    public async Task<Result<WhatsAppMediaContent>> DownloadAsync(string mediaId, string contentType, string sha256, long maximumBytes, CancellationToken cancellationToken)
     {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maximumBytes);
         if (string.IsNullOrEmpty(options.Value.PhoneNumberId) || string.IsNullOrEmpty(options.Value.AccessToken)
             || string.IsNullOrEmpty(mediaId) || mediaId.Length > 128 || mediaId.Any(character => character is < '0' or > '9')) return FileErrors.Unavailable;
+        // The size Meta declares is checked before downloading, and the bytes read are bounded by the same limit.
+        var maximum = (int)Math.Min(maximumBytes, WhatsAppMediaContent.MaximumBytes);
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30), timeProvider);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, deadline.Token);
         var ct = linked.Token;
@@ -32,7 +34,7 @@ internal sealed class WhatsAppMediaClient(HttpClient http, IOptions<WhatsAppOpti
                 return FileErrors.InvalidMetadata;
             if (NormalizeHash(expectedHash) is not { } hash || hash != NormalizeHash(sha256)) return FileErrors.HashMismatch;
             if (!root.TryGetProperty("file_size", out var sizeValue) || sizeValue.ValueKind != JsonValueKind.Number || !sizeValue.TryGetInt64(out var size) || size <= 0) return FileErrors.InvalidMetadata;
-            if (size > MaximumFileBytes) return FileErrors.TooLarge;
+            if (size > maximum) return FileErrors.TooLarge;
             if (!Uri.TryCreate(Text(root, "url"), UriKind.Absolute, out var url) || url.Scheme != Uri.UriSchemeHttps
                 || url.Port != 443 || url.UserInfo.Length != 0 || url.Fragment.Length != 0
                 || url.Host is not ("lookaside.fbsbx.com" or "mmg.whatsapp.net")) return FileErrors.Unavailable;
@@ -40,7 +42,7 @@ internal sealed class WhatsAppMediaClient(HttpClient http, IOptions<WhatsAppOpti
             using var contentRequest = Request(url);
             using var contentResponse = await http.SendAsync(contentRequest, HttpCompletionOption.ResponseHeadersRead, ct);
             if (!contentResponse.IsSuccessStatusCode) return FileErrors.Unavailable;
-            var bytes = await ReadAsync(contentResponse.Content, MaximumFileBytes, ct);
+            var bytes = await ReadAsync(contentResponse.Content, maximum, ct);
             if (bytes is null) return FileErrors.TooLarge;
             if (bytes.LongLength != size) return FileErrors.InvalidMetadata;
             return new WhatsAppMediaContent(bytes);

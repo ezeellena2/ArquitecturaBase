@@ -14,6 +14,7 @@ Implementa puertos neutrales de `Application/Interfaces/Channels` con lo que sab
 | `WhatsAppStructuredRecordOriginSource` | `IStructuredRecordOriginSource` | canal, remitente e instante de respuestas, por lote |
 | `WhatsAppAssistantCapabilitySource` | `IAssistantCapabilitySource` | `whatsapp.offered-forms`, `whatsapp.no-reply` y `whatsapp.decline-form` |
 | `WhatsAppAudioRetentionSource` | `IPrivateFileRetentionSource` | claves de audio todavía referenciadas |
+| `WhatsAppSpreadsheetRetentionSource` | `IPrivateFileRetentionSource` | copias de planillas pendientes o guardadas mientras su mensaje tenga contenido |
 
 La evidencia local de retiro (`IStructuredFormChannelStateSource`) la implementa un lector de Infrastructure.
 

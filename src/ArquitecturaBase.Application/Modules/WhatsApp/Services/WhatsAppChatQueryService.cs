@@ -43,8 +43,9 @@ internal sealed class WhatsAppChatQueryService(IWhatsAppChatReader reader, IWhat
         var pointer = await presentation.FindCurrentAsync(request.ContactId, actor, cancellationToken);
         var recordResult = await recordSource.ReadAsync(actor, culture, receiptIds, cancellationToken);
         return new WhatsAppThreadResponse(new(ToResponse(row.Contact), formContact),
-            [.. row.Messages.Select(message => new WhatsAppMessageResponse(message.Id, message.Direction, message.Kind,
-                message.Purpose == WhatsAppMessagePurpose.Access || message.Origin == WhatsAppMessageOrigin.FormAction && !recordResult.CanReadRecords ? null : audio.VisibleText(message), message.OccurredAtUtc,
+            [.. row.Messages.Select(message => new WhatsAppMessageResponse(message.Id, message.Direction, ShownKind(message.Kind),
+                message.Purpose == WhatsAppMessagePurpose.Access || message.Origin == WhatsAppMessageOrigin.FormAction && !recordResult.CanReadRecords
+                    || message.Kind == WhatsAppMessageKind.Spreadsheet ? null : audio.VisibleText(message), message.OccurredAtUtc,
                 message.InboundSequence, message.OperatorUserId, message.Status, message.ErrorCode, message.Purpose, message.AccessEventKind,
                 ToFormResponse(message.Form), ToFormReplyResponse(message.FormReply, recordResult, message.OccurredAtUtc), message.Origin, Assistant: presentation.Explain(message.Assistant, recordResult.CanReadRecords),
                 QuickReplies: WhatsAppAssistantPresentationPolicy.Titles(message.QuickReplyTitlesJson, false), Audio: audio.View(message)))],
@@ -66,6 +67,11 @@ internal sealed class WhatsAppChatQueryService(IWhatsAppChatReader reader, IWhat
         new(row.Id, row.RequestId, row.OperatorUserId, row.Origin == WhatsAppMessageOrigin.FormAction && !canReadRecords ? null : row.Body, row.RequestedAtUtc,
             row.State, row.WaMessageId, ToFormResponse(row.Form), Kind: row.Kind, Origin: row.Origin, Assistant: presentation.Explain(row.Assistant, canReadRecords),
             QuickReplies: WhatsAppAssistantPresentationPolicy.Titles(row.QuickRepliesJson, true));
+
+    // Until the chat shows a received spreadsheet (stage 2 of the assistant authoring, task 8), it is shown as media was before:
+    // without its caption or its name.
+    private static WhatsAppMessageKind ShownKind(WhatsAppMessageKind kind) =>
+        kind == WhatsAppMessageKind.Spreadsheet ? WhatsAppMessageKind.Media : kind;
 
     private static WhatsAppFormPresentationResponse? ToFormResponse(WhatsAppFormPresentationRow? row)
     {

@@ -111,6 +111,16 @@ internal static class MetaWebhook
             ["id"] = "1003383421387256",
         });
 
+    /// <summary>Un documento, con su nombre y su <c>caption</c> si los trae (referencia del tipo <c>document</c>).</summary>
+    public static JsonObject Document(string waMessageId, string? from, string? fromUserIdentifier, DateTime sentAtUtc, string? fileName,
+        string mimeType, string? caption = null, string mediaId = "1003383421387256", string sha256 = "JTF3Dq2S5uMyJnl2OZw6a0VvbQuVWb0uYUCb+KeBP4U=")
+    {
+        var document = new JsonObject { ["mime_type"] = mimeType, ["sha256"] = sha256, ["id"] = mediaId };
+        if (fileName is not null) document["filename"] = fileName;
+        if (caption is not null) document["caption"] = caption;
+        return Message(waMessageId, from, fromUserIdentifier, sentAtUtc, "document", document);
+    }
+
     /// <summary>El aviso de cambio de número. Según la documentación de Meta, no trae el arreglo de contactos.</summary>
     public static JsonObject NumberChanged(string waMessageId, string from, DateTime sentAtUtc, string newWaId) =>
         Message(waMessageId, from, fromUserIdentifier: null, sentAtUtc, "system", new JsonObject

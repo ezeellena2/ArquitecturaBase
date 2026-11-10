@@ -45,6 +45,9 @@ public sealed record WhatsAppWebhookMessage(
     string? FlowResponseJson = null)
 {
     public WhatsAppWebhookAudioDescriptor? Audio { get; init; }
+
+    /// <summary>A spreadsheet's descriptor; its <c>caption</c> is the <see cref="Body"/>.</summary>
+    public WhatsAppWebhookSpreadsheetDescriptor? Spreadsheet { get; init; }
     public sealed override string ToString() => $"{nameof(WhatsAppWebhookMessage)} ({Kind})";
 }
 

@@ -35,4 +35,11 @@ public enum WhatsAppMessageKind
     FlowReply = 9,
     Document = 10,
     Audio = 11,
+
+    /// <summary>
+    /// Solo en un entrante: un documento que es una planilla (Excel o CSV), por su nombre o por el tipo que manda Meta. El
+    /// cuerpo es su <c>caption</c>; el descriptor, la copia y lo preparado están en las columnas de la planilla.
+    /// <see cref="Document"/> es el documento saliente.
+    /// </summary>
+    Spreadsheet = 12,
 }

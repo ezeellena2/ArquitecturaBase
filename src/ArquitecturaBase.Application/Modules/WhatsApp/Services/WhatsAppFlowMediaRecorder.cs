@@ -14,5 +14,5 @@ internal sealed class WhatsAppFlowMediaRecorder(IWhatsAppMediaClient client, Tim
     }
 
     public Task<Result<WhatsAppMediaContent>> DownloadAsync(string mediaId, string contentType, string sha256, CancellationToken cancellationToken) =>
-        client.DownloadAsync(mediaId, contentType, sha256, cancellationToken);
+        client.DownloadAsync(mediaId, contentType, sha256, WhatsAppMediaContent.MaximumBytes, cancellationToken);
 }

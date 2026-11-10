@@ -31,6 +31,14 @@ internal sealed partial class WhatsAppWebhookReader(
     // A block answers each of its questions once per row, up to ten, besides «¿Agregás otro ítem?».
     private const int MaxFlowRowResponseFields = 450;
 
+    // Stage 2 of the assistant authoring: what makes a document a spreadsheet, by its name or by the type Meta sends.
+    private static readonly string[] SpreadsheetExtensions = [".xlsx", ".xlsm", ".xlsb", ".xls", ".csv"];
+    private static readonly string[] SpreadsheetMediaTypes =
+    [
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.ms-excel",
+        "application/vnd.ms-excel.sheet.macroenabled.12", "application/vnd.ms-excel.sheet.binary.macroenabled.12", "text/csv",
+    ];
+
     public WhatsAppWebhookBatch Read(ReadOnlyMemory<byte> body)
     {
         JsonDocument document;
@@ -176,6 +184,13 @@ internal sealed partial class WhatsAppWebhookReader(
             return;
         }
 
+        if (StringOf(message, "type") == "document" && ReadSpreadsheet(message) is { } spreadsheet)
+        {
+            reading.Messages.Add(new WhatsAppWebhookMessage(waMessageId!, from, WhatsAppMessageKind.Spreadsheet, spreadsheet.Caption, null, occurredAtUtc)
+                { Spreadsheet = spreadsheet.Descriptor });
+            return;
+        }
+
         var (kind, body, replyId, flowResponseJson) = ContentOf(message);
 
         reading.Messages.Add(new WhatsAppWebhookMessage(waMessageId!, from, kind, body, replyId, occurredAtUtc, flowResponseJson));
@@ -235,11 +250,38 @@ internal sealed partial class WhatsAppWebhookReader(
             !id.All(char.IsAsciiDigit) || StringOf(audio, "mime_type") is not { Length: > 0 and <= 128 } type ||
             !MediaTypeHeaderValue.TryParse(type, out var mime) || !string.Equals(mime.MediaType, "audio/ogg", StringComparison.OrdinalIgnoreCase) ||
             mime.Parameters.Any(p => !p.Name.Equals("codecs", StringComparison.OrdinalIgnoreCase) || !string.Equals(p.Value?.Trim('"'), "opus", StringComparison.OrdinalIgnoreCase)) ||
-            StringOf(audio, "sha256") is not { Length: > 0 and <= 128 } hash) return null;
+            HexHashOrNull(StringOf(audio, "sha256")) is not { } hash) return null;
+        return new(id, type, hash);
+    }
+
+    /// <summary>
+    /// A document that is a spreadsheet, by its name or by the type Meta sends, with its caption and what Meta says of its file. A CSV
+    /// may come as text/csv, text/plain or application/vnd.ms-excel, so text/plain counts only with a .csv name; the bytes decide later
+    /// what it is. The message decides whether the descriptor can be downloaded. Null for any other document, which stays as media.
+    /// </summary>
+    private static (string? Caption, WhatsAppWebhookSpreadsheetDescriptor Descriptor)? ReadSpreadsheet(JsonElement message)
+    {
+        if (!TryGetProperty(message, "document", out var document) || document.ValueKind is not JsonValueKind.Object) return null;
+        var fileName = StringOf(document, "filename");
+        var type = StringOf(document, "mime_type");
+        if (!IsSpreadsheet(fileName, type)) return null;
+        return (StringOf(document, "caption"),
+            new WhatsAppWebhookSpreadsheetDescriptor(StringOf(document, "id"), type, HexHashOrNull(StringOf(document, "sha256")), fileName));
+    }
+
+    private static bool IsSpreadsheet(string? fileName, string? type) =>
+        fileName is not null && SpreadsheetExtensions.Contains(Path.GetExtension(fileName.Trim()), StringComparer.OrdinalIgnoreCase)
+        || MediaTypeHeaderValue.TryParse(type, out var mime) && mime.MediaType is { } mediaType
+            && SpreadsheetMediaTypes.Contains(mediaType, StringComparer.OrdinalIgnoreCase);
+
+    // Meta sends a media SHA-256 in base64 (or hex): it is kept in lowercase hex, and anything else is not a hash.
+    private static string? HexHashOrNull(string? hash)
+    {
+        if (hash is not { Length: > 0 and <= 128 }) return null;
         try
         {
             var bytes = hash.Length == 64 ? Convert.FromHexString(hash) : Convert.FromBase64String(hash);
-            return bytes.Length == 32 ? new(id, type, Convert.ToHexStringLower(bytes)) : null;
+            return bytes.Length == 32 ? Convert.ToHexStringLower(bytes) : null;
         }
         catch (FormatException) { return null; }
     }

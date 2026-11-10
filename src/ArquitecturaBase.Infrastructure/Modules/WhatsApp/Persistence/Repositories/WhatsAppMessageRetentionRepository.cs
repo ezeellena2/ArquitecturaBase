@@ -22,7 +22,9 @@ internal sealed class WhatsAppMessageRetentionRepository(ApplicationDbContext db
         // sobre OccurredAtUtc y contenido presente deja afuera los mensajes que ya se vaciaron.
         var messages = await dbContext.Set<WhatsAppMessage>()
             .Where(message => message.OccurredAtUtc < cutoffUtc
-                && (message.Body != null || message.QuickReplyTitlesJson != null || message.Kind == WhatsAppMessageKind.Audio && (message.AudioMediaId != null || message.AudioStorageKey != null || message.AudioContextJson != null) || (message.ProtectedFlowResponse != null && message.ProcessedAtUtc != null)))
+                && (message.Body != null || message.QuickReplyTitlesJson != null || message.Kind == WhatsAppMessageKind.Audio && (message.AudioMediaId != null || message.AudioStorageKey != null || message.AudioContextJson != null)
+                    || message.Kind == WhatsAppMessageKind.Spreadsheet && (message.SpreadsheetMediaId != null || message.SpreadsheetFileName != null || message.SpreadsheetStorageKey != null || message.SpreadsheetPreparedJson != null)
+                    || (message.ProtectedFlowResponse != null && message.ProcessedAtUtc != null)))
             .ExecuteUpdateAsync(setters => setters
                 .SetProperty(message => message.Body, (string?)null)
                 .SetProperty(message => message.QuickReplyTitlesJson, (string?)null)
@@ -33,6 +35,15 @@ internal sealed class WhatsAppMessageRetentionRepository(ApplicationDbContext db
                 .SetProperty(message => message.AudioSize, (long?)null)
                 .SetProperty(message => message.AudioContextJson, (string?)null)
                 .SetProperty(message => message.AudioState, message => message.Kind == WhatsAppMessageKind.Audio ? WhatsAppAudioState.Expired : message.AudioState)
+                // A spreadsheet's descriptor, its copy and what was prepared go with the body; its state and its reason stay.
+                .SetProperty(message => message.SpreadsheetMediaId, (string?)null)
+                .SetProperty(message => message.SpreadsheetContentType, (string?)null)
+                .SetProperty(message => message.SpreadsheetSha256, (string?)null)
+                .SetProperty(message => message.SpreadsheetFileName, (string?)null)
+                .SetProperty(message => message.SpreadsheetStorageKey, (string?)null)
+                .SetProperty(message => message.SpreadsheetSize, (long?)null)
+                .SetProperty(message => message.SpreadsheetCopySha256, (string?)null)
+                .SetProperty(message => message.SpreadsheetPreparedJson, (string?)null)
                 .SetProperty(message => message.ProtectedFlowResponse, (byte[]?)null), cancellationToken);
         var outgoing = await dbContext.Set<WhatsAppOutgoingMessage>()
             .Where(message => message.Body != null && message.RequestedAtUtc < cutoffUtc

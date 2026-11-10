@@ -36,6 +36,8 @@ internal sealed class WhatsAppAssistantInboundFixture : IAsyncDisposable
     public bool RecoverOnly {get;set;}
     public bool ConfiguredWork {get;set;}
     public bool HasAudioWork {get;set;}
+    /// <summary>A received spreadsheet waits to be downloaded: its contact is pending and its step records "spreadsheet".</summary>
+    public bool HasSpreadsheetWork {get;set;}
     public bool AudioOnlyContact {get;set;}
     public bool AudioReady {get;set;}
     public bool InterpretAfterAudio {get;set;}
@@ -66,6 +68,8 @@ internal sealed class WhatsAppAssistantInboundFixture : IAsyncDisposable
             .AddSingleton<IWhatsAppAssistantReader>(new Reader(this))
             .AddSingleton<IWhatsAppAudioReader>(new AudioReader(this))
             .AddScoped<IWhatsAppAudioDispatchService>(sp=>new AudioDispatch(this,sp.GetRequiredService<ScopeIdentity>().Id))
+            .AddSingleton<IWhatsAppSpreadsheetReader>(new SpreadsheetReader(this))
+            .AddScoped<IWhatsAppSpreadsheetDispatchService>(sp=>new SpreadsheetDispatch(this,sp.GetRequiredService<ScopeIdentity>().Id))
             .AddScoped<IWhatsAppInboundService>(sp=>new Inbound(this,sp.GetRequiredService<ScopeIdentity>().Id))
             .AddScoped<IWhatsAppAssistantDispatchService>(sp=>new Dispatch(this,sp.GetRequiredService<ScopeIdentity>().Id))
             .AddScoped<IAssistantOperations>(sp=>new Operations(this,sp.GetRequiredService<ScopeIdentity>().Id))
@@ -200,6 +204,22 @@ internal sealed class WhatsAppAssistantInboundFixture : IAsyncDisposable
         public Task<WhatsAppAudioSourceRow?> FindPendingAsync(Guid id,DateTime nowUtc,CancellationToken ct)=>throw new NotSupportedException();
         public Task<WhatsAppAudioSourceRow?> FindAsync(Guid id,Guid message,CancellationToken ct)=>throw new NotSupportedException();
         public Task<IReadOnlyList<string>> ListReferencedKeysAsync(IReadOnlyList<string> keys,DateTime cutoffUtc,CancellationToken ct)=>throw new NotSupportedException();
+    }
+    private sealed class SpreadsheetReader(WhatsAppAssistantInboundFixture host) : IWhatsAppSpreadsheetReader
+    {
+        public Task<IReadOnlyList<Guid>> ListPendingContactsAsync(IReadOnlyCollection<Guid> excluded,int limit,DateTime nowUtc,CancellationToken ct)=>
+            Task.FromResult<IReadOnlyList<Guid>>(host.HasSpreadsheetWork && !excluded.Contains(host.ContactId)?[host.ContactId]:[]);
+        public Task<WhatsAppSpreadsheetSourceRow?> FindPendingAsync(Guid id,DateTime nowUtc,CancellationToken ct)=>throw new NotSupportedException();
+        public Task<WhatsAppSpreadsheetSourceRow?> FindAsync(Guid id,Guid message,CancellationToken ct)=>throw new NotSupportedException();
+        public Task<IReadOnlyList<Guid>> ListRetainedMessageIdsAsync(IReadOnlyCollection<Guid> ids,DateTime cutoffUtc,CancellationToken ct)=>throw new NotSupportedException();
+    }
+    private sealed class SpreadsheetDispatch(WhatsAppAssistantInboundFixture host,Guid scope) : IWhatsAppSpreadsheetDispatchService
+    {
+        public Task<Result> PrepareAsync(Guid id,CancellationToken ct)
+        {
+            if(host.HasSpreadsheetWork){host.Events.Add("spreadsheet");host.Scopes.Add(scope);host.HasSpreadsheetWork=false;}
+            return Task.FromResult(Result.Success());
+        }
     }
     private sealed class Messages : IWhatsAppMessageRepository
     {

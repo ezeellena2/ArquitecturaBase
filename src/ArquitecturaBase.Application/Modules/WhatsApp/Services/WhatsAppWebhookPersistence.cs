@@ -103,6 +103,9 @@ internal sealed partial class WhatsAppWebhookPersistence(
                 storedMessage.MarkFlowFiles(fileCount);
             if (message.Kind == WhatsAppMessageKind.Audio)
                 storedMessage.SetAudioDescriptor(message.Audio?.MediaId, message.Audio?.ContentType, message.Audio?.Sha256);
+            if (message.Kind == WhatsAppMessageKind.Spreadsheet)
+                storedMessage.SetSpreadsheetDescriptor(message.Spreadsheet?.MediaId, message.Spreadsheet?.ContentType,
+                    message.Spreadsheet?.Sha256, message.Spreadsheet?.FileName);
             var classification = WhatsAppInboundPolicy.Classify(message.Kind, message.ReplyId);
             storedMessage.Classify(classification.Purpose, classification.EventKind);
             storedMessage.SetInboundSequence(contact.RegisterInboundMessage());

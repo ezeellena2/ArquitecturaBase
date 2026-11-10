@@ -87,6 +87,10 @@ public static class WhatsAppApplicationRegistration
         services.AddScoped<IWhatsAppAudioContentService, WhatsAppAudioContentService>();
         services.AddScoped<IWhatsAppAudioDispatchService, WhatsAppAudioDispatchService>();
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IPrivateFileRetentionSource, WhatsAppAudioRetentionSource>());
+        services.AddScoped<WhatsAppSpreadsheetPreparationPolicy>();
+        services.AddScoped<WhatsAppSpreadsheetReplyPolicy>();
+        services.AddScoped<IWhatsAppSpreadsheetDispatchService, WhatsAppSpreadsheetDispatchService>();
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IPrivateFileRetentionSource, WhatsAppSpreadsheetRetentionSource>());
         services.AddScoped<IWhatsAppChatService, WhatsAppChatService>();
         services.AddScoped<IWhatsAppChatModeService, WhatsAppChatModeService>();
         services.AddScoped<IWhatsAppChatQueryService, WhatsAppChatQueryService>();

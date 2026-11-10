@@ -47,6 +47,21 @@ internal sealed class WhatsAppMessageConfiguration : IEntityTypeConfiguration<Wh
         builder.Property(message => message.AudioFailureCode).HasMaxLength(128);
         builder.HasIndex(message => message.AudioRequestId).IsUnique().HasFilter("\"AudioRequestId\" IS NOT NULL");
 
+        // Una planilla recibida: el descriptor de Meta, la copia privada, su estado y lo preparado. El procesador busca las
+        // pendientes en cada vuelta, así que tienen su índice filtrado.
+        builder.Property(message => message.SpreadsheetState).HasConversion<string>().HasMaxLength(20);
+        builder.Property(message => message.SpreadsheetMediaId).HasMaxLength(128);
+        builder.Property(message => message.SpreadsheetContentType).HasMaxLength(128);
+        builder.Property(message => message.SpreadsheetSha256).HasMaxLength(64);
+        builder.Property(message => message.SpreadsheetFileName).HasMaxLength(WhatsAppMessage.MaxSpreadsheetFileNameLength);
+        builder.Property(message => message.SpreadsheetStorageKey).HasMaxLength(500);
+        builder.Property(message => message.SpreadsheetCopySha256).HasMaxLength(64);
+        builder.Property(message => message.SpreadsheetPreparedJson).HasMaxLength(WhatsAppMessage.MaxSpreadsheetPreparedLength);
+        builder.Property(message => message.SpreadsheetFailureCode).HasMaxLength(128);
+        // Con nombre propio: sin él, EF tomaría el índice de la clave foránea, que es sobre la misma columna.
+        builder.HasIndex(message => message.ContactId, "IX_WhatsAppMessages_PendingSpreadsheets")
+            .HasFilter($"\"{nameof(WhatsAppMessage.SpreadsheetState)}\" = '{nameof(WhatsAppSpreadsheetState.Pending)}'");
+
         builder.HasIndex(message => message.WaMessageId).IsUnique();
 
         // El de la clave foránea, explícito: EF lo daría por cubierto con el de los pendientes, que empieza por la misma

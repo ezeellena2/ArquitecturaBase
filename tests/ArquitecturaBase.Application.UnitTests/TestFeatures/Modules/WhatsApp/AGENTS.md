@@ -19,3 +19,5 @@ WhatsAppFlowPreviewFixture es un Flow publicado en un idioma con un Meta falso q
 RecordingWhatsAppInboundSignal cuenta avisos sin interpretar operaciones neutrales ni ejecutar el procesador.
 
 WhatsAppWebhookSignalFixture usa dos UoW ficticias para persistencia y retry, y registra el commit exitoso sólo después del await. Las señales comprueban que ambos límites están cerrados; los casos de firma y commit fallidos no avisan. No acredita concurrencia de PostgreSQL ni efectos externos.
+
+WhatsAppSpreadsheetFixture monta una planilla sobre el fixture de la conversación del asistente: Meta, el lector del dueño y la copia afirman correr fuera de la UoW, y la respuesta pasa por la política automática real.

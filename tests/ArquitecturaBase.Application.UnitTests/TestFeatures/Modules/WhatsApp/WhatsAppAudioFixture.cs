@@ -91,7 +91,7 @@ internal sealed class WhatsAppAudioFixture : IWhatsAppFormRecipientReader, IWhat
     public Task<WhatsAppMessage?> GetForUpdateAsync(Guid contactId,Guid messageId,CancellationToken ct)
     { Assert.True(UnitOfWork.InTransaction);Locks.Add("message");return Task.FromResult<WhatsAppMessage?>(contactId==Contact.Id && messageId==Message.Id?Message:null); }
     public Task<WhatsAppMessage?> GetByRequestForUpdateAsync(Guid contactId,Guid requestId,CancellationToken ct)=>GetForUpdateAsync(contactId,Message.AudioRequestId==requestId?Message.Id:Guid.Empty,ct);
-    public Task<Result<WhatsAppMediaContent>> DownloadAsync(string id,string mime,string sha,CancellationToken ct)
+    public Task<Result<WhatsAppMediaContent>> DownloadAsync(string id,string mime,string sha,long maximumBytes,CancellationToken ct)
     {
         Assert.False(UnitOfWork.InTransaction);Downloads++;BeforeDownload?.Invoke();
         return Task.FromResult(DownloadError is {} error?Result.Failure<WhatsAppMediaContent>(error):Result.Success(new WhatsAppMediaContent(sampleContent)));

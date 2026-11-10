@@ -103,6 +103,13 @@ Es el detalle de la guía [`src/ArquitecturaBase.Application/Modules/WhatsApp/Se
 - Descarga, verificación Ogg/Opus y SHA-256 y `WriteOnce` de la clave determinista van fuera de la UoW; si otro host gana la escritura, se relee. Un pedido aceptado que pierde autorización corta antes de adquirir.
 - Manual sin pedido solo copia. Copia hasta 25.000.000 bytes y normaliza hasta 1.000.000. Solo Completed publica el texto y `reasonCode` expone solo `tooLarge`. Reproducir revalida Read y retención después de abrir los bytes.
 
+## Planillas
+
+`WhatsAppSpreadsheetDispatchService`, `WhatsAppSpreadsheetPreparationPolicy`, `WhatsAppSpreadsheetReplyPolicy`.
+
+- Quién la baja se decide antes de cualquier I/O y otra vez bajo lock. Descarga, verificación, preparación por `IStructuredAttachmentReader` y `WriteOnce` con relectura van fuera de la UoW, que toma contacto y mensaje y guarda una vez lo que salió.
+- Un rechazo guarda el motivo y contesta con `AcceptTerminal` en una referencia automática propia del mensaje, que nombra su propio pedido como propuesta y copia el `ChangeRequestId` pendiente. Sin ventana, cuenta o idioma, se guarda el motivo sin contestar.
+
 ## Retención
 
 `WhatsAppAssistantContentRetentionService` vacía un lote de hasta 500 por UoW; lo invoca la retención diaria de Infrastructure, sin otro job ni plazo.
