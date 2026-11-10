@@ -289,3 +289,11 @@ tarea 9. La revisión no encontró nada bloqueante, y su corrección entró en f
 - la regla de «fila con contenido» queda en un solo lugar, `FormSpreadsheetContentPolicy`.
 
 Unitarias 4421/4421 e integración 116/116.
+
+2026-11-10: tarea 6 hecha (a1026298). Una planilla que llega por WhatsApp entra como `WhatsAppMessageKind.Spreadsheet`, por el
+nombre o el tipo (`text/plain` sólo con `.csv`), con su `caption` como cuerpo. Se baja sólo para una cuenta vinculada y activa, en
+modo Asistente automático y con permiso, con un tope de 10 MiB por lo declarado y por los bytes y con el SHA-256 de Meta. La copia
+`whatsapp/documents/{id}` y lo preparado vencen con el cuerpo del mensaje (migración `AddWhatsAppInboundSpreadsheets`). Un rechazo
+se contesta una vez con su motivo. El chat del operador y la bandeja la siguen viendo como un archivo sin cuerpo, hasta la tarea 8.
+Unitarias 4449/4449, dominio 843/843, arquitectura 207/207 e integración 220/220 en las clases nuevas y tocadas. Queda para la
+prueba física con Meta confirmar que el `sha256` y el `mime_type` de un documento coinciden con los del webhook.
