@@ -116,7 +116,7 @@ internal sealed class SkiaFormPdfRenderer(IFormFileReader references, IStoredFil
         return value.Value is not { } raw ? FormPdfTexts.Get("NoAnswer", culture) : value.Kind switch
         {
             "number" => decimal.Parse(raw, CultureInfo.InvariantCulture).ToString("#,0.############################", locale),
-            "date" => DateOnly.ParseExact(raw, "yyyy-MM-dd", CultureInfo.InvariantCulture).ToString("d MMM yyyy", locale),
+            "date" => FormPdfDates.Day(DateOnly.ParseExact(raw, "yyyy-MM-dd", CultureInfo.InvariantCulture), culture),
             _ => raw,
         };
     }
@@ -128,7 +128,7 @@ internal sealed class SkiaFormPdfRenderer(IFormFileReader references, IStoredFil
         {
             "shortText" or "longText" => answer.GetString() ?? FormPdfTexts.Get("NoAnswer", culture),
             "decimal" => answer.GetDecimal().ToString("#,0.############################", locale),
-            "date" => DateOnly.ParseExact(answer.GetString()!, "yyyy-MM-dd", CultureInfo.InvariantCulture).ToString("d MMM yyyy", locale),
+            "date" => FormPdfDates.Day(DateOnly.ParseExact(answer.GetString()!, "yyyy-MM-dd", CultureInfo.InvariantCulture), culture),
             "boolean" => FormPdfTexts.Get(answer.GetBoolean() ? "Yes" : "No", culture),
             "multiChoice" => MultipleValue(question, answer, culture, record),
             "choice" when question.Source?.Catalog is not null => CatalogValue((record.References ?? []).Single(reference => reference.FieldId == question.FieldId && reference.ItemId == answer.GetGuid()), locale),
@@ -143,7 +143,7 @@ internal sealed class SkiaFormPdfRenderer(IFormFileReader references, IStoredFil
             "Integer" => long.Parse(reference.Value, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture).ToString("N0", locale),
             "Decimal" => decimal.Parse(reference.Value, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture)
                 .ToString("#,##0.00##########################", locale),
-            "Date" => DateOnly.ParseExact(reference.Value, "yyyy-MM-dd", CultureInfo.InvariantCulture).ToString("d", locale),
+            "Date" => FormPdfDates.Day(DateOnly.ParseExact(reference.Value, "yyyy-MM-dd", CultureInfo.InvariantCulture), locale.TwoLetterISOLanguageName),
             _ => throw new InvalidOperationException("The captured catalog value type is invalid."),
         };
         var text = reference.Text + (value is null ? "" : " · " + value);
@@ -168,7 +168,7 @@ internal sealed class SkiaFormPdfRenderer(IFormFileReader references, IStoredFil
         "integer" => field.Value.GetInt64().ToString("N0", locale),
         "decimal" => decimal.Parse(field.Value.GetString()!, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture)
             .ToString("#,##0.00##########################", locale),
-        "date" => DateOnly.ParseExact(field.Value.GetString()!, "yyyy-MM-dd", CultureInfo.InvariantCulture).ToString("d", locale),
+        "date" => FormPdfDates.Day(DateOnly.ParseExact(field.Value.GetString()!, "yyyy-MM-dd", CultureInfo.InvariantCulture), locale.TwoLetterISOLanguageName),
         "boolean" => FormPdfTexts.Get(field.Value.GetBoolean() ? "Yes" : "No", locale.TwoLetterISOLanguageName),
         "catalog" => FieldText(field.Text!, locale),
         _ => throw new InvalidOperationException("The captured catalog field type is invalid."),
@@ -487,7 +487,7 @@ internal sealed class SkiaFormPdfRenderer(IFormFileReader references, IStoredFil
                 y += 12;
             }
         }
-        private string Date(DateTime value) => value.ToString("d MMM yyyy HH:mm", CultureInfo.GetCultureInfo(culture == "es" ? "es-AR" : "en-US"));
+        private string Date(DateTime value) => FormPdfDates.Moment(value, culture);
 
         public byte[] Finish()
         {

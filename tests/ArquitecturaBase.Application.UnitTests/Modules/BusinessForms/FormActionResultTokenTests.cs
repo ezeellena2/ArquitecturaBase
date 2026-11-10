@@ -48,6 +48,17 @@ public sealed class FormActionResultTokenTests
         Assert.Equal("Emitimos la Factura C 0004-00000012, vence el 11/19/2026 por 15300.5.", FormActionResultTokenPolicy.Resolve(body, results, "en"));
     }
 
+    [Theory]
+    [InlineData("es", "vence el 03/11/2026.")]
+    [InlineData("en", "vence el 11/03/2026.")]
+    public void A_date_datum_always_has_two_digits_for_the_day_and_the_month(string culture, string expected)
+    {
+        var body = "vence el " + FormActionResultTokenPolicy.Mark("result:arca.invoice.expiresOn") + ".";
+        var results = new[] { Row(Value("expiresOn", "date", "2026-11-03")) };
+
+        Assert.Equal(expected, FormActionResultTokenPolicy.Resolve(body, results, culture));
+    }
+
     [Fact]
     public void An_answer_cannot_bring_a_mark_of_its_own() =>
         Assert.Equal("result:arca.invoice.voucher", FormActionResultTokenPolicy.Unmarked(FormActionResultTokenPolicy.Mark("result:arca.invoice.voucher")));

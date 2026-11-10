@@ -44,7 +44,7 @@ internal sealed class AiBusinessSystemQuerySource(IAiBusinessInformationReader r
             foreach (var day in details.OpeningHours.Days)
                 rows.Add(new(null, [new(Label("Day"), Label("Weekday." + day.Weekday)), new(Label("Hours"), FormatHours(day.Status, day.Periods, request.Context.Culture))]));
             foreach (var date in details.OpeningHours.Exceptions)
-                rows.Add(new(null, [new(Label("Date"), date.Date.ToString("d", CultureInfo.GetCultureInfo(request.Context.Culture))), new(Label("Hours"), FormatHours(date.Status, date.Periods, request.Context.Culture))]));
+                rows.Add(new(null, [new(Label("Date"), date.Date.ToString(request.Context.Culture.StartsWith("en", StringComparison.Ordinal) ? "MM/dd/yyyy" : "dd/MM/yyyy", CultureInfo.InvariantCulture)), new(Label("Hours"), FormatHours(date.Status, date.Periods, request.Context.Culture))]));
             foreach (var faq in details.Faq)
                 rows.Add(new(faq.Id, [new(Label("Question"), faq.Question), new(Label("Answer"), faq.Answer)]));
         }

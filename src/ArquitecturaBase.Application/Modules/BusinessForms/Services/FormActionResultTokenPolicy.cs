@@ -57,7 +57,9 @@ internal static class FormActionResultTokenPolicy
 
     private static string Format(StructuredRecordResultValue value, string culture) => value.Value is not { } raw ? "" : value.Kind switch
     {
-        StructuredRecordResultField.Date => DateOnly.ParseExact(raw, "yyyy-MM-dd", CultureInfo.InvariantCulture).ToString("d", CultureInfo.GetCultureInfo(culture)),
+        // A date is written with numbers only, day first in Spanish and month first in English (never the month as a word).
+        StructuredRecordResultField.Date => DateOnly.ParseExact(raw, "yyyy-MM-dd", CultureInfo.InvariantCulture)
+            .ToString(culture == "en" ? "MM/dd/yyyy" : "dd/MM/yyyy", CultureInfo.InvariantCulture),
         StructuredRecordResultField.Number => decimal.Parse(raw, CultureInfo.InvariantCulture).ToString("0.############################", CultureInfo.GetCultureInfo(culture)),
         _ => raw,
     };

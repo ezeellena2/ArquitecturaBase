@@ -50,7 +50,7 @@ Las verifica `tests/ArquitecturaBase.ArchitectureTests` ([detalle](docs/architec
 ## Otras reglas fijas
 
 - **Caché:** Redis directo es el único caché compartido ([ADR 0009](docs/decisions/0009-redis-como-unico-cache-de-datos.md)); solo `RedisCache` usa el cliente. Agregar caché sigue [agregar-cache.md](docs/guides/agregar-cache.md).
-- **Fechas:** UTC desde `TimeProvider` inyectado; `DateTime.Now`/`UtcNow` rompen el build. Propiedades terminadas en `Utc`; sin hora, `DateOnly`. Tests con `FakeTimeProvider`.
+- **Fechas:** UTC desde `TimeProvider` inyectado; `DateTime.Now`/`UtcNow` rompen el build. Propiedades terminadas en `Utc`; sin hora, `DateOnly`. Tests con `FakeTimeProvider`. **Al usuario se le muestran siempre con números, `dd/MM/yyyy` en español y `MM/dd/yyyy` en inglés** (`03/11/2026`), con `InvariantCulture`: nunca el mes en letras ni `"d"`/`"D"` de la cultura, que no pone el cero ([regla del front](../ArquitecturaBaseFront/docs/design/visual-baseline.md#fechas-sólo-con-números--2026-11-10)).
 - **Idioma:** identificadores, excepciones y logs en inglés. Textos del usuario en `.resx` con su `.en.resx` (`ResourceParityTests`), en español rioplatense con voseo.
 - **Logs:** `[LoggerMessage]`, nunca `logger.LogX`. Nunca códigos, tokens, enlaces de ingreso, secretos ni teléfonos enteros.
 - **Build:** `TreatWarningsAsErrors`; las advertencias se corrigen y solo se suprimen en `.editorconfig` con justificación. Versiones de paquetes solo en `Directory.Packages.props`.

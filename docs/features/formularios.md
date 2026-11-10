@@ -933,7 +933,7 @@ trae es de la etapa 3 (`IssueDocument`, [ADR 0028](../decisions/0028-emision-de-
   una respuesta de su tipo.
 - **Los avisos.** Un dato del resultado se escribe `{result:<fuente>.<clave>}` y sólo vale en un aviso que va después, en la
   misma regla, de una acción que lo declara; si no, `Forms.Rule.PlaceholderInvalid`. El texto se arma al recibir con el dato
-  marcado y se completa al mandar, en el idioma de quien lo recibe (fecha corta, número con sus decimales); sin resultado queda
+  marcado y se completa al mandar, en el idioma de quien lo recibe (fecha sólo con números, número con sus decimales); sin resultado queda
   vacío. Las respuestas citadas no pueden traer la marca.
 - **La migración** es `AddFormRecordResults`.
 
