@@ -119,19 +119,27 @@ revisión esperada y responden 409 con `Arca.Connection.RevisionConflict` si cam
   actividades, que el PDF fiscal muestra y el padrón no trae (sin ruta todavía: la zona de la pantalla llega con el front de
   la etapa 3).
 
-### Emisión de comprobantes (etapa 3, en curso)
+### Emisión de comprobantes (etapas 3 y 4, en curso)
 
 La cola del [ADR 0028](../decisions/0028-emision-de-comprobantes-arca.md) está programada; todavía no la pide ningún
 formulario (la acción «Emitir comprobante», el estándar «Factura» y la anulación con nota de crédito siguen en el
-[plan](../plans/2026-11-09-arca-etapa-3-factura-c.md)).
+[plan](../plans/2026-11-09-arca-etapa-3-factura-c.md)). La A y la B siguen el
+[plan de la etapa 4](../plans/2026-11-09-arca-etapa-4-factura-a-y-b.md).
 
 - **Encolar** (`IArcaVoucherService`) valida el receptor (CUIT con su dígito, DNI, o consumidor final sin identificar),
   el concepto, el período y el vencimiento del pago de un servicio, la fecha que ARCA acepta hoy y los renglones, y
   recalcula cada importe con half-even: un total distinto del pedido no se encola. La clase la decide el sistema con la
-  condición frente al IVA de la empresa (`IArcaCompanyProfileSource`, del padrón): monotributo o exento, C; responsable
-  inscripto, `Arca.Invoicing.ClassNotSupported` hasta la etapa 4. Fija lo que va a emitir, con los datos del emisor de ese
-  momento, y la clave del pedido la hace idempotente. La nota de crédito anula por el total una factura autorizada, una
-  sola vez, con la factura en `CbtesAsoc` y la fecha de hoy.
+  condición frente al IVA de la empresa (`IArcaCompanyProfileSource`, del padrón) y la del receptor: monotributo o exento,
+  C; responsable inscripto, A al responsable inscripto y a los monotributistas (1, 6, 13 y 16) y B a los demás. Fija lo que
+  va a emitir, con los datos del emisor de ese momento, y la clave del pedido la hace idempotente. La nota de crédito anula
+  por el total una factura autorizada, una sola vez, de su misma clase, con los mismos renglones, la factura en
+  `CbtesAsoc` y la fecha de hoy.
+- **A y B (etapa 4):** cada renglón trae su IVA: una alícuota de ARCA por su código (3, 4, 5, 6, 8 y 9; el porcentaje lo
+  pone el servidor), «Exento» o «No gravado». El pedido dice si los precios incluyen el IVA. El IVA se calcula por alícuota
+  sobre la suma de sus renglones, con half-even; con precios con IVA, la base es la suma dividida por (1 + alícuota) y el
+  IVA, lo que falta. Al pedido van `ImpNeto`, `ImpIVA`, `ImpOpEx` (exento), `ImpTotConc` (no gravado) y el array `Iva`,
+  una entrada por alícuota. La A exige CUIT; un renglón sin IVA en la A o la B no se encola (`Arca.Invoicing.ItemsInvalid`).
+  La C descarta el IVA que llegue.
 - **Numeración:** `ArcaVoucherSequences` tiene una fila por ambiente, CUIT, punto de venta y tipo, con una reserva corta y
   el comprobante pendiente. El worker (`Arca:Invoicing:Worker`) toma una secuencia por vez y su comprobante más viejo sin
   resolver; nadie toma otro número mientras haya un pendiente. El número (último autorizado más 1) y la huella SHA-256 se
@@ -146,6 +154,10 @@ formulario (la acción «Emitir comprobante», el estándar «Factura» y la anu
 - **PDF fiscal:** al autorizarse, el worker lo dibuja con diseño fijo y el QR de ARCA, lo escribe una vez en el almacén
   privado (`arca-vouchers/{id}.pdf`) y confirma su SHA-256. Si el almacén falla, el comprobante sigue autorizado y el PDF
   espera. Esos PDF no se limpian mientras exista su comprobante.
+- **PDF de la A y la B:** la A muestra precios sin IVA con su alícuota y, arriba del pie, el neto gravado, el IVA de cada
+  alícuota y lo exento o no gravado; a un monotributista (6, 13 y 16) lleva la leyenda del art. 20 de la RG 5003. La B
+  muestra los precios con el IVA incluido; a un exento, un no alcanzado o un consumidor final (4, 15 y 5) lleva abajo a la
+  izquierda el recuadro de la RG 5614 con el IVA contenido y los otros impuestos nacionales indirectos en 0.
 - **Desconectar no borra comprobantes ni secuencias:** son registros con valor legal y no tienen clave foránea a la
   conexión. El worker sólo trabaja los del ambiente y la CUIT de la conexión activa.
 

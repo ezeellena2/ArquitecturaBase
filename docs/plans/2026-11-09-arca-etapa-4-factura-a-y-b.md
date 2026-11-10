@@ -12,8 +12,9 @@ autocompletar del padrón, el PDF fiscal con QR, los catálogos de ARCA (las al�
 el estándar «Factura» y la anulación con nota de crédito. El reparto quedó en la nota compartida de las etapas.
 
 **Tableros:** prefijo IV, en el lienzo provisorio
-[Formularios desde la app](https://claude.ai/artifact/Kvbr5KFJrGT951JLiu8i4M), sólo con lo que cambia respecto de la C. Se
-dibujan cuando el usuario haya elegido los de la etapa 3 (EM, NC y CA), para no inventar la base.
+[Formularios desde la app](https://claude.ai/artifact/Kvbr5KFJrGT951JLiu8i4M), sólo con lo que cambia respecto de la C en
+la app y en WhatsApp: la alícuota del renglón, los totales y el «¿La emito?» con IVA. El PDF se revisó con muestras reales
+(tarea 5).
 
 ## Normas confirmadas (2026-11-09)
 
@@ -183,9 +184,17 @@ integral.
    array `Iva` (`ArcaVatRateTotal`). Un importe negativo o con más de 2 decimales es un error del sistema: la carga los
    rechaza antes. 21 pruebas, entre ellas las tolerancias de la 10051 para todos los importes de 0,01 a 50 con cada
    alícuota.
-3. *(con la etapa 3)* **Las filas A y B** de la clase y el pedido con `Iva` y `DocTipo` 80, con `FakeArca`.
-4. *(con la etapa 3)* **Nota de crédito A y B.**
-5. *(con la etapa 3)* **PDF:** IVA discriminado, la leyenda de la RG 5003 y el apartado de la RG 5614.
+3. **Las filas A y B** de la clase y el pedido con `Iva` y `DocTipo` 80. **Hecho el 2026-11-09** (38ebe5dc), sobre la
+   cola de la etapa 3: `ArcaVoucherOrderItem` y `ArcaVoucherLine` llevan su `ArcaVoucherVat` (código de alícuota, exento o no
+   gravado), el pedido dice si los precios incluyen IVA, `ArcaVatRates` fija el porcentaje de cada código y
+   `ArcaVoucherOrderPolicy.ForClass` pide CUIT en la A y el IVA de cada renglón en la A y la B. Se retiró
+   `Arca.Invoicing.ClassNotSupported`. La vista previa devuelve también el IVA. Las pruebas de integración (una A con su
+   nota de crédito y una B a consumidor final contra `FakeArca`) compilan y corren en la verificación de cierre.
+4. **Nota de crédito A y B.** Sale de la anulación de la etapa 3, que ya copia la clase y los renglones de la factura; la
+   cubre la prueba de la A (tarea 3).
+5. **PDF:** IVA discriminado, la leyenda de la RG 5003 y el apartado de la RG 5614. **Hecho el 2026-11-09** (890f04bf). En
+   lugar de un tablero, se revisaron dos PDF de muestra dibujados por el renderer real (una A a monotributista con exento y
+   una B a consumidor final); el diseño fijo es el de la etapa 3 y el contenido lo fija la norma.
 6. *(con las etapas 2 y 3)* **La alícuota en el estándar «Factura»** y «Los precios incluyen IVA» si se elige.
 7. **Front,** después de la prueba integral, con el diseño registrado en `docs/design`.
 8. **Prueba en homologación de A y B** con la CUIT del usuario, que la corre con su clave fiscal.
