@@ -98,7 +98,9 @@ Lo que el plan no fijaba, resuelto con la opción más simple que cumple el plan
    y `MarkImported` son los de siempre. Vale para el catálogo creado desde esa propuesta, sólo para quien la pidió, y para una
    propuesta de importar que siga vigente. **Modo:** reemplazar, como subir un Excel hoy (decisión del usuario del 2026-11-09).
    Las opciones que no vienen quedan inactivas, con la revisión y la confirmación de siempre; en un catálogo recién creado, sin
-   opciones, da lo mismo. Una copia vencida da su código y el diálogo vuelve a pedir el archivo.
+   opciones, da lo mismo. Una copia vencida da su código y el diálogo vuelve a pedir el archivo. La importación pendiente de un
+   catálogo creado desde una propuesta con planilla se consulta con su propio `GET api/forms/catalogs/{id}/assistant-import`,
+   sólo para quien la pidió: el detalle del catálogo no cambia de forma.
 5. **Inicio.** El turno con una planilla sube en un solo pedido multipart (`POST api/ai/assistant/file-turns`, los campos del turno
    más el archivo, hasta 10 MiB): sin tabla nueva ni otro identificador, porque leer una planilla no espera a ningún proveedor. El
    servidor la prepara por el puerto, deja la copia `ai/assistant/attachments/{requestId}.xlsx` o `.csv` con `WriteOnce` y
@@ -141,8 +143,8 @@ Lo que el plan no fijaba, resuelto con la opción más simple que cumple el plan
      desde el enlace de WhatsApp;
    - la planilla en el chat del operador.
 9. **Contratos mientras dura la prueba integral.** Nada que el front de hoy rechace, ni nada que le saque algo que hoy muestra,
-   llega a `main` antes que su front. El `attachments` del bootstrap se publica con la tarea 8, y la importación pendiente del
-   detalle del catálogo, con la 9. El front de hoy dibuja sólo la versión 1 de `propose-catalog`, así que Inicio la sigue
+   llega a `main` antes que su front. El `attachments` del bootstrap se publica con la tarea 8; las rutas nuevas (el turno con
+   archivo, importar desde la copia y la importación pendiente) no las llama el front de hoy. El front de hoy dibuja sólo la versión 1 de `propose-catalog`, así que Inicio la sigue
    ofreciendo hasta la tarea 9: la versión 2 y `propose-import` quedan registradas sin `OfferedInHome` y la 9 da vuelta las
    marcas. WhatsApp, que no depende del front, pasa a la 2 y suma `propose-import` en la tarea 7. Lo demás no rompe nada: el front
    de hoy no puede mandar un turno con archivo y no recibe `Manual` con otra forma.
@@ -167,8 +169,8 @@ Vite le recarga la página.
    `decline`, la presentación con la muestra, crear con las dos versiones y la evidencia con el pedido, y el lookup para la
    conversación propia de un canal con el descriptor. Unitarias del mapeo (válidos y rechazados, una columna), del reemplazo por
    grupo, del lookup y de crear.
-5. **Importar desde la copia.** Los dos endpoints, la hoja armada con el mapeo, reemplazar, quién puede, la copia vencida y la
-   importación pendiente del detalle del catálogo (publicada con la tarea 9). Unitarias de la hoja mapeada y del servicio;
+5. **Importar desde la copia.** Los dos endpoints, la hoja armada con el mapeo, reemplazar, quién puede, la copia vencida y el
+   `GET` de la importación pendiente. Unitarias de la hoja mapeada y del servicio;
    integración con PostgreSQL (crear y abrir la importación, importar en uno que existe y en un propuesto pendiente, ajeno,
    vencido), el inventario de rutas y las cohortes `catalog-imports` y `forms-assistant-proposals-http`.
 6. **WhatsApp: el documento entrante.** El webhook (`MetaWebhook.Document`), el tipo nuevo, sus columnas y la migración, la
@@ -249,3 +251,14 @@ ocho dependencias, el tope de `ServiceDependencyLimitTests`.
 
 Unitarias 4325/4325, dominio 821/821, arquitectura 207/207 e integración de las nueve clases tocadas (52/52), sobre una copia de
 HEAD.
+
+2026-11-10: tarea 4 hecha, en dos commits:
+- 70b01b9c, en BusinessForms: `propose-catalog@2`, con la salida nueva `FormAuthoringMappedCatalogProposal` (los campos de la 1
+  más `spreadsheet`), su mapeo (`hasHeaders`, código, opción, valor, detalle y una letra por campo) y el resumen para la tarjeta;
+  `propose-import@1`; cinco códigos de rechazo nuevos; `decline`; y crear con las dos versiones. La evidencia suma `RequestId`
+  sólo desde Inicio: el puerto del canal lo suma en la tarea 7.
+- ecdc74d0, en el módulo IA: el lookup encuentra la conversación propia de un canal y devuelve el descriptor de la planilla del
+  turno, sin vencimiento.
+
+Inicio sigue ofreciendo la versión 1. Unitarias 4366/4366, arquitectura 207/207, dominio 821/821 e integración 11/11. Queda por
+confirmar en la corrida real que OpenAI acepte un objeto que puede ser null en el modo estricto.
