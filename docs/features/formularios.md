@@ -237,7 +237,7 @@ Un fallo del conteo no bloquea Aplicar si el filtro local es válido. Reintentar
 
 Las fotos muestran primera miniatura/cantidad y abren F4 con todas las fotos de la respuesta. El detalle ofrece galería completa y documentos con nombre, tamaño y descarga por la API. La planilla conserva desplazamiento horizontal dentro de la tabla y selector de columnas. No se exponen URL de Azure ni se cambia la captura de Etapas 1–2B.
 
-`POST /api/forms/definitions/{id}/records/export` exige además `formrecords.export`. Su política permite una exportación concurrente por usuario y proceso, sin cola y con 429 al intentar otra, Retry-After y retryAfter de al menos un segundo; las lecturas tienen su propio cupo. Exporta todas las preguntas o las visibles, con número, recibida (UTC), persona y canal siempre. Hasta 10.000 respuestas, una consulta de IDs ordenados e hidratación por lotes de 100, definición y columnas leídas una vez, número máximo fijado al empezar y presupuesto de 30 s, sin cola ni trabajos de fondo. ClosedXML (MIT), sólo en Infrastructure, mantiene tipos numéricos/fechas/booleanos y textos literales; encabezados en el idioma del usuario y el estado real de la respuesta, incluido Aprobada o Rechazada. Opcional vacía es celda vacía; pregunta inexistente es «—». De los archivos incluye cantidad/nombres completos, sin incrustarlos. No hay tablas, migraciones, Redis ni mecanismos durables nuevos para estas lecturas.
+`POST /api/forms/definitions/{id}/records/export` exige además `formrecords.export`. Su política permite una exportación concurrente por usuario y proceso, sin cola y con 429 al intentar otra, Retry-After y retryAfter de al menos un segundo; las lecturas tienen su propio cupo. Exporta todas las preguntas o las visibles, con «N°», «Recibida», «Cargó» y «Canal» siempre: la recepción en la zona del perfil de quien exporta, como la muestra la planilla (lo guardado sigue en UTC), y el canal con sus palabras, «WhatsApp» o «App» (XL2, 2026-11-09). Hasta 10.000 respuestas, una consulta de IDs ordenados e hidratación por lotes de 100, definición y columnas leídas una vez, número máximo fijado al empezar y presupuesto de 30 s, sin cola ni trabajos de fondo. ClosedXML (MIT), sólo en Infrastructure, mantiene tipos numéricos/fechas/booleanos y textos literales; encabezados en el idioma del usuario y el estado real de la respuesta, incluido Aprobada o Rechazada. Va en una sola hoja, «Respuestas»: el encabezado en negrita y con el tono de la planilla, fijo al bajar y con filtros; cada columna mide lo que lleva en sus primeras 200 filas, con tope, y las fechas siguen el formato del idioma. Opcional vacía es celda vacía; pregunta inexistente es «—». De los archivos incluye cantidad/nombres completos, sin incrustarlos. No hay tablas, migraciones, Redis ni mecanismos durables nuevos para estas lecturas.
 
 El recorrido real verificó FOTO2B-000001: miniatura, visor con el original privado de Azure, descarga PDF, pregunta opcional vacía y recarga. En PILK7 se comprobaron facetas históricas (1 entrega a domicilio y 2 retiros), filtro y anterior/siguiente entre 000003 y 000001 conservados al recargar. El usuario abrió FOTO2B-20261016.xlsx en Excel sin reparación, con número, nombres de foto/PDF y opcional vacía. EXPLAIN sobre 10.001 respuestas/40.004 valores usa índices existentes y pagina después de filtrar; es una medición local, no una garantía de producción. Azurite volvió a ser predeterminado y Aspire quedó apagado.
 
@@ -363,11 +363,13 @@ tarjeta del chat, el Excel y el PDF. Los textos dicen «ítem» (RG12-A); el có
   y su primera respuesta en negro y las demás alineadas debajo; la pantalla completa (DC1), una tabla con el número a la
   derecha y una columna por pregunta. Sin ítems, «Sin respuesta».
 - **El chat.** La tarjeta recibe el bloque por la misma lectura, sin campos del catálogo, y pone un ítem por línea.
-- **El Excel.** «Respuestas» pone la cantidad de ítems (vacía sin ítems, «—» si su versión no tenía el bloque). Cada bloque
-  exportado, con todas las preguntas o con su columna visible, suma una hoja con «Número», «Ítem» y sus preguntas, con su
-  «· valor» y los campos que elige `catalogFields`, una fila por ítem en el orden de las respuestas. La hoja se llama como
-  el bloque, sin lo que Excel no admite, hasta 31 caracteres sin partir un emoji y sin apóstrofes ni espacios en los
-  extremos; «Ítems» si queda vacía, igual a «Respuestas» o «History», y « (2)» si otra ya tiene ese nombre.
+- **El Excel** (XL1-A, 2026-11-09). Una sola hoja, con una fila por ítem: los datos de la respuesta se repiten en cada
+  uno de sus ítems y, en el lugar del bloque, van «Ítem» y sus preguntas, con su «· valor» y los campos que elige
+  `catalogFields`, en el orden de las respuestas. «Ítem» va una vez aunque dos versiones tengan bloques distintos. Una
+  respuesta sin ítems ocupa una fila con «Ítem» vacío, una de una versión sin el bloque lleva «—» y una línea marca dónde
+  empieza cada respuesta. Con el bloque fuera de «Solo las visibles» no hay columnas del ítem. Hasta 100.000 filas, el
+  tope que eligió el usuario al medirlo (un millón tardaba 84 s): si se pasa, se corta antes de escribir con
+  `Forms.Record.ExportTooManyRows`.
 - **El PDF.** El diseño elige el bloque entero: el inicial, el de una respuesta sin diseño guardado y las preguntas que se
   pueden elegir dejan afuera las del bloque, y un idioma está completo si también lo están ellas. La copia pone el bloque
   bajo su nombre en una tabla: el número del ítem en una columna angosta y sin encabezado, y una columna por pregunta de su
@@ -382,8 +384,8 @@ tarjeta del chat, el Excel y el PDF. Los textos dicen «ítem» (RG12-A); el có
   número. Una pregunta del bloque no es un dato: guardarla da `Forms.Rule.PlaceholderInvalid`.
 
 Límites conocidos, sin caso real hoy: un bloque con muchas preguntas angosta las columnas de la tabla del PDF, un ítem
-partido entre páginas no repite su número y la hoja del bloque no tiene tope propio de filas (corta el presupuesto de 30
-segundos del export).
+partido entre páginas no repite su número y un formulario con muchas preguntas puede llegar al presupuesto de 30 segundos
+del Excel antes que a las 100.000 filas.
 
 ## Diseño y copia fija del PDF — Etapa 4, G2
 
