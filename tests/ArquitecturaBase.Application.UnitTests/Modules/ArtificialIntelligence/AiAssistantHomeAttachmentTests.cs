@@ -115,15 +115,45 @@ public sealed class AiAssistantHomeAttachmentTests
         Assert.Equal((0, 0, 0, 0), (host.Reader.Asked.Count, host.Reader.Prepared, host.Files.WriteCount, host.Fixture.Work.Transactions));
     }
 
-    [Theory]
-    [InlineData(false, true)]
-    [InlineData(true, false)]
-    public async Task Who_cannot_attach_gets_its_own_forbidden_code_before_the_file_is_read(bool allowed, bool storage)
+    [Fact]
+    public async Task Who_cannot_attach_gets_its_own_forbidden_code_before_the_file_is_read()
     {
-        var host = new Host(storage);
-        host.Reader.Allowed = allowed;
+        var host = new Host();
+        host.Reader.Allowed = false;
         Assert.Equal(AiAssistantErrors.AttachmentForbidden, (await host.Service.SubmitAsync(host.Request(), Ct)).Error);
         Assert.Equal((0, 0, 0), (host.Reader.Prepared, host.Files.WriteCount, host.Fixture.Work.Transactions));
+    }
+
+    // Without private storage it is the installation, not the account: its own code under the file, and the owner is never asked.
+    [Fact]
+    public async Task Without_private_storage_spreadsheets_are_not_available_in_the_installation()
+    {
+        var host = new Host(storage: false);
+        var error = Assert.IsType<ValidationError>((await host.Service.SubmitAsync(host.Request(), Ct)).Error);
+        Assert.Equal(AiAssistantErrors.AttachmentUnavailable.Code, error.Code);
+        Assert.Equal(["file"], error.Errors.Keys);
+        Assert.Equal((0, 0, 0, 0), (host.Reader.Asked.Count, host.Reader.Prepared, host.Files.WriteCount, host.Fixture.Work.Transactions));
+    }
+
+    [Fact]
+    public async Task A_copy_that_cannot_be_read_back_answers_under_the_file_in_neutral_words()
+    {
+        var host = new Host();
+        var request = host.Request();
+        host.Files.BeforeRead = () => host.Files.DeleteAsync(AiAssistantHomeAttachmentPolicy.Key(request.Turn.RequestId, StructuredSpreadsheetKind.Csv), Ct);
+        var error = Assert.IsType<ValidationError>((await host.Service.SubmitAsync(request, Ct)).Error);
+        Assert.Equal(AiAssistantErrors.AttachmentNotStored.Code, error.Code);
+        Assert.Equal(["file"], error.Errors.Keys);
+        Assert.Empty(host.Fixture.Store.Turns);
+    }
+
+    [Fact]
+    public async Task The_turn_fields_are_checked_before_the_file_is_read_or_a_retry_is_looked_up()
+    {
+        var host = new Host();
+        var error = Assert.IsType<ValidationError>((await host.Service.SubmitAsync(host.Request(requestId: Guid.Empty), Ct)).Error);
+        Assert.Contains("requestId", error.Errors.Keys);
+        Assert.Equal((0, (Guid?)null), (host.Reader.Prepared, host.Fixture.Store.LastReadRequest));
     }
 
     [Theory]
@@ -173,7 +203,7 @@ public sealed class AiAssistantHomeAttachmentTests
         var request = host.Request(question: "Armame un catálogo con esta planilla");
         var first = await host.Service.SubmitAsync(request, Ct);
         Assert.True(first.IsSuccess);
-        // The descriptor is never rebuilt: its expiry is part of the request, and the person may have lost the attachment meanwhile.
+        // The retry accepts with the descriptor it stored, without reading or storing again: the person may have lost the attachment meanwhile.
         host.Fixture.Clock.Advance(TimeSpan.FromMinutes(1));
         host.Reader.Allowed = false;
         var again = await host.Service.SubmitAsync(request, Ct);
@@ -181,6 +211,96 @@ public sealed class AiAssistantHomeAttachmentTests
         Assert.Equal((first.Value.ConversationId, first.Value.RequestId, first.Value.TurnRevision),
             (again.Value.ConversationId, again.Value.RequestId, again.Value.TurnRevision));
         Assert.Equal((1, 1, 1, 1), (host.Reader.Prepared, host.Files.WriteCount, host.Fixture.Store.Turns.Count, host.Fixture.Store.Receipts.Count));
+    }
+
+    // Two requests with the same id at once: the second does not find the first's acceptance yet, reads and keeps the same copy, and
+    // the acceptance recovers the first turn, because Home's fingerprint does not bind the expiry each attempt gives its copy.
+    [Fact]
+    public async Task Two_overlapping_uploads_of_the_same_request_end_in_one_turn()
+    {
+        var host = new Host();
+        var request = host.Request(question: "Armame un catálogo con esta planilla");
+        var first = await host.Service.SubmitAsync(request, Ct);
+        Assert.True(first.IsSuccess);
+        host.Fixture.Clock.Advance(TimeSpan.FromMinutes(1));
+        host.Fixture.Store.HidesAcceptedRequests = true;
+        var second = await host.Service.SubmitAsync(request, Ct);
+        Assert.True(second.IsSuccess);
+        Assert.Equal((first.Value.ConversationId, first.Value.RequestId), (second.Value.ConversationId, second.Value.RequestId));
+        Assert.Equal((2, 1, 1, 1), (host.Reader.Prepared, host.Files.WriteCount, host.Fixture.Store.Turns.Count, host.Fixture.Store.Receipts.Count));
+    }
+
+    [Fact]
+    public async Task An_acceptance_that_fails_after_keeping_the_copy_is_retried_with_the_same_id()
+    {
+        var host = new Host();
+        var request = host.Request();
+        var stale = request with { Turn = request.Turn with { ExpectedConnectionRevision = host.Fixture.Store.Connection.Revision + 1 } };
+        Assert.Equal(AiAssistantErrors.ConnectionChanged, (await host.Service.SubmitAsync(stale, Ct)).Error);
+        Assert.Equal((1, 0), (host.Files.WriteCount, host.Fixture.Store.Turns.Count));
+        Assert.True((await host.Service.SubmitAsync(request, Ct)).IsSuccess);
+        Assert.Equal((2, 1, 1), (host.Reader.Prepared, host.Files.WriteCount, host.Fixture.Store.Turns.Count));
+    }
+
+    [Fact]
+    public async Task A_retry_compares_what_was_sent_before_reading_the_stored_descriptor()
+    {
+        var host = new Host();
+        var request = host.Request();
+        Assert.True((await host.Service.SubmitAsync(request, Ct)).IsSuccess);
+        var reads = host.Fixture.Protector.Reads;
+        Assert.Equal(AiAssistantErrors.RequestReused, (await host.Service.SubmitAsync(request with { Content = [.. Csv, (byte)'x'] }, Ct)).Error);
+        Assert.Equal(reads, host.Fixture.Protector.Reads);
+    }
+
+    [Theory]
+    [InlineData("purged", "Ai.Assistant.NotFound")]
+    [InlineData("retired", "Ai.Assistant.NotFound")]
+    [InlineData("unreadable", "Ai.Assistant.ContentUnavailable")]
+    public async Task A_retry_of_a_turn_whose_copy_is_gone_or_unreadable_answers_like_the_turn(string state, string code)
+    {
+        var host = new Host();
+        var request = host.Request();
+        Assert.True((await host.Service.SubmitAsync(request, Ct)).IsSuccess);
+        var turn = host.Turn(request.Turn.RequestId);
+        if (state == "purged") turn.PurgeContent();
+        else if (state == "retired") host.Fixture.Store.Conversations.Single(item => item.Id == turn.ConversationId).Remove(host.Now);
+        else turn.Attach(turn.AttachmentKey!, turn.AttachmentSha256!, turn.AttachmentSize!.Value, "fictional-unreadable-ciphertext");
+        Assert.Equal(code, (await host.Service.SubmitAsync(request, Ct)).Error.Code);
+        Assert.Equal((1, 1), (host.Reader.Prepared, host.Fixture.Store.Turns.Count));
+    }
+
+    [Fact]
+    public async Task A_conversation_is_named_after_its_spreadsheet_only_when_its_first_turn_has_no_text()
+    {
+        var host = new Host();
+        var spreadsheetOnly = host.Request();
+        var written = host.Request(question: "Armame un catálogo de clientes");
+        Assert.True((await host.Service.SubmitAsync(spreadsheetOnly, Ct)).IsSuccess);
+        Assert.True((await host.Service.SubmitAsync(written, Ct)).IsSuccess);
+        var unnamed = host.Turn(spreadsheetOnly.Turn.RequestId);
+        host.Fixture.Store.AttachmentReads.Clear();
+        Assert.Equal("clientes.csv", (await host.Reads.GetConversationAsync(unnamed.ConversationId, Ct)).Value.Title);
+        Assert.Equal([unnamed.Id], host.Fixture.Store.AttachmentReads);
+        Assert.Equal("Armame un catálogo de clientes", (await host.Reads.GetConversationAsync(host.Turn(written.Turn.RequestId).ConversationId, Ct)).Value.Title);
+        Assert.Equal([unnamed.Id], host.Fixture.Store.AttachmentReads);
+    }
+
+    [Fact]
+    public async Task The_turns_page_shows_the_spreadsheet_on_the_turn_that_brought_it_and_reads_only_that_one()
+    {
+        var host = new Host();
+        var request = host.Request();
+        Assert.True((await host.Service.SubmitAsync(request, Ct)).IsSuccess);
+        var first = host.Turn(request.Turn.RequestId);
+        host.Complete(first);
+        var conversation = host.Fixture.Store.Conversations.Single(item => item.Id == first.ConversationId);
+        Assert.True((await host.AcceptAsync(new SubmitAiAssistantTurnRequest(Guid.NewGuid(), conversation.Id, conversation.Revision,
+            host.Fixture.Store.Connection.Revision, "Usá la columna B como nombre", "es"))).IsSuccess);
+        host.Fixture.Store.AttachmentReads.Clear();
+        var page = await host.Reads.ListTurnsAsync(conversation.Id, new ListAiAssistantTurnsRequest(), Ct);
+        Assert.Equal(["clientes.csv", null], page.Value.Items.OrderBy(turn => turn.Ordinal).Select(turn => turn.Attachment?.Name));
+        Assert.Equal([first.Id], host.Fixture.Store.AttachmentReads);
     }
 
     [Theory]
@@ -245,7 +365,7 @@ public sealed class AiAssistantHomeAttachmentTests
         var invalid = request with { Turn = request.Turn with { ConversationId = Guid.NewGuid(), ExpectedRevision = null } };
         var error = Assert.IsType<ValidationError>((await host.Service.SubmitAsync(invalid, Ct)).Error);
         Assert.Contains("expectedRevision", error.Errors.Keys);
-        Assert.Equal((0, 0), (host.Files.WriteCount, host.Fixture.Work.Transactions));
+        Assert.Equal((0, 0, 0), (host.Reader.Prepared, host.Files.WriteCount, host.Fixture.Work.Transactions));
     }
 
     [Fact]
@@ -305,13 +425,13 @@ public sealed class AiAssistantHomeAttachmentTests
         Assert.True((await host.AcceptAsync(next)).IsSuccess);
         Assert.Equal(first.AttachmentKey, host.Turn(next.RequestId).AttachmentKey);
 
-        var own = host.Responses.Map((await host.Fixture.Store.FindTurnByRequestAsync(host.ActorId, request.Turn.RequestId, Ct))!, true, 2).Value;
+        var own = host.Responses.Map(await host.ShownAsync(request.Turn.RequestId), true, 2).Value;
         Assert.Equal(new AiAssistantTurnAttachmentResponse("clientes.csv", "csv", 12, Csv.LongLength), own.Attachment);
         Assert.Contains("\"attachment\":{\"name\":\"clientes.csv\",\"kind\":\"csv\",\"rows\":12,\"size\":", JsonSerializer.Serialize(own, AiAssistantResponsePolicy.JsonOptions), StringComparison.Ordinal);
-        var inherited = host.Responses.Map((await host.Fixture.Store.FindTurnByRequestAsync(host.ActorId, next.RequestId, Ct))!, true, 2).Value;
+        var inherited = host.Responses.Map(await host.ShownAsync(next.RequestId), true, 2).Value;
         Assert.Null(inherited.Attachment);
         Assert.DoesNotContain("attachment", JsonSerializer.Serialize(inherited, AiAssistantResponsePolicy.JsonOptions), StringComparison.Ordinal);
-        Assert.Null(host.Responses.Map((await host.Fixture.Store.FindTurnByRequestAsync(host.ActorId, request.Turn.RequestId, Ct))!, false, 2).Value.Attachment);
+        Assert.Null(host.Responses.Map(await host.ShownAsync(request.Turn.RequestId), false, 2).Value.Attachment);
         Assert.DoesNotContain("clientes", own.Attachment!.ToString(), StringComparison.Ordinal);
     }
 
@@ -326,6 +446,7 @@ public sealed class AiAssistantHomeAttachmentTests
         public AttachmentReader Reader { get; } = new();
         public AiAssistantResponsePolicy Responses { get; }
         public AiAssistantFileTurnService Service { get; }
+        public AiAssistantReadPolicy Reads { get; }
         public Guid ActorId => Fixture.ActorId;
         public DateTime Now => Fixture.Clock.GetUtcNow().UtcDateTime;
 
@@ -341,6 +462,8 @@ public sealed class AiAssistantHomeAttachmentTests
                 new FakeCurrentUser { UserId = ActorId }, catalog, [], Files);
             submissions = new(Fixture.Store, Fixture.Store, Fixture.Store, guard, Fixture.Protector, new OperationsFingerprint(), limits, Fixture.Clock);
             Responses = new(Fixture.Protector, Fixture.Clock, catalog);
+            Reads = new(Fixture.Store, Fixture.Store, RequestValidators.For(new ListAiAssistantTurnsRequestValidator()), Fixture.Permissions, guard,
+                Responses, catalog, limits);
             Service = new(Fixture.Work, RequestValidators.For(new SubmitAiAssistantTurnRequestValidator(limits)), guard, submissions,
                 new AiAssistantHomeAttachmentPolicy(Files, Reader, Fixture.Store, Fixture.Protector), limits, Fixture.Clock,
                 NullLogger<AiAssistantFileTurnService>.Instance);
@@ -355,6 +478,10 @@ public sealed class AiAssistantHomeAttachmentTests
             Fixture.Work.ExecuteInTransactionAsync(ct => submissions.AcceptAsync(ActorId, request, ct), CommitPolicy.OnSuccess, Ct);
 
         public AiAssistantTurn Turn(Guid requestId) => Fixture.Store.Turns.Single(turn => turn.RequestId == requestId);
+
+        // The turn as Home shows it: its row, with the sealed spreadsheet of the turn that brought it.
+        public async Task<AiAssistantTurnRow> ShownAsync(Guid requestId) => (await AiAssistantAttachmentPolicy.WithOwnAttachmentsAsync(Fixture.Store, ActorId,
+            [(await Fixture.Store.FindTurnByRequestAsync(ActorId, requestId, Ct))!], Ct))[0];
 
         public string? Reveal(AiAssistantTurn turn, string purpose) => Fixture.Protector.Unprotect(turn.OwnerUserId, turn.ConversationId, turn.Id,
             purpose, turn.PayloadRevision, purpose == "transcript" ? turn.ProtectedTranscript! : turn.ProtectedQuestion!);
@@ -378,8 +505,9 @@ public sealed class AiAssistantHomeAttachmentTests
             var turn = AiAssistantTurn.Create(ActorId, conversation.Id, Guid.NewGuid(), 1, "", "es", "UTC", AiProvider.OpenAI, "model", 1,
                 Now, Now.AddHours(contentHours));
             turn.ProtectQuestion(Fixture.Protector.Protect(ActorId, conversation.Id, turn.Id, "question", turn.PayloadRevision, "Pedido"));
-            turn.Attach(key, Fixture.Protector.Protect(ActorId, conversation.Id, turn.Id, "attachment", turn.PayloadRevision,
-                FictionalAttachment.Json(FictionalAttachment.Input(Now.AddHours(contentHours), key))));
+            var attachment = FictionalAttachment.Input(Now.AddHours(contentHours), key);
+            turn.Attach(key, attachment.Sha256, attachment.Size, Fixture.Protector.Protect(ActorId, conversation.Id, turn.Id, "attachment",
+                turn.PayloadRevision, FictionalAttachment.Json(attachment)));
             Fixture.Store.Conversations.Add(conversation);
             Fixture.Store.Turns.Add(turn);
             return key;

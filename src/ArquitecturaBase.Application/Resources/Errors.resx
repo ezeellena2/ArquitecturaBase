@@ -132,14 +132,15 @@
   <data name="Ai.Assistant.ProviderIncomplete" xml:space="preserve"><value>El proveedor devolvió una respuesta incompleta. No se publicó ni se amplió el límite automáticamente.</value></data>
   <data name="Ai.Assistant.QuotaExceeded" xml:space="preserve"><value>Alcanzaste la cuota de consultas aceptadas. Esperá el plazo indicado.</value></data>
   <data name="Ai.Assistant.CapacityLimited" xml:space="preserve"><value>El asistente está ocupado. Esperá el plazo indicado antes de volver a enviar.</value></data>
-  <data name="Ai.Assistant.AttachmentForbidden" xml:space="preserve"><value>Adjuntar planillas no está disponible para tu cuenta.</value></data>
-  <data name="Ai.Assistant.AttachmentUnavailable" xml:space="preserve"><value>No se pueden leer planillas en este sistema.</value></data>
+  <data name="Ai.Assistant.AttachmentForbidden" xml:space="preserve"><value>Para adjuntar planillas, pedile a quien administra la instalación el permiso de administrar catálogos.</value></data>
+  <data name="Ai.Assistant.AttachmentUnavailable" xml:space="preserve"><value>No se pueden adjuntar planillas en esta instalación.</value></data>
   <data name="Ai.Assistant.AttachmentLegacy" xml:space="preserve"><value>No se puede leer un Excel viejo (.xls). Guardalo como Libro de Excel (.xlsx) o como CSV UTF-8.</value></data>
   <data name="Ai.Assistant.AttachmentProtected" xml:space="preserve"><value>No se puede leer una planilla con contraseña. Quitale la contraseña y volvé a adjuntarla.</value></data>
   <data name="Ai.Assistant.AttachmentMacroEnabled" xml:space="preserve"><value>No se puede leer un Excel con macros o binario (.xlsm o .xlsb). Guardalo como Libro de Excel (.xlsx) o como CSV UTF-8.</value></data>
   <data name="Ai.Assistant.AttachmentTooLarge" xml:space="preserve"><value>La planilla pasa el tope de 10 MB, 10.000 filas y 64 columnas. Achicala o dividila y volvé a adjuntarla.</value></data>
   <data name="Ai.Assistant.AttachmentUnreadable" xml:space="preserve"><value>No se puede leer la planilla. Adjuntá un Libro de Excel (.xlsx) o un CSV guardado como CSV UTF-8.</value></data>
   <data name="Ai.Assistant.AttachmentEmpty" xml:space="preserve"><value>La planilla no tiene filas con datos. Revisá que su primera hoja tenga lo que querés usar.</value></data>
+  <data name="Ai.Assistant.AttachmentNotStored" xml:space="preserve"><value>No pudimos guardar la planilla. Volvé a adjuntarla.</value></data>
   <data name="Arca.Connection.CuitInvalid" xml:space="preserve"><value>Revisá la CUIT: tiene once dígitos y el último es el verificador.</value></data>
   <data name="Arca.Connection.AliasInvalid" xml:space="preserve"><value>El alias va de 3 a 30 letras minúsculas, números o guiones, y empieza con una letra.</value></data>
   <data name="Arca.Connection.ServiceNotInstalled" xml:space="preserve"><value>Ese servicio de ARCA no está instalado en este sistema.</value></data>

@@ -7,9 +7,13 @@ using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Interfaces.Integrations.Files;
+using ArquitecturaBase.Application.Interfaces.Persistence;
+using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Models.StructuredData;
+using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Integrations;
 using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
+using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Infrastructure.Modules.ArtificialIntelligence;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -112,15 +116,66 @@ public sealed class AiAssistantHomeAttachmentTests(ApiFactory factory)
             Assert.False((await turn.ReadJsonAsync()).TryGetProperty("attachment", out _));
 
         // The copy stays while a turn that has it keeps its content.
-        var retained = await scenario.ScopeAsync(async services =>
+        Assert.Equal([key], await RetainedAsync(scenario, key, $"ai/assistant/attachments/{Guid.NewGuid():N}.xlsx"));
+
+        // The page of turns shows the spreadsheet only on the turn that brought it.
+        using (var page = await scenario.Client.GetAsync($"/api/ai/assistant/conversations/{conversationId}/turns", Ct))
         {
-            var referenced = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var source in services.GetServices<IPrivateFileRetentionSource>())
-                referenced.UnionWith(await source.ListReferencedKeysAsync([key, $"ai/assistant/attachments/{Guid.NewGuid():N}.xlsx"], Ct));
-            return referenced;
+            Assert.Equal(HttpStatusCode.OK, page.StatusCode);
+            var items = (await page.ReadJsonAsync()).GetProperty("items").EnumerateArray().OrderBy(item => item.GetProperty("ordinal").GetInt32()).ToArray();
+            Assert.Equal(["clientes.csv", null], items.Select(item => item.TryGetProperty("attachment", out var attachment) ? attachment.GetProperty("name").GetString() : null));
+        }
+
+        // A workbook in the same conversation, with its revision, replaces the first spreadsheet for the model.
+        using (var conversation = await scenario.Client.GetAsync($"/api/ai/assistant/conversations/{conversationId}", Ct))
+            revision = (await conversation.ReadJsonAsync()).GetProperty("revision").GetInt64();
+        var replacedId = Guid.NewGuid();
+        using (var replaced = await scenario.Client.PostAsync("/api/ai/assistant/file-turns",
+            FileTurn(scenario, replacedId, "PK\nCódigo,Zona\nZ1,Zona norte ficticia\n"u8.ToArray(), conversationId: conversationId, expectedRevision: revision,
+                fileName: "zonas.xlsx"), Ct))
+            Assert.Equal(HttpStatusCode.Accepted, replaced.StatusCode);
+        Assert.Contains($"ai/assistant/attachments/{replacedId:N}.xlsx", files.Keys);
+        var before = scenario.Handler.Requests.Count;
+        Assert.True(await scenario.ProcessNextAsync());
+        var replacing = Messages(scenario.Handler.Requests[before])[^1].Content;
+        Assert.Contains("Zona norte ficticia", replacing, StringComparison.Ordinal);
+        Assert.DoesNotContain("Otro cliente ficticio", replacing, StringComparison.Ordinal);
+
+        // A file one byte larger than an import reads is the owner's refusal under the file, without a copy.
+        using (var tooLarge = await scenario.Client.PostAsync("/api/ai/assistant/file-turns",
+            FileTurn(scenario, Guid.NewGuid(), new byte[AssistantAttachmentInput.MaximumBytes + 1]), Ct))
+        {
+            Assert.Equal(HttpStatusCode.BadRequest, tooLarge.StatusCode);
+            Assert.Equal("Ai.Assistant.AttachmentTooLarge", (await tooLarge.ReadJsonAsync()).GetProperty("code").GetString());
+        }
+
+        // Purging the turn that brought the copy keeps it while the turn that inherited it keeps its content; retiring the
+        // conversation releases it.
+        await scenario.ScopeAsync(async services =>
+        {
+            var repository = services.GetRequiredService<IAiAssistantRepository>();
+            var purged = await services.GetRequiredService<IUnitOfWork>().ExecuteInTransactionAsync(async ct =>
+            {
+                var receipt = await repository.GetReceiptAsync(owner, requestId, ct);
+                (await repository.GetTurnAsync(receipt!.TurnId, ct))!.PurgeContent();
+                return Result.Success();
+            }, CommitPolicy.OnSuccess, Ct);
+            Assert.True(purged.IsSuccess);
+            return true;
         });
-        Assert.Equal([key], retained);
+        Assert.Equal([key], await RetainedAsync(scenario, key));
+        using (var retired = await scenario.Client.DeleteAsync($"/api/ai/assistant/conversations/{conversationId}", Ct))
+            Assert.Equal(HttpStatusCode.NoContent, retired.StatusCode);
+        Assert.Empty(await RetainedAsync(scenario, key, $"ai/assistant/attachments/{replacedId:N}.xlsx"));
     }
+
+    private static Task<HashSet<string>> RetainedAsync(AiAssistantExecutionScenario scenario, params string[] keys) => scenario.ScopeAsync(async services =>
+    {
+        var referenced = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var source in services.GetServices<IPrivateFileRetentionSource>())
+            referenced.UnionWith(await source.ListReferencedKeysAsync(keys, Ct));
+        return referenced;
+    });
 
     [Fact]
     public async Task A_spreadsheet_turn_may_also_bring_a_dictated_request()
@@ -168,7 +223,8 @@ public sealed class AiAssistantHomeAttachmentTests(ApiFactory factory)
     }
 
     // The fields of a Home turn and the file, without a written question.
-    private static MultipartFormDataContent FileTurn(AiAssistantExecutionScenario scenario, Guid requestId, byte[] bytes, Guid? audioRequestId = null)
+    private static MultipartFormDataContent FileTurn(AiAssistantExecutionScenario scenario, Guid requestId, byte[] bytes, Guid? audioRequestId = null,
+        Guid? conversationId = null, long? expectedRevision = null, string fileName = "clientes.csv")
     {
         var file = new ByteArrayContent(bytes);
         file.Headers.ContentType = new MediaTypeHeaderValue("text/csv");
@@ -176,9 +232,11 @@ public sealed class AiAssistantHomeAttachmentTests(ApiFactory factory)
         {
             { new StringContent(requestId.ToString()), "requestId" },
             { new StringContent(scenario.ConnectionRevision.ToString(CultureInfo.InvariantCulture)), "expectedConnectionRevision" },
-            { file, "file", "clientes.csv" },
+            { file, "file", fileName },
         };
         if (audioRequestId is { } audio) form.Add(new StringContent(audio.ToString()), "audioRequestId");
+        if (conversationId is { } conversation) form.Add(new StringContent(conversation.ToString()), "conversationId");
+        if (expectedRevision is { } revision) form.Add(new StringContent(revision.ToString(CultureInfo.InvariantCulture)), "expectedRevision");
         return form;
     }
 

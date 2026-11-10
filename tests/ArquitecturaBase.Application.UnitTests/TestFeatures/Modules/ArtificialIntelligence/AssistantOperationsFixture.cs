@@ -103,7 +103,8 @@ internal sealed class OperationsProtector : IAiConversationProtector
 internal sealed class OperationsFingerprint : IAiAssistantRequestFingerprint
 {
     public string ActiveKeyId => "fixture-key";
-    public string Create(Guid owner, SubmitAiAssistantTurnRequest request, string keyId) => Hash(owner.ToString("D") + keyId + JsonSerializer.Serialize(request));
+    public string Create(Guid owner, SubmitAiAssistantTurnRequest request, string keyId) => Hash(owner.ToString("D") + keyId + JsonSerializer.Serialize(
+        request with { Attachment = request.Attachment is { } attachment ? attachment with { ExpiresAtUtc = default } : null }));
     public bool Matches(Guid owner, SubmitAiAssistantTurnRequest request, string keyId, string fingerprint) => Create(owner, request, keyId) == fingerprint;
     public string Create(AssistantOperationRequest request, string keyId) => Hash(keyId + JsonSerializer.Serialize(request));
     public bool Matches(AssistantOperationRequest request, string keyId, string fingerprint) => Create(request, keyId) == fingerprint;
@@ -146,8 +147,14 @@ internal sealed class OperationsStore(FakeTimeProvider clock, FakeUnitOfWork wor
     public Task<AiAssistantTurn?> GetActiveForConversationAsync(Guid conversation, CancellationToken ct) =>
         Task.FromResult(Turns.FirstOrDefault(item => item.ConversationId == conversation && item.State is AiAssistantTurnState.Pending or AiAssistantTurnState.Running));
     public Task<int> CountTurnsAsync(Guid conversation, CancellationToken ct) => Task.FromResult(Turns.Count(item => item.ConversationId == conversation));
-    public Task<AiAssistantTurn?> GetLatestWithAttachmentAsync(Guid conversation, CancellationToken ct) =>
-        Task.FromResult(Turns.Where(item => item.ConversationId == conversation && item.AttachmentKey is not null).MaxBy(item => item.Ordinal));
+    public int LatestAttachmentReads { get; private set; }
+    public Task<AiAssistantAttachmentRow?> FindLatestAttachmentAsync(Guid conversation, CancellationToken ct)
+    {
+        LatestAttachmentReads++;
+        var latest = Turns.Where(item => item.ConversationId == conversation && item.AttachmentKey is not null).MaxBy(item => item.Ordinal);
+        return Task.FromResult(latest is null ? null
+            : new AiAssistantAttachmentRow(latest.Id, latest.PayloadRevision, latest.ContentExpiresAtUtc, latest.AttachmentKey!, latest.ProtectedAttachment));
+    }
     public Task<AiAssistantBudgetCounts> CountBudgetAsync(Guid actor, DateOnly day, string? channelId, bool? isAudio, CancellationToken ct)
     {
         BudgetReads++;
@@ -161,9 +168,12 @@ internal sealed class OperationsStore(FakeTimeProvider clock, FakeUnitOfWork wor
     public void AddReceipt(AiAssistantRequestReceipt receipt) { RequireTransaction(); Receipts.Add(receipt); }
     public void AddTool(AiAssistantToolExecution execution) { RequireTransaction(); Tools.Add(execution); }
     public Task<AiConnectionRow> FindAsync(CancellationToken ct) { ConnectionReads++; return Task.FromResult(Connection); }
+    // While set, a request's acceptance is not found, as when another request with the same id has not committed yet.
+    public bool HidesAcceptedRequests { get; set; }
     public Task<AiAssistantTurnRow?> FindTurnByRequestAsync(Guid actor, Guid request, CancellationToken ct)
     {
         LastReadActor = actor; LastReadRequest = request;
+        if (HidesAcceptedRequests) return Task.FromResult<AiAssistantTurnRow?>(null);
         var turn = Turns.SingleOrDefault(item => item.OwnerUserId == actor && item.RequestId == request);
         return Task.FromResult(turn is null ? null : Project(turn));
     }
@@ -181,7 +191,7 @@ internal sealed class OperationsStore(FakeTimeProvider clock, FakeUnitOfWork wor
             turn.SubmittedAtUtc, turn.ContentExpiresAtUtc, turn.DeadlineAtUtc, turn.CancelRequestedAtUtc, turn.ProviderSteps, turn.ToolCalls,
             turn.ToolBytes, turn.InputTokens, turn.OutputTokens, turn.UsageUnknown, turn.FailureCode)
         { AudioSeconds = turn.AudioSeconds, ChannelId = conversation.ChannelId, ExecutionProfileJson = turn.ExecutionProfileJson,
-            AttachmentKey = turn.AttachmentKey, ProtectedAttachment = turn.ProtectedAttachment,
+            AttachmentKey = turn.AttachmentKey, AttachmentSha256 = turn.AttachmentSha256, AttachmentSize = turn.AttachmentSize,
             ToolResults = Tools.Where(tool => tool.TurnId == turn.Id).Select(tool => new AiAssistantToolResultRow(tool.Ordinal, tool.ToolId, tool.Version, tool.ProtectedResult)).ToArray() };
     }
     public Task<AiConnection?> GetAsync(CancellationToken ct) => throw new NotSupportedException();
@@ -190,7 +200,17 @@ internal sealed class OperationsStore(FakeTimeProvider clock, FakeUnitOfWork wor
     public void AddChange(AiConnectionChange change) => throw new NotSupportedException();
     public Task DeleteExpiredChangesAsync(CancellationToken ct) => throw new NotSupportedException();
     public Task<AiConnectionChangeResponse?> FindChangeAsync(Guid actor, Guid request, CancellationToken ct) => throw new NotSupportedException();
-    public Task<AiConversationRow?> FindConversationAsync(Guid actor, Guid conversation, CancellationToken ct) => throw new NotSupportedException();
+    // A Home conversation with its first turn, like the reader: the question, the transcript and the key, never the sealed spreadsheet.
+    public Task<AiConversationRow?> FindConversationAsync(Guid actor, Guid conversation, CancellationToken ct)
+    {
+        var found = Conversations.SingleOrDefault(item => item.OwnerUserId == actor && item.Id == conversation && item.ChannelId == "home");
+        if (found is null) return Task.FromResult<AiConversationRow?>(null);
+        var first = Turns.SingleOrDefault(turn => turn.ConversationId == found.Id && turn.Ordinal == 1);
+        return Task.FromResult<AiConversationRow?>(new AiConversationRow(found.Id, found.OwnerUserId, found.State, found.Revision, found.LastActivityAtUtc,
+            [.. found.RequiredPermissions], Turns.FirstOrDefault(turn => turn.ConversationId == found.Id && turn.State is AiAssistantTurnState.Pending or AiAssistantTurnState.Running)?.RequestId,
+            first is null ? null : new AiConversationQuestionRow(first.Id, first.PayloadRevision, first.ProtectedQuestion, first.ContentExpiresAtUtc)
+                { ProtectedTranscript = first.ProtectedTranscript, AttachmentKey = first.AttachmentKey }));
+    }
     public Task<PagedResult<AiConversationRow>> ListConversationsAsync(Guid actor, ListAiConversationsRequest request, CancellationToken ct) => throw new NotSupportedException();
     public Task<PagedResult<AiAssistantTurnRow>> ListTurnsAsync(Guid actor, Guid conversation, ListAiAssistantTurnsRequest request, CancellationToken ct)
     {
@@ -198,6 +218,15 @@ internal sealed class OperationsStore(FakeTimeProvider clock, FakeUnitOfWork wor
         return Task.FromResult(new PagedResult<AiAssistantTurnRow>(rows.Skip((request.Page-1)*request.PageSize).Take(request.PageSize).Select(Project).ToArray(),request.Page,request.PageSize,rows.Length));
     }
     public Task<IReadOnlyList<Guid>> ListRetainedAudioRequestIdsAsync(IReadOnlyCollection<Guid> audioRequestIds, CancellationToken cancellationToken) => throw new NotSupportedException();
+    // Like the reader, a row never brings its sealed spreadsheet: who uses one asks for it, and the test sees who asked.
+    public List<Guid> AttachmentReads { get; } = [];
+    public Task<IReadOnlyDictionary<Guid, string>> ListProtectedAttachmentsAsync(Guid owner, IReadOnlyCollection<Guid> turnIds, CancellationToken ct)
+    {
+        AttachmentReads.AddRange(turnIds);
+        return Task.FromResult<IReadOnlyDictionary<Guid, string>>(Turns.Where(turn => turn.OwnerUserId == owner && turnIds.Contains(turn.Id)
+            && turn.ProtectedAttachment is not null && Conversations.Any(item => item.Id == turn.ConversationId && item.State == AiConversationState.Active))
+            .ToDictionary(turn => turn.Id, turn => turn.ProtectedAttachment!));
+    }
     public Task<IReadOnlyList<string>> ListRetainedAttachmentKeysAsync(IReadOnlyCollection<string> attachmentKeys, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<string>>(Turns.Where(turn => turn.AttachmentKey is { } key && attachmentKeys.Contains(key) && turn.ProtectedAttachment is not null
             && turn.ContentExpiresAtUtc > clock.GetUtcNow().UtcDateTime).Select(turn => turn.AttachmentKey!).Distinct().ToArray());

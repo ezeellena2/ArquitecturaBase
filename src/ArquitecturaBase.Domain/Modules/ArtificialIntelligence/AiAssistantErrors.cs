@@ -36,4 +36,5 @@ public static class AiAssistantErrors
     public static readonly Error AttachmentTooLarge = Error.Validation("Ai.Assistant.AttachmentTooLarge", "The spreadsheet exceeds its size, row or column limits.");
     public static readonly Error AttachmentUnreadable = Error.Validation("Ai.Assistant.AttachmentUnreadable", "The spreadsheet cannot be read.");
     public static readonly Error AttachmentEmpty = Error.Validation("Ai.Assistant.AttachmentEmpty", "The spreadsheet has no rows with content.");
+    public static readonly Error AttachmentNotStored = Error.Failure("Ai.Assistant.AttachmentNotStored", "The private copy of the spreadsheet could not be read back.");
 }

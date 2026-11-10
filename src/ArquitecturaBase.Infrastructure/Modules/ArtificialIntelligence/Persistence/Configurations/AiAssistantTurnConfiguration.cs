@@ -20,6 +20,7 @@ internal sealed class AiAssistantTurnConfiguration : IEntityTypeConfiguration<Ai
         builder.Property(turn => turn.ExecutionProfileJson).HasMaxLength(AiAssistantTurn.MaximumExecutionProfileBytes);
         builder.Property(turn => turn.AudioSeconds).HasColumnType("numeric");
         builder.Property(turn => turn.AttachmentKey).HasMaxLength(AiAssistantTurn.MaximumAttachmentKeyLength);
+        builder.Property(turn => turn.AttachmentSha256).HasMaxLength(64);
         builder.Property(turn => turn.FailureCode).HasMaxLength(100);
         builder.Property(turn => turn.Revision).IsConcurrencyToken();
         builder.Property(turn => turn.Fence).IsConcurrencyToken();

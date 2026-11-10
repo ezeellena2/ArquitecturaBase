@@ -15,4 +15,6 @@ public interface IAiAssistantReader
     Task<IReadOnlyList<Guid>> ListRetainedAudioRequestIdsAsync(IReadOnlyCollection<Guid> audioRequestIds, CancellationToken cancellationToken);
     /// <summary>The private copies of spreadsheets that a turn, its own or inherited, still has while its content lasts (Stage 2).</summary>
     Task<IReadOnlyList<string>> ListRetainedAttachmentKeysAsync(IReadOnlyCollection<string> attachmentKeys, CancellationToken cancellationToken);
+    /// <summary>The sealed spreadsheets of these turns of the owner, by turn: the rows never bring them, so only who uses one asks for it.</summary>
+    Task<IReadOnlyDictionary<Guid, string>> ListProtectedAttachmentsAsync(Guid ownerUserId, IReadOnlyCollection<Guid> turnIds, CancellationToken cancellationToken);
 }

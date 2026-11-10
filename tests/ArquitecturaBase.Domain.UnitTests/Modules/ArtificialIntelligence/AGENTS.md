@@ -12,4 +12,4 @@ El sello del perfil verifica el límite en bytes UTF-8, vacío inválido, reempl
 
 AudioUsage prueba duración informada, cero explícito, acumulación y conservación después de vencimiento/purga sin inventar tokens.
 
-Attachment prueba la clave acotada, lo cifrado obligatorio y la purga que conserva la clave.
+Attachment prueba la clave acotada, lo que se mandó (SHA-256 y tamaño), lo cifrado obligatorio y la purga que conserva lo que está en claro.

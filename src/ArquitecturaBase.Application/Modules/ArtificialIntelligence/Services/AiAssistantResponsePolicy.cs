@@ -38,6 +38,13 @@ internal sealed class AiAssistantResponsePolicy(IAiConversationProtector protect
         return title.Length == 0 ? AssistantTexts.Get("Conversation.Title") : title;
     }
 
+    // A first turn without written or dictated text is named after its spreadsheet, which the page does not bring: whether to ask for it.
+    public bool NeedsSpreadsheetForTitle(AiConversationRow row, bool canRead) =>
+        canRead && row.FirstQuestion is { AttachmentKey: not null, ProtectedTranscript: null, ProtectedAttachment: null, ProtectedQuestion: { } protectedQuestion } question
+        && question.ContentExpiresAtUtc > ServerNowUtc
+        && protector.Unprotect(row.OwnerUserId, row.Id, question.TurnId, "question", question.PayloadRevision, protectedQuestion) is { } plaintext
+        && plaintext.Trim().Length == 0;
+
     public Result<AiAssistantTurnResponse> Map(AiAssistantTurnRow row, bool canRead, int pollingAfterSeconds)
     {
         var now = timeProvider.GetUtcNow().UtcDateTime;
@@ -59,8 +66,10 @@ internal sealed class AiAssistantResponsePolicy(IAiConversationProtector protect
                 if (transcript is null) return AiAssistantErrors.ContentUnavailable;
                 audio = new AiAssistantTurnAudioResponse(audioRequestId, transcript);
             }
-            // Only the turn that brought a spreadsheet shows it; the next ones inherit it for the model, not for the thread.
-            if (row.ProtectedAttachment is { } protectedAttachment && AiAssistantHomeAttachmentPolicy.IsOwn(row.AttachmentKey, row.RequestId))
+            // Only the turn that brought a spreadsheet shows it; the next ones inherit it for the model, not for the thread. A Home copy
+            // names its request, and a turn without text or audio, in any channel, always brought its own.
+            if (row.ProtectedAttachment is { } protectedAttachment
+                && (AiAssistantHomeAttachmentPolicy.IsOwn(row.AttachmentKey, row.RequestId) || question.Trim().Length == 0 && audio is null))
             {
                 var stored = AiAssistantAttachmentPolicy.Read(Reveal(row, AiAssistantAttachmentPolicy.Purpose, protectedAttachment));
                 if (stored is null) return AiAssistantErrors.ContentUnavailable;

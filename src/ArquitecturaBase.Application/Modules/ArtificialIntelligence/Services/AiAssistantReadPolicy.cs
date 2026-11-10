@@ -44,8 +44,9 @@ internal sealed class AiAssistantReadPolicy(IAiAssistantReader reader, IAiConnec
         if (actor.IsFailure) return actor.Error;
         var page = await reader.ListConversationsAsync(userId, request, cancellationToken);
         var current = await permissions.GetPermissionsAsync(userId, cancellationToken);
+        var rows = await WithTitleSpreadsheetsAsync(userId, page.Items, row => row.RequiredPermissions.All(current.Contains), cancellationToken);
         var items = new List<AiConversationSummaryResponse>();
-        foreach (var row in page.Items)
+        foreach (var row in rows)
         {
             var canRead = row.RequiredPermissions.All(current.Contains);
             var title = responsePolicy.MapTitle(row, canRead);
@@ -63,11 +64,23 @@ internal sealed class AiAssistantReadPolicy(IAiAssistantReader reader, IAiConnec
         var row = await reader.FindConversationAsync(userId, conversationId, cancellationToken);
         if (row is null) return AiAssistantErrors.NotFound;
         var canRead = await guard.CanReadAsync(userId, row.RequiredPermissions, cancellationToken);
+        row = (await WithTitleSpreadsheetsAsync(userId, [row], _ => canRead, cancellationToken))[0];
         var title = responsePolicy.MapTitle(row, canRead);
         if (title.IsFailure) return title.Error;
         return new AiConversationResponse(row.Id, row.Revision, title.Value,
             canRead ? "allowed" : "blocked",
             row.ActiveRequestId, row.LastActivityAtUtc);
+    }
+
+    // A first turn without written or dictated text is named after its spreadsheet: only those sealed copies come, in one more query.
+    private async Task<IReadOnlyList<AiConversationRow>> WithTitleSpreadsheetsAsync(Guid userId, IReadOnlyList<AiConversationRow> rows,
+        Func<AiConversationRow, bool> canRead, CancellationToken cancellationToken)
+    {
+        var unnamed = rows.Where(row => responsePolicy.NeedsSpreadsheetForTitle(row, canRead(row))).Select(row => row.FirstQuestion!.TurnId).ToArray();
+        if (unnamed.Length == 0) return rows;
+        var sealedAttachments = await reader.ListProtectedAttachmentsAsync(userId, unnamed, cancellationToken);
+        return [.. rows.Select(row => row.FirstQuestion is { } question && sealedAttachments.TryGetValue(question.TurnId, out var protectedAttachment)
+            ? row with { FirstQuestion = question with { ProtectedAttachment = protectedAttachment } } : row)];
     }
 
     public async Task<Result<PagedResult<AiAssistantTurnResponse>>> ListTurnsAsync(Guid conversationId, ListAiAssistantTurnsRequest request, CancellationToken cancellationToken)
@@ -80,8 +93,10 @@ internal sealed class AiAssistantReadPolicy(IAiAssistantReader reader, IAiConnec
         if (conversation is null) return AiAssistantErrors.NotFound;
         var canRead = await guard.CanReadAsync(userId, conversation.RequiredPermissions, cancellationToken);
         var page = await reader.ListTurnsAsync(userId, conversationId, request, cancellationToken);
+        // Only the turn that brought a spreadsheet shows it, and only when the conversation may be read.
+        var rows = canRead ? await AiAssistantAttachmentPolicy.WithOwnAttachmentsAsync(reader, userId, page.Items, cancellationToken) : page.Items;
         var items = new List<AiAssistantTurnResponse>();
-        foreach (var row in page.Items)
+        foreach (var row in rows)
         {
             var mapped = responsePolicy.Map(row, canRead, limits.PollingAfterSeconds);
             if (mapped.IsFailure) return mapped.Error;
@@ -97,7 +112,9 @@ internal sealed class AiAssistantReadPolicy(IAiAssistantReader reader, IAiConnec
         if (actor.IsFailure) return actor.Error;
         var row = await reader.FindTurnByRequestAsync(userId, requestId, cancellationToken);
         if (row is null || row.ChannelId != "home") return AiAssistantErrors.NotFound;
-        return responsePolicy.Map(row, await guard.CanReadAsync(userId, row.RequiredPermissions, cancellationToken), limits.PollingAfterSeconds);
+        var canRead = await guard.CanReadAsync(userId, row.RequiredPermissions, cancellationToken);
+        if (canRead) row = (await AiAssistantAttachmentPolicy.WithOwnAttachmentsAsync(reader, userId, [row], cancellationToken))[0];
+        return responsePolicy.Map(row, canRead, limits.PollingAfterSeconds);
     }
 
 }

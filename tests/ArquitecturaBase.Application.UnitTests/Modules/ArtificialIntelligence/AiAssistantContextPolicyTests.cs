@@ -124,8 +124,15 @@ public sealed partial class AiAssistantContextPolicyTests
     {
         public AiAssistantTurnRow Row { get; set; } = row;
         public IReadOnlyList<AiAssistantTurnRow> History { get; set; } = [];
-        public Task<AiAssistantTurnRow?> FindTurnAsync(Guid turnId, CancellationToken cancellationToken) => Task.FromResult<AiAssistantTurnRow?>(Row);
-        public Task<PagedResult<AiAssistantTurnRow>> ListTurnsAsync(Guid ownerUserId, Guid conversationId, ListAiAssistantTurnsRequest request, CancellationToken cancellationToken) => Task.FromResult(new PagedResult<AiAssistantTurnRow>(History, 1, request.PageSize, History.Count));
+        public List<Guid> AttachmentReads { get; } = [];
+        public Task<AiAssistantTurnRow?> FindTurnAsync(Guid turnId, CancellationToken cancellationToken) => Task.FromResult<AiAssistantTurnRow?>(Row with { ProtectedAttachment = null });
+        public Task<PagedResult<AiAssistantTurnRow>> ListTurnsAsync(Guid ownerUserId, Guid conversationId, ListAiAssistantTurnsRequest request, CancellationToken cancellationToken) => Task.FromResult(new PagedResult<AiAssistantTurnRow>(History.Select(turn => turn with { ProtectedAttachment = null }).ToArray(), 1, request.PageSize, History.Count));
+        public Task<IReadOnlyDictionary<Guid, string>> ListProtectedAttachmentsAsync(Guid ownerUserId, IReadOnlyCollection<Guid> turnIds, CancellationToken cancellationToken)
+        {
+            AttachmentReads.AddRange(turnIds);
+            return Task.FromResult<IReadOnlyDictionary<Guid, string>>(History.Prepend(Row).DistinctBy(turn => turn.Id)
+                .Where(turn => turnIds.Contains(turn.Id) && turn.ProtectedAttachment is not null).ToDictionary(turn => turn.Id, turn => turn.ProtectedAttachment!));
+        }
         public Task<IReadOnlyList<Guid>> ListRetainedAudioRequestIdsAsync(IReadOnlyCollection<Guid> audioRequestIds, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<IReadOnlyList<string>> ListRetainedAttachmentKeysAsync(IReadOnlyCollection<string> attachmentKeys, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<AiAssistantWorkloadRow> FindWorkloadAsync(DateTime nowUtc, int leaseGraceSeconds, CancellationToken cancellationToken) => Task.FromResult(new AiAssistantWorkloadRow(0, 0, 0, null, null));

@@ -10,6 +10,8 @@ public sealed record AiConversationRow(Guid Id, Guid OwnerUserId, AiConversation
 public sealed record AiConversationQuestionRow(Guid TurnId, long PayloadRevision, string? ProtectedQuestion, DateTime ContentExpiresAtUtc)
 {
     public string? ProtectedTranscript { get; init; }
+    public string? AttachmentKey { get; init; }
+    /// <summary>Only for a first turn without text, to name the conversation after its spreadsheet: the page never brings it.</summary>
     public string? ProtectedAttachment { get; init; }
     public override string ToString() => "AiConversationQuestionRow { content: [REDACTED] }";
 }
@@ -25,11 +27,19 @@ public sealed record AiAssistantTurnRow(Guid Id, Guid OwnerUserId, Guid Conversa
     public Guid? AudioRequestId { get; init; }
     public string? ProtectedTranscript { get; init; }
     public string? AttachmentKey { get; init; }
+    public string? AttachmentSha256 { get; init; }
+    public long? AttachmentSize { get; init; }
+    /// <summary>Never projected: who shows or names a turn's spreadsheet asks for it (AiAssistantAttachmentPolicy).</summary>
     public string? ProtectedAttachment { get; init; }
     public string ChannelId { get; init; } = "home";
     public string? ExecutionProfileJson { get; init; }
     public IReadOnlyList<AiAssistantToolResultRow> ToolResults { get; init; } = [];
     public override string ToString() => "AiAssistantTurnRow { content: [REDACTED] }";
+}
+/// <summary>The spreadsheet a turn has, own or inherited, for the next turn of its conversation to inherit it.</summary>
+public sealed record AiAssistantAttachmentRow(Guid TurnId, long PayloadRevision, DateTime ContentExpiresAtUtc, string AttachmentKey, string? ProtectedAttachment)
+{
+    public override string ToString() => "AiAssistantAttachmentRow { content: [REDACTED] }";
 }
 public sealed record AiAssistantBudgetCounts(int ActorAccepted, int InstallationAccepted, int Pending, int Running);
 public sealed record AiAssistantWorkloadRow(int Pending, int Running, int ExpiredRunning,

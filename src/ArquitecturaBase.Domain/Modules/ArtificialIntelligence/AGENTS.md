@@ -20,4 +20,4 @@ Los recibos nuevos exigen canal e IsAudio explícitos; ambos son nullable única
 
 ChannelConversationId conserva sólo la identidad opaca de conversación aportada al crear el turno; no cambia al reclamar, cerrar ni purgar contenido. No es ConversationId del motor ni un permiso o una identidad heredada.
 
-Un turno con planilla (Etapa 2), propia o heredada, guarda en claro la clave de la copia privada, para su retención y la herencia, y aparte, cifrados, el descriptor y lo preparado. La purga borra lo cifrado y conserva la clave.
+Un turno con planilla (Etapa 2), propia o heredada, guarda en claro la clave de la copia privada (retención y herencia) y lo que se mandó, SHA-256 y tamaño, y aparte, cifrados, el descriptor y lo preparado. La purga borra lo cifrado y conserva lo que está en claro.

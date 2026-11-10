@@ -57,7 +57,10 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
                 audio.ExpiresAtUtc <= request.OccurredAtUtc) return AiAssistantErrors.Invalid;
             return AiAssistantAudioPolicy.Validate(audio);
         }
-        if (string.IsNullOrWhiteSpace(request.Text) || request.Text.Length > limits.QuestionCharacters ||
+        // An interpretation is written, except a spreadsheet that answers its conversation («Cambiar algo» or a question): its message
+        // carries the sheet.
+        if (string.IsNullOrWhiteSpace(request.Text) && (request.Attachment is null || request.PreviousRequestId is null) ||
+            request.Text.Length > limits.QuestionCharacters ||
             request.Context.AllowedTerminals.Count != 1 || request.Context.AllowedTerminals[0] != new AssistantTerminalReference("assistant_proposal", 1))
             return AiAssistantErrors.Invalid;
         return null;
@@ -111,32 +114,36 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
         var connection = await connectionReader.FindAsync(ct);
         if (home is not null && connection.Revision != home.ExpectedConnectionRevision) return AiAssistantErrors.ConnectionChanged;
         if (operation?.Audio is null && guard.Availability(connection) != "available") return AiAssistantErrors.Unavailable;
-        var attachment = home?.Attachment ?? operation?.Attachment;
-        if (attachment is null && conversation is not null)
-        {
-            var inherited = await InheritedAttachmentAsync(userId, conversation.Id, now, ct);
-            if (inherited.IsFailure) return inherited.Error;
-            attachment = inherited.Value;
-        }
         var culture = home?.Culture ?? operation!.Context.Culture;
         var timeZoneId = home is not null ? actor.Value.TimeZoneId : operation!.Context.TimeZoneId;
+        var normalizes = operation?.Audio is not null;
+        // The turn keeps its content no longer than its sources: the channel's message, the audio and its own spreadsheet.
+        var attachment = home?.Attachment ?? operation?.Attachment;
+        var expiresAtUtc = now.AddDays(limits.RetentionDays);
+        if (operation is not null && operation.ContentExpiresAtUtc < expiresAtUtc) expiresAtUtc = operation.ContentExpiresAtUtc;
+        if (operation?.Audio is { } source && source.ExpiresAtUtc < expiresAtUtc) expiresAtUtc = source.ExpiresAtUtc;
+        if (attachment is not null && attachment.ExpiresAtUtc < expiresAtUtc) expiresAtUtc = attachment.ExpiresAtUtc;
+        if (expiresAtUtc <= now) return AiAssistantErrors.Expired;
+        if (channelId != "home" && !normalizes
+            && await repository.GetActiveForActorChannelAsync(userId, channelId, operation?.Context.ChannelConversationId, ct) is not null) return AiAssistantErrors.ActiveTurn;
+        if (conversation is not null && await repository.GetActiveForConversationAsync(conversation.Id, ct) is not null) return AiAssistantErrors.ActiveTurn;
+        var budget = await repository.CountBudgetAsync(userId, DateOnly.FromDateTime(now), channelId, normalizes, ct);
+        if (budget.ActorAccepted >= limits.ActorDailyQuota || budget.InstallationAccepted >= limits.InstallationDailyQuota)
+            return AiAssistantErrors.QuotaExceeded((int)(now.Date.AddDays(1) - now).TotalSeconds);
+        if (budget.Pending >= limits.PendingCapacity) return AiAssistantErrors.CapacityLimited(limits.PollingAfterSeconds);
+        // Only after the cheap refusals, under the lock of its conversation, a turn without a spreadsheet of its own reads the
+        // conversation's; one that expires on its own bounds the turn.
+        if (attachment is null && conversation is not null)
+        {
+            var inherited = await InheritedAttachmentAsync(userId, conversation.Id, now, expiresAtUtc, ct);
+            if (inherited.IsFailure) return inherited.Error;
+            attachment = inherited.Value;
+            if (attachment is not null && attachment.ExpiresAtUtc < expiresAtUtc) expiresAtUtc = attachment.ExpiresAtUtc;
+        }
         var profile = home is not null ? await guard.CaptureHomeProfileAsync(connection, userId, culture, timeZoneId, attachment is not null, ct)
             : operation!.Audio is { } audioInput ? guard.CaptureAudioProfile(connection, operation.Context, audioInput, operation.OccurredAtUtc)
             : await guard.CaptureOperationProfileAsync(connection, operation.Context, operation.OccurredAtUtc, attachment is not null, ct);
         if (profile.IsFailure) return profile.Error;
-        var expiresAtUtc = now.AddDays(limits.RetentionDays);
-        if (operation is not null && operation.ContentExpiresAtUtc < expiresAtUtc) expiresAtUtc = operation.ContentExpiresAtUtc;
-        if (operation?.Audio is { } source && source.ExpiresAtUtc < expiresAtUtc) expiresAtUtc = source.ExpiresAtUtc;
-        // The turn keeps the spreadsheet, its own or inherited, no longer than its source keeps it.
-        if (attachment is not null && attachment.ExpiresAtUtc < expiresAtUtc) expiresAtUtc = attachment.ExpiresAtUtc;
-        if (expiresAtUtc <= now) return AiAssistantErrors.Expired;
-        if (channelId != "home" && profile.Value.Purpose != AiAssistantPurpose.NormalizeAudio
-            && await repository.GetActiveForActorChannelAsync(userId, channelId, operation?.Context.ChannelConversationId, ct) is not null) return AiAssistantErrors.ActiveTurn;
-        if (conversation is not null && await repository.GetActiveForConversationAsync(conversation.Id, ct) is not null) return AiAssistantErrors.ActiveTurn;
-        var budget = await repository.CountBudgetAsync(userId, DateOnly.FromDateTime(now), channelId, profile.Value.Purpose == AiAssistantPurpose.NormalizeAudio, ct);
-        if (budget.ActorAccepted >= limits.ActorDailyQuota || budget.InstallationAccepted >= limits.InstallationDailyQuota)
-            return AiAssistantErrors.QuotaExceeded((int)(now.Date.AddDays(1) - now).TotalSeconds);
-        if (budget.Pending >= limits.PendingCapacity) return AiAssistantErrors.CapacityLimited(limits.PollingAfterSeconds);
         if (conversation is null)
         {
             conversation = AiConversation.Create(userId, now, channelId);
@@ -153,8 +160,8 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
         if (transcript is not null)
             turn.AttachAudio(home!.AudioRequestId!.Value, protector.Protect(userId, conversation.Id, turn.Id, "transcript", turn.PayloadRevision, transcript));
         if (attachment is not null)
-            turn.Attach(attachment.StorageKey, protector.Protect(userId, conversation.Id, turn.Id, AiAssistantAttachmentPolicy.Purpose, turn.PayloadRevision,
-                AiAssistantAttachmentPolicy.Serialize(attachment)));
+            turn.Attach(attachment.StorageKey, attachment.Sha256, attachment.Size, protector.Protect(userId, conversation.Id, turn.Id,
+                AiAssistantAttachmentPolicy.Purpose, turn.PayloadRevision, AiAssistantAttachmentPolicy.Serialize(attachment)));
         conversation.Touch(now);
         repository.AddTurn(turn);
         var hash = home is not null ? fingerprint.Create(userId, home, fingerprint.ActiveKeyId) : fingerprint.Create(operation!, fingerprint.ActiveKeyId);
@@ -184,15 +191,19 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
     }
 
     // A turn without a spreadsheet of its own keeps its conversation's: the one of the latest turn that has a spreadsheet, while that
-    // turn keeps its content. A replaced spreadsheet never comes back, and an inherited one is sealed again for the new turn.
-    private async Task<Result<AssistantAttachmentInput?>> InheritedAttachmentAsync(Guid userId, Guid conversationId, DateTime nowUtc, CancellationToken ct)
+    // turn keeps its content; a replaced one never comes back, and the new turn seals it again. A Home copy stays while a turn has it,
+    // so it takes the new turn's expiry and inheriting never ends with the first turn; any other copy expires on its own.
+    private async Task<Result<AssistantAttachmentInput?>> InheritedAttachmentAsync(Guid userId, Guid conversationId, DateTime nowUtc,
+        DateTime contentExpiresAtUtc, CancellationToken ct)
     {
-        var latest = await repository.GetLatestWithAttachmentAsync(conversationId, ct);
+        var latest = await repository.FindLatestAttachmentAsync(conversationId, ct);
         if (latest?.ProtectedAttachment is not { } protectedAttachment || latest.ContentExpiresAtUtc <= nowUtc)
             return Result.Success<AssistantAttachmentInput?>(null);
-        var attachment = AiAssistantAttachmentPolicy.Read(protector.Unprotect(userId, latest.ConversationId, latest.Id, AiAssistantAttachmentPolicy.Purpose,
+        var attachment = AiAssistantAttachmentPolicy.Read(protector.Unprotect(userId, conversationId, latest.TurnId, AiAssistantAttachmentPolicy.Purpose,
             latest.PayloadRevision, protectedAttachment));
         if (attachment is null) return AiAssistantErrors.ContentUnavailable;
+        if (AiAssistantHomeAttachmentPolicy.TryParseKey(attachment.StorageKey, out _))
+            return Result.Success<AssistantAttachmentInput?>(attachment with { ExpiresAtUtc = contentExpiresAtUtc });
         return Result.Success<AssistantAttachmentInput?>(attachment.ExpiresAtUtc > nowUtc ? attachment : null);
     }
 

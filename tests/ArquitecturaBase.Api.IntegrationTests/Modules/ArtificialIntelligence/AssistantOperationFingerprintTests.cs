@@ -175,14 +175,15 @@ public sealed class AssistantOperationFingerprintTests
     [InlineData("mime")]
     [InlineData("size")]
     [InlineData("hash")]
-    [InlineData("expiry")]
-    public void A_Home_turn_with_a_spreadsheet_binds_its_private_copy_but_not_what_was_prepared(string changed)
+    public void A_Home_turn_with_a_spreadsheet_binds_what_the_request_sends_but_not_its_expiry_or_what_was_prepared(string changed)
     {
         var owner = Guid.NewGuid();
         var turn = new SubmitAiAssistantTurnRequest(Guid.NewGuid(), Guid.NewGuid(), 3, 7, "", "es") { Attachment = Attachment() };
         var original = Fingerprint();
         var hash = original.Create(owner, turn, "one");
         Assert.True(original.Matches(owner, turn with { Attachment = turn.Attachment! with { Spreadsheet = Sheet("Hoja 2") } }, "one", hash));
+        // The server sets the expiry of a Home copy on each attempt: a retry later still recovers its turn.
+        Assert.True(original.Matches(owner, turn with { Attachment = turn.Attachment! with { ExpiresAtUtc = turn.Attachment.ExpiresAtUtc.AddMinutes(5) } }, "one", hash));
         Assert.False(original.Matches(owner, turn with { Attachment = Changed(turn.Attachment!, changed) }, "one", hash));
         Assert.False(original.Matches(owner, turn with { Attachment = null }, "one", hash));
     }

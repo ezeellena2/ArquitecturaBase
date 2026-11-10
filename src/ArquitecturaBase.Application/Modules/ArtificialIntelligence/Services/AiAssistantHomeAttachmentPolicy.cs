@@ -7,7 +7,6 @@ using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Models;
-using ArquitecturaBase.Domain.Files;
 using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Domain.Results;
 
@@ -55,8 +54,14 @@ internal sealed class AiAssistantHomeAttachmentPolicy(IPrivateFileStore files, I
     public static AiAssistantTurnAttachmentResponse Response(AssistantAttachmentInput attachment) => new(attachment.Name,
         attachment.Spreadsheet.Kind == StructuredSpreadsheetKind.Csv ? "csv" : "xlsx", attachment.Spreadsheet.RowCount, attachment.Size);
 
-    // Who may attach in Home, for the turn and for the bootstrap: the owner allows the person and there is private storage for the copy.
+    // Who may attach in Home, for the bootstrap: there is private storage for the copy and the owner allows the person.
     public async Task<bool> CanAttachAsync(Guid userId, CancellationToken ct) => files.IsAvailable && await reader.CanAttachAsync(userId, ct);
+
+    // The same rule for a turn, telling the installation apart from the account: without private storage spreadsheets are not available
+    // here, and only the owner's refusal is the person's 403.
+    public async Task<Error?> CheckAttachAsync(Guid userId, CancellationToken ct) =>
+        !files.IsAvailable ? FieldErrors.On(AiAssistantErrors.AttachmentUnavailable, "file")
+            : !await reader.CanAttachAsync(userId, ct) ? AiAssistantErrors.AttachmentForbidden : null;
 
     // A file that is not read answers under the file, with a code for each reason, and never reaches the model.
     public async Task<Result<StructuredSpreadsheet>> PrepareAsync(byte[] content, string name, CancellationToken ct)
@@ -75,28 +80,31 @@ internal sealed class AiAssistantHomeAttachmentPolicy(IPrivateFileStore files, I
         }, "file");
     }
 
-    // A retry is the same request again: this person's acceptance with that id brought its own spreadsheet, and the upload is that file
-    // (SHA-256, size and name). The stored descriptor is the one to accept with, never a rebuilt one: its expiry is in the fingerprint.
-    // Without an acceptance there is nothing to recover; without its own spreadsheet to compare with, the id was used for another request.
+    // A retry is the same request again: this person's acceptance with that id brought its own spreadsheet, and the upload is that file.
+    // What was sent (SHA-256 and size, in the clear) is compared first, and only then the stored descriptor is read, with its name, to
+    // accept with it without reading or storing again. A turn whose copy is gone (purged or retired) answers as the JSON turn would, not
+    // found, and one that cannot be read, unavailable. Without an acceptance there is nothing to recover.
     public async Task<Result<AssistantAttachmentInput?>> FindRetryAsync(Guid owner, Guid requestId, byte[] content, string name, CancellationToken ct)
     {
         var turn = await turns.FindTurnByRequestAsync(owner, requestId, ct);
         if (turn is null) return Result.Success<AssistantAttachmentInput?>(null);
-        var stored = turn.ChannelId == "home" && IsOwn(turn.AttachmentKey, turn.RequestId) && turn.ProtectedAttachment is { } protectedAttachment
-            ? AiAssistantAttachmentPolicy.Read(protector.Unprotect(owner, turn.ConversationId, turn.Id, AiAssistantAttachmentPolicy.Purpose,
-                turn.PayloadRevision, protectedAttachment))
-            : null;
-        if (stored is null || stored.Size != content.LongLength || stored.Name != name || stored.Sha256 != Sha256(content))
-            return AiAssistantErrors.RequestReused;
-        return stored;
+        if (turn.ChannelId != "home" || !IsOwn(turn.AttachmentKey, turn.RequestId) || turn.AttachmentSize != content.LongLength
+            || turn.AttachmentSha256 != Sha256(content)) return AiAssistantErrors.RequestReused;
+        var protectedAttachment = (await turns.ListProtectedAttachmentsAsync(owner, [turn.Id], ct)).GetValueOrDefault(turn.Id);
+        if (protectedAttachment is null) return AiAssistantErrors.NotFound;
+        var stored = AiAssistantAttachmentPolicy.Read(protector.Unprotect(owner, turn.ConversationId, turn.Id, AiAssistantAttachmentPolicy.Purpose,
+            turn.PayloadRevision, protectedAttachment));
+        if (stored is null) return AiAssistantErrors.ContentUnavailable;
+        return stored.Name == name ? stored : AiAssistantErrors.RequestReused;
     }
 
+    // A copy that cannot be read back says so under the file, in neutral words; another content under the same request is a conflict.
     public async Task<Result> StoreAsync(AssistantAttachmentInput attachment, byte[] content, CancellationToken ct)
     {
-        if (!files.IsAvailable) return FileErrors.Unavailable;
+        if (!files.IsAvailable) return FieldErrors.On(AiAssistantErrors.AttachmentNotStored, "file");
         await using (var stream = new MemoryStream(content, false)) await files.WriteOnceAsync(attachment.StorageKey, stream, attachment.ContentType, ct);
         await using var stored = await files.OpenReadAsync(attachment.StorageKey, ct);
-        if (stored is null) return FileErrors.Unavailable;
+        if (stored is null) return FieldErrors.On(AiAssistantErrors.AttachmentNotStored, "file");
         using var copy = new MemoryStream();
         await stored.CopyToAsync(copy, ct);
         return copy.Length == attachment.Size && Sha256(copy.GetBuffer().AsSpan(0, (int)copy.Length)) == attachment.Sha256

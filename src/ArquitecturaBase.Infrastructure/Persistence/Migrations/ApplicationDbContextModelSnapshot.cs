@@ -885,6 +885,13 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
+                    b.Property<string>("AttachmentSha256")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<long?>("AttachmentSize")
+                        .HasColumnType("bigint");
+
                     b.Property<Guid?>("AttemptId")
                         .HasColumnType("uuid");
 

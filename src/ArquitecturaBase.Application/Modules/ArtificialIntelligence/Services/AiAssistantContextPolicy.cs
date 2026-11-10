@@ -64,9 +64,11 @@ internal sealed class AiAssistantContextPolicy(IAiAssistantReader reader, IAiCon
         // The conversation's spreadsheet goes as data at the end of the current message: outside the history's characters, inside
         // the context budget.
         StructuredSpreadsheet? spreadsheet = null;
-        if (turn.ProtectedAttachment is { } protectedAttachment)
+        if (turn.AttachmentKey is not null)
         {
-            var attachment = AiAssistantAttachmentPolicy.Read(responsePolicy.Reveal(turn, AiAssistantAttachmentPolicy.Purpose, protectedAttachment));
+            var sealedAttachments = await reader.ListProtectedAttachmentsAsync(turn.OwnerUserId, [turn.Id], cancellationToken);
+            var attachment = sealedAttachments.TryGetValue(turn.Id, out var protectedAttachment)
+                ? AiAssistantAttachmentPolicy.Read(responsePolicy.Reveal(turn, AiAssistantAttachmentPolicy.Purpose, protectedAttachment)) : null;
             if (attachment is null) return AiAssistantErrors.ContentUnavailable;
             spreadsheet = attachment.Spreadsheet;
             question = AiAssistantAttachmentPolicy.Message(question, spreadsheet, turn.Culture);
@@ -76,8 +78,11 @@ internal sealed class AiAssistantContextPolicy(IAiAssistantReader reader, IAiCon
         var expiredThroughOrdinal = page.Items.Where(t => t.Ordinal < turn.Ordinal &&
             (t.ContentExpiresAtUtc <= timeProvider.GetUtcNow().UtcDateTime || t.ProtectedQuestion is null)).Select(t => t.Ordinal).DefaultIfEmpty(0).Max();
         var history = new List<AiAssistantTurnResponse>();
-        // A channel conversation has earlier turns only when a message continued its previous operation.
-        foreach (var previous in page.Items.Where(t => t.Ordinal < turn.Ordinal && t.Ordinal > expiredThroughOrdinal && t.State == AiAssistantTurnState.Completed))
+        // A channel conversation has earlier turns only when a message continued its previous operation. Of their spreadsheets, only
+        // the one of the turn that brought each comes, to name it when it came without text.
+        var earlier = await AiAssistantAttachmentPolicy.WithOwnAttachmentsAsync(reader, claim.OwnerUserId,
+            [.. page.Items.Where(t => t.Ordinal < turn.Ordinal && t.Ordinal > expiredThroughOrdinal && t.State == AiAssistantTurnState.Completed)], cancellationToken);
+        foreach (var previous in earlier)
         {
             var mapped = responsePolicy.Map(previous, true, limits.PollingAfterSeconds);
             if (mapped.IsFailure) return mapped.Error;

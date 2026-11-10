@@ -77,6 +77,14 @@ internal sealed class AiAssistantReader(ApplicationDbContext dbContext, TimeProv
             .Select(turn => turn.AttachmentKey!).Distinct().ToArrayAsync(cancellationToken);
     }
 
+    // A sealed spreadsheet can be as large as a page of turns: it comes only for the turns its user asks for, in one query.
+    public async Task<IReadOnlyDictionary<Guid, string>> ListProtectedAttachmentsAsync(Guid ownerUserId, IReadOnlyCollection<Guid> turnIds,
+        CancellationToken cancellationToken) =>
+        await dbContext.Set<AiAssistantTurn>().AsNoTracking()
+            .Where(turn => turn.OwnerUserId == ownerUserId && turnIds.Contains(turn.Id) && turn.ProtectedAttachment != null)
+            .Select(turn => new { turn.Id, turn.ProtectedAttachment })
+            .ToDictionaryAsync(turn => turn.Id, turn => turn.ProtectedAttachment!, cancellationToken);
+
     private async Task<AiAssistantTurnRow?> AttachToolResultsAsync(AiAssistantTurnRow? row, CancellationToken cancellationToken)
     {
         if (row?.ProtectedQuestion is null) return row;
@@ -119,7 +127,7 @@ internal sealed class AiAssistantReader(ApplicationDbContext dbContext, TimeProv
                 && (turn.State == AiAssistantTurnState.Pending || turn.State == AiAssistantTurnState.Running))
                 .Select(turn => (Guid?)turn.RequestId).FirstOrDefault(),
             question == null ? null : new AiConversationQuestionRow(question.Id, question.PayloadRevision, question.ProtectedQuestion, question.ContentExpiresAtUtc)
-                { ProtectedTranscript = question.ProtectedTranscript, ProtectedAttachment = question.ProtectedAttachment });
+                { ProtectedTranscript = question.ProtectedTranscript, AttachmentKey = question.AttachmentKey });
 
     private static IQueryable<AiAssistantTurnRow> ProjectTurns(IQueryable<AiAssistantTurn> query) => query.Select(turn =>
         new AiAssistantTurnRow(turn.Id, turn.OwnerUserId, turn.ConversationId, turn.RequestId, turn.Ordinal,
@@ -134,6 +142,5 @@ internal sealed class AiAssistantReader(ApplicationDbContext dbContext, TimeProv
         { AudioSeconds = turn.AudioSeconds, ChannelId = turn.Conversation.ChannelId, ExecutionProfileJson = turn.ExecutionProfileJson,
             AudioRequestId = turn.AudioRequestId,
             ProtectedTranscript = turn.Conversation.State == AiConversationState.Active ? turn.ProtectedTranscript : null,
-            AttachmentKey = turn.AttachmentKey,
-            ProtectedAttachment = turn.Conversation.State == AiConversationState.Active ? turn.ProtectedAttachment : null });
+            AttachmentKey = turn.AttachmentKey, AttachmentSha256 = turn.AttachmentSha256, AttachmentSize = turn.AttachmentSize });
 }

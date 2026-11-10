@@ -44,9 +44,12 @@ internal sealed class AiAssistantRepository(ApplicationDbContext dbContext, Time
             && (turn.State == AiAssistantTurnState.Pending || turn.State == AiAssistantTurnState.Running), cancellationToken);
     public Task<int> CountTurnsAsync(Guid conversationId, CancellationToken cancellationToken) =>
         dbContext.Set<AiAssistantTurn>().CountAsync(turn => turn.ConversationId == conversationId, cancellationToken);
-    public Task<AiAssistantTurn?> GetLatestWithAttachmentAsync(Guid conversationId, CancellationToken cancellationToken) =>
+    // A projection, never tracked: only what inheriting needs, under the lock of the conversation.
+    public Task<AiAssistantAttachmentRow?> FindLatestAttachmentAsync(Guid conversationId, CancellationToken cancellationToken) =>
         dbContext.Set<AiAssistantTurn>().Where(turn => turn.ConversationId == conversationId && turn.AttachmentKey != null)
-            .OrderByDescending(turn => turn.Ordinal).FirstOrDefaultAsync(cancellationToken);
+            .OrderByDescending(turn => turn.Ordinal)
+            .Select(turn => new AiAssistantAttachmentRow(turn.Id, turn.PayloadRevision, turn.ContentExpiresAtUtc, turn.AttachmentKey!, turn.ProtectedAttachment))
+            .FirstOrDefaultAsync(cancellationToken);
 
     public async Task<AiAssistantBudgetCounts> CountBudgetAsync(Guid ownerUserId, DateOnly dayUtc, string? channelId, bool? isAudio, CancellationToken cancellationToken)
     {

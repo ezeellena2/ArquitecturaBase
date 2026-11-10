@@ -24,6 +24,9 @@ internal sealed class AiAssistantFileTurnService(IUnitOfWork unitOfWork, IReques
             if (guard.CurrentUserId is not { } userId) return AiAssistantErrors.SessionRequired;
             var actor = await guard.AuthorizeAsync(userId, cancellationToken);
             if (actor.IsFailure) return actor.Error;
+            // The turn's fields before the file is read: all but the required question, which the spreadsheet stands in for.
+            if (await validator.ValidateAsync(request.Turn with { Question = string.IsNullOrWhiteSpace(request.Turn.Question) ? "-" : request.Turn.Question },
+                cancellationToken) is { } invalid) return invalid;
             var turn = await TurnAsync(userId, request, cancellationToken);
             if (turn.IsFailure) return turn.Error;
             return await unitOfWork.ExecuteInTransactionAsync(ct => submissions.AcceptAsync(userId, turn.Value, ct), CommitPolicy.OnSuccess, cancellationToken);
@@ -36,7 +39,7 @@ internal sealed class AiAssistantFileTurnService(IUnitOfWork unitOfWork, IReques
         var retried = await attachments.FindRetryAsync(userId, request.Turn.RequestId, request.Content, name, ct);
         if (retried.IsFailure) return retried.Error;
         if (retried.Value is { } accepted) return await ValidateAsync(request.Turn with { Attachment = accepted }, ct);
-        if (!await attachments.CanAttachAsync(userId, ct)) return AiAssistantErrors.AttachmentForbidden;
+        if (await attachments.CheckAttachAsync(userId, ct) is { } refused) return refused;
         var prepared = await attachments.PrepareAsync(request.Content, name, ct);
         if (prepared.IsFailure) return prepared.Error;
         var attachment = AiAssistantHomeAttachmentPolicy.Describe(request.Turn.RequestId, request.Content, name, prepared.Value,

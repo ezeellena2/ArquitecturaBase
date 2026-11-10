@@ -80,6 +80,17 @@ public sealed class AiAssistantProposalLookupTests
         Assert.True((await lookup.FindAsync(row.OwnerUserId, row.RequestId, proposalId, [ReplacementSource.Id], Ct)).Value.IsCurrent);
     }
 
+    // Looking up a proposal and whether a later one replaced it never asks for a sealed spreadsheet: the reader here would throw.
+    [Fact]
+    public async Task A_lookup_never_reads_the_spreadsheets_of_its_turns()
+    {
+        var (scenario, proposalId) = await CompletedAsync();
+        var row = scenario.Row() with { AttachmentKey = "fixture/attachments/clientes.xlsx" };
+        var later = row with { Id = Guid.NewGuid(), Ordinal = row.Ordinal + 1 };
+        var result = await Lookup(scenario, new Reader(row, [later, row])).FindAsync(row.OwnerUserId, row.RequestId, proposalId, Group, Ct);
+        Assert.False(result.Value.IsCurrent);
+    }
+
     [Fact]
     public async Task A_later_answer_or_an_unfinished_turn_keeps_it_current()
     {
@@ -145,6 +156,7 @@ public sealed class AiAssistantProposalLookupTests
             Task.FromResult(new PagedResult<AiAssistantTurnRow>(turns.Skip((request.Page - 1) * request.PageSize).Take(request.PageSize).ToArray(), request.Page, request.PageSize, turns.Count));
         public Task<IReadOnlyList<Guid>> ListRetainedAudioRequestIdsAsync(IReadOnlyCollection<Guid> audioRequestIds, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<IReadOnlyList<string>> ListRetainedAttachmentKeysAsync(IReadOnlyCollection<string> attachmentKeys, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<IReadOnlyDictionary<Guid, string>> ListProtectedAttachmentsAsync(Guid ownerUserId, IReadOnlyCollection<Guid> turnIds, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<AiAssistantWorkloadRow> FindWorkloadAsync(DateTime nowUtc, int leaseGraceSeconds, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<AiConversationRow?> FindConversationAsync(Guid ownerUserId, Guid conversationId, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<AiAssistantTurnRow?> FindTurnAsync(Guid turnId, CancellationToken cancellationToken) => throw new NotSupportedException();

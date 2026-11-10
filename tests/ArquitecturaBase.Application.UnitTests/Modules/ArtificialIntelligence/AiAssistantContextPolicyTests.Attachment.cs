@@ -58,7 +58,8 @@ public sealed partial class AiAssistantContextPolicyTests
         host.Protector.Contents["older-question"] = "Older question";
         host.Protector.Contents["older-answer"] = JsonSerializer.Serialize(new AiAssistantAnswer("answer", "Older answer", []), JsonSerializerOptions.Web);
         var current = host.Reader.Row;
-        // An earlier turn's spreadsheet is never decrypted: an unknown ciphertext would fail the test.
+        // An earlier turn that inherited the spreadsheet never decrypts it (only the one that brought it may, to name it when it came
+        // without text): an unknown ciphertext would fail the test.
         host.Reader.History = [current, current with { Id = Guid.NewGuid(), Ordinal = 2, State = AiAssistantTurnState.Completed,
             ProtectedQuestion = "older-question", ProtectedAnswer = "older-answer", ProtectedAttachment = "older-attachment" }];
         var result = await host.Policy.PrepareAsync(host.Claim, TestContext.Current.CancellationToken);

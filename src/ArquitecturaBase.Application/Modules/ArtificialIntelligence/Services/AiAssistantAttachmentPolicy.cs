@@ -2,6 +2,8 @@ using System.Globalization;
 using System.Text.Json;
 using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Models.StructuredData;
+using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Persistence;
+using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Models;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Resources;
 using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Domain.Results;
@@ -14,9 +16,10 @@ internal static class AiAssistantAttachmentPolicy
 {
     public const string Purpose = "attachment";
 
-    // A bounded private key and a safe name, an import's size, a lowercase SHA-256 and the prepared sheet within its cap.
+    // A bounded private key and a safe name, an import's size, a lowercase SHA-256 and the prepared sheet within its cap, prepared from
+    // the same file the descriptor names.
     public static Error? Validate(AssistantAttachmentInput attachment) =>
-        attachment.Spreadsheet is null ||
+        attachment.Spreadsheet is null || attachment.Spreadsheet.Sha256 != attachment.Sha256 || attachment.Spreadsheet.Size != attachment.Size ||
         attachment.StorageKey is not { Length: > 0 and <= AiAssistantTurn.MaximumAttachmentKeyLength } key || string.IsNullOrWhiteSpace(key) || key.Any(char.IsControl) ||
         attachment.Name is not { Length: >= 1 and <= 255 } name || name.Any(char.IsControl) || name.IndexOfAny(['/', '\\']) >= 0 || name is "." or ".." ||
         attachment.ContentType is not { Length: >= 1 and <= 128 } type || string.IsNullOrWhiteSpace(type) || type.Any(char.IsControl) ||
@@ -25,6 +28,20 @@ internal static class AiAssistantAttachmentPolicy
         attachment.ExpiresAtUtc.Kind != DateTimeKind.Utc ||
         JsonSerializer.SerializeToUtf8Bytes(attachment.Spreadsheet, AiAssistantResponsePolicy.JsonOptions).Length > StructuredSpreadsheet.MaximumBytes
             ? AiAssistantErrors.Invalid : null;
+
+    // The rows never bring their sealed spreadsheets. Who shows or names one asks, in one query, only for the turns that brought theirs:
+    // a Home copy names its request; any other copy was brought by the earliest turn that has it, when that turn is in the list.
+    public static async Task<IReadOnlyList<AiAssistantTurnRow>> WithOwnAttachmentsAsync(IAiAssistantReader reader, Guid ownerUserId,
+        IReadOnlyList<AiAssistantTurnRow> rows, CancellationToken ct)
+    {
+        var own = rows.Where(row => row.AttachmentKey is not null).GroupBy(row => (row.ConversationId, row.AttachmentKey))
+            .Select(copy => copy.MinBy(row => row.Ordinal)!)
+            .Where(row => !AiAssistantHomeAttachmentPolicy.TryParseKey(row.AttachmentKey, out _) || AiAssistantHomeAttachmentPolicy.IsOwn(row.AttachmentKey, row.RequestId))
+            .Select(row => row.Id).ToArray();
+        if (own.Length == 0) return rows;
+        var sealedAttachments = await reader.ListProtectedAttachmentsAsync(ownerUserId, own, ct);
+        return [.. rows.Select(row => sealedAttachments.TryGetValue(row.Id, out var protectedAttachment) ? row with { ProtectedAttachment = protectedAttachment } : row)];
+    }
 
     public static string Serialize(AssistantAttachmentInput attachment) => JsonSerializer.Serialize(attachment, AiAssistantResponsePolicy.JsonOptions);
 

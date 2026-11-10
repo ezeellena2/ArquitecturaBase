@@ -27,8 +27,11 @@ public sealed class AiAssistantTurn : Entity, IAuditable
     public Guid? AudioRequestId { get; private set; }
     public string? ProtectedTranscript { get; private set; }
     // A turn with a spreadsheet, its own or inherited from its conversation: the key of the private copy, in the clear for its
-    // retention and for the next turns to inherit it, and the copy's descriptor with the prepared sheet, sealed apart.
+    // retention and for the next turns to inherit it, what was sent (its SHA-256 and size, kept after the purge like the usage) and
+    // the copy's descriptor with the prepared sheet, sealed apart.
     public string? AttachmentKey { get; private set; }
+    public string? AttachmentSha256 { get; private set; }
+    public long? AttachmentSize { get; private set; }
     public string? ProtectedAttachment { get; private set; }
     public string? ProtectedAnswer { get; private set; }
     public string? ProtectedEvidences { get; private set; }
@@ -91,11 +94,12 @@ public sealed class AiAssistantTurn : Entity, IAuditable
         AudioRequestId = audioRequestId; ProtectedTranscript = protectedTranscript;
     }
 
-    public void Attach(string attachmentKey, string protectedAttachment)
+    public void Attach(string attachmentKey, string sha256, long size, string protectedAttachment)
     {
-        if (string.IsNullOrWhiteSpace(attachmentKey) || attachmentKey.Length > MaximumAttachmentKeyLength || string.IsNullOrEmpty(protectedAttachment))
-            throw new ArgumentException("A turn with a spreadsheet names its private copy and seals what was prepared.");
-        AttachmentKey = attachmentKey; ProtectedAttachment = protectedAttachment;
+        if (string.IsNullOrWhiteSpace(attachmentKey) || attachmentKey.Length > MaximumAttachmentKeyLength || sha256 is not { Length: 64 } || size <= 0
+            || string.IsNullOrEmpty(protectedAttachment))
+            throw new ArgumentException("A turn with a spreadsheet names its private copy, what was sent and seals what was prepared.");
+        AttachmentKey = attachmentKey; AttachmentSha256 = sha256; AttachmentSize = size; ProtectedAttachment = protectedAttachment;
     }
 
     public Result Claim(Guid attemptId, DateTime deadlineAtUtc)
