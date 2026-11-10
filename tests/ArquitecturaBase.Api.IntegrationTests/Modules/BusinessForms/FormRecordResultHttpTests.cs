@@ -10,11 +10,11 @@ using Microsoft.Extensions.DependencyInjection;
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 
 // RE1-A with PostgreSQL: the result of an external action is kept once per run in the response, sealed with its names, and the
-// detail shows it in the display language; a second result for the same run is refused by the unique index.
+// detail and the sheet show it in the display language; a second result for the same run is refused by the unique index.
 public sealed partial class FormDraftEndpointsTests
 {
     [Fact]
-    public async Task The_result_of_an_external_action_is_kept_once_per_run_and_read_in_the_detail()
+    public async Task The_result_of_an_external_action_is_kept_once_per_run_and_read_in_the_detail_and_the_sheet()
     {
         using var reader = await OperatorAsync([BusinessFormsPermissions.RecordsRead]);
         var seeded = await SeedWorkflowRunAsync(reader, FormActionRunState.Completed);
@@ -25,12 +25,12 @@ public sealed partial class FormDraftEndpointsTests
                 new("authorization", new Dictionary<string, string> { ["es"] = "Código de autorización" }, StructuredRecordResultField.Text, "74512345678901"),
                 new("expiresOn", new Dictionary<string, string> { ["es"] = "Vencimiento del código" }, StructuredRecordResultField.Date, "2026-11-19"),
             ]);
+        var definitionId = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormRecord>().Where(record => record.Id == seeded.RecordId)
+            .Select(record => record.DefinitionId).SingleAsync(Ct));
         async Task AddAsync() => await factory.ExecuteScopeAsync(async services =>
         {
-            var db = services.GetRequiredService<ApplicationDbContext>();
-            var definitionId = await db.Set<BusinessFormRecord>().Where(record => record.Id == seeded.RecordId).Select(record => record.DefinitionId).SingleAsync(Ct);
             services.GetRequiredService<FormRecordResultRecorder>().Add(definitionId, seeded.RecordId, seeded.RunId, result);
-            await db.SaveChangesAsync(Ct);
+            await services.GetRequiredService<ApplicationDbContext>().SaveChangesAsync(Ct);
         });
 
         await AddAsync();
@@ -45,6 +45,15 @@ public sealed partial class FormDraftEndpointsTests
             stored.GetProperty("values").EnumerateArray().Select(value => value.GetProperty("label").GetString()));
         Assert.Equal("2026-11-19", stored.GetProperty("values")[2].GetProperty("value").GetString());
         Assert.Equal("date", stored.GetProperty("values")[2].GetProperty("kind").GetString());
+
+        // The sheet takes its columns from the latest result of each source and fills the row that has one.
+        using var sheet = await reader.GetAsync($"/api/forms/definitions/{definitionId}/records", Ct);
+        Assert.Equal(HttpStatusCode.OK, sheet.StatusCode);
+        var body = await sheet.ReadJsonAsync();
+        var columns = body.GetProperty("resultColumns").EnumerateArray().ToArray();
+        Assert.Equal(["Comprobante", "Código de autorización", "Vencimiento del código"], columns.Select(column => column.GetProperty("label").GetString()));
+        var row = body.GetProperty("records").GetProperty("items").EnumerateArray().Single(item => item.GetProperty("id").GetGuid() == seeded.RecordId);
+        Assert.Equal("Factura C 0004-00000012", row.GetProperty("results").GetProperty(columns[0].GetProperty("id").GetString()!).GetString());
     }
 
     [Fact]

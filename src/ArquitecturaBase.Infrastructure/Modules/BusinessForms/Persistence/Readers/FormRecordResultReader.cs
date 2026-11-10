@@ -15,12 +15,16 @@ internal sealed class FormRecordResultReader(ApplicationDbContext db) : IFormRec
                 SourceNameJson = result.SourceNameJson, ValuesJson = result.ValuesJson, RecordedAtUtc = result.RecordedAtUtc })
             .ToArrayAsync(cancellationToken);
 
-    public async Task<IReadOnlyList<FormRecordResultRow>> ListLatestBySourceAsync(Guid definitionId, CancellationToken cancellationToken) =>
-        await db.Set<BusinessFormRecordResult>().AsNoTracking().Where(result => result.DefinitionId == definitionId)
-            .GroupBy(result => result.Source)
-            .Select(group => group.OrderByDescending(result => result.RecordedAtUtc).ThenByDescending(result => result.Id).First())
-            .OrderBy(result => result.Source)
-            .Select(result => new FormRecordResultRow { RecordId = result.RecordId, RunId = result.RunId, Source = result.Source,
-                SourceNameJson = result.SourceNameJson, ValuesJson = result.ValuesJson, RecordedAtUtc = result.RecordedAtUtc })
+    // The sources of the form, and for each one its latest result through a lateral subquery (EF does not translate a grouped First).
+    public async Task<IReadOnlyList<FormRecordResultRow>> ListLatestBySourceAsync(Guid definitionId, CancellationToken cancellationToken)
+    {
+        var results = db.Set<BusinessFormRecordResult>().AsNoTracking().Where(result => result.DefinitionId == definitionId);
+        return await results.Select(result => result.Source).Distinct().OrderBy(source => source)
+            .Select(source => results.Where(result => result.Source == source)
+                .OrderByDescending(result => result.RecordedAtUtc).ThenByDescending(result => result.Id)
+                .Select(result => new FormRecordResultRow { RecordId = result.RecordId, RunId = result.RunId, Source = result.Source,
+                    SourceNameJson = result.SourceNameJson, ValuesJson = result.ValuesJson, RecordedAtUtc = result.RecordedAtUtc })
+                .First())
             .ToArrayAsync(cancellationToken);
+    }
 }
