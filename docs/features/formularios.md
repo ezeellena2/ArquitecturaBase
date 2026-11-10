@@ -980,6 +980,45 @@ aparece.
 - **Las preguntas atadas** conservan todo menos su texto, su ayuda y su lugar: guardar el borrador rechaza quitarlas (en
   `draft.fields`) o cambiarles tipo, bloque, catálogo, opciones, cálculo, condición, renglones, largo o si son obligatorias (en
   `draft.fields[i]`), con `Forms.Draft.BoundQuestionChanged`. La migración es `AddFormDefinitionStandard`.
+- **La carpeta.** «Agregar» recibe `folderId` opcional: la copia y los catálogos propios que crea van a esa carpeta y, sin
+  ella, a la del estándar (`Folder`: su clave y su nombre por idioma), en la misma transacción que el borrador. La del
+  estándar es una carpeta del sistema (ver [Carpetas](#carpetas--cp1-a-a-cp5-a-2026-11-09)); una elegida que se borró en
+  el medio da 404 `Forms.Folder.NotFound`.
+
+## Carpetas — CP1-A a CP5-A, 2026-11-09
+
+Las carpetas ordenan formularios y catálogos en un solo árbol, con subcarpetas, y un mismo elemento puede estar en varias.
+Lo eligió el usuario en los tableros CP1 a CP5 (el [plan](../plans/2026-11-03-carpetas-de-formularios-y-catalogos.md)).
+Está el backend; el front, por programar.
+
+- **Sólo ordenan.** No dan ni quitan acceso, y no hay permisos nuevos. Hasta cinco niveles; el nombre (hasta 80
+  caracteres) no se repite en una misma carpeta sin distinguir mayúsculas. Profundidad, ciclos y nombres se revisan contra
+  el árbol entero bajo el lock `forms:folders`, en una transacción por operación. Las tablas son `FormFolders` y
+  `FormFolderMemberships` (migración `AddFormFolders`).
+- **El árbol.** `GET api/forms/folders?kind=forms|designs|catalogs` lee el árbol de un listado con el permiso de ese
+  listado. Quien administra (`formtemplates.manage` o `formcatalogs.manage`) ve todas las carpetas, también las vacías;
+  los demás, sólo las que tienen algo visible para ellos, con sus madres.
+- **Administrar** (`formtemplates.manage` o `formcatalogs.manage`): `POST api/forms/folders` crea, `PUT
+  api/forms/folders/{id}` renombra o mueve, `GET api/forms/folders/{id}/deletion` cuenta subcarpetas, formularios y
+  catálogos antes de borrar y `DELETE api/forms/folders/{id}` borra la carpeta con sus subcarpetas y sus membresías, nunca
+  un formulario ni un catálogo. Renombrar, mover, borrar y el menú llevan la revisión de la carpeta y responden 409
+  `Forms.Folder.RevisionConflict`.
+- **Las carpetas de un elemento** (CP2-A): `GET`/`PUT api/forms/definitions/{id}/folders` y `api/forms/catalogs/{id}/folders`.
+  Leer pide el permiso de lectura del elemento; guardar, el de administrarlo, y reemplaza el conjunto entero si sigue
+  siendo el que se leyó (`expectedFolderIds`); si no, 409 `Forms.Folder.SetChanged`.
+- **Los listados** (`api/forms/overview`, el de diseños y el de catálogos) reciben `folderId` (la carpeta con sus
+  subcarpetas, con una consulta recursiva) o `withoutFolder`, nunca los dos. Se filtra en SQL antes de contar, ordenar y
+  paginar, y un elemento aparece una sola vez. Un elemento borrado oculta sus membresías.
+- **El menú** (CP5-A). `PUT api/forms/folders/{id}/menu` elige el lugar de una carpeta: ninguno, un menú propio con uno de
+  doce íconos genéricos (la carpeta por defecto), «Gestión de formularios» o «Administración». `GET api/forms/menu` lo lee
+  cualquier cuenta activa, ya podado: sólo formularios activos que esa persona puede abrir, en orden alfabético, sin nada
+  vacío. Un menú propio lleva sus formularios y un grupo por subcarpeta con todo lo que está debajo (nunca más de dos
+  niveles); una carpeta en un panel es un grupo con todos los formularios de abajo.
+- **Las carpetas del sistema.** `FormSystemFolderLinker` archiva lo que crea el sistema (los catálogos de ARCA, la copia de
+  un estándar) en la carpeta que recuerda por su clave, aunque la hayan renombrado o movido; si la borraron, la crea otra
+  vez arriba de todo y fuera del menú, y adopta una del primer nivel con el mismo nombre y sin clave. Corre dentro de la
+  transacción de quien lo llama y no tiene ruta propia.
+- **Fuera del alcance:** las carpetas no viajan a WhatsApp, al asistente ni a «Formularios que faltan».
 
 ## Formularios sólo en la app — SA1-A a SA5, 2026-11-09
 

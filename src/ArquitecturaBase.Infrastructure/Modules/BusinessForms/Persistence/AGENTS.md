@@ -18,10 +18,11 @@ Por área:
 - **Respuestas:** registros, valores tipados, recibos de captura, referencias de catálogo y archivos; `FormRecordRepository`, `FormRecordReader`, `FormOverviewReader` (tabla de formularios), `FormEntryReader` (carga desde la app), `FormResponseReader` (planilla, facetas, export y cadena de origen), `FormCaptureReceiptReader` y `FormFileReader`.
 - **Reglas y efectos:** revisiones de reglas, runs, tareas de aprobación, documentos y diseños PDF; `FormRule*`, `FormActionRun*`, `FormApproval*`, `FormPdfDesign*`, `FormDocumentRepository` y `FormActionRecipientReader`.
 - **Sugerencias y pedidos faltantes:** `BusinessFormSuggestions`, temas y pedidos; `FormSuggestion*` y `FormMissingRequest*`.
+- **Carpetas:** `FormFolders` (árbol con revisión, clave del sistema y lugar en el menú) y `FormFolderMemberships` (carpeta, tipo de elemento y su Id, sin FK al elemento); `FormFolderRepository`, `FormFolderReader` (árbol, conteos para borrar y menú) y `FormFolderScope`, el filtro recursivo de los tres listados antes de paginar.
 
 ## Al modificar
 
-- Locks sólo con `FormAdvisoryLockKeys` (`forms:`): actor/UUID antes de `forms:definitions`, el lock global que serializa borrador, publicación, reglas, diseño, sugerencias, aprobación, baja y numeración. `forms:catalog:{id}` cubre la edición del catálogo y la captura Manual, antes de numerar; `forms:capture:` y `forms:missing-requests` cubren captura y pedidos.
+- Locks sólo con `FormAdvisoryLockKeys` (`forms:`): actor/UUID antes de `forms:definitions`, el lock global que serializa borrador, publicación, reglas, diseño, sugerencias, aprobación, baja y numeración. `forms:catalog:{id}` cubre la edición del catálogo y la captura Manual, antes de numerar; `forms:capture:` y `forms:missing-requests` cubren captura y pedidos; `forms:folders`, todo cambio de carpetas, siempre después de los demás.
 - La pertenencia es por FK compuestas `(DefinitionId, Id)`: punteros activos, versión, campo, regla y diseño. Las revisiones (reglas, PDF, sugerencias) son inmutables con índice único definición/revisión; punteros, `Revision` y fences son tokens de concurrencia.
 - Una columna nueva no reescribe versiones, manifiestos, hashes, bindings ni capturas.
 - La presentación histórica abre manifiestos por lote con su contexto exacto; si falta o no coincide, falla. El seeder sólo completa presentación ausente desde el manifiesto de su operación, sin guardar ni tocar esquema, hash ni operaciones.

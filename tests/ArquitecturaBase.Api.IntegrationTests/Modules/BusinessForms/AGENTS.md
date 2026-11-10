@@ -25,6 +25,7 @@ Pruebas del módulo Formularios con HTTP, PostgreSQL, Redis, archivos, Excel y P
 - [Reglas, acciones y aprobaciones](../../../../docs/features/formularios-pruebas-de-integracion.md#reglas-acciones-y-aprobaciones): el bucle de acciones que no frena el lote, la paridad entre condiciones y SQL (también en un mismo ítem del bloque), la fecha de solicitud, el recorrido con aprobación y PDF, y la continuación entre aprobaciones.
 - [PDF](../../../../docs/features/formularios-pruebas-de-integracion.md#pdf): la vista previa con Skia real y los emojis, en pruebas técnicas que exportan el PDF para revisarlo con Poppler.
 - [Asistente y sugerencias](../../../../docs/features/formularios-pruebas-de-integracion.md#asistente-y-sugerencias): cuándo ofrecer, la selección, el prellenado y la aclaración sobre lo publicado, las rutas y la captura de sugerencias, y crear desde una propuesta de la IA.
+- [Motor para documentos y carpetas](../../../../docs/features/formularios-pruebas-de-integracion.md#motor-para-documentos-y-carpetas): cálculos y condiciones de punta a punta, el resultado en el detalle y la planilla, la biblioteca con sus catálogos y su carpeta, y las carpetas con su árbol, sus carreras, sus 409, el menú y el filtro de los listados.
 
 ## Referencias
 

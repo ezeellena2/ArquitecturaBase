@@ -26,6 +26,7 @@ Pruebas unitarias de Formularios en Application: servicios, políticas, validado
 - [Sugerencias de qué completar después](../../../../docs/features/formularios-pruebas-unitarias.md#sugerencias-de-qué-completar-después): la configuración por revisiones con mapeos y opciones ofrecidas, Always y Assistant, la privacidad de la respuesta de origen y los IDs que sólo salen de una propuesta auténtica, dentro del presupuesto exacto de la lectura.
 - [La IA arma formularios y catálogos](../../../../docs/features/formularios-pruebas-unitarias.md#la-ia-arma-formularios-y-catálogos): crear un formulario o un catálogo desde una propuesta, en la web o desde un canal (lo ya creado, sólo de la misma persona y con su permiso), el resumen es/en, las lecturas en el idioma de la conversación y los motivos del «no se puede».
 - [Emitir un documento](../../../../docs/features/formularios-pruebas-unitarias.md#emitir-un-documento): la acción «Emitir comprobante» en las reglas y su run con un emisor de prueba: una vez por run, sólo con la respuesta en pie, el resultado, el rechazo y la revisión.
+- [Motor para documentos y carpetas](../../../../docs/features/formularios-pruebas-unitarias.md#motor-para-documentos-y-carpetas): cálculos, condiciones, resultado externo, biblioteca y carpetas: la forma en el borrador, lo que frena al publicar, la captura (cálculos redondeados, preguntas ocultas), los datos del resultado en avisos y planilla, las preguntas atadas y el árbol de carpetas con su menú.
 
 ## Referencias
 

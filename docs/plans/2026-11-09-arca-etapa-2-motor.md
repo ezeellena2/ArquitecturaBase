@@ -159,7 +159,8 @@ Cada tarea con su test en rojo primero, el build y los tests rápidos del área,
 4. ~~La captura: calcular (también en los ítems y al corregir) y rechazar una respuesta a un cálculo.~~ Hecho en
    `FormRecordAnswerPolicy` (3c15292e).
 5. ~~La carga: `calculation` en `GET /api/forms/entries/{definitionId}` y en la corrección.~~ Hecho (3c15292e).
-6. WhatsApp sin los cálculos, más el prellenado, las sugerencias y la IA. Va junto con la tarea 28 en un solo perfil r13, para cambiar fixtures y probar con Meta una vez.
+6. ~~WhatsApp sin los cálculos, más el prellenado, las sugerencias y la IA.~~ Hecho con la tarea 28 en el perfil r13 (667ab22d,
+   91e6e66f); las sugerencias y la IA ya los dejaban afuera (0520a9bf). Falta la prueba con Meta, abajo.
 7. ~~La alícuota desde un catálogo con valor numérico.~~ Hecho (ed3ef5bc).
 8. Front (después de la prueba integral): el editor, la vista previa en la página, el panel y la tabla del bloque.
 
@@ -183,10 +184,11 @@ Cada tarea con su test en rojo primero, el build y los tests rápidos del área,
 
 **Carpetas** (los cortes de su plan)
 
-20. Backend: modelo, rutas y errores.
-21. El filtro en los tres listados y el árbol podado.
-22. El menú y el lugar de cada carpeta.
-23. La carpeta del sistema, y la del estándar al agregar.
+20. ~~Backend: modelo, rutas y errores.~~ Hecho (724bcc25).
+21. ~~El filtro en los tres listados y el árbol podado.~~ Hecho: el árbol en 724bcc25 y el filtro en e62d80ae.
+22. ~~El menú y el lugar de cada carpeta.~~ Hecho (724bcc25).
+23. ~~La carpeta del sistema, y la del estándar al agregar.~~ Hecho: `FormSystemFolderLinker` (724bcc25); la carpeta del
+    estándar o la elegida al agregar, en el commit de esta tarea.
 24. Front: ver y filtrar, ordenar y menú.
 
 **Condiciones**
@@ -194,7 +196,11 @@ Cada tarea con su test en rojo primero, el build y los tests rápidos del área,
 25. ~~CO1: tablero y decisión.~~ Hecho: CO1-A.
 26. ~~El borrador y publicar.~~ Hecho (0520a9bf).
 27. ~~La captura y la carga.~~ Hecho (0520a9bf).
-28. WhatsApp con un `If`, junto con la tarea 6 en el perfil r13, con prueba con Meta.
+28. ~~WhatsApp con un `If`, junto con la tarea 6 en el perfil r13.~~ Hecho (91e6e66f). **Falta la prueba con Meta:** subir a
+    un borrador de Flow (Graph v25.0) un formulario con renglones, importe y total, y otro con una fecha obligatoria y un
+    desplegable de catálogo que dependen de otra respuesta, un título con condición y una pregunta que lee la respuesta de
+    otra pantalla; `validation_errors` vacío y, en la vista oficial, que cada pregunta aparezca y desaparezca y que no se
+    vean los cálculos. Si algo falla, se frena con un issue del canal.
 29. Front: el editor y la carga.
 
 **Cierre**
