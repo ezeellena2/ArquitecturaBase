@@ -23,8 +23,10 @@ internal sealed class FormDefinitionReadPolicy(IFormDefinitionReader reader, IFo
         var canReadRecords = await access.HasPermissionAsync(actor, BusinessFormsPermissions.RecordsRead, ct);
         var current = await access.CheckAsync(false, ct);
         if (current.IsFailure || current.Value != actor) return FormDefinitionErrors.Forbidden;
+        // The official preview is of a channel: a version published only in the app has none (SA2-A).
         return new FormDefinitionDetailResponse(FormDraftPolicy.Definition(row.Id, row.NameJson, row.Prefix, row.PrefixLocked, row.Revision,
-            row.Culture, row.SubmitLabelJson, row.SchemaJson, row.OfferWhen) with { Standard = FormStandardPolicy.Response(row.StandardKey, row.StandardVersion, row.StandardBindingsJson) }, new(canSave, canPublish, publication.ActiveVersion is not null),
+            row.Culture, row.SubmitLabelJson, row.SchemaJson, row.OfferWhen, row.AppOnly) with { Standard = FormStandardPolicy.Response(row.StandardKey, row.StandardVersion, row.StandardBindingsJson) },
+            new(canSave, canPublish, publication.ActiveVersion is not null && publication.ActiveVersion.AppOnly != true),
             new(row.CreatedAtUtc, row.ModifiedAtUtc, row.LastChangedAtUtc, row.Author), publication,
             FormDefinitionLifecyclePolicy.View(facts, state, nowUtc, canSave, canPublish, canReadRecords));
     }
@@ -41,7 +43,8 @@ internal sealed class FormDefinitionReadPolicy(IFormDefinitionReader reader, IFo
         if (current.IsFailure || current.Value != actor) return FormDefinitionErrors.Forbidden;
         return new PagedResult<FormDefinitionListResponse>(page.Items.Where(row => facts.ContainsKey(row.Id)).Select(row => new FormDefinitionListResponse(row.Id, row.Name, row.Prefix,
             row.QuestionCount, row.ActiveVersionNumber, row.DisplayState, row.LastChangedAtUtc, row.LastChangedBy, canSave,
-            FormDefinitionLifecyclePolicy.View(facts[row.Id], states.GetValueOrDefault(row.Id), nowUtc, canSave, canPublish, canReadRecords))).ToArray(), page.Page, page.PageSize, page.TotalCount);
+            FormDefinitionLifecyclePolicy.View(facts[row.Id], states.GetValueOrDefault(row.Id), nowUtc, canSave, canPublish, canReadRecords),
+            row.AppOnly ? true : null)).ToArray(), page.Page, page.PageSize, page.TotalCount);
     }
     public Task<FormChangeStoredRow?> FindChangeAsync(Guid actor, Guid requestId, CancellationToken ct) => reader.FindChangeAsync(actor, requestId, ct);
     public Task<FormDefinitionCounts> CountFacetsAsync(string? search, string culture, CancellationToken ct) => reader.CountFacetsAsync(search, culture, ct);

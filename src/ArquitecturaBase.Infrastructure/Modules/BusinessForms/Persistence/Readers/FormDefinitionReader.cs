@@ -18,7 +18,7 @@ internal sealed class FormDefinitionReader(ApplicationDbContext dbContext, IForm
                 row.Definition.SchemaJson, row.Definition.CreatedAtUtc, row.Definition.ModifiedAtUtc, row.LastChangedAtUtc,
                 row.LastChangedByUserId == null ? null : new FormAuthorResponse(row.LastChangedByUserId.Value,
                     dbContext.Users.Where(user => user.Id == row.LastChangedByUserId).Select(user => user.DisplayName).FirstOrDefault()),
-                row.Definition.OfferWhen) { StandardKey = row.Definition.StandardKey, StandardVersion = row.Definition.StandardVersion,
+                row.Definition.OfferWhen, row.Definition.AppOnly) { StandardKey = row.Definition.StandardKey, StandardVersion = row.Definition.StandardVersion,
                     StandardBindingsJson = row.Definition.StandardBindingsJson }).SingleOrDefaultAsync(cancellationToken);
     public async Task<FormPublicationOverviewResponse> FindPublicationAsync(Guid id, Guid? recoveryActor, CancellationToken cancellationToken)
     {
@@ -27,13 +27,16 @@ internal sealed class FormDefinitionReader(ApplicationDbContext dbContext, IForm
                                join operation in dbContext.Set<BusinessFormPublicationOperation>() on version.Id equals operation.VersionId
                                where version.DefinitionId == id && operation.DefinitionId == id
                                select new { VersionId = version.Id, version.Number, operation.DraftRevision, OperationId = operation.Id,
-                                   Actor = operation.OperatorUserId, operation.RequestId, operation.ProtectedManifest }).SingleOrDefaultAsync(cancellationToken);
+                                   Actor = operation.OperatorUserId, operation.RequestId, operation.ProtectedManifest, version.AppOnly,
+                                   version.PublishedCultures }).SingleOrDefaultAsync(cancellationToken);
         FormActiveVersionResponse? active = null;
         if (activeRow is not null)
         {
             var manifest = protector.ReadManifest(new(activeRow.OperationId, activeRow.Actor, activeRow.RequestId, id, activeRow.VersionId), activeRow.ProtectedManifest);
-            active = new(activeRow.VersionId, activeRow.Number, activeRow.DraftRevision,
-                manifest.Profiles.SelectMany(profile => profile.Cultures).Select(culture => culture.Culture).Distinct(StringComparer.Ordinal).ToArray());
+            // A version published only in the app has no channel profiles: its languages are the ones it sealed (SA3-A).
+            active = new(activeRow.VersionId, activeRow.Number, activeRow.DraftRevision, activeRow.AppOnly ? activeRow.PublishedCultures ?? []
+                : manifest.Profiles.SelectMany(profile => profile.Cultures).Select(culture => culture.Culture).Distinct(StringComparer.Ordinal).ToArray(),
+                activeRow.AppOnly ? true : null);
         }
         var latest = await dbContext.Set<BusinessFormPublicationOperation>().AsNoTracking().Where(value => value.DefinitionId == id)
             .OrderByDescending(value => value.VersionNumber)
@@ -73,7 +76,10 @@ internal sealed class FormDefinitionReader(ApplicationDbContext dbContext, IForm
                     .OrderByDescending(operation => operation.VersionNumber).Select(operation => (FormPublicationState?)operation.State).FirstOrDefault(),
                     row.Definition.ActiveVersionId != null),
                 row.LastChangedAtUtc, row.LastChangedByUserId == null ? null : new FormAuthorResponse(row.LastChangedByUserId.Value,
-                    dbContext.Users.Where(user => user.Id == row.LastChangedByUserId).Select(user => user.DisplayName).FirstOrDefault())));
+                    dbContext.Users.Where(user => user.Id == row.LastChangedByUserId).Select(user => user.DisplayName).FirstOrDefault()),
+                // Where the active version is completed; a form never published, where its draft will be (SA3-A).
+                dbContext.Set<BusinessFormVersion>().Where(version => version.Id == row.Definition.ActiveVersionId)
+                    .Select(version => (bool?)version.AppOnly).SingleOrDefault() ?? row.Definition.AppOnly));
     }
 
     public async Task<FormDefinitionCounts> CountFacetsAsync(string? search, string displayCulture, CancellationToken cancellationToken)

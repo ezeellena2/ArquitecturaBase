@@ -142,7 +142,7 @@ public sealed partial class FormDraftEndpointsTests
         }
     }
     [Fact]
-    public async Task Missing_structured_channel_is_explicit_and_check_requires_a_session()
+    public async Task Check_requires_a_session_and_without_a_channel_it_offers_publishing_only_in_the_app()
     {
         using var client = await OperatorAsync([BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage, BusinessFormsPermissions.Publish]); var saved = await CreateAsync(client, Payload()); var id = saved.GetProperty("definition").GetProperty("id").GetGuid();
         using var anonymous = factory.CreateClient();
@@ -151,12 +151,14 @@ public sealed partial class FormDraftEndpointsTests
         await using var host = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services => services.RemoveAll<IStructuredFormChannel>()));
         using var withoutChannel = host.CreateClient();
         withoutChannel.DefaultRequestHeaders.Add(TestAuthHandler.UserIdHeader, client.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader));
-        using var unavailable = await withoutChannel.PostAsJsonAsync($"/api/forms/definitions/{id}/publication-checks", CheckPayload(saved), Ct);
-        Assert.Equal(HttpStatusCode.OK, unavailable.StatusCode);
-        var result = await unavailable.ReadJsonAsync();
-        Assert.Equal("Unavailable", result.GetProperty("compatibility").GetString());
+        using var appOnly = await withoutChannel.PostAsJsonAsync($"/api/forms/definitions/{id}/publication-checks", CheckPayload(saved), Ct);
+        Assert.Equal(HttpStatusCode.OK, appOnly.StatusCode);
+        var result = await appOnly.ReadJsonAsync();
+        // SA5: without a form channel the form publishes only in the app.
+        Assert.Equal("LocallyValidated", result.GetProperty("compatibility").GetString());
+        Assert.Equal("Available", result.GetProperty("acceptanceAvailability").GetString());
         Assert.Empty(result.GetProperty("channels").EnumerateArray());
-        Assert.Equal("Forms.Publication.ChannelUnavailable", result.GetProperty("issues")[0].GetProperty("code").GetString());
+        Assert.Empty(result.GetProperty("issues").EnumerateArray());
     }
     [Fact]
     public async Task Publication_check_requires_read_and_publish_but_does_not_require_manage()

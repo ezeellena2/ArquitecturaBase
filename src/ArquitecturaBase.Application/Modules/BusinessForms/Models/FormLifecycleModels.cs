@@ -8,7 +8,9 @@ public sealed record FormDefinitionLifecycleResponse(long Revision, DateTime? De
     long? ResponseCount, int? PendingApprovalCount, string? NextRecordNumber, long NextVersionNumber,
     bool CanDeactivate, bool CanReactivate, string? UnavailableReason,
     DateTime? LastOpenSessionExpiresAtUtc, bool CanDelete, string? DeletionUnavailableReason,
-    StructuredFormDeprecationState? DeprecationState, DateTime? DeprecatedAtUtc);
+    StructuredFormDeprecationState? DeprecationState, DateTime? DeprecatedAtUtc,
+    // Every version was published only in the app, so deleting it has nothing to deprecate in a channel. Omitted otherwise.
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] bool? PublishedOnlyInApp = null);
 public sealed record FormIncomingSuggestionResponse(Guid DefinitionId, IReadOnlyDictionary<string, string> Name)
 {
     public override string ToString() => "FormIncomingSuggestionResponse { Content = [REDACTED] }";
@@ -18,4 +20,4 @@ public sealed record FormDeactivationPreviewResponse(Guid DefinitionId, long Rev
 public sealed record FormDeactivationResponse(Guid DefinitionId, long Revision, FormDefinitionLifecycleResponse Lifecycle);
 public sealed record FormLifecycleStoredRow(Guid DefinitionId, long Revision, string Prefix, Guid? ActiveVersionId,
     long NextVersionNumber, long LastRecordNumber, int PendingApprovalCount, DateTime? DeactivatedAtUtc,
-    FormAuthorResponse? DeactivatedBy, bool PublicationInProgress);
+    FormAuthorResponse? DeactivatedBy, bool PublicationInProgress, bool PublishedOnlyInApp = false);

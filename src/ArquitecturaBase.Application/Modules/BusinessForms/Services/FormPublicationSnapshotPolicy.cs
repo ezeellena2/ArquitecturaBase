@@ -40,8 +40,8 @@ internal static class FormPublicationSnapshotPolicy
             field.Type, field.Label, CleanHelp(field.Help), field.Required, field.MaxLength,
             field.Options?.Select(option => new CanonicalFormChoice(option.ChoiceId!.Value, option.Label)).ToArray(), field.Source, field.Files, field.Selection,
             field.Rows, field.Repeated, field.Calculation, field.ShowWhen)).ToArray();
-        return FormDraftPolicy.Serialize(new FormDraftResponse(input.Draft.Format, input.Draft.Culture, input.Draft.SubmitLabel!, fields, input.Draft.Sections))
-            == FormDraftPolicy.Serialize(saved.Draft);
+        return FormDraftPolicy.Serialize(new FormDraftResponse(input.Draft.Format, input.Draft.Culture, input.Draft.SubmitLabel!, fields, input.Draft.Sections,
+            input.Draft.AppOnly)) == FormDraftPolicy.Serialize(saved.Draft);
     }
     private static Dictionary<string, string>? CleanHelp(IReadOnlyDictionary<string, string?>? input)
     {

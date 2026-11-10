@@ -25,7 +25,7 @@ internal sealed class FormSuggestionReader(ApplicationDbContext dbContext) : IFo
                             where definition.Id == id
                             select new { version.DefinitionId, version.Id, version.NameJson, version.Culture, version.SchemaJson }).SingleOrDefaultAsync(ct);
         if (source is null) return null;
-        var rows = await FormOfferableVersionQuery.Versions(dbContext).Where(version => version.DefinitionId != id)
+        var rows = await FormOfferableVersionQuery.ChannelVersions(dbContext).Where(version => version.DefinitionId != id)
             .OrderBy(version => version.DefinitionId)
             .Select(version => new { version.DefinitionId, version.Id, version.NameJson, version.Culture, version.SchemaJson }).ToArrayAsync(ct);
         var destinations = rows.Select(row => new FormSuggestionPublishedForm(row.DefinitionId, row.Id,
@@ -36,13 +36,16 @@ internal sealed class FormSuggestionReader(ApplicationDbContext dbContext) : IFo
         var referencedIds = current is null ? [] : Read<FormSuggestion[]>(current).Select(suggestion => suggestion.DestinationDefinitionId).Distinct().ToArray();
         var unavailable = await dbContext.Set<BusinessFormDefinition>().AsNoTracking()
             .IgnoreQueryFilters([ModelBuilderExtensions.SoftDeleteFilter])
-            .Where(definition => referencedIds.Contains(definition.Id) && (definition.IsDeleted || definition.DeactivatedAtUtc != null))
-            .OrderBy(definition => definition.Id).Select(definition => new { definition.Id, definition.NameJson, definition.IsDeleted }).ToArrayAsync(ct);
+            .Where(definition => referencedIds.Contains(definition.Id) && (definition.IsDeleted || definition.DeactivatedAtUtc != null
+                || dbContext.Set<BusinessFormVersion>().Any(version => version.Id == definition.ActiveVersionId && version.AppOnly)))
+            .OrderBy(definition => definition.Id).Select(definition => new { definition.Id, definition.NameJson, definition.IsDeleted,
+                Deactivated = definition.DeactivatedAtUtc != null }).ToArrayAsync(ct);
         return new FormSuggestionOptionsResponse(new(source.DefinitionId, source.Id, Read<Dictionary<string, string>>(source.NameJson!),
             source.Culture!, Read<FormVersionSchema>(source.SchemaJson).Questions), destinations)
         {
             UnavailableDestinations = unavailable.Select(row => new FormSuggestionUnavailableDestinationResponse(row.Id,
-                Read<Dictionary<string, string>>(row.NameJson), row.IsDeleted ? FormSuggestionDestinationState.Deleted : FormSuggestionDestinationState.Deactivated)).ToArray(),
+                Read<Dictionary<string, string>>(row.NameJson), row.IsDeleted ? FormSuggestionDestinationState.Deleted
+                    : row.Deactivated ? FormSuggestionDestinationState.Deactivated : FormSuggestionDestinationState.AppOnly)).ToArray(),
         };
     }
     public Task<PagedResult<FormSuggestionRevisionStoredRow>> ListRevisionsAsync(Guid id,ListFormSuggestionRevisionsRequest request,CancellationToken ct)

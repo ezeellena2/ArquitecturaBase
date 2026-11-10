@@ -84,7 +84,7 @@ public sealed partial class FormDraftEndpointsTests
     }
 
     // RG13-A: with a channel installed, a block whose minimum is over the rows WhatsApp loads blocks publication at its rows.
-    // Without a channel the check already blocks with ChannelUnavailable, so the minimum is not added.
+    // Without a channel the form publishes only in the app, where the rows of WhatsApp do not apply.
     [Fact]
     public async Task A_minimum_over_the_channel_rows_blocks_publication_at_the_rows_of_the_block()
     {

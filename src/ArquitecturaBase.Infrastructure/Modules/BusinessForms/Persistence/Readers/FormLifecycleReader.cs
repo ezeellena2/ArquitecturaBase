@@ -22,7 +22,10 @@ internal sealed class FormLifecycleReader(ApplicationDbContext dbContext) : IFor
                 definition.DeactivatedBy == null ? null : new FormAuthorResponse(definition.DeactivatedBy.Value,
                     dbContext.Users.Where(user => user.Id == definition.DeactivatedBy).Select(user => user.DisplayName).FirstOrDefault()),
                 dbContext.Set<BusinessFormPublicationOperation>().Any(operation => operation.DefinitionId == definition.Id
-                    && operation.State != FormPublicationState.Published && operation.State != FormPublicationState.Failed)))
+                    && operation.State != FormPublicationState.Published && operation.State != FormPublicationState.Failed),
+                // Every version was published only in the app: nothing to deprecate in a channel when it is deleted.
+                dbContext.Set<BusinessFormVersion>().Any(version => version.DefinitionId == definition.Id)
+                    && !dbContext.Set<BusinessFormVersion>().Any(version => version.DefinitionId == definition.Id && !version.AppOnly)))
             .ToArrayAsync(cancellationToken);
 
     public async Task<IReadOnlyList<FormIncomingSuggestionResponse>> ListIncomingSuggestionsAsync(Guid definitionId,

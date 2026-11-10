@@ -35,7 +35,9 @@ internal sealed class FormPublicationStatusService(IFormPublicationReader reader
         }
         return result with
         {
-            Cultures = manifest.Profiles.SelectMany(profile => profile.Cultures).Select(culture => culture.Culture).Distinct(StringComparer.Ordinal).ToArray(),
+            // A publication only in the app has no channel profiles: its languages are the ones the version sealed.
+            Cultures = stored.AppOnly ? (stored.PublishedCultures ?? []).ToArray()
+                : manifest.Profiles.SelectMany(profile => profile.Cultures).Select(culture => culture.Culture).Distinct(StringComparer.Ordinal).ToArray(),
             Issues = issues.ToArray()
         };
     });

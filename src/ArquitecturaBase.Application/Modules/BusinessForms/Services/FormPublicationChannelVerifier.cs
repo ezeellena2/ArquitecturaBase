@@ -9,14 +9,17 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 internal sealed class FormPublicationChannelVerifier(IEnumerable<IStructuredFormChannel> channels, IPrivateFileStore files, Microsoft.Extensions.Options.IOptions<ArquitecturaBase.Application.Modules.BusinessForms.Configuration.BusinessFormsOptions> options, FormPublicationGuard catalogs)
 {
     public int MaxFileSizeMiB => options.Value.MaxFileSizeMiB;
-    public async Task<Result<IReadOnlyList<FormPublicationProfile>>> CheckAsync(FormDefinitionResponse saved, CancellationToken cancellationToken)
+    // SA5: without a form channel every publication is only in the app.
+    public bool HasChannels => channels.Any();
+    // Only in the app (SA1-A) the local rules are checked again and no channel takes part: there are no profiles.
+    public async Task<Result<IReadOnlyList<FormPublicationProfile>>> CheckAsync(FormDefinitionResponse saved, bool appOnly, CancellationToken cancellationToken)
     {
         if (saved.Draft.Fields.Any(field => field.Files is not null) && !files.IsAvailable) return FormPublicationErrors.FileStorageUnavailable;
         if (saved.Draft.Fields.Sum(field => field.Files?.MaxFiles ?? 0) > 10) return FormPublicationErrors.TooManyFiles;
         if ((await catalogs.ValidateCatalogsAsync(saved.Draft.Fields, cancellationToken,
-            FormPublicationPolicy.CheckCultures(saved).Where(culture => culture.IsComplete).Select(culture => culture.Culture).ToArray())).Count > 0) return FormPublicationErrors.CheckExpired;
+            FormPublicationPolicy.CheckCultures(saved).Where(culture => culture.IsComplete).Select(culture => culture.Culture).ToArray(), !appOnly)).Count > 0) return FormPublicationErrors.CheckExpired;
+        if (appOnly) return Array.Empty<FormPublicationProfile>();
         var installed = channels.OrderBy(channel => channel.ChannelId, StringComparer.Ordinal).ToArray();
-        if (installed.Length == 0) return FormPublicationErrors.ChannelUnavailable;
         if (installed.Any(channel => string.IsNullOrWhiteSpace(channel.ChannelId))
             || installed.Select(channel => channel.ChannelId).Distinct(StringComparer.Ordinal).Count() != installed.Length)
             throw new InvalidOperationException("Structured form channel identifiers must be nonempty and unique.");

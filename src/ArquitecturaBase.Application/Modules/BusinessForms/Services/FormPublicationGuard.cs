@@ -17,13 +17,16 @@ internal sealed class FormPublicationGuard(FormPublicationAccessGuard accessGuar
 
     public Task<ArquitecturaBase.Domain.Results.Result<Guid>> CheckAsync(CancellationToken ct) => accessGuard.CheckAsync(ct);
 
+    // forChannels is false for a publication only in the app (SA2-A): the limits of the WhatsApp list (the 30 characters of an
+    // option title and its 200 options) and what cannot be sent by WhatsApp do not apply; the rules of the app stay.
     public async Task<IReadOnlyList<FormPublicationIssueResponse>> ValidateCatalogsAsync(IReadOnlyList<CanonicalFormField> fields, CancellationToken ct,
-        IReadOnlyList<string>? cultures = null) => (await AssessCatalogsAsync(fields, false, cultures, ct)).Issues;
+        IReadOnlyList<string>? cultures = null, bool forChannels = true) => (await AssessCatalogsAsync(fields, false, cultures, forChannels, ct)).Issues;
 
     public Task<FormCatalogPublicationAssessment> InspectCatalogsAsync(IReadOnlyList<CanonicalFormField> fields, CancellationToken ct,
-        IReadOnlyList<string>? cultures = null) => AssessCatalogsAsync(fields, true, cultures, ct);
+        IReadOnlyList<string>? cultures = null, bool forChannels = true) => AssessCatalogsAsync(fields, true, cultures, forChannels, ct);
 
-    private async Task<FormCatalogPublicationAssessment> AssessCatalogsAsync(IReadOnlyList<CanonicalFormField> questions, bool includeWarnings, IReadOnlyList<string>? cultures, CancellationToken ct)
+    private async Task<FormCatalogPublicationAssessment> AssessCatalogsAsync(IReadOnlyList<CanonicalFormField> questions, bool includeWarnings, IReadOnlyList<string>? cultures,
+        bool forChannels, CancellationToken ct)
     {
         var catalogs = new Dictionary<Guid, FormCatalogStoredRow?>();
         var counts = new Dictionary<Guid, int>();
@@ -99,7 +102,7 @@ internal sealed class FormPublicationGuard(FormPublicationAccessGuard accessGuar
                 {
                     var shown = allItems.Where(item => item.IsActive).Select(item => FormCatalogPresentationPolicy.Compose(presentation,
                         FormCatalogFieldPresentation.Values(item, fields, choices, checkedCulture, catalog.ValueType))).ToArray();
-                    if (shown.Any(option => option.Title.Length > 30))
+                    if (forChannels && shown.Any(option => option.Title.Length > 30))
                         Issue(source.Presentation is null ? FormPublicationErrors.CatalogTitleTooLong : FormPublicationErrors.QuestionTitleTooLong,
                             ".presentation", 30, checkedCulture);
                     if (shown.Any(option => option.Title.Length <= 30 && !FormCatalogPresentationPolicy.IsValid(option)))
@@ -122,8 +125,11 @@ internal sealed class FormPublicationGuard(FormPublicationAccessGuard accessGuar
             if (!includeWarnings && !blocks) continue;
             // CW7: a list that depends on another answer is loaded only in the app, so the WhatsApp limits do not apply to it.
             if (matches.Any(match => match.QuestionId is not null))
-                warnings.Add(new(question.FieldId, path + ".match", FormPublicationErrors.DependsOnAnswer.Code,
-                    ErrorMessages.Get(FormPublicationErrors.DependsOnAnswer.Code)));
+            {
+                if (forChannels)
+                    warnings.Add(new(question.FieldId, path + ".match", FormPublicationErrors.DependsOnAnswer.Code,
+                        ErrorMessages.Get(FormPublicationErrors.DependsOnAnswer.Code)));
+            }
             else
             {
                 var (maximum, maximumLabel, groups, largestGroup) = await maximums.FindAsync(catalogId, fields, matches, culture, ct, source.GroupBy);
@@ -136,7 +142,7 @@ internal sealed class FormPublicationGuard(FormPublicationAccessGuard accessGuar
                 // NI3-B (2026-11-03): like the question editor, the maximum warns only when it does not fit or nobody sees an option.
                 // LD1-A: choosing first by a field, the limit applies to each value and to the list of values, not to the total.
                 var largest = groups is null ? maximum : Math.Max(groups.Value, largestGroup!.Value);
-                if (maximum == 0 || largest > limit)
+                if (maximum == 0 || forChannels && largest > limit)
                     warnings.Add(new(question.FieldId, path + ".match", FormPublicationErrors.OptionsPerRecipientHigh.Code,
                         ErrorMessages.Get(FormPublicationErrors.OptionsPerRecipientHigh.Code), limit, largest, maximumLabel));
             }

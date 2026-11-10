@@ -9,7 +9,7 @@ Implementa los puertos de `Application/Interfaces/Channels` que el núcleo y otr
 - `BusinessFormRetirementSource` → `IStructuredFormRetirementSource`: lock de definiciones e `IFormUnusedVersionReader`.
 - `FormPrivateFileRetentionSource` → `IPrivateFileRetentionSource`: sólo claves que `FormPdfStorageKey.TryParse` reconoce, de runs GeneratePdf existentes, por lote, aun sin `StoredFile` confirmado.
 - `FormPermissionCatalogSource` → `IPermissionCatalogSource`: `BusinessFormsPermissions.All` y textos de `Resources/Permissions`.
-- `FormClientCapabilitySource` → `IClientCapabilitySource`: `forms`, y `form-files` sólo con almacenamiento privado.
+- `FormClientCapabilitySource` → `IClientCapabilitySource`: `forms`, `form-files` sólo con almacenamiento privado y `form-channels` si hay un canal de formularios registrado (`IServiceProviderIsService`, porque los canales son scoped).
 - `IAssistantCapabilitySource`, versión 1: `BusinessFormAssistantCapabilitySource` (`forms.assistant-candidates`, `forms.propose-registration`, `forms.clarify-registration`), `BusinessFormSuggestionAssistantCapabilitySource` (`forms.suggestion-candidates`, `forms.propose-suggestion`), `BusinessFormCatalogAssistantCapabilitySource` (`forms.catalog-filters.metadata`, `forms.catalog-filters.propose`), `BusinessFormMissingRequestAssistantCapabilitySource` (`forms.missing-request.propose`) y `BusinessFormAuthoringAssistantCapabilitySource` (`forms.authoring.forms`, `forms.authoring.catalogs`, `forms.authoring.propose-form`, `forms.authoring.propose-catalog`, `forms.authoring.decline`).
 
 Dos sinks los implementan servicios: `FormCatalogProposalService` (`IStructuredCatalogProposalSink`) y `FormMissingRequestService` (`IStructuredMissingFormRequestSink`).

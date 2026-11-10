@@ -4,8 +4,9 @@ namespace ArquitecturaBase.Api.Modules.BusinessForms.Contracts;
 public sealed record SaveFormDraftHttpRequest(Guid RequestId, IReadOnlyDictionary<string, string> Name, string Prefix, FormDraftHttpRequest Draft, long? ExpectedRevision = null, string? OfferWhen = null)
 { public override string ToString() => "SaveFormDraftHttpRequest { Content = [REDACTED] }"; }
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+// AppOnly is «Dónde se completa» (SA1-A): true for «Sólo en la app»; omitted, the form is also completed by the installed channels.
 public sealed record FormDraftHttpRequest(int Format, string Culture, IReadOnlyDictionary<string, string>? SubmitLabel, IReadOnlyList<FormFieldHttpRequest> Fields,
-    IReadOnlyList<FormSectionHttpRequest>? Sections = null)
+    IReadOnlyList<FormSectionHttpRequest>? Sections = null, bool? AppOnly = null)
 { public override string ToString() => "FormDraftHttpRequest { Content = [REDACTED] }"; }
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record FormSectionHttpRequest(int Start, IReadOnlyDictionary<string, string> Title)

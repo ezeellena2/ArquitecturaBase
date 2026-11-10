@@ -34,7 +34,7 @@ internal sealed class FormPublicationAcceptanceService(IFormDraftRepository draf
         {
             if (previous.DefinitionId != id) return FormPublicationErrors.PayloadMismatch;
             var manifest = protector.ReadManifest(Context(previous), previous.ProtectedManifest);
-            return manifest.AttemptFingerprint == attemptFingerprint ? Receipt(previous) : FormPublicationErrors.PayloadMismatch;
+            return manifest.AttemptFingerprint == attemptFingerprint ? Receipt(previous, manifest.Profiles.Count == 0) : FormPublicationErrors.PayloadMismatch;
         }
         var ticket = string.IsNullOrEmpty(token) || token.Length > 8192 ? null : protector.ReadTicket(token);
         var nowUtc = timeProvider.GetUtcNow().UtcDateTime;
@@ -48,7 +48,9 @@ internal sealed class FormPublicationAcceptanceService(IFormDraftRepository draf
         if (!FormPublicationSnapshotPolicy.Matches(input, saved)) return FormPublicationErrors.DraftMustBeSaved;
         if (FormPublicationPolicy.MissingTranslations(saved).Count != 0) return FormPublicationErrors.MissingTranslation;
         if (await publicationRepository.ExistsOpenOperationAsync(id, ct)) return FormPublicationErrors.InProgress;
-        var verified = await channelVerifier.CheckAsync(saved, ct); if (verified.IsFailure) return verified.Error;
+        // SA1-A and SA5: only in the app when the draft says so or no channel is installed.
+        var appOnly = saved.Draft.AppOnly == true || !channelVerifier.HasChannels;
+        var verified = await channelVerifier.CheckAsync(saved, appOnly, ct); if (verified.IsFailure) return verified.Error;
         var profiles = verified.Value;
         var publicationFingerprint = FormPublicationSnapshotPolicy.Fingerprint(saved, profiles);
         if (ticket.PublicationFingerprint != publicationFingerprint || ticket.ExpiresAtUtc <= timeProvider.GetUtcNow().UtcDateTime)
@@ -67,20 +69,29 @@ internal sealed class FormPublicationAcceptanceService(IFormDraftRepository draf
         version.SealSchema(FormDraftPolicy.Serialize(schema));
         version.SealPresentation(FormDraftPolicy.Serialize(saved.Name), FormDraftPolicy.Serialize(saved.Draft.SubmitLabel), saved.Draft.Culture,
             FormDraftPolicy.QuestionCount(schema.Questions));
-        version.SealPublishedCultures(profiles.SelectMany(profile => profile.Cultures).Select(culture => culture.Culture)
-            .Distinct(StringComparer.Ordinal).ToArray());
+        version.SealPublishedCultures(appOnly
+            ? FormPublicationPolicy.CheckCultures(saved).Where(culture => culture.IsComplete).Select(culture => culture.Culture).ToArray()
+            : profiles.SelectMany(profile => profile.Cultures).Select(culture => culture.Culture).Distinct(StringComparer.Ordinal).ToArray());
+        if (appOnly) version.MarkAppOnly();
         var operation = BusinessFormPublicationOperation.Accept(id, version.Id, actor, input.RequestId, saved.Revision,
             number, definition.ActiveVersionId, [], nowUtc);
         operation.SealManifest(protector.ProtectManifest(Context(operation), new(1, attemptFingerprint, publicationFingerprint,
             id, version.Id, saved.Revision, contentHash, saved.Name, saved.Prefix, saved.Draft.Culture, saved.Draft.SubmitLabel, profiles, saved.Draft.Fields.Any(field => field.Files is not null) ? channelVerifier.MaxFileSizeMiB : null)));
         definition.LockPrefix();
         publicationRepository.AddVersion(version); publicationRepository.AddOperation(operation);
-        return Receipt(operation);
+        if (appOnly)
+        {
+            // SA3-A: nothing outside the system waits for it (ADR 0018), so the version is active in this same boundary.
+            var published = operation.PublishWithoutChannels(nowUtc); if (published.IsFailure) return published.Error;
+            var activated = definition.ActivateVersion(operation.BaseActiveVersionId, version.Id); if (activated.IsFailure) return activated.Error;
+        }
+        return Receipt(operation, appOnly);
     }
 
     private static FormPublicationProtectionContext Context(BusinessFormPublicationOperation operation) =>
         new(operation.Id, operation.OperatorUserId, operation.RequestId, operation.DefinitionId, operation.VersionId);
-    private static FormPublicationReceiptResponse Receipt(BusinessFormPublicationOperation operation) => new(operation.RequestId,
+    // A publication only in the app is already published when it is accepted; a channel publication goes on after the receipt.
+    private static FormPublicationReceiptResponse Receipt(BusinessFormPublicationOperation operation, bool appOnly) => new(operation.RequestId,
         operation.Id, operation.DefinitionId, operation.VersionId, operation.VersionNumber, operation.DraftRevision,
-        "Accepted", operation.AcceptedAtUtc);
+        appOnly ? "Published" : "Accepted", operation.AcceptedAtUtc);
 }

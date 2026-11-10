@@ -78,6 +78,15 @@ public sealed class BusinessFormPublicationOperation : Entity, IAuditable
         State = FormPublicationState.Uncertain; Stage = "ActivationConflict"; UpdatedAtUtc = nowUtc;
         NextCheckAtUtc = nowUtc.AddMinutes(5); return Result.Success();
     }
+    // A publication without channels (only in the app) has nothing outside the system to wait for: it is published as it is
+    // accepted, in the same boundary, and the dispatcher never reserves it.
+    public Result PublishWithoutChannels(DateTime nowUtc)
+    {
+        if (State != FormPublicationState.Accepted || Fence != 0) return FormPublicationErrors.StateConflict;
+        State = FormPublicationState.Published; Stage = "Complete"; UpdatedAtUtc = nowUtc;
+        LeaseExpiresAtUtc = null; NextCheckAtUtc = null;
+        return Result.Success();
+    }
     public Result Complete(long fence, DateTime nowUtc)
     {
         if (fence != Fence || State != FormPublicationState.ActivationPending) return FormPublicationErrors.StateConflict;

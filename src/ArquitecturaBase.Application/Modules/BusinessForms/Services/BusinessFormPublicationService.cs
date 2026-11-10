@@ -45,27 +45,28 @@ internal sealed class BusinessFormPublicationService : IBusinessFormPublicationS
         var row = await _reader.FindAsync(id, cancellationToken); if (row is null) return FormDefinitionErrors.NotFound;
         if (row.Revision != request.ExpectedRevision) return FormDraftErrors.RevisionConflict;
         input = FormDraftPolicy.Normalize(input);
-        var saved = FormDraftPolicy.Definition(row.Id, row.NameJson, row.Prefix, row.PrefixLocked, row.Revision, row.Culture, row.SubmitLabelJson, row.SchemaJson);
+        var saved = FormDraftPolicy.Definition(row.Id, row.NameJson, row.Prefix, row.PrefixLocked, row.Revision, row.Culture, row.SubmitLabelJson, row.SchemaJson,
+            appOnly: row.AppOnly);
         if (!FormPublicationSnapshotPolicy.Matches(input, saved)) return FormPublicationErrors.DraftMustBeSaved;
         var cultures = FormPublicationPolicy.CheckCultures(saved);
+        // SA1-A and SA5: a draft for the app, or no channel installed, publishes only in the app: no channel takes part and
+        // only the rules of the app apply.
+        var appOnly = saved.Draft.AppOnly == true || _channels.Length == 0;
         var channels = new List<FormPublicationChannelResponse>();
         var issues = cultures.Where(culture => culture.IsOriginal).SelectMany(culture => culture.Missing).ToList();
         issues.AddRange(_guard.ValidateFiles(saved));
         issues.AddRange(FormPublicationPolicy.ValidateRows(saved));
-        if (_channels.Length > 0) issues.AddRange(FormPublicationPolicy.RowIssues(saved));
+        if (!appOnly) issues.AddRange(FormPublicationPolicy.RowIssues(saved));
         issues.AddRange(FormPublicationPolicy.ValidateSections(saved));
         issues.AddRange(FormPublicationPolicy.ValidateCalculations(saved));
         issues.AddRange(FormPublicationPolicy.ValidateConditions(saved));
         var catalogs = await _guard.InspectCatalogsAsync(saved.Draft.Fields, cancellationToken,
-            cultures.Where(culture => culture.IsComplete).Select(culture => culture.Culture).ToArray());
+            cultures.Where(culture => culture.IsComplete).Select(culture => culture.Culture).ToArray(), forChannels: !appOnly);
         issues.AddRange(catalogs.Issues);
-        if (_channels.Length == 0)
-            issues.Add(new(null, null, null, "channel", FormPublicationErrors.ChannelUnavailable.Code,
-                ErrorMessages.Get(FormPublicationErrors.ChannelUnavailable.Code), null, null));
         var canonical = FormPublicationSnapshotPolicy.ChannelRequest(saved, _guard.MaxFileSizeMiB);
         var profiles = new List<FormPublicationProfile>();
-        var publicationAvailable = _channels.Length > 0;
-        foreach (var channel in issues.Count == 0 ? _channels : [])
+        var publicationAvailable = true;
+        foreach (var channel in issues.Count == 0 && !appOnly ? _channels : [])
         {
             var result = await channel.CheckAsync(canonical, cancellationToken); if (result.IsFailure) return result.Error;
             var check = result.Value;
@@ -76,7 +77,7 @@ internal sealed class BusinessFormPublicationService : IBusinessFormPublicationS
             issues.AddRange(check.Issues.Select(issue => new FormPublicationIssueResponse(channel.ChannelId, issue.FieldId, issue.ChoiceId,
                 issue.Path, issue.Error.Code, ErrorMessages.Get(issue.Error.Code), issue.Limit, issue.Culture)));
         }
-        var compatibility = _channels.Length == 0 ? "Unavailable" : issues.Count == 0 ? "LocallyValidated" : "Blocked";
+        var compatibility = issues.Count == 0 ? "LocallyValidated" : "Blocked";
         var open = await _publicationReader.ExistsOpenOperationAsync(id, cancellationToken);
         var canAccept = compatibility == "LocallyValidated" && publicationAvailable && !open;
         // The check is advisory: acceptance assigns the number again under the existing definition lock.
@@ -88,7 +89,7 @@ internal sealed class BusinessFormPublicationService : IBusinessFormPublicationS
         return new FormPublicationCheckResponse(id, row.Revision, compatibility, canAccept,
             open ? "InProgress" : publicationAvailable ? "Available" : "Unavailable", channels.AsReadOnly(), issues.AsReadOnly(),
             cultures, await DiffAsync(id, saved, cultures, cancellationToken), nextVersionNumber, token, expiresAtUtc)
-        { Warnings = [.. catalogs.Warnings, .. _channels.Length > 0 ? FormPublicationPolicy.RowWarnings(saved) : []] };
+        { Warnings = [.. catalogs.Warnings, .. appOnly ? [] : FormPublicationPolicy.RowWarnings(saved)] };
     });
     private async Task<FormPublicationDiffResponse> DiffAsync(Guid id, FormDefinitionResponse saved,
         IReadOnlyList<FormPublicationCultureResponse> cultures, CancellationToken ct)
@@ -97,7 +98,9 @@ internal sealed class BusinessFormPublicationService : IBusinessFormPublicationS
         var active = await _publicationReader.FindActiveVersionAsync(id, ct);
         if (active is null) return new(null, saved.Draft.Fields.Select(field => field.FieldId).ToArray(), [], [], currentCultures, []);
         var manifest = _protector.ReadManifest(new(active.Id, active.Actor, active.RequestId, active.DefinitionId, active.VersionId), active.ProtectedManifest);
-        var previousCultures = manifest.Profiles.SelectMany(profile => profile.Cultures).Select(culture => culture.Culture).Distinct(StringComparer.Ordinal).ToArray();
+        // A version published only in the app has no channel profiles: its languages are the ones it sealed.
+        var previousCultures = active.AppOnly ? (active.PublishedCultures ?? []).ToArray()
+            : manifest.Profiles.SelectMany(profile => profile.Cultures).Select(culture => culture.Culture).Distinct(StringComparer.Ordinal).ToArray();
         var schema = System.Text.Json.JsonSerializer.Deserialize<FormVersionSchema>(active.SchemaJson, System.Text.Json.JsonSerializerOptions.Web)
             ?? throw new InvalidOperationException("The active form schema is invalid.");
         var previous = schema.Questions.ToDictionary(field => field.FieldId);

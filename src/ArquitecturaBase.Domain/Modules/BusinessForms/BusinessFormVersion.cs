@@ -15,6 +15,8 @@ public sealed class BusinessFormVersion : Entity, IAuditable
     public string? Culture { get; private set; }
     public int? QuestionCount { get; private set; }
     public string[]? PublishedCultures { get; private set; }
+    // Published without channels: it is completed only in the app (SA1-A). Versions sealed before that went through a channel.
+    public bool AppOnly { get; private set; }
     public DateTime CreatedAtUtc { get; private set; }
     public Guid? CreatedBy { get; private set; }
     public DateTime? ModifiedAtUtc { get; private set; }
@@ -49,5 +51,6 @@ public sealed class BusinessFormVersion : Entity, IAuditable
             throw new ArgumentException("The publication cultures must include the original and unique supported languages.", nameof(cultures));
         PublishedCultures = cultures.ToArray();
     }
+    public void MarkAppOnly() => AppOnly = true;
     public override string ToString() => $"BusinessFormVersion {{ Id = {Id}, Number = {Number}, Content = [REDACTED] }}";
 }

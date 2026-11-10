@@ -18,7 +18,7 @@ internal sealed class FormPublicationReader(ApplicationDbContext dbContext) : IF
         from operation in dbContext.Set<BusinessFormPublicationOperation>().AsNoTracking().Where(predicate)
         join version in dbContext.Set<BusinessFormVersion>() on operation.VersionId equals version.Id
         select new FormPublicationStoredRow(operation.Id, operation.OperatorUserId, operation.RequestId, operation.DefinitionId,
-            operation.VersionId, operation.ProtectedManifest, version.SchemaJson, operation.State.ToString());
+            operation.VersionId, operation.ProtectedManifest, version.SchemaJson, operation.State.ToString(), version.AppOnly, version.PublishedCultures);
     public Task<FormPublicationStoredRow?> FindStoredAsync(Guid operationId, CancellationToken cancellationToken) =>
         Stored(value => value.Id == operationId).SingleOrDefaultAsync(cancellationToken);
     public Task<FormPublicationStoredRow?> FindVersionAsync(Guid definitionId, Guid versionId, CancellationToken cancellationToken) =>

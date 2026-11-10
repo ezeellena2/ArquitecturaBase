@@ -12,8 +12,10 @@ public sealed record SaveFormDraftRequest(Guid RequestId, IReadOnlyDictionary<st
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public FormDraftStandardOrigin? Standard { get; init; }
     public override string ToString() => "SaveFormDraftRequest { Content = [REDACTED] }";
 }
+// AppOnly is «Dónde se completa» (SA1-A): true for «Sólo en la app», null otherwise, so every existing draft keeps its bytes.
 public sealed record FormDraftInput(int Format, string Culture, IReadOnlyDictionary<string, string>? SubmitLabel, IReadOnlyList<FormFieldInput> Fields,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<FormSection>? Sections = null)
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<FormSection>? Sections = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? AppOnly = null)
 { public override string ToString() => "FormDraftInput { Content = [REDACTED] }"; }
 // A section title (CW15-B) is not a question: Start is how many questions go before it, and its title follows the language
 // rules of a label. Without titles the list is null, so drafts, versions and their fingerprints keep their bytes.
@@ -83,7 +85,8 @@ public sealed record FormQuestionSchema(int Format, IReadOnlyList<CanonicalFormF
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<FormSection>? Sections = null)
 { public override string ToString() => "FormQuestionSchema { Content = [REDACTED] }"; }
 public sealed record FormDraftResponse(int Format, string Culture, IReadOnlyDictionary<string, string> SubmitLabel, IReadOnlyList<CanonicalFormField> Fields,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<FormSection>? Sections = null)
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<FormSection>? Sections = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? AppOnly = null)
 { public override string ToString() => "FormDraftResponse { Content = [REDACTED] }"; }
 public sealed record FormDefinitionResponse(Guid Id, IReadOnlyDictionary<string, string> Name, string Prefix, bool PrefixLocked, long Revision, FormDraftResponse Draft, string? OfferWhen = null)
 {
@@ -111,14 +114,17 @@ public sealed record FormAuditResponse(DateTime CreatedAtUtc, DateTime? Modified
 public sealed record FormCapabilitiesResponse(bool CanSave, bool CanPublish, bool CanPreview);
 public sealed record FormDefinitionDetailResponse(FormDefinitionResponse Definition, FormCapabilitiesResponse Capabilities, FormAuditResponse Audit,
     FormPublicationOverviewResponse Publication, FormDefinitionLifecycleResponse Lifecycle);
-public sealed record FormActiveVersionResponse(Guid VersionId, long VersionNumber, long DraftRevision, IReadOnlyList<string> Cultures);
+public sealed record FormActiveVersionResponse(Guid VersionId, long VersionNumber, long DraftRevision, IReadOnlyList<string> Cultures,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? AppOnly = null);
 public sealed record FormCurrentPublicationResponse(Guid VersionId, long VersionNumber, long DraftRevision, string State, string Stage,
     bool RequiresReview, bool CanRetry, Guid? RequestId);
 public sealed record FormPublicationOverviewResponse(FormActiveVersionResponse? ActiveVersion, FormCurrentPublicationResponse? CurrentOperation, string DisplayState);
+// AppOnly: the active version, or a draft never published, is completed only in the app (SA3-A). Omitted otherwise.
 public sealed record FormDefinitionListResponse(Guid Id, IReadOnlyDictionary<string, string> Name, string Prefix, int QuestionCount, long? ActiveVersionNumber,
-    string DisplayState, DateTime LastChangedAtUtc, FormAuthorResponse? LastChangedBy, bool CanEdit, FormDefinitionLifecycleResponse Lifecycle);
+    string DisplayState, DateTime LastChangedAtUtc, FormAuthorResponse? LastChangedBy, bool CanEdit, FormDefinitionLifecycleResponse Lifecycle,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? AppOnly = null);
 public sealed record FormDefinitionListStoredRow(Guid Id, IReadOnlyDictionary<string, string> Name, string Prefix, int QuestionCount, long? ActiveVersionNumber,
-    string DisplayState, DateTime LastChangedAtUtc, FormAuthorResponse? LastChangedBy);
+    string DisplayState, DateTime LastChangedAtUtc, FormAuthorResponse? LastChangedBy, bool AppOnly = false);
 public sealed record FormDefinitionCounts(int Active, int Published, int Drafts, int Deactivated);
 public sealed record ListFormDefinitionsRequest : PagedRequest
 {
@@ -127,7 +133,8 @@ public sealed record ListFormDefinitionsRequest : PagedRequest
     public string DisplayCulture { get; init; } = "es";
 }
 public sealed record FormDefinitionStoredRow(Guid Id, string NameJson, string Prefix, bool PrefixLocked, long Revision,
-    string Culture, string SubmitLabelJson, string SchemaJson, DateTime CreatedAtUtc, DateTime? ModifiedAtUtc, DateTime LastChangedAtUtc, FormAuthorResponse? Author, string? OfferWhen = null)
+    string Culture, string SubmitLabelJson, string SchemaJson, DateTime CreatedAtUtc, DateTime? ModifiedAtUtc, DateTime LastChangedAtUtc, FormAuthorResponse? Author, string? OfferWhen = null,
+    bool AppOnly = false)
 {
     // BI1-A: the standard it came from, its version and its bound questions (datum key → field id).
     public string? StandardKey { get; init; }

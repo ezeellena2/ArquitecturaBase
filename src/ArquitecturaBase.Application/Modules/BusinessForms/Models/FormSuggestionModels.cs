@@ -23,7 +23,8 @@ public sealed record FormSuggestionPublishedForm(Guid DefinitionId, Guid Version
 {
     public override string ToString() => "FormSuggestionPublishedForm { Content = [REDACTED] }";
 }
-public enum FormSuggestionDestinationState { Deactivated, Deleted }
+// AppOnly: the destination is completed only in the app (SA2-A), so no channel can offer it after a response.
+public enum FormSuggestionDestinationState { Deactivated, Deleted, AppOnly }
 public sealed record FormSuggestionUnavailableDestinationResponse(Guid DefinitionId, IReadOnlyDictionary<string, string> Name, FormSuggestionDestinationState State)
 {
     public override string ToString() => "FormSuggestionUnavailableDestinationResponse { Content = [REDACTED] }";

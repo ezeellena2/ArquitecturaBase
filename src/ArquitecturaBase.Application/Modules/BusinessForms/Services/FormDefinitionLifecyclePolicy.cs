@@ -21,6 +21,6 @@ internal static class FormDefinitionLifecyclePolicy
             canPublish && !row.PublicationInProgress && row.DeactivatedAtUtc is not null,
             row.PublicationInProgress ? "PublicationInProgress" : row.ActiveVersionId is null ? "NotPublished" : null,
             state?.LastOpenSessionExpiresAtUtc, canManage && deletionReason is null, canManage ? deletionReason : null,
-            state?.DeprecationState, state?.DeprecatedAtUtc);
+            state?.DeprecationState, state?.DeprecatedAtUtc, row.PublishedOnlyInApp ? true : null);
     }
 }

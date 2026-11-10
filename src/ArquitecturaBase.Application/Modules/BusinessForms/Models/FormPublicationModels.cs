@@ -49,7 +49,8 @@ public sealed record FormPublicationTicket(Guid Actor, Guid DefinitionId, long D
 }
 public sealed record FormPublicationProtectionContext(Guid OperationId, Guid Actor, Guid RequestId, Guid DefinitionId, Guid VersionId);
 
-public sealed record FormPublicationStoredRow(Guid Id, Guid Actor, Guid RequestId, Guid DefinitionId, Guid VersionId, byte[] ProtectedManifest, string SchemaJson, string State)
+public sealed record FormPublicationStoredRow(Guid Id, Guid Actor, Guid RequestId, Guid DefinitionId, Guid VersionId, byte[] ProtectedManifest, string SchemaJson, string State,
+    bool AppOnly = false, IReadOnlyList<string>? PublishedCultures = null)
 {
     public override string ToString() => "FormPublicationStoredRow { Content = [REDACTED] }";
 }

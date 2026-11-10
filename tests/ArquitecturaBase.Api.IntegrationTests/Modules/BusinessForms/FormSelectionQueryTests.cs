@@ -25,6 +25,17 @@ public sealed class FormSelectionQueryTests
         Assert.DoesNotContain("\"OfferWhen\"", sql, StringComparison.Ordinal);
     }
 
+    // SA2-A: what channels offer (sending, the assistant and suggestions) leaves out versions completed only in the app; an
+    // accepted session belongs to a version published in its channel.
+    [Theory]
+    [InlineData("Active", true)]
+    [InlineData("Assistant", true)]
+    [InlineData("Published", false)]
+    public void Channel_selection_leaves_out_versions_completed_only_in_the_app(string method, bool filtered)
+    {
+        Assert.Equal(filtered, QuerySql(method).Contains("\"AppOnly\"", StringComparison.Ordinal));
+    }
+
     [Theory]
     [InlineData("Active")]
     [InlineData("Published")]
