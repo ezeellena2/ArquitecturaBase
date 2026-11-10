@@ -2,6 +2,7 @@ using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.Arca.Channels.Invoicing;
 using ArquitecturaBase.Application.Modules.Arca.Models.Invoicing;
 using ArquitecturaBase.Domain.Modules.Arca;
+using ArquitecturaBase.Domain.Modules.Arca.Invoicing;
 using ArquitecturaBase.Domain.Results;
 
 namespace ArquitecturaBase.Application.UnitTests.Modules.Arca.Invoicing;
@@ -24,7 +25,48 @@ public sealed class ArcaInvoiceOrderPolicyTests
         Assert.Equal((new DateOnly(2026, 11, 1), new DateOnly(2026, 11, 30), new DateOnly(2026, 12, 10)), (order.ServiceFrom, order.ServiceTo, order.PaymentDueOn));
         Assert.Equal([("Horas de consultoría", 2m, 1500.5m), ("Viático", 1m, 100m)], order.Items.Select(item => (item.Description, item.Quantity, item.UnitPrice)));
         Assert.All(order.Items, item => Assert.Null(item.Vat));
+        Assert.False(order.PricesIncludeVat);
         Assert.Equal(3101m, order.ExpectedTotal);
+    }
+
+    [Fact]
+    public void The_vat_of_each_item_is_its_arca_code_or_exempt_or_not_taxed()
+    {
+        var order = Order(data => data.Select(datum => datum.Key == "items" ? datum with
+        {
+            Items =
+            [
+                [new("description", "Semilla"), new("quantity", "10"), new("unitPrice", "52000"), new("vatRate", "5")],
+                [new("description", "Manual"), new("quantity", "1"), new("unitPrice", "15000"), new("vatRate", "exempt")],
+                [new("description", "Sellado"), new("quantity", "1"), new("unitPrice", "500"), new("vatRate", "not-taxed")],
+            ],
+        } : datum)).Value;
+
+        Assert.Equal(
+            [new ArcaVoucherVat(ArcaVatTreatmentKind.Taxed, 5), new ArcaVoucherVat(ArcaVatTreatmentKind.Exempt), new ArcaVoucherVat(ArcaVatTreatmentKind.NotTaxed)],
+            order.Items.Select(item => item.Vat));
+    }
+
+    [Theory]
+    [InlineData("21 %")]
+    [InlineData("5.5")]
+    [InlineData("exento")]
+    public void An_unreadable_vat_of_an_item_is_refused(string vatRate)
+    {
+        var result = Order(data => data.Select(datum => datum.Key == "items" ? datum with
+        {
+            Items = [[new("description", "Semilla"), new("quantity", "1"), new("unitPrice", "100"), new("vatRate", vatRate)]],
+        } : datum));
+
+        Assert.Equal(ArcaInvoicingErrors.ItemsInvalid, result.Error);
+    }
+
+    [Theory]
+    [InlineData("true", true)]
+    [InlineData("false", false)]
+    public void Whether_the_prices_include_vat_comes_from_the_form(string value, bool included)
+    {
+        Assert.Equal(included, Order(data => data.Append(new StructuredIssueDatum("pricesIncludeVat", value))).Value.PricesIncludeVat);
     }
 
     [Fact]

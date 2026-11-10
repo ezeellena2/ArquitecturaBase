@@ -10,7 +10,8 @@ namespace ArquitecturaBase.Application.Modules.Arca.Channels.Invoicing;
 
 /// <summary>
 /// The order of a response copied from «Factura»: the customer of «Clientes» (with its CUIT, a receiver with its condition; without
-/// it, a final consumer), the concept by its ARCA code, the dates and the items. It only reads; the queue validates the order.
+/// it, a final consumer), the concept by its ARCA code, the dates and the items, each with its VAT for classes A and B, and whether
+/// the form's prices include VAT. It only reads; the queue validates the order and decides whether the VAT is needed.
 /// </summary>
 internal static class ArcaInvoiceOrderPolicy
 {
@@ -43,11 +44,20 @@ internal static class ArcaInvoiceOrderPolicy
             if (values.GetValueOrDefault(Description) is not { } description || Number(values.GetValueOrDefault(Quantity)) is not { } quantity
                 || Number(values.GetValueOrDefault(UnitPrice)) is not { } unitPrice)
                 return ArcaInvoicingErrors.ItemsInvalid;
-            lines.Add(new(description, quantity, unitPrice));
+            ArcaVoucherVat? vat = null;
+            if (values.GetValueOrDefault(VatRate) is { } rate && (vat = Vat(rate)) is null) return ArcaInvoicingErrors.ItemsInvalid;
+            lines.Add(new(description, quantity, unitPrice, vat));
         }
         return new ArcaVoucherOrder(request.RunId, receiver, conceptId, Date(data, IssueDate) ?? today, Date(data, ServiceFrom), Date(data, ServiceTo),
-            Date(data, PaymentDue), lines, Number(data.GetValueOrDefault(Total)?.Value));
+            Date(data, PaymentDue), lines, Number(data.GetValueOrDefault(Total)?.Value), data.GetValueOrDefault(PricesIncludeVat)?.Value == "true");
     }
+
+    private static ArcaVoucherVat? Vat(string value) => value switch
+    {
+        Exempt => new(ArcaVatTreatmentKind.Exempt),
+        NotTaxed => new(ArcaVatTreatmentKind.NotTaxed),
+        _ => int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out var code) ? new(ArcaVatTreatmentKind.Taxed, code) : null,
+    };
 
     private static string? Address(IReadOnlyDictionary<string, string> fields) =>
         fields.TryGetValue(AddressField, out var address) && !string.IsNullOrWhiteSpace(address) ? address.Trim() : null;

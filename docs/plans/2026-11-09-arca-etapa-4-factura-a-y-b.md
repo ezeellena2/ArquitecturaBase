@@ -206,7 +206,11 @@ integral.
 5. **PDF:** IVA discriminado, la leyenda de la RG 5003 y el apartado de la RG 5614. **Hecho el 2026-11-09** (890f04bf). En
    lugar de un tablero, se revisaron dos PDF de muestra dibujados por el renderer real (una A a monotributista con exento y
    una B a consumidor final); el diseño fijo es el de la etapa 3 y el contenido lo fija la norma.
-6. *(con las etapas 2 y 3)* **La alícuota en el estándar «Factura»** y «Los precios incluyen IVA» si se elige.
+6. *(con las etapas 2 y 3)* **La alícuota en el estándar «Factura»** y «Los precios incluyen IVA». **El emisor ya los lee**
+   (2026-11-09): `ArcaInvoiceOrderPolicy` toma `vatRate` de cada ítem (el código de ARCA como texto, «exempt» o «not-taxed»)
+   y `pricesIncludeVat` del formulario («true»), las claves acordadas con la etapa 3. Falta que el estándar (tarea 11 de la
+   etapa 3) ate la pregunta «Alícuota» y saque `pricesIncludeVat` de la casilla de «Precio unitario» (IV2-A), y que el
+   catálogo «Alícuotas de IVA» sume Exento y No gravado (tarea 8 de la etapa 3).
 7. **Front,** después de la prueba integral: primero registrar IV1-A, IV2-A e IV3 en `docs/design` del front, después la
    columna «Alícuota», el total discriminado, la casilla del editor y el «¿La emito?» con IVA.
 8. **Prueba en homologación de A y B** con la CUIT del usuario, que la corre con su clave fiscal.
