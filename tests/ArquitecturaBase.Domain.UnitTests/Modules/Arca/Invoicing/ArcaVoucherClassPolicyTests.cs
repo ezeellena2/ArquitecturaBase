@@ -18,10 +18,33 @@ public sealed class ArcaVoucherClassPolicyTests
         Assert.Equal(ArcaVoucherClass.C, decided.Value);
     }
 
-    [Fact]
-    public void A_registered_taxpayer_is_not_supported_until_classes_a_and_b()
+    [Theory]
+    [InlineData(1)]
+    [InlineData(6)]
+    [InlineData(13)]
+    [InlineData(16)]
+    public void A_registered_taxpayer_invoices_class_a_to_a_registered_or_monotax_receiver(int receiver)
     {
-        Assert.Equal(ArcaInvoicingErrors.ClassNotSupported, ArcaVoucherClassPolicy.Decide(ArcaTaxStatus.RegisteredTaxpayer, 5).Error);
+        Assert.Equal(ArcaVoucherClass.A, ArcaVoucherClassPolicy.Decide(ArcaTaxStatus.RegisteredTaxpayer, receiver).Value);
+    }
+
+    [Theory]
+    [InlineData(4)]
+    [InlineData(5)]
+    [InlineData(7)]
+    [InlineData(8)]
+    [InlineData(9)]
+    [InlineData(10)]
+    [InlineData(15)]
+    public void A_registered_taxpayer_invoices_class_b_to_any_other_receiver(int receiver)
+    {
+        Assert.Equal(ArcaVoucherClass.B, ArcaVoucherClassPolicy.Decide(ArcaTaxStatus.RegisteredTaxpayer, receiver).Value);
+    }
+
+    [Fact]
+    public void A_registered_taxpayer_cannot_invoice_a_condition_that_arca_does_not_have()
+    {
+        Assert.Equal(ArcaInvoicingErrors.ReceiverConditionInvalid, ArcaVoucherClassPolicy.Decide(ArcaTaxStatus.RegisteredTaxpayer, 2).Error);
     }
 
     [Fact]

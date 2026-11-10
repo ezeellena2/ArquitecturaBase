@@ -9,8 +9,9 @@ namespace ArquitecturaBase.Application.Modules.Arca.Services.Invoicing;
 /// <summary>
 /// Antes de encolar, el servidor valida lo que pide el comprobante y recalcula los renglones con half-even (ADR 0028): el
 /// documento del receptor (CUIT con su dígito, DNI, o consumidor final sin identificar), el concepto, el período y el
-/// vencimiento del pago de un servicio, la fecha que ARCA acepta hoy y los renglones. Un total distinto del que calculó quien
-/// pide no se encola.
+/// vencimiento del pago de un servicio, la fecha que ARCA acepta hoy y los renglones, con el IVA de cada uno si lo trae. Con
+/// la clase decidida, <see cref="ForClass"/> pide CUIT en la A y el IVA de cada renglón en la A y la B, y calcula los importes.
+/// Un total distinto del que calculó quien pide no se encola.
 /// </summary>
 internal static class ArcaVoucherOrderPolicy
 {
@@ -30,12 +31,26 @@ internal static class ArcaVoucherOrderPolicy
         if (!ArcaIssueDateWindow.Admits(order.Concept, order.IssueOn, today)) return ArcaInvoicingErrors.IssueDateOutOfRange;
         if (order.Items.Count is 0 or > MaxItems || order.Items.Any(item => !ItemIsValid(item))) return ArcaInvoicingErrors.ItemsInvalid;
 
-        IReadOnlyList<ArcaVoucherLine> lines = [.. order.Items.Select(item =>
-            new ArcaVoucherLine(item.Description.Trim(), item.Quantity, item.UnitPrice, ArcaInvoiceLine.Amount(item.Quantity, item.UnitPrice)))];
-        var total = lines.Sum(line => line.Amount);
-        if (total <= 0m) return ArcaInvoicingErrors.ItemsInvalid;
-        if (order.ExpectedTotal is { } expected && expected != total) return ArcaInvoicingErrors.TotalMismatch;
+        IReadOnlyList<ArcaVoucherLine> lines = [.. order.Items.Select(item => new ArcaVoucherLine(item.Description.Trim(), item.Quantity, item.UnitPrice,
+            ArcaInvoiceLine.Amount(item.Quantity, item.UnitPrice), item.Vat))];
+        if (lines.Sum(line => line.Amount) <= 0m) return ArcaInvoicingErrors.ItemsInvalid;
         return Result.Success(lines);
+    }
+
+    /// <summary>
+    /// Los renglones que se fijan y los importes de la clase decidida. La A va con CUIT (10013); la A y la B, con el IVA de cada
+    /// renglón; la C no discrimina IVA y lo descarta.
+    /// </summary>
+    public static Result<(IReadOnlyList<ArcaVoucherLine> Lines, ArcaVoucherAmounts Amounts)> ForClass(ArcaVoucherClass voucherClass,
+        ArcaVoucherOrder order, IReadOnlyList<ArcaVoucherLine> lines)
+    {
+        if (voucherClass == ArcaVoucherClass.A && order.Receiver.DocumentType != CuitDocument) return ArcaInvoicingErrors.ReceiverInvalid;
+        if (voucherClass == ArcaVoucherClass.C) lines = [.. lines.Select(line => line with { Vat = null })];
+        else if (lines.Any(line => line.Vat is null)) return ArcaInvoicingErrors.ItemsInvalid;
+
+        var amounts = ArcaVoucherRequestPolicy.Amounts(voucherClass, lines, order.PricesIncludeVat);
+        if (order.ExpectedTotal is { } expected && expected != amounts.Total) return ArcaInvoicingErrors.TotalMismatch;
+        return (lines, amounts);
     }
 
     private static bool ReceiverIsValid(ArcaVoucherParty receiver)
@@ -56,5 +71,6 @@ internal static class ArcaVoucherOrderPolicy
         : order is { ServiceFrom: { } from, ServiceTo: { } to, PaymentDueOn: { } due } && to >= from && due >= order.IssueOn;
 
     private static bool ItemIsValid(ArcaVoucherOrderItem item) =>
-        !string.IsNullOrWhiteSpace(item.Description) && item.Description.Trim().Length <= MaxTextLength && item.Quantity > 0m && item.UnitPrice >= 0m;
+        !string.IsNullOrWhiteSpace(item.Description) && item.Description.Trim().Length <= MaxTextLength && item.Quantity > 0m && item.UnitPrice >= 0m
+        && (item.Vat is null || item.Vat.ToTreatment() is not null);
 }

@@ -167,7 +167,6 @@
   <data name="Arca.Invoicing.InvoiceAlreadyCancelled" xml:space="preserve"><value>Esa factura ya tiene una nota de crédito.</value></data>
   <data name="Arca.Invoicing.GrossIncomeInvalid" xml:space="preserve"><value>Escribí el número de ingresos brutos, de hasta 30 caracteres.</value></data>
   <data name="Arca.Invoicing.ActivityStartInvalid" xml:space="preserve"><value>Elegí la fecha de inicio de actividades.</value></data>
-  <data name="Arca.Invoicing.ClassNotSupported" xml:space="preserve"><value>Todavía no se emiten facturas A ni B.</value></data>
   <data name="Arca.Invoicing.IssuerNotRegistered" xml:space="preserve"><value>La empresa no tiene una condición frente al IVA con la que pueda facturar.</value></data>
   <data name="Arca.Invoicing.ReceiverConditionInvalid" xml:space="preserve"><value>La condición frente al IVA del cliente no corresponde a este comprobante.</value></data>
   <data name="Arca.Invoicing.VoucherNotInReview" xml:space="preserve"><value>Esta emisión ya no espera una revisión.</value></data>

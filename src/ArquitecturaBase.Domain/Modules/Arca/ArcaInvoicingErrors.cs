@@ -19,7 +19,6 @@ public static class ArcaInvoicingErrors
     public static readonly Error TotalMismatch = Error.Validation("Arca.Invoicing.TotalMismatch", "The total does not match the items.");
     public static readonly Error InvoiceNotAuthorized = Error.Conflict("Arca.Invoicing.InvoiceNotAuthorized", "The invoice has not been issued.");
     public static readonly Error InvoiceAlreadyCancelled = Error.Conflict("Arca.Invoicing.InvoiceAlreadyCancelled", "The invoice already has a credit note.");
-    public static readonly Error ClassNotSupported = Error.Validation("Arca.Invoicing.ClassNotSupported", "Invoices of classes A and B are not available yet.");
     public static readonly Error IssuerNotRegistered = Error.Validation("Arca.Invoicing.IssuerNotRegistered", "The company has no VAT registration to invoice with.");
     public static readonly Error ReceiverConditionInvalid = Error.Validation("Arca.Invoicing.ReceiverConditionInvalid", "The VAT condition of the receiver does not fit the voucher class.");
     public static readonly Error VoucherNotInReview = Error.Conflict("Arca.Invoicing.VoucherNotInReview", "The issuance is no longer waiting for a review.");

@@ -9,9 +9,9 @@ using ArquitecturaBase.Domain.Modules.Arca.Invoicing;
 namespace ArquitecturaBase.Application.Modules.Arca.Services.Invoicing;
 
 /// <summary>
-/// El pedido a <c>FECAESolicitar</c> sale de la emisión y de lo que fijó al encolarse. En la clase C sólo hay neto (el
-/// subtotal) y total, en pesos; A y B llegan con la etapa 4. La huella (SHA-256) cubre todo lo que se manda, con el número:
-/// se guarda antes de llamar (ADR 0028).
+/// El pedido a <c>FECAESolicitar</c> sale de la emisión y de lo que fijó al encolarse, en pesos. En la clase C sólo hay neto
+/// (el subtotal) y total; en la A y la B, el desglose del IVA por alícuota (<see cref="ArcaVatBreakdown"/>), con exento y no
+/// gravado aparte. La huella (SHA-256) cubre todo lo que se manda, con el número: se guarda antes de llamar (ADR 0028).
 /// </summary>
 internal static class ArcaVoucherRequestPolicy
 {
@@ -32,7 +32,7 @@ internal static class ArcaVoucherRequestPolicy
         payload.Receiver.DocumentType,
         payload.Receiver.DocumentNumber,
         voucher.RequestedOn,
-        Amounts(voucher),
+        Amounts(voucher.Class, payload.Lines, payload.PricesIncludeVat),
         payload.ServiceFrom,
         payload.ServiceTo,
         payload.PaymentDueOn,
@@ -62,9 +62,20 @@ internal static class ArcaVoucherRequestPolicy
         return Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(text)));
     }
 
-    private static ArcaVoucherAmounts Amounts(ArcaVoucher voucher) => voucher.Class == ArcaVoucherClass.C
-        ? new ArcaVoucherAmounts(voucher.Total, 0m, voucher.Total, 0m, 0m, 0m, [])
-        : throw new InvalidOperationException("Vouchers of classes A and B are not issued yet.");
+    /// <summary>Los importes de una clase con sus renglones fijados. En la A y la B cada renglón trae su IVA.</summary>
+    public static ArcaVoucherAmounts Amounts(ArcaVoucherClass voucherClass, IReadOnlyList<ArcaVoucherLine> lines, bool pricesIncludeVat)
+    {
+        if (voucherClass == ArcaVoucherClass.C)
+        {
+            var total = lines.Sum(line => line.Amount);
+            return new ArcaVoucherAmounts(total, 0m, total, 0m, 0m, 0m, []);
+        }
+
+        var breakdown = ArcaVatBreakdown.Calculate(lines.Select(line => new ArcaVatLine(line.Amount,
+            line.Vat?.ToTreatment() ?? throw new InvalidOperationException("A line of an A or B voucher has no valid VAT."))), pricesIncludeVat);
+        return new ArcaVoucherAmounts(breakdown.Total, breakdown.NotTaxed, breakdown.NetTaxed, breakdown.Exempt, 0m, breakdown.Vat,
+            [.. breakdown.Rates.Select(rate => new ArcaVatAmount(rate.RateId, rate.Base, rate.Vat))]);
+    }
 
     private static string Amount(decimal value) => value.ToString("0.00", CultureInfo.InvariantCulture);
 

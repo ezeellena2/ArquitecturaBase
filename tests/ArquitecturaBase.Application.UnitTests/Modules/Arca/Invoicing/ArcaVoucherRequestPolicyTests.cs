@@ -35,6 +35,40 @@ public sealed class ArcaVoucherRequestPolicyTests
     }
 
     [Fact]
+    public void A_class_a_request_carries_the_net_the_vat_and_one_entry_per_rate()
+    {
+        var (voucher, payload) = Invoice(ArcaVoucherClass.A, pricesIncludeVat: false);
+
+        var request = ArcaVoucherRequestPolicy.Build(voucher, payload, 7);
+
+        ArcaVoucherOrderPolicyTests.AssertAmounts(
+            new ArcaVoucherAmounts(629200.21m, 0m, 520000.19m, 0m, 0m, 109200.02m, [new(4, 0.19m, 0.02m), new(5, 520000m, 109200m)]), request.Amounts);
+        Assert.Equal((1, 80, 1), (request.VoucherType, request.DocumentType, request.ReceiverVatConditionId));
+    }
+
+    [Fact]
+    public void A_class_b_request_with_prices_with_vat_splits_each_rate()
+    {
+        var (voucher, payload) = Invoice(ArcaVoucherClass.B, pricesIncludeVat: true);
+
+        var request = ArcaVoucherRequestPolicy.Build(voucher, payload, 7);
+
+        Assert.Equal(520000.19m, request.Amounts.Total);
+        Assert.Equal([new ArcaVatAmount(4, 0.17m, 0.02m), new ArcaVatAmount(5, 429752.07m, 90247.93m)], request.Amounts.VatRates);
+    }
+
+    [Fact]
+    public void The_vat_of_the_lines_and_whether_prices_include_it_survive_the_json()
+    {
+        var (_, payload) = Invoice(ArcaVoucherClass.B, pricesIncludeVat: true);
+
+        var read = ArcaVoucherRequestPolicy.FromJson(ArcaVoucherRequestPolicy.ToJson(payload));
+
+        Assert.Equal(payload.Lines, read.Lines);
+        Assert.True(read.PricesIncludeVat);
+    }
+
+    [Fact]
     public void The_payload_survives_its_json()
     {
         var (_, payload) = Invoice();
@@ -65,6 +99,24 @@ public sealed class ArcaVoucherRequestPolicyTests
             new ArcaVoucherIssuer("Lucía Fernández", "Av. San Martín 1250, Pergamino", ArcaTaxStatus.Monotax, "27-28765433-8", new DateOnly(2019, 3, 1)), null);
         var voucher = ArcaVoucher.Create(Guid.CreateVersion7(), ArcaEnvironment.Testing, Guid.CreateVersion7(), ArcaVoucherClass.C, ArcaVoucherKind.Invoice,
             "27287654338", 4, 1, 80, 30712345671, new DateOnly(2026, 11, 9), 605500m, ArcaVoucherRequestPolicy.ToJson(payload), null, Now);
+        return (voucher, payload);
+    }
+
+    private static (ArcaVoucher Voucher, ArcaVoucherPayload Payload) Invoice(ArcaVoucherClass voucherClass, bool pricesIncludeVat)
+    {
+        var receiver = voucherClass == ArcaVoucherClass.A ? new ArcaVoucherParty(80, 30712345671, "Agro del Sur S.A.", 1, "Ruta 8 km 225")
+            : new ArcaVoucherParty(99, 0, "Consumidor final", 5, null);
+        var payload = new ArcaVoucherPayload(receiver, null, null, null,
+            [
+                new ArcaVoucherLine("Semilla de soja", 10m, 52000m, 520000m, new(ArcaVatTreatmentKind.Taxed, 5)),
+                new ArcaVoucherLine("Flete", 1.5m, 0.125m, 0.19m, new(ArcaVatTreatmentKind.Taxed, 4)),
+            ],
+            new ArcaVoucherIssuer("Lucía Fernández", "Av. San Martín 1250, Pergamino", ArcaTaxStatus.RegisteredTaxpayer, "27-28765433-8", new DateOnly(2019, 3, 1)),
+            null, pricesIncludeVat);
+        var amounts = ArcaVoucherRequestPolicy.Amounts(voucherClass, payload.Lines, pricesIncludeVat);
+        var voucher = ArcaVoucher.Create(Guid.CreateVersion7(), ArcaEnvironment.Testing, Guid.CreateVersion7(), voucherClass, ArcaVoucherKind.Invoice,
+            "27287654338", 4, 1, receiver.DocumentType, receiver.DocumentNumber, new DateOnly(2026, 11, 9), amounts.Total, ArcaVoucherRequestPolicy.ToJson(payload),
+            null, Now);
         return (voucher, payload);
     }
 }

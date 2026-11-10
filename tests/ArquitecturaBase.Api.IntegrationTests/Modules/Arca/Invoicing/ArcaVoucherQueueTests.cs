@@ -346,7 +346,90 @@ public sealed class ArcaVoucherQueueTests(ApiFactory factory) : IDisposable
     }
 
     [Fact]
-    public async Task A_registered_taxpayer_cannot_queue_until_classes_a_and_b()
+    public async Task A_registered_taxpayer_issues_class_a_with_the_vat_of_each_rate_and_cancels_it_with_a_class_a_note()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var arca = Arca();
+        await ArcaVoucherScenario.ConnectAsync(factory, authority, ArcaVatCondition.RegisteredTaxpayer);
+        try
+        {
+            var order = ArcaVoucherScenario.Order(Today) with
+            {
+                Items =
+                [
+                    new ArcaVoucherOrderItem("Semilla de soja", 10m, 52000m, new(ArcaVatTreatmentKind.Taxed, 5)),
+                    new ArcaVoucherOrderItem("Flete", 1m, 85500m, new(ArcaVatTreatmentKind.Taxed, 4)),
+                ],
+                ExpectedTotal = 723677.5m,
+            };
+            var preview = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IArcaVoucherService>().PreviewAsync(order, ct));
+            Assert.Equal(new ArcaVoucherPreviewResponse(ArcaVoucherClass.A, 1, 723677.5m, 118177.5m), preview.Value);
+
+            var queued = await EnqueueAsync(order);
+            Assert.Equal((ArcaVoucherClass.A, 1, 723677.5m), (queued.Class, queued.VoucherType, queued.Total));
+            await ProcessAsync(1);
+
+            Assert.Equal(ArcaVoucherState.Authorized, (await VoucherAsync(order.RequestKey)).State);
+            var invoice = arca.LastRequest("FECAESolicitar")!;
+            Assert.Equal(("80", "1", "605500.00", "118177.50", "723677.50"),
+                (Value(invoice, "DocTipo"), Value(invoice, "CondicionIVAReceptorId"), Value(invoice, "ImpNeto"), Value(invoice, "ImpIVA"),
+                 Value(invoice, "ImpTotal")));
+            Assert.Equal(["4|85500.00|8977.50", "5|520000.00|109200.00"], VatRates(invoice));
+
+            var noteKey = Guid.CreateVersion7();
+            var note = await CreditNoteAsync(noteKey, order.RequestKey, ct);
+            Assert.Equal((ArcaVoucherClass.A, 3, 723677.5m), (note.Value.Class, note.Value.VoucherType, note.Value.Total));
+            await ProcessAsync(3);
+
+            Assert.Equal(ArcaVoucherState.Authorized, (await VoucherAsync(noteKey)).State);
+            var credit = arca.LastRequest("FECAESolicitar")!;
+            Assert.Equal(["1", "4", "1"], credit.Descendants(Fev1 + "CbteAsoc").Single().Elements().Take(3).Select(element => element.Value));
+            Assert.Equal(VatRates(invoice), VatRates(credit));
+        }
+        finally
+        {
+            await ArcaVoucherScenario.RemoveAsync(factory);
+        }
+    }
+
+    [Fact]
+    public async Task A_registered_taxpayer_issues_class_b_to_a_final_consumer_with_prices_with_vat_and_an_exempt_item()
+    {
+        var arca = Arca();
+        await ArcaVoucherScenario.ConnectAsync(factory, authority, ArcaVatCondition.RegisteredTaxpayer);
+        try
+        {
+            var order = ArcaVoucherScenario.Order(Today) with
+            {
+                Receiver = new ArcaVoucherParty(99, 0, "Consumidor final", 5, null),
+                Items =
+                [
+                    new ArcaVoucherOrderItem("Bolsa de alimento", 2m, 12100m, new(ArcaVatTreatmentKind.Taxed, 5)),
+                    new ArcaVoucherOrderItem("Libro", 1m, 15000m, new(ArcaVatTreatmentKind.Exempt)),
+                ],
+                ExpectedTotal = 39200m,
+                PricesIncludeVat = true,
+            };
+
+            var queued = await EnqueueAsync(order);
+            Assert.Equal((ArcaVoucherClass.B, 6, 39200m), (queued.Class, queued.VoucherType, queued.Total));
+            await ProcessAsync(6);
+
+            Assert.Equal(ArcaVoucherState.Authorized, (await VoucherAsync(order.RequestKey)).State);
+            var request = arca.LastRequest("FECAESolicitar")!;
+            Assert.Equal(("99", "5", "20000.00", "4200.00", "15000.00", "0.00", "39200.00"),
+                (Value(request, "DocTipo"), Value(request, "CondicionIVAReceptorId"), Value(request, "ImpNeto"), Value(request, "ImpIVA"),
+                 Value(request, "ImpOpEx"), Value(request, "ImpTotConc"), Value(request, "ImpTotal")));
+            Assert.Equal(["5|20000.00|4200.00"], VatRates(request));
+        }
+        finally
+        {
+            await ArcaVoucherScenario.RemoveAsync(factory);
+        }
+    }
+
+    [Fact]
+    public async Task A_class_a_order_without_the_vat_of_its_items_is_not_queued()
     {
         var ct = TestContext.Current.CancellationToken;
         Arca();
@@ -356,7 +439,7 @@ public sealed class ArcaVoucherQueueTests(ApiFactory factory) : IDisposable
             var result = await factory.ExecuteScopeAsync(services =>
                 services.GetRequiredService<IArcaVoucherService>().EnqueueAsync(ArcaVoucherScenario.Order(Today), ct));
 
-            Assert.Equal(ArcaInvoicingErrors.ClassNotSupported, result.Error);
+            Assert.Equal(ArcaInvoicingErrors.ItemsInvalid, result.Error);
         }
         finally
         {
@@ -382,6 +465,11 @@ public sealed class ArcaVoucherQueueTests(ApiFactory factory) : IDisposable
     private async Task<ArcaVoucherResponse> VoucherAsync(Guid requestKey) =>
         Assert.Single(await factory.ExecuteScopeAsync(services =>
             services.GetRequiredService<IArcaVoucherReviewService>().ListAsync([requestKey], TestContext.Current.CancellationToken)));
+
+    private static string Value(XElement request, string name) => request.Descendants(Fev1 + name).Single().Value;
+
+    private static string[] VatRates(XElement request) => [.. request.Descendants(Fev1 + "AlicIva").Select(rate =>
+        $"{rate.Element(Fev1 + "Id")!.Value}|{rate.Element(Fev1 + "BaseImp")!.Value}|{rate.Element(Fev1 + "Importe")!.Value}")];
 
     private Task ProcessAsync(int voucherType = 11) =>
         factory.Services.GetRequiredService<ArcaVoucherProcessor>().ProcessAsync(ArcaVoucherScenario.Sequence(voucherType), TestContext.Current.CancellationToken);

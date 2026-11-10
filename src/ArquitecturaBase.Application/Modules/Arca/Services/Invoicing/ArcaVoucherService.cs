@@ -15,8 +15,9 @@ namespace ArquitecturaBase.Application.Modules.Arca.Services.Invoicing;
 
 /// <summary>
 /// Encolar valida y recalcula antes de la transacción y, adentro, con el lock de la conexión, decide la clase con los datos
-/// del padrón, fija lo que va a emitir y guarda (ADR 0028). La misma clave de pedido devuelve la emisión que ya estaba. Nada
-/// llama a ARCA: lo hace el worker. La vista previa decide la clase y el total sin guardar nada.
+/// del padrón, calcula los importes de esa clase (el IVA en la A y la B), fija lo que va a emitir y guarda (ADR 0028). La
+/// misma clave de pedido devuelve la emisión que ya estaba. Nada llama a ARCA: lo hace el worker. La vista previa decide la
+/// clase, el total y el IVA sin guardar nada.
 /// </summary>
 internal sealed class ArcaVoucherService(IArcaConnectionRepository connections, IArcaInvoicingRepository settings, IArcaVoucherRepository vouchers,
     IArcaCompanyProfileSource profiles, IUnitOfWork unitOfWork, TimeProvider timeProvider, ILogger<ArcaVoucherService> logger) : IArcaVoucherService
@@ -44,7 +45,10 @@ internal sealed class ArcaVoucherService(IArcaConnectionRepository connections, 
             if (await profiles.FindAsync(connection.Id, cancellationToken) is not { } profile) return ArcaInvoicingErrors.IssuerDataMissing;
             var decided = ArcaVoucherClassPolicy.Decide(profile.TaxStatus, order.Receiver.VatConditionId);
             if (decided.IsFailure) return decided.Error;
-            return new ArcaVoucherPreviewResponse(decided.Value, ArcaVoucherTypes.Code(decided.Value, ArcaVoucherKind.Invoice), lines.Value.Sum(line => line.Amount));
+            var priced = ArcaVoucherOrderPolicy.ForClass(decided.Value, order, lines.Value);
+            if (priced.IsFailure) return priced.Error;
+            return new ArcaVoucherPreviewResponse(decided.Value, ArcaVoucherTypes.Code(decided.Value, ArcaVoucherKind.Invoice), priced.Value.Amounts.Total,
+                priced.Value.Amounts.Vat);
         });
 
     private async Task<Result<ArcaVoucherResponse>> EnqueueCoreAsync(ArcaVoucherOrder order, IReadOnlyList<ArcaVoucherLine> lines, CancellationToken cancellationToken)
@@ -57,12 +61,15 @@ internal sealed class ArcaVoucherService(IArcaConnectionRepository connections, 
         if (await profiles.FindAsync(connection.Id, cancellationToken) is not { } profile) return ArcaInvoicingErrors.IssuerDataMissing;
         var decided = ArcaVoucherClassPolicy.Decide(profile.TaxStatus, order.Receiver.VatConditionId);
         if (decided.IsFailure) return decided.Error;
+        var priced = ArcaVoucherOrderPolicy.ForClass(decided.Value, order, lines);
+        if (priced.IsFailure) return priced.Error;
 
         var receiver = order.Receiver with { Name = order.Receiver.Name.Trim(), Address = Trimmed(order.Receiver.Address) };
-        var payload = new ArcaVoucherPayload(receiver, order.ServiceFrom, order.ServiceTo, order.PaymentDueOn, lines, Issuer(profile, configuration.GrossIncomeNumber,
-            configuration.ActivityStartOn), null);
+        var payload = new ArcaVoucherPayload(receiver, order.ServiceFrom, order.ServiceTo, order.PaymentDueOn, priced.Value.Lines,
+            Issuer(profile, configuration.GrossIncomeNumber, configuration.ActivityStartOn), null,
+            decided.Value != ArcaVoucherClass.C && order.PricesIncludeVat);
         var voucher = ArcaVoucher.Create(connection.Id, connection.Environment, order.RequestKey, decided.Value, ArcaVoucherKind.Invoice, connection.Cuit,
-            pointOfSale, order.Concept, receiver.DocumentType, receiver.DocumentNumber, order.IssueOn, lines.Sum(line => line.Amount),
+            pointOfSale, order.Concept, receiver.DocumentType, receiver.DocumentNumber, order.IssueOn, priced.Value.Amounts.Total,
             ArcaVoucherRequestPolicy.ToJson(payload), null, timeProvider.GetUtcNow().UtcDateTime);
         vouchers.Add(voucher);
         return ArcaVoucherRowPolicy.Response(voucher);
