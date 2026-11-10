@@ -237,3 +237,15 @@ clave de la copia, sin columna nueva. También suman el título y la historia de
 regla del bootstrap sin publicar. La captura de la cohorte `ai-assistant-http` va con la tarea 8, junto con el inventario del
 exportador y el test del front, porque los dos fijan seis cuerpos. Para publicar `attachments`, `AiAssistantReadPolicy` ya tiene
 ocho dependencias, el tope de `ServiceDependencyLimitTests`.
+
+2026-11-09: las revisiones de las tareas 2 y 3 (ninguna bloqueante) quedaron corregidas juntas en 731b3198:
+- la huella de Inicio no lleva el vencimiento, y un reintento superpuesto recupera el turno;
+- una copia de Inicio heredada toma el vencimiento del turno nuevo;
+- el turno guarda en claro el SHA-256 y el tamaño (migración `AddAssistantTurnAttachmentHashAndSize`);
+- la planilla cifrada se lee sólo donde se usa (la burbuja, la historia y el título de los turnos propios);
+- el reintento compara el SHA-256 y el tamaño antes de descifrar, y da 404 o `ContentUnavailable` como el turno JSON;
+- una continuación de un canal acepta una planilla sin texto;
+- sin almacenamiento privado da `AttachmentUnavailable`, y el 403 queda para el permiso, con su remedio.
+
+Unitarias 4325/4325, dominio 821/821, arquitectura 207/207 e integración de las nueve clases tocadas (52/52), sobre una copia de
+HEAD.
