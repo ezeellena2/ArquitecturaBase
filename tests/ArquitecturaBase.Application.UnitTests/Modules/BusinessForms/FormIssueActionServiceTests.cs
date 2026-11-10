@@ -1,6 +1,7 @@
 using System.Text.Json;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Models.StructuredData;
+using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms;
@@ -33,6 +34,34 @@ public sealed class FormIssueActionServiceTests
         issuer.Current = issuer.Next;
         await service.ExecuteAsync(work with { ReconciliationOnly = true }, CancellationToken.None);
         Assert.Single(issuer.Requests);
+    }
+
+    [Fact]
+    public async Task An_issuance_waiting_for_its_provider_tells_whoever_loaded_it_once_in_their_language()
+    {
+        var channel = new FakeFormActionChannel();
+        var (service, issuer, work) = Arrange(channel: channel);
+        channel.Reachable.Add(Author);
+        issuer.Next = new(StructuredIssueState.Pending, WaitingForProvider: true,
+            WaitingNotice: new Dictionary<string, string> { ["es"] = "ARCA no responde.", ["en"] = "ARCA is not responding." });
+
+        await service.ExecuteAsync(work, CancellationToken.None);
+        issuer.Current = issuer.Next;
+        await service.ExecuteAsync(work with { ReconciliationOnly = true }, CancellationToken.None);
+
+        var message = Assert.Single(channel.Messages);
+        Assert.Equal((work.RunId, Author, "ARCA is not responding."), (message.RunId, message.RecipientUserId, message.Body));
+    }
+
+    [Fact]
+    public async Task Without_a_channel_that_reaches_whoever_loaded_it_the_wait_goes_without_notice()
+    {
+        var channel = new FakeFormActionChannel();
+        var (service, issuer, work) = Arrange(channel: channel);
+        issuer.Next = new(StructuredIssueState.Pending, WaitingForProvider: true, WaitingNotice: Names("ARCA no responde."));
+
+        Assert.Equal(FormActionRunState.Running, (await service.ExecuteAsync(work, CancellationToken.None)).State);
+        Assert.Empty(channel.Messages);
     }
 
     [Fact]
@@ -91,7 +120,10 @@ public sealed class FormIssueActionServiceTests
         Assert.Equal(FormActionErrors.IssueDataUnavailable.Code, (await unbound.ExecuteAsync(unboundWork, CancellationToken.None)).FailureCode);
     }
 
-    private static (FormIssueActionService Service, FakeIssuer Issuer, FormActionWorkResponse Work) Arrange(string standardKey = "test.standard")
+    private static readonly Guid Author = Guid.NewGuid();
+
+    private static (FormIssueActionService Service, FakeIssuer Issuer, FormActionWorkResponse Work) Arrange(string standardKey = "test.standard",
+        FakeFormActionChannel? channel = null)
     {
         var rules = new FormRuleFixture();
         rules.Definition.RecordStandard(standardKey, 1, JsonSerializer.Serialize(new Dictionary<string, Guid>
@@ -117,16 +149,24 @@ public sealed class FormIssueActionServiceTests
         });
         var row = new FormRecordStoredRow(Guid.NewGuid(), recordId, 1, rules.Definition.Id, "FAC", Guid.NewGuid(), 1, "{\"es\":\"Factura\"}",
             JsonSerializer.Serialize(schema, JsonSerializerOptions.Web), values, []);
-        var records = new FakeFormResponseReader { ExportRows = [new FormResponseStoredRow(row, Now, new FormAuthorResponse(Guid.NewGuid(), "Ana"))] };
+        var records = new FakeFormResponseReader { ExportRows = [new FormResponseStoredRow(row, Now, new FormAuthorResponse(Author, "Ana"))] };
         var issuer = new FakeIssuer();
         var work = new FormActionWorkResponse(Guid.NewGuid(), recordId, "IssueDocument", 1, false, false,
             new FormActionSnapshot(null, null, null, [], IssuerId: "test.issuer"), []);
-        return (new FormIssueActionService([issuer], records, rules), issuer, work);
+        return (new FormIssueActionService([issuer], records, rules, channel is null ? [] : [channel], new Recipients()), issuer, work);
     }
 
     private static CanonicalFormField Field(Guid id, string key, string type) => new(id, key, type, Names(key), null, false, null, null);
 
     private static Dictionary<string, string> Names(string text) => new() { ["es"] = text, ["en"] = text };
+
+    private sealed class Recipients : IFormActionRecipientReader
+    {
+        public Task<FormActionRecipientRow?> FindAsync(Guid userId, CancellationToken cancellationToken) =>
+            Task.FromResult<FormActionRecipientRow?>(new(userId, "en", "Ana"));
+        public Task<IReadOnlyList<FormActionRecipientRow>> ListForRoleAsync(Guid roleId, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<FormActionRecipientRow>>([]);
+    }
 
     private sealed class FakeIssuer : IStructuredRecordIssuer
     {

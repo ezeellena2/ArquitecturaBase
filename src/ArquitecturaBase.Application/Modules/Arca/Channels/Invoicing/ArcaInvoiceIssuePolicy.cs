@@ -37,7 +37,8 @@ internal static class ArcaInvoiceIssuePolicy
             ReviewReason: ArcaInvoiceStandard.Key + "." + Camel(voucher.ReviewReason!.Value.ToString())),
         ArcaVoucherState.Cancelled => new(StructuredIssueState.Cancelled, Revision: voucher.Revision),
         _ => new(StructuredIssueState.Pending, voucher.FailureCode, WaitingForProvider: voucher.WaitedForArca, NextCheckAtUtc: voucher.NextAttemptAtUtc,
-            Revision: voucher.Revision),
+            Revision: voucher.Revision, WaitingNotice: voucher.WaitedForArca
+                ? Localized(voucher.Kind == ArcaVoucherKind.CreditNote ? "Notice.WaitingCreditNote" : "Notice.WaitingInvoice") : null),
     };
 
     private static StructuredRecordResult Result(ArcaVoucherResponse voucher)

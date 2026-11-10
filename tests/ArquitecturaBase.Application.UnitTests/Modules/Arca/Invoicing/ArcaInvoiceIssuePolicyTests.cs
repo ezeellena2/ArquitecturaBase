@@ -37,6 +37,8 @@ public sealed class ArcaInvoiceIssuePolicyTests
         var pending = ArcaInvoiceIssuePolicy.Response(Voucher(ArcaVoucherState.Queued) with { WaitedForArca = true, FailureCode = "arca.unavailable" });
 
         Assert.Equal((StructuredIssueState.Pending, true, Next, "arca.unavailable"), (pending.State, pending.WaitingForProvider, pending.NextCheckAtUtc, pending.FailureCode));
+        Assert.Equal("ARCA no responde. Tu factura sale apenas vuelva.", pending.WaitingNotice!["es"]);
+        Assert.Null(ArcaInvoiceIssuePolicy.Response(Voucher(ArcaVoucherState.Queued)).WaitingNotice);
     }
 
     [Fact]

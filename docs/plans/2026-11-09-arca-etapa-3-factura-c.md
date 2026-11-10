@@ -314,10 +314,9 @@ anulación con nota de crédito y el «¿La emito?» siguen a la acción; los ca
 autocompletar, del catálogo «Clientes» del estándar. Las tareas 7 y 8 van
 con su consumidor (no se agrega un puerto sin quien lo use). El resultado externo y los cálculos de la etapa 2 ya están.
 
-9. **Programada, salvo el aviso de espera.** El puerto `IStructuredRecordIssuer`, la acción `IssueDocument` en formularios
+9. **Hecho (bbda01fa y el aviso de espera).** El puerto `IStructuredRecordIssuer`, la acción `IssueDocument` en formularios
    (en las reglas sólo con el emisor de su estándar, el run que encola una vez y sigue la espera del emisor, el resultado en
-   la respuesta y la revisión con `arca.issue`) y el emisor de ARCA. Falta el aviso fijo a quien cargó la primera vez que una
-   emisión espera por ARCA.
+   la respuesta, la revisión con `arca.issue` y un solo aviso a quien cargó mientras espera por ARCA) y el emisor de ARCA.
 10. *(con la etapa 2)* Los catálogos de sólo lectura y su actualización en formularios, en la carpeta «ARCA».
 11. *(con la etapa 2)* El estándar «Factura» y el catálogo «Clientes» con «Completar con ARCA».
 12. **Anular con nota de crédito.**

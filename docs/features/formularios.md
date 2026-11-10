@@ -948,7 +948,8 @@ ARCA» ([ADR 0028](../decisions/0028-emision-de-comprobantes-arca.md)); sin emis
 - **El run.** Pregunta primero al emisor y encola una sola vez por run, que es la clave del pedido: un run que perdió su
   resultado vuelve a preguntar sin emitir dos veces. Encola sólo si la respuesta sigue en pie (ni anulada ni corregida); si
   no, «No aplica». Mientras el emisor trabaja queda `Running` y vuelve a mirar cuando el emisor dice, nunca antes de 5
-  segundos. Emitido, termina `Completed` y guarda el resultado en la misma transacción; rechazado, `Failed` con el código del
+  segundos. Si espera por su proveedor, quien cargó la respuesta recibe una sola vez el aviso que da el emisor, en su idioma
+  y por el primer canal que lo alcanza; sin canal, no hay aviso. Emitido, termina `Completed` y guarda el resultado en la misma transacción; rechazado, `Failed` con el código del
   emisor (reintentable si no se encoló nada); en revisión, `Uncertain` con el motivo del emisor. Sin el emisor,
   `Forms.Action.IssuerUnavailable`; sin los datos atados, `Forms.Action.IssueDataUnavailable`; si una persona decidió no
   emitir, `Forms.Action.NotIssued`.

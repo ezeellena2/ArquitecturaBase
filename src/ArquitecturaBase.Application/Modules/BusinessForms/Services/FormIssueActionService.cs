@@ -9,10 +9,12 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
 /// <summary>
 /// The issuer is asked first: enqueueing is idempotent by run and local to the issuer, so a run that lost its outcome asks again
-/// without issuing twice. Only a response that still stands is queued; once queued, it is followed to its end.
+/// without issuing twice. Only a response that still stands is queued; once queued, it is followed to its end. While it waits
+/// for its provider, whoever loaded the response is told once, by the first channel that reaches them: the channel keeps one
+/// message per run and person.
 /// </summary>
-internal sealed class FormIssueActionService(IEnumerable<IStructuredRecordIssuer> issuers, IFormResponseReader records, IFormRuleReader definitions)
-    : IFormIssueActionService
+internal sealed class FormIssueActionService(IEnumerable<IStructuredRecordIssuer> issuers, IFormResponseReader records, IFormRuleReader definitions,
+    IEnumerable<IStructuredRecordActionChannel> channels, IFormActionRecipientReader recipients) : IFormIssueActionService
 {
     public async Task<FormActionOutcomeResponse> ExecuteAsync(FormActionWorkResponse work, CancellationToken cancellationToken)
     {
@@ -30,7 +32,25 @@ internal sealed class FormIssueActionService(IEnumerable<IStructuredRecordIssuer
         if (status.State == StructuredIssueState.NeedsReview && work.DeliveryReview is { } review)
             status = await issuer.ReviewAsync(work.RunId, new StructuredIssueReview(work.PriorIssue?.Revision ?? status.Revision, review.WasSent,
                 review.ReviewedByUserId, review.ReviewedAtUtc), cancellationToken);
+        if (status is { State: StructuredIssueState.Pending, WaitingForProvider: true, WaitingNotice: { } notice })
+            await NoticeAsync(work, notice, cancellationToken);
         return Outcome(status);
+    }
+
+    private async Task NoticeAsync(FormActionWorkResponse work, IReadOnlyDictionary<string, string> notice, CancellationToken cancellationToken)
+    {
+        var record = await records.FindRecordAsync(work.RecordId, cancellationToken)
+            ?? throw new InvalidOperationException("The action response is missing.");
+        var author = record.Actor.UserId;
+        foreach (var channel in channels)
+        {
+            if (!await channel.CanReachAsync(author, cancellationToken)) continue;
+            if ((await channel.GetAsync(work.RunId, author, cancellationToken)).State != StructuredRecordActionState.NotFound) return;
+            var culture = (await recipients.FindAsync(author, cancellationToken))?.Culture;
+            var body = culture is not null && notice.TryGetValue(culture, out var text) ? text : notice.Values.First();
+            await channel.EnqueueAsync(new StructuredRecordActionMessage(work.RunId, author, body), cancellationToken);
+            return;
+        }
     }
 
     private async Task<StructuredIssueRequest?> RequestAsync(FormActionWorkResponse work, IStructuredRecordIssuer issuer, CancellationToken cancellationToken)

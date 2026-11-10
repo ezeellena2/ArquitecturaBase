@@ -31,11 +31,12 @@ public sealed record StructuredIssueRequest(Guid RunId, Guid RecordId, IReadOnly
 /// Where an issuance stands. Pending: queued, or waiting for the provider when WaitingForProvider; asked again at NextCheckAtUtc.
 /// Issued: with its result and, if it has one, its private document. Rejected: refused with a stable FailureCode, and CanRetry
 /// when nothing was queued. NeedsReview: a person decides, with the stable ReviewReason and the Revision the decision expects.
-/// Cancelled: it will not be issued.
+/// Cancelled: it will not be issued. WaitingNotice, by language, is what whoever loaded the response is told once while it waits.
 /// </summary>
 public sealed record StructuredIssueResponse(StructuredIssueState State, string? FailureCode = null, bool CanRetry = false,
     bool WaitingForProvider = false, DateTime? NextCheckAtUtc = null, string? ReviewReason = null, long Revision = 0,
-    StructuredRecordResult? Result = null, StructuredRecordActionDocument? Document = null)
+    StructuredRecordResult? Result = null, StructuredRecordActionDocument? Document = null,
+    IReadOnlyDictionary<string, string>? WaitingNotice = null)
 {
     public override string ToString() => $"StructuredIssueResponse {{ State = {State}, Content = [REDACTED] }}";
 }

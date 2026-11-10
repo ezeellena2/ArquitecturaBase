@@ -11,4 +11,6 @@
   <data name="Result.total" xml:space="preserve"><value>Total</value></data>
   <data name="Voucher.Invoice" xml:space="preserve"><value>Factura {0}</value></data>
   <data name="Voucher.CreditNote" xml:space="preserve"><value>Nota de crédito {0}</value></data>
+  <data name="Notice.WaitingInvoice" xml:space="preserve"><value>ARCA no responde. Tu factura sale apenas vuelva.</value></data>
+  <data name="Notice.WaitingCreditNote" xml:space="preserve"><value>ARCA no responde. Tu nota de crédito sale apenas vuelva.</value></data>
 </root>
