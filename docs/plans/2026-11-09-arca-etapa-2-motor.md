@@ -160,7 +160,7 @@ Cada tarea con su test en rojo primero, el build y los tests rápidos del área,
    `FormRecordAnswerPolicy` (3c15292e).
 5. ~~La carga: `calculation` en `GET /api/forms/entries/{definitionId}` y en la corrección.~~ Hecho (3c15292e).
 6. WhatsApp sin los cálculos, más el prellenado, las sugerencias y la IA. Va junto con la tarea 28 en un solo perfil r13, para cambiar fixtures y probar con Meta una vez.
-7. La alícuota desde un catálogo con valor numérico.
+7. ~~La alícuota desde un catálogo con valor numérico.~~ Hecho (ed3ef5bc).
 8. Front (después de la prueba integral): el editor, la vista previa en la página, el panel y la tabla del bloque.
 
 **Resultado externo**
@@ -176,7 +176,8 @@ Cada tarea con su test en rojo primero, el build y los tests rápidos del área,
 
 15. ~~BI1: tablero y decisión.~~ Hecho: BI1-A.
 16. ~~El puerto de estándares y `GET api/forms/library`.~~ Hecho (e2cb8606).
-17. ~~«Agregar»: la copia con su origen sellado y su migración.~~ Hecho (e2cb8606); un catálogo que trae el propio estándar, cuando la etapa 3 lo necesite.
+17. ~~«Agregar»: la copia con su origen sellado y su migración.~~ Hecho (e2cb8606); el catálogo propio del estándar, en 4f49f161
+    (la etapa 3 eligió que «Clientes» lo cree la biblioteca).
 18. ~~Las preguntas atadas en el guardado y en la lectura del borrador.~~ Hecho (e2cb8606).
 19. Front: la pantalla «Biblioteca», «Agregar» y el candado en el editor.
 
@@ -191,8 +192,8 @@ Cada tarea con su test en rojo primero, el build y los tests rápidos del área,
 **Condiciones**
 
 25. ~~CO1: tablero y decisión.~~ Hecho: CO1-A.
-26. El borrador y publicar.
-27. La captura y la carga.
+26. ~~El borrador y publicar.~~ Hecho (0520a9bf).
+27. ~~La captura y la carga.~~ Hecho (0520a9bf).
 28. WhatsApp con un `If`, junto con la tarea 6 en el perfil r13, con prueba con Meta.
 29. Front: el editor y la carga.
 
