@@ -125,6 +125,12 @@ estos.
 Para revocarla, la empresa va a «Administrador de Relaciones de Clave Fiscal» › «Consultar» › «Representantes del
 Usuario» › «Revocar». La próxima prueba deja la conexión en «Requiere atención».
 
+## Conectar con el robot
+
+Con el robot prendido en la instalación, el alta ofrece también «Delegación automática»: el cliente pone una sola vez su
+clave fiscal y el robot hace los pasos de los dos lados, incluido el certificado de la plataforma. Cómo prenderlo, la
+imagen con Chromium y qué hacer cuando se rompe están en [correr y mantener el robot](robot-arca.md).
+
 ## Renovar el certificado
 
 Treinta días antes del vencimiento, la pantalla avisa en amarillo; vencido, en rojo, y la conexión pasa a «Requiere

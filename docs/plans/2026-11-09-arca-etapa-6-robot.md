@@ -1,6 +1,9 @@
 # ARCA · Etapa 6: delegación con robot
 
-Plan del 2026-11-09, decidido el mismo día (RB1-A a RB5-A, con la revisión legal confirmada) y sin programar. Es la etapa 6
+Plan del 2026-11-09, decidido el mismo día (RB1-A a RB5-A, con la revisión legal confirmada). El backend quedó programado
+el mismo día: la regla vigente está en [ARCA](../features/arca.md#delegación-con-robot-modo-3) y la operación en
+[correr y mantener el robot](../guides/robot-arca.md). Faltan el front, que espera la prueba integral, y la corrida real
+con las cuentas del usuario. Es la etapa 6
 de la [hoja de ruta de ARCA](2026-10-31-arca-formularios-estandar.md) y el modo 3 de acceso: un robot propio, con
 Playwright para .NET, hace en la página de ARCA lo que en la etapa 5 se hace a mano. El cliente entra una sola vez con su
 clave fiscal; ni él ni el dueño de la plataforma tienen que entrar después a ARCA para crear el certificado, delegar,
@@ -64,8 +67,8 @@ lo que commitee.
 ### Del lado del cliente
 
 1. En «Datos», donde la etapa 5 ofrece cómo conectarse, aparece «Delegación automática» sólo si el robot está prendido en
-   la instalación. Al seguir, la app genera el pedido del certificado de la plataforma (como en la etapa 5) y el robot
-   empieza a crear el certificado con la clave de la plataforma, sin esperar al cliente.
+   la instalación. Al seguir, la app genera el pedido del certificado de la plataforma (como en la etapa 5). Cuando el
+   cliente pone su clave, el robot empieza los dos lados a la vez: el certificado no espera a que el cliente delegue.
 2. **Consentimiento e ingreso** (RB1-A): «Entrás con», la clave fiscal y la casilla. Si quien entra no es la empresa, el
    robot elige la empresa en «Representar a». El campo de la clave se vacía al enviar.
 3. **Avance** (RB2-A): los pasos con su estado, hasta que la detección de la etapa 5 confirma la delegación. Se puede
@@ -202,7 +205,7 @@ Bajo `api/arca/connection`, con `arca.read` y `arca.manage`:
 
 - El contrato de entrada sobrescribe `ToString()` y oculta la CUIT y la clave.
 - Sin el robot prendido, el `POST` responde con un error propio (`Arca.Connection.RobotDisabled`).
-- `GET api/arca/connection` dice si el robot está prendido, para ofrecer el modo.
+- `GET …/robot-runs/current` dice también si el robot está prendido (`enabled`), para ofrecer el modo.
 
 ## Front
 
@@ -228,11 +231,11 @@ corrida está en curso.
 ## Cortes
 
 1. **Diseño:** este plan, el ADR 0026, los tableros RB1 a RB3 y las decisiones. Hecho el 2026-11-09.
-2. **Backend, la corrida:** el modelo, el servicio, el contrato HTTP y el trabajo de la plataforma, con un robot falso.
-   Arranca cuando la etapa 5 haya commiteado su backend (el alta en modo delegación, el certificado de la plataforma y la
-   detección).
-3. **Backend, el robot:** Playwright contra las páginas simuladas, de los dos lados, y el aviso.
-4. **Despliegue:** la imagen con Chromium y la guía para correr y mantener el robot.
+2. **Backend, la corrida:** el modelo, el servicio, el contrato HTTP y el trabajo de la plataforma. Hecho el 2026-11-09,
+   después del backend de la etapa 5 (aec47d2d).
+3. **Backend, el robot:** Playwright contra las páginas simuladas, de los dos lados, y el aviso. Hecho el 2026-11-09.
+4. **Despliegue:** Chromium en el workflow y la receta de la imagen en la guía del robot. Hecho el 2026-11-09; la receta se
+   prueba la primera vez que una instalación prenda el robot.
 5. **Front,** después de la prueba integral y del front de la etapa 5.
 6. **Cierre:** la verificación de cierre de `AGENTS.md`, `features/arca.md` al día, la fila de la etapa 6 en la hoja de
    ruta, la auditoría que retira este plan y el traspaso al multitenant ofrecido.

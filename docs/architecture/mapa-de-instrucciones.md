@@ -115,8 +115,8 @@ El módulo [ARCA](../decisions/0023-arca-como-modulo-opcional.md), ordenado por 
 | --- | --- |
 | [Domain/Modules/Arca](../../src/ArquitecturaBase.Domain/Modules/Arca/AGENTS.md) | Permisos, entidades y errores; una carpeta por familia y los errores en la raíz. |
 | [Application/Modules/Arca](../../src/ArquitecturaBase.Application/Modules/Arca/AGENTS.md) | Permisos y textos; puertos, modelos y servicios con una carpeta por familia debajo de cada carpeta de capa. |
-| [Api/Modules/Arca](../../src/ArquitecturaBase.Api/Modules/Arca/AGENTS.md) | Rutas de la conexión, el padrón y la facturación, con permisos y límites por operador. |
-| [Infrastructure/Modules/Arca](../../src/ArquitecturaBase.Infrastructure/Modules/Arca/AGENTS.md) | Anillo propio, opciones por ambiente y servicio, clientes HTTP por familia sin reintentos globales; WSAA, ticket compartido, clientes del padrón y de WSFEv1, persistencia y locks por familia. |
+| [Api/Modules/Arca](../../src/ArquitecturaBase.Api/Modules/Arca/AGENTS.md) | Rutas de la conexión, el robot de delegación, el padrón y la facturación, con permisos y límites por operador. |
+| [Infrastructure/Modules/Arca](../../src/ArquitecturaBase.Infrastructure/Modules/Arca/AGENTS.md) | Anillo propio, opciones por ambiente y servicio, clientes HTTP por familia sin reintentos globales; WSAA, ticket compartido, clientes del padrón y de WSFEv1, persistencia y locks por familia; el robot de delegación con Playwright. |
 | [Domain.UnitTests/Modules/Arca](../../tests/ArquitecturaBase.Domain.UnitTests/Modules/Arca/AGENTS.md) | Reglas puras por familia: CUIT, conexión, certificado, ticket, padrón y punto de venta. |
 | [Application.UnitTests/Modules/Arca](../../tests/ArquitecturaBase.Application.UnitTests/Modules/Arca/AGENTS.md) | Permisos, paridad de recursos y pruebas por familia. |
 | [Application.UnitTests/TestFeatures/Modules/Arca](../../tests/ArquitecturaBase.Application.UnitTests/TestFeatures/Modules/Arca/AGENTS.md) | Host con los servicios reales, almacén en memoria y familias de prueba. |

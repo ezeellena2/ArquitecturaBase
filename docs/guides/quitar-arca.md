@@ -49,11 +49,13 @@ revoque allá. El núcleo no nombra el módulo: WhatsApp, formularios e IA sigue
      sección anterior;
    - en el `.editorconfig` de la raíz, la sección
      `[src/ArquitecturaBase.Infrastructure/Modules/Arca/ArcaInfrastructureRegistration.cs]`, que suprime `EXTEXP0001`;
-   - las 19 claves `Arca.*` de `Errors.resx` y `Errors.en.resx`. Si queda una,
+   - las claves `Arca.*` de `Errors.resx` y `Errors.en.resx`. Si queda una,
      `ErrorCodeTests.Every_error_key_belongs_to_a_code_declared_in_domain` falla y la nombra;
    - la configuración externa `Arca:*` del host (user-secrets o variables `Arca__*`). Guardá una copia segura del anillo
      para backups viejos, fuera de Git.
-5. El módulo no agregó paquetes. `System.Security.Cryptography.Pkcs` queda sin uso directo, pero **no se quita**: es el
+5. El robot de delegación agregó `Microsoft.Playwright`: quitá su línea de `Directory.Packages.props` y de
+   `src/ArquitecturaBase.Infrastructure/ArquitecturaBase.Infrastructure.csproj`, y el paso «Instalar Chromium para el robot
+   de ARCA» de `.github/workflows/deploy.yml`. El resto del módulo no agregó paquetes. `System.Security.Cryptography.Pkcs` queda sin uso directo, pero **no se quita**: es el
    pin de seguridad de la dependencia transitiva de MailKit (MimeKit), y sin él la restauración falla con `NU1902` y
    `NU1903`.
 6. **Conservá todas las migraciones anteriores**: nombran las entidades con cadenas y compilan sin el módulo. Generá
@@ -64,8 +66,8 @@ revoque allá. El núcleo no nombra el módulo: WhatsApp, formularios e IA sigue
    dotnet ef migrations add RemoveArca --project src/ArquitecturaBase.Infrastructure --startup-project src/ArquitecturaBase.Api --output-dir Persistence/Migrations -- --environment Development --ConnectionStrings:appdb "Host=build;Database=build;Username=build;Password=build" --ConnectionStrings:cache "localhost:6379"
    ```
 
-   `Up` borra sólo las siete tablas del módulo: `ArcaAccessTickets`, `ArcaCertificates`, `ArcaInvoicingSettings`,
-   `ArcaRegistryCompanies`, `ArcaConnections`, `ArcaVouchers` y `ArcaVoucherSequences`. Si aparece otra tabla, algo se borró de más. `Down` las recrea.
+   `Up` borra sólo las ocho tablas del módulo: `ArcaAccessTickets`, `ArcaCertificates`, `ArcaInvoicingSettings`,
+   `ArcaRegistryCompanies`, `ArcaRobotRuns`, `ArcaConnections`, `ArcaVouchers` y `ArcaVoucherSequences`. Si aparece otra tabla, algo se borró de más. `Down` las recrea.
 
    Después compilá, revisá que el modelo no tenga cambios pendientes y corré todos los tests:
 
@@ -139,6 +141,23 @@ git grep -nE '\bArca|\barca\b|\bARCA\b' -- . ':!docs' ':!src/ArquitecturaBase.In
 En el backend no devuelve nada: quedan sólo las migraciones, las anteriores y `RemoveArca`, que el filtro deja afuera. En el
 front, corré `git grep -nE '\bArca|\barca\b|\bARCA\b' -- src ':!src/test/fixtures'`: las capturas HTTP de
 `src/test/fixtures` pueden traer nombres generados por los tests, como `arca-3e26…`. Sin `-i`, para no encontrar «marca».
+
+## Quitar el robot de delegación
+
+El modo 3 se puede quitar sin tocar la delegación guiada ni las familias ([ADR 0026](../decisions/0026-robot-de-delegacion-arca.md)):
+
+1. Borrá `src/ArquitecturaBase.Infrastructure/Modules/Arca/Connection/Robot/`, el paso de Facturación
+   `Infrastructure/Modules/Arca/Invoicing/Robot/` y, en `ArcaInfrastructureRegistration`, `AddRobot` y la línea de
+   `ArcaPointOfSaleRobotStep`.
+2. En Application, borrá los servicios, puertos, modelos y opciones del robot (`ArcaRobot*`, `IArcaRobot*`,
+   `IArcaDelegationRobot`, `IArcaCompanyRobotQueue`, `ArcaFiscalKey`), sus líneas del registro y `Resources/Robot*.resx`;
+   en `ArcaAccessModePolicy`, el modo `PlatformDelegationAutomated` deja de ofrecerse.
+3. En Domain, `ArcaRobotRun` y `ArcaRobotSteps`, y los errores `Robot*` de `ArcaConnectionErrors` con sus claves de
+   `Errors.resx` y `Errors.en.resx`.
+4. En la Api, `ArcaRobotController` y `StartArcaRobotRunHttpRequest`; en las pruebas, `FakeArcaWeb`, `FakeArcaLogCapture`,
+   las clases `ArcaRobot*`, `ArcaDelegationRobotTests`, las rutas del robot en `ArcaTestModule` y sus `Arca:Robot:*`.
+5. El paquete y el paso del workflow, como en el paso 5 del módulo entero, y la sección `Arca:Robot` de la configuración.
+6. Generá la migración que borra `ArcaRobotRuns`, compilá y corré todos los tests.
 
 ## Una familia sola
 
