@@ -5,6 +5,8 @@ internal static class FormAdvisoryLockKeys
     public static readonly string PersonAttributes = "forms:person-attributes";
     public static string PersonData(Guid userId) => $"forms:person-data:{userId:N}";
     public static readonly string Definitions = "forms:definitions";
+    // CP1-A: every folder operation, after the other forms locks.
+    public static readonly string Folders = "forms:folders";
     public static string Request(Guid actor, Guid requestId) => $"forms:request:{actor:N}:{requestId:N}";
     public static string Catalog(Guid catalogId) => $"forms:catalog:{catalogId:N}";
     public static string Capture(Guid sourceReceiptId) => $"forms:capture:{sourceReceiptId:N}";

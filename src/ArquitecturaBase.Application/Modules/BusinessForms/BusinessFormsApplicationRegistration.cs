@@ -86,6 +86,16 @@ public static class BusinessFormsApplicationRegistration
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IStructuredRecordOriginSource, BusinessFormEntryOriginSource>());
         services.TryAddScoped<IFormDraftService, FormDraftService>();
         services.TryAddScoped<IFormLibraryService, FormLibraryService>();
+        services.TryAddScoped<IFormFolderService, FormFolderService>();
+        services.TryAddScoped<IFormFolderItemService, FormFolderItemService>();
+        services.TryAddScoped<IFormMenuService, FormMenuService>();
+        services.TryAddScoped<FormSystemFolderLinker>();
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<ListFormFoldersRequest>, ListFormFoldersRequestValidator>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<CreateFormFolderRequest>, CreateFormFolderRequestValidator>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<UpdateFormFolderRequest>, UpdateFormFolderRequestValidator>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<DeleteFormFolderRequest>, DeleteFormFolderRequestValidator>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<SetFormFolderMenuRequest>, SetFormFolderMenuRequestValidator>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<SetFormItemFoldersRequest>, SetFormItemFoldersRequestValidator>());
         services.TryAddScoped<IFormDraftProposalService, FormDraftProposalService>();
         services.TryAddScoped<FormDefinitionReadPolicy>();
         services.TryAddScoped<FormLifecycleAccessGuard>();

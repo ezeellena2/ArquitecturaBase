@@ -2022,6 +2022,103 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.ToTable("BusinessFormFields", (string)null);
                 });
 
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormFolder", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("MenuIcon")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<string>("MenuPlacement")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ModifiedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<Guid?>("ParentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("SystemKey")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SystemKey")
+                        .IsUnique()
+                        .HasFilter("\"SystemKey\" IS NOT NULL");
+
+                    b.HasIndex("ParentId", "NormalizedName")
+                        .IsUnique();
+
+                    NpgsqlIndexBuilderExtensions.AreNullsDistinct(b.HasIndex("ParentId", "NormalizedName"), false);
+
+                    b.ToTable("FormFolders", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_FormFolders_MenuIcon", "(\"MenuPlacement\" = 'Own') = (\"MenuIcon\" IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_FormFolders_MenuPlacement", "\"MenuPlacement\" IN ('None', 'Own', 'Forms', 'Administration')");
+                        });
+                });
+
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormFolderMembership", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("FolderId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ItemKind")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ItemKind", "ItemId");
+
+                    b.HasIndex("FolderId", "ItemKind", "ItemId")
+                        .IsUnique();
+
+                    b.ToTable("FormFolderMemberships", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_FormFolderMemberships_ItemKind", "\"ItemKind\" IN ('Form', 'Catalog')");
+                        });
+                });
+
             modelBuilder.Entity("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormMissingRequest", b =>
                 {
                     b.Property<Guid>("Id")
@@ -4654,6 +4751,23 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("DefinitionId")
                         .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormFolder", b =>
+                {
+                    b.HasOne("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormFolder", null)
+                        .WithMany()
+                        .HasForeignKey("ParentId")
+                        .OnDelete(DeleteBehavior.Cascade);
+                });
+
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormFolderMembership", b =>
+                {
+                    b.HasOne("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormFolder", null)
+                        .WithMany()
+                        .HasForeignKey("FolderId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 

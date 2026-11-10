@@ -78,10 +78,7 @@ internal sealed class FormOverviewReader(ApplicationDbContext db) : IFormOvervie
             .ThenBy(row => row.Name).ThenBy(row => row.Id);
     }
 
-    private IQueryable<BusinessFormDefinition> Definitions() => db.Set<BusinessFormDefinition>().AsNoTracking()
-        .Where(definition => definition.ActiveVersionId != null
-            && db.Set<BusinessFormPublicationOperation>().Any(operation => operation.DefinitionId == definition.Id
-                && operation.VersionId == definition.ActiveVersionId && operation.State == FormPublicationState.Published));
+    private IQueryable<BusinessFormDefinition> Definitions() => FormOverviewDefinitionQuery.Published(db);
 
     private sealed class OverviewRow
     {

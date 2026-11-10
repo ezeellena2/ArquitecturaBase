@@ -200,6 +200,15 @@
   <data name="Forms.Draft.BoundQuestionChanged" xml:space="preserve"><value>Esta pregunta la necesita el estándar del que viene el formulario: sólo se le cambian el texto, la ayuda y el orden.</value></data>
   <data name="Forms.Library.StandardNotFound" xml:space="preserve"><value>No está ese estándar en la biblioteca.</value></data>
   <data name="Forms.Library.CatalogUnavailable" xml:space="preserve"><value>Falta un catálogo que necesita el estándar.</value></data>
+  <data name="Forms.Folder.NotFound" xml:space="preserve"><value>No se encontró la carpeta.</value></data>
+  <data name="Forms.Folder.NameInvalid" xml:space="preserve"><value>Escribí un nombre de hasta 80 caracteres.</value></data>
+  <data name="Forms.Folder.NameTaken" xml:space="preserve"><value>Ya hay una carpeta con ese nombre en este lugar.</value></data>
+  <data name="Forms.Folder.TooDeep" xml:space="preserve"><value>Las carpetas llegan hasta cinco niveles.</value></data>
+  <data name="Forms.Folder.Cycle" xml:space="preserve"><value>Una carpeta no puede ir adentro de sí misma ni de sus subcarpetas.</value></data>
+  <data name="Forms.Folder.IconInvalid" xml:space="preserve"><value>Ese ícono no está en la lista o la carpeta no es un menú propio.</value></data>
+  <data name="Forms.Folder.RevisionConflict" xml:space="preserve"><value>La carpeta cambió. Recargala e intentá de nuevo.</value></data>
+  <data name="Forms.Folder.SetChanged" xml:space="preserve"><value>Las carpetas de este elemento cambiaron. Recargalas e intentá de nuevo.</value></data>
+  <data name="Forms.Folder.RequestInvalid" xml:space="preserve"><value>El pedido de carpetas no es válido.</value></data>
   <data name="Forms.Definition.Forbidden" xml:space="preserve"><value>No tenés el permiso necesario para este formulario.</value></data>
   <data name="Forms.Definition.NotFound" xml:space="preserve"><value>No se encontró el formulario.</value></data>
   <data name="Forms.Definition.PrefixLocked" xml:space="preserve"><value>El prefijo ya no se puede cambiar.</value></data>

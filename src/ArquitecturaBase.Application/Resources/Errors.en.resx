@@ -200,6 +200,15 @@
   <data name="Forms.Draft.BoundQuestionChanged" xml:space="preserve"><value>The standard this form comes from needs this question: only its text, help and order can change.</value></data>
   <data name="Forms.Library.StandardNotFound" xml:space="preserve"><value>That standard is not in the library.</value></data>
   <data name="Forms.Library.CatalogUnavailable" xml:space="preserve"><value>A catalog the standard needs is missing.</value></data>
+  <data name="Forms.Folder.NotFound" xml:space="preserve"><value>The folder was not found.</value></data>
+  <data name="Forms.Folder.NameInvalid" xml:space="preserve"><value>Enter a name of up to 80 characters.</value></data>
+  <data name="Forms.Folder.NameTaken" xml:space="preserve"><value>A folder with that name already exists here.</value></data>
+  <data name="Forms.Folder.TooDeep" xml:space="preserve"><value>Folders go up to five levels.</value></data>
+  <data name="Forms.Folder.Cycle" xml:space="preserve"><value>A folder cannot go inside itself or one of its subfolders.</value></data>
+  <data name="Forms.Folder.IconInvalid" xml:space="preserve"><value>That icon is not in the list or the folder is not its own menu.</value></data>
+  <data name="Forms.Folder.RevisionConflict" xml:space="preserve"><value>The folder changed. Reload it and try again.</value></data>
+  <data name="Forms.Folder.SetChanged" xml:space="preserve"><value>The folders of this item changed. Reload them and try again.</value></data>
+  <data name="Forms.Folder.RequestInvalid" xml:space="preserve"><value>The folder request is not valid.</value></data>
   <data name="Forms.Definition.Forbidden" xml:space="preserve"><value>You do not have the required form permission.</value></data>
   <data name="Forms.Definition.NotFound" xml:space="preserve"><value>The form was not found.</value></data>
   <data name="Forms.Definition.PrefixLocked" xml:space="preserve"><value>The prefix can no longer be changed.</value></data>
