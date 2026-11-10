@@ -296,4 +296,19 @@ modo Asistente automático y con permiso, con un tope de 10 MiB por lo declarado
 `whatsapp/documents/{id}` y lo preparado vencen con el cuerpo del mensaje (migración `AddWhatsAppInboundSpreadsheets`). Un rechazo
 se contesta una vez con su motivo. El chat del operador y la bandeja la siguen viendo como un archivo sin cuerpo, hasta la tarea 8.
 Unitarias 4449/4449, dominio 843/843, arquitectura 207/207 e integración 220/220 en las clases nuevas y tocadas. Queda para la
-prueba física con Meta confirmar que el `sha256` y el `mime_type` de un documento coinciden con los del webhook.
+prueba física con Meta confirmar que el `sha256` y el `mime_type` de un documento coinciden con los del webhook. La revisión no
+encontró nada bloqueante, y su corrección entró en 7aa0b24f:
+- el rechazo de una planilla ya no es un turno de la conversación ni una oferta sin resolver;
+- la planilla se baja antes de interpretar, y una pendiente hace sondear cada 2 s;
+- una excepción cuenta como falla;
+- el nombre del archivo se normaliza una sola vez, con uno por defecto;
+- un cambio de modo o de vínculo durante la descarga la deja no disponible.
+
+2026-11-10: tarea 7 hecha (ebef6d31). `WhatsAppAssistantSourcePolicy` decide la fuente y el emparejado. La referencia guarda qué
+planilla lleva (`AttachmentMessageId`, migración `AddWhatsAppAssistantAttachmentMessage`). El automático ofrece
+`propose-catalog@2` y `propose-import@1`: 16 definiciones con planilla y 15 sin ella. El resumen de un catálogo dice «Son N
+filas.», y el de importar trae «Revisar importación» y «Cambiar algo». El toque `review` contesta con el enlace
+`/catalogos/{id}?pedido=…&propuesta=…`, que arma BusinessForms. La pregunta con planilla tiene su texto, y crear desde un canal
+guarda el pedido en la evidencia. Unitarias 4505/4505, dominio 848/848, arquitectura 207/207 e integración de 17 clases (123/123).
+Si se reemplaza una interpretación que continuaba un «Cambiar algo» o una pregunta, la nueva arranca otra conversación del motor,
+porque el motor sólo continúa desde un turno terminado.
