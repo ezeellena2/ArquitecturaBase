@@ -282,4 +282,10 @@ subida. `FormCatalogAssistantImportPolicy` decide qué propuesta vale. Una copia
 `Forms.CatalogImport.SheetUnavailable` (409). El `GET assistant-import` devuelve la importación pendiente o `pending: null`. La
 hoja mapeada usa los encabezados de la plantilla y conserva el origen de cada celda. Unitarias 4417/4417, arquitectura 207/207,
 dominio 821/821 e integración 73/73 en las clases tocadas. Las capturas de las cohortes de importación y de propuestas van con la
-tarea 9.
+tarea 9. La revisión no encontró nada bloqueante, y su corrección entró en f56af5c6:
+- el `GET` de la importación pendiente usa el cupo de lectura y no abre la copia;
+- una columna de un campo que ya no está activo se avisa como `UnknownColumn`;
+- sin administrar catálogos no hay importación pendiente;
+- la regla de «fila con contenido» queda en un solo lugar, `FormSpreadsheetContentPolicy`.
+
+Unitarias 4421/4421 e integración 116/116.
