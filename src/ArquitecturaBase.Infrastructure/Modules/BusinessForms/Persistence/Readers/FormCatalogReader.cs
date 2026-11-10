@@ -83,7 +83,8 @@ internal sealed partial class FormCatalogReader(ApplicationDbContext dbContext) 
 
     private IQueryable<BusinessFormCatalog> FilterCatalogs(ListFormCatalogsRequest request, string nameColumn, string descriptionColumn)
     {
-        var query = dbContext.Set<BusinessFormCatalog>().AsNoTracking();
+        // CP1-A: the folder also bounds the counts by origin, which reuse this filter.
+        var query = dbContext.Set<BusinessFormCatalog>().AsNoTracking().InFolder(dbContext, request.FolderId, request.WithoutFolder);
         if (request.Kind is not null) query = query.Where(value => value.Kind.ToString() == request.Kind);
         query = request.State switch
         {

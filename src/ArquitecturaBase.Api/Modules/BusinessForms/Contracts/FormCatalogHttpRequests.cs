@@ -39,7 +39,7 @@ public sealed record FormCatalogManualItemHttpRequest(
 }
 
 public sealed record FormCatalogsQuery(int Page = 1, int PageSize = 20, string? Sort = null, string? Search = null,
-    string? Kind = null, string? State = null);
+    string? Kind = null, string? State = null, Guid? FolderId = null, bool WithoutFolder = false);
 
 public sealed record FormCatalogItemsQuery(int Page = 1, int PageSize = 20, string? Sort = null, string? Search = null, bool? IsActive = null,
     IReadOnlyList<Guid>? Ids = null);

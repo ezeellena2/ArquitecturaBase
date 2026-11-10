@@ -47,5 +47,5 @@ internal sealed class FormDefinitionReadPolicy(IFormDefinitionReader reader, IFo
             row.AppOnly ? true : null)).ToArray(), page.Page, page.PageSize, page.TotalCount);
     }
     public Task<FormChangeStoredRow?> FindChangeAsync(Guid actor, Guid requestId, CancellationToken ct) => reader.FindChangeAsync(actor, requestId, ct);
-    public Task<FormDefinitionCounts> CountFacetsAsync(string? search, string culture, CancellationToken ct) => reader.CountFacetsAsync(search, culture, ct);
+    public Task<FormDefinitionCounts> CountFacetsAsync(ListFormDefinitionsRequest request, CancellationToken ct) => reader.CountFacetsAsync(request, ct);
 }

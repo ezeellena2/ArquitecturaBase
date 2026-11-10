@@ -123,7 +123,7 @@ internal sealed class FormDraftService(IFormDraftRepository repository, FormDefi
     {
         var access = await accessGuard.CheckAsync(false, cancellationToken); if (access.IsFailure) return access.Error;
         if (await validator.ValidateAsync(request, cancellationToken) is { } invalid) return invalid;
-        var counts = await reads.CountFacetsAsync(request.Search, DisplayCulture(), cancellationToken); return new FormDefinitionFacetsResponse(counts.Active, counts.Published, counts.Drafts, counts.Deactivated);
+        var counts = await reads.CountFacetsAsync(request with { DisplayCulture = DisplayCulture() }, cancellationToken); return new FormDefinitionFacetsResponse(counts.Active, counts.Published, counts.Drafts, counts.Deactivated);
     });
     private static string DisplayCulture() => CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es";
     private static FormChangeProtectionContext Context(BusinessFormDraftChange change) => new(change.Id, change.OperatorUserId,

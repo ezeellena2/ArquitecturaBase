@@ -41,7 +41,8 @@ internal sealed class FormOverviewReader(ApplicationDbContext db) : IFormOvervie
         var counted = db.Set<BusinessFormRecord>().Where(record => record.ReplacedByRecordId == null && record.State != FormRecordState.Voided)
             .OrderByDescending(record => record.Number);
         var mine = counted.Where(record => record.ActorUserId == actorUserId);
-        var query = from definition in Definitions()
+        // CP1-A: the folder filter goes before counting, so the segments and their counts stay inside the folder.
+        var query = from definition in Definitions().InFolder(db, request.FolderId, request.WithoutFolder)
                     join version in db.Set<BusinessFormVersion>().AsNoTracking().Where(version => version.PublishedCultures != null)
                         on definition.ActiveVersionId equals version.Id
                     select new OverviewRow

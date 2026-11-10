@@ -23,5 +23,5 @@ public sealed class FormOverviewController(IFormOverviewService service) : Contr
     [ProducesProblem(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> List([FromQuery] FormOverviewQuery query, CancellationToken cancellationToken) =>
         (await service.ListAsync(new() { Page = query.Page, PageSize = query.PageSize, Search = query.Search, Sort = query.Sort,
-            State = query.State, PendingOnly = query.PendingOnly }, cancellationToken)).ToActionResult(this);
+            State = query.State, PendingOnly = query.PendingOnly, FolderId = query.FolderId, WithoutFolder = query.WithoutFolder }, cancellationToken)).ToActionResult(this);
 }

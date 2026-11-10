@@ -70,5 +70,6 @@ public sealed class FormDefinitionsController(IFormDraftService service) : Contr
     private string PublicationRecoveryPath(Guid id, Guid requestId) => Url.Action(nameof(FormPublicationsController.Get), "FormPublications",
         new { id, requestId }) ?? throw new InvalidOperationException("The publication status route could not be generated.");
     private static ListFormDefinitionsRequest Map(ListFormDefinitionsQuery query) => new()
-        { Page = query.Page, PageSize = query.PageSize, Search = query.Search, Sort = query.Sort, PublicationFilter = query.PublicationFilter };
+        { Page = query.Page, PageSize = query.PageSize, Search = query.Search, Sort = query.Sort, PublicationFilter = query.PublicationFilter,
+            FolderId = query.FolderId, WithoutFolder = query.WithoutFolder };
 }

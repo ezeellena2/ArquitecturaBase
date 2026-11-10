@@ -15,6 +15,8 @@ internal sealed class ListFormCatalogsRequestValidator : PagedRequestValidator<L
         RuleFor(request => request.State)
             .Must(value => value is null or "Active" or "Inactive" or "Unavailable")
             .WithMessage(_ => ValidationMessages.FormCatalogStateInvalid);
+        RuleFor(request => request.FolderId).Must((request, folderId) => folderId != Guid.Empty && !(folderId is not null && request.WithoutFolder))
+            .WithMessage(_ => ErrorMessages.Get(FormFolderErrors.RequestInvalid.Code));
     }
 }
 

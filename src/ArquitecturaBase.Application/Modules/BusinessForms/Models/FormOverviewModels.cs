@@ -7,6 +7,9 @@ public sealed record ListFormOverviewRequest : PagedRequest
     public static readonly IReadOnlyCollection<string> SortableFields = [];
     public string State { get; init; } = "Active";
     public bool PendingOnly { get; init; }
+    // CP1-A: a folder with its subfolders, or the items without a folder (WithoutFolder).
+    public Guid? FolderId { get; init; }
+    public bool WithoutFolder { get; init; }
 }
 
 public sealed record FormOverviewResponse(PagedResult<FormOverviewFormResponse> Forms, FormOverviewCounts FilterCounts);

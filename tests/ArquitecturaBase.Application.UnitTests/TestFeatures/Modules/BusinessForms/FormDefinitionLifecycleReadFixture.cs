@@ -64,7 +64,7 @@ internal sealed class FormDefinitionLifecycleReadFixture : IFormDefinitionReader
             { DeprecationState = DeprecationState, DeprecatedAtUtc = DeprecatedAtUtc }).ToArray());
     }
     public Task<FormChangeStoredRow?> FindChangeAsync(Guid actor, Guid requestId, CancellationToken ct) => throw new NotSupportedException();
-    public Task<FormDefinitionCounts> CountFacetsAsync(string? search, string culture, CancellationToken ct) => throw new NotSupportedException();
+    public Task<FormDefinitionCounts> CountFacetsAsync(ListFormDefinitionsRequest request, CancellationToken ct) => throw new NotSupportedException();
     public Task<IReadOnlyList<FormIncomingSuggestionResponse>> ListIncomingSuggestionsAsync(Guid id, CancellationToken ct) => throw new NotSupportedException();
     private static DateTime AtUtc => new(2026, 10, 20, 12, 0, 0, DateTimeKind.Utc);
 }

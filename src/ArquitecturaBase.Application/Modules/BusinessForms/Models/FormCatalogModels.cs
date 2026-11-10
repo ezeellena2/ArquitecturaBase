@@ -10,6 +10,9 @@ public sealed record ListFormCatalogsRequest : PagedRequest
     public string? Kind { get; init; }
     public string? State { get; init; }
     public string DisplayCulture { get; init; } = "es";
+    // CP1-A: a folder with its subfolders, or the items without a folder (WithoutFolder).
+    public Guid? FolderId { get; init; }
+    public bool WithoutFolder { get; init; }
 }
 
 public sealed record ListFormCatalogItemsRequest : PagedRequest

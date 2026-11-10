@@ -12,5 +12,7 @@ internal sealed class ListFormOverviewRequestValidator : PagedRequestValidator<L
     {
         RuleFor(request => request.State).Must(state => state is "Active" or "Deactivated")
             .WithMessage(_ => ErrorMessages.Get(FormRecordErrors.FilterInvalid.Code));
+        RuleFor(request => request.FolderId).Must((request, folderId) => folderId != Guid.Empty && !(folderId is not null && request.WithoutFolder))
+            .WithMessage(_ => ErrorMessages.Get(FormFolderErrors.RequestInvalid.Code));
     }
 }

@@ -63,7 +63,7 @@ internal sealed class FormDefinitionReader(ApplicationDbContext dbContext, IForm
             ["questionCount"] = row => row.Definition.QuestionCount,
             ["lastChangedAtUtc"] = row => row.LastChangedAtUtc,
         };
-        var definitions = Search(request.Search, request.DisplayCulture);
+        var definitions = Search(request.Search, request.DisplayCulture).InFolder(dbContext, request.FolderId, request.WithoutFolder);
         if (request.PublicationFilter == "Deactivated") definitions = definitions.Where(definition => definition.DeactivatedAtUtc != null);
         else definitions = definitions.Where(definition => definition.DeactivatedAtUtc == null);
         if (request.PublicationFilter == "Published") definitions = definitions.Where(definition => definition.ActiveVersionId != null);
@@ -82,9 +82,9 @@ internal sealed class FormDefinitionReader(ApplicationDbContext dbContext, IForm
                     .Select(version => (bool?)version.AppOnly).SingleOrDefault() ?? row.Definition.AppOnly));
     }
 
-    public async Task<FormDefinitionCounts> CountFacetsAsync(string? search, string displayCulture, CancellationToken cancellationToken)
+    public async Task<FormDefinitionCounts> CountFacetsAsync(ListFormDefinitionsRequest request, CancellationToken cancellationToken)
     {
-        var counts = await Search(search, displayCulture).GroupBy(_ => 1).Select(group => new FormDefinitionCounts(
+        var counts = await Search(request.Search, request.DisplayCulture).InFolder(dbContext, request.FolderId, request.WithoutFolder).GroupBy(_ => 1).Select(group => new FormDefinitionCounts(
             group.Count(value => value.DeactivatedAtUtc == null),
             group.Count(value => value.DeactivatedAtUtc == null && value.ActiveVersionId != null),
             group.Count(value => value.DeactivatedAtUtc == null && value.ActiveVersionId == null),

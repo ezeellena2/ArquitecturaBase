@@ -120,7 +120,8 @@ public sealed class FormCatalogsController(IFormCatalogService service, IFormCat
         request.Items?.Select(Map).ToArray(), request.ValueType, request.Fields?.Select(Map).ToArray(), Map(request.Presentation));
 
     private static ListFormCatalogsRequest Map(FormCatalogsQuery query) => new()
-        { Page = query.Page, PageSize = query.PageSize, Sort = query.Sort, Search = query.Search, Kind = query.Kind, State = query.State };
+        { Page = query.Page, PageSize = query.PageSize, Sort = query.Sort, Search = query.Search, Kind = query.Kind, State = query.State,
+            FolderId = query.FolderId, WithoutFolder = query.WithoutFolder };
 
     private static ListFormCatalogItemsRequest Map(FormCatalogItemsQuery query) => new()
         { Page = query.Page, PageSize = query.PageSize, Sort = query.Sort, Search = query.Search, IsActive = query.IsActive, Ids = query.Ids ?? [] };

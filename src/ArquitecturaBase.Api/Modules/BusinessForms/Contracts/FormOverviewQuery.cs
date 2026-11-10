@@ -10,5 +10,8 @@ public sealed record FormOverviewQuery
     public string? Sort { get; init; }
     public string State { get; init; } = "Active";
     public bool PendingOnly { get; init; }
+    // CP1-A: a folder with its subfolders, or the forms without a folder.
+    public Guid? FolderId { get; init; }
+    public bool WithoutFolder { get; init; }
     public override string ToString() => "FormOverviewQuery { Content = [REDACTED] }";
 }

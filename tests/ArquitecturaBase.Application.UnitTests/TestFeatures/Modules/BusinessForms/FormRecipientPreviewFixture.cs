@@ -55,7 +55,7 @@ internal sealed class FormRecipientPreviewFixture : IFormDefinitionReader, IForm
     public Task<FormPublicationOverviewResponse> FindPublicationAsync(Guid id, Guid? actor, CancellationToken ct) => throw new NotSupportedException();
     public Task<FormChangeStoredRow?> FindChangeAsync(Guid actor, Guid requestId, CancellationToken ct) => throw new NotSupportedException();
     public Task<PagedResult<FormDefinitionListStoredRow>> ListAsync(ListFormDefinitionsRequest request, CancellationToken ct) => throw new NotSupportedException();
-    public Task<FormDefinitionCounts> CountFacetsAsync(string? search, string culture, CancellationToken ct) => throw new NotSupportedException();
+    public Task<FormDefinitionCounts> CountFacetsAsync(ListFormDefinitionsRequest request, CancellationToken ct) => throw new NotSupportedException();
     public Task<IReadOnlyList<FormCatalogFilterChoiceResponse>> ListRolesAsync(CancellationToken ct) => throw new NotSupportedException();
     public Task<FormCatalogFilterPreviewResponse> FindPreviewAsync(Guid id, FormCatalogFilterDefinition filters, CancellationToken ct) => throw new NotSupportedException();
 }

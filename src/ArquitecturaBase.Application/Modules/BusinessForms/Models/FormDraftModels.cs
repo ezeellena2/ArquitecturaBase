@@ -131,6 +131,9 @@ public sealed record ListFormDefinitionsRequest : PagedRequest
     public static IReadOnlyCollection<string> SortableFields { get; } = ["name", "questionCount", "lastChangedAtUtc"];
     public string PublicationFilter { get; init; } = "Active";
     public string DisplayCulture { get; init; } = "es";
+    // CP1-A: a folder with its subfolders, or the items without a folder (WithoutFolder).
+    public Guid? FolderId { get; init; }
+    public bool WithoutFolder { get; init; }
 }
 public sealed record FormDefinitionStoredRow(Guid Id, string NameJson, string Prefix, bool PrefixLocked, long Revision,
     string Culture, string SubmitLabelJson, string SchemaJson, DateTime CreatedAtUtc, DateTime? ModifiedAtUtc, DateTime LastChangedAtUtc, FormAuthorResponse? Author, string? OfferWhen = null,

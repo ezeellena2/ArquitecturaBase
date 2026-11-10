@@ -73,7 +73,7 @@ public sealed class FormDraftOperationLoggingTests
 
     private sealed class StubFormDefinitionReader : IFormDefinitionReader
     {
-        public Task<FormDefinitionCounts> CountFacetsAsync(string? search, string displayCulture, CancellationToken cancellationToken) =>
+        public Task<FormDefinitionCounts> CountFacetsAsync(ListFormDefinitionsRequest request, CancellationToken cancellationToken) =>
             Task.FromResult(new FormDefinitionCounts(4, 1, 3, 0));
 
         public Task<FormChangeStoredRow?> FindChangeAsync(Guid actor, Guid requestId, CancellationToken cancellationToken) => throw new NotImplementedException();
