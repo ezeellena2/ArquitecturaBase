@@ -49,6 +49,9 @@ public sealed record AiAssistantTurnResponse(Guid TurnId, Guid ConversationId, G
     // Only a dictated turn (IA4) carries its audio and the transcript the model read; a typed one keeps its shape.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public AiAssistantTurnAudioResponse? Audio { get; init; }
+    // Only the turn that brought a spreadsheet (Stage 2) shows it; the turns that inherit it keep their shape.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public AiAssistantTurnAttachmentResponse? Attachment { get; init; }
     [JsonIgnore]
     public AssistantObservedProposal? ObservedProposal { get; init; }
     [JsonIgnore]
@@ -58,3 +61,7 @@ public sealed record AiAssistantTurnResponse(Guid TurnId, Guid ConversationId, G
 
 public sealed record AiAssistantTurnAudioResponse(Guid RequestId, string Transcript)
 { public override string ToString() => "AiAssistantTurnAudioResponse { Transcript = [REDACTED] }"; }
+
+/// <summary>The spreadsheet a Home turn brought, for its bubble: the file's name, its kind (xlsx or csv), its rows with content and its size.</summary>
+public sealed record AiAssistantTurnAttachmentResponse(string Name, string Kind, int Rows, long Size)
+{ public override string ToString() => "AiAssistantTurnAttachmentResponse { Name = [REDACTED] }"; }

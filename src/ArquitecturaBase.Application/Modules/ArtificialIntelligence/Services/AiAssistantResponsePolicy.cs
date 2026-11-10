@@ -27,6 +27,13 @@ internal sealed class AiAssistantResponsePolicy(IAiConversationProtector protect
         if (plaintext.Trim().Length == 0 && question.ProtectedTranscript is { } protectedTranscript)
             plaintext = protector.Unprotect(row.OwnerUserId, row.Id, question.TurnId, "transcript", question.PayloadRevision, protectedTranscript);
         if (plaintext is null) return AiAssistantErrors.ContentUnavailable;
+        // A first turn with neither written nor dictated text is named after the file of its spreadsheet (Stage 2).
+        if (plaintext.Trim().Length == 0 && question.ProtectedAttachment is { } protectedAttachment)
+        {
+            plaintext = AiAssistantAttachmentPolicy.Read(protector.Unprotect(row.OwnerUserId, row.Id, question.TurnId,
+                AiAssistantAttachmentPolicy.Purpose, question.PayloadRevision, protectedAttachment))?.Name;
+            if (plaintext is null) return AiAssistantErrors.ContentUnavailable;
+        }
         var title = AiAssistantConversationTitlePolicy.Normalize(plaintext);
         return title.Length == 0 ? AssistantTexts.Get("Conversation.Title") : title;
     }
@@ -40,6 +47,7 @@ internal sealed class AiAssistantResponsePolicy(IAiConversationProtector protect
         AssistantObservedProposal? proposal = null;
         AssistantNormalizedAudio? normalizedAudio = null;
         AiAssistantTurnAudioResponse? audio = null;
+        AiAssistantTurnAttachmentResponse? attachment = null;
         IReadOnlyList<SystemQueryEvidence> evidences = [];
         if (access == "allowed")
         {
@@ -50,6 +58,13 @@ internal sealed class AiAssistantResponsePolicy(IAiConversationProtector protect
                 var transcript = Reveal(row, "transcript", protectedTranscript);
                 if (transcript is null) return AiAssistantErrors.ContentUnavailable;
                 audio = new AiAssistantTurnAudioResponse(audioRequestId, transcript);
+            }
+            // Only the turn that brought a spreadsheet shows it; the next ones inherit it for the model, not for the thread.
+            if (row.ProtectedAttachment is { } protectedAttachment && AiAssistantHomeAttachmentPolicy.IsOwn(row.AttachmentKey, row.RequestId))
+            {
+                var stored = AiAssistantAttachmentPolicy.Read(Reveal(row, AiAssistantAttachmentPolicy.Purpose, protectedAttachment));
+                if (stored is null) return AiAssistantErrors.ContentUnavailable;
+                attachment = AiAssistantHomeAttachmentPolicy.Response(stored);
             }
             if (row.ProtectedAnswer is { } protectedAnswer)
             {
@@ -86,7 +101,7 @@ internal sealed class AiAssistantResponsePolicy(IAiConversationProtector protect
             row.Revision, State(row.State), row.Stage, access, question, answer, evidences, failure, usage,
             row.Culture, row.TimeZoneId, row.SubmittedAtUtc, now, pollingAfterSeconds)
         {
-            CancelRequestedAtUtc = row.CancelRequestedAtUtc, ObservedProposal = proposal, NormalizedAudio = normalizedAudio, Audio = audio,
+            CancelRequestedAtUtc = row.CancelRequestedAtUtc, ObservedProposal = proposal, NormalizedAudio = normalizedAudio, Audio = audio, Attachment = attachment,
             Proposal = proposal is null ? null : new AiAssistantProposalResponse(proposal.Id, proposal.Capability.Id, proposal.Capability.Version,
                 JsonSerializer.SerializeToElement(proposal.Payload, proposal.Payload.GetType(), JsonOptions)),
         };

@@ -42,4 +42,4 @@ NormalizeAudio convierte las excepciones de almacenamiento no canceladas (inclui
 
 Retención física: Inicio conserva la retirada explícita; otros canales no la necesitan cuando vencieron contenido y recibos y no hay turnos activos. La consulta usa ConversationId de recibos independientes, sin FK/cascade ni inferencia desde el vencimiento del turno.
 
-AttachmentKey del turno tiene un índice filtrado para la retención de la copia de una planilla; el repositorio da el último turno de la conversación con planilla para heredarla. Lo cifrado se proyecta sólo con la conversación activa.
+AttachmentKey del turno tiene un índice filtrado para la retención de la copia de una planilla; el repositorio da el último turno de la conversación con planilla para heredarla, y el lector, las claves que algún turno con contenido todavía tiene. Lo cifrado se proyecta sólo con la conversación activa.

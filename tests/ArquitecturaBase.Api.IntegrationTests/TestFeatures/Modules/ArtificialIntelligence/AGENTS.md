@@ -15,3 +15,5 @@ AiAssistantContractCapture escribe bytes HTTP intactos del asistente de Inicio s
 AudioTranscriptionHandler y AudioNormalizationFiles/Client son dobles técnicos sin red ni facturación; sus bytes ficticios prueban límites y preservación, nunca compatibilidad del codec real. El fixture común del coordinador permite Proposal o NormalizedAudio y sólo acredita coordinación, no persistencia PostgreSQL.
 
 AiAssistantContinuationProviderDouble propone y elige lo observado en cada operación y guarda los pedidos para leer la historia que recibió el proveedor; no acredita un modelo real.
+
+HomeAttachmentReader reemplaza el puerto neutral del dueño de las planillas para no importar otro módulo: deja adjuntar salvo a `Denied`, lee los bytes como texto CSV y rechaza `reject:<motivo>`. HomeAudioFiles guarda también esas copias en memoria, con WriteOnce.

@@ -67,6 +67,16 @@ internal sealed class AiAssistantReader(ApplicationDbContext dbContext, TimeProv
             .Select(turn => turn.AudioRequestId!.Value).Distinct().ToArrayAsync(cancellationToken);
     }
 
+    // A copy stays while a turn that has it, its own or inherited, keeps its content; the filtered AttachmentKey index finds them.
+    public async Task<IReadOnlyList<string>> ListRetainedAttachmentKeysAsync(IReadOnlyCollection<string> attachmentKeys, CancellationToken cancellationToken)
+    {
+        var nowUtc = timeProvider.GetUtcNow().UtcDateTime;
+        return await dbContext.Set<AiAssistantTurn>().AsNoTracking()
+            .Where(turn => turn.AttachmentKey != null && attachmentKeys.Contains(turn.AttachmentKey)
+                && turn.ProtectedAttachment != null && turn.ContentExpiresAtUtc > nowUtc)
+            .Select(turn => turn.AttachmentKey!).Distinct().ToArrayAsync(cancellationToken);
+    }
+
     private async Task<AiAssistantTurnRow?> AttachToolResultsAsync(AiAssistantTurnRow? row, CancellationToken cancellationToken)
     {
         if (row?.ProtectedQuestion is null) return row;
@@ -109,7 +119,7 @@ internal sealed class AiAssistantReader(ApplicationDbContext dbContext, TimeProv
                 && (turn.State == AiAssistantTurnState.Pending || turn.State == AiAssistantTurnState.Running))
                 .Select(turn => (Guid?)turn.RequestId).FirstOrDefault(),
             question == null ? null : new AiConversationQuestionRow(question.Id, question.PayloadRevision, question.ProtectedQuestion, question.ContentExpiresAtUtc)
-                { ProtectedTranscript = question.ProtectedTranscript });
+                { ProtectedTranscript = question.ProtectedTranscript, ProtectedAttachment = question.ProtectedAttachment });
 
     private static IQueryable<AiAssistantTurnRow> ProjectTurns(IQueryable<AiAssistantTurn> query) => query.Select(turn =>
         new AiAssistantTurnRow(turn.Id, turn.OwnerUserId, turn.ConversationId, turn.RequestId, turn.Ordinal,

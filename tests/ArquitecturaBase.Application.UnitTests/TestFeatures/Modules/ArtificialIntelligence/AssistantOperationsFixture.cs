@@ -198,6 +198,9 @@ internal sealed class OperationsStore(FakeTimeProvider clock, FakeUnitOfWork wor
         return Task.FromResult(new PagedResult<AiAssistantTurnRow>(rows.Skip((request.Page-1)*request.PageSize).Take(request.PageSize).Select(Project).ToArray(),request.Page,request.PageSize,rows.Length));
     }
     public Task<IReadOnlyList<Guid>> ListRetainedAudioRequestIdsAsync(IReadOnlyCollection<Guid> audioRequestIds, CancellationToken cancellationToken) => throw new NotSupportedException();
+    public Task<IReadOnlyList<string>> ListRetainedAttachmentKeysAsync(IReadOnlyCollection<string> attachmentKeys, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<string>>(Turns.Where(turn => turn.AttachmentKey is { } key && attachmentKeys.Contains(key) && turn.ProtectedAttachment is not null
+            && turn.ContentExpiresAtUtc > clock.GetUtcNow().UtcDateTime).Select(turn => turn.AttachmentKey!).Distinct().ToArray());
     public Task<AiAssistantWorkloadRow> FindWorkloadAsync(DateTime now, int grace, CancellationToken ct) => throw new NotSupportedException();
     public Task<IReadOnlyList<AiAssistantTurn>> ListExpiredAsync(DateTime now, int pending, int grace, int limit, CancellationToken ct) => throw new NotSupportedException();
     public Task<IReadOnlyList<AiAssistantTurn>> ListPurgeableAsync(DateTime now, int limit, CancellationToken ct) => throw new NotSupportedException();

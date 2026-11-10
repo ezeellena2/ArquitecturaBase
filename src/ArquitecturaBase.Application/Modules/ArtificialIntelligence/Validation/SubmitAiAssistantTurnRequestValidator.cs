@@ -10,9 +10,9 @@ internal sealed class SubmitAiAssistantTurnRequestValidator : AbstractValidator<
     public SubmitAiAssistantTurnRequestValidator(AiAssistantLimits limits)
     {
         RuleFor(x => x.RequestId).NotEmpty().WithMessage(_ => ValidationMessages.Required);
-        // With an audio, the typed text is optional; the transcript comes from the server.
+        // With an audio or a spreadsheet, the typed text is optional; the transcript and the sheet come from the server.
         RuleFor(x => x.Question).Cascade(CascadeMode.Stop).NotNull().WithMessage(_ => ValidationMessages.Required)
-            .Must((request, q) => request.AudioRequestId is not null || !string.IsNullOrWhiteSpace(q))
+            .Must((request, q) => request.AudioRequestId is not null || request.Attachment is not null || !string.IsNullOrWhiteSpace(q))
             .WithMessage(_ => ValidationMessages.Required).MaximumLength(limits.QuestionCharacters)
             .WithMessage(_ => ValidationMessages.MaxLength);
         RuleFor(x => x.AudioRequestId).Must(id => id != Guid.Empty).WithMessage(_ => ValidationMessages.Required);

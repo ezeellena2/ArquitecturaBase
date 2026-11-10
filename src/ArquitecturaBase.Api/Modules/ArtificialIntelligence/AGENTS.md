@@ -6,6 +6,8 @@ El asistente vive bajo /api/ai/assistant y exige ai.assistant.use, independiente
 
 Audio de Inicio (IA4): POST /api/ai/assistant/audio recibe un multipart cerrado (`requestId` y `file`, 1.000.000 bytes más 64 KiB de envoltorio) con el cupo de envío y responde 202 con el estado; GET audio/{requestId} da el estado y la transcripción; GET audio/{requestId}/file, la grabación con nosniff. El contrato redacta el archivo y la cultura sale de la localización; el tipo, de los bytes.
 
+Planillas de Inicio (Etapa 2): POST /api/ai/assistant/file-turns recibe un multipart con los campos del turno (`question` y `audioRequestId` opcionales) y `file`, 10 MiB más 64 KiB de envoltorio, con el cupo de envío, y responde 202 como el turno JSON, que no cambia. El contrato redacta pregunta y archivo; el descriptor y lo preparado los pone el servidor.
+
 El PUT de negocio admite details opcional con contratos HTTP anidados propios; máximo 256 KiB.
 No aceptar un enlace arbitrario. El enlace se deriva de PlaceId o coordenadas históricas.
 POST /business-information/places/search exige ambos permisos del negocio, cuerpo 4 KiB,

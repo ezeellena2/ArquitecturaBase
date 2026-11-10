@@ -5,6 +5,7 @@ using ArquitecturaBase.Api.Modules.ArtificialIntelligence.Contracts.Assistant;
 using ArquitecturaBase.Api.OpenApi;
 using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Interfaces.Services;
+using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Models;
 using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
@@ -20,10 +21,13 @@ namespace ArquitecturaBase.Api.Modules.ArtificialIntelligence.Controllers;
 [EnableRateLimiting(ArtificialIntelligenceApiRegistration.ReadPolicy)]
 [RequestSizeLimit(16384)]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public sealed class AiAssistantController(IAiAssistantService service, IAiAssistantAudioService audio, ISystemSettingsService settings) : ControllerBase
+public sealed class AiAssistantController(IAiAssistantService service, IAiAssistantAudioService audio, IAiAssistantFileTurnService files,
+    ISystemSettingsService settings) : ControllerBase
 {
     // A Home recording (IA4) plus its multipart envelope.
     private const long MaximumAudioRequestBytes = SubmitAiAssistantAudioRequest.MaximumBytes + 64 * 1024;
+    // A spreadsheet (Stage 2), as much as a catalog import reads, plus the turn's fields and its multipart envelope.
+    private const long MaximumFileTurnRequestBytes = AssistantAttachmentInput.MaximumBytes + 64 * 1024;
 
     [HttpGet("bootstrap")]
     [ProducesResponseType<AiAssistantBootstrapResponse>(StatusCodes.Status200OK)]
@@ -63,6 +67,24 @@ public sealed class AiAssistantController(IAiAssistantService service, IAiAssist
         (await service.SubmitAsync(new(request.RequestId, request.ConversationId, request.ExpectedRevision,
             request.ExpectedConnectionRevision, request.Question, CultureInfo.CurrentUICulture.TwoLetterISOLanguageName)
             { AudioRequestId = request.AudioRequestId }, cancellationToken)).ToAcceptedResult(this);
+
+    [HttpPost("file-turns")]
+    [EnableRateLimiting(ArtificialIntelligenceApiRegistration.AssistantSubmitPolicy)]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(MaximumFileTurnRequestBytes)]
+    [RequestFormLimits(MultipartBodyLengthLimit = MaximumFileTurnRequestBytes)]
+    [ProducesResponseType<AiAssistantTurnAcceptedResponse>(StatusCodes.Status202Accepted)]
+    [ProducesProblem(StatusCodes.Status400BadRequest)]
+    [ProducesProblem(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> SubmitFile([FromForm] SubmitAiAssistantFileTurnHttpRequest request, CancellationToken cancellationToken)
+    {
+        await using var content = new MemoryStream();
+        await request.File.CopyToAsync(content, cancellationToken);
+        var turn = new SubmitAiAssistantTurnRequest(request.RequestId, request.ConversationId, request.ExpectedRevision,
+            request.ExpectedConnectionRevision, request.Question ?? "", CultureInfo.CurrentUICulture.TwoLetterISOLanguageName)
+            { AudioRequestId = request.AudioRequestId };
+        return (await files.SubmitAsync(new(turn, content.ToArray(), request.File.FileName), cancellationToken)).ToAcceptedResult(this);
+    }
 
     [HttpPost("audio")]
     [EnableRateLimiting(ArtificialIntelligenceApiRegistration.AssistantSubmitPolicy)]

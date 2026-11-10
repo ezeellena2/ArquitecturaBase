@@ -18,6 +18,9 @@ public static class ArtificialIntelligenceApplicationRegistration
         services.TryAddScoped<IAiAssistantAudioService, AiAssistantAudioService>();
         services.TryAddScoped<AiAssistantHomeAudioPolicy>();
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IPrivateFileRetentionSource, AiAssistantAudioRetentionSource>());
+        services.TryAddScoped<IAiAssistantFileTurnService, AiAssistantFileTurnService>();
+        services.TryAddScoped<AiAssistantHomeAttachmentPolicy>();
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IPrivateFileRetentionSource, AiAssistantAttachmentRetentionSource>());
         services.Replace(ServiceDescriptor.Scoped<IAssistantOperations, AiAssistantOperations>());
         services.Replace(ServiceDescriptor.Scoped<IAssistantProposalLookup, AiAssistantProposalLookup>());
         services.TryAddScoped<IAiAssistantDispatchService, AiAssistantDispatchService>();

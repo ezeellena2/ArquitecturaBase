@@ -27,4 +27,13 @@ public static class AiAssistantErrors
     public static readonly Error ProviderIncomplete = Error.Conflict("Ai.Assistant.ProviderIncomplete", "The provider returned an incomplete result.");
     public static Error QuotaExceeded(int retryAfterSeconds) => Error.TooManyRequests("Ai.Assistant.QuotaExceeded", "The acceptance quota is exhausted.", new Dictionary<string, object?> { ["retryAfter"] = retryAfterSeconds });
     public static Error CapacityLimited(int retryAfterSeconds) => Error.TooManyRequests("Ai.Assistant.CapacityLimited", "The assistant capacity is exhausted.", new Dictionary<string, object?> { ["retryAfter"] = retryAfterSeconds, ["retryable"] = true });
+    // Stage 2: who may attach a spreadsheet in Home, and why one was not read; each reason has its own code under the file.
+    public static readonly Error AttachmentForbidden = Error.Forbidden("Ai.Assistant.AttachmentForbidden", "Attaching spreadsheets is not available for this account.");
+    public static readonly Error AttachmentUnavailable = Error.Validation("Ai.Assistant.AttachmentUnavailable", "No spreadsheet reader is installed.");
+    public static readonly Error AttachmentLegacy = Error.Validation("Ai.Assistant.AttachmentLegacy", "The spreadsheet is an Excel file older than 2007.");
+    public static readonly Error AttachmentProtected = Error.Validation("Ai.Assistant.AttachmentProtected", "The spreadsheet is protected with a password.");
+    public static readonly Error AttachmentMacroEnabled = Error.Validation("Ai.Assistant.AttachmentMacroEnabled", "The spreadsheet is macro-enabled or binary.");
+    public static readonly Error AttachmentTooLarge = Error.Validation("Ai.Assistant.AttachmentTooLarge", "The spreadsheet exceeds its size, row or column limits.");
+    public static readonly Error AttachmentUnreadable = Error.Validation("Ai.Assistant.AttachmentUnreadable", "The spreadsheet cannot be read.");
+    public static readonly Error AttachmentEmpty = Error.Validation("Ai.Assistant.AttachmentEmpty", "The spreadsheet has no rows with content.");
 }

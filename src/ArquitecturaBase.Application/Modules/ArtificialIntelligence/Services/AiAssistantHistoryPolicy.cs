@@ -20,6 +20,10 @@ internal static class AiAssistantHistoryPolicy
             var latest = ReferenceEquals(turn, latestProposal);
             if (turn.Question is null || turn.Answer is null && !latest) continue;
             var asked = AiAssistantAudioPolicy.Spoken(turn.Question, turn.Audio?.Transcript);
+            // A turn that brought only a spreadsheet is never an empty message, which a provider may reject; the sheet itself travels in
+            // the current message, so only its name goes here.
+            if (asked.Trim().Length == 0 && turn.Attachment is { } attachment)
+                asked = string.Format(CultureInfo.InvariantCulture, AssistantTexts.Get("Prompt.AttachedSpreadsheet", culture), attachment.Name);
             var answer = turn.Answer?.Text ?? "";
             if (latest)
                 answer += (answer.Length == 0 ? "" : "\n\n") + string.Format(CultureInfo.InvariantCulture, AssistantTexts.Get("Prompt.PreviousProposal", culture),

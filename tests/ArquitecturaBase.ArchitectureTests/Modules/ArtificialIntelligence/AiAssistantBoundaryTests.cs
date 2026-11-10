@@ -19,6 +19,11 @@ public sealed class AiAssistantBoundaryTests
         var audio = Assembly.Load("ArquitecturaBase.Api").GetType("ArquitecturaBase.Api.Modules.ArtificialIntelligence.Contracts.Assistant.SubmitAiAssistantAudioHttpRequest");
         Assert.NotNull(audio);
         Assert.Equal(["File", "RequestId"], audio.GetProperties().Select(property => property.Name).Order(StringComparer.Ordinal));
+        // Stage 2: a turn with a spreadsheet carries the turn's own fields and the file; the descriptor and the prepared sheet are the server's.
+        var file = Assembly.Load("ArquitecturaBase.Api").GetType("ArquitecturaBase.Api.Modules.ArtificialIntelligence.Contracts.Assistant.SubmitAiAssistantFileTurnHttpRequest");
+        Assert.NotNull(file);
+        Assert.Equal(["AudioRequestId", "ConversationId", "ExpectedConnectionRevision", "ExpectedRevision", "File", "Question", "RequestId"],
+            file.GetProperties().Select(property => property.Name).Order(StringComparer.Ordinal));
     }
 
     [Fact]

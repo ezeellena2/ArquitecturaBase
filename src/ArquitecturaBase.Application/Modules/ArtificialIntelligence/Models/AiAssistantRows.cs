@@ -10,6 +10,7 @@ public sealed record AiConversationRow(Guid Id, Guid OwnerUserId, AiConversation
 public sealed record AiConversationQuestionRow(Guid TurnId, long PayloadRevision, string? ProtectedQuestion, DateTime ContentExpiresAtUtc)
 {
     public string? ProtectedTranscript { get; init; }
+    public string? ProtectedAttachment { get; init; }
     public override string ToString() => "AiConversationQuestionRow { content: [REDACTED] }";
 }
 public sealed record AiAssistantTurnRow(Guid Id, Guid OwnerUserId, Guid ConversationId, Guid RequestId, int Ordinal,
