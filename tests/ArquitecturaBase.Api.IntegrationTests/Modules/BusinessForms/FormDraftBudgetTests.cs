@@ -51,8 +51,9 @@ public sealed partial class FormDraftEndpointsTests
         // Correcting and voiding (Etapa 3) add four: opening a correction, its options, saving it and voiding. Choosing first by
         // a field (LD1-A) adds two: the values of a question, while loading and while correcting. The library (BI1-A) adds two,
         // listing and adding, and folders (CP1-A to CP5-A) eleven: the tree, create, update, deletion count, delete, the menu
-        // place, the menu, and reading and saving the folders of a form and of a catalog.
-        Assert.Equal(99,paths.EnumerateObject().Where(path => path.Name.StartsWith("/api/forms/", StringComparison.Ordinal))
+        // place, the menu, and reading and saving the folders of a form and of a catalog. Importing the spreadsheet a proposal of
+        // the assistant mapped (Stage 2) adds three: its review, applying it and the import a created catalog has pending.
+        Assert.Equal(102,paths.EnumerateObject().Where(path => path.Name.StartsWith("/api/forms/", StringComparison.Ordinal))
             .Sum(path => path.Value.EnumerateObject().Count(operation => operation.Name is "get" or "post" or "put" or "delete")));
         // Creating from a Home proposal (IA2): 201 with what it created, problems for invalid, unavailable and replaced, and the status.
         foreach (var (path, schema) in new[] { ("/api/forms/definitions/assistant-proposals", "FormDraftAssistantProposalResponse"),
@@ -77,6 +78,19 @@ public sealed partial class FormDraftEndpointsTests
             foreach (var status in new[] { "400", "401", "403", "404", "409", "429", "500" })
                 Assert.Equal("#/components/schemas/ProblemDetails", operation.GetProperty("responses").GetProperty(status).GetProperty("content").GetProperty("application/problem+json").GetProperty("schema").GetProperty("$ref").GetString());
         }
+        foreach (var (suffix, schema) in new[] { ("assistant-import-previews", "FormCatalogImportPreviewResponse"), ("assistant-imports", "FormCatalogSaveResponse") })
+        {
+            var operation = paths.GetProperty("/api/forms/catalogs/{id}/" + suffix).GetProperty("post");
+            Assert.True(operation.GetProperty("requestBody").GetProperty("content").TryGetProperty("application/json", out _));
+            Assert.Equal("#/components/schemas/" + schema, operation.GetProperty("responses").GetProperty("200").GetProperty("content").GetProperty("application/json").GetProperty("schema").GetProperty("$ref").GetString());
+            foreach (var status in new[] { "400", "401", "403", "404", "409", "429", "500" })
+                Assert.Equal("#/components/schemas/ProblemDetails", operation.GetProperty("responses").GetProperty(status).GetProperty("content").GetProperty("application/problem+json").GetProperty("schema").GetProperty("$ref").GetString());
+        }
+        var assistantImport = paths.GetProperty("/api/forms/catalogs/{id}/assistant-import").GetProperty("get").GetProperty("responses");
+        Assert.Equal("#/components/schemas/FormCatalogAssistantImportResponse", assistantImport.GetProperty("200").GetProperty("content").GetProperty("application/json").GetProperty("schema").GetProperty("$ref").GetString());
+        foreach (var status in new[] { "401", "403", "404", "429", "500" })
+            Assert.Equal("#/components/schemas/ProblemDetails", assistantImport.GetProperty(status).GetProperty("content").GetProperty("application/problem+json").GetProperty("schema").GetProperty("$ref").GetString());
+        Assert.False(assistantImport.TryGetProperty("409", out _));
         var catalogExport = paths.GetProperty("/api/forms/catalogs/{id}/export").GetProperty("get");
         Assert.True(catalogExport.GetProperty("responses").GetProperty("200").GetProperty("content").TryGetProperty("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", out _));
         Assert.False(paths.TryGetProperty("/api/forms/navigation", out _));

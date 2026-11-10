@@ -7,6 +7,7 @@ using ArquitecturaBase.Domain.Modules.BusinessForms;
 namespace ArquitecturaBase.ArchitectureTests.Modules.BusinessForms;
 
 // One service per kind creates from an assistant proposal: anything else that read a proposal to create would skip its checks.
+// Importing the spreadsheet a proposal mapped (Stage 2) reads it too, and creates nothing.
 public sealed class FormAssistantProposalCreationTests
 {
     private const string Services = "ArquitecturaBase.Application.Modules.BusinessForms.Services.";
@@ -17,7 +18,7 @@ public sealed class FormAssistantProposalCreationTests
     public void Only_the_owner_services_create_from_an_assistant_proposal()
     {
         var calls = Scanned.SelectMany(CallSites.Calls).ToArray();
-        Assert.Equal([Services + "FormCatalogAssistantProposalService", Services + "FormDraftProposalService"],
+        Assert.Equal([Services + "FormCatalogAssistantImportPolicy", Services + "FormCatalogAssistantProposalService", Services + "FormDraftProposalService"],
             Callers(calls, typeof(IAssistantProposalLookup), nameof(IAssistantProposalLookup.FindAsync)));
         Assert.Equal([Services + "FormDraftProposalService"], Callers(calls, typeof(SaveFormDraftRequest), "set_Proposal"));
         Assert.Equal([Services + "FormDraftService"], Callers(calls, typeof(BusinessFormDefinition), nameof(BusinessFormDefinition.RecordProposal)));

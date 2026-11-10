@@ -119,9 +119,12 @@ public static class BusinessFormsApplicationRegistration
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<ListFormPersonAttributeOptionsRequest>, ListFormPersonAttributeOptionsRequestValidator>());
         services.TryAddScoped<IFormCatalogExportService, FormCatalogExportService>();
         services.TryAddScoped<IFormCatalogImportService, FormCatalogImportService>();
+        services.TryAddScoped<FormCatalogImportRecorder>();
+        services.TryAddScoped<FormCatalogAssistantImportPolicy>();
         services.TryAddScoped<FormCatalogItemRecorder>();
         services.TryAddScoped<FormCatalogFieldRecorder>();
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<FormCatalogImportRequest>, FormCatalogImportRequestValidator>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<FormCatalogAssistantImportRequest>, FormCatalogAssistantImportRequestValidator>());
         services.TryAddScoped<IFormCatalogService, FormCatalogService>();
         services.TryAddScoped<IFormCatalogFiltersService, FormCatalogFiltersService>();
         services.TryAddScoped<IFormCatalogProposalService, FormCatalogProposalService>();

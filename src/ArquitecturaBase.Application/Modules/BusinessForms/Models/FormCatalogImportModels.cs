@@ -31,6 +31,24 @@ public sealed record FormCatalogImportRequest(long ExpectedRevision, string Mode
     string? SheetSha256 = null, int? ConfirmDeactivations = null, bool ConfirmEmpty = false, bool ConfirmErrors = false)
 { public override string ToString() => "FormCatalogImportRequest { Content = [REDACTED] }"; }
 
+// Stage 2 of the assistant authoring: importing the spreadsheet a proposal mapped from the private copy of its turn instead of an
+// upload. The turn's request and the proposal say which; the server reads the proposal and the copy again on its side. Applying
+// adds the reviewed sheet and the confirmations, as an upload does.
+public sealed record FormCatalogAssistantImportRequest(Guid? RequestId, Guid? ProposalId, long? ExpectedRevision,
+    string? SheetSha256 = null, int? ConfirmDeactivations = null, bool ConfirmEmpty = false, bool ConfirmErrors = false)
+{ public override string ToString() => "FormCatalogAssistantImportRequest { Content = [REDACTED] }"; }
+
+// What a catalog created from a proposal with a spreadsheet still has to import, for the person who asked for it: the turn's
+// request and the proposal, to review it, the file's name and its rows of data. Pending is null when there is nothing to import.
+public sealed record FormCatalogAssistantImportPending(Guid RequestId, Guid ProposalId, string FileName, int RowCount)
+{ public override string ToString() => "FormCatalogAssistantImportPending { Content = [REDACTED] }"; }
+public sealed record FormCatalogAssistantImportResponse(Guid CatalogId, FormCatalogAssistantImportPending? Pending);
+
+// What applying a reviewed sheet carries, whatever it came from: the revision and the sheet that were reviewed, and the
+// deactivations, the empty sheet and the rows with errors the person accepted.
+internal sealed record FormCatalogImportApplication(long ExpectedRevision, FormCatalogImportMode Mode, string? SheetSha256,
+    int? ConfirmDeactivations = null, bool ConfirmEmpty = false, bool ConfirmErrors = false);
+
 public sealed record FormCatalogImportCounts(int Added, int Changed, int Deactivated, int Reactivated,
     int Unchanged, int ErrorRows, int Warnings);
 public sealed record FormCatalogImportIssue(int Row, string Column, string Severity, string Code,

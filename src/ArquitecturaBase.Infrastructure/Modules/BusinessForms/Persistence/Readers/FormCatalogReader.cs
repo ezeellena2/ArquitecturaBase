@@ -127,7 +127,7 @@ internal sealed partial class FormCatalogReader(ApplicationDbContext dbContext) 
         dbContext.Set<BusinessFormCatalog>().AsNoTracking().Where(value => value.Id == id)
             .Select(value => new FormCatalogStoredRow(value.Id, value.Key, value.NameJson, value.DescriptionJson, value.OriginalCulture, value.Kind.ToString(),
                 value.Revision, value.IsActive, value.CreatedAtUtc, value.CreatedBy, value.ModifiedAtUtc, value.ModifiedBy,
-                dbContext.Set<BusinessFormCatalogItem>().Count(item => item.CatalogId == value.Id), value.FiltersJson, value.ProposalEvidenceJson, value.ProposalState, value.ProposalDecidedByUserId, value.ProposalDecidedAtUtc, value.ValueType.ToString(), value.LastImportSha256, value.LastImportAtUtc, value.FieldsJson, value.PresentationJson))
+                dbContext.Set<BusinessFormCatalogItem>().Count(item => item.CatalogId == value.Id), value.FiltersJson, value.ProposalEvidenceJson, value.ProposalState, value.ProposalDecidedByUserId, value.ProposalDecidedAtUtc, value.ValueType.ToString(), value.LastImportSha256, value.LastImportAtUtc, value.FieldsJson, value.PresentationJson, value.ProposalId))
             .SingleOrDefaultAsync(cancellationToken);
 
     public Task<int> CountActiveItemsAsync(Guid catalogId, CancellationToken cancellationToken) =>

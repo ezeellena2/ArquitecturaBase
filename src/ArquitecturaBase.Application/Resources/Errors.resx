@@ -376,6 +376,7 @@
   <data name="Forms.CatalogImport.DuplicateColumn" xml:space="preserve"><value>Hay dos columnas con el mismo encabezado.</value></data>
   <data name="Forms.CatalogImport.UnknownColumn" xml:space="preserve"><value>Esta columna no es del catálogo: se ignora.</value></data>
   <data name="Forms.CatalogImport.SheetChanged" xml:space="preserve"><value>La planilla no es la que revisaste. Revisala de nuevo.</value></data>
+  <data name="Forms.CatalogImport.SheetUnavailable" xml:space="preserve"><value>La planilla que viste en el chat ya no está disponible. Podés subir el archivo a mano.</value></data>
   <data name="Forms.CatalogImport.ConfirmationRequired" xml:space="preserve"><value>Confirmá las bajas o las filas con errores antes de aplicar.</value></data>
   <data name="Forms.CatalogImport.RequiredValue" xml:space="preserve"><value>Falta: es obligatorio.</value></data>
   <data name="Forms.CatalogImport.DuplicateCode" xml:space="preserve"><value>Repetido: también está en otra fila.</value></data>

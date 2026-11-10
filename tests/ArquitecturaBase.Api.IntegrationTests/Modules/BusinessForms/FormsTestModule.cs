@@ -35,6 +35,8 @@ internal sealed class FormsTestModule : IApiTestModule
         "POST /api/forms/definitions/assistant-proposals", "GET /api/forms/definitions/assistant-proposals/{proposalid:guid}",
         "POST /api/forms/catalogs/assistant-proposals", "GET /api/forms/catalogs/assistant-proposals/{proposalid:guid}",
         "POST /api/forms/catalogs/{id:guid}/import-previews", "POST /api/forms/catalogs/{id:guid}/imports", "GET /api/forms/catalogs/{id:guid}/export",
+        "POST /api/forms/catalogs/{id:guid}/assistant-import-previews", "POST /api/forms/catalogs/{id:guid}/assistant-imports",
+        "GET /api/forms/catalogs/{id:guid}/assistant-import",
         "GET /api/forms/catalogs", "GET /api/forms/catalogs/{id:guid}", "GET /api/forms/catalogs/{id:guid}/items", "POST /api/forms/catalogs", "PUT /api/forms/catalogs/{id:guid}",
         "POST /api/forms/catalogs/{id:guid}/presentation-checks",
         "GET /api/forms/catalog-filter-options", "POST /api/forms/catalog-previews", "POST /api/forms/catalogs/filters", "PUT /api/forms/catalogs/{id:guid}/filters",

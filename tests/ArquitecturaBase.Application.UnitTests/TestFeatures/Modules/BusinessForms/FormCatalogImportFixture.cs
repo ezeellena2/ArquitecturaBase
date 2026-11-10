@@ -1,4 +1,8 @@
+using System.Security.Cryptography;
+using System.Text.Json;
 using ArquitecturaBase.Application.Common.Pagination;
+using ArquitecturaBase.Application.Models.Assistant;
+using ArquitecturaBase.Application.Modules.BusinessForms.Channels;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
@@ -6,6 +10,8 @@ using ArquitecturaBase.Application.Modules.BusinessForms.Services;
 using ArquitecturaBase.Application.Modules.BusinessForms.Validation;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
+using ArquitecturaBase.Application.UnitTests.TestFeatures.Channels;
+using ArquitecturaBase.Application.UnitTests.TestFeatures.Files;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Time.Testing;
@@ -16,7 +22,7 @@ internal sealed class FormCatalogImportFixture : IFormCatalogRepository, IFormCa
 {
     public static readonly string Hash = new('a', 64);
     public Guid Actor { get; } = Guid.NewGuid();
-    public BusinessFormCatalog Catalog { get; }
+    public BusinessFormCatalog Catalog { get; private set; }
     public List<BusinessFormCatalogItem> Items { get; } = [];
     public FakeUnitOfWork Work { get; } = new();
     public FakePermissionService Permissions { get; } = new();
@@ -41,17 +47,70 @@ internal sealed class FormCatalogImportFixture : IFormCatalogRepository, IFormCa
     public Action? WhileLocking { get; set; }
     public Action<int>? BeforeMetadata { get; set; }
     public Error? FileError { get; set; }
+
+    // Stage 2: the proposal of this person's Home turn and the private copy of its spreadsheet, which is read as its bytes say.
+    public StubAssistantProposalLookup Lookup { get; } = new();
+    public MemoryPrivateFileStore Files { get; }
+    public Guid ProposalId { get; } = Guid.NewGuid();
+    public byte[] Copy { get; set; } = [80, 75, 3, 4, 20];
+    public FormSpreadsheet CopySheet { get; set; } = new("Hoja1", "", [Row(1, "CUIT", "Razón social", "Teléfono"),
+        Row(2, "20-1", "Transportes Sur", "11 5555-0001"), Row(3, "20-2", "Logística Pampa", "")]);
+    public int CopyReads { get; private set; }
+
+    // propose-catalog@2 with the columns of the turn's spreadsheet: the code from A, the option from B and «Teléfono» from C.
+    public FormAuthoringMappedCatalogProposal Mapped { get; } = new("es", "Transportistas", "Empresas que traen la carga", "text", "CUIT",
+        "Razón social", [new("Teléfono", "text")], new("transportistas.xlsx", "Hoja1", 2, true,
+            [new("code", null, null, "A", "CUIT"), new("option", null, null, "B", "Razón social"), new("field", "Teléfono", null, "C", "Teléfono")],
+            [["20-1", "Transportes Sur", "11 5555-0001"], ["20-2", "Logística Pampa", ""]]));
+
     public FormCatalogImportFixture(bool filters = false, BusinessFormCatalogValueType valueType = BusinessFormCatalogValueType.Text,
-        string originalCulture = "es")
+        string originalCulture = "es", bool storage = true)
     {
         Catalog = filters ? BusinessFormCatalog.CreateFilters(originalCulture, Texts(), Texts(), "{}")
             : BusinessFormCatalog.CreateManual(originalCulture, Texts(), Texts(), valueType);
         Current.UserId = Actor;
         Permissions.Permissions[Actor] = [BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage];
-        Service = new(this, this, this, Work, RequestValidators.For(new FormCatalogImportRequestValidator()),
-            new(Current, Permissions), new(this), Clock);
+        Files = new(storage);
+        var access = new FormCatalogAccessGuard(Current, Permissions);
+        Service = new(this, this, Work, RequestValidators.For(new FormCatalogImportRequestValidator(), new FormCatalogAssistantImportRequestValidator()),
+            access, new FormCatalogImportRecorder(this, this, access, new(this), Clock), new FormCatalogAssistantImportPolicy(Lookup, Files, this));
     }
     public FormCatalogImportRequest Request(string mode = "Append") => new(Catalog.Revision, mode, Content, "own.csv", Hash);
+    public FormCatalogAssistantImportRequest AssistantRequest(string? sheetSha256 = null) => new(Lookup.RequestId, ProposalId, Catalog.Revision, sheetSha256);
+
+    // «Crear catálogo» on that proposal: inactive, pending, with the proposal's fields and, from Home, the turn's request in its evidence.
+    public void ProposeCatalog(bool fromHome = true)
+    {
+        var provenance = Provenance(fromHome ? "home" : "whatsapp-assistant");
+        var evidence = JsonSerializer.Serialize(new FormCatalogProposalEvidence("es", Actor, provenance.OccurredAtUtc, Guid.NewGuid(),
+            BusinessFormAuthoringAssistantCapabilitySource.ProposeCatalogId, BusinessFormAuthoringAssistantCapabilitySource.MappedCatalogVersion,
+            provenance, null, 0, Mapped.ToCatalog(), fromHome ? "app" : null, fromHome ? Lookup.RequestId : null), JsonSerializerOptions.Web);
+        Catalog = BusinessFormCatalog.CreateProposedManual("es", Texts(), Texts(), BusinessFormCatalogValueType.Text, ProposalId, evidence);
+        Assert.True(Catalog.SetFields(FormAuthoringProposalPolicy.CatalogFields(Mapped.ToCatalog()), null).IsSuccess);
+    }
+
+    // propose-import@1 into a catalog: its code from A and its option from B.
+    public static FormAuthoringImportProposal Import(Guid catalogId) => new(new(catalogId, "Propio", "text"), new("transportistas.xlsx", "Hoja1", 2,
+        true, [new("code", null, null, "A", "CUIT"), new("option", null, null, "B", "Razón social")],
+        [["20-1", "Transportes Sur"], ["20-2", "Logística Pampa"]]));
+
+    // The lookup answers this person with that proposal and the descriptor of its turn's copy, which sits in private storage.
+    public async Task<AssistantAttachmentDescriptor> HandAsync(AssistantCapabilityPayload payload,
+        string capability = BusinessFormAuthoringAssistantCapabilitySource.ProposeCatalogId, int version = 2, bool current = true, bool store = true)
+    {
+        var copy = new AssistantAttachmentDescriptor($"ai/assistant/attachments/{Lookup.RequestId:N}.xlsx", "transportistas.xlsx",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", Copy.LongLength, Sha256(Copy));
+        Lookup.OwnerUserId = Actor;
+        Lookup.Response = new AssistantProposalLookupResponse(new("home", Actor, null, "es", "America/Argentina/Buenos_Aires", new([], []), [], []),
+            new(Guid.NewGuid(), ProposalId, new(capability, version), payload), Provenance("home"), current) { Attachment = copy };
+        using var content = new MemoryStream(Copy, false);
+        if (store) await Files.WriteAsync(copy.StorageKey, content, copy.ContentType, CancellationToken.None);
+        return copy;
+    }
+
+    public static string Sha256(byte[] content) => Convert.ToHexStringLower(SHA256.HashData(content));
+    private AssistantOperationProvenance Provenance(string channelId) =>
+        new("fictitious-profile", 3, "home-system", 2, Clock.GetUtcNow().UtcDateTime.AddMinutes(-2), channelId);
     public BusinessFormCatalogItem Add(string code = "OLD", string text = "Viejo", int position = 10, string? value = null)
     {
         var item = Catalog.AddManualItem(code, text, null, null, null, position, value).Value;
@@ -94,9 +153,23 @@ internal sealed class FormCatalogImportFixture : IFormCatalogRepository, IFormCa
         Result<FormSpreadsheet> result = FileError is { } error ? error : Sheet;
         return Task.FromResult(result);
     }
-    // The import decides by the extension of the uploaded file; only the assistant's attachment reads what the bytes are.
-    public FormSpreadsheetFormat DetectFormat(byte[] content) => throw new NotSupportedException();
-    public Result<FormSpreadsheet> Read(byte[] content, FormSpreadsheetFormat format, CancellationToken cancellationToken) => throw new NotSupportedException();
+    // An upload is read by the extension of its file; the assistant's copy, as its bytes say, with the SHA-256 of those bytes.
+    public FormSpreadsheetFormat DetectFormat(byte[] content)
+    {
+        Assert.False(Work.InTransaction);
+        Assert.Equal(Copy, content);
+        return FormSpreadsheetFormat.Xlsx;
+    }
+    public Result<FormSpreadsheet> Read(byte[] content, FormSpreadsheetFormat format, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        Assert.False(Work.InTransaction);
+        Assert.Equal(Copy, content);
+        Assert.Equal(FormSpreadsheetFormat.Xlsx, format);
+        CopyReads++;
+        WhileReadingFile?.Invoke();
+        return CopySheet with { Sha256 = Sha256(content) };
+    }
     public Task LockAsync(Guid id, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
@@ -126,8 +199,9 @@ internal sealed class FormCatalogImportFixture : IFormCatalogRepository, IFormCa
         return Task.FromResult<FormCatalogStoredRow?>(!Exists || id != Catalog.Id ? null : new(Catalog.Id, Catalog.Key,
             Catalog.NameJson, Catalog.DescriptionJson, Catalog.OriginalCulture, Catalog.Kind.ToString(), Catalog.Revision, Catalog.IsActive,
             Catalog.CreatedAtUtc, Catalog.CreatedBy, Catalog.ModifiedAtUtc, Catalog.ModifiedBy, Items.Count,
-            Catalog.FiltersJson, ValueType: Catalog.ValueType.ToString(), LastImportSha256: Catalog.LastImportSha256,
-            LastImportAtUtc: Catalog.LastImportAtUtc, FieldsJson: Catalog.FieldsJson, PresentationJson: Catalog.PresentationJson));
+            Catalog.FiltersJson, Catalog.ProposalEvidenceJson, Catalog.ProposalState, ValueType: Catalog.ValueType.ToString(),
+            LastImportSha256: Catalog.LastImportSha256, LastImportAtUtc: Catalog.LastImportAtUtc, FieldsJson: Catalog.FieldsJson,
+            PresentationJson: Catalog.PresentationJson, ProposalId: Catalog.ProposalId));
     }
     public Task<IReadOnlyList<FormCatalogStoredItemRow>> ListAllItemsAsync(Guid id, CancellationToken ct)
     {

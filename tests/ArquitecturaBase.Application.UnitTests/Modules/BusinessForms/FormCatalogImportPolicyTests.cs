@@ -20,8 +20,8 @@ public sealed class FormCatalogImportPolicyTests
         Assert.True(result.IsSuccess);
         return result.Value;
     }
-    private static FormCatalogImportRequest Request(FormCatalogImportPlan plan) =>
-        new(plan.Preview.Revision, plan.Preview.Mode, Stream.Null, "options.csv", plan.Preview.SheetSha256);
+    private static FormCatalogImportApplication Request(FormCatalogImportPlan plan) =>
+        new(plan.Preview.Revision, Enum.Parse<FormCatalogImportMode>(plan.Preview.Mode), plan.Preview.SheetSha256);
 
     [Fact]
     public void Appending_new_rows_preserves_the_raw_hash_and_file_order()

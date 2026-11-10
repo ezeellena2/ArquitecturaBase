@@ -169,7 +169,7 @@ internal static partial class FormCatalogImportPolicy
         return new FormCatalogImportPlan(preview,mutations);
     }
 
-    public static Result ValidateConfirmations(FormCatalogImportPlan plan,FormCatalogImportRequest request)
+    public static Result ValidateConfirmations(FormCatalogImportPlan plan,FormCatalogImportApplication request)
     {
         if (!string.Equals(plan.Preview.SheetSha256,request.SheetSha256,StringComparison.Ordinal)) return FormCatalogImportErrors.SheetChanged;
         var expected = plan.Preview.Confirmations;

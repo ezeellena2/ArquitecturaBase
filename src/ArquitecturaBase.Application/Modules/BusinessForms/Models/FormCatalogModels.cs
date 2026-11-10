@@ -128,7 +128,8 @@ public sealed record FormCatalogStoredRow(
     string? FiltersJson = null,
     string? ProposalEvidenceJson = null, BusinessFormCatalogProposalState? ProposalState = null,
     Guid? ProposalDecidedByUserId = null, DateTime? ProposalDecidedAtUtc = null, string ValueType = "Text",
-    string? LastImportSha256 = null, DateTime? LastImportAtUtc = null, string? FieldsJson = null, string? PresentationJson = null);
+    string? LastImportSha256 = null, DateTime? LastImportAtUtc = null, string? FieldsJson = null, string? PresentationJson = null,
+    Guid? ProposalId = null);
 
 public sealed record FormCatalogStoredItemRow(
     Guid Id,

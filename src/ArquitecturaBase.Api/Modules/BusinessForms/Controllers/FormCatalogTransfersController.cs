@@ -19,6 +19,7 @@ namespace ArquitecturaBase.Api.Modules.BusinessForms.Controllers;
 public sealed class FormCatalogTransfersController(IFormCatalogImportService imports, IFormCatalogExportService exports) : ControllerBase
 {
     private const long MaximumRequestBytes = FormCatalogImportLimits.MaximumFileBytes + 64 * 1024;
+    private const long JsonRequestBytes = 524288;
 
     [HttpPost("import-previews")]
     [HasPermission(BusinessFormsPermissions.CatalogsManage)]
@@ -50,6 +51,47 @@ public sealed class FormCatalogTransfersController(IFormCatalogImportService imp
         Response.Headers.CacheControl = "no-store";
         using var content = request.File.OpenReadStream();
         return (await imports.ApplyAsync(id, Map(request, content), cancellationToken)).ToActionResult(this);
+    }
+
+    // Stage 2 of the assistant authoring: the spreadsheet a proposal mapped, from the private copy of its turn instead of a file.
+    [HttpPost("assistant-import-previews")]
+    [HasPermission(BusinessFormsPermissions.CatalogsManage)]
+    [RequestSizeLimit(JsonRequestBytes)]
+    [ProducesResponseType<FormCatalogImportPreviewResponse>(StatusCodes.Status200OK)]
+    [ProducesProblem(StatusCodes.Status400BadRequest)]
+    [ProducesProblem(StatusCodes.Status404NotFound)]
+    [ProducesProblem(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> PreviewFromAssistant([FromRoute] Guid id, [FromBody] FormCatalogAssistantImportPreviewHttpRequest request,
+        CancellationToken cancellationToken)
+    {
+        Response.Headers.CacheControl = "no-store";
+        return (await imports.PreviewFromAssistantAsync(id, new(request.RequestId, request.ProposalId, request.ExpectedRevision), cancellationToken))
+            .ToActionResult(this);
+    }
+
+    [HttpPost("assistant-imports")]
+    [HasPermission(BusinessFormsPermissions.CatalogsManage)]
+    [RequestSizeLimit(JsonRequestBytes)]
+    [ProducesResponseType<FormCatalogSaveResponse>(StatusCodes.Status200OK)]
+    [ProducesProblem(StatusCodes.Status400BadRequest)]
+    [ProducesProblem(StatusCodes.Status404NotFound)]
+    [ProducesProblem(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> ApplyFromAssistant([FromRoute] Guid id, [FromBody] FormCatalogAssistantImportHttpRequest request,
+        CancellationToken cancellationToken)
+    {
+        Response.Headers.CacheControl = "no-store";
+        return (await imports.ApplyFromAssistantAsync(id, new(request.RequestId, request.ProposalId, request.ExpectedRevision, request.SheetSha256,
+            request.ConfirmDeactivations, request.ConfirmEmpty, request.ConfirmErrors), cancellationToken)).ToActionResult(this);
+    }
+
+    // Nothing pending answers 200 without data, so the catalog's detail keeps its shape.
+    [HttpGet("assistant-import")]
+    [ProducesResponseType<FormCatalogAssistantImportResponse>(StatusCodes.Status200OK)]
+    [ProducesProblem(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetAssistantImport([FromRoute] Guid id, CancellationToken cancellationToken)
+    {
+        Response.Headers.CacheControl = "no-store";
+        return (await imports.GetAssistantImportAsync(id, cancellationToken)).ToActionResult(this);
     }
 
     [HttpGet("export")]

@@ -13,6 +13,8 @@ public static class FormCatalogImportErrors
     public static readonly Error DuplicateColumn = Error.Validation("Forms.CatalogImport.DuplicateColumn", "Two columns have the same header.");
     public static readonly Error UnknownColumn = Error.Validation("Forms.CatalogImport.UnknownColumn", "This column is not part of the catalog: it is ignored.");
     public static readonly Error SheetChanged = Error.Conflict("Forms.CatalogImport.SheetChanged", "This is not the sheet you reviewed. Review it again.");
+    // The private copy of the spreadsheet the assistant saw is gone or is another file: the person can still upload it.
+    public static readonly Error SheetUnavailable = Error.Conflict("Forms.CatalogImport.SheetUnavailable", "The spreadsheet is no longer available. Upload the file to import it.");
     public static readonly Error ConfirmationRequired = Error.Validation("Forms.CatalogImport.ConfirmationRequired", "Confirm the deactivations or the rows with errors before applying.");
     public static readonly Error RequiredValue = Error.Validation("Forms.CatalogImport.RequiredValue", "Missing: it is required.");
     public static readonly Error DuplicateCode = Error.Validation("Forms.CatalogImport.DuplicateCode", "Duplicate: it is also in another row.");

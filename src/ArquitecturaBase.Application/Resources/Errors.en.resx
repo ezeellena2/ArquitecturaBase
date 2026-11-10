@@ -376,6 +376,7 @@
   <data name="Forms.CatalogImport.DuplicateColumn" xml:space="preserve"><value>Two columns have the same header.</value></data>
   <data name="Forms.CatalogImport.UnknownColumn" xml:space="preserve"><value>This column is not part of the catalog: it is ignored.</value></data>
   <data name="Forms.CatalogImport.SheetChanged" xml:space="preserve"><value>This is not the sheet you reviewed. Review it again.</value></data>
+  <data name="Forms.CatalogImport.SheetUnavailable" xml:space="preserve"><value>The spreadsheet you saw in the chat is no longer available. You can upload the file yourself.</value></data>
   <data name="Forms.CatalogImport.ConfirmationRequired" xml:space="preserve"><value>Confirm the deactivations or the rows with errors before applying.</value></data>
   <data name="Forms.CatalogImport.RequiredValue" xml:space="preserve"><value>Missing: it is required.</value></data>
   <data name="Forms.CatalogImport.DuplicateCode" xml:space="preserve"><value>Duplicate: it is also in another row.</value></data>
