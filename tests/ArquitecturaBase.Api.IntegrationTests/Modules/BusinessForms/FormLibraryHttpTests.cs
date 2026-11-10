@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessForms;
+using Microsoft.EntityFrameworkCore;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 
@@ -66,6 +67,29 @@ public sealed partial class FormDraftEndpointsTests
         Assert.True((await required.ReadJsonAsync()).GetProperty("errors").TryGetProperty("draft.fields[0]", out _));
         using var renamed = await SaveAsync(inputs => { inputs[0]!["label"] = new JsonObject { ["es"] = "Razón social", ["en"] = "Customer" }; inputs.RemoveAt(6); return inputs; });
         Assert.Equal(HttpStatusCode.OK, renamed.StatusCode);
+    }
+
+    [Fact]
+    public async Task A_standard_brings_its_catalog_once_and_one_that_names_a_missing_catalog_is_refused()
+    {
+        using var designer = await OperatorAsync(["formtemplates.read", "formtemplates.manage"]);
+        string Prefix() => "V" + Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
+
+        using var first = await designer.PostAsJsonAsync($"/api/forms/library/{TestFormStandardSource.CustomersKey}/copies", Add(Guid.NewGuid(), Prefix()), Ct);
+        Assert.Equal(HttpStatusCode.Created, first.StatusCode);
+        using var second = await designer.PostAsJsonAsync($"/api/forms/library/{TestFormStandardSource.CustomersKey}/copies", Add(Guid.NewGuid(), Prefix()), Ct);
+        Assert.Equal(HttpStatusCode.Created, second.StatusCode);
+        var catalogs = await factory.ExecuteDbContextAsync(db => db.Set<ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormCatalog>()
+            .Where(catalog => catalog.Key == TestFormStandardSource.CustomersCatalog).Select(catalog => new { catalog.Id, catalog.FieldsJson }).ToListAsync(Ct));
+        var catalog = Assert.Single(catalogs);
+        Assert.Contains("\"cuit\"", catalog.FieldsJson);
+        foreach (var created in new[] { first, second })
+            Assert.Equal(catalog.Id, (await created.ReadJsonAsync()).GetProperty("definition").GetProperty("draft").GetProperty("fields")[0]
+                .GetProperty("source").GetProperty("catalog").GetGuid());
+
+        using var missing = await designer.PostAsJsonAsync($"/api/forms/library/{TestFormStandardSource.MissingKey}/copies", Add(Guid.NewGuid(), Prefix()), Ct);
+        Assert.Equal(HttpStatusCode.Conflict, missing.StatusCode);
+        Assert.Equal("Forms.Library.CatalogUnavailable", (await missing.ReadJsonAsync()).GetProperty("code").GetString());
     }
 
     private static object Add(Guid requestId, string prefix) => new { requestId, name = new { es = "Remito propio " + prefix }, prefix };

@@ -26,6 +26,15 @@ public sealed partial class BusinessFormCatalog : Entity, IAuditable
     public DateTime? ModifiedAtUtc { get; private set; }
     public Guid? ModifiedBy { get; private set; }
 
+    // BI1-A: a catalog a library standard brings takes the standard's stable key («arca.customers»), once, before it is saved.
+    public void AssignStandardKey(string key)
+    {
+        if (key is null || key.Length > 32 || !System.Text.RegularExpressions.Regex.IsMatch(key, "^[a-z][a-z0-9]*([.-][a-z0-9]+)*\\z"))
+            throw new ArgumentException("A standard catalog key is a stable lowercase key of up to 32 characters.", nameof(key));
+        if (Key != Id.ToString("N")) throw new InvalidOperationException("A catalog takes a standard key only once.");
+        Key = key;
+    }
+
     public static BusinessFormCatalog CreateManual(string originalCulture, IReadOnlyDictionary<string, string> name,
         IReadOnlyDictionary<string, string> description, BusinessFormCatalogValueType valueType = BusinessFormCatalogValueType.Text)
     {

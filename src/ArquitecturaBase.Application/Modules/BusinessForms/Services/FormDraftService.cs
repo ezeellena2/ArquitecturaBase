@@ -78,7 +78,10 @@ internal sealed class FormDraftService(IFormDraftRepository repository, FormDefi
             draft.AppOnly == true);
         if (updated.IsFailure) return updated.Error;
         if (creating && request.Standard is { } standard)
+        {
+            foreach (var catalog in standard.NewCatalogs) repository.AddStandardCatalog(catalog);
             definition.RecordStandard(standard.Key, standard.Version, FormDraftPolicy.Serialize(FormStandardPolicy.Bindings(standard, resolved.Value.IdentityMap)));
+        }
         var change = BusinessFormDraftChange.Create(actor, request.RequestId, definition.Id, kind, request.ExpectedRevision, definition.Revision, nowUtc.AddDays(30));
         var response = new FormDraftCommitResponse(request.RequestId, FormDraftPolicy.Definition(definition), resolved.Value.IdentityMap,
             new(change.ResultExpiresAtUtc));

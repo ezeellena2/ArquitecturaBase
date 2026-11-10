@@ -950,6 +950,9 @@ aparece.
   borrador por el guardado de siempre: el mismo pedido devuelve el mismo borrador. La definición sella una vez el estándar, su
   versión y `dato → fieldId`, que el detalle trae en `standard`. Un estándar que no está da 404
   `Forms.Library.StandardNotFound` y un catálogo que falta o está inactivo, 409 `Forms.Library.CatalogUnavailable`.
+- **Un catálogo propio del estándar** (`OwnCatalogs`, como «Clientes» de la factura) se crea vacío, Manual, con su `Key` y sus
+  campos, en la misma transacción que el borrador, si ningún catálogo tiene esa clave; si ya existe se usa, y si está inactivo
+  frena con `Forms.Library.CatalogUnavailable`. Un campo de tipo catálogo nombra su fuente por `Key`.
 - **Las preguntas atadas** conservan todo menos su texto, su ayuda y su lugar: guardar el borrador rechaza quitarlas (en
   `draft.fields`) o cambiarles tipo, bloque, catálogo, opciones, cálculo, condición, renglones, largo o si son obligatorias (en
   `draft.fields[i]`), con `Forms.Draft.BoundQuestionChanged`. La migración es `AddFormDefinitionStandard`.

@@ -12,7 +12,8 @@ internal sealed class FormLibraryReader(ApplicationDbContext db) : IFormLibraryR
             .GroupBy(definition => definition.StandardKey!).Select(group => new { Key = group.Key, Count = group.Count() })
             .ToDictionaryAsync(row => row.Key, row => row.Count, cancellationToken);
 
-    public async Task<IReadOnlyDictionary<string, Guid>> ListCatalogIdsByKeyAsync(IReadOnlyList<string> catalogKeys, CancellationToken cancellationToken) =>
-        await db.Set<BusinessFormCatalog>().AsNoTracking().Where(catalog => catalog.IsActive && catalogKeys.Contains(catalog.Key))
-            .ToDictionaryAsync(catalog => catalog.Key, catalog => catalog.Id, cancellationToken);
+    public async Task<IReadOnlyDictionary<string, ArquitecturaBase.Application.Modules.BusinessForms.Models.FormLibraryCatalogRow>> ListCatalogsByKeyAsync(
+        IReadOnlyList<string> catalogKeys, CancellationToken cancellationToken) =>
+        await db.Set<BusinessFormCatalog>().AsNoTracking().Where(catalog => catalogKeys.Contains(catalog.Key))
+            .ToDictionaryAsync(catalog => catalog.Key, catalog => new ArquitecturaBase.Application.Modules.BusinessForms.Models.FormLibraryCatalogRow(catalog.Id, catalog.IsActive), cancellationToken);
 }

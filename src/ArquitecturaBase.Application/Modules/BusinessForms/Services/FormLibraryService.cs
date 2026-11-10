@@ -49,14 +49,31 @@ internal sealed class FormLibraryService : IFormLibraryService
             var access = await _access.CheckAsync(true, cancellationToken); if (access.IsFailure) return access.Error;
             if (_standards.SingleOrDefault(standard => standard.Key == key) is not { } standard) return FormLibraryErrors.StandardNotFound;
             var draft = FormDraftPolicy.Read<FormDraftInput>(standard.DraftJson);
-            if (standard.Catalogs is { Count: > 0 } named)
+            var named = standard.Catalogs ?? new Dictionary<string, string>();
+            var own = standard.OwnCatalogs ?? [];
+            var keys = named.Values.Concat(own.Select(catalog => catalog.Key))
+                .Concat(own.SelectMany(catalog => catalog.Fields).Where(field => field.SourceCatalog is not null).Select(field => field.SourceCatalog!))
+                .Distinct(StringComparer.Ordinal).ToArray();
+            var existing = keys.Length == 0 ? new Dictionary<string, FormLibraryCatalogRow>() : await _reader.ListCatalogsByKeyAsync(keys, cancellationToken);
+            var ids = existing.Where(pair => pair.Value.IsActive).ToDictionary(pair => pair.Key, pair => pair.Value.Id, StringComparer.Ordinal);
+            // The catalogs the standard brings that do not exist yet are created with the draft; one that exists inactive stops it.
+            var created = new List<BusinessFormCatalog>();
+            foreach (var catalog in own.Where(catalog => !existing.ContainsKey(catalog.Key)))
             {
-                var catalogs = await _reader.ListCatalogIdsByKeyAsync(named.Values.Distinct(StringComparer.Ordinal).ToArray(), cancellationToken);
-                if (named.Values.Any(catalogKey => !catalogs.ContainsKey(catalogKey))) return FormLibraryErrors.CatalogUnavailable;
-                draft = draft with { Fields = draft.Fields.Select(field => named.TryGetValue(field.LocalId, out var catalogKey)
-                    ? field with { Source = (field.Source ?? new FormQuestionSource(null)) with { Catalog = catalogs[catalogKey] } } : field).ToArray() };
+                if (catalog.Fields.Any(field => field.SourceCatalog is { } source && !ids.ContainsKey(source))) return FormLibraryErrors.CatalogUnavailable;
+                var entity = BusinessFormCatalog.CreateManual(catalog.OriginalCulture, catalog.Name, catalog.Description);
+                entity.AssignStandardKey(catalog.Key);
+                var fields = entity.SetFields(catalog.Fields.Select((field, position) => new BusinessFormCatalogField(BusinessFormCatalogField.CreateIdentity(),
+                    field.Key, field.Name, field.Type, field.SourceCatalog is { } source ? ids[source] : null, false, false, null, null, field.MaxLength,
+                    "data", position, true)).ToArray(), null);
+                if (fields.IsFailure) throw new InvalidOperationException("A library standard declares invalid catalog fields.");
+                created.Add(entity);
+                ids[catalog.Key] = entity.Id;
             }
+            if (named.Values.Any(catalogKey => !ids.ContainsKey(catalogKey))) return FormLibraryErrors.CatalogUnavailable;
+            draft = draft with { Fields = draft.Fields.Select(field => named.TryGetValue(field.LocalId, out var catalogKey)
+                ? field with { Source = (field.Source ?? new FormQuestionSource(null)) with { Catalog = ids[catalogKey] } } : field).ToArray() };
             return await _drafts.CreateAsync(new SaveFormDraftRequest(request.RequestId, request.Name, request.Prefix, draft)
-                { Standard = new FormDraftStandardOrigin(standard.Key, standard.Version, standard.Bindings) }, cancellationToken);
+                { Standard = new FormDraftStandardOrigin(standard.Key, standard.Version, standard.Bindings) { NewCatalogs = created } }, cancellationToken);
         });
 }

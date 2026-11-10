@@ -217,4 +217,17 @@ public sealed class FormCatalogTests
 
     private static string Read(string json, string culture) =>
         JsonDocument.Parse(json).RootElement.GetProperty(culture).GetString()!;
+
+    [Fact]
+    public void A_catalog_a_standard_brings_takes_its_stable_key_once()
+    {
+        var catalog = BusinessFormCatalog.CreateManual("es", new Dictionary<string, string> { ["es"] = "Clientes" }, new Dictionary<string, string>());
+
+        catalog.AssignStandardKey("arca.customers");
+
+        Assert.Equal("arca.customers", catalog.Key);
+        Assert.Throws<InvalidOperationException>(() => catalog.AssignStandardKey("arca.other"));
+        Assert.Throws<ArgumentException>(() => BusinessFormCatalog.CreateManual("es", new Dictionary<string, string> { ["es"] = "Otro" },
+            new Dictionary<string, string>()).AssignStandardKey("Clientes de ARCA"));
+    }
 }

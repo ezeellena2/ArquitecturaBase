@@ -36,5 +36,20 @@ internal sealed class TestFormStandardSource : IStructuredFormStandardSource
             {
                 [Customer] = "customer", [Items] = "items", [Quantity] = "quantity", [Price] = "price", [Amount] = "amount", [Total] = "total",
             }),
+        new(CustomersKey, 1, new Dictionary<string, string> { ["es"] = "Venta de prueba", ["en"] = "Test sale" },
+            new Dictionary<string, string> { ["es"] = "Una venta a un cliente del catálogo que trae.", ["en"] = "A sale to a customer of the catalog it brings." },
+            "VTP", $$$"""
+                {"format":1,"culture":"es","submitLabel":{"es":"Enviar"},"fields":[
+                {"localId":"{{{Buyer}}}","type":"choice","label":{"es":"Cliente"},"required":true}]}
+                """, new Dictionary<string, string> { [Buyer] = "customer" }, new Dictionary<string, string> { [Buyer] = CustomersCatalog },
+            OwnCatalogs: [new(CustomersCatalog, "es", new Dictionary<string, string> { ["es"] = "Clientes de prueba" }, new Dictionary<string, string>(),
+                [new("cuit", new Dictionary<string, string> { ["es"] = "CUIT" }, "text", MaxLength: 11)])]),
+        new(MissingKey, 1, new Dictionary<string, string> { ["es"] = "Sin catálogo" }, new Dictionary<string, string> { ["es"] = "Nombra un catálogo que no está." },
+            "SCP", $$$"""
+                {"format":1,"culture":"es","submitLabel":{"es":"Enviar"},"fields":[
+                {"localId":"{{{Buyer}}}","type":"choice","label":{"es":"Cliente"},"required":true}]}
+                """, new Dictionary<string, string>(), new Dictionary<string, string> { [Buyer] = "test.nowhere" }),
     ];
+    public const string CustomersKey = "test.sale", MissingKey = "test.missing-catalog", CustomersCatalog = "test.customers",
+        Buyer = "0196f2a0-0000-7000-8000-0000000000e1";
 }

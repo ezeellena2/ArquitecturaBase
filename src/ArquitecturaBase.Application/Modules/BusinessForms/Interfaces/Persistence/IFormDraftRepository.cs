@@ -3,6 +3,8 @@ using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 public interface IFormDraftRepository
 {
+    /// <summary>BI1-A: a catalog a library standard brings, added in the same save as its draft.</summary>
+    void AddStandardCatalog(BusinessFormCatalog catalog);
     Task LockRequestAsync(Guid actor, Guid requestId, CancellationToken cancellationToken);
     Task LockDefinitionsAsync(CancellationToken cancellationToken);
     Task<BusinessFormDefinition?> GetAsync(Guid id, CancellationToken cancellationToken);

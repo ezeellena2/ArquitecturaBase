@@ -25,6 +25,8 @@ sirviendo al módulo aunque la empresa la edite: si borra el total o lo cambia d
    borrador rechaza quitarlas o cambiar su tipo, su bloque, su catálogo, sus opciones, su cálculo o si son obligatorias
    (`Forms.Draft.BoundQuestionChanged`). El módulo lee la respuesta por los `FieldId` sellados.
 4. **Un catálogo se nombra por su `Key`**: si falta o está inactivo, la copia no se crea (`Forms.Library.CatalogUnavailable`).
+   Un estándar puede traer catálogos propios que la gente edita (como «Clientes»): se crean vacíos con su `Key` y sus campos en
+   la misma transacción que la copia, si todavía no existen.
 
 ## Consecuencias
 

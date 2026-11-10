@@ -4,5 +4,5 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persiste
 public interface IFormLibraryReader
 {
     Task<IReadOnlyDictionary<string, int>> ListCopyCountsAsync(IReadOnlyList<string> standardKeys, CancellationToken cancellationToken);
-    Task<IReadOnlyDictionary<string, Guid>> ListCatalogIdsByKeyAsync(IReadOnlyList<string> catalogKeys, CancellationToken cancellationToken);
+    Task<IReadOnlyDictionary<string, Models.FormLibraryCatalogRow>> ListCatalogsByKeyAsync(IReadOnlyList<string> catalogKeys, CancellationToken cancellationToken);
 }
