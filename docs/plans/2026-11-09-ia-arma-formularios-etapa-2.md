@@ -269,4 +269,7 @@ HEAD.
   turno, sin vencimiento.
 
 Inicio sigue ofreciendo la versión 1. Unitarias 4366/4366, arquitectura 207/207, dominio 821/821 e integración 11/11. Queda por
-confirmar en la corrida real que OpenAI acepte un objeto que puede ser null en el modo estricto.
+confirmar en la corrida real que OpenAI acepte un objeto que puede ser null en el modo estricto. La revisión no encontró nada
+bloqueante, y su corrección entró en f84711cc. Crear desde la web vale sólo para un turno de Inicio, también en H4. El encabezado
+es la primera fila con contenido. En la importación, dos campos con el mismo nombre visible dan `ambiguous`, y el modelo elige por
+el nombre original. Unitarias 4374/4374 e integración 11/11.
