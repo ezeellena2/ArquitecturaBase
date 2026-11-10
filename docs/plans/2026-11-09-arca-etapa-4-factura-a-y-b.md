@@ -11,10 +11,11 @@ numeración y reconciliación ([ADR 0028](../decisions/0028-emision-de-comproban
 autocompletar del padrón, el PDF fiscal con QR, los catálogos de ARCA (las alícuotas incluidas), el puerto con formularios,
 el estándar «Factura» y la anulación con nota de crédito. El reparto quedó en la nota compartida de las etapas.
 
-**Tableros:** prefijo IV, en el lienzo provisorio
-[Formularios desde la app](https://claude.ai/artifact/Kvbr5KFJrGT951JLiu8i4M), sólo con lo que cambia respecto de la C en
-la app y en WhatsApp: la alícuota del renglón, los totales y el «¿La emito?» con IVA. El PDF se revisó con muestras reales
-(tarea 5).
+**Tableros:** IV1-A e IV1-B, IV2-A e IV2-B e IV3, en el lienzo provisorio
+[Formularios desde la app](https://claude.ai/artifact/Kvbr5KFJrGT951JLiu8i4M), en las filas «ARCA · factura A y B»,
+debajo de las de la etapa 3. Sólo dibujan lo que cambia respecto de la C en la app y en WhatsApp; el usuario eligió IV1-A
+e IV2-A (decisiones 4 y 5). El PDF se revisó con muestras reales (tarea 5). El diseño elegido se registra en
+`docs/design` del front con la tarea 7, cuando el front se pueda tocar.
 
 ## Normas confirmadas (2026-11-09)
 
@@ -171,13 +172,23 @@ Se preguntaron de a una, con la recomendada primero.
    con la leyenda) y una B a consumidor final, con alícuotas distintas y un renglón exento, cada una anulada con su nota de
    crédito. Lo que homologación no muestra (los datos reales del padrón y si ARCA autoriza al emisor a la clase A o le pide
    la A con leyenda) se ve en la primera factura real, fuera de la etapa.
+4. **Dónde se ve el IVA al cargar (IV1).** El usuario eligió (2026-11-09) **IV1-A**: la tabla de ítems de la C suma sólo la
+   columna «Alícuota» (una lista que viene en 21 %, con las de ARCA más «Exento» y «No gravado»), y el IVA aparece una vez,
+   en el total: neto gravado, el IVA de cada alícuota, lo exento y el total. La (i) de «Precio unitario» dice si es sin o
+   con IVA, según el formulario. Descartada: IV1-B, el IVA y el importe con IVA en cada ítem.
+5. **Dónde se elige «Los precios incluyen IVA» (IV2).** El usuario eligió (2026-11-09) **IV2-A**: la casilla «El precio
+   incluye IVA» en la pregunta «Precio unitario» del bloque de ítems, debajo de «Se carga varias veces», con su (i).
+   Descartada: IV2-B, una zona «Factura» del formulario.
+
+**Sin opciones (IV3):** el «¿La emito?» de la app suma el neto, el IVA y lo exento en la A, y el IVA contenido en la B; en
+WhatsApp, la pantalla de cada ítem suma «Alícuota» y el resumen de EM2-A, el IVA entre paréntesis.
 
 ## Tareas
 
 Lo puro va ya; lo demás espera a que la etapa 3 commitee lo suyo. El front espera a que el usuario termine la prueba
 integral.
 
-1. **Plan, normas y decisiones** (hechos el 2026-11-09) **y tableros IV**, con los de la etapa 3 elegidos.
+1. **Plan, normas, decisiones y tableros IV.** Hechos el 2026-11-09.
 2. **El desglose del IVA por alícuota** con TDD, en Domain, según las decisiones 1 y 2. **Hecho el 2026-11-09**
    (33b631f3): `ArcaVatBreakdown.Calculate` recibe los importes de los renglones ya redondeados (los calcula la etapa 3) con
    su `ArcaVatTreatment` (una `ArcaVatRate`, exento o no gravado) y si incluyen IVA, y devuelve los cinco importes y el
@@ -196,7 +207,8 @@ integral.
    lugar de un tablero, se revisaron dos PDF de muestra dibujados por el renderer real (una A a monotributista con exento y
    una B a consumidor final); el diseño fijo es el de la etapa 3 y el contenido lo fija la norma.
 6. *(con las etapas 2 y 3)* **La alícuota en el estándar «Factura»** y «Los precios incluyen IVA» si se elige.
-7. **Front,** después de la prueba integral, con el diseño registrado en `docs/design`.
+7. **Front,** después de la prueba integral: primero registrar IV1-A, IV2-A e IV3 en `docs/design` del front, después la
+   columna «Alícuota», el total discriminado, la casilla del editor y el «¿La emito?» con IVA.
 8. **Prueba en homologación de A y B** con la CUIT del usuario, que la corre con su clave fiscal.
 9. **Cierre:** la verificación de `AGENTS.md`, `docs/features/arca.md`, la fila de la etapa 4 en la hoja de ruta, el retiro
    de este plan con la auditoría y el traspaso al multitenant ofrecido.
