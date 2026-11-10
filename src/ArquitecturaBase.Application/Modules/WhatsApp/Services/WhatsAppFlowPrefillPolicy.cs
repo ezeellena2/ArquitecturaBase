@@ -17,12 +17,12 @@ internal static class WhatsAppFlowPrefillPolicy
         if (!WhatsAppFlowProfile.PrefillRevisions.Contains(projection.ProfileRevision))
             return values.Count == 0 ? Result.Success<IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>>>(new Dictionary<string, IReadOnlyDictionary<string, string>>()) : FlowErrors.UnsupportedConfiguration;
         // The block and its rows' questions are never prefilled, nor a question that chooses first (LD2-A): its list is empty
-        // until a value is chosen.
+        // until a value is chosen. Nor a calculation (CA1-A), which the server computes, or a question with a condition (CO1-A).
         if (values.Keys.Any(key => !projection.Mapping.Any(field => field.Key == key && field.Files is null && field.Type is not ("multiChoice" or "group")
-            && field.Repeated != true && field.ChoosesFirst != true))) return FlowErrors.InvalidValue;
+            && field.Repeated != true && field.ChoosesFirst != true && field.Calculated != true && field.ShowWhen is null))) return FlowErrors.InvalidValue;
         var result = new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.Ordinal);
         var screens = WhatsAppFlowScreenBuilder.Plan(projection.Mapping.Select(field =>
-            new WhatsAppFlowSlot(field.Type, field.Files is not null, field.Repeated == true, field.Rows)).ToArray());
+            new WhatsAppFlowSlot(field.Type, field.Files is not null, field.Repeated == true, field.Rows, field.Calculated == true)).ToArray());
         foreach (var screen in screens.Where(screen => screen.Kind == "fields"))
         {
             var scalars = screen.Questions.Select(index => projection.Mapping[index]).Where(field => field.Files is null && field.Type != "multiChoice").ToArray();

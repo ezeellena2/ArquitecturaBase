@@ -159,7 +159,7 @@ public sealed partial class WhatsAppFormSendingTests
             var r7Snapshot = Snapshot();
             var checkResult = await channel.CheckAsync(r7Snapshot, Ct);
             Assert.True(checkResult.IsSuccess);
-            Assert.Equal("flow-static-7.3-r12", checkResult.Value.ProfileRevision);
+            Assert.Equal("flow-static-7.3-r13", checkResult.Value.ProfileRevision);
             Assert.Empty(checkResult.Value.Issues);
             var r7Request = new StructuredFormPublicationRequest(r7OperationId, definitionId, r7VersionId, authorId,
                 ["formtemplates.publish"], Hash("r10 publication"), checkResult.Value.ProfileRevision,
@@ -187,7 +187,7 @@ public sealed partial class WhatsAppFormSendingTests
             {
                 var projection = scope.ServiceProvider.GetRequiredService<IWhatsAppFlowProtector>().ReadProjection(
                     binding.OperationId, binding.Id, binding.VersionId, binding.Culture, binding.ProtectedProjection);
-                Assert.Equal("flow-static-7.3-r12", projection.ProfileRevision);
+                Assert.Equal("flow-static-7.3-r13", projection.ProfileRevision);
                 Assert.NotEqual(legacyHashes[binding.Culture], projection.Hash);
             }
             var r3AfterR5 = await factory.ExecuteDbContextAsync(async db => await db.Set<WhatsAppFlowBinding>()

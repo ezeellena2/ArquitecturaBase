@@ -151,16 +151,19 @@ internal sealed partial class WhatsAppFlowDispatchService(IWhatsAppFlowRepositor
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Unreadable WhatsApp Flow {PayloadKind}; retry scheduled without altering external-effect uncertainty ({ExceptionType}).")]
     private static partial void LogUnreadablePayload(ILogger logger, string payloadKind, string exceptionType);
-    // The subtitles of a sealed screen by position, and how many the screens before it have; none without titles.
+    // The subtitles of a sealed screen by position, and how many the screens before it have; none without titles. From r13 a
+    // subtitle may go inside an If, shown with the questions of its section (CO1-A).
     private static (int Before, int[] Positions) Subtitles(string json, int screenIndex)
     {
         if (!json.Contains("\"TextSubheading\"", StringComparison.Ordinal)) return (0, []);
         using var document = System.Text.Json.JsonDocument.Parse(json);
         var screens = document.RootElement.GetProperty("screens").EnumerateArray().Select(screen => screen.GetProperty("layout").GetProperty("children")[0]
-            .GetProperty("children").EnumerateArray().Select((child, at) => (Subtitle: child.GetProperty("type").GetString() == "TextSubheading", At: at))
+            .GetProperty("children").EnumerateArray().Select((child, at) => (Subtitle: IsSubtitle(child)
+                || (child.GetProperty("type").GetString() == "If" && child.GetProperty("then").EnumerateArray().Any(IsSubtitle)), At: at))
             .Where(child => child.Subtitle).Select(child => child.At).ToArray()).ToArray();
         return screenIndex < screens.Length ? (screens.Take(screenIndex).Sum(positions => positions.Length), screens[screenIndex]) : (0, []);
     }
+    private static bool IsSubtitle(JsonElement child) => child.GetProperty("type").GetString() == "TextSubheading";
     // LD2-A (r11): the positions of the dropdowns of values, each right before its question.
     private static int[] Pickers(IReadOnlyList<int> indices, IReadOnlyList<WhatsAppFlowProjectionField> mapping)
     {
@@ -174,7 +177,7 @@ internal sealed partial class WhatsAppFlowDispatchService(IWhatsAppFlowRepositor
         var culture = projection.Culture;
         if (pointer.Property == "name") return new(null, null, "name." + culture, culture);
         var screens = WhatsAppFlowScreenBuilder.Plan(projection.Mapping.Select(field =>
-            new WhatsAppFlowSlot(field.Type, field.Type is "photo" or "document", field.Repeated == true, field.Rows)).ToArray());
+            new WhatsAppFlowSlot(field.Type, field.Type is "photo" or "document", field.Repeated == true, field.Rows, field.Calculated == true)).ToArray());
         if (pointer.ScreenIndex < 0 || pointer.ScreenIndex >= screens.Count || pointer.FieldIndex is not { } position || position < 0)
             return new(null, null, "channel", culture);
         // A section subtitle (CW15-B) points to its title; the components after it count without the subtitles before them.

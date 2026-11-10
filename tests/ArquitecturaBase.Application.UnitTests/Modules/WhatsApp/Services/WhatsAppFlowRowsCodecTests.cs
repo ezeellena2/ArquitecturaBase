@@ -49,6 +49,21 @@ public sealed class WhatsAppFlowRowsCodecTests
         return result.Value!;
     }
 
+    // r13 (CA1-A): the amount of each item is computed by the owner; the Flow never sends it.
+    [Fact]
+    public void A_calculation_of_the_block_is_left_to_the_owner_and_an_answer_for_it_is_rejected()
+    {
+        var amountId = Guid.Parse("00000000-0000-7000-8000-0000000000b5");
+        IReadOnlyList<WhatsAppFlowProjectionField> mapping =
+            [.. Mapping(), new(amountId, Key(amountId), "decimal", false, null, [], Repeated: true, Calculated: true)];
+
+        var item = Assert.Single(Items(Decoded(mapping, Answers([.. Row(1, First, "2"), More(1, "false")]))));
+        var answered = WhatsAppFlowRowsCodec.Decode(mapping, Answers([.. Row(1, First, "2"), (Key(amountId) + "_r1", "20"), More(1, "false")]), []);
+
+        Assert.Equal([Key(ItemId), Key(QuantityId)], item.Keys);
+        Assert.True(answered.IsFailure);
+    }
+
     [Fact]
     public void One_item_answered_with_no_keeps_one_item_with_the_canonical_values_of_its_questions()
     {

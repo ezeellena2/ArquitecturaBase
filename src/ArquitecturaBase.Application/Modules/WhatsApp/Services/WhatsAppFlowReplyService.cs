@@ -301,6 +301,15 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
         {
             // The block and its questions arrive per item, under their suffixes.
             if (field.Type is "photo" or "document" or "group" || field.Repeated == true) continue;
+            // r13: the owner computes a calculation, which the Flow never sends (CA1-A); what was written in a question its
+            // condition hides now is left out, as the app does not send it (CO1-A).
+            if (field.Calculated == true)
+            {
+                if (answers.ContainsKey(field.Key) || arrays.ContainsKey(field.Key)) return FlowErrors.InvalidValue;
+                continue;
+            }
+            if (field.ShowWhen is { } showWhen && !(projection.Mapping.FirstOrDefault(other => other.FieldId == showWhen.FieldId) is { } controller
+                && decoded.TryGetValue(controller.Key, out var shownBy) && showWhen.Values.Contains(shownBy, StringComparer.Ordinal))) continue;
             if (field.Type == "multiChoice" && answers.ContainsKey(field.Key)) return FlowErrors.InvalidValue;
             (field.Type == "multiChoice" ? arrays : answers).TryGetValue(field.Key, out var raw);
             var value = WhatsAppFlowValueCodec.Decode(WhatsAppFlowValueCodec.ForReply(field, catalogs), raw);

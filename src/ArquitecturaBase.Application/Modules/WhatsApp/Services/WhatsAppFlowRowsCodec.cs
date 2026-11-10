@@ -71,6 +71,12 @@ internal static class WhatsAppFlowRowsCodec
             var item = new Dictionary<string, string>(StringComparer.Ordinal);
             foreach (var field in block)
             {
+                // r13: the owner computes a calculation of the item (CA1-A); the Flow never sends it.
+                if (field.Calculated == true)
+                {
+                    if (answers.ContainsKey(field.Key + "_r" + row.ToString(CultureInfo.InvariantCulture))) return FlowErrors.InvalidValue;
+                    continue;
+                }
                 answers.TryGetValue(field.Key + "_r" + row.ToString(CultureInfo.InvariantCulture), out var raw);
                 var value = WhatsAppFlowValueCodec.Decode(WhatsAppFlowValueCodec.ForReply(field, catalogs), raw);
                 if (value.IsFailure) return FlowErrors.InvalidValue;

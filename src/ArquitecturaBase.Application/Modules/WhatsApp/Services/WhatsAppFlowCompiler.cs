@@ -43,7 +43,9 @@ internal static class WhatsAppFlowCompiler
                 || invalidChoice || !WhatsAppFlowScreenBuilder.ValidFiles(question) || !WhatsAppFlowScreenBuilder.ValidSelection(question)
                 || !WhatsAppFlowScreenBuilder.ValidRows(question)
                 // Choosing first by a field (LD2-A) is for a single choice from a catalog.
-                || (question.ChoosesFirst == true && (question.Type != "choice" || question.SourceCatalogId is null)))
+                || (question.ChoosesFirst == true && (question.Type != "choice" || question.SourceCatalogId is null))
+                // A calculation (CA1-A) is an optional decimal.
+                || (question.Calculated == true && (question.Type != "decimal" || question.Required)))
                 issues.Add(new(question.FieldId, null, "draft.fields", FlowErrors.UnsupportedConfiguration));
             foreach (var option in question.Options ?? [])
                 if (option.ChoiceId == Guid.Empty || !choices.Add(option.ChoiceId)) issues.Add(new(question.FieldId, option.ChoiceId, "draft.fields", FlowErrors.UnsupportedConfiguration));
@@ -62,18 +64,58 @@ internal static class WhatsAppFlowCompiler
                 || section.Start >= (index + 1 < sections.Count ? sections[index + 1]?.Start ?? -1 : request.Questions.Count)
                 || (block >= 0 && section.Start > block && section.Start < end)).Any())
             return new([], [new(null, null, "draft.sections", FlowErrors.UnsupportedConfiguration)]);
+        // CO1-A (r13): a condition names an earlier question outside the block, of choose one or yes or no, and answers it has. A
+        // photo or a document does not take one: its picker would go inside an If, which the Flow does not need yet.
+        for (var index = 0; index < request.Questions.Count; index++)
+        {
+            var question = request.Questions[index];
+            if (question.ShowWhen is not { } showWhen) continue;
+            var controller = Enumerable.Range(0, index).FirstOrDefault(earlier => request.Questions[earlier].FieldId == showWhen.FieldId, -1);
+            var source = controller < 0 ? null : request.Questions[controller];
+            var values = showWhen.Values;
+            var valid = question.Type != "group" && question.Repeated != true && question.Files is null
+                && source is { Repeated: not true, Calculated: not true } && values is { Count: >= 1 and <= 50 }
+                && values.Distinct(StringComparer.Ordinal).Count() == values.Count && source.Type switch
+                {
+                    "boolean" => values.All(value => value is "true" or "false"),
+                    "choice" when source.SourceCatalogId is not null => values.All(value => Guid.TryParseExact(value, "D", out _)),
+                    "choice" => values.All(value => source.Options!.Any(option => option.ChoiceId.ToString("D") == value)),
+                    _ => false,
+                };
+            if (!valid) issues.Add(new(question.FieldId, null, $"draft.fields[{index}].showWhen", FlowErrors.UnsupportedConfiguration));
+        }
+        if (issues.Count > 0) return new([], issues.AsReadOnly());
         var screens = WhatsAppFlowScreenBuilder.Plan(request.Questions.Select(question =>
-            new WhatsAppFlowSlot(question.Type, question.Files is not null, question.Repeated == true, question.Rows)).ToArray());
+            new WhatsAppFlowSlot(question.Type, question.Files is not null, question.Repeated == true, question.Rows, question.Calculated == true)).ToArray());
         var rows = block >= 0 ? request.Questions[block].Rows! : null;
         var rowCount = rows is null ? 0 : WhatsAppFlowScreenBuilder.RowCount(rows);
         // «¿Agregás un ítem?» answers under _r0 and each «¿Agregás otro ítem?» under its row (RG8-A).
         var asked = rows is null ? 0 : (rows.MinRows == 0 ? 1 : 0) + Enumerable.Range(1, rowCount).Count(row => WhatsAppFlowScreenBuilder.Asks(rows, row));
+        // Where each title goes (CW15-B): before the first question of its section that the Flow shows, or atop the block. From r13 a
+        // title with only calculations below it is not shown, and one whose questions all have a condition shows with any of them.
+        var places = new Dictionary<int, (int At, string? When)>();
+        for (var index = 0; index < sections.Count; index++)
+        {
+            var stop = index + 1 < sections.Count ? sections[index + 1].Start : request.Questions.Count;
+            var shown = Enumerable.Range(sections[index].Start, stop - sections[index].Start)
+                .Where(at => request.Questions[at].Calculated != true && request.Questions[at].Repeated != true).ToArray();
+            if (shown.Length == 0) continue;
+            places[index] = (shown[0], shown.All(at => request.Questions[at].ShowWhen is not null)
+                ? WhatsAppFlowScreenBuilder.Either(request.Questions, screens, shown, WhatsAppFlowScreenBuilder.Owner(screens, shown[0])) : null);
+        }
+        var guarded = places.Values.Where(place => place.When is not null).Select(place => place.At).ToHashSet();
+        // A calculation is not a component, and each component of a question with a condition, or a title shown with them, goes
+        // inside an If (r13).
+        int Ifs(IEnumerable<int> indices) => indices.Sum(index => request.Questions[index] is { ShowWhen: not null, Calculated: not true } question
+            ? (question.ChoosesFirst == true ? 2 : 1) : 0) + indices.Count(guarded.Contains);
         foreach (var culture in request.TargetCultures.Order(StringComparer.Ordinal))
         {
             var worstCaseBytes = 2L + 12 + 1 + 2 + 128L * 6;
             for (var index = 0; index < request.Questions.Count; index++)
             {
                 var question = request.Questions[index];
+                // A calculation never arrives (CA1-A).
+                if (question.Calculated == true) continue;
                 var valueBytes = question.Type switch
                 {
                     "shortText" or "longText" => 2L + question.MaxLength!.Value * 6L,
@@ -113,20 +155,31 @@ internal static class WhatsAppFlowCompiler
             // A title is a subtitle before the first question of its section, keyed by that question's position.
             var subtitles = new Dictionary<int, Dictionary<string, object>>();
             for (var index = 0; index < sections.Count; index++)
-                subtitles[sections[index].Start] = new(StringComparer.Ordinal)
+            {
+                var subtitle = new Dictionary<string, object>(StringComparer.Ordinal)
                 {
                     ["type"] = "TextSubheading", ["text"] = Resolve(sections[index].Title, $"draft.sections[{index}].title", null, null, 80) ?? "",
                 };
+                if (places.TryGetValue(index, out var place))
+                    subtitles[place.At] = place.When is null ? subtitle : WhatsAppFlowScreenBuilder.If(place.When, subtitle);
+            }
             string? blockTitle = null;
             for (var index = 0; index < request.Questions.Count; index++)
             {
                 var question = request.Questions[index];
                 var path = $"draft.fields[{index}]";
-                var labelMax = question.Type == "group" ? 60 : question.Files is not null ? 80 : question.Type == "date" ? 40 : question.Type is "boolean" or "multiChoice" ? 30 : 20;
-                var label = Resolve(question.Label, path + ".label", question.FieldId, null, labelMax);
                 mapping.Add(new(question.FieldId, question.Key, question.Type, question.Required, question.MaxLength,
                     (question.Options?.Select(option => option.ChoiceId).ToList() ?? []).AsReadOnly(), question.Files, question.Selection,
-                    question.Rows, question.Repeated == true ? true : null, question.ChoosesFirst == true ? true : null));
+                    question.Rows, question.Repeated == true ? true : null, question.ChoosesFirst == true ? true : null,
+                    question.Calculated == true ? true : null, question.ShowWhen));
+                // The server computes a calculation (CA1-A): the Flow neither shows it nor needs its texts.
+                if (question.Calculated == true)
+                {
+                    components.Add(new(StringComparer.Ordinal));
+                    continue;
+                }
+                var labelMax = question.Type == "group" ? 60 : question.Files is not null ? 80 : question.Type == "date" ? 40 : question.Type is "boolean" or "multiChoice" ? 30 : 20;
+                var label = Resolve(question.Label, path + ".label", question.FieldId, null, labelMax);
                 if (question.Type == "group")
                 {
                     // The block titles its screens; WhatsApp does not show its help.
@@ -181,11 +234,12 @@ internal static class WhatsAppFlowCompiler
             } });
             // Includes the Form container, conservatively. With a block the limit applies to each screen: a row adds its own
             // question, an If and a Footer in each branch. The dropdown of values of a question that chooses first is one more.
-            var count = rows is null ? components.Count + 1 + subtitles.Count + request.Questions.Count(question => question.ChoosesFirst == true)
+            var count = rows is null ? components.Count - request.Questions.Count(question => question.Calculated == true) + 1 + subtitles.Count
+                    + request.Questions.Count(question => question.ChoosesFirst == true) + Ifs(Enumerable.Range(0, request.Questions.Count))
                 : screens.Max(screen => WhatsAppFlowScreenBuilder.Subtitled(screen, block, rows, subtitles)
                     + screen.Questions.Count(index => request.Questions[index].ChoosesFirst == true) + screen.Kind switch
             {
-                "fields" => screen.Questions.Count + 2,
+                "fields" => screen.Questions.Count + 2 + Ifs(screen.Questions),
                 "ask" => 5,
                 "end" => 3,
                 _ => screen.Questions.Count + (WhatsAppFlowScreenBuilder.Asks(rows, screen.Row) ? 4 : 1) + 1,
@@ -193,7 +247,7 @@ internal static class WhatsAppFlowCompiler
             if (count > 50) issues.Add(new(null, null, "draft.fields", FlowErrors.ComponentBudgetExceeded, 50, culture));
             if (issues.Count > 0) continue;
             var json = rows is null
-                ? WhatsAppFlowScreenBuilder.Build(request.Questions, components, screenData, name, submit, culture, subtitles)
+                ? WhatsAppFlowScreenBuilder.Build(request.Questions, screens, components, screenData, name, submit, culture, subtitles)
                 : WhatsAppFlowScreenBuilder.BuildRows(request.Questions, screens, components, screenData, name, blockTitle, submit, culture, subtitles);
             var bytes = Encoding.UTF8.GetBytes(json);
             if (bytes.Length > 1048576) { issues.Add(new(null, null, "draft", FlowErrors.UnsupportedConfiguration)); continue; }

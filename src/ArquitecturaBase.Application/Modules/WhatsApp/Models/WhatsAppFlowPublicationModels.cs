@@ -18,7 +18,11 @@ public sealed record WhatsAppFlowProjectionField(Guid FieldId, string Key, strin
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] ArquitecturaBase.Application.Models.StructuredData.StructuredFormRowSettings? Rows = null,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] bool? Repeated = null,
     // LD2-A (r11): the question shows a dropdown of values before its own list, which the diagnostics and the prefill skip.
-    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] bool? ChoosesFirst = null);
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] bool? ChoosesFirst = null,
+    // r13: a calculation (CA1-A) is not on any screen and never arrives; a question with a condition (CO1-A) is left out of the
+    // answers while its condition does not hold. Neither is prefilled.
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] bool? Calculated = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] ArquitecturaBase.Application.Models.StructuredData.StructuredFormShowWhen? ShowWhen = null);
 public sealed record WhatsAppFlowDiagnostic(Guid? FieldId, Guid? ChoiceId, string Path, string Culture);
 public sealed record WhatsAppFlowOperationRow(Guid Id, Guid NeutralOperationId, Guid DefinitionId, Guid VersionId, Guid ActorUserId,
     byte[] ProtectedManifest, DateTime? NextCheckAtUtc, IReadOnlyList<WhatsAppFlowBindingRow> Bindings)
