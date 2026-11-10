@@ -84,6 +84,47 @@ public sealed class BusinessFormActionRunTests
         Assert.True(next.Value.ReconciliationOnly);
     }
     [Fact]
+    public void A_pending_issuance_is_asked_again_when_its_issuer_says_but_never_sooner_than_five_seconds()
+    {
+        var run = Create("IssueDocument");
+        var lease = run.Reserve(Now, TimeSpan.FromMinutes(2)).Value;
+        Assert.True(run.RecordOutcome(lease.Fence, Now, FormActionRunState.Running, null, false, null, Now.AddMinutes(10)).IsSuccess);
+        Assert.Equal(Now.AddMinutes(10), run.NextCheckAtUtc);
+
+        var again = run.Reserve(Now.AddMinutes(10), TimeSpan.FromMinutes(2)).Value;
+        Assert.True(run.RecordOutcome(again.Fence, Now.AddMinutes(10), FormActionRunState.Running, null, false, null, Now).IsSuccess);
+        Assert.Equal(Now.AddMinutes(10).AddSeconds(5), run.NextCheckAtUtc);
+    }
+    [Fact]
+    public void A_person_decides_an_issuance_in_review_once_and_only_on_its_current_revision()
+    {
+        var run = Create("IssueDocument");
+        var lease = run.Reserve(Now, TimeSpan.FromMinutes(2)).Value;
+        Assert.True(run.RecordOutcome(lease.Fence, Now, FormActionRunState.Uncertain, "arca.invoice.dateOutOfRange", false).IsSuccess);
+        var reviewer = Guid.NewGuid();
+
+        Assert.True(run.RequestIssueReview(lease.Fence + 1, true, reviewer, Now).IsFailure);
+        Assert.True(run.RequestIssueReview(lease.Fence, true, reviewer, Now).IsSuccess);
+        Assert.True(run.RequestIssueReview(lease.Fence, true, reviewer, Now).IsSuccess);
+        Assert.True(run.RequestIssueReview(lease.Fence, false, reviewer, Now).IsFailure);
+
+        Assert.Equal(FormActionRunState.Running, run.State);
+        Assert.True(run.DeliveryReviewRequested);
+        Assert.Null(run.DeliveryReviewRecipientUserId);
+        Assert.True(run.DeliveryReviewWasSent);
+        Assert.Equal(reviewer, run.DeliveryReviewedByUserId);
+    }
+    [Fact]
+    public void Only_an_issuance_takes_an_issue_review()
+    {
+        var run = Create();
+        var lease = run.Reserve(Now, TimeSpan.FromMinutes(2)).Value;
+        Assert.True(run.RecordOutcome(lease.Fence, Now, FormActionRunState.Uncertain, null, false).IsSuccess);
+
+        Assert.True(run.RequestIssueReview(lease.Fence, true, Guid.NewGuid(), Now).IsFailure);
+        Assert.True(Create("IssueDocument").RequestIssueReview(0, true, Guid.NewGuid(), Now).IsFailure);
+    }
+    [Fact]
     public void Consulting_uncertainty_or_waiting_for_a_pending_effect_never_authorizes_retry()
     {
         var run=Create();Assert.True(run.RequestRetry(Now).IsFailure);

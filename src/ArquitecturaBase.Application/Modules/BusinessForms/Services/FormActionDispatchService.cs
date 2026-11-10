@@ -9,7 +9,7 @@ using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Logging;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 internal sealed class FormActionDispatchService(IFormActionRunRepository runs,IFormActionRunReader reader,IFormDraftRepository drafts,IFormRuleReader ruleReader,
-    IUnitOfWork unitOfWork,FormPdfDocumentRecorder documents,TimeProvider timeProvider,ILogger<FormActionDispatchService> logger):IFormActionDispatchService
+    IUnitOfWork unitOfWork,FormActionOutcomeRecorder outcomes,TimeProvider timeProvider,ILogger<FormActionDispatchService> logger):IFormActionDispatchService
 {
     public async Task<IReadOnlyList<Guid>> ListDueIdsAsync(CancellationToken cancellationToken)
     {
@@ -52,6 +52,8 @@ internal sealed class FormActionDispatchService(IFormActionRunRepository runs,IF
             var completed=run.RecordOutcome(reserved.Value.Fence,now,FormActionRunState.Completed,null,false);
             return completed.IsFailure?Result.Failure<FormActionWorkResponse?>(completed.Error):Result.Success<FormActionWorkResponse?>(null);
         }
+        // An issuance is queued only while its response stands; once queued, it is followed to its end.
+        var stands=run.Kind!="IssueDocument"||(await runs.GetRecordAsync(run.RecordId,ct)??throw new InvalidOperationException("The action response is missing.")).CanBeAmended;
         IReadOnlyList<FormPdfArtifact> artifacts=[];
         if(snapshot.PdfRunId is {} pdfId)
         {
@@ -60,7 +62,8 @@ internal sealed class FormActionDispatchService(IFormActionRunRepository runs,IF
         }
         return new FormActionWorkResponse(run.Id,run.RecordId,run.Kind,reserved.Value.Fence,reserved.Value.ReconciliationOnly,run.RetryRequested,snapshot,artifacts,
             run.DeliveryReviewRequested?new StructuredRecordActionReview(run.DeliveryReviewExpectedRevision!.Value,run.DeliveryReviewWasSent!.Value,run.DeliveryReviewedByUserId!.Value,run.DeliveryReviewedAtUtc!.Value):null,run.DeliveryReviewRecipientUserId,
-            run.OutcomeJson is null?null:FormDraftPolicy.Read<FormActionOutcomeResponse>(run.OutcomeJson).Recipients,run.RetryRecipientUserId);
+            run.OutcomeJson is null?null:FormDraftPolicy.Read<FormActionOutcomeResponse>(run.OutcomeJson).Recipients,run.RetryRecipientUserId)
+            { RecordStands=stands,PriorIssue=run.OutcomeJson is null?null:FormDraftPolicy.Read<FormActionOutcomeResponse>(run.OutcomeJson).Issue };
     }
     public Task<Result> CompleteAsync(FormActionWorkResponse work,FormActionOutcomeResponse outcome,CancellationToken cancellationToken)=>
         OperationLog.RunAsync(logger,"CompleteFormAction",()=>unitOfWork.ExecuteInTransactionAsync(async ct=>
@@ -68,8 +71,7 @@ internal sealed class FormActionDispatchService(IFormActionRunRepository runs,IF
             await drafts.LockDefinitionsAsync(ct);var run=await runs.GetAsync(work.RunId,ct);var now=timeProvider.GetUtcNow().UtcDateTime;
             if(run?.State==FormActionRunState.Completed&&run.Fence==work.Fence)return Result.Success();
             if(run is null||run.RecordId!=work.RecordId||!run.OwnsLease(work.Fence,now))return FormActionErrors.StateConflict;
-            if(outcome.State==FormActionRunState.Completed&&outcome.Pdf is {} pdf)
-                await documents.AddAsync(run.DefinitionId,run.RecordId,work.Snapshot.Pdf??throw new InvalidOperationException("The PDF snapshot is missing."),pdf,ct);
-            return run.RecordOutcome(work.Fence,now,outcome.State,outcome.FailureCode,outcome.CanRetry,FormDraftPolicy.Serialize(outcome));
+            if(outcome.State==FormActionRunState.Completed)await outcomes.AddAsync(run,work.Snapshot,outcome,ct);
+            return run.RecordOutcome(work.Fence,now,outcome.State,outcome.FailureCode,outcome.CanRetry,FormDraftPolicy.Serialize(outcome),outcome.Issue?.NextCheckAtUtc);
         },CommitPolicy.OnSuccess,cancellationToken));
 }

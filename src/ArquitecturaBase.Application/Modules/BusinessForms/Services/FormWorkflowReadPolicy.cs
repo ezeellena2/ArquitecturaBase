@@ -11,10 +11,11 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 internal sealed class FormWorkflowReadPolicy
 {
     private readonly IFormActionRunReader _reader; private readonly FormRecordAccessGuard _access; private readonly IPermissionService _permissions;
-    private readonly IStructuredRecordActionChannel[] _channels;
-    public FormWorkflowReadPolicy(IFormActionRunReader reader, FormRecordAccessGuard access, IPermissionService permissions, IEnumerable<IStructuredRecordActionChannel> channels)
+    private readonly IStructuredRecordActionChannel[] _channels; private readonly IStructuredRecordIssuer[] _issuers;
+    public FormWorkflowReadPolicy(IFormActionRunReader reader, FormRecordAccessGuard access, IPermissionService permissions, IEnumerable<IStructuredRecordActionChannel> channels,
+        IEnumerable<IStructuredRecordIssuer> issuers)
     {
-        _reader = reader; _access = access; _permissions = permissions; _channels = channels.ToArray();
+        _reader = reader; _access = access; _permissions = permissions; _channels = channels.ToArray(); _issuers = issuers.ToArray();
         if (_channels.Any(channel => string.IsNullOrWhiteSpace(channel.ChannelId)) || _channels.DistinctBy(channel => channel.ChannelId).Count() != _channels.Length)
             throw new InvalidOperationException("Action channel identifiers must be unique and nonempty.");
     }
@@ -37,6 +38,8 @@ internal sealed class FormWorkflowReadPolicy
                     observations.Add((channel.ChannelId, observation.RunId, observation.RecipientUserId), observation.Status);
         }
         var manage = await _permissions.HasPermissionAsync(read.Value.Actor, BusinessFormsPermissions.RulesManage, cancellationToken);
+        var reviewIssues = manage && result.Actions.Any(action => action.Kind == "IssueDocument" && action.State == "Uncertain")
+            && await CanReviewIssuesAsync(read.Value.Actor, cancellationToken);
         if (!await _access.StillAllowedAsync(read.Value, cancellationToken)) return FormDefinitionErrors.Forbidden;
         return result with
         {
@@ -49,10 +52,19 @@ internal sealed class FormWorkflowReadPolicy
                     Reason = action.ReasonCode is { } code ? ErrorMessages.Get(code) : null,
                     CanRetry = manage && action.CanRetry && !(recipients.Length > 0 && recipients.All(recipient => recipient.State == "Accepted")),
                     CanConsult = manage && action.CanConsult,
+                    CanReview = reviewIssues && action.Kind == "IssueDocument" && action.State == "Uncertain",
                     Recipients = recipients
                 };
             }).ToArray()
         };
+    }
+    /// <summary>The permission to decide on an issuance in review of an installed issuer; null if it is not installed.</summary>
+    public string? ReviewPermission(string? issuerId) => _issuers.FirstOrDefault(issuer => issuer.IssuerId == issuerId)?.ReviewPermission;
+    private async Task<bool> CanReviewIssuesAsync(Guid actor, CancellationToken cancellationToken)
+    {
+        foreach (var issuer in _issuers)
+            if (!await _permissions.HasPermissionAsync(actor, issuer.ReviewPermission, cancellationToken)) return false;
+        return _issuers.Length > 0;
     }
     private static FormActionRecipientResponse Apply(FormActionRunResponse action, FormActionRecipientResponse recipient, bool manage, StructuredRecordActionResponse? observation)
     {

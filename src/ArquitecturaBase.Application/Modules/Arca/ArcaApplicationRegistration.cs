@@ -59,6 +59,7 @@ public static class ArcaApplicationRegistration
         services.TryAddScoped<IArcaVoucherReviewService, ArcaVoucherReviewService>();
         services.TryAddScoped<IArcaVoucherStore, ArcaVoucherStore>();
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IPrivateFileRetentionSource, ArcaPrivateFileRetentionSource>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IStructuredRecordIssuer, ArcaStructuredRecordIssuer>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IArcaServiceDefinition, ArcaInvoicingServiceDefinition>());
     }
 }

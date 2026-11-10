@@ -7,7 +7,7 @@ public sealed record SaveFormRulesHttpRequest(long? ExpectedRevision, IReadOnlyL
 public sealed record FormRuleHttpRequest(Guid Id, string? Event, IReadOnlyList<FormRuleConditionHttpRequest?>? Conditions, IReadOnlyList<FormRuleActionHttpRequest?>? Actions)
 { public override string ToString() => "FormRuleHttpRequest { Content = [REDACTED] }"; }
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
-public sealed record FormRuleActionHttpRequest(Guid Id, string? Kind, Guid? RoleId = null, IReadOnlyDictionary<string,string?>? Text = null, bool IncludePdf = false)
+public sealed record FormRuleActionHttpRequest(Guid Id, string? Kind, Guid? RoleId = null, IReadOnlyDictionary<string,string?>? Text = null, bool IncludePdf = false, string? IssuerId = null)
 { public override string ToString() => "FormRuleActionHttpRequest { Content = [REDACTED] }"; }
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record FormRuleConditionHttpRequest(Guid FieldId, string? Operator, IReadOnlyList<string>? Values)

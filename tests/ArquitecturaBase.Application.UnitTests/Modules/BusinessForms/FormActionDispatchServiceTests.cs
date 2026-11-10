@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
@@ -118,7 +119,7 @@ public sealed class FormActionDispatchServiceTests
         var dispatch=Dispatch(fixture);var roleRun=fixture.Runs.Runs[0];var successor=fixture.Runs.Runs[1];
         var channel=new FakeFormActionChannel();channel.Statuses[first]=new(ArquitecturaBase.Application.Models.StructuredData.StructuredRecordActionState.Uncertain);channel.Statuses[second]=new(ArquitecturaBase.Application.Models.StructuredData.StructuredRecordActionState.Uncertain);
         var effect=new FormActionEffectService(fixture.Pdf,[channel],NullLogger<FormActionEffectService>.Instance,new ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms.FormRecordResultReaderDouble());
-        var workflow=new FormWorkflowService(new(fixture.Runs,new(fixture.Rules.User,fixture.Rules.Permissions,new FakeFormResponseReader()),fixture.Rules.Permissions,[]),fixture.Runs,fixture.Rules,new(fixture.Rules.User,fixture.Rules.Permissions,new FakeFormResponseReader()),fixture.Rules.Permissions,fixture.Rules.UnitOfWork,fixture.Clock,NullLogger<FormWorkflowService>.Instance);
+        var workflow=new FormWorkflowService(new(fixture.Runs,new(fixture.Rules.User,fixture.Rules.Permissions,new FakeFormResponseReader()),fixture.Rules.Permissions,[],[]),fixture.Runs,fixture.Rules,new(fixture.Rules.User,fixture.Rules.Permissions,new FakeFormResponseReader()),fixture.Rules.Permissions,fixture.Rules.UnitOfWork,fixture.Clock,NullLogger<FormWorkflowService>.Instance);
         async Task FinishRoleAsync()
         {
             var work=(await dispatch.ReserveAsync(roleRun.Id,CancellationToken.None)).Value;Assert.NotNull(work);
@@ -168,7 +169,7 @@ public sealed class FormActionDispatchServiceTests
         var dispatch=Dispatch(fixture);var roleRun=fixture.Runs.Runs[0];var successor=fixture.Runs.Runs[1];
         var channel=new FakeFormActionChannel();channel.Statuses[second]=new(ArquitecturaBase.Application.Models.StructuredData.StructuredRecordActionState.Failed,"WhatsApp.FormAction.RecipientUnavailable",true);
         var effect=new FormActionEffectService(fixture.Pdf,[channel],NullLogger<FormActionEffectService>.Instance,new ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms.FormRecordResultReaderDouble());
-        var workflow=new FormWorkflowService(new(fixture.Runs,new(fixture.Rules.User,fixture.Rules.Permissions,new FakeFormResponseReader()),fixture.Rules.Permissions,[]),fixture.Runs,fixture.Rules,new(fixture.Rules.User,fixture.Rules.Permissions,new FakeFormResponseReader()),fixture.Rules.Permissions,fixture.Rules.UnitOfWork,fixture.Clock,NullLogger<FormWorkflowService>.Instance);
+        var workflow=new FormWorkflowService(new(fixture.Runs,new(fixture.Rules.User,fixture.Rules.Permissions,new FakeFormResponseReader()),fixture.Rules.Permissions,[],[]),fixture.Runs,fixture.Rules,new(fixture.Rules.User,fixture.Rules.Permissions,new FakeFormResponseReader()),fixture.Rules.Permissions,fixture.Rules.UnitOfWork,fixture.Clock,NullLogger<FormWorkflowService>.Instance);
         async Task<FormActionWorkResponse> FinishRoleAsync()
         {
             var work=(await dispatch.ReserveAsync(roleRun.Id,CancellationToken.None)).Value;Assert.NotNull(work);
@@ -258,5 +259,11 @@ public sealed class FormActionDispatchServiceTests
     private static FormActionDispatchService Dispatch(FormActionFixture fixture, FakeUnitOfWork? boundary = null,
         MemoryFormDocumentRepository? documents = null, MemoryStoredFileRepository? files = null) =>
         new(fixture.Runs, fixture.Runs, fixture.Rules, fixture.Rules, boundary ?? fixture.Rules.UnitOfWork,
-            new FormPdfDocumentRecorder(documents ?? new(), files ?? new()), fixture.Clock, NullLogger<FormActionDispatchService>.Instance);
+            new FormActionOutcomeRecorder(new FormPdfDocumentRecorder(documents ?? new(), files ?? new()), new FormRecordResultRecorder(new IgnoredResults(), fixture.Clock)),
+            fixture.Clock, NullLogger<FormActionDispatchService>.Instance);
+
+    private sealed class IgnoredResults : IFormRecordResultRepository
+    {
+        public void Add(BusinessFormRecordResult result) { }
+    }
 }

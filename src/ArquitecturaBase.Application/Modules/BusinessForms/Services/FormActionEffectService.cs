@@ -11,18 +11,18 @@ internal sealed partial class FormActionEffectService:IFormActionEffectService
 {
     private readonly ILogger<FormActionEffectService> _logger;
     private readonly IFormPdfActionService _pdf;private readonly IStructuredRecordActionChannel[] _channels;
-    private readonly IFormRecordResultReader _results;
+    private readonly IFormRecordResultReader _results;private readonly IFormIssueActionService? _issues;
     public FormActionEffectService(IFormPdfActionService pdf,IEnumerable<IStructuredRecordActionChannel> channels,ILogger<FormActionEffectService> logger,
-        IFormRecordResultReader results)
+        IFormRecordResultReader results,IFormIssueActionService? issues=null)
     {
-        _pdf=pdf;_channels=channels.ToArray();_logger=logger;_results=results;
+        _pdf=pdf;_channels=channels.ToArray();_logger=logger;_results=results;_issues=issues;
         if(_channels.Any(channel=>string.IsNullOrWhiteSpace(channel.ChannelId))||_channels.DistinctBy(channel=>channel.ChannelId).Count()!=_channels.Length)
             throw new InvalidOperationException("Action channel identifiers must be unique and nonempty.");
     }
     public async Task<FormActionOutcomeResponse> ExecuteAsync(FormActionWorkResponse work,CancellationToken cancellationToken)
     {
         OperationLog.Handling(_logger,"ExecuteFormAction");FormActionOutcomeResponse outcome;
-        try{outcome=work.Kind=="GeneratePdf"?await PdfAsync(work,cancellationToken):await NotifyAsync(work,cancellationToken);}
+        try{outcome=work.Kind switch{"GeneratePdf"=>await PdfAsync(work,cancellationToken),"IssueDocument"=>_issues is null?new(FormActionRunState.Failed,FormActionErrors.IssuerUnavailable.Code,true):await _issues.ExecuteAsync(work,cancellationToken),_=>await NotifyAsync(work,cancellationToken)};}
         catch(Exception exception)when(!cancellationToken.IsCancellationRequested)
         {
             LogUnconfirmed(_logger,work.RunId,exception.GetType().Name);

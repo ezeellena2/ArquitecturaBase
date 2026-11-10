@@ -61,7 +61,7 @@ public sealed class FormRulesController(IFormRuleService service) : ControllerBa
         Response.Headers.CacheControl = "no-store";
         var mapped = new SaveFormRulesRequest(request.ExpectedRevision,request.Rules?.Select(rule => rule is null ? null : new FormRuleInput(rule.Id,rule.Event,
             rule.Conditions?.Select(condition => condition is null ? null : new FormRecordCondition(condition.FieldId,condition.Operator!,condition.Values)).ToArray(),
-            rule.Actions?.Select(action => action is null ? null : new FormRuleActionInput(action.Id,action.Kind,action.RoleId,action.Text,action.IncludePdf)).ToArray())).ToArray());
+            rule.Actions?.Select(action => action is null ? null : new FormRuleActionInput(action.Id,action.Kind,action.RoleId,action.Text,action.IncludePdf,action.IssuerId)).ToArray())).ToArray());
         return (await service.SaveAsync(id,mapped,cancellationToken)).ToCreatedResult(this,nameof(GetRevision),value => new { id = value.DefinitionId, revision = value.Revision });
     }
 }

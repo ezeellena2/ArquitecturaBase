@@ -30,19 +30,21 @@ internal sealed class FormRuleFixture : IFormDraftRepository, IFormRuleRepositor
     public int ManualPageReads { get; private set; }
     public int ManualAllItemReads { get; private set; }
     public FormRuleService Service { get; }
+    public List<ArquitecturaBase.Application.Interfaces.Channels.IStructuredRecordIssuer> Issuers { get; } = [];
     public FormRuleFixture(string originalCulture = "es")
     {
         Permissions.Permissions[User.UserId!.Value] = [BusinessFormsPermissions.RulesManage];
         Definition.SetDraft(1,originalCulture == "es" ? "Visitas" : "Visits",FormDraftPolicy.Serialize(new Dictionary<string,string> { ["es"] = "Visitas", ["en"] = "Visits" }),"VISIT",originalCulture,"{}",
             FormDraftPolicy.Serialize(new FormQuestionSchema(1,[new(FieldId,"visit","shortText",new Dictionary<string,string> { ["es"] = "Visita",["en"] = "Visit" },null,false,80,null)])),1,true);
         Service = new(this,this,this,new(User,Permissions),UnitOfWork,
-            RequestValidators.For(new SaveFormRulesRequestValidator(),new ListFormRuleRevisionsRequestValidator()),new(this,new(this,this)),NullLogger<FormRuleService>.Instance);
+            RequestValidators.For(new SaveFormRulesRequestValidator(),new ListFormRuleRevisionsRequestValidator()),new(this,new(this,this),Issuers),NullLogger<FormRuleService>.Instance);
     }
     public Task LockDefinitionsAsync(CancellationToken ct) { BeforeLock?.Invoke(); return Task.CompletedTask; }
     Task<BusinessFormDefinition?> IFormDraftRepository.GetAsync(Guid id,CancellationToken ct) => Task.FromResult<BusinessFormDefinition?>(id == Definition.Id ? Definition : null);
     Task<BusinessFormRuleSet?> IFormRuleRepository.GetAsync(Guid id,CancellationToken ct) => Task.FromResult(RuleSets.SingleOrDefault(rule => rule.Id == id));
     public void Add(BusinessFormRuleSet ruleSet) => RuleSets.Add(ruleSet);
-    public Task<FormRuleDefinitionRow?> FindDefinitionAsync(Guid id,CancellationToken ct) => Task.FromResult<FormRuleDefinitionRow?>(id == Definition.Id ? new(id,Definition.NameJson,Definition.Culture,Definition.SchemaJson,[]) : null);
+    public Task<FormRuleDefinitionRow?> FindDefinitionAsync(Guid id,CancellationToken ct) => Task.FromResult<FormRuleDefinitionRow?>(id == Definition.Id ? new(id,Definition.NameJson,Definition.Culture,Definition.SchemaJson,[])
+        { StandardKey = Definition.StandardKey, StandardBindingsJson = Definition.StandardBindingsJson } : null);
     public Task<FormRuleSetStoredRow?> FindCurrentAsync(Guid id,CancellationToken ct) { BeforeCurrentReturn?.Invoke(); return Task.FromResult(Map(RuleSets.SingleOrDefault(rule => rule.Id == Definition.ActiveRuleSetId))); }
     public Task<FormRuleSetStoredRow?> FindRevisionAsync(Guid id,long revision,CancellationToken ct)
     { RevisionReads++; return Task.FromResult(Map(RuleSets.SingleOrDefault(rule => rule.DefinitionId == id && rule.Revision == revision))); }

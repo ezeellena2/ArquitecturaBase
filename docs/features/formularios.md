@@ -935,6 +935,27 @@ trae es de la etapa 3 (`IssueDocument`, [ADR 0028](../decisions/0028-emision-de-
   vacío. Las respuestas citadas no pueden traer la marca.
 - **La migración** es `AddFormRecordResults`.
 
+## Emitir un documento — IssueDocument, 2026-11-09
+
+La acción de regla «Emitir comprobante» (`IssueDocument`) entrega los datos atados de la respuesta a un emisor instalado
+(`IStructuredRecordIssuer`, colección opcional en `Application/Interfaces/Channels`). ARCA aporta «Emitir comprobante en
+ARCA» ([ADR 0028](../decisions/0028-emision-de-comprobantes-arca.md)); sin emisores, la acción no se ofrece.
+
+- **Dónde vale.** Sólo en un formulario copiado del estándar del emisor, con su `issuerId`: una por regla, en «Cuando llega»
+  o «Cuando se aprueba» y antes de los avisos, que pueden usar los datos de su resultado. Las opciones del editor traen
+  `issuers` (el nombre y los datos del resultado) sólo en esos formularios; si no, `Forms.Rule.IssuerUnavailable`. El
+  `issuerId` se guarda en la acción y se omite en las demás.
+- **El run.** Pregunta primero al emisor y encola una sola vez por run, que es la clave del pedido: un run que perdió su
+  resultado vuelve a preguntar sin emitir dos veces. Encola sólo si la respuesta sigue en pie (ni anulada ni corregida); si
+  no, «No aplica». Mientras el emisor trabaja queda `Running` y vuelve a mirar cuando el emisor dice, nunca antes de 5
+  segundos. Emitido, termina `Completed` y guarda el resultado en la misma transacción; rechazado, `Failed` con el código del
+  emisor (reintentable si no se encoló nada); en revisión, `Uncertain` con el motivo del emisor. Sin el emisor,
+  `Forms.Action.IssuerUnavailable`; sin los datos atados, `Forms.Action.IssueDataUnavailable`; si una persona decidió no
+  emitir, `Forms.Action.NotIssued`.
+- **La revisión.** `POST api/forms/records/{id}/actions/{runId}/review` sin `recipientUserId`: `wasSent` dice si sigue (otro
+  número o la fecha de hoy, según el motivo) o no se emite. Pide `formrules.manage` y el permiso del emisor (`arca.issue`), y
+  el flujo marca `canReview` sólo para quien los tiene. La decisión vale para la revisión de la emisión que vio el run.
+
 ## Biblioteca de estándares — BI1-A, 2026-11-09
 
 Los módulos traen formularios estándar como datos y «Agregar» crea un borrador propio que recuerda de dónde viene (BI1-A,

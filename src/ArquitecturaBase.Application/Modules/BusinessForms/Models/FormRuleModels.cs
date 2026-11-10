@@ -2,11 +2,13 @@ using ArquitecturaBase.Application.Common.Pagination;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Models;
 public sealed record FormRule(Guid Id, string Event, IReadOnlyList<FormRecordCondition> Conditions, IReadOnlyList<FormRuleAction> Actions)
 { public override string ToString() => "FormRule { Content = [REDACTED] }"; }
-public sealed record FormRuleAction(Guid Id, string Kind, Guid? RoleId, IReadOnlyDictionary<string,string>? Text, bool IncludePdf)
+// IssuerId names the installed issuer of an «IssueDocument» action; absent in the other kinds, so their stored JSON does not change.
+public sealed record FormRuleAction(Guid Id, string Kind, Guid? RoleId, IReadOnlyDictionary<string,string>? Text, bool IncludePdf,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? IssuerId = null)
 { public override string ToString() => "FormRuleAction { Content = [REDACTED] }"; }
 public sealed record FormRuleInput(Guid Id, string? Event, IReadOnlyList<FormRecordCondition?>? Conditions, IReadOnlyList<FormRuleActionInput?>? Actions)
 { public override string ToString() => "FormRuleInput { Content = [REDACTED] }"; }
-public sealed record FormRuleActionInput(Guid Id, string? Kind, Guid? RoleId = null, IReadOnlyDictionary<string,string?>? Text = null, bool IncludePdf = false)
+public sealed record FormRuleActionInput(Guid Id, string? Kind, Guid? RoleId = null, IReadOnlyDictionary<string,string?>? Text = null, bool IncludePdf = false, string? IssuerId = null)
 { public override string ToString() => "FormRuleActionInput { Content = [REDACTED] }"; }
 public sealed record SaveFormRulesRequest(long? ExpectedRevision, IReadOnlyList<FormRuleInput?>? Rules)
 { public override string ToString() => "SaveFormRulesRequest { Content = [REDACTED] }"; }
@@ -18,13 +20,24 @@ public sealed record FormRuleRoleResponse(Guid Id, string Name);
 public sealed record FormRuleOptionsResponse(Guid DefinitionId, IReadOnlyDictionary<string,string> Name, string OriginalCulture, IReadOnlyList<CanonicalFormField> Questions, IReadOnlyList<FormRuleRoleResponse> Roles)
 {
     public IReadOnlyDictionary<Guid,IReadOnlyList<FormRuleConditionChoiceResponse>> ConditionChoices { get; init; } = new Dictionary<Guid,IReadOnlyList<FormRuleConditionChoiceResponse>>();
+    /// <summary>The installed issuers whose standard this form was copied from; absent when there are none.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<FormRuleIssuerResponse>? Issuers { get; init; }
     public override string ToString() => "FormRuleOptionsResponse { Content = [REDACTED] }";
 }
 public sealed record FormRuleConditionChoiceResponse(Guid Id,string Label);
+/// <summary>An issuer the «IssueDocument» action may use, with the data its result brings for the messages after it.</summary>
+public sealed record FormRuleIssuerResponse(string Id, IReadOnlyDictionary<string,string> Name,
+    IReadOnlyList<ArquitecturaBase.Application.Models.StructuredData.StructuredRecordResultField> ResultFields);
 public sealed record ListFormRuleRevisionsRequest : PagedRequest
 { public static readonly IReadOnlyCollection<string> SortableFields = ["revision"]; }
 public sealed record FormRuleDefinitionRow(Guid Id, string NameJson, string OriginalCulture, string SchemaJson, IReadOnlyList<FormRuleSchemaRow> HistoricalSchemas)
-{ public override string ToString() => "FormRuleDefinitionRow { Content = [REDACTED] }"; }
+{
+    /// <summary>The library standard this form was copied from, and its bound data (datum key → field id); null otherwise.</summary>
+    public string? StandardKey { get; init; }
+    public string? StandardBindingsJson { get; init; }
+    public override string ToString() => "FormRuleDefinitionRow { Content = [REDACTED] }";
+}
 public sealed record FormRuleSchemaRow(long Number, string SchemaJson);
 public sealed record FormRuleSetStoredRow(Guid Id, Guid DefinitionId, long Revision, string OriginalCulture, string RulesJson, string QuestionSchemaJson, DateTime CreatedAtUtc, FormAuthorResponse? Author)
 { public override string ToString() => "FormRuleSetStoredRow { Content = [REDACTED] }"; }

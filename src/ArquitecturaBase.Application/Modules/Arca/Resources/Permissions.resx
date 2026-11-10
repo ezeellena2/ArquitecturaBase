@@ -7,4 +7,6 @@
   <data name="PermissionDescription.arca.read" xml:space="preserve"><value>Consultar la conexión con ARCA, el certificado y los servicios, sin ver la clave.</value></data>
   <data name="Permission.arca.manage" xml:space="preserve"><value>Administrar conexión</value></data>
   <data name="PermissionDescription.arca.manage" xml:space="preserve"><value>Configurar el certificado, elegir los servicios y probar la conexión con ARCA.</value></data>
+  <data name="Permission.arca.issue" xml:space="preserve"><value>Emitir comprobantes</value></data>
+  <data name="PermissionDescription.arca.issue" xml:space="preserve"><value>Decidir sobre una emisión en revisión y anular una respuesta con factura.</value></data>
 </root>

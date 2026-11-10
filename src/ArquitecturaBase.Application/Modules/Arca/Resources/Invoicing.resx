@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <data name="Issuer.Name" xml:space="preserve"><value>Emitir comprobante en ARCA</value></data>
+  <data name="Result.Source" xml:space="preserve"><value>Comprobante de ARCA</value></data>
+  <data name="Result.voucher" xml:space="preserve"><value>Comprobante</value></data>
+  <data name="Result.number" xml:space="preserve"><value>Número</value></data>
+  <data name="Result.cae" xml:space="preserve"><value>CAE</value></data>
+  <data name="Result.caeDueOn" xml:space="preserve"><value>Vencimiento del CAE</value></data>
+  <data name="Result.total" xml:space="preserve"><value>Total</value></data>
+  <data name="Voucher.Invoice" xml:space="preserve"><value>Factura {0}</value></data>
+  <data name="Voucher.CreditNote" xml:space="preserve"><value>Nota de crédito {0}</value></data>
+</root>

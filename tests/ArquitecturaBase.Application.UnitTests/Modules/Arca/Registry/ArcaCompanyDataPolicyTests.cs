@@ -32,6 +32,16 @@ public sealed class ArcaCompanyDataPolicyTests
         Assert.Equal(ArcaVatCondition.NotRegistered, ArcaCompanyDataPolicy.VatCondition(Person(taxIds: [10])));
     }
 
+    [Theory]
+    [InlineData(true, new[] { 30 }, 6)]
+    [InlineData(false, new[] { 10, 30 }, 1)]
+    [InlineData(false, new[] { 32 }, 4)]
+    [InlineData(false, new[] { 10 }, 5)]
+    public void A_third_party_gets_the_receiver_condition_code_of_arca(bool isMonotax, int[] taxIds, int expected)
+    {
+        Assert.Equal(expected, ArcaCompanyDataPolicy.ReceiverVatCondition(Person(taxIds: taxIds, isMonotax: isMonotax)));
+    }
+
     [Fact]
     public void The_fiscal_address_is_street_locality_and_province()
     {

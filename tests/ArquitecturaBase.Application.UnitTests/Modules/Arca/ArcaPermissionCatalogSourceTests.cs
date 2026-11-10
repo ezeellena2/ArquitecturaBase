@@ -9,7 +9,7 @@ public sealed class ArcaPermissionCatalogSourceTests
     [Fact]
     public void The_module_contributes_reading_and_managing_the_connection()
     {
-        Assert.Equal(["arca.read", "arca.manage"], new ArcaPermissionCatalogSource().Codes);
+        Assert.Equal(["arca.read", "arca.manage", "arca.issue"], new ArcaPermissionCatalogSource().Codes);
     }
 
     [Theory]

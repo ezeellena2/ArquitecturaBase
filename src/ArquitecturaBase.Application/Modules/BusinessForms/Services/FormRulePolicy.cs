@@ -30,12 +30,19 @@ internal static class FormRulePolicy
             if (rule.Actions is not { Count: > 0 and <= 10 }) return Invalid(rulePath + ".actions");
             var actions = new List<FormRuleAction>();
             var generatedPdf = false;
+            var issued = false;
+            var notified = false;
             var resultData = new List<FormActionResultDatum>();
             foreach (var (action, actionIndex) in rule.Actions.Select((action,index) => (action,index)))
             {
                 var actionPath = rulePath + $".actions[{actionIndex}]";
                 if (action is null || action.Id == Guid.Empty || !actionIds.Add(action.Id)) return Invalid(actionPath + ".id");
-                if (action.Kind is not ("RequestApproval" or "GeneratePdf" or "NotifyAuthor" or "NotifyRole")) return Invalid(actionPath + ".kind");
+                if (action.Kind is not ("RequestApproval" or "GeneratePdf" or "NotifyAuthor" or "NotifyRole" or "IssueDocument")) return Invalid(actionPath + ".kind");
+                // One issuance per rule, on arrival or approval and before the messages that may use its result.
+                if (action.Kind == "IssueDocument" && (rule.Event is not ("Received" or "Approved") || issued || notified)) return Invalid(actionPath + ".kind");
+                if (action.Kind == "IssueDocument" && options.Issuers?.Any(issuer => issuer.Id == action.IssuerId) != true)
+                    return FieldErrors.On(FormRuleErrors.IssuerUnavailable, actionPath + ".issuerId");
+                if (action.Kind != "IssueDocument" && action.IssuerId is not null) return Invalid(actionPath + ".issuerId");
                 var hasRole = action.Kind is "RequestApproval" or "NotifyRole";
                 if (hasRole && (action.RoleId is null || !options.Roles.Any(role => role.Id == action.RoleId))) return FieldErrors.On(FormRuleErrors.RoleUnavailable, actionPath + ".roleId");
                 if (!hasRole && action.RoleId is not null) return Invalid(actionPath + ".roleId");
@@ -59,14 +66,20 @@ internal static class FormRulePolicy
                     }
                 }
                 else if (action.Text is not null) return Invalid(actionPath + ".text");
-                actions.Add(new(action.Id, action.Kind, action.RoleId, text, action.IncludePdf));
+                actions.Add(new(action.Id, action.Kind, action.RoleId, text, action.IncludePdf, action.IssuerId));
                 if (declared is not null) resultData.AddRange(declared(actions[^1]));
                 generatedPdf |= action.Kind == "GeneratePdf";
+                issued |= action.Kind == "IssueDocument";
+                notified |= action.Kind is "NotifyAuthor" or "NotifyRole";
             }
             normalized.Add(new(rule.Id, rule.Event, conditions.Select(condition => condition with { Values = condition.Values?.ToArray() }).ToArray(), actions));
         }
         return normalized;
     }
+    /// <summary>The data an «IssueDocument» action declares: the result fields of its issuer, with the issuer as their source.</summary>
+    public static IReadOnlyList<FormActionResultDatum> Declared(FormRuleAction action, FormRuleOptionsResponse options) =>
+        action.Kind == "IssueDocument" && options.Issuers?.FirstOrDefault(issuer => issuer.Id == action.IssuerId) is { } issuer
+            ? issuer.ResultFields.Select(field => new FormActionResultDatum(issuer.Id, field.Key)).ToArray() : [];
     // A datum of a result (RE1-A) is valid only when an earlier action of the same rule declares it.
     internal static bool ValidPlaceholders(string text, string culture, IReadOnlyList<CanonicalFormField> questions,
         IReadOnlyList<FormActionResultDatum> resultData)

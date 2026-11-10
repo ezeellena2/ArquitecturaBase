@@ -63,7 +63,7 @@ internal sealed class FormRuleService(IFormDraftRepository drafts, IFormRuleRepo
             var current = definition.ActiveRuleSetId is { } currentId ? await repository.GetAsync(currentId, ct) : null;
             if ((current?.Revision ?? 0) != request.ExpectedRevision) return Result.Failure<long>(FormRuleErrors.RevisionConflict);
             var options = await optionsBuilder.ReadAsync(actor.Value, definitionId, ct) ?? throw new InvalidOperationException("The tracked form definition is missing from its reader.");
-            var rules = FormRulePolicy.Normalize(request, options); if (rules.IsFailure) return Result.Failure<long>(rules.Error);
+            var rules = FormRulePolicy.Normalize(request, options, action => FormRulePolicy.Declared(action, options)); if (rules.IsFailure) return Result.Failure<long>(rules.Error);
             var ruleSet = BusinessFormRuleSet.Create(definitionId, (current?.Revision ?? 0) + 1, options.OriginalCulture,
                 FormDraftPolicy.Serialize(rules.Value), rules.Value.SelectMany(rule => rule.Actions).Any(action => action.Kind == "RequestApproval"),
                 FormDraftPolicy.Serialize(new FormVersionSchema(1, options.Questions)));

@@ -99,7 +99,8 @@ internal sealed class FormActionRunRecorder(
                 }
 
                 run.SealSnapshot(FormDraftPolicy.Serialize(new FormActionSnapshot(
-                    action.Kind == "RequestApproval" ? action.RoleId : null, pdfSnapshot, action.IncludePdf ? pdfRunId : null, targets, failure)));
+                    action.Kind == "RequestApproval" ? action.RoleId : null, pdfSnapshot, action.IncludePdf ? pdfRunId : null, targets, failure,
+                    action.Kind == "IssueDocument" ? action.IssuerId : null)));
                 runs.Add(run);
                 dependency = run.Id;
             }

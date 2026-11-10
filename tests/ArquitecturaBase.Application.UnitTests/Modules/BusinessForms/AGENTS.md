@@ -25,6 +25,7 @@ Pruebas unitarias de Formularios en Application: servicios, políticas, validado
 - [Asistente: candidatas, prellenado y aclaración](../../../../docs/features/formularios-pruebas-unitarias.md#asistente-candidatas-prellenado-y-aclaración): la lectura de candidatas (límites, parcialidad y formularios que faltan), «Cuándo lo ofrece», el prellenado de seis escalares, la aclaración entre dos o tres formularios y el contexto del canal con IDs opacos; una sola lectura por turno, permisos revalidados y locks sólo al enviar.
 - [Sugerencias de qué completar después](../../../../docs/features/formularios-pruebas-unitarias.md#sugerencias-de-qué-completar-después): la configuración por revisiones con mapeos y opciones ofrecidas, Always y Assistant, la privacidad de la respuesta de origen y los IDs que sólo salen de una propuesta auténtica, dentro del presupuesto exacto de la lectura.
 - [La IA arma formularios y catálogos](../../../../docs/features/formularios-pruebas-unitarias.md#la-ia-arma-formularios-y-catálogos): crear un formulario o un catálogo desde una propuesta, en la web o desde un canal (lo ya creado, sólo de la misma persona y con su permiso), el resumen es/en, las lecturas en el idioma de la conversación y los motivos del «no se puede».
+- [Emitir un documento](../../../../docs/features/formularios-pruebas-unitarias.md#emitir-un-documento): la acción «Emitir comprobante» en las reglas y su run con un emisor de prueba: una vez por run, sólo con la respuesta en pie, el resultado, el rechazo y la revisión.
 
 ## Referencias
 

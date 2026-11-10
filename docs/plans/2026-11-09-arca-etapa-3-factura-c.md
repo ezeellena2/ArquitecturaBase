@@ -309,13 +309,15 @@ haya commiteado lo suyo. El front espera a que el usuario termine la prueba inte
    conexión que todavía no puede cargarlos.
 7. **Padrón de un tercero** y el adaptador de `IStructuredPartyLookup`.
 8. **Tablas de ARCA:** el adaptador de `IStructuredCatalogFeed`.
-**Lo que espera (2026-11-09):** la acción necesita el mapa «dato → pregunta» que sella la biblioteca de estándares (BI1-A
-de la etapa 2) para armar el pedido desde una respuesta; la anulación con nota de crédito y el «¿La emito?» dependen de la
-acción; los catálogos de ARCA, de las carpetas; el autocompletar, del catálogo «Clientes» del estándar. Las tareas 7 y 8 van
+**Lo que espera (2026-11-09):** la acción ya arma el pedido con el mapa «dato → pregunta» de la biblioteca (BI1-A); la
+anulación con nota de crédito y el «¿La emito?» siguen a la acción; los catálogos de ARCA dependen de las carpetas, y el
+autocompletar, del catálogo «Clientes» del estándar. Las tareas 7 y 8 van
 con su consumidor (no se agrega un puerto sin quien lo use). El resultado externo y los cálculos de la etapa 2 ya están.
 
-9. *(con la etapa 2)* El puerto `IStructuredRecordIssuer` y la acción `IssueDocument` en formularios, con el resultado en la
-   respuesta, la revisión y el aviso de espera.
+9. **Programada, salvo el aviso de espera.** El puerto `IStructuredRecordIssuer`, la acción `IssueDocument` en formularios
+   (en las reglas sólo con el emisor de su estándar, el run que encola una vez y sigue la espera del emisor, el resultado en
+   la respuesta y la revisión con `arca.issue`) y el emisor de ARCA. Falta el aviso fijo a quien cargó la primera vez que una
+   emisión espera por ARCA.
 10. *(con la etapa 2)* Los catálogos de sólo lectura y su actualización en formularios, en la carpeta «ARCA».
 11. *(con la etapa 2)* El estándar «Factura» y el catálogo «Clientes» con «Completar con ARCA».
 12. **Anular con nota de crédito.**

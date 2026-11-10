@@ -7,4 +7,6 @@
   <data name="PermissionDescription.arca.read" xml:space="preserve"><value>Read the ARCA connection, certificate and services without revealing the key.</value></data>
   <data name="Permission.arca.manage" xml:space="preserve"><value>Manage connection</value></data>
   <data name="PermissionDescription.arca.manage" xml:space="preserve"><value>Set up the certificate, choose the services and test the ARCA connection.</value></data>
+  <data name="Permission.arca.issue" xml:space="preserve"><value>Issue vouchers</value></data>
+  <data name="PermissionDescription.arca.issue" xml:space="preserve"><value>Decide on an issuance in review and void a response with an invoice.</value></data>
 </root>

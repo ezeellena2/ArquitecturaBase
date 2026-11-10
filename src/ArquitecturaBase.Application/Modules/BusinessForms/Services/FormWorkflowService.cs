@@ -19,9 +19,10 @@ internal sealed class FormWorkflowService(FormWorkflowReadPolicy readPolicy,IFor
         OperationLog.RunAsync<Result<FormWorkflowResponse>>(logger,"RetryFormActionRecipient",()=>ChangeAsync(recordId,runId,true,cancellationToken,null,expectedRevision,recipientUserId,true));
     public Task<Result<FormWorkflowResponse>> ConsultAsync(Guid recordId,Guid runId,CancellationToken cancellationToken)=>
         OperationLog.RunAsync<Result<FormWorkflowResponse>>(logger,"ConsultFormAction",()=>ChangeAsync(recordId,runId,false,cancellationToken));
-    public Task<Result<FormWorkflowResponse>> ReviewAsync(Guid recordId,Guid runId,Guid recipientUserId,long expectedRevision,bool wasSent,CancellationToken cancellationToken)=>
-        OperationLog.RunAsync<Result<FormWorkflowResponse>>(logger,"ReviewFormAction",()=>ChangeAsync(recordId,runId,false,cancellationToken,wasSent,expectedRevision,recipientUserId));
-    private async Task<Result<FormWorkflowResponse>> ChangeAsync(Guid recordId,Guid runId,bool retry,CancellationToken cancellationToken,bool? wasSent=null,long expectedRevision=0,Guid recipientUserId=default,bool onlyRecipient=false)
+    // Without a person, the review is of an issuance: wasSent says whether to proceed.
+    public Task<Result<FormWorkflowResponse>> ReviewAsync(Guid recordId,Guid runId,Guid? recipientUserId,long expectedRevision,bool wasSent,CancellationToken cancellationToken)=>
+        OperationLog.RunAsync<Result<FormWorkflowResponse>>(logger,"ReviewFormAction",()=>ChangeAsync(recordId,runId,false,cancellationToken,wasSent,expectedRevision,recipientUserId??Guid.Empty,issue:recipientUserId is null));
+    private async Task<Result<FormWorkflowResponse>> ChangeAsync(Guid recordId,Guid runId,bool retry,CancellationToken cancellationToken,bool? wasSent=null,long expectedRevision=0,Guid recipientUserId=default,bool onlyRecipient=false,bool issue=false)
     {
         var actor=await access.CheckAsync(cancellationToken);if(actor.IsFailure)return actor.Error;
         if(!await permissions.HasPermissionAsync(actor.Value,BusinessFormsPermissions.RulesManage,cancellationToken))return FormDefinitionErrors.Forbidden;
@@ -31,6 +32,14 @@ internal sealed class FormWorkflowService(FormWorkflowReadPolicy readPolicy,IFor
             if(!await access.StillAllowedAsync(actor.Value,ct)||!await permissions.HasPermissionAsync(actor.Value,BusinessFormsPermissions.RulesManage,ct))return Result.Failure(FormDefinitionErrors.Forbidden);
             var run=await runs.GetAsync(runId,ct);if(run is null||run.RecordId!=recordId)return Result.Failure(FormActionErrors.NotFound);
             var now=timeProvider.GetUtcNow().UtcDateTime;
+            if(issue)
+            {
+                // Deciding on an issuance takes, besides managing the rules, the permission its issuer asks for.
+                if(run.Kind!="IssueDocument")return Result.Failure(FormActionErrors.StateConflict);
+                var permission=readPolicy.ReviewPermission(FormDraftPolicy.Read<FormActionSnapshot>(run.SnapshotJson).IssuerId);
+                if(permission is null||!await permissions.HasPermissionAsync(actor.Value,permission,ct))return Result.Failure(FormDefinitionErrors.Forbidden);
+                return run.RequestIssueReview(expectedRevision,wasSent!.Value,actor.Value,now);
+            }
             if(wasSent is {} decision)
             {
                 var snapshot=FormDraftPolicy.Read<FormActionSnapshot>(run.SnapshotJson);

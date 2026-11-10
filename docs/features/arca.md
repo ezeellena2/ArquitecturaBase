@@ -28,6 +28,7 @@ que siguen están en la [hoja de ruta](../plans/2026-10-31-arca-formularios-esta
 
 - `arca.read` lee; cambiar algo o llamar a ARCA pide también `arca.manage` (`ArcaPermissions`, por
   `IPermissionCatalogSource`). Sin `arca.read`, «ARCA» no aparece en el menú.
+- `arca.issue` decide sobre una emisión en revisión, además de los permisos de formularios.
 - La pantalla es `/configuracion/arca`, en Administración → Configuración, sin estado en la URL. El alta va por zonas que
   se habilitan de a una y la conexión activa, por zonas con su acción en la banda. Los tableros y lo que se fijó al
   programar están en el [diseño del front](../../../ArquitecturaBaseFront/docs/design/arca-conexion.md).
@@ -121,11 +122,17 @@ revisión esperada y responden 409 con `Arca.Connection.RevisionConflict` si cam
 
 ### Emisión de comprobantes (etapas 3 y 4, en curso)
 
-La cola del [ADR 0028](../decisions/0028-emision-de-comprobantes-arca.md) está programada; todavía no la pide ningún
-formulario (la acción «Emitir comprobante», el estándar «Factura» y la anulación con nota de crédito siguen en el
-[plan](../plans/2026-11-09-arca-etapa-3-factura-c.md)). La A y la B siguen el
+La cola del [ADR 0028](../decisions/0028-emision-de-comprobantes-arca.md) está programada y la pide la acción de
+formularios «Emitir comprobante»; el estándar «Factura» y la anulación con nota de crédito siguen en el
+[plan](../plans/2026-11-09-arca-etapa-3-factura-c.md). La A y la B siguen el
 [plan de la etapa 4](../plans/2026-11-09-arca-etapa-4-factura-a-y-b.md).
 
+- **El emisor de formularios** (`ArcaStructuredRecordIssuer`): la fuente y la clave del estándar son `arca.invoice`. Lee los
+  datos atados de la «Factura» (el cliente de «Clientes» con `tax_id`, `vat_condition` y `address`, o consumidor final sin
+  CUIT; el concepto por su código de ARCA; la fecha, o la de hoy; el período, el vencimiento, los renglones y el total) y
+  encola con el run como clave. Está emitida cuando ARCA la autorizó y su PDF fiscal está guardado, con comprobante,
+  número, CAE, vencimiento del CAE y total como resultado. En revisión responde `arca.invoice.<motivo>`; seguir es otro
+  número o la fecha de hoy, y decidirlo pide `arca.issue`.
 - **Encolar** (`IArcaVoucherService`) valida el receptor (CUIT con su dígito, DNI, o consumidor final sin identificar),
   el concepto, el período y el vencimiento del pago de un servicio, la fecha que ARCA acepta hoy y los renglones, y
   recalcula cada importe con half-even: un total distinto del pedido no se encola. La clase la decide el sistema con la

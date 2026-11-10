@@ -119,6 +119,8 @@ D2 verifica Estado contra conjuntos fijos 1/2/3,5/4 en GET/POST/total/Excel y co
 
 ## Reglas, acciones y aprobaciones
 
+Emitir un documento: FormIssueActionHttpTests, con un emisor de prueba y el worker a mano, comprueba que la emisión se encola una vez, vuelve a mirar cuando el emisor dice y guarda el resultado en la respuesta, y que una en revisión la decide desde el flujo sólo quien tiene el permiso del emisor, con la revisión que vio el run.
+
 FormActionBackgroundServiceTests prueba el bucle técnico real con ServiceCollection, scopes y reloj controlado, sin ApiFactory ni Docker. Comprueba que candidatos inciertos o con excepción no frenan el lote; no acredita persistencia ni transporte externos.
 
 La paridad entre condiciones y SQL compara ambos resultados contra conjuntos numéricos esperados, no sólo entre sí. Para tres respuestas de una versión sin pregunta y dos posteriores (una respondida y otra vacía), answered=[4], unanswered=[1,2,3,5] y notAsked=[1,2,3]; las facetas son 1/4/3 y la celda histórica sigue NotAsked. Con el bloque de renglones (Etapa 4), la semilla de FormRowsReadHttpTests (tres ítems, ninguno, y dos con la semilla y 200,5 en ítems distintos) da los mismos números en memoria y en SQL para una condición en cualquier ítem, dos en un mismo ítem, una de afuera junto a una del bloque, «contiene» en las notas, la presencia y el bloque sin ítems.

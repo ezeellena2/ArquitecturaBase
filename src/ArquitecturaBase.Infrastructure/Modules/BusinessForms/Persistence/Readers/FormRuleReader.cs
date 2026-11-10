@@ -12,14 +12,15 @@ internal sealed class FormRuleReader(ApplicationDbContext dbContext) : IFormRule
     public async Task<FormRuleDefinitionRow?> FindDefinitionAsync(Guid definitionId, CancellationToken cancellationToken)
     {
         var definition = await dbContext.Set<BusinessFormDefinition>().AsNoTracking().Where(value => value.Id == definitionId)
-            .Select(value => new { value.Id, value.NameJson, value.Culture, value.SchemaJson }).SingleOrDefaultAsync(cancellationToken);
+            .Select(value => new { value.Id, value.NameJson, value.Culture, value.SchemaJson, value.StandardKey, value.StandardBindingsJson }).SingleOrDefaultAsync(cancellationToken);
         if (definition is null) return null;
         var schemas = await dbContext.Set<BusinessFormVersion>().AsNoTracking().Where(version => version.DefinitionId == definitionId
             && (dbContext.Set<BusinessFormDefinition>().Any(value => value.Id == definitionId && value.ActiveVersionId == version.Id)
                 || dbContext.Set<BusinessFormPublicationOperation>().Any(operation => operation.VersionId == version.Id && operation.State == FormPublicationState.Published)
                 || dbContext.Set<BusinessFormRecord>().Any(record => record.VersionId == version.Id)))
             .OrderByDescending(version => version.Number).Select(version => new FormRuleSchemaRow(version.Number, version.SchemaJson)).ToArrayAsync(cancellationToken);
-        return new(definition.Id, definition.NameJson, definition.Culture, definition.SchemaJson, schemas);
+        return new(definition.Id, definition.NameJson, definition.Culture, definition.SchemaJson, schemas)
+            { StandardKey = definition.StandardKey, StandardBindingsJson = definition.StandardBindingsJson };
     }
     public Task<FormRuleSetStoredRow?> FindCurrentAsync(Guid definitionId, CancellationToken cancellationToken) => Stored(dbContext.Set<BusinessFormRuleSet>().AsNoTracking()
         .Where(value => value.DefinitionId == definitionId && dbContext.Set<BusinessFormDefinition>().Any(definition => definition.Id == definitionId && definition.ActiveRuleSetId == value.Id))).SingleOrDefaultAsync(cancellationToken);

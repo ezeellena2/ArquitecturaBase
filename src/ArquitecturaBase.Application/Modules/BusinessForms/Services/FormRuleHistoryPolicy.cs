@@ -19,7 +19,7 @@ internal static class FormRuleHistoryPolicy
         && current.Conditions.Zip(previous.Conditions).All(pair => pair.First.FieldId == pair.Second.FieldId
             && pair.First.Operator == pair.Second.Operator && SameValues(pair.First.Values, pair.Second.Values))
         && current.Actions.Count == previous.Actions.Count
-        && current.Actions.Zip(previous.Actions).All(pair => pair.First.Id == pair.Second.Id
+        && current.Actions.Zip(previous.Actions).All(pair => pair.First.Id == pair.Second.Id && pair.First.IssuerId == pair.Second.IssuerId
             && pair.First.Kind == pair.Second.Kind && pair.First.RoleId == pair.Second.RoleId
             && pair.First.IncludePdf == pair.Second.IncludePdf && SameText(pair.First.Text, pair.Second.Text));
     private static bool SameValues(IReadOnlyList<string>? current, IReadOnlyList<string>? previous) =>

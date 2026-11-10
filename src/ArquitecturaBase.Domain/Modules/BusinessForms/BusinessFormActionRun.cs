@@ -58,12 +58,13 @@ public sealed class BusinessFormActionRun : Entity, IAuditable
         Fence++;State=FormActionRunState.Running;LeaseExpiresAtUtc=nowUtc.Add(lease);NextCheckAtUtc=null;UpdatedAtUtc=nowUtc;
         return new FormActionReservation(Fence,reconcile);
     }
-    public Result RecordOutcome(long fence,DateTime nowUtc,FormActionRunState state,string? failureCode,bool canRetry,string? outcomeJson=null)
+    // A pending effect is asked again in 5 seconds, or later when its issuer says when (an issuance waiting for its provider).
+    public Result RecordOutcome(long fence,DateTime nowUtc,FormActionRunState state,string? failureCode,bool canRetry,string? outcomeJson=null,DateTime? nextCheckAtUtc=null)
     {
         // NotApplicable after reserving: the response was corrected or voided before the action ran.
         if(!OwnsLease(fence,nowUtc) || state is not (FormActionRunState.Running or FormActionRunState.Completed or FormActionRunState.Failed or FormActionRunState.Uncertain or FormActionRunState.NotApplicable)) return FormActionErrors.StateConflict;
         State=state;FailureCode=failureCode;CanRetry=state==FormActionRunState.Failed&&canRetry;OutcomeJson=outcomeJson;UpdatedAtUtc=nowUtc;
-        LeaseExpiresAtUtc=null;NextCheckAtUtc=state==FormActionRunState.Running?nowUtc.AddSeconds(5):null;
+        LeaseExpiresAtUtc=null;NextCheckAtUtc=state==FormActionRunState.Running?(nextCheckAtUtc>nowUtc.AddSeconds(5)?nextCheckAtUtc:nowUtc.AddSeconds(5)):null;
         CompletedAtUtc=state is FormActionRunState.Completed or FormActionRunState.Failed or FormActionRunState.NotApplicable?nowUtc:null;RetryRequested=false;RetryRecipientUserId=null;DeliveryReviewRequested=false;return Result.Success();
     }
     public bool OwnsLease(long fence,DateTime nowUtc)=>Fence==fence&&State==FormActionRunState.Running&&LeaseExpiresAtUtc>nowUtc;
@@ -89,6 +90,17 @@ public sealed class BusinessFormActionRun : Entity, IAuditable
         if(Fence!=expectedRevision || State!=FormActionRunState.Uncertain || Kind is not ("NotifyAuthor" or "NotifyRole") || reviewedByUserId==Guid.Empty || recipientUserId==Guid.Empty)
             return FormActionErrors.StateConflict;
         DeliveryReviewRequested=true;DeliveryReviewRecipientUserId=recipientUserId;DeliveryReviewExpectedRevision=expectedRevision;DeliveryReviewWasSent=wasSent;DeliveryReviewedByUserId=reviewedByUserId;DeliveryReviewedAtUtc=nowUtc;
+        State=FormActionRunState.Running;LeaseExpiresAtUtc=null;RetryRequested=false;RetryRecipientUserId=null;NextCheckAtUtc=null;UpdatedAtUtc=nowUtc;
+        return Result.Success();
+    }
+    // An issuance in review waits for a person: proceed (another number, today's date) or not issue. It has no recipient, and
+    // the decision travels in the review of the delivery: WasSent says whether to proceed.
+    public Result RequestIssueReview(long expectedRevision,bool proceed,Guid reviewedByUserId,DateTime nowUtc)
+    {
+        if(DeliveryReviewRecipientUserId is null && DeliveryReviewExpectedRevision==expectedRevision && DeliveryReviewWasSent==proceed && DeliveryReviewedByUserId==reviewedByUserId)return Result.Success();
+        if(Fence!=expectedRevision || State!=FormActionRunState.Uncertain || Kind!="IssueDocument" || reviewedByUserId==Guid.Empty)
+            return FormActionErrors.StateConflict;
+        DeliveryReviewRequested=true;DeliveryReviewRecipientUserId=null;DeliveryReviewExpectedRevision=expectedRevision;DeliveryReviewWasSent=proceed;DeliveryReviewedByUserId=reviewedByUserId;DeliveryReviewedAtUtc=nowUtc;
         State=FormActionRunState.Running;LeaseExpiresAtUtc=null;RetryRequested=false;RetryRecipientUserId=null;NextCheckAtUtc=null;UpdatedAtUtc=nowUtc;
         return Result.Success();
     }

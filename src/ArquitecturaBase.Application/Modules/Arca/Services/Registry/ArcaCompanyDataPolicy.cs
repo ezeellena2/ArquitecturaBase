@@ -23,6 +23,18 @@ internal static class ArcaCompanyDataPolicy
         : person.TaxIds.Contains(ExemptVatTaxId) ? ArcaVatCondition.Exempt
         : ArcaVatCondition.NotRegistered;
 
+    /// <summary>
+    /// La condición de un tercero como receptor, con el código de <c>FEParamGetCondicionIvaReceptor</c>: responsable inscripto 1,
+    /// exento 4, monotributo 6 y, sin IVA ni monotributo, consumidor final 5.
+    /// </summary>
+    public static int ReceiverVatCondition(ArcaRegistryPerson person) => VatCondition(person) switch
+    {
+        ArcaVatCondition.RegisteredTaxpayer => 1,
+        ArcaVatCondition.Exempt => 4,
+        ArcaVatCondition.Monotax => 6,
+        _ => 5,
+    };
+
     public static string FiscalAddress(ArcaRegistryPerson person) =>
         person.FiscalAddress is { } address ? Join(", ", address.Street, address.Locality, address.Province) : string.Empty;
 
