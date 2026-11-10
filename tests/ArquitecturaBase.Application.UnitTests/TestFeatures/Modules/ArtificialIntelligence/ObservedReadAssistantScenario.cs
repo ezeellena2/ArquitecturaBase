@@ -38,7 +38,8 @@ internal sealed class ObservedReadAssistantScenario
     public AiAssistantAccessGuard Guard { get; }
 
     // Home closes with assistant_answer@2, which may name one observed proposal; the other channels select it with assistant_proposal.
-    public ObservedReadAssistantScenario(Func<Guid, DateTime, string, ObservedReadAssistantStorePorts> createStore, bool home = false)
+    // A channel's own conversation is the assistant mode with the actor as its Subject, and its seal keeps the original instant.
+    public ObservedReadAssistantScenario(Func<Guid, DateTime, string, ObservedReadAssistantStorePorts> createStore, bool home = false, bool ownConversation = false)
     {
         Home = home;
         var users = Users;
@@ -49,8 +50,12 @@ internal sealed class ObservedReadAssistantScenario
         Profile = home
             ? new("observed-fixture", 1, "home-system", 2, new("home", actor.Id, null, Store.Turn.Culture, Store.Turn.TimeZoneId,
                 new([ArtificialIntelligencePermissions.AssistantUse], []), capabilities, [new("assistant_answer", 2)]))
-            : new("observed-fixture", 1, "capabilities-v1", 1,
-                new(Store.Conversation.ChannelId, actor.Id, null, Store.Turn.Culture, Store.Turn.TimeZoneId, new([], []), capabilities, [new("assistant_proposal", 1)]));
+            : ownConversation
+                ? new("observed-fixture", 1, "capabilities-v1", 1, new(Store.Conversation.ChannelId, actor.Id, actor.Id, Store.Turn.Culture, Store.Turn.TimeZoneId,
+                    new([], []), capabilities, [new("assistant_proposal", 1)]) { InteractionMode = AssistantInteractionMode.Assistant })
+                    { OccurredAtUtc = Clock.GetUtcNow().UtcDateTime.AddMinutes(-3) }
+                : new("observed-fixture", 1, "capabilities-v1", 1,
+                    new(Store.Conversation.ChannelId, actor.Id, null, Store.Turn.Culture, Store.Turn.TimeZoneId, new([], []), capabilities, [new("assistant_proposal", 1)]));
         var catalog = new AiAssistantCapabilityCatalogPolicy([Source], Permissions);
         var limits = new AiAssistantLimits();
         var guard = new AiAssistantAccessGuard(users, Permissions,

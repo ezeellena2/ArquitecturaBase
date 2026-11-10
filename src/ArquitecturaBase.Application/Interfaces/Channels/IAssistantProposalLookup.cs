@@ -3,7 +3,10 @@ using ArquitecturaBase.Domain.Results;
 
 namespace ArquitecturaBase.Application.Interfaces.Channels;
 
-/// <summary>A proposal the actor saw in their own Home conversation, for its owner to create it when the person asks.</summary>
+/// <summary>
+/// A proposal the actor saw in their own conversation, Home or a channel's (the assistant mode with the actor as its Subject), for its
+/// owner to act on it when the person asks; with the spreadsheet of its turn, when the turn has one.
+/// </summary>
 public interface IAssistantProposalLookup
 {
     /// <summary>

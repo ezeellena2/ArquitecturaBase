@@ -14,3 +14,12 @@ public sealed record AssistantAttachmentInput(string StorageKey, string Name, st
     public const long MaximumBytes = 10 * 1024 * 1024;
     public override string ToString() => "AssistantAttachmentInput { Content = [REDACTED] }";
 }
+
+/// <summary>
+/// The private copy of a turn's spreadsheet, its own or inherited, as the engine sealed it: its key, the person's file name, its
+/// media type, size and SHA-256, for the owner to open the copy and check it is the same file.
+/// </summary>
+public sealed record AssistantAttachmentDescriptor(string StorageKey, string Name, string ContentType, long Size, string Sha256)
+{
+    public override string ToString() => "AssistantAttachmentDescriptor { Content = [REDACTED] }";
+}

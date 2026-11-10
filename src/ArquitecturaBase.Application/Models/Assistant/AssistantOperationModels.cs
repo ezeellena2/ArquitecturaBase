@@ -22,6 +22,8 @@ public sealed record AssistantOperationProvenance(string ModelProfileId, int Mod
 public sealed record AssistantProposalLookupResponse(AssistantChannelContext Context, AssistantObservedProposal Proposal,
     AssistantOperationProvenance Provenance, bool IsCurrent)
 {
+    /// <summary>The spreadsheet of the proposal's turn, its own or inherited; null in a turn without one.</summary>
+    public AssistantAttachmentDescriptor? Attachment { get; init; }
     public override string ToString() => "AssistantProposalLookupResponse { Content = [REDACTED] }";
 }
 
