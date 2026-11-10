@@ -7,13 +7,14 @@ public sealed class WhatsAppInboundPollingTests
     private static CancellationToken Ct=>TestContext.Current.CancellationToken;
 
     [Theory]
-    [InlineData(true,false)]
-    [InlineData(false,true)]
-    [InlineData(true,true)]
-    public async Task Live_assistant_or_audio_references_are_polled_every_two_seconds(bool assistant,bool audio)
+    [InlineData(true,false,false)]
+    [InlineData(false,true,false)]
+    [InlineData(true,true,false)]
+    [InlineData(false,false,true)]
+    public async Task Live_assistant_audio_or_spreadsheet_work_is_polled_every_two_seconds(bool assistant,bool audio,bool spreadsheet)
     {
         await using var host=new WhatsAppAssistantInboundFixture(processInBackground:true)
-            {HasWork=false,AudioOnlyContact=true,HasPendingAssistant=assistant,HasPendingAudio=audio};
+            {HasWork=false,AudioOnlyContact=true,HasPendingAssistant=assistant,HasPendingAudio=audio,HasPendingSpreadsheet=spreadsheet};
         await host.Processor.StartAsync(Ct);
         Assert.Equal(TimeSpan.FromSeconds(2),await host.WaitForPollAsync(Ct));
         Assert.Equal(1,host.Rounds);

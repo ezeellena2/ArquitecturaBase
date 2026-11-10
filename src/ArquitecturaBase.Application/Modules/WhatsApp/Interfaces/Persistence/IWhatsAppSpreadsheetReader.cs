@@ -6,6 +6,9 @@ namespace ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 public interface IWhatsAppSpreadsheetReader
 {
     Task<IReadOnlyList<Guid>> ListPendingContactsAsync(IReadOnlyCollection<Guid> excluded, int limit, DateTime nowUtc, CancellationToken ct);
+
+    /// <summary>Whether a spreadsheet still waits to be downloaded, also while it waits for its next attempt: the processor polls sooner.</summary>
+    Task<bool> ExistsPendingAsync(DateTime nowUtc, CancellationToken ct);
     Task<WhatsAppSpreadsheetSourceRow?> FindPendingAsync(Guid contactId, DateTime nowUtc, CancellationToken ct);
     Task<WhatsAppSpreadsheetSourceRow?> FindAsync(Guid contactId, Guid messageId, CancellationToken ct);
 

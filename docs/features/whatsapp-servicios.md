@@ -107,8 +107,8 @@ Es el detalle de la guía [`src/ArquitecturaBase.Application/Modules/WhatsApp/Se
 
 `WhatsAppSpreadsheetDispatchService`, `WhatsAppSpreadsheetPreparationPolicy`, `WhatsAppSpreadsheetReplyPolicy`.
 
-- Quién la baja se decide antes de cualquier I/O y otra vez bajo lock. Descarga, verificación, preparación por `IStructuredAttachmentReader` y `WriteOnce` con relectura van fuera de la UoW, que toma contacto y mensaje y guarda una vez lo que salió.
-- Un rechazo guarda el motivo y contesta con `AcceptTerminal` en una referencia automática propia del mensaje, que nombra su propio pedido como propuesta y copia el `ChangeRequestId` pendiente. Sin ventana, cuenta o idioma, se guarda el motivo sin contestar.
+- Quién la baja se decide antes de cualquier I/O y otra vez bajo lock, donde un cambio de vínculo o de modo durante la descarga la deja No disponible. Descarga, verificación, preparación por `IStructuredAttachmentReader` y `WriteOnce` con relectura van fuera de la UoW, que toma contacto y mensaje y guarda una vez lo que salió. Una excepción de cualquiera de ellos cuenta como una falla que puede pasar, con la escala de siempre. El nombre del archivo es el que normaliza el mensaje (`WhatsAppMessage.SpreadsheetName`), el mismo para el puerto y la operación.
+- Un rechazo guarda el motivo y contesta con `AcceptTerminal` en una referencia automática propia del mensaje, que nombra su propio pedido como propuesta: el lector la deja fuera de la conversación (`FindChangeRequestAsync`) y de las ofertas sin resolver, así que un cambio o una pregunta pendientes siguen esperando sin copiarlos. Sin ventana, cuenta o idioma, se guarda el motivo sin contestar.
 
 ## Retención
 

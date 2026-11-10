@@ -222,16 +222,66 @@ public sealed class WhatsAppSpreadsheetDispatchServiceTests
         Assert.Empty(f.Host.Requests.Rows);
     }
 
+    // The reader leaves the rejection out of the conversation (proven with PostgreSQL): it names no change of its own.
     [Fact]
-    public async Task A_change_the_person_was_asked_for_still_waits_for_the_next_message_after_the_answer()
+    public async Task A_rejection_answers_with_its_own_request_as_the_proposal_and_takes_no_change()
     {
         var f = new WhatsAppSpreadsheetFixture { Preparation = StructuredAttachmentPreparation.Rejected(StructuredAttachmentRejection.Legacy) };
-        var change = Guid.NewGuid();
-        f.Host.Reader.ChangeRequest = change;
+        f.Host.Reader.ChangeRequest = Guid.NewGuid();
 
         Assert.True((await f.Dispatch.PrepareAsync(f.Contact.Id, Ct)).IsSuccess);
 
-        Assert.Equal(change, Assert.Single(f.Host.Requests.Rows).ChangeRequestId);
+        var reference = Assert.Single(f.Host.Requests.Rows);
+        Assert.Equal((reference.RequestId, (Guid?)null, (Guid?)null), (reference.ProposalId!.Value, reference.ChangeRequestId, reference.PreviousRequestId));
+    }
+
+    [Fact]
+    public async Task A_fault_downloading_reading_or_copying_counts_as_a_failure_with_the_usual_scale()
+    {
+        var f = new WhatsAppSpreadsheetFixture { BeforeDownload = () => throw new InvalidOperationException("Fictitious fault.") };
+
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            Assert.True((await f.Dispatch.PrepareAsync(f.Contact.Id, Ct)).IsSuccess);
+            Assert.Equal(WhatsAppSpreadsheetState.Pending, f.Message.SpreadsheetState);
+            f.Host.Context.Clock.Advance(TimeSpan.FromMinutes(3));
+        }
+        Assert.Equal((5, FileErrors.Unavailable.Code), (f.Message.SpreadsheetFailureCount, f.Message.SpreadsheetFailureCode));
+        Assert.True((await f.Dispatch.PrepareAsync(f.Contact.Id, Ct)).IsSuccess);
+
+        Assert.Equal(WhatsAppSpreadsheetState.Unavailable, f.Message.SpreadsheetState);
+        Assert.Empty(f.Replies);
+    }
+
+    [Fact]
+    public async Task An_account_whose_confirmed_number_is_not_the_chat_one_keeps_it_without_downloading_it()
+    {
+        var f = new WhatsAppSpreadsheetFixture();
+        await f.Host.Context.Users.ArrangeAsync(users => users.SetPhoneAsync(f.Host.Context.Subject.Id,
+            Domain.ValueObjects.PhoneNumber.Create("+5493410000000").Value, true, Ct));
+
+        Assert.True((await f.Dispatch.PrepareAsync(f.Contact.Id, Ct)).IsSuccess);
+
+        Assert.Equal((0, WhatsAppSpreadsheetState.Unavailable), (f.Downloads, f.Message.SpreadsheetState));
+    }
+
+    [Theory]
+    [InlineData("mode")]
+    [InlineData("link")]
+    public async Task A_change_of_mode_or_link_while_downloading_leaves_it_unavailable(string change)
+    {
+        var f = new WhatsAppSpreadsheetFixture();
+        f.BeforeDownload = () =>
+        {
+            if (change == "mode") f.Contact.ChangeMode(WhatsAppConversationMode.Manual);
+            else { f.Contact.UnlinkUser(); f.Contact.LinkUser(f.Host.Context.Subject.Id); }
+        };
+
+        Assert.True((await f.Dispatch.PrepareAsync(f.Contact.Id, Ct)).IsSuccess);
+
+        Assert.Equal(1, f.Downloads);
+        Assert.Equal((WhatsAppSpreadsheetState.Unavailable, (string?)null), (f.Message.SpreadsheetState, f.Message.SpreadsheetStorageKey));
+        Assert.Empty(f.Replies);
     }
 
     [Fact]

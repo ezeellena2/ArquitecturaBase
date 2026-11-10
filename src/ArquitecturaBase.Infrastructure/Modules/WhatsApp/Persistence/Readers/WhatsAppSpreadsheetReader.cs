@@ -37,6 +37,10 @@ internal sealed class WhatsAppSpreadsheetReader(ApplicationDbContext db, WhatsAp
         await Pending(nowUtc).Select(message => message.ContactId!.Value).Where(id => !excluded.Contains(id))
             .Distinct().OrderBy(id => id).Take(limit).ToListAsync(ct);
 
+    // Only for the processor's wait, as an audio's: one waiting for its next attempt is still pending.
+    public Task<bool> ExistsPendingAsync(DateTime nowUtc, CancellationToken ct) => Spreadsheets().AnyAsync(message =>
+        message.SpreadsheetState == WhatsAppSpreadsheetState.Pending && message.OccurredAtUtc > nowUtc.AddDays(-retention.MessageRetentionDays), ct);
+
     public Task<WhatsAppSpreadsheetSourceRow?> FindPendingAsync(Guid contactId, DateTime nowUtc, CancellationToken ct) =>
         Project(Pending(nowUtc).Where(message => message.ContactId == contactId))
             .OrderBy(row => row.OccurredAtUtc).ThenBy(row => row.MessageId).FirstOrDefaultAsync(ct);

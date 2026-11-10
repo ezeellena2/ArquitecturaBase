@@ -4,6 +4,7 @@ using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
+using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Domain.Files;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Results;
@@ -13,8 +14,9 @@ namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 
 // Stage 2 of the assistant authoring: the inbound processor gets a received spreadsheet downloaded, prepared and copied, as an audio.
 // Who may have it downloaded is decided before any I/O; Meta, the owner's reader and the private copy stay outside the transaction,
-// which locks the contact and then the message and keeps what came of it once. A failure that may pass waits with the usual scale.
-internal sealed class WhatsAppSpreadsheetDispatchService(IWhatsAppSpreadsheetReader reader, IWhatsAppSpreadsheetRepository messages,
+// which locks the contact and then the message and keeps what came of it once. A failure that may pass waits with the usual scale,
+// and so does a fault of any of the three, so the spreadsheet is not downloaded again in every round.
+internal sealed partial class WhatsAppSpreadsheetDispatchService(IWhatsAppSpreadsheetReader reader, IWhatsAppSpreadsheetRepository messages,
     IWhatsAppConversationRepository conversations, WhatsAppSpreadsheetPreparationPolicy preparation, WhatsAppSpreadsheetReplyPolicy replies,
     IUnitOfWork unitOfWork, TimeProvider clock, ILogger<WhatsAppSpreadsheetDispatchService> logger) : IWhatsAppSpreadsheetDispatchService
 {
@@ -25,15 +27,16 @@ internal sealed class WhatsAppSpreadsheetDispatchService(IWhatsAppSpreadsheetRea
     {
         var source = await reader.FindPendingAsync(contactId, clock.GetUtcNow().UtcDateTime, ct);
         if (source is null) return Result.Success();
-        var acquired = await preparation.CanDownloadAsync(source, ct) ? await preparation.AcquireAsync(source, ct) : null;
+        var acquired = await preparation.CanDownloadAsync(source, ct) ? await AcquireAsync(source, ct) : null;
         return await unitOfWork.ExecuteInTransactionAsync(async token =>
         {
             if (await conversations.GetForUpdateAsync(contactId, token) is not { } contact) return Result.Success();
             var message = await messages.GetForUpdateAsync(contactId, source.MessageId, token);
             var current = await reader.FindAsync(contactId, source.MessageId, token);
             if (message is null || current is not { State: WhatsAppSpreadsheetState.Pending }) return Result.Success();
-            // Losing the link, the mode or the permission while downloading leaves it as if it had never qualified.
-            if (acquired is null || !await preparation.CanDownloadAsync(current, token))
+            // Losing the link, the mode or the permission while downloading, or relinking, leaves it as if it had never qualified.
+            if (acquired is null || current.LinkRevision != source.LinkRevision || current.Mode != source.Mode
+                || !await preparation.CanDownloadAsync(current, token))
             {
                 message.SetSpreadsheetUnavailable(WhatsAppAssistantErrors.Unavailable.Code);
                 return Result.Success();
@@ -56,4 +59,18 @@ internal sealed class WhatsAppSpreadsheetDispatchService(IWhatsAppSpreadsheetRea
             return Result.Success();
         }, CommitPolicy.OnSuccess, ct);
     }
+
+    // A fault of Meta's download, the owner's reader or the private storage is a failure that may pass, as an unavailable download.
+    private async Task<Result<WhatsAppPreparedSpreadsheet>> AcquireAsync(WhatsAppSpreadsheetSourceRow source, CancellationToken ct)
+    {
+        try { return await preparation.AcquireAsync(source, ct); }
+        catch (Exception exception) when (exception is not OperationCanceledException || !ct.IsCancellationRequested)
+        {
+            LogAcquisitionFailed(logger, exception);
+            return FileErrors.Unavailable;
+        }
+    }
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "A received spreadsheet could not be downloaded, read or copied; it is retried with the usual scale")]
+    private static partial void LogAcquisitionFailed(ILogger logger, Exception exception);
 }

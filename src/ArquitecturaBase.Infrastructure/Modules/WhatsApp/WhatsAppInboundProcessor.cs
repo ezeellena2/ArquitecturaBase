@@ -97,6 +97,8 @@ internal sealed partial class WhatsAppInboundProcessor(
         return await scope.ServiceProvider.GetRequiredService<IWhatsAppAssistantReader>()
             .ExistsPendingAsync(nowUtc, cancellationToken)
             || await scope.ServiceProvider.GetRequiredService<IWhatsAppAudioReader>()
+                .ExistsPendingAsync(nowUtc, cancellationToken)
+            || await scope.ServiceProvider.GetRequiredService<IWhatsAppSpreadsheetReader>()
                 .ExistsPendingAsync(nowUtc, cancellationToken);
     }
 
@@ -134,13 +136,14 @@ internal sealed partial class WhatsAppInboundProcessor(
                 if (processed.IsFailure || !processed.Value) return;
             }
             await ProcessAuthoringTapAsync(contactId, cancellationToken);
+            // A received spreadsheet is downloaded, prepared and copied before the interpretation: it is a source, or its contiguous
+            // text's pair, only once it is stored.
+            await PrepareSpreadsheetAsync(contactId, cancellationToken);
             // Retire an interpretation superseded by a new audio before attempting its normalization.
             var work = await PrepareAssistantAsync(contactId, cancellationToken);
             var completedAudio = await ProcessAudioAsync(contactId, cancellationToken);
             if (work is null && completedAudio) work = await PrepareAssistantAsync(contactId, cancellationToken);
             if (work is not null) await ProcessAssistantAsync(contactId, work, cancellationToken);
-            // A received spreadsheet is downloaded, prepared and copied after everything else: the assistant does not take it yet.
-            await PrepareSpreadsheetAsync(contactId, cancellationToken);
         }
         catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
         {

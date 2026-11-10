@@ -15,8 +15,11 @@ public enum WhatsAppSpreadsheetState { Pending, Stored, Rejected, Unavailable }
 // and the SHA-256 computed from the bytes; a file that is not read keeps its reason. Download failures saturate like an audio's.
 public sealed partial class WhatsAppMessage
 {
-    /// <summary>The longest file name kept from Meta, for the operator to see it.</summary>
+    /// <summary>The longest file name the column holds.</summary>
     public const int MaxSpreadsheetFileNameLength = 255;
+
+    /// <summary>The longest file name kept: as long as the name of the prepared sheet, so the chat, the owner and the model read the same.</summary>
+    public const int SpreadsheetNameLength = 120;
 
     /// <summary>The largest spreadsheet copied: as much as a catalog import reads.</summary>
     public const long MaxSpreadsheetBytes = 10 * 1024 * 1024;
@@ -50,7 +53,7 @@ public sealed partial class WhatsAppMessage
     public bool SetSpreadsheetDescriptor(string? mediaId, string? contentType, string? sha256, string? fileName)
     {
         if (Kind != WhatsAppMessageKind.Spreadsheet || Direction != WhatsAppMessageDirection.Inbound) return false;
-        var name = SpreadsheetName(fileName);
+        var name = SpreadsheetName(fileName, contentType);
         if (SpreadsheetState is not null)
             return SpreadsheetMediaId == mediaId && SpreadsheetContentType == contentType
                 && SpreadsheetSha256 == sha256?.ToLowerInvariant() && SpreadsheetFileName == name;
@@ -126,7 +129,19 @@ public sealed partial class WhatsAppMessage
 
     private static bool IsFailureCode(string? code) => code is { Length: > 0 and <= 128 } && StorableText.IsStorable(code);
 
-    // The person's file name, without control characters and bounded; null if nothing is left.
-    private static string? SpreadsheetName(string? fileName) => fileName is null ? null
-        : StorableText.Clean(string.Concat(fileName.Where(character => !char.IsControl(character))).Trim(), MaxSpreadsheetFileNameLength);
+    /// <summary>
+    /// The person's file name as the chat, the owner's reader and the assistant take it, normalized once: without folders or control
+    /// characters and bounded, with «…» when it is cut. Without a name, one by its type.
+    /// </summary>
+    public static string SpreadsheetName(string? fileName, string? contentType)
+    {
+        var name = fileName is null ? null
+            : StorableText.Clean(string.Concat(Path.GetFileName(fileName.Replace('\\', '/')).Where(character => !char.IsControl(character))).Trim(), int.MaxValue);
+        if (name is null or "." or "..")
+            return contentType?.Contains("csv", StringComparison.OrdinalIgnoreCase) == true ? "spreadsheet.csv" : "spreadsheet.xlsx";
+        if (name.Length <= SpreadsheetNameLength) return name;
+        var kept = SpreadsheetNameLength - 1;
+        if (char.IsHighSurrogate(name[kept - 1])) kept--;
+        return name[..kept] + "…";
+    }
 }

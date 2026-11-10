@@ -110,6 +110,45 @@ public sealed class WhatsAppSpreadsheetPostgresTests(ApiFactory factory)
         Assert.Equal(reply.Body, Assert.IsType<WhatsAppTextMessage>(Assert.Single(host.Cloud.Messages)).Body);
     }
 
+    // The rejection's fixed text names its own request as the proposal: the reader leaves it out of the conversation, of the offers and
+    // of the quota. A question of an interpretation created before it still waits for the person's answer.
+    [Fact]
+    public async Task A_rejection_is_no_turn_of_the_conversation_no_unresolved_offer_and_no_offer_of_the_day()
+    {
+        var probe = new WhatsAppDocumentProbe { Bytes = Encoding.Latin1.GetBytes("Código;Texto\nA1;Año\n") };
+        await using var host = await CreateAsync(probe);
+        var person = await host.ContactAsync(Ct, automatic: true);
+        await GrantCatalogsAsync(host, person.RecipientId);
+        var before = host.Clock.GetUtcNow().UtcDateTime;
+        host.Clock.Advance(TimeSpan.FromSeconds(5));
+        await ReceiveAsync(host, person, probe, "clientes.csv", "text/plain", null);
+
+        await ProcessAsync(host);
+
+        var rejection = Assert.Single(await ReferencesAsync(host, person.ContactId));
+        Assert.Equal(((Guid?)rejection.RequestId, (Guid?)null), (rejection.ProposalId, rejection.ChangeRequestId));
+        // An interpretation created before the rejection asks what to build only once the rejection exists.
+        var interpretation = await host.InTransactionAsync(async services =>
+        {
+            var db = services.GetRequiredService<ApplicationDbContext>();
+            var contact = await db.Set<WhatsAppContact>().AsNoTracking().SingleAsync(row => row.Id == person.ContactId, Ct);
+            var row = WhatsAppAssistantRequest.Create(Guid.CreateVersion7(), contact.Id, person.SourceMessageId, person.RecipientId, person.RecipientId,
+                WhatsAppAssistantRequestKind.Automatic, contact.ModeRevision, contact.LinkRevision, "{\"channelId\":\"whatsapp-assistant\"}", before, before.AddDays(1));
+            Assert.True(row.AwaitAnswer());
+            db.Add(row);
+            return row.RequestId;
+        }, Ct);
+        var day = host.Clock.GetUtcNow().UtcDateTime.Date;
+        var reads = await host.ScopeAsync(async services =>
+        {
+            var reader = services.GetRequiredService<IWhatsAppAssistantReader>();
+            return (Change: await reader.FindChangeRequestAsync(person.ContactId, Ct), Unresolved: await reader.ExistsUnresolvedOfferAsync(person.ContactId, Guid.NewGuid(), Ct),
+                Offers: await reader.CountOffersAsync(person.ContactId, day, day.AddDays(1), Ct));
+        });
+        Assert.Equal(((Guid?)interpretation, false, 0), reads);
+        Assert.Equal(WhatsAppOutgoingMessageState.Pending, Assert.Single(await OutgoingAsync(host, person.ContactId)).State);
+    }
+
     [Theory]
     [InlineData(true, false)]
     [InlineData(false, true)]

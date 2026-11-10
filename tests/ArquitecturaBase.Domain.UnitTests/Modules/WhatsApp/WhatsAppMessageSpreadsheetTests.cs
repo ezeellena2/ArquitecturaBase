@@ -79,18 +79,31 @@ public sealed class WhatsAppMessageSpreadsheetTests
         Assert.Equal("Mirá esta planilla", message.Body);
     }
 
+    // The same name for the chat, the owner's reader and the assistant: normalized once, as a Home attachment's.
     [Fact]
-    public void The_file_name_is_kept_without_control_characters_and_bounded()
+    public void The_file_name_is_kept_without_folders_or_control_characters_and_bounded()
     {
         var message = Message();
 
         Assert.True(message.SetSpreadsheetDescriptor("1234", "text/csv", Hash, "cli\nentes" + new string('x', 300) + ".csv"));
 
         Assert.StartsWith("clientesxxx", message.SpreadsheetFileName, StringComparison.Ordinal);
-        Assert.Equal(WhatsAppMessage.MaxSpreadsheetFileNameLength, message.SpreadsheetFileName!.Length);
+        Assert.Equal(WhatsAppMessage.SpreadsheetNameLength, message.SpreadsheetFileName!.Length);
+        Assert.EndsWith("…", message.SpreadsheetFileName, StringComparison.Ordinal);
+        Assert.Equal("clientes.csv", WhatsAppMessage.SpreadsheetName(@"C:\planillas/2026\clientes.csv ", "text/csv"));
+        Assert.Equal(WhatsAppMessage.SpreadsheetName(message.SpreadsheetFileName, "text/csv"), message.SpreadsheetFileName);
+    }
+
+    [Theory]
+    [InlineData(" \t ", "text/csv", "spreadsheet.csv")]
+    [InlineData(null, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "spreadsheet.xlsx")]
+    [InlineData("planillas/", null, "spreadsheet.xlsx")]
+    [InlineData("..", "text/csv", "spreadsheet.csv")]
+    public void Without_a_name_it_keeps_one_by_its_type(string? fileName, string? type, string expected)
+    {
         var unnamed = Message();
-        Assert.True(unnamed.SetSpreadsheetDescriptor("1234", "text/csv", Hash, " \t "));
-        Assert.Null(unnamed.SpreadsheetFileName);
+        unnamed.SetSpreadsheetDescriptor("1234", type, Hash, fileName);
+        Assert.Equal(expected, unnamed.SpreadsheetFileName);
     }
 
     [Fact]

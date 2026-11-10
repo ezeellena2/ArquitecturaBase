@@ -57,6 +57,7 @@ public sealed class WhatsAppSpreadsheetRetentionSourceTests
 
         public Task<IReadOnlyList<Guid>> ListPendingContactsAsync(IReadOnlyCollection<Guid> excluded, int limit, DateTime nowUtc, CancellationToken ct) =>
             throw new NotSupportedException();
+        public Task<bool> ExistsPendingAsync(DateTime nowUtc, CancellationToken ct) => throw new NotSupportedException();
         public Task<WhatsAppSpreadsheetSourceRow?> FindPendingAsync(Guid contactId, DateTime nowUtc, CancellationToken ct) => throw new NotSupportedException();
         public Task<WhatsAppSpreadsheetSourceRow?> FindAsync(Guid contactId, Guid messageId, CancellationToken ct) => throw new NotSupportedException();
     }

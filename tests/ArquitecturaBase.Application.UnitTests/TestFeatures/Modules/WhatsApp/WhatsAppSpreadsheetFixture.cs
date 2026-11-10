@@ -46,7 +46,7 @@ internal sealed class WhatsAppSpreadsheetFixture : IWhatsAppSpreadsheetReader, I
         Assert.True(Message.SetSpreadsheetDescriptor("1234", "text/csv", metaHash ?? Hash(Content), "clientes.csv"));
         var recipientGuard = new WhatsAppFormActionPolicy(Host.Context.Users, new FakePhoneNumberParser(), new FakeWhatsAppAvailability(true, true), Host.Context.Clock);
         var preparation = new WhatsAppSpreadsheetPreparationPolicy(this, this, Files, Host.Context.Recipients, recipientGuard);
-        var replies = new WhatsAppSpreadsheetReplyPolicy(Host.Context.Policy, WhatsAppAssistantAcceptanceFixture.CreateAutomatic(Host), Host.Reader,
+        var replies = new WhatsAppSpreadsheetReplyPolicy(Host.Context.Policy, WhatsAppAssistantAcceptanceFixture.CreateAutomatic(Host),
             Host.Requests, Host.Context.Clock);
         Dispatch = new(this, this, new Conversations(this), preparation, replies, Host.UnitOfWork, Host.Context.Clock,
             NullLogger<WhatsAppSpreadsheetDispatchService>.Instance);
@@ -67,6 +67,8 @@ internal sealed class WhatsAppSpreadsheetFixture : IWhatsAppSpreadsheetReader, I
 
     public Task<IReadOnlyList<Guid>> ListPendingContactsAsync(IReadOnlyCollection<Guid> excluded, int limit, DateTime nowUtc, CancellationToken ct) =>
         throw new NotSupportedException();
+
+    public Task<bool> ExistsPendingAsync(DateTime nowUtc, CancellationToken ct) => throw new NotSupportedException();
 
     public Task<WhatsAppSpreadsheetSourceRow?> FindPendingAsync(Guid contactId, DateTime nowUtc, CancellationToken ct) =>
         Task.FromResult(contactId == Contact.Id && Message.SpreadsheetState == WhatsAppSpreadsheetState.Pending ? Row() : null);

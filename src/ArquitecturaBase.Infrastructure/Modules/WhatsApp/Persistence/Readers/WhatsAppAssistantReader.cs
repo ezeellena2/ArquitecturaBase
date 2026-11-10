@@ -74,8 +74,10 @@ internal sealed class WhatsAppAssistantReader(ApplicationDbContext db,IOptions<W
             && outgoing.Kind==WhatsAppOutgoingMessageKind.QuickReplies && outgoing.Origin==WhatsAppMessageOrigin.Assistant
          orderby reference.CreatedAtUtc descending,reference.Id descending
          select (Guid?)reference.RequestId).FirstOrDefaultAsync(ct);
+    // A spreadsheet's rejection answers with a fixed text that names its own request as the proposal: it is no turn of the conversation.
     public Task<Guid?> FindChangeRequestAsync(Guid contactId,CancellationToken ct)=>
-        References().Where(reference=>reference.ContactId==contactId && reference.Kind==WhatsAppAssistantRequestKind.Automatic)
+        References().Where(reference=>reference.ContactId==contactId && reference.Kind==WhatsAppAssistantRequestKind.Automatic
+                && reference.ProposalId!=reference.RequestId)
             .OrderByDescending(reference=>reference.CreatedAtUtc).ThenByDescending(reference=>reference.Id)
             .Select(reference=>reference.ChangeRequestId).FirstOrDefaultAsync(ct);
     private static IQueryable<WhatsAppMessage> CurrentSourceMessages(IQueryable<WhatsAppMessage> messages)
@@ -154,12 +156,14 @@ internal sealed class WhatsAppAssistantReader(ApplicationDbContext db,IOptions<W
             && row.SourceMessageId==BusinessInbound().Where(message=>message.ContactId==contact.Id)
                 .OrderByDescending(message=>message.InboundSequence).ThenByDescending(message=>message.Id).Select(message=>(Guid?)message.Id).FirstOrDefault()
          select row.Id).AnyAsync(ct);
+    // A spreadsheet's rejection (its fixed text names its own request as the proposal) is no offer.
     public Task<bool> ExistsUnresolvedOfferAsync(Guid contactId,Guid excludingRequestId,CancellationToken ct)=>
         db.Set<WhatsAppOutgoingMessage>().AsNoTracking().AnyAsync(outgoing=>outgoing.ContactId==contactId
             && outgoing.Origin==WhatsAppMessageOrigin.Assistant
             && (outgoing.State==WhatsAppOutgoingMessageState.Pending || outgoing.State==WhatsAppOutgoingMessageState.Sending || outgoing.State==WhatsAppOutgoingMessageState.Uncertain)
             && !References().Any(reference=>reference.RequestId==excludingRequestId
-                && (reference.OutgoingId==outgoing.Id || reference.QuestionOutgoingId==outgoing.Id)),ct);
+                && (reference.OutgoingId==outgoing.Id || reference.QuestionOutgoingId==outgoing.Id))
+            && !References().Any(reference=>reference.OutgoingId==outgoing.Id && reference.ProposalId==reference.RequestId),ct);
     public Task<bool> ExistsDeclinedAsync(Guid contactId,Guid definitionId,CancellationToken ct)=>
         (from row in References() join contact in db.Set<WhatsAppContact>().AsNoTracking() on row.ContactId equals contact.Id
          where row.ContactId==contactId && row.SubjectUserId==contact.UserId && row.LinkRevision==contact.LinkRevision && row.DeclinedDefinitionId==definitionId

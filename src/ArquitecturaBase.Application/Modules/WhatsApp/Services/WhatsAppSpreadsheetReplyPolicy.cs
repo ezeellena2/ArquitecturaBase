@@ -9,10 +9,11 @@ namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 
 // Stage 2 of the assistant authoring: a spreadsheet that is not read keeps its reason and gets one fixed text with it, as the
 // assistant answers: its own automatic reference on the message, accepted like an acknowledgement in the same outbox. Only in the
-// person's automatic conversation, in their language and within the 24-hour window. A change or an answer the person was asked for
-// still waits for the next message. It runs in the caller's transaction and never reaches the model.
+// person's automatic conversation, in their language and within the 24-hour window. The reference names its own request as the
+// proposal, so the reader leaves it out of the conversation: a change or an answer the person was asked for still waits for the next
+// message, and its text is no offer. It runs in the caller's transaction and never reaches the model.
 internal sealed class WhatsAppSpreadsheetReplyPolicy(WhatsAppAssistantAccessPolicy access, WhatsAppAssistantAutomaticPolicy automatic,
-    IWhatsAppAssistantReader reader, IWhatsAppAssistantRepository requests, TimeProvider clock)
+    IWhatsAppAssistantRepository requests, TimeProvider clock)
 {
     public async Task RejectAsync(WhatsAppContact contact, WhatsAppMessage message, StructuredAttachmentRejection rejection, CancellationToken ct)
     {
@@ -24,7 +25,6 @@ internal sealed class WhatsAppSpreadsheetReplyPolicy(WhatsAppAssistantAccessPoli
         var nowUtc = clock.GetUtcNow().UtcDateTime;
         var row = WhatsAppAssistantRequest.Create(Guid.CreateVersion7(), contact.Id, message.Id, subject, subject, WhatsAppAssistantRequestKind.Automatic,
             contact.ModeRevision, contact.LinkRevision, JsonSerializer.Serialize(context, JsonSerializerOptions.Web), nowUtc, nowUtc.AddDays(1));
-        if (await reader.FindChangeRequestAsync(contact.Id, ct) is { } change && !row.AwaitChange(change)) return;
         // A fixed text answers no proposal of the model: the reference names its own request.
         if (automatic.AcceptTerminal(contact, row, new WhatsAppAssistantTerminalResponse(row.RequestId, Text(rejection, context.Culture), context.Culture)))
             requests.Add(row);
