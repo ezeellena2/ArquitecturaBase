@@ -68,7 +68,7 @@ public sealed partial class FormDraftEndpointsTests
         await using var stream = await response.Content.ReadAsStreamAsync(Ct);
         using var workbook = new XLWorkbook(stream);
         var sheet = workbook.Worksheet(1);
-        Assert.Equal(new[] { "Number", "Received (UTC)", "Submitted by", "Channel", "Type Integer", "Type Integer · value",
+        Assert.Equal(new[] { "No.", "Received", "Submitted by", "Channel", "Type Integer", "Type Integer · value",
             "Type Decimal", "Type Decimal · value", "Type Date", "Type Date · value", "Type Text", "Other integer", "Other integer · value" },
             sheet.Row(1).CellsUsed().Select(cell => cell.GetString()));
         Assert.Equal(1, sheet.LastRowUsed()!.RowNumber());

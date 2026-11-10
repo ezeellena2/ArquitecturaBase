@@ -289,6 +289,7 @@
   <data name="Files.Content.TooLarge" xml:space="preserve"><value>Un archivo o la respuesta supera el tamaño permitido. La respuesta no se guardó.</value></data>
   <data name="Files.Content.InvalidMetadata" xml:space="preserve"><value>Los datos del archivo no son válidos. La respuesta no se guardó.</value></data>
   <data name="Files.Content.Unavailable" xml:space="preserve"><value>No pudimos bajar los archivos de WhatsApp. La respuesta no se guardó.</value></data>
+<data name="Forms.Record.ExportTooManyRows" xml:space="preserve"><value>El Excel tendría más de 100.000 filas, una por ítem. Acotá los filtros o sacá el bloque de las columnas.</value></data>
   <data name="Files.Content.NotFound" xml:space="preserve"><value>El archivo no pertenece a esta respuesta.</value></data>
   <data name="Forms.Record.NotFound" xml:space="preserve"><value>No encontramos esa respuesta o no está disponible.</value></data>
   <data name="Forms.Record.FilterInvalid" xml:space="preserve"><value>Revisá los filtros: el campo, el operador y el valor deben corresponder a ese formulario.</value></data>

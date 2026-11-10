@@ -77,4 +77,47 @@ public sealed class FormWorkbookWriterTests(ITestOutputHelper output)
         Assert.Equal(200.5m, items.Cell(2, 3).GetValue<decimal>());
         Assert.Equal(2, workbook.Worksheet("Respuestas").Cell(2, 2).GetValue<int>());
     }
+    [Fact]
+    public void The_header_takes_the_tone_of_the_sheet_and_each_column_fits_what_it_holds_within_a_limit()
+    {
+        var bytes = new ClosedXmlFormWorkbookWriter().Write(new([new(["N°", "Cargó", "Observación"],
+            [new FormWorkbookCell[] { new("text", "T-000001"), new("text", "Ezequiel Ellena Hotmail - User"), new("text", new string('x', 300)) }], "Respuestas")]),
+            TestContext.Current.CancellationToken);
+        using var workbook = new XLWorkbook(new MemoryStream(bytes));
+        var sheet = workbook.Worksheet(1);
+        Assert.All(sheet.Row(1).Cells(1, 3), cell =>
+        {
+            Assert.True(cell.Style.Font.Bold);
+            Assert.Equal(XLColor.FromArgb(0xDF, 0xE8, 0xD9), cell.Style.Fill.BackgroundColor);
+        });
+        // A short number is narrower than a name, which fits whole; a long text stops at the limit and stays in its cell.
+        Assert.True(sheet.Column(1).Width < sheet.Column(2).Width);
+        Assert.True(sheet.Column(2).Width >= "Ezequiel Ellena Hotmail - User".Length);
+        Assert.InRange(sheet.Column(3).Width, 59, 61);
+        Assert.Equal(new string('x', 300), sheet.Cell(2, 3).GetString());
+        Assert.Equal(1, sheet.SheetView.SplitRow);
+        Assert.NotNull(sheet.AutoFilter.Range);
+    }
+    [Fact]
+    public void Each_group_starts_with_a_line_and_dates_take_the_formats_of_the_sheet()
+    {
+        var received = new DateTime(2026, 11, 9, 15, 42, 0);
+        var bytes = new ClosedXmlFormWorkbookWriter().Write(new([new(["N°", "Recibida", "Vence", "Ítem"],
+            [
+                new FormWorkbookCell[] { new("text", "RMP-000002"), new("dateTime", received), new("date", new DateTime(2026, 11, 30)), new("integer", 1L) },
+                new FormWorkbookCell[] { new("text", "RMP-000002"), new("dateTime", received), new("date", new DateTime(2026, 11, 30)), new("integer", 2L) },
+                new FormWorkbookCell[] { new("text", "RMP-000001"), new("dateTime", received.AddMinutes(-14)), new("date", new DateTime(2026, 11, 30), "yyyy"), new("integer", 1L) },
+            ], "Respuestas", GroupStarts: [0, 2], DateFormat: "dd/mm/yyyy", DateTimeFormat: "dd/mm/yyyy hh:mm")]),
+            TestContext.Current.CancellationToken);
+        using var workbook = new XLWorkbook(new MemoryStream(bytes));
+        var sheet = workbook.Worksheet(1);
+        // The second response starts on row 4; the second item of the first one keeps the usual grid.
+        Assert.All(sheet.Row(4).Cells(1, 4), cell => Assert.Equal(XLBorderStyleValues.Thin, cell.Style.Border.TopBorder));
+        Assert.All(sheet.Row(3).Cells(1, 4), cell => Assert.Equal(XLBorderStyleValues.None, cell.Style.Border.TopBorder));
+        Assert.Equal("dd/mm/yyyy hh:mm", sheet.Cell(2, 2).Style.DateFormat.Format);
+        Assert.Equal("dd/mm/yyyy", sheet.Cell(2, 3).Style.DateFormat.Format);
+        // A cell with its own format keeps it.
+        Assert.Equal("yyyy", sheet.Cell(4, 3).Style.NumberFormat.Format);
+        Assert.Equal("09/11/2026 15:42", sheet.Cell(2, 2).GetFormattedString(CultureInfo.GetCultureInfo("es-AR")));
+    }
 }

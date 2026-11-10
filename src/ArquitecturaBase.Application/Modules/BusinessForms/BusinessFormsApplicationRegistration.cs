@@ -63,6 +63,7 @@ public static class BusinessFormsApplicationRegistration
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<FormExportRequest>, FormExportRequestValidator>());
         services.TryAddScoped<FormRecordAccessGuard>();
         services.TryAddScoped<FormRecordOriginPolicy>();
+        services.TryAddScoped<FormExportResponsePolicy>();
         services.TryAddScoped<IFormResponseService, FormResponseService>();
         services.TryAddScoped<IFormOverviewService, FormOverviewService>();
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<ListFormOverviewRequest>, ListFormOverviewRequestValidator>());

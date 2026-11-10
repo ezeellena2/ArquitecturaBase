@@ -175,7 +175,7 @@ public sealed partial class FormDraftEndpointsTests
         using var workbook = new ClosedXML.Excel.XLWorkbook(stream);
         var sheet = workbook.Worksheet(1);
         Assert.Equal("Responses", sheet.Name);
-        Assert.Equal(new[] { "Number", "Received (UTC)", "Submitted by", "Channel", "Detail" },
+        Assert.Equal(new[] { "No.", "Received", "Submitted by", "Channel", "Detail" },
             sheet.Row(1).CellsUsed().Select(cell => cell.GetString()));
     }
     [Fact]

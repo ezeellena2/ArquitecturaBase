@@ -101,13 +101,13 @@ public sealed class FormHistoricalReadCultureTests
         var writer = new FakeFormWorkbookWriter();
         var service = new FormExportService(reader, writer, new(current, permissions, reader),
             RequestValidators.For(new FormExportRequestValidator(), new ListFormRecordsRequestValidator()),
-            new FakeTimeProvider(), NullLogger<FormExportService>.Instance, new([]), new ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms.FormRecordResultReaderDouble());
+            new FakeTimeProvider(), NullLogger<FormExportService>.Instance, new(new([]), new ArquitecturaBase.Application.UnitTests.TestDoubles.Users.InMemoryUserAccounts()), new ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms.FormRecordResultReaderDouble());
         var previous = CultureInfo.CurrentUICulture;
         CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo(ui);
         try
         {
             Assert.True((await service.ExportAsync(reader.Definition!.Id, new(new(), null), TestContext.Current.CancellationToken)).IsSuccess);
-            Assert.Equal(ui == "en" ? "Number" : "Número", writer.Request!.Sheets[0].Headers[0]);
+            Assert.Equal(ui == "en" ? "No." : "N°", writer.Request!.Sheets[0].Headers[0]);
             Assert.Equal("Original choice", writer.Request.Sheets[0].Headers[4]);
             Assert.Equal("Original option", writer.Request.Sheets[0].Rows[0][4].Value);
             Assert.Equal(ui, CultureInfo.CurrentUICulture.TwoLetterISOLanguageName);

@@ -1,10 +1,13 @@
 using System.Globalization;
 using System.Text.Json;
+using ArquitecturaBase.Application.Interfaces.Channels;
+using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
 using ArquitecturaBase.Application.Modules.BusinessForms.Validation;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
+using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -226,9 +229,47 @@ public sealed class FormExportServiceTests
         Assert.Equal(0m, rows[2][5].Value);
     }
 
-    private static (FormExportService Service, FakeFormWorkbookWriter Writer, FakePermissionService Permissions, FakeFormResponseReader Reader, FakeTimeProvider Clock) Create(bool canExport)
+    [Theory]
+    [InlineData("es", "N°", "Recibida", "dd/mm/yyyy hh:mm", "dd/mm/yyyy")]
+    [InlineData("en", "No.", "Received", "m/d/yyyy h:mm AM/PM", "m/d/yyyy")]
+    public async Task Received_takes_the_time_zone_of_the_account_and_the_words_and_dates_of_the_sheet(
+        string culture, string number, string received, string dateTimeFormat, string dateFormat)
     {
-        var user = new FakeCurrentUser { UserId = Guid.NewGuid() };
+        var accounts = new InMemoryUserAccounts();
+        var account = accounts.AddUser("ana@example.com");
+        var ports = Create(true, accounts, account.Id, new PhoneOrigins());
+        ports.Reader.ArrangeExport(1);
+        var previous = CultureInfo.CurrentUICulture;
+        CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo(culture);
+        try
+        {
+            var result = await ports.Service.ExportAsync(ports.Reader.Definition!.Id, new(new(), null), CancellationToken.None);
+
+            Assert.True(result.IsSuccess);
+            var sheet = Assert.Single(ports.Writer.Request!.Sheets);
+            Assert.Equal([number, received], sheet.Headers.Take(2));
+            var row = Assert.Single(sheet.Rows);
+            // 12:00 UTC is 09:00 in Buenos Aires, the zone of the account that exports, as the sheet shows it.
+            Assert.Equal(new DateTime(2026, 10, 16, 9, 0, 0), Assert.IsType<DateTime>(row[1].Value));
+            Assert.Equal("WhatsApp", row[3].Value);
+            Assert.Equal(dateTimeFormat, sheet.DateTimeFormat);
+            Assert.Equal(dateFormat, sheet.DateFormat);
+        }
+        finally { CultureInfo.CurrentUICulture = previous; }
+    }
+
+    /// <summary>Every response arrived through the phone channel.</summary>
+    private sealed class PhoneOrigins : IStructuredRecordOriginSource
+    {
+        public Task<IReadOnlyList<StructuredRecordOrigin>> ListAsync(Guid actorUserId, IReadOnlyCollection<Guid> sourceReceiptIds, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<StructuredRecordOrigin>>(sourceReceiptIds
+                .Select(id => new StructuredRecordOrigin(id, "phone", null, null, DateTime.UnixEpoch, null, null, "Employee")).ToArray());
+    }
+
+    private static (FormExportService Service, FakeFormWorkbookWriter Writer, FakePermissionService Permissions, FakeFormResponseReader Reader, FakeTimeProvider Clock) Create(
+        bool canExport, InMemoryUserAccounts? accounts = null, Guid? userId = null, IStructuredRecordOriginSource? origin = null)
+    {
+        var user = new FakeCurrentUser { UserId = userId ?? Guid.NewGuid() };
         var permissions = new FakePermissionService(); permissions.Permissions[user.UserId.Value] = canExport
             ? [BusinessFormsPermissions.RecordsRead, BusinessFormsPermissions.RecordsExport] : [BusinessFormsPermissions.RecordsRead];
         var writer = new FakeFormWorkbookWriter();
@@ -236,7 +277,8 @@ public sealed class FormExportServiceTests
         reader.ArrangeExport(10001);
         var clock = new FakeTimeProvider();
         var service = new FormExportService(reader, writer, new(user, permissions, reader),
-            RequestValidators.For(new FormExportRequestValidator(), new ListFormRecordsRequestValidator()), clock, NullLogger<FormExportService>.Instance, new([]), new ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms.FormRecordResultReaderDouble());
+            RequestValidators.For(new FormExportRequestValidator(), new ListFormRecordsRequestValidator()), clock, NullLogger<FormExportService>.Instance,
+            new(new(origin is null ? [] : [origin]), accounts ?? new InMemoryUserAccounts()), new FormRecordResultReaderDouble());
         return (service, writer, permissions, reader, clock);
     }
 }

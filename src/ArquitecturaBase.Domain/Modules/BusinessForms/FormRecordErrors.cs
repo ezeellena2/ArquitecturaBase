@@ -6,6 +6,7 @@ public static class FormRecordErrors
 {
     public static readonly Error StateConflict = Error.Conflict("Forms.Record.StateConflict", "The response workflow state changed.");
     public static readonly Error ExportTooLarge = Error.Validation("Forms.Record.ExportTooLarge", "An export cannot exceed ten thousand responses.");
+    public static readonly Error ExportTooManyRows = Error.Validation("Forms.Record.ExportTooManyRows", "An export cannot exceed one hundred thousand rows.");
     public static readonly Error ExportBudgetExceeded = Error.Validation("Forms.Record.ExportBudgetExceeded", "The export exceeded its processing budget.");
     public static readonly Error FilterInvalid = Error.Validation("Forms.Record.FilterInvalid", "The response filter is invalid.");
     public static readonly Error NotFound = Error.NotFound("Forms.Record.NotFound", "The form response is unavailable.");

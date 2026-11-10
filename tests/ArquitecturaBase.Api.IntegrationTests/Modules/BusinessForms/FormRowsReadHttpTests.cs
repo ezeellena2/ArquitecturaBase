@@ -124,7 +124,7 @@ public sealed partial class FormDraftEndpointsTests
     [Theory]
     [InlineData("es")]
     [InlineData("en")]
-    public async Task The_excel_counts_the_items_in_the_responses_and_adds_a_sheet_with_them(string culture)
+    public async Task The_excel_puts_the_block_in_the_same_sheet_with_one_row_per_item(string culture)
     {
         using var reader = await RowsReaderAsync(culture);
         var rows = await SeedRowsReadAsync(reader, [new("seed", "200.5", "Sin daños"), new("seed", "100"), new("fertilizer", "7")], []);
@@ -134,21 +134,25 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal(HttpStatusCode.OK, export.StatusCode);
         await ResponseContractCapture.WriteAsync(export, "rows-export-" + culture, Ct, "xlsx");
         using var workbook = new XLWorkbook(new MemoryStream(await export.Content.ReadAsByteArrayAsync(Ct)));
-        Assert.Equal(culture == "en" ? ["Responses", "Items"] : ["Respuestas", "Artículos"], workbook.Worksheets.Select(sheet => sheet.Name));
-        var responses = workbook.Worksheet(1);
-        Assert.Equal(culture == "en" ? "Items" : "Artículos", responses.Cell(1, 6).GetString());
-        Assert.Equal(XLDataType.Number, responses.Cell(2, 6).DataType);
-        Assert.Equal(3, responses.Cell(2, 6).GetValue<int>());
-        Assert.True(responses.Cell(3, 6).IsEmpty());
-        var items = workbook.Worksheet(2);
-        Assert.Equal(culture == "en" ? ["Number", "Item", "Product", "Quantity", "Note"] : ["Número", "Ítem", "Artículo", "Cantidad", "Observación"],
-            items.Row(1).Cells(1, 5).Select(cell => cell.GetString()));
-        Assert.Equal([1, 2, 3], items.Column(2).Cells(2, 4).Select(cell => cell.GetValue<int>()));
-        Assert.Equal(culture == "en" ? ["Seed", "Seed", "Fertilizer"] : ["Semilla", "Semilla", "Fertilizante"], items.Column(3).Cells(2, 4).Select(cell => cell.GetString()));
-        Assert.Equal([200.5m, 100m, 7m], items.Column(4).Cells(2, 4).Select(cell => cell.GetValue<decimal>()));
-        Assert.Equal("Sin daños", items.Cell(2, 5).GetString());
-        Assert.True(items.Cell(3, 5).IsEmpty());
-        Assert.True(items.Row(5).IsEmpty());
+        var sheet = Assert.Single(workbook.Worksheets);
+        Assert.Equal(culture == "en" ? "Responses" : "Respuestas", sheet.Name);
+        // «Ítem» and the questions of the block take its place (XL1-A).
+        Assert.Equal(culture == "en" ? ["Item", "Product", "Quantity", "Note"] : ["Ítem", "Artículo", "Cantidad", "Observación"],
+            sheet.Row(1).Cells(6, 9).Select(cell => cell.GetString()));
+        // The three items of the first response repeat its number; the second one has no items and takes a row.
+        var first = sheet.Cell(2, 1).GetString();
+        Assert.Equal([first, first, first], sheet.Column(1).Cells(2, 4).Select(cell => cell.GetString()));
+        Assert.NotEqual(first, sheet.Cell(5, 1).GetString());
+        Assert.Equal(XLDataType.Number, sheet.Cell(2, 6).DataType);
+        Assert.Equal([1, 2, 3], sheet.Column(6).Cells(2, 4).Select(cell => cell.GetValue<int>()));
+        Assert.Equal(culture == "en" ? ["Seed", "Seed", "Fertilizer"] : ["Semilla", "Semilla", "Fertilizante"], sheet.Column(7).Cells(2, 4).Select(cell => cell.GetString()));
+        Assert.Equal([200.5m, 100m, 7m], sheet.Column(8).Cells(2, 4).Select(cell => cell.GetValue<decimal>()));
+        Assert.Equal("Sin daños", sheet.Cell(2, 9).GetString());
+        Assert.True(sheet.Cell(3, 9).IsEmpty());
+        Assert.All(sheet.Row(5).Cells(6, 9), cell => Assert.True(cell.IsEmpty()));
+        // The second response starts with a line.
+        Assert.Equal(XLBorderStyleValues.Thin, sheet.Cell(5, 1).Style.Border.TopBorder);
+        Assert.True(sheet.Row(6).IsEmpty());
     }
 
     [Theory]

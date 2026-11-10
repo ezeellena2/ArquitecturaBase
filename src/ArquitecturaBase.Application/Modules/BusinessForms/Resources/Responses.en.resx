@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?><root><resheader name="resmimetype"><value>text/microsoft-resx</value></resheader><resheader name="version"><value>2.0</value></resheader>
-<data name="Number" xml:space="preserve"><value>Number</value></data>
-<data name="ReceivedUtc" xml:space="preserve"><value>Received (UTC)</value></data>
+<data name="Number" xml:space="preserve"><value>No.</value></data>
+<data name="Received" xml:space="preserve"><value>Received</value></data>
 <data name="Actor" xml:space="preserve"><value>Submitted by</value></data>
 <data name="Channel" xml:space="preserve"><value>Channel</value></data>
 <data name="Sheet" xml:space="preserve"><value>Responses</value></data>
-<data name="phone" xml:space="preserve"><value>Phone</value></data>
+<data name="phone" xml:space="preserve"><value>WhatsApp</value></data>
 <data name="app" xml:space="preserve"><value>App</value></data>
 <data name="unknown" xml:space="preserve"><value>Unavailable</value></data>
 <data name="SinceVersion" xml:space="preserve"><value> (since v{0})</value></data>
@@ -13,5 +13,4 @@
 <data name="Value" xml:space="preserve"><value>value</value></data>
 <data name="Voided" xml:space="preserve"><value>Voided</value></data>
 <data name="Item" xml:space="preserve"><value>Item</value></data>
-<data name="Items" xml:space="preserve"><value>Items</value></data>
 </root>

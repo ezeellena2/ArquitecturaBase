@@ -22,37 +22,10 @@ public sealed class FormExportPolicyTests
             new(Guid.NewGuid(), "a.pdf", "application/pdf", 10, false), new(Guid.NewGuid(), "b.pdf", "application/pdf", 20, false) })).Value);
         Assert.Equal("=SUM(A1)", FormExportPolicy.Cell(Cell("shortText", "Answered", "=SUM(A1)")).Value);
     }
-    [Fact]
-    public void The_block_exports_how_many_items_it_has()
-    {
-        var cell = FormExportPolicy.Cell(Cell("group", "Answered", new FormResponseRowCells[] { new([]), new([]), new([]) }));
-
-        Assert.Equal(("integer", (object?)3L), (cell.Kind, cell.Value));
-        Assert.Null(FormExportPolicy.Cell(Cell("group", "Unanswered", Array.Empty<FormResponseRowCells>())).Value);
-        Assert.Equal("—", FormExportPolicy.Cell(Cell("group", "NotAsked", null)).Value);
-    }
     [Theory]
-    [InlineData("Artículos", "es", "Artículos")]
-    [InlineData("Insumos: semillas/fertilizantes [lote]*?\\", "es", "Insumos semillasfertilizantes l")]
-    [InlineData("'Artículos'", "es", "Artículos")]
-    [InlineData("Respuestas", "es", "Ítems")]
-    [InlineData("responses", "en", "Items")]
-    [InlineData(" :/?* ", "en", "Items")]
-    [InlineData("Products applied by the farmer's crew", "en", "Products applied by the farmer")]
-    [InlineData("Items' '", "en", "Items")]
-    [InlineData("Insumos para la cosecha 🌽🌽🌽🌽", "es", "Insumos para la cosecha 🌽🌽🌽")]
-    [InlineData("History", "en", "Items")]
-    public void The_sheet_of_a_block_takes_its_name_without_what_excel_rejects(string label, string culture, string expected) =>
-        Assert.Equal(expected, FormExportPolicy.SheetName(label, [], culture));
-    [Fact]
-    public void A_sheet_name_already_taken_gets_its_number_within_31_characters()
-    {
-        Assert.Equal("Artículos (2)", FormExportPolicy.SheetName("Artículos", ["Respuestas", "artículos"], "es"));
-        Assert.Equal("Artículos (3)", FormExportPolicy.SheetName("Artículos", ["Respuestas", "Artículos", "Artículos (2)"], "es"));
-        Assert.Equal(new string('a', 27) + " (2)", FormExportPolicy.SheetName(new string('a', 40), [new string('a', 31)], "es"));
-        Assert.Equal("Ítems (2)", FormExportPolicy.SheetName("", ["Respuestas", "Ítems"], "es"));
-        // The cut for the number never splits an emoji.
-        Assert.Equal("Insumos para la cosecha 🌽 (2)", FormExportPolicy.SheetName("Insumos para la cosecha 🌽🌽🌽🌽", ["Insumos para la cosecha 🌽🌽🌽"], "es"));
-    }
+    [InlineData("es", "dd/mm/yyyy", "dd/mm/yyyy hh:mm")]
+    [InlineData("en", "m/d/yyyy", "m/d/yyyy h:mm AM/PM")]
+    public void Dates_take_the_format_of_the_language(string culture, string date, string dateTime) =>
+        Assert.Equal((date, dateTime), (FormExportPolicy.DateFormat(culture), FormExportPolicy.DateTimeFormat(culture)));
     private static FormResponseCell Cell(string type, string state, object? value) => new(Guid.NewGuid(), type, state, value);
 }

@@ -289,6 +289,7 @@
   <data name="Files.Content.TooLarge" xml:space="preserve"><value>A file or the response exceeds the allowed size. The response was not saved.</value></data>
   <data name="Files.Content.InvalidMetadata" xml:space="preserve"><value>The file metadata is invalid. The response was not saved.</value></data>
   <data name="Files.Content.Unavailable" xml:space="preserve"><value>We could not download the files from WhatsApp. The response was not saved.</value></data>
+<data name="Forms.Record.ExportTooManyRows" xml:space="preserve"><value>The Excel file would have more than 100,000 rows, one per item. Narrow the filters or remove the block from the columns.</value></data>
   <data name="Files.Content.NotFound" xml:space="preserve"><value>The file does not belong to this response.</value></data>
   <data name="Forms.Record.NotFound" xml:space="preserve"><value>The response could not be found or is unavailable.</value></data>
   <data name="Forms.Record.FilterInvalid" xml:space="preserve"><value>Check the filters: the field, operator and value must match the form.</value></data>

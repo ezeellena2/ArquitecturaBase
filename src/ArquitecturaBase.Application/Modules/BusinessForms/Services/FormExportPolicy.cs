@@ -1,10 +1,15 @@
 using System.Globalization;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
-using ArquitecturaBase.Application.Modules.BusinessForms.Resources;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 internal static class FormExportPolicy
 {
+    /// <summary>A date as the language writes it: day first in Spanish, month first in English (XL2).</summary>
+    public static string DateFormat(string culture) => culture == "en" ? "m/d/yyyy" : "dd/mm/yyyy";
+
+    /// <summary>A moment, such as when a response arrived, in the same order as the date and with its hour.</summary>
+    public static string DateTimeFormat(string culture) => culture == "en" ? "m/d/yyyy h:mm AM/PM" : "dd/mm/yyyy hh:mm";
+
     /// <summary>A datum of a result (RE1-A) as an Excel cell of its kind; empty without a value.</summary>
     public static FormWorkbookCell ResultCell(string kind, string? value) => value is null ? new("text", null) : kind switch
     {
@@ -13,46 +18,6 @@ internal static class FormExportPolicy
         _ => new("text", value),
     };
 
-    /// <summary>
-    /// The name of the sheet of a block: its own, without what Excel rejects, up to 31 characters without splitting a character
-    /// and without an apostrophe or a space at either end; «Ítems» if it ends empty, like the responses' sheet or like the one
-    /// Excel keeps («History»), and « (2)» if another sheet has it already. Excel compares sheet names without case.
-    /// </summary>
-    public static string SheetName(string label, IReadOnlyCollection<string> taken, string culture)
-    {
-        var name = Clean(Cut(Clean(new string(label.Where(character => character is not (':' or '\\' or '/' or '?' or '*' or '[' or ']')).ToArray())), 31));
-        if (name.Length == 0 || name.Equals(FormResponseTexts.Get("Sheet", culture), StringComparison.OrdinalIgnoreCase)
-            || name.Equals("History", StringComparison.OrdinalIgnoreCase)) name = FormResponseTexts.Get("Items", culture);
-        var candidate = name;
-        for (var copy = 2; taken.Contains(candidate, StringComparer.OrdinalIgnoreCase); copy++)
-        {
-            var suffix = " (" + copy.ToString(CultureInfo.InvariantCulture) + ")";
-            candidate = Clean(Cut(name, 31 - suffix.Length)) + suffix;
-        }
-        return candidate;
-    }
-
-    private static string Clean(string text)
-    {
-        string previous;
-        do
-        {
-            previous = text;
-            text = text.Trim().Trim('\'');
-        }
-        while (text != previous);
-        return text;
-    }
-
-    // Up to the given length in UTF-16 units, without splitting a character such as an emoji.
-    private static string Cut(string text, int length)
-    {
-        var end = 0;
-        var elements = StringInfo.GetTextElementEnumerator(text);
-        while (elements.MoveNext() && elements.ElementIndex + elements.GetTextElement().Length <= length)
-            end = elements.ElementIndex + elements.GetTextElement().Length;
-        return text[..end];
-    }
     public static FormWorkbookCell Cell(FormResponseCell cell)
     {
         if (cell.State == "NotAsked") return new("text", "—");
@@ -65,7 +30,6 @@ internal static class FormExportPolicy
             "choice" when cell.Value is StructuredRecordChoiceValue choice => new("text", choice.Label + (string.IsNullOrEmpty(choice.Detail) ? "" : " · " + choice.Detail)),
             "multiChoice" when cell.Value is IReadOnlyList<StructuredRecordChoiceValue> choices => new("text", string.Join("; ", choices.Select(choice => choice.Label))),
             "photo" or "document" when cell.Value is IReadOnlyList<StructuredRecordFileValue> files => new("text", files.Count.ToString(CultureInfo.InvariantCulture) + " · " + string.Join("; ", files.Select(file => file.Name))),
-            "group" when cell.Value is IReadOnlyCollection<FormResponseRowCells> rows => new("integer", (long)rows.Count),
             _ => new("text", cell.Value),
         };
     }

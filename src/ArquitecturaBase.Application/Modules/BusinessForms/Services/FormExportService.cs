@@ -12,9 +12,14 @@ using Microsoft.Extensions.Logging;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 internal sealed class FormExportService(IFormResponseReader reader, IFormWorkbookWriter writer,
     FormRecordAccessGuard access, IRequestValidator validator, TimeProvider timeProvider, ILogger<FormExportService> logger,
-    FormRecordOriginPolicy origins, IFormRecordResultReader resultReader) : IFormExportService
+    FormExportResponsePolicy responses, IFormRecordResultReader resultReader) : IFormExportService
 {
     internal const int MaximumRecords = 10000;
+    // A row per item fits the budget up to here: 100,000 rows of 13 columns took 11 s and 0.4 GB to write on a loaded machine.
+    internal const int MaximumRows = 100_000;
+    private static readonly FormWorkbookCell Missing = new("text", "—");
+    private static readonly FormWorkbookCell Empty = new("text", null);
+
     public Task<Result<FormExportResponse>> ExportAsync(Guid id, FormExportRequest request, CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<FormExportResponse>>(logger, "ExportFormResponses", async () =>
         {
@@ -34,32 +39,31 @@ internal sealed class FormExportService(IFormResponseReader reader, IFormWorkboo
                 var culture = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es";
                 var availableColumns = FormResponsePresentationPolicy.Columns(definition, culture);
                 if (request.Columns?.Any(fieldId => !availableColumns.Any(column => column.FieldId == fieldId)) == true) return FormRecordErrors.FilterInvalid;
-                // The catalog fields of a question of the block go to the sheet of its block.
                 if (request.CatalogFields?.Any(field => !availableColumns.SelectMany(column => column.Questions ?? [column]).Any(column => column.FieldId == field!.QuestionId
                     && column.Fields?.Any(extra => extra.FieldId == field.FieldId) == true)) == true) return FormRecordErrors.FilterInvalid;
                 var selectedColumns = SelectColumns(availableColumns, request, culture);
-                // A block exported in «Respuestas» has a sheet with a row per item: every question of the block, with their extra columns.
-                var blocks = availableColumns.Where(column => column.Type == "group" && (request.Columns is null || request.Columns.Contains(column.FieldId)))
-                    .Select(column => new ExportBlock(column, SelectColumns(column.Questions ?? [], request with { Columns = null }, culture))).ToArray();
+                // XL1-A: an exported block goes in the same sheet, with «Ítem» and its questions in its place and a row per item.
+                var blocks = selectedColumns.Where(column => column.Part == ExportPart.BlockQuestion).Select(column => column.BlockId!.Value).Distinct().ToArray();
+                var hasItems = selectedColumns.Any(column => column.Part == ExportPart.Item);
                 var filter = request.Filter with { UpToNumber = maximum, DisplayCulture = culture };
                 var ids = await reader.ListExportIdsAsync(definition, filter, MaximumRecords + 1, ct);
                 if (ids.Count > MaximumRecords) return FormRecordErrors.ExportTooLarge;
-                var headers = new List<string> { FormResponseTexts.Get("Number", culture), FormResponseTexts.Get("ReceivedUtc", culture), FormResponseTexts.Get("Actor", culture), FormResponseTexts.Get("Channel", culture) };
+                var zone = await responses.ZoneAsync(actor.Value, ct);
                 // With «Incluir las anuladas» a column says which ones were voided; otherwise there are none.
                 var voided = request.Filter.IncludeVoided && request.Filter.State is null;
-                if (voided) headers.Add(FormResponseTexts.Get("Voided", culture));
+                var headers = FormExportResponsePolicy.Headers(voided, culture);
                 headers.AddRange(selectedColumns.Select(column => column.Header));
                 // RE1-A: the data of the results go after the questions, a column each.
                 var resultColumns = FormRecordResultPresentationPolicy.Columns(await resultReader.ListLatestBySourceAsync(id, ct), culture);
                 headers.AddRange(resultColumns.Select(column => column.Label));
                 var rows = new List<IReadOnlyList<FormWorkbookCell>>(ids.Count);
+                var groupStarts = hasItems ? new List<int>(ids.Count) : null;
                 foreach (var batch in ids.Chunk(100))
                 {
                     ct.ThrowIfCancellationRequested();
                     if (!await access.StillAllowedAsync(actor.Value, ct, true)) return FormDefinitionErrors.Forbidden;
                     var records = (await reader.ListByReceiptIdsAsync(definition, batch, ct)).ToDictionary(row => row.Record.SourceReceiptId);
-                    // A correction arrived through the channel of its first version.
-                    var channels = await origins.ListAsync(actor.Value, records.Values.Select(row => row.OriginReceiptId).ToArray(), ct);
+                    var channels = await responses.ChannelsAsync(actor.Value, records.Values, ct);
                     var resultValues = resultColumns.Count == 0 ? new Dictionary<Guid, IReadOnlyDictionary<string, string?>>()
                         : FormRecordResultPresentationPolicy.Values(await resultReader.ListAsync(records.Values.Select(row => row.Record.RecordId).ToArray(), ct));
                     foreach (var receiptId in batch)
@@ -67,33 +71,37 @@ internal sealed class FormExportService(IFormResponseReader reader, IFormWorkboo
                         var row = records[receiptId];
                         var reply = FormRecordPresentationPolicy.Project(row.Record, definition.VersionsById[row.Record.VersionId].DisplayCulture(culture), definition.Schemas[row.Record.VersionId]);
                         var values = FormResponsePresentationPolicy.Cells(availableColumns, reply).ToDictionary(value => value.FieldId);
-                        var channel = channels.GetValueOrDefault(row.OriginReceiptId)?.ChannelId ?? "";
-                        var cells = new List<FormWorkbookCell> { new("text", reply.Number), new("dateTime", row.SubmittedAtUtc),
-                            new("text", row.Actor.DisplayName ?? FormResponseTexts.Get("unknown", culture)),
-                            new("text", FormResponseTexts.Get(channel.Length == 0 ? "unknown" : channel, culture)) };
-                        if (voided) cells.Add(new("text", row.State == nameof(FormRecordState.Voided) ? FormResponseTexts.Get("true", culture) : ""));
-                        cells.AddRange(selectedColumns.Select(column => Export(values[column.QuestionId], column)));
+                        var response = FormExportResponsePolicy.Cells(row, reply.Number, channels[receiptId], zone, voided, culture);
                         var results = resultValues.GetValueOrDefault(row.Record.RecordId);
-                        cells.AddRange(resultColumns.Select(column => FormExportPolicy.ResultCell(column.Kind, results?.GetValueOrDefault(column.Id))));
-                        rows.Add(cells);
-                        foreach (var block in blocks)
+                        var resultCells = resultColumns.Select(column => FormExportPolicy.ResultCell(column.Kind, results?.GetValueOrDefault(column.Id))).ToArray();
+                        // The block of its version, if it was exported: none if the version had no block, empty without items.
+                        var own = blocks.Select(block => values[block]).FirstOrDefault(cell => cell.State != "NotAsked");
+                        var items = own?.Value as IReadOnlyList<FormResponseRowCells>;
+                        var count = Math.Max(1, items?.Count ?? 0);
+                        if (rows.Count + count > MaximumRows) return FormRecordErrors.ExportTooManyRows;
+                        groupStarts?.Add(rows.Count);
+                        for (var index = 0; index < count; index++)
                         {
-                            if (values[block.Column.FieldId].Value is not IReadOnlyList<FormResponseRowCells> items) continue;
-                            foreach (var (item, index) in items.Select((item, index) => (item, index)))
-                            {
-                                var answers = item.Cells.ToDictionary(cell => cell.FieldId);
-                                block.Rows.Add([new("text", reply.Number), new("integer", (long)index + 1),
-                                    ..block.Columns.Select(column => Export(answers[column.QuestionId], column))]);
-                            }
+                            var answers = items is { Count: > 0 } ? items[index].Cells.ToDictionary(cell => cell.FieldId) : null;
+                            var cells = new List<FormWorkbookCell>(headers.Count);
+                            cells.AddRange(response);
+                            foreach (var column in selectedColumns)
+                                cells.Add(column.Part switch
+                                {
+                                    ExportPart.Item => own is null ? Missing : answers is null ? Empty : new("integer", (long)index + 1),
+                                    ExportPart.BlockQuestion => own is null || own.FieldId != column.BlockId ? Missing
+                                        : answers is null ? Empty : Export(answers[column.QuestionId], column),
+                                    _ => Export(values[column.QuestionId], column),
+                                });
+                            cells.AddRange(resultCells);
+                            rows.Add(cells);
                         }
                     }
                 }
                 if (!await access.StillAllowedAsync(actor.Value, ct, true)) return FormDefinitionErrors.Forbidden;
-                var sheets = new List<FormWorkbookSheet> { new(headers, rows, FormResponseTexts.Get("Sheet", culture)) };
-                foreach (var block in blocks)
-                    sheets.Add(new([FormResponseTexts.Get("Number", culture), FormResponseTexts.Get("Item", culture), ..block.Columns.Select(column => column.Header)],
-                        block.Rows, FormExportPolicy.SheetName(block.Column.Label, sheets.Select(sheet => sheet.Name).ToArray(), culture)));
-                var bytes = writer.Write(new(sheets), ct);
+                var sheet = new FormWorkbookSheet(headers, rows, FormResponseTexts.Get("Sheet", culture), groupStarts,
+                    FormExportPolicy.DateFormat(culture), FormExportPolicy.DateTimeFormat(culture));
+                var bytes = writer.Write(new([sheet]), ct);
                 ct.ThrowIfCancellationRequested();
                 if (!await access.StillAllowedAsync(actor.Value, ct, true)) return FormDefinitionErrors.Forbidden;
                 return new FormExportResponse(bytes, definition.Prefix + "-" + timeProvider.GetUtcNow().ToString("yyyyMMdd", CultureInfo.InvariantCulture) + ".xlsx");
@@ -104,33 +112,48 @@ internal sealed class FormExportService(IFormResponseReader reader, IFormWorkboo
             }
         });
 
-    private sealed record ExportColumn(Guid QuestionId, string Header, bool IsValue = false, Guid? ExtraId = null);
+    private enum ExportPart { Question, Item, BlockQuestion }
 
-    private sealed record ExportBlock(FormResponseColumn Column, IReadOnlyList<ExportColumn> Columns)
-    {
-        public List<IReadOnlyList<FormWorkbookCell>> Rows { get; } = [];
-    }
+    private sealed record ExportColumn(Guid QuestionId, string Header, bool IsValue = false, Guid? ExtraId = null,
+        ExportPart Part = ExportPart.Question, Guid? BlockId = null);
 
     private static FormWorkbookCell Export(FormResponseCell cell, ExportColumn column) => column.ExtraId is { } extraId
         ? FormExportPolicy.CatalogField(cell, extraId) : column.IsValue ? FormExportPolicy.CatalogValue(cell) : FormExportPolicy.Cell(cell);
 
+    /// <summary>
+    /// The columns in the order of the sheet. An exported block leaves «Ítem», once, and every question of the block in its
+    /// place, with the catalog fields chosen; the fields of a hidden question still follow <c>CatalogFields</c>.
+    /// </summary>
     private static List<ExportColumn> SelectColumns(IReadOnlyList<FormResponseColumn> available, FormExportRequest request, string culture)
     {
         var selected = new List<ExportColumn>();
         foreach (var column in available)
         {
-            var header = column.Label + (column.IntroducedInVersion > 1
-                ? string.Format(CultureInfo.GetCultureInfo(culture), FormResponseTexts.Get("SinceVersion", culture), column.IntroducedInVersion) : "");
-            if (request.Columns is null || request.Columns.Contains(column.FieldId))
+            var shown = request.Columns is null || request.Columns.Contains(column.FieldId);
+            if (column.Type != "group")
             {
-                selected.Add(new(column.FieldId, header));
-                if (column.ValueType is not null) selected.Add(new(column.FieldId, header + " · " + FormResponseTexts.Get("Value", culture), true));
+                selected.AddRange(QuestionColumns(column, request, culture, shown));
+                continue;
             }
-            foreach (var extra in column.Fields ?? [])
-                if (request.CatalogFields is null || request.CatalogFields.Any(field => field!.QuestionId == column.FieldId && field.FieldId == extra.FieldId))
-                    selected.Add(new(column.FieldId, header + " · " + extra.Label, ExtraId: extra.FieldId));
+            if (!shown) continue;
+            if (!selected.Any(item => item.Part == ExportPart.Item)) selected.Add(new(column.FieldId, FormResponseTexts.Get("Item", culture), Part: ExportPart.Item));
+            foreach (var question in column.Questions ?? [])
+                selected.AddRange(QuestionColumns(question, request, culture, true).Select(item => item with { Part = ExportPart.BlockQuestion, BlockId = column.FieldId }));
         }
         return selected;
     }
 
+    private static IEnumerable<ExportColumn> QuestionColumns(FormResponseColumn column, FormExportRequest request, string culture, bool shown)
+    {
+        var header = column.Label + (column.IntroducedInVersion > 1
+            ? string.Format(CultureInfo.GetCultureInfo(culture), FormResponseTexts.Get("SinceVersion", culture), column.IntroducedInVersion) : "");
+        if (shown)
+        {
+            yield return new(column.FieldId, header);
+            if (column.ValueType is not null) yield return new(column.FieldId, header + " · " + FormResponseTexts.Get("Value", culture), true);
+        }
+        foreach (var extra in column.Fields ?? [])
+            if (request.CatalogFields is null || request.CatalogFields.Any(field => field!.QuestionId == column.FieldId && field.FieldId == extra.FieldId))
+                yield return new(column.FieldId, header + " · " + extra.Label, ExtraId: extra.FieldId);
+    }
 }

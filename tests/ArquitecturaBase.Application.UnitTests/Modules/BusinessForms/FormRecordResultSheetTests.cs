@@ -77,7 +77,7 @@ public sealed class FormRecordResultSheetTests
         var writer = new FakeFormWorkbookWriter();
         var service = new FormExportService(reader, writer, new(user, permissions, reader),
             RequestValidators.For(new FormExportRequestValidator(), new ListFormRecordsRequestValidator()), new FakeTimeProvider(),
-            NullLogger<FormExportService>.Instance, new([]), results);
+            NullLogger<FormExportService>.Instance, new(new([]), new ArquitecturaBase.Application.UnitTests.TestDoubles.Users.InMemoryUserAccounts()), results);
 
         Assert.True((await service.ExportAsync(reader.Definition!.Id, new(new(), null), CancellationToken.None)).IsSuccess);
 
