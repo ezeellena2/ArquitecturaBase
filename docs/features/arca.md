@@ -60,9 +60,10 @@ revisión esperada y responden 409 con `Arca.Connection.RevisionConflict` si cam
 | `POST api/arca/connection/test` | Prueba los servicios elegidos con la prueba de cada familia |
 | `DELETE api/arca/connection` | Desconecta (revisión en la query) |
 | `GET api/arca/registry/company` | Razón social, condición frente al IVA y domicilio fiscal que trajo el padrón |
-| `GET api/arca/invoicing/settings` | El punto de venta elegido |
+| `GET api/arca/invoicing/settings` | El punto de venta elegido, ingresos brutos e inicio de actividades (cada uno null mientras no se cargó) |
 | `GET api/arca/invoicing/points-of-sale` | Consulta a ARCA los puntos de venta de web service |
 | `PUT api/arca/invoicing/point-of-sale` | Elige el punto de venta; la conexión se activa si la prueba salió bien y las demás familias están completas |
+| `PUT api/arca/invoicing/voucher-data` | Guarda ingresos brutos (hasta 30 caracteres, sin espacios a los costados) e inicio de actividades (un día). No llama a ARCA ni cambia el estado de la conexión; responde la configuración de Facturación |
 
 - **Límites por operador** (`Arca:RateLimiting`): lectura, escritura y `arca-remote`, que cubre lo que llama a ARCA
   (subir, probar, listar y elegir el punto de venta). Los cuerpos tienen 16 KiB como mucho.
@@ -117,8 +118,10 @@ revisión esperada y responden 409 con `Arca.Connection.RevisionConflict` si cam
 - Los puntos de venta salen de `FEParamGetPtosVenta`: quedan afuera los dados de baja y se marcan los bloqueados. Elegir
   uno bloqueado, dado de baja o que ARCA ya no devuelve da `Arca.Invoicing.PointOfSaleUnavailable`.
 - La configuración de la familia está completa con el punto de venta elegido. Guarda además ingresos brutos e inicio de
-  actividades, que el PDF fiscal muestra y el padrón no trae (sin ruta todavía: la zona de la pantalla llega con el front de
-  la etapa 3).
+  actividades, que el PDF fiscal muestra y el padrón no trae. Se cargan en la zona «Facturación · Datos del comprobante»
+  de la conexión activa (AC4) con `PUT api/arca/invoicing/voucher-data`; no completan la familia ni frenan la activación.
+  Un número vacío o de más de 30 caracteres da `Arca.Invoicing.GrossIncomeInvalid`, y una fecha vacía,
+  `Arca.Invoicing.ActivityStartInvalid`.
 
 ### Emisión de comprobantes (etapas 3 y 4, en curso)
 
