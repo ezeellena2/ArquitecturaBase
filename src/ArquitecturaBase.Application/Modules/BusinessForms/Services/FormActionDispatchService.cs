@@ -75,6 +75,7 @@ internal sealed class FormActionDispatchService(IFormActionRunRepository runs,IF
             if(run is null||run.RecordId!=work.RecordId||!run.OwnsLease(work.Fence,now))return FormActionErrors.StateConflict;
             if(outcome.State==FormActionRunState.Completed||outcome.State==FormActionRunState.NotApplicable&&work.Snapshot.ReversesRunId is not null)
                 await outcomes.AddAsync(run,work.Snapshot,outcome,now,ct);
+            await outcomes.AddIssuedItemAsync(outcome,ct);
             return run.RecordOutcome(work.Fence,now,outcome.State,outcome.FailureCode,outcome.CanRetry,FormDraftPolicy.Serialize(outcome),outcome.Issue?.NextCheckAtUtc);
         },CommitPolicy.OnSuccess,cancellationToken));
 }

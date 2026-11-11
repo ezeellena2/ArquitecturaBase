@@ -259,7 +259,8 @@ public sealed class FormActionDispatchServiceTests
     private static FormActionDispatchService Dispatch(FormActionFixture fixture, FakeUnitOfWork? boundary = null,
         MemoryFormDocumentRepository? documents = null, MemoryStoredFileRepository? files = null) =>
         new(fixture.Runs, fixture.Runs, fixture.Rules, fixture.Rules, boundary ?? fixture.Rules.UnitOfWork,
-            new FormActionOutcomeRecorder(new FormPdfDocumentRecorder(documents ?? new(), files ?? new()), new FormRecordResultRecorder(new IgnoredResults(), fixture.Clock), fixture.Runs),
+            new FormActionOutcomeRecorder(new FormPdfDocumentRecorder(documents ?? new(), files ?? new()), new FormRecordResultRecorder(new IgnoredResults(), fixture.Clock), fixture.Runs,
+                new FormIssuedCatalogItemRecorder(null!, null!, null!, null!, null!)),
             fixture.Clock, NullLogger<FormActionDispatchService>.Instance);
 
     private sealed class IgnoredResults : IFormRecordResultRepository

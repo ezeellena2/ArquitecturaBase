@@ -78,7 +78,7 @@ public sealed class ArcaStructuredRecordIssuerTests(ApiFactory factory) : IDispo
     }
 
     [Fact]
-    public async Task A_customer_written_by_its_cuit_is_completed_from_the_registry_before_the_preview()
+    public async Task A_customer_written_by_its_cuit_is_completed_from_the_registry_before_the_preview_and_comes_back_when_queued()
     {
         var ct = TestContext.Current.CancellationToken;
         var arca = factory.Services.GetRequiredService<FakeArca>();
@@ -95,6 +95,15 @@ public sealed class ArcaStructuredRecordIssuerTests(ApiFactory factory) : IDispo
             Assert.Null(preview.FailureCode);
             var withoutCuit = await PreviewAsync([new("customer", "other", "Otro: escribir la CUIT"), .. request.Data.Skip(1)]);
             Assert.Equal("Arca.Invoicing.ReceiverInvalid", withoutCuit.FailureCode);
+
+            // «Emitir»: queued, the customer comes back completed for «Clientes», by its CUIT; one of the catalog does not.
+            var queued = await IssuerAsync(factory, issuer => issuer.EnqueueAsync(request with { Data = data }, ct));
+            Assert.Equal(StructuredIssueState.Pending, queued.State);
+            var customer = Assert.IsType<StructuredIssueCatalogItem>(queued.CatalogItem);
+            Assert.Equal(("arca.customers", "30500010912", "Lácteos del Oeste SRL", "tax_id"), (customer.CatalogKey, customer.Code, customer.Text, customer.TaxIdField));
+            Assert.Equal<IReadOnlyDictionary<string, string>>(new Dictionary<string, string> { ["tax_id"] = "30500010912", ["vat_condition"] = "1", ["address"] = "Ruta 5 km 30, Trenque Lauquen, BUENOS AIRES" },
+                customer.Fields);
+            Assert.Null((await IssuerAsync(factory, issuer => issuer.EnqueueAsync(Request(Guid.CreateVersion7()), ct))).CatalogItem);
         }
         finally
         {

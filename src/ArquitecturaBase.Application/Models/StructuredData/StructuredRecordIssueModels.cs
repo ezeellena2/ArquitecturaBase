@@ -39,7 +39,24 @@ public sealed record StructuredIssueResponse(StructuredIssueState State, string?
     StructuredRecordResult? Result = null, StructuredRecordActionDocument? Document = null,
     IReadOnlyDictionary<string, string>? WaitingNotice = null)
 {
+    /// <summary>
+    /// The party the issuer completed from what the response wrote (a customer written by its tax id), which the catalog of its
+    /// standard keeps; only the enqueue that took the request brings it, and null otherwise.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public StructuredIssueCatalogItem? CatalogItem { get; init; }
+
     public override string ToString() => $"StructuredIssueResponse {{ State = {State}, Content = [REDACTED] }}";
+}
+
+/// <summary>
+/// A party for the catalog its standard brings with CatalogKey: its Code (the tax id), its name in Text and the values of its fields
+/// by key, in canonical form (a field that names an option of another catalog, by that option's code). TaxIdField is the key of the
+/// field that holds the tax id: the catalog keeps the party only if no option has that code or that tax id.
+/// </summary>
+public sealed record StructuredIssueCatalogItem(string CatalogKey, string Code, string Text, IReadOnlyDictionary<string, string> Fields, string TaxIdField)
+{
+    public override string ToString() => "StructuredIssueCatalogItem { Content = [REDACTED] }";
 }
 
 /// <summary>

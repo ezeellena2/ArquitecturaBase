@@ -1026,6 +1026,14 @@ ARCA» ([ADR 0028](../decisions/0028-emision-de-comprobantes-arca.md)); sin emis
   emisor (reintentable si no se encoló nada); en revisión, `Uncertain` con el motivo del emisor. Sin el emisor,
   `Forms.Action.IssuerUnavailable`; sin los datos atados, `Forms.Action.IssueDataUnavailable`; si una persona decidió no
   emitir, `Forms.Action.NotIssued`.
+- **El cliente nuevo, con «Emitir».** Si al encolar el emisor completó a alguien escrito en la respuesta (el cliente de
+  «Otro: escribir la CUIT»), lo devuelve con la clave del catálogo de su estándar (`CatalogItem`) y formularios lo suma, en
+  la transacción que guarda el run, como opción activa de ese catálogo: la CUIT como código, el nombre como texto (los primeros
+  30 caracteres; uno más largo va entero en el detalle) y los campos que el catálogo tiene activos (uno de tipo catálogo, con
+  la opción activa del código que dio el emisor; un valor que no entra en su campo se descarta), con el lock del catálogo y
+  sus fuentes y una revisión nueva. No se suma si el catálogo no existe o no es Manual, si ya hay una opción con ese código o
+  con esa CUIT en su campo (comparada por letras y dígitos) o si la opción no entra (un campo obligatorio sin valor, un valor
+  único repetido, las 10.000): la emisión sigue igual.
 - **La revisión.** `POST api/forms/records/{id}/actions/{runId}/review` sin `recipientUserId`: `wasSent` dice si sigue (otro
   número o la fecha de hoy, según el motivo) o no se emite. Pide `formrules.manage` y el permiso del emisor (`arca.issue`), y
   el flujo marca `canReview` sólo para quien los tiene. La decisión vale para la revisión de la emisión que vio el run.

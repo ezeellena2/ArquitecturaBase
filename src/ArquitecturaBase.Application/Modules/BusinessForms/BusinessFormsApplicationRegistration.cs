@@ -45,6 +45,7 @@ public static class BusinessFormsApplicationRegistration
         services.TryAddScoped<FormPdfDocumentRecorder>();
         services.TryAddScoped<FormRecordResultRecorder>();
         services.TryAddScoped<FormActionOutcomeRecorder>();
+        services.TryAddScoped<FormIssuedCatalogItemRecorder>();
         services.TryAddScoped<IFormIssueActionService, FormIssueActionService>();
         services.TryAddScoped<IFormCatalogFeedService, FormCatalogFeedService>();
         services.TryAddScoped<IFormIssueConfirmationService, FormIssueConfirmationService>();

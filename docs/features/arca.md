@@ -153,7 +153,9 @@ formularios «Emitir comprobante», con el estándar «Factura» y la anulación
   e Importe calculado) y el Total calculado, cada pregunta atada a su dato. Trae «Clientes» (`arca.customers`: CUIT, Condición
   frente al IVA sobre la tabla de ARCA, Domicilio y Correo) con «Consumidor final» y «Otro: escribir la CUIT», y va con su copia
   a la carpeta «ARCA». Necesita las tablas de ARCA (se crean cuando la conexión responde). Con «Otro», el emisor completa el
-  cliente con el padrón antes de la vista previa y de encolar; sin la CUIT, `Arca.Invoicing.ReceiverInvalid`. Las reglas
+  cliente con el padrón antes de la vista previa y de encolar; sin la CUIT, `Arca.Invoicing.ReceiverInvalid`. Encolado (con
+  «Emitir»), lo devuelve completado (`CatalogItem`: la CUIT como código, la razón social y los campos del padrón) y
+  formularios lo suma a «Clientes» si todavía no está. Las reglas
   («Emitir comprobante en ARCA» y el aviso con el PDF fiscal) se agregan en el editor: la biblioteca todavía no trae reglas.
 - **«Completar con ARCA»** (`ArcaStructuredPartyLookup`, familia `Registry`): la constancia de un tercero completa los
   «Clientes» de la «Factura» (`arca.customers`) desde su CUIT, con la razón social, la condición frente al IVA como receptor (1,

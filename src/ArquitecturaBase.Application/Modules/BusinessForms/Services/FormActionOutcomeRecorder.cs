@@ -10,8 +10,16 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 /// «Armar el PDF», the result of an issuance (RE1-A) with its fiscal PDF as one more document, and, when a reversal ends, the
 /// voided response (NC1-A) with the reason and the person of the void. It does not save on its own.
 /// </summary>
-internal sealed class FormActionOutcomeRecorder(FormPdfDocumentRecorder documents, FormRecordResultRecorder results, IFormActionRunRepository runs)
+internal sealed class FormActionOutcomeRecorder(FormPdfDocumentRecorder documents, FormRecordResultRecorder results, IFormActionRunRepository runs,
+    FormIssuedCatalogItemRecorder issuedItems)
 {
+    /// <summary>
+    /// «Emitir»: the party the issuer completed when it queued (a customer written by its tax id) joins the catalog of its
+    /// standard, in the same transaction as the outcome of the run, whatever its state.
+    /// </summary>
+    public Task AddIssuedItemAsync(FormActionOutcomeResponse outcome, CancellationToken cancellationToken) =>
+        outcome.Issue?.CatalogItem is { } item ? issuedItems.AddAsync(item, cancellationToken) : Task.CompletedTask;
+
     /// <summary>The fiscal PDF of an issuance, in Spanish, offered to a notice in both languages.</summary>
     public static IReadOnlyList<FormPdfArtifact> Artifacts(StructuredRecordActionDocument document) =>
         [new("es", document.StorageKey, document.Name, document.ContentType, document.Size, document.Sha256),
