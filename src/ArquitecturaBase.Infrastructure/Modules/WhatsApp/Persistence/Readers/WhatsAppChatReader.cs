@@ -45,9 +45,10 @@ internal sealed class WhatsAppChatReader(ApplicationDbContext dbContext) : IWhat
         var items = await query.OrderByDescending(item => item.OccurredAtUtc).ThenByDescending(item => item.Id)
             .Take(request.Limit + 1).Select(item => new WhatsAppMessageRow(item.Id, item.Direction, item.Kind, item.Purpose == WhatsAppMessagePurpose.Access ? null : item.Body,
                 item.OccurredAtUtc, item.InboundSequence, item.OperatorUserId, item.Status, item.ErrorCode, item.Purpose, item.AccessEventKind,
-                item.Kind == WhatsAppMessageKind.Flow && item.FlowSession != null
+                (item.Kind == WhatsAppMessageKind.Flow || item.Kind == WhatsAppMessageKind.LocationRequest) && item.FlowSession != null
                     ? new WhatsAppFormPresentationRow(item.FlowSession.DefinitionId, item.FlowSession.VersionId,
                         item.FlowSession.VersionNumber, item.FlowSession.NameJson, item.FlowSession.Culture)
+                        { Location = item.Kind == WhatsAppMessageKind.LocationRequest ? new WhatsAppFlowLocationRow(item.FlowSession.LocationState, item.FlowSession.ExpiresAtUtc) : null }
                     : null,
                 item.Kind == WhatsAppMessageKind.FlowReply
                     ? item.FlowSession == null ? new WhatsAppFormReplyRow(item.FlowCaptureState == WhatsAppFlowCaptureState.Rejected ? "Rejected" : item.ProcessedAtUtc == null ? item.HasFlowFiles ? item.FlowReplyFailureCount > 0 ? "RetryingFiles" : "Downloading" : "Pending" : "Unrecognized", null, null, null, null, null, null, null, null,
@@ -65,7 +66,8 @@ internal sealed class WhatsAppChatReader(ApplicationDbContext dbContext) : IWhat
                     : null, item.Origin, item.Kind == WhatsAppMessageKind.Audio && item.AudioState != null ? new WhatsAppAudioMessageRow(item.AudioState.Value,item.AudioStorageKey != null,item.AudioContentExpiresAtUtc,item.AudioFailureCode) : null)
                 { Assistant = item.FlowSession != null && item.FlowSession.ProtectedAssistantContent != null && item.FlowSession.AssistantContentExpiresAtUtc != null
                     ? new WhatsAppAssistantPresentationRow(item.FlowSession.Id,item.FlowSession.ContactId,item.FlowSession.UserId,item.FlowSession.VersionId,item.FlowSession.ProtectedAssistantContent,item.FlowSession.AssistantContentExpiresAtUtc.Value) : null, QuickReplyTitlesJson = item.QuickReplyTitlesJson,
-                  SpreadsheetName = item.Kind == WhatsAppMessageKind.Spreadsheet ? item.SpreadsheetFileName : null }).ToListAsync(cancellationToken);
+                  SpreadsheetName = item.Kind == WhatsAppMessageKind.Spreadsheet ? item.SpreadsheetFileName : null,
+                  Latitude = item.Latitude, Longitude = item.Longitude }).ToListAsync(cancellationToken);
         var hasPrevious = items.Count > request.Limit;
         if (hasPrevious) { items.RemoveAt(items.Count - 1); }
         items.Reverse();
@@ -82,8 +84,9 @@ internal sealed class WhatsAppChatReader(ApplicationDbContext dbContext) : IWhat
 
     private static readonly Expression<Func<WhatsAppOutgoingMessage,WhatsAppOutgoingMessageRow>> OutgoingProjection =
         item => new(item.Id,item.RequestId,item.OperatorUserId,item.Body,item.RequestedAtUtc,item.State,item.WaMessageId,item.Kind,
-            item.Kind == WhatsAppOutgoingMessageKind.Flow && item.FlowSession != null
-                ? new WhatsAppFormPresentationRow(item.FlowSession.DefinitionId,item.FlowSession.VersionId,item.FlowSession.VersionNumber,item.FlowSession.NameJson,item.FlowSession.Culture) : null,item.Origin)
+            (item.Kind == WhatsAppOutgoingMessageKind.Flow || item.Kind == WhatsAppOutgoingMessageKind.LocationRequest) && item.FlowSession != null
+                ? new WhatsAppFormPresentationRow(item.FlowSession.DefinitionId,item.FlowSession.VersionId,item.FlowSession.VersionNumber,item.FlowSession.NameJson,item.FlowSession.Culture)
+                    { Location = item.Kind == WhatsAppOutgoingMessageKind.LocationRequest ? new WhatsAppFlowLocationRow(item.FlowSession.LocationState, item.FlowSession.ExpiresAtUtc) : null } : null,item.Origin)
         { Assistant = item.FlowSession != null && item.FlowSession.ProtectedAssistantContent != null && item.FlowSession.AssistantContentExpiresAtUtc != null
                     ? new WhatsAppAssistantPresentationRow(item.FlowSession.Id,item.FlowSession.ContactId,item.FlowSession.UserId,item.FlowSession.VersionId,item.FlowSession.ProtectedAssistantContent,item.FlowSession.AssistantContentExpiresAtUtc.Value) : null, QuickRepliesJson = item.QuickRepliesJson };
 

@@ -191,9 +191,29 @@ internal sealed partial class WhatsAppWebhookReader(
             return;
         }
 
+        // W1-A: a location keeps only its point; the name and address of a chosen place are not kept. A point Meta sends out of
+        // range stays a location without one.
+        if (StringOf(message, "type") == "location")
+        {
+            reading.Messages.Add(new WhatsAppWebhookMessage(waMessageId!, from, WhatsAppMessageKind.Location, null, null, occurredAtUtc)
+                { Location = ReadLocation(message) });
+            return;
+        }
+
         var (kind, body, replyId, flowResponseJson) = ContentOf(message);
 
         reading.Messages.Add(new WhatsAppWebhookMessage(waMessageId!, from, kind, body, replyId, occurredAtUtc, flowResponseJson));
+    }
+
+    private static WhatsAppWebhookLocation? ReadLocation(JsonElement message)
+    {
+        if (!TryGetProperty(message, "location", out var location) || location.ValueKind != JsonValueKind.Object
+            || !TryGetProperty(location, "latitude", out var latitude) || !TryGetProperty(location, "longitude", out var longitude)
+            || latitude.ValueKind != JsonValueKind.Number || longitude.ValueKind != JsonValueKind.Number
+            || !latitude.TryGetDecimal(out var lat) || !longitude.TryGetDecimal(out var lng)) return null;
+        lat = decimal.Round(lat, 6, MidpointRounding.AwayFromZero);
+        lng = decimal.Round(lng, 6, MidpointRounding.AwayFromZero);
+        return lat is >= -90 and <= 90 && lng is >= -180 and <= 180 ? new(lat, lng) : null;
     }
 
     /// <summary>

@@ -48,7 +48,15 @@ public sealed record WhatsAppWebhookMessage(
 
     /// <summary>A spreadsheet's descriptor; its <c>caption</c> is the <see cref="Body"/>.</summary>
     public WhatsAppWebhookSpreadsheetDescriptor? Spreadsheet { get; init; }
+
+    /// <summary>W1-A: the point of a location, rounded to six decimals.</summary>
+    public WhatsAppWebhookLocation? Location { get; init; }
     public sealed override string ToString() => $"{nameof(WhatsAppWebhookMessage)} ({Kind})";
+}
+
+public sealed record WhatsAppWebhookLocation(decimal Latitude, decimal Longitude)
+{
+    public override string ToString() => "WhatsAppWebhookLocation { Content = [REDACTED] }";
 }
 
 /// <summary>Un aviso de Meta sobre un mensaje que mandó el bot, con el código de error si falló.</summary>

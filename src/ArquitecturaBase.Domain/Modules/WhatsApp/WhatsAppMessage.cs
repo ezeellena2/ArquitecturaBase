@@ -1,3 +1,4 @@
+using System.Text.Json;
 using ArquitecturaBase.Domain.Common;
 
 namespace ArquitecturaBase.Domain.Modules.WhatsApp;
@@ -93,14 +94,43 @@ public sealed partial class WhatsAppMessage : Entity
             && nowUtc - FlowReplyFirstFailureAtUtc.Value >= TimeSpan.FromMinutes(15);
     }
 
+    /// <summary>
+    /// The send of a Flow message or its reply; W1-A adds the location request and, inbound, the location or the «Seguir sin
+    /// ubicación» tap that resolved its send.
+    /// </summary>
     public void AttachFlowSession(Guid sessionId)
     {
         ArgumentOutOfRangeException.ThrowIfEqual(sessionId, Guid.Empty);
         if (FlowSessionId == sessionId) return;
-        if (!((Kind == WhatsAppMessageKind.Flow && Direction == WhatsAppMessageDirection.Outbound)
-            || (Kind == WhatsAppMessageKind.FlowReply && Direction == WhatsAppMessageDirection.Inbound)) || FlowSessionId.HasValue)
+        if (!(Direction == WhatsAppMessageDirection.Outbound && Kind is WhatsAppMessageKind.Flow or WhatsAppMessageKind.LocationRequest
+            || Direction == WhatsAppMessageDirection.Inbound && Kind is WhatsAppMessageKind.FlowReply or WhatsAppMessageKind.Location or WhatsAppMessageKind.ButtonReply)
+            || FlowSessionId.HasValue)
             throw new InvalidOperationException("Only a Flow message can attach its session once.");
         FlowSessionId = sessionId;
+    }
+
+    /// <summary>W1-A: the button of a sent «Seguir sin ubicación» stays visible in the chat, once.</summary>
+    public void RecordReplyTitles(IReadOnlyList<string> titles)
+    {
+        if (Direction != WhatsAppMessageDirection.Outbound || Kind != WhatsAppMessageKind.Interactive || QuickReplyTitlesJson is not null)
+            throw new InvalidOperationException("Only a sent interactive message records its reply titles, once.");
+        if (titles.Count is < 1 or > 3 || titles.Any(title => title.Length > 20 || !WhatsAppOutgoingMessage.IsVisibleBody(title)))
+            throw new ArgumentException("The stored reply titles must match the provider limits.", nameof(titles));
+        QuickReplyTitlesJson = JsonSerializer.Serialize(titles);
+    }
+
+    public decimal? Latitude { get; private set; }
+    public decimal? Longitude { get; private set; }
+
+    /// <summary>W1-A: the point of an inbound location, once.</summary>
+    public void RecordLocation(decimal latitude, decimal longitude)
+    {
+        if (Kind != WhatsAppMessageKind.Location || Direction != WhatsAppMessageDirection.Inbound || Latitude.HasValue)
+            throw new InvalidOperationException("Only an inbound location records its point, once.");
+        if (!WhatsAppFlowSession.IsPoint(latitude, longitude))
+            throw new ArgumentOutOfRangeException(nameof(latitude), "A location is a point with up to six decimals.");
+        Latitude = latitude;
+        Longitude = longitude;
     }
 
     public bool SetFlowReplyCapture(WhatsAppFlowCaptureState state, Guid? recordId, string? number, string? errorCode, string? rejectedQuestion = null)

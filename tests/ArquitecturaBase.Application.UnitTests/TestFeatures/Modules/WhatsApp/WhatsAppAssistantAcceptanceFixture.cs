@@ -48,6 +48,7 @@ internal static class WhatsAppAssistantAcceptanceFixture
     }
     private sealed class Bindings(FakeAssistantForms forms) : IWhatsAppFlowSessionReader
     {
+        public Task<IReadOnlyList<Guid>> ListContactsWithPendingLocationsAsync(IReadOnlyCollection<Guid> excluded, int limit, DateTime nowUtc, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<Guid>>([]);
         private readonly Guid _binding=Guid.NewGuid(),_operation=Guid.NewGuid(),_neutral=Guid.NewGuid();
         public Task<WhatsAppFormBindingRow?> FindBindingAsync(Guid definitionId,Guid versionId,string culture,CancellationToken ct)=>
             Task.FromResult<WhatsAppFormBindingRow?>(forms.Prefill.IsSuccess && forms.Prefill.Value.Culture==culture

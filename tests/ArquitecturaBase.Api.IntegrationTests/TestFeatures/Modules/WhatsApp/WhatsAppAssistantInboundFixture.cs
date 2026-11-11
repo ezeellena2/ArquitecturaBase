@@ -239,6 +239,7 @@ internal sealed class WhatsAppAssistantInboundFixture : IAsyncDisposable
     }
     private sealed class Messages : IWhatsAppMessageRepository
     {
+        public Task<IReadOnlyList<WhatsAppMessage>> ListLocationAnswersAsync(Guid contactId, DateTime sinceUtc, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<WhatsAppMessage>>([]);
         public Task<IReadOnlyList<Guid>> ListContactsWithPendingInboundAsync(IReadOnlyCollection<Guid> excluded,int limit,CancellationToken ct)=>Task.FromResult<IReadOnlyList<Guid>>([]);
         public Task LockAsync(IReadOnlyCollection<string> ids,CancellationToken ct)=>throw new NotSupportedException();
         public Task<IReadOnlySet<string>> ListExistingIdsAsync(IReadOnlyCollection<string> ids,CancellationToken ct)=>throw new NotSupportedException();

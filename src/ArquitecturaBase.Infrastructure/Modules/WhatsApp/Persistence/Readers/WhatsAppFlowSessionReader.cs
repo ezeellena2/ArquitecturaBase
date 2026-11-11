@@ -59,6 +59,20 @@ internal sealed class WhatsAppFlowSessionReader(ApplicationDbContext dbContext, 
              binding.ProtectedProjection, session.Prefix, session.TokenHash, session.ProtectedPayload,
              session.ExpiresAtUtc, session.LinkRevision == contact.LinkRevision && account != null
                  && account.Id == session.UserId && account.IsActive, session.CaptureState, session.CaptureErrorCode, session.OperatorUserId, session.RejectedQuestion)
-         { Origin=session.Origin, ProtectedAssistantContent=session.ProtectedAssistantContent, AssistantContentExpiresAtUtc=session.AssistantContentExpiresAtUtc })
+         { Origin=session.Origin, ProtectedAssistantContent=session.ProtectedAssistantContent, AssistantContentExpiresAtUtc=session.AssistantContentExpiresAtUtc,
+           LocationState=session.LocationState, LocationLatitude=session.LocationLatitude, LocationLongitude=session.LocationLongitude })
         .SingleOrDefaultAsync(cancellationToken);
+
+    // W1-A: a location sent after the send existed resolves it; a tap, only the send it names, so an old tap never keeps a contact pending.
+    public async Task<IReadOnlyList<Guid>> ListContactsWithPendingLocationsAsync(IReadOnlyCollection<Guid> excluded, int limit, DateTime nowUtc,
+        CancellationToken cancellationToken) =>
+        await dbContext.Set<WhatsAppFlowSession>().AsNoTracking()
+            .Where(session => session.LocationState == WhatsAppFlowLocationState.Requested && session.CaptureState == WhatsAppFlowCaptureState.Pending
+                && session.ExpiresAtUtc > nowUtc && !excluded.Contains(session.ContactId)
+                && dbContext.Set<WhatsAppMessage>().Any(message => message.ContactId == session.ContactId
+                    && message.Direction == WhatsAppMessageDirection.Inbound && message.FlowSessionId == null && message.OccurredAtUtc >= session.CreatedAtUtc
+                    && (message.Kind == WhatsAppMessageKind.Location
+                        || message.Kind == WhatsAppMessageKind.ButtonReply && message.ReplyId == WhatsAppFlowLocationReply.Prefix + session.Id.ToString())))
+            .Select(session => session.ContactId).Distinct().Take(limit)
+            .ToListAsync(cancellationToken);
 }

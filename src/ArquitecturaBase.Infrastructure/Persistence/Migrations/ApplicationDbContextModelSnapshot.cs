@@ -3557,8 +3557,37 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("ExpiresAtUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("FlowBody")
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)");
+
                     b.Property<long>("LinkRevision")
                         .HasColumnType("bigint");
+
+                    b.Property<decimal?>("LocationLatitude")
+                        .HasPrecision(9, 6)
+                        .HasColumnType("numeric(9,6)");
+
+                    b.Property<decimal?>("LocationLongitude")
+                        .HasPrecision(9, 6)
+                        .HasColumnType("numeric(9,6)");
+
+                    b.Property<bool>("LocationRequired")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("LocationResolvedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LocationState")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasDefaultValue("None");
+
+                    b.Property<string>("LocationWaMessageId")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
 
                     b.Property<DateTime?>("ModifiedAtUtc")
                         .HasColumnType("timestamp with time zone");
@@ -3634,6 +3663,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.HasIndex("BindingId", "VersionId");
+
+                    b.HasIndex("ContactId", "ExpiresAtUtc")
+                        .HasFilter("\"LocationState\" = 'Requested' AND \"CaptureState\" = 'Pending'");
 
                     b.HasIndex("ExpiresAtUtc", "Id");
 
@@ -3769,6 +3801,14 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
+                    b.Property<decimal?>("Latitude")
+                        .HasPrecision(9, 6)
+                        .HasColumnType("numeric(9,6)");
+
+                    b.Property<decimal?>("Longitude")
+                        .HasPrecision(9, 6)
+                        .HasColumnType("numeric(9,6)");
+
                     b.Property<DateTime>("OccurredAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -3887,6 +3927,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
 
                     b.HasIndex(new[] { "ContactId" }, "IX_WhatsAppMessages_PendingSpreadsheets")
                         .HasFilter("\"SpreadsheetState\" = 'Pending'");
+
+                    b.HasIndex(new[] { "OccurredAtUtc" }, "IX_WhatsAppMessages_PendingTaps")
+                        .HasFilter("\"Direction\" = 'Inbound' AND \"Kind\" = 'ButtonReply' AND \"AssistantProcessedAtUtc\" IS NULL");
 
                     b.ToTable("WhatsAppMessages", (string)null);
                 });

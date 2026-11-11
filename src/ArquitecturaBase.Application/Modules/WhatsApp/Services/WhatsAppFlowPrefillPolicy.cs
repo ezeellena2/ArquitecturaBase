@@ -19,13 +19,13 @@ internal static class WhatsAppFlowPrefillPolicy
         // The block and its rows' questions are never prefilled, nor a question that chooses first (LD2-A): its list is empty
         // until a value is chosen. Nor a calculation (CA1-A), which the server computes, or a question with a condition (CO1-A).
         if (values.Keys.Any(key => !projection.Mapping.Any(field => field.Key == key && field.Files is null && field.Type is not ("multiChoice" or "group")
-            && field.Repeated != true && field.ChoosesFirst != true && field.Calculated != true && field.ShowWhen is null))) return FlowErrors.InvalidValue;
+            && field.Repeated != true && field.ChoosesFirst != true && field.Calculated != true && field.ShowWhen is null && field.Type != "location"))) return FlowErrors.InvalidValue;
         var result = new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.Ordinal);
         // A question whose options set the boolean of another (CO1-A, several answers) opens empty, so that boolean opens false:
         // its proposed value is left out and the rest still goes.
         var setsShown = projection.Mapping.Where(field => field.ShowWhen is { Values.Count: > 1 }).Select(field => field.ShowWhen!.FieldId).ToHashSet();
         var screens = WhatsAppFlowScreenBuilder.Plan(projection.Mapping.Select(field =>
-            new WhatsAppFlowSlot(field.Type, field.Files is not null, field.Repeated == true, field.Rows, field.Calculated == true)).ToArray());
+            new WhatsAppFlowSlot(field.Type, field.Files is not null, field.Repeated == true, field.Rows, field.Calculated == true || field.Type == "location")).ToArray());
         foreach (var screen in screens.Where(screen => screen.Kind == "fields"))
         {
             var scalars = screen.Questions.Select(index => projection.Mapping[index]).Where(field => field.Files is null && field.Type != "multiChoice").ToArray();

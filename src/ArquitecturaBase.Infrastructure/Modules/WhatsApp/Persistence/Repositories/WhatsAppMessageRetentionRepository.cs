@@ -24,9 +24,13 @@ internal sealed class WhatsAppMessageRetentionRepository(ApplicationDbContext db
             .Where(message => message.OccurredAtUtc < cutoffUtc
                 && (message.Body != null || message.QuickReplyTitlesJson != null || message.Kind == WhatsAppMessageKind.Audio && (message.AudioMediaId != null || message.AudioStorageKey != null || message.AudioContextJson != null)
                     || message.Kind == WhatsAppMessageKind.Spreadsheet && (message.SpreadsheetMediaId != null || message.SpreadsheetFileName != null || message.SpreadsheetStorageKey != null || message.SpreadsheetPreparedJson != null)
+                    || message.Latitude != null
                     || (message.ProtectedFlowResponse != null && message.ProcessedAtUtc != null)))
             .ExecuteUpdateAsync(setters => setters
                 .SetProperty(message => message.Body, (string?)null)
+                // W1-A: the point of a received location goes with the body.
+                .SetProperty(message => message.Latitude, (decimal?)null)
+                .SetProperty(message => message.Longitude, (decimal?)null)
                 .SetProperty(message => message.QuickReplyTitlesJson, (string?)null)
                 .SetProperty(message => message.AudioMediaId, (string?)null)
                 .SetProperty(message => message.AudioContentType, (string?)null)

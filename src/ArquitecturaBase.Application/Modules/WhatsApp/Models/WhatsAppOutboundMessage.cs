@@ -299,3 +299,20 @@ public sealed record WhatsAppDocumentMessage : WhatsAppOutboundMessage
     public override WhatsAppMessagePurpose Purpose => WhatsAppMessagePurpose.Business;
     public override string SafeSummary => Caption;
 }
+
+/// <summary>
+/// W1-A: el pedido de ubicación (el <c>location_request_message</c> de Meta), que va antes del Flow de su envío: un texto y el
+/// botón «Enviar ubicación», que dibuja WhatsApp en el idioma del teléfono.
+/// </summary>
+public sealed record WhatsAppLocationRequestMessage : WhatsAppOutboundMessage
+{
+    public WhatsAppLocationRequestMessage(PhoneNumber to, string body)
+        : base(to)
+    {
+        Body = WhatsAppMessageLimits.Require(body, MaxInteractiveBodyLength, nameof(body));
+    }
+
+    public string Body { get; }
+    public override WhatsAppMessagePurpose Purpose => WhatsAppMessagePurpose.Business;
+    public override string SafeSummary => Body;
+}

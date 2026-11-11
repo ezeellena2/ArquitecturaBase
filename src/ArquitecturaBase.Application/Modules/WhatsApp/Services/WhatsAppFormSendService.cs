@@ -68,17 +68,17 @@ internal sealed partial class WhatsAppFormSendService(
             var issue = sessionIssuer.Create(context, request, Actor, fingerprint, token, preparation.Catalogs);
             var session = issue.Session;
             sessions.Add(session);
-            var outgoing = WhatsAppOutgoingMessage.CreateFlow(Actor, contact.Id, request.RequestId, body, session.Id, issue.CreatedAtUtc);
-            outgoing.AttachFlowSession(session);
-            conversations.Add(outgoing);
-            return Result.Success(WhatsAppOutgoingPresentationPolicy.Map(outgoing, session));
+            // W1-A: a form with a location question opens with the location request, and its Flow waits for the location.
+            var opened = WhatsAppFlowLocationPolicy.Open(context.Projection, session, Actor, request.RequestId, body, context.Form.Name[culture], issue.CreatedAtUtc);
+            foreach (var outgoing in opened) conversations.Add(outgoing);
+            return Result.Success(WhatsAppOutgoingPresentationPolicy.Map(opened[0], session));
         }, CommitPolicy.OnSuccess, cancellationToken);
     }
 
     private async Task<Result<WhatsAppOutgoingMessageResponse>> ReplayAsync(WhatsAppOutgoingMessage outgoing,
         string fingerprint, CancellationToken cancellationToken)
     {
-        if (outgoing.Kind != WhatsAppOutgoingMessageKind.Flow || outgoing.FlowSessionId is not { } sessionId)
+        if (outgoing.Kind is not (WhatsAppOutgoingMessageKind.Flow or WhatsAppOutgoingMessageKind.LocationRequest) || outgoing.FlowSessionId is not { } sessionId)
             return WhatsAppChatErrors.RequestConflict;
         var session = await sessions.GetAsync(sessionId, cancellationToken);
         return session?.RequestFingerprint == fingerprint

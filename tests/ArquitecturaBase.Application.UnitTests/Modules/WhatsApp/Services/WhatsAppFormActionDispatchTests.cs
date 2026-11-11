@@ -99,6 +99,7 @@ public sealed class WhatsAppFormActionDispatchTests
     }
     private sealed class UnusedSessions : IWhatsAppFlowSessionReader
     {
+        public Task<IReadOnlyList<Guid>> ListContactsWithPendingLocationsAsync(IReadOnlyCollection<Guid> excluded, int limit, DateTime nowUtc, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<Guid>>([]);
         public Task<ArquitecturaBase.Application.Modules.WhatsApp.Models.WhatsAppFormDispatchRow?> FindDispatchAsync(Guid id,CancellationToken ct) => throw new NotSupportedException();
         public Task<ArquitecturaBase.Application.Modules.WhatsApp.Models.WhatsAppFormBindingRow?> FindBindingAsync(Guid definitionId,Guid versionId,string culture,CancellationToken ct) => throw new NotSupportedException();
         public Task<ArquitecturaBase.Application.Modules.WhatsApp.Models.WhatsAppFlowReplySessionRow?> FindReplySessionAsync(Guid id,string hash,CancellationToken ct) => throw new NotSupportedException();

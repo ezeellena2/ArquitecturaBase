@@ -37,6 +37,7 @@ internal sealed partial class WhatsAppOutgoingBackgroundService(
                 WhatsAppOutgoingMessageKind.Flow => null,
                 WhatsAppOutgoingMessageKind.QuickReplies => new WhatsAppReplyButtonsMessage(operation.To, operation.Body,
                     (operation.QuickReplies ?? []).Select(reply => new WhatsAppReplyButton(reply.Id, reply.Title)).ToArray()),
+                WhatsAppOutgoingMessageKind.LocationRequest => new WhatsAppLocationRequestMessage(operation.To, operation.Body),
                 _ => new WhatsAppTextMessage(operation.To, operation.Body),
             };
             if (operation.Origin == WhatsAppMessageOrigin.FormAction && operation.Kind == WhatsAppOutgoingMessageKind.Document)

@@ -106,6 +106,8 @@ internal sealed partial class WhatsAppWebhookPersistence(
             if (message.Kind == WhatsAppMessageKind.Spreadsheet)
                 storedMessage.SetSpreadsheetDescriptor(message.Spreadsheet?.MediaId, message.Spreadsheet?.ContentType,
                     message.Spreadsheet?.Sha256, message.Spreadsheet?.FileName);
+            if (message.Kind == WhatsAppMessageKind.Location && message.Location is { } point)
+                storedMessage.RecordLocation(point.Latitude, point.Longitude);
             var classification = WhatsAppInboundPolicy.Classify(message.Kind, message.ReplyId);
             storedMessage.Classify(classification.Purpose, classification.EventKind);
             storedMessage.SetInboundSequence(contact.RegisterInboundMessage());

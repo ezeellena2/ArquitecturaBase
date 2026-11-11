@@ -20,7 +20,9 @@ public enum WhatsAppMessageKind
     /// <summary>Un aviso de WhatsApp, como el cambio de número de la persona.</summary>
     System = 4,
 
-    /// <summary>Todo lo demás: una ubicación, una reacción o un tipo que Meta sume más adelante. Sin cuerpo.</summary>
+    /// <summary>
+    /// Todo lo demás: una reacción o un tipo que Meta sume más adelante. Sin cuerpo. Una ubicación anterior a W1-A quedó acá.
+    /// </summary>
     Other = 5,
 
     /// <summary>
@@ -42,4 +44,13 @@ public enum WhatsAppMessageKind
     /// <see cref="Document"/> es el documento saliente.
     /// </summary>
     Spreadsheet = 12,
+
+    /// <summary>
+    /// Solo en un entrante: una ubicación (W1-A). Sin cuerpo: el punto va en <see cref="WhatsAppMessage.Latitude"/> y
+    /// <see cref="WhatsAppMessage.Longitude"/>; el nombre y la dirección que pueda mandar Meta no se guardan.
+    /// </summary>
+    Location = 13,
+
+    /// <summary>Solo en un saliente: el pedido de ubicación que va antes del Flow de su envío (W1-A). El cuerpo es su texto.</summary>
+    LocationRequest = 14,
 }

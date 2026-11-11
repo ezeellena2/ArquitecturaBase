@@ -43,6 +43,7 @@ internal sealed class WhatsAppAssistantDispatchFixture
 
     private sealed class Sessions : IWhatsAppFlowSessionReader
     {
+        public Task<IReadOnlyList<Guid>> ListContactsWithPendingLocationsAsync(IReadOnlyCollection<Guid> excluded, int limit, DateTime nowUtc, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<Guid>>([]);
         public Task<WhatsAppFormDispatchRow?> FindDispatchAsync(Guid outgoingId,CancellationToken ct) => Task.FromResult<WhatsAppFormDispatchRow?>(null);
         public Task<WhatsAppFormBindingRow?> FindBindingAsync(Guid definitionId,Guid versionId,string culture,CancellationToken ct) => throw new NotSupportedException();
         public Task<WhatsAppFlowReplySessionRow?> FindReplySessionAsync(Guid contactId,string tokenHash,CancellationToken ct) => throw new NotSupportedException();

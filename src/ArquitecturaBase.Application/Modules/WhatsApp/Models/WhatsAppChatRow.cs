@@ -31,6 +31,9 @@ public sealed record WhatsAppMessageRow(
     public string? QuickReplyTitlesJson { get; init; }
     /// <summary>The normalized file name of a received spreadsheet (stage 2 of the assistant authoring).</summary>
     public string? SpreadsheetName { get; init; }
+    /// <summary>W1-A: the point of a received location.</summary>
+    public decimal? Latitude { get; init; }
+    public decimal? Longitude { get; init; }
 }
 public sealed record WhatsAppAudioMessageRow(WhatsAppAudioState State, bool HasContent, DateTime? ContentExpiresAtUtc, string? FailureCode = null);
 public sealed record WhatsAppFormReplyRow(string State, Guid? SourceReceiptId, Guid? DefinitionId, Guid? VersionId,

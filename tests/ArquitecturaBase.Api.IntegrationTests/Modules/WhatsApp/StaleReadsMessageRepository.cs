@@ -25,6 +25,7 @@ internal sealed class StaleReads(string waMessageId)
 /// </summary>
 internal sealed class StaleReadsMessageRepository(IWhatsAppMessageRepository inner, StaleReads staleReads) : IWhatsAppMessageRepository
 {
+    public Task<IReadOnlyList<WhatsAppMessage>> ListLocationAnswersAsync(Guid contactId, DateTime sinceUtc, CancellationToken cancellationToken) => inner.ListLocationAnswersAsync(contactId, sinceUtc, cancellationToken);
     public Task<WhatsAppDeliveryReceipt?> GetReceiptAsync(string waMessageId, CancellationToken cancellationToken) =>
         inner.GetReceiptAsync(waMessageId, cancellationToken);
     public void Add(WhatsAppDeliveryReceipt receipt) => inner.Add(receipt);

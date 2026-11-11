@@ -31,6 +31,9 @@ internal sealed class WhatsAppMessageConfiguration : IEntityTypeConfiguration<Wh
         builder.Property(message => message.QuickReplyTitlesJson).HasColumnType("jsonb");
         builder.Property(message => message.Body).HasMaxLength(WhatsAppMessage.MaxBodyLength);
         builder.Property(message => message.ReplyId).HasMaxLength(WhatsAppMessage.MaxReplyIdLength);
+        // W1-A: the point of a received location.
+        builder.Property(message => message.Latitude).HasPrecision(9, 6);
+        builder.Property(message => message.Longitude).HasPrecision(9, 6);
         builder.Property(message => message.ProtectedFlowResponse).HasMaxLength(96 * 1024);
         builder.Property(message => message.FlowCaptureState).HasConversion<string>().HasMaxLength(16);
         builder.Property(message => message.FlowRecordNumber).HasMaxLength(64);

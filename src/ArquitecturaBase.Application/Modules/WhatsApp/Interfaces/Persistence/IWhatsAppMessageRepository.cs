@@ -35,6 +35,12 @@ public interface IWhatsAppMessageRepository
     Task<IReadOnlyList<WhatsAppMessage>> ListPendingInboundAsync(Guid contactId, CancellationToken cancellationToken);
     Task<WhatsAppMessage?> GetInboundAsync(string waMessageId, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// W1-A: las ubicaciones y los toques en «Seguir sin ubicación» del contacto que todavía no resolvieron un envío, recibidos desde
+    /// <paramref name="sinceUtc"/>, en el orden en que llegaron. Exige el lock del contacto.
+    /// </summary>
+    Task<IReadOnlyList<WhatsAppMessage>> ListLocationAnswersAsync(Guid contactId, DateTime sinceUtc, CancellationToken cancellationToken);
+
     void Add(WhatsAppMessage message);
     Task<WhatsAppDeliveryReceipt?> GetReceiptAsync(string waMessageId, CancellationToken cancellationToken);
     void Add(WhatsAppDeliveryReceipt receipt);

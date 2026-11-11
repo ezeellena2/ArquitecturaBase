@@ -31,6 +31,14 @@ public sealed class WhatsAppFlowSession : Entity, IAuditable
     public string? CaptureErrorCode { get; private set; }
     public string? RejectedQuestion { get; private set; }
     public string? ResponseWaMessageId { get; private set; }
+    public WhatsAppFlowLocationState LocationState { get; private set; }
+    public bool LocationRequired { get; private set; }
+    public decimal? LocationLatitude { get; private set; }
+    public decimal? LocationLongitude { get; private set; }
+    public string? LocationWaMessageId { get; private set; }
+    public DateTime? LocationResolvedAtUtc { get; private set; }
+    /// <summary>The body of the Flow message that goes out once the location is resolved (W1-A).</summary>
+    public string? FlowBody { get; private set; }
     public DateTime CreatedAtUtc { get; private set; }
     public Guid? CreatedBy { get; private set; }
     public DateTime? ModifiedAtUtc { get; private set; }
@@ -104,6 +112,57 @@ public sealed class WhatsAppFlowSession : Entity, IAuditable
         RejectedQuestion = state == WhatsAppFlowCaptureState.Rejected ? rejectedQuestion : null;
         return true;
     }
+    /// <summary>W1-A: the form asks for the location before its Flow, which waits for it with the body it will carry.</summary>
+    public void RequestLocation(bool required, string flowBody)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(flowBody);
+        if (flowBody.Length > 1024) throw new ArgumentOutOfRangeException(nameof(flowBody));
+        if (LocationState != WhatsAppFlowLocationState.None || CaptureState != WhatsAppFlowCaptureState.Pending)
+            throw new InvalidOperationException("A send asks for its location once, before its Flow.");
+        LocationState = WhatsAppFlowLocationState.Requested;
+        LocationRequired = required;
+        FlowBody = flowBody;
+    }
+
+    public bool AwaitsLocation(DateTime nowUtc) =>
+        LocationState == WhatsAppFlowLocationState.Requested && CaptureState == WhatsAppFlowCaptureState.Pending && nowUtc < ExpiresAtUtc;
+
+    /// <summary>The first location that arrives while the send waits for it completes the request; another one changes nothing.</summary>
+    public bool ReceiveLocation(decimal latitude, decimal longitude, string waMessageId, DateTime nowUtc)
+    {
+        if (!IsPoint(latitude, longitude))
+            throw new ArgumentOutOfRangeException(nameof(latitude), "A location is a point with up to six decimals.");
+        RequireMessageId(waMessageId);
+        if (!AwaitsLocation(nowUtc)) return false;
+        LocationState = WhatsAppFlowLocationState.Received;
+        LocationLatitude = latitude;
+        LocationLongitude = longitude;
+        LocationWaMessageId = waMessageId;
+        LocationResolvedAtUtc = nowUtc;
+        return true;
+    }
+
+    /// <summary>«Seguir sin ubicación» resolves an optional location that has not arrived yet.</summary>
+    public bool SkipLocation(string waMessageId, DateTime nowUtc)
+    {
+        RequireMessageId(waMessageId);
+        if (LocationRequired || !AwaitsLocation(nowUtc)) return false;
+        LocationState = WhatsAppFlowLocationState.Skipped;
+        LocationWaMessageId = waMessageId;
+        LocationResolvedAtUtc = nowUtc;
+        return true;
+    }
+
+    internal static bool IsPoint(decimal latitude, decimal longitude) =>
+        latitude is >= -90 and <= 90 && longitude is >= -180 and <= 180
+        && decimal.Round(latitude, 6) == latitude && decimal.Round(longitude, 6) == longitude;
+
+    private static void RequireMessageId(string waMessageId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(waMessageId);
+        if (waMessageId.Length > WhatsAppMessage.MaxWaMessageIdLength) throw new ArgumentOutOfRangeException(nameof(waMessageId));
+    }
+
     private static bool DirectionInvalid(WhatsAppFlowCaptureState state, Guid? recordId, string? number) =>
         !Enum.IsDefined(state) || (state == WhatsAppFlowCaptureState.Completed) != (recordId.HasValue && number is not null);
     private static bool IsHash(string value) => value.Length == 64 && value.All(char.IsAsciiHexDigit);

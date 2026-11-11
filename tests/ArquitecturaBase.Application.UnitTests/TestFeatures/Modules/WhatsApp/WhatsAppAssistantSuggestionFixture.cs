@@ -65,6 +65,7 @@ internal sealed class WhatsAppAssistantSuggestionFixture
     }
     public sealed class SessionRepository : IWhatsAppFlowSessionRepository
     {
+        public Task<IReadOnlyList<WhatsAppFlowSession>> ListAwaitingLocationAsync(Guid contactId, DateTime nowUtc, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<WhatsAppFlowSession>>([]);
         public List<WhatsAppFlowSession> Rows {get;}=[];
         public Task<WhatsAppFlowSession?> GetAsync(Guid id,CancellationToken ct)=>Task.FromResult(Rows.SingleOrDefault(row=>row.Id==id));
         public void Add(WhatsAppFlowSession row)=>Rows.Add(row);

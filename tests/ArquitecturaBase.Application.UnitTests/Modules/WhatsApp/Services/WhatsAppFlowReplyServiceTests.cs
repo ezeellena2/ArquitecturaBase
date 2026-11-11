@@ -479,6 +479,7 @@ public sealed partial class WhatsAppFlowReplyServiceTests
     private sealed class FakeSessionReader(WhatsAppFlowReplySessionRow session,
         InMemoryWhatsAppMessageRepository messages, WhatsAppFlowSession actualSession) : IWhatsAppFlowSessionReader
     {
+            public Task<IReadOnlyList<Guid>> ListContactsWithPendingLocationsAsync(IReadOnlyCollection<Guid> excluded, int limit, DateTime nowUtc, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<Guid>>([]);
         public bool IsCurrentActiveRecipient { get; set; } = true;
         public WhatsAppFlowReplySessionRow Row { get; set; } = session;
         public Task<IReadOnlyList<WhatsAppPendingFlowReplyRow>> ListPendingFlowRepliesAsync(int limit, CancellationToken cancellationToken) =>
@@ -495,6 +496,7 @@ public sealed partial class WhatsAppFlowReplyServiceTests
 
     private sealed class FakeSessionRepository(WhatsAppFlowSession session) : IWhatsAppFlowSessionRepository
     {
+        public Task<IReadOnlyList<WhatsAppFlowSession>> ListAwaitingLocationAsync(Guid contactId, DateTime nowUtc, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<WhatsAppFlowSession>>([]);
         public Task<WhatsAppFlowSession?> GetAsync(Guid id, CancellationToken cancellationToken) =>
             Task.FromResult<WhatsAppFlowSession?>(id == session.Id ? session : null);
         public void Add(WhatsAppFlowSession value) => throw new NotSupportedException();

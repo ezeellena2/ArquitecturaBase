@@ -50,7 +50,10 @@ internal sealed class WhatsAppChatQueryService(IWhatsAppChatReader reader, IWhat
                 ToFormResponse(message.Form), ToFormReplyResponse(message.FormReply, recordResult, message.OccurredAtUtc), message.Origin, Assistant: presentation.Explain(message.Assistant, recordResult.CanReadRecords),
                 QuickReplies: WhatsAppAssistantPresentationPolicy.Titles(message.QuickReplyTitlesJson, false), Audio: audio.View(message),
                 // A received spreadsheet shows its name, and its caption as the body (stage 2 of the assistant authoring).
-                SpreadsheetName: message.Kind == WhatsAppMessageKind.Spreadsheet ? message.SpreadsheetName : null))],
+                SpreadsheetName: message.Kind == WhatsAppMessageKind.Spreadsheet ? message.SpreadsheetName : null,
+                // W1-A: a received location shows its point.
+                Location: message.Kind == WhatsAppMessageKind.Location && message.Latitude is { } latitude && message.Longitude is { } longitude
+                    ? new WhatsAppLocationPointResponse(latitude, longitude) : null))],
             [.. row.Outgoing.Select(item => ToOutgoingResponse(item, recordResult.CanReadRecords))], row.BeforeAtUtc, row.BeforeId, recordResult.CanReadRecords)
             { AssistantAvailability = availability, AssistantSuggestion = pointer };
     });
@@ -75,7 +78,7 @@ internal sealed class WhatsAppChatQueryService(IWhatsAppChatReader reader, IWhat
         if (row is null) return null;
         var name = JsonSerializer.Deserialize<Dictionary<string, string>>(row.NameJson, JsonSerializerOptions.Web)
             ?? throw new InvalidOperationException("The stored Flow form name is invalid.");
-        return new(row.DefinitionId, row.VersionId, row.VersionNumber, name, row.Culture);
+        return new(row.DefinitionId, row.VersionId, row.VersionNumber, name, row.Culture) { Location = WhatsAppOutgoingPresentationPolicy.Location(row.Location) };
     }
 
     private static WhatsAppFormReplyResponse? ToFormReplyResponse(WhatsAppFormReplyRow? row,

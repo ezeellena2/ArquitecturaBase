@@ -29,12 +29,22 @@ public sealed record SendWhatsAppFormRequest(Guid ContactId, Guid RequestId, Gui
 }
 public sealed record WhatsAppFormPresentationRow(Guid DefinitionId, Guid VersionId, int VersionNumber, string NameJson, string Culture)
 {
+    /// <summary>W1-A: only a location request carries how its send stands.</summary>
+    public WhatsAppFlowLocationRow? Location { get; init; }
     public override string ToString() => "WhatsAppFormPresentationRow { Name = [REDACTED] }";
 }
+public sealed record WhatsAppFlowLocationRow(WhatsAppFlowLocationState State, DateTime ExpiresAtUtc);
 public sealed record WhatsAppFormPresentationResponse(Guid DefinitionId, Guid VersionId, int VersionNumber, IReadOnlyDictionary<string, string> Name, string Culture)
 {
+    /// <summary>
+    /// W1-A: on a location request, how its send stands: «Requested», «Received» or «Skipped», and until when it waits. The other
+    /// messages keep their shape.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public WhatsAppFlowLocationResponse? Location { get; init; }
     public override string ToString() => "WhatsAppFormPresentationResponse { Name = [REDACTED] }";
 }
+public sealed record WhatsAppFlowLocationResponse(string State, DateTime ExpiresAtUtc);
 public sealed record WhatsAppFlowSessionPayload(int Format, Guid ContactId, Guid UserId, Guid? OperatorUserId,
     Guid DefinitionId, Guid VersionId, Guid BindingId, string Culture, string RecipientRevision, long ModeRevision,
     string MetaFlowId, string TechnicalName, string ExpectedHash, string Token, string ButtonText, string StartScreen,
@@ -68,6 +78,10 @@ public sealed record WhatsAppFlowReplySessionRow(Guid SessionId, Guid ContactId,
     public WhatsAppMessageOrigin Origin { get; init; }
     public byte[]? ProtectedAssistantContent { get; init; }
     public DateTime? AssistantContentExpiresAtUtc { get; init; }
+    /// <summary>W1-A: the location the send received before its Flow; the reply takes it as the answer of its question.</summary>
+    public WhatsAppFlowLocationState LocationState { get; init; }
+    public decimal? LocationLatitude { get; init; }
+    public decimal? LocationLongitude { get; init; }
     public override string ToString() => "WhatsAppFlowReplySessionRow { Content = [REDACTED] }";
 }
 

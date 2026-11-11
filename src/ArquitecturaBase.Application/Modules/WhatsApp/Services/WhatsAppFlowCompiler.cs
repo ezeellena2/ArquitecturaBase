@@ -30,6 +30,8 @@ internal static class WhatsAppFlowCompiler
             return new([], [new(null, null, "draft.fields", FlowErrors.UnsupportedConfiguration, 10)]);
         var ids = new HashSet<Guid>();
         var choices = new HashSet<Guid>();
+        // W1-A: the location is asked before the Flow, with one message, so a form asks for one location.
+        var firstLocation = request.Questions.FirstOrDefault(question => question.Type == "location");
         foreach (var question in request.Questions)
         {
             var invalidChoice = question.Type is "choice" or "multiChoice"
@@ -38,14 +40,16 @@ internal static class WhatsAppFlowCompiler
                     : question.Options is null || question.Options.Count < 1 || question.Options.Count > (question.Type == "multiChoice" ? 20 : 50)
                 : question.SourceCatalogId.HasValue || question.Options is not null;
             if (question.FieldId == Guid.Empty || !ids.Add(question.FieldId) || question.Key != "field_" + question.FieldId.ToString("N")
-                || question.Type is not ("shortText" or "longText" or "decimal" or "date" or "boolean" or "choice" or "multiChoice" or "photo" or "document" or "group")
+                || question.Type is not ("shortText" or "longText" or "decimal" or "date" or "boolean" or "choice" or "multiChoice" or "photo" or "document" or "group" or "location")
                 || (question.Type is "shortText" or "longText" ? question.MaxLength is not (>= 1 and <= 10000) : question.MaxLength.HasValue)
                 || invalidChoice || !WhatsAppFlowScreenBuilder.ValidFiles(question) || !WhatsAppFlowScreenBuilder.ValidSelection(question)
                 || !WhatsAppFlowScreenBuilder.ValidRows(question)
                 // Choosing first by a field (LD2-A) is for a single choice from a catalog.
                 || (question.ChoosesFirst == true && (question.Type != "choice" || question.SourceCatalogId is null))
                 // A calculation (CA1-A) is an optional decimal.
-                || (question.Calculated == true && (question.Type != "decimal" || question.Required)))
+                || (question.Calculated == true && (question.Type != "decimal" || question.Required))
+                // The location goes outside the block, without a condition (W1-A).
+                || (question.Type == "location" && (question.Repeated == true || question.ShowWhen is not null || !ReferenceEquals(question, firstLocation))))
                 issues.Add(new(question.FieldId, null, "draft.fields", FlowErrors.UnsupportedConfiguration));
             foreach (var option in question.Options ?? [])
                 if (option.ChoiceId == Guid.Empty || !choices.Add(option.ChoiceId)) issues.Add(new(question.FieldId, option.ChoiceId, "draft.fields", FlowErrors.UnsupportedConfiguration));
@@ -93,8 +97,9 @@ internal static class WhatsAppFlowCompiler
             if (error is not null) issues.Add(new(question.FieldId, null, $"draft.fields[{index}].showWhen", error));
         }
         if (issues.Count > 0) return new([], issues.AsReadOnly());
+        // A location, asked before the Flow (W1-A), stays out of the screens like a calculation: the server fills both.
         var screens = WhatsAppFlowScreenBuilder.Plan(request.Questions.Select(question =>
-            new WhatsAppFlowSlot(question.Type, question.Files is not null, question.Repeated == true, question.Rows, question.Calculated == true)).ToArray());
+            new WhatsAppFlowSlot(question.Type, question.Files is not null, question.Repeated == true, question.Rows, question.Calculated == true || question.Type == "location")).ToArray());
         var rows = block >= 0 ? request.Questions[block].Rows! : null;
         var rowCount = rows is null ? 0 : WhatsAppFlowScreenBuilder.RowCount(rows);
         // «¿Agregás un ítem?» answers under _r0 and each «¿Agregás otro ítem?» under its row (RG8-A).
@@ -106,7 +111,7 @@ internal static class WhatsAppFlowCompiler
         {
             var stop = index + 1 < sections.Count ? sections[index + 1].Start : request.Questions.Count;
             var shown = Enumerable.Range(sections[index].Start, stop - sections[index].Start)
-                .Where(at => request.Questions[at].Calculated != true && request.Questions[at].Repeated != true).ToArray();
+                .Where(at => request.Questions[at].Calculated != true && request.Questions[at].Type != "location" && request.Questions[at].Repeated != true).ToArray();
             if (shown.Length == 0) continue;
             places[index] = (shown[0], shown.All(at => request.Questions[at].ShowWhen is not null)
                 ? WhatsAppFlowScreenBuilder.Shared(request.Questions, screens, shown, WhatsAppFlowScreenBuilder.Owner(screens, shown[0])) : null);
@@ -122,8 +127,8 @@ internal static class WhatsAppFlowCompiler
             for (var index = 0; index < request.Questions.Count; index++)
             {
                 var question = request.Questions[index];
-                // A calculation never arrives (CA1-A).
-                if (question.Calculated == true) continue;
+                // A calculation never arrives (CA1-A), nor a location, asked before the Flow (W1-A).
+                if (question.Calculated == true || question.Type == "location") continue;
                 var valueBytes = question.Type switch
                 {
                     "shortText" or "longText" => 2L + question.MaxLength!.Value * 6L,
@@ -180,8 +185,9 @@ internal static class WhatsAppFlowCompiler
                     (question.Options?.Select(option => option.ChoiceId).ToList() ?? []).AsReadOnly(), question.Files, question.Selection,
                     question.Rows, question.Repeated == true ? true : null, question.ChoosesFirst == true ? true : null,
                     question.Calculated == true ? true : null, question.ShowWhen));
-                // The server computes a calculation (CA1-A): the Flow neither shows it nor needs its texts.
-                if (question.Calculated == true)
+                // The server computes a calculation (CA1-A) and takes the location from the send (W1-A): the Flow neither shows them
+                // nor needs their texts.
+                if (question.Calculated == true || question.Type == "location")
                 {
                     components.Add(new(StringComparer.Ordinal));
                     continue;
@@ -239,7 +245,7 @@ internal static class WhatsAppFlowCompiler
             } });
             // Includes the Form container, conservatively. With a block the limit applies to each screen: a row adds its own
             // question, an If and a Footer in each branch. The dropdown of values of a question that chooses first is one more.
-            var count = rows is null ? components.Count - request.Questions.Count(question => question.Calculated == true) + 1 + subtitles.Count
+            var count = rows is null ? components.Count - request.Questions.Count(question => question.Calculated == true || question.Type == "location") + 1 + subtitles.Count
                     + request.Questions.Count(question => question.ChoosesFirst == true) + Ifs(Enumerable.Range(0, request.Questions.Count))
                 : screens.Max(screen => WhatsAppFlowScreenBuilder.Subtitled(screen, block, rows, subtitles)
                     + screen.Questions.Count(index => request.Questions[index].ChoosesFirst == true) + screen.Kind switch

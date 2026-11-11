@@ -21,4 +21,7 @@
   <data name="RowTitle" xml:space="preserve"><value>{0} · ítem {1}</value></data>
   <data name="ChooseFirst" xml:space="preserve"><value>Elegí primero</value></data>
   <data name="Closing" xml:space="preserve"><value>Tocá «{0}» para mandar el formulario.</value></data>
+  <data name="LocationRequest" xml:space="preserve"><value>Para completar «{0}», mandanos tu ubicación.</value></data>
+  <data name="LocationOptional" xml:space="preserve"><value>La ubicación es opcional.</value></data>
+  <data name="LocationSkip" xml:space="preserve"><value>Seguir sin ubicación</value></data>
 </root>

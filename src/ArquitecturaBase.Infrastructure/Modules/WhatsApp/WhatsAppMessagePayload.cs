@@ -80,6 +80,17 @@ internal static class WhatsAppMessagePayload
                 });
                 break;
 
+            // W1-A: the location request; WhatsApp draws «Enviar ubicación» in the phone's language.
+            case WhatsAppLocationRequestMessage location:
+                payload["type"] = "interactive";
+                payload["interactive"] = new JsonObject
+                {
+                    ["type"] = "location_request_message",
+                    ["body"] = new JsonObject { ["text"] = location.Body },
+                    ["action"] = new JsonObject { ["name"] = "send_location" },
+                };
+                break;
+
             case WhatsAppReplyButtonsMessage reply:
                 payload["type"] = "interactive";
                 payload["interactive"] = Interactive("button", reply.Body, reply.Footer, new JsonObject

@@ -181,7 +181,7 @@ internal sealed partial class WhatsAppFlowDispatchService(IWhatsAppFlowRepositor
         var culture = projection.Culture;
         if (pointer.Property == "name") return new(null, null, "name." + culture, culture);
         var screens = WhatsAppFlowScreenBuilder.Plan(projection.Mapping.Select(field =>
-            new WhatsAppFlowSlot(field.Type, field.Type is "photo" or "document", field.Repeated == true, field.Rows, field.Calculated == true)).ToArray());
+            new WhatsAppFlowSlot(field.Type, field.Type is "photo" or "document", field.Repeated == true, field.Rows, field.Calculated == true || field.Type == "location")).ToArray());
         if (pointer.ScreenIndex < 0 || pointer.ScreenIndex >= screens.Count || pointer.FieldIndex is not { } position || position < 0)
             return new(null, null, "channel", culture);
         // A section subtitle (CW15-B) points to its title; the components after it count without the subtitles before them.

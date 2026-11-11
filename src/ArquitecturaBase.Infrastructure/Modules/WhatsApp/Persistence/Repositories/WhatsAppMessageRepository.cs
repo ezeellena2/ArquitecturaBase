@@ -58,6 +58,20 @@ internal sealed class WhatsAppMessageRepository(ApplicationDbContext dbContext) 
         dbContext.Set<WhatsAppMessage>().SingleOrDefaultAsync(message => message.WaMessageId == waMessageId
             && message.Direction == WhatsAppMessageDirection.Inbound, cancellationToken);
 
+    public async Task<IReadOnlyList<WhatsAppMessage>> ListLocationAnswersAsync(Guid contactId, DateTime sinceUtc, CancellationToken cancellationToken) =>
+        await dbContext.Set<WhatsAppMessage>()
+            .Where(LocationAnswer(contactId, sinceUtc))
+            .OrderBy(message => message.InboundSequence).ThenBy(message => message.Id)
+            .Take(50)
+            .ToListAsync(cancellationToken);
+
+    /// <summary>W1-A: an inbound location or «Seguir sin ubicación» tap of the contact that has not resolved a send yet.</summary>
+    internal static System.Linq.Expressions.Expression<Func<WhatsAppMessage, bool>> LocationAnswer(Guid contactId, DateTime sinceUtc) => message =>
+        message.ContactId == contactId && message.Direction == WhatsAppMessageDirection.Inbound && message.FlowSessionId == null
+        && message.OccurredAtUtc >= sinceUtc
+        && (message.Kind == WhatsAppMessageKind.Location
+            || message.Kind == WhatsAppMessageKind.ButtonReply && message.ReplyId != null && message.ReplyId.StartsWith(WhatsAppFlowLocationReply.Prefix));
+
     public void Add(WhatsAppMessage message) => dbContext.Set<WhatsAppMessage>().Add(message);
     public Task<WhatsAppDeliveryReceipt?> GetReceiptAsync(string waMessageId, CancellationToken cancellationToken) =>
         dbContext.Set<WhatsAppDeliveryReceipt>().SingleOrDefaultAsync(item => item.WaMessageId == waMessageId, cancellationToken);

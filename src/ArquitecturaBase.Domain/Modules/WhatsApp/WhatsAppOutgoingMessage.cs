@@ -92,10 +92,33 @@ public sealed partial class WhatsAppOutgoingMessage : Entity
         return outgoing;
     }
 
+    /// <summary>W1-A: the location_request_message that goes before the Flow of its send.</summary>
+    public static WhatsAppOutgoingMessage CreateLocationRequest(Guid actor, Guid contactId, Guid requestId, string body, Guid sessionId, DateTime nowUtc)
+    {
+        ArgumentOutOfRangeException.ThrowIfEqual(sessionId, Guid.Empty);
+        if (body.Length > 1024 || !IsVisibleBody(body)) throw new ArgumentException("The location request body is not visible and storable.", nameof(body));
+        var outgoing = Create(actor, contactId, requestId, body, nowUtc);
+        outgoing.Kind = WhatsAppOutgoingMessageKind.LocationRequest; outgoing.FlowSessionId = sessionId;
+        return outgoing;
+    }
+
+    /// <summary>W1-A: with an optional location, a reply button «Seguir sin ubicación» right after the request; its id names the send.</summary>
+    public static WhatsAppOutgoingMessage CreateLocationSkip(Guid actor, Guid contactId, Guid requestId, string body, string title, Guid sessionId, DateTime nowUtc)
+    {
+        ArgumentOutOfRangeException.ThrowIfEqual(sessionId, Guid.Empty);
+        if (body.Length > 1024 || !IsVisibleBody(body)) throw new ArgumentException("The skip body is not visible and storable.", nameof(body));
+        if (title.Length > 20 || !IsVisibleBody(title)) throw new ArgumentException("A reply button title is visible and fits 20 characters.", nameof(title));
+        var outgoing = Create(actor, contactId, requestId, body, nowUtc);
+        outgoing.Kind = WhatsAppOutgoingMessageKind.QuickReplies; outgoing.FlowSessionId = sessionId;
+        outgoing.QuickRepliesJson = JsonSerializer.Serialize(new[] { new WhatsAppOutgoingQuickReply(WhatsAppFlowLocationReply.Id(sessionId), title, 0) });
+        return outgoing;
+    }
+
     public void AttachFlowSession(WhatsAppFlowSession session)
     {
         ArgumentNullException.ThrowIfNull(session);
-        if (Kind != WhatsAppOutgoingMessageKind.Flow || FlowSessionId != session.Id || FlowSession is not null)
+        if (Kind is not (WhatsAppOutgoingMessageKind.Flow or WhatsAppOutgoingMessageKind.LocationRequest or WhatsAppOutgoingMessageKind.QuickReplies)
+            || FlowSessionId != session.Id || FlowSession is not null)
             throw new InvalidOperationException("A Flow outgoing message must reference its one matching session.");
         FlowSession = session;
     }

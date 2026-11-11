@@ -59,12 +59,16 @@ internal sealed class WhatsAppChatDispatchService(
                         WhatsAppOutgoingMessageKind.Flow => WhatsAppMessageKind.Flow,
                         WhatsAppOutgoingMessageKind.Document => WhatsAppMessageKind.Document,
                         WhatsAppOutgoingMessageKind.QuickReplies => WhatsAppMessageKind.Interactive,
+                        WhatsAppOutgoingMessageKind.LocationRequest => WhatsAppMessageKind.LocationRequest,
                         _ => WhatsAppMessageKind.Text,
                     };
                     var message = WhatsAppMessage.Outbound(contactId, waMessageId, kind,
                         operation.Body!, timeProvider.GetUtcNow().UtcDateTime);
                     if (operation.FlowSessionId is { } sessionId) message.AttachFlowSession(sessionId);
                     if (operation.OperatorUserId is { } operatorId) message.AttributeOperator(operatorId);
+                    // W1-A: «Seguir sin ubicación» keeps its button in the chat.
+                    if (operation.Origin == WhatsAppMessageOrigin.Conversation && operation.Kind == WhatsAppOutgoingMessageKind.QuickReplies
+                        && operation.FlowSessionId is not null) message.RecordReplyTitles(operation.QuickReplies.Select(reply => reply.Title).ToArray());
                     if (operation.Origin == WhatsAppMessageOrigin.FormAction) message.AttributeFormAction();
                     if (operation.Origin == WhatsAppMessageOrigin.Assistant) message.AttributeAssistant(
                         operation.Kind == WhatsAppOutgoingMessageKind.QuickReplies ? operation.QuickReplies.Select(reply => reply.Title).ToArray() : null);

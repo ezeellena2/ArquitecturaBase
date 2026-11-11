@@ -19,7 +19,13 @@ public sealed record WhatsAppMessageResponse(
     WhatsAppMessageOrigin Origin = WhatsAppMessageOrigin.Conversation,
     WhatsAppAssistantExplanationResponse? Assistant = null, IReadOnlyList<string>? QuickReplies = null, WhatsAppAudioResponse? Audio = null,
     // Only a received spreadsheet carries its normalized name; the other messages keep their shape.
-    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? SpreadsheetName = null);
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? SpreadsheetName = null,
+    // W1-A: only a received location carries its point.
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] WhatsAppLocationPointResponse? Location = null);
+public sealed record WhatsAppLocationPointResponse(decimal Latitude, decimal Longitude)
+{
+    public override string ToString() => "WhatsAppLocationPointResponse { Content = [REDACTED] }";
+}
 public sealed record WhatsAppFormReplyResponse(string State, Guid? DefinitionId, Guid? VersionId, long? VersionNumber,
     string? Name, Guid? RecordId, string? Number, IReadOnlyList<WhatsAppFormReplyValueResponse>? Values, [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? RejectionCode = null,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? RejectedQuestion = null,

@@ -115,6 +115,7 @@ internal sealed class InMemoryWhatsAppContactReader(InMemoryWhatsAppContactRepos
 
 internal sealed class InMemoryWhatsAppMessageRepository(LockLog locks) : IWhatsAppMessageRepository
 {
+    public Task<IReadOnlyList<WhatsAppMessage>> ListLocationAnswersAsync(Guid contactId, DateTime sinceUtc, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<WhatsAppMessage>>([]);
     private readonly List<WhatsAppDeliveryReceipt> receipts = [];
     public Task<WhatsAppDeliveryReceipt?> GetReceiptAsync(string waMessageId, CancellationToken cancellationToken) =>
         Task.FromResult(receipts.SingleOrDefault(item => item.WaMessageId == waMessageId));

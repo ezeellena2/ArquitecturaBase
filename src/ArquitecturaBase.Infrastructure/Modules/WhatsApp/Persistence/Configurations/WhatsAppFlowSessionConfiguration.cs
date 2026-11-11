@@ -21,6 +21,16 @@ internal sealed class WhatsAppFlowSessionConfiguration : IEntityTypeConfiguratio
         builder.Property(session => session.CaptureErrorCode).HasMaxLength(128);
         builder.Property(session => session.RejectedQuestion).HasMaxLength(80);
         builder.Property(session => session.ResponseWaMessageId).HasMaxLength(WhatsAppMessage.MaxWaMessageIdLength);
+        // W1-A: the location asked before the Flow. A send of before has none.
+        builder.Property(session => session.LocationState).HasConversion<string>().HasMaxLength(16).HasDefaultValue(WhatsAppFlowLocationState.None);
+        builder.Property(session => session.LocationLatitude).HasPrecision(9, 6);
+        builder.Property(session => session.LocationLongitude).HasPrecision(9, 6);
+        builder.Property(session => session.LocationWaMessageId).HasMaxLength(WhatsAppMessage.MaxWaMessageIdLength);
+        builder.Property(session => session.FlowBody).HasMaxLength(1024);
+        builder.HasIndex(session => new { session.ContactId, session.ExpiresAtUtc })
+            .HasFilter("\"LocationState\" = 'Requested' AND \"CaptureState\" = 'Pending'");
+        // The filtered index above does not cover every send: the foreign key keeps its own.
+        builder.HasIndex(session => session.ContactId);
         builder.HasIndex(session => session.ResponseWaMessageId).IsUnique().HasFilter("\"ResponseWaMessageId\" IS NOT NULL");
         builder.HasIndex(session => session.TokenHash).IsUnique();
         builder.HasIndex(session => new { session.ExpiresAtUtc, session.Id });

@@ -130,6 +130,18 @@ internal static class MetaWebhook
             ["type"] = "user_changed_number",
         });
 
+    /// <summary>
+    /// Una ubicación (referencia del tipo <c>location</c>): el punto y, si la persona eligió un lugar, su nombre y su dirección.
+    /// </summary>
+    public static JsonObject Location(string waMessageId, string? from, string? fromUserIdentifier, DateTime sentAtUtc, JsonNode latitude,
+        JsonNode longitude, string? name = null, string? address = null)
+    {
+        var location = new JsonObject { ["latitude"] = latitude, ["longitude"] = longitude };
+        if (name is not null) location["name"] = name;
+        if (address is not null) location["address"] = address;
+        return Message(waMessageId, from, fromUserIdentifier, sentAtUtc, "location", location);
+    }
+
     public static JsonObject Reaction(string waMessageId, string? from, string? fromUserIdentifier, DateTime sentAtUtc) =>
         Message(waMessageId, from, fromUserIdentifier, sentAtUtc, "reaction", new JsonObject
         {

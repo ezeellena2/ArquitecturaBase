@@ -135,6 +135,10 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
                 null, null, decoded.Error.Code, cancellationToken);
             return;
         }
+        // W1-A: the location the send received before its Flow is the answer of its question; without it, the owner decides.
+        if (WhatsAppFlowLocationPolicy.Question(projection) is { } location
+            && WhatsAppFlowLocationPolicy.Answer(session.LocationState, session.LocationLatitude, session.LocationLongitude) is { } point)
+            decoded.Value[location.Key] = point;
 
         var fileArrays = arrayValues.Where(pair => projection.Mapping.Any(field => field.Key == pair.Key
             && field.Type is "photo" or "document")).ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
@@ -286,7 +290,7 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
         return projection.Mapping.All(field => field.FieldId != Guid.Empty
             && field.Key == "field_" + field.FieldId.ToString("N")
             && keys.Add(field.Key) && fieldIds.Add(field.FieldId)
-            && field.Type is "shortText" or "longText" or "decimal" or "date" or "boolean" or "choice" or "multiChoice" or "photo" or "document" or "group")
+            && field.Type is "shortText" or "longText" or "decimal" or "date" or "boolean" or "choice" or "multiChoice" or "photo" or "document" or "group" or "location")
             && WhatsAppFlowRowsCodec.IsWellFormed(projection.Mapping);
     }
 
@@ -303,7 +307,8 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
             if (field.Type is "photo" or "document" or "group" || field.Repeated == true) continue;
             // r13: the owner computes a calculation, which the Flow never sends (CA1-A); what was written in a question its
             // condition hides now is left out, as the app does not send it (CO1-A).
-            if (field.Calculated == true)
+            // W1-A: neither does the Flow send a location, which the send asked for before it.
+            if (field.Calculated == true || field.Type == "location")
             {
                 if (answers.ContainsKey(field.Key) || arrays.ContainsKey(field.Key)) return FlowErrors.InvalidValue;
                 continue;
