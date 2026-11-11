@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using ArquitecturaBase.Application.Modules.Arca.Models.Invoicing;
 using ArquitecturaBase.Infrastructure.Modules.Arca.Invoicing.Pdf;
+using SkiaSharp;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.Arca.Invoicing;
 
@@ -42,7 +43,9 @@ public sealed partial class ArcaFiscalPdfRendererTests
         const string address = "Ruta Nacional 33 km 642, Parque Industrial Venado Tuerto, Lote 14, Venado Tuerto, SANTA FE";
         var document = Document(2) with { ReceiverName = name, ReceiverAddress = address };
 
-        var lines = ArcaFiscalPdfRenderer.ReceiverLines(document);
+        using var regular = ArcaFiscalPdfRenderer.LoadFont("PublicSans-Regular.ttf");
+        using var body = new SKFont(regular, ArcaFiscalPdfRenderer.BodySize);
+        var lines = ArcaFiscalPdfRenderer.ReceiverLines(document, body);
 
         Assert.True(lines.Count > 2);
         Assert.DoesNotContain(lines, line => line.Contains('…', StringComparison.Ordinal));

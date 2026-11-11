@@ -27,6 +27,7 @@ internal sealed class ArcaFiscalPdfRenderer : IArcaFiscalPdfRenderer
     private const float SubtotalLabel = 215;
     private const float ReceiverRow = 14;
     private const float ReceiverWidth = Right - Width / 2 - 12;
+    internal const float BodySize = 9;
     private static readonly CultureInfo Spanish = CultureInfo.GetCultureInfo("es-AR");
 
     public byte[] Render(ArcaFiscalDocument document)
@@ -48,14 +49,7 @@ internal sealed class ArcaFiscalPdfRenderer : IArcaFiscalPdfRenderer
     /// Los renglones de la columna derecha del recuadro del receptor, con la fuente del cuerpo: el nombre y el domicilio partidos
     /// por palabras para que entren en su ancho, sin recortar nada. Es un dato fiscal y se imprime entero.
     /// </summary>
-    internal static List<string> ReceiverLines(ArcaFiscalDocument document)
-    {
-        using var regular = LoadFont("PublicSans-Regular.ttf");
-        using var body = new SKFont(regular, 9);
-        return ReceiverLines(document, body);
-    }
-
-    private static List<string> ReceiverLines(ArcaFiscalDocument document, SKFont font)
+    internal static List<string> ReceiverLines(ArcaFiscalDocument document, SKFont font)
     {
         var lines = Wrap($"Apellido y nombre o razón social: {document.ReceiverName}", font, ReceiverWidth);
         if (document.ReceiverAddress is { } address) lines.AddRange(Wrap($"Domicilio: {address}", font, ReceiverWidth));
@@ -91,7 +85,7 @@ internal sealed class ArcaFiscalPdfRenderer : IArcaFiscalPdfRenderer
         return lines;
     }
 
-    private static SKTypeface LoadFont(string name)
+    internal static SKTypeface LoadFont(string name)
     {
         using var stream = typeof(ArcaFiscalPdfRenderer).Assembly.GetManifestResourceStream("Arca.Pdf.Fonts." + name)
             ?? throw new InvalidOperationException("An embedded fiscal PDF font is missing.");
@@ -121,7 +115,7 @@ internal sealed class ArcaFiscalPdfRenderer : IArcaFiscalPdfRenderer
         public Layout(SKDocument pdf, SKTypeface regular, SKTypeface bold)
         {
             this.pdf = pdf;
-            body = new SKFont(regular, 9);
+            body = new SKFont(regular, BodySize);
             small = new SKFont(regular, 7.5f);
             smallStrong = new SKFont(bold, 7.5f);
             strong = new SKFont(bold, 9);
