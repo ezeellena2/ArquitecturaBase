@@ -369,7 +369,8 @@ tarjeta del chat, el Excel y el PDF. Los textos dicen «ítem» (RG12-A); el có
   respuesta sin ítems ocupa una fila con «Ítem» vacío, una de una versión sin el bloque lleva «—» y una línea marca dónde
   empieza cada respuesta. Con el bloque fuera de «Solo las visibles» no hay columnas del ítem. Hasta 100.000 filas, el
   tope que eligió el usuario al medirlo (un millón tardaba 84 s): si se pasa, se corta antes de escribir con
-  `Forms.Record.ExportTooManyRows`.
+  `Forms.Record.ExportTooManyRows`. Una pregunta de ubicación ocupa tres columnas numéricas, «· Latitud», «· Longitud» y
+  «· Precisión (m)» (UB4-A); nunca está en el bloque.
 - **El PDF.** El diseño elige el bloque entero: el inicial, el de una respuesta sin diseño guardado y las preguntas que se
   pueden elegir dejan afuera las del bloque, y un idioma está completo si también lo están ellas. La copia pone el bloque
   bajo su nombre en una tabla: el número del ítem en una columna angosta y sin encabezado, y una columna por pregunta de su
