@@ -1,6 +1,6 @@
 # ArquitecturaBase: reglas para agentes
 
-Plantilla .NET 10 + Aspire 13.5 + PostgreSQL; el front vive en `../ArquitecturaBaseFront`. Este archivo es el índice de reglas; el detalle está en [`docs/architecture/backend.md`](docs/architecture/backend.md), que prevalece sobre cualquier descripción histórica. Las reglas de un área del producto están en `docs/features/` y se leen antes de tocarla. WhatsApp, BusinessForms, IA y ARCA son módulos opcionales en `Modules/<Módulo>`: el núcleo no los nombra.
+Plantilla .NET 10 + Aspire 13.6 + PostgreSQL; el front vive en `../ArquitecturaBaseFront`. Este archivo es el índice de reglas; el detalle está en [`docs/architecture/backend.md`](docs/architecture/backend.md), que prevalece sobre cualquier descripción histórica. Las reglas de un área del producto están en `docs/features/` y se leen antes de tocarla. WhatsApp, BusinessForms, IA y ARCA son módulos opcionales en `Modules/<Módulo>`: el núcleo no los nombra.
 
 ## Forma de trabajo
 

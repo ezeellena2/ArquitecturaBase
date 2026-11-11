@@ -51,7 +51,7 @@ public sealed partial class ApiFactory : WebApplicationFactory<Program>, IAsyncL
     /// <summary>Un asset con hash, como los que genera Vite: nunca tiene que caer en el index.html.</summary>
     public const string AssetMarker = "export const marker = 'asset';";
 
-    // La misma imagen que usa Aspire 13.5.4.
+    // La misma imagen que usa Aspire 13.6.5.
     private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:18.3").Build();
     private readonly RedisContainer _redis = new RedisBuilder("redis:8.6").Build();
 

@@ -59,10 +59,10 @@ un chat ni al guardar código.
 
 - .NET SDK 10.0.400 o superior (lo fija `global.json`).
 - Docker Desktop encendido. Lo usan PostgreSQL y Redis del AppHost y los tests de integración.
-- Aspire CLI 13.5.4:
+- Aspire CLI 13.6.5:
 
   ```bash
-  dotnet tool install -g Aspire.Cli --version 13.5.4
+  dotnet tool install -g Aspire.Cli --version 13.6.5
   ```
 
 - Certificado HTTPS de desarrollo confiable:

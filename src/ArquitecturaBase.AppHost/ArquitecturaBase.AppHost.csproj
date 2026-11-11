@@ -1,4 +1,4 @@
-<Project Sdk="Aspire.AppHost.Sdk/13.5.4">
+<Project Sdk="Aspire.AppHost.Sdk/13.6.5">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <UserSecretsId>4299efbf-edf0-4462-b914-00b7f2501461</UserSecretsId>
@@ -6,8 +6,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Pin de seguridad de la dependencia transitiva de Aspire. -->
-    <PackageReference Include="MessagePack" />
     <PackageReference Include="Aspire.Hosting.Azure.Storage" />
     <PackageReference Include="Aspire.Hosting.DevTunnels" />
     <PackageReference Include="Aspire.Hosting.JavaScript" />
