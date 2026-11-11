@@ -2,8 +2,8 @@
 
 Plan del 2026-11-09, decidido el mismo día (RB1-A a RB5-A, con la revisión legal confirmada). El backend quedó programado
 el mismo día: la regla vigente está en [ARCA](../features/arca.md#delegación-con-robot-modo-3) y la operación en
-[correr y mantener el robot](../guides/robot-arca.md). Faltan el front, que espera la prueba integral, y la corrida real
-con las cuentas del usuario. Es la etapa 6
+[correr y mantener el robot](../guides/robot-arca.md). El front quedó programado el 2026-11-11. Falta la corrida real con
+las cuentas del usuario, en la prueba integral, y después el cierre. Es la etapa 6
 de la [hoja de ruta de ARCA](2026-10-31-arca-formularios-estandar.md) y el modo 3 de acceso: un robot propio, con
 Playwright para .NET, hace en la página de ARCA lo que en la etapa 5 se hace a mano. El cliente entra una sola vez con su
 clave fiscal; ni él ni el dueño de la plataforma tienen que entrar después a ARCA para crear el certificado, delegar,
@@ -209,9 +209,11 @@ Bajo `api/arca/connection`, con `arca.read` y `arca.manage`:
 
 ## Front
 
-Espera a que el usuario termine la prueba integral final: mientras dure, nadie edita el front. Va en la pantalla de ARCA,
-con RB1-A, RB2-A y RB3-A registrados antes en `docs/design` del front. El avance se consulta cada dos segundos mientras la
-corrida está en curso.
+Programado el 2026-11-11 en la pantalla de ARCA, con RB1-A, RB2-A y RB3-A registrados antes en
+[`docs/design/arca-robot.md`](../../../ArquitecturaBaseFront/docs/design/arca-robot.md) del front. «Delegación automática»
+es la tercera opción del modo en la zona «Datos», sólo con el robot prendido y en producción. En el modo 3, la zona del
+robot reemplaza a las de pedido, certificado y guía. El avance se consulta cada dos segundos mientras la corrida está en
+curso. Facturación llega con el punto de venta del robot elegido.
 
 ## Pruebas
 
@@ -236,9 +238,10 @@ corrida está en curso.
 3. **Backend, el robot:** Playwright contra las páginas simuladas, de los dos lados, y el aviso. Hecho el 2026-11-09.
 4. **Despliegue:** Chromium en el workflow y la receta de la imagen en la guía del robot. Hecho el 2026-11-09; la receta se
    prueba la primera vez que una instalación prenda el robot.
-5. **Front:** el 2026-11-11 el coordinador pidió terminarlo antes de una sola prueba integral. El diseño quedó en
-   `docs/design/arca-robot.md` del front y la zona del robot (RB1-A a RB3-A) programada (front 5afcd50e); falta engancharla
-   como tercer modo en la pantalla de la etapa 5 y dejar elegido el punto de venta del robot en Facturación.
+5. **Front:** hecho el 2026-11-11, antes de la prueba integral única que pidió el coordinador. El diseño está en
+   `docs/design/arca-robot.md` del front; la zona del robot (5afcd50e), el tercer modo en la pantalla de la etapa 5
+   (cde6d0dd) y el punto de venta del robot elegido en Facturación (a197460a). La corrida real con las cuentas del usuario
+   va en la prueba integral, con los pasos de [la guía](../guides/robot-arca.md#la-corrida-real).
 6. **Cierre:** la verificación de cierre de `AGENTS.md`, `features/arca.md` al día, la fila de la etapa 6 en la hoja de
    ruta, la auditoría que retira este plan y el traspaso al multitenant ofrecido.
 
