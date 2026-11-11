@@ -20,6 +20,9 @@ internal static class FormEntryRequestMapping
         new(request.RequestId, request.VersionId, Answers(request.Answers), await FilesAsync(request.Files, request.FileFieldIds, cancellationToken),
             request.Reason, request.KeptFileIds);
 
+    public static PreviewFormIssueRequest Map(PreviewFormIssueHttpRequest request) =>
+        new(request.VersionId, request.Answers?.Select(Answer).ToArray());
+
     private static FormEntryAnswer[]? Answers(string json)
     {
         try

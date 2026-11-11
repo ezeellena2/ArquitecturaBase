@@ -12,7 +12,27 @@ public static class FormEntryChannel
 public sealed record FormEntryResponse(Guid DefinitionId, Guid VersionId, long VersionNumber, string Prefix, string Name,
     string Culture, string SubmitLabel, int MaxFileSizeMiB, IReadOnlyList<FormEntryQuestionResponse> Questions)
 {
+    /// <summary>«¿La emito?» (EM2-A): sending issues a document, so the app asks for the preview before «Enviar». Absent otherwise.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public bool IssuePreview { get; init; }
+
     public override string ToString() => "FormEntryResponse { Content = [REDACTED] }";
+}
+
+/// <summary>The answers not sent yet, in the shape of a send, for the «¿La emito?» of the app.</summary>
+public sealed record PreviewFormIssueRequest(Guid VersionId, IReadOnlyList<FormEntryAnswer>? Answers)
+{
+    public override string ToString() => "PreviewFormIssueRequest { Content = [REDACTED] }";
+}
+
+/// <summary>
+/// «¿La emito?»: the document the issuer decided, by language, the receiver and the total in canonical form; or why it could not
+/// be issued as it is, with its stable code and its message.
+/// </summary>
+public sealed record FormIssuePreviewResponse(IReadOnlyDictionary<string, string>? Document, string? Receiver, string? Total,
+    string? FailureCode = null, string? FailureMessage = null)
+{
+    public override string ToString() => "FormIssuePreviewResponse { Content = [REDACTED] }";
 }
 
 public sealed record FormEntryQuestionResponse(Guid FieldId, string Type, string Label, string? Help, bool Required, int? MaxLength,

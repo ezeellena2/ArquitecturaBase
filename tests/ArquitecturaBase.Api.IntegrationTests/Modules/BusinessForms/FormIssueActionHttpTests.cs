@@ -166,6 +166,45 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal(HttpStatusCode.Conflict, again.StatusCode);
     }
 
+    [Fact]
+    public async Task A_form_that_issues_asks_its_issuer_for_the_preview_of_the_answers_before_sending_and_saves_nothing()
+    {
+        using var author = await OperatorAsync([BusinessFormsPermissions.RecordsCreate]);
+        var issuer = new TestRecordIssuer();
+        await using var host = IssuerHost(issuer);
+        using var client = InHost(host, author);
+        var (definitionId, versionId, fieldId) = await SeedIssueFormAsync(author);
+
+        using var entry = await client.GetAsync($"/api/forms/entries/{definitionId}", Ct);
+        Assert.True((await entry.ReadJsonAsync()).GetProperty("issuePreview").GetBoolean());
+        var answers = new object[] { new { fieldId, value = "3101.5" } };
+        issuer.Preview = new(new Dictionary<string, string> { ["es"] = "Factura C", ["en"] = "Invoice C" }, "Juana Pérez", "3101.5");
+        using var preview = await client.PostAsJsonAsync($"/api/forms/entries/{definitionId}/issue-preview", new { versionId, answers }, Ct);
+        Assert.Equal(HttpStatusCode.OK, preview.StatusCode);
+        var body = await preview.ReadJsonAsync();
+        Assert.Equal(("Factura C", "Juana Pérez", "3101.5"), (body.GetProperty("document").GetProperty("es").GetString(),
+            body.GetProperty("receiver").GetString(), body.GetProperty("total").GetString()));
+        var datum = Assert.Single(issuer.Previewed!);
+        Assert.Equal(("first", "3101.5"), (datum.Key, datum.Value));
+
+        issuer.Preview = new(null, null, null, FormActionErrors.IssueDataUnavailable.Code);
+        using var failed = await client.PostAsJsonAsync($"/api/forms/entries/{definitionId}/issue-preview", new { versionId, answers }, Ct);
+        var failure = await failed.ReadJsonAsync();
+        Assert.Equal(FormActionErrors.IssueDataUnavailable.Code, failure.GetProperty("failureCode").GetString());
+        Assert.False(string.IsNullOrWhiteSpace(failure.GetProperty("failureMessage").GetString()));
+        Assert.Empty(issuer.Requests);
+        Assert.Equal(0, await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormRecord>().CountAsync(record => record.DefinitionId == definitionId, Ct)));
+
+        var plain = await SeedSheetAsync(author, 0);
+        using var plainEntry = await client.GetAsync($"/api/forms/entries/{plain.Id}", Ct);
+        Assert.False((await plainEntry.ReadJsonAsync()).TryGetProperty("issuePreview", out _));
+        var plainVersion = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormDefinition>().Where(item => item.Id == plain.Id)
+            .Select(item => item.ActiveVersionId!.Value).SingleAsync(Ct));
+        using var none = await client.PostAsJsonAsync($"/api/forms/entries/{plain.Id}/issue-preview",
+            new { versionId = plainVersion, answers = Array.Empty<object>() }, Ct);
+        Assert.Equal((HttpStatusCode.NotFound, FormEntryErrors.NoIssuance.Code), (none.StatusCode, (await none.ReadJsonAsync()).GetProperty("code").GetString()));
+    }
+
     private WebApplicationFactory<Program> IssuerHost(TestRecordIssuer issuer) => factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
     {
         services.RemoveAll<IStructuredRecordIssuer>();
@@ -187,15 +226,10 @@ public sealed partial class FormDraftEndpointsTests
         return Assert.Single((await workflow.ReadJsonAsync()).GetProperty("actions").EnumerateArray());
     }
 
-    private Task<BusinessFormActionRun> RunAsync(Guid runId) =>
-        factory.ExecuteDbContextAsync(db => db.Set<BusinessFormActionRun>().AsNoTracking().SingleAsync(run => run.Id == runId, Ct));
-
-    // A form copied from the issuer's standard, with an «IssueDocument» rule, a response and its run waiting.
-    // Loaded in the app by default (it was confirmed before sending); one from a channel waits for «¿La emito?».
-    private async Task<(Guid RecordId, Guid RunId)> SeedIssueRunAsync(HttpClient actorClient, bool enteredInApp = true)
+    // A form copied from the standard of the issuer (its first question, a decimal, holds «first») with an «IssueDocument» rule.
+    private async Task<(Guid DefinitionId, Guid VersionId, Guid FieldId)> SeedIssueFormAsync(HttpClient actorClient)
     {
         var sheet = await SeedSheetAsync(actorClient, 0);
-        var actor = Guid.Parse(actorClient.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
         return await factory.ExecuteDbContextAsync(async db =>
         {
             var definition = await db.Set<BusinessFormDefinition>().SingleAsync(item => item.Id == sheet.Id, Ct);
@@ -207,6 +241,27 @@ public sealed partial class FormDraftEndpointsTests
             db.Set<BusinessFormRuleSet>().Add(ruleSet);
             await db.SaveChangesAsync(Ct);
             definition.SetActiveRuleSetId(ruleSet.Id);
+            await db.SaveChangesAsync(Ct);
+            return (definition.Id, version.Id, sheet.Fields[0].FieldId);
+        });
+    }
+
+    private Task<BusinessFormActionRun> RunAsync(Guid runId) =>
+        factory.ExecuteDbContextAsync(db => db.Set<BusinessFormActionRun>().AsNoTracking().SingleAsync(run => run.Id == runId, Ct));
+
+    // A form copied from the issuer's standard, with an «IssueDocument» rule, a response and its run waiting.
+    // Loaded in the app by default (it was confirmed before sending); one from a channel waits for «¿La emito?».
+    private async Task<(Guid RecordId, Guid RunId)> SeedIssueRunAsync(HttpClient actorClient, bool enteredInApp = true)
+    {
+        var (definitionId, _, _) = await SeedIssueFormAsync(actorClient);
+        var actor = Guid.Parse(actorClient.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
+        return await factory.ExecuteDbContextAsync(async db =>
+        {
+            var definition = await db.Set<BusinessFormDefinition>().SingleAsync(item => item.Id == definitionId, Ct);
+            var version = await db.Set<BusinessFormVersion>().SingleAsync(item => item.Id == definition.ActiveVersionId, Ct);
+            var ruleSet = await db.Set<BusinessFormRuleSet>().SingleAsync(item => item.Id == definition.ActiveRuleSetId, Ct);
+            var rule = FormDraftPolicy.Read<FormRule[]>(ruleSet.RulesJson).Single();
+            var action = rule.Actions.Single();
             var now = factory.Clock.GetUtcNow().UtcDateTime;
             var record = BusinessFormRecord.Create(definition.Id, version.Id, definition.AllocateRecordNumber(), actor, Guid.NewGuid(), now, "[]", ruleSet.Id,
                 "es", enteredInApp);

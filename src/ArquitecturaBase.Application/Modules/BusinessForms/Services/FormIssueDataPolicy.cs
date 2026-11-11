@@ -13,19 +13,24 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 internal static class FormIssueDataPolicy
 {
     /// <summary>The catalog options the response names, chosen or in a captured field of a chosen one, whose codes the issuer needs.</summary>
-    public static IReadOnlyList<Guid> ReferencedItemIds(FormRecordStoredRow row) => (row.References ?? []).SelectMany(reference =>
+    public static IReadOnlyList<Guid> ReferencedItemIds(FormRecordStoredRow row) => ReferencedItemIds(row.References ?? []);
+
+    public static IReadOnlyList<Guid> ReferencedItemIds(IReadOnlyList<FormRecordReferenceRow> references) => references.SelectMany(reference =>
         new[] { reference.ItemId }.Concat(reference.FieldValuesJson is { } json
             ? FormDraftPolicy.Read<FormCatalogCapturedField[]>(json).Where(field => field.Type == "catalog")
                 .Select(field => Guid.TryParse(FormCatalogFieldPolicy.Input(field.Value), out var id) ? id : Guid.Empty).Where(id => id != Guid.Empty)
             : [])).Distinct().ToArray();
 
     public static IReadOnlyList<StructuredIssueDatum> Read(FormRecordStoredRow row, IReadOnlyDictionary<string, Guid> bound, string culture,
-        IReadOnlyDictionary<Guid, string> codes)
+        IReadOnlyDictionary<Guid, string> codes) => Read(row.SchemaJson, row.ValuesJson, row.References ?? [], bound, culture, codes);
+
+    /// <summary>The same data from what a response keeps, also before it is sent (the «¿La emito?» of the app).</summary>
+    public static IReadOnlyList<StructuredIssueDatum> Read(string schemaJson, string valuesJson, IReadOnlyList<FormRecordReferenceRow> references,
+        IReadOnlyDictionary<string, Guid> bound, string culture, IReadOnlyDictionary<Guid, string> codes)
     {
-        var schema = FormDraftPolicy.Read<FormVersionSchema>(row.SchemaJson);
+        var schema = FormDraftPolicy.Read<FormVersionSchema>(schemaJson);
         var keys = bound.ToDictionary(pair => pair.Value, pair => pair.Key);
-        var references = row.References ?? [];
-        using var document = JsonDocument.Parse(row.ValuesJson);
+        using var document = JsonDocument.Parse(valuesJson);
         var answers = Answers(document.RootElement);
         var data = new List<StructuredIssueDatum>();
         foreach (var question in schema.Questions.Where(question => question.Repeated != true && keys.ContainsKey(question.FieldId)))

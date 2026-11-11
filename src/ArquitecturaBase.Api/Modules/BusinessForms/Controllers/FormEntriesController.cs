@@ -16,7 +16,7 @@ namespace ArquitecturaBase.Api.Modules.BusinessForms.Controllers;
 [Tags("Form entries")]
 [HasPermission(BusinessFormsPermissions.RecordsCreate)]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public sealed class FormEntriesController(IFormEntryService service) : ControllerBase
+public sealed class FormEntriesController(IFormEntryService service, IFormIssuePreviewService issues) : ControllerBase
 {
     // Up to ten files of a response, 100 MiB in total, plus the answers and the multipart envelope.
     private const long MaximumRequestBytes = 101L * 1024 * 1024;
@@ -63,4 +63,16 @@ public sealed class FormEntriesController(IFormEntryService service) : Controlle
     [ProducesProblem(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Submit([FromRoute] Guid definitionId, [FromForm] SubmitFormEntryHttpRequest request, CancellationToken cancellationToken) =>
         (await service.SubmitAsync(definitionId, await FormEntryRequestMapping.MapAsync(request, cancellationToken), cancellationToken)).ToActionResult(this);
+
+    // «¿La emito?» (EM2-A): what a form that issues would issue from the answers not sent yet; nothing is saved.
+    [HttpPost("issue-preview")]
+    [EnableRateLimiting(BusinessFormsApiRegistration.WritePolicy)]
+    [ProducesResponseType<FormIssuePreviewResponse>(StatusCodes.Status200OK)]
+    [ProducesProblem(StatusCodes.Status400BadRequest)]
+    [ProducesProblem(StatusCodes.Status403Forbidden)]
+    [ProducesProblem(StatusCodes.Status404NotFound)]
+    [ProducesProblem(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> PreviewIssue([FromRoute] Guid definitionId, [FromBody] PreviewFormIssueHttpRequest request,
+        CancellationToken cancellationToken) =>
+        (await issues.PreviewAsync(definitionId, FormEntryRequestMapping.Map(request), cancellationToken)).ToActionResult(this);
 }

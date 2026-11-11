@@ -322,7 +322,8 @@ con su consumidor (no se agrega un puerto sin quien lo use). El resultado extern
 12. **Hecho. Anular con nota de crédito:** la reversión es un run del motor; corregir una respuesta con emisión queda frenado.
 13. **El «¿La emito?» en WhatsApp** (EM2-A) y el cliente nuevo por su CUIT. **Hecho en formularios y ARCA:** la vista previa
     del emisor, el run que espera la confirmación de quien cargó por un canal, la ruta `confirmation` del flujo y «No emitir»
-    que anula con «No se emitió». Faltan los botones de WhatsApp, la vista previa antes de «Enviar» en la app y el cliente nuevo.
+    que anula con «No se emitió», y la vista previa antes de «Enviar» en la app (`issue-preview`). Faltan los botones de WhatsApp
+    y el cliente nuevo.
 14. **Front,** después de la prueba integral, con el diseño registrado en `docs/design`.
 15. **Cierre:** la verificación de `AGENTS.md`, `docs/features/arca.md`, la fila de la etapa 3 en la hoja de ruta, la guía de
     homologación, el retiro de este plan con la auditoría y el traspaso al multitenant ofrecido.

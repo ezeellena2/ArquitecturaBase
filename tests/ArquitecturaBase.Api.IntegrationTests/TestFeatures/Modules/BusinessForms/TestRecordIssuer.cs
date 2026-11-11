@@ -58,7 +58,13 @@ internal sealed class TestRecordIssuer : IStructuredRecordIssuer
     public StructuredIssueResponse CancelResult { get; set; } = new(StructuredIssueState.Cancelled);
     public StructuredIssuePreview Preview { get; set; } = new(new Dictionary<string, string> { ["es"] = "Factura C", ["en"] = "Invoice C" }, "Juana Pérez", "3101.5");
 
-    public Task<StructuredIssuePreview> PreviewAsync(IReadOnlyList<StructuredIssueDatum> data, CancellationToken cancellationToken) => Task.FromResult(Preview);
+    public IReadOnlyList<StructuredIssueDatum>? Previewed { get; private set; }
+
+    public Task<StructuredIssuePreview> PreviewAsync(IReadOnlyList<StructuredIssueDatum> data, CancellationToken cancellationToken)
+    {
+        Previewed = data;
+        return Task.FromResult(Preview);
+    }
     public StructuredIssueResponse ReversalResult { get; set; } = new(StructuredIssueState.Pending);
 
     public Task<StructuredIssueResponse> CancelAsync(Guid runId, CancellationToken cancellationToken)

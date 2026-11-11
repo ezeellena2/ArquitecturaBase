@@ -41,6 +41,17 @@ internal sealed class SubmitFormEntryRequestValidator : AbstractValidator<Submit
     }
 }
 
+/// <summary>The answers of a «¿La emito?» have the shape of a send, without files.</summary>
+internal sealed class PreviewFormIssueRequestValidator : AbstractValidator<PreviewFormIssueRequest>
+{
+    public PreviewFormIssueRequestValidator()
+    {
+        RuleFor(request => request.VersionId).NotEqual(Guid.Empty).WithMessage(_ => ValidationMessages.Required);
+        RuleFor(request => request.Answers).NotNull().WithMessage(_ => ErrorMessages.Get(FormRecordErrors.InvalidResponse.Code))
+            .Must(FormEntrySendRules.ValidAnswers).WithMessage(_ => ErrorMessages.Get(FormRecordErrors.InvalidResponse.Code));
+    }
+}
+
 /// <summary>A correction is a send plus why and the files of the replaced version that stay, up to ten files in all.</summary>
 internal sealed class CorrectFormEntryRequestValidator : AbstractValidator<CorrectFormEntryRequest>
 {

@@ -169,6 +169,7 @@
   <data name="Arca.Connection.RobotBusy" xml:space="preserve"><value>El robot no puede tomar otro trámite ahora. Probá de nuevo en unos minutos o seguí con la guía.</value></data>
   <data name="Arca.Invoicing.PointOfSaleInvalid" xml:space="preserve"><value>El punto de venta va de 1 a 99998.</value></data>
   <data name="Arca.Invoicing.PointOfSaleUnavailable" xml:space="preserve"><value>ARCA ya no ofrece ese punto de venta. Volvé a buscar los puntos de venta.</value></data>
+  <data name="Forms.Entry.NoIssuance" xml:space="preserve"><value>Este formulario no emite un comprobante al enviarlo.</value></data>
   <data name="Forms.Action.AwaitingConfirmation" xml:space="preserve"><value>La emisión espera que la confirme quien cargó la respuesta.</value></data>
   <data name="Forms.Record.IssuedNotAmendable" xml:space="preserve"><value>La respuesta tiene un comprobante emitido o en curso: anulala y cargá otra.</value></data>
   <data name="Forms.Record.Voiding" xml:space="preserve"><value>La respuesta ya se está anulando.</value></data>

@@ -13,7 +13,7 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 /// data its filters use. Only reads.
 /// </summary>
 internal sealed class FormEntryVersionPolicy(IFormEntryReader reader, FormEntryCatalogPolicy catalogs, FormPresentationCulturePolicy presentation,
-    IOptions<BusinessFormsOptions> options)
+    IOptions<BusinessFormsOptions> options, FormIssueEntryPolicy issues)
 {
     public async Task<Result<(FormEntryResponse Entry, FormVersionSchema Schema)>> DescribeAsync(Guid definitionId, Guid person,
         CancellationToken cancellationToken)
@@ -46,7 +46,7 @@ internal sealed class FormEntryVersionPolicy(IFormEntryReader reader, FormEntryC
         return (new FormEntryResponse(definitionId, version.VersionId, version.Number, definition.Prefix,
             FormRecordPresentationPolicy.Text(FormDraftPolicy.Read<Dictionary<string, string>>(version.NameJson), culture), culture,
             FormRecordPresentationPolicy.Text(FormDraftPolicy.Read<Dictionary<string, string>>(version.SubmitLabelJson), culture),
-            options.Value.MaxFileSizeMiB, questions), schema);
+            options.Value.MaxFileSizeMiB, questions) { IssuePreview = await issues.FindAsync(definitionId, cancellationToken) is not null }, schema);
     }
 
     // The menu language when the version is complete in it; the original otherwise.

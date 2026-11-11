@@ -31,6 +31,16 @@ public sealed record SubmitFormEntryHttpRequest
     public override string ToString() => "SubmitFormEntryHttpRequest { Content = [REDACTED] }";
 }
 
+/// <summary>
+/// «¿La emito?» before «Enviar»: the answers not sent yet, as the JSON array of a send (<see cref="SubmitFormEntryHttpRequest.Answers"/>),
+/// without files.
+/// </summary>
+[System.Text.Json.Serialization.JsonUnmappedMemberHandling(System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)]
+public sealed record PreviewFormIssueHttpRequest(Guid VersionId, IReadOnlyList<FormEntryAnswerHttpItem>? Answers)
+{
+    public override string ToString() => "PreviewFormIssueHttpRequest { Content = [REDACTED] }";
+}
+
 public sealed record FormEntryAnswerHttpItem(Guid FieldId, string? Value = null, IReadOnlyList<Guid>? ChoiceIds = null,
     IReadOnlyList<IReadOnlyList<FormEntryAnswerHttpItem>>? Rows = null)
 {

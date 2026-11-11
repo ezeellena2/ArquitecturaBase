@@ -987,7 +987,11 @@ ARCA» ([ADR 0028](../decisions/0028-emision-de-comprobantes-arca.md)); sin emis
   receptor y el total) sólo para quien la cargó, y `POST api/forms/records/{id}/actions/{runId}/confirmation` con
   `{"issue": true}` la emite o con `false` anula la respuesta con el motivo «No se emitió», sin ir al emisor. El botón del canal
   llega por `IStructuredRecordActionReplySink` y decide lo mismo; un botón viejo o ajeno se ignora. Lo cargado en la app ya se
-  confirmó antes de «Enviar» y se emite directo.
+  confirmó antes de «Enviar» y se emite directo: la carga trae `issuePreview` cuando enviar emite (formulario del estándar del
+  emisor y reglas vigentes con `IssueDocument`), y `POST api/forms/entries/{id}/issue-preview` con `versionId` y las respuestas
+  sin enviar (las del envío, sin archivos) pasa por la misma preparación que el envío y devuelve `document`, `receiver` y
+  `total`, o `failureCode` y `failureMessage` si no se puede emitir así. No guarda nada ni va al proveedor; un formulario que no
+  emite da `Forms.Entry.NoIssuance` (404).
 - **Corregir y anular (NC1-A).** Una respuesta con una emisión viva (emitida, en curso o en revisión) no se corrige:
   `Forms.Record.IssuedNotAmendable`, se anula y se carga otra. Anularla pide además el permiso del emisor y no la anula en el
   acto: cada emisión recibe un run de reversión (evento `Voided`) que el worker lleva fuera de toda transacción. Lo que nunca se
