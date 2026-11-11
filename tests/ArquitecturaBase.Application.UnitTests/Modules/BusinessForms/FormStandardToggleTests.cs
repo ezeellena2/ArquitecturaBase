@@ -105,6 +105,27 @@ public sealed class FormStandardToggleTests
         Assert.Empty(FormIssueDataPolicy.Read(schema, "[]", [], new Dictionary<string, Guid> { ["items"] = Items }, "es", new Dictionary<Guid, string>()));
     }
 
+    // IV1-A: the (i) of a question in the app's entry says, after its own help, what each toggle means with the value the form
+    // chose («Sin IVA: …» or «Con IVA: …»). A toggle without those texts adds nothing, and they are omitted when absent.
+    [Fact]
+    public void The_entry_help_says_what_each_toggle_means_with_the_value_chosen()
+    {
+        var said = Toggle(false) with
+        {
+            WhenOn = new Dictionary<string, string> { ["en"] = "With VAT.", ["es"] = "Con IVA." },
+            WhenOff = new Dictionary<string, string> { ["en"] = "Without VAT.", ["es"] = "Sin IVA." },
+        };
+        var price = Field(Price, "decimal", true, [said]);
+        var plain = Field(Price, "decimal", true, [Toggle(true)]);
+
+        Assert.Equal("Sin IVA.", FormEntryVersionPolicy.Help(price, "es"));
+        Assert.Equal("With VAT.", FormEntryVersionPolicy.Help(price with { Toggles = [said with { Value = true }] }, "en"));
+        Assert.Equal("Por unidad. Sin IVA.", FormEntryVersionPolicy.Help(price with { Help = new Dictionary<string, string> { ["es"] = "Por unidad." } }, "es"));
+        Assert.Null(FormEntryVersionPolicy.Help(plain, "es"));
+        Assert.Contains("\"whenOff\":{\"en\":\"Without VAT.\",\"es\":\"Sin IVA.\"}", FormDraftPolicy.Serialize(price));
+        Assert.DoesNotContain("whenO", FormDraftPolicy.Serialize(plain));
+    }
+
     private static string? BoundPath(Result result)
     {
         Assert.True(result.IsFailure);

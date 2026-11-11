@@ -39,6 +39,11 @@ public sealed class ArcaInvoiceStandardSourceTests
         Assert.Equal(("Marcala si cargás precios finales, como en un mostrador: la factura separa el IVA de cada alícuota.",
             "Check it if you enter final prices, as at a counter: the invoice separates the VAT of each rate."),
             (toggle.GetProperty("help").GetProperty("es").GetString(), toggle.GetProperty("help").GetProperty("en").GetString()));
+        // IV1-A: the (i) of «Precio unitario» in the entry says whether the prices are without or with VAT.
+        Assert.Equal(("Sin IVA: la factura le suma el de su alícuota.", "Without VAT: the invoice adds the VAT of its rate."),
+            (toggle.GetProperty("whenOff").GetProperty("es").GetString(), toggle.GetProperty("whenOff").GetProperty("en").GetString()));
+        Assert.Equal(("Con IVA: la factura separa el de su alícuota.", "With VAT: the invoice separates the VAT of its rate."),
+            (toggle.GetProperty("whenOn").GetProperty("es").GetString(), toggle.GetProperty("whenOn").GetProperty("en").GetString()));
         Assert.Single(fields, field => field.TryGetProperty("toggles", out _));
     }
 

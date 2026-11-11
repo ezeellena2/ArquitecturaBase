@@ -23,7 +23,7 @@ internal static class FormDraftRequestMapping
             field.Rows is null ? null : new FormRowSettings(field.Rows.MinRows, field.Rows.MaxRows), field.Repeated,
             field.Calculation is null ? null : new FormCalculation(field.Calculation.Operation, field.Calculation.Operands),
             field.ShowWhen is null ? null : new FormShowWhen(field.ShowWhen.QuestionId, field.ShowWhen.Values),
-            field.Toggles?.Select(toggle => toggle is null ? null! : new FormQuestionToggle(toggle.Key, toggle.Label, toggle.Help, toggle.Value)).ToArray())).ToArray()!,
+            field.Toggles?.Select(toggle => toggle is null ? null! : new FormQuestionToggle(toggle.Key, toggle.Label, toggle.Help, toggle.Value, toggle.WhenOn, toggle.WhenOff)).ToArray())).ToArray()!,
         draft.Sections?.Select(section => section is null ? null! : new FormSection(section.Start, section.Title)).ToArray(), draft.AppOnly);
     public static FormQuestionSource? Map(FormQuestionSourceHttpRequest? source) => source is null ? null : new(source.Catalog,
         source.Match?.Select(match => match is null ? null! : new FormCatalogMatch(match.FieldId, match.Value, match.PersonAttributeId, match.QuestionId)).ToArray(),

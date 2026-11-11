@@ -74,7 +74,11 @@ public sealed record FormShowWhen(Guid QuestionId, IReadOnlyList<string> Values)
 // IV2-A: a yes-or-no toggle a library standard declares on a bound question («El precio incluye IVA»): its key, its text and its
 // (i) by language, and the value chosen; the standard's draft brings the default. Only a bound question has toggles, and only
 // their value changes; the issuer receives each one as a datum of its own, "true" or "false". Without toggles the list is null.
-public sealed record FormQuestionToggle(string Key, IReadOnlyDictionary<string, string> Label, IReadOnlyDictionary<string, string> Help, bool Value)
+// WhenOn and WhenOff (IV1-A) are what the (i) of the question says in the app's entry with the value chosen («Con IVA: …»,
+// «Sin IVA: …»); without them they are omitted.
+public sealed record FormQuestionToggle(string Key, IReadOnlyDictionary<string, string> Label, IReadOnlyDictionary<string, string> Help, bool Value,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyDictionary<string, string>? WhenOn = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyDictionary<string, string>? WhenOff = null)
 {
     public const int MaxToggles = 10;
     public override string ToString() => "FormQuestionToggle { Content = [REDACTED] }";

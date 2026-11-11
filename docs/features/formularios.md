@@ -1146,7 +1146,9 @@ aparece.
   unitario», sin marcar. La copia las guarda en la pregunta y el editor muestra una casilla por cada una, debajo de «Se carga
   varias veces», con el texto y la (i) del estándar en el idioma del menú. Sólo se cambia su valor: cambiarles la clave o el
   texto, o sumar o quitar una, es `Forms.Draft.BoundQuestionChanged`. Cada una llega al emisor como un dato (ver [Emitir un
-  documento](#emitir-un-documento--issuedocument-2026-11-09)) y cambiarla pide publicar otra versión.
+  documento](#emitir-un-documento--issuedocument-2026-11-09)) y cambiarla pide publicar otra versión. Una casilla puede traer
+  también `whenOn` y `whenOff` (IV1-A): lo que dice la (i) de la pregunta en la carga de la app con el valor elegido, como
+  «Sin IVA: la factura le suma el de su alícuota.»; la carga lo suma a la ayuda de la pregunta, después de la propia.
 - **Sólo una pregunta atada** tiene casillas o una opción con que empieza: en otra, el guardado responde
   `Forms.Draft.QuestionConfigurationInvalid` en `draft.fields[i].toggles` o `draft.fields[i].source.default`. Las casillas
   llevan clave, texto y (i), sin repetir la clave y hasta diez; la opción con que empieza no va en una de elegir varias.

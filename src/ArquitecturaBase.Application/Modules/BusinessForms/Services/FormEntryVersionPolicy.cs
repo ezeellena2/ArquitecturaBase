@@ -34,7 +34,7 @@ internal sealed class FormEntryVersionPolicy(IFormEntryReader reader, FormEntryC
             if (question.Source?.Catalog is not null)
                 (catalog, personData) = await catalogs.DescribeAsync(person, question, culture, personData, cancellationToken);
             questions.Add(new(question.FieldId, question.Type, FormRecordPresentationPolicy.Text(question.Label, culture),
-                question.Help is { Count: > 0 } help ? FormRecordPresentationPolicy.Text(help, culture) : null, question.Required, question.MaxLength,
+                Help(question, culture), question.Required, question.MaxLength,
                 question.Options?.Select(option => new FormEntryChoiceResponse(option.ChoiceId, FormRecordPresentationPolicy.Text(option.Label, culture))).ToArray(),
                 question.Selection, question.Files, catalog)
             {
@@ -47,6 +47,17 @@ internal sealed class FormEntryVersionPolicy(IFormEntryReader reader, FormEntryC
             FormRecordPresentationPolicy.Text(FormDraftPolicy.Read<Dictionary<string, string>>(version.NameJson), culture), culture,
             FormRecordPresentationPolicy.Text(FormDraftPolicy.Read<Dictionary<string, string>>(version.SubmitLabelJson), culture),
             options.Value.MaxFileSizeMiB, questions) { IssuePreview = await issues.FindAsync(definitionId, cancellationToken) is not null }, schema);
+    }
+
+    // The (i) of a question: its own help and, after it, what each toggle of a bound question means with the value the form chose
+    // (IV1-A: «Sin IVA: …» or «Con IVA: …» in «Precio unitario»).
+    internal static string? Help(CanonicalFormField question, string culture)
+    {
+        var texts = new List<string>();
+        if (question.Help is { Count: > 0 } help) texts.Add(FormRecordPresentationPolicy.Text(help, culture));
+        foreach (var toggle in question.Toggles ?? [])
+            if ((toggle.Value ? toggle.WhenOn : toggle.WhenOff) is { Count: > 0 } said) texts.Add(FormRecordPresentationPolicy.Text(said, culture));
+        return texts.Count == 0 ? null : string.Join(" ", texts);
     }
 
     // The menu language when the version is complete in it; the original otherwise.

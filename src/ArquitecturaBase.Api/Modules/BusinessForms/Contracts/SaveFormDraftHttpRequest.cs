@@ -20,7 +20,8 @@ public sealed record FormFieldHttpRequest(string LocalId, Guid? FieldId, Guid? R
 { public override string ToString() => "FormFieldHttpRequest { Content = [REDACTED] }"; }
 // IV2-A: a toggle the library standard declares on a bound question, sent back as it came with the value chosen.
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
-public sealed record FormQuestionToggleHttpRequest(string Key, IReadOnlyDictionary<string, string> Label, IReadOnlyDictionary<string, string> Help, bool Value)
+public sealed record FormQuestionToggleHttpRequest(string Key, IReadOnlyDictionary<string, string> Label, IReadOnlyDictionary<string, string> Help, bool Value,
+    IReadOnlyDictionary<string, string>? WhenOn = null, IReadOnlyDictionary<string, string>? WhenOff = null)
 { public override string ToString() => "FormQuestionToggleHttpRequest { Content = [REDACTED] }"; }
 // CA1-A: a read-only decimal computed with "multiply", "sum" or "percent" over questions named by FieldId or, if new, by LocalId.
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
