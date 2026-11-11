@@ -135,10 +135,7 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
                 null, null, decoded.Error.Code, cancellationToken);
             return;
         }
-        // W1-A: the location the send received before its Flow is the answer of its question; without it, the owner decides.
-        if (WhatsAppFlowLocationPolicy.Question(projection) is { } location
-            && WhatsAppFlowLocationPolicy.Answer(session.LocationState, session.LocationLatitude, session.LocationLongitude) is { } point)
-            decoded.Value[location.Key] = point;
+        AddSendAnswers(projection, session, decoded.Value);
 
         var fileArrays = arrayValues.Where(pair => projection.Mapping.Any(field => field.Key == pair.Key
             && field.Type is "photo" or "document")).ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
@@ -292,6 +289,18 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
             && keys.Add(field.Key) && fieldIds.Add(field.FieldId)
             && field.Type is "shortText" or "longText" or "decimal" or "date" or "boolean" or "choice" or "multiChoice" or "photo" or "document" or "group" or "location")
             && WhatsAppFlowRowsCodec.IsWellFormed(projection.Mapping);
+    }
+
+    /// <summary>
+    /// What the send itself adds at capture to what the person sent in the Flow: the one place for a datum the send keeps, apart from
+    /// its logic. Today the location question takes the point received before the Flow (W1-A); without it, the owner decides as with
+    /// any unanswered question.
+    /// </summary>
+    private static void AddSendAnswers(WhatsAppFlowProjection projection, WhatsAppFlowReplySessionRow session, Dictionary<string, string> answers)
+    {
+        if (WhatsAppFlowLocationPolicy.Question(projection) is { } location
+            && WhatsAppFlowLocationPolicy.Answer(session.LocationState, session.LocationLatitude, session.LocationLongitude) is { } point)
+            answers[location.Key] = point;
     }
 
     private static Result<Dictionary<string, string>> DecodeAnswers(WhatsAppFlowProjection projection,
