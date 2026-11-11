@@ -86,6 +86,7 @@ public sealed partial class FormFolderHttpTests(ApiFactory factory)
         {
             using var response = await client.GetAsync("/api/forms/folders?kind=" + kind, Ct);
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            if (client == manager && kind == "designs") await FormFolderContractCapture.WriteAsync(response, "tree-designs-es", Ct);
             var json = await response.ReadJsonAsync();
             Assert.Equal(client == manager, json.GetProperty("canManage").GetBoolean());
             return json.GetProperty("folders").EnumerateArray().Select(folder => folder.GetProperty("id").GetGuid()).Where(mine.Contains).ToArray();
@@ -114,6 +115,7 @@ public sealed partial class FormFolderHttpTests(ApiFactory factory)
         await FileAsync(manager, "catalogs", catalog, child.Id);
 
         using var preview = await manager.GetAsync($"/api/forms/folders/{top.Id}/deletion", Ct);
+        await FormFolderContractCapture.WriteAsync(preview, "deletion", Ct);
         var impact = await preview.ReadJsonAsync();
         Assert.Equal((1L, 2, 2, 1), (impact.GetProperty("revision").GetInt64(), impact.GetProperty("subfolderCount").GetInt32(),
             impact.GetProperty("formCount").GetInt32(), impact.GetProperty("catalogCount").GetInt32()));
@@ -272,6 +274,7 @@ public sealed partial class FormFolderHttpTests(ApiFactory factory)
 
         using var response = await loader.GetAsync("/api/forms/menu", Ct);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        await FormFolderContractCapture.WriteAsync(response, "menu-es", Ct);
         var menu = await response.ReadJsonAsync();
 
         var section = menu.GetProperty("menus").EnumerateArray().Single(item => item.GetProperty("folderId").GetGuid() == own.Id);
@@ -322,6 +325,7 @@ public sealed partial class FormFolderHttpTests(ApiFactory factory)
     {
         using var response = await client.PostAsJsonAsync("/api/forms/folders", new { parentId, name }, Ct);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        await FormFolderContractCapture.WriteAsync(response, "created", Ct);
         return (await response.Content.ReadFromJsonAsync<FormFolderResponse>(Json, Ct))!;
     }
 
@@ -346,6 +350,7 @@ public sealed partial class FormFolderHttpTests(ApiFactory factory)
     {
         using var response = await client.GetAsync($"/api/forms/{items}/{itemId}/folders", Ct);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        await FormFolderContractCapture.WriteAsync(response, "item-folders", Ct);
         return (await response.ReadJsonAsync()).GetProperty("folderIds").EnumerateArray().Select(id => id.GetGuid()).ToArray();
     }
 

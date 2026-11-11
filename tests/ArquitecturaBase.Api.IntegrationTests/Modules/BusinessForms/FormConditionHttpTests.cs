@@ -44,6 +44,7 @@ public sealed class FormConditionHttpTests(ApiFactory factory)
         using var client = scenario.Client("es", scenario.FirstId);
         using var entry = await client.GetAsync($"/api/forms/entries/{scenario.DefinitionId}", Ct);
         Assert.Equal(HttpStatusCode.OK, entry.StatusCode);
+        await FormEntryContractCapture.WriteAsync(entry, "entry-condition-es", Ct);
         Assert.Equal(kindId, (await entry.ReadJsonAsync()).GetProperty("questions")[2].GetProperty("showWhen").GetProperty("questionId").GetGuid());
 
         var supplier = new { fieldId = scenario.QuestionId, value = scenario.FirstItemId.ToString("D") };

@@ -20,8 +20,7 @@ public sealed partial class FormDraftEndpointsTests
         using var designer = await OperatorAsync(["formtemplates.read", "formtemplates.manage"]);
 
         using var library = await reader.GetAsync("/api/forms/library", Ct);
-        Assert.Equal(HttpStatusCode.OK, library.StatusCode);
-        var standard = (await library.ReadJsonAsync()).GetProperty("standards").EnumerateArray()
+        var standard = (await CaptureContractAsync(library, HttpStatusCode.OK, "library", "list-es")).GetProperty("standards").EnumerateArray()
             .Single(item => item.GetProperty("key").GetString() == TestFormStandardSource.Key);
         Assert.Equal("Remito de prueba", standard.GetProperty("name").GetString());
         Assert.Equal("Pruebas", standard.GetProperty("source").GetString());
@@ -36,8 +35,7 @@ public sealed partial class FormDraftEndpointsTests
         var requestId = Guid.NewGuid();
         var prefix = "R" + Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
         using var added = await designer.PostAsJsonAsync($"/api/forms/library/{TestFormStandardSource.Key}/copies", Add(requestId, prefix), Ct);
-        Assert.Equal(HttpStatusCode.Created, added.StatusCode);
-        var definition = (await added.ReadJsonAsync()).GetProperty("definition");
+        var definition = (await CaptureContractAsync(added, HttpStatusCode.Created, "library", "copy-created")).GetProperty("definition");
         var fields = definition.GetProperty("draft").GetProperty("fields");
         var bound = definition.GetProperty("standard").GetProperty("bound");
         Assert.Equal(TestFormStandardSource.Key, definition.GetProperty("standard").GetProperty("key").GetString());

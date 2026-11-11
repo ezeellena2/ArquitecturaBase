@@ -1,5 +1,6 @@
 using System.Net;
 using ArquitecturaBase.Api.IntegrationTests.Support;
+using ArquitecturaBase.Api.IntegrationTests.TestFeatures;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
@@ -38,6 +39,7 @@ public sealed partial class FormDraftEndpointsTests
 
         using var detail = await reader.GetAsync($"/api/forms/records/{seeded.RecordId}", Ct);
         Assert.Equal(HttpStatusCode.OK, detail.StatusCode);
+        await ResponseContractCapture.WriteAsync(detail, "result-detail-es", Ct);
         var stored = Assert.Single((await detail.ReadJsonAsync()).GetProperty("results").EnumerateArray());
         Assert.Equal("arca.invoice", stored.GetProperty("source").GetString());
         Assert.Equal("Emitir comprobante en ARCA", stored.GetProperty("name").GetString());
@@ -49,6 +51,7 @@ public sealed partial class FormDraftEndpointsTests
         // The sheet takes its columns from the latest result of each source and fills the row that has one.
         using var sheet = await reader.GetAsync($"/api/forms/definitions/{definitionId}/records", Ct);
         Assert.Equal(HttpStatusCode.OK, sheet.StatusCode);
+        await ResponseContractCapture.WriteAsync(sheet, "result-sheet-es", Ct);
         var body = await sheet.ReadJsonAsync();
         var columns = body.GetProperty("resultColumns").EnumerateArray().ToArray();
         Assert.Equal(["Comprobante", "Código de autorización", "Vencimiento del código"], columns.Select(column => column.GetProperty("label").GetString()));

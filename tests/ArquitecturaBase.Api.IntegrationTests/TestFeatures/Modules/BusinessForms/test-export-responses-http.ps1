@@ -59,9 +59,12 @@ foreach ($case in @("Configuration", "Merge", "Missing", "Collision")) {
                 $responses = @($cohorts | Where-Object { $_.Name -eq "responses" })[0]
                 $pdf = @($cohorts | Where-Object { $_.Name -eq "pdf" })[0]
                 $definitions = @($cohorts | Where-Object { $_.Name -eq "forms" })[0]
-                Assert-Condition ($responses.RequiredNames.Count -eq 63) "Responses must preserve the prior artifacts, ten captured extra-field artifacts and eight rows artifacts."
+                Assert-Condition ($responses.RequiredNames.Count -eq 65) "Responses must preserve the prior artifacts, ten captured extra-field artifacts, eight rows artifacts and the two of an external result."
+                foreach ($name in @("result-detail-es.json", "result-sheet-es.json")) { Assert-Condition ($name -in $responses.RequiredNames) "An external result capture (RE1-A) is missing." }
                 Assert-Condition ($pdf.RequiredNames.Count -eq 36) "PDF must preserve twenty-eight artifacts and add four multiple-choice and four rows artifacts."
-                Assert-Condition ($definitions.RequiredNames.Count -eq 70) "Definitions must preserve the prior bodies, sixteen recipient filter bodies, four rows bodies and two section title bodies."
+                Assert-Condition ($definitions.RequiredNames.Count -eq 77) "Definitions must preserve the prior bodies, sixteen recipient filter bodies, four rows bodies, two section title bodies, two library bodies and five folder bodies."
+                foreach ($directory in @("library", "folders")) { Assert-Condition ($directory -in $definitions.IncludeDirectories) "The definition cohort must retain the library and folder captures." }
+                foreach ($name in @("library/list-es.json", "library/copy-created.json", "folders/tree-designs-es.json", "folders/deletion.json", "folders/menu-es.json", "folders/created.json", "folders/item-folders.json")) { Assert-Condition ($name -in $definitions.RequiredNames) "A library or folder capture is missing." }
                 foreach ($name in @("rows/draft", "rows/publication-check", "rows/publication-check-moved", "rows/publication-check-minimum", "sections/draft", "sections/publication-check")) {
                     Assert-Condition ("$name.json" -in $definitions.RequiredNames) "A rows or section title definition capture is missing."
                 }

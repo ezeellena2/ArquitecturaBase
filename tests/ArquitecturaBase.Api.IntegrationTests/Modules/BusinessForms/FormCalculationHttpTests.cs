@@ -48,6 +48,7 @@ public sealed class FormCalculationHttpTests(ApiFactory factory)
         using var client = scenario.Client("es", scenario.FirstId);
         using var entry = await client.GetAsync($"/api/forms/entries/{scenario.DefinitionId}", Ct);
         Assert.Equal(HttpStatusCode.OK, entry.StatusCode);
+        await FormEntryContractCapture.WriteAsync(entry, "entry-calculation-es", Ct);
         var questions = (await entry.ReadJsonAsync()).GetProperty("questions");
         Assert.Equal("multiply", questions[4].GetProperty("calculation").GetProperty("operation").GetString());
         Assert.Equal("sum", questions[5].GetProperty("calculation").GetProperty("operation").GetString());
