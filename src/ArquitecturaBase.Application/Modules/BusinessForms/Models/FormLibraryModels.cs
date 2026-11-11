@@ -1,8 +1,11 @@
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Models;
 
-/// <summary>A standard of the library (BI1-A, as DOC1): its name and description in the display language and how many forms came from it.</summary>
+/// <summary>A standard of the library (BI1-A, as DOC1): its name and description in the display language, how many forms came from it and
+/// the module that brings it, when it says.</summary>
 public sealed record FormLibraryStandardResponse(string Key, int Version, string Name, string Description, string Prefix, int Copies)
 {
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? Source { get; init; }
     public override string ToString() => "FormLibraryStandardResponse { Content = [REDACTED] }";
 }
 public sealed record FormLibraryResponse(IReadOnlyList<FormLibraryStandardResponse> Standards);

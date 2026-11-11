@@ -35,7 +35,7 @@ internal sealed class TestFormStandardSource : IStructuredFormStandardSource
             "RTP", Draft, new Dictionary<string, string>
             {
                 [Customer] = "customer", [Items] = "items", [Quantity] = "quantity", [Price] = "price", [Amount] = "amount", [Total] = "total",
-            }),
+            }, Source: new Dictionary<string, string> { ["es"] = "Pruebas", ["en"] = "Tests" }),
         new(CustomersKey, 1, new Dictionary<string, string> { ["es"] = "Venta de prueba", ["en"] = "Test sale" },
             new Dictionary<string, string> { ["es"] = "Una venta a un cliente del catálogo que trae.", ["en"] = "A sale to a customer of the catalog it brings." },
             "VTP", $$$"""

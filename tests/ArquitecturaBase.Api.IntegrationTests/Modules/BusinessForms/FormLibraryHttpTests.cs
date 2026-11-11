@@ -24,6 +24,7 @@ public sealed partial class FormDraftEndpointsTests
         var standard = (await library.ReadJsonAsync()).GetProperty("standards").EnumerateArray()
             .Single(item => item.GetProperty("key").GetString() == TestFormStandardSource.Key);
         Assert.Equal("Remito de prueba", standard.GetProperty("name").GetString());
+        Assert.Equal("Pruebas", standard.GetProperty("source").GetString());
         var copiesBefore = standard.GetProperty("copies").GetInt32();
 
         using var forbidden = await reader.PostAsJsonAsync($"/api/forms/library/{TestFormStandardSource.Key}/copies", Add(Guid.NewGuid(), "RTA"), Ct);
