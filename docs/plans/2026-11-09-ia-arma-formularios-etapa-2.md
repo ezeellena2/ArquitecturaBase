@@ -399,4 +399,6 @@ siembra fallida imprime su código de error y las rutas de los campos (51db5a59)
   planilla en el mensaje (d42603dc). La planilla en el chat de WhatsApp (faf9b7c9). Son 24 escenas visuales nuevas.
 
 Unitarias 4625/4625 e integración de las clases tocadas 45/45. Hasta la exportación conjunta, `attachments` va opcional en el zod
-del front, para que el test de contrato siga en verde con la captura de hoy.
+del front, para que el test de contrato siga en verde con la captura de hoy (front 8bf31247). En ese mismo commit, el micrófono, el
+clip y la X habilitados pasan a verse grises, como la flecha, y se regeneraron sus 24 referencias. Después de la exportación se
+vuelve requerido `attachments` y entran los tests de las capturas nuevas.
