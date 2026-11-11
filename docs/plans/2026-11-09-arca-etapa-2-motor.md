@@ -164,7 +164,9 @@ Cada tarea con su test en rojo primero, el build y los tests rápidos del área,
 7. ~~La alícuota desde un catálogo con valor numérico.~~ Hecho (ed3ef5bc).
 8. ~~Front: el editor, la vista previa en la página, el panel y la tabla del bloque.~~ Hecho: el modelo y la lógica
    (650b4d40), la carga en gris mientras se escribe (d8c731e1), el detalle del borrador (81bcb7e6), «Qué calcula» en el
-   editor (bf6f64ac), Guardar que frena un cálculo sin completar (4c79b0c0, 0121a4f4) y las escenas (b1d3de79). Una alícuota
+   editor (bf6f64ac), Guardar que frena un cálculo sin completar (4c79b0c0, 0121a4f4) y las escenas (b1d3de79). El editor
+   que quedaba en «Cargando…» con un formulario en el otro idioma se arregló en el front 97a7318e: retirar un aviso que no
+   está a la vista ya no reinicia el dibujo. Una alícuota
    de un catálogo se ve recién al enviar: la opción de la carga no trae su valor.
 
 **Resultado externo**
@@ -201,7 +203,7 @@ Cada tarea con su test en rojo primero, el build y los tests rápidos del área,
 24. ~~Front: ver y filtrar, ordenar y menú.~~ Hecho: contratos, árbol y lecturas (aa10d91d), el panel, sus diálogos y el menú
     lateral (9d34e95d), los tres listados y «Carpetas…» (56eeec07), el diseño y las guías (243e51ae, 6b08593a) y los
     renglones de 44 px en el celular (24d9e50a). «Carpetas…» del encabezado de los editores pasa al ⋮ de AC1-A con el chat
-    que la programa.
+    que la programa. Mientras se lee el menú, los menús propios no ocupan lugar (front 4febe808).
 
 **Condiciones**
 
@@ -226,9 +228,6 @@ Cada tarea con su test en rojo primero, el build y los tests rápidos del área,
 
 ## Pendiente
 
-- El editor de un formulario en el otro idioma a veces queda en «Cargando…»: `FormEditorOriginalPreview.test.tsx` falla así
-  y una escena del motor falló 1 de 14 veces. Después de cargar las traducciones del original, el editor se vuelve a dibujar
-  cada ~50 ms sin terminar nunca. Depende del momento, así que bisecar no señala un commit. Va a la verificación conjunta.
 - Los tests del front que leen las capturas nuevas (31f7b31c: forms-entries-http +2, forms-responses-http 63 → 65 y
   forms-http 70 → 77) van después de la exportación conjunta que corre la coordinadora de la tanda.
 - Con [Formularios sólo en la app](2026-11-09-formularios-solo-en-la-app.md) no corre nada de WhatsApp (SA2-A): los
