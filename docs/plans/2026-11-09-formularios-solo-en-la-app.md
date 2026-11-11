@@ -2,8 +2,8 @@
 
 Decidido el 2026-11-09: el usuario eligió las siete recomendadas («Sí, las recomendadas»). **El backend quedó programado el
 mismo día** (corte 1, con el visto bueno del usuario: «Ahora, el backend»). **El front quedó programado el 2026-11-11**, al
-terminar la prueba integral (corte 2, «Sí, al terminar»). Falta el cierre: la exportación de los ejemplos HTTP, las corridas
-completas, la prueba a mano y retirar el plan.
+terminar la prueba integral (corte 2, «Sí, al terminar»). Las capturas de los ejemplos HTTP ya están (cinco cuerpos en
+`forms-http/app-only`); falta el cierre: la exportación conjunta, las corridas completas, la prueba a mano y retirar el plan.
 Las reglas vigentes están en [formularios](../features/formularios.md#formularios-sólo-en-la-app--sa1-a-a-sa5-2026-11-09). Lo pidió durante esa prueba: «Quiero poder
 crear formularios que no vayan a WhatsApp, que sean sólo de la app». Hoy no se puede, porque publicar una versión siempre pasa
 por un canal.
@@ -175,9 +175,9 @@ durable ([ADR 0018](../decisions/0018-robustez-proporcional-al-efecto.md)): se a
    `SegmentedControl` que en el celular baja de renglón (`wrap`) y las escenas de `formAppOnly.spec.ts`. Los ejemplos HTTP de un
    formulario de la app pasaron al cierre: la exportación conjunta corre la suite entera y copia las 25 cohortes de una sola
    corrida, y ese día otras sesiones tenían cambios sin commitear en los dos repos y la PC al 100 %.
-3. **Cierre:** la exportación conjunta de los ejemplos HTTP con los de un formulario de la app (capturas en
-   `FormAppOnlyPublicationTests` y su consumidor en el front); la corrida completa con Docker y el front entero (build, lint,
-   vitest y test:visual); la prueba a mano (crear un
+3. **Cierre:** la exportación conjunta de los ejemplos HTTP con los de un formulario de la app (las cinco capturas de
+   `FormAppOnlyPublicationTests` en `forms-http/app-only`, escritas el 2026-11-11, y después su consumidor en el front); la
+   corrida completa con Docker y el front entero (build, lint, vitest y test:visual); la prueba a mano (crear un
    formulario de la app, publicarlo, cargarlo, pasarlo a WhatsApp con Meta y volverlo a la app) y volver a probar «Quitar
    WhatsApp» en una copia. Las decisiones pasan a formularios y al front, y el plan se retira.
 

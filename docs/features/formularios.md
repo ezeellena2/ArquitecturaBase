@@ -1190,7 +1190,7 @@ Está el backend; el front, por programar.
 
 Un formulario puede completarse sólo en la app, sin pasar por WhatsApp. Lo eligió el usuario en los tableros SA1 a SA5 (el
 [plan](../plans/2026-11-09-formularios-solo-en-la-app.md) y las [pantallas](../../../ArquitecturaBaseFront/docs/design/formularios-solo-en-la-app.md)).
-Están el backend (2026-11-09) y el front (2026-11-11); faltan los ejemplos HTTP de un formulario de la app, que van con el cierre.
+Están el backend (2026-11-09) y el front (2026-11-11); los ejemplos HTTP de un formulario de la app ya se capturan y entran con la exportación conjunta del cierre.
 
 - **El borrador.** `draft.appOnly` es «Dónde se completa»: `true` para «Sólo en la app»; si no, se omite (se guarda como false
   en `FormDefinitions.AppOnly`), así lo que existía conserva sus bytes y sus huellas. Se guarda con el borrador y su revisión,
