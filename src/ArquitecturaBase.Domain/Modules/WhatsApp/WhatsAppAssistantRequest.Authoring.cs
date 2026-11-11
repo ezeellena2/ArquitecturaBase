@@ -6,8 +6,8 @@ public sealed partial class WhatsAppAssistantRequest
 {
     /// <summary>The operation this interpretation continues; the engine adds its turn to that operation's conversation.</summary>
     public Guid? PreviousRequestId { get; private set; }
-    /// <summary>The operation the next message continues: the one whose proposal «Cambiar algo» changes, or this reference's own
-    /// operation when it asked what to build.</summary>
+    /// <summary>The operation the next message continues: the one whose proposal «Cambiar algo» changes, this reference's own
+    /// operation when it asked what to build or, when a newer message replaced it before it answered, the one it continued.</summary>
     public Guid? ChangeRequestId { get; private set; }
 
     public bool ContinueFrom(Guid previousRequestId)
@@ -27,6 +27,14 @@ public sealed partial class WhatsAppAssistantRequest
         if (State != WhatsAppAssistantRequestState.Pending) return false;
         ChangeRequestId = RequestId;
         return true;
+    }
+
+    /// <summary>A newer message replaced this interpretation in progress before it answered: it is no turn the person saw, so the
+    /// message that replaces it continues what it continued. A reference that ended on its own (a failure) leaves nothing to continue.</summary>
+    public bool Replace(DateTime nowUtc)
+    {
+        if (State == WhatsAppAssistantRequestState.Pending && PreviousRequestId is { } continued) ChangeRequestId ??= continued;
+        return FinishWithoutReply(true, nowUtc);
     }
 
     public bool AwaitChange(Guid requestId)

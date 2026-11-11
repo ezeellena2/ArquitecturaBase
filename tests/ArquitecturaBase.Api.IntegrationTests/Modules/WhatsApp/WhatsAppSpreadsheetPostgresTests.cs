@@ -96,7 +96,7 @@ public sealed class WhatsAppSpreadsheetPostgresTests(ApiFactory factory)
         Assert.Equal(1, probe.Downloads);
         var reply = Assert.Single(await OutgoingAsync(host, person.ContactId));
         Assert.Equal((WhatsAppMessageOrigin.Assistant, WhatsAppOutgoingMessageKind.Text, person.RecipientId), (reply.Origin, reply.Kind, reply.RecipientUserId));
-        Assert.Equal("No puedo leer la planilla. Guardala como Libro de Excel (.xlsx), o un CSV como CSV UTF-8, y mandala de nuevo.", reply.Body);
+        Assert.Equal("No puedo leer la planilla. Guardala como Libro de Excel (.xlsx), o un CSV como CSV UTF-8, y mandala de nuevo contándome qué querés que haga con ella.", reply.Body);
         var reference = Assert.Single(await ReferencesAsync(host, person.ContactId));
         Assert.Equal((message.Id, WhatsAppAssistantRequestState.Sent, (Guid?)reply.Id), (reference.SourceMessageId, reference.State, reference.OutgoingId));
 

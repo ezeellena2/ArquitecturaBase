@@ -71,10 +71,12 @@ internal sealed class WhatsAppAssistantDispatchService(WhatsAppAssistantAccessPo
             requests.Add(row);
         }
         if(row is null)return Result.Success<WhatsAppAssistantWorkResponse?>(null);
-        if(await access.RevalidateAsync(contact,WhatsAppAssistantSuggestionPolicy.Reference(row),ct) is not null || !MatchesSource(row,latest))
+        var revoked=await access.RevalidateAsync(contact,WhatsAppAssistantSuggestionPolicy.Reference(row),ct) is not null;
+        if(revoked || !MatchesSource(row,latest))
         {
             supersede(WhatsAppAssistantSuggestionPolicy.Reference(row));
-            row.FinishWithoutReply(true,proposals.NowUtc);
+            // A newer message replaced it before it answered: the message that replaces it continues what it continued.
+            if(revoked) row.FinishWithoutReply(true,proposals.NowUtc); else row.Replace(proposals.NowUtc);
             return Result.Success<WhatsAppAssistantWorkResponse?>(null);
         }
         var work = Work(row, latest!, true);
@@ -252,8 +254,18 @@ internal sealed class WhatsAppAssistantDispatchService(WhatsAppAssistantAccessPo
                     return Result.Success();
                 }
             }
-            else if (await access.RevalidateAsync(contact, WhatsAppAssistantSuggestionPolicy.Reference(row), token) is not null
-                || await reader.FindLatestSourceAsync(contactId, token) is not {} latest || !MakesRequest(row, latest) || observed.IsFailure)
+            else if (await access.RevalidateAsync(contact, WhatsAppAssistantSuggestionPolicy.Reference(row), token) is not null)
+            {
+                row.FinishWithoutReply(true, proposals.NowUtc);
+                return Result.Success();
+            }
+            else if (await reader.FindLatestSourceAsync(contactId, token) is not {} latest || !MakesRequest(row, latest))
+            {
+                // Its result came after a newer message replaced it: that message continues what this one continued.
+                row.Replace(proposals.NowUtc);
+                return Result.Success();
+            }
+            else if (observed.IsFailure)
             {
                 row.FinishWithoutReply(true, proposals.NowUtc);
                 return Result.Success();

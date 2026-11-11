@@ -1,13 +1,20 @@
 using System.Reflection;
+using ArquitecturaBase.Api.IntegrationTests.Support;
+using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.WhatsApp;
+using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
+using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Infrastructure.Modules.WhatsApp;
 using ArquitecturaBase.Infrastructure.Modules.WhatsApp.Persistence.Readers;
 using ArquitecturaBase.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.WhatsApp;
-public sealed class WhatsAppAssistantSourceQueryTests
+// The SQL of the sources is checked without opening a database; the pairing with the reply in between, with PostgreSQL.
+[Collection(ApiTestGroup.Name)]
+public sealed class WhatsAppAssistantSourceQueryTests(ApiFactory factory)
 {
     [Fact]
     public void A_terminal_source_marker_is_projected_without_hiding_the_source_from_reference_recovery()
@@ -149,6 +156,8 @@ public sealed class WhatsAppAssistantSourceQueryTests
     [InlineData("ORDER BY")]
     [InlineData("WhatsAppOutgoingMessages")]
     [InlineData("\"RequestedAtUtc\" >")]
+    [InlineData("\"RequestedAtUtc\" <")]
+    [InlineData("'Failed'")]
     [InlineData("\"Origin\"")]
     public void The_message_before_a_source_and_the_replies_in_between_are_read_in_SQL(string expected)
     {
@@ -158,4 +167,46 @@ public sealed class WhatsAppAssistantSourceQueryTests
         var source=new ArquitecturaBase.Application.Modules.WhatsApp.Models.WhatsAppAssistantSourceRow(Guid.NewGuid(),Guid.NewGuid(),"Armame un catálogo",now,now.AddDays(90)){InboundSequence=4};
         var query=Assert.IsAssignableFrom<IQueryable>(typeof(WhatsAppAssistantReader).GetMethod("PreviousRows",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(reader,[source]));
         Assert.Contains(expected,query.ToQueryString(),StringComparison.Ordinal);
+    }
+
+    // With PostgreSQL and the real reader: only an assistant reply requested after the message before and before the source keeps them
+    // apart; one requested after the source, or one that failed, does not.
+    [Theory]
+    [InlineData("between",false)]
+    [InlineData("failed-between",true)]
+    [InlineData("after-the-source",true)]
+    public async Task Only_a_reply_that_did_not_fail_requested_between_the_two_messages_keeps_them_apart(string reply,bool paired)
+    {
+        await using var host=await WhatsAppAssistantScenario.CreateAsync(factory,Ct);
+        var person=await host.ContactAsync(Ct,automatic:true);
+        var now=host.Clock.GetUtcNow().UtcDateTime;
+        await host.InTransactionAsync(async services=>
+        {
+            var db=services.GetRequiredService<ApplicationDbContext>();
+            var contact=await db.Set<WhatsAppContact>().SingleAsync(row=>row.Id==person.ContactId,Ct);
+            Add(db,contact,WhatsAppMessage.Inbound(contact.Id,MetaWebhook.UniqueWaMessageId(),WhatsAppMessageKind.Text,"Armame un catálogo de clientes",null,now.AddMinutes(-3)),now);
+            var outgoing=WhatsAppOutgoingMessage.CreateAssistantText(person.RecipientId,contact.Id,Guid.NewGuid(),"Respuesta ficticia",
+                reply=="after-the-source"?now.AddSeconds(-30):now.AddMinutes(-2),contact.LinkRevision,contact.WaId!,contact.ModeRevision);
+            if(reply=="failed-between")outgoing.Fail();
+            db.Add(outgoing);
+            var spreadsheet=WhatsAppMessage.Inbound(contact.Id,MetaWebhook.UniqueWaMessageId(),WhatsAppMessageKind.Spreadsheet,null,null,now.AddMinutes(-1));
+            Assert.True(spreadsheet.SetSpreadsheetDescriptor("1234","text/csv",new string('a',64),"clientes.csv"));
+            Assert.True(spreadsheet.StoreSpreadsheet($"whatsapp/documents/{spreadsheet.Id:N}.csv",27,new string('b',64),"{\"rowCount\":2}").IsSuccess);
+            Add(db,contact,spreadsheet,now);
+            return true;
+        },Ct);
+
+        var source=await host.ScopeAsync(services=>services.GetRequiredService<IWhatsAppAssistantReader>().FindLatestSourceAsync(person.ContactId,Ct));
+
+        Assert.Equal(paired?("Armame un catálogo de clientes",WhatsAppAssistantSourceState.Ready):("",WhatsAppAssistantSourceState.Alone),(source!.Body,source.State));
+    }
+
+    private static CancellationToken Ct=>TestContext.Current.CancellationToken;
+
+    private static void Add(ApplicationDbContext db,WhatsAppContact contact,WhatsAppMessage message,DateTime nowUtc)
+    {
+        message.Classify(WhatsAppMessagePurpose.Business);
+        message.SetInboundSequence(contact.RegisterInboundMessage());
+        message.MarkProcessed(nowUtc);
+        db.Add(message);
     }}

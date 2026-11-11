@@ -169,6 +169,165 @@ public sealed class WhatsAppAssistantSpreadsheetIntegrationTests(ApiFactory fact
         Assert.StartsWith("¿Qué querés que haga con esta planilla?", again.Body, StringComparison.Ordinal);
     }
 
+    // «Cambiar algo» and then the spreadsheet and its text, in either order: the second message replaces the answer in progress, which
+    // never answered, and the pair continues the summary's operation, like the answer it replaced. The engine adds that turn at the end of
+    // the conversation, with the summary's proposal in its history (AiAssistantOperationContinuationTests, with the real engine).
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task After_change_something_the_pair_that_replaces_an_answer_in_progress_continues_the_summary(bool spreadsheetFirst)
+    {
+        var probe = new WhatsAppDocumentProbe { Bytes = Csv };
+        await using var host = await CreateAsync(probe, new ProposalLookup());
+        var person = await PersonAsync(host);
+        var summary = await SummaryAsync(host, person, probe);
+        var change = await TapAsync(host, person.ContactId, summary.Buttons.QuickReplies[1].Id);
+        await ProcessTapAsync(host, person.ContactId);
+        Assert.Equal((Guid?)summary.RequestId, (await TapReferenceAsync(host, person.ContactId, change)).ChangeRequestId);
+
+        host.Clock.Advance(TimeSpan.FromMinutes(1));
+        var first = spreadsheetFirst ? await ReceiveSpreadsheetAsync(host, person, probe, null) : await ReceiveTextAsync(host, person, "Agregá el campo Rubro");
+        await ProcessAsync(host);
+        var answering = host.Operations.SubmitRequests[^1];
+        Assert.Equal(((Guid?)summary.RequestId, spreadsheetFirst ? "" : "Agregá el campo Rubro"), (answering.PreviousRequestId, answering.Text));
+
+        host.Clock.Advance(TimeSpan.FromMinutes(1));
+        var second = spreadsheetFirst ? await ReceiveTextAsync(host, person, "Agregá el campo Rubro") : await ReceiveSpreadsheetAsync(host, person, probe, null);
+        await ProcessAsync(host);
+        var replaced = await ReferenceAsync(host, answering.RequestId);
+        Assert.Equal((WhatsAppAssistantRequestState.Blocked, (Guid?)summary.RequestId), (replaced.State, replaced.ChangeRequestId));
+        await ProcessAsync(host);
+
+        var replacing = host.Operations.SubmitRequests[^1];
+        var spreadsheet = await MessageAsync(host, spreadsheetFirst ? first : second);
+        Assert.Equal(("Agregá el campo Rubro", (Guid?)summary.RequestId, $"whatsapp/documents/{spreadsheet.Id:N}.csv"),
+            (replacing.Text, replacing.PreviousRequestId, replacing.Attachment!.StorageKey));
+        Assert.Equal((Guid?)spreadsheet.Id, (await ReferenceAsync(host, replacing.RequestId)).AttachmentMessageId);
+    }
+
+    // After a question the summary is still the latest one: its «Cambiar algo» works, and the next message continues the summary's
+    // operation, which the engine adds after the question's turn.
+    [Fact]
+    public async Task After_a_question_change_something_of_the_latest_summary_still_works()
+    {
+        var probe = new WhatsAppDocumentProbe { Bytes = Csv };
+        await using var host = await CreateAsync(probe, new ProposalLookup());
+        var person = await PersonAsync(host);
+        var summary = await SummaryAsync(host, person, probe);
+        await TapAsync(host, person.ContactId, summary.Buttons.QuickReplies[1].Id);
+        await ProcessTapAsync(host, person.ContactId);
+        host.Clock.Advance(TimeSpan.FromMinutes(1));
+        await ReceiveTextAsync(host, person, "Cambiá eso");
+        await ProcessAsync(host);
+        var asked = host.Operations.SubmitRequests[^1];
+        Assert.Equal((Guid?)summary.RequestId, asked.PreviousRequestId);
+        await CompleteAsync(host, person, asked, await ProposeAsync(host, asked, new("forms.authoring.decline", 1), """{"reason":"unclear","prefix":null,"catalogId":null}"""));
+        Assert.Equal(WhatsAppOutgoingMessageKind.Text, (await OutgoingAsync(host, (await ReferenceAsync(host, asked.RequestId)).OutgoingId!.Value)).Kind);
+
+        var again = await TapAsync(host, person.ContactId, summary.Buttons.QuickReplies[1].Id);
+        await ProcessTapAsync(host, person.ContactId);
+        Assert.Equal((Guid?)summary.RequestId, (await TapReferenceAsync(host, person.ContactId, again)).ChangeRequestId);
+        host.Clock.Advance(TimeSpan.FromMinutes(1));
+        await ReceiveTextAsync(host, person, "Agregá el campo Rubro");
+        await ProcessAsync(host);
+
+        var changed = host.Operations.SubmitRequests[^1];
+        Assert.Equal(("Agregá el campo Rubro", (Guid?)summary.RequestId), (changed.Text, changed.PreviousRequestId));
+    }
+
+    // A summary of the assistant between a text and a spreadsheet keeps them apart: the spreadsheet alone stays in the chat.
+    [Fact]
+    public async Task A_summary_between_a_text_and_a_spreadsheet_keeps_them_apart()
+    {
+        var probe = new WhatsAppDocumentProbe { Bytes = Csv };
+        await using var host = await CreateAsync(probe, new ProposalLookup());
+        var person = await PersonAsync(host);
+        await ReceiveTextAsync(host, person, "Armame un catálogo de clientes");
+        await ProcessAsync(host);
+        var interpreted = Assert.Single(host.Operations.SubmitRequests);
+        host.Clock.Advance(TimeSpan.FromSeconds(5));
+        await CompleteAsync(host, person, interpreted, await ProposeAsync(host, interpreted, new("forms.authoring.propose-catalog", 2),
+            """{"name":"Clientes ficticios","description":"Clientes del negocio.","valueType":"text","code":"el código","option":"el nombre","fields":[],"mapping":null}"""));
+        Assert.Equal(WhatsAppOutgoingMessageKind.QuickReplies, (await OutgoingAsync(host, (await ReferenceAsync(host, interpreted.RequestId)).OutgoingId!.Value)).Kind);
+
+        host.Clock.Advance(TimeSpan.FromMinutes(1));
+        var spreadsheet = await ReceiveSpreadsheetAsync(host, person, probe, null);
+        await ProcessAsync(host);
+
+        var message = await MessageAsync(host, spreadsheet);
+        Assert.Equal(WhatsAppSpreadsheetState.Stored, message.SpreadsheetState);
+        Assert.NotNull(message.AssistantProcessedAtUtc);
+        Assert.Single(host.Operations.SubmitRequests);
+        Assert.Single(await ReferencesAsync(host, person.ContactId));
+    }
+
+    // A text that arrives while its spreadsheet is read is answered by the rejection, which is requested after it: no reply in between
+    // keeps them apart, and the text is not interpreted.
+    [Fact]
+    public async Task A_text_whose_spreadsheet_is_rejected_after_it_is_not_interpreted()
+    {
+        var probe = new WhatsAppDocumentProbe { Bytes = Encoding.Latin1.GetBytes("Código;Texto\nA1;Año\n") };
+        await using var host = await CreateAsync(probe, new ProposalLookup());
+        var person = await PersonAsync(host);
+        await ReceiveSpreadsheetAsync(host, person, probe, null);
+        host.Clock.Advance(TimeSpan.FromSeconds(5));
+        var text = await ReceiveTextAsync(host, person, "Armame un catálogo con esta planilla");
+        host.Clock.Advance(TimeSpan.FromSeconds(5));
+
+        await ProcessAsync(host);
+        await ProcessAsync(host);
+
+        var rejection = Assert.Single(await ReferencesAsync(host, person.ContactId));
+        Assert.Equal((Guid?)rejection.RequestId, rejection.ProposalId);
+        Assert.StartsWith("No puedo leer la planilla.", (await OutgoingAsync(host, rejection.OutgoingId!.Value)).Body, StringComparison.Ordinal);
+        Assert.NotNull((await MessageAsync(host, text)).AssistantProcessedAtUtc);
+        Assert.Empty(host.Operations.SubmitRequests);
+    }
+
+    // A text waits for the spreadsheet before it while it is still downloaded, and then goes with it.
+    [Fact]
+    public async Task A_text_waits_for_its_spreadsheet_while_it_is_downloaded()
+    {
+        var probe = new WhatsAppDocumentProbe { Bytes = Csv, Failures = 1 };
+        await using var host = await CreateAsync(probe, new ProposalLookup());
+        var person = await PersonAsync(host);
+        var spreadsheet = await ReceiveSpreadsheetAsync(host, person, probe, null);
+        var text = await ReceiveTextAsync(host, person, "Armame un catálogo de clientes");
+
+        await ProcessAsync(host);
+
+        Assert.Equal(WhatsAppSpreadsheetState.Pending, (await MessageAsync(host, spreadsheet)).SpreadsheetState);
+        Assert.Null((await MessageAsync(host, text)).AssistantProcessedAtUtc);
+        Assert.Empty(host.Operations.SubmitRequests);
+        Assert.Empty(await ReferencesAsync(host, person.ContactId));
+
+        host.Clock.Advance(TimeSpan.FromSeconds(31));
+        await ProcessAsync(host);
+
+        var stored = await MessageAsync(host, spreadsheet);
+        var submitted = Assert.Single(host.Operations.SubmitRequests);
+        Assert.Equal(("Armame un catálogo de clientes", $"whatsapp/documents/{stored.Id:N}.csv"), (submitted.Text, submitted.Attachment!.StorageKey));
+        Assert.Equal(2, probe.Downloads);
+    }
+
+    // A summary with its buttons, for a spreadsheet with its request.
+    private static async Task<(Guid RequestId, WhatsAppOutgoingMessage Buttons)> SummaryAsync(WhatsAppAssistantScenario host, WhatsAppAssistantContact person,
+        WhatsAppDocumentProbe probe)
+    {
+        await ReceiveSpreadsheetAsync(host, person, probe, "Armame un catálogo de clientes con esta planilla");
+        await ProcessAsync(host);
+        var submitted = host.Operations.SubmitRequests[^1];
+        await CompleteAsync(host, person, submitted, await ProposeAsync(host, submitted, new("forms.authoring.propose-catalog", 2),
+            """{"name":"Clientes ficticios","description":"Clientes del negocio.","valueType":"text","code":"el código","option":"el nombre","fields":[],"mapping":{"hasHeaders":true,"code":"A","option":"B","value":null,"detail":null,"fields":[]}}"""));
+        var buttons = await OutgoingAsync(host, (await ReferenceAsync(host, submitted.RequestId)).OutgoingId!.Value);
+        Assert.Equal(["Crear catálogo", "Cambiar algo"], buttons.QuickReplies.Select(reply => reply.Title));
+        return (submitted.RequestId, buttons);
+    }
+
+    private static Task<WhatsAppAssistantRequest> TapReferenceAsync(WhatsAppAssistantScenario host, Guid contactId, Guid tapId) => host.ScopeAsync(services =>
+        services.GetRequiredService<ApplicationDbContext>().Set<WhatsAppAssistantRequest>().AsNoTracking()
+            .SingleAsync(row => row.ContactId == contactId && row.SourceMessageId == tapId, Ct));
+
     private async Task<WhatsAppAssistantScenario> CreateAsync(WhatsAppDocumentProbe probe, ProposalLookup lookup)
     {
         var host = await WhatsAppAssistantScenario.CreateAsync(factory, Ct, builder => builder.ConfigureTestServices(services =>
@@ -222,13 +381,13 @@ public sealed class WhatsAppAssistantSpreadsheetIntegrationTests(ApiFactory fact
     private static Task ProcessAsync(WhatsAppAssistantScenario host) =>
         host.Host.Services.GetRequiredService<WhatsAppInboundProcessor>().ProcessPendingAsync(Ct);
 
-    // What the engine would observe: the owner's capability runs with the prepared sheet the operation carried, or inherited.
+    // What the engine would observe: the owner's capability runs with the prepared sheet the operation carried, or inherited, if any.
     private static Task<AssistantObservedProposal> ProposeAsync(WhatsAppAssistantScenario host, AssistantOperationRequest operation,
         AssistantCapabilityReference capability, string arguments) => host.ScopeAsync(async services =>
     {
         var source = services.GetServices<IAssistantCapabilitySource>()
             .Single(item => item.Definitions.Any(definition => definition.Id == capability.Id && definition.Version == capability.Version));
-        var sheet = operation.Attachment?.Spreadsheet ?? host.Operations.SubmitRequests.Last(request => request.Attachment is not null).Attachment!.Spreadsheet;
+        var sheet = operation.Attachment?.Spreadsheet ?? host.Operations.SubmitRequests.LastOrDefault(request => request.Attachment is not null)?.Attachment?.Spreadsheet;
         var executed = await source.ExecuteAsync(new AssistantCapabilityRequest(Guid.NewGuid(), operation.Context, capability, arguments, []) { Attachment = sheet }, Ct);
         Assert.True(executed.IsSuccess);
         Assert.Equal("proposed", executed.Value.State);

@@ -127,28 +127,36 @@ public sealed class WhatsAppAssistantSpreadsheetTests
         Assert.Equal(0, host.Assistant.Submits);
     }
 
+    // After «Cambiar algo» the text goes first and its answer is in progress when its spreadsheet arrives: the pair replaces it and
+    // continues the same operation, since the replaced one never answered (the reader then finds what it continued).
     [Fact]
     public async Task An_interpretation_in_progress_is_replaced_when_its_spreadsheet_arrives_after_the_text()
     {
         var host = await HostAsync();
+        var change = Guid.NewGuid();
+        host.Reader.ChangeRequest = change;
         var text = Message(host, WhatsAppMessageKind.Text, "Armame un catálogo de clientes");
         host.Reader.Source = Source(text, "Armame un catálogo de clientes");
         var first = (await Service(host).PrepareAsync(host.Context.Contact.Id, Ct)).Value!;
-        Assert.Null(first.Operation!.Attachment);
+        Assert.Equal((Guid?)change, first.Operation!.PreviousRequestId);
+        Assert.Null(first.Operation.Attachment);
 
         var spreadsheet = Message(host, WhatsAppMessageKind.Spreadsheet, null);
         host.Reader.Source = Source(spreadsheet, "Armame un catálogo de clientes", spreadsheet: Sheet(spreadsheet.Id, Now(host).AddDays(20)));
         Assert.Null((await Service(host).PrepareAsync(host.Context.Contact.Id, Ct)).Value);
-        Assert.Equal(WhatsAppAssistantRequestState.Blocked, host.Requests.Rows.Single(row => row.RequestId == first.RequestId).State);
+        var replaced = host.Requests.Rows.Single(row => row.RequestId == first.RequestId);
+        Assert.Equal((WhatsAppAssistantRequestState.Blocked, (Guid?)change), (replaced.State, replaced.ChangeRequestId));
         Assert.Equal(first.RequestId, Assert.Single(host.Assistant.Canceled).RequestId);
 
+        host.Reader.ChangeRequest = replaced.ChangeRequestId;
         var second = (await Service(host).PrepareAsync(host.Context.Contact.Id, Ct)).Value!;
-        Assert.Equal(("Armame un catálogo de clientes", $"whatsapp/documents/{spreadsheet.Id:N}.csv"), (second.Operation!.Text, second.Operation.Attachment!.StorageKey));
+        Assert.Equal(("Armame un catálogo de clientes", (Guid?)change, $"whatsapp/documents/{spreadsheet.Id:N}.csv"),
+            (second.Operation!.Text, second.Operation.PreviousRequestId, second.Operation.Attachment!.StorageKey));
         Assert.Equal((Guid?)spreadsheet.Id, host.Requests.Rows.Single(row => row.RequestId == second.RequestId).AttachmentMessageId);
     }
 
-    // The replaced answer is the latest reference and names no change: the pair starts its own conversation, since the engine only
-    // continues the latest turn of a conversation and the replaced one already joined it.
+    // The spreadsheet alone answered «Cambiar algo» and its text arrives while that answer is in progress: the pair replaces it and
+    // continues the same operation.
     [Fact]
     public async Task An_answer_in_progress_is_replaced_when_its_text_arrives_after_the_spreadsheet()
     {
@@ -161,14 +169,15 @@ public sealed class WhatsAppAssistantSpreadsheetTests
         var first = (await Service(host).PrepareAsync(host.Context.Contact.Id, Ct)).Value!;
         Assert.Equal(("", (Guid?)change), (first.Operation!.Text, first.Operation.PreviousRequestId));
 
-        host.Reader.ChangeRequest = null;
         var text = Message(host, WhatsAppMessageKind.Text, "Agregá el campo Rubro");
         host.Reader.Source = Source(text, "Agregá el campo Rubro", spreadsheet: sheet);
         Assert.Null((await Service(host).PrepareAsync(host.Context.Contact.Id, Ct)).Value);
-        Assert.Equal(WhatsAppAssistantRequestState.Blocked, host.Requests.Rows.Single(row => row.RequestId == first.RequestId).State);
+        var replaced = host.Requests.Rows.Single(row => row.RequestId == first.RequestId);
+        Assert.Equal((WhatsAppAssistantRequestState.Blocked, (Guid?)change), (replaced.State, replaced.ChangeRequestId));
 
+        host.Reader.ChangeRequest = replaced.ChangeRequestId;
         var second = (await Service(host).PrepareAsync(host.Context.Contact.Id, Ct)).Value!;
-        Assert.Equal(("Agregá el campo Rubro", (Guid?)null, sheet.StorageKey),
+        Assert.Equal(("Agregá el campo Rubro", (Guid?)change, sheet.StorageKey),
             (second.Operation!.Text, second.Operation.PreviousRequestId, second.Operation.Attachment!.StorageKey));
     }
 
@@ -176,6 +185,8 @@ public sealed class WhatsAppAssistantSpreadsheetTests
     public async Task A_result_is_not_answered_when_the_latest_source_no_longer_carries_its_spreadsheet()
     {
         var host = await HostAsync();
+        var change = Guid.NewGuid();
+        host.Reader.ChangeRequest = change;
         var text = Message(host, WhatsAppMessageKind.Text, "Armame un catálogo de clientes");
         host.Reader.Source = Source(text, "Armame un catálogo de clientes", spreadsheet: Sheet(Guid.NewGuid(), Now(host).AddDays(20)));
         var work = (await Service(host).PrepareAsync(host.Context.Contact.Id, Ct)).Value!;
@@ -185,8 +196,26 @@ public sealed class WhatsAppAssistantSpreadsheetTests
 
         Assert.True((await Service(host).CompleteAsync(host.Context.Contact.Id, work.RequestId, host.Assistant.Outcome, Ct)).IsSuccess);
 
-        Assert.Equal(WhatsAppAssistantRequestState.Blocked, Assert.Single(host.Requests.Rows).State);
+        var row = Assert.Single(host.Requests.Rows);
+        Assert.Equal((WhatsAppAssistantRequestState.Blocked, (Guid?)change), (row.State, row.ChangeRequestId));
         Assert.Empty(host.Conversation.Outgoing);
+    }
+
+    // A continuation that failed on its own (not replaced by a newer message) leaves nothing to continue: the next message starts anew.
+    [Fact]
+    public async Task A_failed_continuation_leaves_nothing_for_the_next_message_to_continue()
+    {
+        var host = await HostAsync();
+        host.Reader.ChangeRequest = Guid.NewGuid();
+        var text = Message(host, WhatsAppMessageKind.Text, "Agregá el campo Rubro");
+        host.Reader.Source = Source(text, "Agregá el campo Rubro");
+        var work = (await Service(host).PrepareAsync(host.Context.Contact.Id, Ct)).Value!;
+
+        Assert.True((await Service(host).CompleteAsync(host.Context.Contact.Id, work.RequestId,
+            ArquitecturaBase.Domain.Results.Result.Failure<ArquitecturaBase.Application.Models.Assistant.AssistantOperationResponse>(WhatsAppAssistantErrors.InvalidProposal), Ct)).IsSuccess);
+
+        var row = Assert.Single(host.Requests.Rows);
+        Assert.Equal((WhatsAppAssistantRequestState.Blocked, (Guid?)null), (row.State, row.ChangeRequestId));
     }
 
     [Theory]

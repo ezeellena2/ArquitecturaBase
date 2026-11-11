@@ -3,6 +3,7 @@ using ArquitecturaBase.Application.Interfaces.Integrations.Files;
 using ArquitecturaBase.Application.Models.Files;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
+using ArquitecturaBase.Domain.Files;
 using ArquitecturaBase.Domain.Results;
 
 namespace ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.WhatsApp;
@@ -13,6 +14,8 @@ internal sealed class WhatsAppDocumentProbe : IPrivateFileStore, IWhatsAppMediaC
 {
     private readonly Dictionary<string, byte[]> files = new(StringComparer.Ordinal);
     public byte[] Bytes { get; set; } = [];
+    // Downloads that fail as Meta's unavailable media does, before the bytes come: the spreadsheet stays pending for its retry.
+    public int Failures { get; set; }
     public int Downloads => Limits.Count;
     public List<long> Limits { get; } = [];
     public bool IsAvailable => true;
@@ -23,6 +26,11 @@ internal sealed class WhatsAppDocumentProbe : IPrivateFileStore, IWhatsAppMediaC
     {
         ct.ThrowIfCancellationRequested();
         Limits.Add(maximumBytes);
+        if (Failures > 0)
+        {
+            Failures--;
+            return Task.FromResult(Result.Failure<WhatsAppMediaContent>(FileErrors.Unavailable));
+        }
         return Task.FromResult(Result.Success(new WhatsAppMediaContent(Bytes)));
     }
 

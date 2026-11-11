@@ -22,8 +22,10 @@ public sealed partial class WhatsAppAssistantRequest
     }
     public bool SetCapturedSuggestion(Guid sourceRecordId,Guid? suggestionSetId,Guid? suggestionId,string culture,bool always,DateTime nowUtc)
     {
+        // A reference that carries a spreadsheet (IA, Stage 2) interprets a message, never a capture.
         if(sourceRecordId==Guid.Empty || suggestionSetId==Guid.Empty || suggestionId==Guid.Empty
-            || suggestionId.HasValue!=suggestionSetId.HasValue || always && !suggestionId.HasValue || culture is not ("es" or "en")) return false;
+            || suggestionId.HasValue!=suggestionSetId.HasValue || always && !suggestionId.HasValue || culture is not ("es" or "en")
+            || AttachmentMessageId.HasValue) return false;
         if(SourceRecordId.HasValue && SourceRecordId!=sourceRecordId || CapturedCulture is not null && CapturedCulture!=culture) return false;
         if(SuggestionId.HasValue) return SuggestionSetId==suggestionSetId && SuggestionId==suggestionId && IsAlways==always;
         if(State!=WhatsAppAssistantRequestState.Pending || nowUtc>=ContentExpiresAtUtc) return false;

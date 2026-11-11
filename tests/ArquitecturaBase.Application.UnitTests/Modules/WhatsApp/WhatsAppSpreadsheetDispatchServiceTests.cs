@@ -88,17 +88,17 @@ public sealed class WhatsAppSpreadsheetDispatchServiceTests
 
     [Theory]
     [InlineData(StructuredAttachmentRejection.Legacy, "legacy",
-        "No puedo leer un Excel viejo (.xls). Guardalo como Libro de Excel (.xlsx) o como CSV UTF-8 y mandalo de nuevo.")]
+        "No puedo leer un Excel viejo (.xls). Guardalo como Libro de Excel (.xlsx) o como CSV UTF-8 y mandalo de nuevo contándome qué querés que haga con él.")]
     [InlineData(StructuredAttachmentRejection.Protected, "protected",
-        "No puedo leer una planilla con contraseña. Guardala sin contraseña y mandala de nuevo.")]
+        "No puedo leer una planilla con contraseña. Guardala sin contraseña y mandala de nuevo contándome qué querés que haga con ella.")]
     [InlineData(StructuredAttachmentRejection.MacroEnabled, "macroEnabled",
-        "No puedo leer un Excel con macros o binario (.xlsm o .xlsb). Guardalo como Libro de Excel (.xlsx) y mandalo de nuevo.")]
+        "No puedo leer un Excel con macros o binario (.xlsm o .xlsb). Guardalo como Libro de Excel (.xlsx) y mandalo de nuevo contándome qué querés que haga con él.")]
     [InlineData(StructuredAttachmentRejection.TooLarge, "tooLarge",
-        "La planilla pasa el tope de 10 MB, 10.000 filas y 64 columnas. Achicala o dividila y mandala de nuevo.")]
+        "La planilla pasa el tope de 10 MB, 10.000 filas y 64 columnas. Achicala o dividila y mandala de nuevo contándome qué querés que haga con ella.")]
     [InlineData(StructuredAttachmentRejection.Unreadable, "unreadable",
-        "No puedo leer la planilla. Guardala como Libro de Excel (.xlsx), o un CSV como CSV UTF-8, y mandala de nuevo.")]
+        "No puedo leer la planilla. Guardala como Libro de Excel (.xlsx), o un CSV como CSV UTF-8, y mandala de nuevo contándome qué querés que haga con ella.")]
     [InlineData(StructuredAttachmentRejection.Empty, "empty",
-        "La planilla no tiene filas con datos. Revisá que su primera hoja tenga lo que querés usar y mandala de nuevo.")]
+        "La planilla no tiene filas con datos. Revisá que su primera hoja tenga lo que querés usar y mandala de nuevo contándome qué querés que haga con ella.")]
     public async Task Each_reason_is_kept_without_a_copy_and_answered_once_with_its_remedy(StructuredAttachmentRejection rejection, string reason, string text)
     {
         var f = new WhatsAppSpreadsheetFixture { Preparation = StructuredAttachmentPreparation.Rejected(rejection) };
@@ -126,7 +126,7 @@ public sealed class WhatsAppSpreadsheetDispatchServiceTests
 
         Assert.True((await f.Dispatch.PrepareAsync(f.Contact.Id, Ct)).IsSuccess);
 
-        Assert.Equal("I cannot read a password-protected spreadsheet. Save it without the password and send it again.", Assert.Single(f.Replies).Body);
+        Assert.Equal("I cannot read a password-protected spreadsheet. Save it without the password and send it again telling me what you want me to do with it.", Assert.Single(f.Replies).Body);
     }
 
     [Fact]

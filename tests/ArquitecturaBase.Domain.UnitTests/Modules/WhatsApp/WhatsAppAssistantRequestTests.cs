@@ -59,6 +59,24 @@ public sealed class WhatsAppAssistantRequestTests
         var captured = Create(WhatsAppAssistantRequestKind.Automatic);
         Assert.True(captured.SetCapturedSuggestion(Guid.CreateVersion7(), null, null, "es", false, Now));
         Assert.False(captured.CarryAttachment(spreadsheet));
+        Assert.False(request.SetCapturedSuggestion(Guid.CreateVersion7(), null, null, "es", false, Now));
+        Assert.Null(request.SourceRecordId);
+    }
+
+    // An interpretation in progress that a newer message replaces did not answer: the next message continues what it continued.
+    [Fact]
+    public void A_replaced_interpretation_leaves_the_next_message_what_it_continued()
+    {
+        var replaced = Create(WhatsAppAssistantRequestKind.Automatic); var previous = Guid.CreateVersion7();
+        Assert.True(replaced.ContinueFrom(previous));
+        Assert.True(replaced.Replace(Now)); Assert.True(replaced.Replace(Now));
+        Assert.Equal((WhatsAppAssistantRequestState.Blocked, (Guid?)previous, (DateTime?)Now), (replaced.State, replaced.ChangeRequestId, replaced.DecidedAtUtc));
+        var alone = Create(WhatsAppAssistantRequestKind.Automatic);
+        Assert.True(alone.Replace(Now));
+        Assert.Equal((WhatsAppAssistantRequestState.Blocked, (Guid?)null), (alone.State, alone.ChangeRequestId));
+        var answered = Create(WhatsAppAssistantRequestKind.Automatic); Assert.True(answered.ContinueFrom(previous));
+        Assert.True(answered.FinishWithoutReply(false, Now));
+        Assert.False(answered.Replace(Now)); Assert.Null(answered.ChangeRequestId);
     }
 
     [Fact]
