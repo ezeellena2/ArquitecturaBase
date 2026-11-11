@@ -123,15 +123,10 @@ internal sealed class WhatsAppChatReader(ApplicationDbContext dbContext) : IWhat
             PreviewIsFormAction = dbContext.Set<WhatsAppMessage>().Where(message => message.ContactId == contact.Id)
                 .OrderByDescending(message => message.OccurredAtUtc).ThenByDescending(message => message.Id)
                 .Select(message => message.Origin == WhatsAppMessageOrigin.FormAction).FirstOrDefault(),
-            PreviewIsAudio = dbContext.Set<WhatsAppMessage>().Where(message => message.ContactId == contact.Id)
+            // The kind, read once: an audio, a spreadsheet or a form reply shows a generic preview.
+            PreviewKind = dbContext.Set<WhatsAppMessage>().Where(message => message.ContactId == contact.Id)
                 .OrderByDescending(message => message.OccurredAtUtc).ThenByDescending(message => message.Id)
-                .Select(message => message.Kind == WhatsAppMessageKind.Audio).FirstOrDefault(),
-            PreviewIsSpreadsheet = dbContext.Set<WhatsAppMessage>().Where(message => message.ContactId == contact.Id)
-                .OrderByDescending(message => message.OccurredAtUtc).ThenByDescending(message => message.Id)
-                .Select(message => message.Kind == WhatsAppMessageKind.Spreadsheet).FirstOrDefault(),
-            PreviewIsFormReply = dbContext.Set<WhatsAppMessage>().Where(message => message.ContactId == contact.Id)
-                .OrderByDescending(message => message.OccurredAtUtc).ThenByDescending(message => message.Id)
-                .Select(message => message.Kind == WhatsAppMessageKind.FlowReply).FirstOrDefault(),
+                .Select(message => (WhatsAppMessageKind?)message.Kind).FirstOrDefault(),
             PreviewAccessEventKind = dbContext.Set<WhatsAppMessage>().Where(message => message.ContactId == contact.Id)
                 .OrderByDescending(message => message.OccurredAtUtc).ThenByDescending(message => message.Id)
                 .Select(message => message.AccessEventKind).FirstOrDefault() });

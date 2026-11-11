@@ -109,10 +109,10 @@ internal sealed class WhatsAppChatQueryService(IWhatsAppChatReader reader, IWhat
     {
         var parsed = WhatsAppIds.Parse(phoneNumbers, row.PhoneNumber);
         // Like the audio's, a spreadsheet's preview is generic: neither its name nor its caption.
-        var preview = row.PreviewIsAssistant ? FlowTexts.Get("AssistantPreview", CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es") : row.PreviewIsAudio ? FlowTexts.Get("AudioPreview", CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es")
-            : row.PreviewIsSpreadsheet ? FlowTexts.Get("SpreadsheetPreview", CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es") : row.PreviewIsFormAction
+        var preview = row.PreviewIsAssistant ? FlowTexts.Get("AssistantPreview", CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es") : row.PreviewKind == WhatsAppMessageKind.Audio ? FlowTexts.Get("AudioPreview", CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es")
+            : row.PreviewKind == WhatsAppMessageKind.Spreadsheet ? FlowTexts.Get("SpreadsheetPreview", CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es") : row.PreviewIsFormAction
             ? FlowTexts.Get("FormActionPreview", CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es")
-            : row.PreviewIsFormReply
+            : row.PreviewKind == WhatsAppMessageKind.FlowReply
             ? FlowTexts.Get("FormReplyPreview", CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es")
             : row.Preview;
         return new(row.Id, row.ProfileName, parsed.IsSuccess ? phoneNumbers.FormatInternational(parsed.Value) : null,

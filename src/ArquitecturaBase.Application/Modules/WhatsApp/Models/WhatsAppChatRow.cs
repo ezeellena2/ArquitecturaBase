@@ -14,9 +14,7 @@ public sealed record WhatsAppChatRow
     public int UnreadCount { get; init; }
     public string? Preview { get; init; }
     public bool PreviewIsFormAction { get; init; }
-    public bool PreviewIsFormReply { get; init; }
-    public bool PreviewIsAudio { get; init; }
-    public bool PreviewIsSpreadsheet { get; init; }
+    public WhatsAppMessageKind? PreviewKind { get; init; }
     public bool PreviewIsAssistant { get; init; }
     public WhatsAppMessagePurpose PreviewPurpose { get; init; }
     public WhatsAppAccessEventKind? PreviewAccessEventKind { get; init; }
