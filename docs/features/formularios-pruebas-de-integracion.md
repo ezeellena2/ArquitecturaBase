@@ -40,7 +40,7 @@ FormOverviewQueryTests comprueba la proyección SQL de presentación sellada y c
 
 ## Catálogos
 
-Catálogos que mantiene un módulo: FormCatalogFeedHttpTests, con un origen de prueba y el worker a mano, comprueba que el catálogo `External` se crea recién cuando el origen responde y va a su carpeta, que no se vuelve a leer hasta el día siguiente, que lo que deja de venir se desactiva, que una falla deja lo que había con su motivo, y que el detalle trae `feed`, editar da 409 `Forms.Catalog.ReadOnly` y el listado lo filtra.
+Catálogos que mantiene un módulo: FormCatalogFeedHttpTests, con un origen de prueba y el worker a mano, comprueba que el catálogo `External` se crea recién cuando el origen responde y va a su carpeta, que no se vuelve a leer hasta el día siguiente, que lo que deja de venir se desactiva, que una falla deja lo que había con su motivo, que un texto de más de 30 caracteres no se guarda y deja `Forms.Catalog.FeedTextTooLong`, y que el detalle trae `feed`, editar da 409 `Forms.Catalog.ReadOnly` y el listado lo filtra. FormExternalCatalogsMigrationTests prueba que el Down de la migración rechaza un catálogo `External` antes de quitar columnas.
 
 «Completar con ARCA»: FormCatalogLookupHttpTests, con un padrón de prueba sobre el catálogo propio del estándar de venta, comprueba que el catálogo lo ofrece con el campo de la CUIT, que completar devuelve el nombre y sólo los campos activos que conoce, sin guardar, que una falla trae su código y su mensaje, que sin CUIT da 400, sin «Administrar catálogos» 403 y en otro catálogo `Forms.Catalog.LookupUnavailable`.
 

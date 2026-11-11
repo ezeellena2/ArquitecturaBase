@@ -1124,7 +1124,12 @@ opcional; ARCA aporta sus tablas). Son de un tercer tipo, `External`, con la cla
   y `PollInterval`, 5 minutos) mira cuáles tocan: los que nunca se leyeron, los leídos hace más de un día y los que fallaron
   hace más de 15 minutos. Leer no tiene efecto afuera ([ADR 0018](../decisions/0018-robustez-proporcional-al-efecto.md)): una
   reserva corta evita que dos hosts pregunten a la vez y las diferencias se aplican con la revisión del catálogo. Lo que deja de
-  venir se desactiva, nunca se borra: las respuestas lo siguen nombrando. Una falla guarda el motivo y deja lo que había.
+  venir se desactiva, nunca se borra: las respuestas lo siguen nombrando. Una falla guarda el motivo y deja lo que había. El
+  lock de la clave (`forms:catalog-key:<clave>`) serializa la creación y va antes del lock del catálogo, que se toma antes de
+  leerlo.
+- **Lo que no entra en una opción no se guarda.** Una opción admite hasta 30 caracteres (`StructuredFeedItem.MaxTextLength`,
+  el mismo de una opción a mano): un origen que manda un texto más largo no cambia nada y la falla queda con el código
+  `Forms.Catalog.FeedTextTooLong`. ARCA corta con «…» las descripciones que no entran, y su código sigue siendo el que viaja.
 - **No se tocan a mano.** Editar o importar da `Forms.Catalog.ReadOnly` (409); el detalle trae `feed` (cuándo respondió y la
   última falla, con su código) y el listado filtra `kind=External` y cuenta `byKind.external` cuando hay alguno.
 - **Se usan como un Manual.** Ofrecen sus opciones en la app y en WhatsApp, se publican y se capturan igual, con su valor tipado,

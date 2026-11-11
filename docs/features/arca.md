@@ -139,7 +139,9 @@ la prueba integral y la de homologación. Lo que se ve en la app y en WhatsApp e
 - **Las tablas como catálogos** (`ArcaStructuredCatalogFeed`): condición frente al IVA, tipos de documento, conceptos (con el
   código como valor), monedas y alícuotas de IVA (con el porcentaje como valor, más «Exento» y «No gravado», códigos `exempt` y
   `not-taxed`) llegan a formularios como catálogos `External` en la carpeta «ARCA», sólo con las filas vigentes. Se leen con el
-  ticket de `wsfe`; sin conexión o sin respuesta devuelven el código del motivo y formularios conserva lo que tenía.
+  ticket de `wsfe`; sin conexión o sin respuesta devuelven el código del motivo y formularios conserva lo que tenía. Una
+  descripción de más de 30 caracteres, lo que admite una opción, se corta con «…»; una clave que ARCA no mantiene devuelve
+  `Arca.Invoicing.CatalogUnknown`.
 - **El emisor de formularios** (`ArcaStructuredRecordIssuer`): la fuente y la clave del estándar son `arca.invoice`. Lee los
   datos atados de la «Factura» (el cliente de «Clientes» con `tax_id`, `legal_name`, `vat_condition` y `address`, o consumidor
   final sin CUIT; el nombre del receptor es `legal_name` cuando viene y no está vacío y, si no, el texto de la opción, así que un
