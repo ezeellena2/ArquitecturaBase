@@ -113,15 +113,22 @@ encuentra formularios para mandar y el asistente pierde las capacidades de formu
 Quitá `src/features/business-forms` y lo que la compone afuera:
 
 - En `src/app/routes.tsx`, las rutas de `/formularios…`, `/catalogos…` y `/datos-de-personas`; el `authenticatedShell`
-  queda en `<AppLayout />`. Borrá `src/app/FormOverviewShell.tsx`, `FormOverviewCount.tsx` y `UserDataSectionShell.tsx`
-  con sus tests, y `src/layouts/formsOverviewNavigation.ts`, el contexto del contador.
+  queda en `<AppLayout />`. Borrá `src/app/FormOverviewShell.tsx`, `FormOverviewCount.tsx`, `UserDataSectionShell.tsx`,
+  `FormMenuShell.tsx` y `FormMenuReader.tsx` (el menú de las carpetas, CP5-A) con sus tests, y
+  `src/layouts/formsOverviewNavigation.ts`, el contexto del contador. `FormMenuReader.tsx` importa la feature: si queda,
+  el build se rompe.
 - En `src/layouts/navigation.ts`, el panel `forms`, `isFormsPath` y el ítem `navigation.personData`. En `Sidebar.tsx`,
   el panel, `FormsOverviewLink` y el resaltado de `/formularios…` en `NavItem`; en `Breadcrumbs.tsx`, las migas del PDF,
-  de las respuestas y de la carga. En `common.json`, sus ocho textos: `navigation.forms`, `designForms`, `catalogs`,
+  de las respuestas y de la carga. Las carpetas en el menú (CP5-A) llegan por un contrato neutral, que sin
+  `FormMenuShell` queda vacío: compila igual, pero borralas también. Son `src/layouts/folderMenuNavigation.ts`, en
+  `Sidebar.tsx` `folderMenuModel`, los menús propios debajo de Inicio, sus grupos en los paneles y el aviso «No pudimos
+  cargar tu menú.», en `Breadcrumbs.tsx` las migas de un formulario abierto desde el menú, y `src/shared/ui/menuIcons.ts`
+  con `Sidebar.folders.test.tsx`. `TreeList` es una pieza común y queda. En `common.json`, sus ocho textos: `navigation.forms`, `designForms`, `catalogs`,
   `missingForms`, `formOverview`, `responses`, `personData` y `layout.sidebar.closeForms`. En los tests,
   `Sidebar.permissions.test.tsx` entero y los casos de formularios de `Sidebar.test.tsx`, `Breadcrumbs.test.tsx` y
   `navigation.test.ts`.
-- Los namespaces `forms` y `formEntries`, en español y en inglés.
+- Los namespaces `forms`, `formEntries` y `formFolders`, en español y en inglés, y `layout.sidebar.closeMenu` de
+  `common.json`.
 - En `src/test` y `src/test/visual`, los archivos que importan la feature, y `src/test/responseAssistanceFixture.ts`.
 - En `src/test/httpCohort.ts`, las 17 familias de formularios: todas menos `formFiles`, que usa WhatsApp, las
   `whatsapp*` y `aiAssistant`. Con ellas se van sus capturas de `src/test/fixtures` (`catalogs-http` y las 13 que

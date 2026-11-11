@@ -957,7 +957,8 @@ una factura. Es parte del [motor para documentos](../plans/2026-11-09-arca-etapa
   no es un número (un decimal u otro cálculo), o si no respeta su alcance: multiplicar y porcentaje usan las del mismo ítem si el
   cálculo está en el bloque y las de afuera si no; la suma va afuera del bloque y suma una pregunta del bloque en todos los
   ítems. La alícuota de un porcentaje puede ser una elección de un catálogo entero o decimal, cuyo valor es la alícuota; con un
-  catálogo de texto o de fechas, frena.
+  catálogo de texto o de fechas, frena. Las opciones de la carga traen su `value` en un catálogo con valores, así ese porcentaje
+  también se ve al cargar.
 - **La captura** (app y WhatsApp, `FormRecordAnswerPolicy`) calcula cada uno en orden y lo guarda como una respuesta decimal más,
   redondeada a 2 decimales con half-even (`MidpointRounding.ToEven`): el total suma los importes ya redondeados. Un producto o
   un porcentaje con un dato vacío queda vacío; la suma suma lo que haya y queda vacía sin valores. Una respuesta enviada para un
@@ -982,8 +983,11 @@ Una pregunta se muestra según la respuesta de otra (CO1-A), como el período de
 - **La carga** trae `showWhen` en la pregunta; la app la muestra u oculta al cambiar la respuesta y no manda lo escrito en una
   oculta. Un título de sección sin preguntas a la vista también se oculta.
 - **WhatsApp** la muestra con la misma condición (perfil r13, ver [WhatsApp](whatsapp.md)), menos varias respuestas de una
-  pregunta de catálogo y una cadena de más de tres, que frenan su publicación; probado con Meta el 2026-11-11. El asistente no
-  prellena una pregunta con condición y una sugerencia no la tiene de destino.
+  pregunta de catálogo y una cadena de más de tres, que frenan su publicación con su propio error
+  (`WhatsApp.Flow.ConditionCatalogValues` y `WhatsApp.Flow.ConditionTooDeep`); probado con Meta el 2026-11-11. En un formulario
+  que va por WhatsApp, el editor no deja elegir más de una respuesta de una pregunta de catálogo, con su motivo, y avisa debajo
+  una cuarta condición en cadena, con «Sólo en la app» como salida. El asistente no prellena una pregunta con condición y una
+  sugerencia no la tiene de destino.
 
 ## Resultado externo — RE1-A, 2026-11-09
 
@@ -1125,7 +1129,8 @@ aparece.
   pregunta guarda cada dato (`Bindings`), los catálogos por su `Key`, la opción con que empieza una pregunta de catálogo
   (`Defaults`) y la carpeta del sistema.
 - **Leer.** `GET api/forms/library` («Ver formularios») lista los estándares en el idioma del menú, con cuántos formularios
-  salieron de cada uno.
+  salieron de cada uno y el prefijo que ofrece «Agregar» (`suggestedPrefix`): el del estándar o, si un formulario ya lo tiene, el
+  primero con un número después que ningún formulario usa, también los eliminados, como mira el guardado.
 - **Agregar.** `POST api/forms/library/{key}/copies` («Administrar formularios») recibe `requestId`, nombre y prefijo y crea el
   borrador por el guardado de siempre: el mismo pedido devuelve el mismo borrador. La definición sella una vez el estándar, su
   versión y `dato → fieldId`, que el detalle trae en `standard`. Un estándar que no está da 404
@@ -1179,7 +1184,7 @@ aparece.
 
 Las carpetas ordenan formularios y catálogos en un solo árbol, con subcarpetas, y un mismo elemento puede estar en varias.
 Lo eligió el usuario en los tableros CP1 a CP5 (el [plan](../plans/2026-11-03-carpetas-de-formularios-y-catalogos.md)).
-Está el backend; el front, por programar.
+Están el backend y el front (2026-11-11).
 
 - **Sólo ordenan.** No dan ni quitan acceso, y no hay permisos nuevos. Hasta cinco niveles; el nombre (hasta 80
   caracteres) no se repite en una misma carpeta sin distinguir mayúsculas. Profundidad, ciclos y nombres se revisan contra

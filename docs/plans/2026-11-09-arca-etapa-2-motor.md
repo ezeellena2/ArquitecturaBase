@@ -202,8 +202,8 @@ Cada tarea con su test en rojo primero, el build y los tests rápidos del área,
     estándar o la elegida al agregar, en el commit de esta tarea.
 24. ~~Front: ver y filtrar, ordenar y menú.~~ Hecho: contratos, árbol y lecturas (aa10d91d), el panel, sus diálogos y el menú
     lateral (9d34e95d), los tres listados y «Carpetas…» (56eeec07), el diseño y las guías (243e51ae, 6b08593a) y los
-    renglones de 44 px en el celular (24d9e50a). «Carpetas…» del encabezado de los editores pasa al ⋮ de AC1-A con el chat
-    que la programa. Mientras se lee el menú, los menús propios no ocupan lugar (front 4febe808).
+    renglones de 44 px en el celular (24d9e50a). «Carpetas…» del encabezado de los editores pasó al ⋮ de AC1-A (front 9c7efea3
+    y f8a1c98a, del chat «Diálogo de exportar»). Mientras se lee el menú, los menús propios no ocupan lugar (front 4febe808).
 
 **Condiciones**
 
