@@ -83,12 +83,9 @@ internal sealed class FormDraftService(IFormDraftRepository repository, FormDefi
         if (updated.IsFailure) return updated.Error;
         if (creating && request.Standard is { } standard)
         {
-            foreach (var catalog in standard.NewCatalogs) repository.AddStandardCatalog(catalog);
-            if (standard.NewCatalogItems.Count > 0) repository.AddStandardCatalogItems(standard.NewCatalogItems);
             definition.RecordStandard(standard.Key, standard.Version, FormDraftPolicy.Serialize(FormStandardPolicy.Bindings(standard, resolved.Value.IdentityMap)));
-            // The rules of the standard are its first revision, active, in this same save (the deferred key, backend.md).
-            standard.Rules?.Invoke(definition, resolved.Value.IdentityMap);
-            if (standard.FileAsync is { } file && await file(definition.Id, ct) is { IsFailure: true } filed) return filed.Error;
+            // The catalogs, rules and folder of the copy go in this same save (the deferred key, backend.md).
+            if (standard.RecordAsync is { } record && await record(definition, resolved.Value.IdentityMap, ct) is { IsFailure: true } recorded) return recorded.Error;
         }
         var change = BusinessFormDraftChange.Create(actor, request.RequestId, definition.Id, kind, request.ExpectedRevision, definition.Revision, nowUtc.AddDays(30));
         var response = new FormDraftCommitResponse(request.RequestId, FormDraftPolicy.Definition(definition), resolved.Value.IdentityMap,

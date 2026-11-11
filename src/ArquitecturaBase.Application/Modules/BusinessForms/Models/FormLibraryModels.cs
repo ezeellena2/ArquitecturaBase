@@ -20,18 +20,12 @@ public sealed record AddFormStandardRequest(Guid RequestId, IReadOnlyDictionary<
 /// <summary>The standard a draft is created from; set only by «Agregar», never from HTTP. Bindings go by local id.</summary>
 public sealed record FormDraftStandardOrigin(string Key, int Version, IReadOnlyDictionary<string, string> Bindings)
 {
-    /// <summary>The catalogs the standard brings that do not exist yet: created in the same save as the draft.</summary>
+    /// <summary>
+    /// What the copy leaves in the same save once it has the new definition and the identities it gave: the catalogs the standard
+    /// brings with their first options, its rules and the folder (<c>FormStandardCopyRecorder</c>). The draft's save only runs it.
+    /// </summary>
     [System.Text.Json.Serialization.JsonIgnore]
-    public IReadOnlyList<ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormCatalog> NewCatalogs { get; init; } = [];
-    /// <summary>The first options of those catalogs, created with them.</summary>
-    [System.Text.Json.Serialization.JsonIgnore]
-    public IReadOnlyList<ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormCatalogItem> NewCatalogItems { get; init; } = [];
-    /// <summary>Files the new definition (by its id) and the new catalogs in the folder chosen or the standard's, inside the same save.</summary>
-    [System.Text.Json.Serialization.JsonIgnore]
-    public Func<Guid, CancellationToken, Task<ArquitecturaBase.Domain.Results.Result>>? FileAsync { get; init; }
-    /// <summary>Leaves the rules of the standard as the first revision of the new definition's, with the identities the save gave.</summary>
-    [System.Text.Json.Serialization.JsonIgnore]
-    public Action<ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormDefinition, FormIdentityMap>? Rules { get; init; }
+    public Func<ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormDefinition, FormIdentityMap, CancellationToken, Task<ArquitecturaBase.Domain.Results.Result>>? RecordAsync { get; init; }
     public override string ToString() => "FormDraftStandardOrigin { Content = [REDACTED] }";
 }
 /// <summary>A catalog a standard names, by Key: whether it is active.</summary>

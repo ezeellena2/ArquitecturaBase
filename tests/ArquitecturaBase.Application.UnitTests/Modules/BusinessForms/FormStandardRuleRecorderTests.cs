@@ -56,7 +56,7 @@ public sealed class FormStandardRuleRecorderTests
     public async Task Adding_finds_the_option_codes_first_and_leaves_the_rules_as_the_active_revision_of_the_new_definition()
     {
         var repository = new RuleSets();
-        var recorder = new FormStandardRuleRecorder(repository, new Library(), [new Issuer()]);
+        var recorder = new FormStandardRuleRecorder(repository, new CodeReader(), [new Issuer()]);
         var catalogs = new Dictionary<string, string> { [Priority] = "test.priorities" };
         var ids = new Dictionary<string, Guid> { ["test.priorities"] = CatalogId };
 
@@ -110,16 +110,12 @@ public sealed class FormStandardRuleRecorderTests
         public void Add(BusinessFormRuleSet ruleSet) => Added.Add(ruleSet);
     }
 
-    private sealed class Library : IFormLibraryReader
+    private sealed class CodeReader : IFormCatalogItemCodeReader
     {
-        public Task<IReadOnlyDictionary<string, int>> ListCopyCountsAsync(IReadOnlyList<string> standardKeys, CancellationToken cancellationToken) =>
+        public Task<IReadOnlyDictionary<Guid, string>> ListAsync(IReadOnlyCollection<Guid> itemIds, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
-        public Task<IReadOnlyDictionary<string, FormLibraryCatalogRow>> ListCatalogsByKeyAsync(IReadOnlyList<string> catalogKeys, CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-        public Task<IReadOnlyDictionary<string, Guid>> ListActiveItemIdsByCodeAsync(Guid catalogId, IReadOnlyList<string> codes, CancellationToken cancellationToken) =>
+        public Task<IReadOnlyDictionary<string, Guid>> ListActiveAsync(Guid catalogId, IReadOnlyCollection<string> codes, CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyDictionary<string, Guid>>(catalogId == CatalogId && codes.Contains("urgent") ? new Dictionary<string, Guid> { ["urgent"] = UrgentId } : new Dictionary<string, Guid>());
-        public Task<IReadOnlySet<string>> ListPrefixesAsync(IReadOnlyList<string> stems, CancellationToken cancellationToken) =>
-            Task.FromResult<IReadOnlySet<string>>(new HashSet<string>());
     }
 
     private sealed class Issuer : IStructuredRecordIssuer

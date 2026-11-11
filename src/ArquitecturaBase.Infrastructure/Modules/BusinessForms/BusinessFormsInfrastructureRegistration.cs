@@ -65,6 +65,7 @@ public static class BusinessFormsInfrastructureRegistration
         services.TryAddScoped<IFormCatalogFilterReader, FormCatalogFilterReader>();
         services.TryAddScoped<IFormAuthoringReader, FormAuthoringReader>();
         services.TryAddScoped<IFormLibraryReader, FormLibraryReader>();
+        services.TryAddScoped<IFormLibraryRepository, FormLibraryRepository>();
         services.TryAddScoped<IFormFolderRepository, FormFolderRepository>();
         services.TryAddScoped<IFormFolderReader, FormFolderReader>();
         services.TryAddScoped<IFormDefinitionReader, FormDefinitionReader>();

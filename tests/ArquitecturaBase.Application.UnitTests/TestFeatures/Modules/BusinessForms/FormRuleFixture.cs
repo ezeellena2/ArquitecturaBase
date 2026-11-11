@@ -73,8 +73,6 @@ internal sealed class FormRuleFixture : IFormDraftRepository, IFormRuleRepositor
     public void AddRetiredIdentities(Guid id,FormRetiredIdentities identities) => throw new NotSupportedException();
     public void Remove(BusinessFormDefinition definition) => throw new NotSupportedException();
     public void Add(BusinessFormDefinition definition) => throw new NotSupportedException();
-    public void AddStandardCatalog(BusinessFormCatalog catalog) => throw new NotSupportedException();
-    public void AddStandardCatalogItems(IReadOnlyList<BusinessFormCatalogItem> items) => throw new NotSupportedException();
     public void AddChange(BusinessFormDraftChange change) => throw new NotSupportedException();
     public Task UpdateExpiredResultsAsync(DateTime time,CancellationToken ct) => throw new NotSupportedException();
     public Task<FormCatalogsPageResponse> FindPageAsync(ListFormCatalogsRequest request,bool canEdit,bool canRead,CancellationToken ct) => throw new NotSupportedException();

@@ -18,16 +18,14 @@ internal sealed class FormLibraryReader(ApplicationDbContext db) : IFormLibraryR
         await db.Set<BusinessFormCatalog>().AsNoTracking().Where(catalog => catalogKeys.Contains(catalog.Key))
             .ToDictionaryAsync(catalog => catalog.Key, catalog => new ArquitecturaBase.Application.Modules.BusinessForms.Models.FormLibraryCatalogRow(catalog.Id, catalog.IsActive), cancellationToken);
 
-    public async Task<IReadOnlyDictionary<string, Guid>> ListActiveItemIdsByCodeAsync(Guid catalogId, IReadOnlyList<string> codes, CancellationToken cancellationToken) =>
-        await db.Set<BusinessFormCatalogItem>().AsNoTracking().Where(item => item.CatalogId == catalogId && item.IsActive && codes.Contains(item.Code))
-            .ToDictionaryAsync(item => item.Code, item => item.Id, StringComparer.Ordinal, cancellationToken);
-
     public async Task<IReadOnlySet<string>> ListPrefixesAsync(IReadOnlyList<string> stems, CancellationToken cancellationToken)
     {
-        var prefixes = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var stem in stems.Distinct(StringComparer.Ordinal))
-            prefixes.UnionWith(await db.Set<BusinessFormDefinition>().IgnoreQueryFilters([ModelBuilderExtensions.SoftDeleteFilter]).AsNoTracking()
-                .Where(definition => definition.Prefix.StartsWith(stem)).Select(definition => definition.Prefix).ToListAsync(cancellationToken));
-        return prefixes;
+        // A prefix has only letters and digits, so a stem never carries a LIKE wildcard; one that does would be a standard's bug.
+        if (stems.Any(stem => stem.Length == 0 || !stem.All(char.IsAsciiLetterOrDigit))) throw new ArgumentException("A prefix stem has only letters and digits.", nameof(stems));
+        var patterns = stems.Distinct(StringComparer.Ordinal).Select(stem => stem + "%").ToArray();
+        if (patterns.Length == 0) return new HashSet<string>(StringComparer.Ordinal);
+        var prefixes = await db.Set<BusinessFormDefinition>().IgnoreQueryFilters([ModelBuilderExtensions.SoftDeleteFilter]).AsNoTracking()
+            .Where(definition => patterns.Any(pattern => EF.Functions.Like(definition.Prefix, pattern))).Select(definition => definition.Prefix).ToListAsync(cancellationToken);
+        return prefixes.ToHashSet(StringComparer.Ordinal);
     }
 }

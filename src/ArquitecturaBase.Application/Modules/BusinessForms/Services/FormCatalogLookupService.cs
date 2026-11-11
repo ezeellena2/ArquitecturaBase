@@ -35,11 +35,16 @@ internal sealed class FormCatalogLookupService(FormCatalogAccessGuard access, IF
             var party = await found.Value.Lookup.FindAsync(request.TaxId!.Trim(), cancellationToken);
             if (party.FailureCode is { } code) return new FormCatalogLookupResultResponse(null, [], code, ErrorMessages.Get(code));
             var values = new List<FormCatalogLookupValueResponse>();
+            // The options of each source catalog by code, in one read per catalog.
+            var options = new Dictionary<Guid, IReadOnlyDictionary<string, Guid>>();
+            foreach (var source in found.Value.Fields.Where(field => field.Type == "catalog" && field.SourceCatalogId is not null && party.Fields?.ContainsKey(field.Key) == true)
+                .GroupBy(field => field.SourceCatalogId!.Value))
+                options[source.Key] = await codes.ListActiveAsync(source.Key, source.Select(field => party.Fields![field.Key]).Distinct(StringComparer.Ordinal).ToArray(), cancellationToken);
             foreach (var field in found.Value.Fields)
             {
                 if (party.Fields?.GetValueOrDefault(field.Key) is not { } value) continue;
                 if (field.Type != "catalog") values.Add(new(field.Id, value));
-                else if (field.SourceCatalogId is { } source && await codes.FindActiveAsync(source, value, cancellationToken) is { } itemId)
+                else if (field.SourceCatalogId is { } source && options[source].TryGetValue(value, out var itemId))
                     values.Add(new(field.Id, itemId.ToString("D")));
             }
             return new FormCatalogLookupResultResponse(party.Name, values);

@@ -42,6 +42,10 @@ internal sealed class FormIssuedCatalogItemRecorder(IFormLibraryReader library, 
         }
         // A value without its field, one that does not fit it or a code its source does not have is dropped, as «Completar» does.
         var values = new Dictionary<string, string?>(StringComparer.Ordinal);
+        // The options of each source catalog by code, in one read per catalog.
+        var options = new Dictionary<Guid, IReadOnlyDictionary<string, Guid>>();
+        foreach (var source in fields.Where(field => field.IsActive && field.Type == "catalog" && item.Fields.ContainsKey(field.Key)).GroupBy(field => field.SourceCatalogId!.Value))
+            options[source.Key] = await codes.ListActiveAsync(source.Key, source.Select(field => item.Fields[field.Key]).Distinct(StringComparer.Ordinal).ToArray(), cancellationToken);
         foreach (var field in fields.Where(field => field.IsActive))
         {
             if (item.Fields.GetValueOrDefault(field.Key) is not { } value) continue;
@@ -49,7 +53,7 @@ internal sealed class FormIssuedCatalogItemRecorder(IFormLibraryReader library, 
             {
                 if (FormCatalogFieldPolicy.Normalize(field with { Required = false }, value).IsSuccess) values[field.Id.ToString("D")] = value;
             }
-            else if (await codes.FindActiveAsync(field.SourceCatalogId!.Value, value, cancellationToken) is { } optionId)
+            else if (options[field.SourceCatalogId!.Value].TryGetValue(value, out var optionId))
                 values[field.Id.ToString("D")] = optionId.ToString("D");
         }
         var (text, detail) = Texts(item.Text.Trim());

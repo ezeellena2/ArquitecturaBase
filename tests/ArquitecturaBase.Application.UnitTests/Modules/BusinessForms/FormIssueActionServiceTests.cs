@@ -390,7 +390,8 @@ public sealed class FormIssueActionServiceTests
         public Task<IReadOnlyDictionary<Guid, string>> ListAsync(IReadOnlyCollection<Guid> itemIds, CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyDictionary<Guid, string>>(new Dictionary<Guid, string>());
 
-        public Task<Guid?> FindActiveAsync(Guid catalogId, string code, CancellationToken cancellationToken) => Task.FromResult<Guid?>(null);
+        public Task<IReadOnlyDictionary<string, Guid>> ListActiveAsync(Guid catalogId, IReadOnlyCollection<string> codes, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyDictionary<string, Guid>>(new Dictionary<string, Guid>());
     }
 
     // A channel that keeps one message per id and person, as the installed ones do.

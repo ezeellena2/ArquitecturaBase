@@ -140,8 +140,6 @@ public sealed class FormIssuedCatalogItemRecorderTests
             throw new NotSupportedException();
         public Task<IReadOnlyDictionary<string, FormLibraryCatalogRow>> ListCatalogsByKeyAsync(IReadOnlyList<string> catalogKeys, CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyDictionary<string, FormLibraryCatalogRow>>(Catalogs.Where(pair => catalogKeys.Contains(pair.Key)).ToDictionary());
-        public Task<IReadOnlyDictionary<string, Guid>> ListActiveItemIdsByCodeAsync(Guid catalogId, IReadOnlyList<string> codes, CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
         public Task<IReadOnlySet<string>> ListPrefixesAsync(IReadOnlyList<string> stems, CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlySet<string>>(new HashSet<string>());
     }
@@ -151,7 +149,7 @@ public sealed class FormIssuedCatalogItemRecorderTests
         public Dictionary<(Guid, string), Guid> Active { get; } = [];
         public Task<IReadOnlyDictionary<Guid, string>> ListAsync(IReadOnlyCollection<Guid> itemIds, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
-        public Task<Guid?> FindActiveAsync(Guid catalogId, string code, CancellationToken cancellationToken) =>
-            Task.FromResult(Active.TryGetValue((catalogId, code), out var id) ? id : (Guid?)null);
+        public Task<IReadOnlyDictionary<string, Guid>> ListActiveAsync(Guid catalogId, IReadOnlyCollection<string> codes, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyDictionary<string, Guid>>(codes.Where(code => Active.ContainsKey((catalogId, code))).ToDictionary(code => code, code => Active[(catalogId, code)]));
     }
 }

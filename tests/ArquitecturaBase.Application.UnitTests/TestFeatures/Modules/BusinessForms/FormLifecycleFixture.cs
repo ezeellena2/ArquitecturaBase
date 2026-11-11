@@ -74,8 +74,6 @@ internal sealed class FormLifecycleFixture : IFormDraftRepository, IFormPublicat
     public Task<FormRetiredIdentities> FindRetiredIdentitiesAsync(Guid id, IReadOnlyCollection<Guid> fields, IReadOnlyCollection<Guid> choices, CancellationToken ct) => throw new NotSupportedException();
     public void AddRetiredIdentities(Guid id, FormRetiredIdentities identities) => throw new NotSupportedException();
     public void Add(BusinessFormDefinition definition) => throw new NotSupportedException();
-    public void AddStandardCatalog(BusinessFormCatalog catalog) => throw new NotSupportedException();
-    public void AddStandardCatalogItems(IReadOnlyList<BusinessFormCatalogItem> items) => throw new NotSupportedException();
     public void AddChange(BusinessFormDraftChange change) => throw new NotSupportedException();
     public Task UpdateExpiredResultsAsync(DateTime now, CancellationToken ct) => throw new NotSupportedException();
     public Task<BusinessFormPublicationOperation?> GetOperationAsync(Guid actor, Guid request, CancellationToken ct) => throw new NotSupportedException();

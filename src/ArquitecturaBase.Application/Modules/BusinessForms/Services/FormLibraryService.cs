@@ -24,17 +24,19 @@ internal sealed class FormLibraryService : IFormLibraryService
     private readonly IFormDraftService _drafts;
     private readonly IFormLibraryReader _reader;
     private readonly FormDraftAccessGuard _access;
-    private readonly FormSystemFolderLinker _folders;
     private readonly FormStandardRuleRecorder _rules;
+    private readonly FormStandardCopyRecorder _copies;
+    private readonly IFormCatalogItemCodeReader _codes;
     private readonly ILogger<FormLibraryService> _logger;
 
     public FormLibraryService(IEnumerable<IStructuredFormStandardSource> sources, IFormDraftService drafts, IFormLibraryReader reader,
-        FormDraftAccessGuard access, FormSystemFolderLinker folders, FormStandardRuleRecorder rules, ILogger<FormLibraryService> logger)
+        FormDraftAccessGuard access, FormStandardRuleRecorder rules, FormStandardCopyRecorder copies, IFormCatalogItemCodeReader codes,
+        ILogger<FormLibraryService> logger)
     {
         _standards = sources.SelectMany(source => source.Standards).ToArray();
         if (_standards.DistinctBy(standard => standard.Key, StringComparer.Ordinal).Count() != _standards.Length)
             throw new InvalidOperationException("Library standard keys must be unique.");
-        (_drafts, _reader, _access, _folders, _rules, _logger) = (drafts, reader, access, folders, rules, logger);
+        (_drafts, _reader, _access, _rules, _copies, _codes, _logger) = (drafts, reader, access, rules, copies, codes, logger);
     }
 
     public Task<Result<FormLibraryResponse>> ListAsync(CancellationToken cancellationToken) =>
@@ -98,8 +100,7 @@ internal sealed class FormLibraryService : IFormLibraryService
             return await _drafts.CreateAsync(new SaveFormDraftRequest(request.RequestId, request.Name, request.Prefix, coded.Value)
             {
                 Standard = new FormDraftStandardOrigin(standard.Key, standard.Version, standard.Bindings)
-                    { NewCatalogs = created, NewCatalogItems = createdItems, FileAsync = Filer(request.FolderId, standard.Folder) is { } file ? (id, ct) => FileAsync(file, id, created, ct) : null,
-                      Rules = rules.Value },
+                    { RecordAsync = _copies.Prepare(created, createdItems, rules.Value, request.FolderId, standard.Folder) },
             }, cancellationToken);
         });
 
@@ -112,50 +113,47 @@ internal sealed class FormLibraryService : IFormLibraryService
     {
         const string prefix = "code:";
         var fields = draft.Fields.ToArray();
+        // Which catalog each condition and each starting option names, and their codes, so each catalog is read once.
+        var conditions = new Dictionary<int, Guid>();
+        var starting = new Dictionary<int, (Guid CatalogId, string Code)>();
+        var wanted = new Dictionary<Guid, HashSet<string>>();
+        void Want(Guid catalogId, IEnumerable<string> codes)
+        {
+            if (!wanted.TryGetValue(catalogId, out var set)) wanted[catalogId] = set = new HashSet<string>(StringComparer.Ordinal);
+            set.UnionWith(codes);
+        }
         for (var index = 0; index < fields.Length; index++)
         {
-            if (fields[index].ShowWhen is not { } showWhen || !showWhen.Values.Any(value => value.StartsWith(prefix, StringComparison.Ordinal))) continue;
-            var catalogKey = named.Where(pair => Guid.TryParse(pair.Key, out var localId) && localId == showWhen.QuestionId).Select(pair => pair.Value).FirstOrDefault()
-                ?? throw new InvalidOperationException("A library standard names an option code outside a catalog question.");
-            var catalogId = catalogIds[catalogKey];
-            var codes = showWhen.Values.Where(value => value.StartsWith(prefix, StringComparison.Ordinal)).Select(value => value[prefix.Length..]).ToArray();
-            var options = createdCodes.TryGetValue(catalogId, out var own) ? own : await _reader.ListActiveItemIdsByCodeAsync(catalogId, codes, cancellationToken);
-            if (codes.Any(code => !options.ContainsKey(code))) return FormLibraryErrors.CatalogUnavailable;
+            if (fields[index].ShowWhen is { } showWhen && showWhen.Values.Any(value => value.StartsWith(prefix, StringComparison.Ordinal)))
+            {
+                var catalogKey = named.Where(pair => Guid.TryParse(pair.Key, out var localId) && localId == showWhen.QuestionId).Select(pair => pair.Value).FirstOrDefault()
+                    ?? throw new InvalidOperationException("A library standard names an option code outside a catalog question.");
+                conditions[index] = catalogIds[catalogKey];
+                Want(catalogIds[catalogKey], showWhen.Values.Where(value => value.StartsWith(prefix, StringComparison.Ordinal)).Select(value => value[prefix.Length..]));
+            }
+            if (defaults.TryGetValue(fields[index].LocalId, out var code))
+            {
+                var catalogKey = named.GetValueOrDefault(fields[index].LocalId)
+                    ?? throw new InvalidOperationException("A library standard declares a starting option outside a catalog question.");
+                starting[index] = (catalogIds[catalogKey], code);
+                Want(catalogIds[catalogKey], [code]);
+            }
+        }
+        var options = new Dictionary<Guid, IReadOnlyDictionary<string, Guid>>();
+        foreach (var (catalogId, codes) in wanted)
+        {
+            options[catalogId] = createdCodes.TryGetValue(catalogId, out var own) ? own : await _codes.ListActiveAsync(catalogId, codes, cancellationToken);
+            if (codes.Any(code => !options[catalogId].ContainsKey(code))) return FormLibraryErrors.CatalogUnavailable;
+        }
+        foreach (var (index, catalogId) in conditions)
+        {
+            var showWhen = fields[index].ShowWhen!;
             fields[index] = fields[index] with { ShowWhen = showWhen with { Values = showWhen.Values
-                .Select(value => value.StartsWith(prefix, StringComparison.Ordinal) ? options[value[prefix.Length..]].ToString("D") : value).ToArray() } };
+                .Select(value => value.StartsWith(prefix, StringComparison.Ordinal) ? options[catalogId][value[prefix.Length..]].ToString("D") : value).ToArray() } };
         }
-        for (var index = 0; index < fields.Length; index++)
-        {
-            if (!defaults.TryGetValue(fields[index].LocalId, out var code)) continue;
-            var catalogKey = named.GetValueOrDefault(fields[index].LocalId)
-                ?? throw new InvalidOperationException("A library standard declares a starting option outside a catalog question.");
-            var catalogId = catalogIds[catalogKey];
-            var options = createdCodes.TryGetValue(catalogId, out var own) ? own : await _reader.ListActiveItemIdsByCodeAsync(catalogId, [code], cancellationToken);
-            if (!options.TryGetValue(code, out var optionId)) return FormLibraryErrors.CatalogUnavailable;
-            fields[index] = fields[index] with { Source = fields[index].Source! with { Default = optionId } };
-        }
+        foreach (var (index, (catalogId, code)) in starting)
+            fields[index] = fields[index] with { Source = fields[index].Source! with { Default = options[catalogId][code] } };
         return draft with { Fields = fields };
     }
 
-    // The folder chosen when adding or, by default, the standard's own, created in the language of whoever adds the copy.
-    private Func<FormFolderItemKind, Guid, CancellationToken, Task<Result<Guid>>>? Filer(Guid? chosen,
-        ArquitecturaBase.Application.Models.StructuredData.StructuredFormStandardFolder? standard)
-    {
-        if (chosen is { } folderId) return (kind, id, ct) => _folders.FileAsync(kind, id, folderId, ct);
-        if (standard is null) return null;
-        var name = FormRecordPresentationPolicy.Text(standard.Name, System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es");
-        return (kind, id, ct) => _folders.FileAsync(kind, id, standard.Key, name, ct);
-    }
-
-    private static async Task<Result> FileAsync(Func<FormFolderItemKind, Guid, CancellationToken, Task<Result<Guid>>> file, Guid definitionId,
-        IReadOnlyList<BusinessFormCatalog> catalogs, CancellationToken cancellationToken)
-    {
-        var filed = await file(FormFolderItemKind.Form, definitionId, cancellationToken);
-        foreach (var catalog in catalogs)
-        {
-            if (filed.IsFailure) break;
-            filed = await file(FormFolderItemKind.Catalog, catalog.Id, cancellationToken);
-        }
-        return filed.IsFailure ? filed.Error : Result.Success();
-    }
 }

@@ -14,7 +14,7 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 /// checks of the rule editor against the new draft and the issuers of the standard; a standard whose rules do not is a bug of its
 /// module. It does not save on its own.
 /// </summary>
-internal sealed class FormStandardRuleRecorder(IFormRuleRepository rules, IFormLibraryReader reader, IEnumerable<IStructuredRecordIssuer> issuers)
+internal sealed class FormStandardRuleRecorder(IFormRuleRepository rules, IFormCatalogItemCodeReader codeReader, IEnumerable<IStructuredRecordIssuer> issuers)
 {
     private const string CodePrefix = "code:";
 
@@ -32,7 +32,7 @@ internal sealed class FormStandardRuleRecorder(IFormRuleRepository rules, IFormL
             if (wanted.Length == 0) continue;
             var catalogId = catalogKeys.TryGetValue(question.Key, out var catalogKey) ? catalogIds[catalogKey]
                 : throw new InvalidOperationException("A library standard names an option code outside a catalog question in its rules.");
-            var options = createdCodes.TryGetValue(catalogId, out var own) ? own : await reader.ListActiveItemIdsByCodeAsync(catalogId, wanted, cancellationToken);
+            var options = createdCodes.TryGetValue(catalogId, out var own) ? own : await codeReader.ListActiveAsync(catalogId, wanted, cancellationToken);
             if (wanted.Any(code => !options.ContainsKey(code))) return FormLibraryErrors.CatalogUnavailable;
             codes[question.Key] = options;
         }
