@@ -321,5 +321,15 @@ La revisión no encontró nada bloqueante. Dos puntos importan y se están corri
 
 2026-11-11: a pedido del usuario, cada desarrollo se termina entero, front incluido, y la prueba integral se hace una sola vez al
 final; la verificación completa la corre una sola vez el chat que coordina la tanda. El contrato de Inicio en el front suma
-`attach` en una sugerencia (abre el selector de archivos) y `replacementGroup` (front d363ee7f). La tarea 8 está en curso, y la 9
-espera el turno de `CatalogImportDialog` y `CatalogEditorPage`, que también tocan «Diálogo de exportar» y «Ordenar opciones».
+`attach` en una sugerencia (abre el selector de archivos) y `replacementGroup` (front d363ee7f). Las tareas 8 y 9 están en curso.
+`CatalogImportDialog` y `CatalogEditorPage` los toca primero «Diálogo de exportar», y la tarea 9 suma lo suyo sobre su versión.
+
+2026-11-11: los casos del arnés con planillas quedaron escritos (64f91d70), sin correr nada contra el proveedor:
+- `home-spreadsheets`: 18 casos y dos dictados WebM;
+- `channel-spreadsheets`: 12 casos y dos notas Ogg;
+- `ia-spreadsheets`: los 30 juntos.
+
+Las planillas ficticias están commiteadas con su SHA-256, y el catálogo «Proveedores» es el de importar. El inventario del arnés
+compara Id y versión, y quedan 206 controles offline en verde. `channel-spreadsheets` se puede correr ya. Inicio necesita que la
+tarea 9 dé vuelta lo que ofrece; después, `ia-authoring`, `channel-stage5` y `channel-dictation` se alinean con lo que ofrece la
+app (`propose-catalog@2` y la importación) y vuelven a correr. `home-existing` no, porque sus cuentas no ven `propose-catalog`.
