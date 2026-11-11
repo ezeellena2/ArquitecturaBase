@@ -137,7 +137,7 @@ Lo que el plan no fijaba, resuelto con la opción más simple que cumple el plan
 7. **El clip aparece cuando el bootstrap dice `attachments`.** En esta etapa eso es para quien administra catálogos
    (`formcatalogs.read` y `formcatalogs.manage`), porque una planilla sólo sirve para un catálogo. Con los documentos de la Etapa 3
    el puerto suma a quien diseña formularios, como dice IA4.
-8. **El front**, después de la prueba integral del usuario:
+8. **El front:**
    - el clip y el archivo elegido, como pieza nueva de `shared/ui/assistant`;
    - el envío con su espera y su progreso, y el motivo de lo que no se lee debajo del editor;
    - el archivo en la burbuja y la sugerencia de Inicio vacío, que escribe el pedido y abre el selector de archivos;
@@ -146,8 +146,8 @@ Lo que el plan no fijaba, resuelto con la opción más simple que cumple el plan
      opciones, para quien la pidió y con la propuesta disponible), desde «Revisar la importación» con el estado de la navegación y
      desde el enlace de WhatsApp;
    - la planilla en el chat del operador.
-9. **Contratos mientras dura la prueba integral.** Nada que el front de hoy rechace, ni nada que le saque algo que hoy muestra,
-   llega a `main` antes que su front. El `attachments` del bootstrap se publica con la tarea 8; las rutas nuevas (el turno con
+9. **Contratos y su front.** Nada que el front rechace, ni nada que le saque algo que hoy muestra, llega a `main` antes que su
+   front. El `attachments` del bootstrap se publica con la tarea 8; las rutas nuevas (el turno con
    archivo, importar desde la copia y la importación pendiente) no las llama el front de hoy. El front de hoy dibuja sólo la versión 1 de `propose-catalog`, así que Inicio la sigue
    ofreciendo hasta la tarea 9: la versión 2 y `propose-import` quedan registradas sin `OfferedInHome` y la 9 da vuelta las
    marcas. WhatsApp, que no depende del front, pasa a la 2 y suma `propose-import` en la tarea 7. Lo demás no rompe nada: el front
@@ -156,8 +156,9 @@ Lo que el plan no fijaba, resuelto con la opción más simple que cumple el plan
 ## Tareas
 
 Cada tarea sigue [validar un cambio](../guides/validar-un-cambio.md): TDD en las políticas, build y tests rápidos del área en cada
-corte. Las del backend exportan los contratos al cerrar. Las del front esperan a que el usuario termine la prueba integral, porque
-Vite le recarga la página.
+corte. Las del backend escriben sus capturas, y los ejemplos HTTP se exportan una sola vez, desde una copia, con los contratos de
+las tareas 8 y 9. Desde el 2026-11-11 el front no espera a la prueba integral: a pedido del usuario, cada desarrollo se termina
+entero y la prueba integral se hace una sola vez al final.
 
 1. **Leer planillas para el asistente.** El puerto, su versión apagada y la implementación en BusinessForms, con quién puede
    adjuntar y los rechazos por contenido. Unitarias de lo preparado (filas, columnas y el orden del recorte) y pruebas del lector
@@ -317,3 +318,8 @@ La revisión no encontró nada bloqueante. Dos puntos importan y se están corri
   mismo que la reemplazada. En el motor, una continuación de un canal se suma al final de la conversación aunque después de la
   operación pedida haya otros turnos, siempre que no haya una activa. La vigencia de la propuesta la controla el canal.
 - Reenviar sola una planilla rechazada no obtenía respuesta. Los textos de rechazo piden reenviarla junto con el pedido.
+
+2026-11-11: a pedido del usuario, cada desarrollo se termina entero, front incluido, y la prueba integral se hace una sola vez al
+final; la verificación completa la corre una sola vez el chat que coordina la tanda. El contrato de Inicio en el front suma
+`attach` en una sugerencia (abre el selector de archivos) y `replacementGroup` (front d363ee7f). La tarea 8 está en curso, y la 9
+espera el turno de `CatalogImportDialog` y `CatalogEditorPage`, que también tocan «Diálogo de exportar» y «Ordenar opciones».
