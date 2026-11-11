@@ -15,16 +15,22 @@ internal static class ArcaVoucherRowPolicy
     public static ArcaVoucherResponse Response(ArcaVoucher voucher) => new(voucher.Id, voucher.RequestKey, voucher.State, voucher.ReviewReason, voucher.Class,
         voucher.Kind, voucher.VoucherType, voucher.PointOfSale, voucher.Number, voucher.Cae, voucher.CaeDueOn, voucher.IssuedOn, voucher.RequestedOn,
         voucher.Total, voucher.FailureCode, voucher.WaitedForArca, voucher.NextAttemptAtUtc, voucher.Revision, voucher.PdfStorageKey, voucher.PdfSha256,
-        voucher.PdfSize) { Receiver = Receiver(voucher.PayloadJson) };
+        voucher.PdfSize) { Receiver = Receiver(voucher.PayloadJson), Messages = ReadMessages(voucher.MessagesJson), Failures = voucher.Failures };
 
     public static ArcaVoucherResponse Response(ArcaVoucherRow row) => new(row.Id, row.RequestKey, row.State, row.ReviewReason, row.Class, row.Kind,
         row.VoucherType, row.PointOfSale, row.Number, row.Cae, row.CaeDueOn, row.IssuedOn, row.RequestedOn, row.Total, row.FailureCode, row.WaitedForArca,
-        row.NextAttemptAtUtc, row.Revision, row.PdfStorageKey, row.PdfSha256, row.PdfSize) { Receiver = Receiver(row.PayloadJson) };
+        row.NextAttemptAtUtc, row.Revision, row.PdfStorageKey, row.PdfSha256, row.PdfSize)
+    {
+        Receiver = Receiver(row.PayloadJson), Messages = ReadMessages(row.MessagesJson), Failures = row.Failures,
+    };
 
     public static string? Messages(ArcaAuthorization authorization) =>
         authorization.Errors.Count + authorization.Observations.Count == 0
             ? null
             : JsonSerializer.Serialize(authorization.Errors.Concat(authorization.Observations), Json);
+
+    private static ArcaMessage[]? ReadMessages(string? messagesJson) =>
+        messagesJson is null ? null : JsonSerializer.Deserialize<ArcaMessage[]>(messagesJson, Json);
 
     /// <summary>El motivo estable de un rechazo o de una duda: el primer código de ARCA, con el prefijo del servicio.</summary>
     public static string FailureCode(ArcaAuthorization authorization, string fallback) =>

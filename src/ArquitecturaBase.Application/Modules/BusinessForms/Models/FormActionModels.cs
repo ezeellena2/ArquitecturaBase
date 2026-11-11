@@ -34,6 +34,12 @@ public sealed record FormActionRunResponse(Guid Id,Guid RuleId,string Kind,strin
     /// <summary>An issuance in review that this person may decide; written only when true.</summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
     public bool CanReview { get; init; }
+    /// <summary>A running issuance whose issuer waits for its provider: when the issuer tries again; absent otherwise.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public DateTime? NextAttemptAtUtc { get; init; }
+    /// <summary>How many times that issuer tried while it waits, when it counts them; absent otherwise.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public int? Attempts { get; init; }
 }
 public sealed record FormActionRecipientResponse(FormAuthorResponse User,string? ChannelId,string State,string? ReasonCode,string? Reason,
     bool CanReview,bool CanRetry,DateTime? DeliveredAtUtc,DateTime? ReadAtUtc,FormActionDeliveryReviewResponse? Review);

@@ -1022,8 +1022,13 @@ ARCA» ([ADR 0028](../decisions/0028-emision-de-comprobantes-arca.md)); sin emis
   resultado vuelve a preguntar sin emitir dos veces. Encola sólo si la respuesta sigue en pie (ni anulada ni corregida); si
   no, «No aplica». Mientras el emisor trabaja queda `Running` y vuelve a mirar cuando el emisor dice, nunca antes de 5
   segundos. Si espera por su proveedor, quien cargó la respuesta recibe una sola vez el aviso que da el emisor, en su idioma
-  y por el primer canal que lo alcanza; sin canal, no hay aviso. Emitido, termina `Completed` y guarda el resultado en la misma transacción; rechazado, `Failed` con el código del
-  emisor (reintentable si no se encoló nada); en revisión, `Uncertain` con el motivo del emisor. Sin el emisor,
+  y por el primer canal que lo alcanza; sin canal, no hay aviso. Mientras espera, la acción del flujo
+  (`GET api/forms/records/{id}/workflow`) trae, además de `Running`, el motivo de la espera en `reasonCode` (y su texto en
+  `reason`), `nextAttemptAtUtc` (cuándo vuelve a probar el emisor) y `attempts` (cuántas veces probó, si las cuenta): la banda
+  «En cola»; sin espera, no trae ninguno. Emitido, termina `Completed` y guarda el resultado en la misma transacción; rechazado, `Failed` con el código del
+  emisor (reintentable si no se encoló nada) y, en `reason`, lo que dijo el proveedor tal como lo da el emisor
+  (`FailureDetail`, «10015 · El número de documento del receptor no es válido.»), también en el run de reversión (evento
+  `Voided`); sin eso, `reason` es el texto del código. En revisión, `Uncertain` con el motivo del emisor. Sin el emisor,
   `Forms.Action.IssuerUnavailable`; sin los datos atados, `Forms.Action.IssueDataUnavailable`; si una persona decidió no
   emitir, `Forms.Action.NotIssued`.
 - **El cliente nuevo, con «Emitir».** Si al encolar el emisor completó a alguien escrito en la respuesta (el cliente de

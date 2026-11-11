@@ -56,6 +56,73 @@ public sealed partial class FormDraftEndpointsTests
             document.GetProperty("name").GetString()));
     }
 
+    // «En cola»: while its issuer waits for its provider, the action says why, when it tries again and how many times it tried; once
+    // it is pending without waiting, or for anything else, it says none of that.
+    [Fact]
+    public async Task An_issuance_waiting_for_its_provider_shows_in_the_workflow_when_it_tries_again_and_how_many_times_it_tried()
+    {
+        using var manager = await OperatorAsync([BusinessFormsPermissions.RecordsRead, BusinessFormsPermissions.RulesManage]);
+        var issuer = new TestRecordIssuer();
+        await using var host = IssuerHost(issuer);
+        using var client = InHost(host, manager);
+        var (recordId, runId) = await SeedIssueRunAsync(manager);
+        var worker = host.Services.GetRequiredService<FormActionBackgroundService>();
+        var later = factory.Clock.GetUtcNow().UtcDateTime.AddMinutes(10);
+
+        issuer.Next = new(StructuredIssueState.Pending, "test.issue.unavailable", WaitingForProvider: true, NextCheckAtUtc: later) { Attempts = 3 };
+        await worker.ProcessNextAsync(runId, Ct);
+        var waiting = await WorkflowActionAsync(client, recordId);
+        Assert.Equal(("Running", "test.issue.unavailable", later, 3), (waiting.GetProperty("state").GetString(), waiting.GetProperty("reasonCode").GetString(),
+            waiting.GetProperty("nextAttemptAtUtc").GetDateTime(), waiting.GetProperty("attempts").GetInt32()));
+
+        issuer.Current = new(StructuredIssueState.Pending);
+        factory.Clock.Advance(TimeSpan.FromMinutes(10));
+        await worker.ProcessNextAsync(runId, Ct);
+        var issuing = await WorkflowActionAsync(client, recordId);
+        Assert.Equal("Running", issuing.GetProperty("state").GetString());
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, issuing.GetProperty("reasonCode").ValueKind);
+        Assert.False(issuing.TryGetProperty("nextAttemptAtUtc", out _));
+        Assert.False(issuing.TryGetProperty("attempts", out _));
+    }
+
+    // «Rechazada» and «No se pudo anular»: the stable code stays in reasonCode and the reason is what the provider said.
+    [Fact]
+    public async Task A_rejected_issuance_or_reversal_shows_in_the_workflow_what_its_provider_said()
+    {
+        using var manager = await OperatorAsync([BusinessFormsPermissions.RecordsRead, BusinessFormsPermissions.RecordsAmend, BusinessFormsPermissions.RulesManage,
+            BusinessFormsPermissions.ApprovalsDecide, BusinessFormsPermissions.RecordsCreate]);
+        var issuer = new TestRecordIssuer();
+        await using var host = IssuerHost(issuer);
+        using var client = InHost(host, manager);
+        var worker = host.Services.GetRequiredService<FormActionBackgroundService>();
+
+        var (rejectedId, rejectedRun) = await SeedIssueRunAsync(manager);
+        issuer.Next = new(StructuredIssueState.Rejected, "test.issue.10015") { FailureDetail = "10015 · El número de documento del receptor no es válido." };
+        await worker.ProcessNextAsync(rejectedRun, Ct);
+        var rejected = await WorkflowActionAsync(client, rejectedId);
+        Assert.Equal(("Failed", "test.issue.10015", "10015 · El número de documento del receptor no es válido."),
+            (rejected.GetProperty("state").GetString(), rejected.GetProperty("reasonCode").GetString(), rejected.GetProperty("reason").GetString()));
+        Assert.False(rejected.TryGetProperty("nextAttemptAtUtc", out _));
+
+        var (issuedId, issuedRun) = await SeedIssueRunAsync(manager);
+        var definitionId = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormRecord>().Where(record => record.Id == issuedId)
+            .Select(record => record.DefinitionId).SingleAsync(Ct));
+        issuer.Next = new(StructuredIssueState.Issued, Result: Voucher("Factura C"));
+        await worker.ProcessNextAsync(issuedRun, Ct);
+        using var voided = await client.PostAsJsonAsync($"/api/forms/definitions/{definitionId}/records/{issuedId}/void", new { reason = "Se cargó mal" }, Ct);
+        Assert.True(voided.IsSuccessStatusCode, voided.StatusCode.ToString());
+        var reversalId = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormActionRun>().Where(run => run.RecordId == issuedId && run.Event == "Voided")
+            .Select(run => run.Id).SingleAsync(Ct));
+        issuer.ReversalResult = new(StructuredIssueState.Rejected, "test.issue.10197") { FailureDetail = "10197 · El comprobante asociado no es válido." };
+        await worker.ProcessNextAsync(reversalId, Ct);
+
+        using var workflow = await client.GetAsync($"/api/forms/records/{issuedId}/workflow", Ct);
+        var reversal = (await workflow.ReadJsonAsync()).GetProperty("actions").EnumerateArray().Single(action => action.GetProperty("event").GetString() == "Voided");
+        Assert.Equal(("Failed", "test.issue.10197", "10197 · El comprobante asociado no es válido."),
+            (reversal.GetProperty("state").GetString(), reversal.GetProperty("reasonCode").GetString(), reversal.GetProperty("reason").GetString()));
+        Assert.Equal(FormRecordState.Received, await RecordStateAsync(issuedId));
+    }
+
     [Fact]
     public async Task An_issuance_in_review_is_decided_from_the_workflow_only_with_the_permission_of_its_issuer()
     {

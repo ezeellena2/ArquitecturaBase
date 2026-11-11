@@ -50,7 +50,13 @@ internal sealed class FormActionRunReader(ApplicationDbContext db,TimeProvider t
         var reviewers=outcomes.SelectMany(outcome=>outcome?.Recipients??[]).Where(recipient=>recipient.Status.Review is not null)
             .Select(recipient=>recipient.Status.Review!.ReviewedByUserId).Concat(rows.Where(row=>row.DeliveryReviewedByUserId!=null).Select(row=>row.DeliveryReviewedByUserId!.Value)).Distinct().ToArray();
         var names=await db.Users.AsNoTracking().Where(user=>reviewers.Contains(user.Id)).Select(user=>new{user.Id,user.DisplayName}).ToDictionaryAsync(user=>user.Id,user=>user.DisplayName,cancellationToken);
-        var actions=rows.Select((row,index)=>row.Response with{Recipients=(outcomes[index]?.Recipients??[]).Select(recipient=>
+        // An issuance as its issuer last said it: failed, what the provider said; running while it waits for the provider, why,
+        // when it tries again and how many times it tried.
+        var failed=rows.Select((row,index)=>row.Response.State=="Failed"?outcomes[index]?.Issue:null).ToArray();
+        var waiting=rows.Select((row,index)=>row.Response.State=="Running"&&outcomes[index]?.Issue is {State:StructuredIssueState.Pending,WaitingForProvider:true} issue
+            ?issue:null).ToArray();
+        var actions=rows.Select((row,index)=>row.Response with{ReasonCode=row.Response.ReasonCode??waiting[index]?.FailureCode,Reason=failed[index]?.FailureDetail,
+            NextAttemptAtUtc=waiting[index]?.NextCheckAtUtc,Attempts=waiting[index]?.Attempts,Recipients=(outcomes[index]?.Recipients??[]).Select(recipient=>
         {
             var review=recipient.Status.Review;
             if(row.DeliveryReviewRecipientUserId==recipient.UserId&&row.DeliveryReviewWasSent is {} decision)

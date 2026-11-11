@@ -11,7 +11,8 @@ namespace ArquitecturaBase.Application.Modules.Arca.Channels.Invoicing;
 /// <summary>
 /// An issuance of the queue as forms sees it. It is issued once ARCA authorized it and its fiscal PDF is stored, with the voucher,
 /// its number, its date, the CAE and its due date, the customer with its document and VAT condition (as the fiscal PDF says them)
-/// and the total as its result; until then it is pending, on the queue's own schedule.
+/// and the total as its result; until then it is pending, on the queue's own schedule, with the attempts that failed while it
+/// waits for ARCA. A rejection brings the first code and text of ARCA as it sent them («10015 · …»).
 /// </summary>
 internal static class ArcaInvoiceIssuePolicy
 {
@@ -35,13 +36,20 @@ internal static class ArcaInvoiceIssuePolicy
         ArcaVoucherState.Authorized when voucher.PdfStorageKey is { } storageKey => new(StructuredIssueState.Issued, Revision: voucher.Revision,
             Result: Result(voucher), Document: new StructuredRecordActionDocument(storageKey,
                 $"{ArcaFiscalDocumentPolicy.Name(voucher.Class, voucher.Kind)} {Number(voucher)}.pdf", "application/pdf", voucher.PdfSize!.Value, voucher.PdfSha256!)),
-        ArcaVoucherState.Rejected => new(StructuredIssueState.Rejected, voucher.FailureCode, Revision: voucher.Revision),
+        ArcaVoucherState.Rejected => new(StructuredIssueState.Rejected, voucher.FailureCode, Revision: voucher.Revision)
+        {
+            FailureDetail = voucher.Messages is [var message, ..] ? $"{message.Code.ToString(CultureInfo.InvariantCulture)} · {message.Text.Trim()}" : null,
+        },
         ArcaVoucherState.NeedsReview => new(StructuredIssueState.NeedsReview, Revision: voucher.Revision,
             ReviewReason: ArcaInvoiceStandard.Key + "." + Camel(voucher.ReviewReason!.Value.ToString())),
         ArcaVoucherState.Cancelled => new(StructuredIssueState.Cancelled, Revision: voucher.Revision),
         _ => new(StructuredIssueState.Pending, voucher.FailureCode, WaitingForProvider: voucher.WaitedForArca, NextCheckAtUtc: voucher.NextAttemptAtUtc,
             Revision: voucher.Revision, WaitingNotice: voucher.WaitedForArca
-                ? Localized(voucher.Kind == ArcaVoucherKind.CreditNote ? "Notice.WaitingCreditNote" : "Notice.WaitingInvoice") : null),
+                ? Localized(voucher.Kind == ArcaVoucherKind.CreditNote ? "Notice.WaitingCreditNote" : "Notice.WaitingInvoice") : null)
+        {
+            // «Ya probamos 3 veces»: the attempts that failed in a row while it waits.
+            Attempts = voucher.WaitedForArca && voucher.Failures > 0 ? voucher.Failures : null,
+        },
     };
 
     /// <summary>

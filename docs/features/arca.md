@@ -155,7 +155,11 @@ la prueba integral y la de homologación. Lo que se ve en la app y en WhatsApp e
   con `ArcaFiscalDocumentPolicy`, como en el PDF fiscal. En revisión responde `arca.invoice.<motivo>`; seguir es otro
   número o la fecha de hoy, y decidirlo pide `arca.issue`. Anular la respuesta cancela la emisión que todavía no
   tiene número o pide la nota de crédito por el total (`EnqueueCreditNoteAsync`), las dos por el mismo puerto. Mientras espera por ARCA, el aviso es «ARCA no responde. Tu factura
-  sale apenas vuelva.» (o «Tu nota de crédito»).
+  sale apenas vuelva.» (o «Tu nota de crédito»), y la respuesta trae cuándo vuelve a probar la cola (`NextCheckAtUtc`) y
+  cuántas veces seguidas no salió (`Attempts`, la columna `Failures` del comprobante, que vuelve a cero al emitir o al seguir
+  después de una revisión). Un rechazo trae el código estable (`wsfe.<código>`) y, en `FailureDetail`, el primer mensaje que
+  guardó ARCA (los errores antes que las observaciones) como lo mandó: «10015 · El número de documento del receptor no es
+  válido.», también en la nota de crédito.
 - **El estándar «Factura»** (`ArcaInvoiceStandardSource`, `arca.invoice`, prefijo FAC): Cliente (de «Clientes»), CUIT del
   cliente (sólo con «Otro: escribir la CUIT»), Concepto (tabla de ARCA), Fecha (vacía, la de hoy), Período desde y hasta y
   Vencimiento del pago (opcionales y siempre a la vista: WhatsApp no muestra una pregunta por varias opciones de un catálogo,

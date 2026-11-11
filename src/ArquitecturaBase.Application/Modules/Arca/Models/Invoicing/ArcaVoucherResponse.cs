@@ -31,4 +31,10 @@ public sealed record ArcaVoucherResponse(
 {
     /// <summary>El receptor del pedido guardado; lo muestra el resultado de la emisión, como el PDF fiscal.</summary>
     public ArcaVoucherParty? Receiver { get; init; }
+
+    /// <summary>Los códigos y textos de ARCA del último intento (errores antes que observaciones); null si no dijo nada.</summary>
+    public IReadOnlyList<ArcaMessage>? Messages { get; init; }
+
+    /// <summary>Las veces seguidas que no salió y quedó esperando (sin conexión, sin respuesta o incierto): las que ya probó.</summary>
+    public int Failures { get; init; }
 }

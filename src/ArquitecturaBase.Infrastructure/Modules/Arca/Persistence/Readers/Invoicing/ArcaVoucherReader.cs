@@ -37,6 +37,6 @@ internal sealed class ArcaVoucherReader(ApplicationDbContext dbContext) : IArcaV
             .Where(x => requestKeys.Contains(x.RequestKey))
             .Select(x => new ArcaVoucherRow(x.Id, x.RequestKey, x.State, x.ReviewReason, x.Class, x.Kind, x.VoucherType, x.PointOfSale, x.Number, x.Cae,
                 x.CaeDueOn, x.IssuedOn, x.RequestedOn, x.Total, x.FailureCode, x.WaitedForArca, x.NextAttemptAtUtc, x.Revision, x.PdfStorageKey,
-                x.PdfSha256, x.PdfSize, x.PayloadJson))
+                x.PdfSha256, x.PdfSize, x.PayloadJson, x.MessagesJson, x.Failures))
             .ToListAsync(cancellationToken);
 }

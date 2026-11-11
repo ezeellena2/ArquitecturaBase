@@ -50,7 +50,8 @@ internal sealed class FormWorkflowReadPolicy
                     ? observations.GetValueOrDefault((channelId, action.Id, recipient.User.UserId)) : null)).ToArray();
                 return action with
                 {
-                    Reason = action.ReasonCode is { } code ? ErrorMessages.Get(code) : null,
+                    // What the provider said of a failed issuance comes as the reader found it; any other reason, by its code.
+                    Reason = action.Reason ?? (action.ReasonCode is { } code ? ErrorMessages.Get(code) : null),
                     CanRetry = manage && action.CanRetry && !(recipients.Length > 0 && recipients.All(recipient => recipient.State == "Accepted")),
                     CanConsult = manage && action.CanConsult,
                     CanReview = reviewIssues && action.Kind == "IssueDocument" && action.State == "Uncertain",

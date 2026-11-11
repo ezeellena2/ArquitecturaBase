@@ -70,6 +70,47 @@ public sealed class ArcaStructuredRecordIssuerTests(ApiFactory factory) : IDispo
         }
     }
 
+    // The band of the zone «Comprobante»: «Rechazada» with the code and text ARCA sent, and «En cola» with when the queue tries
+    // again and how many times it tried.
+    [Fact]
+    public async Task A_rejection_comes_back_with_what_arca_said_and_a_wait_with_how_many_times_the_queue_tried()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var arca = factory.Services.GetRequiredService<FakeArca>();
+        arca.Reset();
+        await ArcaVoucherScenario.ConnectAsync(factory, authority);
+        try
+        {
+            var processor = factory.Services.GetRequiredService<ArcaVoucherProcessor>();
+            var rejected = Request(Guid.CreateVersion7());
+            await IssuerAsync(factory, issuer => issuer.EnqueueAsync(rejected, ct));
+            arca.Vouchers.Enqueue(FakeArcaVoucherFault.Reject);
+            await processor.ProcessAsync(ArcaVoucherScenario.Sequence(), ct);
+
+            var refused = await IssuerAsync(factory, issuer => issuer.GetAsync(rejected.RunId, ct));
+            Assert.Equal((StructuredIssueState.Rejected, "wsfe.10015", "10015 · El numero de documento del receptor no es valido"),
+                (refused.State, refused.FailureCode, refused.FailureDetail));
+            Assert.Null(refused.Attempts);
+
+            var waiting = Request(Guid.CreateVersion7());
+            await IssuerAsync(factory, issuer => issuer.EnqueueAsync(waiting, ct));
+            arca.Fail(FakeArca.InvoicingService, FakeArcaFailure.ServiceUnavailable);
+            await processor.ProcessAsync(ArcaVoucherScenario.Sequence(), ct);
+            factory.Clock.Advance(ArcaRetrySchedule.After(1));
+            arca.Fail(FakeArca.InvoicingService, FakeArcaFailure.ServiceUnavailable);
+            await processor.ProcessAsync(ArcaVoucherScenario.Sequence(), ct);
+
+            var queued = await IssuerAsync(factory, issuer => issuer.GetAsync(waiting.RunId, ct));
+            Assert.Equal((StructuredIssueState.Pending, true, 2, factory.Clock.GetUtcNow().UtcDateTime + ArcaRetrySchedule.After(2)),
+                (queued.State, queued.WaitingForProvider, queued.Attempts, queued.NextCheckAtUtc));
+            Assert.Null(queued.FailureDetail);
+        }
+        finally
+        {
+            await ArcaVoucherScenario.RemoveAsync(factory);
+        }
+    }
+
     [Fact]
     public async Task A_request_without_a_customer_is_rejected_and_nothing_is_queued()
     {

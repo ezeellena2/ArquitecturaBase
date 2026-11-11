@@ -74,6 +74,33 @@ public sealed class ArcaInvoiceIssuePolicyTests
         Assert.Null(ArcaInvoiceIssuePolicy.Response(Voucher(ArcaVoucherState.Queued)).WaitingNotice);
     }
 
+    // «En cola»: «Ya probamos 3 veces». Only while it waits for ARCA, and never zero.
+    [Fact]
+    public void A_voucher_waiting_for_arca_says_how_many_times_it_tried()
+    {
+        var waiting = ArcaInvoiceIssuePolicy.Response(Voucher(ArcaVoucherState.Queued) with { WaitedForArca = true, Failures = 3 });
+
+        Assert.Equal(3, waiting.Attempts);
+        Assert.Null(ArcaInvoiceIssuePolicy.Response(Voucher(ArcaVoucherState.Queued) with { WaitedForArca = true }).Attempts);
+        Assert.Null(ArcaInvoiceIssuePolicy.Response(Voucher(ArcaVoucherState.Queued) with { Failures = 3 }).Attempts);
+        Assert.Null(ArcaInvoiceIssuePolicy.Response(Voucher(ArcaVoucherState.Rejected) with { WaitedForArca = true, Failures = 3 }).Attempts);
+    }
+
+    // «Rechazada»: the code stays stable for forms and the first message of ARCA (an error before an observation) is what it shows.
+    [Fact]
+    public void A_rejection_brings_the_first_code_and_text_of_arca_to_show()
+    {
+        var rejected = ArcaInvoiceIssuePolicy.Response(Voucher(ArcaVoucherState.Rejected) with
+        {
+            FailureCode = "wsfe.10015",
+            Messages = [new(10015, "El número de documento del receptor no es válido."), new(10063, "Otra observación")],
+        });
+
+        Assert.Equal(("wsfe.10015", "10015 · El número de documento del receptor no es válido."), (rejected.FailureCode, rejected.FailureDetail));
+        Assert.Null(ArcaInvoiceIssuePolicy.Response(Voucher(ArcaVoucherState.Rejected) with { FailureCode = "wsfe.rejected" }).FailureDetail);
+        Assert.Null(ArcaInvoiceIssuePolicy.Response(Voucher(ArcaVoucherState.Queued) with { Messages = [new(10015, "Texto")] }).FailureDetail);
+    }
+
     [Fact]
     public void Review_rejection_and_cancellation_keep_their_reason_and_revision()
     {

@@ -29,9 +29,9 @@ public sealed record StructuredIssueRequest(Guid RunId, Guid RecordId, IReadOnly
 }
 
 /// <summary>
-/// Where an issuance stands. Pending: queued, or waiting for the provider when WaitingForProvider; asked again at NextCheckAtUtc.
-/// Issued: with its result and, if it has one, its private document. Rejected: refused with a stable FailureCode, and CanRetry
-/// when nothing was queued. NeedsReview: a person decides, with the stable ReviewReason and the Revision the decision expects.
+/// Where an issuance stands. Pending: queued, or waiting for the provider when WaitingForProvider (with its Attempts); asked again
+/// at NextCheckAtUtc. Issued: with its result and, if it has one, its private document. Rejected: refused with a stable FailureCode
+/// and what the provider said in FailureDetail, and CanRetry when nothing was queued. NeedsReview: a person decides, with the stable ReviewReason and the Revision the decision expects.
 /// Cancelled: it will not be issued. WaitingNotice, by language, is what whoever loaded the response is told once while it waits.
 /// </summary>
 public sealed record StructuredIssueResponse(StructuredIssueState State, string? FailureCode = null, bool CanRetry = false,
@@ -45,6 +45,17 @@ public sealed record StructuredIssueResponse(StructuredIssueState State, string?
     /// </summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public StructuredIssueCatalogItem? CatalogItem { get; init; }
+
+    /// <summary>
+    /// What the provider said of a rejection, ready to show beside the stable FailureCode: its own code and text, as it sent them
+    /// («10015 · El número de documento del receptor no es válido.»); null when it said nothing.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? FailureDetail { get; init; }
+
+    /// <summary>How many times the issuer tried while it waits for its provider; null when it does not wait or has not counted any.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public int? Attempts { get; init; }
 
     public override string ToString() => $"StructuredIssueResponse {{ State = {State}, Content = [REDACTED] }}";
 }

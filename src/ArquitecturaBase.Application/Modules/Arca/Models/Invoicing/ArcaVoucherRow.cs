@@ -4,7 +4,7 @@ namespace ArquitecturaBase.Application.Modules.Arca.Models.Invoicing;
 
 /// <summary>
 /// Una emisión de la cola tal como se lee, sin seguimiento: como la devuelve el lector, con lo que fijó al encolarse
-/// (<see cref="PayloadJson"/>, de donde sale el receptor).
+/// (<see cref="PayloadJson"/>, de donde sale el receptor), los mensajes de ARCA como se guardan y las veces que ya probó.
 /// </summary>
 public sealed record ArcaVoucherRow(
     Guid Id,
@@ -28,4 +28,6 @@ public sealed record ArcaVoucherRow(
     string? PdfStorageKey,
     string? PdfSha256,
     long? PdfSize,
-    string PayloadJson);
+    string PayloadJson,
+    string? MessagesJson,
+    int Failures);
