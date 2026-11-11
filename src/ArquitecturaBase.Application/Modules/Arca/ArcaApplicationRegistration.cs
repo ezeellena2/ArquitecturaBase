@@ -49,6 +49,7 @@ public static class ArcaApplicationRegistration
     {
         services.TryAddScoped<IArcaRegistryCompanyService, ArcaRegistryCompanyService>();
         services.TryAddScoped<IArcaCompanyProfileSource, ArcaRegistryCompanyProfileSource>();
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IStructuredPartyLookup, ArcaStructuredPartyLookup>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IArcaServiceDefinition, ArcaRegistryServiceDefinition>());
     }
 

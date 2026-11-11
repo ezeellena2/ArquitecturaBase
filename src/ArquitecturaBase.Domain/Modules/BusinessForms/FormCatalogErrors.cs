@@ -4,6 +4,7 @@ namespace ArquitecturaBase.Domain.Modules.BusinessForms;
 
 public static class FormCatalogErrors
 {
+    public static readonly Error LookupUnavailable = Error.NotFound("Forms.Catalog.LookupUnavailable", "No installed registry completes this catalog.");
     public static readonly Error NotFound = Error.NotFound("Forms.Catalog.NotFound", "The catalog was not found.");
     public static readonly Error RevisionConflict = Error.Conflict("Forms.Catalog.RevisionConflict", "The catalog changed. Reload it and try again.");
     public static readonly Error Inactive = Error.Conflict("Forms.Catalog.Inactive", "The catalog is inactive.");

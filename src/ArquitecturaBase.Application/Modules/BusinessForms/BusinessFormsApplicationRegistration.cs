@@ -51,6 +51,7 @@ public static class BusinessFormsApplicationRegistration
         services.TryAddScoped<FormIssueEntryPolicy>();
         services.TryAddScoped<FormIssuePreviewPolicy>();
         services.TryAddScoped<IFormIssuePreviewService, FormIssuePreviewService>();
+        services.TryAddScoped<IFormCatalogLookupService, FormCatalogLookupService>();
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IStructuredRecordActionReplySink, Channels.BusinessFormIssueReplySink>());
         services.TryAddScoped<FormConditionChoicePolicy>();
         services.TryAddScoped<FormSuggestionCandidatePolicy>();
@@ -91,6 +92,7 @@ public static class BusinessFormsApplicationRegistration
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<ListFormEntryGroupsRequest>, ListFormEntryGroupsRequestValidator>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<SubmitFormEntryRequest>, SubmitFormEntryRequestValidator>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<PreviewFormIssueRequest>, PreviewFormIssueRequestValidator>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<LookupFormCatalogPartyRequest>, LookupFormCatalogPartyRequestValidator>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<CorrectFormEntryRequest>, CorrectFormEntryRequestValidator>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<VoidFormRecordRequest>, VoidFormRecordRequestValidator>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IStructuredRecordOriginSource, BusinessFormEntryOriginSource>());

@@ -258,6 +258,8 @@ public sealed class FormIssueActionServiceTests
     {
         public Task<IReadOnlyDictionary<Guid, string>> ListAsync(IReadOnlyCollection<Guid> itemIds, CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyDictionary<Guid, string>>(new Dictionary<Guid, string>());
+
+        public Task<Guid?> FindActiveAsync(Guid catalogId, string code, CancellationToken cancellationToken) => Task.FromResult<Guid?>(null);
     }
 
     private sealed class Recipients : IFormActionRecipientReader

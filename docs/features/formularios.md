@@ -1022,6 +1022,19 @@ opcional; ARCA aporta sus tablas). Son de un tercer tipo, `External`, con la cla
   y pueden ser la fuente de un campo de catálogo. Como no tienen campos, no filtran ni eligen primero por un campo. El asistente
   los ve como Manual y no puede importarles una planilla.
 
+## Completar con un padrón — CA1, 2026-11-11
+
+Un módulo instalado completa una opción de un catálogo que trae su estándar a partir de la CUIT (`IStructuredPartyLookup`,
+colección opcional; ARCA aporta «Completar con ARCA» para los «Clientes» de la «Factura»). El padrón dice qué catálogo completa,
+por su clave (`arca.customers`), y qué campo tiene la CUIT; sin padrones, ningún catálogo lo ofrece.
+
+- **Si se ofrece.** `GET api/forms/catalogs/{id}/lookup` devuelve el nombre del padrón por idioma y el campo de la CUIT, para
+  poner el botón al lado; en otro catálogo, o si el campo no está activo, `Forms.Catalog.LookupUnavailable` (404).
+- **Completar.** `POST api/forms/catalogs/{id}/lookup` con `{"taxId"}` pregunta al padrón fuera de toda UoW y devuelve `text`
+  (el nombre) y `fields` (cada campo activo que el padrón conoce, con su valor; uno de tipo catálogo, con la opción activa del
+  código que dio el padrón), o `failureCode` y `failureMessage`. No guarda nada: la persona revisa y guarda la opción como
+  siempre. Las dos rutas piden «Administrar catálogos».
+
 ## Biblioteca de estándares — BI1-A, 2026-11-09
 
 Los módulos traen formularios estándar como datos y «Agregar» crea un borrador propio que recuerda de dónde viene (BI1-A,

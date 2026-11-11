@@ -307,7 +307,8 @@ haya commiteado lo suyo. El front espera a que el usuario termine la prueba inte
 6. **Hecho (61c466ca). PDF fiscal,** almacén y retención. Ingresos brutos e inicio de actividades quedaron en la entidad
    (tarea 4); su ruta y el cambio de completitud de Facturación van con el front, para no dejar «requiere atención» una
    conexión que todavía no puede cargarlos.
-7. **Padrón de un tercero** y el adaptador de `IStructuredPartyLookup`.
+7. **Hecho. Padrón de un tercero** y el adaptador de `IStructuredPartyLookup`, con las rutas `lookup` del catálogo
+   («Completar con ARCA»).
 8. **Hecho. Tablas de ARCA:** el adaptador de `IStructuredCatalogFeed`, con «Exento» y «No gravado» en las alícuotas.
 **Lo que espera (2026-11-09):** la acción ya arma el pedido con el mapa «dato → pregunta» de la biblioteca (BI1-A); la
 anulación con nota de crédito y el «¿La emito?» siguen a la acción; los catálogos de ARCA dependen de las carpetas, y el
