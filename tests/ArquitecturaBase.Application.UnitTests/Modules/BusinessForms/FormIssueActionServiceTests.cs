@@ -1,9 +1,11 @@
+using System.Security.Cryptography;
 using System.Text.Json;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
+using ArquitecturaBase.Application.UnitTests.TestFeatures.Files;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 
@@ -214,10 +216,69 @@ public sealed class FormIssueActionServiceTests
         Assert.Equal(FormActionErrors.IssueDataUnavailable.Code, (await unbound.ExecuteAsync(unboundWork, CancellationToken.None)).FailureCode);
     }
 
+    [Fact]
+    public async Task A_copy_goes_by_email_to_the_receiver_its_issuer_reads_with_the_document_of_the_issuance_and_its_result()
+    {
+        var files = new MemoryPrivateFileStore();
+        var results = new FormRecordResultReaderDouble();
+        var (service, issuer, work) = Arrange(files: files, results: results);
+        byte[] pdf = [37, 80, 68, 70];
+        await files.WriteOnceAsync("issued/1.pdf", new MemoryStream(pdf), "application/pdf", CancellationToken.None);
+        results.Rows.Add(new FormRecordResultRow
+        {
+            RecordId = work.RecordId, RunId = Guid.NewGuid(), Source = "test.issuer", RecordedAtUtc = Now, SourceNameJson = """{"es":"Emitir"}""",
+            ValuesJson = FormDraftPolicy.Serialize(new[] { new StructuredRecordResultValue("number", Names("Número"), StructuredRecordResultField.Text, "0004-00000012") }),
+        });
+        issuer.Copy = "cliente@example.com";
+
+        var outcome = await service.CopyAsync(Copy(work, pdf), CancellationToken.None);
+
+        Assert.Equal(FormActionRunState.Completed, outcome.State);
+        var email = outcome.Email!;
+        Assert.Equal(("cliente@example.com", "Factura C 0004-00000012", "Te mandamos la 0004-00000012.\nGracias."),
+            (email.To, email.Subject, email.TextBody));
+        Assert.Equal("<p>Te mandamos la 0004-00000012.<br>Gracias.</p>", email.HtmlBody);
+        var attachment = Assert.Single(email.Attachments!);
+        Assert.Equal(("Factura C 0004-00000012.pdf", "application/pdf"), (attachment.Name, attachment.ContentType));
+        Assert.Equal(pdf, attachment.Content);
+        Assert.Equal(["customer", "items", "total"], issuer.CopyData!.Select(datum => datum.Key));
+        Assert.Empty(issuer.Requests);
+    }
+
+    [Fact]
+    public async Task A_copy_without_a_receiver_or_without_the_document_of_the_issuance_does_not_apply_and_a_changed_document_is_not_sent()
+    {
+        var files = new MemoryPrivateFileStore();
+        var (service, issuer, work) = Arrange(files: files);
+        byte[] pdf = [37, 80, 68, 70];
+        await files.WriteOnceAsync("issued/1.pdf", new MemoryStream(pdf), "application/pdf", CancellationToken.None);
+
+        var nowhere = await service.CopyAsync(Copy(work, pdf), CancellationToken.None);
+        Assert.Equal(FormActionRunState.NotApplicable, nowhere.State);
+        Assert.Null(nowhere.Email);
+        issuer.Copy = "cliente@example.com";
+        Assert.Equal(FormActionRunState.NotApplicable, (await service.CopyAsync(Copy(work, pdf) with { PdfArtifacts = [] }, CancellationToken.None)).State);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.CopyAsync(Copy(work, [37, 80, 68, 71]), CancellationToken.None));
+        Assert.Equal(FormActionErrors.IssuerUnavailable.Code,
+            (await service.CopyAsync(Copy(work, pdf) with { Snapshot = work.Snapshot with { IssuerId = "other" } }, CancellationToken.None)).FailureCode);
+    }
+
+    // The copy run of a rule after its issuance: its text, with the datum of the result still marked, and the fiscal PDF it attaches.
+    private static FormActionWorkResponse Copy(FormActionWorkResponse work, byte[] pdf)
+    {
+        var artifact = new FormPdfArtifact("es", "issued/1.pdf", "Factura C 0004-00000012.pdf", "application/pdf", pdf.Length,
+            Convert.ToHexStringLower(SHA256.HashData(pdf)));
+        return work with
+        {
+            Kind = "SendCopy", PdfArtifacts = [artifact, artifact with { Culture = "en" }],
+            Snapshot = work.Snapshot with { CopyBody = "Te mandamos la " + FormActionResultTokenPolicy.Mark("result:test.issuer.number") + ".\nGracias." },
+        };
+    }
+
     private static readonly Guid Author = Guid.NewGuid();
 
     private static (FormIssueActionService Service, FakeIssuer Issuer, FormActionWorkResponse Work) Arrange(string standardKey = "test.standard",
-        FakeFormActionChannel? channel = null)
+        FakeFormActionChannel? channel = null, MemoryPrivateFileStore? files = null, FormRecordResultReaderDouble? results = null)
     {
         var rules = new FormRuleFixture();
         rules.Definition.RecordStandard(standardKey, 1, JsonSerializer.Serialize(new Dictionary<string, Guid>
@@ -247,7 +308,8 @@ public sealed class FormIssueActionServiceTests
         var issuer = new FakeIssuer();
         var work = new FormActionWorkResponse(Guid.NewGuid(), recordId, "IssueDocument", 1, false, false,
             new FormActionSnapshot(null, null, null, [], IssuerId: "test.issuer"), []);
-        return (new FormIssueActionService([issuer], records, rules, channel is null ? [] : [channel], new Recipients(), new NoCodes()), issuer, work);
+        return (new FormIssueActionService([issuer], records, rules, channel is null ? [] : [channel], new Recipients(), new NoCodes(),
+            files ?? new MemoryPrivateFileStore(), results ?? new FormRecordResultReaderDouble()), issuer, work);
     }
 
     private static CanonicalFormField Field(Guid id, string key, string type) => new(id, key, type, Names(key), null, false, null, null);
@@ -294,6 +356,13 @@ public sealed class FormIssueActionServiceTests
             return Task.FromResult(Next);
         }
         public StructuredIssuePreview Preview { get; set; } = new(new Dictionary<string, string> { ["es"] = "Factura C", ["en"] = "Invoice C" }, "Juana Pérez", "3101.5");
+        public string? Copy { get; set; }
+        public IReadOnlyList<StructuredIssueDatum>? CopyData { get; private set; }
+        public string? CopyRecipient(IReadOnlyList<StructuredIssueDatum> data)
+        {
+            CopyData = data;
+            return Copy;
+        }
         public Task<StructuredIssuePreview> PreviewAsync(IReadOnlyList<StructuredIssueDatum> data, CancellationToken cancellationToken) => Task.FromResult(Preview);
         public List<Guid> Cancels { get; } = [];
         public StructuredIssueResponse CancelResult { get; set; } = new(StructuredIssueState.Cancelled);

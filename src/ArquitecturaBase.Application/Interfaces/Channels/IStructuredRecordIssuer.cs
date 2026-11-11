@@ -25,6 +25,12 @@ public interface IStructuredRecordIssuer
     /// <summary>The data its result brings, which the messages after the action may use.</summary>
     IReadOnlyList<StructuredRecordResultField> ResultFields { get; }
 
+    /// <summary>
+    /// Where a copy of the issued document goes by email, read from the bound data of its response: the address of its receiver when
+    /// the data ask for the copy and have one; null otherwise, and the copy does not apply.
+    /// </summary>
+    string? CopyRecipient(IReadOnlyList<StructuredIssueDatum> data);
+
     /// <summary>What would come out of these bound data now («¿La emito?»), without saving anything.</summary>
     Task<StructuredIssuePreview> PreviewAsync(IReadOnlyList<StructuredIssueDatum> data, CancellationToken cancellationToken);
 

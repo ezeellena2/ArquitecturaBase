@@ -46,7 +46,8 @@ public sealed record FormActionSnapshot(Guid? ApprovalRoleId, FormPdfActionSnaps
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? IssuerId=null,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] Guid? ReversesRunId=null,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? VoidReason=null,
-    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] Guid? VoidedByUserId=null)
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] Guid? VoidedByUserId=null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? CopyBody=null)
 { public override string ToString()=>"FormActionSnapshot { Content = [REDACTED] }"; }
 public sealed record FormActionWorkResponse(Guid RunId,Guid RecordId,string Kind,long Fence,bool ReconciliationOnly,bool RetryRequested,
     FormActionSnapshot Snapshot,IReadOnlyList<FormPdfArtifact> PdfArtifacts,StructuredRecordActionReview? DeliveryReview=null,Guid? DeliveryReviewRecipientUserId=null,IReadOnlyList<FormActionRecipientOutcome>? PriorRecipients=null,
@@ -63,4 +64,9 @@ public sealed record FormActionWorkResponse(Guid RunId,Guid RecordId,string Kind
 public sealed record FormActionOutcomeResponse(FormActionRunState State,string? FailureCode=null,bool CanRetry=false,FormPdfActionOutcomeResponse? Pdf=null,IReadOnlyList<FormActionRecipientOutcome>? Recipients=null,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] StructuredIssueResponse? Issue=null,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] StructuredIssuePreview? IssuePreview=null)
-{ public override string ToString()=>"FormActionOutcomeResponse { Content = [REDACTED] }"; }
+{
+    /// <summary>The copy by email of a «SendCopy», queued with the confirmation of its run; never stored with the outcome.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public ArquitecturaBase.Application.Models.Emails.EmailMessage? Email { get; init; }
+    public override string ToString()=>"FormActionOutcomeResponse { Content = [REDACTED] }";
+}

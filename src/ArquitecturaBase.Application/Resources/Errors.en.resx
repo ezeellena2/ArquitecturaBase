@@ -169,6 +169,7 @@
   <data name="Arca.Connection.RobotBusy" xml:space="preserve"><value>The robot cannot take another run right now. Try again in a few minutes or follow the guide.</value></data>
   <data name="Arca.Invoicing.PointOfSaleInvalid" xml:space="preserve"><value>The point of sale goes from 1 to 99998.</value></data>
   <data name="Arca.Invoicing.PointOfSaleUnavailable" xml:space="preserve"><value>ARCA no longer offers that point of sale. Search the points of sale again.</value></data>
+  <data name="Forms.Action.CopyNotQueued" xml:space="preserve"><value>The copy did not get into the email queue. Retry it in a while.</value></data>
   <data name="Arca.Registry.CuitInvalid" xml:space="preserve"><value>The CUIT to look up in ARCA is not valid.</value></data>
   <data name="Arca.Registry.PersonNotFound" xml:space="preserve"><value>ARCA has no registry data for that CUIT.</value></data>
   <data name="Forms.Catalog.LookupUnavailable" xml:space="preserve"><value>No installed registry completes this catalog.</value></data>

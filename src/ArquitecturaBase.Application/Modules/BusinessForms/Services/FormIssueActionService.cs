@@ -1,4 +1,8 @@
+using System.Net;
+using System.Security.Cryptography;
 using ArquitecturaBase.Application.Interfaces.Channels;
+using ArquitecturaBase.Application.Interfaces.Integrations.Files;
+using ArquitecturaBase.Application.Models.Emails;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Services;
@@ -11,10 +15,11 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 /// The issuer is asked first: enqueueing is idempotent by run and local to the issuer, so a run that lost its outcome asks again
 /// without issuing twice. Only a response that still stands is queued; once queued, it is followed to its end. While it waits
 /// for its provider, whoever loaded the response is told once, by the first channel that reaches them: the channel keeps one
-/// message per run and person.
+/// message per run and person. The copy by email («SendCopy») goes where the issuer says, with the document of the issuance.
 /// </summary>
 internal sealed class FormIssueActionService(IEnumerable<IStructuredRecordIssuer> issuers, IFormResponseReader records, IFormRuleReader definitions,
-    IEnumerable<IStructuredRecordActionChannel> channels, IFormActionRecipientReader recipients, IFormCatalogItemCodeReader codes) : IFormIssueActionService
+    IEnumerable<IStructuredRecordActionChannel> channels, IFormActionRecipientReader recipients, IFormCatalogItemCodeReader codes,
+    IPrivateFileStore files, IFormRecordResultReader results) : IFormIssueActionService
 {
     public async Task<FormActionOutcomeResponse> ExecuteAsync(FormActionWorkResponse work, CancellationToken cancellationToken)
     {
@@ -25,7 +30,7 @@ internal sealed class FormIssueActionService(IEnumerable<IStructuredRecordIssuer
         if (status.State == StructuredIssueState.NotFound)
         {
             if (!work.RecordStands) return new(FormActionRunState.NotApplicable);
-            if (await RequestAsync(work, issuer, cancellationToken) is not { } request)
+            if (await RequestAsync(work, issuer, cancellationToken) is not var (request, _))
                 return new(FormActionRunState.Failed, FormActionErrors.IssueDataUnavailable.Code);
             // EM2-A: one loaded in the app was confirmed before sending; one from a channel asks its author first.
             if (!work.RecordEnteredInApp && work.DeliveryReview?.WasSent != true)
@@ -39,6 +44,44 @@ internal sealed class FormIssueActionService(IEnumerable<IStructuredRecordIssuer
         if (status is { State: StructuredIssueState.Pending, WaitingForProvider: true, WaitingNotice: { } notice })
             await NoticeAsync(work, notice, cancellationToken);
         return Outcome(status);
+    }
+
+    // The copy goes to the receiver the issuer reads from the bound data, in the language of the form, with the document of the
+    // issuance of its rule attached; without a receiver or a document it does not apply. Nothing leaves here: the email is queued
+    // with the confirmation of the run, so it is queued once.
+    public async Task<FormActionOutcomeResponse> CopyAsync(FormActionWorkResponse work, CancellationToken cancellationToken)
+    {
+        if (issuers.FirstOrDefault(issuer => issuer.IssuerId == work.Snapshot.IssuerId) is not { } issuer)
+            return new(FormActionRunState.Failed, FormActionErrors.IssuerUnavailable.Code, true);
+        if (work.PdfArtifacts.Count == 0) return new(FormActionRunState.NotApplicable);
+        var document = work.PdfArtifacts[0];
+        if (await RequestAsync(work, issuer, cancellationToken) is not var (request, culture))
+            return new(FormActionRunState.Failed, FormActionErrors.IssueDataUnavailable.Code);
+        if (issuer.CopyRecipient(request.Data) is not { } address) return new(FormActionRunState.NotApplicable);
+        var content = await ReadAsync(document, cancellationToken);
+        var body = FormActionResultTokenPolicy.Resolve(work.Snapshot.CopyBody ?? throw new InvalidOperationException("The copy text is missing."),
+            await results.ListAsync([work.RecordId], cancellationToken), culture);
+        return new(FormActionRunState.Completed)
+        {
+            Email = new EmailMessage(address, Path.GetFileNameWithoutExtension(document.Name),
+                "<p>" + WebUtility.HtmlEncode(body).Replace("\n", "<br>", StringComparison.Ordinal) + "</p>", body)
+            {
+                Attachments = [new EmailAttachment(document.Name, document.ContentType, content)],
+            },
+        };
+    }
+
+    // The document as it was confirmed: its size and its SHA-256.
+    private async Task<byte[]> ReadAsync(FormPdfArtifact document, CancellationToken cancellationToken)
+    {
+        await using var stream = await files.OpenReadAsync(document.StorageKey, cancellationToken)
+            ?? throw new InvalidOperationException("The document of the issuance is missing from the private store.");
+        using var copy = new MemoryStream();
+        await stream.CopyToAsync(copy, cancellationToken);
+        var content = copy.ToArray();
+        if (content.LongLength != document.Size || !string.Equals(Convert.ToHexStringLower(SHA256.HashData(content)), document.Sha256, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("The document of the issuance does not match what was confirmed.");
+        return content;
     }
 
     // NC1-A: what was never issued is cancelled or left alone, and the response is voided; what was issued is reversed for its
@@ -99,7 +142,9 @@ internal sealed class FormIssueActionService(IEnumerable<IStructuredRecordIssuer
         }
     }
 
-    private async Task<StructuredIssueRequest?> RequestAsync(FormActionWorkResponse work, IStructuredRecordIssuer issuer, CancellationToken cancellationToken)
+    // The request with the bound data of the response, and the language of its form.
+    private async Task<(StructuredIssueRequest Request, string Culture)?> RequestAsync(FormActionWorkResponse work, IStructuredRecordIssuer issuer,
+        CancellationToken cancellationToken)
     {
         var record = await records.FindRecordAsync(work.RecordId, cancellationToken)
             ?? throw new InvalidOperationException("The action response is missing.");
@@ -107,7 +152,7 @@ internal sealed class FormIssueActionService(IEnumerable<IStructuredRecordIssuer
         if (definition?.StandardKey != issuer.StandardKey || definition.StandardBindingsJson is not { } bindings) return null;
         var bound = FormDraftPolicy.Read<Dictionary<string, Guid>>(bindings);
         var itemCodes = await codes.ListAsync(FormIssueDataPolicy.ReferencedItemIds(record.Record), cancellationToken);
-        return new(work.RunId, work.RecordId, FormIssueDataPolicy.Read(record.Record, bound, definition.OriginalCulture, itemCodes));
+        return (new(work.RunId, work.RecordId, FormIssueDataPolicy.Read(record.Record, bound, definition.OriginalCulture, itemCodes)), definition.OriginalCulture);
     }
 
     private static FormActionOutcomeResponse Outcome(StructuredIssueResponse status) => status.State switch

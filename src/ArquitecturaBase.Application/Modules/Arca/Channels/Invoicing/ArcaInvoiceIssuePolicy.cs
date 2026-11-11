@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Resources;
 using ArquitecturaBase.Application.Models.StructuredData;
+using ArquitecturaBase.Application.Modules.Arca.Models;
 using ArquitecturaBase.Application.Modules.Arca.Models.Invoicing;
 using ArquitecturaBase.Application.Modules.Arca.Services.Invoicing;
 using ArquitecturaBase.Domain.Modules.Arca.Invoicing;
@@ -40,6 +41,15 @@ internal static class ArcaInvoiceIssuePolicy
             Revision: voucher.Revision, WaitingNotice: voucher.WaitedForArca
                 ? Localized(voucher.Kind == ArcaVoucherKind.CreditNote ? "Notice.WaitingCreditNote" : "Notice.WaitingInvoice") : null),
     };
+
+    /// <summary>
+    /// The copy to the customer: the email of the customer of «Clientes» when «Mandar copia al cliente» was marked. A final consumer, a
+    /// customer written in the invoice by its CUIT or one without a valid email has none, and the copy does not apply.
+    /// </summary>
+    public static string? CopyRecipient(IReadOnlyList<StructuredIssueDatum> data) =>
+        data.Any(datum => datum.Key == ArcaInvoiceStandard.SendCopy && datum.Value == "true")
+        && data.FirstOrDefault(datum => datum.Key == ArcaInvoiceStandard.Customer)?.Fields?.GetValueOrDefault(ArcaCustomersCatalog.Email) is { } email
+        && System.Net.Mail.MailAddress.TryCreate(email.Trim(), out var address) ? address.Address : null;
 
     /// <summary>
     /// «¿La emito?»: the voucher the system decided and why, the receiver, the amounts the voucher itemizes (the A, net, VAT by rate,

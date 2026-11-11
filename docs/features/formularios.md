@@ -1042,6 +1042,14 @@ ARCA» ([ADR 0028](../decisions/0028-emision-de-comprobantes-arca.md)); sin emis
   llega como un dato más con su clave y `"true"` o `"false"`, como la marcó la versión con que se cargó la respuesta, aunque la
   pregunta quede sin responder. Emitido, el PDF fiscal queda como un documento más de la respuesta (en español, sin
   diseño) y «Avisar a quien cargó» puede adjuntarlo, como el de «Armar el PDF».
+- **La copia por correo (`SendCopy`, 2026-11-11).** Va después de un `IssueDocument` de su regla, con un texto como el de un
+  aviso (el original obligatorio, los datos `{result:…}` de la emisión), sin rol ni casilla de PDF. Su run fija el texto en el
+  idioma original del formulario, el emisor de la regla y el PDF de esa emisión. Al correr, el emisor dice adónde va con los
+  datos atados de la respuesta (`IStructuredRecordIssuer.CopyRecipient`); sin dirección, o si la emisión no dejó PDF, queda «No
+  aplica». Si hay, se lee el PDF fiscal (tamaño y SHA-256 confirmados) y el correo (asunto: el nombre del documento, sin
+  `.pdf`; cuerpo: el texto con los datos del resultado; el PDF adjunto) entra en la cola durable de correo de la app en la
+  misma transacción que confirma el run: sale una sola vez. Si la cola no lo toma, `Failed` con
+  `Forms.Action.CopyNotQueued`, para reintentar. El correo no queda en el resultado del run.
 - **«¿La emito?» (EM2-A).** Una respuesta que llegó por un canal no se emite sin que quien la cargó la confirme. Antes de
   encolar, el run pide al emisor la vista previa (`PreviewAsync`: el comprobante que decidió, el receptor y el total, sin guardar
   nada, con el porqué, la fecha y los importes que discrimina); si no se puede emitir así, termina `Failed` con el código del

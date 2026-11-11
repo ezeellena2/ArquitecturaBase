@@ -51,6 +51,21 @@ public sealed class FormIssueRulePolicyTests
         Assert.Equal(FormRuleErrors.PlaceholderInvalid.Code, Normalize(Context(), unknown).Error.Code);
     }
 
+    [Fact]
+    public void A_copy_by_email_goes_after_the_issuance_of_its_rule_with_its_text_and_without_a_role_or_another_pdf()
+    {
+        var saved = Normalize(Context(), Rule("Received", Issue(), Notify() with { IncludePdf = true }, Copy("Te mandamos la {result:test.issuer.number}.")));
+
+        var copy = saved.Value.Single().Actions[^1];
+        Assert.Equal(("SendCopy", "Te mandamos la {result:test.issuer.number}.", false, (string?)null), (copy.Kind, copy.Text!["es"], copy.IncludePdf, copy.IssuerId));
+        Assert.True(Normalize(Context(), Rule("Received", Copy())).IsFailure);
+        Assert.True(Normalize(Context(), Rule("Received", Copy(), Issue())).IsFailure);
+        Assert.True(Normalize(Context(), Rule("Received", Issue(), Copy(null))).IsFailure);
+        Assert.True(Normalize(Context(), Rule("Received", Issue(), Copy() with { IncludePdf = true })).IsFailure);
+        Assert.True(Normalize(Context(), Rule("Received", Issue(), Copy() with { IssuerId = Issuer })).IsFailure);
+        Assert.Equal(FormRuleErrors.PlaceholderInvalid.Code, Normalize(Context(), Rule("Received", Issue(), Copy("{result:test.issuer.color}"))).Error.Code);
+    }
+
     private static Domain.Results.Result<IReadOnlyList<FormRule>> Normalize(FormRuleOptionsResponse options, FormRuleInput rule) =>
         FormRulePolicy.Normalize(new(0, [rule]), options, action => FormRulePolicy.Declared(action, options));
 
@@ -64,6 +79,9 @@ public sealed class FormIssueRulePolicyTests
 
     private static FormRuleActionInput Notify(string text = "Recibimos {número}") =>
         new(Guid.NewGuid(), "NotifyAuthor", Text: new Dictionary<string, string?> { ["es"] = text });
+
+    private static FormRuleActionInput Copy(string? text = "Te mandamos tu comprobante.") =>
+        new(Guid.NewGuid(), "SendCopy", Text: text is null ? null : new Dictionary<string, string?> { ["es"] = text });
 
     private static FormRuleInput Rule(string trigger, params FormRuleActionInput[] actions) => new(Guid.NewGuid(), trigger, [], actions);
 }

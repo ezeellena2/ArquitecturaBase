@@ -22,6 +22,8 @@ internal sealed class ArcaStructuredRecordIssuer(IArcaVoucherService vouchers, I
     public string ReviewPermission => ArcaPermissions.Issue;
     public IReadOnlyList<StructuredRecordResultField> ResultFields => ArcaInvoiceIssuePolicy.ResultFields;
 
+    public string? CopyRecipient(IReadOnlyList<StructuredIssueDatum> data) => ArcaInvoiceIssuePolicy.CopyRecipient(data);
+
     public async Task<StructuredIssuePreview> PreviewAsync(IReadOnlyList<StructuredIssueDatum> data, CancellationToken cancellationToken)
     {
         var completed = await CustomerAsync(data, cancellationToken);

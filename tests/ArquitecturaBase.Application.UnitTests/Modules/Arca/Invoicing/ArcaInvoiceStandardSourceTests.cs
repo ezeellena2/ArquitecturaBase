@@ -7,7 +7,7 @@ namespace ArquitecturaBase.Application.UnitTests.Modules.Arca.Invoicing;
 public sealed class ArcaInvoiceStandardSourceTests
 {
     private static readonly string[] IssuerData = ["customer", "customerTaxId", "concept", "issueDate", "serviceFrom", "serviceTo", "paymentDue",
-        "items", "description", "quantity", "unitPrice", "vatRate", "total"];
+        "items", "description", "quantity", "unitPrice", "vatRate", "total", "sendCopy"];
 
     [Fact]
     public void The_invoice_binds_every_datum_the_issuer_reads_to_a_question_of_its_draft()
@@ -51,6 +51,20 @@ public sealed class ArcaInvoiceStandardSourceTests
 
         Assert.Equal(new Dictionary<string, string> { [vatRate] = "5" }, standard.Defaults);
         Assert.Equal("arca.vat-rates", standard.Catalogs![vatRate]);
+    }
+
+    // The copy to the customer: a yes or no that is not required, bound so that the issuer reads it as «sendCopy».
+    [Fact]
+    public void The_invoice_asks_whether_to_send_the_copy_to_the_customer_with_a_bound_yes_or_no()
+    {
+        var standard = Assert.Single(new ArcaInvoiceStandardSource().Standards);
+        using var draft = JsonDocument.Parse(standard.DraftJson);
+        var localId = standard.Bindings.Single(pair => pair.Value == ArcaInvoiceStandard.SendCopy).Key;
+        var question = draft.RootElement.GetProperty("fields").EnumerateArray().Single(field => field.GetProperty("localId").GetString() == localId);
+
+        Assert.Equal(("boolean", false, "Mandar copia al cliente", "Send a copy to the customer"), (question.GetProperty("type").GetString(),
+            question.GetProperty("required").GetBoolean(), question.GetProperty("label").GetProperty("es").GetString(),
+            question.GetProperty("label").GetProperty("en").GetString()));
     }
 
     [Fact]

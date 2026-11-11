@@ -9,4 +9,7 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Services
 public interface IFormIssueActionService
 {
     Task<FormActionOutcomeResponse> ExecuteAsync(FormActionWorkResponse work, CancellationToken cancellationToken);
+
+    /// <summary>The copy by email of the document an earlier issuance of its rule left, to the receiver its issuer reads («SendCopy»).</summary>
+    Task<FormActionOutcomeResponse> CopyAsync(FormActionWorkResponse work, CancellationToken cancellationToken);
 }

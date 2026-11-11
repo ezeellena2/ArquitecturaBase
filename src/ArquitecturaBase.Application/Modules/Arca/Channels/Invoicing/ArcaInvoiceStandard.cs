@@ -11,7 +11,8 @@ internal static class ArcaInvoiceStandard
     public const string Key = "arca.invoice";
     public const string Customer = "customer", Concept = "concept", IssueDate = "issueDate", ServiceFrom = "serviceFrom",
         ServiceTo = "serviceTo", PaymentDue = "paymentDue", Items = "items", Description = "description", Quantity = "quantity",
-        UnitPrice = "unitPrice", Total = "total", VatRate = "vatRate", PricesIncludeVat = "pricesIncludeVat", CustomerTaxId = "customerTaxId";
+        UnitPrice = "unitPrice", Total = "total", VatRate = "vatRate", PricesIncludeVat = "pricesIncludeVat", CustomerTaxId = "customerTaxId",
+        SendCopy = "sendCopy";
 
     /// <summary>The first options of «Clientes»: a final consumer, and a customer whose CUIT is written in the invoice.</summary>
     public const string FinalConsumer = "final", OtherCustomer = "other";

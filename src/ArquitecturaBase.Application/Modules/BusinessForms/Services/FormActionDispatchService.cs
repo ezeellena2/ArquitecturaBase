@@ -73,6 +73,7 @@ internal sealed class FormActionDispatchService(IFormActionRunRepository runs,IF
             await drafts.LockDefinitionsAsync(ct);var run=await runs.GetAsync(work.RunId,ct);var now=timeProvider.GetUtcNow().UtcDateTime;
             if(run?.State==FormActionRunState.Completed&&run.Fence==work.Fence)return Result.Success();
             if(run is null||run.RecordId!=work.RecordId||!run.OwnsLease(work.Fence,now))return FormActionErrors.StateConflict;
+            outcome=outcomes.QueueCopy(outcome);
             if(outcome.State==FormActionRunState.Completed||outcome.State==FormActionRunState.NotApplicable&&work.Snapshot.ReversesRunId is not null)
                 await outcomes.AddAsync(run,work.Snapshot,outcome,now,ct);
             await outcomes.AddIssuedItemAsync(outcome,ct);

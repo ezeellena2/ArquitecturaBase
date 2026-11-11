@@ -322,9 +322,12 @@ con su consumidor (no se agrega un puerto sin quien lo use). El resultado extern
 11. **Hecho en parte.** El estándar «Factura» y el catálogo «Clientes» con «Completar con ARCA», y «Otro: escribir la CUIT»
     completado por el padrón en el emisor y, con «Emitir», sumado a «Clientes» una sola vez (el emisor lo devuelve al encolar y
     formularios lo agrega en la transacción del run). Faltan: `pricesIncludeVat` en «Precio unitario» (IV2-A, espera la casilla de la
-    etapa 2), la Alícuota en 21 % por defecto (el borrador no tiene valores por defecto), las reglas que trae el estándar (la
-    biblioteca no trae reglas: se agregan en el editor), la copia al cliente por correo y sumar a «Clientes» el cliente nuevo
-    al emitir.
+    etapa 2), la Alícuota en 21 % por defecto (el borrador no tiene valores por defecto) y las reglas que trae el estándar (la
+    biblioteca no trae reglas: se agregan en el editor). Traerlas espera una decisión: la definición nueva y su primera revisión
+    de reglas activa se apuntan entre sí y EF no las guarda en el único guardado de «Agregar» (la traducción y el chequeo de
+    las reglas están programados aparte, sin aplicar). **Hecha (2026-11-11) la copia al cliente por correo:** «Mandar copia
+    al cliente» atada y la acción `SendCopy`, que manda el PDF fiscal al correo del cliente por la cola durable de la app (sin
+    correo, «No aplica»).
 12. **Hecho. Anular con nota de crédito:** la reversión es un run del motor; corregir una respuesta con emisión queda frenado.
 13. **El «¿La emito?» en WhatsApp** (EM2-A) y el cliente nuevo por su CUIT. **Hecho en formularios y ARCA:** la vista previa
     del emisor, el run que espera la confirmación de quien cargó por un canal, la ruta `confirmation` del flujo y «No emitir»

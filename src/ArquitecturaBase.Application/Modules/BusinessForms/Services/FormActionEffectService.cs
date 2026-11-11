@@ -22,7 +22,8 @@ internal sealed partial class FormActionEffectService:IFormActionEffectService
     public async Task<FormActionOutcomeResponse> ExecuteAsync(FormActionWorkResponse work,CancellationToken cancellationToken)
     {
         OperationLog.Handling(_logger,"ExecuteFormAction");FormActionOutcomeResponse outcome;
-        try{outcome=work.Kind switch{"GeneratePdf"=>await PdfAsync(work,cancellationToken),"IssueDocument"=>_issues is null?new(FormActionRunState.Failed,FormActionErrors.IssuerUnavailable.Code,true):await _issues.ExecuteAsync(work,cancellationToken),_=>await NotifyAsync(work,cancellationToken)};}
+        try{outcome=work.Kind switch{"GeneratePdf"=>await PdfAsync(work,cancellationToken),"IssueDocument"=>_issues is null?new(FormActionRunState.Failed,FormActionErrors.IssuerUnavailable.Code,true):await _issues.ExecuteAsync(work,cancellationToken),
+            "SendCopy"=>_issues is null?new(FormActionRunState.Failed,FormActionErrors.IssuerUnavailable.Code,true):await _issues.CopyAsync(work,cancellationToken),_=>await NotifyAsync(work,cancellationToken)};}
         catch(Exception exception)when(!cancellationToken.IsCancellationRequested)
         {
             LogUnconfirmed(_logger,work.RunId,exception.GetType().Name);

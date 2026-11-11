@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Interfaces.Integrations.Emails;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
@@ -11,8 +12,16 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 /// voided response (NC1-A) with the reason and the person of the void. It does not save on its own.
 /// </summary>
 internal sealed class FormActionOutcomeRecorder(FormPdfDocumentRecorder documents, FormRecordResultRecorder results, IFormActionRunRepository runs,
-    FormIssuedCatalogItemRecorder issuedItems)
+    FormIssuedCatalogItemRecorder issuedItems, IEmailQueue emails)
 {
+    /// <summary>
+    /// «SendCopy»: the copy by email leaves by the app's durable mail queue in the transaction that confirms its run, so it is queued
+    /// once; a queue that does not take it leaves the run failed, to retry.
+    /// </summary>
+    public FormActionOutcomeResponse QueueCopy(FormActionOutcomeResponse outcome) =>
+        outcome is { State: FormActionRunState.Completed, Email: { } email } && !emails.TryEnqueue(email)
+            ? new(FormActionRunState.Failed, FormActionErrors.CopyNotQueued.Code, true) : outcome;
+
     /// <summary>
     /// «Emitir»: the party the issuer completed when it queued (a customer written by its tax id) joins the catalog of its
     /// standard, in the same transaction as the outcome of the run, whatever its state.

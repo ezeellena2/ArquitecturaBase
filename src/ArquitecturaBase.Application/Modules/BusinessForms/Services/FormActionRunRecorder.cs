@@ -33,6 +33,7 @@ internal sealed class FormActionRunRecorder(
             Guid? dependency = null;
             Guid? pdfRunId = null;
             IReadOnlyList<string>? pdfCultures = null;
+            string? issuerId = null;
             foreach (var (action, index) in rule.Actions.Select((action, index) => (action, index)))
             {
                 if (existing.TryGetValue((rule.Id, action.Id), out var prior))
@@ -44,7 +45,7 @@ internal sealed class FormActionRunRecorder(
                         pdfCultures = FormDraftPolicy.Read<FormActionSnapshot>(prior.SnapshotJson).Pdf?.Cultures;
                     }
                     else if (action.Kind == "IssueDocument")
-                        (pdfRunId, pdfCultures) = (prior.Id, null);
+                        (pdfRunId, pdfCultures, issuerId) = (prior.Id, null, action.IssuerId);
                     continue;
                 }
 
@@ -75,6 +76,14 @@ internal sealed class FormActionRunRecorder(
                 // The fiscal PDF of an issuance goes in both languages: a later notice may attach it to anyone.
                 if (actionApplies && action.Kind == "IssueDocument")
                     (pdfRunId, pdfCultures) = (run.Id, null);
+                issuerId = action.Kind == "IssueDocument" ? action.IssuerId : issuerId;
+                // The copy by email goes in the original language of the form: its receiver has no account to say another.
+                string? copy = null;
+                if (actionApplies && action.Kind == "SendCopy")
+                {
+                    copy = FormActionMessagePolicy.Render(action, questions, snapshot, snapshot.OriginalCulture);
+                    if (copy.Length > 4096) failure = FormActionErrors.MessageTooLong.Code;
+                }
 
                 if (actionApplies && action.Kind is "NotifyAuthor" or "NotifyRole")
                 {
@@ -104,8 +113,8 @@ internal sealed class FormActionRunRecorder(
                 }
 
                 run.SealSnapshot(FormDraftPolicy.Serialize(new FormActionSnapshot(
-                    action.Kind == "RequestApproval" ? action.RoleId : null, pdfSnapshot, action.IncludePdf ? pdfRunId : null, targets, failure,
-                    action.Kind == "IssueDocument" ? action.IssuerId : null)));
+                    action.Kind == "RequestApproval" ? action.RoleId : null, pdfSnapshot, action.IncludePdf || copy is not null ? pdfRunId : null, targets, failure,
+                    action.Kind == "IssueDocument" ? action.IssuerId : copy is not null ? issuerId : null, CopyBody: copy)));
                 runs.Add(run);
                 dependency = run.Id;
             }

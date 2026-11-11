@@ -1,7 +1,10 @@
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
+using ArquitecturaBase.Application.Models.Emails;
+using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
+using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Files;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
@@ -256,11 +259,65 @@ public sealed class FormActionDispatchServiceTests
         Assert.Empty(fixture.Pdf.Executed);
     }
 
+    [Fact]
+    public async Task A_copy_is_recorded_after_its_issuance_in_the_original_language_with_the_document_of_that_issuance()
+    {
+        var fixture = new FormActionFixture();
+        var issue = FormActionFixture.Action("IssueDocument") with { IssuerId = "test.issuer" };
+        var copy = FormActionFixture.Action("SendCopy") with
+        {
+            Text = new Dictionary<string, string> { ["es"] = "Te mandamos {número}: {result:test.issuer.number}.", ["en"] = "Here is {number}." },
+        };
+        var (record, snapshot) = fixture.Capture([new FormRule(Guid.NewGuid(), "Received", [], [issue, FormActionFixture.Action(includePdf: true), copy])]);
+
+        await fixture.Recorder.RecordAsync(record, snapshot, "Received", CancellationToken.None);
+
+        var issued = fixture.Runs.Runs.Single(run => run.Kind == "IssueDocument");
+        var sent = FormDraftPolicy.Read<FormActionSnapshot>(fixture.Runs.Runs.Single(run => run.Kind == "SendCopy").SnapshotJson);
+        Assert.Equal((issued.Id, "test.issuer"), (sent.PdfRunId, sent.IssuerId));
+        Assert.Equal("Te mandamos VIS-000001: " + FormActionResultTokenPolicy.Mark("result:test.issuer.number") + ".", sent.CopyBody);
+        Assert.Empty(sent.Recipients);
+    }
+
+    [Fact]
+    public async Task A_copy_is_queued_by_email_in_the_commit_that_completes_its_run_and_a_full_queue_leaves_it_to_retry()
+    {
+        var fixture = new FormActionFixture();
+        var emails = new FakeEmailQueue();
+        var service = Dispatch(fixture, emails: emails);
+        var issue = FormActionFixture.Action("IssueDocument") with { IssuerId = "test.issuer" };
+        var copy = FormActionFixture.Action("SendCopy") with { Text = new Dictionary<string, string> { ["es"] = "Te mandamos tu comprobante." } };
+        var (record, snapshot) = fixture.Capture([new FormRule(Guid.NewGuid(), "Received", [], [issue, copy])]);
+        await fixture.Recorder.RecordAsync(record, snapshot, "Received", CancellationToken.None);
+        var issued = fixture.Runs.Runs.Single(run => run.Kind == "IssueDocument");
+        var reserved = issued.Reserve(fixture.Clock.GetUtcNow().UtcDateTime, TimeSpan.FromMinutes(2)).Value;
+        issued.RecordOutcome(reserved.Fence, fixture.Clock.GetUtcNow().UtcDateTime, FormActionRunState.Completed, null, false,
+            FormDraftPolicy.Serialize(new FormActionOutcomeResponse(FormActionRunState.Completed, Issue: new StructuredIssueResponse(StructuredIssueState.Issued,
+                Document: new StructuredRecordActionDocument("issued/1.pdf", "Factura C 0004-00000012.pdf", "application/pdf", 4, new string('a', 64))))));
+        var run = fixture.Runs.Runs.Single(item => item.Kind == "SendCopy");
+
+        var work = (await service.ReserveAsync(run.Id, CancellationToken.None)).Value!;
+        Assert.Equal(("issued/1.pdf", "test.issuer"), (work.PdfArtifacts[0].StorageKey, work.Snapshot.IssuerId));
+        emails.Accepts = false;
+        var email = new EmailMessage("cliente@example.com", "Factura C 0004-00000012", "<p>Hola</p>", "Hola");
+        Assert.True((await service.CompleteAsync(work, new(FormActionRunState.Completed) { Email = email }, CancellationToken.None)).IsSuccess);
+        Assert.Equal((FormActionRunState.Failed, FormActionErrors.CopyNotQueued.Code, true), (run.State, run.FailureCode, run.CanRetry));
+
+        emails.Accepts = true;
+        Assert.True(run.RequestRetry(fixture.Clock.GetUtcNow().UtcDateTime).IsSuccess);
+        var retried = (await service.ReserveAsync(run.Id, CancellationToken.None)).Value!;
+        Assert.True((await service.CompleteAsync(retried, new(FormActionRunState.Completed) { Email = email }, CancellationToken.None)).IsSuccess);
+        Assert.True((await service.CompleteAsync(retried, new(FormActionRunState.Completed) { Email = email }, CancellationToken.None)).IsSuccess);
+        Assert.Equal(FormActionRunState.Completed, run.State);
+        Assert.Same(email, Assert.Single(emails.Messages));
+        Assert.DoesNotContain("cliente@example.com", run.OutcomeJson, StringComparison.Ordinal);
+    }
+
     private static FormActionDispatchService Dispatch(FormActionFixture fixture, FakeUnitOfWork? boundary = null,
-        MemoryFormDocumentRepository? documents = null, MemoryStoredFileRepository? files = null) =>
+        MemoryFormDocumentRepository? documents = null, MemoryStoredFileRepository? files = null, FakeEmailQueue? emails = null) =>
         new(fixture.Runs, fixture.Runs, fixture.Rules, fixture.Rules, boundary ?? fixture.Rules.UnitOfWork,
             new FormActionOutcomeRecorder(new FormPdfDocumentRecorder(documents ?? new(), files ?? new()), new FormRecordResultRecorder(new IgnoredResults(), fixture.Clock), fixture.Runs,
-                new FormIssuedCatalogItemRecorder(null!, null!, null!, null!, null!)),
+                new FormIssuedCatalogItemRecorder(null!, null!, null!, null!, null!), emails ?? new FakeEmailQueue()),
             fixture.Clock, NullLogger<FormActionDispatchService>.Instance);
 
     private sealed class IgnoredResults : IFormRecordResultRepository

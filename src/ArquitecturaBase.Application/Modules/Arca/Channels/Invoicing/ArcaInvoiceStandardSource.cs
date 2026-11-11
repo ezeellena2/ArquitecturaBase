@@ -10,7 +10,8 @@ namespace ArquitecturaBase.Application.Modules.Arca.Channels.Invoicing;
 /// period and the payment due date of a service, the items with their VAT rate and the total. Every question the issuer reads is
 /// bound by its datum key; the copy and the «Clientes» catalog it brings go to the «ARCA» folder. «Precio unitario» has the toggle
 /// «El precio incluye IVA» (IV2-A), unchecked, that the issuer reads as the datum pricesIncludeVat, and «Alícuota» starts at 21 %
-/// in each new item (IV1-A).
+/// in each new item (IV1-A). «Mandar copia al cliente» asks for the copy by email of the fiscal PDF, which goes to the email of
+/// the customer of «Clientes» (without one, it does not apply).
 /// </summary>
 internal sealed class ArcaInvoiceStandardSource : IStructuredFormStandardSource
 {
@@ -20,7 +21,8 @@ internal sealed class ArcaInvoiceStandardSource : IStructuredFormStandardSource
         PaymentDue = "0196f2b0-0000-7000-8000-000000000007", Items = "0196f2b0-0000-7000-8000-000000000008",
         Description = "0196f2b0-0000-7000-8000-000000000009", Quantity = "0196f2b0-0000-7000-8000-00000000000a",
         UnitPrice = "0196f2b0-0000-7000-8000-00000000000b", VatRate = "0196f2b0-0000-7000-8000-00000000000c",
-        Amount = "0196f2b0-0000-7000-8000-00000000000d", Total = "0196f2b0-0000-7000-8000-00000000000e";
+        Amount = "0196f2b0-0000-7000-8000-00000000000d", Total = "0196f2b0-0000-7000-8000-00000000000e",
+        SendCopy = "0196f2b0-0000-7000-8000-00000000000f";
 
     // IV1-A: «Alícuota» starts at 21 %, the ARCA code 5 of «Alícuotas de IVA».
     private const string GeneralVatRate = "5";
@@ -48,7 +50,8 @@ internal sealed class ArcaInvoiceStandardSource : IStructuredFormStandardSource
         {"localId":"{{{Amount}}}","type":"decimal","label":{"es":"Importe","en":"Amount"},"required":false,"repeated":true,
          "calculation":{"operation":"multiply","operands":["{{{Quantity}}}","{{{UnitPrice}}}"]}},
         {"localId":"{{{Total}}}","type":"decimal","label":{"es":"Total","en":"Total"},"required":false,
-         "calculation":{"operation":"sum","operands":["{{{Amount}}}"]}}]}
+         "calculation":{"operation":"sum","operands":["{{{Amount}}}"]}},
+        {"localId":"{{{SendCopy}}}","type":"boolean","label":{"es":"Mandar copia al cliente","en":"Send a copy to the customer"},"required":false}]}
         """;
 
     private static readonly Dictionary<string, string> Arca = new() { ["es"] = "ARCA", ["en"] = "ARCA" };
@@ -67,7 +70,7 @@ internal sealed class ArcaInvoiceStandardSource : IStructuredFormStandardSource
                 [IssueDate] = ArcaInvoiceStandard.IssueDate, [ServiceFrom] = ArcaInvoiceStandard.ServiceFrom, [ServiceTo] = ArcaInvoiceStandard.ServiceTo,
                 [PaymentDue] = ArcaInvoiceStandard.PaymentDue, [Items] = ArcaInvoiceStandard.Items, [Description] = ArcaInvoiceStandard.Description,
                 [Quantity] = ArcaInvoiceStandard.Quantity, [UnitPrice] = ArcaInvoiceStandard.UnitPrice, [VatRate] = ArcaInvoiceStandard.VatRate,
-                [Total] = ArcaInvoiceStandard.Total,
+                [Total] = ArcaInvoiceStandard.Total, [SendCopy] = ArcaInvoiceStandard.SendCopy,
             },
             new Dictionary<string, string> { [Customer] = ArcaCustomersCatalog.Key, [Concept] = "arca.concepts", [VatRate] = "arca.vat-rates" },
             new StructuredFormStandardFolder("arca", Arca),

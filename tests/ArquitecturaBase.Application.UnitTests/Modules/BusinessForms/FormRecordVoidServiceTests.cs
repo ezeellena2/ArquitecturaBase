@@ -228,6 +228,7 @@ public sealed class FormRecordVoidServiceTests
             ArquitecturaBase.Application.Models.StructuredData.StructuredIssueReview review, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<ArquitecturaBase.Application.Models.StructuredData.StructuredIssuePreview> PreviewAsync(
             IReadOnlyList<ArquitecturaBase.Application.Models.StructuredData.StructuredIssueDatum> data, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public string? CopyRecipient(IReadOnlyList<ArquitecturaBase.Application.Models.StructuredData.StructuredIssueDatum> data) => throw new NotSupportedException();
         public Task<ArquitecturaBase.Application.Models.StructuredData.StructuredIssueResponse> CancelAsync(Guid runId, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
         public Task<ArquitecturaBase.Application.Models.StructuredData.StructuredIssueResponse> EnqueueReversalAsync(Guid reversalRunId, Guid issuedRunId,

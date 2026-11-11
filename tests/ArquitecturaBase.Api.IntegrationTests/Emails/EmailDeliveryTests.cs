@@ -33,6 +33,24 @@ public sealed class EmailDeliveryTests
         Assert.Equal("Hola", mime.TextBody);
     }
 
+    // The copy of a form action carries its PDF; the rest of the emails have no attachments.
+    [Fact]
+    public void Message_carries_its_attachments_with_their_name_type_and_bytes()
+    {
+        byte[] pdf = [37, 80, 68, 70];
+        using var mime = MimeMessageFactory.Create(new EmailMessage("ana@example.com", "Factura C 0004-00000012", "<p>Hola</p>", "Hola")
+        {
+            Attachments = [new EmailAttachment("Factura C 0004-00000012.pdf", "application/pdf", pdf)],
+        }, Sender);
+
+        var attachment = Assert.IsType<MimePart>(Assert.Single(mime.Attachments));
+        Assert.Equal(("Factura C 0004-00000012.pdf", "application/pdf"), (attachment.FileName, attachment.ContentType.MimeType));
+        using var content = new MemoryStream();
+        attachment.Content!.DecodeTo(content, Ct);
+        Assert.Equal(pdf, content.ToArray());
+        Assert.Equal(("<p>Hola</p>", "Hola"), (mime.HtmlBody, mime.TextBody));
+    }
+
     [Fact]
     public async Task Pickup_directory_sender_saves_an_eml_file()
     {

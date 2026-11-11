@@ -150,13 +150,18 @@ formularios «Emitir comprobante», con el estándar «Factura» y la anulación
   cliente (sólo con «Otro: escribir la CUIT»), Concepto (tabla de ARCA), Fecha (vacía, la de hoy), Período desde y hasta y
   Vencimiento del pago (opcionales y siempre a la vista: WhatsApp no muestra una pregunta por varias opciones de un catálogo,
   y la cola los exige con servicios), el bloque de ítems (Descripción, Cantidad, Precio unitario, Alícuota
-  e Importe calculado) y el Total calculado, cada pregunta atada a su dato. Trae «Clientes» (`arca.customers`: CUIT, Condición
+  e Importe calculado), el Total calculado y «Mandar copia al cliente» (sí o no, no obligatoria), cada pregunta atada a su dato. Trae «Clientes» (`arca.customers`: CUIT, Condición
   frente al IVA sobre la tabla de ARCA, Domicilio y Correo) con «Consumidor final» y «Otro: escribir la CUIT», y va con su copia
   a la carpeta «ARCA». Necesita las tablas de ARCA (se crean cuando la conexión responde). Con «Otro», el emisor completa el
   cliente con el padrón antes de la vista previa y de encolar; sin la CUIT, `Arca.Invoicing.ReceiverInvalid`. Encolado (con
   «Emitir»), lo devuelve completado (`CatalogItem`: la CUIT como código, la razón social y los campos del padrón) y
-  formularios lo suma a «Clientes» si todavía no está. Las reglas
-  («Emitir comprobante en ARCA» y el aviso con el PDF fiscal) se agregan en el editor: la biblioteca todavía no trae reglas.
+  formularios lo suma a «Clientes» si todavía no está. La copia al cliente es la acción «Mandar copia por correo» de
+  formularios (`SendCopy`, después de «Emitir comprobante en ARCA»): el emisor responde el correo del cliente de «Clientes»
+  (`email`) sólo si se marcó «Mandar copia al cliente» y es una dirección válida (`ArcaInvoiceIssuePolicy.CopyRecipient`); con
+  consumidor final, un cliente escrito por su CUIT o sin correo, la copia queda «No aplica», porque el borrador no puede ocultar
+  la pregunta según un campo del cliente. Las reglas («Emitir comprobante en ARCA», el aviso con el PDF fiscal y la copia) se
+  agregan en el editor: la biblioteca todavía no trae reglas (ver la tarea 11 del
+  [plan](../plans/2026-11-09-arca-etapa-3-factura-c.md)).
 - **«Completar con ARCA»** (`ArcaStructuredPartyLookup`, familia `Registry`): la constancia de un tercero completa los
   «Clientes» de la «Factura» (`arca.customers`) desde su CUIT, con la razón social, la condición frente al IVA como receptor (1,
   4, 5 o 6) y el domicilio fiscal. Una CUIT inválida da `Arca.Registry.CuitInvalid` sin llamar a ARCA y una que el padrón no

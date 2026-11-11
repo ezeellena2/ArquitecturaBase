@@ -10,6 +10,7 @@ Antes de tocar esto, leé [`docs/features/identidad.md`](../../../docs/features/
 
 - Los templates y sus recursos se mantienen en los dos idiomas; escapá los datos insertados en HTML.
 - La cola productiva persiste cifrada en la transacción del llamador. El registro usa el store scoped; el constructor en memoria sólo sirve para tests aislados. Nunca enviar antes del commit ni repetir una reserva incierta.
+- Un adjunto (`EmailAttachment`, como el PDF de la copia de una acción de formularios) viaja con sus bytes dentro del contenido cifrado de la cola; `MimeMessageFactory` lo agrega con su nombre y su tipo. Los correos sin adjuntos conservan su contenido.
 - El worker resuelve dependencias scoped por operación; los secretos SMTP vienen de configuración externa.
 - `SmtpEmailSender` corta a los 30 s sin respuesta del servidor (MailKit espera 2 min): el worker manda de a uno, y un servidor callado frenaría la cola. El intento fallido sigue el reintento de siempre.
 - Probá qué ocurre si no se encola o falla el envío sin filtrar dirección, código o enlace en logs.

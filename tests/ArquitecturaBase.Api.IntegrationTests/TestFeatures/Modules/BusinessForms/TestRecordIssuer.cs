@@ -63,6 +63,9 @@ internal sealed class TestRecordIssuer : IStructuredRecordIssuer
 
     public IReadOnlyList<StructuredIssueDatum>? Previewed { get; private set; }
 
+    /// <summary>Where a copy goes: the datum «copyTo» of the response, when it has one.</summary>
+    public string? CopyRecipient(IReadOnlyList<StructuredIssueDatum> data) => data.FirstOrDefault(datum => datum.Key == "copyTo")?.Value;
+
     public Task<StructuredIssuePreview> PreviewAsync(IReadOnlyList<StructuredIssueDatum> data, CancellationToken cancellationToken)
     {
         Previewed = data;

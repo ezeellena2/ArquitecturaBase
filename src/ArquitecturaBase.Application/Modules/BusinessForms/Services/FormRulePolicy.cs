@@ -37,7 +37,9 @@ internal static class FormRulePolicy
             {
                 var actionPath = rulePath + $".actions[{actionIndex}]";
                 if (action is null || action.Id == Guid.Empty || !actionIds.Add(action.Id)) return Invalid(actionPath + ".id");
-                if (action.Kind is not ("RequestApproval" or "GeneratePdf" or "NotifyAuthor" or "NotifyRole" or "IssueDocument")) return Invalid(actionPath + ".kind");
+                if (action.Kind is not ("RequestApproval" or "GeneratePdf" or "NotifyAuthor" or "NotifyRole" or "IssueDocument" or "SendCopy")) return Invalid(actionPath + ".kind");
+                // The copy by email sends the document of an earlier issuance of its rule to its receiver.
+                if (action.Kind == "SendCopy" && !issued) return Invalid(actionPath + ".kind");
                 // One issuance per rule, on arrival or approval and before the messages that may use its result.
                 if (action.Kind == "IssueDocument" && (rule.Event is not ("Received" or "Approved") || issued || notified)) return Invalid(actionPath + ".kind");
                 if (action.Kind == "IssueDocument" && options.Issuers?.Any(issuer => issuer.Id == action.IssuerId) != true)
@@ -51,7 +53,7 @@ internal static class FormRulePolicy
                 // The notice to whoever loaded it attaches the PDF of an earlier «Armar el PDF» or the fiscal PDF of an earlier issuance.
                 if (action.IncludePdf && (action.Kind != "NotifyAuthor" || !(generatedPdf || issued))) return Invalid(actionPath + ".includePdf");
                 Dictionary<string,string>? text = null;
-                if (action.Kind is "NotifyAuthor" or "NotifyRole")
+                if (action.Kind is "NotifyAuthor" or "NotifyRole" or "SendCopy")
                 {
                     var limit = action.IncludePdf ? 1024 : 4096;
                     if (action.Text is null || action.Text.Keys.Any(culture => culture is not ("es" or "en"))
@@ -71,7 +73,7 @@ internal static class FormRulePolicy
                 if (declared is not null) resultData.AddRange(declared(actions[^1]));
                 generatedPdf |= action.Kind == "GeneratePdf";
                 issued |= action.Kind == "IssueDocument";
-                notified |= action.Kind is "NotifyAuthor" or "NotifyRole";
+                notified |= action.Kind is "NotifyAuthor" or "NotifyRole" or "SendCopy";
             }
             normalized.Add(new(rule.Id, rule.Event, conditions.Select(condition => condition with { Values = condition.Values?.ToArray() }).ToArray(), actions));
         }

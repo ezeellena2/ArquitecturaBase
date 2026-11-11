@@ -23,6 +23,23 @@ public sealed class ArcaInvoiceIssuePolicyTests
             (issued.Document!.StorageKey, issued.Document.Name, issued.Document.ContentType, issued.Document.Size, issued.Document.Sha256));
     }
 
+    // The copy goes to the email of the customer only when «Mandar copia al cliente» was marked and the customer has a valid one.
+    [Fact]
+    public void The_copy_goes_to_the_email_of_the_customer_only_when_it_was_asked_for_and_the_customer_has_one()
+    {
+        static StructuredIssueDatum[] Data(string? sendCopy, string? email) =>
+        [
+            new("customer", "c-1", "Juana Pérez", email is null ? null : new Dictionary<string, string> { ["email"] = email, ["tax_id"] = "20123456786" }),
+            .. sendCopy is null ? Array.Empty<StructuredIssueDatum>() : [new StructuredIssueDatum("sendCopy", sendCopy)],
+        ];
+
+        Assert.Equal("juana@example.com", ArcaInvoiceIssuePolicy.CopyRecipient(Data("true", " Juana <juana@example.com> ")));
+        Assert.Null(ArcaInvoiceIssuePolicy.CopyRecipient(Data("false", "juana@example.com")));
+        Assert.Null(ArcaInvoiceIssuePolicy.CopyRecipient(Data(null, "juana@example.com")));
+        Assert.Null(ArcaInvoiceIssuePolicy.CopyRecipient(Data("true", null)));
+        Assert.Null(ArcaInvoiceIssuePolicy.CopyRecipient(Data("true", "juana")));
+    }
+
     [Fact]
     public void An_authorized_voucher_still_waiting_for_its_pdf_is_pending_on_the_queue_schedule()
     {
