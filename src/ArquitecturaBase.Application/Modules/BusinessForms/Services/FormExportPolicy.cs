@@ -36,6 +36,20 @@ internal static class FormExportPolicy
             _ => new("text", cell.Value),
         };
     }
+    /// <summary>
+    /// A part of a point (UB4-A), a number column each so Excel can filter, sort and map it: 0 latitude, 1 longitude and 2 the
+    /// accuracy in meters, empty when it did not come.
+    /// </summary>
+    public static FormWorkbookCell LocationCell(FormResponseCell cell, int part)
+    {
+        if (cell.State != "Answered" || cell.Value is not StructuredRecordLocationValue location) return Cell(cell);
+        return part switch
+        {
+            0 => new("decimal", location.Latitude),
+            1 => new("decimal", location.Longitude),
+            _ => location.AccuracyMeters is { } meters ? new("integer", (long)meters) : new("text", null),
+        };
+    }
     public static FormWorkbookCell CatalogField(FormResponseCell cell, Guid fieldId)
     {
         if (cell.State != "Answered") return Cell(cell);

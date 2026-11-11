@@ -108,6 +108,8 @@ internal static class FormActionMessagePolicy
         null=>"",bool value=>FormResponseTexts.Get(value?"true":"false",culture),StructuredRecordChoiceValue value=>value.Label,
         IReadOnlyList<StructuredRecordChoiceValue> choices=>string.Join(", ",choices.Select(choice=>choice.Label)),
         IReadOnlyList<StructuredRecordFileValue> files=>string.Join(", ",files.Select(file=>file.Name)),
+        // UB4-A: WhatsApp has no text with a link, so the point goes with the link to the map on the line below.
+        StructuredRecordLocationValue location=>location.Coordinates()+"\n"+location.MapUrl(),
         string value when answer.Type=="decimal"=>decimal.Parse(value,CultureInfo.InvariantCulture).ToString("0.############################",CultureInfo.GetCultureInfo(culture)),
         // A date is written with numbers only, two digits for the day and the month, in the order of the language.
         string value when answer.Type=="date"=>DateOnly.ParseExact(value,"yyyy-MM-dd",CultureInfo.InvariantCulture)

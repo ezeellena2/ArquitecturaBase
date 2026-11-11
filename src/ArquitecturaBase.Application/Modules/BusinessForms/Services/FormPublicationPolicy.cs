@@ -86,6 +86,15 @@ internal static class FormPublicationPolicy
         return issues;
     }
 
+    // UB2-A: a location is completed only in the app, so it blocks publishing a form that a channel also completes.
+    public static List<FormPublicationIssueResponse> LocationIssues(FormDefinitionResponse definition)
+    {
+        var fields = definition.Draft.Fields;
+        return Enumerable.Range(0, fields.Count).Where(index => fields[index].Type == "location")
+            .Select(index => new FormPublicationIssueResponse(null, fields[index].FieldId, null, $"draft.fields[{index}]",
+                FormPublicationErrors.LocationOnlyInApp.Code, ErrorMessages.Get(FormPublicationErrors.LocationOnlyInApp.Code), null, null)).ToList();
+    }
+
     // A minimum above the rows a channel loads blocks publishing with that channel (RG13-A): no response would reach it.
     public static List<FormPublicationIssueResponse> RowIssues(FormDefinitionResponse definition)
     {

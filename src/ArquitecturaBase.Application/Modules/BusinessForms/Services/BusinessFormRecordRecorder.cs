@@ -205,6 +205,15 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
                     records.Add(BusinessFormRecordValue.Create(record.Id, definition.Id, value.FieldId, value.Type,
                         choiceId: value.ChoiceIds[position], position: position, row: item ?? 0));
             }
+            else if (value.Location is { } location)
+            {
+                // UB1-A: latitude at position 0, longitude at 1 and the accuracy, when it came, at 2.
+                decimal?[] parts = [location.Latitude, location.Longitude, location.AccuracyMeters];
+                for (var position = 0; position < parts.Length; position++)
+                    if (parts[position] is { } part)
+                        records.Add(BusinessFormRecordValue.Create(record.Id, definition.Id, value.FieldId, value.Type,
+                            decimalValue: part, position: position, row: item ?? 0));
+            }
             else
                 records.Add(BusinessFormRecordValue.Create(record.Id, definition.Id, value.FieldId, value.Type,
                     value.Text, value.Decimal, value.Date, value.Boolean, value.ChoiceId, row: item ?? 0));

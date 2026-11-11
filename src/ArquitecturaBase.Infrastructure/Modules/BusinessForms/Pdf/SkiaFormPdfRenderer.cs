@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 using ArquitecturaBase.Application.Interfaces.Integrations.Files;
 using ArquitecturaBase.Application.Interfaces.Persistence;
+using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
@@ -78,6 +79,12 @@ internal sealed class SkiaFormPdfRenderer(IFormFileReader references, IStoredFil
                 layout.WriteField(label, attached.Length == 0 ? FormPdfTexts.Get("NoFiles", culture) : FormPdfTexts.Format(attached.Length == 1 ? "PhotoCountOne" : "PhotoCountMany", culture, attached.Length));
             else if (question.Type == "document")
                 layout.WriteField(label, attached.Length == 0 ? FormPdfTexts.Get("NoFiles", culture) : string.Join("\n", attached.Select(file => file.Name)));
+            else if (question.Type == "location" && answers.TryGetValue(question.FieldId, out var point))
+            {
+                // UB4-A: the point and «Ver en el mapa» as a link of the PDF.
+                var location = new StructuredRecordLocationValue(point.GetProperty("latitude").GetDecimal(), point.GetProperty("longitude").GetDecimal());
+                layout.WriteField(label, location.Coordinates(), (FormPdfTexts.Get("ViewOnMap", culture), location.MapUrl()));
+            }
             else
                 layout.WriteField(label, answers.TryGetValue(question.FieldId, out var answer) ? Value(question, answer, culture, record) : FormPdfTexts.Get("NoAnswer", culture));
         }
@@ -311,7 +318,7 @@ internal sealed class SkiaFormPdfRenderer(IFormFileReader references, IStoredFil
             recorder = null;
         }
 
-        public void WriteField(string label, string value)
+        public void WriteField(string label, string value, (string Text, string Url)? link = null)
         {
             Ensure(24);
             canvas.DrawLine(Margin, y - 5, Width - Margin, y - 5, line);
@@ -323,6 +330,14 @@ internal sealed class SkiaFormPdfRenderer(IFormFileReader references, IStoredFil
                 if (continued && index >= labels.Count) small.DrawText(canvas, FormPdfTexts.Get("Continued", culture), Margin, y + 10, muted);
                 if (index < labels.Count) body.DrawText(canvas, labels[index], Margin, y + 10, muted);
                 if (index < values.Count) body.DrawText(canvas, values[index], RightX, y + 10, ink);
+                y += LineHeight;
+            }
+            // A link goes under the value, in the color of the headings, with its area clickable in the PDF.
+            if (link is { } target)
+            {
+                Ensure(LineHeight);
+                body.DrawText(canvas, target.Text, RightX, y + 10, accent);
+                using var url = canvas.DrawUrlAnnotation(new SKRect(RightX, y, RightX + body.MeasureText(target.Text), y + LineHeight), target.Url);
                 y += LineHeight;
             }
             y += 10;

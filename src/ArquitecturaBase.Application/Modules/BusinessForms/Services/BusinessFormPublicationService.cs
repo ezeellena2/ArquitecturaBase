@@ -57,6 +57,7 @@ internal sealed class BusinessFormPublicationService : IBusinessFormPublicationS
         issues.AddRange(_guard.ValidateFiles(saved));
         issues.AddRange(FormPublicationPolicy.ValidateRows(saved));
         if (!appOnly) issues.AddRange(FormPublicationPolicy.RowIssues(saved));
+        if (!appOnly) issues.AddRange(FormPublicationPolicy.LocationIssues(saved));
         issues.AddRange(FormPublicationPolicy.ValidateSections(saved));
         issues.AddRange(FormPublicationPolicy.ValidateCalculations(saved));
         issues.AddRange(FormPublicationPolicy.ValidateConditions(saved));

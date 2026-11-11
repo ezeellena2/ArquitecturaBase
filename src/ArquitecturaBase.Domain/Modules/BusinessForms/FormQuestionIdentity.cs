@@ -18,7 +18,7 @@ public sealed class FormQuestionIdentity
     {
         if (type is not (FormQuestionType.ShortText or FormQuestionType.LongText or FormQuestionType.Number
             or FormQuestionType.Date or FormQuestionType.Boolean or FormQuestionType.Choice or FormQuestionType.MultiChoice or FormQuestionType.Photo or FormQuestionType.Document
-            or FormQuestionType.Group))
+            or FormQuestionType.Group or FormQuestionType.Location))
         {
             return FormDraftErrors.QuestionTypeUnavailable;
         }

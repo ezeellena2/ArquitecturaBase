@@ -114,10 +114,12 @@ internal sealed class FormExportService(IFormResponseReader reader, IFormWorkboo
 
     private enum ExportPart { Question, Item, BlockQuestion }
 
+    // Coordinate is the part of a point a location column carries (UB4-A): 0 latitude, 1 longitude, 2 accuracy.
     private sealed record ExportColumn(Guid QuestionId, string Header, bool IsValue = false, Guid? ExtraId = null,
-        ExportPart Part = ExportPart.Question, Guid? BlockId = null);
+        ExportPart Part = ExportPart.Question, Guid? BlockId = null, int? Coordinate = null);
 
-    private static FormWorkbookCell Export(FormResponseCell cell, ExportColumn column) => column.ExtraId is { } extraId
+    private static FormWorkbookCell Export(FormResponseCell cell, ExportColumn column) => column.Coordinate is { } part
+        ? FormExportPolicy.LocationCell(cell, part) : column.ExtraId is { } extraId
         ? FormExportPolicy.CatalogField(cell, extraId) : column.IsValue ? FormExportPolicy.CatalogValue(cell) : FormExportPolicy.Cell(cell);
 
     /// <summary>
@@ -147,7 +149,14 @@ internal sealed class FormExportService(IFormResponseReader reader, IFormWorkboo
     {
         var header = column.Label + (column.IntroducedInVersion > 1
             ? string.Format(CultureInfo.GetCultureInfo(culture), FormResponseTexts.Get("SinceVersion", culture), column.IntroducedInVersion) : "");
-        if (shown)
+        if (shown && column.Type == "location")
+        {
+            // UB4-A: a point goes in three number columns.
+            yield return new(column.FieldId, header + " · " + FormResponseTexts.Get("Latitude", culture), Coordinate: 0);
+            yield return new(column.FieldId, header + " · " + FormResponseTexts.Get("Longitude", culture), Coordinate: 1);
+            yield return new(column.FieldId, header + " · " + FormResponseTexts.Get("AccuracyMeters", culture), Coordinate: 2);
+        }
+        else if (shown)
         {
             yield return new(column.FieldId, header);
             if (column.ValueType is not null) yield return new(column.FieldId, header + " · " + FormResponseTexts.Get("Value", culture), true);

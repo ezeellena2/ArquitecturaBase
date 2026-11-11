@@ -59,6 +59,18 @@ internal static class FormRecordAnswerPolicy
                 result.Add(new(question.FieldId, question.Type, null, null, null, null, null, choices));
                 continue;
             }
+            // UB1-A: a point as an object; left empty, like any answer, only when it is optional.
+            if (question.Type == "location")
+            {
+                if (raw.Length == 0)
+                {
+                    if (question.Required) return null;
+                    continue;
+                }
+                if (FormLocationPolicy.Parse(raw) is not { } location) return null;
+                result.Add(new(question.FieldId, question.Type, null, null, null, null, null) { Location = location });
+                continue;
+            }
             if (!TryScalar(question, raw, offers, out var answer)) return null;
             if (answer is not null) result.Add(answer);
         }
@@ -226,11 +238,15 @@ internal sealed record FormRecordAnswer(Guid FieldId, string Type, string? Text,
     /// <summary>The items of a block, each with its answers; null for any other question.</summary>
     public IReadOnlyList<IReadOnlyList<FormRecordAnswer>>? Rows { get; init; }
 
-    // What ValuesJson keeps: a value, the array of chosen options or, for a block, an array per item with the same shape.
+    /// <summary>The point of a location question; null for any other question.</summary>
+    public StructuredRecordLocationValue? Location { get; init; }
+
+    // What ValuesJson keeps: a value, the array of chosen options, the point of a location or, for a block, an array per item
+    // with the same shape.
     public object Value => Type switch
     {
         "shortText" or "longText" => Text!, "decimal" => Decimal!.Value, "date" => Date!.Value,
-        "boolean" => Boolean!.Value, "choice" => ChoiceId!.Value, "multiChoice" => ChoiceIds!,
+        "boolean" => Boolean!.Value, "choice" => ChoiceId!.Value, "multiChoice" => ChoiceIds!, "location" => Location!,
         "group" => Rows!.Select(row => row.Select(answer => new { answer.FieldId, answer.Value }).ToArray()).ToArray(),
         _ => throw new InvalidOperationException("Unknown form answer type."),
     };

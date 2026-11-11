@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Resources;
 using ArquitecturaBase.Application.Interfaces.Integrations.Emails;
+using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
@@ -36,6 +37,7 @@ internal sealed class FormPdfPreviewIssuer(IFormPdfRenderer renderer, IAppName a
     {
         "shortText" or "longText" => text, "decimal" => 12500.5m, "boolean" => true,
         "multiChoice" => field.Options?.Take(Math.Max(1, field.Selection!.MinSelected)).Select(option => option.ChoiceId).ToArray(),
-        "date" => new DateOnly(2026, 10, 16), "choice" => field.Options is { Count: > 0 } options ? options[0].ChoiceId : null, _ => null,
+        "date" => new DateOnly(2026, 10, 16), "choice" => field.Options is { Count: > 0 } options ? options[0].ChoiceId : null,
+        "location" => new StructuredRecordLocationValue(-34.603722m, -58.381592m, 15), _ => null,
     };
 }

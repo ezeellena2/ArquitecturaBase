@@ -77,6 +77,8 @@ internal static class FormRecordPresentationPolicy
         "boolean" => answer.GetBoolean(),
         "choice" => DecodeSelection(question, answer, culture, references, includeCatalogFields),
         "multiChoice" => answer.EnumerateArray().Select(value => DecodeSelection(question, value, culture, references, includeCatalogFields)).ToArray(),
+        "location" => new StructuredRecordLocationValue(answer.GetProperty("latitude").GetDecimal(), answer.GetProperty("longitude").GetDecimal(),
+            answer.TryGetProperty("accuracyMeters", out var accuracy) ? accuracy.GetInt32() : null),
         _ => throw new InvalidOperationException("The captured form contains an unsupported field type."),
     };
 

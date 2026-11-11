@@ -37,7 +37,7 @@ internal sealed partial class SaveFormDraftRequestValidator : AbstractValidator<
                 var field = draft.Fields[i]; var path = $"draft.fields[{i}]";
                 if (field is null) { Fail(path); continue; }
                 if (field.LocalId is null || !LocalPattern().IsMatch(field.LocalId) || !locals.Add(field.LocalId)) Fail(path + ".localId");
-                if (field.Type is not ("shortText" or "longText" or "decimal" or "date" or "boolean" or "choice" or "multiChoice" or "photo" or "document" or "group")
+                if (field.Type is not ("shortText" or "longText" or "decimal" or "date" or "boolean" or "choice" or "multiChoice" or "photo" or "document" or "group" or "location")
                     || (field.Type == "group" && i != block)) Fail(path + ".type");
                 if (field.Repeated == true && (block < 0 || i <= block || i >= rowsEnd
                     || field.Type is not ("shortText" or "longText" or "decimal" or "date" or "boolean" or "choice"))) Fail(path + ".repeated");
@@ -123,10 +123,11 @@ internal sealed partial class SaveFormDraftRequestValidator : AbstractValidator<
         Guid? self = field.FieldId ?? (Guid.TryParse(field.LocalId, out var local) ? local : null);
         return count && operands.All(operand => operand != Guid.Empty && operand != self) && operands.Distinct().Count() == operands.Count;
     }
-    // CO1-A: a question outside the block names another question and between one and fifty different answers.
+    // CO1-A: a question outside the block names another question and between one and fifty different answers. A location has no
+    // condition of its own (UB1-A).
     private static bool HasValidShape(FormShowWhen showWhen, FormFieldInput field)
     {
-        if (field.Type == "group" || field.Repeated == true || showWhen.QuestionId == Guid.Empty
+        if (field.Type is "group" or "location" || field.Repeated == true || showWhen.QuestionId == Guid.Empty
             || showWhen.Values is not { Count: > 0 and <= FormShowWhen.MaxValues } values) return false;
         Guid? self = field.FieldId ?? (Guid.TryParse(field.LocalId, out var local) ? local : null);
         return showWhen.QuestionId != self && values.All(value => value is { Length: > 0 and <= 64 })

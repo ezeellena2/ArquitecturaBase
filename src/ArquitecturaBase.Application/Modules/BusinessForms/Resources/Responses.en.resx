@@ -13,4 +13,7 @@
 <data name="Value" xml:space="preserve"><value>value</value></data>
 <data name="Voided" xml:space="preserve"><value>Voided</value></data>
 <data name="Item" xml:space="preserve"><value>Item</value></data>
+<data name="Latitude" xml:space="preserve"><value>Latitude</value></data>
+<data name="Longitude" xml:space="preserve"><value>Longitude</value></data>
+<data name="AccuracyMeters" xml:space="preserve"><value>Accuracy (m)</value></data>
 </root>

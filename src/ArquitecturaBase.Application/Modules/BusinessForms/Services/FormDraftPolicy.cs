@@ -164,6 +164,7 @@ internal static class FormDraftPolicy
         "shortText" => FormQuestionType.ShortText, "longText" => FormQuestionType.LongText, "decimal" => FormQuestionType.Number,
         "photo" => FormQuestionType.Photo, "document" => FormQuestionType.Document, "group" => FormQuestionType.Group,
         "date" => FormQuestionType.Date, "boolean" => FormQuestionType.Boolean, "choice" => FormQuestionType.Choice, "multiChoice" => FormQuestionType.MultiChoice,
+        "location" => FormQuestionType.Location,
         _ => throw new InvalidOperationException("The validated field type is unsupported."),
     };
 }

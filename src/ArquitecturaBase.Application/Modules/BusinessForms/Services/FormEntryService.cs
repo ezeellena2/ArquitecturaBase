@@ -193,6 +193,7 @@ internal sealed class FormEntryService(FormEntryLoaderGuard loaders, FormEntryVe
         {
             string text => new(question.FieldId, text, null, null),
             bool boolean => new(question.FieldId, boolean ? "true" : "false", null, null),
+            StructuredRecordLocationValue location => new(question.FieldId, FormLocationPolicy.Canonical(location), null, null),
             _ => null,
         };
     }
