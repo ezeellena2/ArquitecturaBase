@@ -20,6 +20,7 @@ Es el detalle de la guía [`src/ArquitecturaBase.Application/Modules/BusinessFor
 - Aceptación: lock actor/RequestId → replay, antes del token y la revisión → lock de definiciones → revalidación → sella campos, versión, culturas de los perfiles verificados, operación y manifiesto protegido y bloquea el prefijo, sin activar ni llamar al proveedor.
 - Despacho: reservar y completar son límites separados y el pedido sale de lo sellado; el canal se llama fuera de toda UoW y un error queda `Uncertain` con los mismos IDs. Se activa por `BaseActiveVersionId` y fence sin pisar un borrador posterior; `CanRetry` es false.
 - Status devuelve sólo la operación propia; preview consulta al canal sin UoW, con opciones de ejemplo de cada lista (VO1-A: las primeras 20, sin filtros por persona ni por otra respuesta).
+- Ubicación (UB2-A): `FormPublicationPolicy.LocationIssues` bloquea con `LocationOnlyInApp`, en `draft.fields[i]`, cada pregunta `location` de un formulario que también completa un canal; con «Sólo en la app», o sin un canal instalado, no se aplica.
 
 ## Ciclo de vida: dar de baja, reactivar y eliminar
 
@@ -62,6 +63,7 @@ Es el detalle de la guía [`src/ArquitecturaBase.Application/Modules/BusinessFor
 - Origen: `OriginRecordId` y `OriginSuggestionId` de registros reales de la misma persona, validados contra la sugerencia activa del destino (no su versión); de un catálogo, sólo la opción propuesta con su presentación histórica.
 - Campos extra: dos lotes (metadata/valores y textos fuente) sólo de opciones Manual elegidas bajo lock. Un valor de catálogo que no es opción de la fuente actual del campo (guardado antes de un cambio de fuente) no tiene texto visible y queda fuera del sello, como un campo sin valor. Entity y FormRecordReferenceRow sellan el mismo JSON activo/presente; la sesión no lo amplía y null conserva los bytes anteriores.
 - `FormFileService`: lectura de respuestas (`CheckReadAsync`) antes y después de abrir el stream, pertenencia y nunca URL ni SAS.
+- Ubicación (UB1-A): `FormLocationPolicy.Parse` lee el objeto `{"latitude","longitude","accuracyMeters"}` (sólo números, sin claves ajenas ni repetidas), con los rangos y el redondeo de la regla; vacía sólo si es opcional. `BusinessFormRecordRecorder` escribe tres filas `DecimalValue` (`Position` 0, 1 y 2, la última sólo con precisión) y `ValuesJson` lleva el objeto. La huella no cambia: el texto va en `Answers`.
 
 ## Carga desde la app
 
@@ -84,6 +86,7 @@ Es el detalle de la guía [`src/ArquitecturaBase.Application/Modules/BusinessFor
 - Renglones (Etapa 3, RG4-A): la lectura trae el bloque como valor `group` con sus ítems (`StructuredRecordReadRow`), y sus preguntas sólo adentro. La planilla tiene una columna `group` con `questions` unidas entre versiones y la celda lista sus ítems con una celda por pregunta (NotAsked la que su versión no tenía); no se ordena por el bloque ni por sus preguntas. «Filtros» busca un mismo ítem que cumpla todas las condiciones con valor del bloque (`EXISTS` por `Row`), la presencia mira la respuesta entera y cada opción de los conteos cuenta las respuestas con un ítem que la tiene y cumple ahí las otras. El Excel va en una hoja con una fila por ítem (XL1-A): `FormExportService` repite las columnas de la respuesta, pone «Ítem» y las preguntas del bloque en su lugar, marca en `GroupStarts` dónde empieza cada respuesta y, antes de pasar las 100.000 filas, corta con `ExportTooManyRows` sin escribir. El diseño PDF elige el bloque entero.
 - Excel: RecordsRead+RecordsExport por lote/tope. MultiChoice une con '; ' y conserva precisión canónica; Choice mantiene tipos y headers sin filas. CatalogFields elige pares pregunta/campo aparte de Columns: null todos, [] ninguno. `FormExportResponsePolicy` arma las columnas propias de la respuesta (XL2): N°, la recepción en la zona del perfil de quien exporta (UTC si no se puede leer), quién cargó, el canal y, con las anuladas, «Anulada». Las fechas van sólo con números, con dos dígitos para el día y el mes y la hora después de una coma, como en la app (`FormExportPolicy.DateFormat` y `DateTimeFormat`).
 - Campos extra: metadata actual activa más histórica por catálogo; valores/nombres/tipos de cada celda salen del snapshot. Subcolumnas sin sort/facetas. Detalle muestra todos; PDF sólo datos; chat y sugerencias omiten Fields (`includeCatalogFields: false`). Historia sin snapshot muestra «—».
+- Ubicación (UB4-A): `Decode` da un `StructuredRecordLocationValue` y la corrección lo devuelve como el texto del formulario (`FormLocationPolicy.Canonical`). La planilla no ordena por ella (`FilterInvalid`) y sólo admite condiciones de presencia; el Excel la reparte en tres columnas numéricas (`ExportColumn.Coordinate` y `FormExportPolicy.LocationCell`).
 
 ## Reglas, acciones y aprobaciones
 
@@ -94,6 +97,7 @@ Es el detalle de la guía [`src/ArquitecturaBase.Application/Modules/BusinessFor
 - Despacho: reservar y completar separados, efecto afuera; un Uncertain se consulta antes de repetir y un Accepted no se reenvía. RequestApproval revalida el rol al reservar: si no existe, `Forms.Rule.RoleUnavailable`, sin tarea.
 - Workflow: lectura de respuestas antes y después de observar el canal por lote (lo propio no observa: va sin acciones), sin efectos ni retry si todos aceptaron. Retry, Consult y revisión humana suman RulesManage dentro del límite. Reintentar a una persona de un aviso a un rol exige su falla confirmada en el resultado (Failed y CanRetry) y la revisión esperada; el efecto la reintenta sola y conserva a las demás como estaban.
 - Aprobaciones: cuenta activa, permiso y rol vigentes, nunca propias. Continuar revalida permiso tras leer y admite ancla resuelta del mismo formulario; decidir confirma tarea, estado y runs en un commit.
+- Ubicación (UB4-A): el mensaje lleva el punto (`Coordinates()`) y, en el renglón siguiente, el enlace del mapa (`MapUrl()`). Sus condiciones sólo preguntan si se respondió.
 
 ## PDF
 
@@ -101,6 +105,7 @@ Es el detalle de la guía [`src/ArquitecturaBase.Application/Modules/BusinessFor
 - Un idioma está completo con nombre de formulario/diseño, pie, preguntas y opciones elegidas.
 - Preparar fija diseño, culturas y `AppName`; ejecutar relee el registro por Id, arma un `FormPdfRenderRequest` efímero y usa `WriteOnceAsync` en `FormPdfStorageKey.Create` tras consultar.
 - DocumentRecorder confirma una vez bajo fence.
+- Ubicación (UB4-A): el renderer escribe el punto y, debajo, «Ver en el mapa» con un enlace del PDF (`DrawUrlAnnotation`); la vista previa usa un punto de ejemplo.
 
 ## Asistente y sugerencias
 

@@ -1080,3 +1080,34 @@ Está el backend; el front, por programar.
   app figura en las opciones como no disponible (`AppOnly`). La carga desde la app no cambia. Un pedido por WhatsApp de un
   formulario de la app va a «Formularios que faltan».
 - **El front** sabe que hay un canal por `form-channels` en `installedFeatures`.
+
+## La pregunta «Ubicación» — UB1-A a UB4-A, 2026-11-11
+
+Un formulario puede pedir la ubicación de quien lo completa, en el momento de completarlo: un punto, no un recorrido. Es lo
+que informa el dispositivo; no prueba presencia y nada lo contrasta. El usuario eligió UB1-A a UB4-A el 2026-11-11 (el
+[plan](../plans/2026-10-22-documentos-por-whatsapp.md#la-pregunta-ubicación) y las
+[pantallas](../../../ArquitecturaBaseFront/docs/design/ubicacion-en-formularios.md)). La Etapa 1 es la app; por WhatsApp, la
+Etapa 2, sin diseño.
+
+- **El tipo.** `location` (`FormQuestionType.Location`) es sólo obligatoria u opcional: sin opciones, archivos, selección,
+  largo máximo, cálculo ni condición propia, y nunca en el bloque de renglones. Cambiar el tipo de una pregunta a ubicación, o
+  al revés, es otra pregunta. Ninguna condición ni cálculo se apoya en ella.
+- **Sólo en la app.** El chequeo da `Forms.Publication.LocationOnlyInApp` en `draft.fields[i]` cuando el formulario se completa
+  también por un canal; con «Sólo en la app», o sin un canal instalado (SA5), no. El compilador de Flows tampoco la acepta.
+- **La respuesta** llega en el mapa de respuestas como el texto de un objeto `{"latitude":…,"longitude":…,"accuracyMeters":…}`:
+  números, sin otras claves. La latitud va de -90 a 90 y la longitud de -180 a 180, redondeadas a seis decimales lejos del cero,
+  como las coordenadas del negocio; la precisión es opcional, de 0 a 100.000 m, en metros enteros. Obligatoria es que estén la
+  latitud y la longitud; vacía u omitida, sólo si es opcional. Un valor mal formado rechaza la captura entera y queda sólo el
+  recibo.
+- **Sin migración.** Se guarda en tres filas `DecimalValue` de la pregunta: `Position` 0 la latitud, 1 la longitud y 2 la
+  precisión, si vino. `ValuesJson` lleva el objeto.
+- **Las lecturas.** La planilla, el detalle y la corrección la leen como un dato (`latitude`, `longitude` y `accuracyMeters`
+  si vino); la corrección la devuelve como el texto que manda el formulario. En los filtros de la planilla y en las condiciones
+  de las reglas sólo valen «con respuesta», «sin respuesta» y «no se preguntó», y la planilla no ordena por ella.
+- **Excel, PDF y mensajes.** El Excel la reparte en tres columnas numéricas, «<Pregunta> · Latitud», «· Longitud» y
+  «· Precisión (m)»: vacías sin respuesta y «—» en las tres si la pregunta no existía en esa versión. El PDF escribe el punto
+  («-34.603722, -58.381592», con punto decimal y seis decimales en los dos idiomas) y debajo «Ver en el mapa», un enlace del
+  PDF a `https://www.google.com/maps?q=<lat>,<lng>`; la vista previa usa un punto de ejemplo. El mensaje de una regla lleva el
+  punto y, en el renglón siguiente, ese enlace, porque WhatsApp no tiene texto con enlace.
+- **Lo que no hace.** El asistente de IA no la propone al armar un formulario ni la prellena o mapea en una sugerencia; un
+  estándar de la biblioteca no la usa. Se ve con `formrecords.read` y se carga con los permisos de carga de hoy.

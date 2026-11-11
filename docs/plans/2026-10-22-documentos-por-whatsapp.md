@@ -1,6 +1,6 @@
 # Documentos por WhatsApp: biblioteca de formularios estándar, lectura con IA y tableros
 
-**Estado:** decidido el 2026-10-22, con el [ADR 0022](../decisions/0022-lectura-de-documentos-con-ia.md) aceptado y los tableros de diseño elegidos (DOC5-A y DOC7-A). Sin empezar. Es la etapa «fotos y documentos» que el usuario marcó como prioridad ([casos del asistente](2026-10-21-casos-del-asistente.md#etapa-siguiente-fotos-y-documentos)). Va después de [Catálogos E2](../features/formularios.md#catálogos-con-campos-extra-y-filtros-por-persona--e2-2026-10-23), porque el cruce con catálogos usa sus campos extra. Su orden frente a «Casos del asistente» lo define el usuario. El 2026-11-10 se le anexó la [pregunta «Ubicación»](#la-pregunta-ubicación), una propuesta con decisiones sin elegir que no depende del resto.
+**Estado:** decidido el 2026-10-22, con el [ADR 0022](../decisions/0022-lectura-de-documentos-con-ia.md) aceptado y los tableros de diseño elegidos (DOC5-A y DOC7-A). Sin empezar. Es la etapa «fotos y documentos» que el usuario marcó como prioridad ([casos del asistente](2026-10-21-casos-del-asistente.md#etapa-siguiente-fotos-y-documentos)). Va después de [Catálogos E2](../features/formularios.md#catálogos-con-campos-extra-y-filtros-por-persona--e2-2026-10-23), porque el cruce con catálogos usa sus campos extra. Su orden frente a «Casos del asistente» lo define el usuario. El 2026-11-10 se le anexó la [pregunta «Ubicación»](#la-pregunta-ubicación), que no depende del resto: el usuario eligió UB1-A a UB4-A el 2026-11-11 y su Etapa 1 se programó ese día.
 
 ## Por qué
 
@@ -50,7 +50,7 @@ Se leen **solo los mensajes de personas con cuenta vinculada y activa,** como ho
 | PDF | La IA lee todas sus páginas, con un tope | Igual que la foto |
 | Word (`.docx`) | El servidor extrae el texto y las tablas, y la IA los lee | Igual, con el archivo adjunto |
 | Excel (`.xlsx`) | El servidor lee las hojas, con los topes de la importación de catálogos, y la IA las lee | Igual. Una planilla con varias filas del mismo tipo puede proponer varias cargas, hasta el tope de acciones; las filas que pasan el tope quedan propuestas en la bandeja |
-| Ubicación | Sin IA: llega con latitud, longitud y, a veces, nombre y dirección | La pregunta de ubicación o dirección del formulario que se esté completando; cuál es se elige en el editor. Para la ubicación hace falta la pregunta [«Ubicación»](#la-pregunta-ubicación), que todavía no existe |
+| Ubicación | Sin IA: llega con latitud, longitud y, a veces, nombre y dirección | La pregunta de ubicación o dirección del formulario que se esté completando; cuál es se elige en el editor. Para la ubicación, la pregunta [«Ubicación»](#la-pregunta-ubicación) existe en la app desde el 2026-11-11; recibirla por WhatsApp es su Etapa 2 |
 | Contacto (tarjeta) | Sin IA: llega con nombre y teléfonos | Las preguntas de nombre y teléfono, elegidas en el editor |
 | Video o sticker | No se lee | — |
 
@@ -161,7 +161,7 @@ La persona recibe «Cargué tu transferencia de $150.000 (REC-000123). Si algo e
 
 ### La pregunta «Ubicación»
 
-Anexada el 2026-11-10. El usuario preguntó si un formulario puede pedir la ubicación. Hoy no: no existe esa pregunta, ni en la app ni por WhatsApp, y la fila «Ubicación» de [Qué puede llegar](#qué-puede-llegar) supone una pregunta que la reciba. Esta sección agrega esa pregunta a los formularios, primero en la app, y deja la parte de WhatsApp para una etapa aparte, con su propio diseño. **Estado: propuesta. Las decisiones UB1 a UB4 esperan la elección del usuario (la recomendada va primero en cada una) y no hay nada programado.** La Etapa 1 no depende del resto de este plan: puede programarse antes.
+Anexada el 2026-11-10. El usuario preguntó si un formulario puede pedir la ubicación. Hoy no: no existe esa pregunta, ni en la app ni por WhatsApp, y la fila «Ubicación» de [Qué puede llegar](#qué-puede-llegar) supone una pregunta que la reciba. Esta sección agrega esa pregunta a los formularios, primero en la app, y deja la parte de WhatsApp para una etapa aparte, con su propio diseño. **Estado: el usuario eligió UB1-A a UB4-A el 2026-11-11 y la Etapa 1 se programó en la tanda de ese día, para la prueba integral final (backend y front). La Etapa 2, por WhatsApp, sigue sin diseño.** La Etapa 1 no depende del resto de este plan.
 
 #### Qué se puede pedir y qué no
 
@@ -178,16 +178,16 @@ Anexada el 2026-11-10. El usuario preguntó si un formulario puede pedir la ubic
 - **La app web** no usa la geolocalización del navegador.
 - **Lo más cercano** es la fila «Ubicación» de [Qué puede llegar](#qué-puede-llegar): la ubicación que alguien manda al asistente completa una pregunta de dirección elegida en el editor. Es lo inverso: la persona manda y el sistema usa. Con esta pregunta, ese destino pasa a ser la de Ubicación.
 
-#### Decisiones propuestas
+#### Decisiones (elegidas el 2026-11-11: las cuatro A)
 
 | Decisión | A · recomendada | Otras | Por qué A |
 | --- | --- | --- | --- |
-| **UB1 · Qué se guarda** | Latitud, longitud y precisión en metros (opcional). | B: sólo latitud y longitud. C: además nombre y dirección. | La precisión dice cuánto creerle a un punto: en una computadora sin GPS el navegador puede errar por kilómetros. El nombre y la dirección sólo existen en un pin de WhatsApp, no en la app. |
-| **UB2 · Dónde se completa** | Sólo en la app (Etapa 1); por WhatsApp, en la Etapa 2. | B: esperar a tener también WhatsApp. | Un Flow no puede pedir la ubicación, y lo de WhatsApp necesita una sesión de varios mensajes. La app ya tiene «Sólo en la app» ([SA1-A](2026-11-09-formularios-solo-en-la-app.md)). |
-| **UB3 · Cómo se pide en la app** | Botón «Usar mi ubicación»: muestra el punto con su precisión («± 15 m»), «Ver en el mapa» y «Volver a pedirla». Si el navegador no la da, dice por qué; obligatoria, no deja enviar. | B: además escribir las coordenadas a mano. C: elegir en un mapa embebido. | Sin mapas ni scripts de terceros ni costo. Escribirlas a mano invita a copiar cualquier cosa, y el mapa trae una dependencia y su cuota. |
-| **UB4 · Cómo se lee** | Un punto es un solo dato: planilla, detalle, PDF y mensajes lo muestran como «-34.603722, -58.381592» con «Ver en el mapa»; el Excel lo reparte en tres columnas numéricas («· Latitud», «· Longitud», «· Precisión (m)»). | B: una sola columna de texto en el Excel. | Excel necesita números para filtrar, ordenar y armar un mapa. El enlace tiene destino fijo (Google Maps con `q=<lat>,<lng>`), sin pedir nada a un servicio. |
+| **UB1 · Qué se guarda** | **Elegida.** Latitud, longitud y precisión en metros (opcional). | B: sólo latitud y longitud. C: además nombre y dirección. | La precisión dice cuánto creerle a un punto: en una computadora sin GPS el navegador puede errar por kilómetros. El nombre y la dirección sólo existen en un pin de WhatsApp, no en la app. |
+| **UB2 · Dónde se completa** | **Elegida.** Sólo en la app (Etapa 1); por WhatsApp, en la Etapa 2. | B: esperar a tener también WhatsApp. | Un Flow no puede pedir la ubicación, y lo de WhatsApp necesita una sesión de varios mensajes. La app ya tiene «Sólo en la app» ([SA1-A](2026-11-09-formularios-solo-en-la-app.md)). |
+| **UB3 · Cómo se pide en la app** | **Elegida.** Botón «Usar mi ubicación»: muestra el punto con su precisión («± 15 m»), «Ver en el mapa» y «Volver a pedirla». Si el navegador no la da, dice por qué; obligatoria, no deja enviar. | B: además escribir las coordenadas a mano. C: elegir en un mapa embebido. | Sin mapas ni scripts de terceros ni costo. Escribirlas a mano invita a copiar cualquier cosa, y el mapa trae una dependencia y su cuota. |
+| **UB4 · Cómo se lee** | **Elegida.** Un punto es un solo dato: planilla, detalle, PDF y mensajes lo muestran como «-34.603722, -58.381592» con «Ver en el mapa»; el Excel lo reparte en tres columnas numéricas («· Latitud», «· Longitud», «· Precisión (m)»). | B: una sola columna de texto en el Excel. | Excel necesita números para filtrar, ordenar y armar un mapa. El enlace tiene destino fijo (Google Maps con `q=<lat>,<lng>`), sin pedir nada a un servicio. |
 
-UB3 y UB4 son de pantalla: cada una necesita su tablero antes de programarse (ver la tarea 8 de la Etapa 1).
+Los tableros de UB3-A y UB4-A están en el lienzo [Pregunta «Ubicación» en los formularios](https://claude.ai/artifact/9z3HT35LTTF7C7hmwHgFZj) y el diseño quedó registrado en [`docs/design/ubicacion-en-formularios.md`](../../../ArquitecturaBaseFront/docs/design/ubicacion-en-formularios.md) del front, con las diez decisiones de detalle que aparecieron al dibujar (la precisión baja es más de 100 m, la cruz quita el punto, en la planilla el punto es el enlace, el mensaje lleva el enlace en el renglón de abajo, el PDF lleva «Ver en el mapa» como enlace, entre otras), tomadas por la opción más simple.
 
 #### Reglas por defecto (no se preguntan)
 
@@ -203,7 +203,9 @@ UB3 y UB4 son de pantalla: cada una necesita su tablero antes de programarse (ve
 
 #### Etapa 1: la pregunta en la app
 
-Cada tarea arranca con su test en rojo y cierra con el build y los tests unitarios y de arquitectura del área. Mismo orden que los planes de ARCA y de «Sólo en la app»: el backend ahora, el front después de la prueba integral.
+Cada tarea arranca con su test en rojo y cierra con el build y los tests unitarios y de arquitectura del área. Se programó entera en la tanda del 2026-11-11, antes de la prueba integral final.
+
+**Hecho en el backend (2026-11-11):** las tareas 1 a 7. Verificado sobre HEAD con los cambios: build sin advertencias, Domain 855, Application 4578 y Architecture 207 en verde; FormLocationHttpTests con PostgreSQL y FormLocationRenderingTests en verde. Lo que hace el código está en [formularios](../features/formularios.md#la-pregunta-ubicación--ub1-a-a-ub4-a-2026-11-11). Diferencias con lo de abajo: los lectores no arman la ubicación por `Position` sino desde `ValuesJson`, como el resto (`FormRecordPresentationPolicy.Decode`); `FormEntryRecorder` no cambia (manda el texto como cualquier respuesta) y `FormIssueDataPolicy` ya ignoraba los tipos que no conoce. El PDF lleva «Ver en el mapa» como enlace (`DrawUrlAnnotation`). Las condiciones de presencia valen también en las reglas, porque usan el mismo validador que la planilla.
 
 1. **El tipo y el borrador.** `FormQuestionType.Location`, `FormDraftPolicy.TypeOf` y `SaveFormDraftRequestValidator` (`"location"`, sin `repeated`, sin opciones, archivos, cálculo ni condición propios). Tests de Domain y de Application: guardar y publicar un borrador con la pregunta, cambio de tipo con identidad nueva, y que dentro de un bloque falla.
 2. **La publicación.** `FormPublicationPolicy`: un formulario con una pregunta de ubicación que no es «Sólo en la app» da un problema bloqueante del chequeo, con su código estable (declarado en `FormPublicationErrors`, con su texto en `Errors.resx` y `Errors.en.resx`). Test de que el compilador de Flows nunca la acepta, aunque algo la dejara pasar.
