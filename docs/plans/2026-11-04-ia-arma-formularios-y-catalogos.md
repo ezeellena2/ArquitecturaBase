@@ -209,7 +209,8 @@ proveedor de IA real y con Meta. Las piezas nuevas del chat (adjuntar, grabar y 
 2. **Etapa 2 · Planillas.** El clip con Excel y CSV en el chat y por WhatsApp: los encabezados y las filas de muestra, el
    mapeo, «Crear catálogo» con la importación abierta e importar en un catálogo que existe.
 3. **Etapa 3 · Documentos.** PDF, fotos y Word para armar, sobre la lectura del ADR 0022; con DOC6, la misma propuesta desde
-   Documentos recibidos.
+   Documentos recibidos. Su plan de implementación va junto con el de la lectura de documentos, en
+   [Documentos por WhatsApp](2026-10-22-documentos-por-whatsapp.md#implementación-lectura-carga-bandeja-etapa-3-de-la-ia-y-tableros) (2026-11-11).
 
 Al cerrar, las reglas van a [IA](../features/inteligencia-artificial.md), a [formularios](../features/formularios.md) y a
 [WhatsApp](../features/whatsapp.md), el diseño queda en el front y se ofrece el traspaso al multitenant.
