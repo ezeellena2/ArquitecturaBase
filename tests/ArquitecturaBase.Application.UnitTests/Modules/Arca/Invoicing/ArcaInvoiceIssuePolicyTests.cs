@@ -119,7 +119,7 @@ public sealed class ArcaInvoiceIssuePolicyTests
             { Amounts = new(3101.5m, 0m, 3101.5m, 0m, 0m, 0m, []) }, Order(new(99, 0, "Juana Pérez", 5, null)));
 
         Assert.Equal(("Factura C", "Invoice C", "Juana Pérez", "3101.5"), (preview.Document!["es"], preview.Document["en"], preview.Receiver, preview.Total));
-        Assert.Equal(("Lo decide el sistema: sos monotributista.", "2026-11-09"), (preview.Info!["es"], preview.Date));
+        Assert.Equal(("Lo decide el sistema: sos monotributista.", (DateOnly?)new DateOnly(2026, 11, 9)), (preview.Info!["es"], preview.Date));
         Assert.Null(preview.Amounts);
     }
 

@@ -14,7 +14,7 @@ Configuraciones EF, repositorios, lectores y claves de lock del módulo, sobre `
 - `AsNoTracking` sólo en lectores. Los locks de fila usan `FromSql` sin componer y exigen la transacción; como EF devuelve la instancia ya seguida sin refrescarla, se recarga después del lock donde el scope pudo leerla antes. Las tablas fijan su nombre con `ToTable`: el contexto no tiene DbSet del módulo.
 - Orden: claves de contacto (BSUID y wa_id) y después las de mensaje, en otra llamada; la fila del contacto antes que la salida, el mensaje de audio o la referencia del asistente. Procesar un contacto usa SKIP LOCKED, desvincular NOWAIT y cambiar el número FOR NO KEY UPDATE ordenado por Id. El texto de `WhatsAppLockKeys` no cambia.
 - Sin FK ni joins hacia BusinessForms: sus IDs son opacos.
-- `WaMessageId` único es la última defensa contra duplicados. Los pendientes entrantes y las respuestas de Flow pendientes tienen índices filtrados; consultalos por esos predicados.
+- `WaMessageId` único es la última defensa contra duplicados. Los pendientes entrantes, las respuestas de Flow pendientes y los toques sin atender tienen índices filtrados; consultalos por esos predicados.
 - Retención: sólo `ClearExpiredBodiesAsync` usa `ExecuteUpdate`, idempotente y en autocommit (el mensaje no es auditable ni de borrado lógico). Vacía texto, botones, respuesta protegida procesada y descriptor, contexto y copia del audio aunque `Body` sea null; no toca salidas Pending ni Sending. El contenido privado del asistente se limpia con entidades seguidas en lotes, dentro de la UoW del servicio, sin tocar el payload técnico.
 - El chat proyecta sólo metadata de la sesión y el blob protegido de la explicación; los previews de acceso, avisos, asistente y audio salen genéricos desde SQL. Application aplica permiso y vencimiento.
 
@@ -23,6 +23,7 @@ Configuraciones EF, repositorios, lectores y claves de lock del módulo, sobre `
 - Únicos: chat manual por contacto/operador/RequestId, asistente por contacto/RequestId y avisos por run (guardado en `RequestId`) y destinatario. `GetNextPendingAsync` toma el contacto con SKIP LOCKED y después la salida, el mismo orden que marcar y completar.
 - Los avisos toman el lock run/destinatario y el contacto antes de la salida; el token de reserva deja afuera a un worker viejo. La revisión humana toma el lock run/destinatario y la fila de salida, sin tomar después el contacto: no pisa a un worker ni invierte contacto→salida.
 - `WhatsAppFormActionReader` une salidas FormAction y receipts por wamid con LEFT JOIN, filtra los pares pedidos exactos y usa las columnas legadas sólo como fecha del último estado conocido. Los receipts son únicos por wamid aunque lleguen antes de la salida.
+- Los toques en sus botones: los contactos pendientes salen de los toques sin atender de la ventana de un día, con el índice filtrado `IX_WhatsAppMessages_PendingTaps` (entrante, `ButtonReply`, `AssistantProcessedAtUtc` nulo, por `OccurredAtUtc`); los botones de una vuelta, de una sola consulta (`ListReplyTargetsAsync`), y `WhatsAppFormActionRepository.ListTapsAsync` trae seguidos, de una vez, los toques a marcar.
 
 ### Flows
 

@@ -1,6 +1,6 @@
 # Controllers: rutas de Formularios
 
-Un controller por familia de rutas, con las interfaces de servicio de esa familia. Acá están las rutas, los permisos, las políticas, los límites, los encabezados y las respuestas de borrador, publicación, vista previa, baja, eliminación y catálogos. La vista previa de destinatarios y la carga desde la app se describen con sus contratos en [Contracts](../Contracts/AGENTS.md); las demás familias, en el [detalle por tema](../../../../../docs/features/formularios-borde-http.md).
+Un controller por familia de rutas, con las interfaces de servicio de esa familia. Acá están las rutas, los permisos, las políticas, los límites, los encabezados y las respuestas de borrador, publicación, vista previa, baja, eliminación, catálogos y el flujo de una respuesta. La vista previa de destinatarios y la carga desde la app se describen con sus contratos en [Contracts](../Contracts/AGENTS.md); las demás familias, en el [detalle por tema](../../../../../docs/features/formularios-borde-http.md).
 
 ## Al modificar
 
@@ -34,6 +34,10 @@ Planillas de la IA (Etapa 2): POST catalogs/{id}/assistant-import-previews y /as
 K4 Filters: `GET /api/forms/catalog-filter-options` entrega columnas/roles, disponibilidad de la vista y muestra paginada/ordenable sólo con `CatalogsManage`; `POST /api/forms/catalog-previews` exige Read+Manage y no guarda. Alta/edición usan `POST /api/forms/catalogs/filters` y `PUT /api/forms/catalogs/{id}/filters`; detalle sigue en `GET /api/forms/catalogs/{id}`. Sólo la vista previa recibe `sampleUserId`. `GET /api/forms/catalogs` usa `state=Active|Inactive|Unavailable`; responde `filterCounts.byKind` de todo el conjunto filtrado por búsqueda/estado, independiente de origen y página.
 
 H4: POST catalogs/{id}/proposal/approve y /discard consumen IFormCatalogProposalService con Read+Manage, cuerpo cerrado y expectedRevision. Aprobar recibe los textos editados, Filters y sampleUserId de la vista previa; no recibe actor, estado ni procedencia. Devuelven 200 o conflicto 409; el detalle incluye proposal nullable con evidencia original y decisión real, sin respuestas del proveedor.
+
+### El flujo de una respuesta
+
+`FormWorkflowsController` (`api/forms/records/{recordId}`) admite en la clase «Ver respuestas» o «Completar formularios». `retry`, `recipients/{userId}/retry`, `review` y `consult` suman en la acción «Ver respuestas» y `formrules.manage`; `POST actions/{runId}/confirmation` («¿La emito?») no suma nada, porque la decide quien cargó la respuesta, también con sólo «Completar formularios». Cuerpos cerrados; el de `confirmation`, hasta 8 KiB. El detalle está en [reglas, efectos, aprobaciones y PDF](../../../../../docs/features/formularios-borde-http.md#reglas-efectos-aprobaciones-y-pdf).
 
 ## Referencias
 

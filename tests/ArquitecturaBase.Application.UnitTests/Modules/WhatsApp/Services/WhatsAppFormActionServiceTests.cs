@@ -236,7 +236,7 @@ public sealed class WhatsAppFormActionServiceTests
         { Calls++;return Task.FromResult<IReadOnlyList<WhatsAppFormActionObservationRow>>(Rows.Where(row=>requests.Contains(new(row.RunId,row.RecipientUserId))).ToArray()); }
         public Task<IReadOnlyList<WhatsAppFormActionTapRow>> ListPendingRepliesAsync(Guid contactId,DateTime nowUtc,int limit,CancellationToken ct)=>throw new NotSupportedException();
         public Task<IReadOnlyList<Guid>> ListContactsWithPendingRepliesAsync(IReadOnlyCollection<Guid> excluded,int limit,DateTime nowUtc,CancellationToken ct)=>throw new NotSupportedException();
-        public Task<WhatsAppFormActionReplyTargetRow?> FindReplyTargetAsync(Guid outgoingId,CancellationToken ct)=>throw new NotSupportedException();
+        public Task<IReadOnlyList<WhatsAppFormActionReplyTargetRow>> ListReplyTargetsAsync(IReadOnlyCollection<Guid> outgoingIds,CancellationToken ct)=>throw new NotSupportedException();
     }
     private sealed class Repository : IWhatsAppFormActionRepository
     {
@@ -248,6 +248,7 @@ public sealed class WhatsAppFormActionServiceTests
         public Action? BeforeReviewLock { get; set; }
         public Task<WhatsAppOutgoingMessage?> GetByRunForUpdateAsync(Guid run, Guid recipient, CancellationToken ct) { BeforeReviewLock?.Invoke(); return GetByRunAsync(run, recipient, ct); }
         public Task<WhatsAppContact?> GetContactForUpdateAsync(Guid recipient, CancellationToken ct) { ContactReads++; return Task.FromResult(Contact?.UserId == recipient ? Contact : null); }
+        public Task<IReadOnlyList<WhatsAppMessage>> ListTapsAsync(Guid contactId, IReadOnlyCollection<Guid> tapIds, CancellationToken ct) => throw new NotSupportedException();
         public void Add(WhatsAppOutgoingMessage outgoing) => Outgoing.Add(outgoing);
     }
 }

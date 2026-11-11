@@ -24,23 +24,20 @@ internal sealed class WhatsAppFormActionReader(ApplicationDbContext db) : IWhats
                orderby message.InboundSequence, message.Id
                select new WhatsAppFormActionTapRow(message.Id, message.WaMessageId, contact.Id, message.ReplyId!, contact.UserId, contact.LinkRevision, contact.WaId))
             .Take(limit).ToArrayAsync(cancellationToken);
-    // From the few form actions sent with buttons, not from every message: the scan stays small without another index.
-    public async Task<IReadOnlyList<Guid>> ListContactsWithPendingRepliesAsync(IReadOnlyCollection<Guid> excluded, int limit, DateTime nowUtc, CancellationToken cancellationToken)
-    {
-        var pending = PendingReplies(nowUtc);
-        return await db.Set<WhatsAppOutgoingMessage>().AsNoTracking()
-            .Where(outgoing => outgoing.Origin == WhatsAppMessageOrigin.FormAction && outgoing.Kind == WhatsAppOutgoingMessageKind.QuickReplies)
-            .Select(outgoing => outgoing.ContactId).Distinct()
-            .Where(contactId => !excluded.Contains(contactId) && pending.Any(message => message.ContactId == contactId))
-            .OrderBy(contactId => contactId).Take(limit).ToListAsync(cancellationToken);
-    }
-    public Task<WhatsAppFormActionReplyTargetRow?> FindReplyTargetAsync(Guid outgoingId, CancellationToken cancellationToken) =>
-        db.Set<WhatsAppOutgoingMessage>().AsNoTracking()
-            .Where(outgoing => outgoing.Id == outgoingId && outgoing.Origin == WhatsAppMessageOrigin.FormAction
+    // From the unhandled taps of the window, which IX_WhatsAppMessages_PendingTaps keeps apart: every round reads only the recent
+    // ones, never the history of messages nor every form action ever sent.
+    public async Task<IReadOnlyList<Guid>> ListContactsWithPendingRepliesAsync(IReadOnlyCollection<Guid> excluded, int limit, DateTime nowUtc, CancellationToken cancellationToken) =>
+        await PendingReplies(nowUtc).Where(message => message.ContactId != null && !excluded.Contains(message.ContactId.Value))
+            .GroupBy(message => message.ContactId!.Value)
+            .OrderBy(contact => contact.Min(message => message.OccurredAtUtc)).ThenBy(contact => contact.Key)
+            .Select(contact => contact.Key).Take(limit).ToListAsync(cancellationToken);
+    public async Task<IReadOnlyList<WhatsAppFormActionReplyTargetRow>> ListReplyTargetsAsync(IReadOnlyCollection<Guid> outgoingIds, CancellationToken cancellationToken) =>
+        outgoingIds.Count == 0 ? [] : await db.Set<WhatsAppOutgoingMessage>().AsNoTracking()
+            .Where(outgoing => outgoingIds.Contains(outgoing.Id) && outgoing.Origin == WhatsAppMessageOrigin.FormAction
                 && outgoing.Kind == WhatsAppOutgoingMessageKind.QuickReplies && outgoing.RecipientUserId != null && outgoing.QuickRepliesJson != null)
             .Select(outgoing => new WhatsAppFormActionReplyTargetRow(outgoing.Id, outgoing.ContactId, outgoing.RequestId, outgoing.RecipientUserId!.Value,
                 outgoing.RecipientLinkRevision, outgoing.RecipientWaId, outgoing.QuickRepliesJson!))
-            .SingleOrDefaultAsync(cancellationToken);
+            .ToArrayAsync(cancellationToken);
     private IQueryable<WhatsAppMessage> PendingReplies(DateTime nowUtc)
     {
         var sinceUtc = nowUtc - WhatsAppFormActionChoice.PendingReplyWindow;

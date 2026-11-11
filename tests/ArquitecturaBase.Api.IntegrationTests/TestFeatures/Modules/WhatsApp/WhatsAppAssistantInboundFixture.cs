@@ -118,7 +118,7 @@ internal sealed class WhatsAppAssistantInboundFixture : IAsyncDisposable
         public Task<IReadOnlyList<Guid>> ListContactsWithPendingRepliesAsync(IReadOnlyCollection<Guid> excluded,int limit,DateTime nowUtc,CancellationToken cancellationToken)=>
             Task.FromResult<IReadOnlyList<Guid>>([]);
         public Task<IReadOnlyList<WhatsAppFormActionTapRow>> ListPendingRepliesAsync(Guid contactId,DateTime nowUtc,int limit,CancellationToken cancellationToken)=>throw new NotSupportedException();
-        public Task<WhatsAppFormActionReplyTargetRow?> FindReplyTargetAsync(Guid outgoingId,CancellationToken cancellationToken)=>throw new NotSupportedException();
+        public Task<IReadOnlyList<WhatsAppFormActionReplyTargetRow>> ListReplyTargetsAsync(IReadOnlyCollection<Guid> outgoingIds,CancellationToken cancellationToken)=>throw new NotSupportedException();
         public Task<IReadOnlyList<WhatsAppFormActionObservationRow>> ListObservationsAsync(IReadOnlyCollection<StructuredRecordActionObservationRequest> requests,CancellationToken cancellationToken)=>throw new NotSupportedException();
         public Task<string?> FindLinkedWaIdAsync(Guid userId,CancellationToken cancellationToken)=>throw new NotSupportedException();
     }

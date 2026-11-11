@@ -14,8 +14,8 @@ namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 // EM2-A: a tap on a form action button goes to its owners, which decide in their own transaction; WhatsApp marks the tap as
 // handled, with the same marker as any other handled tap. The text an owner hands back with an applied tap («No la emitimos.
 // FAC-000012 quedó anulada.») is queued to the chat in the transaction that marks it: a tap handed over again finds the owner
-// ignoring it, so it is never answered twice.
-internal sealed partial class WhatsAppFormActionReplyService(IWhatsAppFormActionReader reader, IWhatsAppMessageRepository messages,
+// ignoring it, so it is never answered twice. A round reads the buttons of all its taps at once and marks them with one more read.
+internal sealed partial class WhatsAppFormActionReplyService(IWhatsAppFormActionReader reader,
     IWhatsAppFormActionRepository actions, IUnitOfWork unitOfWork, WhatsAppFormActionReplyPolicy policy,
     IEnumerable<IStructuredRecordActionReplySink> owners, TimeProvider clock, ILogger<WhatsAppFormActionReplyService> logger)
     : IWhatsAppFormActionReplyService
@@ -27,12 +27,16 @@ internal sealed partial class WhatsAppFormActionReplyService(IWhatsAppFormAction
         {
             var taps = await reader.ListPendingRepliesAsync(contactId, clock.GetUtcNow().UtcDateTime, MaxTaps, cancellationToken);
             if (taps.Count == 0) return Result.Success();
+            var buttons = taps.Select(tap => WhatsAppFormActionChoice.TryParseReplyId(tap.ReplyId, out var outgoingId, out _) ? outgoingId : (Guid?)null)
+                .OfType<Guid>().Distinct().ToArray();
+            var targets = buttons.Length == 0 ? new Dictionary<Guid, WhatsAppFormActionReplyTargetRow>()
+                : (await reader.ListReplyTargetsAsync(buttons, cancellationToken)).ToDictionary(target => target.OutgoingId);
             var answers = new List<(WhatsAppFormActionTapRow Tap, WhatsAppFormActionReply Reply, string Text)>();
             // Oldest first: of two taps on the same message the first decides, and the owner ignores the repeat.
             foreach (var tap in taps)
             {
                 var target = WhatsAppFormActionChoice.TryParseReplyId(tap.ReplyId, out var outgoingId, out _)
-                    ? await reader.FindReplyTargetAsync(outgoingId, cancellationToken) : null;
+                    ? targets.GetValueOrDefault(outgoingId) : null;
                 if (await policy.ResolveAsync(tap, target, cancellationToken) is not { } reply)
                 {
                     LogIgnored(logger);
@@ -63,11 +67,8 @@ internal sealed partial class WhatsAppFormActionReplyService(IWhatsAppFormAction
                     else LogNotAnswered(logger);
                 }
 
-                foreach (var tap in taps)
-                {
-                    if (await messages.GetInboundAsync(tap.WaMessageId, ct) is { } message && message.Id == tap.Id && message.ContactId == contactId)
-                        message.MarkAssistantProcessed(nowUtc);
-                }
+                foreach (var message in await actions.ListTapsAsync(contactId, [.. taps.Select(tap => tap.Id)], ct))
+                    message.MarkAssistantProcessed(nowUtc);
 
                 return Result.Success();
             }, CommitPolicy.OnSuccess, cancellationToken);

@@ -14,6 +14,7 @@ public sealed record FormWorkflowResponse(Guid RecordId,string RecordState,long?
     /// <summary>An issuance waiting for whoever loaded the response to confirm it («¿La emito?»), with its summary; absent otherwise.</summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public FormIssueConfirmationResponse? Confirmation { get; init; }
+    public override string ToString()=>"FormWorkflowResponse { Content = [REDACTED] }";
 }
 public sealed record FormIssueConfirmationResponse(Guid RunId,IReadOnlyDictionary<string,string>? Document,string? Receiver,string? Total)
 {
@@ -21,7 +22,7 @@ public sealed record FormIssueConfirmationResponse(Guid RunId,IReadOnlyDictionar
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyDictionary<string,string>? Info { get; init; }
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-    public string? Date { get; init; }
+    public DateOnly? Date { get; init; }
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyList<ArquitecturaBase.Application.Models.StructuredData.StructuredIssueAmount>? Amounts { get; init; }
     /// <summary>A summary that failed (decision 4): its stable code and its message, with «Volver a probar» and «No emitir»; the summary is empty.</summary>
@@ -29,6 +30,7 @@ public sealed record FormIssueConfirmationResponse(Guid RunId,IReadOnlyDictionar
     public string? FailureCode { get; init; }
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public string? FailureMessage { get; init; }
+    public override string ToString()=>"FormIssueConfirmationResponse { Content = [REDACTED] }";
 }
 public sealed record FormWorkflowTaskResponse(Guid Id,Guid RoleId,long Revision,string State,string? RoleName,DateTime? DecidedAtUtc,FormAuthorResponse? DecidedBy,string? Reason,DateTime RequestedAtUtc)
 { public override string ToString()=>"FormWorkflowTaskResponse { Content = [REDACTED] }"; }

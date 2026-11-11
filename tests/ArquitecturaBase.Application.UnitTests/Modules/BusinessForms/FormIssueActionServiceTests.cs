@@ -119,7 +119,7 @@ public sealed class FormIssueActionServiceTests
         channel.Reachable.Add(Author);
         issuer.Preview = new(new Dictionary<string, string> { ["es"] = "Factura A", ["en"] = "Invoice A" }, "Agro SA", "1210")
         {
-            Date = "2026-11-09",
+            Date = new DateOnly(2026, 11, 9),
             Amounts =
             [
                 new(new Dictionary<string, string> { ["es"] = "Importe neto gravado", ["en"] = "Taxed net amount" }, "1000"),

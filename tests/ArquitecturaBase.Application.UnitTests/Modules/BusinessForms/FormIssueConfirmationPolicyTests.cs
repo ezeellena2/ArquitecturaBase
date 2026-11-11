@@ -16,7 +16,7 @@ public sealed class FormIssueConfirmationPolicyTests
     {
         var preview = new StructuredIssuePreview(Text("Factura A", "Invoice A"), "Agro del Sur S.A.", "1210")
         {
-            Date = "2026-11-09",
+            Date = new DateOnly(2026, 11, 9),
             Amounts = [new(Text("Importe neto gravado", "Taxed net amount"), "1000"), new(Text("IVA 21 %", "VAT 21%"), "210")],
         };
 

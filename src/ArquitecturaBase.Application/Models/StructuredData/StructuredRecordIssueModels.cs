@@ -82,7 +82,7 @@ public sealed record StructuredIssuePreview(IReadOnlyDictionary<string, string>?
 
     /// <summary>The date of the document, in canonical form (yyyy-MM-dd); null when it has none.</summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-    public string? Date { get; init; }
+    public DateOnly? Date { get; init; }
 
     /// <summary>The amounts the document itemizes before its total (net, each tax, exempt…), in order; null when it itemizes none.</summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]

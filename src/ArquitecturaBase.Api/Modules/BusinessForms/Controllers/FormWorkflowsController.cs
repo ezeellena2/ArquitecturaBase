@@ -11,7 +11,8 @@ namespace ArquitecturaBase.Api.Modules.BusinessForms.Controllers;
 [ApiController]
 [Route("api/forms/records/{recordId:guid}")]
 [Tags("Form workflow")]
-// «Completar formularios» alone reads where the person's own response stands (CW6-C); the controls keep record read.
+// «Completar formularios» alone reads where the person's own response stands (CW6-C) and confirms the issuance of a response the
+// person loaded («¿La emito?»); retrying, reviewing and consulting an action also need record read and rule management.
 [HasAnyPermission(BusinessFormsPermissions.RecordsRead, BusinessFormsPermissions.RecordsCreate)]
 [EnableRateLimiting(BusinessFormsApiRegistration.ReadPolicy)]
 [ResponseCache(NoStore=true,Location=ResponseCacheLocation.None)]
@@ -67,6 +68,7 @@ public sealed class FormWorkflowsController(IFormWorkflowService service,IFormIs
     [HttpPost("actions/{runId:guid}/confirmation")]
     [ProducesProblem(StatusCodes.Status400BadRequest)]
     [EnableRateLimiting(BusinessFormsApiRegistration.WritePolicy)]
+    [RequestSizeLimit(8192)]
     [ProducesResponseType<FormWorkflowResponse>(StatusCodes.Status202Accepted)]
     [ProducesProblem(StatusCodes.Status403Forbidden)]
     [ProducesProblem(StatusCodes.Status404NotFound)]

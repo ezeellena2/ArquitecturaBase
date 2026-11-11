@@ -68,7 +68,7 @@ internal static class ArcaInvoiceIssuePolicy
         new(Localized("Voucher.Invoice", preview.Class.ToString()), order.Receiver.Name, Canonical(preview.Total))
         {
             Info = Localized(InfoKey(preview, order.Receiver.VatConditionId)),
-            Date = order.IssueOn.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+            Date = order.IssueOn,
             Amounts = preview.Amounts is { } amounts ? Amounts(preview.Class, amounts, order.Receiver.VatConditionId) : null,
         };
 

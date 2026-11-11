@@ -23,8 +23,7 @@ internal static class FormIssueConfirmationPolicy
     public static string Body(StructuredIssuePreview preview, string culture)
     {
         var document = preview.Document?.GetValueOrDefault(culture) ?? preview.Document?.Values.FirstOrDefault() ?? "";
-        var date = DateOnly.TryParseExact(preview.Date, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var day)
-            ? day.ToString(culture == "en" ? "MM/dd/yyyy" : "dd/MM/yyyy", CultureInfo.InvariantCulture) : null;
+        var date = preview.Date?.ToString(culture == "en" ? "MM/dd/yyyy" : "dd/MM/yyyy", CultureInfo.InvariantCulture);
         var amounts = (preview.Amounts ?? []).Select(item => (item.Label.GetValueOrDefault(culture) ?? item.Label.Values.First()) + ": $ " + Money(item.Value, culture)).ToArray();
         var total = Money(preview.Total, culture) + (amounts.Length == 0 ? "" : " (" + string.Join("; ", amounts) + ")");
         var summary = string.Format(CultureInfo.GetCultureInfo(culture), FormResponseTexts.Get(date is null ? "Issue.Confirm.Body" : "Issue.Confirm.BodyDated", culture),

@@ -82,6 +82,10 @@ internal sealed class WhatsAppMessageConfiguration : IEntityTypeConfiguration<Wh
         builder.HasIndex(message => new { message.OccurredAtUtc, message.Id })
             .HasDatabaseName("IX_WhatsAppMessages_PendingFlowReplies")
             .HasFilter($"\"{nameof(WhatsAppMessage.Direction)}\" = '{nameof(WhatsAppMessageDirection.Inbound)}' AND \"{nameof(WhatsAppMessage.Kind)}\" = '{nameof(WhatsAppMessageKind.FlowReply)}' AND \"{nameof(WhatsAppMessage.ProcessedAtUtc)}\" IS NULL");
+        // Los toques en botones que nadie atendió: cada vuelta busca los de un aviso de regla recibidos dentro de su ventana
+        // (un día). Filtrado, así recorre sólo los toques recientes sin atender y no el historial.
+        builder.HasIndex(message => message.OccurredAtUtc, "IX_WhatsAppMessages_PendingTaps")
+            .HasFilter($"\"{nameof(WhatsAppMessage.Direction)}\" = '{nameof(WhatsAppMessageDirection.Inbound)}' AND \"{nameof(WhatsAppMessage.Kind)}\" = '{nameof(WhatsAppMessageKind.ButtonReply)}' AND \"{nameof(WhatsAppMessage.AssistantProcessedAtUtc)}\" IS NULL");
 
         builder.HasOne<WhatsAppContact>()
             .WithMany()

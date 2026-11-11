@@ -3928,6 +3928,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.HasIndex(new[] { "ContactId" }, "IX_WhatsAppMessages_PendingSpreadsheets")
                         .HasFilter("\"SpreadsheetState\" = 'Pending'");
 
+                    b.HasIndex(new[] { "OccurredAtUtc" }, "IX_WhatsAppMessages_PendingTaps")
+                        .HasFilter("\"Direction\" = 'Inbound' AND \"Kind\" = 'ButtonReply' AND \"AssistantProcessedAtUtc\" IS NULL");
+
                     b.ToTable("WhatsAppMessages", (string)null);
                 });
 

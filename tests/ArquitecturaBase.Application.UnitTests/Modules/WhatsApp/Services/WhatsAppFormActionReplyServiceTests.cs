@@ -147,6 +147,26 @@ public sealed class WhatsAppFormActionReplyServiceTests
         Assert.NotNull(tap.AssistantProcessedAtUtc);
     }
 
+    // Every round reads its taps' buttons once and marks its taps with one more read, however many taps it has.
+    [Fact]
+    public async Task A_round_reads_the_buttons_of_all_its_taps_at_once_and_marks_them_with_one_read()
+    {
+        var host = new Host();
+        WhatsAppMessage[] taps =
+        [
+            host.Tap(host.ReplyId("issue")),
+            host.Tap(host.ReplyId("skip")),
+            host.Tap(WhatsAppFormActionChoice.ReplyId(Guid.CreateVersion7(), "issue")),
+            host.Tap(WhatsAppFormActionChoice.ReplyPrefix + "not-an-id"),
+        ];
+
+        Assert.True((await host.Service.ProcessAsync(host.ContactId, Ct)).IsSuccess);
+
+        Assert.Equal(["issue", "skip"], host.First.Calls.Select(call => call.ChoiceId));
+        Assert.Equal((1, 1), (host.Reader.TargetReads, host.Actions.TapReads));
+        Assert.All(taps, tap => Assert.NotNull(tap.AssistantProcessedAtUtc));
+    }
+
     [Fact]
     public async Task Without_owners_a_tap_is_only_marked()
     {
@@ -166,7 +186,7 @@ public sealed class WhatsAppFormActionReplyServiceTests
         public InMemoryWhatsAppMessageRepository Messages { get; } = new(new LockLog());
         public FakeUnitOfWork UnitOfWork { get; } = new();
         public FakeTimeProvider Clock { get; } = new(Now);
-        public ActionRepository Actions { get; } = new();
+        public ActionRepository Actions { get; }
         public Reader Reader { get; }
         public Owner First { get; }
         public Owner Second { get; }
@@ -181,7 +201,7 @@ public sealed class WhatsAppFormActionReplyServiceTests
         {
             User = Users.AddUser("recipient@example.com", phoneNumber: "+" + WaId);
             Contact.LinkUser(User.Id);
-            Actions.Contact = Contact;
+            Actions = new ActionRepository(Messages) { Contact = Contact };
             Outgoing = WhatsAppOutgoingMessage.CreateFormAction(User.Id, ContactId, RunId, "¿La emito?", Now.UtcDateTime, null, 1, WaId,
                 [new("issue", "Emitir"), new("skip", "No emitir")]);
             Reader = new Reader(Messages);
@@ -190,7 +210,7 @@ public sealed class WhatsAppFormActionReplyServiceTests
             First = new Owner(UnitOfWork);
             Second = new Owner(UnitOfWork);
             var policy = new WhatsAppFormActionReplyPolicy(new WhatsAppFormActionPolicy(Users, new FakePhoneNumberParser(), new FakeWhatsAppAvailability(true, true), Clock));
-            Service = new(Reader, Messages, Actions, UnitOfWork, policy, withOwners ? [First, Second] : [], Clock, NullLogger<WhatsAppFormActionReplyService>.Instance);
+            Service = new(Reader, Actions, UnitOfWork, policy, withOwners ? [First, Second] : [], Clock, NullLogger<WhatsAppFormActionReplyService>.Instance);
         }
 
         public string ReplyId(string choiceId) => WhatsAppFormActionChoice.ReplyId(Outgoing.Id, choiceId);
@@ -230,13 +250,17 @@ public sealed class WhatsAppFormActionReplyServiceTests
     {
         public List<WhatsAppFormActionTapRow> Taps { get; } = [];
         public Dictionary<Guid, WhatsAppFormActionReplyTargetRow> Targets { get; } = [];
+        public int TargetReads { get; private set; }
 
         public Task<IReadOnlyList<WhatsAppFormActionTapRow>> ListPendingRepliesAsync(Guid contactId, DateTime nowUtc, int limit, CancellationToken ct) =>
             Task.FromResult<IReadOnlyList<WhatsAppFormActionTapRow>>([.. Taps.Where(tap => tap.ContactId == contactId
                 && messages.Messages.Single(message => message.Id == tap.Id).AssistantProcessedAtUtc is null).Take(limit)]);
 
-        public Task<WhatsAppFormActionReplyTargetRow?> FindReplyTargetAsync(Guid outgoingId, CancellationToken ct) =>
-            Task.FromResult(Targets.GetValueOrDefault(outgoingId));
+        public Task<IReadOnlyList<WhatsAppFormActionReplyTargetRow>> ListReplyTargetsAsync(IReadOnlyCollection<Guid> outgoingIds, CancellationToken ct)
+        {
+            TargetReads++;
+            return Task.FromResult<IReadOnlyList<WhatsAppFormActionReplyTargetRow>>([.. outgoingIds.Where(Targets.ContainsKey).Select(id => Targets[id])]);
+        }
 
         public Task<IReadOnlyList<Guid>> ListContactsWithPendingRepliesAsync(IReadOnlyCollection<Guid> excluded, int limit, DateTime nowUtc, CancellationToken ct) =>
             throw new NotSupportedException();
@@ -247,10 +271,17 @@ public sealed class WhatsAppFormActionReplyServiceTests
         public Task<string?> FindLinkedWaIdAsync(Guid userId, CancellationToken ct) => throw new NotSupportedException();
     }
 
-    private sealed class ActionRepository : IWhatsAppFormActionRepository
+    private sealed class ActionRepository(InMemoryWhatsAppMessageRepository messages) : IWhatsAppFormActionRepository
     {
         public WhatsAppContact? Contact { get; set; }
         public List<WhatsAppOutgoingMessage> Outgoing { get; } = [];
+        public int TapReads { get; private set; }
+        public Task<IReadOnlyList<WhatsAppMessage>> ListTapsAsync(Guid contactId, IReadOnlyCollection<Guid> tapIds, CancellationToken ct)
+        {
+            TapReads++;
+            return Task.FromResult<IReadOnlyList<WhatsAppMessage>>([.. messages.Messages.Where(message => tapIds.Contains(message.Id)
+                && message.ContactId == contactId && message.Direction == WhatsAppMessageDirection.Inbound)]);
+        }
         public Task<WhatsAppContact?> GetContactForUpdateAsync(Guid recipientUserId, CancellationToken ct) =>
             Task.FromResult(Contact?.UserId == recipientUserId ? Contact : null);
         public void Add(WhatsAppOutgoingMessage outgoing) => Outgoing.Add(outgoing);

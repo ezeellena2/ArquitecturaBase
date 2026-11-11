@@ -27,6 +27,8 @@ G2 guarda diseño PDF por revisión propia y `ActivePdfDesignId`, sin cambiar bo
 POST actions/{runId}/review recibe únicamente wasSent obligatorio y devuelve 202 con el workflow. Comparte RecordsRead+RulesManage, no-store, límite de escritura y Location; identidad/fecha se obtienen del servidor. Review nullable y canReview forman parte del contrato de cada ejecución.
 La acción expone revision=Fence; review exige expectedRevision y wasSent explícitos. Un replay idéntico conserva actor/fecha y no reabre el run; una revisión obsoleta devuelve409.
 
+EM2-A: POST actions/{runId}/confirmation («¿La emito?») consume IFormIssueConfirmationService y no suma permisos a los de la clase («Ver respuestas» o «Completar formularios»): la decide sólo quien cargó la respuesta, con los permisos de corregir y anular, mientras el run espera su confirmación. Recibe el cuerpo cerrado `ConfirmFormIssueHttpRequest` (`issue` obligatorio y `retry`) de hasta 8 KiB, con política de escritura y no-store; devuelve 202 con el workflow y su Location, o 409 si el run ya no espera o lo pedido no corresponde a lo que vio la persona. Sin sesión da 401 y sin ninguno de los dos permisos, 403.
+
 ## Sugerencias, pedidos faltantes, datos de personas y asistente
 
 Etapa 5, s2: cinco rutas de suggestions bajo definitions/{id}: GET actual, POST nueva revisión y GET options/revisions/revisions/{revision}. Sólo formsuggestions.manage, no-store, cuerpo cerrado de 512 KiB y revisión esperada; POST devuelve 201/Location o 409. Origen sin publicar da Forms.Suggestion.SourceNotPublished. SourceVersionId nullable en el set y DestinationVersionId en cada sugerencia son metadata del servidor, nunca entrada del cliente.

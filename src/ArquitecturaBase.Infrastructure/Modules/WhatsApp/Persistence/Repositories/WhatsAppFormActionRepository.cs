@@ -38,5 +38,9 @@ internal sealed class WhatsAppFormActionRepository(ApplicationDbContext dbContex
             .ToListAsync(cancellationToken);
         return rows.SingleOrDefault();
     }
+    public async Task<IReadOnlyList<WhatsAppMessage>> ListTapsAsync(Guid contactId, IReadOnlyCollection<Guid> tapIds, CancellationToken cancellationToken) =>
+        tapIds.Count == 0 ? [] : await dbContext.Set<WhatsAppMessage>()
+            .Where(message => tapIds.Contains(message.Id) && message.ContactId == contactId && message.Direction == WhatsAppMessageDirection.Inbound)
+            .ToListAsync(cancellationToken);
     public void Add(WhatsAppOutgoingMessage outgoing) => dbContext.Set<WhatsAppOutgoingMessage>().Add(outgoing);
 }

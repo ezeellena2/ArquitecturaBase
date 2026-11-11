@@ -126,6 +126,45 @@ public sealed class WhatsAppFormActionReplyTests(ApiFactory factory)
         await AssertHandledAsync(scenario, expected: 3);
     }
 
+    // A tap its owners did not take stays unhandled and schedules its contact again, read from the unhandled taps of the window:
+    // one older than the window, a tap that is no form action's or a contact the round already tried are not asked for.
+    [Fact]
+    public async Task An_unhandled_tap_schedules_its_contact_only_within_the_window_and_the_next_round_hands_it_over()
+    {
+        await using var scenario = await WhatsAppFormActionScenario.CreateAsync(factory, Ct);
+        var recipient = await scenario.RecipientAsync(Now, Ct);
+        var late = await scenario.RecipientAsync(Now, Ct);
+        var run = Guid.NewGuid();
+        var buttons = await SendAsync(scenario, run, recipient.UserId);
+        await TapAsync(scenario, recipient.ContactId, buttons[0].Id, Now);
+        await TapAsync(scenario, late.ContactId, buttons[1].Id, Now - WhatsAppFormActionChoice.PendingReplyWindow - TimeSpan.FromSeconds(1));
+        await TapAsync(scenario, late.ContactId, "FORM_AUTHORING:not-an-action", Now);
+
+        Assert.Equal([recipient.ContactId], await PendingContactsAsync(scenario, [], Now));
+        Assert.Empty(await PendingContactsAsync(scenario, [recipient.ContactId], Now));
+        Assert.Empty(await PendingContactsAsync(scenario, [], Now + WhatsAppFormActionChoice.PendingReplyWindow));
+
+        await ProcessAsync(scenario);
+
+        Assert.Equal(new[] { (run, recipient.UserId, "issue") }, scenario.Replies.Calls);
+        Assert.Empty(await PendingContactsAsync(scenario, [], Now));
+    }
+
+    private static Task<IReadOnlyList<Guid>> PendingContactsAsync(WhatsAppFormActionScenario scenario, IReadOnlyCollection<Guid> excluded, DateTime nowUtc) =>
+        scenario.ScopeAsync(services => services.GetRequiredService<IWhatsAppFormActionReader>().ListContactsWithPendingRepliesAsync(excluded, 50, nowUtc, Ct));
+
+    // A tap already classified and processed by the inbound round, as one whose owners failed is left.
+    private static Task<Guid> TapAsync(WhatsAppFormActionScenario scenario, Guid contactId, string replyId, DateTime occurredAtUtc) =>
+        scenario.InTransactionAsync(async services =>
+        {
+            var db = services.GetRequiredService<ApplicationDbContext>();
+            var contact = await db.Set<WhatsAppContact>().SingleAsync(item => item.Id == contactId, Ct);
+            var tap = WhatsAppMessage.Inbound(contact.Id, MetaWebhook.UniqueWaMessageId(), WhatsAppMessageKind.ButtonReply, "Emitir", replyId, occurredAtUtc);
+            tap.Classify(WhatsAppMessagePurpose.Business); tap.SetInboundSequence(contact.RegisterInboundMessage()); tap.MarkProcessed(occurredAtUtc);
+            db.Add(tap);
+            return tap.Id;
+        }, Ct);
+
     private static async Task<IReadOnlyList<WhatsAppReplyButton>> SendAsync(WhatsAppFormActionScenario scenario, Guid run, Guid recipientUserId)
     {
         await scenario.ScopeAsync(services => Channel(services).EnqueueAsync(new(run, recipientUserId, "¿La emito?") { Choices = Choices }, Ct));

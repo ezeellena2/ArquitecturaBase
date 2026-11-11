@@ -11,8 +11,11 @@ public interface IWhatsAppFormActionReader
     /// window, oldest first.
     /// </summary>
     Task<IReadOnlyList<WhatsAppFormActionTapRow>> ListPendingRepliesAsync(Guid contactId,DateTime nowUtc,int limit,CancellationToken cancellationToken);
-    /// <summary>Contacts with such a tap, looked up from the form actions sent with buttons.</summary>
+    /// <summary>
+    /// Contacts with such a tap, the one waiting longest first, read from the unhandled taps of the pending window: neither the
+    /// history of messages nor every form action ever sent.
+    /// </summary>
     Task<IReadOnlyList<Guid>> ListContactsWithPendingRepliesAsync(IReadOnlyCollection<Guid> excluded,int limit,DateTime nowUtc,CancellationToken cancellationToken);
-    /// <summary>The form action with buttons that has this outgoing id; null for any other row.</summary>
-    Task<WhatsAppFormActionReplyTargetRow?> FindReplyTargetAsync(Guid outgoingId,CancellationToken cancellationToken);
+    /// <summary>The form actions with buttons that have these outgoing ids, in one read; any other row is left out.</summary>
+    Task<IReadOnlyList<WhatsAppFormActionReplyTargetRow>> ListReplyTargetsAsync(IReadOnlyCollection<Guid> outgoingIds,CancellationToken cancellationToken);
 }
