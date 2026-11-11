@@ -174,7 +174,10 @@ durable ([ADR 0018](../decisions/0018-robustez-proporcional-al-efecto.md)): se a
    la app, diálogo, listado, baja y eliminación. **Programado el 2026-11-11** (front c91d85f7 a da913f14), con un
    `SegmentedControl` que en el celular baja de renglón (`wrap`) y las escenas de `formAppOnly.spec.ts`. Los ejemplos HTTP de un
    formulario de la app pasaron al cierre: la exportación conjunta corre la suite entera y copia las 25 cohortes de una sola
-   corrida, y ese día otras sesiones tenían cambios sin commitear en los dos repos y la PC al 100 %.
+   corrida, y ese día otras sesiones tenían cambios sin commitear en los dos repos y la PC al 100 %. La revisión contra el
+   código del mismo día trajo tres arreglos, ya hechos: «Qué sugerir después» con un destino que pasó a la app (`AppOnly`), el
+   motivo de lo apagado en la vista previa (MA1-A) y sin «En WhatsApp» en una pregunta de catálogo (backend ab66934c, front
+   b73170c6 a 1bee2f51). La baja con «Chat» y «Asistente» espera una respuesta del usuario.
 3. **Cierre:** la exportación conjunta de los ejemplos HTTP con los de un formulario de la app (las cinco capturas de
    `FormAppOnlyPublicationTests` en `forms-http/app-only`, escritas el 2026-11-11, y después su consumidor en el front); la
    corrida completa con Docker y el front entero (build, lint, vitest y test:visual); la prueba a mano (crear un
