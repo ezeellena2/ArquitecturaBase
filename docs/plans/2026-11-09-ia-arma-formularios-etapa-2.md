@@ -352,3 +352,16 @@ Las planillas ficticias están commiteadas con su SHA-256, y el catálogo «Prov
 compara Id y versión, y quedan 206 controles offline en verde. `channel-spreadsheets` se puede correr ya. Inicio necesita que la
 tarea 9 dé vuelta lo que ofrece; después, `ia-authoring`, `channel-stage5` y `channel-dictation` se alinean con lo que ofrece la
 app (`propose-catalog@2` y la importación) y vuelven a correr. `home-existing` no, porque sus cuentas no ven `propose-catalog`.
+
+2026-11-11: tarea 9, lo que no espera, hecho.
+- **Backend:** Inicio ofrece `propose-catalog@2` y `propose-import@1`, y deja de ofrecer la 1 (6e27fa0b): 12 definiciones sin
+  planilla y 13 con ella.
+- **Capturas** (bd0beb97): la cohorte de importaciones suma 6, `assistant-pending`, `-preview`, `-applied`, `-none`,
+  `-proposal-unavailable` y `-sheet-unavailable`, y queda en 39. La de propuestas suma 2, `catalog-mapped-created` y
+  `catalog-mapped-detail-pending`, y queda en 16.
+- **Front:** la API de importar desde la copia (95364038), y las tarjetas del catálogo con planilla y de «Importación», el
+  reemplazo por grupo y la sugerencia con `attach` (add86775), con 12 escenas nuevas (`assistantSpreadsheets.spec.ts`).
+
+Pruebas: unitarias 4546/4546, arquitectura 207/207, integración 12/12, vitest 56/56 de lo tocado y 99/99 de lo vecino, lint y
+`tsc -b` sin errores. Faltan el diálogo y la página, que esperan a «Diálogo de exportar», y los contratos del front, que esperan a
+la exportación conjunta.
