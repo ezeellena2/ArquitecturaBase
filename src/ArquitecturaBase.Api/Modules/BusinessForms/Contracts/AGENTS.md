@@ -22,9 +22,13 @@ E1-B: el alta Manual admite `valueType` opcional (`Text` por defecto, `Integer`,
 
 Los requests de ítems no reciben `Position`; el servidor asigna altas al final. PUT acepta una secuencia opcional `moves: [{ itemId, direction: "up" | "down" }]`, sin escrituras por flecha y bajo el mismo Guardar/revisión. También acepta `deleteItemIds` (identidades de opciones que nada usa); una usada da 409 `Forms.Catalog.ItemInUse` con `uses` en `deleteItemIds[i]`.
 
+«Completar con …» (CA1): `LookupFormCatalogPartyHttpRequest` lleva sólo `taxId`, como lo escribió la persona, y redacta su `ToString`; la ruta está en [Controllers](../Controllers/AGENTS.md).
+
 ### Carga desde la app
 
 Carga desde la app: `api/forms/entries/{definitionId}` consume IFormEntryService con formrecords.create. GET da la versión activa para cargar; GET `versions/{versionId}/questions/{fieldId}/options`, una página de hasta 50 opciones con búsqueda y los filtros de quien carga; POST recibe un multipart (`requestId`, `versionId`, `answers` en JSON y `files` con su `fileFieldIds`, uno por archivo) con límite de 101 MiB. `FormEntryRequestMapping` deja null un JSON inválido o archivos sin su pregunta, para que el validador responda 400. El bloque de renglones va en `answers` como `{ fieldId, rows: [[{ fieldId, value }, …], …] }` (`FormEntryAnswerHttpItem.Rows`); una respuesta o un ítem nulos llegan nulos al validador. Elegir primero por un campo (LD1-A): GET `versions/{versionId}/questions/{fieldId}/groups` (en la carga y en la corrección) da los valores con los mismos `answers[...]`, y las opciones suman `group` o `withoutGroup`; el borrador suma `source.groupBy`. La carga trae `catalog.default` (IV1-A) con la opción con que empieza la pregunta. No-store y las políticas de lectura y escritura. La búsqueda de respuestas, sus conteos, la navegación y el Excel suman `enteredInApp`: true sólo lo cargado en la app y false lo que llegó por un canal.
+
+«¿La emito?» (EM2-A): POST `issue-preview` recibe en JSON `PreviewFormIssueHttpRequest` (`versionId` y `answers`, las del envío sin archivos, con el mismo `FormEntryRequestMapping`), cerrado y con `ToString` redactado, hasta 4 MiB: lo que admite `answers` como valor del multipart del envío. Usa la política de lectura, porque la app la pide mientras se carga para el total discriminado, y no-store. Responde `document`, `receiver`, `total`, `info`, `date` y `amounts`, o `failureCode` y `failureMessage` si no se puede emitir así; un formulario que no emite da 404 `Forms.Entry.NoIssuance`.
 
 ## Referencias
 

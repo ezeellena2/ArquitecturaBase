@@ -33,6 +33,8 @@ Planillas de la IA (Etapa 2): POST catalogs/{id}/assistant-import-previews y /as
 
 K4 Filters: `GET /api/forms/catalog-filter-options` entrega columnas/roles, disponibilidad de la vista y muestra paginada/ordenable sólo con `CatalogsManage`; `POST /api/forms/catalog-previews` exige Read+Manage y no guarda. Alta/edición usan `POST /api/forms/catalogs/filters` y `PUT /api/forms/catalogs/{id}/filters`; detalle sigue en `GET /api/forms/catalogs/{id}`. Sólo la vista previa recibe `sampleUserId`. `GET /api/forms/catalogs` usa `state=Active|Inactive|Unavailable`; responde `filterCounts.byKind` de todo el conjunto filtrado por búsqueda/estado, independiente de origen y página.
 
+CA1, «Completar con …»: GET y POST `/api/forms/catalogs/{id}/lookup` consumen IFormCatalogLookupService y exigen `CatalogsManage` (atributo de clase), con no-store. GET dice qué padrón completa el catálogo y el campo de la CUIT, con la política de lectura; POST recibe el cuerpo cerrado `{ taxId }` de hasta 8 KiB, con la de escritura, y responde 200 también cuando el padrón no pudo (`failureCode` y `failureMessage`). Sin un padrón para ese catálogo, o sin su campo activo, 404 `Forms.Catalog.LookupUnavailable`. No guarda nada, y las llamadas al padrón las limita el módulo que lo aporta.
+
 H4: POST catalogs/{id}/proposal/approve y /discard consumen IFormCatalogProposalService con Read+Manage, cuerpo cerrado y expectedRevision. Aprobar recibe los textos editados, Filters y sampleUserId de la vista previa; no recibe actor, estado ni procedencia. Devuelven 200 o conflicto 409; el detalle incluye proposal nullable con evidencia original y decisión real, sin respuestas del proveedor.
 
 ### El flujo de una respuesta

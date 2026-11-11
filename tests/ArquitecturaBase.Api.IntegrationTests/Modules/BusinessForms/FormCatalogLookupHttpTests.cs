@@ -58,6 +58,12 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal(HttpStatusCode.BadRequest, empty.StatusCode);
         using var forbidden = await reading.PostAsJsonAsync($"/api/forms/catalogs/{catalogId}/lookup", new { taxId = "20123456786" }, Ct);
         Assert.Equal(HttpStatusCode.Forbidden, forbidden.StatusCode);
+        using var notOffered = await reading.GetAsync($"/api/forms/catalogs/{catalogId}/lookup", Ct);
+        Assert.Equal(HttpStatusCode.Forbidden, notOffered.StatusCode);
+        using var anonymous = host.CreateClient();
+        using var anonymousOffer = await anonymous.GetAsync($"/api/forms/catalogs/{catalogId}/lookup", Ct);
+        using var anonymousLookup = await anonymous.PostAsJsonAsync($"/api/forms/catalogs/{catalogId}/lookup", new { taxId = "20123456786" }, Ct);
+        Assert.Equal((HttpStatusCode.Unauthorized, HttpStatusCode.Unauthorized), (anonymousOffer.StatusCode, anonymousLookup.StatusCode));
         var other = await SeedCatalogAsync("Sin padrón");
         using var none = await managing.GetAsync($"/api/forms/catalogs/{other}/lookup", Ct);
         Assert.Equal((HttpStatusCode.NotFound, FormCatalogErrors.LookupUnavailable.Code), (none.StatusCode, (await none.ReadJsonAsync()).GetProperty("code").GetString()));

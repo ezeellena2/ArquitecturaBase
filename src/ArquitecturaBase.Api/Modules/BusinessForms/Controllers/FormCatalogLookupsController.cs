@@ -28,6 +28,7 @@ public sealed class FormCatalogLookupsController(IFormCatalogLookupService servi
 
     [HttpPost]
     [EnableRateLimiting(BusinessFormsApiRegistration.WritePolicy)]
+    [RequestSizeLimit(8192)]
     [ProducesResponseType<FormCatalogLookupResultResponse>(StatusCodes.Status200OK)]
     [ProducesProblem(StatusCodes.Status400BadRequest)]
     [ProducesProblem(StatusCodes.Status403Forbidden)]

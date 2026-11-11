@@ -21,6 +21,9 @@ public sealed class FormEntriesController(IFormEntryService service, IFormIssueP
     // Up to ten files of a response, 100 MiB in total, plus the answers and the multipart envelope.
     private const long MaximumRequestBytes = 101L * 1024 * 1024;
 
+    // The answers of a send without its files: the send takes them as a form value, of up to 4 MiB (FormOptions.ValueLengthLimit).
+    private const long PreviewRequestBytes = 4L * 1024 * 1024;
+
     [HttpGet]
     [EnableRateLimiting(BusinessFormsApiRegistration.ReadPolicy)]
     [ProducesResponseType<FormEntryResponse>(StatusCodes.Status200OK)]
@@ -69,6 +72,7 @@ public sealed class FormEntriesController(IFormEntryService service, IFormIssueP
     // written by its tax id) is limited and cached by the module that brings it.
     [HttpPost("issue-preview")]
     [EnableRateLimiting(BusinessFormsApiRegistration.ReadPolicy)]
+    [RequestSizeLimit(PreviewRequestBytes)]
     [ProducesResponseType<FormIssuePreviewResponse>(StatusCodes.Status200OK)]
     [ProducesProblem(StatusCodes.Status400BadRequest)]
     [ProducesProblem(StatusCodes.Status403Forbidden)]
