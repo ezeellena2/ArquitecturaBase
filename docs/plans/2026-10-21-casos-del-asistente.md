@@ -177,9 +177,9 @@ Dos cambios no son mecánicos. Van al usuario con su recomendación:
    - El caso existe, está activo y su acción está permitida.
    - El texto redactado respeta el largo máximo y el idioma de la conversación, y no trae enlaces, teléfonos, correos ni precios que no estén cargados. Lo que no pasa no sale y deriva.
    - Cada acción se valida por separado. Los formularios conservan sus dos por día, y las respuestas tienen su propio tope por conversación y día, que al llegar deriva.
-6. **Derivar** se acuerda con la sesión de documentos.
-   - `WhatsAppContact` guarda la marca y el motivo.
-   - Derivar pasa a Atención manual y encola el mensaje fijo del perfil, que el envío acepta aunque el modo ya sea Manual.
+6. **Derivar lo arma este desarrollo,** acordado con la sesión de documentos el 2026-11-11, con la semántica de AS4.
+   - `WhatsAppContact` guarda la marca y el motivo, en la migración `AddWhatsAppAssistantAgent`.
+   - Derivar pasa a Atención manual y encola un mensaje fijo, que el envío acepta aunque el modo ya sea Manual. Es el mensaje del perfil o un texto propio de quien deriva: documentos manda el suyo, de DOC4/CE4-A.
    - La marca se quita con la primera respuesta de una persona o al volver a Asistente.
 7. **Ráfagas.** Con agente, el turno espera 4 s sin mensajes nuevos, como mucho 15 s desde el primero, y lleva toda la ráfaga. Si llega otro mensaje después, se cancela el borrador y el turno nuevo lo trae en el historial.
 8. **«Por qué respondió esto».** La salida guarda el caso, la acción, lo que usó y su lugar («1 de 3»). El hilo lo devuelve con `whatsapp.read` y se borra con el texto a los 90 días. «No responder» y derivar quedan en el hilo como líneas, con el caso y el motivo.
@@ -247,7 +247,7 @@ Las exporta la coordinadora en la exportación conjunta:
 
 ### Riesgos
 
-- **El motor lo tocan dos sesiones.** Documentos suma `ReadDocument` y el documento del turno en los mismos archivos. Los cambios van en fila, cada uno sobre el commit del otro.
+- **El motor lo tocan dos sesiones.** Documentos suma `ReadDocument` (su tarea 2) y el documento del turno (su tarea 3) en los mismos archivos. Los cambios del motor y del contexto del canal (tareas 3 y 4 de acá) van sobre el commit de su tarea 3. Derivar, el agente, la migración y el front no tocan esos archivos y pueden ir antes. Con agente y documento a la vez, la precarga también deja afuera los candidatos, como las herramientas.
 - **La calificación real** necesita la clave y el visto bueno del usuario.
 - **El tamaño.** Cada tarea cierra con su commit.
 
