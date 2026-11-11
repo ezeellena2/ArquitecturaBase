@@ -400,6 +400,18 @@ más largo, de 19,66 s. Pasaron los cuatro puntos a mirar. La evidencia está en
 [configurar IA](../guides/configurar-ia.md#evidencia-para-habilitar-perfiles). Las bases de las tres corridas verdes quedan hasta
 cerrar la etapa.
 
+2026-11-11: tarea 9 hecha (front 4ec7b7d1), sobre el diálogo y la página que rehízo «Diálogo de exportar» (f8a1c98a y
+3e36fc87).
+- **El diálogo:** «Desde» suma «La planilla del chat: {nombre} ({N} filas)», que abre seleccionada y se revisa sola desde la copia
+  del turno, en modo reemplazar y con las confirmaciones de siempre. Con `ProposalUnavailable`, `SheetUnavailable` o
+  `ProposalReplaced`, el diálogo dice el motivo y pasa a «Subir un archivo».
+- **La página:** abre el diálogo sola una vez por carga, sólo con administrar catálogos. Lo hace desde el estado de la tarjeta,
+  desde el enlace de WhatsApp o desde el `GET` de la importación pendiente, y después saca el estado y los parámetros sin crear una
+  entrada.
+
+Pruebas: vitest de lo tocado 221/221, lint y `tsc -b` sin errores, y 12 escenas nuevas (`catalogAssistantImport.spec.ts`). Las de
+catálogos siguen sin diferencias. A 320 px, el «Desde» con dos opciones se cortaba: se está arreglando.
+
 2026-11-11: tarea 8 hecha.
 - **Backend:** el inventario de cohortes pasa a `formularios-pruebas-de-integracion.md`, y la guía de pruebas de BusinessForms
   vuelve a entrar en el tope (007e4489). El bootstrap dice `attachments` por persona, con `AiAssistantBootstrapPolicy` (d99a9b63).
