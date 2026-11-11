@@ -24,7 +24,7 @@ public sealed class ArcaInvoiceOrderPolicyTests
         Assert.Equal(new DateOnly(2026, 11, 8), order.IssueOn);
         Assert.Equal((new DateOnly(2026, 11, 1), new DateOnly(2026, 11, 30), new DateOnly(2026, 12, 10)), (order.ServiceFrom, order.ServiceTo, order.PaymentDueOn));
         Assert.Equal([("Horas de consultoría", 2m, 1500.5m), ("Viático", 1m, 100m)], order.Items.Select(item => (item.Description, item.Quantity, item.UnitPrice)));
-        Assert.All(order.Items, item => Assert.Null(item.Vat));
+        Assert.All(order.Items, item => Assert.Equal(new ArcaVoucherVat(ArcaVatTreatmentKind.Taxed, 5), item.Vat));
         Assert.False(order.PricesIncludeVat);
         Assert.Equal(3101m, order.ExpectedTotal);
     }
@@ -45,6 +45,17 @@ public sealed class ArcaInvoiceOrderPolicyTests
         Assert.Equal(
             [new ArcaVoucherVat(ArcaVatTreatmentKind.Taxed, 5), new ArcaVoucherVat(ArcaVatTreatmentKind.Exempt), new ArcaVoucherVat(ArcaVatTreatmentKind.NotTaxed)],
             order.Items.Select(item => item.Vat));
+    }
+
+    [Fact]
+    public void An_item_without_its_vat_rate_goes_at_21_percent_as_the_invoice_offers_it()
+    {
+        var order = Order(data => data.Select(datum => datum.Key == "items" ? datum with
+        {
+            Items = [[new("description", "Semilla"), new("quantity", "10"), new("unitPrice", "52000")]],
+        } : datum)).Value;
+
+        Assert.Equal(new ArcaVoucherVat(ArcaVatTreatmentKind.Taxed, 5), Assert.Single(order.Items).Vat);
     }
 
     [Theory]

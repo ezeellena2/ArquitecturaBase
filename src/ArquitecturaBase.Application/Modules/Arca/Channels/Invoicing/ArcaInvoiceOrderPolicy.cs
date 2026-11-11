@@ -16,6 +16,7 @@ namespace ArquitecturaBase.Application.Modules.Arca.Channels.Invoicing;
 internal static class ArcaInvoiceOrderPolicy
 {
     private const int CuitDocument = 80, UnidentifiedDocument = 99;
+    private const string DefaultVatRate = "5";
 
     public static Result<ArcaVoucherOrder> Order(StructuredIssueRequest request, DateOnly today)
     {
@@ -44,8 +45,9 @@ internal static class ArcaInvoiceOrderPolicy
             if (values.GetValueOrDefault(Description) is not { } description || Number(values.GetValueOrDefault(Quantity)) is not { } quantity
                 || Number(values.GetValueOrDefault(UnitPrice)) is not { } unitPrice)
                 return ArcaInvoicingErrors.ItemsInvalid;
-            ArcaVoucherVat? vat = null;
-            if (values.GetValueOrDefault(VatRate) is { } rate && (vat = Vat(rate)) is null) return ArcaInvoicingErrors.ItemsInvalid;
+            // The «Alícuota» comes at 21 % (code 5): an item left without it goes at that rate; the class C does not use it.
+            var vat = Vat(values.GetValueOrDefault(VatRate) ?? DefaultVatRate);
+            if (vat is null) return ArcaInvoicingErrors.ItemsInvalid;
             lines.Add(new(description, quantity, unitPrice, vat));
         }
         return new ArcaVoucherOrder(request.RunId, receiver, conceptId, Date(data, IssueDate) ?? today, Date(data, ServiceFrom), Date(data, ServiceTo),

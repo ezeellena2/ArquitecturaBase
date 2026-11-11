@@ -136,7 +136,7 @@ formularios «Emitir comprobante», con el estándar «Factura» y la anulación
   ticket de `wsfe`; sin conexión o sin respuesta devuelven el código del motivo y formularios conserva lo que tenía.
 - **El emisor de formularios** (`ArcaStructuredRecordIssuer`): la fuente y la clave del estándar son `arca.invoice`. Lee los
   datos atados de la «Factura» (el cliente de «Clientes» con `tax_id`, `vat_condition` y `address`, o consumidor final sin
-  CUIT; el concepto por su código de ARCA; la fecha, o la de hoy; el período, el vencimiento, los renglones y el total) y
+  CUIT; el concepto por su código de ARCA; la fecha, o la de hoy; el período, el vencimiento, los renglones, cada uno con su alícuota, que vacía vale 21 %, y el total) y
   encola con el run como clave. La vista previa del «¿La emito?» arma el mismo pedido y responde la clase que decide el
   sistema con su porqué («Lo decide el sistema: sos monotributista», o en la A y la B, la condición del cliente), el receptor,
   la fecha, los importes que discrimina (en la A, el neto gravado, el IVA de cada alícuota, lo exento y lo no gravado; en la B
