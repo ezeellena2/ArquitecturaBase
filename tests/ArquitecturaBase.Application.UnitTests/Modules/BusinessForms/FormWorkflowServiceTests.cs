@@ -149,7 +149,43 @@ public sealed class FormWorkflowServiceTests
             new(changed,"Changed employee","phone",new(StructuredRecordActionState.Failed,"WhatsApp.FormAction.RecipientChanged",false))])));
         return(fixture,captured.Record.Id,run,accepted,failed,changed);
     }
+    // Only an issuance its issuer left in review is reviewed: one that waits for whoever loaded it («¿La emito?») conflicts and
+    // records nothing, even for someone with the permission of its issuer, so nobody issues it without that person's confirmation.
+    [Fact]
+    public async Task Only_an_issuance_its_issuer_left_in_review_is_reviewed_and_one_waiting_for_its_author_conflicts()
+    {
+        var fixture=new FormActionFixture();var captured=fixture.Capture([new(Guid.NewGuid(),"Received",[],[FormActionFixture.Action("IssueDocument") with{IssuerId=ReviewedIssuer.Key}])]);
+        fixture.Rules.Permissions.Permissions[fixture.Rules.User.UserId!.Value]=[BusinessFormsPermissions.RecordsRead,BusinessFormsPermissions.RulesManage,ReviewedIssuer.Key];
+        await fixture.Recorder.RecordAsync(captured.Record,captured.Snapshot,"Received",CancellationToken.None);
+        var run=Assert.Single(fixture.Runs.Runs);var now=fixture.Clock.GetUtcNow().UtcDateTime;var service=Service(fixture,new ReviewedIssuer());
+        run.RecordOutcome(run.Reserve(now,TimeSpan.FromMinutes(2)).Value.Fence,now,FormActionRunState.Uncertain,FormActionErrors.AwaitingConfirmation.Code,false,
+            FormDraftPolicy.Serialize(new FormActionOutcomeResponse(FormActionRunState.Uncertain,FormActionErrors.AwaitingConfirmation.Code,IssuePreview:new(null,"Juana Pérez","3101.5"))));
+
+        Assert.Equal(FormActionErrors.StateConflict,(await service.ReviewAsync(captured.Record.Id,run.Id,null,run.Fence,true,CancellationToken.None)).Error);
+        Assert.False(run.DeliveryReviewRequested);Assert.Equal(FormActionRunState.Uncertain,run.State);
+
+        Assert.True(run.RequestConsult(now).IsSuccess);
+        run.RecordOutcome(run.Reserve(now,TimeSpan.FromMinutes(2)).Value.Fence,now,FormActionRunState.Uncertain,"test.issue.numberTaken",false,
+            FormDraftPolicy.Serialize(new FormActionOutcomeResponse(FormActionRunState.Uncertain,"test.issue.numberTaken",Issue:new(StructuredIssueState.NeedsReview,Revision:2))));
+        Assert.True((await service.ReviewAsync(captured.Record.Id,run.Id,null,run.Fence,true,CancellationToken.None)).IsSuccess);
+        Assert.Equal((FormActionRunState.Running,true),(run.State,run.DeliveryReviewWasSent));
+    }
     private static void Allow(FormActionFixture fixture)=>fixture.Rules.Permissions.Permissions[fixture.Rules.User.UserId!.Value]=[BusinessFormsPermissions.RecordsRead,BusinessFormsPermissions.RulesManage];
-    private static FormWorkflowService Service(FormActionFixture fixture)=>new(new(fixture.Runs,new(fixture.Rules.User,fixture.Rules.Permissions,new FakeFormResponseReader()),fixture.Rules.Permissions,[],[]),fixture.Runs,fixture.Rules,new(fixture.Rules.User,fixture.Rules.Permissions,new FakeFormResponseReader()),
+    private static FormWorkflowService Service(FormActionFixture fixture,params ArquitecturaBase.Application.Interfaces.Channels.IStructuredRecordIssuer[] issuers)=>new(new(fixture.Runs,new(fixture.Rules.User,fixture.Rules.Permissions,new FakeFormResponseReader()),fixture.Rules.Permissions,[],issuers),fixture.Runs,fixture.Rules,new(fixture.Rules.User,fixture.Rules.Permissions,new FakeFormResponseReader()),
         fixture.Rules.Permissions,fixture.Rules.UnitOfWork,fixture.Clock,NullLogger<FormWorkflowService>.Instance);
+    // An issuer that only says which permission decides on its issuances in review.
+    private sealed class ReviewedIssuer:ArquitecturaBase.Application.Interfaces.Channels.IStructuredRecordIssuer
+    {
+        public const string Key="test.issue";
+        public string IssuerId=>Key;public string StandardKey=>Key;public string ReviewPermission=>Key;
+        public IReadOnlyDictionary<string,string> Name=>new Dictionary<string,string>{["es"]="Emitir"};
+        public IReadOnlyList<StructuredRecordResultField> ResultFields=>[];
+        public string? CopyRecipient(IReadOnlyList<StructuredIssueDatum> data)=>throw new NotSupportedException();
+        public Task<StructuredIssuePreview> PreviewAsync(IReadOnlyList<StructuredIssueDatum> data,CancellationToken cancellationToken)=>throw new NotSupportedException();
+        public Task<StructuredIssueResponse> EnqueueAsync(StructuredIssueRequest request,CancellationToken cancellationToken)=>throw new NotSupportedException();
+        public Task<StructuredIssueResponse> GetAsync(Guid runId,CancellationToken cancellationToken)=>throw new NotSupportedException();
+        public Task<StructuredIssueResponse> ReviewAsync(Guid runId,StructuredIssueReview review,CancellationToken cancellationToken)=>throw new NotSupportedException();
+        public Task<StructuredIssueResponse> CancelAsync(Guid runId,CancellationToken cancellationToken)=>throw new NotSupportedException();
+        public Task<StructuredIssueResponse> EnqueueReversalAsync(Guid reversalRunId,Guid issuedRunId,CancellationToken cancellationToken)=>throw new NotSupportedException();
+    }
 }

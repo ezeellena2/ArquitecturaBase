@@ -55,7 +55,10 @@ internal sealed class FormActionRunReader(ApplicationDbContext db,TimeProvider t
         var failed=rows.Select((row,index)=>row.Response.State=="Failed"?outcomes[index]?.Issue:null).ToArray();
         var waiting=rows.Select((row,index)=>row.Response.State=="Running"&&outcomes[index]?.Issue is {State:StructuredIssueState.Pending,WaitingForProvider:true} issue
             ?issue:null).ToArray();
+        // Only an issuance its issuer left in review can be reviewed (Application adds who may), never one that waits for whoever
+        // loaded it («¿La emito?»).
         var actions=rows.Select((row,index)=>row.Response with{ReasonCode=row.Response.ReasonCode??waiting[index]?.FailureCode,Reason=failed[index]?.FailureDetail,
+            CanReview=row.Response.Kind=="IssueDocument"&&row.Response.State=="Uncertain"&&outcomes[index]?.Issue?.State==StructuredIssueState.NeedsReview,
             NextAttemptAtUtc=waiting[index]?.NextCheckAtUtc,Attempts=waiting[index]?.Attempts,Recipients=(outcomes[index]?.Recipients??[]).Select(recipient=>
         {
             var review=recipient.Status.Review;

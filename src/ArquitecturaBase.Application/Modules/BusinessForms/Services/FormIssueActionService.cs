@@ -15,8 +15,9 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 /// The issuer is asked first: enqueueing is idempotent by run and local to the issuer, so a run that lost its outcome asks again
 /// without issuing twice. Only a response that still stands is queued; once queued, it is followed to its end. While it waits
 /// for its provider, whoever loaded the response is told once, by the first channel that reaches them: the channel keeps one
-/// message per id and person, and the run is the id. One from a channel asks its author first («¿La emito?»), also after a
-/// summary that failed. The copy by email («SendCopy») goes where the issuer says, with the document of the issuance.
+/// message per id and person, and the notice has an id of its own per run. One from a channel asks its author first («¿La
+/// emito?», with the run as its id), also after a summary that failed. The copy by email («SendCopy») goes where the issuer says,
+/// with the document of the issuance.
 /// </summary>
 internal sealed class FormIssueActionService(IEnumerable<IStructuredRecordIssuer> issuers, IFormResponseReader records, IFormRuleReader definitions,
     IEnumerable<IStructuredRecordActionChannel> channels, IFormActionRecipientReader recipients, IFormCatalogItemCodeReader codes,
@@ -132,18 +133,21 @@ internal sealed class FormIssueActionService(IEnumerable<IStructuredRecordIssuer
         return new(FormActionRunState.Uncertain, FormActionErrors.AwaitingConfirmation.Code, IssuePreview: preview);
     }
 
+    // The notice goes by its own id, the same every time for the run: after the «¿La emito?» that took the run, and only once
+    // although the run loses its lease and asks again.
     private async Task NoticeAsync(FormActionWorkResponse work, IReadOnlyDictionary<string, string> notice, CancellationToken cancellationToken)
     {
         var record = await records.FindRecordAsync(work.RecordId, cancellationToken)
             ?? throw new InvalidOperationException("The action response is missing.");
         var author = record.Actor.UserId;
+        var messageId = FormIssueConfirmationPolicy.NoticeId(work.RunId);
         foreach (var channel in channels)
         {
             if (!await channel.CanReachAsync(author, cancellationToken)) continue;
-            if ((await channel.GetAsync(work.RunId, author, cancellationToken)).State != StructuredRecordActionState.NotFound) return;
+            if ((await channel.GetAsync(messageId, author, cancellationToken)).State != StructuredRecordActionState.NotFound) return;
             var culture = (await recipients.FindAsync(author, cancellationToken))?.Culture;
             var body = culture is not null && notice.TryGetValue(culture, out var text) ? text : notice.Values.First();
-            await channel.EnqueueAsync(new StructuredRecordActionMessage(work.RunId, author, body), cancellationToken);
+            await channel.EnqueueAsync(new StructuredRecordActionMessage(messageId, author, body), cancellationToken);
             return;
         }
     }

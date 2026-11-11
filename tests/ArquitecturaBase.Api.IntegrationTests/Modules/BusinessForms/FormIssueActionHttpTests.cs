@@ -230,6 +230,33 @@ public sealed partial class FormDraftEndpointsTests
     private Task<FormRecordState> RecordStateAsync(Guid recordId) => factory.ExecuteDbContextAsync(db =>
         db.Set<BusinessFormRecord>().Where(record => record.Id == recordId).Select(record => record.State).SingleAsync(Ct));
 
+    // Only an issuance its issuer left in review is reviewed: while one waits for whoever loaded it («¿La emito?»), someone with
+    // the permission of its issuer is not offered «Revisar» and the review conflicts, so it is never issued without that person.
+    [Fact]
+    public async Task An_issuance_waiting_for_its_author_is_not_offered_for_review_and_its_review_conflicts()
+    {
+        using var author = await OperatorAsync([BusinessFormsPermissions.RecordsCreate]);
+        using var reviewer = await OperatorAsync([BusinessFormsPermissions.RecordsRead, BusinessFormsPermissions.RulesManage, BusinessFormsPermissions.ApprovalsDecide]);
+        var issuer = new TestRecordIssuer();
+        await using var host = IssuerHost(issuer);
+        using var deciding = InHost(host, reviewer);
+        var (recordId, runId) = await SeedIssueRunAsync(author, enteredInApp: false);
+        var worker = host.Services.GetRequiredService<FormActionBackgroundService>();
+        await worker.ProcessNextAsync(runId, Ct);
+
+        var action = await WorkflowActionAsync(deciding, recordId);
+        Assert.Equal(("Uncertain", "Forms.Action.AwaitingConfirmation"), (action.GetProperty("state").GetString(), action.GetProperty("reasonCode").GetString()));
+        Assert.False(action.TryGetProperty("canReview", out _));
+        using var reviewed = await deciding.PostAsJsonAsync($"/api/forms/records/{recordId}/actions/{runId}/review",
+            new { expectedRevision = action.GetProperty("revision").GetInt64(), wasSent = true }, Ct);
+        Assert.Equal((HttpStatusCode.Conflict, "Forms.Action.StateConflict"), (reviewed.StatusCode, (await reviewed.ReadJsonAsync()).GetProperty("code").GetString()));
+        await worker.ProcessNextAsync(runId, Ct);
+
+        Assert.Equal((FormActionRunState.Uncertain, false), ((await RunAsync(runId)).State, (await RunAsync(runId)).DeliveryReviewRequested));
+        Assert.Empty(issuer.Requests);
+        Assert.Empty(issuer.Reviews);
+    }
+
     [Fact]
     public async Task A_response_from_a_channel_waits_for_its_author_to_confirm_and_not_issuing_voids_it()
     {

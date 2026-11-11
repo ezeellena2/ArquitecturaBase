@@ -41,8 +41,8 @@ internal sealed class FormWorkflowReadPolicy
                     observations.Add((channel.ChannelId, observation.RunId, observation.RecipientUserId), observation.Status);
         }
         var manage = await _permissions.HasPermissionAsync(read.Value.Actor, BusinessFormsPermissions.RulesManage, cancellationToken);
-        var reviewIssues = manage && result.Actions.Any(action => action.Kind == "IssueDocument" && action.State == "Uncertain")
-            && await CanReviewIssuesAsync(read.Value.Actor, cancellationToken);
+        // The reader marks only an issuance its issuer left in review, never one that waits for whoever loaded it («¿La emito?»).
+        var reviewIssues = manage && result.Actions.Any(action => action.CanReview) && await CanReviewIssuesAsync(read.Value.Actor, cancellationToken);
         if (!await _access.StillAllowedAsync(read.Value, cancellationToken)) return FormDefinitionErrors.Forbidden;
         return result with
         {
@@ -56,12 +56,18 @@ internal sealed class FormWorkflowReadPolicy
                     Reason = action.Reason ?? (action.ReasonCode is { } code ? ErrorMessages.Get(code) : null),
                     CanRetry = manage && action.CanRetry && !(recipients.Length > 0 && recipients.All(recipient => recipient.State == "Accepted")),
                     CanConsult = manage && action.CanConsult,
-                    CanReview = reviewIssues && action.Kind == "IssueDocument" && action.State == "Uncertain",
+                    CanReview = reviewIssues && action.CanReview,
                     Recipients = recipients
                 };
             }).ToArray()
         };
     }
+    /// <summary>
+    /// Whether a run's last outcome is an issuance its issuer left in review, the only one a person reviews; one that waits for
+    /// whoever loaded it («¿La emito?») is not. The reader marks the same with <see cref="FormActionRunResponse.CanReview"/>.
+    /// </summary>
+    public static bool InReview(string? outcomeJson) =>
+        outcomeJson is not null && FormDraftPolicy.Read<FormActionOutcomeResponse>(outcomeJson).Issue?.State == StructuredIssueState.NeedsReview;
     /// <summary>The permission to decide on an issuance in review of an installed issuer; null if it is not installed.</summary>
     public string? ReviewPermission(string? issuerId) => _issuers.FirstOrDefault(issuer => issuer.IssuerId == issuerId)?.ReviewPermission;
     private async Task<bool> CanReviewIssuesAsync(Guid actor, CancellationToken cancellationToken)

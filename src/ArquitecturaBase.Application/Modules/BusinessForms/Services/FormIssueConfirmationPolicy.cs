@@ -63,6 +63,13 @@ internal static class FormIssueConfirmationPolicy
     public static Guid MessageId(Guid runId, long? decisionRevision) => decisionRevision is not { } revision ? runId
         : new(SHA256.HashData(Encoding.UTF8.GetBytes(string.Create(CultureInfo.InvariantCulture, $"issue-confirmation:{runId:N}:{revision}"))).AsSpan(0, 16));
 
+    /// <summary>
+    /// The id of the notice that the issuance waits for its provider («ARCA no responde»), one per run: its own, because the run
+    /// may already be the id of the «¿La emito?» of a response from a channel, and always the same, so it goes once.
+    /// </summary>
+    public static Guid NoticeId(Guid runId) =>
+        new(SHA256.HashData(Encoding.UTF8.GetBytes(string.Create(CultureInfo.InvariantCulture, $"issue-notice:{runId:N}"))).AsSpan(0, 16));
+
     /// <summary>A button pressed: its choice and the run, the one it names or else the message it came from.</summary>
     public static bool TryReadChoice(Guid messageId, string choiceId, out Guid runId, out string choice)
     {

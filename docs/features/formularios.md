@@ -1026,7 +1026,9 @@ ARCA» ([ADR 0028](../decisions/0028-emision-de-comprobantes-arca.md)); sin emis
   resultado vuelve a preguntar sin emitir dos veces. Encola sólo si la respuesta sigue en pie (ni anulada ni corregida); si
   no, «No aplica». Mientras el emisor trabaja queda `Running` y vuelve a mirar cuando el emisor dice, nunca antes de 5
   segundos. Si espera por su proveedor, quien cargó la respuesta recibe una sola vez el aviso que da el emisor, en su idioma
-  y por el primer canal que lo alcanza; sin canal, no hay aviso. Mientras espera, la acción del flujo
+  y por el primer canal que lo alcanza; sin canal, no hay aviso. El aviso va con un id propio del run
+  (`FormIssueConfirmationPolicy.NoticeId`), no con el run, que puede ser ya el id del «¿La emito?» de una respuesta de un
+  canal: así llega también después de ese mensaje, y una sola vez aunque el run pierda la reserva y vuelva a preguntar. Mientras espera, la acción del flujo
   (`GET api/forms/records/{id}/workflow`) trae, además de `Running`, el motivo de la espera en `reasonCode` (y su texto en
   `reason`), `nextAttemptAtUtc` (cuándo vuelve a probar el emisor) y `attempts` (cuántas veces probó, si las cuenta): la banda
   «En cola»; sin espera, no trae ninguno. Emitido, termina `Completed` y guarda el resultado en la misma transacción; rechazado, `Failed` con el código del
@@ -1045,7 +1047,10 @@ ARCA» ([ADR 0028](../decisions/0028-emision-de-comprobantes-arca.md)); sin emis
   único repetido, las 10.000): la emisión sigue igual.
 - **La revisión.** `POST api/forms/records/{id}/actions/{runId}/review` sin `recipientUserId`: `wasSent` dice si sigue (otro
   número o la fecha de hoy, según el motivo) o no se emite. Pide `formrules.manage` y el permiso del emisor (`arca.issue`), y
-  el flujo marca `canReview` sólo para quien los tiene. La decisión vale para la revisión de la emisión que vio el run. Con
+  el flujo marca `canReview` sólo para quien los tiene. Sólo se revisa una emisión que el emisor dejó en revisión (el último
+  resultado del run es `NeedsReview`): mientras el run espera la confirmación de quien cargó (`Forms.Action.AwaitingConfirmation`),
+  el flujo no marca `canReview` y la revisión da 409 `Forms.Action.StateConflict`, así nadie la emite sin el «¿La emito?». La
+  misma decisión repetida es un replay. La decisión vale para la revisión de la emisión que vio el run. Con
   `false` («No emitir»: «La respuesta queda anulada, sin factura.»), el run lleva la decisión al emisor fuera de toda
   transacción y, cuando el emisor confirma que no la emite (`Cancelled`), la transacción que confirma el run anula la
   respuesta que sigue en pie con el motivo «No se emitió» (en el idioma en que se cargó), en nombre de quien decidió, y cierra
@@ -1067,8 +1072,7 @@ ARCA» ([ADR 0028](../decisions/0028-emision-de-comprobantes-arca.md)); sin emis
   `Forms.Action.CopyNotQueued`, para reintentar. El correo no queda en el resultado del run.
 - **«¿La emito?» (EM2-A).** Una respuesta que llegó por un canal no se emite sin que quien la cargó la confirme. Antes de
   encolar, el run pide al emisor la vista previa (`PreviewAsync`: el comprobante que decidió, el receptor y el total, sin guardar
-  nada, con el porqué, la fecha y los importes que discrimina); si no se puede emitir así, termina `Failed` con el código del
-  emisor. Si se puede, le manda a quien cargó «Factura C para … por $ …, con fecha ….», con los importes que discrimina entre
+  nada, con el porqué, la fecha y los importes que discrimina). Si se puede, le manda a quien cargó «Factura C para … por $ …, con fecha ….», con los importes que discrimina entre
   paréntesis después del total (IV3: «por $ 1.210,00 (Importe neto gravado: $ 1.000,00; IVA 21 %: $ 210,00)»), y «¿La emito?», con los botones «Emitir» y «No emitir» (`Choices` del mensaje, por el primer canal que lo alcanza)
   y queda `Uncertain` con `Forms.Action.AwaitingConfirmation`. El flujo trae `confirmation` (el run, el comprobante, el
   receptor, el total, `info`, `date` y `amounts`) sólo para quien la cargó, y `POST api/forms/records/{id}/actions/{runId}/confirmation` con

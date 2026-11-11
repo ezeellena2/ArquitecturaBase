@@ -41,6 +41,11 @@ internal sealed class FormWorkflowService(FormWorkflowReadPolicy readPolicy,IFor
                 if(run.Kind!="IssueDocument")return Result.Failure(FieldErrors.Validation("recipientUserId",ValidationMessages.Required));
                 var permission=readPolicy.ReviewPermission(FormDraftPolicy.Read<FormActionSnapshot>(run.SnapshotJson).IssuerId);
                 if(permission is null||!await permissions.HasPermissionAsync(actor.Value,permission,ct))return Result.Failure(FormDefinitionErrors.Forbidden);
+                // Only what its issuer left in review: never one that waits for whoever loaded it («¿La emito?»). A decision
+                // already taken is a replay.
+                var replay=run.DeliveryReviewRecipientUserId is null&&run.DeliveryReviewExpectedRevision==expectedRevision
+                    &&run.DeliveryReviewWasSent==wasSent&&run.DeliveryReviewedByUserId==actor.Value;
+                if(!replay&&!FormWorkflowReadPolicy.InReview(run.OutcomeJson))return Result.Failure(FormActionErrors.StateConflict);
                 return run.RequestIssueReview(expectedRevision,wasSent!.Value,actor.Value,now);
             }
             if(wasSent is {} decision)

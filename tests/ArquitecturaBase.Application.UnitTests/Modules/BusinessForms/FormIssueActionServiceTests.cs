@@ -52,7 +52,32 @@ public sealed class FormIssueActionServiceTests
         await service.ExecuteAsync(work with { ReconciliationOnly = true }, CancellationToken.None);
 
         var message = Assert.Single(channel.Messages);
-        Assert.Equal((work.RunId, Author, "ARCA is not responding."), (message.RunId, message.RecipientUserId, message.Body));
+        Assert.Equal((FormIssueConfirmationPolicy.NoticeId(work.RunId), Author, "ARCA is not responding."), (message.RunId, message.RecipientUserId, message.Body));
+    }
+
+    // The notice has an id of its own: a response from a channel, whose «¿La emito?» went by the run, gets it too after «Emitir»,
+    // once per run although the run loses its lease and asks again.
+    [Fact]
+    public async Task The_waiting_notice_reaches_the_author_of_a_response_from_a_channel_once_after_its_question()
+    {
+        var channel = new KeyedChannel();
+        var (service, issuer, work) = Arrange(channel: channel);
+        channel.Reachable.Add(Author);
+        var fromChannel = work with { RecordEnteredInApp = false };
+        await service.ExecuteAsync(fromChannel, CancellationToken.None);
+        issuer.Next = new(StructuredIssueState.Pending, WaitingForProvider: true,
+            WaitingNotice: new Dictionary<string, string> { ["es"] = "ARCA no responde.", ["en"] = "ARCA is not responding." });
+        var confirmed = fromChannel with { DeliveryReview = new StructuredRecordActionReview(1, true, Author, Now), PriorPreview = issuer.Preview };
+
+        await service.ExecuteAsync(confirmed, CancellationToken.None);
+        issuer.Current = issuer.Next;
+        await service.ExecuteAsync(confirmed with { Fence = 3 }, CancellationToken.None);
+        await service.ExecuteAsync(fromChannel with { Fence = 4, ReconciliationOnly = true }, CancellationToken.None);
+
+        Assert.Equal([work.RunId, FormIssueConfirmationPolicy.NoticeId(work.RunId)], channel.Messages.Select(message => message.RunId));
+        Assert.Equal("ARCA is not responding.", channel.Messages[1].Body);
+        Assert.Null(channel.Messages[1].Choices);
+        Assert.Single(issuer.Requests);
     }
 
     [Fact]
