@@ -156,6 +156,37 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Empty(issuer.Requests.Skip(1));
     }
 
+    // «No emitir» in «Revisar la emisión» («La respuesta queda anulada, sin factura.»): once its issuer cancels the issuance, the
+    // response is voided with «No se emitió» in the name of who decided, in the commit of the run.
+    [Fact]
+    public async Task Not_issuing_from_the_review_of_an_issuance_voids_the_response_once_its_issuer_cancels_it()
+    {
+        using var reviewer = await OperatorAsync([BusinessFormsPermissions.RecordsRead, BusinessFormsPermissions.RulesManage, BusinessFormsPermissions.ApprovalsDecide]);
+        var issuer = new TestRecordIssuer();
+        await using var host = IssuerHost(issuer);
+        using var deciding = InHost(host, reviewer);
+        var (recordId, runId) = await SeedIssueRunAsync(reviewer);
+        var worker = host.Services.GetRequiredService<FormActionBackgroundService>();
+        issuer.Next = new(StructuredIssueState.NeedsReview, ReviewReason: "test.issue.numberTaken", Revision: 2);
+        await worker.ProcessNextAsync(runId, Ct);
+        var action = await WorkflowActionAsync(deciding, recordId);
+
+        using var decided = await deciding.PostAsJsonAsync($"/api/forms/records/{recordId}/actions/{runId}/review",
+            new { expectedRevision = action.GetProperty("revision").GetInt64(), wasSent = false }, Ct);
+        Assert.Equal(HttpStatusCode.Accepted, decided.StatusCode);
+        Assert.Equal(FormRecordState.Received, await RecordStateAsync(recordId));
+        issuer.Next = new(StructuredIssueState.Cancelled);
+        await worker.ProcessNextAsync(runId, Ct);
+
+        var review = Assert.Single(issuer.Reviews);
+        Assert.Equal((2L, false), (review.ExpectedRevision, review.Proceed));
+        var reviewerId = Guid.Parse(reviewer.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
+        var record = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormRecord>().AsNoTracking().SingleAsync(item => item.Id == recordId, Ct));
+        Assert.Equal((FormRecordState.Voided, reviewerId, "No se emitió."), (record.State, record.VoidedByUserId, record.VoidReason));
+        Assert.Equal((FormActionRunState.Failed, FormActionErrors.NotIssued.Code), ((await RunAsync(runId)).State, (await RunAsync(runId)).FailureCode));
+        Assert.Single(issuer.Requests);
+    }
+
     [Fact]
     public async Task A_response_with_an_issued_document_is_not_corrected_and_is_voided_when_its_reversal_is_issued()
     {
@@ -250,6 +281,65 @@ public sealed partial class FormDraftEndpointsTests
         await worker.ProcessNextAsync(repliedRun, Ct);
         Assert.Equal((FormRecordState.Voided, FormActionRunState.NotApplicable), (await RecordStateAsync(repliedId), (await RunAsync(repliedRun)).State));
         Assert.Single(issuer.Requests);
+    }
+
+    // Decision 4: for a response from a channel, a summary that fails (a new customer the registry does not have, or a registry that
+    // does not answer) waits for whoever loaded it, with the reason in the detail. «Volver a probar» asks for the summary again and
+    // goes on as always; «Emitir» does not apply to a summary that failed nor «Volver a probar» to one that came out, and «No
+    // emitir» voids it with «No se emitió», from the detail or from a button of the channel.
+    [Fact]
+    public async Task A_summary_that_fails_for_a_response_from_a_channel_waits_with_its_reason_and_is_tried_again_or_voided()
+    {
+        using var author = await OperatorAsync([BusinessFormsPermissions.RecordsCreate]);
+        var issuer = new TestRecordIssuer();
+        await using var host = IssuerHost(issuer);
+        using var client = InHost(host, author);
+        var worker = host.Services.GetRequiredService<FormActionBackgroundService>();
+        var summary = issuer.Preview;
+        issuer.Preview = new(null, null, null, FormActionErrors.IssueDataUnavailable.Code);
+
+        var (recordId, runId) = await SeedIssueRunAsync(author, enteredInApp: false);
+        await worker.ProcessNextAsync(runId, Ct);
+        Assert.Equal((FormActionRunState.Uncertain, "Forms.Action.AwaitingConfirmation"), ((await RunAsync(runId)).State, (await RunAsync(runId)).FailureCode));
+        var failed = await ConfirmationAsync(client, recordId);
+        Assert.Equal((runId, FormActionErrors.IssueDataUnavailable.Code, System.Text.Json.JsonValueKind.Null), (failed.GetProperty("runId").GetGuid(),
+            failed.GetProperty("failureCode").GetString(), failed.GetProperty("document").ValueKind));
+        Assert.Equal("El formulario no tiene las preguntas del estándar que necesita la emisión.", failed.GetProperty("failureMessage").GetString());
+
+        var confirmation = $"/api/forms/records/{recordId}/actions/{runId}/confirmation";
+        using (var issued = await client.PostAsJsonAsync(confirmation, new { issue = true }, Ct)) Assert.Equal(HttpStatusCode.Conflict, issued.StatusCode);
+        using (var retried = await client.PostAsJsonAsync(confirmation, new { issue = true, retry = true }, Ct)) Assert.Equal(HttpStatusCode.Accepted, retried.StatusCode);
+        issuer.Preview = summary;
+        await worker.ProcessNextAsync(runId, Ct);
+
+        var asked = await ConfirmationAsync(client, recordId);
+        Assert.Equal("Factura C", asked.GetProperty("document").GetProperty("es").GetString());
+        Assert.False(asked.TryGetProperty("failureCode", out _));
+        Assert.Empty(issuer.Requests);
+        using (var stale = await client.PostAsJsonAsync(confirmation, new { issue = true, retry = true }, Ct)) Assert.Equal(HttpStatusCode.Conflict, stale.StatusCode);
+        using (var issued = await client.PostAsJsonAsync(confirmation, new { issue = true }, Ct)) Assert.Equal(HttpStatusCode.Accepted, issued.StatusCode);
+        await worker.ProcessNextAsync(runId, Ct);
+        Assert.Equal(runId, Assert.Single(issuer.Requests).RunId);
+
+        issuer.Preview = new(null, null, null, FormActionErrors.IssueDataUnavailable.Code);
+        var (skippedId, skippedRun) = await SeedIssueRunAsync(author, enteredInApp: false);
+        await worker.ProcessNextAsync(skippedRun, Ct);
+        var authorId = Guid.Parse(author.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
+        Assert.Equal(new StructuredRecordActionReply(StructuredRecordActionReplyState.Ignored), await ReplyAsync(host, skippedRun, authorId, "issue"));
+        Assert.Equal(new StructuredRecordActionReply(StructuredRecordActionReplyState.Applied), await ReplyAsync(host, skippedRun, authorId, "retry"));
+        await worker.ProcessNextAsync(skippedRun, Ct);
+        Assert.Equal(StructuredRecordActionReplyState.Applied, (await ReplyAsync(host, skippedRun, authorId, "skip")).State);
+        await worker.ProcessNextAsync(skippedRun, Ct);
+        var voided = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormRecord>().AsNoTracking().SingleAsync(item => item.Id == skippedId, Ct));
+        Assert.Equal((FormRecordState.Voided, "No se emitió.", FormActionRunState.NotApplicable), (voided.State, voided.VoidReason, (await RunAsync(skippedRun)).State));
+        Assert.Single(issuer.Requests);
+    }
+
+    private static async Task<System.Text.Json.JsonElement> ConfirmationAsync(HttpClient client, Guid recordId)
+    {
+        using var workflow = await client.GetAsync($"/api/forms/records/{recordId}/workflow", Ct);
+        Assert.Equal(HttpStatusCode.OK, workflow.StatusCode);
+        return (await workflow.ReadJsonAsync()).GetProperty("confirmation").Clone();
     }
 
     // A button of a channel reaches the owner in its own scope, as the channel hands it over.

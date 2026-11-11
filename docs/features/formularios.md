@@ -1045,7 +1045,13 @@ ARCA» ([ADR 0028](../decisions/0028-emision-de-comprobantes-arca.md)); sin emis
   único repetido, las 10.000): la emisión sigue igual.
 - **La revisión.** `POST api/forms/records/{id}/actions/{runId}/review` sin `recipientUserId`: `wasSent` dice si sigue (otro
   número o la fecha de hoy, según el motivo) o no se emite. Pide `formrules.manage` y el permiso del emisor (`arca.issue`), y
-  el flujo marca `canReview` sólo para quien los tiene. La decisión vale para la revisión de la emisión que vio el run.
+  el flujo marca `canReview` sólo para quien los tiene. La decisión vale para la revisión de la emisión que vio el run. Con
+  `false` («No emitir»: «La respuesta queda anulada, sin factura.»), el run lleva la decisión al emisor fuera de toda
+  transacción y, cuando el emisor confirma que no la emite (`Cancelled`), la transacción que confirma el run anula la
+  respuesta que sigue en pie con el motivo «No se emitió» (en el idioma en que se cargó), en nombre de quien decidió, y cierra
+  su aprobación abierta, como el «No emitir» del «¿La emito?»; el run queda `Failed` con `Forms.Action.NotIssued`. Si el
+  emisor no la toma (la revisión cambió), la emisión sigue en revisión y la respuesta no cambia. La revisión de un aviso sin
+  `recipientUserId` da 400 en ese campo.
 - **Los datos y el PDF fiscal.** Una opción de catálogo llega al emisor por su código, y un campo capturado que nombra otra
   opción, por el código de esa opción. Cada casilla de una pregunta atada (IV2-A, ver [la biblioteca](#biblioteca-de-estándares--bi1-a-2026-11-09))
   llega como un dato más con su clave y `"true"` o `"false"`, como la marcó la versión con que se cargó la respuesta, aunque la
@@ -1070,7 +1076,19 @@ ARCA» ([ADR 0028](../decisions/0028-emision-de-comprobantes-arca.md)); sin emis
   llega por `IStructuredRecordActionReplySink` y decide lo mismo; un botón viejo o ajeno se ignora. Después de «No emitir» el
   dueño le devuelve al canal lo que contesta, una sola vez y en el idioma de quien la cargó: «No la emitimos. FAC-000012 quedó
   anulada.», con el prefijo y el número de la respuesta; después de «Emitir» no se contesta nada en el acto, porque el aviso con
-  el PDF lo manda «Avisar a quien cargó». Lo cargado en la app ya se
+  el PDF lo manda «Avisar a quien cargó». **Si la vista previa falla** (decisión 4: un cliente nuevo que el padrón no tiene o
+  un padrón que no responde, o cualquier otro motivo del emisor), el run espera igual (`Uncertain` con
+  `Forms.Action.AwaitingConfirmation`) y le manda a quien cargó «Todavía no puedo emitirla: » con el motivo en su idioma (el
+  texto de `Errors.resx` del código del emisor) y los botones «Volver a probar» y «No emitir». `confirmation` trae entonces
+  `failureCode` y `failureMessage` (el motivo en el idioma del pedido), sin comprobante, receptor ni total, y la ruta con
+  `{"issue": true, "retry": true}` es «Volver a probar»: el run vuelve a pedir la vista previa y sigue como siempre, con el
+  «¿La emito?» si sale o el mismo aviso si vuelve a fallar. «No emitir» anula igual. La decisión tiene que ser sobre lo que el
+  run está mostrando: `issue` sin `retry` después de una vista previa que falló, o `retry` después de una que salió, da 409
+  (y el botón viejo del canal se ignora). El canal guarda un mensaje por id y persona: el primero va con el run como id y el
+  de cada «Volver a probar», con un id que sale del run y de la revisión de esa decisión (`FormIssueConfirmationPolicy.MessageId`),
+  así un run que perdió su reserva y vuelve a preguntar repite el mismo en lugar de mandar otro; como el canal devuelve el id
+  del mensaje, los botones de esos mensajes nombran el run (`retry.`, `issue.` o `skip.` y el run en Base64URL, 28 caracteres
+  como mucho). Lo cargado en la app ya se
   confirmó antes de «Enviar» y se emite directo: la carga trae `issuePreview` cuando enviar emite (formulario del estándar del
   emisor y reglas vigentes con `IssueDocument`), y `POST api/forms/entries/{id}/issue-preview` con `versionId` y las respuestas
   sin enviar (las del envío, sin archivos) pasa por la misma preparación que el envío y devuelve `document`, `receiver` y

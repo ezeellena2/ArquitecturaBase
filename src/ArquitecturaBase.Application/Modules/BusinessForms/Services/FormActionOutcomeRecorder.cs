@@ -9,7 +9,8 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 /// <summary>
 /// What a completed action leaves in its response, in the transaction that confirms it under its fence: the PDF copies of
 /// «Armar el PDF», the result of an issuance (RE1-A) with its fiscal PDF as one more document, and, when a reversal ends, the
-/// voided response (NC1-A) with the reason and the person of the void. It does not save on its own.
+/// voided response (NC1-A) with the reason and the person of the void, as when an issuance in review is not issued. It does not
+/// save on its own.
 /// </summary>
 internal sealed class FormActionOutcomeRecorder(FormPdfDocumentRecorder documents, FormRecordResultRecorder results, IFormActionRunRepository runs,
     FormIssuedCatalogItemRecorder issuedItems, IEmailQueue emails)
@@ -49,10 +50,31 @@ internal sealed class FormActionOutcomeRecorder(FormPdfDocumentRecorder document
         if (snapshot.ReversesRunId is not null)
         {
             var record = await runs.GetRecordAsync(run.RecordId, cancellationToken) ?? throw new InvalidOperationException("The action response is missing.");
-            var voided = record.Void(snapshot.VoidedByUserId!.Value, snapshot.VoidReason, nowUtc);
-            if (voided.IsFailure) throw new InvalidOperationException("The response of a finished reversal could not be voided: " + voided.Error.Code);
-            if (await runs.GetOpenTaskAsync(record.Id, cancellationToken) is { } task && task.Close() is { IsFailure: true } closed)
-                throw new InvalidOperationException("The open approval task of the voided response could not close: " + closed.Error.Code);
+            await VoidAsync(record, snapshot.VoidedByUserId!.Value, snapshot.VoidReason, nowUtc, cancellationToken);
         }
+    }
+
+    /// <summary>
+    /// «No emitir» in the review of an issuance («La respuesta queda anulada, sin factura.»): once its issuer confirms that it will
+    /// not issue it, the response that still stands is voided with «No se emitió», in the language it was loaded in and in the name
+    /// of who decided, as «No emitir» of «¿La emito?» does. A decision the issuer refused leaves the issuance in review, and nothing
+    /// changes.
+    /// </summary>
+    public async Task VoidNotIssuedAsync(BusinessFormActionRun run, FormActionWorkResponse work, FormActionOutcomeResponse outcome, DateTime nowUtc,
+        CancellationToken cancellationToken)
+    {
+        if (work is not { Kind: "IssueDocument", Snapshot.ReversesRunId: null, DeliveryReviewRecipientUserId: null, DeliveryReview: { WasSent: false } review }
+            || outcome.Issue?.State != StructuredIssueState.Cancelled) return;
+        var record = await runs.GetRecordAsync(run.RecordId, cancellationToken) ?? throw new InvalidOperationException("The action response is missing.");
+        if (record.CanBeAmended)
+            await VoidAsync(record, review.ReviewedByUserId, FormIssueConfirmationPolicy.NotIssued(record.PresentationCulture ?? "es"), nowUtc, cancellationToken);
+    }
+
+    private async Task VoidAsync(BusinessFormRecord record, Guid actorUserId, string? reason, DateTime nowUtc, CancellationToken cancellationToken)
+    {
+        var voided = record.Void(actorUserId, reason, nowUtc);
+        if (voided.IsFailure) throw new InvalidOperationException("The response of a finished action could not be voided: " + voided.Error.Code);
+        if (await runs.GetOpenTaskAsync(record.Id, cancellationToken) is { } task && task.Close() is { IsFailure: true } closed)
+            throw new InvalidOperationException("The open approval task of the voided response could not close: " + closed.Error.Code);
     }
 }

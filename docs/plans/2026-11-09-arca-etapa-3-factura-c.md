@@ -338,7 +338,8 @@ con su consumidor (no se agrega un puerto sin quien lo use). El resultado extern
     del emisor, el run que espera la confirmación de quien cargó por un canal, la ruta `confirmation` del flujo y «No emitir»
     que anula con «No se emitió», y la vista previa antes de «Enviar» en la app (`issue-preview`). En WhatsApp, los botones
     «Emitir» y «No emitir» del mensaje (ebb2f8df) y la respuesta «No la emitimos. FAC-… quedó anulada.» (f23759fa). El cliente
-    nuevo se suma a «Clientes» al emitir (tarea 11).
+    nuevo se suma a «Clientes» al emitir (tarea 11). **Arreglado (2026-11-11):** por un canal, una vista previa que falla
+    espera con el motivo, «Volver a probar» y «No emitir» (decisión 4), y el «No emitir» de la revisión anula la respuesta.
 14. **Hecho (front 0815da57, 18e31307, 9da76575 y e7b7476c). Front:** lo programó la etapa 4 junto con el suyo, con el diseño registrado en `docs/design/arca-factura-c.md`
     (b82c002a) y los contratos de este plan.
 15. **Cierre:** la verificación de `AGENTS.md`, `docs/features/arca.md`, la fila de la etapa 3 en la hoja de ruta, la guía de

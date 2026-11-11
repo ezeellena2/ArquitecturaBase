@@ -63,7 +63,7 @@ public sealed class FormWorkflowsController(IFormWorkflowService service,IFormIs
         if(result.IsSuccess)Response.Headers.Location=$"/api/forms/records/{recordId}/workflow";
         return result.ToAcceptedResult(this);
     }
-    // «¿La emito?» (EM2-A): whoever loaded the response from a channel confirms the issuance, or voids it without issuing.
+    // «¿La emito?» (EM2-A): whoever loaded the response from a channel confirms the issuance, tries a summary that failed again, or voids it without issuing.
     [HttpPost("actions/{runId:guid}/confirmation")]
     [ProducesProblem(StatusCodes.Status400BadRequest)]
     [EnableRateLimiting(BusinessFormsApiRegistration.WritePolicy)]
@@ -73,7 +73,7 @@ public sealed class FormWorkflowsController(IFormWorkflowService service,IFormIs
     [ProducesProblem(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Confirm([FromRoute]Guid recordId,[FromRoute]Guid runId,[FromBody]ConfirmFormIssueHttpRequest request,CancellationToken cancellationToken)
     {
-        var result=await confirmations.ConfirmAsync(recordId,runId,request.Issue,cancellationToken);
+        var result=await confirmations.ConfirmAsync(recordId,runId,request.Issue,request.Retry,cancellationToken);
         if(result.IsSuccess)Response.Headers.Location=$"/api/forms/records/{recordId}/workflow";
         return result.ToAcceptedResult(this);
     }

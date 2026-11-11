@@ -21,6 +21,8 @@
   <data name="Issue.Confirm.Question" xml:space="preserve"><value>¿La emito?</value></data>
   <data name="Issue.Confirm.Issue" xml:space="preserve"><value>Emitir</value></data>
   <data name="Issue.Confirm.Skip" xml:space="preserve"><value>No emitir</value></data>
+  <data name="Issue.Confirm.Retry" xml:space="preserve"><value>Volver a probar</value></data>
   <data name="Issue.NotIssued" xml:space="preserve"><value>No se emitió.</value></data>
   <data name="Issue.Voided" xml:space="preserve"><value>No la emitimos. {0} quedó anulada.</value></data>
+  <data name="Issue.Failed.Body" xml:space="preserve"><value>Todavía no puedo emitirla: {0}</value></data>
 </root>

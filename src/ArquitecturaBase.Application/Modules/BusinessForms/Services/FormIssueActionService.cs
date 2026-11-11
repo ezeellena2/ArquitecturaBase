@@ -15,7 +15,8 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 /// The issuer is asked first: enqueueing is idempotent by run and local to the issuer, so a run that lost its outcome asks again
 /// without issuing twice. Only a response that still stands is queued; once queued, it is followed to its end. While it waits
 /// for its provider, whoever loaded the response is told once, by the first channel that reaches them: the channel keeps one
-/// message per run and person. The copy by email («SendCopy») goes where the issuer says, with the document of the issuance.
+/// message per id and person, and the run is the id. One from a channel asks its author first («¿La emito?»), also after a
+/// summary that failed. The copy by email («SendCopy») goes where the issuer says, with the document of the issuance.
 /// </summary>
 internal sealed class FormIssueActionService(IEnumerable<IStructuredRecordIssuer> issuers, IFormResponseReader records, IFormRuleReader definitions,
     IEnumerable<IStructuredRecordActionChannel> channels, IFormActionRecipientReader recipients, IFormCatalogItemCodeReader codes,
@@ -32,9 +33,12 @@ internal sealed class FormIssueActionService(IEnumerable<IStructuredRecordIssuer
             if (!work.RecordStands) return new(FormActionRunState.NotApplicable);
             if (await RequestAsync(work, issuer, cancellationToken) is not var (request, _))
                 return new(FormActionRunState.Failed, FormActionErrors.IssueDataUnavailable.Code);
-            // EM2-A: one loaded in the app was confirmed before sending; one from a channel asks its author first.
+            // EM2-A: one loaded in the app was confirmed before sending; one from a channel asks its author first, and again after
+            // «Volver a probar» on a summary that failed (decision 4), with a message of its own for that decision.
             if (!work.RecordEnteredInApp && work.DeliveryReview?.WasSent != true)
-                return await AskAsync(work, issuer, request, cancellationToken);
+                return await AskAsync(work, issuer, request, work.RunId, cancellationToken);
+            if (!work.RecordEnteredInApp && work.PriorPreview?.FailureCode is not null)
+                return await AskAsync(work, issuer, request, FormIssueConfirmationPolicy.MessageId(work.RunId, work.DeliveryReview!.ExpectedRevision), cancellationToken);
             status = await issuer.EnqueueAsync(request, cancellationToken);
         }
         // The person decided on the issuance as the run last saw it: a newer revision makes the issuer refuse and ask again.
@@ -105,22 +109,24 @@ internal sealed class FormIssueActionService(IEnumerable<IStructuredRecordIssuer
         return Outcome(reversal with { WaitingNotice = null });
     }
 
-    // The summary goes to whoever loaded it with «Emitir» and «No emitir», once (the channel keeps one message per run and
-    // person); the run waits, uncertain, until that person decides. What cannot be issued as it is fails without asking.
+    // The summary goes to whoever loaded it with «Emitir» and «No emitir»; one that failed (a new customer the registry does not
+    // have, or a registry that does not answer), with its reason, «Volver a probar» and «No emitir». Each goes once: the channel
+    // keeps one message per id and person, and each decision has its own id. The run waits, uncertain, until that person decides.
     private async Task<FormActionOutcomeResponse> AskAsync(FormActionWorkResponse work, IStructuredRecordIssuer issuer, StructuredIssueRequest request,
-        CancellationToken cancellationToken)
+        Guid messageId, CancellationToken cancellationToken)
     {
         var preview = await issuer.PreviewAsync(request.Data, cancellationToken);
-        if (preview.FailureCode is { } failure) return new(FormActionRunState.Failed, failure, true);
+        var failed = preview.FailureCode is not null;
         var record = await records.FindRecordAsync(work.RecordId, cancellationToken) ?? throw new InvalidOperationException("The action response is missing.");
         var author = record.Actor.UserId;
         var culture = (await recipients.FindAsync(author, cancellationToken))?.Culture is "en" ? "en" : "es";
         foreach (var channel in channels)
         {
             if (!await channel.CanReachAsync(author, cancellationToken)) continue;
-            if ((await channel.GetAsync(work.RunId, author, cancellationToken)).State == StructuredRecordActionState.NotFound)
-                await channel.EnqueueAsync(new StructuredRecordActionMessage(work.RunId, author, FormIssueConfirmationPolicy.Body(preview, culture))
-                    { Choices = FormIssueConfirmationPolicy.Choices(culture) }, cancellationToken);
+            if ((await channel.GetAsync(messageId, author, cancellationToken)).State == StructuredRecordActionState.NotFound)
+                await channel.EnqueueAsync(new StructuredRecordActionMessage(messageId, author,
+                    failed ? FormIssueConfirmationPolicy.Failed(preview, culture) : FormIssueConfirmationPolicy.Body(preview, culture))
+                    { Choices = FormIssueConfirmationPolicy.Choices(failed, culture, messageId == work.RunId ? null : work.RunId) }, cancellationToken);
             break;
         }
         return new(FormActionRunState.Uncertain, FormActionErrors.AwaitingConfirmation.Code, IssuePreview: preview);

@@ -1,5 +1,6 @@
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Channels;
+using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms;
@@ -68,7 +69,37 @@ public sealed class FormIssueReplySinkTests
         Assert.Equal(0, host.Fixture.Rules.UnitOfWork.Commits);
     }
 
-    // A response loaded from a channel (number 1 of «VISIT») whose «IssueDocument» run waits for its author.
+    // Decision 4: after a summary that failed, «Volver a probar» asks for it again, with no text in the act (the run sends what comes
+    // next); «Emitir» does not apply to a summary that failed, nor «Volver a probar» to one that came out.
+    [Fact]
+    public async Task Trying_a_failed_summary_again_releases_the_run_and_issuing_does_not_apply_to_it()
+    {
+        var host = new Host("es", new StructuredIssuePreview(null, null, null, "Arca.Registry.PersonNotFound"));
+
+        Assert.Equal(Ignored, await host.Sink.ReplyAsync(host.Run.Id, host.Record.ActorUserId, FormIssueConfirmationPolicy.Issue, CancellationToken.None));
+        var reply = await host.Sink.ReplyAsync(host.Run.Id, host.Record.ActorUserId, FormIssueConfirmationPolicy.Retry, CancellationToken.None);
+
+        Assert.Equal(new StructuredRecordActionReply(StructuredRecordActionReplyState.Applied), reply);
+        Assert.Equal((FormActionRunState.Running, true), (host.Run.State, host.Run.DeliveryReviewWasSent));
+        Assert.Equal(FormRecordState.Received, host.Record.State);
+        Assert.Equal(Ignored, await new Host("es").Sink.ReplyAsync(host.Run.Id, host.Record.ActorUserId, FormIssueConfirmationPolicy.Retry, CancellationToken.None));
+    }
+
+    // A message after «Volver a probar» has an id of its own: its buttons name the run, and «No emitir» there voids as anywhere.
+    [Fact]
+    public async Task A_button_of_a_message_after_trying_again_reaches_the_run_it_names()
+    {
+        var host = new Host("en", new StructuredIssuePreview(null, null, null, "Arca.Connection.Unavailable"));
+        var skip = FormIssueConfirmationPolicy.Choices(true, "en", host.Run.Id)[1].Id;
+
+        var reply = await host.Sink.ReplyAsync(FormIssueConfirmationPolicy.MessageId(host.Run.Id, 1), host.Record.ActorUserId, skip, CancellationToken.None);
+
+        Assert.Equal(new StructuredRecordActionReply(StructuredRecordActionReplyState.Applied, "We did not issue it. VISIT-000001 was voided."), reply);
+        Assert.Equal((FormRecordState.Voided, "It was not issued."), (host.Record.State, host.Record.VoidReason));
+    }
+
+    // A response loaded from a channel (number 1 of «VISIT») whose «IssueDocument» run waits for its author, after a summary that
+    // came out (or, with a failure code, one that failed).
     private sealed class Host
     {
         public FormActionFixture Fixture { get; } = new();
@@ -76,7 +107,7 @@ public sealed class FormIssueReplySinkTests
         public BusinessFormActionRun Run { get; }
         public BusinessFormIssueReplySink Sink { get; }
 
-        public Host(string culture)
+        public Host(string culture, StructuredIssuePreview? preview = null)
         {
             (Record, _) = Fixture.Capture([], presentationCulture: culture);
             Fixture.Recipients.People[Record.ActorUserId] = new(Record.ActorUserId, culture, "Author");
@@ -84,7 +115,8 @@ public sealed class FormIssueReplySinkTests
             Run = BusinessFormActionRun.Create(Record.DefinitionId, Record.Id, Record.RuleSetId!.Value, Guid.NewGuid(), Guid.NewGuid(), "Received",
                 "IssueDocument", 0, null, "{}", true, now);
             Run.RecordOutcome(Run.Reserve(now, TimeSpan.FromMinutes(2)).Value.Fence, now, FormActionRunState.Uncertain,
-                FormActionErrors.AwaitingConfirmation.Code, false);
+                FormActionErrors.AwaitingConfirmation.Code, false, preview is null ? null
+                    : FormDraftPolicy.Serialize(new FormActionOutcomeResponse(FormActionRunState.Uncertain, FormActionErrors.AwaitingConfirmation.Code, IssuePreview: preview)));
             Fixture.Runs.Runs.Add(Run);
             var rules = Fixture.Rules;
             var service = new FormIssueConfirmationService(new(rules.User, rules.Permissions, new InMemoryUserAccounts()), Fixture.Runs, rules,

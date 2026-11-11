@@ -107,18 +107,62 @@ public sealed class FormIssueActionServiceTests
         Assert.Equal("Invoice A for Agro SA, $ 1,210.00 (Taxed net amount: $ 1,000.00; VAT 21%: $ 210.00), dated 11/09/2026.\nShall I issue it?", Assert.Single(channel.Messages).Body);
     }
 
+    // Decision 4: a summary that fails (the registry does not have the CUIT of a new customer, or does not answer) tells whoever
+    // loaded it why, with «Volver a probar» and «No emitir», and the run waits for them as it waits for «¿La emito?».
     [Fact]
-    public async Task What_cannot_be_issued_as_it_is_fails_without_asking()
+    public async Task A_summary_that_fails_tells_its_author_why_with_try_again_and_do_not_issue_and_waits()
     {
-        var channel = new FakeFormActionChannel();
+        var channel = new KeyedChannel();
         var (service, issuer, work) = Arrange(channel: channel);
         channel.Reachable.Add(Author);
-        issuer.Preview = new(null, null, null, "Arca.Invoicing.ReceiverInvalid");
+        issuer.Preview = new(null, null, null, "Arca.Registry.PersonNotFound");
 
-        var failed = await service.ExecuteAsync(work with { RecordEnteredInApp = false }, CancellationToken.None);
+        var waiting = await service.ExecuteAsync(work with { RecordEnteredInApp = false }, CancellationToken.None);
 
-        Assert.Equal((FormActionRunState.Failed, "Arca.Invoicing.ReceiverInvalid"), (failed.State, failed.FailureCode));
-        Assert.Empty(channel.Messages);
+        Assert.Equal((FormActionRunState.Uncertain, "Forms.Action.AwaitingConfirmation", "Arca.Registry.PersonNotFound"),
+            (waiting.State, waiting.FailureCode, waiting.IssuePreview!.FailureCode));
+        var message = Assert.Single(channel.Messages);
+        Assert.Equal((work.RunId, "I can't issue it yet: ARCA has no registry data for that CUIT."), (message.RunId, message.Body));
+        Assert.Equal(["retry", "skip"], message.Choices!.Select(choice => choice.Id));
+        Assert.Empty(issuer.Requests);
+    }
+
+    // «Volver a probar» asks for the summary again and goes on as always, with a message of its own (the channel keeps one per id
+    // and person, and the first one took the run): «¿La emito?» if it comes out, the same failure if not. The same decision asked
+    // again (a run that lost its lease) sends nothing new, and nothing is issued without its «¿La emito?».
+    [Fact]
+    public async Task Trying_the_summary_again_asks_once_more_with_a_message_of_its_own_and_never_issues_without_asking()
+    {
+        var channel = new KeyedChannel();
+        var (service, issuer, work) = Arrange(channel: channel);
+        channel.Reachable.Add(Author);
+        var failed = new StructuredIssuePreview(null, null, null, "Arca.Connection.Unavailable");
+        var retry = work with
+        {
+            RecordEnteredInApp = false, DeliveryReview = new StructuredRecordActionReview(2, true, Author, Now), PriorPreview = failed,
+        };
+        issuer.Preview = failed;
+
+        var again = await service.ExecuteAsync(retry, CancellationToken.None);
+        await service.ExecuteAsync(retry with { Fence = 4 }, CancellationToken.None);
+
+        Assert.Equal((FormActionRunState.Uncertain, "Arca.Connection.Unavailable"), (again.State, again.IssuePreview!.FailureCode));
+        var failure = Assert.Single(channel.Messages);
+        Assert.Equal(FormIssueConfirmationPolicy.MessageId(work.RunId, 2), failure.RunId);
+        Assert.Equal("I can't issue it yet: ARCA did not answer. Try again in a few minutes.", failure.Body);
+
+        issuer.Preview = new(new Dictionary<string, string> { ["es"] = "Factura C", ["en"] = "Invoice C" }, "Agro SA", "1210");
+        var asked = await service.ExecuteAsync(retry with { DeliveryReview = new StructuredRecordActionReview(5, true, Author, Now) }, CancellationToken.None);
+
+        Assert.Equal((FormActionRunState.Uncertain, "Forms.Action.AwaitingConfirmation", null), (asked.State, asked.FailureCode, asked.IssuePreview!.FailureCode));
+        var question = channel.Messages[1];
+        Assert.Equal((FormIssueConfirmationPolicy.MessageId(work.RunId, 5), "Invoice C for Agro SA, $ 1,210.00.\nShall I issue it?"), (question.RunId, question.Body));
+        Assert.All(question.Choices!, choice => Assert.True(FormIssueConfirmationPolicy.TryReadChoice(question.RunId, choice.Id, out var named, out _) && named == work.RunId));
+        Assert.Empty(issuer.Requests);
+
+        await service.ExecuteAsync(retry with { DeliveryReview = new StructuredRecordActionReview(6, true, Author, Now), PriorPreview = issuer.Preview }, CancellationToken.None);
+        Assert.Single(issuer.Requests);
+        Assert.Equal(2, channel.Messages.Count);
     }
 
     [Fact]
@@ -278,7 +322,7 @@ public sealed class FormIssueActionServiceTests
     private static readonly Guid Author = Guid.NewGuid();
 
     private static (FormIssueActionService Service, FakeIssuer Issuer, FormActionWorkResponse Work) Arrange(string standardKey = "test.standard",
-        FakeFormActionChannel? channel = null, MemoryPrivateFileStore? files = null, FormRecordResultReaderDouble? results = null)
+        IStructuredRecordActionChannel? channel = null, MemoryPrivateFileStore? files = null, FormRecordResultReaderDouble? results = null)
     {
         var rules = new FormRuleFixture();
         rules.Definition.RecordStandard(standardKey, 1, JsonSerializer.Serialize(new Dictionary<string, Guid>
@@ -322,6 +366,29 @@ public sealed class FormIssueActionServiceTests
             Task.FromResult<IReadOnlyDictionary<Guid, string>>(new Dictionary<Guid, string>());
 
         public Task<Guid?> FindActiveAsync(Guid catalogId, string code, CancellationToken cancellationToken) => Task.FromResult<Guid?>(null);
+    }
+
+    // A channel that keeps one message per id and person, as the installed ones do.
+    private sealed class KeyedChannel : IStructuredRecordActionChannel
+    {
+        private readonly Dictionary<(Guid, Guid), StructuredRecordActionMessage> _sent = [];
+        public HashSet<Guid> Reachable { get; } = [];
+        public List<StructuredRecordActionMessage> Messages { get; } = [];
+        public string ChannelId => "phone";
+        public Task<bool> CanReachAsync(Guid recipientUserId, CancellationToken cancellationToken) => Task.FromResult(Reachable.Contains(recipientUserId));
+        public Task<StructuredRecordActionResponse> GetAsync(Guid runId, Guid recipientUserId, CancellationToken cancellationToken) =>
+            Task.FromResult(new StructuredRecordActionResponse(_sent.ContainsKey((runId, recipientUserId)) ? StructuredRecordActionState.Accepted : StructuredRecordActionState.NotFound));
+        public Task<StructuredRecordActionResponse> EnqueueAsync(StructuredRecordActionMessage request, CancellationToken cancellationToken)
+        {
+            if (_sent.TryAdd((request.RunId, request.RecipientUserId), request)) Messages.Add(request);
+            return Task.FromResult(new StructuredRecordActionResponse(StructuredRecordActionState.Accepted));
+        }
+        public Task<IReadOnlyList<StructuredRecordActionObservationResponse>> ObserveAsync(IReadOnlyCollection<StructuredRecordActionObservationRequest> requests,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<StructuredRecordActionResponse> ReviewAsync(Guid runId, Guid recipientUserId, StructuredRecordActionReview review, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+        public Task<StructuredRecordActionResponse> RetryAsync(Guid runId, Guid recipientUserId, long controlRevision, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
     }
 
     private sealed class Recipients : IFormActionRecipientReader

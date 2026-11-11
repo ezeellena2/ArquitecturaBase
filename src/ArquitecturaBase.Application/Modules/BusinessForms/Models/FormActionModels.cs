@@ -24,6 +24,11 @@ public sealed record FormIssueConfirmationResponse(Guid RunId,IReadOnlyDictionar
     public string? Date { get; init; }
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyList<ArquitecturaBase.Application.Models.StructuredData.StructuredIssueAmount>? Amounts { get; init; }
+    /// <summary>A summary that failed (decision 4): its stable code and its message, with «Volver a probar» and «No emitir»; the summary is empty.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? FailureCode { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? FailureMessage { get; init; }
 }
 public sealed record FormWorkflowTaskResponse(Guid Id,Guid RoleId,long Revision,string State,string? RoleName,DateTime? DecidedAtUtc,FormAuthorResponse? DecidedBy,string? Reason,DateTime RequestedAtUtc)
 { public override string ToString()=>"FormWorkflowTaskResponse { Content = [REDACTED] }"; }
@@ -65,6 +70,8 @@ public sealed record FormActionWorkResponse(Guid RunId,Guid RecordId,string Kind
     public bool RecordEnteredInApp { get; init; } = true;
     /// <summary>The issuance as the run last saw it, for the revision a review expects.</summary>
     public StructuredIssueResponse? PriorIssue { get; init; }
+    /// <summary>The summary the run last asked its author about: after one that failed, going on tries it again («Volver a probar»).</summary>
+    public StructuredIssuePreview? PriorPreview { get; init; }
     public override string ToString()=>"FormActionWorkResponse { Content = [REDACTED] }";
 }
 public sealed record FormActionOutcomeResponse(FormActionRunState State,string? FailureCode=null,bool CanRetry=false,FormPdfActionOutcomeResponse? Pdf=null,IReadOnlyList<FormActionRecipientOutcome>? Recipients=null,

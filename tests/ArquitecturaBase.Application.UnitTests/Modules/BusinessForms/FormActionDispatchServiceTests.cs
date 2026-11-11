@@ -313,6 +313,45 @@ public sealed class FormActionDispatchServiceTests
         Assert.DoesNotContain("cliente@example.com", run.OutcomeJson, StringComparison.Ordinal);
     }
 
+    // «No emitir» in the review of an issuance (falla 8): once its issuer confirms the issuance is cancelled, the response is voided
+    // with «No se emitió» (in the language it was loaded in) in the name of who decided, in the commit of the run, and its open
+    // approval closes. A decision its issuer refused (a newer revision) and a cancellation nobody decided void nothing.
+    [Fact]
+    public async Task Not_issuing_in_the_review_voids_the_response_once_its_issuer_cancels_the_issuance()
+    {
+        var fixture = new FormActionFixture();
+        var service = Dispatch(fixture);
+        var issue = FormActionFixture.Action("IssueDocument") with { IssuerId = "test.issuer" };
+        var (record, snapshot) = fixture.Capture([new FormRule(Guid.NewGuid(), "Received", [], [issue])], presentationCulture: "en");
+        await fixture.Recorder.RecordAsync(record, snapshot, "Received", CancellationToken.None);
+        var run = Assert.Single(fixture.Runs.Runs);
+        var now = fixture.Clock.GetUtcNow().UtcDateTime;
+        fixture.Runs.AddTask(BusinessFormTask.Open(record.DefinitionId, record.Id, record.RuleSetId!.Value, Guid.NewGuid(), fixture.Rules.RoleId, record.ActorUserId, now));
+        var reviewer = Guid.NewGuid();
+        var inReview = new FormActionOutcomeResponse(FormActionRunState.Uncertain, "test.issuer.numberTaken", Issue: new(StructuredIssueState.NeedsReview, Revision: 3));
+        Assert.True((await service.CompleteAsync((await service.ReserveAsync(run.Id, CancellationToken.None)).Value!, inReview, CancellationToken.None)).IsSuccess);
+
+        Assert.True(run.RequestIssueReview(run.Fence, false, reviewer, now).IsSuccess);
+        Assert.True((await service.CompleteAsync((await service.ReserveAsync(run.Id, CancellationToken.None)).Value!, inReview, CancellationToken.None)).IsSuccess);
+        Assert.Equal(FormRecordState.Received, record.State);
+
+        Assert.True(run.RequestIssueReview(run.Fence, false, reviewer, now).IsSuccess);
+        var cancelled = new FormActionOutcomeResponse(FormActionRunState.Failed, FormActionErrors.NotIssued.Code, Issue: new(StructuredIssueState.Cancelled));
+        Assert.True((await service.CompleteAsync((await service.ReserveAsync(run.Id, CancellationToken.None)).Value!, cancelled, CancellationToken.None)).IsSuccess);
+
+        Assert.Equal((FormRecordState.Voided, reviewer, "It was not issued."), (record.State, record.VoidedByUserId, record.VoidReason));
+        Assert.Equal((FormActionRunState.Failed, FormActionErrors.NotIssued.Code), (run.State, run.FailureCode));
+        Assert.Equal(FormTaskState.Closed, Assert.Single(fixture.Runs.Tasks).State);
+
+        var other = new FormActionFixture();
+        var (standing, captured) = other.Capture([new FormRule(Guid.NewGuid(), "Received", [], [issue])]);
+        await other.Recorder.RecordAsync(standing, captured, "Received", CancellationToken.None);
+        var dispatch = Dispatch(other);
+        var otherRun = Assert.Single(other.Runs.Runs);
+        Assert.True((await dispatch.CompleteAsync((await dispatch.ReserveAsync(otherRun.Id, CancellationToken.None)).Value!, cancelled, CancellationToken.None)).IsSuccess);
+        Assert.Equal(FormRecordState.Received, standing.State);
+    }
+
     private static FormActionDispatchService Dispatch(FormActionFixture fixture, FakeUnitOfWork? boundary = null,
         MemoryFormDocumentRepository? documents = null, MemoryStoredFileRepository? files = null, FakeEmailQueue? emails = null) =>
         new(fixture.Runs, fixture.Runs, fixture.Rules, fixture.Rules, boundary ?? fixture.Rules.UnitOfWork,

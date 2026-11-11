@@ -98,6 +98,22 @@ public sealed class FormWorkflowServiceTests
         Assert.Equal(FormActionErrors.StateConflict,(await service.ReviewAsync(captured.Record.Id,run.Id,captured.Record.ActorUserId,run.Fence,true,CancellationToken.None)).Error);
         Assert.False(run.DeliveryReviewRequested);Assert.Null(run.DeliveryReviewRecipientUserId);
     }
+    // Without a person the review is of an issuance: a notice reviewed without one is a request without its recipient (400 on
+    // recipientUserId), as before the issuances made it optional.
+    [Fact]
+    public async Task A_notice_reviewed_without_a_person_is_invalid_on_its_recipient_and_records_nothing()
+    {
+        var fixture=new FormActionFixture();var captured=fixture.Capture([new(Guid.NewGuid(),"Received",[],[FormActionFixture.Action()])]);Allow(fixture);
+        await fixture.Recorder.RecordAsync(captured.Record,captured.Snapshot,"Received",CancellationToken.None);
+        var run=Assert.Single(fixture.Runs.Runs);var now=fixture.Clock.GetUtcNow().UtcDateTime;var lease=run.Reserve(now,TimeSpan.FromMinutes(2)).Value;
+        run.RecordOutcome(lease.Fence,now,FormActionRunState.Uncertain,FormActionErrors.EffectUnconfirmed.Code,false);
+
+        var result=await Service(fixture).ReviewAsync(captured.Record.Id,run.Id,null,run.Fence,true,CancellationToken.None);
+
+        var invalid=Assert.IsType<ArquitecturaBase.Domain.Results.ValidationError>(result.Error);
+        Assert.Equal(["recipientUserId"],invalid.Errors.Keys);
+        Assert.False(run.DeliveryReviewRequested);Assert.Equal(FormActionRunState.Uncertain,run.State);
+    }
     [Fact]
     public async Task A_person_with_a_confirmed_failure_in_a_completed_role_notice_is_queued_alone_for_a_retry()
     {

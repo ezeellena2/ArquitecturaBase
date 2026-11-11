@@ -65,7 +65,8 @@ internal sealed class FormActionDispatchService(IFormActionRunRepository runs,IF
         return new FormActionWorkResponse(run.Id,run.RecordId,run.Kind,reserved.Value.Fence,reserved.Value.ReconciliationOnly,run.RetryRequested,snapshot,artifacts,
             run.DeliveryReviewRequested?new StructuredRecordActionReview(run.DeliveryReviewExpectedRevision!.Value,run.DeliveryReviewWasSent!.Value,run.DeliveryReviewedByUserId!.Value,run.DeliveryReviewedAtUtc!.Value):null,run.DeliveryReviewRecipientUserId,
             run.OutcomeJson is null?null:FormDraftPolicy.Read<FormActionOutcomeResponse>(run.OutcomeJson).Recipients,run.RetryRecipientUserId)
-            { RecordStands=stands,RecordEnteredInApp=issued?.EnteredInApp??true,PriorIssue=run.OutcomeJson is null?null:FormDraftPolicy.Read<FormActionOutcomeResponse>(run.OutcomeJson).Issue };
+            { RecordStands=stands,RecordEnteredInApp=issued?.EnteredInApp??true,PriorIssue=run.OutcomeJson is null?null:FormDraftPolicy.Read<FormActionOutcomeResponse>(run.OutcomeJson).Issue,
+                PriorPreview=run.OutcomeJson is null?null:FormDraftPolicy.Read<FormActionOutcomeResponse>(run.OutcomeJson).IssuePreview };
     }
     public Task<Result> CompleteAsync(FormActionWorkResponse work,FormActionOutcomeResponse outcome,CancellationToken cancellationToken)=>
         OperationLog.RunAsync(logger,"CompleteFormAction",()=>unitOfWork.ExecuteInTransactionAsync(async ct=>
@@ -77,6 +78,7 @@ internal sealed class FormActionDispatchService(IFormActionRunRepository runs,IF
             if(outcome.State==FormActionRunState.Completed||outcome.State==FormActionRunState.NotApplicable&&work.Snapshot.ReversesRunId is not null)
                 await outcomes.AddAsync(run,work.Snapshot,outcome,now,ct);
             await outcomes.AddIssuedItemAsync(outcome,ct);
+            await outcomes.VoidNotIssuedAsync(run,work,outcome,now,ct);
             return run.RecordOutcome(work.Fence,now,outcome.State,outcome.FailureCode,outcome.CanRetry,FormDraftPolicy.Serialize(outcome),outcome.Issue?.NextCheckAtUtc);
         },CommitPolicy.OnSuccess,cancellationToken));
 }

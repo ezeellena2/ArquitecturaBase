@@ -27,7 +27,7 @@ internal sealed class FormActionRunReader(ApplicationDbContext db,TimeProvider t
             .OrderBy(run=>run.AcceptedAtUtc).Select(run=>new{run.Id,run.OutcomeJson}).FirstOrDefaultAsync(cancellationToken);
         if(row is null)return null;
         var preview=row.OutcomeJson is null?null:JsonSerializer.Deserialize<FormActionOutcomeResponse>(row.OutcomeJson,JsonSerializerOptions.Web)?.IssuePreview;
-        return new FormIssueConfirmationResponse(row.Id,preview?.Document,preview?.Receiver,preview?.Total){Info=preview?.Info,Date=preview?.Date,Amounts=preview?.Amounts};
+        return new FormIssueConfirmationResponse(row.Id,preview?.Document,preview?.Receiver,preview?.Total){Info=preview?.Info,Date=preview?.Date,Amounts=preview?.Amounts,FailureCode=preview?.FailureCode};
     }
     public async Task<FormWorkflowResponse?> FindWorkflowAsync(Guid recordId,CancellationToken cancellationToken)
     {

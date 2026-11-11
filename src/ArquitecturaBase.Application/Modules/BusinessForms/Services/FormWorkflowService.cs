@@ -1,9 +1,11 @@
 using ArquitecturaBase.Application.Common.Logging;
+using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
+using ArquitecturaBase.Application.Resources;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Logging;
@@ -34,8 +36,9 @@ internal sealed class FormWorkflowService(FormWorkflowReadPolicy readPolicy,IFor
             var now=timeProvider.GetUtcNow().UtcDateTime;
             if(issue)
             {
-                // Deciding on an issuance takes, besides managing the rules, the permission its issuer asks for.
-                if(run.Kind!="IssueDocument")return Result.Failure(FormActionErrors.StateConflict);
+                // Deciding on an issuance takes, besides managing the rules, the permission its issuer asks for. A notice is
+                // reviewed for one of its people: without one, the request lacks its recipient.
+                if(run.Kind!="IssueDocument")return Result.Failure(FieldErrors.Validation("recipientUserId",ValidationMessages.Required));
                 var permission=readPolicy.ReviewPermission(FormDraftPolicy.Read<FormActionSnapshot>(run.SnapshotJson).IssuerId);
                 if(permission is null||!await permissions.HasPermissionAsync(actor.Value,permission,ct))return Result.Failure(FormDefinitionErrors.Forbidden);
                 return run.RequestIssueReview(expectedRevision,wasSent!.Value,actor.Value,now);

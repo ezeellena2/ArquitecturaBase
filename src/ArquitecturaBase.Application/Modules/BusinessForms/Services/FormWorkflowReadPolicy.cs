@@ -24,7 +24,9 @@ internal sealed class FormWorkflowReadPolicy
         var read = await _access.CheckReadAsync(cancellationToken); if (read.IsFailure) return read.Error;
         if (!await _access.CanReadAsync(read.Value, recordId, cancellationToken)) return FormRecordErrors.NotFound;
         var result = await _reader.FindWorkflowAsync(recordId, cancellationToken); if (result is null) return FormRecordErrors.NotFound;
-        result = result with { Confirmation = await _reader.FindIssueConfirmationAsync(recordId, read.Value.Actor, cancellationToken) };
+        // A summary that failed comes with its reason in the language of the request (decision 4).
+        var confirmation = await _reader.FindIssueConfirmationAsync(recordId, read.Value.Actor, cancellationToken);
+        result = result with { Confirmation = confirmation?.FailureCode is { } failure ? confirmation with { FailureMessage = ErrorMessages.Get(failure) } : confirmation };
         // Whoever only loads sees where their response stands (state, decision and PDF), without the internal actions (CW6-C).
         if (read.Value.OwnOnly)
             return await _access.StillAllowedAsync(read.Value, cancellationToken) ? result with { Actions = [] } : FormDefinitionErrors.Forbidden;
