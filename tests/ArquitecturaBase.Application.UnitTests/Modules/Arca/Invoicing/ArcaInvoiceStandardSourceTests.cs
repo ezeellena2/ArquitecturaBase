@@ -23,6 +23,36 @@ public sealed class ArcaInvoiceStandardSourceTests
             question => Assert.True(questions.ContainsKey(question.GetProperty("showWhen").GetProperty("questionId").GetString()!)));
     }
 
+    // IV2-A: «El precio incluye IVA» is a toggle of «Precio unitario», unchecked; the issuer reads it as the datum pricesIncludeVat.
+    [Fact]
+    public void The_unit_price_says_whether_prices_include_vat_unchecked_by_default()
+    {
+        var standard = Assert.Single(new ArcaInvoiceStandardSource().Standards);
+        using var draft = JsonDocument.Parse(standard.DraftJson);
+        var fields = draft.RootElement.GetProperty("fields").EnumerateArray().ToArray();
+        var unitPrice = standard.Bindings.Single(pair => pair.Value == ArcaInvoiceStandard.UnitPrice).Key;
+        var toggle = Assert.Single(fields.Single(field => field.GetProperty("localId").GetString() == unitPrice).GetProperty("toggles").EnumerateArray());
+
+        Assert.Equal((ArcaInvoiceStandard.PricesIncludeVat, false), (toggle.GetProperty("key").GetString(), toggle.GetProperty("value").GetBoolean()));
+        Assert.Equal(("El precio incluye IVA", "Prices include VAT"),
+            (toggle.GetProperty("label").GetProperty("es").GetString(), toggle.GetProperty("label").GetProperty("en").GetString()));
+        Assert.Equal(("Marcala si cargás precios finales, como en un mostrador: la factura separa el IVA de cada alícuota.",
+            "Check it if you enter final prices, as at a counter: the invoice separates the VAT of each rate."),
+            (toggle.GetProperty("help").GetProperty("es").GetString(), toggle.GetProperty("help").GetProperty("en").GetString()));
+        Assert.Single(fields, field => field.TryGetProperty("toggles", out _));
+    }
+
+    // IV1-A: «Alícuota» starts at 21 %, the ARCA code 5 of its catalog, in each new item.
+    [Fact]
+    public void The_vat_rate_starts_at_twenty_one_percent()
+    {
+        var standard = Assert.Single(new ArcaInvoiceStandardSource().Standards);
+        var vatRate = standard.Bindings.Single(pair => pair.Value == ArcaInvoiceStandard.VatRate).Key;
+
+        Assert.Equal(new Dictionary<string, string> { [vatRate] = "5" }, standard.Defaults);
+        Assert.Equal("arca.vat-rates", standard.Catalogs![vatRate]);
+    }
+
     [Fact]
     public void Its_catalogs_are_the_arca_tables_and_the_customers_it_brings_with_their_first_options()
     {

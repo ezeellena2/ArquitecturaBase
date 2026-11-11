@@ -30,7 +30,11 @@ internal sealed class FormEntryCatalogPolicy(FormCatalogOptionsPolicy options, I
         if (page.TotalCount == 0 && question.Required) return (new(null, FormRecordErrors.CatalogEmpty.Code, null), source.PersonData);
         if (question.Selection is { } selection && page.TotalCount < selection.MinSelected)
             return (new(null, FormRecordErrors.CatalogInsufficientOptions.Code, null), source.PersonData);
-        return (new(page.TotalCount == 1 ? page.Items[0] : null, null, null) { GroupBy = groupBy }, source.PersonData);
+        // IV1-A: the option a new answer starts with, while the filters offer it; the only option the filters leave is chosen anyway.
+        var starts = page.TotalCount > 1 && question.Source!.Default is { } option
+            ? (await PageAsync(recipient, source, new(source.Catalog!.Id, source.Containment, null, [option], 1, 1, culture), culture, ct)).Items.SingleOrDefault()
+            : null;
+        return (new(page.TotalCount == 1 ? page.Items[0] : null, null, null) { GroupBy = groupBy, Default = starts }, source.PersonData);
     }
 
     public async Task<Result<PagedResult<FormEntryOptionResponse>>> ListAsync(Guid recipient, CanonicalFormField question, string culture,

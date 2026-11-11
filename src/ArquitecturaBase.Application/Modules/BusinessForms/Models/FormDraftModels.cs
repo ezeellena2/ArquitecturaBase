@@ -30,16 +30,19 @@ public sealed record FormFieldInput(string LocalId, Guid? FieldId, Guid? Replace
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormRowSettings? Rows = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? Repeated = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormCalculation? Calculation = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormShowWhen? ShowWhen = null)
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormShowWhen? ShowWhen = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<FormQuestionToggle>? Toggles = null)
 { public override string ToString() => "FormFieldInput { Content = [REDACTED] }"; }
 public sealed record FormChoiceInput(string LocalId, Guid? ChoiceId, IReadOnlyDictionary<string, string> Label)
 { public override string ToString() => "FormChoiceInput { Content = [REDACTED] }"; }
 // GroupBy (LD1-A) is a field of the same catalog whose value is chosen first: the list then offers only the options with that
-// value. Without it the property is omitted, so drafts, versions and their fingerprints keep their bytes.
+// value. Default (IV1-A) is the option of the catalog a new answer starts with, which a library standard declares by its code for
+// a bound question of choosing one. Without them the properties are omitted, so drafts, versions and their fingerprints keep their bytes.
 public sealed record FormQuestionSource(Guid? Catalog,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<FormCatalogMatch>? Match = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormCatalogPresentation? Presentation = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] Guid? GroupBy = null)
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] Guid? GroupBy = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] Guid? Default = null)
 { public override string ToString() => "FormQuestionSource { Content = [REDACTED] }"; }
 
 // A filter compares a catalog field with a fixed value, a datum of the person or the answer of another question (CW7). In a
@@ -68,6 +71,14 @@ public sealed record FormShowWhen(Guid QuestionId, IReadOnlyList<string> Values)
     public const int MaxValues = 50;
     public override string ToString() => "FormShowWhen { Content = [REDACTED] }";
 }
+// IV2-A: a yes-or-no toggle a library standard declares on a bound question («El precio incluye IVA»): its key, its text and its
+// (i) by language, and the value chosen; the standard's draft brings the default. Only a bound question has toggles, and only
+// their value changes; the issuer receives each one as a datum of its own, "true" or "false". Without toggles the list is null.
+public sealed record FormQuestionToggle(string Key, IReadOnlyDictionary<string, string> Label, IReadOnlyDictionary<string, string> Help, bool Value)
+{
+    public const int MaxToggles = 10;
+    public override string ToString() => "FormQuestionToggle { Content = [REDACTED] }";
+}
 public sealed record FormFileSettings(int MinFiles, int MaxFiles, string? PhotoSource = null);
 public sealed record CanonicalFormChoice(Guid ChoiceId, IReadOnlyDictionary<string, string> Label)
 { public override string ToString() => "CanonicalFormChoice { Content = [REDACTED] }"; }
@@ -79,7 +90,8 @@ public sealed record CanonicalFormField(Guid FieldId, string Key, string Type, I
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormRowSettings? Rows = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? Repeated = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormCalculation? Calculation = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormShowWhen? ShowWhen = null)
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormShowWhen? ShowWhen = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<FormQuestionToggle>? Toggles = null)
 { public override string ToString() => "CanonicalFormField { Content = [REDACTED] }"; }
 public sealed record FormQuestionSchema(int Format, IReadOnlyList<CanonicalFormField> Fields,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<FormSection>? Sections = null)

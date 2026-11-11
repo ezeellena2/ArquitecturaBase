@@ -5,8 +5,9 @@ namespace ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessFor
 
 /// <summary>
 /// A standard of the library only for tests (BI1-A): a delivery note with a block of items, the amount of each item and the total,
-/// where every question but «Observaciones» is bound; a sale that brings its own catalog of customers, with its first options, and
-/// files both in its folder, and shows «CUIT del cliente» only with the option «Otro», named by its code.
+/// where every question but «Observaciones» is bound and «Precio unitario» has a toggle (IV2-A); a sale that brings its own catalog
+/// of customers, with its first options, and files both in its folder, starts «Cliente» at «Consumidor final» (IV1-A) and shows
+/// «CUIT del cliente» only with the option «Otro», both named by their codes.
 /// </summary>
 internal sealed class TestFormStandardSource : IStructuredFormStandardSource
 {
@@ -21,7 +22,9 @@ internal sealed class TestFormStandardSource : IStructuredFormStandardSource
         {"localId":"{{{Customer}}}","type":"shortText","label":{"es":"Cliente","en":"Customer"},"required":true,"maxLength":80},
         {"localId":"{{{Items}}}","type":"group","label":{"es":"Artículos","en":"Items"},"required":true,"rows":{"minRows":1,"maxRows":20}},
         {"localId":"{{{Quantity}}}","type":"decimal","label":{"es":"Cantidad","en":"Quantity"},"required":true,"repeated":true},
-        {"localId":"{{{Price}}}","type":"decimal","label":{"es":"Precio unitario","en":"Unit price"},"required":true,"repeated":true},
+        {"localId":"{{{Price}}}","type":"decimal","label":{"es":"Precio unitario","en":"Unit price"},"required":true,"repeated":true,
+         "toggles":[{"key":"pricesIncludeTax","label":{"es":"El precio incluye impuestos","en":"Prices include tax"},
+          "help":{"es":"Marcala si cargás precios finales.","en":"Check it if you enter final prices."},"value":false}]},
         {"localId":"{{{Amount}}}","type":"decimal","label":{"es":"Importe","en":"Amount"},"required":false,"repeated":true,
          "calculation":{"operation":"multiply","operands":["{{{Quantity}}}","{{{Price}}}"]}},
         {"localId":"{{{Total}}}","type":"decimal","label":{"es":"Total","en":"Total"},"required":false,
@@ -48,7 +51,8 @@ internal sealed class TestFormStandardSource : IStructuredFormStandardSource
             Folder: new(SalesFolder, new Dictionary<string, string> { ["es"] = "Ventas de prueba", ["en"] = "Test sales" }),
             OwnCatalogs: [new(CustomersCatalog, "es", new Dictionary<string, string> { ["es"] = "Clientes de prueba" }, new Dictionary<string, string>(),
                 [new("cuit", new Dictionary<string, string> { ["es"] = "CUIT" }, "text", MaxLength: 11)],
-                [new("final", new Dictionary<string, string> { ["es"] = "Consumidor final" }), new("other", new Dictionary<string, string> { ["es"] = "Otro: escribir la CUIT" })])]),
+                [new("final", new Dictionary<string, string> { ["es"] = "Consumidor final" }), new("other", new Dictionary<string, string> { ["es"] = "Otro: escribir la CUIT" })])],
+            Defaults: new Dictionary<string, string> { [Buyer] = "final" }),
         new(MissingKey, 1, new Dictionary<string, string> { ["es"] = "Sin catálogo" }, new Dictionary<string, string> { ["es"] = "Nombra un catálogo que no está." },
             "SCP", $$$"""
                 {"format":1,"culture":"es","submitLabel":{"es":"Enviar"},"fields":[

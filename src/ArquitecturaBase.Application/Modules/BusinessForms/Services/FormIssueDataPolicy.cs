@@ -8,7 +8,8 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 /// <summary>
 /// The bound data of a response for its issuer, by the datum keys its standard gave (BI1-A): what the response left empty does not
 /// come, and the block of rows brings its items with their own bound questions. Texts go in the culture of the form. An option of
-/// a catalog goes by its code, and so does a captured field that names an option of another catalog: the issuer knows codes.
+/// a catalog goes by its code, and so does a captured field that names an option of another catalog: the issuer knows codes. The
+/// toggles of a bound question (IV2-A) come after, each by its own key, from the version the response was captured with.
 /// </summary>
 internal static class FormIssueDataPolicy
 {
@@ -53,6 +54,9 @@ internal static class FormIssueDataPolicy
             }).ToArray();
             data.Add(new StructuredIssueDatum(keys[question.FieldId], null, Items: items));
         }
+        // IV2-A: each toggle a bound question has goes as a datum of its own, "true" or "false", answered or not.
+        data.AddRange(schema.Questions.Where(question => keys.ContainsKey(question.FieldId)).SelectMany(question => question.Toggles ?? [])
+            .Select(toggle => new StructuredIssueDatum(toggle.Key, toggle.Value ? "true" : "false")));
         return data;
     }
 

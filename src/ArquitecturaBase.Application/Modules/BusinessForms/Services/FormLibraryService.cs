@@ -13,8 +13,9 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 /// The library (BI1-A, as DOC1 without reading documents). It lists the standards of the installed modules and «Agregar» creates
 /// an own draft through the same save as any other, which seals the standard, its version and its bound questions. A standard
 /// names its catalogs by Key: one that is missing or inactive stops the copy, and so does an option code («code:other») that a condition
-/// names and the catalog does not have among its active options. The catalogs it brings come with their first options. The copy and
-/// the catalogs it creates go, in the same save, to the folder chosen or else to the standard's (<see cref="FormSystemFolderLinker"/>).
+/// names, or that it declares as the option a question starts with (IV1-A), and the catalog does not have among its active options.
+/// The catalogs it brings come with their first options. The copy and the catalogs it creates go, in the same save, to the folder
+/// chosen or else to the standard's (<see cref="FormSystemFolderLinker"/>).
 /// </summary>
 internal sealed class FormLibraryService : IFormLibraryService
 {
@@ -85,7 +86,7 @@ internal sealed class FormLibraryService : IFormLibraryService
             if (named.Values.Any(catalogKey => !ids.ContainsKey(catalogKey))) return FormLibraryErrors.CatalogUnavailable;
             draft = draft with { Fields = draft.Fields.Select(field => named.TryGetValue(field.LocalId, out var catalogKey)
                 ? field with { Source = (field.Source ?? new FormQuestionSource(null)) with { Catalog = ids[catalogKey] } } : field).ToArray() };
-            var coded = await NameOptionsAsync(draft, named, ids, createdCodes, cancellationToken);
+            var coded = await NameOptionsAsync(draft, named, standard.Defaults ?? new Dictionary<string, string>(), ids, createdCodes, cancellationToken);
             if (coded.IsFailure) return coded.Error;
             return await _drafts.CreateAsync(new SaveFormDraftRequest(request.RequestId, request.Name, request.Prefix, coded.Value)
             {
@@ -94,10 +95,12 @@ internal sealed class FormLibraryService : IFormLibraryService
             }, cancellationToken);
         });
 
-    // A condition on a catalog question names the options by «code:<code>»: the copy takes the identity of the active option with that
-    // code in this installation, also in a catalog created in this same save. A code the catalog lacks stops the copy.
+    // A condition on a catalog question names the options by «code:<code>», and the option a question starts with (IV1-A) is declared
+    // by its code: the copy takes the identity of the active option with that code in this installation, also in a catalog created in
+    // this same save. A code the catalog lacks stops the copy.
     private async Task<Result<FormDraftInput>> NameOptionsAsync(FormDraftInput draft, IReadOnlyDictionary<string, string> named,
-        Dictionary<string, Guid> catalogIds, Dictionary<Guid, IReadOnlyDictionary<string, Guid>> createdCodes, CancellationToken cancellationToken)
+        IReadOnlyDictionary<string, string> defaults, Dictionary<string, Guid> catalogIds, Dictionary<Guid, IReadOnlyDictionary<string, Guid>> createdCodes,
+        CancellationToken cancellationToken)
     {
         const string prefix = "code:";
         var fields = draft.Fields.ToArray();
@@ -112,6 +115,16 @@ internal sealed class FormLibraryService : IFormLibraryService
             if (codes.Any(code => !options.ContainsKey(code))) return FormLibraryErrors.CatalogUnavailable;
             fields[index] = fields[index] with { ShowWhen = showWhen with { Values = showWhen.Values
                 .Select(value => value.StartsWith(prefix, StringComparison.Ordinal) ? options[value[prefix.Length..]].ToString("D") : value).ToArray() } };
+        }
+        for (var index = 0; index < fields.Length; index++)
+        {
+            if (!defaults.TryGetValue(fields[index].LocalId, out var code)) continue;
+            var catalogKey = named.GetValueOrDefault(fields[index].LocalId)
+                ?? throw new InvalidOperationException("A library standard declares a starting option outside a catalog question.");
+            var catalogId = catalogIds[catalogKey];
+            var options = createdCodes.TryGetValue(catalogId, out var own) ? own : await _reader.ListActiveItemIdsByCodeAsync(catalogId, [code], cancellationToken);
+            if (!options.TryGetValue(code, out var optionId)) return FormLibraryErrors.CatalogUnavailable;
+            fields[index] = fields[index] with { Source = fields[index].Source! with { Default = optionId } };
         }
         return draft with { Fields = fields };
     }

@@ -5,11 +5,13 @@ namespace ArquitecturaBase.Application.Models.StructuredData;
 // each other. Bindings gives, for each bound question's local id, the key of the datum the module needs; Catalogs, for each catalog
 // question's local id, the stable Key of its catalog (a condition on that question names its options as «code:<code>», since the
 // identities of the options are those of each installation); Folder, the system folder where a copy and the catalogs it creates go;
-// Source, by language, the name of the module that brings it, which the library shows («ARCA»).
+// Source, by language, the name of the module that brings it, which the library shows («ARCA»); Defaults, for a bound question of
+// choosing one from a catalog, by its local id, the code of the option a new answer starts with (IV1-A: «Alícuota» in 21 %). A bound
+// question of the draft may also declare toggles (IV2-A), yes-or-no settings with their default value that the issuer receives.
 public sealed record StructuredFormStandard(string Key, int Version, IReadOnlyDictionary<string, string> Name,
     IReadOnlyDictionary<string, string> Description, string Prefix, string DraftJson, IReadOnlyDictionary<string, string> Bindings,
     IReadOnlyDictionary<string, string>? Catalogs = null, StructuredFormStandardFolder? Folder = null, IReadOnlyList<StructuredFormStandardCatalog>? OwnCatalogs = null,
-    IReadOnlyDictionary<string, string>? Source = null)
+    IReadOnlyDictionary<string, string>? Source = null, IReadOnlyDictionary<string, string>? Defaults = null)
 {
     public override string ToString() => "StructuredFormStandard { Content = [REDACTED] }";
 }

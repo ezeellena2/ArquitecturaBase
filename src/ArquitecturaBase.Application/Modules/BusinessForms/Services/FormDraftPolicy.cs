@@ -27,6 +27,8 @@ internal static class FormDraftPolicy
                 Source = field.Source is null ? null : field.Source with
                 { Match = field.Source.Match is { Count: > 0 } matches ? matches.OrderBy(match => match.FieldId).ToArray() : null },
                 Repeated = field.Repeated == true ? true : null,
+                // IV2-A: the texts of a toggle go in order, so a bound question compares by its bytes.
+                Toggles = field.Toggles?.Select(toggle => toggle with { Label = Sort(toggle.Label), Help = Sort(toggle.Help) }).ToArray(),
             }).ToArray(),
             // Without titles there is no list, so a draft without them keeps its bytes.
             Sections = request.Draft.Sections is { Count: > 0 } sections ? sections.Select(section => section with { Title = Sort(section.Title) }).ToArray() : null,
@@ -113,7 +115,7 @@ internal static class FormDraftPolicy
             }
             var help = input.Help?.Where(pair => !string.IsNullOrWhiteSpace(pair.Value)).ToDictionary(pair => pair.Key, pair => pair.Value!, StringComparer.Ordinal);
             fields.Add(new(fieldId, key, input.Type, input.Label, help is { Count: > 0 } ? help : null, input.Required, input.MaxLength,
-                options?.AsReadOnly(), input.Source, input.Files, input.Selection, input.Rows, input.Repeated, input.Calculation, input.ShowWhen));
+                options?.AsReadOnly(), input.Source, input.Files, input.Selection, input.Rows, input.Repeated, input.Calculation, input.ShowWhen, input.Toggles));
             fieldMap.Add(new(input.LocalId, fieldId, key, input.ReplacesFieldId));
         }
         NameAnsweredQuestions(draft.Fields, fields, currentFieldIds);

@@ -63,6 +63,7 @@ internal sealed partial class SaveFormDraftRequestValidator : AbstractValidator<
                     : field.Selection is not null) Fail(path + ".selection");
                 if (field.Calculation is { } calculation && !HasValidShape(calculation, field)) Fail(path + ".calculation");
                 if (field.ShowWhen is { } showWhen && !HasValidShape(showWhen, field)) Fail(path + ".showWhen");
+                if (field.Toggles is { } toggles && !HasValidShape(toggles)) Fail(path + ".toggles");
                 var textType = field.Type is "shortText" or "longText";
                 if ((textType && field.MaxLength is < 1 or > 10000) || (!textType && field.MaxLength.HasValue)) Fail(path + ".maxLength");
                 if (field.Type is not ("choice" or "multiChoice"))
@@ -79,6 +80,8 @@ internal sealed partial class SaveFormDraftRequestValidator : AbstractValidator<
                     if (!Services.FormCatalogPresentationPolicy.HasValidShape(field.Source.Presentation)) Fail(path + ".source.presentation");
                     // LD1-A: the field to choose first is a catalog field; a multiple choice does not have it.
                     if (field.Source.GroupBy == Guid.Empty || (field.Source.GroupBy is not null && field.Type == "multiChoice")) Fail(path + ".source.groupBy");
+                    // IV1-A: the option a new answer starts with is one, so only a question of choosing one has it.
+                    if (field.Source.Default == Guid.Empty || (field.Source.Default is not null && field.Type == "multiChoice")) Fail(path + ".source.default");
                     continue;
                 }
                 if (field.Options is null || field.Options.Count < 1 || field.Options.Count > (field.Type == "multiChoice" ? 20 : 50)) { Fail(path + ".options"); continue; }
@@ -109,6 +112,11 @@ internal sealed partial class SaveFormDraftRequestValidator : AbstractValidator<
             }
         });
     }
+    // IV2-A: the toggles of a question, each with its key, text and (i), without repeating a key. Whether the standard declares them
+    // is checked when saving (FormStandardPolicy).
+    private static bool HasValidShape(IReadOnlyList<FormQuestionToggle> toggles) => toggles.Count is >= 1 and <= FormQuestionToggle.MaxToggles
+        && toggles.All(toggle => toggle is { Label: not null, Help: not null } && !string.IsNullOrWhiteSpace(toggle.Key))
+        && toggles.Select(toggle => toggle.Key).Distinct(StringComparer.Ordinal).Count() == toggles.Count;
     // CA1-A: only an optional decimal is calculated; multiply and percent take two operands and sum up to twenty, each another
     // question named once. Whether they exist and go before is checked when publishing.
     private static bool HasValidShape(FormCalculation calculation, FormFieldInput field)

@@ -10,7 +10,7 @@ namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 
 // BI1-A with PostgreSQL: the library lists the installed standards, «Agregar» creates an own draft that remembers its standard and
 // its bound questions (once per request) in the folder chosen or the standard's, and a save that removes a bound question or changes its type is refused at it, while
-// its text changes. A catalog the standard brings comes with its first options, and a condition names a catalog option by its code.
+// its text and the value of its toggles (IV2-A) change. A catalog the standard brings comes with its first options, and a condition names a catalog option by its code.
 public sealed partial class FormDraftEndpointsTests
 {
     [Fact]
@@ -65,8 +65,26 @@ public sealed partial class FormDraftEndpointsTests
         using var required = await SaveAsync(inputs => { inputs[0]!["required"] = false; return inputs; });
         Assert.Equal(HttpStatusCode.BadRequest, required.StatusCode);
         Assert.True((await required.ReadJsonAsync()).GetProperty("errors").TryGetProperty("draft.fields[0]", out _));
-        using var renamed = await SaveAsync(inputs => { inputs[0]!["label"] = new JsonObject { ["es"] = "Razón social", ["en"] = "Customer" }; inputs.RemoveAt(6); return inputs; });
+        // IV2-A: the toggle the standard declares on «Precio unitario» comes in the copy, unchecked; only its value changes, and
+        // no other question has one.
+        var toggle = Assert.Single(fields[3].GetProperty("toggles").EnumerateArray());
+        Assert.Equal(("pricesIncludeTax", false), (toggle.GetProperty("key").GetString(), toggle.GetProperty("value").GetBoolean()));
+        using var relabeled = await SaveAsync(inputs => { inputs[3]!["toggles"]![0]!["label"] = new JsonObject { ["es"] = "Con impuestos" }; return inputs; });
+        Assert.Equal(HttpStatusCode.BadRequest, relabeled.StatusCode);
+        Assert.True((await relabeled.ReadJsonAsync()).GetProperty("errors").TryGetProperty("draft.fields[3]", out _));
+        using var unbound = await SaveAsync(inputs => { inputs[6]!["toggles"] = inputs[3]!["toggles"]!.DeepClone(); return inputs; });
+        Assert.Equal(HttpStatusCode.BadRequest, unbound.StatusCode);
+        Assert.True((await unbound.ReadJsonAsync()).GetProperty("errors").TryGetProperty("draft.fields[6].toggles", out _));
+        using var renamed = await SaveAsync(inputs =>
+        {
+            inputs[0]!["label"] = new JsonObject { ["es"] = "Razón social", ["en"] = "Customer" };
+            inputs[3]!["toggles"]![0]!["value"] = true;
+            inputs.RemoveAt(6);
+            return inputs;
+        });
         Assert.Equal(HttpStatusCode.OK, renamed.StatusCode);
+        Assert.True((await renamed.ReadJsonAsync()).GetProperty("definition").GetProperty("draft").GetProperty("fields")[3]
+            .GetProperty("toggles")[0].GetProperty("value").GetBoolean());
     }
 
     [Fact]
@@ -97,6 +115,8 @@ public sealed partial class FormDraftEndpointsTests
             var showWhen = fields[1].GetProperty("showWhen");
             Assert.Equal(fields[0].GetProperty("fieldId").GetGuid(), showWhen.GetProperty("questionId").GetGuid());
             Assert.Equal([options[1].Id.ToString("D")], showWhen.GetProperty("values").EnumerateArray().Select(value => value.GetString()));
+            // IV1-A: the option «Cliente» starts with, declared by its code, is that option's identity too.
+            Assert.Equal(options[0].Id, fields[0].GetProperty("source").GetProperty("default").GetGuid());
             copies.Add(definition.GetProperty("id").GetGuid());
         }
         // Both copies and the catalog they brought go to the standard's folder, created once and found again by its key.
@@ -149,7 +169,7 @@ public sealed partial class FormDraftEndpointsTests
             ["type"] = field.GetProperty("type").GetString(), ["label"] = JsonNode.Parse(field.GetProperty("label").GetRawText()),
             ["required"] = field.GetProperty("required").GetBoolean(),
         };
-        foreach (var name in new[] { "maxLength", "rows", "repeated", "calculation" })
+        foreach (var name in new[] { "maxLength", "rows", "repeated", "calculation", "toggles" })
             if (field.TryGetProperty(name, out var value) && value.ValueKind != JsonValueKind.Null) input[name] = JsonNode.Parse(value.GetRawText());
         return (JsonNode?)input;
     }).ToArray());

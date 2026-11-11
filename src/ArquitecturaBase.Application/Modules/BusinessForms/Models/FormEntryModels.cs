@@ -81,6 +81,9 @@ public sealed record FormEntryCatalogResponse(FormEntryOptionResponse? OnlyOptio
     /// <summary>LD1-A: the field whose value is chosen first; the options are then read with that value as their group.</summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public FormEntryGroupByResponse? GroupBy { get; init; }
+    /// <summary>IV1-A: the option a new answer starts with, which the standard declares, while the filters still offer it; it can be changed.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public FormEntryOptionResponse? Default { get; init; }
     public override string ToString() => "FormEntryCatalogResponse { Content = [REDACTED] }";
 }
 

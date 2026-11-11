@@ -1038,7 +1038,9 @@ ARCA» ([ADR 0028](../decisions/0028-emision-de-comprobantes-arca.md)); sin emis
   número o la fecha de hoy, según el motivo) o no se emite. Pide `formrules.manage` y el permiso del emisor (`arca.issue`), y
   el flujo marca `canReview` sólo para quien los tiene. La decisión vale para la revisión de la emisión que vio el run.
 - **Los datos y el PDF fiscal.** Una opción de catálogo llega al emisor por su código, y un campo capturado que nombra otra
-  opción, por el código de esa opción. Emitido, el PDF fiscal queda como un documento más de la respuesta (en español, sin
+  opción, por el código de esa opción. Cada casilla de una pregunta atada (IV2-A, ver [la biblioteca](#biblioteca-de-estándares--bi1-a-2026-11-09))
+  llega como un dato más con su clave y `"true"` o `"false"`, como la marcó la versión con que se cargó la respuesta, aunque la
+  pregunta quede sin responder. Emitido, el PDF fiscal queda como un documento más de la respuesta (en español, sin
   diseño) y «Avisar a quien cargó» puede adjuntarlo, como el de «Armar el PDF».
 - **«¿La emito?» (EM2-A).** Una respuesta que llegó por un canal no se emite sin que quien la cargó la confirme. Antes de
   encolar, el run pide al emisor la vista previa (`PreviewAsync`: el comprobante que decidió, el receptor y el total, sin guardar
@@ -1106,8 +1108,9 @@ Los módulos traen formularios estándar como datos y «Agregar» crea un borrad
 aparece.
 
 - **Los estándares.** `IStructuredFormStandardSource` (colección opcional): clave, versión, nombre y descripción por idioma,
-  prefijo sugerido, el formulario en el formato del borrador (`localId` UUID), qué pregunta guarda cada dato (`Bindings`), los
-  catálogos por su `Key` y la carpeta del sistema.
+  prefijo sugerido, el formulario en el formato del borrador (`localId` UUID, con las casillas de sus preguntas atadas), qué
+  pregunta guarda cada dato (`Bindings`), los catálogos por su `Key`, la opción con que empieza una pregunta de catálogo
+  (`Defaults`) y la carpeta del sistema.
 - **Leer.** `GET api/forms/library` («Ver formularios») lista los estándares en el idioma del menú, con cuántos formularios
   salieron de cada uno.
 - **Agregar.** `POST api/forms/library/{key}/copies` («Administrar formularios») recibe `requestId`, nombre y prefijo y crea el
@@ -1122,9 +1125,27 @@ aparece.
   porque los ids de las opciones son de cada instalación: «Agregar» los cambia por el id de la opción activa con ese código,
   también en un catálogo propio creado en el mismo guardado. Un código que el catálogo no tiene frena con
   `Forms.Library.CatalogUnavailable`.
-- **Las preguntas atadas** conservan todo menos su texto, su ayuda y su lugar: guardar el borrador rechaza quitarlas (en
-  `draft.fields`) o cambiarles tipo, bloque, catálogo, opciones, cálculo, condición, renglones, largo o si son obligatorias (en
-  `draft.fields[i]`), con `Forms.Draft.BoundQuestionChanged`. La migración es `AddFormDefinitionStandard`.
+- **La opción con que empieza una pregunta de catálogo atada (IV1-A).** El estándar la declara por código (`Defaults`:
+  `localId → código`, como «Alícuota» en 21 %, el código 5) sólo para una pregunta de elegir una de un catálogo, y «Agregar» la
+  cambia por el id de la opción activa con ese código, igual que una condición (un código que el catálogo no tiene frena con
+  `Forms.Library.CatalogUnavailable`). La copia la guarda en `source.default` y no se cambia. La carga desde la app
+  (`GET api/forms/entries/{definitionId}`) la trae en `catalog.default` (id, título y descripción, como las opciones) mientras
+  los filtros de quien carga la ofrecen y la lista tiene más de una opción; la app la trae elegida en la pregunta y en cada ítem
+  nuevo del bloque, y se puede cambiar. Una lista que depende de otra respuesta no la trae. WhatsApp no la muestra: el emisor
+  completa la que falta (ARCA, 21 % en la A y la B).
+- **Las casillas de una pregunta atada (IV2-A).** El estándar declara en el borrador, en `toggles` de una pregunta atada, sus
+  opciones de sí o no: clave, texto y (i) por idioma y el valor con que empiezan, como «El precio incluye IVA» de «Precio
+  unitario», sin marcar. La copia las guarda en la pregunta y el editor muestra una casilla por cada una, debajo de «Se carga
+  varias veces», con el texto y la (i) del estándar en el idioma del menú. Sólo se cambia su valor: cambiarles la clave o el
+  texto, o sumar o quitar una, es `Forms.Draft.BoundQuestionChanged`. Cada una llega al emisor como un dato (ver [Emitir un
+  documento](#emitir-un-documento--issuedocument-2026-11-09)) y cambiarla pide publicar otra versión.
+- **Sólo una pregunta atada** tiene casillas o una opción con que empieza: en otra, el guardado responde
+  `Forms.Draft.QuestionConfigurationInvalid` en `draft.fields[i].toggles` o `draft.fields[i].source.default`. Las casillas
+  llevan clave, texto y (i), sin repetir la clave y hasta diez; la opción con que empieza no va en una de elegir varias.
+- **Las preguntas atadas** conservan todo menos su texto, su ayuda, su lugar y el valor de sus casillas: guardar el borrador
+  rechaza quitarlas (en `draft.fields`) o cambiarles tipo, bloque, catálogo, la opción con que empiezan, opciones, cálculo,
+  condición, renglones, casillas, largo o si son obligatorias (en `draft.fields[i]`), con `Forms.Draft.BoundQuestionChanged`. La
+  migración es `AddFormDefinitionStandard`.
 - **La carpeta.** «Agregar» recibe `folderId` opcional: la copia y los catálogos propios que crea van a esa carpeta y, sin
   ella, a la del estándar (`Folder`: su clave y su nombre por idioma), en la misma transacción que el borrador. La del
   estándar es una carpeta del sistema (ver [Carpetas](#carpetas--cp1-a-a-cp5-a-2026-11-09)); una elegida que se borró en

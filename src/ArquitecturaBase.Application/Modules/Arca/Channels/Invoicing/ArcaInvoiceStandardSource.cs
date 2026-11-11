@@ -8,7 +8,9 @@ namespace ArquitecturaBase.Application.Modules.Arca.Channels.Invoicing;
 /// The «Factura» of the forms library (task 11 of stage 3, BI1-A): the customer from «Clientes» (a final consumer, a customer of
 /// the catalog, or one whose CUIT is written in the invoice), the concept from the ARCA table, the date (today when empty), the
 /// period and the payment due date of a service, the items with their VAT rate and the total. Every question the issuer reads is
-/// bound by its datum key; the copy and the «Clientes» catalog it brings go to the «ARCA» folder.
+/// bound by its datum key; the copy and the «Clientes» catalog it brings go to the «ARCA» folder. «Precio unitario» has the toggle
+/// «El precio incluye IVA» (IV2-A), unchecked, that the issuer reads as the datum pricesIncludeVat, and «Alícuota» starts at 21 %
+/// in each new item (IV1-A).
 /// </summary>
 internal sealed class ArcaInvoiceStandardSource : IStructuredFormStandardSource
 {
@@ -19,6 +21,9 @@ internal sealed class ArcaInvoiceStandardSource : IStructuredFormStandardSource
         Description = "0196f2b0-0000-7000-8000-000000000009", Quantity = "0196f2b0-0000-7000-8000-00000000000a",
         UnitPrice = "0196f2b0-0000-7000-8000-00000000000b", VatRate = "0196f2b0-0000-7000-8000-00000000000c",
         Amount = "0196f2b0-0000-7000-8000-00000000000d", Total = "0196f2b0-0000-7000-8000-00000000000e";
+
+    // IV1-A: «Alícuota» starts at 21 %, the ARCA code 5 of «Alícuotas de IVA».
+    private const string GeneralVatRate = "5";
 
     // The period and the payment due date go always optional: WhatsApp cannot show a question by several options of a catalog, and
     // the queue already requires them with services («2») and products and services («3»).
@@ -35,7 +40,10 @@ internal sealed class ArcaInvoiceStandardSource : IStructuredFormStandardSource
         {"localId":"{{{Items}}}","type":"group","label":{"es":"Ítems","en":"Items"},"required":true,"rows":{"minRows":1,"maxRows":50}},
         {"localId":"{{{Description}}}","type":"shortText","label":{"es":"Descripción","en":"Description"},"required":true,"maxLength":200,"repeated":true},
         {"localId":"{{{Quantity}}}","type":"decimal","label":{"es":"Cantidad","en":"Quantity"},"required":true,"repeated":true},
-        {"localId":"{{{UnitPrice}}}","type":"decimal","label":{"es":"Precio unitario","en":"Unit price"},"required":true,"repeated":true},
+        {"localId":"{{{UnitPrice}}}","type":"decimal","label":{"es":"Precio unitario","en":"Unit price"},"required":true,"repeated":true,
+         "toggles":[{"key":"{{{ArcaInvoiceStandard.PricesIncludeVat}}}","label":{"es":"El precio incluye IVA","en":"Prices include VAT"},
+          "help":{"es":"Marcala si cargás precios finales, como en un mostrador: la factura separa el IVA de cada alícuota.",
+           "en":"Check it if you enter final prices, as at a counter: the invoice separates the VAT of each rate."},"value":false}]},
         {"localId":"{{{VatRate}}}","type":"choice","label":{"es":"Alícuota","en":"VAT rate"},"required":false,"repeated":true},
         {"localId":"{{{Amount}}}","type":"decimal","label":{"es":"Importe","en":"Amount"},"required":false,"repeated":true,
          "calculation":{"operation":"multiply","operands":["{{{Quantity}}}","{{{UnitPrice}}}"]}},
@@ -82,6 +90,6 @@ internal sealed class ArcaInvoiceStandardSource : IStructuredFormStandardSource
                         new(ArcaInvoiceStandard.OtherCustomer, new Dictionary<string, string> { ["es"] = "Otro: escribir la CUIT", ["en"] = "Other: write the CUIT" }),
                     ]),
             ],
-            Arca),
+            Arca, new Dictionary<string, string> { [VatRate] = GeneralVatRate }),
     ];
 }

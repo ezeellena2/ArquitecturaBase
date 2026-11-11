@@ -7,8 +7,10 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
 /// <summary>
 /// The questions a standard of the library needs (BI1-A), bound in the forms added from it: they keep everything but their text,
-/// their help and their place. Removing one, or changing its type, block, catalog, options, calculation, condition, rows or whether
-/// it is required, is refused at the question (or at the list, when it is gone).
+/// their help, their place and the value of their toggles (IV2-A). Removing one, or changing its type, block, catalog, options,
+/// calculation, condition, rows, toggles or whether it is required, is refused at the question (or at the list, when it is gone).
+/// Only a bound question has toggles or an option it starts with (IV1-A, in its source): the standard declares them, so any other
+/// question with them is refused.
 /// </summary>
 internal static class FormStandardPolicy
 {
@@ -35,8 +37,20 @@ internal static class FormStandardPolicy
         return Result.Success();
     }
 
+    public static Result CheckDeclared(IReadOnlyCollection<Guid> bound, IReadOnlyList<CanonicalFormField> current)
+    {
+        for (var index = 0; index < current.Count; index++)
+        {
+            if (bound.Contains(current[index].FieldId)) continue;
+            if (current[index].Toggles is not null) return FieldErrors.On(FormDraftErrors.QuestionConfigurationInvalid, $"draft.fields[{index}].toggles");
+            if (current[index].Source?.Default is not null) return FieldErrors.On(FormDraftErrors.QuestionConfigurationInvalid, $"draft.fields[{index}].source.default");
+        }
+        return Result.Success();
+    }
+
     private static string Comparable(CanonicalFormField field) => FormDraftPolicy.Serialize(field with
     {
         Label = NoText, Help = null, Options = field.Options?.Select(option => option with { Label = NoText }).ToArray(),
+        Toggles = field.Toggles?.Select(toggle => toggle with { Value = false }).ToArray(),
     });
 }

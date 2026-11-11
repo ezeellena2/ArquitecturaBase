@@ -70,6 +70,10 @@ internal sealed class FormDraftService(IFormDraftRepository repository, FormDefi
             var bound = FormStandardPolicy.CheckBound(bindings, FormDraftPolicy.Read<FormQuestionSchema>(definition.SchemaJson).Fields, resolved.Value.Draft.Fields);
             if (bound.IsFailure) return bound.Error;
         }
+        // IV1-A and IV2-A: only a bound question has the toggles and the starting option its standard declares, also in the copy being added.
+        var boundIds = definition?.StandardBindingsJson is { } sealedBindings ? FormDraftPolicy.Read<Dictionary<string, Guid>>(sealedBindings).Values.ToArray()
+            : definition is null && request.Standard is { } origin ? FormStandardPolicy.Bindings(origin, resolved.Value.IdentityMap).Values.ToArray() : [];
+        var declared = FormStandardPolicy.CheckDeclared(boundIds, resolved.Value.Draft.Fields); if (declared.IsFailure) return declared.Error;
         var creating = definition is null; definition ??= BusinessFormDefinition.Create();
         if (await repository.ExistsPrefixAsync(request.Prefix, definition.Id, ct)) return FieldErrors.On(FormDefinitionErrors.PrefixTaken, "prefix");
         var draft = resolved.Value.Draft;
