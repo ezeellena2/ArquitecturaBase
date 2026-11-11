@@ -117,6 +117,10 @@ public sealed record ListFormEntryGroupsRequest
 
 public sealed record FormEntryOptionResponse(Guid Id, string Title, string? Description)
 {
+    /// <summary>The option's canonical value in a catalog with a numeric or date value (E1-B), so that a percentage whose rate is
+    /// chosen from it is seen while loading (CA1-A); omitted in a catalog without values.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? Value { get; init; }
     public override string ToString() => "FormEntryOptionResponse { Content = [REDACTED] }";
 }
 

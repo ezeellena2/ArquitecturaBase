@@ -48,6 +48,19 @@ internal static class FormStandardPolicy
         return Result.Success();
     }
 
+    // BI1-A: the prefix «Agregar» offers: the standard's or, when a form already has it, the first with a number after it that no
+    // form uses (deleted ones too, as saving checks), within the twelve characters of a prefix.
+    public static string SuggestedPrefix(string prefix, IReadOnlySet<string> taken)
+    {
+        if (!taken.Contains(prefix)) return prefix;
+        for (var number = 2; ; number++)
+        {
+            var suffix = number.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            var candidate = prefix[..Math.Min(prefix.Length, 12 - suffix.Length)] + suffix;
+            if (!taken.Contains(candidate)) return candidate;
+        }
+    }
+
     private static string Comparable(CanonicalFormField field) => FormDraftPolicy.Serialize(field with
     {
         Label = NoText, Help = null, Options = field.Options?.Select(option => option with { Label = NoText }).ToArray(),

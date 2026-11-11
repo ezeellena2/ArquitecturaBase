@@ -1,6 +1,7 @@
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Infrastructure.Persistence;
+using ArquitecturaBase.Infrastructure.Persistence.Extensions;
 using Microsoft.EntityFrameworkCore;
 
 namespace ArquitecturaBase.Infrastructure.Modules.BusinessForms.Persistence.Readers;
@@ -20,4 +21,13 @@ internal sealed class FormLibraryReader(ApplicationDbContext db) : IFormLibraryR
     public async Task<IReadOnlyDictionary<string, Guid>> ListActiveItemIdsByCodeAsync(Guid catalogId, IReadOnlyList<string> codes, CancellationToken cancellationToken) =>
         await db.Set<BusinessFormCatalogItem>().AsNoTracking().Where(item => item.CatalogId == catalogId && item.IsActive && codes.Contains(item.Code))
             .ToDictionaryAsync(item => item.Code, item => item.Id, StringComparer.Ordinal, cancellationToken);
+
+    public async Task<IReadOnlySet<string>> ListPrefixesAsync(IReadOnlyList<string> stems, CancellationToken cancellationToken)
+    {
+        var prefixes = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var stem in stems.Distinct(StringComparer.Ordinal))
+            prefixes.UnionWith(await db.Set<BusinessFormDefinition>().IgnoreQueryFilters([ModelBuilderExtensions.SoftDeleteFilter]).AsNoTracking()
+                .Where(definition => definition.Prefix.StartsWith(stem)).Select(definition => definition.Prefix).ToListAsync(cancellationToken));
+        return prefixes;
+    }
 }

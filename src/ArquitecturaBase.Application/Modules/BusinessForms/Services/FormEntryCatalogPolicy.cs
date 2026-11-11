@@ -221,9 +221,10 @@ internal sealed class FormEntryCatalogPolicy(FormCatalogOptionsPolicy options, I
         return new(FormCatalogOptionsPolicy.FilterOptions(people.Items, definition, culture).Select(Present).ToArray(), people.Page, people.PageSize, people.TotalCount);
     }
 
-    // The question's presentation decides title and description, as in WhatsApp: an empty description stays empty.
+    // The question's presentation decides title and description, as in WhatsApp: an empty description stays empty. The value goes
+    // as the offer has it, for a calculation that uses it.
     private static FormEntryOptionResponse Present(StructuredFormCatalogOption option) =>
-        new(option.Id, option.Shown?.Title ?? option.Text, option.Shown is null ? option.Detail : option.Shown.Description);
+        new(option.Id, option.Shown?.Title ?? option.Text, option.Shown is null ? option.Detail : option.Shown.Description) { Value = option.Value };
 
     private static Error Blocking(string issue) => issue == FormRecordErrors.RecipientDataMissing.Code ? FormRecordErrors.RecipientDataMissing
         : issue == FormRecordErrors.CatalogFilterUnavailable.Code ? FormRecordErrors.CatalogFilterUnavailable

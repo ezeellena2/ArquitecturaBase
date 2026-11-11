@@ -79,14 +79,18 @@ internal static class WhatsAppFlowCompiler
             depths[index] = controller < 0 ? 1 : depths[controller] + 1;
             var valid = question.Type != "group" && question.Repeated != true && question.Files is null
                 && source is { Repeated: not true, Calculated: not true } && values is { Count: >= 1 and <= 50 }
-                && values.Distinct(StringComparer.Ordinal).Count() == values.Count && depths[index] <= 3 && source.Type switch
+                && values.Distinct(StringComparer.Ordinal).Count() == values.Count && source.Type switch
                 {
                     "boolean" => values.All(value => value is "true" or "false"),
-                    "choice" when source.SourceCatalogId is not null => values.Count == 1 && Guid.TryParseExact(values[0], "D", out _),
+                    "choice" when source.SourceCatalogId is not null => values.All(value => Guid.TryParseExact(value, "D", out _)),
                     "choice" => values.All(value => source.Options!.Any(option => option.ChoiceId.ToString("D") == value)),
                     _ => false,
                 };
-            if (!valid) issues.Add(new(question.FieldId, null, $"draft.fields[{index}].showWhen", FlowErrors.UnsupportedConfiguration));
+            // The two limits the editor also warns about say what happens; the rest is a configuration the Flow cannot show.
+            var error = !valid ? FlowErrors.UnsupportedConfiguration
+                : depths[index] > 3 ? FlowErrors.ConditionTooDeep
+                : source!.SourceCatalogId is not null && values.Count > 1 ? FlowErrors.ConditionCatalogValues : null;
+            if (error is not null) issues.Add(new(question.FieldId, null, $"draft.fields[{index}].showWhen", error));
         }
         if (issues.Count > 0) return new([], issues.AsReadOnly());
         var screens = WhatsAppFlowScreenBuilder.Plan(request.Questions.Select(question =>

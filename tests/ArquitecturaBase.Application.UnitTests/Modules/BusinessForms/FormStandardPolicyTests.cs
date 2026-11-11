@@ -48,4 +48,14 @@ public sealed class FormStandardPolicyTests
         Assert.Equal(FormDraftErrors.BoundQuestionChanged.Code, result.Error.Code);
         return (result.Error as ArquitecturaBase.Domain.Results.ValidationError)?.Errors.Keys.Single();
     }
+
+    [Fact]
+    public void The_suggested_prefix_is_the_standards_or_the_first_with_a_number_that_no_form_uses()
+    {
+        Assert.Equal("FAC", FormStandardPolicy.SuggestedPrefix("FAC", new HashSet<string>()));
+        Assert.Equal("FAC3", FormStandardPolicy.SuggestedPrefix("FAC", new HashSet<string> { "FAC", "FAC2" }));
+        Assert.Equal("FAC2", FormStandardPolicy.SuggestedPrefix("FAC", new HashSet<string> { "FAC", "FAC3" }));
+        // Within the twelve characters of a prefix, the number takes the place of the last letters.
+        Assert.Equal("ABCDEFGHIJK2", FormStandardPolicy.SuggestedPrefix("ABCDEFGHIJKL", new HashSet<string> { "ABCDEFGHIJKL" }));
+    }
 }

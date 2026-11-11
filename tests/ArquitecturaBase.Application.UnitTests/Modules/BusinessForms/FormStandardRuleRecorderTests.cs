@@ -118,6 +118,8 @@ public sealed class FormStandardRuleRecorderTests
             throw new NotSupportedException();
         public Task<IReadOnlyDictionary<string, Guid>> ListActiveItemIdsByCodeAsync(Guid catalogId, IReadOnlyList<string> codes, CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyDictionary<string, Guid>>(catalogId == CatalogId && codes.Contains("urgent") ? new Dictionary<string, Guid> { ["urgent"] = UrgentId } : new Dictionary<string, Guid>());
+        public Task<IReadOnlySet<string>> ListPrefixesAsync(IReadOnlyList<string> stems, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlySet<string>>(new HashSet<string>());
     }
 
     private sealed class Issuer : IStructuredRecordIssuer

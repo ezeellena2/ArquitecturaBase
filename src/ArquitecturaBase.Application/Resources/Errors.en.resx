@@ -244,6 +244,8 @@
   <data name="Forms.Publication.CatalogInvalid" xml:space="preserve"><value>A question uses a catalog that is unavailable for publication.</value></data>
   <data name="WhatsApp.Flow.MissingTranslation" xml:space="preserve"><value>The required text is missing in the target language.</value></data>
   <data name="WhatsApp.Flow.UnsupportedConfiguration" xml:space="preserve"><value>This configuration cannot be represented by the publication profile.</value></data>
+  <data name="WhatsApp.Flow.ConditionCatalogValues" xml:space="preserve"><value>On WhatsApp, a condition on a catalog question takes a single answer. Keep one, or choose “Only in the app”.</value></data>
+  <data name="WhatsApp.Flow.ConditionTooDeep" xml:space="preserve"><value>On WhatsApp, a question can depend on another up to three times in a row. Shorten the chain, or choose “Only in the app”.</value></data>
   <data name="WhatsApp.Flow.ComponentBudgetExceeded" xml:space="preserve"><value>The form exceeds the component limit for one screen.</value></data>
   <data name="WhatsApp.Flow.TextTooLong" xml:space="preserve"><value>The text exceeds the component limit. Review the indicated text.</value></data>
   <data name="Forms.Publication.MissingTranslation" xml:space="preserve"><value>Complete this text to publish in that language.</value></data>

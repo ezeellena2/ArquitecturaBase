@@ -113,6 +113,22 @@ public sealed class FormEntryServiceTests
         Assert.IsType<ValidationError>(tooLarge.Error);
     }
 
+    // CA1-A: the rate of a percentage chosen from a catalog with values is seen while loading, so its option brings the value.
+    [Fact]
+    public async Task An_option_of_a_catalog_with_values_brings_its_value_and_one_without_values_does_not()
+    {
+        using var withValues = new FormEntryFixture(valueType: BusinessFormCatalogValueType.Decimal);
+        withValues.AddItem("General", 1, value: "21");
+        using var text = new FormEntryFixture();
+        text.AddItem("Lote 1", 1);
+
+        var rate = await withValues.Service.ListOptionsAsync(withValues.Catalogs.DefinitionId, withValues.Catalogs.Version.Id, withValues.FieldId, new() { PageSize = 50 }, Ct);
+        var plain = await text.Service.ListOptionsAsync(text.Catalogs.DefinitionId, text.Catalogs.Version.Id, text.FieldId, new() { PageSize = 50 }, Ct);
+
+        Assert.Equal("21", Assert.Single(rate.Value.Items).Value);
+        Assert.Null(Assert.Single(plain.Value.Items).Value);
+    }
+
     [Fact]
     public async Task A_list_that_depends_on_another_answer_says_which_one_and_has_no_option_chosen_beforehand()
     {

@@ -46,9 +46,9 @@ internal sealed class FormEntryFixture : IFormEntryReader, IBusinessFormRecordCa
     public FormEntryOutcomeRow Outcome { get; set; } = new(new DateTime(2026, 10, 30, 13, 58, 0, DateTimeKind.Utc), "Received", false);
 
     public FormEntryFixture(bool filtered = false, bool required = true, string questionType = "choice", FormSelectionSettings? selection = null,
-        bool dependsOnAnswer = false, string? groupBy = null)
+        bool dependsOnAnswer = false, string? groupBy = null, BusinessFormCatalogValueType valueType = BusinessFormCatalogValueType.Text)
     {
-        Catalogs = new(filtered, required, questionType: questionType, selection: selection, dependsOnAnswer: dependsOnAnswer, groupByType: groupBy);
+        Catalogs = new(filtered, required, valueType: valueType, questionType: questionType, selection: selection, dependsOnAnswer: dependsOnAnswer, groupByType: groupBy);
         ActiveVersionId = Catalogs.Version.Id;
         Actor = Users.AddUser("entry@example.invalid").Id;
         Current.UserId = Actor;
@@ -77,9 +77,9 @@ internal sealed class FormEntryFixture : IFormEntryReader, IBusinessFormRecordCa
     public IFormEntryService Service => _provider.GetRequiredService<IFormEntryService>();
     public Guid FieldId => Catalogs.FieldId;
 
-    public BusinessFormCatalogItem AddItem(string text, int position, string? detail = null, BusinessFormCatalogItem? answer = null)
+    public BusinessFormCatalogItem AddItem(string text, int position, string? detail = null, BusinessFormCatalogItem? answer = null, string? value = null)
     {
-        var item = BusinessFormCatalogItem.Create(Catalogs.Catalog.Id, "C" + position, text, null, detail, null, position);
+        var item = BusinessFormCatalogItem.Create(Catalogs.Catalog.Id, "C" + position, text, null, detail, null, position, value);
         if (answer is not null && Catalogs.Catalog.SetManualItemFields(item,
             FormDraftPolicy.Serialize(new Dictionary<string, string> { [Catalogs.FilterFieldId.ToString("D")] = answer.Id.ToString("D") })).IsFailure)
             throw new InvalidOperationException("The option of the dependent list is invalid.");

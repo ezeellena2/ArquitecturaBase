@@ -142,6 +142,8 @@ public sealed class FormIssuedCatalogItemRecorderTests
             Task.FromResult<IReadOnlyDictionary<string, FormLibraryCatalogRow>>(Catalogs.Where(pair => catalogKeys.Contains(pair.Key)).ToDictionary());
         public Task<IReadOnlyDictionary<string, Guid>> ListActiveItemIdsByCodeAsync(Guid catalogId, IReadOnlyList<string> codes, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
+        public Task<IReadOnlySet<string>> ListPrefixesAsync(IReadOnlyList<string> stems, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlySet<string>>(new HashSet<string>());
     }
 
     private sealed class Codes : IFormCatalogItemCodeReader

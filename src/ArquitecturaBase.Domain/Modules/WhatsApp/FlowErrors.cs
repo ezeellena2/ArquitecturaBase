@@ -19,6 +19,8 @@ public static class FlowErrors
     public static readonly Error AccountUnavailable = Error.Validation("WhatsApp.Flow.AccountUnavailable", "The account is unavailable for Flow publication.");
     public static readonly Error AccountMismatch = Error.Validation("WhatsApp.Flow.AccountMismatch", "The configured phone does not belong to the Flow account.");
     public static readonly Error UnsupportedConfiguration = Error.Validation("WhatsApp.Flow.UnsupportedConfiguration", "The configuration cannot be represented by the channel profile.");
+    public static readonly Error ConditionCatalogValues = Error.Validation("WhatsApp.Flow.ConditionCatalogValues", "A condition on a catalog question takes a single answer in the channel.");
+    public static readonly Error ConditionTooDeep = Error.Validation("WhatsApp.Flow.ConditionTooDeep", "A chain of conditions goes more than three questions deep in the channel.");
     public static readonly Error TextTooLong = Error.Validation("WhatsApp.Flow.TextTooLong", "The text exceeds the channel profile budget.");
     public static readonly Error MissingTranslation = Error.Validation("WhatsApp.Flow.MissingTranslation", "The required text is missing in the exact target culture.");
     public static readonly Error ComponentBudgetExceeded = Error.Validation("WhatsApp.Flow.ComponentBudgetExceeded", "The screen component budget is exceeded.");

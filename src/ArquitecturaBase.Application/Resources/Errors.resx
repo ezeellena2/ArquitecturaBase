@@ -244,6 +244,8 @@
   <data name="Forms.Publication.CatalogInvalid" xml:space="preserve"><value>Una pregunta usa un catálogo que no está disponible para publicar.</value></data>
   <data name="WhatsApp.Flow.MissingTranslation" xml:space="preserve"><value>Falta el texto requerido en el idioma objetivo.</value></data>
   <data name="WhatsApp.Flow.UnsupportedConfiguration" xml:space="preserve"><value>Esta configuración no se puede representar en el perfil de publicación.</value></data>
+  <data name="WhatsApp.Flow.ConditionCatalogValues" xml:space="preserve"><value>En WhatsApp, una condición sobre una pregunta de catálogo admite una sola respuesta. Dejá una, o elegí «Sólo en la app».</value></data>
+  <data name="WhatsApp.Flow.ConditionTooDeep" xml:space="preserve"><value>En WhatsApp, una pregunta puede depender de otra hasta tres veces seguidas. Acortá la cadena, o elegí «Sólo en la app».</value></data>
   <data name="WhatsApp.Flow.ComponentBudgetExceeded" xml:space="preserve"><value>El formulario supera el límite de componentes de una pantalla.</value></data>
   <data name="WhatsApp.Flow.TextTooLong" xml:space="preserve"><value>El texto supera el límite del componente. Revisá el texto indicado.</value></data>
   <data name="Forms.Publication.MissingTranslation" xml:space="preserve"><value>Completá este texto para publicar en ese idioma.</value></data>

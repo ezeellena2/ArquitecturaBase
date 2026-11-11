@@ -43,11 +43,14 @@ internal sealed class FormLibraryService : IFormLibraryService
             var access = await _access.CheckAsync(false, cancellationToken); if (access.IsFailure) return access.Error;
             var copies = _standards.Length == 0 ? new Dictionary<string, int>()
                 : await _reader.ListCopyCountsAsync(_standards.Select(standard => standard.Key).ToArray(), cancellationToken);
+            // The number takes at most three characters of the twelve, so the prefixes in use start with the stem up to nine.
+            var taken = _standards.Length == 0 ? new HashSet<string>()
+                : await _reader.ListPrefixesAsync(_standards.Select(standard => standard.Prefix[..Math.Min(standard.Prefix.Length, 9)]).ToArray(), cancellationToken);
             var culture = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es";
             return new FormLibraryResponse(_standards.OrderBy(standard => FormRecordPresentationPolicy.Text(standard.Name, culture), StringComparer.CurrentCultureIgnoreCase)
                 .Select(standard => new FormLibraryStandardResponse(standard.Key, standard.Version, FormRecordPresentationPolicy.Text(standard.Name, culture),
                     FormRecordPresentationPolicy.Text(standard.Description, culture), standard.Prefix, copies.GetValueOrDefault(standard.Key),
-                    FormDraftPolicy.Read<FormDraftInput>(standard.DraftJson).Culture)
+                    FormDraftPolicy.Read<FormDraftInput>(standard.DraftJson).Culture, FormStandardPolicy.SuggestedPrefix(standard.Prefix, taken))
                     { Source = standard.Source is { } source ? FormRecordPresentationPolicy.Text(source, culture) : null }).ToArray());
         });
 

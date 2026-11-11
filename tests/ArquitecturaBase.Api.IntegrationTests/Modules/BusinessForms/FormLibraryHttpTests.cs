@@ -198,6 +198,31 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal(1, await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormRuleSet>().CountAsync(ruleSet => ruleSet.DefinitionId == id, Ct)));
     }
 
+    // «Agregar» offers a prefix that no form uses, deleted ones too: after a copy takes it, the next one is another.
+    [Fact]
+    public async Task The_library_offers_a_prefix_that_no_form_uses()
+    {
+        using var designer = await OperatorAsync(["formtemplates.read", "formtemplates.manage"]);
+        async Task<string> SuggestedAsync()
+        {
+            using var library = await designer.GetAsync("/api/forms/library", Ct);
+            Assert.Equal(HttpStatusCode.OK, library.StatusCode);
+            return (await library.ReadJsonAsync()).GetProperty("standards").EnumerateArray()
+                .Single(item => item.GetProperty("key").GetString() == TestFormStandardSource.Key).GetProperty("suggestedPrefix").GetString()!;
+        }
+
+        var first = await SuggestedAsync();
+        Assert.StartsWith("RTP", first, StringComparison.Ordinal);
+        Assert.False(await factory.ExecuteDbContextAsync(db => db.Set<ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormDefinition>()
+            .IgnoreQueryFilters().AnyAsync(definition => definition.Prefix == first, Ct)));
+        using var added = await designer.PostAsJsonAsync($"/api/forms/library/{TestFormStandardSource.Key}/copies", Add(Guid.NewGuid(), first), Ct);
+        Assert.Equal(HttpStatusCode.Created, added.StatusCode);
+
+        var second = await SuggestedAsync();
+        Assert.NotEqual(first, second);
+        Assert.StartsWith("RTP", second, StringComparison.Ordinal);
+    }
+
     private static object Add(Guid requestId, string prefix) => new { requestId, name = new { es = "Remito propio " + prefix }, prefix };
 
     // The saved questions as the draft's input: their identity as both local id and field id, and what the editor sends back.

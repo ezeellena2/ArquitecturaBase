@@ -350,7 +350,8 @@ public sealed class WhatsAppFlowConditionCompilerTests
 
         Assert.Empty(result.Flows);
         var issue = Assert.Single(result.Issues);
-        Assert.Equal(FlowErrors.UnsupportedConfiguration, issue.Error);
+        // Several answers of a catalog question and a chain of more than three say so; the rest is a configuration the flow cannot show.
+        Assert.Equal(kind switch { "catalogValues" => FlowErrors.ConditionCatalogValues, "tooDeep" => FlowErrors.ConditionTooDeep, _ => FlowErrors.UnsupportedConfiguration }, issue.Error);
         Assert.Equal(questions[index].FieldId, issue.FieldId);
         Assert.Equal($"draft.fields[{index}].showWhen", issue.Path);
     }
