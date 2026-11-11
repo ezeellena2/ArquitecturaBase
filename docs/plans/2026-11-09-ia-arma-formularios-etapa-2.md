@@ -381,3 +381,8 @@ A mirar en esa corrida:
 - el contexto con la planilla;
 - que una planilla sin texto pregunte en Inicio;
 - que un pedido que no dice qué hacer con la planilla dé `unclear`.
+
+2026-11-11: el usuario dio el visto bueno («Sí, corréla»). La corrida real corre desde una copia limpia de be8048ce (autotest
+206/206), con la conexión guardada (OpenAI `gpt-6.1-sol`, habilitada y con clave), en tres runs seguidos:
+`ia2_spreadsheets_20261111_01`, `ia2_authoring_20261111_01` e `ia2_channel_stage5_20261111_01`. Cada uno espera a que no haya
+suites del backend corriendo.
