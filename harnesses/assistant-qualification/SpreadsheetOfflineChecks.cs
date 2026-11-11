@@ -27,8 +27,8 @@ namespace AssistantQualification;
 // secret store or database.
 internal static class SpreadsheetOfflineChecks
 {
-    public static readonly Action[] All = [Capability_inventory_compares_id_and_version, Existing_sets_keep_their_capability_versions,
-        Spreadsheet_channel_context_is_the_automatic_conversation_with_a_spreadsheet, Home_spreadsheets_name_what_home_does_not_offer_yet,
+    public static readonly Action[] All = [Capability_inventory_compares_id_and_version, Sets_offer_what_the_app_offers,
+        Spreadsheet_channel_context_is_the_automatic_conversation_with_a_spreadsheet, Home_offer_gate_names_what_home_offers_otherwise,
         Spreadsheet_fixtures_cover_the_stage_cases_in_both_cultures, Spreadsheet_fixtures_stay_fictitious_and_generic,
         Spreadsheet_files_keep_their_committed_hashes, Real_port_prepares_each_fixture_as_the_cases_expect,
         Real_port_rejects_what_never_reaches_the_model, Real_port_lets_only_catalog_managers_attach,
@@ -177,66 +177,82 @@ internal static class SpreadsheetOfflineChecks
         Require(Throws(() => Program.Inventory(registered, [new("forms.authoring.catalogs", 1)])));
     }
 
-    // Every definition the existing sets name, plus the spreadsheet ones registered next to them.
+    // Every definition some set names, plus version 1 of the catalog, still registered next to version 2 as in the app.
     private static AssistantCapabilityDefinition[] Registry() =>
     [
-        ..Program.HomeAuthoringCapabilities.Concat(QualificationChannelContexts.References).Concat(QualificationChannelContexts.SpreadsheetReferences)
-            .Concat(Program.HomeSpreadsheetCapabilities).Distinct().Select(reference => Definition(reference.Id, reference.Version)),
+        ..Program.HomeAuthoringCapabilities.Concat(QualificationChannelContexts.References).Append(new(AuthoringOracle.ProposeCatalog, 1))
+            .Distinct().Select(reference => Definition(reference.Id, reference.Version)),
     ];
+    // What Stage 1 offered before the app moved to version 2: the catalog in version 1 and no import, in Home and in the channel.
+    private static readonly AssistantCapabilityReference[] HomeStage1 = [..Program.HomeReferences, ..HomeRunner.AuthoringOffered
+        .Select(reference => reference.Id == AuthoringOracle.ProposeCatalog ? new AssistantCapabilityReference(reference.Id, 1) : reference)];
+    private static readonly AssistantCapabilityReference[] AutomaticStage1 = [..QualificationChannelContexts.AutomaticReferences
+        .Where(reference => reference.Id != SpreadsheetOracle.ProposeImport)
+        .Select(reference => reference.Id == AuthoringOracle.ProposeCatalog ? new AssistantCapabilityReference(reference.Id, 1) : reference)];
 
-    public static void Existing_sets_keep_their_capability_versions()
+    public static void Sets_offer_what_the_app_offers()
     {
         Require(Registry().Count(definition => definition.Id == AuthoringOracle.ProposeCatalog) == 2);
-        // Home's five reads, Stage 1 authoring and the channel contexts keep version 1 of everything, propose-catalog@1 included.
+        // Home: its five reads, and to an author the catalog in version 2 and the import (6e27fa0b), never version 1 or decline.
         Require(Program.HomeReferences.Length == 5 && Program.HomeReferences.All(reference => reference.Version == 1)
             && Program.HomeReferences.Select(reference => reference.Id).SequenceEqual(QualificationSeed.HomeCapabilities));
-        Require(Program.HomeAuthoringCapabilities.Length == 11 && Program.HomeAuthoringCapabilities.All(reference => reference.Version == 1)
-            && Program.HomeAuthoringCapabilities.Contains(new(AuthoringOracle.ProposeCatalog, 1)));
-        Require(QualificationChannelContexts.References.Length == 16 && QualificationChannelContexts.References.All(reference => reference.Version == 1)
-            && QualificationChannelContexts.References.Select(reference => reference.Id).SequenceEqual(QualificationChannelContexts.Capabilities));
+        Require(Program.HomeAuthoringCapabilities.Length == 12 && Program.HomeAuthoringCapabilities.Contains(new(AuthoringOracle.ProposeCatalog, 2))
+            && Program.HomeAuthoringCapabilities.Contains(new(SpreadsheetOracle.ProposeImport, 1)) && !Program.HomeAuthoringCapabilities.Contains(new(AuthoringOracle.ProposeCatalog, 1))
+            && !Program.HomeAuthoringCapabilities.Any(reference => reference.Id == AuthoringOracle.Decline)
+            && HomeRunner.SpreadsheetOffered.SequenceEqual([..HomeRunner.AuthoringOffered, new(SpreadsheetOracle.ProposeImport, 1)]));
+        // Every automatic kind is WhatsAppAssistantAccessPolicy's automatic conversation; the operator's manual one and C4 keep version 1.
         var actor = new QualificationActor(Guid.NewGuid(), "offline", "es", "fictitious");
-        foreach (var kind in new[] { "auto", "manual", "catalog", "no-forms", "author" })
-        {
-            var context = QualificationChannelContexts.Create(actor, actor.UserId, kind);
-            Require(context.AllowedCapabilities.All(reference => reference.Version == 1 && reference.Id != SpreadsheetOracle.ProposeImport));
-        }
-        // So their inventories start exactly as before, next to the two versions of propose-catalog.
-        Require(Program.Inventory(Registry(), Program.HomeReferences).Length == 5 && Program.Inventory(Registry(), Program.HomeAuthoringCapabilities).Length == 11
-            && Program.Inventory(Registry(), QualificationChannelContexts.References).Length == 16
-            && Program.Inventory(Registry(), QualificationChannelContexts.References).Single(stamp => stamp.Id == AuthoringOracle.ProposeCatalog).Version == 1);
+        foreach (var kind in new[] { "auto", "catalog", "no-forms", "author" })
+            Require(QualificationChannelContexts.Create(actor, actor.UserId, kind).AllowedCapabilities.SequenceEqual(QualificationChannelContexts.AutomaticReferences));
+        Require(QualificationChannelContexts.AutomaticReferences.Length == 15 && QualificationChannelContexts.AutomaticReferences.Distinct().Count() == 15
+            && QualificationChannelContexts.AutomaticReferences.Contains(new(AuthoringOracle.ProposeCatalog, 2))
+            && QualificationChannelContexts.AutomaticReferences.Contains(new(SpreadsheetOracle.ProposeImport, 1))
+            && !QualificationChannelContexts.AutomaticReferences.Contains(new(AuthoringOracle.ProposeCatalog, 1)));
+        Require(QualificationChannelContexts.Create(actor, Guid.NewGuid(), "manual").AllowedCapabilities is { Count: 7 } manual
+            && manual.All(reference => reference.Version == 1 && !reference.Id.StartsWith("forms.authoring.", StringComparison.Ordinal))
+            && QualificationChannelContexts.Create(actor, Guid.NewGuid(), "auto", Guid.NewGuid()).AllowedCapabilities is { Count: 5 } captured
+            && captured.All(reference => reference.Version == 1 && !reference.Id.StartsWith("forms.authoring.", StringComparison.Ordinal)));
+        // The channel stamps: every reference some context offers, the catalog only in version 2.
+        Require(QualificationChannelContexts.References.Length == 17 && QualificationChannelContexts.References.Distinct().Count() == 17
+            && QualificationChannelContexts.References.Select(reference => reference.Id).SequenceEqual(QualificationChannelContexts.Capabilities)
+            && QualificationChannelContexts.References.Single(reference => reference.Id == AuthoringOracle.ProposeCatalog).Version == 2);
+        // Their inventories start next to the two registered versions of the catalog and stamp version 2.
+        Require(Program.Inventory(Registry(), Program.HomeReferences).Length == 5 && Program.Inventory(Registry(), Program.HomeAuthoringCapabilities).Length == 12
+            && Program.Inventory(Registry(), QualificationChannelContexts.References).Length == 17
+            && Program.Inventory(Registry(), QualificationChannelContexts.References).Single(stamp => stamp.Id == AuthoringOracle.ProposeCatalog).Version == 2
+            && Program.Inventory(Registry(), Program.HomeAuthoringCapabilities).Single(stamp => stamp.Id == AuthoringOracle.ProposeCatalog).Version == 2);
     }
 
     public static void Spreadsheet_channel_context_is_the_automatic_conversation_with_a_spreadsheet()
     {
         var person = new QualificationActor(Guid.NewGuid(), "offline", "en", "fictitious");
-        var context = QualificationChannelContexts.Create(person, person.UserId, "sheet-author");
+        var context = QualificationChannelContexts.Create(person, person.UserId, "author");
         Require(context is { ChannelId: "whatsapp-assistant", InteractionMode: AssistantInteractionMode.Assistant, Culture: "en", SourceRecordId: null }
             && context.ActorUserId == person.UserId && context.SubjectUserId == person.UserId && context.RequiredPermissions.Actor.Count == 0
             && context.AllowedTerminals.SequenceEqual([new AssistantTerminalReference("assistant_proposal", 1)]));
-        Require(context.AllowedCapabilities.SequenceEqual(QualificationChannelContexts.SpreadsheetReferences) && context.AllowedCapabilities.Count == 15
-            && context.AllowedCapabilities.Distinct().Count() == 15 && ChannelRunner.SpreadsheetAuthoring.All(context.AllowedCapabilities.Contains)
-            && !context.AllowedCapabilities.Contains(new(AuthoringOracle.ProposeCatalog, 1))
+        // The same conversation with or without a spreadsheet: the engine adds the import only to a turn that has one.
+        Require(context.AllowedCapabilities.SequenceEqual(QualificationChannelContexts.AutomaticReferences) && ChannelRunner.SpreadsheetAuthoring.All(context.AllowedCapabilities.Contains)
+            && ChannelRunner.AuthoringBuilding.All(context.AllowedCapabilities.Contains) && !ChannelRunner.AuthoringBuilding.Contains(new(SpreadsheetOracle.ProposeImport, 1))
             && context.AllowedCapabilities.All(reference => reference.Id is not ("forms.suggestion-candidates" or "forms.propose-suggestion")));
-        // The automatic conversation of Stage 1 plus import, with the catalog in version 2: the same ids but one.
-        Require(context.AllowedCapabilities.Select(reference => reference.Id).Order(StringComparer.Ordinal).SequenceEqual(QualificationChannelContexts.Create(person, person.UserId, "author")
-            .AllowedCapabilities.Select(reference => reference.Id).Append(SpreadsheetOracle.ProposeImport).Order(StringComparer.Ordinal)));
-        Require(Throws(() => QualificationChannelContexts.Create(person, person.UserId, "sheet-author", Guid.NewGuid())));
-        Require(Program.Inventory(Registry(), QualificationChannelContexts.SpreadsheetReferences).Length == 15);
+        Require(Program.Inventory(Registry(), QualificationChannelContexts.AutomaticReferences).Length == 15);
+        Require(Throws(() => QualificationChannelContexts.Create(person, person.UserId, "sheet-author")));
     }
 
-    public static void Home_spreadsheets_name_what_home_does_not_offer_yet()
+    public static void Home_offer_gate_names_what_home_offers_otherwise()
     {
-        // Before plan task 9 Home offers propose-catalog@1 and neither spreadsheet proposal; the set says it and stops before seeding.
-        var before = Program.HomeSpreadsheetGaps([Definition(AuthoringOracle.ProposeCatalog, 1, home: true), Definition(AuthoringOracle.ProposeCatalog, 2),
-            Definition(SpreadsheetOracle.ProposeImport, 1, attachment: true), Definition("forms.authoring.forms", 1, home: true)]);
-        Require(before.SequenceEqual(["offer forms.authoring.propose-catalog@2", "offer forms.authoring.propose-import@1", "stop offering forms.authoring.propose-catalog@1"]));
-        var after = Program.HomeSpreadsheetGaps([Definition(AuthoringOracle.ProposeCatalog, 1), Definition(AuthoringOracle.ProposeCatalog, 2, home: true),
-            Definition(SpreadsheetOracle.ProposeImport, 1, home: true, attachment: true), Definition("forms.authoring.forms", 1, home: true)]);
-        Require(after.Count == 0);
-        Require(Program.HomeSpreadsheetGaps([Definition(AuthoringOracle.ProposeCatalog, 2, home: true), Definition(SpreadsheetOracle.ProposeImport, 1, attachment: true)])
-            .SequenceEqual(["offer forms.authoring.propose-import@1"]));
-        Require(Program.HomeSpreadsheetProposals.All(Program.HomeSpreadsheetCapabilities.Contains)
-            && !Program.HomeSpreadsheetCapabilities.Contains(new(AuthoringOracle.ProposeCatalog, 1)) && Program.HomeSpreadsheetCapabilities.Length == 12);
+        AssistantCapabilityDefinition[] expected = [..HomeRunner.SpreadsheetOffered.Select(reference => Definition(reference.Id, reference.Version, home: true,
+            attachment: reference.Id == SpreadsheetOracle.ProposeImport)), Definition(AuthoringOracle.ProposeCatalog, 1), Definition(AuthoringOracle.Decline, 1)];
+        // As the app registers it today (6e27fa0b): the Home sets start.
+        Require(Program.HomeOfferGaps(expected).Count == 0);
+        // Before it, Home offered version 1 and no import: the sets say so and stop before seeding, with fixed public Ids only.
+        var before = expected.Select(definition => definition.Id == SpreadsheetOracle.ProposeImport || definition is { Id: AuthoringOracle.ProposeCatalog, Version: 2 }
+            ? definition with { OfferedInHome = false } : definition is { Id: AuthoringOracle.ProposeCatalog, Version: 1 } ? definition with { OfferedInHome = true } : definition).ToArray();
+        Require(Program.HomeOfferGaps(before).SequenceEqual(["offer forms.authoring.propose-catalog@2", "offer forms.authoring.propose-import@1",
+            "stop offering forms.authoring.propose-catalog@1"]));
+        Require(Program.HomeOfferGaps(expected.Where(definition => definition.Id != AuthoringOracle.PeopleCatalog).ToArray())
+            .SequenceEqual(["offer forms.catalog-filters.propose@1"]));
+        // Offering what no Home set expects (decline) is not a gap of these sets.
+        Require(Program.HomeOfferGaps([..expected.Where(definition => definition.Id != AuthoringOracle.Decline), Definition(AuthoringOracle.Decline, 1, home: true)]).Count == 0);
     }
 
     public static void Spreadsheet_fixtures_cover_the_stage_cases_in_both_cultures()
@@ -258,7 +274,7 @@ internal static class SpreadsheetOfflineChecks
             : testCase.ExpectedKind == "proposal" && testCase.RequiredTools.Contains(testCase.Authoring.Capability, StringComparer.Ordinal)
                 && testCase.Authoring is { Capability: AuthoringOracle.ProposeCatalog, Version: 2 } or { Capability: SpreadsheetOracle.ProposeImport, Version: 1 }
                 && testCase.Authoring.Mapping is not null)));
-        Require(channel.All(testCase => testCase is { ActorKind: "sheet-author", Spreadsheet: not null, Authoring.Capability: { } capability }
+        Require(channel.All(testCase => testCase is { ActorKind: "author", Spreadsheet: not null, Authoring.Capability: { } capability }
             && testCase.RequiredTools.Contains(capability, StringComparer.Ordinal) && testCase.ExpectedPayload == testCase.Authoring switch
             {
                 { Capability: AuthoringOracle.ProposeCatalog, Version: 2, Mapping: not null } => "authoring-mapped-catalog",
@@ -626,7 +642,7 @@ internal static class SpreadsheetOfflineChecks
         };
         var tools = testCase.RequiredTools.Select(tool => new ObservedCapability(tool, tool == expected.Capability ? expected.Version : 1, 128,
             ProposalIds.Contains(tool) ? "proposed" : "complete")).ToArray();
-        var references = offered ?? Program.HomeSpreadsheetCapabilities;
+        var references = offered ?? Program.HomeAuthoringCapabilities;
         var technical = new TurnMetadata(3, tools.Length, 512, null, null, true, null, new("gpt-6.1-sol-candidate-1", 1, "public", "home-system", 2, "home"), tools)
         {
             ConversationId = conversation, Ordinal = ordinal, OfferedReferences = references, OfferedCapabilities = references.Select(reference => reference.Id).ToArray(),
@@ -669,12 +685,11 @@ internal static class SpreadsheetOfflineChecks
     {
         var testCase = Home("home-spreadsheets-xlsx-catalog-es");
         var (result, technical) = HomeTurn(testCase, Guid.NewGuid(), 1);
-        AssistantCapabilityReference[] stage1 = [..Program.HomeAuthoringCapabilities];
-        // Before plan task 9 Home offers version 1 and no import: the case does not pass in that context.
-        Require(!HomeAccepted(testCase, result, technical with { OfferedReferences = stage1 }));
-        Require(!HomeAccepted(testCase, result, technical with { OfferedReferences = [..Program.HomeSpreadsheetCapabilities.Where(reference => reference.Id != SpreadsheetOracle.ProposeImport)] }));
-        Require(!HomeAccepted(testCase, result, technical with { OfferedReferences = [..Program.HomeSpreadsheetCapabilities, new(AuthoringOracle.ProposeCatalog, 1)] }));
-        Require(!HomeAccepted(testCase, result, technical with { OfferedReferences = [..Program.HomeSpreadsheetCapabilities, new(AuthoringOracle.Decline, 1)] }));
+        // What Home offered before 6e27fa0b (version 1 and no import) is not the context of these cases.
+        Require(!HomeAccepted(testCase, result, technical with { OfferedReferences = HomeStage1 }));
+        Require(!HomeAccepted(testCase, result, technical with { OfferedReferences = [..Program.HomeAuthoringCapabilities.Where(reference => reference.Id != SpreadsheetOracle.ProposeImport)] }));
+        Require(!HomeAccepted(testCase, result, technical with { OfferedReferences = [..Program.HomeAuthoringCapabilities, new(AuthoringOracle.ProposeCatalog, 1)] }));
+        Require(!HomeAccepted(testCase, result, technical with { OfferedReferences = [..Program.HomeAuthoringCapabilities, new(AuthoringOracle.Decline, 1)] }));
         Require(!HomeAccepted(testCase, result with { ObservedProposal = result.ObservedProposal! with { Capability = new(AuthoringOracle.ProposeCatalog, 1) } }, technical));
         Require(!HomeAccepted(testCase, result with { Proposal = result.Proposal! with { Version = 1 } }, technical));
         Require(!HomeAccepted(testCase, result with { Answer = result.Answer! with { Kind = "answer" } }, technical));
@@ -781,7 +796,7 @@ internal static class SpreadsheetOfflineChecks
         var tools = testCase.RequiredTools.Select(tool => new ObservedCapability(tool, tool == expected.Capability ? expected.Version : 1, 128,
             ProposalIds.Contains(tool) ? "proposed" : "complete")).ToArray();
         var ownKey = QualificationSpreadsheets.ChannelKey(requestId, sheet.Kind);
-        var references = offered ?? QualificationChannelContexts.SpreadsheetReferences;
+        var references = offered ?? QualificationChannelContexts.AutomaticReferences;
         var technical = new TurnMetadata(3, tools.Length, 512, null, null, true, null, new("gpt-6.1-sol-candidate-1", 1, "public", "capabilities-v1", 1, "whatsapp-assistant"), tools)
         {
             ConversationId = conversation, Ordinal = ordinal, OfferedReferences = references, OfferedCapabilities = references.Select(reference => reference.Id).ToArray(),
@@ -824,10 +839,9 @@ internal static class SpreadsheetOfflineChecks
     {
         var testCase = Channel("channel-spreadsheets-catalog-es");
         var (result, technical, key) = ChannelTurn(testCase, Guid.NewGuid(), 1);
-        var person = new QualificationActor(Guid.NewGuid(), "offline", "es", "fictitious");
-        // The Stage 1 automatic context (version 1, no import) is not the spreadsheet conversation.
-        Require(!ChannelAccepted(testCase, result, technical with { OfferedReferences = QualificationChannelContexts.Create(person, person.UserId, "author").AllowedCapabilities }, null, key));
-        Require(!ChannelAccepted(testCase, result, technical with { OfferedReferences = [..QualificationChannelContexts.SpreadsheetReferences.Where(reference => reference.Id != SpreadsheetOracle.ProposeImport)] }, null, key));
+        // What the automatic conversation offered in Stage 1 (version 1, no import) is not the spreadsheet conversation.
+        Require(!ChannelAccepted(testCase, result, technical with { OfferedReferences = AutomaticStage1 }, null, key));
+        Require(!ChannelAccepted(testCase, result, technical with { OfferedReferences = [..QualificationChannelContexts.AutomaticReferences.Where(reference => reference.Id != SpreadsheetOracle.ProposeImport)] }, null, key));
         Require(!ChannelAccepted(testCase, result with { Proposal = result.Proposal! with { Capability = new(AuthoringOracle.ProposeCatalog, 1) } }, technical, null, key));
         Require(!ChannelAccepted(testCase, result with { Proposal = null }, technical, null, key) && !ChannelAccepted(testCase, result with { State = "failed" }, technical, null, key));
         // The operation sealed exactly the copy the harness kept, with the fixture's size and SHA-256.
@@ -879,18 +893,18 @@ internal static class SpreadsheetOfflineChecks
         var person = Guid.NewGuid();
         var entry = new QualificationLedgerEntry("channel-spreadsheets-answer-es", Guid.NewGuid(), person, null, null, "before-submit")
             { OperationKind = "channel", ChannelId = "whatsapp-assistant", InteractionMode = AssistantInteractionMode.Assistant, Culture = "es",
-              SubjectUserId = person, ChannelKind = "sheet-author", PreviousRequestId = Guid.NewGuid() };
+              SubjectUserId = person, ChannelKind = "author", PreviousRequestId = Guid.NewGuid() };
         var resumed = QualificationChannelContexts.Resume(entry);
-        Require(resumed is { ChannelId: "whatsapp-assistant", InteractionMode: AssistantInteractionMode.Assistant } && resumed.ActorUserId == person
-            && resumed.SubjectUserId == person && resumed.AllowedCapabilities.SequenceEqual(QualificationChannelContexts.SpreadsheetReferences));
-        Require(Throws(() => QualificationChannelContexts.Resume(entry with { SourceRecordId = Guid.NewGuid() }))
-            && Throws(() => QualificationChannelContexts.Resume(entry with { ChannelKind = "spreadsheet" })));
+        Require(resumed is { ChannelId: "whatsapp-assistant", InteractionMode: AssistantInteractionMode.Assistant, SourceRecordId: null } && resumed.ActorUserId == person
+            && resumed.SubjectUserId == person && resumed.AllowedCapabilities.SequenceEqual(QualificationChannelContexts.AutomaticReferences));
+        Require(Throws(() => QualificationChannelContexts.Resume(entry with { ChannelKind = "manual" }))
+            && Throws(() => QualificationChannelContexts.Resume(entry with { ChannelKind = "sheet-author" })));
         var directory = Path.Combine(AppContext.BaseDirectory, "offline-ledger-" + Guid.NewGuid().ToString("N"));Directory.CreateDirectory(directory);
         try
         {
             var ledger = new SafeRunLedger(new("offline_run", AppContext.BaseDirectory, directory, "unused", "unused", "unused"));
             await ledger.SaveAsync(entry, CancellationToken.None);await ledger.SaveAsync(entry with { Phase = "accepted" }, CancellationToken.None);
-            foreach (var changed in new[] { entry with { ChannelKind = "author" }, entry with { PreviousRequestId = null } })
+            foreach (var changed in new[] { entry with { ChannelKind = "auto" }, entry with { PreviousRequestId = null } })
             {
                 var rejected = false;
                 try { await ledger.SaveAsync(changed, CancellationToken.None); } catch (InvalidOperationException) { rejected = true; }

@@ -39,6 +39,9 @@ internal static partial class AuthoringOracle
         QualificationChannelFixture fixture, QualificationFixture actors, AssistantCapabilityPayload? previous) => expected.Capability switch
     {
         ProposeForm => FormChecks(expected, culture, payload as FormAuthoringFormProposal, fixture, previous),
+        // Since Stage 2 the app offers version 2: without a spreadsheet its output is version 1's catalog with a null spreadsheet.
+        ProposeCatalog when expected.Version == SpreadsheetOracle.MappedCatalogVersion => CatalogChecks(expected, culture,
+            payload is FormAuthoringMappedCatalogProposal { Spreadsheet: null } mapped ? mapped.ToCatalog() : null, fixture),
         ProposeCatalog => CatalogChecks(expected, culture, payload as FormAuthoringCatalogProposal, fixture),
         Decline => DeclineChecks(expected, payload as FormAuthoringDecline, fixture),
         PeopleCatalog => [new("authoring-payload-type", payload is FormCatalogProposalPayload),
@@ -152,6 +155,10 @@ internal static partial class AuthoringOracle
     // What the sealed context offered after the engine filtered the catalog by the account's current permissions.
     public static bool Offered(IReadOnlyCollection<string> offered, IEnumerable<string> required, IEnumerable<string> forbidden) =>
         required.All(id => offered.Contains(id, StringComparer.Ordinal)) && !forbidden.Any(id => offered.Contains(id, StringComparer.Ordinal));
+
+    // The same by Id and version (Stage 2: propose-catalog@1 and @2 share an Id), also filtered by the turn's spreadsheet.
+    public static bool Offered(IReadOnlyCollection<AssistantCapabilityReference> offered, IEnumerable<AssistantCapabilityReference> required,
+        IEnumerable<AssistantCapabilityReference> forbidden) => required.All(offered.Contains) && !forbidden.Any(offered.Contains);
 
     public static bool SameText(string? expected, string? actual) => Canonical(expected) is { Length: > 0 } canonical && canonical == Canonical(actual);
 

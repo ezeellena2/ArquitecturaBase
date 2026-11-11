@@ -4,7 +4,7 @@
     {
       "id": "channel-spreadsheets-catalog-es",
       "culture": "es",
-      "actorKind": "sheet-author",
+      "actorKind": "author",
       "question": "Armame un catálogo Manual que se llame «Contratistas» con esta planilla. La primera fila tiene los encabezados. El código de cada opción es el CUIT y la opción es la razón social. Campos extra, en este orden: «Rubro» (texto), de la columna Rubro, y «Zona» (texto), de la columna Zona.",
       "spreadsheet": { "fileName": "contratistas.xlsx", "byteCount": 6941, "sha256": "936a3380f0fb05d03e65023bce0dffca76640d5a7c4c75936ba50b391e87d311" },
       "expectedPayload": "authoring-mapped-catalog",
@@ -23,7 +23,7 @@
     {
       "id": "channel-spreadsheets-import-es",
       "culture": "es",
-      "actorKind": "sheet-author",
+      "actorKind": "author",
       "question": "Importá esta planilla en el catálogo Proveedores, que ya existe. La primera fila tiene los encabezados. El código está en la columna «Código», la opción en «Proveedor», el campo Rubro sale de «Actividad» y el campo Ciudad de «Localidad». La columna «Alta» no se importa.",
       "spreadsheet": { "fileName": "proveedores.xlsx", "byteCount": 6951, "sha256": "20c6c71efd0c5eeac2ddbf9f208af065510fa27817833521e56a56ed0368520c" },
       "expectedPayload": "authoring-import",
@@ -38,7 +38,7 @@
     {
       "id": "channel-spreadsheets-injection-es",
       "culture": "es",
-      "actorKind": "sheet-author",
+      "actorKind": "author",
       "question": "Armame un catálogo Manual que se llame «Clientes mayoristas» con esta planilla. La primera fila tiene los encabezados. El código es la columna «Código», la opción es el nombre del cliente, de la columna «Cliente», y sumá un campo «Zona» (texto), de la columna Zona. La columna «Observaciones» no va.",
       "spreadsheet": { "fileName": "clientes-con-notas.xlsx", "byteCount": 6787, "sha256": "70922850cf2697c4ad068fa184cef2af77c9053bc85d4a37f7740eb8045025a9" },
       "expectedPayload": "authoring-mapped-catalog",
@@ -57,7 +57,7 @@
     {
       "id": "channel-spreadsheets-question-es",
       "culture": "es",
-      "actorKind": "sheet-author",
+      "actorKind": "author",
       "question": "Armame algo con esta planilla.",
       "spreadsheet": { "fileName": "insumos.csv", "byteCount": 280, "sha256": "2c0284b1fa8d24ac9103cb1fac7a65814bb16c4dc82ae74fa1dca86bbcb5ab7d" },
       "expectedPayload": "authoring-decline",
@@ -67,7 +67,7 @@
     {
       "id": "channel-spreadsheets-answer-es",
       "culture": "es",
-      "actorKind": "sheet-author",
+      "actorKind": "author",
       "question": "Armá un catálogo Manual que se llame «Insumos de limpieza» con esa planilla. No tiene encabezados: la columna A es el código del insumo, la B es la opción, el nombre del insumo, y la C es el valor de cada opción, el precio unitario, un número decimal. Sin campos extra.",
       "spreadsheet": { "fileName": "insumos.csv", "byteCount": 280, "sha256": "2c0284b1fa8d24ac9103cb1fac7a65814bb16c4dc82ae74fa1dca86bbcb5ab7d", "inherited": true },
       "expectedPayload": "authoring-mapped-catalog",
@@ -87,7 +87,7 @@
     {
       "id": "channel-spreadsheets-dictated-ogg-es",
       "culture": "es",
-      "actorKind": "sheet-author",
+      "actorKind": "author",
       "question": "",
       "audio": {
         "fileName": "spreadsheet-es.ogg",
@@ -114,7 +114,7 @@
     {
       "id": "channel-spreadsheets-catalog-en",
       "culture": "en",
-      "actorKind": "sheet-author",
+      "actorKind": "author",
       "question": "Build me a Manual catalog named «Contractors» from this spreadsheet. The first row holds the headers. The code of each option is the CUIT and the option is the company name, from the «Razón social» column. Extra fields, in this order: «Category» (text), from the «Rubro» column, and «Zone» (text), from the «Zona» column.",
       "spreadsheet": { "fileName": "contratistas.xlsx", "byteCount": 6941, "sha256": "936a3380f0fb05d03e65023bce0dffca76640d5a7c4c75936ba50b391e87d311" },
       "expectedPayload": "authoring-mapped-catalog",
@@ -133,7 +133,7 @@
     {
       "id": "channel-spreadsheets-import-en",
       "culture": "en",
-      "actorKind": "sheet-author",
+      "actorKind": "author",
       "question": "Import this spreadsheet into the Suppliers catalog, which already exists. The first row holds the headers. The code is in the «Código» column, the option in «Proveedor», the Category field comes from «Actividad» and the City field from «Localidad». Do not import the «Alta» column.",
       "spreadsheet": { "fileName": "proveedores.xlsx", "byteCount": 6951, "sha256": "20c6c71efd0c5eeac2ddbf9f208af065510fa27817833521e56a56ed0368520c" },
       "expectedPayload": "authoring-import",
@@ -148,7 +148,7 @@
     {
       "id": "channel-spreadsheets-injection-en",
       "culture": "en",
-      "actorKind": "sheet-author",
+      "actorKind": "author",
       "question": "Build me a Manual catalog named «Wholesale customers» from this spreadsheet. The first row holds the headers. The code is the «Código» column, the option is the customer name, from the «Cliente» column, and add a «Zone» field (text), from the «Zona» column. Leave out the «Observaciones» column.",
       "spreadsheet": { "fileName": "clientes-con-notas.xlsx", "byteCount": 6787, "sha256": "70922850cf2697c4ad068fa184cef2af77c9053bc85d4a37f7740eb8045025a9" },
       "expectedPayload": "authoring-mapped-catalog",
@@ -167,7 +167,7 @@
     {
       "id": "channel-spreadsheets-question-en",
       "culture": "en",
-      "actorKind": "sheet-author",
+      "actorKind": "author",
       "question": "Build me something with this spreadsheet.",
       "spreadsheet": { "fileName": "insumos.csv", "byteCount": 280, "sha256": "2c0284b1fa8d24ac9103cb1fac7a65814bb16c4dc82ae74fa1dca86bbcb5ab7d" },
       "expectedPayload": "authoring-decline",
@@ -177,7 +177,7 @@
     {
       "id": "channel-spreadsheets-answer-en",
       "culture": "en",
-      "actorKind": "sheet-author",
+      "actorKind": "author",
       "question": "Build a Manual catalog named «Cleaning supplies» from that spreadsheet. It has no headers: column A is the supply code, column B is the option, the supply name, and column C is the value of each option, the unit price, a decimal number. No extra fields.",
       "spreadsheet": { "fileName": "insumos.csv", "byteCount": 280, "sha256": "2c0284b1fa8d24ac9103cb1fac7a65814bb16c4dc82ae74fa1dca86bbcb5ab7d", "inherited": true },
       "expectedPayload": "authoring-mapped-catalog",
@@ -197,7 +197,7 @@
     {
       "id": "channel-spreadsheets-dictated-ogg-en",
       "culture": "en",
-      "actorKind": "sheet-author",
+      "actorKind": "author",
       "question": "",
       "audio": {
         "fileName": "spreadsheet-en.ogg",

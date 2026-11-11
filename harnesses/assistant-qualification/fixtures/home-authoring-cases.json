@@ -68,6 +68,7 @@
       "minimumProviderSteps": 3,
       "authoring": {
         "capability": "forms.authoring.propose-catalog",
+        "version": 2,
         "name": "Herramientas del taller",
         "valueType": "text",
         "code": "número de inventario",
@@ -425,6 +426,7 @@
       "minimumProviderSteps": 3,
       "authoring": {
         "capability": "forms.authoring.propose-catalog",
+        "version": 2,
         "name": "Workshop tools",
         "valueType": "text",
         "code": "inventory number",

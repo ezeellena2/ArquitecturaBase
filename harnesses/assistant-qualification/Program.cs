@@ -38,16 +38,9 @@ internal static partial class Program
     internal const string ChannelSpreadsheetFile="channel-spreadsheet-cases.json";
     // What each context offers, by Id and version: the stamps of its definitions. The five Home reads are version 1.
     internal static readonly AssistantCapabilityReference[] HomeReferences=[..QualificationSeed.HomeCapabilities.Select(id=>new AssistantCapabilityReference(id,1))];
-    // Home stamps for authoring cases: the five reads plus what BusinessForms offers in Home (authoring and H4), propose-catalog@1 as in Stage 1.
-    internal static readonly AssistantCapabilityReference[] HomeAuthoringCapabilities=[..HomeReferences,..new[]{"forms.authoring.catalogs","forms.authoring.forms",
-        "forms.authoring.propose-catalog","forms.authoring.propose-form","forms.catalog-filters.metadata","forms.catalog-filters.propose"}
-        .Select(id=>new AssistantCapabilityReference(id,1))];
-    // Home stamps for spreadsheet cases: the five reads plus what Home offers with a spreadsheet once the front draws it (plan task 9).
-    internal static readonly AssistantCapabilityReference[] HomeSpreadsheetCapabilities=[..HomeReferences,..HomeRunner.SpreadsheetOffered];
-    // Home offers the spreadsheet proposals only from plan task 9, which flips OfferedInHome; before that home-spreadsheets says what is
-    // missing and stops before any seed or provider call.
-    internal static readonly AssistantCapabilityReference[] HomeSpreadsheetProposals=[new(AuthoringOracle.ProposeCatalog,SpreadsheetOracle.MappedCatalogVersion),
-        new(SpreadsheetOracle.ProposeImport,1)];
+    // Home stamps for the authoring and spreadsheet cases: the five reads plus what BusinessForms offers in Home (authoring and H4), since
+    // 6e27fa0b the catalog in version 2 and the import, which the engine leaves out of a turn without a spreadsheet.
+    internal static readonly AssistantCapabilityReference[] HomeAuthoringCapabilities=[..HomeReferences,..HomeRunner.SpreadsheetOffered];
 
     private static async Task<int> Main(string[] args)
     {
@@ -95,8 +88,8 @@ internal static partial class Program
                 if(selected!="stage5-all")throw new InvalidOperationException("Existing full runs retain their complete case inventory.");
                 return await ContinueExistingAsync(host,settings,ct);
             }
-            // Before any seed or provider call: Home offers the spreadsheet proposals only from plan task 9.
-            if(homeSpreadsheets && !HomeOffersSpreadsheets(host))return 2;
+            // Before any seed or provider call: the Home authoring and spreadsheet cases expect what Home offers today, by Id and version.
+            if((homeAuthoring || homeSpreadsheets) && !HomeOffersAuthoring(host))return 2;
             QualificationFixture fixture;QualificationChannelFixture? forms=null;
             await using(var scope=host.Services.CreateAsyncScope())
             {
@@ -121,8 +114,8 @@ internal static partial class Program
                 if(selected is "channel-stage5" or "stage5-all")if(!await RunChannelsAsync(host,settings,fixture,forms!,"channel-cases.json",QualificationChannelContexts.References,ct))return 1;
                 if(channelAuthoring)if(!await RunChannelsAsync(host,settings,fixture,forms!,ChannelAuthoringFile,QualificationChannelContexts.References,ct,selected))return 1;
                 if(selected is "audio-es-en" or "stage5-all")if(!await RunAudioAsync(host,settings,fixture,ct))return 1;
-                if(homeSpreadsheets)if(!await RunHomeAsync(host,settings,fixture,forms,HomeSpreadsheetFile,HomeSpreadsheetCapabilities,ct))return 1;
-                if(channelSpreadsheets)if(!await RunChannelsAsync(host,settings,fixture,forms!,ChannelSpreadsheetFile,QualificationChannelContexts.SpreadsheetReferences,ct))return 1;
+                if(homeSpreadsheets)if(!await RunHomeAsync(host,settings,fixture,forms,HomeSpreadsheetFile,HomeAuthoringCapabilities,ct))return 1;
+                if(channelSpreadsheets)if(!await RunChannelsAsync(host,settings,fixture,forms!,ChannelSpreadsheetFile,QualificationChannelContexts.References,ct))return 1;
                 return 0; // Mechanical checks do not declare production qualification.
             }
             finally{await host.StopAsync(CancellationToken.None);}
@@ -342,20 +335,22 @@ internal static partial class Program
             throw new InvalidOperationException("Qualification capability inventory changed.");
         return definitions;
     }
-    // What Home still has to offer for home-spreadsheets, by Id and version, from what the owners declare OfferedInHome.
-    internal static IReadOnlyList<string> HomeSpreadsheetGaps(IEnumerable<AssistantCapabilityDefinition> registered)
+    // How what Home offers, from what the owners declare OfferedInHome, differs from what the Home authoring and spreadsheet cases expect,
+    // by Id and version: a missing reference, or another version of one of their Ids (Home never offers two).
+    internal static IReadOnlyList<string> HomeOfferGaps(IEnumerable<AssistantCapabilityDefinition> registered)
     {
+        static string Name(AssistantCapabilityReference reference)=>reference.Id+"@"+reference.Version.ToString(CultureInfo.InvariantCulture);
+        var expected=HomeRunner.SpreadsheetOffered;
         var offered=registered.Where(item=>item.OfferedInHome).Select(item=>new AssistantCapabilityReference(item.Id,item.Version)).ToArray();
-        return [..HomeSpreadsheetProposals.Where(reference=>!offered.Contains(reference)).Select(reference=>"offer "+reference.Id+"@"+reference.Version.ToString(CultureInfo.InvariantCulture)),
-            ..offered.Where(reference=>reference.Id==AuthoringOracle.ProposeCatalog && reference.Version!=SpreadsheetOracle.MappedCatalogVersion)
-                .Select(reference=>"stop offering "+reference.Id+"@"+reference.Version.ToString(CultureInfo.InvariantCulture))];
+        return [..expected.Where(reference=>!offered.Contains(reference)).Select(reference=>"offer "+Name(reference)),
+            ..offered.Where(reference=>!expected.Contains(reference) && expected.Any(item=>item.Id==reference.Id)).Select(reference=>"stop offering "+Name(reference))];
     }
     // Only fixed public capability IDs are printed, before the database is seeded or the provider is called.
-    private static bool HomeOffersSpreadsheets(IHost host)
+    private static bool HomeOffersAuthoring(IHost host)
     {
         using var scope=host.Services.CreateScope();
-        var gaps=HomeSpreadsheetGaps(scope.ServiceProvider.GetServices<IAssistantCapabilitySource>().SelectMany(source=>source.Definitions));
-        foreach(var gap in gaps)Console.Error.WriteLine("qualification-home-spreadsheets-needs-plan-task-9: Home must "+gap);
+        var gaps=HomeOfferGaps(scope.ServiceProvider.GetServices<IAssistantCapabilitySource>().SelectMany(source=>source.Definitions));
+        foreach(var gap in gaps)Console.Error.WriteLine("qualification-home-offer-differs: Home must "+gap);
         return gaps.Count==0;
     }
     private static async Task<int> ResumeAsync(IHost host,QualificationSettings settings,CancellationToken ct)

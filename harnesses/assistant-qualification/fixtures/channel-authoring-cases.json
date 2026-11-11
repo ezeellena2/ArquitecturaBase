@@ -27,13 +27,14 @@
       "culture": "es",
       "actorKind": "author",
       "question": "Armame un catálogo Manual, sin planilla, que se llame «Vehículos de reparto». Las opciones no tienen valor. El código es la patente y la opción es el modelo del vehículo. Campos extra, en este orden: «Año» (número entero) y «Capacidad de carga» (número decimal).",
-      "expectedPayload": "authoring-catalog",
+      "expectedPayload": "authoring-mapped-catalog",
       "requiredTools": [
         "forms.authoring.catalogs",
         "forms.authoring.propose-catalog"
       ],
       "authoring": {
         "capability": "forms.authoring.propose-catalog",
+        "version": 2,
         "name": "Vehículos de reparto",
         "valueType": "text",
         "code": "patente",
@@ -262,13 +263,14 @@
       "culture": "en",
       "actorKind": "author",
       "question": "Build me a manual catalog, without a spreadsheet, named «Delivery vehicles». The options have no value. The code is the license plate and the option is the vehicle model. Extra fields, in this order: «Year» (whole number) and «Load capacity» (decimal number).",
-      "expectedPayload": "authoring-catalog",
+      "expectedPayload": "authoring-mapped-catalog",
       "requiredTools": [
         "forms.authoring.catalogs",
         "forms.authoring.propose-catalog"
       ],
       "authoring": {
         "capability": "forms.authoring.propose-catalog",
+        "version": 2,
         "name": "Delivery vehicles",
         "valueType": "text",
         "code": "license plate",

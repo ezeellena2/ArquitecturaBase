@@ -12,9 +12,12 @@ internal static class ChannelOfflineChecks
         Check("manual-fixes-neutral-interaction-mode",context.InteractionMode==AssistantInteractionMode.Manual);
         var automatic=QualificationChannelContexts.Create(actor,context.SubjectUserId!.Value,"auto");
         Check("automatic-fixes-neutral-interaction-mode",automatic.InteractionMode==AssistantInteractionMode.Assistant);
-        Check("automatic-keeps-catalog-proposals",automatic.AllowedCapabilities.Count==14 && automatic.AllowedCapabilities.Count(capability=>capability.Id.StartsWith("forms.catalog-filters.",StringComparison.Ordinal))==2);
-        // IA3-A: only the person's own automatic conversation offers authoring; the engine then filters it by permissions.
-        Check("automatic-offers-authoring-in-own-conversation",QualificationChannelContexts.AuthoringCapabilities.All(id=>automatic.AllowedCapabilities.Count(capability=>capability.Id==id && capability.Version==1)==1)
+        Check("automatic-keeps-catalog-proposals",automatic.AllowedCapabilities.Count==15 && automatic.AllowedCapabilities.Count(capability=>capability.Id.StartsWith("forms.catalog-filters.",StringComparison.Ordinal))==2);
+        // IA3-A: only the person's own automatic conversation offers authoring; the engine then filters it by permissions. Since Stage 2 it
+        // is exactly WhatsAppAssistantAccessPolicy's: the catalog in version 2 and the import, which needs the turn's spreadsheet.
+        Check("automatic-offers-authoring-in-own-conversation",automatic.AllowedCapabilities.SequenceEqual(QualificationChannelContexts.AutomaticReferences)
+            && QualificationChannelContexts.AuthoringCapabilities.All(id=>automatic.AllowedCapabilities.Count(capability=>capability.Id==id)==1)
+            && automatic.AllowedCapabilities.Contains(new("forms.authoring.propose-catalog",2)) && automatic.AllowedCapabilities.Contains(new("forms.authoring.propose-import",1))
             && automatic.AllowedCapabilities.Select(capability=>capability.Id).Distinct(StringComparer.Ordinal).Count()==automatic.AllowedCapabilities.Count);
         var author=QualificationChannelContexts.Create(actor,actor.UserId,"author");
         Check("author-context-is-the-automatic-own-conversation",author.ChannelId=="whatsapp-assistant" && author.InteractionMode==AssistantInteractionMode.Assistant

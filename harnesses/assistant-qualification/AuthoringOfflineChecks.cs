@@ -38,7 +38,7 @@ internal static class AuthoringOfflineChecks
         Catalogs = QualificationFormSeed.CatalogNames.Select(text => new QualificationCatalog(text.Alias, Guid.NewGuid(), Names(text.Spanish, text.English))).ToArray(),
     };
     private static readonly HashSet<string> ProposalIds = new(StringComparer.Ordinal) { "forms.authoring.propose-form", "forms.authoring.propose-catalog",
-        "forms.authoring.decline", "forms.catalog-filters.propose", "forms.missing-request.propose", "forms.propose-registration",
+        SpreadsheetOracle.ProposeImport, "forms.authoring.decline", "forms.catalog-filters.propose", "forms.missing-request.propose", "forms.propose-registration",
         "forms.clarify-registration", "forms.propose-suggestion", "whatsapp.no-reply", "whatsapp.decline-form" };
     private static readonly string[] HomeQueries = ["business.information", "roles.list", "roles.permissions", "system.help", "users.summary"];
     private static readonly string[] HomeAuthoring = ["forms.authoring.forms", "forms.authoring.catalogs", "forms.authoring.propose-form",
@@ -64,6 +64,10 @@ internal static class AuthoringOfflineChecks
             expected.Prefix ?? IdealPrefix, culture == "es" ? "Enviar" : "Submit", expected.Questions!.Select(question => new FormAuthoringProposedQuestion(
                 question.Label, question.Type, question.Required, question.Options ?? [],
                 question.Catalog is { } alias ? new FormAuthoringProposedCatalog(Fixture.Catalog(alias).Id, Fixture.Catalog(alias).Names["es"]) : null)).ToArray()),
+        // Since Stage 2 the app offers version 2: without a spreadsheet, version 1's catalog with a null spreadsheet.
+        "forms.authoring.propose-catalog" when expected.Version == SpreadsheetOracle.MappedCatalogVersion => new FormAuthoringMappedCatalogProposal(culture,
+            expected.Name!, culture == "es" ? "Catálogo ficticio." : "Fictitious catalog.", expected.ValueType!, Capitalized(expected.Code!),
+            Capitalized(expected.Option!), expected.Fields!.Select(field => new FormAuthoringProposedField(field.Name, field.Type)).ToArray(), null),
         "forms.authoring.propose-catalog" => new FormAuthoringCatalogProposal(culture, expected.Name!, culture == "es" ? "Catálogo ficticio." : "Fictitious catalog.",
             expected.ValueType!, Capitalized(expected.Code!), Capitalized(expected.Option!), expected.Fields!.Select(field => new FormAuthoringProposedField(field.Name, field.Type)).ToArray()),
         "forms.authoring.decline" => expected.DeclineReason switch
@@ -117,11 +121,18 @@ internal static class AuthoringOfflineChecks
             && home.Where(testCase => Stem(testCase.Id, "home-authoring-") == "ambiguous").All(testCase => testCase.ExpectedKind == "clarification"));
         Require(channel.All(testCase => testCase.Authoring?.Capability is { } capability && testCase.RequiredTools.Contains(capability, StringComparer.Ordinal)
             && testCase.ActorKind == (Stem(testCase.Id, "channel-authoring-") == "no-permission" ? "auto" : "author")
-            && testCase.ExpectedPayload == capability switch
+            && testCase.ExpectedPayload == testCase.Authoring switch
             {
-                "forms.authoring.propose-form" => "authoring-form", "forms.authoring.propose-catalog" => "authoring-catalog",
-                "forms.authoring.decline" => "authoring-decline", _ => "unknown",
+                { Capability: "forms.authoring.propose-form", Version: 1 } => "authoring-form",
+                { Capability: "forms.authoring.propose-catalog", Version: SpreadsheetOracle.MappedCatalogVersion } => "authoring-mapped-catalog",
+                { Capability: "forms.authoring.decline", Version: 1 } => "authoring-decline", _ => "unknown",
             }));
+        // The app offers the catalog only in version 2, in Home and in the automatic conversation: every catalog case expects it.
+        Require(home.Select(testCase => testCase.Authoring!).Concat(channel.Select(testCase => testCase.Authoring!))
+            .Where(expected => expected.Capability == "forms.authoring.propose-catalog")
+            .Count(expected => expected is { Version: SpreadsheetOracle.MappedCatalogVersion, Mapping: null }) == 4
+            && home.Select(testCase => testCase.Authoring!).Concat(channel.Select(testCase => testCase.Authoring!))
+                .All(expected => expected.Capability == "forms.authoring.propose-catalog" ? expected.Version == SpreadsheetOracle.MappedCatalogVersion : expected.Version == 1));
         // An adjustment continues the start of its own culture and actor, in the same Home conversation or after it in the channel.
         foreach (var change in home.Where(testCase => testCase.Authoring!.Continues is not null))
         {
@@ -251,7 +262,7 @@ internal static class AuthoringOfflineChecks
             Require(!Passes(testCase.Authoring!, culture, proposal with { Prefix = "mant" }));
             Require(!Passes(testCase.Authoring!, culture, proposal with { Prefix = "MANTENIMIENTO1" }));
         }
-        var catalog = Home("home-authoring-catalog-es");var proposed = (FormAuthoringCatalogProposal)Ideal(catalog.Authoring!, "es");
+        var catalog = Home("home-authoring-catalog-es");var proposed = (FormAuthoringMappedCatalogProposal)Ideal(catalog.Authoring!, "es");
         Require(!Passes(catalog.Authoring!, "es", proposed with { Name = "Color" }) && !Passes(catalog.Authoring! with { Name = null }, "es", proposed with { Name = "Branch" }));
     }
 
@@ -292,8 +303,12 @@ internal static class AuthoringOfflineChecks
         foreach (var testCase in HomeCases().Where(item => item.Authoring!.Capability == "forms.authoring.propose-catalog").Select(item => (item.Authoring!, item.Culture))
             .Concat(ChannelCases().Where(item => item.Authoring!.Capability == "forms.authoring.propose-catalog").Select(item => (item.Authoring!, item.Culture))))
         {
-            var (expected, culture) = testCase;var proposal = (FormAuthoringCatalogProposal)Ideal(expected, culture);
+            var (expected, culture) = testCase;var proposal = (FormAuthoringMappedCatalogProposal)Ideal(expected, culture);
             Require(Passes(expected, culture, proposal));
+            // The app offers version 2: version 1's catalog is not the expected output, nor one that maps a spreadsheet nobody sent.
+            Require(!Passes(expected, culture, proposal.ToCatalog()));
+            Require(!Passes(expected, culture, proposal with { Spreadsheet = new("planilla.xlsx", "Hoja1", 2, true,
+                [new("code", null, null, "A", "Código"), new("option", null, null, "B", "Nombre")], []) }));
             Require(!Passes(expected, culture, proposal with { ValueType = "integer" }));
             Require(!Passes(expected, culture, proposal with { Code = proposal.Option }));
             Require(!Passes(expected, culture, proposal with { Option = "" }));
@@ -357,8 +372,9 @@ internal static class AuthoringOfflineChecks
         }
     }
 
+    // A catalog the app proposes today is version 2; everything else here is version 1.
     private static AssistantObservedProposal Observed(Guid turn, string capability, AssistantCapabilityPayload payload, params AssistantObservedRead[] reads) =>
-        new(turn, Guid.NewGuid(), new(capability, 1), payload) { ObservedReads = reads };
+        new(turn, Guid.NewGuid(), new(capability, payload is FormAuthoringMappedCatalogProposal ? SpreadsheetOracle.MappedCatalogVersion : 1), payload) { ObservedReads = reads };
     private static AssistantObservedRead FormsRead(Guid turn, int ordinal = 1) => new(turn, ordinal, new("forms.authoring.forms", 1), new FormAuthoringFormsPayload(true, []));
     private static AssistantObservedRead CatalogsRead(Guid turn, int ordinal = 2) => new(turn, ordinal, new("forms.authoring.catalogs", 1), new FormAuthoringCatalogsPayload(true, []));
 
@@ -381,7 +397,7 @@ internal static class AuthoringOfflineChecks
             ["forms.catalog-filters.metadata", "forms.catalog-filters.propose"]));
     }
 
-    private static ObservedCapability Tool(string id, string state) => new(id, 1, 128, state);
+    private static ObservedCapability Tool(string id, string state, int version = 1) => new(id, version, 128, state);
 
     public static void Authoring_rejection_must_be_followed_by_an_accepted_proposal()
     {
@@ -393,6 +409,10 @@ internal static class AuthoringOfflineChecks
         Require(!AuthoringOracle.RejectionsRecovered([Tool(form, "proposed"), Tool(form, "rejected")], form));
         Require(!AuthoringOracle.RejectionsRecovered([Tool(form, "rejected"), Tool("forms.authoring.propose-catalog", "proposed")], form));
         Require(AuthoringOracle.RejectionsRecovered([Tool("forms.authoring.decline", "rejected"), Tool("forms.authoring.decline", "proposed")], "forms.authoring.decline"));
+        // The recovery is in the version the context offers: the catalog in version 2, never version 1.
+        const string catalog = "forms.authoring.propose-catalog";
+        Require(AuthoringOracle.RejectionsRecovered([Tool(catalog, "rejected", 2), Tool(catalog, "proposed", 2)], catalog, 2)
+            && !AuthoringOracle.RejectionsRecovered([Tool(catalog, "rejected", 2), Tool(catalog, "proposed", 1)], catalog, 2));
     }
 
     public static void Authoring_turn_proposes_only_the_expected_capability()
@@ -416,9 +436,10 @@ internal static class AuthoringOfflineChecks
         Require(AuthoringOracle.Offered(HomeQueries, [], HomeAuthoring) && !AuthoringOracle.Offered([..HomeQueries, "forms.authoring.forms"], [], HomeAuthoring));
     }
 
-    private static readonly string[] HomeOffered = [..HomeQueries, ..HomeAuthoring];
+    // What Home offers an author in a turn without a spreadsheet, by Id and version: the five reads and everything but the import.
+    private static readonly AssistantCapabilityReference[] HomeOffered = [..Program.HomeReferences, ..HomeRunner.AuthoringOffered];
     private static (AiAssistantTurnResponse Result, TurnMetadata Technical) HomeTurn(HomeCase testCase, Guid conversation, int ordinal,
-        IReadOnlyList<string>? offered = null, string kind = "proposal", int instructionsVersion = 2, Guid? proposalId = null)
+        IReadOnlyList<AssistantCapabilityReference>? offered = null, string kind = "proposal", int instructionsVersion = 2, Guid? proposalId = null)
     {
         var turn = Guid.NewGuid();var payload = testCase.Authoring!.Capability is null ? null : Ideal(testCase.Authoring!, testCase.Culture);
         var reads = testCase.RequiredTools.Select((tool, index) => tool switch
@@ -434,12 +455,15 @@ internal static class AuthoringOfflineChecks
             testCase.Culture, "America/Argentina/Buenos_Aires", DateTime.UnixEpoch, DateTime.UnixEpoch, 2)
         {
             ObservedProposal = observed,
-            Proposal = observed is null ? null : new AiAssistantProposalResponse(proposalId ?? observed.Id, observed.Capability.Id, 1, JsonSerializer.SerializeToElement(new { })),
+            Proposal = observed is null ? null : new AiAssistantProposalResponse(proposalId ?? observed.Id, observed.Capability.Id, observed.Capability.Version,
+                JsonSerializer.SerializeToElement(new { })),
         };
-        var tools = testCase.RequiredTools.Select(tool => Tool(tool, ProposalIds.Contains(tool) ? "proposed" : "complete")).ToArray();
+        var tools = testCase.RequiredTools.Select(tool => Tool(tool, ProposalIds.Contains(tool) ? "proposed" : "complete",
+            tool == testCase.Authoring!.Capability ? testCase.Authoring.Version : 1)).ToArray();
+        var references = offered ?? (testCase.ActorKind == "author" ? HomeOffered : Program.HomeReferences);
         var technical = new TurnMetadata(3, tools.Length, 512, null, null, true, null,
             new("gpt-6.1-sol-candidate-1", 1, "public", "home-system", instructionsVersion, "home"), tools)
-        { ConversationId = conversation, Ordinal = ordinal, OfferedCapabilities = offered ?? (testCase.ActorKind == "author" ? HomeOffered : HomeQueries) };
+        { ConversationId = conversation, Ordinal = ordinal, OfferedReferences = references, OfferedCapabilities = [..references.Select(reference => reference.Id)] };
         return (result, technical);
     }
     private static bool HomeAccepted(HomeCase testCase, AiAssistantTurnResponse result, TurnMetadata technical,
@@ -468,12 +492,29 @@ internal static class AuthoringOfflineChecks
         Require(!HomeAccepted(testCase, result with { ObservedProposal = result.ObservedProposal! with { TurnId = Guid.NewGuid() } }, technical));
         Require(!HomeAccepted(testCase, result with { ObservedProposal = result.ObservedProposal! with { Capability = new("forms.authoring.propose-catalog", 1) } }, technical));
         Require(!HomeAccepted(testCase, result, technical with { Stamps = technical.Stamps with { InstructionsVersion = 1 } }));
-        Require(!HomeAccepted(testCase, result, technical with { OfferedCapabilities = HomeQueries }));
+        Require(!HomeAccepted(testCase, result, technical with { OfferedReferences = Program.HomeReferences }));
+        // Home offers the catalog in version 2 and, in a turn without a spreadsheet, no import: version 1 or the import are another offer.
+        Require(!HomeAccepted(testCase, result, technical with { OfferedReferences = [..HomeOffered.Where(reference => reference.Id != AuthoringOracle.ProposeCatalog),
+            new(AuthoringOracle.ProposeCatalog, 1)] }));
+        Require(!HomeAccepted(testCase, result, technical with { OfferedReferences = [..HomeOffered, new(SpreadsheetOracle.ProposeImport, 1)] }));
         Require(!HomeAccepted(testCase, result, technical with { Capabilities = [..technical.Capabilities, Tool("forms.authoring.propose-form", "rejected")] }));
         Require(!HomeAccepted(testCase, result, technical with { Capabilities = [..technical.Capabilities, Tool("forms.catalog-filters.propose", "proposed")] }));
         Require(!HomeAccepted(testCase, result with { ObservedProposal = result.ObservedProposal! with { ObservedReads = [] } }, technical));
         Require(HomeAccepted(testCase, result, technical with { Capabilities = [technical.Capabilities[0], technical.Capabilities[1],
             Tool("forms.authoring.propose-form", "rejected"), technical.Capabilities[2]] }));
+        // The catalog the app proposes is version 2, without a spreadsheet: version 1's terminal or output is not it.
+        foreach (var culture in new[] { "es", "en" })
+        {
+            var catalog = Home("home-authoring-catalog-" + culture);
+            var (shown, shownTechnical) = HomeTurn(catalog, Guid.NewGuid(), 1);var observed = shown.ObservedProposal!;
+            Require(HomeAccepted(catalog, shown, shownTechnical) && observed.Capability == new AssistantCapabilityReference(AuthoringOracle.ProposeCatalog, 2));
+            Require(!HomeAccepted(catalog, shown with { ObservedProposal = observed with { Capability = new(AuthoringOracle.ProposeCatalog, 1) } }, shownTechnical));
+            Require(!HomeAccepted(catalog, shown with { Proposal = shown.Proposal! with { Version = 1 } }, shownTechnical));
+            Require(!HomeAccepted(catalog, shown with { ObservedProposal = observed with {
+                Payload = ((FormAuthoringMappedCatalogProposal)observed.Payload).ToCatalog() } }, shownTechnical));
+            Require(!HomeAccepted(catalog, shown, shownTechnical with { Capabilities = [shownTechnical.Capabilities[0],
+                Tool(AuthoringOracle.ProposeCatalog, "rejected", 2), Tool(AuthoringOracle.ProposeCatalog, "proposed", 1)] }));
+        }
     }
 
     public static void Home_authoring_checks_require_no_proposal_without_permission_or_details()
@@ -486,8 +527,8 @@ internal static class AuthoringOfflineChecks
             var proposal = Observed(result.TurnId, "forms.authoring.propose-form", Form("home-authoring-form-es"));
             Require(!HomeAccepted(testCase, result with { ObservedProposal = proposal }, technical));
             if (testCase.ActorKind == "home")
-                Require(!HomeAccepted(testCase, result, technical with { OfferedCapabilities = HomeOffered }));
-            else Require(!HomeAccepted(testCase, result, technical with { OfferedCapabilities = HomeQueries }));
+                Require(!HomeAccepted(testCase, result, technical with { OfferedReferences = HomeOffered }));
+            else Require(!HomeAccepted(testCase, result, technical with { OfferedReferences = Program.HomeReferences }));
         }
     }
 
@@ -506,9 +547,15 @@ internal static class AuthoringOfflineChecks
         }
     }
 
-    private static readonly string[] AutomaticOffered = [..QualificationChannelContexts.Capabilities.Where(id => id is not ("forms.suggestion-candidates" or "forms.propose-suggestion"))];
+    // What the automatic conversation offers in a turn without a spreadsheet, by Id and version: an author everything but the import; a
+    // recipient without authoring permissions, the channel's own capabilities and decline.
+    private static readonly AssistantCapabilityReference[] AutomaticOffered =
+        [..QualificationChannelContexts.AutomaticReferences.Where(reference => reference.Id != SpreadsheetOracle.ProposeImport)];
+    private static readonly AssistantCapabilityReference[] RecipientOffered = [..AutomaticOffered.Where(reference =>
+        !reference.Id.StartsWith("forms.authoring.", StringComparison.Ordinal) && !reference.Id.StartsWith("forms.catalog-filters.", StringComparison.Ordinal)),
+        new(AuthoringOracle.Decline, 1)];
     private static (AssistantOperationResponse Result, TurnMetadata Technical) ChannelTurn(ChannelCase testCase, Guid conversation, int ordinal,
-        IReadOnlyList<string>? offered = null, AssistantCapabilityPayload? payload = null)
+        IReadOnlyList<AssistantCapabilityReference>? offered = null, AssistantCapabilityPayload? payload = null)
     {
         var turn = Guid.NewGuid();payload ??= Ideal(testCase.Authoring!, testCase.Culture);
         var reads = testCase.RequiredTools.Select((tool, index) => tool switch
@@ -520,15 +567,12 @@ internal static class AuthoringOfflineChecks
         var observed = Observed(turn, testCase.Authoring!.Capability!, payload, reads);
         var result = new AssistantOperationResponse(Guid.NewGuid(), "completed", observed,
             new("gpt-6.1-sol-candidate-1", 1, "capabilities-v1", 1, DateTime.UnixEpoch, "whatsapp-assistant"), null);
-        var tools = testCase.RequiredTools.Select(tool => Tool(tool, ProposalIds.Contains(tool) ? "proposed" : "complete")).ToArray();
+        var tools = testCase.RequiredTools.Select(tool => Tool(tool, ProposalIds.Contains(tool) ? "proposed" : "complete",
+            tool == testCase.Authoring!.Capability ? testCase.Authoring.Version : 1)).ToArray();
+        var references = offered ?? (testCase.ActorKind == "author" ? AutomaticOffered : RecipientOffered);
         var technical = new TurnMetadata(3, tools.Length, 512, null, null, true, null,
             new("gpt-6.1-sol-candidate-1", 1, "public", "capabilities-v1", 1, "whatsapp-assistant"), tools)
-        {
-            ConversationId = conversation, Ordinal = ordinal,
-            OfferedCapabilities = offered ?? (testCase.ActorKind == "author" ? AutomaticOffered
-                : AutomaticOffered.Where(id => !id.StartsWith("forms.authoring.", StringComparison.Ordinal) && !id.StartsWith("forms.catalog-filters.", StringComparison.Ordinal))
-                    .Append("forms.authoring.decline").ToArray()),
-        };
+        { ConversationId = conversation, Ordinal = ordinal, OfferedReferences = references, OfferedCapabilities = [..references.Select(reference => reference.Id)] };
         return (result, technical);
     }
     private static bool ChannelAccepted(ChannelCase testCase, AssistantOperationResponse result, TurnMetadata technical, ChannelObservation? previous = null)
@@ -550,13 +594,26 @@ internal static class AuthoringOfflineChecks
     public static void Channel_authoring_checks_reject_wrong_offer_or_reason()
     {
         var author = Channel("channel-authoring-form-es");var (result, technical) = ChannelTurn(author, Guid.NewGuid(), 1);
-        Require(!ChannelAccepted(author, result, technical with { OfferedCapabilities = technical.OfferedCapabilities.Where(id => id != "forms.authoring.decline").ToArray() }));
+        Require(!ChannelAccepted(author, result, technical with { OfferedReferences = [..technical.OfferedReferences.Where(reference => reference.Id != AuthoringOracle.Decline)] }));
+        // The automatic conversation offers the catalog in version 2 and, in a turn without a spreadsheet, no import.
+        Require(!ChannelAccepted(author, result, technical with { OfferedReferences = [..AutomaticOffered.Where(reference => reference.Id != AuthoringOracle.ProposeCatalog),
+            new(AuthoringOracle.ProposeCatalog, 1)] }));
+        Require(!ChannelAccepted(author, result, technical with { OfferedReferences = QualificationChannelContexts.AutomaticReferences }));
         Require(!ChannelAccepted(author, result with { Proposal = null }, technical));
         Require(!ChannelAccepted(author, result, technical with { Capabilities = [..technical.Capabilities, Tool("forms.missing-request.propose", "proposed")] }));
         var none = Channel("channel-authoring-no-permission-es");var (declined, declinedTechnical) = ChannelTurn(none, Guid.NewGuid(), 1);
         Require(ChannelAccepted(none, declined, declinedTechnical));
-        Require(!ChannelAccepted(none, declined, declinedTechnical with { OfferedCapabilities = AutomaticOffered }));
-        Require(!ChannelAccepted(none, declined, declinedTechnical with { OfferedCapabilities = declinedTechnical.OfferedCapabilities.Where(id => id != "forms.authoring.decline").ToArray() }));
+        Require(!ChannelAccepted(none, declined, declinedTechnical with { OfferedReferences = AutomaticOffered }));
+        Require(!ChannelAccepted(none, declined, declinedTechnical with { OfferedReferences = [..declinedTechnical.OfferedReferences.Where(reference => reference.Id != AuthoringOracle.Decline)] }));
+        // The catalog the automatic conversation proposes is version 2, without a spreadsheet.
+        foreach (var culture in new[] { "es", "en" })
+        {
+            var catalog = Channel("channel-authoring-catalog-" + culture);var (shown, shownTechnical) = ChannelTurn(catalog, Guid.NewGuid(), 1);
+            var proposal = shown.Proposal!;
+            Require(ChannelAccepted(catalog, shown, shownTechnical) && proposal.Capability == new AssistantCapabilityReference(AuthoringOracle.ProposeCatalog, 2));
+            Require(!ChannelAccepted(catalog, shown with { Proposal = proposal with { Capability = new(AuthoringOracle.ProposeCatalog, 1) } }, shownTechnical));
+            Require(!ChannelAccepted(catalog, shown with { Proposal = proposal with { Payload = ((FormAuthoringMappedCatalogProposal)proposal.Payload).ToCatalog() } }, shownTechnical));
+        }
         var (wrong, wrongTechnical) = ChannelTurn(none, Guid.NewGuid(), 1, payload: new FormAuthoringDecline("formExists", Fixture.Form("visit").DefinitionId, null, "Registrar visita"));
         Require(!ChannelAccepted(none, wrong, wrongTechnical));
         var exists = Channel("channel-authoring-form-exists-en");var (existing, existingTechnical) = ChannelTurn(exists, Guid.NewGuid(), 1);

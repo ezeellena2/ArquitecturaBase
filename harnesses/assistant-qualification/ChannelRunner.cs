@@ -20,38 +20,32 @@ internal static class QualificationChannelContexts
 {
     // IA3-A: WhatsApp's own automatic conversation also offers authoring; the engine filters each one by the person's permissions.
     public static readonly string[] AuthoringCapabilities = ["forms.authoring.forms", "forms.authoring.catalogs", "forms.authoring.propose-form",
-        "forms.authoring.propose-catalog", "forms.authoring.decline"];
-    public static readonly string[] Capabilities = ["whatsapp.offered-forms", "whatsapp.no-reply", "whatsapp.decline-form",
-        "forms.assistant-candidates", "forms.propose-registration", "forms.clarify-registration",
-        "forms.suggestion-candidates", "forms.propose-suggestion", "forms.catalog-filters.metadata", "forms.catalog-filters.propose",
-        "forms.missing-request.propose", ..AuthoringCapabilities];
-    // What the contexts above offer, by Id and version: all of them version 1, as in Stage 1, so the sets that use them keep running as before.
-    public static readonly AssistantCapabilityReference[] References = [..Capabilities.Select(id => new AssistantCapabilityReference(id, 1))];
-    // Stage 2: the automatic own conversation as WhatsApp captures it since plan task 7 (WhatsAppAssistantAccessPolicy), in its order:
-    // propose-catalog@2 maps the conversation's spreadsheet and propose-import@1 needs one, so the engine leaves it out without a spreadsheet.
-    public static readonly AssistantCapabilityReference[] SpreadsheetReferences = [new("forms.assistant-candidates", 1), new("forms.propose-registration", 1),
+        "forms.authoring.propose-catalog", SpreadsheetOracle.ProposeImport, "forms.authoring.decline"];
+    // The automatic conversation exactly as WhatsAppAssistantAccessPolicy captures it, in its order. Since Stage 2 the catalog is version 2,
+    // which maps the conversation's spreadsheet, next to the import, which the engine leaves out of a turn without a spreadsheet.
+    public static readonly AssistantCapabilityReference[] AutomaticReferences = [new("forms.assistant-candidates", 1), new("forms.propose-registration", 1),
         new("forms.clarify-registration", 1), new("whatsapp.offered-forms", 1), new("whatsapp.no-reply", 1), new("whatsapp.decline-form", 1),
         new("forms.missing-request.propose", 1), new("forms.catalog-filters.metadata", 1), new("forms.catalog-filters.propose", 1),
         new("forms.authoring.forms", 1), new("forms.authoring.catalogs", 1), new("forms.authoring.propose-form", 1),
         new("forms.authoring.propose-catalog", SpreadsheetOracle.MappedCatalogVersion), new(SpreadsheetOracle.ProposeImport, 1), new("forms.authoring.decline", 1)];
-    // "author" is the automatic conversation of a recipient who may build forms and catalogs (Actor equal to Subject); "sheet-author"
-    // is the same conversation with the spreadsheet capabilities WhatsApp offers since Stage 2.
-    private static readonly string[] Kinds = ["auto", "manual", "catalog", "no-forms", "author", "sheet-author"];
+    // An operator's manual conversation and a captured record (C4) keep their Stage 1 offer, all of it version 1.
+    private static readonly AssistantCapabilityReference[] ManualReferences = [new("whatsapp.offered-forms", 1), new("whatsapp.no-reply", 1),
+        new("whatsapp.decline-form", 1), new("forms.assistant-candidates", 1), new("forms.propose-registration", 1), new("forms.clarify-registration", 1),
+        new("forms.missing-request.propose", 1)];
+    private static readonly AssistantCapabilityReference[] CapturedReferences = [new("whatsapp.offered-forms", 1), new("whatsapp.no-reply", 1),
+        new("whatsapp.decline-form", 1), new("forms.suggestion-candidates", 1), new("forms.propose-suggestion", 1)];
+    // Everything some channel context offers, by Id and version: the stamps of the channel sets.
+    public static readonly AssistantCapabilityReference[] References = [..AutomaticReferences.Concat(ManualReferences).Concat(CapturedReferences).Distinct()];
+    public static readonly string[] Capabilities = [..References.Select(reference => reference.Id)];
+    // "author" is the automatic conversation of a recipient who may build forms and catalogs (Actor equal to Subject).
+    private static readonly string[] Kinds = ["auto", "manual", "catalog", "no-forms", "author"];
     public static AssistantChannelContext Create(QualificationActor actor, Guid subject, string kind, Guid? sourceRecordId = null)
     {
         if(!Kinds.Contains(kind,StringComparer.Ordinal)) throw new ArgumentException("Unknown qualification channel kind.",nameof(kind));
-        if(kind == "sheet-author")
-            return sourceRecordId is not null ? throw new ArgumentException("A spreadsheet conversation has no captured source.",nameof(sourceRecordId))
-                : new("whatsapp-assistant", actor.UserId, subject, actor.Culture, "America/Argentina/Buenos_Aires", new([], []), SpreadsheetReferences,
-                    [new("assistant_proposal",1)]) { InteractionMode = AssistantInteractionMode.Assistant };
         var manual = kind == "manual";
         return new(manual ? "whatsapp-manual" : "whatsapp-assistant", actor.UserId, subject, actor.Culture, "America/Argentina/Buenos_Aires",
-            new(manual ? ["whatsapp.read", "whatsapp.send"] : [], []),
-            Capabilities.Where(id => sourceRecordId.HasValue
-                ? id is "whatsapp.offered-forms" or "whatsapp.no-reply" or "whatsapp.decline-form" or "forms.suggestion-candidates" or "forms.propose-suggestion"
-                : id is not ("forms.suggestion-candidates" or "forms.propose-suggestion")
-                    && (!manual || !id.StartsWith("forms.catalog-filters.",StringComparison.Ordinal) && !AuthoringCapabilities.Contains(id,StringComparer.Ordinal)))
-                .Select(id => new AssistantCapabilityReference(id,1)).ToArray(), [new("assistant_proposal",1)]) { SourceRecordId = sourceRecordId, InteractionMode = manual ? AssistantInteractionMode.Manual : AssistantInteractionMode.Assistant };
+            new(manual ? ["whatsapp.read", "whatsapp.send"] : [], []), sourceRecordId.HasValue ? CapturedReferences : manual ? ManualReferences : AutomaticReferences,
+            [new("assistant_proposal",1)]) { SourceRecordId = sourceRecordId, InteractionMode = manual ? AssistantInteractionMode.Manual : AssistantInteractionMode.Assistant };
     }
 
     public static AssistantChannelContext CreateAudio(Guid actorUserId,string culture) => new("whatsapp-manual",actorUserId,null,culture,
@@ -82,7 +76,7 @@ internal static class QualificationChannelContexts
             if(entry.ChannelId!="whatsapp-manual" || entry.SubjectUserId is not null) throw new InvalidOperationException("Invalid audio ledger scope.");
             return CreateAudio(entry.ActorUserId,entry.Culture) with { InteractionMode = entry.InteractionMode };
         }
-        if(entry.OperationKind!="channel" || entry.ChannelKind is not ("auto" or "manual" or "catalog" or "no-forms" or "author" or "sheet-author") || entry.SubjectUserId is not {} subject)
+        if(entry.OperationKind!="channel" || entry.ChannelKind is not ("auto" or "manual" or "catalog" or "no-forms" or "author") || entry.SubjectUserId is not {} subject)
             throw new InvalidOperationException("Invalid channel ledger scope.");
         var context=Create(new(entry.ActorUserId,"resumed",entry.Culture,"fictitious"),subject,entry.ChannelKind,entry.SourceRecordId) with { InteractionMode = entry.InteractionMode };
         if(context.ChannelId!=entry.ChannelId) throw new InvalidOperationException("Ledger channel identity changed.");
@@ -105,8 +99,8 @@ internal sealed class ChannelRunner(IAssistantOperations operations, SafeRunLedg
         if ((testCase.Audio is null) != (dictated is null)) throw new InvalidOperationException("A dictated case needs exactly its completed normalization.");
         // Stage 2: the owner prepares the public bytes through the real port, as WhatsApp does when the document arrives; an inherited
         // spreadsheet is only read for the oracle, since the engine hands the turn its conversation's.
-        if ((testCase.Spreadsheet is not null) != (testCase.ActorKind == "sheet-author") || testCase.Spreadsheet is { Inherited: true } && previous is null)
-            throw new InvalidOperationException("A spreadsheet case needs its own spreadsheet conversation.");
+        if (testCase.Spreadsheet is not null && (testCase.ActorKind != "author" || testCase.Authoring is null) || testCase.Spreadsheet is { Inherited: true } && previous is null)
+            throw new InvalidOperationException("A spreadsheet case needs its author's own conversation.");
         var sheetBytes = testCase.Spreadsheet is { } attached ? await QualificationSpreadsheets.ReadAsync(attached, ct) : null;
         var sheet = sheetBytes is null ? null : await QualificationSpreadsheets.PrepareAsync(attachments, sheetBytes, testCase.Spreadsheet!, ct);
         var dictatedText = dictated is null ? null : DictatedText(testCase, dictated);
@@ -169,9 +163,12 @@ internal sealed class ChannelRunner(IAssistantOperations operations, SafeRunLedg
         return new(requestId,outcome,technical,elapsed.Elapsed.TotalSeconds,checks,measurements.EndCase());
     }
 
-    // Stage 2 in the automatic own conversation: what WhatsApp offers with a spreadsheet, by Id and version.
-    internal static readonly AssistantCapabilityReference[] SpreadsheetAuthoring = [new("forms.authoring.forms", 1), new("forms.authoring.catalogs", 1),
-        new(AuthoringOracle.ProposeForm, 1), new(AuthoringOracle.ProposeCatalog, SpreadsheetOracle.MappedCatalogVersion), new(SpreadsheetOracle.ProposeImport, 1),
+    // What an author builds with in the automatic own conversation, by Id and version: the catalog in version 2 and, only in a turn with a
+    // spreadsheet, the import. Version 1 of the catalog is never offered.
+    internal static readonly AssistantCapabilityReference[] AuthoringBuilding = [new("forms.authoring.forms", 1), new("forms.authoring.catalogs", 1),
+        new(AuthoringOracle.ProposeForm, 1), new(AuthoringOracle.ProposeCatalog, SpreadsheetOracle.MappedCatalogVersion)];
+    private static readonly AssistantCapabilityReference[] NeverWithoutSpreadsheet = [new(AuthoringOracle.ProposeCatalog, 1), new(SpreadsheetOracle.ProposeImport, 1)];
+    internal static readonly AssistantCapabilityReference[] SpreadsheetAuthoring = [..AuthoringBuilding, new(SpreadsheetOracle.ProposeImport, 1),
         new(AuthoringOracle.Decline, 1)];
 
     // Stage 2 by WhatsApp: the spreadsheet capabilities offered, the expected owner proposal in its version resting on earlier reads, a
@@ -182,7 +179,7 @@ internal sealed class ChannelRunner(IAssistantOperations operations, SafeRunLedg
     {
         if(testCase is not {Authoring:{Capability:{} capability} expected,Spreadsheet:{} attached})return;
         var proposal=outcome.Proposal;
-        checks.Add(new("spreadsheet-offer-matches-context",SpreadsheetOracle.Offered(technical.OfferedReferences,SpreadsheetAuthoring,
+        checks.Add(new("spreadsheet-offer-matches-context",AuthoringOracle.Offered(technical.OfferedReferences,SpreadsheetAuthoring,
             [new(AuthoringOracle.ProposeCatalog,1)])));
         checks.Add(new("authoring-terminal-from-expected-capability",outcome.State=="completed" && proposal is not null
             && proposal.Capability==new AssistantCapabilityReference(capability,expected.Version)));
@@ -207,7 +204,7 @@ internal sealed class ChannelRunner(IAssistantOperations operations, SafeRunLedg
     internal static (QualificationActor Actor, QualificationActor Subject) People(ChannelCase testCase, QualificationFixture actors)
     {
         QualificationActor In(IReadOnlyList<QualificationActor> pool) => pool.Single(person => person.Culture == testCase.Culture);
-        var subject = testCase.ActorKind is "author" or "sheet-author" ? In(testCase.Audio is null ? actors.ChannelAuthors : actors.VoiceAuthors) : In(actors.Subjects);
+        var subject = testCase.ActorKind == "author" ? In(testCase.Audio is null ? actors.ChannelAuthors : actors.VoiceAuthors) : In(actors.Subjects);
         var actor = testCase.ActorKind is "manual" or "catalog" ? In(actors.Operators) : subject;
         if (testCase.ActorKind == "no-forms") actor = subject = In(actors.AudioActors);
         if (testCase.ActorKind == "catalog") subject = actor;
@@ -222,13 +219,13 @@ internal sealed class ChannelRunner(IAssistantOperations operations, SafeRunLedg
     {
         if(testCase.Authoring is not {Capability:{} capability} expected)return;
         var proposal=outcome.Proposal;
-        var building=QualificationChannelContexts.AuthoringCapabilities.Where(id=>id!=AuthoringOracle.Decline).ToArray();
         checks.Add(new("authoring-offer-matches-permissions",testCase.ActorKind=="author"
-            ? AuthoringOracle.Offered(technical.OfferedCapabilities,QualificationChannelContexts.AuthoringCapabilities,[])
-            : AuthoringOracle.Offered(technical.OfferedCapabilities,[AuthoringOracle.Decline],building)));
-        checks.Add(new("authoring-terminal-from-expected-capability",outcome.State=="completed" && proposal is {Capability.Version:1} && proposal.Capability.Id==capability));
+            ? AuthoringOracle.Offered(technical.OfferedReferences,[..AuthoringBuilding,new(AuthoringOracle.Decline,1)],NeverWithoutSpreadsheet)
+            : AuthoringOracle.Offered(technical.OfferedReferences,[new(AuthoringOracle.Decline,1)],[..AuthoringBuilding,..NeverWithoutSpreadsheet])));
+        checks.Add(new("authoring-terminal-from-expected-capability",outcome.State=="completed" && proposal is not null
+            && proposal.Capability==new AssistantCapabilityReference(capability,expected.Version)));
         checks.Add(new("authoring-reads-before-proposal",AuthoringOracle.ReadsBeforeProposal(proposal,testCase.RequiredTools)));
-        checks.Add(new("rejection-recovered-if-any",AuthoringOracle.RejectionsRecovered(technical.Capabilities,capability)));
+        checks.Add(new("rejection-recovered-if-any",AuthoringOracle.RejectionsRecovered(technical.Capabilities,capability,expected.Version)));
         checks.Add(new("only-expected-proposal-capability",AuthoringOracle.OnlyProposalsOf(technical.Capabilities,proposalCapabilities,capability)));
         if(expected.Continues is not null)
             checks.Add(new("continued-same-engine-conversation",previous is not null && technical.ConversationId!=Guid.Empty

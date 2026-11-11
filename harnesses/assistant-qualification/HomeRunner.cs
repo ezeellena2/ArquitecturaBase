@@ -24,14 +24,13 @@ internal sealed class HomeRunner(QualificationCurrentUser currentUser, IAiAssist
     IEnumerable<IAssistantCapabilitySource> sources, IAiAssistantAudioService audioService, IAiAssistantFileTurnService fileTurns,
     IStructuredAttachmentReader attachments)
 {
-    private static readonly string[] HomeAuthoringOffered = ["forms.authoring.forms", "forms.authoring.catalogs", "forms.authoring.propose-form",
-        "forms.authoring.propose-catalog", "forms.catalog-filters.metadata", "forms.catalog-filters.propose"];
-    // Stage 2: what Home offers an author in a turn with a spreadsheet once the front draws it (plan task 9), by Id and version; never
-    // version 1 of the catalog, nor decline, which only a channel says.
-    internal static readonly AssistantCapabilityReference[] SpreadsheetOffered = [new("forms.authoring.forms", 1), new("forms.authoring.catalogs", 1),
-        new(AuthoringOracle.ProposeForm, 1), new(AuthoringOracle.ProposeCatalog, SpreadsheetOracle.MappedCatalogVersion), new(SpreadsheetOracle.ProposeImport, 1),
+    // What Home offers an author (authoring and H4), by Id and version, since it draws spreadsheets (6e27fa0b): the catalog in version 2
+    // and, only in a turn with a spreadsheet, the import. Never version 1 of the catalog, nor decline, which only a channel says.
+    internal static readonly AssistantCapabilityReference[] AuthoringOffered = [new("forms.authoring.forms", 1), new("forms.authoring.catalogs", 1),
+        new(AuthoringOracle.ProposeForm, 1), new(AuthoringOracle.ProposeCatalog, SpreadsheetOracle.MappedCatalogVersion),
         new("forms.catalog-filters.metadata", 1), new(AuthoringOracle.PeopleCatalog, 1)];
-    private static readonly AssistantCapabilityReference[] SpreadsheetNotOffered = [new(AuthoringOracle.ProposeCatalog, 1), new(AuthoringOracle.Decline, 1)];
+    internal static readonly AssistantCapabilityReference[] SpreadsheetOffered = [..AuthoringOffered, new(SpreadsheetOracle.ProposeImport, 1)];
+    private static readonly AssistantCapabilityReference[] NeverOffered = [new(AuthoringOracle.ProposeCatalog, 1), new(AuthoringOracle.Decline, 1)];
 
     // IA4: the real Home audio service stores the public recording privately and normalizes it in home-audio. Its own ledger
     // identity ("<case>-audio") is fixed before the submit; resume only reads it back.
@@ -160,9 +159,10 @@ internal sealed class HomeRunner(QualificationCurrentUser currentUser, IAiAssist
     {
         if (testCase.Authoring is not { } expected) return;
         checks.Add(new("home-instructions-v2", technical.Stamps is { InstructionsId: "home-system", InstructionsVersion: 2 }));
+        // A turn without a spreadsheet: the author is offered what Home offers but the import; an account without the permissions, nothing.
         checks.Add(new("authoring-offer-matches-permissions", testCase.ActorKind == "author"
-            ? AuthoringOracle.Offered(technical.OfferedCapabilities, HomeAuthoringOffered, [AuthoringOracle.Decline])
-            : AuthoringOracle.Offered(technical.OfferedCapabilities, [], [..HomeAuthoringOffered, AuthoringOracle.Decline])));
+            ? AuthoringOracle.Offered(technical.OfferedReferences, AuthoringOffered, [..NeverOffered, new(SpreadsheetOracle.ProposeImport, 1)])
+            : AuthoringOracle.Offered(technical.OfferedReferences, [], [..SpreadsheetOffered, ..NeverOffered])));
         if (expected.Capability is not { } capability)
         {
             checks.Add(new("no-proposal", result.Proposal is null && result.ObservedProposal is null));
@@ -171,10 +171,10 @@ internal sealed class HomeRunner(QualificationCurrentUser currentUser, IAiAssist
         }
         var proposal = result.ObservedProposal;
         checks.Add(new("proposal-terminal-matches-observed", result.Answer?.Kind == "proposal" && proposal is not null && result.Proposal is { } shown
-            && shown.Id == proposal.Id && proposal.TurnId == result.TurnId && proposal.Capability == new AssistantCapabilityReference(capability, 1)
-            && shown.Capability == capability && shown.Version == 1));
+            && shown.Id == proposal.Id && proposal.TurnId == result.TurnId && proposal.Capability == new AssistantCapabilityReference(capability, expected.Version)
+            && shown.Capability == capability && shown.Version == expected.Version));
         checks.Add(new("authoring-reads-before-proposal", AuthoringOracle.ReadsBeforeProposal(proposal, testCase.RequiredTools)));
-        checks.Add(new("rejection-recovered-if-any", AuthoringOracle.RejectionsRecovered(technical.Capabilities, capability)));
+        checks.Add(new("rejection-recovered-if-any", AuthoringOracle.RejectionsRecovered(technical.Capabilities, capability, expected.Version)));
         checks.Add(new("only-expected-proposal-capability", AuthoringOracle.OnlyProposalsOf(technical.Capabilities, proposalCapabilities, capability)));
         if (expected.Continues is not null)
             checks.Add(new("continued-same-conversation", conversation is { } current && result.ConversationId == current.Id
@@ -192,7 +192,7 @@ internal sealed class HomeRunner(QualificationCurrentUser currentUser, IAiAssist
     {
         if (testCase is not { Authoring: { } expected, Spreadsheet: { } attached }) return;
         checks.Add(new("home-instructions-v2", technical.Stamps is { InstructionsId: "home-system", InstructionsVersion: 2 }));
-        checks.Add(new("spreadsheet-offer-matches-context", SpreadsheetOracle.Offered(technical.OfferedReferences, SpreadsheetOffered, SpreadsheetNotOffered)));
+        checks.Add(new("spreadsheet-offer-matches-context", AuthoringOracle.Offered(technical.OfferedReferences, SpreadsheetOffered, NeverOffered)));
         checks.Add(attached.Inherited
             ? new("turn-inherited-the-spreadsheet", result.Attachment is null && previousAttachmentKey is not null && technical.AttachmentKey == previousAttachmentKey
                 && technical.AttachmentSha256 == attached.Sha256 && technical.AttachmentSize == attached.ByteCount)

@@ -22,10 +22,6 @@ internal static class SpreadsheetOracle
         _ => throw new InvalidOperationException("Unknown spreadsheet expectation."),
     };
 
-    // What the sealed context offered, by Id and version, after the engine filtered it by permissions and by the spreadsheet.
-    public static bool Offered(IReadOnlyCollection<AssistantCapabilityReference> offered, IEnumerable<AssistantCapabilityReference> required,
-        IEnumerable<AssistantCapabilityReference> forbidden) => required.All(offered.Contains) && !forbidden.Any(offered.Contains);
-
     private static List<CheckEvidence> CatalogChecks(AuthoringExpectation expected, string culture, FormAuthoringMappedCatalogProposal? proposal,
         QualificationChannelFixture fixture, StructuredSpreadsheet sheet, AssistantCapabilityPayload? previous)
     {
