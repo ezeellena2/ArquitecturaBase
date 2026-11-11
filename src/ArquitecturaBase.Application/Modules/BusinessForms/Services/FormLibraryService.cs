@@ -12,8 +12,9 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 /// <summary>
 /// The library (BI1-A, as DOC1 without reading documents). It lists the standards of the installed modules and «Agregar» creates
 /// an own draft through the same save as any other, which seals the standard, its version and its bound questions. A standard
-/// names its catalogs by Key: one that is missing or inactive stops the copy. The copy and the catalogs it creates go, in the same save,
-/// to the folder chosen or else to the standard's (<see cref="FormSystemFolderLinker"/>).
+/// names its catalogs by Key: one that is missing or inactive stops the copy, and so does an option code («code:other») that a condition
+/// names and the catalog does not have among its active options. The catalogs it brings come with their first options. The copy and
+/// the catalogs it creates go, in the same save, to the folder chosen or else to the standard's (<see cref="FormSystemFolderLinker"/>).
 /// </summary>
 internal sealed class FormLibraryService : IFormLibraryService
 {
@@ -62,6 +63,8 @@ internal sealed class FormLibraryService : IFormLibraryService
             var ids = existing.Where(pair => pair.Value.IsActive).ToDictionary(pair => pair.Key, pair => pair.Value.Id, StringComparer.Ordinal);
             // The catalogs the standard brings that do not exist yet are created with the draft; one that exists inactive stops it.
             var created = new List<BusinessFormCatalog>();
+            var createdItems = new List<BusinessFormCatalogItem>();
+            var createdCodes = new Dictionary<Guid, IReadOnlyDictionary<string, Guid>>();
             foreach (var catalog in own.Where(catalog => !existing.ContainsKey(catalog.Key)))
             {
                 if (catalog.Fields.Any(field => field.SourceCatalog is { } source && !ids.ContainsKey(source))) return FormLibraryErrors.CatalogUnavailable;
@@ -71,18 +74,47 @@ internal sealed class FormLibraryService : IFormLibraryService
                     field.Key, field.Name, field.Type, field.SourceCatalog is { } source ? ids[source] : null, false, false, null, null, field.MaxLength,
                     "data", position, true)).ToArray(), null);
                 if (fields.IsFailure) throw new InvalidOperationException("A library standard declares invalid catalog fields.");
+                var items = (catalog.Items ?? []).Select((item, position) => entity.AddManualItem(item.Code, item.Text.GetValueOrDefault("es"),
+                    item.Text.GetValueOrDefault("en"), null, null, position)).ToArray();
+                if (items.Any(item => item.IsFailure)) throw new InvalidOperationException("A library standard declares invalid catalog options.");
+                createdItems.AddRange(items.Select(item => item.Value));
+                createdCodes[entity.Id] = items.ToDictionary(item => item.Value.Code, item => item.Value.Id, StringComparer.Ordinal);
                 created.Add(entity);
                 ids[catalog.Key] = entity.Id;
             }
             if (named.Values.Any(catalogKey => !ids.ContainsKey(catalogKey))) return FormLibraryErrors.CatalogUnavailable;
             draft = draft with { Fields = draft.Fields.Select(field => named.TryGetValue(field.LocalId, out var catalogKey)
                 ? field with { Source = (field.Source ?? new FormQuestionSource(null)) with { Catalog = ids[catalogKey] } } : field).ToArray() };
-            return await _drafts.CreateAsync(new SaveFormDraftRequest(request.RequestId, request.Name, request.Prefix, draft)
+            var coded = await NameOptionsAsync(draft, named, ids, createdCodes, cancellationToken);
+            if (coded.IsFailure) return coded.Error;
+            return await _drafts.CreateAsync(new SaveFormDraftRequest(request.RequestId, request.Name, request.Prefix, coded.Value)
             {
                 Standard = new FormDraftStandardOrigin(standard.Key, standard.Version, standard.Bindings)
-                    { NewCatalogs = created, FileAsync = Filer(request.FolderId, standard.Folder) is { } file ? (id, ct) => FileAsync(file, id, created, ct) : null },
+                    { NewCatalogs = created, NewCatalogItems = createdItems, FileAsync = Filer(request.FolderId, standard.Folder) is { } file ? (id, ct) => FileAsync(file, id, created, ct) : null },
             }, cancellationToken);
         });
+
+    // A condition on a catalog question names the options by «code:<code>»: the copy takes the identity of the active option with that
+    // code in this installation, also in a catalog created in this same save. A code the catalog lacks stops the copy.
+    private async Task<Result<FormDraftInput>> NameOptionsAsync(FormDraftInput draft, IReadOnlyDictionary<string, string> named,
+        Dictionary<string, Guid> catalogIds, Dictionary<Guid, IReadOnlyDictionary<string, Guid>> createdCodes, CancellationToken cancellationToken)
+    {
+        const string prefix = "code:";
+        var fields = draft.Fields.ToArray();
+        for (var index = 0; index < fields.Length; index++)
+        {
+            if (fields[index].ShowWhen is not { } showWhen || !showWhen.Values.Any(value => value.StartsWith(prefix, StringComparison.Ordinal))) continue;
+            var catalogKey = named.Where(pair => Guid.TryParse(pair.Key, out var localId) && localId == showWhen.QuestionId).Select(pair => pair.Value).FirstOrDefault()
+                ?? throw new InvalidOperationException("A library standard names an option code outside a catalog question.");
+            var catalogId = catalogIds[catalogKey];
+            var codes = showWhen.Values.Where(value => value.StartsWith(prefix, StringComparison.Ordinal)).Select(value => value[prefix.Length..]).ToArray();
+            var options = createdCodes.TryGetValue(catalogId, out var own) ? own : await _reader.ListActiveItemIdsByCodeAsync(catalogId, codes, cancellationToken);
+            if (codes.Any(code => !options.ContainsKey(code))) return FormLibraryErrors.CatalogUnavailable;
+            fields[index] = fields[index] with { ShowWhen = showWhen with { Values = showWhen.Values
+                .Select(value => value.StartsWith(prefix, StringComparison.Ordinal) ? options[value[prefix.Length..]].ToString("D") : value).ToArray() } };
+        }
+        return draft with { Fields = fields };
+    }
 
     // The folder chosen when adding or, by default, the standard's own, created in the language of whoever adds the copy.
     private Func<FormFolderItemKind, Guid, CancellationToken, Task<Result<Guid>>>? Filer(Guid? chosen,

@@ -10,7 +10,7 @@ namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 
 // BI1-A with PostgreSQL: the library lists the installed standards, «Agregar» creates an own draft that remembers its standard and
 // its bound questions (once per request) in the folder chosen or the standard's, and a save that removes a bound question or changes its type is refused at it, while
-// its text changes.
+// its text changes. A catalog the standard brings comes with its first options, and a condition names a catalog option by its code.
 public sealed partial class FormDraftEndpointsTests
 {
     [Fact]
@@ -83,11 +83,20 @@ public sealed partial class FormDraftEndpointsTests
             .Where(catalog => catalog.Key == TestFormStandardSource.CustomersCatalog).Select(catalog => new { catalog.Id, catalog.FieldsJson }).ToListAsync(Ct));
         var catalog = Assert.Single(catalogs);
         Assert.Contains("\"cuit\"", catalog.FieldsJson);
+        // The catalog comes once with the options the standard declares, in their order; the second copy does not add them again.
+        var options = await factory.ExecuteDbContextAsync(db => db.Set<ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormCatalogItem>()
+            .Where(item => item.CatalogId == catalog.Id).OrderBy(item => item.Position).Select(item => new { item.Id, item.Code, item.TextEs, item.IsActive }).ToListAsync(Ct));
+        Assert.Equal([("final", "Consumidor final", true), ("other", "Otro: escribir la CUIT", true)], options.Select(item => (item.Code, item.TextEs, item.IsActive)));
         var copies = new List<Guid>();
         foreach (var created in new[] { first, second })
         {
             var definition = (await created.ReadJsonAsync()).GetProperty("definition");
-            Assert.Equal(catalog.Id, definition.GetProperty("draft").GetProperty("fields")[0].GetProperty("source").GetProperty("catalog").GetGuid());
+            var fields = definition.GetProperty("draft").GetProperty("fields");
+            Assert.Equal(catalog.Id, fields[0].GetProperty("source").GetProperty("catalog").GetGuid());
+            // «code:other» became that option's identity: in the copy that created the catalog and in the one that found it.
+            var showWhen = fields[1].GetProperty("showWhen");
+            Assert.Equal(fields[0].GetProperty("fieldId").GetGuid(), showWhen.GetProperty("questionId").GetGuid());
+            Assert.Equal([options[1].Id.ToString("D")], showWhen.GetProperty("values").EnumerateArray().Select(value => value.GetString()));
             copies.Add(definition.GetProperty("id").GetGuid());
         }
         // Both copies and the catalog they brought go to the standard's folder, created once and found again by its key.
@@ -101,6 +110,10 @@ public sealed partial class FormDraftEndpointsTests
         using var missing = await designer.PostAsJsonAsync($"/api/forms/library/{TestFormStandardSource.MissingKey}/copies", Add(Guid.NewGuid(), Prefix()), Ct);
         Assert.Equal(HttpStatusCode.Conflict, missing.StatusCode);
         Assert.Equal("Forms.Library.CatalogUnavailable", (await missing.ReadJsonAsync()).GetProperty("code").GetString());
+        // An option code the catalog does not have stops the copy the same way.
+        using var missingCode = await designer.PostAsJsonAsync($"/api/forms/library/{TestFormStandardSource.MissingCodeKey}/copies", Add(Guid.NewGuid(), Prefix()), Ct);
+        Assert.Equal(HttpStatusCode.Conflict, missingCode.StatusCode);
+        Assert.Equal("Forms.Library.CatalogUnavailable", (await missingCode.ReadJsonAsync()).GetProperty("code").GetString());
     }
 
     [Fact]

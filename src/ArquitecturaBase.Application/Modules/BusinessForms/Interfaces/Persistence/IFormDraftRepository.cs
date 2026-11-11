@@ -5,6 +5,7 @@ public interface IFormDraftRepository
 {
     /// <summary>BI1-A: a catalog a library standard brings, added in the same save as its draft.</summary>
     void AddStandardCatalog(BusinessFormCatalog catalog);
+    void AddStandardCatalogItems(IReadOnlyList<BusinessFormCatalogItem> items);
     Task LockRequestAsync(Guid actor, Guid requestId, CancellationToken cancellationToken);
     Task LockDefinitionsAsync(CancellationToken cancellationToken);
     Task<BusinessFormDefinition?> GetAsync(Guid id, CancellationToken cancellationToken);

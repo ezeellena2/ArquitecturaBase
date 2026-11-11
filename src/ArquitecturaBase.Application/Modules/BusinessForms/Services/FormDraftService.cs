@@ -80,6 +80,7 @@ internal sealed class FormDraftService(IFormDraftRepository repository, FormDefi
         if (creating && request.Standard is { } standard)
         {
             foreach (var catalog in standard.NewCatalogs) repository.AddStandardCatalog(catalog);
+            if (standard.NewCatalogItems.Count > 0) repository.AddStandardCatalogItems(standard.NewCatalogItems);
             definition.RecordStandard(standard.Key, standard.Version, FormDraftPolicy.Serialize(FormStandardPolicy.Bindings(standard, resolved.Value.IdentityMap)));
             if (standard.FileAsync is { } file && await file(definition.Id, ct) is { IsFailure: true } filed) return filed.Error;
         }

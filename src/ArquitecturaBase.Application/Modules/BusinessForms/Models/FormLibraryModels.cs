@@ -22,6 +22,9 @@ public sealed record FormDraftStandardOrigin(string Key, int Version, IReadOnlyD
     /// <summary>The catalogs the standard brings that do not exist yet: created in the same save as the draft.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public IReadOnlyList<ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormCatalog> NewCatalogs { get; init; } = [];
+    /// <summary>The first options of those catalogs, created with them.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public IReadOnlyList<ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormCatalogItem> NewCatalogItems { get; init; } = [];
     /// <summary>Files the new definition (by its id) and the new catalogs in the folder chosen or the standard's, inside the same save.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public Func<Guid, CancellationToken, Task<ArquitecturaBase.Domain.Results.Result>>? FileAsync { get; init; }
