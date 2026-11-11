@@ -315,12 +315,27 @@ planilla lleva (`AttachmentMessageId`, migración `AddWhatsAppAssistantAttachmen
 filas.», y el de importar trae «Revisar importación» y «Cambiar algo». El toque `review` contesta con el enlace
 `/catalogos/{id}?pedido=…&propuesta=…`, que arma BusinessForms. La pregunta con planilla tiene su texto, y crear desde un canal
 guarda el pedido en la evidencia. Unitarias 4505/4505, dominio 848/848, arquitectura 207/207 e integración de 17 clases (123/123).
-La revisión no encontró nada bloqueante. Dos puntos importan y se están corrigiendo:
+La revisión no encontró nada bloqueante. Dos puntos importaban, y quedaron corregidos en 74372d8c (el motor) y 5913cade (WhatsApp):
 - Reemplazar una interpretación en curso que continuaba un «Cambiar algo» o una pregunta perdía la conversación, y el turno
   cancelado trababa las continuaciones siguientes (`RevisionConflict`, sin respuesta). La referencia que reemplaza continúa lo
   mismo que la reemplazada. En el motor, una continuación de un canal se suma al final de la conversación aunque después de la
   operación pedida haya otros turnos, siempre que no haya una activa. La vigencia de la propuesta la controla el canal.
 - Reenviar sola una planilla rechazada no obtenía respuesta. Los textos de rechazo piden reenviarla junto con el pedido.
+
+Al reemplazarla, la interpretación reemplazada deja como cambio pendiente lo que continuaba, y la que la reemplaza lo sigue. Una
+que termina por una falla no deja nada que continuar. En el motor, mientras haya una operación activa en la conversación,
+continuar da `ActiveTurn`, que se reintenta. Además:
+- `SetCapturedSuggestion` rechaza una referencia con planilla;
+- quedan documentados el orden con una planilla no disponible y que «Revisar importación» necesita el front de la tarea 9.
+
+Unitarias 4548/4548, dominio 855/855, arquitectura 207/207 e integración de 13 clases (128/128), con seis casos nuevos del
+emparejado contra PostgreSQL.
+
+Quedan dos casos raros, aceptados:
+- Si la persona contesta a una pregunta con el «Cambiar algo» del resumen anterior, la historia lleva la pregunta como última
+  propuesta, no el resumen: en un canal sólo viaja la última.
+- Si una interpretación reemplazada terminó justo antes de cancelarse, su propuesta queda en la historia aunque WhatsApp no la
+  mostró.
 
 2026-11-11: a pedido del usuario, cada desarrollo se termina entero, front incluido, y la prueba integral se hace una sola vez al
 final; la verificación completa la corre una sola vez el chat que coordina la tanda. El contrato de Inicio en el front suma
