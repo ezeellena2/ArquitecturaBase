@@ -226,6 +226,32 @@ integral.
 - **Homologación real:** la prueba de la decisión 3, corrida por el usuario con su CUIT.
 - **Sin piloto en producción** (decisión 3).
 
+### Prueba a mano, en la prueba integral
+
+Con la app levantada y la conexión de ARCA en homologación con la CUIT responsable inscripta del usuario
+([configurar ARCA](../guides/configurar-arca.md): certificado de WSASS con el pedido que genera la app, `wsfe` y la constancia
+asociados, y un punto de venta de homologación). El usuario corre los pasos con su clave fiscal; los datos de prueba se los
+indica la sesión, sin cargarlos por él.
+
+1. **La empresa responsable inscripta.** Después de la prueba de la conexión, «Empresa» dice «IVA Responsable Inscripto».
+2. **La casilla del precio (IV2-A).** Agregar «Factura» desde la biblioteca. En el editor, la pregunta «Precio unitario» del
+   bloque tiene «El precio incluye IVA» debajo de «Se carga varias veces», con su (i). Dejarla sin marcar y publicar.
+3. **La factura A (IV1-A).** Cargar desde la app una factura a un cliente responsable inscripto, con tres ítems: uno al 21 %,
+   uno al 10,5 % y uno exento. La columna «Alícuota» viene en 21 %, la (i) de «Precio unitario» dice «Sin IVA» y la zona
+   «Total» muestra el neto gravado, el IVA de cada alícuota, lo exento y el total.
+4. **El «¿La emito?» de la A (IV3).** «Enviar» abre el resumen con «Factura A», el neto, el IVA, lo exento y el total.
+   «Emitir factura»: la zona «Comprobante» trae número y CAE.
+5. **El PDF de la A.** Cada ítem con su alícuota, el neto gravado, el IVA de cada alícuota, lo exento y el total; el QR abre
+   la página de ARCA.
+6. **La A a un monotributista.** Otra factura a un cliente monotributista: el PDF lleva la leyenda de la RG 5003.
+7. **La B con precios con IVA.** Marcar «El precio incluye IVA», publicar y cargar una factura a consumidor final con un ítem al
+   21 % y uno exento: el total es la suma de los precios, el «¿La emito?» dice «Factura B» con el IVA contenido, y el PDF
+   muestra los precios con IVA y el recuadro de la RG 5614 abajo a la izquierda.
+8. **Anular la A y la B.** «Anular» en cada una: la nota de crédito A y la B salen por el total, con el mismo IVA, y la
+   respuesta queda anulada cuando ARCA las autoriza. El PDF de cada nota dice qué factura anula.
+9. **La B por WhatsApp.** Cargar una factura por WhatsApp: la pantalla de cada ítem trae «Alícuota» y el resumen que llega
+   dice el IVA entre paréntesis. «Emitir».
+
 ## Fuera de la etapa
 
 La A con leyenda (51 a 54), la factura de crédito MiPyME, los tributos (percepciones e impuestos internos: `ImpTrib` en 0 y
