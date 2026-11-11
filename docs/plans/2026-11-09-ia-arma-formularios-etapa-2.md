@@ -410,7 +410,15 @@ cerrar la etapa.
   entrada.
 
 Pruebas: vitest de lo tocado 221/221, lint y `tsc -b` sin errores, y 12 escenas nuevas (`catalogAssistantImport.spec.ts`). Las de
-catálogos siguen sin diferencias. A 320 px, el «Desde» con dos opciones se cortaba: se está arreglando.
+catálogos siguen sin diferencias. A 320 px, el «Desde» con dos opciones se cortaba en cualquier teléfono. Ahora baja de renglón en
+el celular, con el `wrap` del control (front 22598fcd).
+
+Falta, después de la exportación conjunta que hace el chat coordinador:
+- los tests del front que leen las capturas nuevas (`ai-assistant-http`, `whatsapp-audio-http`, `catalog-imports` y
+  `forms-assistant-proposals-http`);
+- volver requerido `attachments` en el zod del bootstrap.
+
+Después de la prueba integral se retira el plan y se arma el traspaso al multitenant.
 
 2026-11-11: tarea 8 hecha.
 - **Backend:** el inventario de cohortes pasa a `formularios-pruebas-de-integracion.md`, y la guía de pruebas de BusinessForms
