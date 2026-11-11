@@ -1142,5 +1142,10 @@ Etapa 2, sin diseño.
   («-34.603722, -58.381592», con punto decimal y seis decimales en los dos idiomas) y debajo «Ver en el mapa», un enlace del
   PDF a `https://www.google.com/maps?q=<lat>,<lng>`; la vista previa usa un punto de ejemplo. El mensaje de una regla lleva el
   punto y, en el renglón siguiente, ese enlace, porque WhatsApp no tiene texto con enlace.
+- **El front.** En la carga, «Usar mi ubicación» pide el punto al tocarlo (alta precisión, sin una ubicación guardada y hasta 20 s)
+  y lo muestra en un recuadro como un archivo, con la precisión (en ámbar con su (i) arriba de 100 m), la cruz para quitarlo,
+  «Ver en el mapa» y «Volver a pedirla»; si el navegador no lo da, dice por qué. En el editor es el último tipo, sólo con
+  «Obligatoria»; la planilla muestra el punto como el enlace al mapa, sin ordenar ni filtrar por él, y el detalle, con «Ver en el
+  mapa» y la precisión en gris.
 - **Lo que no hace.** El asistente de IA no la propone al armar un formulario ni la prellena o mapea en una sugerencia; un
   estándar de la biblioteca no la usa. Se ve con `formrecords.read` y se carga con los permisos de carga de hoy.
