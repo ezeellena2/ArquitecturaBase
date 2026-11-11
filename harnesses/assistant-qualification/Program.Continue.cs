@@ -103,8 +103,8 @@ internal static partial class Program
             Console.WriteLine(entry.CaseId+": "+(reevaluated.Checks.All(check=>check.Passed)?"existing-checks-pass":"existing-checks-failed"));
             if(reevaluated.Checks.Any(check=>!check.Passed))return 1;
         }
-        var homeDefinitions=Definitions(host,QualificationSeed.HomeCapabilities);
-        var channelDefinitions=Definitions(host,QualificationChannelContexts.Capabilities);
+        var homeDefinitions=Definitions(host,HomeReferences);
+        var channelDefinitions=Definitions(host,QualificationChannelContexts.References);
         var conversations=new Dictionary<string,(Guid Id,long Revision,QualificationActor Actor)>(StringComparer.Ordinal);
         var started=false;
         try

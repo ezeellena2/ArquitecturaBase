@@ -21,9 +21,11 @@ internal static partial class Program
         "FormCatalogOptionsPolicy.cs","FormAssistantCandidatePolicy.cs","QualificationFormSeed.cs","QualificationSeed.cs",
         "QualificationHost.cs","QualificationExistingFixtureReader.cs","QualificationContinuationPolicy.cs","Program.Continue.cs","ReadOnlyAiConnectionReader.cs","HomeRunner.cs","AiAssistantService.cs","AiAssistantReadPolicy.cs",
         "AiAssistantAccessGuard.cs","AiAssistantOperations.cs","AiAssistantCapabilityCatalogPolicy.cs","AiAssistantBackgroundService.cs",
-        "AiAssistantCoordinator.cs","EmailBackgroundService.cs","WhatsAppInboundProcessor.cs","FormActionBackgroundService.cs"];
+        "AiAssistantCoordinator.cs","EmailBackgroundService.cs","WhatsAppInboundProcessor.cs","FormActionBackgroundService.cs",
+        "QualificationAuthoringSeed.cs","QualificationSpreadsheets.cs","AiAssistantFileTurnService.cs","BusinessFormAttachmentReader.cs"];
 
-    internal static readonly string[] CaseSets=["home-existing","channel-stage5","audio-es-en","stage5-all","home-authoring","channel-authoring","ia-authoring","channel-dictation"];
+    internal static readonly string[] CaseSets=["home-existing","channel-stage5","audio-es-en","stage5-all","home-authoring","channel-authoring","ia-authoring","channel-dictation",
+        "home-spreadsheets","channel-spreadsheets","ia-spreadsheets"];
     // channel-dictation runs only the voice notes of channel-authoring (IA3-A by voice), without repeating the typed cases already qualified.
     internal static ChannelCase[] SelectChannelCases(string? selected,ChannelCase[] cases)=>
         selected=="channel-dictation"?cases.Where(item=>item.Audio is not null).ToArray():cases;
@@ -31,9 +33,21 @@ internal static partial class Program
     // IA4: the public candidate for what the browser records in Home, separate from the Ogg/Wav one.
     private static readonly (string File,string Model,string Id) BrowserAudioCandidate=("audio-browser-candidate-profile.json","gpt-transcribe","openai-stt-browser-candidate");
     private const string ChannelAuthoringFile="channel-authoring-cases.json";
-    // Home stamps for authoring cases: the five reads plus what BusinessForms offers in Home (authoring and H4).
-    private static readonly string[] HomeAuthoringCapabilities=[..QualificationSeed.HomeCapabilities,"forms.authoring.catalogs","forms.authoring.forms",
-        "forms.authoring.propose-catalog","forms.authoring.propose-form","forms.catalog-filters.metadata","forms.catalog-filters.propose"];
+    // Stage 2 of «La IA arma formularios y catálogos»: spreadsheets, with their own run and database.
+    internal const string HomeSpreadsheetFile="home-spreadsheet-cases.json";
+    internal const string ChannelSpreadsheetFile="channel-spreadsheet-cases.json";
+    // What each context offers, by Id and version: the stamps of its definitions. The five Home reads are version 1.
+    internal static readonly AssistantCapabilityReference[] HomeReferences=[..QualificationSeed.HomeCapabilities.Select(id=>new AssistantCapabilityReference(id,1))];
+    // Home stamps for authoring cases: the five reads plus what BusinessForms offers in Home (authoring and H4), propose-catalog@1 as in Stage 1.
+    internal static readonly AssistantCapabilityReference[] HomeAuthoringCapabilities=[..HomeReferences,..new[]{"forms.authoring.catalogs","forms.authoring.forms",
+        "forms.authoring.propose-catalog","forms.authoring.propose-form","forms.catalog-filters.metadata","forms.catalog-filters.propose"}
+        .Select(id=>new AssistantCapabilityReference(id,1))];
+    // Home stamps for spreadsheet cases: the five reads plus what Home offers with a spreadsheet once the front draws it (plan task 9).
+    internal static readonly AssistantCapabilityReference[] HomeSpreadsheetCapabilities=[..HomeReferences,..HomeRunner.SpreadsheetOffered];
+    // Home offers the spreadsheet proposals only from plan task 9, which flips OfferedInHome; before that home-spreadsheets says what is
+    // missing and stops before any seed or provider call.
+    internal static readonly AssistantCapabilityReference[] HomeSpreadsheetProposals=[new(AuthoringOracle.ProposeCatalog,SpreadsheetOracle.MappedCatalogVersion),
+        new(SpreadsheetOracle.ProposeImport,1)];
 
     private static async Task<int> Main(string[] args)
     {
@@ -52,6 +66,10 @@ internal static partial class Program
             // IA1-A/IA3-A authoring sets run on their own run and database: other quotas, seeded accounts and contracts.
             var homeAuthoring=selected is "home-authoring" or "ia-authoring";
             var channelAuthoring=selected is "channel-authoring" or "ia-authoring" or "channel-dictation";
+            // Stage 2 spreadsheet sets: also their own run and database, with the import catalog seeded only for them.
+            var homeSpreadsheets=selected is "home-spreadsheets" or "ia-spreadsheets";
+            var channelSpreadsheets=selected is "channel-spreadsheets" or "ia-spreadsheets";
+            var spreadsheets=homeSpreadsheets || channelSpreadsheets;
             if(!args.Contains("--live",StringComparer.Ordinal))
             {
                 if(selected is "home-existing" or "stage5-all")foreach(var item in await CasesAsync<HomeCase>("home-cases.json",CancellationToken.None))Console.WriteLine(item.Id);
@@ -59,6 +77,8 @@ internal static partial class Program
                 if(selected is "audio-es-en" or "stage5-all")foreach(var item in await CasesAsync<AudioCase>("audio-cases.json",CancellationToken.None))Console.WriteLine(item.Id);
                 if(homeAuthoring)foreach(var item in await CasesAsync<HomeCase>(HomeAuthoringFile,CancellationToken.None))Console.WriteLine(item.Id);
                 if(channelAuthoring)foreach(var item in SelectChannelCases(selected,await CasesAsync<ChannelCase>(ChannelAuthoringFile,CancellationToken.None)))Console.WriteLine(item.Id);
+                if(homeSpreadsheets)foreach(var item in await CasesAsync<HomeCase>(HomeSpreadsheetFile,CancellationToken.None))Console.WriteLine(item.Id);
+                if(channelSpreadsheets)foreach(var item in await CasesAsync<ChannelCase>(ChannelSpreadsheetFile,CancellationToken.None))Console.WriteLine(item.Id);
                 Console.WriteLine("Prepared only. No connection or secret store was opened.");return 0;
             }
             // Nothing above this explicit gate reads environment, credentials, services or a database.
@@ -75,6 +95,8 @@ internal static partial class Program
                 if(selected!="stage5-all")throw new InvalidOperationException("Existing full runs retain their complete case inventory.");
                 return await ContinueExistingAsync(host,settings,ct);
             }
+            // Before any seed or provider call: Home offers the spreadsheet proposals only from plan task 9.
+            if(homeSpreadsheets && !HomeOffersSpreadsheets(host))return 2;
             QualificationFixture fixture;QualificationChannelFixture? forms=null;
             await using(var scope=host.Services.CreateAsyncScope())
             {
@@ -82,18 +104,25 @@ internal static partial class Program
                 await RefuseNonemptyEvaluationDatabaseAsync(db,ct);
                 await db.Database.MigrateAsync(ct); // Isolated evaluation DB only.
                 fixture=await scope.ServiceProvider.GetRequiredService<QualificationSeed>().CreateAsync(ct);
-                if(selected is "channel-stage5" or "stage5-all" || homeAuthoring || channelAuthoring)
+                if(selected is "channel-stage5" or "stage5-all" || homeAuthoring || channelAuthoring || spreadsheets)
                     forms=await scope.ServiceProvider.GetRequiredService<QualificationFormSeed>().CreateAsync(fixture,ct);
-                if(homeAuthoring || channelAuthoring)fixture=await scope.ServiceProvider.GetRequiredService<QualificationAuthoringSeed>().CreateAsync(fixture,ct);
+                if(homeAuthoring || channelAuthoring || spreadsheets)
+                {
+                    var authoring=scope.ServiceProvider.GetRequiredService<QualificationAuthoringSeed>();
+                    fixture=await authoring.CreateAsync(fixture,ct);
+                    if(spreadsheets)forms=await authoring.CreateImportCatalogAsync(fixture,forms!,ct);
+                }
             }
             await host.StartAsync(ct); // Existing IA worker, never its coordinator or transport.
             try
             {
-                if(selected is "home-existing" or "stage5-all")if(!await RunHomeAsync(host,settings,fixture,null,"home-cases.json",QualificationSeed.HomeCapabilities,ct))return 1;
+                if(selected is "home-existing" or "stage5-all")if(!await RunHomeAsync(host,settings,fixture,null,"home-cases.json",HomeReferences,ct))return 1;
                 if(homeAuthoring)if(!await RunHomeAsync(host,settings,fixture,forms,HomeAuthoringFile,HomeAuthoringCapabilities,ct))return 1;
-                if(selected is "channel-stage5" or "stage5-all")if(!await RunChannelsAsync(host,settings,fixture,forms!,"channel-cases.json",ct))return 1;
-                if(channelAuthoring)if(!await RunChannelsAsync(host,settings,fixture,forms!,ChannelAuthoringFile,ct,selected))return 1;
+                if(selected is "channel-stage5" or "stage5-all")if(!await RunChannelsAsync(host,settings,fixture,forms!,"channel-cases.json",QualificationChannelContexts.References,ct))return 1;
+                if(channelAuthoring)if(!await RunChannelsAsync(host,settings,fixture,forms!,ChannelAuthoringFile,QualificationChannelContexts.References,ct,selected))return 1;
                 if(selected is "audio-es-en" or "stage5-all")if(!await RunAudioAsync(host,settings,fixture,ct))return 1;
+                if(homeSpreadsheets)if(!await RunHomeAsync(host,settings,fixture,forms,HomeSpreadsheetFile,HomeSpreadsheetCapabilities,ct))return 1;
+                if(channelSpreadsheets)if(!await RunChannelsAsync(host,settings,fixture,forms!,ChannelSpreadsheetFile,QualificationChannelContexts.SpreadsheetReferences,ct))return 1;
                 return 0; // Mechanical checks do not declare production qualification.
             }
             finally{await host.StopAsync(CancellationToken.None);}
@@ -190,20 +219,20 @@ internal static partial class Program
     }
 
     private static async Task<bool> RunHomeAsync(IHost host,QualificationSettings settings,QualificationFixture fixture,QualificationChannelFixture? forms,
-        string fixtureFile,IReadOnlyCollection<string> capabilities,CancellationToken ct)
+        string fixtureFile,IReadOnlyCollection<AssistantCapabilityReference> capabilities,CancellationToken ct)
     {
         var cases=await CasesAsync<HomeCase>(fixtureFile,ct);
         var definitions=Definitions(host,capabilities);
-        // A follow-up keeps its actor, conversation revision and, for an authoring adjustment, the proposal that turn showed.
-        var conversations=new Dictionary<string,(Guid Id,long Revision,QualificationActor Actor,AssistantObservedProposal? Proposal)>(StringComparer.Ordinal);
+        // A follow-up keeps its actor, conversation revision and, for an authoring adjustment, the proposal that turn showed and the
+        // key of the spreadsheet it sealed (Stage 2), which the follow-up inherits.
+        var conversations=new Dictionary<string,(Guid Id,long Revision,QualificationActor Actor,AssistantObservedProposal? Proposal,string? AttachmentKey)>(StringComparer.Ordinal);
         foreach(var testCase in cases)
         {
             await using var scope=host.Services.CreateAsyncScope();
-            var pool=(testCase.ActorKind switch{"home"=>fixture.Actors,"author"=>fixture.Authors,_=>[]}).Where(item=>item.Culture==testCase.Culture).ToArray();
-            if(pool.Length==0)throw new InvalidOperationException("Unknown Home qualification actor.");
-            var actor=pool[Array.IndexOf(cases,testCase)%pool.Length];
-            (Guid Id,long Revision)? previous=null;AssistantObservedProposal? shown=null;
-            if(testCase.ConversationKey is {} key && conversations.TryGetValue(key,out var history)){actor=history.Actor;previous=(history.Id,history.Revision);shown=history.Proposal;}
+            var actor=HomeActor(cases,testCase,fixture);
+            (Guid Id,long Revision)? previous=null;AssistantObservedProposal? shown=null;string? attachmentKey=null;
+            if(testCase.ConversationKey is {} key && conversations.TryGetValue(key,out var history))
+            {actor=history.Actor;previous=(history.Id,history.Revision);shown=history.Proposal;attachmentKey=history.AttachmentKey;}
             var runner=scope.ServiceProvider.GetRequiredService<HomeRunner>();
             HomeAudioObservation? dictated=null;
             if(testCase.Audio is not null)
@@ -217,18 +246,26 @@ internal static partial class Program
                     dictated.Metadata,dictated.ElapsedSeconds,dictated.Measurements,dictated.Checks,[],fixtureFile,true,ct,BrowserAudioCandidate);
                 if(!await SaveAsync(settings,heard,ct))return false;
             }
-            var observed=await runner.RunAsync(testCase,actor,previous,ct,fixture,forms,shown,dictated);
-            if(testCase.ConversationKey is {} saved)conversations[saved]=(observed.ConversationId,observed.ConversationRevision,actor,observed.Turn.ObservedProposal);
+            var observed=await runner.RunAsync(testCase,actor,previous,ct,fixture,forms,shown,dictated,attachmentKey);
+            if(testCase.ConversationKey is {} saved)
+                conversations[saved]=(observed.ConversationId,observed.ConversationRevision,actor,observed.Turn.ObservedProposal,observed.Metadata.AttachmentKey);
             var evidence=await EvidenceAsync(testCase.Id,"home",testCase.Culture,observed.Turn.State,observed.Turn.Failure?.Code,
                 observed.Metadata,observed.ElapsedSeconds,observed.Measurements,observed.Checks,definitions,fixtureFile,false,ct);
             if(!await SaveAsync(settings,evidence,ct))return false;
         }
         return true;
     }
-    private static async Task<bool> RunChannelsAsync(IHost host,QualificationSettings settings,QualificationFixture fixture,QualificationChannelFixture forms,
-        string fixtureFile,CancellationToken ct,string? selected=null)
+    // Who asks a Home case: its culture's accounts of its kind, in turns by the case's position (a follow-up keeps its start's).
+    internal static QualificationActor HomeActor(HomeCase[] cases,HomeCase testCase,QualificationFixture fixture)
     {
-        var definitions=Definitions(host,QualificationChannelContexts.Capabilities);
+        var pool=(testCase.ActorKind switch{"home"=>fixture.Actors,"author"=>fixture.Authors,_=>[]}).Where(item=>item.Culture==testCase.Culture).ToArray();
+        if(pool.Length==0)throw new InvalidOperationException("Unknown Home qualification actor.");
+        return pool[Array.IndexOf(cases,testCase)%pool.Length];
+    }
+    private static async Task<bool> RunChannelsAsync(IHost host,QualificationSettings settings,QualificationFixture fixture,QualificationChannelFixture forms,
+        string fixtureFile,IReadOnlyCollection<AssistantCapabilityReference> offered,CancellationToken ct,string? selected=null)
+    {
+        var definitions=Definitions(host,offered);
         // IA3-A: an adjustment continues the observed operation of its start case (PreviousRequestId), as after «Cambiar algo».
         var observedCases=new Dictionary<string,ChannelObservation>(StringComparer.Ordinal);
         foreach(var testCase in SelectChannelCases(selected,await CasesAsync<ChannelCase>(fixtureFile,ct)))
@@ -288,14 +325,38 @@ internal static partial class Program
         await EvidenceWriter.WriteAsync(Path.Combine(settings.OutputDirectory,evidence.CaseId+".evidence.json"),evidence,ct);
         var passed=evidence.Checks.All(item=>item.Passed);Console.WriteLine(evidence.CaseId+": "+(passed?"mechanical-checks-pass":"failed"));return passed;
     }
-    private static CapabilityStamp[] Definitions(IHost host,IReadOnlyCollection<string> expected)
+    private static CapabilityStamp[] Definitions(IHost host,IReadOnlyCollection<AssistantCapabilityReference> offered)
     {
         using var scope=host.Services.CreateScope();
-        var definitions=scope.ServiceProvider.GetServices<IAssistantCapabilitySource>().SelectMany(source=>source.Definitions)
-            .Where(item=>expected.Contains(item.Id)).OrderBy(item=>item.Id,StringComparer.Ordinal)
+        return Inventory(scope.ServiceProvider.GetServices<IAssistantCapabilitySource>().SelectMany(source=>source.Definitions),offered);
+    }
+    // The stamps of what a context offers, by Id and version: each reference names exactly one registered definition, and another
+    // version of the same Id (propose-catalog@1 next to @2 since Stage 2) is not part of the context.
+    internal static CapabilityStamp[] Inventory(IEnumerable<AssistantCapabilityDefinition> registered,IReadOnlyCollection<AssistantCapabilityReference> offered)
+    {
+        var wanted=offered.Distinct().OrderBy(item=>item.Id,StringComparer.Ordinal).ThenBy(item=>item.Version).ToArray();
+        var definitions=registered.Where(item=>wanted.Contains(new AssistantCapabilityReference(item.Id,item.Version)))
+            .OrderBy(item=>item.Id,StringComparer.Ordinal).ThenBy(item=>item.Version)
             .Select(item=>new CapabilityStamp(item.Id,item.Version,EvidenceWriter.HashPublicText(item.InputSchemaJson),EvidenceWriter.HashPublicText(item.OutputSchemaJson))).ToArray();
-        if(!definitions.Select(item=>item.Id).SequenceEqual(expected.Order(StringComparer.Ordinal)))throw new InvalidOperationException("Qualification capability inventory changed.");
+        if(wanted.Length!=offered.Count || !definitions.Select(item=>new AssistantCapabilityReference(item.Id,item.Version)).SequenceEqual(wanted))
+            throw new InvalidOperationException("Qualification capability inventory changed.");
         return definitions;
+    }
+    // What Home still has to offer for home-spreadsheets, by Id and version, from what the owners declare OfferedInHome.
+    internal static IReadOnlyList<string> HomeSpreadsheetGaps(IEnumerable<AssistantCapabilityDefinition> registered)
+    {
+        var offered=registered.Where(item=>item.OfferedInHome).Select(item=>new AssistantCapabilityReference(item.Id,item.Version)).ToArray();
+        return [..HomeSpreadsheetProposals.Where(reference=>!offered.Contains(reference)).Select(reference=>"offer "+reference.Id+"@"+reference.Version.ToString(CultureInfo.InvariantCulture)),
+            ..offered.Where(reference=>reference.Id==AuthoringOracle.ProposeCatalog && reference.Version!=SpreadsheetOracle.MappedCatalogVersion)
+                .Select(reference=>"stop offering "+reference.Id+"@"+reference.Version.ToString(CultureInfo.InvariantCulture))];
+    }
+    // Only fixed public capability IDs are printed, before the database is seeded or the provider is called.
+    private static bool HomeOffersSpreadsheets(IHost host)
+    {
+        using var scope=host.Services.CreateScope();
+        var gaps=HomeSpreadsheetGaps(scope.ServiceProvider.GetServices<IAssistantCapabilitySource>().SelectMany(source=>source.Definitions));
+        foreach(var gap in gaps)Console.Error.WriteLine("qualification-home-spreadsheets-needs-plan-task-9: Home must "+gap);
+        return gaps.Count==0;
     }
     private static async Task<int> ResumeAsync(IHost host,QualificationSettings settings,CancellationToken ct)
     {

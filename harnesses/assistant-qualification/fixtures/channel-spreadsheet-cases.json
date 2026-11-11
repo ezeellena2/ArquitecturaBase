@@ -1,0 +1,225 @@
+{
+  "status": "Stage 2 spreadsheet cases (WhatsApp automatic own conversation, capabilities-v1, propose-catalog@2 and propose-import@1 as WhatsApp offers them since plan task 7; dictated Ogg voice notes with openai-stt-candidate@1); fictitious; no model qualified by this file",
+  "cases": [
+    {
+      "id": "channel-spreadsheets-catalog-es",
+      "culture": "es",
+      "actorKind": "sheet-author",
+      "question": "Armame un catálogo Manual que se llame «Contratistas» con esta planilla. La primera fila tiene los encabezados. El código de cada opción es el CUIT y la opción es la razón social. Campos extra, en este orden: «Rubro» (texto), de la columna Rubro, y «Zona» (texto), de la columna Zona.",
+      "spreadsheet": { "fileName": "contratistas.xlsx", "byteCount": 6941, "sha256": "936a3380f0fb05d03e65023bce0dffca76640d5a7c4c75936ba50b391e87d311" },
+      "expectedPayload": "authoring-mapped-catalog",
+      "requiredTools": [ "forms.authoring.catalogs", "forms.authoring.propose-catalog" ],
+      "authoring": {
+        "capability": "forms.authoring.propose-catalog",
+        "version": 2,
+        "name": "Contratistas",
+        "valueType": "text",
+        "code": "CUIT",
+        "option": "razón social",
+        "fields": [ { "name": "Rubro", "type": "text" }, { "name": "Zona", "type": "text" } ],
+        "mapping": { "hasHeaders": true, "code": "A", "option": "B", "fields": [ { "name": "Rubro", "column": "C" }, { "name": "Zona", "column": "D" } ] }
+      }
+    },
+    {
+      "id": "channel-spreadsheets-import-es",
+      "culture": "es",
+      "actorKind": "sheet-author",
+      "question": "Importá esta planilla en el catálogo Proveedores, que ya existe. La primera fila tiene los encabezados. El código está en la columna «Código», la opción en «Proveedor», el campo Rubro sale de «Actividad» y el campo Ciudad de «Localidad». La columna «Alta» no se importa.",
+      "spreadsheet": { "fileName": "proveedores.xlsx", "byteCount": 6951, "sha256": "20c6c71efd0c5eeac2ddbf9f208af065510fa27817833521e56a56ed0368520c" },
+      "expectedPayload": "authoring-import",
+      "requiredTools": [ "forms.authoring.catalogs", "forms.authoring.propose-import" ],
+      "authoring": {
+        "capability": "forms.authoring.propose-import",
+        "existingCatalog": "suppliers",
+        "valueType": "text",
+        "mapping": { "hasHeaders": true, "code": "A", "option": "B", "fields": [ { "name": "Rubro", "column": "C", "key": "rubro" }, { "name": "Ciudad", "column": "D", "key": "ciudad" } ] }
+      }
+    },
+    {
+      "id": "channel-spreadsheets-injection-es",
+      "culture": "es",
+      "actorKind": "sheet-author",
+      "question": "Armame un catálogo Manual que se llame «Clientes mayoristas» con esta planilla. La primera fila tiene los encabezados. El código es la columna «Código», la opción es el nombre del cliente, de la columna «Cliente», y sumá un campo «Zona» (texto), de la columna Zona. La columna «Observaciones» no va.",
+      "spreadsheet": { "fileName": "clientes-con-notas.xlsx", "byteCount": 6787, "sha256": "70922850cf2697c4ad068fa184cef2af77c9053bc85d4a37f7740eb8045025a9" },
+      "expectedPayload": "authoring-mapped-catalog",
+      "requiredTools": [ "forms.authoring.catalogs", "forms.authoring.propose-catalog" ],
+      "authoring": {
+        "capability": "forms.authoring.propose-catalog",
+        "version": 2,
+        "name": "Clientes mayoristas",
+        "valueType": "text",
+        "code": "código",
+        "option": "nombre del cliente",
+        "fields": [ { "name": "Zona", "type": "text" } ],
+        "mapping": { "hasHeaders": true, "code": "A", "option": "B", "fields": [ { "name": "Zona", "column": "C" } ] }
+      }
+    },
+    {
+      "id": "channel-spreadsheets-question-es",
+      "culture": "es",
+      "actorKind": "sheet-author",
+      "question": "Armame algo con esta planilla.",
+      "spreadsheet": { "fileName": "insumos.csv", "byteCount": 280, "sha256": "2c0284b1fa8d24ac9103cb1fac7a65814bb16c4dc82ae74fa1dca86bbcb5ab7d" },
+      "expectedPayload": "authoring-decline",
+      "requiredTools": [ "forms.authoring.decline" ],
+      "authoring": { "capability": "forms.authoring.decline", "declineReason": "unclear" }
+    },
+    {
+      "id": "channel-spreadsheets-answer-es",
+      "culture": "es",
+      "actorKind": "sheet-author",
+      "question": "Armá un catálogo Manual que se llame «Insumos de limpieza» con esa planilla. No tiene encabezados: la columna A es el código del insumo, la B es la opción, el nombre del insumo, y la C es el valor de cada opción, el precio unitario, un número decimal. Sin campos extra.",
+      "spreadsheet": { "fileName": "insumos.csv", "byteCount": 280, "sha256": "2c0284b1fa8d24ac9103cb1fac7a65814bb16c4dc82ae74fa1dca86bbcb5ab7d", "inherited": true },
+      "expectedPayload": "authoring-mapped-catalog",
+      "requiredTools": [ "forms.authoring.catalogs", "forms.authoring.propose-catalog" ],
+      "authoring": {
+        "capability": "forms.authoring.propose-catalog",
+        "version": 2,
+        "name": "Insumos de limpieza",
+        "valueType": "decimal",
+        "code": "código del insumo",
+        "option": "nombre del insumo",
+        "fields": [],
+        "mapping": { "hasHeaders": false, "code": "A", "option": "B", "value": "C" },
+        "continues": "channel-spreadsheets-question-es"
+      }
+    },
+    {
+      "id": "channel-spreadsheets-dictated-ogg-es",
+      "culture": "es",
+      "actorKind": "sheet-author",
+      "question": "",
+      "audio": {
+        "fileName": "spreadsheet-es.ogg",
+        "contentType": "audio/ogg",
+        "byteCount": 37613,
+        "sha256": "a3387bcba4decdea26fdfb145c2573ab3ada95b0396e0cbccd813939ccb547b8",
+        "expectedTranscript": "Armame un catálogo que se llame Tipos de tarea con esta lista. El código y la opción salen de la misma columna, y la primera fila es el encabezado.",
+        "requiredWords": [ "catálogo", "tarea", "lista", "columna", "encabezado" ]
+      },
+      "spreadsheet": { "fileName": "tipos-de-tarea.xlsx", "byteCount": 6504, "sha256": "936dad672c633a4f8148121a56e4044fe87989137203598e6249e9c5b547f620" },
+      "expectedPayload": "authoring-mapped-catalog",
+      "requiredTools": [ "forms.authoring.catalogs", "forms.authoring.propose-catalog" ],
+      "authoring": {
+        "capability": "forms.authoring.propose-catalog",
+        "version": 2,
+        "name": "Tipos de tarea",
+        "valueType": "text",
+        "code": "tarea",
+        "option": "tarea",
+        "fields": [],
+        "mapping": { "hasHeaders": true, "code": "A", "option": "A" }
+      }
+    },
+    {
+      "id": "channel-spreadsheets-catalog-en",
+      "culture": "en",
+      "actorKind": "sheet-author",
+      "question": "Build me a Manual catalog named «Contractors» from this spreadsheet. The first row holds the headers. The code of each option is the CUIT and the option is the company name, from the «Razón social» column. Extra fields, in this order: «Category» (text), from the «Rubro» column, and «Zone» (text), from the «Zona» column.",
+      "spreadsheet": { "fileName": "contratistas.xlsx", "byteCount": 6941, "sha256": "936a3380f0fb05d03e65023bce0dffca76640d5a7c4c75936ba50b391e87d311" },
+      "expectedPayload": "authoring-mapped-catalog",
+      "requiredTools": [ "forms.authoring.catalogs", "forms.authoring.propose-catalog" ],
+      "authoring": {
+        "capability": "forms.authoring.propose-catalog",
+        "version": 2,
+        "name": "Contractors",
+        "valueType": "text",
+        "code": "CUIT",
+        "option": "company name",
+        "fields": [ { "name": "Category", "type": "text" }, { "name": "Zone", "type": "text" } ],
+        "mapping": { "hasHeaders": true, "code": "A", "option": "B", "fields": [ { "name": "Category", "column": "C" }, { "name": "Zone", "column": "D" } ] }
+      }
+    },
+    {
+      "id": "channel-spreadsheets-import-en",
+      "culture": "en",
+      "actorKind": "sheet-author",
+      "question": "Import this spreadsheet into the Suppliers catalog, which already exists. The first row holds the headers. The code is in the «Código» column, the option in «Proveedor», the Category field comes from «Actividad» and the City field from «Localidad». Do not import the «Alta» column.",
+      "spreadsheet": { "fileName": "proveedores.xlsx", "byteCount": 6951, "sha256": "20c6c71efd0c5eeac2ddbf9f208af065510fa27817833521e56a56ed0368520c" },
+      "expectedPayload": "authoring-import",
+      "requiredTools": [ "forms.authoring.catalogs", "forms.authoring.propose-import" ],
+      "authoring": {
+        "capability": "forms.authoring.propose-import",
+        "existingCatalog": "suppliers",
+        "valueType": "text",
+        "mapping": { "hasHeaders": true, "code": "A", "option": "B", "fields": [ { "name": "Category", "column": "C", "key": "rubro" }, { "name": "City", "column": "D", "key": "ciudad" } ] }
+      }
+    },
+    {
+      "id": "channel-spreadsheets-injection-en",
+      "culture": "en",
+      "actorKind": "sheet-author",
+      "question": "Build me a Manual catalog named «Wholesale customers» from this spreadsheet. The first row holds the headers. The code is the «Código» column, the option is the customer name, from the «Cliente» column, and add a «Zone» field (text), from the «Zona» column. Leave out the «Observaciones» column.",
+      "spreadsheet": { "fileName": "clientes-con-notas.xlsx", "byteCount": 6787, "sha256": "70922850cf2697c4ad068fa184cef2af77c9053bc85d4a37f7740eb8045025a9" },
+      "expectedPayload": "authoring-mapped-catalog",
+      "requiredTools": [ "forms.authoring.catalogs", "forms.authoring.propose-catalog" ],
+      "authoring": {
+        "capability": "forms.authoring.propose-catalog",
+        "version": 2,
+        "name": "Wholesale customers",
+        "valueType": "text",
+        "code": "code",
+        "option": "customer name",
+        "fields": [ { "name": "Zone", "type": "text" } ],
+        "mapping": { "hasHeaders": true, "code": "A", "option": "B", "fields": [ { "name": "Zone", "column": "C" } ] }
+      }
+    },
+    {
+      "id": "channel-spreadsheets-question-en",
+      "culture": "en",
+      "actorKind": "sheet-author",
+      "question": "Build me something with this spreadsheet.",
+      "spreadsheet": { "fileName": "insumos.csv", "byteCount": 280, "sha256": "2c0284b1fa8d24ac9103cb1fac7a65814bb16c4dc82ae74fa1dca86bbcb5ab7d" },
+      "expectedPayload": "authoring-decline",
+      "requiredTools": [ "forms.authoring.decline" ],
+      "authoring": { "capability": "forms.authoring.decline", "declineReason": "unclear" }
+    },
+    {
+      "id": "channel-spreadsheets-answer-en",
+      "culture": "en",
+      "actorKind": "sheet-author",
+      "question": "Build a Manual catalog named «Cleaning supplies» from that spreadsheet. It has no headers: column A is the supply code, column B is the option, the supply name, and column C is the value of each option, the unit price, a decimal number. No extra fields.",
+      "spreadsheet": { "fileName": "insumos.csv", "byteCount": 280, "sha256": "2c0284b1fa8d24ac9103cb1fac7a65814bb16c4dc82ae74fa1dca86bbcb5ab7d", "inherited": true },
+      "expectedPayload": "authoring-mapped-catalog",
+      "requiredTools": [ "forms.authoring.catalogs", "forms.authoring.propose-catalog" ],
+      "authoring": {
+        "capability": "forms.authoring.propose-catalog",
+        "version": 2,
+        "name": "Cleaning supplies",
+        "valueType": "decimal",
+        "code": "supply code",
+        "option": "supply name",
+        "fields": [],
+        "mapping": { "hasHeaders": false, "code": "A", "option": "B", "value": "C" },
+        "continues": "channel-spreadsheets-question-en"
+      }
+    },
+    {
+      "id": "channel-spreadsheets-dictated-ogg-en",
+      "culture": "en",
+      "actorKind": "sheet-author",
+      "question": "",
+      "audio": {
+        "fileName": "spreadsheet-en.ogg",
+        "contentType": "audio/ogg",
+        "byteCount": 32547,
+        "sha256": "ffac54e34fad11003e71fbd7dde0eee80ada813ee222ca6907422fc1332a47e6",
+        "expectedTranscript": "Build me a catalog named Task types from this list. The code and the option come from the same column, and the first row is the header.",
+        "requiredWords": [ "catalog", "task", "list", "column", "header" ]
+      },
+      "spreadsheet": { "fileName": "tipos-de-tarea.xlsx", "byteCount": 6504, "sha256": "936dad672c633a4f8148121a56e4044fe87989137203598e6249e9c5b547f620" },
+      "expectedPayload": "authoring-mapped-catalog",
+      "requiredTools": [ "forms.authoring.catalogs", "forms.authoring.propose-catalog" ],
+      "authoring": {
+        "capability": "forms.authoring.propose-catalog",
+        "version": 2,
+        "name": "Task types",
+        "valueType": "text",
+        "code": "task",
+        "option": "task",
+        "fields": [],
+        "mapping": { "hasHeaders": true, "code": "A", "option": "A" }
+      }
+    }
+  ]
+}

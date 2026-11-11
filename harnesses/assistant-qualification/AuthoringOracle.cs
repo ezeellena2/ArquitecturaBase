@@ -13,7 +13,12 @@ internal sealed record AuthoringFieldExpectation(string Name, string Type);
 internal sealed record AuthoringExpectation(string? Capability, string? Name = null, string? Prefix = null,
     AuthoringQuestionExpectation[]? Questions = null, string? ValueType = null, string? Code = null, string? Option = null,
     AuthoringFieldExpectation[]? Fields = null, string? DeclineReason = null, string? ExistingForm = null, string? ExistingCatalog = null,
-    string? Continues = null);
+    string? Continues = null, int Version = 1, SpreadsheetMappingExpectation? Mapping = null);
+// Stage 2: where a proposal takes its options from the turn's spreadsheet, by column letter. A field names the catalog's field (an
+// import's also by its stable key); the value only when the value type takes one.
+internal sealed record SpreadsheetColumnExpectation(string Name, string Column, string? Key = null);
+internal sealed record SpreadsheetMappingExpectation(bool HasHeaders, string Code, string Option, string? Value = null, string? Detail = null,
+    SpreadsheetColumnExpectation[]? Fields = null);
 
 // Finite in-memory oracles over public fixture facts; nothing here is exported except fixed check IDs and booleans.
 // Texts compare without case, accents or punctuation; types, requirement, order, identities and value types compare exactly.
@@ -101,7 +106,7 @@ internal static partial class AuthoringOracle
     ];
 
     // BusinessForms checked the reason; the oracle checks it is the requested one and names exactly the existing form or catalog.
-    private static IReadOnlyList<CheckEvidence> DeclineChecks(AuthoringExpectation expected, FormAuthoringDecline? decline, QualificationChannelFixture fixture)
+    internal static IReadOnlyList<CheckEvidence> DeclineChecks(AuthoringExpectation expected, FormAuthoringDecline? decline, QualificationChannelFixture fixture)
     {
         var form = expected.ExistingForm is null ? null : fixture.Forms.SingleOrDefault(item => item.Alias == expected.ExistingForm);
         var catalog = expected.ExistingCatalog is null ? null : fixture.Catalogs.SingleOrDefault(item => item.Alias == expected.ExistingCatalog);
@@ -127,12 +132,13 @@ internal static partial class AuthoringOracle
             read.TurnId == proposal.TurnId && read.Ordinal > 0 && read.Capability.Id == tool && read.Capability.Version == 1
             && read.Payload.GetType() == Reads[tool]));
 
-    // A rejected proposal never gets an Id; after the last rejection the model must have proposed the expected capability again.
-    public static bool RejectionsRecovered(IReadOnlyList<ObservedCapability> tools, string capability)
+    // A rejected proposal never gets an Id; after the last rejection the model must have proposed the expected capability again, in
+    // the version its context offers.
+    public static bool RejectionsRecovered(IReadOnlyList<ObservedCapability> tools, string capability, int version = 1)
     {
         var last = -1;
         for (var index = 0; index < tools.Count; index++) if (tools[index].State == "rejected") last = index;
-        return last < 0 || tools.Skip(last + 1).Any(tool => tool.Id == capability && tool.Version == 1 && tool.State == "proposed");
+        return last < 0 || tools.Skip(last + 1).Any(tool => tool.Id == capability && tool.Version == version && tool.State == "proposed");
     }
 
     // One proposal per turn: every proposal call (accepted or rejected) is of the expected capability; null expects none at all.

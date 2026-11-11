@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text.RegularExpressions;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Models.Assistant;
+using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Models.SystemQueries;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Services;
@@ -12,7 +13,7 @@ namespace AssistantQualification;
 internal sealed record HomeCase(string Id, string Culture, string Question, string[] RequiredTools,
     string ExpectedKind = "answer", int MinimumProviderSteps = 2, string[]? ExpectedAnswerFragments = null,
     string? ConversationKey = null, bool RevokeBeforeWorkerStarts = false, string ActorKind = "home",
-    AuthoringExpectation? Authoring = null, DictationAudioFixture? Audio = null);
+    AuthoringExpectation? Authoring = null, DictationAudioFixture? Audio = null, SpreadsheetFixture? Spreadsheet = null);
 internal sealed record HomeObservation(Guid RequestId, Guid ConversationId, long ConversationRevision,
     AiAssistantTurnResponse Turn, TurnMetadata Metadata, double ElapsedSeconds, IReadOnlyList<CheckEvidence> Checks, MeasurementSnapshot Measurements);
 internal sealed record HomeAudioObservation(Guid RequestId, AiAssistantAudioResponse Result, TurnMetadata Metadata, double ElapsedSeconds,
@@ -20,10 +21,17 @@ internal sealed record HomeAudioObservation(Guid RequestId, AiAssistantAudioResp
 
 internal sealed class HomeRunner(QualificationCurrentUser currentUser, IAiAssistantService assistant,
     IAiConnectionReader connections, SafeTurnMetadata metadata, SafeRunLedger ledger, TimeProvider clock, QualificationMeasurements measurements,
-    IEnumerable<IAssistantCapabilitySource> sources, IAiAssistantAudioService audioService)
+    IEnumerable<IAssistantCapabilitySource> sources, IAiAssistantAudioService audioService, IAiAssistantFileTurnService fileTurns,
+    IStructuredAttachmentReader attachments)
 {
     private static readonly string[] HomeAuthoringOffered = ["forms.authoring.forms", "forms.authoring.catalogs", "forms.authoring.propose-form",
         "forms.authoring.propose-catalog", "forms.catalog-filters.metadata", "forms.catalog-filters.propose"];
+    // Stage 2: what Home offers an author in a turn with a spreadsheet once the front draws it (plan task 9), by Id and version; never
+    // version 1 of the catalog, nor decline, which only a channel says.
+    internal static readonly AssistantCapabilityReference[] SpreadsheetOffered = [new("forms.authoring.forms", 1), new("forms.authoring.catalogs", 1),
+        new(AuthoringOracle.ProposeForm, 1), new(AuthoringOracle.ProposeCatalog, SpreadsheetOracle.MappedCatalogVersion), new(SpreadsheetOracle.ProposeImport, 1),
+        new("forms.catalog-filters.metadata", 1), new(AuthoringOracle.PeopleCatalog, 1)];
+    private static readonly AssistantCapabilityReference[] SpreadsheetNotOffered = [new(AuthoringOracle.ProposeCatalog, 1), new(AuthoringOracle.Decline, 1)];
 
     // IA4: the real Home audio service stores the public recording privately and normalizes it in home-audio. Its own ledger
     // identity ("<case>-audio") is fixed before the submit; resume only reads it back.
@@ -63,14 +71,22 @@ internal sealed class HomeRunner(QualificationCurrentUser currentUser, IAiAssist
 
     // Authoring cases (IA1-A) also need the seeded forms/catalogs and, for an adjustment, the proposal its conversation showed last.
     // A dictated case (IA4) names its completed normalization; the typed question stays empty and the server takes the transcript.
+    // A spreadsheet case (Stage 2) uploads its file through the real file turn; one that inherits it is a plain turn of the same
+    // conversation, whose previous turn sealed the copy under previousAttachmentKey.
     public async Task<HomeObservation> RunAsync(HomeCase testCase, QualificationActor actor,
         (Guid Id, long Revision)? conversation, CancellationToken cancellationToken, QualificationFixture? fixture = null,
-        QualificationChannelFixture? forms = null, AssistantObservedProposal? previousProposal = null, HomeAudioObservation? dictated = null)
+        QualificationChannelFixture? forms = null, AssistantObservedProposal? previousProposal = null, HomeAudioObservation? dictated = null,
+        string? previousAttachmentKey = null)
     {
         if (testCase.Authoring is not null && (fixture is null || forms is null))
             throw new InvalidOperationException("Authoring cases need the seeded forms and catalogs.");
         if ((testCase.Audio is null) != (dictated is null) || dictated is { Result.Transcript: null })
             throw new InvalidOperationException("A dictated case needs exactly its completed normalization.");
+        if (testCase.Spreadsheet is { } attached && (testCase.Authoring is null || attached.Inherited && (conversation is null || previousAttachmentKey is null)))
+            throw new InvalidOperationException("A spreadsheet case needs its expectation and, to inherit it, its conversation.");
+        // The sheet the model reads, prepared from the public bytes by the real port exactly as the file turn prepares it.
+        var sheetBytes = testCase.Spreadsheet is { } fixtureSheet ? await QualificationSpreadsheets.ReadAsync(fixtureSheet, cancellationToken) : null;
+        var sheet = sheetBytes is null ? null : await QualificationSpreadsheets.PrepareAsync(attachments, sheetBytes, testCase.Spreadsheet!, cancellationToken);
         currentUser.Set(actor.UserId);
         Console.WriteLine("qualification-home-bootstrap-start");
         var bootstrap = await assistant.BootstrapAsync(cancellationToken);
@@ -87,9 +103,13 @@ internal sealed class HomeRunner(QualificationCurrentUser currentUser, IAiAssist
         await ledger.SaveAsync(new(testCase.Id, requestId, actor.UserId, conversation?.Id, conversation?.Revision, "before-submit"), cancellationToken);
         measurements.BeginCase();
         var elapsed = Stopwatch.StartNew();
-        var accepted = await assistant.SubmitAsync(new SubmitAiAssistantTurnRequest(requestId,
-            conversation?.Id, conversation?.Revision, connection.Revision, testCase.Question, testCase.Culture) { AudioRequestId = dictated?.RequestId }, cancellationToken);
-        if (accepted.IsFailure) throw QualificationRejections.Stop("home-submit", accepted.Error);
+        var turn = new SubmitAiAssistantTurnRequest(requestId, conversation?.Id, conversation?.Revision, connection.Revision, testCase.Question,
+            testCase.Culture) { AudioRequestId = dictated?.RequestId };
+        var uploads = testCase.Spreadsheet is { Inherited: false };
+        var accepted = uploads
+            ? await fileTurns.SubmitAsync(new SubmitAiAssistantFileTurnRequest(turn, sheetBytes!, testCase.Spreadsheet!.FileName), cancellationToken)
+            : await assistant.SubmitAsync(turn, cancellationToken);
+        if (accepted.IsFailure) throw QualificationRejections.Stop(uploads ? "home-file-submit" : "home-submit", accepted.Error);
         await ledger.SaveAsync(new(testCase.Id, requestId, actor.UserId, accepted.Value.ConversationId,
             accepted.Value.ConversationRevision, "accepted"), cancellationToken);
         AiAssistantTurnResponse? result = null;
@@ -120,10 +140,12 @@ internal sealed class HomeRunner(QualificationCurrentUser currentUser, IAiAssist
             new("culture-context-matches", result.Culture == testCase.Culture),
             new("expected-fixture-facts", FixedFactsMatch(testCase,result.Answer?.Text,result.Evidences)),
         };
-        if (testCase.Authoring is not null)
-            AddAuthoringChecks(checks, testCase, result, technical, forms!, fixture!, sources.SelectMany(source => source.Definitions)
-                .Where(definition => definition.Kind == AssistantCapabilityKind.Proposal).Select(definition => definition.Id)
-                .ToHashSet(StringComparer.Ordinal), conversation, previousProposal);
+        var proposalCapabilities = sources.SelectMany(source => source.Definitions).Where(definition => definition.Kind == AssistantCapabilityKind.Proposal)
+            .Select(definition => definition.Id).ToHashSet(StringComparer.Ordinal);
+        if (sheet is not null)
+            AddSpreadsheetChecks(checks, testCase, result, technical, forms!, sheet, proposalCapabilities, conversation, previousProposal, previousAttachmentKey);
+        else if (testCase.Authoring is not null)
+            AddAuthoringChecks(checks, testCase, result, technical, forms!, fixture!, proposalCapabilities, conversation, previousProposal);
         if (dictated is not null) AddDictationChecks(checks, result, dictated.RequestId, dictated.Result.Transcript!);
         // Text is examined in memory and immediately discarded after checks. Never serialize this observation itself.
         return new(requestId, result.ConversationId, result.ConversationRevision, result,
@@ -158,6 +180,44 @@ internal sealed class HomeRunner(QualificationCurrentUser currentUser, IAiAssist
             checks.Add(new("continued-same-conversation", conversation is { } current && result.ConversationId == current.Id
                 && technical.ConversationId == current.Id));
         checks.AddRange(AuthoringOracle.PayloadChecks(expected, testCase.Culture, proposal?.Payload, fixture, actors, previous?.Payload));
+    }
+
+    // Stage 2 in Home: home-system@2, the spreadsheet offer by Id and version, the turn bringing its own file (the bubble and the copy
+    // keyed by its request) or inheriting its conversation's, both untrusted notes in what the model read for the injection fixture,
+    // and either no proposal at all (a spreadsheet without text asks) or the expected owner proposal in its version, resting on earlier
+    // reads, recovered after a rejection, alone in its turn and, for an adjustment, in the same conversation. Payload facts: SpreadsheetOracle.
+    internal static void AddSpreadsheetChecks(List<CheckEvidence> checks, HomeCase testCase, AiAssistantTurnResponse result, TurnMetadata technical,
+        QualificationChannelFixture fixture, StructuredSpreadsheet sheet, IReadOnlySet<string> proposalCapabilities,
+        (Guid Id, long Revision)? conversation, AssistantObservedProposal? previous, string? previousAttachmentKey)
+    {
+        if (testCase is not { Authoring: { } expected, Spreadsheet: { } attached }) return;
+        checks.Add(new("home-instructions-v2", technical.Stamps is { InstructionsId: "home-system", InstructionsVersion: 2 }));
+        checks.Add(new("spreadsheet-offer-matches-context", SpreadsheetOracle.Offered(technical.OfferedReferences, SpreadsheetOffered, SpreadsheetNotOffered)));
+        checks.Add(attached.Inherited
+            ? new("turn-inherited-the-spreadsheet", result.Attachment is null && previousAttachmentKey is not null && technical.AttachmentKey == previousAttachmentKey
+                && technical.AttachmentSha256 == attached.Sha256 && technical.AttachmentSize == attached.ByteCount)
+            : new("turn-brought-the-spreadsheet", result.Attachment is { } own && own.Name == attached.FileName && own.Kind == QualificationSpreadsheets.Kind(sheet)
+                && own.Rows == sheet.RowCount && own.Size == attached.ByteCount && technical.AttachmentKey == QualificationSpreadsheets.HomeKey(result.RequestId, sheet.Kind)
+                && technical.AttachmentSha256 == attached.Sha256 && technical.AttachmentSize == attached.ByteCount));
+        if (attached.FileName == QualificationSpreadsheets.InjectionFile)
+            checks.Add(new("untrusted-cell-notes-in-prepared-sheet", QualificationSpreadsheets.CarriesInjectedNotes(sheet)));
+        if (expected.Capability is not { } capability)
+        {
+            checks.Add(new("no-proposal", result.Proposal is null && result.ObservedProposal is null));
+            checks.Add(new("no-proposal-attempted", AuthoringOracle.OnlyProposalsOf(technical.Capabilities, proposalCapabilities, null)));
+            return;
+        }
+        var proposal = result.ObservedProposal;
+        checks.Add(new("proposal-terminal-matches-observed", result.Answer?.Kind == "proposal" && proposal is not null && result.Proposal is { } shown
+            && shown.Id == proposal.Id && proposal.TurnId == result.TurnId && proposal.Capability == new AssistantCapabilityReference(capability, expected.Version)
+            && shown.Capability == capability && shown.Version == expected.Version));
+        checks.Add(new("authoring-reads-before-proposal", AuthoringOracle.ReadsBeforeProposal(proposal, testCase.RequiredTools)));
+        checks.Add(new("rejection-recovered-if-any", AuthoringOracle.RejectionsRecovered(technical.Capabilities, capability, expected.Version)));
+        checks.Add(new("only-expected-proposal-capability", AuthoringOracle.OnlyProposalsOf(technical.Capabilities, proposalCapabilities, capability)));
+        if (expected.Continues is not null)
+            checks.Add(new("continued-same-conversation", conversation is { } current && result.ConversationId == current.Id
+                && technical.ConversationId == current.Id));
+        checks.AddRange(SpreadsheetOracle.PayloadChecks(expected, testCase.Culture, proposal?.Payload, fixture, sheet, previous?.Payload));
     }
 
     // IA4 normalization of a Home recording: the browser STT candidate in home-audio, one model effect, no text tools, and the whole

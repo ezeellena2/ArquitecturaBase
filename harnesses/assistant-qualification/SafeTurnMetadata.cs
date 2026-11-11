@@ -22,6 +22,12 @@ internal sealed record TurnMetadata(int ProviderSteps, int ToolCalls, int ToolBy
     // The sealed context's mode and Subject: an automatic voice note belongs to the person's own conversation (IA3-A).
     public AssistantInteractionMode InteractionMode { get; init; }
     public Guid? SubjectUserId { get; init; }
+    // Stage 2: what the context offered by Id and version (propose-catalog@1 and @2 share an Id), and the turn's spreadsheet, its own or
+    // inherited: the key of its copy and what it holds in the clear, SHA-256 and size. Never exported either.
+    public IReadOnlyList<AssistantCapabilityReference> OfferedReferences { get; init; } = [];
+    public string? AttachmentKey { get; init; }
+    public string? AttachmentSha256 { get; init; }
+    public long? AttachmentSize { get; init; }
 }
 
 internal sealed class SafeTurnMetadata(ApplicationDbContext db)
@@ -38,7 +44,8 @@ internal sealed class SafeTurnMetadata(ApplicationDbContext db)
     {
         var turn = await db.Set<AiAssistantTurn>().AsNoTracking().Where(row => row.Id == turnId)
             .Select(row => new { row.ProviderSteps, row.ToolCalls, row.ToolBytes, row.InputTokens, row.OutputTokens,
-                row.UsageUnknown, row.AudioSeconds, row.ExecutionProfileJson, row.Provider, row.Model, row.ConversationId, row.Ordinal })
+                row.UsageUnknown, row.AudioSeconds, row.ExecutionProfileJson, row.Provider, row.Model, row.ConversationId, row.Ordinal,
+                row.AttachmentKey, row.AttachmentSha256, row.AttachmentSize })
             .SingleAsync(cancellationToken);
         var profile = JsonSerializer.Deserialize<AiAssistantExecutionProfileSnapshot>(turn.ExecutionProfileJson!, JsonSerializerOptions.Web)
             ?? throw new InvalidOperationException("The execution has no sealed profile.");
@@ -59,6 +66,8 @@ internal sealed class SafeTurnMetadata(ApplicationDbContext db)
             ConversationId = turn.ConversationId, Ordinal = turn.Ordinal,
             OfferedCapabilities = profile.ChannelContext.AllowedCapabilities.Select(capability => capability.Id).ToArray(),
             InteractionMode = profile.ChannelContext.InteractionMode, SubjectUserId = profile.ChannelContext.SubjectUserId,
+            OfferedReferences = profile.ChannelContext.AllowedCapabilities.ToArray(),
+            AttachmentKey = turn.AttachmentKey, AttachmentSha256 = turn.AttachmentSha256, AttachmentSize = turn.AttachmentSize,
         };
     }
 }

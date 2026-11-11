@@ -1,0 +1,2 @@
+# Byte-exact fixtures: their size and SHA-256 are pinned in the case files, so a CSV must not change its line endings.
+* -text
