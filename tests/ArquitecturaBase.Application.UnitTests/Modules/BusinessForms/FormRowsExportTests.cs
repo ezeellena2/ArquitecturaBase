@@ -40,17 +40,17 @@ public sealed class FormRowsExportTests
         // «Ítem» and the questions of the block take its place.
         Assert.Equal(culture == "es"
             ? ["Proveedor", "Ítem", "Artículo", "Artículo · valor", "Artículo · Días", "Cantidad", "Observación (desde v2)"]
-            : ["Supplier", "Item", "Article", "Article · value", "Article · Days", "Quantity", "Note (since v2)"], sheet.Headers.Skip(4));
+            : ["Supplier", "Item", "Article", "Article · value", "Article · Days", "Quantity", "Note (since v2)"], sheet.Headers.Skip(5));
         // Two items, a response of the active version without items and an item of the first version.
         Assert.Equal(["T-000001", "T-000001", "T-000002", "T-000003"], sheet.Rows.Select(row => row[0].Value));
-        Assert.All(sheet.Rows, row => Assert.Equal("Proveedor del norte", row[4].Value));
-        Assert.Equal([1L, 2L, null, 1L], sheet.Rows.Select(row => row[5].Value));
-        Assert.Equal(["Semilla", "Semilla", null, "Semilla"], sheet.Rows.Select(row => row[6].Value));
-        Assert.Equal([1.5m, 1.5m, null, 1.5m], sheet.Rows.Select(row => row[7].Value));
-        Assert.Equal([30L, 30L, null, 30L], sheet.Rows.Select(row => row[8].Value));
-        Assert.Equal([200.5m, 100m, null, 7m], sheet.Rows.Select(row => row[9].Value));
+        Assert.All(sheet.Rows, row => Assert.Equal("Proveedor del norte", row[5].Value));
+        Assert.Equal([1L, 2L, null, 1L], sheet.Rows.Select(row => row[6].Value));
+        Assert.Equal(["Semilla", "Semilla", null, "Semilla"], sheet.Rows.Select(row => row[7].Value));
+        Assert.Equal([1.5m, 1.5m, null, 1.5m], sheet.Rows.Select(row => row[8].Value));
+        Assert.Equal([30L, 30L, null, 30L], sheet.Rows.Select(row => row[9].Value));
+        Assert.Equal([200.5m, 100m, null, 7m], sheet.Rows.Select(row => row[10].Value));
         // The second item left its note empty; the block of the first version had no note.
-        Assert.Equal(["Sin daños", null, null, "—"], sheet.Rows.Select(row => row[10].Value));
+        Assert.Equal(["Sin daños", null, null, "—"], sheet.Rows.Select(row => row[11].Value));
         // Each response starts a group, so the writer can mark where it starts.
         Assert.Equal([0, 2, 3], sheet.GroupStarts);
     }
@@ -64,13 +64,13 @@ public sealed class FormRowsExportTests
         var hidden = await InCulture("es", () => ports.Service.ExportAsync(id, new(new(), [Supplier]), Ct));
         Assert.True(hidden.IsSuccess);
         var withoutBlock = Assert.Single(ports.Writer.Request!.Sheets);
-        Assert.Equal(["Proveedor"], withoutBlock.Headers.Skip(4));
+        Assert.Equal(["Proveedor"], withoutBlock.Headers.Skip(5));
         Assert.Equal(3, withoutBlock.Rows.Count);
         Assert.Null(withoutBlock.GroupStarts);
 
         var withoutFields = await InCulture("es", () => ports.Service.ExportAsync(id, new(new(), [Group], []), Ct));
         Assert.True(withoutFields.IsSuccess);
-        Assert.Equal(["Ítem", "Artículo", "Artículo · valor", "Cantidad", "Observación (desde v2)"], Assert.Single(ports.Writer.Request!.Sheets).Headers.Skip(4));
+        Assert.Equal(["Ítem", "Artículo", "Artículo · valor", "Cantidad", "Observación (desde v2)"], Assert.Single(ports.Writer.Request!.Sheets).Headers.Skip(5));
 
         var chosen = await InCulture("es", () => ports.Service.ExportAsync(id, new(new(), null, [new(Item, Days)]), Ct));
         Assert.True(chosen.IsSuccess);
@@ -90,7 +90,7 @@ public sealed class FormRowsExportTests
         Assert.True(result.IsSuccess);
         var sheet = Assert.Single(ports.Writer.Request!.Sheets);
         Assert.Equal("T-000003", sheet.Rows[^1][0].Value);
-        Assert.Equal(["—", "—", "—", "—", "—", "—"], sheet.Rows[^1].Skip(5).Select(cell => cell.Value));
+        Assert.Equal(["—", "—", "—", "—", "—", "—"], sheet.Rows[^1].Skip(6).Select(cell => cell.Value));
     }
 
     [Fact]
@@ -103,8 +103,8 @@ public sealed class FormRowsExportTests
 
         Assert.True(result.IsSuccess);
         var sheet = Assert.Single(ports.Writer.Request!.Sheets);
-        Assert.Equal(["Anulada", "Proveedor", "Ítem"], sheet.Headers.Skip(4).Take(3));
-        Assert.Equal(["Sí", "Sí", "", ""], sheet.Rows.Select(row => row[4].Value));
+        Assert.Equal(["Anulada", "Proveedor", "Ítem"], sheet.Headers.Skip(5).Take(3));
+        Assert.Equal(["Sí", "Sí", "", ""], sheet.Rows.Select(row => row[5].Value));
     }
 
     [Theory]

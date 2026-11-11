@@ -138,18 +138,18 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal(culture == "en" ? "Responses" : "Respuestas", sheet.Name);
         // «Ítem» and the questions of the block take its place (XL1-A).
         Assert.Equal(culture == "en" ? ["Item", "Product", "Quantity", "Note"] : ["Ítem", "Artículo", "Cantidad", "Observación"],
-            sheet.Row(1).Cells(6, 9).Select(cell => cell.GetString()));
+            sheet.Row(1).Cells(7, 10).Select(cell => cell.GetString()));
         // The three items of the first response repeat its number; the second one has no items and takes a row.
         var first = sheet.Cell(2, 1).GetString();
         Assert.Equal([first, first, first], sheet.Column(1).Cells(2, 4).Select(cell => cell.GetString()));
         Assert.NotEqual(first, sheet.Cell(5, 1).GetString());
-        Assert.Equal(XLDataType.Number, sheet.Cell(2, 6).DataType);
-        Assert.Equal([1, 2, 3], sheet.Column(6).Cells(2, 4).Select(cell => cell.GetValue<int>()));
-        Assert.Equal(culture == "en" ? ["Seed", "Seed", "Fertilizer"] : ["Semilla", "Semilla", "Fertilizante"], sheet.Column(7).Cells(2, 4).Select(cell => cell.GetString()));
-        Assert.Equal([200.5m, 100m, 7m], sheet.Column(8).Cells(2, 4).Select(cell => cell.GetValue<decimal>()));
-        Assert.Equal("Sin daños", sheet.Cell(2, 9).GetString());
-        Assert.True(sheet.Cell(3, 9).IsEmpty());
-        Assert.All(sheet.Row(5).Cells(6, 9), cell => Assert.True(cell.IsEmpty()));
+        Assert.Equal(XLDataType.Number, sheet.Cell(2, 7).DataType);
+        Assert.Equal([1, 2, 3], sheet.Column(7).Cells(2, 4).Select(cell => cell.GetValue<int>()));
+        Assert.Equal(culture == "en" ? ["Seed", "Seed", "Fertilizer"] : ["Semilla", "Semilla", "Fertilizante"], sheet.Column(8).Cells(2, 4).Select(cell => cell.GetString()));
+        Assert.Equal([200.5m, 100m, 7m], sheet.Column(9).Cells(2, 4).Select(cell => cell.GetValue<decimal>()));
+        Assert.Equal("Sin daños", sheet.Cell(2, 10).GetString());
+        Assert.True(sheet.Cell(3, 10).IsEmpty());
+        Assert.All(sheet.Row(5).Cells(7, 10), cell => Assert.True(cell.IsEmpty()));
         // The second response starts with a line.
         Assert.Equal(XLBorderStyleValues.Thin, sheet.Cell(5, 1).Style.Border.TopBorder);
         Assert.True(sheet.Row(6).IsEmpty());

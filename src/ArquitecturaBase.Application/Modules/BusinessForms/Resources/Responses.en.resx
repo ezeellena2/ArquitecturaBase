@@ -12,6 +12,12 @@
 <data name="false" xml:space="preserve"><value>No</value></data>
 <data name="Value" xml:space="preserve"><value>value</value></data>
 <data name="Voided" xml:space="preserve"><value>Voided</value></data>
+<data name="State" xml:space="preserve"><value>State</value></data>
+<data name="State.Received" xml:space="preserve"><value>Received</value></data>
+<data name="State.PendingApproval" xml:space="preserve"><value>To approve</value></data>
+<data name="State.Approved" xml:space="preserve"><value>Approved</value></data>
+<data name="State.Rejected" xml:space="preserve"><value>Rejected</value></data>
+<data name="State.Voided" xml:space="preserve"><value>Voided</value></data>
 <data name="Item" xml:space="preserve"><value>Item</value></data>
 <data name="Latitude" xml:space="preserve"><value>Latitude</value></data>
 <data name="Longitude" xml:space="preserve"><value>Longitude</value></data>

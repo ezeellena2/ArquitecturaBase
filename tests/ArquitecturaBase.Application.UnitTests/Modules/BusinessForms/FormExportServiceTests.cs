@@ -3,6 +3,7 @@ using System.Text.Json;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
+using ArquitecturaBase.Application.Modules.BusinessForms.Resources;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
 using ArquitecturaBase.Application.Modules.BusinessForms.Validation;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
@@ -169,15 +170,15 @@ public sealed class FormExportServiceTests
 
             Assert.True(result.IsSuccess);
             var request = ports.Writer.Request!.Sheets[0];
-            Assert.Equal(culture == "es" ? new[] { "Zona", "Zona · valor" } : ["Zone", "Zone · value"], request.Headers.Skip(4));
+            Assert.Equal(culture == "es" ? new[] { "Zona", "Zona · valor" } : ["Zone", "Zone · value"], request.Headers.Skip(5));
             Assert.Equal(count, request.Rows.Count);
             Assert.Equal(1, ports.Reader.DefinitionReads);
             if (count == 0) Assert.Empty(ports.Reader.ExportBatchSizes);
             else
             {
                 var row = Assert.Single(request.Rows);
-                Assert.Equal("GBA", row[4].Value);
-                var typed = row[5];
+                Assert.Equal("GBA", row[5].Value);
+                var typed = row[6];
                 switch (valueType)
                 {
                     case "Integer": Assert.Equal("integer", typed.Kind); Assert.Equal(long.Parse(value, CultureInfo.InvariantCulture), Assert.IsType<long>(typed.Value)); break;
@@ -220,13 +221,13 @@ public sealed class FormExportServiceTests
 
         Assert.True(result.IsSuccess);
         var rows = ports.Writer.Request!.Sheets[0].Rows;
-        Assert.Equal(6, ports.Writer.Request.Sheets[0].Headers.Count);
-        Assert.Equal("—", rows[0][4].Value);
+        Assert.Equal(7, ports.Writer.Request.Sheets[0].Headers.Count);
         Assert.Equal("—", rows[0][5].Value);
-        Assert.Null(rows[1][4].Value);
+        Assert.Equal("—", rows[0][6].Value);
         Assert.Null(rows[1][5].Value);
-        Assert.Equal("Cero", rows[2][4].Value);
-        Assert.Equal(0m, rows[2][5].Value);
+        Assert.Null(rows[1][6].Value);
+        Assert.Equal("Cero", rows[2][5].Value);
+        Assert.Equal(0m, rows[2][6].Value);
     }
 
     [Theory]
@@ -257,6 +258,36 @@ public sealed class FormExportServiceTests
         }
         finally { CultureInfo.CurrentUICulture = previous; }
     }
+
+    // XL2: «Estado» goes after «Canal» with the states of the app, as the sheet names them.
+    [Theory]
+    [InlineData("es", "Canal", "Estado", "Por aprobar")]
+    [InlineData("en", "Channel", "State", "To approve")]
+    public async Task Each_response_says_its_state_with_the_words_of_the_sheet_after_its_channel(string culture, string channel, string state, string pending)
+    {
+        var ports = Create(true);
+        ports.Reader.ArrangeExport(1);
+        ports.Reader.ExportRows = [ports.Reader.ExportRows[0] with { State = nameof(FormRecordState.PendingApproval) }];
+        var previous = CultureInfo.CurrentUICulture;
+        CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo(culture);
+        try
+        {
+            var result = await ports.Service.ExportAsync(ports.Reader.Definition!.Id, new(new(), null), CancellationToken.None);
+
+            Assert.True(result.IsSuccess);
+            var sheet = Assert.Single(ports.Writer.Request!.Sheets);
+            Assert.Equal([channel, state], sheet.Headers.Skip(3).Take(2));
+            Assert.Equal(pending, Assert.Single(sheet.Rows)[4].Value);
+        }
+        finally { CultureInfo.CurrentUICulture = previous; }
+    }
+
+    // A state without its words would stop the whole export: every state has them in both languages.
+    [Theory]
+    [InlineData("es")]
+    [InlineData("en")]
+    public void Every_state_of_a_response_has_its_words_for_the_sheet(string culture) =>
+        Assert.All(Enum.GetNames<FormRecordState>(), state => Assert.False(string.IsNullOrWhiteSpace(FormResponseTexts.Get("State." + state, culture))));
 
     /// <summary>Every response arrived through the phone channel.</summary>
     private sealed class PhoneOrigins : IStructuredRecordOriginSource

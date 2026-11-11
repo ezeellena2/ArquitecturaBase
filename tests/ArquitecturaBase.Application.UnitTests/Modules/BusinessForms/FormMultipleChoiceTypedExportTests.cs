@@ -33,12 +33,12 @@ public sealed class FormMultipleChoiceTypedExportTests
         var result = await ports.Service.ExportAsync(ports.Reader.Definition!.Id, new(new(), null), Ct);
         Assert.True(result.IsSuccess);
         var workbook = ports.Writer.Request!.Sheets[0];
-        Assert.Equal(6, workbook.Headers.Count); Assert.Equal(3, workbook.Rows.Count);
-        Assert.All(workbook.Rows, row => Assert.Equal("text", row[5].Kind));
-        Assert.Null(workbook.Rows[0][5].Value);
-        Assert.Equal(firstValue, workbook.Rows[1][5].Value);
-        Assert.Equal(secondValue + "; " + firstValue, workbook.Rows[2][5].Value);
-        Assert.Equal("Segunda; Primera", workbook.Rows[2][4].Value);
+        Assert.Equal(7, workbook.Headers.Count); Assert.Equal(3, workbook.Rows.Count);
+        Assert.All(workbook.Rows, row => Assert.Equal("text", row[6].Kind));
+        Assert.Null(workbook.Rows[0][6].Value);
+        Assert.Equal(firstValue, workbook.Rows[1][6].Value);
+        Assert.Equal(secondValue + "; " + firstValue, workbook.Rows[2][6].Value);
+        Assert.Equal("Segunda; Primera", workbook.Rows[2][5].Value);
         Assert.Equal(1, ports.Reader.DefinitionReads); Assert.Single(ports.Reader.ExportBatchSizes);
     }
 
@@ -51,7 +51,7 @@ public sealed class FormMultipleChoiceTypedExportTests
         var ports = Ports(type, 0);
         var result = await ports.Service.ExportAsync(ports.Reader.Definition!.Id, new(new(), null), Ct);
         Assert.True(result.IsSuccess);
-        Assert.Equal(6, ports.Writer.Request!.Sheets[0].Headers.Count);
+        Assert.Equal(7, ports.Writer.Request!.Sheets[0].Headers.Count);
         Assert.Contains(ports.Writer.Request.Sheets[0].Headers, header => header.StartsWith("Riesgos · ", StringComparison.Ordinal));
         Assert.Empty(ports.Writer.Request.Sheets[0].Rows); Assert.Empty(ports.Reader.ExportBatchSizes);
         Assert.Equal(1, ports.Reader.DefinitionReads);

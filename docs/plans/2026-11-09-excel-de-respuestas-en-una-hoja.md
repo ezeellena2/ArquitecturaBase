@@ -43,7 +43,7 @@ datos que ya existen. El diálogo dice cómo quedan las filas.
   fechas, `dd/mm/aaaa` o `mm/dd/aaaa` y la hora después de una coma. La conversión se hace al escribir; lo guardado sigue
   en UTC.
 - **Las palabras de la planilla.** «N°», «Recibida», «Cargó», «Canal» con «WhatsApp» o «App», «Estado» con los estados de
-  la app y «Anulada» con «Sí».
+  la app (se sumó el 2026-11-11, cuando la revisión contra el código vio que faltaba) y «Anulada» con «Sí».
 - **«(desde vN)» se queda.** El archivo no tiene «Columnas» para decirlo y distingue dos columnas con el mismo nombre
   (la «Artículo» de la versión 1 y la del bloque), aunque la planilla lo saque del encabezado (UD4).
 - **El formato.** El encabezado, como hoy, y con el tono de la planilla; cada columna del ancho de lo que lleva, con un

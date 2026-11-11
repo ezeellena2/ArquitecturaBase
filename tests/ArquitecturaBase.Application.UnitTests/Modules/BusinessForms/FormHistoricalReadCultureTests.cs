@@ -108,8 +108,8 @@ public sealed class FormHistoricalReadCultureTests
         {
             Assert.True((await service.ExportAsync(reader.Definition!.Id, new(new(), null), TestContext.Current.CancellationToken)).IsSuccess);
             Assert.Equal(ui == "en" ? "No." : "N°", writer.Request!.Sheets[0].Headers[0]);
-            Assert.Equal("Original choice", writer.Request.Sheets[0].Headers[4]);
-            Assert.Equal("Original option", writer.Request.Sheets[0].Rows[0][4].Value);
+            Assert.Equal("Original choice", writer.Request.Sheets[0].Headers[5]);
+            Assert.Equal("Original option", writer.Request.Sheets[0].Rows[0][5].Value);
             Assert.Equal(ui, CultureInfo.CurrentUICulture.TwoLetterISOLanguageName);
         }
         finally { CultureInfo.CurrentUICulture = previous; }

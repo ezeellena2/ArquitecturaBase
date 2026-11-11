@@ -175,7 +175,7 @@ public sealed partial class FormDraftEndpointsTests
         using var workbook = new ClosedXML.Excel.XLWorkbook(stream);
         var sheet = workbook.Worksheet(1);
         Assert.Equal("Responses", sheet.Name);
-        Assert.Equal(new[] { "No.", "Received", "Submitted by", "Channel", "Detail" },
+        Assert.Equal(new[] { "No.", "Received", "Submitted by", "Channel", "State", "Detail" },
             sheet.Row(1).CellsUsed().Select(cell => cell.GetString()));
     }
     [Fact]
@@ -194,11 +194,11 @@ public sealed partial class FormDraftEndpointsTests
         await using var stream = await response.Content.ReadAsStreamAsync(Ct);
         using var workbook = new ClosedXML.Excel.XLWorkbook(stream);
         var sheet = workbook.Worksheet(1);
-        Assert.Equal(7, sheet.LastColumnUsed()!.ColumnNumber());
-        Assert.Equal(ClosedXML.Excel.XLDataType.Number, sheet.Cell(2, 5).DataType);
-        Assert.Equal(0d, sheet.Cell(2, 5).GetDouble());
-        Assert.True(sheet.Cell(2, 6).GetBoolean());
-        Assert.Equal(ClosedXML.Excel.XLDataType.DateTime, sheet.Cell(2, 7).DataType);
+        Assert.Equal(8, sheet.LastColumnUsed()!.ColumnNumber());
+        Assert.Equal(ClosedXML.Excel.XLDataType.Number, sheet.Cell(2, 6).DataType);
+        Assert.Equal(0d, sheet.Cell(2, 6).GetDouble());
+        Assert.True(sheet.Cell(2, 7).GetBoolean());
+        Assert.Equal(ClosedXML.Excel.XLDataType.DateTime, sheet.Cell(2, 8).DataType);
         var large = await SeedSheetAsync(exporter, 10001);
         await ExplainSheetAsync(large.Id, large.Fields[0].FieldId);
         using var tooLarge = await exporter.PostAsJsonAsync($"/api/forms/definitions/{large.Id}/records/export", new { filter = new { } }, Ct);
@@ -218,7 +218,7 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal(251, sheet.LastRowUsed()!.RowNumber());
         Assert.Equal(seeded.Prefix + "-000001", sheet.Cell(2, 1).GetString());
         Assert.Equal(seeded.Prefix + "-000250", sheet.Cell(251, 1).GetString());
-        Assert.Equal(249d, sheet.Cell(251, 5).GetDouble());
+        Assert.Equal(249d, sheet.Cell(251, 6).GetDouble());
     }
     [Fact]
     public async Task Historical_questions_and_retired_choices_keep_their_identity_and_presence()

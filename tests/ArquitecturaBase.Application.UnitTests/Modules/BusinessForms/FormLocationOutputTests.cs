@@ -57,8 +57,8 @@ public sealed class FormLocationOutputTests
             var sheet = ports.Writer.Request!.Sheets[0];
             Assert.Equal(culture == "es"
                 ? new[] { "Dónde estás · Latitud", "Dónde estás · Longitud", "Dónde estás · Precisión (m)" }
-                : ["Where you are · Latitude", "Where you are · Longitude", "Where you are · Accuracy (m)"], sheet.Headers.Skip(4));
-            var cells = Assert.Single(sheet.Rows).Skip(4).ToArray();
+                : ["Where you are · Latitude", "Where you are · Longitude", "Where you are · Accuracy (m)"], sheet.Headers.Skip(5));
+            var cells = Assert.Single(sheet.Rows).Skip(5).ToArray();
             Assert.Equal(3, cells.Length);
             for (var index = 0; index < 3; index++)
             {

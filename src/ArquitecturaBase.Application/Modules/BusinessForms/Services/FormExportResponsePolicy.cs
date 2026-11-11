@@ -7,14 +7,14 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 /// <summary>
 /// The columns of the response itself in the Excel, before its answers, with the words of the sheet: its number, when it
 /// arrived in the zone of the account that exports (as the sheet shows it; what is kept stays in UTC), who loaded it, its
-/// channel and, with «Incluir las anuladas», whether it was voided (XL2).
+/// channel, its state with the words of the app and, with «Incluir las anuladas», whether it was voided (XL2).
 /// </summary>
 internal sealed class FormExportResponsePolicy(FormRecordOriginPolicy origins, IUserReader users)
 {
     public static List<string> Headers(bool voided, string culture)
     {
         var headers = new List<string> { FormResponseTexts.Get("Number", culture), FormResponseTexts.Get("Received", culture),
-            FormResponseTexts.Get("Actor", culture), FormResponseTexts.Get("Channel", culture) };
+            FormResponseTexts.Get("Actor", culture), FormResponseTexts.Get("Channel", culture), FormResponseTexts.Get("State", culture) };
         if (voided) headers.Add(FormResponseTexts.Get("Voided", culture));
         return headers;
     }
@@ -38,7 +38,8 @@ internal sealed class FormExportResponsePolicy(FormRecordOriginPolicy origins, I
         var cells = new List<FormWorkbookCell> { new("text", number),
             new("dateTime", TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(row.SubmittedAtUtc, DateTimeKind.Utc), zone)),
             new("text", row.Actor.DisplayName ?? FormResponseTexts.Get("unknown", culture)),
-            new("text", FormResponseTexts.Get(channel.Length == 0 ? "unknown" : channel, culture)) };
+            new("text", FormResponseTexts.Get(channel.Length == 0 ? "unknown" : channel, culture)),
+            new("text", FormResponseTexts.Get("State." + row.State, culture)) };
         if (voided) cells.Add(new("text", row.State == nameof(FormRecordState.Voided) ? FormResponseTexts.Get("true", culture) : ""));
         return cells;
     }

@@ -93,14 +93,14 @@ public sealed partial class FormDraftEndpointsTests
         using var export = await client.PostAsJsonAsync(path + "/export", new { filter = new { sort = "number" }, columns = new[] { question.FieldId } }, Ct);
         Assert.Equal(HttpStatusCode.OK, export.StatusCode); await ResponseContractCapture.WriteAsync(export, "extra-fields-export-" + culture, Ct, "xlsx");
         using var all = new XLWorkbook(new MemoryStream(await export.Content.ReadAsByteArrayAsync(Ct)));
-        var worksheet = all.Worksheet(1); Assert.Equal(8, worksheet.LastColumnUsed()!.ColumnNumber());
-        Assert.Equal("30; 0", worksheet.Cell(2, 6).GetString()); Assert.Equal("Centro; Norte", worksheet.Cell(2, 7).GetString());
-        Assert.Equal("—", worksheet.Cell(3, 6).GetString()); Assert.True(worksheet.Cell(4, 6).IsEmpty());
+        var worksheet = all.Worksheet(1); Assert.Equal(9, worksheet.LastColumnUsed()!.ColumnNumber());
+        Assert.Equal("30; 0", worksheet.Cell(2, 7).GetString()); Assert.Equal("Centro; Norte", worksheet.Cell(2, 8).GetString());
+        Assert.Equal("—", worksheet.Cell(3, 7).GetString()); Assert.True(worksheet.Cell(4, 7).IsEmpty());
         using var visible = await client.PostAsJsonAsync(path + "/export", new { filter = new { sort = "number" }, columns = Array.Empty<Guid>(), catalogFields = new[] { new { questionId = question.FieldId, fieldId = zone } } }, Ct);
         Assert.Equal(HttpStatusCode.OK, visible.StatusCode); await ResponseContractCapture.WriteAsync(visible, "extra-fields-visible-export-" + culture, Ct, "xlsx");
         using var selectedWorkbook = new XLWorkbook(new MemoryStream(await visible.Content.ReadAsByteArrayAsync(Ct)));
-        Assert.Equal(5, selectedWorkbook.Worksheet(1).LastColumnUsed()!.ColumnNumber());
-        Assert.Equal("Centro; Norte", selectedWorkbook.Worksheet(1).Cell(2, 5).GetString());
+        Assert.Equal(6, selectedWorkbook.Worksheet(1).LastColumnUsed()!.ColumnNumber());
+        Assert.Equal("Centro; Norte", selectedWorkbook.Worksheet(1).Cell(2, 6).GetString());
         foreach (var suffix in new[] { "/search", "/filter-counts/search" })
         {
             object body = suffix == "/search" ? new { sort = "field", sortFieldId = days } : new { filter = new { }, dimension = "choice", fieldId = days };

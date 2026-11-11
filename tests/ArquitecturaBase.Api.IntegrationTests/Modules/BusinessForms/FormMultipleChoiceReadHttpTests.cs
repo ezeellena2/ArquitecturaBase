@@ -109,9 +109,9 @@ public sealed partial class FormDraftEndpointsTests
         await ResponseContractCapture.WriteAsync(export, "multi-export-" + culture, Ct, "xlsx");
         using var workbook = new XLWorkbook(new MemoryStream(await export.Content.ReadAsByteArrayAsync(Ct)));
         var worksheet = workbook.Worksheet(1);
-        Assert.Equal(culture == "en" ? "Noise; Cold" : "Ruido; Frío", worksheet.Cell(2, 5).GetString());
-        Assert.Equal(culture == "en" ? "Historical noise; Historical cold" : "Ruido histórico; Frío histórico", worksheet.Cell(2, 6).GetString());
-        Assert.True(worksheet.Cell(4, 5).IsEmpty()); Assert.True(worksheet.Cell(5, 5).IsEmpty());
+        Assert.Equal(culture == "en" ? "Noise; Cold" : "Ruido; Frío", worksheet.Cell(2, 6).GetString());
+        Assert.Equal(culture == "en" ? "Historical noise; Historical cold" : "Ruido histórico; Frío histórico", worksheet.Cell(2, 7).GetString());
+        Assert.True(worksheet.Cell(4, 6).IsEmpty()); Assert.True(worksheet.Cell(5, 6).IsEmpty());
 
         using var pdf = await reader.PostAsJsonAsync($"/api/forms/definitions/{seeded.Id}/pdf-design/preview", new
         {
