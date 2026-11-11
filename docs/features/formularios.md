@@ -387,6 +387,19 @@ Límites conocidos, sin caso real hoy: un bloque con muchas preguntas angosta la
 partido entre páginas no repite su número y un formulario con muchas preguntas puede llegar al presupuesto de 30 segundos
 del Excel antes que a las 100.000 filas.
 
+Fuera de alcance, decidido con el diseño:
+- más de un bloque, o un bloque adentro de otro;
+- fotos o documentos por ítem;
+- ordenar la planilla por el bloque;
+- condiciones sobre todos los ítems o sobre su cantidad;
+- duplicar un ítem o importar ítems desde Excel;
+- la lista con los nombres antes de enviar por WhatsApp.
+
+La prueba de punta a punta salió entera el 2026-11-09, con el usuario y clic por clic. Cubrió el editor, publicar con
+preguntas que pasan al bloque, la carga desde la app y por WhatsApp (con la pantalla de cierre de r12), una respuesta de
+34,6 KB, la lectura, la corrección y las reglas. Lo que quedó está en
+[verificación y producción](../plans/verificacion-y-produccion.md#formularios-renglones-lo-que-quedó-de-la-prueba-integral--2026-11-11).
+
 ## Diseño y copia fija del PDF — Etapa 4, G2
 
 El diseño tiene revisiones inmutables en `BusinessFormPdfDesigns` y puntero `ActivePdfDesignId`. Guardar exige `formrules.manage`, revisión esperada y el lock de definiciones; un guardado atrasado devuelve 409. El nombre original es obligatorio (hasta 160 caracteres), la traducción opcional y el pie opcional (hasta 1000). La selección conserva identidades: una pregunta nueva no se agrega a un diseño guardado; una retirada que ya estaba seleccionada puede seguir, pero sólo se dibuja si existe en la versión capturada. El diseño inicial no guardado incluye las preguntas de esa versión, aprobación y fotos, con revisión cero. No cambia el borrador ni publica nada.

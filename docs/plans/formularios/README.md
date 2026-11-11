@@ -22,7 +22,7 @@ MF1, D2 como vista rápida y DC0/DC1 están implementados según los tableros el
 Sin orden fijo; cada una necesita su tablero y su decisión antes de programarse:
 - catálogo con una consulta (Query/K5), solo si una lista no puede armarse con filtros ([ADR 0019](../../decisions/0019-sql-de-configuracion-acotado-a-catalogos.md));
 - intercambio cifrado con Meta: búsqueda en vivo, listas dependientes y listas largas;
-- grupos y remitos con líneas: decididos el 2026-11-03 en [renglones en los formularios](../2026-11-03-renglones-en-formularios.md);
+- grupos y remitos con líneas: programados y probados de punta a punta el 2026-11-09 ([el bloque de renglones](../../features/formularios.md#el-bloque-de-renglones-al-armar-y-publicar--rg1-a-rg3-a-y-rg6-a-2026-11-04));
 - descargar todas las fotos juntas desde el detalle de una respuesta;
 - corregir una respuesta (la corrección reemplaza a la anterior) y anularla con motivo: implementado el 2026-11-05, con sus [reglas](../../features/formularios.md#corregir-y-anular--etapa-3-2026-11-05);
 - borrador de formulario armado por la IA a partir de los pedidos de formularios que faltan: decidido el 2026-11-04 en

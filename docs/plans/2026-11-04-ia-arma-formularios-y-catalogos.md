@@ -108,7 +108,7 @@ nunca publica, activa ni importa.
 - **Desde un documento:** cuando la lectura de documentos esté programada, un formulario armado con un documento de ejemplo
   sale con «Lectura de documentos» prendida y su «Cómo reconocerlo», como en DOC6. Antes, sale sin ella.
 - **Renglones:** cuando estén programados, lo que se repite, como los artículos de un remito, se propone como «Renglones»
-  ([RG1-A y RG6-A](2026-11-03-renglones-en-formularios.md)).
+  ([RG1-A y RG6-A](../features/formularios.md#el-bloque-de-renglones-al-armar-y-publicar--rg1-a-rg3-a-y-rg6-a-2026-11-04)).
 
 ## Cómo se arma
 

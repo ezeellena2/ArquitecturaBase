@@ -22,8 +22,8 @@ fuente de verdad de lo que existe hoy. Cada sección dice desde cuándo vale.
 ## Los planes (ArquitecturaBase/docs/plans)
 
 - `README.md`: el índice de lo pendiente, con una línea de estado por plan.
-- Renglones: `2026-11-03-renglones-en-formularios.md` (decisiones RG1-A a RG13-A y las cuatro etapas), más los planes de
-  implementación de las etapas 1, 2 y 3 (`2026-11-04-…-etapa-1-…`, `2026-11-07-…-etapa-2-…` y `2026-11-07-…-etapa-3-…`).
+- Renglones: el traspaso 12, `2026-11-11-traspaso-multitenant-renglones.md`, con las decisiones RG1-A a RG13-A, las cuatro
+  etapas y la prueba de punta a punta. Sus planes se retiraron y se recuperan desde la procedencia (`docs/history/README.md`).
 - `2026-11-07-elegir-primero-por-un-campo.md` (LD1-A a LD3-A).
 - `2026-10-29-cargar-formularios-desde-la-app.md`, `2026-11-03-carpetas-de-formularios-y-catalogos.md`,
   `2026-10-31-arca-formularios-estandar.md` y `2026-11-04-ia-arma-formularios-y-catalogos.md`.

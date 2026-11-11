@@ -232,3 +232,17 @@ La carga de una vez, el valor tipado y elegir varias están implementados según
 - [ ] Reactivar: sigue en Dados de baja durante la publicación y vuelve a Activos sólo al aprobar Meta la versión nueva; usa Flows nuevos y continúa la numeración. Eliminar otro formulario sin respuestas ni envíos abiertos: desaparece, conserva el prefijo reservado y depreca sus Flows. Uno con respuestas no ofrece Eliminar.
 
 Al cerrar cada recorrido se registra su resultado y el alcance real, sin confundirlo con escenas sintéticas o Meta controlado. Se conservan respuestas y archivos reales; se restauran configuración de prueba, datos de cuenta y modo original de los chats, se cierran las sesiones temporales y se ejecuta `aspire stop`. No se inicia este piloto como parte del cierre técnico de E2.
+
+## Formularios: renglones, lo que quedó de la prueba integral — 2026-11-11
+
+La prueba integral del 2026-11-09 aprobó con el usuario los ocho puntos de renglones ([traspaso 12](2026-11-11-traspaso-multitenant-renglones.md#5-cómo-se-verificó)). Quedan:
+
+- [ ] Por WhatsApp, volver con la flecha del ítem 3 al 2 y contestar «No» antes de enviar. La respuesta tiene que traer
+  sólo los ítems 1 y 2. El 2026-11-07 se comprobó que llegan sólo las claves de lo visitado, y la prueba integral terminó
+  con un «No» sin volver.
+- [ ] La lectura de una respuesta con ítems en inglés: la planilla, el detalle, el Excel y el PDF. La prueba integral la
+  recorrió en español.
+- [ ] Los ejemplos HTTP exportados al front (`src/test/fixtures/forms-http/`) todavía dicen `flow-static-7.3-r11`. Se
+  actualizan con la próxima exportación conjunta.
+- [ ] Opcional: sumar el bloque a las escenas visuales `responses` (vista rápida), `chatForms` y `formPdf`. Hoy lo cubren
+  sus tests de componente.

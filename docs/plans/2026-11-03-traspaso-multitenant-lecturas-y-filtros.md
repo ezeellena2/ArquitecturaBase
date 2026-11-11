@@ -331,7 +331,7 @@ lo mismo» en «Enviada».
 
 Cargando el remito de tres artículos, el usuario tuvo que mandar una respuesta por artículo, aunque «Mantener las
 respuestas» le ahorrara volver a escribir el resto. Dijo que debería poder ir agregando varios artículos en la misma
-carga. El diseño quedó cerrado el 2026-11-03, sin programar, en el [plan de renglones](2026-11-03-renglones-en-formularios.md).
+carga. El diseño quedó cerrado el 2026-11-03, sin programar, en el plan de renglones, que se retiró al programarlo: su estado final está en el [traspaso 12](2026-11-11-traspaso-multitenant-renglones.md).
 Adelanta la parte de renglones de la Etapa 2 de la [hoja de ruta de ARCA](2026-10-31-arca-formularios-estandar.md). En las
 ocho filas eligió la recomendada; la séptima y la octava, el 2026-11-04, después de armar este traspaso:
 
@@ -459,7 +459,7 @@ de los choques son con esas reglas y no con decisiones numeradas.
   - `formularios-whatsapp.md`: PL1-A, PL2-A, TL1-A y TL2-A, TL3-A, HI1-A, ZP1-A, MD1-A, LR1-A y LR2-A;
   - `carga-desde-la-app.md`: AR1-A y AR2-A.
 - **Las reglas y sus piezas:** `ArquitecturaBaseFront/docs/guides/premisas-de-desarrollo.md` y `estandar-visual.md`.
-- **Planes sin programar:** [renglones en los formularios](2026-11-03-renglones-en-formularios.md),
+- **Planes sin programar:** renglones en los formularios (programado después: [traspaso 12](2026-11-11-traspaso-multitenant-renglones.md)),
   [ARCA · etapa 1](2026-11-03-arca-etapa-1-conexion.md) y [carpetas](2026-11-03-carpetas-de-formularios-y-catalogos.md).
 - **Tableros:** el lienzo [Formularios desde la app](https://claude.ai/artifact/Kvbr5KFJrGT951JLiu8i4M), en estas filas:
   - «Formularios · respuestas · dos solapas y un solo «Filtros»» y «el filtro de una pregunta con opciones: un combo
