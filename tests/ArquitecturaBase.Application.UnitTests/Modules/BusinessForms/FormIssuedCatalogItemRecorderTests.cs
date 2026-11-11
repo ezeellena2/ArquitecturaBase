@@ -130,7 +130,7 @@ public sealed class FormIssuedCatalogItemRecorderTests
             codes.Active[(Conditions.Id, "6")] = monotributo.Id;
         }
 
-        public FormIssuedCatalogItemRecorder Recorder() => new(library, Reader, Repository, codes, new FormCatalogItemRecorder(Repository));
+        public FormIssuedCatalogItemRecorder Recorder() => new(library, Reader, Repository, new FormCatalogPartyValuesPolicy(codes), new FormCatalogItemRecorder(Repository));
     }
 
     private sealed class Library : IFormLibraryReader

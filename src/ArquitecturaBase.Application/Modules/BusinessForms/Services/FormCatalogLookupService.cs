@@ -12,10 +12,10 @@ using Microsoft.Extensions.Logging;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
 /// <summary>
-/// The registry is asked outside any UoW; its values are mapped to the active fields of the catalog by their keys, and a field that
-/// names an option of another catalog gets the active option with the code the registry gave. A value without its field is dropped.
+/// The registry is asked outside any UoW; <see cref="FormCatalogPartyValuesPolicy"/> puts its values in the active fields of the
+/// catalog, as for the party an issuer completed.
 /// </summary>
-internal sealed class FormCatalogLookupService(FormCatalogAccessGuard access, IFormCatalogReader reader, IFormCatalogItemCodeReader codes,
+internal sealed class FormCatalogLookupService(FormCatalogAccessGuard access, IFormCatalogReader reader, FormCatalogPartyValuesPolicy partyValues,
     IEnumerable<IStructuredPartyLookup> lookups, IRequestValidator validator, ILogger<FormCatalogLookupService> logger) : IFormCatalogLookupService
 {
     public Task<Result<FormCatalogLookupResponse>> GetAsync(Guid catalogId, CancellationToken cancellationToken) =>
@@ -34,20 +34,8 @@ internal sealed class FormCatalogLookupService(FormCatalogAccessGuard access, IF
             if (found.IsFailure) return found.Error;
             var party = await found.Value.Lookup.FindAsync(request.TaxId!.Trim(), cancellationToken);
             if (party.FailureCode is { } code) return new FormCatalogLookupResultResponse(null, [], code, ErrorMessages.Get(code));
-            var values = new List<FormCatalogLookupValueResponse>();
-            // The options of each source catalog by code, in one read per catalog.
-            var options = new Dictionary<Guid, IReadOnlyDictionary<string, Guid>>();
-            foreach (var source in found.Value.Fields.Where(field => field.Type == "catalog" && field.SourceCatalogId is not null && party.Fields?.ContainsKey(field.Key) == true)
-                .GroupBy(field => field.SourceCatalogId!.Value))
-                options[source.Key] = await codes.ListActiveAsync(source.Key, source.Select(field => party.Fields![field.Key]).Distinct(StringComparer.Ordinal).ToArray(), cancellationToken);
-            foreach (var field in found.Value.Fields)
-            {
-                if (party.Fields?.GetValueOrDefault(field.Key) is not { } value) continue;
-                if (field.Type != "catalog") values.Add(new(field.Id, value));
-                else if (field.SourceCatalogId is { } source && options[source].TryGetValue(value, out var itemId))
-                    values.Add(new(field.Id, itemId.ToString("D")));
-            }
-            return new FormCatalogLookupResultResponse(party.Name, values);
+            var values = await partyValues.MapAsync(found.Value.Fields, party.Fields, cancellationToken);
+            return new FormCatalogLookupResultResponse(party.Name, values.Select(mapped => new FormCatalogLookupValueResponse(mapped.Field.Id, mapped.Value)).ToArray());
         });
 
     private async Task<Result<(IStructuredPartyLookup Lookup, BusinessFormCatalogField TaxId, IReadOnlyList<BusinessFormCatalogField> Fields)>> FindAsync(

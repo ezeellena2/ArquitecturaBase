@@ -15,7 +15,7 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 /// the issuance goes on. It never saves on its own.
 /// </summary>
 internal sealed class FormIssuedCatalogItemRecorder(IFormLibraryReader library, IFormCatalogReader reader, IFormCatalogRepository repository,
-    IFormCatalogItemCodeReader codes, FormCatalogItemRecorder recorder)
+    FormCatalogPartyValuesPolicy partyValues, FormCatalogItemRecorder recorder)
 {
     private const int MaxCodeLength = 80;
 
@@ -40,22 +40,11 @@ internal sealed class FormIssuedCatalogItemRecorder(IFormLibraryReader library, 
             if (await reader.FindAsync(sourceId, cancellationToken) is not { IsActive: true } source || !FormCatalogKindPolicy.HasItems(source.Kind)) return;
             sources[sourceId] = await reader.ListAllItemsAsync(sourceId, cancellationToken);
         }
-        // A value without its field, one that does not fit it or a code its source does not have is dropped, as «Completar» does.
+        // A value without its field or a code its source does not have is dropped, as «Completar» does; one that does not fit its field
+        // is dropped too, because nobody reviews it before it is saved.
         var values = new Dictionary<string, string?>(StringComparer.Ordinal);
-        // The options of each source catalog by code, in one read per catalog.
-        var options = new Dictionary<Guid, IReadOnlyDictionary<string, Guid>>();
-        foreach (var source in fields.Where(field => field.IsActive && field.Type == "catalog" && item.Fields.ContainsKey(field.Key)).GroupBy(field => field.SourceCatalogId!.Value))
-            options[source.Key] = await codes.ListActiveAsync(source.Key, source.Select(field => item.Fields[field.Key]).Distinct(StringComparer.Ordinal).ToArray(), cancellationToken);
-        foreach (var field in fields.Where(field => field.IsActive))
-        {
-            if (item.Fields.GetValueOrDefault(field.Key) is not { } value) continue;
-            if (field.Type != "catalog")
-            {
-                if (FormCatalogFieldPolicy.Normalize(field with { Required = false }, value).IsSuccess) values[field.Id.ToString("D")] = value;
-            }
-            else if (options[field.SourceCatalogId!.Value].TryGetValue(value, out var optionId))
-                values[field.Id.ToString("D")] = optionId.ToString("D");
-        }
+        foreach (var (field, value) in await partyValues.MapAsync(fields, item.Fields, cancellationToken))
+            if (field.Type == "catalog" || FormCatalogFieldPolicy.Normalize(field with { Required = false }, value).IsSuccess) values[field.Id.ToString("D")] = value;
         var (text, detail) = Texts(item.Text.Trim());
         var option = new FormCatalogManualItemSaveRequest("issued", null, code, new Dictionary<string, string?> { [catalog.OriginalCulture] = text },
             detail is null ? null : new Dictionary<string, string?> { [catalog.OriginalCulture] = detail }, true, Fields: values);
