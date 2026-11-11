@@ -222,6 +222,9 @@ entero y la prueba integral se hace una sola vez al final.
 - **WhatsApp.** El emparejado depende del orden de llegada y de la descarga; Meta puede mandar un CSV como `text/plain` o como
   `application/vnd.ms-excel`. Las pruebas cubren los dos órdenes, el reemplazo de una interpretación en curso y esos tipos.
 - **`forms-export`** admite una operación por persona: abrir la importación mientras corre otra da 429.
+- **Catálogos de ARCA.** ARCA 3 sumó el tipo `External` (08c83c19), las tablas de ARCA que mantiene el módulo y no se editan. La
+  lectura de autoría los muestra como `manual`, para que sirvan de fuente de preguntas. Importarles una planilla da `notManual`. Si
+  en la calificación el modelo intenta importar ahí, la lectura suma el tipo `external`.
 
 ## Estado
 
