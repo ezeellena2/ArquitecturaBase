@@ -40,6 +40,6 @@ internal sealed class FormIssuePreviewService(FormEntryLoaderGuard loaders, IFor
             var preview = await previews.PreviewAsync(definitionId, version.SchemaJson, answers, offers.Value, cancellationToken);
             if (preview is null) return FormEntryErrors.NoIssuance;
             return new FormIssuePreviewResponse(preview.Document, preview.Receiver, preview.Total, preview.FailureCode,
-                preview.FailureCode is { } code ? ErrorMessages.Get(code) : null);
+                preview.FailureCode is { } code ? ErrorMessages.Get(code) : null) { Info = preview.Info, Date = preview.Date, Amounts = preview.Amounts };
         });
 }

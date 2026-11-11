@@ -48,7 +48,7 @@ internal sealed class ArcaVoucherService(IArcaConnectionRepository connections, 
             var priced = ArcaVoucherOrderPolicy.ForClass(decided.Value, order, lines.Value);
             if (priced.IsFailure) return priced.Error;
             return new ArcaVoucherPreviewResponse(decided.Value, ArcaVoucherTypes.Code(decided.Value, ArcaVoucherKind.Invoice), priced.Value.Amounts.Total,
-                priced.Value.Amounts.Vat);
+                priced.Value.Amounts.Vat) { Amounts = priced.Value.Amounts, CompanyTaxStatus = profile.TaxStatus };
         });
 
     private async Task<Result<ArcaVoucherResponse>> EnqueueCoreAsync(ArcaVoucherOrder order, IReadOnlyList<ArcaVoucherLine> lines, CancellationToken cancellationToken)

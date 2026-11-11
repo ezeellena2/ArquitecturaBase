@@ -363,7 +363,8 @@ public sealed class ArcaVoucherQueueTests(ApiFactory factory) : IDisposable
                 ExpectedTotal = 723677.5m,
             };
             var preview = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IArcaVoucherService>().PreviewAsync(order, ct));
-            Assert.Equal(new ArcaVoucherPreviewResponse(ArcaVoucherClass.A, 1, 723677.5m, 118177.5m), preview.Value);
+            Assert.Equal((ArcaVoucherClass.A, 1, 723677.5m, 118177.5m), (preview.Value.Class, preview.Value.VoucherType, preview.Value.Total, preview.Value.Vat));
+            Assert.Equal(605500m, preview.Value.Amounts!.Net);
 
             var queued = await EnqueueAsync(order);
             Assert.Equal((ArcaVoucherClass.A, 1, 723677.5m), (queued.Class, queued.VoucherType, queued.Total));

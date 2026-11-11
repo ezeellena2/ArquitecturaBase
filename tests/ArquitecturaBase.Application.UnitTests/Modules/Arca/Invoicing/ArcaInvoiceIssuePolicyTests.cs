@@ -53,6 +53,45 @@ public sealed class ArcaInvoiceIssuePolicyTests
     }
 
     [Fact]
+    public void The_preview_of_an_invoice_c_says_why_and_itemizes_nothing()
+    {
+        var preview = ArcaInvoiceIssuePolicy.Preview(new ArcaVoucherPreviewResponse(ArcaVoucherClass.C, 11, 3101.5m, 0m)
+            { Amounts = new(3101.5m, 0m, 3101.5m, 0m, 0m, 0m, []) }, Order(new(99, 0, "Juana Pérez", 5, null)));
+
+        Assert.Equal(("Factura C", "Invoice C", "Juana Pérez", "3101.5"), (preview.Document!["es"], preview.Document["en"], preview.Receiver, preview.Total));
+        Assert.Equal(("Lo decide el sistema: sos monotributista.", "2026-11-09"), (preview.Info!["es"], preview.Date));
+        Assert.Null(preview.Amounts);
+    }
+
+    [Fact]
+    public void The_preview_of_an_invoice_a_itemizes_the_net_each_vat_rate_and_the_exempt_amount()
+    {
+        var amounts = new ArcaVoucherAmounts(724677.5m, 0m, 605500m, 1000m, 0m, 118177.5m, [new(5, 520000m, 109200m), new(4, 85500m, 8977.5m)]);
+        var preview = ArcaInvoiceIssuePolicy.Preview(new ArcaVoucherPreviewResponse(ArcaVoucherClass.A, 1, 724677.5m, 118177.5m) { Amounts = amounts },
+            Order(new(80, 30500010912, "Agro SA", 1, null)));
+
+        Assert.Equal([("Importe neto gravado", "605500"), ("IVA 21 %", "109200"), ("IVA 10,5 %", "8977.5"), ("Importe exento", "1000")],
+            preview.Amounts!.Select(amount => (amount.Label["es"], amount.Value)));
+        Assert.Equal("VAT 10.5%", preview.Amounts![2].Label["en"]);
+        Assert.Equal("Lo decide el sistema: sos responsable inscripto y tu cliente también.", preview.Info!["es"]);
+    }
+
+    [Fact]
+    public void The_preview_of_an_invoice_b_shows_the_vat_it_contains_only_to_a_final_consumer()
+    {
+        var amounts = new ArcaVoucherAmounts(1210m, 0m, 1000m, 0m, 0m, 210m, [new(5, 1000m, 210m)]);
+        var final = ArcaInvoiceIssuePolicy.Preview(new ArcaVoucherPreviewResponse(ArcaVoucherClass.B, 6, 1210m, 210m) { Amounts = amounts }, Order(new(99, 0, "Juana", 5, null)));
+        var other = ArcaInvoiceIssuePolicy.Preview(new ArcaVoucherPreviewResponse(ArcaVoucherClass.B, 6, 1210m, 210m) { Amounts = amounts }, Order(new(80, 20123456786, "Otro", 7, null)));
+
+        Assert.Equal(("IVA contenido", "210"), (Assert.Single(final.Amounts!).Label["es"], final.Amounts![0].Value));
+        Assert.Null(other.Amounts);
+        Assert.Equal("Lo decide el sistema: es consumidor final.", final.Info!["es"]);
+    }
+
+    private static ArcaVoucherOrder Order(ArcaVoucherParty receiver) =>
+        new(Guid.Empty, receiver, 1, new DateOnly(2026, 11, 9), null, null, null, [], null);
+
+    [Fact]
     public void The_issuer_declares_the_data_of_its_result_in_both_languages()
     {
         Assert.Equal(["voucher", "number", "cae", "caeDueOn", "total"], ArcaInvoiceIssuePolicy.ResultFields.Select(field => field.Key));

@@ -15,7 +15,16 @@ public sealed record FormWorkflowResponse(Guid RecordId,string RecordState,long?
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public FormIssueConfirmationResponse? Confirmation { get; init; }
 }
-public sealed record FormIssueConfirmationResponse(Guid RunId,IReadOnlyDictionary<string,string>? Document,string? Receiver,string? Total);
+public sealed record FormIssueConfirmationResponse(Guid RunId,IReadOnlyDictionary<string,string>? Document,string? Receiver,string? Total)
+{
+    /// <summary>Why the issuer decided that document, by language, and the amounts it itemizes before the total.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyDictionary<string,string>? Info { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? Date { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<ArquitecturaBase.Application.Models.StructuredData.StructuredIssueAmount>? Amounts { get; init; }
+}
 public sealed record FormWorkflowTaskResponse(Guid Id,Guid RoleId,long Revision,string State,string? RoleName,DateTime? DecidedAtUtc,FormAuthorResponse? DecidedBy,string? Reason,DateTime RequestedAtUtc)
 { public override string ToString()=>"FormWorkflowTaskResponse { Content = [REDACTED] }"; }
 public sealed record FormActionRunResponse(Guid Id,Guid RuleId,string Kind,string Event,int Order,string State,string? ReasonCode,string? Reason,

@@ -56,7 +56,10 @@ internal sealed class TestRecordIssuer : IStructuredRecordIssuer
     /// <summary>What the issuance of each run answers once set; any other run answers <see cref="Current"/>.</summary>
     public System.Collections.Concurrent.ConcurrentDictionary<Guid, StructuredIssueResponse> ByRun { get; } = new();
     public StructuredIssueResponse CancelResult { get; set; } = new(StructuredIssueState.Cancelled);
-    public StructuredIssuePreview Preview { get; set; } = new(new Dictionary<string, string> { ["es"] = "Factura C", ["en"] = "Invoice C" }, "Juana Pérez", "3101.5");
+    public StructuredIssuePreview Preview { get; set; } = new(new Dictionary<string, string> { ["es"] = "Factura C", ["en"] = "Invoice C" }, "Juana Pérez", "3101.5")
+    {
+        Info = new Dictionary<string, string> { ["es"] = "Lo decide el sistema.", ["en"] = "The system decides it." },
+    };
 
     public IReadOnlyList<StructuredIssueDatum>? Previewed { get; private set; }
 

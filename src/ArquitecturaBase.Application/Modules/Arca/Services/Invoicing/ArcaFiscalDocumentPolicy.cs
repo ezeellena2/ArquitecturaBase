@@ -21,6 +21,9 @@ internal static class ArcaFiscalDocumentPolicy
     private static readonly int[] MonotaxReceivers = [6, 13, 16];
     private static readonly int[] TransparencyReceivers = [4, 5, 15];
 
+    /// <summary>La B a un consumidor final, exento o no alcanzado muestra el IVA contenido (RG 5614).</summary>
+    public static bool ShowsVatContained(int receiverVatConditionId) => TransparencyReceivers.Contains(receiverVatConditionId);
+
     private static readonly Dictionary<int, string> VatConditions = new()
     {
         [1] = "IVA Responsable Inscripto", [4] = "IVA Sujeto Exento", [5] = "Consumidor Final", [6] = "Responsable Monotributo",
@@ -76,7 +79,7 @@ internal static class ArcaFiscalDocumentPolicy
                   (cancels.IssuedOn is { } date ? $" del {date.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture)}" : string.Empty)
                 : null,
             voucher.Class == ArcaVoucherClass.A ? Subtotals(amounts) : [],
-            voucher.Class == ArcaVoucherClass.B && TransparencyReceivers.Contains(receiver.VatConditionId) ? amounts.Vat : null,
+            voucher.Class == ArcaVoucherClass.B && ShowsVatContained(receiver.VatConditionId) ? amounts.Vat : null,
             voucher.Class == ArcaVoucherClass.A && MonotaxReceivers.Contains(receiver.VatConditionId) ? MonotaxLegend : null);
     }
 

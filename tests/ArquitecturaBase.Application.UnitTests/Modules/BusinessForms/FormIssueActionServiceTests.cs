@@ -77,11 +77,32 @@ public sealed class FormIssueActionServiceTests
         Assert.Equal((FormActionRunState.Uncertain, "Forms.Action.AwaitingConfirmation", "Juana Pérez"), (waiting.State, waiting.FailureCode, waiting.IssuePreview!.Receiver));
         var message = Assert.Single(channel.Messages);
         Assert.Equal(["issue", "skip"], message.Choices!.Select(choice => choice.Id));
-        Assert.Equal("Shall I issue it? Invoice C for Juana Pérez, $ 3,101.50.", message.Body);
+        Assert.Equal("Invoice C for Juana Pérez, $ 3,101.50.\nShall I issue it?", message.Body);
         Assert.Empty(issuer.Requests);
 
         await service.ExecuteAsync(fromChannel with { DeliveryReview = new StructuredRecordActionReview(1, true, Author, Now) }, CancellationToken.None);
         Assert.Single(issuer.Requests);
+    }
+
+    [Fact]
+    public async Task The_question_to_the_author_lists_the_amounts_the_document_itemizes_before_the_total()
+    {
+        var channel = new FakeFormActionChannel();
+        var (service, issuer, work) = Arrange(channel: channel);
+        channel.Reachable.Add(Author);
+        issuer.Preview = new(new Dictionary<string, string> { ["es"] = "Factura A", ["en"] = "Invoice A" }, "Agro SA", "1210")
+        {
+            Date = "2026-11-09",
+            Amounts =
+            [
+                new(new Dictionary<string, string> { ["es"] = "Importe neto gravado", ["en"] = "Taxed net amount" }, "1000"),
+                new(new Dictionary<string, string> { ["es"] = "IVA 21 %", ["en"] = "VAT 21%" }, "210"),
+            ],
+        };
+
+        await service.ExecuteAsync(work with { RecordEnteredInApp = false }, CancellationToken.None);
+
+        Assert.Equal("Invoice A for Agro SA, $ 1,210.00, dated 11/09/2026.\nTaxed net amount: $ 1,000.00\nVAT 21%: $ 210.00\nShall I issue it?", Assert.Single(channel.Messages).Body);
     }
 
     [Fact]

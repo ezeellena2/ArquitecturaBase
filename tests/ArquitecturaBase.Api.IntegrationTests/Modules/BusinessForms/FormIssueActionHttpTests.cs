@@ -148,6 +148,7 @@ public sealed partial class FormDraftEndpointsTests
         var confirmation = (await waiting.ReadJsonAsync()).GetProperty("confirmation");
         Assert.Equal((confirmedRun, "Factura C", "Juana Pérez", "3101.5"), (confirmation.GetProperty("runId").GetGuid(),
             confirmation.GetProperty("document").GetProperty("es").GetString(), confirmation.GetProperty("receiver").GetString(), confirmation.GetProperty("total").GetString()));
+        Assert.Equal("Lo decide el sistema.", confirmation.GetProperty("info").GetProperty("es").GetString());
 
         using var issued = await client.PostAsJsonAsync($"/api/forms/records/{confirmedId}/actions/{confirmedRun}/confirmation", new { issue = true }, Ct);
         Assert.Equal(HttpStatusCode.Accepted, issued.StatusCode);
@@ -178,12 +179,18 @@ public sealed partial class FormDraftEndpointsTests
         using var entry = await client.GetAsync($"/api/forms/entries/{definitionId}", Ct);
         Assert.True((await entry.ReadJsonAsync()).GetProperty("issuePreview").GetBoolean());
         var answers = new object[] { new { fieldId, value = "3101.5" } };
-        issuer.Preview = new(new Dictionary<string, string> { ["es"] = "Factura C", ["en"] = "Invoice C" }, "Juana Pérez", "3101.5");
+        issuer.Preview = new(new Dictionary<string, string> { ["es"] = "Factura C", ["en"] = "Invoice C" }, "Juana Pérez", "3101.5")
+        {
+            Info = new Dictionary<string, string> { ["es"] = "Lo decide el sistema.", ["en"] = "The system decides it." },
+            Amounts = [new(new Dictionary<string, string> { ["es"] = "Importe neto gravado", ["en"] = "Taxed net amount" }, "2563.22")],
+        };
         using var preview = await client.PostAsJsonAsync($"/api/forms/entries/{definitionId}/issue-preview", new { versionId, answers }, Ct);
         Assert.Equal(HttpStatusCode.OK, preview.StatusCode);
         var body = await preview.ReadJsonAsync();
         Assert.Equal(("Factura C", "Juana Pérez", "3101.5"), (body.GetProperty("document").GetProperty("es").GetString(),
             body.GetProperty("receiver").GetString(), body.GetProperty("total").GetString()));
+        Assert.Equal(("Lo decide el sistema.", "Importe neto gravado", "2563.22"), (body.GetProperty("info").GetProperty("es").GetString(),
+            body.GetProperty("amounts")[0].GetProperty("label").GetProperty("es").GetString(), body.GetProperty("amounts")[0].GetProperty("value").GetString()));
         var datum = Assert.Single(issuer.Previewed!);
         Assert.Equal(("first", "3101.5"), (datum.Key, datum.Value));
 

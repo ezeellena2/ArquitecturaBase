@@ -41,9 +41,42 @@ internal static class ArcaInvoiceIssuePolicy
                 ? Localized(voucher.Kind == ArcaVoucherKind.CreditNote ? "Notice.WaitingCreditNote" : "Notice.WaitingInvoice") : null),
     };
 
-    /// <summary>«¿La emito?»: the voucher the system decided, the receiver and the recalculated total.</summary>
-    public static StructuredIssuePreview Preview(ArcaVoucherPreviewResponse preview, string receiver) =>
-        new(Localized("Voucher.Invoice", preview.Class.ToString()), receiver, preview.Total.ToString("0.############################", CultureInfo.InvariantCulture));
+    /// <summary>
+    /// «¿La emito?»: the voucher the system decided and why, the receiver, the amounts the voucher itemizes (the A, net, VAT by rate,
+    /// exempt and not taxed; the B to a final consumer, the VAT it contains) and the recalculated total.
+    /// </summary>
+    public static StructuredIssuePreview Preview(ArcaVoucherPreviewResponse preview, ArcaVoucherOrder order) =>
+        new(Localized("Voucher.Invoice", preview.Class.ToString()), order.Receiver.Name, Canonical(preview.Total))
+        {
+            Info = Localized(InfoKey(preview, order.Receiver.VatConditionId)),
+            Date = order.IssueOn.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+            Amounts = preview.Amounts is { } amounts ? Amounts(preview.Class, amounts, order.Receiver.VatConditionId) : null,
+        };
+
+    // «Lo decide el sistema: …»: the condition of the company for the C; for the A and the B, the one of the customer.
+    private static string InfoKey(ArcaVoucherPreviewResponse preview, int receiverVatConditionId) => preview.Class switch
+    {
+        ArcaVoucherClass.C => preview.CompanyTaxStatus == ArquitecturaBase.Domain.Modules.Arca.Connection.ArcaTaxStatus.Exempt
+            ? "Preview.Info.C.Exempt" : "Preview.Info.C",
+        ArcaVoucherClass.A => receiverVatConditionId == 1 ? "Preview.Info.A" : "Preview.Info.A.Monotax",
+        _ => receiverVatConditionId == 5 ? "Preview.Info.B" : "Preview.Info.B.Other",
+    };
+
+    private static List<StructuredIssueAmount>? Amounts(ArcaVoucherClass voucherClass, ArcaVoucherAmounts amounts, int receiverVatConditionId)
+    {
+        if (voucherClass == ArcaVoucherClass.B)
+            return ArcaFiscalDocumentPolicy.ShowsVatContained(receiverVatConditionId) ? [new(Localized("Preview.VatContained"), Canonical(amounts.Vat))] : null;
+        if (voucherClass != ArcaVoucherClass.A) return null;
+        List<StructuredIssueAmount> lines = [new(Localized("Preview.Net"), Canonical(amounts.Net))];
+        lines.AddRange(amounts.VatRates.Select(rate => new StructuredIssueAmount(
+            Localized("Preview.Vat", (ArcaVatRates.Find(rate.RateId) ?? throw new InvalidOperationException("An ARCA voucher has an unknown VAT rate.")).Percent),
+            Canonical(rate.Amount))));
+        if (amounts.Exempt > 0m) lines.Add(new(Localized("Preview.Exempt"), Canonical(amounts.Exempt)));
+        if (amounts.NotTaxed > 0m) lines.Add(new(Localized("Preview.NotTaxed"), Canonical(amounts.NotTaxed)));
+        return lines;
+    }
+
+    private static string Canonical(decimal value) => value.ToString("0.############################", CultureInfo.InvariantCulture);
 
     private static StructuredRecordResult Result(ArcaVoucherResponse voucher)
     {

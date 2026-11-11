@@ -982,16 +982,18 @@ ARCA» ([ADR 0028](../decisions/0028-emision-de-comprobantes-arca.md)); sin emis
   diseño) y «Avisar a quien cargó» puede adjuntarlo, como el de «Armar el PDF».
 - **«¿La emito?» (EM2-A).** Una respuesta que llegó por un canal no se emite sin que quien la cargó la confirme. Antes de
   encolar, el run pide al emisor la vista previa (`PreviewAsync`: el comprobante que decidió, el receptor y el total, sin guardar
-  nada); si no se puede emitir así, termina `Failed` con el código del emisor. Si se puede, le manda a quien cargó «¿La emito?
-  Factura C para … por $ ….» con los botones «Emitir» y «No emitir» (`Choices` del mensaje, por el primer canal que lo alcanza)
+  nada, con el porqué, la fecha y los importes que discrimina); si no se puede emitir así, termina `Failed` con el código del
+  emisor. Si se puede, le manda a quien cargó «Factura C para … por $ …, con fecha ….», los importes que discrimina (uno por
+  renglón) y «¿La emito?», con los botones «Emitir» y «No emitir» (`Choices` del mensaje, por el primer canal que lo alcanza)
   y queda `Uncertain` con `Forms.Action.AwaitingConfirmation`. El flujo trae `confirmation` (el run, el comprobante, el
-  receptor y el total) sólo para quien la cargó, y `POST api/forms/records/{id}/actions/{runId}/confirmation` con
+  receptor, el total, `info`, `date` y `amounts`) sólo para quien la cargó, y `POST api/forms/records/{id}/actions/{runId}/confirmation` con
   `{"issue": true}` la emite o con `false` anula la respuesta con el motivo «No se emitió», sin ir al emisor. El botón del canal
   llega por `IStructuredRecordActionReplySink` y decide lo mismo; un botón viejo o ajeno se ignora. Lo cargado en la app ya se
   confirmó antes de «Enviar» y se emite directo: la carga trae `issuePreview` cuando enviar emite (formulario del estándar del
   emisor y reglas vigentes con `IssueDocument`), y `POST api/forms/entries/{id}/issue-preview` con `versionId` y las respuestas
   sin enviar (las del envío, sin archivos) pasa por la misma preparación que el envío y devuelve `document`, `receiver` y
-  `total`, o `failureCode` y `failureMessage` si no se puede emitir así. No guarda nada ni va al proveedor; un formulario que no
+  `total`, con `info` (el porqué del comprobante, la «(i)»), `date` y `amounts` (cada importe con su etiqueta por idioma), o
+  `failureCode` y `failureMessage` si no se puede emitir así. No guarda nada ni va al proveedor; un formulario que no
   emite da `Forms.Entry.NoIssuance` (404).
 - **Corregir y anular (NC1-A).** Una respuesta con una emisión viva (emitida, en curso o en revisión) no se corrige:
   `Forms.Record.IssuedNotAmendable`, se anula y se carga otra. Anularla pide además el permiso del emisor y no la anula en el

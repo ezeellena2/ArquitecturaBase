@@ -32,6 +32,14 @@ public sealed record PreviewFormIssueRequest(Guid VersionId, IReadOnlyList<FormE
 public sealed record FormIssuePreviewResponse(IReadOnlyDictionary<string, string>? Document, string? Receiver, string? Total,
     string? FailureCode = null, string? FailureMessage = null)
 {
+    /// <summary>Why the issuer decided that document, by language (the «(i)»), and the amounts it itemizes before the total.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyDictionary<string, string>? Info { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? Date { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<ArquitecturaBase.Application.Models.StructuredData.StructuredIssueAmount>? Amounts { get; init; }
+
     public override string ToString() => "FormIssuePreviewResponse { Content = [REDACTED] }";
 }
 

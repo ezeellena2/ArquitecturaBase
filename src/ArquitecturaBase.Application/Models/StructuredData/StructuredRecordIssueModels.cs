@@ -48,7 +48,25 @@ public sealed record StructuredIssueResponse(StructuredIssueState State, string?
 /// </summary>
 public sealed record StructuredIssuePreview(IReadOnlyDictionary<string, string>? Document, string? Receiver, string? Total, string? FailureCode = null)
 {
+    /// <summary>Why the issuer decided that document, by language (the «(i)» of «¿La emito?»); null when it has nothing to explain.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyDictionary<string, string>? Info { get; init; }
+
+    /// <summary>The date of the document, in canonical form (yyyy-MM-dd); null when it has none.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? Date { get; init; }
+
+    /// <summary>The amounts the document itemizes before its total (net, each tax, exempt…), in order; null when it itemizes none.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<StructuredIssueAmount>? Amounts { get; init; }
+
     public override string ToString() => "StructuredIssuePreview { Content = [REDACTED] }";
+}
+
+/// <summary>An itemized amount of a preview: its label by language and the amount in canonical form.</summary>
+public sealed record StructuredIssueAmount(IReadOnlyDictionary<string, string> Label, string Value)
+{
+    public override string ToString() => "StructuredIssueAmount { Content = [REDACTED] }";
 }
 
 /// <summary>

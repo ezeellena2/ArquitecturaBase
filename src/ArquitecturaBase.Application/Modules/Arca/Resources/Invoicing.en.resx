@@ -13,6 +13,17 @@
   <data name="Voucher.CreditNote" xml:space="preserve"><value>Credit note {0}</value></data>
   <data name="Notice.WaitingInvoice" xml:space="preserve"><value>ARCA is not responding. Your invoice goes out as soon as it is back.</value></data>
   <data name="Notice.WaitingCreditNote" xml:space="preserve"><value>ARCA is not responding. Your credit note goes out as soon as it is back.</value></data>
+  <data name="Preview.Info.C" xml:space="preserve"><value>The system decides it: you are a Monotributo taxpayer.</value></data>
+  <data name="Preview.Info.C.Exempt" xml:space="preserve"><value>The system decides it: you are VAT exempt.</value></data>
+  <data name="Preview.Info.A" xml:space="preserve"><value>The system decides it: you are a registered VAT taxpayer and so is your customer.</value></data>
+  <data name="Preview.Info.A.Monotax" xml:space="preserve"><value>The system decides it: you are a registered VAT taxpayer and your customer is a Monotributo one.</value></data>
+  <data name="Preview.Info.B" xml:space="preserve"><value>The system decides it: it is a final consumer.</value></data>
+  <data name="Preview.Info.B.Other" xml:space="preserve"><value>The system decides it: your customer is neither a registered VAT taxpayer nor a Monotributo one.</value></data>
+  <data name="Preview.Net" xml:space="preserve"><value>Taxed net amount</value></data>
+  <data name="Preview.Vat" xml:space="preserve"><value>VAT {0:0.##}%</value></data>
+  <data name="Preview.Exempt" xml:space="preserve"><value>Exempt amount</value></data>
+  <data name="Preview.NotTaxed" xml:space="preserve"><value>Not taxed amount</value></data>
+  <data name="Preview.VatContained" xml:space="preserve"><value>VAT included</value></data>
   <data name="Catalog.arca.vat-conditions.Name" xml:space="preserve"><value>VAT status</value></data>
   <data name="Catalog.arca.document-types.Name" xml:space="preserve"><value>Document types</value></data>
   <data name="Catalog.arca.concepts.Name" xml:space="preserve"><value>Concepts</value></data>
