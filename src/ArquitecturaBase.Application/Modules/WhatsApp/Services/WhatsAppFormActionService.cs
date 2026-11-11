@@ -22,19 +22,23 @@ internal sealed class WhatsAppFormActionService(IWhatsAppFormActionRepository re
     public async Task<StructuredRecordActionResponse> EnqueueAsync(StructuredRecordActionMessage request, CancellationToken cancellationToken)
     {
         OperationLog.Handling(logger, "EnqueueWhatsAppFormAction");
+        // Choices become reply buttons (interactive body, 1024 characters) and never come with a document.
+        WhatsAppFormActionChoice[]? choices = request.Choices is { Count: > 0 } offered ? [.. offered.Select(choice => new WhatsAppFormActionChoice(choice.Id, choice.Title))] : null;
         if (request.RunId == Guid.Empty || request.RecipientUserId == Guid.Empty || !WhatsAppOutgoingMessage.IsVisibleBody(request.Body)
-            || request.Body.Length > (request.Document is null ? WhatsAppMessage.MaxBodyLength : 1024))
+            || request.Body.Length > (request.Document is null && choices is null ? WhatsAppMessage.MaxBodyLength : 1024)
+            || choices is not null && (request.Document is not null || !WhatsAppFormActionChoice.AreValid(choices)))
             return Failed(WhatsAppFormActionErrors.InvalidMessage, false);
         WhatsAppOutgoingDocument? document = request.Document is { } item ? new(item.StorageKey, item.Name, item.ContentType, item.Size, item.Sha256) : null;
         var result = await unitOfWork.ExecuteInTransactionAsync(async ct =>
         {
             await repository.LockAsync(request.RunId, request.RecipientUserId, ct);
             if (await repository.GetByRunAsync(request.RunId, request.RecipientUserId, ct) is { } existing)
-                return Result.Success(existing.Body == request.Body && existing.Document == document ? ToStatus(existing) : Failed(WhatsAppFormActionErrors.StateConflict, false));
+                return Result.Success(existing.Body == request.Body && existing.Document == document && existing.HasFormActionChoices(choices)
+                    ? ToStatus(existing) : Failed(WhatsAppFormActionErrors.StateConflict, false));
             var contact = await repository.GetContactForUpdateAsync(request.RecipientUserId, ct);
             if (await policy.ValidateAsync(contact, request.RecipientUserId, null, ct) is { } error) return Result.Success(Failed(error, true));
             var outgoing = WhatsAppOutgoingMessage.CreateFormAction(request.RecipientUserId, contact!.Id, request.RunId, request.Body,
-                timeProvider.GetUtcNow().UtcDateTime, document, contact.LinkRevision, contact.WaId);
+                timeProvider.GetUtcNow().UtcDateTime, document, contact.LinkRevision, contact.WaId, choices);
             repository.Add(outgoing);
             return Result.Success(ToStatus(outgoing));
         }, CommitPolicy.OnSuccess, cancellationToken);

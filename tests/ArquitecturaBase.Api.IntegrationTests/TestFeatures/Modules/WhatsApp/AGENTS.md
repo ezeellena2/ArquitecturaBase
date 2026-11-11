@@ -41,3 +41,5 @@ El recorrido de actualización de Flow usa copias locales byteidénticas de los 
 WhatsAppAuthoringChannelDouble resume un formulario ficticio, contesta `unclear` a un «no se puede» y registra lo que crea el botón (IA3-A), con un Id y una ruta propios; no importa BusinessForms ni acredita su creación.
 
 WhatsAppDocumentProbe reemplaza sólo la descarga de Meta y el almacenamiento privado de una planilla, con bytes ficticios y, si se pide, descargas que fallan como un medio no disponible; el webhook, el procesador, el despacho y el lector del dueño siguen siendo productivos. WhatsAppAssistantInboundFixture suma una planilla pendiente que hace esperar 2 s.
+
+CapturingActionReplySink es un dueño neutral de las respuestas a avisos: registra lo que entrega el canal y aplica sólo la primera por run y persona, sin importar formularios; WhatsAppFormActionScenario lo registra. WhatsAppAssistantInboundFixture suma un lector y un servicio de respuestas vacíos: ningún toque en un aviso llega a sus escenarios.

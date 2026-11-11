@@ -82,6 +82,7 @@ Es el detalle de la guía [`src/ArquitecturaBase.Application/Modules/WhatsApp/Se
 
 - Encolar deduplica por run y destinatario antes de resolver el contacto; exige cuenta activa, número confirmado igual al del contacto, vínculo y ventana, sin Manual ni permisos de operador.
 - Revisar aplica la decisión humana bajo lock, sin Meta: «salió» cuenta como aceptado y «no salió» habilita solo el reintento explícito de un Failed. Observar lee estados y receipts locales por lote, sin UoW, cuerpo, teléfono ni wamid.
+- Las opciones (`Choices`) salen como botones fijados con la salida; `WhatsAppFormActionReplyService` entrega cada toque válido a los `IStructuredRecordActionReplySink` fuera de la UoW, después lo marca atendido, y una falla del dueño lo deja para la vuelta siguiente durante un día.
 
 ## Asistente
 

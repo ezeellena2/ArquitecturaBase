@@ -25,3 +25,5 @@ Assistant prueba origen explícito, operador ausente sólo automático, copia du
 WhatsAppFlowDeprecationTests separa reserva de inicio, recuperación de lease, fence tardío y conciliación remota de publicación/deprecación. Comprueba que Unknown o identidad discordante conservan incertidumbre, que un rechazo exige consulta antes de repetir y que fallas permanentes conservan NeedsAttention y espera creciente sin tocar la publicación sellada.
 
 IA, Etapa 2: WhatsAppMessageSpreadsheetTests prueba el descriptor y su nombre acotado, la copia guardada una vez, el rechazo cierto una sola vez, No disponible final y las fallas que saturan como las del audio.
+
+WhatsAppFormActionChoiceTests prueba las opciones de un aviso: botones fijados con el id de la salida, los topes de Meta, sin documento, el reintento con los mismos botones y el id que se lee de vuelta sólo con su prefijo.

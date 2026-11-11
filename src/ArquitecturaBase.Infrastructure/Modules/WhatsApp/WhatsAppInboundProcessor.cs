@@ -116,7 +116,9 @@ internal sealed partial class WhatsAppInboundProcessor(
             .ListPendingContactsAsync(attempted, BatchSize, timeProvider.GetUtcNow().UtcDateTime, cancellationToken);
         var spreadsheets = await scope.ServiceProvider.GetRequiredService<IWhatsAppSpreadsheetReader>()
             .ListPendingContactsAsync(attempted, BatchSize, timeProvider.GetUtcNow().UtcDateTime, cancellationToken);
-        return inbound.Concat(audio).Concat(spreadsheets).Concat(pending).Distinct().Take(BatchSize).ToArray();
+        var replies = await scope.ServiceProvider.GetRequiredService<IWhatsAppFormActionReader>()
+            .ListContactsWithPendingRepliesAsync(attempted, BatchSize, timeProvider.GetUtcNow().UtcDateTime, cancellationToken);
+        return inbound.Concat(audio).Concat(spreadsheets).Concat(pending).Concat(replies).Distinct().Take(BatchSize).ToArray();
     }
 
     /// <summary>
@@ -135,6 +137,7 @@ internal sealed partial class WhatsAppInboundProcessor(
                 var processed = await service.ProcessContactAsync(contactId, cancellationToken);
                 if (processed.IsFailure || !processed.Value) return;
             }
+            await ProcessActionRepliesAsync(contactId, cancellationToken);
             await ProcessAuthoringTapAsync(contactId, cancellationToken);
             // A received spreadsheet is downloaded, prepared and copied before the interpretation: it is a source, or its contiguous
             // text's pair, only once it is stored.
@@ -148,6 +151,21 @@ internal sealed partial class WhatsAppInboundProcessor(
         catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
         {
             LogContactFailed(logger, contactId, exception);
+        }
+    }
+
+    // EM2-A: a tap on a form action button goes to its owner, never to the assistant. Its own failure is logged and retried in the
+    // next round without holding back the rest of the contact's pipeline.
+    private async Task ProcessActionRepliesAsync(Guid contactId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await using var scope = scopeFactory.CreateAsyncScope();
+            await scope.ServiceProvider.GetRequiredService<IWhatsAppFormActionReplyService>().ProcessAsync(contactId, cancellationToken);
+        }
+        catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            LogActionRepliesFailed(logger, contactId, exception);
         }
     }
 
@@ -230,6 +248,11 @@ internal sealed partial class WhatsAppInboundProcessor(
         Level = LogLevel.Error,
         Message = "The WhatsApp inbound processor could not process the contact {ContactId}; its messages stay pending for the next round")]
     private static partial void LogContactFailed(ILogger logger, Guid contactId, Exception exception);
+
+    [LoggerMessage(
+        Level = LogLevel.Error,
+        Message = "The WhatsApp inbound processor could not hand over the form action replies of the contact {ContactId}; they are retried in the next round")]
+    private static partial void LogActionRepliesFailed(ILogger logger, Guid contactId, Exception exception);
 
     [LoggerMessage(
         Level = LogLevel.Error,

@@ -97,6 +97,43 @@ public sealed class WhatsAppFormActionServiceTests
     }
 
     [Fact]
+    public async Task Choices_are_fixed_as_buttons_with_the_durable_message_and_a_replay_must_repeat_them()
+    {
+        var host = new Host();
+        var message = host.Message with { Choices = [new("issue", "Emitir"), new("skip", "No emitir")] };
+        Assert.Equal(StructuredRecordActionState.Pending, (await host.Service.EnqueueAsync(message, Ct)).State);
+        var outgoing = Assert.Single(host.Repository.Outgoing);
+        Assert.Equal(WhatsAppOutgoingMessageKind.QuickReplies, outgoing.Kind);
+        Assert.Equal(["Emitir", "No emitir"], outgoing.QuickReplies.Select(reply => reply.Title));
+        Assert.Equal(StructuredRecordActionState.Pending, (await host.Service.EnqueueAsync(message with { Choices = [new("issue", "Emitir"), new("skip", "No emitir")] }, Ct)).State);
+        Assert.Equal(WhatsAppFormActionErrors.StateConflict.Code, (await host.Service.EnqueueAsync(message with { Choices = [new("issue", "Emitir")] }, Ct)).FailureCode);
+        Assert.Equal(WhatsAppFormActionErrors.StateConflict.Code, (await host.Service.EnqueueAsync(host.Message, Ct)).FailureCode);
+        Assert.Single(host.Repository.Outgoing);
+    }
+
+    [Fact]
+    public async Task Choices_with_a_document_or_beyond_the_provider_limits_are_rejected_before_any_boundary()
+    {
+        var host = new Host();
+        StructuredRecordActionChoice[] choices = [new("issue", "Emitir"), new("skip", "No emitir")];
+        var document = new StructuredRecordActionDocument("private/action.pdf", "Factura.pdf", "application/pdf", 80, new string('a', 64));
+        StructuredRecordActionMessage[] invalid =
+        [
+            host.Message with { Document = document, Choices = choices },
+            host.Message with { Choices = [new("a", "A"), new("b", "B"), new("c", "C"), new("d", "D")] },
+            host.Message with { Choices = [new("issue", "Un título de más de veinte")] },
+            host.Message with { Choices = [new("issue", "Emitir"), new("issue", "Otra vez")] },
+            host.Message with { Body = new string('x', 1025), Choices = choices },
+        ];
+        foreach (var message in invalid)
+            Assert.Equal(WhatsAppFormActionErrors.InvalidMessage.Code, (await host.Service.EnqueueAsync(message, Ct)).FailureCode);
+        Assert.Empty(host.Repository.Outgoing);
+        Assert.Equal(0, host.UnitOfWork.Transactions);
+        Assert.Equal(StructuredRecordActionState.Pending, (await host.Service.EnqueueAsync(host.Message with { Choices = [] }, Ct)).State);
+        Assert.Equal(WhatsAppOutgoingMessageKind.Text, Assert.Single(host.Repository.Outgoing).Kind);
+    }
+
+    [Fact]
     public async Task Querying_uncertainty_never_reopens_the_message_and_retry_cannot_repeat_acceptance()
     {
         var host = new Host(); await host.Service.EnqueueAsync(host.Message, Ct);
@@ -197,6 +234,9 @@ public sealed class WhatsAppFormActionServiceTests
         public Task<string?> FindLinkedWaIdAsync(Guid userId,CancellationToken ct)=>Task.FromResult(LinkedWaIds.GetValueOrDefault(userId));
         public Task<IReadOnlyList<WhatsAppFormActionObservationRow>> ListObservationsAsync(IReadOnlyCollection<StructuredRecordActionObservationRequest> requests,CancellationToken ct)
         { Calls++;return Task.FromResult<IReadOnlyList<WhatsAppFormActionObservationRow>>(Rows.Where(row=>requests.Contains(new(row.RunId,row.RecipientUserId))).ToArray()); }
+        public Task<IReadOnlyList<WhatsAppFormActionTapRow>> ListPendingRepliesAsync(Guid contactId,DateTime nowUtc,int limit,CancellationToken ct)=>throw new NotSupportedException();
+        public Task<IReadOnlyList<Guid>> ListContactsWithPendingRepliesAsync(IReadOnlyCollection<Guid> excluded,int limit,DateTime nowUtc,CancellationToken ct)=>throw new NotSupportedException();
+        public Task<WhatsAppFormActionReplyTargetRow?> FindReplyTargetAsync(Guid outgoingId,CancellationToken ct)=>throw new NotSupportedException();
     }
     private sealed class Repository : IWhatsAppFormActionRepository
     {

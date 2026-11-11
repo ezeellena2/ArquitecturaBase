@@ -4,7 +4,7 @@ Configuraciones EF, repositorios, lectores y claves de lock del módulo, sobre `
 
 - **Contactos:** `WhatsAppContacts`; `WhatsAppContactRepository`, `WhatsAppFormRecipientReader` (cuenta, idioma y huella de roles del destinatario) y `WhatsAppContactReader` (el chat vinculado a una cuenta y si un número ya tiene chat, para el perfil).
 - **Historial:** mensajes, receipts y lecturas por operador; `WhatsAppMessageRepository`, `WhatsAppMessageReader`, `WhatsAppChatReader` (bandeja, no leídos, previews e hilo) y `WhatsAppMessageRetentionRepository`.
-- **Salida durable:** `WhatsAppOutgoingMessages` de chat manual, asistente y avisos de reglas (`Origin`); `WhatsAppConversationRepository`, `WhatsAppFormActionRepository` y `WhatsAppFormActionReader`.
+- **Salida durable:** `WhatsAppOutgoingMessages` de chat manual, asistente y avisos de reglas (`Origin`); `WhatsAppConversationRepository`, `WhatsAppFormActionRepository` y `WhatsAppFormActionReader` (también los toques en sus botones).
 - **Flows:** operaciones, bindings por versión y cultura (publicación y retiro) y sesiones de envío; `WhatsAppFlowRepository/Reader`, `WhatsAppFlowSession*`, `WhatsAppFormChannelStateReader` (puerto `IStructuredFormChannelStateSource`) y `WhatsAppRecordOriginReader`.
 - **Asistente y audio:** `WhatsAppAssistantRequests` y las columnas de audio del mensaje; `WhatsAppAssistantRepository/Reader` y `WhatsAppAudioRepository/Reader`.
 - **Planillas:** las columnas `Spreadsheet*` del mensaje, con el índice filtrado de las pendientes; `WhatsAppSpreadsheetRepository/Reader`. El lector aplica la espera escalonada del audio antes de `Take`, y la retención las vacía con el cuerpo.

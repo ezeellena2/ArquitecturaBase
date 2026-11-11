@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
 using ArquitecturaBase.Api.IntegrationTests.Modules.WhatsApp;
 using ArquitecturaBase.Api.IntegrationTests.Support;
+using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Interfaces.Integrations.Files;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Files;
@@ -27,6 +28,7 @@ internal sealed class WhatsAppFormActionScenario : IAsyncDisposable
     public ActionPrivateFiles Files { get; } = new();
     public ActionCloudTransport Cloud { get; } = new();
     public ActionMediaTransport Media { get; } = new();
+    public CapturingActionReplySink Replies { get; } = new();
     private WhatsAppFormActionScenario(ApiFactory factory, TimeProvider? clock)
     {
         ConnectionString = factory.NewDatabaseConnectionString("form_action");
@@ -39,6 +41,7 @@ internal sealed class WhatsAppFormActionScenario : IAsyncDisposable
                 services.Replace(ServiceDescriptor.Singleton<IPrivateFileStore>(Files));
                 services.Replace(ServiceDescriptor.Singleton<IWhatsAppCloudClient>(Cloud));
                 services.Replace(ServiceDescriptor.Singleton<IWhatsAppMediaUploadClient>(Media));
+                services.AddSingleton<IStructuredRecordActionReplySink>(Replies);
                 // Redis expires leases and cooldowns in real time; keep only these waits on the same clock.
                 services.Replace(ServiceDescriptor.Singleton<IWhatsAppDispatchCoordinator>(provider =>
                     new WhatsAppDispatchCoordinator(provider.GetRequiredService<RedisCache>(), TimeProvider.System)));

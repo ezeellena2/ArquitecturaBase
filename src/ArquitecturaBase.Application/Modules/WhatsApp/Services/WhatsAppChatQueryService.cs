@@ -66,7 +66,7 @@ internal sealed class WhatsAppChatQueryService(IWhatsAppChatReader reader, IWhat
     private WhatsAppOutgoingMessageResponse ToOutgoingResponse(WhatsAppOutgoingMessageRow row, bool canReadRecords = true) =>
         new(row.Id, row.RequestId, row.OperatorUserId, row.Origin == WhatsAppMessageOrigin.FormAction && !canReadRecords ? null : row.Body, row.RequestedAtUtc,
             row.State, row.WaMessageId, ToFormResponse(row.Form), Kind: row.Kind, Origin: row.Origin, Assistant: presentation.Explain(row.Assistant, canReadRecords),
-            QuickReplies: WhatsAppAssistantPresentationPolicy.Titles(row.QuickRepliesJson, true));
+            QuickReplies: row.Origin == WhatsAppMessageOrigin.FormAction && !canReadRecords ? null : WhatsAppAssistantPresentationPolicy.Titles(row.QuickRepliesJson, true));
 
     // Until the chat shows a received spreadsheet (stage 2 of the assistant authoring, task 8), it is shown as media was before:
     // without its caption or its name.

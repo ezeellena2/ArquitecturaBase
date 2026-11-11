@@ -38,6 +38,8 @@ public static class WhatsAppApplicationRegistration
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IStructuredRecordActionChannel, WhatsAppStructuredRecordActionChannel>());
         services.AddScoped<IWhatsAppFormActionService, WhatsAppFormActionService>();
         services.AddScoped<WhatsAppFormActionPolicy>();
+        services.AddScoped<WhatsAppFormActionReplyPolicy>();
+        services.AddScoped<IWhatsAppFormActionReplyService, WhatsAppFormActionReplyService>();
         services.AddScoped<WhatsAppManualSendGuard>();
         services.AddScoped<WhatsAppOutgoingSendGuard>();
         services.AddScoped<WhatsAppAssistantPresentationPolicy>();

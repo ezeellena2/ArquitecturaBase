@@ -10,7 +10,7 @@ Implementa puertos neutrales de `Application/Interfaces/Channels` con lo que sab
 | `WhatsAppInvitationDeliveryStatusSource` | `IInvitationDeliveryStatusSource` | último estado de Meta del saliente; Pending sin id |
 | `WhatsAppPermissionCatalogSource` | `IPermissionCatalogSource` | códigos y textos del módulo |
 | `WhatsAppStructuredFormChannel` | `IStructuredFormChannel` (`phone`) | chequeo local; Accept, Status y Preview por los servicios de Flows |
-| `WhatsAppStructuredRecordActionChannel` | `IStructuredRecordActionChannel` (`phone`) | avisos de reglas por `IWhatsAppFormActionService` |
+| `WhatsAppStructuredRecordActionChannel` | `IStructuredRecordActionChannel` (`phone`) | avisos de reglas por `IWhatsAppFormActionService`, con botones si traen opciones |
 | `WhatsAppStructuredRecordOriginSource` | `IStructuredRecordOriginSource` | canal, remitente e instante de respuestas, por lote |
 | `WhatsAppAssistantCapabilitySource` | `IAssistantCapabilitySource` | `whatsapp.offered-forms`, `whatsapp.no-reply` y `whatsapp.decline-form` |
 | `WhatsAppAudioRetentionSource` | `IPrivateFileRetentionSource` | claves de audio todavía referenciadas |

@@ -75,7 +75,9 @@ internal sealed class WhatsAppAssistantInboundFixture : IAsyncDisposable
             .AddScoped<IWhatsAppInboundService>(sp=>new Inbound(this,sp.GetRequiredService<ScopeIdentity>().Id))
             .AddScoped<IWhatsAppAssistantDispatchService>(sp=>new Dispatch(this,sp.GetRequiredService<ScopeIdentity>().Id))
             .AddScoped<IAssistantOperations>(sp=>new Operations(this,sp.GetRequiredService<ScopeIdentity>().Id))
-            .AddScoped<IWhatsAppAssistantAuthoringService>(_=>new Taps());
+            .AddScoped<IWhatsAppAssistantAuthoringService>(_=>new Taps())
+            .AddSingleton<IWhatsAppFormActionReader>(new ActionReplies())
+            .AddScoped<IWhatsAppFormActionReplyService>(_=>new ActionReplies());
         _provider=services.BuildServiceProvider();
         Processor=new(Signal,_provider.GetRequiredService<IServiceScopeFactory>(),Options.Create(new WhatsAppOptions{
             ProcessInboundInBackground=processInBackground,InboundPollSeconds=inboundPollSeconds}),
@@ -108,6 +110,17 @@ internal sealed class WhatsAppAssistantInboundFixture : IAsyncDisposable
     private sealed class Taps : IWhatsAppAssistantAuthoringService
     {
         public Task<Result> ProcessTapAsync(Guid contactId,CancellationToken ct)=>Task.FromResult(Result.Success());
+    }
+    // Nor a tap on a form action button: those replies have their own tests (WhatsAppFormActionReplyTests).
+    private sealed class ActionReplies : IWhatsAppFormActionReader, IWhatsAppFormActionReplyService
+    {
+        public Task<Result> ProcessAsync(Guid contactId,CancellationToken cancellationToken)=>Task.FromResult(Result.Success());
+        public Task<IReadOnlyList<Guid>> ListContactsWithPendingRepliesAsync(IReadOnlyCollection<Guid> excluded,int limit,DateTime nowUtc,CancellationToken cancellationToken)=>
+            Task.FromResult<IReadOnlyList<Guid>>([]);
+        public Task<IReadOnlyList<WhatsAppFormActionTapRow>> ListPendingRepliesAsync(Guid contactId,DateTime nowUtc,int limit,CancellationToken cancellationToken)=>throw new NotSupportedException();
+        public Task<WhatsAppFormActionReplyTargetRow?> FindReplyTargetAsync(Guid outgoingId,CancellationToken cancellationToken)=>throw new NotSupportedException();
+        public Task<IReadOnlyList<WhatsAppFormActionObservationRow>> ListObservationsAsync(IReadOnlyCollection<StructuredRecordActionObservationRequest> requests,CancellationToken cancellationToken)=>throw new NotSupportedException();
+        public Task<string?> FindLinkedWaIdAsync(Guid userId,CancellationToken cancellationToken)=>throw new NotSupportedException();
     }
 
     private sealed class Dispatch(WhatsAppAssistantInboundFixture host,Guid scope) : IWhatsAppAssistantDispatchService

@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using System.Text.Json;
 using ArquitecturaBase.Domain.Common;
 
 namespace ArquitecturaBase.Domain.Modules.WhatsApp;
@@ -146,19 +147,27 @@ public sealed partial class WhatsAppOutgoingMessage : Entity
         State = WhatsAppOutgoingMessageState.Reviewed;
     }
 
+    /// <summary>
+    /// Choices, when present, become reply buttons fixed here with this row's id: a retry or a resend after a crash sends the
+    /// same buttons. An action never combines a document with choices.
+    /// </summary>
     public static WhatsAppOutgoingMessage CreateFormAction(Guid recipientUserId, Guid contactId, Guid runId, string body,
-        DateTime nowUtc, WhatsAppOutgoingDocument? document = null, long contactLinkRevision = 0, string? recipientWaId = null)
+        DateTime nowUtc, WhatsAppOutgoingDocument? document = null, long contactLinkRevision = 0, string? recipientWaId = null,
+        IReadOnlyList<WhatsAppFormActionChoice>? choices = null)
     {
         ArgumentOutOfRangeException.ThrowIfEqual(recipientUserId, Guid.Empty);
         ArgumentOutOfRangeException.ThrowIfEqual(contactId, Guid.Empty);
         ArgumentOutOfRangeException.ThrowIfEqual(runId, Guid.Empty);
-        if (!IsVisibleBody(body) || body.Length > (document is null ? WhatsAppMessage.MaxBodyLength : 1024))
+        var buttons = choices is { Count: > 0 } ? choices : null;
+        if (buttons is not null && (document is not null || !WhatsAppFormActionChoice.AreValid(buttons)))
+            throw new ArgumentException("Form action choices must be one to three unique, bounded buttons without a document.", nameof(choices));
+        if (!IsVisibleBody(body) || body.Length > (document is null && buttons is null ? WhatsAppMessage.MaxBodyLength : 1024))
             throw new ArgumentException("The form action body must be visible and fit the message limit.", nameof(body));
         if (document is not null && (string.IsNullOrWhiteSpace(document.StorageKey) || document.StorageKey.Length > 512
             || string.IsNullOrWhiteSpace(document.Name) || document.Name.Length > 255 || document.ContentType != "application/pdf"
             || document.Size is <= 0 or > 100 * 1024 * 1024 || document.Sha256.Length != 64 || !document.Sha256.All(char.IsAsciiHexDigit)))
             throw new ArgumentException("The form action document metadata is invalid.", nameof(document));
-        return new WhatsAppOutgoingMessage
+        var outgoing = new WhatsAppOutgoingMessage
         {
             Origin = WhatsAppMessageOrigin.FormAction, RecipientUserId = recipientUserId, ContactId = contactId,
             RecipientLinkRevision = contactLinkRevision, RecipientWaId = recipientWaId, RequestId = runId,
@@ -166,7 +175,22 @@ public sealed partial class WhatsAppOutgoingMessage : Entity
             DocumentStorageKey = document?.StorageKey, DocumentName = document?.Name, DocumentContentType = document?.ContentType,
             DocumentSize = document?.Size, DocumentSha256 = document?.Sha256,
         };
+        if (buttons is not null)
+        {
+            outgoing.Kind = WhatsAppOutgoingMessageKind.QuickReplies;
+            outgoing.QuickRepliesJson = JsonSerializer.Serialize(buttons
+                .Select(choice => new WhatsAppOutgoingQuickReply(WhatsAppFormActionChoice.ReplyId(outgoing.Id, choice.Id), choice.Title, 0)).ToArray());
+        }
+
+        return outgoing;
     }
+
+    /// <summary>Whether this action offers exactly these choices, in order; no choices match an action without buttons.</summary>
+    public bool HasFormActionChoices(IReadOnlyList<WhatsAppFormActionChoice>? choices) =>
+        Origin == WhatsAppMessageOrigin.FormAction && QuickReplies
+            .Select(reply => WhatsAppFormActionChoice.TryParseReplyId(reply.Id, out var outgoingId, out var choiceId) && outgoingId == Id
+                ? new WhatsAppFormActionChoice(choiceId, reply.Title) : null)
+            .SequenceEqual(choices ?? []);
 
     public Guid ReserveFormAction(DateTime nowUtc) => ReserveSystemDispatch(WhatsAppMessageOrigin.FormAction, nowUtc);
 
