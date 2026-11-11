@@ -186,7 +186,7 @@ internal sealed class FormEntryCatalogPolicy(FormCatalogOptionsPolicy options, I
         var catalog = source.Catalog!;
         var query = new FormEntryItemsQuery(catalog.Id, source.Containment, null, ids, 1, ids.Length, culture);
         IReadOnlyList<StructuredFormCatalogOption> offered;
-        if (catalog.Kind == "Manual")
+        if (FormCatalogKindPolicy.HasItems(catalog.Kind))
             offered = await options.ManualOptionsAsync(source, (await reader.ListItemsAsync(query, ct)).Items, culture, ct);
         else
         {
@@ -207,7 +207,7 @@ internal sealed class FormEntryCatalogPolicy(FormCatalogOptionsPolicy options, I
         FormEntryItemsQuery query, string culture, CancellationToken ct)
     {
         var catalog = source.Catalog!;
-        if (catalog.Kind == "Manual")
+        if (FormCatalogKindPolicy.HasItems(catalog.Kind))
         {
             var items = await reader.ListItemsAsync(query, ct);
             return new((await options.ManualOptionsAsync(source, items.Items, culture, ct)).Select(Present).ToArray(), items.Page, items.PageSize, items.TotalCount);

@@ -1570,6 +1570,19 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(120)")
                         .HasComputedColumnSql("COALESCE(NULLIF(\"NameJson\" ->> 'es', ''), NULLIF(\"NameJson\" ->> 'en', ''), '')", true);
 
+                    b.Property<DateTime?>("FeedFailedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("FeedFailureCode")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime?>("FeedLeaseUntilUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("FeedRefreshedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("FieldsJson")
                         .HasColumnType("jsonb");
 
@@ -1653,7 +1666,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
 
                     b.ToTable("BusinessFormCatalogs", null, t =>
                         {
-                            t.HasCheckConstraint("CK_BusinessFormCatalogs_KindFilters", "(\"Kind\" = 'Manual' AND \"FiltersJson\" IS NULL) OR (\"Kind\" = 'Filters' AND \"FiltersJson\" IS NOT NULL)");
+                            t.HasCheckConstraint("CK_BusinessFormCatalogs_Feed", "\"Kind\" = 'External' OR (\"FeedRefreshedAtUtc\" IS NULL AND \"FeedFailedAtUtc\" IS NULL AND \"FeedFailureCode\" IS NULL AND \"FeedLeaseUntilUtc\" IS NULL)");
+
+                            t.HasCheckConstraint("CK_BusinessFormCatalogs_KindFilters", "(\"Kind\" IN ('Manual','External') AND \"FiltersJson\" IS NULL) OR (\"Kind\" = 'Filters' AND \"FiltersJson\" IS NOT NULL)");
 
                             t.HasCheckConstraint("CK_BusinessFormCatalogs_LastImport", "(\"LastImportSha256\" IS NULL) = (\"LastImportAtUtc\" IS NULL)");
 
@@ -1661,7 +1676,7 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("CK_BusinessFormCatalogs_Proposal", "(\"ProposalId\" IS NULL AND \"ProposalEvidenceJson\" IS NULL AND \"ProposalState\" IS NULL AND \"ProposalDecidedByUserId\" IS NULL AND \"ProposalDecidedAtUtc\" IS NULL) OR (\"ProposalId\" IS NOT NULL AND \"ProposalEvidenceJson\" IS NOT NULL AND \"ProposalState\" IS NOT NULL AND ((\"ProposalState\" = 'Pending' AND NOT \"IsActive\" AND \"ProposalDecidedByUserId\" IS NULL AND \"ProposalDecidedAtUtc\" IS NULL) OR (\"ProposalState\" = 'Approved' AND \"ProposalDecidedByUserId\" IS NOT NULL AND \"ProposalDecidedAtUtc\" IS NOT NULL) OR (\"ProposalState\" = 'Discarded' AND NOT \"IsActive\" AND \"ProposalDecidedByUserId\" IS NOT NULL AND \"ProposalDecidedAtUtc\" IS NOT NULL)))");
 
-                            t.HasCheckConstraint("CK_BusinessFormCatalogs_ValueType", "\"ValueType\" IN ('Text','Integer','Decimal','Date') AND (\"Kind\" = 'Manual' OR \"ValueType\" = 'Text')");
+                            t.HasCheckConstraint("CK_BusinessFormCatalogs_ValueType", "\"ValueType\" IN ('Text','Integer','Decimal','Date') AND (\"Kind\" IN ('Manual','External') OR \"ValueType\" = 'Text')");
                         });
                 });
 

@@ -308,8 +308,11 @@ internal sealed class BusinessFormAuthoringAssistantCapabilitySource(IFormAuthor
             schema.Fields.Where(field => field.Type != "group").Select(field => new FormAuthoringQuestionRow(Text(field.Label, culture, row.Culture), field.Type)).ToArray());
     }
 
+    // A catalog a module keeps (External) offers its items like a Manual one, so the assistant sees it as one; importing into it
+    // is still refused.
     private static FormAuthoringCatalogRow Catalog(FormAuthoringCatalogStoredRow row, string culture) =>
-        new(row.Id, Text(FormDraftPolicy.Read<Dictionary<string, string>>(row.NameJson), culture, row.OriginalCulture), row.Kind.ToString().ToLowerInvariant(),
+        new(row.Id, Text(FormDraftPolicy.Read<Dictionary<string, string>>(row.NameJson), culture, row.OriginalCulture),
+            row.Kind == BusinessFormCatalogKind.External ? "manual" : row.Kind.ToString().ToLowerInvariant(),
             row.ValueType.ToString().ToLowerInvariant(), row.IsActive,
             FormCatalogFieldPolicy.ReadFields(row.FieldsJson).Where(field => field.IsActive).OrderBy(field => field.Position)
                 .Select(field => new FormAuthoringCatalogFieldRow(Text(field.Name, culture, row.OriginalCulture), field.Type)).ToArray());

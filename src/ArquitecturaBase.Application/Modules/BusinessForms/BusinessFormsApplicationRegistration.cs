@@ -46,6 +46,7 @@ public static class BusinessFormsApplicationRegistration
         services.TryAddScoped<FormRecordResultRecorder>();
         services.TryAddScoped<FormActionOutcomeRecorder>();
         services.TryAddScoped<IFormIssueActionService, FormIssueActionService>();
+        services.TryAddScoped<IFormCatalogFeedService, FormCatalogFeedService>();
         services.TryAddScoped<FormConditionChoicePolicy>();
         services.TryAddScoped<FormSuggestionCandidatePolicy>();
         services.TryAddScoped<FormSuggestionRuntimePolicy>();

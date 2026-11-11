@@ -85,7 +85,12 @@ public sealed record FormCatalogsPageResponse(
 
 public sealed record FormCatalogFilterCounts(FormCatalogOriginCounts ByKind);
 
-public sealed record FormCatalogOriginCounts(int All, int Manual, int Filters);
+public sealed record FormCatalogOriginCounts(int All, int Manual, int Filters)
+{
+    /// <summary>Catalogs an installed module keeps; written only when there is one.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public int External { get; init; }
+}
 
 public sealed record FormCatalogDetailResponse(
     Guid Id,
@@ -101,7 +106,14 @@ public sealed record FormCatalogDetailResponse(
     string? UnavailableReasonCode,
     FormCatalogFilterDefinition? Filters = null, FormCatalogProposalResponse? Proposal = null, string ValueType = "Text",
     IReadOnlyList<FormCatalogFieldResponse>? Fields = null, FormCatalogPresentation? Presentation = null,
-    FormCatalogPresentationCheckResponse? PresentationCheck = null);
+    FormCatalogPresentationCheckResponse? PresentationCheck = null)
+{
+    /// <summary>When the source of an External catalog last answered or failed, and why; absent in the others.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public FormCatalogFeedResponse? Feed { get; init; }
+}
+
+public sealed record FormCatalogFeedResponse(DateTime? RefreshedAtUtc, DateTime? FailedAtUtc, string? FailureCode);
 
 public sealed record FormCatalogItemResponse(
     Guid Id,
@@ -135,7 +147,12 @@ public sealed record FormCatalogStoredRow(
     string? ProposalEvidenceJson = null, BusinessFormCatalogProposalState? ProposalState = null,
     Guid? ProposalDecidedByUserId = null, DateTime? ProposalDecidedAtUtc = null, string ValueType = "Text",
     string? LastImportSha256 = null, DateTime? LastImportAtUtc = null, string? FieldsJson = null, string? PresentationJson = null,
-    Guid? ProposalId = null);
+    Guid? ProposalId = null)
+{
+    public DateTime? FeedRefreshedAtUtc { get; init; }
+    public DateTime? FeedFailedAtUtc { get; init; }
+    public string? FeedFailureCode { get; init; }
+}
 
 public sealed record FormCatalogStoredItemRow(
     Guid Id,

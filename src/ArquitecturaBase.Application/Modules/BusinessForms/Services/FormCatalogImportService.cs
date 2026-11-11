@@ -120,6 +120,7 @@ internal sealed class FormCatalogImportService(IFormCatalogReader reader, IFormS
         var finalAccess = await access.CheckAsync(true, cancellationToken);
         if (finalAccess.IsFailure) return finalAccess.Error;
         if (row is null) return FormCatalogErrors.NotFound;
+        if (row.Kind == FormCatalogKindPolicy.External) return FormCatalogErrors.ReadOnly;
         if (row.Kind != "Manual") return FormCatalogErrors.ManualItemsUnavailable;
         if (row.Revision != expectedRevision) return FormCatalogErrors.RevisionConflict;
         return row;

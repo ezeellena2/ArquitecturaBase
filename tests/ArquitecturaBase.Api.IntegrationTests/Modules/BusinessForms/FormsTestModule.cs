@@ -50,6 +50,7 @@ internal sealed class FormsTestModule : IApiTestModule
     {
         services.Configure<ArquitecturaBase.Infrastructure.Modules.BusinessForms.Workers.FormPublicationWorkerOptions>(options => options.ProcessInBackground = false);
         services.Configure<ArquitecturaBase.Infrastructure.Modules.BusinessForms.Workers.FormActionWorkerOptions>(options => options.ProcessInBackground = false);
+        services.Configure<ArquitecturaBase.Infrastructure.Modules.BusinessForms.Workers.FormCatalogFeedWorkerOptions>(options => options.ProcessInBackground = false);
         services.AddSingleton<IStructuredFormPublicationDriver, StructuredFormPublicationDriver>();
         services.AddSingleton<ArquitecturaBase.Application.Interfaces.Channels.IStructuredFormStandardSource, TestFormStandardSource>();
     }

@@ -40,6 +40,8 @@ FormOverviewQueryTests comprueba la proyección SQL de presentación sellada y c
 
 ## Catálogos
 
+Catálogos que mantiene un módulo: FormCatalogFeedHttpTests, con un origen de prueba y el worker a mano, comprueba que el catálogo `External` se crea recién cuando el origen responde y va a su carpeta, que no se vuelve a leer hasta el día siguiente, que lo que deja de venir se desactiva, que una falla deja lo que había con su motivo, y que el detalle trae `feed`, editar da 409 `Forms.Catalog.ReadOnly` y el listado lo filtra.
+
 ### Opciones, orden y capacidad
 
 Catálogo Manual: pruebas HTTP con PostgreSQL real cubren alta positionless, rechazo de Position enviado por cliente, secuencias de movimientos entre páginas, unicidad final y auditoría; un movimiento fuera del límite revierte metadatos/orden. FormCatalogCodeUniquenessMigrationTests usa una base propia migrada para preparar Up/Down/Up, intercambio de códigos y reserva inactiva al commit; EnsureCreated no instala estas restricciones SQL.

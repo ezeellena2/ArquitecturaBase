@@ -68,11 +68,12 @@ internal sealed partial class FormCatalogReader(ApplicationDbContext dbContext) 
             .ToListAsync(cancellationToken);
         var originCounts = new FormCatalogOriginCounts(originGroups.Sum(group => group.Count),
             originGroups.SingleOrDefault(group => group.Kind == BusinessFormCatalogKind.Manual)?.Count ?? 0,
-            originGroups.SingleOrDefault(group => group.Kind == BusinessFormCatalogKind.Filters)?.Count ?? 0);
+            originGroups.SingleOrDefault(group => group.Kind == BusinessFormCatalogKind.Filters)?.Count ?? 0)
+        { External = originGroups.SingleOrDefault(group => group.Kind == BusinessFormCatalogKind.External)?.Count ?? 0 };
         var page = await query.ApplySort(SortDescriptor.Parse(request.Sort), sortable, new("name", false), value => value.Catalog.Id)
             .Select(value => new FormCatalogListItemResponse(value.Catalog.Id, EF.Property<string>(value.Catalog, nameColumn),
                 EF.Property<string>(value.Catalog, descriptionColumn) == "" ? null : EF.Property<string>(value.Catalog, descriptionColumn),
-                value.Catalog.Kind.ToString(), value.Catalog.Kind == BusinessFormCatalogKind.Manual
+                value.Catalog.Kind.ToString(), value.Catalog.Kind == BusinessFormCatalogKind.Manual || value.Catalog.Kind == BusinessFormCatalogKind.External
                     ? dbContext.Set<BusinessFormCatalogItem>().Count(item => item.CatalogId == value.Catalog.Id && item.IsActive) : (int?)null,
                 canReadForms ? value.UsageCount : null, value.Catalog.IsActive ? "Active" : "Inactive", null, canEdit, value.Catalog.ValueType.ToString()))
             .ToPagedResultAsync(request, cancellationToken);
@@ -127,7 +128,8 @@ internal sealed partial class FormCatalogReader(ApplicationDbContext dbContext) 
         dbContext.Set<BusinessFormCatalog>().AsNoTracking().Where(value => value.Id == id)
             .Select(value => new FormCatalogStoredRow(value.Id, value.Key, value.NameJson, value.DescriptionJson, value.OriginalCulture, value.Kind.ToString(),
                 value.Revision, value.IsActive, value.CreatedAtUtc, value.CreatedBy, value.ModifiedAtUtc, value.ModifiedBy,
-                dbContext.Set<BusinessFormCatalogItem>().Count(item => item.CatalogId == value.Id), value.FiltersJson, value.ProposalEvidenceJson, value.ProposalState, value.ProposalDecidedByUserId, value.ProposalDecidedAtUtc, value.ValueType.ToString(), value.LastImportSha256, value.LastImportAtUtc, value.FieldsJson, value.PresentationJson, value.ProposalId))
+                dbContext.Set<BusinessFormCatalogItem>().Count(item => item.CatalogId == value.Id), value.FiltersJson, value.ProposalEvidenceJson, value.ProposalState, value.ProposalDecidedByUserId, value.ProposalDecidedAtUtc, value.ValueType.ToString(), value.LastImportSha256, value.LastImportAtUtc, value.FieldsJson, value.PresentationJson, value.ProposalId)
+                { FeedRefreshedAtUtc = value.FeedRefreshedAtUtc, FeedFailedAtUtc = value.FeedFailedAtUtc, FeedFailureCode = value.FeedFailureCode })
             .SingleOrDefaultAsync(cancellationToken);
 
     public Task<int> CountActiveItemsAsync(Guid catalogId, CancellationToken cancellationToken) =>

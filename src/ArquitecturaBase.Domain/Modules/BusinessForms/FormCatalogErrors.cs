@@ -13,6 +13,9 @@ public static class FormCatalogErrors
     public static readonly Error FiltersUnavailable = Error.Conflict("Forms.Catalog.FiltersUnavailable", "This catalog does not contain filters.");
     public static readonly Error DuplicateItemCode = Error.Conflict("Forms.Catalog.DuplicateItemCode", "An item with this code already exists.");
     public static readonly Error TooManyItems = Error.Validation("Forms.Catalog.TooManyItems", "A catalog can contain up to 10,000 items.");
+    public static readonly Error ReadOnly = Error.Conflict("Forms.Catalog.ReadOnly", "Its source keeps this catalog up to date: it is not edited here.");
+    public static readonly Error FeedUnavailable = Error.Failure("Forms.Catalog.FeedUnavailable", "The source of the catalog did not answer.");
+    public static readonly Error FeedInvalid = Error.Validation("Forms.Catalog.FeedInvalid", "The source sent repeated or empty items.");
     public static readonly Error ItemValueRequired = Error.Validation("Forms.Catalog.ItemValueRequired", "Enter the option value.");
     public static readonly Error ItemValueInvalid = Error.Validation("Forms.Catalog.ItemValueInvalid", "The value does not match the catalog type.");
     public static readonly Error ContentInvalid = Error.Validation("Forms.Catalog.ContentInvalid", "The catalog content is invalid.");

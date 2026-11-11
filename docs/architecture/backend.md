@@ -241,7 +241,7 @@ El contrato está en [administracion.md](../features/administracion.md#configura
 
 Reglas en [formularios.md](../features/formularios.md), incluida la [política de idioma original y traducción opcional](../features/formularios.md#idioma-original-y-traducción-opcional--2026-10-19); lo del canal, en [whatsapp.md](../features/whatsapp.md#publicación-durable-de-flows--2b-2026-10-10).
 
-- Puertos neutrales en `Application/Interfaces/Channels`, con modelos en `Models/StructuredData`: `IStructuredFormChannel`, `IStructuredFormSource`, `IStructuredRecordSink`, `IStructuredRecordSource`, `IStructuredRecordActionChannel` e `IStructuredRecordIssuer`.
+- Puertos neutrales en `Application/Interfaces/Channels`, con modelos en `Models/StructuredData`: `IStructuredFormChannel`, `IStructuredFormSource`, `IStructuredRecordSink`, `IStructuredRecordSource`, `IStructuredRecordActionChannel`, `IStructuredRecordIssuer` e `IStructuredCatalogFeed`.
 - Entre BusinessForms y el canal: commits separados, IDs cruzados opacos, sin FK ni joins. Nunca se llama al escritor de otro módulo dentro de una transacción.
 
 

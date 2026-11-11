@@ -119,6 +119,7 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
         var canReadForms = await accessGuard.HasPermissionAsync(access.Value, BusinessFormsPermissions.Read, ct);
         var catalog = await repository.GetAsync(id, ct);
         if (catalog is null) return FormCatalogErrors.NotFound;
+        if (catalog.Kind == BusinessFormCatalogKind.External) return FormCatalogErrors.ReadOnly;
         if (catalog.Revision != request.ExpectedRevision) return FormCatalogErrors.RevisionConflict;
         var original = FormCatalogOriginalTextPolicy.Validate(catalog.OriginalCulture, request.Name, request.Items, request.Fields);
         if (original.IsFailure) return original.Error;
@@ -177,7 +178,10 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
 
     private static FormCatalogDetailResponse Map(FormCatalogStoredRow row, int? usageCount, string? unavailableReasonCode) => new(row.Id, row.Key, ReadTexts(row.NameJson),
         ReadTexts(row.DescriptionJson), row.OriginalCulture, row.Kind, row.Revision, row.IsActive, row.ItemsCount, usageCount, unavailableReasonCode,
-        row.FiltersJson is null ? null : JsonSerializer.Deserialize<FormCatalogFilterDefinition>(row.FiltersJson, JsonSerializerOptions.Web), ValueType: row.ValueType);
+        row.FiltersJson is null ? null : JsonSerializer.Deserialize<FormCatalogFilterDefinition>(row.FiltersJson, JsonSerializerOptions.Web), ValueType: row.ValueType)
+    {
+        Feed = row.Kind == FormCatalogKindPolicy.External ? new FormCatalogFeedResponse(row.FeedRefreshedAtUtc, row.FeedFailedAtUtc, row.FeedFailureCode) : null,
+    };
 
     private static FormCatalogDetailResponse Map(BusinessFormCatalog catalog, int itemCount) => new(catalog.Id, catalog.Key,
         ReadTexts(catalog.NameJson), ReadTexts(catalog.DescriptionJson), catalog.OriginalCulture, catalog.Kind.ToString(), catalog.Revision, catalog.IsActive,

@@ -20,7 +20,7 @@ public sealed class FormCatalogValueModelTests
         Assert.Equal(16, property.GetMaxLength());
         Assert.Equal("Text", property.GetDefaultValue()!.ToString());
         var constraint = Assert.Single(entity.GetCheckConstraints(), value => value.Name == "CK_BusinessFormCatalogs_ValueType");
-        Assert.Equal("\"ValueType\" IN ('Text','Integer','Decimal','Date') AND (\"Kind\" = 'Manual' OR \"ValueType\" = 'Text')", constraint.Sql);
+        Assert.Equal("\"ValueType\" IN ('Text','Integer','Decimal','Date') AND (\"Kind\" IN ('Manual','External') OR \"ValueType\" = 'Text')", constraint.Sql);
     }
 
     [Fact]

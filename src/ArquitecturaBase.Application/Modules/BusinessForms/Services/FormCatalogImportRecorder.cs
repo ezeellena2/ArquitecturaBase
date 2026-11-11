@@ -72,7 +72,7 @@ internal sealed class FormCatalogImportRecorder(IFormCatalogRepository repositor
             if (field.SourceCatalogId is not { } sourceId || sourceId == source.Id) return FormCatalogErrors.FieldInvalid;
             if (sources.ContainsKey(sourceId)) continue;
             var catalog = await reader.FindAsync(sourceId, cancellationToken);
-            if (catalog is null || !catalog.IsActive || catalog.Kind != "Manual") return FormCatalogErrors.FieldInvalid;
+            if (catalog is null || !catalog.IsActive || !FormCatalogKindPolicy.HasItems(catalog.Kind)) return FormCatalogErrors.FieldInvalid;
             sources.Add(sourceId, await reader.ListAllItemsAsync(sourceId, cancellationToken));
         }
         return source with { Fields = fields, Sources = sources };

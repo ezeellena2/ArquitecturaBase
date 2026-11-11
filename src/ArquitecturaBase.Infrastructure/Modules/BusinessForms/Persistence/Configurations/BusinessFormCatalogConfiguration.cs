@@ -13,9 +13,12 @@ internal sealed class BusinessFormCatalogConfiguration : IEntityTypeConfiguratio
             table.HasCheckConstraint("CK_BusinessFormCatalogs_LastImport", "(\"LastImportSha256\" IS NULL) = (\"LastImportAtUtc\" IS NULL)");
             table.HasCheckConstraint("CK_BusinessFormCatalogs_ManualFields", "\"Kind\" = 'Manual' OR (\"FieldsJson\" IS NULL AND \"PresentationJson\" IS NULL)");
             table.HasCheckConstraint("CK_BusinessFormCatalogs_ValueType",
-                "\"ValueType\" IN ('Text','Integer','Decimal','Date') AND (\"Kind\" = 'Manual' OR \"ValueType\" = 'Text')");
+                "\"ValueType\" IN ('Text','Integer','Decimal','Date') AND (\"Kind\" IN ('Manual','External') OR \"ValueType\" = 'Text')");
             table.HasCheckConstraint("CK_BusinessFormCatalogs_KindFilters",
-                "(\"Kind\" = 'Manual' AND \"FiltersJson\" IS NULL) OR (\"Kind\" = 'Filters' AND \"FiltersJson\" IS NOT NULL)");
+                "(\"Kind\" IN ('Manual','External') AND \"FiltersJson\" IS NULL) OR (\"Kind\" = 'Filters' AND \"FiltersJson\" IS NOT NULL)");
+            // Only a fed catalog records when its source answered or failed and who holds its refresh.
+            table.HasCheckConstraint("CK_BusinessFormCatalogs_Feed",
+                "\"Kind\" = 'External' OR (\"FeedRefreshedAtUtc\" IS NULL AND \"FeedFailedAtUtc\" IS NULL AND \"FeedFailureCode\" IS NULL AND \"FeedLeaseUntilUtc\" IS NULL)");
             // One line: a multi-line literal takes the checkout's line endings into the SQL.
             table.HasCheckConstraint("CK_BusinessFormCatalogs_Proposal",
                 "(\"ProposalId\" IS NULL AND \"ProposalEvidenceJson\" IS NULL AND \"ProposalState\" IS NULL AND \"ProposalDecidedByUserId\" IS NULL AND \"ProposalDecidedAtUtc\" IS NULL)"
@@ -49,5 +52,6 @@ internal sealed class BusinessFormCatalogConfiguration : IEntityTypeConfiguratio
         builder.Property(value => value.LastImportSha256).HasColumnType("character(64)").HasMaxLength(64);
         builder.Property(value => value.LastImportAtUtc);
         builder.Property(value => value.Revision).IsConcurrencyToken();
+        builder.Property(value => value.FeedFailureCode).HasMaxLength(64);
     }
 }

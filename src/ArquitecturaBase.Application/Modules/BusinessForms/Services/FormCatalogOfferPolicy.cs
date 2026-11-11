@@ -39,7 +39,7 @@ internal static class FormCatalogOfferPolicy
     }
 
     public static bool InvalidValues(StructuredFormCatalogOffer offer) =>
-        offer.ValueType is not null && (offer.Kind != "Manual" || offer.ValueType is not ("Integer" or "Decimal" or "Date"))
+        offer.ValueType is not null && (!FormCatalogKindPolicy.HasItems(offer.Kind) || offer.ValueType is not ("Integer" or "Decimal" or "Date"))
         || offer.Options.Any(option => InvalidValue(option, offer.ValueType));
 
     public static bool InvalidValue(StructuredFormCatalogOption option, string? valueType)

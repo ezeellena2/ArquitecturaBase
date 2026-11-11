@@ -308,7 +308,7 @@ haya commiteado lo suyo. El front espera a que el usuario termine la prueba inte
    (tarea 4); su ruta y el cambio de completitud de Facturación van con el front, para no dejar «requiere atención» una
    conexión que todavía no puede cargarlos.
 7. **Padrón de un tercero** y el adaptador de `IStructuredPartyLookup`.
-8. **Tablas de ARCA:** el adaptador de `IStructuredCatalogFeed`.
+8. **Hecho. Tablas de ARCA:** el adaptador de `IStructuredCatalogFeed`, con «Exento» y «No gravado» en las alícuotas.
 **Lo que espera (2026-11-09):** la acción ya arma el pedido con el mapa «dato → pregunta» de la biblioteca (BI1-A); la
 anulación con nota de crédito y el «¿La emito?» siguen a la acción; los catálogos de ARCA dependen de las carpetas, y el
 autocompletar, del catálogo «Clientes» del estándar. Las tareas 7 y 8 van
@@ -317,7 +317,7 @@ con su consumidor (no se agrega un puerto sin quien lo use). El resultado extern
 9. **Hecho (bbda01fa y el aviso de espera).** El puerto `IStructuredRecordIssuer`, la acción `IssueDocument` en formularios
    (en las reglas sólo con el emisor de su estándar, el run que encola una vez y sigue la espera del emisor, el resultado en
    la respuesta, la revisión con `arca.issue` y un solo aviso a quien cargó mientras espera por ARCA) y el emisor de ARCA.
-10. *(con la etapa 2)* Los catálogos de sólo lectura y su actualización en formularios, en la carpeta «ARCA».
+10. **Hecho.** Los catálogos de sólo lectura (`External`) y su actualización en formularios, en la carpeta «ARCA»: se crean recién cuando el origen responde.
 11. *(con la etapa 2)* El estándar «Factura» y el catálogo «Clientes» con «Completar con ARCA».
 12. **Anular con nota de crédito.**
 13. **El «¿La emito?» en WhatsApp** (EM2-A) y el cliente nuevo por su CUIT.

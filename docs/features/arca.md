@@ -127,6 +127,10 @@ formularios «Emitir comprobante»; el estándar «Factura» y la anulación con
 [plan](../plans/2026-11-09-arca-etapa-3-factura-c.md). La A y la B siguen el
 [plan de la etapa 4](../plans/2026-11-09-arca-etapa-4-factura-a-y-b.md).
 
+- **Las tablas como catálogos** (`ArcaStructuredCatalogFeed`): condición frente al IVA, tipos de documento, conceptos (con el
+  código como valor), monedas y alícuotas de IVA (con el porcentaje como valor, más «Exento» y «No gravado», códigos `exempt` y
+  `not-taxed`) llegan a formularios como catálogos `External` en la carpeta «ARCA», sólo con las filas vigentes. Se leen con el
+  ticket de `wsfe`; sin conexión o sin respuesta devuelven el código del motivo y formularios conserva lo que tenía.
 - **El emisor de formularios** (`ArcaStructuredRecordIssuer`): la fuente y la clave del estándar son `arca.invoice`. Lee los
   datos atados de la «Factura» (el cliente de «Clientes» con `tax_id`, `vat_condition` y `address`, o consumidor final sin
   CUIT; el concepto por su código de ARCA; la fecha, o la de hoy; el período, el vencimiento, los renglones y el total) y

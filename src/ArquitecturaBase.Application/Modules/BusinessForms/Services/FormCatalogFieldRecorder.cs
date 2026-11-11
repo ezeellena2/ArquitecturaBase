@@ -88,7 +88,7 @@ internal sealed class FormCatalogFieldRecorder(IFormCatalogReader reader)
             if (field.SourceCatalogId is not { } sourceId || sourceId == catalog.Id) return FieldErrors.On(FormCatalogErrors.FieldInvalid, $"fields[{resolved.IndexOf(field)}].sourceCatalogId");
             if (sources.ContainsKey(sourceId)) continue;
             var source = await reader.FindAsync(sourceId, ct);
-            if (source is null || !source.IsActive || source.Kind != "Manual") return FieldErrors.On(FormCatalogErrors.FieldInvalid, $"fields[{resolved.IndexOf(field)}].sourceCatalogId");
+            if (source is null || !source.IsActive || !FormCatalogKindPolicy.HasItems(source.Kind)) return FieldErrors.On(FormCatalogErrors.FieldInvalid, $"fields[{resolved.IndexOf(field)}].sourceCatalogId");
             sources.Add(sourceId, await reader.ListAllItemsAsync(sourceId, ct));
         }
         // A catalog field that changes type or source, active or not, shows its saved options by their text (the content when it

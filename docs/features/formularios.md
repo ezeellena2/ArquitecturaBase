@@ -973,6 +973,24 @@ ARCA» ([ADR 0028](../decisions/0028-emision-de-comprobantes-arca.md)); sin emis
   número o la fecha de hoy, según el motivo) o no se emite. Pide `formrules.manage` y el permiso del emisor (`arca.issue`), y
   el flujo marca `canReview` sólo para quien los tiene. La decisión vale para la revisión de la emisión que vio el run.
 
+## Catálogos que mantiene un módulo — External, 2026-11-11
+
+Un módulo instalado aporta listas que formularios guarda como catálogos de sólo lectura (`IStructuredCatalogFeed`, colección
+opcional; ARCA aporta sus tablas). Son de un tercer tipo, `External`, con la clave estable que da el origen («arca.concepts»).
+
+- **Se crean solos.** El primer día que el origen responde: una instalación que nunca conecta el módulo no tiene catálogos
+  vacíos. Van a la carpeta del sistema que nombra el origen (por clave, como la biblioteca).
+- **Se actualizan solos.** El worker `FormCatalogFeedBackgroundService` (`BusinessForms:CatalogFeedWorker`: `ProcessInBackground`
+  y `PollInterval`, 5 minutos) mira cuáles tocan: los que nunca se leyeron, los leídos hace más de un día y los que fallaron
+  hace más de 15 minutos. Leer no tiene efecto afuera ([ADR 0018](../decisions/0018-robustez-proporcional-al-efecto.md)): una
+  reserva corta evita que dos hosts pregunten a la vez y las diferencias se aplican con la revisión del catálogo. Lo que deja de
+  venir se desactiva, nunca se borra: las respuestas lo siguen nombrando. Una falla guarda el motivo y deja lo que había.
+- **No se tocan a mano.** Editar o importar da `Forms.Catalog.ReadOnly` (409); el detalle trae `feed` (cuándo respondió y la
+  última falla, con su código) y el listado filtra `kind=External` y cuenta `byKind.external` cuando hay alguno.
+- **Se usan como un Manual.** Ofrecen sus opciones en la app y en WhatsApp, se publican y se capturan igual, con su valor tipado,
+  y pueden ser la fuente de un campo de catálogo. Como no tienen campos, no filtran ni eligen primero por un campo. El asistente
+  los ve como Manual y no puede importarles una planilla.
+
 ## Biblioteca de estándares — BI1-A, 2026-11-09
 
 Los módulos traen formularios estándar como datos y «Agregar» crea un borrador propio que recuerda de dónde viene (BI1-A,

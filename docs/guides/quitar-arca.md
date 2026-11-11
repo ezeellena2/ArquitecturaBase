@@ -7,7 +7,7 @@ retirada: quitá código, configuración y rutas, y generá la migración del mo
 Quitar el módulo borra sus siete tablas, con la clave privada, los tickets y la cola de emisión: respaldá la base y guardá
 aparte el anillo `Arca:SecretProtection` si querés poder leer un backup viejo. Los comprobantes ya emitidos siguen en ARCA
 y sus PDF fiscales, en el almacén privado (`arca-vouchers/`); sin el módulo, la limpieza de archivos deja de retenerlos. El certificado sigue existiendo en ARCA hasta que se lo
-revoque allá. El núcleo no nombra el módulo: WhatsApp, formularios e IA siguen igual.
+revoque allá. Sus catálogos de formularios (carpeta «ARCA») quedan como `External` sin origen: dejan de actualizarse y siguen sirviendo a lo ya capturado. El núcleo no nombra el módulo: WhatsApp, formularios e IA siguen igual.
 
 ## El módulo entero
 

@@ -35,7 +35,7 @@ internal sealed class FormCatalogOptionsPolicy(IFormCatalogReader catalogs, IFor
             var valueType = ValueType(catalog);
             IReadOnlyList<StructuredFormCatalogOption> options;
             StructuredFormCatalogGrouping? grouping = null;
-            if (catalog.Kind == "Manual")
+            if (FormCatalogKindPolicy.HasItems(catalog.Kind))
             {
                 // LD2-A: a question that chooses first by a field needs that field, and all its options, which are limited per value.
                 var groupBy = GroupByField(question, source.Fields);
@@ -88,7 +88,7 @@ internal sealed class FormCatalogOptionsPolicy(IFormCatalogReader catalogs, IFor
             var catalog = await catalogs.FindAsync(question.Source!.Catalog!.Value, ct);
             if (catalog is not { IsActive: true }) continue;
             IReadOnlyList<StructuredFormCatalogOption> options;
-            if (catalog.Kind == "Manual")
+            if (FormCatalogKindPolicy.HasItems(catalog.Kind))
             {
                 var fields = FormCatalogFieldPolicy.ReadFields(catalog.FieldsJson);
                 var containment = FormCatalogMatchPolicy.FixedContainment(question.Source.Match, fields);
@@ -220,7 +220,7 @@ internal sealed class FormCatalogOptionsPolicy(IFormCatalogReader catalogs, IFor
     }
 
     /// <summary>The typed value of a Manual catalog's options; a text catalog and Filters offer none.</summary>
-    public static string? ValueType(FormCatalogStoredRow catalog) => catalog.Kind == "Manual" && catalog.ValueType != "Text" ? catalog.ValueType : null;
+    public static string? ValueType(FormCatalogStoredRow catalog) => FormCatalogKindPolicy.HasItems(catalog.Kind) && catalog.ValueType != "Text" ? catalog.ValueType : null;
 
     // The datum's name is for the operator, so it follows the menu language rather than the form's.
     private static string MissingData(FormPersonRecipientDataRow personData, Guid attributeId) => FormRecordPresentationPolicy.Text(

@@ -139,7 +139,7 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
             return Reject(request, fingerprint, FormRecordErrors.InvalidResponse.Code);
         var offers = request.Catalogs ?? [];
         if (offers.Select(offer => offer.FieldId).Distinct().Count() != offers.Count
-            || offers.Any(offer => offer.Revision <= 0 || offer.Kind is not ("Manual" or "Filters")
+            || offers.Any(offer => offer.Revision <= 0 || offer.Kind is not ("Manual" or "Filters" or FormCatalogKindPolicy.External)
                 || !schema.Questions.Any(question => question.FieldId == offer.FieldId && question.Key == offer.Key && question.Source?.Catalog == offer.CatalogId)
                 || FormCatalogOfferPolicy.Validate(false, offer.Options, grouping: offer.Grouping) is not null
                 || FormCatalogOfferPolicy.InvalidNames(offer.CatalogNames) || FormCatalogOfferPolicy.InvalidValues(offer)))
@@ -157,15 +157,15 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
             .SelectMany(value => (value.Answer.ChoiceIds ?? [value.Answer.ChoiceId!.Value])
                 .Select(choiceId => (value.Answer, value.Item, ChoiceId: choiceId,
                     Offer: offers.Single(offer => offer.FieldId == value.Answer.FieldId)))).ToArray();
-        foreach (var catalogId in selected.Where(value => value.Offer.Kind == "Manual").Select(value => value.Offer.CatalogId).Distinct().Order())
+        foreach (var catalogId in selected.Where(value => FormCatalogKindPolicy.HasItems(value.Offer.Kind)).Select(value => value.Offer.CatalogId).Distinct().Order())
             await records.LockCatalogAsync(catalogId, ct);
         // An option chosen in several items is checked once, where it first appears, which names its question and item.
-        foreach (var value in selected.Where(value => value.Offer.Kind == "Manual").DistinctBy(value => (value.Offer.CatalogId, value.ChoiceId)))
+        foreach (var value in selected.Where(value => FormCatalogKindPolicy.HasItems(value.Offer.Kind)).DistinctBy(value => (value.Offer.CatalogId, value.ChoiceId)))
             if (!await records.ExistsActiveCatalogItemAsync(value.Offer.CatalogId, value.ChoiceId, ct))
                 return Reject(request, fingerprint, FormRecordErrors.CatalogItemInactive.Code, value.Answer.FieldId, value.Item);
 
         var catalogFields = await FormCatalogFieldCapturePolicy.CaptureAsync(records,
-            selected.Where(value => value.Offer.Kind == "Manual").Select(value => value.ChoiceId).Distinct().ToArray(), ct);
+            selected.Where(value => FormCatalogKindPolicy.HasItems(value.Offer.Kind)).Select(value => value.ChoiceId).Distinct().ToArray(), ct);
 
         var origin = await origins.ValidateAsync(request, schema, ct);
         if (origin.IsFailure) return Reject(request, fingerprint, origin.Error.Code);

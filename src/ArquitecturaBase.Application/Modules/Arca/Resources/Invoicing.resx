@@ -13,4 +13,12 @@
   <data name="Voucher.CreditNote" xml:space="preserve"><value>Nota de crédito {0}</value></data>
   <data name="Notice.WaitingInvoice" xml:space="preserve"><value>ARCA no responde. Tu factura sale apenas vuelva.</value></data>
   <data name="Notice.WaitingCreditNote" xml:space="preserve"><value>ARCA no responde. Tu nota de crédito sale apenas vuelva.</value></data>
+  <data name="Catalog.arca.vat-conditions.Name" xml:space="preserve"><value>Condición frente al IVA</value></data>
+  <data name="Catalog.arca.document-types.Name" xml:space="preserve"><value>Tipos de documento</value></data>
+  <data name="Catalog.arca.concepts.Name" xml:space="preserve"><value>Conceptos</value></data>
+  <data name="Catalog.arca.currencies.Name" xml:space="preserve"><value>Monedas</value></data>
+  <data name="Catalog.arca.vat-rates.Name" xml:space="preserve"><value>Alícuotas de IVA</value></data>
+  <data name="Catalog.Description" xml:space="preserve"><value>Tabla de ARCA. Se actualiza sola y no se edita desde acá.</value></data>
+  <data name="Catalog.Exempt" xml:space="preserve"><value>Exento</value></data>
+  <data name="Catalog.NotTaxed" xml:space="preserve"><value>No gravado</value></data>
 </root>

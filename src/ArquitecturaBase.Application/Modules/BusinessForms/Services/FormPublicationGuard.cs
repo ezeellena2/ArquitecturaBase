@@ -49,7 +49,7 @@ internal sealed class FormPublicationGuard(FormPublicationAccessGuard accessGuar
                 catalog = await catalogReader.FindAsync(catalogId, ct);
                 catalogs.Add(catalogId, catalog);
             }
-            if (catalog is not { IsActive: true, Kind: "Manual" or "Filters" })
+            if (catalog is not { IsActive: true, Kind: "Manual" or "Filters" or FormCatalogKindPolicy.External })
             {
                 Issue(FormPublicationErrors.CatalogInvalid, ".catalog");
                 continue;

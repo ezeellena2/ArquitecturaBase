@@ -10,7 +10,7 @@ internal sealed class ListFormCatalogsRequestValidator : PagedRequestValidator<L
 {
     public ListFormCatalogsRequestValidator() : base(ListFormCatalogsRequest.SortableFields)
     {
-        RuleFor(request => request.Kind).Must(value => value is null or "Manual" or "Filters")
+        RuleFor(request => request.Kind).Must(value => value is null or "Manual" or "Filters" or "External")
             .WithMessage(_ => ErrorMessages.Get(FormCatalogErrors.ContentInvalid.Code));
         RuleFor(request => request.State)
             .Must(value => value is null or "Active" or "Inactive" or "Unavailable")

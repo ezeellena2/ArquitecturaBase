@@ -24,6 +24,10 @@ public static class BusinessFormsInfrastructureRegistration
         services.AddOptions<Workers.FormActionWorkerOptions>().BindConfiguration("BusinessForms:ActionWorker");
         services.AddSingleton<Workers.FormActionBackgroundService>();
         services.AddHostedService(provider => provider.GetRequiredService<Workers.FormActionBackgroundService>());
+        services.AddOptions<Workers.FormCatalogFeedWorkerOptions>().BindConfiguration("BusinessForms:CatalogFeedWorker")
+            .Validate(value => value.PollInterval > TimeSpan.Zero, "BusinessForms:CatalogFeedWorker:PollInterval must be positive.").ValidateOnStart();
+        services.AddSingleton<Workers.FormCatalogFeedBackgroundService>();
+        services.AddHostedService(provider => provider.GetRequiredService<Workers.FormCatalogFeedBackgroundService>());
         services.TryAddScoped<IFormApprovalReader, FormApprovalReader>();
         services.TryAddScoped<IFormApprovalRepository, FormApprovalRepository>();
         services.TryAddScoped<IFormActionRunRepository, FormActionRunRepository>();
@@ -54,6 +58,8 @@ public static class BusinessFormsInfrastructureRegistration
         services.TryAddScoped<IFormPersonDataRepository, FormPersonDataRepository>();
         services.TryAddScoped<IFormCatalogRepository, FormCatalogRepository>();
         services.TryAddScoped<IFormCatalogReader, FormCatalogReader>();
+        services.TryAddScoped<IFormCatalogFeedReader, FormCatalogFeedReader>();
+        services.TryAddScoped<IFormCatalogFeedRepository, FormCatalogFeedRepository>();
         services.TryAddScoped<IFormCatalogFilterReader, FormCatalogFilterReader>();
         services.TryAddScoped<IFormAuthoringReader, FormAuthoringReader>();
         services.TryAddScoped<IFormLibraryReader, FormLibraryReader>();
