@@ -319,20 +319,23 @@ con su consumidor (no se agrega un puerto sin quien lo use). El resultado extern
    (en las reglas sólo con el emisor de su estándar, el run que encola una vez y sigue la espera del emisor, el resultado en
    la respuesta, la revisión con `arca.issue` y un solo aviso a quien cargó mientras espera por ARCA) y el emisor de ARCA.
 10. **Hecho.** Los catálogos de sólo lectura (`External`) y su actualización en formularios, en la carpeta «ARCA»: se crean recién cuando el origen responde.
-11. **Hecho en parte.** El estándar «Factura» y el catálogo «Clientes» con «Completar con ARCA», y «Otro: escribir la CUIT»
+11. **Hecho.** El estándar «Factura» y el catálogo «Clientes» con «Completar con ARCA», y «Otro: escribir la CUIT»
     completado por el padrón en el emisor y, con «Emitir», sumado a «Clientes» una sola vez (el emisor lo devuelve al encolar y
-    formularios lo agrega en la transacción del run). Faltan: `pricesIncludeVat` en «Precio unitario» (IV2-A, espera la casilla de la
-    etapa 2) y la Alícuota en 21 % por defecto (el borrador no tiene valores por defecto). **Hechas (2026-11-11) las reglas que
+    formularios lo agrega en la transacción del run). `pricesIncludeVat` como casilla de «Precio unitario» y la Alícuota que
+    empieza en 21 % los programó la etapa 4 (8fb5a9a0 y f089f494); el emisor toma 21 % para un ítem sin alícuota (bcdeaf9e).
+    **Hechas (2026-11-11) las reglas que
     trae el estándar:** «Agregar» deja la regla «Cuando llega» de la «Factura» (emitir, avisar con el PDF fiscal y mandar la
     copia) como la revisión activa de la copia, en el mismo guardado, con la clave de la revisión activa diferida
     (`DeferActiveRuleSetKey`, decisión B del usuario: sin excepción al ADR 0001). **Hecha (2026-11-11) la copia al cliente por correo:** «Mandar copia
     al cliente» atada y la acción `SendCopy`, que manda el PDF fiscal al correo del cliente por la cola durable de la app (sin
     correo, «No aplica»).
 12. **Hecho. Anular con nota de crédito:** la reversión es un run del motor; corregir una respuesta con emisión queda frenado.
-13. **El «¿La emito?» en WhatsApp** (EM2-A) y el cliente nuevo por su CUIT. **Hecho en formularios y ARCA:** la vista previa
+13. **Hecho. El «¿La emito?» en WhatsApp** (EM2-A) y el cliente nuevo por su CUIT: la vista previa
     del emisor, el run que espera la confirmación de quien cargó por un canal, la ruta `confirmation` del flujo y «No emitir»
-    que anula con «No se emitió», y la vista previa antes de «Enviar» en la app (`issue-preview`). El cliente nuevo se suma a «Clientes» al emitir (tarea 11).
-    Faltan los botones de WhatsApp.
-14. **Front,** después de la prueba integral, con el diseño registrado en `docs/design`.
+    que anula con «No se emitió», y la vista previa antes de «Enviar» en la app (`issue-preview`). En WhatsApp, los botones
+    «Emitir» y «No emitir» del mensaje (ebb2f8df) y la respuesta «No la emitimos. FAC-… quedó anulada.» (f23759fa). El cliente
+    nuevo se suma a «Clientes» al emitir (tarea 11).
+14. **Front:** lo programa la etapa 4 junto con el suyo, con el diseño registrado en `docs/design/arca-factura-c.md`
+    (b82c002a) y los contratos de este plan.
 15. **Cierre:** la verificación de `AGENTS.md`, `docs/features/arca.md`, la fila de la etapa 3 en la hoja de ruta, la guía de
     homologación, el retiro de este plan con la auditoría y el traspaso al multitenant ofrecido.
