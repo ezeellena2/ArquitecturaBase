@@ -37,6 +37,9 @@ internal sealed class FormRecordAmendmentGuard(ICurrentUser currentUser, IPermis
             ? Result.Success() : FormRecordErrors.AmendUnavailable;
     }
 
+    public Task<bool> HasPermissionAsync(Guid actor, string permission, CancellationToken cancellationToken) =>
+        permissions.HasPermissionAsync(actor, permission, cancellationToken);
+
     /// <summary>The person still has the same way in: losing the permission is not taken as having their own response.</summary>
     public async Task<bool> StillAllowedAsync(FormRecordAmendAccess access, CancellationToken cancellationToken) =>
         currentUser.UserId == access.Actor && await AccessAsync(access.Actor, cancellationToken) is { } current && (current.Any || !access.Any);

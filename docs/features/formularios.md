@@ -976,6 +976,17 @@ ARCA» ([ADR 0028](../decisions/0028-emision-de-comprobantes-arca.md)); sin emis
 - **La revisión.** `POST api/forms/records/{id}/actions/{runId}/review` sin `recipientUserId`: `wasSent` dice si sigue (otro
   número o la fecha de hoy, según el motivo) o no se emite. Pide `formrules.manage` y el permiso del emisor (`arca.issue`), y
   el flujo marca `canReview` sólo para quien los tiene. La decisión vale para la revisión de la emisión que vio el run.
+- **Los datos y el PDF fiscal.** Una opción de catálogo llega al emisor por su código, y un campo capturado que nombra otra
+  opción, por el código de esa opción. Emitido, el PDF fiscal queda como un documento más de la respuesta (en español, sin
+  diseño) y «Avisar a quien cargó» puede adjuntarlo, como el de «Armar el PDF».
+- **Corregir y anular (NC1-A).** Una respuesta con una emisión viva (emitida, en curso o en revisión) no se corrige:
+  `Forms.Record.IssuedNotAmendable`, se anula y se carga otra. Anularla pide además el permiso del emisor y no la anula en el
+  acto: cada emisión recibe un run de reversión (evento `Voided`) que el worker lleva fuera de toda transacción. Lo que nunca se
+  emitió se cancela, si todavía se puede, y la respuesta queda anulada; lo emitido se revierte por el total (la nota de crédito)
+  y la respuesta queda anulada, con el motivo y la persona de la anulación, cuando la reversión se emite. Una emisión con número
+  todavía sin resolver hace esperar a la reversión. Si el emisor rechaza la reversión, la respuesta sigue vigente y se puede
+  volver a anular, con otra clave. Mientras dura, la actividad muestra la reversión («Anulándose») y anular otra vez da
+  `Forms.Record.Voiding`.
 
 ## Catálogos que mantiene un módulo — External, 2026-11-11
 

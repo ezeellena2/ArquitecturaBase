@@ -43,4 +43,17 @@ internal sealed class ArcaStructuredRecordIssuer(IArcaVoucherService vouchers, I
         var reviewed = await reviews.ReviewAsync(runId, decision, (int)review.ExpectedRevision, cancellationToken);
         return reviewed.IsSuccess ? ArcaInvoiceIssuePolicy.Response(reviewed.Value) : await GetAsync(runId, cancellationToken);
     }
+
+    public async Task<StructuredIssueResponse> CancelAsync(Guid runId, CancellationToken cancellationToken)
+    {
+        var cancelled = await reviews.CancelAsync(runId, cancellationToken);
+        return cancelled.IsSuccess ? ArcaInvoiceIssuePolicy.Response(cancelled.Value) : await GetAsync(runId, cancellationToken);
+    }
+
+    // The credit note of the same class for the total, with the invoice in CbtesAsoc and the date of today (NC1-A).
+    public async Task<StructuredIssueResponse> EnqueueReversalAsync(Guid reversalRunId, Guid issuedRunId, CancellationToken cancellationToken)
+    {
+        var queued = await vouchers.EnqueueCreditNoteAsync(reversalRunId, issuedRunId, cancellationToken);
+        return queued.IsSuccess ? ArcaInvoiceIssuePolicy.Response(queued.Value) : new(StructuredIssueState.Rejected, queued.Error.Code, CanRetry: true);
+    }
 }

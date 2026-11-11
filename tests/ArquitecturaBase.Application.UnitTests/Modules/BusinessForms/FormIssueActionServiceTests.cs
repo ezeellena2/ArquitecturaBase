@@ -111,6 +111,45 @@ public sealed class FormIssueActionServiceTests
     }
 
     [Fact]
+    public async Task A_reversal_of_what_was_never_issued_does_not_apply_and_one_without_a_number_is_cancelled()
+    {
+        var (service, issuer, work) = Arrange();
+        var issuedRunId = Guid.NewGuid();
+        var reversal = work with { Snapshot = work.Snapshot with { ReversesRunId = issuedRunId } };
+
+        Assert.Equal(FormActionRunState.NotApplicable, (await service.ExecuteAsync(reversal, CancellationToken.None)).State);
+
+        issuer.ByRun[issuedRunId] = new(StructuredIssueState.Pending);
+        Assert.Equal(FormActionRunState.NotApplicable, (await service.ExecuteAsync(reversal, CancellationToken.None)).State);
+        Assert.Equal([issuedRunId], issuer.Cancels);
+
+        issuer.CancelResult = new(StructuredIssueState.Pending, NextCheckAtUtc: Now.AddMinutes(2));
+        var waiting = await service.ExecuteAsync(reversal, CancellationToken.None);
+        Assert.Equal((FormActionRunState.Running, Now.AddMinutes(2)), (waiting.State, waiting.Issue!.NextCheckAtUtc));
+        Assert.Empty(issuer.Reversals);
+    }
+
+    [Fact]
+    public async Task A_reversal_of_an_issued_document_queues_its_credit_note_once_and_completes_with_its_result()
+    {
+        var (service, issuer, work) = Arrange();
+        var issuedRunId = Guid.NewGuid();
+        var reversal = work with { Snapshot = work.Snapshot with { ReversesRunId = issuedRunId } };
+        issuer.ByRun[issuedRunId] = new(StructuredIssueState.Issued);
+        issuer.Next = new(StructuredIssueState.Pending);
+
+        Assert.Equal(FormActionRunState.Running, (await service.ExecuteAsync(reversal, CancellationToken.None)).State);
+        Assert.Equal([(work.RunId, issuedRunId)], issuer.Reversals);
+
+        var result = new StructuredRecordResult("test.issuer", Names("Nota de crédito"), []);
+        issuer.ByRun[work.RunId] = new(StructuredIssueState.Issued, Result: result);
+        var done = await service.ExecuteAsync(reversal, CancellationToken.None);
+        Assert.Equal((FormActionRunState.Completed, result), (done.State, done.Issue!.Result));
+        Assert.Single(issuer.Reversals);
+        Assert.Empty(issuer.Requests);
+    }
+
+    [Fact]
     public async Task Without_its_issuer_or_its_standard_the_issuance_fails()
     {
         var (service, _, work) = Arrange();
@@ -153,12 +192,18 @@ public sealed class FormIssueActionServiceTests
         var issuer = new FakeIssuer();
         var work = new FormActionWorkResponse(Guid.NewGuid(), recordId, "IssueDocument", 1, false, false,
             new FormActionSnapshot(null, null, null, [], IssuerId: "test.issuer"), []);
-        return (new FormIssueActionService([issuer], records, rules, channel is null ? [] : [channel], new Recipients()), issuer, work);
+        return (new FormIssueActionService([issuer], records, rules, channel is null ? [] : [channel], new Recipients(), new NoCodes()), issuer, work);
     }
 
     private static CanonicalFormField Field(Guid id, string key, string type) => new(id, key, type, Names(key), null, false, null, null);
 
     private static Dictionary<string, string> Names(string text) => new() { ["es"] = text, ["en"] = text };
+
+    private sealed class NoCodes : IFormCatalogItemCodeReader
+    {
+        public Task<IReadOnlyDictionary<Guid, string>> ListAsync(IReadOnlyCollection<Guid> itemIds, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyDictionary<Guid, string>>(new Dictionary<Guid, string>());
+    }
 
     private sealed class Recipients : IFormActionRecipientReader
     {
@@ -184,10 +229,25 @@ public sealed class FormIssueActionServiceTests
             Requests.Add(request);
             return Task.FromResult(Next);
         }
-        public Task<StructuredIssueResponse> GetAsync(Guid runId, CancellationToken cancellationToken) => Task.FromResult(Current);
+        public Task<StructuredIssueResponse> GetAsync(Guid runId, CancellationToken cancellationToken) =>
+            Task.FromResult(ByRun.TryGetValue(runId, out var byRun) ? byRun : Current);
         public Task<StructuredIssueResponse> ReviewAsync(Guid runId, StructuredIssueReview review, CancellationToken cancellationToken)
         {
             Reviews.Add(review);
+            return Task.FromResult(Next);
+        }
+        public List<Guid> Cancels { get; } = [];
+        public StructuredIssueResponse CancelResult { get; set; } = new(StructuredIssueState.Cancelled);
+        public Dictionary<Guid, StructuredIssueResponse> ByRun { get; } = [];
+        public List<(Guid Reversal, Guid Issued)> Reversals { get; } = [];
+        public Task<StructuredIssueResponse> CancelAsync(Guid runId, CancellationToken cancellationToken)
+        {
+            Cancels.Add(runId);
+            return Task.FromResult(CancelResult);
+        }
+        public Task<StructuredIssueResponse> EnqueueReversalAsync(Guid reversalRunId, Guid issuedRunId, CancellationToken cancellationToken)
+        {
+            Reversals.Add((reversalRunId, issuedRunId));
             return Task.FromResult(Next);
         }
     }

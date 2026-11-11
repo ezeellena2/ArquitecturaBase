@@ -88,6 +88,49 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Empty(issuer.Requests.Skip(1));
     }
 
+    [Fact]
+    public async Task A_response_with_an_issued_document_is_not_corrected_and_is_voided_when_its_reversal_is_issued()
+    {
+        using var manager = await OperatorAsync([BusinessFormsPermissions.RecordsRead, BusinessFormsPermissions.RecordsAmend, BusinessFormsPermissions.RulesManage,
+            BusinessFormsPermissions.ApprovalsDecide, BusinessFormsPermissions.RecordsCreate]);
+        var issuer = new TestRecordIssuer();
+        await using var host = IssuerHost(issuer);
+        using var client = InHost(host, manager);
+        var (recordId, runId) = await SeedIssueRunAsync(manager);
+        var definitionId = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormRecord>().Where(record => record.Id == recordId)
+            .Select(record => record.DefinitionId).SingleAsync(Ct));
+        var worker = host.Services.GetRequiredService<FormActionBackgroundService>();
+        issuer.Next = new(StructuredIssueState.Issued, Result: Voucher("Factura C"));
+        await worker.ProcessNextAsync(runId, Ct);
+
+        using var correction = await client.GetAsync($"/api/forms/entries/{definitionId}/records/{recordId}", Ct);
+        Assert.Equal(HttpStatusCode.Conflict, correction.StatusCode);
+        Assert.Equal("Forms.Record.IssuedNotAmendable", (await correction.ReadJsonAsync()).GetProperty("code").GetString());
+
+        using var voided = await client.PostAsJsonAsync($"/api/forms/definitions/{definitionId}/records/{recordId}/void", new { reason = "Se cargó mal" }, Ct);
+        Assert.True(voided.IsSuccessStatusCode, voided.StatusCode.ToString());
+        var reversalId = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormActionRun>().Where(run => run.RecordId == recordId && run.Event == "Voided")
+            .Select(run => run.Id).SingleAsync(Ct));
+        Assert.Equal(FormRecordState.Received, await RecordStateAsync(recordId));
+
+        await worker.ProcessNextAsync(reversalId, Ct);
+        Assert.Equal(FormActionRunState.Running, (await RunAsync(reversalId)).State);
+        issuer.ByRun[reversalId] = new(StructuredIssueState.Issued, Result: Voucher("Nota de crédito C"));
+        factory.Clock.Advance(TimeSpan.FromSeconds(6));
+        await worker.ProcessNextAsync(reversalId, Ct);
+
+        Assert.Equal(FormActionRunState.Completed, (await RunAsync(reversalId)).State);
+        Assert.Equal(FormRecordState.Voided, await RecordStateAsync(recordId));
+        Assert.Equal(2, await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormRecordResult>().CountAsync(result => result.RecordId == recordId, Ct)));
+    }
+
+    private static StructuredRecordResult Voucher(string name) => new(TestRecordIssuer.Key,
+        new Dictionary<string, string> { ["es"] = "Comprobante de prueba", ["en"] = "Test voucher" },
+        [new("voucher", new Dictionary<string, string> { ["es"] = "Comprobante", ["en"] = "Voucher" }, StructuredRecordResultField.Text, name)]);
+
+    private Task<FormRecordState> RecordStateAsync(Guid recordId) => factory.ExecuteDbContextAsync(db =>
+        db.Set<BusinessFormRecord>().Where(record => record.Id == recordId).Select(record => record.State).SingleAsync(Ct));
+
     private WebApplicationFactory<Program> IssuerHost(TestRecordIssuer issuer) => factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
     {
         services.RemoveAll<IStructuredRecordIssuer>();

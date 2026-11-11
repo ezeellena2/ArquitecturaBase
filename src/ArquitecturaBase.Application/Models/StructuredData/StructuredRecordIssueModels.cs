@@ -12,8 +12,9 @@ public enum StructuredIssueState
 
 /// <summary>
 /// A bound datum of a response, by the key its standard gives it. Value is canonical: the text as typed, an invariant decimal, a
-/// date as yyyy-MM-dd or «true»/«false»; for a choice, the typed value of its catalog option or else its id, with its text in
-/// Label and, for a catalog option, its captured fields by key. A block of rows brings its items, each with its bound data.
+/// date as yyyy-MM-dd or «true»/«false»; for a choice, the code of its catalog option (or else its id), with its text in Label
+/// and, for a catalog option, its captured fields by key (a field that names an option of another catalog, by that option's
+/// code). A block of rows brings its items, each with its bound data.
 /// </summary>
 public sealed record StructuredIssueDatum(string Key, string? Value, string? Label = null,
     IReadOnlyDictionary<string, string>? Fields = null, IReadOnlyList<IReadOnlyList<StructuredIssueDatum>>? Items = null)

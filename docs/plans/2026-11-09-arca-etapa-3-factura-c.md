@@ -319,7 +319,7 @@ con su consumidor (no se agrega un puerto sin quien lo use). El resultado extern
    la respuesta, la revisión con `arca.issue` y un solo aviso a quien cargó mientras espera por ARCA) y el emisor de ARCA.
 10. **Hecho.** Los catálogos de sólo lectura (`External`) y su actualización en formularios, en la carpeta «ARCA»: se crean recién cuando el origen responde.
 11. *(con la etapa 2)* El estándar «Factura» y el catálogo «Clientes» con «Completar con ARCA».
-12. **Anular con nota de crédito.**
+12. **Hecho. Anular con nota de crédito:** la reversión es un run del motor; corregir una respuesta con emisión queda frenado.
 13. **El «¿La emito?» en WhatsApp** (EM2-A) y el cliente nuevo por su CUIT.
 14. **Front,** después de la prueba integral, con el diseño registrado en `docs/design`.
 15. **Cierre:** la verificación de `AGENTS.md`, `docs/features/arca.md`, la fila de la etapa 3 en la hoja de ruta, la guía de

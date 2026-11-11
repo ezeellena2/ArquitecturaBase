@@ -14,6 +14,7 @@ internal sealed class TestRecordIssuer : IStructuredRecordIssuer
     private readonly object _gate = new();
     private readonly List<StructuredIssueRequest> _requests = [];
     private readonly List<StructuredIssueReview> _reviews = [];
+    private readonly HashSet<Guid> _enqueued = [];
 
     public StructuredIssueResponse Current { get; set; } = new(StructuredIssueState.NotFound);
     public StructuredIssueResponse Next { get; set; } = new(StructuredIssueState.Pending);
@@ -29,17 +30,43 @@ internal sealed class TestRecordIssuer : IStructuredRecordIssuer
 
     public Task<StructuredIssueResponse> EnqueueAsync(StructuredIssueRequest request, CancellationToken cancellationToken)
     {
-        lock (_gate) _requests.Add(request);
+        lock (_gate)
+        {
+            _requests.Add(request);
+            _enqueued.Add(request.RunId);
+        }
         Current = Next;
         return Task.FromResult(Next);
     }
 
-    public Task<StructuredIssueResponse> GetAsync(Guid runId, CancellationToken cancellationToken) => Task.FromResult(Current);
+    // A run it never queued is not found: a reversal starts by asking for its own run.
+    public Task<StructuredIssueResponse> GetAsync(Guid runId, CancellationToken cancellationToken)
+    {
+        if (ByRun.TryGetValue(runId, out var byRun)) return Task.FromResult(byRun);
+        lock (_gate) return Task.FromResult(_enqueued.Contains(runId) ? Current : new StructuredIssueResponse(StructuredIssueState.NotFound));
+    }
 
     public Task<StructuredIssueResponse> ReviewAsync(Guid runId, StructuredIssueReview review, CancellationToken cancellationToken)
     {
         lock (_gate) _reviews.Add(review);
         Current = Next;
         return Task.FromResult(Next);
+    }
+
+    /// <summary>What the issuance of each run answers once set; any other run answers <see cref="Current"/>.</summary>
+    public System.Collections.Concurrent.ConcurrentDictionary<Guid, StructuredIssueResponse> ByRun { get; } = new();
+    public StructuredIssueResponse CancelResult { get; set; } = new(StructuredIssueState.Cancelled);
+    public StructuredIssueResponse ReversalResult { get; set; } = new(StructuredIssueState.Pending);
+
+    public Task<StructuredIssueResponse> CancelAsync(Guid runId, CancellationToken cancellationToken)
+    {
+        if (CancelResult.State == StructuredIssueState.Cancelled) ByRun[runId] = CancelResult;
+        return Task.FromResult(CancelResult);
+    }
+
+    public Task<StructuredIssueResponse> EnqueueReversalAsync(Guid reversalRunId, Guid issuedRunId, CancellationToken cancellationToken)
+    {
+        ByRun[reversalRunId] = ReversalResult;
+        return Task.FromResult(ReversalResult);
     }
 }

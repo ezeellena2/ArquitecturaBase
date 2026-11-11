@@ -139,7 +139,8 @@ formularios «Emitir comprobante»; el estándar «Factura» y la anulación con
   CUIT; el concepto por su código de ARCA; la fecha, o la de hoy; el período, el vencimiento, los renglones y el total) y
   encola con el run como clave. Está emitida cuando ARCA la autorizó y su PDF fiscal está guardado, con comprobante,
   número, CAE, vencimiento del CAE y total como resultado. En revisión responde `arca.invoice.<motivo>`; seguir es otro
-  número o la fecha de hoy, y decidirlo pide `arca.issue`. Mientras espera por ARCA, el aviso es «ARCA no responde. Tu factura
+  número o la fecha de hoy, y decidirlo pide `arca.issue`. Anular la respuesta cancela la emisión que todavía no
+  tiene número o pide la nota de crédito por el total (`EnqueueCreditNoteAsync`), las dos por el mismo puerto. Mientras espera por ARCA, el aviso es «ARCA no responde. Tu factura
   sale apenas vuelva.» (o «Tu nota de crédito»).
 - **Encolar** (`IArcaVoucherService`) valida el receptor (CUIT con su dígito, DNI, o consumidor final sin identificar),
   el concepto, el período y el vencimiento del pago de un servicio, la fecha que ARCA acepta hoy y los renglones, y

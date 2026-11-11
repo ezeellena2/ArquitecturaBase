@@ -12,7 +12,8 @@ internal sealed record FormEntryLoader(Guid Actor, Guid Person, FormRecordAmendA
 /// Who loads in the app: «Completar formularios» for a new response; for a correction (CW10-A), whoever may correct that response
 /// (decision 8), in the name of whoever answered it. Checked before reading and again before answering.
 /// </summary>
-internal sealed class FormEntryLoaderGuard(FormEntryAccessGuard access, FormRecordAmendmentGuard amendments, IFormResponseReader responses)
+internal sealed class FormEntryLoaderGuard(FormEntryAccessGuard access, FormRecordAmendmentGuard amendments, IFormResponseReader responses,
+    IFormRecordIssuanceReader issuances)
 {
     public async Task<Result<FormEntryLoader>> EntryAsync(CancellationToken cancellationToken)
     {
@@ -31,6 +32,8 @@ internal sealed class FormEntryLoaderGuard(FormEntryAccessGuard access, FormReco
         var allowed = FormRecordAmendmentGuard.Allows(amend.Value, record.Actor.UserId, Enum.Parse<FormRecordState>(record.State),
             record.ReplacedByRecordId is not null);
         if (allowed.IsFailure) return allowed.Error;
+        // A response with an issued document, or one being issued, is voided and loaded again: never corrected.
+        if (await issuances.ExistsLiveAsync(recordId, cancellationToken)) return FormRecordErrors.IssuedNotAmendable;
         return (new FormEntryLoader(amend.Value.Actor, record.Actor.UserId, amend.Value), record);
     }
 

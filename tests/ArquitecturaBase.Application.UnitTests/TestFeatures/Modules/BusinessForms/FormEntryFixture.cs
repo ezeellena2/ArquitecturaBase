@@ -62,6 +62,7 @@ internal sealed class FormEntryFixture : IFormEntryReader, IBusinessFormRecordCa
         services.AddSingleton<IUserReader>(Users);
         services.AddSingleton<IFormEntryReader>(this);
         services.AddSingleton<IFormResponseReader>(Responses);
+        services.AddSingleton<IFormRecordIssuanceReader>(new NoIssuances());
         services.AddSingleton<IFormCatalogReader>(Catalogs);
         services.AddSingleton<IFormCatalogFilterReader>(Catalogs);
         services.AddSingleton<IFormPersonDataReader>(People);

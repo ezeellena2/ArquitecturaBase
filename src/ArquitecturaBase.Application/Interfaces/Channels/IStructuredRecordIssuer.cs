@@ -33,4 +33,13 @@ public interface IStructuredRecordIssuer
 
     /// <summary>Applies a person's decision on an issuance in review and returns where it stands.</summary>
     Task<StructuredIssueResponse> ReviewAsync(Guid runId, StructuredIssueReview review, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Cancels an issuance while the provider cannot have taken it yet (in a voucher, before it has a number); otherwise it comes
+    /// back as it stands, and whoever voids waits for it to end.
+    /// </summary>
+    Task<StructuredIssueResponse> CancelAsync(Guid runId, CancellationToken cancellationToken);
+
+    /// <summary>Queues once, by its own run, the reversal of an issued document for its whole amount (a credit note).</summary>
+    Task<StructuredIssueResponse> EnqueueReversalAsync(Guid reversalRunId, Guid issuedRunId, CancellationToken cancellationToken);
 }

@@ -1,4 +1,5 @@
 using ArquitecturaBase.Application.Interfaces.Persistence;
+using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
 using ArquitecturaBase.Application.Modules.BusinessForms.Validation;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
@@ -129,6 +130,37 @@ public sealed class FormRecordVoidServiceTests
         Assert.Equal(0, fixture.UnitOfWork.Commits);
     }
 
+    [Fact]
+    public async Task A_response_with_an_issuance_starts_its_reversal_instead_of_voiding_now()
+    {
+        var fixture = new Fixture([BusinessFormsPermissions.RecordsRead, BusinessFormsPermissions.RecordsAmend, "test.issue"]);
+        var record = fixture.Record(Guid.NewGuid(), pending: false);
+        var issued = fixture.Issuance(record);
+
+        var result = await fixture.Service.VoidAsync(fixture.Repository.DefinitionId, record.Id, new("Se cargó mal"), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(FormRecordState.Received, record.State);
+        var reversal = Assert.Single(fixture.Runs.Runs, run => run.Event == "Voided");
+        var snapshot = FormDraftPolicy.Read<FormActionSnapshot>(reversal.SnapshotJson);
+        Assert.Equal((issued.Id, "Se cargó mal", fixture.Actor, "test.issuer"), (snapshot.ReversesRunId!.Value, snapshot.VoidReason!, snapshot.VoidedByUserId!.Value, snapshot.IssuerId!));
+        Assert.Equal(FormRecordErrors.Voiding, (await fixture.Service.VoidAsync(fixture.Repository.DefinitionId, record.Id, new("Otra vez"), CancellationToken.None)).Error);
+    }
+
+    [Fact]
+    public async Task Reversing_takes_the_permission_of_the_issuer_and_a_failed_issuance_voids_now()
+    {
+        var withoutIssue = new Fixture([BusinessFormsPermissions.RecordsRead, BusinessFormsPermissions.RecordsAmend]);
+        var issuedRecord = withoutIssue.Record(Guid.NewGuid(), pending: false);
+        withoutIssue.Issuance(issuedRecord);
+        Assert.Equal(FormDefinitionErrors.Forbidden, (await withoutIssue.Service.VoidAsync(withoutIssue.Repository.DefinitionId, issuedRecord.Id, new("Motivo"), CancellationToken.None)).Error);
+
+        var failedRecord = withoutIssue.Record(Guid.NewGuid(), pending: false);
+        withoutIssue.Issuance(failedRecord, FormActionRunState.Failed);
+        Assert.True((await withoutIssue.Service.VoidAsync(withoutIssue.Repository.DefinitionId, failedRecord.Id, new("Motivo"), CancellationToken.None)).IsSuccess);
+        Assert.Equal(FormRecordState.Voided, failedRecord.State);
+    }
+
     private sealed class Fixture
     {
         public FakeRecordRepository Repository { get; } = FakeRecordRepository.Empty();
@@ -137,7 +169,22 @@ public sealed class FormRecordVoidServiceTests
         public FakePermissionService Permissions { get; } = new();
         public StartingUnitOfWork UnitOfWork { get; } = new();
         public Guid Actor { get; }
+        public MemoryFormActionRuns Runs { get; } = new();
+        public VoidIssuer Issuer { get; } = new();
         public FormRecordVoidService Service { get; }
+
+        public BusinessFormActionRun Issuance(BusinessFormRecord record, FormActionRunState state = FormActionRunState.Completed)
+        {
+            var run = BusinessFormActionRun.Create(record.DefinitionId, record.Id, Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "Received", "IssueDocument", 0,
+                null, FormDraftPolicy.Serialize(new FormActionSnapshot(null, null, null, [], IssuerId: "test.issuer")), true, Now.UtcDateTime);
+            if (state != FormActionRunState.Waiting)
+            {
+                var lease = run.Reserve(Now.UtcDateTime, TimeSpan.FromMinutes(2)).Value;
+                run.RecordOutcome(lease.Fence, Now.UtcDateTime, state, state == FormActionRunState.Failed ? "test.rejected" : null, false);
+            }
+            Runs.Runs.Add(run);
+            return run;
+        }
 
         public Fixture(string[]? permissions = null)
         {
@@ -145,7 +192,7 @@ public sealed class FormRecordVoidServiceTests
             Current.UserId = Actor;
             Permissions.Permissions[Actor] = permissions ?? [BusinessFormsPermissions.RecordsCreate];
             Service = new(new(Current, Permissions, Users), Repository, UnitOfWork,
-                RequestValidators.For(new VoidFormRecordRequestValidator()), new FakeTimeProvider(Now), NullLogger<FormRecordVoidService>.Instance);
+                RequestValidators.For(new VoidFormRecordRequestValidator()), new FakeTimeProvider(Now), NullLogger<FormRecordVoidService>.Instance, Runs, [Issuer]);
         }
 
         public BusinessFormRecord Record(Guid author, bool pending)
@@ -164,6 +211,25 @@ public sealed class FormRecordVoidServiceTests
             Repository.Tasks.Add(task);
             return task;
         }
+    }
+
+    private sealed class VoidIssuer : ArquitecturaBase.Application.Interfaces.Channels.IStructuredRecordIssuer
+    {
+        public string IssuerId => "test.issuer";
+        public IReadOnlyDictionary<string, string> Name { get; } = new Dictionary<string, string> { ["es"] = "Emitir" };
+        public string StandardKey => "test.standard";
+        public string ReviewPermission => "test.issue";
+        public IReadOnlyList<ArquitecturaBase.Application.Models.StructuredData.StructuredRecordResultField> ResultFields => [];
+        public Task<ArquitecturaBase.Application.Models.StructuredData.StructuredIssueResponse> EnqueueAsync(
+            ArquitecturaBase.Application.Models.StructuredData.StructuredIssueRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<ArquitecturaBase.Application.Models.StructuredData.StructuredIssueResponse> GetAsync(Guid runId, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+        public Task<ArquitecturaBase.Application.Models.StructuredData.StructuredIssueResponse> ReviewAsync(Guid runId,
+            ArquitecturaBase.Application.Models.StructuredData.StructuredIssueReview review, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<ArquitecturaBase.Application.Models.StructuredData.StructuredIssueResponse> CancelAsync(Guid runId, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+        public Task<ArquitecturaBase.Application.Models.StructuredData.StructuredIssueResponse> EnqueueReversalAsync(Guid reversalRunId, Guid issuedRunId,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
     /// <summary>The fake unit of work, with a hook at the start of the work to change permissions inside the transaction.</summary>
