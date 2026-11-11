@@ -190,9 +190,10 @@ $cohorts = @(
             ($captureRoot + "Modules/WhatsApp/CapturingFlowProvider.cs"), ($captureRoot + "Modules/WhatsApp/CapturingWhatsAppCloudClient.cs"),
             ($captureRoot + "IStructuredFormPublicationDriver.cs"), ($captureRoot + "Modules/BusinessForms/StructuredFormPublicationDriver.cs")) },
     @{ Name = "ai-assistant"; Environment = "AI_ASSISTANT_HTTP_OUTPUT"; Destination = "ai-assistant-http";
-        RequiredNames = @("bootstrap.json", "submitted.json", "turn-pending.json", "turn-completed.json", "turns.json", "canceled.json");
+        RequiredNames = @("bootstrap.json", "submitted.json", "turn-pending.json", "turn-completed.json", "turns.json", "canceled.json", "file-submitted.json", "turn-attachment.json");
         Sources = @(($sourceRoot + "ArtificialIntelligence/AiAssistantHttpContractTests.cs"), ($captureRoot + "Modules/ArtificialIntelligence/AiAssistantContractCapture.cs"),
             ($captureRoot + "Modules/ArtificialIntelligence/AiAssistantExecutionScenario.cs"), ($captureRoot + "Modules/ArtificialIntelligence/AiAssistantExecutionProviderHandler.cs"),
+            ($captureRoot + "Modules/ArtificialIntelligence/HomeAudioFiles.cs"), ($captureRoot + "Modules/ArtificialIntelligence/HomeAttachmentReader.cs"),
             "src/ArquitecturaBase.Application/Modules/ArtificialIntelligence/Models/AiAssistantResponses.cs") }
 )
 $previousOutputs = @{}
