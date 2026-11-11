@@ -126,7 +126,8 @@ Lo que el plan no fijaba, resuelto con la opción más simple que cumple el plan
    - Una planilla también puede responder a «Cambiar algo» o a la pregunta, y pasa a ser la de la conversación. Si llega sin texto,
      el motor la acepta sólo como continuación (con `PreviousRequestId`); fuera de una continuación, una interpretación sigue
      necesitando texto.
-   - Una planilla que no se lee contesta un texto fijo con el motivo y no llega a la IA.
+   - Una planilla que no se lee contesta un texto fijo con el motivo y no llega a la IA. El texto pide reenviarla junto con el
+     pedido, porque una planilla sola no se interpreta.
    - El resumen de un catálogo con planilla suma «Son N filas.». El de importar dice el catálogo, el mapeo y las filas, con
      «Revisar importación» (el dibujo dice «Revisar la importación», que no entra en los 20 caracteres de un botón) y «Cambiar
      algo». El toque contesta con el enlace a la importación de ese catálogo en la app (`/catalogos/{id}?pedido=…&propuesta=…`):
@@ -310,5 +311,9 @@ planilla lleva (`AttachmentMessageId`, migración `AddWhatsAppAssistantAttachmen
 filas.», y el de importar trae «Revisar importación» y «Cambiar algo». El toque `review` contesta con el enlace
 `/catalogos/{id}?pedido=…&propuesta=…`, que arma BusinessForms. La pregunta con planilla tiene su texto, y crear desde un canal
 guarda el pedido en la evidencia. Unitarias 4505/4505, dominio 848/848, arquitectura 207/207 e integración de 17 clases (123/123).
-Si se reemplaza una interpretación que continuaba un «Cambiar algo» o una pregunta, la nueva arranca otra conversación del motor,
-porque el motor sólo continúa desde un turno terminado.
+La revisión no encontró nada bloqueante. Dos puntos importan y se están corrigiendo:
+- Reemplazar una interpretación en curso que continuaba un «Cambiar algo» o una pregunta perdía la conversación, y el turno
+  cancelado trababa las continuaciones siguientes (`RevisionConflict`, sin respuesta). La referencia que reemplaza continúa lo
+  mismo que la reemplazada. En el motor, una continuación de un canal se suma al final de la conversación aunque después de la
+  operación pedida haya otros turnos, siempre que no haya una activa. La vigencia de la propuesta la controla el canal.
+- Reenviar sola una planilla rechazada no obtenía respuesta. Los textos de rechazo piden reenviarla junto con el pedido.
