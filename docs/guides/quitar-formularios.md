@@ -1,8 +1,9 @@
 # Quitar el módulo de formularios
 
 Para un derivado que no usa formularios (`BusinessForms`). No apagues opciones para simular la retirada: quitá
-código, configuración y rutas, y generá la migración del modelo nuevo. Esa migración borra las 23 tablas del módulo
-(definiciones, borradores, versiones, catálogos, respuestas, reglas, diseños de PDF, sugerencias y datos de personas):
+código, configuración y rutas, y generá la migración del modelo nuevo. Esa migración borra las 26 tablas del módulo
+(definiciones, borradores, carpetas, versiones, catálogos, respuestas y sus resultados, reglas, diseños de PDF, sugerencias y
+datos de personas):
 respaldá la base antes.
 
 WhatsApp e IA siguen andando. Sin el módulo, el núcleo usa sus versiones apagadas de los puertos de formularios
@@ -49,12 +50,13 @@ encuentra formularios para mandar y el asistente pierde las capacidades de formu
    - En `src/ArquitecturaBase.Infrastructure/ArquitecturaBase.Infrastructure.csproj`, el `ItemGroup` de las fuentes del
      PDF (`Modules\BusinessForms\Pdf\Fonts\*.ttf`).
    - En `.editorconfig`, las dos secciones de `src/ArquitecturaBase.Domain/Modules/BusinessForms/…`.
-   - Las 149 claves `Forms.*` de `Errors.resx` y `Errors.en.resx`. Si queda una,
+   - Las 197 claves `Forms.*` de `Errors.resx` y `Errors.en.resx`. Si queda una,
      `ErrorCodeTests.Every_error_key_belongs_to_a_code_declared_in_domain` falla y la nombra.
    - `FormCatalogStateInvalid` de `ValidationMessages` y de `Validation.resx`/`.en.resx`.
    - `harnesses/assistant-qualification`, el arnés manual de calificación del asistente. Está fuera de la solución y el
-     build no lo ve, pero usa el módulo y deja de compilar: borralo o dejale sólo los casos de Inicio, y actualizá sus
-     menciones en el mapa de instrucciones y en `configurar-ia.md`.
+     build no lo ve, pero usa el módulo y deja de compilar. Borralo, o dejale sólo `home-existing`, el único set que no usa
+     formularios, y sacale el código que nombra el módulo: los casos de Inicio con autoría y con planillas también lo usan.
+     Actualizá sus menciones en el mapa de instrucciones y en `configurar-ia.md`.
 5. Opcional: en `Infrastructure.csproj` quedan sin uso `ClosedXML`, `SkiaSharp.HarfBuzz` y
    `HarfBuzzSharp.NativeAssets.Linux`, con sus `PackageVersion` de `Directory.Packages.props`. `SkiaSharp` y `OpenMcdf`
    se quedan: los usan las miniaturas y la inspección de archivos del núcleo.
@@ -68,11 +70,12 @@ encuentra formularios para mandar y el asistente pierde las capacidades de formu
 
    `dotnet ef` lee el proyecto antes de compilarlo: en un clon sin `obj`, sin el `restore` no lo encuentra.
 
-   `Up` suelta primero cuatro claves foráneas entre tablas del módulo y después borra sólo sus 23 tablas:
-   `FormDefinitions`, `FormDraftChanges` y las 21 `BusinessForm*` (`ActionRuns`, `CaptureReceipts`, `CatalogItems`,
-   `Catalogs`, `Documents`, `Fields`, `MissingRequests`, `MissingTopics`, `PdfDesigns`, `PersonAttributes`,
-   `PersonData`, `PublicationOperations`, `RecordFiles`, `RecordReferences`, `RecordValues`, `Records`,
-   `RetiredIdentities`, `RuleSets`, `Suggestions`, `Tasks` y `Versions`). Si aparece otra tabla, algo se borró de más.
+   `Up` suelta primero las claves foráneas entre tablas del módulo y después borra sólo sus 26 tablas:
+   `FormDefinitions`, `FormDraftChanges`, `FormFolders`, `FormFolderMemberships` y las 22 `BusinessForm*` (`ActionRuns`,
+   `CaptureReceipts`, `CatalogItems`, `Catalogs`, `Documents`, `Fields`, `MissingRequests`, `MissingTopics`, `PdfDesigns`,
+   `PersonAttributes`, `PersonData`, `PublicationOperations`, `RecordFiles`, `RecordReferences`, `RecordResults`,
+   `RecordValues`, `Records`, `RetiredIdentities`, `RuleSets`, `Suggestions`, `Tasks` y `Versions`). Si aparece otra
+   tabla, algo se borró de más.
 
    `Down` las recrea desde el modelo, que no tiene las dos claves diferibles de `BusinessFormCatalogItems`: EF no modela
    la diferibilidad, y las crearon a mano `AddUniqueManualCatalogItemPositions` y `DeferCatalogItemCodeUniqueness`. Sus
@@ -161,7 +164,8 @@ front, quitá las filas de `src/features/business-forms` de su
 ## Comprobaciones registradas
 
 El 2026-11-03 y el 2026-11-04 se siguió esta guía en copias descartables: un `git archive` del commit, sin tocar los
-checkouts.
+checkouts. Después el módulo sumó `BusinessFormRecordResults`, `FormFolders` y `FormFolderMemberships`, y quedó en 26
+tablas: la próxima prueba de fuego vuelve a comprobar la migración y cuántas claves foráneas suelta.
 
 En el backend, sobre `d558c421` y con los tests corregidos de abajo:
 
