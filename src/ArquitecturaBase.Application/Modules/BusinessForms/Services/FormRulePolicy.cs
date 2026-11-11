@@ -48,7 +48,8 @@ internal static class FormRulePolicy
                 if (!hasRole && action.RoleId is not null) return Invalid(actionPath + ".roleId");
                 if (action.Kind == "RequestApproval" && (rule.Event != "Received" || actionIndex != rule.Actions.Count - 1)) return Invalid(actionPath + ".kind");
                 if (action.Kind == "GeneratePdf" && rule.Event != "Approved") return Invalid(actionPath + ".kind");
-                if (action.IncludePdf && (action.Kind != "NotifyAuthor" || !generatedPdf)) return Invalid(actionPath + ".includePdf");
+                // The notice to whoever loaded it attaches the PDF of an earlier «Armar el PDF» or the fiscal PDF of an earlier issuance.
+                if (action.IncludePdf && (action.Kind != "NotifyAuthor" || !(generatedPdf || issued))) return Invalid(actionPath + ".includePdf");
                 Dictionary<string,string>? text = null;
                 if (action.Kind is "NotifyAuthor" or "NotifyRole")
                 {

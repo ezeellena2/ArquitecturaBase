@@ -40,7 +40,8 @@ public sealed partial class FormDraftEndpointsTests
         factory.Clock.Advance(TimeSpan.FromMinutes(10));
         issuer.Current = new(StructuredIssueState.Issued, Result: new StructuredRecordResult(TestRecordIssuer.Key,
             new Dictionary<string, string> { ["es"] = "Comprobante de prueba", ["en"] = "Test voucher" },
-            [new("number", new Dictionary<string, string> { ["es"] = "Número", ["en"] = "Number" }, StructuredRecordResultField.Text, "00004-00000012")]));
+            [new("number", new Dictionary<string, string> { ["es"] = "Número", ["en"] = "Number" }, StructuredRecordResultField.Text, "00004-00000012")]),
+            Document: new StructuredRecordActionDocument($"test-issue/{runId:N}.pdf", "Factura C 00004-00000012.pdf", "application/pdf", 2048, new string('a', 64)));
         await worker.ProcessNextAsync(runId, Ct);
 
         Assert.Single(issuer.Requests);
@@ -48,6 +49,10 @@ public sealed partial class FormDraftEndpointsTests
         using var detail = await manager.GetAsync($"/api/forms/records/{recordId}", Ct);
         var stored = Assert.Single((await detail.ReadJsonAsync()).GetProperty("results").EnumerateArray());
         Assert.Equal((TestRecordIssuer.Key, "00004-00000012"), (stored.GetProperty("source").GetString(), stored.GetProperty("values")[0].GetProperty("value").GetString()));
+        using var workflow = await manager.GetAsync($"/api/forms/records/{recordId}/workflow", Ct);
+        var document = Assert.Single((await workflow.ReadJsonAsync()).GetProperty("documents").EnumerateArray());
+        Assert.Equal((runId, "es", "Factura C 00004-00000012.pdf"), (document.GetProperty("runId").GetGuid(), document.GetProperty("culture").GetString(),
+            document.GetProperty("name").GetString()));
     }
 
     [Fact]

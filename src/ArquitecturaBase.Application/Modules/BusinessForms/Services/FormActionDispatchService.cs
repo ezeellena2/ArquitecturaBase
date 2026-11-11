@@ -58,7 +58,8 @@ internal sealed class FormActionDispatchService(IFormActionRunRepository runs,IF
         if(snapshot.PdfRunId is {} pdfId)
         {
             var pdfRun=await runs.GetAsync(pdfId,ct)??throw new InvalidOperationException("The dependent PDF execution is missing.");
-            artifacts=pdfRun.OutcomeJson is null?[]:FormDraftPolicy.Read<FormActionOutcomeResponse>(pdfRun.OutcomeJson).Pdf?.Artifacts??[];
+            var pdfOutcome=pdfRun.OutcomeJson is null?null:FormDraftPolicy.Read<FormActionOutcomeResponse>(pdfRun.OutcomeJson);
+            artifacts=pdfOutcome?.Pdf?.Artifacts??(pdfOutcome?.Issue?.Document is {} fiscal?FormActionOutcomeRecorder.Artifacts(fiscal):[]);
         }
         return new FormActionWorkResponse(run.Id,run.RecordId,run.Kind,reserved.Value.Fence,reserved.Value.ReconciliationOnly,run.RetryRequested,snapshot,artifacts,
             run.DeliveryReviewRequested?new StructuredRecordActionReview(run.DeliveryReviewExpectedRevision!.Value,run.DeliveryReviewWasSent!.Value,run.DeliveryReviewedByUserId!.Value,run.DeliveryReviewedAtUtc!.Value):null,run.DeliveryReviewRecipientUserId,

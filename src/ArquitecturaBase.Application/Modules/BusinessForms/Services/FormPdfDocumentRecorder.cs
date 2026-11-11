@@ -1,4 +1,5 @@
 using ArquitecturaBase.Application.Interfaces.Persistence;
+using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Domain.Files;
@@ -24,5 +25,13 @@ internal sealed class FormPdfDocumentRecorder(IFormDocumentRepository documents,
                 file.Id, artifact.Culture, snapshot.DesignId, snapshot.DesignRevision));
         }
         return Task.CompletedTask;
+    }
+
+    /// <summary>The fiscal PDF an issuer stored, recorded as a Spanish document of the response, without a design.</summary>
+    public void AddIssued(Guid definitionId, Guid recordId, Guid runId, Guid ownerUserId, StructuredRecordActionDocument document)
+    {
+        var file = StoredFile.Create(ownerUserId, document.Name, document.ContentType, document.Size, document.Sha256, document.StorageKey, null);
+        files.Add(file);
+        documents.Add(BusinessFormDocument.Create(definitionId, recordId, runId, file.Id, "es", null, 0));
     }
 }

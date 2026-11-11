@@ -29,6 +29,13 @@ public sealed class FormIssueRulePolicyTests
     }
 
     [Fact]
+    public void A_notice_after_the_issuance_may_attach_its_fiscal_pdf()
+    {
+        Assert.True(Normalize(Context(), Rule("Received", Issue(), Notify() with { IncludePdf = true })).IsSuccess);
+        Assert.True(Normalize(Context(), Rule("Received", Notify() with { IncludePdf = true })).IsFailure);
+    }
+
+    [Fact]
     public void Only_an_issuance_names_an_issuer()
     {
         Assert.True(Normalize(Context(), Rule("Received", Notify() with { IssuerId = Issuer })).IsFailure);

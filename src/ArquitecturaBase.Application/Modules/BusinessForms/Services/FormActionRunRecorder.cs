@@ -43,6 +43,8 @@ internal sealed class FormActionRunRecorder(
                         pdfRunId = prior.Id;
                         pdfCultures = FormDraftPolicy.Read<FormActionSnapshot>(prior.SnapshotJson).Pdf?.Cultures;
                     }
+                    else if (action.Kind == "IssueDocument")
+                        (pdfRunId, pdfCultures) = (prior.Id, null);
                     continue;
                 }
 
@@ -70,6 +72,9 @@ internal sealed class FormActionRunRecorder(
                         failure = prepared.Error.Code;
                     pdfRunId = run.Id;
                 }
+                // The fiscal PDF of an issuance goes in both languages: a later notice may attach it to anyone.
+                if (actionApplies && action.Kind == "IssueDocument")
+                    (pdfRunId, pdfCultures) = (run.Id, null);
 
                 if (actionApplies && action.Kind is "NotifyAuthor" or "NotifyRole")
                 {
