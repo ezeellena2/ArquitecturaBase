@@ -48,6 +48,8 @@ FormMigrationsTests comprueba en una base nueva la clave diferible de posición 
 
 FormCatalogItemDeletionIntegrationTests usa FormRecipientScenario con una respuesta sembrada y un filtro fijo en el borrador: el 409 `ItemInUse` nombra `records`, `options`, `people` y `forms` sin guardar nada, y la opción que nadie usa se borra y las demás cierran el hueco.
 
+FormCatalogEndpointsTests.Sort ordena por un campo entero con los valores del mismo guardado y lee el resultado en dos páginas: 9 antes que 10, el empate conserva su orden, la opción sin valor queda última y las posiciones son 1..N; una columna desconocida da 400 en `sort.column`. Exporta `sorted-request`.
+
 FormCatalogCapacityIntegrationTests prepara 10.000 filas Manual, incluidas 5.000 inactivas, y prueba el lector real sin seguimiento: una SQL ordenada, sin límite ni offset y con limpieza de sus propios IDs.
 
 ### Valores tipados
