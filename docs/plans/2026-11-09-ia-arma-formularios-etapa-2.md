@@ -156,8 +156,9 @@ Lo que el plan no fijaba, resuelto con la opción más simple que cumple el plan
 ## Tareas
 
 Cada tarea sigue [validar un cambio](../guides/validar-un-cambio.md): TDD en las políticas, build y tests rápidos del área en cada
-corte. Las del backend escriben sus capturas, y los ejemplos HTTP se exportan una sola vez, desde una copia, con los contratos de
-las tareas 8 y 9. Desde el 2026-11-11 el front no espera a la prueba integral: a pedido del usuario, cada desarrollo se termina
+corte. Las del backend escriben y prueban sus capturas. Los ejemplos HTTP los exporta una sola vez, al final de la tanda y con
+todas las cohortes, el chat que la coordina; esa corrida vale además como verificación completa. Los tests del front que leen
+capturas nuevas entran después de esa exportación. Desde el 2026-11-11 el front no espera a la prueba integral: a pedido del usuario, cada desarrollo se termina
 entero y la prueba integral se hace una sola vez al final.
 
 1. **Leer planillas para el asistente.** El puerto, su versión apagada y la implementación en BusinessForms, con quién puede
