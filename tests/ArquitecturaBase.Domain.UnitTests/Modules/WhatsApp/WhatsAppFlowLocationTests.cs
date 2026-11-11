@@ -102,6 +102,30 @@ public sealed class WhatsAppFlowLocationTests
             "Seguir sin la ubicación", sessionId, Now));
     }
 
+    // The assistant also sends forms with a location (asked by the user on 2026-11-11): its request and its skip button are the
+    // assistant's, without an operator, with the recipient and revisions it sealed, and tied to their send like a person's.
+    [Fact]
+    public void The_assistant_request_and_skip_button_go_out_as_the_assistant_tied_to_their_send()
+    {
+        var sessionId = Guid.CreateVersion7();
+        var contactId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+
+        var request = WhatsAppOutgoingMessage.CreateAssistantLocationRequest(userId, contactId, Guid.NewGuid(),
+            "Para completar «Visita», mandanos tu ubicación.", sessionId, Now, 3, "5491122334455", 7);
+        var skip = WhatsAppOutgoingMessage.CreateAssistantLocationSkip(userId, contactId, Guid.NewGuid(), "La ubicación es opcional.",
+            "Seguir sin ubicación", sessionId, Now, 3, "5491122334455", 7);
+
+        Assert.All(new[] { request, skip }, outgoing => Assert.Equal(
+            (WhatsAppMessageOrigin.Assistant, (Guid?)null, (Guid?)userId, (Guid?)sessionId, (long?)3, "5491122334455", (long?)7),
+            (outgoing.Origin, outgoing.OperatorUserId, outgoing.RecipientUserId, outgoing.FlowSessionId, outgoing.RecipientLinkRevision,
+                outgoing.RecipientWaId, outgoing.AssistantModeRevision)));
+        Assert.Equal((WhatsAppOutgoingMessageKind.LocationRequest, WhatsAppOutgoingMessageKind.QuickReplies), (request.Kind, skip.Kind));
+        Assert.Equal(WhatsAppFlowLocationReply.Id(sessionId), Assert.Single(skip.QuickReplies).Id);
+        Assert.Throws<ArgumentException>(() => WhatsAppOutgoingMessage.CreateAssistantLocationSkip(userId, contactId, Guid.NewGuid(),
+            "La ubicación es opcional.", "Seguir sin la ubicación", sessionId, Now, 3, "5491122334455", 7));
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("FORM_ACTION:0123")]

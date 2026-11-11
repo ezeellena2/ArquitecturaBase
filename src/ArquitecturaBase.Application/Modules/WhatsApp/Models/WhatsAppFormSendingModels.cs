@@ -70,6 +70,9 @@ public sealed record WhatsAppFormDispatchRow(Guid OutgoingId, Guid SessionId, st
     public override string ToString() => "WhatsAppFormDispatchRow { Content = [REDACTED] }";
 }
 
+/// <summary>W1-A: a send that waits for its location and the request that opened it, whose sender its Flow continues.</summary>
+public sealed record WhatsAppFlowLocationWait(WhatsAppFlowSession Session, WhatsAppOutgoingMessage Request);
+
 public sealed record WhatsAppFlowReplySessionRow(Guid SessionId, Guid ContactId, Guid UserId, Guid DefinitionId,
     Guid VersionId, Guid BindingId, Guid OperationId, string Culture, byte[] ProtectedProjection, string Prefix,
     string TokenHash, byte[] ProtectedPayload, DateTime ExpiresAtUtc, bool IsCurrentActiveRecipient,

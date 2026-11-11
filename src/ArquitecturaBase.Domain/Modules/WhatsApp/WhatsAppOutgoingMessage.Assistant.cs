@@ -34,6 +34,27 @@ public sealed partial class WhatsAppOutgoingMessage
         return outgoing;
     }
 
+    /// <summary>W1-A, sent by the assistant: the location request that goes before the Flow of its send.</summary>
+    public static WhatsAppOutgoingMessage CreateAssistantLocationRequest(Guid recipientUserId, Guid contactId, Guid requestId,
+        string body, Guid sessionId, DateTime nowUtc, long contactLinkRevision, string recipientWaId, long modeRevision)
+    {
+        ArgumentOutOfRangeException.ThrowIfEqual(sessionId, Guid.Empty);
+        var outgoing = CreateAssistant(recipientUserId, contactId, requestId, body, nowUtc, contactLinkRevision, recipientWaId, modeRevision, 1024);
+        outgoing.Kind = WhatsAppOutgoingMessageKind.LocationRequest; outgoing.FlowSessionId = sessionId;
+        return outgoing;
+    }
+
+    /// <summary>W1-A, sent by the assistant: «Seguir sin ubicación» for an optional location; its id names the send.</summary>
+    public static WhatsAppOutgoingMessage CreateAssistantLocationSkip(Guid recipientUserId, Guid contactId, Guid requestId,
+        string body, string title, Guid sessionId, DateTime nowUtc, long contactLinkRevision, string recipientWaId, long modeRevision)
+    {
+        ArgumentOutOfRangeException.ThrowIfEqual(sessionId, Guid.Empty);
+        var outgoing = CreateAssistantQuickReplies(recipientUserId, contactId, requestId, body,
+            [new WhatsAppOutgoingQuickReply(WhatsAppFlowLocationReply.Id(sessionId), title, 0)], nowUtc, contactLinkRevision, recipientWaId, modeRevision);
+        outgoing.FlowSessionId = sessionId;
+        return outgoing;
+    }
+
     private static WhatsAppOutgoingMessage CreateAssistant(Guid recipientUserId, Guid contactId, Guid requestId, string body,
         DateTime nowUtc, long contactLinkRevision, string recipientWaId, long modeRevision, int maximumBodyLength)
     {

@@ -26,11 +26,30 @@ internal static class WhatsAppFlowLocationPolicy
             return [Attached(WhatsAppOutgoingMessage.CreateFlow(actor, session.ContactId, requestId, flowBody, session.Id, nowUtc), session)];
         session.RequestLocation(location.Required, flowBody);
         var culture = session.Culture;
-        var request = Attached(WhatsAppOutgoingMessage.CreateLocationRequest(actor, session.ContactId, requestId,
-            string.Format(CultureInfo.GetCultureInfo(culture), FlowTexts.Get("LocationRequest", culture), formName), session.Id, nowUtc), session);
+        var request = Attached(WhatsAppOutgoingMessage.CreateLocationRequest(actor, session.ContactId, requestId, RequestBody(culture, formName),
+            session.Id, nowUtc), session);
         if (location.Required) return [request];
         return [request, Attached(WhatsAppOutgoingMessage.CreateLocationSkip(actor, session.ContactId, Guid.CreateVersion7(),
             FlowTexts.Get("LocationOptional", culture), FlowTexts.Get("LocationSkip", culture), session.Id, nowUtc), session)];
+    }
+
+    /// <summary>
+    /// The messages that open a send by the assistant (asked by the user on 2026-11-11), like a person's: its Flow, or the location
+    /// request before it. They are the assistant's, for the send's account, with the link, number and mode revision it sealed.
+    /// </summary>
+    public static IReadOnlyList<WhatsAppOutgoingMessage> OpenAssistant(WhatsAppFlowProjection projection, WhatsAppFlowSession session,
+        Guid requestId, string flowBody, string formName, DateTime nowUtc, long linkRevision, string waId, long modeRevision)
+    {
+        if (Question(projection) is not { } location)
+            return [Attached(WhatsAppOutgoingMessage.CreateAssistantFlow(session.UserId, session.ContactId, requestId, flowBody, session.Id, nowUtc,
+                linkRevision, waId, modeRevision), session)];
+        session.RequestLocation(location.Required, flowBody);
+        var culture = session.Culture;
+        var request = Attached(WhatsAppOutgoingMessage.CreateAssistantLocationRequest(session.UserId, session.ContactId, requestId,
+            RequestBody(culture, formName), session.Id, nowUtc, linkRevision, waId, modeRevision), session);
+        if (location.Required) return [request];
+        return [request, Attached(WhatsAppOutgoingMessage.CreateAssistantLocationSkip(session.UserId, session.ContactId, Guid.CreateVersion7(),
+            FlowTexts.Get("LocationOptional", culture), FlowTexts.Get("LocationSkip", culture), session.Id, nowUtc, linkRevision, waId, modeRevision), session)];
     }
 
     /// <summary>
@@ -58,19 +77,30 @@ internal static class WhatsAppFlowLocationPolicy
         return resolved;
     }
 
-    /// <summary>The Flow message of a send whose location was resolved, with the body sealed when the person sent the form.</summary>
-    public static WhatsAppOutgoingMessage Flow(WhatsAppFlowSession session, DateTime nowUtc)
+    /// <summary>
+    /// The Flow message of a send whose location was resolved, with the body sealed when the send opened. It continues the request
+    /// that opened the send, from the same sender: the assistant's keeps the recipient and revisions it sealed, which the reservation
+    /// checks again, so a conversation taken in the meantime does not let it out.
+    /// </summary>
+    public static WhatsAppOutgoingMessage Flow(WhatsAppFlowSession session, WhatsAppOutgoingMessage request, DateTime nowUtc)
     {
-        if (session.LocationState is not (WhatsAppFlowLocationState.Received or WhatsAppFlowLocationState.Skipped)
-            || session.OperatorUserId is not { } actor || session.FlowBody is not { } body)
-            throw new InvalidOperationException("Only a send by a person with its location resolved opens its Flow.");
-        return Attached(WhatsAppOutgoingMessage.CreateFlow(actor, session.ContactId, Guid.CreateVersion7(), body, session.Id, nowUtc), session);
+        if (session.LocationState is not (WhatsAppFlowLocationState.Received or WhatsAppFlowLocationState.Skipped) || session.FlowBody is not { } body
+            || request.Kind != WhatsAppOutgoingMessageKind.LocationRequest || request.FlowSessionId != session.Id)
+            throw new InvalidOperationException("Only a send with its location resolved opens its Flow, after its own request.");
+        var flow = request.Origin == WhatsAppMessageOrigin.Assistant
+            ? WhatsAppOutgoingMessage.CreateAssistantFlow(request.RecipientUserId!.Value, session.ContactId, Guid.CreateVersion7(), body, session.Id,
+                nowUtc, request.RecipientLinkRevision!.Value, request.RecipientWaId!, request.AssistantModeRevision!.Value)
+            : WhatsAppOutgoingMessage.CreateFlow(request.OperatorUserId!.Value, session.ContactId, Guid.CreateVersion7(), body, session.Id, nowUtc);
+        return Attached(flow, session);
     }
 
     /// <summary>The answer of the location question as its owner reads a location; WhatsApp gives no accuracy.</summary>
     public static string? Answer(WhatsAppFlowLocationState state, decimal? latitude, decimal? longitude) =>
         state == WhatsAppFlowLocationState.Received && latitude is { } lat && longitude is { } lng
             ? JsonSerializer.Serialize(new { latitude = lat, longitude = lng }) : null;
+
+    private static string RequestBody(string culture, string formName) =>
+        string.Format(CultureInfo.GetCultureInfo(culture), FlowTexts.Get("LocationRequest", culture), formName);
 
     private static WhatsAppOutgoingMessage Attached(WhatsAppOutgoingMessage outgoing, WhatsAppFlowSession session)
     {

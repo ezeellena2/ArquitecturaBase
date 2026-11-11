@@ -116,20 +116,79 @@ public sealed class WhatsAppFlowLocationPolicyTests
     [Fact]
     public void Once_resolved_the_flow_goes_out_with_the_body_of_the_send_and_the_reply_takes_the_point()
     {
-        var session = Waiting(required: true, createdAt: Now);
+        var session = Session("es");
+        var request = WhatsAppFlowLocationPolicy.Open(Projection(location: true), session, Actor, Guid.CreateVersion7(), "Completá el formulario.", "Visita", Now)[0];
+        Assert.Throws<InvalidOperationException>(() => WhatsAppFlowLocationPolicy.Flow(session, request, Now));
         session.ReceiveLocation(-34.603722m, -58.381592m, "wamid.answer", Now.AddMinutes(1));
 
-        var flow = WhatsAppFlowLocationPolicy.Flow(session, Now.AddMinutes(1));
+        var flow = WhatsAppFlowLocationPolicy.Flow(session, request, Now.AddMinutes(1));
 
         Assert.Equal((WhatsAppOutgoingMessageKind.Flow, "Completá el formulario.", Actor, session.Id), (flow.Kind, flow.Body, flow.OperatorUserId, flow.FlowSessionId));
         Assert.Equal("""{"latitude":-34.603722,"longitude":-58.381592}""",
             WhatsAppFlowLocationPolicy.Answer(session.LocationState, session.LocationLatitude, session.LocationLongitude));
         Assert.Null(WhatsAppFlowLocationPolicy.Answer(WhatsAppFlowLocationState.Skipped, null, null));
-        Assert.Throws<InvalidOperationException>(() => WhatsAppFlowLocationPolicy.Flow(Waiting(required: true, createdAt: Now), Now));
+    }
+
+    // The assistant also sends forms with a location (asked by the user on 2026-11-11). Without one, its send opens with its Flow
+    // as before; with one, with the request and the skip button, all of them the assistant's, with the recipient and revisions it
+    // sealed.
+    [Fact]
+    public void An_assistant_send_without_a_location_opens_with_its_flow_as_before()
+    {
+        var session = AssistantSession();
+
+        var flow = Assert.Single(WhatsAppFlowLocationPolicy.OpenAssistant(Projection(), session, Guid.CreateVersion7(), "Completá el formulario «Visita».",
+            "Visita", Now, 3, "5491122334455", 7));
+
+        Assert.Equal((WhatsAppOutgoingMessageKind.Flow, WhatsAppMessageOrigin.Assistant, (Guid?)session.UserId, (long?)7, session.Id),
+            (flow.Kind, flow.Origin, flow.RecipientUserId, flow.AssistantModeRevision, flow.FlowSessionId!.Value));
+        Assert.Equal(WhatsAppFlowLocationState.None, session.LocationState);
+    }
+
+    [Fact]
+    public void An_assistant_send_with_a_location_opens_with_the_assistant_request_and_its_skip_button()
+    {
+        var session = AssistantSession();
+        var requestId = Guid.CreateVersion7();
+
+        var opened = WhatsAppFlowLocationPolicy.OpenAssistant(Projection(location: false), session, requestId,
+            "Completá el formulario «Registro de visita».", "Registro de visita", Now, 3, "5491122334455", 7);
+
+        Assert.Equal([WhatsAppOutgoingMessageKind.LocationRequest, WhatsAppOutgoingMessageKind.QuickReplies], opened.Select(message => message.Kind));
+        Assert.All(opened, message => Assert.Equal((WhatsAppMessageOrigin.Assistant, (Guid?)null, (Guid?)session.UserId, (long?)3, (long?)7),
+            (message.Origin, message.OperatorUserId, message.RecipientUserId, message.RecipientLinkRevision, message.AssistantModeRevision)));
+        Assert.Equal((requestId, "Para completar «Registro de visita», mandanos tu ubicación."), (opened[0].RequestId, opened[0].Body));
+        Assert.Equal(WhatsAppFlowLocationReply.Id(session.Id), Assert.Single(opened[1].QuickReplies).Id);
+        Assert.Equal((WhatsAppFlowLocationState.Requested, "Completá el formulario «Registro de visita»."), (session.LocationState, session.FlowBody));
+    }
+
+    // The Flow continues the request that opened its send: the assistant's with the recipient and revisions it sealed, which the
+    // reservation checks again, so a conversation taken in the meantime does not let it out.
+    [Fact]
+    public void Once_resolved_the_assistant_flow_continues_its_request_with_what_it_sealed()
+    {
+        var session = AssistantSession();
+        var request = WhatsAppFlowLocationPolicy.OpenAssistant(Projection(location: true), session, Guid.CreateVersion7(), "Completá el formulario.",
+            "Visita", Now, 3, "5491122334455", 7)[0];
+        session.ReceiveLocation(-34.603722m, -58.381592m, "wamid.answer", Now.AddMinutes(1));
+
+        var flow = WhatsAppFlowLocationPolicy.Flow(session, request, Now.AddMinutes(1));
+
+        Assert.Equal((WhatsAppOutgoingMessageKind.Flow, WhatsAppMessageOrigin.Assistant, (Guid?)null, (Guid?)session.UserId, (long?)3, "5491122334455", (long?)7),
+            (flow.Kind, flow.Origin, flow.OperatorUserId, flow.RecipientUserId, flow.RecipientLinkRevision, flow.RecipientWaId, flow.AssistantModeRevision));
+        Assert.Equal(("Completá el formulario.", session.Id), (flow.Body, flow.FlowSessionId!.Value));
+        Assert.NotEqual(request.RequestId, flow.RequestId);
+        var other = Session("es");
+        WhatsAppFlowLocationPolicy.Open(Projection(location: true), other, Actor, Guid.CreateVersion7(), "Completá.", "Visita", Now);
+        other.ReceiveLocation(-34.6m, -58.38m, "wamid.other", Now.AddMinutes(1));
+        Assert.Throws<InvalidOperationException>(() => WhatsAppFlowLocationPolicy.Flow(other, request, Now.AddMinutes(1)));
     }
 
     private static WhatsAppFlowSession Session(string culture) => WhatsAppFlowSession.Create(Contact, 2, Guid.CreateVersion7(), Actor, Guid.CreateVersion7(),
         Guid.CreateVersion7(), 1, Guid.CreateVersion7(), culture, "{}", "VIS", new('a', 64), new('b', 64), Now.AddHours(24));
+
+    private static WhatsAppFlowSession AssistantSession() => WhatsAppFlowSession.CreateAssistant(Contact, 3, Guid.CreateVersion7(), Guid.CreateVersion7(),
+        Guid.CreateVersion7(), 1, Guid.CreateVersion7(), "es", "{}", "VIS", new('a', 64), new('b', 64), Now.AddHours(24));
 
     private static WhatsAppFlowSession Waiting(bool required, DateTime createdAt)
     {
