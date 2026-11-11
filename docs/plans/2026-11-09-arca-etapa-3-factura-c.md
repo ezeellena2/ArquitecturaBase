@@ -228,7 +228,8 @@ de «Armar el PDF».
 - **Preguntas atadas:** Cliente (catálogo «Clientes», con «Consumidor final» y «Otro: escribir la CUIT»), CUIT del cliente
   (se ve con «Otro»), Concepto (catálogo de ARCA), el bloque de
   renglones (Descripción, Cantidad, Precio unitario e Importe calculado), Total (cálculo), Período desde y hasta y
-  Vencimiento del pago (se ven si el concepto no es «Productos»), Fecha (hoy por defecto) y Mandar copia al cliente.
+  Vencimiento del pago (siempre a la vista y opcionales: WhatsApp no publica una pregunta que se muestre por varias opciones de
+  un catálogo, y la cola los exige con servicios), Fecha (hoy por defecto) y Mandar copia al cliente.
 - **Reglas que trae:** «Cuando llega»: emitir (o pedir la aprobación, si el formulario la usa, y emitir «Cuando se aprueba»);
   después avisar a quien cargó con el PDF fiscal y, si se marcó, mandar la copia al cliente.
 - **El «¿La emito?»** (EM2-A): en la app, al tocar «Enviar», un resumen con el tipo que decidió el sistema, el cliente y el
@@ -236,8 +237,8 @@ de «Armar el PDF».
   con «Emitir» y «No emitir», sin el intercambio cifrado con Meta. Mientras no contesta, la emisión espera y el detalle le
   muestra a quien cargó «Esperando que lo confirmes» con los mismos dos botones. «No emitir» anula la respuesta con el motivo
   «No se emitió» y no va nada a ARCA.
-- **La copia al cliente** va por correo, con el PDF, a la dirección del catálogo «Clientes»; sin dirección, la opción no se
-  ofrece. Usa el correo que ya manda la app.
+- **La copia al cliente** va por correo, con el PDF, a la dirección del catálogo «Clientes». Usa el correo que ya manda la app.
+  El borrador no puede ocultar la pregunta según un campo del cliente, así que sin dirección la copia queda «No aplica».
 
 ### Anular con nota de crédito
 
@@ -248,7 +249,7 @@ de «Armar el PDF».
   «Anulándose», sigue en la planilla y la zona «Comprobante» suma la nota con su estado. Si ARCA la rechaza, la respuesta sigue
   vigente con el motivo y se puede volver a anular. Anulada, sale de la planilla como cualquier anulada, con la factura y la
   nota (y sus dos PDF) en el detalle.
-- **Corregir** una respuesta con una emisión encolada no se puede (`Forms.Record.AmendUnavailable`): se anula y se carga
+- **Corregir** una respuesta con una emisión encolada no se puede (`Forms.Record.IssuedNotAmendable`): se anula y se carga
   otra. Mientras la emisión no tiene número, anular la cancela y la respuesta queda anulada sin factura. Con número y sin
   resolver, «Anular» espera a que se resuelva.
 

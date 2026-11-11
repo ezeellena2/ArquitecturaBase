@@ -2,8 +2,9 @@
 
 Regla vigente desde la etapa 1 (2026-11-05). Una instalación se conecta con ARCA con el certificado de la empresa o, desde
 el backend de la etapa 5 (2026-11-09), delegando los servicios de la empresa en la CUIT de la plataforma. Prueba la
-conexión, trae del padrón los datos de la empresa y elige el punto de venta. Todavía no emite comprobantes ni tiene efecto
-legal. Las decisiones están en el [ADR 0023](../decisions/0023-arca-como-modulo-opcional.md) (módulo y credenciales), el
+conexión, trae del padrón los datos de la empresa y elige el punto de venta. Desde la etapa 3 emite la factura C y su nota de
+crédito, y desde la etapa 4 la A y la B (ver [Emisión de comprobantes](#emisión-de-comprobantes-etapas-3-y-4)), con efecto
+legal en producción; hasta homologar con la CUIT del usuario se prueba contra el ARCA simulado. Las decisiones están en el [ADR 0023](../decisions/0023-arca-como-modulo-opcional.md) (módulo y credenciales), el
 [ADR 0025](../decisions/0025-familias-de-servicios-arca.md) (familias) y el
 [ADR 0027](../decisions/0027-delegacion-guiada-arca.md) (delegación guiada); la operación, en
 [configurar ARCA](../guides/configurar-arca.md), y la retirada, en [quitar ARCA](../guides/quitar-arca.md). Las etapas
