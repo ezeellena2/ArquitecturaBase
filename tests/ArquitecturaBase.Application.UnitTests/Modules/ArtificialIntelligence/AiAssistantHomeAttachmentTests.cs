@@ -72,6 +72,24 @@ public sealed class AiAssistantHomeAttachmentTests
         Assert.All(reader.Asked, asked => Assert.Equal(userId, asked));
     }
 
+    // The bootstrap says it per person, by the same rule as a turn: the front shows the clip and never repeats the permissions.
+    [Theory]
+    [InlineData(true, true, true)]
+    [InlineData(false, true, false)]
+    [InlineData(true, false, false)]
+    public async Task The_bootstrap_says_whether_this_person_may_attach_a_spreadsheet(bool allowed, bool storage, bool expected)
+    {
+        var host = new Host(storage);
+        host.Reader.Allowed = allowed;
+        var bootstrap = await host.Bootstrap.BootstrapAsync(Ct);
+        Assert.True(bootstrap.IsSuccess);
+        Assert.Equal(expected, bootstrap.Value.Attachments);
+        Assert.Contains($"\"attachments\":{(expected ? "true" : "false")}", JsonSerializer.Serialize(bootstrap.Value, AiAssistantResponsePolicy.JsonOptions),
+            StringComparison.Ordinal);
+        // The owner decides for the person who opened Home, and only when there is private storage for the copy.
+        Assert.Equal(storage ? [host.ActorId] : [], host.Reader.Asked);
+    }
+
     [Fact]
     public async Task Storing_keeps_one_copy_and_rejects_other_content_under_the_same_request()
     {
@@ -447,6 +465,7 @@ public sealed class AiAssistantHomeAttachmentTests
         public AiAssistantResponsePolicy Responses { get; }
         public AiAssistantFileTurnService Service { get; }
         public AiAssistantReadPolicy Reads { get; }
+        public AiAssistantBootstrapPolicy Bootstrap { get; }
         public Guid ActorId => Fixture.ActorId;
         public DateTime Now => Fixture.Clock.GetUtcNow().UtcDateTime;
 
@@ -462,11 +481,12 @@ public sealed class AiAssistantHomeAttachmentTests
                 new FakeCurrentUser { UserId = ActorId }, catalog, [], Files);
             submissions = new(Fixture.Store, Fixture.Store, Fixture.Store, guard, Fixture.Protector, new OperationsFingerprint(), limits, Fixture.Clock);
             Responses = new(Fixture.Protector, Fixture.Clock, catalog);
-            Reads = new(Fixture.Store, Fixture.Store, RequestValidators.For(new ListAiAssistantTurnsRequestValidator()), Fixture.Permissions, guard,
-                Responses, catalog, limits);
+            var attachments = new AiAssistantHomeAttachmentPolicy(Files, Reader, Fixture.Store, Fixture.Protector);
+            Bootstrap = new(Fixture.Store, Fixture.Store, Fixture.Permissions, guard, Responses, catalog, limits, attachments);
+            Reads = new(Fixture.Store, RequestValidators.For(new ListAiAssistantTurnsRequestValidator()), Fixture.Permissions, guard,
+                Responses, limits, Bootstrap);
             Service = new(Fixture.Work, RequestValidators.For(new SubmitAiAssistantTurnRequestValidator(limits)), guard, submissions,
-                new AiAssistantHomeAttachmentPolicy(Files, Reader, Fixture.Store, Fixture.Protector), limits, Fixture.Clock,
-                NullLogger<AiAssistantFileTurnService>.Instance);
+                attachments, limits, Fixture.Clock, NullLogger<AiAssistantFileTurnService>.Instance);
         }
 
         public SubmitAiAssistantFileTurnRequest Request(Guid? requestId = null, string question = "", string fileName = "clientes.csv",

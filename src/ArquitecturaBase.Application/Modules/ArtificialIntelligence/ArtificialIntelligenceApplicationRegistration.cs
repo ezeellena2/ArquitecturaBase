@@ -29,6 +29,7 @@ public static class ArtificialIntelligenceApplicationRegistration
         services.TryAddScoped<AiAssistantCapabilityCatalogPolicy>();
         services.TryAddScoped<AiAssistantAccessGuard>();
         services.TryAddScoped<AiAssistantResponsePolicy>();
+        services.TryAddScoped<AiAssistantBootstrapPolicy>();
         services.TryAddScoped<AiAssistantReadPolicy>();
         services.TryAddScoped<AiAssistantSubmissionPolicy>();
         services.TryAddScoped<AiAssistantDispatchGuard>();

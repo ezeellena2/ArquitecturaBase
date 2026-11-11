@@ -31,7 +31,7 @@ internal sealed class AiAssistantHomeMutationScenario
         var guard = new AiAssistantAccessGuard(users, permissions, [], new AiAssistantLimits(),
             new FakeCurrentUser { UserId = actor.Id }, catalog, [], new MemoryPrivateFileStore());
         Service = new(Store.Repository, new FakeUnitOfWork(), RequestValidators.For(new CancelAiAssistantTurnRequestValidator()),
-            guard, new AiAssistantReadPolicy(new MissingReader(), null!, null!, permissions, guard, null!, catalog, new AiAssistantLimits()),
+            guard, new AiAssistantReadPolicy(new MissingReader(), null!, permissions, guard, null!, new AiAssistantLimits(), null!),
             null!, clock, NullLogger<AiAssistantService>.Instance);
     }
     private sealed class MissingReader : IAiAssistantReader

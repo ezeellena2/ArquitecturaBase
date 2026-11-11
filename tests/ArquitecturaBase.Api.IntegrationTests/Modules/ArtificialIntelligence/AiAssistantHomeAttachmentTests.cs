@@ -177,6 +177,29 @@ public sealed class AiAssistantHomeAttachmentTests(ApiFactory factory)
         return referenced;
     });
 
+    // The bootstrap says it per person, with the same rule as a turn: the owner's port allows them and there is private storage.
+    [Fact]
+    public async Task The_bootstrap_says_whether_this_person_may_attach_a_spreadsheet()
+    {
+        var files = new HomeAudioFiles();
+        var reader = new HomeAttachmentReader();
+        await using var scenario = await CreateAsync(files, reader);
+        var owner = Guid.Parse(scenario.Client.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
+        Assert.True(await AttachmentsAsync(scenario));
+        reader.Denied.Add(owner);
+        Assert.False(await AttachmentsAsync(scenario));
+        reader.Denied.Clear();
+        files.IsAvailable = false;
+        Assert.False(await AttachmentsAsync(scenario));
+    }
+
+    private static async Task<bool> AttachmentsAsync(AiAssistantExecutionScenario scenario)
+    {
+        using var bootstrap = await scenario.Client.GetAsync("/api/ai/assistant/bootstrap", Ct);
+        Assert.Equal(HttpStatusCode.OK, bootstrap.StatusCode);
+        return (await bootstrap.ReadJsonAsync()).GetProperty("attachments").GetBoolean();
+    }
+
     [Fact]
     public async Task A_spreadsheet_turn_may_also_bring_a_dictated_request()
     {

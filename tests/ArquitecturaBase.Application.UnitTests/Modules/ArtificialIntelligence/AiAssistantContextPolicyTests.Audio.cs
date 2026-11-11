@@ -58,8 +58,7 @@ public sealed partial class AiAssistantContextPolicyTests
         var guard = new AiAssistantAccessGuard(host.Users, host.Permissions,
             [new(AiProvider.OpenAI, "model", limits.ContextBytes, true, true) { Id = "home" }], limits,
             new FakeCurrentUser { UserId = host.UserId }, catalog, audioProfiles, new MemoryPrivateFileStore(storage));
-        var reads = new AiAssistantReadPolicy(host.Reader, new ConnectionReader(), null!, host.Permissions, guard,
-            new AiAssistantResponsePolicy(host.Protector, new FakeTimeProvider(), catalog), catalog, limits);
+        var reads = Bootstrap(host, guard, catalog, limits);
         var result = await reads.BootstrapAsync(TestContext.Current.CancellationToken);
         Assert.Equal(audio, result.Value.Audio);
     }

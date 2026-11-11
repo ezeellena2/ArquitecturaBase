@@ -29,8 +29,8 @@ public sealed class AiAssistantPrivacyTests
         var catalog = new AiAssistantCapabilityCatalogPolicy([], permissions);
         var guard = new AiAssistantAccessGuard(users, permissions, [], limits, current, catalog, [], new MemoryPrivateFileStore());
         var reader = new Reader(actor.Id, clock.GetUtcNow().UtcDateTime);
-        var policy = new AiAssistantReadPolicy(reader, null!, RequestValidators.For(), permissions, guard,
-            new AiAssistantResponsePolicy(new NeverDecrypt(), clock, catalog), catalog, limits);
+        var policy = new AiAssistantReadPolicy(reader, RequestValidators.For(), permissions, guard,
+            new AiAssistantResponsePolicy(new NeverDecrypt(), clock, catalog), limits, null!);
         var result = await policy.GetTurnAsync(reader.Row.RequestId, TestContext.Current.CancellationToken);
         Assert.True(result.IsSuccess);
         Assert.Equal("blocked", result.Value.ContentAccess);
@@ -50,8 +50,8 @@ public sealed class AiAssistantPrivacyTests
         var catalog = new AiAssistantCapabilityCatalogPolicy([], permissions);
         var guard = new AiAssistantAccessGuard(users, permissions, [], limits, new FakeCurrentUser { UserId = actor.Id }, catalog, [], new MemoryPrivateFileStore());
         var reader = new Reader(actor.Id, clock.GetUtcNow().UtcDateTime);
-        var policy = new AiAssistantReadPolicy(reader, null!, RequestValidators.For(), permissions, guard,
-            new AiAssistantResponsePolicy(new NeverDecrypt(), clock, catalog), catalog, limits);
+        var policy = new AiAssistantReadPolicy(reader, RequestValidators.For(), permissions, guard,
+            new AiAssistantResponsePolicy(new NeverDecrypt(), clock, catalog), limits, null!);
         var result = await policy.GetTurnAsync(reader.Row.RequestId, TestContext.Current.CancellationToken);
         Assert.Equal(AiAssistantErrors.Forbidden, result.Error);
         Assert.Equal(0, reader.Reads);

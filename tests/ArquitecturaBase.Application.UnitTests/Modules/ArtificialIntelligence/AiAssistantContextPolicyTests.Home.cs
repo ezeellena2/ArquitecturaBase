@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Channels;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Channels.SystemQueries;
@@ -25,8 +26,7 @@ public sealed partial class AiAssistantContextPolicyTests
         var guard = new AiAssistantAccessGuard(host.Users, host.Permissions,
             [new(AiProvider.OpenAI, "model", limits.ContextBytes, true, true) {Id="home"}], limits,
             new FakeCurrentUser { UserId = host.UserId }, catalog, [], new MemoryPrivateFileStore());
-        var reads = new AiAssistantReadPolicy(host.Reader, new ConnectionReader(), null!, host.Permissions, guard,
-            new AiAssistantResponsePolicy(host.Protector, new FakeTimeProvider(), catalog), catalog, limits);
+        var reads = Bootstrap(host, guard, catalog, limits);
         var result = await reads.BootstrapAsync(TestContext.Current.CancellationToken);
         Assert.True(result.IsSuccess);
         Assert.Equal(HomeQueryIds.Order(StringComparer.Ordinal), result.Value.Suggestions.Select(item => item.Id).Order(StringComparer.Ordinal));
@@ -44,8 +44,7 @@ public sealed partial class AiAssistantContextPolicyTests
         var guard = new AiAssistantAccessGuard(host.Users, host.Permissions,
             [new(AiProvider.OpenAI, "model", limits.ContextBytes, true, true) {Id="home"}], limits,
             new FakeCurrentUser { UserId = host.UserId }, catalog, [], new MemoryPrivateFileStore());
-        var reads = new AiAssistantReadPolicy(host.Reader, new ConnectionReader(), null!, host.Permissions, guard,
-            new AiAssistantResponsePolicy(host.Protector, new FakeTimeProvider(), catalog), catalog, limits);
+        var reads = Bootstrap(host, guard, catalog, limits);
         var result = await reads.BootstrapAsync(TestContext.Current.CancellationToken);
         Assert.Equal(AiAssistantErrors.Forbidden, result.Error);
         Assert.Equal(0, source.Executions);
@@ -61,8 +60,7 @@ public sealed partial class AiAssistantContextPolicyTests
         var guard = new AiAssistantAccessGuard(host.Users, host.Permissions,
             [new(AiProvider.OpenAI, "model", limits.ContextBytes, true, true) {Id="home"}], limits,
             new FakeCurrentUser { UserId = host.UserId }, catalog, [], new MemoryPrivateFileStore());
-        var reads = new AiAssistantReadPolicy(host.Reader, new ConnectionReader(), null!, host.Permissions, guard,
-            new AiAssistantResponsePolicy(host.Protector, new FakeTimeProvider(), catalog), catalog, limits);
+        var reads = Bootstrap(host, guard, catalog, limits);
         var result = await reads.BootstrapAsync(TestContext.Current.CancellationToken);
         Assert.True(result.IsSuccess);
         Assert.Equal(HomeQueryIds.Order(StringComparer.Ordinal), result.Value.Suggestions.Select(item => item.Id).Order(StringComparer.Ordinal));
@@ -70,6 +68,12 @@ public sealed partial class AiAssistantContextPolicyTests
         Assert.Contains(new AssistantCapabilityReference("fixture.home-offered", 1), context.AllowedCapabilities);
         Assert.Equal([new AssistantTerminalReference("assistant_answer", 2)], context.AllowedTerminals);
     }
+
+    // The bootstrap of the Home actor, without an owner that lets anyone attach: these cases look at the catalog and the microphone.
+    private static AiAssistantBootstrapPolicy Bootstrap(Host host, AiAssistantAccessGuard guard, AiAssistantCapabilityCatalogPolicy catalog,
+        AiAssistantLimits limits) => new(host.Reader, new ConnectionReader(), host.Permissions, guard,
+            new AiAssistantResponsePolicy(host.Protector, new FakeTimeProvider(), catalog), catalog, limits,
+            new AiAssistantHomeAttachmentPolicy(new MemoryPrivateFileStore(), new UnavailableStructuredAttachmentReader(), null!, null!));
 
     private sealed class BootstrapCatalogSource(IReadOnlyList<string> ids, IReadOnlyCollection<string>? offeredInHome = null) : IAssistantCapabilitySource
     {

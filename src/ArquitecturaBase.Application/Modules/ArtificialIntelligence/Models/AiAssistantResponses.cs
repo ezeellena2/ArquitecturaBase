@@ -11,6 +11,8 @@ public sealed record AiAssistantBootstrapResponse(string Availability, long Conn
 {
     /// <summary>IA4: whether Home takes a recording (a provider that hears what the browser records and private storage).</summary>
     public bool Audio { get; init; }
+    /// <summary>Stage 2: whether this person may attach a spreadsheet (private storage, and the owner's port allows them).</summary>
+    public bool Attachments { get; init; }
 }
 public sealed record AiConversationSummaryResponse(Guid ConversationId, long Revision, string Title,
     DateTime LastActivityAtUtc, string ContentAccess)

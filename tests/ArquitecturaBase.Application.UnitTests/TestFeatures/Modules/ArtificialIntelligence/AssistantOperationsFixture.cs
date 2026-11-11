@@ -230,7 +230,8 @@ internal sealed class OperationsStore(FakeTimeProvider clock, FakeUnitOfWork wor
     public Task<IReadOnlyList<string>> ListRetainedAttachmentKeysAsync(IReadOnlyCollection<string> attachmentKeys, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<string>>(Turns.Where(turn => turn.AttachmentKey is { } key && attachmentKeys.Contains(key) && turn.ProtectedAttachment is not null
             && turn.ContentExpiresAtUtc > clock.GetUtcNow().UtcDateTime).Select(turn => turn.AttachmentKey!).Distinct().ToArray());
-    public Task<AiAssistantWorkloadRow> FindWorkloadAsync(DateTime now, int grace, CancellationToken ct) => throw new NotSupportedException();
+    // The bootstrap only asks whether Home is at capacity: here nothing is ever waiting for a worker.
+    public Task<AiAssistantWorkloadRow> FindWorkloadAsync(DateTime now, int grace, CancellationToken ct) => Task.FromResult(new AiAssistantWorkloadRow(0, 0, 0, null, null));
     public Task<IReadOnlyList<AiAssistantTurn>> ListExpiredAsync(DateTime now, int pending, int grace, int limit, CancellationToken ct) => throw new NotSupportedException();
     public Task<IReadOnlyList<AiAssistantTurn>> ListPurgeableAsync(DateTime now, int limit, CancellationToken ct) => throw new NotSupportedException();
     public Task<IReadOnlyList<AiConversation>> ListRemovableConversationsAsync(DateTime now, int limit, CancellationToken ct) => throw new NotSupportedException();

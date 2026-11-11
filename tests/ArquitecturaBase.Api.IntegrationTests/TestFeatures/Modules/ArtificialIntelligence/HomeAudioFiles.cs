@@ -5,11 +5,12 @@ using ArquitecturaBase.Application.Models.Files;
 
 namespace ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.ArtificialIntelligence;
 
-// In-memory private storage for Home recordings and spreadsheets: WriteOnce keeps the first copy, as the real store does.
+// In-memory private storage for Home recordings and spreadsheets: WriteOnce keeps the first copy, as the real store does. Turning it
+// off is an installation without private storage.
 internal sealed class HomeAudioFiles : IPrivateFileStore
 {
     private readonly ConcurrentDictionary<string, byte[]> content = new(StringComparer.Ordinal);
-    public bool IsAvailable => true;
+    public bool IsAvailable { get; set; } = true;
     public IReadOnlyCollection<string> Keys => content.Keys.ToArray();
     public async Task<bool> WriteOnceAsync(string key, Stream value, string contentType, CancellationToken ct)
     {
