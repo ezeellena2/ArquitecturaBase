@@ -19,17 +19,11 @@ Adaptadores del módulo opcional. Leé [WhatsApp](../../../../docs/features/what
 - El parser conserva un Audio nuevo aunque su descriptor no sirva (sólo Ogg/Opus) y no reclasifica Media anterior. Un documento que es planilla por su nombre o su tipo entra como `Spreadsheet`, con su `caption` y su descriptor; los demás siguen como Media. El cliente de medios recibe el tope de cada llamador.
 - Cada protector tiene propósito propio ligado a sus identidades; no se reutilizan ni se renombran. Los IDs de botones ya enviados no cambian.
 - Logs sin cuerpos, códigos, tokens, valores ni números completos. Los tests usan Meta simulado y avanzan los workers apagados a mano; probá reintentos, carreras y privacidad con el nivel de logs de los tests.
+- `WhatsAppInboundSignal` sólo despierta: avisos coalescentes e independientes para entrada y captura, sin datos de trabajo; cada worker relee la persistencia con scopes nuevos. La consulta de espera no adelanta `RetryDueAt` ni cambia la selección, y la salida sigue en una única FIFO durable ([espera y avisos](../../../../docs/features/whatsapp.md#espera-del-asistente-y-avisos-locales--2026-10-21)).
+- `WhatsAppFlowNavigation` arma el `navigate` del mensaje y de la vista oficial con la oferta sellada: del Shown, sólo título y descripción, y una vacía se omite sin recuperar Detail; las ofertas anteriores conservan Text/Detail y el compilador no cambia ([catálogos](../../../../docs/features/whatsapp.md#catálogos-de-formularios--k7)).
 
 ## Referencias
 
 - [Reglas](../../../../docs/features/whatsapp.md#reglas), [publicación](../../../../docs/features/whatsapp.md#publicación-durable-de-flows--2b-2026-10-10) y [retiro](../../../../docs/features/whatsapp.md#deprecación-durable-de-flows--2026-10-21) de Flows, [avisos](../../../../docs/features/whatsapp.md#avisos-de-reglas-de-formularios--etapa-4-g6) y [ofrecimientos](../../../../docs/features/whatsapp.md#ofrecimientos-automáticos--etapa-5).
 - [Configuración local](../../../../docs/guides/whatsapp-en-local.md) y [quitar el módulo](../../../../docs/guides/quitar-whatsapp.md).
 - [Tests del módulo](../../../../tests/ArquitecturaBase.Api.IntegrationTests/Modules/WhatsApp/AGENTS.md).
-
-## Avisos y espera de los workers
-
-`WhatsAppInboundSignal` conserva avisos independientes y coalescentes para entrada y captura, sin datos de trabajo: un consumidor no puede gastar el aviso del otro. El webhook y los cierres confirmados avisan sin esperar; cada worker vuelve a leer la persistencia con scopes nuevos. Captura conserva su intervalo configurado como respaldo. Entrada usa el menor entre ese intervalo y 2 segundos mientras existan referencias Pending vigentes de asistente o audio, o planillas pendientes de bajarse; la consulta de espera no adelanta RetryDueAt ni cambia la selección del efecto.
-
-La salida continúa mientras la reserva informe progreso confirmado y espera 2 segundos al quedar sin trabajo o fallar la vuelta. Conserva el coordinador Redis, cooldown, leases, fences y cierre acotado existentes. Las mediciones comparables usan el escenario opt-in de latencia con reloj real y bordes externos simulados; no atribuirlas a Meta real.
-
-La navegación de catálogos usa el Shown sellado si existe: título y descripción elegidos; descripción null/vacía se omite sin recuperar Detail. Ofertas anteriores conservan Text/Detail; el compilador de Flows no cambia. `WhatsAppFlowNavigation` arma esos datos para el mensaje que abre un formulario y para la vista oficial interactiva (VO1-A), que conserva menos opciones por lista si el enlace pasara de 6000 caracteres. Una oferta agrupada (LD2-A, r11) manda los valores, cada uno con un id del mensaje y el `update_data` de sus opciones, la etiqueta del desplegable y la lista vacía y oculta; la vista oficial conserva sus primeros valores, cada uno con sus primeras opciones.
