@@ -198,15 +198,16 @@ public sealed class FormAuthoringCatalogMappingTests
     }
 
     [Fact]
-    public void Home_keeps_offering_version_one_while_version_two_and_the_import_wait_for_their_front()
+    public void Home_offers_version_two_and_the_import_instead_of_version_one()
     {
         var definitions = new AuthoringAssistantFixture().Source.Definitions;
         var first = definitions.Single(definition => definition is { Id: ProposeCatalog, Version: 1 });
         var second = definitions.Single(definition => definition is { Id: ProposeCatalog, Version: Mapped });
         var import = definitions.Single(definition => definition.Id == ProposeImport);
-        Assert.Equal((true, false), (first.OfferedInHome, first.RequiresAttachment));
-        Assert.Equal((false, false), (second.OfferedInHome, second.RequiresAttachment));
-        Assert.Equal((1, AssistantCapabilityKind.Proposal, false, true), (import.Version, import.Kind, import.OfferedInHome, import.RequiresAttachment));
+        // Version 1 stays registered, so its turns are read and its cards still create.
+        Assert.Equal((false, false), (first.OfferedInHome, first.RequiresAttachment));
+        Assert.Equal((true, false), (second.OfferedInHome, second.RequiresAttachment));
+        Assert.Equal((1, AssistantCapabilityKind.Proposal, true, true), (import.Version, import.Kind, import.OfferedInHome, import.RequiresAttachment));
         Assert.All([second, import], definition =>
         {
             Assert.Equal([BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage], definition.RequiredPermissions.Actor);
@@ -218,7 +219,7 @@ public sealed class FormAuthoringCatalogMappingTests
             Assert.False(output.RootElement.GetProperty("additionalProperties").GetBoolean());
         });
         // Home offers each capability once, so it never carries two versions of the same one.
-        Assert.Equal([$"{ProposeCatalog}@1"], definitions.Where(definition => definition.OfferedInHome && definition.Id is ProposeCatalog or ProposeImport)
+        Assert.Equal([$"{ProposeCatalog}@{Mapped}", $"{ProposeImport}@1"], definitions.Where(definition => definition.OfferedInHome && definition.Id is ProposeCatalog or ProposeImport)
             .Select(definition => $"{definition.Id}@{definition.Version}"));
         Assert.Contains("never import", import.Description, StringComparison.Ordinal);
         Assert.Contains("propose importing", definitions.Single(definition => definition.Id == Decline).Description, StringComparison.Ordinal);

@@ -498,6 +498,10 @@ dictado, continúa esa misma operación, como después de «Cambiar algo», así
 `unclear` no nombra nada y sólo vale para quien puede armar un formulario o un catálogo; si no, vuelve `rejected` con
 `permissionMissing`. La pregunta no es una oferta ni gasta cupo.
 
+Con las planillas (Etapa 2), Inicio ofrece `forms.authoring.propose-catalog@2`, que mapea la planilla del turno, en lugar de la
+versión 1, y `forms.authoring.propose-import@1` sólo en un turno con planilla: con todos los permisos, 12 de las 16 definiciones
+sin planilla y 13 con ella. La versión 1 sigue registrada: sus turnos se leen y sus tarjetas crean.
+
 ## Formularios que faltan — Etapa 5
 
 La misma lectura de formularios incluye temas generalizados existentes. Una intención clara de registrar algo sin formulario accesible puede proponer uno de esos temas o un nombre y frase en el idioma de la conversación; una consulta, un cupo agotado o el rechazo de un formulario conocido no son pedidos faltantes. El motor no guarda: BusinessForms valida la propuesta y registra un recibo estable del mensaje original fuera de la transacción del canal. El nombre y la descripción generalizados se inspeccionan antes de devolver la propuesta y otra vez al capturarla, antes y dentro del lock. La copia de inspección usa NFKC para detectar también `＠`, direcciones con esquema o `www` y secuencias de siete o más dígitos, incluso separadas como un teléfono con guiones Unicode o signo menos. Se admiten fechas ISO válidas y montos con moneda explícita sólo si cubren el tramo numérico entero. Los identificadores conocidos del actor y destinatario se comparan como palabras completas y sin distinguir tildes, sin confundir «Ana» con «mañana». La inspección no reescribe el texto guardado ni filtra el relato de una visita o su prellenado.
