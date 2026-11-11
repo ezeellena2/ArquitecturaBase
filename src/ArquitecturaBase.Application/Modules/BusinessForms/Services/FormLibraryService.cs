@@ -15,7 +15,8 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 /// names its catalogs by Key: one that is missing or inactive stops the copy, and so does an option code («code:other») that a condition
 /// names, or that it declares as the option a question starts with (IV1-A), and the catalog does not have among its active options.
 /// The catalogs it brings come with their first options. The copy and the catalogs it creates go, in the same save, to the folder
-/// chosen or else to the standard's (<see cref="FormSystemFolderLinker"/>).
+/// chosen or else to the standard's (<see cref="FormSystemFolderLinker"/>), and the rules it brings are the first revision of the
+/// copy's rules (<see cref="FormStandardRuleRecorder"/>).
 /// </summary>
 internal sealed class FormLibraryService : IFormLibraryService
 {
@@ -24,15 +25,16 @@ internal sealed class FormLibraryService : IFormLibraryService
     private readonly IFormLibraryReader _reader;
     private readonly FormDraftAccessGuard _access;
     private readonly FormSystemFolderLinker _folders;
+    private readonly FormStandardRuleRecorder _rules;
     private readonly ILogger<FormLibraryService> _logger;
 
     public FormLibraryService(IEnumerable<IStructuredFormStandardSource> sources, IFormDraftService drafts, IFormLibraryReader reader,
-        FormDraftAccessGuard access, FormSystemFolderLinker folders, ILogger<FormLibraryService> logger)
+        FormDraftAccessGuard access, FormSystemFolderLinker folders, FormStandardRuleRecorder rules, ILogger<FormLibraryService> logger)
     {
         _standards = sources.SelectMany(source => source.Standards).ToArray();
         if (_standards.DistinctBy(standard => standard.Key, StringComparer.Ordinal).Count() != _standards.Length)
             throw new InvalidOperationException("Library standard keys must be unique.");
-        (_drafts, _reader, _access, _folders, _logger) = (drafts, reader, access, folders, logger);
+        (_drafts, _reader, _access, _folders, _rules, _logger) = (drafts, reader, access, folders, rules, logger);
     }
 
     public Task<Result<FormLibraryResponse>> ListAsync(CancellationToken cancellationToken) =>
@@ -88,10 +90,13 @@ internal sealed class FormLibraryService : IFormLibraryService
                 ? field with { Source = (field.Source ?? new FormQuestionSource(null)) with { Catalog = ids[catalogKey] } } : field).ToArray() };
             var coded = await NameOptionsAsync(draft, named, standard.Defaults ?? new Dictionary<string, string>(), ids, createdCodes, cancellationToken);
             if (coded.IsFailure) return coded.Error;
+            var rules = await _rules.PrepareAsync(standard, named, ids, createdCodes, cancellationToken);
+            if (rules.IsFailure) return rules.Error;
             return await _drafts.CreateAsync(new SaveFormDraftRequest(request.RequestId, request.Name, request.Prefix, coded.Value)
             {
                 Standard = new FormDraftStandardOrigin(standard.Key, standard.Version, standard.Bindings)
-                    { NewCatalogs = created, NewCatalogItems = createdItems, FileAsync = Filer(request.FolderId, standard.Folder) is { } file ? (id, ct) => FileAsync(file, id, created, ct) : null },
+                    { NewCatalogs = created, NewCatalogItems = createdItems, FileAsync = Filer(request.FolderId, standard.Folder) is { } file ? (id, ct) => FileAsync(file, id, created, ct) : null,
+                      Rules = rules.Value },
             }, cancellationToken);
         });
 

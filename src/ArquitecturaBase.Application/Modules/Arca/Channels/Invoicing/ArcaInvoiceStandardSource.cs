@@ -11,7 +11,8 @@ namespace ArquitecturaBase.Application.Modules.Arca.Channels.Invoicing;
 /// bound by its datum key; the copy and the «Clientes» catalog it brings go to the «ARCA» folder. «Precio unitario» has the toggle
 /// «El precio incluye IVA» (IV2-A), unchecked, that the issuer reads as the datum pricesIncludeVat, and «Alícuota» starts at 21 %
 /// in each new item (IV1-A). «Mandar copia al cliente» asks for the copy by email of the fiscal PDF, which goes to the email of
-/// the customer of «Clientes» (without one, it does not apply).
+/// the customer of «Clientes» (without one, it does not apply). A copy starts with the rule «Cuando llega»: issue the invoice, tell
+/// whoever loaded it with the fiscal PDF and send the copy; a form that asks for approval moves it to «Cuando se aprueba» by hand.
 /// </summary>
 internal sealed class ArcaInvoiceStandardSource : IStructuredFormStandardSource
 {
@@ -95,6 +96,24 @@ internal sealed class ArcaInvoiceStandardSource : IStructuredFormStandardSource
                         new(ArcaInvoiceStandard.OtherCustomer, new Dictionary<string, string> { ["es"] = "Otro: escribir la CUIT", ["en"] = "Other: write the CUIT" }),
                     ]),
             ],
-            Arca, new Dictionary<string, string> { [VatRate] = GeneralVatRate }),
+            Arca, new Dictionary<string, string> { [VatRate] = GeneralVatRate }, Rules),
+    ];
+
+    private static readonly StructuredFormStandardRule[] Rules =
+    [
+        new("Received", [],
+        [
+            new("IssueDocument", IssuerId: ArcaInvoiceStandard.Key),
+            new("NotifyAuthor", new Dictionary<string, string>
+            {
+                ["es"] = "Listo: emitimos la {result:arca.invoice.voucher} {result:arca.invoice.number}.",
+                ["en"] = "Done: we issued the {result:arca.invoice.voucher} {result:arca.invoice.number}.",
+            }, IncludePdf: true),
+            new("SendCopy", new Dictionary<string, string>
+            {
+                ["es"] = "Te mandamos la {result:arca.invoice.voucher} {result:arca.invoice.number} en el PDF adjunto.",
+                ["en"] = "Here is the {result:arca.invoice.voucher} {result:arca.invoice.number}, in the attached PDF.",
+            }),
+        ]),
     ];
 }

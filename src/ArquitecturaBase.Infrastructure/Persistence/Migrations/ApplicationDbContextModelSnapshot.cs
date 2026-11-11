@@ -1886,8 +1886,6 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("Id", "ActivePdfDesignId");
 
-                    b.HasIndex("Id", "ActiveRuleSetId");
-
                     b.HasIndex("Id", "ActiveSuggestionSetId");
 
                     b.HasIndex("Id", "ActiveVersionId");
@@ -4760,12 +4758,6 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.HasOne("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormPdfDesign", null)
                         .WithMany()
                         .HasForeignKey("Id", "ActivePdfDesignId")
-                        .HasPrincipalKey("DefinitionId", "Id")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormRuleSet", null)
-                        .WithMany()
-                        .HasForeignKey("Id", "ActiveRuleSetId")
                         .HasPrincipalKey("DefinitionId", "Id")
                         .OnDelete(DeleteBehavior.Restrict);
 

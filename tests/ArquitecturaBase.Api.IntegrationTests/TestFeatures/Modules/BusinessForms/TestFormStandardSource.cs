@@ -7,7 +7,9 @@ namespace ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessFor
 /// A standard of the library only for tests (BI1-A): a delivery note with a block of items, the amount of each item and the total,
 /// where every question but «Observaciones» is bound and «Precio unitario» has a toggle (IV2-A); a sale that brings its own catalog
 /// of customers, with its first options, and files both in its folder, starts «Cliente» at «Consumidor final» (IV1-A) and shows
-/// «CUIT del cliente» only with the option «Otro», both named by their codes.
+/// «CUIT del cliente» only with the option «Otro», both named by their codes; and a voucher of the test issuer that brings its rules
+/// (issue, tell whoever loaded it with the PDF and send the copy, and a notice with conditions on a catalog option by its code, an
+/// own option by its local id and a yes or no).
 /// </summary>
 internal sealed class TestFormStandardSource : IStructuredFormStandardSource
 {
@@ -65,7 +67,32 @@ internal sealed class TestFormStandardSource : IStructuredFormStandardSource
                 {"localId":"{{{BuyerTaxId}}}","type":"shortText","label":{"es":"CUIT del cliente"},"required":false,"maxLength":11,
                  "showWhen":{"questionId":"{{{Buyer}}}","values":["code:nobody"]}}]}
                 """, new Dictionary<string, string>(), new Dictionary<string, string> { [Buyer] = CustomersCatalog }),
+        Voucher,
     ];
+    // BI1-A rules: a copy of this standard starts with them, with the identities its save gives.
+    private static readonly StructuredFormStandard Voucher = new(TestRecordIssuer.Key, 1, new Dictionary<string, string> { ["es"] = "Comprobante de prueba" },
+        new Dictionary<string, string> { ["es"] = "Emite un comprobante de prueba y manda la copia." }, "CPP", $$$"""
+            {"format":1,"culture":"es","submitLabel":{"es":"Enviar"},"fields":[
+            {"localId":"{{{VoucherAmount}}}","type":"decimal","label":{"es":"Importe"},"required":true},
+            {"localId":"{{{VoucherPriority}}}","type":"choice","label":{"es":"Prioridad"},"required":true},
+            {"localId":"{{{VoucherCopy}}}","type":"boolean","label":{"es":"Mandar copia"},"required":false},
+            {"localId":"{{{VoucherChannel}}}","type":"choice","label":{"es":"Canal"},"required":false,
+             "options":[{"localId":"{{{VoucherByMail}}}","label":{"es":"Por correo"}}]}]}
+            """, new Dictionary<string, string> { [VoucherAmount] = "first", [VoucherCopy] = "sendCopy" },
+        new Dictionary<string, string> { [VoucherPriority] = PrioritiesCatalog },
+        OwnCatalogs: [new(PrioritiesCatalog, "es", new Dictionary<string, string> { ["es"] = "Prioridades de prueba" }, new Dictionary<string, string>(), [],
+            [new("urgent", new Dictionary<string, string> { ["es"] = "Urgente" }), new("normal", new Dictionary<string, string> { ["es"] = "Normal" })])],
+        Rules:
+        [
+            new("Received", [], [new("IssueDocument", IssuerId: TestRecordIssuer.Key),
+                new("NotifyAuthor", new Dictionary<string, string> { ["es"] = "Listo: {result:test.issue.number}." }, IncludePdf: true),
+                new("SendCopy", new Dictionary<string, string> { ["es"] = "Te mandamos el comprobante {result:test.issue.number}." })]),
+            new("Received", [new(VoucherPriority, "in", ["code:urgent"]), new(VoucherChannel, "in", [VoucherByMail]), new(VoucherCopy, "in", ["true"])],
+                [new("NotifyAuthor", new Dictionary<string, string> { ["es"] = "Urgente por correo." })]),
+        ]);
+    public const string PrioritiesCatalog = "test.priorities", VoucherAmount = "0196f2a0-0000-7000-8000-0000000000f1",
+        VoucherPriority = "0196f2a0-0000-7000-8000-0000000000f2", VoucherCopy = "0196f2a0-0000-7000-8000-0000000000f3",
+        VoucherChannel = "0196f2a0-0000-7000-8000-0000000000f4", VoucherByMail = "0196f2a0-0000-7000-8000-0000000000f5";
     public const string CustomersKey = "test.sale", MissingKey = "test.missing-catalog", MissingCodeKey = "test.missing-code",
         CustomersCatalog = "test.customers", SalesFolder = "test.sales",
         Buyer = "0196f2a0-0000-7000-8000-0000000000e1", BuyerTaxId = "0196f2a0-0000-7000-8000-0000000000e2";

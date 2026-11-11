@@ -43,8 +43,11 @@ internal sealed class BusinessFormDefinitionConfiguration : IEntityTypeConfigura
         builder.Property(x => x.ActivePdfDesignId).IsConcurrencyToken();
         builder.HasOne<BusinessFormPdfDesign>().WithMany().HasForeignKey(x => new { x.Id, x.ActivePdfDesignId })
             .HasPrincipalKey(x => new { x.DefinitionId, x.Id }).OnDelete(DeleteBehavior.Restrict);
-        builder.HasOne<BusinessFormRuleSet>().WithMany().HasForeignKey(x => new { x.Id, x.ActiveRuleSetId })
-            .HasPrincipalKey(x => new { x.DefinitionId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+        // The active rule set belongs to this definition: (Id, ActiveRuleSetId) references BusinessFormRuleSets (DefinitionId, Id)
+        // with a foreign key the migration DeferActiveRuleSetKey creates in SQL as DEFERRABLE INITIALLY DEFERRED, out of the EF
+        // model. A new definition and its first rule set point at each other and go in one save («Agregar» from the library):
+        // with the relationship in the model EF cannot order those two inserts, and Postgres checks the key at commit instead.
+        // EnsureCreated does not create it, so its tests run on a migrated database. Do not model it again.
         builder.HasOne<BusinessFormVersion>().WithMany().HasForeignKey(x => new { x.Id, x.ActiveVersionId })
             .HasPrincipalKey(x => new { x.DefinitionId, x.Id }).OnDelete(DeleteBehavior.Restrict);
     }

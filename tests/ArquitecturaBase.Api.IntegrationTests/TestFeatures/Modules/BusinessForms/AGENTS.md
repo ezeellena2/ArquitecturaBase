@@ -26,6 +26,8 @@ FormPublishedVersionFixture sella PublishedCultures desde la misma lista explíc
 
 FormApprovalContinuationFixture agrega tareas y recibos propios a la definición de SeedApprovalAsync, con empate de fecha, respuesta propia y rol ajeno; no reescribe versiones selladas.
 
+FormActiveRuleSetMigrationFixture escribe una definición con su revisión de reglas activa por las columnas anteriores a DeferActiveRuleSetKey, lee si la clave existe y si es diferida, y crea en la base migrada a quien agrega de la biblioteca y lee las reglas.
+
 FormCatalogValueMigrationFixture inserta el contrato previo por SQL parametrizado; proyecta columnas históricas de valores/referencias y crea un operador propio con UoW del host migrado.
 
 FormCatalogImportContractCapture guarda bytes HTTP intactos JSON/XLSX en es/en bajo FORM_CATALOG_IMPORT_HTTP_OUTPUT; los XLSX llevan companion con status y headers reales.

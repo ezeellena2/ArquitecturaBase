@@ -4,7 +4,7 @@ Un `IEntityTypeConfiguration<T>` por entidad del módulo, con su tabla (`ToTable
 
 ## Al modificar
 
-- `(CatalogId, Position)` y `(CatalogId, Code)` tienen claves únicas diferidas creadas en SQL, fuera del modelo EF: no las conviertas en índices o claves alternas de EF ni renumeres datos en una migración. Code sigue reservado para ítems inactivos. CHECK de `Kind`/`FiltersJson` y de propuesta (Pending o Discarded nunca activos); `GetByProposalAsync` sigue la entidad para el replay bajo lock.
+- `(CatalogId, Position)` y `(CatalogId, Code)` tienen claves únicas diferidas creadas en SQL, fuera del modelo EF: no las conviertas en índices o claves alternas de EF ni renumeres datos en una migración. Lo mismo la clave foránea diferida `(Id, ActiveRuleSetId)` → la revisión de reglas de la misma definición (`DeferActiveRuleSetKey`): una definición nueva y su primera revisión activa se guardan juntas, y con la relación en el modelo EF no podría ordenarlas; no la vuelvas a modelar. Code sigue reservado para ítems inactivos. CHECK de `Kind`/`FiltersJson` y de propuesta (Pending o Discarded nunca activos); `GetByProposalAsync` sigue la entidad para el replay bajo lock.
 - `OriginalCulture` de catálogos y atributos de personas tiene largo 2 y default `es` sólo para las filas previas y la imagen anterior; el código siempre lo fija.
 - `Catalog.ValueType` es Text/Integer/Decimal/Date, con default Text para existentes y Filters sólo Text. `Item.Value` es nullable de 64; la referencia sella Value (64) y ValueType (16), nulos conjuntamente. La migración no reescribe JSON, manifiestos, hashes ni capturas.
 - LastImportSha256 (character(64)) y LastImportAtUtc son nullable conjuntamente por CHECK, sin defaults ni backfill. Aplicar importación fija la marca en el mismo commit de la revisión; exportar no la cambia.
@@ -13,4 +13,4 @@ Un `IEntityTypeConfiguration<T>` por entidad del módulo, con su tabla (`ToTable
 ## Referencias
 
 - [Modelo EF del núcleo](../../../../Persistence/Configurations/AGENTS.md) y [migraciones](../../../../../../docs/guides/migracion.md).
-- Pruebas: [migraciones del módulo](../../../../../../tests/ArquitecturaBase.Api.IntegrationTests/Modules/BusinessForms/FormMigrationsTests.cs) y [códigos únicos diferidos](../../../../../../tests/ArquitecturaBase.Api.IntegrationTests/Modules/BusinessForms/FormCatalogCodeUniquenessMigrationTests.cs).
+- Pruebas: [migraciones del módulo](../../../../../../tests/ArquitecturaBase.Api.IntegrationTests/Modules/BusinessForms/FormMigrationsTests.cs) y [códigos únicos diferidos](../../../../../../tests/ArquitecturaBase.Api.IntegrationTests/Modules/BusinessForms/FormCatalogCodeUniquenessMigrationTests.cs) y [revisión de reglas activa diferida](../../../../../../tests/ArquitecturaBase.Api.IntegrationTests/Modules/BusinessForms/FormActiveRuleSetKeyMigrationTests.cs).

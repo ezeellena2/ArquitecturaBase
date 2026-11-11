@@ -8,10 +8,12 @@ namespace ArquitecturaBase.Application.Models.StructuredData;
 // Source, by language, the name of the module that brings it, which the library shows («ARCA»); Defaults, for a bound question of
 // choosing one from a catalog, by its local id, the code of the option a new answer starts with (IV1-A: «Alícuota» in 21 %). A bound
 // question of the draft may also declare toggles (IV2-A), yes-or-no settings with their default value that the issuer receives.
+// Rules are the rules a copy starts with, as the first revision of its rules.
 public sealed record StructuredFormStandard(string Key, int Version, IReadOnlyDictionary<string, string> Name,
     IReadOnlyDictionary<string, string> Description, string Prefix, string DraftJson, IReadOnlyDictionary<string, string> Bindings,
     IReadOnlyDictionary<string, string>? Catalogs = null, StructuredFormStandardFolder? Folder = null, IReadOnlyList<StructuredFormStandardCatalog>? OwnCatalogs = null,
-    IReadOnlyDictionary<string, string>? Source = null, IReadOnlyDictionary<string, string>? Defaults = null)
+    IReadOnlyDictionary<string, string>? Source = null, IReadOnlyDictionary<string, string>? Defaults = null,
+    IReadOnlyList<StructuredFormStandardRule>? Rules = null)
 {
     public override string ToString() => "StructuredFormStandard { Content = [REDACTED] }";
 }

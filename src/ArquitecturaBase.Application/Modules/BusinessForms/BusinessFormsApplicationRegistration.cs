@@ -103,6 +103,7 @@ public static class BusinessFormsApplicationRegistration
         services.TryAddScoped<IFormFolderItemService, FormFolderItemService>();
         services.TryAddScoped<IFormMenuService, FormMenuService>();
         services.TryAddScoped<FormSystemFolderLinker>();
+        services.TryAddScoped<FormStandardRuleRecorder>();
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<ListFormFoldersRequest>, ListFormFoldersRequestValidator>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<CreateFormFolderRequest>, CreateFormFolderRequestValidator>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<UpdateFormFolderRequest>, UpdateFormFolderRequestValidator>());

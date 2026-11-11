@@ -161,9 +161,10 @@ la prueba integral y la de homologación. Lo que se ve en la app y en WhatsApp e
   formularios (`SendCopy`, después de «Emitir comprobante en ARCA»): el emisor responde el correo del cliente de «Clientes»
   (`email`) sólo si se marcó «Mandar copia al cliente» y es una dirección válida (`ArcaInvoiceIssuePolicy.CopyRecipient`); con
   consumidor final, un cliente escrito por su CUIT o sin correo, la copia queda «No aplica», porque el borrador no puede ocultar
-  la pregunta según un campo del cliente. Las reglas («Emitir comprobante en ARCA», el aviso con el PDF fiscal y la copia) se
-  agregan en el editor: la biblioteca todavía no trae reglas (ver la tarea 11 del
-  [plan](../plans/2026-11-09-arca-etapa-3-factura-c.md)).
+  la pregunta según un campo del cliente. La copia del estándar llega con su regla «Cuando llega»: «Emitir comprobante en
+  ARCA», «Avisar a quien cargó» con el PDF fiscal («Listo: emitimos la {result:arca.invoice.voucher}
+  {result:arca.invoice.number}.») y «Mandar copia por correo» («Te mandamos la … en el PDF adjunto.»). Con aprobación, se
+  pasa a mano a «Cuando se aprueba» en el editor.
 - **«Completar con ARCA»** (`ArcaStructuredPartyLookup`, familia `Registry`): la constancia de un tercero completa los
   «Clientes» de la «Factura» (`arca.customers`) desde su CUIT, con la razón social, la condición frente al IVA como receptor (1,
   4, 5 o 6) y el domicilio fiscal. Una CUIT inválida da `Arca.Registry.CuitInvalid` sin llamar a ARCA y una que el padrón no

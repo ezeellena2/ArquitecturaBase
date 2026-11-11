@@ -86,6 +86,8 @@ internal sealed class FormDraftService(IFormDraftRepository repository, FormDefi
             foreach (var catalog in standard.NewCatalogs) repository.AddStandardCatalog(catalog);
             if (standard.NewCatalogItems.Count > 0) repository.AddStandardCatalogItems(standard.NewCatalogItems);
             definition.RecordStandard(standard.Key, standard.Version, FormDraftPolicy.Serialize(FormStandardPolicy.Bindings(standard, resolved.Value.IdentityMap)));
+            // The rules of the standard are its first revision, active, in this same save (the deferred key, backend.md).
+            standard.Rules?.Invoke(definition, resolved.Value.IdentityMap);
             if (standard.FileAsync is { } file && await file(definition.Id, ct) is { IsFailure: true } filed) return filed.Error;
         }
         var change = BusinessFormDraftChange.Create(actor, request.RequestId, definition.Id, kind, request.ExpectedRevision, definition.Revision, nowUtc.AddDays(30));

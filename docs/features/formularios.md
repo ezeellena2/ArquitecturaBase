@@ -1156,6 +1156,15 @@ aparece.
   rechaza quitarlas (en `draft.fields`) o cambiarles tipo, bloque, catálogo, la opción con que empiezan, opciones, cálculo,
   condición, renglones, casillas, largo o si son obligatorias (en `draft.fields[i]`), con `Forms.Draft.BoundQuestionChanged`. La
   migración es `AddFormDefinitionStandard`.
+- **Las reglas que trae** (`Rules`, 2026-11-11): un estándar puede traer sus reglas en el formato de las reglas, con los
+  `localId` de su borrador: el evento, las condiciones (una opción de un catálogo por `code:<código>` y una propia por su
+  `localId`) y las acciones con su tipo (`IssueDocument` con su emisor, `NotifyAuthor` con su texto y su PDF, `SendCopy`).
+  «Agregar» las deja como la revisión 1, activa, de las reglas de la copia, en el mismo guardado que el borrador y con los
+  ids que ese guardado da (`FormStandardRuleRecorder`); el editor las muestra y las cambia como cualquier otra. Pasan el
+  mismo chequeo que un guardado del editor, con los emisores del estándar: unas que no lo pasan son un error del módulo. Un
+  código que el catálogo no tiene frena con `Forms.Library.CatalogUnavailable`, antes de guardar. La definición nueva y su
+  revisión activa se apuntan entre sí: la clave que ata la revisión activa a su definición es diferida
+  (`DeferActiveRuleSetKey`, ver [backend](../architecture/backend.md#migraciones)).
 - **La carpeta.** «Agregar» recibe `folderId` opcional: la copia y los catálogos propios que crea van a esa carpeta y, sin
   ella, a la del estándar (`Folder`: su clave y su nombre por idioma), en la misma transacción que el borrador. La del
   estándar es una carpeta del sistema (ver [Carpetas](#carpetas--cp1-a-a-cp5-a-2026-11-09)); una elegida que se borró en

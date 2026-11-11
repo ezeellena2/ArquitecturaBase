@@ -28,6 +28,9 @@ public sealed record FormDraftStandardOrigin(string Key, int Version, IReadOnlyD
     /// <summary>Files the new definition (by its id) and the new catalogs in the folder chosen or the standard's, inside the same save.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public Func<Guid, CancellationToken, Task<ArquitecturaBase.Domain.Results.Result>>? FileAsync { get; init; }
+    /// <summary>Leaves the rules of the standard as the first revision of the new definition's, with the identities the save gave.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public Action<ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormDefinition, FormIdentityMap>? Rules { get; init; }
     public override string ToString() => "FormDraftStandardOrigin { Content = [REDACTED] }";
 }
 /// <summary>A catalog a standard names, by Key: whether it is active.</summary>

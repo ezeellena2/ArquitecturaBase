@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessForms;
+using ArquitecturaBase.Domain.Modules.BusinessForms;
 using Microsoft.EntityFrameworkCore;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
@@ -156,6 +157,45 @@ public sealed partial class FormDraftEndpointsTests
             new { requestId = Guid.NewGuid(), name = new { es = "Remito sin carpeta" }, prefix = Prefix(), folderId = Guid.NewGuid() }, Ct);
         Assert.Equal(HttpStatusCode.NotFound, gone.StatusCode);
         Assert.Equal("Forms.Folder.NotFound", (await gone.ReadJsonAsync()).GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task A_standard_with_rules_is_added_with_them_as_the_first_revision_of_its_rules_once_per_request()
+    {
+        using var designer = await OperatorAsync(["formtemplates.read", "formtemplates.manage", BusinessFormsPermissions.RulesManage]);
+        var issuer = new TestRecordIssuer();
+        await using var host = IssuerHost(issuer);
+        using var client = InHost(host, designer);
+        var requestId = Guid.NewGuid();
+        var prefix = "P" + Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
+
+        using var added = await client.PostAsJsonAsync($"/api/forms/library/{TestRecordIssuer.Key}/copies", Add(requestId, prefix), Ct);
+        Assert.Equal(HttpStatusCode.Created, added.StatusCode);
+        var definition = (await added.ReadJsonAsync()).GetProperty("definition");
+        var id = definition.GetProperty("id").GetGuid();
+        var fields = definition.GetProperty("draft").GetProperty("fields");
+        using var repeated = await client.PostAsJsonAsync($"/api/forms/library/{TestRecordIssuer.Key}/copies", Add(requestId, prefix), Ct);
+        Assert.Equal(HttpStatusCode.Created, repeated.StatusCode);
+
+        using var current = await client.GetAsync($"/api/forms/definitions/{id}/rules", Ct);
+        Assert.Equal(HttpStatusCode.OK, current.StatusCode);
+        var body = await current.ReadJsonAsync();
+        Assert.Equal(1, body.GetProperty("revision").GetInt64());
+        var rules = body.GetProperty("rules");
+        Assert.Equal(2, rules.GetArrayLength());
+        var actions = rules[0].GetProperty("actions");
+        Assert.Equal(["IssueDocument", "NotifyAuthor", "SendCopy"], actions.EnumerateArray().Select(action => action.GetProperty("kind").GetString()));
+        Assert.Equal((TestRecordIssuer.Key, true), (actions[0].GetProperty("issuerId").GetString(), actions[1].GetProperty("includePdf").GetBoolean()));
+        Assert.Equal("Te mandamos el comprobante {result:test.issue.number}.", actions[2].GetProperty("text").GetProperty("es").GetString());
+        // The conditions name the questions by the identities of the copy: the catalog option by its code and the own one by its local id.
+        var urgent = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormCatalogItem>()
+            .Where(item => item.Code == "urgent" && db.Set<BusinessFormCatalog>().Any(catalog => catalog.Id == item.CatalogId && catalog.Key == TestFormStandardSource.PrioritiesCatalog))
+            .Select(item => item.Id).SingleAsync(Ct));
+        Assert.Equal([(fields[1].GetProperty("fieldId").GetGuid(), urgent.ToString("D")),
+                (fields[3].GetProperty("fieldId").GetGuid(), fields[3].GetProperty("options")[0].GetProperty("choiceId").GetGuid().ToString("D")),
+                (fields[2].GetProperty("fieldId").GetGuid(), "true")],
+            rules[1].GetProperty("conditions").EnumerateArray().Select(condition => (condition.GetProperty("fieldId").GetGuid(), condition.GetProperty("values")[0].GetString())));
+        Assert.Equal(1, await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormRuleSet>().CountAsync(ruleSet => ruleSet.DefinitionId == id, Ct)));
     }
 
     private static object Add(Guid requestId, string prefix) => new { requestId, name = new { es = "Remito propio " + prefix }, prefix };

@@ -72,6 +72,27 @@ public sealed class ArcaInvoiceStandardSourceTests
             question.GetProperty("label").GetProperty("en").GetString()));
     }
 
+    // A copy starts with «Cuando llega»: issue, tell whoever loaded it with the fiscal PDF and send the copy, with the data of the result.
+    [Fact]
+    public void The_invoice_brings_its_rule_issue_then_tell_with_the_fiscal_pdf_then_send_the_copy()
+    {
+        var standard = Assert.Single(new ArcaInvoiceStandardSource().Standards);
+        var rule = Assert.Single(standard.Rules!);
+        var declared = ArcaInvoiceIssuePolicy.ResultFields.Select(field => "result:" + ArcaInvoiceStandard.Key + "." + field.Key).ToHashSet(StringComparer.Ordinal);
+
+        Assert.Equal(("Received", 0), (rule.Event, rule.Conditions.Count));
+        Assert.Equal(["IssueDocument", "NotifyAuthor", "SendCopy"], rule.Actions.Select(action => action.Kind));
+        Assert.Equal((ArcaInvoiceStandard.Key, (string?)null, (string?)null), (rule.Actions[0].IssuerId, rule.Actions[1].IssuerId, rule.Actions[2].IssuerId));
+        Assert.Equal((false, true, false), (rule.Actions[0].IncludePdf, rule.Actions[1].IncludePdf, rule.Actions[2].IncludePdf));
+        Assert.Equal("Listo: emitimos la {result:arca.invoice.voucher} {result:arca.invoice.number}.", rule.Actions[1].Text!["es"]);
+        Assert.All(rule.Actions.Skip(1), action =>
+        {
+            Assert.Equal(["en", "es"], action.Text!.Keys.Order(StringComparer.Ordinal));
+            Assert.All(action.Text.Values.SelectMany(text => System.Text.RegularExpressions.Regex.Matches(text, "{([^}]*)}").Select(match => match.Groups[1].Value)),
+                token => Assert.Contains(token, declared));
+        });
+    }
+
     [Fact]
     public void Its_catalogs_are_the_arca_tables_and_the_customers_it_brings_with_their_first_options()
     {
