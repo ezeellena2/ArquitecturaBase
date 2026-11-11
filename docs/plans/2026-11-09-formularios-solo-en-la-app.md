@@ -91,8 +91,11 @@ El usuario eligió las siete recomendadas.
   con un canal instalado. Las columnas siguen [un dato por columna](../../../ArquitecturaBaseFront/docs/plans/2026-11-09-un-dato-por-columna.md):
   si su UD2 («En WhatsApp», «Versión activa», «Último cambio» y «Cambió») se programa antes, este cambio renombra su «En
   WhatsApp» y suma la columna; si se programa después, UD2 parte de «Estado».
-- La baja dice «No se carga más en la app» para todos; «No se manda más desde el chat» y «El asistente no lo ofrece», sólo si la
-  versión activa se publicó por WhatsApp. La advertencia de WhatsApp al eliminar aparece sólo si alguna versión se publicó ahí.
+- La baja dice «App · No se carga más» para todos; «Chat», «Asistente» y «Sugerencias», sólo si la versión activa se publicó
+  por WhatsApp. Una cuya versión activa es de la app, aunque una anterior haya sido de WhatsApp, muestra sólo «App · No se carga
+  más» y suma el aviso con la fecha del último envío abierto únicamente si todavía quedan envíos de cuando era de WhatsApp: lo
+  eligió el usuario el 2026-11-11 («App» y aviso), porque este plan y el diseño se contradecían. La advertencia de WhatsApp al
+  eliminar aparece sólo si alguna versión se publicó ahí.
 - «Formularios» (la pantalla con «Cargar») no cambia.
 
 ### En WhatsApp y el asistente
@@ -177,7 +180,7 @@ durable ([ADR 0018](../decisions/0018-robustez-proporcional-al-efecto.md)): se a
    corrida, y ese día otras sesiones tenían cambios sin commitear en los dos repos y la PC al 100 %. La revisión contra el
    código del mismo día trajo tres arreglos, ya hechos: «Qué sugerir después» con un destino que pasó a la app (`AppOnly`), el
    motivo de lo apagado en la vista previa (MA1-A) y sin «En WhatsApp» en una pregunta de catálogo (backend ab66934c, front
-   b73170c6 a 1bee2f51). La baja con «Chat» y «Asistente» espera una respuesta del usuario.
+   b73170c6 a 1bee2f51). La baja de uno que pasó a la app quedó decidida («App» y aviso) y programada (front 28e2f70d y ef91cc2b).
 3. **Cierre:** la exportación conjunta de los ejemplos HTTP con los de un formulario de la app (las cinco capturas de
    `FormAppOnlyPublicationTests` en `forms-http/app-only`, escritas el 2026-11-11, y después su consumidor en el front); la
    corrida completa con Docker y el front entero (build, lint, vitest y test:visual); la prueba a mano (crear un
