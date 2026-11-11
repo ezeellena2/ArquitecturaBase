@@ -13,8 +13,8 @@ namespace ArquitecturaBase.Application.Modules.Arca.Channels.Registry;
 
 /// <summary>
 /// «Completar con ARCA» (CA1): the constancia of a third party completes the «Clientes» of the «Factura» from its CUIT, with the
-/// name, the condition frente al IVA as the receiver code of WSFEv1 and the fiscal address. It only reads, with the session of
-/// the company; nothing is saved.
+/// name, the condition frente al IVA as the receiver code of WSFEv1 and the fiscal address. It only reads, in the name of the
+/// signer: in delegation the platform consults with its own CUIT, without the company delegating the constancia. Nothing is saved.
 /// </summary>
 internal sealed class ArcaStructuredPartyLookup(ArcaServiceSessionIssuer access, IArcaRegistryClient client) : IStructuredPartyLookup
 {
@@ -27,7 +27,7 @@ internal sealed class ArcaStructuredPartyLookup(ArcaServiceSessionIssuer access,
     public async Task<StructuredPartyLookupResponse> FindAsync(string taxId, CancellationToken cancellationToken)
     {
         if (CuitNumber.Normalize(taxId) is not { } cuit) return new(null, null, ArcaRegistryErrors.CuitInvalid.Code);
-        var session = await access.OpenAsync(Constancia, cancellationToken);
+        var session = await access.OpenAsSignerAsync(Constancia, cancellationToken);
         if (session.IsFailure) return new(null, null, session.Error.Code);
         var reply = await client.FindPersonAsync(session.Value.Certificate, session.Value.Ticket, cuit, cancellationToken);
         // The registry answers a CUIT it does not know with a fault.

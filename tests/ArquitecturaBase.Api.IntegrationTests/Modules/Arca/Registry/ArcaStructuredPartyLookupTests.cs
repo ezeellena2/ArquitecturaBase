@@ -8,7 +8,8 @@ namespace ArquitecturaBase.Api.IntegrationTests.Modules.Arca.Registry;
 /// <summary>
 /// «Completar con ARCA» por el puerto neutral, con PostgreSQL y <c>FakeArca</c>: una CUIT inválida no llega a ARCA; sin conexión
 /// dice por qué; con conexión, la constancia trae el nombre, la condición frente al IVA del receptor y el domicilio, y una CUIT que
-/// el padrón no tiene responde que no la encontró.
+/// el padrón no tiene responde que no la encontró. En delegación la consulta la plataforma con su CUIT, sin que la empresa delegue
+/// la constancia.
 /// </summary>
 [Collection(ApiTestGroup.Name)]
 public sealed class ArcaStructuredPartyLookupTests(ApiFactory factory) : IDisposable
@@ -18,7 +19,6 @@ public sealed class ArcaStructuredPartyLookupTests(ApiFactory factory) : IDispos
     [Fact]
     public async Task The_registry_completes_a_customer_from_its_cuit()
     {
-        var ct = TestContext.Current.CancellationToken;
         var arca = factory.Services.GetRequiredService<FakeArca>();
         arca.Reset();
 
@@ -42,13 +42,31 @@ public sealed class ArcaStructuredPartyLookupTests(ApiFactory factory) : IDispos
             arca.Person = FakeArca.Company;
             await ArcaVoucherScenario.RemoveAsync(factory);
         }
+    }
 
-        async Task<Application.Models.StructuredData.StructuredPartyLookupResponse> FindAsync(string taxId)
-        {
-            await using var scope = factory.Services.CreateAsyncScope();
-            return await scope.ServiceProvider.GetServices<IStructuredPartyLookup>().Single(lookup => lookup.CatalogKey == "arca.customers").FindAsync(taxId, ct);
-        }
+    [Fact]
+    public async Task In_delegation_the_platform_completes_a_customer_with_its_own_cuit()
+    {
+        await using var scenario = await ArcaHttpScenario.CreateAsync(factory, authority);
+        // La empresa todavía no delegó Facturación: el ticket sólo representa a la plataforma, y a la constancia le alcanza.
+        scenario.Arca.Relations = [ArcaPersistenceScenario.PlatformCuit];
+        await scenario.StartAsync([FakeArca.InvoicingService], mode: "PlatformDelegation");
+        await scenario.UploadAsync();
+        scenario.Arca.Person = new FakeArcaPerson("Agro del Sur SA", null, null, "Ruta 9 km 400", "Marcos Juárez", "CORDOBA", [30], false, []);
+
+        var found = await FindAsync("30-50001091-2");
+
+        Assert.Equal(("Agro del Sur SA", null), (found.Name, found.FailureCode));
+        var consulted = scenario.Arca.LastRequest("getPersona_v2")!;
+        Assert.Equal((ArcaPersistenceScenario.PlatformCuit, "30500010912"), (consulted.Element("cuitRepresentada")?.Value, consulted.Element("idPersona")?.Value));
     }
 
     public void Dispose() => authority.Dispose();
+
+    private async Task<Application.Models.StructuredData.StructuredPartyLookupResponse> FindAsync(string taxId)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        return await scope.ServiceProvider.GetServices<IStructuredPartyLookup>().Single(lookup => lookup.CatalogKey == "arca.customers")
+            .FindAsync(taxId, TestContext.Current.CancellationToken);
+    }
 }

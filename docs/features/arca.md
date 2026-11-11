@@ -158,8 +158,8 @@ formularios «Emitir comprobante», con el estándar «Factura» y la anulación
 - **«Completar con ARCA»** (`ArcaStructuredPartyLookup`, familia `Registry`): la constancia de un tercero completa los
   «Clientes» de la «Factura» (`arca.customers`) desde su CUIT, con la razón social, la condición frente al IVA como receptor (1,
   4, 5 o 6) y el domicilio fiscal. Una CUIT inválida da `Arca.Registry.CuitInvalid` sin llamar a ARCA y una que el padrón no
-  tiene, `Arca.Registry.PersonNotFound`. Consulta con la sesión de la empresa; en delegación, una consulta con la CUIT de la
-  plataforma necesitaría su propia apertura.
+  tiene, `Arca.Registry.PersonNotFound`. Consulta en nombre de quien firma: en delegación, la plataforma con su CUIT, sin que la
+  empresa delegue la constancia.
 - **Encolar** (`IArcaVoucherService`) valida el receptor (CUIT con su dígito, DNI, o consumidor final sin identificar),
   el concepto, el período y el vencimiento del pago de un servicio, la fecha que ARCA acepta hoy y los renglones, y
   recalcula cada importe con half-even: un total distinto del pedido no se encola. La clase la decide el sistema con la

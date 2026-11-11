@@ -193,7 +193,8 @@ delegación», publicados el 2026-11-09:
   y la renovación forzada del ticket.
 - **De integración:** el ARCA simulado de la etapa 1 devuelve tokens con relaciones. Cubren el alta completa en modo
   delegación (pedido con la CUIT de la plataforma, certificado, prueba «sin delegar», la delegación que llega, la prueba en
-  verde y el punto de venta), la plataforma sin configurar, la revocación y el contrato HTTP.
+  verde y el punto de venta), la plataforma sin configurar, la revocación y el contrato HTTP. «Completar con ARCA» en
+  delegación, con un ticket que sólo representa a la plataforma, trae la persona y consulta con la CUIT de la plataforma.
 - **La prueba real** la hace el usuario en producción, con su clave fiscal y la de una empresa: el Administrador de
   Relaciones existe sólo en producción.
 
@@ -204,7 +205,9 @@ delegación», publicados el 2026-11-09:
    Hecho el 2026-11-09 (aec47d2d). Al programarlo se fijó que `ArcaServiceSessionIssuer.OpenAsync` abre para operar en
    nombre de la empresa (exige la relación de ese servicio) y que el alta con robot responde `Arca.Connection.ModeUnavailable`
    hasta la etapa 6. Verificado en una copia de 8cd1673f: build sin advertencias y `dotnet test` completo con Docker, 7475
-   de 7475.
+   de 7475. El 2026-11-11, a pedido de la coordinación, `OpenAsSignerAsync` abre en nombre de quien firma y «Completar con
+   ARCA» (el padrón de un tercero de la etapa 3) lo usa: en delegación consulta la plataforma con su CUIT, como dice DG4, y
+   también completa «Otro: escribir la CUIT» antes del «¿La emito?».
 3. **Front:** hecho el 2026-11-11 (front 5b07d49d y 55b7d5dd), adelantado a pedido de la coordinación de la tanda, que
    juntó todo para una sola prueba integral. El diseño quedó en el [diseño del front](../../../ArquitecturaBaseFront/docs/design/arca-delegacion.md), con lo que se fijó al programar: «Verificar la
    delegación» con el estilo de «Probar», la guía que no se tilda a medias, la delegación apagada con su motivo sin la
