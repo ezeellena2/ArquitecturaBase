@@ -434,3 +434,8 @@ Unitarias 4625/4625 e integración de las clases tocadas 45/45. Hasta la exporta
 del front, para que el test de contrato siga en verde con la captura de hoy (front 8bf31247). En ese mismo commit, el micrófono, el
 clip y la X habilitados pasan a verse grises, como la flecha, y se regeneraron sus 24 referencias. Después de la exportación se
 vuelve requerido `attachments` y entran los tests de las capturas nuevas.
+
+La revisión de premisas del 2026-11-11 dejó tres arreglos más:
+- el listado de chats lee el tipo del último mensaje en una sola subconsulta, y pasa de ocho a seis por contacto (d27b9543);
+- al elegir el archivo, el foco pasa a la X, y al quitarlo vuelve al clip (front 2bbd7a40);
+- en el celular, el clip, la X, el micrófono y la flecha se tocan en 44 px, sin cambiar el círculo dibujado (front 8d7299f8).
