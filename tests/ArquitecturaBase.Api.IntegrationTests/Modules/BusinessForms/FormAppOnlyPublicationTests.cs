@@ -11,14 +11,17 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 // SA1-A to SA5 (2026-11-09): a form completed only in the app publishes at once, without asking a channel, and the
 // channels do not offer it. What existed keeps its exact responses: the new values are omitted unless they are true.
+// Its intact bodies go to forms-http/app-only for the front; the check is not exported because it carries a ticket.
 public sealed partial class FormDraftEndpointsTests
 {
     [Fact]
     public async Task A_form_completed_only_in_the_app_publishes_at_once_and_the_channels_do_not_offer_it()
     {
         using var client = await OperatorAsync([BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage, BusinessFormsPermissions.Publish]);
+        client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("es");
         var form = Payload("App only " + Guid.NewGuid().ToString("N")[..10]); form["draft"]!["appOnly"] = true;
-        var saved = await CreateAsync(client, form);
+        using var created = await client.PostAsJsonAsync("/api/forms/definitions", form, Ct);
+        var saved = await CaptureContractAsync(created, HttpStatusCode.Created, "app-only", "created");
         var id = saved.GetProperty("definition").GetProperty("id").GetGuid();
         Assert.True(saved.GetProperty("definition").GetProperty("draft").GetProperty("appOnly").GetBoolean());
 
@@ -35,8 +38,7 @@ public sealed partial class FormDraftEndpointsTests
         var attempt = CheckPayload(saved); attempt["requestId"] = Guid.NewGuid().ToString();
         attempt["checkToken"] = checkedResult.GetProperty("checkToken").GetString();
         using var accepted = await client.PostAsJsonAsync($"/api/forms/definitions/{id}/publications", attempt, Ct);
-        Assert.Equal(HttpStatusCode.Accepted, accepted.StatusCode);
-        var receipt = await accepted.ReadJsonAsync();
+        var receipt = await CaptureContractAsync(accepted, HttpStatusCode.Accepted, "app-only", "accepted");
         Assert.Equal("Published", receipt.GetProperty("state").GetString());
         Assert.Equal(1, receipt.GetProperty("versionNumber").GetInt64());
         using var replay = await client.PostAsJsonAsync($"/api/forms/definitions/{id}/publications", attempt, Ct);
@@ -44,12 +46,12 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal(receipt.GetRawText(), (await replay.ReadJsonAsync()).GetRawText());
 
         using var status = await client.GetAsync(receipt.GetProperty("recoveryPath").GetString(), Ct);
-        var state = await status.ReadJsonAsync();
+        var state = await CaptureContractAsync(status, HttpStatusCode.OK, "app-only", "status-es");
         Assert.Equal("Published", state.GetProperty("state").GetString());
         Assert.Equal(["en", "es"], state.GetProperty("cultures").EnumerateArray().Select(value => value.GetString()!).Order().ToArray());
 
         using var detail = await client.GetAsync($"/api/forms/definitions/{id}", Ct);
-        var loaded = await detail.ReadJsonAsync();
+        var loaded = await CaptureContractAsync(detail, HttpStatusCode.OK, "app-only", "detail-es");
         var publication = loaded.GetProperty("publication");
         Assert.Equal("Published", publication.GetProperty("displayState").GetString());
         Assert.Equal(1, publication.GetProperty("activeVersion").GetProperty("versionNumber").GetInt64());
@@ -70,7 +72,7 @@ public sealed partial class FormDraftEndpointsTests
         Assert.False(operation.IsOpen);
 
         using var list = await client.GetAsync($"/api/forms/definitions?search={Uri.EscapeDataString(saved.GetProperty("definition").GetProperty("name").GetProperty("es").GetString()!)}", Ct);
-        var row = Assert.Single((await list.ReadJsonAsync()).GetProperty("items").EnumerateArray());
+        var row = Assert.Single((await CaptureContractAsync(list, HttpStatusCode.OK, "app-only", "list-es")).GetProperty("items").EnumerateArray());
         Assert.True(row.GetProperty("appOnly").GetBoolean());
 
         var offered = await factory.ExecuteScopeAsync(async services =>
