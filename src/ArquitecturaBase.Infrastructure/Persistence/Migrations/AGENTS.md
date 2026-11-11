@@ -28,6 +28,10 @@ AllowCatalogItemsWithoutSpanishText vuelve nullable `TextEs` de las opciones, si
 
 AddFormRecordRows agrega `Row` (de 0 a 99, default 0) a valores y referencias, con los índices únicos `RecordId, FieldId, Row, Position` y `RecordId, FieldId, Row, ItemId`, y `RejectedRow` nullable al recibo, que exige `RejectedFieldId`. No reescribe filas: lo guardado queda en el ítem 0. Down toma locks de respuestas, valores, referencias y recibos y rechaza, antes del DDL, una respuesta de una versión con bloque (aun sin ítems), un `Row` mayor que 0 o un `RejectedRow`; los bloques de borradores y versiones sin respuestas no lo frenan. FormRecordRowsMigrationTests prepara Up/Down/Up con historia conservada, los índices y CHECK reales, el lector de referencias y cada rechazo.
 
+AddExternalCatalogs suma el tipo `External` (un catálogo que mantiene un módulo, de sólo lectura) con las cuatro columnas nullable del feed (`FeedRefreshedAtUtc`, `FeedFailedAtUtc`, `FeedFailureCode` y `FeedLeaseUntilUtc`), que un CHECK deja sólo para `External`, y amplía los CHECK de filtros y de tipo de valor. No reescribe catálogos. Down toma el lock de la tabla y rechaza un catálogo `External` antes de cualquier DDL; FormExternalCatalogsMigrationTests prueba ese rechazo con las columnas intactas.
+
+DeferActiveRuleSetKey deja la clave de la definición a su conjunto de reglas activo como `DEFERRABLE INITIALLY DEFERRED` y `NO ACTION`, que EF no modela, y la saca del modelo: así «Agregar» desde la biblioteca guarda en un commit la definición y su primer conjunto activo, que se apuntan entre sí. Down vuelve a la clave inmediata con su índice. FormActiveRuleSetKeyMigrationTests prueba que se controla al confirmar, que conserva las filas y que vuelve a inmediata.
+
 AddWhatsAppPendingTapsIndex agrega sólo el índice filtrado `IX_WhatsAppMessages_PendingTaps` (toques entrantes sin atender, por `OccurredAtUtc`), con el que el procesador busca los toques de los avisos dentro de su ventana; no toca filas y su Down sólo lo quita.
 
 ## Referencias

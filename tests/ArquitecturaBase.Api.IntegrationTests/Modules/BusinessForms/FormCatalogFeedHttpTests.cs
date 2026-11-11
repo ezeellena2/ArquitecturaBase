@@ -53,6 +53,13 @@ public sealed partial class FormDraftEndpointsTests
             var failed = await FedCatalogAsync();
             Assert.Equal("test.unavailable", failed!.FeedFailureCode);
             Assert.Single(await FedItemsAsync(), item => item.IsActive);
+
+            // A text no option admits is not stored: the failure says why and the options stay as they were.
+            feed.Items = [TestCatalogFeed.Item("1", "Rojo oscuro"), TestCatalogFeed.Item("3", new string('a', BusinessFormCatalogItem.MaxTextLength + 1))];
+            factory.Clock.Advance(TimeSpan.FromMinutes(16));
+            await worker.ProcessDueAsync(Ct);
+            Assert.Equal(FormCatalogErrors.FeedTextTooLong.Code, (await FedCatalogAsync())!.FeedFailureCode);
+            Assert.Equal([("1", true), ("2", false)], (await FedItemsAsync()).Select(item => (item.Code, item.IsActive)));
         }
         finally
         {

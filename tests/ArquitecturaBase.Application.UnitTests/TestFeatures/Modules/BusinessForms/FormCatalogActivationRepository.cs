@@ -5,6 +5,8 @@ namespace ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessFo
 
 internal sealed class FormCatalogActivationRepository(BusinessFormCatalog catalog) : IFormCatalogRepository
 {
+    public Task LockKeyAsync(string key, CancellationToken cancellationToken) => Task.CompletedTask;
+    public Task<Guid?> FindIdByKeyAsync(string key, CancellationToken cancellationToken) => Task.FromResult<Guid?>(null);
     public Task LockAsync(Guid id, CancellationToken ct) => Task.CompletedTask;
     public Task<BusinessFormCatalog?> GetByProposalAsync(Guid id, CancellationToken ct) => Task.FromResult<BusinessFormCatalog?>(null);
     public Task<BusinessFormCatalog?> GetAsync(Guid id, CancellationToken ct) => Task.FromResult<BusinessFormCatalog?>(id == catalog.Id ? catalog : null);

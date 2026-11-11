@@ -21,7 +21,7 @@ internal sealed class ArcaStructuredCatalogFeed(ArcaServiceSessionIssuer access,
 
     public async Task<StructuredFeedReadResponse> ReadAsync(string catalogKey, CancellationToken cancellationToken)
     {
-        if (ArcaCatalogFeedPolicy.Table(catalogKey) is not { } table) return StructuredFeedReadResponse.Failed(ArcaConnectionErrors.NotConnected.Code);
+        if (ArcaCatalogFeedPolicy.Table(catalogKey) is not { } table) return StructuredFeedReadResponse.Failed(ArcaInvoicingErrors.CatalogUnknown.Code);
         var session = await access.OpenAsync(Wsfe, cancellationToken);
         if (session.IsFailure) return StructuredFeedReadResponse.Failed(session.Error.Code);
         var reply = await client.ListParametersAsync(session.Value.Certificate, session.Value.Ticket, table, cancellationToken);

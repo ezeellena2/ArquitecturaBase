@@ -170,6 +170,8 @@ internal sealed class FormCatalogImportFixture : IFormCatalogRepository, IFormCa
         WhileReadingFile?.Invoke();
         return CopySheet with { Sha256 = Sha256(content) };
     }
+    public Task LockKeyAsync(string key, CancellationToken cancellationToken) => Task.CompletedTask;
+    public Task<Guid?> FindIdByKeyAsync(string key, CancellationToken cancellationToken) => Task.FromResult<Guid?>(null);
     public Task LockAsync(Guid id, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();

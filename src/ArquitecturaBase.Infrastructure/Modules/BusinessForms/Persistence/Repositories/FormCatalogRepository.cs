@@ -11,6 +11,12 @@ internal sealed class FormCatalogRepository(ApplicationDbContext dbContext) : IF
     public Task LockAsync(Guid catalogId, CancellationToken cancellationToken) =>
         dbContext.AcquireAdvisoryLocksAsync([FormAdvisoryLockKeys.Catalog(catalogId)], cancellationToken);
 
+    public Task LockKeyAsync(string key, CancellationToken cancellationToken) =>
+        dbContext.AcquireAdvisoryLocksAsync([FormAdvisoryLockKeys.CatalogKey(key)], cancellationToken);
+
+    public Task<Guid?> FindIdByKeyAsync(string key, CancellationToken cancellationToken) =>
+        dbContext.Set<BusinessFormCatalog>().Where(catalog => catalog.Key == key).Select(catalog => (Guid?)catalog.Id).SingleOrDefaultAsync(cancellationToken);
+
     public Task<BusinessFormCatalog?> GetAsync(Guid id, CancellationToken cancellationToken) =>
         dbContext.Set<BusinessFormCatalog>().SingleOrDefaultAsync(value => value.Id == id, cancellationToken);
 

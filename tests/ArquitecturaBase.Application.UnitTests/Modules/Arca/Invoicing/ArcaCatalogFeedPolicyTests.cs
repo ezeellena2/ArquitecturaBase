@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.Arca.Channels.Invoicing;
 using ArquitecturaBase.Application.Modules.Arca.Models.Invoicing;
 
@@ -25,6 +26,16 @@ public sealed class ArcaCatalogFeedPolicyTests
             [Row("1", "IVA Responsable Inscripto", "A"), Row("1", "IVA Responsable Inscripto", "C"), Row("5", "Consumidor Final", "B")], Today);
 
         Assert.Equal([("1", "IVA Responsable Inscripto", "1"), ("5", "Consumidor Final", "5")], items.Select(item => (item.Code, item.Text["es"], item.Value!)));
+    }
+
+    [Fact]
+    public void A_description_longer_than_an_option_allows_is_cut_with_an_ellipsis()
+    {
+        var items = ArcaCatalogFeedPolicy.Items("arca.vat-conditions",
+            [Row("6", "Monotributo Trabajador Independiente Promovido"), Row("99", "Sin identificar venta global diaria x")], Today);
+
+        Assert.Equal(["Monotributo Trabajador Indepe…", "Sin identificar venta global…"], items.Select(item => item.Text["es"]));
+        Assert.All(items, item => Assert.True(item.Text["es"].Length <= StructuredFeedItem.MaxTextLength));
     }
 
     [Fact]

@@ -108,6 +108,8 @@ internal sealed class FormCatalogPreparationFixture : IFormRecordRepository, IFo
     public Task<BusinessFormCatalog?> GetByProposalAsync(Guid id, CancellationToken ct) => Task.FromResult<BusinessFormCatalog?>(null);
     public Task<BusinessFormCatalog?> GetAsync(Guid id, CancellationToken ct) => Task.FromResult(CatalogMissing ? null : Catalog);
     public Task<List<BusinessFormCatalogItem>> ListItemsAsync(Guid id, CancellationToken ct) => Task.FromResult(Items);
+    public Task LockKeyAsync(string key, CancellationToken cancellationToken) => Task.CompletedTask;
+    public Task<Guid?> FindIdByKeyAsync(string key, CancellationToken cancellationToken) => Task.FromResult<Guid?>(null);
     public Task LockAsync(Guid id, CancellationToken ct) { Locks.Add(id); return Task.CompletedTask; }
     public Task<FormCatalogFilterPreviewResponse> FindPreviewAsync(Guid id, FormCatalogFilterDefinition filters, CancellationToken ct)
     { PreviewRecipient = id; return Task.FromResult(Preview); }

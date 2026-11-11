@@ -1,15 +1,16 @@
-# Workers: publicación, acciones y purga de formularios
+# Workers: publicación, acciones, purga y catálogos de un módulo
 
 Hosts en segundo plano del módulo. Programan y abren scopes; la reserva, la decisión de estados y el guardado pertenecen a los servicios de Application, y el efecto externo a los canales neutrales.
 
 - `FormPublicationBackgroundService` (`BusinessForms:PublicationWorker:ProcessInBackground`): cada 2 s lista hasta 20 operaciones vencidas, reserva la primera disponible y la lleva por reserva → despacho a los canales (`IFormPublicationChannelDispatchService`) → completado. Una vuelta avanza una operación.
 - `FormActionBackgroundService` (`BusinessForms:ActionWorker:ProcessInBackground`): cada 2 s toma el lote de hasta 100 runs listos y los procesa todos, cada uno con reserva, efecto (`IFormActionEffectService`) y confirmación.
+- `FormCatalogFeedBackgroundService` (`BusinessForms:CatalogFeedWorker:ProcessInBackground`, cada `PollInterval`, 5 minutos): lista los catálogos `External` que tocan (`IFormCatalogFeedService`: sin leer, leídos hace más de un día o fallados hace más de 15 minutos) y, cada uno en su scope, reserva, lee el origen fuera de toda transacción y aplica. Leer no tiene efecto afuera: una falla de uno no frena a los demás y su motivo queda en el catálogo.
 - `FormDraftRetentionBackgroundService`: cada 15 minutos llama a `IFormDraftRetentionService`, que vence comprobantes de guardado en lotes de 100 con entidades seguidas; guardar un borrador también purga un lote.
 
 ## Al modificar
 
 - Cada paso usa un scope nuevo: ningún `DbContext`, lock ni transacción queda vivo durante el despacho o el efecto. El worker no arma snapshots ni pedidos de canal; recibe lo que devuelve la reserva.
-- La reserva toma el lock global de definiciones existente y fija lease y fence en la fila; sólo el dueño vigente completa. No agregues otro mecanismo de exclusión ni un lock nuevo.
+- La reserva de publicaciones y acciones toma el lock global de definiciones existente y fija lease y fence en la fila; sólo el dueño vigente completa. No agregues otro mecanismo de exclusión ni un lock nuevo. El feed reserva en el catálogo, con el lock de su clave y después el del catálogo.
 - Una falla técnica de un candidato se registra con el tipo de excepción y no saltea los siguientes; lo no confirmado queda para la recuperación durable, que lo inspecciona sin repetir un efecto incierto.
 - Los lotes salen ordenados por `NextCheckAtUtc` o `AcceptedAtUtc` con desempate estable. Un run es elegible sólo cuando terminó la acción anterior de su misma regla (Completed o NotApplicable); las dependencias no cruzan reglas.
 - Uncertain no se sondea ni se reserva solo: una consulta o reintento explícito de Application lo pasa a Running con el mismo RunId y recién ahí entra al lote. Un efecto conocido pendiente conserva su próxima consulta.

@@ -9,5 +9,7 @@ internal static class FormAdvisoryLockKeys
     public static readonly string Folders = "forms:folders";
     public static string Request(Guid actor, Guid requestId) => $"forms:request:{actor:N}:{requestId:N}";
     public static string Catalog(Guid catalogId) => $"forms:catalog:{catalogId:N}";
+    // A catalog a module feeds, by the key of its source: it serializes creating it, before the lock of the catalog.
+    public static string CatalogKey(string key) => $"forms:catalog-key:{key}";
     public static string Capture(Guid sourceReceiptId) => $"forms:capture:{sourceReceiptId:N}";
 }

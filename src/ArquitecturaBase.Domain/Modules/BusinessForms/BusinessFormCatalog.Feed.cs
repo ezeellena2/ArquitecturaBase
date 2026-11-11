@@ -39,6 +39,9 @@ public sealed partial class BusinessFormCatalog
         if (items.Any(item => string.IsNullOrWhiteSpace(item.Code) || string.IsNullOrWhiteSpace(item.TextEs) && string.IsNullOrWhiteSpace(item.TextEn))
             || items.DistinctBy(item => item.Code, StringComparer.OrdinalIgnoreCase).Count() != items.Count)
             return FormCatalogErrors.FeedInvalid;
+        // An option admits up to 30 characters: the app and WhatsApp would refuse a longer one in every question that uses it.
+        if (items.Any(item => item.TextEs?.Length > BusinessFormCatalogItem.MaxTextLength || item.TextEn?.Length > BusinessFormCatalogItem.MaxTextLength))
+            return FormCatalogErrors.FeedTextTooLong;
         var byCode = stored.ToDictionary(item => item.Code, StringComparer.OrdinalIgnoreCase);
         if (byCode.Count + items.Count(item => !byCode.ContainsKey(item.Code)) > MaxItems) return FormCatalogErrors.TooManyItems;
 

@@ -63,6 +63,18 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            // The previous schema cannot represent a catalog a module feeds. Abort before any destructive change.
+            migrationBuilder.Sql("""
+                LOCK TABLE "BusinessFormCatalogs" IN ACCESS EXCLUSIVE MODE;
+                DO $migration$
+                BEGIN
+                    IF EXISTS (SELECT 1 FROM "BusinessFormCatalogs" WHERE "Kind" = 'External') THEN
+                        RAISE EXCEPTION 'External catalogs cannot be represented by the previous schema.';
+                    END IF;
+                END;
+                $migration$;
+                """.ReplaceLineEndings("\n"));
+
             migrationBuilder.DropCheckConstraint(
                 name: "CK_BusinessFormCatalogs_Feed",
                 table: "BusinessFormCatalogs");

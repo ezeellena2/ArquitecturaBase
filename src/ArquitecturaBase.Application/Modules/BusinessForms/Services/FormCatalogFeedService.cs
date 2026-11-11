@@ -1,5 +1,3 @@
-using System.Security.Cryptography;
-using System.Text;
 using ArquitecturaBase.Application.Common.Logging;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Interfaces.Persistence;
@@ -15,9 +13,9 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 /// <summary>
 /// Reading a feed has no effect outside the system (ADR 0018): a short reservation keeps two hosts from asking at once, the
 /// source is read between two short transactions and a failure only records why. The first read that works creates the catalog
-/// under a lock of its key and files it in the folder the feed names.
+/// under the lock of its key and files it in the folder the feed names; once it exists, its own lock goes before reading it.
 /// </summary>
-internal sealed class FormCatalogFeedService(IEnumerable<IStructuredCatalogFeed> feeds, IFormCatalogRepository repository, IFormCatalogFeedRepository byKey, IFormCatalogFeedReader reader,
+internal sealed class FormCatalogFeedService(IEnumerable<IStructuredCatalogFeed> feeds, IFormCatalogRepository repository, IFormCatalogFeedReader reader,
     FormSystemFolderLinker folders, IUnitOfWork unitOfWork, TimeProvider timeProvider, ILogger<FormCatalogFeedService> logger) : IFormCatalogFeedService
 {
     public static readonly TimeSpan RefreshEvery = TimeSpan.FromDays(1);
@@ -66,8 +64,7 @@ internal sealed class FormCatalogFeedService(IEnumerable<IStructuredCatalogFeed>
     // installation that never connects the module has no empty catalogs. Two hosts reading at once is harmless.
     private async Task<Result<bool>> ReserveCoreAsync(string key, CancellationToken cancellationToken)
     {
-        await repository.LockAsync(KeyLock(key), cancellationToken);
-        var catalog = await byKey.GetByKeyAsync(key, cancellationToken);
+        var catalog = await LockedAsync(key, cancellationToken);
         if (catalog is null) return true;
         if (catalog.Kind != BusinessFormCatalogKind.External) return FormCatalogErrors.ReadOnly;
         return catalog.TryReserveFeed(timeProvider.GetUtcNow().UtcDateTime, Lease);
@@ -75,8 +72,7 @@ internal sealed class FormCatalogFeedService(IEnumerable<IStructuredCatalogFeed>
 
     private async Task<Result> ApplyCoreAsync(StructuredFeedCatalog declared, StructuredFeedReadResponse read, CancellationToken cancellationToken)
     {
-        await repository.LockAsync(KeyLock(declared.Key), cancellationToken);
-        var catalog = await byKey.GetByKeyAsync(declared.Key, cancellationToken);
+        var catalog = await LockedAsync(declared.Key, cancellationToken);
         var now = timeProvider.GetUtcNow().UtcDateTime;
         if (catalog is null)
         {
@@ -88,7 +84,6 @@ internal sealed class FormCatalogFeedService(IEnumerable<IStructuredCatalogFeed>
             if (filed.IsFailure) return filed.Error;
         }
         else if (catalog.Kind != BusinessFormCatalogKind.External) return FormCatalogErrors.ReadOnly;
-        else await repository.LockAsync(catalog.Id, cancellationToken);
         if (read.Items is not { } items)
         {
             catalog.RecordFeedFailure(read.FailureCode ?? FormCatalogErrors.FeedUnavailable.Code, now);
@@ -99,6 +94,15 @@ internal sealed class FormCatalogFeedService(IEnumerable<IStructuredCatalogFeed>
         if (applied.IsFailure) catalog.RecordFeedFailure(applied.Error.Code, now);
         else repository.AddItems(applied.Value);
         return Result.Success();
+    }
+
+    // The lock of the key serializes creating the catalog; once it exists, its lock goes before reading it, as in any other change.
+    private async Task<BusinessFormCatalog?> LockedAsync(string key, CancellationToken cancellationToken)
+    {
+        await repository.LockKeyAsync(key, cancellationToken);
+        if (await repository.FindIdByKeyAsync(key, cancellationToken) is not { } id) return null;
+        await repository.LockAsync(id, cancellationToken);
+        return await repository.GetAsync(id, cancellationToken);
     }
 
     private Dictionary<string, (IStructuredCatalogFeed Feed, StructuredFeedCatalog Catalog)> Declared()
@@ -114,6 +118,4 @@ internal sealed class FormCatalogFeedService(IEnumerable<IStructuredCatalogFeed>
     private static string? Text(StructuredFeedItem item, string culture) =>
         item.Text.TryGetValue(culture, out var text) && !string.IsNullOrWhiteSpace(text) ? text.Trim() : null;
 
-    // The catalog does not exist yet: its creation is serialized by a lock derived from its key.
-    private static Guid KeyLock(string key) => new(SHA256.HashData(Encoding.UTF8.GetBytes("feed:" + key)).AsSpan(0, 16));
 }

@@ -21,6 +21,7 @@ public sealed class ArcaStructuredCatalogFeedTests(ApiFactory factory) : IDispos
         factory.Services.GetRequiredService<FakeArca>().Reset();
 
         Assert.Equal("Arca.Connection.NotConnected", (await ReadAsync("arca.concepts")).FailureCode);
+        Assert.Equal("Arca.Invoicing.CatalogUnknown", (await ReadAsync("arca.unknown", feedOf: "arca.concepts")).FailureCode);
 
         await ArcaVoucherScenario.ConnectAsync(factory, authority);
         try
@@ -38,11 +39,12 @@ public sealed class ArcaStructuredCatalogFeedTests(ApiFactory factory) : IDispos
             await ArcaVoucherScenario.RemoveAsync(factory);
         }
 
-        async Task<Application.Models.StructuredData.StructuredFeedReadResponse> ReadAsync(string key)
+        // The feed that declares the key, or the one that declares feedOf when the key is one it does not keep.
+        async Task<Application.Models.StructuredData.StructuredFeedReadResponse> ReadAsync(string key, string? feedOf = null)
         {
             await using var scope = factory.Services.CreateAsyncScope();
             return await scope.ServiceProvider.GetServices<IStructuredCatalogFeed>()
-                .Single(feed => feed.Catalogs.Any(catalog => catalog.Key == key)).ReadAsync(key, ct);
+                .Single(feed => feed.Catalogs.Any(catalog => catalog.Key == (feedOf ?? key))).ReadAsync(key, ct);
         }
     }
 

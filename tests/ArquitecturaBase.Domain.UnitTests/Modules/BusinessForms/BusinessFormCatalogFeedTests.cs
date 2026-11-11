@@ -84,6 +84,19 @@ public sealed class BusinessFormCatalogFeedTests
         Assert.Equal(1L, catalog.Revision);
     }
 
+    [Fact]
+    public void A_text_longer_than_an_option_allows_is_refused_without_changes()
+    {
+        var catalog = Catalog();
+        var tooLong = new string('a', BusinessFormCatalogItem.MaxTextLength + 1);
+
+        Assert.Equal(FormCatalogErrors.FeedTextTooLong, catalog.ApplyFeed([], [Item("1", tooLong)], Now).Error);
+        Assert.Equal(FormCatalogErrors.FeedTextTooLong, catalog.ApplyFeed([], [new BusinessFormFeedItem("1", "A", tooLong, "1")], Now).Error);
+        Assert.Equal((1L, (DateTime?)null), (catalog.Revision, catalog.FeedRefreshedAtUtc));
+
+        Assert.True(catalog.ApplyFeed([], [Item("1", new string('a', BusinessFormCatalogItem.MaxTextLength))], Now).IsSuccess);
+    }
+
     private static BusinessFormCatalog Catalog() =>
         BusinessFormCatalog.CreateExternal("arca.concepts", "es", Names("Conceptos"), Names(""), BusinessFormCatalogValueType.Integer);
 
