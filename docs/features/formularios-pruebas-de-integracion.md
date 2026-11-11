@@ -137,6 +137,8 @@ WorkflowEndToEndHttpTests cubre captura/foto/catálogo, aprobación ajena y PDF 
 
 FormApprovalContinuationQueryTests verifica cursores, parámetros tipados, ventanas y lote acotado antes de metadata sin abrir conexión. FormApprovalContinuationHttpTests prepara ancla decidida, empates, posiciones, hasMore, extremos totalmente vacíos y roles/propias, más seis cuerpos es/en;
 
+- **El cupo de la vista previa de una emisión:** `FormIssuePreviewRateLimitTests` comprueba que `issue-preview` usa el cupo de lectura del módulo y no el de «Enviar».
+
 ## PDF
 
 FormPdfRendererTests también ejecuta FormPdfPreviewIssuer con Skia real: nombre alternativo ausente cae entero al original, muestra la foto de ejemplo y no abre archivos privados. Es una prueba técnica sin ApiFactory ni Docker; exporta el PDF para revisar su PNG con Poppler.

@@ -993,8 +993,9 @@ ARCA» ([ADR 0028](../decisions/0028-emision-de-comprobantes-arca.md)); sin emis
   emisor y reglas vigentes con `IssueDocument`), y `POST api/forms/entries/{id}/issue-preview` con `versionId` y las respuestas
   sin enviar (las del envío, sin archivos) pasa por la misma preparación que el envío y devuelve `document`, `receiver` y
   `total`, con `info` (el porqué del comprobante, la «(i)»), `date` y `amounts` (cada importe con su etiqueta por idioma), o
-  `failureCode` y `failureMessage` si no se puede emitir así. No guarda nada ni va al proveedor; un formulario que no
-  emite da `Forms.Entry.NoIssuance` (404).
+  `failureCode` y `failureMessage` si no se puede emitir así. No guarda nada ni va al proveedor, así que usa el cupo de lectura
+  del módulo: la app la pide también mientras se carga, para el total discriminado (IV1-A), y nunca le saca cupo a «Enviar». Un
+  formulario que no emite da `Forms.Entry.NoIssuance` (404).
 - **Corregir y anular (NC1-A).** Una respuesta con una emisión viva (emitida, en curso o en revisión) no se corrige:
   `Forms.Record.IssuedNotAmendable`, se anula y se carga otra. Anularla pide además el permiso del emisor y no la anula en el
   acto: cada emisión recibe un run de reversión (evento `Voided`) que el worker lleva fuera de toda transacción. Lo que nunca se
