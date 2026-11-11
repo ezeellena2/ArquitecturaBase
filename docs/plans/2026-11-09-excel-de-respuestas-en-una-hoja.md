@@ -1,7 +1,8 @@
 # El Excel de respuestas, en una sola hoja
 
-Fecha: **2026-11-09**. Estado: **XL1-A elegida por el usuario el mismo día y programada en el backend (tareas 1 a 6), con
-el tope de 100.000 filas que eligió al ver la medición; faltan el front (tarea 7) y la prueba a mano**.
+Fecha: **2026-11-09**. Estado: **XL1-A elegida por el usuario el mismo día y programada: el backend (tareas 1 a 6), con
+el tope de 100.000 filas que eligió al ver la medición, y «Filas» en el diálogo (tarea 7, front 1b9a9eda, 2026-11-11, con
+EX1-A); faltan la exportación conjunta de las capturas y la prueba a mano**.
 
 En la prueba integral, exportando «Remito de prueba» (RMP-20261109.xlsx, dos respuestas y cinco ítems), el usuario pidió
 que el Excel de «Exportar a Excel» quede en una sola hoja y bien diseñado. Los tableros están en el lienzo aparte
@@ -94,8 +95,7 @@ Cierre: `dotnet test` completo con Docker y el build sin advertencias; en el fro
 
 ## Lo que falta
 
-- **El front (tarea 7)**, con el diálogo (EX1-A) y la app quieta: «Filas» y su (i), que también dice el tope de
-  100.000 filas. Con el front quieto, volver a exportar las capturas de las cohortes: cambian las 13 `.xlsx` de
-  `src/test/fixtures/forms-responses-http/`, de `export.xlsx` a `rows-export-en.xlsx`.
+- **Las capturas:** cambian las 13 `.xlsx` de `src/test/fixtures/forms-responses-http/`, de `export.xlsx` a
+  `rows-export-en.xlsx`; las vuelve a exportar la coordinadora de la tanda del 2026-11-11, en la exportación conjunta.
 - **La prueba a mano:** exportar «Remito de prueba» y abrirlo en Excel, con el filtro de un ítem y una tabla dinámica.
 - Si UD4 saca «(desde vN)» del encabezado de la planilla, el Excel lo conserva igual.
