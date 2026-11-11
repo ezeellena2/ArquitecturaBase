@@ -172,8 +172,8 @@ formularios «Emitir comprobante»; el estándar «Factura» y la anulación con
 ## Delegación guiada (etapa 5)
 
 La empresa delega sus servicios en la CUIT de la plataforma, que firma con su certificado y opera en su nombre. Está
-programado el backend; la pantalla espera el fin de la prueba integral, con los tableros elegidos (DG1-A y DG2-A) en el
-[plan](../plans/2026-11-09-arca-etapa-5-delegacion-guiada.md).
+programada: el backend el 2026-11-09 y la pantalla el 2026-11-11, con los tableros elegidos (DG1-A y DG2-A) registrados en
+el [diseño del front](../../../ArquitecturaBaseFront/docs/design/arca-delegacion.md); el [plan](../plans/2026-11-09-arca-etapa-5-delegacion-guiada.md) tiene las fuentes oficiales de ARCA.
 
 - **La plataforma es configuración de la instalación:** `Arca:Platform:Cuit` y `Arca:Platform:Name` (el nombre de la guía),
   las dos o ninguna. Sin ellas, el alta en delegación da `Arca.Connection.PlatformNotConfigured`.
@@ -246,4 +246,3 @@ operación está en [correr y mantener el robot](../guides/robot-arca.md).
 - **La delegación de verdad:** en homologación, con una autorización de WSASS con «CUIT representado»; en producción, con
   la clave fiscal de la plataforma y la de una empresa. Confirma el formato del token y que un ticket nuevo traiga la CUIT
   después de aceptar.
-- **La pantalla del modo delegación,** después de la prueba integral.

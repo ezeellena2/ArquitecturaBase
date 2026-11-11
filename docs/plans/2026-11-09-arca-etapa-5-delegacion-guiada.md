@@ -2,7 +2,9 @@
 
 Plan del 2026-11-09, decidido el mismo día (DG1-A, DG2-A y la constancia sin delegar). El backend quedó programado el mismo
 día (aec47d2d): la regla está en [ARCA](../features/arca.md#delegación-guiada-etapa-5) y los pasos en ARCA, en
-[configurar ARCA](../guides/configurar-arca.md#conectar-por-delegación). Falta el front, después de la prueba integral. Es la etapa 5 de la [hoja de ruta de ARCA](2026-10-31-arca-formularios-estandar.md)
+[configurar ARCA](../guides/configurar-arca.md#conectar-por-delegación). El front quedó programado el 2026-11-11 (front 5b07d49d y
+55b7d5dd), con el [diseño del front](../../../ArquitecturaBaseFront/docs/design/arca-delegacion.md). Faltan la prueba a mano y la real, en la prueba integral, y después el cierre. Es la etapa 5 de
+la [hoja de ruta de ARCA](2026-10-31-arca-formularios-estandar.md)
 y el modo 2 de acceso: la empresa no genera un certificado propio, sino que delega sus web services en la CUIT de la
 plataforma, que firma con su certificado y opera en nombre de la empresa. Sólo depende de la etapa 1
 ([regla](../features/arca.md)), cuyo modelo de conexión ya contempla los tres modos y sólo programó el certificado de la
@@ -203,7 +205,13 @@ delegación», publicados el 2026-11-09:
    nombre de la empresa (exige la relación de ese servicio) y que el alta con robot responde `Arca.Connection.ModeUnavailable`
    hasta la etapa 6. Verificado en una copia de 8cd1673f: build sin advertencias y `dotnet test` completo con Docker, 7475
    de 7475.
-3. **Front,** cuando el usuario termine la prueba integral: el diseño elegido en `docs/design` del front y la pantalla.
+3. **Front:** hecho el 2026-11-11 (front 5b07d49d y 55b7d5dd), adelantado a pedido de la coordinación de la tanda, que
+   juntó todo para una sola prueba integral. El diseño quedó en el [diseño del front](../../../ArquitecturaBaseFront/docs/design/arca-delegacion.md), con lo que se fijó al programar: «Verificar la
+   delegación» con el estilo de «Probar», la guía que no se tilda a medias, la delegación apagada con su motivo sin la
+   plataforma, renovar con el mismo alias y el aviso de revocada desde la prueba de la visita. `DelegationGuide` recibe
+   `startAt`, `done` y `doneLabel` para el robot de la etapa 6 (RB3-A), y `SegmentedControl` suma `disabledReason` por
+   opción. Verificado: tipos, lint, los tests de ARCA y del segmentado, y las capturas `arca-delegation-*` (más
+   `arca-empty-*` y `arca-active-en-320`) regeneradas desde una copia.
 4. **Cierre:** la verificación de `AGENTS.md`, `features/arca.md` y `configurar-arca.md` al día, la fila de la etapa 5 en
    la hoja de ruta, la auditoría que retira este plan y el traspaso al multitenant. El usuario eligió el 2026-11-09 escribir
    el traspaso uno solo, al cerrar el front, con el backend, la pantalla y las decisiones.

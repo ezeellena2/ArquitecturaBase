@@ -90,8 +90,7 @@ producción es desconectar y empezar de nuevo, con otro certificado y otro punto
 
 La empresa no genera un certificado propio: delega sus servicios en la CUIT de la plataforma, que firma con un certificado
 suyo generado en esta instalación. Hacen falta dos personas con dos claves fiscales: alguien de la empresa y alguien de la
-plataforma. El backend está programado; la pantalla llega después de la prueba integral, con el diseño DG1-A y DG2-A del
-[plan](../plans/2026-11-09-arca-etapa-5-delegacion-guiada.md). Los pasos en ARCA, confirmados con sus guías oficiales, son
+plataforma. La pantalla sigue el diseño DG1-A y DG2-A del [plan](../plans/2026-11-09-arca-etapa-5-delegacion-guiada.md). Los pasos en ARCA, confirmados con sus guías oficiales, son
 estos.
 
 1. **Datos.** «Cómo se conecta: Delegación en <plataforma>», la CUIT de la empresa, el ambiente, el alias y los servicios.
