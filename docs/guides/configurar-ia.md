@@ -344,6 +344,28 @@ El `2026-11-09` se sumó el dictado por WhatsApp: `ia1_channel_dictation_2026110
 
 El alcance sigue siendo `fixture-facts-checked-in-memory; style/free-text-not-exhaustively-assessed`.
 
+El `2026-11-11` se calificó la Etapa 2, planillas, de [la IA arma formularios](../features/formularios.md#la-ia-arma-formularios-y-catálogos--etapa-1-2026-11-04). Se usaron la misma conexión guardada, `gpt-6.1-sol` y el perfil de texto `gpt-6.1-sol-candidate-1@1`, desde una copia limpia de `51db5a59`. Desde ese commit, Inicio y el asistente automático ofrecen `forms.authoring.propose-catalog@2` y `forms.authoring.propose-import@1`; la segunda, sólo en un turno con planilla. Fueron tres corridas, cada una con su base vacía:
+
+| Corrida | Resultado |
+| --- | --- |
+| `ia2_spreadsheets_20261111_02` (`ia-spreadsheets`) | 30/30 casos con planillas (18 de Inicio y 12 del automático) y 4/4 normalizaciones (2 WebM y 2 Ogg); 892/892 checks. |
+| `ia2_authoring_20261111_01` (`ia-authoring`) | 48/48 casos (24 de Inicio y 24 del automático, incluidos los dos dictados por WhatsApp) y 6/6 normalizaciones; 1038/1038 checks. |
+| `ia2_channel_stage5_20261111_01` (`channel-stage5`) | 30/30 casos del canal, incluidas las seis inyecciones; 434/434 checks. |
+
+Entre las tres sumaron 365 pasos de proveedor, 247 invocaciones de herramientas, 942.240 tokens de entrada y 20.953 de salida. Las STT de Inicio informaron 64 segundos de audio y ningún token. Los máximos fueron:
+- contexto: 23.709 bytes, con la planilla preparada en el mensaje;
+- continuación: 10.839 bytes;
+- herramientas: 5.266 bytes;
+- por caso: cuatro pasos y tres invocaciones.
+
+La mediana local por caso fue de 10,29 s en `ia-spreadsheets`, 10,23 s en `ia-authoring` y 11,21 s en `channel-stage5`. El caso más largo tardó 19,66 s, así que ningún paso llegó a los 30 s del proveedor. Pasaron los cuatro puntos a mirar:
+- OpenAI aceptó en modo estricto el mapeo en null de un catálogo sin planilla;
+- el contexto con la planilla entró holgado;
+- en Inicio, una planilla sin texto pregunta qué hacer;
+- un pedido que no dice qué hacer con la planilla da `unclear`.
+
+`home-existing`, `audio-es-en` y `stage5-all` no se repitieron, porque sus capacidades, esquemas e instrucciones no cambiaron. El primer intento (`ia2_spreadsheets_20261111_01`) se cortó al sembrar el catálogo de importar, antes de llamar al proveedor, por una falla del arnés corregida en `51db5a59`, y no cuenta. El alcance sigue siendo `fixture-facts-checked-in-memory; style/free-text-not-exhaustively-assessed`.
+
 Para otra calificación, ejecutá el [arnés](../../harnesses/assistant-qualification/README.md)
 con fixtures ficticios y presupuesto controlado. Detenelo ante el primer check fallido. Conservá
 la base, ledger, archivos privados y key ring DPAPI propio del run: `--resume` consulta Get

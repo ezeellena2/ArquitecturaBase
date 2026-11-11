@@ -390,6 +390,16 @@ campo nuevo no puede nacer obligatorio. El arnés lo crea con sus campos opciona
 siembra fallida imprime su código de error y las rutas de los campos (51db5a59). La corrida se relanzó desde 51db5a59, con
 `ia2_spreadsheets_20261111_02`.
 
+2026-11-11: la corrida real quedó en verde entre las 12:36 y las 13:06:
+- `ia-spreadsheets`: 30/30 casos, 4/4 normalizaciones y 892/892 checks;
+- `ia-authoring`: 48/48, 6/6 y 1038/1038;
+- `channel-stage5`: 30/30 y 434/434.
+
+Entre las tres: 942.240 tokens de entrada y 20.953 de salida. El contexto máximo fue de 23.709 bytes, con la planilla, y el caso
+más largo, de 19,66 s. Pasaron los cuatro puntos a mirar. La evidencia está en
+[configurar IA](../guides/configurar-ia.md#evidencia-para-habilitar-perfiles). Las bases de las tres corridas verdes quedan hasta
+cerrar la etapa.
+
 2026-11-11: tarea 8 hecha.
 - **Backend:** el inventario de cohortes pasa a `formularios-pruebas-de-integracion.md`, y la guía de pruebas de BusinessForms
   vuelve a entrar en el tope (007e4489). El bootstrap dice `attachments` por persona, con `AiAssistantBootstrapPolicy` (d99a9b63).
