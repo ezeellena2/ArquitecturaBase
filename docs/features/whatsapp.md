@@ -190,19 +190,25 @@ Un Flow no puede pedir la ubicación, así que la pregunta «Ubicación» de un 
   «Seguir sin ubicación» que no resolvieron un envío: cada ubicación completa el envío más viejo que la espera y que ya existía
   cuando se mandó; un toque, el envío que nombra (`FLOW_LOCATION_SKIP:<sesión>`), sólo si su pregunta es opcional. Vale lo
   primero que llega; lo demás queda como un mensaje del chat. Un texto no contesta nada y el pedido sigue abierto.
-- **El Flow.** Al resolverse, el envío encola en la misma unidad de trabajo el Flow de siempre, con el cuerpo guardado y el
-  operador que mandó el formulario. El Flow no lleva la pregunta: como un cálculo, la ubicación queda en el mapeo sellado sin
+- **El Flow.** Al resolverse, el envío encola en la misma unidad de trabajo el Flow de siempre, con el cuerpo guardado, y
+  continúa el pedido que lo abrió: sale del mismo remitente y con su sello (el operador, o el asistente con el vínculo, el
+  número y la revisión del modo que selló). Si alguien tomó la conversación, la reserva frena el formulario del asistente como
+  a cualquier mensaje suyo. El Flow no lleva la pregunta: como un cálculo, la ubicación queda en el mapeo sellado sin
   control ni clave en el `complete` (el perfil sigue en r13), y una respuesta que trajera su clave queda Rejected.
-- **La respuesta.** Al llegar el Flow, la captura toma el punto del envío como la respuesta de la pregunta, sin precisión porque
+- **La respuesta.** Al llegar el Flow, la captura toma el punto del envío como la respuesta de la pregunta (`AddSendAnswers`,
+  el único paso donde el envío suma lo que guarda a lo que mandó la persona), sin precisión porque
   WhatsApp no la da, y guarda todo junto. Si la persona siguió sin la ubicación, la pregunta queda vacía.
 - **El vencimiento.** Un envío que no recibe la ubicación vence a las `FlowSessionLifetimeHours` como cualquier otro, sin
   guardar nada; una ubicación que llega después es un mensaje más.
 - **El chat del operador.** El pedido se ve con su texto y una tarjeta con el pin, «Pedido de ubicación» y el formulario, con su
   estado (`form.location`: `Requested` con `expiresAtUtc`, `Received` o `Skipped`); el front muestra «Venció sin la
   ubicación» cuando el pedido sigue en `Requested` después del vencimiento. La ubicación que llega trae su punto (`location`).
+  «Por qué lo mandó» (o «Por qué lo sugirió») del asistente va una sola vez, con lo que se mandó al decidir: el pedido, o el
+  Flow de un envío sin pedido; la respuesta lo conserva, y la ubicación, el toque y el Flow que sigue al pedido no lo repiten.
 - **Lo que no hace.** El asistente no ofrece, ni sugiere ni aclara un formulario con una pregunta de ubicación en esta etapa
-  (`FormAssistantCandidatePolicy`): su envío tiene un ciclo propio que no puede esperar la ubicación. Un formulario pide una
-  sola ubicación por WhatsApp.
+  (`FormAssistantCandidatePolicy`). El usuario pidió el 2026-11-11 que también lo haga: el alcance y los tableros están en el
+  [plan](../plans/2026-10-22-documentos-por-whatsapp.md#la-pregunta-ubicación). Un formulario pide una sola ubicación por
+  WhatsApp.
 
 ## Piloto de formularios
 
