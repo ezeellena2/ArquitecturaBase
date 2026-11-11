@@ -30,4 +30,8 @@ public sealed record ArcaVoucherRow(
     long? PdfSize,
     string PayloadJson,
     string? MessagesJson,
-    int Failures);
+    int Failures)
+{
+    // The order has the receiver's document, name and address, and ARCA's messages may repeat them.
+    public override string ToString() => "ArcaVoucherRow { Content = [REDACTED] }";
+}
