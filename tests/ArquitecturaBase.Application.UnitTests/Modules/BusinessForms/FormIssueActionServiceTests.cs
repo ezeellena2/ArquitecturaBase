@@ -104,7 +104,7 @@ public sealed class FormIssueActionServiceTests
 
         await service.ExecuteAsync(work with { RecordEnteredInApp = false }, CancellationToken.None);
 
-        Assert.Equal("Invoice A for Agro SA, $ 1,210.00, dated 11/09/2026.\nTaxed net amount: $ 1,000.00\nVAT 21%: $ 210.00\nShall I issue it?", Assert.Single(channel.Messages).Body);
+        Assert.Equal("Invoice A for Agro SA, $ 1,210.00 (Taxed net amount: $ 1,000.00; VAT 21%: $ 210.00), dated 11/09/2026.\nShall I issue it?", Assert.Single(channel.Messages).Body);
     }
 
     [Fact]

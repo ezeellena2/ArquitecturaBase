@@ -12,17 +12,19 @@ internal static class FormIssueConfirmationPolicy
 {
     public const string Issue = "issue", Skip = "skip";
 
-    // As the board EM2-A: the document, the receiver, the total and the date (dd/MM/yyyy, MM/dd/yyyy in English); the amounts the
-    // document itemizes (the net and each tax of an invoice A, the VAT an invoice B contains), one per line; and the question last.
+    // As the boards EM2-A and IV3: the document, the receiver, the total with the amounts the document itemizes between
+    // parentheses (the net and each tax of an invoice A, the VAT an invoice B contains), the date (dd/MM/yyyy, MM/dd/yyyy in
+    // English) and the question last.
     public static string Body(StructuredIssuePreview preview, string culture)
     {
         var document = preview.Document?.GetValueOrDefault(culture) ?? preview.Document?.Values.FirstOrDefault() ?? "";
         var date = DateOnly.TryParseExact(preview.Date, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var day)
             ? day.ToString(culture == "en" ? "MM/dd/yyyy" : "dd/MM/yyyy", CultureInfo.InvariantCulture) : null;
+        var amounts = (preview.Amounts ?? []).Select(item => (item.Label.GetValueOrDefault(culture) ?? item.Label.Values.First()) + ": $ " + Money(item.Value, culture)).ToArray();
+        var total = Money(preview.Total, culture) + (amounts.Length == 0 ? "" : " (" + string.Join("; ", amounts) + ")");
         var summary = string.Format(CultureInfo.GetCultureInfo(culture), FormResponseTexts.Get(date is null ? "Issue.Confirm.Body" : "Issue.Confirm.BodyDated", culture),
-            document, preview.Receiver ?? "", Money(preview.Total, culture), date);
-        var amounts = (preview.Amounts ?? []).Select(item => "\n" + (item.Label.GetValueOrDefault(culture) ?? item.Label.Values.First()) + ": $ " + Money(item.Value, culture));
-        return summary + string.Concat(amounts) + "\n" + FormResponseTexts.Get("Issue.Confirm.Question", culture);
+            document, preview.Receiver ?? "", total, date);
+        return summary + "\n" + FormResponseTexts.Get("Issue.Confirm.Question", culture);
     }
 
     private static string Money(string? value, string culture) =>
