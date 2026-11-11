@@ -33,7 +33,7 @@ public sealed class WhatsAppSpreadsheetPostgresTests(ApiFactory factory)
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]
-    public async Task A_spreadsheet_from_the_webhook_is_downloaded_prepared_and_copied_and_the_chat_still_shows_it_as_media()
+    public async Task A_spreadsheet_from_the_webhook_is_downloaded_prepared_and_copied_and_the_chat_shows_it_with_its_name_and_caption()
     {
         var probe = new WhatsAppDocumentProbe { Bytes = Csv };
         await using var host = await CreateAsync(probe);
@@ -62,19 +62,22 @@ public sealed class WhatsAppSpreadsheetPostgresTests(ApiFactory factory)
         Assert.Equal((message.Id, (Guid?)message.Id), (reference.SourceMessageId, reference.AttachmentMessageId));
         Assert.Equal($"whatsapp/documents/{message.Id:N}.csv", Assert.Single(host.Operations.SubmitRequests).Attachment!.StorageKey);
 
-        // The chat of today keeps showing it as the media it was, without its caption or its name, also in the inbox.
+        // The chat shows it with its name and its caption (Task 8 of the stage). The inbox keeps a generic label, in the menu
+        // language (WhatsAppChatTests.Spreadsheet), never the name or the caption.
         using var client = host.Client(host.FirstOperator);
         using var threadResponse = await client.GetAsync($"/api/whatsapp/chats/{person.ContactId}/messages", Ct);
         Assert.Equal(HttpStatusCode.OK, threadResponse.StatusCode);
         var thread = await threadResponse.ReadJsonAsync();
         var shown = thread.GetProperty("messages").EnumerateArray().Single(item => item.GetProperty("id").GetGuid() == message.Id);
-        Assert.Equal(("Media", JsonValueKind.Null), (shown.GetProperty("kind").GetString(), shown.GetProperty("body").ValueKind));
-        Assert.DoesNotContain("clientes", thread.GetRawText(), StringComparison.Ordinal);
-        Assert.DoesNotContain("Armame", thread.GetRawText(), StringComparison.Ordinal);
+        Assert.Equal(("Spreadsheet", "Armame un catálogo con esta planilla", "clientes.csv"),
+            (shown.GetProperty("kind").GetString(), shown.GetProperty("body").GetString(), shown.GetProperty("spreadsheetName").GetString()));
         using var listResponse = await client.GetAsync("/api/whatsapp/chats?pageSize=100", Ct);
         var chat = (await listResponse.ReadJsonAsync()).GetProperty("page").GetProperty("items").EnumerateArray()
             .Single(item => item.GetProperty("id").GetGuid() == person.ContactId);
-        Assert.Equal(JsonValueKind.Null, chat.GetProperty("preview").ValueKind);
+        var preview = chat.GetProperty("preview").GetString();
+        Assert.False(string.IsNullOrWhiteSpace(preview));
+        Assert.DoesNotContain("clientes", preview, StringComparison.Ordinal);
+        Assert.DoesNotContain("Armame", preview, StringComparison.Ordinal);
     }
 
     [Fact]
