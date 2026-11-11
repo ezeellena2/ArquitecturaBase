@@ -211,8 +211,13 @@ integral.
    y `pricesIncludeVat` del formulario («true»), las claves acordadas con la etapa 3. Falta que el estándar (tarea 11 de la
    etapa 3) ate la pregunta «Alícuota» y saque `pricesIncludeVat` de la casilla de «Precio unitario» (IV2-A), y que el
    catálogo «Alícuotas de IVA» sume Exento y No gravado (tarea 8 de la etapa 3).
-7. **Front,** después de la prueba integral: primero registrar IV1-A, IV2-A e IV3 en `docs/design` del front, después la
-   columna «Alícuota», el total discriminado, la casilla del editor y el «¿La emito?» con IVA.
+7. **Front.** El 2026-11-11 el coordinador de la tanda pidió terminarlo ya (la prueba integral se hace al final, una sola) y
+   la etapa 4 tomó también el front de la tarea 14 de la etapa 3 (EM1-A, EM2-A, NC1-A y CA1), porque son las mismas pantallas.
+   Hecho: IV1-A, IV2-A e IV3 registrados en el front (`docs/design/arca-factura-a-y-b.md`, ba5e2fb0); la acción «Emitir
+   comprobante» en el editor de reglas, con sus límites y los datos de su resultado en «Agregar dato» (front c34630f6). Falta,
+   a medida que la etapa 3 deja cada contrato: la zona «Comprobante» con su estado, el PDF fiscal y la revisión; «Completar
+   con ARCA»; el «¿La emito?» con IVA y el total discriminado (con la vista previa del emisor); «Anulándose»; y la casilla
+   «El precio incluye IVA» del editor.
 8. **Prueba en homologación de A y B** con la CUIT del usuario, que la corre con su clave fiscal.
 9. **Cierre:** la verificación de `AGENTS.md`, `docs/features/arca.md`, la fila de la etapa 4 en la hoja de ruta, el retiro
    de este plan con la auditoría y el traspaso al multitenant ofrecido.
