@@ -128,7 +128,9 @@ revisión esperada y responden 409 con `Arca.Connection.RevisionConflict` si cam
 La cola del [ADR 0028](../decisions/0028-emision-de-comprobantes-arca.md) está programada y la pide la acción de
 formularios «Emitir comprobante», con el estándar «Factura» y la anulación con nota de crédito; lo que falta sigue en el
 [plan](../plans/2026-11-09-arca-etapa-3-factura-c.md). La A y la B siguen el
-[plan de la etapa 4](../plans/2026-11-09-arca-etapa-4-factura-a-y-b.md).
+[plan de la etapa 4](../plans/2026-11-09-arca-etapa-4-factura-a-y-b.md), programada en backend y front (2026-11-11); faltan
+la prueba integral y la de homologación. Lo que se ve en la app y en WhatsApp está en el
+[diseño del front](../../../ArquitecturaBaseFront/docs/design/arca-factura-a-y-b.md).
 
 - **Las tablas como catálogos** (`ArcaStructuredCatalogFeed`): condición frente al IVA, tipos de documento, conceptos (con el
   código como valor), monedas y alícuotas de IVA (con el porcentaje como valor, más «Exento» y «No gravado», códigos `exempt` y

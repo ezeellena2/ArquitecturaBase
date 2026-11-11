@@ -1,6 +1,7 @@
 # ARCA · Etapa 4: factura A y B
 
-Diseño del 2026-11-09, **decidido el mismo día y sin programar** (decisiones abajo). Es la etapa 4 de la
+Diseño del 2026-11-09, decidido el mismo día (decisiones abajo). **Backend y front programados** el 2026-11-09 y el
+2026-11-11; faltan la prueba integral, la prueba en homologación y el cierre (tareas 8 y 9). Es la etapa 4 de la
 [hoja de ruta de ARCA](2026-10-31-arca-formularios-estandar.md): la factura A y B y sus notas de crédito, con el IVA por
 alícuota, la condición frente al IVA del receptor, el apartado de la RG 5614 y la prueba en homologación con la CUIT del
 usuario, que reemplaza al piloto en producción (decisión 3).
@@ -14,8 +15,8 @@ el estándar «Factura» y la anulación con nota de crédito. El reparto quedó
 **Tableros:** IV1-A e IV1-B, IV2-A e IV2-B e IV3, en el lienzo provisorio
 [Formularios desde la app](https://claude.ai/artifact/Kvbr5KFJrGT951JLiu8i4M), en las filas «ARCA · factura A y B»,
 debajo de las de la etapa 3. Sólo dibujan lo que cambia respecto de la C en la app y en WhatsApp; el usuario eligió IV1-A
-e IV2-A (decisiones 4 y 5). El PDF se revisó con muestras reales (tarea 5). El diseño elegido se registra en
-`docs/design` del front con la tarea 7, cuando el front se pueda tocar.
+e IV2-A (decisiones 4 y 5). El PDF se revisó con muestras reales (tarea 5). El diseño elegido está en el front, en
+`docs/design/arca-factura-a-y-b.md`.
 
 ## Normas confirmadas (2026-11-09)
 
@@ -185,8 +186,7 @@ WhatsApp, la pantalla de cada ítem suma «Alícuota» y el resumen de EM2-A, el
 
 ## Tareas
 
-Lo puro va ya; lo demás espera a que la etapa 3 commitee lo suyo. El front espera a que el usuario termine la prueba
-integral.
+Del 1 al 7, programadas; el 8 y el 9 van después de la prueba integral, que se hace una sola vez al final de la tanda.
 
 1. **Plan, normas, decisiones y tableros IV.** Hechos el 2026-11-09.
 2. **El desglose del IVA por alícuota** con TDD, en Domain, según las decisiones 1 y 2. **Hecho el 2026-11-09**
@@ -208,16 +208,30 @@ integral.
    una B a consumidor final); el diseño fijo es el de la etapa 3 y el contenido lo fija la norma.
 6. *(con las etapas 2 y 3)* **La alícuota en el estándar «Factura»** y «Los precios incluyen IVA». **El emisor ya los lee**
    (2026-11-09): `ArcaInvoiceOrderPolicy` toma `vatRate` de cada ítem (el código de ARCA como texto, «exempt» o «not-taxed»)
-   y `pricesIncludeVat` del formulario («true»), las claves acordadas con la etapa 3. Falta que el estándar (tarea 11 de la
-   etapa 3) ate la pregunta «Alícuota» y saque `pricesIncludeVat` de la casilla de «Precio unitario» (IV2-A), y que el
-   catálogo «Alícuotas de IVA» sume Exento y No gravado (tarea 8 de la etapa 3).
+   y `pricesIncludeVat` del formulario («true»), las claves acordadas con la etapa 3. **Hecho el 2026-11-11:** el estándar
+   ata «Alícuota» (etapa 3, 2315d5ba) sobre «Alícuotas de IVA» con Exento y No gravado (tarea 8 de la etapa 3); la
+   casilla «El precio incluye IVA» de «Precio unitario» y la «Alícuota» que empieza en 21 % son genéricas del motor (el
+   estándar declara `toggles` y la opción con que empieza, 8fb5a9a0), y un ítem sin alícuota va al 21 % (bcdeaf9e). La (i)
+   de «Precio unitario» en la carga dice «Sin IVA» o «Con IVA» con lo que declara la casilla (`whenOff` y `whenOn`).
 7. **Front.** El 2026-11-11 el coordinador de la tanda pidió terminarlo ya (la prueba integral se hace al final, una sola) y
    la etapa 4 tomó también el front de la tarea 14 de la etapa 3 (EM1-A, EM2-A, NC1-A y CA1), porque son las mismas pantallas.
-   Hecho: IV1-A, IV2-A e IV3 registrados en el front (`docs/design/arca-factura-a-y-b.md`, ba5e2fb0); la acción «Emitir
-   comprobante» en el editor de reglas, con sus límites y los datos de su resultado en «Agregar dato» (front c34630f6). Falta,
-   a medida que la etapa 3 deja cada contrato: la zona «Comprobante» con su estado, el PDF fiscal y la revisión; «Completar
-   con ARCA»; el «¿La emito?» con IVA y el total discriminado (con la vista previa del emisor); «Anulándose»; y la casilla
-   «El precio incluye IVA» del editor.
+   **Hecho el 2026-11-11**, con el diseño en el front (`docs/design/arca-factura-a-y-b.md`, ba5e2fb0):
+   - la acción «Emitir comprobante» en el editor de reglas, con sus límites y los datos de su resultado en «Agregar dato»
+     (front c34630f6);
+   - el «¿La emito?» de la app con IVA (EM2-A con IV3) y el total discriminado de IV1-A mientras se carga, los dos con la
+     vista previa del emisor (front 18e31307; la vista previa usa el cupo de lectura, ae1a6f23);
+   - la casilla «El precio incluye IVA» en el editor y la «Alícuota» en 21 % en cada ítem nuevo (front 43397c5d);
+   - la zona «Comprobante» del detalle (EM1-A): estado, número, CAE, «PDF fiscal», la revisión de una emisión y «Esperando
+     que lo confirmes» con «Emitir» y «No emitir»; «Anular con nota de crédito» y «Anulándose» (NC1-A) (front 0815da57);
+   - los catálogos de sólo lectura con «Actualizado por ARCA» y su falla, y «Completar con ARCA» en el modal de una opción de
+     «Clientes» (CA1) (front 9da76575);
+   - la (i) de «Precio unitario» en la carga, «Sin IVA» o «Con IVA» según la casilla (backend f089f494, front 9fb8a70f).
+
+   - «Mandar copia por correo» (`SendCopy`, backend de la etapa 3 en 81ccfaae) en el editor de reglas y la actividad
+     (front e7b7476c);
+   - el «¿La emito?» de WhatsApp con los importes que discrimina entre paréntesis, como pide IV3 (backend 7f4b2a97).
+
+   Queda para la prueba integral lo que necesita ARCA real o la app levantada.
 8. **Prueba en homologación de A y B** con la CUIT del usuario, que la corre con su clave fiscal.
 9. **Cierre:** la verificación de `AGENTS.md`, `docs/features/arca.md`, la fila de la etapa 4 en la hoja de ruta, el retiro
    de este plan con la auditoría y el traspaso al multitenant ofrecido.
