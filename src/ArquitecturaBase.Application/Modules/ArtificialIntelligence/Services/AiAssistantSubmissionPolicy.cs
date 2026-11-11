@@ -170,8 +170,10 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
         return Accepted(turn, conversation.Revision, now);
     }
 
-    // A channel message that continues its previous operation joins that engine conversation, like Home: only the latest
-    // completed interpretation of the same people and channel conversation, while its content lasts and its reserve is readable.
+    // A channel message that continues its previous operation joins that engine conversation, like Home: a completed interpretation of
+    // the same people and channel conversation, while its content lasts and its reserve is readable. Later turns may have come after it
+    // (one the channel replaced, a question): the channel decides which proposal is current, and the new turn goes at the end once no
+    // operation of the conversation is active.
     private async Task<Result<AiConversation>> ContinueAsync(AssistantChannelContext context, Guid previousRequestId, DateTime nowUtc, CancellationToken ct)
     {
         var receipt = await repository.GetReceiptAsync(context.ActorUserId, previousRequestId, ct);
@@ -186,7 +188,6 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
             !AiAssistantChannelPolicy.SameConversation(context, captured.Value.ChannelContext)) return AiAssistantErrors.NotFound;
         if (previous.ContentExpiresAtUtc <= nowUtc || previous.ProtectedQuestion is null) return AiAssistantErrors.Expired;
         if (!await guard.CanReadAsync(context.ActorUserId, conversation.RequiredPermissions, ct)) return AiAssistantErrors.ContentBlocked;
-        if (previous.Ordinal != await repository.CountTurnsAsync(conversation.Id, ct)) return AiAssistantErrors.RevisionConflict;
         return conversation;
     }
 

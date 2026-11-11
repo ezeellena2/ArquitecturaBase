@@ -8,12 +8,16 @@ public sealed class AiAssistantOperationContinuationTests
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    private static AiAssistantTurn Canceled(AssistantOperationsFixture fixture, AiConversation conversation, int ordinal)
+    private static AiAssistantTurn Canceled(AssistantOperationsFixture fixture, AiConversation conversation, int ordinal) =>
+        Later(fixture, conversation, ordinal, canceled: true);
+
+    // A later turn of the conversation: one a channel replaced (canceled), or one still active.
+    private static AiAssistantTurn Later(AssistantOperationsFixture fixture, AiConversation conversation, int ordinal, bool canceled)
     {
         var now = fixture.Clock.GetUtcNow().UtcDateTime;
         var turn = AiAssistantTurn.Create(fixture.ActorId, conversation.Id, Guid.NewGuid(), ordinal, "", "en", "UTC",
             AiProvider.OpenAI, "model", 1, now, now.AddHours(1), conversation.ChannelId);
-        turn.RequestCancellation(now);
+        if (canceled) turn.RequestCancellation(now);
         fixture.Store.Turns.Add(turn);
         fixture.Store.Receipts.Add(AiAssistantRequestReceipt.Create(fixture.ActorId, turn.RequestId, "fixture-fingerprint", "test",
             conversation.Id, turn.Id, now, now.AddDays(30), conversation.ChannelId, false));
@@ -49,15 +53,50 @@ public sealed class AiAssistantOperationContinuationTests
         Assert.Equal(AiAssistantErrors.RequestReused, (await fixture.Service.SubmitAsync(request with { PreviousRequestId = null }, Ct)).Error);
     }
 
+    // The channel decides which proposal is current (only the latest summary's buttons count): a finished operation goes on even when
+    // later turns came after it, such as one the channel replaced and canceled, or a question. The new turn goes at the end.
+    [Fact]
+    public async Task A_continuation_of_a_finished_operation_joins_the_end_of_its_conversation_after_later_turns()
+    {
+        var fixture = new AssistantOperationsFixture();
+        var previous = fixture.SeedCompleted().Turn;
+        var conversation = fixture.Store.Conversations.Single();
+        Canceled(fixture, conversation, 2);
+        var revision = conversation.Revision;
+        var request = fixture.Request() with { PreviousRequestId = previous.RequestId };
+
+        var accepted = await fixture.Service.SubmitAsync(request, Ct);
+
+        Assert.True(accepted.IsSuccess);
+        var turn = fixture.Store.Turns.Single(row => row.RequestId == request.RequestId);
+        Assert.Equal((previous.ConversationId, 3), (turn.ConversationId, turn.Ordinal));
+        Assert.True(conversation.Revision > revision);
+        Assert.Equal(previous.ConversationId, fixture.Store.Receipts.Single(row => row.RequestId == request.RequestId).ConversationId);
+        Assert.Equal(0, fixture.Protector.Reads);
+    }
+
+    [Fact]
+    public async Task A_continuation_waits_while_its_conversation_has_an_active_operation()
+    {
+        var fixture = new AssistantOperationsFixture();
+        var previous = fixture.SeedCompleted().Turn;
+        Later(fixture, fixture.Store.Conversations.Single(), 2, canceled: false);
+        var request = fixture.Request() with { PreviousRequestId = previous.RequestId };
+
+        var result = await fixture.Service.SubmitAsync(request, Ct);
+
+        Assert.Equal(AiAssistantErrors.ActiveTurn, result.Error);
+        Assert.DoesNotContain(fixture.Store.Turns, row => row.RequestId == request.RequestId);
+    }
+
     [Theory]
     [InlineData("unknown")]
     [InlineData("other-channel")]
     [InlineData("other-conversation")]
     [InlineData("not-completed")]
-    [InlineData("not-latest")]
     [InlineData("expired")]
     [InlineData("blocked")]
-    public async Task A_continuation_needs_the_latest_completed_and_readable_operation_of_the_same_channel_conversation(string reason)
+    public async Task A_continuation_needs_a_completed_and_readable_operation_of_the_same_channel_conversation(string reason)
     {
         var fixture = new AssistantOperationsFixture();
         var previous = fixture.SeedCompleted().Turn;
@@ -70,12 +109,10 @@ public sealed class AiAssistantOperationContinuationTests
             case "other-channel": request = request with { Context = fixture.Context with { ChannelId = "another-operation-channel" } }; break;
             case "other-conversation": request = request with { Context = fixture.Context with { ChannelConversationId = Guid.NewGuid() } }; break;
             case "not-completed": request = request with { PreviousRequestId = Canceled(fixture, conversation, 2).RequestId }; break;
-            case "not-latest": Canceled(fixture, conversation, 2); break;
             case "blocked": conversation.RequirePermissions(["fictional.secret.read"]); break;
         }
         var expected = reason switch
         {
-            "not-latest" => AiAssistantErrors.RevisionConflict,
             "expired" => AiAssistantErrors.Expired,
             "blocked" => AiAssistantErrors.ContentBlocked,
             _ => AiAssistantErrors.NotFound,
