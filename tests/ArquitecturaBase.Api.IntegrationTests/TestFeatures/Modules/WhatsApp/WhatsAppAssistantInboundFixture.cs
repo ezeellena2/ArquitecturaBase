@@ -77,7 +77,10 @@ internal sealed class WhatsAppAssistantInboundFixture : IAsyncDisposable
             .AddScoped<IAssistantOperations>(sp=>new Operations(this,sp.GetRequiredService<ScopeIdentity>().Id))
             .AddScoped<IWhatsAppAssistantAuthoringService>(_=>new Taps())
             .AddSingleton<IWhatsAppFormActionReader>(new ActionReplies())
-            .AddScoped<IWhatsAppFormActionReplyService>(_=>new ActionReplies());
+            .AddScoped<IWhatsAppFormActionReplyService>(_=>new ActionReplies())
+            // W1-A: the processor also asks which contacts have a location to resolve; none here.
+            .AddSingleton<IWhatsAppFlowSessionReader>(new Locations())
+            .AddScoped<IWhatsAppFlowLocationService>(_=>new Locations());
         _provider=services.BuildServiceProvider();
         Processor=new(Signal,_provider.GetRequiredService<IServiceScopeFactory>(),Options.Create(new WhatsAppOptions{
             ProcessInboundInBackground=processInBackground,InboundPollSeconds=inboundPollSeconds}),
@@ -112,6 +115,17 @@ internal sealed class WhatsAppAssistantInboundFixture : IAsyncDisposable
         public Task<Result> ProcessTapAsync(Guid contactId,CancellationToken ct)=>Task.FromResult(Result.Success());
     }
     // Nor a tap on a form action button: those replies have their own tests (WhatsAppFormActionReplyTests).
+    private sealed class Locations : IWhatsAppFlowSessionReader, IWhatsAppFlowLocationService
+    {
+        public Task<IReadOnlyList<Guid>> ListContactsWithPendingLocationsAsync(IReadOnlyCollection<Guid> excluded,int limit,DateTime nowUtc,CancellationToken cancellationToken)=>
+            Task.FromResult<IReadOnlyList<Guid>>([]);
+        public Task<Result<int>> ProcessAsync(Guid contactId,CancellationToken cancellationToken)=>Task.FromResult(Result.Success(0));
+        public Task<IReadOnlyList<WhatsAppPendingFlowReplyRow>> ListPendingFlowRepliesAsync(int limit,CancellationToken cancellationToken)=>throw new NotSupportedException();
+        public Task<WhatsAppFormBindingRow?> FindBindingAsync(Guid definitionId,Guid versionId,string culture,CancellationToken cancellationToken)=>throw new NotSupportedException();
+        public Task<WhatsAppFormDispatchRow?> FindDispatchAsync(Guid outgoingId,CancellationToken cancellationToken)=>throw new NotSupportedException();
+        public Task<WhatsAppFlowReplySessionRow?> FindReplySessionAsync(Guid contactId,string tokenHash,CancellationToken cancellationToken)=>throw new NotSupportedException();
+    }
+
     private sealed class ActionReplies : IWhatsAppFormActionReader, IWhatsAppFormActionReplyService
     {
         public Task<Result> ProcessAsync(Guid contactId,CancellationToken cancellationToken)=>Task.FromResult(Result.Success());
