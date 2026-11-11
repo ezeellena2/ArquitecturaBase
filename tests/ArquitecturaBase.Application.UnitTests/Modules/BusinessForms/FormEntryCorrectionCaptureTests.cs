@@ -81,6 +81,25 @@ public sealed class FormEntryCorrectionCaptureTests
         Assert.Null(replaced.ReplacedByRecordId);
     }
 
+    // An issuance born after the correction was opened (an approval that issues, under the same lock) is seen where it is saved.
+    [Fact]
+    public async Task A_response_with_a_live_issuance_is_not_corrected_and_it_is_checked_under_the_lock()
+    {
+        var fixture = new BusinessFormCaptureFixture("shortText", true);
+        var replaced = await OriginalAsync(fixture, "12");
+        fixture.Issuances.Live.Add(replaced.Id);
+        var request = Correction(fixture, "15");
+
+        var result = await fixture.Sink.CaptureCorrectionAsync(request, new(replaced.Id, "Motivo", []), Ct);
+        var again = await fixture.Sink.FindExistingCorrectionAsync(request, new(replaced.Id, "Motivo", []), Ct);
+
+        Assert.Equal(("Rejected", FormRecordErrors.IssuedNotAmendable.Code), (result.State, result.ErrorCode));
+        Assert.Equal(result, again);
+        Assert.Equal([(replaced.Id, true)], fixture.Issuances.Reads);
+        Assert.Null(replaced.ReplacedByRecordId);
+        Assert.Single(fixture.Repository.Records);
+    }
+
     [Fact]
     public async Task The_photos_nobody_touched_stay_and_count_for_the_question_limits()
     {

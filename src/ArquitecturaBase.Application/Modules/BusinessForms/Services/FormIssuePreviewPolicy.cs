@@ -22,26 +22,13 @@ internal sealed class FormIssuePreviewPolicy(FormIssueEntryPolicy entries, IForm
             FormIssueDataPolicy.Read(schemaJson, valuesJson, references, entry.Bound, entry.Culture, itemCodes), cancellationToken);
     }
 
-    // The options chosen, as the capture keeps them: each with its item of the block and the fields of a manual catalog.
+    // The options chosen, built by the same piece as the capture (BusinessFormRecordRecorder), with the fields of a manual catalog
+    // read the same way: the invoice confirmed is the one issued. Nothing is locked, since nothing is saved.
     private async Task<IReadOnlyList<FormRecordReferenceRow>> ReferencesAsync(FormVersionSchema schema, IReadOnlyList<FormRecordAnswer> answers,
         IReadOnlyList<StructuredFormCatalogOffer> offers, CancellationToken cancellationToken)
     {
-        static IEnumerable<(FormRecordAnswer Answer, int? Item)> Placed(FormRecordAnswer answer) => answer.Rows is { } rows
-            ? rows.SelectMany((items, row) => items.Select(item => (item, (int?)row)))
-            : [(answer, null)];
-        var selected = answers.SelectMany(Placed)
-            .Where(value => schema.Questions.Single(question => question.FieldId == value.Answer.FieldId).Source?.Catalog is not null)
-            .SelectMany(value => (value.Answer.ChoiceIds ?? [value.Answer.ChoiceId!.Value])
-                .Select(choiceId => (value.Answer, value.Item, ChoiceId: choiceId, Offer: offers.Single(offer => offer.FieldId == value.Answer.FieldId))))
-            .ToArray();
-        var fields = await FormCatalogFieldCapturePolicy.CaptureAsync(records,
-            selected.Where(value => FormCatalogKindPolicy.HasItems(value.Offer.Kind)).Select(value => value.ChoiceId).Distinct().ToArray(), cancellationToken);
-        return selected.Select(value =>
-        {
-            var option = value.Offer.Options.Single(item => item.Id == value.ChoiceId);
-            return new FormRecordReferenceRow(Guid.Empty, value.Answer.FieldId, value.Offer.CatalogId, value.Offer.Revision, option.Id, option.Text,
-                option.Detail, value.Offer.CatalogName, FormRecordReferencePolicy.Capture(option, value.Offer), option.Value, value.Offer.ValueType,
-                value.Offer.Kind == "Manual" ? fields.GetValueOrDefault(option.Id) : null, value.Item ?? 0);
-        }).ToArray();
+        var chosen = FormRecordReferencePolicy.Chosen(schema, answers, offers);
+        var fields = await FormCatalogFieldCapturePolicy.CaptureAsync(records, FormRecordReferencePolicy.ItemIds(chosen), cancellationToken);
+        return FormRecordReferencePolicy.References(Guid.Empty, chosen, fields);
     }
 }

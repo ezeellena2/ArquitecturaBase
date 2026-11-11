@@ -301,6 +301,24 @@ public sealed class FormEntryServiceTests
         Assert.Equal(["answers." + photo.ToString("D")], error.Errors.Keys);
     }
 
+    // The capture checks the issuance again under its lock: one born after the correction was opened is the same conflict.
+    [Fact]
+    public async Task A_correction_the_capture_rejects_for_a_live_issuance_is_the_conflict_that_says_so()
+    {
+        using var fixture = new FormEntryFixture();
+        var item = fixture.AddItem("Lote 7", 1);
+        var recordId = Guid.NewGuid();
+        fixture.Responses.ExportRows = [new(new(Guid.NewGuid(), recordId, 7, fixture.Catalogs.DefinitionId, "SIE", fixture.Catalogs.Version.Id, 1,
+            """{"es":"Recepción"}""", fixture.Catalogs.Version.SchemaJson, "[]", []), new DateTime(2026, 11, 7, 12, 0, 0, DateTimeKind.Utc), new(fixture.Actor, "Autor"))];
+        fixture.Captured = new StructuredRecordCaptureResponse("Rejected", null, null, FormRecordErrors.IssuedNotAmendable.Code);
+
+        var result = await fixture.Service.CorrectAsync(fixture.Catalogs.DefinitionId, recordId, new(Guid.NewGuid(), fixture.Catalogs.Version.Id,
+            [new FormEntryAnswer(fixture.FieldId, item.Id.ToString("D"), null)], [], "Se cargó mal", []), Ct);
+
+        Assert.Equal(FormRecordErrors.IssuedNotAmendable, result.Error);
+        Assert.Single(fixture.Corrections);
+    }
+
     [Fact]
     public async Task Answers_to_unknown_questions_or_with_the_wrong_shape_are_rejected_without_a_capture()
     {

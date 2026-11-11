@@ -5,10 +5,17 @@ using ArquitecturaBase.Domain.Modules.BusinessForms;
 
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
-internal sealed class FormRecordCaptureGuard(IFormCaptureReceiptReader receipts, IPermissionService permissions, FormRecordAmendmentGuard amendments)
+internal sealed class FormRecordCaptureGuard(IFormCaptureReceiptReader receipts, IPermissionService permissions, FormRecordAmendmentGuard amendments,
+    IFormRecordIssuanceReader issuances)
 {
     /// <summary>How the person correcting may change responses: a correction is not a new response of theirs.</summary>
     public Task<FormRecordAmendAccess?> FindAmendAccessAsync(CancellationToken ct) => amendments.FindAsync(ct);
+
+    /// <summary>
+    /// Whether the response has a live issuance, as <see cref="IFormRecordIssuanceReader"/> defines it: issued or being issued, it is
+    /// voided and loaded again, never corrected (<see cref="FormRecordErrors.IssuedNotAmendable"/>).
+    /// </summary>
+    public Task<bool> HasLiveIssuanceAsync(Guid recordId, CancellationToken ct) => issuances.ExistsLiveAsync(recordId, ct);
 
     public Task<bool> CanCaptureAsync(Guid actorUserId, CancellationToken ct) =>
         permissions.HasPermissionAsync(actorUserId, BusinessFormsPermissions.RecordsCreate, ct);

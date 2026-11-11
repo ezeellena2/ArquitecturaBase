@@ -47,7 +47,8 @@ internal sealed class BusinessFormCaptureFixture
         UnitOfWork = new FakeUnitOfWork { OnCommit = onCommit };
         Actor = Users.AddUser("capture@example.invalid").Id;
         Current.UserId = Actor;
-        Sink = new BusinessFormRecordRecorder(Repository, new(ReceiptReader, Permission, new(Current, Permission, Users)), UnitOfWork, Actions.Clock,
+        Issuances = new FakeRecordIssuanceReader(() => UnitOfWork.InTransaction);
+        Sink = new BusinessFormRecordRecorder(Repository, new(ReceiptReader, Permission, new(Current, Permission, Users), Issuances), UnitOfWork, Actions.Clock,
             NullLogger<BusinessFormRecordRecorder>.Instance, preparer, Actions.Recorder, new(OriginResponses, Suggestions));
         VersionId = version.Id;
     }
@@ -78,12 +79,25 @@ internal sealed class BusinessFormCaptureFixture
     public FakeRecordRepository Repository { get; }
     public FakeCaptureReceiptReader ReceiptReader { get; }
     public MutablePermissionService Permission { get; }
+    public FakeRecordIssuanceReader Issuances { get; }
     public BusinessFormRecordRecorder Sink { get; }
     public TestFeatures.Files.MemoryPrivateFileStore FileStore { get; } = new();
     public TestFeatures.Files.MemoryStoredFileRepository StoredFiles { get; }
     public StructuredRecordCaptureRequest Request(IReadOnlyDictionary<string, string> answers) =>
         new(Guid.Parse("00000000-0000-7000-8000-000000000123"), Definition.Id, VersionId, Actor,
             DateTime.SpecifyKind(DateTime.Parse("2026-10-11T12:00:00", CultureInfo.InvariantCulture), DateTimeKind.Utc), answers);
+}
+
+/// <summary>The responses with a live issuance, and each read with whether it ran inside the capture's boundary.</summary>
+internal sealed class FakeRecordIssuanceReader(Func<bool> inTransaction) : IFormRecordIssuanceReader
+{
+    public HashSet<Guid> Live { get; } = [];
+    public List<(Guid RecordId, bool InTransaction)> Reads { get; } = [];
+    public Task<bool> ExistsLiveAsync(Guid recordId, CancellationToken cancellationToken)
+    {
+        Reads.Add((recordId, inTransaction()));
+        return Task.FromResult(Live.Contains(recordId));
+    }
 }
 
 internal sealed class FakeCaptureReceiptReader(FakeRecordRepository repository) : IFormCaptureReceiptReader

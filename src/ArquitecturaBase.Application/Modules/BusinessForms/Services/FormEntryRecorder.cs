@@ -134,6 +134,7 @@ internal sealed class FormEntryRecorder(IBusinessFormRecordCaptureService captur
             var code when code == FormRecordErrors.ReplayConflict.Code => FormRecordErrors.ReplayConflict,
             var code when code == FormRecordErrors.AuthorizationChanged.Code => FormRecordErrors.AuthorizationChanged,
             var code when code == FormRecordErrors.AmendUnavailable.Code => FormRecordErrors.AmendUnavailable,
+            var code when code == FormRecordErrors.IssuedNotAmendable.Code => FormRecordErrors.IssuedNotAmendable,
             var code when code == FormRecordErrors.NotFound.Code => FormRecordErrors.NotFound,
             var code when code == FormDefinitionErrors.Forbidden.Code => FormDefinitionErrors.Forbidden,
             var code when code == FileErrors.TooLarge.Code => FileErrors.TooLarge,

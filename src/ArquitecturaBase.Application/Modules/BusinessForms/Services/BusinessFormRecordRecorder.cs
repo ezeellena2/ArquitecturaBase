@@ -114,13 +114,15 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
         FormRecordFileRow[] kept = [];
         if (correction is not null)
         {
-            // Under the lock approvals take: the response is still current, undecided for its author, and the files kept are its own.
+            // Under the lock approvals take: the response is still current, undecided for its author, without a live issuance (one an
+            // approval issued after the correction was opened is voided and loaded again), and the files kept are its own.
             replaced = await records.GetRecordAsync(correction.RecordId, ct);
             if (replaced is null || replaced.DefinitionId != definition.Id) return Reject(request, fingerprint, FormRecordErrors.NotFound.Code);
             var access = await guard.FindAmendAccessAsync(ct);
             var allowed = access is null ? FormDefinitionErrors.Forbidden
                 : FormRecordAmendmentGuard.Allows(access, replaced.ActorUserId, replaced.State, replaced.ReplacedByRecordId is not null);
             if (allowed.IsFailure) return Reject(request, fingerprint, allowed.Error.Code);
+            if (await guard.HasLiveIssuanceAsync(replaced.Id, ct)) return Reject(request, fingerprint, FormRecordErrors.IssuedNotAmendable.Code);
             var existing = await records.ListFilesAsync(replaced.Id, ct);
             kept = existing.Where(file => correction.KeptFileIds.Contains(file.FileId)).ToArray();
             if (kept.Length != correction.KeptFileIds.Count) return Reject(request, fingerprint, FormRecordErrors.InvalidResponse.Code);
@@ -148,24 +150,17 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
         if (answers is null)
             return Reject(request, fingerprint, FormRecordErrors.InvalidResponse.Code);
 
-        // Each answer with its item of the block, null outside it; the block itself is not a value.
-        static IEnumerable<(FormRecordAnswer Answer, int? Item)> Placed(FormRecordAnswer answer) => answer.Rows is { } rows
-            ? rows.SelectMany((items, row) => items.Select(item => (item, (int?)row)))
-            : [(answer, null)];
-        var placed = answers.SelectMany(Placed).ToArray();
-        var selected = placed.Where(value => schema.Questions.Single(question => question.FieldId == value.Answer.FieldId).Source?.Catalog is not null)
-            .SelectMany(value => (value.Answer.ChoiceIds ?? [value.Answer.ChoiceId!.Value])
-                .Select(choiceId => (value.Answer, value.Item, ChoiceId: choiceId,
-                    Offer: offers.Single(offer => offer.FieldId == value.Answer.FieldId)))).ToArray();
+        // Each answer with its item of the block, and the options chosen as «¿La emito?» reads them (FormIssuePreviewPolicy).
+        var placed = FormRecordReferencePolicy.Placed(answers).ToArray();
+        var selected = FormRecordReferencePolicy.Chosen(schema, answers, offers);
         foreach (var catalogId in selected.Where(value => FormCatalogKindPolicy.HasItems(value.Offer.Kind)).Select(value => value.Offer.CatalogId).Distinct().Order())
             await records.LockCatalogAsync(catalogId, ct);
         // An option chosen in several items is checked once, where it first appears, which names its question and item.
         foreach (var value in selected.Where(value => FormCatalogKindPolicy.HasItems(value.Offer.Kind)).DistinctBy(value => (value.Offer.CatalogId, value.ChoiceId)))
             if (!await records.ExistsActiveCatalogItemAsync(value.Offer.CatalogId, value.ChoiceId, ct))
-                return Reject(request, fingerprint, FormRecordErrors.CatalogItemInactive.Code, value.Answer.FieldId, value.Item);
+                return Reject(request, fingerprint, FormRecordErrors.CatalogItemInactive.Code, value.FieldId, value.Item);
 
-        var catalogFields = await FormCatalogFieldCapturePolicy.CaptureAsync(records,
-            selected.Where(value => FormCatalogKindPolicy.HasItems(value.Offer.Kind)).Select(value => value.ChoiceId).Distinct().ToArray(), ct);
+        var catalogFields = await FormCatalogFieldCapturePolicy.CaptureAsync(records, FormRecordReferencePolicy.ItemIds(selected), ct);
 
         var origin = await origins.ValidateAsync(request, schema, ct);
         if (origin.IsFailure) return Reject(request, fingerprint, origin.Error.Code);
@@ -218,18 +213,11 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
                 records.Add(BusinessFormRecordValue.Create(record.Id, definition.Id, value.FieldId, value.Type,
                     value.Text, value.Decimal, value.Date, value.Boolean, value.ChoiceId, row: item ?? 0));
         }
-        var references = new List<FormRecordReferenceRow>();
-        foreach (var value in selected)
-        {
-            var option = value.Offer.Options.Single(option => option.Id == value.ChoiceId);
-            var translations = FormRecordReferencePolicy.Capture(option, value.Offer);
-            var fieldValuesJson = value.Offer.Kind == "Manual" ? catalogFields.GetValueOrDefault(option.Id) : null;
-            records.Add(BusinessFormRecordReference.Create(record.Id, definition.Id, value.Answer.FieldId,
-                value.Offer.CatalogId, value.Offer.Revision, option.Id, option.Text, option.Detail, value.Offer.CatalogName, translations, option.Value, value.Offer.ValueType, fieldValuesJson,
-                value.Item ?? 0));
-            references.Add(new(record.Id, value.Answer.FieldId, value.Offer.CatalogId, value.Offer.Revision, option.Id, option.Text, option.Detail, value.Offer.CatalogName, translations, option.Value, value.Offer.ValueType, fieldValuesJson,
-                value.Item ?? 0));
-        }
+        var references = FormRecordReferencePolicy.References(record.Id, selected, catalogFields);
+        foreach (var reference in references)
+            records.Add(BusinessFormRecordReference.Create(reference.RecordId, definition.Id, reference.FieldId, reference.CatalogId,
+                reference.CatalogRevision, reference.ItemId, reference.Text, reference.Detail, reference.CatalogName, reference.TranslationsJson,
+                reference.Value, reference.ValueType, reference.FieldValuesJson, reference.Row));
         var fileRows = fileRecorder.Record(record, files, kept);
         var stored = new FormRecordStoredRow(record.SourceReceiptId, record.Id, record.Number, definition.Id, definition.Prefix,
             version.Id, version.Number, version.NameJson ?? throw new InvalidOperationException("The captured form presentation is missing."),
