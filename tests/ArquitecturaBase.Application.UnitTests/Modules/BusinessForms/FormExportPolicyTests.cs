@@ -23,9 +23,9 @@ public sealed class FormExportPolicyTests
         Assert.Equal("=SUM(A1)", FormExportPolicy.Cell(Cell("shortText", "Answered", "=SUM(A1)")).Value);
     }
     [Theory]
-    [InlineData("es", "dd/mm/yyyy", "dd/mm/yyyy hh:mm")]
-    [InlineData("en", "m/d/yyyy", "m/d/yyyy h:mm AM/PM")]
-    public void Dates_take_the_format_of_the_language(string culture, string date, string dateTime) =>
+    [InlineData("es", "dd/mm/yyyy", "dd/mm/yyyy\", \"h:mm")]
+    [InlineData("en", "mm/dd/yyyy", "mm/dd/yyyy\", \"h:mm AM/PM")]
+    public void Dates_go_with_numbers_only_in_the_order_of_the_language_and_the_hour_after_a_comma(string culture, string date, string dateTime) =>
         Assert.Equal((date, dateTime), (FormExportPolicy.DateFormat(culture), FormExportPolicy.DateTimeFormat(culture)));
     private static FormResponseCell Cell(string type, string state, object? value) => new(Guid.NewGuid(), type, state, value);
 }

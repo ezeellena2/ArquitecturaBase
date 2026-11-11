@@ -230,8 +230,8 @@ public sealed class FormExportServiceTests
     }
 
     [Theory]
-    [InlineData("es", "N°", "Recibida", "dd/mm/yyyy hh:mm", "dd/mm/yyyy")]
-    [InlineData("en", "No.", "Received", "m/d/yyyy h:mm AM/PM", "m/d/yyyy")]
+    [InlineData("es", "N°", "Recibida", "dd/mm/yyyy\", \"h:mm", "dd/mm/yyyy")]
+    [InlineData("en", "No.", "Received", "mm/dd/yyyy\", \"h:mm AM/PM", "mm/dd/yyyy")]
     public async Task Received_takes_the_time_zone_of_the_account_and_the_words_and_dates_of_the_sheet(
         string culture, string number, string received, string dateTimeFormat, string dateFormat)
     {

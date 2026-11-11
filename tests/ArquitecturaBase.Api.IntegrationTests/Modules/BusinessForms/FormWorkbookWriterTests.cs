@@ -107,17 +107,30 @@ public sealed class FormWorkbookWriterTests(ITestOutputHelper output)
                 new FormWorkbookCell[] { new("text", "RMP-000002"), new("dateTime", received), new("date", new DateTime(2026, 11, 30)), new("integer", 1L) },
                 new FormWorkbookCell[] { new("text", "RMP-000002"), new("dateTime", received), new("date", new DateTime(2026, 11, 30)), new("integer", 2L) },
                 new FormWorkbookCell[] { new("text", "RMP-000001"), new("dateTime", received.AddMinutes(-14)), new("date", new DateTime(2026, 11, 30), "yyyy"), new("integer", 1L) },
-            ], "Respuestas", GroupStarts: [0, 2], DateFormat: "dd/mm/yyyy", DateTimeFormat: "dd/mm/yyyy hh:mm")]),
+            ], "Respuestas", GroupStarts: [0, 2], DateFormat: "dd/mm/yyyy", DateTimeFormat: "dd/mm/yyyy\", \"h:mm")]),
             TestContext.Current.CancellationToken);
         using var workbook = new XLWorkbook(new MemoryStream(bytes));
         var sheet = workbook.Worksheet(1);
         // The second response starts on row 4; the second item of the first one keeps the usual grid.
         Assert.All(sheet.Row(4).Cells(1, 4), cell => Assert.Equal(XLBorderStyleValues.Thin, cell.Style.Border.TopBorder));
         Assert.All(sheet.Row(3).Cells(1, 4), cell => Assert.Equal(XLBorderStyleValues.None, cell.Style.Border.TopBorder));
-        Assert.Equal("dd/mm/yyyy hh:mm", sheet.Cell(2, 2).Style.DateFormat.Format);
+        Assert.Equal("dd/mm/yyyy\", \"h:mm", sheet.Cell(2, 2).Style.DateFormat.Format);
         Assert.Equal("dd/mm/yyyy", sheet.Cell(2, 3).Style.DateFormat.Format);
         // A cell with its own format keeps it.
         Assert.Equal("yyyy", sheet.Cell(4, 3).Style.NumberFormat.Format);
-        Assert.Equal("09/11/2026 15:42", sheet.Cell(2, 2).GetFormattedString(CultureInfo.GetCultureInfo("es-AR")));
+    }
+    [Theory]
+    [InlineData("es-AR", "dd/mm/yyyy", "dd/mm/yyyy\", \"h:mm", "03/11/2026", "09/11/2026, 15:42")]
+    [InlineData("en-US", "mm/dd/yyyy", "mm/dd/yyyy\", \"h:mm AM/PM", "11/03/2026", "11/09/2026, 3:42 PM")]
+    public void Dates_read_with_numbers_only_and_the_hour_after_a_comma(string culture, string dateFormat, string dateTimeFormat, string day, string moment)
+    {
+        var bytes = new ClosedXmlFormWorkbookWriter().Write(new([new(["Recibida", "Vence"],
+            [new FormWorkbookCell[] { new("dateTime", new DateTime(2026, 11, 9, 15, 42, 0)), new("date", new DateTime(2026, 11, 3)) }],
+            "Respuestas", DateFormat: dateFormat, DateTimeFormat: dateTimeFormat)]), TestContext.Current.CancellationToken);
+        using var workbook = new XLWorkbook(new MemoryStream(bytes));
+        var row = workbook.Worksheet(1).Row(2);
+        // Two digits for the day and the month, in the order of the language, as the app writes them.
+        Assert.Equal(moment, row.Cell(1).GetFormattedString(CultureInfo.GetCultureInfo(culture)));
+        Assert.Equal(day, row.Cell(2).GetFormattedString(CultureInfo.GetCultureInfo(culture)));
     }
 }

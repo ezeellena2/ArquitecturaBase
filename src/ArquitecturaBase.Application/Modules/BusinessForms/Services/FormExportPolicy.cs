@@ -4,11 +4,14 @@ using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 internal static class FormExportPolicy
 {
-    /// <summary>A date as the language writes it: day first in Spanish, month first in English (XL2).</summary>
-    public static string DateFormat(string culture) => culture == "en" ? "m/d/yyyy" : "dd/mm/yyyy";
+    /// <summary>
+    /// A date with numbers only, as the app writes it: two digits for the day and the month, day first in Spanish and
+    /// month first in English (XL2 and the rule of dates).
+    /// </summary>
+    public static string DateFormat(string culture) => culture == "en" ? "mm/dd/yyyy" : "dd/mm/yyyy";
 
-    /// <summary>A moment, such as when a response arrived, in the same order as the date and with its hour.</summary>
-    public static string DateTimeFormat(string culture) => culture == "en" ? "m/d/yyyy h:mm AM/PM" : "dd/mm/yyyy hh:mm";
+    /// <summary>A moment, such as when a response arrived: its date and, after a comma, its hour, as the sheet of the app shows it.</summary>
+    public static string DateTimeFormat(string culture) => culture == "en" ? "mm/dd/yyyy\", \"h:mm AM/PM" : "dd/mm/yyyy\", \"h:mm";
 
     /// <summary>A datum of a result (RE1-A) as an Excel cell of its kind; empty without a value.</summary>
     public static FormWorkbookCell ResultCell(string kind, string? value) => value is null ? new("text", null) : kind switch
