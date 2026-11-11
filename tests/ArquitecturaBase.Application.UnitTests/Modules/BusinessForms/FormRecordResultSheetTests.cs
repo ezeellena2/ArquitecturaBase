@@ -88,4 +88,57 @@ public sealed class FormRecordResultSheetTests
         Assert.Equal(("date", (object?)new DateTime(2026, 11, 19)), (first[^1].Kind, first[^1].Value));
         Assert.Null(sheet.Rows[1][^1].Value);
     }
+
+    // «Solo las visibles» (2026-11-11): the request names the visible data of the results by their ids, and only those go. An id
+    // that is no longer among the latest results is left out instead of failing: a new result can change the data of its source
+    // after the sheet was read.
+    [Fact]
+    public async Task The_excel_of_the_visible_columns_takes_only_the_result_data_it_names()
+    {
+        var (reader, results, user, permissions) = Arrange();
+        var writer = new FakeFormWorkbookWriter();
+
+        Assert.True(await ExportedAsync(reader, results, user, permissions, writer, ["arca.invoice.expiresOn", "arca.invoice.gone"]));
+
+        var sheet = writer.Request!.Sheets[0];
+        Assert.Equal("Vencimiento del código", sheet.Headers[^1]);
+        Assert.DoesNotContain("Comprobante", sheet.Headers);
+        Assert.Equal(("date", (object?)new DateTime(2026, 11, 19)), (sheet.Rows[0][^1].Kind, sheet.Rows[0][^1].Value));
+        Assert.All(sheet.Rows, row => Assert.Equal(sheet.Headers.Count, row.Count));
+    }
+
+    [Fact]
+    public async Task The_excel_of_the_visible_columns_without_result_data_leaves_the_results_out()
+    {
+        var (reader, results, user, permissions) = Arrange();
+        var writer = new FakeFormWorkbookWriter();
+
+        Assert.True(await ExportedAsync(reader, results, user, permissions, writer, []));
+
+        var sheet = writer.Request!.Sheets[0];
+        Assert.DoesNotContain("Comprobante", sheet.Headers);
+        Assert.DoesNotContain("Vencimiento del código", sheet.Headers);
+        Assert.All(sheet.Rows, row => Assert.Equal(sheet.Headers.Count, row.Count));
+    }
+
+    [Fact]
+    public void The_visible_result_data_are_named_once_each()
+    {
+        var validator = new FormExportRequestValidator();
+
+        Assert.False(validator.Validate(new FormExportRequest(new(), null, ResultColumns: ["arca.invoice.voucher", "arca.invoice.voucher"])).IsValid);
+        Assert.False(validator.Validate(new FormExportRequest(new(), null, ResultColumns: [null])).IsValid);
+        Assert.False(validator.Validate(new FormExportRequest(new(), null, ResultColumns: [" "])).IsValid);
+        Assert.True(validator.Validate(new FormExportRequest(new(), null, ResultColumns: [])).IsValid);
+        Assert.True(validator.Validate(new FormExportRequest(new(), null, ResultColumns: ["arca.invoice.voucher"])).IsValid);
+    }
+
+    private static async Task<bool> ExportedAsync(FakeFormResponseReader reader, FormRecordResultReaderDouble results, FakeCurrentUser user,
+        FakePermissionService permissions, FakeFormWorkbookWriter writer, IReadOnlyList<string?> resultColumns)
+    {
+        var service = new FormExportService(reader, writer, new(user, permissions, reader),
+            RequestValidators.For(new FormExportRequestValidator(), new ListFormRecordsRequestValidator()), new FakeTimeProvider(),
+            NullLogger<FormExportService>.Instance, new(new([]), new ArquitecturaBase.Application.UnitTests.TestDoubles.Users.InMemoryUserAccounts()), results);
+        return (await service.ExportAsync(reader.Definition!.Id, new(new(), null, ResultColumns: resultColumns), CancellationToken.None)).IsSuccess;
+    }
 }

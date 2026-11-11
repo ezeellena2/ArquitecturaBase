@@ -1003,7 +1003,10 @@ trae es de la etapa 3 (`IssueDocument`, [ADR 0028](../decisions/0028-emision-de-
   resultados se omite. El front lo muestra como una zona con el nombre de la acción, arriba de «Datos».
 - **La planilla** trae `resultColumns` (una por dato, con id `<fuente>.<clave>`, después de las preguntas, con los nombres del
   último resultado de cada fuente) y `results` en cada fila; sin resultados se omiten. No se filtra ni se ordena por ellos.
-- **El Excel** suma esas columnas después de las preguntas, con celdas del tipo de cada dato; sin valor, vacía.
+- **El Excel** suma esas columnas después de las preguntas, con celdas del tipo de cada dato; sin valor, vacía. Con «Solo
+  las visibles», el pedido nombra en `resultColumns` los ids que se ven y van sólo esos; sin `resultColumns`, van todas. Un
+  id que ya no está se deja afuera, porque un resultado nuevo puede cambiar los datos de su fuente después de leer la
+  planilla (2026-11-11).
 - **La copia PDF** pone una zona por resultado arriba de las respuestas, con el nombre de la acción y sus datos escritos como
   una respuesta de su tipo.
 - **Los avisos.** Un dato del resultado se escribe `{result:<fuente>.<clave>}` y sólo vale en un aviso que va después, en la

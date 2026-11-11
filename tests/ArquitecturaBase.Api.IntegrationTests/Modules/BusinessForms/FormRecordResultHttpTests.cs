@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Json;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures;
 using ArquitecturaBase.Application.Models.StructuredData;
@@ -11,7 +12,8 @@ using Microsoft.Extensions.DependencyInjection;
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 
 // RE1-A with PostgreSQL: the result of an external action is kept once per run in the response, sealed with its names, and the
-// detail and the sheet show it in the display language; a second result for the same run is refused by the unique index.
+// detail and the sheet show it in the display language; a second result for the same run is refused by the unique index. The
+// Excel of «Solo las visibles» takes only the result data the request names.
 public sealed partial class FormDraftEndpointsTests
 {
     [Fact]
@@ -57,6 +59,18 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal(["Comprobante", "Código de autorización", "Vencimiento del código"], columns.Select(column => column.GetProperty("label").GetString()));
         var row = body.GetProperty("records").GetProperty("items").EnumerateArray().Single(item => item.GetProperty("id").GetGuid() == seeded.RecordId);
         Assert.Equal("Factura C 0004-00000012", row.GetProperty("results").GetProperty(columns[0].GetProperty("id").GetString()!).GetString());
+
+        // «Solo las visibles» names the result data that are seen, by the ids of the sheet: only those go, after the questions.
+        using var exporter = await OperatorAsync([BusinessFormsPermissions.RecordsRead, BusinessFormsPermissions.RecordsExport]);
+        using var export = await exporter.PostAsJsonAsync($"/api/forms/definitions/{definitionId}/records/export",
+            new { filter = new { }, columns = (Guid[]?)null, resultColumns = new[] { columns[2].GetProperty("id").GetString() } }, Ct);
+        Assert.Equal(HttpStatusCode.OK, export.StatusCode);
+        await using var stream = await export.Content.ReadAsStreamAsync(Ct);
+        using var workbook = new ClosedXML.Excel.XLWorkbook(stream);
+        var headers = workbook.Worksheet(1).Row(1).CellsUsed().Select(cell => cell.GetString()).ToArray();
+        Assert.Equal("Vencimiento del código", headers[^1]);
+        Assert.DoesNotContain("Comprobante", headers);
+        Assert.DoesNotContain("Código de autorización", headers);
     }
 
     [Fact]

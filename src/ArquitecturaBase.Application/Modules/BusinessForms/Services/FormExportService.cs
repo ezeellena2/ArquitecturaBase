@@ -53,8 +53,11 @@ internal sealed class FormExportService(IFormResponseReader reader, IFormWorkboo
                 var voided = request.Filter.IncludeVoided && request.Filter.State is null;
                 var headers = FormExportResponsePolicy.Headers(voided, culture);
                 headers.AddRange(selectedColumns.Select(column => column.Header));
-                // RE1-A: the data of the results go after the questions, a column each.
-                var resultColumns = FormRecordResultPresentationPolicy.Columns(await resultReader.ListLatestBySourceAsync(id, ct), culture);
+                // RE1-A: the data of the results go after the questions, a column each; with «Solo las visibles», the ones the request
+                // names. They come from the latest result of each source, which may change after the sheet was read: an id that is no
+                // longer there is left out instead of failing the export.
+                var resultColumns = FormRecordResultPresentationPolicy.Columns(await resultReader.ListLatestBySourceAsync(id, ct), culture)
+                    .Where(column => request.ResultColumns is null || request.ResultColumns.Contains(column.Id)).ToArray();
                 headers.AddRange(resultColumns.Select(column => column.Label));
                 var rows = new List<IReadOnlyList<FormWorkbookCell>>(ids.Count);
                 var groupStarts = hasItems ? new List<int>(ids.Count) : null;
@@ -64,7 +67,7 @@ internal sealed class FormExportService(IFormResponseReader reader, IFormWorkboo
                     if (!await access.StillAllowedAsync(actor.Value, ct, true)) return FormDefinitionErrors.Forbidden;
                     var records = (await reader.ListByReceiptIdsAsync(definition, batch, ct)).ToDictionary(row => row.Record.SourceReceiptId);
                     var channels = await responses.ChannelsAsync(actor.Value, records.Values, ct);
-                    var resultValues = resultColumns.Count == 0 ? new Dictionary<Guid, IReadOnlyDictionary<string, string?>>()
+                    var resultValues = resultColumns.Length == 0 ? new Dictionary<Guid, IReadOnlyDictionary<string, string?>>()
                         : FormRecordResultPresentationPolicy.Values(await resultReader.ListAsync(records.Values.Select(row => row.Record.RecordId).ToArray(), ct));
                     foreach (var receiptId in batch)
                     {

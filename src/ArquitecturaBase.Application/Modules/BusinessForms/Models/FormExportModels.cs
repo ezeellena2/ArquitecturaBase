@@ -1,5 +1,10 @@
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Models;
-public sealed record FormExportRequest(ListFormRecordsRequest Filter, IReadOnlyList<Guid>? Columns, IReadOnlyList<FormExportCatalogField?>? CatalogFields = null)
+/// <summary>
+/// What goes in the Excel: the questions of <paramref name="Columns"/>, the catalog fields of <paramref name="CatalogFields"/> and
+/// the result data (RE1-A) of <paramref name="ResultColumns"/>, by their ids <c>&lt;source&gt;.&lt;key&gt;</c>; null is all of them.
+/// </summary>
+public sealed record FormExportRequest(ListFormRecordsRequest Filter, IReadOnlyList<Guid>? Columns, IReadOnlyList<FormExportCatalogField?>? CatalogFields = null,
+    IReadOnlyList<string?>? ResultColumns = null)
 { public override string ToString() => "FormExportRequest { Content = [REDACTED] }"; }
 public sealed record FormExportResponse(byte[] Content, string FileName)
 { public override string ToString() => "FormExportResponse { Content = [REDACTED] }"; }
