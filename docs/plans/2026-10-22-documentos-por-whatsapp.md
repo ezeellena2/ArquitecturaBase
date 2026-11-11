@@ -161,7 +161,7 @@ La persona recibe «Cargué tu transferencia de $150.000 (REC-000123). Si algo e
 
 ### La pregunta «Ubicación»
 
-Anexada el 2026-11-10. El usuario preguntó si un formulario puede pedir la ubicación. Hoy no: no existe esa pregunta, ni en la app ni por WhatsApp, y la fila «Ubicación» de [Qué puede llegar](#qué-puede-llegar) supone una pregunta que la reciba. Esta sección agrega esa pregunta a los formularios, primero en la app, y deja la parte de WhatsApp para una etapa aparte, con su propio diseño. **Estado: el usuario eligió UB1-A a UB4-A el 2026-11-11 y la Etapa 1 se programó en la tanda de ese día, para la prueba integral final (backend y front). La Etapa 2, por WhatsApp, sigue sin diseño.** La Etapa 1 no depende del resto de este plan.
+Anexada el 2026-11-10. El usuario preguntó si un formulario puede pedir la ubicación. Hoy no: no existe esa pregunta, ni en la app ni por WhatsApp, y la fila «Ubicación» de [Qué puede llegar](#qué-puede-llegar) supone una pregunta que la reciba. Esta sección agrega esa pregunta a los formularios, primero en la app, y deja la parte de WhatsApp para una etapa aparte, con su propio diseño. **Estado: el usuario eligió UB1-A a UB4-A el 2026-11-11 y la Etapa 1 se programó en la tanda de ese día, para la prueba integral final (backend y front). En la Etapa 2, por WhatsApp, el usuario eligió W1 el 2026-11-11: pedirla antes del Flow. Falta su tablero entero, con los estados, y programarla.** La Etapa 1 no depende del resto de este plan.
 
 #### Qué se puede pedir y qué no
 
@@ -220,9 +220,9 @@ Cada tarea arranca con su test en rojo y cierra con el build y los tests unitari
 
 **Cierre:** una revisión y, al terminar, una vez: la integración con PostgreSQL y Redis, `dotnet test` completo, el build sin advertencias y `aspire stop` si levantaste la app. **A mano**, con el front: completar «Registro de visita» en un celular (permitir y denegar el permiso), en una computadora (precisión baja), ver el punto en la planilla y en el detalle, abrir el Excel y el PDF.
 
-#### Etapa 2: la ubicación por WhatsApp (sin diseño; se decide después de la Etapa 1)
+#### Etapa 2: la ubicación por WhatsApp (elegida W1 el 2026-11-11, sin programar)
 
-Un Flow no puede pedir la ubicación, así que la pregunta saldría del Flow. Las formas posibles, todavía sin elegir:
+Un Flow no puede pedir la ubicación, así que la pregunta saldría del Flow. Las formas posibles; el 2026-11-11 el usuario eligió W1, la recomendada:
 
 | Forma | Cómo andaría | A favor | En contra |
 | --- | --- | --- | --- |
@@ -231,6 +231,32 @@ Un Flow no puede pedir la ubicación, así que la pregunta saldría del Flow. La
 | **W3 · Sólo por el asistente** | La persona manda la ubicación al asistente y completa la pregunta de Ubicación del formulario que tiene abierto: la fila «Ubicación» de [Qué puede llegar](#qué-puede-llegar). | Casi no agrega código de captura: el circuito de arriba ya recibe, propone y pide confirmación. | Depende de que este plan empiece. |
 
 Cualquiera es un efecto fuera del sistema (mandar y esperar un mensaje de Meta), así que le aplica el [ADR 0018](../decisions/0018-robustez-proporcional-al-efecto.md): hay que decidir qué es una sesión a medias, cuánto dura (la ventana de 24 horas de WhatsApp) y qué se hace al vencer. Por eso se diseña con tableros y se prueba con Meta real antes de programarse. Entra también el parser de `location` del webhook, que hoy cae en `Other`.
+
+**Lo elegido: W1, con la ubicación guardada en el envío (2026-11-11).** Los tableros W1-A, W2 y W3 están en el lienzo [Pregunta «Ubicación» en los formularios](https://claude.ai/artifact/9z3HT35LTTF7C7hmwHgFZj). Se diseñó sobre cómo funcionan hoy los envíos:
+- Un formulario sale por WhatsApp siempre dentro de la ventana de 24 horas, como un `WhatsAppFlowSession` con su vencimiento (`WhatsApp:FlowSessionLifetimeHours`, 24 por defecto).
+- Una respuesta no puede quedar a medias: si falta un dato obligatorio, la captura se rechaza entera, y los valores guardados no cambian.
+- Lo guardado sólo lo corrige una persona, con motivo, y eso crea otra versión. Por eso W2 obligaba a cambiar dos reglas de hoy.
+
+Cómo anda:
+- **Antes del Flow,** si el formulario tiene una pregunta de ubicación, se manda un `location_request_message` con el botón «Enviar ubicación».
+- **La ubicación que vuelve** (latitud y longitud, sin precisión) se guarda en el envío que la pidió, y recién ahí sale el Flow de siempre.
+- **El Flow no lleva la pregunta,** así que no hace falta que Meta devuelva un dato inicial. La duda de W1 sobre los datos iniciales no aplica a lo elegido.
+- **Al llegar el Flow,** el servidor suma la ubicación del envío a las respuestas y guarda todo junto, en una sola captura completa. Las reglas, el PDF y los avisos la ven desde el primer momento.
+- **Si la ubicación no llega,** el envío vence como cualquier otro, sin nada guardado.
+- **La publicación** deja de frenar la pregunta en un formulario de WhatsApp (hoy `Forms.Publication.LocationOnlyInApp`).
+- **Hace falta** el armado del `location_request_message`, el parser de `location` y la correlación con el envío.
+
+Antes de programar:
+- El tablero entero de W1, pasado por la lista de chequeo, con:
+  - la persona que escribe un texto en vez de mandar la ubicación;
+  - la que la manda dos veces;
+  - el envío que vence;
+  - la pregunta opcional, con un mensaje aparte «Seguir sin la ubicación»;
+  - dos pedidos abiertos a la misma persona;
+  - el inglés.
+- La prueba con Meta real del `location_request_message` y del mensaje `location` que vuelve, con borradores que después se borran.
+
+W3 puede sumarse después, sobre el circuito de este plan: una ubicación que la persona manda por su cuenta mientras tiene un envío abierto.
 
 #### Fuera de alcance
 
