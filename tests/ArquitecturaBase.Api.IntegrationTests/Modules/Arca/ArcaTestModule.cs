@@ -16,7 +16,7 @@ internal sealed class ArcaTestModule : IApiTestModule
         "GET /api/arca/connection", "POST /api/arca/connection/certificate-requests", "GET /api/arca/connection/certificate-requests/current",
         "DELETE /api/arca/connection/certificate-requests/current", "PUT /api/arca/connection/services", "PUT /api/arca/connection/certificate",
         "POST /api/arca/connection/test", "DELETE /api/arca/connection", "GET /api/arca/registry/company", "GET /api/arca/invoicing/settings",
-        "GET /api/arca/invoicing/points-of-sale", "PUT /api/arca/invoicing/point-of-sale", "GET /api/arca/connection/robot-runs/current",
+        "GET /api/arca/invoicing/points-of-sale", "PUT /api/arca/invoicing/point-of-sale", "PUT /api/arca/invoicing/voucher-data", "GET /api/arca/connection/robot-runs/current",
         "POST /api/arca/connection/robot-runs",
     ];
 

@@ -10,7 +10,10 @@ using Microsoft.AspNetCore.RateLimiting;
 
 namespace ArquitecturaBase.Api.Modules.Arca.Controllers;
 
-/// <summary>El punto de venta de la plataforma: consultar a ARCA y elegir piden también <c>arca.manage</c>.</summary>
+/// <summary>
+/// El punto de venta de la plataforma y los datos del comprobante: consultar a ARCA, elegir y guardar piden también
+/// <c>arca.manage</c>.
+/// </summary>
 [ApiController]
 [Route("api/arca/invoicing")]
 [Tags("ARCA")]
@@ -39,4 +42,13 @@ public sealed class ArcaInvoicingController(IArcaInvoicingSetupService setup) : 
     [ProducesProblem(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> ChoosePointOfSale([FromBody] ChooseArcaPointOfSaleHttpRequest request, CancellationToken cancellationToken) =>
         (await setup.ChoosePointOfSaleAsync(request.PointOfSale, cancellationToken)).ToActionResult(this);
+
+    [HttpPut("voucher-data")]
+    [HasPermission(ArcaPermissions.Manage)]
+    [EnableRateLimiting(ArcaApiRegistration.WritePolicy)]
+    [ProducesResponseType<ArcaInvoicingSettingsResponse>(StatusCodes.Status200OK)]
+    [ProducesProblem(StatusCodes.Status400BadRequest)]
+    [ProducesProblem(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> SetVoucherData([FromBody] SetArcaVoucherDataHttpRequest request, CancellationToken cancellationToken) =>
+        (await setup.SetVoucherDataAsync(request.GrossIncomeNumber, request.ActivityStartOn, cancellationToken)).ToActionResult(this);
 }

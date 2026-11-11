@@ -3,7 +3,10 @@ using ArquitecturaBase.Domain.Results;
 
 namespace ArquitecturaBase.Application.Modules.Arca.Interfaces.Services.Invoicing;
 
-/// <summary>La configuración de Facturación: el punto de venta de web service que usa la plataforma.</summary>
+/// <summary>
+/// La configuración de Facturación: el punto de venta de web service que usa la plataforma y los datos del comprobante
+/// que van en el PDF fiscal.
+/// </summary>
 public interface IArcaInvoicingSetupService
 {
     Task<Result<ArcaInvoicingSettingsResponse>> GetAsync(CancellationToken cancellationToken);
@@ -13,4 +16,7 @@ public interface IArcaInvoicingSetupService
 
     /// <summary>Elige uno que ARCA ofrece y no está bloqueado, y vuelve a calcular el estado de la conexión.</summary>
     Task<Result<ArcaInvoicingSettingsResponse>> ChoosePointOfSaleAsync(int number, CancellationToken cancellationToken);
+
+    /// <summary>Guarda ingresos brutos e inicio de actividades, sin llamar a ARCA ni cambiar el estado de la conexión.</summary>
+    Task<Result<ArcaInvoicingSettingsResponse>> SetVoucherDataAsync(string? grossIncomeNumber, DateOnly activityStartOn, CancellationToken cancellationToken);
 }

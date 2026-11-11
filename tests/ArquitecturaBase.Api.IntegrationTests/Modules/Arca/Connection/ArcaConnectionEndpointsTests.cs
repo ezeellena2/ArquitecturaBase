@@ -27,6 +27,7 @@ public sealed class ArcaConnectionEndpointsTests(ApiFactory factory) : IDisposab
     [InlineData("GET", "/api/arca/invoicing/settings", false)]
     [InlineData("GET", "/api/arca/invoicing/points-of-sale", true)]
     [InlineData("PUT", "/api/arca/invoicing/point-of-sale", true)]
+    [InlineData("PUT", "/api/arca/invoicing/voucher-data", true)]
     public async Task Every_route_requires_a_session_read_and_for_writes_manage(string method, string path, bool manages)
     {
         using var anonymous = factory.CreateClient();

@@ -17,8 +17,9 @@ using Microsoft.Extensions.Logging;
 namespace ArquitecturaBase.Application.Modules.Arca.Services.Invoicing;
 
 /// <summary>
-/// El punto de venta de la plataforma. Se elige entre los que ARCA devuelve en ese momento y, guardado, la conexión
-/// vuelve a calcular su estado con la configuración de todas las familias elegidas.
+/// El punto de venta de la plataforma y los datos del comprobante. El punto de venta se elige entre los que ARCA devuelve
+/// en ese momento y, guardado, la conexión vuelve a calcular su estado con la configuración de todas las familias
+/// elegidas. Ingresos brutos e inicio de actividades se guardan sin llamar a ARCA: sólo van en el PDF fiscal.
 /// </summary>
 internal sealed class ArcaInvoicingSetupService(ArcaServiceSessionIssuer access, IArcaInvoicingClient client, IArcaConnectionRepository connections,
     IArcaInvoicingRepository repository, IArcaInvoicingReader reader, IArcaConnectionTestService connectionTest, IUnitOfWork unitOfWork,
@@ -29,7 +30,7 @@ internal sealed class ArcaInvoicingSetupService(ArcaServiceSessionIssuer access,
     public Task<Result<ArcaInvoicingSettingsResponse>> GetAsync(CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<ArcaInvoicingSettingsResponse>>(logger, "GetArcaInvoicingSettings", async () =>
             await access.FindConnectionIdAsync(cancellationToken) is { } connectionId
-                ? new ArcaInvoicingSettingsResponse((await reader.FindSettingsAsync(connectionId, cancellationToken))?.PointOfSale)
+                ? Response(await reader.FindSettingsAsync(connectionId, cancellationToken))
                 : ArcaConnectionErrors.NotConnected);
 
     public Task<Result<IReadOnlyList<ArcaPointOfSaleResponse>>> ListPointsOfSaleAsync(CancellationToken cancellationToken) =>
@@ -53,8 +54,13 @@ internal sealed class ArcaInvoicingSetupService(ArcaServiceSessionIssuer access,
             var saved = await unitOfWork.ExecuteInTransactionAsync(token => ChooseCoreAsync(number, token), CommitPolicy.OnSuccess, cancellationToken);
             if (saved.IsFailure) return saved.Error;
             var reevaluated = await connectionTest.ReevaluateAsync(cancellationToken);
-            return reevaluated.IsFailure ? reevaluated.Error : new ArcaInvoicingSettingsResponse(number);
+            return reevaluated.IsFailure ? reevaluated.Error : saved.Value;
         });
+
+    public Task<Result<ArcaInvoicingSettingsResponse>> SetVoucherDataAsync(string? grossIncomeNumber, DateOnly activityStartOn,
+        CancellationToken cancellationToken) =>
+        OperationLog.RunAsync(logger, "SetArcaVoucherData", () => unitOfWork.ExecuteInTransactionAsync(
+            token => SetVoucherDataCoreAsync(grossIncomeNumber, activityStartOn, token), CommitPolicy.OnSuccess, cancellationToken));
 
     private async Task<Result<IReadOnlyList<ArcaPointOfSale>>> PointsOfSaleAsync(CancellationToken cancellationToken)
     {
@@ -66,7 +72,25 @@ internal sealed class ArcaInvoicingSetupService(ArcaServiceSessionIssuer access,
             : ArcaServiceSessionIssuer.Failure(reply.Status);
     }
 
-    private async Task<Result> ChooseCoreAsync(int number, CancellationToken cancellationToken)
+    private async Task<Result<ArcaInvoicingSettingsResponse>> ChooseCoreAsync(int number, CancellationToken cancellationToken)
+    {
+        var settings = await LockSettingsAsync(cancellationToken);
+        if (settings.IsFailure) return settings.Error;
+        var chosen = settings.Value.ChoosePointOfSale(number);
+        return chosen.IsFailure ? chosen.Error : Response(settings.Value);
+    }
+
+    private async Task<Result<ArcaInvoicingSettingsResponse>> SetVoucherDataCoreAsync(string? grossIncomeNumber, DateOnly activityStartOn,
+        CancellationToken cancellationToken)
+    {
+        var settings = await LockSettingsAsync(cancellationToken);
+        if (settings.IsFailure) return settings.Error;
+        var set = settings.Value.SetVoucherData(grossIncomeNumber, activityStartOn);
+        return set.IsFailure ? set.Error : Response(settings.Value);
+    }
+
+    /// <summary>La configuración de la conexión, creada si todavía no existe, con la conexión bloqueada.</summary>
+    private async Task<Result<ArcaInvoicingSettings>> LockSettingsAsync(CancellationToken cancellationToken)
     {
         await connections.LockConnectionAsync(cancellationToken);
         if (await connections.GetConnectionAsync(cancellationToken) is not { } connection) return ArcaConnectionErrors.NotConnected;
@@ -76,6 +100,12 @@ internal sealed class ArcaInvoicingSetupService(ArcaServiceSessionIssuer access,
             repository.Add(settings);
         }
 
-        return settings.ChoosePointOfSale(number);
+        return settings;
     }
+
+    private static ArcaInvoicingSettingsResponse Response(ArcaInvoicingSettings settings) =>
+        new(settings.PointOfSale, settings.GrossIncomeNumber, settings.ActivityStartOn);
+
+    private static ArcaInvoicingSettingsResponse Response(ArcaInvoicingSettingsRow? row) =>
+        new(row?.PointOfSale, row?.GrossIncomeNumber, row?.ActivityStartOn);
 }

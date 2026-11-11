@@ -46,5 +46,51 @@ public sealed class ArcaInvoicingEndpointsTests(ApiFactory factory) : IDisposabl
         Assert.Equal("Arca.Connection.CertificateNotLoaded", problem.GetProperty("code").GetString());
     }
 
+    [Fact]
+    public async Task Voucher_data_is_saved_trimmed_and_read_back_with_the_point_of_sale()
+    {
+        await using var scenario = await ArcaHttpScenario.CreateAsync(factory, authority);
+        await scenario.ActivateAsync(FakeArca.InvoicingService);
+
+        var saved = await scenario.ReadAsync(await scenario.Client.PutAsJsonAsync("/api/arca/invoicing/voucher-data",
+            new { grossIncomeNumber = "  901-123456-7 ", activityStartOn = "2019-03-01" }, Ct), HttpStatusCode.OK);
+        var settings = await scenario.ReadAsync(await scenario.Client.GetAsync("/api/arca/invoicing/settings", Ct), HttpStatusCode.OK);
+
+        foreach (var body in new[] { saved, settings })
+        {
+            Assert.Equal(5, body.GetProperty("pointOfSale").GetInt32());
+            Assert.Equal("901-123456-7", body.GetProperty("grossIncomeNumber").GetString());
+            Assert.Equal("2019-03-01", body.GetProperty("activityStartOn").GetString());
+        }
+    }
+
+    [Fact]
+    public async Task Voucher_data_without_the_gross_income_number_is_a_problem_and_keeps_what_was_saved()
+    {
+        await using var scenario = await ArcaHttpScenario.CreateAsync(factory, authority);
+        await scenario.ActivateAsync(FakeArca.InvoicingService);
+        var settings = await scenario.ReadAsync(await scenario.Client.GetAsync("/api/arca/invoicing/settings", Ct), HttpStatusCode.OK);
+
+        var problem = await scenario.ReadAsync(await scenario.Client.PutAsJsonAsync("/api/arca/invoicing/voucher-data",
+            new { grossIncomeNumber = " ", activityStartOn = "2019-03-01" }, Ct), HttpStatusCode.BadRequest);
+
+        Assert.Equal("Arca.Invoicing.GrossIncomeInvalid", problem.GetProperty("code").GetString());
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, settings.GetProperty("grossIncomeNumber").ValueKind);
+        var after = await scenario.ReadAsync(await scenario.Client.GetAsync("/api/arca/invoicing/settings", Ct), HttpStatusCode.OK);
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, after.GetProperty("grossIncomeNumber").ValueKind);
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, after.GetProperty("activityStartOn").ValueKind);
+    }
+
+    [Fact]
+    public async Task Voucher_data_without_a_connection_is_not_found()
+    {
+        await using var scenario = await ArcaHttpScenario.CreateAsync(factory, authority);
+
+        var problem = await scenario.ReadAsync(await scenario.Client.PutAsJsonAsync("/api/arca/invoicing/voucher-data",
+            new { grossIncomeNumber = "901-123456-7", activityStartOn = "2019-03-01" }, Ct), HttpStatusCode.NotFound);
+
+        Assert.Equal("Arca.Connection.NotConnected", problem.GetProperty("code").GetString());
+    }
+
     public void Dispose() => authority.Dispose();
 }

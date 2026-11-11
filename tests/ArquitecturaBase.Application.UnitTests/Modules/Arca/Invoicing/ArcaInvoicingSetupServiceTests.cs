@@ -81,5 +81,39 @@ public sealed class ArcaInvoicingSetupServiceTests
         Assert.Equal(ArcaConnectionStatus.Active, host.Store.Connection!.Status);
     }
 
+    [Fact]
+    public async Task Voucher_data_is_saved_with_the_point_of_sale_and_read_back_without_calling_arca()
+    {
+        using var host = new ArcaApplicationHost();
+        await host.StartAndUploadAsync("wsfe");
+        host.Invoicing.Points = Points;
+        await Setup(host).ChoosePointOfSaleAsync(1, Ct);
+        host.Invoicing.Status = ArcaServiceCheckStatus.Unavailable;
+
+        var saved = (await Setup(host).SetVoucherDataAsync(" 901-123456-7 ", new DateOnly(2019, 3, 1), Ct)).Value;
+
+        var expected = new ArcaInvoicingSettingsResponse(1, "901-123456-7", new DateOnly(2019, 3, 1));
+        Assert.Equal(expected, saved);
+        Assert.Equal(expected, (await Setup(host).GetAsync(Ct)).Value);
+        host.Invoicing.Status = ArcaServiceCheckStatus.Ready;
+        Assert.Equal(expected, (await Setup(host).ChoosePointOfSaleAsync(1, Ct)).Value);
+    }
+
+    [Fact]
+    public async Task Voucher_data_before_the_point_of_sale_creates_the_settings_and_a_rejected_one_saves_nothing()
+    {
+        using var host = new ArcaApplicationHost();
+        Assert.Equal(ArcaConnectionErrors.NotConnected, (await Setup(host).SetVoucherDataAsync("901-123456-7", new DateOnly(2019, 3, 1), Ct)).Error);
+        await host.StartAndUploadAsync("wsfe");
+
+        Assert.Equal(ArcaInvoicingErrors.GrossIncomeInvalid, (await Setup(host).SetVoucherDataAsync(" ", new DateOnly(2019, 3, 1), Ct)).Error);
+        Assert.Equal(ArcaInvoicingErrors.ActivityStartInvalid, (await Setup(host).SetVoucherDataAsync("901-123456-7", default, Ct)).Error);
+        Assert.Null(host.Store.Settings?.GrossIncomeNumber);
+
+        var saved = (await Setup(host).SetVoucherDataAsync("901-123456-7", new DateOnly(2019, 3, 1), Ct)).Value;
+
+        Assert.Equal(new ArcaInvoicingSettingsResponse(null, "901-123456-7", new DateOnly(2019, 3, 1)), saved);
+    }
+
     private static IArcaInvoicingSetupService Setup(ArcaApplicationHost host) => host.Provider.GetRequiredService<IArcaInvoicingSetupService>();
 }

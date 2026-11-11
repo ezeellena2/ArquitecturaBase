@@ -89,7 +89,7 @@ internal sealed class FakeArcaStore : IArcaConnectionRepository, IArcaConnection
         Task.FromResult(Settings?.ConnectionId == connectionId ? Settings : null);
 
     public Task<ArcaInvoicingSettingsRow?> FindSettingsAsync(Guid connectionId, CancellationToken cancellationToken) =>
-        Task.FromResult(Settings?.ConnectionId == connectionId ? new ArcaInvoicingSettingsRow(Settings.PointOfSale) : null);
+        Task.FromResult(Settings?.ConnectionId == connectionId ? new ArcaInvoicingSettingsRow(Settings.PointOfSale, Settings.GrossIncomeNumber, Settings.ActivityStartOn) : null);
 
     private Task Locked()
     {
