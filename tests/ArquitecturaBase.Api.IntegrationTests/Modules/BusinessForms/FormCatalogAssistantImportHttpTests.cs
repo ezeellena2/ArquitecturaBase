@@ -39,6 +39,7 @@ public sealed class FormCatalogAssistantImportHttpTests(ApiFactory factory)
         });
         var request = scenario.MappedCatalog("Fleteros " + scenario.Suffix, workbook, "transportistas.xlsx", 2);
         using var author = scenario.Client(scenario.AuthorId);
+        author.DefaultRequestHeaders.AcceptLanguage.ParseAdd("es");
         using var created = await author.PostAsJsonAsync(Proposals, request, Ct);
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
         var catalogId = (await created.ReadJsonAsync()).GetProperty("catalogId").GetGuid();
@@ -47,6 +48,7 @@ public sealed class FormCatalogAssistantImportHttpTests(ApiFactory factory)
         using var pending = await author.GetAsync(path + "/assistant-import", Ct);
         Assert.Equal(HttpStatusCode.OK, pending.StatusCode);
         Assert.True(pending.Headers.CacheControl!.NoStore);
+        await FormCatalogImportContractCapture.WriteAsync(pending, "es", "assistant-pending", Ct);
         var import = await pending.ReadJsonAsync();
         Assert.Equal(catalogId, import.GetProperty("catalogId").GetGuid());
         Assert.Equal((request.RequestId, request.ProposalId, "transportistas.xlsx", 2), (import.GetProperty("pending").GetProperty("requestId").GetGuid(),
@@ -58,6 +60,7 @@ public sealed class FormCatalogAssistantImportHttpTests(ApiFactory factory)
             new { request.RequestId, request.ProposalId, expectedRevision = 1 }, Ct);
         Assert.Equal(HttpStatusCode.OK, preview.StatusCode);
         Assert.True(preview.Headers.CacheControl!.NoStore);
+        await FormCatalogImportContractCapture.WriteAsync(preview, "es", "assistant-preview", Ct);
         var plan = await preview.ReadJsonAsync();
         Assert.Equal(("Replace", sha, "Options", 2, 2), (plan.GetProperty("mode").GetString(), plan.GetProperty("sheetSha256").GetString(),
             plan.GetProperty("sheetName").GetString(), plan.GetProperty("rowsRead").GetInt32(), plan.GetProperty("counts").GetProperty("added").GetInt32()));
@@ -68,6 +71,7 @@ public sealed class FormCatalogAssistantImportHttpTests(ApiFactory factory)
         using var applied = await author.PostAsJsonAsync(path + "/assistant-imports",
             new { request.RequestId, request.ProposalId, expectedRevision = 1, sheetSha256 = sha }, Ct);
         Assert.Equal(HttpStatusCode.OK, applied.StatusCode);
+        await FormCatalogImportContractCapture.WriteAsync(applied, "es", "assistant-applied", Ct);
         var saved = (await applied.ReadJsonAsync()).GetProperty("catalog");
         Assert.Equal((2L, 2, false), (saved.GetProperty("revision").GetInt64(), saved.GetProperty("itemsCount").GetInt32(), saved.GetProperty("isActive").GetBoolean()));
         var stored = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormCatalog>().AsNoTracking().SingleAsync(catalog => catalog.Id == catalogId, Ct));
@@ -81,6 +85,7 @@ public sealed class FormCatalogAssistantImportHttpTests(ApiFactory factory)
         // With options it has nothing pending: 200 without data.
         using var after = await author.GetAsync(path + "/assistant-import", Ct);
         Assert.Equal(HttpStatusCode.OK, after.StatusCode);
+        await FormCatalogImportContractCapture.WriteAsync(after, "es", "assistant-none", Ct);
         Assert.Equal(JsonValueKind.Null, (await after.ReadJsonAsync()).GetProperty("pending").ValueKind);
     }
 
@@ -164,6 +169,7 @@ public sealed class FormCatalogAssistantImportHttpTests(ApiFactory factory)
     {
         await using var scenario = await FormCatalogAssistantImportScenario.CreateAsync(factory, Ct);
         using var author = scenario.Client(scenario.AuthorId);
+        author.DefaultRequestHeaders.AcceptLanguage.ParseAdd("es");
         var name = "Acopios " + scenario.Suffix;
         var request = scenario.MappedCatalog(name, Csv, "transportistas.csv", 2);
         using var created = await author.PostAsJsonAsync(Proposals, request, Ct);
@@ -174,8 +180,9 @@ public sealed class FormCatalogAssistantImportHttpTests(ApiFactory factory)
 
         // Another person who manages catalogs: the proposal and the pending import are the author's.
         using var manager = scenario.Client(scenario.ManagerId);
+        manager.DefaultRequestHeaders.AcceptLanguage.ParseAdd("es");
         await AssertProblemAsync(manager.PostAsJsonAsync(path + "/assistant-import-previews", new { request.RequestId, request.ProposalId, expectedRevision = 1 }, Ct),
-            HttpStatusCode.NotFound, "Forms.Catalog.ProposalUnavailable");
+            HttpStatusCode.NotFound, "Forms.Catalog.ProposalUnavailable", "assistant-proposal-unavailable");
         await AssertProblemAsync(manager.PostAsJsonAsync(path + "/assistant-imports",
             new { request.RequestId, request.ProposalId, expectedRevision = 1, sheetSha256 = sha }, Ct), HttpStatusCode.NotFound, "Forms.Catalog.ProposalUnavailable");
         using var foreign = await manager.GetAsync(path + "/assistant-import", Ct);
@@ -190,7 +197,7 @@ public sealed class FormCatalogAssistantImportHttpTests(ApiFactory factory)
         // The copy the assistant saw is gone: the dialog asks for the file again.
         var gone = scenario.Import(catalogId, name, Csv, 2, store: false);
         await AssertProblemAsync(author.PostAsJsonAsync(path + "/assistant-import-previews", new { gone.RequestId, gone.ProposalId, expectedRevision = 1 }, Ct),
-            HttpStatusCode.Conflict, "Forms.CatalogImport.SheetUnavailable");
+            HttpStatusCode.Conflict, "Forms.CatalogImport.SheetUnavailable", "assistant-sheet-unavailable");
         await AssertProblemAsync(author.PostAsJsonAsync(path + "/assistant-imports",
             new { gone.RequestId, gone.ProposalId, expectedRevision = 1, sheetSha256 = sha }, Ct), HttpStatusCode.Conflict, "Forms.CatalogImport.SheetUnavailable");
         Assert.Equal(0, await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormCatalogItem>().CountAsync(item => item.CatalogId == catalogId, Ct)));
@@ -250,10 +257,12 @@ public sealed class FormCatalogAssistantImportHttpTests(ApiFactory factory)
     private Task<long> RevisionAsync(Guid catalogId) => factory.ExecuteDbContextAsync(db =>
         db.Set<BusinessFormCatalog>().Where(catalog => catalog.Id == catalogId).Select(catalog => catalog.Revision).SingleAsync(Ct));
 
-    private static async Task AssertProblemAsync(Task<HttpResponseMessage> sending, HttpStatusCode status, string code)
+    // A capture names the Spanish body the front reads to ask for the file again.
+    private static async Task AssertProblemAsync(Task<HttpResponseMessage> sending, HttpStatusCode status, string code, string? capture = null)
     {
         using var response = await sending;
         Assert.Equal(status, response.StatusCode);
+        if (capture is not null) await FormCatalogImportContractCapture.WriteAsync(response, "es", capture, Ct);
         Assert.Equal(code, (await response.ReadJsonAsync()).GetProperty("code").GetString());
     }
 }

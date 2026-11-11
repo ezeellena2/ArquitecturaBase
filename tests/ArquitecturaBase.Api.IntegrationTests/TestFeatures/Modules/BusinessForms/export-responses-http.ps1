@@ -124,7 +124,7 @@ $cohorts = @(
     @{ Name = "assistant-proposals"; Environment = "FORM_ASSISTANT_PROPOSAL_HTTP_OUTPUT"; Destination = "forms-assistant-proposals-http";
         RequiredNames = @("draft-created.json", "draft-status-created.json", "draft-status-not-created.json", "draft-name-taken.json", "draft-prefix-taken.json",
             "draft-replaced.json", "draft-unavailable.json", "draft-invalid.json", "catalog-created.json", "catalog-status-created.json", "catalog-detail-pending.json",
-            "catalog-approved.json", "catalog-name-taken.json", "catalog-replaced.json");
+            "catalog-approved.json", "catalog-name-taken.json", "catalog-replaced.json", "catalog-mapped-created.json", "catalog-mapped-detail-pending.json");
         Sources = @(($sourceRoot + "BusinessForms/FormAssistantProposalHttpTests.cs"), ($captureRoot + "Modules/BusinessForms/FormAssistantProposalScenario.cs"),
             ($captureRoot + "Modules/BusinessForms/ScriptedAssistantProposalLookup.cs"), ($captureRoot + "Modules/BusinessForms/FormAssistantProposalContractCapture.cs")) },
     @{ Name = "suggestion-details"; Environment = "FORM_SUGGESTION_DETAILS_HTTP_OUTPUT"; Destination = "forms-suggestion-detail-http";
@@ -152,8 +152,11 @@ $cohorts = @(
             "en/replace-preview.json", "en/append-preview.json", "en/already-applied.json", "en/empty-preview.json", "en/applied.json", "en/conflict.json", "en/confirmation-required.json", "en/round-trip-preview.json", "en/export.xlsx", "en/export.http.json", "en/template.xlsx", "en/template.http.json",
             "es/extra-source-preview.json", "es/extra-source-applied.json", "es/extra-source-unchanged.json",
             "en/extra-source-preview.json", "en/extra-source-applied.json", "en/extra-source-unchanged.json",
-            "es/en-original-preview.json", "es/en-original-export.xlsx", "es/en-original-export.http.json");
+            "es/en-original-preview.json", "es/en-original-export.xlsx", "es/en-original-export.http.json",
+            "es/assistant-pending.json", "es/assistant-preview.json", "es/assistant-applied.json", "es/assistant-none.json", "es/assistant-proposal-unavailable.json", "es/assistant-sheet-unavailable.json");
         Sources = @(($sourceRoot + "BusinessForms/FormCatalogImportFieldsHttpTests.cs"), ($sourceRoot + "BusinessForms/FormCatalogImportHttpTests.cs"), ($sourceRoot + "BusinessForms/FormCatalogEndpointsTests.cs"), ($captureRoot + "Modules/BusinessForms/FormCatalogImportContractCapture.cs"),
+            ($sourceRoot + "BusinessForms/FormCatalogAssistantImportHttpTests.cs"), ($captureRoot + "Modules/BusinessForms/FormCatalogAssistantImportScenario.cs"),
+            ($captureRoot + "Modules/BusinessForms/ScriptedAssistantProposalLookup.cs"), ($captureRoot + "Modules/BusinessForms/AssistantCopyFiles.cs"),
             "src/ArquitecturaBase.Application/Modules/BusinessForms/Models/FormCatalogImportModels.cs", "src/ArquitecturaBase.Application/Modules/BusinessForms/Services/FormCatalogImportTemplate.cs",
             "src/ArquitecturaBase.Application/Modules/BusinessForms/Resources/Catalogs.resx", "src/ArquitecturaBase.Application/Modules/BusinessForms/Resources/Catalogs.en.resx") },
     @{ Name = "manual-catalogs"; Environment = "FORMS_CATALOG_HTTP_CONTRACT_OUTPUT"; Destination = "catalogs-http/manual-current"; SourceDirectory = "manual-bilingual";

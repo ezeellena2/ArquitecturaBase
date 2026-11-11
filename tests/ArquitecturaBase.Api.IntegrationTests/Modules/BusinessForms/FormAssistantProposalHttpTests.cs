@@ -107,6 +107,7 @@ public sealed class FormAssistantProposalHttpTests(ApiFactory factory)
         using var author = scenario.Client(scenario.AuthorId);
         using var created = await author.PostAsJsonAsync(Catalogs, request, Ct);
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        await FormAssistantProposalContractCapture.WriteAsync(created, "catalog-mapped-created", Ct);
         var catalogId = (await created.ReadJsonAsync()).GetProperty("catalogId").GetGuid();
         var catalog = await scenario.CatalogAsync(catalogId, Ct);
         Assert.Equal((BusinessFormCatalogKind.Manual, false, BusinessFormCatalogProposalState.Pending), (catalog.Kind, catalog.IsActive, catalog.ProposalState));
@@ -118,6 +119,8 @@ public sealed class FormAssistantProposalHttpTests(ApiFactory factory)
         Assert.DoesNotContain("Transportes Sur", catalog.ProposalEvidenceJson!, StringComparison.Ordinal);
 
         using var detail = await author.GetAsync($"/api/forms/catalogs/{catalogId}", Ct);
+        Assert.Equal(HttpStatusCode.OK, detail.StatusCode);
+        await FormAssistantProposalContractCapture.WriteAsync(detail, "catalog-mapped-detail-pending", Ct);
         var proposal = (await detail.ReadJsonAsync()).GetProperty("proposal");
         Assert.Equal(VersionOneShape, proposal.GetProperty("manual").EnumerateObject().Select(property => property.Name).Order(StringComparer.Ordinal));
         Assert.False(proposal.TryGetProperty("requestId", out _));

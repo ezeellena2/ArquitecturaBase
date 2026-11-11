@@ -48,7 +48,7 @@ foreach ($case in @("Configuration", "Merge", "Missing", "Collision")) {
                 $cohorts = @(Read-ExporterAssignment "cohorts")
                 Assert-Condition ($cohorts.Count -eq 25) "The joint export contains twenty-five cohorts, including the Home assistant and its proposals."
                 $proposals = @($cohorts | Where-Object { $_.Name -eq "assistant-proposals" })[0]
-                Assert-Condition ($null -ne $proposals -and $proposals.Environment -eq "FORM_ASSISTANT_PROPOSAL_HTTP_OUTPUT" -and $proposals.RequiredNames.Count -eq 14) "Creating from a Home proposal requires its own output and its fourteen bodies."
+                Assert-Condition ($null -ne $proposals -and $proposals.Environment -eq "FORM_ASSISTANT_PROPOSAL_HTTP_OUTPUT" -and $proposals.RequiredNames.Count -eq 16) "Creating from a Home proposal requires its own output and its sixteen bodies, including the catalog created from a spreadsheet proposal."
                 $assistant = @($cohorts | Where-Object { $_.Name -eq "ai-assistant" })[0]
                 Assert-Condition ($null -ne $assistant -and $assistant.Environment -eq "AI_ASSISTANT_HTTP_OUTPUT" -and $assistant.Destination -eq "ai-assistant-http") "The Home assistant requires its own agreed output and destination."
                 $expectedAssistant = @("bootstrap.json", "submitted.json", "turn-pending.json", "turn-completed.json", "turns.json", "canceled.json")
@@ -88,11 +88,13 @@ foreach ($case in @("Configuration", "Merge", "Missing", "Collision")) {
                 Assert-Condition ($imports.Destination -eq "catalogs-http/imports") "Catalog imports require the agreed fixture destination."
                 $importNames = @("replace-preview.json", "append-preview.json", "already-applied.json", "empty-preview.json", "applied.json", "conflict.json", "confirmation-required.json", "round-trip-preview.json", "export.xlsx", "export.http.json", "template.xlsx", "template.http.json", "extra-source-preview.json", "extra-source-applied.json", "extra-source-unchanged.json")
                 $expectedImports = @(@("es", "en") | ForEach-Object { $culture = $_; $importNames | ForEach-Object { "$culture/$_" } }) +
-                    @("es/en-original-preview.json", "es/en-original-export.xlsx", "es/en-original-export.http.json")
-                Assert-Condition (@(Compare-Object $expectedImports $imports.RequiredNames).Count -eq 0) "Catalog imports must contain thirty-three actual HTTP artifacts, including the English-original preview and export."
+                    @("es/en-original-preview.json", "es/en-original-export.xlsx", "es/en-original-export.http.json") +
+                    @("es/assistant-pending.json", "es/assistant-preview.json", "es/assistant-applied.json", "es/assistant-none.json", "es/assistant-proposal-unavailable.json", "es/assistant-sheet-unavailable.json")
+                Assert-Condition (@(Compare-Object $expectedImports $imports.RequiredNames).Count -eq 0) "Catalog imports must contain thirty-nine actual HTTP artifacts, including the English-original preview and export and the import from the assistant's copy."
                 Assert-Condition (($sourceRoot + "BusinessForms/FormCatalogImportHttpTests.cs") -in $imports.Sources) "The import producer SHA must be included."
                 Assert-Condition (($sourceRoot + "BusinessForms/FormCatalogImportFieldsHttpTests.cs") -in $imports.Sources) "The source field import producer SHA must be included."
                 Assert-Condition (($captureRoot + "Modules/BusinessForms/FormCatalogImportContractCapture.cs") -in $imports.Sources) "The import capture SHA must be included."
+                Assert-Condition (($sourceRoot + "BusinessForms/FormCatalogAssistantImportHttpTests.cs") -in $imports.Sources) "The assistant import producer SHA must be included."
                 $manual = @($cohorts | Where-Object { $_.Name -eq "manual-catalogs" })[0]
                 Assert-Condition ($manual.RequiredNames.Count -eq 50) "Manual catalogs must preserve prior captures, eighteen extra-field artifacts, the optional description, three original-language bodies and the sorted request."
                 Assert-Condition ("sorted-request.request.json" -in $manual.RequiredNames) "The «Ordenar por…» request body is missing."
