@@ -36,4 +36,13 @@
   <data name="Catalog.Description" xml:space="preserve"><value>Tabla de ARCA. Se actualiza sola y no se edita desde acá.</value></data>
   <data name="Catalog.Exempt" xml:space="preserve"><value>Exento</value></data>
   <data name="Catalog.NotTaxed" xml:space="preserve"><value>No gravado</value></data>
+  <data name="Review.NumberTaken.Title" xml:space="preserve"><value>El número ya figura en ARCA con otros datos</value></data>
+  <data name="Review.NumberTaken.Detail" xml:space="preserve"><value>Puede haber otro sistema usando el mismo punto de venta.</value></data>
+  <data name="Review.NumberMissing.Title" xml:space="preserve"><value>El número no figura en ARCA, pero ya hay uno igual o mayor</value></data>
+  <data name="Review.NumberMissing.Detail" xml:space="preserve"><value>Puede haber otro sistema usando el mismo punto de venta.</value></data>
+  <data name="Review.DateOutOfRange.Title" xml:space="preserve"><value>ARCA ya no acepta la fecha del comprobante</value></data>
+  <data name="Review.DateOutOfRange.Detail" xml:space="preserve"><value>Con productos, puede estar hasta 5 días antes de hoy; con servicios, hasta 10.</value></data>
+  <data name="Review.IssueNext" xml:space="preserve"><value>Emitir con el número siguiente</value></data>
+  <data name="Review.IssueToday" xml:space="preserve"><value>Emitir con la fecha de hoy</value></data>
+  <data name="Review.CheckVouchers" xml:space="preserve"><value>Antes de decidir, mirá «Mis comprobantes» en ARCA.</value></data>
 </root>

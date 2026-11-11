@@ -1039,7 +1039,8 @@ ARCA» ([ADR 0028](../decisions/0028-emision-de-comprobantes-arca.md)); sin emis
   «En cola»; sin espera, no trae ninguno. Emitido, termina `Completed` y guarda el resultado en la misma transacción; rechazado, `Failed` con el código del
   emisor (reintentable si no se encoló nada) y, en `reason`, lo que dijo el proveedor tal como lo da el emisor
   (`FailureDetail`, «10015 · El número de documento del receptor no es válido.»), también en el run de reversión (evento
-  `Voided`); sin eso, `reason` es el texto del código. En revisión, `Uncertain` con el motivo del emisor. Sin el emisor,
+  `Voided`); sin eso, `reason` es el texto del código. En revisión, `Uncertain` con el motivo del emisor y, en `review`, los
+  textos que da el emisor por idioma (`title`, `detail`, `proceed` y `advice`): el front no tiene textos de un emisor. Sin el emisor,
   `Forms.Action.IssuerUnavailable`; sin los datos atados, `Forms.Action.IssueDataUnavailable`; si una persona decidió no
   emitir, `Forms.Action.NotIssued`.
 - **El cliente nuevo, con «Emitir».** Si al encolar el emisor completó a alguien escrito en la respuesta (el cliente de

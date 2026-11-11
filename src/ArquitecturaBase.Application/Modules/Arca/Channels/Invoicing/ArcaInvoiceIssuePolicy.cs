@@ -40,7 +40,7 @@ internal static class ArcaInvoiceIssuePolicy
             FailureDetail = voucher.Messages is [var message, ..] ? $"{message.Code.ToString(CultureInfo.InvariantCulture)} · {message.Text.Trim()}" : null,
         },
         ArcaVoucherState.NeedsReview => new(StructuredIssueState.NeedsReview, Revision: voucher.Revision,
-            ReviewReason: ArcaInvoiceStandard.Key + "." + Camel(voucher.ReviewReason!.Value.ToString())),
+            ReviewReason: ArcaInvoiceStandard.Key + "." + Camel(voucher.ReviewReason!.Value.ToString())) { ReviewText = Review(voucher.ReviewReason.Value) },
         ArcaVoucherState.Cancelled => new(StructuredIssueState.Cancelled, Revision: voucher.Revision),
         _ => new(StructuredIssueState.Pending, voucher.FailureCode, WaitingForProvider: voucher.WaitedForArca, NextCheckAtUtc: voucher.NextAttemptAtUtc,
             Revision: voucher.Revision, WaitingNotice: voucher.WaitedForArca
@@ -122,6 +122,18 @@ internal static class ArcaInvoiceIssuePolicy
     private static Dictionary<string, string> Localized(string key, params object[] arguments) => Cultures.ToDictionary(culture => culture, culture =>
         string.Format(CultureInfo.GetCultureInfo(culture), Texts.GetString(key, CultureInfo.GetCultureInfo(culture))
             ?? throw new InvalidOperationException("The ARCA invoicing text is missing."), arguments), StringComparer.Ordinal);
+
+    // A review says why and how it goes on: another number (with where to look first) or today's date.
+    private static StructuredIssueReviewText Review(ArcaVoucherReviewReason reason)
+    {
+        var key = "Review." + reason;
+        var next = reason == ArcaVoucherReviewReason.DateOutOfRange ? "Review.IssueToday" : "Review.IssueNext";
+        return new(Localized(key + ".Title"), Localized(next))
+        {
+            Detail = Localized(key + ".Detail"),
+            Advice = reason == ArcaVoucherReviewReason.DateOutOfRange ? null : Localized("Review.CheckVouchers"),
+        };
+    }
 
     private static string Camel(string name) => char.ToLowerInvariant(name[0]) + name[1..];
 }

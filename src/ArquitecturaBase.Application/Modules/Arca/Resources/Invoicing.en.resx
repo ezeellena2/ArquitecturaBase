@@ -36,4 +36,13 @@
   <data name="Catalog.Description" xml:space="preserve"><value>ARCA table. It updates itself and is not edited here.</value></data>
   <data name="Catalog.Exempt" xml:space="preserve"><value>Exempt</value></data>
   <data name="Catalog.NotTaxed" xml:space="preserve"><value>Not taxed</value></data>
+  <data name="Review.NumberTaken.Title" xml:space="preserve"><value>The number is already in ARCA with other data</value></data>
+  <data name="Review.NumberTaken.Detail" xml:space="preserve"><value>Another system may be using the same point of sale.</value></data>
+  <data name="Review.NumberMissing.Title" xml:space="preserve"><value>The number is not in ARCA, but an equal or greater one is</value></data>
+  <data name="Review.NumberMissing.Detail" xml:space="preserve"><value>Another system may be using the same point of sale.</value></data>
+  <data name="Review.DateOutOfRange.Title" xml:space="preserve"><value>ARCA no longer accepts the date of the voucher</value></data>
+  <data name="Review.DateOutOfRange.Detail" xml:space="preserve"><value>With products, it can be up to 5 days before today; with services, up to 10.</value></data>
+  <data name="Review.IssueNext" xml:space="preserve"><value>Issue with the next number</value></data>
+  <data name="Review.IssueToday" xml:space="preserve"><value>Issue with today's date</value></data>
+  <data name="Review.CheckVouchers" xml:space="preserve"><value>Before deciding, check “Mis comprobantes” in ARCA.</value></data>
 </root>

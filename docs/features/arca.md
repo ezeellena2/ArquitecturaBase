@@ -160,12 +160,17 @@ la prueba integral y la de homologación. Lo que se ve en la app y en WhatsApp e
   «DNI …» o «Sin identificar»), su condición frente al IVA y total como resultado (`voucher`, `number`, `issuedOn`, `cae`,
   `caeDueOn`, `customer`, `customerDocument`, `customerVatCondition` y `total`), también en la nota de crédito. Es la zona
   «Comprobante» del detalle y los datos `{result:arca.invoice.<clave>}` de los avisos; el documento y la condición se escriben
-  con `ArcaFiscalDocumentPolicy`, como en el PDF fiscal. En revisión responde `arca.invoice.<motivo>`; seguir es otro
+  con `ArcaFiscalDocumentPolicy`, como en el PDF fiscal. En revisión responde `arca.invoice.<motivo>` y sus textos en los dos
+  idiomas (`ReviewText`: por qué espera, qué significa, «Emitir con el número siguiente» o «Emitir con la fecha de hoy» y,
+  por el número, «Antes de decidir, mirá «Mis comprobantes» en ARCA.»), así formularios no nombra a ARCA; seguir es otro
   número o la fecha de hoy, y decidirlo pide `arca.issue`. Anular la respuesta cancela la emisión que todavía no
   tiene número o pide la nota de crédito por el total (`EnqueueCreditNoteAsync`), las dos por el mismo puerto. Mientras espera por ARCA, el aviso es «ARCA no responde. Tu factura
   sale apenas vuelva.» (o «Tu nota de crédito»), y la respuesta trae cuándo vuelve a probar la cola (`NextCheckAtUtc`) y
   cuántas veces seguidas no salió (`Attempts`, la columna `Failures` del comprobante, que vuelve a cero al emitir o al seguir
-  después de una revisión). Un rechazo trae el código estable (`wsfe.<código>`) y, en `FailureDetail`, el primer mensaje que
+  después de una revisión). Los motivos que la cola pone sin un mensaje de ARCA están declarados en `ArcaInvoicingErrors`, con
+  su texto: `Arca.Invoicing.ArcaNoAnswer` (no respondió), `ArcaFailed` (respondió con un error), `AnswerIncomplete` (tiene el
+  comprobante sin CAE), `AnswerUnclear` (la respuesta no dice si se emitió) y `RejectedWithoutReason`. Un rechazo trae el
+  código estable (`wsfe.<código>`) y, en `FailureDetail`, el primer mensaje que
   guardó ARCA (los errores antes que las observaciones) como lo mandó: «10015 · El número de documento del receptor no es
   válido.», también en la nota de crédito.
 - **El estándar «Factura»** (`ArcaInvoiceStandardSource`, `arca.invoice`, prefijo FAC): Cliente (de «Clientes»), CUIT del

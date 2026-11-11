@@ -57,7 +57,23 @@ public sealed record StructuredIssueResponse(StructuredIssueState State, string?
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public int? Attempts { get; init; }
 
+    /// <summary>The texts of an issuance in review, by language, so whoever decides reads why without the core naming the issuer.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public StructuredIssueReviewText? ReviewText { get; init; }
+
     public override string ToString() => $"StructuredIssueResponse {{ State = {State}, Content = [REDACTED] }}";
+}
+
+/// <summary>
+/// What a review says, each text by language: why it waits (Title), what that means (Detail), the choice that goes on (Proceed:
+/// «Emitir con el número siguiente») and, when it helps, where to look before deciding (Advice). Not issuing is the core's own.
+/// </summary>
+public sealed record StructuredIssueReviewText(IReadOnlyDictionary<string, string> Title, IReadOnlyDictionary<string, string> Proceed)
+{
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyDictionary<string, string>? Detail { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyDictionary<string, string>? Advice { get; init; }
 }
 
 /// <summary>

@@ -112,6 +112,24 @@ public sealed class ArcaInvoiceIssuePolicyTests
         Assert.Equal(StructuredIssueState.Cancelled, ArcaInvoiceIssuePolicy.Response(Voucher(ArcaVoucherState.Cancelled)).State);
     }
 
+    // The texts of a review come from the issuer in both languages, so formularios never names ARCA nor its reasons: why it waits,
+    // what it means, how it goes on and, by the number, where to look first.
+    [Fact]
+    public void A_review_brings_its_texts_in_both_languages_by_its_reason()
+    {
+        var taken = ArcaInvoiceIssuePolicy.Response(Voucher(ArcaVoucherState.NeedsReview) with { ReviewReason = ArcaVoucherReviewReason.NumberTaken }).ReviewText!;
+        var missing = ArcaInvoiceIssuePolicy.Response(Voucher(ArcaVoucherState.NeedsReview) with { ReviewReason = ArcaVoucherReviewReason.NumberMissing }).ReviewText!;
+        var date = ArcaInvoiceIssuePolicy.Response(Voucher(ArcaVoucherState.NeedsReview) with { ReviewReason = ArcaVoucherReviewReason.DateOutOfRange }).ReviewText!;
+
+        Assert.Equal(("El número ya figura en ARCA con otros datos", "The number is already in ARCA with other data"), (taken.Title["es"], taken.Title["en"]));
+        Assert.Equal(("Emitir con el número siguiente", "Issue with the next number"), (taken.Proceed["es"], taken.Proceed["en"]));
+        Assert.Equal("Antes de decidir, mirá «Mis comprobantes» en ARCA.", taken.Advice!["es"]);
+        Assert.Equal("Puede haber otro sistema usando el mismo punto de venta.", missing.Detail!["es"]);
+        Assert.Equal(("Emitir con la fecha de hoy", "Issue with today's date"), (date.Proceed["es"], date.Proceed["en"]));
+        Assert.Null(date.Advice);
+        Assert.Null(ArcaInvoiceIssuePolicy.Response(Voucher(ArcaVoucherState.Rejected)).ReviewText);
+    }
+
     [Fact]
     public void The_preview_of_an_invoice_c_says_why_and_itemizes_nothing()
     {

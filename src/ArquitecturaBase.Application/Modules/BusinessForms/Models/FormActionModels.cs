@@ -47,6 +47,9 @@ public sealed record FormActionRunResponse(Guid Id,Guid RuleId,string Kind,strin
     /// <summary>How many times that issuer tried while it waits, when it counts them; absent otherwise.</summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public int? Attempts { get; init; }
+    /// <summary>An issuance in review: its texts by language as its issuer gave them (why, what it means, how it goes on); absent otherwise.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public StructuredIssueReviewText? Review { get; init; }
 }
 public sealed record FormActionRecipientResponse(FormAuthorResponse User,string? ChannelId,string State,string? ReasonCode,string? Reason,
     bool CanReview,bool CanRetry,DateTime? DeliveredAtUtc,DateTime? ReadAtUtc,FormActionDeliveryReviewResponse? Review);

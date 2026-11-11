@@ -59,6 +59,8 @@ internal sealed class FormActionRunReader(ApplicationDbContext db,TimeProvider t
         // loaded it («¿La emito?»).
         var actions=rows.Select((row,index)=>row.Response with{ReasonCode=row.Response.ReasonCode??waiting[index]?.FailureCode,Reason=failed[index]?.FailureDetail,
             CanReview=row.Response.Kind=="IssueDocument"&&row.Response.State=="Uncertain"&&outcomes[index]?.Issue?.State==StructuredIssueState.NeedsReview,
+            // In review, the texts its issuer gave for it, so the core never names the issuer nor its reasons.
+            Review=row.Response.State=="Uncertain"?outcomes[index]?.Issue?.ReviewText:null,
             NextAttemptAtUtc=waiting[index]?.NextCheckAtUtc,Attempts=waiting[index]?.Attempts,Recipients=(outcomes[index]?.Recipients??[]).Select(recipient=>
         {
             var review=recipient.Status.Review;

@@ -134,12 +134,23 @@ public sealed partial class FormDraftEndpointsTests
         using var managing = InHost(host, manager);
         var (recordId, runId) = await SeedIssueRunAsync(reviewer);
         var worker = host.Services.GetRequiredService<FormActionBackgroundService>();
-        issuer.Next = new(StructuredIssueState.NeedsReview, ReviewReason: "test.issue.dateOutOfRange", Revision: 4);
+        // The texts of the review are the issuer's, by language: the core never names the issuer nor its reasons.
+        issuer.Next = new(StructuredIssueState.NeedsReview, ReviewReason: "test.issue.dateOutOfRange", Revision: 4)
+        {
+            ReviewText = new(new Dictionary<string, string> { ["es"] = "La fecha ya no sirve", ["en"] = "The date no longer works" },
+                new Dictionary<string, string> { ["es"] = "Emitir con la fecha de hoy", ["en"] = "Issue with today's date" }),
+        };
         await worker.ProcessNextAsync(runId, Ct);
 
         var action = await WorkflowActionAsync(deciding, recordId);
         Assert.Equal(("Uncertain", "test.issue.dateOutOfRange", true), (action.GetProperty("state").GetString(), action.GetProperty("reasonCode").GetString(),
             action.GetProperty("canReview").GetBoolean()));
+        Assert.Equal(("La fecha ya no sirve", "Issue with today's date"), (action.GetProperty("review").GetProperty("title").GetProperty("es").GetString(),
+            action.GetProperty("review").GetProperty("proceed").GetProperty("en").GetString()));
+        Assert.False(action.GetProperty("review").TryGetProperty("advice", out _));
+        // The detail says it has an issuance, so its zone keeps its place while the flow is read.
+        using var detail = await deciding.GetAsync($"/api/forms/records/{recordId}", Ct);
+        Assert.True((await detail.ReadJsonAsync()).GetProperty("hasIssuance").GetBoolean());
         Assert.False((await WorkflowActionAsync(managing, recordId)).TryGetProperty("canReview", out _));
         var decision = new { expectedRevision = action.GetProperty("revision").GetInt64(), wasSent = true };
         using var forbidden = await managing.PostAsJsonAsync($"/api/forms/records/{recordId}/actions/{runId}/review", decision, Ct);
