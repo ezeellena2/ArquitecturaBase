@@ -81,6 +81,9 @@ public sealed record FormResponseStoredRow(FormRecordStoredRow Record, DateTime 
 {
     [System.Text.Json.Serialization.JsonIgnore]
     public FormResponseVersionRow? Version { get; init; }
+    /// <summary>Whether the response has an issuance that applied (also its reversal): the zone «Comprobante» of the detail.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool HasIssuance { get; init; }
     public string? CaptureOriginJson { get; init; }
     public FormAuthorResponse? CaptureOperator { get; init; }
     /// <summary>The first version's receipt when this is a correction: the channel and who answered come from it.</summary>
@@ -123,6 +126,12 @@ public sealed record FormResponseDetailResponse(Guid Id, Guid DefinitionId, Guid
     /// <summary>What external actions returned (RE1-A), in the order they were recorded; omitted when there is none.</summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyList<FormResponseResultResponse>? Results { get; init; }
+    /// <summary>
+    /// Whether the response has an issuance (one that applied, or a result it left): the zone «Comprobante» keeps its place while
+    /// the flow, read apart, arrives. Omitted when false.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public bool HasIssuance { get; init; }
 }
 public sealed record FormResponseHistoryResponse(string Kind, DateTime AtUtc, FormAuthorResponse? Actor);
 

@@ -115,6 +115,7 @@ internal sealed class FormResponseService(IFormResponseReader reader, FormRecord
                         FormRecordPresentationPolicy.Text(FormDraftPolicy.Read<Dictionary<string,string>>(record.NameJson), (record.Version ?? throw new InvalidOperationException("The chain version presentation is missing.")).DisplayCulture(Culture())), record.SubmittedAtUtc)).ToArray() : [],
                 Correction = amendment.Correction, ReplacedBy = amendment.ReplacedBy, Void = amendment.Void,
                 Results = results.Count == 0 ? null : results.Select(result => FormRecordResultPresentationPolicy.Project(result, contentCulture)).ToArray(),
+                HasIssuance = row.HasIssuance || results.Count > 0,
                 CanAmend = amend is not null && FormRecordAmendmentGuard.Allows(amend, row.Actor.UserId, Enum.Parse<FormRecordState>(row.State),
                     row.ReplacedByRecordId is not null).IsSuccess,
             };

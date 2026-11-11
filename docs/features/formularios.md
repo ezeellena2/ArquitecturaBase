@@ -999,7 +999,9 @@ trae es de la etapa 3 (`IssueDocument`, [ADR 0028](../decisions/0028-emision-de-
   valor canónico, sellados al confirmar, así se leen igual aunque se quite el módulo. Los trae el DTO neutral
   `StructuredRecordResult`; los guarda `FormRecordResultRecorder` en la transacción que confirma el run, bajo el fence vigente.
   Un resultado mal armado es un error del módulo que lo produjo: lanza y no se guarda nada.
-- **El detalle** (`GET api/forms/records/{id}`) trae `results` en el idioma del contenido, en el orden en que llegaron; sin
+- **El detalle** (`GET api/forms/records/{id}`) trae `hasIssuance: true` si la respuesta tiene una emisión (una que se aplicó,
+  también su reversión, o un resultado), para que la zona «Comprobante» guarde su lugar mientras llega el flujo, que se lee
+  aparte. Trae `results` en el idioma del contenido, en el orden en que llegaron; sin
   resultados se omite. El front lo muestra como una zona con el nombre de la acción, arriba de «Datos».
 - **La planilla** trae `resultColumns` (una por dato, con id `<fuente>.<clave>`, después de las preguntas, con los nombres del
   último resultado de cada fuente) y `results` en cada fila; sin resultados se omiten. No se filtra ni se ordena por ellos.

@@ -55,6 +55,27 @@ public sealed class FormRecordResultSheetTests
         Assert.Null(sheet.Records.Items.Single(row => row.Id == reader.ExportRows[1].Record.RecordId).Results);
     }
 
+    // The zone «Comprobante» keeps its place while the flow is read apart: the detail says whether the response has an issuance
+    // (one that applied, or a result left), and keeps its body without one.
+    [Fact]
+    public async Task The_detail_says_whether_the_response_has_an_issuance()
+    {
+        var (reader, results, user, permissions) = Arrange();
+        reader.ExportRows = [reader.ExportRows[0], reader.ExportRows[1] with { HasIssuance = true }];
+        var service = new FormResponseService(reader, new(user, permissions, reader), RequestValidators.For(new ListFormRecordsRequestValidator()),
+            NullLogger<FormResponseService>.Instance, new([]), new FormSuggestionFixture(),
+            new(user, permissions, new ArquitecturaBase.Application.UnitTests.TestDoubles.Users.InMemoryUserAccounts()), results);
+        var withResult = reader.ExportRows[0].Record.RecordId;
+        var running = reader.ExportRows[1].Record.RecordId;
+
+        Assert.True((await service.GetAsync(withResult, CancellationToken.None)).Value.HasIssuance);
+        Assert.True((await service.GetAsync(running, CancellationToken.None)).Value.HasIssuance);
+        reader.ExportRows = [reader.ExportRows[1] with { HasIssuance = false }];
+        var plain = (await service.GetAsync(running, CancellationToken.None)).Value;
+        Assert.False(plain.HasIssuance);
+        Assert.DoesNotContain("hasIssuance", FormDraftPolicy.Serialize(plain));
+    }
+
     [Fact]
     public async Task Without_results_the_sheet_keeps_its_body()
     {

@@ -51,6 +51,9 @@ internal sealed partial class FormResponseReader(ApplicationDbContext dbContext,
             .Select(value => new { value.SourceReceiptId, value.SubmittedAtUtc, value.CreatedAtUtc, value.ActorUserId, value.State, value.CaptureOriginJson,
                 value.OriginalReceiptId, value.ReplacesRecordId, value.ReplacedByRecordId,
                 HasPdf = dbContext.Set<BusinessFormDocument>().Any(document => document.RecordId == value.Id),
+                // An issuance that applied, also its reversal: the zone «Comprobante» keeps its place while the flow is read.
+                HasIssuance = dbContext.Set<BusinessFormActionRun>().Any(run => run.RecordId == value.Id && run.Kind == "IssueDocument"
+                    && run.State != FormActionRunState.NotApplicable),
                 DisplayName = dbContext.Users.Where(user => user.Id == value.ActorUserId).Select(user => user.DisplayName).FirstOrDefault() }).SingleOrDefaultAsync(cancellationToken);
         if (record is null) return null;
         FormAuthorResponse? captureOperator = null;
@@ -63,7 +66,7 @@ internal sealed partial class FormResponseReader(ApplicationDbContext dbContext,
         }
         var batch = await records.FindBatchAsync([record.SourceReceiptId], null, cancellationToken);
         var stored = batch.Rows.Single();
-        return new(stored, record.SubmittedAtUtc, new(record.ActorUserId, record.DisplayName), record.CreatedAtUtc, record.State.ToString(), record.HasPdf) { Version = batch.Versions[stored.VersionId], CaptureOriginJson = record.CaptureOriginJson, CaptureOperator = captureOperator,
+        return new(stored, record.SubmittedAtUtc, new(record.ActorUserId, record.DisplayName), record.CreatedAtUtc, record.State.ToString(), record.HasPdf) { Version = batch.Versions[stored.VersionId], HasIssuance = record.HasIssuance, CaptureOriginJson = record.CaptureOriginJson, CaptureOperator = captureOperator,
             OriginalReceiptId = record.OriginalReceiptId, ReplacesRecordId = record.ReplacesRecordId, ReplacedByRecordId = record.ReplacedByRecordId };
     }
     public Task<bool> ExistsByActorAsync(Guid recordId, Guid actorUserId, CancellationToken cancellationToken) =>
