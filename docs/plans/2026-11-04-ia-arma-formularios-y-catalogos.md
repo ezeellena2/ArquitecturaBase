@@ -1,6 +1,8 @@
 # La IA arma formularios y catálogos a pedido
 
-Diseño del 2026-11-03 con las decisiones del usuario del 2026-11-04. Nada está programado. Desde el chat de Inicio o por
+Diseño del 2026-11-03 con las decisiones del usuario del 2026-11-04. La Etapa 1 (texto y audio) quedó programada el 2026-11-05
+y la 2 (planillas) el 2026-11-11, las dos calificadas con OpenAI real; la 3 (documentos) se planifica junto con la lectura de
+documentos del ADR 0022 (2026-11-11). Desde el chat de Inicio o por
 WhatsApp, con un texto, un archivo o un audio, se le pide a la IA un formulario o un catálogo: lo propone, lo muestra y una
 persona lo pasa al editor con todo cargado, sin publicar.
 
