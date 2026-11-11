@@ -96,7 +96,8 @@ El Administrador de Relaciones existe sólo en producción, así que las pruebas
    certificado de la instalación, autorizar la constancia, aceptar, asignar y confirmar con ARCA. Al terminar, la zona se
    pliega con «Delegada · punto de venta N», la prueba sale en verde y Facturación llega con ese punto de venta elegido.
 5. **Si se frena (RB3-A):** anotá el paso y el motivo del aviso; la guía de la etapa 5 abre en ese paso, con lo hecho marcado
-   «Lo hizo el robot». Si fue una pantalla cambiada, llega el correo a `Arca:Robot:AlertEmail`.
+   «Lo hizo el robot». Si fue una pantalla cambiada, llega el correo a `Arca:Robot:AlertEmail`. Hacé a mano los pasos que
+   faltan y tocá «Verificar la delegación»: la zona vuelve al avance y la plataforma acepta, asigna y confirma sola.
 6. **Una clave equivocada:** el error queda debajo de la clave y el robot no vuelve a probar solo.
 
 Lo que falle en esa corrida es una pantalla distinta de la simulada: se corrige como dice la próxima sección.

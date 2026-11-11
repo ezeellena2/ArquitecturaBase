@@ -202,6 +202,7 @@ Bajo `api/arca/connection`, con `arca.read` y `arca.manage`:
 | --- | --- |
 | `POST …/robot-runs` | Con el consentimiento, la CUIT o CUIL de ingreso, la clave fiscal y la revisión esperada, arranca la corrida del cliente. Responde 202 con la corrida |
 | `GET …/robot-runs/current` | El estado de la corrida del cliente y del trabajo de la plataforma, con los pasos y el motivo |
+| `POST …/robot-runs/current/manual-completion` | El cliente frenado hizo a mano los pasos de la guía: su lado queda terminado y la plataforma sigue. Responde 202 |
 
 - El contrato de entrada sobrescribe `ToString()` y oculta la CUIT y la clave.
 - Sin el robot prendido, el `POST` responde con un error propio (`Arca.Connection.RobotDisabled`).
@@ -213,7 +214,8 @@ Programado el 2026-11-11 en la pantalla de ARCA, con RB1-A, RB2-A y RB3-A regist
 [`docs/design/arca-robot.md`](../../../ArquitecturaBaseFront/docs/design/arca-robot.md) del front. «Delegación automática»
 es la tercera opción del modo en la zona «Datos», sólo con el robot prendido y en producción. En el modo 3, la zona del
 robot reemplaza a las de pedido, certificado y guía. El avance se consulta cada dos segundos mientras la corrida está en
-curso. Facturación llega con el punto de venta del robot elegido.
+curso, y la conexión se vuelve a leer cada vez que el robot avanza. Si el cliente se frena, la guía de la etapa 5 tiene
+«Verificar la delegación», que le pasa el resto a la plataforma. Facturación llega con el punto de venta del robot elegido.
 
 ## Pruebas
 

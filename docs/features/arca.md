@@ -22,8 +22,9 @@ que siguen están en la [hoja de ruta](../plans/2026-10-31-arca-formularios-esta
   trae los datos de la empresa. Sólo los elegidos se prueban y muestran su zona.
 - **Un ambiente por vez:** la conexión es de homologación o de producción. Pasar a producción es configurarla de nuevo.
 - **Sólo certificados nuevos**, generados en la app. No se importa uno existente.
-- **Dos modos:** con el certificado de la empresa o en delegación (abajo). Pasar de uno a otro es empezar de nuevo. El
-  tercero, la delegación con robot, es de la etapa 6: hoy el alta lo rechaza con `Arca.Connection.ModeUnavailable`.
+- **Tres modos:** con el certificado de la empresa, en delegación guiada o en delegación con robot (abajo). El tercero se
+  ofrece sólo con el robot prendido; apagado, el alta lo rechaza con `Arca.Connection.ModeUnavailable`. Pasar de uno a otro
+  es empezar de nuevo.
 
 ## Permisos y pantalla
 
@@ -242,9 +243,9 @@ el [diseño del front](../../../ArquitecturaBaseFront/docs/design/arca-delegacio
 ## Delegación con robot (modo 3)
 
 Un robot propio con Playwright y Chromium hace en la página de ARCA los pasos de la delegación guiada
-([ADR 0026](../decisions/0026-robot-de-delegacion-arca.md)). Está programado el backend; la pantalla espera el fin de la
-prueba integral, con los tableros elegidos (RB1-A a RB3-A) en el [plan](../plans/2026-11-09-arca-etapa-6-robot.md). La
-operación está en [correr y mantener el robot](../guides/robot-arca.md).
+([ADR 0026](../decisions/0026-robot-de-delegacion-arca.md)). La pantalla sigue los tableros elegidos (RB1-A a RB3-A),
+registrados en el [diseño del front](../../../ArquitecturaBaseFront/docs/design/arca-robot.md). La operación está en
+[correr y mantener el robot](../guides/robot-arca.md).
 
 - **Apagado por defecto** (`Arca:Robot:Enabled`). Prendido, el alta acepta el modo `PlatformDelegationAutomated` con el mismo
   modelo que la delegación guiada; apagado, ese modo da `Arca.Connection.ModeUnavailable`.
@@ -260,6 +261,9 @@ operación está en [correr y mantener el robot](../guides/robot-arca.md).
   pedido de la app y lo carga por la subida de siempre (RB5-A), autoriza las consultas para el alias y, cuando el cliente
   terminó, acepta la delegación y la asigna al alias. Confirma con la prueba de la conexión (la detección de la etapa 5):
   sólo con todos los servicios en verde termina bien.
+- **Si el cliente se frena, sigue con la guía (RB3-A):** la pantalla abre la guía de la etapa 5 en el paso donde se frenó.
+  Hechos sus pasos a mano, «Verificar la delegación» da por terminado su lado, frenado o interrumpido, y la plataforma
+  acepta, asigna y confirma enseguida. Si el lado del cliente no estaba frenado, responde `RobotNotStopped`.
 - **Cada paso mira antes si ya está hecho,** y sus claves son las de la guía de la etapa 5 más `company.login`,
   `platform.login`, `platform.certificate` y `verify`, para que la pantalla abra la guía donde se frenó.
 - **Motivos:** ingreso rechazado, captcha, validación extra, pantalla cambiada, ARCA no responde e interrumpida. El robot no
@@ -270,9 +274,10 @@ operación está en [correr y mantener el robot](../guides/robot-arca.md).
   el motivo y la hora, como mucho uno por motivo y paso por día. Siempre queda el log de error.
 - **Rutas:** `GET api/arca/connection/robot-runs/current` (`arca.read`) dice si el robot está prendido y cómo va cada lado;
   `POST api/arca/connection/robot-runs` (`arca.read` + `arca.manage`, límite `arca-remote`) arranca el lado del cliente con
-  el consentimiento, la CUIT o CUIL de ingreso, la clave y la revisión esperada, y responde 202. Errores propios:
-  `RobotDisabled`, `RobotModeMismatch`, `RobotConsentMissing`, `RobotKeyMissing`, `RobotRunInProgress` (409) y `RobotBusy`
-  (429), con el prefijo `Arca.Connection.`.
+  el consentimiento, la CUIT o CUIL de ingreso, la clave y la revisión esperada, y responde 202;
+  `POST api/arca/connection/robot-runs/current/manual-completion` (`arca.manage`) da por terminado a mano el lado del cliente
+  frenado y responde 202. Errores propios: `RobotDisabled`, `RobotModeMismatch`, `RobotConsentMissing`, `RobotKeyMissing`,
+  `RobotRunInProgress` (409), `RobotNotStopped` (409) y `RobotBusy` (429), con el prefijo `Arca.Connection.`.
 - **La clave del cliente** es un tipo que no se imprime ni se serializa, se escribe sólo en el campo de ingreso y no queda en
   respuestas, logs, excepciones ni filas: lo verifica una prueba que la busca. Playwright corre sin trazas, HAR, video ni
   capturas, y la Api no arranca con su depuración encendida ni sin Chromium.
