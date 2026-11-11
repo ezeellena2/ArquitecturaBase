@@ -475,9 +475,6 @@
   <data name="Forms.Publication.MinRowsOverChannelLimit" xml:space="preserve">
     <value>En WhatsApp se cargan menos ítems que el mínimo del bloque.</value>
   </data>
-  <data name="Forms.Publication.LocationOnlyInApp" xml:space="preserve">
-    <value>Por WhatsApp no se puede pedir una ubicación. Elegí «Sólo en la app» en «Dónde se completa» o quitá la pregunta.</value>
-  </data>
   <data name="Forms.Publication.PresentationInvalid" xml:space="preserve">
     <value>Revisá lo que viaja a WhatsApp: el título no puede quedar vacío y la descripción admite hasta 300 caracteres.</value>
   </data>

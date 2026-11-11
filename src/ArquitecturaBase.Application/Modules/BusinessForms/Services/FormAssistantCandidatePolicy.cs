@@ -52,6 +52,9 @@ internal sealed class FormAssistantCandidatePolicy(IFormSelectionReader reader, 
     {
         if (!prepared.CanSend) return FormRecordErrors.InvalidResponse;
         var schema = FormDraftPolicy.Read<FormVersionSchema>(row.SchemaJson);
+        // W1-A: a person sends a form with a location question from the chat, which asks for the location before its Flow; the
+        // assistant does not offer, suggest or clarify it in this stage.
+        if (schema.Questions.Any(field => field.Type == "location")) return FormRecordErrors.InvalidResponse;
         // The questions of a block of rows are never prefilled: which row would get the value? Nor one that chooses first by a field
         // (LD2-A): its list is empty until the value is chosen. Nor a calculation (CA1-A), which the server computes, or a question
         // with a condition (CO1-A), which may be hidden.

@@ -34,18 +34,13 @@ public sealed class FormLocationHttpTests(ApiFactory factory)
         var placeId = saved.GetProperty("definition").GetProperty("draft").GetProperty("fields")[1].GetProperty("fieldId").GetGuid();
         Assert.Equal("location", saved.GetProperty("definition").GetProperty("draft").GetProperty("fields")[1].GetProperty("type").GetString());
 
-        // Completed also by WhatsApp, the check blocks at the question; only in the app, it does not.
+        // W1-A: completed also by WhatsApp, the check does not stop at the question, which WhatsApp asks for before the Flow.
         using var manager = scenario.Client("es");
-        using var blocked = await manager.PostAsJsonAsync($"/api/forms/definitions/{scenario.DefinitionId}/publication-checks", CheckPayload(scenario, appOnly: false), Ct);
-        Assert.Equal(HttpStatusCode.OK, blocked.StatusCode);
-        var issue = Assert.Single((await blocked.ReadJsonAsync()).GetProperty("issues").EnumerateArray(),
-            value => value.GetProperty("code").GetString() == FormPublicationErrors.LocationOnlyInApp.Code);
-        Assert.Equal(placeId, issue.GetProperty("fieldId").GetGuid());
-        Assert.Equal("draft.fields[1]", issue.GetProperty("path").GetString());
+        using var withChannel = await manager.PostAsJsonAsync($"/api/forms/definitions/{scenario.DefinitionId}/publication-checks", CheckPayload(scenario, appOnly: false), Ct);
+        Assert.Equal(HttpStatusCode.OK, withChannel.StatusCode);
+        Assert.DoesNotContain((await withChannel.ReadJsonAsync()).GetProperty("issues").EnumerateArray(),
+            value => value.TryGetProperty("fieldId", out var fieldId) && fieldId.ValueKind == JsonValueKind.String && fieldId.GetGuid() == placeId);
         await scenario.SaveDraftAsync(payload => { Fix(payload); payload["draft"]!["appOnly"] = true; }, Ct);
-        using var allowed = await manager.PostAsJsonAsync($"/api/forms/definitions/{scenario.DefinitionId}/publication-checks", CheckPayload(scenario, appOnly: true), Ct);
-        Assert.DoesNotContain((await allowed.ReadJsonAsync()).GetProperty("issues").EnumerateArray(),
-            value => value.GetProperty("code").GetString() == FormPublicationErrors.LocationOnlyInApp.Code);
 
         var versionId = await scenario.PublishForPreparationAsync(factory, Ct);
         using var first = scenario.Client("es", scenario.FirstId);

@@ -32,5 +32,4 @@ public static class FormPublicationErrors
     public static readonly Error ConditionInvalid = Error.Validation("Forms.Publication.ConditionInvalid", "A condition must name an earlier choice or yes/no question outside the block and answers it has.");
     public static readonly Error RowsOverChannelLimit = Error.Validation("Forms.Publication.RowsOverChannelLimit", "The channel loads fewer items than the block maximum.");
     public static readonly Error MinRowsOverChannelLimit = Error.Validation("Forms.Publication.MinRowsOverChannelLimit", "The channel loads fewer items than the block minimum.");
-    public static readonly Error LocationOnlyInApp = Error.Validation("Forms.Publication.LocationOnlyInApp", "A location question is completed only in the app: the form must be completed only in the app.");
 }

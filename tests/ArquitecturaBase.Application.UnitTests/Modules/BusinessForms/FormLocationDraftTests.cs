@@ -6,7 +6,8 @@ using ArquitecturaBase.Domain.Modules.BusinessForms;
 namespace ArquitecturaBase.Application.UnitTests.Modules.BusinessForms;
 
 // UB1-A: «Ubicación» is a question of its own, only required or optional: no options, files, selection, length, calculation
-// or condition of its own, and never inside the block of rows. It is published only in the app (UB2-A).
+// or condition of its own, and never inside the block of rows. Since W1-A it publishes also with WhatsApp, which asks for it
+// before the Flow; the channel's compiler decides what it takes.
 public sealed class FormLocationDraftTests
 {
     private static readonly IReadOnlyDictionary<string, string> Text = new Dictionary<string, string> { ["es"] = "Dónde estás", ["en"] = "Where you are" };
@@ -96,24 +97,6 @@ public sealed class FormLocationDraftTests
 
     private static FormDefinitionResponse Definition(bool? appOnly, params CanonicalFormField[] fields) =>
         new(Guid.NewGuid(), Text, "VIS", false, 1, new FormDraftResponse(1, "es", Text, fields, null, appOnly));
-
-    [Fact]
-    public void A_location_blocks_publishing_a_form_that_is_also_completed_by_whatsapp()
-    {
-        var location = Field("location");
-
-        var issue = Assert.Single(FormPublicationPolicy.LocationIssues(Definition(null, Field("shortText"), location)));
-
-        Assert.Equal(FormPublicationErrors.LocationOnlyInApp.Code, issue.Code);
-        Assert.Equal(location.FieldId, issue.FieldId);
-        Assert.Equal("draft.fields[1]", issue.Path);
-        Assert.Null(issue.ChannelId);
-        Assert.False(string.IsNullOrWhiteSpace(issue.Message));
-    }
-
-    [Fact]
-    public void A_form_without_a_location_has_no_location_issue() =>
-        Assert.Empty(FormPublicationPolicy.LocationIssues(Definition(null, Field("shortText"), Field("photo"))));
 
     [Fact]
     public void No_condition_and_no_calculation_rests_on_a_location()
