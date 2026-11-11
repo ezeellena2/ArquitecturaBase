@@ -65,7 +65,10 @@ internal static class WhatsAppFlowCompiler
                 || (block >= 0 && section.Start > block && section.Start < end)).Any())
             return new([], [new(null, null, "draft.sections", FlowErrors.UnsupportedConfiguration)]);
         // CO1-A (r13): a condition names an earlier question outside the block, of choose one or yes or no, and answers it has. A
-        // photo or a document does not take one: its picker would go inside an If, which the Flow does not need yet.
+        // photo or a document does not take one: its picker would go inside an If, which the Flow does not need yet. Several answers
+        // need options that set a boolean, and those of a catalog arrive with the message: a catalog question shows another for one
+        // answer. Meta nests up to three If, so a chain goes three conditions deep.
+        var depths = new int[request.Questions.Count];
         for (var index = 0; index < request.Questions.Count; index++)
         {
             var question = request.Questions[index];
@@ -73,12 +76,13 @@ internal static class WhatsAppFlowCompiler
             var controller = Enumerable.Range(0, index).FirstOrDefault(earlier => request.Questions[earlier].FieldId == showWhen.FieldId, -1);
             var source = controller < 0 ? null : request.Questions[controller];
             var values = showWhen.Values;
+            depths[index] = controller < 0 ? 1 : depths[controller] + 1;
             var valid = question.Type != "group" && question.Repeated != true && question.Files is null
                 && source is { Repeated: not true, Calculated: not true } && values is { Count: >= 1 and <= 50 }
-                && values.Distinct(StringComparer.Ordinal).Count() == values.Count && source.Type switch
+                && values.Distinct(StringComparer.Ordinal).Count() == values.Count && depths[index] <= 3 && source.Type switch
                 {
                     "boolean" => values.All(value => value is "true" or "false"),
-                    "choice" when source.SourceCatalogId is not null => values.All(value => Guid.TryParseExact(value, "D", out _)),
+                    "choice" when source.SourceCatalogId is not null => values.Count == 1 && Guid.TryParseExact(values[0], "D", out _),
                     "choice" => values.All(value => source.Options!.Any(option => option.ChoiceId.ToString("D") == value)),
                     _ => false,
                 };
@@ -92,8 +96,8 @@ internal static class WhatsAppFlowCompiler
         // «¿Agregás un ítem?» answers under _r0 and each «¿Agregás otro ítem?» under its row (RG8-A).
         var asked = rows is null ? 0 : (rows.MinRows == 0 ? 1 : 0) + Enumerable.Range(1, rowCount).Count(row => WhatsAppFlowScreenBuilder.Asks(rows, row));
         // Where each title goes (CW15-B): before the first question of its section that the Flow shows, or atop the block. From r13 a
-        // title with only calculations below it is not shown, and one whose questions all have a condition shows with any of them.
-        var places = new Dictionary<int, (int At, string? When)>();
+        // title with only calculations below it is not shown, and one whose questions all share a condition shows with them.
+        var places = new Dictionary<int, (int At, IReadOnlyList<string>? When)>();
         for (var index = 0; index < sections.Count; index++)
         {
             var stop = index + 1 < sections.Count ? sections[index + 1].Start : request.Questions.Count;
@@ -101,13 +105,13 @@ internal static class WhatsAppFlowCompiler
                 .Where(at => request.Questions[at].Calculated != true && request.Questions[at].Repeated != true).ToArray();
             if (shown.Length == 0) continue;
             places[index] = (shown[0], shown.All(at => request.Questions[at].ShowWhen is not null)
-                ? WhatsAppFlowScreenBuilder.Either(request.Questions, screens, shown, WhatsAppFlowScreenBuilder.Owner(screens, shown[0])) : null);
+                ? WhatsAppFlowScreenBuilder.Shared(request.Questions, screens, shown, WhatsAppFlowScreenBuilder.Owner(screens, shown[0])) : null);
         }
-        var guarded = places.Values.Where(place => place.When is not null).Select(place => place.At).ToHashSet();
+        var guarded = places.Values.Where(place => place.When is not null).ToDictionary(place => place.At, place => place.When!.Count);
         // A calculation is not a component, and each component of a question with a condition, or a title shown with them, goes
-        // inside an If (r13).
-        int Ifs(IEnumerable<int> indices) => indices.Sum(index => request.Questions[index] is { ShowWhen: not null, Calculated: not true } question
-            ? (question.ChoosesFirst == true ? 2 : 1) : 0) + indices.Count(guarded.Contains);
+        // inside one If per condition (r13).
+        int Ifs(IEnumerable<int> indices) => indices.Sum(index => (request.Questions[index] is { ShowWhen: not null, Calculated: not true } question
+            ? (question.ChoosesFirst == true ? 2 : 1) * depths[index] : 0) + guarded.GetValueOrDefault(index));
         foreach (var culture in request.TargetCultures.Order(StringComparer.Ordinal))
         {
             var worstCaseBytes = 2L + 12 + 1 + 2 + 128L * 6;
@@ -161,7 +165,7 @@ internal static class WhatsAppFlowCompiler
                     ["type"] = "TextSubheading", ["text"] = Resolve(sections[index].Title, $"draft.sections[{index}].title", null, null, 80) ?? "",
                 };
                 if (places.TryGetValue(index, out var place))
-                    subtitles[place.At] = place.When is null ? subtitle : WhatsAppFlowScreenBuilder.If(place.When, subtitle);
+                    subtitles[place.At] = place.When is null ? subtitle : WhatsAppFlowScreenBuilder.Nest(place.When, subtitle);
             }
             string? blockTitle = null;
             for (var index = 0; index < request.Questions.Count; index++)
@@ -213,7 +217,7 @@ internal static class WhatsAppFlowCompiler
                         FlowTexts.Get("SelectUpTo", culture), question.Selection.MaxSelected);
                 }
                 if (question.Type == "date") control["mode"] = "single";
-                if (question.Type == "boolean") control["data-source"] = new[] { new { id = "true", title = FlowTexts.Get("Yes", culture) }, new { id = "false", title = FlowTexts.Get("No", culture) } };
+                if (question.Type == "boolean") control["data-source"] = new[] { Option(index, "true", FlowTexts.Get("Yes", culture)), Option(index, "false", FlowTexts.Get("No", culture)) };
                 if (question.SourceCatalogId.HasValue)
                 {
                     control["data-source"] = "${data." + question.Key + "_options}";
@@ -221,11 +225,8 @@ internal static class WhatsAppFlowCompiler
                     if (question.ChoosesFirst == true) WhatsAppFlowScreenBuilder.ChooseFirst(control, question, screenData, culture);
                 }
                 else if (question.Options is { } options)
-                    control["data-source"] = options.Select((option, optionIndex) => new
-                    {
-                        id = option.ChoiceId.ToString("D"),
-                        title = Resolve(option.Label, $"{path}.options[{optionIndex}].label", question.FieldId, option.ChoiceId, 30) ?? "",
-                    }).ToArray();
+                    control["data-source"] = options.Select((option, optionIndex) => Option(index, option.ChoiceId.ToString("D"),
+                        Resolve(option.Label, $"{path}.options[{optionIndex}].label", question.FieldId, option.ChoiceId, 30) ?? "")).ToArray();
                 components.Add(control);
             }
             components.Add(new(StringComparer.Ordinal) { ["type"] = "Footer", ["label"] = submit ?? "", ["on-click-action"] = new
@@ -252,6 +253,14 @@ internal static class WhatsAppFlowCompiler
             var bytes = Encoding.UTF8.GetBytes(json);
             if (bytes.Length > 1048576) { issues.Add(new(null, null, "draft", FlowErrors.UnsupportedConfiguration)); continue; }
             flows.Add(new(culture, json, Convert.ToHexStringLower(SHA256.HashData(bytes)), count, mapping.AsReadOnly()));
+
+            // An option of a question that shows another by several answers sets that one's boolean (CO1-A).
+            Dictionary<string, object> Option(int index, string id, string title)
+            {
+                var option = new Dictionary<string, object>(StringComparer.Ordinal) { ["id"] = id, ["title"] = title };
+                if (WhatsAppFlowScreenBuilder.OnSelect(request.Questions, index, id) is { } onSelect) option["on-select-action"] = onSelect;
+                return option;
+            }
 
             string? Resolve(IReadOnlyDictionary<string, string> texts, string path, Guid? fieldId, Guid? choiceId, int maximum, bool required = true)
             {

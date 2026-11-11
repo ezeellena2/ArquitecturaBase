@@ -21,6 +21,9 @@ internal static class WhatsAppFlowPrefillPolicy
         if (values.Keys.Any(key => !projection.Mapping.Any(field => field.Key == key && field.Files is null && field.Type is not ("multiChoice" or "group")
             && field.Repeated != true && field.ChoosesFirst != true && field.Calculated != true && field.ShowWhen is null))) return FlowErrors.InvalidValue;
         var result = new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.Ordinal);
+        // A question whose options set the boolean of another (CO1-A, several answers) opens empty, so that boolean opens false:
+        // its proposed value is left out and the rest still goes.
+        var setsShown = projection.Mapping.Where(field => field.ShowWhen is { Values.Count: > 1 }).Select(field => field.ShowWhen!.FieldId).ToHashSet();
         var screens = WhatsAppFlowScreenBuilder.Plan(projection.Mapping.Select(field =>
             new WhatsAppFlowSlot(field.Type, field.Files is not null, field.Repeated == true, field.Rows, field.Calculated == true)).ToArray());
         foreach (var screen in screens.Where(screen => screen.Kind == "fields"))
@@ -30,7 +33,7 @@ internal static class WhatsAppFlowPrefillPolicy
             var initial = new Dictionary<string, string>(StringComparer.Ordinal);
             foreach (var field in scalars)
             {
-                if (!values.TryGetValue(field.Key, out var value)) continue;
+                if (!values.TryGetValue(field.Key, out var value) || setsShown.Contains(field.FieldId)) continue;
                 if (string.IsNullOrEmpty(value)) return FlowErrors.InvalidValue;
                 // Dynamic choice membership was checked against the recipient offer by its owner.
                 if (field.Type == "choice" && field.Choices.Count == 0)

@@ -152,18 +152,22 @@ internal sealed partial class WhatsAppFlowDispatchService(IWhatsAppFlowRepositor
     [LoggerMessage(Level = LogLevel.Warning, Message = "Unreadable WhatsApp Flow {PayloadKind}; retry scheduled without altering external-effect uncertainty ({ExceptionType}).")]
     private static partial void LogUnreadablePayload(ILogger logger, string payloadKind, string exceptionType);
     // The subtitles of a sealed screen by position, and how many the screens before it have; none without titles. From r13 a
-    // subtitle may go inside an If, shown with the questions of its section (CO1-A).
+    // subtitle may go inside one If per condition, shown with the questions of its section (CO1-A).
     private static (int Before, int[] Positions) Subtitles(string json, int screenIndex)
     {
         if (!json.Contains("\"TextSubheading\"", StringComparison.Ordinal)) return (0, []);
         using var document = System.Text.Json.JsonDocument.Parse(json);
         var screens = document.RootElement.GetProperty("screens").EnumerateArray().Select(screen => screen.GetProperty("layout").GetProperty("children")[0]
-            .GetProperty("children").EnumerateArray().Select((child, at) => (Subtitle: IsSubtitle(child)
-                || (child.GetProperty("type").GetString() == "If" && child.GetProperty("then").EnumerateArray().Any(IsSubtitle)), At: at))
+            .GetProperty("children").EnumerateArray().Select((child, at) => (Subtitle: IsSubtitle(child), At: at))
             .Where(child => child.Subtitle).Select(child => child.At).ToArray()).ToArray();
         return screenIndex < screens.Length ? (screens.Take(screenIndex).Sum(positions => positions.Length), screens[screenIndex]) : (0, []);
     }
-    private static bool IsSubtitle(JsonElement child) => child.GetProperty("type").GetString() == "TextSubheading";
+    private static bool IsSubtitle(JsonElement child) => child.GetProperty("type").GetString() switch
+    {
+        "TextSubheading" => true,
+        "If" => child.GetProperty("then").EnumerateArray().Any(IsSubtitle),
+        _ => false,
+    };
     // LD2-A (r11): the positions of the dropdowns of values, each right before its question.
     private static int[] Pickers(IReadOnlyList<int> indices, IReadOnlyList<WhatsAppFlowProjectionField> mapping)
     {

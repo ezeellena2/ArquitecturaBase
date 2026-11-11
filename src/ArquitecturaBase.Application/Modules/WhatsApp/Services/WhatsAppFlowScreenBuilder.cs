@@ -104,41 +104,109 @@ internal static class WhatsAppFlowScreenBuilder
             new(questions[index].Key + "_options", Array.Empty<object>()), new(questions[index].Key + "_visible", false),
         }).ToDictionary(StringComparer.Ordinal);
 
-    // CO1-A (r13): when a question shows: an answer of its question and, if that one has a condition too, that condition as well. On
-    // the screen of its question the answer is ${form.<key>}; on a later one, ${screen.<id>.form.<key>}.
-    internal static string? Condition(IReadOnlyList<StructuredFormQuestion> questions, IReadOnlyList<WhatsAppFlowScreen> screens, int index, int at)
+    // CO1-A (r13): the conditions a question shows under, outermost first. Meta's validator takes one comparison but refuses «||»
+    // and «&&» between two, and the same control in two branches (2026-11-11). One answer compares: ${form.<key>} on the screen of
+    // its question, ${screen.<id>.form.<key>} on a later one. Several answers read the boolean <key>_shown, which each option of
+    // its question sets with update_data. A chain nests the If of the question it depends on around its own.
+    internal static IReadOnlyList<string> Conditions(IReadOnlyList<StructuredFormQuestion> questions, IReadOnlyList<WhatsAppFlowScreen> screens, int index, int at)
     {
-        if (questions[index].ShowWhen is not { } showWhen) return null;
-        var controller = Enumerable.Range(0, index).First(earlier => questions[earlier].FieldId == showWhen.FieldId);
-        var owner = Owner(screens, controller);
-        var key = questions[controller].Key;
-        var answer = owner == at ? "${form." + key + "}" : "${screen." + screens[owner].Id + ".form." + key + "}";
-        var own = string.Join(" || ", showWhen.Values.Select(value => answer + " == '" + value + "'"));
-        if (showWhen.Values.Count > 1) own = "(" + own + ")";
-        return Condition(questions, screens, controller, at) is { } before ? before + " && " + own : own;
+        if (questions[index].ShowWhen is not { } showWhen) return [];
+        var controller = Controller(questions, index);
+        string own;
+        if (Flagged(questions[index])) own = "${data." + Shown(questions[index]) + "}";
+        else
+        {
+            var owner = Owner(screens, controller);
+            var key = questions[controller].Key;
+            own = (owner == at ? "${form." + key + "}" : "${screen." + screens[owner].Id + ".form." + key + "}") + " == '" + showWhen.Values[0] + "'";
+        }
+        return [.. Conditions(questions, screens, controller, at), own];
     }
 
-    // A title whose questions all have a condition shows when any of them does.
-    internal static string Either(IReadOnlyList<StructuredFormQuestion> questions, IReadOnlyList<WhatsAppFlowScreen> screens, IReadOnlyList<int> indices, int at)
+    internal static int Controller(IReadOnlyList<StructuredFormQuestion> questions, int index) =>
+        Enumerable.Range(0, index).First(earlier => questions[earlier].FieldId == questions[index].ShowWhen!.FieldId);
+
+    // How many If a question goes inside: one per condition along its chain.
+    internal static int Depth(IReadOnlyList<StructuredFormQuestion> questions, int index) =>
+        questions[index].ShowWhen is null ? 0 : 1 + Depth(questions, Controller(questions, index));
+
+    // A question shown by several answers of its question reads a boolean that the options of that question set.
+    internal static bool Flagged(StructuredFormQuestion question) => question.ShowWhen is { Values.Count: > 1 };
+
+    internal static string Shown(StructuredFormQuestion question) => question.Key + "_shown";
+
+    // The question whose options set a boolean opens empty, so the boolean opens false: it is never prefilled.
+    internal static bool SetsShown(IReadOnlyList<StructuredFormQuestion> questions, int index) =>
+        questions.Any(question => Flagged(question) && question.ShowWhen!.FieldId == questions[index].FieldId);
+
+    // The update_data of an option: for each question it shows by several answers, whether this option is one of them.
+    internal static Dictionary<string, object>? OnSelect(IReadOnlyList<StructuredFormQuestion> questions, int index, string option)
     {
-        var conditions = indices.Select(index => Condition(questions, screens, index, at)!).ToArray();
-        return conditions.Length == 1 ? conditions[0] : string.Join(" || ", conditions.Select(condition => "(" + condition + ")"));
+        var shown = questions.Where(question => Flagged(question) && question.ShowWhen!.FieldId == questions[index].FieldId)
+            .ToDictionary(Shown, question => (object)question.ShowWhen!.Values.Contains(option, StringComparer.Ordinal), StringComparer.Ordinal);
+        return shown.Count == 0 ? null : new(StringComparer.Ordinal) { ["name"] = "update_data", ["payload"] = shown };
+    }
+
+    // A title whose questions all share one condition (the same answers of the same question along the chain) shows with them. Meta
+    // cannot hear «any of them», so a title over different conditions always shows.
+    internal static IReadOnlyList<string>? Shared(IReadOnlyList<StructuredFormQuestion> questions, IReadOnlyList<WhatsAppFlowScreen> screens, IReadOnlyList<int> indices, int at) =>
+        indices.Select(index => Signature(questions, index)).Distinct(StringComparer.Ordinal).Count() == 1 ? Conditions(questions, screens, indices[0], at) : null;
+
+    private static string Signature(IReadOnlyList<StructuredFormQuestion> questions, int index) => questions[index].ShowWhen is not { } showWhen ? ""
+        : Signature(questions, Controller(questions, index)) + "|" + showWhen.FieldId.ToString("N") + ":" + string.Join(",", showWhen.Values.Order(StringComparer.Ordinal));
+
+    // Where each boolean lives: from the screen of the question whose options set it to the last screen that reads it, that of the
+    // question it shows or of one further down its chain.
+    internal static List<string>[] Flags(IReadOnlyList<StructuredFormQuestion> questions, IReadOnlyList<WhatsAppFlowScreen> screens)
+    {
+        var spans = new Dictionary<string, (int From, int To)>(StringComparer.Ordinal);
+        for (var index = 0; index < questions.Count; index++)
+        {
+            if (questions[index].Calculated == true) continue;
+            for (var link = index; questions[link].ShowWhen is not null; link = Controller(questions, link))
+            {
+                if (!Flagged(questions[link])) continue;
+                var from = Owner(screens, Controller(questions, link));
+                var to = Owner(screens, index);
+                spans[Shown(questions[link])] = spans.TryGetValue(Shown(questions[link]), out var span) ? (from, Math.Max(span.To, to)) : (from, to);
+            }
+        }
+        var flags = screens.Select(_ => new List<string>()).ToArray();
+        foreach (var (flag, span) in spans.OrderBy(pair => pair.Key, StringComparer.Ordinal))
+            for (var at = span.From; at <= span.To; at++) flags[at].Add(flag);
+        return flags;
+    }
+
+    // A navigate passes the booleans of the screen it goes to (Meta rejects a navigate without the data of its screen): what this
+    // screen holds, or false where the question whose options set it is on that screen.
+    private static Dictionary<string, object> Pass(Dictionary<string, object> payload, List<string>[] flags, int from, int to)
+    {
+        foreach (var flag in flags[to]) payload[flag] = flags[from].Contains(flag) ? "${data." + flag + "}" : false;
+        return payload;
+    }
+
+    private static Dictionary<string, object> Declare(Dictionary<string, object> data, List<string> flags)
+    {
+        foreach (var flag in flags) data[flag] = VisibleSchema();
+        return data;
     }
 
     // The screen that shows a question outside the block.
     internal static int Owner(IReadOnlyList<WhatsAppFlowScreen> screens, int index) =>
         Enumerable.Range(0, screens.Count).First(at => screens[at].Kind == "fields" && screens[at].Questions.Contains(index));
 
-    internal static Dictionary<string, object> If(string condition, Dictionary<string, object> component) => new(StringComparer.Ordinal)
-    {
-        ["type"] = "If", ["condition"] = condition, ["then"] = new[] { component },
-    };
+    // One If per condition, the outermost first; none has an else: hidden, the component is not on the screen.
+    internal static Dictionary<string, object> Nest(IReadOnlyList<string> conditions, Dictionary<string, object> component) =>
+        conditions.Reverse().Aggregate(component, (inner, condition) => new Dictionary<string, object>(StringComparer.Ordinal)
+        {
+            ["type"] = "If", ["condition"] = condition, ["then"] = new[] { inner },
+        });
 
     // Each component of a question with a condition goes inside its own If, so the components of a screen keep their places, which
-    // the diagnostics of Meta count. The If has no else: hidden, the question is not on the screen.
+    // the diagnostics of Meta count.
     private static IEnumerable<Dictionary<string, object>> Guarded(IReadOnlyList<StructuredFormQuestion> questions, IReadOnlyList<WhatsAppFlowScreen> screens,
         int index, int at, IEnumerable<Dictionary<string, object>> components) =>
-        Condition(questions, screens, index, at) is { } condition ? components.Select(component => If(condition, component)) : components;
+        Conditions(questions, screens, index, at) is { Count: > 0 } conditions ? components.Select(component => Nest(conditions, component)) : components;
 
     // Without a block the screens are those of the plan: each file question starts one, and a calculation is on none (r13).
     public static string Build(IReadOnlyList<StructuredFormQuestion> questions, IReadOnlyList<WhatsAppFlowScreen> plan, List<Dictionary<string, object>> controls,
@@ -146,6 +214,8 @@ internal static class WhatsAppFlowScreenBuilder
     {
         var groups = plan.Select(screen => screen.Questions).ToArray();
         var owners = groups.SelectMany((group, screen) => group.Select(index => (index, screen))).ToDictionary(value => value.index, value => value.screen);
+        var flags = Flags(questions, plan);
+        Declare(initialData, flags[0]);
         var screens = new List<Dictionary<string, object?>>();
         for (var screen = 0; screen < groups.Length; screen++)
         {
@@ -160,13 +230,13 @@ internal static class WhatsAppFlowScreenBuilder
                 ? new { name = "complete", payload = questions.Select((question, index) => (question, index)).Where(value => owners.ContainsKey(value.index))
                     .Select(value => new { value.question.Key, Value = owners[value.index] == current ? "${form." + value.question.Key + "}"
                         : "${screen." + ScreenId(owners[value.index]) + ".form." + value.question.Key + "}" }).ToDictionary(value => value.Key, value => value.Value, StringComparer.Ordinal) }
-                : new { name = "navigate", next = new { type = "screen", name = ScreenId(screen + 1) }, payload = Entry(questions, groups[screen + 1]) };
+                : new { name = "navigate", next = new { type = "screen", name = ScreenId(screen + 1) }, payload = Pass(Entry(questions, groups[screen + 1]), flags, screen, screen + 1) };
             children.Add(new() { ["type"] = "Footer", ["label"] = last ? submit ?? "" : FlowTexts.Get("Continue", culture), ["on-click-action"] = action });
             var form = new Dictionary<string, object?> { ["type"] = "Form", ["name"] = "form", ["children"] = children };
             // The list of a question that chooses first is empty until a value is chosen: it is never prefilled. Nor a question with
-            // a condition (CO1-A), which may be hidden.
+            // a condition (CO1-A), which may be hidden, or one whose options set a boolean.
             var scalarQuestions = groups[screen].Where(index => questions[index].Files is null && questions[index].Type != "multiChoice"
-                && questions[index].ChoosesFirst != true && questions[index].ShowWhen is null).Select(index => questions[index]).ToArray();
+                && questions[index].ChoosesFirst != true && questions[index].ShowWhen is null && !SetsShown(questions, index)).Select(index => questions[index]).ToArray();
             if (scalarQuestions.Length > 0)
             {
                 var key = WhatsAppFlowPrefillPolicy.DataKey(ScreenId(screen));
@@ -182,7 +252,7 @@ internal static class WhatsAppFlowScreenBuilder
                 ["layout"] = new { type = "SingleColumnLayout", children = new[] { form } } };
             if (last) item["terminal"] = true;
             if (screen == 0 && initialData.Count > 0) item["data"] = initialData;
-            else if (screen > 0 && Lists(questions, groups[screen]) is { Count: > 0 } lists) item["data"] = lists;
+            else if (screen > 0 && Declare(Lists(questions, groups[screen]), flags[screen]) is { Count: > 0 } lists) item["data"] = lists;
             screens.Add(item);
         }
         if (initialData.Count > 0) screens[0]["data"] = initialData;
@@ -263,6 +333,8 @@ internal static class WhatsAppFlowScreenBuilder
         var after = screens.First(screen => screen.Kind == "end" || (screen.Kind == "fields" && screen.Questions[0] > block.index));
         var built = new List<Dictionary<string, object?>>();
         var routing = new Dictionary<string, string[]>(StringComparer.Ordinal);
+        var flags = Flags(questions, screens);
+        Declare(initialData, flags[0]);
         for (var current = 0; current < screens.Count; current++)
         {
             var screen = screens[current];
@@ -277,7 +349,7 @@ internal static class WhatsAppFlowScreenBuilder
                     Guarded(questions, screens, index, current, WithPicker(questions[index], Control(index, current), current == 0)), subtitles)));
                 children.Add(current == screens.Count - 1 ? Footer(submit, Complete()) : Footer(FlowTexts.Get("Continue", culture), To(screens[current + 1])));
                 var scalars = screen.Questions.Where(index => questions[index].Files is null && questions[index].Type != "multiChoice"
-                    && questions[index].ChoosesFirst != true && questions[index].ShowWhen is null).Select(index => questions[index]).ToArray();
+                    && questions[index].ChoosesFirst != true && questions[index].ShowWhen is null && !SetsShown(questions, index)).Select(index => questions[index]).ToArray();
                 if (scalars.Length > 0)
                 {
                     var key = WhatsAppFlowPrefillPolicy.DataKey(screen.Id);
@@ -322,7 +394,7 @@ internal static class WhatsAppFlowScreenBuilder
                 ["layout"] = new { type = "SingleColumnLayout", children = new[] { form } },
             };
             if (terminal) item["terminal"] = true;
-            if (current > 0 && Lists(questions, screen.Questions) is { Count: > 0 } lists) item["data"] = lists;
+            if (current > 0 && Declare(Lists(questions, screen.Questions), flags[current]) is { Count: > 0 } lists) item["data"] = lists;
             built.Add(item);
             routing[screen.Id] = [.. routes];
 
@@ -349,7 +421,7 @@ internal static class WhatsAppFlowScreenBuilder
             object To(WhatsAppFlowScreen next)
             {
                 routes.Add(next.Id);
-                return Navigate(next.Id, Entry(questions, next.Questions));
+                return Navigate(next.Id, Pass(Entry(questions, next.Questions), flags, current, Enumerable.Range(0, screens.Count).First(at => screens[at].Id == next.Id)));
             }
             object Complete()
             {
