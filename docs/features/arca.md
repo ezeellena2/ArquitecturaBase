@@ -180,7 +180,7 @@ la prueba integral y la de homologación. Lo que se ve en la app y en WhatsApp e
   ARCA», «Avisar a quien cargó» con el PDF fiscal («Listo: emitimos la {result:arca.invoice.voucher}
   {result:arca.invoice.number}.») y «Mandar copia por correo» («Te mandamos la … en el PDF adjunto.»). Con aprobación, se
   pasa a mano a «Cuando se aprueba» en el editor.
-- **«Completar con ARCA»** (`ArcaStructuredPartyLookup`, familia `Registry`): la constancia de un tercero completa los
+- **«Completar con ARCA»** (`ArcaStructuredPartyLookup`, en Facturación, con el padrón por `IArcaPartySource`): la constancia de un tercero completa los
   «Clientes» de la «Factura» (`arca.customers`) desde su CUIT, con la razón social (entera también en `legal_name`), la
   condición frente al IVA como receptor (1, 4, 5 o 6) y el domicilio fiscal. Una CUIT inválida da `Arca.Registry.CuitInvalid` sin llamar a ARCA y una que el padrón no
   tiene, `Arca.Registry.PersonNotFound`. Consulta en nombre de quien firma: en delegación, la plataforma con su CUIT, sin que la

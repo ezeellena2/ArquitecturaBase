@@ -1,4 +1,4 @@
-namespace ArquitecturaBase.Application.Modules.Arca.Models;
+namespace ArquitecturaBase.Application.Modules.Arca.Models.Invoicing;
 
 /// <summary>
 /// The «Clientes» catalog the «Factura» brings, as the families that use it name it: its stable key and the keys of its fields.

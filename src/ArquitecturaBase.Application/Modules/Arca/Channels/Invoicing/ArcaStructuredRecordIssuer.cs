@@ -1,9 +1,9 @@
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Models.StructuredData;
+using ArquitecturaBase.Application.Modules.Arca.Interfaces.Channels.Connection;
 using ArquitecturaBase.Application.Modules.Arca.Interfaces.Services.Invoicing;
-using ArquitecturaBase.Application.Modules.Arca.Models;
+using ArquitecturaBase.Application.Modules.Arca.Models.Invoicing;
 using ArquitecturaBase.Domain.Modules.Arca;
-using ArquitecturaBase.Domain.Modules.Arca.Connection;
 using ArquitecturaBase.Domain.Modules.Arca.Invoicing;
 
 namespace ArquitecturaBase.Application.Modules.Arca.Channels.Invoicing;
@@ -14,7 +14,7 @@ namespace ArquitecturaBase.Application.Modules.Arca.Channels.Invoicing;
 /// with its code and nothing queued.
 /// </summary>
 internal sealed class ArcaStructuredRecordIssuer(IArcaVoucherService vouchers, IArcaVoucherReviewService reviews, TimeProvider timeProvider,
-    IEnumerable<IStructuredPartyLookup> lookups) : IStructuredRecordIssuer
+    IArcaPartySource parties) : IStructuredRecordIssuer
 {
     public string IssuerId => ArcaInvoiceStandard.Key;
     public IReadOnlyDictionary<string, string> Name => ArcaInvoiceIssuePolicy.Name;
@@ -53,14 +53,12 @@ internal sealed class ArcaStructuredRecordIssuer(IArcaVoucherService vouchers, I
         if (data.FirstOrDefault(datum => datum.Key == ArcaInvoiceStandard.Customer) is not { Value: ArcaInvoiceStandard.OtherCustomer }) return new(data, null);
         var taxId = data.FirstOrDefault(datum => datum.Key == ArcaInvoiceStandard.CustomerTaxId)?.Value;
         if (string.IsNullOrWhiteSpace(taxId)) return new(data, ArcaInvoicingErrors.ReceiverInvalid.Code);
-        if (lookups.FirstOrDefault(lookup => lookup.CatalogKey == ArcaCustomersCatalog.Key) is not { } registry)
-            return new(data, ArcaInvoicingErrors.ReceiverInvalid.Code);
-        var party = await registry.FindAsync(taxId, cancellationToken);
-        if (party.FailureCode is { } code) return new(data, code);
-        var customer = party.Name is { } name && CuitNumber.Normalize(taxId) is { } cuit
-            ? new StructuredIssueCatalogItem(ArcaCustomersCatalog.Key, cuit, name, party.Fields ?? new Dictionary<string, string>(), ArcaCustomersCatalog.TaxId) : null;
+        var party = await parties.FindAsync(taxId, cancellationToken);
+        if (party.IsFailure) return new(data, party.Error.Code);
+        var (name, fields) = (party.Value.LegalName, ArcaStructuredPartyLookup.Fields(party.Value));
+        var customer = new StructuredIssueCatalogItem(ArcaCustomersCatalog.Key, party.Value.Cuit, name, fields, ArcaCustomersCatalog.TaxId);
         return new(data.Select(datum => datum.Key == ArcaInvoiceStandard.Customer
-            ? new StructuredIssueDatum(ArcaInvoiceStandard.Customer, ArcaInvoiceStandard.OtherCustomer, party.Name, party.Fields) : datum).ToArray(), null, customer);
+            ? new StructuredIssueDatum(ArcaInvoiceStandard.Customer, ArcaInvoiceStandard.OtherCustomer, name, fields) : datum).ToArray(), null, customer);
     }
 
     private sealed record ResultOf(IReadOnlyList<StructuredIssueDatum> Value, string? Error, StructuredIssueCatalogItem? Customer = null)

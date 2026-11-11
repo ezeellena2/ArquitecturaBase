@@ -1,6 +1,6 @@
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Models.StructuredData;
-using ArquitecturaBase.Application.Modules.Arca.Models;
+using ArquitecturaBase.Application.Modules.Arca.Models.Invoicing;
 
 namespace ArquitecturaBase.Application.Modules.Arca.Channels.Invoicing;
 

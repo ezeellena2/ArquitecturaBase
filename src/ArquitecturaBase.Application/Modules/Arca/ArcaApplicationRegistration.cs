@@ -49,7 +49,7 @@ public static class ArcaApplicationRegistration
     {
         services.TryAddScoped<IArcaRegistryCompanyService, ArcaRegistryCompanyService>();
         services.TryAddScoped<IArcaCompanyProfileSource, ArcaRegistryCompanyProfileSource>();
-        services.TryAddEnumerable(ServiceDescriptor.Scoped<IStructuredPartyLookup, ArcaStructuredPartyLookup>());
+        services.TryAddScoped<IArcaPartySource, ArcaRegistryPartySource>();
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IArcaServiceDefinition, ArcaRegistryServiceDefinition>());
     }
 
@@ -61,6 +61,7 @@ public static class ArcaApplicationRegistration
         services.TryAddScoped<IArcaVoucherStore, ArcaVoucherStore>();
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IPrivateFileRetentionSource, ArcaPrivateFileRetentionSource>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IStructuredRecordIssuer, ArcaStructuredRecordIssuer>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IStructuredPartyLookup, ArcaStructuredPartyLookup>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IStructuredCatalogFeed, ArcaStructuredCatalogFeed>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IStructuredFormStandardSource, ArcaInvoiceStandardSource>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IArcaServiceDefinition, ArcaInvoicingServiceDefinition>());

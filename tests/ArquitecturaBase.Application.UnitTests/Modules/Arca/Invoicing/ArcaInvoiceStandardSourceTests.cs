@@ -1,6 +1,6 @@
 using System.Text.Json;
 using ArquitecturaBase.Application.Modules.Arca.Channels.Invoicing;
-using ArquitecturaBase.Application.Modules.Arca.Models;
+using ArquitecturaBase.Application.Modules.Arca.Models.Invoicing;
 
 namespace ArquitecturaBase.Application.UnitTests.Modules.Arca.Invoicing;
 

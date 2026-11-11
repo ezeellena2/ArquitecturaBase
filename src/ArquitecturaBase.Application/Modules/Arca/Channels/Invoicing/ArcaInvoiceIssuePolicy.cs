@@ -1,7 +1,6 @@
 using System.Globalization;
 using System.Resources;
 using ArquitecturaBase.Application.Models.StructuredData;
-using ArquitecturaBase.Application.Modules.Arca.Models;
 using ArquitecturaBase.Application.Modules.Arca.Models.Invoicing;
 using ArquitecturaBase.Application.Modules.Arca.Services.Invoicing;
 using ArquitecturaBase.Domain.Modules.Arca.Invoicing;
