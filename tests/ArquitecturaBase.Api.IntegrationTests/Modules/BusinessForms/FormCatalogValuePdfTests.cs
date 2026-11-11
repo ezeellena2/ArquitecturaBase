@@ -15,8 +15,8 @@ public sealed class FormCatalogValuePdfTests
     [InlineData("Decimal", "1500", "en", "1,500.00")]
     [InlineData("Decimal", "0.1234567890123456789012345678", "es", "0,1234567890123456789012345678")]
     [InlineData("Decimal", "0.1234567890123456789012345678", "en", "0.1234567890123456789012345678")]
-    [InlineData("Date", "2026-10-08", "es", "8/10/2026")]
-    [InlineData("Date", "2026-10-08", "en", "10/8/2026")]
+    [InlineData("Date", "2026-10-08", "es", "08/10/2026")]
+    [InlineData("Date", "2026-10-08", "en", "10/08/2026")]
     public async Task A_captured_catalog_value_uses_its_type_and_localized_format_without_rounding(string valueType, string value, string culture, string formatted)
     {
         var fixture = new FormPdfRendererFixture();

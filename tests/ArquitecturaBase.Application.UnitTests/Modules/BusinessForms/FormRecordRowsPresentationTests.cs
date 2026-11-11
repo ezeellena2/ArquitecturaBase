@@ -119,6 +119,18 @@ public sealed class FormRecordRowsPresentationTests
         Assert.Equal(expected, Message(culture, $"Llegó de {{{SupplierId:D}}}: {{{GroupId:D}}}",
             Arrived(First, 200.5m, true, "Sin daños"), Arrived(First, 100m, false), Arrived(Second, 7m, true)));
 
+    private static readonly Guid DueId = Guid.Parse("00000000-0000-7000-8000-0000000000a6");
+
+    [Theory]
+    [InlineData("es", "Llegó: \n1. Semilla · 1 · Sí · 03/11/2026")]
+    [InlineData("en", "Llegó: \n1. Seed · 1 · Yes · 11/03/2026")]
+    public void A_date_in_a_rule_message_goes_with_numbers_only_and_two_digits_in_the_order_of_the_language(string culture, string expected)
+    {
+        var schema = new FormVersionSchema(1, [.. MessageSchema.Questions, Field(DueId, "date", "Vence", false, repeated: true)]);
+        Assert.Equal(expected, Message(culture, $"Llegó: {{{GroupId:D}}}", schema,
+            [[.. Arrived(First, 1m, true), new { fieldId = DueId, value = "2026-11-03" }]]));
+    }
+
     [Fact]
     public void The_first_item_starts_on_a_new_line_unless_the_message_starts_there_or_after_a_line_break()
     {
