@@ -385,4 +385,18 @@ A mirar en esa corrida:
 2026-11-11: el usuario dio el visto bueno («Sí, corréla»). La corrida real corre desde una copia limpia de be8048ce (autotest
 206/206), con la conexión guardada (OpenAI `gpt-6.1-sol`, habilitada y con clave), en tres runs seguidos:
 `ia2_spreadsheets_20261111_01`, `ia2_authoring_20261111_01` e `ia2_channel_stage5_20261111_01`. Cada uno espera a que no haya
-suites del backend corriendo.
+suites del backend corriendo. El primer intento se cortó al sembrar el catálogo «Proveedores», antes de llamar al proveedor: un
+campo nuevo no puede nacer obligatorio. El arnés lo crea con sus campos opcionales y marca «Rubro» en un segundo guardado, y una
+siembra fallida imprime su código de error y las rutas de los campos (51db5a59). La corrida se relanzó desde 51db5a59, con
+`ia2_spreadsheets_20261111_02`.
+
+2026-11-11: tarea 8 hecha.
+- **Backend:** el inventario de cohortes pasa a `formularios-pruebas-de-integracion.md`, y la guía de pruebas de BusinessForms
+  vuelve a entrar en el tope (007e4489). El bootstrap dice `attachments` por persona, con `AiAssistantBootstrapPolicy` (d99a9b63).
+  Las capturas `file-submitted` y `turn-attachment` llevan `ai-assistant-http` a 8 cuerpos (07c300a4). El chat del operador
+  muestra la planilla con su nombre y su `caption`, y la bandeja dice «Planilla» (45e81319).
+- **Front:** `formatFileSize` en un solo lugar (65dd22e5). El clip, el envío con su progreso, el motivo de lo que no se lee y la
+  planilla en el mensaje (d42603dc). La planilla en el chat de WhatsApp (faf9b7c9). Son 24 escenas visuales nuevas.
+
+Unitarias 4625/4625 e integración de las clases tocadas 45/45. Hasta la exportación conjunta, `attachments` va opcional en el zod
+del front, para que el test de contrato siga en verde con la captura de hoy.
