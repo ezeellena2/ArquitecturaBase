@@ -542,10 +542,10 @@ columnas, o importarla en uno que existe. Lo técnico está en la IA
   catálogo creado desde una propuesta con planilla, también por WhatsApp, siga pendiente de aprobar y sin opciones, y la
   propuesta esté disponible, quien lo pidió tiene su importación pendiente. El diálogo se abre de tres maneras: por su
   cuenta al entrar a ese catálogo, con «Revisar la importación» de Inicio y con el enlace de WhatsApp
-  (`/catalogos/{id}?pedido=…&propuesta=…`). Si la planilla del chat ya no está (`ProposalUnavailable` o `SheetUnavailable`),
-  el diálogo lo dice y pide el archivo. La planilla nunca queda con el catálogo: su evidencia guarda el pedido, sin mapeo ni
-  filas. Falta en el front el diálogo con la planilla del chat y que se abra por su cuenta (tarea 9 del
-  [plan](../plans/2026-11-09-ia-arma-formularios-etapa-2.md)): hasta entonces, el catálogo se abre sin el diálogo.
+  (`/catalogos/{id}?pedido=…&propuesta=…`). En el diálogo, «Desde» suma «La planilla del chat», que abre elegida y ya
+  revisada. Si la planilla del chat ya no está (`ProposalUnavailable` o `SheetUnavailable`), o la propuesta cambió
+  (`ProposalReplaced`), el diálogo lo dice y pide el archivo. La planilla nunca queda con el catálogo: su evidencia guarda el
+  pedido, sin mapeo ni filas.
 - **Lo que no hace la IA.** No importa, no activa y no cambia los campos de un catálogo que existe: sobre uno que existe,
   sólo propone importar la planilla.
 - **Las reglas de la planilla.** El encabezado es la primera fila con contenido, no la fila 1 de la hoja: las filas vacías
