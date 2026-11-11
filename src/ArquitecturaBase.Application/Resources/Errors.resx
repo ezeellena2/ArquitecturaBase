@@ -193,6 +193,11 @@
   <data name="Arca.Invoicing.ServicePeriodInvalid" xml:space="preserve"><value>Con servicios, completá el período y el vencimiento del pago, en orden.</value></data>
   <data name="Arca.Invoicing.IssueDateOutOfRange" xml:space="preserve"><value>ARCA no acepta esa fecha: con productos, hasta 5 días antes o después de hoy; con servicios, hasta 10.</value></data>
   <data name="Arca.Invoicing.ItemsInvalid" xml:space="preserve"><value>Revisá los ítems: cada uno con descripción, cantidad y precio, y un total mayor que cero.</value></data>
+  <data name="Arca.Invoicing.ArcaNoAnswer" xml:space="preserve"><value>ARCA no respondió: volvemos a probar solos.</value></data>
+  <data name="Arca.Invoicing.ArcaFailed" xml:space="preserve"><value>ARCA respondió con un error: volvemos a probar solos.</value></data>
+  <data name="Arca.Invoicing.AnswerIncomplete" xml:space="preserve"><value>ARCA tiene el comprobante, pero todavía no su CAE.</value></data>
+  <data name="Arca.Invoicing.AnswerUnclear" xml:space="preserve"><value>La respuesta de ARCA no dice si se emitió el comprobante.</value></data>
+  <data name="Arca.Invoicing.RejectedWithoutReason" xml:space="preserve"><value>ARCA rechazó el comprobante sin decir por qué.</value></data>
   <data name="Arca.Invoicing.TotalMismatch" xml:space="preserve"><value>El total no coincide con el de los ítems. Volvé a calcularlo.</value></data>
   <data name="Arca.Invoicing.InvoiceNotAuthorized" xml:space="preserve"><value>Esa factura todavía no está emitida.</value></data>
   <data name="Arca.Invoicing.InvoiceAlreadyCancelled" xml:space="preserve"><value>Esa factura ya tiene una nota de crédito.</value></data>

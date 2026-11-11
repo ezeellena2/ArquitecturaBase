@@ -25,4 +25,11 @@ public static class ArcaInvoicingErrors
     public static readonly Error VoucherRevisionConflict = Error.Conflict("Arca.Invoicing.VoucherRevisionConflict", "The issuance changed since it was read.");
     public static readonly Error ReviewDecisionInvalid = Error.Validation("Arca.Invoicing.ReviewDecisionInvalid", "That decision does not fit why the issuance is waiting.");
     public static readonly Error VoucherNotCancellable = Error.Conflict("Arca.Invoicing.VoucherNotCancellable", "The issuance already has a number and cannot be cancelled.");
+
+    // Why the queue waits or stops when ARCA's own messages do not say it: they are the reason of the issuance in the activity.
+    public static readonly Error ArcaNoAnswer = Error.Failure("Arca.Invoicing.ArcaNoAnswer", "ARCA did not answer; the issuance tries again later.");
+    public static readonly Error ArcaFailed = Error.Failure("Arca.Invoicing.ArcaFailed", "ARCA answered with an error; the issuance tries again later.");
+    public static readonly Error AnswerIncomplete = Error.Failure("Arca.Invoicing.AnswerIncomplete", "ARCA has the voucher but not its authorization code yet.");
+    public static readonly Error AnswerUnclear = Error.Failure("Arca.Invoicing.AnswerUnclear", "ARCA's answer does not say whether the voucher was issued.");
+    public static readonly Error RejectedWithoutReason = Error.Failure("Arca.Invoicing.RejectedWithoutReason", "ARCA rejected the voucher without saying why.");
 }

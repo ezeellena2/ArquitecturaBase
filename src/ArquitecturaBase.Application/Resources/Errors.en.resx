@@ -193,6 +193,11 @@
   <data name="Arca.Invoicing.ServicePeriodInvalid" xml:space="preserve"><value>For services, fill in the period and the payment due date, in order.</value></data>
   <data name="Arca.Invoicing.IssueDateOutOfRange" xml:space="preserve"><value>ARCA does not take that date: up to 5 days before or after today for products, 10 for services.</value></data>
   <data name="Arca.Invoicing.ItemsInvalid" xml:space="preserve"><value>Check the items: each one with a description, a quantity and a price, and a total above zero.</value></data>
+  <data name="Arca.Invoicing.ArcaNoAnswer" xml:space="preserve"><value>ARCA did not answer: we try again on our own.</value></data>
+  <data name="Arca.Invoicing.ArcaFailed" xml:space="preserve"><value>ARCA answered with an error: we try again on our own.</value></data>
+  <data name="Arca.Invoicing.AnswerIncomplete" xml:space="preserve"><value>ARCA has the voucher, but not its CAE yet.</value></data>
+  <data name="Arca.Invoicing.AnswerUnclear" xml:space="preserve"><value>ARCA's answer does not say whether the voucher was issued.</value></data>
+  <data name="Arca.Invoicing.RejectedWithoutReason" xml:space="preserve"><value>ARCA rejected the voucher without saying why.</value></data>
   <data name="Arca.Invoicing.TotalMismatch" xml:space="preserve"><value>The total does not match the items. Calculate it again.</value></data>
   <data name="Arca.Invoicing.InvoiceNotAuthorized" xml:space="preserve"><value>That invoice has not been issued yet.</value></data>
   <data name="Arca.Invoicing.InvoiceAlreadyCancelled" xml:space="preserve"><value>That invoice already has a credit note.</value></data>

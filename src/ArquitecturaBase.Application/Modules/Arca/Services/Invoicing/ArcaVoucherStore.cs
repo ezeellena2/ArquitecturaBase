@@ -125,7 +125,7 @@ internal sealed class ArcaVoucherStore(IArcaConnectionRepository connections, IA
                 sequence.ReleasePending(voucher.Id);
                 break;
             case ArcaReconciliation.Issued:
-                voucher.MarkUncertain("wsfe.incomplete", nowUtc);
+                voucher.MarkUncertain(ArcaInvoicingErrors.AnswerIncomplete.Code, nowUtc);
                 break;
             case ArcaReconciliation.Taken:
                 voucher.RequireReview(ArcaVoucherReviewReason.NumberTaken, nowUtc);
@@ -158,11 +158,11 @@ internal sealed class ArcaVoucherStore(IArcaConnectionRepository connections, IA
                 sequence.ReleasePending(voucher.Id);
                 break;
             case { Result: ArcaAuthorizationResult.Rejected }:
-                voucher.Reject(ArcaVoucherRowPolicy.FailureCode(authorization, "wsfe.rejected"), messages, nowUtc);
+                voucher.Reject(ArcaVoucherRowPolicy.FailureCode(authorization, ArcaInvoicingErrors.RejectedWithoutReason.Code), messages, nowUtc);
                 sequence.ReleasePending(voucher.Id);
                 break;
             default:
-                voucher.MarkUncertain(ArcaVoucherRowPolicy.FailureCode(authorization, "wsfe.uncertain"), nowUtc);
+                voucher.MarkUncertain(ArcaVoucherRowPolicy.FailureCode(authorization, ArcaInvoicingErrors.AnswerUnclear.Code), nowUtc);
                 break;
         }
     }

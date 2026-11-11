@@ -6,6 +6,7 @@ using ArquitecturaBase.Application.Modules.Arca.Interfaces.Persistence.Invoicing
 using ArquitecturaBase.Application.Modules.Arca.Interfaces.Services.Invoicing;
 using ArquitecturaBase.Application.Modules.Arca.Models.Connection;
 using ArquitecturaBase.Application.Modules.Arca.Models.Invoicing;
+using ArquitecturaBase.Domain.Modules.Arca;
 using ArquitecturaBase.Domain.Modules.Arca.Connection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -114,7 +115,7 @@ internal sealed partial class ArcaVoucherProcessor(IServiceScopeFactory scopes, 
         }
         else
         {
-            await StepAsync(store => store.PostponeAsync(toSend, "wsfe.unavailable", cancellationToken));
+            await StepAsync(store => store.PostponeAsync(toSend, ArcaInvoicingErrors.ArcaNoAnswer.Code, cancellationToken));
             LogUnanswered(toSend.Request.PointOfSale, toSend.Request.VoucherType, toSend.Request.Number);
         }
     }
@@ -173,8 +174,8 @@ internal sealed partial class ArcaVoucherProcessor(IServiceScopeFactory scopes, 
     private static string Failure(ArcaServiceCheckStatus status, string? code) => status switch
     {
         ArcaServiceCheckStatus.NotAuthorized => "Arca.Connection.ServiceNotAuthorized",
-        ArcaServiceCheckStatus.Unavailable => "wsfe.unavailable",
-        _ => code ?? "wsfe.failed",
+        ArcaServiceCheckStatus.Unavailable => ArcaInvoicingErrors.ArcaNoAnswer.Code,
+        _ => code ?? ArcaInvoicingErrors.ArcaFailed.Code,
     };
 
     private async Task<T> StepAsync<T>(Func<IArcaVoucherStore, Task<T>> step)
