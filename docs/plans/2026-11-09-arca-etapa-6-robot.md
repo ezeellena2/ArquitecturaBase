@@ -236,7 +236,9 @@ corrida está en curso.
 3. **Backend, el robot:** Playwright contra las páginas simuladas, de los dos lados, y el aviso. Hecho el 2026-11-09.
 4. **Despliegue:** Chromium en el workflow y la receta de la imagen en la guía del robot. Hecho el 2026-11-09; la receta se
    prueba la primera vez que una instalación prenda el robot.
-5. **Front,** después de la prueba integral y del front de la etapa 5.
+5. **Front:** el 2026-11-11 el coordinador pidió terminarlo antes de una sola prueba integral. El diseño quedó en
+   `docs/design/arca-robot.md` del front y la zona del robot (RB1-A a RB3-A) programada (front 5afcd50e); falta engancharla
+   como tercer modo en la pantalla de la etapa 5 y dejar elegido el punto de venta del robot en Facturación.
 6. **Cierre:** la verificación de cierre de `AGENTS.md`, `features/arca.md` al día, la fila de la etapa 6 en la hoja de
    ruta, la auditoría que retira este plan y el traspaso al multitenant ofrecido.
 

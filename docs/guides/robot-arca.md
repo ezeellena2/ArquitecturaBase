@@ -85,10 +85,19 @@ Esta receta no se corrió todavía contra Azure: se prueba la primera vez que un
 El Administrador de Relaciones existe sólo en producción, así que las pruebas automáticas van contra páginas simuladas
 (`FakeArcaWeb`). La corrida real la hace el usuario, con sus cuentas, en una instalación con el robot prendido:
 
-1. En ARCA, una conexión nueva con «Delegación automática», la CUIT de una empresa de prueba y Facturación electrónica.
-2. En la zona del robot, la CUIT o CUIL con la que entra a ARCA, su clave y la casilla; «Delegar con el robot».
-3. Mirar el avance: los pasos del cliente, después los de la plataforma, y la prueba en verde al final.
-4. Si se frena, anotar el paso y el motivo que muestra la pantalla (o el aviso por correo) y seguir con la guía.
+1. **Prenderlo:** `Arca:Robot:Enabled`, `Arca:Robot:Platform:LoginCuit`, `Arca:Robot:Platform:FiscalKey` y
+   `Arca:Robot:AlertEmail` en los user-secrets, con Chromium instalado. La Api arranca; si falta algo, el log dice qué.
+2. **El modo:** Administración › Configuración › ARCA › «Conectar con ARCA». En «Datos», «Delegación automática» aparece sólo
+   con el robot prendido. Elegila con la CUIT de una empresa de prueba, el ambiente de producción y Facturación electrónica.
+3. **El consentimiento (RB1-A):** en la zona «Delegación automática», «Delegar con el robot» queda apagado con su motivo hasta
+   marcar la autorización. Escribí la CUIT o CUIL con la que entrás a ARCA y tu clave, marcá la casilla y delegá. El campo de
+   la clave se vacía al enviar.
+4. **El avance (RB2-A):** «Con tu clave» marca entrar, delegar Facturación y el punto de venta; «Con la clave de …» marca el
+   certificado de la instalación, autorizar la constancia, aceptar, asignar y confirmar con ARCA. Al terminar, la zona se
+   pliega con «Delegada · punto de venta N», la prueba sale en verde y Facturación llega con ese punto de venta elegido.
+5. **Si se frena (RB3-A):** anotá el paso y el motivo del aviso; la guía de la etapa 5 abre en ese paso, con lo hecho marcado
+   «Lo hizo el robot». Si fue una pantalla cambiada, llega el correo a `Arca:Robot:AlertEmail`.
+6. **Una clave equivocada:** el error queda debajo de la clave y el robot no vuelve a probar solo.
 
 Lo que falle en esa corrida es una pantalla distinta de la simulada: se corrige como dice la próxima sección.
 
