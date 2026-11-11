@@ -1,6 +1,7 @@
 # ARCA · Etapa 2: el motor para documentos
 
-Plan del 2026-11-09, decidido el mismo día y sin programar. Es la etapa 2 de la [hoja de ruta de ARCA](2026-10-31-arca-formularios-estandar.md):
+Plan del 2026-11-09, decidido el mismo día. Backend y front programados (2026-11-09 a 2026-11-11); faltan la prueba integral
+y el cierre. Es la etapa 2 de la [hoja de ruta de ARCA](2026-10-31-arca-formularios-estandar.md):
 lo que el motor de formularios necesita para armar documentos como la factura, sin emitir nada. Todo va en el módulo de
 formularios (BusinessForms) y no nombra a ARCA: la etapa 3 lo usa para la factura C. Las reglas de hoy están en
 [formularios](../features/formularios.md).
@@ -13,9 +14,8 @@ diseño elegido está registrado en el front:
 [motor para documentos](../../../ArquitecturaBaseFront/docs/design/motor-para-documentos.md).
 
 **Orden:** primero lo que necesita la etapa 3 (cálculos, resultado externo y la biblioteca con preguntas atadas), después
-las carpetas, que la biblioteca usa para ubicar lo que agrega, y al final las condiciones. El backend va ahora; el front,
-cuando el usuario termine la prueba integral del 2026-11-09 (mientras dura, nadie edita el front). Cada pieza se le avisa
-al usuario cuando queda commiteada.
+las carpetas, que la biblioteca usa para ubicar lo que agrega, y al final las condiciones. El backend fue primero; el front se
+programó el 2026-11-11, con la tanda que termina todo antes de una sola prueba integral.
 
 ## Inventario
 
@@ -162,7 +162,10 @@ Cada tarea con su test en rojo primero, el build y los tests rápidos del área,
 6. ~~WhatsApp sin los cálculos, más el prellenado, las sugerencias y la IA.~~ Hecho con la tarea 28 en el perfil r13 (667ab22d,
    91e6e66f); las sugerencias y la IA ya los dejaban afuera (0520a9bf). Falta la prueba con Meta, abajo.
 7. ~~La alícuota desde un catálogo con valor numérico.~~ Hecho (ed3ef5bc).
-8. Front (después de la prueba integral): el editor, la vista previa en la página, el panel y la tabla del bloque.
+8. ~~Front: el editor, la vista previa en la página, el panel y la tabla del bloque.~~ Hecho: el modelo y la lógica
+   (650b4d40), la carga en gris mientras se escribe (d8c731e1), el detalle del borrador (81bcb7e6), «Qué calcula» en el
+   editor (bf6f64ac), Guardar que frena un cálculo sin completar (4c79b0c0, 0121a4f4) y las escenas (b1d3de79). Una alícuota
+   de un catálogo se ve recién al enviar: la opción de la carga no trae su valor.
 
 **Resultado externo**
 
@@ -170,7 +173,9 @@ Cada tarea con su test en rojo primero, el build y los tests rápidos del área,
 10. ~~Los DTO, `BusinessFormRecordResults` con su migración y el helper que lo guarda.~~ Hecho (dea532ec).
 11. ~~Las lecturas: detalle, planilla, Excel y PDF.~~ Hecho: detalle (dea532ec), planilla y Excel (4a391b3d), PDF (f204664b).
 12. ~~Los avisos con datos del resultado, resueltos al ejecutar, y el punto donde una acción declara sus datos.~~ Hecho (c1f7f4ff); la etapa 3 pasa `declared` con los datos de su emisor.
-13. Front: el editor de reglas, el detalle y la planilla.
+13. ~~Front: el detalle y la planilla.~~ Hecho: la zona arriba de las respuestas (e8550e4a) y una columna por dato en la
+    planilla y en «Columnas» (49730621). El grupo «De «Emitir comprobante en ARCA»» de «Agregar dato» en el editor de reglas
+    lo sumó la etapa 4 con la acción `IssueDocument` (front c34630f6).
 14. *(sin tarea propia)* La etapa 3 conecta `IssueDocument`.
 
 **Biblioteca**
@@ -178,9 +183,13 @@ Cada tarea con su test en rojo primero, el build y los tests rápidos del área,
 15. ~~BI1: tablero y decisión.~~ Hecho: BI1-A.
 16. ~~El puerto de estándares y `GET api/forms/library`.~~ Hecho (e2cb8606).
 17. ~~«Agregar»: la copia con su origen sellado y su migración.~~ Hecho (e2cb8606); el catálogo propio del estándar, en 4f49f161
-    (la etapa 3 eligió que «Clientes» lo cree la biblioteca).
+    (la etapa 3 eligió que «Clientes» lo cree la biblioteca), y, a pedido de la etapa 3, sus primeras opciones y las
+    condiciones que nombran una opción de catálogo por su código (`code:`), en be8048ce.
 18. ~~Las preguntas atadas en el guardado y en la lectura del borrador.~~ Hecho (e2cb8606).
-19. Front: la pantalla «Biblioteca», «Agregar» y el candado en el editor.
+19. ~~Front: la pantalla «Biblioteca», «Agregar» y el candado en el editor.~~ Hecho: la entrada en Gestión de formularios
+    sólo con el módulo instalado (9899a1cf, con `form-library` en las capacidades, f3da4322), la pantalla y «Agregar» con
+    nombre, prefijo y carpeta (5e334795, `culture` en el estándar, b4f5ec1f), las tarjetas del celular (5f10f459) y el
+    candado de las preguntas atadas en el editor (650b4d40, bf6f64ac).
 
 **Carpetas** (los cortes de su plan)
 
@@ -189,7 +198,10 @@ Cada tarea con su test en rojo primero, el build y los tests rápidos del área,
 22. ~~El menú y el lugar de cada carpeta.~~ Hecho (724bcc25).
 23. ~~La carpeta del sistema, y la del estándar al agregar.~~ Hecho: `FormSystemFolderLinker` (724bcc25); la carpeta del
     estándar o la elegida al agregar, en el commit de esta tarea.
-24. Front: ver y filtrar, ordenar y menú.
+24. ~~Front: ver y filtrar, ordenar y menú.~~ Hecho: contratos, árbol y lecturas (aa10d91d), el panel, sus diálogos y el menú
+    lateral (9d34e95d), los tres listados y «Carpetas…» (56eeec07), el diseño y las guías (243e51ae, 6b08593a) y los
+    renglones de 44 px en el celular (24d9e50a). «Carpetas…» del encabezado de los editores pasa al ⋮ de AC1-A con el chat
+    que la programa.
 
 **Condiciones**
 
@@ -203,7 +215,8 @@ Cada tarea con su test en rojo primero, el build y los tests rápidos del área,
     catálogo o una cadena de más de tres frenan la publicación. La segunda vuelta pasó la validación y se recorrió en la vista
     oficial: el bloque con importe y total, la fecha obligatoria, el título, la lista de catálogo, el sí o no, la cadena y la
     pantalla siguiente. Falta la integración de WhatsApp con Docker, en la corrida de cierre.
-29. Front: el editor y la carga.
+29. ~~Front: el editor y la carga.~~ Hecho con la tarea 8: «Se muestra» en el editor, la línea de la lista y lo que se oculta
+    al cargar, que no se manda.
 
 **Cierre**
 
@@ -213,7 +226,10 @@ Cada tarea con su test en rojo primero, el build y los tests rápidos del área,
 
 ## Pendiente
 
-- La confirmación de la etapa 3 del corte del resultado externo (se le mandó el 2026-11-09).
-- [Formularios sólo en la app](2026-11-09-formularios-solo-en-la-app.md), decidido el 2026-11-09 y sin programar: con
-  «Sólo en la app» no corre nada de WhatsApp (SA2-A), así que los chequeos de WhatsApp de los cálculos y las condiciones
-  sólo valen para los formularios que van por WhatsApp. Lo que se programe primero se adapta al otro.
+- El editor de un formulario en el otro idioma a veces queda en «Cargando…»: `FormEditorOriginalPreview.test.tsx` falla así
+  y una escena del motor falló 1 de 14 veces. Después de cargar las traducciones del original, el editor se vuelve a dibujar
+  cada ~50 ms sin terminar nunca. Depende del momento, así que bisecar no señala un commit. Va a la verificación conjunta.
+- Los tests del front que leen las capturas nuevas (31f7b31c: forms-entries-http +2, forms-responses-http 63 → 65 y
+  forms-http 70 → 77) van después de la exportación conjunta que corre la coordinadora de la tanda.
+- Con [Formularios sólo en la app](2026-11-09-formularios-solo-en-la-app.md) no corre nada de WhatsApp (SA2-A): los
+  chequeos de WhatsApp de los cálculos y las condiciones sólo valen para los formularios que van por WhatsApp.
