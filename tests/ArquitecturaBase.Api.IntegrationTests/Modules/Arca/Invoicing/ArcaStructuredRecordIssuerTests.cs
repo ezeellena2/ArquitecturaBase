@@ -1,3 +1,4 @@
+using System.Globalization;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.Arca;
 using ArquitecturaBase.Application.Interfaces.Channels;
@@ -16,7 +17,8 @@ namespace ArquitecturaBase.Api.IntegrationTests.Modules.Arca.Invoicing;
 
 /// <summary>
 /// ARCA como emisor de la acción de formularios, con PostgreSQL y <c>FakeArca</c>: los datos atados de una «Factura» se encolan
-/// una vez por run, siguen la cola y salen emitidos con su resultado y su PDF fiscal; un pedido sin cliente vuelve rechazado. La
+/// una vez por run, siguen la cola y salen emitidos con su resultado (también la fecha y el cliente con su documento y su condición
+/// frente al IVA) y su PDF fiscal; un pedido sin cliente vuelve rechazado. La
 /// «Razón social» de «Clientes» llega entera al comprobante aunque el texto de la opción esté recortado.
 /// </summary>
 [Collection(ApiTestGroup.Name)]
@@ -53,6 +55,11 @@ public sealed class ArcaStructuredRecordIssuerTests(ApiFactory factory) : IDispo
             Assert.Equal(StructuredIssueState.Issued, issued.State);
             Assert.Equal(["Factura C", "00004-00000001"], issued.Result!.Values.Take(2).Select(value => value.Value));
             Assert.Equal("1300.5", issued.Result.Values.Single(value => value.Key == "total").Value);
+            // The zone «Comprobante» of the detail: the date, the customer, its document and its VAT condition, as the fiscal PDF says them.
+            var values = issued.Result.Values.ToDictionary(value => value.Key, value => value.Value);
+            Assert.Equal((ArcaIssueDateWindow.Today(factory.Clock.GetUtcNow().UtcDateTime).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                    "Agro del Sur S.A.", "CUIT 30-71234567-1", "IVA Responsable Inscripto"),
+                (values["issuedOn"], values["customer"], values["customerDocument"], values["customerVatCondition"]));
             Assert.True(files.Objects.ContainsKey(issued.Document!.StorageKey));
             Assert.Equal("Factura C 00004-00000001.pdf", issued.Document.Name);
             Assert.Equal(1, host.Services.GetRequiredService<FakeArca>().Calls("FECAESolicitar", FakeArca.InvoicingService));

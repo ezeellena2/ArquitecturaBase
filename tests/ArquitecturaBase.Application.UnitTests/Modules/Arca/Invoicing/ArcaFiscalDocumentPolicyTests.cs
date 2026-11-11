@@ -52,6 +52,23 @@ public sealed class ArcaFiscalDocumentPolicyTests
         Assert.Equal(("27-28765433-8", (DateOnly?)new DateOnly(2019, 3, 1)), (document.GrossIncomeNumber, document.ActivityStartOn));
     }
 
+    // The result of the issuance repeats these texts, so the zone «Comprobante» and the fiscal PDF say the same.
+    [Theory]
+    [InlineData(80, 30500010912L, "CUIT 30-50001091-2")]
+    [InlineData(86, 20123456786L, "CUIL 20-12345678-6")]
+    [InlineData(96, 12345678L, "DNI 12345678")]
+    [InlineData(99, 0L, "Sin identificar")]
+    public void The_document_of_the_receiver_is_its_type_and_number_or_else_not_identified(int type, long number, string expected) =>
+        Assert.Equal(expected, ArcaFiscalDocumentPolicy.ReceiverDocument(new ArcaVoucherParty(type, number, "Cliente", 1, null)));
+
+    [Theory]
+    [InlineData(1, "IVA Responsable Inscripto")]
+    [InlineData(5, "Consumidor Final")]
+    [InlineData(6, "Responsable Monotributo")]
+    [InlineData(42, "42")]
+    public void The_vat_condition_of_the_receiver_is_the_text_of_arca_or_else_its_code(int condition, string expected) =>
+        Assert.Equal(expected, ArcaFiscalDocumentPolicy.ReceiverVatCondition(new ArcaVoucherParty(99, 0, "Cliente", condition, null)));
+
     [Fact]
     public void A_credit_note_says_which_invoice_it_cancels()
     {

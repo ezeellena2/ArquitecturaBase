@@ -41,6 +41,18 @@ internal static class ArcaFiscalDocumentPolicy
     public static string Name(ArcaVoucherClass voucherClass, ArcaVoucherKind kind) =>
         $"{(kind == ArcaVoucherKind.CreditNote ? "Nota de crédito" : "Factura")} {voucherClass}";
 
+    /// <summary>
+    /// El documento del receptor, como lo dicen el PDF fiscal y el resultado de la emisión: «CUIT 30-50001091-2», «DNI 12345678»
+    /// o, sin un tipo conocido (el 99 de un consumidor final), «Sin identificar».
+    /// </summary>
+    public static string ReceiverDocument(ArcaVoucherParty receiver) => Documents.TryGetValue(receiver.DocumentType, out var document)
+        ? $"{document} {(receiver.DocumentType is 80 or 86 ? FormatCuit(receiver.DocumentNumber.ToString("D11", CultureInfo.InvariantCulture)) : receiver.DocumentNumber.ToString(CultureInfo.InvariantCulture))}"
+        : "Sin identificar";
+
+    /// <summary>La condición frente al IVA del receptor con el texto de ARCA («IVA Responsable Inscripto»); una desconocida, por su código.</summary>
+    public static string ReceiverVatCondition(ArcaVoucherParty receiver) =>
+        VatConditions.GetValueOrDefault(receiver.VatConditionId, receiver.VatConditionId.ToString(CultureInfo.InvariantCulture));
+
     public static ArcaFiscalDocument Build(ArcaVoucher voucher, ArcaVoucherPayload payload)
     {
         if (voucher is not { State: ArcaVoucherState.Authorized, Number: { } number, Cae: { } cae, CaeDueOn: { } due, IssuedOn: { } issuedOn })
@@ -60,10 +72,8 @@ internal static class ArcaFiscalDocumentPolicy
             FormatNumber(voucher.PointOfSale, number),
             issuedOn,
             receiver.Name,
-            Documents.TryGetValue(receiver.DocumentType, out var document)
-                ? $"{document} {(receiver.DocumentType is 80 or 86 ? FormatCuit(receiver.DocumentNumber.ToString("D11", CultureInfo.InvariantCulture)) : receiver.DocumentNumber.ToString(CultureInfo.InvariantCulture))}"
-                : "Sin identificar",
-            VatConditions.GetValueOrDefault(receiver.VatConditionId, receiver.VatConditionId.ToString(CultureInfo.InvariantCulture)),
+            ReceiverDocument(receiver),
+            ReceiverVatCondition(receiver),
             receiver.Address,
             payload.ServiceFrom,
             payload.ServiceTo,

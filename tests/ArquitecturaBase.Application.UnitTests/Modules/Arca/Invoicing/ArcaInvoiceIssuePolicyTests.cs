@@ -12,15 +12,31 @@ public sealed class ArcaInvoiceIssuePolicyTests
     [Fact]
     public void An_authorized_voucher_with_its_fiscal_pdf_is_issued_with_its_result_and_document()
     {
-        var issued = ArcaInvoiceIssuePolicy.Response(Voucher(ArcaVoucherState.Authorized) with { PdfStorageKey = "arca-vouchers/x.pdf", PdfSha256 = "abc", PdfSize = 2048 });
+        var issued = ArcaInvoiceIssuePolicy.Response(Issued(ArcaVoucherKind.Invoice, new ArcaVoucherParty(80, 30500010912, "Lácteos del Oeste SRL", 1, "Ruta 5 km 30")));
 
         Assert.Equal(StructuredIssueState.Issued, issued.State);
         Assert.Equal("arca.invoice", issued.Result!.Source);
-        Assert.Equal([("voucher", "Factura C"), ("number", "00004-00000012"), ("cae", "86123456789012"), ("caeDueOn", "2026-11-19"), ("total", "3101.5")],
+        Assert.Equal(
+            [
+                ("voucher", "Factura C"), ("number", "00004-00000012"), ("issuedOn", "2026-11-09"), ("cae", "86123456789012"), ("caeDueOn", "2026-11-19"),
+                ("customer", "Lácteos del Oeste SRL"), ("customerDocument", "CUIT 30-50001091-2"), ("customerVatCondition", "IVA Responsable Inscripto"),
+                ("total", "3101.5"),
+            ],
             issued.Result.Values.Select(value => (value.Key, value.Value)));
-        Assert.Equal("CAE due date", issued.Result.Values.Single(value => value.Key == "caeDueOn").Label["en"]);
+        Assert.Equal(("Vence el CAE", "CAE due date"), (Label(issued, "caeDueOn", "es"), Label(issued, "caeDueOn", "en")));
         Assert.Equal(("arca-vouchers/x.pdf", "Factura C 00004-00000012.pdf", "application/pdf", 2048L, "abc"),
             (issued.Document!.StorageKey, issued.Document.Name, issued.Document.ContentType, issued.Document.Size, issued.Document.Sha256));
+    }
+
+    // The zone «Comprobante» and the PDF say the same of the receiver: a final consumer without a document is «Sin identificar».
+    [Fact]
+    public void An_issued_credit_note_to_a_final_consumer_says_its_customer_is_not_identified()
+    {
+        var issued = ArcaInvoiceIssuePolicy.Response(Issued(ArcaVoucherKind.CreditNote, new ArcaVoucherParty(99, 0, "Consumidor final", 5, null)));
+
+        var values = issued.Result!.Values.ToDictionary(value => value.Key, value => value.Value);
+        Assert.Equal(("Nota de crédito C", "2026-11-09", "Consumidor final", "Sin identificar", "Consumidor Final"),
+            (values["voucher"], values["issuedOn"], values["customer"], values["customerDocument"], values["customerVatCondition"]));
     }
 
     // The copy goes to the email of the customer only when «Mandar copia al cliente» was marked and the customer has a valid one.
@@ -111,10 +127,32 @@ public sealed class ArcaInvoiceIssuePolicyTests
     [Fact]
     public void The_issuer_declares_the_data_of_its_result_in_both_languages()
     {
-        Assert.Equal(["voucher", "number", "cae", "caeDueOn", "total"], ArcaInvoiceIssuePolicy.ResultFields.Select(field => field.Key));
+        Assert.Equal(["voucher", "number", "issuedOn", "cae", "caeDueOn", "customer", "customerDocument", "customerVatCondition", "total"],
+            ArcaInvoiceIssuePolicy.ResultFields.Select(field => field.Key));
         Assert.Equal("Emitir comprobante en ARCA", ArcaInvoiceIssuePolicy.Name["es"]);
-        Assert.Equal(StructuredRecordResultField.Number, ArcaInvoiceIssuePolicy.ResultFields.Single(field => field.Key == "total").Kind);
+        Assert.Equal(
+            [
+                StructuredRecordResultField.Text, StructuredRecordResultField.Text, StructuredRecordResultField.Date, StructuredRecordResultField.Text,
+                StructuredRecordResultField.Date, StructuredRecordResultField.Text, StructuredRecordResultField.Text, StructuredRecordResultField.Text,
+                StructuredRecordResultField.Number,
+            ],
+            ArcaInvoiceIssuePolicy.ResultFields.Select(field => field.Kind));
+        Assert.Equal(
+            [
+                ("Fecha", "Date"), ("Vence el CAE", "CAE due date"), ("Cliente", "Customer"), ("Documento", "Document"),
+                ("Condición frente al IVA", "VAT condition"),
+            ],
+            ArcaInvoiceIssuePolicy.ResultFields.Where(field => field.Key is "issuedOn" or "caeDueOn" or "customer" or "customerDocument" or "customerVatCondition")
+                .Select(field => (field.Label["es"], field.Label["en"])));
     }
+
+    private static string Label(StructuredIssueResponse issued, string key, string culture) =>
+        issued.Result!.Values.Single(value => value.Key == key).Label[culture];
+
+    private static ArcaVoucherResponse Issued(ArcaVoucherKind kind, ArcaVoucherParty receiver) => Voucher(ArcaVoucherState.Authorized) with
+    {
+        Kind = kind, Receiver = receiver, PdfStorageKey = "arca-vouchers/x.pdf", PdfSha256 = "abc", PdfSize = 2048,
+    };
 
     private static ArcaVoucherResponse Voucher(ArcaVoucherState state) => new(Guid.NewGuid(), Guid.NewGuid(), state, null, ArcaVoucherClass.C,
         ArcaVoucherKind.Invoice, 11, 4, 12, "86123456789012", new DateOnly(2026, 11, 19), new DateOnly(2026, 11, 9), new DateOnly(2026, 11, 9), 3101.5m,

@@ -6,8 +6,12 @@
   <data name="Result.Source" xml:space="preserve"><value>Comprobante de ARCA</value></data>
   <data name="Result.voucher" xml:space="preserve"><value>Comprobante</value></data>
   <data name="Result.number" xml:space="preserve"><value>Número</value></data>
+  <data name="Result.issuedOn" xml:space="preserve"><value>Fecha</value></data>
   <data name="Result.cae" xml:space="preserve"><value>CAE</value></data>
-  <data name="Result.caeDueOn" xml:space="preserve"><value>Vencimiento del CAE</value></data>
+  <data name="Result.caeDueOn" xml:space="preserve"><value>Vence el CAE</value></data>
+  <data name="Result.customer" xml:space="preserve"><value>Cliente</value></data>
+  <data name="Result.customerDocument" xml:space="preserve"><value>Documento</value></data>
+  <data name="Result.customerVatCondition" xml:space="preserve"><value>Condición frente al IVA</value></data>
   <data name="Result.total" xml:space="preserve"><value>Total</value></data>
   <data name="Voucher.Invoice" xml:space="preserve"><value>Factura {0}</value></data>
   <data name="Voucher.CreditNote" xml:space="preserve"><value>Nota de crédito {0}</value></data>

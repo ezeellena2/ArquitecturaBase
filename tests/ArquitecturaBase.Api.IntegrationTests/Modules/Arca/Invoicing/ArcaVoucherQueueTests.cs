@@ -41,6 +41,8 @@ public sealed class ArcaVoucherQueueTests(ApiFactory factory) : IDisposable
             var issued = await VoucherAsync(order.RequestKey);
             Assert.Equal((ArcaVoucherState.Authorized, (long?)12, arca.Vouchers.Issued.Single().Cae, (DateOnly?)Today, (DateOnly?)Today.AddDays(10)),
                 (issued.State, issued.Number, issued.Cae, issued.IssuedOn, issued.CaeDueOn));
+            // The receiver it fixed when queued comes back with the voucher, queued and read.
+            Assert.Equal((order.Receiver, order.Receiver), (first.Receiver, issued.Receiver));
             Assert.Equal(1, arca.Calls("FECAESolicitar", FakeArca.InvoicingService));
 
             var next = ArcaVoucherScenario.Order(Today);
@@ -334,7 +336,8 @@ public sealed class ArcaVoucherQueueTests(ApiFactory factory) : IDisposable
 
             await ProcessAsync(13);
 
-            Assert.Equal((ArcaVoucherState.Authorized, (long?)1), ((await VoucherAsync(noteKey)).State, (await VoucherAsync(noteKey)).Number));
+            var authorizedNote = await VoucherAsync(noteKey);
+            Assert.Equal((ArcaVoucherState.Authorized, (long?)1, invoice.Receiver), (authorizedNote.State, authorizedNote.Number, authorizedNote.Receiver));
             var request = arca.LastRequest("FECAESolicitar")!;
             Assert.Equal(["11", "4", "1"], request.Descendants(Fev1 + "CbteAsoc").Single().Elements().Take(3).Select(element => element.Value));
             Assert.Equal("605500.00", request.Descendants(Fev1 + "ImpTotal").Single().Value);

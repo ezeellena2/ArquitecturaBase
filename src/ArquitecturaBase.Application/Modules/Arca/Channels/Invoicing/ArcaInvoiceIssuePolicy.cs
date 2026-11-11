@@ -10,20 +10,22 @@ namespace ArquitecturaBase.Application.Modules.Arca.Channels.Invoicing;
 
 /// <summary>
 /// An issuance of the queue as forms sees it. It is issued once ARCA authorized it and its fiscal PDF is stored, with the voucher,
-/// its number, the CAE and its due date and the total as its result; until then it is pending, on the queue's own schedule.
+/// its number, its date, the CAE and its due date, the customer with its document and VAT condition (as the fiscal PDF says them)
+/// and the total as its result; until then it is pending, on the queue's own schedule.
 /// </summary>
 internal static class ArcaInvoiceIssuePolicy
 {
     private static readonly ResourceManager Texts = new("ArquitecturaBase.Application.Modules.Arca.Resources.Invoicing", typeof(ArcaInvoiceIssuePolicy).Assembly);
     private static readonly string[] Cultures = ["es", "en"];
-    private static readonly string[] ResultKeys = ["voucher", "number", "cae", "caeDueOn", "total"];
+    private static readonly string[] ResultKeys =
+        ["voucher", "number", "issuedOn", "cae", "caeDueOn", "customer", "customerDocument", "customerVatCondition", "total"];
 
     public static IReadOnlyDictionary<string, string> Name { get; } = Localized("Issuer.Name");
 
     public static IReadOnlyList<StructuredRecordResultField> ResultFields { get; } = ResultKeys.Select(key => new StructuredRecordResultField(key,
         Localized("Result." + key), key switch
         {
-            "caeDueOn" => StructuredRecordResultField.Date,
+            "issuedOn" or "caeDueOn" => StructuredRecordResultField.Date,
             "total" => StructuredRecordResultField.Number,
             _ => StructuredRecordResultField.Text,
         })).ToArray();
@@ -91,12 +93,17 @@ internal static class ArcaInvoiceIssuePolicy
     private static StructuredRecordResult Result(ArcaVoucherResponse voucher)
     {
         var name = Localized(voucher.Kind == ArcaVoucherKind.CreditNote ? "Voucher.CreditNote" : "Voucher.Invoice", voucher.Class.ToString());
+        var receiver = voucher.Receiver ?? throw new InvalidOperationException("An issued ARCA voucher has no receiver.");
         var values = new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["voucher"] = name["es"],
             ["number"] = Number(voucher),
+            ["issuedOn"] = voucher.IssuedOn!.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
             ["cae"] = voucher.Cae!,
             ["caeDueOn"] = voucher.CaeDueOn!.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+            ["customer"] = receiver.Name,
+            ["customerDocument"] = ArcaFiscalDocumentPolicy.ReceiverDocument(receiver),
+            ["customerVatCondition"] = ArcaFiscalDocumentPolicy.ReceiverVatCondition(receiver),
             ["total"] = voucher.Total.ToString("0.############################", CultureInfo.InvariantCulture),
         };
         return new(ArcaInvoiceStandard.Key, Localized("Result.Source"),

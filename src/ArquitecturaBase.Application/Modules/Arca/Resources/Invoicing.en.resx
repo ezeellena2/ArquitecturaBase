@@ -6,8 +6,12 @@
   <data name="Result.Source" xml:space="preserve"><value>ARCA voucher</value></data>
   <data name="Result.voucher" xml:space="preserve"><value>Voucher</value></data>
   <data name="Result.number" xml:space="preserve"><value>Number</value></data>
+  <data name="Result.issuedOn" xml:space="preserve"><value>Date</value></data>
   <data name="Result.cae" xml:space="preserve"><value>CAE</value></data>
   <data name="Result.caeDueOn" xml:space="preserve"><value>CAE due date</value></data>
+  <data name="Result.customer" xml:space="preserve"><value>Customer</value></data>
+  <data name="Result.customerDocument" xml:space="preserve"><value>Document</value></data>
+  <data name="Result.customerVatCondition" xml:space="preserve"><value>VAT condition</value></data>
   <data name="Result.total" xml:space="preserve"><value>Total</value></data>
   <data name="Voucher.Invoice" xml:space="preserve"><value>Invoice {0}</value></data>
   <data name="Voucher.CreditNote" xml:space="preserve"><value>Credit note {0}</value></data>

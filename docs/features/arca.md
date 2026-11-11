@@ -146,7 +146,11 @@ la prueba integral y la de homologación. Lo que se ve en la app y en WhatsApp e
   la fecha, los importes que discrimina (en la A, el neto gravado, el IVA de cada alícuota, lo exento y lo no gravado; en la B
   a un consumidor final, exento o no alcanzado, el IVA contenido) y el total recalculado, sin encolar; un pedido que no se
   encolaría responde su código. Está emitida cuando ARCA la autorizó y su PDF fiscal está guardado, con comprobante,
-  número, CAE, vencimiento del CAE y total como resultado. En revisión responde `arca.invoice.<motivo>`; seguir es otro
+  número, fecha, CAE, vencimiento del CAE, cliente (el nombre del receptor del pedido), su documento («CUIT 30-50001091-2»,
+  «DNI …» o «Sin identificar»), su condición frente al IVA y total como resultado (`voucher`, `number`, `issuedOn`, `cae`,
+  `caeDueOn`, `customer`, `customerDocument`, `customerVatCondition` y `total`), también en la nota de crédito. Es la zona
+  «Comprobante» del detalle y los datos `{result:arca.invoice.<clave>}` de los avisos; el documento y la condición se escriben
+  con `ArcaFiscalDocumentPolicy`, como en el PDF fiscal. En revisión responde `arca.invoice.<motivo>`; seguir es otro
   número o la fecha de hoy, y decidirlo pide `arca.issue`. Anular la respuesta cancela la emisión que todavía no
   tiene número o pide la nota de crédito por el total (`EnqueueCreditNoteAsync`), las dos por el mismo puerto. Mientras espera por ARCA, el aviso es «ARCA no responde. Tu factura
   sale apenas vuelva.» (o «Tu nota de crédito»).

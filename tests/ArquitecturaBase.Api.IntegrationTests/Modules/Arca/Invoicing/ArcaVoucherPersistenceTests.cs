@@ -140,8 +140,8 @@ public sealed class ArcaVoucherPersistenceTests(ApiFactory factory)
             Assert.Contains(authorized.Id, await reader.ListDuePdfsAsync(Now, 500, ct));
 
             var row = Assert.Single(await reader.ListByRequestsAsync([authorized.RequestKey], ct));
-            Assert.Equal((ArcaVoucherState.Authorized, (long?)1, "76451234567890", (DateOnly?)RequestedOn, 605500m),
-                (row.State, row.Number, row.Cae, row.IssuedOn, row.Total));
+            Assert.Equal((ArcaVoucherState.Authorized, (long?)1, "76451234567890", (DateOnly?)RequestedOn, 605500m, "{}"),
+                (row.State, row.Number, row.Cae, row.IssuedOn, row.Total, row.PayloadJson));
         }
         finally
         {

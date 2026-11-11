@@ -2,7 +2,10 @@ using ArquitecturaBase.Domain.Modules.Arca.Invoicing;
 
 namespace ArquitecturaBase.Application.Modules.Arca.Models.Invoicing;
 
-/// <summary>Una emisión de la cola como se le responde a quien la pidió: su estado, su número, el CAE y el PDF fiscal.</summary>
+/// <summary>
+/// Una emisión de la cola como se le responde a quien la pidió: su estado, su número, el CAE, el PDF fiscal y el receptor que
+/// fijó al encolarse (<see cref="Receiver"/>).
+/// </summary>
 public sealed record ArcaVoucherResponse(
     Guid Id,
     Guid RequestKey,
@@ -24,4 +27,8 @@ public sealed record ArcaVoucherResponse(
     int Revision,
     string? PdfStorageKey,
     string? PdfSha256,
-    long? PdfSize);
+    long? PdfSize)
+{
+    /// <summary>El receptor del pedido guardado; lo muestra el resultado de la emisión, como el PDF fiscal.</summary>
+    public ArcaVoucherParty? Receiver { get; init; }
+}
