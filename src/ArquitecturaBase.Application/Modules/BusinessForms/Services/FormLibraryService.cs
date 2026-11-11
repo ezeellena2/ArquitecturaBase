@@ -42,7 +42,8 @@ internal sealed class FormLibraryService : IFormLibraryService
             var culture = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es";
             return new FormLibraryResponse(_standards.OrderBy(standard => FormRecordPresentationPolicy.Text(standard.Name, culture), StringComparer.CurrentCultureIgnoreCase)
                 .Select(standard => new FormLibraryStandardResponse(standard.Key, standard.Version, FormRecordPresentationPolicy.Text(standard.Name, culture),
-                    FormRecordPresentationPolicy.Text(standard.Description, culture), standard.Prefix, copies.GetValueOrDefault(standard.Key))
+                    FormRecordPresentationPolicy.Text(standard.Description, culture), standard.Prefix, copies.GetValueOrDefault(standard.Key),
+                    FormDraftPolicy.Read<FormDraftInput>(standard.DraftJson).Culture)
                     { Source = standard.Source is { } source ? FormRecordPresentationPolicy.Text(source, culture) : null }).ToArray());
         });
 
