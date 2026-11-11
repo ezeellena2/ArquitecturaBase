@@ -100,7 +100,9 @@ en el front (`docs/design`). Pasar los tableros a ese lienzo queda para cuando s
 - **En el celular:** cada menú propio es un grupo del cajón, con sus subcarpetas como grupos adentro. Una carpeta puesta
   en un panel queda adentro del grupo de ese panel.
 - **Con el menú contraído:** el ícono del menú propio, con su tooltip, abre el panel entero, como Administración.
-- **Estados:** mientras se lee el menú, los menús propios ocupan su lugar con bloques de carga. Si no se pudo leer, el
+- **Estados:** mientras se lee el menú, los menús propios no ocupan lugar y aparecen al leerse (programado así el
+  2026-11-11: un bloque que desapareciera sin menús propios haría subir al resto, contra «Lo que carga no mueve lo que ya
+  se ve» del 2026-11-05). Si no se pudo leer, el
   menú lateral muestra el aviso que ya tiene, con «Reintentar», y lo demás sigue andando. Borrar una carpeta la saca del
   menú; moverla no cambia su lugar en el menú. El cambio se ve enseguida para quien lo hizo, y los demás lo ven la
   próxima vez que se lee el menú.
