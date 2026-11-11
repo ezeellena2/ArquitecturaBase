@@ -97,7 +97,12 @@ internal sealed class FormResponseService(IFormResponseReader reader, FormRecord
             var origin = channels.GetValueOrDefault(row.OriginReceiptId);
             var history = new List<FormResponseHistoryResponse>();
             if (origin is not null && origin.ChannelId != FormEntryChannel.Id)
+            {
+                // W1-A: the location the channel asked for before the form, and its answer.
+                if (origin.LocationRequestedAtUtc is { } requested) history.Add(new("LocationRequested", requested, null));
+                if (origin.LocationResolvedAtUtc is { } resolved) history.Add(new(origin.LocationSkipped ? "LocationSkipped" : "LocationReceived", resolved, null));
                 history.Add(new("Sent", origin.SentAtUtc, origin.SenderUserId is { } senderId ? new(senderId, origin.SenderName) : null));
+            }
             history.Add(new("Submitted", row.SubmittedAtUtc, row.Actor));
             history.Add(new("Saved", row.CreatedAtUtc, null));
             return new FormResponseDetailResponse(id, row.Record.DefinitionId, row.Record.VersionId, row.Record.VersionNumber, reply.Number, reply.Name,

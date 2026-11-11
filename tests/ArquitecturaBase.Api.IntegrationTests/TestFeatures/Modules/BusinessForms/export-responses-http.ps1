@@ -54,9 +54,9 @@ $cohorts = @(
             "extra-fields-sheet-en.json", "extra-fields-detail-en.json", "extra-fields-legacy-en.json", "extra-fields-export-en.xlsx", "extra-fields-visible-export-en.xlsx",
             "rows-sheet-es.json", "rows-detail-es.json", "rows-sheet-en.json", "rows-detail-en.json", "rows-counts-es.json", "rows-counts-en.json",
             "rows-export-es.xlsx", "rows-export-en.xlsx",
-            "result-detail-es.json", "result-sheet-es.json");
+            "result-detail-es.json", "result-sheet-es.json", "detail-location-whatsapp-es.json");
         Sources = @(($sourceRoot + "BusinessForms/FormCatalogFieldsReadHttpTests.cs"), ($sourceRoot + "BusinessForms/FormMultipleChoiceReadHttpTests.cs"),
-            ($sourceRoot + "BusinessForms/FormRowsReadHttpTests.cs"), ($sourceRoot + "BusinessForms/FormRowsCaptureIntegrationTests.cs"), ($sourceRoot + "BusinessForms/FormRecordCaptureIntegrationTests.cs"), ($sourceRoot + "BusinessForms/FormResponseHttpTests.cs"), ($sourceRoot + "BusinessForms/FormRecordResultHttpTests.cs"), ($sourceRoot + "BusinessForms/FormOverviewHttpTests.cs"), ($sourceRoot + "BusinessForms/FormRecordNavigationHttpTests.cs"), ($captureRoot + "Modules/BusinessForms/FormPublishedVersionFixture.cs"), ($sourceRoot + "BusinessForms/FormResponseApprovalHttpTests.cs"), ($sourceRoot + "BusinessForms/FormResponseStateHttpTests.cs"), ($sourceRoot + "WhatsApp/WhatsAppFormFilesIntegrationTests.cs"), ($captureRoot + "ResponseContractCapture.cs")) },
+            ($sourceRoot + "BusinessForms/FormRowsReadHttpTests.cs"), ($sourceRoot + "BusinessForms/FormRowsCaptureIntegrationTests.cs"), ($sourceRoot + "BusinessForms/FormRecordCaptureIntegrationTests.cs"), ($sourceRoot + "BusinessForms/FormResponseHttpTests.cs"), ($sourceRoot + "BusinessForms/FormRecordResultHttpTests.cs"), ($sourceRoot + "BusinessForms/FormOverviewHttpTests.cs"), ($sourceRoot + "BusinessForms/FormRecordNavigationHttpTests.cs"), ($captureRoot + "Modules/BusinessForms/FormPublishedVersionFixture.cs"), ($sourceRoot + "BusinessForms/FormResponseApprovalHttpTests.cs"), ($sourceRoot + "BusinessForms/FormResponseStateHttpTests.cs"), ($sourceRoot + "WhatsApp/WhatsAppFormFilesIntegrationTests.cs"), ($sourceRoot + "WhatsApp/WhatsAppLocationCompositionTests.cs"), ($captureRoot + "ResponseContractCapture.cs")) },
     @{ Name = "entries"; Environment = "FORM_ENTRIES_HTTP_OUTPUT"; Destination = "forms-entries-http";
         RequiredNames = @(
             "entry-es.json", "entry-en.json", "options-es.json", "options-en.json", "entry-missing-data-es.json", "entry-missing-data-en.json",
@@ -99,7 +99,7 @@ $cohorts = @(
             "es/thread-reloaded.json", "es/thread-uncertain.json", "es/reply-all-states.json", "es/reply-completed.json",
             "es/reply-inbox-read.json", "es/reply-inbox-without-read.json", "es/reply-latest-page.json", "es/reply-multiple-choice.json", "es/reply-older-page.json",
             "es/reply-pending.json", "es/reply-rejected.json", "es/reply-reloaded.json", "es/reply-rows.json", "es/reply-unrecognized.json",
-            "es/reply-without-read.json", "es/thread-read-only.json", "es/thread-send-with-users-read.json", "es/thread-send-without-users-read.json",
+            "es/reply-without-read.json", "es/thread-read-only.json", "es/thread-send-with-users-read.json", "es/thread-send-without-users-read.json", "es/thread-location-requested.json", "es/thread-location-received.json",
             "en/choices-forbidden.json", "en/choices.json", "en/preparation.json", "en/manifest.json", "en/outgoing-accepted.json",
             "en/outgoing-failed.json", "en/outgoing-pending.json", "en/outgoing-uncertain.json", "en/send-before-failed.json",
             "en/send-before-uncertain.json", "en/send-context-changed.json", "en/send-pending.json", "en/send-version-unavailable.json",
@@ -112,7 +112,7 @@ $cohorts = @(
             "en/empty-secondary-choices.json", "en/empty-secondary-preparation.json", "en/empty-secondary-receipt.json", "en/empty-secondary-history.json");
         Sources = @(($sourceRoot + "WhatsApp/WhatsAppFormHttpContractTests.cs"), ($sourceRoot + "WhatsApp/WhatsAppFormSendingTests.cs"),
             ($sourceRoot + "WhatsApp/WhatsAppFormReplyAppPreviewTests.cs"), ($sourceRoot + "WhatsApp/WhatsAppFormPrivacyTests.cs"),
-            ($sourceRoot + "WhatsApp/WhatsAppMultipleChoiceCompositionTests.cs"), ($sourceRoot + "WhatsApp/WhatsAppRowsCompositionTests.cs"),
+            ($sourceRoot + "WhatsApp/WhatsAppMultipleChoiceCompositionTests.cs"), ($sourceRoot + "WhatsApp/WhatsAppRowsCompositionTests.cs"), ($sourceRoot + "WhatsApp/WhatsAppLocationCompositionTests.cs"),
             ($captureRoot + "Modules/WhatsApp/CapturingFlowProvider.cs"), ($captureRoot + "Modules/WhatsApp/CapturingStructuredFormSource.cs"),
             ($captureRoot + "Modules/WhatsApp/ControlledWhatsAppSendClient.cs")) },
     @{ Name = "suggestions"; Environment = "FORM_SUGGESTIONS_HTTP_OUTPUT"; Destination = "forms-suggestions-http";
