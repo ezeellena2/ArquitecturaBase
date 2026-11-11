@@ -21,7 +21,7 @@
   <data name="Preview.Info.C.Exempt" xml:space="preserve"><value>The system decides it: you are VAT exempt.</value></data>
   <data name="Preview.Info.A" xml:space="preserve"><value>The system decides it: you are a registered VAT taxpayer and so is your customer.</value></data>
   <data name="Preview.Info.A.Monotax" xml:space="preserve"><value>The system decides it: you are a registered VAT taxpayer and your customer is a Monotributo one.</value></data>
-  <data name="Preview.Info.B" xml:space="preserve"><value>The system decides it: it is a final consumer.</value></data>
+  <data name="Preview.Info.B" xml:space="preserve"><value>The system decides it: your customer is a final consumer.</value></data>
   <data name="Preview.Info.B.Other" xml:space="preserve"><value>The system decides it: your customer is neither a registered VAT taxpayer nor a Monotributo one.</value></data>
   <data name="Preview.Net" xml:space="preserve"><value>Taxed net amount</value></data>
   <data name="Preview.Vat" xml:space="preserve"><value>VAT {0:0.##}%</value></data>

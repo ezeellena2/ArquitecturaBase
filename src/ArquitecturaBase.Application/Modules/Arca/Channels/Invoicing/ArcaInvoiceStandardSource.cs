@@ -82,7 +82,7 @@ internal sealed class ArcaInvoiceStandardSource : IStructuredFormStandardSource
                     new Dictionary<string, string>
                     {
                         ["es"] = "Los clientes de la factura. «Completar con ARCA» trae los datos desde la CUIT.",
-                        ["en"] = "The customers of the invoice. «Completar con ARCA» brings their data from the CUIT.",
+                        ["en"] = "The customers of the invoice. “Complete with ARCA” brings their data from the CUIT.",
                     },
                     [
                         new(ArcaCustomersCatalog.TaxId, new Dictionary<string, string> { ["es"] = "CUIT", ["en"] = "CUIT" }, "text", MaxLength: 13),
@@ -101,6 +101,7 @@ internal sealed class ArcaInvoiceStandardSource : IStructuredFormStandardSource
             Arca, new Dictionary<string, string> { [VatRate] = GeneralVatRate }, Rules),
     ];
 
+    // The voucher's name is a datum in Spanish, as the fiscal document: the English texts name the invoice by its number.
     private static readonly StructuredFormStandardRule[] Rules =
     [
         new("Received", [],
@@ -109,12 +110,12 @@ internal sealed class ArcaInvoiceStandardSource : IStructuredFormStandardSource
             new("NotifyAuthor", new Dictionary<string, string>
             {
                 ["es"] = "Listo: emitimos la {result:arca.invoice.voucher} {result:arca.invoice.number}.",
-                ["en"] = "Done: we issued the {result:arca.invoice.voucher} {result:arca.invoice.number}.",
+                ["en"] = "Done: we issued invoice {result:arca.invoice.number}.",
             }, IncludePdf: true),
             new("SendCopy", new Dictionary<string, string>
             {
                 ["es"] = "Te mandamos la {result:arca.invoice.voucher} {result:arca.invoice.number} en el PDF adjunto.",
-                ["en"] = "Here is the {result:arca.invoice.voucher} {result:arca.invoice.number}, in the attached PDF.",
+                ["en"] = "Here is invoice {result:arca.invoice.number}, in the attached PDF.",
             }),
         ]),
     ];
