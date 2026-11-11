@@ -62,6 +62,7 @@ public static class ArcaApplicationRegistration
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IPrivateFileRetentionSource, ArcaPrivateFileRetentionSource>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IStructuredRecordIssuer, ArcaStructuredRecordIssuer>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IStructuredCatalogFeed, ArcaStructuredCatalogFeed>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IStructuredFormStandardSource, ArcaInvoiceStandardSource>());
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IArcaServiceDefinition, ArcaInvoicingServiceDefinition>());
     }
 }

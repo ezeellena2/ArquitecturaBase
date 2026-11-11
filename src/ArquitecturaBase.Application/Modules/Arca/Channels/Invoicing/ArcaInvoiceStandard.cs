@@ -11,7 +11,10 @@ internal static class ArcaInvoiceStandard
     public const string Key = "arca.invoice";
     public const string Customer = "customer", Concept = "concept", IssueDate = "issueDate", ServiceFrom = "serviceFrom",
         ServiceTo = "serviceTo", PaymentDue = "paymentDue", Items = "items", Description = "description", Quantity = "quantity",
-        UnitPrice = "unitPrice", Total = "total", VatRate = "vatRate", PricesIncludeVat = "pricesIncludeVat";
+        UnitPrice = "unitPrice", Total = "total", VatRate = "vatRate", PricesIncludeVat = "pricesIncludeVat", CustomerTaxId = "customerTaxId";
+
+    /// <summary>The first options of «Clientes»: a final consumer, and a customer whose CUIT is written in the invoice.</summary>
+    public const string FinalConsumer = "final", OtherCustomer = "other";
 
     /// <summary>
     /// The canonical value of an item's VAT (classes A and B): the ARCA rate code as text («5» is 21 %), or one of these two,

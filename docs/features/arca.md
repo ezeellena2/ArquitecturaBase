@@ -126,7 +126,7 @@ revisión esperada y responden 409 con `Arca.Connection.RevisionConflict` si cam
 ### Emisión de comprobantes (etapas 3 y 4, en curso)
 
 La cola del [ADR 0028](../decisions/0028-emision-de-comprobantes-arca.md) está programada y la pide la acción de
-formularios «Emitir comprobante»; el estándar «Factura» y la anulación con nota de crédito siguen en el
+formularios «Emitir comprobante», con el estándar «Factura» y la anulación con nota de crédito; lo que falta sigue en el
 [plan](../plans/2026-11-09-arca-etapa-3-factura-c.md). La A y la B siguen el
 [plan de la etapa 4](../plans/2026-11-09-arca-etapa-4-factura-a-y-b.md).
 
@@ -146,6 +146,15 @@ formularios «Emitir comprobante»; el estándar «Factura» y la anulación con
   número o la fecha de hoy, y decidirlo pide `arca.issue`. Anular la respuesta cancela la emisión que todavía no
   tiene número o pide la nota de crédito por el total (`EnqueueCreditNoteAsync`), las dos por el mismo puerto. Mientras espera por ARCA, el aviso es «ARCA no responde. Tu factura
   sale apenas vuelva.» (o «Tu nota de crédito»).
+- **El estándar «Factura»** (`ArcaInvoiceStandardSource`, `arca.invoice`, prefijo FAC): Cliente (de «Clientes»), CUIT del
+  cliente (sólo con «Otro: escribir la CUIT»), Concepto (tabla de ARCA), Fecha (vacía, la de hoy), Período desde y hasta y
+  Vencimiento del pago (opcionales y siempre a la vista: WhatsApp no muestra una pregunta por varias opciones de un catálogo,
+  y la cola los exige con servicios), el bloque de ítems (Descripción, Cantidad, Precio unitario, Alícuota
+  e Importe calculado) y el Total calculado, cada pregunta atada a su dato. Trae «Clientes» (`arca.customers`: CUIT, Condición
+  frente al IVA sobre la tabla de ARCA, Domicilio y Correo) con «Consumidor final» y «Otro: escribir la CUIT», y va con su copia
+  a la carpeta «ARCA». Necesita las tablas de ARCA (se crean cuando la conexión responde). Con «Otro», el emisor completa el
+  cliente con el padrón antes de la vista previa y de encolar; sin la CUIT, `Arca.Invoicing.ReceiverInvalid`. Las reglas
+  («Emitir comprobante en ARCA» y el aviso con el PDF fiscal) se agregan en el editor: la biblioteca todavía no trae reglas.
 - **«Completar con ARCA»** (`ArcaStructuredPartyLookup`, familia `Registry`): la constancia de un tercero completa los
   «Clientes» de la «Factura» (`arca.customers`) desde su CUIT, con la razón social, la condición frente al IVA como receptor (1,
   4, 5 o 6) y el domicilio fiscal. Una CUIT inválida da `Arca.Registry.CuitInvalid` sin llamar a ARCA y una que el padrón no

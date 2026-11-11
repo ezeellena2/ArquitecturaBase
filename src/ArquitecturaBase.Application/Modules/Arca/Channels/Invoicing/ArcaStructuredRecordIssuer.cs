@@ -1,6 +1,7 @@
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.Arca.Interfaces.Services.Invoicing;
+using ArquitecturaBase.Application.Modules.Arca.Models;
 using ArquitecturaBase.Domain.Modules.Arca;
 using ArquitecturaBase.Domain.Modules.Arca.Invoicing;
 
@@ -11,8 +12,8 @@ namespace ArquitecturaBase.Application.Modules.Arca.Channels.Invoicing;
 /// returns the same voucher. It never calls ARCA: the queue's worker does. A request the queue does not take comes back rejected
 /// with its code and nothing queued.
 /// </summary>
-internal sealed class ArcaStructuredRecordIssuer(IArcaVoucherService vouchers, IArcaVoucherReviewService reviews, TimeProvider timeProvider)
-    : IStructuredRecordIssuer
+internal sealed class ArcaStructuredRecordIssuer(IArcaVoucherService vouchers, IArcaVoucherReviewService reviews, TimeProvider timeProvider,
+    IEnumerable<IStructuredPartyLookup> lookups) : IStructuredRecordIssuer
 {
     public string IssuerId => ArcaInvoiceStandard.Key;
     public IReadOnlyDictionary<string, string> Name => ArcaInvoiceIssuePolicy.Name;
@@ -22,7 +23,9 @@ internal sealed class ArcaStructuredRecordIssuer(IArcaVoucherService vouchers, I
 
     public async Task<StructuredIssuePreview> PreviewAsync(IReadOnlyList<StructuredIssueDatum> data, CancellationToken cancellationToken)
     {
-        var order = ArcaInvoiceOrderPolicy.Order(new StructuredIssueRequest(Guid.Empty, Guid.Empty, data), ArcaIssueDateWindow.Today(timeProvider.GetUtcNow().UtcDateTime));
+        var completed = await CustomerAsync(data, cancellationToken);
+        if (completed.IsFailure) return new(null, null, null, completed.Error);
+        var order = ArcaInvoiceOrderPolicy.Order(new StructuredIssueRequest(Guid.Empty, Guid.Empty, completed.Value), ArcaIssueDateWindow.Today(timeProvider.GetUtcNow().UtcDateTime));
         if (order.IsFailure) return new(null, null, null, order.Error.Code);
         var preview = await vouchers.PreviewAsync(order.Value, cancellationToken);
         return preview.IsSuccess ? ArcaInvoiceIssuePolicy.Preview(preview.Value, order.Value) : new(null, null, null, preview.Error.Code);
@@ -30,10 +33,32 @@ internal sealed class ArcaStructuredRecordIssuer(IArcaVoucherService vouchers, I
 
     public async Task<StructuredIssueResponse> EnqueueAsync(StructuredIssueRequest request, CancellationToken cancellationToken)
     {
-        var order = ArcaInvoiceOrderPolicy.Order(request, ArcaIssueDateWindow.Today(timeProvider.GetUtcNow().UtcDateTime));
+        var completed = await CustomerAsync(request.Data, cancellationToken);
+        if (completed.IsFailure) return new(StructuredIssueState.Rejected, completed.Error);
+        var order = ArcaInvoiceOrderPolicy.Order(request with { Data = completed.Value }, ArcaIssueDateWindow.Today(timeProvider.GetUtcNow().UtcDateTime));
         if (order.IsFailure) return new(StructuredIssueState.Rejected, order.Error.Code);
         var queued = await vouchers.EnqueueAsync(order.Value, cancellationToken);
         return queued.IsSuccess ? ArcaInvoiceIssuePolicy.Response(queued.Value) : new(StructuredIssueState.Rejected, queued.Error.Code, CanRetry: true);
+    }
+
+    // «Otro: escribir la CUIT»: the registry completes the customer from the CUIT written in the invoice, so the «¿La emito?» already
+    // says the name ARCA gave. Any other customer goes as it came.
+    private async Task<ResultOf> CustomerAsync(IReadOnlyList<StructuredIssueDatum> data, CancellationToken cancellationToken)
+    {
+        if (data.FirstOrDefault(datum => datum.Key == ArcaInvoiceStandard.Customer) is not { Value: ArcaInvoiceStandard.OtherCustomer }) return new(data, null);
+        var taxId = data.FirstOrDefault(datum => datum.Key == ArcaInvoiceStandard.CustomerTaxId)?.Value;
+        if (string.IsNullOrWhiteSpace(taxId)) return new(data, ArcaInvoicingErrors.ReceiverInvalid.Code);
+        if (lookups.FirstOrDefault(lookup => lookup.CatalogKey == ArcaCustomersCatalog.Key) is not { } registry)
+            return new(data, ArcaInvoicingErrors.ReceiverInvalid.Code);
+        var party = await registry.FindAsync(taxId, cancellationToken);
+        if (party.FailureCode is { } code) return new(data, code);
+        return new(data.Select(datum => datum.Key == ArcaInvoiceStandard.Customer
+            ? new StructuredIssueDatum(ArcaInvoiceStandard.Customer, ArcaInvoiceStandard.OtherCustomer, party.Name, party.Fields) : datum).ToArray(), null);
+    }
+
+    private sealed record ResultOf(IReadOnlyList<StructuredIssueDatum> Value, string? Error)
+    {
+        public bool IsFailure => Error is not null;
     }
 
     public async Task<StructuredIssueResponse> GetAsync(Guid runId, CancellationToken cancellationToken) =>

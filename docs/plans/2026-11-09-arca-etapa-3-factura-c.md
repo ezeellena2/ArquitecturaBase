@@ -319,7 +319,11 @@ con su consumidor (no se agrega un puerto sin quien lo use). El resultado extern
    (en las reglas sólo con el emisor de su estándar, el run que encola una vez y sigue la espera del emisor, el resultado en
    la respuesta, la revisión con `arca.issue` y un solo aviso a quien cargó mientras espera por ARCA) y el emisor de ARCA.
 10. **Hecho.** Los catálogos de sólo lectura (`External`) y su actualización en formularios, en la carpeta «ARCA»: se crean recién cuando el origen responde.
-11. *(con la etapa 2)* El estándar «Factura» y el catálogo «Clientes» con «Completar con ARCA».
+11. **Hecho en parte.** El estándar «Factura» y el catálogo «Clientes» con «Completar con ARCA», y «Otro: escribir la CUIT»
+    completado por el padrón en el emisor. Faltan: `pricesIncludeVat` en «Precio unitario» (IV2-A, espera la casilla de la
+    etapa 2), la Alícuota en 21 % por defecto (el borrador no tiene valores por defecto), las reglas que trae el estándar (la
+    biblioteca no trae reglas: se agregan en el editor), la copia al cliente por correo y sumar a «Clientes» el cliente nuevo
+    al emitir.
 12. **Hecho. Anular con nota de crédito:** la reversión es un run del motor; corregir una respuesta con emisión queda frenado.
 13. **El «¿La emito?» en WhatsApp** (EM2-A) y el cliente nuevo por su CUIT. **Hecho en formularios y ARCA:** la vista previa
     del emisor, el run que espera la confirmación de quien cargó por un canal, la ruta `confirmation` del flujo y «No emitir»

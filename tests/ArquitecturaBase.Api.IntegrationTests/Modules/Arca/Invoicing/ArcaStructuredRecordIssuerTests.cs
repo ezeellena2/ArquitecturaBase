@@ -77,6 +77,38 @@ public sealed class ArcaStructuredRecordIssuerTests(ApiFactory factory) : IDispo
         }
     }
 
+    [Fact]
+    public async Task A_customer_written_by_its_cuit_is_completed_from_the_registry_before_the_preview()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var arca = factory.Services.GetRequiredService<FakeArca>();
+        arca.Reset();
+        await ArcaVoucherScenario.ConnectAsync(factory, authority);
+        try
+        {
+            arca.Person = new FakeArcaPerson("Lácteos del Oeste SRL", null, null, "Ruta 5 km 30", "Trenque Lauquen", "BUENOS AIRES", [30], false, []);
+            var request = Request(Guid.CreateVersion7());
+            StructuredIssueDatum[] data = [new("customer", "other", "Otro: escribir la CUIT"), new("customerTaxId", "30-50001091-2"), .. request.Data.Skip(1)];
+
+            var preview = await PreviewAsync(data);
+            Assert.Equal("Lácteos del Oeste SRL", preview.Receiver);
+            Assert.Null(preview.FailureCode);
+            var withoutCuit = await PreviewAsync([new("customer", "other", "Otro: escribir la CUIT"), .. request.Data.Skip(1)]);
+            Assert.Equal("Arca.Invoicing.ReceiverInvalid", withoutCuit.FailureCode);
+        }
+        finally
+        {
+            arca.Person = FakeArca.Company;
+            await ArcaVoucherScenario.RemoveAsync(factory);
+        }
+
+        async Task<StructuredIssuePreview> PreviewAsync(IReadOnlyList<StructuredIssueDatum> data)
+        {
+            await using var scope = factory.Services.CreateAsyncScope();
+            return await scope.ServiceProvider.GetServices<IStructuredRecordIssuer>().Single(issuer => issuer.IssuerId == "arca.invoice").PreviewAsync(data, ct);
+        }
+    }
+
     public void Dispose() => authority.Dispose();
 
     private static async Task<StructuredIssueResponse> IssuerAsync(Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory<Program> host,
