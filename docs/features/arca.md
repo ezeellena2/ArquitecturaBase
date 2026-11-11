@@ -123,10 +123,11 @@ revisión esperada y responden 409 con `Arca.Connection.RevisionConflict` si cam
   Un número vacío o de más de 30 caracteres da `Arca.Invoicing.GrossIncomeInvalid`, y una fecha vacía,
   `Arca.Invoicing.ActivityStartInvalid`.
 
-### Emisión de comprobantes (etapas 3 y 4, en curso)
+### Emisión de comprobantes (etapas 3 y 4)
 
 La cola del [ADR 0028](../decisions/0028-emision-de-comprobantes-arca.md) está programada y la pide la acción de
-formularios «Emitir comprobante», con el estándar «Factura» y la anulación con nota de crédito; lo que falta sigue en el
+formularios «Emitir comprobante», con el estándar «Factura» y la anulación con nota de crédito, en backend y front
+(2026-11-09 a 2026-11-11). Faltan la prueba integral y la de homologación, en el
 [plan](../plans/2026-11-09-arca-etapa-3-factura-c.md). La A y la B siguen el
 [plan de la etapa 4](../plans/2026-11-09-arca-etapa-4-factura-a-y-b.md), programada en backend y front (2026-11-11); faltan
 la prueba integral y la de homologación. Lo que se ve en la app y en WhatsApp está en el

@@ -1,6 +1,7 @@
 # ARCA · Etapa 3: factura C
 
-Diseño del 2026-11-09, **decidido por el usuario el mismo día** (abajo) y sin programar. Es la etapa 3 de la
+Diseño del 2026-11-09, **decidido por el usuario el mismo día** (abajo) y programado en backend y front del
+2026-11-09 al 2026-11-11 ([tareas](#tareas)); faltan la prueba integral y la homologación. Es la etapa 3 de la
 [hoja de ruta de ARCA](2026-10-31-arca-formularios-estandar.md): emitir la factura C y su nota de crédito en homologación,
 desde un formulario estándar «Factura» que se carga en la app y por WhatsApp. Se apoya en la [etapa 1](../features/arca.md)
 (conexión, ticket, padrón y punto de venta) y en las piezas de la etapa 2, que se diseñan en otro chat: los cálculos, el
@@ -292,7 +293,7 @@ del comprobante en la zona «Facturación».
 ## Tareas
 
 El backend va en orden. Lo de ARCA no depende de la etapa 2 y va primero; lo que toca formularios espera a que la etapa 2
-haya commiteado lo suyo. El front espera a que el usuario termine la prueba integral.
+haya commiteado lo suyo. El front lo programó la etapa 4 antes de la prueba integral, como pidió el usuario el 2026-11-11.
 
 1. **Plan, ADR 0028, tableros y preguntas.**
 2. **Hecho (8a81ab4b). Clientes de WSFEv1:** `FECompUltimoAutorizado`, `FECAESolicitar`, `FECompConsultar` y las tablas (`FEParamGetTiposDoc`,
@@ -337,7 +338,7 @@ con su consumidor (no se agrega un puerto sin quien lo use). El resultado extern
     que anula con «No se emitió», y la vista previa antes de «Enviar» en la app (`issue-preview`). En WhatsApp, los botones
     «Emitir» y «No emitir» del mensaje (ebb2f8df) y la respuesta «No la emitimos. FAC-… quedó anulada.» (f23759fa). El cliente
     nuevo se suma a «Clientes» al emitir (tarea 11).
-14. **Front:** lo programa la etapa 4 junto con el suyo, con el diseño registrado en `docs/design/arca-factura-c.md`
+14. **Hecho (front 0815da57, 18e31307, 9da76575 y e7b7476c). Front:** lo programó la etapa 4 junto con el suyo, con el diseño registrado en `docs/design/arca-factura-c.md`
     (b82c002a) y los contratos de este plan.
 15. **Cierre:** la verificación de `AGENTS.md`, `docs/features/arca.md`, la fila de la etapa 3 en la hoja de ruta, la guía de
     homologación, el retiro de este plan con la auditoría y el traspaso al multitenant ofrecido.

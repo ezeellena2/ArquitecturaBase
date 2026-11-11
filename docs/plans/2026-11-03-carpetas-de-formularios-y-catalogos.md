@@ -1,6 +1,8 @@
 # Carpetas para formularios y catálogos
 
-Decidido el 2026-11-03 y el 2026-11-04, sin programar. Sirve para ordenar «Formularios», «Diseñar formularios» y
+Decidido el 2026-11-03 y el 2026-11-04; backend y front programados del 2026-11-09 al 2026-11-11, con la etapa 2 de ARCA
+([regla](../features/formularios.md#carpetas--cp1-a-a-cp5-a-2026-11-09),
+[diseño](../../../ArquitecturaBaseFront/docs/design/carpetas.md)); faltan la prueba integral y el cierre. Sirve para ordenar «Formularios», «Diseñar formularios» y
 «Catálogos» en carpetas con subcarpetas, y para llevar al menú lateral las que se elijan, antes de que lleguen la
 biblioteca de estándares y lo de ARCA. Lo pidió el usuario al decidir la etapa 1 de ARCA, y la
 [hoja de ruta de ARCA](2026-10-31-arca-formularios-estandar.md) lo ubica en la etapa 2. Pertenece al módulo de formularios
@@ -191,7 +193,9 @@ oculta sus membresías, sin borrarlas.
   «En el menú…». Todo con sus capturas visuales. Al programar, la regla del menú se suma a la sección «Navegación» de
   `visual-baseline.md`.
 
-## Cortes sugeridos
+## Cortes
+
+Los cuatro están hechos: backend 724bcc25, e62d80ae y dde47722; front aa10d91d, 9d34e95d, 56eeec07 y 24d9e50a.
 
 1. **Backend:** modelo, rutas, filtro en los tres listados y pruebas.
 2. **Ver y filtrar:** el panel en los tres listados, la carpeta en la dirección y el selector del celular.

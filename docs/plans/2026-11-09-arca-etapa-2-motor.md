@@ -17,7 +17,7 @@ diseño elegido está registrado en el front:
 las carpetas, que la biblioteca usa para ubicar lo que agrega, y al final las condiciones. El backend fue primero; el front se
 programó el 2026-11-11, con la tanda que termina todo antes de una sola prueba integral.
 
-## Inventario
+## Inventario al diseñar (2026-11-09)
 
 | Pieza | Qué hay | Qué falta |
 | --- | --- | --- |
@@ -160,7 +160,7 @@ Cada tarea con su test en rojo primero, el build y los tests rápidos del área,
    `FormRecordAnswerPolicy` (3c15292e).
 5. ~~La carga: `calculation` en `GET /api/forms/entries/{definitionId}` y en la corrección.~~ Hecho (3c15292e).
 6. ~~WhatsApp sin los cálculos, más el prellenado, las sugerencias y la IA.~~ Hecho con la tarea 28 en el perfil r13 (667ab22d,
-   91e6e66f); las sugerencias y la IA ya los dejaban afuera (0520a9bf). Falta la prueba con Meta, abajo.
+   91e6e66f); las sugerencias y la IA ya los dejaban afuera (0520a9bf). Probada con Meta en la tarea 28.
 7. ~~La alícuota desde un catálogo con valor numérico.~~ Hecho (ed3ef5bc).
 8. ~~Front: el editor, la vista previa en la página, el panel y la tabla del bloque.~~ Hecho: el modelo y la lógica
    (650b4d40), la carga en gris mientras se escribe (d8c731e1), el detalle del borrador (81bcb7e6), «Qué calcula» en el

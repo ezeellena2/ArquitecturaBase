@@ -184,7 +184,7 @@ durable ([ADR 0018](../decisions/0018-robustez-proporcional-al-efecto.md)): se a
 ## Coordinación
 
 - Nada se programa sin el visto bueno del usuario. Mientras dura la prueba integral no se edita el `src` del front.
-- Carpetas en el menú lateral (CP5-A, sin programar): no cambian; muestran los formularios activos sin mirar dónde se completan.
+- Carpetas en el menú lateral (CP5-A): no cambian; muestran los formularios activos sin mirar dónde se completan.
 - El motivo de lo apagado (MA1-A): «Publicar» apagado sigue diciendo su motivo sobre el control.
 - Un dato por columna (UD): ver «En el listado» arriba; los dos cambios tocan `FormsPage.tsx` y van uno después del otro.
 - Al cerrar, se suma a un traspaso al multitenant.
