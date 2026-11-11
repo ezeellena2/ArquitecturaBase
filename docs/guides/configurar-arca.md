@@ -44,6 +44,10 @@ por su código del WSAA (`wsfe`, `ws_sr_constancia_inscripcion`), y cada familia
 `Arca:RateLimiting` fija los pedidos por minuto de cada operador: `ReadPermitLimit` (120), `WritePermitLimit` (20) y
 `RemotePermitLimit` (6), que cubre lo que llama a ARCA: subir el certificado, probar y consultar los puntos de venta.
 
+`Arca:Registry:LookupsPerMinute` (6) fija cuántas CUIT distintas consulta cada persona por minuto en el padrón de un tercero:
+«Completar con ARCA» y el cliente escrito por su CUIT en la «Factura», que se piden desde formularios. Repetir una CUIT no
+cuenta y la emisión de fondo no tiene cupo. Lo que respondió el padrón queda diez minutos en Redis.
+
 `Arca:Invoicing:Worker` gobierna la cola de emisión ([ADR 0028](../decisions/0028-emision-de-comprobantes-arca.md)):
 `ProcessInBackground` (prendido), `PollInterval` (2 s), `Lease` (2 minutos, la reserva de una secuencia: tiene que durar más
 que dos pedidos a ARCA seguidos con `RequestTimeout`) y `BatchSize` (20 secuencias por vuelta). En los tests de integración

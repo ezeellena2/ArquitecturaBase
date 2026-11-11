@@ -12,7 +12,7 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
 /// <summary>
 /// The answers go through the same preparation as the send (version, options offered to the person, calculations) and the issuer
-/// previews what it would issue; nothing is saved and nothing goes to the provider.
+/// previews what it would issue; nothing is saved. A registry the issuer asks is limited and cached by its module.
 /// </summary>
 internal sealed class FormIssuePreviewService(FormEntryLoaderGuard loaders, IFormEntryReader reader, FormEntryRecorder recorder,
     FormEntryVersionPolicy describer, FormEntryCatalogPolicy catalogs, FormIssuePreviewPolicy previews, IRequestValidator validator,

@@ -6,7 +6,8 @@ namespace ArquitecturaBase.Application.Interfaces.Channels;
 /// A registry a module brings to complete a party from its tax id («Completar con ARCA»). It says which catalog it completes, by
 /// the stable Key a standard gave it, and which of its fields holds the tax id; given one, it answers the name and the values of
 /// the other fields by their keys (a field that names an option of another catalog, by the code of that option). An optional
-/// collection without an off adapter: without lookups, no catalog offers it. It only reads, outside any UoW.
+/// collection without an off adapter: without lookups, no catalog offers it. It only reads, outside any UoW. The quotas of forms do
+/// not protect the registry: the module limits and caches its own calls.
 /// </summary>
 public interface IStructuredPartyLookup
 {

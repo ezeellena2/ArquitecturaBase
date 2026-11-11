@@ -97,6 +97,27 @@ public sealed class RedisCacheTests(ApiFactory factory)
         Assert.False(await host.Connection.GetDatabase().KeyExistsAsync(Key.DataKey(host.Prefix)));
     }
 
+    [Fact]
+    public async Task Results_the_caller_does_not_keep_are_returned_without_being_stored()
+    {
+        var answer = "failed";
+        await using var host = await HostAsync(NewPrefix(), _ => Task.FromResult<string?>(answer));
+        Assert.Equal("failed", await ReadKeepingAsync(host));
+        Assert.Equal("failed", await ReadKeepingAsync(host));
+        Assert.Equal(2, host.Probe.Calls);
+        Assert.False(await host.Connection.GetDatabase().KeyExistsAsync(Key.DataKey(host.Prefix)));
+
+        answer = "found";
+        Assert.Equal("found", await ReadKeepingAsync(host));
+        answer = "changed";
+        Assert.Equal("found", await ReadKeepingAsync(host));
+        Assert.Equal(3, host.Probe.Calls);
+    }
+
+    private static Task<string?> ReadKeepingAsync(CacheTestHost host) =>
+        host.Cache.GetOrCreateInOwnScopeAsync<ControlledCacheReader, int, string?>(Key, 0,
+            static (reader, _, ct) => reader.ReadAsync(ct), TimeSpan.FromSeconds(60), static value => value != "failed", Ct);
+
     internal Task<CacheTestHost> HostAsync(string prefix, Func<CancellationToken, Task<string?>> read) =>
         CacheTestHost.CreateAsync(factory.RedisConnectionString, prefix, read, Ct);
 

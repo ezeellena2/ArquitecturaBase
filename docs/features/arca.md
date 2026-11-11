@@ -68,7 +68,8 @@ revisión esperada y responden 409 con `Arca.Connection.RevisionConflict` si cam
 | `PUT api/arca/invoicing/voucher-data` | Guarda ingresos brutos (hasta 30 caracteres, sin espacios a los costados) e inicio de actividades (un día). No llama a ARCA ni cambia el estado de la conexión; responde la configuración de Facturación |
 
 - **Límites por operador** (`Arca:RateLimiting`): lectura, escritura y `arca-remote`, que cubre lo que llama a ARCA
-  (subir, probar, listar y elegir el punto de venta). Los cuerpos tienen 16 KiB como mucho.
+  (subir, probar, listar y elegir el punto de venta). Los cuerpos tienen 16 KiB como mucho. El padrón de un tercero, que se
+  pide desde formularios, tiene su propio cupo por persona (`Arca:Registry`, en «Completar con ARCA»).
 - **Contratos:** el `ToString` de los pedidos enmascara la CUIT y oculta el certificado.
 
 ## Certificado y credenciales
@@ -184,7 +185,11 @@ la prueba integral y la de homologación. Lo que se ve en la app y en WhatsApp e
   «Clientes» de la «Factura» (`arca.customers`) desde su CUIT, con la razón social (entera también en `legal_name`), la
   condición frente al IVA como receptor (1, 4, 5 o 6) y el domicilio fiscal. Una CUIT inválida da `Arca.Registry.CuitInvalid` sin llamar a ARCA y una que el padrón no
   tiene, `Arca.Registry.PersonNotFound`. Consulta en nombre de quien firma: en delegación, la plataforma con su CUIT, sin que la
-  empresa delegue la constancia.
+  empresa delegue la constancia. Los cupos de formularios no cuidan a ARCA, así que el padrón cuida lo suyo: cada persona
+  consulta hasta 6 CUIT distintas por minuto (`Arca:Registry:LookupsPerMinute`; repetir una no cuenta y la emisión de fondo no
+  tiene cupo) y al pasarse recibe `Arca.Registry.TooManyLookups`; una constancia que respondió con datos queda diez minutos en
+  Redis por conexión y CUIT, así la vista previa de «¿La emito?», que se pide con cada cambio, «Completar con ARCA» y la emisión
+  no vuelven a ARCA. Una falla no se guarda.
 - **Encolar** (`IArcaVoucherService`) valida el receptor (CUIT con su dígito, DNI, o consumidor final sin identificar),
   el concepto, el período y el vencimiento del pago de un servicio, la fecha que ARCA acepta hoy y los renglones, y
   recalcula cada importe con half-even: un total distinto del pedido no se encola. La clase la decide el sistema con la

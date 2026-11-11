@@ -31,7 +31,10 @@ public interface IStructuredRecordIssuer
     /// </summary>
     string? CopyRecipient(IReadOnlyList<StructuredIssueDatum> data);
 
-    /// <summary>What would come out of these bound data now («¿La emito?»), without saving anything.</summary>
+    /// <summary>
+    /// What would come out of these bound data now («¿La emito?»), without saving anything. Forms asks it again with each change, under
+    /// its read quota: a registry it asks (a party written by its tax id) is limited and cached by the module.
+    /// </summary>
     Task<StructuredIssuePreview> PreviewAsync(IReadOnlyList<StructuredIssueDatum> data, CancellationToken cancellationToken);
 
     /// <summary>Queues the issuance of a run once; a request it cannot take comes back rejected, with nothing queued.</summary>

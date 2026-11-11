@@ -77,6 +77,9 @@ public static class ArcaInfrastructureRegistration
         services.AddScoped<IArcaRegistryRepository, ArcaRegistryRepository>();
         services.AddScoped<IArcaRegistryReader, ArcaRegistryReader>();
         services.AddSingleton<IArcaRegistryClient, ArcaRegistryClient>();
+        services.AddSingleton<IArcaRegistryCache, ArcaRegistryCache>();
+        services.AddOptions<ArcaRegistryOptions>().BindConfiguration("Arca:Registry").ValidateDataAnnotations().ValidateOnStart();
+        services.AddSingleton<IArcaRegistryQuota, ArcaRegistryQuota>();
         ConfigureClient(services.AddHttpClient(RegistryHttpClientName));
     }
 

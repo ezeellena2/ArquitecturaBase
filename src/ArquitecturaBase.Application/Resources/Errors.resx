@@ -173,6 +173,7 @@
   <data name="Forms.Action.CopyNotQueued" xml:space="preserve"><value>La copia no entró en la cola de correo. Reintentala en un rato.</value></data>
   <data name="Arca.Registry.CuitInvalid" xml:space="preserve"><value>La CUIT para buscar en ARCA no es válida.</value></data>
   <data name="Arca.Registry.PersonNotFound" xml:space="preserve"><value>ARCA no tiene datos de esa CUIT en el padrón.</value></data>
+  <data name="Arca.Registry.TooManyLookups" xml:space="preserve"><value>Buscaste muchas CUIT nuevas en ARCA en el último minuto. Esperá un momento y volvé a intentar.</value></data>
   <data name="Forms.Catalog.LookupUnavailable" xml:space="preserve"><value>Ningún padrón instalado completa este catálogo.</value></data>
   <data name="Forms.Entry.NoIssuance" xml:space="preserve"><value>Este formulario no emite un comprobante al enviarlo.</value></data>
   <data name="Forms.Action.AwaitingConfirmation" xml:space="preserve"><value>La emisión espera que la confirme quien cargó la respuesta.</value></data>

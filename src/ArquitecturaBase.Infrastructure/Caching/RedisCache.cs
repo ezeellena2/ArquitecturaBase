@@ -49,16 +49,31 @@ internal sealed partial class RedisCache(
     private static readonly Histogram<double> WaitDuration = CacheMeter.CreateHistogram<double>("cache.lease.wait.duration", "s");
     private static readonly Histogram<long> PayloadSize = CacheMeter.CreateHistogram<long>("cache.payload.size", "By");
 
-    public async Task<TValue> GetOrCreateInOwnScopeAsync<TReader, TState, TValue>(
+    public Task<TValue> GetOrCreateInOwnScopeAsync<TReader, TState, TValue>(
         RedisCacheKey key,
         TState state,
         Func<TReader, TState, CancellationToken, Task<TValue>> read,
         TimeSpan expiration,
         CancellationToken cancellationToken)
+        where TReader : notnull =>
+        GetOrCreateInOwnScopeAsync(key, state, read, expiration, static _ => true, cancellationToken);
+
+    /// <summary>
+    /// The same read, but only a value <paramref name="keep"/> accepts is stored: one it rejects (a failure of an external
+    /// provider) is returned without storing it, like an oversized one, and the next miss reads again.
+    /// </summary>
+    public async Task<TValue> GetOrCreateInOwnScopeAsync<TReader, TState, TValue>(
+        RedisCacheKey key,
+        TState state,
+        Func<TReader, TState, CancellationToken, Task<TValue>> read,
+        TimeSpan expiration,
+        Func<TValue, bool> keep,
+        CancellationToken cancellationToken)
         where TReader : notnull
     {
         key.Validate();
         ArgumentNullException.ThrowIfNull(read);
+        ArgumentNullException.ThrowIfNull(keep);
         if (expiration <= TimeSpan.Zero || expiration.TotalMilliseconds > long.MaxValue)
         {
             throw new ArgumentOutOfRangeException(nameof(expiration));
@@ -123,6 +138,11 @@ internal sealed partial class RedisCache(
                             FactoryDuration.Record(Stopwatch.GetElapsedTime(factoryStarted).TotalSeconds);
                         }
                         token.ThrowIfCancellationRequested();
+                        if (!keep(value))
+                        {
+                            return value;
+                        }
+
                         var payload = JsonSerializer.SerializeToUtf8Bytes(new CacheValue<TValue>(value));
                         PayloadSize.Record(payload.Length);
 

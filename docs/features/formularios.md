@@ -1097,8 +1097,9 @@ ARCA» ([ADR 0028](../decisions/0028-emision-de-comprobantes-arca.md)); sin emis
   emisor y reglas vigentes con `IssueDocument`), y `POST api/forms/entries/{id}/issue-preview` con `versionId` y las respuestas
   sin enviar (las del envío, sin archivos) pasa por la misma preparación que el envío y devuelve `document`, `receiver` y
   `total`, con `info` (el porqué del comprobante, la «(i)»), `date` y `amounts` (cada importe con su etiqueta por idioma), o
-  `failureCode` y `failureMessage` si no se puede emitir así. No guarda nada ni va al proveedor, así que usa el cupo de lectura
-  del módulo: la app la pide también mientras se carga, para el total discriminado (IV1-A), y nunca le saca cupo a «Enviar». Un
+  `failureCode` y `failureMessage` si no se puede emitir así. No guarda nada y usa el cupo de lectura del módulo: la app la pide
+  también mientras se carga, para el total discriminado (IV1-A), y nunca le saca cupo a «Enviar». Si el emisor consulta un
+  padrón (el cliente escrito por su CUIT), lo limita y lo guarda en caché el módulo que lo aporta. Un
   formulario que no emite da `Forms.Entry.NoIssuance` (404).
 - **Corregir y anular (NC1-A).** Una respuesta con una emisión viva (emitida, en curso o en revisión) no se corrige:
   `Forms.Record.IssuedNotAmendable`, se anula y se carga otra. Anularla pide además el permiso del emisor y no la anula en el
@@ -1138,7 +1139,8 @@ por su clave (`arca.customers`), y qué campo tiene la CUIT; sin padrones, ning�
 - **Completar.** `POST api/forms/catalogs/{id}/lookup` con `{"taxId"}` pregunta al padrón fuera de toda UoW y devuelve `text`
   (el nombre) y `fields` (cada campo activo que el padrón conoce, con su valor; uno de tipo catálogo, con la opción activa del
   código que dio el padrón), o `failureCode` y `failureMessage`. No guarda nada: la persona revisa y guarda la opción como
-  siempre. Las dos rutas piden «Administrar catálogos».
+  siempre. Las dos rutas piden «Administrar catálogos». Los cupos de formularios no cuidan al padrón: el módulo que lo aporta
+  limita y guarda en caché sus consultas (ARCA: CUIT distintas por persona y por minuto, y diez minutos de caché).
 
 ## Biblioteca de estándares — BI1-A, 2026-11-09
 

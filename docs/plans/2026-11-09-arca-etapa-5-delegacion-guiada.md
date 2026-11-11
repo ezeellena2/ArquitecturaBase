@@ -207,7 +207,11 @@ delegación», publicados el 2026-11-09:
    hasta la etapa 6. Verificado en una copia de 8cd1673f: build sin advertencias y `dotnet test` completo con Docker, 7475
    de 7475. El 2026-11-11, a pedido de la coordinación, `OpenAsSignerAsync` abre en nombre de quien firma y «Completar con
    ARCA» (el padrón de un tercero de la etapa 3) lo usa: en delegación consulta la plataforma con su CUIT, como dice DG4, y
-   también completa «Otro: escribir la CUIT» antes del «¿La emito?».
+   también completa «Otro: escribir la CUIT» antes del «¿La emito?». El mismo día, por la revisión contra las premisas, la
+   factura llega al padrón por un puerto del módulo (`IArcaPartySource`, como `IArcaCompanyProfileSource`) y no por el del
+   núcleo, «Completar con ARCA» pasó a Facturación, que es la dueña de «Clientes», y el padrón cuida a ARCA con un cupo de
+   CUIT distintas por persona (`Arca:Registry:LookupsPerMinute`, 6) y diez minutos de caché en Redis, porque la vista previa y
+   «Completar con ARCA» llegaban con los cupos de formularios.
 3. **Front:** hecho el 2026-11-11 (front 5b07d49d y 55b7d5dd), adelantado a pedido de la coordinación de la tanda, que
    juntó todo para una sola prueba integral. El diseño quedó en el [diseño del front](../../../ArquitecturaBaseFront/docs/design/arca-delegacion.md), con lo que se fijó al programar: «Verificar la
    delegación» con el estilo de «Probar», la guía que no se tilda a medias, la delegación apagada con su motivo sin la

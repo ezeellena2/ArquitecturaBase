@@ -64,8 +64,9 @@ public sealed class FormEntriesController(IFormEntryService service, IFormIssueP
     public async Task<IActionResult> Submit([FromRoute] Guid definitionId, [FromForm] SubmitFormEntryHttpRequest request, CancellationToken cancellationToken) =>
         (await service.SubmitAsync(definitionId, await FormEntryRequestMapping.MapAsync(request, cancellationToken), cancellationToken)).ToActionResult(this);
 
-    // «¿La emito?» (EM2-A): what a form that issues would issue from the answers not sent yet; nothing is saved and nothing goes
-    // to the provider. The itemized total of IV1-A asks for it while loading, so it takes the read quota, not the one of sending.
+    // «¿La emito?» (EM2-A): what a form that issues would issue from the answers not sent yet; nothing is saved. The itemized total
+    // of IV1-A asks for it while loading, so it takes the read quota, not the one of sending: a registry the issuer asks (a customer
+    // written by its tax id) is limited and cached by the module that brings it.
     [HttpPost("issue-preview")]
     [EnableRateLimiting(BusinessFormsApiRegistration.ReadPolicy)]
     [ProducesResponseType<FormIssuePreviewResponse>(StatusCodes.Status200OK)]

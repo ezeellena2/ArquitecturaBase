@@ -1,6 +1,6 @@
 # Caching tests: garantías de Redis
 
-Prueba lectura, expiración, payloads, invalidación, leases, concurrencia, fallas y seed. Los hosts independientes comparten una instancia Redis real.
+Prueba lectura, expiración, payloads (también los que no se guardan, por tamaño o por `keep`), invalidación, leases, concurrencia, fallas y seed. Los hosts independientes comparten una instancia Redis real.
 
 ## Al modificar
 

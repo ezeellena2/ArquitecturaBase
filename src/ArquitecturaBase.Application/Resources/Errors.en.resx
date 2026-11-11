@@ -173,6 +173,7 @@
   <data name="Forms.Action.CopyNotQueued" xml:space="preserve"><value>The copy did not get into the email queue. Retry it in a while.</value></data>
   <data name="Arca.Registry.CuitInvalid" xml:space="preserve"><value>The CUIT to look up in ARCA is not valid.</value></data>
   <data name="Arca.Registry.PersonNotFound" xml:space="preserve"><value>ARCA has no registry data for that CUIT.</value></data>
+  <data name="Arca.Registry.TooManyLookups" xml:space="preserve"><value>You looked up many new CUITs in ARCA in the last minute. Wait a moment and try again.</value></data>
   <data name="Forms.Catalog.LookupUnavailable" xml:space="preserve"><value>No installed registry completes this catalog.</value></data>
   <data name="Forms.Entry.NoIssuance" xml:space="preserve"><value>This form does not issue a document when it is sent.</value></data>
   <data name="Forms.Action.AwaitingConfirmation" xml:space="preserve"><value>The issuance waits for whoever loaded the response to confirm it.</value></data>
