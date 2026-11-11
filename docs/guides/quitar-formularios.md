@@ -7,8 +7,10 @@ respaldá la base antes.
 
 WhatsApp e IA siguen andando. Sin el módulo, el núcleo usa sus versiones apagadas de los puertos de formularios
 (`DisabledStructuredFormSource`, `UnavailableStructuredRecordSink` y las demás de `Application/Channels`): WhatsApp no
-encuentra formularios para mandar y el asistente pierde las capacidades de formularios. Las tablas `WhatsAppFlow*` son
-del otro módulo y se quedan.
+encuentra formularios para mandar y el asistente pierde las capacidades de formularios. Con
+`UnavailableStructuredAttachmentReader` nadie puede adjuntar una planilla: Inicio no muestra el clip (el bootstrap da
+`attachments` en false) y una planilla que llega por WhatsApp queda No disponible, sin bajarse. Las tablas
+`WhatsAppFlow*` son del otro módulo y se quedan.
 
 ## Backend
 

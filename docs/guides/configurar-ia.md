@@ -344,7 +344,7 @@ El `2026-11-09` se sumó el dictado por WhatsApp: `ia1_channel_dictation_2026110
 
 El alcance sigue siendo `fixture-facts-checked-in-memory; style/free-text-not-exhaustively-assessed`.
 
-El `2026-11-11` se calificó la Etapa 2, planillas, de [la IA arma formularios](../features/formularios.md#la-ia-arma-formularios-y-catálogos--etapa-1-2026-11-04). Se usaron la misma conexión guardada, `gpt-6.1-sol` y el perfil de texto `gpt-6.1-sol-candidate-1@1`, desde una copia limpia de `51db5a59`. Desde ese commit, Inicio y el asistente automático ofrecen `forms.authoring.propose-catalog@2` y `forms.authoring.propose-import@1`; la segunda, sólo en un turno con planilla. Fueron tres corridas, cada una con su base vacía:
+El `2026-11-11` se calificó la Etapa 2, planillas, de [la IA arma formularios](../features/formularios.md#la-ia-arma-formularios-y-catálogos--etapa-2-planillas-2026-11-09-a-2026-11-11). Se usaron la misma conexión guardada, `gpt-6.1-sol` y el perfil de texto `gpt-6.1-sol-candidate-1@1`, desde una copia limpia de `51db5a59`. Desde ese commit, Inicio y el asistente automático ofrecen `forms.authoring.propose-catalog@2` y `forms.authoring.propose-import@1`; la segunda, sólo en un turno con planilla. Fueron tres corridas, cada una con su base vacía:
 
 | Corrida | Resultado |
 | --- | --- |

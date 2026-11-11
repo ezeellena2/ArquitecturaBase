@@ -15,10 +15,14 @@ y el anillo externo para restaurar datos históricos; esta operación elimina la
    dentro de la copia del proyecto antes de borrar carpetas recursivamente. No cambies
    los módulos presentes.
 3. Quitá el bloque de IA de Program y sus tres using. Los registros generales y el contexto
-   no nombran IA; los arneses descubren sólo contribuciones presentes (ADR 0013).
+   no nombran IA; los arneses descubren sólo contribuciones presentes (ADR 0013). Sin su
+   registro, el núcleo vuelve a las versiones apagadas de los puertos que implementaba
+   (`Application/Channels`). Con `DisabledAssistantProposalLookup` no hay propuesta que leer:
+   la importación desde la copia de una planilla y crear desde una propuesta que todavía no
+   creó nada dan `ProposalUnavailable` (404), y ningún catálogo tiene importación pendiente.
 4. Quitá configuración externa `ArtificialIntelligence:*` del host. Guardá una copia segura
    del anillo/ID para backups históricos, sin incluirla en Git.
-5. Retirá las 54 claves `Ai.*` de `Errors.resx` y `Errors.en.resx`: sin el módulo, ninguna clase
+5. Retirá las 63 claves `Ai.*` de `Errors.resx` y `Errors.en.resx`: sin el módulo, ninguna clase
    `*Errors` las declara, y `ErrorCodeTests.Every_error_key_belongs_to_a_code_declared_in_domain`
    falla y nombra cada una. Retirá también `AiProviderInvalid`, `AiModelInvalid`, `AiRevisionInvalid`,
    `AiCredentialInvalid` y `AiPlaceSearchInvalid` de `ValidationMessages` y de `Validation.resx`/`.en.resx`:
@@ -35,9 +39,14 @@ Para diseño fuera de Aspire, declarás conexiones ficticias de `appdb`/`cache` 
 guía de migraciones; generar no conecta a esas direcciones. Revisá que Up borre sólo
 AiConnections/AiConnectionChanges/AiBusinessInformation/AiBusinessInformationChanges,
 AiConversations/AiAssistantTurns/AiAssistantToolExecutions/AiAssistantRequestReceipts e índices,
-y Down los reconstruya. Aplicá con el bundle
+y Down los reconstruya. Las columnas de la planilla de `AiAssistantTurns`, con su índice filtrado,
+se van con la tabla; `AddAssistantTurnAttachment` y `AddAssistantTurnAttachmentHashAndSize` se
+quedan, como las demás migraciones. Aplicá con el bundle
 antes del nuevo código, después de detener o retirar tráfico de rutas IA de la versión vieja.
-El drop es destructivo: respaldar precede a publicar. Claims IA antiguos quedan inefectivos
+El drop es destructivo: respaldar precede a publicar. Las copias privadas de las planillas y los
+audios de Inicio (`ai/assistant/attachments/…` y `ai/assistant/audio/…`) se quedan sin su fuente
+de retención, y la limpieza de archivos privados del núcleo, que corre cada hora, borra las que
+tienen más de un día. Claims IA antiguos quedan inefectivos
 porque el catálogo ya no contiene esos permisos; no hay que hardcodearlos en el núcleo.
 
 ## Front

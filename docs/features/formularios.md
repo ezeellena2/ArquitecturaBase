@@ -499,9 +499,61 @@ dictado, continúa esa misma operación, como después de «Cambiar algo», así
 `unclear` no nombra nada y sólo vale para quien puede armar un formulario o un catálogo; si no, vuelve `rejected` con
 `permissionMissing`. La pregunta no es una oferta ni gasta cupo.
 
-Con las planillas (Etapa 2), Inicio ofrece `forms.authoring.propose-catalog@2`, que mapea la planilla del turno, en lugar de la
-versión 1, y `forms.authoring.propose-import@1` sólo en un turno con planilla: con todos los permisos, 12 de las 16 definiciones
-sin planilla y 13 con ella. La versión 1 sigue registrada: sus turnos se leen y sus tarjetas crean.
+## La IA arma formularios y catálogos — Etapa 2, planillas (2026-11-09 a 2026-11-11)
+
+Con una planilla, un Excel `.xlsx` o un CSV, la IA propone en Inicio y por WhatsApp un catálogo Manual con el mapeo de sus
+columnas, o importarla en uno que existe. Lo técnico está en la IA
+([el motor](inteligencia-artificial.md#planillas-en-el-motor--etapa-2-2026-11-09) e
+[Inicio](inteligencia-artificial.md#planillas-en-inicio--etapa-2-2026-11-09)), en
+[WhatsApp](whatsapp.md#planilla-recibida--ia-etapa-2-2026-11-10) y en los
+[servicios](formularios-servicios.md#crear-desde-una-propuesta-del-asistente).
+
+- **Quién y cómo.** En Inicio, quien administra catálogos (`formcatalogs.read` y `formcatalogs.manage`) adjunta con el clip
+  una planilla por mensaje, con un pedido escrito o dictado; sin texto, la IA pregunta qué hacer con ella. Inicio vacío le
+  suma «Armame un catálogo con una planilla», que deja ese pedido en el editor y abre el selector de archivos. Por
+  WhatsApp, en la conversación del Asistente automático de una cuenta vinculada y activa con ese permiso, la planilla llega
+  como documento junto con su pedido: el `caption`, o el texto o el audio contiguo. Sola no se interpreta, salvo que
+  responda a «Cambiar algo» o a una pregunta. Se lee la primera hoja de un archivo de hasta 10 MB, 10.000 filas y 64
+  columnas. Un archivo que no se lee no llega a la IA, y se dice el motivo con su remedio (en Inicio, debajo del editor; por
+  WhatsApp, en un texto que pide mandarla de nuevo junto con el pedido): un Excel viejo (`.xls`), uno con contraseña, uno
+  con macros o binario (`.xlsm` o `.xlsb`), uno que pasa los topes, uno ilegible, como un CSV que no está en UTF-8, que hay
+  que guardar como «CSV UTF-8», o uno sin filas con datos. Los PDF, las fotos y los Word son de la Etapa 3.
+- **Lo que propone la IA.** Con una planilla, `forms.authoring.propose-catalog@2` propone el catálogo con el mapeo: si la
+  primera fila con contenido es de encabezados y de qué columna salen el código, la opción, el valor (si el tipo no es
+  texto), el detalle y cada campo. El código y la opción pueden salir de la misma columna, para una lista simple; sin
+  planilla, el mapeo va vacío. `forms.authoring.propose-import@1`, sólo con una planilla, propone importarla en un catálogo
+  Manual que existe y que la persona puede leer y administrar, con el mismo mapeo hacia sus columnas y sus campos
+  obligatorios. Las dos se reemplazan entre sí, como dos propuestas de la misma capacidad: una importación pedida después de
+  un catálogo propuesto lo reemplaza, y al revés. Inicio ofrece la versión 2 en lugar de la 1, y la importación sólo en un
+  turno con planilla: con todos los permisos, 12 de las 16 definiciones sin planilla y 13 con ella; el Asistente automático,
+  15 y 16. La versión 1 sigue registrada: sus turnos se leen y sus tarjetas y resúmenes crean.
+- **Lo que muestran.** En Inicio, la tarjeta del catálogo (IA1-A) suma el archivo y sus filas, de qué columna sale cada parte
+  («Código · columna A») y hasta tres filas de muestra ordenadas como el catálogo, con los encabezados de la planilla o, sin
+  ellos, «Columna A». La de importar es la tarjeta «Importación»: el catálogo destino con su tipo y las filas, de qué columna
+  sale cada parte, la muestra y «Revisar la importación», que no crea nada. Por WhatsApp, el
+  [resumen](whatsapp.md#ofrecimientos-automáticos--etapa-5) de un catálogo (IA3-A) suma «Son N filas.», y el de importar dice
+  el catálogo, de qué columna sale cada parte y las filas, con «Revisar importación», que contesta con el enlace a la
+  importación en la app, y «Cambiar algo». Si la IA pregunta con una planilla en la conversación, el canal contesta «¿Qué
+  querés que haga con esta planilla? …».
+- **Crear e importar.** «Crear catálogo» lo deja inactivo y pendiente, como en la Etapa 1, y abre «Importar opciones» con
+  la planilla del chat ya revisada (IA2), sin subirla de nuevo: importar sigue siendo de la persona, con la vista previa y
+  las confirmaciones de la [importación](#carga-de-catálogos-desde-una-planilla--e1-a-2026-10-22). Importar en uno que existe
+  reemplaza la lista, como subir un Excel (decidido el 2026-11-09): lo que no viene queda inactivo, sin borrarse. Mientras un
+  catálogo creado desde una propuesta con planilla, también por WhatsApp, siga pendiente de aprobar y sin opciones, y la
+  propuesta esté disponible, quien lo pidió tiene su importación pendiente. El diálogo se abre de tres maneras: por su
+  cuenta al entrar a ese catálogo, con «Revisar la importación» de Inicio y con el enlace de WhatsApp
+  (`/catalogos/{id}?pedido=…&propuesta=…`). Si la planilla del chat ya no está (`ProposalUnavailable` o `SheetUnavailable`),
+  el diálogo lo dice y pide el archivo. La planilla nunca queda con el catálogo: su evidencia guarda el pedido, sin mapeo ni
+  filas. Falta en el front el diálogo con la planilla del chat y que se abra por su cuenta (tarea 9 del
+  [plan](../plans/2026-11-09-ia-arma-formularios-etapa-2.md)): hasta entonces, el catálogo se abre sin el diálogo.
+- **Lo que no hace la IA.** No importa, no activa y no cambia los campos de un catálogo que existe: sobre uno que existe,
+  sólo propone importar la planilla.
+- **Las reglas de la planilla.** El encabezado es la primera fila con contenido, no la fila 1 de la hoja: las filas vacías
+  se saltean igual en la tarjeta, en lo que ve la IA y al importar desde el chat. La IA la recibe como datos, no como
+  instrucciones. Cada conversación usa la última planilla: una nueva reemplaza a la anterior, y los turnos siguientes la
+  heredan sin adjuntarla de nuevo (en Inicio, los que siguen; por WhatsApp, «Cambiar algo» y la respuesta a una pregunta).
+- **La evidencia.** La calificación con el proveedor real quedó en verde el 2026-11-11: 30 casos con planillas en Inicio y
+  por WhatsApp, más los sets cuyo catálogo cambió ([configurar IA](../guides/configurar-ia.md#evidencia-para-habilitar-perfiles)).
 
 ## Formularios que faltan — Etapa 5
 
