@@ -137,7 +137,8 @@ formularios «Emitir comprobante»; el estándar «Factura» y la anulación con
 - **El emisor de formularios** (`ArcaStructuredRecordIssuer`): la fuente y la clave del estándar son `arca.invoice`. Lee los
   datos atados de la «Factura» (el cliente de «Clientes» con `tax_id`, `vat_condition` y `address`, o consumidor final sin
   CUIT; el concepto por su código de ARCA; la fecha, o la de hoy; el período, el vencimiento, los renglones y el total) y
-  encola con el run como clave. Está emitida cuando ARCA la autorizó y su PDF fiscal está guardado, con comprobante,
+  encola con el run como clave. La vista previa del «¿La emito?» arma el mismo pedido y responde la clase que decide el
+  sistema, el receptor y el total recalculado, sin encolar; un pedido que no se encolaría responde su código. Está emitida cuando ARCA la autorizó y su PDF fiscal está guardado, con comprobante,
   número, CAE, vencimiento del CAE y total como resultado. En revisión responde `arca.invoice.<motivo>`; seguir es otro
   número o la fecha de hoy, y decidirlo pide `arca.issue`. Anular la respuesta cancela la emisión que todavía no
   tiene número o pide la nota de crédito por el total (`EnqueueCreditNoteAsync`), las dos por el mismo puerto. Mientras espera por ARCA, el aviso es «ARCA no responde. Tu factura

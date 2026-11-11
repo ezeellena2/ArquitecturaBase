@@ -20,6 +20,14 @@ internal sealed class ArcaStructuredRecordIssuer(IArcaVoucherService vouchers, I
     public string ReviewPermission => ArcaPermissions.Issue;
     public IReadOnlyList<StructuredRecordResultField> ResultFields => ArcaInvoiceIssuePolicy.ResultFields;
 
+    public async Task<StructuredIssuePreview> PreviewAsync(IReadOnlyList<StructuredIssueDatum> data, CancellationToken cancellationToken)
+    {
+        var order = ArcaInvoiceOrderPolicy.Order(new StructuredIssueRequest(Guid.Empty, Guid.Empty, data), ArcaIssueDateWindow.Today(timeProvider.GetUtcNow().UtcDateTime));
+        if (order.IsFailure) return new(null, null, null, order.Error.Code);
+        var preview = await vouchers.PreviewAsync(order.Value, cancellationToken);
+        return preview.IsSuccess ? ArcaInvoiceIssuePolicy.Preview(preview.Value, order.Value.Receiver.Name) : new(null, null, null, preview.Error.Code);
+    }
+
     public async Task<StructuredIssueResponse> EnqueueAsync(StructuredIssueRequest request, CancellationToken cancellationToken)
     {
         var order = ArcaInvoiceOrderPolicy.Order(request, ArcaIssueDateWindow.Today(timeProvider.GetUtcNow().UtcDateTime));

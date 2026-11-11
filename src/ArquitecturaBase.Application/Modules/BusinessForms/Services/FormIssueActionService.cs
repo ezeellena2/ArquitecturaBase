@@ -27,6 +27,9 @@ internal sealed class FormIssueActionService(IEnumerable<IStructuredRecordIssuer
             if (!work.RecordStands) return new(FormActionRunState.NotApplicable);
             if (await RequestAsync(work, issuer, cancellationToken) is not { } request)
                 return new(FormActionRunState.Failed, FormActionErrors.IssueDataUnavailable.Code);
+            // EM2-A: one loaded in the app was confirmed before sending; one from a channel asks its author first.
+            if (!work.RecordEnteredInApp && work.DeliveryReview?.WasSent != true)
+                return await AskAsync(work, issuer, request, cancellationToken);
             status = await issuer.EnqueueAsync(request, cancellationToken);
         }
         // The person decided on the issuance as the run last saw it: a newer revision makes the issuer refuse and ask again.
@@ -57,6 +60,27 @@ internal sealed class FormIssueActionService(IEnumerable<IStructuredRecordIssuer
         if (reversal.State == StructuredIssueState.NotFound)
             reversal = await issuer.EnqueueReversalAsync(work.RunId, issuedRunId, cancellationToken);
         return Outcome(reversal with { WaitingNotice = null });
+    }
+
+    // The summary goes to whoever loaded it with «Emitir» and «No emitir», once (the channel keeps one message per run and
+    // person); the run waits, uncertain, until that person decides. What cannot be issued as it is fails without asking.
+    private async Task<FormActionOutcomeResponse> AskAsync(FormActionWorkResponse work, IStructuredRecordIssuer issuer, StructuredIssueRequest request,
+        CancellationToken cancellationToken)
+    {
+        var preview = await issuer.PreviewAsync(request.Data, cancellationToken);
+        if (preview.FailureCode is { } failure) return new(FormActionRunState.Failed, failure, true);
+        var record = await records.FindRecordAsync(work.RecordId, cancellationToken) ?? throw new InvalidOperationException("The action response is missing.");
+        var author = record.Actor.UserId;
+        var culture = (await recipients.FindAsync(author, cancellationToken))?.Culture is "en" ? "en" : "es";
+        foreach (var channel in channels)
+        {
+            if (!await channel.CanReachAsync(author, cancellationToken)) continue;
+            if ((await channel.GetAsync(work.RunId, author, cancellationToken)).State == StructuredRecordActionState.NotFound)
+                await channel.EnqueueAsync(new StructuredRecordActionMessage(work.RunId, author, FormIssueConfirmationPolicy.Body(preview, culture))
+                    { Choices = FormIssueConfirmationPolicy.Choices(culture) }, cancellationToken);
+            break;
+        }
+        return new(FormActionRunState.Uncertain, FormActionErrors.AwaitingConfirmation.Code, IssuePreview: preview);
     }
 
     private async Task NoticeAsync(FormActionWorkResponse work, IReadOnlyDictionary<string, string> notice, CancellationToken cancellationToken)

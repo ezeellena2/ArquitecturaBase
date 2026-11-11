@@ -11,5 +11,6 @@ public static class FormActionErrors
     public static readonly Error IssuerUnavailable = Error.Failure("Forms.Action.IssuerUnavailable","The document issuer is not installed.");
     public static readonly Error IssueDataUnavailable = Error.Failure("Forms.Action.IssueDataUnavailable","The form does not carry the bound data of its issuer.");
     public static readonly Error NotIssued = Error.Failure("Forms.Action.NotIssued","The document was not issued.");
+    public static readonly Error AwaitingConfirmation = Error.Conflict("Forms.Action.AwaitingConfirmation", "The issuance waits for whoever loaded the response to confirm it.");
     public static readonly Error EffectUnconfirmed = Error.Failure("Forms.Action.EffectUnconfirmed","The external action could not be confirmed.");
 }

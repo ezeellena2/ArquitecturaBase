@@ -16,4 +16,8 @@
 <data name="Latitude" xml:space="preserve"><value>Latitud</value></data>
 <data name="Longitude" xml:space="preserve"><value>Longitud</value></data>
 <data name="AccuracyMeters" xml:space="preserve"><value>Precisión (m)</value></data>
+  <data name="Issue.Confirm.Body" xml:space="preserve"><value>¿La emito? {0} para {1} por $ {2}.</value></data>
+  <data name="Issue.Confirm.Issue" xml:space="preserve"><value>Emitir</value></data>
+  <data name="Issue.Confirm.Skip" xml:space="preserve"><value>No emitir</value></data>
+  <data name="Issue.NotIssued" xml:space="preserve"><value>No se emitió.</value></data>
 </root>

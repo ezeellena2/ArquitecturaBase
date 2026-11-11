@@ -65,6 +65,40 @@ public sealed class FormIssueActionServiceTests
     }
 
     [Fact]
+    public async Task A_response_from_a_channel_asks_its_author_before_issuing_and_issues_once_confirmed()
+    {
+        var channel = new FakeFormActionChannel();
+        var (service, issuer, work) = Arrange(channel: channel);
+        channel.Reachable.Add(Author);
+        var fromChannel = work with { RecordEnteredInApp = false };
+
+        var waiting = await service.ExecuteAsync(fromChannel, CancellationToken.None);
+
+        Assert.Equal((FormActionRunState.Uncertain, "Forms.Action.AwaitingConfirmation", "Juana Pérez"), (waiting.State, waiting.FailureCode, waiting.IssuePreview!.Receiver));
+        var message = Assert.Single(channel.Messages);
+        Assert.Equal(["issue", "skip"], message.Choices!.Select(choice => choice.Id));
+        Assert.Equal("Shall I issue it? Invoice C for Juana Pérez, $ 3,101.50.", message.Body);
+        Assert.Empty(issuer.Requests);
+
+        await service.ExecuteAsync(fromChannel with { DeliveryReview = new StructuredRecordActionReview(1, true, Author, Now) }, CancellationToken.None);
+        Assert.Single(issuer.Requests);
+    }
+
+    [Fact]
+    public async Task What_cannot_be_issued_as_it_is_fails_without_asking()
+    {
+        var channel = new FakeFormActionChannel();
+        var (service, issuer, work) = Arrange(channel: channel);
+        channel.Reachable.Add(Author);
+        issuer.Preview = new(null, null, null, "Arca.Invoicing.ReceiverInvalid");
+
+        var failed = await service.ExecuteAsync(work with { RecordEnteredInApp = false }, CancellationToken.None);
+
+        Assert.Equal((FormActionRunState.Failed, "Arca.Invoicing.ReceiverInvalid"), (failed.State, failed.FailureCode));
+        Assert.Empty(channel.Messages);
+    }
+
+    [Fact]
     public async Task A_response_voided_or_corrected_before_it_was_queued_does_not_issue()
     {
         var (service, issuer, work) = Arrange();
@@ -236,6 +270,8 @@ public sealed class FormIssueActionServiceTests
             Reviews.Add(review);
             return Task.FromResult(Next);
         }
+        public StructuredIssuePreview Preview { get; set; } = new(new Dictionary<string, string> { ["es"] = "Factura C", ["en"] = "Invoice C" }, "Juana Pérez", "3101.5");
+        public Task<StructuredIssuePreview> PreviewAsync(IReadOnlyList<StructuredIssueDatum> data, CancellationToken cancellationToken) => Task.FromResult(Preview);
         public List<Guid> Cancels { get; } = [];
         public StructuredIssueResponse CancelResult { get; set; } = new(StructuredIssueState.Cancelled);
         public Dictionary<Guid, StructuredIssueResponse> ByRun { get; } = [];

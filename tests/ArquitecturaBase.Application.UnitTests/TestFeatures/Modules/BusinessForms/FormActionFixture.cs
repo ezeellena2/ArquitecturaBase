@@ -44,6 +44,10 @@ internal sealed class FormActionFixture : IFormPdfDesignReader
 }
 internal sealed class MemoryFormActionRuns:IFormActionRunRepository,IFormActionRunReader
 {
+    public Task<FormIssueConfirmationResponse?> FindIssueConfirmationAsync(Guid recordId,Guid actorUserId,CancellationToken cancellationToken)=>
+        Task.FromResult<FormIssueConfirmationResponse?>(Runs.FirstOrDefault(run=>run.RecordId==recordId&&run.Kind=="IssueDocument"&&run.State==FormActionRunState.Uncertain
+            &&run.FailureCode==FormActionErrors.AwaitingConfirmation.Code&&Records.Any(record=>record.Id==recordId&&record.ActorUserId==actorUserId)) is {} run
+            ?new(run.Id,null,null,null):null);
     public List<BusinessFormActionRun> Runs { get; }=[];public List<BusinessFormTask> Tasks { get; }=[];public List<BusinessFormRecord> Records { get; }=[];
     public Action? BeforeWorkflowReturn { get; set; }
     public Task<BusinessFormRecord?> GetRecordAsync(Guid id,CancellationToken ct)=>Task.FromResult(Records.SingleOrDefault(record=>record.Id==id));

@@ -18,6 +18,17 @@ internal sealed class FormActionRunReader(ApplicationDbContext db,TimeProvider t
             &&(run.DependsOnRunId==null||db.Set<BusinessFormActionRun>().Any(previous=>previous.Id==run.DependsOnRunId
                 &&(previous.State==FormActionRunState.Completed||previous.State==FormActionRunState.NotApplicable))))
         .OrderBy(run=>run.NextCheckAtUtc??run.AcceptedAtUtc).ThenBy(run=>run.AcceptedAtUtc).ThenBy(run=>run.Id).Select(run=>run.Id).Take(100).ToArrayAsync(cancellationToken);
+    public async Task<FormIssueConfirmationResponse?> FindIssueConfirmationAsync(Guid recordId,Guid actorUserId,CancellationToken cancellationToken)
+    {
+        var waiting=FormActionErrors.AwaitingConfirmation.Code;
+        var row=await db.Set<BusinessFormActionRun>().AsNoTracking().Where(run=>run.RecordId==recordId&&run.Kind=="IssueDocument"
+                &&run.State==FormActionRunState.Uncertain&&run.FailureCode==waiting
+                &&db.Set<BusinessFormRecord>().Any(record=>record.Id==recordId&&record.ActorUserId==actorUserId))
+            .OrderBy(run=>run.AcceptedAtUtc).Select(run=>new{run.Id,run.OutcomeJson}).FirstOrDefaultAsync(cancellationToken);
+        if(row is null)return null;
+        var preview=row.OutcomeJson is null?null:JsonSerializer.Deserialize<FormActionOutcomeResponse>(row.OutcomeJson,JsonSerializerOptions.Web)?.IssuePreview;
+        return new FormIssueConfirmationResponse(row.Id,preview?.Document,preview?.Receiver,preview?.Total);
+    }
     public async Task<FormWorkflowResponse?> FindWorkflowAsync(Guid recordId,CancellationToken cancellationToken)
     {
         var record=await db.Set<BusinessFormRecord>().AsNoTracking().Where(record=>record.Id==recordId).Select(record=>new{record.Id,record.State,

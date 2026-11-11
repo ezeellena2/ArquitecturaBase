@@ -15,7 +15,7 @@ namespace ArquitecturaBase.Api.Modules.BusinessForms.Controllers;
 [HasAnyPermission(BusinessFormsPermissions.RecordsRead, BusinessFormsPermissions.RecordsCreate)]
 [EnableRateLimiting(BusinessFormsApiRegistration.ReadPolicy)]
 [ResponseCache(NoStore=true,Location=ResponseCacheLocation.None)]
-public sealed class FormWorkflowsController(IFormWorkflowService service):ControllerBase
+public sealed class FormWorkflowsController(IFormWorkflowService service,IFormIssueConfirmationService confirmations):ControllerBase
 {
     [HttpGet("workflow")]
     [ProducesResponseType<FormWorkflowResponse>(StatusCodes.Status200OK)]
@@ -60,6 +60,20 @@ public sealed class FormWorkflowsController(IFormWorkflowService service):Contro
     public async Task<IActionResult> Review([FromRoute]Guid recordId,[FromRoute]Guid runId,[FromBody]ReviewFormActionHttpRequest request,CancellationToken cancellationToken)
     {
         var result=await service.ReviewAsync(recordId,runId,request.RecipientUserId,request.ExpectedRevision,request.WasSent,cancellationToken);
+        if(result.IsSuccess)Response.Headers.Location=$"/api/forms/records/{recordId}/workflow";
+        return result.ToAcceptedResult(this);
+    }
+    // «¿La emito?» (EM2-A): whoever loaded the response from a channel confirms the issuance, or voids it without issuing.
+    [HttpPost("actions/{runId:guid}/confirmation")]
+    [ProducesProblem(StatusCodes.Status400BadRequest)]
+    [EnableRateLimiting(BusinessFormsApiRegistration.WritePolicy)]
+    [ProducesResponseType<FormWorkflowResponse>(StatusCodes.Status202Accepted)]
+    [ProducesProblem(StatusCodes.Status403Forbidden)]
+    [ProducesProblem(StatusCodes.Status404NotFound)]
+    [ProducesProblem(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Confirm([FromRoute]Guid recordId,[FromRoute]Guid runId,[FromBody]ConfirmFormIssueHttpRequest request,CancellationToken cancellationToken)
+    {
+        var result=await confirmations.ConfirmAsync(recordId,runId,request.Issue,cancellationToken);
         if(result.IsSuccess)Response.Headers.Location=$"/api/forms/records/{recordId}/workflow";
         return result.ToAcceptedResult(this);
     }

@@ -43,6 +43,15 @@ public sealed record StructuredIssueResponse(StructuredIssueState State, string?
 }
 
 /// <summary>
+/// What would come out if the data were issued now, without saving anything: the document by language («Factura C»), the name of
+/// the receiver and the total in canonical form; or a stable FailureCode when it could not be issued as it is.
+/// </summary>
+public sealed record StructuredIssuePreview(IReadOnlyDictionary<string, string>? Document, string? Receiver, string? Total, string? FailureCode = null)
+{
+    public override string ToString() => "StructuredIssuePreview { Content = [REDACTED] }";
+}
+
+/// <summary>
 /// A person's decision on an issuance in review: Proceed goes on with what its reason allows (another number, today's date);
 /// otherwise it is not issued.
 /// </summary>

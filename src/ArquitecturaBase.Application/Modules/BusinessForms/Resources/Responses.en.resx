@@ -16,4 +16,8 @@
 <data name="Latitude" xml:space="preserve"><value>Latitude</value></data>
 <data name="Longitude" xml:space="preserve"><value>Longitude</value></data>
 <data name="AccuracyMeters" xml:space="preserve"><value>Accuracy (m)</value></data>
+  <data name="Issue.Confirm.Body" xml:space="preserve"><value>Shall I issue it? {0} for {1}, $ {2}.</value></data>
+  <data name="Issue.Confirm.Issue" xml:space="preserve"><value>Issue</value></data>
+  <data name="Issue.Confirm.Skip" xml:space="preserve"><value>Don't issue</value></data>
+  <data name="Issue.NotIssued" xml:space="preserve"><value>It was not issued.</value></data>
 </root>

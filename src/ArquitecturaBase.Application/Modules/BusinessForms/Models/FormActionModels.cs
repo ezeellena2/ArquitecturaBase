@@ -9,7 +9,13 @@ public sealed record FormActionRecipientRow(Guid UserId,string Culture,string? D
 public sealed record FormActionRecipient(Guid UserId,string Culture,string Body,string? DisplayName=null,string? PreparationFailureCode=null)
 { public override string ToString()=>"FormActionRecipient { Content = [REDACTED] }"; }
 public sealed record FormWorkflowResponse(Guid RecordId,string RecordState,long? RuleRevision,FormWorkflowTaskResponse? Task,
-    IReadOnlyList<FormActionRunResponse> Actions,IReadOnlyList<FormWorkflowDocumentResponse> Documents);
+    IReadOnlyList<FormActionRunResponse> Actions,IReadOnlyList<FormWorkflowDocumentResponse> Documents)
+{
+    /// <summary>An issuance waiting for whoever loaded the response to confirm it («¿La emito?»), with its summary; absent otherwise.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public FormIssueConfirmationResponse? Confirmation { get; init; }
+}
+public sealed record FormIssueConfirmationResponse(Guid RunId,IReadOnlyDictionary<string,string>? Document,string? Receiver,string? Total);
 public sealed record FormWorkflowTaskResponse(Guid Id,Guid RoleId,long Revision,string State,string? RoleName,DateTime? DecidedAtUtc,FormAuthorResponse? DecidedBy,string? Reason,DateTime RequestedAtUtc)
 { public override string ToString()=>"FormWorkflowTaskResponse { Content = [REDACTED] }"; }
 public sealed record FormActionRunResponse(Guid Id,Guid RuleId,string Kind,string Event,int Order,string State,string? ReasonCode,string? Reason,
@@ -39,10 +45,13 @@ public sealed record FormActionWorkResponse(Guid RunId,Guid RecordId,string Kind
 {
     /// <summary>An issuance is queued only while its response stands: not voided nor replaced by a correction.</summary>
     public bool RecordStands { get; init; } = true;
+    /// <summary>A response loaded in the app was confirmed before sending («¿La emito?»); one from a channel waits for it.</summary>
+    public bool RecordEnteredInApp { get; init; } = true;
     /// <summary>The issuance as the run last saw it, for the revision a review expects.</summary>
     public StructuredIssueResponse? PriorIssue { get; init; }
     public override string ToString()=>"FormActionWorkResponse { Content = [REDACTED] }";
 }
 public sealed record FormActionOutcomeResponse(FormActionRunState State,string? FailureCode=null,bool CanRetry=false,FormPdfActionOutcomeResponse? Pdf=null,IReadOnlyList<FormActionRecipientOutcome>? Recipients=null,
-    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] StructuredIssueResponse? Issue=null)
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] StructuredIssueResponse? Issue=null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] StructuredIssuePreview? IssuePreview=null)
 { public override string ToString()=>"FormActionOutcomeResponse { Content = [REDACTED] }"; }

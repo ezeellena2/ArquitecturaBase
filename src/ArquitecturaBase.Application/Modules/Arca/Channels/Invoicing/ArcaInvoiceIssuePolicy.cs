@@ -41,6 +41,10 @@ internal static class ArcaInvoiceIssuePolicy
                 ? Localized(voucher.Kind == ArcaVoucherKind.CreditNote ? "Notice.WaitingCreditNote" : "Notice.WaitingInvoice") : null),
     };
 
+    /// <summary>«¿La emito?»: the voucher the system decided, the receiver and the recalculated total.</summary>
+    public static StructuredIssuePreview Preview(ArcaVoucherPreviewResponse preview, string receiver) =>
+        new(Localized("Voucher.Invoice", preview.Class.ToString()), receiver, preview.Total.ToString("0.############################", CultureInfo.InvariantCulture));
+
     private static StructuredRecordResult Result(ArcaVoucherResponse voucher)
     {
         var name = Localized(voucher.Kind == ArcaVoucherKind.CreditNote ? "Voucher.CreditNote" : "Voucher.Invoice", voucher.Class.ToString());

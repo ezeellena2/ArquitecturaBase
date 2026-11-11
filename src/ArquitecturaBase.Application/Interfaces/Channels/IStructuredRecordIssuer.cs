@@ -25,6 +25,9 @@ public interface IStructuredRecordIssuer
     /// <summary>The data its result brings, which the messages after the action may use.</summary>
     IReadOnlyList<StructuredRecordResultField> ResultFields { get; }
 
+    /// <summary>What would come out of these bound data now («¿La emito?»), without saving anything.</summary>
+    Task<StructuredIssuePreview> PreviewAsync(IReadOnlyList<StructuredIssueDatum> data, CancellationToken cancellationToken);
+
     /// <summary>Queues the issuance of a run once; a request it cannot take comes back rejected, with nothing queued.</summary>
     Task<StructuredIssueResponse> EnqueueAsync(StructuredIssueRequest request, CancellationToken cancellationToken);
 

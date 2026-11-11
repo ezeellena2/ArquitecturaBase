@@ -53,7 +53,8 @@ internal sealed class FormActionDispatchService(IFormActionRunRepository runs,IF
             return completed.IsFailure?Result.Failure<FormActionWorkResponse?>(completed.Error):Result.Success<FormActionWorkResponse?>(null);
         }
         // An issuance is queued only while its response stands; once queued, it is followed to its end.
-        var stands=run.Kind!="IssueDocument"||(await runs.GetRecordAsync(run.RecordId,ct)??throw new InvalidOperationException("The action response is missing.")).CanBeAmended;
+        var issued=run.Kind=="IssueDocument"?await runs.GetRecordAsync(run.RecordId,ct)??throw new InvalidOperationException("The action response is missing."):null;
+        var stands=issued?.CanBeAmended??true;
         IReadOnlyList<FormPdfArtifact> artifacts=[];
         if(snapshot.PdfRunId is {} pdfId)
         {
@@ -64,7 +65,7 @@ internal sealed class FormActionDispatchService(IFormActionRunRepository runs,IF
         return new FormActionWorkResponse(run.Id,run.RecordId,run.Kind,reserved.Value.Fence,reserved.Value.ReconciliationOnly,run.RetryRequested,snapshot,artifacts,
             run.DeliveryReviewRequested?new StructuredRecordActionReview(run.DeliveryReviewExpectedRevision!.Value,run.DeliveryReviewWasSent!.Value,run.DeliveryReviewedByUserId!.Value,run.DeliveryReviewedAtUtc!.Value):null,run.DeliveryReviewRecipientUserId,
             run.OutcomeJson is null?null:FormDraftPolicy.Read<FormActionOutcomeResponse>(run.OutcomeJson).Recipients,run.RetryRecipientUserId)
-            { RecordStands=stands,PriorIssue=run.OutcomeJson is null?null:FormDraftPolicy.Read<FormActionOutcomeResponse>(run.OutcomeJson).Issue };
+            { RecordStands=stands,RecordEnteredInApp=issued?.EnteredInApp??true,PriorIssue=run.OutcomeJson is null?null:FormDraftPolicy.Read<FormActionOutcomeResponse>(run.OutcomeJson).Issue };
     }
     public Task<Result> CompleteAsync(FormActionWorkResponse work,FormActionOutcomeResponse outcome,CancellationToken cancellationToken)=>
         OperationLog.RunAsync(logger,"CompleteFormAction",()=>unitOfWork.ExecuteInTransactionAsync(async ct=>

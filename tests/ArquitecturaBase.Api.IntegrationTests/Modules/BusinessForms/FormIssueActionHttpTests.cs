@@ -131,6 +131,41 @@ public sealed partial class FormDraftEndpointsTests
     private Task<FormRecordState> RecordStateAsync(Guid recordId) => factory.ExecuteDbContextAsync(db =>
         db.Set<BusinessFormRecord>().Where(record => record.Id == recordId).Select(record => record.State).SingleAsync(Ct));
 
+    [Fact]
+    public async Task A_response_from_a_channel_waits_for_its_author_to_confirm_and_not_issuing_voids_it()
+    {
+        using var author = await OperatorAsync([BusinessFormsPermissions.RecordsCreate]);
+        var issuer = new TestRecordIssuer();
+        await using var host = IssuerHost(issuer);
+        using var client = InHost(host, author);
+        var worker = host.Services.GetRequiredService<FormActionBackgroundService>();
+
+        var (confirmedId, confirmedRun) = await SeedIssueRunAsync(author, enteredInApp: false);
+        await worker.ProcessNextAsync(confirmedRun, Ct);
+        Assert.Equal((FormActionRunState.Uncertain, "Forms.Action.AwaitingConfirmation"), ((await RunAsync(confirmedRun)).State, (await RunAsync(confirmedRun)).FailureCode));
+        Assert.Empty(issuer.Requests);
+        using var waiting = await client.GetAsync($"/api/forms/records/{confirmedId}/workflow", Ct);
+        var confirmation = (await waiting.ReadJsonAsync()).GetProperty("confirmation");
+        Assert.Equal((confirmedRun, "Factura C", "Juana Pérez", "3101.5"), (confirmation.GetProperty("runId").GetGuid(),
+            confirmation.GetProperty("document").GetProperty("es").GetString(), confirmation.GetProperty("receiver").GetString(), confirmation.GetProperty("total").GetString()));
+
+        using var issued = await client.PostAsJsonAsync($"/api/forms/records/{confirmedId}/actions/{confirmedRun}/confirmation", new { issue = true }, Ct);
+        Assert.Equal(HttpStatusCode.Accepted, issued.StatusCode);
+        issuer.Next = new(StructuredIssueState.Pending);
+        await worker.ProcessNextAsync(confirmedRun, Ct);
+        Assert.Equal(confirmedRun, Assert.Single(issuer.Requests).RunId);
+
+        var (skippedId, skippedRun) = await SeedIssueRunAsync(author, enteredInApp: false);
+        await worker.ProcessNextAsync(skippedRun, Ct);
+        using var skipped = await client.PostAsJsonAsync($"/api/forms/records/{skippedId}/actions/{skippedRun}/confirmation", new { issue = false }, Ct);
+        Assert.Equal(HttpStatusCode.Accepted, skipped.StatusCode);
+        await worker.ProcessNextAsync(skippedRun, Ct);
+        Assert.Equal((FormRecordState.Voided, FormActionRunState.NotApplicable), (await RecordStateAsync(skippedId), (await RunAsync(skippedRun)).State));
+        Assert.Single(issuer.Requests);
+        using var again = await client.PostAsJsonAsync($"/api/forms/records/{skippedId}/actions/{skippedRun}/confirmation", new { issue = true }, Ct);
+        Assert.Equal(HttpStatusCode.Conflict, again.StatusCode);
+    }
+
     private WebApplicationFactory<Program> IssuerHost(TestRecordIssuer issuer) => factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
     {
         services.RemoveAll<IStructuredRecordIssuer>();
@@ -156,7 +191,8 @@ public sealed partial class FormDraftEndpointsTests
         factory.ExecuteDbContextAsync(db => db.Set<BusinessFormActionRun>().AsNoTracking().SingleAsync(run => run.Id == runId, Ct));
 
     // A form copied from the issuer's standard, with an «IssueDocument» rule, a response and its run waiting.
-    private async Task<(Guid RecordId, Guid RunId)> SeedIssueRunAsync(HttpClient actorClient)
+    // Loaded in the app by default (it was confirmed before sending); one from a channel waits for «¿La emito?».
+    private async Task<(Guid RecordId, Guid RunId)> SeedIssueRunAsync(HttpClient actorClient, bool enteredInApp = true)
     {
         var sheet = await SeedSheetAsync(actorClient, 0);
         var actor = Guid.Parse(actorClient.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
@@ -172,7 +208,8 @@ public sealed partial class FormDraftEndpointsTests
             await db.SaveChangesAsync(Ct);
             definition.SetActiveRuleSetId(ruleSet.Id);
             var now = factory.Clock.GetUtcNow().UtcDateTime;
-            var record = BusinessFormRecord.Create(definition.Id, version.Id, definition.AllocateRecordNumber(), actor, Guid.NewGuid(), now, "[]", ruleSet.Id);
+            var record = BusinessFormRecord.Create(definition.Id, version.Id, definition.AllocateRecordNumber(), actor, Guid.NewGuid(), now, "[]", ruleSet.Id,
+                "es", enteredInApp);
             db.Set<BusinessFormRecord>().Add(record);
             db.Set<BusinessFormCaptureReceipt>().Add(BusinessFormCaptureReceipt.Complete(record.SourceReceiptId, definition.Id, version.Id, "test-issue", record.Id, record.Number, now));
             var run = BusinessFormActionRun.Create(definition.Id, record.Id, ruleSet.Id, rule.Id, action.Id, "Received", "IssueDocument", 0, null,

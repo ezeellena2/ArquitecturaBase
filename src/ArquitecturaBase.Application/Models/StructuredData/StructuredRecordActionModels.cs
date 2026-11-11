@@ -31,11 +31,31 @@ public sealed record StructuredRecordActionDocument(
     public override string ToString() => "StructuredRecordActionDocument { Content = [REDACTED] }";
 }
 
-/// <summary>The caller fixes the recipient, language and rendered content before invoking a channel.</summary>
+/// <summary>
+/// The caller fixes the recipient, language and rendered content before invoking a channel. Choices, when present, are up to
+/// three reply buttons (a stable id and its title, already in the language of the recipient); the channel hands a reply to the
+/// installed <c>IStructuredRecordActionReplySink</c> with the run, the person and the id.
+/// </summary>
 public sealed record StructuredRecordActionMessage(
     Guid RunId, Guid RecipientUserId, string Body, StructuredRecordActionDocument? Document = null)
 {
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<StructuredRecordActionChoice>? Choices { get; init; }
+
     public override string ToString() => "StructuredRecordActionMessage { Content = [REDACTED] }";
+}
+
+/// <summary>A reply button of an action message: a stable id of at most 32 characters and its title of at most 20.</summary>
+public sealed record StructuredRecordActionChoice(string Id, string Title)
+{
+    public const int MaxChoices = 3, MaxIdLength = 32, MaxTitleLength = 20;
+}
+
+/// <summary>What the owner did with a reply: Applied, or Ignored when the button is stale (already decided, or not the person's).</summary>
+public enum StructuredRecordActionReplyState
+{
+    Applied,
+    Ignored,
 }
 
 /// <summary>A local observation target; absence does not authorize another send.</summary>

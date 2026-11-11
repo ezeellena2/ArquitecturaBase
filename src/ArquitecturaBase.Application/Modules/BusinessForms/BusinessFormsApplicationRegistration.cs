@@ -47,6 +47,8 @@ public static class BusinessFormsApplicationRegistration
         services.TryAddScoped<FormActionOutcomeRecorder>();
         services.TryAddScoped<IFormIssueActionService, FormIssueActionService>();
         services.TryAddScoped<IFormCatalogFeedService, FormCatalogFeedService>();
+        services.TryAddScoped<IFormIssueConfirmationService, FormIssueConfirmationService>();
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IStructuredRecordActionReplySink, Channels.BusinessFormIssueReplySink>());
         services.TryAddScoped<FormConditionChoicePolicy>();
         services.TryAddScoped<FormSuggestionCandidatePolicy>();
         services.TryAddScoped<FormSuggestionRuntimePolicy>();

@@ -979,6 +979,15 @@ ARCA» ([ADR 0028](../decisions/0028-emision-de-comprobantes-arca.md)); sin emis
 - **Los datos y el PDF fiscal.** Una opción de catálogo llega al emisor por su código, y un campo capturado que nombra otra
   opción, por el código de esa opción. Emitido, el PDF fiscal queda como un documento más de la respuesta (en español, sin
   diseño) y «Avisar a quien cargó» puede adjuntarlo, como el de «Armar el PDF».
+- **«¿La emito?» (EM2-A).** Una respuesta que llegó por un canal no se emite sin que quien la cargó la confirme. Antes de
+  encolar, el run pide al emisor la vista previa (`PreviewAsync`: el comprobante que decidió, el receptor y el total, sin guardar
+  nada); si no se puede emitir así, termina `Failed` con el código del emisor. Si se puede, le manda a quien cargó «¿La emito?
+  Factura C para … por $ ….» con los botones «Emitir» y «No emitir» (`Choices` del mensaje, por el primer canal que lo alcanza)
+  y queda `Uncertain` con `Forms.Action.AwaitingConfirmation`. El flujo trae `confirmation` (el run, el comprobante, el
+  receptor y el total) sólo para quien la cargó, y `POST api/forms/records/{id}/actions/{runId}/confirmation` con
+  `{"issue": true}` la emite o con `false` anula la respuesta con el motivo «No se emitió», sin ir al emisor. El botón del canal
+  llega por `IStructuredRecordActionReplySink` y decide lo mismo; un botón viejo o ajeno se ignora. Lo cargado en la app ya se
+  confirmó antes de «Enviar» y se emite directo.
 - **Corregir y anular (NC1-A).** Una respuesta con una emisión viva (emitida, en curso o en revisión) no se corrige:
   `Forms.Record.IssuedNotAmendable`, se anula y se carga otra. Anularla pide además el permiso del emisor y no la anula en el
   acto: cada emisión recibe un run de reversión (evento `Voided`) que el worker lleva fuera de toda transacción. Lo que nunca se
