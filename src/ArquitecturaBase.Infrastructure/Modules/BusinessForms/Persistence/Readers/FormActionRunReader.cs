@@ -23,7 +23,8 @@ internal sealed class FormActionRunReader(ApplicationDbContext db,TimeProvider t
         var waiting=FormActionErrors.AwaitingConfirmation.Code;
         var row=await db.Set<BusinessFormActionRun>().AsNoTracking().Where(run=>run.RecordId==recordId&&run.Kind=="IssueDocument"
                 &&run.State==FormActionRunState.Uncertain&&run.FailureCode==waiting
-                &&db.Set<BusinessFormRecord>().Any(record=>record.Id==recordId&&record.ActorUserId==actorUserId))
+                &&db.Set<BusinessFormRecord>().Any(record=>record.Id==recordId&&record.ActorUserId==actorUserId
+                    &&record.State!=FormRecordState.Voided&&record.ReplacedByRecordId==null))
             .OrderBy(run=>run.AcceptedAtUtc).Select(run=>new{run.Id,run.OutcomeJson}).FirstOrDefaultAsync(cancellationToken);
         if(row is null)return null;
         var preview=row.OutcomeJson is null?null:JsonSerializer.Deserialize<FormActionOutcomeResponse>(row.OutcomeJson,JsonSerializerOptions.Web)?.IssuePreview;

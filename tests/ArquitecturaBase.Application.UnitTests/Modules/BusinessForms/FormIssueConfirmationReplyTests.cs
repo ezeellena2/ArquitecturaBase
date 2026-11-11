@@ -1,5 +1,4 @@
 using ArquitecturaBase.Application.Models.StructuredData;
-using ArquitecturaBase.Application.Modules.BusinessForms.Channels;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
@@ -11,9 +10,10 @@ namespace ArquitecturaBase.Application.UnitTests.Modules.BusinessForms;
 
 /// <summary>
 /// «¿La emito?» (EM2-A) from a button of a channel: «No emitir» voids the response and hands back what the channel answers, with
-/// the response named as the app names it and in the language of the person; «Emitir» and a stale or foreign button hand back no text.
+/// the response named as the app names it and in the language of the person; «Emitir» and a stale or foreign button hand back no
+/// text. The decision takes the current permissions of the author and a response that still stands.
 /// </summary>
-public sealed class FormIssueReplySinkTests
+public sealed class FormIssueConfirmationReplyTests
 {
     private static readonly StructuredRecordActionReply Ignored = new(StructuredRecordActionReplyState.Ignored);
 
@@ -95,7 +95,35 @@ public sealed class FormIssueReplySinkTests
         var reply = await host.Sink.ReplyAsync(FormIssueConfirmationPolicy.MessageId(host.Run.Id, 1), host.Record.ActorUserId, skip, CancellationToken.None);
 
         Assert.Equal(new StructuredRecordActionReply(StructuredRecordActionReplyState.Applied, "We did not issue it. VISIT-000001 was voided."), reply);
-        Assert.Equal((FormRecordState.Voided, "It was not issued."), (host.Record.State, host.Record.VoidReason));
+        Assert.Equal((FormRecordState.Voided, FormActionErrors.NotIssued.Code, (string?)null), (host.Record.State, host.Record.VoidReasonCode, host.Record.VoidReason));
+    }
+
+    // The author decides with the permissions they have now: without «Completar formularios» (nor «Corregir y anular respuestas»
+    // with «Ver respuestas») a button does not apply, and an inactive account neither.
+    [Fact]
+    public async Task A_button_of_an_author_who_lost_the_permission_does_not_apply_and_changes_nothing()
+    {
+        var host = new Host("es");
+        host.Fixture.Rules.Permissions.Permissions[host.Record.ActorUserId] = [];
+
+        Assert.Equal(Ignored, await host.Sink.ReplyAsync(host.Run.Id, host.Record.ActorUserId, FormIssueConfirmationPolicy.Skip, CancellationToken.None));
+        Assert.Equal(Ignored, await host.Sink.ReplyAsync(host.Run.Id, host.Record.ActorUserId, FormIssueConfirmationPolicy.Issue, CancellationToken.None));
+
+        Assert.Equal(FormRecordState.Received, host.Record.State);
+        Assert.Equal((FormActionRunState.Uncertain, false), (host.Run.State, host.Run.DeliveryReviewRequested));
+    }
+
+    // A response that no longer stands (voided in the app while «¿La emito?» waited) is neither issued nor voided again.
+    [Fact]
+    public async Task A_decision_on_a_response_that_no_longer_stands_does_not_apply()
+    {
+        var host = new Host("es");
+        Assert.True(host.Record.Void(Guid.NewGuid(), "Se cargó mal", host.Fixture.Clock.GetUtcNow().UtcDateTime).IsSuccess);
+
+        Assert.Equal(Ignored, await host.Sink.ReplyAsync(host.Run.Id, host.Record.ActorUserId, FormIssueConfirmationPolicy.Issue, CancellationToken.None));
+        Assert.Equal(Ignored, await host.Sink.ReplyAsync(host.Run.Id, host.Record.ActorUserId, FormIssueConfirmationPolicy.Skip, CancellationToken.None));
+
+        Assert.Equal(("Se cargó mal", false), (host.Record.VoidReason, host.Run.DeliveryReviewRequested));
     }
 
     // A response loaded from a channel (number 1 of «VISIT») whose «IssueDocument» run waits for its author, after a summary that
@@ -105,10 +133,14 @@ public sealed class FormIssueReplySinkTests
         public FormActionFixture Fixture { get; } = new();
         public BusinessFormRecord Record { get; }
         public BusinessFormActionRun Run { get; }
-        public BusinessFormIssueReplySink Sink { get; }
+        public FormIssueConfirmationService Sink { get; }
 
         public Host(string culture, StructuredIssuePreview? preview = null)
         {
+            var accounts = new InMemoryUserAccounts();
+            var author = accounts.AddUser("autor@example.com");
+            Fixture.Rules.User.UserId = author.Id;
+            Fixture.Rules.Permissions.Permissions[author.Id] = [BusinessFormsPermissions.RecordsCreate];
             (Record, _) = Fixture.Capture([], presentationCulture: culture);
             Fixture.Recipients.People[Record.ActorUserId] = new(Record.ActorUserId, culture, "Author");
             var now = Fixture.Clock.GetUtcNow().UtcDateTime;
@@ -119,10 +151,10 @@ public sealed class FormIssueReplySinkTests
                     : FormDraftPolicy.Serialize(new FormActionOutcomeResponse(FormActionRunState.Uncertain, FormActionErrors.AwaitingConfirmation.Code, IssuePreview: preview)));
             Fixture.Runs.Runs.Add(Run);
             var rules = Fixture.Rules;
-            var service = new FormIssueConfirmationService(new(rules.User, rules.Permissions, new InMemoryUserAccounts()), Fixture.Runs, rules,
-                Fixture.Recipients, new(Fixture.Runs, new(rules.User, rules.Permissions, new FakeFormResponseReader()), rules.Permissions, [], []),
-                rules.UnitOfWork, Fixture.Clock, NullLogger<FormIssueConfirmationService>.Instance);
-            Sink = new(service);
+            var decisions = new FormIssueDecisionRecorder(new(rules.User, rules.Permissions, accounts), Fixture.Runs, rules, new(Fixture.Runs), Fixture.Clock);
+            Sink = new(new(rules.User, rules.Permissions, accounts), decisions,
+                new(Fixture.Runs, new(rules.User, rules.Permissions, new FakeFormResponseReader()), rules.Permissions, [], []),
+                Fixture.Recipients, rules.UnitOfWork, NullLogger<FormIssueConfirmationService>.Instance);
         }
     }
 }

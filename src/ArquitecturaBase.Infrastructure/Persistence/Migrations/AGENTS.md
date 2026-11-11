@@ -34,6 +34,8 @@ DeferActiveRuleSetKey deja la clave de la definición a su conjunto de reglas ac
 
 AddWhatsAppPendingTapsIndex agrega sólo el índice filtrado `IX_WhatsAppMessages_PendingTaps` (toques entrantes sin atender, por `OccurredAtUtc`), con el que el procesador busca los toques de los avisos dentro de su ventana; no toca filas y su Down sólo lo quita.
 
+AddFormRecordVoidReasonCode agrega `VoidReasonCode` (nullable, hasta 128) a las respuestas, para el código del motivo de una anulación que decide el sistema («No se emitió»), y cambia `CK_BusinessFormRecords_Void`: una respuesta anulada lleva un texto o un código, uno de los dos. No reescribe las anulaciones existentes; la imagen anterior siempre escribe el texto. Down bloquea la tabla y rechaza, antes del DDL, una anulación con sólo el código; no inventa un texto. FormRecordVoidReasonCodeMigrationTests prueba Up/Down/Up y ese rechazo.
+
 ## Referencias
 
 - [Comandos y revisión obligatoria](../../../../docs/guides/migracion.md).

@@ -10,6 +10,8 @@ internal sealed class FormActionRunRepository(ApplicationDbContext db):IFormActi
     public Task<BusinessFormActionRun?> GetAsync(Guid id,CancellationToken cancellationToken)=>db.Set<BusinessFormActionRun>().SingleOrDefaultAsync(run=>run.Id==id,cancellationToken);
     public async Task<IReadOnlyList<BusinessFormActionRun>> ListForEventAsync(Guid recordId,string eventName,CancellationToken cancellationToken)=>
         await db.Set<BusinessFormActionRun>().Where(run=>run.RecordId==recordId&&run.Event==eventName).ToArrayAsync(cancellationToken);
+    public async Task<IReadOnlyList<BusinessFormActionRun>> ListLiveIssuancesAsync(Guid recordId,CancellationToken cancellationToken)=>
+        await db.Set<BusinessFormActionRun>().Where(run=>run.RecordId==recordId).Where(BusinessFormActionRun.LiveIssuance).ToArrayAsync(cancellationToken);
     public Task<BusinessFormTask?> GetOpenTaskAsync(Guid recordId,CancellationToken cancellationToken)=>db.Set<BusinessFormTask>().SingleOrDefaultAsync(task=>task.RecordId==recordId&&task.State==FormTaskState.Open,cancellationToken);
     public void Add(BusinessFormActionRun run){db.RequireTransaction();db.Set<BusinessFormActionRun>().Add(run);}
     public void AddTask(BusinessFormTask task){db.RequireTransaction();db.Set<BusinessFormTask>().Add(task);}

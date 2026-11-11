@@ -11,11 +11,11 @@ internal sealed partial class FormActionEffectService:IFormActionEffectService
 {
     private readonly ILogger<FormActionEffectService> _logger;
     private readonly IFormPdfActionService _pdf;private readonly IStructuredRecordActionChannel[] _channels;
-    private readonly IFormRecordResultReader _results;private readonly IFormIssueActionService? _issues;
+    private readonly IFormRecordResultReader _results;private readonly IFormIssueActionService? _issues;private readonly IFormIssueCopyService? _copies;
     public FormActionEffectService(IFormPdfActionService pdf,IEnumerable<IStructuredRecordActionChannel> channels,ILogger<FormActionEffectService> logger,
-        IFormRecordResultReader results,IFormIssueActionService? issues=null)
+        IFormRecordResultReader results,IFormIssueActionService? issues=null,IFormIssueCopyService? copies=null)
     {
-        _pdf=pdf;_channels=channels.ToArray();_logger=logger;_results=results;_issues=issues;
+        _pdf=pdf;_channels=channels.ToArray();_logger=logger;_results=results;_issues=issues;_copies=copies;
         if(_channels.Any(channel=>string.IsNullOrWhiteSpace(channel.ChannelId))||_channels.DistinctBy(channel=>channel.ChannelId).Count()!=_channels.Length)
             throw new InvalidOperationException("Action channel identifiers must be unique and nonempty.");
     }
@@ -23,7 +23,7 @@ internal sealed partial class FormActionEffectService:IFormActionEffectService
     {
         OperationLog.Handling(_logger,"ExecuteFormAction");FormActionOutcomeResponse outcome;
         try{outcome=work.Kind switch{"GeneratePdf"=>await PdfAsync(work,cancellationToken),"IssueDocument"=>_issues is null?new(FormActionRunState.Failed,FormActionErrors.IssuerUnavailable.Code,true):await _issues.ExecuteAsync(work,cancellationToken),
-            "SendCopy"=>_issues is null?new(FormActionRunState.Failed,FormActionErrors.IssuerUnavailable.Code,true):await _issues.CopyAsync(work,cancellationToken),_=>await NotifyAsync(work,cancellationToken)};}
+            "SendCopy"=>_copies is null?new(FormActionRunState.Failed,FormActionErrors.IssuerUnavailable.Code,true):await _copies.CopyAsync(work,cancellationToken),_=>await NotifyAsync(work,cancellationToken)};}
         catch(Exception exception)when(!cancellationToken.IsCancellationRequested)
         {
             LogUnconfirmed(_logger,work.RunId,exception.GetType().Name);

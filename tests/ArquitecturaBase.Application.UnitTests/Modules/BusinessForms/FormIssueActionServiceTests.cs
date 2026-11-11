@@ -346,7 +346,14 @@ public sealed class FormIssueActionServiceTests
 
     private static readonly Guid Author = Guid.NewGuid();
 
-    private static (FormIssueActionService Service, FakeIssuer Issuer, FormActionWorkResponse Work) Arrange(string standardKey = "test.standard",
+    // The issuance and its copy by email, composed as the module registers them.
+    private sealed class Issue(FormIssueActionService action, FormIssueCopyService copy)
+    {
+        public Task<FormActionOutcomeResponse> ExecuteAsync(FormActionWorkResponse work, CancellationToken cancellationToken) => action.ExecuteAsync(work, cancellationToken);
+        public Task<FormActionOutcomeResponse> CopyAsync(FormActionWorkResponse work, CancellationToken cancellationToken) => copy.CopyAsync(work, cancellationToken);
+    }
+
+    private static (Issue Service, FakeIssuer Issuer, FormActionWorkResponse Work) Arrange(string standardKey = "test.standard",
         IStructuredRecordActionChannel? channel = null, MemoryPrivateFileStore? files = null, FormRecordResultReaderDouble? results = null)
     {
         var rules = new FormRuleFixture();
@@ -377,8 +384,10 @@ public sealed class FormIssueActionServiceTests
         var issuer = new FakeIssuer();
         var work = new FormActionWorkResponse(Guid.NewGuid(), recordId, "IssueDocument", 1, false, false,
             new FormActionSnapshot(null, null, null, [], IssuerId: "test.issuer"), []);
-        return (new FormIssueActionService([issuer], records, rules, channel is null ? [] : [channel], new Recipients(), new NoCodes(),
-            files ?? new MemoryPrivateFileStore(), results ?? new FormRecordResultReaderDouble()), issuer, work);
+        var requests = new FormIssueRequestPolicy(records, rules, new NoCodes());
+        var messenger = new FormIssueMessageIssuer(records, channel is null ? [] : [channel], new Recipients());
+        return (new Issue(new FormIssueActionService([issuer], requests, messenger),
+            new FormIssueCopyService([issuer], requests, files ?? new MemoryPrivateFileStore(), results ?? new FormRecordResultReaderDouble())), issuer, work);
     }
 
     private static CanonicalFormField Field(Guid id, string key, string type) => new(id, key, type, Names(key), null, false, null, null);

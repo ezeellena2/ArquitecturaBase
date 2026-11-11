@@ -193,9 +193,77 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal((2L, false), (review.ExpectedRevision, review.Proceed));
         var reviewerId = Guid.Parse(reviewer.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
         var record = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormRecord>().AsNoTracking().SingleAsync(item => item.Id == recordId, Ct));
-        Assert.Equal((FormRecordState.Voided, reviewerId, "No se emitió."), (record.State, record.VoidedByUserId, record.VoidReason));
+        Assert.Equal((FormRecordState.Voided, reviewerId, FormActionErrors.NotIssued.Code, (string?)null),
+            (record.State, record.VoidedByUserId, record.VoidReasonCode, record.VoidReason));
         Assert.Equal((FormActionRunState.Failed, FormActionErrors.NotIssued.Code), ((await RunAsync(runId)).State, (await RunAsync(runId)).FailureCode));
         Assert.Single(issuer.Requests);
+        // The reason is a code, read in the language of whoever reads the detail.
+        Assert.Equal("No se emitió.", await VoidReasonAsync(deciding, recordId, "es"));
+        Assert.Equal("It was not issued.", await VoidReasonAsync(deciding, recordId, "en"));
+    }
+
+    private static async Task<string?> VoidReasonAsync(HttpClient client, Guid recordId, string culture)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"/api/forms/records/{recordId}");
+        request.Headers.AcceptLanguage.ParseAdd(culture);
+        using var detail = await client.SendAsync(request, Ct);
+        Assert.Equal(HttpStatusCode.OK, detail.StatusCode);
+        return (await detail.ReadJsonAsync()).GetProperty("void").GetProperty("reason").GetString();
+    }
+
+    // Only the author decides, with the permissions they have now: someone else's issuance does not exist for whoever only reads
+    // their own (404) and is forbidden for whoever reads responses (403); nothing is decided either way.
+    [Fact]
+    public async Task Confirming_someone_else_s_issuance_is_missing_for_whoever_only_reads_their_own_and_forbidden_for_a_reader()
+    {
+        using var author = await OperatorAsync([BusinessFormsPermissions.RecordsCreate]);
+        using var loader = await OperatorAsync([BusinessFormsPermissions.RecordsCreate]);
+        using var reader = await OperatorAsync([BusinessFormsPermissions.RecordsCreate, BusinessFormsPermissions.RecordsRead]);
+        var issuer = new TestRecordIssuer();
+        await using var host = IssuerHost(issuer);
+        using var loading = InHost(host, loader);
+        using var reading = InHost(host, reader);
+        var (recordId, runId) = await SeedIssueRunAsync(author, enteredInApp: false);
+        await host.Services.GetRequiredService<FormActionBackgroundService>().ProcessNextAsync(runId, Ct);
+        var confirmation = $"/api/forms/records/{recordId}/actions/{runId}/confirmation";
+
+        using var missing = await loading.PostAsJsonAsync(confirmation, new { issue = false }, Ct);
+        using var forbidden = await reading.PostAsJsonAsync(confirmation, new { issue = false }, Ct);
+
+        Assert.Equal((HttpStatusCode.NotFound, HttpStatusCode.Forbidden), (missing.StatusCode, forbidden.StatusCode));
+        Assert.Equal((FormRecordState.Received, FormActionRunState.Uncertain), (await RecordStateAsync(recordId), (await RunAsync(runId)).State));
+    }
+
+    // Voided in the app while «¿La emito?» waits: its reversal voids the response and releases the issuance, which ends «No aplica»;
+    // the question is no longer shown and «No emitir» no longer applies.
+    [Fact]
+    public async Task Voiding_in_the_app_a_response_waiting_for_its_author_hides_the_question_and_its_issuance_ends_not_applicable()
+    {
+        using var author = await OperatorAsync([BusinessFormsPermissions.RecordsCreate]);
+        using var manager = await OperatorAsync([BusinessFormsPermissions.RecordsRead, BusinessFormsPermissions.RecordsAmend, BusinessFormsPermissions.ApprovalsDecide]);
+        var issuer = new TestRecordIssuer();
+        await using var host = IssuerHost(issuer);
+        using var loading = InHost(host, author);
+        using var managing = InHost(host, manager);
+        var worker = host.Services.GetRequiredService<FormActionBackgroundService>();
+        var (recordId, runId) = await SeedIssueRunAsync(author, enteredInApp: false);
+        await worker.ProcessNextAsync(runId, Ct);
+        var definitionId = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormRecord>().Where(record => record.Id == recordId)
+            .Select(record => record.DefinitionId).SingleAsync(Ct));
+
+        using var voided = await managing.PostAsJsonAsync($"/api/forms/definitions/{definitionId}/records/{recordId}/void", new { reason = "Se cargó mal" }, Ct);
+        Assert.True(voided.IsSuccessStatusCode, voided.StatusCode.ToString());
+        var reversalId = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormActionRun>().Where(run => run.RecordId == recordId && run.Event == "Voided")
+            .Select(run => run.Id).SingleAsync(Ct));
+        await worker.ProcessNextAsync(reversalId, Ct);
+        await worker.ProcessNextAsync(runId, Ct);
+
+        Assert.Equal((FormRecordState.Voided, FormActionRunState.NotApplicable), (await RecordStateAsync(recordId), (await RunAsync(runId)).State));
+        using var workflow = await loading.GetAsync($"/api/forms/records/{recordId}/workflow", Ct);
+        Assert.False((await workflow.ReadJsonAsync()).TryGetProperty("confirmation", out _));
+        using var skipped = await loading.PostAsJsonAsync($"/api/forms/records/{recordId}/actions/{runId}/confirmation", new { issue = false }, Ct);
+        Assert.Equal(HttpStatusCode.Conflict, skipped.StatusCode);
+        Assert.Empty(issuer.Requests);
     }
 
     [Fact]
@@ -369,7 +437,7 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal(StructuredRecordActionReplyState.Applied, (await ReplyAsync(host, skippedRun, authorId, "skip")).State);
         await worker.ProcessNextAsync(skippedRun, Ct);
         var voided = await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormRecord>().AsNoTracking().SingleAsync(item => item.Id == skippedId, Ct));
-        Assert.Equal((FormRecordState.Voided, "No se emitió.", FormActionRunState.NotApplicable), (voided.State, voided.VoidReason, (await RunAsync(skippedRun)).State));
+        Assert.Equal((FormRecordState.Voided, FormActionErrors.NotIssued.Code, FormActionRunState.NotApplicable), (voided.State, voided.VoidReasonCode, (await RunAsync(skippedRun)).State));
         Assert.Single(issuer.Requests);
     }
 

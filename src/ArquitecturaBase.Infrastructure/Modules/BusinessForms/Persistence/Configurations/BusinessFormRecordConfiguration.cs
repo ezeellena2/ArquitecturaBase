@@ -11,7 +11,8 @@ internal sealed class BusinessFormRecordConfiguration : IEntityTypeConfiguration
         builder.ToTable("BusinessFormRecords", table =>
         {
             table.HasCheckConstraint("CK_BusinessFormRecords_Correction", "(\"ReplacesRecordId\" IS NULL) = (\"OriginalReceiptId\" IS NULL) AND (\"ReplacesRecordId\" IS NULL) = (\"CorrectedByUserId\" IS NULL) AND (\"ReplacesRecordId\" IS NULL) = (\"CorrectionReason\" IS NULL)");
-            table.HasCheckConstraint("CK_BusinessFormRecords_Void", "(\"State\" = 'Voided') = (\"VoidedByUserId\" IS NOT NULL) AND (\"VoidedByUserId\" IS NULL) = (\"VoidedAtUtc\" IS NULL) AND (\"VoidedByUserId\" IS NULL) = (\"VoidReason\" IS NULL)");
+            // A voided response says why with a text or, when the system decided it, with the code of its reason: one of the two.
+            table.HasCheckConstraint("CK_BusinessFormRecords_Void", "(\"State\" = 'Voided') = (\"VoidedByUserId\" IS NOT NULL) AND (\"VoidedByUserId\" IS NULL) = (\"VoidedAtUtc\" IS NULL) AND (\"VoidedByUserId\" IS NULL) = (\"VoidReason\" IS NULL AND \"VoidReasonCode\" IS NULL) AND (\"VoidReason\" IS NULL OR \"VoidReasonCode\" IS NULL)");
         });
         builder.HasKey(value => value.Id);
         builder.HasAlternateKey(value => new { value.DefinitionId, value.Id });
@@ -30,6 +31,7 @@ internal sealed class BusinessFormRecordConfiguration : IEntityTypeConfiguration
         builder.HasOne<BusinessFormRecord>().WithMany().HasForeignKey(value => value.ReplacedByRecordId).OnDelete(DeleteBehavior.Restrict);
         builder.Property(value => value.CorrectionReason).HasMaxLength(BusinessFormRecord.MaxReasonLength);
         builder.Property(value => value.VoidReason).HasMaxLength(BusinessFormRecord.MaxReasonLength);
+        builder.Property(value => value.VoidReasonCode).HasMaxLength(BusinessFormRecord.MaxReasonCodeLength);
         builder.HasIndex(value => value.SourceReceiptId).IsUnique();
         builder.Property(value => value.ValuesJson).HasColumnType("jsonb");
         builder.Property(value => value.CaptureOriginJson).HasColumnType("jsonb");

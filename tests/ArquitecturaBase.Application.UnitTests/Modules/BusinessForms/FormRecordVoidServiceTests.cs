@@ -192,7 +192,8 @@ public sealed class FormRecordVoidServiceTests
             Current.UserId = Actor;
             Permissions.Permissions[Actor] = permissions ?? [BusinessFormsPermissions.RecordsCreate];
             Service = new(new(Current, Permissions, Users), Repository, UnitOfWork,
-                RequestValidators.For(new VoidFormRecordRequestValidator()), new FakeTimeProvider(Now), NullLogger<FormRecordVoidService>.Instance, Runs, [Issuer]);
+                RequestValidators.For(new VoidFormRecordRequestValidator()), new FakeTimeProvider(Now), NullLogger<FormRecordVoidService>.Instance,
+                new FormIssueReversalRecorder(Runs, [Issuer], new(Current, Permissions, Users)), new FormRecordVoidRecorder(Runs));
         }
 
         public BusinessFormRecord Record(Guid author, bool pending)
@@ -208,7 +209,9 @@ public sealed class FormRecordVoidServiceTests
         {
             var task = BusinessFormTask.Open(record.DefinitionId, record.Id, Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), record.ActorUserId,
                 new DateTime(2026, 11, 5, 10, 43, 0, DateTimeKind.Utc));
+            // The records and the runs share the database: the one way to void closes the task through the runs.
             Repository.Tasks.Add(task);
+            Runs.Tasks.Add(task);
             return task;
         }
     }

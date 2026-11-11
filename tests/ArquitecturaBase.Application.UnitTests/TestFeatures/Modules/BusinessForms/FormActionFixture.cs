@@ -46,13 +46,14 @@ internal sealed class MemoryFormActionRuns:IFormActionRunRepository,IFormActionR
 {
     public Task<FormIssueConfirmationResponse?> FindIssueConfirmationAsync(Guid recordId,Guid actorUserId,CancellationToken cancellationToken)=>
         Task.FromResult<FormIssueConfirmationResponse?>(Runs.FirstOrDefault(run=>run.RecordId==recordId&&run.Kind=="IssueDocument"&&run.State==FormActionRunState.Uncertain
-            &&run.FailureCode==FormActionErrors.AwaitingConfirmation.Code&&Records.Any(record=>record.Id==recordId&&record.ActorUserId==actorUserId)) is {} run
+            &&run.FailureCode==FormActionErrors.AwaitingConfirmation.Code&&Records.Any(record=>record.Id==recordId&&record.ActorUserId==actorUserId&&record.CanBeAmended)) is {} run
             ?new(run.Id,null,null,null):null);
     public List<BusinessFormActionRun> Runs { get; }=[];public List<BusinessFormTask> Tasks { get; }=[];public List<BusinessFormRecord> Records { get; }=[];
     public Action? BeforeWorkflowReturn { get; set; }
     public Task<BusinessFormRecord?> GetRecordAsync(Guid id,CancellationToken ct)=>Task.FromResult(Records.SingleOrDefault(record=>record.Id==id));
     public Task<BusinessFormActionRun?> GetAsync(Guid id,CancellationToken ct)=>Task.FromResult(Runs.SingleOrDefault(run=>run.Id==id));
     public Task<IReadOnlyList<BusinessFormActionRun>> ListForEventAsync(Guid recordId,string eventName,CancellationToken ct)=>Task.FromResult<IReadOnlyList<BusinessFormActionRun>>(Runs.Where(run=>run.RecordId==recordId&&run.Event==eventName).ToArray());
+    public Task<IReadOnlyList<BusinessFormActionRun>> ListLiveIssuancesAsync(Guid recordId,CancellationToken ct)=>Task.FromResult<IReadOnlyList<BusinessFormActionRun>>(Runs.Where(run=>run.RecordId==recordId&&run.IsLiveIssuance).ToArray());
     public Task<BusinessFormTask?> GetOpenTaskAsync(Guid id,CancellationToken ct)=>Task.FromResult(Tasks.SingleOrDefault(task=>task.RecordId==id&&task.State==FormTaskState.Open));
     public void Add(BusinessFormActionRun run)=>Runs.Add(run);public void AddTask(BusinessFormTask task)=>Tasks.Add(task);
     public Task<IReadOnlyList<Guid>> ListExistingPdfRunIdsAsync(IReadOnlyList<Guid> ids,CancellationToken ct)=>Task.FromResult<IReadOnlyList<Guid>>(

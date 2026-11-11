@@ -245,6 +245,29 @@ public sealed class BusinessFormActionRunTests
         Assert.True(run.RequestRecipientRetry(Recipient,expected,Now.AddSeconds(2)).IsSuccess);
         Assert.Equal(expires,run.LeaseExpiresAtUtc);Assert.Equal(retry.Fence,run.Fence);Assert.Equal(Recipient,run.RetryRecipientUserId);
     }
+    // One definition of a live issuance, for voiding, correcting and every reader: an issuance issued, being issued, in review
+    // or waiting for whoever loaded it; not its reversal, and not one that failed or did not apply.
+    [Theory]
+    [InlineData("IssueDocument","Received",FormActionRunState.Waiting,true)]
+    [InlineData("IssueDocument","Approved",FormActionRunState.Running,true)]
+    [InlineData("IssueDocument","Received",FormActionRunState.Uncertain,true)]
+    [InlineData("IssueDocument","Received",FormActionRunState.Completed,true)]
+    [InlineData("IssueDocument","Received",FormActionRunState.Failed,false)]
+    [InlineData("IssueDocument","Received",FormActionRunState.NotApplicable,false)]
+    [InlineData("IssueDocument","Voided",FormActionRunState.Running,false)]
+    [InlineData("NotifyAuthor","Received",FormActionRunState.Running,false)]
+    public void A_live_issuance_is_one_of_the_response_that_did_not_fail_nor_skip_and_not_its_reversal(string kind,string eventName,FormActionRunState state,bool live)
+    {
+        var run=BusinessFormActionRun.Create(Guid.NewGuid(),Guid.NewGuid(),Guid.NewGuid(),Guid.NewGuid(),Guid.NewGuid(),eventName,kind,0,null,"{}",true,Now);
+        if(state!=FormActionRunState.Waiting)
+        {
+            var lease=run.Reserve(Now,TimeSpan.FromMinutes(2)).Value;
+            if(state!=FormActionRunState.Running)Assert.True(run.RecordOutcome(lease.Fence,Now,state,null,false).IsSuccess);
+        }
+
+        Assert.Equal(live,BusinessFormActionRun.LiveIssuance.Compile()(run));
+        Assert.Equal(live,run.IsLiveIssuance);
+    }
     private static BusinessFormActionRun Completed(BusinessFormActionRun run)
     {
         var lease=run.Reserve(Now,TimeSpan.FromMinutes(2)).Value;

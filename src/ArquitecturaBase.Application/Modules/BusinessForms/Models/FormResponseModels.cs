@@ -149,7 +149,11 @@ public sealed record FormResponseVoidResponse(DateTime AtUtc, FormAuthorResponse
     public override string ToString() => "FormResponseVoidResponse { Reason = [REDACTED] }";
 }
 public sealed record FormResponseAmendmentRow(FormResponseCorrectionResponse? Correction, FormResponseReplacementResponse? ReplacedBy,
-    FormResponseVoidResponse? Void);
+    FormResponseVoidResponse? Void)
+{
+    /// <summary>The code of the reason of a void the system decided («No se emitió»), read in the language of the request; null otherwise.</summary>
+    public string? VoidReasonCode { get; init; }
+}
 
 public sealed record FormResponseCatalogFieldRow(Guid Id, string Key, IReadOnlyDictionary<string, string> Name, string Type, string Role);
 public sealed record FormResponseCatalogField(Guid FieldId, string Key, string Label, string Type, string Role);

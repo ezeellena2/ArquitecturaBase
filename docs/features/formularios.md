@@ -1059,8 +1059,9 @@ ARCA» ([ADR 0028](../decisions/0028-emision-de-comprobantes-arca.md)); sin emis
   misma decisión repetida es un replay. La decisión vale para la revisión de la emisión que vio el run. Con
   `false` («No emitir»: «La respuesta queda anulada, sin factura.»), el run lleva la decisión al emisor fuera de toda
   transacción y, cuando el emisor confirma que no la emite (`Cancelled`), la transacción que confirma el run anula la
-  respuesta que sigue en pie con el motivo «No se emitió» (en el idioma en que se cargó), en nombre de quien decidió, y cierra
-  su aprobación abierta, como el «No emitir» del «¿La emito?»; el run queda `Failed` con `Forms.Action.NotIssued`. Si el
+  respuesta con el motivo «No se emitió», en nombre de quien decidió, y cierra su aprobación abierta, como el «No emitir» del
+  «¿La emito?»; el run queda `Failed` con `Forms.Action.NotIssued`. El motivo se guarda como ese código
+  (`BusinessFormRecord.VoidReasonCode`, sin texto) y el detalle lo lee en el idioma de quien lo pide. Si el
   emisor no la toma (la revisión cambió), la emisión sigue en revisión y la respuesta no cambia. La revisión de un aviso sin
   `recipientUserId` da 400 en ese campo.
 - **Los datos y el PDF fiscal.** Una opción de catálogo llega al emisor por su código, y un campo capturado que nombra otra
@@ -1082,8 +1083,14 @@ ARCA» ([ADR 0028](../decisions/0028-emision-de-comprobantes-arca.md)); sin emis
   paréntesis después del total (IV3: «por $ 1.210,00 (Importe neto gravado: $ 1.000,00; IVA 21 %: $ 210,00)»), y «¿La emito?», con los botones «Emitir» y «No emitir» (`Choices` del mensaje, por el primer canal que lo alcanza)
   y queda `Uncertain` con `Forms.Action.AwaitingConfirmation`. El flujo trae `confirmation` (el run, el comprobante, el
   receptor, el total, `info`, `date` y `amounts`) sólo para quien la cargó, y `POST api/forms/records/{id}/actions/{runId}/confirmation` con
-  `{"issue": true}` la emite o con `false` anula la respuesta con el motivo «No se emitió», sin ir al emisor. El botón del canal
-  llega por `IStructuredRecordActionReplySink` y decide lo mismo; un botón viejo o ajeno se ignora. Después de «No emitir» el
+  `{"issue": true}` la emite o con `false` anula la respuesta con el motivo «No se emitió» (guardado como el código
+  `Forms.Action.NotIssued`, que el detalle lee en el idioma de quien lo pide), sin ir al emisor. El botón del canal llega por
+  `IStructuredRecordActionReplySink` y decide lo mismo; un botón viejo o ajeno se ignora. Decide sólo quien la cargó, con los
+  permisos que tiene ahora, revalidados bajo el lock también desde el botón (los de `FormRecordAmendmentGuard`: «Completar
+  formularios», o «Corregir y anular respuestas» con «Ver respuestas», y una cuenta activa): sin ellos el botón se ignora y la
+  ruta da 403, y la respuesta de otra persona da 404 a quien sólo ve lo suyo y 403 a quien ve respuestas. Una respuesta que ya
+  no está en pie (anulada en la app mientras esperaba) no trae `confirmation`, la decisión da 409 y su emisión termina «No
+  aplica»: la anulación la suelta. Después de «No emitir» el
   dueño le devuelve al canal lo que contesta, una sola vez y en el idioma de quien la cargó: «No la emitimos. FAC-000012 quedó
   anulada.», con el prefijo y el número de la respuesta; después de «Emitir» no se contesta nada en el acto, porque el aviso con
   el PDF lo manda «Avisar a quien cargó». **Si la vista previa falla** (decisión 4: un cliente nuevo que el padrón no tiene o
@@ -1107,14 +1114,20 @@ ARCA» ([ADR 0028](../decisions/0028-emision-de-comprobantes-arca.md)); sin emis
   también mientras se carga, para el total discriminado (IV1-A), y nunca le saca cupo a «Enviar». Si el emisor consulta un
   padrón (el cliente escrito por su CUIT), lo limita y lo guarda en caché el módulo que lo aporta. Un
   formulario que no emite da `Forms.Entry.NoIssuance` (404).
-- **Corregir y anular (NC1-A).** Una respuesta con una emisión viva (emitida, en curso o en revisión) no se corrige:
+- **Corregir y anular (NC1-A).** Una respuesta con una emisión viva (emitida, en curso, en revisión o esperando la confirmación de
+  quien cargó: una sola definición, `BusinessFormActionRun.LiveIssuance`, que usan la anulación, la corrección y los lectores) no se corrige:
   `Forms.Record.IssuedNotAmendable`, se anula y se carga otra. Anularla pide además el permiso del emisor y no la anula en el
   acto: cada emisión recibe un run de reversión (evento `Voided`) que el worker lleva fuera de toda transacción. Lo que nunca se
   emitió se cancela, si todavía se puede, y la respuesta queda anulada; lo emitido se revierte por el total (la nota de crédito)
   y la respuesta queda anulada, con el motivo y la persona de la anulación, cuando la reversión se emite. Una emisión con número
   todavía sin resolver hace esperar a la reversión. Si el emisor rechaza la reversión, la respuesta sigue vigente y se puede
   volver a anular, con otra clave. Mientras dura, la actividad muestra la reversión («Anulándose») y anular otra vez da
-  `Forms.Record.Voiding`.
+  `Forms.Record.Voiding`. Toda anulación (la de la app, la de «No emitir», la de una revisión que no emite y la de una reversión
+  que termina) pasa por una sola pieza, `FormRecordVoidRecorder`, en la transacción de quien anula: deja la respuesta anulada con
+  su motivo (un texto, o el código de un motivo que decide el sistema), cierra su aprobación abierta y suelta las emisiones que
+  esperaban la confirmación de quien cargó, que terminan «No aplica». Una respuesta ya anulada conserva su primera anulación:
+  anularla otra vez no cambia nada ni falla, así la reversión que termina después de un «No emitir» se completa en lugar de
+  quedar reintentándose.
 
 ## Catálogos que mantiene un módulo — External, 2026-11-11
 

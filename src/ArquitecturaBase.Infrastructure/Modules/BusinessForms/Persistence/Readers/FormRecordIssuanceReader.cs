@@ -8,6 +8,5 @@ namespace ArquitecturaBase.Infrastructure.Modules.BusinessForms.Persistence.Read
 internal sealed class FormRecordIssuanceReader(ApplicationDbContext dbContext) : IFormRecordIssuanceReader
 {
     public Task<bool> ExistsLiveAsync(Guid recordId, CancellationToken cancellationToken) =>
-        dbContext.Set<BusinessFormActionRun>().AsNoTracking().AnyAsync(run => run.RecordId == recordId && run.Kind == "IssueDocument"
-            && run.Event != "Voided" && run.State != FormActionRunState.Failed && run.State != FormActionRunState.NotApplicable, cancellationToken);
+        dbContext.Set<BusinessFormActionRun>().AsNoTracking().Where(run => run.RecordId == recordId).AnyAsync(BusinessFormActionRun.LiveIssuance, cancellationToken);
 }

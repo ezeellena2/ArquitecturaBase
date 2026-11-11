@@ -134,6 +134,23 @@ public sealed class BusinessFormRecordAmendmentTests
         Assert.Equal(FormRecordErrors.ReasonInvalid, Original().Correct(Guid.NewGuid(), Guid.NewGuid(), "[]", null, null, Guid.NewGuid(), "a" + (char)0).Error);
     }
 
+    // A void the system decides («No se emitió») keeps the stable code of its reason, translated when read, and no text; it is
+    // still a void, once, of a response that stands.
+    [Fact]
+    public void A_void_the_system_decides_keeps_the_code_of_its_reason_and_no_text()
+    {
+        var record = Original();
+        var actor = Guid.NewGuid();
+
+        Assert.True(record.VoidFor(actor, "Forms.Action.NotIssued", Now).IsSuccess);
+
+        Assert.Equal((FormRecordState.Voided, actor, Now), (record.State, record.VoidedByUserId, record.VoidedAtUtc));
+        Assert.Equal(("Forms.Action.NotIssued", (string?)null), (record.VoidReasonCode, record.VoidReason));
+        Assert.Equal(FormRecordErrors.AmendUnavailable, record.VoidFor(actor, "Forms.Action.NotIssued", Now).Error);
+        Assert.Null(Original().VoidReasonCode);
+        Assert.Throws<ArgumentException>(() => Original().VoidFor(actor, " ", Now));
+    }
+
     private static BusinessFormRecord Original(bool enteredInApp = false) =>
         BusinessFormRecord.Create(Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(), Received, "[]", enteredInApp: enteredInApp);
 }

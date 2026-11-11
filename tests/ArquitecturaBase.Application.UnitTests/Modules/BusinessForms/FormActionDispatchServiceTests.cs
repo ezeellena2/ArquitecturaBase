@@ -339,7 +339,7 @@ public sealed class FormActionDispatchServiceTests
         var cancelled = new FormActionOutcomeResponse(FormActionRunState.Failed, FormActionErrors.NotIssued.Code, Issue: new(StructuredIssueState.Cancelled));
         Assert.True((await service.CompleteAsync((await service.ReserveAsync(run.Id, CancellationToken.None)).Value!, cancelled, CancellationToken.None)).IsSuccess);
 
-        Assert.Equal((FormRecordState.Voided, reviewer, "It was not issued."), (record.State, record.VoidedByUserId, record.VoidReason));
+        Assert.Equal((FormRecordState.Voided, reviewer, FormActionErrors.NotIssued.Code), (record.State, record.VoidedByUserId, record.VoidReasonCode));
         Assert.Equal((FormActionRunState.Failed, FormActionErrors.NotIssued.Code), (run.State, run.FailureCode));
         Assert.Equal(FormTaskState.Closed, Assert.Single(fixture.Runs.Tasks).State);
 
@@ -352,11 +352,41 @@ public sealed class FormActionDispatchServiceTests
         Assert.Equal(FormRecordState.Received, standing.State);
     }
 
+    // A response voided twice: the app voided it while «¿La emito?» waited (a reversal of that issuance) and its author tapped «No
+    // emitir» first. The reversal that ends after it completes instead of failing and being retried forever, keeps the first void
+    // and releases the issuance that waited for the author, which then ends «No aplica».
+    [Fact]
+    public async Task A_reversal_that_ends_on_a_response_already_voided_completes_and_releases_the_issuance_waiting_for_its_author()
+    {
+        var fixture = new FormActionFixture();
+        var service = Dispatch(fixture);
+        var issue = FormActionFixture.Action("IssueDocument") with { IssuerId = "test.issuer" };
+        var (record, snapshot) = fixture.Capture([new FormRule(Guid.NewGuid(), "Received", [], [issue])]);
+        await fixture.Recorder.RecordAsync(record, snapshot, "Received", CancellationToken.None);
+        var issued = Assert.Single(fixture.Runs.Runs);
+        var now = fixture.Clock.GetUtcNow().UtcDateTime;
+        var waiting = new FormActionOutcomeResponse(FormActionRunState.Uncertain, FormActionErrors.AwaitingConfirmation.Code, IssuePreview: new(null, "Juana Pérez", "3101.5"));
+        Assert.True((await service.CompleteAsync((await service.ReserveAsync(issued.Id, CancellationToken.None)).Value!, waiting, CancellationToken.None)).IsSuccess);
+        var reversal = BusinessFormActionRun.Create(record.DefinitionId, record.Id, record.RuleSetId!.Value, issued.RuleId, Guid.NewGuid(), "Voided",
+            "IssueDocument", 0, null, "", true, now);
+        reversal.SealSnapshot(FormDraftPolicy.Serialize(new FormActionSnapshot(null, null, null, [], null, "test.issuer", issued.Id, "Se cargó mal", Guid.NewGuid())));
+        fixture.Runs.Add(reversal);
+        Assert.True(record.VoidFor(record.ActorUserId, FormActionErrors.NotIssued.Code, now).IsSuccess);
+
+        var completed = await service.CompleteAsync((await service.ReserveAsync(reversal.Id, CancellationToken.None)).Value!,
+            new(FormActionRunState.NotApplicable), CancellationToken.None);
+
+        Assert.True(completed.IsSuccess);
+        Assert.Equal(FormActionRunState.NotApplicable, reversal.State);
+        Assert.Equal((record.ActorUserId, FormActionErrors.NotIssued.Code), (record.VoidedByUserId!.Value, record.VoidReasonCode));
+        Assert.Equal(FormActionRunState.Running, issued.State);
+    }
+
     private static FormActionDispatchService Dispatch(FormActionFixture fixture, FakeUnitOfWork? boundary = null,
         MemoryFormDocumentRepository? documents = null, MemoryStoredFileRepository? files = null, FakeEmailQueue? emails = null) =>
         new(fixture.Runs, fixture.Runs, fixture.Rules, fixture.Rules, boundary ?? fixture.Rules.UnitOfWork,
             new FormActionOutcomeRecorder(new FormPdfDocumentRecorder(documents ?? new(), files ?? new()), new FormRecordResultRecorder(new IgnoredResults(), fixture.Clock), fixture.Runs,
-                new FormIssuedCatalogItemRecorder(null!, null!, null!, null!, null!), emails ?? new FakeEmailQueue()),
+                new FormIssuedCatalogItemRecorder(null!, null!, null!, null!, null!), emails ?? new FakeEmailQueue(), new FormRecordVoidRecorder(fixture.Runs)),
             fixture.Clock, NullLogger<FormActionDispatchService>.Instance);
 
     private sealed class IgnoredResults : IFormRecordResultRepository

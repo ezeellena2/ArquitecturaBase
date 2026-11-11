@@ -47,14 +47,21 @@ public static class BusinessFormsApplicationRegistration
         services.TryAddScoped<FormActionOutcomeRecorder>();
         services.TryAddScoped<FormIssuedCatalogItemRecorder>();
         services.TryAddScoped<FormCatalogPartyValuesPolicy>();
+        services.TryAddScoped<FormIssueRequestPolicy>();
+        services.TryAddScoped<FormIssueMessageIssuer>();
         services.TryAddScoped<IFormIssueActionService, FormIssueActionService>();
+        services.TryAddScoped<IFormIssueCopyService, FormIssueCopyService>();
+        services.TryAddScoped<FormRecordVoidRecorder>();
+        services.TryAddScoped<FormIssueReversalRecorder>();
+        services.TryAddScoped<FormIssueDecisionRecorder>();
         services.TryAddScoped<IFormCatalogFeedService, FormCatalogFeedService>();
         services.TryAddScoped<IFormIssueConfirmationService, FormIssueConfirmationService>();
         services.TryAddScoped<FormIssueEntryPolicy>();
         services.TryAddScoped<FormIssuePreviewPolicy>();
         services.TryAddScoped<IFormIssuePreviewService, FormIssuePreviewService>();
         services.TryAddScoped<IFormCatalogLookupService, FormCatalogLookupService>();
-        services.TryAddEnumerable(ServiceDescriptor.Scoped<IStructuredRecordActionReplySink, Channels.BusinessFormIssueReplySink>());
+        // The service decides in its own transaction: the channel hands the button over outside any of its own.
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IStructuredRecordActionReplySink, FormIssueConfirmationService>());
         services.TryAddScoped<FormConditionChoicePolicy>();
         services.TryAddScoped<FormSuggestionCandidatePolicy>();
         services.TryAddScoped<FormSuggestionRuntimePolicy>();

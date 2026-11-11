@@ -26,6 +26,12 @@ internal sealed class FormRecordAmendmentGuard(ICurrentUser currentUser, IPermis
         currentUser.UserId is { } actor ? await AccessAsync(actor, cancellationToken) : null;
 
     /// <summary>
+    /// How a named person could change responses now, if at all: for a decision that arrives from a channel, with no current user,
+    /// and to revalidate under the lock the person of a request.
+    /// </summary>
+    public Task<FormRecordAmendAccess?> FindAsync(Guid actor, CancellationToken cancellationToken) => AccessAsync(actor, cancellationToken);
+
+    /// <summary>
     /// Whether this person changes this response now. Any current response with the permission; their own only while nobody
     /// decided it. A replaced or voided one conflicts; someone else's is forbidden, or missing for whoever only reads their own.
     /// </summary>

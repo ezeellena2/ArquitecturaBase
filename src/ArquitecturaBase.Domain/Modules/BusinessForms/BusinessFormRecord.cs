@@ -12,6 +12,7 @@ public enum FormRecordState { Received, PendingApproval, Approved, Rejected, Voi
 public sealed class BusinessFormRecord : Entity, IAuditable
 {
     public const int MaxReasonLength = 500;
+    public const int MaxReasonCodeLength = 128;
     private BusinessFormRecord() { }
     public Guid DefinitionId { get; private set; }
     public Guid VersionId { get; private set; }
@@ -39,6 +40,8 @@ public sealed class BusinessFormRecord : Entity, IAuditable
     public Guid? VoidedByUserId { get; private set; }
     public DateTime? VoidedAtUtc { get; private set; }
     public string? VoidReason { get; private set; }
+    /// <summary>The stable code of the reason of a void the system decided («No se emitió»), translated when read; null otherwise.</summary>
+    public string? VoidReasonCode { get; private set; }
     public DateTime CreatedAtUtc { get; private set; }
     public Guid? CreatedBy { get; private set; }
     public DateTime? ModifiedAtUtc { get; private set; }
@@ -120,6 +123,24 @@ public sealed class BusinessFormRecord : Entity, IAuditable
         VoidedByUserId = actorUserId;
         VoidedAtUtc = nowUtc;
         VoidReason = normalized.Value;
+        return Result.Success();
+    }
+
+    /// <summary>
+    /// A void the system decides on behalf of a person (not issuing an issuance): the stable code of its reason instead of a text,
+    /// so it reads in the language of whoever reads it.
+    /// </summary>
+    public Result VoidFor(Guid actorUserId, string reasonCode, DateTime nowUtc)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(reasonCode);
+        if (reasonCode.Length > MaxReasonCodeLength) throw new ArgumentException("The reason code is too long.", nameof(reasonCode));
+        if (!CanBeAmended) return FormRecordErrors.AmendUnavailable;
+        ArgumentOutOfRangeException.ThrowIfEqual(actorUserId, Guid.Empty);
+        if (nowUtc.Kind != DateTimeKind.Utc) throw new ArgumentException("The void time must be UTC.", nameof(nowUtc));
+        State = FormRecordState.Voided;
+        VoidedByUserId = actorUserId;
+        VoidedAtUtc = nowUtc;
+        VoidReasonCode = reasonCode;
         return Result.Success();
     }
 

@@ -14,7 +14,7 @@ internal sealed partial class FormResponseReader
                 record.ReplacedByRecordId,
                 ReplacedAtUtc = dbContext.Set<BusinessFormRecord>().Where(correction => correction.Id == record.ReplacedByRecordId)
                     .Select(correction => (DateTime?)correction.CreatedAtUtc).FirstOrDefault(),
-                record.VoidedByUserId, record.VoidedAtUtc, record.VoidReason,
+                record.VoidedByUserId, record.VoidedAtUtc, record.VoidReason, record.VoidReasonCode,
                 VoidedByName = dbContext.Users.Where(user => user.Id == record.VoidedByUserId).Select(user => user.DisplayName).FirstOrDefault(),
             }).SingleAsync(cancellationToken);
         FormResponseCorrectionResponse? correction = null;
@@ -39,6 +39,7 @@ internal sealed partial class FormResponseReader
         }
         return new(correction,
             row.ReplacedByRecordId is { } replacedBy ? new(replacedBy, row.ReplacedAtUtc!.Value) : null,
-            row.VoidedByUserId is { } voidedBy ? new(row.VoidedAtUtc!.Value, new(voidedBy, row.VoidedByName), row.VoidReason!) : null);
+            row.VoidedByUserId is { } voidedBy ? new(row.VoidedAtUtc!.Value, new(voidedBy, row.VoidedByName), row.VoidReason ?? "") : null)
+            { VoidReasonCode = row.VoidReasonCode };
     }
 }

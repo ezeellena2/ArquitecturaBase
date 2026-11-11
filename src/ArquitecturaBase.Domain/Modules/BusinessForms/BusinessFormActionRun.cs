@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using ArquitecturaBase.Domain.Common;
 using ArquitecturaBase.Domain.Results;
 namespace ArquitecturaBase.Domain.Modules.BusinessForms;
@@ -111,5 +112,14 @@ public sealed class BusinessFormActionRun : Entity, IAuditable
         State=FormActionRunState.Running;LeaseExpiresAtUtc=null;
         RetryRequested=false;RetryRecipientUserId=null;NextCheckAtUtc=null;UpdatedAtUtc=nowUtc;return Result.Success();
     }
+    /// <summary>
+    /// A live issuance of its response, the one definition for voiding, correcting and every reader: issued, being issued, in
+    /// review or waiting for whoever loaded it; neither its reversal (event «Voided») nor one that failed or did not apply. An
+    /// expression, so a query can use it.
+    /// </summary>
+    public static Expression<Func<BusinessFormActionRun,bool>> LiveIssuance { get; } = run => run.Kind=="IssueDocument" && run.Event!="Voided"
+        && run.State!=FormActionRunState.Failed && run.State!=FormActionRunState.NotApplicable;
+    private static readonly Func<BusinessFormActionRun,bool> IsLive=LiveIssuance.Compile();
+    public bool IsLiveIssuance=>IsLive(this);
     public override string ToString()=>$"BusinessFormActionRun {{ Id = {Id}, State = {State}, Content = [REDACTED] }}";
 }

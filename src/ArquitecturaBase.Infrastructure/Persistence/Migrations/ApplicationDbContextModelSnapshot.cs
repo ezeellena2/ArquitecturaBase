@@ -2553,6 +2553,10 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
+                    b.Property<string>("VoidReasonCode")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
                     b.Property<DateTime?>("VoidedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -2591,7 +2595,7 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         {
                             t.HasCheckConstraint("CK_BusinessFormRecords_Correction", "(\"ReplacesRecordId\" IS NULL) = (\"OriginalReceiptId\" IS NULL) AND (\"ReplacesRecordId\" IS NULL) = (\"CorrectedByUserId\" IS NULL) AND (\"ReplacesRecordId\" IS NULL) = (\"CorrectionReason\" IS NULL)");
 
-                            t.HasCheckConstraint("CK_BusinessFormRecords_Void", "(\"State\" = 'Voided') = (\"VoidedByUserId\" IS NOT NULL) AND (\"VoidedByUserId\" IS NULL) = (\"VoidedAtUtc\" IS NULL) AND (\"VoidedByUserId\" IS NULL) = (\"VoidReason\" IS NULL)");
+                            t.HasCheckConstraint("CK_BusinessFormRecords_Void", "(\"State\" = 'Voided') = (\"VoidedByUserId\" IS NOT NULL) AND (\"VoidedByUserId\" IS NULL) = (\"VoidedAtUtc\" IS NULL) AND (\"VoidedByUserId\" IS NULL) = (\"VoidReason\" IS NULL AND \"VoidReasonCode\" IS NULL) AND (\"VoidReason\" IS NULL OR \"VoidReasonCode\" IS NULL)");
                         });
                 });
 
