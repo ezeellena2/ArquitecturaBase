@@ -84,6 +84,45 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Empty(offered.Item2);
     }
 
+    // SA4-A: a form that another one suggests and that moves to the app is no longer offered by WhatsApp. The suggestion stays,
+    // unavailable with its own state, until it is removed; its options go intact to forms-http/app-only for the front.
+    [Fact]
+    public async Task A_suggestion_to_a_form_that_moved_to_the_app_stays_unavailable_with_its_state()
+    {
+        using var author = await OperatorAsync([BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage, BusinessFormsPermissions.Publish]);
+        await using var host = PublicationHost();
+        using var client = host.CreateClient();
+        client.DefaultRequestHeaders.Add(TestAuthHandler.UserIdHeader, author.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader));
+        client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("es");
+        var name = "Moved to the app " + Guid.NewGuid().ToString("N")[..8];
+        var target = await PublishSuggestionFormAsync(host, client, name + " destino");
+        var source = await PublishSuggestionFormAsync(host, client, name + " origen");
+        using var manager = await OperatorAsync([BusinessFormsPermissions.SuggestionsManage]);
+        manager.DefaultRequestHeaders.AcceptLanguage.ParseAdd("es");
+        var field = target.Saved.GetProperty("definition").GetProperty("draft").GetProperty("fields")[0].GetProperty("fieldId").GetGuid();
+        await SaveDeactivationSuggestionsAsync(manager, source.Id, 0, DeactivationSuggestion(target.Id, field));
+
+        var moved = EditPayload(target.Saved); moved["draft"]!["appOnly"] = true;
+        using var saved = await client.PutAsJsonAsync($"/api/forms/definitions/{target.Id}/draft", moved, Ct);
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+        var current = await saved.ReadJsonAsync();
+        using var check = await client.PostAsJsonAsync($"/api/forms/definitions/{target.Id}/publication-checks", CheckPayload(current), Ct);
+        var checkedResult = await check.ReadJsonAsync();
+        Assert.True(checkedResult.GetProperty("canAccept").GetBoolean());
+        var attempt = CheckPayload(current); attempt["requestId"] = Guid.NewGuid().ToString();
+        attempt["checkToken"] = checkedResult.GetProperty("checkToken").GetString();
+        using var accepted = await client.PostAsJsonAsync($"/api/forms/definitions/{target.Id}/publications", attempt, Ct);
+        Assert.Equal("Published", (await accepted.ReadJsonAsync()).GetProperty("state").GetString());
+
+        using var options = await manager.GetAsync($"/api/forms/definitions/{source.Id}/suggestions/options", Ct);
+        var body = await CaptureContractAsync(options, HttpStatusCode.OK, "app-only", "suggestion-options-es");
+        Assert.DoesNotContain(body.GetProperty("destinations").EnumerateArray(), row => row.GetProperty("definitionId").GetGuid() == target.Id);
+        var unavailable = Assert.Single(body.GetProperty("unavailableDestinations").EnumerateArray());
+        Assert.Equal(target.Id, unavailable.GetProperty("definitionId").GetGuid());
+        Assert.Equal("AppOnly", unavailable.GetProperty("state").GetString());
+        Assert.Equal(name + " destino", unavailable.GetProperty("name").GetProperty("es").GetString());
+    }
+
     [Fact]
     public async Task A_form_completed_also_by_a_channel_keeps_every_response_as_it_was()
     {

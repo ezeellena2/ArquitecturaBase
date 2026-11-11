@@ -1235,7 +1235,8 @@ Están el backend (2026-11-09) y el front (2026-11-11); los ejemplos HTTP de un 
   la app. Los idiomas de una versión de la app salen de los que selló. `canPreview` exige una versión de un canal.
 - **Los canales no la ofrecen.** `FormOfferableVersionQuery.ChannelVersions` deja afuera las versiones de la app en «Enviar
   formulario», el asistente (candidatos, prellenado y aclaración) y los destinos de una sugerencia; un destino que pasó a la
-  app figura en las opciones como no disponible (`AppOnly`). La carga desde la app no cambia. Un pedido por WhatsApp de un
+  app figura en las opciones como no disponible (`AppOnly`): «Qué sugerir después» lo muestra «Sólo en la app» y, como uno dado
+  de baja, pide quitar la sugerencia para guardar. La carga desde la app no cambia. Un pedido por WhatsApp de un
   formulario de la app va a «Formularios que faltan».
 - **El front** sabe que hay un canal por `form-channels` en `installedFeatures`.
 
