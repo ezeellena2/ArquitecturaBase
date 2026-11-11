@@ -22,5 +22,6 @@ internal static class ArcaInvoiceStandard
     /// the options «Exento» and «No gravado» that the «Alícuotas de IVA» catalog adds to the ARCA table.
     /// </summary>
     public const string Exempt = "exempt", NotTaxed = "not-taxed";
-    public const string TaxIdField = ArcaCustomersCatalog.TaxId, VatConditionField = ArcaCustomersCatalog.VatCondition, AddressField = ArcaCustomersCatalog.Address;
+    public const string TaxIdField = ArcaCustomersCatalog.TaxId, VatConditionField = ArcaCustomersCatalog.VatCondition, AddressField = ArcaCustomersCatalog.Address,
+        LegalNameField = ArcaCustomersCatalog.LegalName;
 }

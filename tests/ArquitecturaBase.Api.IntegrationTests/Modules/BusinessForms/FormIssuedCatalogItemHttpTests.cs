@@ -9,7 +9,8 @@ using Microsoft.Extensions.DependencyInjection;
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.BusinessForms;
 
 // «Emitir» with a customer written by its tax id, with PostgreSQL and the worker run by hand: the party the issuer completed
-// when it queued joins the catalog its standard brings, once, with its fields and a new revision.
+// when it queued joins the catalog its standard brings, once, with its fields and a new revision; a name longer than the text
+// of an option is kept whole in its text field.
 public sealed partial class FormDraftEndpointsTests
 {
     [Fact]
@@ -44,8 +45,35 @@ public sealed partial class FormDraftEndpointsTests
             values.GetProperty(customers.ConditionField.ToString("D")).GetString()));
     }
 
-    // A catalog with the key of a standard, its CUIT and its condition, an option of another catalog, as the «Clientes» of the «Factura».
-    private Task<(Guid CatalogId, Guid TaxIdField, Guid ConditionField, Guid Monotributo)> SeedIssuedCustomersAsync(string key) =>
+    [Fact]
+    public async Task A_long_name_of_an_issued_customer_is_kept_whole_in_its_text_field_though_the_option_text_is_cut()
+    {
+        const string legalName = "Cooperativa Agrícola Ganadera y de Consumo Limitada del Sur de Santa Fe";
+        using var manager = await OperatorAsync([BusinessFormsPermissions.RecordsRead, BusinessFormsPermissions.RulesManage]);
+        var issuer = new TestRecordIssuer();
+        await using var host = IssuerHost(issuer);
+        var key = "test.c" + Guid.NewGuid().ToString("N")[..26];
+        var customers = await SeedIssuedCustomersAsync(key, withLegalName: true);
+        var (_, run) = await SeedIssueRunAsync(manager);
+        issuer.Next = new(StructuredIssueState.Pending)
+        {
+            CatalogItem = new(key, "30500010912", legalName,
+                new Dictionary<string, string> { ["tax_id"] = "30500010912", ["legal_name"] = legalName, ["vat_condition"] = "6" }, "tax_id"),
+        };
+
+        await host.Services.GetRequiredService<FormActionBackgroundService>().ProcessNextAsync(run, Ct);
+
+        var added = Assert.Single(await factory.ExecuteDbContextAsync(db =>
+            db.Set<BusinessFormCatalogItem>().AsNoTracking().Where(item => item.CatalogId == customers.CatalogId).ToListAsync(Ct)));
+        Assert.Equal((legalName[..BusinessFormCatalogItem.MaxTextLength].TrimEnd(), legalName), (added.TextEs, added.DetailEs));
+        var values = JsonDocument.Parse(added.FieldValuesJson).RootElement;
+        Assert.Equal(legalName, values.GetProperty(customers.LegalNameField!.Value.ToString("D")).GetString());
+    }
+
+    // A catalog with the key of a standard, its CUIT and its condition, an option of another catalog, as the «Clientes» of the «Factura»;
+    // with withLegalName, also a text field for the whole name, as long as a text field of a catalog admits.
+    private Task<(Guid CatalogId, Guid TaxIdField, Guid ConditionField, Guid Monotributo, Guid? LegalNameField)> SeedIssuedCustomersAsync(string key,
+        bool withLegalName = false) =>
         factory.ExecuteDbContextAsync(async db =>
         {
             var suffix = " " + Guid.NewGuid().ToString("N")[..6];
@@ -57,10 +85,14 @@ public sealed partial class FormDraftEndpointsTests
                 null, null, 13, "data", 0, true);
             var condition = new BusinessFormCatalogField(Guid.CreateVersion7(), "vat_condition", new Dictionary<string, string> { ["es"] = "Condición" }, "catalog",
                 conditions.Id, false, false, null, null, null, "data", 1, true);
-            Assert.True(customers.SetFields([taxId, condition], null).IsSuccess);
+            BusinessFormCatalogField[] fields = withLegalName
+                ? [taxId, condition, new(Guid.CreateVersion7(), "legal_name", new Dictionary<string, string> { ["es"] = "Razón social" }, "text", null, false, false,
+                    null, null, 300, "data", 2, true)]
+                : [taxId, condition];
+            Assert.True(customers.SetFields(fields, null).IsSuccess);
             db.Set<BusinessFormCatalog>().AddRange(conditions, customers);
             db.Set<BusinessFormCatalogItem>().Add(monotributo);
             await db.SaveChangesAsync(Ct);
-            return (customers.Id, taxId.Id, condition.Id, monotributo.Id);
+            return (customers.Id, taxId.Id, condition.Id, monotributo.Id, withLegalName ? fields[2].Id : (Guid?)null);
         });
 }

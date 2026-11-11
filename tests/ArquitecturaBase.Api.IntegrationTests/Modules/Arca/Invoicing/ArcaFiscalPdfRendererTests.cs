@@ -5,7 +5,10 @@ using ArquitecturaBase.Infrastructure.Modules.Arca.Invoicing.Pdf;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.Arca.Invoicing;
 
-/// <summary>El PDF fiscal sin Docker: un A4 con las fuentes del módulo, y los renglones que no entran siguen en otra hoja.</summary>
+/// <summary>
+/// El PDF fiscal sin Docker: un A4 con las fuentes del módulo, los renglones que no entran siguen en otra hoja, y el nombre y el
+/// domicilio del receptor se parten en renglones sin perder nada.
+/// </summary>
 public sealed partial class ArcaFiscalPdfRendererTests
 {
     [Fact]
@@ -30,6 +33,25 @@ public sealed partial class ArcaFiscalPdfRendererTests
         var document = Document(1) with { Lines = [new ArcaFiscalLine(longText, 1m, 1m, 1m)] };
 
         Assert.Equal(1, Pages(new ArcaFiscalPdfRenderer().Render(document)));
+    }
+
+    [Fact]
+    public void A_long_receiver_name_and_address_are_wrapped_into_lines_without_losing_anything()
+    {
+        const string name = "Cooperativa Agrícola Ganadera y de Consumo Limitada del Sur de Santa Fe";
+        const string address = "Ruta Nacional 33 km 642, Parque Industrial Venado Tuerto, Lote 14, Venado Tuerto, SANTA FE";
+        var document = Document(2) with { ReceiverName = name, ReceiverAddress = address };
+
+        var lines = ArcaFiscalPdfRenderer.ReceiverLines(document);
+
+        Assert.True(lines.Count > 2);
+        Assert.DoesNotContain(lines, line => line.Contains('…', StringComparison.Ordinal));
+        Assert.Equal($"Apellido y nombre o razón social: {name} Domicilio: {address}", string.Join(' ', lines));
+        Assert.Equal(1, Pages(new ArcaFiscalPdfRenderer().Render(document)));
+        Assert.Equal(1, Pages(new ArcaFiscalPdfRenderer().Render(document with
+        {
+            ServiceFrom = new DateOnly(2026, 11, 1), ServiceTo = new DateOnly(2026, 11, 30), PaymentDueOn = new DateOnly(2026, 12, 10),
+        })));
     }
 
     [Fact]

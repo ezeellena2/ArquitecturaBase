@@ -7,7 +7,8 @@ namespace ArquitecturaBase.Api.IntegrationTests.Modules.Arca.Registry;
 
 /// <summary>
 /// «Completar con ARCA» por el puerto neutral, con PostgreSQL y <c>FakeArca</c>: una CUIT inválida no llega a ARCA; sin conexión
-/// dice por qué; con conexión, la constancia trae el nombre, la condición frente al IVA del receptor y el domicilio, y una CUIT que
+/// dice por qué; con conexión, la constancia trae el nombre (también entero en «Razón social»), la condición frente al IVA del
+/// receptor y el domicilio, y una CUIT que
 /// el padrón no tiene responde que no la encontró. En delegación la consulta la plataforma con su CUIT, sin que la empresa delegue
 /// la constancia.
 /// </summary>
@@ -28,10 +29,12 @@ public sealed class ArcaStructuredPartyLookupTests(ApiFactory factory) : IDispos
         await ArcaVoucherScenario.ConnectAsync(factory, authority);
         try
         {
-            arca.Person = new FakeArcaPerson("Agro del Sur SA", null, null, "Ruta 9 km 400", "Marcos Juárez", "CORDOBA", [30], false, []);
+            // The whole legal name also goes in its own field: the text of an option of «Clientes» admits 30 characters.
+            const string legalName = "Cooperativa Agrícola Ganadera y de Consumo Limitada del Sur de Córdoba";
+            arca.Person = new FakeArcaPerson(legalName, null, null, "Ruta 9 km 400", "Marcos Juárez", "CORDOBA", [30], false, []);
             var found = await FindAsync("30-50001091-2");
-            Assert.Equal("Agro del Sur SA", found.Name);
-            Assert.Equal(("30500010912", "1"), (found.Fields!["tax_id"], found.Fields["vat_condition"]));
+            Assert.Equal(legalName, found.Name);
+            Assert.Equal(("30500010912", legalName, "1"), (found.Fields!["tax_id"], found.Fields["legal_name"], found.Fields["vat_condition"]));
             Assert.Contains("Ruta 9 km 400", found.Fields["address"], StringComparison.Ordinal);
 
             arca.Person = null;

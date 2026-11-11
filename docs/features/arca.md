@@ -137,8 +137,9 @@ la prueba integral y la de homologación. Lo que se ve en la app y en WhatsApp e
   `not-taxed`) llegan a formularios como catálogos `External` en la carpeta «ARCA», sólo con las filas vigentes. Se leen con el
   ticket de `wsfe`; sin conexión o sin respuesta devuelven el código del motivo y formularios conserva lo que tenía.
 - **El emisor de formularios** (`ArcaStructuredRecordIssuer`): la fuente y la clave del estándar son `arca.invoice`. Lee los
-  datos atados de la «Factura» (el cliente de «Clientes» con `tax_id`, `vat_condition` y `address`, o consumidor final sin
-  CUIT; el concepto por su código de ARCA; la fecha, o la de hoy; el período, el vencimiento, los renglones, cada uno con su alícuota, que vacía vale 21 %, y el total) y
+  datos atados de la «Factura» (el cliente de «Clientes» con `tax_id`, `legal_name`, `vat_condition` y `address`, o consumidor
+  final sin CUIT; el nombre del receptor es `legal_name` cuando viene y no está vacío y, si no, el texto de la opción, así que un
+  «Clientes» creado antes del campo sigue andando; el concepto por su código de ARCA; la fecha, o la de hoy; el período, el vencimiento, los renglones, cada uno con su alícuota, que vacía vale 21 %, y el total) y
   encola con el run como clave. La vista previa del «¿La emito?» arma el mismo pedido y responde la clase que decide el
   sistema con su porqué («Lo decide el sistema: sos monotributista», o en la A y la B, la condición del cliente), el receptor,
   la fecha, los importes que discrimina (en la A, el neto gravado, el IVA de cada alícuota, lo exento y lo no gravado; en la B
@@ -152,12 +153,15 @@ la prueba integral y la de homologación. Lo que se ve en la app y en WhatsApp e
   cliente (sólo con «Otro: escribir la CUIT»), Concepto (tabla de ARCA), Fecha (vacía, la de hoy), Período desde y hasta y
   Vencimiento del pago (opcionales y siempre a la vista: WhatsApp no muestra una pregunta por varias opciones de un catálogo,
   y la cola los exige con servicios), el bloque de ítems (Descripción, Cantidad, Precio unitario, Alícuota
-  e Importe calculado), el Total calculado y «Mandar copia al cliente» (sí o no, no obligatoria), cada pregunta atada a su dato. Trae «Clientes» (`arca.customers`: CUIT, Condición
+  e Importe calculado), el Total calculado y «Mandar copia al cliente» (sí o no, no obligatoria), cada pregunta atada a su dato. Trae «Clientes» (`arca.customers`: CUIT, Razón social, Condición
   frente al IVA sobre la tabla de ARCA, Domicilio y Correo) con «Consumidor final» y «Otro: escribir la CUIT», y va con su copia
-  a la carpeta «ARCA». Necesita las tablas de ARCA (se crean cuando la conexión responde). Con «Otro», el emisor completa el
+  a la carpeta «ARCA». El texto de una opción admite 30 caracteres y es lo que se ve en las listas y en WhatsApp; la razón
+  social entera va en «Razón social» (`legal_name`, texto de hasta 200, el mismo tope que la cola pone al nombre del receptor), y
+  de ahí sale el nombre del receptor. Necesita las tablas de ARCA (se crean cuando la conexión responde). Con «Otro», el emisor completa el
   cliente con el padrón antes de la vista previa y de encolar; sin la CUIT, `Arca.Invoicing.ReceiverInvalid`. Encolado (con
-  «Emitir»), lo devuelve completado (`CatalogItem`: la CUIT como código, la razón social y los campos del padrón) y
-  formularios lo suma a «Clientes» si todavía no está. La copia al cliente es la acción «Mandar copia por correo» de
+  «Emitir»), lo devuelve completado (`CatalogItem`: la CUIT como código, la razón social y los campos del padrón, con la razón
+  social entera en `legal_name`) y formularios lo suma a «Clientes» si todavía no está: la opción lleva los primeros 30
+  caracteres como texto y el campo, el nombre entero. La copia al cliente es la acción «Mandar copia por correo» de
   formularios (`SendCopy`, después de «Emitir comprobante en ARCA»): el emisor responde el correo del cliente de «Clientes»
   (`email`) sólo si se marcó «Mandar copia al cliente» y es una dirección válida (`ArcaInvoiceIssuePolicy.CopyRecipient`); con
   consumidor final, un cliente escrito por su CUIT o sin correo, la copia queda «No aplica», porque el borrador no puede ocultar
@@ -166,8 +170,8 @@ la prueba integral y la de homologación. Lo que se ve en la app y en WhatsApp e
   {result:arca.invoice.number}.») y «Mandar copia por correo» («Te mandamos la … en el PDF adjunto.»). Con aprobación, se
   pasa a mano a «Cuando se aprueba» en el editor.
 - **«Completar con ARCA»** (`ArcaStructuredPartyLookup`, familia `Registry`): la constancia de un tercero completa los
-  «Clientes» de la «Factura» (`arca.customers`) desde su CUIT, con la razón social, la condición frente al IVA como receptor (1,
-  4, 5 o 6) y el domicilio fiscal. Una CUIT inválida da `Arca.Registry.CuitInvalid` sin llamar a ARCA y una que el padrón no
+  «Clientes» de la «Factura» (`arca.customers`) desde su CUIT, con la razón social (entera también en `legal_name`), la
+  condición frente al IVA como receptor (1, 4, 5 o 6) y el domicilio fiscal. Una CUIT inválida da `Arca.Registry.CuitInvalid` sin llamar a ARCA y una que el padrón no
   tiene, `Arca.Registry.PersonNotFound`. Consulta en nombre de quien firma: en delegación, la plataforma con su CUIT, sin que la
   empresa delegue la constancia.
 - **Encolar** (`IArcaVoucherService`) valida el receptor (CUIT con su dígito, DNI, o consumidor final sin identificar),
@@ -197,7 +201,9 @@ la prueba integral y la de homologación. Lo que se ve en la app y en WhatsApp e
   «Emitir con la fecha de hoy» o «No emitir». Revisar exige la revisión esperada; cancelar, que no tenga número.
 - **PDF fiscal:** al autorizarse, el worker lo dibuja con diseño fijo y el QR de ARCA, lo escribe una vez en el almacén
   privado (`arca-vouchers/{id}.pdf`) y confirma su SHA-256. Si el almacén falla, el comprobante sigue autorizado y el PDF
-  espera. Esos PDF no se limpian mientras exista su comprobante.
+  espera. Esos PDF no se limpian mientras exista su comprobante. El nombre y el domicilio del receptor son datos fiscales y
+  no se recortan: se parten por palabras en los renglones que hagan falta y el recuadro del receptor crece con ellos, con el
+  período debajo.
 - **PDF de la A y la B:** la A muestra precios sin IVA con su alícuota y, arriba del pie, el neto gravado, el IVA de cada
   alícuota y lo exento o no gravado; a un monotributista (6, 13 y 16) lleva la leyenda del art. 20 de la RG 5003. La B
   muestra los precios con el IVA incluido; a un exento, un no alcanzado o un consumidor final (4, 15 y 5) lleva abajo a la

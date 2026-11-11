@@ -102,7 +102,10 @@ public sealed class ArcaInvoiceStandardSourceTests
 
         Assert.All(standard.Catalogs!.Values, key => Assert.True(tables.Contains(key) || key == ArcaCustomersCatalog.Key));
         Assert.Equal(ArcaCustomersCatalog.Key, customers.Key);
-        Assert.Equal(["tax_id", "vat_condition", "address", "email"], customers.Fields.Select(field => field.Key));
+        Assert.Equal(["tax_id", "legal_name", "vat_condition", "address", "email"], customers.Fields.Select(field => field.Key));
+        // The option text admits 30 characters: the whole legal name has its own text field, as long as a catalog text field admits.
+        var legalName = customers.Fields.Single(field => field.Key == ArcaCustomersCatalog.LegalName);
+        Assert.Equal(("text", (int?)200, "Razón social", "Legal name"), (legalName.Type, legalName.MaxLength, legalName.Name["es"], legalName.Name["en"]));
         Assert.Contains(customers.Fields.Single(field => field.Key == "vat_condition").SourceCatalog!, tables);
         Assert.Equal(["final", "other"], customers.Items!.Select(item => item.Code));
     }

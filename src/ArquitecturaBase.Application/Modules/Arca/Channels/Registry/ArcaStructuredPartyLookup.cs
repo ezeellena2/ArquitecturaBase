@@ -13,8 +13,9 @@ namespace ArquitecturaBase.Application.Modules.Arca.Channels.Registry;
 
 /// <summary>
 /// «Completar con ARCA» (CA1): the constancia of a third party completes the «Clientes» of the «Factura» from its CUIT, with the
-/// name, the condition frente al IVA as the receiver code of WSFEv1 and the fiscal address. It only reads, in the name of the
-/// signer: in delegation the platform consults with its own CUIT, without the company delegating the constancia. Nothing is saved.
+/// name (also whole in «Razón social»), the condition frente al IVA as the receiver code of WSFEv1 and the fiscal address. It
+/// only reads, in the name of the signer: in delegation the platform consults with its own CUIT, without the company delegating
+/// the constancia. Nothing is saved.
 /// </summary>
 internal sealed class ArcaStructuredPartyLookup(ArcaServiceSessionIssuer access, IArcaRegistryClient client) : IStructuredPartyLookup
 {
@@ -35,12 +36,15 @@ internal sealed class ArcaStructuredPartyLookup(ArcaServiceSessionIssuer access,
         if (reply is not { Status: ArcaServiceCheckStatus.Ready, Value: { } person })
             return new(null, null, ArcaServiceSessionIssuer.Failure(reply.Status).Code);
         if (!ArcaCompanyDataPolicy.HasData(person)) return new(null, null, ArcaRegistryErrors.PersonNotFound.Code);
+        var legalName = ArcaCompanyDataPolicy.LegalName(person);
+        // The whole name also goes in its field: the text of an option of «Clientes» admits 30 characters.
         var fields = new Dictionary<string, string>(StringComparer.Ordinal)
         {
             [ArcaCustomersCatalog.TaxId] = cuit,
+            [ArcaCustomersCatalog.LegalName] = legalName,
             [ArcaCustomersCatalog.VatCondition] = ArcaCompanyDataPolicy.ReceiverVatCondition(person).ToString(CultureInfo.InvariantCulture),
         };
         if (ArcaCompanyDataPolicy.FiscalAddress(person) is { Length: > 0 } address) fields[ArcaCustomersCatalog.Address] = address;
-        return new(ArcaCompanyDataPolicy.LegalName(person), fields);
+        return new(legalName, fields);
     }
 }

@@ -10,8 +10,9 @@ namespace ArquitecturaBase.Application.Modules.Arca.Channels.Invoicing;
 
 /// <summary>
 /// The order of a response copied from «Factura»: the customer of «Clientes» (with its CUIT, a receiver with its condition; without
-/// it, a final consumer), the concept by its ARCA code, the dates and the items, each with its VAT for classes A and B, and whether
-/// the form's prices include VAT. It only reads; the queue validates the order and decides whether the VAT is needed.
+/// it, a final consumer; its name, the «Razón social» when it has one, or else the option text), the concept by its ARCA code,
+/// the dates and the items, each with its VAT for classes A and B, and whether the form's prices include VAT. It only reads; the
+/// queue validates the order and decides whether the VAT is needed.
 /// </summary>
 internal static class ArcaInvoiceOrderPolicy
 {
@@ -23,6 +24,8 @@ internal static class ArcaInvoiceOrderPolicy
         var data = request.Data.ToDictionary(datum => datum.Key, StringComparer.Ordinal);
         if (!data.TryGetValue(Customer, out var customer) || string.IsNullOrWhiteSpace(customer.Label)) return ArcaInvoicingErrors.ReceiverInvalid;
         var fields = customer.Fields ?? new Dictionary<string, string>();
+        // The text of an option admits 30 characters: the whole name is its «Razón social»; a «Clientes» created before it has the text.
+        var name = Text(fields, LegalNameField) ?? customer.Label.Trim();
         ArcaVoucherParty receiver;
         if (fields.TryGetValue(TaxIdField, out var taxId) && !string.IsNullOrWhiteSpace(taxId))
         {
@@ -30,10 +33,10 @@ internal static class ArcaInvoiceOrderPolicy
                 return ArcaInvoicingErrors.ReceiverInvalid;
             if (!fields.TryGetValue(VatConditionField, out var condition) || !int.TryParse(condition, NumberStyles.None, CultureInfo.InvariantCulture, out var conditionId))
                 return ArcaInvoicingErrors.ReceiverConditionInvalid;
-            receiver = new(CuitDocument, cuit, customer.Label.Trim(), conditionId, Address(fields));
+            receiver = new(CuitDocument, cuit, name, conditionId, Text(fields, AddressField));
         }
         else
-            receiver = new(UnidentifiedDocument, 0, customer.Label.Trim(), ArcaReceiverVatConditions.FinalConsumer, Address(fields));
+            receiver = new(UnidentifiedDocument, 0, name, ArcaReceiverVatConditions.FinalConsumer, Text(fields, AddressField));
 
         if (!data.TryGetValue(Concept, out var concept) || !int.TryParse(concept.Value, NumberStyles.None, CultureInfo.InvariantCulture, out var conceptId))
             return ArcaInvoicingErrors.ConceptInvalid;
@@ -61,8 +64,8 @@ internal static class ArcaInvoiceOrderPolicy
         _ => int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out var code) ? new(ArcaVatTreatmentKind.Taxed, code) : null,
     };
 
-    private static string? Address(IReadOnlyDictionary<string, string> fields) =>
-        fields.TryGetValue(AddressField, out var address) && !string.IsNullOrWhiteSpace(address) ? address.Trim() : null;
+    private static string? Text(IReadOnlyDictionary<string, string> fields, string key) =>
+        fields.TryGetValue(key, out var text) && !string.IsNullOrWhiteSpace(text) ? text.Trim() : null;
 
     private static DateOnly? Date(Dictionary<string, StructuredIssueDatum> data, string key) =>
         DateOnly.TryParseExact(data.GetValueOrDefault(key)?.Value, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date) ? date : null;

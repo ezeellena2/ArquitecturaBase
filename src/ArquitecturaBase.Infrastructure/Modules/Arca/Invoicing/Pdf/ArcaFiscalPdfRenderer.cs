@@ -8,7 +8,8 @@ namespace ArquitecturaBase.Infrastructure.Modules.Arca.Invoicing.Pdf;
 
 /// <summary>
 /// El PDF fiscal con su diseño fijo, en A4: «ORIGINAL», el emisor y el comprobante con la letra y el código en el recuadro del
-/// medio, el receptor, el período si es un servicio, los renglones (en varias páginas si hace falta, con el encabezado de la
+/// medio, el receptor (el nombre y el domicilio enteros, partidos en los renglones que hagan falta), el período si es un
+/// servicio, los renglones (en varias páginas si hace falta, con el encabezado de la
 /// tabla repetido), el total, el CAE con su vencimiento y el QR de ARCA. En la A, la tabla suma la alícuota y, arriba del pie,
 /// van a la derecha el neto y el IVA de cada alícuota; abajo a la izquierda, la leyenda de la RG 5003 o, en la B, el recuadro
 /// de la RG 5614. Usa las fuentes incrustadas del módulo y QRCoder sólo para la matriz del QR, que se dibuja con Skia.
@@ -24,6 +25,8 @@ internal sealed class ArcaFiscalPdfRenderer : IArcaFiscalPdfRenderer
     private const float SubtotalHeight = 13;
     private const float LegendWidth = 260;
     private const float SubtotalLabel = 215;
+    private const float ReceiverRow = 14;
+    private const float ReceiverWidth = Right - Width / 2 - 12;
     private static readonly CultureInfo Spanish = CultureInfo.GetCultureInfo("es-AR");
 
     public byte[] Render(ArcaFiscalDocument document)
@@ -39,6 +42,53 @@ internal sealed class ArcaFiscalPdfRenderer : IArcaFiscalPdfRenderer
         }
 
         return output.ToArray();
+    }
+
+    /// <summary>
+    /// Los renglones de la columna derecha del recuadro del receptor, con la fuente del cuerpo: el nombre y el domicilio partidos
+    /// por palabras para que entren en su ancho, sin recortar nada. Es un dato fiscal y se imprime entero.
+    /// </summary>
+    internal static List<string> ReceiverLines(ArcaFiscalDocument document)
+    {
+        using var regular = LoadFont("PublicSans-Regular.ttf");
+        using var body = new SKFont(regular, 9);
+        return ReceiverLines(document, body);
+    }
+
+    private static List<string> ReceiverLines(ArcaFiscalDocument document, SKFont font)
+    {
+        var lines = Wrap($"Apellido y nombre o razón social: {document.ReceiverName}", font, ReceiverWidth);
+        if (document.ReceiverAddress is { } address) lines.AddRange(Wrap($"Domicilio: {address}", font, ReceiverWidth));
+        return lines;
+    }
+
+    /// <summary>El texto partido por palabras en renglones que entran en el ancho; una palabra más larga se corta.</summary>
+    private static List<string> Wrap(string text, SKFont font, float width)
+    {
+        var lines = new List<string>();
+        var current = string.Empty;
+        foreach (var word in text.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var candidate = current.Length == 0 ? word : current + " " + word;
+            if (font.MeasureText(candidate) <= width)
+            {
+                current = candidate;
+                continue;
+            }
+
+            if (current.Length > 0) lines.Add(current);
+            current = word;
+            while (font.MeasureText(current) > width && current.Length > 1)
+            {
+                var cut = current.Length - 1;
+                while (cut > 1 && font.MeasureText(current[..cut]) > width) cut--;
+                lines.Add(current[..cut]);
+                current = current[cut..];
+            }
+        }
+
+        if (current.Length > 0 || lines.Count == 0) lines.Add(current);
+        return lines;
     }
 
     private static SKTypeface LoadFont(string name)
@@ -154,20 +204,25 @@ internal sealed class ArcaFiscalPdfRenderer : IArcaFiscalPdfRenderer
             return top + 104;
         }
 
+        /// <summary>
+        /// El recuadro del receptor: a la izquierda el documento, la condición y lo que anula; a la derecha el nombre y el domicilio
+        /// en los renglones que hagan falta. El recuadro crece con ellos y el período va debajo de todo, a lo ancho.
+        /// </summary>
         private float Receiver(ArcaFiscalDocument document, float y)
         {
-            var height = document.ServiceFrom is null ? 48f : 62f;
+            var lines = ReceiverLines(document, body);
+            var rows = Math.Max(3, lines.Count);
+            var height = ReceiverRow * rows + 6 + (document.ServiceFrom is null ? 0 : ReceiverRow);
             canvas.DrawRect(Margin, y, Right - Margin, height, stroke);
             var middle = Width / 2;
-            Text(body, document.ReceiverDocument, Margin + 8, y + 14);
-            Text(body, $"Condición frente al IVA: {document.ReceiverVatCondition}", Margin + 8, y + 28);
-            Text(body, Fit($"Apellido y nombre o razón social: {document.ReceiverName}", body, Right - middle - 12), middle + 4, y + 14);
-            if (document.ReceiverAddress is { } address) Text(body, Fit($"Domicilio: {address}", body, Right - middle - 12), middle + 4, y + 28);
-            if (document.Cancels is { } cancels) Text(body, cancels, Margin + 8, y + 42);
+            Text(body, document.ReceiverDocument, Margin + 8, y + ReceiverRow);
+            Text(body, $"Condición frente al IVA: {document.ReceiverVatCondition}", Margin + 8, y + 2 * ReceiverRow);
+            for (var index = 0; index < lines.Count; index++) Text(body, lines[index], middle + 4, y + (index + 1) * ReceiverRow);
+            if (document.Cancels is { } cancels) Text(body, cancels, Margin + 8, y + 3 * ReceiverRow);
             if (document.ServiceFrom is { } from && document.ServiceTo is { } to)
             {
                 var due = document.PaymentDueOn is { } payment ? $"   Vencimiento del pago: {Date(payment)}" : string.Empty;
-                Text(body, $"Período facturado desde: {Date(from)}   hasta: {Date(to)}{due}", Margin + 8, y + 56);
+                Text(body, $"Período facturado desde: {Date(from)}   hasta: {Date(to)}{due}", Margin + 8, y + (rows + 1) * ReceiverRow);
             }
 
             return y + height + 8;
@@ -250,35 +305,6 @@ internal sealed class ArcaFiscalPdfRenderer : IArcaFiscalPdfRenderer
         private void Center(SKFont font, string text, float x, float baseline) => canvas.DrawText(text, x, baseline, SKTextAlign.Center, font, ink);
 
         private void Number(SKFont font, string text, float right, float baseline) => canvas.DrawText(text, right, baseline, SKTextAlign.Right, font, ink);
-
-        /// <summary>El texto partido por palabras en renglones que entran en el ancho; una palabra más larga se corta.</summary>
-        private static List<string> Wrap(string text, SKFont font, float width)
-        {
-            var lines = new List<string>();
-            var current = string.Empty;
-            foreach (var word in text.Split(' ', StringSplitOptions.RemoveEmptyEntries))
-            {
-                var candidate = current.Length == 0 ? word : current + " " + word;
-                if (font.MeasureText(candidate) <= width)
-                {
-                    current = candidate;
-                    continue;
-                }
-
-                if (current.Length > 0) lines.Add(current);
-                current = word;
-                while (font.MeasureText(current) > width && current.Length > 1)
-                {
-                    var cut = current.Length - 1;
-                    while (cut > 1 && font.MeasureText(current[..cut]) > width) cut--;
-                    lines.Add(current[..cut]);
-                    current = current[cut..];
-                }
-            }
-
-            if (current.Length > 0 || lines.Count == 0) lines.Add(current);
-            return lines;
-        }
 
         private static string Fit(string text, SKFont font, float width)
         {

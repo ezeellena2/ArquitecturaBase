@@ -86,6 +86,8 @@ internal sealed class ArcaInvoiceStandardSource : IStructuredFormStandardSource
                     },
                     [
                         new(ArcaCustomersCatalog.TaxId, new Dictionary<string, string> { ["es"] = "CUIT", ["en"] = "CUIT" }, "text", MaxLength: 13),
+                        // The text of an option admits 30 characters: the whole name goes here, as long as a catalog text field admits.
+                        new(ArcaCustomersCatalog.LegalName, new Dictionary<string, string> { ["es"] = "Razón social", ["en"] = "Legal name" }, "text", MaxLength: 200),
                         new(ArcaCustomersCatalog.VatCondition, new Dictionary<string, string> { ["es"] = "Condición frente al IVA", ["en"] = "VAT condition" },
                             "catalog", "arca.vat-conditions"),
                         new(ArcaCustomersCatalog.Address, new Dictionary<string, string> { ["es"] = "Domicilio", ["en"] = "Address" }, "text", MaxLength: 200),

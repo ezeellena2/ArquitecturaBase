@@ -328,7 +328,9 @@ con su consumidor (no se agrega un puerto sin quien lo use). El resultado extern
     copia) como la revisión activa de la copia, en el mismo guardado, con la clave de la revisión activa diferida
     (`DeferActiveRuleSetKey`, decisión B del usuario: sin excepción al ADR 0001). **Hecha (2026-11-11) la copia al cliente por correo:** «Mandar copia
     al cliente» atada y la acción `SendCopy`, que manda el PDF fiscal al correo del cliente por la cola durable de la app (sin
-    correo, «No aplica»).
+    correo, «No aplica»). **Arreglada (2026-11-11) la razón social recortada:** «Clientes» suma «Razón social»
+    (`legal_name`, texto de hasta 200, el tope de la cola) y el emisor la prefiere al texto de la opción (30); «Completar con ARCA» y el cliente nuevo la
+    traen entera, y el PDF fiscal parte el nombre y el domicilio del receptor en renglones en lugar de recortarlos.
 12. **Hecho. Anular con nota de crédito:** la reversión es un run del motor; corregir una respuesta con emisión queda frenado.
 13. **Hecho. El «¿La emito?» en WhatsApp** (EM2-A) y el cliente nuevo por su CUIT: la vista previa
     del emisor, el run que espera la confirmación de quien cargó por un canal, la ruta `confirmation` del flujo y «No emitir»

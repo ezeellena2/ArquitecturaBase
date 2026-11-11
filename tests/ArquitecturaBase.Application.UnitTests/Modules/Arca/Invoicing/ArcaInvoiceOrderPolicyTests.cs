@@ -30,6 +30,33 @@ public sealed class ArcaInvoiceOrderPolicyTests
     }
 
     [Fact]
+    public void The_receiver_name_is_the_legal_name_field_and_not_the_option_text_cut_at_30_characters()
+    {
+        const string legalName = "Cooperativa Agrícola Ganadera y de Consumo Limitada del Sur de Santa Fe";
+        var customer = Customer("30-71234567-1", "1", null);
+        var fields = new Dictionary<string, string>(customer.Fields!) { ["legal_name"] = legalName };
+
+        var order = ArcaInvoiceOrderPolicy.Order(Request(customer with { Label = legalName[..30].TrimEnd(), Fields = fields }), Today).Value;
+
+        Assert.Equal(legalName, order.Receiver.Name);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Without_a_legal_name_the_receiver_name_is_the_option_text(string? legalName)
+    {
+        var customer = Customer("20-12345678-6", "6", null);
+        var fields = new Dictionary<string, string>(customer.Fields!);
+        if (legalName is not null) fields["legal_name"] = legalName;
+
+        var order = ArcaInvoiceOrderPolicy.Order(Request(customer with { Fields = fields }), Today).Value;
+
+        Assert.Equal("Juana Pérez", order.Receiver.Name);
+    }
+
+    [Fact]
     public void The_vat_of_each_item_is_its_arca_code_or_exempt_or_not_taxed()
     {
         var order = Order(data => data.Select(datum => datum.Key == "items" ? datum with
