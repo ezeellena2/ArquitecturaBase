@@ -33,4 +33,8 @@ internal static class FormIssueConfirmationPolicy
         [new(Issue, FormResponseTexts.Get("Issue.Confirm.Issue", culture)), new(Skip, FormResponseTexts.Get("Issue.Confirm.Skip", culture))];
 
     public static string NotIssued(string culture) => FormResponseTexts.Get("Issue.NotIssued", culture);
+
+    /// <summary>What a channel answers after «No emitir»: «No la emitimos. FAC-000012 quedó anulada.», the response named as the app names it.</summary>
+    public static string Voided(string prefix, long number, string culture) =>
+        string.Format(CultureInfo.InvariantCulture, FormResponseTexts.Get("Issue.Voided", culture), prefix + "-" + number.ToString("D6", CultureInfo.InvariantCulture));
 }

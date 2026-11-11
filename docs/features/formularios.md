@@ -988,7 +988,10 @@ ARCA» ([ADR 0028](../decisions/0028-emision-de-comprobantes-arca.md)); sin emis
   y queda `Uncertain` con `Forms.Action.AwaitingConfirmation`. El flujo trae `confirmation` (el run, el comprobante, el
   receptor, el total, `info`, `date` y `amounts`) sólo para quien la cargó, y `POST api/forms/records/{id}/actions/{runId}/confirmation` con
   `{"issue": true}` la emite o con `false` anula la respuesta con el motivo «No se emitió», sin ir al emisor. El botón del canal
-  llega por `IStructuredRecordActionReplySink` y decide lo mismo; un botón viejo o ajeno se ignora. Lo cargado en la app ya se
+  llega por `IStructuredRecordActionReplySink` y decide lo mismo; un botón viejo o ajeno se ignora. Después de «No emitir» el
+  dueño le devuelve al canal lo que contesta, una sola vez y en el idioma de quien la cargó: «No la emitimos. FAC-000012 quedó
+  anulada.», con el prefijo y el número de la respuesta; después de «Emitir» no se contesta nada en el acto, porque el aviso con
+  el PDF lo manda «Avisar a quien cargó». Lo cargado en la app ya se
   confirmó antes de «Enviar» y se emite directo: la carga trae `issuePreview` cuando enviar emite (formulario del estándar del
   emisor y reglas vigentes con `IssueDocument`), y `POST api/forms/entries/{id}/issue-preview` con `versionId` y las respuestas
   sin enviar (las del envío, sin archivos) pasa por la misma preparación que el envío y devuelve `document`, `receiver` y

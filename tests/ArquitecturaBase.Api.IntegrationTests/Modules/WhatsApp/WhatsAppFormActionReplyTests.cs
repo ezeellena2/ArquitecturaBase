@@ -16,7 +16,8 @@ namespace ArquitecturaBase.Api.IntegrationTests.Modules.WhatsApp;
 
 /// <summary>
 /// «¿La emito?» (EM2-A): an action with choices goes out as reply buttons, and a tap from the recipient's chat reaches the
-/// neutral owner once, through the signed webhook and the real inbound processor. Meta is simulated; the owner is a capturer.
+/// neutral owner once, through the signed webhook and the real inbound processor; the text the owner hands back with an applied
+/// tap goes back to that chat once. Meta is simulated; the owner is a capturer.
 /// </summary>
 [Collection(ApiTestGroup.Name)]
 public sealed class WhatsAppFormActionReplyTests(ApiFactory factory)
@@ -52,7 +53,7 @@ public sealed class WhatsAppFormActionReplyTests(ApiFactory factory)
     }
 
     [Fact]
-    public async Task A_tap_hands_the_run_the_person_and_the_choice_to_the_owner_once_and_sends_nothing_back()
+    public async Task A_tap_hands_the_run_the_person_and_the_choice_to_the_owner_once_and_without_a_text_sends_nothing_back()
     {
         await using var scenario = await WhatsAppFormActionScenario.CreateAsync(factory, Ct);
         var recipient = await scenario.RecipientAsync(Now, Ct);
@@ -74,6 +75,33 @@ public sealed class WhatsAppFormActionReplyTests(ApiFactory factory)
         Assert.Equal(new[] { (run, recipient.UserId, "issue"), (run, recipient.UserId, "skip") }, scenario.Replies.Calls);
         Assert.Single(scenario.Cloud.Messages);
         Assert.False(await scenario.Services.GetRequiredService<WhatsAppOutgoingBackgroundService>().ProcessNextAsync(Ct));
+        await AssertHandledAsync(scenario, expected: 2);
+    }
+
+    [Fact]
+    public async Task The_text_the_owner_hands_back_with_an_applied_tap_goes_back_to_the_chat_once_as_a_text()
+    {
+        await using var scenario = await WhatsAppFormActionScenario.CreateAsync(factory, Ct);
+        scenario.Replies.Texts["skip"] = "No la emitimos. FAC-000012 quedó anulada.";
+        var recipient = await scenario.RecipientAsync(Now, Ct);
+        var run = Guid.NewGuid();
+        var buttons = await SendAsync(scenario, run, recipient.UserId);
+        var contact = await ContactAsync(scenario, recipient.ContactId);
+        using var client = scenario.Host.CreateClient();
+        var worker = scenario.Services.GetRequiredService<WhatsAppOutgoingBackgroundService>();
+
+        await PostTapAsync(client, contact, buttons[1].Id, "No emitir");
+        await ProcessAsync(scenario);
+        // The same button again: the owner ignores the repeat, so nothing more goes back.
+        await PostTapAsync(client, contact, buttons[1].Id, "No emitir");
+        await ProcessAsync(scenario);
+
+        Assert.True(await worker.ProcessNextAsync(Ct));
+        Assert.False(await worker.ProcessNextAsync(Ct));
+        Assert.Equal(new[] { (run, recipient.UserId, "skip"), (run, recipient.UserId, "skip") }, scenario.Replies.Calls);
+        Assert.Equal(2, scenario.Cloud.Messages.Count);
+        var text = Assert.IsType<WhatsAppTextMessage>(scenario.Cloud.Messages[1]);
+        Assert.Equal(("No la emitimos. FAC-000012 quedó anulada.", "+" + contact.WaId), (text.Body, text.To.Value));
         await AssertHandledAsync(scenario, expected: 2);
     }
 

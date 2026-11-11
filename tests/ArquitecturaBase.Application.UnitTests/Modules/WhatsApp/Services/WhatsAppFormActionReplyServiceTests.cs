@@ -32,10 +32,52 @@ public sealed class WhatsAppFormActionReplyServiceTests
         Assert.Equal([new Call(host.RunId, host.User.Id, "issue", false)], host.First.Calls);
         Assert.Equal(host.First.Calls, host.Second.Calls);
         Assert.NotNull(tap.AssistantProcessedAtUtc);
+        Assert.Empty(host.Actions.Outgoing);
         Assert.Equal(1, host.UnitOfWork.Transactions);
         Assert.True((await host.Service.ProcessAsync(host.ContactId, Ct)).IsSuccess);
         Assert.Single(host.First.Calls);
         Assert.Equal(1, host.UnitOfWork.Transactions);
+    }
+
+    [Fact]
+    public async Task The_text_an_owner_hands_back_with_an_applied_tap_goes_to_the_chat_once_by_the_normal_outgoing()
+    {
+        var host = new Host();
+        host.First.Text = "No la emitimos. FAC-000012 quedó anulada.";
+        var tap = host.Tap(host.ReplyId("skip"));
+        host.Tap(host.ReplyId("issue"));
+
+        await host.Service.ProcessAsync(host.ContactId, Ct);
+
+        // The later tap reaches the owner too, which ignores it: only the applied one is answered, in the transaction that marks the taps.
+        var answer = Assert.Single(host.Actions.Outgoing);
+        Assert.Equal((WhatsAppMessageOrigin.FormAction, WhatsAppOutgoingMessageKind.Text, WhatsAppOutgoingMessageState.Pending, "No la emitimos. FAC-000012 quedó anulada."),
+            (answer.Origin, answer.Kind, answer.State, answer.Body));
+        Assert.Equal((tap.Id, host.User.Id, host.ContactId, host.Contact.LinkRevision, WaId),
+            (answer.RequestId, answer.RecipientUserId!.Value, answer.ContactId, answer.RecipientLinkRevision!.Value, answer.RecipientWaId));
+        Assert.All(host.First.Calls, call => Assert.False(call.InTransaction));
+        Assert.All(host.Messages.Messages, message => Assert.NotNull(message.AssistantProcessedAtUtc));
+        Assert.Equal(1, host.UnitOfWork.Transactions);
+
+        host.Tap(host.ReplyId("skip"));
+        await host.Service.ProcessAsync(host.ContactId, Ct);
+
+        Assert.Single(host.Actions.Outgoing);
+    }
+
+    [Fact]
+    public async Task Without_the_reply_window_the_text_is_not_answered_and_the_tap_is_marked()
+    {
+        var host = new Host();
+        host.First.Text = "No la emitimos. FAC-000012 quedó anulada.";
+        var tap = host.Tap(host.ReplyId("skip"));
+        host.Clock.Advance(TimeSpan.FromHours(25));
+
+        Assert.True((await host.Service.ProcessAsync(host.ContactId, Ct)).IsSuccess);
+
+        Assert.Equal([StructuredRecordActionReplyState.Applied], host.First.Answers);
+        Assert.Empty(host.Actions.Outgoing);
+        Assert.NotNull(tap.AssistantProcessedAtUtc);
     }
 
     [Fact]
@@ -124,11 +166,13 @@ public sealed class WhatsAppFormActionReplyServiceTests
         public InMemoryWhatsAppMessageRepository Messages { get; } = new(new LockLog());
         public FakeUnitOfWork UnitOfWork { get; } = new();
         public FakeTimeProvider Clock { get; } = new(Now);
+        public ActionRepository Actions { get; } = new();
         public Reader Reader { get; }
         public Owner First { get; }
         public Owner Second { get; }
         public UserAccount User { get; }
-        public Guid ContactId { get; } = Guid.NewGuid();
+        public WhatsAppContact Contact { get; } = WhatsAppContact.Create(WaId, null, "Ana", Now.UtcDateTime);
+        public Guid ContactId => Contact.Id;
         public Guid RunId { get; } = Guid.NewGuid();
         public WhatsAppOutgoingMessage Outgoing { get; }
         public WhatsAppFormActionReplyService Service { get; }
@@ -136,6 +180,8 @@ public sealed class WhatsAppFormActionReplyServiceTests
         public Host(bool withOwners = true)
         {
             User = Users.AddUser("recipient@example.com", phoneNumber: "+" + WaId);
+            Contact.LinkUser(User.Id);
+            Actions.Contact = Contact;
             Outgoing = WhatsAppOutgoingMessage.CreateFormAction(User.Id, ContactId, RunId, "¿La emito?", Now.UtcDateTime, null, 1, WaId,
                 [new("issue", "Emitir"), new("skip", "No emitir")]);
             Reader = new Reader(Messages);
@@ -144,7 +190,7 @@ public sealed class WhatsAppFormActionReplyServiceTests
             First = new Owner(UnitOfWork);
             Second = new Owner(UnitOfWork);
             var policy = new WhatsAppFormActionReplyPolicy(new WhatsAppFormActionPolicy(Users, new FakePhoneNumberParser(), new FakeWhatsAppAvailability(true, true), Clock));
-            Service = new(Reader, Messages, UnitOfWork, policy, withOwners ? [First, Second] : [], Clock, NullLogger<WhatsAppFormActionReplyService>.Instance);
+            Service = new(Reader, Messages, Actions, UnitOfWork, policy, withOwners ? [First, Second] : [], Clock, NullLogger<WhatsAppFormActionReplyService>.Instance);
         }
 
         public string ReplyId(string choiceId) => WhatsAppFormActionChoice.ReplyId(Outgoing.Id, choiceId);
@@ -167,13 +213,15 @@ public sealed class WhatsAppFormActionReplyServiceTests
         public List<Call> Calls { get; } = [];
         public List<StructuredRecordActionReplyState> Answers { get; } = [];
         public bool FailNext { get; set; }
+        public string? Text { get; set; }
 
-        public Task<StructuredRecordActionReplyState> ReplyAsync(Guid runId, Guid recipientUserId, string choiceId, CancellationToken cancellationToken)
+        public Task<StructuredRecordActionReply> ReplyAsync(Guid runId, Guid recipientUserId, string choiceId, CancellationToken cancellationToken)
         {
             Calls.Add(new(runId, recipientUserId, choiceId, unitOfWork.InTransaction));
             if (FailNext) { FailNext = false; throw new InvalidOperationException("The owner is unavailable."); }
-            var answer = decided.Add((runId, recipientUserId)) ? StructuredRecordActionReplyState.Applied : StructuredRecordActionReplyState.Ignored;
-            Answers.Add(answer);
+            var answer = decided.Add((runId, recipientUserId))
+                ? new StructuredRecordActionReply(StructuredRecordActionReplyState.Applied, Text) : new StructuredRecordActionReply(StructuredRecordActionReplyState.Ignored);
+            Answers.Add(answer.State);
             return Task.FromResult(answer);
         }
     }
@@ -197,5 +245,17 @@ public sealed class WhatsAppFormActionReplyServiceTests
             throw new NotSupportedException();
 
         public Task<string?> FindLinkedWaIdAsync(Guid userId, CancellationToken ct) => throw new NotSupportedException();
+    }
+
+    private sealed class ActionRepository : IWhatsAppFormActionRepository
+    {
+        public WhatsAppContact? Contact { get; set; }
+        public List<WhatsAppOutgoingMessage> Outgoing { get; } = [];
+        public Task<WhatsAppContact?> GetContactForUpdateAsync(Guid recipientUserId, CancellationToken ct) =>
+            Task.FromResult(Contact?.UserId == recipientUserId ? Contact : null);
+        public void Add(WhatsAppOutgoingMessage outgoing) => Outgoing.Add(outgoing);
+        public Task LockAsync(Guid runId, Guid recipientUserId, CancellationToken ct) => throw new NotSupportedException();
+        public Task<WhatsAppOutgoingMessage?> GetByRunAsync(Guid runId, Guid recipientUserId, CancellationToken ct) => throw new NotSupportedException();
+        public Task<WhatsAppOutgoingMessage?> GetByRunForUpdateAsync(Guid runId, Guid recipientUserId, CancellationToken ct) => throw new NotSupportedException();
     }
 }

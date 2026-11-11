@@ -4,17 +4,21 @@ using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
+using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Logging;
 
 namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 
-// EM2-A: a tap on a form action button goes to its owners, which decide in their own transaction; WhatsApp only marks the tap
-// as handled, with the same marker as any other handled tap. Nothing is sent back to the contact.
+// EM2-A: a tap on a form action button goes to its owners, which decide in their own transaction; WhatsApp marks the tap as
+// handled, with the same marker as any other handled tap. The text an owner hands back with an applied tap («No la emitimos.
+// FAC-000012 quedó anulada.») is queued to the chat in the transaction that marks it: a tap handed over again finds the owner
+// ignoring it, so it is never answered twice.
 internal sealed partial class WhatsAppFormActionReplyService(IWhatsAppFormActionReader reader, IWhatsAppMessageRepository messages,
-    IUnitOfWork unitOfWork, WhatsAppFormActionReplyPolicy policy, IEnumerable<IStructuredRecordActionReplySink> owners,
-    TimeProvider clock, ILogger<WhatsAppFormActionReplyService> logger) : IWhatsAppFormActionReplyService
+    IWhatsAppFormActionRepository actions, IUnitOfWork unitOfWork, WhatsAppFormActionReplyPolicy policy,
+    IEnumerable<IStructuredRecordActionReplySink> owners, TimeProvider clock, ILogger<WhatsAppFormActionReplyService> logger)
+    : IWhatsAppFormActionReplyService
 {
     private const int MaxTaps = 20;
 
@@ -23,6 +27,7 @@ internal sealed partial class WhatsAppFormActionReplyService(IWhatsAppFormAction
         {
             var taps = await reader.ListPendingRepliesAsync(contactId, clock.GetUtcNow().UtcDateTime, MaxTaps, cancellationToken);
             if (taps.Count == 0) return Result.Success();
+            var answers = new List<(WhatsAppFormActionTapRow Tap, WhatsAppFormActionReply Reply, string Text)>();
             // Oldest first: of two taps on the same message the first decides, and the owner ignores the repeat.
             foreach (var tap in taps)
             {
@@ -37,8 +42,10 @@ internal sealed partial class WhatsAppFormActionReplyService(IWhatsAppFormAction
                 var applied = 0;
                 foreach (var owner in owners)
                 {
-                    if (await owner.ReplyAsync(reply.RunId, reply.RecipientUserId, reply.ChoiceId, cancellationToken) == StructuredRecordActionReplyState.Applied)
-                        applied++;
+                    var answer = await owner.ReplyAsync(reply.RunId, reply.RecipientUserId, reply.ChoiceId, cancellationToken);
+                    if (answer.State != StructuredRecordActionReplyState.Applied) continue;
+                    applied++;
+                    if (answer.Message is { } text) answers.Add((tap, reply, text));
                 }
 
                 LogHandedOver(logger, applied);
@@ -48,6 +55,14 @@ internal sealed partial class WhatsAppFormActionReplyService(IWhatsAppFormAction
             return await unitOfWork.ExecuteInTransactionAsync(async ct =>
             {
                 var nowUtc = clock.GetUtcNow().UtcDateTime;
+                // The contact goes first, as in every send; the answer leaves by the normal outgoing with the checks of any notice.
+                foreach (var (tap, reply, text) in answers)
+                {
+                    var contact = await actions.GetContactForUpdateAsync(reply.RecipientUserId, ct);
+                    if (await policy.AnswerAsync(contact, tap, reply, text, nowUtc, ct) is { } outgoing) actions.Add(outgoing);
+                    else LogNotAnswered(logger);
+                }
+
                 foreach (var tap in taps)
                 {
                     if (await messages.GetInboundAsync(tap.WaMessageId, ct) is { } message && message.Id == tap.Id && message.ContactId == contactId)
@@ -64,4 +79,8 @@ internal sealed partial class WhatsAppFormActionReplyService(IWhatsAppFormAction
 
     [LoggerMessage(Level = LogLevel.Information, Message = "A WhatsApp tap on a form action button was handed to its owners; {Applied} applied it")]
     private static partial void LogHandedOver(ILogger logger, int applied);
+
+    [LoggerMessage(Level = LogLevel.Information,
+        Message = "The text for an applied WhatsApp tap was not sent: the chat no longer reaches the person, the reply window closed or the text does not fit")]
+    private static partial void LogNotAnswered(ILogger logger);
 }

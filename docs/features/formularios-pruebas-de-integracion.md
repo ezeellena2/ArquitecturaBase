@@ -125,7 +125,7 @@ D2 verifica Estado contra conjuntos fijos 1/2/3,5/4 en GET/POST/total/Excel y co
 
 ## Reglas, acciones y aprobaciones
 
-Emitir un documento: FormIssueActionHttpTests, con un emisor de prueba y el worker a mano, comprueba que la emisión se encola una vez, vuelve a mirar cuando el emisor dice y guarda el resultado en la respuesta, y que una en revisión la decide desde el flujo sólo quien tiene el permiso del emisor, con la revisión que vio el run. El documento emitido queda en la actividad, y una respuesta con factura emitida no se corrige y se anula recién cuando su nota de crédito se emite, con los dos resultados guardados.
+Emitir un documento: FormIssueActionHttpTests, con un emisor de prueba y el worker a mano, comprueba que la emisión se encola una vez, vuelve a mirar cuando el emisor dice y guarda el resultado en la respuesta, y que una en revisión la decide desde el flujo sólo quien tiene el permiso del emisor, con la revisión que vio el run. El documento emitido queda en la actividad, y una respuesta con factura emitida no se corrige y se anula recién cuando su nota de crédito se emite, con los dos resultados guardados. Una respuesta de un canal espera la confirmación de quien la cargó, por la ruta `confirmation` o por el botón del canal (`IStructuredRecordActionReplySink`): «No emitir» la anula sin emitir y el botón devuelve una sola vez «No la emitimos. <prefijo>-<número> quedó anulada.».
 
 FormActionBackgroundServiceTests prueba el bucle técnico real con ServiceCollection, scopes y reloj controlado, sin ApiFactory ni Docker. Comprueba que candidatos inciertos o con excepción no frenan el lote; no acredita persistencia ni transporte externos.
 

@@ -58,6 +58,15 @@ public enum StructuredRecordActionReplyState
     Ignored,
 }
 
+/// <summary>
+/// The owner's answer to a reply: what it did and, only with an applied one, an optional text for the person, already in their
+/// language, that the channel sends back once («No la emitimos. FAC-000012 quedó anulada.»).
+/// </summary>
+public sealed record StructuredRecordActionReply(StructuredRecordActionReplyState State, string? Message = null)
+{
+    public override string ToString() => $"StructuredRecordActionReply {{ State = {State}, Message = [REDACTED] }}";
+}
+
 /// <summary>A local observation target; absence does not authorize another send.</summary>
 public sealed record StructuredRecordActionObservationRequest(Guid RunId,Guid RecipientUserId)
 { public override string ToString()=>"StructuredRecordActionObservationRequest { Target = [REDACTED] }"; }

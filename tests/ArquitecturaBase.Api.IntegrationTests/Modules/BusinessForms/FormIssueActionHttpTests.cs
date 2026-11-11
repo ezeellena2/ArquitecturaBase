@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using ArquitecturaBase.Api.IntegrationTests.Support;
@@ -165,6 +166,30 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Single(issuer.Requests);
         using var again = await client.PostAsJsonAsync($"/api/forms/records/{skippedId}/actions/{skippedRun}/confirmation", new { issue = true }, Ct);
         Assert.Equal(HttpStatusCode.Conflict, again.StatusCode);
+
+        // «No emitir» from a button of a channel decides the same and hands back, once, what the channel answers to the author.
+        var (repliedId, repliedRun) = await SeedIssueRunAsync(author, enteredInApp: false);
+        await worker.ProcessNextAsync(repliedRun, Ct);
+        var name = await factory.ExecuteDbContextAsync(async db =>
+        {
+            var record = await db.Set<BusinessFormRecord>().AsNoTracking().SingleAsync(item => item.Id == repliedId, Ct);
+            var prefix = await db.Set<BusinessFormDefinition>().Where(item => item.Id == record.DefinitionId).Select(item => item.Prefix).SingleAsync(Ct);
+            return prefix + "-" + record.Number.ToString("D6", CultureInfo.InvariantCulture);
+        });
+        var authorId = Guid.Parse(author.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
+        Assert.Equal(new StructuredRecordActionReply(StructuredRecordActionReplyState.Applied, $"No la emitimos. {name} quedó anulada."),
+            await ReplyAsync(host, repliedRun, authorId, "skip"));
+        Assert.Equal(new StructuredRecordActionReply(StructuredRecordActionReplyState.Ignored), await ReplyAsync(host, repliedRun, authorId, "skip"));
+        await worker.ProcessNextAsync(repliedRun, Ct);
+        Assert.Equal((FormRecordState.Voided, FormActionRunState.NotApplicable), (await RecordStateAsync(repliedId), (await RunAsync(repliedRun)).State));
+        Assert.Single(issuer.Requests);
+    }
+
+    // A button of a channel reaches the owner in its own scope, as the channel hands it over.
+    private static async Task<StructuredRecordActionReply> ReplyAsync(WebApplicationFactory<Program> host, Guid runId, Guid recipientUserId, string choiceId)
+    {
+        await using var scope = host.Services.CreateAsyncScope();
+        return await scope.ServiceProvider.GetServices<IStructuredRecordActionReplySink>().Single().ReplyAsync(runId, recipientUserId, choiceId, Ct);
     }
 
     [Fact]

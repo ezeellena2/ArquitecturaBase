@@ -11,6 +11,10 @@ public interface IFormIssueConfirmationService
 {
     Task<Result<FormWorkflowResponse>> ConfirmAsync(Guid recordId, Guid runId, bool issue, CancellationToken cancellationToken);
 
-    /// <summary>The same decision from a button of the channel, in the name of the person who pressed it; a stale one is ignored.</summary>
-    Task<Result> ReplyAsync(Guid runId, Guid actorUserId, bool issue, CancellationToken cancellationToken);
+    /// <summary>
+    /// The same decision from a button of the channel, in the name of the person who pressed it; a stale one is ignored. Not
+    /// issuing returns what the channel answers that person, in their language («No la emitimos. FAC-000012 quedó anulada.»);
+    /// issuing returns no text.
+    /// </summary>
+    Task<Result<string?>> ReplyAsync(Guid runId, Guid actorUserId, bool issue, CancellationToken cancellationToken);
 }

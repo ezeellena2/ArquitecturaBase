@@ -22,4 +22,5 @@
   <data name="Issue.Confirm.Issue" xml:space="preserve"><value>Issue</value></data>
   <data name="Issue.Confirm.Skip" xml:space="preserve"><value>Don't issue</value></data>
   <data name="Issue.NotIssued" xml:space="preserve"><value>It was not issued.</value></data>
+  <data name="Issue.Voided" xml:space="preserve"><value>We did not issue it. {0} was voided.</value></data>
 </root>

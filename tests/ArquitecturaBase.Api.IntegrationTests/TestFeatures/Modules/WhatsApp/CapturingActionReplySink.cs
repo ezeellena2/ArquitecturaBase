@@ -6,7 +6,8 @@ namespace ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.WhatsApp;
 
 /// <summary>
 /// A neutral owner of action replies: it records what the channel hands over and applies only the first reply of each run and
-/// person, like an owner that ignores repeats. It imports no forms module and decides nothing else.
+/// person, like an owner that ignores repeats, handing back the text set for its choice, if any. It imports no forms module and
+/// decides nothing else.
 /// </summary>
 internal sealed class CapturingActionReplySink : IStructuredRecordActionReplySink
 {
@@ -15,11 +16,15 @@ internal sealed class CapturingActionReplySink : IStructuredRecordActionReplySin
 
     public IReadOnlyList<(Guid RunId, Guid RecipientUserId, string ChoiceId)> Calls => [.. calls];
 
-    public Task<StructuredRecordActionReplyState> ReplyAsync(Guid runId, Guid recipientUserId, string choiceId, CancellationToken cancellationToken)
+    /// <summary>The text handed back when a reply with this choice is applied.</summary>
+    public ConcurrentDictionary<string, string> Texts { get; } = new();
+
+    public Task<StructuredRecordActionReply> ReplyAsync(Guid runId, Guid recipientUserId, string choiceId, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         calls.Enqueue((runId, recipientUserId, choiceId));
         return Task.FromResult(decided.TryAdd((runId, recipientUserId), choiceId)
-            ? StructuredRecordActionReplyState.Applied : StructuredRecordActionReplyState.Ignored);
+            ? new StructuredRecordActionReply(StructuredRecordActionReplyState.Applied, Texts.GetValueOrDefault(choiceId))
+            : new StructuredRecordActionReply(StructuredRecordActionReplyState.Ignored));
     }
 }

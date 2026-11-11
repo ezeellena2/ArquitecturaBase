@@ -124,7 +124,7 @@ Un canal con planilla (Etapa 2): BusinessFormAuthoringProposalChannelTests prueb
 
 ## Emitir un documento
 
-FormIssueRulePolicyTests prueba que «Emitir comprobante» se ofrece sólo con su emisor, una por regla, al llegar o al aprobarse y antes de los avisos, y que los avisos siguientes usan los datos de su resultado. FormIssueActionServiceTests prueba que una respuesta en pie entrega sus datos atados (con los ítems del bloque) una sola vez, que anulada o corregida antes de encolarse no emite, el resultado, el rechazo con su código, la revisión con la revisión que vio el run, la falta del emisor o del estándar, y el aviso de espera: una sola vez, en el idioma de quien cargó y sólo con un canal que lo alcance.
+FormIssueRulePolicyTests prueba que «Emitir comprobante» se ofrece sólo con su emisor, una por regla, al llegar o al aprobarse y antes de los avisos, y que los avisos siguientes usan los datos de su resultado. FormIssueActionServiceTests prueba que una respuesta en pie entrega sus datos atados (con los ítems del bloque) una sola vez, que anulada o corregida antes de encolarse no emite, el resultado, el rechazo con su código, la revisión con la revisión que vio el run, la falta del emisor o del estándar, y el aviso de espera: una sola vez, en el idioma de quien cargó y sólo con un canal que lo alcance. FormIssueReplySinkTests prueba el botón del canal (EM2-A): «No emitir» anula y devuelve «No la emitimos. VISIT-000001 quedó anulada.» en español o en inglés según quien cargó, «Emitir» libera el run sin texto, y la decisión repetida, el botón de otra persona, otra opción u otro run se ignoran sin texto ni cambios.
 
 ## Motor para documentos y carpetas
 
