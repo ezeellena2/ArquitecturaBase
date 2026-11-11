@@ -25,7 +25,7 @@ WhatsAppFlowProfileUpgradeTests reutiliza los bytes r3 y r8 existentes como recu
 - [Reglas funcionales del módulo](../../../../docs/features/whatsapp.md).
 - [Independencia del núcleo](../../../../docs/guides/quitar-whatsapp.md).
 
-G6 usa WhatsAppFormActionScenario con base aislada y Meta/almacenamiento privados simulados. Verifica upload y document.id, idempotencia entre hosts, orden de locks, teléfono cambiado, confirmación tras shutdown, retención, convivencia con atención manual y botones con su respuesta y el texto que devuelve el dueño, que sale una vez como texto al mismo chat (`WhatsAppFormActionReplyTests`). Los cuerpos HTTP reales se capturan sólo con WHATSAPP_FORM_ACTIONS_HTTP_OUTPUT; no acreditan entrega real en Meta.
+G6 usa WhatsAppFormActionScenario con base aislada y Meta/almacenamiento privados simulados. Verifica upload y document.id, idempotencia entre hosts, orden de locks, teléfono cambiado, confirmación tras shutdown, retención, convivencia con atención manual y botones con su respuesta y el texto del dueño (`WhatsAppFormActionReplyTests`). Los cuerpos HTTP reales se capturan sólo con WHATSAPP_FORM_ACTIONS_HTTP_OUTPUT; no acreditan entrega real en Meta.
 
 WhatsAppFormActionReadQueryTests compila el SQL sin conexión; WhatsAppFormActionReceiptTests usa persistencia real del webhook para receipts tempranos sin historial y filas legadas. WhatsAppReceiptTimelineMigrationTests comprueba Up/Down aditivos, sin backfill ni historia inventada; sólo las dos últimas requieren Docker.
 
