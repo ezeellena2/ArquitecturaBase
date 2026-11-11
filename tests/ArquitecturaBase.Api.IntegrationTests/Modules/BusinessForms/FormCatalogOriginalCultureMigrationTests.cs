@@ -98,7 +98,7 @@ public sealed class FormCatalogOriginalCultureMigrationTests(ApiFactory factory)
     }
 
     private static Task<string[]> HistoryAsync(ApplicationDbContext db) => db.Database.SqlQueryRaw<string>("""
-        SELECT jsonb_build_object('table', 'catalog', 'data', to_jsonb(r) - 'OriginalCulture')::text AS "Value" FROM "BusinessFormCatalogs" r
+        SELECT jsonb_build_object('table', 'catalog', 'data', to_jsonb(r) - 'OriginalCulture' - 'FeedRefreshedAtUtc' - 'FeedFailedAtUtc' - 'FeedFailureCode' - 'FeedLeaseUntilUtc')::text AS "Value" FROM "BusinessFormCatalogs" r
         UNION ALL SELECT jsonb_build_object('table', 'attribute', 'data', to_jsonb(r) - 'OriginalCulture')::text FROM "BusinessFormPersonAttributes" r
         ORDER BY "Value"
         """).ToArrayAsync(Ct);

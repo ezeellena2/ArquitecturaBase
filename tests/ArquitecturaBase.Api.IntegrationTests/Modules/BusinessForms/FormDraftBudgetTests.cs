@@ -53,7 +53,9 @@ public sealed partial class FormDraftEndpointsTests
         // listing and adding, and folders (CP1-A to CP5-A) eleven: the tree, create, update, deletion count, delete, the menu
         // place, the menu, and reading and saving the folders of a form and of a catalog. Importing the spreadsheet a proposal of
         // the assistant mapped (Stage 2) adds three: its review, applying it and the import a created catalog has pending.
-        Assert.Equal(102,paths.EnumerateObject().Where(path => path.Name.StartsWith("/api/forms/", StringComparison.Ordinal))
+        // The invoice (ARCA stage 3) adds four: the «¿La emito?» before sending and its confirmation, and «Completar con ARCA»
+        // (whether a catalog offers it, and the lookup).
+        Assert.Equal(106,paths.EnumerateObject().Where(path => path.Name.StartsWith("/api/forms/", StringComparison.Ordinal))
             .Sum(path => path.Value.EnumerateObject().Count(operation => operation.Name is "get" or "post" or "put" or "delete")));
         // Creating from a Home proposal (IA2): 201 with what it created, problems for invalid, unavailable and replaced, and the status.
         foreach (var (path, schema) in new[] { ("/api/forms/definitions/assistant-proposals", "FormDraftAssistantProposalResponse"),
