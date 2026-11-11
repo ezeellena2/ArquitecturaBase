@@ -206,6 +206,7 @@
   <data name="Arca.Invoicing.InvoiceAlreadyCancelled" xml:space="preserve"><value>That invoice already has a credit note.</value></data>
   <data name="Arca.Invoicing.GrossIncomeInvalid" xml:space="preserve"><value>Enter the gross income number, up to 30 characters.</value></data>
   <data name="Arca.Invoicing.ActivityStartInvalid" xml:space="preserve"><value>Choose the activity start date.</value></data>
+  <data name="Arca.Invoicing.SettingsRevisionConflict" xml:space="preserve"><value>The invoicing settings changed. Read them again before saving.</value></data>
   <data name="Arca.Invoicing.IssuerNotRegistered" xml:space="preserve"><value>The company has no VAT condition it can invoice with.</value></data>
   <data name="Arca.Invoicing.ReceiverConditionInvalid" xml:space="preserve"><value>The VAT condition of the client does not fit this voucher.</value></data>
   <data name="Arca.Invoicing.VoucherNotInReview" xml:space="preserve"><value>This issuance is no longer waiting for a review.</value></data>

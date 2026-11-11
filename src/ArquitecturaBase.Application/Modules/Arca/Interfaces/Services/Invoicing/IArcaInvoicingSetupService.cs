@@ -14,9 +14,14 @@ public interface IArcaInvoicingSetupService
     /// <summary>Consulta a ARCA los puntos de venta; los dados de baja no vienen.</summary>
     Task<Result<IReadOnlyList<ArcaPointOfSaleResponse>>> ListPointsOfSaleAsync(CancellationToken cancellationToken);
 
-    /// <summary>Elige uno que ARCA ofrece y no está bloqueado, y vuelve a calcular el estado de la conexión.</summary>
-    Task<Result<ArcaInvoicingSettingsResponse>> ChoosePointOfSaleAsync(int number, CancellationToken cancellationToken);
+    /// <summary>
+    /// Elige uno que ARCA ofrece y no está bloqueado, con la revisión que se leyó, y vuelve a calcular el estado de la conexión.
+    /// </summary>
+    Task<Result<ArcaInvoicingSettingsResponse>> ChoosePointOfSaleAsync(ChooseArcaPointOfSaleRequest request, CancellationToken cancellationToken);
 
-    /// <summary>Guarda ingresos brutos e inicio de actividades, sin llamar a ARCA ni cambiar el estado de la conexión.</summary>
-    Task<Result<ArcaInvoicingSettingsResponse>> SetVoucherDataAsync(string? grossIncomeNumber, DateOnly activityStartOn, CancellationToken cancellationToken);
+    /// <summary>
+    /// Guarda ingresos brutos e inicio de actividades con la revisión que se leyó, sin llamar a ARCA ni cambiar el estado de la
+    /// conexión.
+    /// </summary>
+    Task<Result<ArcaInvoicingSettingsResponse>> SetVoucherDataAsync(SetArcaVoucherDataRequest request, CancellationToken cancellationToken);
 }

@@ -7,9 +7,12 @@ using ArquitecturaBase.Application.Modules.Arca.Interfaces.Channels.Connection;
 using ArquitecturaBase.Application.Modules.Arca.Interfaces.Services.Connection;
 using ArquitecturaBase.Application.Modules.Arca.Interfaces.Services.Invoicing;
 using ArquitecturaBase.Application.Modules.Arca.Interfaces.Services.Registry;
+using ArquitecturaBase.Application.Modules.Arca.Models.Invoicing;
 using ArquitecturaBase.Application.Modules.Arca.Services.Connection;
 using ArquitecturaBase.Application.Modules.Arca.Services.Invoicing;
 using ArquitecturaBase.Application.Modules.Arca.Services.Registry;
+using ArquitecturaBase.Application.Modules.Arca.Validation.Invoicing;
+using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -56,6 +59,9 @@ public static class ArcaApplicationRegistration
     private static void AddInvoicing(IServiceCollection services)
     {
         services.TryAddScoped<IArcaInvoicingSetupService, ArcaInvoicingSetupService>();
+        services.TryAddScoped<ArcaInvoicingSettingsGuard>();
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<ChooseArcaPointOfSaleRequest>, ChooseArcaPointOfSaleRequestValidator>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<SetArcaVoucherDataRequest>, SetArcaVoucherDataRequestValidator>());
         services.TryAddScoped<IArcaVoucherService, ArcaVoucherService>();
         services.TryAddScoped<IArcaVoucherReviewService, ArcaVoucherReviewService>();
         services.TryAddScoped<IArcaVoucherStore, ArcaVoucherStore>();

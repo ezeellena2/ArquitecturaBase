@@ -37,7 +37,7 @@ public sealed class ArcaInvoicingPersistenceTests(ApiFactory factory)
             });
 
             var row = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IArcaInvoicingReader>().FindSettingsAsync(connectionId, ct));
-            Assert.Equal(new ArcaInvoicingSettingsRow(7), row);
+            Assert.Equal(new ArcaInvoicingSettingsRow(7, Revision: 1), row);
         }
         finally
         {

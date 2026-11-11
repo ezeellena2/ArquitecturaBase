@@ -9,6 +9,7 @@ public static class ArcaInvoicingErrors
     public static readonly Error PointOfSaleUnavailable = Error.Validation("Arca.Invoicing.PointOfSaleUnavailable", "ARCA no longer offers that point of sale.");
     public static readonly Error GrossIncomeInvalid = Error.Validation("Arca.Invoicing.GrossIncomeInvalid", "The gross income number is required and has up to 30 characters.");
     public static readonly Error ActivityStartInvalid = Error.Validation("Arca.Invoicing.ActivityStartInvalid", "The activity start date is required.");
+    public static readonly Error SettingsRevisionConflict = Error.Conflict("Arca.Invoicing.SettingsRevisionConflict", "The invoicing settings changed since they were read.");
     public static readonly Error VoucherNotFound = Error.NotFound("Arca.Invoicing.VoucherNotFound", "The issuance does not exist.");
     public static readonly Error PointOfSaleMissing = Error.Validation("Arca.Invoicing.PointOfSaleMissing", "Choose the point of sale before issuing.");
     public static readonly Error IssuerDataMissing = Error.Validation("Arca.Invoicing.IssuerDataMissing", "The registry has not brought the company data yet.");

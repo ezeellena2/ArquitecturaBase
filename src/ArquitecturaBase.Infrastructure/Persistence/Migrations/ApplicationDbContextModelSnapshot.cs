@@ -516,6 +516,10 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<int?>("PointOfSale")
                         .HasColumnType("integer");
 
+                    b.Property<long>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ConnectionId")

@@ -62,10 +62,10 @@ revisión esperada y responden 409 con `Arca.Connection.RevisionConflict` si cam
 | `POST api/arca/connection/test` | Prueba los servicios elegidos con la prueba de cada familia |
 | `DELETE api/arca/connection` | Desconecta (revisión en la query) |
 | `GET api/arca/registry/company` | Razón social, condición frente al IVA y domicilio fiscal que trajo el padrón |
-| `GET api/arca/invoicing/settings` | El punto de venta elegido, ingresos brutos e inicio de actividades (cada uno null mientras no se cargó) |
+| `GET api/arca/invoicing/settings` | El punto de venta elegido, ingresos brutos e inicio de actividades (cada uno null mientras no se cargó) y la revisión de la configuración (0 mientras no se guardó nada) |
 | `GET api/arca/invoicing/points-of-sale` | Consulta a ARCA los puntos de venta de web service |
-| `PUT api/arca/invoicing/point-of-sale` | Elige el punto de venta; la conexión se activa si la prueba salió bien y las demás familias están completas |
-| `PUT api/arca/invoicing/voucher-data` | Guarda ingresos brutos (hasta 30 caracteres, sin espacios a los costados) e inicio de actividades (un día). No llama a ARCA ni cambia el estado de la conexión; responde la configuración de Facturación |
+| `PUT api/arca/invoicing/point-of-sale` | Elige el punto de venta con la revisión leída (`expectedRevision`); la conexión se activa si la prueba salió bien y las demás familias están completas |
+| `PUT api/arca/invoicing/voucher-data` | Guarda ingresos brutos (hasta 30 caracteres, sin espacios a los costados) e inicio de actividades (un día), con la revisión leída. No llama a ARCA ni cambia el estado de la conexión; responde la configuración de Facturación |
 
 - **Límites por operador** (`Arca:RateLimiting`): lectura, escritura y `arca-remote`, que cubre lo que llama a ARCA
   (subir, probar, listar y elegir el punto de venta). Los cuerpos tienen 16 KiB como mucho. El padrón de un tercero, que se
@@ -123,8 +123,13 @@ revisión esperada y responden 409 con `Arca.Connection.RevisionConflict` si cam
 - La configuración de la familia está completa con el punto de venta elegido. Guarda además ingresos brutos e inicio de
   actividades, que el PDF fiscal muestra y el padrón no trae. Se cargan en la zona «Facturación · Datos del comprobante»
   de la conexión activa (AC4) con `PUT api/arca/invoicing/voucher-data`; no completan la familia ni frenan la activación.
-  Un número vacío o de más de 30 caracteres da `Arca.Invoicing.GrossIncomeInvalid`, y una fecha vacía,
-  `Arca.Invoicing.ActivityStartInvalid`.
+- Es configuración interna ([ADR 0018](../decisions/0018-robustez-proporcional-al-efecto.md)): cada cambio guardado avanza
+  su revisión, y los dos `PUT` traen la que se leyó (0 si todavía no había). Otra da 409
+  `Arca.Invoicing.SettingsRevisionConflict` sin guardar nada. Los pedidos se validan antes de abrir la transacción, y en
+  el punto de venta, antes de consultar a ARCA: un número vacío o de más de 30 caracteres, una fecha vacía, un punto de
+  venta fuera de 1 a 99998 o una revisión negativa dan 400 `Validation.Failed` con `errors` por campo
+  (`grossIncomeNumber`, `activityStartOn`, `pointOfSale`, `expectedRevision`). El número de ingresos brutos no se imprime
+  en los logs.
 
 ### Emisión de comprobantes (etapas 3 y 4)
 

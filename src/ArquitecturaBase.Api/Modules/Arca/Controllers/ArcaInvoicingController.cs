@@ -12,7 +12,7 @@ namespace ArquitecturaBase.Api.Modules.Arca.Controllers;
 
 /// <summary>
 /// El punto de venta de la plataforma y los datos del comprobante: consultar a ARCA, elegir y guardar piden también
-/// <c>arca.manage</c>.
+/// <c>arca.manage</c>. Guardar trae la revisión que se leyó, y otra da 409.
 /// </summary>
 [ApiController]
 [Route("api/arca/invoicing")]
@@ -39,9 +39,12 @@ public sealed class ArcaInvoicingController(IArcaInvoicingSetupService setup) : 
     [HasPermission(ArcaPermissions.Manage)]
     [EnableRateLimiting(ArcaApiRegistration.RemotePolicy)]
     [ProducesResponseType<ArcaInvoicingSettingsResponse>(StatusCodes.Status200OK)]
+    [ProducesProblem(StatusCodes.Status400BadRequest)]
     [ProducesProblem(StatusCodes.Status404NotFound)]
+    [ProducesProblem(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> ChoosePointOfSale([FromBody] ChooseArcaPointOfSaleHttpRequest request, CancellationToken cancellationToken) =>
-        (await setup.ChoosePointOfSaleAsync(request.PointOfSale, cancellationToken)).ToActionResult(this);
+        (await setup.ChoosePointOfSaleAsync(new ChooseArcaPointOfSaleRequest(request.PointOfSale, request.ExpectedRevision), cancellationToken))
+            .ToActionResult(this);
 
     [HttpPut("voucher-data")]
     [HasPermission(ArcaPermissions.Manage)]
@@ -49,6 +52,8 @@ public sealed class ArcaInvoicingController(IArcaInvoicingSetupService setup) : 
     [ProducesResponseType<ArcaInvoicingSettingsResponse>(StatusCodes.Status200OK)]
     [ProducesProblem(StatusCodes.Status400BadRequest)]
     [ProducesProblem(StatusCodes.Status404NotFound)]
+    [ProducesProblem(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> SetVoucherData([FromBody] SetArcaVoucherDataHttpRequest request, CancellationToken cancellationToken) =>
-        (await setup.SetVoucherDataAsync(request.GrossIncomeNumber, request.ActivityStartOn, cancellationToken)).ToActionResult(this);
+        (await setup.SetVoucherDataAsync(new SetArcaVoucherDataRequest(request.GrossIncomeNumber, request.ActivityStartOn, request.ExpectedRevision),
+            cancellationToken)).ToActionResult(this);
 }

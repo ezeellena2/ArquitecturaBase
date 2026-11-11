@@ -66,4 +66,29 @@ public sealed class ArcaInvoicingSettingsTests
         Assert.True(settings.ChoosePointOfSale(1).IsSuccess);
         Assert.True(settings.ChoosePointOfSale(99998).IsSuccess);
     }
+
+    [Fact]
+    public void Each_saved_change_advances_the_revision_and_a_rejected_one_does_not()
+    {
+        var settings = ArcaInvoicingSettings.Create(Guid.CreateVersion7());
+        Assert.Equal(0, settings.Revision);
+
+        Assert.True(settings.ChoosePointOfSale(5).IsSuccess);
+        Assert.True(settings.SetVoucherData("901-123456-7", new DateOnly(2019, 3, 1)).IsSuccess);
+        Assert.True(settings.ChoosePointOfSale(0).IsFailure);
+        Assert.True(settings.SetVoucherData(" ", new DateOnly(2019, 3, 1)).IsFailure);
+
+        Assert.Equal(2, settings.Revision);
+    }
+
+    [Fact]
+    public void Only_the_current_revision_can_save()
+    {
+        var settings = ArcaInvoicingSettings.Create(Guid.CreateVersion7());
+        Assert.True(settings.ChoosePointOfSale(5).IsSuccess);
+
+        Assert.True(settings.EnsureRevision(1).IsSuccess);
+        Assert.Equal(ArcaInvoicingErrors.SettingsRevisionConflict, settings.EnsureRevision(0).Error);
+        Assert.Equal(ArcaInvoicingErrors.SettingsRevisionConflict, settings.EnsureRevision(2).Error);
+    }
 }
