@@ -1274,14 +1274,16 @@ Están el backend (2026-11-09) y el front (2026-11-11); los ejemplos HTTP de un 
 Un formulario puede pedir la ubicación de quien lo completa, en el momento de completarlo: un punto, no un recorrido. Es lo
 que informa el dispositivo; no prueba presencia y nada lo contrasta. El usuario eligió UB1-A a UB4-A el 2026-11-11 (el
 [plan](../plans/2026-10-22-documentos-por-whatsapp.md#la-pregunta-ubicación) y las
-[pantallas](../../../ArquitecturaBaseFront/docs/design/ubicacion-en-formularios.md)). La Etapa 1 es la app; por WhatsApp, la
-Etapa 2, sin diseño.
+[pantallas](../../../ArquitecturaBaseFront/docs/design/ubicacion-en-formularios.md)). La Etapa 1 es la app; la Etapa 2, por
+WhatsApp, eligió W1-A el mismo día: la ubicación se pide antes del Flow ([reglas del canal](whatsapp.md#la-ubicación-antes-del-flow--w1-a-2026-11-11)).
 
 - **El tipo.** `location` (`FormQuestionType.Location`) es sólo obligatoria u opcional: sin opciones, archivos, selección,
   largo máximo, cálculo ni condición propia, y nunca en el bloque de renglones. Cambiar el tipo de una pregunta a ubicación, o
   al revés, es otra pregunta. Ninguna condición ni cálculo se apoya en ella.
-- **Sólo en la app.** El chequeo da `Forms.Publication.LocationOnlyInApp` en `draft.fields[i]` cuando el formulario se completa
-  también por un canal; con «Sólo en la app», o sin un canal instalado (SA5), no. El compilador de Flows tampoco la acepta.
+- **Por WhatsApp (W1-A).** El chequeo no la frena en un formulario que también completa WhatsApp: el canal la pide antes del
+  Flow y la respuesta llega completa, con el punto, en una sola captura. Un formulario pide una sola ubicación por WhatsApp; la
+  segunda frena con `WhatsApp.Flow.UnsupportedConfiguration`. El detalle de una respuesta que llegó así suma «Se pidió la
+  ubicación» y «Llegó la ubicación» (o «Siguió sin la ubicación») antes de «Se mandó el formulario».
 - **La respuesta** llega en el mapa de respuestas como el texto de un objeto `{"latitude":…,"longitude":…,"accuracyMeters":…}`:
   números, sin otras claves. La latitud va de -90 a 90 y la longitud de -180 a 180, redondeadas a seis decimales lejos del cero,
   como las coordenadas del negocio; la precisión es opcional, de 0 a 100.000 m, en metros enteros. Obligatoria es que estén la
@@ -1302,5 +1304,6 @@ Etapa 2, sin diseño.
   «Ver en el mapa» y «Volver a pedirla»; si el navegador no lo da, dice por qué. En el editor es el último tipo, sólo con
   «Obligatoria»; la planilla muestra el punto como el enlace al mapa, sin ordenar ni filtrar por él, y el detalle, con «Ver en el
   mapa» y la precisión en gris.
-- **Lo que no hace.** El asistente de IA no la propone al armar un formulario ni la prellena o mapea en una sugerencia; un
-  estándar de la biblioteca no la usa. Se ve con `formrecords.read` y se carga con los permisos de carga de hoy.
+- **Lo que no hace.** El asistente de IA no la propone al armar un formulario ni la prellena o mapea en una sugerencia, y en
+  esta etapa no ofrece, sugiere ni aclara un formulario que la tenga (`FormAssistantCandidatePolicy`): lo manda una persona
+  desde el chat. Un estándar de la biblioteca no la usa. Se ve con `formrecords.read` y se carga con los permisos de carga de hoy.

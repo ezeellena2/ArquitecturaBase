@@ -167,6 +167,37 @@ línea («1. GLIFOSATO 64% · 200 · Litros · Sí»), con las respuestas en el 
 responder, como «Así llega» (RG4-A). Viene por la lectura neutral, sin campos del catálogo, y el bloque cuenta como un dato
 más para plegar la tarjeta. Sin ítems dice «Sin respuesta».
 
+## La ubicación antes del Flow — W1-A, 2026-11-11
+
+Un Flow no puede pedir la ubicación, así que la pregunta «Ubicación» de un formulario se pide antes, con un mensaje aparte
+([pregunta](formularios.md#la-pregunta-ubicación--ub1-a-a-ub4-a-2026-11-11), [pantallas](../../../ArquitecturaBaseFront/docs/design/ubicacion-en-formularios.md#etapa-2-por-whatsapp-w1-a)).
+
+- **El envío.** Cuando una persona manda desde el chat un formulario con una pregunta de ubicación, `POST .../form-messages`
+  crea la sesión y, en lugar del Flow, un saliente `LocationRequest`: el `location_request_message` de Meta («Para completar
+  «<nombre>», mandanos tu ubicación.», «To fill in “<name>”, send us your location.»), cuyo botón «Enviar ubicación» dibuja
+  WhatsApp en el idioma del teléfono. Si la pregunta es opcional sale también un botón de respuesta, «La ubicación es
+  opcional.» con «Seguir sin ubicación» («Continue without it»: Meta limita el título a 20 caracteres). La sesión guarda el
+  cuerpo del Flow, el mensaje del operador o la apertura predeterminada.
+- **La ubicación que llega.** El webhook lee un `location` como `Location`, con la latitud y la longitud redondeadas a seis
+  decimales; el nombre y la dirección de un lugar elegido no se guardan, y la retención vacía el punto con el cuerpo. Después
+  del proceso de los entrantes, `WhatsAppFlowLocationService` toma, bajo el lock del contacto, las ubicaciones y los toques en
+  «Seguir sin ubicación» que no resolvieron un envío: cada ubicación completa el envío más viejo que la espera y que ya existía
+  cuando se mandó; un toque, el envío que nombra (`FLOW_LOCATION_SKIP:<sesión>`), sólo si su pregunta es opcional. Vale lo
+  primero que llega; lo demás queda como un mensaje del chat. Un texto no contesta nada y el pedido sigue abierto.
+- **El Flow.** Al resolverse, el envío encola en la misma unidad de trabajo el Flow de siempre, con el cuerpo guardado y el
+  operador que mandó el formulario. El Flow no lleva la pregunta: como un cálculo, la ubicación queda en el mapeo sellado sin
+  control ni clave en el `complete` (el perfil sigue en r13), y una respuesta que trajera su clave queda Rejected.
+- **La respuesta.** Al llegar el Flow, la captura toma el punto del envío como la respuesta de la pregunta, sin precisión porque
+  WhatsApp no la da, y guarda todo junto. Si la persona siguió sin la ubicación, la pregunta queda vacía.
+- **El vencimiento.** Un envío que no recibe la ubicación vence a las `FlowSessionLifetimeHours` como cualquier otro, sin
+  guardar nada; una ubicación que llega después es un mensaje más.
+- **El chat del operador.** El pedido se ve con su texto y una tarjeta con el pin, «Pedido de ubicación» y el formulario, con su
+  estado (`form.location`: `Requested` con `expiresAtUtc`, `Received` o `Skipped`); el front muestra «Venció sin la
+  ubicación» cuando el pedido sigue en `Requested` después del vencimiento. La ubicación que llega trae su punto (`location`).
+- **Lo que no hace.** El asistente no ofrece, ni sugiere ni aclara un formulario con una pregunta de ubicación en esta etapa
+  (`FormAssistantCandidatePolicy`): su envío tiene un ciclo propio que no puede esperar la ubicación. Un formulario pide una
+  sola ubicación por WhatsApp.
+
 ## Piloto de formularios
 
 El piloto real con r3 publicó, envió desde el chat y capturó una respuesta con los seis tipos. Falta calificar r4 y, en dispositivos, ambos separadores decimales (la preview aceptó punto y rechazó coma, y el celular respondió un entero), los límites completos y ausencia frente a false: [Etapa 2](../plans/formularios/etapa-2-catalogos.md) y [verificación de cierre](formularios.md#verificación-de-cierre--2026-10-11).

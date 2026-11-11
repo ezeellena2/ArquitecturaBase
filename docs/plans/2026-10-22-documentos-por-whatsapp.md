@@ -161,7 +161,7 @@ La persona recibe «Cargué tu transferencia de $150.000 (REC-000123). Si algo e
 
 ### La pregunta «Ubicación»
 
-Anexada el 2026-11-10. El usuario preguntó si un formulario puede pedir la ubicación. Hoy no: no existe esa pregunta, ni en la app ni por WhatsApp, y la fila «Ubicación» de [Qué puede llegar](#qué-puede-llegar) supone una pregunta que la reciba. Esta sección agrega esa pregunta a los formularios, primero en la app, y deja la parte de WhatsApp para una etapa aparte, con su propio diseño. **Estado: el usuario eligió UB1-A a UB4-A el 2026-11-11 y la Etapa 1 se programó en la tanda de ese día, para la prueba integral final (backend y front). En la Etapa 2, por WhatsApp, el usuario eligió W1 el 2026-11-11: pedirla antes del Flow. Falta su tablero entero, con los estados, y programarla.** La Etapa 1 no depende del resto de este plan.
+Anexada el 2026-11-10. El usuario preguntó si un formulario puede pedir la ubicación. Hoy no: no existe esa pregunta, ni en la app ni por WhatsApp, y la fila «Ubicación» de [Qué puede llegar](#qué-puede-llegar) supone una pregunta que la reciba. Esta sección agrega esa pregunta a los formularios, primero en la app, y deja la parte de WhatsApp para una etapa aparte, con su propio diseño. **Estado: el usuario eligió UB1-A a UB4-A el 2026-11-11 y la Etapa 1 se programó en la tanda de ese día, para la prueba integral final (backend y front). En la Etapa 2, por WhatsApp, el usuario eligió W1 el 2026-11-11: pedirla antes del Flow. Su tablero entero quedó dibujado y se programó el mismo día, backend y front; falta la prueba real con Meta del pedido y de la ubicación que vuelve.** La Etapa 1 no depende del resto de este plan.
 
 #### Qué se puede pedir y qué no
 
@@ -209,6 +209,8 @@ Cada tarea arranca con su test en rojo y cierra con el build y los tests unitari
 
 **Hecho en el front (2026-11-11):** la tarea 8, con el diseño en a0fc834c y el código en 1868c284 (f06df796, el diseño al día). El hunk de la vista previa de WhatsApp entró antes, dentro de 4c79b0c0 de ARCA 2. Verificado sobre HEAD del front con los cambios: `tsc` sin errores, oxlint y los tests de arquitectura en verde y vitest de las áreas tocadas (108 archivos, 1052 tests; dos fallos ajenos: el filtro del listado por el cambio de carpetas en `api/forms.ts` y un badge de la planilla que pasa solo). El test que lee los cuatro cuerpos exportados (`entriesLocationHttpContract.test.ts`) se suma después de la exportación conjunta.
 
+**Arreglos de la revisión contra el código (2026-11-11):** la ubicación no ofrece condición en el editor, como el backend (front 9d3f55b5); «Ver en el mapa» es un enlace en la compu y un botón sólo en el celular (6a49e9ae); la vista previa del mensaje de una regla muestra el punto y su enlace (966bc970).
+
 1. **El tipo y el borrador.** `FormQuestionType.Location`, `FormDraftPolicy.TypeOf` y `SaveFormDraftRequestValidator` (`"location"`, sin `repeated`, sin opciones, archivos, cálculo ni condición propios). Tests de Domain y de Application: guardar y publicar un borrador con la pregunta, cambio de tipo con identidad nueva, y que dentro de un bloque falla.
 2. **La publicación.** `FormPublicationPolicy`: un formulario con una pregunta de ubicación que no es «Sólo en la app» da un problema bloqueante del chequeo, con su código estable (declarado en `FormPublicationErrors`, con su texto en `Errors.resx` y `Errors.en.resx`). Test de que el compilador de Flows nunca la acepta, aunque algo la dejara pasar.
 3. **La captura.** `FormRecordAnswerPolicy` valida y normaliza la ubicación (las reglas de arriba); `FormRecordAnswer` la lleva y `Value` la pasa a `ValuesJson`; `BusinessFormRecordRecorder` y `FormEntryRecorder` escriben las tres filas. Tests: rango, redondeo, obligatoria vacía, precisión opcional, huella idempotente de un reintento y que un valor mal formado guarda el recibo rechazado sin respuesta parcial.
@@ -220,7 +222,7 @@ Cada tarea arranca con su test en rojo y cierra con el build y los tests unitari
 
 **Cierre:** una revisión y, al terminar, una vez: la integración con PostgreSQL y Redis, `dotnet test` completo, el build sin advertencias y `aspire stop` si levantaste la app. **A mano**, con el front: completar «Registro de visita» en un celular (permitir y denegar el permiso), en una computadora (precisión baja), ver el punto en la planilla y en el detalle, abrir el Excel y el PDF.
 
-#### Etapa 2: la ubicación por WhatsApp (elegida W1 el 2026-11-11, sin programar)
+#### Etapa 2: la ubicación por WhatsApp (elegida W1 el 2026-11-11 y programada el mismo día)
 
 Un Flow no puede pedir la ubicación, así que la pregunta saldría del Flow. Las formas posibles; el 2026-11-11 el usuario eligió W1, la recomendada:
 
@@ -257,6 +259,8 @@ Antes de programar:
 - La prueba con Meta real del `location_request_message` y del mensaje `location` que vuelve, con borradores que después se borran.
 
 W3 puede sumarse después, sobre el circuito de este plan: una ubicación que la persona manda por su cuenta mientras tiene un envío abierto.
+
+**Hecho (2026-11-11):** el tablero entero en el lienzo y en el diseño del front (1d4ea87e, con los renglones de la actividad que dibujó W1-A); el backend en 7cadd0ea (el canal: el pedido y el botón de la opcional, la ubicación que llega, el servicio que resuelve el envío más viejo, el Flow que la deja afuera como un cálculo en r13 y la respuesta que toma el punto; migración `AddWhatsAppFlowLocation`), 23fbd373 (la publicación deja de frenarla con WhatsApp y el asistente no ofrece un formulario con ubicación) y ded656c2 (la actividad del detalle y la composición de punta a punta con PostgreSQL, que escribe tres cuerpos nuevos para el front: `es/thread-location-requested` y `es/thread-location-received` en whatsapp-forms-http y `detail-location-whatsapp-es` en forms-responses-http); el front, el chat del operador y la actividad. Lo que hace está en [las reglas del canal](../features/whatsapp.md#la-ubicación-antes-del-flow--w1-a-2026-11-11). Lo resuelto por lo más simple al programar: un formulario pide una sola ubicación por WhatsApp; el asistente no ofrece, sugiere ni aclara un formulario con ubicación, porque su envío no puede quedar esperando la ubicación; el botón dice «Seguir sin ubicación» por el tope de 20 caracteres de Meta. Falta la prueba real con Meta.
 
 #### Fuera de alcance
 

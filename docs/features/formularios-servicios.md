@@ -21,7 +21,7 @@ Es el detalle de la guía [`src/ArquitecturaBase.Application/Modules/BusinessFor
 - Aceptación: lock actor/RequestId → replay, antes del token y la revisión → lock de definiciones → revalidación → sella campos, versión, culturas de los perfiles verificados, operación y manifiesto protegido y bloquea el prefijo, sin activar ni llamar al proveedor.
 - Despacho: reservar y completar son límites separados y el pedido sale de lo sellado; el canal se llama fuera de toda UoW y un error queda `Uncertain` con los mismos IDs. Se activa por `BaseActiveVersionId` y fence sin pisar un borrador posterior; `CanRetry` es false.
 - Status devuelve sólo la operación propia; preview consulta al canal sin UoW, con opciones de ejemplo de cada lista (VO1-A: las primeras 20, sin filtros por persona ni por otra respuesta).
-- Ubicación (UB2-A): `FormPublicationPolicy.LocationIssues` bloquea con `LocationOnlyInApp`, en `draft.fields[i]`, cada pregunta `location` de un formulario que también completa un canal; con «Sólo en la app», o sin un canal instalado, no se aplica.
+- Ubicación (W1-A): el chequeo no frena una pregunta `location` en un formulario que también completa WhatsApp, que la pide antes del Flow; el compilador del canal la deja fuera del Flow. `FormAssistantCandidatePolicy.Project` no da por candidato a un formulario que la tenga, así que el asistente no lo ofrece, sugiere ni aclara, y `FormResponseService` suma a la actividad del detalle `LocationRequested`, y `LocationReceived` o `LocationSkipped`, desde el origen del canal.
 
 ## Ciclo de vida: dar de baja, reactivar y eliminar
 
