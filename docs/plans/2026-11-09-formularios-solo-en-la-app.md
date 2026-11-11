@@ -1,7 +1,8 @@
 # Formularios sólo en la app
 
 Decidido el 2026-11-09: el usuario eligió las siete recomendadas («Sí, las recomendadas»). **El backend quedó programado el
-mismo día** (corte 1, con el visto bueno del usuario: «Ahora, el backend»); falta el front, que espera el fin de la prueba integral.
+mismo día** (corte 1, con el visto bueno del usuario: «Ahora, el backend»). Falta el front: el usuario lo aprobó el 2026-11-11
+para cuando termine la prueba integral («Sí, al terminar»), con la app apagada y el front quieto.
 Las reglas vigentes están en [formularios](../features/formularios.md#formularios-sólo-en-la-app--sa1-a-a-sa5-2026-11-09). Lo pidió durante esa prueba: «Quiero poder
 crear formularios que no vayan a WhatsApp, que sean sólo de la app». Hoy no se puede, porque publicar una versión siempre pasa
 por un canal.
