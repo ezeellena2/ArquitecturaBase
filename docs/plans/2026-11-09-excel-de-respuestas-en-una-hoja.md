@@ -38,8 +38,9 @@ datos que ya existen. El diálogo dice cómo quedan las filas.
 ## Lo que vale con cualquier forma (XL2)
 
 - **La hora de la app.** «Recibida» en la zona de la cuenta que exporta (la de su perfil y, si no tiene, la de la
-  configuración general), como fecha de Excel y con el formato del idioma. La conversión se hace al escribir; lo guardado
-  sigue en UTC.
+  configuración general), como fecha de Excel y sólo con números, como la app: desde el 2026-11-11, con la regla de
+  fechas, `dd/mm/aaaa` o `mm/dd/aaaa` y la hora después de una coma. La conversión se hace al escribir; lo guardado sigue
+  en UTC.
 - **Las palabras de la planilla.** «N°», «Recibida», «Cargó», «Canal» con «WhatsApp» o «App», «Estado» con los estados de
   la app y «Anulada» con «Sí».
 - **«(desde vN)» se queda.** El archivo no tiene «Columnas» para decirlo y distingue dos columnas con el mismo nombre
