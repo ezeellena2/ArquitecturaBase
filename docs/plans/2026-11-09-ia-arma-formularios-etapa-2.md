@@ -365,3 +365,19 @@ app (`propose-catalog@2` y la importación) y vuelven a correr. `home-existing` 
 Pruebas: unitarias 4546/4546, arquitectura 207/207, integración 12/12, vitest 56/56 de lo tocado y 99/99 de lo vecino, lint y
 `tsc -b` sin errores. Faltan el diálogo y la página, que esperan a «Diálogo de exportar», y los contratos del front, que esperan a
 la exportación conjunta.
+
+2026-11-11: el arnés califica lo que ofrece la app (54ebca97), con 206 controles offline:
+- `ia-authoring` pasa a la versión 2 en Inicio y en el canal; los catálogos sin planilla esperan `spreadsheet` en null;
+- los contextos automáticos de `channel-stage5` y `channel-dictation` son los de `WhatsAppAssistantAccessPolicy`;
+- `home-spreadsheets` e `ia-spreadsheets` ya arrancan.
+
+La corrida con el proveedor real, con el visto bueno del usuario, es de tres sets, cada uno con su RunId y su base vacía:
+- `ia-authoring`: 48 casos, 4 dictados WebM/MP4 y 2 notas Ogg, con los dos de `channel-dictation`;
+- `channel-stage5`: 30 casos;
+- `ia-spreadsheets`: 30 casos, 2 WebM y 2 Ogg.
+
+A mirar en esa corrida:
+- que OpenAI acepte en modo estricto el mapeo en null;
+- el contexto con la planilla;
+- que una planilla sin texto pregunte en Inicio;
+- que un pedido que no dice qué hacer con la planilla dé `unclear`.
