@@ -411,7 +411,9 @@ cerrar la etapa.
 
 Pruebas: vitest de lo tocado 221/221, lint y `tsc -b` sin errores, y 12 escenas nuevas (`catalogAssistantImport.spec.ts`). Las de
 catálogos siguen sin diferencias. A 320 px, el «Desde» con dos opciones se cortaba en cualquier teléfono. Ahora baja de renglón en
-el celular, con el `wrap` del control (front 22598fcd).
+el celular, con el `wrap` del control (front 22598fcd). La revisión contra las decisiones encontró que, aun así, la opción larga
+del chat se cortaba. En la variante `wrap` del control compartido, una opción ahora corta su texto en renglones, y la escena
+comprueba que ninguna se pase de su caja (front 82f52d55).
 
 Falta, después de la exportación conjunta que hace el chat coordinador:
 - los tests del front que leen las capturas nuevas (`ai-assistant-http`, `whatsapp-audio-http`, `catalog-imports` y
