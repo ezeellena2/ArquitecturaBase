@@ -47,10 +47,16 @@ public sealed record UpdateManualCatalogRequest(
     IReadOnlyDictionary<string, string?>? Name,
     IReadOnlyDictionary<string, string?>? Description,
     IReadOnlyList<FormCatalogManualItemSaveRequest?>? Items,
-    IReadOnlyList<FormCatalogManualItemMoveRequest?>? Moves = null, bool? IsActive = null, bool SortAlphabetically = false, IReadOnlyList<FormCatalogFieldSaveRequest?>? Fields = null,
+    IReadOnlyList<FormCatalogManualItemMoveRequest?>? Moves = null, bool? IsActive = null, FormCatalogItemSortRequest? Sort = null, IReadOnlyList<FormCatalogFieldSaveRequest?>? Fields = null,
     FormCatalogPresentation? Presentation = null, IReadOnlyList<Guid>? ConfirmFieldRemovals = null, IReadOnlyList<Guid>? DeleteItemIds = null);
 
 public sealed record FormCatalogManualItemMoveRequest(Guid? ItemId, string? Direction);
+
+/// <summary>
+/// Orders every option of the catalog when saving. Column is "text", "code" or the id of an active field; options that tie keep
+/// their current order and those without a value go last in both directions.
+/// </summary>
+public sealed record FormCatalogItemSortRequest(string? Column, bool Descending = false);
 
 public sealed record FormCatalogListItemResponse(
     Guid Id,

@@ -24,8 +24,13 @@ internal sealed class UpdateManualCatalogRequestValidator : AbstractValidator<Up
     {
         if (request.ExpectedRevision is null or < 1 or > 9007199254740991)
             context.AddFailure("expectedRevision", FormCatalogRequestValidation.InvalidMessage());
-        if (request.SortAlphabetically && request.Moves is { Count: > 0 })
-            context.AddFailure("moves", FormCatalogRequestValidation.InvalidMessage());
+        if (request.Sort is { } sort)
+        {
+            // Shape only: the recorder checks that a field id names an active field of the catalog.
+            if (sort.Column is not ("text" or "code") && !(Guid.TryParseExact(sort.Column, "D", out var fieldId) && fieldId != Guid.Empty && sort.Column == fieldId.ToString("D")))
+                context.AddFailure("sort.column", FormCatalogRequestValidation.InvalidMessage());
+            if (request.Moves is { Count: > 0 }) context.AddFailure("moves", FormCatalogRequestValidation.InvalidMessage());
+        }
         FormCatalogRequestValidation.Validate(request.Name, request.Description, request.Items, context, creating: false);
         FormCatalogRequestValidation.ValidateConfiguration(request.Fields, request.Presentation, false, context.AddFailure);
         if (request.ConfirmFieldRemovals is { } removals && (removals.Count > BusinessFormCatalog.MaxFields || removals.Distinct().Count() != removals.Count || removals.Contains(Guid.Empty)))

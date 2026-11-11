@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text.Json;
 using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
@@ -12,9 +11,13 @@ internal sealed class FormCatalogItemRecorder(IFormCatalogRepository repository)
 {
     public Result<FormCatalogItemsRecorded> Record(BusinessFormCatalog catalog,
         IReadOnlyList<BusinessFormCatalogItem> storedItems, IReadOnlyList<FormCatalogManualItemSaveRequest?> inputs,
-        IReadOnlyList<FormCatalogManualItemMoveRequest?>? moves = null, bool sortAlphabetically = false, FormCatalogFieldContext? fieldContext = null,
+        IReadOnlyList<FormCatalogManualItemMoveRequest?>? moves = null, FormCatalogItemSortRequest? sort = null, FormCatalogFieldContext? fieldContext = null,
         IReadOnlyList<Guid>? deleteItemIds = null)
     {
+        // A field id sorts by an active field of the catalog as it is after this save.
+        var sortField = sort is null or { Column: "text" or "code" } ? null
+            : fieldContext?.Fields.FirstOrDefault(field => field.IsActive && field.Id.ToString("D") == sort.Column);
+        if (sort is not null and not { Column: "text" or "code" } && sortField is null) return FieldErrors.On(FormCatalogErrors.ContentInvalid, "sort.column");
         var byId = storedItems.ToDictionary(item => item.Id);
         var requestedIds = inputs.Where(item => item!.ItemId.HasValue).Select(item => item!.ItemId!.Value).ToHashSet();
         if (requestedIds.Concat(deleteItemIds ?? []).Any(itemId => !byId.ContainsKey(itemId))) return FormCatalogErrors.ItemNotFound;
@@ -86,14 +89,9 @@ internal sealed class FormCatalogItemRecorder(IFormCatalogRepository repository)
             }
         }
 
-        if (sortAlphabetically || moves is not null || deletedItems.Length > 0)
+        if (moves is not null || deletedItems.Length > 0)
         {
-            // A-Z follows the catalog's original text, compared with the rules of that language.
-            var orderedItems = sortAlphabetically
-                ? keptItems.Concat(addedItems).OrderBy(item => item.TextFor(catalog.OriginalCulture),
-                        StringComparer.Create(CultureInfo.GetCultureInfo(catalog.OriginalCulture == "en" ? "en-US" : "es-AR"), false))
-                    .ThenBy(item => item.Position).ThenBy(item => item.Id).ToList()
-                : keptItems.Concat(addedItems).OrderBy(item => item.Position).ThenBy(item => item.Id).ToList();
+            var orderedItems = keptItems.Concat(addedItems).OrderBy(item => item.Position).ThenBy(item => item.Id).ToList();
             var requestedMoves = moves ?? [];
             for (var moveIndex = 0; moveIndex < requestedMoves.Count; moveIndex++)
             {
@@ -107,14 +105,8 @@ internal sealed class FormCatalogItemRecorder(IFormCatalogRepository repository)
                 orderedItems.RemoveAt(currentIndex);
                 orderedItems.Insert(targetIndex, item);
             }
-            for (var index = 0; index < orderedItems.Count; index++)
-            {
-                var orderedItem = orderedItems[index];
-                if (orderedItem.Position == index + 1) continue;
-                var repositioned = catalog.UpdateManualItem(orderedItem, orderedItem.Code, orderedItem.TextEs,
-                    orderedItem.TextEn, orderedItem.DetailEs, orderedItem.DetailEn, index + 1, orderedItem.Value);
-                if (repositioned.IsFailure) return repositioned.Error;
-            }
+            var repositioned = Reposition(catalog, orderedItems);
+            if (repositioned.IsFailure) return repositioned.Error;
         }
 
         var allItems = keptItems.Concat(addedItems).ToArray();
@@ -124,9 +116,29 @@ internal sealed class FormCatalogItemRecorder(IFormCatalogRepository repository)
             var validated = FormCatalogFieldPolicy.ValidateItems(catalog, allItems, validationInputs, requested, fieldContext);
             if (validated.IsFailure) return validated.Error;
         }
+        // The order reads the values as they are saved: the ones sent in this save, converted to the field's type, count.
+        if (sort is not null)
+        {
+            var sorted = Reposition(catalog, FormCatalogItemSortPolicy.Order(catalog, allItems, sort, sortField,
+                fieldContext?.Sources ?? new Dictionary<Guid, IReadOnlyList<FormCatalogStoredItemRow>>()));
+            if (sorted.IsFailure) return sorted.Error;
+        }
         repository.AddItems(addedItems);
         if (deletedItems.Length > 0) repository.RemoveItems(deletedItems);
         return new FormCatalogItemsRecorded(identityMap, allItems);
+    }
+
+    private static Result Reposition(BusinessFormCatalog catalog, IReadOnlyList<BusinessFormCatalogItem> orderedItems)
+    {
+        for (var index = 0; index < orderedItems.Count; index++)
+        {
+            var orderedItem = orderedItems[index];
+            if (orderedItem.Position == index + 1) continue;
+            var repositioned = catalog.UpdateManualItem(orderedItem, orderedItem.Code, orderedItem.TextEs,
+                orderedItem.TextEn, orderedItem.DetailEs, orderedItem.DetailEn, index + 1, orderedItem.Value);
+            if (repositioned.IsFailure) return repositioned.Error;
+        }
+        return Result.Success();
     }
 
     // A blank text is no text: the catalog requires its original and the other culture is an optional translation.

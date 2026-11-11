@@ -17,7 +17,7 @@ public sealed record UpdateManualCatalogHttpRequest(
     IReadOnlyDictionary<string, string?>? Name,
     IReadOnlyDictionary<string, string?>? Description,
     IReadOnlyList<FormCatalogManualItemHttpRequest?>? Items,
-    IReadOnlyList<FormCatalogManualItemMoveHttpRequest?>? Moves = null, bool? IsActive = null, bool SortAlphabetically = false, IReadOnlyList<FormCatalogFieldHttpRequest?>? Fields = null,
+    IReadOnlyList<FormCatalogManualItemMoveHttpRequest?>? Moves = null, bool? IsActive = null, FormCatalogItemSortHttpRequest? Sort = null, IReadOnlyList<FormCatalogFieldHttpRequest?>? Fields = null,
     FormCatalogPresentationHttpRequest? Presentation = null, IReadOnlyList<Guid>? ConfirmFieldRemovals = null, IReadOnlyList<Guid>? DeleteItemIds = null)
 {
     public override string ToString() => "UpdateManualCatalogHttpRequest { Content = [REDACTED] }";
@@ -25,6 +25,9 @@ public sealed record UpdateManualCatalogHttpRequest(
 
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record FormCatalogManualItemMoveHttpRequest(Guid? ItemId, string? Direction);
+
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+public sealed record FormCatalogItemSortHttpRequest(string? Column, bool Descending = false);
 
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record FormCatalogManualItemHttpRequest(

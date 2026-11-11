@@ -94,7 +94,9 @@ foreach ($case in @("Configuration", "Merge", "Missing", "Collision")) {
                 Assert-Condition (($sourceRoot + "BusinessForms/FormCatalogImportFieldsHttpTests.cs") -in $imports.Sources) "The source field import producer SHA must be included."
                 Assert-Condition (($captureRoot + "Modules/BusinessForms/FormCatalogImportContractCapture.cs") -in $imports.Sources) "The import capture SHA must be included."
                 $manual = @($cohorts | Where-Object { $_.Name -eq "manual-catalogs" })[0]
-                Assert-Condition ($manual.RequiredNames.Count -eq 49) "Manual catalogs must preserve prior captures, eighteen extra-field artifacts, the optional description and three original-language bodies."
+                Assert-Condition ($manual.RequiredNames.Count -eq 50) "Manual catalogs must preserve prior captures, eighteen extra-field artifacts, the optional description, three original-language bodies and the sorted request."
+                Assert-Condition ("sorted-request.request.json" -in $manual.RequiredNames) "The «Ordenar por…» request body is missing."
+                Assert-Condition (($sourceRoot + "BusinessForms/FormCatalogEndpointsTests.Sort.cs") -in $manual.Sources) "The «Ordenar por…» producer SHA must be included."
                 Assert-Condition ("description-optional-created.json" -in $manual.RequiredNames) "The optional catalog description body is missing."
                 foreach ($name in @("english-original-created", "english-original-detail-es", "original-missing-error")) { Assert-Condition (("$name.json") -in $manual.RequiredNames) "An original-language catalog body is missing." }
                 $typedNames = @("typed-text-created.json", "typed-text-items.json", "typed-integer-created.json", "typed-integer-items.json", "typed-decimal-created.json", "typed-decimal-items.json", "typed-date-created.json", "typed-date-items.json", "typed-invalid-value-es.json", "typed-invalid-value-en.json", "typed-required-value.json", "typed-type-change-rejected.json")

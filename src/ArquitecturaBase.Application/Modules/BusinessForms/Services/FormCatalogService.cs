@@ -130,7 +130,7 @@ internal sealed class FormCatalogService(IFormCatalogRepository repository, IFor
         var keptItems = storedItems.Where(item => request.DeleteItemIds?.Contains(item.Id) != true).ToList();
         var fields = await fieldRecorder.PrepareAsync(catalog, keptItems, request.Fields, request.Presentation, request.ConfirmFieldRemovals, canReadForms, ct);
         if (fields.IsFailure) return fields.Error;
-        var recorded = recorder.Record(catalog, storedItems, request.Items!, request.Moves, request.SortAlphabetically, fields.Value.Context, request.DeleteItemIds);
+        var recorded = recorder.Record(catalog, storedItems, request.Items!, request.Moves, request.Sort, fields.Value.Context, request.DeleteItemIds);
         if (recorded.IsFailure) return recorded.Error;
         var updated = catalog.UpdateManual(request.ExpectedRevision!.Value, FormCatalogProposalPolicy.Texts(request.Name), FormCatalogProposalPolicy.Texts(request.Description), request.IsActive);
         if (updated.IsFailure) return updated.Error;
