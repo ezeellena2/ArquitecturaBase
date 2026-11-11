@@ -1,5 +1,6 @@
 using ArquitecturaBase.Application.Modules.Arca.Models.Connection;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.Arca;
+using ArquitecturaBase.Domain.Modules.Arca;
 using ArquitecturaBase.Domain.Modules.Arca.Connection;
 
 namespace ArquitecturaBase.Application.UnitTests.Modules.Arca.Connection;
@@ -39,6 +40,36 @@ public sealed class ArcaRobotRunStoreTests
 
         Assert.Equal(ArcaRobotRunStatus.Succeeded, host.Runs.Company!.Status);
         Assert.Equal(host.Clock.GetUtcNow().UtcDateTime, host.Runs.Platform.NextAttemptAtUtc);
+    }
+
+    [Fact]
+    public async Task A_company_finished_by_hand_after_a_stop_lets_the_platform_accept_and_assign_at_once()
+    {
+        using var host = new ArcaApplicationHost(withRobot: true);
+        var (run, owner) = await StartCompanyAsync(host);
+        var platform = host.Runs.Platform!;
+        var platformOwner = Guid.NewGuid();
+        await host.RobotStore.ReservePlatformAsync(platform.Id, platformOwner, Ct);
+        await host.RobotStore.FinishPlatformAsync(platform.Id, platformOwner, ArcaRobotOutcome.Success, null, Ct);
+        Assert.Equal(host.Clock.GetUtcNow().UtcDateTime.AddHours(1), platform.NextAttemptAtUtc);
+        Assert.Equal(ArcaConnectionErrors.RobotNotStopped, (await host.RobotStore.CompleteCompanyByHandAsync(Ct)).Error);
+        await host.RobotStore.FinishCompanyAsync(run, owner, ArcaRobotOutcome.Stopped(ArcaRobotFailure.Captcha, ArcaRobotSteps.CompanyLogin), Ct);
+
+        Assert.True((await host.RobotStore.CompleteCompanyByHandAsync(Ct)).IsSuccess);
+
+        Assert.Equal(ArcaRobotRunStatus.Succeeded, host.Runs.Company!.Status);
+        var job = await host.RobotStore.ReservePlatformAsync(platform.Id, Guid.NewGuid(), Ct);
+        Assert.True(job!.CompanyDone);
+    }
+
+    [Fact]
+    public async Task Without_a_company_side_there_is_nothing_to_finish_by_hand()
+    {
+        using var host = new ArcaApplicationHost(withRobot: true);
+        await host.StartAutomatedAsync(Invoicing);
+
+        Assert.Equal(ArcaConnectionErrors.RobotNotStopped, (await host.RobotStore.CompleteCompanyByHandAsync(Ct)).Error);
+        Assert.Null(host.Runs.Company);
     }
 
     [Fact]

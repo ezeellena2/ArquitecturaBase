@@ -41,6 +41,17 @@ public sealed class ArcaRobotServiceTests
     }
 
     [Fact]
+    public async Task Finishing_by_hand_is_refused_while_the_robot_is_off()
+    {
+        using var host = new ArcaApplicationHost(withPlatform: true);
+
+        var result = await host.Robot.CompleteByHandAsync(Ct);
+
+        Assert.Equal(ArcaConnectionErrors.RobotDisabled, result.Error);
+        Assert.Equal(0, host.Work.Transactions);
+    }
+
+    [Fact]
     public async Task The_consent_the_login_and_the_key_are_checked_before_the_transaction()
     {
         using var host = new ArcaApplicationHost(withRobot: true);

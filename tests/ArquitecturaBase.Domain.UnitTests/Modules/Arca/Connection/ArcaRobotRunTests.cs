@@ -117,6 +117,35 @@ public sealed class ArcaRobotRunTests
     }
 
     [Fact]
+    public void A_stopped_company_side_is_finished_by_hand_but_not_while_it_runs()
+    {
+        var run = ArcaRobotRun.StartCompany(ConnectionId, Operator, Owner, Now, Lease);
+        Assert.Equal(ArcaConnectionErrors.RobotNotStopped, run.CompleteByHand(Now.AddMinutes(1)).Error);
+
+        run.Complete(ArcaRobotSteps.CompanyLogin, null, Owner, Now, Lease);
+        run.Fail(ArcaRobotFailure.Captcha, ArcaRobotSteps.CompanyLogin, Owner, Now.AddMinutes(1));
+
+        Assert.True(run.CompleteByHand(Now.AddMinutes(5)).IsSuccess);
+
+        Assert.Equal(ArcaRobotRunStatus.Succeeded, run.Status);
+        Assert.Null(run.Failure);
+        Assert.Null(run.FailedStep);
+        Assert.Equal(Now.AddMinutes(5), run.FinishedAtUtc);
+        Assert.Equal([ArcaRobotSteps.CompanyLogin], run.CompletedSteps);
+    }
+
+    [Fact]
+    public void An_interrupted_company_side_is_also_finished_by_hand()
+    {
+        var run = ArcaRobotRun.StartCompany(ConnectionId, Operator, Owner, Now, Lease);
+
+        Assert.True(run.CompleteByHand(Now.Add(Lease)).IsSuccess);
+
+        Assert.Equal(ArcaRobotRunStatus.Succeeded, run.Status);
+        Assert.False(run.IsInterrupted(Now.Add(Lease)));
+    }
+
+    [Fact]
     public void An_interrupted_company_side_can_start_again()
     {
         var run = ArcaRobotRun.StartCompany(ConnectionId, Operator, Owner, Now, Lease);

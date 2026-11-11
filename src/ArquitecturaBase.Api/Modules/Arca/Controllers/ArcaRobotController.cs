@@ -12,7 +12,8 @@ namespace ArquitecturaBase.Api.Modules.Arca.Controllers;
 
 /// <summary>
 /// El robot de delegación (ADR 0026): leer el avance pide <c>arca.read</c>; arrancarlo con la clave fiscal, además
-/// <c>arca.manage</c> y el límite de lo que llama a ARCA. La clave no vuelve en ninguna respuesta.
+/// <c>arca.manage</c> y el límite de lo que llama a ARCA; seguir a mano si se frenó, <c>arca.manage</c>. La clave no
+/// vuelve en ninguna respuesta.
 /// </summary>
 [ApiController]
 [Route("api/arca/connection/robot-runs")]
@@ -41,4 +42,14 @@ public sealed class ArcaRobotController(IArcaRobotService service) : ControllerB
             new ArcaFiscalKey(request.FiscalKey), request.ExpectedRevision), cancellationToken);
         return started.ToAcceptedResult(this);
     }
+
+    /// <summary>El cliente frenado siguió con la guía (RB3-A): la plataforma acepta, asigna y confirma.</summary>
+    [HttpPost("current/manual-completion")]
+    [HasPermission(ArcaPermissions.Manage)]
+    [ProducesResponseType<ArcaRobotRunResponse>(StatusCodes.Status202Accepted)]
+    [ProducesProblem(StatusCodes.Status400BadRequest)]
+    [ProducesProblem(StatusCodes.Status404NotFound)]
+    [ProducesProblem(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> CompleteByHand(CancellationToken cancellationToken) =>
+        (await service.CompleteByHandAsync(cancellationToken)).ToAcceptedResult(this);
 }

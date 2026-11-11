@@ -166,6 +166,7 @@
   <data name="Arca.Connection.RobotConsentMissing" xml:space="preserve"><value>Check the authorization to use your tax key.</value></data>
   <data name="Arca.Connection.RobotKeyMissing" xml:space="preserve"><value>Type your tax key.</value></data>
   <data name="Arca.Connection.RobotRunInProgress" xml:space="preserve"><value>The robot is already working on this connection. Wait until it finishes.</value></data>
+  <data name="Arca.Connection.RobotNotStopped" xml:space="preserve"><value>The robot has not stopped: there are no steps to follow by hand. Reload the screen.</value></data>
   <data name="Arca.Connection.RobotBusy" xml:space="preserve"><value>The robot cannot take another run right now. Try again in a few minutes or follow the guide.</value></data>
   <data name="Arca.Invoicing.PointOfSaleInvalid" xml:space="preserve"><value>The point of sale goes from 1 to 99998.</value></data>
   <data name="Arca.Invoicing.PointOfSaleUnavailable" xml:space="preserve"><value>ARCA no longer offers that point of sale. Search the points of sale again.</value></data>

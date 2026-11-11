@@ -48,6 +48,22 @@ internal sealed class ArcaRobotRunStore(IArcaConnectionRepository connections, I
             return true;
         }, cancellationToken);
 
+    public Task<Result> CompleteCompanyByHandAsync(CancellationToken cancellationToken) =>
+        unitOfWork.ExecuteInTransactionAsync(async token =>
+        {
+            await connections.LockConnectionAsync(token);
+            if (await connections.GetConnectionAsync(token) is not { } connection) return ArcaConnectionErrors.NotConnected;
+            if (connection.Mode != ArcaAccessMode.PlatformDelegationAutomated) return ArcaConnectionErrors.RobotModeMismatch;
+            if (await runs.GetAsync(connection.Id, ArcaRobotSide.Company, token) is not { } company) return ArcaConnectionErrors.RobotNotStopped;
+            var nowUtc = timeProvider.GetUtcNow().UtcDateTime;
+            var finished = company.CompleteByHand(nowUtc);
+            if (finished.IsFailure) return finished;
+
+            if (await runs.GetAsync(connection.Id, ArcaRobotSide.Platform, token) is { } platform) platform.Reschedule(nowUtc);
+            else runs.Add(ArcaRobotRun.SchedulePlatform(connection.Id, nowUtc));
+            return Result.Success();
+        }, CommitPolicy.OnSuccess, cancellationToken);
+
     public async Task<ArcaPlatformRobotWorkResponse?> ReservePlatformAsync(Guid runId, Guid owner, CancellationToken cancellationToken) =>
         (await unitOfWork.ExecuteInTransactionAsync(token => ReservePlatformCoreAsync(runId, owner, token), CommitPolicy.OnSuccess, cancellationToken)).Value;
 

@@ -26,6 +26,12 @@ public interface IArcaRobotRunStore
     /// </summary>
     Task<bool> FinishCompanyAsync(Guid runId, Guid owner, ArcaRobotOutcome outcome, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// El cliente frenado siguió con la guía (RB3-A): da por terminado su lado y pone a la plataforma a aceptar, asignar y
+    /// confirmar enseguida.
+    /// </summary>
+    Task<Result> CompleteCompanyByHandAsync(CancellationToken cancellationToken);
+
     /// <summary>Toma el lado de la plataforma si le toca y devuelve lo que el robot tiene que hacer; null si no le toca.</summary>
     Task<ArcaPlatformRobotWorkResponse?> ReservePlatformAsync(Guid runId, Guid owner, CancellationToken cancellationToken);
 

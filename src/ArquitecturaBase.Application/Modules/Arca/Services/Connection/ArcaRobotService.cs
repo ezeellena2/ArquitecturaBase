@@ -46,6 +46,14 @@ internal sealed class ArcaRobotService(IArcaRobotRunReader reader, IArcaRobotRun
             return await ResponseAsync(cancellationToken);
         });
 
+    public Task<Result<ArcaRobotRunResponse>> CompleteByHandAsync(CancellationToken cancellationToken) =>
+        OperationLog.RunAsync<Result<ArcaRobotRunResponse>>(logger, "CompleteArcaRobotRunByHand", async () =>
+        {
+            if (!options.Value.Enabled) return ArcaConnectionErrors.RobotDisabled;
+            var finished = await store.CompleteCompanyByHandAsync(cancellationToken);
+            return finished.IsFailure ? finished.Error : await ResponseAsync(cancellationToken);
+        });
+
     private async Task<ArcaRobotRunResponse> ResponseAsync(CancellationToken cancellationToken) =>
         ArcaRobotRunResponse.From(options.Value.Enabled, await reader.ListAsync(cancellationToken), timeProvider.GetUtcNow().UtcDateTime);
 }

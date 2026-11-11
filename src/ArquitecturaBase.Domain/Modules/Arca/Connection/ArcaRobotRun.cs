@@ -89,6 +89,19 @@ public sealed class ArcaRobotRun : Entity
         return Result.Success();
     }
 
+    /// <summary>
+    /// El cliente siguió con la guía e hizo a mano lo que faltaba (RB3-A): su lado, frenado o interrumpido, queda terminado.
+    /// No mientras corre.
+    /// </summary>
+    public Result CompleteByHand(DateTime nowUtc)
+    {
+        if (Side != ArcaRobotSide.Company || !(Status == ArcaRobotRunStatus.Failed || IsInterrupted(nowUtc))) return ArcaConnectionErrors.RobotNotStopped;
+        Status = ArcaRobotRunStatus.Succeeded;
+        ClearFailure();
+        Finish(nowUtc);
+        return Result.Success();
+    }
+
     /// <summary>Vuelve a poner en espera el lado de la plataforma, vencido ya, salvo que haya terminado bien.</summary>
     public void Reschedule(DateTime nowUtc)
     {

@@ -45,6 +45,8 @@ public sealed class ArcaRobotEndpointsTests(ApiFactory factory) : IDisposable
 
         using var start = await reader.PostAsJsonAsync(Route, Body(1, "clave"), Ct);
         Assert.Equal(HttpStatusCode.Forbidden, start.StatusCode);
+        using var byHand = await reader.PostAsync(Route + "/current/manual-completion", null, Ct);
+        Assert.Equal(HttpStatusCode.Forbidden, byHand.StatusCode);
     }
 
     [Fact]
@@ -138,6 +140,26 @@ public sealed class ArcaRobotEndpointsTests(ApiFactory factory) : IDisposable
         factory.Clock.Advance(TimeSpan.FromMinutes(4));
         Assert.Equal("Interrupted", (await CurrentAsync(scenario)).GetProperty("company").GetProperty("state").GetString());
         await scenario.ReadAsync(await scenario.Client.PostAsJsonAsync(Route, Body(revision, FakeArcaWeb.ClientKey), Ct), HttpStatusCode.Accepted);
+        await DrainAsync();
+    }
+
+    [Fact]
+    public async Task A_stopped_company_side_is_finished_by_hand_and_the_platform_side_goes_on()
+    {
+        await using var scenario = await StartAutomatedAsync();
+        var revision = (await scenario.GetConnectionAsync()).GetProperty("revision").GetInt64();
+        await scenario.ReadAsync(await scenario.Client.PostAsJsonAsync(Route, Body(revision, FakeArcaWeb.ClientKey), Ct), HttpStatusCode.Accepted);
+
+        var running = await scenario.ReadAsync(await scenario.Client.PostAsync(Route + "/current/manual-completion", null, Ct), HttpStatusCode.Conflict);
+        Assert.Equal("Arca.Connection.RobotNotStopped", running.GetProperty("code").GetString());
+
+        factory.Clock.Advance(TimeSpan.FromMinutes(4));
+        var finished = await scenario.ReadAsync(await scenario.Client.PostAsync(Route + "/current/manual-completion", null, Ct), HttpStatusCode.Accepted);
+
+        Assert.Equal("Succeeded", finished.GetProperty("company").GetProperty("state").GetString());
+        Assert.Equal("Waiting", finished.GetProperty("platform").GetProperty("state").GetString());
+        await using var scope = factory.Services.CreateAsyncScope();
+        Assert.Single(await scope.ServiceProvider.GetRequiredService<IArcaRobotRunReader>().ListDuePlatformRunsAsync(factory.Clock.GetUtcNow().UtcDateTime, Ct));
         await DrainAsync();
     }
 
