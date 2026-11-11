@@ -43,12 +43,14 @@ internal sealed class WhatsAppChatQueryService(IWhatsAppChatReader reader, IWhat
         var pointer = await presentation.FindCurrentAsync(request.ContactId, actor, cancellationToken);
         var recordResult = await recordSource.ReadAsync(actor, culture, receiptIds, cancellationToken);
         return new WhatsAppThreadResponse(new(ToResponse(row.Contact), formContact),
-            [.. row.Messages.Select(message => new WhatsAppMessageResponse(message.Id, message.Direction, ShownKind(message.Kind),
+            [.. row.Messages.Select(message => new WhatsAppMessageResponse(message.Id, message.Direction, message.Kind,
                 message.Purpose == WhatsAppMessagePurpose.Access || message.Origin == WhatsAppMessageOrigin.FormAction && !recordResult.CanReadRecords
-                    || message.Kind == WhatsAppMessageKind.Spreadsheet ? null : audio.VisibleText(message), message.OccurredAtUtc,
+                    ? null : audio.VisibleText(message), message.OccurredAtUtc,
                 message.InboundSequence, message.OperatorUserId, message.Status, message.ErrorCode, message.Purpose, message.AccessEventKind,
                 ToFormResponse(message.Form), ToFormReplyResponse(message.FormReply, recordResult, message.OccurredAtUtc), message.Origin, Assistant: presentation.Explain(message.Assistant, recordResult.CanReadRecords),
-                QuickReplies: WhatsAppAssistantPresentationPolicy.Titles(message.QuickReplyTitlesJson, false), Audio: audio.View(message)))],
+                QuickReplies: WhatsAppAssistantPresentationPolicy.Titles(message.QuickReplyTitlesJson, false), Audio: audio.View(message),
+                // A received spreadsheet shows its name, and its caption as the body (stage 2 of the assistant authoring).
+                SpreadsheetName: message.Kind == WhatsAppMessageKind.Spreadsheet ? message.SpreadsheetName : null))],
             [.. row.Outgoing.Select(item => ToOutgoingResponse(item, recordResult.CanReadRecords))], row.BeforeAtUtc, row.BeforeId, recordResult.CanReadRecords)
             { AssistantAvailability = availability, AssistantSuggestion = pointer };
     });
@@ -67,11 +69,6 @@ internal sealed class WhatsAppChatQueryService(IWhatsAppChatReader reader, IWhat
         new(row.Id, row.RequestId, row.OperatorUserId, row.Origin == WhatsAppMessageOrigin.FormAction && !canReadRecords ? null : row.Body, row.RequestedAtUtc,
             row.State, row.WaMessageId, ToFormResponse(row.Form), Kind: row.Kind, Origin: row.Origin, Assistant: presentation.Explain(row.Assistant, canReadRecords),
             QuickReplies: row.Origin == WhatsAppMessageOrigin.FormAction && !canReadRecords ? null : WhatsAppAssistantPresentationPolicy.Titles(row.QuickRepliesJson, true));
-
-    // Until the chat shows a received spreadsheet (stage 2 of the assistant authoring, task 8), it is shown as media was before:
-    // without its caption or its name.
-    private static WhatsAppMessageKind ShownKind(WhatsAppMessageKind kind) =>
-        kind == WhatsAppMessageKind.Spreadsheet ? WhatsAppMessageKind.Media : kind;
 
     private static WhatsAppFormPresentationResponse? ToFormResponse(WhatsAppFormPresentationRow? row)
     {
@@ -111,7 +108,9 @@ internal sealed class WhatsAppChatQueryService(IWhatsAppChatReader reader, IWhat
     private WhatsAppChatResponse ToResponse(WhatsAppChatRow row)
     {
         var parsed = WhatsAppIds.Parse(phoneNumbers, row.PhoneNumber);
-        var preview = row.PreviewIsAssistant ? FlowTexts.Get("AssistantPreview", CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es") : row.PreviewIsAudio ? FlowTexts.Get("AudioPreview", CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es") : row.PreviewIsFormAction
+        // Like the audio's, a spreadsheet's preview is generic: neither its name nor its caption.
+        var preview = row.PreviewIsAssistant ? FlowTexts.Get("AssistantPreview", CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es") : row.PreviewIsAudio ? FlowTexts.Get("AudioPreview", CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es")
+            : row.PreviewIsSpreadsheet ? FlowTexts.Get("SpreadsheetPreview", CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es") : row.PreviewIsFormAction
             ? FlowTexts.Get("FormActionPreview", CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es")
             : row.PreviewIsFormReply
             ? FlowTexts.Get("FormReplyPreview", CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es")

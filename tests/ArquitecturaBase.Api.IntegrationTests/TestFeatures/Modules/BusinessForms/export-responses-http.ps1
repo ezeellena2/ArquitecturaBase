@@ -132,7 +132,7 @@ $cohorts = @(
     @{ Name = "suggestion-details"; Environment = "FORM_SUGGESTION_DETAILS_HTTP_OUTPUT"; Destination = "forms-suggestion-detail-http";
         Sources = @(($sourceRoot + "BusinessForms/FormSuggestionCaptureIntegrationTests.cs"), ($captureRoot + "Modules/BusinessForms/FormSuggestionDetailContractCapture.cs")) },
     @{ Name = "whatsapp-audio"; Environment = "WHATSAPP_AUDIO_HTTP_OUTPUT"; Destination = "whatsapp-audio-http";
-        Sources = @(($sourceRoot + "WhatsApp/WhatsAppChatTests.Audio.cs"), ($captureRoot + "Modules/WhatsApp/WhatsAppAudioContractCapture.cs")) },
+        Sources = @(($sourceRoot + "WhatsApp/WhatsAppChatTests.Audio.cs"), ($sourceRoot + "WhatsApp/WhatsAppChatTests.Spreadsheet.cs"), ($captureRoot + "Modules/WhatsApp/WhatsAppAudioContractCapture.cs")) },
     @{ Name = "missing-requests"; Environment = "FORM_MISSING_REQUEST_HTTP_OUTPUT"; Destination = "forms-missing-requests-http";
         Sources = @(($sourceRoot + "BusinessForms/FormMissingRequestHttpTests.cs"), ($captureRoot + "Modules/BusinessForms/FormMissingRequestScenario.cs"), ($captureRoot + "Modules/BusinessForms/FormMissingRequestContractCapture.cs")) },
     @{ Name = "whatsapp-assistant"; Environment = "WHATSAPP_ASSISTANT_HTTP_OUTPUT"; Destination = "whatsapp-assistant-http";

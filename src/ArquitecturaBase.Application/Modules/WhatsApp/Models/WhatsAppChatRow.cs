@@ -16,6 +16,7 @@ public sealed record WhatsAppChatRow
     public bool PreviewIsFormAction { get; init; }
     public bool PreviewIsFormReply { get; init; }
     public bool PreviewIsAudio { get; init; }
+    public bool PreviewIsSpreadsheet { get; init; }
     public bool PreviewIsAssistant { get; init; }
     public WhatsAppMessagePurpose PreviewPurpose { get; init; }
     public WhatsAppAccessEventKind? PreviewAccessEventKind { get; init; }
@@ -30,6 +31,8 @@ public sealed record WhatsAppMessageRow(
 {
     public WhatsAppAssistantPresentationRow? Assistant { get; init; }
     public string? QuickReplyTitlesJson { get; init; }
+    /// <summary>The normalized file name of a received spreadsheet (stage 2 of the assistant authoring).</summary>
+    public string? SpreadsheetName { get; init; }
 }
 public sealed record WhatsAppAudioMessageRow(WhatsAppAudioState State, bool HasContent, DateTime? ContentExpiresAtUtc, string? FailureCode = null);
 public sealed record WhatsAppFormReplyRow(string State, Guid? SourceReceiptId, Guid? DefinitionId, Guid? VersionId,

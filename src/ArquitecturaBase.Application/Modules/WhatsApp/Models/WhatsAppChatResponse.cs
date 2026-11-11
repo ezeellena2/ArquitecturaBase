@@ -17,7 +17,9 @@ public sealed record WhatsAppMessageResponse(
     WhatsAppMessagePurpose Purpose = WhatsAppMessagePurpose.Unclassified, WhatsAppAccessEventKind? AccessEventKind = null,
     WhatsAppFormPresentationResponse? Form = null, WhatsAppFormReplyResponse? FormReply = null,
     WhatsAppMessageOrigin Origin = WhatsAppMessageOrigin.Conversation,
-    WhatsAppAssistantExplanationResponse? Assistant = null, IReadOnlyList<string>? QuickReplies = null, WhatsAppAudioResponse? Audio = null);
+    WhatsAppAssistantExplanationResponse? Assistant = null, IReadOnlyList<string>? QuickReplies = null, WhatsAppAudioResponse? Audio = null,
+    // Only a received spreadsheet carries its normalized name; the other messages keep their shape.
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? SpreadsheetName = null);
 public sealed record WhatsAppFormReplyResponse(string State, Guid? DefinitionId, Guid? VersionId, long? VersionNumber,
     string? Name, Guid? RecordId, string? Number, IReadOnlyList<WhatsAppFormReplyValueResponse>? Values, [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? RejectionCode = null,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? RejectedQuestion = null,

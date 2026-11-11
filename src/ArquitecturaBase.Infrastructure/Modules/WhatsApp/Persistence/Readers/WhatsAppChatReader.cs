@@ -64,7 +64,8 @@ internal sealed class WhatsAppChatReader(ApplicationDbContext dbContext) : IWhat
                         item.FlowCaptureErrorCode, item.FlowRejectedQuestion, item.FlowFileCount)
                     : null, item.Origin, item.Kind == WhatsAppMessageKind.Audio && item.AudioState != null ? new WhatsAppAudioMessageRow(item.AudioState.Value,item.AudioStorageKey != null,item.AudioContentExpiresAtUtc,item.AudioFailureCode) : null)
                 { Assistant = item.FlowSession != null && item.FlowSession.ProtectedAssistantContent != null && item.FlowSession.AssistantContentExpiresAtUtc != null
-                    ? new WhatsAppAssistantPresentationRow(item.FlowSession.Id,item.FlowSession.ContactId,item.FlowSession.UserId,item.FlowSession.VersionId,item.FlowSession.ProtectedAssistantContent,item.FlowSession.AssistantContentExpiresAtUtc.Value) : null, QuickReplyTitlesJson = item.QuickReplyTitlesJson }).ToListAsync(cancellationToken);
+                    ? new WhatsAppAssistantPresentationRow(item.FlowSession.Id,item.FlowSession.ContactId,item.FlowSession.UserId,item.FlowSession.VersionId,item.FlowSession.ProtectedAssistantContent,item.FlowSession.AssistantContentExpiresAtUtc.Value) : null, QuickReplyTitlesJson = item.QuickReplyTitlesJson,
+                  SpreadsheetName = item.Kind == WhatsAppMessageKind.Spreadsheet ? item.SpreadsheetFileName : null }).ToListAsync(cancellationToken);
         var hasPrevious = items.Count > request.Limit;
         if (hasPrevious) { items.RemoveAt(items.Count - 1); }
         items.Reverse();
@@ -125,6 +126,9 @@ internal sealed class WhatsAppChatReader(ApplicationDbContext dbContext) : IWhat
             PreviewIsAudio = dbContext.Set<WhatsAppMessage>().Where(message => message.ContactId == contact.Id)
                 .OrderByDescending(message => message.OccurredAtUtc).ThenByDescending(message => message.Id)
                 .Select(message => message.Kind == WhatsAppMessageKind.Audio).FirstOrDefault(),
+            PreviewIsSpreadsheet = dbContext.Set<WhatsAppMessage>().Where(message => message.ContactId == contact.Id)
+                .OrderByDescending(message => message.OccurredAtUtc).ThenByDescending(message => message.Id)
+                .Select(message => message.Kind == WhatsAppMessageKind.Spreadsheet).FirstOrDefault(),
             PreviewIsFormReply = dbContext.Set<WhatsAppMessage>().Where(message => message.ContactId == contact.Id)
                 .OrderByDescending(message => message.OccurredAtUtc).ThenByDescending(message => message.Id)
                 .Select(message => message.Kind == WhatsAppMessageKind.FlowReply).FirstOrDefault(),

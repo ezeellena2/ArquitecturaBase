@@ -13,6 +13,7 @@
   <data name="Continue" xml:space="preserve"><value>Continuar</value></data>
   <data name="FormActionPreview" xml:space="preserve"><value>Acción del formulario</value></data>
   <data name="AudioPreview" xml:space="preserve"><value>Audio</value></data>
+  <data name="SpreadsheetPreview" xml:space="preserve"><value>Planilla</value></data>
   <data name="AssistantPreview" xml:space="preserve"><value>Mensaje del asistente</value></data>
   <data name="SelectUpTo" xml:space="preserve"><value>Elegí hasta {0}</value></data>
   <data name="AddRow" xml:space="preserve"><value>¿Agregás un ítem?</value></data>
