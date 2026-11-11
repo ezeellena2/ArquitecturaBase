@@ -196,15 +196,13 @@ Cada tarea con su test en rojo primero, el build y los tests rápidos del área,
 25. ~~CO1: tablero y decisión.~~ Hecho: CO1-A.
 26. ~~El borrador y publicar.~~ Hecho (0520a9bf).
 27. ~~La captura y la carga.~~ Hecho (0520a9bf).
-28. ~~WhatsApp con un `If`, junto con la tarea 6 en el perfil r13.~~ Hecho (91e6e66f). **Probado con Meta el 2026-11-11**
-    (borradores compilados por la app, Graph v25.0, borrados después): los cálculos pasan (bloque con importe y total,
-    `validation_errors` vacío), pero el validador de Meta rechaza dos comparaciones unidas con `||` o `&&`, con o sin
-    paréntesis, y el mismo control en dos ramas (`DUPLICATE_FORM_COMPONENT_NAMES`): fallan la condición con más de un valor
-    y la cadena. Acepta una sola comparación, el `If` anidado, el `If` sobre un booleano de datos y `update_data` en cada
-    opción con `visible`/`required` atados al booleano (recorrido en la vista oficial: «o» entre opciones, título, fecha
-    obligatoria, lista de catálogo y el booleano pasado a la pantalla siguiente). **Falta:** r13 con un booleano por
-    pregunta que fija cada opción de la que depende, la cadena con `If` anidados sobre el booleano de la anterior, y otra
-    vuelta con Meta.
+28. ~~WhatsApp con un `If`, junto con la tarea 6 en el perfil r13.~~ Hecho (91e6e66f) y **probado con Meta el 2026-11-11**,
+    con borradores compilados por la app (Graph v25.0, borrados después). La primera vuelta mostró que su validador rechaza
+    `||` y `&&` entre comparaciones y el mismo control en dos ramas. Corregido en 74040fa0: una respuesta compara, varias leen
+    un booleano que fija el `update_data` de cada opción, la cadena anida un `If` adentro de otro, y varias respuestas de un
+    catálogo o una cadena de más de tres frenan la publicación. La segunda vuelta pasó la validación y se recorrió en la vista
+    oficial: el bloque con importe y total, la fecha obligatoria, el título, la lista de catálogo, el sí o no, la cadena y la
+    pantalla siguiente. Falta la integración de WhatsApp con Docker, en la corrida de cierre.
 29. Front: el editor y la carga.
 
 **Cierre**

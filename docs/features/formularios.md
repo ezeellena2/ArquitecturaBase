@@ -911,8 +911,9 @@ Una pregunta se muestra según la respuesta de otra (CO1-A), como el período de
   toma vacía y las reglas, sin responder. Mostrada, sigue sus reglas.
 - **La carga** trae `showWhen` en la pregunta; la app la muestra u oculta al cambiar la respuesta y no manda lo escrito en una
   oculta. Un título de sección sin preguntas a la vista también se oculta.
-- **WhatsApp** la muestra con la misma condición (perfil r13, ver [WhatsApp](whatsapp.md)). El asistente no prellena una
-  pregunta con condición y una sugerencia no la tiene de destino.
+- **WhatsApp** la muestra con la misma condición (perfil r13, ver [WhatsApp](whatsapp.md)), menos varias respuestas de una
+  pregunta de catálogo y una cadena de más de tres, que frenan su publicación; probado con Meta el 2026-11-11. El asistente no
+  prellena una pregunta con condición y una sugerencia no la tiene de destino.
 
 ## Resultado externo — RE1-A, 2026-11-09
 
