@@ -236,7 +236,10 @@
   <data name="Forms.Draft.IdentityRetired" xml:space="preserve"><value>Una identidad retirada no se puede volver a usar.</value></data>
   <data name="Forms.Draft.QuestionConfigurationInvalid" xml:space="preserve"><value>La configuración de la pregunta no corresponde a su tipo.</value></data>
   <data name="Forms.Draft.ChoiceLabelRequired" xml:space="preserve"><value>Escribí el texto de la opción.</value></data>
-  <data name="Forms.Draft.BoundQuestionChanged" xml:space="preserve"><value>Esta pregunta la necesita el estándar del que viene el formulario: sólo se le cambian el texto, la ayuda y el orden.</value></data>
+  <data name="Forms.Draft.BoundQuestionChanged" xml:space="preserve"><value>Esta pregunta la necesita el estándar del que viene el formulario: sólo se le cambian el texto, la ayuda, el orden y lo que recibe.</value></data>
+  <data name="Forms.Draft.ReceivesQuestionInvalid" xml:space="preserve"><value>Sólo una pregunta de texto, fuera del bloque, sin condición ni validación fija, puede recibir la ubicación o el contacto.</value></data>
+  <data name="Forms.Draft.ReceivesTaken" xml:space="preserve"><value>Otra pregunta ya recibe ese dato.</value></data>
+  <data name="Forms.Draft.ReceivesLocationAsked" xml:space="preserve"><value>El formulario tiene una pregunta «Ubicación»: la ubicación va ahí.</value></data>
   <data name="Forms.Library.StandardNotFound" xml:space="preserve"><value>No está ese estándar en la biblioteca.</value></data>
   <data name="Forms.Library.CatalogUnavailable" xml:space="preserve"><value>Falta un catálogo que necesita el estándar.</value></data>
   <data name="Forms.Folder.NotFound" xml:space="preserve"><value>No se encontró la carpeta.</value></data>

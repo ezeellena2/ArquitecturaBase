@@ -129,7 +129,7 @@ internal static class FormDraftPolicy
             var help = input.Help?.Where(pair => !string.IsNullOrWhiteSpace(pair.Value)).ToDictionary(pair => pair.Key, pair => pair.Value!, StringComparer.Ordinal);
             fields.Add(new(fieldId, key, input.Type, input.Label, help is { Count: > 0 } ? help : null, input.Required, input.MaxLength,
                 options?.AsReadOnly(), input.Source, input.Files, input.Selection, input.Rows, input.Repeated, input.Calculation, input.ShowWhen, input.Toggles,
-                input.Validation));
+                input.Validation, input.Receives));
             fieldMap.Add(new(input.LocalId, fieldId, key, input.ReplacesFieldId));
         }
         NameAnsweredQuestions(draft.Fields, fields, currentFieldIds);

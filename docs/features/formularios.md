@@ -1252,7 +1252,8 @@ aparece.
 - **Sólo una pregunta atada** tiene casillas o una opción con que empieza: en otra, el guardado responde
   `Forms.Draft.QuestionConfigurationInvalid` en `draft.fields[i].toggles` o `draft.fields[i].source.default`. Las casillas
   llevan clave, texto y (i), sin repetir la clave y hasta diez; la opción con que empieza no va en una de elegir varias.
-- **Las preguntas atadas** conservan todo menos su texto, su ayuda, su lugar y el valor de sus casillas: guardar el borrador
+- **Las preguntas atadas** conservan todo menos su texto, su ayuda, su lugar, el valor de sus casillas y lo que reciben (W3):
+  guardar el borrador
   rechaza quitarlas (en `draft.fields`) o cambiarles tipo, bloque, catálogo, la opción con que empiezan, opciones, cálculo,
   condición, renglones, casillas, largo o si son obligatorias (en `draft.fields[i]`), con `Forms.Draft.BoundQuestionChanged`. La
   migración es `AddFormDefinitionStandard`.

@@ -236,7 +236,10 @@
   <data name="Forms.Draft.IdentityRetired" xml:space="preserve"><value>A retired identity cannot be reused.</value></data>
   <data name="Forms.Draft.QuestionConfigurationInvalid" xml:space="preserve"><value>The question configuration is not valid for its type.</value></data>
   <data name="Forms.Draft.ChoiceLabelRequired" xml:space="preserve"><value>Enter the choice text.</value></data>
-  <data name="Forms.Draft.BoundQuestionChanged" xml:space="preserve"><value>The standard this form comes from needs this question: only its text, help and order can change.</value></data>
+  <data name="Forms.Draft.BoundQuestionChanged" xml:space="preserve"><value>The standard this form comes from needs this question: only its text, help, order and what it receives can change.</value></data>
+  <data name="Forms.Draft.ReceivesQuestionInvalid" xml:space="preserve"><value>Only a text question outside the block, without a condition or a fixed validation, can receive the location or the contact.</value></data>
+  <data name="Forms.Draft.ReceivesTaken" xml:space="preserve"><value>Another question already receives it.</value></data>
+  <data name="Forms.Draft.ReceivesLocationAsked" xml:space="preserve"><value>The form has a “Location” question: the location goes there.</value></data>
   <data name="Forms.Library.StandardNotFound" xml:space="preserve"><value>That standard is not in the library.</value></data>
   <data name="Forms.Library.CatalogUnavailable" xml:space="preserve"><value>A catalog the standard needs is missing.</value></data>
   <data name="Forms.Folder.NotFound" xml:space="preserve"><value>The folder was not found.</value></data>

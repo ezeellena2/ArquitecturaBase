@@ -34,7 +34,8 @@ public sealed record FormFieldInput(string LocalId, Guid? FieldId, Guid? Replace
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormCalculation? Calculation = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormShowWhen? ShowWhen = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<FormQuestionToggle>? Toggles = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Validation = null)
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Validation = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Receives = null)
 { public override string ToString() => "FormFieldInput { Content = [REDACTED] }"; }
 public sealed record FormChoiceInput(string LocalId, Guid? ChoiceId, IReadOnlyDictionary<string, string> Label)
 { public override string ToString() => "FormChoiceInput { Content = [REDACTED] }"; }
@@ -100,8 +101,21 @@ public sealed record CanonicalFormField(Guid FieldId, string Key, string Type, I
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormShowWhen? ShowWhen = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<FormQuestionToggle>? Toggles = null,
     // DOC1: the fixed validation of a bound short text (FormQuestionValidation); omitted without one.
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Validation = null)
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Validation = null,
+    // W3 (UC1-A): what the text question receives when the person shares it by a channel (FormQuestionReceives); omitted without it.
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Receives = null)
 { public override string ToString() => "CanonicalFormField { Content = [REDACTED] }"; }
+// W3 (UC1-A): the location, the contact's name or the contact's phone the person shares on their own while the form is open by a
+// channel. It lives in the question, so it goes with it: a removed question or a new identity of a type change takes nothing along.
+// Each value goes on one short or long text outside the block, without a condition (the Flow never prefills one) or a fixed validation
+// (what is shared would not pass it), and the location only when no question asks for it (W1-A).
+public static class FormQuestionReceives
+{
+    public const string Location = "location";
+    public const string ContactName = "contactName";
+    public const string ContactPhone = "contactPhone";
+    public static bool IsKnown(string? value) => value is Location or ContactName or ContactPhone;
+}
 public sealed record FormQuestionSchema(int Format, IReadOnlyList<CanonicalFormField> Fields,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<FormSection>? Sections = null)
 { public override string ToString() => "FormQuestionSchema { Content = [REDACTED] }"; }

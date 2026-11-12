@@ -20,6 +20,8 @@ E2-3: Source agrega Match/Presentation en el mapeo único, con contratos cerrado
 
 DOC1: el borrador suma `documentReading` (`enabled`, `recognition` y `lookups`, en `FormDocumentReadingHttpRequest`) y una pregunta atada, `validation` (`bankAccount` o `taxId`); el editor los devuelve como llegaron, por el mismo mapeo en el guardado, el chequeo y la aceptación.
 
+W3 (UC1-A): una pregunta de texto fuera del bloque, sin condición ni validación fija, suma `receives` (`location`, `contactName` o `contactPhone`), qué toma de lo que la persona comparte por un canal; va por el mismo mapeo y se omite sin él.
+
 ### Catálogos
 
 E1-B: el alta Manual admite `valueType` opcional (`Text` por defecto, `Integer`, `Decimal` o `Date`); PUT no lo admite y rechaza desconocidos. Cada ítem admite `value` nullable. Las respuestas de catálogo siempre llevan `valueType` y las de ítem `value`, incluso null; los errores de normalización señalan `items[index].value`. El controller sólo mapea, sin interpretar valores.

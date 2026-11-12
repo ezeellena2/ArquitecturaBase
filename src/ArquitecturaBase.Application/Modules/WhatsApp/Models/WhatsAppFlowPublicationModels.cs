@@ -22,7 +22,9 @@ public sealed record WhatsAppFlowProjectionField(Guid FieldId, string Key, strin
     // r13: a calculation (CA1-A) is not on any screen and never arrives; a question with a condition (CO1-A) is left out of the
     // answers while its condition does not hold. Neither is prefilled.
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] bool? Calculated = null,
-    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] ArquitecturaBase.Application.Models.StructuredData.StructuredFormShowWhen? ShowWhen = null);
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] ArquitecturaBase.Application.Models.StructuredData.StructuredFormShowWhen? ShowWhen = null,
+    // W3 (UC1-A): what the question takes when the person shares a location or a contact on their own; the Flow does not change.
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? Receives = null);
 public sealed record WhatsAppFlowDiagnostic(Guid? FieldId, Guid? ChoiceId, string Path, string Culture);
 public sealed record WhatsAppFlowOperationRow(Guid Id, Guid NeutralOperationId, Guid DefinitionId, Guid VersionId, Guid ActorUserId,
     byte[] ProtectedManifest, DateTime? NextCheckAtUtc, IReadOnlyList<WhatsAppFlowBindingRow> Bindings)

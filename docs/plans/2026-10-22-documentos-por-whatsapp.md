@@ -1014,6 +1014,10 @@ servicio de ubicaciones (`WhatsAppFlowLocationService` y su política), el guard
 lector del asistente (`WhatsAppAssistantReader`). Varias cargas desde un Excel va sobre la bandeja y el circuito de las tareas
 7 a 10.
 
+2026-11-12: la tarea 20 (el ajuste de la pregunta, backend) está programada y revisada: `receives` en el borrador, el validador
+(también sin condición ni validación fija), el contrato neutral y la proyección del Flow, que no cambia; sus capturas de
+`forms-http` esperan la exportación conjunta.
+
 ### Lo elegido
 
 Los tableros están en el lienzo [Ubicación, contacto y varias cargas por WhatsApp](https://claude.ai/artifact/Sv9qPDk5H6xbRabJqUT77w),
@@ -1073,9 +1077,10 @@ confirmaron con las otras sesiones de la tanda. No se vuelven a preguntar.
    quedó («No se guardó: el envío ya tiene su respuesta, {número}.»); a la persona no se le avisa, como hoy un rechazo.
 8. **El contacto se ve:** deja de ser «Mensaje de otro tipo». El chat muestra el nombre y los teléfonos, uno por renglón, y la
    lista de chats dice «Contacto».
-9. **El editor.** Cada renglón ofrece las preguntas de texto, corto o largo, fuera del bloque; la elegida en otro renglón aparece
-   apagada, con «· Recibe …». Quitar la pregunta o cambiarle el tipo vuelve el renglón a «Ninguna»; cambiarle el nombre no cambia
-   nada. Se guarda con el borrador y sale al publicar. Con «Sólo en la app» la zona no aparece y lo elegido queda guardado. Con una
+9. **El editor.** Cada renglón ofrece las preguntas de texto, corto o largo, fuera del bloque, sin condición ni validación fija; la
+   elegida en otro renglón aparece apagada, con «· Recibe …». Quitar la pregunta, cambiarle el tipo o ponerle una condición o una
+   validación fija vuelve el renglón a «Ninguna»; cambiarle el nombre no cambia nada.
+   Se guarda con el borrador y sale al publicar. Con «Sólo en la app» la zona no aparece y lo elegido queda guardado. Con una
    pregunta «Ubicación», el renglón de la ubicación queda apagado con su motivo encima (MA1-A): la ubicación va ahí, por W1-A.
 10. **Lo demás no cambia:** lo que se escribe es una respuesta de texto, así que la planilla, el Excel, el PDF y el detalle no
     suman insignias. La actividad del detalle dice qué se completó: «Llegó la ubicación · Completó «Dirección de entrega»»,
@@ -1174,8 +1179,10 @@ Lo que el diseño no fijaba, por lo más simple que cumple el plan y las reglas.
    `contactPhone`) en `SchemaJson`, opcional y omitido cuando falta, así los borradores, las versiones y sus huellas de hoy no
    cambian. El editor lo muestra en su zona, pero no hace falta una columna en `FormDefinitions` y `BusinessFormVersions`: sale al
    publicar con el esquema, entra en la huella del chequeo, se va con la pregunta y no lo hereda la pregunta nueva de un cambio de
-   tipo, así que no quedan referencias sueltas. El validador lo acepta sólo en una pregunta de texto fuera del bloque, cada valor
-   una vez, y `location` sólo sin una pregunta «Ubicación», con sus códigos y sus textos.
+   tipo, así que no quedan referencias sueltas. El validador lo acepta sólo en una pregunta de texto fuera del bloque, sin condición
+   ni validación fija (el Flow no prellena una pregunta con condición y lo compartido no pasaría una validación fija; ponerle una
+   hace que el editor lo vuelva a «Ninguna»), cada valor una vez, y `location` sólo sin una pregunta «Ubicación», con sus códigos y
+   sus textos.
 2. **Llega al canal por el contrato neutral:** `StructuredFormQuestion.Receives`, en el chequeo y en el snapshot de publicación,
    que el compilador copia a `WhatsAppFlowProjectionField.Receives`, como `Calculated`. El Flow no cambia y una versión publicada
    antes no recibe nada.

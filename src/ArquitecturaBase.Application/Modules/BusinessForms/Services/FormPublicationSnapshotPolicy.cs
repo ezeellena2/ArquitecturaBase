@@ -14,7 +14,7 @@ internal static class FormPublicationSnapshotPolicy
             field.Source?.Catalog, field.Files is null ? null : new StructuredFormFileSettings(field.Files.MinFiles, field.Files.MaxFiles, field.Files.PhotoSource),
                 field.Selection is null ? null : new StructuredFormSelectionSettings(field.Selection.MinSelected, field.Selection.MaxSelected),
                 field.Rows is null ? null : new StructuredFormRowSettings(field.Rows.MinRows, field.Rows.MaxRows), field.Repeated,
-                ChoosesFirst(field.Source?.GroupBy), Calculated(field.Calculation), ShowWhen(field.ShowWhen))).ToArray(),
+                ChoosesFirst(field.Source?.GroupBy), Calculated(field.Calculation), ShowWhen(field.ShowWhen), field.Receives)).ToArray(),
         FormPublicationPolicy.CheckCultures(saved).Where(culture => culture.IsComplete).Select(culture => culture.Culture).ToArray(),
         saved.Draft.Fields.Any(field => field.Files is not null) ? maxFileSizeMiB ?? 25 : null, Sections(saved.Draft.Sections));
     /// <summary>LD2-A: whether the question asks first for a field's value; null without it, so the request keeps its bytes.</summary>
@@ -43,7 +43,7 @@ internal static class FormPublicationSnapshotPolicy
         var fields = input.Draft.Fields.Select(field => new CanonicalFormField(field.FieldId!.Value, "field_" + field.FieldId.Value.ToString("N"),
             field.Type, field.Label, CleanHelp(field.Help), field.Required, field.MaxLength,
             field.Options?.Select(option => new CanonicalFormChoice(option.ChoiceId!.Value, option.Label)).ToArray(), field.Source, field.Files, field.Selection,
-            field.Rows, field.Repeated, field.Calculation, field.ShowWhen, field.Toggles, field.Validation)).ToArray();
+            field.Rows, field.Repeated, field.Calculation, field.ShowWhen, field.Toggles, field.Validation, field.Receives)).ToArray();
         return FormDraftPolicy.Serialize(new FormDraftResponse(input.Draft.Format, input.Draft.Culture, input.Draft.SubmitLabel!, fields, input.Draft.Sections,
             input.Draft.AppOnly, input.Draft.DocumentReading)) == FormDraftPolicy.Serialize(saved.Draft);
     }

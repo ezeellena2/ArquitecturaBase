@@ -26,7 +26,9 @@ public sealed record StructuredFormQuestion(Guid FieldId, string Key, string Typ
     // CA1-A: the owner computes the question when it receives the answers; a channel neither shows it nor sends an answer for it.
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] bool? Calculated = null,
     // CO1-A: the question shows only when an earlier question has one of these answers.
-    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] StructuredFormShowWhen? ShowWhen = null)
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] StructuredFormShowWhen? ShowWhen = null,
+    // W3 (UC1-A): the text question takes what the person shares on their own: "location", "contactName" or "contactPhone".
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? Receives = null)
 {
     public override string ToString() => "StructuredFormQuestion { Content = [REDACTED] }";
 }

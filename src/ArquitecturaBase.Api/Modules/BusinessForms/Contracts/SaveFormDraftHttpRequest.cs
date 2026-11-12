@@ -26,7 +26,7 @@ public sealed record FormFieldHttpRequest(string LocalId, Guid? FieldId, Guid? R
     IReadOnlyDictionary<string, string> Label, IReadOnlyDictionary<string, string?>? Help, bool Required, int? MaxLength,
     IReadOnlyList<FormChoiceHttpRequest>? Options, FormQuestionSourceHttpRequest? Source = null, FormFileSettingsHttpRequest? Files = null, FormSelectionSettingsHttpRequest? Selection = null,
     FormRowSettingsHttpRequest? Rows = null, bool? Repeated = null, FormCalculationHttpRequest? Calculation = null, FormShowWhenHttpRequest? ShowWhen = null,
-    IReadOnlyList<FormQuestionToggleHttpRequest>? Toggles = null, string? Validation = null)
+    IReadOnlyList<FormQuestionToggleHttpRequest>? Toggles = null, string? Validation = null, string? Receives = null)
 { public override string ToString() => "FormFieldHttpRequest { Content = [REDACTED] }"; }
 // IV2-A: a toggle the library standard declares on a bound question, sent back as it came with the value chosen.
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]

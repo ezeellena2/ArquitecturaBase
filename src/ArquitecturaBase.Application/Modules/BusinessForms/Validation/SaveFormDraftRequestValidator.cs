@@ -5,6 +5,7 @@ using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Resources;
 using ArquitecturaBase.Domain.Common;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
+using ArquitecturaBase.Domain.Results;
 using FluentValidation;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Validation;
 internal sealed partial class SaveFormDraftRequestValidator : AbstractValidator<SaveFormDraftRequest>
@@ -14,6 +15,7 @@ internal sealed partial class SaveFormDraftRequestValidator : AbstractValidator<
         RuleFor(x => x).Custom((request, context) =>
         {
             void Fail(string path) => context.AddFailure(path, ErrorMessages.Get(FormDefinitionErrors.ContentInvalid.Code));
+            void Refuse(string path, Error error) => context.AddFailure(path, ErrorMessages.Get(error.Code));
             if (request.RequestId == Guid.Empty) Fail("requestId");
 
             if (request.Prefix is null || !PrefixPattern().IsMatch(request.Prefix)) Fail("prefix");
@@ -100,6 +102,7 @@ internal sealed partial class SaveFormDraftRequestValidator : AbstractValidator<
                         && label is not null && !labels.Add(label.Normalize().Trim())) Fail(optionPath + ".label." + draft.Culture);
                 }
             }
+            CheckReceives(draft.Fields, Fail, Refuse);
             if (draft.DocumentReading is { } reading) CheckReading(reading, draft.Fields, Fail);
             if (draft.Sections is not { } sections) return;
             if (sections.Count > 40) { Fail("draft.sections"); return; }
@@ -140,6 +143,25 @@ internal sealed partial class SaveFormDraftRequestValidator : AbstractValidator<
                 || (byOption ? source.Type is not ("shortText" or "longText") : source.Type is not ("shortText" or "longText" or "decimal" or "date")))
                 fail(lookupPath + ".sourceQuestionId");
             if (!byOption && (!Guid.TryParseExact(lookup.Field, "D", out var catalogField) || catalogField == Guid.Empty)) fail(lookupPath + ".field");
+        }
+    }
+    // W3 (UC1-A): what a question receives when the person shares it by a channel is one of three data, on a short or long text outside
+    // the block, without a condition (the Flow never prefills one, CO1-A) or a fixed validation (DOC1: what is shared would not pass it);
+    // each datum goes to one question, and the location to none while a question asks for it (W1-A). One refusal per question.
+    private static void CheckReceives(IReadOnlyList<FormFieldInput> fields, Action<string> fail, Action<string, Error> refuse)
+    {
+        var asksLocation = fields.Any(field => field?.Type == "location");
+        var received = new HashSet<string>(StringComparer.Ordinal);
+        for (var i = 0; i < fields.Count; i++)
+        {
+            if (fields[i]?.Receives is not { } receives) continue;
+            var path = $"draft.fields[{i}].receives";
+            if (!FormQuestionReceives.IsKnown(receives)) fail(path);
+            else if (fields[i].Type is not ("shortText" or "longText") || fields[i].Repeated == true || fields[i].ShowWhen is not null
+                || fields[i].Validation is not null)
+                refuse(path, FormDraftErrors.ReceivesQuestionInvalid);
+            else if (!received.Add(receives)) refuse(path, FormDraftErrors.ReceivesTaken);
+            else if (asksLocation && receives == FormQuestionReceives.Location) refuse(path, FormDraftErrors.ReceivesLocationAsked);
         }
     }
     private static FormFieldInput? Named(IReadOnlyList<FormFieldInput> fields, Guid id) => id == Guid.Empty ? null

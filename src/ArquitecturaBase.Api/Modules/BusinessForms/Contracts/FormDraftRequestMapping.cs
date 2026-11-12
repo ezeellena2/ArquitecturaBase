@@ -24,7 +24,7 @@ internal static class FormDraftRequestMapping
             field.Calculation is null ? null : new FormCalculation(field.Calculation.Operation, field.Calculation.Operands),
             field.ShowWhen is null ? null : new FormShowWhen(field.ShowWhen.QuestionId, field.ShowWhen.Values),
             field.Toggles?.Select(toggle => toggle is null ? null! : new FormQuestionToggle(toggle.Key, toggle.Label, toggle.Help, toggle.Value, toggle.WhenOn, toggle.WhenOff)).ToArray(),
-            field.Validation)).ToArray()!,
+            field.Validation, field.Receives)).ToArray()!,
         draft.Sections?.Select(section => section is null ? null! : new FormSection(section.Start, section.Title)).ToArray(), draft.AppOnly, Map(draft.DocumentReading));
     // DOC1: nulls go through as they came, for the validator to answer at their path.
     public static FormDocumentReading? Map(FormDocumentReadingHttpRequest? reading) => reading is null ? null : new(reading.Enabled, reading.Recognition!,

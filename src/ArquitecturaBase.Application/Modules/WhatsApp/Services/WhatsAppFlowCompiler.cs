@@ -184,7 +184,7 @@ internal static class WhatsAppFlowCompiler
                 mapping.Add(new(question.FieldId, question.Key, question.Type, question.Required, question.MaxLength,
                     (question.Options?.Select(option => option.ChoiceId).ToList() ?? []).AsReadOnly(), question.Files, question.Selection,
                     question.Rows, question.Repeated == true ? true : null, question.ChoosesFirst == true ? true : null,
-                    question.Calculated == true ? true : null, question.ShowWhen));
+                    question.Calculated == true ? true : null, question.ShowWhen, question.Receives));
                 // The server computes a calculation (CA1-A) and takes the location from the send (W1-A): the Flow neither shows them
                 // nor needs their texts.
                 if (question.Calculated == true || question.Type == "location")

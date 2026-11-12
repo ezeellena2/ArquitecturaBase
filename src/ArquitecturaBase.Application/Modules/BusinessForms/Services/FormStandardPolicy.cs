@@ -8,8 +8,9 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
 /// <summary>
 /// The questions a standard of the library needs (BI1-A), bound in the forms added from it: they keep everything but their text,
-/// their help, their place and the value of their toggles (IV2-A). Removing one, or changing its type, block, catalog, options,
-/// calculation, condition, rows, toggles or whether it is required, is refused at the question (or at the list, when it is gone).
+/// their help, their place, the value of their toggles (IV2-A) and what they receive (W3). Removing one, or changing its type, block,
+/// catalog, options, calculation, condition, rows, toggles or whether it is required, is refused at the question (or at the list, when
+/// it is gone).
 /// Only a bound question has toggles or an option it starts with (IV1-A, in its source): the standard declares them, so any other
 /// question with them is refused. The same goes for a fixed validation (DOC1), which also does not change.
 /// </summary>
@@ -84,9 +85,10 @@ internal static class FormStandardPolicy
         }
     }
 
+    // What a question receives by a channel (W3) is the form's choice, not the standard's: a bound text question can take it.
     private static string Comparable(CanonicalFormField field) => FormDraftPolicy.Serialize(field with
     {
         Label = NoText, Help = null, Options = field.Options?.Select(option => option with { Label = NoText }).ToArray(),
-        Toggles = field.Toggles?.Select(toggle => toggle with { Value = false }).ToArray(),
+        Toggles = field.Toggles?.Select(toggle => toggle with { Value = false }).ToArray(), Receives = null,
     });
 }
