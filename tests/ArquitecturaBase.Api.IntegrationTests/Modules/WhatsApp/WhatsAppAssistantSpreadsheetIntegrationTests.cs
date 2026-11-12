@@ -93,6 +93,11 @@ public sealed class WhatsAppAssistantSpreadsheetIntegrationTests(ApiFactory fact
         Assert.Equal("Te propongo importar la planilla en el catálogo Clientes ficticios: el código de la columna A (Código) y cada opción de la columna B (Texto). Son 2 filas. ¿La revisás?",
             review.Body);
         Assert.Equal(["Revisar importación", "Cambiar algo"], review.QuickReplies.Select(reply => reply.Title));
+        // The import's summary passes the dispatch check of its reference and goes out, after what was queued before it.
+        var worker = host.Host.Services.GetRequiredService<WhatsAppOutgoingBackgroundService>();
+        for (var turn = 0; turn < 10 && (await OutgoingAsync(host, review.Id)).State == WhatsAppOutgoingMessageState.Pending; turn++)
+            await worker.ProcessNextAsync(Ct);
+        Assert.Equal(WhatsAppOutgoingMessageState.Accepted, (await OutgoingAsync(host, review.Id)).State);
         var reviewTap = await TapAsync(host, person.ContactId, review.QuickReplies[0].Id);
         await ProcessTapAsync(host, person.ContactId);
         var link = (await ReplyAsync(host, person.ContactId, reviewTap)).Body!;

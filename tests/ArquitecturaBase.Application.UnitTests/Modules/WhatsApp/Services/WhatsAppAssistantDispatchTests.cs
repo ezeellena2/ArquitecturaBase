@@ -121,6 +121,35 @@ public sealed class WhatsAppAssistantDispatchTests
         var result=await host.Guard.ValidateAsync(host.Context.Contact,outgoing,Ct);
         Assert.Equal(allowed,result.IsSuccess);
     }
-
-
+    [Theory]
+    [InlineData(1,"own",true)] [InlineData(3,"own",true)] [InlineData(2,"another",false)] [InlineData(2,"swapped",false)] [InlineData(2,"mixed",false)]
+    public async Task A_case_question_goes_out_with_one_to_three_buttons_of_its_own_reference_in_their_place(int count,string ids,bool allowed)
+    {
+        var host=await WhatsAppAssistantDispatchFixture.CreateAsync();
+        var request=host.Reader.Reference!.RequestId;
+        var buttons=Enumerable.Range(0,count).Select(place=>new WhatsAppOutgoingQuickReply(ids=="mixed"&&place==1?"opaque-choice":
+            WhatsAppAssistantCaseButtonCodec.Encode(ids=="another"&&place==1?Guid.NewGuid():request,ids=="swapped"?count-1-place:place),$"Opción {place+1}",0)).ToArray();
+        var outgoing=WhatsAppOutgoingMessage.CreateAssistantQuickReplies(host.Context.Subject.Id,host.Context.Contact.Id,request,"¿Registrar la visita?",buttons,host.Now,
+            host.Context.Contact.LinkRevision,host.Context.Contact.WaId!,host.Context.Contact.ModeRevision);
+        // As WhatsAppAssistantReplyPolicy leaves it: the question is the outgoing its own reference accepted.
+        host.Reader.Reference=host.Reader.Reference with{OutgoingId=outgoing.Id};
+        var result=await host.Guard.ValidateAsync(host.Context.Contact,outgoing,Ct);
+        Assert.Equal(allowed,result.IsSuccess);
+    }
+    // IA3-A: a form or catalog summary carries «Crear» and an import summary (IA, Stage 2) «Revisar importación», each with «Cambiar algo».
+    [Theory]
+    [InlineData(WhatsAppAssistantAuthoringReplyCodec.Create)] [InlineData(WhatsAppAssistantAuthoringReplyCodec.Review)]
+    public async Task An_authoring_summary_goes_out_with_its_action_and_change(string action)
+    {
+        var host=await WhatsAppAssistantDispatchFixture.CreateAsync();
+        var reference=host.Reader.Reference!;
+        var proposal=reference.ProposalId!.Value;
+        var buttons=new[]{new WhatsAppOutgoingQuickReply(WhatsAppAssistantAuthoringReplyCodec.Encode(reference.RequestId,proposal,action),
+                action==WhatsAppAssistantAuthoringReplyCodec.Create?"Crear borrador":"Revisar importación",0),
+            new WhatsAppOutgoingQuickReply(WhatsAppAssistantAuthoringReplyCodec.Encode(reference.RequestId,proposal,WhatsAppAssistantAuthoringReplyCodec.Change),"Cambiar algo",0)};
+        var outgoing=WhatsAppOutgoingMessage.CreateAssistantQuickReplies(host.Context.Subject.Id,host.Context.Contact.Id,reference.RequestId,"Te propongo este formulario.",buttons,host.Now,
+            host.Context.Contact.LinkRevision,host.Context.Contact.WaId!,host.Context.Contact.ModeRevision);
+        host.Reader.Reference=reference with{OutgoingId=outgoing.Id};
+        Assert.True((await host.Guard.ValidateAsync(host.Context.Contact,outgoing,Ct)).IsSuccess);
+    }
 }

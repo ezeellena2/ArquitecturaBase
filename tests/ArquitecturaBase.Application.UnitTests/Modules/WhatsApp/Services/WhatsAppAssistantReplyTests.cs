@@ -64,6 +64,32 @@ public sealed class WhatsAppAssistantReplyTests
         Assert.Equal(WhatsAppAssistantActionKind.AskButtons, WhatsAppAssistantReplyRecordCodec.Parse(outgoing.AssistantReplyJson)!.Kind);
     }
 
+    // The question alone is the reference's own outgoing; after a text it goes in a reference of its own (the second action).
+    [Theory]
+    [InlineData(false)] [InlineData(true)]
+    public async Task The_queued_actions_of_a_reply_pass_the_dispatch_check_of_their_own_references(bool afterText)
+    {
+        var arranged = await PendingAsync();
+        var question = (WhatsAppAssistantAgentCapabilitySource.ReplyId, (AssistantCapabilityPayload)new WhatsAppAssistantReplyPayload("askButtons", "own",
+            Question, "Quiere registrar una visita", "Quiere registrar.", "¿Registrar?", [], null, null));
+        var text = (WhatsAppAssistantAgentCapabilitySource.ReplyId, (AssistantCapabilityPayload)new WhatsAppAssistantReplyPayload("exactText", "own",
+            Hours, "Pregunta por el horario", "Pregunta el horario.", "Un texto anterior", null, null, null));
+        Assert.True((afterText ? await CompleteManyAsync(arranged, text, question) : await CompleteManyAsync(arranged, question)).IsSuccess);
+
+        var outgoing = arranged.Host.Conversation.Outgoing;
+        Assert.Equal(WhatsAppOutgoingMessageKind.QuickReplies, outgoing[^1].Kind);
+        foreach (var message in outgoing)
+        {
+            // The reference as the reader finds it by this outgoing, and the same check the reservation runs before Meta.
+            var row = Assert.Single(arranged.Host.Requests.Rows, request => request.OutgoingId == message.Id);
+            var reader = new FakeWhatsAppAssistantReader { Reference = new(row.RequestId, row.ContactId, row.SourceMessageId, row.ActorUserId,
+                row.SubjectUserId, row.Kind, row.ModeRevision, row.LinkRevision, row.ContextJson, row.ContentExpiresAtUtc, row.State, row.ProposalId,
+                row.DefinitionId, row.OutgoingId) };
+            var result = await WhatsAppAssistantDispatchFixture.CreateGuard(arranged.Host.Context, reader).ValidateAsync(arranged.Host.Context.Contact, message, Ct);
+            Assert.True(result.IsSuccess);
+        }
+    }
+
     [Fact]
     public async Task A_handoff_case_marks_the_conversation_for_a_person_and_sends_the_profile_message()
     {

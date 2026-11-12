@@ -132,12 +132,14 @@ internal sealed class WhatsAppAssistantReader(ApplicationDbContext db,IOptions<W
                 && message.ReplyId!=null && EF.Functions.Like(message.ReplyId,WhatsAppAssistantCaseButtonCodec.Prefix+"%"))
             .Select(message=>new WhatsAppAssistantChoiceRow(message.Id,message.WaMessageId,message.ReplyId!,message.OccurredAtUtc)).SingleOrDefaultAsync(ct);
     }
-    // A summary is the only automatic reply whose own outgoing has buttons: a clarification keeps them in its question.
+    // A summary is the automatic reply whose own outgoing has buttons and no why of the agent: a clarification keeps them in its
+    // question, and a case's question («Preguntar con botones») carries the why of its reply.
     public Task<Guid?> FindLatestAuthoringRequestAsync(Guid contactId,CancellationToken ct)=>
         (from reference in References()
          join outgoing in db.Set<WhatsAppOutgoingMessage>().AsNoTracking() on reference.OutgoingId equals outgoing.Id
          where reference.ContactId==contactId && reference.Kind==WhatsAppAssistantRequestKind.Automatic
             && outgoing.Kind==WhatsAppOutgoingMessageKind.QuickReplies && outgoing.Origin==WhatsAppMessageOrigin.Assistant
+            && outgoing.AssistantReplyJson==null
          orderby reference.CreatedAtUtc descending,reference.Id descending
          select (Guid?)reference.RequestId).FirstOrDefaultAsync(ct);
     // A spreadsheet's rejection answers with a fixed text that names its own request as the proposal: it is no turn of the conversation.

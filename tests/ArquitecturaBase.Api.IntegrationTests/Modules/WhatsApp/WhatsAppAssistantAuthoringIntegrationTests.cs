@@ -74,6 +74,41 @@ public sealed class WhatsAppAssistantAuthoringIntegrationTests(ApiFactory factor
         Assert.Single(owner.Created);
     }
 
+    // Casos del asistente: a case's question is also the own outgoing of an automatic reference and has buttons, but it is no
+    // summary, so the summary before it keeps its buttons.
+    [Fact]
+    public async Task A_later_case_question_leaves_the_summary_before_it_as_the_latest()
+    {
+        var owner = new WhatsAppAuthoringChannelDouble();
+        await using var host = await WhatsAppAssistantScenario.CreateAsync(factory, Ct, builder => builder.ConfigureTestServices(services =>
+            services.Replace(ServiceDescriptor.Singleton<IStructuredAuthoringProposalChannel>(owner))));
+        var contact = await host.ContactAsync(Ct, automatic: true);
+        var summary = await SummaryAsync(host, contact.ContactId);
+
+        host.Clock.Advance(TimeSpan.FromMinutes(1));
+        await host.ScopeAsync(async services =>
+        {
+            var db = services.GetRequiredService<ApplicationDbContext>();
+            var chat = await db.Set<WhatsAppContact>().SingleAsync(row => row.Id == contact.ContactId, Ct);
+            var now = host.Clock.GetUtcNow().UtcDateTime;
+            var source = WhatsAppMessage.Inbound(contact.ContactId, MetaWebhook.UniqueWaMessageId(), WhatsAppMessageKind.Text, "¿Puedo anotarme?", null, now);
+            var requestId = Guid.NewGuid();
+            var question = WhatsAppAssistantRequest.Create(requestId, contact.ContactId, source.Id, contact.RecipientId, contact.RecipientId,
+                WhatsAppAssistantRequestKind.Automatic, chat.ModeRevision, chat.LinkRevision, "{\"channelId\":\"fixture\"}", now, now.AddDays(30));
+            // As WhatsAppAssistantReplyPolicy queues it: the buttons of its own reference and the why of the agent's reply.
+            var outgoing = WhatsAppOutgoingMessage.CreateAssistantQuickReplies(contact.RecipientId, contact.ContactId, requestId, "¿Registrar la visita?",
+                [new(WhatsAppAssistantCaseButtonCodec.Encode(requestId, 0), "Sí", 0)], now, chat.LinkRevision, chat.WaId!, chat.ModeRevision);
+            outgoing.ExplainAssistantReply("{\"kind\":\"askButtons\"}");
+            Assert.True(question.Ready(Guid.NewGuid(), null, now));
+            Assert.True(question.Accept(outgoing.Id, new string('a', 64), null, now));
+            db.AddRange(source, question, outgoing);
+            await db.SaveChangesAsync(Ct);
+        });
+
+        Assert.Equal(summary.RequestId, await host.ScopeAsync(services =>
+            services.GetRequiredService<IWhatsAppAssistantReader>().FindLatestAuthoringRequestAsync(contact.ContactId, Ct)));
+    }
+
     // «Pregunta y espera»: the question is a fixed text, not an offer nor a summary, and the answer continues the same operation.
     [Fact]
     public async Task An_unclear_request_asks_what_to_build_and_the_answer_continues_its_operation()

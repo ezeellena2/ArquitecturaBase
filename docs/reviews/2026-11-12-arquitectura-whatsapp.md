@@ -21,9 +21,10 @@ commitear de otras sesiones (ese día seguía en curso la lectura de documentos 
   resuelto y probado:
   - cada conversación conserva su contexto aunque el modelo de otra quede colgado;
   - seis webhooks iguales en paralelo dejan un solo mensaje.
-- **Un bug funcional, fuera de los criterios.** Las preguntas con botones de un caso del asistente no
-  salen nunca ([B1](#b1-las-preguntas-con-botones-de-un-caso-no-salen)). Conviene arreglarlo antes de
-  la prueba integral.
+- **Bugs funcionales, fuera de los criterios.** Las preguntas con botones de un caso del asistente no
+  salían nunca ([B1](#b1-las-preguntas-con-botones-de-un-caso-no-salen)). Al arreglarlo, la revisión
+  del arreglo encontró dos más en la misma validación, que quedaron arreglados con él (B2 y B3), y uno
+  raro que sigue pendiente (B4). H1 también quedó arreglado el mismo día.
 - **Hoy, con una sola copia**, lo que más pesa:
   - el chat se traba con un envío incierto (H1 y H2);
   - con Redis caído se pierden códigos e invitaciones (H3);
@@ -155,6 +156,42 @@ fuente: cambiarla lo decidís vos.
   Restringir sólo la rama de los resúmenes no alcanza: la pregunta caería en la de las ofertas de
   formulario (`WhatsAppOutgoingSendGuard.cs:77-89`), que pide de dos a tres botones `FORM_ASSISTANT:`.
   Con un test de integración que despache una pregunta de un botón y otra de tres. Chico.
+- **Arreglado el 2026-11-12** con una rama propia: todos los botones tienen que ser `CASE_BUTTON:` de
+  esa referencia y cada uno en su lugar, lo que también los acota a tres. No se comparan con la acción
+  guardada: si el negocio cambió un botón después de la pregunta, el toque deriva con `button`. Lo
+  prueban una teoría sobre el guard con uno y tres botones, de otra referencia, fuera de lugar o
+  mezclados, y un test que pasa por el guard real la pregunta que encola `ApplyAsync`; los dos fallan
+  sin el arreglo.
+
+#### B2. El resumen de importar no salía
+
+- **Dónde fallaba:** hoy, siempre; lo encontró la revisión del arreglo de B1.
+- **Escenario:** llega una planilla con «Importala en Clientes» y el asistente arma el resumen con
+  «Revisar importación» y «Cambiar algo». La rama de los resúmenes sólo aceptaba «Crear» y «Cambiar
+  algo», así que la salida quedaba fallida sin llamar a Meta.
+- **Arreglado el 2026-11-12:** la rama acepta «Cambiar algo» con «Crear» o con «Revisar importación».
+  El test de planillas ahora despacha ese resumen con el worker y comprueba que sale.
+
+#### B3. Una pregunta de caso tapaba el último resumen
+
+- **Dónde fallaba:** hoy, en una conversación con un resumen y después una pregunta de caso.
+- **Escenario:** el asistente manda un resumen y después el agente contesta con una pregunta de caso.
+  La persona toca «Crear borrador» del resumen y recibe «Esa propuesta ya cambió», porque el lector
+  tomaba la pregunta, que también tiene botones, por el último resumen.
+- **Arreglado el 2026-11-12:** el último resumen es la salida propia con botones y sin el porqué del
+  agente, que toda pregunta de caso lleva. Lo prueba un test de integración del lector.
+
+#### B4. Dos botones de un caso pueden salir con el mismo título
+
+- **Dónde falla:** hoy; es raro. Lo encontró la revisión del arreglo de B1 y sigue pendiente.
+- **Escenario:** el original del agente es español. Un botón dice «OK» sólo en español y otro dice
+  «Listo» en español y «OK» en inglés. En una conversación en inglés salen dos «OK»: el mensaje de
+  Meta exige títulos distintos, la salida queda fallida y la conversación no deriva.
+- **Evidencia:** la regla del agente compara los títulos en cada idioma sin el respaldo al original
+  (`WhatsAppAssistantAgent.Rules.cs:87-91`, y lo mismo en el front, `assistantAgentDraft.ts:181-184`),
+  mientras que la respuesta manda el título con ese respaldo (`WhatsAppAssistantReplyPolicy.cs:261`).
+- **Arreglo:** validar los títulos como los ve la persona, con el respaldo al original, en el dominio y
+  en el front, o derivar cuando dos títulos coinciden. Chico.
 
 ### Hoy, con una sola copia
 
@@ -170,6 +207,7 @@ fuente: cambiarla lo decidís vos.
   sólo bloquea por las de origen Conversation (`WhatsAppConversationRepository.cs:36-39`). La regla
   dice que «las acciones inciertas no bloquean la atención manual» (`docs/features/whatsapp.md:260`).
 - **Arreglo:** contar sólo `origin === "Conversation"`, con su test. Una línea.
+- **Arreglado el 2026-11-12** en el front, con un test de la regla que falla sin el arreglo.
 
 #### H2. Un envío incierto traba el chat y sólo lo destraba quien lo mandó
 
@@ -701,7 +739,8 @@ IDs opacos y sin transacciones compartidas. Separarlo pediría un ADR nuevo.
   - la paridad de todos los `.resx` (H17);
   - los índices concurrentes sobre tablas grandes (H34).
 - **Pruebas que faltan:**
-  - despachar una pregunta de caso de un botón y otra de tres (B1);
+  - despachar de punta a punta, con el agente y Meta simulado, una pregunta de caso de un botón y otra
+    de tres (B1 ya tiene la prueba del guard sobre lo que encola `ApplyAsync`);
   - dos operadores con un envío incierto en el mismo chat (H2);
   - buscar por correo en «Probar» con un rol sin `users.read` (H4);
   - despachar con PostgreSQL una respuesta de tres acciones (H6);
@@ -729,7 +768,8 @@ IDs opacos y sin transacciones compartidas. Separarlo pediría un ADR nuevo.
 
 ## Cómo seguir
 
-- **Antes de la prueba integral:** B1 y H1, que son arreglos chicos.
+- **Antes de la prueba integral:** B1, B2, B3 y H1 quedaron arreglados el 2026-11-12. B4 es chico y
+  raro, y queda para después.
 - **Tus decisiones:** H2, H5, H16, H21, la prioridad de H31 y el horizonte.
 - **El resto de «Hoy»:** son arreglos chicos o medianos, y conviene juntarlos en un plan. Los de varias
   copias van antes de sumar réplicas; los de gran escala, cuando se elija ese horizonte.

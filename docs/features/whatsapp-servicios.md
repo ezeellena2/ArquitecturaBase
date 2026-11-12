@@ -23,7 +23,7 @@ Es el detalle de la guía [`src/ArquitecturaBase.Application/Modules/WhatsApp/Se
 
 `WhatsAppChatService`, `WhatsAppChatQueryService`, `WhatsAppChatModeService`, `WhatsAppOutgoingPresentationPolicy`.
 
-- Enviar exige Manual, ventana, destino y ninguna salida Pending, Sending o Uncertain; mismo operador y `requestId` devuelven la operación; otro texto, 409.
+- Enviar exige Manual, ventana, destino y ninguna salida Pending, Sending o Uncertain de una persona (origen `Conversation`): un aviso o una respuesta del asistente sin resolver no lo frenan. Mismo operador y `requestId` devuelven la operación; otro texto, 409.
 - Cambiar el modo es otro caso, en una UoW: Manual pide `whatsapp.send`; Assistant, `whatsapp.configureassistant` y IA disponible. Manual no depende de IA, ventana ni salidas pendientes, y cancela después del commit las interpretaciones automáticas no Always.
 - Las consultas no aceptan ni recuperan operaciones. La disponibilidad de IA se lee por hilo, no por fila (apagada: `notInstalled`). `IStructuredRecordSource` decide `formrecords.read`: sin él se ocultan cuerpos de avisos, valores y explicación.
 

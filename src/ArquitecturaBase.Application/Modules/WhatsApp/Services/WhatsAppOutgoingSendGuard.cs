@@ -68,12 +68,24 @@ internal sealed class WhatsAppOutgoingSendGuard(IPhoneNumberParser phoneNumbers,
                 && !await references.ExistsDeclinedAsync(reference.ContactId, session.DefinitionId, ct)
                 && await forms.FindAcceptedSessionAsync(session.UserId, session.Culture, session.DefinitionId, session.VersionId, ct) is not null;
         }
-        // IA3-A: an authoring summary carries exactly «Crear» and «Cambiar algo» of its own operation and proposal.
+        // A case's question («Preguntar con botones») is, like an authoring summary, the outgoing its own reference accepted, so it is
+        // told apart by its ids: every button belongs to that reference and keeps its place, which also bounds them to three.
+        if (outgoing.Kind == WhatsAppOutgoingMessageKind.QuickReplies
+            && outgoing.QuickReplies.Any(reply => reply.Id.StartsWith(WhatsAppAssistantCaseButtonCodec.Prefix, StringComparison.Ordinal)))
+            return outgoing.Id == reference.OutgoingId && outgoing.QuickReplies.Select((reply, place) =>
+                WhatsAppAssistantCaseButtonCodec.TryParse(reply.Id, out var requestId, out var index)
+                    && requestId == reference.RequestId && index == place).All(valid => valid);
+        // IA3-A: an authoring summary carries exactly «Cambiar algo» of its own operation and proposal, with «Crear» or, in an import's
+        // summary (IA, Stage 2), «Revisar importación».
         if (outgoing.Kind == WhatsAppOutgoingMessageKind.QuickReplies && outgoing.Id == reference.OutgoingId)
-            return reference.ProposalId is {} proposalId && outgoing.QuickReplies.Select(reply =>
-                    WhatsAppAssistantAuthoringReplyCodec.TryParse(reply.Id, out var requestId, out var proposal, out var action)
-                        && requestId == reference.RequestId && proposal == proposalId ? action : null)
-                .Order(StringComparer.Ordinal).SequenceEqual([WhatsAppAssistantAuthoringReplyCodec.Change, WhatsAppAssistantAuthoringReplyCodec.Create]);
+        {
+            if (reference.ProposalId is not {} proposalId) return false;
+            string?[] actions = [.. outgoing.QuickReplies.Select(reply =>
+                WhatsAppAssistantAuthoringReplyCodec.TryParse(reply.Id, out var requestId, out var proposal, out var action)
+                    && requestId == reference.RequestId && proposal == proposalId ? action : null).Order(StringComparer.Ordinal)];
+            return actions.SequenceEqual([WhatsAppAssistantAuthoringReplyCodec.Change, WhatsAppAssistantAuthoringReplyCodec.Create])
+                || actions.SequenceEqual([WhatsAppAssistantAuthoringReplyCodec.Change, WhatsAppAssistantAuthoringReplyCodec.Review]);
+        }
         if (outgoing.Kind != WhatsAppOutgoingMessageKind.QuickReplies || outgoing.QuickReplies.Count is < 2 or > 3 || reference.ContextJson is not {} savedContext) return false;
         AssistantChannelContext? context;
         try { context = JsonSerializer.Deserialize<AssistantChannelContext>(savedContext, JsonSerializerOptions.Web); }
