@@ -58,8 +58,8 @@ foreach ($case in @("Configuration", "Merge", "Missing", "Collision")) {
                 }
                 $agent = @($cohorts | Where-Object { $_.Name -eq "whatsapp-assistant-agent" })[0]
                 Assert-Condition ($null -ne $agent -and $agent.Environment -eq "WHATSAPP_ASSISTANT_AGENT_HTTP_OUTPUT" -and $agent.Destination -eq "whatsapp-assistant-agent-http") "The WhatsApp assistant agent requires its own agreed output and destination."
-                $expectedAgent = @("agent-defaults.json", "agent-saved.json", "agent-conflict.json", "agent-invalid.json", "test-accepted.json", "test-pending.json", "test-completed.json", "test-recipients.json")
-                Assert-Condition (@(Compare-Object $expectedAgent $agent.RequiredNames).Count -eq 0) "The WhatsApp assistant agent must contain its eight actual HTTP bodies, from the screen and from Probar."
+                $expectedAgent = @("agent-defaults.json", "agent-saved.json", "agent-conflict.json", "agent-invalid.json", "test-accepted.json", "test-pending.json", "test-completed.json", "test-recipients.json", "chats-needs-person.json", "thread-agent.json", "suggestion-text-ready.json")
+                Assert-Condition (@(Compare-Object $expectedAgent $agent.RequiredNames).Count -eq 0) "The WhatsApp assistant agent must contain its eleven actual HTTP bodies, from the screen, Probar and the chat (AS4)."
                 foreach ($producer in @(($sourceRoot + "WhatsApp/WhatsAppAssistantAgentEndpointsTests.cs"), ($captureRoot + "Modules/WhatsApp/WhatsAppAssistantAgentContractCapture.cs"))) {
                     Assert-Condition ($producer -in $agent.Sources) "The WhatsApp assistant agent producer and capture SHA must be included."
                 }

@@ -6,7 +6,9 @@ using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.WhatsApp;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Assistant;
+using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
+using ArquitecturaBase.Application.Modules.WhatsApp.Services;
 using ArquitecturaBase.Domain.Authorization;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Results;
@@ -15,6 +17,7 @@ using ArquitecturaBase.Infrastructure.Persistence;
 using ArquitecturaBase.Infrastructure.Persistence.Seed;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -180,6 +183,64 @@ public sealed class WhatsAppAssistantAgentEndpointsTests(ApiFactory factory)
             allowedActions = new[] { "SendForm", "ExactText", "DraftedReply", "AskButtons", "Handoff", "NoReply" } },
     };
 
+    // AS4: the chat with the agent, for the front's contract. The list with «Necesita una persona», the thread with the why of a
+    // reply and the line of what the assistant decided without a message, and the operator's text suggestion with its case.
+    [Fact]
+    public async Task The_chat_carries_the_handoff_the_why_of_a_reply_its_lines_and_the_operators_text_suggestion()
+    {
+        await using var host = await Host.CreateAsync(factory, Ct);
+        var manager = await host.OperatorAsync(WhatsAppPermissions.ConfigureAssistant, WhatsAppPermissions.Read, WhatsAppPermissions.Send);
+        using (var saved = await host.SendAsync("PUT", Route, manager, Agent(0))) Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+        var contactId = await host.LinkedContactAsync("Ana Gómez", "ana.chat@example.com");
+        var (sourceMessageId, modeRevision) = await host.HandedOffConversationAsync(contactId);
+
+        using var list = await host.SendAsync("GET", "/api/whatsapp/chats?page=1&pageSize=20&needsPerson=true", manager);
+        Assert.Equal(HttpStatusCode.OK, list.StatusCode);
+        var chats = await list.ReadJsonAsync();
+        Assert.Equal(1, chats.GetProperty("needsPersonCount").GetInt32());
+        var chat = Assert.Single(chats.GetProperty("page").GetProperty("items").EnumerateArray());
+        Assert.Equal(("case", "Pide una persona"), (chat.GetProperty("needsPerson").GetProperty("reasonCode").GetString(),
+            chat.GetProperty("needsPerson").GetProperty("reason").GetString()));
+        await WhatsAppAssistantAgentContractCapture.WriteAsync(list, "chats-needs-person", Ct);
+
+        using var thread = await host.SendAsync("GET", $"/api/whatsapp/chats/{contactId}/messages", manager);
+        Assert.Equal(HttpStatusCode.OK, thread.StatusCode);
+        var history = await thread.ReadJsonAsync();
+        Assert.Equal("case", history.GetProperty("contact").GetProperty("needsPerson").GetProperty("reasonCode").GetString());
+        var reply = Assert.Single(history.GetProperty("outgoing").EnumerateArray()).GetProperty("assistantReply");
+        Assert.Equal(("ExactText", "Own", "Pregunta por el horario", 1, 1), (reply.GetProperty("kind").GetString(), reply.GetProperty("caseSource").GetString(),
+            reply.GetProperty("caseTitle").GetString(), reply.GetProperty("ordinal").GetInt32(), reply.GetProperty("count").GetInt32()));
+        var line = Assert.Single(history.GetProperty("assistantEvents").EnumerateArray()).GetProperty("reply");
+        Assert.Equal(("NoReply", "Fallback"), (line.GetProperty("kind").GetString(), line.GetProperty("caseSource").GetString()));
+        await WhatsAppAssistantAgentContractCapture.WriteAsync(thread, "thread-agent", Ct);
+
+        var requestId = Guid.NewGuid();
+        var suggestions = $"/api/whatsapp/chats/{contactId}/assistant-suggestions";
+        using (var requested = await host.SendAsync("POST", suggestions, manager, new { requestId, sourceMessageId, expectedModeRevision = modeRevision }))
+            Assert.Equal(HttpStatusCode.Accepted, requested.StatusCode);
+        // The worker prepares the operation, submits it and completes it with the engine's answer.
+        await using (var scope = host.App.Services.CreateAsyncScope())
+        {
+            var dispatch = scope.ServiceProvider.GetRequiredService<IWhatsAppAssistantDispatchService>();
+            var work = (await dispatch.PrepareAsync(contactId, Ct)).Value;
+            Assert.Equal(requestId, work!.RequestId);
+            var operation = Assert.IsType<AssistantOperationRequest>(work.Operation);
+            Assert.Equal(new AssistantCapabilityReference[] { new("whatsapp.agent", 1), new("forms.assistant-candidates", 1), new("whatsapp.agent-history", 1) },
+                operation.Context.PreloadedCapabilities);
+            Assert.True((await host.Operations.SubmitAsync(operation, Ct)).IsSuccess);
+            host.Operations.Complete(requestId, new AssistantObservedProposal(Guid.NewGuid(), Guid.NewGuid(), new("whatsapp.reply", 1),
+                new WhatsAppAssistantReplyPayload("exactText", "own", Hours, "Pregunta por el horario", "Pregunta el horario.", "Abrimos de 9 a 18.", null, null, null)));
+            Assert.True((await dispatch.CompleteAsync(contactId, requestId, await host.Operations.GetAsync(operation.Context, requestId, Ct), Ct)).IsSuccess);
+        }
+        using var ready = await host.SendAsync("GET", suggestions + $"/{requestId}", manager);
+        Assert.Equal(HttpStatusCode.OK, ready.StatusCode);
+        var suggestion = await ready.ReadJsonAsync();
+        Assert.Equal(("Ready", JsonValueKind.Null), (suggestion.GetProperty("state").GetString(), suggestion.GetProperty("proposal").ValueKind));
+        Assert.Equal(("Abrimos de 9 a 18.", "Own", "Pregunta por el horario"), (suggestion.GetProperty("textProposal").GetProperty("text").GetString(),
+            suggestion.GetProperty("textProposal").GetProperty("caseSource").GetString(), suggestion.GetProperty("textProposal").GetProperty("caseTitle").GetString()));
+        await WhatsAppAssistantAgentContractCapture.WriteAsync(ready, "suggestion-text-ready", Ct);
+    }
+
     private sealed class Host : IAsyncDisposable
     {
         private Host(WebApplicationFactory<Program> app) => App = app;
@@ -243,6 +304,52 @@ public sealed class WhatsAppAssistantAgentEndpointsTests(ApiFactory factory)
             }, CommitPolicy.OnSuccess, Ct);
             Assert.True(result.IsSuccess);
             return contactId;
+        }
+
+        // A conversation the agent answered and then handed off (AS4): the person's messages, the exact text with its why, a «No
+        // responder» with its outcome and the mark with its reason. The latest message is the source of a suggestion.
+        public async Task<(Guid SourceMessageId, long ModeRevision)> HandedOffConversationAsync(Guid contactId)
+        {
+            await using var scope = App.Services.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var nowUtc = scope.ServiceProvider.GetRequiredService<TimeProvider>().GetUtcNow().UtcDateTime;
+            (Guid, long) source = default;
+            var result = await scope.ServiceProvider.GetRequiredService<IUnitOfWork>().ExecuteInTransactionAsync(async token =>
+            {
+                var contact = await db.Set<WhatsAppContact>().SingleAsync(item => item.Id == contactId, token);
+                contact.ChangeMode(WhatsAppConversationMode.Assistant);
+                WhatsAppMessage Inbound(string body, DateTime atUtc)
+                {
+                    var message = WhatsAppMessage.Inbound(contact.Id, "wamid.agent-chat-" + Guid.NewGuid().ToString("N"), WhatsAppMessageKind.Text, body, null, atUtc);
+                    message.Classify(WhatsAppMessagePurpose.Business);
+                    message.SetInboundSequence(contact.RegisterInboundMessage());
+                    message.MarkProcessed(atUtc);
+                    contact.RecordInbound(contact.WaId, null, null, atUtc);
+                    db.Add(message);
+                    return message;
+                }
+                WhatsAppAssistantRequest Reference(WhatsAppMessage message) => WhatsAppAssistantRequest.Create(Guid.CreateVersion7(), contact.Id, message.Id,
+                    contact.UserId!.Value, contact.UserId.Value, WhatsAppAssistantRequestKind.Automatic, contact.ModeRevision, contact.LinkRevision, "{}",
+                    message.OccurredAtUtc, nowUtc.AddDays(1));
+                var asked = Inbound("¿A qué hora abren?", nowUtc.AddMinutes(-10));
+                var answered = Reference(asked);
+                var outgoing = WhatsAppOutgoingMessage.CreateAssistantText(contact.UserId!.Value, contact.Id, answered.RequestId, "Abrimos de 9 a 18.",
+                    nowUtc.AddMinutes(-9), contact.LinkRevision, contact.WaId!, contact.ModeRevision);
+                outgoing.ExplainAssistantReply(WhatsAppAssistantReplyRecordCodec.Serialize(new(WhatsAppAssistantActionKind.ExactText, WhatsAppAssistantCaseSource.Own,
+                    Hours, "Pregunta por el horario", "Pregunta el horario.", [], 1, 1)));
+                Assert.True(answered.Ready(Guid.NewGuid(), null, nowUtc.AddMinutes(-9)) && answered.Accept(outgoing.Id, new string('a', 64), null, nowUtc.AddMinutes(-9)));
+                var chain = Inbound("Reenviá esta cadena a diez contactos.", nowUtc.AddMinutes(-5));
+                var silent = Reference(chain);
+                Assert.True(silent.RecordOutcome(WhatsAppAssistantReplyRecordCodec.Serialize(new(WhatsAppAssistantActionKind.NoReply, WhatsAppAssistantCaseSource.Fallback,
+                    null, null, "Es una cadena: no es para el negocio.", [], 1, 1))) && silent.FinishWithoutReply(false, nowUtc.AddMinutes(-5)));
+                var latest = Inbound("Quiero hablar con alguien.", nowUtc.AddMinutes(-1));
+                db.AddRange(answered, outgoing, silent);
+                contact.HandOff("case", "Pide una persona", nowUtc);
+                source = (latest.Id, contact.ModeRevision);
+                return Result.Success();
+            }, CommitPolicy.OnSuccess, Ct);
+            Assert.True(result.IsSuccess);
+            return source;
         }
 
         public async ValueTask DisposeAsync()
