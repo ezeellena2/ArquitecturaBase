@@ -6,8 +6,23 @@ using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Models;
 namespace AssistantQualification;
 
 internal sealed class StatusRunner(QualificationCurrentUser currentUser, IAiAssistantService assistant, IAssistantOperations operations, TimeProvider clock,
-    IAiAssistantAudioService audio)
+    IAiAssistantAudioService audio, IAiAssistantDocumentService documents)
 {
+    // home-documents: the Home document service's Get for the person its ledger names; it never stores or reads the copy again.
+    public async Task<AiAssistantDocumentResponse?> WaitHomeDocumentAsync(QualificationLedgerEntry entry, CancellationToken cancellationToken)
+    {
+        if (!QualificationHomeDocuments.IsLedger(entry)) throw new InvalidOperationException("Invalid Home document ledger scope.");
+        currentUser.Set(entry.ActorUserId);
+        var deadline = clock.GetUtcNow().AddSeconds(240);
+        while (clock.GetUtcNow() < deadline)
+        {
+            var result = await documents.GetAsync(entry.RequestId, entry.Culture!, cancellationToken);
+            if (result.IsFailure) return null;
+            if (result.Value.State is not ("pending" or "running" or "queued")) return result.Value;
+            await Task.Delay(TimeSpan.FromSeconds(Math.Clamp(result.Value.PollingAfterSeconds, 1, 30)), clock, cancellationToken);
+        }
+        return null;
+    }
     public async Task<AssistantOperationResponse?> WaitNeutralAsync(QualificationLedgerEntry entry,CancellationToken cancellationToken)
     {
         currentUser.Set(entry.ActorUserId);var context=QualificationChannelContexts.Resume(entry);

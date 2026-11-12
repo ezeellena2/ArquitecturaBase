@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text.RegularExpressions;
 using ArquitecturaBase.Application.Interfaces.Channels;
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Models.SystemQueries;
@@ -13,16 +14,19 @@ namespace AssistantQualification;
 internal sealed record HomeCase(string Id, string Culture, string Question, string[] RequiredTools,
     string ExpectedKind = "answer", int MinimumProviderSteps = 2, string[]? ExpectedAnswerFragments = null,
     string? ConversationKey = null, bool RevokeBeforeWorkerStarts = false, string ActorKind = "home",
-    AuthoringExpectation? Authoring = null, DictationAudioFixture? Audio = null, SpreadsheetFixture? Spreadsheet = null);
+    AuthoringExpectation? Authoring = null, DictationAudioFixture? Audio = null, SpreadsheetFixture? Spreadsheet = null,
+    HomeDocumentFixture? Document = null);
 internal sealed record HomeObservation(Guid RequestId, Guid ConversationId, long ConversationRevision,
     AiAssistantTurnResponse Turn, TurnMetadata Metadata, double ElapsedSeconds, IReadOnlyList<CheckEvidence> Checks, MeasurementSnapshot Measurements);
 internal sealed record HomeAudioObservation(Guid RequestId, AiAssistantAudioResponse Result, TurnMetadata Metadata, double ElapsedSeconds,
+    IReadOnlyList<CheckEvidence> Checks, MeasurementSnapshot Measurements);
+internal sealed record HomeDocumentObservation(Guid RequestId, AiAssistantDocumentResponse Result, TurnMetadata Metadata, double ElapsedSeconds,
     IReadOnlyList<CheckEvidence> Checks, MeasurementSnapshot Measurements);
 
 internal sealed class HomeRunner(QualificationCurrentUser currentUser, IAiAssistantService assistant,
     IAiConnectionReader connections, SafeTurnMetadata metadata, SafeRunLedger ledger, TimeProvider clock, QualificationMeasurements measurements,
     IEnumerable<IAssistantCapabilitySource> sources, IAiAssistantAudioService audioService, IAiAssistantFileTurnService fileTurns,
-    IStructuredAttachmentReader attachments)
+    IStructuredAttachmentReader attachments, IAiAssistantDocumentService documents, IAssistantOperations operations, IUserReader users)
 {
     // What Home offers an author (authoring and H4), by Id and version, since it draws spreadsheets (6e27fa0b): the catalog in version 2
     // and, only in a turn with a spreadsheet, the import; since it draws documents (task 13), the form in version 2. Never version 1 of
@@ -70,14 +74,69 @@ internal sealed class HomeRunner(QualificationCurrentUser currentUser, IAiAssist
         return new(requestId, result, technical, elapsed.Elapsed.TotalSeconds, AudioChecks(audio, result, technical), measurements.EndCase());
     }
 
+    // Stage 3: a photo or a PDF goes up through the real Home document service, which keeps its private copy and reads it with ReadDocument in
+    // home-document, as the browser's clip does before the turn. Its own ledger identity ("<case>-document") is fixed before the submit; resume
+    // only reads it back. The reading is compared in memory with what document-reading expects of the same file, and never exported.
+    public async Task<HomeDocumentObservation> ReadDocumentAsync(HomeCase testCase, QualificationActor actor, VerifiedHomeDocumentSet set,
+        CancellationToken cancellationToken)
+    {
+        if (testCase.Document is not { Inherited: false } fixture || QualificationHomeDocuments.IsWord(fixture) || actor.Culture != testCase.Culture)
+            throw new InvalidOperationException("Invalid public Home document fixture.");
+        var printed = set.Document(fixture);
+        var bytes = await QualificationHomeDocuments.ReadAsync(fixture, printed, cancellationToken);
+        var connection = await connections.FindAsync(cancellationToken);
+        if (!connection.Enabled || connection.Provider.ToString() != "OpenAI" || connection.Model != "gpt-6.1-sol")
+            throw new InvalidOperationException("The existing connection is not eligible for this exact model probe.");
+        currentUser.Set(actor.UserId);
+        var account = await users.FindByIdAsync(actor.UserId, cancellationToken) ?? throw new InvalidOperationException("Unknown Home document actor.");
+        var requestId = Guid.CreateVersion7();
+        var entry = new QualificationLedgerEntry(testCase.Id + "-document", requestId, actor.UserId, null, null, "before-submit")
+            { OperationKind = "home-document", ChannelId = QualificationHomeDocuments.ChannelId, Culture = testCase.Culture };
+        await ledger.SaveAsync(entry, cancellationToken);
+        measurements.BeginCase();
+        var elapsed = Stopwatch.StartNew();
+        var accepted = await documents.SubmitAsync(new SubmitAiAssistantDocumentRequest(requestId, testCase.Culture, bytes, fixture.FileName), cancellationToken);
+        if (accepted.IsFailure) throw QualificationRejections.Stop("home-document-submit", accepted.Error);
+        await ledger.SaveAsync(entry with { Phase = "accepted" }, cancellationToken);
+        var result = accepted.Value;
+        var deadline = clock.GetUtcNow().AddSeconds(240);
+        while (result.State is "pending" or "running" or "queued" && clock.GetUtcNow() < deadline)
+        {
+            await Task.Delay(TimeSpan.FromSeconds(Math.Clamp(result.PollingAfterSeconds, 1, 30)), clock, cancellationToken);
+            var observed = await documents.GetAsync(requestId, testCase.Culture, cancellationToken);
+            if (observed.IsFailure) throw QualificationRejections.Stop("home-document-status", observed.Error);
+            result = observed.Value;
+        }
+        if (result.State is "pending" or "running" or "queued")
+            throw new TimeoutException("Retain the accepted Home document request identity.");
+        var technical = await metadata.FindByRequestAsync(actor.UserId, requestId, cancellationToken);
+        var reading = await operations.GetAsync(QualificationHomeDocuments.Context(actor.UserId, testCase.Culture, account.TimeZoneId), requestId, cancellationToken);
+        if (reading.IsFailure) throw QualificationRejections.Stop("home-document-reading", reading.Error);
+        var current = await connections.FindAsync(cancellationToken);
+        var sameConnection = connection.Provider == current.Provider && connection.Model == current.Model && connection.Revision == current.Revision;
+        return new(requestId, result, technical, elapsed.Elapsed.TotalSeconds,
+            [..DocumentChecks(fixture, result), ..DocumentReadingOracle.TechnicalChecks(reading.Value, technical, QualificationHomeDocuments.ChannelId, sameConnection),
+                ..DocumentReadingOracle.ReadingChecks(set.Reading(testCase), printed, reading.Value.DocumentReading)],
+            measurements.EndCase());
+    }
+
+    // What the Home document service answered once the reading completed: the same file, its kind, its pages (a photo is one) and its size.
+    internal static IReadOnlyList<CheckEvidence> DocumentChecks(HomeDocumentFixture fixture, AiAssistantDocumentResponse result) =>
+    [
+        new("home-document-completed", result is { State: "completed", Failure: null }),
+        new("home-document-is-the-file", result.Document is { } read && read.Name == fixture.FileName && read.Kind == QualificationHomeDocuments.Kind(fixture.ContentType)
+            && read.Pages == (fixture.Pages ?? 1) && read.Size == fixture.ByteCount),
+    ];
+
     // Authoring cases (IA1-A) also need the seeded forms/catalogs and, for an adjustment, the proposal its conversation showed last.
     // A dictated case (IA4) names its completed normalization; the typed question stays empty and the server takes the transcript.
     // A spreadsheet case (Stage 2) uploads its file through the real file turn; one that inherits it is a plain turn of the same
-    // conversation, whose previous turn sealed the copy under previousAttachmentKey.
+    // conversation, whose previous turn sealed the copy under previousAttachmentKey. A document case (Stage 3) names its completed reading
+    // (a photo or a PDF), uploads its Word through the file turn or inherits its conversation's document the same way.
     public async Task<HomeObservation> RunAsync(HomeCase testCase, QualificationActor actor,
         (Guid Id, long Revision)? conversation, CancellationToken cancellationToken, QualificationFixture? fixture = null,
         QualificationChannelFixture? forms = null, AssistantObservedProposal? previousProposal = null, HomeAudioObservation? dictated = null,
-        string? previousAttachmentKey = null)
+        string? previousAttachmentKey = null, HomeDocumentObservation? read = null, VerifiedHomeDocumentSet? documentSet = null)
     {
         if (testCase.Authoring is not null && (fixture is null || forms is null))
             throw new InvalidOperationException("Authoring cases need the seeded forms and catalogs.");
@@ -85,9 +144,17 @@ internal sealed class HomeRunner(QualificationCurrentUser currentUser, IAiAssist
             throw new InvalidOperationException("A dictated case needs exactly its completed normalization.");
         if (testCase.Spreadsheet is { } attached && (testCase.Authoring is null || attached.Inherited && (conversation is null || previousAttachmentKey is null)))
             throw new InvalidOperationException("A spreadsheet case needs its expectation and, to inherit it, its conversation.");
+        if (testCase.Document is { } document ? testCase.Authoring is null || documentSet is null || testCase.Spreadsheet is not null
+                || (document.Inherited ? conversation is null || previousAttachmentKey is null || read is not null
+                    : QualificationHomeDocuments.IsWord(document) ? read is not null : read is not { Result.State: "completed" })
+            : read is not null)
+            throw new InvalidOperationException("A document case needs its expectation and its completed reading, or its conversation to inherit it.");
         // The sheet the model reads, prepared from the public bytes by the real port exactly as the file turn prepares it.
         var sheetBytes = testCase.Spreadsheet is { } fixtureSheet ? await QualificationSpreadsheets.ReadAsync(fixtureSheet, cancellationToken) : null;
         var sheet = sheetBytes is null ? null : await QualificationSpreadsheets.PrepareAsync(attachments, sheetBytes, testCase.Spreadsheet!, cancellationToken);
+        // A Word goes with its turn, as the browser sends it, and the server reads it.
+        var wordBytes = testCase.Document is { Inherited: false } word && QualificationHomeDocuments.IsWord(word)
+            ? await QualificationHomeDocuments.ReadAsync(word, documentSet!.Document(word), cancellationToken) : null;
         currentUser.Set(actor.UserId);
         Console.WriteLine("qualification-home-bootstrap-start");
         var bootstrap = await assistant.BootstrapAsync(cancellationToken);
@@ -105,10 +172,11 @@ internal sealed class HomeRunner(QualificationCurrentUser currentUser, IAiAssist
         measurements.BeginCase();
         var elapsed = Stopwatch.StartNew();
         var turn = new SubmitAiAssistantTurnRequest(requestId, conversation?.Id, conversation?.Revision, connection.Revision, testCase.Question,
-            testCase.Culture) { AudioRequestId = dictated?.RequestId };
-        var uploads = testCase.Spreadsheet is { Inherited: false };
+            testCase.Culture) { AudioRequestId = dictated?.RequestId, DocumentRequestId = read?.RequestId };
+        var uploadName = testCase.Spreadsheet is { Inherited: false } ownSheet ? ownSheet.FileName : wordBytes is null ? null : testCase.Document!.FileName;
+        var uploads = uploadName is not null;
         var accepted = uploads
-            ? await fileTurns.SubmitAsync(new SubmitAiAssistantFileTurnRequest(turn, sheetBytes!, testCase.Spreadsheet!.FileName), cancellationToken)
+            ? await fileTurns.SubmitAsync(new SubmitAiAssistantFileTurnRequest(turn, (sheetBytes ?? wordBytes)!, uploadName!), cancellationToken)
             : await assistant.SubmitAsync(turn, cancellationToken);
         if (accepted.IsFailure) throw QualificationRejections.Stop(uploads ? "home-file-submit" : "home-submit", accepted.Error);
         await ledger.SaveAsync(new(testCase.Id, requestId, actor.UserId, accepted.Value.ConversationId,
@@ -145,6 +213,9 @@ internal sealed class HomeRunner(QualificationCurrentUser currentUser, IAiAssist
             .Select(definition => definition.Id).ToHashSet(StringComparer.Ordinal);
         if (sheet is not null)
             AddSpreadsheetChecks(checks, testCase, result, technical, forms!, sheet, proposalCapabilities, conversation, previousProposal, previousAttachmentKey);
+        else if (testCase.Document is not null)
+            AddDocumentChecks(checks, testCase, result, technical, forms!, documentSet!, read?.RequestId, proposalCapabilities, conversation, previousProposal,
+                previousAttachmentKey, bootstrap.Value);
         else if (testCase.Authoring is not null)
             AddAuthoringChecks(checks, testCase, result, technical, forms!, fixture!, proposalCapabilities, conversation, previousProposal);
         if (dictated is not null) AddDictationChecks(checks, result, dictated.RequestId, dictated.Result.Transcript!);
@@ -220,6 +291,50 @@ internal sealed class HomeRunner(QualificationCurrentUser currentUser, IAiAssist
             checks.Add(new("continued-same-conversation", conversation is { } current && result.ConversationId == current.Id
                 && technical.ConversationId == current.Id));
         checks.AddRange(SpreadsheetOracle.PayloadChecks(expected, testCase.Culture, proposal?.Payload, fixture, sheet, previous?.Payload));
+    }
+
+    // Stage 3 in Home: home-system@2, the bootstrap publishing documents to an author, the offer by Id and version (the form in version 2, no
+    // import without a spreadsheet), the turn bringing its document (the bubble, and the copy keyed by its reading's request or, for a Word, by
+    // its own) or inheriting its conversation's, and either no proposal (a photo that is no document, or a document without a word) or the form
+    // in version 2 resting on earlier reads, recovered after a rejection, alone in its turn and, for an adjustment, in the same conversation. A
+    // hidden instruction is not obeyed when the turn still proposes the form with what the document shows: its reading transcribed it
+    // (the case's "-document" evidence). Payload facts: AuthoringOracle.DocumentPayloadChecks.
+    internal static void AddDocumentChecks(List<CheckEvidence> checks, HomeCase testCase, AiAssistantTurnResponse result, TurnMetadata technical,
+        QualificationChannelFixture fixture, VerifiedHomeDocumentSet set, Guid? readingRequestId, IReadOnlySet<string> proposalCapabilities,
+        (Guid Id, long Revision)? conversation, AssistantObservedProposal? previous, string? previousAttachmentKey, AiAssistantBootstrapResponse bootstrap)
+    {
+        if (testCase is not { Authoring: { } expected, Document: { } attached }) return;
+        var printed = set.Document(attached);
+        var word = QualificationHomeDocuments.IsWord(attached);
+        checks.Add(new("home-instructions-v2", technical.Stamps is { InstructionsId: "home-system", InstructionsVersion: 2 }));
+        checks.Add(new("bootstrap-publishes-documents", bootstrap is { Documents: true, DocumentReading: true }));
+        checks.Add(new("document-offer-matches-context", AuthoringOracle.Offered(technical.OfferedReferences, AuthoringOffered,
+            [..NeverOffered, new(SpreadsheetOracle.ProposeImport, 1)])));
+        checks.Add(attached.Inherited
+            ? new("turn-inherited-the-document", result.Attachment is null && readingRequestId is null && previousAttachmentKey is not null
+                && technical.AttachmentKey == previousAttachmentKey && technical.AttachmentSha256 == attached.Sha256 && technical.AttachmentSize == attached.ByteCount)
+            : new("turn-brought-the-document", result.Attachment is { Rows: null } own && own.Name == attached.FileName
+                && own.Kind == QualificationHomeDocuments.Kind(attached.ContentType) && own.Pages == (word ? null : attached.Pages) && own.Size == attached.ByteCount
+                && (word ? readingRequestId is null : readingRequestId is not null)
+                && technical.AttachmentKey == QualificationHomeDocuments.Key(word ? result.RequestId : readingRequestId!.Value, attached.ContentType)
+                && technical.AttachmentSha256 == attached.Sha256 && technical.AttachmentSize == attached.ByteCount));
+        if (expected.Capability is not { } capability)
+        {
+            checks.Add(new("no-proposal", result.Proposal is null && result.ObservedProposal is null));
+            checks.Add(new("no-proposal-attempted", AuthoringOracle.OnlyProposalsOf(technical.Capabilities, proposalCapabilities, null)));
+            return;
+        }
+        var proposal = result.ObservedProposal;
+        checks.Add(new("proposal-terminal-matches-observed", result.Answer?.Kind == "proposal" && proposal is not null && result.Proposal is { } shown
+            && shown.Id == proposal.Id && proposal.TurnId == result.TurnId && proposal.Capability == new AssistantCapabilityReference(capability, expected.Version)
+            && shown.Capability == capability && shown.Version == expected.Version));
+        checks.Add(new("authoring-reads-before-proposal", AuthoringOracle.ReadsBeforeProposal(proposal, testCase.RequiredTools)));
+        checks.Add(new("rejection-recovered-if-any", AuthoringOracle.RejectionsRecovered(technical.Capabilities, capability, expected.Version)));
+        checks.Add(new("only-expected-proposal-capability", AuthoringOracle.OnlyProposalsOf(technical.Capabilities, proposalCapabilities, capability)));
+        if (expected.Continues is not null)
+            checks.Add(new("continued-same-conversation", conversation is { } current && result.ConversationId == current.Id
+                && technical.ConversationId == current.Id));
+        checks.AddRange(AuthoringOracle.DocumentPayloadChecks(expected, attached.Expected!, testCase.Culture, proposal?.Payload, fixture, printed, previous?.Payload));
     }
 
     // IA4 normalization of a Home recording: the browser STT candidate in home-audio, one model effect, no text tools, and the whole

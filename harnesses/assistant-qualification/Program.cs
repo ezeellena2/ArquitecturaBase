@@ -24,10 +24,11 @@ internal static partial class Program
         "AiAssistantCoordinator.cs","EmailBackgroundService.cs","WhatsAppInboundProcessor.cs","FormActionBackgroundService.cs",
         "QualificationAuthoringSeed.cs","QualificationSpreadsheets.cs","AiAssistantFileTurnService.cs","BusinessFormAttachmentReader.cs",
         "Program.Documents.cs","DocumentRunner.cs","QualificationDocuments.cs","FormDocumentReader.cs","AgentRunner.cs","AgentOracle.cs",
-        "QualificationAgentSeed.cs","WhatsAppAssistantAgentService.cs","WhatsAppAssistantAgentCapabilitySource.cs","AiBusinessInformationService.cs"];
+        "QualificationAgentSeed.cs","WhatsAppAssistantAgentService.cs","WhatsAppAssistantAgentCapabilitySource.cs","AiBusinessInformationService.cs",
+        "QualificationHomeDocuments.cs","AuthoringOracle.Document.cs","AiAssistantDocumentService.cs"];
 
     internal static readonly string[] CaseSets=["home-existing","channel-stage5","audio-es-en","stage5-all","home-authoring","channel-authoring","ia-authoring","channel-dictation",
-        "home-spreadsheets","channel-spreadsheets","ia-spreadsheets","document-reading","channel-agent"];
+        "home-spreadsheets","channel-spreadsheets","ia-spreadsheets","document-reading","channel-agent","home-documents"];
     // channel-dictation runs only the voice notes of channel-authoring (IA3-A by voice), without repeating the typed cases already qualified.
     internal static ChannelCase[] SelectChannelCases(string? selected,ChannelCase[] cases)=>
         selected=="channel-dictation"?cases.Where(item=>item.Audio is not null).ToArray():cases;
@@ -72,6 +73,8 @@ internal static partial class Program
             var documents=selected=="document-reading";
             // channel-agent: the base seed, the forms and the agent with its business information, on its own run and database.
             var agentSet=selected=="channel-agent";
+            // Stage 3 in Home: a document in the turn, on its own run and database seeded like the authoring sets.
+            var homeDocuments=selected=="home-documents";
             if(!args.Contains("--live",StringComparer.Ordinal))
             {
                 if(selected is "home-existing" or "stage5-all")foreach(var item in await CasesAsync<HomeCase>("home-cases.json",CancellationToken.None))Console.WriteLine(item.Id);
@@ -83,12 +86,14 @@ internal static partial class Program
                 if(channelSpreadsheets)foreach(var item in await CasesAsync<ChannelCase>(ChannelSpreadsheetFile,CancellationToken.None))Console.WriteLine(item.Id);
                 if(documents)foreach(var item in (await QualificationDocuments.LoadVerifiedAsync(CancellationToken.None)).Cases)Console.WriteLine(item.Id);
                 if(agentSet)foreach(var item in await CasesAsync<AgentCase>(AgentCasesFile,CancellationToken.None))Console.WriteLine(item.Id);
+                if(homeDocuments)foreach(var item in (await HomeDocumentsAsync(CancellationToken.None)).Cases)Console.WriteLine(item.Id);
                 Console.WriteLine("Prepared only. No connection or secret store was opened.");return 0;
             }
             // Nothing above this explicit gate reads environment, credentials, services or a database.
             _=RequiredOption(args,"--case-set");
             // A changed document fixture stops a new run here, before its ledger, database, seed or provider call.
             var documentSet=documents && !args.Contains("--resume",StringComparer.Ordinal)?await QualificationDocuments.LoadVerifiedAsync(CancellationToken.None):null;
+            var homeDocumentSet=homeDocuments && !args.Contains("--resume",StringComparer.Ordinal)?await HomeDocumentsAsync(CancellationToken.None):null;
             var settings=QualificationSettings.FromEnvironment(RequiredOption(args,"--run-id"),RequiredOption(args,"--repository"),RequiredOption(args,"--output"));
             using var timeout=new CancellationTokenSource(TimeSpan.FromHours(2));var ct=timeout.Token;
             if(diagnose)return await DiagnoseExistingFixtureAsync(settings,ct);
@@ -102,7 +107,7 @@ internal static partial class Program
                 return await ContinueExistingAsync(host,settings,ct);
             }
             // Before any seed or provider call: the Home authoring and spreadsheet cases expect what Home offers today, by Id and version.
-            if((homeAuthoring || homeSpreadsheets) && !HomeOffersAuthoring(host))return 2;
+            if((homeAuthoring || homeSpreadsheets || homeDocuments) && !HomeOffersAuthoring(host))return 2;
             QualificationFixture fixture;QualificationChannelFixture? forms=null;QualificationAgentFixture? agent=null;
             await using(var scope=host.Services.CreateAsyncScope())
             {
@@ -110,10 +115,10 @@ internal static partial class Program
                 await RefuseNonemptyEvaluationDatabaseAsync(db,ct);
                 await db.Database.MigrateAsync(ct); // Isolated evaluation DB only.
                 fixture=await scope.ServiceProvider.GetRequiredService<QualificationSeed>().CreateAsync(ct);
-                if(selected is "channel-stage5" or "stage5-all" || homeAuthoring || channelAuthoring || spreadsheets || agentSet)
+                if(selected is "channel-stage5" or "stage5-all" || homeAuthoring || channelAuthoring || spreadsheets || agentSet || homeDocuments)
                     forms=await scope.ServiceProvider.GetRequiredService<QualificationFormSeed>().CreateAsync(fixture,ct);
                 if(agentSet)agent=await scope.ServiceProvider.GetRequiredService<QualificationAgentSeed>().CreateAsync(fixture,forms!,ct);
-                if(homeAuthoring || channelAuthoring || spreadsheets)
+                if(homeAuthoring || channelAuthoring || spreadsheets || homeDocuments)
                 {
                     var authoring=scope.ServiceProvider.GetRequiredService<QualificationAuthoringSeed>();
                     fixture=await authoring.CreateAsync(fixture,ct);
@@ -131,6 +136,7 @@ internal static partial class Program
                 if(homeSpreadsheets)if(!await RunHomeAsync(host,settings,fixture,forms,HomeSpreadsheetFile,HomeAuthoringCapabilities,ct))return 1;
                 if(channelSpreadsheets)if(!await RunChannelsAsync(host,settings,fixture,forms!,ChannelSpreadsheetFile,QualificationChannelContexts.References,ct))return 1;
                 if(documentSet is not null)if(!await RunDocumentsAsync(host,settings,fixture,documentSet,ct))return 1;
+                if(homeDocumentSet is not null)if(!await RunHomeAsync(host,settings,fixture,forms,QualificationHomeDocuments.CaseFile,HomeAuthoringCapabilities,ct,homeDocumentSet))return 1;
                 if(agent is not null)if(!await RunAgentAsync(host,settings,agent,forms!,ct))return 1;
                 return 0; // Mechanical checks do not declare production qualification.
             }
@@ -228,9 +234,10 @@ internal static partial class Program
     }
 
     private static async Task<bool> RunHomeAsync(IHost host,QualificationSettings settings,QualificationFixture fixture,QualificationChannelFixture? forms,
-        string fixtureFile,IReadOnlyCollection<AssistantCapabilityReference> capabilities,CancellationToken ct)
+        string fixtureFile,IReadOnlyCollection<AssistantCapabilityReference> capabilities,CancellationToken ct,VerifiedHomeDocumentSet? documents=null)
     {
-        var cases=await CasesAsync<HomeCase>(fixtureFile,ct);
+        // home-documents runs the cases it verified before the run, never a second read of the file.
+        var cases=documents?.Cases ?? await CasesAsync<HomeCase>(fixtureFile,ct);
         var definitions=Definitions(host,capabilities);
         // A follow-up keeps its actor, conversation revision and, for an authoring adjustment, the proposal that turn showed and the
         // key of the spreadsheet it sealed (Stage 2), which the follow-up inherits.
@@ -255,7 +262,18 @@ internal static partial class Program
                     dictated.Metadata,dictated.ElapsedSeconds,dictated.Measurements,dictated.Checks,[],fixtureFile,true,ct,BrowserAudioCandidate);
                 if(!await SaveAsync(settings,heard,ct))return false;
             }
-            var observed=await runner.RunAsync(testCase,actor,previous,ct,fixture,forms,shown,dictated,attachmentKey);
+            HomeDocumentObservation? read=null;
+            if(testCase.Document is {Inherited:false} document && !QualificationHomeDocuments.IsWord(document))
+            {
+                // Stage 3: the photo or the PDF goes up and is read first, as the clip does before the turn, in its own scope, ledger and
+                // evidence (the document candidate); a failed check stops before the turn.
+                await using(var documentScope=host.Services.CreateAsyncScope())
+                    read=await documentScope.ServiceProvider.GetRequiredService<HomeRunner>().ReadDocumentAsync(testCase,actor,documents!,ct);
+                var reading=await EvidenceAsync(testCase.Id+"-document",QualificationHomeDocuments.ChannelId,testCase.Culture,read.Result.State,read.Result.Failure?.Code,
+                    read.Metadata,read.ElapsedSeconds,read.Measurements,read.Checks,[],fixtureFile,false,ct,DocumentCandidate);
+                if(!await SaveAsync(settings,reading,ct))return false;
+            }
+            var observed=await runner.RunAsync(testCase,actor,previous,ct,fixture,forms,shown,dictated,attachmentKey,read,documents);
             if(testCase.ConversationKey is {} saved)
                 conversations[saved]=(observed.ConversationId,observed.ConversationRevision,actor,observed.Turn.ObservedProposal,observed.Metadata.AttachmentKey);
             var evidence=await EvidenceAsync(testCase.Id,"home",testCase.Culture,observed.Turn.State,observed.Turn.Failure?.Code,
@@ -399,6 +417,7 @@ internal static partial class Program
                 {
                     "home"=>(await runner.WaitAsync(entry,ct))?.State,
                     "home-audio"=>(await runner.WaitHomeAudioAsync(entry,ct))?.State,
+                    "home-document"=>(await runner.WaitHomeDocumentAsync(entry,ct))?.State,
                     "document"=>(await runner.WaitDocumentAsync(entry,ct))?.State,
                     _=>(await runner.WaitNeutralAsync(entry,ct))?.State,
                 };

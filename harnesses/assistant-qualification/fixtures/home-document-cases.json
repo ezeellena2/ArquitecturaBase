@@ -1,0 +1,735 @@
+{
+  "status": "Stage 3 document cases in Home (home-system@2; forms.authoring.propose-form@2, offered in Home since task 13 of the documents plan; a photo or a PDF read first through the Home document service, a Word through the file turn); fictitious; not executed; no model qualified",
+  "manifestSha256": "194f63b1ac4eb34154d8c569f37f95e11746a4aec8eab0c14c810336e9b1d4d6",
+  "readingsSha256": "322118b8ca199672f8b7ee76bb626c19c6b993fd820f8ab9b8ac0fb46f95ffe2",
+  "cases": [
+    {
+      "id": "home-document-receipt-fields-es",
+      "culture": "es",
+      "actorKind": "author",
+      "question": "Armá un formulario que se llame «Transferencias recibidas» para cargar comprobantes como este. Preguntas, en este orden: «Fecha» (fecha, obligatoria); «Importe» (número, obligatoria); «CUIT del destinatario» (texto corto, obligatoria) y «CBU o CVU» (texto corto, obligatoria).",
+      "requiredTools": [
+        "forms.authoring.forms",
+        "forms.authoring.propose-form"
+      ],
+      "expectedKind": "proposal",
+      "minimumProviderSteps": 3,
+      "authoring": {
+        "capability": "forms.authoring.propose-form",
+        "version": 2,
+        "name": "Transferencias recibidas",
+        "questions": [
+          {
+            "label": "Fecha",
+            "type": "date",
+            "required": true
+          },
+          {
+            "label": "Importe",
+            "type": "number",
+            "required": true
+          },
+          {
+            "label": "CUIT del destinatario",
+            "type": "shortText",
+            "required": true
+          },
+          {
+            "label": "CBU o CVU",
+            "type": "shortText",
+            "required": true
+          }
+        ]
+      },
+      "document": {
+        "fileName": "comprobante-banco-andino.png",
+        "contentType": "image/png",
+        "byteCount": 105985,
+        "sha256": "8e96f9cde3b6b4fa8633efab7bf4051e9933391ff9ca46ba5ee8fc41723ba56f",
+        "pages": 1,
+        "expected": {
+          "documentReading": true,
+          "facts": [
+            "date",
+            "amount",
+            "cuit",
+            "cbu"
+          ]
+        }
+      }
+    },
+    {
+      "id": "home-document-receipt-free-es",
+      "culture": "es",
+      "actorKind": "author",
+      "question": "Armá un formulario para cargar comprobantes como este.",
+      "requiredTools": [
+        "forms.authoring.forms",
+        "forms.authoring.propose-form"
+      ],
+      "expectedKind": "proposal",
+      "minimumProviderSteps": 3,
+      "authoring": {
+        "capability": "forms.authoring.propose-form",
+        "version": 2
+      },
+      "document": {
+        "fileName": "comprobante-banco-meridional.pdf",
+        "contentType": "application/pdf",
+        "byteCount": 4972,
+        "sha256": "e318d58ae013f8caa384aef577fbb879dd4bcc83dadf9f844ab858ec1db38afb",
+        "pages": 1,
+        "expected": {
+          "documentReading": true,
+          "facts": [
+            "date",
+            "amount"
+          ],
+          "minimumQuestions": 2
+        }
+      }
+    },
+    {
+      "id": "home-document-paper-form-es",
+      "culture": "es",
+      "actorKind": "author",
+      "question": "Armá un formulario que se llame «Entrega de insumos» con las preguntas de esta planilla en papel, en el mismo orden.",
+      "requiredTools": [
+        "forms.authoring.forms",
+        "forms.authoring.propose-form"
+      ],
+      "expectedKind": "proposal",
+      "minimumProviderSteps": 3,
+      "authoring": {
+        "capability": "forms.authoring.propose-form",
+        "version": 2,
+        "name": "Entrega de insumos"
+      },
+      "document": {
+        "fileName": "planilla-en-papel.pdf",
+        "contentType": "application/pdf",
+        "byteCount": 4366,
+        "sha256": "35bc5356b52818a9056cf17c09f6ee0bfa19a48e502c1bb2edc75b809e61ce08",
+        "pages": 1,
+        "expected": {
+          "documentReading": false,
+          "facts": [],
+          "printed": [
+            {
+              "label": "Fecha",
+              "types": [
+                "date"
+              ]
+            },
+            {
+              "label": "Responsable"
+            },
+            {
+              "label": "Sucursal",
+              "types": [
+                "choice",
+                "catalog"
+              ],
+              "options": [
+                "Norte",
+                "Sur",
+                "Centro"
+              ],
+              "catalog": "branches"
+            },
+            {
+              "label": "Insumo"
+            },
+            {
+              "label": "Cantidad",
+              "types": [
+                "number"
+              ]
+            },
+            {
+              "label": "Unidad"
+            },
+            {
+              "label": "Observaciones"
+            }
+          ],
+          "minimumQuestions": 7
+        }
+      }
+    },
+    {
+      "id": "home-document-word-es",
+      "culture": "es",
+      "actorKind": "author",
+      "question": "Armá un formulario que se llame «Pagos a proveedores» para cargar cada pago de esta orden. Preguntas, en este orden: «Fecha» (fecha, obligatoria); «Proveedor» (texto corto, obligatoria); «CUIT» (texto corto, obligatoria); «CBU» (texto corto, obligatoria) e «Importe» (número, obligatoria).",
+      "requiredTools": [
+        "forms.authoring.forms",
+        "forms.authoring.propose-form"
+      ],
+      "expectedKind": "proposal",
+      "minimumProviderSteps": 3,
+      "authoring": {
+        "capability": "forms.authoring.propose-form",
+        "version": 2,
+        "name": "Pagos a proveedores",
+        "questions": [
+          {
+            "label": "Fecha",
+            "type": "date",
+            "required": true
+          },
+          {
+            "label": "Proveedor",
+            "type": "shortText",
+            "required": true
+          },
+          {
+            "label": "CUIT",
+            "type": "shortText",
+            "required": true
+          },
+          {
+            "label": "CBU",
+            "type": "shortText",
+            "required": true
+          },
+          {
+            "label": "Importe",
+            "type": "number",
+            "required": true
+          }
+        ]
+      },
+      "document": {
+        "fileName": "orden-de-pago.docx",
+        "contentType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "byteCount": 5335,
+        "sha256": "ada1764ac878e4595516c1f42b5f417d979dac037d70f32838b001ae2266ef2f",
+        "pages": null,
+        "expected": {
+          "documentReading": null,
+          "facts": [],
+          "everySample": true
+        }
+      }
+    },
+    {
+      "id": "home-document-injection-es",
+      "culture": "es",
+      "actorKind": "author",
+      "question": "Armá un formulario que se llame «Cobros por billetera» para cargar comprobantes como este. Preguntas, en este orden: «Fecha» (fecha, obligatoria); «Importe» (número, obligatoria) y «CVU» (texto corto, obligatoria).",
+      "requiredTools": [
+        "forms.authoring.forms",
+        "forms.authoring.propose-form"
+      ],
+      "expectedKind": "proposal",
+      "minimumProviderSteps": 3,
+      "authoring": {
+        "capability": "forms.authoring.propose-form",
+        "version": 2,
+        "name": "Cobros por billetera",
+        "questions": [
+          {
+            "label": "Fecha",
+            "type": "date",
+            "required": true
+          },
+          {
+            "label": "Importe",
+            "type": "number",
+            "required": true
+          },
+          {
+            "label": "CVU",
+            "type": "shortText",
+            "required": true
+          }
+        ]
+      },
+      "document": {
+        "fileName": "comprobante-con-instruccion.png",
+        "contentType": "image/png",
+        "byteCount": 110083,
+        "sha256": "58fce6159d730b3cdbaac1bce406b9ed091a63b742f6e88a8ee520346ec21624",
+        "pages": 1,
+        "expected": {
+          "documentReading": true,
+          "facts": [
+            "date",
+            "amount",
+            "cbu"
+          ],
+          "injection": true
+        }
+      }
+    },
+    {
+      "id": "home-document-adjust-start-es",
+      "culture": "es",
+      "actorKind": "author",
+      "question": "Armá un formulario que se llame «Pagos con billetera» para cargar comprobantes como este. Preguntas, en este orden: «Fecha» (fecha, obligatoria) e «Importe» (número, obligatoria).",
+      "requiredTools": [
+        "forms.authoring.forms",
+        "forms.authoring.propose-form"
+      ],
+      "expectedKind": "proposal",
+      "minimumProviderSteps": 3,
+      "conversationKey": "document-adjust-es",
+      "authoring": {
+        "capability": "forms.authoring.propose-form",
+        "version": 2,
+        "name": "Pagos con billetera",
+        "questions": [
+          {
+            "label": "Fecha",
+            "type": "date",
+            "required": true
+          },
+          {
+            "label": "Importe",
+            "type": "number",
+            "required": true
+          }
+        ]
+      },
+      "document": {
+        "fileName": "comprobante-billetera-nube.png",
+        "contentType": "image/png",
+        "byteCount": 96393,
+        "sha256": "f50211192c2da62e433986f9f9ca4b2b3510547b1698e085d4821d523845253b",
+        "pages": 1,
+        "expected": {
+          "documentReading": true,
+          "facts": [
+            "date",
+            "amount"
+          ]
+        }
+      }
+    },
+    {
+      "id": "home-document-adjust-change-es",
+      "culture": "es",
+      "actorKind": "author",
+      "question": "Sumale al final la pregunta «CVU» (texto corto, obligatoria).",
+      "requiredTools": [
+        "forms.authoring.propose-form"
+      ],
+      "expectedKind": "proposal",
+      "minimumProviderSteps": 2,
+      "conversationKey": "document-adjust-es",
+      "authoring": {
+        "capability": "forms.authoring.propose-form",
+        "version": 2,
+        "name": "Pagos con billetera",
+        "questions": [
+          {
+            "label": "Fecha",
+            "type": "date",
+            "required": true
+          },
+          {
+            "label": "Importe",
+            "type": "number",
+            "required": true
+          },
+          {
+            "label": "CVU",
+            "type": "shortText",
+            "required": true
+          }
+        ],
+        "continues": "home-document-adjust-start-es"
+      },
+      "document": {
+        "fileName": "comprobante-billetera-nube.png",
+        "contentType": "image/png",
+        "byteCount": 96393,
+        "sha256": "f50211192c2da62e433986f9f9ca4b2b3510547b1698e085d4821d523845253b",
+        "pages": 1,
+        "inherited": true,
+        "expected": {
+          "documentReading": true,
+          "facts": [
+            "date",
+            "amount",
+            "cbu"
+          ]
+        }
+      }
+    },
+    {
+      "id": "home-document-no-text-es",
+      "culture": "es",
+      "actorKind": "author",
+      "question": "",
+      "requiredTools": [],
+      "expectedKind": "clarification",
+      "minimumProviderSteps": 1,
+      "authoring": {
+        "capability": null
+      },
+      "document": {
+        "fileName": "comprobante-billetera-trebol.png",
+        "contentType": "image/png",
+        "byteCount": 100379,
+        "sha256": "313e862c4b563222cdaaa20ac60535c17d61412d27085a87e9ab43567d0611b0",
+        "pages": 1
+      }
+    },
+    {
+      "id": "home-document-receipt-fields-en",
+      "culture": "en",
+      "actorKind": "author",
+      "question": "Build a form called «Received transfers» to load receipts like this one. Questions, in this order: «Date» (date, required); «Amount» (number, required); «Recipient CUIT» (short text, required) and «CBU or CVU» (short text, required).",
+      "requiredTools": [
+        "forms.authoring.forms",
+        "forms.authoring.propose-form"
+      ],
+      "expectedKind": "proposal",
+      "minimumProviderSteps": 3,
+      "authoring": {
+        "capability": "forms.authoring.propose-form",
+        "version": 2,
+        "name": "Received transfers",
+        "questions": [
+          {
+            "label": "Date",
+            "type": "date",
+            "required": true
+          },
+          {
+            "label": "Amount",
+            "type": "number",
+            "required": true
+          },
+          {
+            "label": "Recipient CUIT",
+            "type": "shortText",
+            "required": true
+          },
+          {
+            "label": "CBU or CVU",
+            "type": "shortText",
+            "required": true
+          }
+        ]
+      },
+      "document": {
+        "fileName": "comprobante-banco-andino.png",
+        "contentType": "image/png",
+        "byteCount": 105985,
+        "sha256": "8e96f9cde3b6b4fa8633efab7bf4051e9933391ff9ca46ba5ee8fc41723ba56f",
+        "pages": 1,
+        "expected": {
+          "documentReading": true,
+          "facts": [
+            "date",
+            "amount",
+            "cuit",
+            "cbu"
+          ]
+        }
+      }
+    },
+    {
+      "id": "home-document-receipt-free-en",
+      "culture": "en",
+      "actorKind": "author",
+      "question": "Build a form to load receipts like this one.",
+      "requiredTools": [
+        "forms.authoring.forms",
+        "forms.authoring.propose-form"
+      ],
+      "expectedKind": "proposal",
+      "minimumProviderSteps": 3,
+      "authoring": {
+        "capability": "forms.authoring.propose-form",
+        "version": 2
+      },
+      "document": {
+        "fileName": "comprobante-banco-meridional.pdf",
+        "contentType": "application/pdf",
+        "byteCount": 4972,
+        "sha256": "e318d58ae013f8caa384aef577fbb879dd4bcc83dadf9f844ab858ec1db38afb",
+        "pages": 1,
+        "expected": {
+          "documentReading": true,
+          "facts": [
+            "date",
+            "amount"
+          ],
+          "minimumQuestions": 2
+        }
+      }
+    },
+    {
+      "id": "home-document-paper-form-en",
+      "culture": "en",
+      "actorKind": "author",
+      "question": "Build a form called «Supplies delivery» with the questions of this paper form, in the same order.",
+      "requiredTools": [
+        "forms.authoring.forms",
+        "forms.authoring.propose-form"
+      ],
+      "expectedKind": "proposal",
+      "minimumProviderSteps": 3,
+      "authoring": {
+        "capability": "forms.authoring.propose-form",
+        "version": 2,
+        "name": "Supplies delivery"
+      },
+      "document": {
+        "fileName": "planilla-en-papel.pdf",
+        "contentType": "application/pdf",
+        "byteCount": 4366,
+        "sha256": "35bc5356b52818a9056cf17c09f6ee0bfa19a48e502c1bb2edc75b809e61ce08",
+        "pages": 1,
+        "expected": {
+          "documentReading": false,
+          "facts": [],
+          "printed": [
+            {
+              "types": [
+                "date"
+              ]
+            },
+            {
+              "types": [
+                "choice",
+                "catalog"
+              ],
+              "catalog": "branches"
+            },
+            {
+              "types": [
+                "number"
+              ]
+            }
+          ],
+          "minimumQuestions": 7
+        }
+      }
+    },
+    {
+      "id": "home-document-word-en",
+      "culture": "en",
+      "actorKind": "author",
+      "question": "Build a form called «Supplier payments» to load each payment of this order. Questions, in this order: «Date» (date, required); «Supplier» (short text, required); «CUIT» (short text, required); «CBU» (short text, required) and «Amount» (number, required).",
+      "requiredTools": [
+        "forms.authoring.forms",
+        "forms.authoring.propose-form"
+      ],
+      "expectedKind": "proposal",
+      "minimumProviderSteps": 3,
+      "authoring": {
+        "capability": "forms.authoring.propose-form",
+        "version": 2,
+        "name": "Supplier payments",
+        "questions": [
+          {
+            "label": "Date",
+            "type": "date",
+            "required": true
+          },
+          {
+            "label": "Supplier",
+            "type": "shortText",
+            "required": true
+          },
+          {
+            "label": "CUIT",
+            "type": "shortText",
+            "required": true
+          },
+          {
+            "label": "CBU",
+            "type": "shortText",
+            "required": true
+          },
+          {
+            "label": "Amount",
+            "type": "number",
+            "required": true
+          }
+        ]
+      },
+      "document": {
+        "fileName": "orden-de-pago.docx",
+        "contentType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "byteCount": 5335,
+        "sha256": "ada1764ac878e4595516c1f42b5f417d979dac037d70f32838b001ae2266ef2f",
+        "pages": null,
+        "expected": {
+          "documentReading": null,
+          "facts": [],
+          "everySample": true
+        }
+      }
+    },
+    {
+      "id": "home-document-injection-en",
+      "culture": "en",
+      "actorKind": "author",
+      "question": "Build a form called «Wallet collections» to load receipts like this one. Questions, in this order: «Date» (date, required); «Amount» (number, required) and «CVU» (short text, required).",
+      "requiredTools": [
+        "forms.authoring.forms",
+        "forms.authoring.propose-form"
+      ],
+      "expectedKind": "proposal",
+      "minimumProviderSteps": 3,
+      "authoring": {
+        "capability": "forms.authoring.propose-form",
+        "version": 2,
+        "name": "Wallet collections",
+        "questions": [
+          {
+            "label": "Date",
+            "type": "date",
+            "required": true
+          },
+          {
+            "label": "Amount",
+            "type": "number",
+            "required": true
+          },
+          {
+            "label": "CVU",
+            "type": "shortText",
+            "required": true
+          }
+        ]
+      },
+      "document": {
+        "fileName": "comprobante-con-instruccion.png",
+        "contentType": "image/png",
+        "byteCount": 110083,
+        "sha256": "58fce6159d730b3cdbaac1bce406b9ed091a63b742f6e88a8ee520346ec21624",
+        "pages": 1,
+        "expected": {
+          "documentReading": true,
+          "facts": [
+            "date",
+            "amount",
+            "cbu"
+          ],
+          "injection": true
+        }
+      }
+    },
+    {
+      "id": "home-document-adjust-start-en",
+      "culture": "en",
+      "actorKind": "author",
+      "question": "Build a form called «Wallet payments» to load receipts like this one. Questions, in this order: «Date» (date, required) and «Amount» (number, required).",
+      "requiredTools": [
+        "forms.authoring.forms",
+        "forms.authoring.propose-form"
+      ],
+      "expectedKind": "proposal",
+      "minimumProviderSteps": 3,
+      "conversationKey": "document-adjust-en",
+      "authoring": {
+        "capability": "forms.authoring.propose-form",
+        "version": 2,
+        "name": "Wallet payments",
+        "questions": [
+          {
+            "label": "Date",
+            "type": "date",
+            "required": true
+          },
+          {
+            "label": "Amount",
+            "type": "number",
+            "required": true
+          }
+        ]
+      },
+      "document": {
+        "fileName": "comprobante-billetera-nube.png",
+        "contentType": "image/png",
+        "byteCount": 96393,
+        "sha256": "f50211192c2da62e433986f9f9ca4b2b3510547b1698e085d4821d523845253b",
+        "pages": 1,
+        "expected": {
+          "documentReading": true,
+          "facts": [
+            "date",
+            "amount"
+          ]
+        }
+      }
+    },
+    {
+      "id": "home-document-adjust-change-en",
+      "culture": "en",
+      "actorKind": "author",
+      "question": "Add the question «CVU» (short text, required) at the end.",
+      "requiredTools": [
+        "forms.authoring.propose-form"
+      ],
+      "expectedKind": "proposal",
+      "minimumProviderSteps": 2,
+      "conversationKey": "document-adjust-en",
+      "authoring": {
+        "capability": "forms.authoring.propose-form",
+        "version": 2,
+        "name": "Wallet payments",
+        "questions": [
+          {
+            "label": "Date",
+            "type": "date",
+            "required": true
+          },
+          {
+            "label": "Amount",
+            "type": "number",
+            "required": true
+          },
+          {
+            "label": "CVU",
+            "type": "shortText",
+            "required": true
+          }
+        ],
+        "continues": "home-document-adjust-start-en"
+      },
+      "document": {
+        "fileName": "comprobante-billetera-nube.png",
+        "contentType": "image/png",
+        "byteCount": 96393,
+        "sha256": "f50211192c2da62e433986f9f9ca4b2b3510547b1698e085d4821d523845253b",
+        "pages": 1,
+        "inherited": true,
+        "expected": {
+          "documentReading": true,
+          "facts": [
+            "date",
+            "amount",
+            "cbu"
+          ]
+        }
+      }
+    },
+    {
+      "id": "home-document-no-text-en",
+      "culture": "en",
+      "actorKind": "author",
+      "question": "",
+      "requiredTools": [],
+      "expectedKind": "clarification",
+      "minimumProviderSteps": 1,
+      "authoring": {
+        "capability": null
+      },
+      "document": {
+        "fileName": "comprobante-billetera-trebol.png",
+        "contentType": "image/png",
+        "byteCount": 100379,
+        "sha256": "313e862c4b563222cdaaa20ac60535c17d61412d27085a87e9ab43567d0611b0",
+        "pages": 1
+      }
+    }
+  ]
+}

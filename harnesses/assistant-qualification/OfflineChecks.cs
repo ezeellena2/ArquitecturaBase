@@ -10,7 +10,7 @@ internal static class OfflineChecks
         var failed = 0;
         foreach (var check in checks.Concat(ExistingFixtureOfflineChecks.All).Concat(OptionalChoiceOfflineChecks.All).Concat(SuggestionMappingOfflineChecks.All)
             .Concat(AuthoringOfflineChecks.All).Concat(DictationOfflineChecks.All).Concat(WhatsAppDictationOfflineChecks.All).Concat(SpreadsheetOfflineChecks.All)
-            .Concat(DocumentOfflineChecks.All).Concat(AgentOfflineChecks.All))
+            .Concat(DocumentOfflineChecks.All).Concat(AgentOfflineChecks.All).Concat(HomeDocumentOfflineChecks.All))
         {
             try { check(); Console.WriteLine(check.Method.Name + ": pass"); }
             catch (InvalidOperationException) { failed++; Console.WriteLine(check.Method.Name + ": failed"); }
