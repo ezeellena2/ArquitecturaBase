@@ -182,7 +182,8 @@ Un Flow no puede pedir la ubicación, así que la pregunta «Ubicación» de un 
   crea la sesión y, en lugar del Flow, un saliente `LocationRequest`: el `location_request_message` de Meta («Para completar
   «<nombre>», mandanos tu ubicación.», «To fill in “<name>”, send us your location.»), cuyo botón «Enviar ubicación» dibuja
   WhatsApp en el idioma del teléfono. Si la pregunta es opcional sale también un botón de respuesta, «La ubicación es
-  opcional.» con «Seguir sin ubicación» («Continue without it»: Meta limita el título a 20 caracteres). La sesión guarda el
+  opcional.» con «Seguir sin ubicación» («Continue without it»: Meta limita el título a 20 caracteres), pedido un
+  milisegundo después: la salida va por la hora y después por el id, que dentro de un milisegundo no tiene orden. La sesión guarda el
   cuerpo del Flow, el mensaje del operador o la apertura predeterminada.
 - **La ubicación que llega.** El webhook lee un `location` como `Location`, con la latitud y la longitud redondeadas a seis
   decimales; el nombre y la dirección de un lugar elegido no se guardan, y la retención vacía el punto con el cuerpo. Después
