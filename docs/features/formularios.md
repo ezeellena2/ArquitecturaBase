@@ -1343,6 +1343,5 @@ WhatsApp, eligió W1-A el mismo día: la ubicación se pide antes del Flow ([reg
   «Ver en el mapa» y «Volver a pedirla»; si el navegador no lo da, dice por qué. En el editor es el último tipo, sólo con
   «Obligatoria»; la planilla muestra el punto como el enlace al mapa, sin ordenar ni filtrar por él, y el detalle, con «Ver en el
   mapa» y la precisión en gris.
-- **Lo que no hace.** El asistente de IA no la propone al armar un formulario ni la prellena o mapea en una sugerencia, y en
-  esta etapa no ofrece, sugiere ni aclara un formulario que la tenga (`FormAssistantCandidatePolicy`): lo manda una persona
-  desde el chat. Un estándar de la biblioteca no la usa. Se ve con `formrecords.read` y se carga con los permisos de carga de hoy.
+- **Lo que no hace.** El asistente de IA no la propone al armar un formulario ni la prellena o mapea en una sugerencia; sí
+  ofrece, sugiere y aclara un formulario que la tenga, y su envío la pide antes del Flow, como el de una persona (W1-A). Un estándar de la biblioteca no la usa. Se ve con `formrecords.read` y se carga con los permisos de carga de hoy.

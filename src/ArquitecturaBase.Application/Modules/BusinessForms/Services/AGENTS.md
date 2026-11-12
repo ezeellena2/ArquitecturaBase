@@ -9,7 +9,7 @@ Casos de uso y helpers; contratos en `Interfaces/Services`. Leer [formularios](.
 - El replay de un pedido repetido va antes de mirar versión, revisión o token; en la captura, antes de los permisos.
 - Publicación y acciones reservan y completan el despacho en límites separados; un resultado incierto queda `Uncertain` y no se repite a ciegas.
 - El idioma original de un catálogo o un dato de las personas se fija al crear y es el único obligatorio; lo que falta en un idioma se muestra en el otro, sin suponer el español.
-- El asistente y las sugerencias no prellenan ni mapean multiChoice, las preguntas del bloque de renglones, las que eligen primero por un campo ni la ubicación, y no ofrecen un formulario que la tenga (W1-A).
+- El asistente y las sugerencias no prellenan ni mapean multiChoice, las preguntas del bloque de renglones, las que eligen primero por un campo ni la ubicación (W1-A: su envío la pide antes del Flow).
 
 ## Temas
 

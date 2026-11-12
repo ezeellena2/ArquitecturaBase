@@ -161,7 +161,7 @@ La persona recibe «Cargué tu transferencia de $150.000 (REC-000123). Si algo e
 
 ### La pregunta «Ubicación»
 
-Anexada el 2026-11-10. El usuario preguntó si un formulario puede pedir la ubicación. Hoy no: no existe esa pregunta, ni en la app ni por WhatsApp, y la fila «Ubicación» de [Qué puede llegar](#qué-puede-llegar) supone una pregunta que la reciba. Esta sección agrega esa pregunta a los formularios, primero en la app, y deja la parte de WhatsApp para una etapa aparte, con su propio diseño. **Estado: el usuario eligió UB1-A a UB4-A el 2026-11-11 y la Etapa 1 se programó en la tanda de ese día, para la prueba integral final (backend y front). En la Etapa 2, por WhatsApp, el usuario eligió W1 el 2026-11-11: pedirla antes del Flow. Su tablero entero quedó dibujado y se programó el mismo día, backend y front; falta la prueba real con Meta del pedido y de la ubicación que vuelve. Ese día el usuario pidió además que el asistente también ofrezca formularios con ubicación: su camino está dibujado y falta programarlo.** La Etapa 1 no depende del resto de este plan.
+Anexada el 2026-11-10. El usuario preguntó si un formulario puede pedir la ubicación. Hoy no: no existe esa pregunta, ni en la app ni por WhatsApp, y la fila «Ubicación» de [Qué puede llegar](#qué-puede-llegar) supone una pregunta que la reciba. Esta sección agrega esa pregunta a los formularios, primero en la app, y deja la parte de WhatsApp para una etapa aparte, con su propio diseño. **Estado: el usuario eligió UB1-A a UB4-A el 2026-11-11 y la Etapa 1 se programó en la tanda de ese día, para la prueba integral final (backend y front). En la Etapa 2, por WhatsApp, el usuario eligió W1 el 2026-11-11: pedirla antes del Flow. Su tablero entero quedó dibujado y se programó el mismo día, backend y front; falta la prueba real con Meta del pedido y de la ubicación que vuelve. Ese día el usuario pidió además que el asistente también ofrezca formularios con ubicación: se dibujó y se programó el mismo día.** La Etapa 1 no depende del resto de este plan.
 
 #### Qué se puede pedir y qué no
 
@@ -269,7 +269,7 @@ W3 puede sumarse después, sobre el circuito de este plan: una ubicación que la
 - Si alguien toma la conversación mientras espera, el formulario del asistente no sale, como cualquier mensaje suyo que quedó en camino.
 - El ciclo del asistente es del chat de la IA (`WhatsAppAssistantAcceptancePolicy`, las políticas de candidatos y el cupo de ofertas): se acuerda con ese chat antes de tocarlo. El paso de la captura que suma lo del envío queda genérico, para que el chat de documentos le sume el comprobante.
 
-Falta programarlo; la prueba con Meta real cubre los dos caminos.
+Programado el mismo día y revisado con el chat de la IA: backend 9c998afa (el botón de la opcional se completa sin adjuntar la sesión, también el del operador) y e0beb766, front d62faae1, con los tableros en 3666a106. La prueba con Meta real, en la prueba integral, cubre los dos caminos.
 
 #### Fuera de alcance
 

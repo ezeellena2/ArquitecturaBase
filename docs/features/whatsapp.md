@@ -205,10 +205,16 @@ Un Flow no puede pedir la ubicación, así que la pregunta «Ubicación» de un 
   ubicación» cuando el pedido sigue en `Requested` después del vencimiento. La ubicación que llega trae su punto (`location`).
   «Por qué lo mandó» (o «Por qué lo sugirió») del asistente va una sola vez, con lo que se mandó al decidir: el pedido, o el
   Flow de un envío sin pedido; la respuesta lo conserva, y la ubicación, el toque y el Flow que sigue al pedido no lo repiten.
-- **Lo que no hace.** El asistente no ofrece, ni sugiere ni aclara un formulario con una pregunta de ubicación en esta etapa
-  (`FormAssistantCandidatePolicy`). El usuario pidió el 2026-11-11 que también lo haga: el alcance y los tableros están en el
-  [plan](../plans/2026-10-22-documentos-por-whatsapp.md#la-pregunta-ubicación). Un formulario pide una sola ubicación por
-  WhatsApp.
+- **El asistente** (pedido del usuario el 2026-11-11, [tableros 8 a 10](../../../ArquitecturaBaseFront/docs/design/ubicacion-en-formularios.md#el-asistente-también-la-manda-pedido-del-usuario-2026-11-11)).
+  Ofrece, sugiere y aclara un formulario con ubicación como cualquier otro; la ubicación nunca es una de las preguntas que
+  prellena. Al mandarlo, solo en Asistente o quien atiende desde la sugerencia, `WhatsAppAssistantAcceptancePolicy` abre el
+  envío con `OpenAssistant` u `Open`, y la referencia guarda la primera salida. El pedido es la oferta del día y el Flow que
+  sigue no suma otra (`CountOffersAsync`, `ListOffersAsync`); mientras sale, cuenta como oferta sin resolver. La espera no traba
+  la conversación: la referencia queda Sent al aceptar y el asistente contesta lo demás. `WhatsAppOutgoingSendGuard` valida el
+  pedido y «Seguir sin ubicación» del asistente como su Flow, y el Flow posterior encuentra la referencia por la sesión
+  (`FindByOutgoingAsync`). Si alguien tomó la conversación o venció el contenido, ese Flow no sale
+  (`WhatsAppAssistantLocationIntegrationTests`).
+- **Lo que no hace.** Un formulario pide una sola ubicación por WhatsApp.
 
 ## Piloto de formularios
 
