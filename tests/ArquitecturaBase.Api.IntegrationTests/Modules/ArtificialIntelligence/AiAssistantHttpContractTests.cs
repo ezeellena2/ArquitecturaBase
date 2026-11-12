@@ -43,7 +43,9 @@ public sealed class AiAssistantHttpContractTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.OK, bootstrap.StatusCode);
         var offered = await bootstrap.ReadJsonAsync();
         Assert.Equal("available", offered.GetProperty("availability").GetString());
-        Assert.True(offered.GetProperty("attachments").GetBoolean());
+        // The clip takes a spreadsheet, a Word and, since this installation reads them, a photo or a PDF.
+        Assert.Equal((true, true, true), (offered.GetProperty("attachments").GetBoolean(), offered.GetProperty("documents").GetBoolean(),
+            offered.GetProperty("documentReading").GetBoolean()));
         await AiAssistantContractCapture.WriteAsync(bootstrap, "bootstrap", Ct);
 
         var requestId = Guid.NewGuid();

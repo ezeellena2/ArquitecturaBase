@@ -147,13 +147,13 @@
   <data name="Ai.Assistant.AttachmentTooManyPages" xml:space="preserve"><value>Este PDF tiene más de 10 páginas. Mandá uno de hasta 10.</value></data>
   <data name="Ai.Assistant.AttachmentTooLargeImage" xml:space="preserve"><value>La foto pasa el tope de 16.384 píxeles por lado o 32 megapíxeles. Mandá una más chica.</value></data>
   <data name="Ai.Assistant.AttachmentProtectedPdf" xml:space="preserve"><value>Este PDF tiene contraseña. Mandá uno sin contraseña.</value></data>
-  <data name="Ai.Assistant.AttachmentProtectedWord" xml:space="preserve"><value>Este Word tiene contraseña. Guardalo sin contraseña o en PDF.</value></data>
-  <data name="Ai.Assistant.AttachmentLegacyWord" xml:space="preserve"><value>No se puede leer un Word viejo (.doc). Guardalo como .docx o en PDF.</value></data>
-  <data name="Ai.Assistant.AttachmentMacroEnabledWord" xml:space="preserve"><value>No se puede leer un Word con macros (.docm). Guardalo como .docx o en PDF.</value></data>
+  <data name="Ai.Assistant.AttachmentProtectedWord" xml:space="preserve"><value>Este Word tiene contraseña. Guardalo sin contraseña.</value></data>
+  <data name="Ai.Assistant.AttachmentLegacyWord" xml:space="preserve"><value>No se puede leer un Word viejo (.doc). Guardalo como .docx.</value></data>
+  <data name="Ai.Assistant.AttachmentMacroEnabledWord" xml:space="preserve"><value>No se puede leer un Word con macros (.docm). Guardalo como .docx.</value></data>
   <data name="Ai.Assistant.AttachmentEmptyWord" xml:space="preserve"><value>Este Word no tiene texto. Revisá que tenga lo que querés usar.</value></data>
   <data name="Ai.Assistant.AttachmentUnreadablePdf" xml:space="preserve"><value>No se puede leer este PDF. Mandá otro o una foto del documento.</value></data>
   <data name="Ai.Assistant.AttachmentUnreadableImage" xml:space="preserve"><value>No se puede leer esta foto. Mandá una foto JPEG o PNG.</value></data>
-  <data name="Ai.Assistant.AttachmentUnreadableWord" xml:space="preserve"><value>No se puede leer este Word. Guardalo de nuevo como .docx o en PDF.</value></data>
+  <data name="Ai.Assistant.AttachmentUnreadableWord" xml:space="preserve"><value>No se puede leer este Word. Guardalo de nuevo como .docx.</value></data>
   <data name="Arca.Connection.CuitInvalid" xml:space="preserve"><value>Revisá la CUIT: tiene once dígitos y el último es el verificador.</value></data>
   <data name="Arca.Connection.AliasInvalid" xml:space="preserve"><value>El alias va de 3 a 30 letras minúsculas, números o guiones, y empieza con una letra.</value></data>
   <data name="Arca.Connection.ServiceNotInstalled" xml:space="preserve"><value>Ese servicio de ARCA no está instalado en este sistema.</value></data>

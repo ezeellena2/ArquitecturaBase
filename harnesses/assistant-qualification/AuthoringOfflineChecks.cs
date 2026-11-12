@@ -60,7 +60,7 @@ internal static class AuthoringOfflineChecks
     // The shape a correct owner proposal has for the case: exact facts, a free name and a valid free prefix when none is requested.
     private static AssistantCapabilityPayload Ideal(AuthoringExpectation expected, string culture) => expected.Capability switch
     {
-        // Since Stage 3 the automatic conversation offers version 2: without a document, version 1's form with nothing read.
+        // Since Stage 3 Home and the automatic conversation offer version 2: without a document, version 1's form with nothing read.
         "forms.authoring.propose-form" when expected.Version == AuthoringOracle.DocumentFormVersion =>
             Document((FormAuthoringFormProposal)Ideal(expected with { Version = 1 }, culture)),
         "forms.authoring.propose-form" => new FormAuthoringFormProposal(culture, expected.Name ?? (culture == "es" ? "Arreglos de equipos" : "Equipment repairs"),
@@ -107,8 +107,9 @@ internal static class AuthoringOfflineChecks
         var checks = AuthoringOracle.PayloadChecks(expected, culture, payload, Fixture, Actors, previous);
         return checks.Count > 0 && checks.All(check => check.Passed);
     }
-    private static FormAuthoringFormProposal Form(string id) => (FormAuthoringFormProposal)Ideal(Home(id).Authoring!, Home(id).Culture);
-    private static FormAuthoringProposedQuestion[] With(FormAuthoringFormProposal proposal, int index, FormAuthoringProposedQuestion question) =>
+    // A Home form case's ideal proposal: version 2 since Home offers it (task 13), without a document.
+    private static FormAuthoringDocumentFormProposal Form(string id) => (FormAuthoringDocumentFormProposal)Ideal(Home(id).Authoring!, Home(id).Culture);
+    private static FormAuthoringDocumentQuestion[] With(FormAuthoringDocumentFormProposal proposal, int index, FormAuthoringDocumentQuestion question) =>
         proposal.Questions.Select((item, position) => position == index ? question : item).ToArray();
 
     public static void Authoring_fixtures_cover_the_stage_cases_in_both_cultures()
@@ -141,13 +142,11 @@ internal static class AuthoringOfflineChecks
                 { Capability: "forms.authoring.decline", Version: 1 } => "authoring-decline", _ => "unknown",
             }));
         // The app offers the catalog only in version 2, in Home and in the automatic conversation: every catalog case expects it. Since
-        // Stage 3 the automatic conversation offers the form in version 2, and Home keeps version 1 until its card draws version 2.
+        // Stage 3 both offer the form in version 2 too (Home since its card draws it, task 13).
         Require(home.Select(testCase => testCase.Authoring!).Concat(channel.Select(testCase => testCase.Authoring!))
             .Where(expected => expected.Capability == "forms.authoring.propose-catalog")
             .Count(expected => expected is { Version: SpreadsheetOracle.MappedCatalogVersion, Mapping: null }) == 4
-            && home.Select(testCase => testCase.Authoring!)
-                .All(expected => expected.Capability == "forms.authoring.propose-catalog" ? expected.Version == SpreadsheetOracle.MappedCatalogVersion : expected.Version == 1)
-            && channel.Select(testCase => testCase.Authoring!).All(expected => expected.Version == expected.Capability switch
+            && home.Select(testCase => testCase.Authoring!).Concat(channel.Select(testCase => testCase.Authoring!)).All(expected => expected.Version == expected.Capability switch
             {
                 "forms.authoring.propose-catalog" => SpreadsheetOracle.MappedCatalogVersion,
                 "forms.authoring.propose-form" => AuthoringOracle.DocumentFormVersion,
@@ -231,7 +230,7 @@ internal static class AuthoringOfflineChecks
     {
         var expected = Home("home-authoring-form-es").Authoring!;var proposal = Form("home-authoring-form-es");
         Require(Passes(expected, "es", proposal));
-        Require(!Passes(expected, "es", proposal with { Questions = [..proposal.Questions, new("Contraseña del sistema", "shortText", false, [], null)] }));
+        Require(!Passes(expected, "es", proposal with { Questions = [..proposal.Questions, new("Contraseña del sistema", "shortText", false, [], null, null)] }));
         Require(!Passes(expected, "es", proposal with { Questions = proposal.Questions.Take(proposal.Questions.Count - 1).ToArray() }));
         Require(!Passes(expected, "es", proposal with { Questions = [proposal.Questions[1], proposal.Questions[0], ..proposal.Questions.Skip(2)] }));
         Require(!Passes(expected, "es", proposal with { Questions = [] }));
@@ -268,7 +267,7 @@ internal static class AuthoringOfflineChecks
     {
         foreach (var culture in new[] { "es", "en" })
         {
-            var testCase = Home("home-authoring-name-in-use-" + culture);var proposal = (FormAuthoringFormProposal)Ideal(testCase.Authoring!, culture);
+            var testCase = Home("home-authoring-name-in-use-" + culture);var proposal = Form(testCase.Id);
             Require(Passes(testCase.Authoring!, culture, proposal));
             foreach (var text in QualificationFormSeed.FormNames)
             {
@@ -290,7 +289,7 @@ internal static class AuthoringOfflineChecks
     {
         foreach (var culture in new[] { "es", "en" })
         {
-            var testCase = Home("home-authoring-corrected-" + culture);var proposal = (FormAuthoringFormProposal)Ideal(testCase.Authoring!, culture);
+            var testCase = Home("home-authoring-corrected-" + culture);var proposal = Form(testCase.Id);
             Require(Passes(testCase.Authoring!, culture, proposal) && proposal.Prefix == testCase.Authoring!.Prefix);
             Require(!Passes(testCase.Authoring!, culture, proposal with { Prefix = proposal.Prefix[..3] }));
             Require(!Passes(testCase.Authoring!, culture, proposal with { Prefix = proposal.Prefix[..3] + "-" + proposal.Prefix[3..] }));
@@ -392,7 +391,7 @@ internal static class AuthoringOfflineChecks
         }
     }
 
-    // A catalog the app proposes today is version 2, and so is the automatic conversation's form; everything else here is version 1.
+    // A catalog the app proposes today is version 2, and so is a form; everything else here is version 1.
     private static AssistantObservedProposal Observed(Guid turn, string capability, AssistantCapabilityPayload payload, params AssistantObservedRead[] reads) =>
         new(turn, Guid.NewGuid(), new(capability, payload switch
         {
@@ -539,6 +538,28 @@ internal static class AuthoringOfflineChecks
                 Payload = ((FormAuthoringMappedCatalogProposal)observed.Payload).ToCatalog() } }, shownTechnical));
             Require(!HomeAccepted(catalog, shown, shownTechnical with { Capabilities = [shownTechnical.Capabilities[0],
                 Tool(AuthoringOracle.ProposeCatalog, "rejected", 2), Tool(AuthoringOracle.ProposeCatalog, "proposed", 1)] }));
+        }
+        // Stage 3 (task 13): the form Home proposes is version 2, without a document: version 1's terminal, output or offer, a reading, a
+        // sample or a standard is not it.
+        foreach (var culture in new[] { "es", "en" })
+        {
+            var form = Home("home-authoring-form-" + culture);
+            var (shown, shownTechnical) = HomeTurn(form, Guid.NewGuid(), 1);var observed = shown.ObservedProposal!;
+            var document = (FormAuthoringDocumentFormProposal)observed.Payload;
+            Require(HomeAccepted(form, shown, shownTechnical)
+                && observed.Capability == new AssistantCapabilityReference(AuthoringOracle.ProposeForm, AuthoringOracle.DocumentFormVersion));
+            Require(!HomeAccepted(form, shown with { ObservedProposal = observed with { Capability = new(AuthoringOracle.ProposeForm, 1) } }, shownTechnical));
+            Require(!HomeAccepted(form, shown with { Proposal = shown.Proposal! with { Version = 1 } }, shownTechnical));
+            Require(!HomeAccepted(form, shown with { ObservedProposal = observed with { Payload = document.ToForm() } }, shownTechnical));
+            Require(!HomeAccepted(form, shown with { ObservedProposal = observed with { Payload = document with { DocumentReading = new("Entregas de mercadería.") } } }, shownTechnical));
+            Require(!HomeAccepted(form, shown with { ObservedProposal = observed with {
+                Payload = document with { Standard = new("forms.transfer-receipt", "Comprobante de transferencia") } } }, shownTechnical));
+            Require(!HomeAccepted(form, shown with { ObservedProposal = observed with { Payload = document with
+                { Questions = [document.Questions[0] with { Sample = "Cliente ficticio" }, ..document.Questions.Skip(1)] } } }, shownTechnical));
+            Require(!HomeAccepted(form, shown, shownTechnical with { OfferedReferences = [..HomeOffered.Where(reference => reference.Id != AuthoringOracle.ProposeForm),
+                new(AuthoringOracle.ProposeForm, 1)] }));
+            Require(!HomeAccepted(form, shown, shownTechnical with { Capabilities = [shownTechnical.Capabilities[0], shownTechnical.Capabilities[1],
+                Tool(AuthoringOracle.ProposeForm, "rejected", AuthoringOracle.DocumentFormVersion), Tool(AuthoringOracle.ProposeForm, "proposed", 1)] }));
         }
     }
 

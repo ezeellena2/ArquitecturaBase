@@ -15,6 +15,7 @@
       "minimumProviderSteps": 3,
       "authoring": {
         "capability": "forms.authoring.propose-form",
+        "version": 2,
         "name": "Entregas de mercadería",
         "questions": [
           {
@@ -118,6 +119,7 @@
       "conversationKey": "authoring-adjust-es",
       "authoring": {
         "capability": "forms.authoring.propose-form",
+        "version": 2,
         "name": "Control de limpieza",
         "questions": [
           {
@@ -146,6 +148,7 @@
       "conversationKey": "authoring-adjust-es",
       "authoring": {
         "capability": "forms.authoring.propose-form",
+        "version": 2,
         "name": "Control de limpieza",
         "questions": [
           {
@@ -180,6 +183,7 @@
       "minimumProviderSteps": 3,
       "authoring": {
         "capability": "forms.authoring.propose-form",
+        "version": 2,
         "name": "Pedidos de insumos",
         "prefix": "PED26",
         "questions": [
@@ -209,6 +213,7 @@
       "minimumProviderSteps": 3,
       "authoring": {
         "capability": "forms.authoring.propose-form",
+        "version": 2,
         "questions": [
           {
             "label": "Equipo",
@@ -260,6 +265,7 @@
       "minimumProviderSteps": 3,
       "authoring": {
         "capability": "forms.authoring.propose-form",
+        "version": 2,
         "name": "Pedidos de repuestos",
         "questions": [
           {
@@ -302,6 +308,7 @@
       "minimumProviderSteps": 3,
       "authoring": {
         "capability": "forms.authoring.propose-form",
+        "version": 2,
         "name": "Parte de lluvias",
         "questions": [
           {
@@ -344,6 +351,7 @@
       "minimumProviderSteps": 3,
       "authoring": {
         "capability": "forms.authoring.propose-form",
+        "version": 2,
         "name": "Parte de lluvias",
         "questions": [
           {
@@ -373,6 +381,7 @@
       "minimumProviderSteps": 3,
       "authoring": {
         "capability": "forms.authoring.propose-form",
+        "version": 2,
         "name": "Goods deliveries",
         "questions": [
           {
@@ -476,6 +485,7 @@
       "conversationKey": "authoring-adjust-en",
       "authoring": {
         "capability": "forms.authoring.propose-form",
+        "version": 2,
         "name": "Cleaning check",
         "questions": [
           {
@@ -504,6 +514,7 @@
       "conversationKey": "authoring-adjust-en",
       "authoring": {
         "capability": "forms.authoring.propose-form",
+        "version": 2,
         "name": "Cleaning check",
         "questions": [
           {
@@ -538,6 +549,7 @@
       "minimumProviderSteps": 3,
       "authoring": {
         "capability": "forms.authoring.propose-form",
+        "version": 2,
         "name": "Supply requests",
         "prefix": "SUP26",
         "questions": [
@@ -567,6 +579,7 @@
       "minimumProviderSteps": 3,
       "authoring": {
         "capability": "forms.authoring.propose-form",
+        "version": 2,
         "questions": [
           {
             "label": "Equipment",
@@ -618,6 +631,7 @@
       "minimumProviderSteps": 3,
       "authoring": {
         "capability": "forms.authoring.propose-form",
+        "version": 2,
         "name": "Spare part requests",
         "questions": [
           {
@@ -660,6 +674,7 @@
       "minimumProviderSteps": 3,
       "authoring": {
         "capability": "forms.authoring.propose-form",
+        "version": 2,
         "name": "Rain report",
         "questions": [
           {
@@ -702,6 +717,7 @@
       "minimumProviderSteps": 3,
       "authoring": {
         "capability": "forms.authoring.propose-form",
+        "version": 2,
         "name": "Rain report",
         "questions": [
           {

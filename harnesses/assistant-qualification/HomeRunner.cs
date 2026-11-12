@@ -25,12 +25,14 @@ internal sealed class HomeRunner(QualificationCurrentUser currentUser, IAiAssist
     IStructuredAttachmentReader attachments)
 {
     // What Home offers an author (authoring and H4), by Id and version, since it draws spreadsheets (6e27fa0b): the catalog in version 2
-    // and, only in a turn with a spreadsheet, the import. Never version 1 of the catalog, nor decline, which only a channel says.
+    // and, only in a turn with a spreadsheet, the import; since it draws documents (task 13), the form in version 2. Never version 1 of
+    // the catalog or the form, nor decline, which only a channel says.
     internal static readonly AssistantCapabilityReference[] AuthoringOffered = [new("forms.authoring.forms", 1), new("forms.authoring.catalogs", 1),
-        new(AuthoringOracle.ProposeForm, 1), new(AuthoringOracle.ProposeCatalog, SpreadsheetOracle.MappedCatalogVersion),
+        new(AuthoringOracle.ProposeForm, AuthoringOracle.DocumentFormVersion), new(AuthoringOracle.ProposeCatalog, SpreadsheetOracle.MappedCatalogVersion),
         new("forms.catalog-filters.metadata", 1), new(AuthoringOracle.PeopleCatalog, 1)];
     internal static readonly AssistantCapabilityReference[] SpreadsheetOffered = [..AuthoringOffered, new(SpreadsheetOracle.ProposeImport, 1)];
-    private static readonly AssistantCapabilityReference[] NeverOffered = [new(AuthoringOracle.ProposeCatalog, 1), new(AuthoringOracle.Decline, 1)];
+    private static readonly AssistantCapabilityReference[] NeverOffered = [new(AuthoringOracle.ProposeCatalog, 1), new(AuthoringOracle.ProposeForm, 1),
+        new(AuthoringOracle.Decline, 1)];
 
     // IA4: the real Home audio service stores the public recording privately and normalizes it in home-audio. Its own ledger
     // identity ("<case>-audio") is fixed before the submit; resume only reads it back.

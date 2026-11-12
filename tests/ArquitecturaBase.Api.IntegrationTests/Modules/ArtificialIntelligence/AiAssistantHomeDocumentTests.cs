@@ -44,14 +44,8 @@ public sealed class AiAssistantHomeDocumentTests(ApiFactory factory)
         await using var scenario = await CreateAsync(files, reader, provider);
         var owner = Owner(scenario);
 
-        // Until the Home front accepts them, the bootstrap publishes only spreadsheets.
-        using (var bootstrap = await scenario.Client.GetAsync("/api/ai/assistant/bootstrap", Ct))
-        {
-            var body = await bootstrap.ReadJsonAsync();
-            Assert.True(body.GetProperty("attachments").GetBoolean());
-            Assert.False(body.TryGetProperty("documents", out _));
-            Assert.False(body.TryGetProperty("documentReading", out _));
-        }
+        // The bootstrap publishes what this person may attach: spreadsheets, a Word and, since this installation reads them, photos and PDFs.
+        Assert.Equal((true, true, true), await AttachableAsync(scenario));
 
         // A body as large as a document reaches the service, which refuses one byte over the limit under the file.
         using (var oversized = await scenario.Client.PostAsync("/api/ai/assistant/documents",
@@ -70,6 +64,8 @@ public sealed class AiAssistantHomeDocumentTests(ApiFactory factory)
             Assert.Equal(HttpStatusCode.Forbidden, forbidden.StatusCode);
             Assert.Equal("Ai.Assistant.AttachmentDocumentForbidden", (await forbidden.ReadJsonAsync()).GetProperty("code").GetString());
         }
+        // The bootstrap says it per person: without documents, only spreadsheets.
+        Assert.Equal((true, false, false), await AttachableAsync(scenario));
         reader.DocumentsDenied.Clear();
         foreach (var (bytes, code) in new[] { ("reject:Protected:Pdf"u8.ToArray(), "Ai.Assistant.AttachmentProtectedPdf"),
             ("reject:TooManyPages:Pdf"u8.ToArray(), "Ai.Assistant.AttachmentTooManyPages"), (Csv, "Ai.Assistant.Invalid") })
@@ -298,6 +294,15 @@ public sealed class AiAssistantHomeDocumentTests(ApiFactory factory)
 
     private static Guid Owner(AiAssistantExecutionScenario scenario) =>
         Guid.Parse(scenario.Client.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
+
+    // What the bootstrap says the clip takes for the scenario's person: spreadsheets, a Word, and also photos and PDFs.
+    private static async Task<(bool Attachments, bool Documents, bool DocumentReading)> AttachableAsync(AiAssistantExecutionScenario scenario)
+    {
+        using var bootstrap = await scenario.Client.GetAsync("/api/ai/assistant/bootstrap", Ct);
+        Assert.Equal(HttpStatusCode.OK, bootstrap.StatusCode);
+        var body = await bootstrap.ReadJsonAsync();
+        return (body.GetProperty("attachments").GetBoolean(), body.GetProperty("documents").GetBoolean(), body.GetProperty("documentReading").GetBoolean());
+    }
 
     private static MultipartFormDataContent Upload(Guid requestId, byte[] bytes, string fileName = "comprobante.pdf")
     {

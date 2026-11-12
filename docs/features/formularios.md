@@ -573,9 +573,9 @@ columnas, o importarla en uno que existe. Lo técnico está en la IA
 ## La IA arma formularios con un documento — Etapa 3, `propose-form@2` (2026-11-12)
 
 La parte de la Etapa 3 que arma con lo leído de una foto, un PDF o un Word; lo técnico, en los
-[servicios](formularios-servicios.md#crear-desde-una-propuesta-del-asistente). Lo que hay hoy (tarea 12) es la capacidad y crear
-desde ella. Todavía nadie la ofrece con un documento: Inicio la ofrecerá cuando su tarjeta la dibuje (tarea 13), DOC6 es la tarea
-14 y WhatsApp recibe documentos con las tareas 8 y 9.
+[servicios](formularios-servicios.md#crear-desde-una-propuesta-del-asistente). Lo que hay hoy es la capacidad y crear desde ella
+(tarea 12), e Inicio, que la ofrece con un documento desde que su tarjeta la dibuja (tarea 13); DOC6 es la tarea 14 y WhatsApp
+recibe documentos con las tareas 8 y 9.
 
 - **La propuesta.** `forms.authoring.propose-form@2` es el formulario de la versión 1 y, sólo con un documento en el turno,
   la lectura prendida (`documentReading` con «Cómo reconocerlo», hasta 1.000 caracteres) y lo leído por pregunta (`sample`,
@@ -589,7 +589,7 @@ desde ella. Todavía nadie la ofrece con un documento: Inicio la ofrecerá cuand
 - **Los estándares.** `forms.library.standards@1` (lectura con `formtemplates.read`, sólo con un documento) da los estándares
   de la biblioteca que leen documentos, con su nombre y descripción en el idioma de la conversación y lo que lee cada uno.
   Inicio no la ofrece; la ofrecerá el canal de documentos de DOC6 (tarea 14).
-- **Quién la ofrece hoy.** Inicio sigue en la versión 1. El Asistente automático de WhatsApp ofrece la 2 en lugar de la 1,
+- **Quién la ofrece hoy.** Inicio (desde la tarea 13) y el Asistente automático de WhatsApp ofrecen la 2 en lugar de la 1,
   con las mismas definiciones; mientras WhatsApp no reciba documentos propone lo mismo que la 1, y su resumen (IA3-A) es el de
   la 1. La 1 sigue registrada: sus turnos se leen y sus tarjetas y resúmenes crean, y las dos se reemplazan entre sí como una
   capacidad.

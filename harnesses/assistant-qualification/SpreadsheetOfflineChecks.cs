@@ -187,7 +187,7 @@ internal static class SpreadsheetOfflineChecks
     ];
     // What Stage 1 offered before the app moved to version 2: the catalog and the form in version 1 and no import, in Home and in the channel.
     private static readonly AssistantCapabilityReference[] HomeStage1 = [..Program.HomeReferences, ..HomeRunner.AuthoringOffered
-        .Select(reference => reference.Id == AuthoringOracle.ProposeCatalog ? new AssistantCapabilityReference(reference.Id, 1) : reference)];
+        .Select(reference => reference.Id is AuthoringOracle.ProposeCatalog or AuthoringOracle.ProposeForm ? new AssistantCapabilityReference(reference.Id, 1) : reference)];
     private static readonly AssistantCapabilityReference[] AutomaticStage1 = [..QualificationChannelContexts.AutomaticReferences
         .Where(reference => reference.Id != SpreadsheetOracle.ProposeImport)
         .Select(reference => reference.Id is AuthoringOracle.ProposeCatalog or AuthoringOracle.ProposeForm ? new AssistantCapabilityReference(reference.Id, 1) : reference)];
@@ -195,7 +195,8 @@ internal static class SpreadsheetOfflineChecks
     public static void Sets_offer_what_the_app_offers()
     {
         Require(Registry().Count(definition => definition.Id == AuthoringOracle.ProposeCatalog) == 2);
-        // Home: its five reads, and to an author the catalog in version 2 and the import (6e27fa0b), never version 1 or decline.
+        // Home: its five reads, and to an author the catalog in version 2 and the import (6e27fa0b) and the form in version 2 (task 13),
+        // never version 1 or decline.
         Require(Program.HomeReferences.Length == 5 && Program.HomeReferences.All(reference => reference.Version == 1)
             && Program.HomeReferences.Select(reference => reference.Id).SequenceEqual(QualificationSeed.HomeCapabilities));
         Require(Program.HomeAuthoringCapabilities.Length == 12 && Program.HomeAuthoringCapabilities.Contains(new(AuthoringOracle.ProposeCatalog, 2))
@@ -210,12 +211,12 @@ internal static class SpreadsheetOfflineChecks
             && QualificationChannelContexts.AutomaticReferences.Contains(new(AuthoringOracle.ProposeCatalog, 2))
             && QualificationChannelContexts.AutomaticReferences.Contains(new(SpreadsheetOracle.ProposeImport, 1))
             && !QualificationChannelContexts.AutomaticReferences.Contains(new(AuthoringOracle.ProposeCatalog, 1)));
-        // Stage 3: the automatic conversation proposes the form in version 2, which reads the conversation's document; Home keeps version 1
-        // until its card draws version 2.
+        // Stage 3: the automatic conversation and, since its card draws it (task 13), Home propose the form in version 2, which reads the
+        // turn's document; never version 1.
         Require(QualificationChannelContexts.AutomaticReferences.Contains(new(AuthoringOracle.ProposeForm, AuthoringOracle.DocumentFormVersion))
             && !QualificationChannelContexts.AutomaticReferences.Contains(new(AuthoringOracle.ProposeForm, 1))
-            && Program.HomeAuthoringCapabilities.Contains(new(AuthoringOracle.ProposeForm, 1))
-            && !Program.HomeAuthoringCapabilities.Contains(new(AuthoringOracle.ProposeForm, AuthoringOracle.DocumentFormVersion))
+            && Program.HomeAuthoringCapabilities.Contains(new(AuthoringOracle.ProposeForm, AuthoringOracle.DocumentFormVersion))
+            && !Program.HomeAuthoringCapabilities.Contains(new(AuthoringOracle.ProposeForm, 1))
             && ChannelRunner.AuthoringBuilding.Contains(new(AuthoringOracle.ProposeForm, AuthoringOracle.DocumentFormVersion)));
         Require(QualificationChannelContexts.Create(actor, Guid.NewGuid(), "manual").AllowedCapabilities is { Count: 7 } manual
             && manual.All(reference => reference.Version == 1 && !reference.Id.StartsWith("forms.authoring.", StringComparison.Ordinal))
@@ -231,7 +232,7 @@ internal static class SpreadsheetOfflineChecks
             && Program.Inventory(Registry(), QualificationChannelContexts.References).Single(stamp => stamp.Id == AuthoringOracle.ProposeCatalog).Version == 2
             && Program.Inventory(Registry(), Program.HomeAuthoringCapabilities).Single(stamp => stamp.Id == AuthoringOracle.ProposeCatalog).Version == 2
             && Program.Inventory(Registry(), QualificationChannelContexts.References).Single(stamp => stamp.Id == AuthoringOracle.ProposeForm).Version == AuthoringOracle.DocumentFormVersion
-            && Program.Inventory(Registry(), Program.HomeAuthoringCapabilities).Single(stamp => stamp.Id == AuthoringOracle.ProposeForm).Version == 1);
+            && Program.Inventory(Registry(), Program.HomeAuthoringCapabilities).Single(stamp => stamp.Id == AuthoringOracle.ProposeForm).Version == AuthoringOracle.DocumentFormVersion);
     }
 
     public static void Spreadsheet_channel_context_is_the_automatic_conversation_with_a_spreadsheet()
@@ -252,9 +253,13 @@ internal static class SpreadsheetOfflineChecks
     public static void Home_offer_gate_names_what_home_offers_otherwise()
     {
         AssistantCapabilityDefinition[] expected = [..HomeRunner.SpreadsheetOffered.Select(reference => Definition(reference.Id, reference.Version, home: true,
-            attachment: reference.Id == SpreadsheetOracle.ProposeImport)), Definition(AuthoringOracle.ProposeCatalog, 1), Definition(AuthoringOracle.Decline, 1)];
-        // As the app registers it today (6e27fa0b): the Home sets start.
+            attachment: reference.Id == SpreadsheetOracle.ProposeImport)), Definition(AuthoringOracle.ProposeCatalog, 1), Definition(AuthoringOracle.ProposeForm, 1),
+            Definition(AuthoringOracle.Decline, 1)];
+        // As the app registers it today (6e27fa0b and task 13): the Home sets start.
         Require(Program.HomeOfferGaps(expected).Count == 0);
+        // Before task 13 Home offered the form in version 1: the sets say so and stop before seeding.
+        var stage2 = expected.Select(definition => definition is { Id: AuthoringOracle.ProposeForm } ? definition with { OfferedInHome = definition.Version == 1 } : definition).ToArray();
+        Require(Program.HomeOfferGaps(stage2).SequenceEqual(["offer forms.authoring.propose-form@2", "stop offering forms.authoring.propose-form@1"]));
         // Before it, Home offered version 1 and no import: the sets say so and stop before seeding, with fixed public Ids only.
         var before = expected.Select(definition => definition.Id == SpreadsheetOracle.ProposeImport || definition is { Id: AuthoringOracle.ProposeCatalog, Version: 2 }
             ? definition with { OfferedInHome = false } : definition is { Id: AuthoringOracle.ProposeCatalog, Version: 1 } ? definition with { OfferedInHome = true } : definition).ToArray();
@@ -702,6 +707,9 @@ internal static class SpreadsheetOfflineChecks
         Require(!HomeAccepted(testCase, result, technical with { OfferedReferences = HomeStage1 }));
         Require(!HomeAccepted(testCase, result, technical with { OfferedReferences = [..Program.HomeAuthoringCapabilities.Where(reference => reference.Id != SpreadsheetOracle.ProposeImport)] }));
         Require(!HomeAccepted(testCase, result, technical with { OfferedReferences = [..Program.HomeAuthoringCapabilities, new(AuthoringOracle.ProposeCatalog, 1)] }));
+        // Nor what it offered before task 13, the form in version 1.
+        Require(!HomeAccepted(testCase, result, technical with { OfferedReferences = [..Program.HomeAuthoringCapabilities.Where(reference => reference.Id != AuthoringOracle.ProposeForm),
+            new(AuthoringOracle.ProposeForm, 1)] }));
         Require(!HomeAccepted(testCase, result, technical with { OfferedReferences = [..Program.HomeAuthoringCapabilities, new(AuthoringOracle.Decline, 1)] }));
         Require(!HomeAccepted(testCase, result with { ObservedProposal = result.ObservedProposal! with { Capability = new(AuthoringOracle.ProposeCatalog, 1) } }, technical));
         Require(!HomeAccepted(testCase, result with { Proposal = result.Proposal! with { Version = 1 } }, technical));

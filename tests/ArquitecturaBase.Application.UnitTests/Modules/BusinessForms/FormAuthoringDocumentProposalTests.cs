@@ -11,7 +11,7 @@ using ArquitecturaBase.Domain.Results;
 namespace ArquitecturaBase.Application.UnitTests.Modules.BusinessForms;
 
 // Stage 3 of the assistant authoring: propose-form@2 is version 1's form and, only with the turn's document, its reading on and what
-// each question read in it; the similar standard only as the library read of the same turn showed it. Home keeps version 1.
+// each question read in it; the similar standard only as the library read of the same turn showed it. Home offers it instead of version 1.
 public sealed class FormAuthoringDocumentProposalTests
 {
     private const string ProposeForm = BusinessFormAuthoringAssistantCapabilitySource.ProposeFormId;
@@ -50,13 +50,14 @@ public sealed class FormAuthoringDocumentProposalTests
         new(BusinessFormLibraryAssistantCapabilitySource.StandardsId, BusinessFormLibraryAssistantCapabilitySource.Version),
         new FormLibraryStandardsPayload(true, [new(key, "Comprobante de transferencia", "Lee comprobantes de transferencias.", ["Monto", "Fecha"])]));
 
+    // Home never offers two versions of one capability: since its card draws version 2 (task 13), it offers version 2, as WhatsApp does.
     [Fact]
-    public void Version_two_is_registered_next_to_version_one_and_Home_keeps_offering_version_one()
+    public void Version_two_is_registered_next_to_version_one_and_Home_offers_version_two()
     {
         var definitions = new AuthoringAssistantFixture().Source.Definitions;
         var first = definitions.Single(definition => definition is { Id: ProposeForm, Version: 1 });
         var second = definitions.Single(definition => definition is { Id: ProposeForm, Version: DocumentVersion });
-        Assert.Equal((true, false), (first.OfferedInHome, second.OfferedInHome));
+        Assert.Equal((false, true), (first.OfferedInHome, second.OfferedInHome));
         Assert.Equal((AssistantCapabilityKind.Proposal, AssistantCapabilityAttachment.Any), (second.Kind, second.Attachment));
         Assert.Equal(first.RequiredPermissions.Actor, second.RequiredPermissions.Actor);
         Assert.Equal(first.Budget, second.Budget);

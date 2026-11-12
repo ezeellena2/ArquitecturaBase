@@ -17,9 +17,10 @@ public sealed class AiAssistantHomeCatalogTests(ApiFactory factory)
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     // IA, Stage 2: the catalog maps the spreadsheet (version 2, never version 1 next to it) and the import needs one, so Home
-    // has twelve definitions without a spreadsheet, thirteen with it and twelve with a document.
+    // has twelve definitions without a spreadsheet, thirteen with it and twelve with a document. Stage 3: the form also reads the
+    // turn's document (version 2, never version 1 next to it).
     [Fact]
-    public async Task Home_offers_the_mapped_catalog_always_and_the_import_only_with_a_spreadsheet()
+    public async Task Home_offers_the_mapped_catalog_and_the_document_form_always_and_the_import_only_with_a_spreadsheet()
     {
         Assert.SkipUnless(factory.Services.GetService<IStructuredFormPublicationDriver>() is not null,
             "The optional forms module must be installed for this composition test.");
@@ -51,6 +52,8 @@ public sealed class AiAssistantHomeCatalogTests(ApiFactory factory)
             var offered = with.Value.Capabilities.Select(definition => new AssistantCapabilityReference(definition.Id, definition.Version)).ToArray();
             Assert.Contains(new AssistantCapabilityReference("forms.authoring.propose-catalog", 2), offered);
             Assert.DoesNotContain(new AssistantCapabilityReference("forms.authoring.propose-catalog", 1), offered);
+            Assert.Contains(new AssistantCapabilityReference("forms.authoring.propose-form", 2), offered);
+            Assert.DoesNotContain(new AssistantCapabilityReference("forms.authoring.propose-form", 1), offered);
             Assert.Contains(new AssistantCapabilityReference("forms.authoring.propose-import", 1), offered);
             Assert.Equal(offered.Except([new AssistantCapabilityReference("forms.authoring.propose-import", 1)]),
                 without.Value.Capabilities.Select(definition => new AssistantCapabilityReference(definition.Id, definition.Version)));

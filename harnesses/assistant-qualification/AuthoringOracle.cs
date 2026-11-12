@@ -25,7 +25,7 @@ internal sealed record SpreadsheetMappingExpectation(bool HasHeaders, string Cod
 internal static partial class AuthoringOracle
 {
     public const string ProposeForm = "forms.authoring.propose-form";
-    // Stage 3: the automatic conversation offers the form in version 2, which reads the conversation's document; Home keeps version 1.
+    // Stage 3: the automatic conversation and Home (task 13) offer the form in version 2, which reads the turn's document.
     public const int DocumentFormVersion = 2;
     public const string ProposeCatalog = "forms.authoring.propose-catalog";
     public const string Decline = "forms.authoring.decline";
@@ -40,7 +40,7 @@ internal static partial class AuthoringOracle
     public static IReadOnlyList<CheckEvidence> PayloadChecks(AuthoringExpectation expected, string culture, AssistantCapabilityPayload? payload,
         QualificationChannelFixture fixture, QualificationFixture actors, AssistantCapabilityPayload? previous) => expected.Capability switch
     {
-        // Since Stage 3 the automatic conversation offers version 2: without a document its output is version 1's form with nothing read.
+        // Since Stage 3 the automatic conversation and Home offer version 2: without a document its output is version 1's form with nothing read.
         ProposeForm when expected.Version == DocumentFormVersion => FormChecks(expected, culture,
             payload is FormAuthoringDocumentFormProposal { DocumentReading: null, Standard: null } document && document.Questions.All(question => question.Sample is null)
                 ? document.ToForm() : null, fixture, previous),

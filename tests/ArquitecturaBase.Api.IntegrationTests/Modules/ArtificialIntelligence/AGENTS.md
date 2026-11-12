@@ -12,7 +12,7 @@ una sola vez aunque se repita el UUID o se retire su conversación.
 Migración prueba Up/Down desde el esquema previo y conserva conexión y hechos del negocio.
 Los helpers/dobles nuevos viven en TestFeatures/Modules/ArtificialIntelligence.
 AiAssistantHttpContractTests recorre Inicio con AiAssistantExecutionScenario y el proveedor
-ficticio (bootstrap con `attachments`, 202, pending, completed, página de turnos, canceled y un turno con planilla,
+ficticio (bootstrap con `attachments`, `documents` y `documentReading`, 202, pending, completed, página de turnos, canceled y un turno con planilla,
 con su 202 y el turno con `attachment`; la lectura de un PDF y los turnos con ese PDF y con un Word), fija `state` y
 `stage` en minúsculas y deja los once cuerpos para la cohorte ai-assistant-http del exportador. Para los archivos usa
 HomeAudioFiles, HomeAttachmentReader y DocumentReadingHandler.
@@ -36,9 +36,9 @@ AiAssistantHomeAudioTests recorre IA4 con PostgreSQL: el bootstrap con audio, by
 
 AiAssistantHomeAttachmentTests recorre el turno con planilla con PostgreSQL: `attachments` del bootstrap por persona (con el permiso del dueño, sin él y sin almacenamiento), el 403 de quien no puede adjuntar, el 400 por motivo (cada uno con su código) y el del tope, el 202, el reintento, el bloque que recibe el proveedor, la pregunta siguiente que la hereda, la página de turnos, un Excel que reemplaza la planilla en la misma conversación, el título, la retención (con la propia purgada y la conversación retirada) y audio más planilla. HomeAttachmentReader es el puerto del dueño, ficticio; no acredita la lectura de planillas reales.
 
-AiAssistantHomeDocumentTests recorre la Etapa 3 con PostgreSQL: el bootstrap sin `documents`, un cuerpo del tamaño de un documento que llega al servicio, los rechazos de la subida (403, un PDF con contraseña o de más páginas, una planilla) sin copia, el reintento (otro archivo, 409), la lectura con el cliente ficticio, el estado sólo para su persona, el turno que la nombra (el bloque al final, `attachment` con páginas y el título), la pregunta que la hereda, la retención por la lectura y por los turnos, la lectura fallida que suelta su copia y el Word por file-turns.
+AiAssistantHomeDocumentTests recorre la Etapa 3 con PostgreSQL: el bootstrap con `documents` y `documentReading` por persona, un cuerpo del tamaño de un documento que llega al servicio, los rechazos de la subida (403, un PDF con contraseña o de más páginas, una planilla) sin copia, el reintento (otro archivo, 409), la lectura con el cliente ficticio, el estado sólo para su persona, el turno que la nombra (el bloque al final, `attachment` con páginas y el título), la pregunta que la hereda, la retención por la lectura y por los turnos, la lectura fallida que suelta su copia y el Word por file-turns.
 
-AiAssistantHomeCatalogTests cuenta lo que ofrece Inicio con los módulos del host, para una cuenta con todos los permisos: con formularios, 12 definiciones sin planilla, 13 con ella y 12 con un documento (`propose-catalog@2`, nunca la 1, y `propose-import@1` sólo con planilla). Sin el módulo de formularios se omite, como las composiciones de WhatsApp.
+AiAssistantHomeCatalogTests cuenta lo que ofrece Inicio con los módulos del host, para una cuenta con todos los permisos: con formularios, 12 definiciones sin planilla, 13 con ella y 12 con un documento (`propose-catalog@2` y `propose-form@2`, nunca la 1, y `propose-import@1` sólo con planilla). Sin el módulo de formularios se omite, como las composiciones de WhatsApp.
 
 AiAssistantOperationContinuationTests recorre «Cambiar algo» con el motor real y PostgreSQL: la operación siguiente queda en la conversación de la anterior (ordinal 2) y el proveedor recibe la pregunta y la propuesta anteriores como historia; continuar una operación con turnos posteriores la suma al final (ordinal 3), y después de una cancelada (la que un canal reemplazó) espera mientras ésta está activa, y la historia trae la propuesta anterior sin el pedido cancelado.
 

@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text.Json;
 using ArquitecturaBase.Application.Interfaces.Channels;
@@ -9,6 +10,7 @@ using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Configuration;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Models;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Validation;
+using ArquitecturaBase.Application.Resources;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Files;
@@ -500,13 +502,33 @@ public sealed class AiAssistantHomeDocumentTests
         Assert.Equal((0, 0), (host.Files.WriteCount, host.Fixture.Store.Turns.Count));
     }
 
-    // Until the Home front accepts them, the bootstrap computes what else this person may attach but publishes only spreadsheets.
+    // A Word that is not read asks only for what every installation takes: most read no photo or PDF (DocumentModelProfiles is empty by
+    // default), so the text never offers one.
+    [Theory]
+    [InlineData("Ai.Assistant.AttachmentLegacyWord", "es", "Guardalo como .docx.")]
+    [InlineData("Ai.Assistant.AttachmentLegacyWord", "en", "Save it as .docx.")]
+    [InlineData("Ai.Assistant.AttachmentMacroEnabledWord", "es", "Guardalo como .docx.")]
+    [InlineData("Ai.Assistant.AttachmentMacroEnabledWord", "en", "Save it as .docx.")]
+    [InlineData("Ai.Assistant.AttachmentUnreadableWord", "es", "Guardalo de nuevo como .docx.")]
+    [InlineData("Ai.Assistant.AttachmentUnreadableWord", "en", "Save it again as .docx.")]
+    [InlineData("Ai.Assistant.AttachmentProtectedWord", "es", "Guardalo sin contraseña.")]
+    [InlineData("Ai.Assistant.AttachmentProtectedWord", "en", "Save it without a password.")]
+    public void A_word_that_is_not_read_asks_only_for_what_every_installation_takes(string code, string culture, string remedy)
+    {
+        var text = ErrorMessages.ResourceManager.GetString(code, CultureInfo.GetCultureInfo(culture));
+
+        Assert.NotNull(text);
+        Assert.EndsWith(remedy, text, StringComparison.Ordinal);
+        Assert.DoesNotContain("PDF", text, StringComparison.OrdinalIgnoreCase);
+    }
+
+    // The bootstrap publishes, per person, what the clip takes: spreadsheets, a Word and, where the installation reads them, photos and PDFs.
     [Theory]
     [InlineData(true, true, true, true, true, true)]
     [InlineData(true, false, true, true, false, false)]
     [InlineData(false, true, true, false, true, true)]
     [InlineData(false, true, false, false, true, false)]
-    public async Task The_bootstrap_computes_what_this_person_may_attach_and_publishes_only_spreadsheets(bool spreadsheets, bool documents, bool reading,
+    public async Task The_bootstrap_publishes_what_this_person_may_attach(bool spreadsheets, bool documents, bool reading,
         bool expectedSpreadsheets, bool expectedDocuments, bool expectedReading)
     {
         var host = new Host(reading: reading);
@@ -515,10 +537,9 @@ public sealed class AiAssistantHomeDocumentTests
         var bootstrap = await host.Bootstrap.BootstrapAsync(Ct);
 
         Assert.Equal((expectedSpreadsheets, expectedDocuments, expectedReading), (bootstrap.Value.Attachments, bootstrap.Value.Documents, bootstrap.Value.DocumentReading));
-        var json = JsonSerializer.Serialize(bootstrap.Value, AiAssistantResponsePolicy.JsonOptions);
-        Assert.Contains("\"attachments\":", json, StringComparison.Ordinal);
-        Assert.DoesNotContain("\"documents\"", json, StringComparison.Ordinal);
-        Assert.DoesNotContain("\"documentReading\"", json, StringComparison.Ordinal);
+        using var json = JsonDocument.Parse(JsonSerializer.Serialize(bootstrap.Value, AiAssistantResponsePolicy.JsonOptions));
+        Assert.Equal((expectedSpreadsheets, expectedDocuments, expectedReading), (json.RootElement.GetProperty("attachments").GetBoolean(),
+            json.RootElement.GetProperty("documents").GetBoolean(), json.RootElement.GetProperty("documentReading").GetBoolean()));
     }
 
     [Fact]

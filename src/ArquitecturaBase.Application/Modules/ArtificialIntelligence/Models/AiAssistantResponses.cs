@@ -13,13 +13,9 @@ public sealed record AiAssistantBootstrapResponse(string Availability, long Conn
     public bool Audio { get; init; }
     /// <summary>Stage 2: whether this person may attach a spreadsheet (private storage, and the owner's port allows them).</summary>
     public bool Attachments { get; init; }
-    /// <summary>Stage 3: whether this person may attach a Word (private storage, and the owner's port allows documents). Not serialized
-    /// until the Home front's guard accepts it.</summary>
-    [JsonIgnore]
+    /// <summary>Stage 3: whether this person may attach a Word (private storage, and the owner's port allows documents).</summary>
     public bool Documents { get; init; }
-    /// <summary>Stage 3: whether this person may also attach a photo or a PDF: documents, and this installation reads them. Not serialized
-    /// until the Home front's guard accepts it.</summary>
-    [JsonIgnore]
+    /// <summary>Stage 3: whether this person may also attach a photo or a PDF: documents, and this installation reads them.</summary>
     public bool DocumentReading { get; init; }
 }
 public sealed record AiConversationSummaryResponse(Guid ConversationId, long Revision, string Title,
