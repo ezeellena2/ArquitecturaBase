@@ -205,9 +205,9 @@ public sealed class FormAuthoringCatalogMappingTests
         var second = definitions.Single(definition => definition is { Id: ProposeCatalog, Version: Mapped });
         var import = definitions.Single(definition => definition.Id == ProposeImport);
         // Version 1 stays registered, so its turns are read and its cards still create.
-        Assert.Equal((false, false), (first.OfferedInHome, first.RequiresAttachment));
-        Assert.Equal((true, false), (second.OfferedInHome, second.RequiresAttachment));
-        Assert.Equal((1, AssistantCapabilityKind.Proposal, true, true), (import.Version, import.Kind, import.OfferedInHome, import.RequiresAttachment));
+        Assert.Equal((false, AssistantCapabilityAttachment.Any), (first.OfferedInHome, first.Attachment));
+        Assert.Equal((true, AssistantCapabilityAttachment.Any), (second.OfferedInHome, second.Attachment));
+        Assert.Equal((1, AssistantCapabilityKind.Proposal, true, AssistantCapabilityAttachment.Spreadsheet), (import.Version, import.Kind, import.OfferedInHome, import.Attachment));
         Assert.All([second, import], definition =>
         {
             Assert.Equal([BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage], definition.RequiredPermissions.Actor);

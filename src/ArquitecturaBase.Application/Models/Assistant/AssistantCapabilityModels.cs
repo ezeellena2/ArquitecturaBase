@@ -6,6 +6,12 @@ namespace ArquitecturaBase.Application.Models.Assistant;
 
 public enum AssistantCapabilityKind { Read, Proposal }
 public enum AssistantInteractionMode { Unspecified = 0, Assistant = 1, Manual = 2 }
+
+/// <summary>
+/// Which file of the turn its owner needs to offer a capability: any or none (the default), only a spreadsheet, only a read document, or
+/// anything but a document.
+/// </summary>
+public enum AssistantCapabilityAttachment { Any, Spreadsheet, Document, NoDocument }
 public sealed record AssistantCapabilityReference(string Id, int Version);
 public sealed record AssistantTerminalReference(string Id, int Version);
 public sealed record AssistantCapabilityBudget(int InputBytes, int OutputBytes, int MaximumItems, int TimeoutSeconds);
@@ -21,8 +27,18 @@ public sealed record AssistantCapabilityDefinition(
     /// <summary>The owner allows Home, the actor's own conversation without a Subject, to offer it; Home offers nothing else beyond its core queries.</summary>
     public bool OfferedInHome { get; init; }
 
-    /// <summary>The owner needs the turn's spreadsheet: a turn without one does not offer it, in Home or in a channel.</summary>
-    public bool RequiresAttachment { get; init; }
+    /// <summary>The file the owner needs: a turn whose file it does not admit does not offer it, in Home or in a channel.</summary>
+    public AssistantCapabilityAttachment Attachment { get; init; }
+
+    /// <summary>Whether a turn that carries <paramref name="attachment"/> may offer it: the one rule for the catalog and its consumers.</summary>
+    public bool OfferedWith(AssistantAttachmentKind attachment) => Attachment switch
+    {
+        AssistantCapabilityAttachment.Any => true,
+        AssistantCapabilityAttachment.Spreadsheet => attachment == AssistantAttachmentKind.Spreadsheet,
+        AssistantCapabilityAttachment.Document => attachment == AssistantAttachmentKind.Document,
+        AssistantCapabilityAttachment.NoDocument => attachment != AssistantAttachmentKind.Document,
+        _ => false,
+    };
 }
 
 /// <summary>Trusted server context; it is never an HTTP or model-supplied contract.</summary>
@@ -51,6 +67,8 @@ public sealed record AssistantCapabilityRequest(
 {
     /// <summary>The turn's prepared spreadsheet, or null: the owner reads it here and never opens the private copy.</summary>
     public StructuredSpreadsheet? Attachment { get; init; }
+    /// <summary>The turn's read document, or null: apart from <see cref="Attachment"/>, so the owners of spreadsheets do not change.</summary>
+    public StructuredDocument? Document { get; init; }
     public override string ToString() => "AssistantCapabilityRequest { Content = [REDACTED] }";
 }
 

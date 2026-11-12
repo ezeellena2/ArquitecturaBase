@@ -34,7 +34,7 @@ internal static class AiAssistantChannelPolicy
         {
             var profile = JsonSerializer.Deserialize<AiAssistantExecutionProfileSnapshot>(json, AiAssistantResponsePolicy.JsonOptions);
             return profile is not null && profile.ChannelContext is not null && Enum.IsDefined(profile.ChannelContext.InteractionMode) && profile.ModelProfileVersion > 0 &&
-                Enum.IsDefined(profile.Purpose) &&
+                Enum.IsDefined(profile.Purpose) && Enum.IsDefined(profile.Attachment) &&
                 profile.Purpose switch
                 {
                     AiAssistantPurpose.NormalizeAudio => Technical(profile, "audio-none-v1", 1),

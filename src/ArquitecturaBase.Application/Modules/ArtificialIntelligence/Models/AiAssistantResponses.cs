@@ -60,6 +60,9 @@ public sealed record AiAssistantTurnResponse(Guid TurnId, Guid ConversationId, G
     public AssistantNormalizedAudio? NormalizedAudio { get; init; }
     [JsonIgnore]
     public ArquitecturaBase.Application.Models.StructuredData.StructuredDocumentReading? DocumentReading { get; init; }
+    // The name of the document the turn brought, for the history: Home's thread does not show documents yet.
+    [JsonIgnore]
+    public string? AttachedDocument { get; init; }
     public override string ToString() => "AiAssistantTurnResponse { content: [REDACTED] }";
 }
 

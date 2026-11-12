@@ -541,7 +541,7 @@ columnas, o importarla en uno que existe. Lo técnico está en la IA
   obligatorios. Las dos se reemplazan entre sí, como dos propuestas de la misma capacidad: una importación pedida después de
   un catálogo propuesto lo reemplaza, y al revés. Inicio ofrece la versión 2 en lugar de la 1, y la importación sólo en un
   turno con planilla: con todos los permisos, 12 de las 16 definiciones sin planilla y 13 con ella; el Asistente automático,
-  15 y 16. La versión 1 sigue registrada: sus turnos se leen y sus tarjetas y resúmenes crean.
+  15 y 16; con un documento, Inicio 12 y el automático 11. La versión 1 sigue registrada: sus turnos se leen y sus tarjetas y resúmenes crean.
 - **Lo que muestran.** En Inicio, la tarjeta del catálogo (IA1-A) suma el archivo y sus filas, de qué columna sale cada parte
   («Código · columna A») y hasta tres filas de muestra ordenadas como el catálogo, con los encabezados de la planilla o, sin
   ellos, «Columna A». La de importar es la tarjeta «Importación»: el catálogo destino con su tipo y las filas, de qué columna

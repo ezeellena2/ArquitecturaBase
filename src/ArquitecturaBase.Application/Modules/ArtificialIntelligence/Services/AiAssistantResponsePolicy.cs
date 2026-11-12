@@ -57,6 +57,7 @@ internal sealed class AiAssistantResponsePolicy(IAiConversationProtector protect
         StructuredDocumentReading? documentReading = null;
         AiAssistantTurnAudioResponse? audio = null;
         AiAssistantTurnAttachmentResponse? attachment = null;
+        string? attachedDocument = null;
         IReadOnlyList<SystemQueryEvidence> evidences = [];
         if (access == "allowed")
         {
@@ -68,14 +69,16 @@ internal sealed class AiAssistantResponsePolicy(IAiConversationProtector protect
                 if (transcript is null) return AiAssistantErrors.ContentUnavailable;
                 audio = new AiAssistantTurnAudioResponse(audioRequestId, transcript);
             }
-            // Only the turn that brought a spreadsheet shows it; the next ones inherit it for the model, not for the thread. A Home copy
-            // names its request, and a turn without text or audio, in any channel, always brought its own.
+            // Only the turn that brought a file shows it; the next ones inherit it for the model, not for the thread. A Home copy names
+            // its request, and a turn without text or audio, in any channel, always brought its own. A document is only named, for the
+            // history: the thread does not show one yet.
             if (row.ProtectedAttachment is { } protectedAttachment
                 && (AiAssistantHomeAttachmentPolicy.IsOwn(row.AttachmentKey, row.RequestId) || question.Trim().Length == 0 && audio is null))
             {
                 var stored = AiAssistantAttachmentPolicy.Read(Reveal(row, AiAssistantAttachmentPolicy.Purpose, protectedAttachment));
                 if (stored is null) return AiAssistantErrors.ContentUnavailable;
                 attachment = AiAssistantHomeAttachmentPolicy.Response(stored);
+                attachedDocument = stored.Document is null ? null : stored.Name;
             }
             if (row.ProtectedAnswer is { } protectedAnswer)
             {
@@ -120,7 +123,7 @@ internal sealed class AiAssistantResponsePolicy(IAiConversationProtector protect
             row.Culture, row.TimeZoneId, row.SubmittedAtUtc, now, pollingAfterSeconds)
         {
             CancelRequestedAtUtc = row.CancelRequestedAtUtc, ObservedProposal = proposal, NormalizedAudio = normalizedAudio, DocumentReading = documentReading,
-            Audio = audio, Attachment = attachment,
+            Audio = audio, Attachment = attachment, AttachedDocument = attachedDocument,
             Proposal = proposal is null ? null : new AiAssistantProposalResponse(proposal.Id, proposal.Capability.Id, proposal.Capability.Version,
                 JsonSerializer.SerializeToElement(proposal.Payload, proposal.Payload.GetType(), JsonOptions)),
         };

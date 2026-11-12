@@ -48,14 +48,14 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
             request.ContentExpiresAtUtc <= request.OccurredAtUtc) return AiAssistantErrors.Invalid;
         if (request.PreviousRequestId is { } previous && (previous == Guid.Empty || previous == request.RequestId || request.Audio is not null ||
             request.Document is not null)) return AiAssistantErrors.Invalid;
-        // A document is read alone, never with text, an audio, a spreadsheet or tools, and its copy lasts beyond its message.
+        // A document is read alone, never with text, an audio, an attachment or tools, and its copy lasts beyond its message.
         if (request.Document is { } document)
         {
             if (request.Text.Length != 0 || request.Audio is not null || request.Attachment is not null || request.Context.AllowedCapabilities.Count != 0 ||
                 request.Context.AllowedTerminals.Count != 0 || document.ExpiresAtUtc <= request.OccurredAtUtc) return AiAssistantErrors.Invalid;
             return AiAssistantDocumentPolicy.Validate(document);
         }
-        // A spreadsheet goes with an interpretation, never with an audio to normalize, and lasts beyond its message.
+        // A file (a spreadsheet or a read document) goes with an interpretation, never with an audio to normalize, and lasts beyond its message.
         if (request.Attachment is { } attachment && (request.Audio is not null || attachment.ExpiresAtUtc <= request.OccurredAtUtc ||
             AiAssistantAttachmentPolicy.Validate(attachment) is not null)) return AiAssistantErrors.Invalid;
         if (request.Audio is { } audio)
@@ -64,8 +64,8 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
                 audio.ExpiresAtUtc <= request.OccurredAtUtc) return AiAssistantErrors.Invalid;
             return AiAssistantAudioPolicy.Validate(audio);
         }
-        // An interpretation is written, except a spreadsheet that answers its conversation («Cambiar algo» or a question): its message
-        // carries the sheet.
+        // An interpretation is written, except a file that answers its conversation («Cambiar algo» or a question): its message carries
+        // the file.
         if (string.IsNullOrWhiteSpace(request.Text) && (request.Attachment is null || request.PreviousRequestId is null) ||
             request.Text.Length > limits.QuestionCharacters ||
             request.Context.AllowedTerminals.Count != 1 || request.Context.AllowedTerminals[0] != new AssistantTerminalReference("assistant_proposal", 1))
@@ -126,7 +126,7 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
         if (!normalizes && !reads && guard.Availability(connection) != "available") return AiAssistantErrors.Unavailable;
         var culture = home?.Culture ?? operation!.Context.Culture;
         var timeZoneId = home is not null ? actor.Value.TimeZoneId : operation!.Context.TimeZoneId;
-        // The turn keeps its content no longer than its sources: the channel's message, the audio or document and its own spreadsheet.
+        // The turn keeps its content no longer than its sources: the channel's message, the audio or document and its own file.
         var attachment = home?.Attachment ?? operation?.Attachment;
         var expiresAtUtc = now.AddDays(limits.RetentionDays);
         if (operation is not null && operation.ContentExpiresAtUtc < expiresAtUtc) expiresAtUtc = operation.ContentExpiresAtUtc;
@@ -145,8 +145,8 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
         if (budget.ActorAccepted >= actorQuota || budget.InstallationAccepted >= installationQuota)
             return AiAssistantErrors.QuotaExceeded((int)(now.Date.AddDays(1) - now).TotalSeconds);
         if (budget.Pending >= limits.PendingCapacity) return AiAssistantErrors.CapacityLimited(limits.PollingAfterSeconds);
-        // Only after the cheap refusals, under the lock of its conversation, a turn without a spreadsheet of its own reads the
-        // conversation's; one that expires on its own bounds the turn.
+        // Only after the cheap refusals, under the lock of its conversation, a turn without a file of its own reads the conversation's;
+        // one that expires on its own bounds the turn.
         if (attachment is null && conversation is not null)
         {
             var inherited = await InheritedAttachmentAsync(userId, conversation.Id, now, expiresAtUtc, ct);
@@ -154,10 +154,11 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
             attachment = inherited.Value;
             if (attachment is not null && attachment.ExpiresAtUtc < expiresAtUtc) expiresAtUtc = attachment.ExpiresAtUtc;
         }
-        var profile = home is not null ? await guard.CaptureHomeProfileAsync(connection, userId, culture, timeZoneId, attachment is not null, ct)
+        var file = attachment?.Kind ?? AssistantAttachmentKind.None;
+        var profile = home is not null ? await guard.CaptureHomeProfileAsync(connection, userId, culture, timeZoneId, file, ct)
             : operation!.Audio is { } audioInput ? guard.CaptureAudioProfile(connection, operation.Context, audioInput, operation.OccurredAtUtc)
             : operation.Document is { } documentInput ? guard.CaptureDocumentProfile(connection, operation.Context, documentInput, operation.OccurredAtUtc)
-            : await guard.CaptureOperationProfileAsync(connection, operation.Context, operation.OccurredAtUtc, attachment is not null, ct);
+            : await guard.CaptureOperationProfileAsync(connection, operation.Context, operation.OccurredAtUtc, file, ct);
         if (profile.IsFailure) return profile.Error;
         if (conversation is null)
         {
@@ -207,8 +208,8 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
         return conversation;
     }
 
-    // A turn without a spreadsheet of its own keeps its conversation's: the one of the latest turn that has a spreadsheet, while that
-    // turn keeps its content; a replaced one never comes back, and the new turn seals it again. A Home copy stays while a turn has it,
+    // A turn without a file of its own keeps its conversation's, a spreadsheet or a document: the one of the latest turn that has a file,
+    // while that turn keeps its content; a replaced one never comes back, and the new turn seals it again. A Home copy stays while a turn has it,
     // so it takes the new turn's expiry and inheriting never ends with the first turn; any other copy expires on its own.
     private async Task<Result<AssistantAttachmentInput?>> InheritedAttachmentAsync(Guid userId, Guid conversationId, DateTime nowUtc,
         DateTime contentExpiresAtUtc, CancellationToken ct)

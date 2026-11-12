@@ -15,6 +15,8 @@ public sealed record AiAssistantExecutionContextResponse(AiAssistantClaimRespons
     public IReadOnlyList<AssistantObservedRead> ObservedReads { get; init; } = [];
     /// <summary>The turn's prepared spreadsheet, revealed once to build the request; each capability call receives it.</summary>
     public StructuredSpreadsheet? Attachment { get; init; }
+    /// <summary>The turn's read document, revealed the same way; each capability call receives it apart from the spreadsheet.</summary>
+    public StructuredDocument? Document { get; init; }
     public override string ToString() => "AiAssistantExecutionContextResponse { content: [REDACTED] }";
 }
 public sealed record AiAssistantObservedTool(int Ordinal, string CallId, string ToolId, int Version,

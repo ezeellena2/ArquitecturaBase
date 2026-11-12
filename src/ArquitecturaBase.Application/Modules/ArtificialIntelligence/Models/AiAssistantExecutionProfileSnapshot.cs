@@ -11,6 +11,9 @@ public sealed record AiAssistantExecutionProfileSnapshot(
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public AiAssistantPurpose Purpose { get; init; }
     public DateTime? OccurredAtUtc { get; init; }
+    /// <summary>The file the catalog was decided for, as a number; omitted without one, and in seals from before documents.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public AssistantAttachmentKind Attachment { get; init; }
 }
 
 /// <summary>Sealed as a number: Interpret is omitted. The technical purposes (audio and documents) have no capabilities, terminals or history.</summary>

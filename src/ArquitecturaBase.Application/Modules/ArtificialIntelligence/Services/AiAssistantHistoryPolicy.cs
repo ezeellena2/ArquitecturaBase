@@ -20,10 +20,12 @@ internal static class AiAssistantHistoryPolicy
             var latest = ReferenceEquals(turn, latestProposal);
             if (turn.Question is null || turn.Answer is null && !latest) continue;
             var asked = AiAssistantAudioPolicy.Spoken(turn.Question, turn.Audio?.Transcript);
-            // A turn that brought only a spreadsheet is never an empty message, which a provider may reject; the sheet itself travels in
-            // the current message, so only its name goes here.
+            // A turn that brought only a file is never an empty message, which a provider may reject; the file itself travels in the
+            // current message, so only its name goes here, as a JSON string: the person chose it, so it never goes raw in their message.
             if (asked.Trim().Length == 0 && turn.Attachment is { } attachment)
-                asked = string.Format(CultureInfo.InvariantCulture, AssistantTexts.Get("Prompt.AttachedSpreadsheet", culture), attachment.Name);
+                asked = string.Format(CultureInfo.InvariantCulture, AssistantTexts.Get("Prompt.AttachedSpreadsheet", culture), Quoted(attachment.Name));
+            else if (asked.Trim().Length == 0 && turn.AttachedDocument is { } document)
+                asked = string.Format(CultureInfo.InvariantCulture, AssistantTexts.Get("Prompt.AttachedDocument", culture), Quoted(document));
             var answer = turn.Answer?.Text ?? "";
             if (latest)
                 answer += (answer.Length == 0 ? "" : "\n\n") + string.Format(CultureInfo.InvariantCulture, AssistantTexts.Get("Prompt.PreviousProposal", culture),
@@ -36,4 +38,6 @@ internal static class AiAssistantHistoryPolicy
         }
         return messages;
     }
+
+    private static string Quoted(string name) => JsonSerializer.Serialize(name, AiAssistantResponsePolicy.JsonOptions);
 }

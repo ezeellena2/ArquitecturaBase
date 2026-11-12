@@ -465,8 +465,8 @@ public sealed class AiAssistantHomeAttachmentTests
     }
 
     [Theory]
-    [InlineData("es", "(Adjuntó la planilla clientes.xlsx.)")]
-    [InlineData("en", "(Attached the spreadsheet clientes.xlsx.)")]
+    [InlineData("es", "(Adjuntó la planilla \"clientes.xlsx\".)")]
+    [InlineData("en", "(Attached the spreadsheet \"clientes.xlsx\".)")]
     public void The_history_names_the_spreadsheet_of_a_turn_without_text_and_never_sends_the_sheet_again(string culture, string named)
     {
         AiAssistantTurnResponse Turn(int ordinal, string question, AiAssistantTurnAttachmentResponse? attachment) =>

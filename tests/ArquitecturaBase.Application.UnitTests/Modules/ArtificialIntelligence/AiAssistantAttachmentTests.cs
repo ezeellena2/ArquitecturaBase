@@ -19,7 +19,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace ArquitecturaBase.Application.UnitTests.Modules.ArtificialIntelligence;
 
 // Stage 2: a spreadsheet goes with an interpretation, is sealed in its turn and stays the conversation's until another replaces it.
-public sealed class AiAssistantAttachmentTests
+public sealed partial class AiAssistantAttachmentTests
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
     private static readonly AssistantCapabilityReference Import = new("fixture.import", 1);
@@ -50,7 +50,7 @@ public sealed class AiAssistantAttachmentTests
 
     private static AssistantCapabilityDefinition RequiringSpreadsheet() =>
         PreparedAssistantCapabilitySource.Definition(Import.Id, Import.Version, AssistantCapabilityKind.Proposal)
-            with { RequiresAttachment = true, OfferedInHome = true };
+            with { Attachment = AssistantCapabilityAttachment.Spreadsheet, OfferedInHome = true };
 
     [Fact]
     public async Task An_interpretation_seals_its_spreadsheet_apart_from_the_text_and_keeps_what_was_sent_in_the_clear()
@@ -102,8 +102,8 @@ public sealed class AiAssistantAttachmentTests
             "upperHash" => request with { Attachment = attachment with { Sha256 = new string('C', 64) } },
             "shortHash" => request with { Attachment = attachment with { Sha256 = new string('c', 63) } },
             // The descriptor and what was prepared come from the same file.
-            "otherFile" => request with { Attachment = attachment with { Spreadsheet = attachment.Spreadsheet with { Sha256 = new string('d', 64) } } },
-            "otherSize" => request with { Attachment = attachment with { Spreadsheet = attachment.Spreadsheet with { Size = attachment.Size + 1 } } },
+            "otherFile" => request with { Attachment = attachment with { Spreadsheet = attachment.Spreadsheet! with { Sha256 = new string('d', 64) } } },
+            "otherSize" => request with { Attachment = attachment with { Spreadsheet = attachment.Spreadsheet! with { Size = attachment.Size + 1 } } },
             _ => request with { Attachment = attachment with
                 { Spreadsheet = FictionalAttachment.Spreadsheet(new string('x', StructuredSpreadsheet.MaximumBytes)) } },
         };

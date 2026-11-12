@@ -112,7 +112,7 @@ public sealed class AiAssistantHomeAttachmentTests(ApiFactory factory)
         Assert.True(await scenario.ProcessNextAsync());
         var next = Messages(scenario.Handler.Requests[2]);
         Assert.Equal(["user", "assistant", "user"], next.Select(message => message.Role));
-        Assert.Equal("(Adjuntó la planilla clientes.csv.)", next[0].Content);
+        Assert.Equal("(Adjuntó la planilla \"clientes.csv\".)", next[0].Content);
         Assert.StartsWith("Usá la columna B como nombre\n\n" + Block, next[2].Content, StringComparison.Ordinal);
         using (var turn = await scenario.Client.GetAsync($"/api/ai/assistant/turns/{nextId}", Ct))
             Assert.False((await turn.ReadJsonAsync()).TryGetProperty("attachment", out _));

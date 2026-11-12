@@ -11,10 +11,12 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Channels;
 internal sealed class BusinessFormMissingRequestAssistantCapabilitySource(FormAssistantCandidatePolicy candidates, IUserReader users) : IAssistantCapabilitySource
 {
     public const string ProposeId = "forms.missing-request.propose";
+    // It needs a complete read of the candidates, which never goes with a document (NoDocument): with one, the documents circuit names
+    // the missing form.
     public IReadOnlyList<AssistantCapabilityDefinition> Definitions { get; } = [new(ProposeId, 1, AssistantCapabilityKind.Proposal,
         "Record a clear intent to register something only when no accessible observed form matches. Reuse an observed generalized topic or propose a short generalized name and phrase in the recipient culture. Never include names, contact details, conversation quotations or response values. A quota limit or declined known form is not a missing form.",
         FormMissingRequestAssistantCodec.ArgumentsSchema, FormMissingRequestAssistantCodec.ProposalSchema,
-        new([], []), new(2048, 2048, 1, 5))];
+        new([], []), new(2048, 2048, 1, 5)) { Attachment = AssistantCapabilityAttachment.NoDocument }];
     public async Task<Result<AssistantCapabilityResponse>> ExecuteAsync(AssistantCapabilityRequest request, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();

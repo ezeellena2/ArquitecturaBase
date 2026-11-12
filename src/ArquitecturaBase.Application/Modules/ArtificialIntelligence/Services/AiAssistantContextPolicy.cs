@@ -31,9 +31,13 @@ internal sealed class AiAssistantContextPolicy(IAiAssistantReader reader, IAiCon
             profile.Value.Purpose == AiAssistantPurpose.Interpret && connection.Model != turn.Model) return AiAssistantErrors.ConnectionChanged;
         if (!connection.Enabled || connection.ProtectedApiKey is null || !guard.IsProfileQualified(profile.Value, connection) ||
             guard.Model(profile.Value, connection) != turn.Model) return AiAssistantErrors.Unavailable;
+        // The catalog is decided again for the kind of file sealed with it, without decrypting the file; a kind sealed without a file is
+        // an invalid seal, as in the dispatch guard.
+        var file = AiAssistantAttachmentPolicy.Sealed(profile.Value, turn.AttachmentKey);
+        if (file is null) return AiAssistantErrors.ContentBlocked;
         Result<AiAssistantCapabilityCatalogResponse> offered = AiAssistantChannelPolicy.IsTechnical(profile.Value.Purpose)
             ? new AiAssistantCapabilityCatalogResponse([], [], profile.Value.ChannelContext.RequiredPermissions)
-            : await capabilities.BuildAsync(profile.Value.ChannelContext, turn.AttachmentKey is not null, cancellationToken);
+            : await capabilities.BuildAsync(profile.Value.ChannelContext, file.Value, cancellationToken);
         if (offered.IsFailure) return offered.Error;
         if (offered.Value.Capabilities.Count != profile.Value.ChannelContext.AllowedCapabilities.Count) return AiAssistantErrors.ContentBlocked;
         var credential = credentialPolicy.Reveal(connection.Provider, connection.ProtectedApiKey);
@@ -74,17 +78,18 @@ internal sealed class AiAssistantContextPolicy(IAiAssistantReader reader, IAiCon
                 { Document = document, DocumentMaximumBytes = qualified.MaximumDocumentBytes, LowReasoningEffort = qualified.SupportsReasoningEffort };
             return new AiAssistantExecutionContextResponse(claim, turn, reading, [], [], 0, 0) { ExecutionProfile = profile.Value };
         }
-        // The conversation's spreadsheet goes as data at the end of the current message: outside the history's characters, inside
-        // the context budget.
+        // The conversation's file, a spreadsheet or a document, goes as data at the end of the current message: outside the history's
+        // characters, inside the context budget. It has to be the kind its catalog was decided for.
         StructuredSpreadsheet? spreadsheet = null;
+        StructuredDocument? attachedDocument = null;
         if (turn.AttachmentKey is not null)
         {
             var sealedAttachments = await reader.ListProtectedAttachmentsAsync(turn.OwnerUserId, [turn.Id], cancellationToken);
             var attachment = sealedAttachments.TryGetValue(turn.Id, out var protectedAttachment)
                 ? AiAssistantAttachmentPolicy.Read(responsePolicy.Reveal(turn, AiAssistantAttachmentPolicy.Purpose, protectedAttachment)) : null;
-            if (attachment is null) return AiAssistantErrors.ContentUnavailable;
-            spreadsheet = attachment.Spreadsheet;
-            question = AiAssistantAttachmentPolicy.Message(question, spreadsheet, turn.Culture);
+            if (attachment is null || attachment.Kind != file) return AiAssistantErrors.ContentUnavailable;
+            (spreadsheet, attachedDocument) = (attachment.Spreadsheet, attachment.Document);
+            question = AiAssistantAttachmentPolicy.Message(question, attachment, turn.Culture);
         }
         var page = await reader.ListTurnsAsync(claim.OwnerUserId, claim.ConversationId,
             new ListAiAssistantTurnsRequest { PageSize = limits.HistoryTurns + 1, Sort = "-ordinal" }, cancellationToken);
@@ -120,7 +125,8 @@ internal sealed class AiAssistantContextPolicy(IAiAssistantReader reader, IAiCon
         var request = new LlmConversationRequest(turn.Provider, turn.Model, credential.Value, system, messages, tools, [], null,
             limits.OutputTokens, limits.ProviderResponseBytes, limits.ContinuationBytes);
         if (RequestBytes(request) > limits.ContextBytes) return AiAssistantErrors.LimitExceeded;
-        return new AiAssistantExecutionContextResponse(claim, turn, request, [], [], 0, 0) { ExecutionProfile = profile.Value, Attachment = spreadsheet };
+        return new AiAssistantExecutionContextResponse(claim, turn, request, [], [], 0, 0)
+            { ExecutionProfile = profile.Value, Attachment = spreadsheet, Document = attachedDocument };
     }
 
     private static int RequestBytes(LlmConversationRequest request) => Encoding.UTF8.GetByteCount(JsonSerializer.Serialize(

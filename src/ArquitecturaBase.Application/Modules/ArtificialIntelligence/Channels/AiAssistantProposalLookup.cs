@@ -55,8 +55,8 @@ internal sealed class AiAssistantProposalLookup(IAiAssistantReader reader, AiAss
                 { Attachment = attachment };
         });
 
-    // The spreadsheet of the proposal's turn, its own or inherited. Rows never bring what is sealed: only this turn, and only because
-    // it has one, asks for its descriptor (the name and the media type are not in the clear).
+    // The file of the proposal's turn, a spreadsheet or a document, its own or inherited. Rows never bring what is sealed: only this turn,
+    // and only because it has one, asks for its descriptor (the name and the media type are not in the clear).
     private async Task<AssistantAttachmentDescriptor?> AttachmentAsync(AiAssistantTurnRow row, CancellationToken cancellationToken)
     {
         var sealedAttachments = await reader.ListProtectedAttachmentsAsync(row.OwnerUserId, [row.Id], cancellationToken);

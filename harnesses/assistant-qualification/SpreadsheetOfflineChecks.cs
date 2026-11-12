@@ -153,7 +153,8 @@ internal static class SpreadsheetOfflineChecks
     private static FormAuthoringSpreadsheetSummary Columns(FormAuthoringSpreadsheetSummary summary, params FormAuthoringMappedColumn[] columns) => summary with { Columns = columns };
     private static AssistantCapabilityDefinition Definition(string id, int version, bool home = false, bool attachment = false) =>
         new(id, version, AssistantCapabilityKind.Proposal, "Fictitious capability.", "{\"version\":" + version.ToString(CultureInfo.InvariantCulture) + "}", "{}",
-            new([], []), new(1, 1, 1, 1)) { OfferedInHome = home, RequiresAttachment = attachment };
+            new([], []), new(1, 1, 1, 1))
+        { OfferedInHome = home, Attachment = attachment ? AssistantCapabilityAttachment.Spreadsheet : AssistantCapabilityAttachment.Any };
     private static bool Throws(Action action)
     {
         try { action(); return false; } catch (InvalidOperationException) { return true; } catch (ArgumentException) { return true; }

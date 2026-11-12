@@ -132,6 +132,44 @@ public sealed class AssistantOperationFingerprintTests
         Assert.True(original.Matches(request with { PreviousRequestId = null }, "one", alone));
     }
 
+    // Documents (task 3): the read documents after the first have no copy of their own, so their SHA-256 bind them, with a marker of
+    // their own and only when they exist; a spreadsheet or a lone document keeps the fingerprint it had, and what was read stays out.
+    [Fact]
+    public void More_read_documents_bind_their_hashes_with_their_own_marker_only_when_they_exist()
+    {
+        var request = Request() with { Attachment = Attachment() };
+        var (context, attachment) = (request.Context, request.Attachment!);
+        var ring = new AiKeyRing(Options.Create(new AiSecretProtectionOptions
+        {
+            InstallationId = "fictitious-installation", ActiveKeyId = "one",
+            Keys = new() { ["one"] = Convert.ToBase64String(new byte[32]) }
+        }));
+        object?[] spreadsheetValues = ["assistant-operation-request-fingerprint:v1", request.RequestId,
+            context.ChannelId, context.ActorUserId, context.SubjectUserId, context.Culture, context.TimeZoneId,
+            new[] { "fixture.read", "fixture.send" }, Array.Empty<string>(),
+            new object[][] { ["fixture.propose", 1], ["fixture.read", 1] },
+            new object[][] { ["assistant_proposal", 1] }, "Fictitious request\nnext", request.OccurredAtUtc, request.ContentExpiresAtUtc,
+            new object?[] { "attachment:v1", attachment.StorageKey, attachment.Name, attachment.ContentType, attachment.Size, attachment.Sha256, attachment.ExpiresAtUtc }];
+        Assert.Equal(Convert.ToBase64String(HMACSHA256.HashData(ring.AssistantFingerprintKey("one"), JsonSerializer.SerializeToUtf8Bytes(spreadsheetValues))),
+            Fingerprint().Create(request, "one"));
+
+        var document = AssistantAttachmentInput.ForDocument("private/documents/comprobante.pdf", "Comprobante.pdf", attachment.ExpiresAtUtc, Read('d'));
+        var alone = Fingerprint().Create(request with { Attachment = document }, "one");
+        var withMore = request with { Attachment = document with { MoreDocuments = [Read('a'), Read('b')] } };
+        var hash = Fingerprint().Create(withMore, "one");
+        Assert.NotEqual(alone, hash);
+        Assert.False(Fingerprint().Matches(withMore with { Attachment = document with { MoreDocuments = [Read('a'), Read('e')] } }, "one", hash));
+        Assert.False(Fingerprint().Matches(withMore with { Attachment = document with { MoreDocuments = [Read('b'), Read('a')] } }, "one", hash));
+        Assert.True(Fingerprint().Matches(withMore with { Attachment = document with { MoreDocuments = [Read('a', "Otro texto leído"), Read('b')] } }, "one", hash));
+
+        var owner = Guid.NewGuid();
+        var turn = new SubmitAiAssistantTurnRequest(Guid.NewGuid(), Guid.NewGuid(), 3, 7, "", "es") { Attachment = document };
+        Assert.NotEqual(Fingerprint().Create(owner, turn, "one"), Fingerprint().Create(owner, turn with { Attachment = document with { MoreDocuments = [Read('a')] } }, "one"));
+    }
+
+    private static StructuredDocument Read(char hash, string text = "Transferencia ficticia") => new("comprobante.pdf", StructuredDocumentKind.Pdf,
+        "application/pdf", 4096, new string(hash, 64), 1, new StructuredDocumentReading(StructuredDocumentReadability.Readable, null, "es", text, false));
+
     // Stage 2: a spreadsheet binds its private copy and source expiry; what was prepared comes from those bytes and stays out.
     private static AssistantAttachmentInput Attachment() => new("private/attachments/clientes.xlsx", "Clientes.xlsx",
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", 2048, new string('a', 64),

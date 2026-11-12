@@ -21,6 +21,15 @@ public sealed class FormAssistantCapabilitySourceTests
         Assert.Equal(AssistantCapabilityKind.Proposal, proposal.Kind);
         Assert.Equal([BusinessFormsPermissions.RecordsCreate], proposal.RequiredPermissions.Subject);
     }
+    // Documents (task 3): registering from what the person wrote never goes with a document, which has capabilities of its own.
+    [Fact]
+    public void The_text_registration_capabilities_are_not_offered_with_a_document()
+    {
+        var source = new FormAssistantFixture().Source;
+        Assert.Equal([BusinessFormAssistantCapabilitySource.CandidatesId, BusinessFormAssistantCapabilitySource.RegistrationId,
+            BusinessFormAssistantCapabilitySource.ClarificationId], source.Definitions.Select(definition => definition.Id));
+        Assert.All(source.Definitions, definition => Assert.Equal(AssistantCapabilityAttachment.NoDocument, definition.Attachment));
+    }
     [Fact]
     public async Task A_complete_read_is_bound_to_the_actual_recipient_and_contains_only_authorized_metadata()
     {

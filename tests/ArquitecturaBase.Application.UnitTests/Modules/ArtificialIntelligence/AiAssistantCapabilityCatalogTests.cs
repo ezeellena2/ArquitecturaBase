@@ -60,37 +60,107 @@ public sealed class AiAssistantCapabilityCatalogTests
         var source = new PreparedAssistantCapabilitySource([
             PreparedAssistantCapabilitySource.Definition("fictional.propose", 1, AssistantCapabilityKind.Proposal),
             PreparedAssistantCapabilitySource.Definition("fictional.import", 1, AssistantCapabilityKind.Proposal, "fictional.catalogs.manage")
-                with { RequiresAttachment = true }]);
+                with { Attachment = AssistantCapabilityAttachment.Spreadsheet }]);
         var catalog = new AiAssistantCapabilityCatalogPolicy([source], permissions);
         AssistantCapabilityReference[] allowed = [new("fictional.propose", 1), new("fictional.import", 1)];
         var context = channel == "home" ? Context(actor, allowed)
             : new AssistantChannelContext("owner-channel", actor, null, "es", "UTC", new(["fictional.channel.use"], []), allowed, [new("assistant_proposal", 1)]);
-        var without = await catalog.BuildAsync(context, false, Ct);
+        var without = await catalog.BuildAsync(context, AssistantAttachmentKind.None, Ct);
         Assert.Equal(["fictional.propose"], without.Value.Capabilities.Select(definition => definition.Id));
         Assert.DoesNotContain("fictional.catalogs.manage", without.Value.RequiredPermissions.Actor);
         Assert.Equal(["fictional.propose"], (await catalog.BuildAsync(context, Ct)).Value.Capabilities.Select(definition => definition.Id));
-        var with = await catalog.BuildAsync(context, true, Ct);
+        Assert.Equal(["fictional.propose"], (await catalog.BuildAsync(context, AssistantAttachmentKind.Document, Ct)).Value.Capabilities
+            .Select(definition => definition.Id));
+        var with = await catalog.BuildAsync(context, AssistantAttachmentKind.Spreadsheet, Ct);
         Assert.Equal(["fictional.propose", "fictional.import"], with.Value.Capabilities.Select(definition => definition.Id));
         Assert.Contains("fictional.catalogs.manage", with.Value.RequiredPermissions.Actor);
         Assert.Equal(0, source.Calls);
     }
 
     [Theory]
-    [InlineData(false, true)]
-    [InlineData(true, false)]
-    public async Task The_sixteen_tool_limit_counts_after_leaving_out_what_requires_a_spreadsheet(bool hasAttachment, bool accepted)
+    [InlineData(AssistantAttachmentKind.None, true)]
+    [InlineData(AssistantAttachmentKind.Spreadsheet, false)]
+    [InlineData(AssistantAttachmentKind.Document, true)]
+    public async Task The_sixteen_tool_limit_counts_after_leaving_out_what_requires_a_spreadsheet(AssistantAttachmentKind file, bool accepted)
     {
         var actor = Guid.NewGuid();
         var permissions = new FakePermissionService();
         permissions.Permissions[actor] = [ArtificialIntelligencePermissions.AssistantUse];
         var definitions = Enumerable.Range(0, 15).Select(index => PreparedAssistantCapabilitySource.Definition($"fictional.read-{index}"))
-            .Append(PreparedAssistantCapabilitySource.Definition("fictional.import", 1, AssistantCapabilityKind.Proposal) with { RequiresAttachment = true })
+            .Append(PreparedAssistantCapabilitySource.Definition("fictional.import", 1, AssistantCapabilityKind.Proposal)
+                with { Attachment = AssistantCapabilityAttachment.Spreadsheet })
             .ToArray();
         var context = Context(actor, definitions.Select(definition => new AssistantCapabilityReference(definition.Id, definition.Version)).ToArray());
         var result = await new AiAssistantCapabilityCatalogPolicy([new PreparedAssistantCapabilitySource(definitions)], permissions)
-            .BuildAsync(context, hasAttachment, Ct);
+            .BuildAsync(context, file, Ct);
         Assert.Equal(accepted, result.IsSuccess);
         if (!accepted) Assert.Equal(AiAssistantErrors.ToolRejected, result.Error);
+    }
+
+    // Documents (task 3): with a read document the catalog offers what needs one and leaves out what never goes with one, with the
+    // permissions they would reserve, in Home and in a channel; without a document it is the other way around.
+    [Theory]
+    [InlineData("home")]
+    [InlineData("channel")]
+    public async Task A_document_turn_offers_what_needs_a_document_and_leaves_out_what_never_goes_with_one(string channel)
+    {
+        var actor = Guid.NewGuid();
+        var permissions = new FakePermissionService();
+        permissions.Permissions[actor] = [ArtificialIntelligencePermissions.AssistantUse, "fictional.channel.use", "fictional.entries.create", "fictional.records.create"];
+        var source = new PreparedAssistantCapabilitySource([
+            PreparedAssistantCapabilitySource.Definition("fictional.propose", 1, AssistantCapabilityKind.Proposal),
+            PreparedAssistantCapabilitySource.Definition("fictional.document-entry", 1, AssistantCapabilityKind.Proposal, "fictional.entries.create")
+                with { Attachment = AssistantCapabilityAttachment.Document },
+            PreparedAssistantCapabilitySource.Definition("fictional.text-registration", 1, AssistantCapabilityKind.Proposal, "fictional.records.create")
+                with { Attachment = AssistantCapabilityAttachment.NoDocument }]);
+        var catalog = new AiAssistantCapabilityCatalogPolicy([source], permissions);
+        AssistantCapabilityReference[] allowed = [new("fictional.propose", 1), new("fictional.document-entry", 1), new("fictional.text-registration", 1)];
+        var context = channel == "home" ? Context(actor, allowed)
+            : new AssistantChannelContext("owner-channel", actor, null, "es", "UTC", new(["fictional.channel.use"], []), allowed, [new("assistant_proposal", 1)]);
+        var document = await catalog.BuildAsync(context, AssistantAttachmentKind.Document, Ct);
+        Assert.Equal(["fictional.propose", "fictional.document-entry"], document.Value.Capabilities.Select(definition => definition.Id));
+        Assert.Contains("fictional.entries.create", document.Value.RequiredPermissions.Actor);
+        Assert.DoesNotContain("fictional.records.create", document.Value.RequiredPermissions.Actor);
+        foreach (var file in new[] { AssistantAttachmentKind.None, AssistantAttachmentKind.Spreadsheet })
+        {
+            var other = await catalog.BuildAsync(context, file, Ct);
+            Assert.Equal(["fictional.propose", "fictional.text-registration"], other.Value.Capabilities.Select(definition => definition.Id));
+            Assert.DoesNotContain("fictional.entries.create", other.Value.RequiredPermissions.Actor);
+        }
+        Assert.Equal(0, source.Calls);
+    }
+
+    [Theory]
+    [InlineData(AssistantAttachmentKind.None, false)]
+    [InlineData(AssistantAttachmentKind.Spreadsheet, false)]
+    [InlineData(AssistantAttachmentKind.Document, true)]
+    public async Task The_sixteen_tool_limit_counts_after_leaving_out_what_never_goes_with_a_document(AssistantAttachmentKind file, bool accepted)
+    {
+        var actor = Guid.NewGuid();
+        var permissions = new FakePermissionService();
+        permissions.Permissions[actor] = [ArtificialIntelligencePermissions.AssistantUse];
+        var definitions = Enumerable.Range(0, 15).Select(index => PreparedAssistantCapabilitySource.Definition($"fictional.read-{index}"))
+            .Append(PreparedAssistantCapabilitySource.Definition("fictional.text-registration", 1, AssistantCapabilityKind.Proposal)
+                with { Attachment = AssistantCapabilityAttachment.NoDocument })
+            .ToArray();
+        var context = Context(actor, definitions.Select(definition => new AssistantCapabilityReference(definition.Id, definition.Version)).ToArray());
+        var result = await new AiAssistantCapabilityCatalogPolicy([new PreparedAssistantCapabilitySource(definitions)], permissions)
+            .BuildAsync(context, file, Ct);
+        Assert.Equal(accepted, result.IsSuccess);
+        if (!accepted) Assert.Equal(AiAssistantErrors.ToolRejected, result.Error);
+    }
+
+    [Fact]
+    public async Task An_unknown_kind_of_file_is_rejected_before_offering_tools()
+    {
+        var actor = Guid.NewGuid();
+        var permissions = new FakePermissionService();
+        permissions.Permissions[actor] = [ArtificialIntelligencePermissions.AssistantUse];
+        var source = new PreparedAssistantCapabilitySource([PreparedAssistantCapabilitySource.Definition("fictional.read", 1)]);
+        var result = await new AiAssistantCapabilityCatalogPolicy([source], permissions)
+            .BuildAsync(Context(actor, new AssistantCapabilityReference("fictional.read", 1)), (AssistantAttachmentKind)9, Ct);
+        Assert.Equal(AiAssistantErrors.ToolRejected, result.Error);
+        Assert.Equal(0, source.Calls);
     }
 
     [Fact]
@@ -210,6 +280,7 @@ public sealed class AiAssistantCapabilityCatalogTests
     [InlineData("itemsBudget")]
     [InlineData("timeoutBudget")]
     [InlineData("kind")]
+    [InlineData("attachment")]
     public void Invalid_capability_contracts_fail_composition(string invalid)
     {
         var definition = PreparedAssistantCapabilitySource.Definition();
@@ -221,6 +292,7 @@ public sealed class AiAssistantCapabilityCatalogTests
             "outputBudget" => definition with { Budget = definition.Budget with { OutputBytes = 0 } },
             "itemsBudget" => definition with { Budget = definition.Budget with { MaximumItems = -1 } },
             "timeoutBudget" => definition with { Budget = definition.Budget with { TimeoutSeconds = 0 } },
+            "attachment" => definition with { Attachment = (AssistantCapabilityAttachment)99 },
             _ => definition with { Kind = (AssistantCapabilityKind)99 },
         };
         Assert.Throws<InvalidOperationException>(() => new AiAssistantCapabilityCatalogPolicy([new PreparedAssistantCapabilitySource([definition])], new FakePermissionService()));

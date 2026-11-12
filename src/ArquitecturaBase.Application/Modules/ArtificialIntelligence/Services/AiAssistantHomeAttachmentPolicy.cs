@@ -51,8 +51,9 @@ internal sealed class AiAssistantHomeAttachmentPolicy(IPrivateFileStore files, I
     public static AssistantAttachmentInput Describe(Guid requestId, byte[] content, string name, StructuredSpreadsheet spreadsheet, DateTime expiresAtUtc) =>
         new(Key(requestId, spreadsheet.Kind), name, spreadsheet.MediaType, content.LongLength, Sha256(content), expiresAtUtc, spreadsheet);
 
-    public static AiAssistantTurnAttachmentResponse Response(AssistantAttachmentInput attachment) => new(attachment.Name,
-        attachment.Spreadsheet.Kind == StructuredSpreadsheetKind.Csv ? "csv" : "xlsx", attachment.Spreadsheet.RowCount, attachment.Size);
+    // Only a spreadsheet, for now: Home's thread does not show a document yet.
+    public static AiAssistantTurnAttachmentResponse? Response(AssistantAttachmentInput attachment) => attachment.Spreadsheet is { } spreadsheet
+        ? new(attachment.Name, spreadsheet.Kind == StructuredSpreadsheetKind.Csv ? "csv" : "xlsx", spreadsheet.RowCount, attachment.Size) : null;
 
     // Who may attach in Home, for the bootstrap: there is private storage for the copy and the owner allows the person a spreadsheet.
     public async Task<bool> CanAttachAsync(Guid userId, CancellationToken ct) => files.IsAvailable && (await reader.CanAttachAsync(userId, ct)).Spreadsheets;

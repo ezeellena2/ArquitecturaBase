@@ -41,12 +41,13 @@ internal sealed class AiAssistantCapabilityCatalogPolicy
         registry.TryGetValue(capability, out var entry) ? entry.Source.ParseOutput(capability, outputJson) : AiAssistantErrors.ToolRejected;
 
     public Task<Result<AiAssistantCapabilityCatalogResponse>> BuildAsync(AssistantChannelContext context, CancellationToken ct) =>
-        BuildAsync(context, false, ct);
+        BuildAsync(context, AssistantAttachmentKind.None, ct);
 
-    public async Task<Result<AiAssistantCapabilityCatalogResponse>> BuildAsync(AssistantChannelContext context, bool hasAttachment, CancellationToken ct)
+    public async Task<Result<AiAssistantCapabilityCatalogResponse>> BuildAsync(AssistantChannelContext context, AssistantAttachmentKind attachment,
+        CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(context);
-        if (!ValidContext(context)) return AiAssistantErrors.ToolRejected;
+        if (!ValidContext(context) || !Enum.IsDefined(attachment)) return AiAssistantErrors.ToolRejected;
         var selected = new List<AssistantCapabilityDefinition>();
         foreach (var reference in context.AllowedCapabilities)
         {
@@ -59,8 +60,9 @@ internal sealed class AiAssistantCapabilityCatalogPolicy
             ? await permissions.GetPermissionsAsync(subjectId, ct) : [];
         if (!context.RequiredPermissions.Actor.All(actorPermissions.Contains) || !context.RequiredPermissions.Subject.All(subjectPermissions.Contains))
             return AiAssistantErrors.Forbidden;
-        // A turn without a spreadsheet leaves out what needs one before counting the sixteen definitions.
-        var offered = selected.Where(definition => (hasAttachment || !definition.RequiresAttachment) &&
+        // What the turn's file does not admit is left out before counting the sixteen definitions: a spreadsheet or a document only
+        // with one, and what never goes with a document.
+        var offered = selected.Where(definition => definition.OfferedWith(attachment) &&
             definition.RequiredPermissions.Actor.All(actorPermissions.Contains) &&
             definition.RequiredPermissions.Subject.All(subjectPermissions.Contains)).ToArray();
         if (offered.Length + context.AllowedTerminals.Count > MaximumDefinitions) return AiAssistantErrors.ToolRejected;
@@ -71,7 +73,7 @@ internal sealed class AiAssistantCapabilityCatalogPolicy
     }
 
     private static bool ValidDefinition(AssistantCapabilityDefinition definition) =>
-        !string.IsNullOrWhiteSpace(definition.Id) && definition.Version > 0 && Enum.IsDefined(definition.Kind) &&
+        !string.IsNullOrWhiteSpace(definition.Id) && definition.Version > 0 && Enum.IsDefined(definition.Kind) && Enum.IsDefined(definition.Attachment) &&
         !string.IsNullOrWhiteSpace(definition.Description) && ValidSchema(definition.InputSchemaJson) && ValidSchema(definition.OutputSchemaJson) &&
         definition.Budget is { InputBytes: > 0, OutputBytes: > 0, MaximumItems: > 0, TimeoutSeconds: > 0 } &&
         definition.RequiredPermissions.Actor.Concat(definition.RequiredPermissions.Subject).All(permission => !string.IsNullOrWhiteSpace(permission));

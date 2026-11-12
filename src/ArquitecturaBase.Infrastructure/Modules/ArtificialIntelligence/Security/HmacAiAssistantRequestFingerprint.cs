@@ -29,9 +29,15 @@ internal sealed class HmacAiAssistantRequestFingerprint(AiKeyRing ring) : IAiAss
         if (request.Audio is { } audio) values.Add(new object?[] { "normalize-audio:v1", audio.StorageKey, audio.Name, audio.ContentType, audio.Size, audio.Sha256, audio.ExpiresAtUtc });
         if (request.Document is { } document) values.Add(new object?[] { "read-document:v1", document.StorageKey, document.Name, document.ContentType,
             document.Size, document.Sha256, document.Pages, document.ExpiresAtUtc });
-        // A spreadsheet binds its private copy; what was prepared comes from those bytes. One a turn inherits is not part of the request.
-        if (request.Attachment is { } attachment) values.Add(new object?[] { "attachment:v1", attachment.StorageKey, attachment.Name, attachment.ContentType,
-            attachment.Size, attachment.Sha256, attachment.ExpiresAtUtc });
+        // A file binds its private copy; what was prepared comes from those bytes. The read documents after the first have no copy of their
+        // own, so their SHA-256 bind them, only when they exist. One a turn inherits is not part of the request.
+        if (request.Attachment is { } attachment)
+        {
+            values.Add(new object?[] { "attachment:v1", attachment.StorageKey, attachment.Name, attachment.ContentType,
+                attachment.Size, attachment.Sha256, attachment.ExpiresAtUtc });
+            if (attachment.MoreDocuments is { Count: > 0 } more)
+                values.Add(new object?[] { "attachment-more-documents:v1", more.Select(document => document?.Sha256).ToArray() });
+        }
         if (context.InteractionMode != AssistantInteractionMode.Unspecified)
             values.Add(new object?[] { "assistant-interaction-mode:v1", context.InteractionMode });
         if (context.ChannelConversationId is { } conversationId)
@@ -58,8 +64,12 @@ internal sealed class HmacAiAssistantRequestFingerprint(AiKeyRing ring) : IAiAss
         // A dictated turn binds its normalization; a typed one keeps the original fingerprint.
         if (request.AudioRequestId is { } audioRequestId) values.Add(new object?[] { "home-audio:v1", audioRequestId });
         // What the request sends: the server sets the expiry of a Home copy on each attempt.
-        if (request.Attachment is { } attachment) values.Add(new object?[] { "home-attachment:v1", attachment.StorageKey, attachment.Name,
-            attachment.ContentType, attachment.Size, attachment.Sha256 });
+        if (request.Attachment is { } attachment)
+        {
+            values.Add(new object?[] { "home-attachment:v1", attachment.StorageKey, attachment.Name, attachment.ContentType, attachment.Size, attachment.Sha256 });
+            if (attachment.MoreDocuments is { Count: > 0 } more)
+                values.Add(new object?[] { "home-attachment-more-documents:v1", more.Select(document => document?.Sha256).ToArray() });
+        }
         var payload = JsonSerializer.SerializeToUtf8Bytes(values);
         try { return Convert.ToBase64String(HMACSHA256.HashData(key, payload)); }
         finally { CryptographicOperations.ZeroMemory(key); CryptographicOperations.ZeroMemory(payload); }

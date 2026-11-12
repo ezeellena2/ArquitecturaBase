@@ -9,6 +9,15 @@ namespace ArquitecturaBase.Application.UnitTests.Modules.BusinessForms;
 
 public sealed class FormMissingRequestCapabilityTests
 {
+    // Documents (task 3): recording a missing form needs a complete read of the candidates, which never goes with a document; with a
+    // document the documents circuit names the missing form.
+    [Fact]
+    public void The_missing_request_proposal_is_not_offered_with_a_document()
+    {
+        var f = Fixture();
+        var definition = Assert.Single(new BusinessFormMissingRequestAssistantCapabilitySource(f.Candidates, f.Users).Definitions);
+        Assert.Equal((BusinessFormMissingRequestAssistantCapabilitySource.ProposeId, AssistantCapabilityAttachment.NoDocument), (definition.Id, definition.Attachment));
+    }
     [Fact]
     public async Task The_same_complete_read_contains_only_generalized_topics_alongside_forms()
     {

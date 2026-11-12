@@ -154,6 +154,6 @@ public sealed class WhatsAppAssistantSourcePolicyTests
         var attachment = WhatsAppAssistantSourcePolicy.Attachment(sheet);
         Assert.Equal((sheet.StorageKey, expected, "text/csv", 27L, new string('c', 64), sheet.ExpiresAtUtc),
             (attachment.StorageKey, attachment.Name, attachment.ContentType, attachment.Size, attachment.Sha256, attachment.ExpiresAtUtc));
-        Assert.Equal((3, "Código"), (attachment.Spreadsheet.RowCount, attachment.Spreadsheet.Rows[0].Cells["A"]));
+        Assert.Equal((3, "Código"), (attachment.Spreadsheet!.RowCount, attachment.Spreadsheet.Rows[0].Cells["A"]));
     }
 }

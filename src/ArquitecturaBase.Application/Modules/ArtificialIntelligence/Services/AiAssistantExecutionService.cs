@@ -133,7 +133,7 @@ internal sealed class AiAssistantExecutionService(AiAssistantContextPolicy conte
                     // The provider has not observed this batch's fresh reads yet. Only prior confirmed steps may authorize a proposal.
                     if (context.ObservedReads.Any(r => r.TurnId != context.Claim.TurnId)) return AiAssistantErrors.ToolRejected;
                     var request = new AssistantCapabilityRequest(context.Claim.TurnId, profile.ChannelContext, reference!, call.ArgumentsJson, context.ObservedReads)
-                        { Attachment = context.Attachment };
+                        { Attachment = context.Attachment, Document = context.Document };
                     var remaining = context.Claim.DeadlineAtUtc - timeProvider.GetUtcNow().UtcDateTime;
                     if (remaining <= TimeSpan.Zero) return AiAssistantErrors.Expired;
                     var timeoutLimit = TimeSpan.FromSeconds(Math.Min(limits.ToolTimeoutSeconds, definition.Budget.TimeoutSeconds));
