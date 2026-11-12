@@ -68,8 +68,16 @@ internal sealed class WhatsAppAssistantReader(ApplicationDbContext db,IOptions<W
     }
     private async Task<WhatsAppAssistantSourceRow?> ResolveAsync(WhatsAppAssistantSourceRow? source,CancellationToken ct)=>
         source is null || source.CapturedRecordId is not null ? source : WhatsAppAssistantSourcePolicy.Resolve(source,await FindPreviousAsync(source,ct));
-    public Task<WhatsAppAssistantReferenceRow?> FindByOutgoingAsync(Guid outgoingId,CancellationToken ct)=>
-        ReferenceRows(References().Where(row=>row.OutgoingId==outgoingId || row.QuestionOutgoingId==outgoingId)).SingleOrDefaultAsync(ct);
+    // W1-A: a later message of the same send (its skip button, the Flow after the location) has another RequestId: the outgoing
+    // messages of its session, found first by their index, name the reference's own.
+    public async Task<WhatsAppAssistantReferenceRow?> FindByOutgoingAsync(Guid outgoingId,CancellationToken ct)
+    {
+        var sessionId=await db.Set<WhatsAppOutgoingMessage>().AsNoTracking().Where(item=>item.Id==outgoingId).Select(item=>item.FlowSessionId).FirstOrDefaultAsync(ct);
+        List<Guid> ids=sessionId is {} session
+            ? await db.Set<WhatsAppOutgoingMessage>().AsNoTracking().Where(item=>item.FlowSessionId==session).Select(item=>item.Id).ToListAsync(ct)
+            : [outgoingId];
+        return await ReferenceRows(References().Where(row=>row.OutgoingId!=null && ids.Contains(row.OutgoingId.Value) || row.QuestionOutgoingId==outgoingId)).SingleOrDefaultAsync(ct);
+    }
     private static IQueryable<WhatsAppAssistantReferenceRow> ReferenceRows(IQueryable<WhatsAppAssistantRequest> rows)=>rows.Select(row=>new WhatsAppAssistantReferenceRow(row.RequestId,row.ContactId,row.SourceMessageId,
         row.ActorUserId,row.SubjectUserId,row.Kind,row.ModeRevision,row.LinkRevision,row.ContextJson,row.ContentExpiresAtUtc,row.State,row.ProposalId,row.DefinitionId,row.OutgoingId)
         {QuestionOutgoingId=row.QuestionOutgoingId,SourceRecordId=row.SourceRecordId,SuggestionSetId=row.SuggestionSetId,SuggestionId=row.SuggestionId,CapturedCulture=row.CapturedCulture,IsAlways=row.IsAlways,
@@ -185,7 +193,8 @@ internal sealed class WhatsAppAssistantReader(ApplicationDbContext db,IOptions<W
         References().CountAsync(reference=>reference.ContactId==contactId && reference.Kind==WhatsAppAssistantRequestKind.Automatic
             && reference.RequestId!=excludingRequestId && db.Set<WhatsAppOutgoingMessage>().Any(outgoing=>
                 // A summary of a form or catalog to build (its own outgoing with buttons) is not an offer (IA3-A).
-                (outgoing.Id==reference.OutgoingId && outgoing.Kind==WhatsAppOutgoingMessageKind.Flow
+                // W1-A: a send with a location opens with its request, which is the offer; its later Flow is not another one.
+                (outgoing.Id==reference.OutgoingId && (outgoing.Kind==WhatsAppOutgoingMessageKind.Flow || outgoing.Kind==WhatsAppOutgoingMessageKind.LocationRequest)
                     || outgoing.Id==reference.QuestionOutgoingId && outgoing.Kind==WhatsAppOutgoingMessageKind.QuickReplies)
                 && outgoing.Origin==WhatsAppMessageOrigin.Assistant
                 && outgoing.State!=WhatsAppOutgoingMessageState.Failed && outgoing.RequestedAtUtc>=fromUtc && outgoing.RequestedAtUtc<toUtc),ct);
@@ -207,7 +216,8 @@ internal sealed class WhatsAppAssistantReader(ApplicationDbContext db,IOptions<W
             && outgoing.Origin==WhatsAppMessageOrigin.Assistant
             && (outgoing.State==WhatsAppOutgoingMessageState.Pending || outgoing.State==WhatsAppOutgoingMessageState.Sending || outgoing.State==WhatsAppOutgoingMessageState.Uncertain)
             && !References().Any(reference=>reference.RequestId==excludingRequestId
-                && (reference.OutgoingId==outgoing.Id || reference.QuestionOutgoingId==outgoing.Id))
+                && (reference.OutgoingId==outgoing.Id || reference.QuestionOutgoingId==outgoing.Id
+                    || outgoing.FlowSessionId!=null && db.Set<WhatsAppOutgoingMessage>().Any(first=>first.Id==reference.OutgoingId && first.FlowSessionId==outgoing.FlowSessionId)))
             && !References().Any(reference=>reference.OutgoingId==outgoing.Id && reference.ProposalId==reference.RequestId),ct);
     public Task<bool> ExistsDeclinedAsync(Guid contactId,Guid definitionId,CancellationToken ct)=>
         (from row in References() join contact in db.Set<WhatsAppContact>().AsNoTracking() on row.ContactId equals contact.Id
@@ -220,7 +230,9 @@ internal sealed class WhatsAppAssistantReader(ApplicationDbContext db,IOptions<W
             join session in db.Set<WhatsAppFlowSession>().AsNoTracking() on outgoing.FlowSessionId equals session.Id
             join contact in db.Set<WhatsAppContact>().AsNoTracking() on session.ContactId equals contact.Id
             where contact.UserId == subjectUserId && session.UserId == subjectUserId && session.LinkRevision == contact.LinkRevision
-                && outgoing.Kind == WhatsAppOutgoingMessageKind.Flow && outgoing.State != WhatsAppOutgoingMessageState.Failed
+                // W1-A: one per send: its location request, or the Flow of a send without one.
+                && (outgoing.Kind == WhatsAppOutgoingMessageKind.Flow && session.LocationState == WhatsAppFlowLocationState.None
+                    || outgoing.Kind == WhatsAppOutgoingMessageKind.LocationRequest) && outgoing.State != WhatsAppOutgoingMessageState.Failed
                 && outgoing.RequestedAtUtc >= sinceUtc
             orderby outgoing.RequestedAtUtc descending, outgoing.Id descending
             select new { OutgoingId = outgoing.Id, outgoing.RequestedAtUtc, outgoing.RequestId, session.DefinitionId,

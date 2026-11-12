@@ -92,12 +92,16 @@ internal sealed class WhatsAppAssistantAcceptancePolicy(WhatsAppFormSendPolicy s
         var issue = issuer.CreateProposed(context,request.RequestId,row.ModeRevision,actor,fingerprint,
             Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(32)),content,row.ContentExpiresAtUtc,prefill.Catalogs);
         var body = string.Format(CultureInfo.GetCultureInfo(prefill.Culture),AssistantTexts.Get("CompleteForm",prefill.Culture),prefill.Form.Name[prefill.Culture]);
-        var outgoing = actor is {} operatorId
-            ? WhatsAppOutgoingMessage.CreateFlow(operatorId,contact.Id,request.RequestId,body,issue.Session.Id,issue.CreatedAtUtc)
-            : WhatsAppOutgoingMessage.CreateAssistantFlow(row.SubjectUserId,contact.Id,request.RequestId,body,issue.Session.Id,issue.CreatedAtUtc,
+        // W1-A: a form with a location opens with its request, the operator's or the assistant's, and its Flow goes out with the
+        // location; the reference keeps the first message of the send.
+        var formName = prefill.Form.Name[prefill.Culture];
+        var opened = actor is {} operatorId
+            ? WhatsAppFlowLocationPolicy.Open(context.Projection,issue.Session,operatorId,request.RequestId,body,formName,issue.CreatedAtUtc)
+            : WhatsAppFlowLocationPolicy.OpenAssistant(context.Projection,issue.Session,request.RequestId,body,formName,issue.CreatedAtUtc,
                 contact.LinkRevision,contact.WaId!,row.ModeRevision);
+        var outgoing = opened[0];
         if (!row.Accept(outgoing.Id,fingerprint,actor,nowUtc)) return WhatsAppAssistantErrors.StateConflict;
-        outgoing.AttachFlowSession(issue.Session);sessions.Add(issue.Session);conversations.Add(outgoing);
+        sessions.Add(issue.Session);foreach(var message in opened)conversations.Add(message);
         var explanation = actor is {} viewer ? await presentation.ReadAsync(viewer,WhatsAppAssistantPresentationPolicy.Row(issue.Session),ct) : null;
         return WhatsAppOutgoingPresentationPolicy.Map(outgoing,issue.Session,explanation);
     }

@@ -62,11 +62,14 @@ internal sealed class WhatsAppAssistantScenario : IAsyncDisposable
             configure?.Invoke(builder);
         });
     }
-    public static async Task<WhatsAppAssistantScenario> CreateAsync(ApiFactory factory, CancellationToken ct, Action<IWebHostBuilder>? configure = null)
+    public static async Task<WhatsAppAssistantScenario> CreateAsync(ApiFactory factory, CancellationToken ct, Action<IWebHostBuilder>? configure = null,
+        bool withLocation = false, bool optionalLocation = false)
     {
         Assert.SkipUnless(factory.Services.GetService<IStructuredFormPublicationDriver>() is not null,
             "The optional structured form publisher must be installed for this composition test.");
         var scenario = new WhatsAppAssistantScenario(factory, configure: configure);
+        scenario.Forms.WithLocation = withLocation || optionalLocation;
+        scenario.Forms.LocationOptional = optionalLocation;
         await scenario.InitializeAsync([], ct);
         return scenario;
     }

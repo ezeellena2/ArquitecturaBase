@@ -109,17 +109,21 @@ public sealed class FormAssistantCandidatePolicyTests
 
         Assert.Equal([supplier], candidate.Value.Questions.Select(question => question.FieldId));
     }
-    // W1-A: a person sends a form with a location question from the chat, which asks for the location before its Flow; the
-    // assistant does not offer it, nor suggest it, in this stage.
+    // W1-A: the assistant also offers a form with a location question (asked by the user on 2026-11-11): its send asks for the
+    // location before the Flow, like a person's, and the location is never one of the questions it prefills.
     [Fact]
-    public void A_form_with_a_location_question_is_not_a_candidate_of_the_assistant()
+    public void A_form_with_a_location_question_is_a_candidate_without_proposing_the_location()
     {
-        var schema = new FormVersionSchema(1, [Question(Guid.CreateVersion7(), "shortText") with { MaxLength = 80 },
+        var text = Guid.CreateVersion7();
+        var schema = new FormVersionSchema(1, [Question(text, "shortText") with { MaxLength = 80 },
             Question(Guid.CreateVersion7(), "location") with { Required = true }]);
         var row = new FormAssistantCandidateRow(Guid.CreateVersion7(), Guid.CreateVersion7(), 1, "VIS", """{"es":"Visita"}""", """{"es":"Enviar"}""",
             "es", 2, 1, "Cuando visite un cliente", FormDraftPolicy.Serialize(schema));
 
-        Assert.True(FormAssistantCandidatePolicy.Project(row, new([], []) { Culture = "es" }).IsFailure);
+        var candidate = FormAssistantCandidatePolicy.Project(row, new([], []) { Culture = "es" });
+
+        Assert.True(candidate.IsSuccess);
+        Assert.Equal(text, Assert.Single(candidate.Value.Questions).FieldId);
     }
     private static CanonicalFormField Question(Guid id, string type) =>
         new(id, "field_" + id.ToString("N"), type, new Dictionary<string, string> { ["es"] = "Pregunta" }, null, false, null, null);

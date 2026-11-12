@@ -39,10 +39,16 @@ internal sealed class WhatsAppOutgoingSendGuard(IPhoneNumberParser phoneNumbers,
         return WhatsAppIds.Parse(phoneNumbers, contact?.WaId);
     }
 
+    private static bool IsLocationSkip(WhatsAppOutgoingMessage outgoing) =>
+        outgoing.Kind == WhatsAppOutgoingMessageKind.QuickReplies && outgoing.FlowSessionId is { } sessionId
+        && outgoing.QuickReplies is [var reply] && reply.Id == WhatsAppFlowLocationReply.Id(sessionId);
+
     private async Task<bool> ValidateAssistantContentAsync(WhatsAppOutgoingMessage outgoing, WhatsAppAssistantReferenceRow reference, CancellationToken ct)
     {
         if (outgoing.Kind == WhatsAppOutgoingMessageKind.Text) return true;
-        if (outgoing.Kind == WhatsAppOutgoingMessageKind.Flow)
+        // W1-A: a send of a form with a location opens with its request and, when optional, «Seguir sin ubicación»; they are checked
+        // like its Flow, which goes out later with another RequestId, and none of them goes out once the content has expired.
+        if (outgoing.Kind is WhatsAppOutgoingMessageKind.Flow or WhatsAppOutgoingMessageKind.LocationRequest || IsLocationSkip(outgoing))
         {
             var session = await sessions.FindDispatchAsync(outgoing.Id, ct);
             return session is not null && session.Origin == WhatsAppMessageOrigin.Assistant && session.OutgoingId == outgoing.Id

@@ -36,7 +36,9 @@ internal sealed class WhatsAppFlowSessionReader(ApplicationDbContext dbContext, 
          join session in dbContext.Set<WhatsAppFlowSession>() on outgoing.FlowSessionId equals (Guid?)session.Id
          join contact in dbContext.Set<WhatsAppContact>() on outgoing.ContactId equals contact.Id
          join binding in dbContext.Set<WhatsAppFlowBinding>() on session.BindingId equals binding.Id
-         where outgoing.Id == outgoingId && outgoing.Kind == WhatsAppOutgoingMessageKind.Flow
+         // The Flow of a send, and since W1-A also its location request and «Seguir sin ubicación», which the guard checks alike.
+         where outgoing.Id == outgoingId && (outgoing.Kind == WhatsAppOutgoingMessageKind.Flow || outgoing.Kind == WhatsAppOutgoingMessageKind.LocationRequest
+                 || outgoing.Kind == WhatsAppOutgoingMessageKind.QuickReplies)
              && outgoing.ContactId == session.ContactId && outgoing.OperatorUserId == session.OperatorUserId && outgoing.Origin == session.Origin && binding.VersionId == session.VersionId
          select new WhatsAppFormDispatchRow(outgoing.Id, session.Id, session.TokenHash, session.ContactId, contact.WaId, session.UserId, session.OperatorUserId,
              session.DefinitionId, session.VersionId, session.BindingId, session.Culture, session.ProtectedPayload, session.ExpiresAtUtc,
