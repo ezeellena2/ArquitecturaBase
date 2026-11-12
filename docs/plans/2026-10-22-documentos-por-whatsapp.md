@@ -987,10 +987,15 @@ el orden de los contratos, los topes de dependencias y de guías, los permisos d
 canal, el aviso de todo rechazo por una validación fija, los cupos fuera del global, el banco como catálogo para el tablero y quién
 adjunta documentos. El usuario lo aprobó el mismo día («Sí, arrancá»).
 
-Hechas: la tarea 1 (47d1dbec), la 15 (a1c8c8ea) y los guards del front de la tarea 5 (front 71937f06). Ajustes al programar: el
+Hechas, cada una con su revisión adversarial y su corrección: la tarea 1 (47d1dbec), la 2 (7d559160), la 3 (03cf386d), la 4
+(7d737e2e, sin la corrida real con OpenAI, que espera el visto bueno del usuario), la 5 (front 71937f06 y backend 4dc93dc4), la 6
+(front 1ab8d45f), la 11 (front 608e9ad2 y backend a80e3192), la 15 (a1c8c8ea) y la 16 (front b8e538d6). Ajustes al programar: el
 reenvío por WhatsApp de una captura rechazada pasó de la tarea 5 a la 9; «Derivar» lo arma casos del asistente y la tarea 9 lo
 llama; el tablero usa la zona del perfil de quien lee y un solo período; las cargas por un archivo no gastan los ofrecimientos
-del día.
+del día; con un documento tampoco se ofrece `forms.missing-request.propose`; la biblioteca manda lo que lee cada estándar con
+su clave; una publicación sólo en la app no chequea ni sella la lectura; un PDF se cuenta antes de abrirlo (hasta 20.000
+objetos) y PdfPig corre en un hilo propio; «Bancos y billeteras» trae sólo los bancos del registro de cheques del BCRA,
+porque la lista de proveedores de CVU no se pudo leer de una fuente oficial.
 
 ## Ubicación y contacto por WhatsApp (W3) y varias cargas desde un Excel
 
