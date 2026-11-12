@@ -12,7 +12,8 @@ using ArquitecturaBase.Domain.Results;
 namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 
 internal sealed class WhatsAppAssistantAccessPolicy(IUserReader users, IPermissionService permissions, ICurrentUser currentUser,
-    IWhatsAppFormRecipientReader recipients, WhatsAppFormActionPolicy recipientGuard, ISystemSettingsReader settings, TimeProvider clock)
+    IWhatsAppFormRecipientReader recipients, WhatsAppFormActionPolicy recipientGuard, ISystemSettingsReader settings, TimeProvider clock,
+    IWhatsAppAssistantAgentReader agents)
 {
     public async Task<Result<UserAccount>> RequireOperatorAsync(CancellationToken ct)
     {
@@ -55,7 +56,27 @@ internal sealed class WhatsAppAssistantAccessPolicy(IUserReader users, IPermissi
         if(automatic)context=context with {AllowedCapabilities=[..context.AllowedCapabilities,new("forms.catalog-filters.metadata",1),new("forms.catalog-filters.propose",1),
             new("forms.authoring.forms",1),new("forms.authoring.catalogs",1),new("forms.authoring.propose-form",1),new("forms.authoring.propose-catalog",2),
             new("forms.authoring.propose-import",1),new("forms.authoring.decline",1)]};
+        if (await agents.FindMainAsync(ct) is not null) context = WithAgent(context, automatic);
         return new WhatsAppAssistantContextResponse(context, WhatsAppFormRecipientRevision.Create(actorUserId, recipient));
+    }
+
+    /// <summary>
+    /// Casos del asistente: with a saved agent the engine preloads the agent, the form candidates and the conversation's history, so a
+    /// common turn costs a proposal and the terminal. The agent's reply replaces «No responder», a draft and the knowledge it needs come
+    /// in, and the offers come with the history, which is what a decline cites. The automatic channel closes on up to three proposals,
+    /// in order; Atención manual keeps choosing one suggestion. With a spreadsheet and a profile qualified to draft it is 16 definitions.
+    /// </summary>
+    public static AssistantChannelContext WithAgent(AssistantChannelContext context, bool automatic)
+    {
+        AssistantCapabilityReference[] preloaded = [new("whatsapp.agent", 1), new("forms.assistant-candidates", 1), new("whatsapp.agent-history", 1)];
+        AssistantCapabilityReference[] replaced = [new("whatsapp.no-reply", 1), new("whatsapp.offered-forms", 1), .. preloaded];
+        return context with
+        {
+            PreloadedCapabilities = preloaded,
+            AllowedCapabilities = [.. context.AllowedCapabilities.Where(capability => !replaced.Contains(capability)),
+                new("whatsapp.reply", 1), new("whatsapp.draft-reply", 1), new("whatsapp.agent-knowledge", 1)],
+            AllowedTerminals = [new("assistant_proposal", automatic ? 2 : 1)],
+        };
     }
 
     public static AssistantChannelContext ForCapturedRecord(AssistantChannelContext context, Guid recordId)=>context with

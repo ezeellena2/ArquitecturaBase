@@ -52,14 +52,22 @@ internal sealed class WhatsAppAssistantCapabilitySource(IWhatsAppAssistantReader
             }
             if(request.Capability.Id!=DeclineId) return WhatsAppAssistantErrors.InvalidProposal;
             var input=JsonSerializer.Deserialize<DeclineArguments>(request.ArgumentsJson,Options);
-            var read=request.ObservedReads.Where(item=>item.TurnId==request.TurnId && item.Ordinal>=1 && item.Capability==new AssistantCapabilityReference(OffersId,1))
+            var read=request.ObservedReads.Where(item=>item.TurnId==request.TurnId && item.Ordinal>=1 && ObservedOffers(item) is not null)
                 .OrderByDescending(item=>item.Ordinal).FirstOrDefault();
-            if(input is null || read?.Payload is not StructuredFormOffersPayload observed || observed.SubjectUserId!=subject || observed.Culture!=request.Context.Culture || !ValidOffers(observed)
+            if(input is null || read is null || ObservedOffers(read) is not {} observed || observed.SubjectUserId!=subject || observed.Culture!=request.Context.Culture || !ValidOffers(observed)
                 || !observed.Offers.Any(offer=>offer.RequestId==input.RequestId && offer.DefinitionId==input.DefinitionId)) return WhatsAppAssistantErrors.InvalidProposal;
             return Response(new WhatsAppAssistantDeclinePayload(read.Ordinal,input.RequestId,input.DefinitionId),1);
         }
         catch(JsonException){return WhatsAppAssistantErrors.InvalidProposal;}
     }
+
+    /// <summary>The offers a decline can cite, read in the same turn: the offered forms, or those that come with the agent's history.</summary>
+    internal static StructuredFormOffersPayload? ObservedOffers(AssistantObservedRead read) => read switch
+    {
+        { Capability: { Id: OffersId, Version: 1 }, Payload: StructuredFormOffersPayload offers } => offers,
+        { Capability: { Id: WhatsAppAssistantAgentCapabilitySource.HistoryId, Version: 1 }, Payload: WhatsAppAssistantHistoryPayload history } => history.Offers,
+        _ => null,
+    };
 
     public Result<AssistantCapabilityPayload> ParseOutput(AssistantCapabilityReference capability,string outputJson)
     {

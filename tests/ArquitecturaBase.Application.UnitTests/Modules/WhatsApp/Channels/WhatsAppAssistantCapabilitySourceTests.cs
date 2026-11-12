@@ -171,6 +171,22 @@ public sealed class WhatsAppAssistantCapabilitySourceTests
         Assert.True((await source.ExecuteAsync(request with{Context=request.Context with{SubjectUserId=Guid.NewGuid()}},TestContext.Current.CancellationToken)).IsFailure);
     }
 
+    // Casos del asistente: with the agent the offers come with its preloaded history, and a decline cites them; nothing else does.
+    [Fact]
+    public async Task A_decline_can_cite_the_offers_that_come_with_the_agents_history()
+    {
+        var offer=new StructuredFormOfferReference(Guid.NewGuid(),Guid.NewGuid(),Guid.NewGuid(),"Visita");
+        var history=new WhatsAppAssistantHistoryPayload([],[],0,20,new StructuredFormOffersPayload(Subject,"es",[offer],[]));
+        var source=new WhatsAppAssistantCapabilitySource(new FakeWhatsAppAssistantReader());
+        var json=JsonSerializer.Serialize(new{offer.RequestId,offer.DefinitionId},JsonSerializerOptions.Web);
+        var cited=await source.ExecuteAsync(Request(WhatsAppAssistantCapabilitySource.DeclineId,json,
+            [new(Turn,3,new(WhatsAppAssistantAgentCapabilitySource.HistoryId,1),history)]),TestContext.Current.CancellationToken);
+        Assert.True(cited.IsSuccess);Assert.Equal(3,Assert.IsType<WhatsAppAssistantDeclinePayload>(cited.Value.Payload).ReadOrdinal);
+        var foreign=await source.ExecuteAsync(Request(WhatsAppAssistantCapabilitySource.DeclineId,json,
+            [new(Turn,3,new(WhatsAppAssistantAgentCapabilitySource.AgentId,1),history)]),TestContext.Current.CancellationToken);
+        Assert.True(foreign.IsFailure);
+    }
+
     [Fact]
     public async Task Provider_selected_versions_or_unknown_observed_ids_are_rejected()
     {

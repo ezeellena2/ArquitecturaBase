@@ -23,6 +23,7 @@ internal sealed class WhatsAppAssistantContextFixture
     public WhatsAppContact Contact { get; } = WhatsAppContact.Create("5493413654813",null,"Fictitious assistant contact",Now.UtcDateTime);
     public IWhatsAppFormRecipientReader Recipients { get; }
     public WhatsAppAssistantAccessPolicy Policy { get; }
+    public FakeWhatsAppAssistantAgentReader Agents { get; } = new();
     public WhatsAppAssistantContextFixture()
     {
         Subject = Users.AddUser("assistant-subject@example.test",phoneNumber:"+5493413654813");
@@ -32,7 +33,7 @@ internal sealed class WhatsAppAssistantContextFixture
         Settings.Presentation = Settings.Presentation with { DefaultTimeZoneId = "America/New_York" };
         Recipients = new Recipient(this);
         Policy = new(Users,Permissions,Current,Recipients,
-            new WhatsAppFormActionPolicy(Users,new FakePhoneNumberParser(),new FakeWhatsAppAvailability(true,true),Clock),Settings,Clock);
+            new WhatsAppFormActionPolicy(Users,new FakePhoneNumberParser(),new FakeWhatsAppAvailability(true,true),Clock),Settings,Clock,Agents);
     }
     private sealed class Recipient(WhatsAppAssistantContextFixture host) : IWhatsAppFormRecipientReader
     {

@@ -2,6 +2,7 @@ using System.Text.Json;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Models.StructuredData;
+using ArquitecturaBase.Application.Modules.WhatsApp.Channels;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
@@ -72,9 +73,8 @@ internal sealed class WhatsAppAssistantSuggestionPolicy(IWhatsAppAssistantReader
             };
         if(proposal.Capability is {Id:"whatsapp.decline-form",Version:1} && proposal.Payload is WhatsAppAssistantDeclinePayload decline)
         {
-            var read=proposal.ObservedReads.SingleOrDefault(item=>item.TurnId==proposal.TurnId && item.Ordinal==decline.ReadOrdinal
-                && item.Capability==new AssistantCapabilityReference("whatsapp.offered-forms",1));
-            if(read?.Payload is not StructuredFormOffersPayload offers || offers.SubjectUserId!=reference.SubjectUserId
+            var read=proposal.ObservedReads.SingleOrDefault(item=>item.TurnId==proposal.TurnId && item.Ordinal==decline.ReadOrdinal);
+            if(read is null || WhatsAppAssistantCapabilitySource.ObservedOffers(read) is not {} offers || offers.SubjectUserId!=reference.SubjectUserId
                 || offers.Culture!=Context(reference).Culture
                 || !offers.Offers.Any(offer=>offer.RequestId==decline.RequestId && offer.DefinitionId==decline.DefinitionId))
                 return View(reference,WhatsAppAssistantRequestState.Blocked,operation);

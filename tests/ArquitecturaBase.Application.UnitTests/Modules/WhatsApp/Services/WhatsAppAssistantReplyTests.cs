@@ -82,6 +82,43 @@ public sealed class WhatsAppAssistantReplyTests
         Assert.Equal(WhatsAppAssistantRequestState.Sent, Assert.Single(arranged.Host.Requests.Rows).State);
     }
 
+    // assistant_proposal@2: the actions of one reply, in the model's order, each with its place.
+    [Fact]
+    public async Task Several_actions_of_one_reply_go_out_in_order_with_their_place()
+    {
+        var arranged = await PendingAsync();
+
+        var completed = await CompleteManyAsync(arranged,
+            (WhatsAppAssistantAgentCapabilitySource.ReplyId, new WhatsAppAssistantReplyPayload("exactText", "own", Hours, "Pregunta por el horario",
+                "Pregunta el horario.", "Un texto anterior", null, null, null)),
+            (WhatsAppAssistantAgentCapabilitySource.ReplyId, new WhatsAppAssistantReplyPayload("askButtons", "own", Question, "Quiere registrar una visita",
+                "Quiere registrar.", "¿Registrar?", [], null, null)));
+
+        Assert.True(completed.IsSuccess);
+        var outgoing = arranged.Host.Conversation.Outgoing;
+        Assert.Equal(new[] { WhatsAppOutgoingMessageKind.Text, WhatsAppOutgoingMessageKind.QuickReplies }, outgoing.Select(message => message.Kind));
+        Assert.Equal(new[] { (1, 2), (2, 2) }, outgoing.Select(message => WhatsAppAssistantReplyRecordCodec.Parse(message.AssistantReplyJson)!)
+            .Select(record => (record.Ordinal, record.Count)));
+        Assert.Equal(2, arranged.Host.Requests.Rows.Count);
+    }
+
+    // A form or a question about which form goes alone: mixed with the agent's actions, nothing of the reply goes out and it hands off.
+    [Fact]
+    public async Task A_form_mixed_with_other_actions_does_not_go_out_and_hands_off()
+    {
+        var arranged = await PendingAsync();
+
+        await CompleteManyAsync(arranged,
+            (WhatsAppAssistantAgentCapabilitySource.ReplyId, new WhatsAppAssistantReplyPayload("exactText", "own", Hours, "Pregunta por el horario",
+                "Pregunta el horario.", "Un texto anterior", null, null, null)),
+            ("forms.propose-registration", new WhatsAppAssistantNoReplyPayload("not_form")));
+
+        var outgoing = Assert.Single(arranged.Host.Conversation.Outgoing);
+        Assert.True(outgoing.IsAssistantHandoff);
+        Assert.Equal("Te paso con una persona del equipo.", outgoing.Body);
+        Assert.Equal((WhatsAppConversationMode.Manual, "replyNotAllowed"), (arranged.Host.Context.Contact.Mode, arranged.Host.Context.Contact.HandoffReasonCode));
+    }
+
     [Fact]
     public async Task No_reply_sends_nothing_and_keeps_why_for_the_chat()
     {
@@ -384,6 +421,20 @@ public sealed class WhatsAppAssistantReplyTests
             RequestId = arranged.RequestId,
             Proposal = new AssistantObservedProposal(turn, Guid.NewGuid(), new(capability, 1), payload)
                 { ObservedReads = [.. reads.Select(read => read with { TurnId = turn })] },
+            Provenance = outcome.Provenance! with { ChannelId = "whatsapp-assistant" },
+        };
+        return await arranged.Dispatch.CompleteAsync(host.Context.Contact.Id, arranged.RequestId, host.Assistant.Outcome, Ct);
+    }
+
+    private static async Task<Result> CompleteManyAsync(Arranged arranged, params (string Capability, AssistantCapabilityPayload Payload)[] selected)
+    {
+        var host = arranged.Host;
+        var outcome = host.Assistant.Outcome.Value;
+        var turn = Guid.NewGuid();
+        AssistantObservedProposal[] proposals = [.. selected.Select(item => new AssistantObservedProposal(turn, Guid.NewGuid(), new(item.Capability, 1), item.Payload))];
+        host.Assistant.Outcome = outcome with
+        {
+            RequestId = arranged.RequestId, Proposal = proposals[0], Proposals = proposals,
             Provenance = outcome.Provenance! with { ChannelId = "whatsapp-assistant" },
         };
         return await arranged.Dispatch.CompleteAsync(host.Context.Contact.Id, arranged.RequestId, host.Assistant.Outcome, Ct);

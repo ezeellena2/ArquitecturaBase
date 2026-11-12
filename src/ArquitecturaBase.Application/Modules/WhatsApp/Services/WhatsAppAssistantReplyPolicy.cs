@@ -49,14 +49,17 @@ internal sealed class WhatsAppAssistantReplyPolicy(IWhatsAppAssistantAgentReader
         return nowUtc - (startUtc < latestUtc ? startUtc : latestUtc) < BurstLimit;
     }
 
-    /// <summary>Whether the operation answers with the agent's proposals (a text, buttons, a handoff, «No responder» or a draft).</summary>
+    /// <summary>
+    /// Whether the operation answers with the agent's proposals (a text, buttons, a handoff, «No responder» or a draft). Several
+    /// proposals are a reply too: a form goes alone, so a reply that mixes one with others does not pass and hands off.
+    /// </summary>
     public static bool Handles(AssistantOperationResponse operation) =>
-        operation.State == "completed" && Proposals(operation).Any(IsAgent);
+        operation.State == "completed" && (Proposals(operation).Any(IsAgent) || Proposals(operation).Count > 1);
 
     public static bool IsAgent(AssistantObservedProposal proposal) => proposal.Capability == Reply || proposal.Capability == Draft;
 
     public static IReadOnlyList<AssistantObservedProposal> Proposals(AssistantOperationResponse operation) =>
-        operation.Proposal is { } proposal ? [proposal] : [];
+        operation.Proposals.Count != 0 ? operation.Proposals : operation.Proposal is { } proposal ? [proposal] : [];
 
     /// <summary>
     /// The actions of the agent's proposals, checked against the agent as it is saved now, in their order; or the code of what did
@@ -106,10 +109,11 @@ internal sealed class WhatsAppAssistantReplyPolicy(IWhatsAppAssistantAgentReader
     {
         var proposals = Proposals(operation);
         if (reference.Kind != WhatsAppAssistantRequestKind.Automatic || operation.RequestId != reference.RequestId || operation.Provenance is null
-            || proposals.Count is 0 or > WhatsAppAssistantRequest.MaxActions
-            || proposals.Any(proposal => proposal.Capability != Reply && proposal.Capability != Draft)) return WhatsAppAssistantErrors.InvalidProposal;
+            || proposals.Count is 0 or > WhatsAppAssistantRequest.MaxActions) return WhatsAppAssistantErrors.InvalidProposal;
         if (await agents.FindMainAsync(ct) is not { } agent) return WhatsAppAssistantErrors.Unavailable;
         var context = WhatsAppAssistantSuggestionPolicy.Context(reference);
+        // A form or a question about which form goes alone: mixed with other actions, nothing of the reply goes out and it hands off.
+        if (proposals.Any(proposal => !IsAgent(proposal))) return HandOff(proposals.FirstOrDefault(IsAgent) ?? proposals[0], agent, context.Culture, "replyNotAllowed");
         var (steps, failure) = Check(proposals, agent, context.Culture);
         var replies = Replies(steps);
         if (failure is null && replies > 0)

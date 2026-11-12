@@ -17,11 +17,17 @@ internal sealed class WhatsAppAssistantAgentTestPolicy(IWhatsAppFormRecipientRea
 {
     public const string ChannelId = "whatsapp-assistant-test";
 
+    // As in a conversation with the agent: the engine preloads the agent, the form candidates and the history, and the test closes on
+    // up to three proposals.
+    private static readonly AssistantCapabilityReference[] Preloaded =
+    [
+        new(WhatsAppAssistantAgentCapabilitySource.AgentId, 1), new("forms.assistant-candidates", 1), new(WhatsAppAssistantAgentCapabilitySource.HistoryId, 1),
+    ];
+
     private static readonly AssistantCapabilityReference[] Capabilities =
     [
-        new(WhatsAppAssistantAgentCapabilitySource.AgentId, 1), new(WhatsAppAssistantAgentCapabilitySource.KnowledgeId, 1),
-        new(WhatsAppAssistantAgentCapabilitySource.HistoryId, 1), new("forms.assistant-candidates", 1), new("forms.propose-registration", 1),
-        new("forms.clarify-registration", 1), new(WhatsAppAssistantAgentCapabilitySource.ReplyId, 1), new(WhatsAppAssistantAgentCapabilitySource.DraftId, 1),
+        new(WhatsAppAssistantAgentCapabilitySource.KnowledgeId, 1), new("forms.propose-registration", 1), new("forms.clarify-registration", 1),
+        new(WhatsAppAssistantAgentCapabilitySource.ReplyId, 1), new(WhatsAppAssistantAgentCapabilitySource.DraftId, 1),
     ];
 
     /// <summary>The tester is the Actor and the chosen account the Subject; the conversation is that account's chat.</summary>
@@ -32,8 +38,8 @@ internal sealed class WhatsAppAssistantAgentTestPolicy(IWhatsAppFormRecipientRea
         var presentation = await settings.FindPresentationAsync(ct);
         if (!TimeZoneInfo.TryFindSystemTimeZoneById(presentation.DefaultTimeZoneId, out _)) return WhatsAppAssistantErrors.Unavailable;
         return new AssistantChannelContext(ChannelId, actorUserId, subject, recipient.Culture, presentation.DefaultTimeZoneId,
-            new([WhatsAppPermissions.ConfigureAssistant], []), Capabilities, [new("assistant_proposal", 1)])
-        { InteractionMode = AssistantInteractionMode.Assistant, ChannelConversationId = contactId };
+            new([WhatsAppPermissions.ConfigureAssistant], []), Capabilities, [new("assistant_proposal", 2)])
+        { InteractionMode = AssistantInteractionMode.Assistant, ChannelConversationId = contactId, PreloadedCapabilities = Preloaded };
     }
 
     /// <summary>
@@ -45,20 +51,15 @@ internal sealed class WhatsAppAssistantAgentTestPolicy(IWhatsAppFormRecipientRea
     {
         var proposals = WhatsAppAssistantReplyPolicy.Proposals(operation);
         if (proposals.Count == 0) return [];
-        var own = proposals.Where(WhatsAppAssistantReplyPolicy.IsAgent).ToArray();
-        var (steps, failure) = WhatsAppAssistantReplyPolicy.Check(own, agent, context.Culture);
-        if (failure is null && own.Length < proposals.Count
-            && steps.Any(step => step.Record.Kind is WhatsAppAssistantActionKind.Handoff or WhatsAppAssistantActionKind.NoReply)) failure = "replyNotAllowed";
-        if (failure is not null) return [.. WhatsAppAssistantReplyPolicy.HandOff(proposals[0], agent, context.Culture, failure).Steps.Select(Action)];
-        var actions = new List<WhatsAppAssistantAgentTestAction>();
-        var next = 0;
-        foreach (var proposal in proposals)
-        {
-            if (WhatsAppAssistantReplyPolicy.IsAgent(proposal)) actions.Add(Action(steps[next++]));
-            else if (await FormAsync(proposal, context, ct) is { } form) actions.Add(form);
-        }
-
-        return actions;
+        // A form or a question about which form goes alone, as in a conversation; mixed with other actions it hands off.
+        if (proposals is [var single] && !WhatsAppAssistantReplyPolicy.IsAgent(single))
+            return await FormAsync(single, context, ct) is { } form ? [form] : [];
+        var (steps, failure) = proposals.All(WhatsAppAssistantReplyPolicy.IsAgent)
+            ? WhatsAppAssistantReplyPolicy.Check(proposals, agent, context.Culture) : ([], "replyNotAllowed");
+        if (failure is not null)
+            return [.. WhatsAppAssistantReplyPolicy.HandOff(proposals.FirstOrDefault(WhatsAppAssistantReplyPolicy.IsAgent) ?? proposals[0], agent,
+                context.Culture, failure).Steps.Select(Action)];
+        return [.. steps.Select(Action)];
     }
 
     private async Task<WhatsAppAssistantAgentTestAction?> FormAsync(AssistantObservedProposal proposal, AssistantChannelContext context, CancellationToken ct)

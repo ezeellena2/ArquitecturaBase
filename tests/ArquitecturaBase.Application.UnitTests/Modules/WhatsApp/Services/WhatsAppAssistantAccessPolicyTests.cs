@@ -69,6 +69,40 @@ public sealed class WhatsAppAssistantAccessPolicyTests
         Assert.Equal(16,context.AllowedCapabilities.Count+context.AllowedTerminals.Count);
         Assert.Equal(context.AllowedCapabilities.Count,context.AllowedCapabilities.Select(capability=>capability.Id).Distinct(StringComparer.Ordinal).Count());
     }
+    // Casos del asistente: with a saved agent the engine preloads the agent, the form candidates and the history; the agent's reply
+    // replaces «No responder», the offers come with the history and the automatic channel closes on up to three proposals.
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task With_an_agent_the_engine_preloads_its_reads_and_the_reply_replaces_no_reply(bool automatic)
+    {
+        var h = new WhatsAppAssistantContextFixture();
+        h.Agents.Agent = new(1, "es", new("Asistente", "", "", "", "", new("Te paso con una persona.", null)), [],
+            new(WhatsAppAssistantActionKind.NoReply), WhatsAppAssistantAgentLimits.DefaultLimits);
+        if (automatic) h.Contact.ChangeMode(WhatsAppConversationMode.Assistant);
+        var context = (await h.Policy.CaptureAsync(h.Contact, automatic ? null : h.Operator.Id, Ct)).Value.Context;
+        Assert.Equal(new AssistantCapabilityReference[] { new("whatsapp.agent", 1), new("forms.assistant-candidates", 1), new("whatsapp.agent-history", 1) },
+            context.PreloadedCapabilities);
+        Assert.DoesNotContain(context.AllowedCapabilities, capability => capability.Id is "whatsapp.no-reply" or "whatsapp.offered-forms"
+            or "forms.assistant-candidates" or "whatsapp.agent" or "whatsapp.agent-history");
+        foreach (var id in new[] { "whatsapp.reply", "whatsapp.draft-reply", "whatsapp.agent-knowledge", "whatsapp.decline-form", "forms.propose-registration" })
+            Assert.Contains(new AssistantCapabilityReference(id, 1), context.AllowedCapabilities);
+        Assert.Equal(new[] { new AssistantTerminalReference("assistant_proposal", automatic ? 2 : 1) }, context.AllowedTerminals);
+        // With a spreadsheet (the import) and a profile qualified to draft, the automatic channel reaches the cap of sixteen definitions.
+        Assert.Equal(automatic ? 16 : 8, context.AllowedCapabilities.Count + context.AllowedTerminals.Count);
+    }
+
+    [Fact]
+    public async Task Without_an_agent_the_contexts_are_the_ones_of_before()
+    {
+        var h = new WhatsAppAssistantContextFixture();
+        h.Contact.ChangeMode(WhatsAppConversationMode.Assistant);
+        var context = (await h.Policy.CaptureAsync(h.Contact, null, Ct)).Value.Context;
+        Assert.Null(context.PreloadedCapabilities);
+        Assert.Contains(new AssistantCapabilityReference("whatsapp.no-reply", 1), context.AllowedCapabilities);
+        Assert.Equal(new[] { new AssistantTerminalReference("assistant_proposal", 1) }, context.AllowedTerminals);
+    }
+
     [Fact]
     public async Task Only_a_captured_response_context_offers_C4_and_fixes_the_exact_source()
     {
