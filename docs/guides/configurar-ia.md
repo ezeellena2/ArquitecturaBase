@@ -367,7 +367,7 @@ La mediana local por caso fue de 10,29 s en `ia-spreadsheets`, 10,23 s en `ia-au
 
 `home-existing`, `audio-es-en` y `stage5-all` no se repitieron, porque sus capacidades, esquemas e instrucciones no cambiaron. El primer intento (`ia2_spreadsheets_20261111_01`) se cortó al sembrar el catálogo de importar, antes de llamar al proveedor, por una falla del arnés corregida en `51db5a59`, y no cuenta. El alcance sigue siendo `fixture-facts-checked-in-memory; style/free-text-not-exhaustively-assessed`.
 
-Desde la tarea 12 de [documentos](../features/formularios.md#la-ia-arma-formularios-con-un-documento--etapa-3-propose-form2-2026-11-12) (2026-11-12), el asistente automático de WhatsApp ofrece `forms.authoring.propose-form@2`, con otro esquema, en lugar de la 1. La evidencia real de `ia-authoring` (su mitad automática), de `ia-spreadsheets` y de `channel-dictation` se tomó con la 1 y ya no la cubre: esos sets se repiten con la 2, con el visto bueno del usuario. `channel-stage5` no cambia; desde la tarea 13 Inicio también ofrece la 2, así que su mitad de `ia-authoring` y de `ia-spreadsheets`, tomada con la 1, también se repite con la 2, con el visto bueno del usuario.
+Desde la tarea 12 de [documentos](../features/formularios.md#la-ia-arma-formularios-con-un-documento--etapa-3-propose-form2-2026-11-12) (2026-11-12), el asistente automático de WhatsApp ofrece `forms.authoring.propose-form@2`, con otro esquema, en lugar de la 1. La evidencia real de `ia-authoring` (su mitad automática), de `ia-spreadsheets` y de `channel-dictation` se tomó con la 1 y ya no la cubre: esos sets se repiten con la 2, con el visto bueno del usuario. `channel-stage5` no cambia; desde la tarea 13 Inicio también ofrece la 2, así que su mitad de `ia-authoring` y de `ia-spreadsheets`, tomada con la 1, se repitió con la 2 el 2026-11-12, junto con `home-documents` (más abajo).
 
 El `2026-11-12` se calificó la [lectura de documentos](../features/inteligencia-artificial.md#lectura-de-documentos-en-el-mismo-motor--2026-11-11)
 con la misma conexión guardada, desde una copia limpia de `093f184f`: `doc_reading_20261112_02` (`document-reading`) leyó con
@@ -407,6 +407,28 @@ Ese mismo día se declaró en la instalación local como `ModelProfiles:1`, con 
 (la 1) para los turnos ya sellados. Con la configuración real de la Api, `AiAssistantOptions.IsValid()` la acepta y un turno nuevo
 sella la 2; el redactado aparece al reiniciar la Api. Cada instalación lo declara por su cuenta, y el arnés no lo hace. El alcance
 sigue siendo `fixture-facts-checked-in-memory; style/free-text-not-exhaustively-assessed`.
+
+El `2026-11-12` se calificó armar un formulario con un documento en Inicio ([formularios](../features/formularios.md#la-ia-arma-formularios-con-un-documento--etapa-3-propose-form2-2026-11-12)), con la misma conexión guardada, desde una copia limpia de `e70542a3`. Desde la tarea 13, Inicio ofrece `forms.authoring.propose-form@2`. Cada foto o PDF se subió por el servicio real de documentos de Inicio y se leyó en `home-document` con `openai-document-candidate@1`; los turnos usaron `gpt-6.1-sol-candidate-1@1` y `home-system@2`. Fueron tres corridas, cada una con su base vacía:
+
+| Corrida | Resultado |
+| --- | --- |
+| `ia3_home_documents_20261112_02` (`home-documents`) | 16/16 turnos con documento y 12/12 lecturas; 676/676 checks. |
+| `ia3_home_authoring_20261112_01` (`home-authoring`) | 24/24 casos de Inicio y 4/4 dictados; 528/528 checks. |
+| `ia3_home_spreadsheets_20261112_01` (`home-spreadsheets`) | 18/18 casos con planillas y 2/2 dictados; 538/538 checks. |
+
+Entre las tres sumaron 206 pasos de proveedor, 130 invocaciones de herramientas, 609.771 tokens de entrada y 18.001 de salida; los dictados informaron 64 segundos de audio. Los máximos fueron:
+- contexto: 33.531 bytes, con la lectura del documento en el mensaje;
+- continuación: 19.997 bytes;
+- herramientas: 4.326 bytes;
+- por caso: cuatro pasos y tres invocaciones.
+
+La mediana local por caso fue de 11,30 s en `home-documents`, 12,23 s en `home-authoring` y 10,29 s en `home-spreadsheets`, y el caso más largo tardó 22,44 s. Pasaron los puntos a mirar:
+- cada lectura de Inicio cumplió lo que `document-reading` espera del mismo archivo;
+- el formulario prendió la lectura con los comprobantes y la dejó apagada con la planilla en papel;
+- «Cómo reconocerlo» no copió números, nombres ni la orden escondida, y cada muestra quedó como en el documento;
+- un documento sin texto pregunta qué hacer.
+
+El primer intento (`ia3_home_documents_20261112_01`) pasó los dos comprobantes y se cortó en la planilla en papel por un falso fallo del oráculo: pedía la etiqueta exacta de cada columna y el modelo repitió la tabla por renglón, con su número (`e70542a3`). No cuenta. El alcance sigue siendo `fixture-facts-checked-in-memory; style/free-text-not-exhaustively-assessed`.
 
 Para otra calificación, ejecutá el [arnés](../../harnesses/assistant-qualification/README.md)
 con fixtures ficticios y presupuesto controlado. Detenelo ante el primer check fallido. Conservá
