@@ -101,7 +101,7 @@ reemplazada por su corrección, o anulada.
   - Cancelar y Enviar van en la banda; en el celular, Enviar queda fijo al pie.
   - Valida al enviar: cada error aparece en su pregunta y el foco va a la primera con error.
   - Salir con algo cargado pide confirmación.
-  - Mientras sube, el botón dice «Enviando… 64 %».
+  - Mientras sube, el botón dice «Enviando… 64%».
 - **Las listas de catálogo** (CW3) buscan en el servidor y muestran el total, la descripción de cada opción y «Mostrar 50 más». En
   el celular ocupan la pantalla entera.
 - **Las fotos** (CW4) se arrastran o se eligen, con un contador. Tipo, tamaño y cantidad se revisan antes de enviar. En el celular,

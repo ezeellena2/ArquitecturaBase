@@ -123,7 +123,7 @@ public sealed class FormIssueActionServiceTests
             Amounts =
             [
                 new(new Dictionary<string, string> { ["es"] = "Importe neto gravado", ["en"] = "Taxed net amount" }, "1000"),
-                new(new Dictionary<string, string> { ["es"] = "IVA 21 %", ["en"] = "VAT 21%" }, "210"),
+                new(new Dictionary<string, string> { ["es"] = "IVA 21%", ["en"] = "VAT 21%" }, "210"),
             ],
         };
 

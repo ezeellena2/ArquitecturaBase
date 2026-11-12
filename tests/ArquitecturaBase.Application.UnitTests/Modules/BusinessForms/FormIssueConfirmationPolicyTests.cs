@@ -17,10 +17,10 @@ public sealed class FormIssueConfirmationPolicyTests
         var preview = new StructuredIssuePreview(Text("Factura A", "Invoice A"), "Agro del Sur S.A.", "1210")
         {
             Date = new DateOnly(2026, 11, 9),
-            Amounts = [new(Text("Importe neto gravado", "Taxed net amount"), "1000"), new(Text("IVA 21 %", "VAT 21%"), "210")],
+            Amounts = [new(Text("Importe neto gravado", "Taxed net amount"), "1000"), new(Text("IVA 21%", "VAT 21%"), "210")],
         };
 
-        Assert.Equal("Factura A para Agro del Sur S.A. por $ 1.210,00 (Importe neto gravado: $ 1.000,00; IVA 21 %: $ 210,00), con fecha 09/11/2026.\n¿La emito?",
+        Assert.Equal("Factura A para Agro del Sur S.A. por $ 1.210,00 (Importe neto gravado: $ 1.000,00; IVA 21%: $ 210,00), con fecha 09/11/2026.\n¿La emito?",
             FormIssueConfirmationPolicy.Body(preview, "es"));
         Assert.Equal("Invoice A for Agro del Sur S.A., $ 1,210.00 (Taxed net amount: $ 1,000.00; VAT 21%: $ 210.00), dated 11/09/2026.\nShall I issue it?",
             FormIssueConfirmationPolicy.Body(preview, "en"));

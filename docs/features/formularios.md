@@ -1122,7 +1122,7 @@ ARCA» ([ADR 0028](../decisions/0028-emision-de-comprobantes-arca.md)); sin emis
 - **«¿La emito?» (EM2-A).** Una respuesta que llegó por un canal no se emite sin que quien la cargó la confirme. Antes de
   encolar, el run pide al emisor la vista previa (`PreviewAsync`: el comprobante que decidió, el receptor y el total, sin guardar
   nada, con el porqué, la fecha y los importes que discrimina). Si se puede, le manda a quien cargó «Factura C para … por $ …, con fecha ….», con los importes que discrimina entre
-  paréntesis después del total (IV3: «por $ 1.210,00 (Importe neto gravado: $ 1.000,00; IVA 21 %: $ 210,00)»), y «¿La emito?», con los botones «Emitir» y «No emitir» (`Choices` del mensaje, por el primer canal que lo alcanza)
+  paréntesis después del total (IV3: «por $ 1.210,00 (Importe neto gravado: $ 1.000,00; IVA 21%: $ 210,00)»), y «¿La emito?», con los botones «Emitir» y «No emitir» (`Choices` del mensaje, por el primer canal que lo alcanza)
   y queda `Uncertain` con `Forms.Action.AwaitingConfirmation`. El flujo trae `confirmation` (el run, el comprobante, el
   receptor, el total, `info`, `date` y `amounts`) sólo para quien la cargó, y `POST api/forms/records/{id}/actions/{runId}/confirmation` con
   `{"issue": true}` la emite o con `false` anula la respuesta con el motivo «No se emitió» (guardado como el código

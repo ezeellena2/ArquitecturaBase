@@ -21,7 +21,7 @@ public sealed class FormIssueContractTests
         var confirmation = new FormIssueConfirmationResponse(Guid.NewGuid(), Text("Factura A", "Invoice A"), "Agro del Sur S.A.", "1210")
         {
             Date = Day,
-            Amounts = [new(Text("IVA 21 %", "VAT 21%"), "210")],
+            Amounts = [new(Text("IVA 21%", "VAT 21%"), "210")],
         };
         var workflow = new FormWorkflowResponse(Guid.NewGuid(), "Received", null, null, [], []) { Confirmation = confirmation };
         var preview = new FormIssuePreviewResponse(Text("Factura A", "Invoice A"), "Agro del Sur S.A.", "1210") { Date = Day };
