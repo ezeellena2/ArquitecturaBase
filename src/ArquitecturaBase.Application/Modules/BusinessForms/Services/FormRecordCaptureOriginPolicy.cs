@@ -8,8 +8,23 @@ using ArquitecturaBase.Domain.Results;
 
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
-internal sealed class FormRecordCaptureOriginPolicy(IFormResponseReader responses, IFormSuggestionRepository suggestions)
+internal sealed class FormRecordCaptureOriginPolicy(IFormResponseReader responses, IFormSuggestionRepository suggestions,
+    IFormReceivedDocumentRepository documents, FormReceivedDocumentRecorder recorder, TimeProvider clock)
 {
+    /// <summary>
+    /// The received document the response came from, confirmed with its record in the capture's commit and its step recorded, with the
+    /// reviewer who passed it when there is one. It was checked proposed and of the same person under its lock: failing here is a bug.
+    /// </summary>
+    public void ConfirmDocument(ArquitecturaBase.Domain.Modules.BusinessForms.Documents.FormReceivedDocument document, Guid recordId, Guid definitionId,
+        Guid versionId, Guid? reviewerUserId, string recordNumber)
+    {
+        var confirmed = document.Confirm(recordId, definitionId, versionId, reviewerUserId, clock.GetUtcNow().UtcDateTime);
+        if (confirmed.IsFailure) throw new InvalidOperationException("The received document checked under its lock could not be confirmed: " + confirmed.Error.Code);
+        var recorded = recorder.Record(document.Id, ArquitecturaBase.Domain.Modules.BusinessForms.Documents.FormReceivedDocumentEventKind.Confirmed,
+            reviewerUserId, recordNumber);
+        if (recorded.IsFailure) throw new InvalidOperationException("The confirmation of a received document could not be recorded: " + recorded.Error.Code);
+    }
+
     public async Task<Result<FormRecordCaptureOriginPreparation?>> ValidateAsync(StructuredRecordCaptureRequest request,
         FormVersionSchema schema, CancellationToken ct)
     {
@@ -59,7 +74,23 @@ internal sealed class FormRecordCaptureOriginPolicy(IFormResponseReader response
         }
         else if (origin.SenderKind == StructuredRecordSenderKind.Assistant && origin.Proposal is null)
             return FormRecordErrors.InvalidResponse;
-        return new FormRecordCaptureOriginPreparation(captured, changed, choices);
+        // Task 7: the received document it came from, under its lock (the last one taken), still proposed for this form and of whoever
+        // answers; a reviewer passes it with the revision they saw and never while its person can still complete it.
+        ArquitecturaBase.Domain.Modules.BusinessForms.Documents.FormReceivedDocument? document = null;
+        if (origin.Document is { } documentId)
+        {
+            await documents.LockAsync(documentId, ct);
+            document = await documents.GetAsync(documentId, ct);
+            if (document is not { State: ArquitecturaBase.Domain.Modules.BusinessForms.Documents.FormReceivedDocumentState.Proposed }
+                || document.SenderUserId != request.ActorUserId || document.DefinitionId != request.DefinitionId)
+                return FormReceivedDocumentErrors.StateConflict;
+            if (origin.DocumentRevision is { } revision)
+            {
+                if (document.Revision != revision) return FormReceivedDocumentErrors.RevisionConflict;
+                if (!document.IsForReview(clock.GetUtcNow().UtcDateTime)) return FormReceivedDocumentErrors.AwaitingSender;
+            }
+        }
+        return new FormRecordCaptureOriginPreparation(captured, changed, choices) { Document = document };
     }
 
     private async Task<bool> ValidLineageAsync(StructuredRecordCaptureRequest request, StructuredRecordCaptureOrigin origin,

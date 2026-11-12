@@ -62,6 +62,11 @@ internal sealed class FormEntryVersionPolicy(IFormEntryReader reader, FormEntryC
 
     // The menu language when the version is complete in it; the original otherwise.
     public Task<string> CultureAsync(Guid definitionId, FormEntryVersionRow version, FormVersionSchema schema, CancellationToken cancellationToken) =>
-        presentation.CultureAsync(definitionId, version.Culture, CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es",
-            version.NameJson, version.SubmitLabelJson, schema, cancellationToken);
+        CultureAsync(definitionId, version, schema, CultureInfo.CurrentUICulture.TwoLetterISOLanguageName, cancellationToken);
+
+    // The same for a response loaded in the name of someone else, in their account's language (a received document passed by a reviewer).
+    public Task<string> CultureAsync(Guid definitionId, FormEntryVersionRow version, FormVersionSchema schema, string culture,
+        CancellationToken cancellationToken) =>
+        presentation.CultureAsync(definitionId, version.Culture, culture == "en" ? "en" : "es", version.NameJson, version.SubmitLabelJson, schema,
+            cancellationToken);
 }

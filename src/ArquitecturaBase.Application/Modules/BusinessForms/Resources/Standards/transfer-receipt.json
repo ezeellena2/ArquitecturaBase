@@ -279,6 +279,10 @@
     ],
     "currencies": {
       "amount": "currency"
+    },
+    "banks": {
+      "sourceAccount": "sourceBank",
+      "destinationAccount": "destinationBank"
     }
   }
 }

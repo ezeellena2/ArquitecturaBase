@@ -397,6 +397,42 @@
   <data name="Forms.MissingRequest.NotFound" xml:space="preserve">
     <value>No encontramos ese tema.</value>
   </data>
+  <data name="Forms.ReceivedDocument.NotFound" xml:space="preserve">
+    <value>No encontramos ese documento.</value>
+  </data>
+  <data name="Forms.ReceivedDocument.ContentInvalid" xml:space="preserve">
+    <value>El pedido sobre el documento no es válido.</value>
+  </data>
+  <data name="Forms.ReceivedDocument.RevisionConflict" xml:space="preserve">
+    <value>El documento cambió. Recargalo y probá de nuevo.</value>
+  </data>
+  <data name="Forms.ReceivedDocument.StateConflict" xml:space="preserve">
+    <value>El documento ya no está para eso. Recargalo para ver cómo quedó.</value>
+  </data>
+  <data name="Forms.ReceivedDocument.ReadingUnavailable" xml:space="preserve">
+    <value>Este documento no tiene una lectura para volver a usar.</value>
+  </data>
+  <data name="Forms.ReceivedDocument.FormUnavailable" xml:space="preserve">
+    <value>Ese formulario no está publicado y activo.</value>
+  </data>
+  <data name="Forms.ReceivedDocument.SenderInactive" xml:space="preserve">
+    <value>Quien mandó el documento ya no está activo.</value>
+  </data>
+  <data name="Forms.ReceivedDocument.ExtractionNotFound" xml:space="preserve">
+    <value>No encontramos esa lectura para otro formulario. Recargá el documento.</value>
+  </data>
+  <data name="Forms.ReceivedDocument.FileUnavailable" xml:space="preserve">
+    <value>No pudimos abrir el archivo del documento. Probá de nuevo más tarde.</value>
+  </data>
+  <data name="Forms.ReceivedDocument.AwaitingSender" xml:space="preserve">
+    <value>Quien lo mandó todavía puede completarlo por su canal. Esperá a que venza su respuesta.</value>
+  </data>
+  <data name="Forms.ReceivedDocument.RequestConflict" xml:space="preserve">
+    <value>Ese pedido ya se usó con otros datos.</value>
+  </data>
+  <data name="Forms.ReceivedDocument.ExtractionUnavailable" xml:space="preserve">
+    <value>No pudimos leer el documento para otro formulario. Probá de nuevo en un rato.</value>
+  </data>
   <data name="Forms.Definition.DeactivationUnavailable" xml:space="preserve">
     <value>Solo podés dar de baja un formulario publicado que esté activo.</value>
   </data>

@@ -29,30 +29,9 @@ internal sealed class FormMissingRequestService(IFormMissingRequestRepository re
             await repository.LockAsync(inner);
             var current = await CheckCaptureAsync(request,inner);
             if (current.IsFailure) return current.Error;
-            if (await repository.GetRequestAsync(request.SourceReceiptId,inner) is { } prior)
-                return prior.SubjectUserId == request.Context.SubjectUserId && prior.RequestedAtUtc == request.RequestedAtUtc
-                    ? new StructuredMissingFormRequestCaptureResponse(prior.Id,prior.TopicId,true) : FormMissingRequestErrors.ContentInvalid;
             var value = proposal.Value;
-            var topic = value.ExistingTopicId is { } id ? await repository.GetAsync(id,inner)
-                : await repository.GetByNameAsync(BusinessFormMissingTopic.NormalizeName(value.Name!),inner);
-            if (value.ExistingTopicId.HasValue && topic is null) return FormMissingRequestErrors.ContentInvalid;
-            var isNew = topic is null;
-            if (topic is null)
-            {
-                var created = BusinessFormMissingTopic.Create(value.Name!,value.Description!,request.Context.Culture);
-                if (created.IsFailure) return created.Error;
-                topic = created.Value;
-            }
-            else
-            {
-                var registered = topic.RegisterRequest();
-                if (registered.IsFailure) return registered.Error;
-            }
-            var captured = BusinessFormMissingRequest.Create(request.SourceReceiptId,topic.Id,request.Context.SubjectUserId!.Value,request.RequestedAtUtc);
-            if (captured.IsFailure) return captured.Error;
-            if (isNew) repository.Add(topic);
-            repository.Add(captured.Value);
-            return new StructuredMissingFormRequestCaptureResponse(captured.Value.Id,topic.Id,false);
+            return await FormMissingRequestRecorder.RecordAsync(repository,request.SourceReceiptId,value.ExistingTopicId,value.Name,value.Description,
+                request.Context.Culture,request.Context.SubjectUserId!.Value,request.RequestedAtUtc,inner);
         },CommitPolicy.OnSuccess,ct);
     }
 

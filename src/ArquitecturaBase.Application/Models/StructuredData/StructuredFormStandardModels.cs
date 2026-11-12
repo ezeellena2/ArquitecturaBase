@@ -20,9 +20,12 @@ public sealed record StructuredFormStandard(string Key, int Version, IReadOnlyDi
 }
 // DOC1: how a copy reads documents. Recognition («Cómo reconocerlo») and Summary (what WhatsApp says on receiving one, with the data
 // it names by their key in braces, «{amount}») go by language; DuplicateKeys are the data that, all equal, mark a repeated
-// document; Currencies give, for an amount datum, the datum of its currency.
+// document; Currencies give, for an amount datum, the datum of its currency; Banks (task 7), for an account datum, the datum of its bank
+// or wallet, which the server fills from the account's entity code when the account passes; omitted without one.
 public sealed record StructuredFormStandardReading(IReadOnlyDictionary<string, string> Recognition, IReadOnlyDictionary<string, string> Summary,
-    IReadOnlyList<string> DuplicateKeys, IReadOnlyDictionary<string, string> Currencies)
+    IReadOnlyList<string> DuplicateKeys, IReadOnlyDictionary<string, string> Currencies,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    IReadOnlyDictionary<string, string>? Banks = null)
 {
     public override string ToString() => "StructuredFormStandardReading { Content = [REDACTED] }";
 }

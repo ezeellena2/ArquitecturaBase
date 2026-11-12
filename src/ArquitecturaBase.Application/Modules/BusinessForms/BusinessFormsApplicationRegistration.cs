@@ -113,6 +113,27 @@ public static class BusinessFormsApplicationRegistration
         services.TryAddScoped<FormLibraryOfferPolicy>();
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IStructuredFormStandardSource, BusinessFormStandardSource>());
         services.TryAddScoped<IFormDocumentReadingStatsService, FormDocumentReadingStatsService>();
+        // Task 7: the documents capabilities and the inbox «Documentos recibidos», with its port for channels, origin and retention.
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IAssistantCapabilitySource, BusinessFormDocumentAssistantCapabilitySource>());
+        services.Replace(ServiceDescriptor.Scoped<IStructuredDocumentChannel, FormReceivedDocumentChannelService>());
+        services.TryAddScoped<IFormReceivedDocumentChannelService, FormReceivedDocumentChannelService>();
+        services.TryAddScoped<IFormReceivedDocumentService, FormReceivedDocumentService>();
+        services.TryAddScoped<IFormReceivedDocumentExtractionService, FormReceivedDocumentExtractionService>();
+        services.TryAddScoped<IFormReceivedDocumentRecordService, FormReceivedDocumentRecordService>();
+        services.TryAddScoped<IFormReceivedDocumentRetentionService, FormReceivedDocumentRetentionService>();
+        services.TryAddScoped<FormDocumentProposalPolicy>();
+        services.TryAddScoped<FormReceivedDocumentAccessGuard>();
+        services.TryAddScoped<FormReceivedDocumentCopyPolicy>();
+        services.TryAddScoped<FormReceivedDocumentContentPolicy>();
+        services.TryAddScoped<FormReceivedDocumentRecorder>();
+        services.TryAddScoped<FormReceivedDocumentReplyPolicy>();
+        services.TryAddScoped<FormReceivedDocumentSendPolicy>();
+        services.TryAddScoped<FormReceivedDocumentPresentationPolicy>();
+        services.TryAddScoped<FormReceivedDocumentExtractionPolicy>();
+        services.TryAddScoped<FormReceivedDocumentCapturePolicy>();
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IValidator<ListFormReceivedDocumentsRequest>, ListFormReceivedDocumentsRequestValidator>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IStructuredRecordOriginSource, BusinessFormDocumentOriginSource>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IPrivateFileRetentionSource, FormReceivedDocumentRetentionSource>());
         services.TryAddScoped<IFormFolderService, FormFolderService>();
         services.TryAddScoped<IFormFolderItemService, FormFolderItemService>();
         services.TryAddScoped<IFormMenuService, FormMenuService>();

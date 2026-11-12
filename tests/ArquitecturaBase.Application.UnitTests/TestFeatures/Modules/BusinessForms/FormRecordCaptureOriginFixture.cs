@@ -20,7 +20,7 @@ internal sealed class FormRecordCaptureOriginFixture
         Capture=new(type,false);
         Schema=FormDraftPolicy.Read<FormVersionSchema>(Capture.Version.SchemaJson);
         Request=Capture.Request(new Dictionary<string,string>{{Capture.Key,final??proposed}});
-        Policy=new(Responses,Suggestions);
+        Policy=new(Responses,Suggestions,Capture.Documents,Capture.Documents.Recorder(),Capture.Documents.Clock);
     }
     public StructuredRecordCaptureOrigin Assistant(string? value=null)=>new(StructuredRecordSenderKind.Assistant,null,"Reconoció una visita",
         new(Guid.NewGuid(),"forms.propose-registration",1,new AssistantOperationProvenance("test-profile",1,"test-instructions",1,new DateTime(2026,10,17,12,0,0,DateTimeKind.Utc),"whatsapp-assistant")),

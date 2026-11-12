@@ -63,6 +63,9 @@ public sealed class FormTransferReceiptStandardTests
         Assert.Equal(["operationNumber", "amount", "date"], reading.DuplicateKeys);
         Assert.Equal(new Dictionary<string, string> { ["amount"] = "currency" }, reading.Currencies);
         Assert.Subset(data, reading.DuplicateKeys.Concat(reading.Currencies.Keys).Concat(reading.Currencies.Values).ToHashSet(StringComparer.Ordinal));
+        // Task 7: each account names the datum of its bank or wallet, which the inbox fills from the account's entity code.
+        Assert.Equal(new Dictionary<string, string> { ["sourceAccount"] = "sourceBank", ["destinationAccount"] = "destinationBank" }, reading.Banks);
+        Assert.Subset(data, reading.Banks!.Keys.Concat(reading.Banks.Values).ToHashSet(StringComparer.Ordinal));
 
         // «Agregar» copies it into the draft on, in the copy's language and without lookups, and the draft that results is valid.
         var copied = FormStandardPolicy.Reading(Standard, Draft.Culture);

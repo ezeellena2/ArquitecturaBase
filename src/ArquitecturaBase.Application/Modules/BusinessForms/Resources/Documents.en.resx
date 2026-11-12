@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <data name="UnknownTopic" xml:space="preserve"><value>Document without a form</value></data>
+  <data name="TopicDescription" xml:space="preserve"><value>«{0}» documents arrived that fit no form.</value></data>
+  <data name="ExtractionRequest" xml:space="preserve"><value>Read the attached document and propose its data for the form.</value></data>
+</root>

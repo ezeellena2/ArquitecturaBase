@@ -75,6 +75,11 @@ public static class BusinessFormsInfrastructureRegistration
         services.TryAddScoped<IFormUnusedVersionReader, FormUnusedVersionReader>();
         services.TryAddSingleton<IFormChangeProtector, DataProtectionFormChangeProtector>();
         services.AddHostedService<ArquitecturaBase.Infrastructure.Modules.BusinessForms.Workers.FormDraftRetentionBackgroundService>();
+        // Task 7: the inbox «Documentos recibidos», its protection and its purge.
+        services.TryAddScoped<IFormReceivedDocumentRepository, FormReceivedDocumentRepository>();
+        services.TryAddScoped<IFormReceivedDocumentReader, FormReceivedDocumentReader>();
+        services.TryAddSingleton<IFormReceivedDocumentProtector, DataProtectionFormReceivedDocumentProtector>();
+        services.AddHostedService<Workers.FormReceivedDocumentRetentionBackgroundService>();
         return services;
     }
 }

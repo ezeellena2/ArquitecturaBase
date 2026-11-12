@@ -42,6 +42,9 @@ internal sealed class HmacAiAssistantRequestFingerprint(AiKeyRing ring) : IAiAss
             values.Add(new object?[] { "assistant-interaction-mode:v1", context.InteractionMode });
         if (context.ChannelConversationId is { } conversationId)
             values.Add(new object?[] { "assistant-channel-conversation:v1", conversationId });
+        // The form the server fixed (the inbox's extraction) binds the request only when there is one: other requests keep their fingerprint.
+        if (context.FocusDefinitionId is { } focusDefinitionId)
+            values.Add(new object?[] { "assistant-focus-definition:v1", focusDefinitionId });
         if (request.PreviousRequestId is { } previousRequestId)
             values.Add(new object?[] { "assistant-previous-operation:v1", previousRequestId });
         var payload = JsonSerializer.SerializeToUtf8Bytes(values);

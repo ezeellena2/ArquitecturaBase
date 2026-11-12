@@ -1,4 +1,5 @@
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
+using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
@@ -6,8 +7,17 @@ using ArquitecturaBase.Domain.Modules.BusinessForms;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
 internal sealed class FormRecordCaptureGuard(IFormCaptureReceiptReader receipts, IPermissionService permissions, FormRecordAmendmentGuard amendments,
-    IFormRecordIssuanceReader issuances)
+    IFormRecordIssuanceReader issuances, IUserReader users)
 {
+    /// <summary>
+    /// A received document passed to its form (task 7): whoever sent it is still active, and the reviewer, active too, has «Revisar
+    /// documentos», which replaces the sender's permission to load responses for this path only.
+    /// </summary>
+    public async Task<bool> CanCaptureDocumentAsync(Guid senderUserId, Guid reviewerUserId, CancellationToken ct) =>
+        senderUserId != Guid.Empty && reviewerUserId != Guid.Empty
+        && await users.FindByIdAsync(senderUserId, ct) is { IsActive: true } && await users.FindByIdAsync(reviewerUserId, ct) is { IsActive: true }
+        && await permissions.HasPermissionAsync(reviewerUserId, BusinessFormsPermissions.DocumentsReview, ct);
+
     /// <summary>How the person correcting may change responses: a correction is not a new response of theirs.</summary>
     public Task<FormRecordAmendAccess?> FindAmendAccessAsync(CancellationToken ct) => amendments.FindAsync(ct);
 

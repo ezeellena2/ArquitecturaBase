@@ -397,6 +397,42 @@
   <data name="Forms.MissingRequest.NotFound" xml:space="preserve">
     <value>The missing form topic was not found.</value>
   </data>
+  <data name="Forms.ReceivedDocument.NotFound" xml:space="preserve">
+    <value>The received document was not found.</value>
+  </data>
+  <data name="Forms.ReceivedDocument.ContentInvalid" xml:space="preserve">
+    <value>The received document request is invalid.</value>
+  </data>
+  <data name="Forms.ReceivedDocument.RevisionConflict" xml:space="preserve">
+    <value>The document changed. Reload it and try again.</value>
+  </data>
+  <data name="Forms.ReceivedDocument.StateConflict" xml:space="preserve">
+    <value>The document can no longer do that. Reload it to see where it stands.</value>
+  </data>
+  <data name="Forms.ReceivedDocument.ReadingUnavailable" xml:space="preserve">
+    <value>This document has no reading to use again.</value>
+  </data>
+  <data name="Forms.ReceivedDocument.FormUnavailable" xml:space="preserve">
+    <value>That form is not published and active.</value>
+  </data>
+  <data name="Forms.ReceivedDocument.SenderInactive" xml:space="preserve">
+    <value>Whoever sent the document is no longer active.</value>
+  </data>
+  <data name="Forms.ReceivedDocument.ExtractionNotFound" xml:space="preserve">
+    <value>That extraction for another form was not found. Reload the document.</value>
+  </data>
+  <data name="Forms.ReceivedDocument.FileUnavailable" xml:space="preserve">
+    <value>The document's file could not be opened. Try again later.</value>
+  </data>
+  <data name="Forms.ReceivedDocument.AwaitingSender" xml:space="preserve">
+    <value>Whoever sent it can still complete it in their channel. Wait until their reply expires.</value>
+  </data>
+  <data name="Forms.ReceivedDocument.RequestConflict" xml:space="preserve">
+    <value>That request was already used with other data.</value>
+  </data>
+  <data name="Forms.ReceivedDocument.ExtractionUnavailable" xml:space="preserve">
+    <value>The document could not be read for another form. Try again in a while.</value>
+  </data>
   <data name="Forms.Definition.DeactivationUnavailable" xml:space="preserve">
     <value>Only active published forms can be deactivated.</value>
   </data>

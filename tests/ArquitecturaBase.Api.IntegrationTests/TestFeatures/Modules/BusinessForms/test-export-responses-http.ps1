@@ -48,13 +48,20 @@ foreach ($case in @("Configuration", "Merge", "Missing", "Collision")) {
                 Assert-Condition ($extras["WHATSAPP_FORM_REPLIES_HTTP_OUTPUT"] -eq "whatsapp-form-replies") "Replies require their own raw root."
                 Assert-Condition ($extras["WHATSAPP_FORM_PRIVACY_HTTP_OUTPUT"] -eq "whatsapp-form-privacy") "Privacy requires its own raw root."
                 $cohorts = @(Read-ExporterAssignment "cohorts")
-                Assert-Condition ($cohorts.Count -eq 27) "The joint export contains twenty-seven cohorts, including the Home assistant, its proposals, the dashboard and the WhatsApp assistant agent."
+                Assert-Condition ($cohorts.Count -eq 28) "The joint export contains twenty-eight cohorts, including the Home assistant, its proposals, the dashboard, the received documents and the WhatsApp assistant agent."
                 $dashboard = @($cohorts | Where-Object { $_.Name -eq "dashboard" })[0]
                 Assert-Condition ($null -ne $dashboard -and $dashboard.Environment -eq "FORM_DASHBOARD_HTTP_OUTPUT" -and $dashboard.Destination -eq "forms-dashboard-http") "The dashboard (DOC7-A) requires its own agreed output and destination."
                 $expectedDashboard = @("dashboard-day-es.json", "dashboard-week-en.json", "dashboard-month-es.json", "dashboard-filtered-es.json", "dashboard-own-es.json", "dashboard-empty-es.json", "dashboard-catalog-en.json", "dashboard-invalid-period-es.json", "dashboard-overflow-es.json", "dashboard-people-es.json")
                 Assert-Condition (@(Compare-Object $expectedDashboard $dashboard.RequiredNames).Count -eq 0) "The dashboard must contain its ten actual HTTP bodies."
                 foreach ($producer in @(($sourceRoot + "BusinessForms/FormDashboardHttpTests.cs"), ($captureRoot + "Modules/BusinessForms/FormDashboardScenario.cs"), ($captureRoot + "Modules/BusinessForms/FormDashboardContractCapture.cs"))) {
                     Assert-Condition ($producer -in $dashboard.Sources) "The dashboard producer, scenario and capture SHA must be included."
+                }
+                $documents = @($cohorts | Where-Object { $_.Name -eq "documents" })[0]
+                Assert-Condition ($null -ne $documents -and $documents.Environment -eq "FORM_DOCUMENTS_HTTP_OUTPUT" -and $documents.Destination -eq "forms-documents-http") "The received documents (DOC5-A) require their own agreed output and destination."
+                $expectedDocuments = @("documents-list-es.json", "documents-counts-es.json", "documents-invalid-search-es.json", "document-detail-es.json", "document-detail-en.json", "document-discarded-es.json", "document-revision-conflict-es.json", "document-extraction-accepted-es.json", "document-extraction-pending-es.json", "document-extraction-completed-es.json", "document-extraction-failed-es.json", "document-extraction-unavailable-es.json", "document-awaiting-sender-es.json", "document-record-es.json", "document-sender-inactive-es.json")
+                Assert-Condition (@(Compare-Object $expectedDocuments $documents.RequiredNames).Count -eq 0) "The received documents must contain their fifteen actual HTTP bodies, including the engine that fails and the person who can still complete it."
+                foreach ($producer in @(($sourceRoot + "BusinessForms/FormReceivedDocumentHttpTests.cs"), ($captureRoot + "Modules/BusinessForms/FormReceivedDocumentScenario.cs"), ($captureRoot + "Modules/BusinessForms/FormReceivedDocumentContractCapture.cs"), ($captureRoot + "Modules/BusinessForms/ScriptedDocumentOperations.cs"))) {
+                    Assert-Condition ($producer -in $documents.Sources) "The received documents producer, scenario, scripted engine and capture SHA must be included."
                 }
                 $agent = @($cohorts | Where-Object { $_.Name -eq "whatsapp-assistant-agent" })[0]
                 Assert-Condition ($null -ne $agent -and $agent.Environment -eq "WHATSAPP_ASSISTANT_AGENT_HTTP_OUTPUT" -and $agent.Destination -eq "whatsapp-assistant-agent-http") "The WhatsApp assistant agent requires its own agreed output and destination."

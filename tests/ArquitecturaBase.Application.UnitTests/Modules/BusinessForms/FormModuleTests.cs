@@ -15,7 +15,10 @@ public sealed class FormModuleTests
         // DOC1: formularios brings «Comprobante de transferencia» to its own library, so the menu shows «Biblioteca» with the module alone.
         Assert.Equal(new[] { "forms", "form-library" }, Assert.Single(provider.GetServices<IClientCapabilitySource>()).InstalledFeatures);
         Assert.Single(provider.GetServices<IStructuredFormStandardSource>());
-        Assert.Equal(13, Assert.Single(provider.GetServices<IPermissionCatalogSource>()).Codes.Count);
+        Assert.Equal(15, Assert.Single(provider.GetServices<IPermissionCatalogSource>()).Codes.Count);
+        // Task 7: «Ver documentos recibidos» and «Revisar documentos», the inbox's own permissions.
+        Assert.Contains(BusinessFormsPermissions.DocumentsRead, Assert.Single(provider.GetServices<IPermissionCatalogSource>()).Codes);
+        Assert.Contains(BusinessFormsPermissions.DocumentsReview, Assert.Single(provider.GetServices<IPermissionCatalogSource>()).Codes);
         Assert.Contains(BusinessFormsPermissions.SuggestionsManage, Assert.Single(provider.GetServices<IPermissionCatalogSource>()).Codes);
         Assert.Contains(BusinessFormsPermissions.ApprovalsDecide, Assert.Single(provider.GetServices<IPermissionCatalogSource>()).Codes);
         Assert.Contains(BusinessFormsPermissions.RulesManage, Assert.Single(provider.GetServices<IPermissionCatalogSource>()).Codes);

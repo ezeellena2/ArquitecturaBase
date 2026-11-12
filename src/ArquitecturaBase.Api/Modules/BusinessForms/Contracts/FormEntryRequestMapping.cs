@@ -35,8 +35,9 @@ internal static class FormEntryRequestMapping
         }
     }
 
-    // An answer and the answers of each item of the block; a null one stays null, for the validator to reject.
-    private static FormEntryAnswer Answer(FormEntryAnswerHttpItem? answer) => answer is null ? null! : new(answer.FieldId, answer.Value, answer.ChoiceIds,
+    // An answer and the answers of each item of the block; a null one stays null, for the validator to reject. Passing a received
+    // document to its form (task 7) maps its answers the same way.
+    internal static FormEntryAnswer Answer(FormEntryAnswerHttpItem? answer) => answer is null ? null! : new(answer.FieldId, answer.Value, answer.ChoiceIds,
         answer.Rows?.Select(item => item is null ? null! : (IReadOnlyList<FormEntryAnswer>)item.Select(Answer).ToArray()).ToArray());
 
     private static async Task<List<FormEntryFileInput>?> FilesAsync(List<IFormFile> uploaded, List<Guid> fieldIds,

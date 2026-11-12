@@ -61,6 +61,13 @@ public sealed record AssistantChannelContext(
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public Guid? SourceRecordId { get; init; }
 
+    /// <summary>
+    /// The one form the server fixed for this conversation (the inbox «Documentos recibidos» extracts a document for the form a reviewer
+    /// chose), opaque to the engine; sealed and compared like <see cref="SourceRecordId"/>, and in the fingerprint only when present.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Guid? FocusDefinitionId { get; init; }
+
     /// <summary>Reads the engine runs before the first step, in this order, and sends at the start of the request as data; never tools.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyList<AssistantCapabilityReference>? PreloadedCapabilities { get; init; }

@@ -33,4 +33,9 @@
   <data name="Area.formpersondata" xml:space="preserve"><value>Datos de las personas</value></data>
   <data name="Permission.formpersondata.manage" xml:space="preserve"><value>Administrar datos de las personas</value></data>
   <data name="PermissionDescription.formpersondata.manage" xml:space="preserve"><value>Definir los datos que tiene cada persona, como zona o sucursal.</value></data>
+  <data name="Area.formdocuments" xml:space="preserve"><value>Documentos recibidos</value></data>
+  <data name="Permission.formdocuments.read" xml:space="preserve"><value>Ver documentos recibidos</value></data>
+  <data name="PermissionDescription.formdocuments.read" xml:space="preserve"><value>Ver los documentos que mandan las personas, lo que se leyó en cada uno y su historial.</value></data>
+  <data name="Permission.formdocuments.review" xml:space="preserve"><value>Revisar documentos</value></data>
+  <data name="PermissionDescription.formdocuments.review" xml:space="preserve"><value>Corregir, cambiar de formulario, pasar al formulario, descartar y volver a abrir los documentos recibidos.</value></data>
 </root>

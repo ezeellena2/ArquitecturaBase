@@ -104,12 +104,15 @@ internal static class FormRecordAnswerPolicy
     }
 
     private static Error? Failure(FormRecordAnswer answer, Dictionary<Guid, string> validations) =>
-        answer.Text is not { } text || !validations.TryGetValue(answer.FieldId, out var validation) ? null : validation switch
-        {
-            FormQuestionValidation.BankAccount when BankAccountKey.Parse(text) is null => FormRecordErrors.BankAccountInvalid,
-            FormQuestionValidation.TaxId when CuitNumber.Normalize(text) is null => FormRecordErrors.TaxIdInvalid,
-            _ => null,
-        };
+        answer.Text is not { } text || !validations.TryGetValue(answer.FieldId, out var validation) ? null : ValidationFailure(validation, text);
+
+    /// <summary>Why a text does not pass a fixed validation, or null: the one rule of every capture and of a document's proposal.</summary>
+    public static Error? ValidationFailure(string validation, string text) => validation switch
+    {
+        FormQuestionValidation.BankAccount when BankAccountKey.Parse(text) is null => FormRecordErrors.BankAccountInvalid,
+        FormQuestionValidation.TaxId when CuitNumber.Normalize(text) is null => FormRecordErrors.TaxIdInvalid,
+        _ => null,
+    };
 
     private static List<IReadOnlyList<FormRecordAnswer>>? Rows(CanonicalFormField group, IReadOnlyList<CanonicalFormField> block,
         string raw, IReadOnlyList<StructuredFormCatalogOffer> offers)

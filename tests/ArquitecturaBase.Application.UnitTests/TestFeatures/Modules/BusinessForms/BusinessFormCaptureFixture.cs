@@ -15,6 +15,8 @@ internal sealed class BusinessFormCaptureFixture
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
     public FakeFormResponseReader OriginResponses { get; } = new();
+    /// <summary>Task 7: the inbox the capture confirms a received document in.</summary>
+    public FormReceivedDocumentFixture Documents { get; } = new();
     public FormSuggestionFixture Suggestions { get; } = new();
     public FormActionFixture Actions { get; } = new();
     public FakeUnitOfWork UnitOfWork { get; }
@@ -48,8 +50,9 @@ internal sealed class BusinessFormCaptureFixture
         Actor = Users.AddUser("capture@example.invalid").Id;
         Current.UserId = Actor;
         Issuances = new FakeRecordIssuanceReader(() => UnitOfWork.InTransaction);
-        Sink = new BusinessFormRecordRecorder(Repository, new(ReceiptReader, Permission, new(Current, Permission, Users), Issuances), UnitOfWork, Actions.Clock,
-            NullLogger<BusinessFormRecordRecorder>.Instance, preparer, Actions.Recorder, new(OriginResponses, Suggestions));
+        Sink = new BusinessFormRecordRecorder(Repository, new(ReceiptReader, Permission, new(Current, Permission, Users), Issuances, Users), UnitOfWork, Actions.Clock,
+            NullLogger<BusinessFormRecordRecorder>.Instance, preparer, Actions.Recorder,
+            new(OriginResponses, Suggestions, Documents, Documents.Recorder(), Documents.Clock));
         VersionId = version.Id;
     }
 
@@ -152,7 +155,9 @@ internal sealed class FakeRecordRepository(BusinessFormDefinition definition, Bu
     public List<BusinessFormRecordValue> Values { get; } = [];
     private readonly List<BusinessFormCaptureReceipt> _receipts = [];
     public IReadOnlyList<BusinessFormCaptureReceipt> Receipts => _receipts;
-    public Task LockSourceReceiptAsync(Guid sourceReceiptId, CancellationToken cancellationToken) => Task.CompletedTask;
+    /// <summary>Runs when the capture enters its unit of work, after the checks made before it: what changed meanwhile.</summary>
+    public Func<Task>? OnLockSourceReceipt { get; set; }
+    public Task LockSourceReceiptAsync(Guid sourceReceiptId, CancellationToken cancellationToken) => OnLockSourceReceipt?.Invoke() ?? Task.CompletedTask;
     public Task LockDefinitionsAsync(CancellationToken cancellationToken) => Task.CompletedTask;
     public Task<BusinessFormCaptureReceipt?> GetReceiptAsync(Guid sourceReceiptId, CancellationToken cancellationToken) =>
         Task.FromResult(_receipts.SingleOrDefault(value => value.SourceReceiptId == sourceReceiptId));

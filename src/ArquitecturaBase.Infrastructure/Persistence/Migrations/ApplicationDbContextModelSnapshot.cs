@@ -3135,6 +3135,208 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.ToTable("BusinessFormVersions", (string)null);
                 });
 
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.BusinessForms.Documents.FormReceivedDocument", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ChannelId")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("DefinitionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("DeleteAfterUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DocumentType")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)");
+
+                    b.Property<Guid?>("ExtractionActorUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ExtractionCulture")
+                        .HasMaxLength(2)
+                        .HasColumnType("character varying(2)");
+
+                    b.Property<Guid?>("ExtractionDefinitionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ExtractionRequestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ExtractionRequestedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ExtractionTimeZoneId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("MediaType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ModifiedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("NotSendable")
+                        .HasColumnType("boolean");
+
+                    b.Property<int?>("Pages")
+                        .HasColumnType("integer");
+
+                    b.Property<byte[]>("ProtectedProposal")
+                        .HasColumnType("bytea");
+
+                    b.Property<byte[]>("ProtectedReading")
+                        .HasColumnType("bytea");
+
+                    b.Property<string>("ReasonCode")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime>("ReceivedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("RecordId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ReplyExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("ReviewedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ReviewedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("Revision")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("SearchText")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<Guid>("SenderUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)");
+
+                    b.Property<long>("Size")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("SourceId")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<string>("StorageKey")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<Guid?>("VersionId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DeleteAfterUtc")
+                        .HasFilter("\"DeleteAfterUtc\" IS NOT NULL");
+
+                    b.HasIndex("ReceivedAtUtc");
+
+                    b.HasIndex("RecordId")
+                        .IsUnique()
+                        .HasFilter("\"RecordId\" IS NOT NULL");
+
+                    b.HasIndex("SearchText")
+                        .HasAnnotation("Npgsql:TsVectorConfig", "simple");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("SearchText"), "GIN");
+
+                    b.HasIndex("StorageKey");
+
+                    b.HasIndex("ChannelId", "SourceId")
+                        .IsUnique();
+
+                    b.HasIndex("DefinitionId", "Sha256");
+
+                    b.HasIndex("DefinitionId", "VersionId");
+
+                    b.HasIndex("State", "ReceivedAtUtc");
+
+                    b.ToTable("FormReceivedDocuments", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_FormReceivedDocuments_Confirmed", "(\"State\" = 'Confirmed') = (\"RecordId\" IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_FormReceivedDocuments_Deletion", "(\"State\" IN ('Discarded', 'Unclassified')) = (\"DeleteAfterUtc\" IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_FormReceivedDocuments_Extraction", "(\"ExtractionRequestId\" IS NULL) = (\"ExtractionDefinitionId\" IS NULL) AND (\"ExtractionRequestId\" IS NULL) = (\"ExtractionRequestedAtUtc\" IS NULL) AND (\"ExtractionRequestId\" IS NULL) = (\"ExtractionActorUserId\" IS NULL) AND (\"ExtractionRequestId\" IS NULL) = (\"ExtractionCulture\" IS NULL) AND (\"ExtractionRequestId\" IS NULL) = (\"ExtractionTimeZoneId\" IS NULL)");
+
+                            t.HasCheckConstraint("CK_FormReceivedDocuments_Proposed", "\"State\" <> 'Proposed' OR (\"DefinitionId\" IS NOT NULL AND \"VersionId\" IS NOT NULL AND \"ProtectedProposal\" IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_FormReceivedDocuments_Review", "(\"ReviewedByUserId\" IS NULL) = (\"ReviewedAtUtc\" IS NULL)");
+                        });
+                });
+
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.BusinessForms.Documents.FormReceivedDocumentEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ActorUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("AtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("DocumentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<byte[]>("ProtectedDetail")
+                        .HasColumnType("bytea");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DocumentId", "AtUtc");
+
+                    b.ToTable("FormReceivedDocumentEvents", (string)null);
+                });
+
             modelBuilder.Entity("ArquitecturaBase.Domain.Modules.WhatsApp.WhatsAppAssistantAgent", b =>
                 {
                     b.Property<Guid>("Id")
@@ -5217,6 +5419,34 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("DefinitionId")
                         .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.BusinessForms.Documents.FormReceivedDocument", b =>
+                {
+                    b.HasOne("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormDefinition", null)
+                        .WithMany()
+                        .HasForeignKey("DefinitionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormRecord", null)
+                        .WithMany()
+                        .HasForeignKey("RecordId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormVersion", null)
+                        .WithMany()
+                        .HasForeignKey("DefinitionId", "VersionId")
+                        .HasPrincipalKey("DefinitionId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.BusinessForms.Documents.FormReceivedDocumentEvent", b =>
+                {
+                    b.HasOne("ArquitecturaBase.Domain.Modules.BusinessForms.Documents.FormReceivedDocument", null)
+                        .WithMany()
+                        .HasForeignKey("DocumentId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 

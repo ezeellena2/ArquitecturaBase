@@ -180,6 +180,8 @@ internal sealed class FormEntryFixture : IFormEntryReader, IBusinessFormRecordCa
         CancellationToken ct) => Task.FromResult(ExistingCorrection);
     public Task<StructuredRecordCaptureResponse> CaptureAsync(StructuredRecordCaptureRequest request, CancellationToken ct) => throw new NotSupportedException();
     public Task<StructuredRecordCaptureResponse?> FindExistingReceiptAsync(StructuredRecordCaptureRequest request, CancellationToken ct) => throw new NotSupportedException();
+    public Task<StructuredRecordCaptureResponse> CaptureDocumentAsync(StructuredRecordCaptureRequest request, CancellationToken ct) => throw new NotSupportedException();
+    public Task<StructuredRecordCaptureResponse?> FindExistingDocumentAsync(StructuredRecordCaptureRequest request, CancellationToken ct) => throw new NotSupportedException();
 
     public void Dispose() => _provider.Dispose();
 }

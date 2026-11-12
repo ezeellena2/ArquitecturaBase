@@ -18,24 +18,34 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
     ILogger<BusinessFormRecordRecorder> logger, BusinessFormFileRecorder fileRecorder, FormActionRunRecorder actions, FormRecordCaptureOriginPolicy origins) : IBusinessFormRecordCaptureService
 {
     public Task<StructuredRecordCaptureResponse> CaptureAsync(StructuredRecordCaptureRequest request, CancellationToken cancellationToken) =>
-        CaptureAsync(request, false, null, cancellationToken);
+        CaptureAsync(request, CaptureMode.Channel, null, cancellationToken);
 
     public Task<StructuredRecordCaptureResponse> CaptureEntryAsync(StructuredRecordCaptureRequest request, CancellationToken cancellationToken) =>
-        CaptureAsync(request, true, null, cancellationToken);
+        CaptureAsync(request, CaptureMode.Entry, null, cancellationToken);
 
     public Task<StructuredRecordCaptureResponse?> FindExistingReceiptAsync(StructuredRecordCaptureRequest request,
-        CancellationToken cancellationToken) => FindExistingAsync(request, false, null, cancellationToken);
+        CancellationToken cancellationToken) => FindExistingAsync(request, CaptureMode.Channel, null, cancellationToken);
 
     public Task<StructuredRecordCaptureResponse?> FindExistingEntryAsync(StructuredRecordCaptureRequest request,
-        CancellationToken cancellationToken) => FindExistingAsync(request, true, null, cancellationToken);
+        CancellationToken cancellationToken) => FindExistingAsync(request, CaptureMode.Entry, null, cancellationToken);
 
     public Task<StructuredRecordCaptureResponse> CaptureCorrectionAsync(StructuredRecordCaptureRequest request, FormRecordCorrection correction,
-        CancellationToken cancellationToken) => CaptureAsync(request, true, correction, cancellationToken);
+        CancellationToken cancellationToken) => CaptureAsync(request, CaptureMode.Entry, correction, cancellationToken);
 
     public Task<StructuredRecordCaptureResponse?> FindExistingCorrectionAsync(StructuredRecordCaptureRequest request, FormRecordCorrection correction,
-        CancellationToken cancellationToken) => FindExistingAsync(request, true, correction, cancellationToken);
+        CancellationToken cancellationToken) => FindExistingAsync(request, CaptureMode.Entry, correction, cancellationToken);
 
-    private async Task<StructuredRecordCaptureResponse> CaptureAsync(StructuredRecordCaptureRequest request, bool entry, FormRecordCorrection? correction,
+    public Task<StructuredRecordCaptureResponse> CaptureDocumentAsync(StructuredRecordCaptureRequest request, CancellationToken cancellationToken) =>
+        CaptureAsync(request, CaptureMode.Document, null, cancellationToken);
+
+    public Task<StructuredRecordCaptureResponse?> FindExistingDocumentAsync(StructuredRecordCaptureRequest request, CancellationToken cancellationToken) =>
+        FindExistingAsync(request, CaptureMode.Document, null, cancellationToken);
+
+    // How a response arrives: through a channel, loaded in the app (also a correction) or a received document a reviewer passed to its form
+    // (task 7), which is not a response loaded in the app: the inbox gives its origin.
+    private enum CaptureMode { Channel, Entry, Document }
+
+    private async Task<StructuredRecordCaptureResponse> CaptureAsync(StructuredRecordCaptureRequest request, CaptureMode mode, FormRecordCorrection? correction,
         CancellationToken cancellationToken)
     {
         OperationLog.Handling(logger, "CaptureBusinessFormRecord");
@@ -46,14 +56,14 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
             return new("Rejected", null, null, FormRecordErrors.AuthorizationChanged.Code);
         }
 
-        var replay = await FindExistingAsync(request, entry, correction, cancellationToken);
+        var replay = await FindExistingAsync(request, mode, correction, cancellationToken);
         if (replay is not null)
         {
             if (replay.State == "Completed") OperationLog.Handled(logger, "CaptureBusinessFormRecord");
             else OperationLog.Failed(logger, "CaptureBusinessFormRecord", replay.ErrorCode ?? FormRecordErrors.InvalidResponse.Code);
             return replay;
         }
-        if (!await CanCaptureAsync(request, correction, cancellationToken))
+        if (!await CanCaptureAsync(request, mode, correction, cancellationToken))
         {
             OperationLog.Failed(logger, "CaptureBusinessFormRecord", FormRecordErrors.AuthorizationChanged.Code);
             return new("Rejected", null, null, FormRecordErrors.AuthorizationChanged.Code);
@@ -63,32 +73,36 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
             ? Result.Failure<IReadOnlyList<PreparedFormFile>>(FormRecordErrors.InvalidResponse)
             : await fileRecorder.PrepareAsync(request, cancellationToken);
         var result = (await unitOfWork.ExecuteInTransactionAsync(
-            ct => CaptureCoreAsync(request, entry, correction, prepared, ct), CommitPolicy.OnSuccess, cancellationToken)).Value;
+            ct => CaptureCoreAsync(request, mode, correction, prepared, ct), CommitPolicy.OnSuccess, cancellationToken)).Value;
         if (result.State == "Completed") OperationLog.Handled(logger, "CaptureBusinessFormRecord");
         else OperationLog.Failed(logger, "CaptureBusinessFormRecord", result.ErrorCode ?? FormRecordErrors.InvalidResponse.Code);
         return result;
     }
 
-    private async Task<StructuredRecordCaptureResponse?> FindExistingAsync(StructuredRecordCaptureRequest request, bool entry,
+    private async Task<StructuredRecordCaptureResponse?> FindExistingAsync(StructuredRecordCaptureRequest request, CaptureMode mode,
         FormRecordCorrection? correction, CancellationToken cancellationToken)
     {
         if (request.SourceReceiptId == Guid.Empty || request.ActorUserId == Guid.Empty
             || request.SubmittedAtUtc.Kind != DateTimeKind.Utc) return null;
 
-        return await guard.FindExistingAsync(request, Fingerprint(request, entry, correction), cancellationToken);
+        return await guard.FindExistingAsync(request, Fingerprint(request, mode, correction), cancellationToken);
     }
 
     // A correction is not a new response of whoever corrects: they correct with «Corregir y anular respuestas», or their own
-    // response while nobody decided it. The response it replaces is checked under the lock.
-    private async Task<bool> CanCaptureAsync(StructuredRecordCaptureRequest request, FormRecordCorrection? correction, CancellationToken ct) =>
-        correction is null ? await guard.CanCaptureAsync(request.ActorUserId, ct)
-            : await guard.FindAmendAccessAsync(ct) is { } access && access.Actor == request.ActorUserId;
+    // response while nobody decided it. The response it replaces is checked under the lock. A received document is the response of whoever
+    // sent it, still active, and the reviewer who passes it, the origin's operator, needs «Revisar documentos» instead of the sender's
+    // permission to load responses.
+    private async Task<bool> CanCaptureAsync(StructuredRecordCaptureRequest request, CaptureMode mode, FormRecordCorrection? correction, CancellationToken ct) =>
+        correction is not null ? await guard.FindAmendAccessAsync(ct) is { } access && access.Actor == request.ActorUserId
+        : mode == CaptureMode.Document ? request.Origin is { Document: not null, DocumentRevision: not null, OperatorUserId: { } reviewer }
+            && await guard.CanCaptureDocumentAsync(request.ActorUserId, reviewer, ct)
+        : await guard.CanCaptureAsync(request.ActorUserId, ct);
 
-    private async Task<Result<StructuredRecordCaptureResponse>> CaptureCoreAsync(StructuredRecordCaptureRequest request, bool entry,
+    private async Task<Result<StructuredRecordCaptureResponse>> CaptureCoreAsync(StructuredRecordCaptureRequest request, CaptureMode mode,
         FormRecordCorrection? correction, Result<IReadOnlyList<PreparedFormFile>> prepared, CancellationToken ct)
     {
         await records.LockSourceReceiptAsync(request.SourceReceiptId, ct);
-        var fingerprint = Fingerprint(request, entry, correction);
+        var fingerprint = Fingerprint(request, mode, correction);
         var prior = await records.GetReceiptAsync(request.SourceReceiptId, ct);
         if (prior is not null)
         {
@@ -100,7 +114,7 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
         if (request.PresentationCulture is not (null or "es" or "en"))
             return Reject(request, fingerprint, FormRecordErrors.InvalidResponse.Code);
 
-        if (!await CanCaptureAsync(request, correction, ct))
+        if (!await CanCaptureAsync(request, mode, correction, ct))
             return Reject(request, fingerprint, FormRecordErrors.AuthorizationChanged.Code);
 
         await records.LockDefinitionsAsync(ct);
@@ -172,7 +186,7 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
         BusinessFormRecord record;
         if (replaced is null)
             record = BusinessFormRecord.Create(definition.Id, version.Id, definition.AllocateRecordNumber(), request.ActorUserId,
-                request.SourceReceiptId, request.SubmittedAtUtc, valuesJson, definition.ActiveRuleSetId, request.PresentationCulture, entry);
+                request.SourceReceiptId, request.SubmittedAtUtc, valuesJson, definition.ActiveRuleSetId, request.PresentationCulture, mode == CaptureMode.Entry);
         else
         {
             // The correction keeps the number, author, reception and channel; the replaced response stops waiting for a decision.
@@ -193,6 +207,10 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
             var snapshotOrigin = new FormRecordCaptureOriginSnapshot(captured.Origin, captured.ChangedFieldIds, proposedReferences);
             record.SetCaptureOrigin(captured.Origin.Suggestion?.OriginRecordId, captured.Origin.Suggestion?.OriginSuggestionId,
                 FormDraftPolicy.Serialize(snapshotOrigin));
+            // The received document it came from is confirmed with its number in this same commit (checked under its lock above).
+            if (captured.Document is { } document)
+                origins.ConfirmDocument(document, record.Id, definition.Id, version.Id, mode == CaptureMode.Document ? captured.Origin.OperatorUserId : null,
+                    definition.Prefix + "-" + number.ToString("D6", System.Globalization.CultureInfo.InvariantCulture));
         }
         records.Add(record);
         foreach (var (value, item) in placed)
@@ -242,14 +260,16 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
     }
 
     // An entry's offer is rebuilt by the server on every send, so it stays out: the replay compares what the person sent.
-    private static string Fingerprint(StructuredRecordCaptureRequest request, bool entry, FormRecordCorrection? correction)
+    private static string Fingerprint(StructuredRecordCaptureRequest request, CaptureMode mode, FormRecordCorrection? correction)
     {
         var canonical = JsonSerializer.Serialize(new
         {
             request.SourceReceiptId, request.DefinitionId, request.VersionId, request.ActorUserId,
             Answers = request.Answers.OrderBy(pair => pair.Key, StringComparer.Ordinal).Select(pair => new { pair.Key, pair.Value }),
         });
-        if (entry) canonical += "app";
+        if (mode == CaptureMode.Entry) canonical += "app";
+        // A received document's offer is rebuilt by the server too, for whoever sent it: its replay compares what the reviewer sent.
+        else if (mode == CaptureMode.Document) canonical += "document";
         else if (request.Catalogs is { Count: > 0 }) canonical += JsonSerializer.Serialize(request.Catalogs.OrderBy(offer => offer.FieldId));
         if (correction is not null)
             canonical += "correction" + JsonSerializer.Serialize(new { correction.RecordId, correction.Reason, Kept = correction.KeptFileIds.Order() });

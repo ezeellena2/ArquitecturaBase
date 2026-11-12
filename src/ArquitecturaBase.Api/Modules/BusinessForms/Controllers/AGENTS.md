@@ -43,6 +43,8 @@ H4: POST catalogs/{id}/proposal/approve y /discard consumen IFormCatalogProposal
 
 El tablero (`FormDashboardsController`, DOC7-A) sigue las reglas de la planilla: está en [respuestas, archivos y corrección](../../../../../docs/features/formularios-borde-http.md#respuestas-archivos-y-corrección).
 
+«Documentos recibidos» (`FormReceivedDocumentsController`, `api/forms/documents`, DOC5-A): «Ver documentos recibidos» en la clase, para la lista (filtros, búsqueda por los números leídos y conteos por estado), los conteos del menú, el detalle y el archivo (no-store y nosniff; 409 sin su copia); «Revisar documentos» suma en descartar y reabrir (`expectedRevision`, 409), cambiar de formulario (202 y después GET `extraction?requestId=`; 403 o 500 cuando el motor se niega o falla) y pasar al formulario (`records`, idempotente por `requestId`). Mientras su persona todavía puede completarlo, descartar, cambiar de formulario y pasar dan 409 `Forms.ReceivedDocument.AwaitingSender`. Cuerpos cerrados de hasta 512 KiB y las políticas de lectura, escritura y archivos de las respuestas.
+
 «Cómo viene leyendo» (`FormDocumentReadingController`, DOC1): GET `definitions/{id}/document-reading` con «Ver formularios», la política de lectura y no-store; las correcciones las suma el servicio sólo con «Ver respuestas». El detalle está en [formularios](../../../../../docs/features/formularios.md#lectura-de-documentos-y-validaciones-fijas--doc1-2026-11-11).
 
 ## Referencias

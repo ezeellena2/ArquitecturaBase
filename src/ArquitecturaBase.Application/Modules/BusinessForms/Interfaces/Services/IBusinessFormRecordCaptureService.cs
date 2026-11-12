@@ -24,4 +24,13 @@ public interface IBusinessFormRecordCaptureService
 
     Task<StructuredRecordCaptureResponse?> FindExistingCorrectionAsync(StructuredRecordCaptureRequest request, FormRecordCorrection correction,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Records a received document a reviewer passes to its form (task 7): the response of whoever sent it, who must still be active, with
+    /// the reviewer as the origin's operator, whose «Revisar documentos» replaces the sender's permission to load responses for this path
+    /// only; the document is in the origin and is confirmed in the same commit. Its replay compares what the reviewer sent.
+    /// </summary>
+    Task<StructuredRecordCaptureResponse> CaptureDocumentAsync(StructuredRecordCaptureRequest request, CancellationToken cancellationToken);
+
+    Task<StructuredRecordCaptureResponse?> FindExistingDocumentAsync(StructuredRecordCaptureRequest request, CancellationToken cancellationToken);
 }

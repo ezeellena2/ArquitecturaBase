@@ -15,5 +15,9 @@ public static class BusinessFormsPermissions
     public const string SuggestionsManage = "formsuggestions.manage";
     public const string ApprovalsDecide = "formapprovals.decide";
     public const string PersonDataManage = "formpersondata.manage";
-    public static IReadOnlyCollection<string> All { get; } = [Read, Manage, Publish, RecordsCreate, RecordsRead, RecordsExport, RecordsAmend, CatalogsRead, CatalogsManage, RulesManage, ApprovalsDecide, SuggestionsManage, PersonDataManage];
+    /// <summary>«Ver documentos recibidos» (DOC5-A): the inbox, with each document's copy, reading, proposal and history.</summary>
+    public const string DocumentsRead = "formdocuments.read";
+    /// <summary>«Revisar documentos»: change a received document's form, pass it to the form, discard it and reopen it.</summary>
+    public const string DocumentsReview = "formdocuments.review";
+    public static IReadOnlyCollection<string> All { get; } = [Read, Manage, Publish, RecordsCreate, RecordsRead, RecordsExport, RecordsAmend, CatalogsRead, CatalogsManage, RulesManage, ApprovalsDecide, SuggestionsManage, PersonDataManage, DocumentsRead, DocumentsReview];
 }

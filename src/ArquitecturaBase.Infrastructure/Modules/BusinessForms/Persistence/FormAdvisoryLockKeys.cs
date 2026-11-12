@@ -12,4 +12,7 @@ internal static class FormAdvisoryLockKeys
     // A catalog a module feeds, by the key of its source: it serializes creating it, before the lock of the catalog.
     public static string CatalogKey(string key) => $"forms:catalog-key:{key}";
     public static string Capture(Guid sourceReceiptId) => $"forms:capture:{sourceReceiptId:N}";
+    // Task 7: registering one channel source in the inbox, and every change to one received document (the last lock taken).
+    public static string ReceivedDocumentSource(string channelId, string sourceId) => $"forms:received-document-source:{channelId}:{sourceId}";
+    public static string ReceivedDocument(Guid documentId) => $"forms:received-document:{documentId:N}";
 }
