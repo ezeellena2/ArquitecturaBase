@@ -131,6 +131,8 @@ public sealed class FormEntryHttpTests(ApiFactory factory)
         var detailBody = await detail.ReadJsonAsync();
         Assert.Equal(FormEntryChannel.Id, detailBody.GetProperty("origin").GetProperty("channelId").GetString());
         Assert.Equal("Juan Gómez", detailBody.GetProperty("origin").GetProperty("senderName").GetString());
+        // Only a response that came from a received document names it in its origin: the bodies of the rest keep their bytes.
+        Assert.False(detailBody.GetProperty("origin").TryGetProperty("document", out _));
         Assert.DoesNotContain(detailBody.GetProperty("history").EnumerateArray(), moment => moment.GetProperty("kind").GetString() == "Sent");
 
         using var overview = await first.GetAsync("/api/forms/overview", Ct);

@@ -25,6 +25,8 @@ internal sealed class FormReceivedDocumentExtractionPolicy(FormReceivedDocumentC
     public const string Unrecognized = "Forms.ReceivedDocument.Unrecognized";
     /// <summary>The fixed form stopped being active, or published another version, while the extraction ran.</summary>
     public const string FormChanged = "Forms.ReceivedDocument.FormChanged";
+    /// <summary>The engine refused the extraction for good while it was read (403): it was dropped.</summary>
+    public const string Refused = "Forms.ReceivedDocument.ExtractionRefused";
 
     public static AssistantChannelContext Context(Guid actorUserId, string culture, string timeZoneId, Guid definitionId) =>
         new(ChannelId, actorUserId, null, culture, timeZoneId, new([BusinessFormsPermissions.DocumentsReview], []),

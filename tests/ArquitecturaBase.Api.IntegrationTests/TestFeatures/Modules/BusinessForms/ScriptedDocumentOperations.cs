@@ -8,8 +8,8 @@ namespace ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessFor
 
 // Task 7: the engine for changing a received document's form, scripted: it keeps what the inbox submits, by who asked and its request,
 // and answers it as pending until the test completes it with the operation the real engine would return. Like the engine, an operation
-// is found only with the context it was sealed with (another reviewer, or another language, does not find it), and a submission can be
-// refused as an engine that is not available would. It never calls a provider and qualifies no model.
+// is found only with the context it was sealed with (another reviewer, or another language, does not find it), and a submission or a read
+// can fail as an engine that refuses or is not available would. It never calls a provider and qualifies no model.
 internal sealed class ScriptedDocumentOperations : IAssistantOperations
 {
     private readonly ConcurrentDictionary<(Guid Actor, Guid RequestId), AssistantOperationResponse> completed = new();
@@ -17,6 +17,8 @@ internal sealed class ScriptedDocumentOperations : IAssistantOperations
     public ConcurrentQueue<AssistantChannelContext> Read { get; } = new();
     /// <summary>When set, every submission fails with it.</summary>
     public Error? SubmitFailure { get; set; }
+    /// <summary>When set, every read fails with it: a refusal for good (forbidden) or a transient failure.</summary>
+    public Error? ReadFailure { get; set; }
 
     public Task<AssistantAvailabilityResponse> GetAvailabilityAsync(CancellationToken cancellationToken) =>
         Task.FromResult(new AssistantAvailabilityResponse("available"));
@@ -33,6 +35,7 @@ internal sealed class ScriptedDocumentOperations : IAssistantOperations
     public Task<Result<AssistantOperationResponse>> GetAsync(AssistantChannelContext context, Guid requestId, CancellationToken cancellationToken)
     {
         Read.Enqueue(context);
+        if (ReadFailure is { } failure) return Task.FromResult(Result.Failure<AssistantOperationResponse>(failure));
         var submitted = Submitted.FirstOrDefault(request => request.RequestId == requestId);
         if (submitted is null || !SameScope(context, submitted.Context))
             return Task.FromResult(Result.Failure<AssistantOperationResponse>(FormReceivedDocumentErrors.ExtractionNotFound));

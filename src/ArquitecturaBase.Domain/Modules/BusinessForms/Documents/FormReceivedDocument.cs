@@ -147,6 +147,10 @@ public sealed class FormReceivedDocument : Entity, IAuditable
     public static bool IsForReview(FormReceivedDocumentState state, bool notSendable, DateTime? replyExpiresAtUtc, DateTime nowUtc) =>
         state == FormReceivedDocumentState.Proposed && (notSendable || replyExpiresAtUtc is null || replyExpiresAtUtc <= nowUtc);
 
+    /// <summary>Until when its person is waited for: while it is proposed and not yet for the team; null when nobody is waited for.</summary>
+    public static DateTime? AwaitedUntil(FormReceivedDocumentState state, bool notSendable, DateTime? replyExpiresAtUtc, DateTime nowUtc) =>
+        state == FormReceivedDocumentState.Proposed && !IsForReview(state, notSendable, replyExpiresAtUtc, nowUtc) ? replyExpiresAtUtc : null;
+
     /// <summary>
     /// A reviewer discards a proposed or unclassified one, never while its person can still complete it; it can be reopened until it is
     /// deleted.

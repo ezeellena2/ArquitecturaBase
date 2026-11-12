@@ -66,8 +66,12 @@ public sealed record FormDocumentRepetitionKey(Guid FieldId, string Type, string
 {
     public override string ToString() => "FormDocumentRepetitionKey { Content = [REDACTED] }";
 }
-// The origin of a response passed from the inbox: who passed it, when, and the document.
-public sealed record FormDocumentOriginRow(Guid SourceReceiptId, Guid ReviewerUserId, string? ReviewerName, DateTime ReviewedAtUtc, Guid DocumentId);
+// The origin of a response passed from the inbox: who passed it, when, and the document with its file's name.
+public sealed record FormDocumentOriginRow(Guid SourceReceiptId, Guid ReviewerUserId, string? ReviewerName, DateTime ReviewedAtUtc, Guid DocumentId,
+    string FileName)
+{
+    public override string ToString() => "FormDocumentOriginRow { Content = [REDACTED] }";
+}
 
 public sealed record FormReceivedDocumentStoredRow(Guid Id, string ChannelId, string SourceId, Guid SenderUserId, string? SenderName,
     DateTime ReceivedAtUtc, string StorageKey, string FileName, string MediaType, long Size, string Sha256, int? Pages,
@@ -88,10 +92,19 @@ public sealed record FormReceivedDocumentEventRow(Guid Id, DateTime AtUtc, strin
 }
 // How many documents are in each state with the list's other filters; ForReview are the proposed ones nobody waits for.
 public sealed record FormReceivedDocumentStateCounts(int Proposed, int ForReview, int Unclassified, int Confirmed, int Discarded);
-public sealed record FormReceivedDocumentPageRow(IReadOnlyList<FormReceivedDocumentStoredRow> Items, int TotalCount, FormReceivedDocumentStateCounts Counts)
+// A form of the «Formulario» filter (by its active version's name, or its document's version) and a person of «Mandó», with how many
+// documents each has under the list's other filters.
+public sealed record FormReceivedDocumentFormFacetRow(Guid DefinitionId, string? NameJson, int Count);
+public sealed record FormReceivedDocumentSenderFacetRow(Guid UserId, string? DisplayName, int Count);
+// Each facet keeps at most 100 (always with the one selected) and says when it left some out.
+public sealed record FormReceivedDocumentPageRow(IReadOnlyList<FormReceivedDocumentStoredRow> Items, int TotalCount, FormReceivedDocumentStateCounts Counts,
+    IReadOnlyList<FormReceivedDocumentFormFacetRow> Forms, bool FormsTruncated, IReadOnlyList<FormReceivedDocumentSenderFacetRow> Senders,
+    bool SendersTruncated)
 {
     public override string ToString() => "FormReceivedDocumentPageRow { Content = [REDACTED] }";
 }
+// A form with reading on a reviewer can change a document to: only what names it.
+public sealed record FormDocumentFormNameRow(Guid DefinitionId, string NameJson, string Culture);
 
 /// <summary>
 /// The inbox, page by page, newest first: by form, by who sent it, by when it arrived (instants, the upper one exclusive, as the sheet)
@@ -119,21 +132,28 @@ public sealed record PassFormReceivedDocumentRequest(Guid? RequestId, Guid? Vers
 public sealed record FormReceivedDocumentPersonResponse(Guid UserId, string? DisplayName);
 public sealed record FormReceivedDocumentFormResponse(Guid DefinitionId, string Name);
 public sealed record FormReceivedDocumentRecordReference(Guid RecordId, string Number);
-public sealed record FormReceivedDocumentFileInfoResponse(string Name, string MediaType, long Size, int? Pages);
+// Stored: whether the inbox keeps a copy of it to open; always today (a file registered without one is what task 8 adds).
+public sealed record FormReceivedDocumentFileInfoResponse(string Name, string MediaType, long Size, int? Pages, bool Stored);
 // A datum the list shows to find a document: the question and its value as read.
 public sealed record FormReceivedDocumentHighlightResponse(Guid FieldId, string Label, string Value)
 {
     public override string ToString() => "FormReceivedDocumentHighlightResponse { Content = [REDACTED] }";
 }
+// ReplyExpiresAtUtc: until when its person is waited for in the channel, null when nobody is (DOC5-A, VC1-A).
 public sealed record FormReceivedDocumentListItemResponse(Guid Id, DateTime ReceivedAtUtc, string ChannelId, FormReceivedDocumentPersonResponse Sender,
-    FormReceivedDocumentFormResponse? Form, string State, bool ForReview, string? ReasonCode, string? DocumentType,
+    FormReceivedDocumentFormResponse? Form, string State, bool ForReview, DateTime? ReplyExpiresAtUtc, string? ReasonCode, string? DocumentType,
     FormReceivedDocumentRecordReference? Record, FormReceivedDocumentFileInfoResponse File, IReadOnlyList<FormReceivedDocumentHighlightResponse> Highlights,
     DateTime? DeleteAfterUtc, long Revision)
 {
     public override string ToString() => "FormReceivedDocumentListItemResponse { Content = [REDACTED] }";
 }
+public sealed record FormReceivedDocumentFormFacetResponse(Guid DefinitionId, string Name, int Count);
+public sealed record FormReceivedDocumentSenderFacetResponse(Guid UserId, string? DisplayName, int Count);
+// The options of the «Formulario» and «Mandó» filters, each counted under the list's other filters, with whether more were left out.
+public sealed record FormReceivedDocumentFacetsResponse(IReadOnlyList<FormReceivedDocumentFormFacetResponse> Forms, bool FormsTruncated,
+    IReadOnlyList<FormReceivedDocumentSenderFacetResponse> Senders, bool SendersTruncated);
 public sealed record FormReceivedDocumentsPageResponse(IReadOnlyList<FormReceivedDocumentListItemResponse> Items, int Page, int PageSize, int TotalCount,
-    FormReceivedDocumentStateCounts Counts)
+    FormReceivedDocumentStateCounts Counts, FormReceivedDocumentFacetsResponse Facets)
 {
     public override string ToString() => "FormReceivedDocumentsPageResponse { Content = [REDACTED] }";
 }
@@ -144,10 +164,38 @@ public sealed record FormReceivedDocumentReadingResponse(string Readability, str
 {
     public override string ToString() => "FormReceivedDocumentReadingResponse { Content = [REDACTED] }";
 }
+// Options: what a choice can take when a reviewer can still act on the document (its own options, or the catalog ones the person who sent
+// it could choose), empty otherwise; null for any other type. OptionsUnavailable: why a catalog choice a reviewer can act on lists none.
 public sealed record FormReceivedDocumentValueResponse(Guid FieldId, string Label, string Type, bool Required, string? Value, string? Text, string? Mark,
-    string? ErrorCode)
+    string? ErrorCode, IReadOnlyList<FormReceivedDocumentOptionResponse>? Options, FormReceivedDocumentOptionsUnavailableResponse? OptionsUnavailable)
 {
     public override string ToString() => "FormReceivedDocumentValueResponse { Content = [REDACTED] }";
+}
+// Group: the text of the value it is listed under in a question that chooses first by a field (LD1-A); null otherwise.
+public sealed record FormReceivedDocumentOptionResponse(Guid Id, string Text, string? Group)
+{
+    public override string ToString() => "FormReceivedDocumentOptionResponse { Content = [REDACTED] }";
+}
+/// <summary>
+/// Why a catalog choice a reviewer can act on lists no options: <c>tooMany</c> (the sender's list passes 200, so it is searched) or
+/// <c>missingData</c> (the sender lacks the datum the catalog filters by, named in <see cref="Datum"/> in the reader's language, which the
+/// team completes in «Datos de personas» before passing it).
+/// </summary>
+public sealed record FormReceivedDocumentOptionsUnavailableResponse(string Reason,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Datum = null)
+{
+    public const string TooMany = "tooMany";
+    public const string MissingData = "missingData";
+}
+/// <summary>Searching the sender's list of a catalog choice of the document's current form: the question and what was typed.</summary>
+public sealed record SearchFormReceivedDocumentOptionsRequest(Guid? FieldId, string? Search)
+{
+    public override string ToString() => "SearchFormReceivedDocumentOptionsRequest { Search = [REDACTED] }";
+}
+/// <summary>The first options of the sender's list that match (at most 50), and whether more do.</summary>
+public sealed record FormReceivedDocumentOptionsResponse(IReadOnlyList<FormReceivedDocumentOptionResponse> Items, bool Truncated)
+{
+    public override string ToString() => "FormReceivedDocumentOptionsResponse { Content = [REDACTED] }";
 }
 public sealed record FormReceivedDocumentCandidateResponse(Guid DefinitionId, Guid VersionId, string Name, IReadOnlyList<FormReceivedDocumentValueResponse> Values)
 {
@@ -163,9 +211,10 @@ public sealed record FormReceivedDocumentEventResponse(DateTime AtUtc, string Ki
 {
     public override string ToString() => "FormReceivedDocumentEventResponse { Content = [REDACTED] }";
 }
+// Forms: the active forms with reading a reviewer can change it to, in their language; empty without «Revisar documentos».
 public sealed record FormReceivedDocumentDetailResponse(FormReceivedDocumentListItemResponse Document, FormReceivedDocumentReadingResponse? Reading,
     FormReceivedDocumentProposalResponse? Proposal, FormReceivedDocumentExtractionInfoResponse? Extraction,
-    IReadOnlyList<FormReceivedDocumentEventResponse> History, bool CanReview)
+    IReadOnlyList<FormReceivedDocumentEventResponse> History, bool CanReview, IReadOnlyList<FormReceivedDocumentFormResponse> Forms)
 {
     public override string ToString() => "FormReceivedDocumentDetailResponse { Content = [REDACTED] }";
 }

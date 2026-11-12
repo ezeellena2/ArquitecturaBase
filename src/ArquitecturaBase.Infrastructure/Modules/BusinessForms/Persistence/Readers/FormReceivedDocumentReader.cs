@@ -15,12 +15,16 @@ namespace ArquitecturaBase.Infrastructure.Modules.BusinessForms.Persistence.Read
 
 // Task 7: the reads of the documents capabilities and of the inbox «Documentos recibidos», without tracking and filtered in SQL before
 // ordering: the forms with reading (the channel's active versions, or any active published version for the fixed form), the catalog
-// options a reading fills, the repetitions of a document in a form, the inbox with its filters, number search and counts, a document
-// with its history, the origin of the responses passed from it and the copies the live documents keep.
+// options a reading fills, the repetitions of a document in a form, the inbox with its filters, number search, counts and the forms and
+// senders to filter by (each counted under the other filters, at most 100 with the selected one always in, marking the cut), a document
+// with its history, the origin of the responses passed from it (with the document's file name) and the copies the live documents keep.
 internal sealed class FormReceivedDocumentReader(ApplicationDbContext dbContext) : IFormReceivedDocumentReader
 {
     private const int MaxForms = 101;
+    private const int MaxFormNames = 100;
     private const int MaxEvents = 200;
+    private const int MaxFacets = 100;
+    private const string ReadingOn = """{"enabled":true}""";
     private static readonly IReadOnlyDictionary<string, Expression<Func<FormReceivedDocument, object?>>> Sortable =
         new Dictionary<string, Expression<Func<FormReceivedDocument, object?>>>(StringComparer.OrdinalIgnoreCase)
         {
@@ -30,6 +34,13 @@ internal sealed class FormReceivedDocumentReader(ApplicationDbContext dbContext)
     public async Task<IReadOnlyList<FormDocumentFormRow>> ListReadingFormsAsync(CancellationToken cancellationToken) =>
         await Forms(FormOfferableVersionQuery.ChannelVersions(dbContext).Where(version => version.DocumentReadingJson != null))
             .Take(MaxForms).ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<FormDocumentFormNameRow>> ListReadingFormNamesAsync(CancellationToken cancellationToken) =>
+        await (from version in FormOfferableVersionQuery.ChannelVersions(dbContext)
+               where version.DocumentReadingJson != null && EF.Functions.JsonContains(version.DocumentReadingJson, ReadingOn)
+               join definition in dbContext.Set<BusinessFormDefinition>().AsNoTracking() on version.DefinitionId equals definition.Id
+               orderby definition.Id
+               select new FormDocumentFormNameRow(definition.Id, version.NameJson!, version.Culture!)).Take(MaxFormNames).ToListAsync(cancellationToken);
 
     public Task<FormDocumentFormRow?> FindActiveFormAsync(Guid definitionId, CancellationToken cancellationToken) =>
         Forms(FormOfferableVersionQuery.Versions(dbContext).Where(version => version.DefinitionId == definitionId)).SingleOrDefaultAsync(cancellationToken);
@@ -52,10 +63,10 @@ internal sealed class FormReceivedDocumentReader(ApplicationDbContext dbContext)
             if (!Guid.TryParseExact(field, "D", out var fieldId)) return null;
             var fieldsJson = await dbContext.Set<BusinessFormCatalog>().AsNoTracking().Where(catalog => catalog.Id == catalogId)
                 .Select(catalog => catalog.FieldsJson).SingleOrDefaultAsync(cancellationToken);
-            var key = fieldsJson is null ? null
-                : JsonSerializer.Deserialize<BusinessFormCatalogField[]>(fieldsJson, JsonSerializerOptions.Web)?.FirstOrDefault(item => item.Id == fieldId && item.IsActive)?.Key;
-            if (key is null) return null;
-            var containment = JsonSerializer.Serialize(new Dictionary<string, string> { [key] = value.Trim() });
+            if (fieldsJson is null || JsonSerializer.Deserialize<BusinessFormCatalogField[]>(fieldsJson, JsonSerializerOptions.Web)?
+                    .Any(item => item.Id == fieldId && item.IsActive) != true) return null;
+            // An option keeps its field values by the field's Id, as every catalog filter compares them.
+            var containment = JsonSerializer.Serialize(new Dictionary<string, string> { [fieldId.ToString("D")] = value.Trim() });
             items = items.Where(item => EF.Functions.JsonContains(item.FieldValuesJson, containment));
         }
         return await items.OrderBy(item => item.Position).ThenBy(item => item.Id)
@@ -109,8 +120,6 @@ internal sealed class FormReceivedDocumentReader(ApplicationDbContext dbContext)
         CancellationToken cancellationToken)
     {
         var documents = dbContext.Set<FormReceivedDocument>().AsNoTracking();
-        if (request.DefinitionId is { } definitionId) documents = documents.Where(document => document.DefinitionId == definitionId);
-        if (request.SenderUserId is { } senderId) documents = documents.Where(document => document.SenderUserId == senderId);
         if (request.ReceivedFromUtc is { } from) documents = documents.Where(document => document.ReceivedAtUtc >= from);
         if (request.ReceivedToUtc is { } to) documents = documents.Where(document => document.ReceivedAtUtc < to);
         if (searchDigits is not null)
@@ -119,19 +128,15 @@ internal sealed class FormReceivedDocumentReader(ApplicationDbContext dbContext)
             var query = searchDigits + ":*";
             documents = documents.Where(document => EF.Functions.ToTsVector("simple", document.SearchText).Matches(EF.Functions.ToTsQuery("simple", query)));
         }
-        var counts = await CountAsync(documents, nowUtc, cancellationToken);
-        var filtered = request.State switch
-        {
-            "proposed" => documents.Where(document => document.State == FormReceivedDocumentState.Proposed),
-            "forReview" => documents.Where(ForReview(nowUtc)),
-            "unclassified" => documents.Where(document => document.State == FormReceivedDocumentState.Unclassified),
-            "confirmed" => documents.Where(document => document.State == FormReceivedDocumentState.Confirmed),
-            "discarded" => documents.Where(document => document.State == FormReceivedDocumentState.Discarded),
-            _ => documents,
-        };
+        // The counts per state, the forms and the senders are each counted under the other filters, never their own.
+        var counts = await CountAsync(OfSender(OfForm(documents, request), request), nowUtc, cancellationToken);
+        var (forms, formsTruncated) = await FormFacetsAsync(InState(OfSender(documents, request), request.State, nowUtc), request.DefinitionId, cancellationToken);
+        var (senders, sendersTruncated) = await SenderFacetsAsync(InState(OfForm(documents, request), request.State, nowUtc), request.SenderUserId,
+            cancellationToken);
+        var filtered = InState(OfSender(OfForm(documents, request), request), request.State, nowUtc);
         var page = await Rows(filtered.ApplySort(SortDescriptor.Parse(request.Sort), Sortable, new("receivedAtUtc", true), document => document.Id))
             .ToPagedResultAsync(request, cancellationToken);
-        return new FormReceivedDocumentPageRow(page.Items, page.TotalCount, counts);
+        return new FormReceivedDocumentPageRow(page.Items, page.TotalCount, counts, forms, formsTruncated, senders, sendersTruncated);
     }
 
     public Task<FormReceivedDocumentStateCounts> CountAsync(DateTime nowUtc, CancellationToken cancellationToken) =>
@@ -151,7 +156,7 @@ internal sealed class FormReceivedDocumentReader(ApplicationDbContext dbContext)
                where document.ReviewedByUserId != null && document.ReviewedAtUtc != null && sourceReceiptIds.Contains(record.SourceReceiptId)
                select new FormDocumentOriginRow(record.SourceReceiptId, document.ReviewedByUserId!.Value,
                    dbContext.Users.Where(user => user.Id == document.ReviewedByUserId).Select(user => user.DisplayName).FirstOrDefault(),
-                   document.ReviewedAtUtc!.Value, document.Id)).ToListAsync(cancellationToken);
+                   document.ReviewedAtUtc!.Value, document.Id, document.FileName)).ToListAsync(cancellationToken);
 
     public async Task<IReadOnlyList<Guid>> ListExpiredIdsAsync(DateTime nowUtc, int maximum, CancellationToken cancellationToken) =>
         await dbContext.Set<FormReceivedDocument>().AsNoTracking()
@@ -212,6 +217,91 @@ internal sealed class FormReceivedDocumentReader(ApplicationDbContext dbContext)
 
     private static Expression<Func<FormReceivedDocument, bool>> ForReview(DateTime nowUtc) => document => document.State == FormReceivedDocumentState.Proposed
         && (document.NotSendable || document.ReplyExpiresAtUtc == null || document.ReplyExpiresAtUtc <= nowUtc);
+
+    private static IQueryable<FormReceivedDocument> OfForm(IQueryable<FormReceivedDocument> documents, ListFormReceivedDocumentsRequest request) =>
+        request.DefinitionId is { } definitionId ? documents.Where(document => document.DefinitionId == definitionId) : documents;
+
+    private static IQueryable<FormReceivedDocument> OfSender(IQueryable<FormReceivedDocument> documents, ListFormReceivedDocumentsRequest request) =>
+        request.SenderUserId is { } senderId ? documents.Where(document => document.SenderUserId == senderId) : documents;
+
+    private static IQueryable<FormReceivedDocument> InState(IQueryable<FormReceivedDocument> documents, string? state, DateTime nowUtc) => state switch
+    {
+        "proposed" => documents.Where(document => document.State == FormReceivedDocumentState.Proposed),
+        "forReview" => documents.Where(ForReview(nowUtc)),
+        "unclassified" => documents.Where(document => document.State == FormReceivedDocumentState.Unclassified),
+        "confirmed" => documents.Where(document => document.State == FormReceivedDocumentState.Confirmed),
+        "discarded" => documents.Where(document => document.State == FormReceivedDocumentState.Discarded),
+        _ => documents,
+    };
+
+    // The forms with documents, the most first, one row each, by the name of its active version or, for one without it, of its documents'.
+    private async Task<(IReadOnlyList<FormReceivedDocumentFormFacetRow> Rows, bool Truncated)> FormFacetsAsync(IQueryable<FormReceivedDocument> documents,
+        Guid? selected, CancellationToken ct)
+    {
+        var (counted, truncated) = await FacetAsync(documents.Where(document => document.DefinitionId != null), document => document.DefinitionId!.Value,
+            selected, ct);
+        if (counted.Count == 0) return ([], truncated);
+        var ids = counted.Select(row => row.Key).ToArray();
+        var names = await dbContext.Set<BusinessFormDefinition>().AsNoTracking().Where(definition => ids.Contains(definition.Id))
+            .Select(definition => new
+            {
+                definition.Id,
+                NameJson = dbContext.Set<BusinessFormVersion>().Where(version => version.Id == definition.ActiveVersionId).Select(version => version.NameJson).FirstOrDefault(),
+            }).ToDictionaryAsync(row => row.Id, row => row.NameJson, ct);
+        var missing = ids.Where(id => names.GetValueOrDefault(id) is null).ToArray();
+        if (missing.Length > 0)
+        {
+            var versionIds = dbContext.Set<FormReceivedDocument>()
+                .Where(document => document.DefinitionId != null && missing.Contains(document.DefinitionId.Value) && document.VersionId != null)
+                .Select(document => document.VersionId!.Value);
+            var versions = await dbContext.Set<BusinessFormVersion>().AsNoTracking().Where(version => versionIds.Contains(version.Id) && version.NameJson != null)
+                .Select(version => new { version.DefinitionId, version.Number, version.NameJson }).ToListAsync(ct);
+            foreach (var version in versions.GroupBy(row => row.DefinitionId))
+                names[version.Key] = version.MaxBy(row => row.Number)!.NameJson;
+        }
+        return (counted.Select(row => new FormReceivedDocumentFormFacetRow(row.Key, names.GetValueOrDefault(row.Key), row.Count)).ToArray(), truncated);
+    }
+
+    // The people who sent documents, the most first, by the name of their account.
+    private async Task<(IReadOnlyList<FormReceivedDocumentSenderFacetRow> Rows, bool Truncated)> SenderFacetsAsync(IQueryable<FormReceivedDocument> documents,
+        Guid? selected, CancellationToken ct)
+    {
+        var (counted, truncated) = await FacetAsync(documents, document => document.SenderUserId, selected, ct);
+        if (counted.Count == 0) return ([], truncated);
+        var ids = counted.Select(row => row.Key).ToArray();
+        var names = await dbContext.Users.Where(user => ids.Contains(user.Id)).Select(user => new { user.Id, user.DisplayName })
+            .ToDictionaryAsync(user => user.Id, user => user.DisplayName, ct);
+        return (counted.Select(row => new FormReceivedDocumentSenderFacetRow(row.Key, names.GetValueOrDefault(row.Key), row.Count)).ToArray(), truncated);
+    }
+
+    // A facet: the first MaxFacets keys with the most documents, reading one more to know it cuts, and always the selected key with its count
+    // under the same filters (even zero), in the place its count gives it; when it takes the place of the last one, that one is cut.
+    private static async Task<(List<(Guid Key, int Count)> Rows, bool Truncated)> FacetAsync(IQueryable<FormReceivedDocument> documents,
+        Expression<Func<FormReceivedDocument, Guid>> key, Guid? selected, CancellationToken ct)
+    {
+        var read = await documents.GroupBy(key).Select(group => new { group.Key, Count = group.Count() })
+            .OrderByDescending(group => group.Count).ThenBy(group => group.Key).Take(MaxFacets + 1).ToListAsync(ct);
+        var rows = read.Take(MaxFacets).Select(group => (group.Key, group.Count)).ToList();
+        var truncated = read.Count > MaxFacets;
+        if (selected is { } chosen && rows.TrueForAll(row => row.Key != chosen))
+        {
+            var count = read.FirstOrDefault(group => group.Key == chosen)?.Count ?? await documents.CountAsync(KeyEquals(key, chosen), ct);
+            if (rows.Count == MaxFacets)
+            {
+                rows.RemoveAt(rows.Count - 1);
+                truncated = true;
+            }
+            var place = rows.FindIndex(row => row.Count < count);
+            rows.Insert(place < 0 ? rows.Count : place, (chosen, count));
+        }
+        return (rows, truncated);
+    }
+
+    private static Expression<Func<FormReceivedDocument, bool>> KeyEquals(Expression<Func<FormReceivedDocument, Guid>> key, Guid value)
+    {
+        Expression<Func<Guid>> parameter = () => value;
+        return Expression.Lambda<Func<FormReceivedDocument, bool>>(Expression.Equal(key.Body, parameter.Body), key.Parameters);
+    }
 
     // A duplicate key compares the typed value its question keeps.
     private Expression<Func<BusinessFormRecord, bool>> Matches(FormDocumentRepetitionKey key)

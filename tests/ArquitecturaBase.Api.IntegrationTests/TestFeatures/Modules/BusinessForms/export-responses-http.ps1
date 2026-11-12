@@ -138,12 +138,13 @@ $cohorts = @(
             ($captureRoot + "Modules/BusinessForms/FormDashboardContractCapture.cs"), "src/ArquitecturaBase.Application/Modules/BusinessForms/Models/FormDashboardModels.cs") },
     @{ Name = "documents"; Environment = "FORM_DOCUMENTS_HTTP_OUTPUT"; Destination = "forms-documents-http";
         RequiredNames = @("documents-list-es.json", "documents-counts-es.json", "documents-invalid-search-es.json", "document-detail-es.json", "document-detail-en.json",
+            "document-detail-choices-es.json", "document-record-detail-es.json", "document-options-es.json",
             "document-discarded-es.json", "document-revision-conflict-es.json", "document-extraction-accepted-es.json", "document-extraction-pending-es.json",
             "document-extraction-completed-es.json", "document-extraction-failed-es.json", "document-extraction-unavailable-es.json", "document-awaiting-sender-es.json",
             "document-record-es.json", "document-sender-inactive-es.json");
         Sources = @(($sourceRoot + "BusinessForms/FormReceivedDocumentHttpTests.cs"), ($captureRoot + "Modules/BusinessForms/FormReceivedDocumentScenario.cs"),
             ($captureRoot + "Modules/BusinessForms/FormReceivedDocumentContractCapture.cs"), ($captureRoot + "Modules/BusinessForms/ScriptedDocumentOperations.cs"),
-            "src/ArquitecturaBase.Application/Modules/BusinessForms/Models/FormReceivedDocumentModels.cs") },
+            "src/ArquitecturaBase.Application/Modules/BusinessForms/Models/FormReceivedDocumentModels.cs", "src/ArquitecturaBase.Application/Models/StructuredData/StructuredRecordOrigin.cs") },
     @{ Name = "whatsapp-audio"; Environment = "WHATSAPP_AUDIO_HTTP_OUTPUT"; Destination = "whatsapp-audio-http";
         Sources = @(($sourceRoot + "WhatsApp/WhatsAppChatTests.Audio.cs"), ($sourceRoot + "WhatsApp/WhatsAppChatTests.Spreadsheet.cs"), ($captureRoot + "Modules/WhatsApp/WhatsAppAudioContractCapture.cs")) },
     @{ Name = "missing-requests"; Environment = "FORM_MISSING_REQUEST_HTTP_OUTPUT"; Destination = "forms-missing-requests-http";

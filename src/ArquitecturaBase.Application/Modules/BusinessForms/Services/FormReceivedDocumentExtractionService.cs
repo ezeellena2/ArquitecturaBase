@@ -16,7 +16,9 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 /// then records it under the document's lock as the one the document waits for, with who asked, in which language and zone; the same
 /// request again is answered without submitting, and with another form it is a conflict. Reading it asks the engine with that sealed
 /// context, whoever polls, and once it finished applies it in one unit of work: proposed for the fixed form, or the request dropped with
-/// its failure code. An engine that refuses or fails answers its own error and leaves the request as it was. Each step goes to the history.
+/// its failure code. An engine that refuses or fails answers its own error and leaves the request as it was, except one that refuses to
+/// show it for good while it is read (403): then the request is dropped, so the document is not left reading for everybody. Each step goes
+/// to the history; the change and its failure, as steps of whoever asked.
 /// </summary>
 internal sealed class FormReceivedDocumentExtractionService(FormReceivedDocumentAccessGuard guard, IFormReceivedDocumentReader reader,
     IFormReceivedDocumentRepository repository, IAssistantOperations operations, FormReceivedDocumentExtractionPolicy extractions,
@@ -72,30 +74,38 @@ internal sealed class FormReceivedDocumentExtractionService(FormReceivedDocument
             return FormReceivedDocumentErrors.ExtractionNotFound;
         // Read with the context it was asked with, whoever polls now: another reviewer, or the same one in another language.
         var found = await operations.GetAsync(context, requestId, cancellationToken);
-        if (found.IsFailure && found.Error.Type != ErrorType.NotFound) return EngineError(found.Error);
+        // An engine that refuses it for good (403) drops it, so the document is not left reading for everybody, and the refusal is
+        // answered; a transient failure (5xx, network, 429) leaves it as it was.
+        var refused = found.IsFailure && found.Error.Type == ErrorType.Forbidden;
+        if (found.IsFailure && !refused && found.Error.Type != ErrorType.NotFound) return EngineError(found.Error);
         var operation = found.IsSuccess ? found.Value : null;
         if (operation is { State: "pending" or "running" }) return Pending(requestId);
         var outcome = operation is { State: "completed" } ? await extractions.PrepareAsync(operation, row, definitionId, cancellationToken) : null;
-        var failure = outcome is { Proposal: not null } ? null
+        var failure = refused ? FormReceivedDocumentExtractionPolicy.Refused
+            : outcome is { Proposal: not null } ? null
             : operation is null ? FormReceivedDocumentErrors.ExtractionNotFound.Code
             : outcome?.FailureCode ?? operation.FailureCode ?? Unrecognized;
         var saved = await unitOfWork.ExecuteInTransactionAsync<Result>(async ct =>
         {
             await repository.LockAsync(documentId, ct);
             if (await repository.GetAsync(documentId, ct) is not { } document) return FormReceivedDocumentErrors.NotFound;
-            if (document.ExtractionRequestId != requestId) return FormReceivedDocumentErrors.ExtractionNotFound;
+            if (document.ExtractionRequestId != requestId) return refused ? Result.Success() : FormReceivedDocumentErrors.ExtractionNotFound;
+            // The step is of whoever asked for the change, in their language, even when another reviewer's poll applies it.
+            var asker = document.ExtractionActorUserId ?? actor.Value.Id;
+            var askerCulture = document.ExtractionCulture ?? actor.Value.Culture;
             if (failure is not null)
             {
                 var failed = document.FailExtraction(requestId);
-                return failed.IsFailure ? failed : recorder.Record(document.Id, FormReceivedDocumentEventKind.ExtractionFailed, actor.Value.Id, failure);
+                return failed.IsFailure ? failed : recorder.Record(document.Id, FormReceivedDocumentEventKind.ExtractionFailed, asker, failure);
             }
             var prepared = outcome!.Proposal!;
             var applied = document.ApplyExtraction(requestId, prepared.Candidates[0].VersionId, extractions.Protect(document.Id, prepared), prepared.DocumentType,
                 FormReceivedDocumentSearchPolicy.Build(extractions.Reading(document.Id, document.ProtectedReading), prepared));
             return applied.IsFailure ? applied
-                : recorder.Record(document.Id, FormReceivedDocumentEventKind.FormChanged, actor.Value.Id, FormDocumentFormPolicy.Name(outcome.Form!, actor.Value.Culture));
+                : recorder.Record(document.Id, FormReceivedDocumentEventKind.FormChanged, asker, FormDocumentFormPolicy.Name(outcome.Form!, askerCulture));
         }, CommitPolicy.OnSuccess, cancellationToken);
         if (saved.IsFailure) return saved.Error;
+        if (refused) return FormDefinitionErrors.Forbidden;
         return new FormReceivedDocumentExtractionResponse(requestId, failure is null ? "completed" : "failed", failure);
     }
 

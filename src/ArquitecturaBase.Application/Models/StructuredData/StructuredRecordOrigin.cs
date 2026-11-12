@@ -9,5 +9,15 @@ public sealed record StructuredRecordOrigin(Guid SourceReceiptId, string Channel
     [System.Text.Json.Serialization.JsonIgnore] public DateTime? LocationRequestedAtUtc { get; init; }
     [System.Text.Json.Serialization.JsonIgnore] public DateTime? LocationResolvedAtUtc { get; init; }
     [System.Text.Json.Serialization.JsonIgnore] public bool LocationSkipped { get; init; }
+    /// <summary>
+    /// The received document the response came from (DOC5-A) and its file's name, by an opaque id of its owner; omitted otherwise, so every
+    /// other origin keeps its bytes.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public StructuredRecordOriginDocument? Document { get; init; }
     public override string ToString() => "StructuredRecordOrigin { Content = [REDACTED] }";
+}
+public sealed record StructuredRecordOriginDocument(Guid Id, string Name)
+{
+    public override string ToString() => "StructuredRecordOriginDocument { Content = [REDACTED] }";
 }

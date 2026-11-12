@@ -54,6 +54,18 @@ public sealed class FormReceivedDocumentTests
     }
 
     [Fact]
+    public void Its_person_is_waited_for_until_the_reply_expires_and_nobody_is_waited_for_otherwise()
+    {
+        var until = Now.AddHours(1);
+        Assert.Equal(until, FormReceivedDocument.AwaitedUntil(FormReceivedDocumentState.Proposed, false, until, Now));
+        Assert.Null(FormReceivedDocument.AwaitedUntil(FormReceivedDocumentState.Proposed, false, until, until));
+        Assert.Null(FormReceivedDocument.AwaitedUntil(FormReceivedDocumentState.Proposed, true, until, Now));
+        Assert.Null(FormReceivedDocument.AwaitedUntil(FormReceivedDocumentState.Proposed, false, null, Now));
+        Assert.Null(FormReceivedDocument.AwaitedUntil(FormReceivedDocumentState.Unclassified, false, until, Now));
+        Assert.Null(FormReceivedDocument.AwaitedUntil(FormReceivedDocumentState.Confirmed, false, until, Now));
+    }
+
+    [Fact]
     public void Discarding_needs_the_revision_seen_and_a_proposed_or_unclassified_document_and_advances_the_revision()
     {
         var document = Proposed();

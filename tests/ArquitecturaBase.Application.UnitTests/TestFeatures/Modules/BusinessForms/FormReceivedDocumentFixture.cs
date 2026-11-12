@@ -49,6 +49,9 @@ internal sealed class FormReceivedDocumentFixture : IFormReceivedDocumentReposit
     // IFormReceivedDocumentReader
     public Task<IReadOnlyList<FormDocumentFormRow>> ListReadingFormsAsync(CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<FormDocumentFormRow>>(Forms.Where(form => !form.AppOnly && form.DocumentReadingJson is not null).Take(101).ToArray());
+    public Task<IReadOnlyList<FormDocumentFormNameRow>> ListReadingFormNamesAsync(CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<FormDocumentFormNameRow>>(Forms.Where(form => !form.AppOnly && FormDocumentFormPolicy.Reading(form) is { Enabled: true })
+            .Take(100).Select(form => new FormDocumentFormNameRow(form.DefinitionId, form.NameJson, form.Culture)).ToArray());
     public Task<FormDocumentFormRow?> FindActiveFormAsync(Guid definitionId, CancellationToken cancellationToken) =>
         Task.FromResult(Forms.SingleOrDefault(form => form.DefinitionId == definitionId));
     public Task<IReadOnlyList<FormDocumentCatalogNameRow>> ListCatalogNamesAsync(IReadOnlyCollection<Guid> catalogIds, CancellationToken cancellationToken) =>

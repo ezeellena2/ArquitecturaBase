@@ -1,10 +1,12 @@
 using System.Globalization;
+using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Identity;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
+using ArquitecturaBase.Domain.Common;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Modules.BusinessForms.Documents;
 using ArquitecturaBase.Domain.Results;
@@ -13,8 +15,9 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
 /// <summary>
 /// «Documentos recibidos» (DOC5-A, decisions 14 to 16): the reads ask for «Ver documentos recibidos» before and after reading, without a
-/// unit of work; discarding and reopening ask for «Revisar documentos», with the expected revision and 409, in one unit of work under the
-/// document's lock, and record the step in its history.
+/// unit of work, and searching the sender's options of a choice asks for «Revisar documentos» the same way; discarding and reopening ask
+/// for «Revisar documentos», with the expected revision and 409, in one unit of work under the document's lock, and record the step in its
+/// history.
 /// </summary>
 internal sealed class FormReceivedDocumentService(FormReceivedDocumentAccessGuard guard, IFormReceivedDocumentReader reader,
     IFormReceivedDocumentRepository repository, FormReceivedDocumentPresentationPolicy presentation, FormReceivedDocumentRecorder recorder,
@@ -31,7 +34,8 @@ internal sealed class FormReceivedDocumentService(FormReceivedDocumentAccessGuar
         var page = await reader.FindPageAsync(request, digits, now, cancellationToken);
         var items = await presentation.ItemsAsync(page.Items, Culture(), now, cancellationToken);
         if (!await guard.HasAsync(actor.Value.Id, BusinessFormsPermissions.DocumentsRead, cancellationToken)) return FormDefinitionErrors.Forbidden;
-        return new FormReceivedDocumentsPageResponse(items, request.Page, request.PageSize, page.TotalCount, page.Counts);
+        return new FormReceivedDocumentsPageResponse(items, request.Page, request.PageSize, page.TotalCount, page.Counts,
+            FormReceivedDocumentPresentationPolicy.Facets(page, Culture()));
     }
 
     public async Task<Result<FormReceivedDocumentCountsResponse>> CountAsync(CancellationToken cancellationToken)
@@ -46,6 +50,22 @@ internal sealed class FormReceivedDocumentService(FormReceivedDocumentAccessGuar
     {
         var actor = await guard.CheckAsync(BusinessFormsPermissions.DocumentsRead, cancellationToken);
         return actor.IsFailure ? actor.Error : await DetailAsync(actor.Value, documentId, cancellationToken);
+    }
+
+    // A reviewer searches the sender's list of a catalog choice that lists too many options, asking for «Revisar documentos» before and after.
+    public async Task<Result<FormReceivedDocumentOptionsResponse>> SearchOptionsAsync(Guid documentId, SearchFormReceivedDocumentOptionsRequest request,
+        CancellationToken cancellationToken)
+    {
+        var actor = await guard.CheckAsync(BusinessFormsPermissions.DocumentsReview, cancellationToken);
+        if (actor.IsFailure) return actor.Error;
+        if (request.FieldId is not { } fieldId || fieldId == Guid.Empty) return FieldErrors.On(FormReceivedDocumentErrors.ContentInvalid, "fieldId");
+        var search = string.IsNullOrWhiteSpace(request.Search) ? null : request.Search.Trim();
+        if (search is { Length: > PagedRequest.MaxSearchLength } || search is not null && !StorableText.IsStorable(search))
+            return FieldErrors.On(FormReceivedDocumentErrors.ContentInvalid, "search");
+        if (await reader.FindAsync(documentId, cancellationToken) is not { } row) return FormReceivedDocumentErrors.NotFound;
+        var found = await presentation.SearchOptionsAsync(row, fieldId, search, Culture(), cancellationToken);
+        if (!await guard.HasAsync(actor.Value.Id, BusinessFormsPermissions.DocumentsReview, cancellationToken)) return FormDefinitionErrors.Forbidden;
+        return found;
     }
 
     public async Task<Result<FormReceivedDocumentFileResponse>> OpenAsync(Guid documentId, CancellationToken cancellationToken)
