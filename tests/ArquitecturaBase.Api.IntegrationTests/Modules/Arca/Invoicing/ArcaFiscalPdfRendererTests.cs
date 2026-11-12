@@ -64,11 +64,11 @@ public sealed partial class ArcaFiscalPdfRendererTests
         {
             ClassLetter = "A",
             TypeCode = "COD. 01",
-            Lines = [.. Enumerable.Range(1, 3).Select(index => new ArcaFiscalLine($"Ítem {index}", 1m, 100m, 100m, "21 %"))],
+            Lines = [.. Enumerable.Range(1, 3).Select(index => new ArcaFiscalLine($"Ítem {index}", 1m, 100m, 100m, "21%"))],
             Subtotals =
             [
-                new("Importe neto gravado", 300m), new("IVA 2,5 %", 0m), new("IVA 5 %", 0m), new("IVA 10,5 %", 0m), new("IVA 21 %", 63m),
-                new("IVA 27 %", 0m), new("Importe exento", 0m), new("Importe no gravado", 0m),
+                new("Importe neto gravado", 300m), new("IVA 2,5%", 0m), new("IVA 5%", 0m), new("IVA 10,5%", 0m), new("IVA 21%", 63m),
+                new("IVA 27%", 0m), new("Importe exento", 0m), new("Importe no gravado", 0m),
             ],
             Total = 363m,
             Legend = "El crédito fiscal discriminado en el presente comprobante, sólo podrá ser computado a efectos del Régimen de Sostenimiento e "

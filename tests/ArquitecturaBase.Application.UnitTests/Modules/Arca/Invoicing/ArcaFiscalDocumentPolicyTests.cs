@@ -104,9 +104,9 @@ public sealed class ArcaFiscalDocumentPolicyTests
         var document = ArcaFiscalDocumentPolicy.Build(Authorized(voucher), payload);
 
         Assert.Equal(("A", "COD. 01", 629200.21m), (document.ClassLetter, document.TypeCode, document.Total));
-        Assert.Equal([new ArcaFiscalLine("Semilla de soja", 10m, 52000m, 520000m, "21 %"), new ArcaFiscalLine("Flete", 1.5m, 0.125m, 0.19m, "10,5 %")],
+        Assert.Equal([new ArcaFiscalLine("Semilla de soja", 10m, 52000m, 520000m, "21%"), new ArcaFiscalLine("Flete", 1.5m, 0.125m, 0.19m, "10,5%")],
             document.Lines);
-        Assert.Equal([new ArcaFiscalAmount("Importe neto gravado", 520000.19m), new ArcaFiscalAmount("IVA 10,5 %", 0.02m), new ArcaFiscalAmount("IVA 21 %", 109200m)],
+        Assert.Equal([new ArcaFiscalAmount("Importe neto gravado", 520000.19m), new ArcaFiscalAmount("IVA 10,5%", 0.02m), new ArcaFiscalAmount("IVA 21%", 109200m)],
             document.Subtotals);
         Assert.Equal(((decimal?)null, (string?)null), (document.VatContained, document.Legend));
     }
@@ -118,9 +118,9 @@ public sealed class ArcaFiscalDocumentPolicyTests
 
         var document = ArcaFiscalDocumentPolicy.Build(Authorized(voucher), payload);
 
-        Assert.Equal([new ArcaFiscalLine("Semilla de soja", 10m, 42975.21m, 429752.07m, "21 %"), new ArcaFiscalLine("Flete", 1.5m, 0.11m, 0.17m, "10,5 %")],
+        Assert.Equal([new ArcaFiscalLine("Semilla de soja", 10m, 42975.21m, 429752.07m, "21%"), new ArcaFiscalLine("Flete", 1.5m, 0.11m, 0.17m, "10,5%")],
             document.Lines);
-        Assert.Equal([new ArcaFiscalAmount("Importe neto gravado", 429752.24m), new ArcaFiscalAmount("IVA 10,5 %", 0.02m), new ArcaFiscalAmount("IVA 21 %", 90247.93m)],
+        Assert.Equal([new ArcaFiscalAmount("Importe neto gravado", 429752.24m), new ArcaFiscalAmount("IVA 10,5%", 0.02m), new ArcaFiscalAmount("IVA 21%", 90247.93m)],
             document.Subtotals);
         Assert.Equal(520000.19m, document.Total);
     }
@@ -141,10 +141,10 @@ public sealed class ArcaFiscalDocumentPolicyTests
 
         var document = ArcaFiscalDocumentPolicy.Build(Authorized(voucher), payload);
 
-        Assert.Equal(["21 %", "Exento", "No gravado"], document.Lines.Select(line => line.Vat));
+        Assert.Equal(["21%", "Exento", "No gravado"], document.Lines.Select(line => line.Vat));
         Assert.Equal(
             [
-                new ArcaFiscalAmount("Importe neto gravado", 520000m), new ArcaFiscalAmount("IVA 21 %", 109200m),
+                new ArcaFiscalAmount("Importe neto gravado", 520000m), new ArcaFiscalAmount("IVA 21%", 109200m),
                 new ArcaFiscalAmount("Importe exento", 15000m), new ArcaFiscalAmount("Importe no gravado", 500m),
             ],
             document.Subtotals);

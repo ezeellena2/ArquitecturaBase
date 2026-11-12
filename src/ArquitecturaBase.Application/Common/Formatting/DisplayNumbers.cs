@@ -14,6 +14,7 @@ public static class DisplayNumbers
     private static readonly CultureInfo Spanish = CultureInfo.GetCultureInfo("es-AR");
     private static readonly CultureInfo English = CultureInfo.GetCultureInfo("en-US");
     private const int MaximumScale = 28;
+    private const string PercentFormat = "percent";
 
     /// <summary>The culture of the numbers of a language of the app: en-US for English and es-AR, the default language, for the rest.</summary>
     public static CultureInfo Culture(string culture) => culture.StartsWith("en", StringComparison.OrdinalIgnoreCase) ? English : Spanish;
@@ -35,8 +36,17 @@ public static class DisplayNumbers
     }
 
     /// <summary>
+    /// A percentage, 21 for 21 %, with its sign right after the number in both regions («21%», «10,5%», «10.5%»), as CLDR and
+    /// Intl write it in the front; up to <paramref name="maximumDecimals"/> decimals, without the zeros left over. The piece
+    /// writes the sign itself: the percent pattern .NET takes from the ICU of Windows still puts a space for es-AR («21 %»).
+    /// </summary>
+    public static string Percent(decimal value, string culture, int maximumDecimals = 2) =>
+        Number(value, culture, 0, maximumDecimals) + Culture(culture).NumberFormat.PercentSymbol;
+
+    /// <summary>
     /// A text for a person with its arguments, in the culture of its language: a number without a format of its own goes with
-    /// its thousands (<c>{0}</c> of 1210 is «1.210»), one with a format of its own keeps it (<c>{0:0.##}</c>), and the rest goes as it is.
+    /// its thousands (<c>{0}</c> of 1210 is «1.210»), a percentage goes with <c>{0:percent}</c> («21%»), one with a format of its
+    /// own keeps it (<c>{0:0.##}</c>), and the rest goes as it is.
     /// </summary>
     public static string Format(string culture, string format, params object?[] arguments) =>
         string.Format(new Formatter(Culture(culture)), format, arguments);
@@ -48,6 +58,7 @@ public static class DisplayNumbers
         public string Format(string? format, object? arg, IFormatProvider? formatProvider)
         {
             if (arg is null) return "";
+            if (format == PercentFormat) return Percent(Convert.ToDecimal(arg, CultureInfo.InvariantCulture), culture.Name);
             if (string.IsNullOrEmpty(format))
             {
                 switch (arg)

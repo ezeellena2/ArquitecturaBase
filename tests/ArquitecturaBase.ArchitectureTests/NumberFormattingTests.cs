@@ -41,6 +41,41 @@ public sealed partial class NumberFormattingTests
         Assert.Empty(UnformattedNumberPlaceholder().Matches(text).Select(match => match.Value));
     }
 
+    // A percentage goes through DisplayNumbers too (2026-11-12): a sign glued by hand put a space in one place and not in
+    // another («21 %», «21%»). A text writes it with {0:percent}; a datum of ARCA, such as the name of a rate, goes as it comes.
+    [Fact]
+    public void No_text_glues_a_percent_sign_to_a_number()
+    {
+        var source = Path.Combine(SolutionRoot.FullPath, "src");
+
+        var glued = Directory.EnumerateFiles(source, "*.resx", SearchOption.AllDirectories)
+            .Where(path => !IsBuildOutput(source, path))
+            .SelectMany(path => GluedPercentInText().Matches(File.ReadAllText(path))
+                .Select(match => $"{Path.GetRelativePath(SolutionRoot.FullPath, path)}: {match.Value}"));
+
+        Assert.Empty(glued);
+    }
+
+    // The LIKE patterns of Persistence use «%» as a wildcard, not as a percentage.
+    [Theory]
+    [InlineData("ArquitecturaBase.Application")]
+    [InlineData("ArquitecturaBase.Infrastructure")]
+    public void No_code_glues_a_percent_sign_to_a_number(string project)
+    {
+        var projectDirectory = Path.Combine(SolutionRoot.FullPath, "src", project);
+
+        var glued = Directory.EnumerateFiles(projectDirectory, "*.cs", SearchOption.AllDirectories)
+            .Where(path => !IsBuildOutput(projectDirectory, path))
+            .Where(path => !Path.GetRelativePath(projectDirectory, path).Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar).Contains("Persistence"))
+            .Where(path => Path.GetRelativePath(SolutionRoot.FullPath, path).Replace('\\', '/') != Piece)
+            .SelectMany(path => File.ReadLines(path).Select((line, index) => (Path: path, Line: line, Number: index + 1)))
+            .Where(entry => !entry.Line.TrimStart().StartsWith("//", StringComparison.Ordinal))
+            .Where(entry => GluedPercentInCode().IsMatch(entry.Line))
+            .Select(entry => $"{Path.GetRelativePath(SolutionRoot.FullPath, entry.Path)}:{entry.Number}");
+
+        Assert.Empty(glued);
+    }
+
     private static bool IsBuildOutput(string projectDirectory, string path) =>
         Path.GetRelativePath(projectDirectory, path)
             .Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
@@ -51,4 +86,10 @@ public sealed partial class NumberFormattingTests
 
     [GeneratedRegex(@"\{(?:MaxLength|MinLength|From|To|ComparisonValue)\}")]
     private static partial Regex UnformattedNumberPlaceholder();
+
+    [GeneratedRegex(@"\{\d+(?::[^}]*)?\}\s?%")]
+    private static partial Regex GluedPercentInText();
+
+    [GeneratedRegex("""\+\s*"\s?%"|\{[^{}"]*\}\s?%""")]
+    private static partial Regex GluedPercentInCode();
 }

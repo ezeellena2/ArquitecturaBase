@@ -24,7 +24,7 @@
   <data name="Preview.Info.B" xml:space="preserve"><value>Lo decide el sistema: es consumidor final.</value></data>
   <data name="Preview.Info.B.Other" xml:space="preserve"><value>Lo decide el sistema: tu cliente no es responsable inscripto ni monotributista.</value></data>
   <data name="Preview.Net" xml:space="preserve"><value>Importe neto gravado</value></data>
-  <data name="Preview.Vat" xml:space="preserve"><value>IVA {0:0.##} %</value></data>
+  <data name="Preview.Vat" xml:space="preserve"><value>IVA {0:percent}</value></data>
   <data name="Preview.Exempt" xml:space="preserve"><value>Importe exento</value></data>
   <data name="Preview.NotTaxed" xml:space="preserve"><value>Importe no gravado</value></data>
   <data name="Preview.VatContained" xml:space="preserve"><value>IVA contenido</value></data>

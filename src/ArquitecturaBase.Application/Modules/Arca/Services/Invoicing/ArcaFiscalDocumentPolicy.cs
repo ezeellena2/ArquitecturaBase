@@ -125,7 +125,7 @@ internal static class ArcaFiscalDocumentPolicy
     };
 
     private static string Percent(int rateId) =>
-        DisplayNumbers.Number((ArcaVatRates.Find(rateId) ?? throw new InvalidOperationException("An ARCA voucher has an unknown VAT rate.")).Percent, "es", 0, 2) + " %";
+        DisplayNumbers.Percent((ArcaVatRates.Find(rateId) ?? throw new InvalidOperationException("An ARCA voucher has an unknown VAT rate.")).Percent, "es");
 
     private static decimal Round(decimal value) => Math.Round(value, 2, MidpointRounding.ToEven);
 

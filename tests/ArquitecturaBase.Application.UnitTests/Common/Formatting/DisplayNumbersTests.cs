@@ -46,7 +46,26 @@ public sealed class DisplayNumbersTests
     [Fact]
     public void A_number_with_a_format_of_its_own_keeps_it_in_the_region_of_its_language()
     {
-        Assert.Equal("IVA 10,5 %", DisplayNumbers.Format("es", "IVA {0:0.##} %", 10.5m));
-        Assert.Equal("VAT 10.5%", DisplayNumbers.Format("en", "VAT {0:0.##}%", 10.5m));
+        Assert.Equal("Precio 10,50", DisplayNumbers.Format("es", "Precio {0:0.00}", 10.5m));
+        Assert.Equal("Price 10.50", DisplayNumbers.Format("en", "Price {0:0.00}", 10.5m));
+    }
+
+    // A percentage goes with its sign right after the number in both regions, as Intl writes it in the front (2026-11-12):
+    // the percent pattern .NET takes from the ICU of Windows still puts a space for es-AR («21 %»).
+    [Theory]
+    [InlineData("es", "21", "21%")]
+    [InlineData("es", "10.5", "10,5%")]
+    [InlineData("es", "2.5", "2,5%")]
+    [InlineData("es", "1250", "1.250%")]
+    [InlineData("en", "10.5", "10.5%")]
+    [InlineData("en", "1250", "1,250%")]
+    public void A_percentage_goes_with_its_sign_right_after_the_number(string culture, string value, string expected) =>
+        Assert.Equal(expected, DisplayNumbers.Percent(decimal.Parse(value, System.Globalization.CultureInfo.InvariantCulture), culture));
+
+    [Fact]
+    public void A_text_writes_a_percentage_with_the_percent_format()
+    {
+        Assert.Equal("IVA 10,5%", DisplayNumbers.Format("es", "IVA {0:percent}", 10.5m));
+        Assert.Equal("VAT 10.5%", DisplayNumbers.Format("en", "VAT {0:percent}", 10.5m));
     }
 }

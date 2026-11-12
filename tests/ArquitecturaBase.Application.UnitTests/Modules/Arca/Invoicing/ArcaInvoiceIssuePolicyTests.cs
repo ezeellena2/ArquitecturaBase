@@ -148,7 +148,7 @@ public sealed class ArcaInvoiceIssuePolicyTests
         var preview = ArcaInvoiceIssuePolicy.Preview(new ArcaVoucherPreviewResponse(ArcaVoucherClass.A, 1, 724677.5m, 118177.5m) { Amounts = amounts },
             Order(new(80, 30500010912, "Agro SA", 1, null)));
 
-        Assert.Equal([("Importe neto gravado", "605500"), ("IVA 21 %", "109200"), ("IVA 10,5 %", "8977.5"), ("Importe exento", "1000")],
+        Assert.Equal([("Importe neto gravado", "605500"), ("IVA 21%", "109200"), ("IVA 10,5%", "8977.5"), ("Importe exento", "1000")],
             preview.Amounts!.Select(amount => (amount.Label["es"], amount.Value)));
         Assert.Equal("VAT 10.5%", preview.Amounts![2].Label["en"]);
         Assert.Equal("Lo decide el sistema: sos responsable inscripto y tu cliente también.", preview.Info!["es"]);
