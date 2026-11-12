@@ -1,6 +1,6 @@
 # Documentos por WhatsApp: biblioteca de formularios estándar, lectura con IA y tableros
 
-**Estado:** decidido el 2026-10-22, con el [ADR 0022](../decisions/0022-lectura-de-documentos-con-ia.md) aceptado y los tableros de diseño elegidos (DOC5-A y DOC7-A). El 2026-11-11 el usuario lo sumó, entero y con los tableros, a la tanda de la prueba integral, junto con la Etapa 3 de la IA: la evaluación de impacto, la especificación y el plan de implementación están en [Implementación](#implementación-lectura-carga-bandeja-etapa-3-de-la-ia-y-tableros). Es la etapa «fotos y documentos» que el usuario marcó como prioridad ([casos del asistente](2026-10-21-casos-del-asistente.md#etapa-siguiente-fotos-y-documentos)). Va después de [Catálogos E2](../features/formularios.md#catálogos-con-campos-extra-y-filtros-por-persona--e2-2026-10-23), porque el cruce con catálogos usa sus campos extra. Su orden frente a «Casos del asistente» lo define el usuario. El 2026-11-10 se le anexó la [pregunta «Ubicación»](#la-pregunta-ubicación), que no depende del resto: el usuario eligió UB1-A a UB4-A el 2026-11-11 y su Etapa 1 se programó ese día.
+**Estado:** decidido el 2026-10-22, con el [ADR 0022](../decisions/0022-lectura-de-documentos-con-ia.md) aceptado y los tableros de diseño elegidos (DOC5-A y DOC7-A). El 2026-11-11 el usuario lo sumó, entero y con los tableros, a la tanda de la prueba integral, junto con la Etapa 3 de la IA: la evaluación de impacto, la especificación y el plan de implementación están en [Implementación](#implementación-lectura-carga-bandeja-etapa-3-de-la-ia-y-tableros). Es la etapa «fotos y documentos» que el usuario marcó como prioridad ([casos del asistente](2026-10-21-casos-del-asistente.md#etapa-siguiente-fotos-y-documentos)). Va después de [Catálogos E2](../features/formularios.md#catálogos-con-campos-extra-y-filtros-por-persona--e2-2026-10-23), porque el cruce con catálogos usa sus campos extra. Su orden frente a «Casos del asistente» lo define el usuario. El 2026-11-10 se le anexó la [pregunta «Ubicación»](#la-pregunta-ubicación), que no depende del resto: el usuario eligió UB1-A a UB4-A el 2026-11-11 y su Etapa 1 se programó ese día. Ese mismo día eligió UC1-A y VC1-A para lo que el alcance dejaba afuera, la ubicación y el contacto que se comparten por WhatsApp (W3) y varias cargas desde un Excel: su plan, sin programar, está en [Ubicación y contacto por WhatsApp (W3) y varias cargas desde un Excel](#ubicación-y-contacto-por-whatsapp-w3-y-varias-cargas-desde-un-excel).
 
 ## Por qué
 
@@ -388,6 +388,8 @@ Lo que los tableros dibujan y una regla escrita o un límite de Meta no deja; se
 - **En el Flow no hay marcas que cambien mientras se completa** («Corregido», «Lo leímos como…», el bloqueo de «Continuar» de
   DOC3): las marcas salen con el envío y lo que no pasa al confirmar no se guarda, se dice por qué y vuelve el formulario.
 - **Un monto del tablero lleva el nombre de su moneda en el título, sin símbolo** («Total de Monto (pesos)»).
+- **Un solo período para todo el tablero** (DOC7-A dibuja a la vez una tarjeta por día y otra por semana): todas las tarjetas por
+  período siguen el selector Día, Semana o Mes. Lo eligió el usuario el 2026-11-11.
 - **El banco o la billetera es una pregunta de catálogo, no un texto** (DOC1 y DOC3 dibujan texto): el estándar trae su catálogo
   propio «Bancos y billeteras», armado con la tabla de entidades. El servidor la completa igual desde la cuenta, y así el tablero
   puede repartir por banco, el ejemplo de DOC7-A.
@@ -619,10 +621,13 @@ Lo que el diseño no fijaba, resuelto con la opción más simple que cumple el p
 
     En el chat del operador el documento es un mensaje más, con «Por qué lo propuso» o «Por qué preguntó» debajo.
 
-    **Derivar** (AS4 de [casos del asistente](2026-10-21-casos-del-asistente.md), que todavía no está programado) se arma acá,
-    genérico, para que casos del asistente lo use después: la conversación pasa a Atención manual y queda marcada «Necesita una
-    persona» con el motivo, en el chat y en la lista, hasta que un operador la toma; a la persona le llega el texto fijo del caso.
-    Son una columna del contacto, su migración (la de los documentos entrantes) y lo que muestran el chat y la lista del front.
+    **Derivar** (AS4 de [casos del asistente](2026-10-21-casos-del-asistente.md)) lo arma esa sesión, con la semántica de AS4: la
+    conversación pasa a Atención manual y queda marcada «Necesita una persona» con el motivo, en el chat y en la lista, hasta la
+    primera respuesta de una persona; la marca y el motivo van en el contacto, con su migración `AddWhatsAppAssistantAgent`. Este
+    plan la llama con su texto fijo (`HandOff` con un texto propio, el de DOC4 con el monto). Acordado el 2026-11-11.
+
+    Las cargas que responden a un archivo que mandó la persona (un comprobante o una planilla) no son ofrecimientos: no gastan los
+    dos del día, porque ya las acotan los cupos de lectura y de interpretación (acordado con casos del asistente el 2026-11-11).
 12. **El formulario prellenado (DOC3)** sale con el perfil `flow-static-7.3-r14`, que usan las publicaciones nuevas (prender la
     lectura pide publicar):
     - lo leído va en los `init-values` del `Form` de cada pantalla, como el prellenado de hoy; lo dudoso, con la ayuda «Revisá: lo
@@ -714,9 +719,12 @@ Lo que el diseño no fijaba, resuelto con la opción más simple que cumple el p
 22. **El tablero se calcula en el servidor** con el mismo filtro de la planilla, la misma gramática y la misma restricción a lo
     propio de quien sólo carga: `FormResponseReader.Filter` es privado, así que pasa a una pieza que comparten la planilla y el
     tablero, sin cambiar lo que filtra. `POST /api/forms/definitions/{id}/dashboard/search`, por día, semana o
-    mes en la zona del negocio. Da cuántas llegaron y, de cada pregunta de número, total, promedio, mínimo y máximo, contra el
-    período anterior del mismo largo (sólo con un rango de fechas); las series por período, con los días sin actividad en cero;
-    el reparto de cada pregunta de elegir, sí o no, o de catálogo (las ocho primeras y «Otros»); quién cargó cuánto, y por estado.
+    mes en la zona del perfil de quien lee: es la del filtro de la planilla, así un día es el mismo en las dos pestañas (corregido
+    al programar, 2026-11-11; decía la zona del negocio). Da cuántas llegaron y, de cada pregunta de número, total, promedio,
+    mínimo y máximo, contra el período anterior por el calendario (octubre contra septiembre; sólo con un rango de fechas); las
+    series por período, por la recepción y por cada pregunta de fecha, con los días sin actividad en cero; el reparto de cada
+    pregunta de elegir, sí o no, o de catálogo (las ocho primeras y «Otros», con el total de cada número por opción y el nombre
+    del catálogo); quién cargó cuánto, y por estado.
     Un monto con moneda se cuenta por moneda cuando el estándar dice qué moneda lo acompaña («Total de Monto (pesos)»). Todo en
     SQL acotado, sin una consulta por pregunta.
 23. **La pestaña «Tablero»** va junto a «Respuestas» en la página del formulario y comparte el filtro en memoria de la planilla
@@ -786,7 +794,7 @@ src/ArquitecturaBase.Domain/
   Modules/BusinessForms/BusinessFormsPermissions.cs                  (+ formdocuments.read y .review)
   Modules/BusinessForms/FormReceivedDocument*.cs                     (entidad, historial y errores)
   Modules/WhatsApp/WhatsAppMessageKind.cs (+ ReceivedDocument = 15), WhatsAppMessage.ReceivedDocument.cs,
-    WhatsAppContact.cs (la marca «Necesita una persona»), WhatsAppFlowSession.cs (el documento del envío)
+    WhatsAppFlowSession.cs (el documento del envío)
 src/ArquitecturaBase.Application/
   Models/StructuredData/StructuredAttachmentModels.cs, StructuredDocumentModels.cs, StructuredDocumentChannelModels.cs,
     StructuredFormStandardModels.cs (+ Reading)
@@ -810,7 +818,7 @@ src/ArquitecturaBase.Application/
     Resources/Standards/transfer-receipt.json, bank-entities.json   (el estándar y la tabla de entidades, recursos incrustados)
   Modules/WhatsApp/
     Services/WhatsAppReceivedDocument*.cs   (bajar, preparar, leer, contestar el rechazo)
-    Services/WhatsAppAssistantDocument*.cs   (el circuito, derivar y sus textos)
+    Services/WhatsAppAssistantDocument*.cs   (el circuito y sus textos; derivar es de casos del asistente)
     Channels/WhatsAppReceivedDocumentRetentionSource.cs
     Services/WhatsAppFlowCompiler.cs, WhatsAppFlowScreenBuilder.cs   (r14)
 src/ArquitecturaBase.Infrastructure/
@@ -819,7 +827,7 @@ src/ArquitecturaBase.Infrastructure/
   Modules/BusinessForms/Documents/FormDocumentReader.cs   (PdfPig, SkiaSharp y OpenXml)
   Modules/BusinessForms/Persistence/{Configurations,Repositories,Readers}/FormReceivedDocument*.cs, FormDashboardReader.cs,
     y el filtro de la planilla en una pieza compartida con el tablero
-  Modules/WhatsApp/WhatsAppWebhookReader.cs, Persistence/… (columnas del documento y de la marca)
+  Modules/WhatsApp/WhatsAppWebhookReader.cs, Persistence/… (columnas del documento)
   Persistence/Migrations/   AddAssistantDocumentReading, AddFormDocumentReading, AddFormReceivedDocuments y
     AddWhatsAppInboundDocuments, en fila con las de las otras sesiones (un solo snapshot)
 src/ArquitecturaBase.Api/
@@ -882,7 +890,8 @@ cuando una tarea cambia un cuerpo que el front valida, primero entra el guard de
 
 5. **La lectura en el formulario y el estándar.** Primero, un commit del front con los guards que aceptan los campos nuevos
    (`documentReading`, `validation` y lo nuevo de la biblioteca), opcionales. Después el backend: `documentReading` en el borrador y
-   en la versión, las validaciones fijas de las preguntas atadas con su rechazo y el reenvío por WhatsApp (punto 6), `CuitNumber` y
+   en la versión, las validaciones fijas de las preguntas atadas con su rechazo (el reenvío por WhatsApp del punto 6 pasó a la
+   tarea 9), la moneda de cada monto en el tablero de la tarea 15, `CuitNumber` y
    `BankAccountKey` en el núcleo, la tabla de entidades y el catálogo «Bancos y billeteras», `Reading` en el modelo del estándar,
    «Comprobante de transferencia» y los próximos, y la lectura de «Cómo viene leyendo» (vacía hasta la tarea 9). Unitarias de los
    validadores con dígitos reales y falsos, del borrador, de la publicación y del estándar; integración (agregar el estándar con su
@@ -898,7 +907,8 @@ cuando una tarea cambia un cuerpo que el front valida, primero entra el guard de
    con su texto y su entrada en la bandeja, la línea de un número sin cuenta y el documento en el chat del operador. Unitarias e
    integración.
 9. **WhatsApp: el circuito.** La fuente con pedido o sola, la interpretación con las capacidades de armar y de cargar, los
-   mensajes de DOC2 a DOC4, derivar con la marca «Necesita una persona», el Flow r14 con lo leído, sus marcas y el comprobante que
+   mensajes de DOC2 a DOC4, derivar con el `HandOff` de casos del asistente, el aviso y el reenvío de una captura rechazada por
+   una validación fija (punto 6), el Flow r14 con lo leído, sus marcas y el comprobante que
    suma el servidor (sobre el enganche de W1-A), la captura con las validaciones y los repetidos de nuevo, las correcciones, el
    vencido para revisar acá y «Por qué lo propuso». Unitarias e integración del recorrido con Meta simulado, y la vista oficial
    de Meta del Flow r14.
@@ -974,4 +984,412 @@ muestren sin ir al proveedor. Un revisor adversarial encontró 17 puntos, incorp
 en los mismos archivos de WhatsApp; además, el largo de la lectura y su recorte por bytes, las marcas del Flow dentro de un `Form`,
 el orden de los contratos, los topes de dependencias y de guías, los permisos de «Ver los ejemplos», el Actor y el Subject de cada
 canal, el aviso de todo rechazo por una validación fija, los cupos fuera del global, el banco como catálogo para el tablero y quién
-adjunta documentos. Falta el visto bueno del usuario para programar.
+adjunta documentos. El usuario lo aprobó el mismo día («Sí, arrancá»).
+
+Hechas: la tarea 1 (47d1dbec), la 15 (a1c8c8ea) y los guards del front de la tarea 5 (front 71937f06). Ajustes al programar: el
+reenvío por WhatsApp de una captura rechazada pasó de la tarea 5 a la 9; «Derivar» lo arma casos del asistente y la tarea 9 lo
+llama; el tablero usa la zona del perfil de quien lee y un solo período; las cargas por un archivo no gastan los ofrecimientos
+del día.
+
+## Ubicación y contacto por WhatsApp (W3) y varias cargas desde un Excel
+
+Anexado el 2026-11-11. Es lo que el [alcance](#alcance) de la implementación dejaba afuera: la ubicación y el contacto que la
+persona comparte por su cuenta mientras tiene un formulario abierto (W3 de la etapa 2 de la [pregunta «Ubicación»](#la-pregunta-ubicación))
+y varias cargas desde un Excel.
+
+### Estado
+
+Elegido el 2026-11-11 y sin programar. El usuario eligió las dos recomendadas: **UC1-A**, una zona propia en el editor, y
+**VC1-A**, una entrada por fila en «Documentos recibidos». Se programa después de las tareas 1 a 16 y antes del cierre: la tarea
+17 sigue siendo la última. W3 espera además que «Ubicación» y «Casos del asistente» cierren los archivos que comparten: el
+servicio de ubicaciones (`WhatsAppFlowLocationService` y su política), el guardia de salida (`WhatsAppOutgoingSendGuard`) y el
+lector del asistente (`WhatsAppAssistantReader`). Varias cargas desde un Excel va sobre la bandeja y el circuito de las tareas
+7 a 10.
+
+### Lo elegido
+
+Los tableros están en el lienzo [Ubicación, contacto y varias cargas por WhatsApp](https://claude.ai/artifact/Sv9qPDk5H6xbRabJqUT77w),
+de tipo Design y aparte, porque el Sistema visual es de otra cuenta. Se dibujaron sobre DOC2, DOC4 y DOC5-A, W1-A y el tope de
+tres acciones de [casos del asistente](2026-10-21-casos-del-asistente.md), sin reabrirlos. Las descripciones enteras, los textos
+es/en, las decisiones de detalle y la lista de chequeo pasan a una sección de
+[`docs/design/documentos.md`](../../../ArquitecturaBaseFront/docs/design/documentos.md) del front (tarea 18).
+
+| Tablero | Qué fija |
+| --- | --- |
+| UC0 · La regla | El orden: la ubicación completa primero un pedido de W1-A; si no, el envío abierto más viejo que la recibe; si no, queda en el chat. El contacto, el envío abierto más viejo que lo recibe. Sin IA. |
+| **UC1-A · Una zona propia** (elegida) | «Ubicación y contacto» en el editor, debajo de las preguntas y de «Lectura de documentos», con la (i) en el título y tres renglones: Ubicación, Nombre del contacto y Teléfono del contacto, cada uno con un desplegable de las preguntas de texto. |
+| UC1-A · Estados | El desplegable abierto, una pregunta «Ubicación» (el renglón apagado con su motivo), «Sólo en la app» (sin la zona), sólo lectura y el celular. |
+| UC2 · La ubicación | El mensaje que vuelve, el formulario con la dirección o el punto, el reenvío con «Prellenado con» en el chat y la actividad del detalle. |
+| UC3 · El contacto | Vuelve con lo que tenía más el nombre y el primer teléfono; la burbuja nueva del contacto y la actividad. |
+| UC4 · Sin formulario | Sin un envío que lo reciba, con un pedido de W1-A o desde un número sin cuenta: queda en el chat, con «Contacto» en la lista. |
+| UC5 · Dos envíos | La ubicación que llega dos veces va a cada envío por orden; una sola respuesta por envío. |
+| **VC1-A · Una entrada por fila** (elegida) | Cada fila que se vuelve una carga es una entrada de la bandeja: el archivo con «Fila 5» en gris debajo; el panel muestra «La fila» como llegó, con «Descargar la planilla», y el formulario de DOC5-A. |
+| VC2 · Siete filas | El aviso, tres cargas y el resto para el equipo; «Por qué lo propuso» y la actividad. |
+| VC3 · La bandeja | «Para revisar», una fila que espera a la persona (acciones apagadas con su motivo), el historial y el celular. |
+| VC4 · Casos difíciles | Dos formularios, una repetida, una que no encaja, la misma planilla otra vez, ninguna que encaja y un número sin cuenta. |
+| UC6 y VC5 | En inglés, con las fechas en `MM/dd/yyyy`. |
+
+Las alternativas fueron UC1-B (dentro de «Lectura de documentos», como DOC2), UC1-C (en cada pregunta) y VC1-B (una entrada por
+planilla).
+
+### Las reglas
+
+Las fijan los tableros o se resolvieron por lo más simple; el tope, el aviso, los ofrecimientos y el orden de la ubicación se
+confirmaron con las otras sesiones de la tanda. No se vuelven a preguntar.
+
+**A · La ubicación y el contacto (W3)**
+
+1. **El orden vive con W1-A.** Una ubicación que la persona manda por su cuenta completa primero un pedido de W1-A que la
+   espera, del operador o del asistente (el asistente que ofrece formularios con ubicación es parte de W1 y lo programa la sesión
+   «Ubicación»). Si no hay, va al envío abierto más viejo que eligió una pregunta para la ubicación; si no, queda en el chat. Un
+   contacto va al envío abierto más viejo que eligió preguntas para el contacto.
+2. **Un envío abierto** salió por WhatsApp, no tiene respuesta, no venció y ya existía cuando llegó lo compartido. Uno que espera
+   la ubicación de W1-A todavía no salió: no toma un contacto. Un número sin cuenta vinculada no tiene envíos: lo que manda queda
+   en el chat, sin la línea de DOC4.
+3. **Lo primero vale.** Un envío toma una sola ubicación y un solo contacto; lo que llega después va al siguiente que lo pueda
+   usar o queda en el chat. No pasa por la IA ni gasta cupos.
+4. **Qué se escribe:** la dirección del lugar si vino o, si no, el punto («-32.947102, -60.638955», como la pregunta
+   «Ubicación»); del contacto, el nombre y el primer teléfono de la primera tarjeta, tal como vienen. Un contacto sin nombre o sin
+   teléfono completa lo que trae, y el mensaje nombra sólo esa pregunta. Se corta en el largo de la pregunta y reemplaza lo
+   prellenado.
+5. **El formulario vuelve en el mismo envío:** otro Flow del envío, con lo que ya tenía más lo compartido, del mismo remitente y
+   con su sello, como el Flow que sigue a la ubicación en W1-A. El mensaje nombra la pregunta y el formulario («Puse tu ubicación
+   en «Dirección de entrega». Revisá el formulario «Registrar entrega» y confirmalo.»). «Por qué lo mandó» va sólo en el primero.
+   No es otra oferta, no entra a «Documentos recibidos» y no cambia el perfil del Flow.
+6. **Si cambió el modo.** El reenvío sale como cualquier mensaje de su remitente: el del operador, mientras la conversación siga
+   en Atención manual; el del asistente, mientras siga en Asistente con la revisión que selló, así que no vuelve si una persona
+   tomó la conversación. Si ya no puede salir, lo compartido no va a ese envío: queda en el chat o va al siguiente. Si el modo
+   cambia después, la reserva frena el reenvío, como en W1-A. El diseño decía que el del operador vuelve en cualquier modo, pero
+   hoy un mensaje del operador sale sólo en Atención manual (`WhatsAppOutgoingSendGuard`).
+7. **Una sola respuesta por envío:** la primera que llega, del Flow anterior o del nuevo. La otra no se guarda y el chat dice cuál
+   quedó («No se guardó: el envío ya tiene su respuesta, {número}.»); a la persona no se le avisa, como hoy un rechazo.
+8. **El contacto se ve:** deja de ser «Mensaje de otro tipo». El chat muestra el nombre y los teléfonos, uno por renglón, y la
+   lista de chats dice «Contacto».
+9. **El editor.** Cada renglón ofrece las preguntas de texto, corto o largo, fuera del bloque; la elegida en otro renglón aparece
+   apagada, con «· Recibe …». Quitar la pregunta o cambiarle el tipo vuelve el renglón a «Ninguna»; cambiarle el nombre no cambia
+   nada. Se guarda con el borrador y sale al publicar. Con «Sólo en la app» la zona no aparece y lo elegido queda guardado. Con una
+   pregunta «Ubicación», el renglón de la ubicación queda apagado con su motivo encima (MA1-A): la ubicación va ahí, por W1-A.
+10. **Lo demás no cambia:** lo que se escribe es una respuesta de texto, así que la planilla, el Excel, el PDF y el detalle no
+    suman insignias. La actividad del detalle dice qué se completó: «Llegó la ubicación · Completó «Dirección de entrega»»,
+    «Llegó el contacto · Completó «Recibió» y «Teléfono de quien recibe»» y «Se volvió a mandar el formulario».
+
+**B · Varias cargas desde un Excel (VC1-A)**
+
+1. **Un aviso y una carga por fila,** hasta tres por planilla, en el orden de la planilla. El tope cuenta las cargas propuestas,
+   no los mensajes. El aviso («Recibí una planilla con 7 filas de «Cobranzas».») es un texto fijo que suma el canal al aplicar las
+   propuestas: no lo escribe el modelo y no cuenta. Cada planilla es un mensaje: dos seguidas tienen tres cargas cada una.
+2. **El aviso dice las filas y el formulario,** porque un formulario propio no trae el nombre de su documento; con filas de
+   varios formularios, sólo cuántas. Cada carga dice «1 de 3 · {resumen de la fila}» y, en el pie, su formulario («Cobranzas ·
+   prellenado»). Lo que va al equipo se dice en una frase que junta las que pasan el tope, las que no encajan y las que no se le
+   pueden mandar (CE4-A).
+3. **Cada fila se clasifica sola:** la que encaja seguro es una carga; con duda o sin formulario, «Sin clasificar» (una fila no
+   pregunta con botones). Si ninguna encaja, la planilla sigue «No lo reconoce» de DOC2: la lista y «Otro».
+4. **Repetida** es la que coincide con una respuesta en lo que el formulario marca como repetido, o la igual a otra fila de la
+   misma planilla: no se carga, el aviso dice dónde está y queda descartada, con su fecha de borrado. La misma planilla otra vez
+   (el mismo archivo) entra descartada, como un documento repetido (VC4).
+5. **No son cargas ni entradas** los encabezados, los totales ni las filas vacías. Una fila no trae archivo: la pregunta de foto o
+   documento queda vacía y, si es obligatoria, la completa la persona en el Flow.
+6. **En la bandeja** cada fila es una entrada, con «Fila 5» en gris debajo del archivo (la excepción A de un dato por columna) y,
+   si el libro tiene varias hojas, «Ventas · fila 5». «Para revisar» es el propuesto que espera al equipo; «Propuesto», el que
+   espera a la persona, con «Descartar» y «Pasar al formulario» apagados y su motivo encima. El filtro «Propuestos» incluye los
+   dos. De lo leído se muestra «Monto», un dato por columna.
+7. **Las cargas contestan un archivo que mandó la persona** (un comprobante o una planilla): no son ofertas y no gastan los dos
+   ofrecimientos del día. Las acotan los cupos de lectura y de interpretación: la planilla se lee en el servidor, sin
+   `ReadDocument`, y su interpretación cuenta en el cupo global, como hoy.
+8. **Como DOC4:** una cuenta sin vincular o sin permiso de cargar, y una planilla que no se abre (con macros, con contraseña o de
+   formato viejo).
+
+### Lo que hay
+
+Verificado en el código el 2026-11-11, sobre `main` en `60d9cbc6`. El árbol compartido tiene sin commitear las tareas 1, 2, 5 y
+15 de este plan, el asistente con ubicación (sesión «Ubicación») y el agente con Derivar (sesión «Casos del asistente»).
+
+- **W1-A guarda la ubicación en el envío.** `WhatsAppFlowSession` suma `LocationState` (`None`, `Requested`, `Received` o
+  `Skipped`), `LocationRequired`, `LocationLatitude` y `LocationLongitude`, `LocationWaMessageId`, `LocationResolvedAtUtc` y
+  `FlowBody`, el cuerpo del Flow que sale después (migración `AddWhatsAppFlowLocation`). Después de los entrantes,
+  `WhatsAppInboundProcessor` llama a `WhatsAppFlowLocationService`, que bajo el lock del contacto lista los envíos que esperan,
+  cada uno con el pedido que lo abrió (`WhatsAppFlowLocationWait`), y las ubicaciones y los toques que todavía no resolvieron
+  nada, desde el envío más viejo y hasta 50. `WhatsAppFlowLocationPolicy.Resolve` da cada ubicación al envío más viejo que la
+  espera y ya existía, y la ata a él (`AttachFlowSession`); `Flow` encola el formulario en la misma unidad de trabajo, del
+  remitente del pedido y con su sello. Lo que no resuelve nada queda en el chat, sin atar. Al capturar, `AddSendAnswers`
+  (b1b891a5) suma el punto a la respuesta: es el único paso donde el envío agrega lo que guarda.
+- **Lo que llega por WhatsApp.** `WhatsAppWebhookReader` lee un `location` como `Location = 13`, con el punto redondeado a seis
+  decimales; el nombre y la dirección de un lugar no se guardan, y la retención vacía el punto con el cuerpo. Un `contacts` cae en
+  `Other`, sin cuerpo: no se guarda nada, el hilo dice «Mensaje de otro tipo» y la lista de chats no tiene vista previa (las
+  genéricas, como «Audio» o «Planilla», salen de `FlowTexts` en `WhatsAppChatQueryService`). Ni la ubicación ni el contacto son
+  fuente del asistente. `ReceivedDocument = 15` todavía no existe: lo suma la tarea 8.
+- **Un envío tiene un solo Flow,** y cuatro lugares lo suponen: el chat pega «Por qué lo mandó» al Flow de un envío sin pedido
+  (`Kind == Flow` y `LocationState == None`, en los mensajes y en los salientes de `WhatsAppChatReader`); `ListOffersAsync`
+  lista una oferta por cada Flow así; el origen de la respuesta junta la sesión con su Flow (`WhatsAppRecordOriginReader`), así
+  que con dos devolvería dos orígenes y `FormRecordOriginPolicy` fallaría al sumarlos (`Dictionary.Add`); y el guardia de salida
+  valida el Flow del asistente contra su envío y su referencia. `CountOffersAsync` cuenta por la referencia del asistente: otro
+  Flow no suma una oferta.
+- **El prellenado.** Al despachar, `WhatsAppFormDispatchPolicy.InitialValues` arma los `init-values` con lo propuesto e incluido
+  del contenido sellado del asistente, que descifra `WhatsAppFlowSessionVerifier`, y `WhatsAppFlowPrefillPolicy.Build` acepta las
+  preguntas de texto (deja afuera archivos, «elegir varias», el bloque, las que eligen primero, los cálculos, las condiciones y la
+  ubicación). Un envío del operador sin sugerencia sale vacío. `WhatsAppFormDispatchPolicy` ya tiene ocho dependencias. El
+  asistente abre su envío en `WhatsAppAssistantAcceptancePolicy` (con `OpenAssistant`, en el árbol de «Ubicación») y sella en él
+  su explicación y lo que prellena. La etiqueta de una pregunta en el idioma del envío se lee del Flow sellado
+  (`WhatsAppFlowMediaPolicy.QuestionLabel`).
+- **La segunda respuesta de un envío** ya la rechaza la captura por su huella (`Forms.Record.ReplayConflict`, «Esta sesión ya se
+  usó con otra respuesta.»); una igual devuelve la original. El chat muestra el rechazo genérico (`FormReplyCard`) y la respuesta
+  no trae el número de la que se guardó.
+- **El contrato neutral.** `StructuredFormQuestion` lleva sus ajustes opcionales con `JsonIgnore(WhenWritingNull)`
+  (`ChoosesFirst`, `Calculated`, `ShowWhen`) y el compilador los copia a la proyección sellada (`WhatsAppFlowProjectionField`),
+  sin cambiar el Flow; así W1-A encuentra su pregunta (`WhatsAppFlowLocationPolicy.Question`). Lo de cada pregunta va en
+  `SchemaJson` (`CanonicalFormField`), en el borrador y sellado con la versión: así suma la tarea 5 `validation`, sin migración.
+- **El editor del front** (`features/business-forms/pages/FormEditorPage.tsx`) tiene las zonas «El formulario», con «Dónde se
+  completa» y «Cuándo ofrecerlo», «Preguntas», la vista previa, las sugerencias y las reglas. Sus piezas van en `components/`,
+  sin subcarpeta (el árbol de arriba dice `components/editor/`). Los guards de DOC1 ya entraron (front 71937f06); la zona
+  «Lectura de documentos» es de la tarea 6. El chat tiene `ChatLocation`, `LocationRequestCard`, `ChatSpreadsheet` y
+  `FormReplyCard`; la actividad del detalle, `workflowHistory.ts`, con los renglones de W1-A.
+- **Las planillas de la Etapa 2** entran como `Spreadsheet = 12`. Se bajan sólo de una cuenta vinculada y activa, en el
+  Asistente automático, que el dueño deja adjuntar (`IStructuredAttachmentReader`: hoy, quien administra catálogos; la tarea 1
+  lo separa en planillas y documentos), y se copian en `whatsapp/documents/{id}.xlsx|.csv` con lo preparado: la primera hoja,
+  sus conteos y una muestra de las primeras filas, cada una con su número y sus celdas por letra, de hasta 12 KiB
+  (`StructuredSpreadsheet`). Una planilla sola no se interpreta; con un pedido, el asistente arma un catálogo o un formulario, o
+  importa en un catálogo (`propose-import@1` dice qué columna va a cada parte y el dueño importa desde la copia). El automático
+  ofrece 16 definiciones con una planilla, el tope del transporte. El lector (`IFormSpreadsheetReader`) lee una hoja, sin
+  fórmulas, con los topes de la importación de catálogos (10.000 filas). Nada carga filas como respuestas.
+- **La bandeja todavía no existe.** Las tareas 7 a 10 suman `FormReceivedDocuments`: una entrada por documento, con su copia,
+  única por canal e id opaco, con «para revisar acá» calculado al leer y la marca de lo que no se le pudo mandar; las capacidades
+  `candidates`, `form` y `propose-entry` (un documento y de uno a tres candidatos); el circuito por `IStructuredDocumentChannel`;
+  el envío que guarda su documento de la bandeja, y el front de la bandeja.
+
+### Especificación técnica
+
+#### Decisiones técnicas
+
+Lo que el diseño no fijaba, por lo más simple que cumple el plan y las reglas.
+
+1. **Lo elegido en el editor se guarda en cada pregunta,** como `validation`: `receives` (`location`, `contactName` o
+   `contactPhone`) en `SchemaJson`, opcional y omitido cuando falta, así los borradores, las versiones y sus huellas de hoy no
+   cambian. El editor lo muestra en su zona, pero no hace falta una columna en `FormDefinitions` y `BusinessFormVersions`: sale al
+   publicar con el esquema, entra en la huella del chequeo, se va con la pregunta y no lo hereda la pregunta nueva de un cambio de
+   tipo, así que no quedan referencias sueltas. El validador lo acepta sólo en una pregunta de texto fuera del bloque, cada valor
+   una vez, y `location` sólo sin una pregunta «Ubicación», con sus códigos y sus textos.
+2. **Llega al canal por el contrato neutral:** `StructuredFormQuestion.Receives`, en el chequeo y en el snapshot de publicación,
+   que el compilador copia a `WhatsAppFlowProjectionField.Receives`, como `Calculated`. El Flow no cambia y una versión publicada
+   antes no recibe nada.
+3. **Lo que llega se guarda en el mensaje,** con la retención del cuerpo, como el punto de W1-A: la dirección de un lugar
+   (`LocationAddress`) y el tipo entrante `Contact = 16` (el siguiente libre después de `ReceivedDocument = 15`), con el nombre
+   (`ContactName`) y los teléfonos (`ContactPhonesJson`, hasta diez) de la primera tarjeta, con topes de largo. El nombre de un
+   lugar no se guarda: ningún tablero lo usa. Los `Other` de antes no se reclasifican y el `Down` vuelve los contactos a `Other`.
+4. **El circuito es el de W1-A con un paso más,** en el mismo servicio, la misma unidad de trabajo y el mismo lock: primero W1-A,
+   sin cambios; después `WhatsAppSharedContentPolicy` da cada ubicación que nada tomó, y cada contacto, al envío abierto más viejo
+   cuya proyección tiene una pregunta que lo recibe, que todavía no tomó algo de ese tipo y cuyo remitente puede mandar (regla
+   A6). Ata el mensaje al envío y encola el reenvío.
+5. **El envío guarda lo que tomó:** de la ubicación y del contacto, cuándo y qué preguntas completó (`SharedContentJson`, sin
+   valores), y lo escrito en cada una con su etiqueta (`ProtectedSharedValues`, con un propósito propio ligado a la sesión, como
+   el contenido del asistente), que usan el reenvío y «Prellenado con» y que se vacía con la retención de los mensajes.
+6. **El reenvío** es un saliente `Flow` de la misma sesión y el mismo token, con la marca `IsResend` (en el saliente y en el
+   mensaje que deja al salir), del remitente del primer mensaje del envío y con su sello: `WhatsAppFlowLocationPolicy.Flow` pasa a
+   continuar también un Flow. Sale por la salida durable de siempre, sin otro mecanismo
+   ([ADR 0018](../decisions/0018-robustez-proporcional-al-efecto.md)). Al despacharlo, el verificador le pasa lo compartido
+   descifrado, como el contenido del asistente, y `InitialValues` lo pone sobre el prellenado. La marca lo deja afuera de «Por qué
+   lo mandó», de `ListOffersAsync` y del origen; el guardia lo valida como el Flow que sigue a la ubicación, y el chat le pone
+   «Prellenado con».
+7. **La segunda respuesta** sigue rechazada por la captura; el hilo suma a ese rechazo el número de la que se guardó, que tiene la
+   sesión, y el chat lo dice con el texto de UC5.
+8. **La actividad** sale del origen de WhatsApp, que suma lo compartido (cuándo y qué preguntas) y los reenvíos que salieron, sin
+   valores. El historial del detalle suma `LocationReceived` con `questions` (la de W3), `ContactReceived` y `SentAgain`, con las
+   etiquetas de la versión.
+9. **Las filas se proponen con un mapeo, no fila por fila.** Para cargar, el lector da las filas con contenido de todas las
+   hojas, cada una con su hoja, su número y los encabezados de su hoja (su primera fila con contenido); armar e importar siguen
+   con la primera hoja. La muestra de 12 KiB las lleva con su hoja. `forms.documents.propose-rows@1` (propuesta, sólo con
+   planilla) devuelve, por cada formulario que reconoce, sus filas, qué columna va a cada pregunta y qué columnas leyó con dudas,
+   y aparte las filas de datos que no encajan; las que no nombra (totales, notas) no son filas. Es como `propose-import@1` en un
+   catálogo. Formularios arma cada fila desde la copia, sin IA: convierte cada celda al tipo de su pregunta, corre las
+   validaciones fijas, busca repetidas y aplica el tope en el orden de la planilla. Así el costo no crece con las filas, la salida
+   del modelo entra en su tope y cada entrada de la bandeja tiene su propuesta. Una fila que el modelo no llegó a ver queda «Sin
+   clasificar». El resumen de una carga son sus dos primeros datos, en el orden del formulario.
+10. **El turno de carga con planilla** ofrece `forms.documents.candidates@1` y `propose-rows@1` en lugar de las de registrar con
+    texto (`forms.assistant-candidates`, `forms.propose-registration` y `forms.clarify-registration`), como un turno con
+    documento: el automático queda en 15 definiciones de 16 (`AiAssistantCapabilityCatalogPolicy.MaximumDefinitions`). Una
+    planilla sola va sólo a la de cargar; con un pedido, también a las de armar.
+11. **Hasta 50 filas por planilla,** sin contar los encabezados. Una más grande no se carga: contesta, como las planillas que no
+    se abren, «Por acá cargo planillas de hasta 50 filas. Dividila y mandámela de nuevo.» y entra descartada, sin gastar una
+    interpretación. Así una planilla no llena la bandeja ni deja filas que el modelo no ve. Vale para cargar: armar o importar
+    siguen con sus topes. Lo calibra el piloto.
+12. **Una entrada por fila** en `FormReceivedDocuments`: la hoja (si el libro tiene más de una) y el número de fila; la lectura
+    cifrada es la fila con los encabezados de su hoja; la copia es de la planilla y la comparten sus filas, y la fuente de
+    retención la conserva mientras alguna la necesite. El índice único por canal e id opaco suma la fila, con nulos no distintos
+    (`AreNullsDistinct(false)`, como las carpetas). Lo que no se le pudo mandar guarda su motivo: no se le puede mandar (CE4-A) o
+    pasó el tope. Cambiar de formulario vuelve a proponer el mapeo de esa fila con el formulario fijado, sin leer de nuevo.
+13. **Quién baja una planilla:** además de quien administra catálogos, quien puede cargar respuestas, cuando hay algún
+    formulario publicado con lectura; sin formularios con lectura, todo sigue como hoy. El envío de una carga guarda su fila como
+    el de un documento, pero la captura no le suma archivo: la planilla no es el comprobante. El Flow de una carga lleva pie: el
+    saliente suma `Footer` (hasta 60 caracteres, el tope de Meta).
+
+#### Modelo de datos
+
+| Dónde | Qué cambia | Migración |
+| --- | --- | --- |
+| `SchemaJson` de una pregunta | `receives`, opcional y omitido cuando falta: los bytes y las huellas de hoy no cambian | — |
+| `WhatsAppMessages` | `LocationAddress`; el tipo entrante `Contact = 16`, con `ContactName` y `ContactPhonesJson`; `IsResend`. La retención vacía los tres primeros con el cuerpo, y el `Down` vuelve los contactos a `Other` | `AddWhatsAppSharedContent`, después de las de este plan |
+| `WhatsAppOutgoingMessages` | `IsResend` (`false` en los de antes) | la misma |
+| `WhatsAppFlowSessions` | `SharedContentJson` (de la ubicación y del contacto: cuándo y qué preguntas) y `ProtectedSharedValues` (lo escrito, protegido) | la misma |
+| `FormReceivedDocuments` | `SheetName` y `RowNumber` (nulos en un documento), el índice único con la fila y el motivo de lo que no se le mandó | `AddReceivedDocumentRows` |
+| `FormReceivedDocumentEvents` | Los eventos de una fila: llegó en la planilla, se mandó como 1 de 3, pasó el tope | — |
+| `WhatsAppOutgoingMessages` (etapa V) | `Footer`, el pie del Flow de una carga | la misma que las filas |
+
+#### Contratos HTTP
+
+No hay rutas nuevas: el inventario no cambia. Cambian de forma:
+
+| Ruta | Qué cambia |
+| --- | --- |
+| `PUT /api/forms/definitions/{id}/draft` y `GET /api/forms/definitions/{id}` | Cada pregunta suma `receives`, opcional |
+| `GET /api/whatsapp/chats/{id}/messages` | El tipo `Contact` con `contact` (`name` y `phones`); el reenvío con `prefill` (etiqueta y valor, con la privacidad de «Por qué lo mandó»); en la respuesta rechazada porque el envío ya tenía la suya, `savedNumber`; el pie de una carga y «Por qué lo propuso» de una planilla, con sus filas y el enlace a la bandeja |
+| `GET /api/whatsapp/chats` | La vista previa «Contacto», un texto más: la forma no cambia |
+| `GET /api/forms/records/{id}` | El historial suma `LocationReceived` con `questions`, `ContactReceived` y `SentAgain` |
+| `GET /api/forms/documents` y `GET /api/forms/documents/{id}` | `row` (`sheet` y `number`) en una entrada de planilla y a quién espera un propuesto (`waitsFor`: `person` o `team`), que el filtro «Propuestos» trae juntos; el detalle de una fila trae sus celdas con los encabezados en lugar del visor |
+| `GET /api/forms/documents/{id}/file` | En una fila, baja la planilla |
+| `POST /api/forms/documents/{id}/discard` y `…/records` | Una fila que espera a la persona da 409 con su motivo mientras su envío no venció |
+
+Cada cuerpo nuevo entra en una cohorte, que exporta la coordinadora al final: `forms-http` (el borrador y el detalle con
+`receives`), `whatsapp-audio-http` (el hilo con un contacto, y el de una planilla con su aviso y sus cargas),
+`whatsapp-forms-http` (el hilo con el reenvío y la segunda respuesta), `forms-responses-http` (la actividad) y
+`forms-documents-http` (las filas).
+
+#### Árbol de archivos
+
+Lo nuevo y lo que cambia más; los tests van en la carpeta equivalente de cada proyecto de pruebas. El detalle va a las fuentes de
+`docs/features` y cada guía de carpeta suma a lo sumo una línea.
+
+```text
+src/ArquitecturaBase.Domain/Modules/WhatsApp/
+  WhatsAppMessageKind.cs (+ Contact = 16), WhatsAppMessage.Shared.cs (dirección, contacto e IsResend; el contacto se ata a su envío),
+  WhatsAppOutgoingMessage.cs (IsResend y Footer), WhatsAppFlowSession.cs (TakeSharedLocation y TakeSharedContact)
+src/ArquitecturaBase.Domain/Modules/BusinessForms/FormReceivedDocument*.cs   (la fila, el motivo y sus eventos)
+src/ArquitecturaBase.Application/
+  Models/StructuredData/StructuredFormModels.cs (Receives), StructuredRecordOrigin.cs (lo compartido y los reenvíos)
+  Modules/BusinessForms/
+    Models/FormDraftModels.cs y Validation/SaveFormDraftRequestValidator.cs   (receives)
+    Services/FormPublicationSnapshotPolicy.cs (Receives al contrato neutral), FormResponseService.cs (la actividad)
+    Channels/BusinessFormDocumentAssistantCapabilitySource.cs   (+ propose-rows@1)
+    Services/FormDocumentRowPolicy.cs   (armar cada fila con el mapeo, las repetidas y el tope)
+    Services/FormReceivedDocument*.cs   (las filas en la bandeja)
+  Modules/WhatsApp/
+    Services/WhatsAppFlowLocationService.cs, WhatsAppFlowLocationPolicy.cs (Flow), WhatsAppSharedContentPolicy.cs
+    Services/WhatsAppFlowSessionVerifier.cs, WhatsAppFormDispatchPolicy.cs, WhatsAppOutgoingSendGuard.cs,
+      WhatsAppChatDispatchService.cs (la marca pasa al mensaje), WhatsAppChatQueryService.cs,
+      WhatsAppFlowCompiler.cs (Receives a la proyección)
+    Services/WhatsAppSpreadsheet*.cs, WhatsAppAssistantDocument*.cs   (la planilla en el circuito, el aviso y las cargas)
+    Models/WhatsAppFlowPublicationModels.cs (Receives), WhatsAppChatResponse.cs (contact, prefill y savedNumber)
+    Resources/FlowTexts.resx y .en.resx   (los mensajes de W3, «Contacto», el aviso y las cargas)
+src/ArquitecturaBase.Infrastructure/
+  Modules/WhatsApp/WhatsAppWebhookReader.cs, WhatsAppCloudClient.cs (el pie)
+  Modules/WhatsApp/Persistence/…   (columnas, WhatsAppChatReader, WhatsAppAssistantReader.ListOffersAsync,
+    WhatsAppRecordOriginReader, la retención y el protector de lo compartido)
+  Modules/BusinessForms/Import/ClosedXmlFormSpreadsheetReader*.cs   (las filas de datos de cada hoja, con sus encabezados)
+  Modules/BusinessForms/Persistence/{Configurations,Readers,Repositories}/FormReceivedDocument*.cs
+  Persistence/Migrations/   AddWhatsAppSharedContent y AddReceivedDocumentRows, en fila con las de las otras sesiones
+src/ArquitecturaBase.Api/Modules/BusinessForms/Contracts/SaveFormDraftHttpRequest.cs (Receives), Contracts/Documents/…
+harnesses/assistant-qualification/
+  fixtures/documents/   (planillas ficticias) y los casos de propose-rows en channel-document-cases.json
+
+../ArquitecturaBaseFront/
+  docs/design/documentos.md   (la sección de estos tableros, con sus capturas)
+  src/features/business-forms/components/FormLocationContactZone.tsx   (la zona de UC1-A)
+  src/features/business-forms/pages/FormEditorPage.tsx, model.ts, api/response.ts (receives), workflowHistory.ts, api/responses.ts
+  src/features/business-forms/components/documents/…   (la fila, «La fila», «Para revisar» y las acciones apagadas)
+  src/features/whatsapp/components/ChatContact.tsx, ChatTimeline.tsx (el reenvío), FormReplyCard.tsx
+  src/features/whatsapp/api/chat.ts, api/formReplies.ts, lib/timeline.ts
+  src/locales/{es,en}/forms.json y whatsapp.json, src/test/visual/   (las escenas nuevas)
+```
+
+### Tareas
+
+Cada tarea sigue lo de [Tareas](#tareas): el test en rojo primero, el build y los tests rápidos enteros en cada corte, la
+integración afectada con PostgreSQL, una revisión adversarial con su corrección y un commit chico con índice privado; las del
+front corren lint, `tsc -b` y vitest de lo que tocan, con sus visuales es/en a 1440, 390 y 320. Primero entra el guard del front
+y después el campo del backend. Las del backend escriben sus capturas y la coordinadora las exporta al final. La tarea 17
+«Calificación y cierre» sigue siendo la última y corre después de estas.
+
+18. **El diseño en el front.** UC0 a UC6 y VC1 a VC5, con sus capturas del lienzo, los textos es/en, las decisiones de detalle,
+    la lista de chequeo y el tope de filas, como sección de `docs/design/documentos.md`; DOC2 pasa sus tres desplegables a la
+    zona de UC1-A. Sin código.
+
+**Etapa U · La ubicación y el contacto (W3),** después de los commits de «Ubicación» y «Casos del asistente» en los archivos que
+comparten.
+
+19. **Front: los guards de W3.** `receives` en las preguntas del borrador y del detalle; en el hilo, el tipo `Contact` con
+    `contact`, `prefill` en el reenvío y `savedNumber`; en el historial, `questions`, `ContactReceived` y `SentAgain`. Todo
+    opcional. Tests de los guards.
+20. **El ajuste de la pregunta.** `receives` en el borrador y el validador, con sus códigos y textos; `StructuredFormQuestion.Receives`
+    en el chequeo y en el snapshot, y `WhatsAppFlowProjectionField.Receives` en el compilador. Unitarias del validador y del
+    borrador (cambio de tipo, quitar la pregunta, los bytes de un borrador sin el ajuste), de la publicación y del compilador (el
+    Flow no cambia); integración con PostgreSQL al guardar y publicar; cohorte `forms-http`.
+21. **Front: la zona del editor (UC1-A).** `FormLocationContactZone` en `FormEditorPage`, debajo de «Preguntas» y de «Lectura de
+    documentos»: los tres renglones con `FormField` y `NativeSelect`, las tomadas con «· Recibe …», el renglón de la ubicación
+    apagado con su motivo, sin la zona con «Sólo en la app», sólo lectura y el celular; quitar una pregunta o cambiarle el tipo
+    vuelve a «Ninguna». Tests y visuales.
+22. **Lo que llega.** El webhook lee la dirección de un lugar y el contacto (la primera tarjeta, con sus topes); el mensaje los
+    guarda una vez, la retención los vacía con el cuerpo, el hilo trae `contact` y la lista dice «Contacto». La migración
+    `AddWhatsAppSharedContent`, con las columnas del envío y del reenvío que usa la tarea 23, y su `Down`. Unitarias del lector con
+    los cuerpos de Meta (un lugar con y sin dirección, la ubicación actual, un contacto sin teléfono, con dos y dos tarjetas) y de
+    la retención; la migración Up, Down y Up; cohorte `whatsapp-audio-http`.
+23. **El circuito y el reenvío.** `WhatsAppSharedContentPolicy` después de W1-A, lo que guarda el envío, el reenvío con su marca y
+    el sello del primer mensaje, lo compartido sobre el prellenado al despachar, el guardia, el modo que frena, y `ListOffersAsync`
+    y «Por qué lo mandó» sin el reenvío. Unitarias de la política (el orden, W1-A primero, el más viejo, lo primero vale, el que
+    espera la ubicación no toma un contacto, el modo del remitente, el corte, un contacto sin teléfono) y del despacho;
+    integración con PostgreSQL y Meta simulado: la ubicación y el contacto hasta la captura, dos envíos, el envío del asistente
+    con una toma antes y después, y las ofertas que no cambian.
+24. **Lo que se ve.** «Prellenado con» en el reenvío, la segunda respuesta con el número de la guardada, el origen con un solo
+    Flow y lo compartido, y la actividad del detalle. La composición de punta a punta con PostgreSQL escribe los cuerpos para el
+    front: el hilo con el reenvío y la segunda respuesta en `whatsapp-forms-http` y el detalle en `forms-responses-http`.
+25. **Front: el chat y la actividad.** La burbuja del contacto (`ChatContact`, con «Contacto: {nombre}» como nombre accesible),
+    «Mensaje de contacto», el reenvío con «Prellenado con», el motivo de la segunda respuesta en `FormReplyCard` y los renglones
+    nuevos de la actividad. Tests y visuales.
+
+**Etapa V · Varias cargas desde un Excel (VC1-A),** después de las tareas 7 a 10 y sobre su versión.
+
+26. **Front: los guards de las filas.** En la bandeja, `row` y `waitsFor`, y las celdas de la fila en el detalle; en el hilo, el
+    pie de una carga y «Por qué lo propuso» de una planilla. Tests de los guards.
+27. **Las filas de una planilla.** El lector con las filas de datos de cada hoja y sus encabezados, y el tope de 50;
+    `candidates` también con planilla, `forms.documents.propose-rows@1` y el mapeo aplicado sin IA (los tipos, las validaciones
+    fijas, las repetidas, el tope de tres en el orden de la planilla y las filas que el modelo no vio). Unitarias del lector, de la
+    capacidad (sólo con planilla y con Ids observados) y del mapeo: dos formularios, una repetida, una igual a otra, una que no
+    encaja y ninguna que encaja.
+28. **La bandeja con filas.** Una entrada por fila (la hoja, la fila, la lectura y la copia compartida con su retención), el
+    índice con la fila, el motivo de lo que no se mandó, `waitsFor` y el filtro, el 409 de una fila que espera, «La fila»,
+    «Descargar la planilla», cambiar de formulario con la fila guardada, la búsqueda y el origen «Salió de una planilla». La
+    migración `AddReceivedDocumentRows`, con el pie que usa la tarea 29. Unitarias e integración con PostgreSQL, incluida la
+    retención de la copia compartida; cohorte `forms-documents-http`.
+29. **WhatsApp: la planilla, el aviso y las cargas.** Quién baja una planilla, la planilla sola al turno de carga y sus
+    definiciones; el aviso con sus variantes, hasta tres Flows con su cuerpo y su pie, y el aviso de arriba del Flow («Lo
+    completamos con la planilla que mandaste…»); el envío que guarda su fila sin sumar archivo; «Por qué lo propuso» con el enlace
+    a la bandeja; los casos de DOC4, «No lo reconoce» y el tope de filas; y las cargas que no gastan ofertas. Integración con
+    PostgreSQL y Meta simulado: siete filas, dos formularios, una repetida, dos planillas seguidas, ninguna que encaja y un número
+    sin cuenta; cohorte `whatsapp-audio-http`.
+30. **Front: la bandeja y el chat (VC1-A).** «Fila 5», «La fila» con «Descargar la planilla», «Para revisar», las acciones
+    apagadas con su motivo, el filtro, el historial de una fila, «Por qué lo propuso» con su enlace en el chat y «Salió de una
+    planilla» en la actividad. Tests y visuales.
+
+**El cierre** sigue en la tarea 17, que para esto suma los casos de filas al set `channel-documents` (una planilla de un
+formulario, de dos, con columnas dudosas y con una instrucción escondida en una celda), las reglas de W3 y de las filas en
+[WhatsApp](../features/whatsapp.md) y [formularios](../features/formularios.md), y a la prueba a mano: compartir una ubicación y
+un contacto con un formulario abierto, y mandar una planilla de siete filas.
+
+### Riesgos y lo que falta confirmar
+
+- **Turnos con otras sesiones.** El servicio de ubicaciones, el guardia de salida, el lector y la aceptación del asistente los
+  tienen hoy «Ubicación» (el asistente con ubicación) y «Casos del asistente» (Derivar): la etapa U va después de sus commits y
+  sobre su versión, con el turno acordado con la coordinadora. La etapa V va después de las tareas 7 a 10.
+- **Dos Flows con el mismo token.** El reenvío manda otro mensaje con el `flow_token` del envío; no está comprobado con Meta. Lo
+  prueba la prueba real, como el pedido de W1-A. Si Meta no lo acepta, el reenvío pasa a ser otro envío que cierra el primero.
+- **El pie de una carga.** Meta admite un pie en un mensaje interactivo; se comprueba con Meta real. Si no, el formulario va en
+  el cuerpo.
+- **El tope de definiciones.** Con una planilla el automático ofrece hoy 16 de 16; el turno de carga cambia las de registrar con
+  texto por las de cargar y queda en 15. Si «Casos del asistente» cambió la cuenta, se rehace al programar.
+- **El mapeo y la muestra.** Una planilla ancha corta las celdas de la muestra: el modelo sólo reconoce y mapea, y los valores
+  salen de la copia entera. El tope de 50 filas lo calibra el piloto, y la calificación mide el mapeo con planillas ficticias; la
+  corrida real espera el visto bueno del usuario.
+- **Los topes del código.** `WhatsAppFormDispatchPolicy` ya tiene ocho dependencias: lo compartido le llega descifrado, como el
+  contenido del asistente. `WhatsAppFlowLocationService` tiene seis y suma el protector de las proyecciones, que el circuito lee
+  para saber qué pregunta recibe y con qué etiqueta. Las guías al borde de los 30 KB suman a lo sumo una línea.
+- **Un dato por columna en la bandeja.** «Monto» y el estado «Para revisar» los dibujó VC3 y los resuelve la tarea 10; si no lo
+  hace, los suman las tareas 28 y 30.
+- **Lo que falta confirmar:** con Meta, el token repetido y el pie. Con el usuario, nada: el tope de 50 filas y que el reenvío
+  del operador siga la regla de Atención manual se resolvieron por lo más simple y la tarea 18 los registra en el diseño.
