@@ -133,7 +133,8 @@ Propuesta para el visto bueno del usuario, contrastada con `main` en `d9db8c1d`.
 - **Diferencias al programar el motor:**
   - Los hechos son su propia lectura (`whatsapp.agent-knowledge@1`), que el modelo pide sólo para redactar, en vez de ir dentro de `whatsapp.agent@1`: así no viajan en cada turno ni empujan el tope de 64 KiB de lo leído. El rechazo de un formulario cita las ofertas que trae el historial, sin `whatsapp.offered-forms@1`. Con planilla y un perfil calificado para redactar quedan 16 definiciones, el tope.
   - Un formulario o la pregunta de cuál va solo, como derivar o no responder: mezclado con otras acciones no sale nada y deriva (`replyNotAllowed`). Las demás acciones de una respuesta (texto exacto, botones y redactado) van hasta tres, en orden.
-- **Falta:** los casos del arnés (tarea 8), cuya corrida real espera la clave y el visto bueno del usuario (mientras tanto el redactado sigue apagado por el perfil), y el cierre (tarea 11) después de la prueba integral.
+- **Calificación (tarea 8), 2026-11-12:** el set `channel-agent` del arnés (32 casos es/en, `c70e7792` y `eff16abe`) quedó en verde con el modelo real (`agent_drafting_20261112_04`: 32/32 casos y 452/452 checks; la evidencia está en [configurar la IA](../guides/configurar-ia.md#evidencia-para-habilitar-perfiles)). La corrida encontró que, ante dos preguntas, el modelo daba una sola acción, y lo corrigió la descripción del agente (`9753a3a0`). La instalación local declaró `gpt-6.1-sol-candidate-1@2` con `QualifiedToDraft`: el redactado se prende al reiniciar la Api.
+- **Falta:** la prueba a mano y el cierre (tarea 11), después de la prueba integral.
 
 ### Lo que hay hoy
 

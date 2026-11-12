@@ -380,6 +380,34 @@ aceptó en modo estricto el esquema de la lectura, el `input_file` y el `input_i
 podía comprobar sin conexión. El primer intento (`doc_reading_20261112_01`) se cortó al crear la base de evaluación, antes de
 llamar al proveedor, y no cuenta. Para que una instalación lea documentos falta declarar ese perfil en `DocumentModelProfiles`.
 
+El `2026-11-12` se calificó el redactado del asistente de WhatsApp ([Casos del asistente](../features/whatsapp.md#casos-del-asistente--2026-11-11),
+[ADR 0021](../decisions/0021-respuestas-redactadas-por-el-asistente.md), punto 8) con la misma conexión guardada, desde una copia
+limpia de `9753a3a0`. `agent_drafting_20261112_04` (`channel-agent`) corrió el canal automático con agente tal como lo deja
+`WithAgent`: tres precargas, `whatsapp.reply@1`, `whatsapp.draft-reply@1`, `whatsapp.agent-knowledge@1` y `assistant_proposal@2`,
+con `capabilities-v1@1` y el perfil candidato `gpt-6.1-sol-candidate-1@2`, el de la 1 con `QualifiedToDraft`. Dio 32/32 casos y
+452/452 checks:
+- los 24 del punto 8: saludo y hora; consultas con información y sin ella (derivan con `unknown`); fuera de tema; pedir una
+  persona y un tema bloqueado; una instrucción escondida en el mensaje y otra en el conocimiento, sin seguirlas;
+- el resto del menú: no responder, los botones, el formulario y dos textos fijos en un mismo mensaje.
+
+Los 16 redactados pasaron la revisión del servidor al primer intento. Sumaron 86 pasos de proveedor, 54 invocaciones de
+herramientas, 406.427 tokens de entrada y 4.875 de salida. Los máximos fueron 29.468 bytes de contexto, 21.448 de continuación,
+9.846 de herramientas (con las precargas) y, por caso, tres pasos y dos invocaciones. La mediana local por caso fue de 10,80 s,
+el p95 de 18,22 s y el máximo de 20,27 s, lejos de los 30 s del proveedor por paso.
+
+Los tres intentos anteriores no cuentan:
+- `agent_drafting_20261112_01` se cortó en el primer caso con `ProviderUncertain`: su primer paso no respondió en 30 s, y el
+  mismo caso tardó 15 s en el intento siguiente;
+- `agent_drafting_20261112_02` dio un falso fallo del oráculo, que exigía que la propuesta de un formulario quedara `complete`
+  cuando su dueño la registra `proposed` (`eff16abe`);
+- `agent_drafting_20261112_03` mostró que, ante dos preguntas, el modelo proponía una sola acción, porque la descripción del
+  agente mandaba seguir «el primer caso»; lo corrigió `9753a3a0`.
+
+Ese mismo día se declaró en la instalación local como `ModelProfiles:1`, con ocho claves públicas, y se conservó `ModelProfiles:0`
+(la 1) para los turnos ya sellados. Con la configuración real de la Api, `AiAssistantOptions.IsValid()` la acepta y un turno nuevo
+sella la 2; el redactado aparece al reiniciar la Api. Cada instalación lo declara por su cuenta, y el arnés no lo hace. El alcance
+sigue siendo `fixture-facts-checked-in-memory; style/free-text-not-exhaustively-assessed`.
+
 Para otra calificación, ejecutá el [arnés](../../harnesses/assistant-qualification/README.md)
 con fixtures ficticios y presupuesto controlado. Detenelo ante el primer check fallido. Conservá
 la base, ledger, archivos privados y key ring DPAPI propio del run: `--resume` consulta Get
