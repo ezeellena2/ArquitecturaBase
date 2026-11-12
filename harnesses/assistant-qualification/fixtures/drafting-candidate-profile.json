@@ -1,0 +1,19 @@
+{
+  "status": "UNQUALIFIED CANDIDATE; isolated host only; not production configuration",
+  "id": "gpt-6.1-sol-candidate-1",
+  "version": 2,
+  "provider": "OpenAI",
+  "model": "gpt-6.1-sol",
+  "api": "Responses",
+  "contextBytes": 131072,
+  "supportsTools": "qualified in version 1",
+  "supportsTerminalAnswer": "qualified in version 1",
+  "qualifiedToDraft": "hypothesis to probe",
+  "reasoningEffort": null,
+  "limits": "the same as version 1 (candidate-profile.json); nothing is raised to qualify drafting",
+  "notes": [
+    "Version 1 with QualifiedToDraft: only then does the engine offer whatsapp.draft-reply (ADR 0021, point 8).",
+    "Version 1 stays declared for the turns sealed with it; this harness declares nothing in production.",
+    "No model substitution."
+  ]
+}

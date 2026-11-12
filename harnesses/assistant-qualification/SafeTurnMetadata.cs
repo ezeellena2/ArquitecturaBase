@@ -25,6 +25,9 @@ internal sealed record TurnMetadata(int ProviderSteps, int ToolCalls, int ToolBy
     // Stage 2: what the context offered by Id and version (propose-catalog@1 and @2 share an Id), and the turn's spreadsheet, its own or
     // inherited: the key of its copy and what it holds in the clear, SHA-256 and size. Never exported either.
     public IReadOnlyList<AssistantCapabilityReference> OfferedReferences { get; init; } = [];
+    // Casos del asistente: what the sealed context preloads before the first step and the terminal it closes on.
+    public IReadOnlyList<AssistantCapabilityReference> PreloadedReferences { get; init; } = [];
+    public IReadOnlyList<AssistantTerminalReference> Terminals { get; init; } = [];
     public string? AttachmentKey { get; init; }
     public string? AttachmentSha256 { get; init; }
     public long? AttachmentSize { get; init; }
@@ -67,6 +70,8 @@ internal sealed class SafeTurnMetadata(ApplicationDbContext db)
             OfferedCapabilities = profile.ChannelContext.AllowedCapabilities.Select(capability => capability.Id).ToArray(),
             InteractionMode = profile.ChannelContext.InteractionMode, SubjectUserId = profile.ChannelContext.SubjectUserId,
             OfferedReferences = profile.ChannelContext.AllowedCapabilities.ToArray(),
+            PreloadedReferences = profile.ChannelContext.PreloadedCapabilities?.ToArray() ?? [],
+            Terminals = profile.ChannelContext.AllowedTerminals.ToArray(),
             AttachmentKey = turn.AttachmentKey, AttachmentSha256 = turn.AttachmentSha256, AttachmentSize = turn.AttachmentSize,
         };
     }

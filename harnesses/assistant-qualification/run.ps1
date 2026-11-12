@@ -2,7 +2,7 @@ param(
     [switch]$Live,
     [switch]$Resume,
     [string]$RunId,
-    [ValidateSet("home-existing", "channel-stage5", "audio-es-en", "stage5-all", "home-authoring", "channel-authoring", "ia-authoring", "channel-dictation", "home-spreadsheets", "channel-spreadsheets", "ia-spreadsheets", "document-reading")]
+    [ValidateSet("home-existing", "channel-stage5", "audio-es-en", "stage5-all", "home-authoring", "channel-authoring", "ia-authoring", "channel-dictation", "home-spreadsheets", "channel-spreadsheets", "ia-spreadsheets", "document-reading", "channel-agent")]
     [string]$CaseSet = "stage5-all",
     [string]$OutputDirectory
 )

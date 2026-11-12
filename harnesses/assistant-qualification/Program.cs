@@ -23,10 +23,11 @@ internal static partial class Program
         "AiAssistantAccessGuard.cs","AiAssistantOperations.cs","AiAssistantCapabilityCatalogPolicy.cs","AiAssistantBackgroundService.cs",
         "AiAssistantCoordinator.cs","EmailBackgroundService.cs","WhatsAppInboundProcessor.cs","FormActionBackgroundService.cs",
         "QualificationAuthoringSeed.cs","QualificationSpreadsheets.cs","AiAssistantFileTurnService.cs","BusinessFormAttachmentReader.cs",
-        "Program.Documents.cs","DocumentRunner.cs","QualificationDocuments.cs","FormDocumentReader.cs"];
+        "Program.Documents.cs","DocumentRunner.cs","QualificationDocuments.cs","FormDocumentReader.cs","AgentRunner.cs","AgentOracle.cs",
+        "QualificationAgentSeed.cs","WhatsAppAssistantAgentService.cs","WhatsAppAssistantAgentCapabilitySource.cs","AiBusinessInformationService.cs"];
 
     internal static readonly string[] CaseSets=["home-existing","channel-stage5","audio-es-en","stage5-all","home-authoring","channel-authoring","ia-authoring","channel-dictation",
-        "home-spreadsheets","channel-spreadsheets","ia-spreadsheets","document-reading"];
+        "home-spreadsheets","channel-spreadsheets","ia-spreadsheets","document-reading","channel-agent"];
     // channel-dictation runs only the voice notes of channel-authoring (IA3-A by voice), without repeating the typed cases already qualified.
     internal static ChannelCase[] SelectChannelCases(string? selected,ChannelCase[] cases)=>
         selected=="channel-dictation"?cases.Where(item=>item.Audio is not null).ToArray():cases;
@@ -37,6 +38,9 @@ internal static partial class Program
     // Stage 2 of «La IA arma formularios y catálogos»: spreadsheets, with their own run and database.
     internal const string HomeSpreadsheetFile="home-spreadsheet-cases.json";
     internal const string ChannelSpreadsheetFile="channel-spreadsheet-cases.json";
+    // Casos del asistente (ADR 0021, point 8): the drafted reply and the rest of the agent's menu, on their own run and database.
+    internal const string AgentCasesFile="agent-cases.json";
+    private static readonly (string File,string Model,string Id) DraftingCandidate=("drafting-candidate-profile.json","gpt-6.1-sol","gpt-6.1-sol-candidate-1");
     // What each context offers, by Id and version: the stamps of its definitions. The five Home reads are version 1.
     internal static readonly AssistantCapabilityReference[] HomeReferences=[..QualificationSeed.HomeCapabilities.Select(id=>new AssistantCapabilityReference(id,1))];
     // Home stamps for the authoring and spreadsheet cases: the five reads plus what BusinessForms offers in Home (authoring and H4), since
@@ -66,6 +70,8 @@ internal static partial class Program
             var spreadsheets=homeSpreadsheets || channelSpreadsheets;
             // Parte L, task 4: ReadDocument alone, on its own run and database seeded only with the base accounts.
             var documents=selected=="document-reading";
+            // channel-agent: the base seed, the forms and the agent with its business information, on its own run and database.
+            var agentSet=selected=="channel-agent";
             if(!args.Contains("--live",StringComparer.Ordinal))
             {
                 if(selected is "home-existing" or "stage5-all")foreach(var item in await CasesAsync<HomeCase>("home-cases.json",CancellationToken.None))Console.WriteLine(item.Id);
@@ -76,6 +82,7 @@ internal static partial class Program
                 if(homeSpreadsheets)foreach(var item in await CasesAsync<HomeCase>(HomeSpreadsheetFile,CancellationToken.None))Console.WriteLine(item.Id);
                 if(channelSpreadsheets)foreach(var item in await CasesAsync<ChannelCase>(ChannelSpreadsheetFile,CancellationToken.None))Console.WriteLine(item.Id);
                 if(documents)foreach(var item in (await QualificationDocuments.LoadVerifiedAsync(CancellationToken.None)).Cases)Console.WriteLine(item.Id);
+                if(agentSet)foreach(var item in await CasesAsync<AgentCase>(AgentCasesFile,CancellationToken.None))Console.WriteLine(item.Id);
                 Console.WriteLine("Prepared only. No connection or secret store was opened.");return 0;
             }
             // Nothing above this explicit gate reads environment, credentials, services or a database.
@@ -87,7 +94,7 @@ internal static partial class Program
             if(diagnose)return await DiagnoseExistingFixtureAsync(settings,ct);
             Directory.CreateDirectory(settings.OutputDirectory);
             await SafeRunLedger.BindAsync(settings,continuing || args.Contains("--resume",StringComparer.Ordinal),ct);
-            using var host=QualificationHost.Build(settings);
+            using var host=QualificationHost.Build(settings,agentSet);
             if(args.Contains("--resume",StringComparer.Ordinal))return await ResumeAsync(host,settings,ct);
             if(continuing)
             {
@@ -96,15 +103,16 @@ internal static partial class Program
             }
             // Before any seed or provider call: the Home authoring and spreadsheet cases expect what Home offers today, by Id and version.
             if((homeAuthoring || homeSpreadsheets) && !HomeOffersAuthoring(host))return 2;
-            QualificationFixture fixture;QualificationChannelFixture? forms=null;
+            QualificationFixture fixture;QualificationChannelFixture? forms=null;QualificationAgentFixture? agent=null;
             await using(var scope=host.Services.CreateAsyncScope())
             {
                 var db=scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                 await RefuseNonemptyEvaluationDatabaseAsync(db,ct);
                 await db.Database.MigrateAsync(ct); // Isolated evaluation DB only.
                 fixture=await scope.ServiceProvider.GetRequiredService<QualificationSeed>().CreateAsync(ct);
-                if(selected is "channel-stage5" or "stage5-all" || homeAuthoring || channelAuthoring || spreadsheets)
+                if(selected is "channel-stage5" or "stage5-all" || homeAuthoring || channelAuthoring || spreadsheets || agentSet)
                     forms=await scope.ServiceProvider.GetRequiredService<QualificationFormSeed>().CreateAsync(fixture,ct);
+                if(agentSet)agent=await scope.ServiceProvider.GetRequiredService<QualificationAgentSeed>().CreateAsync(fixture,forms!,ct);
                 if(homeAuthoring || channelAuthoring || spreadsheets)
                 {
                     var authoring=scope.ServiceProvider.GetRequiredService<QualificationAuthoringSeed>();
@@ -123,6 +131,7 @@ internal static partial class Program
                 if(homeSpreadsheets)if(!await RunHomeAsync(host,settings,fixture,forms,HomeSpreadsheetFile,HomeAuthoringCapabilities,ct))return 1;
                 if(channelSpreadsheets)if(!await RunChannelsAsync(host,settings,fixture,forms!,ChannelSpreadsheetFile,QualificationChannelContexts.References,ct))return 1;
                 if(documentSet is not null)if(!await RunDocumentsAsync(host,settings,fixture,documentSet,ct))return 1;
+                if(agent is not null)if(!await RunAgentAsync(host,settings,agent,forms!,ct))return 1;
                 return 0; // Mechanical checks do not declare production qualification.
             }
             finally{await host.StopAsync(CancellationToken.None);}
@@ -288,6 +297,20 @@ internal static partial class Program
             observedCases[testCase.Id]=observed;
             var evidence=await EvidenceAsync(testCase.Id,observed.Metadata.Stamps.ChannelId,testCase.Culture,observed.Result.State,observed.Result.FailureCode,
                 observed.Metadata,observed.ElapsedSeconds,observed.Measurements,observed.Checks,definitions,fixtureFile,false,ct);
+            if(!await SaveAsync(settings,evidence,ct))return false;
+        }
+        return true;
+    }
+    // channel-agent: each case in its own scope, in the fixture's order (the drafting cases first); it stops at the first failed check.
+    private static async Task<bool> RunAgentAsync(IHost host,QualificationSettings settings,QualificationAgentFixture agent,QualificationChannelFixture forms,CancellationToken ct)
+    {
+        var definitions=Definitions(host,QualificationChannelContexts.AgentInventory);
+        foreach(var testCase in await CasesAsync<AgentCase>(AgentCasesFile,ct))
+        {
+            await using var scope=host.Services.CreateAsyncScope();
+            var observed=await scope.ServiceProvider.GetRequiredService<AgentRunner>().RunAsync(testCase,agent,forms,ct);
+            var evidence=await EvidenceAsync(testCase.Id,observed.Metadata.Stamps.ChannelId,testCase.Culture,observed.Result.State,observed.Result.FailureCode,
+                observed.Metadata,observed.ElapsedSeconds,observed.Measurements,observed.Checks,definitions,AgentCasesFile,false,ct,DraftingCandidate);
             if(!await SaveAsync(settings,evidence,ct))return false;
         }
         return true;

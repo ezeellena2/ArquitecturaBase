@@ -38,11 +38,27 @@ internal static class QualificationChannelContexts
     // Everything some channel context offers, by Id and version: the stamps of the channel sets.
     public static readonly AssistantCapabilityReference[] References = [..AutomaticReferences.Concat(ManualReferences).Concat(CapturedReferences).Distinct()];
     public static readonly string[] Capabilities = [..References.Select(reference => reference.Id)];
-    // "author" is the automatic conversation of a recipient who may build forms and catalogs (Actor equal to Subject).
-    private static readonly string[] Kinds = ["auto", "manual", "catalog", "no-forms", "author"];
+    // Casos del asistente: the automatic conversation with a saved agent, as WhatsAppAssistantAccessPolicy.WithAgent turns it. The agent,
+    // the form candidates and the history are preloaded (never tools); the reply, the draft and the knowledge replace «No responder»
+    // and the offers, and the terminal chooses up to three proposals.
+    public static readonly AssistantCapabilityReference[] AgentPreloaded = [new("whatsapp.agent",1), new("forms.assistant-candidates",1), new("whatsapp.agent-history",1)];
+    private static readonly AssistantCapabilityReference[] AgentReplaced = [new("whatsapp.no-reply",1), new("whatsapp.offered-forms",1), ..AgentPreloaded];
+    public static readonly AssistantCapabilityReference[] AgentReferences = [..AutomaticReferences.Where(reference => !AgentReplaced.Contains(reference)),
+        new("whatsapp.reply",1), new("whatsapp.draft-reply",1), new("whatsapp.agent-knowledge",1)];
+    // The stamps of channel-agent: what the context offers plus what it preloads.
+    public static readonly AssistantCapabilityReference[] AgentInventory = [..AgentReferences, ..AgentPreloaded];
+    // "author" is the automatic conversation of a recipient who may build forms and catalogs (Actor equal to Subject); "agent", the
+    // automatic conversation of whoever writes to a business with a saved agent (Actor equal to Subject too).
+    private static readonly string[] Kinds = ["auto", "manual", "catalog", "no-forms", "author", "agent"];
     public static AssistantChannelContext Create(QualificationActor actor, Guid subject, string kind, Guid? sourceRecordId = null)
     {
         if(!Kinds.Contains(kind,StringComparer.Ordinal)) throw new ArgumentException("Unknown qualification channel kind.",nameof(kind));
+        if(kind == "agent")
+        {
+            if(subject != actor.UserId || sourceRecordId is not null) throw new ArgumentException("An agent conversation is the person's own.",nameof(subject));
+            return new("whatsapp-assistant", actor.UserId, subject, actor.Culture, "America/Argentina/Buenos_Aires", new([], []), AgentReferences,
+                [new("assistant_proposal",2)]) { InteractionMode = AssistantInteractionMode.Assistant, PreloadedCapabilities = AgentPreloaded };
+        }
         var manual = kind == "manual";
         return new(manual ? "whatsapp-manual" : "whatsapp-assistant", actor.UserId, subject, actor.Culture, "America/Argentina/Buenos_Aires",
             new(manual ? ["whatsapp.read", "whatsapp.send"] : [], []), sourceRecordId.HasValue ? CapturedReferences : manual ? ManualReferences : AutomaticReferences,
@@ -77,7 +93,7 @@ internal static class QualificationChannelContexts
             if(entry.ChannelId!="whatsapp-manual" || entry.SubjectUserId is not null) throw new InvalidOperationException("Invalid audio ledger scope.");
             return CreateAudio(entry.ActorUserId,entry.Culture) with { InteractionMode = entry.InteractionMode };
         }
-        if(entry.OperationKind!="channel" || entry.ChannelKind is not ("auto" or "manual" or "catalog" or "no-forms" or "author") || entry.SubjectUserId is not {} subject)
+        if(entry.OperationKind!="channel" || entry.ChannelKind is not ("auto" or "manual" or "catalog" or "no-forms" or "author" or "agent") || entry.SubjectUserId is not {} subject)
             throw new InvalidOperationException("Invalid channel ledger scope.");
         var context=Create(new(entry.ActorUserId,"resumed",entry.Culture,"fictitious"),subject,entry.ChannelKind,entry.SourceRecordId) with { InteractionMode = entry.InteractionMode };
         if(context.ChannelId!=entry.ChannelId) throw new InvalidOperationException("Ledger channel identity changed.");

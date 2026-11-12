@@ -41,7 +41,14 @@ internal static class QualificationHost
             StructuredAttachmentLimits.MaximumBytes, StructuredAttachmentLimits.MaximumPages) { SupportsReasoningEffort = true },
     ];
 
-    public static IHost Build(QualificationSettings settings)
+    // The text candidate every set uses and, for channel-agent (Casos del asistente), its next version qualified to draft: only with it does
+    // the engine offer whatsapp.draft-reply (ADR 0021, point 8). Each host declares one, so the other sets keep sealing version 1.
+    internal static readonly AiAssistantModelProfile TextProfile = new(AiProvider.OpenAI, "gpt-6.1-sol", 131072, true, true)
+        { Id = "gpt-6.1-sol-candidate-1", Version = 1 };
+    internal static readonly AiAssistantModelProfile DraftingProfile = TextProfile with { Version = 2, QualifiedToDraft = true };
+    internal static AiAssistantModelProfile[] ModelProfiles(bool drafting) => [drafting ? DraftingProfile : TextProfile];
+
+    public static IHost Build(QualificationSettings settings, bool drafting = false)
     {
         // This method is called only after an explicit --live and isolation checks.
         // No ApiFactory, Api Program, AppHost, web listener or InitializeDatabaseAsync.
@@ -80,7 +87,7 @@ internal static class QualificationHost
         builder.Services.PostConfigure<AiAssistantOptions>(options =>
         {
             options.ProcessInBackground = true;
-            options.ModelProfiles = [new(AiProvider.OpenAI, "gpt-6.1-sol", 131072, true, true) { Id = "gpt-6.1-sol-candidate-1", Version = 1 }];
+            options.ModelProfiles = ModelProfiles(drafting);
             options.AudioModelProfiles = [..AudioProfiles];
             options.DocumentModelProfiles = [..DocumentProfiles];
             options.Limits = new AiAssistantLimits();
@@ -100,6 +107,8 @@ internal static class QualificationHost
         builder.Services.AddScoped<DocumentRunner>();
         builder.Services.AddScoped<QualificationFormSeed>();
         builder.Services.AddScoped<QualificationAuthoringSeed>();
+        builder.Services.AddScoped<QualificationAgentSeed>();
+        builder.Services.AddScoped<AgentRunner>();
         builder.Services.RemoveAll<IPrivateFileStore>();
         builder.Services.AddSingleton<IPrivateFileStore>(_ => new QualificationPrivateFiles(Path.Combine(settings.OutputDirectory, "private-audio")));
         builder.Services.AddScoped<StatusRunner>();
