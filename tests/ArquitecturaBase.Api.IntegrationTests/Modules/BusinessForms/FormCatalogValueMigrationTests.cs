@@ -56,7 +56,9 @@ public sealed class FormCatalogValueMigrationTests(ApiFactory factory)
             Assert.Equal(original, await FormCatalogValueMigrationFixture.HistoricalRowsAsync(db, Ct));
             // The HTTP pipeline uses current entities, so restore the current schema after exercising the value-type boundary.
             await migrator.MigrateAsync(cancellationToken: Ct);
-            Assert.Equal(original, await FormCatalogValueMigrationFixture.HistoricalRowsAsync(db, Ct));
+            // AddFormDocumentReading (DOC1) gives definitions and versions a nullable DocumentReadingJson: the legacy form comes back
+            // exactly as it was, with that column null.
+            Assert.Equal(await WithNullDocumentReadingAsync(db, original), await FormCatalogValueMigrationFixture.HistoricalRowsAsync(db, Ct));
 
             var actor = await FormCatalogValueMigrationFixture.CreateOperatorAsync(scope.ServiceProvider, Ct);
             using var client = host.CreateClient();
@@ -131,6 +133,14 @@ public sealed class FormCatalogValueMigrationTests(ApiFactory factory)
             await db.Database.EnsureDeletedAsync(CancellationToken.None);
         }
     }
+
+    // The historical rows as the current schema shows them: the definition and the version also carry DocumentReadingJson, null for
+    // a form from before it. PostgreSQL adds the key, so the text keeps the key order and format of jsonb.
+    private static Task<string[]> WithNullDocumentReadingAsync(ApplicationDbContext db, string[] rows) => db.Database.SqlQuery<string>($"""
+        SELECT CASE WHEN h."Text"::jsonb ->> 'table' IN ('definition', 'version')
+            THEN jsonb_set(h."Text"::jsonb, ARRAY['data', 'DocumentReadingJson'], 'null'::jsonb)::text ELSE h."Text" END AS "Value"
+        FROM unnest({rows}) AS h("Text") ORDER BY "Value"
+        """).ToArrayAsync(Ct);
 
     private static object Item(string localId, Guid? itemId, string code) => new
     {
