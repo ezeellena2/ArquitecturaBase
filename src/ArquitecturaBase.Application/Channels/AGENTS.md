@@ -29,3 +29,5 @@ DisabledAssistantProposalLookup responde Unavailable cuando falta la IA: sin mot
 UnavailableStructuredAuthoringProposalChannel no resume nada (null) y no crea (NotFound) cuando falta el dueño de las propuestas de autoría.
 
 UnavailableStructuredAttachmentReader: sin el dueño de los adjuntos nadie puede adjuntar planillas ni documentos y preparar un archivo da `Unavailable`.
+
+UnavailableBusinessKnowledgeSource responde `NotInstalled` sin zonas cuando falta la IA: el asistente no tiene hechos para usar y el canal no los inventa.

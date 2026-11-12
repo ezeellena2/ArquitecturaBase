@@ -145,6 +145,7 @@ public sealed class AiAssistantCapabilityBoundaryTests
     private static readonly HashSet<Type> ReadPorts = new Type[]
     {
         typeof(IUserReader),typeof(IRoleReader),typeof(IPermissionService),typeof(IPermissionCatalog),typeof(IPermissionCatalogSource),typeof(TimeProvider),
+        typeof(IBusinessKnowledgeSource),
     }.Concat(ModuleTestContributions.All.SelectMany(contribution => contribution.CapabilityReadPorts)).ToHashSet();
 
     private static bool IsForbiddenDependency(Type dependency)=>IsForbiddenDependency(dependency,Application);

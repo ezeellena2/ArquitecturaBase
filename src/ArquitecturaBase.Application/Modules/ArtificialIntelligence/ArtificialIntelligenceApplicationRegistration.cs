@@ -23,6 +23,7 @@ public static class ArtificialIntelligenceApplicationRegistration
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IPrivateFileRetentionSource, AiAssistantAttachmentRetentionSource>());
         services.Replace(ServiceDescriptor.Scoped<IAssistantOperations, AiAssistantOperations>());
         services.Replace(ServiceDescriptor.Scoped<IAssistantProposalLookup, AiAssistantProposalLookup>());
+        services.Replace(ServiceDescriptor.Scoped<IBusinessKnowledgeSource, AiBusinessKnowledgeSource>());
         services.TryAddScoped<IAiAssistantDispatchService, AiAssistantDispatchService>();
         services.TryAddScoped<IAiAssistantExecutionService, AiAssistantExecutionService>();
         services.TryAddScoped<IAiAssistantRetentionService, AiAssistantRetentionService>();

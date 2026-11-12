@@ -95,6 +95,26 @@ public sealed class AiBusinessSystemQuerySourceTests
         Assert.True(fixture.Source.ParseOutput(new("business.information", 1), json).IsSuccess);
     }
 
+    /// <summary>The debt the assistant cases fixed: an unanswered question and an earlier text are not confirmed facts, also in Inicio.</summary>
+    [Fact]
+    public async Task Unanswered_questions_and_earlier_texts_are_not_presented_as_facts()
+    {
+        var fixture = Create();
+        var answered = Guid.CreateVersion7();
+        fixture.Reader.Information = new("Fictional shop", "Repairs", "Mondays 8 to 5", "Old address", "Repairs", "", "Old answers", 1,
+            new AiBusinessDetails(new("unknown", "", "", "", null, null), new("UTC", [], []),
+                [new(answered, "Do you ship?", "Yes, by carrier."), new(Guid.CreateVersion7(), "Is there parking?", "")]));
+
+        var result = await fixture.Source.ExecuteAsync(Request(fixture.ActorId, "en"), Ct);
+
+        var values = Assert.Single(result.Value.Evidences).Rows.SelectMany(row => row.Values).Select(value => value.Value).ToArray();
+        Assert.Contains("Yes, by carrier.", values);
+        Assert.DoesNotContain("Is there parking?", values);
+        Assert.DoesNotContain("Mondays 8 to 5", values);
+        Assert.DoesNotContain("Old address", values);
+        Assert.DoesNotContain("Old answers", values);
+    }
+
     private static AssistantCapabilityRequest Request(Guid actorId, string culture = "es") =>
         new(Guid.CreateVersion7(), new("home", actorId, null, culture, "UTC", new([], []), [new("business.information", 1)], []),
             new("business.information", 1), "{}", []);
@@ -113,10 +133,11 @@ public sealed class AiBusinessSystemQuerySourceTests
     {
         public int Calls { get; private set; }
         public long Revision { get; set; } = 1;
+        public AiBusinessInformationResponse? Information { get; set; }
         public Task<AiBusinessInformationResponse> FindAsync(CancellationToken cancellationToken)
         {
             Calls++;
-            return Task.FromResult(new AiBusinessInformationResponse("Fictional shop", "Repairs", "", "", "", "", "", Revision));
+            return Task.FromResult(Information ?? new AiBusinessInformationResponse("Fictional shop", "Repairs", "", "", "", "", "", Revision));
         }
         public Task<AiBusinessInformationChangeResponse?> FindChangeAsync(Guid operatorId, Guid requestId, CancellationToken cancellationToken) =>
             Task.FromResult<AiBusinessInformationChangeResponse?>(null);
