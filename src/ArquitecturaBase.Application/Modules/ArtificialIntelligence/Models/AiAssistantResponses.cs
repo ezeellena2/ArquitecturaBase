@@ -13,6 +13,14 @@ public sealed record AiAssistantBootstrapResponse(string Availability, long Conn
     public bool Audio { get; init; }
     /// <summary>Stage 2: whether this person may attach a spreadsheet (private storage, and the owner's port allows them).</summary>
     public bool Attachments { get; init; }
+    /// <summary>Stage 3: whether this person may attach a Word (private storage, and the owner's port allows documents). Not serialized
+    /// until the Home front's guard accepts it.</summary>
+    [JsonIgnore]
+    public bool Documents { get; init; }
+    /// <summary>Stage 3: whether this person may also attach a photo or a PDF: documents, and this installation reads them. Not serialized
+    /// until the Home front's guard accepts it.</summary>
+    [JsonIgnore]
+    public bool DocumentReading { get; init; }
 }
 public sealed record AiConversationSummaryResponse(Guid ConversationId, long Revision, string Title,
     DateTime LastActivityAtUtc, string ContentAccess)
@@ -51,7 +59,7 @@ public sealed record AiAssistantTurnResponse(Guid TurnId, Guid ConversationId, G
     // Only a dictated turn (IA4) carries its audio and the transcript the model read; a typed one keeps its shape.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public AiAssistantTurnAudioResponse? Audio { get; init; }
-    // Only the turn that brought a spreadsheet (Stage 2) shows it; the turns that inherit it keep their shape.
+    // Only the turn that brought a file (a spreadsheet, Stage 2, or a document, Stage 3) shows it; the turns that inherit it keep their shape.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public AiAssistantTurnAttachmentResponse? Attachment { get; init; }
     [JsonIgnore]
@@ -64,7 +72,10 @@ public sealed record AiAssistantTurnResponse(Guid TurnId, Guid ConversationId, G
     public AssistantNormalizedAudio? NormalizedAudio { get; init; }
     [JsonIgnore]
     public ArquitecturaBase.Application.Models.StructuredData.StructuredDocumentReading? DocumentReading { get; init; }
-    // The name of the document the turn brought, for the history: Home's thread does not show documents yet.
+    // The document a completed reading read (the descriptor of its copy), with DocumentReading.
+    [JsonIgnore]
+    public AssistantDocumentInput? ReadDocument { get; init; }
+    // The name of the document the turn brought, for the history to name it rather than a spreadsheet.
     [JsonIgnore]
     public string? AttachedDocument { get; init; }
     public override string ToString() => "AiAssistantTurnResponse { content: [REDACTED] }";
@@ -73,6 +84,14 @@ public sealed record AiAssistantTurnResponse(Guid TurnId, Guid ConversationId, G
 public sealed record AiAssistantTurnAudioResponse(Guid RequestId, string Transcript)
 { public override string ToString() => "AiAssistantTurnAudioResponse { Transcript = [REDACTED] }"; }
 
-/// <summary>The spreadsheet a Home turn brought, for its bubble: the file's name, its kind (xlsx or csv), its rows with content and its size.</summary>
-public sealed record AiAssistantTurnAttachmentResponse(string Name, string Kind, int Rows, long Size)
-{ public override string ToString() => "AiAssistantTurnAttachmentResponse { Name = [REDACTED] }"; }
+/// <summary>
+/// The file a Home turn brought, for its bubble: the file's name, its kind (xlsx or csv for a spreadsheet; pdf, jpeg, png or docx for a
+/// document) and its size; a spreadsheet counts its rows with content, and a document its pages (a photo is one; a Word has none).
+/// </summary>
+public sealed record AiAssistantTurnAttachmentResponse(string Name, string Kind,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? Rows, long Size)
+{
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? Pages { get; init; }
+    public override string ToString() => "AiAssistantTurnAttachmentResponse { Name = [REDACTED] }";
+}

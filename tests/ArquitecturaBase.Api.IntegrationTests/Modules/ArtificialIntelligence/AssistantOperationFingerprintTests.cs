@@ -257,6 +257,28 @@ public sealed class AssistantOperationFingerprintTests
         Assert.False(original.Matches(request with { Document = null }, "one", hash));
     }
 
+    // Stage 3: a turn with a photo or a PDF binds the reading it names with its own marker, and only when it names one.
+    [Fact]
+    public void A_Home_turn_with_a_document_binds_the_reading_it_names()
+    {
+        var owner = Guid.NewGuid();
+        var typed = new SubmitAiAssistantTurnRequest(Guid.NewGuid(), Guid.NewGuid(), 3, 7, "Armame un formulario", "es");
+        var turn = typed with { DocumentRequestId = Guid.NewGuid() };
+        var ring = new AiKeyRing(Options.Create(new AiSecretProtectionOptions
+        {
+            InstallationId = "fictitious-installation", ActiveKeyId = "one", Keys = new() { ["one"] = Convert.ToBase64String(new byte[32]) }
+        }));
+        object?[] values = [owner, turn.RequestId, turn.ConversationId, turn.ExpectedRevision, turn.ExpectedConnectionRevision, "Armame un formulario",
+            new object?[] { "home-document:v1", turn.DocumentRequestId }];
+        var original = Fingerprint();
+        var hash = original.Create(owner, turn, "one");
+
+        Assert.Equal(Convert.ToBase64String(HMACSHA256.HashData(ring.AssistantFingerprintKey("one"), JsonSerializer.SerializeToUtf8Bytes(values))), hash);
+        Assert.True(original.Matches(owner, turn, "one", hash));
+        Assert.False(original.Matches(owner, turn with { DocumentRequestId = Guid.NewGuid() }, "one", hash));
+        Assert.False(original.Matches(owner, typed, "one", hash));
+    }
+
     [Fact]
     public void A_typed_Home_turn_keeps_its_original_fingerprint()
     {

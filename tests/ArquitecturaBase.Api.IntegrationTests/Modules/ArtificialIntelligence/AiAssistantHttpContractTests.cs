@@ -6,7 +6,9 @@ using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Interfaces.Integrations.Files;
+using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
+using ArquitecturaBase.Infrastructure.Modules.ArtificialIntelligence;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -21,13 +23,18 @@ public sealed class AiAssistantHttpContractTests(ApiFactory factory)
     [Fact]
     public async Task Home_assistant_http_bodies_keep_the_published_lowercase_states()
     {
-        // Private storage in memory and the owner's fictional port: Home offers the clip and a turn may bring a spreadsheet.
+        // Private storage in memory, the owner's fictional port and a fictitious reading: Home offers the clip, and a turn may bring a
+        // spreadsheet, a Word or a document read before it.
+        using var reading = DocumentReadingHandler.Json(DocumentReadingHandler.Completed(DocumentReadingHandler.Reading("| Monto | $ 1.000 |\n| Fecha | 11/11/2026 |")));
         await using var scenario = await AiAssistantExecutionScenario.CreateAsync(factory, AiProvider.OpenAI, "users.summary", services =>
         {
             services.RemoveAll<IPrivateFileStore>();
             services.AddSingleton<IPrivateFileStore>(new HomeAudioFiles());
             services.RemoveAll<IStructuredAttachmentReader>();
             services.AddSingleton<IStructuredAttachmentReader>(new HomeAttachmentReader());
+            services.AddHttpClient(AiAssistantProvidersRegistration.OpenAiDocumentHttpClientName).ConfigurePrimaryHttpMessageHandler(() => reading);
+            services.PostConfigure<AiAssistantOptions>(options => options.DocumentModelProfiles = [new(AiProvider.OpenAI, "fictional-vision", "fixture-document",
+                1, ["application/pdf", "image/jpeg", "image/png"], StructuredAttachmentLimits.MaximumBytes, StructuredAttachmentLimits.MaximumPages)]);
         });
         var client = scenario.Client;
         client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("es");
@@ -109,19 +116,64 @@ public sealed class AiAssistantHttpContractTests(ApiFactory factory)
         Assert.Equal(("clientes.csv", "csv", 3, Csv.LongLength), (attachment.GetProperty("name").GetString(), attachment.GetProperty("kind").GetString(),
             attachment.GetProperty("rows").GetInt32(), attachment.GetProperty("size").GetInt64()));
         await AiAssistantContractCapture.WriteAsync(withAttachment, "turn-attachment", Ct);
+
+        // A PDF is read before its turn: the status of its reading, and the turn that names it shows the document with its pages.
+        var documentId = Guid.NewGuid();
+        using (var uploaded = await client.PostAsync("/api/ai/assistant/documents", Document(documentId), Ct))
+            Assert.Equal(HttpStatusCode.Accepted, uploaded.StatusCode);
+        Assert.True(await scenario.ProcessNextAsync());
+        using var documentStatus = await client.GetAsync($"/api/ai/assistant/documents/{documentId}", Ct);
+        Assert.Equal(HttpStatusCode.OK, documentStatus.StatusCode);
+        var status = await documentStatus.ReadJsonAsync();
+        Assert.Equal(("completed", "pdf", 2, "readable"), (status.GetProperty("state").GetString(), status.GetProperty("document").GetProperty("kind").GetString(),
+            status.GetProperty("document").GetProperty("pages").GetInt32(), status.GetProperty("document").GetProperty("readability").GetString()));
+        await AiAssistantContractCapture.WriteAsync(documentStatus, "document-status", Ct);
+        var documentTurnId = Guid.NewGuid();
+        using (var documentSubmitted = await client.PostAsJsonAsync("/api/ai/assistant/turns", new
+        {
+            requestId = documentTurnId, question = "Armame un formulario con este comprobante", documentRequestId = documentId,
+            expectedConnectionRevision = scenario.ConnectionRevision,
+        }, Ct)) Assert.Equal(HttpStatusCode.Accepted, documentSubmitted.StatusCode);
+        Assert.True(await scenario.ProcessNextAsync());
+        using var withDocument = await client.GetAsync($"/api/ai/assistant/turns/{documentTurnId}", Ct);
+        var documentTurn = (await withDocument.ReadJsonAsync()).GetProperty("attachment");
+        Assert.Equal(("comprobante.pdf", "pdf", 2), (documentTurn.GetProperty("name").GetString(), documentTurn.GetProperty("kind").GetString(),
+            documentTurn.GetProperty("pages").GetInt32()));
+        await AiAssistantContractCapture.WriteAsync(withDocument, "turn-document", Ct);
+
+        // A Word goes with its turn and shows no pages.
+        var wordId = Guid.NewGuid();
+        using (var wordSubmitted = await client.PostAsync("/api/ai/assistant/file-turns", FileTurn(scenario, wordId, "Armame un formulario con este acta",
+            "DOCX | Fecha | Lugar |\n| 11/11/2026 | Sucursal ficticia |"u8.ToArray(), "acta.docx",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"), Ct)) Assert.Equal(HttpStatusCode.Accepted, wordSubmitted.StatusCode);
+        Assert.True(await scenario.ProcessNextAsync());
+        using var withWord = await client.GetAsync($"/api/ai/assistant/turns/{wordId}", Ct);
+        var wordTurn = (await withWord.ReadJsonAsync()).GetProperty("attachment");
+        Assert.Equal(("acta.docx", "docx", false), (wordTurn.GetProperty("name").GetString(), wordTurn.GetProperty("kind").GetString(),
+            wordTurn.TryGetProperty("pages", out _)));
+        await AiAssistantContractCapture.WriteAsync(withWord, "turn-word", Ct);
     }
 
-    // The fields of a new Home turn with its written request and the spreadsheet.
-    private static MultipartFormDataContent FileTurn(AiAssistantExecutionScenario scenario, Guid requestId, string question)
+    // The fields of a new Home turn with its written request and its file, the spreadsheet unless another is given.
+    private static MultipartFormDataContent FileTurn(AiAssistantExecutionScenario scenario, Guid requestId, string question, byte[]? bytes = null,
+        string fileName = "clientes.csv", string mediaType = "text/csv")
     {
-        var file = new ByteArrayContent(Csv);
-        file.Headers.ContentType = new MediaTypeHeaderValue("text/csv");
+        var file = new ByteArrayContent(bytes ?? Csv);
+        file.Headers.ContentType = new MediaTypeHeaderValue(mediaType);
         return new MultipartFormDataContent
         {
             { new StringContent(requestId.ToString()), "requestId" },
             { new StringContent(scenario.ConnectionRevision.ToString(CultureInfo.InvariantCulture)), "expectedConnectionRevision" },
             { new StringContent(question), "question" },
-            { file, "file", "clientes.csv" },
+            { file, "file", fileName },
         };
+    }
+
+    // A two-page PDF of a fictitious transfer receipt, as the owner's fictional port reads it.
+    private static MultipartFormDataContent Document(Guid requestId)
+    {
+        var file = new ByteArrayContent("%PDF-1.7 pages=2 comprobante ficticio"u8.ToArray());
+        file.Headers.ContentType = new MediaTypeHeaderValue("application/pdf");
+        return new MultipartFormDataContent { { new StringContent(requestId.ToString()), "requestId" }, { file, "file", "comprobante.pdf" } };
     }
 }

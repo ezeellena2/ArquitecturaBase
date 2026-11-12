@@ -37,6 +37,8 @@ public sealed class AiAssistantEndpointsTests(ApiFactory factory)
     [InlineData("GET", "/api/ai/assistant/audio/00000000-0000-0000-0000-000000000001")]
     [InlineData("GET", "/api/ai/assistant/audio/00000000-0000-0000-0000-000000000001/file")]
     [InlineData("POST", "/api/ai/assistant/file-turns")]
+    [InlineData("POST", "/api/ai/assistant/documents")]
+    [InlineData("GET", "/api/ai/assistant/documents/00000000-0000-0000-0000-000000000001")]
     public async Task Every_assistant_route_requires_session_and_its_independent_permission(string method, string path)
     {
         using var anonymous = factory.CreateClient();
@@ -47,10 +49,10 @@ public sealed class AiAssistantEndpointsTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.Forbidden, forbidden.StatusCode);
     }
 
-    // A recording and a turn with a spreadsheet go in multipart; every other assistant body is JSON.
+    // A recording, a turn with a file and a document go in multipart; every other assistant body is JSON.
     private static HttpContent? Body(string method, string path) => method != "POST" ? null
         : path.EndsWith("/audio", StringComparison.Ordinal) || path.EndsWith("/file-turns", StringComparison.Ordinal)
-            ? new MultipartFormDataContent() : JsonContent.Create(new { });
+            || path.EndsWith("/documents", StringComparison.Ordinal) ? new MultipartFormDataContent() : JsonContent.Create(new { });
 
     [Fact]
     public async Task Lost_acceptance_is_recovered_with_the_same_UUID_without_starting_generation()

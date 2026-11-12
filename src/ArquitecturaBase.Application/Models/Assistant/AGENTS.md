@@ -10,7 +10,7 @@ Provenance incluye ChannelId requerido y opaco, derivado del contexto capturado 
 
 Audio es un descriptor privado del servidor, alternativo al texto, con hash/tamaño/nombre/MIME y vencimiento propio. Submit/Get conservan el mismo RequestId y autorización del canal; NormalizedAudio es una salida técnica tipada, sin propuesta ni autoridad para ejecutar acciones. ToString redacta descriptor y transcripción; no se acepta desde contratos HTTP o argumentos del modelo.
 
-Document (ReadDocument) es el descriptor privado del servidor de un PDF, un JPEG o un PNG (clave, nombre, media type, hasta 10 MiB, SHA-256 en minúscula, de 1 a 10 páginas y vencimiento), solo: nunca con texto, audio, adjunto, continuación ni herramientas. `DocumentReading` es la lectura técnica que Get devuelve mientras dura su contenido, sin autoridad para actuar. ToString redacta los dos.
+Document (ReadDocument) es el descriptor privado del servidor de un PDF, un JPEG o un PNG (clave, nombre, media type, hasta 10 MiB, SHA-256 en minúscula, de 1 a 10 páginas y vencimiento), solo: nunca con texto, audio, adjunto, continuación ni herramientas. Mientras dura su contenido, Get devuelve el `Document` en cualquier estado y, completa, la lectura técnica (`DocumentReading`), sin autoridad para actuar. ToString redacta los dos.
 
 SourceRecordId es una referencia opcional fijada por el servidor para el origen exacto de una captura. Se omite cuando es null para preservar los contextos y huellas que no tienen origen. Submit sella su valor y Get/Cancel lo comparan sin reconstruirlo desde el historial ni desde argumentos del modelo.
 

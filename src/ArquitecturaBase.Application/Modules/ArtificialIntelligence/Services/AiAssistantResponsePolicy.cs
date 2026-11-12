@@ -56,6 +56,7 @@ internal sealed class AiAssistantResponsePolicy(IAiConversationProtector protect
         IReadOnlyList<AssistantObservedProposal> proposals = [];
         AssistantNormalizedAudio? normalizedAudio = null;
         StructuredDocumentReading? documentReading = null;
+        AssistantDocumentInput? readDocument = null;
         AiAssistantTurnAudioResponse? audio = null;
         AiAssistantTurnAttachmentResponse? attachment = null;
         string? attachedDocument = null;
@@ -70,11 +71,11 @@ internal sealed class AiAssistantResponsePolicy(IAiConversationProtector protect
                 if (transcript is null) return AiAssistantErrors.ContentUnavailable;
                 audio = new AiAssistantTurnAudioResponse(audioRequestId, transcript);
             }
-            // Only the turn that brought a file shows it; the next ones inherit it for the model, not for the thread. A Home copy names
-            // its request, and a turn without text or audio, in any channel, always brought its own. A document is only named, for the
-            // history: the thread does not show one yet.
+            // Only the turn that brought a file shows it; the next ones inherit it for the model, not for the thread. A Home copy says which
+            // turns brought it, and a turn without text or audio, in any channel, always brought its own. A document is also named, so the
+            // history does not call it a spreadsheet.
             if (row.ProtectedAttachment is { } protectedAttachment
-                && (AiAssistantHomeAttachmentPolicy.IsOwn(row.AttachmentKey, row.RequestId) || question.Trim().Length == 0 && audio is null))
+                && (AiAssistantHomeAttachmentPolicy.IsOwn(row) || question.Trim().Length == 0 && audio is null))
             {
                 var stored = AiAssistantAttachmentPolicy.Read(Reveal(row, AiAssistantAttachmentPolicy.Purpose, protectedAttachment));
                 if (stored is null) return AiAssistantErrors.ContentUnavailable;
@@ -97,6 +98,9 @@ internal sealed class AiAssistantResponsePolicy(IAiConversationProtector protect
                     var decoded = DecodeDocumentReading(row, json);
                     if (decoded.IsFailure) return decoded.Error;
                     documentReading = decoded.Value;
+                    // A reading's question is the descriptor of the document it read.
+                    readDocument = AiAssistantDocumentPolicy.ReadDescriptor(question);
+                    if (readDocument is null) return AiAssistantErrors.ContentUnavailable;
                     question = null;
                 }
                 else if (IsKind(json, "proposal"))
@@ -132,6 +136,7 @@ internal sealed class AiAssistantResponsePolicy(IAiConversationProtector protect
             row.Culture, row.TimeZoneId, row.SubmittedAtUtc, now, pollingAfterSeconds)
         {
             CancelRequestedAtUtc = row.CancelRequestedAtUtc, ObservedProposal = proposal, ObservedProposals = proposals, NormalizedAudio = normalizedAudio, DocumentReading = documentReading,
+            ReadDocument = readDocument,
             Audio = audio, Attachment = attachment, AttachedDocument = attachedDocument,
             Proposal = proposal is null ? null : new AiAssistantProposalResponse(proposal.Id, proposal.Capability.Id, proposal.Capability.Version,
                 JsonSerializer.SerializeToElement(proposal.Payload, proposal.Payload.GetType(), JsonOptions)),

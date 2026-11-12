@@ -67,47 +67,21 @@ public sealed class AiAssistantHomeAttachmentTests
         var reader = new AttachmentReader { Allowed = allowed };
         var policy = new AiAssistantHomeAttachmentPolicy(new MemoryPrivateFileStore(storage), reader, null!, null!);
         var userId = Guid.NewGuid();
-        Assert.Equal(expected, await policy.CanAttachAsync(userId, Ct));
+        Assert.Equal(expected, (await policy.CanAttachAsync(userId, Ct)).Spreadsheets);
         // The owner decides for the named person, never for whoever is the current user.
         Assert.All(reader.Asked, asked => Assert.Equal(userId, asked));
     }
 
-    // Home attaches spreadsheets until it reads documents: being allowed documents alone does not show the clip or open a turn.
+    // Who may attach only documents gets no spreadsheet clip, and a spreadsheet is refused once its bytes say what it is.
     [Fact]
-    public async Task Home_uses_only_the_spreadsheet_answer_of_the_owner()
+    public async Task Who_may_attach_only_documents_cannot_attach_a_spreadsheet()
     {
-        var reader = new AttachmentReader { Allowed = false, AllowedDocuments = true };
-        var policy = new AiAssistantHomeAttachmentPolicy(new MemoryPrivateFileStore(), reader, null!, null!);
-        var userId = Guid.NewGuid();
+        var host = new Host();
+        (host.Reader.Allowed, host.Reader.AllowedDocuments) = (false, true);
 
-        Assert.False(await policy.CanAttachAsync(userId, Ct));
-        Assert.Equal(AiAssistantErrors.AttachmentForbidden, await policy.CheckAttachAsync(userId, Ct));
-    }
-
-    // A document, prepared or rejected, is a file Home cannot read yet, as before: its texts speak of spreadsheets.
-    [Theory]
-    [InlineData(null, StructuredAttachmentFileKind.Pdf)]
-    [InlineData(StructuredAttachmentRejection.Protected, StructuredAttachmentFileKind.Pdf)]
-    [InlineData(StructuredAttachmentRejection.TooManyPages, StructuredAttachmentFileKind.Pdf)]
-    [InlineData(StructuredAttachmentRejection.TooLarge, StructuredAttachmentFileKind.Image)]
-    [InlineData(StructuredAttachmentRejection.Legacy, StructuredAttachmentFileKind.Word)]
-    [InlineData(StructuredAttachmentRejection.MacroEnabled, StructuredAttachmentFileKind.Word)]
-    [InlineData(StructuredAttachmentRejection.Empty, StructuredAttachmentFileKind.Word)]
-    public async Task A_document_answers_as_a_file_that_cannot_be_read(StructuredAttachmentRejection? rejection, StructuredAttachmentFileKind kind)
-    {
-        var reader = new AttachmentReader
-        {
-            Preparation = rejection is { } reason ? StructuredAttachmentPreparation.Rejected(reason, kind)
-                : StructuredAttachmentPreparation.Prepared(new StructuredDocument("comprobante.pdf", StructuredDocumentKind.Pdf, "application/pdf",
-                    Csv.LongLength, Sha(Csv), 1, null)),
-        };
-        var policy = new AiAssistantHomeAttachmentPolicy(new MemoryPrivateFileStore(), reader, null!, null!);
-
-        var prepared = await policy.PrepareAsync(Csv, "comprobante.pdf", Ct);
-
-        var error = Assert.IsType<ValidationError>(prepared.Error);
-        Assert.Equal("Ai.Assistant.AttachmentUnreadable", error.Code);
-        Assert.Equal(["file"], error.Errors.Keys);
+        Assert.False((await host.Bootstrap.BootstrapAsync(Ct)).Value.Attachments);
+        Assert.Equal(AiAssistantErrors.AttachmentForbidden, (await host.Service.SubmitAsync(host.Request(), Ct)).Error);
+        Assert.Equal((1, 0, 0), (host.Reader.Prepared, host.Files.WriteCount, host.Fixture.Work.Transactions));
     }
 
     [Fact]
@@ -118,7 +92,7 @@ public sealed class AiAssistantHomeAttachmentTests
             var reader = new AttachmentReader { Preparation = StructuredAttachmentPreparation.Rejected(StructuredAttachmentRejection.Protected, kind) };
             var policy = new AiAssistantHomeAttachmentPolicy(new MemoryPrivateFileStore(), reader, null!, null!);
 
-            Assert.Equal("Ai.Assistant.AttachmentProtected", (await policy.PrepareAsync(Csv, "precios.xlsx", Ct)).Error.Code);
+            Assert.Equal("Ai.Assistant.AttachmentProtected", (await policy.PrepareAsync(Csv, "precios.xlsx", new(true, true), Ct)).Error.Code);
         }
     }
 
@@ -232,7 +206,7 @@ public sealed class AiAssistantHomeAttachmentTests
     [InlineData(StructuredAttachmentRejection.TooLarge, "Ai.Assistant.AttachmentTooLarge")]
     [InlineData(StructuredAttachmentRejection.Unreadable, "Ai.Assistant.AttachmentUnreadable")]
     [InlineData(StructuredAttachmentRejection.Empty, "Ai.Assistant.AttachmentEmpty")]
-    [InlineData(StructuredAttachmentRejection.TooManyPages, "Ai.Assistant.AttachmentTooLarge")]
+    [InlineData(StructuredAttachmentRejection.TooManyPages, "Ai.Assistant.AttachmentTooManyPages")]
     public async Task Each_rejection_answers_under_the_file_with_its_own_code(StructuredAttachmentRejection rejection, string code)
     {
         var host = new Host();

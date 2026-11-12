@@ -16,6 +16,6 @@ AudioTranscriptionHandler y AudioNormalizationFiles/Client son dobles técnicos 
 
 AiAssistantContinuationProviderDouble propone y elige lo observado en cada operación y guarda los pedidos para leer la historia que recibió el proveedor; no acredita un modelo real.
 
-HomeAttachmentReader reemplaza el puerto neutral del dueño de las planillas para no importar otro módulo: deja adjuntar salvo a `Denied`, rechaza lo que pasa de 10 MiB, lee los bytes como texto (los que empiezan con «PK», como Excel; el resto, como CSV) y rechaza `reject:<motivo>`. HomeAudioFiles guarda también esas copias en memoria, con WriteOnce, y se apaga (`IsAvailable`) para una instalación sin almacenamiento privado.
+HomeAttachmentReader reemplaza el puerto neutral del dueño de los archivos para no importar otro módulo: deja adjuntar salvo a `Denied` (nada) y a `DocumentsDenied` (sólo planillas), rechaza lo que pasa de 10 MiB, lee los bytes («%PDF» con `pages=N`, las firmas JPEG y PNG, «DOCX» con su texto, «PK» como Excel y el resto como CSV) y rechaza `reject:<motivo>[:<tipo>]`. HomeAudioFiles guarda también esas copias en memoria, con WriteOnce, y se apaga (`IsAvailable`) para una instalación sin almacenamiento privado.
 
 DocumentReadingHandler y DocumentReadingClient son los dobles de la lectura de documentos: guardan el cuerpo exacto o el pedido y responden lo que dice la prueba; sus bytes no califican un PDF ni una foto reales.

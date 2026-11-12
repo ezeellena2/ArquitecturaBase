@@ -14,6 +14,12 @@ public sealed record AiAssistantExecutionProfileSnapshot(
     /// <summary>The file the catalog was decided for, as a number; omitted without one, and in seals from before documents.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public AssistantAttachmentKind Attachment { get; init; }
+    /// <summary>
+    /// Home (Stage 3): the document reading the turn named, whose copy is then the turn's own file and not one it inherited; omitted
+    /// otherwise, so seals without it keep their bytes.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Guid? DocumentRequestId { get; init; }
 }
 
 /// <summary>Sealed as a number: Interpret is omitted. The technical purposes (audio and documents) have no capabilities, terminals or history.</summary>

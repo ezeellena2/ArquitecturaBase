@@ -19,7 +19,7 @@ internal sealed class AiAssistantAccessGuard(IUserReader users, IPermissionServi
     public Result<AiAssistantExecutionProfileSnapshot> CaptureAudioProfile(AiConnectionRow connection,
         AssistantChannelContext channel, AssistantAudioInput audio, DateTime occurredAtUtc) => technical.CaptureAudio(connection, channel, audio, occurredAtUtc);
 
-    // Whether this installation reads documents (ReadDocument); nothing publishes it yet.
+    // Whether this installation reads documents (ReadDocument): Home's documents route and its bootstrap ask it.
     public bool ReadsDocuments(AiConnectionRow connection) => technical.ReadsDocuments(connection);
 
     public Result<AiAssistantExecutionProfileSnapshot> CaptureDocumentProfile(AiConnectionRow connection,

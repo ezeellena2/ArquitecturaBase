@@ -43,6 +43,7 @@ internal sealed class AiAssistantHomeMutationScenario
         public Task<PagedResult<AiAssistantTurnRow>> ListTurnsAsync(Guid ownerUserId, Guid conversationId, ListAiAssistantTurnsRequest request, CancellationToken ct) => throw new InvalidOperationException("Unexpected lookup.");
         public Task<IReadOnlyList<Guid>> ListRetainedAudioRequestIdsAsync(IReadOnlyCollection<Guid> audioRequestIds, CancellationToken cancellationToken) => throw new InvalidOperationException("Unexpected lookup.");
         public Task<IReadOnlyList<string>> ListRetainedAttachmentKeysAsync(IReadOnlyCollection<string> attachmentKeys, CancellationToken cancellationToken) => throw new InvalidOperationException("Unexpected lookup.");
+        public Task<IReadOnlyList<Guid>> ListRetainedRequestIdsAsync(string channelId, IReadOnlyCollection<Guid> requestIds, CancellationToken cancellationToken) => throw new InvalidOperationException("Unexpected lookup.");
         public Task<IReadOnlyDictionary<Guid, string>> ListProtectedAttachmentsAsync(Guid ownerUserId, IReadOnlyCollection<Guid> turnIds, CancellationToken cancellationToken) => throw new InvalidOperationException("Unexpected lookup.");
         public Task<AiAssistantWorkloadRow> FindWorkloadAsync(DateTime nowUtc, int graceSeconds, CancellationToken ct) => throw new InvalidOperationException("Unexpected lookup.");
     }

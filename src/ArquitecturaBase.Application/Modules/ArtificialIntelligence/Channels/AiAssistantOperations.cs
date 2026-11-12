@@ -3,6 +3,7 @@ using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Persistence;
+using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Models;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services;
 using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Domain.Results;
@@ -50,10 +51,14 @@ internal sealed class AiAssistantOperations(IAiConnectionReader connectionReader
             if (captured.Value.OccurredAtUtc is not { Kind: DateTimeKind.Utc } occurredAtUtc) return AiAssistantErrors.ContentUnavailable;
             var mapped = responsePolicy.Map(row, true, 0);
             if (mapped.IsFailure) return mapped.Error;
+            // A reading's question is the descriptor of its document, in any state while its content lasts.
+            var document = mapped.Value.ReadDocument ?? (captured.Value.Purpose == AiAssistantPurpose.ReadDocument
+                ? AiAssistantDocumentPolicy.ReadDescriptor(mapped.Value.Question) : null);
             var provenance = new AssistantOperationProvenance(captured.Value.ModelProfileId, captured.Value.ModelProfileVersion,
                 captured.Value.InstructionsId, captured.Value.InstructionsVersion, occurredAtUtc, captured.Value.ChannelContext.ChannelId);
             return new AssistantOperationResponse(requestId, mapped.Value.State, mapped.Value.ObservedProposal, provenance, row.FailureCode)
-                { NormalizedAudio = mapped.Value.NormalizedAudio, DocumentReading = mapped.Value.DocumentReading, Proposals = mapped.Value.ObservedProposals };
+                { NormalizedAudio = mapped.Value.NormalizedAudio, DocumentReading = mapped.Value.DocumentReading, Document = document,
+                    Proposals = mapped.Value.ObservedProposals };
         });
 
 }

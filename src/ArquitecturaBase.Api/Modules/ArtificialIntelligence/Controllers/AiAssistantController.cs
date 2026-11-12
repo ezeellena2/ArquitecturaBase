@@ -22,12 +22,14 @@ namespace ArquitecturaBase.Api.Modules.ArtificialIntelligence.Controllers;
 [RequestSizeLimit(16384)]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
 public sealed class AiAssistantController(IAiAssistantService service, IAiAssistantAudioService audio, IAiAssistantFileTurnService files,
-    ISystemSettingsService settings) : ControllerBase
+    IAiAssistantDocumentService documents, ISystemSettingsService settings) : ControllerBase
 {
     // A Home recording (IA4) plus its multipart envelope.
     private const long MaximumAudioRequestBytes = SubmitAiAssistantAudioRequest.MaximumBytes + 64 * 1024;
-    // A spreadsheet (Stage 2), as much as a catalog import reads, plus the turn's fields and its multipart envelope.
+    // A spreadsheet (Stage 2) or a Word (Stage 3), as much as the owner prepares, plus the turn's fields and its multipart envelope.
     private const long MaximumFileTurnRequestBytes = AssistantAttachmentInput.MaximumBytes + 64 * 1024;
+    // A photo or a PDF (Stage 3), as much as the owner prepares, plus its multipart envelope.
+    private const long MaximumDocumentRequestBytes = AssistantAttachmentInput.MaximumBytes + 64 * 1024;
 
     [HttpGet("bootstrap")]
     [ProducesResponseType<AiAssistantBootstrapResponse>(StatusCodes.Status200OK)]
@@ -66,7 +68,7 @@ public sealed class AiAssistantController(IAiAssistantService service, IAiAssist
     public async Task<IActionResult> Submit([FromBody] SubmitAiAssistantTurnHttpRequest request, CancellationToken cancellationToken) =>
         (await service.SubmitAsync(new(request.RequestId, request.ConversationId, request.ExpectedRevision,
             request.ExpectedConnectionRevision, request.Question, CultureInfo.CurrentUICulture.TwoLetterISOLanguageName)
-            { AudioRequestId = request.AudioRequestId }, cancellationToken)).ToAcceptedResult(this);
+            { AudioRequestId = request.AudioRequestId, DocumentRequestId = request.DocumentRequestId }, cancellationToken)).ToAcceptedResult(this);
 
     [HttpPost("file-turns")]
     [EnableRateLimiting(ArtificialIntelligenceApiRegistration.AssistantSubmitPolicy)]
@@ -115,6 +117,27 @@ public sealed class AiAssistantController(IAiAssistantService service, IAiAssist
         var result = await audio.OpenAsync(requestId, cancellationToken);
         return result.IsFailure ? result.ToActionResult(this) : File(result.Value.Content, result.Value.ContentType);
     }
+
+    [HttpPost("documents")]
+    [EnableRateLimiting(ArtificialIntelligenceApiRegistration.AssistantSubmitPolicy)]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(MaximumDocumentRequestBytes)]
+    [RequestFormLimits(MultipartBodyLengthLimit = MaximumDocumentRequestBytes)]
+    [ProducesResponseType<AiAssistantDocumentResponse>(StatusCodes.Status202Accepted)]
+    [ProducesProblem(StatusCodes.Status400BadRequest)]
+    [ProducesProblem(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> SubmitDocument([FromForm] SubmitAiAssistantDocumentHttpRequest request, CancellationToken cancellationToken)
+    {
+        await using var content = new MemoryStream();
+        await request.File.CopyToAsync(content, cancellationToken);
+        return (await documents.SubmitAsync(new(request.RequestId, CultureInfo.CurrentUICulture.TwoLetterISOLanguageName, content.ToArray(),
+            request.File.FileName), cancellationToken)).ToAcceptedResult(this);
+    }
+
+    [HttpGet("documents/{requestId:guid}")]
+    [ProducesResponseType<AiAssistantDocumentResponse>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetDocument([FromRoute] Guid requestId, CancellationToken cancellationToken) =>
+        (await documents.GetAsync(requestId, CultureInfo.CurrentUICulture.TwoLetterISOLanguageName, cancellationToken)).ToActionResult(this);
 
     [HttpGet("turns/{requestId:guid}")]
     [ProducesResponseType<AiAssistantTurnResponse>(StatusCodes.Status200OK)]

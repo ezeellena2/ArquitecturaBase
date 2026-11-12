@@ -37,4 +37,19 @@ public static class AiAssistantErrors
     public static readonly Error AttachmentUnreadable = Error.Validation("Ai.Assistant.AttachmentUnreadable", "The spreadsheet cannot be read.");
     public static readonly Error AttachmentEmpty = Error.Validation("Ai.Assistant.AttachmentEmpty", "The spreadsheet has no rows with content.");
     public static readonly Error AttachmentNotStored = Error.Failure("Ai.Assistant.AttachmentNotStored", "The private copy of the spreadsheet could not be read back.");
+    // Stage 3: a document in Home (a photo, a PDF or a Word): who may attach one, whether the installation reads them, and why one was
+    // not read, with a text that names what the file was.
+    public static readonly Error AttachmentDocumentForbidden = Error.Forbidden("Ai.Assistant.AttachmentDocumentForbidden", "Attaching documents is not available for this account.");
+    public static readonly Error AttachmentDocumentUnavailable = Error.Validation("Ai.Assistant.AttachmentDocumentUnavailable", "This installation does not read photos or PDF files.");
+    public static readonly Error AttachmentDocumentNotStored = Error.Failure("Ai.Assistant.AttachmentDocumentNotStored", "The private copy of the document could not be read back.");
+    public static readonly Error AttachmentTooManyPages = Error.Validation("Ai.Assistant.AttachmentTooManyPages", "The PDF has more than ten pages.");
+    public static readonly Error AttachmentTooLargeImage = Error.Validation("Ai.Assistant.AttachmentTooLargeImage", "The photo exceeds its pixel limits.");
+    public static readonly Error AttachmentProtectedPdf = Error.Validation("Ai.Assistant.AttachmentProtectedPdf", "The PDF is protected with a password.");
+    public static readonly Error AttachmentProtectedWord = Error.Validation("Ai.Assistant.AttachmentProtectedWord", "The Word document is protected with a password.");
+    public static readonly Error AttachmentLegacyWord = Error.Validation("Ai.Assistant.AttachmentLegacyWord", "The Word document is older than 2007.");
+    public static readonly Error AttachmentMacroEnabledWord = Error.Validation("Ai.Assistant.AttachmentMacroEnabledWord", "The Word document is macro-enabled.");
+    public static readonly Error AttachmentEmptyWord = Error.Validation("Ai.Assistant.AttachmentEmptyWord", "The Word document has no text.");
+    public static readonly Error AttachmentUnreadablePdf = Error.Validation("Ai.Assistant.AttachmentUnreadablePdf", "The PDF cannot be read.");
+    public static readonly Error AttachmentUnreadableImage = Error.Validation("Ai.Assistant.AttachmentUnreadableImage", "The photo cannot be read.");
+    public static readonly Error AttachmentUnreadableWord = Error.Validation("Ai.Assistant.AttachmentUnreadableWord", "The Word document cannot be read.");
 }

@@ -193,10 +193,17 @@ internal sealed class OperationsStore(FakeTimeProvider clock, FakeUnitOfWork wor
     public Task<AiConnectionRow> FindAsync(CancellationToken ct) { ConnectionReads++; return Task.FromResult(Connection); }
     // While set, a request's acceptance is not found, as when another request with the same id has not committed yet.
     public bool HidesAcceptedRequests { get; set; }
+    // The same for only the next lookups, counted down: a request that looks before the other one commits and again after.
+    public int HiddenAcceptedLookups { get; set; }
     public Task<AiAssistantTurnRow?> FindTurnByRequestAsync(Guid actor, Guid request, CancellationToken ct)
     {
         LastReadActor = actor; LastReadRequest = request;
         if (HidesAcceptedRequests) return Task.FromResult<AiAssistantTurnRow?>(null);
+        if (HiddenAcceptedLookups > 0)
+        {
+            HiddenAcceptedLookups--;
+            return Task.FromResult<AiAssistantTurnRow?>(null);
+        }
         var turn = Turns.SingleOrDefault(item => item.OwnerUserId == actor && item.RequestId == request);
         return Task.FromResult(turn is null ? null : Project(turn));
     }
@@ -253,6 +260,12 @@ internal sealed class OperationsStore(FakeTimeProvider clock, FakeUnitOfWork wor
     public Task<IReadOnlyList<string>> ListRetainedAttachmentKeysAsync(IReadOnlyCollection<string> attachmentKeys, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<string>>(Turns.Where(turn => turn.AttachmentKey is { } key && attachmentKeys.Contains(key) && turn.ProtectedAttachment is not null
             && turn.ContentExpiresAtUtc > clock.GetUtcNow().UtcDateTime).Select(turn => turn.AttachmentKey!).Distinct().ToArray());
+    // Like the reader: the operations of a channel by their request that can still be used and keep their content.
+    public Task<IReadOnlyList<Guid>> ListRetainedRequestIdsAsync(string channelId, IReadOnlyCollection<Guid> requestIds, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<Guid>>(Turns.Where(turn => turn.ChannelId == channelId && requestIds.Contains(turn.RequestId) && turn.ProtectedQuestion is not null
+            && turn.ContentExpiresAtUtc > clock.GetUtcNow().UtcDateTime
+            && turn.State is AiAssistantTurnState.Pending or AiAssistantTurnState.Running or AiAssistantTurnState.Completed)
+            .Select(turn => turn.RequestId).Distinct().ToArray());
     // The bootstrap only asks whether Home is at capacity: here nothing is ever waiting for a worker.
     public Task<AiAssistantWorkloadRow> FindWorkloadAsync(DateTime now, int grace, CancellationToken ct) => Task.FromResult(new AiAssistantWorkloadRow(0, 0, 0, null, null));
     public Task<IReadOnlyList<AiAssistantTurn>> ListExpiredAsync(DateTime now, int pending, int grace, int limit, CancellationToken ct) => throw new NotSupportedException();

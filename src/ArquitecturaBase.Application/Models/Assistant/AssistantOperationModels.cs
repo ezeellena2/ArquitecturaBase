@@ -39,5 +39,7 @@ public sealed record AssistantOperationResponse(Guid RequestId, string State, As
     public AssistantNormalizedAudio? NormalizedAudio { get; init; }
     /// <summary>What a completed ReadDocument read, while its content lasts.</summary>
     public StructuredDocumentReading? DocumentReading { get; init; }
+    /// <summary>The document a ReadDocument reads (the descriptor of its copy), in any state while its content lasts.</summary>
+    public AssistantDocumentInput? Document { get; init; }
     public override string ToString() => "AssistantOperationResponse { Content = [REDACTED] }";
 }

@@ -13,8 +13,9 @@ Migración prueba Up/Down desde el esquema previo y conserva conexión y hechos 
 Los helpers/dobles nuevos viven en TestFeatures/Modules/ArtificialIntelligence.
 AiAssistantHttpContractTests recorre Inicio con AiAssistantExecutionScenario y el proveedor
 ficticio (bootstrap con `attachments`, 202, pending, completed, página de turnos, canceled y un turno con planilla,
-con su 202 y el turno con `attachment`), fija `state` y `stage` en minúsculas y deja los ocho cuerpos para la cohorte
-ai-assistant-http del exportador. Para la planilla usa HomeAudioFiles y HomeAttachmentReader.
+con su 202 y el turno con `attachment`; la lectura de un PDF y los turnos con ese PDF y con un Word), fija `state` y
+`stage` en minúsculas y deja los once cuerpos para la cohorte ai-assistant-http del exportador. Para los archivos usa
+HomeAudioFiles, HomeAttachmentReader y DocumentReadingHandler.
 
 ConversationHistoryTests comprueba título común de list/detail, propietario distinto, retirada,
 cifrado corrupto, bloqueo y vencimiento sin cambiar el reloj compartido del factory hacia atrás.
@@ -33,7 +34,9 @@ ConversationScopeQuery verifica traducción SQL de scope explícito/null y model
 
 AiAssistantHomeAudioTests recorre IA4 con PostgreSQL: el bootstrap con audio, bytes que no son audio rechazados, la subida, la normalización con el cliente STT ficticio, el turno dictado con la transcripción del servidor, la grabación sólo para su persona y la retención. HomeAudioFiles es almacenamiento privado en memoria con WriteOnce; no acredita el almacenamiento real.
 
-AiAssistantHomeAttachmentTests recorre el turno con planilla con PostgreSQL: `attachments` del bootstrap por persona (con el permiso del dueño, sin él y sin almacenamiento), el 403 de quien no puede adjuntar, el 400 por motivo (`TooManyPages`, con el código del tope) y el del tope, el 202, el reintento, el bloque que recibe el proveedor, la pregunta siguiente que la hereda, la página de turnos, un Excel que reemplaza la planilla en la misma conversación, el título, la retención (con la propia purgada y la conversación retirada) y audio más planilla. HomeAttachmentReader es el puerto del dueño, ficticio; no acredita la lectura de planillas reales.
+AiAssistantHomeAttachmentTests recorre el turno con planilla con PostgreSQL: `attachments` del bootstrap por persona (con el permiso del dueño, sin él y sin almacenamiento), el 403 de quien no puede adjuntar, el 400 por motivo (cada uno con su código) y el del tope, el 202, el reintento, el bloque que recibe el proveedor, la pregunta siguiente que la hereda, la página de turnos, un Excel que reemplaza la planilla en la misma conversación, el título, la retención (con la propia purgada y la conversación retirada) y audio más planilla. HomeAttachmentReader es el puerto del dueño, ficticio; no acredita la lectura de planillas reales.
+
+AiAssistantHomeDocumentTests recorre la Etapa 3 con PostgreSQL: el bootstrap sin `documents`, un cuerpo del tamaño de un documento que llega al servicio, los rechazos de la subida (403, un PDF con contraseña o de más páginas, una planilla) sin copia, el reintento (otro archivo, 409), la lectura con el cliente ficticio, el estado sólo para su persona, el turno que la nombra (el bloque al final, `attachment` con páginas y el título), la pregunta que la hereda, la retención por la lectura y por los turnos, la lectura fallida que suelta su copia y el Word por file-turns.
 
 AiAssistantHomeCatalogTests cuenta lo que ofrece Inicio con los módulos del host, para una cuenta con todos los permisos: con formularios, 12 definiciones sin planilla, 13 con ella y 12 con un documento (`propose-catalog@2`, nunca la 1, y `propose-import@1` sólo con planilla). Sin el módulo de formularios se omite, como las composiciones de WhatsApp.
 

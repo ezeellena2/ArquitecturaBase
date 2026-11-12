@@ -13,12 +13,17 @@ public sealed class AiAssistantBoundaryTests
     {
         var contract = Assembly.Load("ArquitecturaBase.Api").GetType("ArquitecturaBase.Api.Modules.ArtificialIntelligence.Contracts.Assistant.SubmitAiAssistantTurnHttpRequest");
         Assert.NotNull(contract);
-        Assert.Equal(["AudioRequestId", "ConversationId", "ExpectedConnectionRevision", "ExpectedRevision", "Question", "RequestId"],
+        // A dictated turn and one with a photo or a PDF name only the operation whose result the server takes.
+        Assert.Equal(["AudioRequestId", "ConversationId", "DocumentRequestId", "ExpectedConnectionRevision", "ExpectedRevision", "Question", "RequestId"],
             contract.GetProperties().Select(property => property.Name).Order(StringComparer.Ordinal));
         // IA4: a recording names only its request; the culture comes from the localization and the type from its bytes.
         var audio = Assembly.Load("ArquitecturaBase.Api").GetType("ArquitecturaBase.Api.Modules.ArtificialIntelligence.Contracts.Assistant.SubmitAiAssistantAudioHttpRequest");
         Assert.NotNull(audio);
         Assert.Equal(["File", "RequestId"], audio.GetProperties().Select(property => property.Name).Order(StringComparer.Ordinal));
+        // Stage 3: a photo or a PDF names only its request too; the descriptor and the reading are the server's.
+        var document = Assembly.Load("ArquitecturaBase.Api").GetType("ArquitecturaBase.Api.Modules.ArtificialIntelligence.Contracts.Assistant.SubmitAiAssistantDocumentHttpRequest");
+        Assert.NotNull(document);
+        Assert.Equal(["File", "RequestId"], document.GetProperties().Select(property => property.Name).Order(StringComparer.Ordinal));
         // Stage 2: a turn with a spreadsheet carries the turn's own fields and the file; the descriptor and the prepared sheet are the server's.
         var file = Assembly.Load("ArquitecturaBase.Api").GetType("ArquitecturaBase.Api.Modules.ArtificialIntelligence.Contracts.Assistant.SubmitAiAssistantFileTurnHttpRequest");
         Assert.NotNull(file);

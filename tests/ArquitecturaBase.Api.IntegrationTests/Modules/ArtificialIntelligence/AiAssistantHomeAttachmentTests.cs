@@ -52,9 +52,7 @@ public sealed class AiAssistantHomeAttachmentTests(ApiFactory factory)
                 FileTurn(scenario, Guid.NewGuid(), Encoding.UTF8.GetBytes("reject:" + rejection)), Ct);
             Assert.Equal(HttpStatusCode.BadRequest, rejected.StatusCode);
             var body = await rejected.ReadJsonAsync();
-            // Home reads only spreadsheets for now: a PDF over its pages answers with the size limit, without a text of its own.
-            var reason = rejection == StructuredAttachmentRejection.TooManyPages ? StructuredAttachmentRejection.TooLarge : rejection;
-            Assert.Equal("Ai.Assistant.Attachment" + reason, body.GetProperty("code").GetString());
+            Assert.Equal("Ai.Assistant.Attachment" + rejection, body.GetProperty("code").GetString());
             Assert.True(body.GetProperty("errors").TryGetProperty("file", out _));
         }
         Assert.Empty(files.Keys);

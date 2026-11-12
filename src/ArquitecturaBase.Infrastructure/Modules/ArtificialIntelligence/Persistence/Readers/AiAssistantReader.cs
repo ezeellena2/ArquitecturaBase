@@ -77,6 +77,17 @@ internal sealed class AiAssistantReader(ApplicationDbContext dbContext, TimeProv
             .Select(turn => turn.AttachmentKey!).Distinct().ToArrayAsync(cancellationToken);
     }
 
+    // A Home document reading keeps its copy while a turn can still take it: pending, running or completed, with its content. There is no
+    // index on RequestId: the cleanup's batch bounds the ids (128 at most) and the content window the live turns of the channel.
+    public async Task<IReadOnlyList<Guid>> ListRetainedRequestIdsAsync(string channelId, IReadOnlyCollection<Guid> requestIds, CancellationToken cancellationToken)
+    {
+        var nowUtc = timeProvider.GetUtcNow().UtcDateTime;
+        return await dbContext.Set<AiAssistantTurn>().AsNoTracking()
+            .Where(turn => turn.ChannelId == channelId && requestIds.Contains(turn.RequestId) && turn.ProtectedQuestion != null && turn.ContentExpiresAtUtc > nowUtc
+                && (turn.State == AiAssistantTurnState.Pending || turn.State == AiAssistantTurnState.Running || turn.State == AiAssistantTurnState.Completed))
+            .Select(turn => turn.RequestId).Distinct().ToArrayAsync(cancellationToken);
+    }
+
     // A sealed spreadsheet can be as large as a page of turns: it comes only for the turns its user asks for, in one query.
     public async Task<IReadOnlyDictionary<Guid, string>> ListProtectedAttachmentsAsync(Guid ownerUserId, IReadOnlyCollection<Guid> turnIds,
         CancellationToken cancellationToken) =>

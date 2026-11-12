@@ -20,6 +20,11 @@ internal static class AiAssistantChannelPolicy
     public static AssistantChannelContext HomeAudio(Guid actorUserId, string culture, string timeZoneId) =>
         new(HomeAudioChannelId, actorUserId, null, culture, timeZoneId, new([ArtificialIntelligencePermissions.AssistantUse], []), [], []);
 
+    // Stage 3: a Home photo or PDF is read the same way, in a channel of its own, before the turn names the reading.
+    public const string HomeDocumentChannelId = "home-document";
+    public static AssistantChannelContext HomeDocument(Guid actorUserId, string culture, string timeZoneId) =>
+        new(HomeDocumentChannelId, actorUserId, null, culture, timeZoneId, new([ArtificialIntelligencePermissions.AssistantUse], []), [], []);
+
     // Home keeps its core queries and adds only what an owner explicitly offers in Home; the catalog filters both by permission.
     public static AssistantChannelContext Home(Guid actorUserId, string culture, string timeZoneId, IReadOnlyList<AssistantCapabilityReference> offeredInHome) =>
         new("home", actorUserId, null, culture, timeZoneId, new([ArtificialIntelligencePermissions.AssistantUse], []),

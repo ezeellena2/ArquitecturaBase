@@ -273,7 +273,7 @@ public sealed partial class AiAssistantAttachmentTests
     }
 
     [Fact]
-    public async Task A_reply_with_only_a_document_shows_no_attachment_yet_and_is_named_by_its_document()
+    public async Task A_reply_with_only_a_document_shows_it_and_is_named_by_its_document()
     {
         var host = new Host();
         var previous = host.Fixture.SeedCompleted().Turn;
@@ -281,7 +281,7 @@ public sealed partial class AiAssistantAttachmentTests
         Assert.True((await host.SubmitAsync(reply)).IsSuccess);
         var shown = host.Responses.Map(await host.ShownAsync(reply.RequestId), true, 2);
         Assert.True(shown.IsSuccess);
-        Assert.Null(shown.Value.Attachment);
+        Assert.Equal(new AiAssistantTurnAttachmentResponse(FictionalAttachment.DocumentName, "pdf", null, 4096) { Pages = 1 }, shown.Value.Attachment);
         Assert.Equal(FictionalAttachment.DocumentName, shown.Value.AttachedDocument);
         var prepared = await host.PrepareAsync();
         Assert.True(prepared.IsSuccess);

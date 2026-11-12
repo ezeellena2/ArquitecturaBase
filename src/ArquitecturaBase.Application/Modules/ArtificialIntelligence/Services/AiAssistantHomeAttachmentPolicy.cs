@@ -12,9 +12,10 @@ using ArquitecturaBase.Domain.Results;
 
 namespace ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services;
 
-// Stage 2: the private copy of a Home spreadsheet lives under a key the server derives from its request, so its retention keeps it
-// while a turn that has it keeps its content, and the turn that brought it is told apart from those that inherit it. Its owner says
-// who may attach and reads the file through the neutral port. A second host may win WriteOnce: the copy is re-read, never assumed ours.
+// Stage 2 and 3: the private copy of a file a Home turn brings (a spreadsheet or a Word) lives under a key the server derives from its
+// request, so its retention keeps it while a turn that has it keeps its content, and the turn that brought it is told apart from those
+// that inherit it. Its owner says who may attach each kind and reads the file through the neutral port. A second host may win WriteOnce:
+// the copy is re-read, never assumed ours.
 internal sealed class AiAssistantHomeAttachmentPolicy(IPrivateFileStore files, IStructuredAttachmentReader reader, IAiAssistantReader turns,
     IAiConversationProtector protector)
 {
@@ -25,16 +26,28 @@ internal sealed class AiAssistantHomeAttachmentPolicy(IPrivateFileStore files, I
     public static string Key(Guid requestId, StructuredSpreadsheetKind kind) =>
         $"{Prefix}{requestId:N}{(kind == StructuredSpreadsheetKind.Csv ? ".csv" : ".xlsx")}";
 
-    public static bool TryParseKey(string? key, out Guid requestId)
+    public static string WordKey(Guid requestId) => $"{Prefix}{requestId:N}.docx";
+
+    // A Home copy names its request: a file a turn brought (a spreadsheet or a Word) or a document read before its turn (a PDF or a photo).
+    public static bool TryParseKey(string? key, out Guid requestId) =>
+        TryParseFileKey(key, out requestId) || AiAssistantHomeDocumentPolicy.TryParseKey(key, out requestId);
+
+    // Only the copy of a file a turn brought, which names that turn's request.
+    public static bool TryParseFileKey(string? key, out Guid requestId)
     {
         requestId = Guid.Empty;
         if (key is null || !key.StartsWith(Prefix, StringComparison.Ordinal)) return false;
         var name = key[Prefix.Length..];
-        return name.Length > 32 && name[32..] is ".xlsx" or ".csv" && Guid.TryParseExact(name[..32], "N", out requestId) && requestId != Guid.Empty;
+        return name.Length > 32 && name[32..] is ".xlsx" or ".csv" or ".docx" && Guid.TryParseExact(name[..32], "N", out requestId) && requestId != Guid.Empty;
     }
 
-    // The turn that brought a spreadsheet holds the copy of its own request; the turns that inherit it, another request's.
-    public static bool IsOwn(string? attachmentKey, Guid requestId) => TryParseKey(attachmentKey, out var owner) && owner == requestId;
+    // The turn that brought a file holds the copy of its own request; the turns that inherit it, another request's.
+    public static bool IsOwn(string? attachmentKey, Guid requestId) => TryParseFileKey(attachmentKey, out var owner) && owner == requestId;
+
+    // The same for a row, which also tells a document apart: the turn that brought it named its reading, sealed in its profile.
+    public static bool IsOwn(AiAssistantTurnRow row) => TryParseFileKey(row.AttachmentKey, out var owner) ? owner == row.RequestId
+        : AiAssistantHomeDocumentPolicy.TryParseKey(row.AttachmentKey, out owner) && AiAssistantChannelPolicy.Read(row.ExecutionProfileJson) is
+            { IsSuccess: true } profile && profile.Value.DocumentRequestId == owner;
 
     // The person's file name without folders or control characters.
     public static string Name(string fileName)
@@ -51,41 +64,75 @@ internal sealed class AiAssistantHomeAttachmentPolicy(IPrivateFileStore files, I
     public static AssistantAttachmentInput Describe(Guid requestId, byte[] content, string name, StructuredSpreadsheet spreadsheet, DateTime expiresAtUtc) =>
         new(Key(requestId, spreadsheet.Kind), name, spreadsheet.MediaType, content.LongLength, Sha256(content), expiresAtUtc, spreadsheet);
 
-    // Only a spreadsheet, for now: Home's thread does not show a document yet.
-    public static AiAssistantTurnAttachmentResponse? Response(AssistantAttachmentInput attachment) => attachment.Spreadsheet is { } spreadsheet
-        ? new(attachment.Name, spreadsheet.Kind == StructuredSpreadsheetKind.Csv ? "csv" : "xlsx", spreadsheet.RowCount, attachment.Size) : null;
+    // The same for what file-turns prepared: a spreadsheet, or a Word with its reading fitted to the documents' budget (null when it cannot
+    // be attached).
+    public static AssistantAttachmentInput? Describe(Guid requestId, byte[] content, string name, StructuredAttachmentPreparation prepared, DateTime expiresAtUtc) =>
+        prepared.Spreadsheet is { } spreadsheet ? Describe(requestId, content, name, spreadsheet, expiresAtUtc)
+            : prepared.Document is { } document ? AiAssistantAttachmentPolicy.ForDocument(WordKey(requestId), name, expiresAtUtc, document) : null;
 
-    // Who may attach in Home, for the bootstrap: there is private storage for the copy and the owner allows the person a spreadsheet.
-    public async Task<bool> CanAttachAsync(Guid userId, CancellationToken ct) => files.IsAvailable && (await reader.CanAttachAsync(userId, ct)).Spreadsheets;
-
-    // The same rule for a turn, telling the installation apart from the account: without private storage spreadsheets are not available
-    // here, and only the owner's refusal is the person's 403.
-    public async Task<Error?> CheckAttachAsync(Guid userId, CancellationToken ct) =>
-        !files.IsAvailable ? FieldErrors.On(AiAssistantErrors.AttachmentUnavailable, "file")
-            : !(await reader.CanAttachAsync(userId, ct)).Spreadsheets ? AiAssistantErrors.AttachmentForbidden : null;
-
-    // A file that is not read answers under the file, with a code for each reason, and never reaches the model. Home reads only
-    // spreadsheets until it reads documents: a document, prepared or rejected, is a file it cannot read, as before, because the texts
-    // speak of spreadsheets.
-    public async Task<Result<StructuredSpreadsheet>> PrepareAsync(byte[] content, string name, CancellationToken ct)
+    // The file a Home turn brought, for its bubble: a spreadsheet with its rows, or a document with its pages (a photo is one; a Word has none).
+    public static AiAssistantTurnAttachmentResponse? Response(AssistantAttachmentInput attachment) => attachment switch
     {
-        var prepared = await reader.PrepareAsync(content, name, ct);
-        if (prepared.Spreadsheet is { } spreadsheet) return spreadsheet;
-        var rejection = prepared.Document is not null || prepared.FileKind is StructuredAttachmentFileKind.Pdf or StructuredAttachmentFileKind.Image
-            or StructuredAttachmentFileKind.Word ? StructuredAttachmentRejection.Unreadable : prepared.Rejection;
-        return FieldErrors.On(rejection switch
+        { Spreadsheet: { } spreadsheet } => new(attachment.Name, spreadsheet.Kind == StructuredSpreadsheetKind.Csv ? "csv" : "xlsx", spreadsheet.RowCount,
+            attachment.Size),
+        { Document: { } document } => new(attachment.Name, document.Kind.ToString().ToLowerInvariant(), null, attachment.Size)
         {
-            StructuredAttachmentRejection.Legacy => AiAssistantErrors.AttachmentLegacy,
-            StructuredAttachmentRejection.Protected => AiAssistantErrors.AttachmentProtected,
-            StructuredAttachmentRejection.MacroEnabled => AiAssistantErrors.AttachmentMacroEnabled,
-            StructuredAttachmentRejection.TooLarge or StructuredAttachmentRejection.TooManyPages => AiAssistantErrors.AttachmentTooLarge,
-            StructuredAttachmentRejection.Unreadable => AiAssistantErrors.AttachmentUnreadable,
-            StructuredAttachmentRejection.Empty => AiAssistantErrors.AttachmentEmpty,
-            _ => AiAssistantErrors.AttachmentUnavailable,
-        }, "file");
+            Pages = document.Kind switch { StructuredDocumentKind.Pdf => document.Pages, StructuredDocumentKind.Docx => null, _ => 1 },
+        },
+        _ => null,
+    };
+
+    // What Home lets this person attach, for the bootstrap: the owner's answer, only when there is private storage for the copy.
+    public async Task<StructuredAttachmentAccess> CanAttachAsync(Guid userId, CancellationToken ct) =>
+        files.IsAvailable ? await reader.CanAttachAsync(userId, ct) : StructuredAttachmentAccess.None;
+
+    // The same rule before a file is read, telling the installation apart from the account: without private storage nothing is attached
+    // here, and a person the owner allows neither kind gets the 403. Each kind is checked again once the bytes say which it is.
+    public async Task<Result<StructuredAttachmentAccess>> CheckAttachAsync(Guid userId, CancellationToken ct)
+    {
+        if (!files.IsAvailable) return FieldErrors.On(AiAssistantErrors.AttachmentUnavailable, "file");
+        var access = await reader.CanAttachAsync(userId, ct);
+        return access.Spreadsheets || access.Documents ? access : AiAssistantErrors.AttachmentForbidden;
     }
 
-    // A retry is the same request again: this person's acceptance with that id brought its own spreadsheet, and the upload is that file.
+    // A file that is not read answers under the file, with a code for each reason, and never reaches the model. File-turns takes a
+    // spreadsheet or a Word, each for whom the owner allows it; a photo or a PDF is read before its turn, so here it is a request error.
+    public async Task<Result<StructuredAttachmentPreparation>> PrepareAsync(byte[] content, string name, StructuredAttachmentAccess access, CancellationToken ct)
+    {
+        var prepared = await reader.PrepareAsync(content, name, ct);
+        if (prepared.Document is { Kind: not StructuredDocumentKind.Docx } || prepared.FileKind is StructuredAttachmentFileKind.Pdf
+            or StructuredAttachmentFileKind.Image) return FieldErrors.On(AiAssistantErrors.Invalid, "file");
+        if ((prepared.Spreadsheet is not null || prepared.FileKind == StructuredAttachmentFileKind.Spreadsheet) && !access.Spreadsheets)
+            return AiAssistantErrors.AttachmentForbidden;
+        if ((prepared.Document is not null || prepared.FileKind == StructuredAttachmentFileKind.Word) && !access.Documents)
+            return AiAssistantErrors.AttachmentDocumentForbidden;
+        return prepared.Spreadsheet is not null || prepared.Document is not null ? prepared : Rejected(prepared);
+    }
+
+    // Why a file was not read, under the file: a document's text names what it was; a spreadsheet's, or one the owner could not tell,
+    // keeps the texts of spreadsheets.
+    public static Error Rejected(StructuredAttachmentPreparation prepared) => FieldErrors.On((prepared.FileKind, prepared.Rejection) switch
+    {
+        (_, StructuredAttachmentRejection.TooManyPages) => AiAssistantErrors.AttachmentTooManyPages,
+        (StructuredAttachmentFileKind.Pdf, StructuredAttachmentRejection.Protected) => AiAssistantErrors.AttachmentProtectedPdf,
+        (StructuredAttachmentFileKind.Pdf, _) => AiAssistantErrors.AttachmentUnreadablePdf,
+        (StructuredAttachmentFileKind.Image, StructuredAttachmentRejection.TooLarge) => AiAssistantErrors.AttachmentTooLargeImage,
+        (StructuredAttachmentFileKind.Image, _) => AiAssistantErrors.AttachmentUnreadableImage,
+        (StructuredAttachmentFileKind.Word, StructuredAttachmentRejection.Legacy) => AiAssistantErrors.AttachmentLegacyWord,
+        (StructuredAttachmentFileKind.Word, StructuredAttachmentRejection.Protected) => AiAssistantErrors.AttachmentProtectedWord,
+        (StructuredAttachmentFileKind.Word, StructuredAttachmentRejection.MacroEnabled) => AiAssistantErrors.AttachmentMacroEnabledWord,
+        (StructuredAttachmentFileKind.Word, StructuredAttachmentRejection.Empty) => AiAssistantErrors.AttachmentEmptyWord,
+        (StructuredAttachmentFileKind.Word, _) => AiAssistantErrors.AttachmentUnreadableWord,
+        (_, StructuredAttachmentRejection.Legacy) => AiAssistantErrors.AttachmentLegacy,
+        (_, StructuredAttachmentRejection.Protected) => AiAssistantErrors.AttachmentProtected,
+        (_, StructuredAttachmentRejection.MacroEnabled) => AiAssistantErrors.AttachmentMacroEnabled,
+        (_, StructuredAttachmentRejection.TooLarge) => AiAssistantErrors.AttachmentTooLarge,
+        (_, StructuredAttachmentRejection.Unreadable) => AiAssistantErrors.AttachmentUnreadable,
+        (_, StructuredAttachmentRejection.Empty) => AiAssistantErrors.AttachmentEmpty,
+        _ => AiAssistantErrors.AttachmentUnavailable,
+    }, "file");
+
+    // A retry is the same request again: this person's acceptance with that id brought its own file, and the upload is that file.
     // What was sent (SHA-256 and size, in the clear) is compared first, and only then the stored descriptor is read, with its name, to
     // accept with it without reading or storing again. A turn whose copy is gone (purged or retired) answers as the JSON turn would, not
     // found, and one that cannot be read, unavailable. Without an acceptance there is nothing to recover.
@@ -106,10 +153,11 @@ internal sealed class AiAssistantHomeAttachmentPolicy(IPrivateFileStore files, I
     // A copy that cannot be read back says so under the file, in neutral words; another content under the same request is a conflict.
     public async Task<Result> StoreAsync(AssistantAttachmentInput attachment, byte[] content, CancellationToken ct)
     {
-        if (!files.IsAvailable) return FieldErrors.On(AiAssistantErrors.AttachmentNotStored, "file");
+        var notStored = FieldErrors.On(attachment.Document is null ? AiAssistantErrors.AttachmentNotStored : AiAssistantErrors.AttachmentDocumentNotStored, "file");
+        if (!files.IsAvailable) return notStored;
         await using (var stream = new MemoryStream(content, false)) await files.WriteOnceAsync(attachment.StorageKey, stream, attachment.ContentType, ct);
         await using var stored = await files.OpenReadAsync(attachment.StorageKey, ct);
-        if (stored is null) return FieldErrors.On(AiAssistantErrors.AttachmentNotStored, "file");
+        if (stored is null) return notStored;
         using var copy = new MemoryStream();
         await stored.CopyToAsync(copy, ct);
         return copy.Length == attachment.Size && Sha256(copy.GetBuffer().AsSpan(0, (int)copy.Length)) == attachment.Sha256

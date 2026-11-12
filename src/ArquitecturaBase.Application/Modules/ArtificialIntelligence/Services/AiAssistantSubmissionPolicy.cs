@@ -118,6 +118,13 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
             if (heard.IsFailure) return heard.Error;
             transcript = heard.Value;
         }
+        AssistantAttachmentInput? homeDocument = null;
+        if (home?.DocumentRequestId is { } documentRequestId)
+        {
+            var read = await DocumentAsync(userId, documentRequestId, now, ct);
+            if (read.IsFailure) return read.Error;
+            homeDocument = read.Value;
+        }
         var connection = await connectionReader.FindAsync(ct);
         if (home is not null && connection.Revision != home.ExpectedConnectionRevision) return AiAssistantErrors.ConnectionChanged;
         var normalizes = operation?.Audio is not null;
@@ -127,7 +134,7 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
         var culture = home?.Culture ?? operation!.Context.Culture;
         var timeZoneId = home is not null ? actor.Value.TimeZoneId : operation!.Context.TimeZoneId;
         // The turn keeps its content no longer than its sources: the channel's message, the audio or document and its own file.
-        var attachment = home?.Attachment ?? operation?.Attachment;
+        var attachment = home?.Attachment ?? homeDocument ?? operation?.Attachment;
         var expiresAtUtc = now.AddDays(limits.RetentionDays);
         if (operation is not null && operation.ContentExpiresAtUtc < expiresAtUtc) expiresAtUtc = operation.ContentExpiresAtUtc;
         if (operation?.Audio is { } source && source.ExpiresAtUtc < expiresAtUtc) expiresAtUtc = source.ExpiresAtUtc;
@@ -160,6 +167,8 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
             : operation.Document is { } documentInput ? guard.CaptureDocumentProfile(connection, operation.Context, documentInput, operation.OccurredAtUtc)
             : await guard.CaptureOperationProfileAsync(connection, operation.Context, operation.OccurredAtUtc, file, ct);
         if (profile.IsFailure) return profile.Error;
+        // A Home turn that named a reading seals which one, so its copy is shown on this turn and not on those that inherit it.
+        var snapshot = homeDocument is not null ? profile.Value with { DocumentRequestId = home!.DocumentRequestId } : profile.Value;
         if (conversation is null)
         {
             conversation = AiConversation.Create(userId, now, channelId);
@@ -167,8 +176,8 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
         }
         var ordinal = await repository.CountTurnsAsync(conversation.Id, ct) + 1;
         var turn = AiAssistantTurn.Create(userId, conversation.Id, requestId, ordinal, "", culture,
-            timeZoneId, connection.Provider, guard.Model(profile.Value, connection)!, connection.Revision, now, expiresAtUtc, channelId, operation?.Context.ChannelConversationId);
-        var sealedProfile = turn.SealExecutionProfile(JsonSerializer.Serialize(profile.Value, AiAssistantResponsePolicy.JsonOptions));
+            timeZoneId, connection.Provider, guard.Model(snapshot, connection)!, connection.Revision, now, expiresAtUtc, channelId, operation?.Context.ChannelConversationId);
+        var sealedProfile = turn.SealExecutionProfile(JsonSerializer.Serialize(snapshot, AiAssistantResponsePolicy.JsonOptions));
         if (sealedProfile.IsFailure) return sealedProfile.Error;
         var question = operation?.Audio is { } audio ? JsonSerializer.Serialize(audio, AiAssistantResponsePolicy.JsonOptions)
             : operation?.Document is { } document ? AiAssistantDocumentPolicy.Serialize(document)
@@ -183,7 +192,7 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
         repository.AddTurn(turn);
         var hash = home is not null ? fingerprint.Create(userId, home, fingerprint.ActiveKeyId) : fingerprint.Create(operation!, fingerprint.ActiveKeyId);
         repository.AddReceipt(AiAssistantRequestReceipt.Create(userId, requestId, hash, fingerprint.ActiveKeyId, conversation.Id, turn.Id, now,
-            now.AddDays(limits.RetentionDays), channelId, profile.Value.Purpose == AiAssistantPurpose.NormalizeAudio, profile.Value.Purpose == AiAssistantPurpose.ReadDocument));
+            now.AddDays(limits.RetentionDays), channelId, snapshot.Purpose == AiAssistantPurpose.NormalizeAudio, snapshot.Purpose == AiAssistantPurpose.ReadDocument));
         return Accepted(turn, conversation.Revision, now);
     }
 
@@ -239,6 +248,26 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
         var json = protector.Unprotect(userId, normalization.ConversationId, normalization.Id, "answer", normalization.PayloadRevision, normalization.ProtectedAnswer);
         return json is not null && AiAssistantAudioPolicy.ReadNormalized(json, AiAssistantAudioPolicy.MaximumTranscriptCharacters) is { } audio
             ? audio.Text : AiAssistantErrors.ContentUnavailable;
+    }
+
+    // The document of a Home turn comes from its completed reading of the same person, never from the browser (Stage 3): the descriptor of
+    // the copy and the whole reading, attached as the turn's own file. A Home copy stays while a turn has it, so it lasts as the turn.
+    private async Task<Result<AssistantAttachmentInput>> DocumentAsync(Guid userId, Guid documentRequestId, DateTime nowUtc, CancellationToken ct)
+    {
+        var receipt = await repository.GetReceiptAsync(userId, documentRequestId, ct);
+        if (receipt is null) return AiAssistantErrors.NotFound;
+        var conversation = await repository.GetConversationAsync(userId, receipt.ConversationId, ct);
+        var reading = await repository.GetTurnAsync(receipt.TurnId, ct);
+        if (conversation?.ChannelId != AiAssistantChannelPolicy.HomeDocumentChannelId || reading is null || reading.OwnerUserId != userId)
+            return AiAssistantErrors.NotFound;
+        if (reading.State != AiAssistantTurnState.Completed) return AiAssistantErrors.ContentUnavailable;
+        if (reading.ContentExpiresAtUtc <= nowUtc || reading.ProtectedQuestion is null || reading.ProtectedAnswer is null) return AiAssistantErrors.Expired;
+        var descriptor = AiAssistantDocumentPolicy.ReadDescriptor(protector.Unprotect(userId, reading.ConversationId, reading.Id, "question",
+            reading.PayloadRevision, reading.ProtectedQuestion));
+        var answer = protector.Unprotect(userId, reading.ConversationId, reading.Id, "answer", reading.PayloadRevision, reading.ProtectedAnswer);
+        return descriptor is not null && answer is not null && AiAssistantDocumentPolicy.ReadStored(answer) is { } read
+            && AiAssistantHomeDocumentPolicy.Attachment(documentRequestId, descriptor, read, nowUtc.AddDays(limits.RetentionDays)) is { } attachment
+            ? attachment : AiAssistantErrors.ContentUnavailable;
     }
 
     private AiAssistantTurnAcceptedResponse Accepted(AiAssistantTurn turn, long conversationRevision, DateTime nowUtc) =>

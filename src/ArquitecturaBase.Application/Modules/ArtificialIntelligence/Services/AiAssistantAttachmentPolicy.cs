@@ -53,14 +53,23 @@ internal static class AiAssistantAttachmentPolicy
             && AiAssistantDocumentPolicy.Valid(each!.Reading!, AiAssistantLimits.ReadingCharactersCeiling)).All(fits => fits);
     }
 
+    // A read document attached as its owner built it, or null when it cannot be attached (no reading, an unsafe name, no room for its text).
+    public static AssistantAttachmentInput? ForDocument(string storageKey, string name, DateTime expiresAtUtc, StructuredDocument document)
+    {
+        if (!AssistantAttachmentInput.Admits(AssistantAttachmentInput.Fit(document, AssistantAttachmentInput.DocumentsMaximumBytes),
+            AssistantAttachmentInput.DocumentsMaximumBytes)) return null;
+        var attachment = AssistantAttachmentInput.ForDocument(storageKey, name, expiresAtUtc, document);
+        return Validate(attachment) is null ? attachment : null;
+    }
+
     // The rows never bring their sealed files. Who shows or names one asks, in one query, only for the turns that brought theirs:
-    // a Home copy names its request; any other copy was brought by the earliest turn that has it, when that turn is in the list.
+    // a Home copy says which turns brought it; any other copy was brought by the earliest turn that has it, when that turn is in the list.
     public static async Task<IReadOnlyList<AiAssistantTurnRow>> WithOwnAttachmentsAsync(IAiAssistantReader reader, Guid ownerUserId,
         IReadOnlyList<AiAssistantTurnRow> rows, CancellationToken ct)
     {
-        var own = rows.Where(row => row.AttachmentKey is not null).GroupBy(row => (row.ConversationId, row.AttachmentKey))
-            .Select(copy => copy.MinBy(row => row.Ordinal)!)
-            .Where(row => !AiAssistantHomeAttachmentPolicy.TryParseKey(row.AttachmentKey, out _) || AiAssistantHomeAttachmentPolicy.IsOwn(row.AttachmentKey, row.RequestId))
+        var copies = rows.Where(row => row.AttachmentKey is not null).ToLookup(row => AiAssistantHomeAttachmentPolicy.TryParseKey(row.AttachmentKey, out _));
+        var own = copies[true].Where(AiAssistantHomeAttachmentPolicy.IsOwn)
+            .Concat(copies[false].GroupBy(row => (row.ConversationId, row.AttachmentKey)).Select(copy => copy.MinBy(row => row.Ordinal)!))
             .Select(row => row.Id).ToArray();
         if (own.Length == 0) return rows;
         var sealedAttachments = await reader.ListProtectedAttachmentsAsync(ownerUserId, own, ct);

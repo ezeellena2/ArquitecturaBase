@@ -61,8 +61,9 @@ internal sealed class HmacAiAssistantRequestFingerprint(AiKeyRing ring) : IAiAss
         var key = ring.AssistantFingerprintKey(keyId);
         var values = new List<object?> { ownerUserId, request.RequestId, request.ConversationId,
             request.ExpectedRevision, request.ExpectedConnectionRevision, request.NormalizedQuestion };
-        // A dictated turn binds its normalization; a typed one keeps the original fingerprint.
+        // A dictated turn binds its normalization, and a turn with a photo or a PDF its reading; a typed one keeps the original fingerprint.
         if (request.AudioRequestId is { } audioRequestId) values.Add(new object?[] { "home-audio:v1", audioRequestId });
+        if (request.DocumentRequestId is { } documentRequestId) values.Add(new object?[] { "home-document:v1", documentRequestId });
         // What the request sends: the server sets the expiry of a Home copy on each attempt.
         if (request.Attachment is { } attachment)
         {
