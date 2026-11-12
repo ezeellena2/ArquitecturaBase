@@ -127,6 +127,12 @@ No se vuelven a preguntar.
 
 Propuesta para el visto bueno del usuario, contrastada con `main` en `d9db8c1d`. Lo decidido arriba no se vuelve a abrir.
 
+### Estado (2026-11-12)
+
+- **Hecho y commiteado:** el conocimiento por puerto y la deuda de `business.information` (tarea 2, `8f0b1973`); el agente con su servicio, rutas, migración y capturas, derivar, las capacidades del canal, la validación y el tope de respuestas, «No responder», el porqué, los botones de los casos, las ráfagas, Probar, el borrador del operador y el hilo y la lista (tareas 1, 4 sin los contextos, 5, 6 y 7, `32ce96ea`); la pantalla «Asistente» (tarea 9, front `d92b4a75`).
+- **En curso:** el chat del front (tarea 10).
+- **Falta:** el motor (tarea 3: lecturas precargadas, `assistant_proposal@2`, la hora al final y el filtro de `whatsapp.draft-reply` por perfil) y, encima, los contextos con agente del automático y de Atención manual (tarea 4): sin precargas, las capacidades del agente no entran en las 16 definiciones ni en los cuatro pasos, así que todavía no se ofrecen. Van sobre la tarea 3 de documentos. Después, los casos del arnés (tarea 8) y el cierre (tarea 11).
+
 ### Lo que hay hoy
 
 - **Un mensaje, sin contexto.** El modo Asistente interpreta sólo el último mensaje de negocio: un texto, un audio transcripto o una planilla con su pedido. Cada mensaje crea su referencia (`WhatsAppAssistantRequest`) y el nuevo cancela el anterior. Al motor le llega ese texto solo, sin los mensajes anteriores del chat.
