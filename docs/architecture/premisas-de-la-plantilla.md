@@ -80,8 +80,8 @@ conexión, permisos propios y guardado con revisión/comprobante; no genera resp
 Su editor guiado conserva texto anterior y agrega ubicación/enlace, horarios locales con
 fechas especiales y FAQ sin respuestas precargadas, mediante contrato/migración aditivos.
 Su [fuente funcional](../features/inteligencia-artificial.md#información-del-negocio--2026-10-03)
-consolida la etapa elegida. El selector de permisos de Roles usa cuerpo uniforme y
-color sólo en encabezado por elección explícita; los otros listados conservan alternado.
+consolida la etapa elegida. Los permisos de un rol son una matriz Ver · Administrar ·
+Otros permisos (RO1-A, 2026-11-11): [diseño del front](../../../ArquitecturaBaseFront/docs/design/roles-y-permisos.md).
 
 El catálogo de modelos de IA del 2026-10-04 consulta OpenAI/Anthropic con la clave candidata
 o guardada, sin persistir ni enviar una guardada a otro proveedor. El selector no acredita
