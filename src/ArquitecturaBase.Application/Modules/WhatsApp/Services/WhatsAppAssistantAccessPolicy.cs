@@ -79,9 +79,10 @@ internal sealed class WhatsAppAssistantAccessPolicy(IUserReader users, IPermissi
         };
     }
 
+    // A suggestion after a capture (C4) keeps its own contract, with or without an agent: its tools, no preloads and one proposal.
     public static AssistantChannelContext ForCapturedRecord(AssistantChannelContext context, Guid recordId)=>context with
     {
-        SourceRecordId = recordId,
+        SourceRecordId = recordId, PreloadedCapabilities = null, AllowedTerminals = [new("assistant_proposal", 1)],
         AllowedCapabilities = [new("whatsapp.offered-forms", 1), new("whatsapp.no-reply", 1), new("whatsapp.decline-form", 1),
             new("forms.suggestion-candidates", 1), new("forms.propose-suggestion", 1)]
     };

@@ -93,6 +93,19 @@ public sealed class WhatsAppAssistantAccessPolicyTests
     }
 
     [Fact]
+    public async Task With_an_agent_a_suggestion_after_a_capture_keeps_its_own_contract()
+    {
+        var h = new WhatsAppAssistantContextFixture();
+        h.Agents.Agent = new(1, "es", new("Asistente", "", "", "", "", new("Te paso con una persona.", null)), [],
+            new(WhatsAppAssistantActionKind.NoReply), WhatsAppAssistantAgentLimits.DefaultLimits);
+        h.Contact.ChangeMode(WhatsAppConversationMode.Assistant);
+        var c4 = WhatsAppAssistantAccessPolicy.ForCapturedRecord((await h.Policy.CaptureAsync(h.Contact, null, Ct)).Value.Context, Guid.NewGuid());
+        Assert.Null(c4.PreloadedCapabilities);
+        Assert.Equal(new[] { new AssistantTerminalReference("assistant_proposal", 1) }, c4.AllowedTerminals);
+        Assert.Contains(new AssistantCapabilityReference("forms.propose-suggestion", 1), c4.AllowedCapabilities);
+    }
+
+    [Fact]
     public async Task Without_an_agent_the_contexts_are_the_ones_of_before()
     {
         var h = new WhatsAppAssistantContextFixture();
