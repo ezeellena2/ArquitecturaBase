@@ -31,7 +31,7 @@ internal sealed class AiAssistantContextPolicy(IAiAssistantReader reader, IAiCon
             profile.Value.Purpose == AiAssistantPurpose.Interpret && connection.Model != turn.Model) return AiAssistantErrors.ConnectionChanged;
         if (!connection.Enabled || connection.ProtectedApiKey is null || !guard.IsProfileQualified(profile.Value, connection) ||
             guard.Model(profile.Value, connection) != turn.Model) return AiAssistantErrors.Unavailable;
-        Result<AiAssistantCapabilityCatalogResponse> offered = profile.Value.Purpose == AiAssistantPurpose.NormalizeAudio
+        Result<AiAssistantCapabilityCatalogResponse> offered = AiAssistantChannelPolicy.IsTechnical(profile.Value.Purpose)
             ? new AiAssistantCapabilityCatalogResponse([], [], profile.Value.ChannelContext.RequiredPermissions)
             : await capabilities.BuildAsync(profile.Value.ChannelContext, turn.AttachmentKey is not null, cancellationToken);
         if (offered.IsFailure) return offered.Error;
@@ -60,6 +60,19 @@ internal sealed class AiAssistantContextPolicy(IAiAssistantReader reader, IAiCon
                 return new AiAssistantExecutionContextResponse(claim, turn, normalized, [], [], 0, 0) { ExecutionProfile = profile.Value };
             }
             catch (JsonException) { return AiAssistantErrors.ContentUnavailable; }
+        }
+        // ReadDocument: only the sealed instructions in the turn's culture and the private document, without history, capabilities or
+        // terminals; the profile sealed at acceptance still has to read this document.
+        if (profile.Value.Purpose == AiAssistantPurpose.ReadDocument)
+        {
+            var document = AiAssistantDocumentPolicy.ReadDescriptor(question);
+            var qualified = guard.DocumentProfile(profile.Value, connection);
+            if (document is null || qualified is null || !AiAssistantDocumentPolicy.Fits(document, qualified)) return AiAssistantErrors.ContentUnavailable;
+            if (document.ExpiresAtUtc <= timeProvider.GetUtcNow().UtcDateTime || turn.ContentExpiresAtUtc > document.ExpiresAtUtc) return AiAssistantErrors.Expired;
+            var reading = new LlmConversationRequest(turn.Provider, turn.Model, credential.Value, AssistantTexts.Get("Prompt.DocumentReadV1", turn.Culture),
+                [], [], [], null, limits.DocumentOutputTokens, limits.ProviderResponseBytes, limits.ContinuationBytes)
+                { Document = document, DocumentMaximumBytes = qualified.MaximumDocumentBytes, LowReasoningEffort = qualified.SupportsReasoningEffort };
+            return new AiAssistantExecutionContextResponse(claim, turn, reading, [], [], 0, 0) { ExecutionProfile = profile.Value };
         }
         // The conversation's spreadsheet goes as data at the end of the current message: outside the history's characters, inside
         // the context budget.

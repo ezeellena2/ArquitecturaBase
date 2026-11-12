@@ -30,7 +30,9 @@ internal sealed class AiAssistantExecutionService(AiAssistantContextPolicy conte
             var remaining = context.Claim.DeadlineAtUtc - timeProvider.GetUtcNow().UtcDateTime;
             if (remaining <= TimeSpan.Zero) return AiAssistantErrors.Expired;
             if (RequestBytes(context.ProviderRequest) > limits.ContextBytes) return AiAssistantErrors.LimitExceeded;
-            using var timeout = new CancellationTokenSource(remaining < TimeSpan.FromSeconds(limits.ProviderTimeoutSeconds) ? remaining : TimeSpan.FromSeconds(limits.ProviderTimeoutSeconds), timeProvider);
+            // A reading has its own timeout, shorter than the turn's deadline; everything else takes a step of the conversation's.
+            var step = TimeSpan.FromSeconds(context.ExecutionProfile?.Purpose == AiAssistantPurpose.ReadDocument ? limits.DocumentTimeoutSeconds : limits.ProviderTimeoutSeconds);
+            using var timeout = new CancellationTokenSource(remaining < step ? remaining : step, timeProvider);
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeout.Token);
             return await client.SendAsync(context.ProviderRequest, linked.Token);
         });
@@ -40,14 +42,27 @@ internal sealed class AiAssistantExecutionService(AiAssistantContextPolicy conte
         {
             if (context.ExecutionProfile?.Purpose == AiAssistantPurpose.NormalizeAudio)
             {
-                if (response.State != "normalizedAudio" || response.NormalizedAudio is not { } audio || response.ToolCalls.Count != 0 ||
+                if (response.State != "normalizedAudio" || response.NormalizedAudio is not { } audio || response.DocumentReading is not null || response.ToolCalls.Count != 0 ||
                     response.Continuation is not null || !AiAssistantAudioPolicy.Valid(audio, limits.QuestionCharacters)) return AiAssistantErrors.InvalidOutput;
                 var captured = context.ExecutionProfile.ChannelContext;
                 if (captured.ActorUserId != context.Claim.OwnerUserId || captured.ChannelId != context.Turn.ChannelId) return AiAssistantErrors.ContentBlocked;
                 var authorized = await guard.AuthorizeCapturedAsync(captured, cancellationToken);
                 return authorized.IsFailure ? authorized.Error : new AiAssistantAdvanceResponse(context, null, [], response.Usage) { NormalizedAudio = audio };
             }
-            if (response.NormalizedAudio is not null) return AiAssistantErrors.InvalidOutput;
+            // A reading is valid whole or it is not one: a refusal, an incomplete answer or any other output is InvalidOutput, never cut here.
+            // Only its language is normalized before validating: a blank one is none and "es-AR" is "es".
+            if (context.ExecutionProfile?.Purpose == AiAssistantPurpose.ReadDocument)
+            {
+                if (response.State != LlmDocumentReadingResponse.Read || response.DocumentReading is not { } read || response.NormalizedAudio is not null ||
+                    response.ToolCalls.Count != 0 || response.Continuation is not null) return AiAssistantErrors.InvalidOutput;
+                var reading = AiAssistantDocumentPolicy.Normalize(read);
+                if (!AiAssistantDocumentPolicy.Valid(reading, limits.MaximumReadingCharacters)) return AiAssistantErrors.InvalidOutput;
+                var captured = context.ExecutionProfile.ChannelContext;
+                if (captured.ActorUserId != context.Claim.OwnerUserId || captured.ChannelId != context.Turn.ChannelId) return AiAssistantErrors.ContentBlocked;
+                var authorized = await guard.AuthorizeCapturedAsync(captured, cancellationToken);
+                return authorized.IsFailure ? authorized.Error : new AiAssistantAdvanceResponse(context, null, [], response.Usage) { DocumentReading = reading };
+            }
+            if (response.NormalizedAudio is not null || response.DocumentReading is not null) return AiAssistantErrors.InvalidOutput;
             if (response.State == "incomplete") return AiAssistantErrors.ProviderIncomplete;
             if (response.State == "refusal") return AiAssistantErrors.ProviderRejected;
             if (response.State != "tools" || response.ToolCalls.Count == 0) return AiAssistantErrors.InvalidOutput;

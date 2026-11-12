@@ -22,7 +22,7 @@ public sealed partial class AiAssistantDispatchServiceTests
         var foreign = new ForeignCatalogSource();
         var catalog = new AiAssistantCapabilityCatalogPolicy([host.Source, foreign], host.Permissions);
         var guard = new AiAssistantAccessGuard(host.Users, host.Permissions, [new(AiProvider.OpenAI, "model", limits.ContextBytes, true, true) {Id="home"}],
-            limits, new FakeCurrentUser { UserId = host.Store.Turn.OwnerUserId }, catalog, [], new MemoryPrivateFileStore());
+            limits, new FakeCurrentUser { UserId = host.Store.Turn.OwnerUserId }, catalog, new([], [], new MemoryPrivateFileStore()));
         var service = new AiAssistantDispatchService(host.Store, host.Work,
             new AiAssistantDispatchGuard(host.Store, host.Store, host.Store, guard, catalog),
             new Protector(), limits, host.Clock, NullLogger<AiAssistantDispatchService>.Instance, host.CompletionSignal);

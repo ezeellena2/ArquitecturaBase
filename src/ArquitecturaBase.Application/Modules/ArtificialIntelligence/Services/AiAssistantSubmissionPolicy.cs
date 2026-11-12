@@ -46,8 +46,15 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
         if (request.RequestId == Guid.Empty || !Enum.IsDefined(request.Context.InteractionMode) || request.Context.ChannelId == "home" ||
             request.OccurredAtUtc.Kind != DateTimeKind.Utc || request.ContentExpiresAtUtc.Kind != DateTimeKind.Utc ||
             request.ContentExpiresAtUtc <= request.OccurredAtUtc) return AiAssistantErrors.Invalid;
-        if (request.PreviousRequestId is { } previous && (previous == Guid.Empty || previous == request.RequestId || request.Audio is not null))
-            return AiAssistantErrors.Invalid;
+        if (request.PreviousRequestId is { } previous && (previous == Guid.Empty || previous == request.RequestId || request.Audio is not null ||
+            request.Document is not null)) return AiAssistantErrors.Invalid;
+        // A document is read alone, never with text, an audio, a spreadsheet or tools, and its copy lasts beyond its message.
+        if (request.Document is { } document)
+        {
+            if (request.Text.Length != 0 || request.Audio is not null || request.Attachment is not null || request.Context.AllowedCapabilities.Count != 0 ||
+                request.Context.AllowedTerminals.Count != 0 || document.ExpiresAtUtc <= request.OccurredAtUtc) return AiAssistantErrors.Invalid;
+            return AiAssistantDocumentPolicy.Validate(document);
+        }
         // A spreadsheet goes with an interpretation, never with an audio to normalize, and lasts beyond its message.
         if (request.Attachment is { } attachment && (request.Audio is not null || attachment.ExpiresAtUtc <= request.OccurredAtUtc ||
             AiAssistantAttachmentPolicy.Validate(attachment) is not null)) return AiAssistantErrors.Invalid;
@@ -113,22 +120,29 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
         }
         var connection = await connectionReader.FindAsync(ct);
         if (home is not null && connection.Revision != home.ExpectedConnectionRevision) return AiAssistantErrors.ConnectionChanged;
-        if (operation?.Audio is null && guard.Availability(connection) != "available") return AiAssistantErrors.Unavailable;
+        var normalizes = operation?.Audio is not null;
+        var reads = operation?.Document is not null;
+        // The technical purposes take the model of their own profile: the text model's qualification does not decide them.
+        if (!normalizes && !reads && guard.Availability(connection) != "available") return AiAssistantErrors.Unavailable;
         var culture = home?.Culture ?? operation!.Context.Culture;
         var timeZoneId = home is not null ? actor.Value.TimeZoneId : operation!.Context.TimeZoneId;
-        var normalizes = operation?.Audio is not null;
-        // The turn keeps its content no longer than its sources: the channel's message, the audio and its own spreadsheet.
+        // The turn keeps its content no longer than its sources: the channel's message, the audio or document and its own spreadsheet.
         var attachment = home?.Attachment ?? operation?.Attachment;
         var expiresAtUtc = now.AddDays(limits.RetentionDays);
         if (operation is not null && operation.ContentExpiresAtUtc < expiresAtUtc) expiresAtUtc = operation.ContentExpiresAtUtc;
         if (operation?.Audio is { } source && source.ExpiresAtUtc < expiresAtUtc) expiresAtUtc = source.ExpiresAtUtc;
+        if (operation?.Document is { } copy && copy.ExpiresAtUtc < expiresAtUtc) expiresAtUtc = copy.ExpiresAtUtc;
         if (attachment is not null && attachment.ExpiresAtUtc < expiresAtUtc) expiresAtUtc = attachment.ExpiresAtUtc;
         if (expiresAtUtc <= now) return AiAssistantErrors.Expired;
-        if (channelId != "home" && !normalizes
+        // Only an interpretation reserves its channel conversation; an audio or a document never takes or waits for that slot.
+        if (channelId != "home" && !normalizes && !reads
             && await repository.GetActiveForActorChannelAsync(userId, channelId, operation?.Context.ChannelConversationId, ct) is not null) return AiAssistantErrors.ActiveTurn;
         if (conversation is not null && await repository.GetActiveForConversationAsync(conversation.Id, ct) is not null) return AiAssistantErrors.ActiveTurn;
-        var budget = await repository.CountBudgetAsync(userId, DateOnly.FromDateTime(now), channelId, normalizes, ct);
-        if (budget.ActorAccepted >= limits.ActorDailyQuota || budget.InstallationAccepted >= limits.InstallationDailyQuota)
+        // Readings count per person across every channel and per installation, apart from the quotas of interpretations and audio.
+        var budget = await repository.CountBudgetAsync(userId, DateOnly.FromDateTime(now), channelId, normalizes, reads, ct);
+        var (actorQuota, installationQuota) = reads ? (limits.DocumentActorDailyQuota, limits.DocumentInstallationDailyQuota)
+            : (limits.ActorDailyQuota, limits.InstallationDailyQuota);
+        if (budget.ActorAccepted >= actorQuota || budget.InstallationAccepted >= installationQuota)
             return AiAssistantErrors.QuotaExceeded((int)(now.Date.AddDays(1) - now).TotalSeconds);
         if (budget.Pending >= limits.PendingCapacity) return AiAssistantErrors.CapacityLimited(limits.PollingAfterSeconds);
         // Only after the cheap refusals, under the lock of its conversation, a turn without a spreadsheet of its own reads the
@@ -142,6 +156,7 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
         }
         var profile = home is not null ? await guard.CaptureHomeProfileAsync(connection, userId, culture, timeZoneId, attachment is not null, ct)
             : operation!.Audio is { } audioInput ? guard.CaptureAudioProfile(connection, operation.Context, audioInput, operation.OccurredAtUtc)
+            : operation.Document is { } documentInput ? guard.CaptureDocumentProfile(connection, operation.Context, documentInput, operation.OccurredAtUtc)
             : await guard.CaptureOperationProfileAsync(connection, operation.Context, operation.OccurredAtUtc, attachment is not null, ct);
         if (profile.IsFailure) return profile.Error;
         if (conversation is null)
@@ -155,6 +170,7 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
         var sealedProfile = turn.SealExecutionProfile(JsonSerializer.Serialize(profile.Value, AiAssistantResponsePolicy.JsonOptions));
         if (sealedProfile.IsFailure) return sealedProfile.Error;
         var question = operation?.Audio is { } audio ? JsonSerializer.Serialize(audio, AiAssistantResponsePolicy.JsonOptions)
+            : operation?.Document is { } document ? AiAssistantDocumentPolicy.Serialize(document)
             : home?.NormalizedQuestion ?? operation!.Text.Trim().Replace("\r\n", "\n", StringComparison.Ordinal);
         turn.ProtectQuestion(protector.Protect(userId, conversation.Id, turn.Id, "question", turn.PayloadRevision, question));
         if (transcript is not null)
@@ -165,8 +181,8 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
         conversation.Touch(now);
         repository.AddTurn(turn);
         var hash = home is not null ? fingerprint.Create(userId, home, fingerprint.ActiveKeyId) : fingerprint.Create(operation!, fingerprint.ActiveKeyId);
-        repository.AddReceipt(AiAssistantRequestReceipt.Create(userId, requestId, hash,
-            fingerprint.ActiveKeyId, conversation.Id, turn.Id, now, now.AddDays(limits.RetentionDays), channelId, profile.Value.Purpose == AiAssistantPurpose.NormalizeAudio));
+        repository.AddReceipt(AiAssistantRequestReceipt.Create(userId, requestId, hash, fingerprint.ActiveKeyId, conversation.Id, turn.Id, now,
+            now.AddDays(limits.RetentionDays), channelId, profile.Value.Purpose == AiAssistantPurpose.NormalizeAudio, profile.Value.Purpose == AiAssistantPurpose.ReadDocument));
         return Accepted(turn, conversation.Revision, now);
     }
 

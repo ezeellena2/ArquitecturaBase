@@ -25,7 +25,7 @@ public sealed partial class AiAssistantContextPolicyTests
         var limits = new AiAssistantLimits();
         var guard = new AiAssistantAccessGuard(host.Users, host.Permissions,
             [new(AiProvider.OpenAI, "model", limits.ContextBytes, true, true) {Id="home"}], limits,
-            new FakeCurrentUser { UserId = host.UserId }, catalog, [], new MemoryPrivateFileStore());
+            new FakeCurrentUser { UserId = host.UserId }, catalog, new([], [], new MemoryPrivateFileStore()));
         var reads = Bootstrap(host, guard, catalog, limits);
         var result = await reads.BootstrapAsync(TestContext.Current.CancellationToken);
         Assert.True(result.IsSuccess);
@@ -43,7 +43,7 @@ public sealed partial class AiAssistantContextPolicyTests
         var limits = new AiAssistantLimits();
         var guard = new AiAssistantAccessGuard(host.Users, host.Permissions,
             [new(AiProvider.OpenAI, "model", limits.ContextBytes, true, true) {Id="home"}], limits,
-            new FakeCurrentUser { UserId = host.UserId }, catalog, [], new MemoryPrivateFileStore());
+            new FakeCurrentUser { UserId = host.UserId }, catalog, new([], [], new MemoryPrivateFileStore()));
         var reads = Bootstrap(host, guard, catalog, limits);
         var result = await reads.BootstrapAsync(TestContext.Current.CancellationToken);
         Assert.Equal(AiAssistantErrors.Forbidden, result.Error);
@@ -59,7 +59,7 @@ public sealed partial class AiAssistantContextPolicyTests
         var limits = new AiAssistantLimits();
         var guard = new AiAssistantAccessGuard(host.Users, host.Permissions,
             [new(AiProvider.OpenAI, "model", limits.ContextBytes, true, true) {Id="home"}], limits,
-            new FakeCurrentUser { UserId = host.UserId }, catalog, [], new MemoryPrivateFileStore());
+            new FakeCurrentUser { UserId = host.UserId }, catalog, new([], [], new MemoryPrivateFileStore()));
         var reads = Bootstrap(host, guard, catalog, limits);
         var result = await reads.BootstrapAsync(TestContext.Current.CancellationToken);
         Assert.True(result.IsSuccess);

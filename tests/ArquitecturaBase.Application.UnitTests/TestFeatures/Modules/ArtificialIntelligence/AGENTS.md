@@ -7,3 +7,5 @@ AssistantOperationsFixture usa la política de aceptación real con puertos en m
 AssistantAudioExecutionFixture usa Context/Dispatch/Get reales y descriptores ficticios cifrados para verificar el propósito técnico sin herramientas ni permisos prestados. No demuestra almacenamiento privado real, HTTP ni restricciones PostgreSQL.
 
 AssistantAudioExecutionFixture conserva el ChannelId del propósito técnico y permite observar el aviso neutral después del cierre; FakeUnitOfWork mantiene los controles de commit fallido y rollback.
+
+AssistantDocumentExecutionFixture hace lo mismo para ReadDocument, con un descriptor ficticio y DocumentConversationClient.

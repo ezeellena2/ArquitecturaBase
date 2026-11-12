@@ -36,6 +36,8 @@ AddWhatsAppPendingTapsIndex agrega sólo el índice filtrado `IX_WhatsAppMessage
 
 AddFormRecordVoidReasonCode agrega `VoidReasonCode` (nullable, hasta 128) a las respuestas, para el código del motivo de una anulación que decide el sistema («No se emitió»), y cambia `CK_BusinessFormRecords_Void`: una respuesta anulada lleva un texto o un código, uno de los dos. No reescribe las anulaciones existentes; la imagen anterior siempre escribe el texto. Down bloquea la tabla y rechaza, antes del DDL, una anulación con sólo el código; no inventa un texto. FormRecordVoidReasonCodeMigrationTests prueba Up/Down/Up y ese rechazo.
 
+AddAssistantDocumentReading suma `IsDocument` (falso por defecto) a los recibos del asistente con su CHECK (nunca audio y documento a la vez) y el índice del cupo, y hace que el índice de turnos activos excluya los propósitos 1 y 2. Up repone `IsDocument` sólo desde el propósito sellado de un turno retenido. Down bloquea los turnos y rechaza, antes del DDL, una lectura activa, que el índice anterior tomaría por una interpretación; nunca cierra ni borra operaciones. AiAssistantDocumentReadingMigrationTests prueba Up/Down/Up con ese rechazo.
+
 ## Referencias
 
 - [Comandos y revisión obligatoria](../../../../docs/guides/migracion.md).

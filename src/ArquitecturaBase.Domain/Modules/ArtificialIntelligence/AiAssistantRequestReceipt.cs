@@ -13,6 +13,8 @@ public sealed class AiAssistantRequestReceipt : Entity, IAuditable
     public Guid TurnId { get; private set; }
     public string? ChannelId { get; private set; }
     public bool? IsAudio { get; private set; }
+    /// <summary>A document reading, with quotas of its own; never an audio too. The receipts from before documents are false.</summary>
+    public bool IsDocument { get; private set; }
     public DateTime AcceptedAtUtc { get; private set; }
     public DateOnly AcceptedDayUtc { get; private set; }
     public DateTime ExpiresAtUtc { get; private set; }
@@ -21,11 +23,15 @@ public sealed class AiAssistantRequestReceipt : Entity, IAuditable
     public DateTime? ModifiedAtUtc { get; private set; }
     public Guid? ModifiedBy { get; private set; }
     public static AiAssistantRequestReceipt Create(Guid ownerUserId, Guid requestId, string fingerprint, string keyId,
-        Guid conversationId, Guid turnId, DateTime acceptedAtUtc, DateTime expiresAtUtc, string channelId, bool isAudio) => new()
+        Guid conversationId, Guid turnId, DateTime acceptedAtUtc, DateTime expiresAtUtc, string channelId, bool isAudio, bool isDocument = false)
     {
-        OwnerUserId = ownerUserId, RequestId = requestId, Fingerprint = fingerprint, KeyId = keyId,
-        ConversationId = conversationId, TurnId = turnId, AcceptedAtUtc = acceptedAtUtc, ChannelId = channelId, IsAudio = isAudio,
-        AcceptedDayUtc = DateOnly.FromDateTime(acceptedAtUtc), ExpiresAtUtc = expiresAtUtc,
-    };
+        if (isAudio && isDocument) throw new ArgumentException("A receipt is never an audio and a document at once.", nameof(isDocument));
+        return new()
+        {
+            OwnerUserId = ownerUserId, RequestId = requestId, Fingerprint = fingerprint, KeyId = keyId,
+            ConversationId = conversationId, TurnId = turnId, AcceptedAtUtc = acceptedAtUtc, ChannelId = channelId, IsAudio = isAudio,
+            IsDocument = isDocument, AcceptedDayUtc = DateOnly.FromDateTime(acceptedAtUtc), ExpiresAtUtc = expiresAtUtc,
+        };
+    }
     public override string ToString() => "AiAssistantRequestReceipt { fingerprint: [REDACTED] }";
 }

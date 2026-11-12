@@ -48,6 +48,16 @@ public sealed class AiAssistantBoundaryTests
     }
 
     [Fact]
+    public void Document_transport_is_consumed_only_by_the_existing_provider_adapter()
+    {
+        var calls = CallSites.Calls(Assembly.Load("ArquitecturaBase.Infrastructure"))
+            .Concat(CallSites.Calls(typeof(ILlmDocumentReadingClient).Assembly))
+            .Where(call => call.DeclaringType == typeof(ILlmDocumentReadingClient).FullName && call.Method == "ReadAsync").ToArray();
+        Assert.NotEmpty(calls);
+        Assert.All(calls, call => Assert.Equal("ArquitecturaBase.Infrastructure.Modules.ArtificialIntelligence.Providers.LlmConversationClient", call.Owner));
+    }
+
+    [Fact]
     public void Assistant_HTTP_service_never_dispatches_provider_generation()
     {
         var calls = CallSites.Calls(typeof(IAiAssistantService).Assembly)
@@ -65,5 +75,8 @@ public sealed class AiAssistantBoundaryTests
         var provider = new LlmConversationRequest(default, "model", "private-key", "private-prompt", [], [], [], null, 10, 100, 100);
         Assert.DoesNotContain("private-key", provider.ToString(), StringComparison.Ordinal);
         Assert.DoesNotContain("private-prompt", provider.ToString(), StringComparison.Ordinal);
+        var reading = new LlmDocumentReadingRequest(default, "model", "private-key", "private-instructions", "private-bytes"u8.ToArray(), "application/pdf", 10, 100, 10);
+        Assert.DoesNotContain("private-key", reading.ToString(), StringComparison.Ordinal);
+        Assert.DoesNotContain("private-instructions", reading.ToString(), StringComparison.Ordinal);
     }
 }

@@ -27,6 +27,8 @@ internal sealed class HmacAiAssistantRequestFingerprint(AiKeyRing ring) : IAiAss
             request.Text.Trim().Replace("\r\n", "\n", StringComparison.Ordinal), request.OccurredAtUtc, request.ContentExpiresAtUtc
         };
         if (request.Audio is { } audio) values.Add(new object?[] { "normalize-audio:v1", audio.StorageKey, audio.Name, audio.ContentType, audio.Size, audio.Sha256, audio.ExpiresAtUtc });
+        if (request.Document is { } document) values.Add(new object?[] { "read-document:v1", document.StorageKey, document.Name, document.ContentType,
+            document.Size, document.Sha256, document.Pages, document.ExpiresAtUtc });
         // A spreadsheet binds its private copy; what was prepared comes from those bytes. One a turn inherits is not part of the request.
         if (request.Attachment is { } attachment) values.Add(new object?[] { "attachment:v1", attachment.StorageKey, attachment.Name, attachment.ContentType,
             attachment.Size, attachment.Sha256, attachment.ExpiresAtUtc });

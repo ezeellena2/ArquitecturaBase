@@ -21,7 +21,7 @@ public sealed class AiAssistantAudioProviderDispatchTests
     {
         var limits = new AiAssistantLimits();
         var transport = new LlmConversationHttpTransport(limits, clock);
-        return new(new OpenAiConversationClient(http, transport), new AnthropicConversationClient(http, transport), audio, files, limits, clock);
+        return new(new OpenAiConversationClient(http, transport), new AnthropicConversationClient(http, transport), audio, new DocumentReadingClient(), files, limits, clock);
     }
     [Fact]
     public async Task The_existing_provider_adapter_reads_verified_private_bytes_and_dispatches_STT_once()

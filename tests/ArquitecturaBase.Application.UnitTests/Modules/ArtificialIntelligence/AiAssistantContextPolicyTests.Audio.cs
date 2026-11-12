@@ -57,7 +57,7 @@ public sealed partial class AiAssistantContextPolicyTests
         AiAssistantAudioModelProfile[] audioProfiles = profile ? [new(AiProvider.OpenAI, "audio-model", "browser-audio", 1, ["audio/webm", "audio/mp4"], 1_000_000)] : [];
         var guard = new AiAssistantAccessGuard(host.Users, host.Permissions,
             [new(AiProvider.OpenAI, "model", limits.ContextBytes, true, true) { Id = "home" }], limits,
-            new FakeCurrentUser { UserId = host.UserId }, catalog, audioProfiles, new MemoryPrivateFileStore(storage));
+            new FakeCurrentUser { UserId = host.UserId }, catalog, new(audioProfiles, [], new MemoryPrivateFileStore(storage)));
         var reads = Bootstrap(host, guard, catalog, limits);
         var result = await reads.BootstrapAsync(TestContext.Current.CancellationToken);
         Assert.Equal(audio, result.Value.Audio);

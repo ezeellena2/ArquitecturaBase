@@ -47,6 +47,8 @@ Complete conserva primero el uso conocido y verifica fence/vencimiento/autorizac
 
 NormalizeAudio es un propósito técnico del mismo turno, aceptación, cuotas, claim/fence y cierre: no usa capacidades, historia ni terminales del modelo textual. Sella perfil STT exacto e instrucciones audio-none-v1; su modelo se resuelve desde ese perfil sin cambiar AiConnection.Model. Revalida actor/Subject, proveedor/revisión, perfil, vigencia y clave actual antes de reservar efecto y publicar. El descriptor y la salida se cifran con los propósitos existentes; el resultado completo se valida sin truncar ni traducir. AudioSeconds conserva duración informada incluso al fallar un cierre tardío, sin inventar tokens; el consumo queda en el módulo.
 
+ReadDocument (`document-read-v1@1`) es el otro propósito técnico: se acepta, ejecuta y cierra como NormalizeAudio, sin capacidades, terminales, historia ni reserva de la interpretación. Su perfil lo resuelve `AiAssistantTechnicalProfilePolicy`, en quien el guard delega también el del audio; `AiAssistantDocumentPolicy` normaliza el idioma y valida la lectura entera bajo los techos de `AiAssistantLimits`, y Get la devuelve mientras viva. Sus cupos van aparte: por persona en todos los canales y por instalación, fuera del global.
+
 Submission conserva replay por UUID antes de contar cuotas. El cupo del actor se separa por canal y propósito capturados; instalación y capacidad permanecen globales. Claim sólo necesita capacidad y no infiere un propósito para calcularla.
 
 El perfil de texto exige Id explícito; no se infiere home. Al capturar el contexto, el catálogo valida un máximo total de dieciséis herramientas, incluidos los terminales y después del filtrado de permisos, antes de aceptar trabajo.

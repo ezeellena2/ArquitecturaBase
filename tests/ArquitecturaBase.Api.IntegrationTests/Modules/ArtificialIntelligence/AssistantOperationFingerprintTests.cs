@@ -188,6 +188,37 @@ public sealed class AssistantOperationFingerprintTests
         Assert.False(original.Matches(owner, turn with { Attachment = null }, "one", hash));
     }
 
+    [Theory]
+    [InlineData("key")]
+    [InlineData("name")]
+    [InlineData("mime")]
+    [InlineData("size")]
+    [InlineData("hash")]
+    [InlineData("pages")]
+    [InlineData("expiry")]
+    public void A_reading_binds_the_original_private_document_and_its_expiry(string changed)
+    {
+        var request = Request() with { Text = "", Document = new("private/documents/comprobante.pdf", "Comprobante.pdf", "application/pdf", 2048,
+            new string('a', 64), 2, new DateTime(2026, 10, 18, 0, 0, 0, DateTimeKind.Utc)) };
+        var original = Fingerprint();
+        var hash = original.Create(request, "one");
+        Assert.True(original.Matches(request, "one", hash));
+        Assert.NotEqual(original.Create(request with { Document = null }, "one"), hash);
+        var document = request.Document!;
+        var modified = changed switch
+        {
+            "key" => document with { StorageKey = "private/documents/otro.pdf" },
+            "name" => document with { Name = "Otro.pdf" },
+            "mime" => document with { ContentType = "image/png" },
+            "size" => document with { Size = 2049 },
+            "hash" => document with { Sha256 = new string('b', 64) },
+            "pages" => document with { Pages = 3 },
+            _ => document with { ExpiresAtUtc = document.ExpiresAtUtc.AddHours(1) },
+        };
+        Assert.False(original.Matches(request with { Document = modified }, "one", hash));
+        Assert.False(original.Matches(request with { Document = null }, "one", hash));
+    }
+
     [Fact]
     public void A_typed_Home_turn_keeps_its_original_fingerprint()
     {

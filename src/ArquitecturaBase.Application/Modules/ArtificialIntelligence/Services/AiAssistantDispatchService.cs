@@ -31,7 +31,7 @@ internal sealed class AiAssistantDispatchService(IAiAssistantRepository reposito
                 var now = timeProvider.GetUtcNow().UtcDateTime;
                 turn.Reconcile(now, limits.PendingSeconds, limits.LeaseGraceSeconds);
                 if (turn.State != AiAssistantTurnState.Pending) return Result.Success<AiAssistantClaimResponse?>(null);
-                var budget = await repository.CountBudgetAsync(turn.OwnerUserId, DateOnly.FromDateTime(now), null, null, ct);
+                var budget = await repository.CountBudgetAsync(turn.OwnerUserId, DateOnly.FromDateTime(now), null, null, false, ct);
                 if (budget.Running >= limits.RunningCapacity) return Result.Success<AiAssistantClaimResponse?>(null);
                 var claimed = turn.Claim(Guid.NewGuid(), now.AddSeconds(limits.RunningSeconds));
                 if (claimed.IsFailure) return claimed.Error;
@@ -122,16 +122,21 @@ internal sealed class AiAssistantDispatchService(IAiAssistantRepository reposito
                 var access = valid.IsFailure ? valid.Error : await dispatchGuard.ValidateAsync(turn, ct);
                 if (access is not null) return turn.Fail(claim.Fence, access.Code, false, now);
                 var execution = AiAssistantChannelPolicy.Read(turn.ExecutionProfileJson);
-                var normalization = execution.IsSuccess && execution.Value.Purpose == AiAssistantPurpose.NormalizeAudio;
-                var evidence = normalization
-                    ? completion.NormalizedAudio is { } normalized && AiAssistantAudioPolicy.Valid(normalized, limits.QuestionCharacters) &&
-                        completion.Answer is null && completion.Proposal is null && completion.NewTools.Count == 0 && completion.Context.ToolCalls == 0 &&
-                        completion.Context.ObservedTools.Count == 0 && completion.Context.ToolBytes == 0
-                        ? Result.Success() : Result.Failure(AiAssistantErrors.InvalidOutput)
-                    : completion.NormalizedAudio is not null ? Result.Failure(AiAssistantErrors.InvalidOutput)
-                    : completion.Proposal is not null && completion.Proposal.TurnId != turn.Id ? Result.Failure(AiAssistantErrors.InvalidOutput)
-                    : completion.Answer is not null ? AiAssistantEvidenceVerifier.Verify(completion.Answer, completion.Context.Evidences, completion.Proposal is not null)
-                    : completion.Proposal is not null ? Result.Success() : Result.Failure(AiAssistantErrors.InvalidOutput);
+                var purpose = execution.IsSuccess ? execution.Value.Purpose : AiAssistantPurpose.Interpret;
+                // A technical result closes alone: no answer, proposal or tool, and only the one of its own purpose.
+                var technicalOnly = completion.Answer is null && completion.Proposal is null && completion.NewTools.Count == 0 && completion.Context.ToolCalls == 0 &&
+                    completion.Context.ObservedTools.Count == 0 && completion.Context.ToolBytes == 0;
+                var evidence = purpose switch
+                {
+                    AiAssistantPurpose.NormalizeAudio => completion.NormalizedAudio is { } normalized && AiAssistantAudioPolicy.Valid(normalized, limits.QuestionCharacters) &&
+                        completion.DocumentReading is null && technicalOnly ? Result.Success() : Result.Failure(AiAssistantErrors.InvalidOutput),
+                    AiAssistantPurpose.ReadDocument => completion.DocumentReading is { } read && AiAssistantDocumentPolicy.Valid(read, limits.MaximumReadingCharacters) &&
+                        completion.NormalizedAudio is null && technicalOnly ? Result.Success() : Result.Failure(AiAssistantErrors.InvalidOutput),
+                    _ => completion.NormalizedAudio is not null || completion.DocumentReading is not null ? Result.Failure(AiAssistantErrors.InvalidOutput)
+                        : completion.Proposal is not null && completion.Proposal.TurnId != turn.Id ? Result.Failure(AiAssistantErrors.InvalidOutput)
+                        : completion.Answer is not null ? AiAssistantEvidenceVerifier.Verify(completion.Answer, completion.Context.Evidences, completion.Proposal is not null)
+                        : completion.Proposal is not null ? Result.Success() : Result.Failure(AiAssistantErrors.InvalidOutput),
+                };
                 if (evidence.IsFailure) return turn.Fail(claim.Fence, evidence.Error.Code, false, now);
                 await RecordToolsAsync(turn, completion, ct);
                 turn.RecordProgress(claim.Fence, now, "verifying", completion.Context.ToolCalls - turn.ToolCalls,
@@ -139,6 +144,8 @@ internal sealed class AiAssistantDispatchService(IAiAssistantRepository reposito
                 string answerJson;
                 if (completion.NormalizedAudio is { } audio)
                     answerJson = JsonSerializer.Serialize(new { kind = "normalizedAudio", audio.Text, audio.Languages }, AiAssistantResponsePolicy.JsonOptions);
+                else if (completion.DocumentReading is { } reading)
+                    answerJson = AiAssistantDocumentPolicy.SerializeReading(reading);
                 else if (completion.Proposal is { } proposal)
                 {
                     var selected = completion.Context.ObservedTools.SingleOrDefault(t => t.ProposalId == proposal.Id &&

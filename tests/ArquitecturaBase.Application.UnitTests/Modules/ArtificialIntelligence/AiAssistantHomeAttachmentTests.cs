@@ -529,7 +529,7 @@ public sealed class AiAssistantHomeAttachmentTests
                 new[] { "users.summary", "roles.list", "roles.permissions", "system.help", "business.information" }
                     .Select(id => PreparedAssistantCapabilitySource.Definition(id)).ToArray())], Fixture.Permissions);
             var guard = new AiAssistantAccessGuard(Fixture.Users, Fixture.Permissions, Fixture.Profiles, limits,
-                new FakeCurrentUser { UserId = ActorId }, catalog, [], Files);
+                new FakeCurrentUser { UserId = ActorId }, catalog, new([], [], Files));
             submissions = new(Fixture.Store, Fixture.Store, Fixture.Store, guard, Fixture.Protector, new OperationsFingerprint(), limits, Fixture.Clock);
             Responses = new(Fixture.Protector, Fixture.Clock, catalog);
             var attachments = new AiAssistantHomeAttachmentPolicy(Files, Reader, Fixture.Store, Fixture.Protector);

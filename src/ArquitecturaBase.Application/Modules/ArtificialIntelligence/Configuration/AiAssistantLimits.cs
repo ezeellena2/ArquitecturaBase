@@ -2,6 +2,11 @@ namespace ArquitecturaBase.Application.Modules.ArtificialIntelligence.Configurat
 
 public sealed record AiAssistantLimits
 {
+    /// <summary>The longest reading a document may have: the default of <see cref="MaximumReadingCharacters"/>, which may only lower it.</summary>
+    public const int ReadingCharactersCeiling = 20_000;
+    /// <summary>The most output tokens a reading may ask for: the default of <see cref="DocumentOutputTokens"/>, which may only lower it.</summary>
+    public const int DocumentOutputTokensCeiling = 8_192;
+
     public int QuestionCharacters { get; init; } = 4000;
     public int HistoryTurns { get; init; } = 12;
     public int HistoryCharacters { get; init; } = 24000;
@@ -26,4 +31,13 @@ public sealed record AiAssistantLimits
     public int RetentionDays { get; init; } = 30;
     public int MaintenanceBatchSize { get; init; } = 100;
     public int PollingAfterSeconds { get; init; } = 2;
+    // Reading a document (ReadDocument) has its own quotas, outside the installation's: per person across every channel, and in all.
+    public int DocumentActorDailyQuota { get; init; } = 10;
+    public int DocumentInstallationDailyQuota { get; init; } = 50;
+    // A reading takes longer than a step of the conversation, always within the turn's deadline (RunningSeconds).
+    public int DocumentTimeoutSeconds { get; init; } = 60;
+    // The conversation's OutputTokens include the reasoning and would cut a reading.
+    public int DocumentOutputTokens { get; init; } = DocumentOutputTokensCeiling;
+    // The model does not count characters with certainty: a longer reading is invalid, never cut by the engine.
+    public int MaximumReadingCharacters { get; init; } = ReadingCharactersCeiling;
 }

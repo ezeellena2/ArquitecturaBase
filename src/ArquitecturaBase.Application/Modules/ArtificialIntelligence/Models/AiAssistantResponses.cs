@@ -58,6 +58,8 @@ public sealed record AiAssistantTurnResponse(Guid TurnId, Guid ConversationId, G
     public AssistantObservedProposal? ObservedProposal { get; init; }
     [JsonIgnore]
     public AssistantNormalizedAudio? NormalizedAudio { get; init; }
+    [JsonIgnore]
+    public ArquitecturaBase.Application.Models.StructuredData.StructuredDocumentReading? DocumentReading { get; init; }
     public override string ToString() => "AiAssistantTurnResponse { content: [REDACTED] }";
 }
 

@@ -146,7 +146,7 @@ public sealed partial class AiAssistantDispatchServiceTests
             var limits = new AiAssistantLimits();
             var catalog = new AiAssistantCapabilityCatalogPolicy([Source], Permissions);
             var guard = new AiAssistantAccessGuard(users, Permissions, [new(AiProvider.OpenAI, "model", 131072, true, true) {Id="home"}], limits,
-                new FakeCurrentUser { UserId = actor.Id }, catalog, [], new MemoryPrivateFileStore());
+                new FakeCurrentUser { UserId = actor.Id }, catalog, new([], [], new MemoryPrivateFileStore()));
             Store = new Store(actor.Id, Clock.GetUtcNow().UtcDateTime);
             Profile = new("home", 1, "home-system", 1,
                 new("home", actor.Id, null, "es", "UTC", new(sealCapabilityPermissions
@@ -226,7 +226,7 @@ public sealed partial class AiAssistantDispatchServiceTests
             Task.FromResult(ActiveForConversation is { } active && active.ConversationId == conversationId ? active : null);
         public Task<int> CountTurnsAsync(Guid conversationId, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<AiAssistantAttachmentRow?> FindLatestAttachmentAsync(Guid conversationId, CancellationToken cancellationToken) => throw new NotSupportedException();
-        public Task<AiAssistantBudgetCounts> CountBudgetAsync(Guid ownerUserId, DateOnly dayUtc, string? channelId, bool? isAudio, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<AiAssistantBudgetCounts> CountBudgetAsync(Guid ownerUserId, DateOnly dayUtc, string? channelId, bool? isAudio, bool isDocument, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<IReadOnlyList<AiAssistantTurn>> ListExpiredAsync(DateTime nowUtc, int pendingSeconds, int graceSeconds, int limit, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<IReadOnlyList<AiAssistantTurn>> ListPurgeableAsync(DateTime nowUtc, int limit, CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<AiAssistantTurn>>(Purgeable ? [Turn] : []);

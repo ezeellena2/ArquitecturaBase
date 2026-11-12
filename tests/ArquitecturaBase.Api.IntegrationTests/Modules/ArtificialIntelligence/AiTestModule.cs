@@ -54,6 +54,7 @@ internal sealed class AiTestModule : IApiTestModule
         services.AddHttpClient(ArtificialIntelligenceInfrastructureRegistration.AnthropicHttpClientName).ConfigurePrimaryHttpMessageHandler(() => new NoNetworkHandler());
         services.AddHttpClient(AiAssistantProvidersRegistration.OpenAiConversationHttpClientName).ConfigurePrimaryHttpMessageHandler(() => new NoNetworkHandler());
         services.AddHttpClient(AiAssistantProvidersRegistration.AnthropicConversationHttpClientName).ConfigurePrimaryHttpMessageHandler(() => new NoNetworkHandler());
+        services.AddHttpClient(AiAssistantProvidersRegistration.OpenAiDocumentHttpClientName).ConfigurePrimaryHttpMessageHandler(() => new NoNetworkHandler());
     }
     private sealed class NoNetworkHandler : HttpMessageHandler
     {

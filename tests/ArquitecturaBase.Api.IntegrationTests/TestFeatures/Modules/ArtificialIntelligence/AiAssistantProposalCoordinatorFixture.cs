@@ -1,5 +1,6 @@
 using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Models.Assistant;
+using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Models;
@@ -14,7 +15,9 @@ internal sealed class AiAssistantProposalCoordinatorFixture : IAiAssistantDispat
     private readonly AiAssistantExecutionContextResponse context;
     private readonly Action? stopAfterAdvance;
     private readonly bool normalize;
+    private readonly bool read;
     public AssistantNormalizedAudio? CompletedAudio { get; private set; }
+    public StructuredDocumentReading? CompletedReading { get; private set; }
     public LlmConversationUsage? CompletedUsage { get; private set; }
     private bool claimed;
     public AssistantObservedProposal Proposal { get; }
@@ -28,9 +31,10 @@ internal sealed class AiAssistantProposalCoordinatorFixture : IAiAssistantDispat
     public int RecordCalls { get; private set; }
     public int FailCalls { get; private set; }
     public bool CompletionTokenWasCanceled { get; private set; }
-    public AiAssistantProposalCoordinatorFixture(TimeProvider clock, Action? stopAfterAdvance, bool normalize = false)
+    public AiAssistantProposalCoordinatorFixture(TimeProvider clock, Action? stopAfterAdvance, bool normalize = false, bool read = false)
     {
         this.normalize = normalize;
+        this.read = read;
         this.stopAfterAdvance = stopAfterAdvance;
         var now = clock.GetUtcNow().UtcDateTime;
         var actor = Guid.NewGuid();
@@ -62,13 +66,15 @@ internal sealed class AiAssistantProposalCoordinatorFixture : IAiAssistantDispat
     {
         ProviderCalls++;
         if (ProviderError is { } error) return Task.FromResult(Result.Failure<LlmConversationResponse>(error));
+        if (read) return Task.FromResult<Result<LlmConversationResponse>>(new LlmConversationResponse(LlmDocumentReadingResponse.Read, [], null, new(1200, 300)));
         return Task.FromResult<Result<LlmConversationResponse>>(new LlmConversationResponse(normalize ? "normalizedAudio" : "tools", [], null, normalize ? new(null, null) { AudioSeconds = 2.75m } : new(10, 2)));
     }
     public Task<Result<AiAssistantAdvanceResponse>> AdvanceAsync(AiAssistantExecutionContextResponse accepted, LlmConversationResponse response, CancellationToken cancellationToken)
     {
         stopAfterAdvance?.Invoke();
-        return Task.FromResult(Result.Success(new AiAssistantAdvanceResponse(context, null, [], response.Usage) { Proposal = normalize ? null : Proposal,
-            NormalizedAudio = normalize ? new("Fictitious visit", ["en"]) : null }));
+        return Task.FromResult(Result.Success(new AiAssistantAdvanceResponse(context, null, [], response.Usage) { Proposal = normalize || read ? null : Proposal,
+            NormalizedAudio = normalize ? new("Fictitious visit", ["en"]) : null,
+            DocumentReading = read ? new(StructuredDocumentReadability.Readable, null, "es", "| Monto | $ 1.000 |", false) : null }));
     }
     public Task<Result> CompleteAsync(AiAssistantClaimResponse accepted, AiAssistantAdvanceResponse completion, CancellationToken cancellationToken)
     {
@@ -76,6 +82,7 @@ internal sealed class AiAssistantProposalCoordinatorFixture : IAiAssistantDispat
         CompletionTokenWasCanceled = cancellationToken.IsCancellationRequested;
         CompletedProposal = completion.Proposal;
         CompletedAudio = completion.NormalizedAudio;
+        CompletedReading = completion.DocumentReading;
         CompletedUsage = completion.Usage;
         return Task.FromResult(Result.Success());
     }

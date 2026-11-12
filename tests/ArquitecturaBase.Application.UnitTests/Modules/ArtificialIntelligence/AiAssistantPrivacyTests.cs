@@ -27,7 +27,7 @@ public sealed class AiAssistantPrivacyTests
         var clock = new FakeTimeProvider();
         var limits = new AiAssistantLimits();
         var catalog = new AiAssistantCapabilityCatalogPolicy([], permissions);
-        var guard = new AiAssistantAccessGuard(users, permissions, [], limits, current, catalog, [], new MemoryPrivateFileStore());
+        var guard = new AiAssistantAccessGuard(users, permissions, [], limits, current, catalog, new([], [], new MemoryPrivateFileStore()));
         var reader = new Reader(actor.Id, clock.GetUtcNow().UtcDateTime);
         var policy = new AiAssistantReadPolicy(reader, RequestValidators.For(), permissions, guard,
             new AiAssistantResponsePolicy(new NeverDecrypt(), clock, catalog), limits, null!);
@@ -48,7 +48,7 @@ public sealed class AiAssistantPrivacyTests
         var clock = new FakeTimeProvider();
         var limits = new AiAssistantLimits();
         var catalog = new AiAssistantCapabilityCatalogPolicy([], permissions);
-        var guard = new AiAssistantAccessGuard(users, permissions, [], limits, new FakeCurrentUser { UserId = actor.Id }, catalog, [], new MemoryPrivateFileStore());
+        var guard = new AiAssistantAccessGuard(users, permissions, [], limits, new FakeCurrentUser { UserId = actor.Id }, catalog, new([], [], new MemoryPrivateFileStore()));
         var reader = new Reader(actor.Id, clock.GetUtcNow().UtcDateTime);
         var policy = new AiAssistantReadPolicy(reader, RequestValidators.For(), permissions, guard,
             new AiAssistantResponsePolicy(new NeverDecrypt(), clock, catalog), limits, null!);

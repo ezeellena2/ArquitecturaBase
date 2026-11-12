@@ -40,6 +40,7 @@ public static class ArtificialIntelligenceInfrastructureRegistration
         services.AddSingleton(provider => provider.GetRequiredService<IOptions<AiAssistantOptions>>().Value.Limits);
         services.AddSingleton<IReadOnlyCollection<AiAssistantModelProfile>>(provider => provider.GetRequiredService<IOptions<AiAssistantOptions>>().Value.ModelProfiles);
         services.AddSingleton<IReadOnlyCollection<AiAssistantAudioModelProfile>>(provider => provider.GetRequiredService<IOptions<AiAssistantOptions>>().Value.AudioModelProfiles);
+        services.AddSingleton<IReadOnlyCollection<AiAssistantDocumentModelProfile>>(provider => provider.GetRequiredService<IOptions<AiAssistantOptions>>().Value.DocumentModelProfiles);
         services.AddSingleton<AiAssistantCoordinator>();
         services.AddSingleton<AiAssistantTelemetry>();
         services.AddHostedService<AiAssistantBackgroundService>();

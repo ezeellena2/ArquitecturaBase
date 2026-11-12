@@ -32,10 +32,11 @@ internal sealed class AiAssistantRepository(ApplicationDbContext dbContext, Time
     public Task<AiAssistantTurn?> GetActiveForActorChannelAsync(Guid ownerUserId, string channelId, Guid? channelConversationId, CancellationToken cancellationToken) =>
         ActiveForActorChannel(ownerUserId, channelId, channelConversationId).FirstOrDefaultAsync(cancellationToken);
     private IQueryable<AiAssistantTurn> ActiveForActorChannel(Guid ownerUserId, string channelId, Guid? channelConversationId) =>
+        // Like the index: the technical purposes (an audio 1, a reading 2) never take the slot; an absent purpose keeps it.
         dbContext.Set<AiAssistantTurn>().FromSqlRaw("""
             SELECT * FROM "AiAssistantTurns"
-            WHERE (CASE WHEN "ExecutionProfileJson" IS JSON OBJECT THEN "ExecutionProfileJson"::jsonb -> 'purpose' END)
-                IS DISTINCT FROM '1'::jsonb
+            WHERE (CASE WHEN "ExecutionProfileJson" IS JSON OBJECT THEN "ExecutionProfileJson"::jsonb -> 'purpose' END) IS NULL OR
+                (CASE WHEN "ExecutionProfileJson" IS JSON OBJECT THEN "ExecutionProfileJson"::jsonb -> 'purpose' END) NOT IN ('1'::jsonb, '2'::jsonb)
             """).IgnoreQueryFilters().Where(turn => turn.OwnerUserId == ownerUserId && turn.ChannelId == channelId
             && turn.ChannelConversationId == channelConversationId
             && (turn.State == AiAssistantTurnState.Pending || turn.State == AiAssistantTurnState.Running));
@@ -51,11 +52,13 @@ internal sealed class AiAssistantRepository(ApplicationDbContext dbContext, Time
             .Select(turn => new AiAssistantAttachmentRow(turn.Id, turn.PayloadRevision, turn.ContentExpiresAtUtc, turn.AttachmentKey!, turn.ProtectedAttachment))
             .FirstOrDefaultAsync(cancellationToken);
 
-    public async Task<AiAssistantBudgetCounts> CountBudgetAsync(Guid ownerUserId, DateOnly dayUtc, string? channelId, bool? isAudio, CancellationToken cancellationToken)
+    public async Task<AiAssistantBudgetCounts> CountBudgetAsync(Guid ownerUserId, DateOnly dayUtc, string? channelId, bool? isAudio, bool isDocument,
+        CancellationToken cancellationToken)
     {
-        var receipts = dbContext.Set<AiAssistantRequestReceipt>().Where(receipt => receipt.AcceptedDayUtc == dayUtc);
+        // Readings have their own quotas: the actor's in every channel and the installation's; the others never count them.
+        var receipts = dbContext.Set<AiAssistantRequestReceipt>().Where(receipt => receipt.AcceptedDayUtc == dayUtc && receipt.IsDocument == isDocument);
         var actorReceipts = receipts.Where(receipt => receipt.OwnerUserId == ownerUserId);
-        if (channelId is not null && isAudio is not null)
+        if (!isDocument && channelId is not null && isAudio is not null)
             actorReceipts = actorReceipts.Where(receipt => (receipt.ChannelId == null || receipt.ChannelId == channelId)
                 && (receipt.IsAudio == null || receipt.IsAudio == isAudio));
         var active = dbContext.Set<AiAssistantTurn>().IgnoreQueryFilters();

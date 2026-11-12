@@ -1,4 +1,5 @@
 using ArquitecturaBase.Application.Models.Assistant;
+using ArquitecturaBase.Application.Models.StructuredData;
 
 namespace ArquitecturaBase.Application.Modules.ArtificialIntelligence.Models;
 
@@ -6,6 +7,7 @@ public sealed record LlmConversationResponse(string State, IReadOnlyList<LlmTool
     string? Continuation, LlmConversationUsage? Usage)
 {
     public AssistantNormalizedAudio? NormalizedAudio { get; init; }
+    public StructuredDocumentReading? DocumentReading { get; init; }
     public override string ToString() => "LlmConversationResponse { content: [REDACTED] }";
 }
 

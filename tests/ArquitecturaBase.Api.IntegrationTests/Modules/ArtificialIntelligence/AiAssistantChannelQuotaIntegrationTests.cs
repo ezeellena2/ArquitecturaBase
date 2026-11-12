@@ -89,8 +89,8 @@ public sealed class AiAssistantChannelQuotaIntegrationTests(ApiFactory factory)
             var repository = services.GetRequiredService<IAiAssistantRepository>();
             foreach (var audio in new[] { false, true })
             {
-                Assert.Equal(1, (await repository.CountBudgetAsync(actor, DateOnly.FromDateTime(now), "other-channel", audio, Ct)).ActorAccepted);
-                Assert.Equal(2, (await repository.CountBudgetAsync(actor, DateOnly.FromDateTime(now), "known-channel", audio, Ct)).ActorAccepted);
+                Assert.Equal(1, (await repository.CountBudgetAsync(actor, DateOnly.FromDateTime(now), "other-channel", audio, false, Ct)).ActorAccepted);
+                Assert.Equal(2, (await repository.CountBudgetAsync(actor, DateOnly.FromDateTime(now), "known-channel", audio, false, Ct)).ActorAccepted);
             }
         });
         }

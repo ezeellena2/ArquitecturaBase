@@ -29,7 +29,9 @@ public sealed class AiAssistantConversationScopeQueryTests
         Assert.Contains("\"ChannelId\" =", where, StringComparison.Ordinal);
         Assert.Contains("Pending", where, StringComparison.Ordinal);
         Assert.Contains("Running", where, StringComparison.Ordinal);
-        Assert.Contains("IS DISTINCT FROM '1'::jsonb", sql, StringComparison.Ordinal);
+        // An audio (1) or a document reading (2) never takes the slot; a profile without a numeric purpose keeps it.
+        Assert.Contains("IS NULL OR", sql, StringComparison.Ordinal);
+        Assert.Contains("NOT IN ('1'::jsonb, '2'::jsonb)", sql, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -48,6 +50,7 @@ public sealed class AiAssistantConversationScopeQueryTests
         Assert.Contains("Pending", filter, StringComparison.Ordinal);
         Assert.Contains("Running", filter, StringComparison.Ordinal);
         Assert.Contains("IS JSON OBJECT", filter, StringComparison.Ordinal);
-        Assert.Contains("IS DISTINCT FROM '1'::jsonb", filter, StringComparison.Ordinal);
+        Assert.Contains("IS NULL OR", filter, StringComparison.Ordinal);
+        Assert.Contains("NOT IN ('1'::jsonb, '2'::jsonb)", filter, StringComparison.Ordinal);
     }
 }

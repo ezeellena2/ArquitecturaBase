@@ -35,14 +35,23 @@ internal static class AiAssistantChannelPolicy
             var profile = JsonSerializer.Deserialize<AiAssistantExecutionProfileSnapshot>(json, AiAssistantResponsePolicy.JsonOptions);
             return profile is not null && profile.ChannelContext is not null && Enum.IsDefined(profile.ChannelContext.InteractionMode) && profile.ModelProfileVersion > 0 &&
                 Enum.IsDefined(profile.Purpose) &&
-                (profile.Purpose == AiAssistantPurpose.NormalizeAudio
-                    ? profile.InstructionsId == "audio-none-v1" && profile.InstructionsVersion == 1 && profile.ChannelContext.ChannelId != "home" &&
-                        profile.ChannelContext.AllowedCapabilities.Count == 0 && profile.ChannelContext.AllowedTerminals.Count == 0
-                    : KnownInstructions(profile.InstructionsId, profile.InstructionsVersion))
+                profile.Purpose switch
+                {
+                    AiAssistantPurpose.NormalizeAudio => Technical(profile, "audio-none-v1", 1),
+                    AiAssistantPurpose.ReadDocument => Technical(profile, AiAssistantDocumentPolicy.InstructionsId, AiAssistantDocumentPolicy.InstructionsVersion),
+                    _ => KnownInstructions(profile.InstructionsId, profile.InstructionsVersion),
+                }
                 ? profile : AiAssistantErrors.ContentUnavailable;
         }
         catch (JsonException) { return AiAssistantErrors.ContentUnavailable; }
     }
+
+    // The technical purposes (audio and documents) never offer capabilities, terminals or history, and always open their own conversation.
+    public static bool IsTechnical(AiAssistantPurpose purpose) => purpose is AiAssistantPurpose.NormalizeAudio or AiAssistantPurpose.ReadDocument;
+
+    private static bool Technical(AiAssistantExecutionProfileSnapshot profile, string instructionsId, int instructionsVersion) =>
+        profile.InstructionsId == instructionsId && profile.InstructionsVersion == instructionsVersion && profile.ChannelContext.ChannelId != "home" &&
+        profile.ChannelContext.AllowedCapabilities.Count == 0 && profile.ChannelContext.AllowedTerminals.Count == 0;
 
     public static bool KnownInstructions(string instructionsId, int version) =>
         instructionsId == "home-system" && version is 1 or HomeInstructionsVersion || instructionsId == "capabilities-v1" && version == 1;

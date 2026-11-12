@@ -1,5 +1,6 @@
 using ArquitecturaBase.Application.Models.Assistant;
 using System.Text.Json;
+using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Models.SystemQueries;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Models;
@@ -53,6 +54,7 @@ internal sealed class AiAssistantResponsePolicy(IAiConversationProtector protect
         AiAssistantAnswer? answer = null;
         AssistantObservedProposal? proposal = null;
         AssistantNormalizedAudio? normalizedAudio = null;
+        StructuredDocumentReading? documentReading = null;
         AiAssistantTurnAudioResponse? audio = null;
         AiAssistantTurnAttachmentResponse? attachment = null;
         IReadOnlyList<SystemQueryEvidence> evidences = [];
@@ -86,6 +88,13 @@ internal sealed class AiAssistantResponsePolicy(IAiConversationProtector protect
                     normalizedAudio = decoded.Value;
                     question = null;
                 }
+                else if (IsKind(json, "readDocument"))
+                {
+                    var decoded = DecodeDocumentReading(row, json);
+                    if (decoded.IsFailure) return decoded.Error;
+                    documentReading = decoded.Value;
+                    question = null;
+                }
                 else if (IsKind(json, "proposal"))
                 {
                     var decoded = DecodeProposal(row, json);
@@ -110,7 +119,8 @@ internal sealed class AiAssistantResponsePolicy(IAiConversationProtector protect
             row.Revision, State(row.State), row.Stage, access, question, answer, evidences, failure, usage,
             row.Culture, row.TimeZoneId, row.SubmittedAtUtc, now, pollingAfterSeconds)
         {
-            CancelRequestedAtUtc = row.CancelRequestedAtUtc, ObservedProposal = proposal, NormalizedAudio = normalizedAudio, Audio = audio, Attachment = attachment,
+            CancelRequestedAtUtc = row.CancelRequestedAtUtc, ObservedProposal = proposal, NormalizedAudio = normalizedAudio, DocumentReading = documentReading,
+            Audio = audio, Attachment = attachment,
             Proposal = proposal is null ? null : new AiAssistantProposalResponse(proposal.Id, proposal.Capability.Id, proposal.Capability.Version,
                 JsonSerializer.SerializeToElement(proposal.Payload, proposal.Payload.GetType(), JsonOptions)),
         };
@@ -134,6 +144,14 @@ internal sealed class AiAssistantResponsePolicy(IAiConversationProtector protect
             return audio is not null && AiAssistantAudioPolicy.Valid(audio, 4000) ? audio : AiAssistantErrors.ContentUnavailable;
         }
         catch (JsonException) { return AiAssistantErrors.ContentUnavailable; }
+    }
+
+    // Only a reading turn stores a reading, and only a closed and whole one reads back.
+    private static Result<StructuredDocumentReading> DecodeDocumentReading(AiAssistantTurnRow row, string json)
+    {
+        var profile = AiAssistantChannelPolicy.Read(row.ExecutionProfileJson);
+        if (profile.IsFailure || profile.Value.Purpose != AiAssistantPurpose.ReadDocument) return AiAssistantErrors.ContentUnavailable;
+        return AiAssistantDocumentPolicy.ReadStored(json) is { } reading ? reading : AiAssistantErrors.ContentUnavailable;
     }
 
     // A channel stores only the selected ordinal; Home also keeps the answer that explains the proposal.

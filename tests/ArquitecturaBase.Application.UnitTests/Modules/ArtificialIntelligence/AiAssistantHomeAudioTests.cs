@@ -193,7 +193,7 @@ public sealed class AiAssistantHomeAudioTests
     {
         var permissions = new FakePermissionService();
         return new(new InMemoryUserAccounts(), permissions, [], new AiAssistantLimits(), new FakeCurrentUser(),
-            new AiAssistantCapabilityCatalogPolicy([], permissions), audioProfiles, files);
+            new AiAssistantCapabilityCatalogPolicy([], permissions), new(audioProfiles, [], files));
     }
 
     private sealed class ServiceHost
@@ -213,7 +213,7 @@ public sealed class AiAssistantHomeAudioTests
             var limits = new AiAssistantLimits();
             var current = new FakeCurrentUser { UserId = ActorId };
             var guard = new AiAssistantAccessGuard(Users, Permissions, [], limits, current,
-                new AiAssistantCapabilityCatalogPolicy([], Permissions), [], Files);
+                new AiAssistantCapabilityCatalogPolicy([], Permissions), new([], [], Files));
             Service = new(Operations, new AiAssistantHomeAudioPolicy(Files, null!, null!, clock), guard, current, limits, clock,
                 NullLogger<AiAssistantAudioService>.Instance);
         }

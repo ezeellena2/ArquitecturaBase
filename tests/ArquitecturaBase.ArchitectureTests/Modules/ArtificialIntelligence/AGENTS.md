@@ -9,3 +9,5 @@ El límite de dependencias de capacidades usa identidades Type permitidas de pue
 La lista de puertos de capacidades combina los del núcleo con CapabilityReadPorts de las contribuciones descubiertas. Cada módulo declara sólo sus Type propios; esta regla no importa ni nombra a los otros. El detector transitivo y sus negativos de escritura/transporte permanecen sin cambios.
 
 El detector prohíbe a las capacidades el almacenamiento privado y el lector de planillas: leen la planilla sólo de su pedido.
+
+AiAssistantBoundaryTests fija que sólo `LlmConversationClient` llama a los transportes de audio y de documentos.

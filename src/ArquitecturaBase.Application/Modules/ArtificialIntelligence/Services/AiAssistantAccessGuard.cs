@@ -1,5 +1,4 @@
 using ArquitecturaBase.Application.Models.Assistant;
-using ArquitecturaBase.Application.Interfaces.Integrations.Files;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Interfaces.Integrations.Request;
@@ -12,31 +11,33 @@ using ArquitecturaBase.Domain.Results;
 namespace ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services;
 
 internal sealed class AiAssistantAccessGuard(IUserReader users, IPermissionService permissions,
-    IReadOnlyCollection<AiAssistantModelProfile> profiles, AiAssistantLimits limits, ICurrentUser currentUser, AiAssistantCapabilityCatalogPolicy catalog, IReadOnlyCollection<AiAssistantAudioModelProfile> audioProfiles,
-    IPrivateFileStore files)
+    IReadOnlyCollection<AiAssistantModelProfile> profiles, AiAssistantLimits limits, ICurrentUser currentUser, AiAssistantCapabilityCatalogPolicy catalog,
+    AiAssistantTechnicalProfilePolicy technical)
 {
-    // IA4: the browser records WebM or MP4; Home offers the microphone only when this connection hears a whole recording and
-    // there is private storage to keep it.
-    public bool HearsHomeAudio(AiConnectionRow connection) => files.IsAvailable && connection.Enabled && connection.ProtectedApiKey is not null
-        && audioProfiles.Any(p => p.Provider == connection.Provider && p.MaximumAudioBytes >= SubmitAiAssistantAudioRequest.MaximumBytes
-            && p.ContentTypes.Any(type => type is "audio/webm" or "audio/mp4"));
+    public bool HearsHomeAudio(AiConnectionRow connection) => technical.HearsHomeAudio(connection);
 
     public Result<AiAssistantExecutionProfileSnapshot> CaptureAudioProfile(AiConnectionRow connection,
-        AssistantChannelContext channel, AssistantAudioInput audio, DateTime occurredAtUtc)
-    {
-        if (!connection.Enabled || connection.ProtectedApiKey is null || connection.Provider != AiProvider.OpenAI) return AiAssistantErrors.Unavailable;
-        var profile = audioProfiles.Where(p => p.Provider == connection.Provider && p.MaximumAudioBytes >= audio.Size &&
-            p.ContentTypes.Contains(AiAssistantAudioPolicy.MediaType(audio), StringComparer.Ordinal)).OrderByDescending(p => p.Version)
-            .ThenBy(p => p.Id, StringComparer.Ordinal).FirstOrDefault();
-        return profile is null ? AiAssistantErrors.Unavailable : new AiAssistantExecutionProfileSnapshot(profile.Id, profile.Version,
-            "audio-none-v1", 1, channel) { Purpose = AiAssistantPurpose.NormalizeAudio, OccurredAtUtc = occurredAtUtc };
-    }
+        AssistantChannelContext channel, AssistantAudioInput audio, DateTime occurredAtUtc) => technical.CaptureAudio(connection, channel, audio, occurredAtUtc);
 
-    public string? Model(AiAssistantExecutionProfileSnapshot profile, AiConnectionRow connection) =>
-        profile.Purpose == AiAssistantPurpose.NormalizeAudio ? AudioProfile(profile, connection)?.Model : connection.Model;
+    // Whether this installation reads documents (ReadDocument); nothing publishes it yet.
+    public bool ReadsDocuments(AiConnectionRow connection) => technical.ReadsDocuments(connection);
+
+    public Result<AiAssistantExecutionProfileSnapshot> CaptureDocumentProfile(AiConnectionRow connection,
+        AssistantChannelContext channel, AssistantDocumentInput document, DateTime occurredAtUtc) => technical.CaptureDocument(connection, channel, document, occurredAtUtc);
+
+    // A technical purpose takes the model of its sealed profile; an interpretation, the connection's.
+    public string? Model(AiAssistantExecutionProfileSnapshot profile, AiConnectionRow connection) => profile.Purpose switch
+    {
+        AiAssistantPurpose.NormalizeAudio => AudioProfile(profile, connection)?.Model,
+        AiAssistantPurpose.ReadDocument => DocumentProfile(profile, connection)?.Model,
+        _ => connection.Model,
+    };
 
     public AiAssistantAudioModelProfile? AudioProfile(AiAssistantExecutionProfileSnapshot profile, AiConnectionRow connection) =>
-        audioProfiles.SingleOrDefault(p => p.Id == profile.ModelProfileId && p.Version == profile.ModelProfileVersion && p.Provider == connection.Provider);
+        technical.Audio(profile, connection);
+
+    public AiAssistantDocumentModelProfile? DocumentProfile(AiAssistantExecutionProfileSnapshot profile, AiConnectionRow connection) =>
+        technical.Document(profile, connection);
 
     public Guid? CurrentUserId => currentUser.UserId;
     public async Task<Result<UserAccount>> AuthorizeAsync(Guid userId, CancellationToken ct)
@@ -105,12 +106,17 @@ internal sealed class AiAssistantAccessGuard(IUserReader users, IPermissionServi
         return new AiAssistantExecutionProfileSnapshot(profile.Id, profile.Version, instructionsId, instructionsVersion, channel) { OccurredAtUtc = occurredAtUtc };
     }
 
-    public bool IsProfileQualified(AiAssistantExecutionProfileSnapshot snapshot, AiConnectionRow connection) =>
-        snapshot.Purpose == AiAssistantPurpose.NormalizeAudio
-            ? snapshot.InstructionsId == "audio-none-v1" && snapshot.InstructionsVersion == 1 && connection.Provider == AiProvider.OpenAI && AudioProfile(snapshot, connection) is not null
-            : AiAssistantChannelPolicy.KnownInstructions(snapshot.InstructionsId, snapshot.InstructionsVersion) &&
-        profiles.Any(p => p.Id == snapshot.ModelProfileId && p.Version == snapshot.ModelProfileVersion && p.Provider == connection.Provider &&
-            p.Model == connection.Model && p.SupportsTools && p.SupportsTerminalAnswer && p.ContextBytes >= limits.ContextBytes);
+    public bool IsProfileQualified(AiAssistantExecutionProfileSnapshot snapshot, AiConnectionRow connection) => snapshot.Purpose switch
+    {
+        AiAssistantPurpose.NormalizeAudio => snapshot.InstructionsId == "audio-none-v1" && snapshot.InstructionsVersion == 1 &&
+            connection.Provider == AiProvider.OpenAI && AudioProfile(snapshot, connection) is not null,
+        AiAssistantPurpose.ReadDocument => snapshot.InstructionsId == AiAssistantDocumentPolicy.InstructionsId &&
+            snapshot.InstructionsVersion == AiAssistantDocumentPolicy.InstructionsVersion && connection.Provider == AiProvider.OpenAI &&
+            DocumentProfile(snapshot, connection) is not null,
+        _ => AiAssistantChannelPolicy.KnownInstructions(snapshot.InstructionsId, snapshot.InstructionsVersion) &&
+            profiles.Any(p => p.Id == snapshot.ModelProfileId && p.Version == snapshot.ModelProfileVersion && p.Provider == connection.Provider &&
+                p.Model == connection.Model && p.SupportsTools && p.SupportsTerminalAnswer && p.ContextBytes >= limits.ContextBytes),
+    };
 
     public string Availability(AiConnectionRow connection)
     {

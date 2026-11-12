@@ -13,7 +13,8 @@ public sealed record AiAssistantExecutionProfileSnapshot(
     public DateTime? OccurredAtUtc { get; init; }
 }
 
-public enum AiAssistantPurpose { Interpret, NormalizeAudio }
+/// <summary>Sealed as a number: Interpret is omitted. The technical purposes (audio and documents) have no capabilities, terminals or history.</summary>
+public enum AiAssistantPurpose { Interpret = 0, NormalizeAudio = 1, ReadDocument = 2 }
 
 public sealed record AiAssistantCapabilityCatalogResponse(
     IReadOnlyList<AssistantCapabilityDefinition> Capabilities, IReadOnlyList<AssistantTerminalReference> Terminals,

@@ -4,7 +4,7 @@ Contiene los casos de uso y sus políticas de conexión, negocio y asistente. He
 
 ## Al modificar
 
-- Dispatch conserva un único límite por escritura y verifica el fence, la vigencia y el acceso antes de publicar. Complete cierra texto, propuestas y NormalizeAudio por el mismo camino; Fail conserva los fallos conocidos o inciertos. Claim, BeginProviderStep y RecordProgress también pueden cerrar por vigencia, cancelación o acceso y aplican el mismo aviso al quedar terminales.
+- Dispatch conserva un único límite por escritura y verifica el fence, la vigencia y el acceso antes de publicar. Complete cierra texto, propuestas, NormalizeAudio y ReadDocument por el mismo camino; Fail conserva los fallos conocidos o inciertos. Claim, BeginProviderStep y RecordProgress también pueden cerrar por vigencia, cancelación o acceso y aplican el mismo aviso al quedar terminales.
 - El aviso neutral de cierre sale después de confirmar la UoW. Reenvía el ChannelId duradero sin interpretarlo y sin contenido. Un rollback o un Result fallido no avisa. Un cierre conocido puede reiterar el aviso coalescente. No cambia aceptación, cuotas, leases, herramientas ni efectos externos.
 - El aviso es una optimización en memoria: la recuperación periódica sigue siendo la autoridad del trabajo pendiente. No agregar una cola, persistencia o bus para el aviso.
 
@@ -14,4 +14,4 @@ Contiene los casos de uso y sus políticas de conexión, negocio y asistente. He
 - [Normalización y aviso del mismo motor](../../../../../tests/ArquitecturaBase.Application.UnitTests/Modules/ArtificialIntelligence/AiAssistantAudioCompletionSignalTests.cs).
 - [Robustez proporcional](../../../../../docs/decisions/0018-robustez-proporcional-al-efecto.md).
 
-La reserva activa de interpretación compara OwnerUserId, ChannelId y ChannelConversationId nullable. Replay por UUID se resuelve antes de unicidad/cuotas; Get y Cancel comparan el ámbito sellado. Las cuotas y recibos conservan actor/canal/propósito, sin repartirlas por conversación. NormalizeAudio conserva su exclusión de la reserva.
+La reserva activa de interpretación compara OwnerUserId, ChannelId y ChannelConversationId nullable. Replay por UUID se resuelve antes de unicidad/cuotas; Get y Cancel comparan el ámbito sellado. Las cuotas y recibos conservan actor/canal/propósito, sin repartirlas por conversación. NormalizeAudio y ReadDocument conservan su exclusión de la reserva.

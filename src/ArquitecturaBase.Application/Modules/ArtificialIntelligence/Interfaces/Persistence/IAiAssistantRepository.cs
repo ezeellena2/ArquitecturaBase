@@ -18,7 +18,11 @@ public interface IAiAssistantRepository
     Task<int> CountTurnsAsync(Guid conversationId, CancellationToken cancellationToken);
     /// <summary>The spreadsheet of the latest turn of the conversation that has one, own or inherited, even once its content was purged.</summary>
     Task<AiAssistantAttachmentRow?> FindLatestAttachmentAsync(Guid conversationId, CancellationToken cancellationToken);
-    Task<AiAssistantBudgetCounts> CountBudgetAsync(Guid ownerUserId, DateOnly dayUtc, string? channelId, bool? isAudio, CancellationToken cancellationToken);
+    /// <summary>
+    /// The day's acceptances and the active work. Document readings count apart: with <paramref name="isDocument"/>, the actor's in every
+    /// channel and the installation's; without it, those of interpretations and audio (by channel and kind when both are given), never readings.
+    /// </summary>
+    Task<AiAssistantBudgetCounts> CountBudgetAsync(Guid ownerUserId, DateOnly dayUtc, string? channelId, bool? isAudio, bool isDocument, CancellationToken cancellationToken);
     Task<IReadOnlyList<AiAssistantTurn>> ListExpiredAsync(DateTime nowUtc, int pendingSeconds, int graceSeconds, int limit, CancellationToken cancellationToken);
     Task<IReadOnlyList<AiAssistantTurn>> ListPurgeableAsync(DateTime nowUtc, int limit, CancellationToken cancellationToken);
     Task<IReadOnlyList<AiConversation>> ListRemovableConversationsAsync(DateTime nowUtc, int limit, CancellationToken cancellationToken);

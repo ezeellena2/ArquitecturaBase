@@ -10,6 +10,10 @@ public sealed record LlmConversationRequest(AiProvider Provider, string Model, s
 {
     public AssistantAudioInput? Audio { get; init; }
     public int AudioMaximumBytes { get; init; }
+    /// <summary>ReadDocument: the private document, the bytes its sealed profile takes and whether it asks for a low reasoning effort.</summary>
+    public AssistantDocumentInput? Document { get; init; }
+    public int DocumentMaximumBytes { get; init; }
+    public bool LowReasoningEffort { get; init; }
     public override string ToString() => "LlmConversationRequest { content and credential: [REDACTED] }";
 }
 

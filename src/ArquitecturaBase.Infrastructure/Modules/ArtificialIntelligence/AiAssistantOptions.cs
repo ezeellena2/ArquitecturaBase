@@ -1,3 +1,4 @@
+using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Configuration;
 
 namespace ArquitecturaBase.Infrastructure.Modules.ArtificialIntelligence;
@@ -7,6 +8,8 @@ public sealed class AiAssistantOptions
 {
     public AiAssistantLimits Limits { get; set; } = new();
     public AiAssistantAudioModelProfile[] AudioModelProfiles { get; set; } = [];
+    // No document profile is declared by default: without a qualified one nothing reads documents.
+    public AiAssistantDocumentModelProfile[] DocumentModelProfiles { get; set; } = [];
     public AiAssistantModelProfile[] ModelProfiles { get; set; } = [];
     public bool ProcessInBackground { get; set; } = true;
     public int WorkerPollingSeconds { get; set; } = 1;
@@ -30,6 +33,10 @@ public sealed class AiAssistantOptions
             && limits.ActorDailyQuota > 0 && limits.InstallationDailyQuota >= limits.ActorDailyQuota
             && limits.RetentionDays is > 0 and <= 30 && limits.MaintenanceBatchSize is > 0 and <= 100
             && limits.PollingAfterSeconds is > 0 and <= 30
+            && limits.DocumentActorDailyQuota > 0 && limits.DocumentInstallationDailyQuota >= limits.DocumentActorDailyQuota
+            && limits.DocumentTimeoutSeconds > 0 && limits.DocumentTimeoutSeconds < limits.RunningSeconds
+            && limits.DocumentOutputTokens is > 0 and <= AiAssistantLimits.DocumentOutputTokensCeiling
+            && limits.MaximumReadingCharacters is >= StructuredAttachmentLimits.MaximumDocumentCharacters and <= AiAssistantLimits.ReadingCharactersCeiling
             && WorkerPollingSeconds is > 0 and <= 60 && MaintenanceIntervalMinutes is > 0 and <= 60
             && CompletionPersistenceSeconds is > 0 and <= 5
             && AudioModelProfiles.All(profile => profile.Provider == ArquitecturaBase.Domain.Modules.ArtificialIntelligence.AiProvider.OpenAI
@@ -40,6 +47,15 @@ public sealed class AiAssistantOptions
                 && profile.ContentTypes is { Count: > 0 and <= 4 } && profile.ContentTypes.All(type => type is "audio/ogg" or "audio/wav" or "audio/webm" or "audio/mp4")
                 && profile.ContentTypes.Distinct(StringComparer.Ordinal).Count() == profile.ContentTypes.Count)
             && AudioModelProfiles.Select(profile => (profile.Provider, profile.Id, profile.Version)).Distinct().Count() == AudioModelProfiles.Length
+            && DocumentModelProfiles.All(profile => profile.Provider == ArquitecturaBase.Domain.Modules.ArtificialIntelligence.AiProvider.OpenAI
+                && !string.IsNullOrWhiteSpace(profile.Id) && profile.Id.Length <= 80 && profile.Version > 0
+                && !string.IsNullOrWhiteSpace(profile.Model) && profile.Model.Length <= 128
+                && profile.Model.All(c => char.IsAsciiLetterOrDigit(c) || c is '-' or '_' or '.')
+                && profile.MaximumDocumentBytes is > 0 and <= StructuredAttachmentLimits.MaximumBytes
+                && profile.MaximumPages is > 0 and <= StructuredAttachmentLimits.MaximumPages
+                && profile.ContentTypes is { Count: > 0 and <= 3 } && profile.ContentTypes.All(type => type is "application/pdf" or "image/jpeg" or "image/png")
+                && profile.ContentTypes.Distinct(StringComparer.Ordinal).Count() == profile.ContentTypes.Count)
+            && DocumentModelProfiles.Select(profile => (profile.Provider, profile.Id, profile.Version)).Distinct().Count() == DocumentModelProfiles.Length
             && ModelProfiles.All(profile => Enum.IsDefined(profile.Provider)
                 && !string.IsNullOrWhiteSpace(profile.Id) && profile.Id.Length <= 80 && profile.Version > 0
                 && !string.IsNullOrWhiteSpace(profile.Model) && profile.Model.Length <= 150

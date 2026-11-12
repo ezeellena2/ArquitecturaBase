@@ -32,5 +32,6 @@ public sealed record AiAssistantAdvanceResponse(AiAssistantExecutionContextRespo
 {
     public AssistantObservedProposal? Proposal { get; init; }
     public AssistantNormalizedAudio? NormalizedAudio { get; init; }
-    public bool IsComplete => Answer is not null || Proposal is not null || NormalizedAudio is not null;
+    public StructuredDocumentReading? DocumentReading { get; init; }
+    public bool IsComplete => Answer is not null || Proposal is not null || NormalizedAudio is not null || DocumentReading is not null;
 }

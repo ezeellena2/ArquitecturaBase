@@ -18,7 +18,7 @@ public sealed partial class AiAssistantContextPolicyTests
         fixture.Permissions.Permissions[fixture.ActorId]=["whatsapp.read","whatsapp.send"];
         var source=new PreparedAssistantCapabilitySource(Stage5Capabilities.Select(id=>PreparedAssistantCapabilitySource.Definition(id,kind:id is "whatsapp.offered-forms" or "forms.assistant-candidates" or "forms.suggestion-candidates" or "forms.catalog-filters.metadata" ? AssistantCapabilityKind.Read : AssistantCapabilityKind.Proposal,permissions:["whatsapp.read"])).ToArray());
         var catalog=new AiAssistantCapabilityCatalogPolicy([source],fixture.Permissions);
-        var guard=new AiAssistantAccessGuard(fixture.Users,fixture.Permissions,fixture.Profiles,limits,new FakeCurrentUser{UserId=fixture.ActorId},catalog,[], new MemoryPrivateFileStore());
+        var guard=new AiAssistantAccessGuard(fixture.Users,fixture.Permissions,fixture.Profiles,limits,new FakeCurrentUser{UserId=fixture.ActorId},catalog,new([], [], new MemoryPrivateFileStore()));
         var responses=new AiAssistantResponsePolicy(fixture.Protector,fixture.Clock,catalog);
         var submissions=new AiAssistantSubmissionPolicy(fixture.Store,fixture.Store,fixture.Store,guard,fixture.Protector,new OperationsFingerprint(),limits,fixture.Clock);
         var service=new AiAssistantOperations(fixture.Store,guard,submissions,fixture.Work,fixture.Store,responses,NullLogger<AiAssistantOperations>.Instance);

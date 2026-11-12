@@ -779,6 +779,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<bool?>("IsAudio")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("IsDocument")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("KeyId")
                         .IsRequired()
                         .HasMaxLength(32)
@@ -806,9 +809,12 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.HasIndex("OwnerUserId", "RequestId")
                         .IsUnique();
 
-                    b.HasIndex("AcceptedDayUtc", "OwnerUserId", "ChannelId", "IsAudio");
+                    b.HasIndex("AcceptedDayUtc", "IsDocument", "OwnerUserId", "ChannelId", "IsAudio");
 
-                    b.ToTable("AiAssistantRequestReceipts", (string)null);
+                    b.ToTable("AiAssistantRequestReceipts", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_AiAssistantRequestReceipts_AudioOrDocument", "NOT (\"IsAudio\" IS TRUE AND \"IsDocument\")");
+                        });
                 });
 
             modelBuilder.Entity("ArquitecturaBase.Domain.Modules.ArtificialIntelligence.AiAssistantToolExecution", b =>
@@ -1065,7 +1071,7 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("OwnerUserId", "ChannelId", "ChannelConversationId")
                         .IsUnique()
-                        .HasFilter("\"ChannelId\" <> 'home' AND \"State\" IN ('Pending', 'Running') AND (CASE WHEN \"ExecutionProfileJson\" IS JSON OBJECT THEN \"ExecutionProfileJson\"::jsonb -> 'purpose' END) IS DISTINCT FROM '1'::jsonb");
+                        .HasFilter("\"ChannelId\" <> 'home' AND \"State\" IN ('Pending', 'Running') AND ((CASE WHEN \"ExecutionProfileJson\" IS JSON OBJECT THEN \"ExecutionProfileJson\"::jsonb -> 'purpose' END) IS NULL OR (CASE WHEN \"ExecutionProfileJson\" IS JSON OBJECT THEN \"ExecutionProfileJson\"::jsonb -> 'purpose' END) NOT IN ('1'::jsonb, '2'::jsonb))");
 
                     NpgsqlIndexBuilderExtensions.AreNullsDistinct(b.HasIndex("OwnerUserId", "ChannelId", "ChannelConversationId"), false);
 

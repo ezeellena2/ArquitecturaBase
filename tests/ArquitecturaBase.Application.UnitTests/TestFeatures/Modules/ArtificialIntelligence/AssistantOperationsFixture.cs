@@ -31,12 +31,14 @@ internal sealed class AssistantOperationsFixture
     public RoundtripAssistantSource Source { get; } = new();
     public AiAssistantModelProfile[] Profiles { get; }
     public AiAssistantAudioModelProfile[] AudioProfiles { get; }
+    public AiAssistantDocumentModelProfile[] DocumentProfiles { get; }
+    public AiAssistantLimits Limits { get; }
     public AssistantChannelContext Context { get; }
     public Guid ActorId => Context.ActorUserId;
     public Guid SubjectId => Context.SubjectUserId!.Value;
     public AiAssistantOperations Service { get; }
 
-    public AssistantOperationsFixture(bool qualified = true, bool audioQualified = false)
+    public AssistantOperationsFixture(bool qualified = true, bool audioQualified = false, bool documentQualified = false, AiAssistantLimits? limits = null)
     {
         var actor = Users.AddUser("operator-operations@example.test");
         var subject = Users.AddUser("subject-operations@example.test");
@@ -45,11 +47,14 @@ internal sealed class AssistantOperationsFixture
         Context = new("fixture-operations", actor.Id, subject.Id, "en", "UTC",
             new(["fictional.channel.read", "fictional.channel.send"], []), [new("fixture.proposal", 1)], [new("assistant_proposal", 1)]);
         Store = new(Clock, Work);
-        var limits = new AiAssistantLimits();
+        Limits = limits ??= new AiAssistantLimits();
         Profiles = qualified ? [new AiAssistantModelProfile(AiProvider.OpenAI, "model", limits.ContextBytes, true, true) { Id = "fixture-profile", Version = 3 }] : [];
         AudioProfiles = audioQualified ? [new(AiProvider.OpenAI, "audio-model", "fixture-audio", 2, ["audio/ogg"], 25000000)] : [];
+        DocumentProfiles = documentQualified
+            ? [new(AiProvider.OpenAI, "vision-model", "fixture-document", 4, ["application/pdf", "image/jpeg", "image/png"], 10 * 1024 * 1024, 10)] : [];
         var catalog = new AiAssistantCapabilityCatalogPolicy([Source], Permissions);
-        var guard = new AiAssistantAccessGuard(Users, Permissions, Profiles, limits, new FakeCurrentUser { UserId = Guid.NewGuid() }, catalog, AudioProfiles, new MemoryPrivateFileStore());
+        var guard = new AiAssistantAccessGuard(Users, Permissions, Profiles, limits, new FakeCurrentUser { UserId = Guid.NewGuid() }, catalog,
+            new(AudioProfiles, DocumentProfiles, new MemoryPrivateFileStore()));
         var submissions = new AiAssistantSubmissionPolicy(Store, Store, Store, guard, Protector, new OperationsFingerprint(), limits, Clock);
         Service = new(Store, guard, submissions, Work, Store, new AiAssistantResponsePolicy(Protector, Clock, catalog), NullLogger<AiAssistantOperations>.Instance);
     }
@@ -142,7 +147,7 @@ internal sealed class OperationsStore(FakeTimeProvider clock, FakeUnitOfWork wor
     private static bool ReservesChannel(AiAssistantTurn turn)
     {
         var profile = AiAssistantChannelPolicy.Read(turn.ExecutionProfileJson);
-        return profile.IsFailure || profile.Value.Purpose != AiAssistantPurpose.NormalizeAudio;
+        return profile.IsFailure || !AiAssistantChannelPolicy.IsTechnical(profile.Value.Purpose);
     }
     public Task<AiAssistantTurn?> GetActiveForConversationAsync(Guid conversation, CancellationToken ct) =>
         Task.FromResult(Turns.FirstOrDefault(item => item.ConversationId == conversation && item.State is AiAssistantTurnState.Pending or AiAssistantTurnState.Running));
@@ -155,13 +160,15 @@ internal sealed class OperationsStore(FakeTimeProvider clock, FakeUnitOfWork wor
         return Task.FromResult(latest is null ? null
             : new AiAssistantAttachmentRow(latest.Id, latest.PayloadRevision, latest.ContentExpiresAtUtc, latest.AttachmentKey!, latest.ProtectedAttachment));
     }
-    public Task<AiAssistantBudgetCounts> CountBudgetAsync(Guid actor, DateOnly day, string? channelId, bool? isAudio, CancellationToken ct)
+    // Like the repository: readings count apart, the actor's in every channel; the others by channel and kind.
+    public Task<AiAssistantBudgetCounts> CountBudgetAsync(Guid actor, DateOnly day, string? channelId, bool? isAudio, bool isDocument, CancellationToken ct)
     {
         BudgetReads++;
-        return Task.FromResult(new AiAssistantBudgetCounts(Receipts.Count(item => item.OwnerUserId == actor && item.AcceptedDayUtc == day
-                && (channelId is null || isAudio is null || (item.ChannelId is null || item.ChannelId == channelId)
+        var receipts = Receipts.Where(item => item.AcceptedDayUtc == day && item.IsDocument == isDocument).ToArray();
+        return Task.FromResult(new AiAssistantBudgetCounts(receipts.Count(item => item.OwnerUserId == actor
+                && (isDocument || channelId is null || isAudio is null || (item.ChannelId is null || item.ChannelId == channelId)
                     && (item.IsAudio is null || item.IsAudio == isAudio))),
-            Receipts.Count(item => item.AcceptedDayUtc == day), Turns.Count(item => item.State == AiAssistantTurnState.Pending), Turns.Count(item => item.State == AiAssistantTurnState.Running)));
+            receipts.Length, Turns.Count(item => item.State == AiAssistantTurnState.Pending), Turns.Count(item => item.State == AiAssistantTurnState.Running)));
     }
     public void AddConversation(AiConversation conversation) { RequireTransaction(); Conversations.Add(conversation); }
     public void AddTurn(AiAssistantTurn turn) { RequireTransaction(); Turns.Add(turn); }

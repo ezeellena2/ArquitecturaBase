@@ -432,7 +432,7 @@ public sealed class AiAssistantAttachmentTests
             Fixture.Permissions.Permissions[ActorId] = [ArtificialIntelligencePermissions.AssistantUse, "fictional.channel.read", "fictional.channel.send"];
             catalog = new AiAssistantCapabilityCatalogPolicy([new HomeQuerySource(), Fixture.Source, new PreparedAssistantCapabilitySource(extra ?? [])], Fixture.Permissions);
             guard = new AiAssistantAccessGuard(Fixture.Users, Fixture.Permissions, Fixture.Profiles, this.limits,
-                new FakeCurrentUser { UserId = ActorId }, catalog, [], new MemoryPrivateFileStore());
+                new FakeCurrentUser { UserId = ActorId }, catalog, new([], [], new MemoryPrivateFileStore()));
             submissions = new(Fixture.Store, Fixture.Store, Fixture.Store, guard, Fixture.Protector, new OperationsFingerprint(), this.limits, Fixture.Clock);
             Responses = new(Fixture.Protector, Fixture.Clock, catalog);
         }

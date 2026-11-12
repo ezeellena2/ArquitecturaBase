@@ -122,7 +122,7 @@ public sealed partial class AiAssistantDispatchServiceTests
         var limits = new AiAssistantLimits();
         var catalog = new AiAssistantCapabilityCatalogPolicy([fixture.Source], fixture.Permissions);
         var guard = new AiAssistantAccessGuard(fixture.Users, fixture.Permissions, fixture.Profiles, limits,
-            new FakeCurrentUser(), catalog, fixture.AudioProfiles, new MemoryPrivateFileStore());
+            new FakeCurrentUser(), catalog, new(fixture.AudioProfiles, [], new MemoryPrivateFileStore()));
         var signal = new RecordingAssistantOperationCompletionSignal();
         var dispatch = new AiAssistantDispatchService(fixture.Store, fixture.Work,
             new(fixture.Store, fixture.Store, fixture.Store, guard, catalog), fixture.Protector, limits, fixture.Clock,
