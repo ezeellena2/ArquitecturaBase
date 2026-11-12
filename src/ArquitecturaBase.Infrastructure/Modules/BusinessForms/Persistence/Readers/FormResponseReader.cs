@@ -26,11 +26,12 @@ internal sealed partial class FormResponseReader(ApplicationDbContext dbContext,
             .Select(question => question.Source?.Catalog).OfType<Guid>().Distinct().ToArray();
         var catalogs = catalogIds.Length == 0 ? []
             : await dbContext.Set<BusinessFormCatalog>().AsNoTracking().Where(catalog => catalogIds.Contains(catalog.Id))
-                .Select(catalog => new CatalogMetadataRow { Id = catalog.Id, ValueType = catalog.ValueType.ToString(), FieldsJson = catalog.FieldsJson })
+                .Select(catalog => new CatalogMetadataRow { Id = catalog.Id, ValueType = catalog.ValueType.ToString(), FieldsJson = catalog.FieldsJson, NameJson = catalog.NameJson })
                 .ToArrayAsync(cancellationToken);
         var historical = catalogIds.Length == 0 ? [] : await FindHistoricalCatalogFields(id).ToArrayAsync(cancellationToken);
         var catalogFields = ReadCatalogFields(catalogs, historical);
-        return result with { CatalogValueTypes = catalogs.ToDictionary(catalog => catalog.Id, catalog => catalog.ValueType), CatalogFields = catalogFields };
+        return result with { CatalogValueTypes = catalogs.ToDictionary(catalog => catalog.Id, catalog => catalog.ValueType), CatalogFields = catalogFields,
+            CatalogNames = catalogs.ToDictionary(catalog => catalog.Id, catalog => (IReadOnlyDictionary<string, string>)ReadCatalogName(catalog.NameJson)) };
     }
     public async Task<PagedResult<FormResponseStoredRow>> ListAsync(FormResponseDefinitionRow definition, ListFormRecordsRequest request, CancellationToken cancellationToken)
     {

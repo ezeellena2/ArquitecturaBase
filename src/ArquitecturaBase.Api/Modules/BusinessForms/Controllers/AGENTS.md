@@ -41,6 +41,8 @@ H4: POST catalogs/{id}/proposal/approve y /discard consumen IFormCatalogProposal
 
 `FormWorkflowsController` (`api/forms/records/{recordId}`) admite en la clase «Ver respuestas» o «Completar formularios». `retry`, `recipients/{userId}/retry`, `review` y `consult` suman en la acción «Ver respuestas» y `formrules.manage`; `POST actions/{runId}/confirmation` («¿La emito?») no suma nada, porque la decide quien cargó la respuesta, también con sólo «Completar formularios». Cuerpos cerrados; el de `confirmation`, hasta 8 KiB. El detalle está en [reglas, efectos, aprobaciones y PDF](../../../../../docs/features/formularios-borde-http.md#reglas-efectos-aprobaciones-y-pdf).
 
+El tablero (`FormDashboardsController`, DOC7-A) sigue las reglas de la planilla: está en [respuestas, archivos y corrección](../../../../../docs/features/formularios-borde-http.md#respuestas-archivos-y-corrección).
+
 ## Referencias
 
 - [Reglas comunes de los controllers](../../../Controllers/AGENTS.md).

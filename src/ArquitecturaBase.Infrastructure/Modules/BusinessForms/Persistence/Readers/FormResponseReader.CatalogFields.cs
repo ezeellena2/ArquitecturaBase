@@ -12,7 +12,13 @@ internal sealed partial class FormResponseReader
         public Guid Id { get; init; }
         public string ValueType { get; init; } = "Text";
         public string? FieldsJson { get; init; }
+        public string NameJson { get; init; } = "{}";
     }
+
+    // The catalog's current name by language; the dashboard shows it in the request's language (DOC7-A).
+    private static Dictionary<string, string> ReadCatalogName(string nameJson) =>
+        JsonSerializer.Deserialize<Dictionary<string, string>>(nameJson, JsonSerializerOptions.Web) ?? [];
+
     private sealed class HistoricalCatalogFieldRow
     {
         public Guid CatalogId { get; init; }

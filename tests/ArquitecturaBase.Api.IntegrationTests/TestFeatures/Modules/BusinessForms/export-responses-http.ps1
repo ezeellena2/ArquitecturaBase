@@ -131,6 +131,11 @@ $cohorts = @(
             ($captureRoot + "Modules/BusinessForms/ScriptedAssistantProposalLookup.cs"), ($captureRoot + "Modules/BusinessForms/FormAssistantProposalContractCapture.cs")) },
     @{ Name = "suggestion-details"; Environment = "FORM_SUGGESTION_DETAILS_HTTP_OUTPUT"; Destination = "forms-suggestion-detail-http";
         Sources = @(($sourceRoot + "BusinessForms/FormSuggestionCaptureIntegrationTests.cs"), ($captureRoot + "Modules/BusinessForms/FormSuggestionDetailContractCapture.cs")) },
+    @{ Name = "dashboard"; Environment = "FORM_DASHBOARD_HTTP_OUTPUT"; Destination = "forms-dashboard-http";
+        RequiredNames = @("dashboard-day-es.json", "dashboard-week-en.json", "dashboard-month-es.json", "dashboard-filtered-es.json", "dashboard-own-es.json",
+            "dashboard-empty-es.json", "dashboard-catalog-en.json", "dashboard-invalid-period-es.json", "dashboard-overflow-es.json", "dashboard-people-es.json");
+        Sources = @(($sourceRoot + "BusinessForms/FormDashboardHttpTests.cs"), ($captureRoot + "Modules/BusinessForms/FormDashboardScenario.cs"),
+            ($captureRoot + "Modules/BusinessForms/FormDashboardContractCapture.cs"), "src/ArquitecturaBase.Application/Modules/BusinessForms/Models/FormDashboardModels.cs") },
     @{ Name = "whatsapp-audio"; Environment = "WHATSAPP_AUDIO_HTTP_OUTPUT"; Destination = "whatsapp-audio-http";
         Sources = @(($sourceRoot + "WhatsApp/WhatsAppChatTests.Audio.cs"), ($sourceRoot + "WhatsApp/WhatsAppChatTests.Spreadsheet.cs"), ($captureRoot + "Modules/WhatsApp/WhatsAppAudioContractCapture.cs")) },
     @{ Name = "missing-requests"; Environment = "FORM_MISSING_REQUEST_HTTP_OUTPUT"; Destination = "forms-missing-requests-http";

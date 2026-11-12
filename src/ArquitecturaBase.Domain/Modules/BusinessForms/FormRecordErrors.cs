@@ -9,6 +9,7 @@ public static class FormRecordErrors
     public static readonly Error ExportTooManyRows = Error.Validation("Forms.Record.ExportTooManyRows", "An export cannot exceed one hundred thousand rows.");
     public static readonly Error ExportBudgetExceeded = Error.Validation("Forms.Record.ExportBudgetExceeded", "The export exceeded its processing budget.");
     public static readonly Error FilterInvalid = Error.Validation("Forms.Record.FilterInvalid", "The response filter is invalid.");
+    public static readonly Error PeriodInvalid = Error.Validation("Forms.Record.PeriodInvalid", "The dashboard period must be day, week or month.");
     public static readonly Error NotFound = Error.NotFound("Forms.Record.NotFound", "The form response is unavailable.");
     public static readonly Error CatalogUnavailable = Error.Conflict("Forms.Record.CatalogUnavailable", "The catalog is unavailable.");
     public static readonly Error CatalogTooLarge = Error.Conflict("Forms.Record.CatalogTooLarge", "The catalog exceeds two hundred options.");

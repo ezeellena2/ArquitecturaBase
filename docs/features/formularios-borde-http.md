@@ -14,6 +14,8 @@ La lectura de respuestas conserva cinco operaciones: listado GET y búsqueda POS
 
 Corregir y anular (Etapa 3): `FormEntryCorrectionsController`, en `api/forms/entries/{definitionId}/records/{recordId}`, abre la corrección (GET), sus opciones (GET `versions/{versionId}/questions/{fieldId}/options`) y la guarda (POST con el multipart de la carga más `reason` y `keptFileIds`), con formrecords.create o formrecords.amend (`HasAnyPermission`); el servicio decide sobre qué respuesta. `FormRecordVoidsController` anula con POST `api/forms/definitions/{definitionId}/records/{recordId}/void` y `reason`, con los mismos permisos, 204. El export suma `includeVoided`.
 
+Tablero (DOC7-A): `FormDashboardsController` responde `POST definitions/{id}/dashboard/search` con IFormDashboardService y los permisos, la política de lectura, el límite de 512 KiB y el no-store de la planilla (con sólo completar, lo propio). Recibe `FormDashboardSearchHttpRequest` (`Contracts/Dashboards`): `filter`, el cuerpo de la búsqueda con el mapeo de siempre, y un solo `period` (`day`, `week` o `month`; otro valor da 400 con `Forms.Record.PeriodInvalid`), y responde `FormDashboardResponse`.
+
 ## Reglas, efectos, aprobaciones y PDF
 
 G1 agrega cinco rutas bajo definitions/{id}/rules: actual, guardar revisión, historial paginado, detalle por revisión y opciones. Requieren formrules.manage, contratos HTTP propios y no-store; guardado con expectedRevision devuelve 409 al quedar atrás.

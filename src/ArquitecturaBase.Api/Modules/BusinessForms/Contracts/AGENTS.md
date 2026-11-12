@@ -2,6 +2,8 @@
 
 Cuerpos `*HttpRequest`, queries `*Query` y respuestas HTTP propias (`FormDraftHttpResponses.cs`, `FormPublicationReceiptHttpResponse.cs`), con los mapeos que comparten varias rutas: `FormDraftRequestMapping` (borrador, chequeo, aceptación y destinatarios), `FormEntryRequestMapping` (carga y corrección) y `FormRecordsRequestMapping` (respuestas y exportación). Esta guía detalla su forma y, con sus rutas, la vista previa de destinatarios y la carga desde la app. Las demás rutas están en [Controllers](../Controllers/AGENTS.md); el [detalle por tema](../../../../../docs/features/formularios-borde-http.md) describe juntos las rutas y los cuerpos de sus familias.
 
+`Dashboards/` tiene el cuerpo del tablero (DOC7-A): `filter`, la búsqueda de la planilla con `FormRecordsRequestMapping`, y `period`.
+
 ## Al modificar
 
 ### Borrador y publicación

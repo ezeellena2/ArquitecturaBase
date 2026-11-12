@@ -38,11 +38,40 @@ public sealed class FormRecordNavigationSqlTests
         Assert.IsType<InvalidOperationException>(exception.InnerException);
     }
 
-    private static string Rewrite(string sql)
+    [Fact]
+    public void Dashboard_ids_keep_the_ef_projection_and_the_text_inside_its_quotes_and_parentheses()
+    {
+        const string sql = """
+            SELECT b."Id"
+            FROM "BusinessFormRecords" AS b
+            WHERE b."DefinitionId" = @definition AND EXISTS (SELECT 1 FROM "Values" AS v WHERE v."Text" = 'a; $1 -- /* ORDER BY' ORDER BY v."Id")
+            """;
+        Assert.Equal(sql, Invoke("Ids", sql));
+    }
+
+    [Theory]
+    [InlineData("SELECT b.\"Id\", b.\"Number\" FROM \"Rows\" AS b")]
+    [InlineData("SELECT DISTINCT b.\"Id\" FROM \"Rows\" AS b")]
+    [InlineData("SELECT b.\"Id\" FROM \"Rows\" AS b; SELECT 1")]
+    [InlineData("SELECT b.\"Id\" FROM \"Rows\" AS b WHERE b.\"Name\" = $1")]
+    [InlineData("SELECT b.\"Id\" FROM \"Rows\" AS b -- the rest")]
+    [InlineData("SELECT b.\"Id\" FROM \"Rows\" AS b /* the rest */")]
+    [InlineData("SELECT b.\"Id\" FROM \"Rows\" AS b UNION SELECT c.\"Id\" FROM \"Others\" AS c")]
+    [InlineData("SELECT b.\"Id\" FROM \"Rows\" AS b ORDER BY b.\"Id\"")]
+    [InlineData("WITH rows AS (SELECT 1) SELECT b.\"Id\" FROM rows b")]
+    public void Dashboard_ids_reject_a_query_shape_outside_its_ef_projection(string sql)
+    {
+        var exception = Assert.Throws<TargetInvocationException>(() => Invoke("Ids", sql));
+        Assert.IsType<InvalidOperationException>(exception.InnerException);
+    }
+
+    private static string Rewrite(string sql) => Invoke("Create", sql);
+
+    private static string Invoke(string name, string sql)
     {
         var type = typeof(FormResponseReader).Assembly.GetType("ArquitecturaBase.Infrastructure.Modules.BusinessForms.Persistence.Readers.FormRecordNavigationSql");
         Assert.NotNull(type);
-        var method = type.GetMethod("Create", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+        var method = type.GetMethod(name, BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
         Assert.NotNull(method);
         return Assert.IsType<string>(method.Invoke(null, [sql]));
     }

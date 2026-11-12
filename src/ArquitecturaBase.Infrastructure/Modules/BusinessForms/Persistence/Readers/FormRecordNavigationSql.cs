@@ -1,23 +1,15 @@
 namespace ArquitecturaBase.Infrastructure.Modules.BusinessForms.Persistence.Readers;
 
-// Accepts only the single-Id projection produced by NavigationIds, not arbitrary SQL.
+// Accepts only the single-Id projection EF produces for the sheet's filter (NavigationIds, and the dashboard's matching responses),
+// not arbitrary SQL.
 internal static class FormRecordNavigationSql
 {
     public static string Create(string sql)
     {
         var tokens = OuterTokens(sql);
-        var from = tokens.FindIndex(token => token.Text == "FROM");
+        var (id, from) = Projection(sql, tokens);
         var order = tokens.FindIndex(token => token.Text == "ORDER");
-        if (tokens.Count == 0 || tokens[0].Text != "SELECT" || from < 1 || order <= from
-            || order + 1 >= tokens.Count || tokens[order + 1].Text != "BY"
-            || tokens.Count(token => token.Text == "SELECT") != 1 || tokens.Count(token => token.Text == "FROM") != 1
-            || tokens.Count(token => token.Text == "ORDER") != 1
-            || tokens.Any(token => token.Text is "DISTINCT" or "GROUP" or "HAVING" or "UNION" or "INTERSECT"
-                or "EXCEPT" or "LIMIT" or "OFFSET" or "FETCH" or "FOR" or "WINDOW"))
-            throw UnexpectedShape();
-        var id = sql[tokens[0].End..tokens[from].Start].Trim();
-        var alias = id.EndsWith(".\"Id\"", StringComparison.Ordinal) ? id[..^5] : "";
-        if (alias.Length == 0 || !IdentifierStart(alias[0]) || alias.Any(character => !IdentifierPart(character)))
+        if (order <= from || order + 1 >= tokens.Count || tokens[order + 1].Text != "BY" || tokens.Count(token => token.Text == "ORDER") != 1)
             throw UnexpectedShape();
         var source = sql[tokens[from].Start..tokens[order].Start].TrimEnd();
         var ordering = sql[tokens[order + 1].End..].Trim();
@@ -35,6 +27,31 @@ internal static class FormRecordNavigationSql
             ) AS navigation
             WHERE "RecordId" = @navigation_record_id
             """;
+    }
+
+    /// <summary>The dashboard's matching responses (DOC7-A): the same projection without an order, kept as it is to embed it.</summary>
+    public static string Ids(string sql)
+    {
+        var tokens = OuterTokens(sql);
+        _ = Projection(sql, tokens);
+        if (tokens.Any(token => token.Text == "ORDER")) throw UnexpectedShape();
+        return sql.Trim();
+    }
+
+    // SELECT alias."Id" FROM …: one outer SELECT and one FROM, and nothing that changes which rows come back or how many.
+    private static (string Id, int From) Projection(string sql, List<Token> tokens)
+    {
+        var from = tokens.FindIndex(token => token.Text == "FROM");
+        if (tokens.Count == 0 || tokens[0].Text != "SELECT" || from < 1
+            || tokens.Count(token => token.Text == "SELECT") != 1 || tokens.Count(token => token.Text == "FROM") != 1
+            || tokens.Any(token => token.Text is "DISTINCT" or "GROUP" or "HAVING" or "UNION" or "INTERSECT"
+                or "EXCEPT" or "LIMIT" or "OFFSET" or "FETCH" or "FOR" or "WINDOW"))
+            throw UnexpectedShape();
+        var id = sql[tokens[0].End..tokens[from].Start].Trim();
+        var alias = id.EndsWith(".\"Id\"", StringComparison.Ordinal) ? id[..^5] : "";
+        if (alias.Length == 0 || !IdentifierStart(alias[0]) || alias.Any(character => !IdentifierPart(character)))
+            throw UnexpectedShape();
+        return (id, from);
     }
 
     private static List<Token> OuterTokens(string sql)
@@ -87,6 +104,6 @@ internal static class FormRecordNavigationSql
 
     private static bool IdentifierStart(char character) => char.IsAsciiLetter(character) || character == '_';
     private static bool IdentifierPart(char character) => IdentifierStart(character) || char.IsAsciiDigit(character);
-    private static InvalidOperationException UnexpectedShape() => new("The record navigation query has an unexpected SQL shape.");
+    private static InvalidOperationException UnexpectedShape() => new("The record query has an unexpected SQL shape.");
     private readonly record struct Token(string Text, int Start, int End);
 }

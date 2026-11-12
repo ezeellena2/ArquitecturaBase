@@ -18,6 +18,8 @@ public sealed record FormResponseDefinitionRow(Guid Id, string Prefix, Guid Acti
     public IReadOnlyDictionary<Guid, FormVersionSchema> Schemas { get; } = Versions.ToDictionary(version => version.Id,
         version => JsonSerializer.Deserialize<FormVersionSchema>(version.SchemaJson, JsonSerializerOptions.Web)
             ?? throw new InvalidOperationException("The stored form schema is invalid."));
+    /// <summary>The current name of each catalog of the questions, by language, read in the same batch as their types (DOC7-A).</summary>
+    public IReadOnlyDictionary<Guid, IReadOnlyDictionary<string, string>>? CatalogNames { get; init; }
 }
 public sealed record FormResponseOption(Guid Id, string Label);
 public sealed record FormResponseColumn(Guid FieldId, string Type, string Label, long IntroducedInVersion, IReadOnlyList<FormResponseOption> Options,

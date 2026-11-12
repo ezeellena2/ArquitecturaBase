@@ -35,11 +35,11 @@ internal sealed partial class FormResponseReader
         else
         {
             var fieldId = request.FieldId!.Value;
-            var field = Questions(definition).First(question => question.FieldId == fieldId);
+            var field = FormResponseQuery.Questions(definition).First(question => question.FieldId == fieldId);
             // A question of the block counts the responses with an item that has the option and meets, in that same item, the
             // other conditions of the block.
             var values = dbContext.Set<BusinessFormRecordValue>().Where(value => value.FieldId == fieldId);
-            if (field.Repeated == true && SameItem(ItemConditions(definition, filter, fieldId)) is { } item)
+            if (field.Repeated == true && FormResponseQuery.SameItem(FormResponseQuery.ItemConditions(dbContext, definition, filter, fieldId)) is { } item)
                 values = values.Where(value => item.Any(same => same.RecordId == value.RecordId && same.Row == value.Row));
             if (request.Dimension == "presence")
             {
@@ -61,7 +61,7 @@ internal sealed partial class FormResponseReader
             {
                 var choices = field.Source?.Catalog is not null
                     ? CatalogOptions(definition,fieldId,field.Source.Catalog.Value,filter.DisplayCulture,owned)
-                    : ConstantOptions(QuestionVersions(definition).Where(item => item.Question.FieldId == fieldId)
+                    : ConstantOptions(FormResponseQuery.QuestionVersions(definition).Where(item => item.Question.FieldId == fieldId)
                         .SelectMany(item => (item.Question.Options ?? []).Select(option => (item.Version, Option: option)))
                         .DistinctBy(item => item.Option.ChoiceId).Select(item => new FacetLabel(item.Option.ChoiceId.ToString(),
                             Text(item.Option.Label, item.Version.DisplayCulture(filter.DisplayCulture)))).ToArray());
@@ -80,7 +80,7 @@ internal sealed partial class FormResponseReader
     }
     private IQueryable<FacetLabel> CatalogOptions(FormResponseDefinitionRow definition,Guid fieldId,Guid catalogId,string culture,IQueryable<BusinessFormRecord>? owned)
     {
-        var labels = ReferenceLabels(definition, culture).Where(value=>value.FieldId==fieldId&&value.CatalogId==catalogId);
+        var labels = FormResponseQuery.ReferenceLabels(dbContext, definition, culture).Where(value=>value.FieldId==fieldId&&value.CatalogId==catalogId);
         if (owned is not null) labels = labels.Where(value=>owned.Any(record=>record.Id==value.RecordId));
         return labels.GroupBy(value=>value.ItemId).Select(group=>new FacetLabel{Id=group.Key.ToString(),Label=group.OrderByDescending(value=>value.Id).Select(value=>value.Label).First()});
     }
