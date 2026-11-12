@@ -23,8 +23,8 @@ commitear de otras sesiones (ese día seguía en curso la lectura de documentos 
   - seis webhooks iguales en paralelo dejan un solo mensaje.
 - **Bugs funcionales, fuera de los criterios.** Las preguntas con botones de un caso del asistente no
   salían nunca ([B1](#b1-las-preguntas-con-botones-de-un-caso-no-salen)). Al arreglarlo, la revisión
-  del arreglo encontró dos más en la misma validación, que quedaron arreglados con él (B2 y B3), y uno
-  raro que sigue pendiente (B4). H1 también quedó arreglado el mismo día.
+  del arreglo encontró dos más en la misma validación (B2 y B3) y uno raro en los títulos de los botones
+  (B4). Los cuatro y H1 quedaron arreglados el mismo día.
 - **Hoy, con una sola copia**, lo que más pesa:
   - el chat se traba con un envío incierto (H1 y H2);
   - con Redis caído se pierden códigos e invitaciones (H3);
@@ -181,9 +181,9 @@ fuente: cambiarla lo decidís vos.
 - **Arreglado el 2026-11-12:** el último resumen es la salida propia con botones y sin el porqué del
   agente, que toda pregunta de caso lleva. Lo prueba un test de integración del lector.
 
-#### B4. Dos botones de un caso pueden salir con el mismo título
+#### B4. Dos botones de un caso podían salir con el mismo título
 
-- **Dónde falla:** hoy; es raro. Lo encontró la revisión del arreglo de B1 y sigue pendiente.
+- **Dónde fallaba:** hoy; es raro. Lo encontró la revisión del arreglo de B1.
 - **Escenario:** el original del agente es español. Un botón dice «OK» sólo en español y otro dice
   «Listo» en español y «OK» en inglés. En una conversación en inglés salen dos «OK»: el mensaje de
   Meta exige títulos distintos, la salida queda fallida y la conversación no deriva.
@@ -192,6 +192,14 @@ fuente: cambiarla lo decidís vos.
   mientras que la respuesta manda el título con ese respaldo (`WhatsAppAssistantReplyPolicy.cs:261`).
 - **Arreglo:** validar los títulos como los ve la persona, con el respaldo al original, en el dominio y
   en el front, o derivar cuando dos títulos coinciden. Chico.
+- **Arreglado el 2026-11-12** con la primera opción: la regla del agente, el validador y el borrador
+  del front comparan cada título tal como sale, sin distinguir mayúsculas y con el original cuando
+  falta la traducción, así que un caso con dos títulos iguales ya no se puede guardar. El validador,
+  además, sigue sumando el título del otro idioma después de uno repetido, como la regla: antes no
+  marcaba el siguiente y el guardado fallaba con un error sin campo. El front nombra el repetido
+  primero en el idioma original, donde se escribió, y a un botón sin traducción le dice con qué título
+  sale. Lo prueban una teoría del dominio, una del validador y un caso del borrador, que fallan sin el
+  arreglo.
 
 ### Hoy, con una sola copia
 
@@ -768,8 +776,7 @@ IDs opacos y sin transacciones compartidas. Separarlo pediría un ADR nuevo.
 
 ## Cómo seguir
 
-- **Antes de la prueba integral:** B1, B2, B3 y H1 quedaron arreglados el 2026-11-12. B4 es chico y
-  raro, y queda para después.
+- **Antes de la prueba integral:** B1 a B4 y H1 quedaron arreglados el 2026-11-12.
 - **Tus decisiones:** H2, H5, H16, H21, la prioridad de H31 y el horizonte.
 - **El resto de «Hoy»:** son arreglos chicos o medianos, y conviene juntarlos en un plan. Los de varias
   copias van antes de sumar réplicas; los de gran escala, cuando se elija ese horizonte.

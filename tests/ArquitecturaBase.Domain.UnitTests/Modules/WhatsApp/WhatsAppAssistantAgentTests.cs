@@ -94,6 +94,25 @@ public sealed class WhatsAppAssistantAgentTests
         Assert.False(Saves(Case("x", Ask(Button("Visita")) with { Question = null })));
     }
 
+    // A button without its translation goes out with its original title (WhatsAppAssistantText.For) and WhatsApp refuses two equal
+    // titles, so they are compared as the person sees them in each language, not only among the translations written.
+    [Theory]
+    [InlineData("es", "OK", null, "Listo", "OK", false)]
+    [InlineData("es", "Listo", "OK", "OK", null, false)]
+    [InlineData("en", null, "OK", "OK", "Done", false)]
+    [InlineData("es", "OK", "  ", "Listo", "ok", false)]
+    [InlineData("es", "OK", "Fine", "Listo", "OK", true)]
+    public void Two_buttons_never_show_the_same_title_in_a_language_even_through_their_original(string original, string? firstEs, string? firstEn,
+        string? secondEs, string? secondEn, bool saves)
+    {
+        WhatsAppAssistantButton Button(string? es, string? en) => new(new(es, en), WhatsAppAssistantButtonDestination.Handoff, null, null);
+        var ask = new WhatsAppAssistantAction(WhatsAppAssistantActionKind.AskButtons, Question: new("¿Ya terminaste?", "Are you done?"),
+            Buttons: [Button(firstEs, firstEn), Button(secondEs, secondEn)]);
+        var profile = Profile() with { HandoffMessage = new("Te paso con una persona del equipo.", "I'll hand you over to someone on the team.") };
+
+        Assert.Equal(saves, WhatsAppAssistantAgent.Create(original).Update(profile, [Case("x", ask)], NoReply(), Limits()).IsSuccess);
+    }
+
     [Fact]
     public void Every_action_and_destination_has_to_be_allowed_for_the_agent()
     {

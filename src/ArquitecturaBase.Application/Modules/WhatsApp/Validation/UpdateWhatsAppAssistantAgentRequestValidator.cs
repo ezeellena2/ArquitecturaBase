@@ -142,8 +142,7 @@ internal sealed class UpdateWhatsAppAssistantAgentRequestValidator : AbstractVal
                 continue;
             }
 
-            if (Fixed(context, itemPath + ".Title", button.Title, ButtonTitleLength, culture)
-                && Languages.Any(language => button.Title.In(language) is { } title && !string.IsNullOrWhiteSpace(title) && !titles[language].Add(title.Trim())))
+            if (Fixed(context, itemPath + ".Title", button.Title, ButtonTitleLength, culture) && Repeats(titles, button.Title, culture))
                 context.AddFailure(itemPath + ".Title", Messages.Repeated);
             var kind = button.Destination switch
             {
@@ -159,6 +158,23 @@ internal sealed class UpdateWhatsAppAssistantAgentRequestValidator : AbstractVal
             if (button.Destination == WhatsAppAssistantButtonDestination.ExactText) Fixed(context, itemPath + ".Text", button.Text, ExactTextLength, culture);
             else if (button.Text is not null) context.AddFailure(itemPath + ".Text", Messages.Invalid);
         }
+    }
+
+    /// <summary>
+    /// WhatsApp refuses two equal titles. A title without its translation goes out in the original, so each language compares what
+    /// the person sees, and each language keeps the button's title even when another language already repeated it.
+    /// </summary>
+    private static bool Repeats(Dictionary<string, HashSet<string>> titles, WhatsAppAssistantText title, string original)
+    {
+        var repeated = false;
+        foreach (var language in Languages)
+        {
+            // Fixed already asked for the original, so the button shows a title in every language.
+            var shown = (string.IsNullOrWhiteSpace(title.In(language)) ? title.In(original) : title.In(language))!.Trim();
+            repeated |= !titles[language].Add(shown);
+        }
+
+        return repeated;
     }
 
     /// <summary>A fixed text needs the original language; both languages have the same limit.</summary>

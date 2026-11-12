@@ -150,6 +150,29 @@ public sealed class WhatsAppAssistantAgentServiceTests
         Assert.Contains("cases[0].action.buttons[1].title", errors.Keys);
     }
 
+    // As the entity checks it: a title without its translation (or with only spaces) goes out in its original, so each language
+    // compares what the person sees, without telling capitals apart, and every title counts even after a repeated one. Each button
+    // is «es|en».
+    [Theory]
+    [InlineData("es", new[] { "OK|", "Listo|OK" }, new[] { 1 })]
+    [InlineData("es", new[] { "Listo|OK", "OK|" }, new[] { 1 })]
+    [InlineData("es", new[] { "OK|  ", "Listo|ok" }, new[] { 1 })]
+    [InlineData("en", new[] { "|OK", "OK|Done" }, new[] { 1 })]
+    [InlineData("es", new[] { "Visita|Visit", "visita|Delivery", "Entrega|delivery" }, new[] { 1, 2 })]
+    public async Task A_title_repeated_as_the_person_sees_it_answers_at_that_title(string original, string[] buttons, int[] repeated)
+    {
+        static string? Written(string text) => text is "" ? null : text;
+        var host = new Host();
+        var ask = new WhatsAppAssistantAction(WhatsAppAssistantActionKind.AskButtons, Question: new("¿Ya terminaste?", "Are you done?"),
+            Buttons: [.. buttons.Select(button => button.Split('|')).Select(texts => new WhatsAppAssistantButton(new(Written(texts[0]), Written(texts[1])),
+                WhatsAppAssistantButtonDestination.Handoff, null, null))]);
+        var request = Request(0, original) with { Cases = [new(Guid.CreateVersion7(), "Terminó una tarea", WhatsAppAssistantInputType.Text, true, ask)] };
+
+        var errors = Assert.IsType<ValidationError>((await host.Service.UpdateAsync(request, Ct)).Error).Errors;
+
+        Assert.Equal(repeated.Select(index => $"cases[0].action.buttons[{index}].title"), errors.Keys.Order(StringComparer.Ordinal));
+    }
+
     private static UpdateWhatsAppAssistantAgentRequest Request(long revision, string culture) => new(revision, culture, Profile(),
         [new(Guid.Parse("018f0000-0000-7000-8000-0000000000c1"), "Pide hablar con una persona.", WhatsAppAssistantInputType.Any, true,
             new(WhatsAppAssistantActionKind.Handoff, HandoffReason: "Pide hablar con una persona."))],

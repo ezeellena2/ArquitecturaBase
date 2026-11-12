@@ -84,10 +84,11 @@ public sealed partial class WhatsAppAssistantAgent
         {
             Require(buttons.Count is >= 1 and <= WhatsAppAssistantAgentLimits.Buttons);
             var normalized = buttons.Select(button => Button(button, allowed)).ToArray();
-            // WhatsApp needs distinct titles: compared as the person sees them, in each language.
+            // WhatsApp needs distinct titles: compared as the person sees them in each language, where a title without its
+            // translation goes out in the original (WhatsAppAssistantText.For).
             foreach (var culture in new[] { "es", "en" })
             {
-                var titles = normalized.Select(button => button.Title.In(culture)).OfType<string>().ToArray();
+                var titles = normalized.Select(button => button.Title.For(culture, originalCulture)).OfType<string>().ToArray();
                 Require(titles.Distinct(StringComparer.OrdinalIgnoreCase).Count() == titles.Length);
             }
 
