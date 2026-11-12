@@ -1,8 +1,11 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
+using ArquitecturaBase.Application.Modules.BusinessForms.Models;
+using ArquitecturaBase.Application.Modules.BusinessForms.Services;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
@@ -121,6 +124,72 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal(target.Id, unavailable.GetProperty("definitionId").GetGuid());
         Assert.Equal("AppOnly", unavailable.GetProperty("state").GetString());
         Assert.Equal(name + " destino", unavailable.GetProperty("name").GetProperty("es").GetString());
+    }
+
+    // A version published only in the app seals its languages without a channel profile. Its responses read like any other in
+    // the sheet, the detail and an approval; the reader of versions took them from the profiles and gave 500 (2026-11-12).
+    [Fact]
+    public async Task The_responses_of_a_version_published_only_in_the_app_read_in_the_sheet_the_detail_and_an_approval()
+    {
+        using var author = await OperatorAsync([BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage, BusinessFormsPermissions.Publish,
+            BusinessFormsPermissions.RecordsCreate, BusinessFormsPermissions.RecordsRead]);
+        author.DefaultRequestHeaders.AcceptLanguage.ParseAdd("es");
+        using var decider = await OperatorAsync([BusinessFormsPermissions.ApprovalsDecide]);
+        decider.DefaultRequestHeaders.AcceptLanguage.ParseAdd("es");
+        var form = Payload("App only responses " + Guid.NewGuid().ToString("N")[..10]); form["draft"]!["appOnly"] = true;
+        var saved = await CreateAsync(author, form);
+        var id = saved.GetProperty("definition").GetProperty("id").GetGuid();
+        var fieldId = saved.GetProperty("definition").GetProperty("draft").GetProperty("fields")[0].GetProperty("fieldId").GetGuid();
+        using var check = await author.PostAsJsonAsync($"/api/forms/definitions/{id}/publication-checks", CheckPayload(saved), Ct);
+        var attempt = CheckPayload(saved); attempt["requestId"] = Guid.NewGuid().ToString();
+        attempt["checkToken"] = (await check.ReadJsonAsync()).GetProperty("checkToken").GetString();
+        using var accepted = await author.PostAsJsonAsync($"/api/forms/definitions/{id}/publications", attempt, Ct);
+        var receipt = await accepted.ReadJsonAsync();
+        Assert.Equal("Published", receipt.GetProperty("state").GetString());
+        var versionId = receipt.GetProperty("versionId").GetGuid();
+
+        using var sent = await author.PostAsync($"/api/forms/entries/{id}", new MultipartFormDataContent
+        {
+            { new StringContent(Guid.NewGuid().ToString("D")), "requestId" },
+            { new StringContent(versionId.ToString("D")), "versionId" },
+            { new StringContent(JsonSerializer.Serialize(new[] { new { fieldId, value = "Ana Ruiz" } }, JsonSerializerOptions.Web)), "answers" },
+        }, Ct);
+        Assert.Equal(HttpStatusCode.OK, sent.StatusCode);
+        var recordId = (await sent.ReadJsonAsync()).GetProperty("recordId").GetGuid();
+
+        using var sheet = await author.PostAsJsonAsync($"/api/forms/definitions/{id}/records/search", new { }, Ct);
+        Assert.Equal(HttpStatusCode.OK, sheet.StatusCode);
+        var rows = await sheet.ReadJsonAsync();
+        var row = Assert.Single(rows.GetProperty("records").GetProperty("items").EnumerateArray());
+        Assert.Equal(recordId, row.GetProperty("id").GetGuid());
+        Assert.Equal(versionId, Assert.Single(rows.GetProperty("versions").EnumerateArray()).GetProperty("id").GetGuid());
+        using var detail = await author.GetAsync($"/api/forms/records/{recordId}", Ct);
+        Assert.Equal(HttpStatusCode.OK, detail.StatusCode);
+
+        // The approval of that response, opened as the workflow opens it: a rule set, its run and the task for the decider's role.
+        var taskId = await factory.ExecuteDbContextAsync(async db =>
+        {
+            var deciderId = Guid.Parse(decider.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
+            var authorId = Guid.Parse(author.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
+            var roleId = await db.UserRoles.Where(link => link.UserId == deciderId).Select(link => link.RoleId).SingleAsync(Ct);
+            var version = await db.Set<BusinessFormVersion>().SingleAsync(value => value.Id == versionId, Ct);
+            var approval = new FormRuleAction(Guid.NewGuid(), "RequestApproval", roleId, null, false);
+            var received = new FormRule(Guid.NewGuid(), "Received", [], [approval]);
+            var ruleSet = BusinessFormRuleSet.Create(id, 1, version.Culture!, FormDraftPolicy.Serialize(new[] { received }), true, version.SchemaJson);
+            var at = factory.Clock.GetUtcNow().UtcDateTime;
+            var run = BusinessFormActionRun.Create(id, recordId, ruleSet.Id, received.Id, approval.Id, "Received", "RequestApproval", 0, null,
+                FormDraftPolicy.Serialize(new FormActionSnapshot(roleId, null, null, [])), true, at);
+            var task = BusinessFormTask.Open(id, recordId, ruleSet.Id, run.Id, roleId, authorId, at);
+            db.Set<BusinessFormRuleSet>().Add(ruleSet); db.Set<BusinessFormActionRun>().Add(run); db.Set<BusinessFormTask>().Add(task);
+            await db.SaveChangesAsync(Ct);
+            return task.Id;
+        });
+        using var opened = await decider.GetAsync($"/api/forms/approvals/{taskId}", Ct);
+        Assert.Equal(HttpStatusCode.OK, opened.StatusCode);
+        Assert.Equal(recordId, (await opened.ReadJsonAsync()).GetProperty("recordId").GetGuid());
+        using var inbox = await decider.GetAsync($"/api/forms/approvals?definitionId={id}", Ct);
+        Assert.Equal(HttpStatusCode.OK, inbox.StatusCode);
+        Assert.Equal(taskId, Assert.Single((await inbox.ReadJsonAsync()).GetProperty("items").EnumerateArray()).GetProperty("id").GetGuid());
     }
 
     [Fact]

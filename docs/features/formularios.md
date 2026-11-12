@@ -1300,7 +1300,7 @@ Están el backend (2026-11-09) y el front (2026-11-11); los ejemplos HTTP de un 
   recibo dice `Published` (también al repetir el pedido); el de un canal sigue diciendo `Accepted`. Reactivar es igual.
 - **Las lecturas.** `appOnly` aparece sólo cuando es true: en `publication.activeVersion` del detalle, en el listado (la versión
   activa o, sin versión, el borrador) y en el borrador; el ciclo de vida suma `publishedOnlyInApp` cuando toda versión fue de
-  la app. Los idiomas de una versión de la app salen de los que selló. `canPreview` exige una versión de un canal.
+  la app. Los idiomas de una versión de la app salen de los que selló, también al leer sus respuestas (planilla, detalle, correcciones, aprobaciones y acciones). `canPreview` exige una versión de un canal.
 - **Los canales no la ofrecen.** `FormOfferableVersionQuery.ChannelVersions` deja afuera las versiones de la app en «Enviar
   formulario», el asistente (candidatos, prellenado y aclaración) y los destinos de una sugerencia; un destino que pasó a la
   app figura en las opciones como no disponible (`AppOnly`): «Qué sugerir después» lo muestra «Sólo en la app» y, como uno dado
