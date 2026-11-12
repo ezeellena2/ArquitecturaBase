@@ -3,7 +3,7 @@ using ArquitecturaBase.Api.IntegrationTests.TestFeatures;
 namespace ArquitecturaBase.Api.IntegrationTests.Contracts;
 
 /// <summary>
-/// La parte del módulo WhatsApp de ExplicitRouteInventoryTests: sus veintidós combinaciones verbo/ruta, siete de ellas sólo
+/// La parte del módulo WhatsApp de ExplicitRouteInventoryTests: sus veintisiete combinaciones verbo/ruta, siete de ellas sólo
 /// con el módulo de formularios. Lleva el namespace de la clase del núcleo, no el de su carpeta, para ser otra parte de la
 /// misma clase.
 /// </summary>
@@ -33,6 +33,11 @@ public sealed partial class ExplicitRouteInventoryTests
         "POST /api/whatsapp/chats/{id:guid}/messages",
         "GET /api/whatsapp/chats/{id:guid}/outgoing/{requestid:guid}",
         "POST /api/whatsapp/chats/{id:guid}/outgoing/{requestid:guid}/review",
+        "GET /api/whatsapp/assistant-agent",
+        "PUT /api/whatsapp/assistant-agent",
+        "POST /api/whatsapp/assistant-agent/tests",
+        "GET /api/whatsapp/assistant-agent/tests/{requestid:guid}",
+        "GET /api/whatsapp/assistant-agent/test-recipients",
     ];
 
     /// <summary>
@@ -56,13 +61,13 @@ public sealed partial class ExplicitRouteInventoryTests
         : [.. WhatsAppRoutes.Except(WhatsAppFormRoutes)];
 
     [Fact]
-    public void The_whatsapp_module_adds_its_twenty_two_routes_and_the_form_ones_only_with_the_forms_publisher()
+    public void The_whatsapp_module_adds_its_twenty_seven_routes_and_the_form_ones_only_with_the_forms_publisher()
     {
         List<string> routes = [];
 
         AddModuleRoutes(routes);
 
-        Assert.Equal(22, WhatsAppRoutes.Length);
+        Assert.Equal(27, WhatsAppRoutes.Length);
         Assert.Subset(WhatsAppRoutes.ToHashSet(), WhatsAppFormRoutes.ToHashSet());
         Assert.Equal(InstalledWhatsAppRoutes, routes.Where(WhatsAppRoutes.Contains));
     }

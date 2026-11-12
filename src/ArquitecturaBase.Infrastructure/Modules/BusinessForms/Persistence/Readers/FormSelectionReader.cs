@@ -17,6 +17,8 @@ internal sealed class FormSelectionReader(ApplicationDbContext dbContext) : IFor
         await PublishedCandidates(Active().Where(version => definitionIds.Contains(version.DefinitionId))).ToListAsync(cancellationToken);
     public async Task<IReadOnlyList<FormAssistantCandidateRow>> ListAssistantAsync(CancellationToken cancellationToken) =>
         await PublishedCandidates(Assistant()).Take(101).ToListAsync(cancellationToken);
+    public async Task<IReadOnlyList<FormAssistantCandidateRow>> ListChannelFormsAsync(CancellationToken cancellationToken) =>
+        await PublishedCandidates(Active()).Take(101).ToListAsync(cancellationToken);
     public Task<FormAssistantCandidateRow?> FindAssistantAsync(Guid definitionId, Guid versionId, CancellationToken cancellationToken) =>
         PublishedCandidates(Assistant().Where(version => version.DefinitionId == definitionId && version.Id == versionId)).SingleOrDefaultAsync(cancellationToken);
     private IQueryable<BusinessFormVersion> Assistant() => Active().Where(version =>

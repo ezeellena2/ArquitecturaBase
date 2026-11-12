@@ -20,6 +20,8 @@ internal sealed class FakeWhatsAppAssistantReader : IWhatsAppAssistantReader
     // IA3-A: the tap on an authoring summary, the latest summary's operation and the change that the next message brings.
     public WhatsAppAssistantChoiceRow? AuthoringTap {get;set;}
     public Task<WhatsAppAssistantChoiceRow?> FindLatestAuthoringTapAsync(Guid contactId,CancellationToken ct)=>Task.FromResult(AuthoringTap);
+    public WhatsAppAssistantChoiceRow? CaseTap {get;set;}
+    public Task<WhatsAppAssistantChoiceRow?> FindLatestCaseTapAsync(Guid contactId,CancellationToken ct)=>Task.FromResult(CaseTap);
     public Guid? LatestAuthoringRequest {get;set;}
     public Task<Guid?> FindLatestAuthoringRequestAsync(Guid contactId,CancellationToken ct)=>Task.FromResult(LatestAuthoringRequest);
     public Guid? ChangeRequest {get;set;}

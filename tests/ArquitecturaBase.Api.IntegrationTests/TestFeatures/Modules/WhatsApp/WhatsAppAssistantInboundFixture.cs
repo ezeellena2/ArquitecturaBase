@@ -200,6 +200,7 @@ internal sealed class WhatsAppAssistantInboundFixture : IAsyncDisposable
         public Task<WhatsAppAssistantChoiceRow?> FindLatestChoiceAsync(Guid contactId,CancellationToken ct)=>throw new NotSupportedException();
         // No tap on an authoring summary and no pending change: the processor goes on with the interpretation.
         public Task<WhatsAppAssistantChoiceRow?> FindLatestAuthoringTapAsync(Guid contactId,CancellationToken ct)=>Task.FromResult<WhatsAppAssistantChoiceRow?>(null);
+        public Task<WhatsAppAssistantChoiceRow?> FindLatestCaseTapAsync(Guid contactId,CancellationToken ct)=>Task.FromResult<WhatsAppAssistantChoiceRow?>(null);
         public Task<Guid?> FindLatestAuthoringRequestAsync(Guid contactId,CancellationToken ct)=>Task.FromResult<Guid?>(null);
         public Task<Guid?> FindChangeRequestAsync(Guid contactId,CancellationToken ct)=>Task.FromResult<Guid?>(null);
         public Task<WhatsAppAssistantSourceRow?> FindLatestSourceAsync(Guid id,CancellationToken ct)=>throw new NotSupportedException();

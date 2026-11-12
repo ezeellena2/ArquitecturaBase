@@ -59,6 +59,17 @@ internal sealed class WhatsAppAssistantSuggestionPolicy(IWhatsAppAssistantReader
         if (proposal.Capability is { Id: "whatsapp.no-reply", Version: 1 }
             && proposal.Payload is WhatsAppAssistantNoReplyPayload { Reason: "not_form" or "operator_needed" })
             return View(reference, WhatsAppAssistantRequestState.NoReply, operation);
+        // Casos del asistente (H2 with a text): in Atención manual a case's text or a checked draft is a suggestion for the operator;
+        // a handoff, «No responder» or a question leaves nothing to suggest.
+        if(reference.Kind==WhatsAppAssistantRequestKind.Manual && proposal.Capability is {Id:"whatsapp.reply",Version:1} or {Id:"whatsapp.draft-reply",Version:1})
+            return proposal.Payload switch
+            {
+                WhatsAppAssistantReplyPayload {Kind:"exactText",Text:{} exact} reply when !string.IsNullOrWhiteSpace(exact) =>
+                    Text(reference,operation,new(exact,Source(reply.CaseSource),reply.CaseTitle,[])),
+                WhatsAppAssistantDraftPayload {Problems.Count:0} draft when !string.IsNullOrWhiteSpace(draft.Text) =>
+                    Text(reference,operation,new(draft.Text,Source(draft.CaseSource),draft.CaseTitle,draft.Used)),
+                _ => View(reference,WhatsAppAssistantRequestState.NoReply,operation),
+            };
         if(proposal.Capability is {Id:"whatsapp.decline-form",Version:1} && proposal.Payload is WhatsAppAssistantDeclinePayload decline)
         {
             var read=proposal.ObservedReads.SingleOrDefault(item=>item.TurnId==proposal.TurnId && item.Ordinal==decline.ReadOrdinal
@@ -116,6 +127,12 @@ internal sealed class WhatsAppAssistantSuggestionPolicy(IWhatsAppAssistantReader
 
     private static WhatsAppAssistantSuggestionView View(WhatsAppAssistantReferenceRow reference, WhatsAppAssistantRequestState state,
         AssistantOperationResponse? operation = null) => new(new(reference.RequestId, reference.SourceMessageId, state, null, null), operation, null);
+
+    private static WhatsAppAssistantSuggestionView Text(WhatsAppAssistantReferenceRow reference, AssistantOperationResponse operation,
+        WhatsAppAssistantTextProposalResponse text) =>
+        new(new(reference.RequestId, reference.SourceMessageId, WhatsAppAssistantRequestState.Ready, null, null, text), operation, null);
+
+    private static WhatsAppAssistantCaseSource Source(string caseSource) => caseSource == "own" ? WhatsAppAssistantCaseSource.Own : WhatsAppAssistantCaseSource.Fallback;
 
     public static AssistantChannelContext Context(WhatsAppAssistantReferenceRow row) => JsonSerializer.Deserialize<AssistantChannelContext>(row.ContextJson ?? throw new InvalidOperationException("A configured reference has no model context."), JsonSerializerOptions.Web)
         ?? throw new InvalidOperationException("The saved channel context is invalid.");

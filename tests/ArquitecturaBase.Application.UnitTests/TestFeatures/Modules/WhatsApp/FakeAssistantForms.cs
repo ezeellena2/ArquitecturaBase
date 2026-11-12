@@ -39,4 +39,8 @@ internal sealed class FakeAssistantForms : IStructuredFormSource
     public Task<StructuredFormSelectionRow?> FindAsync(Guid userId,string culture,Guid definitionId,Guid versionId,CancellationToken ct)=>Task.FromResult(Prefill.IsSuccess && Prefill.Value.Form.DefinitionId==definitionId && Prefill.Value.Form.VersionId==versionId ? Prefill.Value.Form : null);
     public Task<StructuredFormSelectionRow?> FindAcceptedSessionAsync(Guid userId,string culture,Guid definitionId,Guid versionId,CancellationToken ct)=>AcceptedForms is {} accepted?Task.FromResult(accepted.SingleOrDefault(form=>form.DefinitionId==definitionId&&form.VersionId==versionId)):FindAsync(userId,culture,definitionId,versionId,ct);
     public Task<PagedResult<StructuredFormSelectionRow>> ListAsync(Guid userId,string culture,ListStructuredFormsRequest request,CancellationToken ct)=>throw new NotSupportedException();
+    public List<StructuredAssistantFormRow> AssistantForms { get; } = [];
+    public string? AssistantFormsCulture { get; private set; }
+    public Task<IReadOnlyList<StructuredAssistantFormRow>> ListAssistantFormsAsync(string culture,CancellationToken ct)
+    { AssistantFormsCulture=culture; return Task.FromResult<IReadOnlyList<StructuredAssistantFormRow>>(AssistantForms.ToArray()); }
 }

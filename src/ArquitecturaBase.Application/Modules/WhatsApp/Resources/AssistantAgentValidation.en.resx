@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <data name="TooMany" xml:space="preserve"><value>Up to {0}.</value></data>
+  <data name="OutOfRange" xml:space="preserve"><value>It has to be between {0} and {1}.</value></data>
+  <data name="Repeated" xml:space="preserve"><value>It can't be repeated.</value></data>
+  <data name="ActionNotAllowed" xml:space="preserve"><value>The agent can't use this action. Turn it on in Limits.</value></data>
+  <data name="ActionsRequired" xml:space="preserve"><value>Choose at least one action.</value></data>
+  <data name="ButtonsRequired" xml:space="preserve"><value>Add at least one button.</value></data>
+  <data name="FormRequired" xml:space="preserve"><value>Choose a form.</value></data>
+  <data name="Invalid" xml:space="preserve"><value>Check this value.</value></data>
+  <data name="TooLong" xml:space="preserve"><value>The cases take too much room for the assistant. Shorten the texts.</value></data>
+</root>

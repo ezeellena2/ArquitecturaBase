@@ -368,6 +368,8 @@
   <data name="WhatsApp.Assistant.InvalidRequest" xml:space="preserve"><value>Revisá los datos de la solicitud al asistente.</value></data>
   <data name="WhatsApp.Assistant.InvalidProposal" xml:space="preserve"><value>La propuesta ya no es válida para esta persona. Pedí una sugerencia nueva.</value></data>
   <data name="WhatsApp.Assistant.Unavailable" xml:space="preserve"><value>El asistente no pudo preparar esta sugerencia. Podés seguir con atención manual.</value></data>
+  <data name="WhatsApp.AssistantAgent.Invalid" xml:space="preserve"><value>Revisá la configuración del asistente.</value></data>
+  <data name="WhatsApp.AssistantAgent.RevisionConflict" xml:space="preserve"><value>Otra persona cambió el asistente. Revisá sus cambios antes de guardar.</value></data>
   <data name="Forms.MissingRequest.ContentInvalid" xml:space="preserve">
     <value>El pedido de formulario no es válido.</value>
   </data>

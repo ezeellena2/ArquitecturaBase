@@ -15,6 +15,8 @@ public interface IStructuredFormSource
     Task LockSelectionAsync(CancellationToken cancellationToken);
     Task<StructuredFormSelectionRow?> FindAsync(Guid recipientUserId, string recipientCulture, Guid definitionId, Guid versionId, CancellationToken cancellationToken);
     Task<StructuredFormSelectionRow?> FindAcceptedSessionAsync(Guid recipientUserId, string recipientCulture, Guid definitionId, Guid versionId, CancellationToken cancellationToken);
+    /// <summary>The published forms the assistant can send, for the configuration of its cases; not tied to a recipient.</summary>
+    Task<IReadOnlyList<StructuredAssistantFormRow>> ListAssistantFormsAsync(string culture, CancellationToken cancellationToken);
     Task<PagedResult<StructuredFormSelectionRow>> ListAsync(Guid recipientUserId, string recipientCulture,
         ListStructuredFormsRequest request, CancellationToken cancellationToken);
 }

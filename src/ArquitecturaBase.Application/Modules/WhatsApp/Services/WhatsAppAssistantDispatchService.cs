@@ -29,6 +29,9 @@ internal sealed class WhatsAppAssistantDispatchService(WhatsAppAssistantAccessPo
     {
         var contact = await conversations.GetForUpdateAsync(contactId, ct);
         if (contact is null) return Result.Success<WhatsAppAssistantWorkResponse?>(null);
+        // Casos del asistente: a tap on a case's button with a fixed text or a handoff is answered before anything else.
+        if (await reader.FindLatestCaseTapAsync(contactId, ct) is { } caseTap && await automatic.ApplyCaseTapAsync(contact, caseTap, ct))
+            return Result.Success<WhatsAppAssistantWorkResponse?>(null);
         var choice = await reader.FindLatestChoiceAsync(contactId, ct);
         if (choice is not null)
         {
@@ -52,6 +55,9 @@ internal sealed class WhatsAppAssistantDispatchService(WhatsAppAssistantAccessPo
             // A text whose spreadsheet is still downloading waits for it (IA, Stage 2).
             if(latest is null || latest.AssistantProcessedAtUtc is not null || latest.State==WhatsAppAssistantSourceState.Waiting
                 || await requests.GetBySourceAsync(contactId,latest.Id,WhatsAppAssistantRequestKind.Automatic,ct) is not null)
+                return Result.Success<WhatsAppAssistantWorkResponse?>(null);
+            // Casos del asistente (ráfagas): with an agent the turn waits until the person stops writing.
+            if(await automatic.WaitsForBurstAsync(contactId,latest.OccurredAtUtc,ct))
                 return Result.Success<WhatsAppAssistantWorkResponse?>(null);
             // After «Cambiar algo» or a question this message is the answer: the engine continues that operation (IA3-A).
             var previous=await reader.FindChangeRequestAsync(contactId,ct);
@@ -224,6 +230,11 @@ internal sealed class WhatsAppAssistantDispatchService(WhatsAppAssistantAccessPo
         if (outcome.IsSuccess && outcome.Value.Proposal?.Capability is {} capability && WhatsAppAssistantTerminalPolicy.Handles(capability)
             && await reader.FindSourceAsync(contactId,original.SourceMessageId,ct) is {} terminalSource)
             terminal=await automatic.PrepareTerminalAsync(original,terminalSource,outcome.Value,ct);
+        // Casos del asistente: the agent's actions are checked against what is saved now, outside the contact/request transaction.
+        Result<WhatsAppAssistantReplyPlan>? reply = null;
+        if (outcome.IsSuccess && original.Kind == WhatsAppAssistantRequestKind.Automatic && selectedDefinition is null
+            && WhatsAppAssistantReplyPolicy.Handles(outcome.Value))
+            reply = await automatic.PrepareReplyAsync(original, outcome.Value, ct);
         // Owner reads and account verification are outside the contact/request transaction.
         var observed = await proposals.ObserveAsync(original, outcome, ct, selectedDefinition);
         if (selectedDefinition.HasValue && (observed.IsSuccess && observed.Value.Prefill?.Form.VersionId != selectedVersion
@@ -270,6 +281,12 @@ internal sealed class WhatsAppAssistantDispatchService(WhatsAppAssistantAccessPo
                 row.FinishWithoutReply(true, proposals.NowUtc);
                 return Result.Success();
             }
+            if (reply is { } plan)
+            {
+                if (plan.IsFailure || (await automatic.AcceptReplyAsync(contact, row, plan.Value, token)).IsFailure)
+                    row.FinishWithoutReply(true, proposals.NowUtc);
+                return Result.Success();
+            }
             if (terminal is {IsSuccess:true,Value: {} effect})
             {
                 automatic.AcceptTerminal(contact,row,effect);
@@ -281,7 +298,7 @@ internal sealed class WhatsAppAssistantDispatchService(WhatsAppAssistantAccessPo
                     WhatsAppAssistantSuggestionPolicy.Context(WhatsAppAssistantSuggestionPolicy.Reference(row)).Culture,false,proposals.NowUtc))
             {row.FinishWithoutReply(true,proposals.NowUtc);return Result.Success();}
             if (view.Response.State == WhatsAppAssistantRequestState.Ready && view.Operation?.Proposal is {} proposal
-                && (view.Prefill is not null || view.Clarification is not null))
+                && (view.Prefill is not null || view.Clarification is not null || view.Response.TextProposal is not null))
             {
                 if (row.Kind == WhatsAppAssistantRequestKind.Automatic)
                 {

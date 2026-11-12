@@ -23,7 +23,7 @@ public sealed class WhatsAppAssistantAuthoringTests
         var host = await WhatsAppAssistantSuggestionFixture.ReadyAsync();
         var owner = new Owner(host);
         var automatic = new WhatsAppAssistantAutomaticPolicy(WhatsAppAssistantAcceptanceFixture.Create(host), host.Reader, host.Context.Clock, host.Conversation,
-            host.Messages, new(owner, owner, owner, host.Reader), new(host.Reader, host.Context.Clock));
+            host.Messages, new(owner, owner, owner, host.Reader), new(host.Reader, host.Context.Clock), WhatsAppAssistantAcceptanceFixture.CreateReply(host));
         var dispatch = new WhatsAppAssistantDispatchService(host.Context.Policy, new(host.Reader, host.Assistant, host.Forms, host.Context.Clock, host.Presentation),
             host.Reader, host.Requests, host.Conversation, host.UnitOfWork, automatic, NullLogger<WhatsAppAssistantDispatchService>.Instance);
         var taps = new WhatsAppAssistantAuthoringService(host.Reader, host.Requests, host.Conversation, host.UnitOfWork, automatic,

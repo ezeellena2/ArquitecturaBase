@@ -23,7 +23,9 @@ internal sealed class WhatsAppAssistantRequestConfiguration : IEntityTypeConfigu
         builder.Property(request => request.AcceptanceFingerprint).HasMaxLength(64);
         builder.HasIndex(request => request.RequestId).IsUnique();
         builder.HasIndex(request => new {request.ContactId,request.SourceRecordId}).IsUnique().HasFilter("\"SourceRecordId\" IS NOT NULL");
-        builder.HasIndex(request => new { request.ContactId, request.SourceMessageId, request.Kind }).IsUnique();
+        // Casos del asistente: the second and third actions of a reply have the source of the first one and their own ordinal.
+        builder.HasIndex(request => new { request.ContactId, request.SourceMessageId, request.Kind, request.ActionOrdinal }).IsUnique();
+        builder.Property(request => request.OutcomeJson).HasColumnType("jsonb");
         builder.HasIndex(request => new { request.ContactId, request.State, request.CreatedAtUtc, request.Id });
         builder.HasOne<WhatsAppContact>().WithMany().HasForeignKey(request => request.ContactId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<WhatsAppMessage>().WithMany().HasForeignKey(request => request.SourceMessageId).OnDelete(DeleteBehavior.Restrict);

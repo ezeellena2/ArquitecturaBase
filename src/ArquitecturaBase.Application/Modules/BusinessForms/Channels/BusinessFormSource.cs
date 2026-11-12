@@ -1,3 +1,4 @@
+using System.Globalization;
 using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
@@ -41,6 +42,23 @@ internal sealed class BusinessFormSource(IFormSelectionReader reader, IPermissio
             || !await permissions.HasPermissionAsync(recipientUserId, BusinessFormsPermissions.RecordsCreate, cancellationToken)) return null;
         return await reader.FindPublishedAsync(definitionId, versionId, cancellationToken);
     }
+    public async Task<IReadOnlyList<StructuredAssistantFormRow>> ListAssistantFormsAsync(string culture, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (culture is not ("es" or "en")) return [];
+        var rows = await reader.ListChannelFormsAsync(cancellationToken);
+        var order = StringComparer.Create(CultureInfo.GetCultureInfo(culture), ignoreCase: true);
+        return [.. rows.Select(row => new StructuredAssistantFormRow(row.DefinitionId, Name(row.NameJson, row.Culture, culture),
+                string.IsNullOrWhiteSpace(row.OfferWhen) ? null : row.OfferWhen.Trim()))
+            .OrderBy(form => form.Name, order)];
+    }
+
+    private static string Name(string json, string original, string culture)
+    {
+        var names = FormDraftPolicy.Read<Dictionary<string, string>>(json);
+        return names.GetValueOrDefault(culture) is { Length: > 0 } name ? name : names.GetValueOrDefault(original) ?? "";
+    }
+
     public async Task<PagedResult<StructuredFormSelectionRow>> ListAsync(Guid recipientUserId, string recipientCulture,
         ListStructuredFormsRequest request, CancellationToken cancellationToken)
     {

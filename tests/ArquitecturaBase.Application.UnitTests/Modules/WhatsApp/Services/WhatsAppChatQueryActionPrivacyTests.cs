@@ -62,12 +62,14 @@ public sealed partial class WhatsAppChatQueryActionPrivacyTests
         public bool AssistantPreview { get; set; }
         public WhatsAppAssistantPresentationRow? AssistantRow { get; set; }
         public string? TitlesJson { get; set; }
+        public string? ReplyJson { get; set; }
+        public IReadOnlyList<WhatsAppAssistantEventRow> Events { get; set; } = [];
         public WhatsAppChatRow Contact { get; } = new() { Id = Guid.NewGuid(), ProfileName = "Ana", PhoneNumber = "5493413654813", LastInboundAtUtc = Now, Preview = PrivateBody, PreviewIsFormAction = true };
         public Task<PagedResult<WhatsAppChatRow>> ListChatsAsync(ListWhatsAppChatsRequest request, Guid actor, CancellationToken ct) => Task.FromResult(new PagedResult<WhatsAppChatRow>([AssistantPreview ? Contact with {PreviewIsFormAction=false,PreviewIsAssistant=true}:AudioPreview ? Contact with {PreviewIsFormAction=false,PreviewKind=WhatsAppMessageKind.Audio}:SpreadsheetPreview ? Contact with {PreviewIsFormAction=false,PreviewKind=WhatsAppMessageKind.Spreadsheet}:Contact], 1, 25, 1));
         public Task<WhatsAppChatCounts> CountChatsAsync(ListWhatsAppChatsRequest request, Guid actor, CancellationToken ct) => Task.FromResult(new WhatsAppChatCounts(1, 0));
         public Task<WhatsAppThreadRow?> FindThreadAsync(ListWhatsAppMessagesRequest request, Guid actor, CancellationToken ct) => Task.FromResult<WhatsAppThreadRow?>(Missing ? null : new(Contact,
-            [Audio ?? new(Guid.NewGuid(), WhatsAppMessageDirection.Outbound, WhatsAppMessageKind.Text, PrivateBody, Now, 0, null, null, null, Origin: AssistantRow is null ? WhatsAppMessageOrigin.FormAction : WhatsAppMessageOrigin.Assistant) { Assistant=AssistantRow,QuickReplyTitlesJson=TitlesJson }],
-            [new(Guid.NewGuid(), Guid.NewGuid(), null, PrivateBody, Now, WhatsAppOutgoingMessageState.Pending, null, Origin: AssistantRow is null ? WhatsAppMessageOrigin.FormAction : WhatsAppMessageOrigin.Assistant) { Assistant=AssistantRow,QuickRepliesJson=TitlesJson is null?null:"[]" }], null, null));
+            [Audio ?? new(Guid.NewGuid(), WhatsAppMessageDirection.Outbound, WhatsAppMessageKind.Text, PrivateBody, Now, 0, null, null, null, Origin: AssistantRow is null ? WhatsAppMessageOrigin.FormAction : WhatsAppMessageOrigin.Assistant) { Assistant=AssistantRow,QuickReplyTitlesJson=TitlesJson,AssistantReplyJson=ReplyJson }],
+            [new(Guid.NewGuid(), Guid.NewGuid(), null, PrivateBody, Now, WhatsAppOutgoingMessageState.Pending, null, Origin: AssistantRow is null ? WhatsAppMessageOrigin.FormAction : WhatsAppMessageOrigin.Assistant) { Assistant=AssistantRow,QuickRepliesJson=TitlesJson is null?null:"[]",AssistantReplyJson=ReplyJson }], null, null) { AssistantEvents=Events });
         public Task<WhatsAppOutgoingMessageRow?> FindOutgoingAsync(Guid contact, Guid request, Guid actor, CancellationToken ct) => Task.FromResult<WhatsAppOutgoingMessageRow?>(null);
     }
     private sealed class Source : IStructuredRecordSource

@@ -45,6 +45,9 @@ public static class WhatsAppInfrastructureRegistration
         services.AddScoped<IWhatsAppMessageRepository, WhatsAppMessageRepository>();
         services.AddScoped<IWhatsAppAssistantReader, WhatsAppAssistantReader>();
         services.AddScoped<IWhatsAppAssistantRepository, WhatsAppAssistantRepository>();
+        services.AddScoped<IWhatsAppAssistantAgentReader, WhatsAppAssistantAgentReader>();
+        services.AddScoped<IWhatsAppAssistantAgentRepository, WhatsAppAssistantAgentRepository>();
+        services.AddScoped<IWhatsAppAssistantHistoryReader, WhatsAppAssistantHistoryReader>();
         services.AddScoped<IWhatsAppAudioReader, WhatsAppAudioReader>();
         services.AddScoped<IWhatsAppAudioRepository, WhatsAppAudioRepository>();
         services.AddScoped<IWhatsAppSpreadsheetReader, WhatsAppSpreadsheetReader>();

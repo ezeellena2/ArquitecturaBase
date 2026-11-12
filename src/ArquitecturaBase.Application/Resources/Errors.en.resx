@@ -368,6 +368,8 @@
   <data name="WhatsApp.Assistant.InvalidRequest" xml:space="preserve"><value>Check the assistant request.</value></data>
   <data name="WhatsApp.Assistant.InvalidProposal" xml:space="preserve"><value>The proposal is no longer valid for this person. Request a new suggestion.</value></data>
   <data name="WhatsApp.Assistant.Unavailable" xml:space="preserve"><value>The assistant could not prepare this suggestion. You can continue in manual attention.</value></data>
+  <data name="WhatsApp.AssistantAgent.Invalid" xml:space="preserve"><value>Check the assistant's configuration.</value></data>
+  <data name="WhatsApp.AssistantAgent.RevisionConflict" xml:space="preserve"><value>Someone else changed the assistant. Check their changes before saving.</value></data>
   <data name="Forms.MissingRequest.ContentInvalid" xml:space="preserve">
     <value>The missing form request is invalid.</value>
   </data>

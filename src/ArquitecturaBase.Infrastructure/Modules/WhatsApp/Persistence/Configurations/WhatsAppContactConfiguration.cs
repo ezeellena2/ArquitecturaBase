@@ -24,6 +24,10 @@ internal sealed class WhatsAppContactConfiguration : IEntityTypeConfiguration<Wh
             .HasDefaultValue(WhatsAppConversationMode.Manual).HasSentinel(WhatsAppConversationMode.Manual);
         builder.Property(contact => contact.LastInboundSequence).IsConcurrencyToken();
         builder.Property(contact => contact.LinkRevision).HasDefaultValue(0L).IsConcurrencyToken();
+        // Derivar (AS4): «Necesita una persona», with the stable code of its reason and, for a case, the reason as written.
+        builder.Property(contact => contact.HandoffReasonCode).HasMaxLength(WhatsAppContact.MaxHandoffReasonCodeLength);
+        builder.Property(contact => contact.HandoffReason).HasMaxLength(WhatsAppContact.MaxHandoffReasonLength);
+        builder.HasIndex(contact => contact.HandoffAtUtc).HasFilter("\"HandoffAtUtc\" IS NOT NULL");
 
         builder.HasIndex(contact => contact.UserIdentifier).IsUnique();
         builder.HasIndex(contact => contact.UserId).IsUnique();

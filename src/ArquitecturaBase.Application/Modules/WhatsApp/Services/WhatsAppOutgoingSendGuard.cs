@@ -20,6 +20,15 @@ internal sealed class WhatsAppOutgoingSendGuard(IPhoneNumberParser phoneNumbers,
         {
             if (await formActions.ValidateAsync(contact, outgoing.RecipientUserId!.Value, outgoing, ct) is { } error) return error;
         }
+        else if (outgoing.Origin == WhatsAppMessageOrigin.Assistant && outgoing.IsAssistantHandoff)
+        {
+            // Derivar (AS4): the fixed message goes out after the conversation passed to Atención manual, and only while it still
+            // needs a person with the same mode revision; going back to the assistant or another handoff leaves it unsent.
+            if (contact is null || contact.Mode != WhatsAppConversationMode.Manual || !contact.NeedsPerson || contact.ModeRevision != outgoing.AssistantModeRevision
+                || contact.LinkRevision != outgoing.RecipientLinkRevision || contact.WaId != outgoing.RecipientWaId
+                || contact.UserId != outgoing.RecipientUserId) return WhatsAppAssistantErrors.StateConflict;
+            if (await formActions.ValidateAsync(contact, outgoing.RecipientUserId!.Value, null, ct) is { } error) return error;
+        }
         else if (outgoing.Origin == WhatsAppMessageOrigin.Assistant)
         {
             if (contact is null || contact.Mode != WhatsAppConversationMode.Assistant || contact.ModeRevision != outgoing.AssistantModeRevision

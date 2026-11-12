@@ -22,6 +22,7 @@ internal sealed class WhatsAppChatReader(ApplicationDbContext dbContext) : IWhat
     {
         var query = Chats(request.Search, operatorUserId);
         if (request.UnreadOnly) { query = query.Where(item => item.UnreadCount > 0); }
+        if (request.NeedsPersonOnly) { query = query.Where(item => item.HandoffAtUtc != null); }
         return query.ApplySort(SortDescriptor.Parse(request.Sort), SortMap, new SortDescriptor("lastInboundAtUtc", true), item => item.Id)
             .ToPagedResultAsync(request, cancellationToken);
     }
@@ -29,7 +30,8 @@ internal sealed class WhatsAppChatReader(ApplicationDbContext dbContext) : IWhat
     public async Task<WhatsAppChatCounts> CountChatsAsync(ListWhatsAppChatsRequest request, Guid operatorUserId, CancellationToken cancellationToken)
     {
         var query = Chats(request.Search, operatorUserId);
-        return new(await query.CountAsync(cancellationToken), await query.CountAsync(item => item.UnreadCount > 0, cancellationToken));
+        return new(await query.CountAsync(cancellationToken), await query.CountAsync(item => item.UnreadCount > 0, cancellationToken),
+            await query.CountAsync(item => item.HandoffAtUtc != null, cancellationToken));
     }
 
     public async Task<WhatsAppThreadRow?> FindThreadAsync(ListWhatsAppMessagesRequest request, Guid operatorUserId, CancellationToken cancellationToken)
@@ -71,7 +73,7 @@ internal sealed class WhatsAppChatReader(ApplicationDbContext dbContext) : IWhat
                         || item.Kind == WhatsAppMessageKind.Flow && item.FlowSession.LocationState == WhatsAppFlowLocationState.None)
                     ? new WhatsAppAssistantPresentationRow(item.FlowSession.Id,item.FlowSession.ContactId,item.FlowSession.UserId,item.FlowSession.VersionId,item.FlowSession.ProtectedAssistantContent,item.FlowSession.AssistantContentExpiresAtUtc.Value) : null, QuickReplyTitlesJson = item.QuickReplyTitlesJson,
                   SpreadsheetName = item.Kind == WhatsAppMessageKind.Spreadsheet ? item.SpreadsheetFileName : null,
-                  Latitude = item.Latitude, Longitude = item.Longitude }).ToListAsync(cancellationToken);
+                  Latitude = item.Latitude, Longitude = item.Longitude, AssistantReplyJson = item.AssistantReplyJson }).ToListAsync(cancellationToken);
         var hasPrevious = items.Count > request.Limit;
         if (hasPrevious) { items.RemoveAt(items.Count - 1); }
         items.Reverse();
@@ -79,7 +81,16 @@ internal sealed class WhatsAppChatReader(ApplicationDbContext dbContext) : IWhat
         var outgoing = await Outgoing().Where(item => item.ContactId == request.ContactId && item.State != WhatsAppOutgoingMessageState.Accepted)
             .OrderByDescending(item => item.RequestedAtUtc).ThenByDescending(item => item.Id).Take(50)
             .Select(OutgoingProjection).ToListAsync(cancellationToken);
-        return new(contact, items, outgoing, hasPrevious ? first?.OccurredAtUtc : null, hasPrevious ? first?.Id : null);
+        // Casos del asistente: what the assistant decided without a message, in the span of this page.
+        var fromUtc = hasPrevious && first is not null ? first.OccurredAtUtc : DateTime.MinValue;
+        var toUtc = request.BeforeAtUtc ?? DateTime.MaxValue;
+        var events = await dbContext.Set<WhatsAppAssistantRequest>().AsNoTracking()
+            .Where(item => item.ContactId == request.ContactId && item.OutcomeJson != null && item.DecidedAtUtc != null
+                && item.DecidedAtUtc >= fromUtc && item.DecidedAtUtc < toUtc)
+            .OrderByDescending(item => item.DecidedAtUtc).ThenByDescending(item => item.Id).Take(request.Limit)
+            .Select(item => new WhatsAppAssistantEventRow(item.RequestId, item.DecidedAtUtc!.Value, item.OutcomeJson!)).ToListAsync(cancellationToken);
+        events.Reverse();
+        return new(contact, items, outgoing, hasPrevious ? first?.OccurredAtUtc : null, hasPrevious ? first?.Id : null) { AssistantEvents = events };
     }
 
     public Task<WhatsAppOutgoingMessageRow?> FindOutgoingAsync(Guid contactId, Guid requestId, Guid operatorUserId, CancellationToken cancellationToken) =>
@@ -94,7 +105,8 @@ internal sealed class WhatsAppChatReader(ApplicationDbContext dbContext) : IWhat
         { Assistant = item.FlowSession != null && item.FlowSession.ProtectedAssistantContent != null && item.FlowSession.AssistantContentExpiresAtUtc != null
                     && (item.Kind == WhatsAppOutgoingMessageKind.LocationRequest
                         || item.Kind == WhatsAppOutgoingMessageKind.Flow && item.FlowSession.LocationState == WhatsAppFlowLocationState.None)
-                    ? new WhatsAppAssistantPresentationRow(item.FlowSession.Id,item.FlowSession.ContactId,item.FlowSession.UserId,item.FlowSession.VersionId,item.FlowSession.ProtectedAssistantContent,item.FlowSession.AssistantContentExpiresAtUtc.Value) : null, QuickRepliesJson = item.QuickRepliesJson };
+                    ? new WhatsAppAssistantPresentationRow(item.FlowSession.Id,item.FlowSession.ContactId,item.FlowSession.UserId,item.FlowSession.VersionId,item.FlowSession.ProtectedAssistantContent,item.FlowSession.AssistantContentExpiresAtUtc.Value) : null, QuickRepliesJson = item.QuickRepliesJson,
+            AssistantReplyJson = item.AssistantReplyJson };
 
     private IQueryable<WhatsAppOutgoingMessage> Outgoing() => dbContext.Set<WhatsAppOutgoingMessage>().AsNoTracking();
 
@@ -113,6 +125,7 @@ internal sealed class WhatsAppChatReader(ApplicationDbContext dbContext) : IWhat
         {
             Id = contact.Id, ProfileName = contact.ProfileName, PhoneNumber = contact.WaId,
             Mode = contact.Mode, ModeRevision = contact.ModeRevision, LastInboundAtUtc = contact.LastInboundAtUtc, LastInboundSequence = contact.LastInboundSequence,
+            HandoffReasonCode = contact.HandoffReasonCode, HandoffReason = contact.HandoffReason, HandoffAtUtc = contact.HandoffAtUtc,
             UnreadCount =
             dbContext.Set<WhatsAppMessage>().Count(message => message.ContactId == contact.Id
                 && message.Direction == WhatsAppMessageDirection.Inbound

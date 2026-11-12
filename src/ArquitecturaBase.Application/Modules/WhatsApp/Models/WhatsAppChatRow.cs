@@ -18,8 +18,12 @@ public sealed record WhatsAppChatRow
     public bool PreviewIsAssistant { get; init; }
     public WhatsAppMessagePurpose PreviewPurpose { get; init; }
     public WhatsAppAccessEventKind? PreviewAccessEventKind { get; init; }
+    /// <summary>Derivar (AS4): «Necesita una persona», with its reason, until a person answers.</summary>
+    public string? HandoffReasonCode { get; init; }
+    public string? HandoffReason { get; init; }
+    public DateTime? HandoffAtUtc { get; init; }
 }
-public sealed record WhatsAppChatCounts(int AllCount, int UnreadCount);
+public sealed record WhatsAppChatCounts(int AllCount, int UnreadCount, int NeedsPersonCount = 0);
 public sealed record WhatsAppMessageRow(
     Guid Id, WhatsAppMessageDirection Direction, WhatsAppMessageKind Kind, string? Body, DateTime OccurredAtUtc,
     long InboundSequence, Guid? OperatorUserId, WhatsAppMessageStatus? Status, int? ErrorCode,
@@ -29,6 +33,8 @@ public sealed record WhatsAppMessageRow(
 {
     public WhatsAppAssistantPresentationRow? Assistant { get; init; }
     public string? QuickReplyTitlesJson { get; init; }
+    /// <summary>Casos del asistente: «Por qué respondió esto», kept with the message once it went out.</summary>
+    public string? AssistantReplyJson { get; init; }
     /// <summary>The normalized file name of a received spreadsheet (stage 2 of the assistant authoring).</summary>
     public string? SpreadsheetName { get; init; }
     /// <summary>W1-A: the point of a received location.</summary>
@@ -46,10 +52,22 @@ public sealed record WhatsAppOutgoingMessageRow(
 {
     public WhatsAppAssistantPresentationRow? Assistant { get; init; }
     public string? QuickRepliesJson { get; init; }
+    /// <summary>Casos del asistente: «Por qué respondió esto» of a queued reply.</summary>
+    public string? AssistantReplyJson { get; init; }
 }
 public sealed record WhatsAppThreadRow(
     WhatsAppChatRow Contact, IReadOnlyList<WhatsAppMessageRow> Messages,
-    IReadOnlyList<WhatsAppOutgoingMessageRow> Outgoing, DateTime? BeforeAtUtc, Guid? BeforeId);
+    IReadOnlyList<WhatsAppOutgoingMessageRow> Outgoing, DateTime? BeforeAtUtc, Guid? BeforeId)
+{
+    /// <summary>What the assistant decided without a message in the page's span («No responder», a handoff that sent nothing).</summary>
+    public IReadOnlyList<WhatsAppAssistantEventRow> AssistantEvents { get; init; } = [];
+}
+
+/// <summary>A decision of the assistant that sent nothing: its reference, when and its why.</summary>
+public sealed record WhatsAppAssistantEventRow(Guid RequestId, DateTime AtUtc, string OutcomeJson)
+{
+    public override string ToString() => "WhatsAppAssistantEventRow { Content = [REDACTED] }";
+}
 
 public sealed record WhatsAppAssistantPresentationRow(Guid SessionId, Guid ContactId, Guid UserId, Guid VersionId, byte[] ProtectedContent, DateTime ContentExpiresAtUtc)
 {

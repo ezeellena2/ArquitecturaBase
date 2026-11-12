@@ -8,7 +8,7 @@ using ArquitecturaBase.Domain.Modules.WhatsApp;
 
 namespace ArquitecturaBase.Application.UnitTests.Modules.WhatsApp.Services;
 
-public sealed class WhatsAppAssistantSuggestionPolicyTests
+public sealed partial class WhatsAppAssistantSuggestionPolicyTests
 {
     private static async Task<(WhatsAppAssistantSuggestionFixture Host,WhatsAppAssistantReferenceRow Reference)> ReferenceAsync()
     {

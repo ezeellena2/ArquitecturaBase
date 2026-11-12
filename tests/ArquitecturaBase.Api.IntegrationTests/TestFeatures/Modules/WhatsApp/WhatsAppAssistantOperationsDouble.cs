@@ -100,6 +100,8 @@ internal sealed class WhatsAppAssistantFormSource : IStructuredFormSource
         Task.FromResult(Selection(definitionId, versionId));
     public Task<PagedResult<StructuredFormSelectionRow>> ListAsync(Guid recipientUserId, string recipientCulture, ListStructuredFormsRequest request, CancellationToken ct) =>
         Task.FromResult(new PagedResult<StructuredFormSelectionRow>(IsPublished ? [Form, AlternativeForm] : [], request.Page, request.PageSize, IsPublished ? 2 : 0));
+    public Task<IReadOnlyList<StructuredAssistantFormRow>> ListAssistantFormsAsync(string culture, CancellationToken ct) =>
+        Task.FromResult<IReadOnlyList<StructuredAssistantFormRow>>([]);
     public async Task<Result<StructuredFormSuggestionsResponse>> ListSuggestionsAsync(Guid recipientUserId,string recipientCulture,Guid sourceRecordId,CancellationToken ct)
     {
         if(SuggestionMode is not ("Always" or "Assistant") || !IsPublished

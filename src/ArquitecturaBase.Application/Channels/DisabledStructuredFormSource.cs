@@ -38,4 +38,8 @@ internal sealed class DisabledStructuredFormSource : IStructuredFormSource
         cancellationToken.ThrowIfCancellationRequested();
         return Task.FromResult(new PagedResult<StructuredFormSelectionRow>([], request.Page, request.PageSize, 0));
     }
+    public Task<IReadOnlyList<StructuredAssistantFormRow>> ListAssistantFormsAsync(string culture, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested(); return Task.FromResult<IReadOnlyList<StructuredAssistantFormRow>>([]);
+    }
 }

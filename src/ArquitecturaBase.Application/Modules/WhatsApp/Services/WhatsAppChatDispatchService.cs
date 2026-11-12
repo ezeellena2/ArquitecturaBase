@@ -43,7 +43,8 @@ internal sealed class WhatsAppChatDispatchService(
         unitOfWork.ExecuteInTransactionAsync(async ct =>
         {
             if (waMessageId is not null) { await messages.LockAsync([waMessageId], ct); }
-            if (await repository.GetForUpdateAsync(contactId, ct) is null) { return Result.Failure(WhatsAppChatErrors.NotFound); }
+            var contact = await repository.GetForUpdateAsync(contactId, ct);
+            if (contact is null) { return Result.Failure(WhatsAppChatErrors.NotFound); }
             var operation = await repository.GetOutgoingAsync(operationId, ct);
             if (operation is null || operation.ContactId != contactId) { return Result.Failure(WhatsAppChatErrors.NotFound); }
             if (operation.Origin is WhatsAppMessageOrigin.FormAction or WhatsAppMessageOrigin.Assistant && operation.DispatchReservationId != reservationId)
@@ -52,6 +53,8 @@ internal sealed class WhatsAppChatDispatchService(
             if (waMessageId is not null)
             {
                 operation.Accept(waMessageId);
+                // Derivar (AS4): «Necesita una persona» goes away when the reply of a person goes out.
+                if (operation.Origin == WhatsAppMessageOrigin.Conversation) contact.ClearHandOff();
                 if (!(await messages.ListExistingIdsAsync([waMessageId], ct)).Contains(waMessageId))
                 {
                     var kind = operation.Kind switch
@@ -73,7 +76,8 @@ internal sealed class WhatsAppChatDispatchService(
                         && operation.FlowSessionId is not null) message.RecordReplyTitles(operation.QuickReplies.Select(reply => reply.Title).ToArray());
                     if (operation.Origin == WhatsAppMessageOrigin.FormAction) message.AttributeFormAction();
                     if (operation.Origin == WhatsAppMessageOrigin.Assistant) message.AttributeAssistant(
-                        operation.Kind == WhatsAppOutgoingMessageKind.QuickReplies ? operation.QuickReplies.Select(reply => reply.Title).ToArray() : null);
+                        operation.Kind == WhatsAppOutgoingMessageKind.QuickReplies ? operation.QuickReplies.Select(reply => reply.Title).ToArray() : null,
+                        operation.AssistantReplyJson);
                     if (await messages.GetReceiptAsync(waMessageId, ct) is { } receipt)
                     {
                         message.ApplyStatus(receipt.Status, receipt.OccurredAtUtc, receipt.ErrorCode);

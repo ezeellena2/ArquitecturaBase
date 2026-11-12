@@ -12,6 +12,9 @@ internal static class WhatsAppLockKeys
 
     public static string Flow(Guid operationId) => "whatsapp-flow:" + operationId.ToString("N");
 
+    /// <summary>Casos del asistente: the saves of the main agent, also the first one, when there is no row to lock.</summary>
+    public static string AssistantAgent => "whatsapp-assistant-agent:main";
+
     /// <summary>
     /// "whatsapp-contact:user:" + el BSUID. El prefijo hace que el mismo texto como BSUID y como número no compartan lock.
     /// </summary>

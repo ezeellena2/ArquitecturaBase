@@ -22,7 +22,7 @@ internal sealed class WhatsAppMessageRetentionRepository(ApplicationDbContext db
         // sobre OccurredAtUtc y contenido presente deja afuera los mensajes que ya se vaciaron.
         var messages = await dbContext.Set<WhatsAppMessage>()
             .Where(message => message.OccurredAtUtc < cutoffUtc
-                && (message.Body != null || message.QuickReplyTitlesJson != null || message.Kind == WhatsAppMessageKind.Audio && (message.AudioMediaId != null || message.AudioStorageKey != null || message.AudioContextJson != null)
+                && (message.Body != null || message.QuickReplyTitlesJson != null || message.AssistantReplyJson != null || message.Kind == WhatsAppMessageKind.Audio && (message.AudioMediaId != null || message.AudioStorageKey != null || message.AudioContextJson != null)
                     || message.Kind == WhatsAppMessageKind.Spreadsheet && (message.SpreadsheetMediaId != null || message.SpreadsheetFileName != null || message.SpreadsheetStorageKey != null || message.SpreadsheetPreparedJson != null)
                     || message.Latitude != null
                     || (message.ProtectedFlowResponse != null && message.ProcessedAtUtc != null)))
@@ -32,6 +32,7 @@ internal sealed class WhatsAppMessageRetentionRepository(ApplicationDbContext db
                 .SetProperty(message => message.Latitude, (decimal?)null)
                 .SetProperty(message => message.Longitude, (decimal?)null)
                 .SetProperty(message => message.QuickReplyTitlesJson, (string?)null)
+                .SetProperty(message => message.AssistantReplyJson, (string?)null)
                 .SetProperty(message => message.AudioMediaId, (string?)null)
                 .SetProperty(message => message.AudioContentType, (string?)null)
                 .SetProperty(message => message.AudioSha256, (string?)null)
@@ -50,9 +51,10 @@ internal sealed class WhatsAppMessageRetentionRepository(ApplicationDbContext db
                 .SetProperty(message => message.SpreadsheetPreparedJson, (string?)null)
                 .SetProperty(message => message.ProtectedFlowResponse, (byte[]?)null), cancellationToken);
         var outgoing = await dbContext.Set<WhatsAppOutgoingMessage>()
-            .Where(message => message.Body != null && message.RequestedAtUtc < cutoffUtc
+            .Where(message => (message.Body != null || message.AssistantReplyJson != null) && message.RequestedAtUtc < cutoffUtc
                 && message.State != WhatsAppOutgoingMessageState.Pending && message.State != WhatsAppOutgoingMessageState.Sending)
-            .ExecuteUpdateAsync(setters => setters.SetProperty(message => message.Body, (string?)null), cancellationToken);
+            .ExecuteUpdateAsync(setters => setters.SetProperty(message => message.Body, (string?)null)
+                .SetProperty(message => message.AssistantReplyJson, (string?)null), cancellationToken);
         return messages + outgoing;
     }
     public async Task<int> ClearExpiredAssistantContentAsync(DateTime nowUtc,int limit,CancellationToken cancellationToken)
@@ -62,7 +64,12 @@ internal sealed class WhatsAppMessageRetentionRepository(ApplicationDbContext db
             .Where(session=>session.AssistantContentExpiresAtUtc<=nowUtc && session.ProtectedAssistantContent.Length>0)
             .OrderBy(session=>session.AssistantContentExpiresAtUtc).ThenBy(session=>session.Id).Take(limit).ToListAsync(cancellationToken);
         foreach(var session in sessions) session.ClearAssistantContent(nowUtc);
-        return sessions.Count;
+        // Casos del asistente: what ended without a message keeps its case while the content of its reference lives.
+        var outcomes = await dbContext.Set<WhatsAppAssistantRequest>()
+            .Where(request=>request.OutcomeJson!=null && request.ContentExpiresAtUtc<=nowUtc)
+            .OrderBy(request=>request.ContentExpiresAtUtc).ThenBy(request=>request.Id).Take(limit).ToListAsync(cancellationToken);
+        foreach(var request in outcomes) request.ClearOutcome();
+        return sessions.Count + outcomes.Count;
     }
 
 }

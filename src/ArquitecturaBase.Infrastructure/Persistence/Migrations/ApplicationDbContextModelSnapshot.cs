@@ -3129,6 +3129,64 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.ToTable("BusinessFormVersions", (string)null);
                 });
 
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.WhatsApp.WhatsAppAssistantAgent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Cases")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Fallback")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<bool>("IsMain")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Limits")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ModifiedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("OriginalCulture")
+                        .IsRequired()
+                        .HasMaxLength(2)
+                        .HasColumnType("character varying(2)");
+
+                    b.Property<string>("Profile")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<long>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IsMain")
+                        .IsUnique()
+                        .HasFilter("\"IsMain\"");
+
+                    b.ToTable("WhatsAppAssistantAgents", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_WhatsAppAssistantAgents_OriginalCulture", "\"OriginalCulture\" IN ('es', 'en')");
+                        });
+                });
+
             modelBuilder.Entity("ArquitecturaBase.Domain.Modules.WhatsApp.WhatsAppAssistantRequest", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3138,6 +3196,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<string>("AcceptanceFingerprint")
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
+
+                    b.Property<int>("ActionOrdinal")
+                        .HasColumnType("integer");
 
                     b.Property<Guid?>("ActorUserId")
                         .HasColumnType("uuid");
@@ -3190,6 +3251,12 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<long>("ModeRevision")
                         .HasColumnType("bigint");
 
+                    b.Property<Guid?>("OperationRequestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("OutcomeJson")
+                        .HasColumnType("jsonb");
+
                     b.Property<Guid?>("OutgoingId")
                         .HasColumnType("uuid");
 
@@ -3238,7 +3305,7 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .IsUnique()
                         .HasFilter("\"SourceRecordId\" IS NOT NULL");
 
-                    b.HasIndex("ContactId", "SourceMessageId", "Kind")
+                    b.HasIndex("ContactId", "SourceMessageId", "Kind", "ActionOrdinal")
                         .IsUnique();
 
                     b.HasIndex("ContactId", "State", "CreatedAtUtc", "Id");
@@ -3256,6 +3323,17 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("HandoffAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("HandoffReason")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("HandoffReasonCode")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
 
                     b.Property<DateTime>("LastInboundAtUtc")
                         .HasColumnType("timestamp with time zone");
@@ -3296,6 +3374,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(32)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("HandoffAtUtc")
+                        .HasFilter("\"HandoffAtUtc\" IS NOT NULL");
 
                     b.HasIndex("UserId")
                         .IsUnique();
@@ -3705,6 +3786,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<DateTime?>("AssistantProcessedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("AssistantReplyJson")
+                        .HasColumnType("jsonb");
+
                     b.Property<Guid?>("AudioActorUserId")
                         .HasColumnType("uuid");
 
@@ -3957,6 +4041,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<long?>("AssistantModeRevision")
                         .HasColumnType("bigint");
 
+                    b.Property<string>("AssistantReplyJson")
+                        .HasColumnType("jsonb");
+
                     b.Property<string>("Body")
                         .HasMaxLength(4096)
                         .HasColumnType("character varying(4096)");
@@ -4005,6 +4092,11 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid?>("FlowSessionId")
                         .HasColumnType("uuid");
+
+                    b.Property<bool>("IsAssistantHandoff")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
 
                     b.Property<int>("Kind")
                         .HasColumnType("integer");

@@ -16,4 +16,10 @@ public sealed class WhatsAppLockKeysTests
         Assert.Equal("whatsapp-contact:wa:5493413654813", WhatsAppLockKeys.WhatsAppContactByWaId("5493413654813"));
         Assert.Equal("whatsapp-message:wamid.1", WhatsAppLockKeys.WhatsAppMessage("wamid.1"));
     }
+
+    [Fact]
+    public void The_main_assistant_agent_keeps_its_key()
+    {
+        Assert.Equal("whatsapp-assistant-agent:main", WhatsAppLockKeys.AssistantAgent);
+    }
 }

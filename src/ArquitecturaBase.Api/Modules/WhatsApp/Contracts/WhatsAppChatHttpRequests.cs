@@ -2,7 +2,7 @@ using ArquitecturaBase.Domain.Modules.WhatsApp;
 
 namespace ArquitecturaBase.Api.Modules.WhatsApp.Contracts;
 
-public sealed record ListWhatsAppChatsQuery(int? Page, int? PageSize, string? Sort, string? Search, bool UnreadOnly)
+public sealed record ListWhatsAppChatsQuery(int? Page, int? PageSize, string? Sort, string? Search, bool UnreadOnly, bool NeedsPerson = false)
 {
     public override string ToString() => nameof(ListWhatsAppChatsQuery);
 }

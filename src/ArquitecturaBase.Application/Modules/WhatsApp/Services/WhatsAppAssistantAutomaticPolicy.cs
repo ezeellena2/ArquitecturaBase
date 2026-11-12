@@ -11,7 +11,7 @@ namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 
 internal sealed class WhatsAppAssistantAutomaticPolicy(WhatsAppAssistantAcceptancePolicy acceptance,
     IWhatsAppAssistantReader reader,TimeProvider clock,IWhatsAppConversationRepository conversations,IWhatsAppMessageRepository messages,WhatsAppAssistantTerminalPolicy terminals,
-    WhatsAppAssistantOfferCapacityPolicy capacity)
+    WhatsAppAssistantOfferCapacityPolicy capacity,WhatsAppAssistantReplyPolicy replies)
 {
     public async Task<Result<WhatsAppAssistantTerminalResponse?>> PrepareTerminalAsync(WhatsAppAssistantReferenceRow reference,WhatsAppAssistantSourceRow source,AssistantOperationResponse operation,CancellationToken ct)
     {
@@ -21,6 +21,14 @@ internal sealed class WhatsAppAssistantAutomaticPolicy(WhatsAppAssistantAcceptan
             return WhatsAppAssistantErrors.StateConflict;
         return await terminals.ApplyAsync(reference,source,operation,ct);
     }
+
+    // Casos del asistente: the actions of a reply are checked outside the unit of work and queued inside it, in order.
+    public Task<Result<WhatsAppAssistantReplyPlan>> PrepareReplyAsync(WhatsAppAssistantReferenceRow reference,AssistantOperationResponse operation,CancellationToken ct)=>
+        replies.PrepareAsync(reference,operation,ct);
+    public Task<Result> AcceptReplyAsync(WhatsAppContact contact,WhatsAppAssistantRequest row,WhatsAppAssistantReplyPlan plan,CancellationToken ct)=>
+        replies.ApplyAsync(contact,row,plan,ct);
+    public Task<bool> ApplyCaseTapAsync(WhatsAppContact contact,WhatsAppAssistantChoiceRow tap,CancellationToken ct)=>replies.ApplyTapAsync(contact,tap,ct);
+    public Task<bool> WaitsForBurstAsync(Guid contactId,DateTime latestUtc,CancellationToken ct)=>replies.WaitsForBurstAsync(contactId,latestUtc,ct);
 
     public bool AcceptTerminal(WhatsAppContact contact,WhatsAppAssistantRequest row,WhatsAppAssistantTerminalResponse terminal)
     {

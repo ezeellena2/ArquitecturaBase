@@ -8,15 +8,9 @@ internal sealed class WhatsAppAssistantOfferCapacityPolicy(IWhatsAppAssistantRea
     public async Task<bool> HasCapacityAsync(Guid contactId, AssistantChannelContext channel, CancellationToken ct, Guid? excludingRequestId = null)
     {
         var zone = TimeZoneInfo.FindSystemTimeZoneById(channel.TimeZoneId);
-        var localDay = TimeZoneInfo.ConvertTime(clock.GetUtcNow(), zone).Date;
-        var fromUtc = DayStartUtc(localDay, zone);
-        var toUtc = DayStartUtc(localDay.AddDays(1), zone);
+        var localDay = WhatsAppBusinessDay.LocalDay(clock.GetUtcNow(), zone);
+        var fromUtc = WhatsAppBusinessDay.StartUtc(localDay, zone);
+        var toUtc = WhatsAppBusinessDay.StartUtc(localDay.AddDays(1), zone);
         return await reader.CountOffersAsync(contactId, fromUtc, toUtc, ct, excludingRequestId) < 2;
-    }
-
-    private static DateTime DayStartUtc(DateTime localDay, TimeZoneInfo zone)
-    {
-        while (zone.IsInvalidTime(localDay)) localDay = localDay.AddMinutes(1);
-        return TimeZoneInfo.ConvertTimeToUtc(localDay, zone);
     }
 }

@@ -7,8 +7,13 @@ public sealed partial class WhatsAppMessage
     public DateTime? AssistantProcessedAtUtc { get; private set; }
     public string? QuickReplyTitlesJson { get; private set; }
 
-    public void AttributeAssistant(IReadOnlyList<string>? quickReplyTitles = null)
+    /// <summary>Casos del asistente: the why of the reply that went out, copied from its outgoing; it goes away with the text.</summary>
+    public string? AssistantReplyJson { get; private set; }
+
+    public void AttributeAssistant(IReadOnlyList<string>? quickReplyTitles = null, string? replyJson = null)
     {
+        if (replyJson is { Length: > WhatsAppOutgoingMessage.MaxAssistantReplyJsonLength })
+            throw new ArgumentException("The why of a reply is bounded.", nameof(replyJson));
         if (Direction != WhatsAppMessageDirection.Outbound || OperatorUserId.HasValue || Origin == WhatsAppMessageOrigin.FormAction)
             throw new InvalidOperationException("Only an outbound system message can belong to the assistant.");
         var titles = quickReplyTitles?.ToArray() ?? [];
@@ -16,6 +21,7 @@ public sealed partial class WhatsAppMessage
             throw new ArgumentException("The stored reply titles must match the provider limits.", nameof(quickReplyTitles));
         Origin = WhatsAppMessageOrigin.Assistant;
         QuickReplyTitlesJson = titles.Length == 0 ? null : JsonSerializer.Serialize(titles);
+        AssistantReplyJson = replyJson;
         Classify(WhatsAppMessagePurpose.Business);
     }
 

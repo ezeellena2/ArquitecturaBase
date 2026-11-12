@@ -2,7 +2,7 @@
 
 Implementa los puertos de `Application/Interfaces/Channels` que el núcleo y otros módulos consumen sin conocer BusinessForms. Cada adaptador valida el contexto y delega en [Services](../Services/AGENTS.md) o en un lector.
 
-- `BusinessFormSource` → `IStructuredFormSource`: selección, preparación, prellenado, aclaración y sugerencias. Exige destinatario, cultura es/en y `formrecords.create`; lee la versión activa sellada, o la publicada de una sesión aceptada. `LockSelectionAsync` es el lock de definiciones.
+- `BusinessFormSource` → `IStructuredFormSource`: selección, preparación, prellenado, aclaración, sugerencias y los formularios que el asistente puede mandar (`ListAssistantFormsAsync`, con su «cuándo ofrecerlo»). Exige destinatario, cultura es/en y `formrecords.create`; lee la versión activa sellada, o la publicada de una sesión aceptada. `LockSelectionAsync` es el lock de definiciones.
 - `BusinessFormRecordCaptureSink` → `IStructuredRecordSink`: delega en `IBusinessFormRecordCaptureService`; la UoW la abre `BusinessFormRecordRecorder`.
 - `BusinessFormRecordSource` → `IStructuredRecordSource`: `formrecords.read` antes y después de leer por lote; proyecta con la cultura de cada versión, sin claves de almacenamiento.
 - `BusinessFormEntryOriginSource` → `IStructuredRecordOriginSource`: el origen «App» (`channelId` `app`, quien cargó y cuándo, sin conversación ni dirección) de los registros `EnteredInApp`, leído por lote.

@@ -13,6 +13,7 @@ Implementa puertos neutrales de `Application/Interfaces/Channels` con lo que sab
 | `WhatsAppStructuredRecordActionChannel` | `IStructuredRecordActionChannel` (`phone`) | avisos de reglas por `IWhatsAppFormActionService`, con botones si traen opciones |
 | `WhatsAppStructuredRecordOriginSource` | `IStructuredRecordOriginSource` | canal, remitente e instante de respuestas, por lote |
 | `WhatsAppAssistantCapabilitySource` | `IAssistantCapabilitySource` | `whatsapp.offered-forms`, `whatsapp.no-reply` y `whatsapp.decline-form` |
+| `WhatsAppAssistantAgentCapabilitySource` | `IAssistantCapabilitySource` | lecturas `whatsapp.agent`, `whatsapp.agent-knowledge` y `whatsapp.agent-history`; propuestas `whatsapp.reply` y `whatsapp.draft-reply` (Casos del asistente) |
 | `WhatsAppAudioRetentionSource` | `IPrivateFileRetentionSource` | claves de audio todavía referenciadas |
 | `WhatsAppSpreadsheetRetentionSource` | `IPrivateFileRetentionSource` | copias de planillas pendientes o guardadas mientras su mensaje tenga contenido |
 
@@ -27,6 +28,7 @@ La evidencia local de retiro (`IStructuredFormChannelStateSource`) la implementa
 - Capacidades: JSON estricto; hasta 100 `definitionIds` sin repetir para leer rechazos duraderos, aparte de hasta 20 ofertas recientes que caben en 16 KiB con nombres completos de hasta 120 caracteres. Los rechazos no conceden elegibilidad ni prueban ausencia. Un rechazo solo cita una oferta leída en el mismo turno.
 - El esquema de entrada sigue el subconjunto estricto de OpenAI (sin `uniqueItems`) y el adaptador rechaza duplicados; la salida sí puede declararlo. Sin sanitizadores genéricos ni validación relajada.
 - La retención de audio también protege la copia recuperable escrita antes del commit (clave determinista por mensaje).
+- Las capacidades del agente sólo leen o proponen: lo que sale se toma de lo guardado o lo revisa el servidor. El historial es de una sola conversación y entra en una lectura (lo más nuevo primero); un redactado que no pasa vuelve `rejected` con sus problemas en `Problems`, y «Usó» nombra sólo hechos que existen, los leídos en el turno.
 
 ## Referencias
 

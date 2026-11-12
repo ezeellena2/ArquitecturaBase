@@ -45,4 +45,7 @@ internal sealed class CapturingStructuredFormSource : IStructuredFormSource
         var page = items.Skip((request.Page - 1) * request.PageSize).Take(request.PageSize).ToArray();
         return Task.FromResult(new PagedResult<StructuredFormSelectionRow>(page, request.Page, request.PageSize, items.Length));
     }
+
+    public Task<IReadOnlyList<StructuredAssistantFormRow>> ListAssistantFormsAsync(string culture, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<StructuredAssistantFormRow>>([]);
 }

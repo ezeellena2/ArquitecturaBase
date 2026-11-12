@@ -21,3 +21,5 @@ RecordingWhatsAppInboundSignal cuenta avisos sin interpretar operaciones neutral
 WhatsAppWebhookSignalFixture usa dos UoW ficticias para persistencia y retry, y registra el commit exitoso sólo después del await. Las señales comprueban que ambos límites están cerrados; los casos de firma y commit fallidos no avisan. No acredita concurrencia de PostgreSQL ni efectos externos.
 
 WhatsAppSpreadsheetFixture monta una planilla sobre el fixture de la conversación del asistente: Meta, el lector del dueño y la copia afirman correr fuera de la UoW, y la respuesta pasa por la política automática real.
+
+FakeWhatsAppAssistantAgentSources dobla el agente guardado (o ninguno), las cuentas de Probar y un historial ficticio con las respuestas del día y el inicio de la ráfaga; `WhatsAppAssistantAcceptanceFixture.CreateReply` arma la política de respuestas con ellos y la derivación real.

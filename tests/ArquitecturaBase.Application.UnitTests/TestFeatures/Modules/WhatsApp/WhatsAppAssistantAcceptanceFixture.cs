@@ -3,6 +3,7 @@ using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Application.Modules.WhatsApp.Services;
+using ArquitecturaBase.Application.UnitTests.Modules.WhatsApp.TestDoubles;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Domain.Results;
@@ -12,7 +13,14 @@ namespace ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.WhatsApp;
 internal static class WhatsAppAssistantAcceptanceFixture
 {
     public static WhatsAppAssistantAutomaticPolicy CreateAutomatic(WhatsAppAssistantSuggestionFixture host)=>
-        new(Create(host),host.Reader,host.Context.Clock,host.Conversation,host.Messages,new WhatsAppAssistantTerminalFixture().Policy,new(host.Reader,host.Context.Clock));
+        new(Create(host),host.Reader,host.Context.Clock,host.Conversation,host.Messages,new WhatsAppAssistantTerminalFixture().Policy,new(host.Reader,host.Context.Clock),
+            CreateReply(host));
+    /// <summary>Casos del asistente: the replies of the agent, with no agent saved unless the test gives one.</summary>
+    public static WhatsAppAssistantReplyPolicy CreateReply(WhatsAppAssistantSuggestionFixture host, IWhatsAppAssistantAgentReader? agents = null,
+        IWhatsAppAssistantHistoryReader? history = null) =>
+        new(agents ?? new FakeWhatsAppAssistantAgentReader(), history ?? new FakeWhatsAppAssistantHistoryReader(),
+            new(host.Conversation, new WhatsAppFormActionPolicy(host.Context.Users, new FakePhoneNumberParser(), new FakeWhatsAppAvailability(true, true),
+                host.Context.Clock), host.Context.Clock), host.Conversation, host.Requests, host.Messages, host.Context.Clock);
     public static WhatsAppAssistantAcceptancePolicy Create(WhatsAppAssistantSuggestionFixture host)
     {
         var sending = CreateSending(host);

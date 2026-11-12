@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <data name="TooMany" xml:space="preserve"><value>Hasta {0}.</value></data>
+  <data name="OutOfRange" xml:space="preserve"><value>Tiene que estar entre {0} y {1}.</value></data>
+  <data name="Repeated" xml:space="preserve"><value>No se puede repetir.</value></data>
+  <data name="ActionNotAllowed" xml:space="preserve"><value>El agente no tiene permitida esta acción. Prendela en Límites.</value></data>
+  <data name="ActionsRequired" xml:space="preserve"><value>Elegí al menos una acción.</value></data>
+  <data name="ButtonsRequired" xml:space="preserve"><value>Agregá al menos un botón.</value></data>
+  <data name="FormRequired" xml:space="preserve"><value>Elegí un formulario.</value></data>
+  <data name="Invalid" xml:space="preserve"><value>Revisá este dato.</value></data>
+  <data name="TooLong" xml:space="preserve"><value>Los casos ocupan demasiado para el asistente. Acortá los textos.</value></data>
+</root>

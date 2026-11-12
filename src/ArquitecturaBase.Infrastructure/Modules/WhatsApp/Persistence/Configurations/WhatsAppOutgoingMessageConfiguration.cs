@@ -12,6 +12,8 @@ internal sealed class WhatsAppOutgoingMessageConfiguration : IEntityTypeConfigur
         builder.Ignore(item => item.Document);
         builder.Ignore(item => item.QuickReplies);
         builder.Property(item => item.QuickRepliesJson).HasColumnType("jsonb");
+        builder.Property(item => item.IsAssistantHandoff).HasDefaultValue(false);
+        builder.Property(item => item.AssistantReplyJson).HasColumnType("jsonb");
         builder.HasIndex(item => new { item.ContactId, item.RequestId }).IsUnique().HasFilter("\"Origin\" = 'Assistant'");
         builder.Property(item => item.Origin).HasConversion<string>().HasMaxLength(20).HasDefaultValue(WhatsAppMessageOrigin.Conversation);
         builder.Property(item => item.RecipientWaId).HasMaxLength(32);

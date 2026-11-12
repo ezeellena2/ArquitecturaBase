@@ -14,10 +14,11 @@ internal sealed class WhatsAppTransactionContribution : IModuleArchitectureContr
         "ArquitecturaBase.Infrastructure.Modules.WhatsApp.Persistence.Repositories.WhatsAppMessageRetentionRepository";
 
     public IReadOnlyCollection<Type> CapabilityReadPorts =>
-        [typeof(IWhatsAppAssistantReader)];
+        [typeof(IWhatsAppAssistantReader), typeof(IWhatsAppAssistantAgentReader), typeof(IWhatsAppAssistantHistoryReader)];
     public IReadOnlyCollection<string> LockOwners => [WhatsAppLockKeys];
 
-    public IReadOnlyCollection<string> LockPrefixes => ["whatsapp-contact:user:", "whatsapp-contact:wa:", "whatsapp-message:", "whatsapp-flow:", "whatsapp-form-action:"];
+    public IReadOnlyCollection<string> LockPrefixes => ["whatsapp-contact:user:", "whatsapp-contact:wa:", "whatsapp-message:", "whatsapp-flow:", "whatsapp-form-action:",
+        "whatsapp-assistant-agent:"];
 
     // La retención vacía el texto de los mensajes viejos con ExecuteUpdate: WhatsAppMessage no es IAuditable ni
     // ISoftDeletable, así que no hay interceptor que saltear.

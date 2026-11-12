@@ -18,7 +18,10 @@ internal sealed class WhatsAppAssistantReader(ApplicationDbContext db,IOptions<W
     private IQueryable<WhatsAppMessage> Sources()=>BusinessInbound().Where(message=>message.ProcessedAtUtc!=null
         && message.OccurredAtUtc>clock.GetUtcNow().UtcDateTime.AddDays(-retention.Value.MessageRetentionDays)
         && ((message.Kind==WhatsAppMessageKind.Text || message.Kind==WhatsAppMessageKind.Audio && message.AudioState==WhatsAppAudioState.Completed
-                && message.AudioContentExpiresAtUtc>clock.GetUtcNow().UtcDateTime) && !string.IsNullOrWhiteSpace(message.Body)
+                && message.AudioContentExpiresAtUtc>clock.GetUtcNow().UtcDateTime
+                // Casos del asistente: a tap on a case's button reads as its title; a fixed text or a handoff is answered before.
+                || message.Kind==WhatsAppMessageKind.ButtonReply && message.ReplyId!=null && EF.Functions.Like(message.ReplyId,WhatsAppAssistantCaseButtonCodec.Prefix+"%"))
+                && !string.IsNullOrWhiteSpace(message.Body)
             || message.Kind==WhatsAppMessageKind.FlowReply && message.FlowCaptureState==WhatsAppFlowCaptureState.Completed && message.FlowRecordId!=null
             || message.Kind==WhatsAppMessageKind.Spreadsheet && message.SpreadsheetState==WhatsAppSpreadsheetState.Stored && message.SpreadsheetStorageKey!=null
                 && message.SpreadsheetSize!=null && message.SpreadsheetCopySha256!=null && message.SpreadsheetPreparedJson!=null));
@@ -119,6 +122,16 @@ internal sealed class WhatsAppAssistantReader(ApplicationDbContext db,IOptions<W
                 && message.ReplyId!=null && EF.Functions.Like(message.ReplyId,WhatsAppAssistantAuthoringReplyCodec.Prefix+"%"))
             .Select(message=>new WhatsAppAssistantChoiceRow(message.Id,message.WaMessageId,message.ReplyId!,message.OccurredAtUtc)).SingleOrDefaultAsync(ct);
     }
+    public Task<WhatsAppAssistantChoiceRow?> FindLatestCaseTapAsync(Guid contactId,CancellationToken ct)
+    {
+        var latest=BusinessInbound().Where(message=>message.ContactId==contactId).OrderByDescending(message=>message.InboundSequence)
+            .ThenByDescending(message=>message.Id).Select(message=>(Guid?)message.Id).Take(1);
+        return BusinessInbound().Where(message=>message.ContactId==contactId && latest.Contains(message.Id)
+                && message.Kind==WhatsAppMessageKind.ButtonReply && message.ProcessedAtUtc!=null && message.AssistantProcessedAtUtc==null
+                && message.OccurredAtUtc>clock.GetUtcNow().UtcDateTime.AddDays(-retention.Value.MessageRetentionDays)
+                && message.ReplyId!=null && EF.Functions.Like(message.ReplyId,WhatsAppAssistantCaseButtonCodec.Prefix+"%"))
+            .Select(message=>new WhatsAppAssistantChoiceRow(message.Id,message.WaMessageId,message.ReplyId!,message.OccurredAtUtc)).SingleOrDefaultAsync(ct);
+    }
     // A summary is the only automatic reply whose own outgoing has buttons: a clarification keeps them in its question.
     public Task<Guid?> FindLatestAuthoringRequestAsync(Guid contactId,CancellationToken ct)=>
         (from reference in References()
@@ -152,7 +165,9 @@ internal sealed class WhatsAppAssistantReader(ApplicationDbContext db,IOptions<W
     }
     public async Task<IReadOnlyList<Guid>> ListPendingContactsAsync(IReadOnlyCollection<Guid> excluded,int limit,DateTime nowUtc,CancellationToken ct)=>
         await PendingContactRows(excluded,limit,nowUtc).ToListAsync(ct);
-    public Task<bool> ExistsPendingAsync(DateTime nowUtc,CancellationToken ct)=>PendingReferences(nowUtc).AnyAsync(ct);
+    // A source still waiting for its turn (a burst of the agent) also counts, so the processor looks again soon.
+    public async Task<bool> ExistsPendingAsync(DateTime nowUtc,CancellationToken ct)=>
+        await PendingReferences(nowUtc).AnyAsync(ct) || await PendingContactRows([],1,nowUtc).AnyAsync(ct);
     private IQueryable<WhatsAppAssistantRequest> PendingReferences(DateTime nowUtc)=>
         References().Where(row=>row.State==WhatsAppAssistantRequestState.Pending && row.ContentExpiresAtUtc>nowUtc);
     private IQueryable<Guid> PendingContactRows(IReadOnlyCollection<Guid> excluded,int limit,DateTime nowUtc)

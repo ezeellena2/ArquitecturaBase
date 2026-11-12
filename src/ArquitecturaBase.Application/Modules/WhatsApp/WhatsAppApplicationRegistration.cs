@@ -53,8 +53,14 @@ public static class WhatsAppApplicationRegistration
         services.AddScoped<WhatsAppAssistantAuthoringPolicy>();
         services.AddScoped<IWhatsAppAssistantAuthoringService, WhatsAppAssistantAuthoringService>();
         services.AddScoped<IWhatsAppAssistantService, WhatsAppAssistantService>();
+        services.AddScoped<IWhatsAppAssistantAgentService, WhatsAppAssistantAgentService>();
+        services.AddScoped<WhatsAppAssistantHandoffPolicy>();
+        services.AddScoped<WhatsAppAssistantReplyPolicy>();
+        services.AddScoped<WhatsAppAssistantAgentTestPolicy>();
+        services.AddScoped<IWhatsAppAssistantAgentTestService, WhatsAppAssistantAgentTestService>();
         services.AddScoped<IWhatsAppAssistantDispatchService, WhatsAppAssistantDispatchService>();
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IAssistantCapabilitySource, WhatsAppAssistantCapabilitySource>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IAssistantCapabilitySource, WhatsAppAssistantAgentCapabilitySource>());
 
         // La invitación por WhatsApp y su estado de entrega, al lado del correo del núcleo. TryAddEnumerable: uno por canal
         // aunque este registro se llame dos veces.

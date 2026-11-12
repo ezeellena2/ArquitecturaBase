@@ -30,7 +30,7 @@ public sealed class WhatsAppChatsController(IWhatsAppChatService service, ISyste
         {
             Page = query.Page ?? PagedRequest.DefaultPage,
             PageSize = query.PageSize ?? (await settings.GetPresentationAsync(cancellationToken)).Value.DefaultPageSize,
-            Sort = query.Sort, Search = query.Search, UnreadOnly = query.UnreadOnly,
+            Sort = query.Sort, Search = query.Search, UnreadOnly = query.UnreadOnly, NeedsPersonOnly = query.NeedsPerson,
         }, cancellationToken)).ToActionResult(this);
 
     [HttpGet("{id:guid}/messages")]

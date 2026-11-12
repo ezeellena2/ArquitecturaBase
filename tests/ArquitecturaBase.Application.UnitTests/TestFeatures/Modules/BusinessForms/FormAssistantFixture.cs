@@ -59,6 +59,9 @@ internal sealed class FormAssistantFixture : IFormSelectionReader, IFormMissingR
     { Reads++; OnRead?.Invoke(); return Task.FromResult<IReadOnlyList<FormAssistantCandidateRow>>(Rows.Where(row => definitionIds.Contains(row.DefinitionId)).ToArray()); }
     public Task<IReadOnlyList<FormAssistantCandidateRow>> ListAssistantAsync(CancellationToken ct)
     { Reads++; OnRead?.Invoke(); return Task.FromResult<IReadOnlyList<FormAssistantCandidateRow>>(Rows.ToArray()); }
+    public List<FormAssistantCandidateRow> ChannelOnlyRows { get; } = [];
+    public Task<IReadOnlyList<FormAssistantCandidateRow>> ListChannelFormsAsync(CancellationToken ct)
+    { Reads++; OnRead?.Invoke(); return Task.FromResult<IReadOnlyList<FormAssistantCandidateRow>>([.. Rows, .. ChannelOnlyRows]); }
     public Task<FormAssistantCandidateRow?> FindAssistantAsync(Guid definitionId, Guid versionId, CancellationToken ct)
     { Reads++; OnRead?.Invoke(); return Task.FromResult(Rows.SingleOrDefault(row => row.DefinitionId == definitionId && row.VersionId == versionId)); }
     public Task<StructuredFormSelectionRow?> FindAsync(Guid definitionId, Guid versionId, CancellationToken ct) => throw new NotSupportedException();

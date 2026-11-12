@@ -103,5 +103,46 @@ public sealed partial class WhatsAppAssistantRequest : Entity
         DeclinedDefinitionId=definitionId; State=WhatsAppAssistantRequestState.NoReply; DecidedAtUtc=nowUtc; return true;
     }
 
+    /// <summary>
+    /// Casos del asistente: a reply has up to three actions, in order. The first is this reference; each other one is a reference
+    /// of its own (its offer, its outgoing and its checks before sending), with the operation of the first one.
+    /// </summary>
+    public Guid? OperationRequestId { get; private set; }
+
+    /// <summary>0 for the reference of a message or a capture; 1 or 2 for the second and third actions of the same reply.</summary>
+    public int ActionOrdinal { get; private set; }
+
+    /// <summary>What ended without a message («No responder», derivar without the fixed message), with its case, for the chat.</summary>
+    public string? OutcomeJson { get; private set; }
+
+    public const int MaxActions = 3;
+
+    public static WhatsAppAssistantRequest CreateAction(WhatsAppAssistantRequest first, Guid requestId, int ordinal, DateTime nowUtc)
+    {
+        ArgumentNullException.ThrowIfNull(first);
+        ArgumentOutOfRangeException.ThrowIfEqual(requestId, Guid.Empty);
+        if (first.ActionOrdinal != 0 || first.Kind != WhatsAppAssistantRequestKind.Automatic || first.ContextJson is null || first.ActorUserId is null
+            || ordinal is < 1 or >= MaxActions || nowUtc >= first.ContentExpiresAtUtc)
+            throw new ArgumentException("Another action belongs to the first automatic reference of the same reply, while its content lives.", nameof(first));
+        return new()
+        {
+            RequestId = requestId, ContactId = first.ContactId, SourceMessageId = first.SourceMessageId, ActorUserId = first.ActorUserId,
+            SubjectUserId = first.SubjectUserId, Kind = first.Kind, ModeRevision = first.ModeRevision, LinkRevision = first.LinkRevision,
+            ContextJson = first.ContextJson, CreatedAtUtc = nowUtc, ContentExpiresAtUtc = first.ContentExpiresAtUtc,
+            OperationRequestId = first.OperationRequestId ?? first.RequestId, ActionOrdinal = ordinal,
+        };
+    }
+
+    /// <summary>The outcome of an action that sent nothing, bounded, once; the content retention clears it.</summary>
+    public bool RecordOutcome(string outcomeJson)
+    {
+        if (string.IsNullOrWhiteSpace(outcomeJson) || outcomeJson.Length > 4096 || outcomeJson.TrimStart()[0] != '{') return false;
+        if (OutcomeJson is not null) return OutcomeJson == outcomeJson;
+        OutcomeJson = outcomeJson;
+        return true;
+    }
+
+    public void ClearOutcome() => OutcomeJson = null;
+
     public override string ToString() => "WhatsAppAssistantRequest { Context = [REDACTED] }";
 }

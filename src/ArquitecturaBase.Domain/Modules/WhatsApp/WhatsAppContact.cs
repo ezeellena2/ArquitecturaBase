@@ -58,6 +58,19 @@ public sealed class WhatsAppContact : Entity
     public WhatsAppConversationMode Mode { get; private set; } = WhatsAppConversationMode.Manual;
     public long ModeRevision { get; private set; }
 
+    /// <summary>Derivar (AS4): the stable code of why the conversation needs a person (a case, the daily cap, an owner's own reason).</summary>
+    public const int MaxHandoffReasonCodeLength = 64;
+
+    /// <summary>The reason the business wrote in a case, shown as written.</summary>
+    public const int MaxHandoffReasonLength = 200;
+
+    public string? HandoffReasonCode { get; private set; }
+    public string? HandoffReason { get; private set; }
+    public DateTime? HandoffAtUtc { get; private set; }
+
+    /// <summary>«Necesita una persona»: from a handoff until a person answers or the conversation goes back to the assistant.</summary>
+    public bool NeedsPerson => HandoffAtUtc.HasValue;
+
     public long RegisterInboundMessage() => ++LastInboundSequence;
 
     public void ChangeMode(WhatsAppConversationMode mode)
@@ -72,6 +85,54 @@ public sealed class WhatsAppContact : Entity
             Mode = mode;
             ModeRevision++;
         }
+
+        if (mode == WhatsAppConversationMode.Assistant)
+        {
+            ClearHandOff();
+        }
+    }
+
+    /// <summary>
+    /// Derivar (AS4): the conversation goes to Atención manual, so the assistant stops answering while the person waits, and is
+    /// marked «Necesita una persona» with its reason. The fixed message to the person is the caller's outgoing.
+    /// </summary>
+    public void HandOff(string reasonCode, string? reason, DateTime nowUtc)
+    {
+        if (string.IsNullOrEmpty(reasonCode) || reasonCode.Length > MaxHandoffReasonCodeLength
+            || reasonCode.Any(character => !(char.IsAsciiLetterOrDigit(character) || character is '.' or '-' or '_')))
+        {
+            throw new ArgumentException("A handoff reason code is a short ASCII identifier.", nameof(reasonCode));
+        }
+
+        var text = string.IsNullOrWhiteSpace(reason) ? null : reason.Trim();
+        if (text is { Length: > MaxHandoffReasonLength } || (text is not null && !StorableText.IsStorable(text)))
+        {
+            throw new ArgumentException($"A handoff reason has visible text, up to {MaxHandoffReasonLength}.", nameof(reason));
+        }
+
+        if (nowUtc.Kind != DateTimeKind.Utc)
+        {
+            throw new ArgumentException("The handoff time is UTC.", nameof(nowUtc));
+        }
+
+        ChangeMode(WhatsAppConversationMode.Manual);
+        HandoffReasonCode = reasonCode;
+        HandoffReason = text;
+        HandoffAtUtc = nowUtc;
+    }
+
+    /// <summary>A person answered (or the conversation went back to the assistant): it no longer needs one.</summary>
+    public bool ClearHandOff()
+    {
+        if (HandoffAtUtc is null)
+        {
+            return false;
+        }
+
+        HandoffReasonCode = null;
+        HandoffReason = null;
+        HandoffAtUtc = null;
+        return true;
     }
 
     /// <summary>

@@ -13,6 +13,8 @@ public interface IWhatsAppAssistantReader
     Task<WhatsAppAssistantChoiceRow?> FindLatestChoiceAsync(Guid contactId, CancellationToken ct);
     /// <summary>The newest business inbound when it is an unanswered tap on an authoring summary's button (IA3-A).</summary>
     Task<WhatsAppAssistantChoiceRow?> FindLatestAuthoringTapAsync(Guid contactId, CancellationToken ct);
+    /// <summary>Casos del asistente: the newest business inbound when it is an unanswered tap on a button of a case's question.</summary>
+    Task<WhatsAppAssistantChoiceRow?> FindLatestCaseTapAsync(Guid contactId, CancellationToken ct);
     /// <summary>The operation of the latest authoring summary sent to the contact: only its buttons count.</summary>
     Task<Guid?> FindLatestAuthoringRequestAsync(Guid contactId, CancellationToken ct);
     /// <summary>The operation the next message changes, when the latest automatic reference is the reply to «Cambiar algo».</summary>

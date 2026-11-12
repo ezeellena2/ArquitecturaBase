@@ -25,7 +25,7 @@ internal sealed class WhatsAppChatQueryService(IWhatsAppChatReader reader, IWhat
         var page = await reader.ListChatsAsync(request, actor, cancellationToken);
         var counts = await reader.CountChatsAsync(request, actor, cancellationToken);
         return new WhatsAppChatsResponse(new PagedResult<WhatsAppChatResponse>(
-            [.. page.Items.Select(ToResponse)], page.Page, page.PageSize, page.TotalCount), counts.AllCount, counts.UnreadCount);
+            [.. page.Items.Select(ToResponse)], page.Page, page.PageSize, page.TotalCount), counts.AllCount, counts.UnreadCount, counts.NeedsPersonCount);
     });
 
     public Task<Result<WhatsAppThreadResponse>> GetThreadAsync(ListWhatsAppMessagesRequest request, Guid actor,
@@ -53,9 +53,16 @@ internal sealed class WhatsAppChatQueryService(IWhatsAppChatReader reader, IWhat
                 SpreadsheetName: message.Kind == WhatsAppMessageKind.Spreadsheet ? message.SpreadsheetName : null,
                 // W1-A: a received location shows its point.
                 Location: message.Kind == WhatsAppMessageKind.Location && message.Latitude is { } latitude && message.Longitude is { } longitude
-                    ? new WhatsAppLocationPointResponse(latitude, longitude) : null))],
+                    ? new WhatsAppLocationPointResponse(latitude, longitude) : null,
+                AssistantReply: WhatsAppOutgoingPresentationPolicy.Reply(message.AssistantReplyJson)))],
             [.. row.Outgoing.Select(item => ToOutgoingResponse(item, recordResult.CanReadRecords))], row.BeforeAtUtc, row.BeforeId, recordResult.CanReadRecords)
-            { AssistantAvailability = availability, AssistantSuggestion = pointer };
+            {
+                AssistantAvailability = availability, AssistantSuggestion = pointer,
+                // Casos del asistente: what ended without a message is a line of the chat; one whose why does not read is left out.
+                AssistantEvents = row.AssistantEvents.Select(item => WhatsAppOutgoingPresentationPolicy.Reply(item.OutcomeJson) is { } why
+                    ? new WhatsAppAssistantEventResponse(item.RequestId, item.AtUtc, why) : null).OfType<WhatsAppAssistantEventResponse>().ToArray() is { Length: > 0 } lines
+                    ? lines : null,
+            };
     });
 
     public Task<Result<WhatsAppOutgoingMessageResponse>> FindOutgoingAsync(Guid contactId, Guid requestId,
@@ -71,7 +78,8 @@ internal sealed class WhatsAppChatQueryService(IWhatsAppChatReader reader, IWhat
     private WhatsAppOutgoingMessageResponse ToOutgoingResponse(WhatsAppOutgoingMessageRow row, bool canReadRecords = true) =>
         new(row.Id, row.RequestId, row.OperatorUserId, row.Origin == WhatsAppMessageOrigin.FormAction && !canReadRecords ? null : row.Body, row.RequestedAtUtc,
             row.State, row.WaMessageId, ToFormResponse(row.Form), Kind: row.Kind, Origin: row.Origin, Assistant: presentation.Explain(row.Assistant, canReadRecords),
-            QuickReplies: row.Origin == WhatsAppMessageOrigin.FormAction && !canReadRecords ? null : WhatsAppAssistantPresentationPolicy.Titles(row.QuickRepliesJson, true));
+            QuickReplies: row.Origin == WhatsAppMessageOrigin.FormAction && !canReadRecords ? null : WhatsAppAssistantPresentationPolicy.Titles(row.QuickRepliesJson, true),
+            AssistantReply: WhatsAppOutgoingPresentationPolicy.Reply(row.AssistantReplyJson));
 
     private static WhatsAppFormPresentationResponse? ToFormResponse(WhatsAppFormPresentationRow? row)
     {
@@ -120,6 +128,7 @@ internal sealed class WhatsAppChatQueryService(IWhatsAppChatReader reader, IWhat
             : row.Preview;
         return new(row.Id, row.ProfileName, parsed.IsSuccess ? phoneNumbers.FormatInternational(parsed.Value) : null,
             row.Mode, row.ModeRevision, row.LastInboundAtUtc, row.LastInboundSequence, row.UnreadCount,
-            row.PreviewPurpose == WhatsAppMessagePurpose.Access ? null : preview, row.PreviewPurpose, row.PreviewAccessEventKind);
+            row.PreviewPurpose == WhatsAppMessagePurpose.Access ? null : preview, row.PreviewPurpose, row.PreviewAccessEventKind,
+            row.HandoffAtUtc is { } handoffAtUtc && row.HandoffReasonCode is { } reasonCode ? new(reasonCode, row.HandoffReason, handoffAtUtc) : null);
     }
 }

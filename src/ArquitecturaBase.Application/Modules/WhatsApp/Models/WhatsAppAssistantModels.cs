@@ -10,9 +10,20 @@ public sealed record SendWhatsAppAssistantSuggestionRequest(Guid ContactId, Guid
 {
     public override string ToString() => "SendWhatsAppAssistantSuggestionRequest { Selection = [REDACTED] }";
 }
-public sealed record WhatsAppAssistantSuggestionResponse(Guid RequestId, Guid SourceMessageId, WhatsAppAssistantRequestState State, WhatsAppAssistantFormProposalResponse? Proposal, WhatsAppOutgoingMessageResponse? Outgoing)
+public sealed record WhatsAppAssistantSuggestionResponse(Guid RequestId, Guid SourceMessageId, WhatsAppAssistantRequestState State, WhatsAppAssistantFormProposalResponse? Proposal, WhatsAppOutgoingMessageResponse? Outgoing,
+    // Casos del asistente (H2 with a text): only a suggestion that is a text carries it.
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] WhatsAppAssistantTextProposalResponse? TextProposal = null)
 {
     public override string ToString() => "WhatsAppAssistantSuggestionResponse { Content = [REDACTED] }";
+}
+
+/// <summary>
+/// Casos del asistente: in Atención manual the suggestion can be a text, the case's exact text or a checked draft, with the case it
+/// followed and what it used. «Usar como borrador» puts it in the composer and discards the suggestion; nothing goes out on its own.
+/// </summary>
+public sealed record WhatsAppAssistantTextProposalResponse(string Text, WhatsAppAssistantCaseSource CaseSource, string? CaseTitle, IReadOnlyList<string> Used)
+{
+    public override string ToString() => "WhatsAppAssistantTextProposalResponse { Content = [REDACTED] }";
 }
 public sealed record WhatsAppAssistantFormProposalResponse(Guid? ProposalId, Guid DefinitionId, Guid VersionId, int VersionNumber,
     string Name, string Culture, string Reason, IReadOnlyList<WhatsAppAssistantPrefillResponse> Fields)

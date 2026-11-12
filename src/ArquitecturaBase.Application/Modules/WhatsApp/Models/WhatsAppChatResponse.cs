@@ -7,9 +7,17 @@ namespace ArquitecturaBase.Application.Modules.WhatsApp.Models;
 public record WhatsAppChatResponse(
     Guid Id, string? ProfileName, string? PhoneNumber, WhatsAppConversationMode Mode, long ModeRevision,
     DateTime LastInboundAtUtc, long LastInboundSequence, int UnreadCount, string? Preview,
-    WhatsAppMessagePurpose PreviewPurpose = WhatsAppMessagePurpose.Unclassified, WhatsAppAccessEventKind? PreviewAccessEventKind = null);
+    WhatsAppMessagePurpose PreviewPurpose = WhatsAppMessagePurpose.Unclassified, WhatsAppAccessEventKind? PreviewAccessEventKind = null,
+    // Derivar (AS4): only a conversation that needs a person carries it.
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] WhatsAppNeedsPersonResponse? NeedsPerson = null);
 
-public sealed record WhatsAppChatsResponse(PagedResult<WhatsAppChatResponse> Page, int AllCount, int UnreadCount);
+/// <summary>
+/// «Necesita una persona»: the stable code of the reason (a case, the daily limit, an owner's own reason), the reason the business
+/// wrote in a case, as written, and since when.
+/// </summary>
+public sealed record WhatsAppNeedsPersonResponse(string ReasonCode, string? Reason, DateTime AtUtc);
+
+public sealed record WhatsAppChatsResponse(PagedResult<WhatsAppChatResponse> Page, int AllCount, int UnreadCount, int NeedsPersonCount = 0);
 
 public sealed record WhatsAppMessageResponse(
     Guid Id, WhatsAppMessageDirection Direction, WhatsAppMessageKind Kind, string? Body, DateTime OccurredAtUtc,
@@ -21,7 +29,9 @@ public sealed record WhatsAppMessageResponse(
     // Only a received spreadsheet carries its normalized name; the other messages keep their shape.
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? SpreadsheetName = null,
     // W1-A: only a received location carries its point.
-    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] WhatsAppLocationPointResponse? Location = null);
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] WhatsAppLocationPointResponse? Location = null,
+    // Casos del asistente: only a reply of the agent carries «Por qué respondió esto».
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] WhatsAppAssistantReplyResponse? AssistantReply = null);
 public sealed record WhatsAppLocationPointResponse(decimal Latitude, decimal Longitude)
 {
     public override string ToString() => "WhatsAppLocationPointResponse { Content = [REDACTED] }";
@@ -43,7 +53,11 @@ public sealed record WhatsAppOutgoingMessageResponse(
     WhatsAppOutgoingMessageState State, string? WaMessageId, WhatsAppFormPresentationResponse? Form = null,
     string? RecoveryPath = null, WhatsAppOutgoingMessageKind Kind = WhatsAppOutgoingMessageKind.Text,
     WhatsAppMessageOrigin Origin = WhatsAppMessageOrigin.Conversation,
-    WhatsAppAssistantExplanationResponse? Assistant = null, IReadOnlyList<string>? QuickReplies = null);
+    WhatsAppAssistantExplanationResponse? Assistant = null, IReadOnlyList<string>? QuickReplies = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] WhatsAppAssistantReplyResponse? AssistantReply = null);
+
+/// <summary>A line of the chat for what the assistant decided without a message, with its why.</summary>
+public sealed record WhatsAppAssistantEventResponse(Guid Id, DateTime AtUtc, WhatsAppAssistantReplyResponse Reply);
 
 public sealed record WhatsAppThreadResponse(
     WhatsAppThreadContactResponse Contact, IReadOnlyList<WhatsAppMessageResponse> Messages,
@@ -52,6 +66,12 @@ public sealed record WhatsAppThreadResponse(
 {
     public required AssistantAvailabilityResponse AssistantAvailability { get; init; }
     public WhatsAppAssistantSuggestionPointerResponse? AssistantSuggestion { get; init; }
+    /// <summary>
+    /// Casos del asistente: «Sin respuesta del asistente» and handoffs that sent nothing, in the page's span, oldest first; absent
+    /// when there is none.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<WhatsAppAssistantEventResponse>? AssistantEvents { get; init; }
 }
 
 public sealed record ListWhatsAppMessagesRequest(Guid ContactId, DateTime? BeforeAtUtc = null, Guid? BeforeId = null, int Limit = 50);
