@@ -990,8 +990,12 @@ canal, el aviso de todo rechazo por una validación fija, los cupos fuera del gl
 adjunta documentos. El usuario lo aprobó el mismo día («Sí, arrancá»).
 
 Hechas, cada una con su revisión adversarial y su corrección: la tarea 1 (47d1dbec), la 2 (7d559160), la 3 (03cf386d), la 4
-(7d737e2e, sin la corrida real con OpenAI, que espera el visto bueno del usuario), la 5 (front 71937f06 y backend 4dc93dc4), la 6
-(front 1ab8d45f), la 11 (front 608e9ad2 y backend a80e3192), la 15 (a1c8c8ea) y la 16 (front b8e538d6). Ajustes al programar: el
+(7d737e2e; la corrida real, con el visto bueno del usuario, en 8b057da5: 30 de 30), la 5 (front 71937f06 y backend 4dc93dc4), la 6
+(front 1ab8d45f), la 7 (f2f2356a), la 11 (front 608e9ad2 y backend a80e3192), la 12 (093f184f), la 13 (front 3a1f4338 y backend
+87db44bc), la 15 (a1c8c8ea) y la 16 (front b8e538d6; las referencias de la planilla con renglones que bajó su fila de pestañas, en
+el front 5ac661af). Desde el 2026-11-12 el usuario pidió la revisión completa en todas las tareas, también en las chicas de front y
+documentación. Desde la tarea 13 Inicio también ofrece `propose-form@2`, así que en el cierre se repite con la 2 la mitad de Inicio
+de `ia-authoring` y de `ia-spreadsheets`, con el visto bueno del usuario. Ajustes al programar: el
 reenvío por WhatsApp de una captura rechazada pasó de la tarea 5 a la 9; «Derivar» lo arma casos del asistente y la tarea 9 lo
 llama; el tablero usa la zona del perfil de quien lee y un solo período; las cargas por un archivo no gastan los ofrecimientos
 del día; con un documento tampoco se ofrece `forms.missing-request.propose`; la biblioteca manda lo que lee cada estándar con
@@ -1014,9 +1018,10 @@ servicio de ubicaciones (`WhatsAppFlowLocationService` y su política), el guard
 lector del asistente (`WhatsAppAssistantReader`). Varias cargas desde un Excel va sobre la bandeja y el circuito de las tareas
 7 a 10.
 
-2026-11-12: la tarea 20 (el ajuste de la pregunta, backend) está programada y revisada: `receives` en el borrador, el validador
-(también sin condición ni validación fija), el contrato neutral y la proyección del Flow, que no cambia; sus capturas de
-`forms-http` esperan la exportación conjunta.
+2026-11-12: hechas, cada una con su revisión, la 18 (el diseño, front f0133c43), la 19a (los guards de `receives`, front
+91e888dc), la 20 (0b19e9cf: `receives` en el borrador, el validador, también sin condición ni validación fija, el contrato neutral
+y la proyección del Flow, que no cambia) y la 21 (la zona del editor, front 1b0c45e3); las capturas de `forms-http` esperan la
+exportación conjunta. La 19b (los guards del hilo y de la actividad) y las tareas 8 y 9, antes de la etapa U, están en curso.
 
 ### Lo elegido
 
