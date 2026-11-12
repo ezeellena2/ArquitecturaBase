@@ -4,7 +4,9 @@ Esta rutina vale para la plantilla, sus proyectos derivados y ambos repositorios
 la [arquitectura del backend](../architecture/backend.md), la
 [del front](../../../ArquitecturaBaseFront/docs/architecture.md) y las reglas del área afectada.
 Una suite verde respalda las garantías que comprueba; la coherencia y la necesidad del diseño
-también requieren revisar el código.
+también requieren revisar el código. Para revisar un desarrollo entero contra los 30 criterios de
+calidad (que no se mezclen los pedidos, varias copias, volumen, terceros, seguridad, datos, lo que ve
+el usuario y operación), seguí [revisar la arquitectura de un desarrollo](revisar-arquitectura.md).
 
 ## Antes de programar
 
