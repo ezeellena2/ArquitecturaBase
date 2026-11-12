@@ -63,6 +63,15 @@ internal sealed class FormAssistantProposalScenario(ApiFactory factory, WebAppli
         Hand(new(BusinessFormAuthoringAssistantCapabilitySource.ProposeFormId, 1), new FormAuthoringFormProposal("es", name, prefix, "Enviar",
             [new("Patente", "shortText", true, [], null), new("Kilos", "number", false, [], null)]), current);
 
+    // Stage 3: version 2 of a form, with the reading it turned on, what each question read in the document and a similar standard.
+    public CreateFromAssistantProposalRequest DocumentForm(string name, string prefix) =>
+        Hand(new(BusinessFormAuthoringAssistantCapabilitySource.ProposeFormId, BusinessFormAuthoringAssistantCapabilitySource.DocumentFormVersion),
+            DocumentProposal(name, prefix), true);
+
+    public static FormAuthoringDocumentFormProposal DocumentProposal(string name, string prefix) => new("es", name, prefix, "Enviar",
+        [new("Monto", "number", true, [], null, "$ 1.234,50"), new("Fecha", "date", true, [], null, "03/11/2026")],
+        new("Comprobantes de transferencias bancarias."), new("forms.transfer-receipt", "Comprobante de transferencia"));
+
     public CreateFromAssistantProposalRequest Catalog(string name, bool current = true) =>
         Hand(new(BusinessFormAuthoringAssistantCapabilitySource.ProposeCatalogId, 1), new FormAuthoringCatalogProposal("es", name,
             "Empresas de transporte ficticias", "text", "CUIT", "Razón social", [new("Razón social", "text"), new("Teléfono", "text")]), current);

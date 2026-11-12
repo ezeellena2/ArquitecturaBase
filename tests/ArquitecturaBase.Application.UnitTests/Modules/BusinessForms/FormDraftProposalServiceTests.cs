@@ -74,10 +74,14 @@ public sealed class FormDraftProposalServiceTests
     [Theory]
     [InlineData("missing")]
     [InlineData("catalog")]
+    [InlineData("other-version")]
     public async Task A_proposal_that_cannot_be_read_or_is_not_a_form_is_unavailable(string kind)
     {
         var host = new Host();
         if (kind == "missing") host.Lookup.Response = null;
+        // Version 2 reads only its own payload.
+        else if (kind == "other-version") host.Lookup.Response = host.Lookup.Response! with { Proposal = host.Lookup.Response.Proposal with
+            { Capability = new(BusinessFormAuthoringAssistantCapabilitySource.ProposeFormId, BusinessFormAuthoringAssistantCapabilitySource.DocumentFormVersion) } };
         else host.Lookup.Response = host.Lookup.Response! with { Proposal = host.Lookup.Response.Proposal with
             { Capability = new(BusinessFormAuthoringAssistantCapabilitySource.ProposeCatalogId, 1) } };
         var result = await host.Service.CreateAsync(host.Request, Ct);
@@ -179,6 +183,49 @@ public sealed class FormDraftProposalServiceTests
         Assert.Empty(host.Drafts.Created);
     }
 
+    // Stage 3: version 2 creates version 1's form with the reading it turned on, from Home and from a channel; its samples and its
+    // similar standard are never kept, and it is looked up in the same group as version 1.
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Version_two_creates_the_draft_with_its_reading_on_and_never_keeps_its_samples(bool fromHome)
+    {
+        var host = new Host();
+        host.Lookup.Response = host.Lookup.Response! with { Proposal = host.DocumentProposal(new("Comprobantes de transferencias bancarias.")) };
+        var result = fromHome ? await host.Service.CreateAsync(host.Request, Ct) : await host.Service.CreateFromChannelAsync(host.ChannelRequest(), Ct);
+        Assert.True(result.IsSuccess);
+        var saved = Assert.Single(host.Drafts.Created);
+        var reading = saved.Draft.DocumentReading!;
+        Assert.Equal((true, "Comprobantes de transferencias bancarias."), (reading.Enabled, reading.Recognition));
+        Assert.Empty(reading.Lookups);
+        Assert.Equal(["shortText", "choice"], saved.Draft.Fields.Select(field => field.Type));
+        Assert.Equal(CatalogId, saved.Draft.Fields[1].Source!.Catalog);
+        // The evidence says only that the proposal brought a reading: «Cómo reconocerlo» comes from a document and lives in the draft.
+        var evidence = JsonSerializer.Deserialize<FormDraftProposalEvidence>(saved.Proposal!.EvidenceJson, JsonSerializerOptions.Web)!;
+        Assert.Equal((2, (bool?)true), (evidence.CapabilityVersion, evidence.DocumentReading));
+        Assert.Equal(JsonSerializer.Serialize(host.Proposal, JsonSerializerOptions.Web), JsonSerializer.Serialize(evidence.OriginalProposal, JsonSerializerOptions.Web));
+        Assert.DoesNotContain("Comprobantes de transferencias", saved.Proposal.EvidenceJson, StringComparison.Ordinal);
+        Assert.DoesNotContain("AB 123 CD", saved.Proposal.EvidenceJson, StringComparison.Ordinal);
+        Assert.DoesNotContain("forms.transfer-receipt", saved.Proposal.EvidenceJson, StringComparison.Ordinal);
+        Assert.DoesNotContain("AB 123 CD", JsonSerializer.Serialize(saved, JsonSerializerOptions.Web), StringComparison.Ordinal);
+        if (fromHome) Assert.Equal([BusinessFormAuthoringAssistantCapabilitySource.ProposeFormId], host.Lookup.LastCapabilityGroup);
+    }
+
+    [Fact]
+    public async Task Version_two_without_a_reading_creates_version_one_s_draft()
+    {
+        var host = new Host();
+        await host.Service.CreateAsync(host.Request, Ct);
+        var first = Assert.Single(host.Drafts.Created);
+        var second = new Host();
+        second.Lookup.Response = second.Lookup.Response! with { Proposal = second.DocumentProposal(null) };
+        await second.Service.CreateAsync(second.Request, Ct);
+        var created = Assert.Single(second.Drafts.Created);
+        Assert.Null(created.Draft.DocumentReading);
+        Assert.Equal(FormDraftPolicy.Serialize(first.Draft), FormDraftPolicy.Serialize(created.Draft));
+        Assert.DoesNotContain("documentReading", created.Proposal!.EvidenceJson, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task A_channel_tap_after_the_draft_exists_gets_the_same_draft()
     {
@@ -213,6 +260,13 @@ public sealed class FormDraftProposalServiceTests
         }
 
         public CreateFromAssistantProposalRequest Request => new(Lookup.RequestId, ProposalId);
+
+        // Version 2 of the same form: a sample per question, the reading it turned on (or none) and a similar standard.
+        public AssistantObservedProposal DocumentProposal(FormAuthoringProposedReading? reading) => new(Authoring.TurnId, ProposalId,
+            new(BusinessFormAuthoringAssistantCapabilitySource.ProposeFormId, BusinessFormAuthoringAssistantCapabilitySource.DocumentFormVersion),
+            new FormAuthoringDocumentFormProposal("es", "Control de carga", "CCC", "Enviar",
+                [new("Patente", "shortText", true, [], null, "AB 123 CD"), new("Campo", "catalog", true, [], new(CatalogId, "Campos"), null)],
+                reading, new("forms.transfer-receipt", "Comprobante de transferencia")));
 
         // WhatsApp's own conversation: the person is both Actor and Subject, in the assistant mode.
         public StructuredAuthoringProposalRequest ChannelRequest() => new(Lookup.RequestId,

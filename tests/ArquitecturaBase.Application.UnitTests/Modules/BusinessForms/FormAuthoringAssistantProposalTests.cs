@@ -42,14 +42,14 @@ public sealed class FormAuthoringAssistantProposalTests
     public void Proposals_declare_the_authoring_permissions_and_closed_contracts()
     {
         var definitions = new AuthoringAssistantFixture().Source.Definitions;
-        var form = definitions.Single(definition => definition.Id == ProposeForm);
+        var form = definitions.Single(definition => definition is { Id: ProposeForm, Version: 1 });
         var catalog = definitions.Single(definition => definition is { Id: ProposeCatalog, Version: 1 });
         Assert.Equal(AssistantCapabilityKind.Proposal, form.Kind);
         Assert.Equal([BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage], form.RequiredPermissions.Actor);
         Assert.Equal(AssistantCapabilityKind.Proposal, catalog.Kind);
         Assert.Equal([BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage], catalog.RequiredPermissions.Actor);
-        // Two reads, the form, both versions of the catalog, the import and the decline that only a channel offers.
-        Assert.Equal(7, definitions.Count);
+        // Two reads, both versions of the form and of the catalog, the import and the decline that only a channel offers.
+        Assert.Equal(8, definitions.Count);
     }
 
     [Fact]

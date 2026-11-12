@@ -22,11 +22,12 @@ internal static class QualificationChannelContexts
     public static readonly string[] AuthoringCapabilities = ["forms.authoring.forms", "forms.authoring.catalogs", "forms.authoring.propose-form",
         "forms.authoring.propose-catalog", SpreadsheetOracle.ProposeImport, "forms.authoring.decline"];
     // The automatic conversation exactly as WhatsAppAssistantAccessPolicy captures it, in its order. Since Stage 2 the catalog is version 2,
-    // which maps the conversation's spreadsheet, next to the import, which the engine leaves out of a turn without a spreadsheet.
+    // which maps the conversation's spreadsheet, next to the import, which the engine leaves out of a turn without a spreadsheet; since
+    // Stage 3 the form is version 2, which reads the conversation's document.
     public static readonly AssistantCapabilityReference[] AutomaticReferences = [new("forms.assistant-candidates", 1), new("forms.propose-registration", 1),
         new("forms.clarify-registration", 1), new("whatsapp.offered-forms", 1), new("whatsapp.no-reply", 1), new("whatsapp.decline-form", 1),
         new("forms.missing-request.propose", 1), new("forms.catalog-filters.metadata", 1), new("forms.catalog-filters.propose", 1),
-        new("forms.authoring.forms", 1), new("forms.authoring.catalogs", 1), new("forms.authoring.propose-form", 1),
+        new("forms.authoring.forms", 1), new("forms.authoring.catalogs", 1), new("forms.authoring.propose-form", AuthoringOracle.DocumentFormVersion),
         new("forms.authoring.propose-catalog", SpreadsheetOracle.MappedCatalogVersion), new(SpreadsheetOracle.ProposeImport, 1), new("forms.authoring.decline", 1)];
     // An operator's manual conversation and a captured record (C4) keep their Stage 1 offer, all of it version 1.
     private static readonly AssistantCapabilityReference[] ManualReferences = [new("whatsapp.offered-forms", 1), new("whatsapp.no-reply", 1),
@@ -163,11 +164,12 @@ internal sealed class ChannelRunner(IAssistantOperations operations, SafeRunLedg
         return new(requestId,outcome,technical,elapsed.Elapsed.TotalSeconds,checks,measurements.EndCase());
     }
 
-    // What an author builds with in the automatic own conversation, by Id and version: the catalog in version 2 and, only in a turn with a
-    // spreadsheet, the import. Version 1 of the catalog is never offered.
+    // What an author builds with in the automatic own conversation, by Id and version: the form and the catalog in version 2 and, only in a
+    // turn with a spreadsheet, the import. Version 1 of the form and of the catalog is never offered.
     internal static readonly AssistantCapabilityReference[] AuthoringBuilding = [new("forms.authoring.forms", 1), new("forms.authoring.catalogs", 1),
-        new(AuthoringOracle.ProposeForm, 1), new(AuthoringOracle.ProposeCatalog, SpreadsheetOracle.MappedCatalogVersion)];
-    private static readonly AssistantCapabilityReference[] NeverWithoutSpreadsheet = [new(AuthoringOracle.ProposeCatalog, 1), new(SpreadsheetOracle.ProposeImport, 1)];
+        new(AuthoringOracle.ProposeForm, AuthoringOracle.DocumentFormVersion), new(AuthoringOracle.ProposeCatalog, SpreadsheetOracle.MappedCatalogVersion)];
+    private static readonly AssistantCapabilityReference[] NeverWithoutSpreadsheet = [new(AuthoringOracle.ProposeCatalog, 1), new(AuthoringOracle.ProposeForm, 1),
+        new(SpreadsheetOracle.ProposeImport, 1)];
     internal static readonly AssistantCapabilityReference[] SpreadsheetAuthoring = [..AuthoringBuilding, new(SpreadsheetOracle.ProposeImport, 1),
         new(AuthoringOracle.Decline, 1)];
 
@@ -180,7 +182,7 @@ internal sealed class ChannelRunner(IAssistantOperations operations, SafeRunLedg
         if(testCase is not {Authoring:{Capability:{} capability} expected,Spreadsheet:{} attached})return;
         var proposal=outcome.Proposal;
         checks.Add(new("spreadsheet-offer-matches-context",AuthoringOracle.Offered(technical.OfferedReferences,SpreadsheetAuthoring,
-            [new(AuthoringOracle.ProposeCatalog,1)])));
+            [new(AuthoringOracle.ProposeCatalog,1),new(AuthoringOracle.ProposeForm,1)])));
         checks.Add(new("authoring-terminal-from-expected-capability",outcome.State=="completed" && proposal is not null
             && proposal.Capability==new AssistantCapabilityReference(capability,expected.Version)));
         checks.Add(new("authoring-reads-before-proposal",AuthoringOracle.ReadsBeforeProposal(proposal,testCase.RequiredTools)));
@@ -401,6 +403,7 @@ internal sealed class ChannelRunner(IAssistantOperations operations, SafeRunLedg
             "suggestion"=>payload is FormSuggestionAssistantRegistrationPayload,
             "decline"=>payload is WhatsAppAssistantDeclinePayload,
             "authoring-form"=>payload is FormAuthoringFormProposal,
+            "authoring-document-form"=>payload is FormAuthoringDocumentFormProposal,
             "authoring-catalog"=>payload is FormAuthoringCatalogProposal,
             "authoring-decline"=>payload is FormAuthoringDecline,
             "authoring-mapped-catalog"=>payload is FormAuthoringMappedCatalogProposal,

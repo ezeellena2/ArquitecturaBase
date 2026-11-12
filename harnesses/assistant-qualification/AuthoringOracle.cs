@@ -25,6 +25,8 @@ internal sealed record SpreadsheetMappingExpectation(bool HasHeaders, string Cod
 internal static partial class AuthoringOracle
 {
     public const string ProposeForm = "forms.authoring.propose-form";
+    // Stage 3: the automatic conversation offers the form in version 2, which reads the conversation's document; Home keeps version 1.
+    public const int DocumentFormVersion = 2;
     public const string ProposeCatalog = "forms.authoring.propose-catalog";
     public const string Decline = "forms.authoring.decline";
     public const string PeopleCatalog = "forms.catalog-filters.propose";
@@ -38,6 +40,10 @@ internal static partial class AuthoringOracle
     public static IReadOnlyList<CheckEvidence> PayloadChecks(AuthoringExpectation expected, string culture, AssistantCapabilityPayload? payload,
         QualificationChannelFixture fixture, QualificationFixture actors, AssistantCapabilityPayload? previous) => expected.Capability switch
     {
+        // Since Stage 3 the automatic conversation offers version 2: without a document its output is version 1's form with nothing read.
+        ProposeForm when expected.Version == DocumentFormVersion => FormChecks(expected, culture,
+            payload is FormAuthoringDocumentFormProposal { DocumentReading: null, Standard: null } document && document.Questions.All(question => question.Sample is null)
+                ? document.ToForm() : null, fixture, previous),
         ProposeForm => FormChecks(expected, culture, payload as FormAuthoringFormProposal, fixture, previous),
         // Since Stage 2 the app offers version 2: without a spreadsheet its output is version 1's catalog with a null spreadsheet.
         ProposeCatalog when expected.Version == SpreadsheetOracle.MappedCatalogVersion => CatalogChecks(expected, culture,
@@ -64,8 +70,9 @@ internal static partial class AuthoringOracle
                 && (expected.Prefix is null || string.Equals(expected.Prefix, proposal.Prefix, StringComparison.Ordinal))),
             new("authoring-exact-questions", proposal is not null && ExactQuestions(expected.Questions ?? [], proposal.Questions, fixture)),
         };
-        // An adjustment proposes the whole form again: the same name and prefix the previous proposal of the conversation had.
-        // The answer to «what should I build?» proposes for the first time, right after that question («pregunta y espera»).
+        // An adjustment proposes the whole form again: the same name and prefix the previous proposal of the conversation had (in version 2,
+        // its form). The answer to «what should I build?» proposes for the first time, right after that question («pregunta y espera»).
+        if (previous is FormAuthoringDocumentFormProposal earlier) previous = earlier.ToForm();
         if (expected.Continues is not null)
             checks.Add(previous is FormAuthoringDecline asked
                 ? new("authoring-answers-the-question", proposal is not null && asked is { Reason: "unclear" })

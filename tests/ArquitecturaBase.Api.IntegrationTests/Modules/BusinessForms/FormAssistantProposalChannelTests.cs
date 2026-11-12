@@ -57,6 +57,27 @@ public sealed class FormAssistantProposalChannelTests(ApiFactory factory)
         Assert.Equal((manual.Id, false, BusinessFormCatalogProposalState.Pending), (row.ProposalId, row.IsActive, row.ProposalState));
     }
 
+    // Stage 3: the automatic conversation proposes version 2; its button creates the draft reading documents, also without a session.
+    [Fact]
+    public async Task A_channel_creates_the_draft_of_a_form_that_reads_documents_with_its_reading_on()
+    {
+        await using var scenario = await FormAssistantProposalScenario.CreateAsync(factory, Ct);
+        var provenance = new AssistantOperationProvenance("fictitious-profile", 1, "capabilities-v1", 1, factory.Clock.GetUtcNow().UtcDateTime, "whatsapp-assistant");
+        var form = new AssistantObservedProposal(Guid.NewGuid(), Guid.NewGuid(),
+            new(BusinessFormAuthoringAssistantCapabilitySource.ProposeFormId, BusinessFormAuthoringAssistantCapabilitySource.DocumentFormVersion),
+            FormAssistantProposalScenario.DocumentProposal("Lectura " + scenario.Suffix, scenario.Prefix));
+        var created = await CreateAsync(new(Guid.NewGuid(), Context(scenario.AuthorId), form, provenance));
+        Assert.True(created.IsSuccess);
+        Assert.Equal((StructuredAuthoringKind.Form, "Lectura " + scenario.Suffix), (created.Value.Kind, created.Value.Name));
+        var stored = await scenario.DefinitionAsync(created.Value.Id, Ct);
+        using var reading = JsonDocument.Parse(stored.DocumentReadingJson!);
+        Assert.Equal((true, "Comprobantes de transferencias bancarias."), (reading.RootElement.GetProperty("enabled").GetBoolean(),
+            reading.RootElement.GetProperty("recognition").GetString()));
+        Assert.DoesNotContain("1.234,50", stored.ProposalEvidenceJson!, StringComparison.Ordinal);
+        Assert.DoesNotContain("Comprobantes de transferencias", stored.ProposalEvidenceJson!, StringComparison.Ordinal);
+        Assert.Equal(created.Value.Id, (await CreateAsync(new(Guid.NewGuid(), Context(scenario.AuthorId), form, provenance))).Value.Id);
+    }
+
     // The base host's scope, like a channel worker's, has no current user.
     private Task<ArquitecturaBase.Domain.Results.Result<StructuredAuthoringCreatedResponse>> CreateAsync(StructuredAuthoringProposalRequest request) =>
         factory.ExecuteScopeAsync(services => services.GetRequiredService<IStructuredAuthoringProposalChannel>().CreateAsync(request, Ct));

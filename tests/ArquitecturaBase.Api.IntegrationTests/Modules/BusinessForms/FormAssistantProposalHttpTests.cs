@@ -96,6 +96,39 @@ public sealed class FormAssistantProposalHttpTests(ApiFactory factory)
             HttpStatusCode.BadRequest, "Forms.Draft.ContentInvalid", "draft-invalid");
     }
 
+    // Stage 3: version 2 creates version 1's form with the reading it turned on; its samples and its similar standard are never kept.
+    [Fact]
+    public async Task A_form_proposal_that_reads_documents_creates_its_draft_reading_them_without_keeping_its_samples()
+    {
+        await using var scenario = await FormAssistantProposalScenario.CreateAsync(factory, Ct);
+        var request = scenario.DocumentForm("Comprobantes " + scenario.Suffix, scenario.Prefix);
+        using var author = scenario.Client(scenario.AuthorId);
+        using var created = await author.PostAsJsonAsync(Definitions, request, Ct);
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var definitionId = (await created.ReadJsonAsync()).GetProperty("definitionId").GetGuid();
+        using var again = await author.PostAsJsonAsync(Definitions, request, Ct);
+        Assert.Equal(definitionId, (await again.ReadJsonAsync()).GetProperty("definitionId").GetGuid());
+
+        using var detail = await author.GetAsync($"/api/forms/definitions/{definitionId}", Ct);
+        Assert.Equal(HttpStatusCode.OK, detail.StatusCode);
+        var draft = (await detail.ReadJsonAsync()).GetProperty("definition").GetProperty("draft");
+        Assert.Equal(["decimal", "date"], draft.GetProperty("fields").EnumerateArray().Select(field => field.GetProperty("type").GetString()));
+        var reading = draft.GetProperty("documentReading");
+        Assert.Equal((true, "Comprobantes de transferencias bancarias.", 0), (reading.GetProperty("enabled").GetBoolean(),
+            reading.GetProperty("recognition").GetString(), reading.GetProperty("lookups").GetArrayLength()));
+        var stored = await scenario.DefinitionAsync(definitionId, Ct);
+        Assert.Equal(request.ProposalId, stored.ProposalId);
+        // The evidence keeps only that the proposal brought a reading; «Cómo reconocerlo» lives in the draft, where it is edited.
+        using var evidence = JsonDocument.Parse(stored.ProposalEvidenceJson!);
+        Assert.Equal((2, true), (evidence.RootElement.GetProperty("capabilityVersion").GetInt32(), evidence.RootElement.GetProperty("documentReading").GetBoolean()));
+        Assert.DoesNotContain("Comprobantes de transferencias", stored.ProposalEvidenceJson!, StringComparison.Ordinal);
+        foreach (var kept in new[] { stored.ProposalEvidenceJson!, stored.SchemaJson, stored.DocumentReadingJson! })
+        {
+            Assert.DoesNotContain("1.234,50", kept, StringComparison.Ordinal);
+            Assert.DoesNotContain("forms.transfer-receipt", kept, StringComparison.Ordinal);
+        }
+    }
+
     private static readonly string[] VersionOneShape = ["code", "culture", "description", "fields", "name", "option", "valueType"];
 
     // Stage 2: version 2 creates the same catalog; its evidence keeps the turn's request and version 1's shape, never the spreadsheet.

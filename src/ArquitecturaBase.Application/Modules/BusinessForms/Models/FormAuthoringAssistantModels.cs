@@ -56,6 +56,30 @@ public sealed record FormAuthoringMappedCatalogProposal(string Culture, string N
 public sealed record FormAuthoringImportCatalog(Guid Id, string Name, string ValueType);
 public sealed record FormAuthoringImportProposal(FormAuthoringImportCatalog Catalog, FormAuthoringSpreadsheetSummary Spreadsheet) : AssistantCapabilityPayload;
 
+// forms.authoring.propose-form@2 (Etapa 3 de la IA): version 1's form and, with the turn's document, its reading on with «Cómo
+// reconocerlo» and what each question read in it (Sample, for DOC6 to compare); Standard is a similar library standard, as the library
+// read of the same turn showed it. Creating keeps version 1's form with the reading on: the samples and the standard are never kept.
+public sealed record FormAuthoringDocumentQuestion(string Label, string Type, bool Required, IReadOnlyList<string> Options,
+    FormAuthoringProposedCatalog? Catalog, string? Sample)
+{ public override string ToString() => "FormAuthoringDocumentQuestion { Content = [REDACTED] }"; }
+public sealed record FormAuthoringProposedReading(string Recognition)
+{ public override string ToString() => "FormAuthoringProposedReading { Content = [REDACTED] }"; }
+public sealed record FormAuthoringProposedStandard(string Key, string Name);
+public sealed record FormAuthoringDocumentFormProposal(string Culture, string Name, string Prefix, string SubmitLabel,
+    IReadOnlyList<FormAuthoringDocumentQuestion> Questions, FormAuthoringProposedReading? DocumentReading,
+    FormAuthoringProposedStandard? Standard) : AssistantCapabilityPayload
+{
+    public const int MaxSampleLength = 160;
+
+    public FormAuthoringFormProposal ToForm() => new(Culture, Name, Prefix, SubmitLabel, Questions.Select(question =>
+        new FormAuthoringProposedQuestion(question.Label, question.Type, question.Required, question.Options, question.Catalog)).ToArray());
+}
+
+// forms.library.standards@1 (DOC6): the library standards that read documents, with their name and description in the conversation
+// language and the data each one reads, by the names of its questions, so a proposal names a similar one by its key.
+public sealed record FormLibraryStandardRow(string Key, string Name, string Description, IReadOnlyList<string> Reads);
+public sealed record FormLibraryStandardsPayload(bool IsComplete, IReadOnlyList<FormLibraryStandardRow> Standards) : AssistantCapabilityPayload;
+
 // Why the assistant cannot build what was asked (IA3-A): a channel says it with a fixed text and, for a form or catalog that
 // already exists, its link. Name is that one's name, empty without one.
 public sealed record FormAuthoringDecline(string Reason, Guid? DefinitionId, Guid? CatalogId, string Name) : AssistantCapabilityPayload;
@@ -73,9 +97,12 @@ public sealed record FormDraftAssistantProposalResponse(Guid ProposalId, Guid? D
 public sealed record FormCatalogAssistantProposalResponse(Guid ProposalId, Guid? CatalogId);
 
 // Where a draft created from a proposal came from, kept once with it. RequestedIn is "app" when the person asked in the app.
+// DocumentReading is true when a version 2 proposal turned the reading on: «Cómo reconocerlo» came from a document the model read,
+// so its text lives only in the draft, where it is edited, and the samples are never kept. Without a reading the key is omitted.
 public sealed record FormDraftProposalEvidence(string OriginalCulture, Guid RequestedByUserId, DateTime RequestedAtUtc, Guid TurnId,
     string CapabilityId, int CapabilityVersion, AssistantOperationProvenance Provenance, FormAuthoringFormProposal OriginalProposal,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? RequestedIn = null)
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? RequestedIn = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? DocumentReading = null)
 { public override string ToString() => "FormDraftProposalEvidence { Content = [REDACTED] }"; }
 
 /// <summary>The proposal a new draft records; only the service that creates from a proposal sets it.</summary>

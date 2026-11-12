@@ -19,6 +19,9 @@ internal sealed class BusinessFormAuthoringProposalChannel(IFormDraftProposalSer
     {
         { Capability: { Id: BusinessFormAuthoringAssistantCapabilitySource.ProposeFormId, Version: 1 }, Payload: FormAuthoringFormProposal form } =>
             FormAuthoringSummaryPolicy.Form(form, culture),
+        // Stage 3: version 2 reads as version 1's form, with or without a reading (IA3-A's summary does not change).
+        { Capability: { Id: BusinessFormAuthoringAssistantCapabilitySource.ProposeFormId, Version: BusinessFormAuthoringAssistantCapabilitySource.DocumentFormVersion },
+            Payload: FormAuthoringDocumentFormProposal document } => FormAuthoringSummaryPolicy.Form(document.ToForm(), culture),
         { Capability: { Id: BusinessFormAuthoringAssistantCapabilitySource.ProposeCatalogId, Version: 1 }, Payload: FormAuthoringCatalogProposal manual } =>
             FormAuthoringSummaryPolicy.Catalog(manual, culture),
         { Capability: { Id: BusinessFormAuthoringAssistantCapabilitySource.ProposeCatalogId, Version: BusinessFormAuthoringAssistantCapabilitySource.MappedCatalogVersion },
@@ -37,10 +40,11 @@ internal sealed class BusinessFormAuthoringProposalChannel(IFormDraftProposalSer
         ArgumentNullException.ThrowIfNull(request);
         switch (request.Proposal.Payload)
         {
-            case FormAuthoringFormProposal form:
+            case FormAuthoringFormProposal or FormAuthoringDocumentFormProposal:
                 var draft = await drafts.CreateFromChannelAsync(request, cancellationToken);
                 if (draft.IsFailure) return draft.Error;
-                return new StructuredAuthoringCreatedResponse(StructuredAuthoringKind.Form, draft.Value.DefinitionId!.Value, form.Name,
+                var formName = request.Proposal.Payload is FormAuthoringDocumentFormProposal document ? document.Name : ((FormAuthoringFormProposal)request.Proposal.Payload).Name;
+                return new StructuredAuthoringCreatedResponse(StructuredAuthoringKind.Form, draft.Value.DefinitionId!.Value, formName,
                     FormAuthoringSummaryPolicy.FormPath(draft.Value.DefinitionId.Value));
             case FormAuthoringCatalogProposal or FormAuthoringMappedCatalogProposal or FormCatalogProposalPayload:
                 var catalog = await catalogs.CreateFromChannelAsync(request, cancellationToken);

@@ -26,9 +26,7 @@ internal sealed class FormDraftProposalService(IAssistantProposalLookup lookup, 
         if (await CreatedAsync(access.Value, proposalId, cancellationToken) is { } created) return created;
         var found = await lookup.FindAsync(access.Value, requestId, proposalId, [BusinessFormAuthoringAssistantCapabilitySource.ProposeFormId], cancellationToken);
         // Only a Home turn (no interaction mode): a channel's own conversation creates with that channel's button.
-        if (found.IsFailure || found.Value.Context.InteractionMode != AssistantInteractionMode.Unspecified ||
-            found.Value.Proposal is not { Capability: { Id: BusinessFormAuthoringAssistantCapabilitySource.ProposeFormId, Version: 1 },
-                Payload: FormAuthoringFormProposal proposal })
+        if (found.IsFailure || found.Value.Context.InteractionMode != AssistantInteractionMode.Unspecified || Proposed(found.Value.Proposal) is not { } proposal)
             return FormDefinitionErrors.ProposalUnavailable;
         if (!found.Value.IsCurrent) return FormDefinitionErrors.ProposalReplaced;
         return await CreateDraftAsync(access.Value, found.Value.Proposal, proposal, found.Value.Provenance, "app", cancellationToken);
@@ -42,11 +40,21 @@ internal sealed class FormDraftProposalService(IAssistantProposalLookup lookup, 
         if (context.InteractionMode != AssistantInteractionMode.Assistant || context.SubjectUserId != context.ActorUserId) return FormDefinitionErrors.Forbidden;
         var access = await accessGuard.CheckActorAsync(context.ActorUserId, true, cancellationToken);
         if (access.IsFailure) return access.Error;
-        if (request.Proposal is not { Capability: { Id: BusinessFormAuthoringAssistantCapabilitySource.ProposeFormId, Version: 1 }, Payload: FormAuthoringFormProposal proposal })
-            return FormDefinitionErrors.ProposalUnavailable;
+        if (Proposed(request.Proposal) is not { } proposal) return FormDefinitionErrors.ProposalUnavailable;
         if (await CreatedAsync(access.Value, request.Proposal.Id, cancellationToken) is { } created) return created;
         return await CreateDraftAsync(access.Value, request.Proposal, proposal, request.Provenance, null, cancellationToken);
     }
+
+    // Both versions create: version 1's form as it is, and version 2's (Stage 3) with the reading it turned on. Its samples and
+    // its similar standard are never kept, and the evidence only says that it brought a reading.
+    private static (FormAuthoringFormProposal Form, FormAuthoringProposedReading? Reading)? Proposed(AssistantObservedProposal proposal) => proposal switch
+    {
+        { Capability: { Id: BusinessFormAuthoringAssistantCapabilitySource.ProposeFormId, Version: BusinessFormAuthoringAssistantCapabilitySource.Version },
+            Payload: FormAuthoringFormProposal form } => (form, null),
+        { Capability: { Id: BusinessFormAuthoringAssistantCapabilitySource.ProposeFormId, Version: BusinessFormAuthoringAssistantCapabilitySource.DocumentFormVersion },
+            Payload: FormAuthoringDocumentFormProposal document } => (document.ToForm(), document.DocumentReading),
+        _ => null,
+    };
 
     public async Task<Result<FormDraftAssistantProposalResponse>> GetAsync(Guid proposalId, CancellationToken cancellationToken)
     {
@@ -56,15 +64,17 @@ internal sealed class FormDraftProposalService(IAssistantProposalLookup lookup, 
     }
 
     private async Task<Result<FormDraftAssistantProposalResponse>> CreateDraftAsync(Guid actor, AssistantObservedProposal observed,
-        FormAuthoringFormProposal proposal, AssistantOperationProvenance provenance, string? requestedIn, CancellationToken ct)
+        (FormAuthoringFormProposal Form, FormAuthoringProposedReading? Reading) proposed, AssistantOperationProvenance provenance, string? requestedIn,
+        CancellationToken ct)
     {
+        var (proposal, reading) = proposed;
         var catalogs = await CheckCatalogsAsync(actor, proposal, ct);
         if (catalogs.IsFailure) return catalogs.Error;
         if (await reader.ExistsDefinitionNameAsync(proposal.Culture, proposal.Name, ct)) return FieldErrors.On(FormDefinitionErrors.NameTaken, "name");
         var evidence = new FormDraftProposalEvidence(proposal.Culture, actor, provenance.OccurredAtUtc, observed.TurnId,
-            observed.Capability.Id, observed.Capability.Version, provenance, proposal, requestedIn);
+            observed.Capability.Id, observed.Capability.Version, provenance, proposal, requestedIn, reading is null ? null : true);
         // The proposal is also the request of its draft change: two taps at once wait for each other and get the same draft.
-        var draft = FormAuthoringProposalPolicy.Draft(observed.Id, proposal) with
+        var draft = FormAuthoringProposalPolicy.Draft(observed.Id, proposal, reading) with
         {
             Proposal = new FormDraftProposalOrigin(observed.Id, JsonSerializer.Serialize(evidence, JsonSerializerOptions.Web)),
             ActorUserId = actor,

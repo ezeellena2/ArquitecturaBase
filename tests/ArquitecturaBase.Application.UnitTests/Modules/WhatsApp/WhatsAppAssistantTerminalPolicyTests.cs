@@ -80,8 +80,10 @@ public sealed class WhatsAppAssistantTerminalPolicyTests
     [InlineData("forms.authoring.propose-catalog", 1, true)]
     [InlineData("forms.authoring.propose-import", 1, true)]
     [InlineData("forms.authoring.propose-import", 2, false)]
-    [InlineData("forms.authoring.propose-form", 2, false)]
-    public void The_catalog_with_its_mapping_and_the_import_close_the_operation_and_version_one_still_does(string id, int version, bool handled) =>
+    [InlineData("forms.authoring.propose-form", 1, true)]
+    [InlineData("forms.authoring.propose-form", 2, true)]
+    [InlineData("forms.authoring.propose-form", 3, false)]
+    public void Version_two_of_the_catalog_and_of_the_form_and_the_import_close_the_operation_and_version_one_still_does(string id, int version, bool handled) =>
         Assert.Equal(handled, WhatsAppAssistantTerminalPolicy.Handles(new(id, version)));
 
     [Fact]
@@ -201,7 +203,7 @@ public sealed class WhatsAppAssistantTerminalPolicyTests
     [InlineData("unknown", 1, "completed", true, true)]
     [InlineData("forms.missing-request.propose", 2, "completed", true, true)]
     [InlineData("forms.catalog-filters.propose", 2, "completed", true, true)]
-    [InlineData("forms.authoring.propose-form", 2, "completed", true, true)]
+    [InlineData("forms.authoring.propose-form", 3, "completed", true, true)]
     [InlineData("forms.missing-request.propose", 1, "running", true, true)]
     [InlineData("forms.missing-request.propose", 1, "completed", false, true)]
     [InlineData("forms.missing-request.propose", 1, "completed", true, false)]

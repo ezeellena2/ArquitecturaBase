@@ -19,9 +19,10 @@ internal sealed class WhatsAppAssistantTerminalPolicy(IStructuredAuthoringPropos
     private static readonly string[] Ids = ["forms.missing-request.propose", "forms.catalog-filters.propose", "forms.authoring.propose-form",
         "forms.authoring.propose-catalog", "forms.authoring.propose-import", "forms.authoring.decline"];
 
-    // Version 2 of a catalog maps the spreadsheet (IA, Stage 2); version 1 still closes what is in progress.
+    // Version 2 of a catalog maps the spreadsheet (IA, Stage 2) and version 2 of a form reads the conversation's document (Stage 3);
+    // version 1 still closes what is in progress.
     public static bool Handles(AssistantCapabilityReference capability) => capability.Version == 1 && Ids.Contains(capability.Id, StringComparer.Ordinal)
-        || capability is { Id: "forms.authoring.propose-catalog", Version: 2 };
+        || capability is { Id: "forms.authoring.propose-catalog" or "forms.authoring.propose-form", Version: 2 };
 
     public async Task<Result<WhatsAppAssistantTerminalResponse?>> ApplyAsync(WhatsAppAssistantReferenceRow reference,
         WhatsAppAssistantSourceRow source, AssistantOperationResponse operation, CancellationToken ct)

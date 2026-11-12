@@ -178,18 +178,19 @@ internal static class SpreadsheetOfflineChecks
         Require(Throws(() => Program.Inventory(registered, [new("forms.authoring.catalogs", 1)])));
     }
 
-    // Every definition some set names, plus version 1 of the catalog, still registered next to version 2 as in the app.
+    // Every definition some set names, plus version 1 of the catalog and of the form, still registered next to version 2 as in the app.
     private static AssistantCapabilityDefinition[] Registry() =>
     [
         ..Program.HomeAuthoringCapabilities.Concat(QualificationChannelContexts.References).Append(new(AuthoringOracle.ProposeCatalog, 1))
+            .Append(new(AuthoringOracle.ProposeForm, 1)).Append(new(AuthoringOracle.ProposeForm, AuthoringOracle.DocumentFormVersion))
             .Distinct().Select(reference => Definition(reference.Id, reference.Version)),
     ];
-    // What Stage 1 offered before the app moved to version 2: the catalog in version 1 and no import, in Home and in the channel.
+    // What Stage 1 offered before the app moved to version 2: the catalog and the form in version 1 and no import, in Home and in the channel.
     private static readonly AssistantCapabilityReference[] HomeStage1 = [..Program.HomeReferences, ..HomeRunner.AuthoringOffered
         .Select(reference => reference.Id == AuthoringOracle.ProposeCatalog ? new AssistantCapabilityReference(reference.Id, 1) : reference)];
     private static readonly AssistantCapabilityReference[] AutomaticStage1 = [..QualificationChannelContexts.AutomaticReferences
         .Where(reference => reference.Id != SpreadsheetOracle.ProposeImport)
-        .Select(reference => reference.Id == AuthoringOracle.ProposeCatalog ? new AssistantCapabilityReference(reference.Id, 1) : reference)];
+        .Select(reference => reference.Id is AuthoringOracle.ProposeCatalog or AuthoringOracle.ProposeForm ? new AssistantCapabilityReference(reference.Id, 1) : reference)];
 
     public static void Sets_offer_what_the_app_offers()
     {
@@ -209,6 +210,13 @@ internal static class SpreadsheetOfflineChecks
             && QualificationChannelContexts.AutomaticReferences.Contains(new(AuthoringOracle.ProposeCatalog, 2))
             && QualificationChannelContexts.AutomaticReferences.Contains(new(SpreadsheetOracle.ProposeImport, 1))
             && !QualificationChannelContexts.AutomaticReferences.Contains(new(AuthoringOracle.ProposeCatalog, 1)));
+        // Stage 3: the automatic conversation proposes the form in version 2, which reads the conversation's document; Home keeps version 1
+        // until its card draws version 2.
+        Require(QualificationChannelContexts.AutomaticReferences.Contains(new(AuthoringOracle.ProposeForm, AuthoringOracle.DocumentFormVersion))
+            && !QualificationChannelContexts.AutomaticReferences.Contains(new(AuthoringOracle.ProposeForm, 1))
+            && Program.HomeAuthoringCapabilities.Contains(new(AuthoringOracle.ProposeForm, 1))
+            && !Program.HomeAuthoringCapabilities.Contains(new(AuthoringOracle.ProposeForm, AuthoringOracle.DocumentFormVersion))
+            && ChannelRunner.AuthoringBuilding.Contains(new(AuthoringOracle.ProposeForm, AuthoringOracle.DocumentFormVersion)));
         Require(QualificationChannelContexts.Create(actor, Guid.NewGuid(), "manual").AllowedCapabilities is { Count: 7 } manual
             && manual.All(reference => reference.Version == 1 && !reference.Id.StartsWith("forms.authoring.", StringComparison.Ordinal))
             && QualificationChannelContexts.Create(actor, Guid.NewGuid(), "auto", Guid.NewGuid()).AllowedCapabilities is { Count: 5 } captured
@@ -217,11 +225,13 @@ internal static class SpreadsheetOfflineChecks
         Require(QualificationChannelContexts.References.Length == 17 && QualificationChannelContexts.References.Distinct().Count() == 17
             && QualificationChannelContexts.References.Select(reference => reference.Id).SequenceEqual(QualificationChannelContexts.Capabilities)
             && QualificationChannelContexts.References.Single(reference => reference.Id == AuthoringOracle.ProposeCatalog).Version == 2);
-        // Their inventories start next to the two registered versions of the catalog and stamp version 2.
+        // Their inventories start next to the two registered versions of the catalog and of the form, and stamp the version each context offers.
         Require(Program.Inventory(Registry(), Program.HomeReferences).Length == 5 && Program.Inventory(Registry(), Program.HomeAuthoringCapabilities).Length == 12
             && Program.Inventory(Registry(), QualificationChannelContexts.References).Length == 17
             && Program.Inventory(Registry(), QualificationChannelContexts.References).Single(stamp => stamp.Id == AuthoringOracle.ProposeCatalog).Version == 2
-            && Program.Inventory(Registry(), Program.HomeAuthoringCapabilities).Single(stamp => stamp.Id == AuthoringOracle.ProposeCatalog).Version == 2);
+            && Program.Inventory(Registry(), Program.HomeAuthoringCapabilities).Single(stamp => stamp.Id == AuthoringOracle.ProposeCatalog).Version == 2
+            && Program.Inventory(Registry(), QualificationChannelContexts.References).Single(stamp => stamp.Id == AuthoringOracle.ProposeForm).Version == AuthoringOracle.DocumentFormVersion
+            && Program.Inventory(Registry(), Program.HomeAuthoringCapabilities).Single(stamp => stamp.Id == AuthoringOracle.ProposeForm).Version == 1);
     }
 
     public static void Spreadsheet_channel_context_is_the_automatic_conversation_with_a_spreadsheet()

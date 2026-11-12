@@ -108,14 +108,29 @@ public sealed class WhatsAppAssistantAuthoringIntegrationTests(ApiFactory factor
         Assert.Null(await host.ScopeAsync(services => services.GetRequiredService<IWhatsAppAssistantReader>().FindChangeRequestAsync(contact.ContactId, Ct)));
     }
 
+    // Stage 3: the automatic conversation proposes version 2 of a form, which closes the operation with the same summary and buttons.
+    [Fact]
+    public async Task Version_two_of_a_form_sends_the_same_summary_with_its_buttons()
+    {
+        var owner = new WhatsAppAuthoringChannelDouble();
+        await using var host = await WhatsAppAssistantScenario.CreateAsync(factory, Ct, builder => builder.ConfigureTestServices(services =>
+            services.Replace(ServiceDescriptor.Singleton<IStructuredAuthoringProposalChannel>(owner))));
+        var contact = await host.ContactAsync(Ct, automatic: true);
+        var summary = await ReferenceAsync(host, (await SummaryAsync(host, contact.ContactId, version: 2)).RequestId);
+        Assert.Equal(WhatsAppAssistantRequestState.Sent, summary.State);
+        var buttons = await OutgoingAsync(host, summary.OutgoingId!.Value);
+        Assert.StartsWith("Te propongo este formulario:\n*Parte de lluvias · LLU*", buttons.Body, StringComparison.Ordinal);
+        Assert.Equal(["Crear borrador", "Cambiar algo"], buttons.QuickReplies.Select(reply => reply.Title));
+    }
+
     private static async Task<WhatsAppAssistantWorkResponse> SummaryAsync(WhatsAppAssistantScenario host, Guid contactId,
-        string capability = WhatsAppAuthoringChannelDouble.ProposeFormId)
+        string capability = WhatsAppAuthoringChannelDouble.ProposeFormId, int version = 1)
     {
         var work = await host.ScopeAsync(async services => (await services.GetRequiredService<IWhatsAppAssistantDispatchService>().PrepareAsync(contactId, Ct)).Value);
         Assert.NotNull(work);
         var operation = Assert.IsType<AssistantOperationRequest>(work.Operation);
         var outcome = new AssistantOperationResponse(work.RequestId, "completed",
-            new AssistantObservedProposal(Guid.NewGuid(), Guid.NewGuid(), new(capability, 1), new AuthoringPayload()),
+            new AssistantObservedProposal(Guid.NewGuid(), Guid.NewGuid(), new(capability, version), new AuthoringPayload()),
             new("http-fixture", 1, "http-fixture", 1, operation.OccurredAtUtc, operation.Context.ChannelId), null);
         host.Operations.Complete(outcome);
         await host.CompleteOutcomeAsync(contactId, outcome, Ct);

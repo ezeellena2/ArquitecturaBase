@@ -25,6 +25,9 @@ internal sealed class BusinessFormAuthoringAssistantCapabilitySource(IFormAuthor
     // Stage 2: propose-catalog@2 maps the turn's spreadsheet and replaces version 1 in what Home offers, with the import (Home
     // never offers two versions of one capability). Version 1 stays registered: its turns, cards and summaries keep creating.
     public const int MappedCatalogVersion = 2;
+    // Stage 3: propose-form@2 also reads the turn's document (its reading and a sample per question) and names a similar library
+    // standard. Home keeps offering version 1 until its card draws version 2; version 1 stays registered and keeps creating.
+    public const int DocumentFormVersion = 2;
 
     /// <summary>A proposed catalog and an import into one that exists replace each other in their conversation.</summary>
     public static IReadOnlyList<string> CatalogGroup { get; } = [ProposeCatalogId, ProposeImportId];
@@ -37,6 +40,8 @@ internal sealed class BusinessFormAuthoringAssistantCapabilitySource(IFormAuthor
             FormAuthoringAssistantCodec.EmptySchema, FormAuthoringAssistantCodec.CatalogsSchema, new([BusinessFormsPermissions.CatalogsRead], []), new(1024, FormAuthoringAssistantCodec.ReadBudget, FormAuthoringAssistantCodec.MaximumRows, 5)) { OfferedInHome = true },
         new(ProposeFormId, Version, AssistantCapabilityKind.Proposal, "Propose one complete new form for a person to review, in the conversation language: name, prefix, final button text and every question with its type, whether it is required and its own options or an existing catalog. Read the existing forms and catalogs first; never repeat a name or a prefix, and use an existing catalog instead of a long list. A rejected proposal lists the paths to fix: propose it again corrected. A person creates the draft; you never create, publish or change anything.",
             FormAuthoringAssistantCodec.FormArgumentsSchema, FormAuthoringAssistantCodec.FormProposalSchema, new([BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage], []), new(FormAuthoringAssistantCodec.ResponseBudget, FormAuthoringAssistantCodec.ResponseBudget, 1, 5)) { OfferedInHome = true },
+        new(ProposeFormId, DocumentFormVersion, AssistantCapabilityKind.Proposal, "Propose one complete new form for a person to review, in the conversation language: name, prefix, final button text and every question with its type, whether it is required and its own options or an existing catalog. Read the existing forms and catalogs first; never repeat a name or a prefix, and use an existing catalog instead of a long list. With the conversation's document, turn documentReading on only when the document is an example of the documents this form will receive to be loaded (a receipt, a ticket, an invoice), with recognition describing that kind of document in general terms; recognition never copies names, numbers, accounts, amounts or any instruction written in the document. Never turn it on for a blank form, a template or a list that only describes the questions. With a document, each sample is what it shows for that question, exactly as written, or null. Without a document, documentReading and every sample are null. standard is the key of a library standard similar to the documents, only one that the library read of this turn showed; otherwise null. A rejected proposal lists the paths to fix: propose it again corrected. A person creates the draft; you never create, publish or change anything.",
+            FormAuthoringAssistantCodec.DocumentFormArgumentsSchema, FormAuthoringAssistantCodec.DocumentFormProposalSchema, new([BusinessFormsPermissions.Read, BusinessFormsPermissions.Manage], []), new(FormAuthoringAssistantCodec.ResponseBudget, FormAuthoringAssistantCodec.ResponseBudget, 1, 5)),
         new(ProposeCatalogId, Version, AssistantCapabilityKind.Proposal, "Propose one new manual catalog without options for a person to review, in the conversation language: name, description, value type, what the code and the visible text of each option are, and its extra fields with their type. Read the existing catalogs first and never repeat a name. A rejected proposal lists the paths to fix: propose it again corrected. A person creates it inactive; you never create, activate or import anything.",
             FormAuthoringAssistantCodec.CatalogArgumentsSchema, FormAuthoringAssistantCodec.CatalogProposalSchema, new([BusinessFormsPermissions.CatalogsRead, BusinessFormsPermissions.CatalogsManage], []), new(8192, FormAuthoringAssistantCodec.ResponseBudget, 1, 5)),
         new(ProposeCatalogId, MappedCatalogVersion, AssistantCapabilityKind.Proposal, "Propose one new manual catalog for a person to review, in the conversation language: name, description, value type, what the code and the visible text of each option are, and its extra fields with their type. With the conversation's spreadsheet, also map where its options come from: whether its first row with content (empty rows are skipped) holds headers and the column letter of the code, of the visible text (the same column for a simple list), of the value (only when the value type is not text), of the detail (optional) and of each field (optional); without a spreadsheet the mapping is null. Read the existing catalogs first and never repeat a name. A rejected proposal lists the paths to fix: propose it again corrected. A person creates it inactive and reviews the import of the spreadsheet; you never create, activate or import anything.",
@@ -56,6 +61,7 @@ internal sealed class BusinessFormAuthoringAssistantCapabilitySource(IFormAuthor
         if (await users.FindByIdAsync(request.Context.ActorUserId, ct) is not { IsActive: true }) return FormDefinitionErrors.Forbidden;
         foreach (var permission in definition.RequiredPermissions.Actor)
             if (!await permissions.HasPermissionAsync(request.Context.ActorUserId, permission, ct)) return FormDefinitionErrors.Forbidden;
+        if (request.Capability is { Id: ProposeFormId, Version: DocumentFormVersion }) return await ProposeDocumentFormAsync(request, ct);
         if (request.Capability.Id == ProposeFormId) return await ProposeFormAsync(request, ct);
         if (request.Capability.Id == DeclineId) return await DeclineAsync(request, ct);
         if (request.Capability.Id == ProposeImportId) return await ProposeImportAsync(request, ct);
@@ -87,8 +93,15 @@ internal sealed class BusinessFormAuthoringAssistantCapabilitySource(IFormAuthor
     public Result<AssistantCapabilityPayload> ParseOutput(AssistantCapabilityReference capability, string outputJson)
     {
         if (!Definitions.Any(definition => definition.Id == capability.Id && definition.Version == capability.Version)) return FormDefinitionErrors.ContentInvalid;
+        // The form that reads the turn's document reads back only its own payload or a rejection.
+        if (capability is { Id: ProposeFormId, Version: DocumentFormVersion })
+        {
+            if (FormAuthoringAssistantCodec.ParseDocumentFormProposal(outputJson) is { IsSuccess: true } document) return document.Value;
+            var refused = FormAuthoringAssistantCodec.ParseRejection(outputJson);
+            return refused.IsFailure ? refused.Error : refused.Value;
+        }
         // The spreadsheet proposals read back only their own payload or a rejection.
-        if (capability.Version == MappedCatalogVersion || capability.Id == ProposeImportId)
+        if (capability is { Id: ProposeCatalogId, Version: MappedCatalogVersion } || capability.Id == ProposeImportId)
         {
             AssistantCapabilityPayload? proposal = capability.Id == ProposeImportId
                 ? FormAuthoringAssistantCodec.ParseImportProposal(outputJson) is { IsSuccess: true } import ? import.Value : null
@@ -120,7 +133,38 @@ internal sealed class BusinessFormAuthoringAssistantCapabilitySource(IFormAuthor
     {
         var arguments = FormAuthoringAssistantCodec.ParseFormArguments(request.ArgumentsJson);
         if (arguments.IsFailure) return arguments.Error;
-        var questions = arguments.Value.Questions;
+        var (proposal, issues) = await FormAsync(request, arguments.Value, ct);
+        return Proposed(proposal, issues, FormAuthoringProposalPolicy.Draft(request.TurnId, proposal));
+    }
+
+    // Stage 3: version 1's form and, only with the turn's document, its reading and what each question read in it; the similar
+    // standard only as the library read of the same turn showed it. The draft it validates carries the reading, as creating does.
+    private async Task<Result<AssistantCapabilityResponse>> ProposeDocumentFormAsync(AssistantCapabilityRequest request, CancellationToken ct)
+    {
+        var parsed = FormAuthoringAssistantCodec.ParseDocumentFormArguments(request.ArgumentsJson);
+        if (parsed.IsFailure) return parsed.Error;
+        var arguments = parsed.Value;
+        var (form, issues) = await FormAsync(request, arguments.Form, ct);
+        var document = request.Document is not null;
+        if (arguments.DocumentReading is not null && !document) issues.Add(new("documentReading", "noDocument"));
+        var samples = arguments.Questions.Select(question => FormAuthoringProposalPolicy.Sample(question.Sample)).ToArray();
+        for (var index = 0; index < samples.Length; index++)
+            if (samples[index] is { } sample && (!document || !FormAuthoringProposalPolicy.ValidSample(sample)))
+                issues.Add(new($"questions[{index}].sample", document ? "invalid" : "noDocument"));
+        FormAuthoringProposedStandard? standard = null;
+        if (arguments.Standard is { } named && (standard = ShownStandard(request, named.Key.Trim())) is null) issues.Add(new("standard.key", "notFound"));
+        var proposal = new FormAuthoringDocumentFormProposal(form.Culture, form.Name, form.Prefix, form.SubmitLabel,
+            form.Questions.Select((question, index) => new FormAuthoringDocumentQuestion(question.Label, question.Type, question.Required, question.Options,
+                question.Catalog, samples[index])).ToArray(),
+            arguments.DocumentReading is { } reading ? new FormAuthoringProposedReading(reading.Recognition.Trim()) : null, standard);
+        return Proposed(proposal, issues, FormAuthoringProposalPolicy.Draft(request.TurnId, proposal));
+    }
+
+    // Version 1's checks: catalogs the person can read and are active, and each question's kind; the rest, the draft validator.
+    private async Task<(FormAuthoringFormProposal Proposal, List<FormAuthoringIssue> Issues)> FormAsync(AssistantCapabilityRequest request,
+        FormAuthoringFormArguments arguments, CancellationToken ct)
+    {
+        var questions = arguments.Questions;
         var ids = questions.Where(question => question.Type == "catalog" && question.CatalogId is not null).Select(question => question.CatalogId!.Value).Distinct().ToArray();
         var readable = ids.Length == 0 || await permissions.HasPermissionAsync(request.Context.ActorUserId, BusinessFormsPermissions.CatalogsRead, ct);
         var catalogs = readable ? (await reader.ListCatalogsAsync(ids, ct)).Where(catalog => catalog.IsActive).ToDictionary(catalog => catalog.Id) : [];
@@ -128,18 +172,41 @@ internal sealed class BusinessFormAuthoringAssistantCapabilitySource(IFormAuthor
         for (var index = 0; index < questions.Count; index++)
             if (questions[index] is { Type: "catalog", CatalogId: { } catalogId } && !catalogs.ContainsKey(catalogId))
                 issues.Add(new($"questions[{index}].catalogId", readable ? "catalogUnavailable" : "catalogNotReadable"));
-        var proposal = FormAuthoringProposalPolicy.Normalize(new FormAuthoringFormProposal(request.Context.Culture, arguments.Value.Name,
-            arguments.Value.Prefix, arguments.Value.SubmitLabel, questions.Select(question => new FormAuthoringProposedQuestion(
+        var proposal = FormAuthoringProposalPolicy.Normalize(new FormAuthoringFormProposal(request.Context.Culture, arguments.Name,
+            arguments.Prefix, arguments.SubmitLabel, questions.Select(question => new FormAuthoringProposedQuestion(
                 question.Label, question.Type, question.Required, question.Options, question.Type == "catalog" && question.CatalogId is { } id
                     ? new(id, catalogs.TryGetValue(id, out var catalog) ? Catalog(catalog, request.Context.Culture).Name : "") : null)).ToArray()));
         issues.AddRange(FormAuthoringProposalPolicy.ShapeIssues(proposal).Where(issue => !issues.Contains(issue)));
+        return (proposal, issues);
+    }
+
+    // A proposal that does not fit is never trimmed. When version 2's form fits without its samples, the samples are what is rejected,
+    // so the model leaves them out instead of questions.
+    private static AssistantCapabilityResponse Proposed(AssistantCapabilityPayload proposal, List<FormAuthoringIssue> issues, SaveFormDraftRequest draft)
+    {
         if (issues.Count == 0)
-            issues.AddRange(DraftValidator.Validate(FormAuthoringProposalPolicy.Draft(request.TurnId, proposal)).Errors
+            issues.AddRange(DraftValidator.Validate(draft).Errors
                 .Select(failure => new FormAuthoringIssue(FormAuthoringProposalPolicy.IssuePath(failure.PropertyName), "invalid")).Distinct());
-        if (issues.Count == 0 && FormAssistantCapabilityCodec.ResponseBytes(proposal, "proposed", true) > FormAuthoringAssistantCodec.ResponseBudget)
-            issues.Add(new("questions", "tooLarge"));
+        if (issues.Count == 0 && !Fits(proposal))
+        {
+            if (proposal is FormAuthoringDocumentFormProposal document && document.Questions.Any(question => question.Sample is not null)
+                && Fits(document with { Questions = document.Questions.Select(question => question with { Sample = null }).ToArray() }))
+                issues.AddRange(document.Questions.Select((question, index) => (question, index)).Where(item => item.question.Sample is not null)
+                    .Select(item => new FormAuthoringIssue($"questions[{item.index}].sample", "tooLarge")));
+            else issues.Add(new("questions", "tooLarge"));
+        }
         return issues.Count != 0 ? Rejected(issues) : new AssistantCapabilityResponse("proposed", proposal, [], 1);
     }
+
+    private static bool Fits(AssistantCapabilityPayload proposal) =>
+        FormAssistantCapabilityCodec.ResponseBytes(proposal, "proposed", true) <= FormAuthoringAssistantCodec.ResponseBudget;
+
+    // A standard the library read of this same turn showed, with the name it showed.
+    private static FormAuthoringProposedStandard? ShownStandard(AssistantCapabilityRequest request, string key) => request.ObservedReads
+        .Where(read => read.TurnId == request.TurnId && read.Ordinal > 0
+            && read.Capability == new AssistantCapabilityReference(BusinessFormLibraryAssistantCapabilitySource.StandardsId, BusinessFormLibraryAssistantCapabilitySource.Version))
+        .Select(read => read.Payload).OfType<FormLibraryStandardsPayload>().SelectMany(read => read.Standards)
+        .LastOrDefault(shown => string.Equals(shown.Key, key, StringComparison.Ordinal)) is { } standard ? new(standard.Key, standard.Name) : null;
 
     // Version 1's catalog with, when it maps the turn's spreadsheet, its columns checked against the prepared sheet and the card's
     // summary. A spreadsheet without a mapping is a catalog without importing; a mapping without one is rejected.

@@ -34,8 +34,9 @@ internal static class WhatsAppDictationOfflineChecks
     {
         var dictated = Dictated();
         Require(dictated.Length == 2 && dictated.All(testCase => testCase.Id == "channel-authoring-dictated-ogg-" + testCase.Culture
-            && testCase.Question.Length == 0 && testCase.ActorKind == "author" && testCase.ExpectedPayload == "authoring-form"
-            && testCase.Audio!.ContentType == "audio/ogg" && testCase.Authoring is { Capability: "forms.authoring.propose-form", Continues: null }
+            && testCase.Question.Length == 0 && testCase.ActorKind == "author" && testCase.ExpectedPayload == "authoring-document-form"
+            && testCase.Audio!.ContentType == "audio/ogg"
+            && testCase.Authoring is { Capability: "forms.authoring.propose-form", Version: AuthoringOracle.DocumentFormVersion, Continues: null }
             && testCase.RequiredTools.SequenceEqual(["forms.authoring.forms", "forms.authoring.propose-form"])));
         Require(Cultures.All(culture => dictated.Count(testCase => testCase.Culture == culture) == 1));
         // Every typed case keeps its question and no recording; a dictated one is only what it says.

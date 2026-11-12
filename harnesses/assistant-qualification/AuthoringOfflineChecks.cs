@@ -60,6 +60,9 @@ internal static class AuthoringOfflineChecks
     // The shape a correct owner proposal has for the case: exact facts, a free name and a valid free prefix when none is requested.
     private static AssistantCapabilityPayload Ideal(AuthoringExpectation expected, string culture) => expected.Capability switch
     {
+        // Since Stage 3 the automatic conversation offers version 2: without a document, version 1's form with nothing read.
+        "forms.authoring.propose-form" when expected.Version == AuthoringOracle.DocumentFormVersion =>
+            Document((FormAuthoringFormProposal)Ideal(expected with { Version = 1 }, culture)),
         "forms.authoring.propose-form" => new FormAuthoringFormProposal(culture, expected.Name ?? (culture == "es" ? "Arreglos de equipos" : "Equipment repairs"),
             expected.Prefix ?? IdealPrefix, culture == "es" ? "Enviar" : "Submit", expected.Questions!.Select(question => new FormAuthoringProposedQuestion(
                 question.Label, question.Type, question.Required, question.Options ?? [],
@@ -81,6 +84,16 @@ internal static class AuthoringOfflineChecks
         _ => throw new InvalidOperationException("Offline authoring fixture has no ideal payload."),
     };
     private static string Capitalized(string value) => char.ToUpper(value[0], CultureInfo.InvariantCulture) + value[1..];
+    private static FormAuthoringDocumentFormProposal Document(FormAuthoringFormProposal form) => new(form.Culture, form.Name, form.Prefix, form.SubmitLabel,
+        form.Questions.Select(question => new FormAuthoringDocumentQuestion(question.Label, question.Type, question.Required, question.Options, question.Catalog, null)).ToArray(),
+        null, null);
+    // The same proposal under another prefix, in either version of the form.
+    private static AssistantCapabilityPayload Prefixed(AssistantCapabilityPayload payload, string prefix) => payload switch
+    {
+        FormAuthoringDocumentFormProposal document => document with { Prefix = prefix },
+        FormAuthoringFormProposal form => form with { Prefix = prefix },
+        _ => throw new InvalidOperationException("Offline authoring fixture is not a form."),
+    };
     private static FormCatalogProposalPayload People(params FormCatalogFilterCondition[] extra) => new(1, "Supervisores activos", "Personas activas con el rol Supervisor.",
         new("name", null, [new("active", "equals", "true"), new("role", "has", Actors.SupervisorRoleId.ToString("D")), ..extra], false, "name", false), []);
     // The start an adjustment continues, by case Id across both public fixtures.
@@ -123,16 +136,23 @@ internal static class AuthoringOfflineChecks
             && testCase.ActorKind == (Stem(testCase.Id, "channel-authoring-") == "no-permission" ? "auto" : "author")
             && testCase.ExpectedPayload == testCase.Authoring switch
             {
-                { Capability: "forms.authoring.propose-form", Version: 1 } => "authoring-form",
+                { Capability: "forms.authoring.propose-form", Version: AuthoringOracle.DocumentFormVersion } => "authoring-document-form",
                 { Capability: "forms.authoring.propose-catalog", Version: SpreadsheetOracle.MappedCatalogVersion } => "authoring-mapped-catalog",
                 { Capability: "forms.authoring.decline", Version: 1 } => "authoring-decline", _ => "unknown",
             }));
-        // The app offers the catalog only in version 2, in Home and in the automatic conversation: every catalog case expects it.
+        // The app offers the catalog only in version 2, in Home and in the automatic conversation: every catalog case expects it. Since
+        // Stage 3 the automatic conversation offers the form in version 2, and Home keeps version 1 until its card draws version 2.
         Require(home.Select(testCase => testCase.Authoring!).Concat(channel.Select(testCase => testCase.Authoring!))
             .Where(expected => expected.Capability == "forms.authoring.propose-catalog")
             .Count(expected => expected is { Version: SpreadsheetOracle.MappedCatalogVersion, Mapping: null }) == 4
-            && home.Select(testCase => testCase.Authoring!).Concat(channel.Select(testCase => testCase.Authoring!))
-                .All(expected => expected.Capability == "forms.authoring.propose-catalog" ? expected.Version == SpreadsheetOracle.MappedCatalogVersion : expected.Version == 1));
+            && home.Select(testCase => testCase.Authoring!)
+                .All(expected => expected.Capability == "forms.authoring.propose-catalog" ? expected.Version == SpreadsheetOracle.MappedCatalogVersion : expected.Version == 1)
+            && channel.Select(testCase => testCase.Authoring!).All(expected => expected.Version == expected.Capability switch
+            {
+                "forms.authoring.propose-catalog" => SpreadsheetOracle.MappedCatalogVersion,
+                "forms.authoring.propose-form" => AuthoringOracle.DocumentFormVersion,
+                _ => 1,
+            }));
         // An adjustment continues the start of its own culture and actor, in the same Home conversation or after it in the channel.
         foreach (var change in home.Where(testCase => testCase.Authoring!.Continues is not null))
         {
@@ -287,12 +307,12 @@ internal static class AuthoringOfflineChecks
             .Where(item => Expectations()[item.Item1.Continues!].Capability == "forms.authoring.propose-form"))
         {
             var (expected, culture) = testCase;
-            var previous = (FormAuthoringFormProposal)Ideal(Expectations()[expected.Continues!], culture);
-            var proposal = (FormAuthoringFormProposal)Ideal(expected, culture);
+            var previous = Ideal(Expectations()[expected.Continues!], culture);
+            var proposal = Ideal(expected, culture);
             Require(Passes(expected, culture, proposal, previous));
             Require(!Passes(expected, culture, proposal, null));
-            Require(!Passes(expected, culture, proposal, previous with { Prefix = "OTRO" }));
-            Require(!Passes(expected, culture, proposal with { Prefix = "OTRO" }, previous));
+            Require(!Passes(expected, culture, proposal, Prefixed(previous, "OTRO")));
+            Require(!Passes(expected, culture, Prefixed(proposal, "OTRO"), previous));
             // The unchanged start is not the adjusted proposal: the requested change must be there.
             Require(!Passes(expected, culture, previous, previous));
         }
@@ -372,9 +392,14 @@ internal static class AuthoringOfflineChecks
         }
     }
 
-    // A catalog the app proposes today is version 2; everything else here is version 1.
+    // A catalog the app proposes today is version 2, and so is the automatic conversation's form; everything else here is version 1.
     private static AssistantObservedProposal Observed(Guid turn, string capability, AssistantCapabilityPayload payload, params AssistantObservedRead[] reads) =>
-        new(turn, Guid.NewGuid(), new(capability, payload is FormAuthoringMappedCatalogProposal ? SpreadsheetOracle.MappedCatalogVersion : 1), payload) { ObservedReads = reads };
+        new(turn, Guid.NewGuid(), new(capability, payload switch
+        {
+            FormAuthoringMappedCatalogProposal => SpreadsheetOracle.MappedCatalogVersion,
+            FormAuthoringDocumentFormProposal => AuthoringOracle.DocumentFormVersion,
+            _ => 1,
+        }), payload) { ObservedReads = reads };
     private static AssistantObservedRead FormsRead(Guid turn, int ordinal = 1) => new(turn, ordinal, new("forms.authoring.forms", 1), new FormAuthoringFormsPayload(true, []));
     private static AssistantObservedRead CatalogsRead(Guid turn, int ordinal = 2) => new(turn, ordinal, new("forms.authoring.catalogs", 1), new FormAuthoringCatalogsPayload(true, []));
 
@@ -613,6 +638,22 @@ internal static class AuthoringOfflineChecks
             Require(ChannelAccepted(catalog, shown, shownTechnical) && proposal.Capability == new AssistantCapabilityReference(AuthoringOracle.ProposeCatalog, 2));
             Require(!ChannelAccepted(catalog, shown with { Proposal = proposal with { Capability = new(AuthoringOracle.ProposeCatalog, 1) } }, shownTechnical));
             Require(!ChannelAccepted(catalog, shown with { Proposal = proposal with { Payload = ((FormAuthoringMappedCatalogProposal)proposal.Payload).ToCatalog() } }, shownTechnical));
+        }
+        // Stage 3: the form it proposes is version 2, without a document: version 1's terminal, output or offer, a reading, a sample or a
+        // standard is not it.
+        foreach (var culture in new[] { "es", "en" })
+        {
+            var form = Channel("channel-authoring-form-" + culture);var (shown, shownTechnical) = ChannelTurn(form, Guid.NewGuid(), 1);
+            var proposal = shown.Proposal!;var document = (FormAuthoringDocumentFormProposal)proposal.Payload;
+            Require(ChannelAccepted(form, shown, shownTechnical) && proposal.Capability == new AssistantCapabilityReference(AuthoringOracle.ProposeForm, AuthoringOracle.DocumentFormVersion));
+            Require(!ChannelAccepted(form, shown with { Proposal = proposal with { Capability = new(AuthoringOracle.ProposeForm, 1) } }, shownTechnical));
+            Require(!ChannelAccepted(form, shown with { Proposal = proposal with { Payload = document.ToForm() } }, shownTechnical));
+            Require(!ChannelAccepted(form, shown with { Proposal = proposal with { Payload = document with { DocumentReading = new("Pedidos de clientes.") } } }, shownTechnical));
+            Require(!ChannelAccepted(form, shown with { Proposal = proposal with { Payload = document with { Standard = new("forms.transfer-receipt", "Comprobante de transferencia") } } }, shownTechnical));
+            Require(!ChannelAccepted(form, shown with { Proposal = proposal with { Payload = document with
+                { Questions = [document.Questions[0] with { Sample = "Cliente ficticio" }, ..document.Questions.Skip(1)] } } }, shownTechnical));
+            Require(!ChannelAccepted(form, shown, shownTechnical with { OfferedReferences = [..AutomaticOffered.Where(reference => reference.Id != AuthoringOracle.ProposeForm),
+                new(AuthoringOracle.ProposeForm, 1)] }));
         }
         var (wrong, wrongTechnical) = ChannelTurn(none, Guid.NewGuid(), 1, payload: new FormAuthoringDecline("formExists", Fixture.Form("visit").DefinitionId, null, "Registrar visita"));
         Require(!ChannelAccepted(none, wrong, wrongTechnical));

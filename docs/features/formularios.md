@@ -570,6 +570,33 @@ columnas, o importarla en uno que existe. Lo técnico está en la IA
 - **La evidencia.** La calificación con el proveedor real quedó en verde el 2026-11-11: 30 casos con planillas en Inicio y
   por WhatsApp, más los sets cuyo catálogo cambió ([configurar IA](../guides/configurar-ia.md#evidencia-para-habilitar-perfiles)).
 
+## La IA arma formularios con un documento — Etapa 3, `propose-form@2` (2026-11-12)
+
+La parte de la Etapa 3 que arma con lo leído de una foto, un PDF o un Word; lo técnico, en los
+[servicios](formularios-servicios.md#crear-desde-una-propuesta-del-asistente). Lo que hay hoy (tarea 12) es la capacidad y crear
+desde ella. Todavía nadie la ofrece con un documento: Inicio la ofrecerá cuando su tarjeta la dibuje (tarea 13), DOC6 es la tarea
+14 y WhatsApp recibe documentos con las tareas 8 y 9.
+
+- **La propuesta.** `forms.authoring.propose-form@2` es el formulario de la versión 1 y, sólo con un documento en el turno,
+  la lectura prendida (`documentReading` con «Cómo reconocerlo», hasta 1.000 caracteres) y lo leído por pregunta (`sample`,
+  en una línea, sin caracteres invisibles y hasta 160 caracteres contados como grafemas, para comparar en DOC6); sin documento,
+  cualquiera de los dos vuelve `rejected` con `noDocument`. La lectura se prende sólo si el documento es un ejemplo de los que
+  va a recibir el formulario, nunca con una planilla en blanco que describe preguntas, y «Cómo reconocerlo» describe ese tipo de
+  documento en general, sin copiar nombres, números, cuentas, montos ni instrucciones escritas en él. `standard` (`key`) nombra
+  un estándar parecido de la biblioteca: sólo uno que mostró `forms.library.standards@1` en el mismo turno (si no, `notFound`),
+  con el nombre que mostró. Si la propuesta no entra en 16 KiB pero el formulario sin las muestras sí, el rechazo nombra las
+  muestras, para que se saquen ellas y no preguntas.
+- **Los estándares.** `forms.library.standards@1` (lectura con `formtemplates.read`, sólo con un documento) da los estándares
+  de la biblioteca que leen documentos, con su nombre y descripción en el idioma de la conversación y lo que lee cada uno.
+  Inicio no la ofrece; la ofrecerá el canal de documentos de DOC6 (tarea 14).
+- **Quién la ofrece hoy.** Inicio sigue en la versión 1. El Asistente automático de WhatsApp ofrece la 2 en lugar de la 1,
+  con las mismas definiciones; mientras WhatsApp no reciba documentos propone lo mismo que la 1, y su resumen (IA3-A) es el de
+  la 1. La 1 sigue registrada: sus turnos se leen y sus tarjetas y resúmenes crean, y las dos se reemplazan entre sí como una
+  capacidad.
+- **Crear.** «Crear borrador», en Inicio y por WhatsApp, acepta las dos versiones (DOC6 creará con la misma regla): la 2 crea
+  el formulario de la 1 con la lectura prendida y su «Cómo reconocerlo», sin cruces. Las muestras y el estándar nunca se
+  guardan, y la evidencia del borrador sólo dice que la propuesta traía una lectura: el texto queda en el borrador, que se edita.
+
 ## Formularios que faltan — Etapa 5
 
 La misma lectura de formularios incluye temas generalizados existentes. Una intención clara de registrar algo sin formulario accesible puede proponer uno de esos temas o un nombre y frase en el idioma de la conversación; una consulta, un cupo agotado o el rechazo de un formulario conocido no son pedidos faltantes. El motor no guarda: BusinessForms valida la propuesta y registra un recibo estable del mensaje original fuera de la transacción del canal. El nombre y la descripción generalizados se inspeccionan antes de devolver la propuesta y otra vez al capturarla, antes y dentro del lock. La copia de inspección usa NFKC para detectar también `＠`, direcciones con esquema o `www` y secuencias de siete o más dígitos, incluso separadas como un teléfono con guiones Unicode o signo menos. Se admiten fechas ISO válidas y montos con moneda explícita sólo si cubren el tramo numérico entero. Los identificadores conocidos del actor y destinatario se comparan como palabras completas y sin distinguir tildes, sin confundir «Ana» con «mañana». La inspección no reescribe el texto guardado ni filtra el relato de una visita o su prellenado.

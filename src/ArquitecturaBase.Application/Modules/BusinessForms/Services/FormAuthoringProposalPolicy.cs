@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
+using ArquitecturaBase.Domain.Common;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
@@ -41,10 +42,16 @@ internal static class FormAuthoringProposalPolicy
         return issues;
     }
 
-    public static SaveFormDraftRequest Draft(Guid requestId, FormAuthoringFormProposal proposal) => new(requestId,
+    // Etapa 3 de la IA: a reading the proposal turned on goes on in the draft, with its «Cómo reconocerlo» and no lookups.
+    public static SaveFormDraftRequest Draft(Guid requestId, FormAuthoringFormProposal proposal, FormAuthoringProposedReading? reading = null) => new(requestId,
         new Dictionary<string, string> { [proposal.Culture] = proposal.Name }, proposal.Prefix,
         new FormDraftInput(1, proposal.Culture, new Dictionary<string, string> { [proposal.Culture] = proposal.SubmitLabel },
-            proposal.Questions.Select((question, index) => Field("q" + (index + 1), question, proposal.Culture)).ToArray()));
+            proposal.Questions.Select((question, index) => Field("q" + (index + 1), question, proposal.Culture)).ToArray(),
+            DocumentReading: reading is null ? null : new FormDocumentReading(true, reading.Recognition, [])));
+
+    // Version 2 creates version 1's form with its reading; its samples and its standard are never kept.
+    public static SaveFormDraftRequest Draft(Guid requestId, FormAuthoringDocumentFormProposal proposal) =>
+        Draft(requestId, proposal.ToForm(), proposal.DocumentReading);
 
     // The authoring validator names draft paths; the model fixes the arguments it wrote.
     public static string IssuePath(string draftPath)
@@ -55,8 +62,46 @@ internal static class FormAuthoringProposalPolicy
         if (draftPath == "draft.fields") return "questions";
         if (draftPath.StartsWith("name", StringComparison.Ordinal)) return "name";
         if (draftPath.StartsWith("draft.submitLabel", StringComparison.Ordinal)) return "submitLabel";
+        if (draftPath.StartsWith("draft.documentReading", StringComparison.Ordinal)) return draftPath["draft.".Length..];
         return draftPath;
     }
+
+    // A sample is what the document shows for one question, on one line and only what is seen: control characters and line or
+    // paragraph separators become spaces, every run of spaces one, and the invisible format characters go (bidirectional overrides,
+    // zero-width spaces, the byte order mark, soft hyphens), except the joiners an emoji or a script needs, as the draft's texts allow.
+    // Without anything visible there is no sample. Longer than its limit, or not storable, the model writes it again.
+    public static string? Sample(string? text)
+    {
+        if (text is null) return null;
+        var kept = new StringBuilder(text.Length);
+        var visible = false;
+        for (var index = 0; index < text.Length; index++)
+        {
+            var category = CharUnicodeInfo.GetUnicodeCategory(text, index);
+            var pair = char.IsHighSurrogate(text[index]) && index + 1 < text.Length && char.IsLowSurrogate(text[index + 1]);
+            var value = pair ? char.ConvertToUtf32(text[index], text[index + 1]) : text[index];
+            if (category is UnicodeCategory.Control or UnicodeCategory.LineSeparator or UnicodeCategory.ParagraphSeparator) kept.Append(' ');
+            else if (category != UnicodeCategory.Format || value is 0x200C or 0x200D)
+            {
+                kept.Append(text, index, pair ? 2 : 1);
+                visible |= category is not (UnicodeCategory.Format or UnicodeCategory.SpaceSeparator or UnicodeCategory.NonSpacingMark
+                    or UnicodeCategory.SpacingCombiningMark or UnicodeCategory.EnclosingMark);
+            }
+            if (pair) index++;
+        }
+        var inline = string.Join(' ', kept.ToString().Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+        return visible && inline.Length > 0 ? inline : null;
+    }
+
+    public static bool ValidSample(string sample) => StringInfo.ParseCombiningCharacters(sample).Length <= FormAuthoringDocumentFormProposal.MaxSampleLength
+        && StorableText.IsStorable(sample);
+
+    // Version 2's own parts as the server proposed them: «Cómo reconocerlo» within its limit, each sample normalized and within its
+    // limit, and the standard with its key and name.
+    public static bool HasValidDocumentParts(FormAuthoringDocumentFormProposal proposal) =>
+        proposal.DocumentReading is null or { Recognition.Length: > 0 and <= FormDocumentReading.MaxRecognitionLength }
+        && proposal.Questions.All(question => question.Sample is null || question.Sample == Sample(question.Sample) && ValidSample(question.Sample))
+        && proposal.Standard is null or { Key.Length: > 0, Name.Length: > 0 };
 
     private static FormFieldInput Field(string localId, FormAuthoringProposedQuestion question, string culture)
     {

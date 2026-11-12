@@ -54,7 +54,7 @@ internal sealed class WhatsAppAssistantAccessPolicy(IUserReader users, IPermissi
         // maps the conversation's spreadsheet (version 2) and an import needs one: without a spreadsheet the engine leaves it out, so
         // a turn offers 15 definitions, or 16 with a spreadsheet, the cap (IA, Stage 2).
         if(automatic)context=context with {AllowedCapabilities=[..context.AllowedCapabilities,new("forms.catalog-filters.metadata",1),new("forms.catalog-filters.propose",1),
-            new("forms.authoring.forms",1),new("forms.authoring.catalogs",1),new("forms.authoring.propose-form",1),new("forms.authoring.propose-catalog",2),
+            new("forms.authoring.forms",1),new("forms.authoring.catalogs",1),new("forms.authoring.propose-form",2),new("forms.authoring.propose-catalog",2),
             new("forms.authoring.propose-import",1),new("forms.authoring.decline",1)]};
         if (await agents.FindMainAsync(ct) is not null) context = WithAgent(context, automatic);
         return new WhatsAppAssistantContextResponse(context, WhatsAppFormRecipientRevision.Create(actorUserId, recipient));

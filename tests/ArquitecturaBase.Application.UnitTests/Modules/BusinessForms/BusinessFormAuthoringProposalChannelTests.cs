@@ -106,6 +106,38 @@ public sealed class BusinessFormAuthoringProposalChannelTests
         Assert.Null(first.RowCount);
     }
 
+    // Stage 3: version 2 of a form, with or without a reading, has IA3-A's summary byte for byte and is created the same way.
+    private static FormAuthoringDocumentFormProposal Document(FormAuthoringProposedReading? reading) => new("es", "Parte de lluvias", "LLU", "Enviar",
+        [new("Milímetros", "number", true, [], null, reading is null ? null : "12,5")], reading, reading is null ? null : new("forms.rain", "Lluvias"));
+
+    private static AssistantObservedProposal Version2(AssistantCapabilityPayload payload) =>
+        new(Guid.NewGuid(), Guid.NewGuid(), new(BusinessFormAuthoringAssistantCapabilitySource.ProposeFormId, BusinessFormAuthoringAssistantCapabilitySource.DocumentFormVersion), payload);
+
+    [Theory]
+    [InlineData("es")]
+    [InlineData("en")]
+    public void Version_two_of_a_form_has_version_one_s_summary(string culture)
+    {
+        var channel = new BusinessFormAuthoringProposalChannel(new Drafts(), new Catalogs());
+        var first = System.Text.Json.JsonSerializer.Serialize(channel.Summarize(Guid.NewGuid(), Observed(BusinessFormAuthoringAssistantCapabilitySource.ProposeFormId, Form), culture),
+            System.Text.Json.JsonSerializerOptions.Web);
+        foreach (var reading in new FormAuthoringProposedReading?[] { null, new("Partes diarios de lluvia de cada campo.") })
+            Assert.Equal(first, System.Text.Json.JsonSerializer.Serialize(channel.Summarize(Guid.NewGuid(), Version2(Document(reading)), culture),
+                System.Text.Json.JsonSerializerOptions.Web));
+        // Each version reads only its own payload.
+        Assert.Null(channel.Summarize(Guid.NewGuid(), Version2(Form), culture));
+        Assert.Null(channel.Summarize(Guid.NewGuid(), Observed(BusinessFormAuthoringAssistantCapabilitySource.ProposeFormId, Document(null)), culture));
+    }
+
+    [Fact]
+    public async Task Version_two_of_a_form_is_created_the_same_way()
+    {
+        var drafts = new Drafts();
+        var created = await new BusinessFormAuthoringProposalChannel(drafts, new Catalogs())
+            .CreateAsync(Request(Version2(Document(new("Partes diarios de lluvia de cada campo.")))), Ct);
+        Assert.Equal(new StructuredAuthoringCreatedResponse(StructuredAuthoringKind.Form, drafts.Id, "Parte de lluvias", $"/formularios/{drafts.Id:D}"), created.Value);
+    }
+
     [Fact]
     public async Task Creating_passes_the_request_of_its_operation_to_the_owner()
     {

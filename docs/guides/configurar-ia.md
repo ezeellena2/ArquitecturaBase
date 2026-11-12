@@ -367,6 +367,8 @@ La mediana local por caso fue de 10,29 s en `ia-spreadsheets`, 10,23 s en `ia-au
 
 `home-existing`, `audio-es-en` y `stage5-all` no se repitieron, porque sus capacidades, esquemas e instrucciones no cambiaron. El primer intento (`ia2_spreadsheets_20261111_01`) se cortó al sembrar el catálogo de importar, antes de llamar al proveedor, por una falla del arnés corregida en `51db5a59`, y no cuenta. El alcance sigue siendo `fixture-facts-checked-in-memory; style/free-text-not-exhaustively-assessed`.
 
+Desde la tarea 12 de [documentos](../features/formularios.md#la-ia-arma-formularios-con-un-documento--etapa-3-propose-form2-2026-11-12) (2026-11-12), el asistente automático de WhatsApp ofrece `forms.authoring.propose-form@2`, con otro esquema, en lugar de la 1. La evidencia real de `ia-authoring` (su mitad automática), de `ia-spreadsheets` y de `channel-dictation` se tomó con la 1 y ya no la cubre: esos sets se repiten con la 2, con el visto bueno del usuario. `channel-stage5` e Inicio no cambian.
+
 Para otra calificación, ejecutá el [arnés](../../harnesses/assistant-qualification/README.md)
 con fixtures ficticios y presupuesto controlado. Detenelo ante el primer check fallido. Conservá
 la base, ledger, archivos privados y key ring DPAPI propio del run: `--resume` consulta Get

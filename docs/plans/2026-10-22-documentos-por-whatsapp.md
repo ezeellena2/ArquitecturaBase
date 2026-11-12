@@ -911,8 +911,8 @@ cuando una tarea cambia un cuerpo que el front valida, primero entra el guard de
    mensajes de DOC2 a DOC4, derivar con el `HandOff` de casos del asistente, el aviso y el reenvío de una captura rechazada por
    una validación fija (punto 6), el Flow r14 con lo leído, sus marcas y el comprobante que
    suma el servidor (sobre el enganche de W1-A), la captura con las validaciones y los repetidos de nuevo, las correcciones, el
-   vencido para revisar acá y «Por qué lo propuso». Unitarias e integración del recorrido con Meta simulado, y la vista oficial
-   de Meta del Flow r14.
+   vencido para revisar acá y «Por qué lo propuso»; el resumen de IA3-A todavía no dice que el borrador va a leer documentos
+   (tensión con el punto 20). Unitarias e integración del recorrido con Meta simulado, y la vista oficial de Meta del Flow r14.
 10. **Front: la bandeja (DOC5-A).** La entrada con su contador, la planilla, el panel con el visor y sus acciones, el historial, el
     celular, los vacíos y los permisos; «Lectura del documento» en el detalle de la respuesta; el documento, la línea de DOC4 y la
     marca «Necesita una persona» en el chat de WhatsApp. Tests y visuales.
@@ -944,7 +944,9 @@ cuando una tarea cambia un cuerpo que el front valida, primero entra el guard de
     bueno del usuario y su evidencia en [configurar IA](../guides/configurar-ia.md); ARCA pasa a usar el `CuitNumber` del núcleo si
     sus archivos están libres; las reglas en `docs/features`, los `AGENTS.md` (una línea cada uno), las guías de quitar IA,
     Formularios y WhatsApp, el diseño en el front con sus diferencias y el reporte al coordinador con las cohortes que cambian y
-    los pasos de la prueba a mano. El piloto con Meta y comprobantes reales queda para la prueba integral.
+    los pasos de la prueba a mano. Desde la tarea 12 el asistente automático ofrece `propose-form@2`: `ia-authoring` (su mitad
+    automática), `ia-spreadsheets` y `channel-dictation` se calificaron con la 1 y se repiten con la 2, con el visto bueno del
+    usuario; `channel-stage5` e Inicio no cambian. El piloto con Meta y comprobantes reales queda para la prueba integral.
 ### Riesgos
 
 - **El tamaño.** Es el desarrollo más grande de la tanda: 17 tareas en back y front, y la prueba integral lo espera. Cada tarea

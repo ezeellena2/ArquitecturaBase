@@ -66,6 +66,9 @@ public sealed class WhatsAppAssistantAccessPolicyTests
         Assert.Contains(new AssistantCapabilityReference("forms.authoring.propose-catalog",2),context.AllowedCapabilities);
         Assert.Contains(new AssistantCapabilityReference("forms.authoring.propose-import",1),context.AllowedCapabilities);
         Assert.DoesNotContain(new AssistantCapabilityReference("forms.authoring.propose-catalog",1),context.AllowedCapabilities);
+        // Stage 3: the form also reads the conversation's document (version 2), in place of version 1.
+        Assert.Contains(new AssistantCapabilityReference("forms.authoring.propose-form",2),context.AllowedCapabilities);
+        Assert.DoesNotContain(new AssistantCapabilityReference("forms.authoring.propose-form",1),context.AllowedCapabilities);
         Assert.Equal(16,context.AllowedCapabilities.Count+context.AllowedTerminals.Count);
         Assert.Equal(context.AllowedCapabilities.Count,context.AllowedCapabilities.Select(capability=>capability.Id).Distinct(StringComparer.Ordinal).Count());
     }
