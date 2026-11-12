@@ -50,4 +50,19 @@ internal sealed class StatusRunner(QualificationCurrentUser currentUser, IAiAssi
         }
         return null;
     }
+    // document-reading: Get with the context its ledger names (QualificationDocuments.Resume); it never stores or submits the copy again.
+    public async Task<AssistantOperationResponse?> WaitDocumentAsync(QualificationLedgerEntry entry, CancellationToken cancellationToken)
+    {
+        var context = QualificationDocuments.Resume(entry);
+        currentUser.Set(entry.ActorUserId);
+        var deadline = clock.GetUtcNow().AddSeconds(240);
+        while (clock.GetUtcNow() < deadline)
+        {
+            var result = await operations.GetAsync(context, entry.RequestId, cancellationToken);
+            if (result.IsFailure) return null;
+            if (result.Value.State is not ("pending" or "running" or "queued")) return result.Value;
+            await Task.Delay(TimeSpan.FromSeconds(2), clock, cancellationToken);
+        }
+        return null;
+    }
 }

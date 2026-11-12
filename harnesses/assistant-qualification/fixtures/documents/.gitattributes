@@ -1,0 +1,3 @@
+# Byte-exact fixtures: generate.py writes them and manifest.json (and each case) pins their size and SHA-256, so git must never change
+# a byte, line endings included. Regenerate with the command at the top of generate.py, never by hand.
+* -text

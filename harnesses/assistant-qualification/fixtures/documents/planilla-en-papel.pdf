@@ -1,0 +1,184 @@
+%PDF-1.3
+%“Œ‹ž ReportLab Generated PDF document (opensource)
+1 0 obj
+<<
+/F1 2 0 R /F2 3 0 R
+>>
+endobj
+2 0 obj
+<<
+/BaseFont /Helvetica /Encoding /WinAnsiEncoding /Name /F1 /Subtype /Type1 /Type /Font
+>>
+endobj
+3 0 obj
+<<
+/BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding /Name /F2 /Subtype /Type1 /Type /Font
+>>
+endobj
+4 0 obj
+<<
+/Contents 8 0 R /MediaBox [ 0 0 595.2756 841.8898 ] /Parent 7 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+5 0 obj
+<<
+/PageMode /UseNone /Pages 7 0 R /Type /Catalog
+>>
+endobj
+6 0 obj
+<<
+/Author (Ejemplo ficticio) /CreationDate (D:20000101000000+00'00') /Creator (generate.py) /Keywords () /ModDate (D:20000101000000+00'00') /Producer (generate.py) 
+  /Subject (unspecified) /Title (untitled) /Trapped /False
+>>
+endobj
+7 0 obj
+<<
+/Count 1 /Kids [ 4 0 R ] /Type /Pages
+>>
+endobj
+8 0 obj
+<<
+/Length 3030
+>>
+stream
+1 0 0 1 0 0 cm  BT /F1 12 Tf 14.4 TL ET
+.08 .08 .1 rg
+BT /F2 18 Tf 21.6 TL ET
+BT 1 0 0 1 50 771.8898 Tm (PLANILLA DE ENTREGA DE INSUMOS) Tj T* ET
+.77 .12 .14 RG
+1 .95 .95 rg
+1.6 w
+n
+397.6926 764.8898 m
+540.2756 764.8898 l
+543.0396 764.8898 545.2756 767.1258 545.2756 769.8898 c
+545.2756 786.8898 l
+545.2756 789.6538 543.0396 791.8898 540.2756 791.8898 c
+397.6926 791.8898 l
+394.9286 791.8898 392.6926 789.6538 392.6926 786.8898 c
+392.6926 769.8898 l
+392.6926 767.1258 394.9286 764.8898 397.6926 764.8898 c
+h
+B*
+.77 .12 .14 rg
+BT /F2 13 Tf 15.6 TL ET
+BT 1 0 0 1 404.6926 771.8898 Tm (EJEMPLO \267 FICTICIO) Tj T* ET
+.08 .08 .1 rg
+BT /F1 10 Tf 12 TL ET
+BT 1 0 0 1 50 745.8898 Tm (Complet\341 un rengl\363n por cada insumo entregado y firm\341 al final.) Tj T* ET
+.1 .1 .1 RG
+.8 w
+.08 .08 .1 rg
+BT /F1 11 Tf 13.2 TL ET
+BT 1 0 0 1 50 701.8898 Tm (Fecha:) Tj T* ET
+n 100 699.8898 m 250 699.8898 l S
+.08 .08 .1 rg
+BT /F1 11 Tf 13.2 TL ET
+BT 1 0 0 1 300 701.8898 Tm (Responsable:) Tj T* ET
+n 380 699.8898 m 545.2756 699.8898 l S
+.08 .08 .1 rg
+BT /F1 11 Tf 13.2 TL ET
+BT 1 0 0 1 50 661.8898 Tm (Sucursal:) Tj T* ET
+.1 .1 .1 RG
+1 w
+n 120 660.8898 10 10 re S
+.08 .08 .1 rg
+BT /F1 11 Tf 13.2 TL ET
+BT 1 0 0 1 136 661.8898 Tm (Norte) Tj T* ET
+.1 .1 .1 RG
+1 w
+n 200 660.8898 10 10 re S
+.08 .08 .1 rg
+BT /F1 11 Tf 13.2 TL ET
+BT 1 0 0 1 216 661.8898 Tm (Sur) Tj T* ET
+.1 .1 .1 RG
+1 w
+n 270 660.8898 10 10 re S
+.08 .08 .1 rg
+BT /F1 11 Tf 13.2 TL ET
+BT 1 0 0 1 286 661.8898 Tm (Centro) Tj T* ET
+.9 .91 .93 rg
+n 50 599.8898 495.2756 22 re f*
+.08 .08 .1 rg
+BT /F2 11 Tf 13.2 TL ET
+BT 1 0 0 1 58 606.8898 Tm (Insumo) Tj T* ET
+.08 .08 .1 rg
+BT /F2 11 Tf 13.2 TL ET
+BT 1 0 0 1 338 606.8898 Tm (Cantidad) Tj T* ET
+.08 .08 .1 rg
+BT /F2 11 Tf 13.2 TL ET
+BT 1 0 0 1 448 606.8898 Tm (Unidad) Tj T* ET
+.2 .2 .2 RG
+n 50 599.8898 m 545.2756 599.8898 l S
+n 50 573.8898 m 545.2756 573.8898 l S
+n 50 547.8898 m 545.2756 547.8898 l S
+n 50 521.8898 m 545.2756 521.8898 l S
+n 50 495.8898 m 545.2756 495.8898 l S
+n 50 469.8898 m 545.2756 469.8898 l S
+n 50 443.8898 m 545.2756 443.8898 l S
+n 50 621.8898 m 545.2756 621.8898 l S
+n 50 621.8898 m 50 443.8898 l S
+n 330 621.8898 m 330 443.8898 l S
+n 440 621.8898 m 440 443.8898 l S
+n 545.2756 621.8898 m 545.2756 443.8898 l S
+.08 .08 .1 rg
+BT /F1 11 Tf 13.2 TL ET
+BT 1 0 0 1 50 403.8898 Tm (\277Recibi\363 conforme?) Tj T* ET
+.1 .1 .1 RG
+1 w
+n 170 402.8898 10 10 re S
+.08 .08 .1 rg
+BT /F1 11 Tf 13.2 TL ET
+BT 1 0 0 1 186 403.8898 Tm (S\355) Tj T* ET
+.1 .1 .1 RG
+1 w
+n 220 402.8898 10 10 re S
+.08 .08 .1 rg
+BT /F1 11 Tf 13.2 TL ET
+BT 1 0 0 1 236 403.8898 Tm (No) Tj T* ET
+.08 .08 .1 rg
+BT /F1 11 Tf 13.2 TL ET
+BT 1 0 0 1 50 363.8898 Tm (Observaciones:) Tj T* ET
+n 50 337.8898 m 545.2756 337.8898 l S
+n 50 313.8898 m 545.2756 313.8898 l S
+n 50 289.8898 m 545.2756 289.8898 l S
+.08 .08 .1 rg
+BT /F1 11 Tf 13.2 TL ET
+BT 1 0 0 1 50 233.8898 Tm (Firma:) Tj T* ET
+n 95 231.8898 m 270 231.8898 l S
+.08 .08 .1 rg
+BT /F1 11 Tf 13.2 TL ET
+BT 1 0 0 1 300 233.8898 Tm (Aclaraci\363n:) Tj T* ET
+n 370 231.8898 m 545.2756 231.8898 l S
+ 
+endstream
+endobj
+xref
+0 9
+0000000000 65535 f 
+0000000061 00000 n 
+0000000102 00000 n 
+0000000209 00000 n 
+0000000321 00000 n 
+0000000524 00000 n 
+0000000592 00000 n 
+0000000835 00000 n 
+0000000894 00000 n 
+trailer
+<<
+/ID 
+[<602f0c7050ae2f91b07de0d04ae9ae34><602f0c7050ae2f91b07de0d04ae9ae34>]
+% ReportLab generated PDF document -- digest (opensource)
+
+/Info 6 0 R
+/Root 5 0 R
+/Size 9
+>>
+startxref
+3975
+%%EOF

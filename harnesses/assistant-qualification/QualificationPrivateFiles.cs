@@ -12,7 +12,8 @@ internal sealed class QualificationPrivateFiles : IPrivateFileStore
     {
         var target=Resolve(key);
         if((Path.GetExtension(target),contentType) is not ((".ogg","audio/ogg") or (".wav","audio/wav") or (".webm","audio/webm") or (".m4a","audio/mp4")
-            or (".xlsx",QualificationSpreadsheets.XlsxMediaType) or (".csv",QualificationSpreadsheets.CsvMediaType)))
+            or (".xlsx",QualificationSpreadsheets.XlsxMediaType) or (".csv",QualificationSpreadsheets.CsvMediaType)
+            or (".pdf","application/pdf") or (".jpg","image/jpeg") or (".png","image/png")))
             throw new InvalidOperationException("Unsupported isolated file format.");
         Directory.CreateDirectory(Path.GetDirectoryName(target)!);
         var temporary=target+"."+Guid.NewGuid().ToString("N")+".pending";
@@ -51,6 +52,8 @@ internal sealed class QualificationPrivateFiles : IPrivateFileStore
     }
     // WhatsApp audio fixtures keep their own prefix; a Home recording (IA4) uses the key the real AiAssistantHomeAudioPolicy derives.
     // A spreadsheet (Stage 2): Home's, the key of the real file turn; a channel case's, the harness's own prefix (QualificationSpreadsheets).
+    // A document the engine reads (document-reading): the harness's own prefix too (QualificationDocuments).
     private static bool ValidKey(string key)=>Regex.IsMatch(key,"^qualification/audio/[a-f0-9]{32}\\.(ogg|wav)$",RegexOptions.CultureInvariant)
-        || Regex.IsMatch(key,"^ai/assistant/audio/[a-f0-9]{32}\\.(webm|m4a)$",RegexOptions.CultureInvariant) || QualificationSpreadsheets.IsKey(key);
+        || Regex.IsMatch(key,"^ai/assistant/audio/[a-f0-9]{32}\\.(webm|m4a)$",RegexOptions.CultureInvariant) || QualificationSpreadsheets.IsKey(key)
+        || QualificationDocuments.IsKey(key);
 }

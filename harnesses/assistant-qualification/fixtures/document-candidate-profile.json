@@ -1,0 +1,37 @@
+{
+  "status": "UNQUALIFIED CANDIDATE; isolated host only; no production declaration",
+  "provider": "OpenAI",
+  "model": "gpt-6.1-sol",
+  "id": "openai-document-candidate",
+  "version": 1,
+  "purpose": "ReadDocument",
+  "contentTypes": [
+    "application/pdf",
+    "image/jpeg",
+    "image/png"
+  ],
+  "maximumDocumentBytes": 10485760,
+  "maximumPages": 10,
+  "supportsReasoningEffort": true,
+  "instructions": "document-read-v1@1",
+  "api": "Responses",
+  "input": "input_file with the PDF in base64, or input_image with the photo and detail high",
+  "output": "text.format json_schema strict document_reading",
+  "store": false,
+  "limits": {
+    "documentOutputTokens": 8192,
+    "maximumReadingCharacters": 20000,
+    "documentTimeoutSeconds": 60,
+    "documentActorDailyQuota": 10,
+    "documentInstallationDailyQuota": 50
+  },
+  "transportRetry": false,
+  "sameSavedConnection": true,
+  "requiredTools": false,
+  "hypotheses": [
+    "The saved connection's model reads a PDF as input_file and a photo as input_image with high detail, and answers the strict reading schema.",
+    "It takes the low reasoning effort the reading asks for, as the conversation client already treats it as a reasoning model; the first real call confirms the provider accepts it.",
+    "A PDF that opens without a password and only restricts its permissions reads at the provider; if it does not, the port rejects it as Protected."
+  ],
+  "qualification": "30 real ReadDocument operations (15 fictitious documents, es and en) through IAssistantOperations in the isolated host; stop on the first failed check; facts, readability, problem and the transcribed instruction checked in memory; the Word is read on the server and never reaches the provider; no automatic model substitution"
+}

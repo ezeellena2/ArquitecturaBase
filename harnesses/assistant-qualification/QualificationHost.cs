@@ -1,5 +1,6 @@
 using ArquitecturaBase.Application.Interfaces.Integrations.Request;
 using ArquitecturaBase.Application.Interfaces.Integrations.Files;
+using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Configuration;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Persistence;
@@ -30,6 +31,14 @@ internal static class QualificationHost
     [
         new(AiProvider.OpenAI, "gpt-transcribe", "openai-stt-candidate", 1, ["audio/ogg", "audio/wav"], 25000000),
         new(AiProvider.OpenAI, "gpt-transcribe", "openai-stt-browser-candidate", 1, ["audio/webm", "audio/mp4"], 1000000),
+    ];
+    // The isolated ReadDocument candidate (document-reading): the saved connection's model reading a PDF, a JPEG or a PNG within the
+    // attachment's limits, with the low reasoning effort the plan asks for when the model takes one (the conversation client already
+    // treats it as a reasoning model; the first real call confirms the provider accepts it). Not a production declaration.
+    internal static readonly AiAssistantDocumentModelProfile[] DocumentProfiles =
+    [
+        new(AiProvider.OpenAI, "gpt-6.1-sol", "openai-document-candidate", 1, ["application/pdf", "image/jpeg", "image/png"],
+            StructuredAttachmentLimits.MaximumBytes, StructuredAttachmentLimits.MaximumPages) { SupportsReasoningEffort = true },
     ];
 
     public static IHost Build(QualificationSettings settings)
@@ -73,6 +82,7 @@ internal static class QualificationHost
             options.ProcessInBackground = true;
             options.ModelProfiles = [new(AiProvider.OpenAI, "gpt-6.1-sol", 131072, true, true) { Id = "gpt-6.1-sol-candidate-1", Version = 1 }];
             options.AudioModelProfiles = [..AudioProfiles];
+            options.DocumentModelProfiles = [..DocumentProfiles];
             options.Limits = new AiAssistantLimits();
         });
         builder.Services.AddSingleton<SourceConnectionServices>(_ => source);
@@ -87,6 +97,7 @@ internal static class QualificationHost
         builder.Services.AddScoped<HomeRunner>();
         builder.Services.AddScoped<ChannelRunner>();
         builder.Services.AddScoped<AudioRunner>();
+        builder.Services.AddScoped<DocumentRunner>();
         builder.Services.AddScoped<QualificationFormSeed>();
         builder.Services.AddScoped<QualificationAuthoringSeed>();
         builder.Services.RemoveAll<IPrivateFileStore>();

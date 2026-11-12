@@ -22,10 +22,11 @@ internal static partial class Program
         "QualificationHost.cs","QualificationExistingFixtureReader.cs","QualificationContinuationPolicy.cs","Program.Continue.cs","ReadOnlyAiConnectionReader.cs","HomeRunner.cs","AiAssistantService.cs","AiAssistantReadPolicy.cs",
         "AiAssistantAccessGuard.cs","AiAssistantOperations.cs","AiAssistantCapabilityCatalogPolicy.cs","AiAssistantBackgroundService.cs",
         "AiAssistantCoordinator.cs","EmailBackgroundService.cs","WhatsAppInboundProcessor.cs","FormActionBackgroundService.cs",
-        "QualificationAuthoringSeed.cs","QualificationSpreadsheets.cs","AiAssistantFileTurnService.cs","BusinessFormAttachmentReader.cs"];
+        "QualificationAuthoringSeed.cs","QualificationSpreadsheets.cs","AiAssistantFileTurnService.cs","BusinessFormAttachmentReader.cs",
+        "Program.Documents.cs","DocumentRunner.cs","QualificationDocuments.cs","FormDocumentReader.cs"];
 
     internal static readonly string[] CaseSets=["home-existing","channel-stage5","audio-es-en","stage5-all","home-authoring","channel-authoring","ia-authoring","channel-dictation",
-        "home-spreadsheets","channel-spreadsheets","ia-spreadsheets"];
+        "home-spreadsheets","channel-spreadsheets","ia-spreadsheets","document-reading"];
     // channel-dictation runs only the voice notes of channel-authoring (IA3-A by voice), without repeating the typed cases already qualified.
     internal static ChannelCase[] SelectChannelCases(string? selected,ChannelCase[] cases)=>
         selected=="channel-dictation"?cases.Where(item=>item.Audio is not null).ToArray():cases;
@@ -63,6 +64,8 @@ internal static partial class Program
             var homeSpreadsheets=selected is "home-spreadsheets" or "ia-spreadsheets";
             var channelSpreadsheets=selected is "channel-spreadsheets" or "ia-spreadsheets";
             var spreadsheets=homeSpreadsheets || channelSpreadsheets;
+            // Parte L, task 4: ReadDocument alone, on its own run and database seeded only with the base accounts.
+            var documents=selected=="document-reading";
             if(!args.Contains("--live",StringComparer.Ordinal))
             {
                 if(selected is "home-existing" or "stage5-all")foreach(var item in await CasesAsync<HomeCase>("home-cases.json",CancellationToken.None))Console.WriteLine(item.Id);
@@ -72,10 +75,13 @@ internal static partial class Program
                 if(channelAuthoring)foreach(var item in SelectChannelCases(selected,await CasesAsync<ChannelCase>(ChannelAuthoringFile,CancellationToken.None)))Console.WriteLine(item.Id);
                 if(homeSpreadsheets)foreach(var item in await CasesAsync<HomeCase>(HomeSpreadsheetFile,CancellationToken.None))Console.WriteLine(item.Id);
                 if(channelSpreadsheets)foreach(var item in await CasesAsync<ChannelCase>(ChannelSpreadsheetFile,CancellationToken.None))Console.WriteLine(item.Id);
+                if(documents)foreach(var item in (await QualificationDocuments.LoadVerifiedAsync(CancellationToken.None)).Cases)Console.WriteLine(item.Id);
                 Console.WriteLine("Prepared only. No connection or secret store was opened.");return 0;
             }
             // Nothing above this explicit gate reads environment, credentials, services or a database.
             _=RequiredOption(args,"--case-set");
+            // A changed document fixture stops a new run here, before its ledger, database, seed or provider call.
+            var documentSet=documents && !args.Contains("--resume",StringComparer.Ordinal)?await QualificationDocuments.LoadVerifiedAsync(CancellationToken.None):null;
             var settings=QualificationSettings.FromEnvironment(RequiredOption(args,"--run-id"),RequiredOption(args,"--repository"),RequiredOption(args,"--output"));
             using var timeout=new CancellationTokenSource(TimeSpan.FromHours(2));var ct=timeout.Token;
             if(diagnose)return await DiagnoseExistingFixtureAsync(settings,ct);
@@ -116,6 +122,7 @@ internal static partial class Program
                 if(selected is "audio-es-en" or "stage5-all")if(!await RunAudioAsync(host,settings,fixture,ct))return 1;
                 if(homeSpreadsheets)if(!await RunHomeAsync(host,settings,fixture,forms,HomeSpreadsheetFile,HomeAuthoringCapabilities,ct))return 1;
                 if(channelSpreadsheets)if(!await RunChannelsAsync(host,settings,fixture,forms!,ChannelSpreadsheetFile,QualificationChannelContexts.References,ct))return 1;
+                if(documentSet is not null)if(!await RunDocumentsAsync(host,settings,fixture,documentSet,ct))return 1;
                 return 0; // Mechanical checks do not declare production qualification.
             }
             finally{await host.StopAsync(CancellationToken.None);}
@@ -369,6 +376,7 @@ internal static partial class Program
                 {
                     "home"=>(await runner.WaitAsync(entry,ct))?.State,
                     "home-audio"=>(await runner.WaitHomeAudioAsync(entry,ct))?.State,
+                    "document"=>(await runner.WaitDocumentAsync(entry,ct))?.State,
                     _=>(await runner.WaitNeutralAsync(entry,ct))?.State,
                 };
                 complete &= state=="completed";Console.WriteLine(entry.CaseId+": "+(state??"not-observable"));
@@ -405,6 +413,7 @@ internal static partial class Program
             ("home-system",1)=>"Prompt.SystemV1",
             ("home-system",2)=>"Prompt.SystemV2",
             ("capabilities-v1",1)=>"Prompt.CapabilitiesV1",
+            ("document-read-v1",1)=>"Prompt.DocumentReadV1", // ReadDocument, in the turn's culture.
             _=>throw new InvalidOperationException("Unknown instruction stamp."),
         };
         return EvidenceWriter.HashPublicText(manager.GetString(key,CultureInfo.GetCultureInfo(culture))??throw new InvalidOperationException("Missing public instructions."));
