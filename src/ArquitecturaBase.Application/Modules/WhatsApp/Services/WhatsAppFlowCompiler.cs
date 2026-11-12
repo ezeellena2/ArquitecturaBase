@@ -1,6 +1,6 @@
-using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
+using ArquitecturaBase.Application.Common.Formatting;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Application.Modules.WhatsApp.Resources;
@@ -223,7 +223,7 @@ internal static class WhatsAppFlowCompiler
                 {
                     control["min-selected-items"] = question.Selection!.MinSelected;
                     control["max-selected-items"] = question.Selection.MaxSelected;
-                    if (help is null) control["description"] = string.Format(CultureInfo.GetCultureInfo(culture),
+                    if (help is null) control["description"] = DisplayNumbers.Format(culture,
                         FlowTexts.Get("SelectUpTo", culture), question.Selection.MaxSelected);
                 }
                 if (question.Type == "date") control["mode"] = "single";

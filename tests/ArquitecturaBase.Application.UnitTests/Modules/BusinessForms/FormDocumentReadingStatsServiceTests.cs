@@ -107,7 +107,7 @@ public sealed class FormDocumentReadingStatsServiceTests
             var result = await service.GetAsync(Definition, Ct);
 
             Assert.Equal(FormDocumentReadingStatsResponse.MaxExamples, reader.Limit);
-            Assert.Equal([("REC-000123", Amount, "150000,5", "1500000,5"), ("REC-000122", Date, "01/11/2026", "10/11/2026")],
+            Assert.Equal([("REC-000123", Amount, "150.000,5", "1.500.000,5"), ("REC-000122", Date, "01/11/2026", "10/11/2026")],
                 result.Value.Examples!.Select(example => (example.RecordNumber, example.QuestionId, example.Read, example.Confirmed)));
         }
         finally { CultureInfo.CurrentUICulture = culture; }

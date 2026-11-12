@@ -1,4 +1,5 @@
 using System.Globalization;
+using ArquitecturaBase.Application.Common.Formatting;
 using ArquitecturaBase.Application.Common.Logging;
 using ArquitecturaBase.Application.Common.Validation;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Integrations;
@@ -151,7 +152,7 @@ internal sealed class FormExportService(IFormResponseReader reader, IFormWorkboo
     private static IEnumerable<ExportColumn> QuestionColumns(FormResponseColumn column, FormExportRequest request, string culture, bool shown)
     {
         var header = column.Label + (column.IntroducedInVersion > 1
-            ? string.Format(CultureInfo.GetCultureInfo(culture), FormResponseTexts.Get("SinceVersion", culture), column.IntroducedInVersion) : "");
+            ? DisplayNumbers.Format(culture, FormResponseTexts.Get("SinceVersion", culture), column.IntroducedInVersion) : "");
         if (shown && column.Type == "location")
         {
             // UB4-A: a point goes in three number columns.

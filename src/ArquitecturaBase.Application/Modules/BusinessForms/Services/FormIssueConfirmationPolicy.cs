@@ -2,6 +2,7 @@ using System.Buffers.Text;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
+using ArquitecturaBase.Application.Common.Formatting;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Resources;
 using ArquitecturaBase.Application.Resources;
@@ -26,7 +27,7 @@ internal static class FormIssueConfirmationPolicy
         var date = preview.Date?.ToString(culture == "en" ? "MM/dd/yyyy" : "dd/MM/yyyy", CultureInfo.InvariantCulture);
         var amounts = (preview.Amounts ?? []).Select(item => (item.Label.GetValueOrDefault(culture) ?? item.Label.Values.First()) + ": $ " + Money(item.Value, culture)).ToArray();
         var total = Money(preview.Total, culture) + (amounts.Length == 0 ? "" : " (" + string.Join("; ", amounts) + ")");
-        var summary = string.Format(CultureInfo.GetCultureInfo(culture), FormResponseTexts.Get(date is null ? "Issue.Confirm.Body" : "Issue.Confirm.BodyDated", culture),
+        var summary = DisplayNumbers.Format(culture, FormResponseTexts.Get(date is null ? "Issue.Confirm.Body" : "Issue.Confirm.BodyDated", culture),
             document, preview.Receiver ?? "", total, date);
         return summary + "\n" + FormResponseTexts.Get("Issue.Confirm.Question", culture);
     }
@@ -36,12 +37,12 @@ internal static class FormIssueConfirmationPolicy
     {
         var code = preview.FailureCode ?? throw new InvalidOperationException("The summary did not fail.");
         var reason = ErrorMessages.ResourceManager.GetString(code, CultureInfo.GetCultureInfo(culture)) ?? code;
-        return string.Format(CultureInfo.InvariantCulture, FormResponseTexts.Get("Issue.Failed.Body", culture), reason);
+        return DisplayNumbers.Format(culture, FormResponseTexts.Get("Issue.Failed.Body", culture), reason);
     }
 
     private static string Money(string? value, string culture) =>
         decimal.TryParse(value, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var amount)
-            ? amount.ToString("N2", CultureInfo.GetCultureInfo(culture == "en" ? "en-US" : "es-AR")) : value ?? "";
+            ? DisplayNumbers.Number(amount, culture, 2, 2) : value ?? "";
 
     /// <summary>
     /// «Emitir» and «No emitir», or «Volver a probar» and «No emitir» after a summary that failed. A message that does not go by

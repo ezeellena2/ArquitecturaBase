@@ -1,4 +1,5 @@
 using System.Globalization;
+using ArquitecturaBase.Application.Common.Formatting;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Application.Modules.WhatsApp.Resources;
@@ -86,7 +87,7 @@ internal static class WhatsAppAssistantAuthoringText
 
     // «Son 86 filas.», with the number as the person writes it.
     private static string Rows(int rows, string culture) => rows == 1 ? Text("AuthoringRowsOne", culture)
-        : Text("AuthoringRowsMany", culture, rows.ToString("N0", CultureInfo.GetCultureInfo(culture)));
+        : Text("AuthoringRowsMany", culture, DisplayNumbers.Number(rows, culture));
 
     private static string? Link(Uri? publicOrigin, string? appPath) =>
         publicOrigin is null || appPath is null ? null : new Uri(publicOrigin, appPath.TrimStart('/')).AbsoluteUri;

@@ -1,6 +1,6 @@
-using System.Globalization;
 using System.Security.Cryptography;
 using System.Text.Json;
+using ArquitecturaBase.Application.Common.Formatting;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
@@ -91,7 +91,7 @@ internal sealed class WhatsAppAssistantAcceptancePolicy(WhatsAppFormSendPolicy s
         var fingerprint = Fingerprint(request,actor,proposal?.Id);
         var issue = issuer.CreateProposed(context,request.RequestId,row.ModeRevision,actor,fingerprint,
             Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(32)),content,row.ContentExpiresAtUtc,prefill.Catalogs);
-        var body = string.Format(CultureInfo.GetCultureInfo(prefill.Culture),AssistantTexts.Get("CompleteForm",prefill.Culture),prefill.Form.Name[prefill.Culture]);
+        var body = DisplayNumbers.Format(prefill.Culture,AssistantTexts.Get("CompleteForm",prefill.Culture),prefill.Form.Name[prefill.Culture]);
         // W1-A: a form with a location opens with its request, the operator's or the assistant's, and its Flow goes out with the
         // location; the reference keeps the first message of the send.
         var formName = prefill.Form.Name[prefill.Culture];

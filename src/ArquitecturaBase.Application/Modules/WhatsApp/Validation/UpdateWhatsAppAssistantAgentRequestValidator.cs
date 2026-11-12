@@ -184,6 +184,7 @@ internal sealed class UpdateWhatsAppAssistantAgentRequestValidator : AbstractVal
 
         if (text.Length > maximumLength)
         {
+            context.MessageFormatter.AppendArgument("MaxLength", maximumLength);
             context.AddFailure(path, ValidationMessages.MaxLength);
             return false;
         }

@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Net;
 using System.Resources;
-using System.Text;
+using ArquitecturaBase.Application.Common.Formatting;
 using ArquitecturaBase.Application.Interfaces.Integrations.Emails;
 using ArquitecturaBase.Application.Modules.Arca.Configuration;
 using ArquitecturaBase.Application.Modules.Arca.Models.Connection;
@@ -24,8 +24,8 @@ internal sealed partial class ArcaRobotAlertPolicy(IEmailQueue emailQueue, IOpti
         new("ArquitecturaBase.Application.Modules.Arca.Resources.Robot", typeof(ArcaRobotAlertPolicy).Assembly);
 
     // El robot es de ARCA, de la Argentina: el aviso sale en el idioma de la plataforma, no en el del pedido que lo disparó.
-    private static readonly CultureInfo Culture = CultureInfo.GetCultureInfo("es");
-    private static readonly CompositeFormat BodyFormat = CompositeFormat.Parse(Text("Alert.Body"));
+    private const string Language = "es";
+    private static readonly CultureInfo Culture = CultureInfo.GetCultureInfo(Language);
 
     public static bool Applies(ArcaRobotSide side, ArcaRobotFailure failure) =>
         failure == ArcaRobotFailure.ScreenChanged
@@ -50,7 +50,7 @@ internal sealed partial class ArcaRobotAlertPolicy(IEmailQueue emailQueue, IOpti
 
     private static EmailMessage Compose(string to, ArcaRobotSide side, ArcaRobotOutcome.Failed failed, DateTime nowUtc)
     {
-        var body = string.Format(Culture, BodyFormat, failed.Step, Text("Side." + side), Text("Failure." + failed.Failure),
+        var body = DisplayNumbers.Format(Language, Text("Alert.Body"), failed.Step, Text("Side." + side), Text("Failure." + failed.Failure),
             nowUtc.ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture));
         return new EmailMessage(to, Text("Alert.Subject"), $"<p>{WebUtility.HtmlEncode(body)}</p>", body);
     }

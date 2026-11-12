@@ -1,4 +1,5 @@
 using System.Globalization;
+using ArquitecturaBase.Application.Common.Formatting;
 using ArquitecturaBase.Application.Modules.Arca.Models.Invoicing;
 using ArquitecturaBase.Domain.Modules.Arca.Connection;
 using ArquitecturaBase.Domain.Modules.Arca.Invoicing;
@@ -17,7 +18,6 @@ internal static class ArcaFiscalDocumentPolicy
     public const string MonotaxLegend = "El crédito fiscal discriminado en el presente comprobante, sólo podrá ser computado a efectos del Régimen de "
         + "Sostenimiento e Inclusión Fiscal para Pequeños Contribuyentes de la Ley Nº 27.618";
 
-    private static readonly CultureInfo Spanish = CultureInfo.GetCultureInfo("es-AR");
     private static readonly int[] MonotaxReceivers = [6, 13, 16];
     private static readonly int[] TransparencyReceivers = [4, 5, 15];
 
@@ -125,7 +125,7 @@ internal static class ArcaFiscalDocumentPolicy
     };
 
     private static string Percent(int rateId) =>
-        (ArcaVatRates.Find(rateId) ?? throw new InvalidOperationException("An ARCA voucher has an unknown VAT rate.")).Percent.ToString("0.##", Spanish) + " %";
+        DisplayNumbers.Number((ArcaVatRates.Find(rateId) ?? throw new InvalidOperationException("An ARCA voucher has an unknown VAT rate.")).Percent, "es", 0, 2) + " %";
 
     private static decimal Round(decimal value) => Math.Round(value, 2, MidpointRounding.ToEven);
 

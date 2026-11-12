@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using ArquitecturaBase.Application.Common.Formatting;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.BusinessForms.Resources;
@@ -109,10 +110,9 @@ internal static class FormCatalogFieldPresentation
     {
         if (value is null) return null;
         if (type == "boolean") return FormCatalogTexts.Get(value == "true" ? "Yes" : "No", culture);
-        var locale = CultureInfo.GetCultureInfo(culture == "en" ? "en-US" : "es-AR");
-        if (type == "integer") return long.Parse(value, CultureInfo.InvariantCulture).ToString("N0", locale);
+        if (type == "integer") return DisplayNumbers.Number(long.Parse(value, CultureInfo.InvariantCulture), culture);
         // The canonical decimal has no trailing zeros, so the optional digits keep it exact.
-        if (type == "decimal") return decimal.Parse(value, CultureInfo.InvariantCulture).ToString("#,##0.############################", locale);
+        if (type == "decimal") return DisplayNumbers.Number(decimal.Parse(value, CultureInfo.InvariantCulture), culture);
         if (type == "date") return DateOnly.ParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture)
             .ToString(culture == "en" ? "MM/dd/yyyy" : "dd/MM/yyyy", CultureInfo.InvariantCulture);
         return value;

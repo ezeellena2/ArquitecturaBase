@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using ArquitecturaBase.Application.Common.Formatting;
 using ArquitecturaBase.Application.Interfaces.Integrations.Files;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.StructuredData;
@@ -119,10 +120,9 @@ internal sealed class SkiaFormPdfRenderer(IFormFileReader references, IStoredFil
     // A datum of a result (RE1-A), written like an answer of its kind.
     private static string ResultValue(FormPdfResultValue value, string culture)
     {
-        var locale = CultureInfo.GetCultureInfo(culture == "es" ? "es-AR" : "en-US");
         return value.Value is not { } raw ? FormPdfTexts.Get("NoAnswer", culture) : value.Kind switch
         {
-            "number" => decimal.Parse(raw, CultureInfo.InvariantCulture).ToString("#,0.############################", locale),
+            "number" => DisplayNumbers.Number(decimal.Parse(raw, CultureInfo.InvariantCulture), culture),
             "date" => FormPdfDates.Day(DateOnly.ParseExact(raw, "yyyy-MM-dd", CultureInfo.InvariantCulture), culture),
             _ => raw,
         };
@@ -130,11 +130,11 @@ internal sealed class SkiaFormPdfRenderer(IFormFileReader references, IStoredFil
 
     private static string Value(CanonicalFormField question, JsonElement answer, string culture, FormRecordStoredRow record)
     {
-        var locale = CultureInfo.GetCultureInfo(culture == "es" ? "es-AR" : "en-US");
+        var locale = DisplayNumbers.Culture(culture);
         return question.Type switch
         {
             "shortText" or "longText" => answer.GetString() ?? FormPdfTexts.Get("NoAnswer", culture),
-            "decimal" => answer.GetDecimal().ToString("#,0.############################", locale),
+            "decimal" => DisplayNumbers.Number(answer.GetDecimal(), culture),
             "date" => FormPdfDates.Day(DateOnly.ParseExact(answer.GetString()!, "yyyy-MM-dd", CultureInfo.InvariantCulture), culture),
             "boolean" => FormPdfTexts.Get(answer.GetBoolean() ? "Yes" : "No", culture),
             "multiChoice" => MultipleValue(question, answer, culture, record),
@@ -147,9 +147,9 @@ internal sealed class SkiaFormPdfRenderer(IFormFileReader references, IStoredFil
     {
         var value = reference.Value is null ? null : reference.ValueType switch
         {
-            "Integer" => long.Parse(reference.Value, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture).ToString("N0", locale),
-            "Decimal" => decimal.Parse(reference.Value, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture)
-                .ToString("#,##0.00##########################", locale),
+            "Integer" => DisplayNumbers.Number(long.Parse(reference.Value, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture), locale.Name),
+            "Decimal" => DisplayNumbers.Number(decimal.Parse(reference.Value, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint,
+                CultureInfo.InvariantCulture), locale.Name, minimumDecimals: 2),
             "Date" => FormPdfDates.Day(DateOnly.ParseExact(reference.Value, "yyyy-MM-dd", CultureInfo.InvariantCulture), locale.TwoLetterISOLanguageName),
             _ => throw new InvalidOperationException("The captured catalog value type is invalid."),
         };
@@ -172,9 +172,9 @@ internal sealed class SkiaFormPdfRenderer(IFormFileReader references, IStoredFil
     private static string CapturedFieldValue(FormCatalogCapturedField field, CultureInfo locale) => field.Type switch
     {
         "text" => field.Value.GetString()!,
-        "integer" => field.Value.GetInt64().ToString("N0", locale),
-        "decimal" => decimal.Parse(field.Value.GetString()!, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture)
-            .ToString("#,##0.00##########################", locale),
+        "integer" => DisplayNumbers.Number(field.Value.GetInt64(), locale.Name),
+        "decimal" => DisplayNumbers.Number(decimal.Parse(field.Value.GetString()!, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint,
+            CultureInfo.InvariantCulture), locale.Name, minimumDecimals: 2),
         "date" => FormPdfDates.Day(DateOnly.ParseExact(field.Value.GetString()!, "yyyy-MM-dd", CultureInfo.InvariantCulture), locale.TwoLetterISOLanguageName),
         "boolean" => FormPdfTexts.Get(field.Value.GetBoolean() ? "Yes" : "No", locale.TwoLetterISOLanguageName),
         "catalog" => FieldText(field.Text!, locale),

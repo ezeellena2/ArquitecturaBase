@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
+using ArquitecturaBase.Application.Common.Formatting;
 using ArquitecturaBase.Application.Models.Identity;
 
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
@@ -45,7 +46,7 @@ internal static partial class FormMissingRequestPrivacyPolicy
         if (!Amount().IsMatch(run.Value)
             || !CurrencyBefore().IsMatch(text[..run.Index]) && !CurrencyAfter().IsMatch(text[(run.Index + run.Length)..])) return false;
         return decimal.TryParse(run.Value, NumberStyles.Number, CultureInfo.InvariantCulture, out _)
-            || decimal.TryParse(run.Value, NumberStyles.Number, CultureInfo.GetCultureInfo("es-AR"), out _);
+            || decimal.TryParse(run.Value, NumberStyles.Number, DisplayNumbers.Culture("es"), out _);
     }
 
     [GeneratedRegex(@"\p{Nd}(?:[\p{Nd}\s()+.,\p{Pd}\u2212]*\p{Nd})?", RegexOptions.CultureInvariant)]

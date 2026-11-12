@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Resources;
+using ArquitecturaBase.Application.Common.Formatting;
 
 namespace ArquitecturaBase.Application.Modules.WhatsApp.Validation;
 
@@ -8,8 +9,8 @@ internal static class WhatsAppAssistantAgentValidationMessages
     internal static ResourceManager ResourceManager { get; } = new("ArquitecturaBase.Application.Modules.WhatsApp.Resources.AssistantAgentValidation",
         typeof(WhatsAppAssistantAgentValidationMessages).Assembly);
 
-    public static string TooMany(int maximum) => string.Format(CultureInfo.CurrentCulture, Get(nameof(TooMany)), maximum);
-    public static string OutOfRange(int minimum, int maximum) => string.Format(CultureInfo.CurrentCulture, Get(nameof(OutOfRange)), minimum, maximum);
+    public static string TooMany(int maximum) => DisplayNumbers.Format(CultureInfo.CurrentUICulture.Name, Get(nameof(TooMany)), maximum);
+    public static string OutOfRange(int minimum, int maximum) => DisplayNumbers.Format(CultureInfo.CurrentUICulture.Name, Get(nameof(OutOfRange)), minimum, maximum);
     public static string Repeated => Get(nameof(Repeated));
     public static string ActionNotAllowed => Get(nameof(ActionNotAllowed));
     public static string ActionsRequired => Get(nameof(ActionsRequired));

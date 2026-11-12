@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Resources;
+using ArquitecturaBase.Application.Common.Formatting;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.Arca.Models.Invoicing;
 using ArquitecturaBase.Application.Modules.Arca.Services.Invoicing;
@@ -120,7 +121,7 @@ internal static class ArcaInvoiceIssuePolicy
     private static string Number(ArcaVoucherResponse voucher) => ArcaFiscalDocumentPolicy.FormatNumber(voucher.PointOfSale, voucher.Number!.Value);
 
     private static Dictionary<string, string> Localized(string key, params object[] arguments) => Cultures.ToDictionary(culture => culture, culture =>
-        string.Format(CultureInfo.GetCultureInfo(culture), Texts.GetString(key, CultureInfo.GetCultureInfo(culture))
+        DisplayNumbers.Format(culture, Texts.GetString(key, CultureInfo.GetCultureInfo(culture))
             ?? throw new InvalidOperationException("The ARCA invoicing text is missing."), arguments), StringComparer.Ordinal);
 
     // A review says why and how it goes on: another number (with where to look first) or today's date.

@@ -1,12 +1,13 @@
 using System.Globalization;
 using System.Resources;
+using ArquitecturaBase.Application.Common.Formatting;
 
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Resources;
 
 internal static class FormAssistantTexts
 {
     private static readonly ResourceManager Texts = new("ArquitecturaBase.Application.Modules.BusinessForms.Resources.Assistant", typeof(FormAssistantTexts).Assembly);
-    public static string SuggestedAfterResponse(string culture, string number) => string.Format(CultureInfo.GetCultureInfo(culture),
+    public static string SuggestedAfterResponse(string culture, string number) => DisplayNumbers.Format(culture,
         Texts.GetString("SuggestedAfterResponse", CultureInfo.GetCultureInfo(culture))
             ?? throw new InvalidOperationException("The form suggestion reason is missing."), number);
     public static string ClarificationSelectedReason(string culture) => Texts.GetString("ClarificationSelectedReason", CultureInfo.GetCultureInfo(culture))
@@ -34,6 +35,6 @@ internal static class FormAssistantTexts
         };
         return header is null ? Format(culture, "Authoring.Import.Column", filled, letter) : Format(culture, "Authoring.Import.HeadedColumn", filled, letter, header);
     }
-    private static string Format(string culture, string name, params object[] values) => string.Format(CultureInfo.GetCultureInfo(culture),
+    private static string Format(string culture, string name, params object[] values) => DisplayNumbers.Format(culture,
         Texts.GetString(name, CultureInfo.GetCultureInfo(culture)) ?? throw new InvalidOperationException($"The authoring text {name} is missing."), values);
 }

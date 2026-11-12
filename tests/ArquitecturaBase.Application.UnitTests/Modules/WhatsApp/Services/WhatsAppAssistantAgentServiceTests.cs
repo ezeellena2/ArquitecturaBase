@@ -119,6 +119,21 @@ public sealed class WhatsAppAssistantAgentServiceTests
         Assert.Equal(0, host.UnitOfWork.Transactions);
     }
 
+    // A text over its length names its limit with the thousands of its language (2026-11-12): AddFailure does not fill the
+    // placeholder of the message by itself, so the validator gives it the limit.
+    [Fact]
+    public async Task A_text_over_its_length_names_its_limit_with_its_thousands()
+    {
+        using var culture = new CultureScope("es");
+        var host = new Host();
+        var drafted = new WhatsAppAssistantAction(WhatsAppAssistantActionKind.DraftedReply, Instructions: new string('a', WhatsAppAssistantAgentLimits.InstructionsLength + 1));
+        var request = Request(0, "es") with { Cases = [new(Guid.CreateVersion7(), "Pregunta por un precio", WhatsAppAssistantInputType.Text, true, drafted)] };
+
+        var validation = Assert.IsType<ValidationError>((await host.Service.UpdateAsync(request, Ct)).Error);
+
+        Assert.Contains("Ingresá como máximo 1.000 caracteres.", validation.Errors["cases[0].action.instructions"]);
+    }
+
     [Fact]
     public async Task Buttons_and_fixed_texts_answer_at_their_paths()
     {

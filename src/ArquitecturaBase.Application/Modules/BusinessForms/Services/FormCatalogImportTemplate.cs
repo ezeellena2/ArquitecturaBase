@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using ArquitecturaBase.Application.Common.Formatting;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.BusinessForms.Resources;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
@@ -69,14 +70,24 @@ internal static class FormCatalogImportTemplate
     private static string FieldRule(BusinessFormCatalogField field, string culture)
     {
         var rules = new List<string> { FormCatalogTexts.Get(field.Required ? "RuleFieldRequired" : "RuleFieldOptional", culture),
-            field.Type == "text" ? Format("RuleFieldText", culture, (field.MaxLength ?? 300).ToString(CultureInfo.InvariantCulture))
+            field.Type == "text" ? Format("RuleFieldText", culture, DisplayNumbers.Number(field.MaxLength ?? 300, culture))
                 : FormCatalogTexts.Get("RuleField" + field.Type, culture) };
         if (field.Unique) rules.Add(FormCatalogTexts.Get("RuleFieldUnique", culture));
-        if (field.Min is not null) rules.Add(Format("RuleFieldMin", culture, field.Min));
-        if (field.Max is not null) rules.Add(Format("RuleFieldMax", culture, field.Max));
+        if (field.Min is not null) rules.Add(Format("RuleFieldMin", culture, Bound(field.Type, field.Min, culture)));
+        if (field.Max is not null) rules.Add(Format("RuleFieldMax", culture, Bound(field.Type, field.Max, culture)));
         return string.Join(' ', rules);
     }
 
     private static string Format(string key, string culture, string value) =>
-        string.Format(CultureInfo.InvariantCulture, FormCatalogTexts.Get(key, culture), value);
+        DisplayNumbers.Format(culture, FormCatalogTexts.Get(key, culture), value);
+
+    // A bound as the person writes it: a number with the format of its language and a date with numbers only.
+    private static string Bound(string type, string value, string culture) => type switch
+    {
+        "integer" or "decimal" when decimal.TryParse(value, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var number) =>
+            DisplayNumbers.Number(number, culture),
+        "date" when DateOnly.TryParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date) =>
+            date.ToString(culture == "en" ? "MM/dd/yyyy" : "dd/MM/yyyy", CultureInfo.InvariantCulture),
+        _ => value,
+    };
 }

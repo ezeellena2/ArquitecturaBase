@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Resources;
+using ArquitecturaBase.Application.Common.Formatting;
 
 namespace ArquitecturaBase.Infrastructure.Emails.Resources;
 
@@ -13,5 +14,5 @@ internal static class EmailTexts
         ResourceManager.GetString(key, culture) ?? throw new InvalidOperationException($"Missing email text '{key}'.");
 
     public static string Format(string key, CultureInfo culture, params object[] arguments) =>
-        string.Format(culture, Get(key, culture), arguments);
+        DisplayNumbers.Format(culture.Name, Get(key, culture), arguments);
 }

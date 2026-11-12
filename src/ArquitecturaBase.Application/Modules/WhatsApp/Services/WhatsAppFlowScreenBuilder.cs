@@ -1,5 +1,5 @@
-using System.Globalization;
 using System.Text.Json;
+using ArquitecturaBase.Application.Common.Formatting;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.WhatsApp.Resources;
 
@@ -371,7 +371,7 @@ internal static class WhatsAppFlowScreenBuilder
             {
                 children.Add(new(StringComparer.Ordinal)
                 {
-                    ["type"] = "TextBody", ["text"] = string.Format(CultureInfo.GetCultureInfo(culture), FlowTexts.Get("Closing", culture), submit),
+                    ["type"] = "TextBody", ["text"] = DisplayNumbers.Format(culture, FlowTexts.Get("Closing", culture), submit),
                 });
                 children.Add(Footer(submit, Complete()));
             }
@@ -390,7 +390,7 @@ internal static class WhatsAppFlowScreenBuilder
             {
                 ["id"] = screen.Id,
                 ["title"] = screen.Kind is "fields" or "end" ? title : screen.Kind == "ask" ? blockTitle
-                    : string.Format(CultureInfo.GetCultureInfo(culture), FlowTexts.Get("RowTitle", culture), blockTitle, screen.Row),
+                    : DisplayNumbers.Format(culture, FlowTexts.Get("RowTitle", culture), blockTitle, screen.Row),
                 ["layout"] = new { type = "SingleColumnLayout", children = new[] { form } },
             };
             if (terminal) item["terminal"] = true;

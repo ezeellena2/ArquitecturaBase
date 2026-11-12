@@ -44,8 +44,8 @@ public sealed class FormActionResultTokenTests
             + FormActionResultTokenPolicy.Mark("result:arca.invoice.expiresOn") + " por " + FormActionResultTokenPolicy.Mark("result:arca.invoice.total") + ".";
         var results = new[] { Row(Value("voucher", "text", "Factura C 0004-00000012"), Value("expiresOn", "date", "2026-11-19"), Value("total", "number", "15300.5")) };
 
-        Assert.Equal("Emitimos la Factura C 0004-00000012, vence el 19/11/2026 por 15300,5.", FormActionResultTokenPolicy.Resolve(body, results, "es"));
-        Assert.Equal("Emitimos la Factura C 0004-00000012, vence el 11/19/2026 por 15300.5.", FormActionResultTokenPolicy.Resolve(body, results, "en"));
+        Assert.Equal("Emitimos la Factura C 0004-00000012, vence el 19/11/2026 por 15.300,5.", FormActionResultTokenPolicy.Resolve(body, results, "es"));
+        Assert.Equal("Emitimos la Factura C 0004-00000012, vence el 11/19/2026 por 15,300.5.", FormActionResultTokenPolicy.Resolve(body, results, "en"));
     }
 
     [Theory]

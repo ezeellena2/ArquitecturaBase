@@ -1,5 +1,5 @@
-using System.Globalization;
 using System.Text.Json;
+using ArquitecturaBase.Application.Common.Formatting;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Application.Modules.WhatsApp.Resources;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
@@ -104,7 +104,7 @@ internal static class WhatsAppFlowLocationPolicy
     private static DateTime SkipRequestedAt(DateTime requestedAtUtc) => requestedAtUtc.AddMilliseconds(1);
 
     private static string RequestBody(string culture, string formName) =>
-        string.Format(CultureInfo.GetCultureInfo(culture), FlowTexts.Get("LocationRequest", culture), formName);
+        DisplayNumbers.Format(culture, FlowTexts.Get("LocationRequest", culture), formName);
 
     private static WhatsAppOutgoingMessage Attached(WhatsAppOutgoingMessage outgoing, WhatsAppFlowSession session)
     {

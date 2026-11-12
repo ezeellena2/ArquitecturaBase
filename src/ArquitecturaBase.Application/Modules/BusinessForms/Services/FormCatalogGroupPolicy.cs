@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using ArquitecturaBase.Application.Common.Formatting;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.BusinessForms.Resources;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
@@ -29,7 +30,7 @@ internal static class FormCatalogGroupPolicy
         }
         else groups.AddRange(values.Order(Comparer(culture)).Select(value => new FormEntryGroupResponse(value, value)));
         if (rows.Any(row => string.IsNullOrEmpty(row.Value)))
-            groups.Add(new(null, string.Format(CultureInfo.GetCultureInfo(culture), FormCatalogTexts.Get("GroupWithoutValue", culture),
+            groups.Add(new(null, DisplayNumbers.Format(culture, FormCatalogTexts.Get("GroupWithoutValue", culture),
                 Lowercase(FormRecordPresentationPolicy.Text(field.Name, culture), culture))));
         return groups;
     }

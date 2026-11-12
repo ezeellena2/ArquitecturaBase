@@ -1,4 +1,5 @@
 using System.Globalization;
+using ArquitecturaBase.Application.Common.Formatting;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.BusinessForms.Resources;
@@ -39,7 +40,7 @@ internal static class FormDocumentReadingStatsPolicy
         return question?.Type switch
         {
             "decimal" when decimal.TryParse(value, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var number) =>
-                number.ToString("0.############################", CultureInfo.GetCultureInfo(culture)),
+                DisplayNumbers.Number(number, culture),
             "date" when DateOnly.TryParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date) =>
                 date.ToString(culture == "en" ? "MM/dd/yyyy" : "dd/MM/yyyy", CultureInfo.InvariantCulture),
             "boolean" when bool.TryParse(value, out var boolean) => FormResponseTexts.Get(boolean ? "true" : "false", culture),

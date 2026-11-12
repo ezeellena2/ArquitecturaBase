@@ -142,6 +142,30 @@ public sealed class FormCatalogExtraImportPolicyTests
         Assert.Empty(instructions.Value.Items);
     }
 
+    // The rules of the template write their bounds as a person reads them (2026-11-12): a number with the format of its
+    // language and a date with numbers only, never the canonical text.
+    [Theory]
+    [InlineData("es", "Texto de hasta 1.000 caracteres.", "Mínimo: 1.500,5.", "Máximo: 2.000.000.", "Mínimo: 08/10/2026.")]
+    [InlineData("en", "Text up to 1,000 characters.", "Minimum: 1,500.5.", "Maximum: 2,000,000.", "Minimum: 10/08/2026.")]
+    public void The_rules_of_the_template_write_their_bounds_as_a_person_reads_them(string culture, string length, string minimum, string maximum, string date)
+    {
+        var names = new Dictionary<string, string> { ["es"] = "Dato", ["en"] = "Datum" };
+        BusinessFormCatalogField[] fields =
+        [
+            new(Guid.CreateVersion7(), "note", names, "text", null, false, false, null, null, 1000, "data", 0, true),
+            new(Guid.CreateVersion7(), "amount", names, "decimal", null, false, false, "1500.5", "2000000", null, "data", 1, true),
+            new(Guid.CreateVersion7(), "since", names, "date", null, false, false, "2026-10-08", null, null, "data", 2, true),
+        ];
+
+        var columns = FormCatalogImportTemplate.Columns(BusinessFormCatalogValueType.Text, culture, "es", fields: fields);
+
+        string Rule(BusinessFormCatalogField field) => columns.Single(column => column.Key == field.Id.ToString("D")).Rule;
+        Assert.Contains(length, Rule(fields[0]));
+        Assert.Contains(minimum, Rule(fields[1]));
+        Assert.Contains(maximum, Rule(fields[1]));
+        Assert.Contains(date, Rule(fields[2]));
+    }
+
     [Theory]
     [InlineData("es")]
     [InlineData("en")]

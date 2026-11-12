@@ -1,4 +1,5 @@
 using System.Globalization;
+using ArquitecturaBase.Application.Common.Formatting;
 using ArquitecturaBase.Application.Modules.Arca.Interfaces.Integrations.Invoicing;
 using ArquitecturaBase.Application.Modules.Arca.Models.Invoicing;
 using QRCoder;
@@ -28,7 +29,6 @@ internal sealed class ArcaFiscalPdfRenderer : IArcaFiscalPdfRenderer
     private const float ReceiverRow = 14;
     private const float ReceiverWidth = Right - Width / 2 - 12;
     internal const float BodySize = 9;
-    private static readonly CultureInfo Spanish = CultureInfo.GetCultureInfo("es-AR");
 
     public byte[] Render(ArcaFiscalDocument document)
     {
@@ -92,7 +92,8 @@ internal sealed class ArcaFiscalPdfRenderer : IArcaFiscalPdfRenderer
         return SKTypeface.FromStream(stream) ?? throw new InvalidOperationException("An embedded fiscal PDF font is invalid.");
     }
 
-    private static string Money(decimal value) => value.ToString("#,##0.00", Spanish);
+    // A fiscal document of ARCA is written in Spanish of Argentina.
+    private static string Money(decimal value) => DisplayNumbers.Number(value, "es", 2, 2);
 
     private static string Date(DateOnly value) => value.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture);
 
@@ -142,7 +143,7 @@ internal sealed class ArcaFiscalPdfRenderer : IArcaFiscalPdfRenderer
                 }
 
                 for (var index = 0; index < description.Count; index++) Text(body, description[index], Margin + 6, y + 11 + index * 11);
-                Number(body, line.Quantity.ToString("0.####", Spanish), Margin + (withVat ? 300 : 340), y + 11);
+                Number(body, DisplayNumbers.Number(line.Quantity, "es", 0, 4), Margin + (withVat ? 300 : 340), y + 11);
                 Number(body, Money(line.UnitPrice), Margin + (withVat ? 385 : 430), y + 11);
                 if (line.Vat is { } vat) Number(body, vat, Margin + 450, y + 11);
                 Number(body, Money(line.Amount), Right - 6, y + 11);

@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using ArquitecturaBase.Application.Common.Formatting;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 
@@ -60,7 +61,7 @@ internal static class FormActionResultTokenPolicy
         // A date is written with numbers only, day first in Spanish and month first in English (never the month as a word).
         StructuredRecordResultField.Date => DateOnly.ParseExact(raw, "yyyy-MM-dd", CultureInfo.InvariantCulture)
             .ToString(culture == "en" ? "MM/dd/yyyy" : "dd/MM/yyyy", CultureInfo.InvariantCulture),
-        StructuredRecordResultField.Number => decimal.Parse(raw, CultureInfo.InvariantCulture).ToString("0.############################", CultureInfo.GetCultureInfo(culture)),
+        StructuredRecordResultField.Number => DisplayNumbers.Number(decimal.Parse(raw, CultureInfo.InvariantCulture), culture),
         _ => raw,
     };
 }

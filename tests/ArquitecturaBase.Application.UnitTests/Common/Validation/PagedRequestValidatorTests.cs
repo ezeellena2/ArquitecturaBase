@@ -26,7 +26,7 @@ public sealed class PagedRequestValidatorTests
 
         var failure = Assert.Single(result.Errors);
         Assert.Equal("Page", failure.PropertyName);
-        Assert.Equal("La página debe estar entre 1 y 1000000.", failure.ErrorMessage);
+        Assert.Equal("La página debe estar entre 1 y 1.000.000.", failure.ErrorMessage);
     }
 
     [Fact]
@@ -38,7 +38,7 @@ public sealed class PagedRequestValidatorTests
 
         var failure = Assert.Single(result.Errors);
         Assert.Equal("Page", failure.PropertyName);
-        Assert.Equal("La página debe estar entre 1 y 1000000.", failure.ErrorMessage);
+        Assert.Equal("La página debe estar entre 1 y 1.000.000.", failure.ErrorMessage);
     }
 
     [Fact]
