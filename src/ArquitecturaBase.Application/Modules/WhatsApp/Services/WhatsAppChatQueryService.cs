@@ -54,6 +54,8 @@ internal sealed class WhatsAppChatQueryService(IWhatsAppChatReader reader, IWhat
                 // W1-A: a received location shows its point.
                 Location: message.Kind == WhatsAppMessageKind.Location && message.Latitude is { } latitude && message.Longitude is { } longitude
                     ? new WhatsAppLocationPointResponse(latitude, longitude) : null,
+                // W3: a shared contact shows the name and the phones of its first card; the address of a place stays out of the chat.
+                Contact: ToContactResponse(message),
                 AssistantReply: WhatsAppOutgoingPresentationPolicy.Reply(message.AssistantReplyJson),
                 // Task 8 of the documents: a received document shows its name, kind and pages, and its caption as the body.
                 Document: WhatsAppReceivedDocumentPresentationPolicy.View(message.Kind, message.Document)))],
@@ -82,6 +84,19 @@ internal sealed class WhatsAppChatQueryService(IWhatsAppChatReader reader, IWhat
             row.State, row.WaMessageId, ToFormResponse(row.Form), Kind: row.Kind, Origin: row.Origin, Assistant: presentation.Explain(row.Assistant, canReadRecords),
             QuickReplies: row.Origin == WhatsAppMessageOrigin.FormAction && !canReadRecords ? null : WhatsAppAssistantPresentationPolicy.Titles(row.QuickRepliesJson, true),
             AssistantReply: WhatsAppOutgoingPresentationPolicy.Reply(row.AssistantReplyJson));
+
+    // W3: the card of a shared contact while its content lives. One whose phones do not read, or that the front's closed contract would
+    // refuse, is left out like a why that does not read: one bad row does not stop the thread.
+    private static WhatsAppSharedContactResponse? ToContactResponse(WhatsAppMessageRow message)
+    {
+        if (message.Kind != WhatsAppMessageKind.Contact || message.ContactPhonesJson is not { } phonesJson) return null;
+        string?[]? phones;
+        try { phones = JsonSerializer.Deserialize<string?[]>(phonesJson); }
+        catch (JsonException) { return null; }
+        return phones is { Length: <= WhatsAppMessage.MaxContactPhones } && phones.All(phone => phone is { Length: > 0 })
+            ? new(string.IsNullOrEmpty(message.ContactName) ? null : message.ContactName, [.. phones.OfType<string>()])
+            : null;
+    }
 
     private static WhatsAppFormPresentationResponse? ToFormResponse(WhatsAppFormPresentationRow? row)
     {
@@ -124,6 +139,8 @@ internal sealed class WhatsAppChatQueryService(IWhatsAppChatReader reader, IWhat
         // Like the audio's, a spreadsheet's preview is generic: neither its name nor its caption.
         var preview = row.PreviewIsAssistant ? FlowTexts.Get("AssistantPreview", CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es") : row.PreviewKind == WhatsAppMessageKind.Audio ? FlowTexts.Get("AudioPreview", CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es")
             : row.PreviewKind == WhatsAppMessageKind.Spreadsheet ? FlowTexts.Get("SpreadsheetPreview", CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es")
+            // W3: a shared contact's preview is generic too, without its name or its phones.
+            : row.PreviewKind == WhatsAppMessageKind.Contact ? FlowTexts.Get("ContactPreview", CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es")
             : row.PreviewKind == WhatsAppMessageKind.ReceivedDocument ? FlowTexts.Get("DocumentPreview", CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es") : row.PreviewIsFormAction
             ? FlowTexts.Get("FormActionPreview", CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es")
             : row.PreviewKind == WhatsAppMessageKind.FlowReply

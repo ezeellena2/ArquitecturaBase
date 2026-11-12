@@ -38,6 +38,9 @@ public sealed partial class WhatsAppOutgoingMessage : Entity
     public WhatsAppOutgoingMessageKind Kind { get; private set; }
     public Guid? FlowSessionId { get; private set; }
     public WhatsAppFlowSession? FlowSession { get; private set; }
+
+    /// <summary>W3: a resend of the form of a send, with what was shared over its prefill (task 23); false in every outgoing of before.</summary>
+    public bool IsResend { get; private set; }
     public static bool IsStorableBody(string body) => StorableText.IsStorable(body);
     public static bool IsVisibleBody(string body)
     {

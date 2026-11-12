@@ -44,6 +44,8 @@ AddWhatsAppAssistantAgent crea `WhatsAppAssistantAgents` (una fila principal con
 
 AddWhatsAppInboundDocuments suma a `WhatsAppMessages` las columnas `Document*` del documento recibido (descriptor, copia y páginas, lectura, pedido al motor con su contexto, hasta cuándo espera su pedido, fallas y motivo), el índice único filtrado del pedido y el filtrado de los que esperan (`Pending` o `Reading`), y vuelve nullable la clave, el SHA-256 y el tamaño de `FormReceivedDocuments` (un archivo guardado sin su copia), sin reescribir filas. Su Down bloquea la bandeja y se niega, antes del DDL, si tiene un documento sin copia; vuelve a `Media` los mensajes `ReceivedDocument`, con su `caption`, como el de las planillas, y quita las columnas. WhatsAppReceivedDocumentMigrationTests prueba Up, Down y Up, y FormReceivedDocumentFileMigrationTests la negativa.
 
+AddWhatsAppSharedContent (W3) suma a `WhatsAppMessages` la dirección de un lugar (`LocationAddress`), el contacto compartido (`ContactName` y `ContactPhonesJson`, jsonb) e `IsResend`; `IsResend` a `WhatsAppOutgoingMessages` (falso en las de antes), y lo que tomó un envío a `WhatsAppFlowSessions` (`SharedContentJson`, jsonb, y `ProtectedSharedValues`). No reescribe filas ni reclasifica los `Other`. Su Down bloquea las tres tablas y se niega, antes del DDL, si hay un reenvío o algo tomado; vuelve a `Other` los mensajes `Contact`, con su fila, y quita las columnas. WhatsAppSharedContentMigrationTests prueba Up, Down y Up y la negativa.
+
 ## Referencias
 
 - [Comandos y revisión obligatoria](../../../../docs/guides/migracion.md).

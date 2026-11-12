@@ -28,6 +28,8 @@ internal sealed class WhatsAppOutgoingMessageConfiguration : IEntityTypeConfigur
         builder.Property(item => item.Body).HasMaxLength(WhatsAppMessage.MaxBodyLength);
         builder.Property(item => item.State).HasConversion<string>().HasMaxLength(20);
         builder.Property(item => item.WaMessageId).HasMaxLength(WhatsAppMessage.MaxWaMessageIdLength);
+        // W3: a resend of the form of a send (task 23); every outgoing of before is not one.
+        builder.Property(item => item.IsResend).HasDefaultValue(false);
         builder.HasIndex(item => new { item.ContactId, item.OperatorUserId, item.RequestId }).IsUnique();
         builder.HasIndex(item => new { item.State, item.RequestedAtUtc, item.Id });
         builder.HasOne<WhatsAppContact>().WithMany().HasForeignKey(item => item.ContactId).OnDelete(DeleteBehavior.Restrict);

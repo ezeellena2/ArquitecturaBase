@@ -112,6 +112,37 @@ public sealed class WhatsAppMessageRetentionTests(ApiFactory factory)
         Assert.Equal(number, after.FlowRecordNumber);
     }
 
+    // W3 (task 22): what the person shared goes with the body: the point and the address of a place, and the name and the phones of a
+    // contact, also a card that brought neither (its empty list). The message keeps its kind, and a younger one keeps everything.
+    [Fact]
+    public async Task Shared_places_and_contacts_older_than_the_retention_lose_what_was_shared_and_keep_their_kind()
+    {
+        var contact = await AddContactAsync();
+        var place = WhatsAppMessage.Inbound(contact.Id, MetaWebhook.UniqueWaMessageId(), WhatsAppMessageKind.Location, null, null, Expired);
+        place.RecordLocation(-32.947102m, -60.638955m, "Bv. Oroño 1234, Rosario");
+        var card = WhatsAppMessage.Inbound(contact.Id, MetaWebhook.UniqueWaMessageId(), WhatsAppMessageKind.Contact, null, null, Expired);
+        card.RecordContact("Ana Gómez", ["+54 9 341 365-4813", "+54 341 444-5566"]);
+        var bare = WhatsAppMessage.Inbound(contact.Id, MetaWebhook.UniqueWaMessageId(), WhatsAppMessageKind.Contact, null, null, Expired);
+        bare.RecordContact(null, []);
+        var recent = WhatsAppMessage.Inbound(contact.Id, MetaWebhook.UniqueWaMessageId(), WhatsAppMessageKind.Contact, null, null, Now.AddDays(-1));
+        recent.RecordContact("Bruno Díaz", ["+54 351 555-0000"]);
+        await AddAsync(place, card, bare, recent);
+
+        var first = await ClearExpiredTextsAsync();
+        var second = await ClearExpiredTextsAsync();
+
+        var after = await factory.ExecuteDbContextAsync(db => db.Set<WhatsAppMessage>().AsNoTracking()
+            .Where(message => message.ContactId == contact.Id).ToDictionaryAsync(message => message.Id, Ct));
+        Assert.Equal((WhatsAppMessageKind.Location, (decimal?)null, (decimal?)null, (string?)null),
+            (after[place.Id].Kind, after[place.Id].Latitude, after[place.Id].Longitude, after[place.Id].LocationAddress));
+        Assert.All(new[] { after[card.Id], after[bare.Id] }, message =>
+            Assert.Equal((WhatsAppMessageKind.Contact, (string?)null, (string?)null), (message.Kind, message.ContactName, message.ContactPhonesJson)));
+        Assert.Equal("Bruno Díaz", after[recent.Id].ContactName);
+        Assert.Equal(["+54 351 555-0000"], System.Text.Json.JsonSerializer.Deserialize<string[]>(after[recent.Id].ContactPhonesJson ?? "null") ?? []);
+        Assert.True(first >= 3);
+        Assert.Equal(0, second);
+    }
+
     [Fact]
     public async Task Messages_younger_than_the_retention_keep_their_text()
     {

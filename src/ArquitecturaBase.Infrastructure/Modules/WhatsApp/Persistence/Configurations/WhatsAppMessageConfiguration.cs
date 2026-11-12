@@ -35,6 +35,11 @@ internal sealed class WhatsAppMessageConfiguration : IEntityTypeConfiguration<Wh
         // W1-A: the point of a received location.
         builder.Property(message => message.Latitude).HasPrecision(9, 6);
         builder.Property(message => message.Longitude).HasPrecision(9, 6);
+        // W3: the address of a shared place and the first card of a shared contact, and the mark of a resent form (false before).
+        builder.Property(message => message.LocationAddress).HasMaxLength(WhatsAppMessage.MaxLocationAddressLength);
+        builder.Property(message => message.ContactName).HasMaxLength(WhatsAppMessage.MaxContactNameLength);
+        builder.Property(message => message.ContactPhonesJson).HasColumnType("jsonb");
+        builder.Property(message => message.IsResend).HasDefaultValue(false);
         builder.Property(message => message.ProtectedFlowResponse).HasMaxLength(96 * 1024);
         builder.Property(message => message.FlowCaptureState).HasConversion<string>().HasMaxLength(16);
         builder.Property(message => message.FlowRecordNumber).HasMaxLength(64);

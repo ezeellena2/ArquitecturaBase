@@ -27,6 +27,9 @@ internal sealed class WhatsAppFlowSessionConfiguration : IEntityTypeConfiguratio
         builder.Property(session => session.LocationLongitude).HasPrecision(9, 6);
         builder.Property(session => session.LocationWaMessageId).HasMaxLength(WhatsAppMessage.MaxWaMessageIdLength);
         builder.Property(session => session.FlowBody).HasMaxLength(1024);
+        // W3: what the send took of what the person shared (task 23); a send of before took nothing.
+        builder.Property(session => session.SharedContentJson).HasColumnType("jsonb");
+        builder.Property(session => session.ProtectedSharedValues).HasColumnType("bytea");
         builder.HasIndex(session => new { session.ContactId, session.ExpiresAtUtc })
             .HasFilter("\"LocationState\" = 'Requested' AND \"CaptureState\" = 'Pending'");
         // The filtered index above does not cover every send: the foreign key keeps its own.

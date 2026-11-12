@@ -26,12 +26,17 @@ internal sealed class WhatsAppMessageRetentionRepository(ApplicationDbContext db
                     || message.Kind == WhatsAppMessageKind.Spreadsheet && (message.SpreadsheetMediaId != null || message.SpreadsheetFileName != null || message.SpreadsheetStorageKey != null || message.SpreadsheetPreparedJson != null)
                     || message.Kind == WhatsAppMessageKind.ReceivedDocument && (message.DocumentMediaId != null || message.DocumentFileName != null || message.DocumentStorageKey != null || message.DocumentReadingJson != null || message.DocumentContextJson != null)
                     || message.Latitude != null
+                    || message.LocationAddress != null || message.ContactName != null || message.ContactPhonesJson != null
                     || (message.ProtectedFlowResponse != null && message.ProcessedAtUtc != null)))
             .ExecuteUpdateAsync(setters => setters
                 .SetProperty(message => message.Body, (string?)null)
                 // W1-A: the point of a received location goes with the body.
                 .SetProperty(message => message.Latitude, (decimal?)null)
                 .SetProperty(message => message.Longitude, (decimal?)null)
+                // W3: and so do the address of a shared place and the name and the phones of a shared contact.
+                .SetProperty(message => message.LocationAddress, (string?)null)
+                .SetProperty(message => message.ContactName, (string?)null)
+                .SetProperty(message => message.ContactPhonesJson, (string?)null)
                 .SetProperty(message => message.QuickReplyTitlesJson, (string?)null)
                 .SetProperty(message => message.AssistantReplyJson, (string?)null)
                 .SetProperty(message => message.AudioMediaId, (string?)null)

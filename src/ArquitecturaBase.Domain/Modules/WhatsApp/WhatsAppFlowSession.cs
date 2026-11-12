@@ -39,6 +39,10 @@ public sealed class WhatsAppFlowSession : Entity, IAuditable
     public DateTime? LocationResolvedAtUtc { get; private set; }
     /// <summary>The body of the Flow message that goes out once the location is resolved (W1-A).</summary>
     public string? FlowBody { get; private set; }
+    /// <summary>W3: what the send took of what the person shared, when and which questions it filled, without values (task 23).</summary>
+    public string? SharedContentJson { get; private set; }
+    /// <summary>W3: what was written in each of those questions with its label, protected for this send (task 23).</summary>
+    public byte[]? ProtectedSharedValues { get; private set; }
     public DateTime CreatedAtUtc { get; private set; }
     public Guid? CreatedBy { get; private set; }
     public DateTime? ModifiedAtUtc { get; private set; }

@@ -21,7 +21,8 @@ public enum WhatsAppMessageKind
     System = 4,
 
     /// <summary>
-    /// Todo lo demás: una reacción o un tipo que Meta sume más adelante. Sin cuerpo. Una ubicación anterior a W1-A quedó acá.
+    /// Todo lo demás: una reacción o un tipo que Meta sume más adelante. Sin cuerpo. Una ubicación anterior a W1-A y un contacto
+    /// anterior a W3 quedaron acá: no se reclasifican.
     /// </summary>
     Other = 5,
 
@@ -47,7 +48,8 @@ public enum WhatsAppMessageKind
 
     /// <summary>
     /// Solo en un entrante: una ubicación (W1-A). Sin cuerpo: el punto va en <see cref="WhatsAppMessage.Latitude"/> y
-    /// <see cref="WhatsAppMessage.Longitude"/>; el nombre y la dirección que pueda mandar Meta no se guardan.
+    /// <see cref="WhatsAppMessage.Longitude"/>, y la dirección de un lugar, si Meta la manda, en
+    /// <see cref="WhatsAppMessage.LocationAddress"/> (W3); el nombre del lugar no se guarda.
     /// </summary>
     Location = 13,
 
@@ -56,8 +58,13 @@ public enum WhatsAppMessageKind
 
     /// <summary>
     /// Solo en un entrante: una foto (JPEG o PNG) o un documento que no es una planilla (PDF, Word o cualquier otro). El cuerpo es su
-    /// <c>caption</c>; el descriptor, la copia y la lectura están en las columnas del documento. <see cref="Document"/> es el saliente
-    /// y el 16 queda para el contacto (W3).
+    /// <c>caption</c>; el descriptor, la copia y la lectura están en las columnas del documento. <see cref="Document"/> es el saliente.
     /// </summary>
     ReceivedDocument = 15,
+
+    /// <summary>
+    /// Solo en un entrante: un contacto que comparte la persona (W3). Sin cuerpo: el nombre y los teléfonos de su primera tarjeta van en
+    /// <see cref="WhatsAppMessage.ContactName"/> y <see cref="WhatsAppMessage.ContactPhonesJson"/>, tal como vinieron.
+    /// </summary>
+    Contact = 16,
 }

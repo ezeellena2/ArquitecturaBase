@@ -81,6 +81,40 @@ public sealed class WhatsAppWebhookPersistenceTests
             (message.DocumentMediaId, message.DocumentContentType, message.DocumentSha256, message.DocumentFileName));
     }
 
+    // W3 (task 22): a shared place keeps its address with its point, and a shared contact the name and the phones of its first card, as a
+    // business message without a body; a contact without a card stays a contact without one.
+    [Fact]
+    public async Task A_shared_place_keeps_its_address_and_a_shared_contact_its_first_card()
+    {
+        var place = new WhatsAppWebhookMessage("wamid.place", From(WaId, Bsuid, "Ana"), WhatsAppMessageKind.Location, null, null, Now)
+            { Location = new(-32.947102m, -60.638955m, " Bv. Oroño 1234, Rosario ") };
+        var contact = new WhatsAppWebhookMessage("wamid.contact", From(WaId, Bsuid, "Ana"), WhatsAppMessageKind.Contact, null, null, Now.AddSeconds(1))
+            { SharedContact = new("Bruno Díaz", ["+54 351 555-0000", "  "]) };
+        var cardless = new WhatsAppWebhookMessage("wamid.cardless", From(WaId, Bsuid, "Ana"), WhatsAppMessageKind.Contact, null, null, Now.AddSeconds(2));
+
+        await HandleAsync(Batch(place, contact, cardless));
+
+        var stored = _messages.Added.ToDictionary(message => message.WaMessageId);
+        Assert.Equal((-32.947102m, -60.638955m, "Bv. Oroño 1234, Rosario"),
+            (stored["wamid.place"].Latitude, stored["wamid.place"].Longitude, stored["wamid.place"].LocationAddress));
+        Assert.Equal((WhatsAppMessageKind.Contact, WhatsAppMessagePurpose.Business, (string?)null, "Bruno Díaz"),
+            (stored["wamid.contact"].Kind, stored["wamid.contact"].Purpose, stored["wamid.contact"].Body, stored["wamid.contact"].ContactName));
+        Assert.Equal(["+54 351 555-0000"], System.Text.Json.JsonSerializer.Deserialize<string[]>(stored["wamid.contact"].ContactPhonesJson ?? "null") ?? []);
+        Assert.Equal((WhatsAppMessageKind.Contact, (string?)null, (string?)null),
+            (stored["wamid.cardless"].Kind, stored["wamid.cardless"].ContactName, stored["wamid.cardless"].ContactPhonesJson));
+    }
+
+    [Fact]
+    public void A_shared_place_or_contact_never_prints_what_the_person_shared()
+    {
+        var printed = new WhatsAppWebhookLocation(-32.947102m, -60.638955m, "Bv. Oroño 1234") + " "
+            + new WhatsAppWebhookSharedContact("Bruno Díaz", ["+54 351 555-0000"]);
+
+        Assert.DoesNotContain("Oroño", printed, StringComparison.Ordinal);
+        Assert.DoesNotContain("Bruno", printed, StringComparison.Ordinal);
+        Assert.DoesNotContain("555", printed, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task A_flow_reply_is_protected_before_the_message_is_saved()
     {

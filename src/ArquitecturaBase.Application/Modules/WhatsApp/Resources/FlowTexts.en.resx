@@ -25,4 +25,5 @@
   <data name="LocationOptional" xml:space="preserve"><value>The location is optional.</value></data>
   <data name="LocationSkip" xml:space="preserve"><value>Continue without it</value></data>
   <data name="DocumentPreview" xml:space="preserve"><value>Document</value></data>
+  <data name="ContactPreview" xml:space="preserve"><value>Contact</value></data>
 </root>

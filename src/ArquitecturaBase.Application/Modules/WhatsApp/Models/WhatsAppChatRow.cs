@@ -42,6 +42,11 @@ public sealed record WhatsAppMessageRow(
     public decimal? Longitude { get; init; }
     /// <summary>Task 8 of the documents: what the chat shows of a received document.</summary>
     public WhatsAppReceivedDocumentMessageRow? Document { get; init; }
+    /// <summary>W3: the first card of a shared contact, while its content lives.</summary>
+    public string? ContactName { get; init; }
+    public string? ContactPhonesJson { get; init; }
+    // The body, the point and the contact are what the person wrote or shared: the generated ToString would print them.
+    public override string ToString() => $"{nameof(WhatsAppMessageRow)} ({Kind})";
 }
 public sealed record WhatsAppAudioMessageRow(WhatsAppAudioState State, bool HasContent, DateTime? ContentExpiresAtUtc, string? FailureCode = null);
 public sealed record WhatsAppFormReplyRow(string State, Guid? SourceReceiptId, Guid? DefinitionId, Guid? VersionId,

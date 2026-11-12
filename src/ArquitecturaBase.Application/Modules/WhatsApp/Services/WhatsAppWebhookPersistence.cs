@@ -110,7 +110,10 @@ internal sealed partial class WhatsAppWebhookPersistence(
                 storedMessage.SetDocumentDescriptor(message.Document?.MediaId, message.Document?.ContentType, message.Document?.Sha256,
                     message.Document?.FileName);
             if (message.Kind == WhatsAppMessageKind.Location && message.Location is { } point)
-                storedMessage.RecordLocation(point.Latitude, point.Longitude);
+                storedMessage.RecordLocation(point.Latitude, point.Longitude, point.Address);
+            // W3: the first card of a shared contact; the message keeps what it may of it.
+            if (message.Kind == WhatsAppMessageKind.Contact && message.SharedContact is { } card)
+                storedMessage.RecordContact(card.Name, card.Phones);
             var classification = WhatsAppInboundPolicy.Classify(message.Kind, message.ReplyId);
             storedMessage.Classify(classification.Purpose, classification.EventKind);
             storedMessage.SetInboundSequence(contact.RegisterInboundMessage());

@@ -66,9 +66,10 @@ foreach ($case in @("Configuration", "Merge", "Missing", "Collision")) {
                 # Task 8 of the documents: the WhatsApp thread with a received document joins the audio and the spreadsheet in their cohort.
                 $audio = @($cohorts | Where-Object { $_.Name -eq "whatsapp-audio" })[0]
                 Assert-Condition ($null -ne $audio -and $audio.Environment -eq "WHATSAPP_AUDIO_HTTP_OUTPUT" -and $audio.Destination -eq "whatsapp-audio-http") "The WhatsApp audio, spreadsheet and document thread require their agreed output and destination."
-                $expectedAudio = @("audio-request.json", "audio-thread-pending.json", "audio-thread-completed.json", "spreadsheet-thread.json", "document-thread.json")
-                Assert-Condition (@(Compare-Object $expectedAudio $audio.RequiredNames).Count -eq 0) "The WhatsApp thread cohort must contain its five actual HTTP bodies, including the received document."
-                foreach ($producer in @(($sourceRoot + "WhatsApp/WhatsAppChatTests.Audio.cs"), ($sourceRoot + "WhatsApp/WhatsAppChatTests.Spreadsheet.cs"), ($sourceRoot + "WhatsApp/WhatsAppChatTests.Document.cs"), ($captureRoot + "Modules/WhatsApp/WhatsAppAudioContractCapture.cs"))) {
+                # W3 (task 22): and the thread with a shared contact.
+                $expectedAudio = @("audio-request.json", "audio-thread-pending.json", "audio-thread-completed.json", "spreadsheet-thread.json", "document-thread.json", "contact-thread.json")
+                Assert-Condition (@(Compare-Object $expectedAudio $audio.RequiredNames).Count -eq 0) "The WhatsApp thread cohort must contain its six actual HTTP bodies, including the received document and the shared contact."
+                foreach ($producer in @(($sourceRoot + "WhatsApp/WhatsAppChatTests.Audio.cs"), ($sourceRoot + "WhatsApp/WhatsAppChatTests.Spreadsheet.cs"), ($sourceRoot + "WhatsApp/WhatsAppChatTests.Document.cs"), ($sourceRoot + "WhatsApp/WhatsAppChatTests.Contact.cs"), ($captureRoot + "Modules/WhatsApp/WhatsAppAudioContractCapture.cs"))) {
                     Assert-Condition ($producer -in $audio.Sources) "The WhatsApp thread producers and capture SHA must be included."
                 }
                 $agent = @($cohorts | Where-Object { $_.Name -eq "whatsapp-assistant-agent" })[0]

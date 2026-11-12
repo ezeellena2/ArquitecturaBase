@@ -33,10 +33,21 @@ public sealed record WhatsAppMessageResponse(
     // Casos del asistente: only a reply of the agent carries «Por qué respondió esto».
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] WhatsAppAssistantReplyResponse? AssistantReply = null,
     // Task 8 of the documents: only a received document carries its name, kind and pages while its descriptor lives.
-    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] WhatsAppReceivedDocumentResponse? Document = null);
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] WhatsAppReceivedDocumentResponse? Document = null,
+    // W3: only a shared contact carries its first card, while its content lives.
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] WhatsAppSharedContactResponse? Contact = null);
 public sealed record WhatsAppLocationPointResponse(decimal Latitude, decimal Longitude)
 {
     public override string ToString() => "WhatsAppLocationPointResponse { Content = [REDACTED] }";
+}
+
+/// <summary>
+/// W3: the first card of a shared contact, as it came: its formatted name (null when it has none, never empty) and up to ten phones, each
+/// one a line in the chat.
+/// </summary>
+public sealed record WhatsAppSharedContactResponse(string? Name, IReadOnlyList<string> Phones)
+{
+    public override string ToString() => "WhatsAppSharedContactResponse { Content = [REDACTED] }";
 }
 public sealed record WhatsAppFormReplyResponse(string State, Guid? DefinitionId, Guid? VersionId, long? VersionNumber,
     string? Name, Guid? RecordId, string? Number, IReadOnlyList<WhatsAppFormReplyValueResponse>? Values, [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? RejectionCode = null,

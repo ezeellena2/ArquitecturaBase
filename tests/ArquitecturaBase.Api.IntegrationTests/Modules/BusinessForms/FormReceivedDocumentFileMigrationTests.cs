@@ -29,7 +29,8 @@ public sealed class FormReceivedDocumentFileMigrationTests(ApiFactory factory)
         var now = factory.Clock.GetUtcNow().UtcDateTime;
         try
         {
-            await migrator.MigrateAsync(cancellationToken: Ct);
+            // Only up to this migration: a later one would otherwise have to come down first, and this test is about this Down.
+            await migrator.MigrateAsync(This(db), Ct);
             Assert.Equal(["YES", "YES", "YES"], await NullableAsync(db));
             var document = FormReceivedDocument.ReceiveRejected(Guid.CreateVersion7(), "whatsapp", "wamid.migration", Guid.NewGuid(), now, "informe.doc",
                 "application/msword", 2048, "legacy", now).Value;
@@ -57,6 +58,10 @@ public sealed class FormReceivedDocumentFileMigrationTests(ApiFactory factory)
     // The migration right before this one, whichever it is.
     private static string Before(ApplicationDbContext db) =>
         db.Database.GetMigrations().TakeWhile(migration => !migration.EndsWith("_" + Migration, StringComparison.Ordinal)).Last();
+
+    // This migration, with its timestamp.
+    private static string This(ApplicationDbContext db) =>
+        db.Database.GetMigrations().Single(migration => migration.EndsWith("_" + Migration, StringComparison.Ordinal));
 
     private static Task<string[]> NullableAsync(ApplicationDbContext db) => db.Database.SqlQueryRaw<string>("""
         SELECT is_nullable AS "Value" FROM information_schema.columns

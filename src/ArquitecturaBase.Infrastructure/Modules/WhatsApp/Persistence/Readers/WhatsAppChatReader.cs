@@ -74,6 +74,9 @@ internal sealed class WhatsAppChatReader(ApplicationDbContext dbContext) : IWhat
                     ? new WhatsAppAssistantPresentationRow(item.FlowSession.Id,item.FlowSession.ContactId,item.FlowSession.UserId,item.FlowSession.VersionId,item.FlowSession.ProtectedAssistantContent,item.FlowSession.AssistantContentExpiresAtUtc.Value) : null, QuickReplyTitlesJson = item.QuickReplyTitlesJson,
                   SpreadsheetName = item.Kind == WhatsAppMessageKind.Spreadsheet ? item.SpreadsheetFileName : null,
                   Latitude = item.Latitude, Longitude = item.Longitude, AssistantReplyJson = item.AssistantReplyJson,
+                  // W3: the first card of a shared contact, from its own columns; the address of a place stays out of the chat.
+                  ContactName = item.Kind == WhatsAppMessageKind.Contact ? item.ContactName : null,
+                  ContactPhonesJson = item.Kind == WhatsAppMessageKind.Contact ? item.ContactPhonesJson : null,
                   // Task 8 of the documents: what the chat shows of a received document, from its own columns.
                   Document = item.Kind == WhatsAppMessageKind.ReceivedDocument ? new WhatsAppReceivedDocumentMessageRow(item.DocumentFileName, item.DocumentContentType,
                       item.DocumentStorageKey, item.DocumentPages, item.DocumentState, item.DocumentFailureCode) : null }).ToListAsync(cancellationToken);

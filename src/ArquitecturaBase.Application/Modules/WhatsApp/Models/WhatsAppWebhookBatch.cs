@@ -52,14 +52,27 @@ public sealed record WhatsAppWebhookMessage(
     /// <summary>A received document's descriptor (a photo, a PDF, a Word…); its <c>caption</c> is the <see cref="Body"/>.</summary>
     public WhatsAppWebhookDocumentDescriptor? Document { get; init; }
 
-    /// <summary>W1-A: the point of a location, rounded to six decimals.</summary>
+    /// <summary>W1-A: the point of a location, rounded to six decimals; W3 adds the address of a place.</summary>
     public WhatsAppWebhookLocation? Location { get; init; }
+
+    /// <summary>W3: the first card of a shared contact, as Meta sends it.</summary>
+    public WhatsAppWebhookSharedContact? SharedContact { get; init; }
     public sealed override string ToString() => $"{nameof(WhatsAppWebhookMessage)} ({Kind})";
 }
 
-public sealed record WhatsAppWebhookLocation(decimal Latitude, decimal Longitude)
+/// <summary>A location's point and, when the person chose a place, the address Meta sends (W3); the name of the place is not read.</summary>
+public sealed record WhatsAppWebhookLocation(decimal Latitude, decimal Longitude, string? Address = null)
 {
     public override string ToString() => "WhatsAppWebhookLocation { Content = [REDACTED] }";
+}
+
+/// <summary>
+/// W3: the formatted name and the phones of the first card of a contact the person shared, as Meta sends them; the message keeps what
+/// it may. Either may be missing.
+/// </summary>
+public sealed record WhatsAppWebhookSharedContact(string? Name, IReadOnlyList<string> Phones)
+{
+    public override string ToString() => "WhatsAppWebhookSharedContact { Content = [REDACTED] }";
 }
 
 /// <summary>Un aviso de Meta sobre un mensaje que mandó el bot, con el código de error si falló.</summary>

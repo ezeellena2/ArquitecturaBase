@@ -3925,6 +3925,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("bytea");
 
+                    b.Property<byte[]>("ProtectedSharedValues")
+                        .HasColumnType("bytea");
+
                     b.Property<string>("RejectedQuestion")
                         .HasMaxLength(80)
                         .HasColumnType("character varying(80)");
@@ -3937,6 +3940,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<string>("ResponseWaMessageId")
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
+
+                    b.Property<string>("SharedContentJson")
+                        .HasColumnType("jsonb");
 
                     b.Property<string>("TokenHash")
                         .IsRequired()
@@ -4050,6 +4056,13 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid?>("ContactId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("ContactName")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("ContactPhonesJson")
+                        .HasColumnType("jsonb");
 
                     b.Property<string>("Direction")
                         .IsRequired()
@@ -4167,6 +4180,11 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<long>("InboundSequence")
                         .HasColumnType("bigint");
 
+                    b.Property<bool>("IsResend")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
                     b.Property<string>("Kind")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -4175,6 +4193,10 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<decimal?>("Latitude")
                         .HasPrecision(9, 6)
                         .HasColumnType("numeric(9,6)");
+
+                    b.Property<string>("LocationAddress")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
 
                     b.Property<decimal?>("Longitude")
                         .HasPrecision(9, 6)
@@ -4374,6 +4396,11 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<bool>("IsAssistantHandoff")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool>("IsResend")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
                         .HasDefaultValue(false);

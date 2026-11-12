@@ -29,3 +29,5 @@ IA, Etapa 2: WhatsAppMessageSpreadsheetTests prueba el descriptor y su nombre ac
 WhatsAppFormActionChoiceTests prueba las opciones de un aviso: botones fijados con el id de la salida, los topes de Meta, sin documento, el reintento con los mismos botones y el id que se lee de vuelta sólo con su prefijo.
 
 Documentos (tarea 8): WhatsAppMessageDocumentTests prueba el descriptor y su nombre por tipo, la espera de su pedido, la copia una vez, el rechazo cierto una sola vez, No disponible final, las fallas que saturan y la lectura sólo al usarse: un Word con lo preparado y lo demás con el pedido fijado una vez.
+
+W3 (tarea 22): WhatsAppMessageSharedTests prueba la dirección de un lugar y la primera tarjeta de un contacto, guardadas una vez y tal como vinieron: el nombre recortado o nulo, los diez primeros teléfonos y lo que no es un teléfono, afuera.

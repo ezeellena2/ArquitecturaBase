@@ -18,6 +18,7 @@ Es el detalle de la guía [`src/ArquitecturaBase.Application/Modules/WhatsApp/Se
 - El webhook valida la firma, guarda y avisa a la señal después del commit; ante un 23505 reintenta en un scope nuevo. La persistencia siempre devuelve éxito: Meta reintentaría un error por días.
 - `ProcessContactAsync` devuelve `Result<bool>`: false si el contacto está tomado o no existe; true si tomó el lock, aunque no haya respondido. El procesador no prepara audio ni asistente con false.
 - `WhatsAppInboundPolicy` clasifica y elige la acción de acceso; `WhatsAppAccessReplyPolicy` orienta sin leer identidad. Si la cola rechaza la orientación, se lanza y se revierte.
+- W3 ([reglas](whatsapp.md#contacto-y-dirección-compartidos--w3-tarea-22-2026-11-12)): la persistencia guarda una vez, con el mensaje, la dirección de un lugar junto a su punto y la primera tarjeta de un contacto (`RecordContact`, que normaliza el nombre y deja afuera lo que no es un teléfono); el hilo la muestra como `contact` y la lista, «Contacto».
 
 ## Chat de atención y modos
 

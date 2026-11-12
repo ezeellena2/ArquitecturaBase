@@ -199,12 +199,20 @@ internal sealed partial class WhatsAppWebhookReader(
             return;
         }
 
-        // W1-A: a location keeps only its point; the name and address of a chosen place are not kept. A point Meta sends out of
+        // W1-A: a location keeps its point and, since W3, the address of a chosen place; its name is not kept. A point Meta sends out of
         // range stays a location without one.
         if (StringOf(message, "type") == "location")
         {
             reading.Messages.Add(new WhatsAppWebhookMessage(waMessageId!, from, WhatsAppMessageKind.Location, null, null, occurredAtUtc)
                 { Location = ReadLocation(message) });
+            return;
+        }
+
+        // W3: a contact keeps the formatted name and the phones of its first card; without a card it stays a contact without one.
+        if (StringOf(message, "type") == "contacts")
+        {
+            reading.Messages.Add(new WhatsAppWebhookMessage(waMessageId!, from, WhatsAppMessageKind.Contact, null, null, occurredAtUtc)
+                { SharedContact = ReadSharedContact(message) });
             return;
         }
 
@@ -221,7 +229,22 @@ internal sealed partial class WhatsAppWebhookReader(
             || !latitude.TryGetDecimal(out var lat) || !longitude.TryGetDecimal(out var lng)) return null;
         lat = decimal.Round(lat, 6, MidpointRounding.AwayFromZero);
         lng = decimal.Round(lng, 6, MidpointRounding.AwayFromZero);
-        return lat is >= -90 and <= 90 && lng is >= -180 and <= 180 ? new(lat, lng) : null;
+        return lat is >= -90 and <= 90 && lng is >= -180 and <= 180 ? new(lat, lng, StringOf(location, "address")) : null;
+    }
+
+    /// <summary>
+    /// W3: the formatted name and the phones of the first card of a shared contact (<c>contacts[0].name.formatted_name</c> and each
+    /// <c>phones[].phone</c>), as Meta sends them; the message decides what it keeps. Null when the first card is not an object.
+    /// </summary>
+    private static WhatsAppWebhookSharedContact? ReadSharedContact(JsonElement message)
+    {
+        if (!TryGetArray(message, "contacts", out var cards) || cards.GetArrayLength() == 0 || cards[0] is not { ValueKind: JsonValueKind.Object } card)
+            return null;
+        var name = TryGetProperty(card, "name", out var names) ? StringOf(names, "formatted_name") : null;
+        string[] phones = TryGetArray(card, "phones", out var entries)
+            ? [.. entries.EnumerateArray().Select(entry => StringOf(entry, "phone")).OfType<string>()]
+            : [];
+        return new(name, phones);
     }
 
     /// <summary>

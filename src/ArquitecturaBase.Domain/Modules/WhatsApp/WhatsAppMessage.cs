@@ -122,8 +122,8 @@ public sealed partial class WhatsAppMessage : Entity
     public decimal? Latitude { get; private set; }
     public decimal? Longitude { get; private set; }
 
-    /// <summary>W1-A: the point of an inbound location, once.</summary>
-    public void RecordLocation(decimal latitude, decimal longitude)
+    /// <summary>W1-A: the point of an inbound location, once; W3 keeps with it the address of a place, when Meta sends one.</summary>
+    public void RecordLocation(decimal latitude, decimal longitude, string? address = null)
     {
         if (Kind != WhatsAppMessageKind.Location || Direction != WhatsAppMessageDirection.Inbound || Latitude.HasValue)
             throw new InvalidOperationException("Only an inbound location records its point, once.");
@@ -131,6 +131,7 @@ public sealed partial class WhatsAppMessage : Entity
             throw new ArgumentOutOfRangeException(nameof(latitude), "A location is a point with up to six decimals.");
         Latitude = latitude;
         Longitude = longitude;
+        LocationAddress = SharedText(address, MaxLocationAddressLength);
     }
 
     public bool SetFlowReplyCapture(WhatsAppFlowCaptureState state, Guid? recordId, string? number, string? errorCode, string? rejectedQuestion = null)
