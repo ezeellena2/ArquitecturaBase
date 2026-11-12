@@ -181,6 +181,8 @@ durable ([ADR 0018](../decisions/0018-robustez-proporcional-al-efecto.md)): se a
    código del mismo día trajo tres arreglos, ya hechos: «Qué sugerir después» con un destino que pasó a la app (`AppOnly`), el
    motivo de lo apagado en la vista previa (MA1-A) y sin «En WhatsApp» en una pregunta de catálogo (backend ab66934c, front
    b73170c6 a 1bee2f51). La baja de uno que pasó a la app quedó decidida («App» y aviso) y programada (front 28e2f70d y ef91cc2b).
+   El 2026-11-12, la sesión de documentos encontró que las respuestas de una versión de la app daban 500 al leerlas (los idiomas
+   salían de los perfiles del canal): arreglado en 2ebeed2d, con un test que publica por la aceptación real.
 3. **Cierre:** la exportación conjunta de los ejemplos HTTP con los de un formulario de la app (las cinco capturas de
    `FormAppOnlyPublicationTests` en `forms-http/app-only`, escritas el 2026-11-11, y después su consumidor en el front); la
    corrida completa con Docker y el front entero (build, lint, vitest y test:visual); la prueba a mano (crear un
