@@ -1,12 +1,9 @@
 using System.Security.Cryptography;
 using System.Text;
-using ArquitecturaBase.Api.IntegrationTests.TestFeatures;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessForms;
 using ArquitecturaBase.Application.Models.StructuredData;
-using ArquitecturaBase.Application.Modules.BusinessForms.Channels;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
-using ArquitecturaBase.Application.Modules.BusinessForms.Services;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Infrastructure.Modules.BusinessForms;
 using Microsoft.Extensions.DependencyInjection;
@@ -58,12 +55,13 @@ public sealed class FormSpreadsheetAttachmentTests
         Assert.Equal(StructuredAttachmentRejection.Protected, preparation.Rejection);
     }
 
+    // A Word older than 2007 («WordDocument») is a document the port names (FormDocumentAttachmentTests); an Outlook message is not.
     [Fact]
     public async Task Another_ole2_file_is_unreadable()
     {
-        var preparation = await PrepareAsync(FormSpreadsheetFixture.Compound("WordDocument"), "precios.xls");
+        var preparation = await PrepareAsync(FormSpreadsheetFixture.Compound("__properties_version1.0"), "precios.xls");
 
-        Assert.Equal(StructuredAttachmentRejection.Unreadable, preparation.Rejection);
+        Assert.Equal((StructuredAttachmentRejection.Unreadable, StructuredAttachmentFileKind.Unknown), (preparation.Rejection, preparation.FileKind));
     }
 
     [Theory]
@@ -133,12 +131,16 @@ public sealed class FormSpreadsheetAttachmentTests
         Assert.Equal(StructuredAttachmentRejection.Unreadable, preparation.Rejection);
     }
 
+    // A Word is a document now (FormDocumentAttachmentTests); a presentation is neither a document nor a spreadsheet.
     [Fact]
     public async Task A_zip_that_is_not_a_spreadsheet_is_unreadable()
     {
-        var preparation = await PrepareAsync(FormSpreadsheetFixture.WordDocument(), "proveedores.xlsx");
+        var presentation = FormSpreadsheetFixture.Package(("/ppt/presentation.xml",
+            "application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"));
 
-        Assert.Equal(StructuredAttachmentRejection.Unreadable, preparation.Rejection);
+        var preparation = await PrepareAsync(presentation, "proveedores.xlsx");
+
+        Assert.Equal((StructuredAttachmentRejection.Unreadable, StructuredAttachmentFileKind.Unknown), (preparation.Rejection, preparation.FileKind));
     }
 
     [Fact]
@@ -207,11 +209,5 @@ public sealed class FormSpreadsheetAttachmentTests
         return preparation.Spreadsheet!;
     }
 
-    private static async Task<StructuredAttachmentPreparation> PrepareAsync(byte[] bytes, string name)
-    {
-        await using var services = new ServiceCollection().AddBusinessFormsInfrastructure().BuildServiceProvider();
-        var permissions = new PermissionAuthorizationFixture();
-        var reader = new BusinessFormAttachmentReader(new FormCatalogAccessGuard(permissions, permissions), services.GetRequiredService<IFormSpreadsheetReader>());
-        return await reader.PrepareAsync(bytes, name, TestContext.Current.CancellationToken);
-    }
+    private static Task<StructuredAttachmentPreparation> PrepareAsync(byte[] bytes, string name) => FormDocumentFixture.PrepareAsync(bytes, name);
 }

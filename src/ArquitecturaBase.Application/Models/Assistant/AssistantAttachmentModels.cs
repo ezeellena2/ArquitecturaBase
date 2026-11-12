@@ -10,8 +10,8 @@ namespace ArquitecturaBase.Application.Models.Assistant;
 public sealed record AssistantAttachmentInput(string StorageKey, string Name, string ContentType, long Size, string Sha256,
     DateTime ExpiresAtUtc, StructuredSpreadsheet Spreadsheet)
 {
-    /// <summary>As much as a catalog import reads.</summary>
-    public const long MaximumBytes = 10 * 1024 * 1024;
+    /// <summary>As much as the owner prepares, of any kind: one limit in every layer.</summary>
+    public const long MaximumBytes = StructuredAttachmentLimits.MaximumBytes;
     public override string ToString() => "AssistantAttachmentInput { Content = [REDACTED] }";
 }
 

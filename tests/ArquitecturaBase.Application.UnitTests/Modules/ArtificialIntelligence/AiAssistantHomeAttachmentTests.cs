@@ -72,6 +72,56 @@ public sealed class AiAssistantHomeAttachmentTests
         Assert.All(reader.Asked, asked => Assert.Equal(userId, asked));
     }
 
+    // Home attaches spreadsheets until it reads documents: being allowed documents alone does not show the clip or open a turn.
+    [Fact]
+    public async Task Home_uses_only_the_spreadsheet_answer_of_the_owner()
+    {
+        var reader = new AttachmentReader { Allowed = false, AllowedDocuments = true };
+        var policy = new AiAssistantHomeAttachmentPolicy(new MemoryPrivateFileStore(), reader, null!, null!);
+        var userId = Guid.NewGuid();
+
+        Assert.False(await policy.CanAttachAsync(userId, Ct));
+        Assert.Equal(AiAssistantErrors.AttachmentForbidden, await policy.CheckAttachAsync(userId, Ct));
+    }
+
+    // A document, prepared or rejected, is a file Home cannot read yet, as before: its texts speak of spreadsheets.
+    [Theory]
+    [InlineData(null, StructuredAttachmentFileKind.Pdf)]
+    [InlineData(StructuredAttachmentRejection.Protected, StructuredAttachmentFileKind.Pdf)]
+    [InlineData(StructuredAttachmentRejection.TooManyPages, StructuredAttachmentFileKind.Pdf)]
+    [InlineData(StructuredAttachmentRejection.TooLarge, StructuredAttachmentFileKind.Image)]
+    [InlineData(StructuredAttachmentRejection.Legacy, StructuredAttachmentFileKind.Word)]
+    [InlineData(StructuredAttachmentRejection.MacroEnabled, StructuredAttachmentFileKind.Word)]
+    [InlineData(StructuredAttachmentRejection.Empty, StructuredAttachmentFileKind.Word)]
+    public async Task A_document_answers_as_a_file_that_cannot_be_read(StructuredAttachmentRejection? rejection, StructuredAttachmentFileKind kind)
+    {
+        var reader = new AttachmentReader
+        {
+            Preparation = rejection is { } reason ? StructuredAttachmentPreparation.Rejected(reason, kind)
+                : StructuredAttachmentPreparation.Prepared(new StructuredDocument("comprobante.pdf", StructuredDocumentKind.Pdf, "application/pdf",
+                    Csv.LongLength, Sha(Csv), 1, null)),
+        };
+        var policy = new AiAssistantHomeAttachmentPolicy(new MemoryPrivateFileStore(), reader, null!, null!);
+
+        var prepared = await policy.PrepareAsync(Csv, "comprobante.pdf", Ct);
+
+        var error = Assert.IsType<ValidationError>(prepared.Error);
+        Assert.Equal("Ai.Assistant.AttachmentUnreadable", error.Code);
+        Assert.Equal(["file"], error.Errors.Keys);
+    }
+
+    [Fact]
+    public async Task A_spreadsheet_or_unknown_file_with_a_password_keeps_its_reason()
+    {
+        foreach (var kind in new[] { StructuredAttachmentFileKind.Spreadsheet, StructuredAttachmentFileKind.Unknown })
+        {
+            var reader = new AttachmentReader { Preparation = StructuredAttachmentPreparation.Rejected(StructuredAttachmentRejection.Protected, kind) };
+            var policy = new AiAssistantHomeAttachmentPolicy(new MemoryPrivateFileStore(), reader, null!, null!);
+
+            Assert.Equal("Ai.Assistant.AttachmentProtected", (await policy.PrepareAsync(Csv, "precios.xlsx", Ct)).Error.Code);
+        }
+    }
+
     // The bootstrap says it per person, by the same rule as a turn: the front shows the clip and never repeats the permissions.
     [Theory]
     [InlineData(true, true, true)]
@@ -182,6 +232,7 @@ public sealed class AiAssistantHomeAttachmentTests
     [InlineData(StructuredAttachmentRejection.TooLarge, "Ai.Assistant.AttachmentTooLarge")]
     [InlineData(StructuredAttachmentRejection.Unreadable, "Ai.Assistant.AttachmentUnreadable")]
     [InlineData(StructuredAttachmentRejection.Empty, "Ai.Assistant.AttachmentEmpty")]
+    [InlineData(StructuredAttachmentRejection.TooManyPages, "Ai.Assistant.AttachmentTooLarge")]
     public async Task Each_rejection_answers_under_the_file_with_its_own_code(StructuredAttachmentRejection rejection, string code)
     {
         var host = new Host();
@@ -560,23 +611,25 @@ public sealed class AiAssistantHomeAttachmentTests
     private sealed class AttachmentReader : IStructuredAttachmentReader
     {
         public bool Allowed { get; set; } = true;
+        public bool AllowedDocuments { get; set; }
         public StructuredAttachmentRejection? Rejection { get; set; }
+        public StructuredAttachmentPreparation? Preparation { get; set; }
         public List<Guid> Asked { get; } = [];
         public List<string> Names { get; } = [];
         public int Prepared { get; private set; }
 
-        public Task<bool> CanAttachAsync(Guid actorUserId, CancellationToken cancellationToken)
+        public Task<StructuredAttachmentAccess> CanAttachAsync(Guid actorUserId, CancellationToken cancellationToken)
         {
             Asked.Add(actorUserId);
-            return Task.FromResult(Allowed);
+            return Task.FromResult(new StructuredAttachmentAccess(Allowed, AllowedDocuments));
         }
 
         public Task<StructuredAttachmentPreparation> PrepareAsync(byte[] content, string fileName, CancellationToken cancellationToken)
         {
             Prepared++;
             Names.Add(fileName);
-            return Task.FromResult(Rejection is { } rejection ? StructuredAttachmentPreparation.Rejected(rejection)
-                : StructuredAttachmentPreparation.Prepared(Prepare(content, fileName)));
+            return Task.FromResult(Preparation ?? (Rejection is { } rejection ? StructuredAttachmentPreparation.Rejected(rejection)
+                : StructuredAttachmentPreparation.Prepared(Prepare(content, fileName))));
         }
 
         public static StructuredSpreadsheet Prepare(byte[] content, string fileName) => FictionalAttachment.Spreadsheet() with

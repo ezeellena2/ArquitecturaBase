@@ -95,7 +95,9 @@ internal sealed class WhatsAppSpreadsheetFixture : IWhatsAppSpreadsheetReader, I
         return Task.FromResult(DownloadError is { } error ? Result.Failure<WhatsAppMediaContent>(error) : Result.Success(new WhatsAppMediaContent(Content)));
     }
 
-    public Task<bool> CanAttachAsync(Guid actorUserId, CancellationToken ct) => Task.FromResult(MayAttach && actorUserId == Host.Context.Subject.Id);
+    // Documents never decide a spreadsheet download: only the spreadsheet answer does.
+    public Task<StructuredAttachmentAccess> CanAttachAsync(Guid actorUserId, CancellationToken ct) =>
+        Task.FromResult(new StructuredAttachmentAccess(MayAttach && actorUserId == Host.Context.Subject.Id, Documents: true));
 
     public Task<StructuredAttachmentPreparation> PrepareAsync(byte[] content, string fileName, CancellationToken ct)
     {

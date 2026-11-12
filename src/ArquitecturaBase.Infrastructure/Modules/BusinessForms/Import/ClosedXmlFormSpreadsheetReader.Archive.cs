@@ -15,25 +15,8 @@ internal sealed partial class ClosedXmlFormSpreadsheetReader
     {
         using var content = new MemoryStream(bytes, writable: false);
         using var archive = new ZipArchive(content, ZipArchiveMode.Read);
-        long declared = 0; long expanded = 0;
-        var names = new HashSet<string>(StringComparer.Ordinal);
-        var buffer = new byte[81920];
-        foreach (var entry in archive.Entries)
-        {
-            ct.ThrowIfCancellationRequested();
-            if (!names.Add(entry.FullName)) return FormCatalogImportErrors.FileUnreadable;
-            if (entry.Length > FormCatalogImportLimits.MaximumArchiveBytes - declared) return FormCatalogImportErrors.FileTooLarge;
-            declared += entry.Length;
-            using var source = entry.Open();
-            int count;
-            while ((count = source.Read(buffer, 0, (int)Math.Min(buffer.Length,
-                FormCatalogImportLimits.MaximumArchiveBytes + 1L - expanded))) > 0)
-            {
-                ct.ThrowIfCancellationRequested();
-                expanded += count;
-                if (expanded > FormCatalogImportLimits.MaximumArchiveBytes) return FormCatalogImportErrors.FileTooLarge;
-            }
-        }
+        var entries = FormArchivePreflight.Check(archive, ct);
+        if (entries.IsFailure) return entries.Error;
         if (archive.GetEntry("xl/sharedStrings.xml") is { } strings)
         {
             using var source = strings.Open();

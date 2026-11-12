@@ -18,6 +18,7 @@ public static class BusinessFormsInfrastructureRegistration
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IDatabaseSeedParticipant, FormVersionPresentationSeeder>());
         services.TryAddSingleton<IFormWorkbookWriter, Export.ClosedXmlFormWorkbookWriter>();
         services.TryAddSingleton<IFormSpreadsheetReader, Import.ClosedXmlFormSpreadsheetReader>();
+        services.TryAddSingleton<IFormDocumentReader, Documents.FormDocumentReader>();
         services.TryAddScoped<IFormPdfDesignReader, FormPdfDesignReader>();
         services.TryAddScoped<IFormPdfDesignRepository, FormPdfDesignRepository>();
         services.TryAddScoped<IFormPdfRenderer, Pdf.SkiaFormPdfRenderer>();

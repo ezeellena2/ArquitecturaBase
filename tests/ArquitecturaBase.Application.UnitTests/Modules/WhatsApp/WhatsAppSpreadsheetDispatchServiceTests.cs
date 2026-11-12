@@ -118,6 +118,31 @@ public sealed class WhatsAppSpreadsheetDispatchServiceTests
         Assert.Equal(1, f.Downloads);
     }
 
+    // Only spreadsheets are downloaded here until documents have their own path: a document, prepared or rejected, is a spreadsheet
+    // that cannot be read, so its reason and text stay those of a spreadsheet.
+    [Theory]
+    [InlineData(null, StructuredAttachmentFileKind.Pdf)]
+    [InlineData(StructuredAttachmentRejection.TooManyPages, StructuredAttachmentFileKind.Pdf)]
+    [InlineData(StructuredAttachmentRejection.Protected, StructuredAttachmentFileKind.Pdf)]
+    [InlineData(StructuredAttachmentRejection.TooLarge, StructuredAttachmentFileKind.Image)]
+    [InlineData(StructuredAttachmentRejection.Legacy, StructuredAttachmentFileKind.Word)]
+    public async Task A_document_is_answered_as_a_spreadsheet_that_cannot_be_read(StructuredAttachmentRejection? rejection, StructuredAttachmentFileKind kind)
+    {
+        var f = new WhatsAppSpreadsheetFixture
+        {
+            Preparation = rejection is { } reason ? StructuredAttachmentPreparation.Rejected(reason, kind)
+                : StructuredAttachmentPreparation.Prepared(new StructuredDocument("clientes.csv", StructuredDocumentKind.Pdf, "application/pdf",
+                    WhatsAppSpreadsheetFixture.Csv.LongLength, WhatsAppSpreadsheetFixture.Hash(WhatsAppSpreadsheetFixture.Csv), 1, null)),
+        };
+
+        Assert.True((await f.Dispatch.PrepareAsync(f.Contact.Id, Ct)).IsSuccess);
+
+        Assert.Equal((WhatsAppSpreadsheetState.Rejected, "unreadable"), (f.Message.SpreadsheetState, f.Message.SpreadsheetFailureCode));
+        Assert.Equal((0, (string?)null), (f.Files.WriteCount, f.Message.SpreadsheetStorageKey));
+        Assert.Equal("No puedo leer la planilla. Guardala como Libro de Excel (.xlsx), o un CSV como CSV UTF-8, y mandala de nuevo contándome qué querés que haga con ella.",
+            Assert.Single(f.Replies).Body);
+    }
+
     [Fact]
     public async Task The_reason_is_answered_in_the_language_of_the_person()
     {

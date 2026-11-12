@@ -18,5 +18,8 @@
                       LogicalName="FlowProfile.%(Filename).json" />
     <EmbeddedResource Include="TestFeatures\Modules\WhatsApp\Fixtures\flow-static-7.3-r8-*.json"
                       LogicalName="FlowProfile.%(Filename).json" />
+    <!-- Los PDF con contraseña de las pruebas de documentos: cómo se generaron está en el .gitattributes de su carpeta. -->
+    <EmbeddedResource Include="TestFeatures\Modules\BusinessForms\Fixtures\*.pdf"
+                      LogicalName="FormDocuments.%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>

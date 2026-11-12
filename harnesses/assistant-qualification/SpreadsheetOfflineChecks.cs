@@ -401,11 +401,13 @@ internal static class SpreadsheetOfflineChecks
             (Encoding.UTF8.GetBytes("\n,\n \n"), "vacia.csv", StructuredAttachmentRejection.Empty),
             (Workbook(_ => { }), "vacia.xlsx", StructuredAttachmentRejection.Empty),
             (Encoding.Latin1.GetBytes("Código;Descripción\n1;Café\n"), "insumos.csv", StructuredAttachmentRejection.Unreadable),
-            (Compound("WordDocument"), "precios.xls", StructuredAttachmentRejection.Unreadable),
+            // An OLE2 «WordDocument» is a Word older than 2007, whatever its name: the port says so, and Home and WhatsApp answer it
+            // as a spreadsheet they cannot read.
+            (Compound("WordDocument"), "precios.xls", StructuredAttachmentRejection.Legacy),
         })
         {
             var prepared = Prepare(bytes, name);
-            Require(prepared.Spreadsheet is null && prepared.Rejection == reason);
+            Require(prepared.Spreadsheet is null && prepared.Document is null && prepared.Rejection == reason);
         }
         // The same text saved as UTF-8 reads: only the encoding was the reason.
         Require(Prepare(Encoding.UTF8.GetBytes("Código;Descripción\n1;Café\n"), "insumos.csv").Spreadsheet is { RowCount: 2, ColumnCount: 2 });
@@ -453,7 +455,7 @@ internal static class SpreadsheetOfflineChecks
         using var services = Port(granted);
         using var scope = services.CreateScope();
         var port = scope.ServiceProvider.GetRequiredService<IStructuredAttachmentReader>();
-        bool Can(Guid account) => port.CanAttachAsync(account, CancellationToken.None).GetAwaiter().GetResult();
+        bool Can(Guid account) => port.CanAttachAsync(account, CancellationToken.None).GetAwaiter().GetResult().Spreadsheets;
         // The seeded authors of both sets may attach; reading catalogs alone, capturing records or an unknown account may not.
         Require(Can(author) && Can(channelAuthor) && !Can(reader) && !Can(recipient) && !Can(Guid.NewGuid()));
     }

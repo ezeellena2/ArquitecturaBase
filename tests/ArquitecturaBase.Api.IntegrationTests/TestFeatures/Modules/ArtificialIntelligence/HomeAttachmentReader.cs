@@ -16,7 +16,8 @@ internal sealed class HomeAttachmentReader : IStructuredAttachmentReader
     public HashSet<Guid> Denied { get; } = [];
     public int Prepared { get; private set; }
 
-    public Task<bool> CanAttachAsync(Guid actorUserId, CancellationToken cancellationToken) => Task.FromResult(!Denied.Contains(actorUserId));
+    public Task<StructuredAttachmentAccess> CanAttachAsync(Guid actorUserId, CancellationToken cancellationToken) =>
+        Task.FromResult(new StructuredAttachmentAccess(!Denied.Contains(actorUserId), Documents: false));
 
     public Task<StructuredAttachmentPreparation> PrepareAsync(byte[] content, string fileName, CancellationToken cancellationToken)
     {

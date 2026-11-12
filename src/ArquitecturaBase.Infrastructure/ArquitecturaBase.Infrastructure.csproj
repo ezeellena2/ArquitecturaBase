@@ -26,6 +26,8 @@
     <PackageReference Include="HarfBuzzSharp.NativeAssets.Linux" />
     <!-- Inspección del contenedor CFB de Word/Excel binarios, sin ejecutar ni renderizar documentos. -->
     <PackageReference Include="OpenMcdf" />
+    <!-- PDF adjunto al asistente (Apache 2.0, sólo código administrado): cuenta páginas y detecta la contraseña, sin renderizar. -->
+    <PackageReference Include="PdfPig" />
     <!-- Pin de seguridad para la dependencia transitiva de los proveedores de identidad/correo. -->
     <PackageReference Include="System.Security.Cryptography.Pkcs" />
     <PackageReference Include="Aspire.StackExchange.Redis" />

@@ -76,9 +76,11 @@ public sealed class FormAttachmentPreparationPolicyTests
     [Fact]
     public void A_sheet_without_rows_with_content_is_empty()
     {
-        Assert.Equal(StructuredAttachmentRejection.Empty,
-            FormAttachmentPreparationPolicy.Prepare("vacia.csv", StructuredSpreadsheetKind.Csv, 12, Sheet(Row(1, null, ""), Row(3, " ", "\t"))).Rejection);
-        Assert.Equal(StructuredAttachmentRejection.Empty, FormAttachmentPreparationPolicy.Prepare("vacia.csv", StructuredSpreadsheetKind.Csv, 0, Sheet()).Rejection);
+        var blank = FormAttachmentPreparationPolicy.Prepare("vacia.csv", StructuredSpreadsheetKind.Csv, 12, Sheet(Row(1, null, ""), Row(3, " ", "\t")));
+        var none = FormAttachmentPreparationPolicy.Prepare("vacia.csv", StructuredSpreadsheetKind.Csv, 0, Sheet());
+
+        Assert.All(new[] { blank, none }, preparation => Assert.Equal((StructuredAttachmentRejection.Empty, StructuredAttachmentFileKind.Spreadsheet),
+            (preparation.Rejection, preparation.FileKind)));
     }
 
     [Fact]

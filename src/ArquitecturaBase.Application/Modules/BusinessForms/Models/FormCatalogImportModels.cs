@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Results;
 
@@ -7,7 +8,7 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Models;
 
 public static class FormCatalogImportLimits
 {
-    public const int MaximumFileBytes = 10 * 1024 * 1024;
+    public const int MaximumFileBytes = StructuredAttachmentLimits.MaximumBytes;
     public const int MaximumArchiveBytes = 100 * 1024 * 1024;
     public const int MaximumColumns = 64;
     public const int MaximumPhysicalRows = BusinessFormCatalog.MaxItems + 2;

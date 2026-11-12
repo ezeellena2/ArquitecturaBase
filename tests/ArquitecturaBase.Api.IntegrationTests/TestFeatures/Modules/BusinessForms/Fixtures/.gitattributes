@@ -1,0 +1,7 @@
+# Byte-exact PDF fixtures. Neither SkiaSharp nor PdfPig encrypts, so the two PDF with a password were generated once, from this
+# folder, with pypdf 6.12.1 (RC4-128: the encryption pypdf writes without a cryptography backend), and committed:
+#   python -c "from pypdf import PdfWriter; w = PdfWriter(); w.add_blank_page(72, 72); w.encrypt(user_password='abrir', owner_password='duenio', algorithm='RC4-128'); w.write('opening-password.pdf')"
+#   python -c "from pypdf import PdfWriter; from pypdf.constants import UserAccessPermissions as P; w = PdfWriter(); w.add_blank_page(72, 72); w.encrypt(user_password='', owner_password='duenio', algorithm='RC4-128', permissions_flag=P(4294963392)); w.write('owner-permissions.pdf')"
+# The first asks for a password to open; the second opens without one and only restricts permissions (4294963392 keeps the
+# reserved bits and allows nothing else). The output is deterministic: SHA-256 59bf5396…ebb9186e and dfef43d7…99a61a009.
+* -text

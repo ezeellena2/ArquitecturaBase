@@ -1,8 +1,8 @@
-using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Xml;
 using ArquitecturaBase.Application.Interfaces.Integrations.Files;
 using ArquitecturaBase.Application.Models.Files;
+using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Domain.Files;
 using ArquitecturaBase.Domain.Results;
 using SkiaSharp;
@@ -33,7 +33,8 @@ internal sealed class FileContentProcessor : IFileContentProcessor
                 if (imageOnly)
                 {
                     // Progressive JPEG may allocate for original dimensions even when output is scaled.
-                    if (info.Width > 16384 || info.Height > 16384 || (long)info.Width * info.Height > 32L * 1024 * 1024)
+                    if (info.Width > StructuredAttachmentLimits.MaximumImageSide || info.Height > StructuredAttachmentLimits.MaximumImageSide
+                        || (long)info.Width * info.Height > StructuredAttachmentLimits.MaximumImagePixels)
                         return FileErrors.InvalidType;
                     var size = codec.GetScaledDimensions(Math.Min(1f, 320f / Math.Max(info.Width, info.Height)));
                     using var bitmap = SKBitmap.Decode(codec, new SKImageInfo(size.Width, size.Height));
@@ -54,27 +55,13 @@ internal sealed class FileContentProcessor : IFileContentProcessor
 
     private static bool IsDocument(byte[] content, string type) => type switch
     {
-        "application/pdf" => content.AsSpan().StartsWith("%PDF-"u8) && content.AsSpan(Math.Max(0, content.Length - 1024)).IndexOf("%%EOF"u8) >= 0,
+        "application/pdf" => DocumentSignature.IsPdf(content),
         "application/msword" => CompoundDocument.HasStream(content, "WordDocument"),
         "application/vnd.ms-excel" => CompoundDocument.HasStream(content, "Workbook", "Book"),
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document" => IsOpenXml(content, "word/document.xml", "application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"),
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" => IsOpenXml(content, "xl/workbook.xml", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"),
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document" => DocumentSignature.IsOpenXml(content, "word/document.xml", "application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"),
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" => DocumentSignature.IsOpenXml(content, "xl/workbook.xml", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"),
         _ => false,
     };
-
-    private static bool IsOpenXml(byte[] content, string mainPart, string contentType)
-    {
-        using var stream = new MemoryStream(content, false);
-        using var archive = new ZipArchive(stream, ZipArchiveMode.Read);
-        var manifest = archive.GetEntry("[Content_Types].xml");
-        if (manifest is null || manifest.Length > 64 * 1024 || archive.GetEntry(mainPart) is null) return false;
-        using var xml = manifest.Open();
-        using var reader = XmlReader.Create(xml, new XmlReaderSettings { DtdProcessing = DtdProcessing.Prohibit, XmlResolver = null, MaxCharactersInDocument = 64 * 1024 });
-        while (reader.Read())
-            if (reader.NodeType == XmlNodeType.Element && reader.LocalName == "Override"
-                && reader.GetAttribute("PartName") == "/" + mainPart && reader.GetAttribute("ContentType") == contentType) return true;
-        return false;
-    }
 
     private static byte[] Thumbnail(SKBitmap bitmap, SKEncodedOrigin origin)
     {

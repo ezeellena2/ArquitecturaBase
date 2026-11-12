@@ -5,10 +5,10 @@ namespace ArquitecturaBase.Application.Channels;
 
 internal sealed class UnavailableStructuredAttachmentReader : IStructuredAttachmentReader
 {
-    public Task<bool> CanAttachAsync(Guid actorUserId, CancellationToken cancellationToken)
+    public Task<StructuredAttachmentAccess> CanAttachAsync(Guid actorUserId, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        return Task.FromResult(false);
+        return Task.FromResult(StructuredAttachmentAccess.None);
     }
 
     public Task<StructuredAttachmentPreparation> PrepareAsync(byte[] content, string fileName, CancellationToken cancellationToken)

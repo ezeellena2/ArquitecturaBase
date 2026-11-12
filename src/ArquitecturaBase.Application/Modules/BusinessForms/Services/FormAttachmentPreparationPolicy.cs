@@ -26,13 +26,25 @@ internal static class FormAttachmentPreparationPolicy
         return Shorten(Path.GetFileName(fileName.Replace('\\', '/')), NameLength);
     }
 
+    // An OLE2 container with a password does not say whether it was a Word or an Excel: its extension names it, only for the text.
+    public static StructuredAttachmentFileKind ProtectedKind(string fileName)
+    {
+        ArgumentNullException.ThrowIfNull(fileName);
+        return Path.GetExtension(fileName.Replace('\\', '/')).ToUpperInvariant() switch
+        {
+            ".DOCX" or ".DOC" => StructuredAttachmentFileKind.Word,
+            ".XLSX" or ".XLS" or ".CSV" => StructuredAttachmentFileKind.Spreadsheet,
+            _ => StructuredAttachmentFileKind.Unknown,
+        };
+    }
+
     public static StructuredAttachmentPreparation Prepare(string fileName, StructuredSpreadsheetKind kind, long size, FormSpreadsheet sheet)
     {
         ArgumentNullException.ThrowIfNull(fileName);
         ArgumentNullException.ThrowIfNull(sheet);
         // A row has content as in the import: some text, or a cell the reader could not read (which has no text to show).
         var rows = sheet.Rows.Where(FormSpreadsheetContentPolicy.HasContent).ToList();
-        if (rows.Count == 0) return StructuredAttachmentPreparation.Rejected(StructuredAttachmentRejection.Empty);
+        if (rows.Count == 0) return StructuredAttachmentPreparation.Rejected(StructuredAttachmentRejection.Empty, StructuredAttachmentFileKind.Spreadsheet);
         var columns = rows.Max(row => row.Cells.Select((cell, index) => FormSpreadsheetContentPolicy.HasContent(cell) ? index + 1 : 0).Max());
         var prepared = new StructuredSpreadsheet(fileName, kind, kind == StructuredSpreadsheetKind.Xlsx ? XlsxMediaType : CsvMediaType, size,
             sheet.Sha256, Shorten(sheet.Name, NameLength), rows.Count, columns, []);

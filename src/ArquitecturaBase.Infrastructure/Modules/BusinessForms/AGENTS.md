@@ -8,6 +8,7 @@ Adaptadores del módulo opcional de formularios: implementan los puertos de `App
 - `Security/`: Data Protection de comprobantes de guardado y de ticket de chequeo y manifiesto de publicación.
 - `Export/`: `ClosedXmlFormWorkbookWriter`, el XLSX del export de respuestas y del de opciones de un catálogo; aplica el formato de Excel de cada celda y, sin él, el de su tipo (las fechas, con el de la hoja). En los dos, el encabezado lleva el tono de la planilla y cada columna mide lo que lleva, con tope; la línea donde empieza cada respuesta sale de `GroupStarts`.
 - `Import/`: lector acotado XLSX/CSV en memoria, preflight del ZIP y cachés de fórmulas sin evaluación ([guía](Import/AGENTS.md)).
+- `Documents/`: `FormDocumentReader` dice qué documento es por sus bytes y lee sin renderizar ni ejecutar: las páginas de un PDF (PdfPig, con los objetos contados antes y en un hilo propio; con contraseña de apertura, `Protected`), el encabezado de una foto (SkiaSharp) y el texto de un Word (OpenXml abre el paquete y el XML se lee nodo por nodo, con topes, tras el preflight del ZIP de `Import/`).
 - `BusinessFormsInfrastructureRegistration`: único lugar que nombra las clases concretas; `Program.cs` lo compone.
 
 ## Al modificar

@@ -38,7 +38,7 @@ internal sealed class WhatsAppSpreadsheetPreparationPolicy(IWhatsAppMediaClient 
         if (!files.IsAvailable || source.Mode != WhatsAppConversationMode.Assistant || source.LinkedUserId is not { } subject) return false;
         var recipient = await recipients.FindAsync(source.ContactId, ct);
         return recipient is { IsActive: true } && recipient.UserId == subject && recipient.LinkRevision == source.LinkRevision
-            && await recipientGuard.CanReachAsync(recipient.WaId, subject, ct) && await attachments.CanAttachAsync(subject, ct);
+            && await recipientGuard.CanReachAsync(recipient.WaId, subject, ct) && (await attachments.CanAttachAsync(subject, ct)).Spreadsheets;
     }
 
     public async Task<Result<WhatsAppPreparedSpreadsheet>> AcquireAsync(WhatsAppSpreadsheetSourceRow source, CancellationToken ct)
@@ -53,8 +53,7 @@ internal sealed class WhatsAppSpreadsheetPreparationPolicy(IWhatsAppMediaClient 
         var sha256 = Sha256(content);
         if (sha256 != source.Sha256) return FileErrors.HashMismatch;
         var prepared = await attachments.PrepareAsync(content, source.FileName ?? string.Empty, ct);
-        if (prepared.Spreadsheet is not { } spreadsheet)
-            return WhatsAppPreparedSpreadsheet.Rejected(prepared.Rejection ?? StructuredAttachmentRejection.Unavailable);
+        if (prepared.Spreadsheet is not { } spreadsheet) return WhatsAppPreparedSpreadsheet.Rejected(SpreadsheetRejection(prepared));
         var key = Key(source.MessageId, spreadsheet.Kind);
         await using (var stream = new MemoryStream(content, false)) await files.WriteOnceAsync(key, stream, spreadsheet.MediaType, ct);
         // Another host, or an attempt that did not commit, may have written it first: the copy is read back, never assumed ours.
@@ -64,6 +63,12 @@ internal sealed class WhatsAppSpreadsheetPreparationPolicy(IWhatsAppMediaClient 
         return copy is not null && Sha256(copy) == sha256
             ? WhatsAppPreparedSpreadsheet.Stored(key, content.LongLength, sha256, spreadsheet) : FileErrors.HashMismatch;
     }
+
+    // Only spreadsheets are downloaded here until documents have their own path: a document, prepared or rejected, is a spreadsheet
+    // that cannot be read, so its reason and its text stay those of a spreadsheet.
+    private static StructuredAttachmentRejection SpreadsheetRejection(StructuredAttachmentPreparation prepared) =>
+        prepared.Document is not null || prepared.FileKind is StructuredAttachmentFileKind.Pdf or StructuredAttachmentFileKind.Image
+            or StructuredAttachmentFileKind.Word ? StructuredAttachmentRejection.Unreadable : prepared.Rejection ?? StructuredAttachmentRejection.Unavailable;
 
     private static async Task<byte[]?> ReadBoundedAsync(Stream stream, CancellationToken ct)
     {

@@ -16,10 +16,11 @@ public sealed class UnavailableStructuredAttachmentReaderTests
         var reader = Assert.IsType<UnavailableStructuredAttachmentReader>(scope.ServiceProvider.GetRequiredService<IStructuredAttachmentReader>());
         var ct = TestContext.Current.CancellationToken;
 
-        Assert.False(await reader.CanAttachAsync(Guid.NewGuid(), ct));
+        Assert.Equal(new StructuredAttachmentAccess(Spreadsheets: false, Documents: false), await reader.CanAttachAsync(Guid.NewGuid(), ct));
         var preparation = await reader.PrepareAsync(Encoding.UTF8.GetBytes("Code,Text\nA,North\n"), "options.csv", ct);
-        Assert.Equal(StructuredAttachmentRejection.Unavailable, preparation.Rejection);
+        Assert.Equal((StructuredAttachmentRejection.Unavailable, StructuredAttachmentFileKind.Unknown), (preparation.Rejection, preparation.FileKind));
         Assert.Null(preparation.Spreadsheet);
+        Assert.Null(preparation.Document);
     }
 
     [Fact]

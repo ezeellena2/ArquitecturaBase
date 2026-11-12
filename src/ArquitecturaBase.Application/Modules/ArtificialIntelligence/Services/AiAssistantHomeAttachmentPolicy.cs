@@ -54,26 +54,30 @@ internal sealed class AiAssistantHomeAttachmentPolicy(IPrivateFileStore files, I
     public static AiAssistantTurnAttachmentResponse Response(AssistantAttachmentInput attachment) => new(attachment.Name,
         attachment.Spreadsheet.Kind == StructuredSpreadsheetKind.Csv ? "csv" : "xlsx", attachment.Spreadsheet.RowCount, attachment.Size);
 
-    // Who may attach in Home, for the bootstrap: there is private storage for the copy and the owner allows the person.
-    public async Task<bool> CanAttachAsync(Guid userId, CancellationToken ct) => files.IsAvailable && await reader.CanAttachAsync(userId, ct);
+    // Who may attach in Home, for the bootstrap: there is private storage for the copy and the owner allows the person a spreadsheet.
+    public async Task<bool> CanAttachAsync(Guid userId, CancellationToken ct) => files.IsAvailable && (await reader.CanAttachAsync(userId, ct)).Spreadsheets;
 
     // The same rule for a turn, telling the installation apart from the account: without private storage spreadsheets are not available
     // here, and only the owner's refusal is the person's 403.
     public async Task<Error?> CheckAttachAsync(Guid userId, CancellationToken ct) =>
         !files.IsAvailable ? FieldErrors.On(AiAssistantErrors.AttachmentUnavailable, "file")
-            : !await reader.CanAttachAsync(userId, ct) ? AiAssistantErrors.AttachmentForbidden : null;
+            : !(await reader.CanAttachAsync(userId, ct)).Spreadsheets ? AiAssistantErrors.AttachmentForbidden : null;
 
-    // A file that is not read answers under the file, with a code for each reason, and never reaches the model.
+    // A file that is not read answers under the file, with a code for each reason, and never reaches the model. Home reads only
+    // spreadsheets until it reads documents: a document, prepared or rejected, is a file it cannot read, as before, because the texts
+    // speak of spreadsheets.
     public async Task<Result<StructuredSpreadsheet>> PrepareAsync(byte[] content, string name, CancellationToken ct)
     {
         var prepared = await reader.PrepareAsync(content, name, ct);
         if (prepared.Spreadsheet is { } spreadsheet) return spreadsheet;
-        return FieldErrors.On(prepared.Rejection switch
+        var rejection = prepared.Document is not null || prepared.FileKind is StructuredAttachmentFileKind.Pdf or StructuredAttachmentFileKind.Image
+            or StructuredAttachmentFileKind.Word ? StructuredAttachmentRejection.Unreadable : prepared.Rejection;
+        return FieldErrors.On(rejection switch
         {
             StructuredAttachmentRejection.Legacy => AiAssistantErrors.AttachmentLegacy,
             StructuredAttachmentRejection.Protected => AiAssistantErrors.AttachmentProtected,
             StructuredAttachmentRejection.MacroEnabled => AiAssistantErrors.AttachmentMacroEnabled,
-            StructuredAttachmentRejection.TooLarge => AiAssistantErrors.AttachmentTooLarge,
+            StructuredAttachmentRejection.TooLarge or StructuredAttachmentRejection.TooManyPages => AiAssistantErrors.AttachmentTooLarge,
             StructuredAttachmentRejection.Unreadable => AiAssistantErrors.AttachmentUnreadable,
             StructuredAttachmentRejection.Empty => AiAssistantErrors.AttachmentEmpty,
             _ => AiAssistantErrors.AttachmentUnavailable,
