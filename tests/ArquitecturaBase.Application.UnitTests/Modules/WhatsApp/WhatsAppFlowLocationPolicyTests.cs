@@ -53,6 +53,19 @@ public sealed class WhatsAppFlowLocationPolicyTests
         Assert.False(session.LocationRequired);
     }
 
+    // The durable outgoing goes out by RequestedAtUtc and then by Id, a version 7 Guid that is not monotonic within a millisecond:
+    // the skip button is requested a millisecond after its request, so the person never gets it first (person or assistant).
+    [Fact]
+    public void The_skip_button_is_requested_right_after_its_location_request()
+    {
+        var person = WhatsAppFlowLocationPolicy.Open(Projection(location: false), Session("es"), Actor, Guid.CreateVersion7(), "Completá.", "Visita", Now);
+        var assistant = WhatsAppFlowLocationPolicy.OpenAssistant(Projection(location: false), AssistantSession(), Guid.CreateVersion7(), "Completá.",
+            "Visita", Now, 3, "5491122334455", 7);
+
+        Assert.All(new[] { person, assistant }, opened =>
+            Assert.Equal((Now, Now.AddMilliseconds(1)), (opened[0].RequestedAtUtc, opened[1].RequestedAtUtc)));
+    }
+
     [Fact]
     public void Each_location_completes_the_oldest_send_that_waits_for_one()
     {

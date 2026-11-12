@@ -30,7 +30,7 @@ internal static class WhatsAppFlowLocationPolicy
             session.Id, nowUtc), session);
         if (location.Required) return [request];
         return [request, Attached(WhatsAppOutgoingMessage.CreateLocationSkip(actor, session.ContactId, Guid.CreateVersion7(),
-            FlowTexts.Get("LocationOptional", culture), FlowTexts.Get("LocationSkip", culture), session.Id, nowUtc), session)];
+            FlowTexts.Get("LocationOptional", culture), FlowTexts.Get("LocationSkip", culture), session.Id, SkipRequestedAt(nowUtc)), session)];
     }
 
     /// <summary>
@@ -49,7 +49,7 @@ internal static class WhatsAppFlowLocationPolicy
             RequestBody(culture, formName), session.Id, nowUtc, linkRevision, waId, modeRevision), session);
         if (location.Required) return [request];
         return [request, Attached(WhatsAppOutgoingMessage.CreateAssistantLocationSkip(session.UserId, session.ContactId, Guid.CreateVersion7(),
-            FlowTexts.Get("LocationOptional", culture), FlowTexts.Get("LocationSkip", culture), session.Id, nowUtc, linkRevision, waId, modeRevision), session)];
+            FlowTexts.Get("LocationOptional", culture), FlowTexts.Get("LocationSkip", culture), session.Id, SkipRequestedAt(nowUtc), linkRevision, waId, modeRevision), session)];
     }
 
     /// <summary>
@@ -98,6 +98,10 @@ internal static class WhatsAppFlowLocationPolicy
     public static string? Answer(WhatsAppFlowLocationState state, decimal? latitude, decimal? longitude) =>
         state == WhatsAppFlowLocationState.Received && latitude is { } lat && longitude is { } lng
             ? JsonSerializer.Serialize(new { latitude = lat, longitude = lng }) : null;
+
+    // The durable outgoing goes out by RequestedAtUtc and then by Id, a version 7 Guid that is not monotonic within a millisecond:
+    // the skip button is requested a millisecond after its request, so it never reaches the person first.
+    private static DateTime SkipRequestedAt(DateTime requestedAtUtc) => requestedAtUtc.AddMilliseconds(1);
 
     private static string RequestBody(string culture, string formName) =>
         string.Format(CultureInfo.GetCultureInfo(culture), FlowTexts.Get("LocationRequest", culture), formName);

@@ -170,8 +170,10 @@ public sealed class WhatsAppAssistantLocationIntegrationTests(ApiFactory factory
     private static Task<bool> UnresolvedOfferAsync(WhatsAppAssistantScenario host, Guid contactId, Guid excludingRequestId) =>
         host.ScopeAsync(services => services.GetRequiredService<IWhatsAppAssistantReader>().ExistsUnresolvedOfferAsync(contactId, excludingRequestId, Ct));
 
+    // The person answers some time after the request arrived, so what the answer sends goes after what is already queued.
     private static Task<Guid> AddLocationAsync(WhatsAppAssistantScenario host, WhatsAppAssistantContact row) => host.InTransactionAsync(async services =>
     {
+        host.Clock.Advance(TimeSpan.FromSeconds(30));
         var db = services.GetRequiredService<ApplicationDbContext>();
         var contact = await db.Set<WhatsAppContact>().SingleAsync(item => item.Id == row.ContactId, Ct);
         var now = host.Clock.GetUtcNow().UtcDateTime;
@@ -187,6 +189,7 @@ public sealed class WhatsAppAssistantLocationIntegrationTests(ApiFactory factory
     {
         var sessionId = await host.ScopeAsync(services => services.GetRequiredService<ApplicationDbContext>().Set<WhatsAppFlowSession>().AsNoTracking()
             .Where(item => item.ContactId == contact.ContactId).Select(item => item.Id).SingleAsync(Ct));
+        host.Clock.Advance(TimeSpan.FromSeconds(30));
         await host.InTransactionAsync(async services =>
         {
             var db = services.GetRequiredService<ApplicationDbContext>();
