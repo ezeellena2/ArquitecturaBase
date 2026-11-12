@@ -31,6 +31,7 @@ internal sealed class AiAssistantCapabilityCatalogPolicy
     }
 
     public const int MaximumDefinitions = 16;
+    public const int MaximumPreloads = 3;
     public IReadOnlyList<AssistantCapabilityDefinition> Definitions { get; }
     public IReadOnlyList<AssistantCapabilityReference> OfferedInHome { get; }
 
@@ -54,6 +55,12 @@ internal sealed class AiAssistantCapabilityCatalogPolicy
             if (Find(reference) is not { } definition) return AiAssistantErrors.ToolRejected;
             selected.Add(definition);
         }
+        var preloads = new List<AssistantCapabilityDefinition>();
+        foreach (var reference in context.PreloadedCapabilities ?? [])
+        {
+            if (Find(reference) is not { Kind: AssistantCapabilityKind.Read } definition) return AiAssistantErrors.ToolRejected;
+            preloads.Add(definition);
+        }
         if (context.SubjectUserId is null && context.RequiredPermissions.Subject.Count != 0) return AiAssistantErrors.Forbidden;
         var actorPermissions = await permissions.GetPermissionsAsync(context.ActorUserId, ct);
         IReadOnlyCollection<string> subjectPermissions = context.SubjectUserId is { } subjectId
@@ -61,15 +68,18 @@ internal sealed class AiAssistantCapabilityCatalogPolicy
         if (!context.RequiredPermissions.Actor.All(actorPermissions.Contains) || !context.RequiredPermissions.Subject.All(subjectPermissions.Contains))
             return AiAssistantErrors.Forbidden;
         // What the turn's file does not admit is left out before counting the sixteen definitions: a spreadsheet or a document only
-        // with one, and what never goes with a document.
-        var offered = selected.Where(definition => definition.OfferedWith(attachment) &&
+        // with one, and what never goes with a document. A preload follows the same rule and never counts.
+        bool Admitted(AssistantCapabilityDefinition definition) => definition.OfferedWith(attachment) &&
             definition.RequiredPermissions.Actor.All(actorPermissions.Contains) &&
-            definition.RequiredPermissions.Subject.All(subjectPermissions.Contains)).ToArray();
+            definition.RequiredPermissions.Subject.All(subjectPermissions.Contains);
+        var offered = selected.Where(Admitted).ToArray();
+        var preloaded = preloads.Where(Admitted).ToArray();
         if (offered.Length + context.AllowedTerminals.Count > MaximumDefinitions) return AiAssistantErrors.ToolRejected;
+        var reserved = offered.Concat(preloaded).ToArray();
         var required = new AssistantPermissionRequirements(
-            context.RequiredPermissions.Actor.Concat(offered.SelectMany(definition => definition.RequiredPermissions.Actor)).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray(),
-            context.RequiredPermissions.Subject.Concat(offered.SelectMany(definition => definition.RequiredPermissions.Subject)).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray());
-        return new AiAssistantCapabilityCatalogResponse(offered, context.AllowedTerminals.ToArray(), required);
+            context.RequiredPermissions.Actor.Concat(reserved.SelectMany(definition => definition.RequiredPermissions.Actor)).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray(),
+            context.RequiredPermissions.Subject.Concat(reserved.SelectMany(definition => definition.RequiredPermissions.Subject)).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray());
+        return new AiAssistantCapabilityCatalogResponse(offered, context.AllowedTerminals.ToArray(), required) { Preloaded = preloaded };
     }
 
     private static bool ValidDefinition(AssistantCapabilityDefinition definition) =>
@@ -98,9 +108,9 @@ internal sealed class AiAssistantCapabilityCatalogPolicy
         catch (JsonException) { return false; }
     }
 
-    // assistant_answer@2 also closes on one observed proposal of the turn; assistant_proposal only selects one.
+    // assistant_answer@2 also closes on one observed proposal of the turn; assistant_proposal@1 selects one, and @2 up to three.
     public static bool KnownTerminal(AssistantTerminalReference terminal) =>
-        terminal is { Id: "assistant_answer", Version: 1 or 2 } or { Id: "assistant_proposal", Version: 1 };
+        terminal is { Id: "assistant_answer", Version: 1 or 2 } or { Id: "assistant_proposal", Version: 1 or 2 };
 
     private static bool ValidContext(AssistantChannelContext context)
     {
@@ -109,7 +119,10 @@ internal sealed class AiAssistantCapabilityCatalogPolicy
             context.RequiredPermissions.Actor.Concat(context.RequiredPermissions.Subject).Any(string.IsNullOrWhiteSpace) ||
             context.AllowedCapabilities.Select(reference => reference.Id).Distinct(StringComparer.Ordinal).Count() != context.AllowedCapabilities.Count ||
             context.AllowedTerminals.Count == 0 || context.AllowedTerminals.Distinct().Count() != context.AllowedTerminals.Count ||
-            context.AllowedTerminals.Any(terminal => !KnownTerminal(terminal))) return false;
+            context.AllowedTerminals.Any(terminal => !KnownTerminal(terminal)) ||
+            context.PreloadedCapabilities is { } preloaded && (preloaded.Count > MaximumPreloads ||
+                preloaded.Select(reference => reference.Id).Distinct(StringComparer.Ordinal).Count() != preloaded.Count ||
+                preloaded.Any(reference => context.AllowedCapabilities.Any(allowed => allowed.Id == reference.Id)))) return false;
         try
         {
             _ = CultureInfo.GetCultureInfo(context.Culture);

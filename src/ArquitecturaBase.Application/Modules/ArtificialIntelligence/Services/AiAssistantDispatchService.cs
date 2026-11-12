@@ -148,12 +148,22 @@ internal sealed class AiAssistantDispatchService(IAiAssistantRepository reposito
                     answerJson = AiAssistantDocumentPolicy.SerializeReading(reading);
                 else if (completion.Proposal is { } proposal)
                 {
-                    var selected = completion.Context.ObservedTools.SingleOrDefault(t => t.ProposalId == proposal.Id &&
-                        t.ToolId == proposal.Capability.Id && t.Version == proposal.Capability.Version && t.Kind == AssistantCapabilityKind.Proposal);
-                    if (selected is null) return turn.Fail(claim.Fence, AiAssistantErrors.InvalidOutput.Code, false, now);
-                    answerJson = completion.Answer is { } explanation
-                        ? JsonSerializer.Serialize(new { kind = "proposal", selected.Ordinal, explanation.Text, explanation.EvidenceIds }, AiAssistantResponsePolicy.JsonOptions)
-                        : JsonSerializer.Serialize(new { kind = "proposal", selected.Ordinal }, AiAssistantResponsePolicy.JsonOptions);
+                    // assistant_proposal@2 may select several, kept in their order; a single one is stored as it always was.
+                    IReadOnlyList<AssistantObservedProposal> chosen = completion.Proposals.Count == 0 ? [proposal] : completion.Proposals;
+                    if (chosen[0].Id != proposal.Id) return turn.Fail(claim.Fence, AiAssistantErrors.InvalidOutput.Code, false, now);
+                    var ordinals = new List<int>();
+                    foreach (var item in chosen)
+                    {
+                        var selected = completion.Context.ObservedTools.SingleOrDefault(t => t.ProposalId == item.Id &&
+                            t.ToolId == item.Capability.Id && t.Version == item.Capability.Version && t.Kind == AssistantCapabilityKind.Proposal);
+                        if (selected is null || item.TurnId != turn.Id) return turn.Fail(claim.Fence, AiAssistantErrors.InvalidOutput.Code, false, now);
+                        ordinals.Add(selected.Ordinal);
+                    }
+                    answerJson = ordinals.Count > 1
+                        ? JsonSerializer.Serialize(new { kind = "proposals", ordinals }, AiAssistantResponsePolicy.JsonOptions)
+                        : completion.Answer is { } explanation
+                            ? JsonSerializer.Serialize(new { kind = "proposal", ordinal = ordinals[0], explanation.Text, explanation.EvidenceIds }, AiAssistantResponsePolicy.JsonOptions)
+                            : JsonSerializer.Serialize(new { kind = "proposal", ordinal = ordinals[0] }, AiAssistantResponsePolicy.JsonOptions);
                 }
                 else answerJson = JsonSerializer.Serialize(completion.Answer, AiAssistantResponsePolicy.JsonOptions);
                 var evidenceJson = JsonSerializer.Serialize(completion.Context.Evidences, AiAssistantResponsePolicy.JsonOptions);

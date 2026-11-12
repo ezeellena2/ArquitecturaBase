@@ -39,6 +39,38 @@ public sealed class AiAssistantProposalLookupTests
         return (scenario, observed.Id);
     }
 
+    // Casos del asistente: a channel turn that selected several proposals with assistant_proposal@2 finds each one by its Id.
+    [Fact]
+    public async Task Each_proposal_of_a_turn_that_selected_several_is_found_by_its_id()
+    {
+        var scenario = new ObservedReadAssistantScenario(AiAssistantDispatchServiceTests.CreateObservedReadStore, home: false, ownConversation: true,
+            preloadRead: true, proposalTerminal: 2);
+        var context = scenario.Context();
+        context = (await scenario.Execution.PreloadAsync(context with { ProviderRequest = context.ProviderRequest with { Messages = [new("user", "Fictional request")] } }, Ct)).Value;
+        foreach (var call in new[] { "first-proposal", "second-proposal" })
+        {
+            Assert.True((await scenario.Dispatch.BeginProviderStepAsync(scenario.Claim, Ct)).Value);
+            var proposed = await scenario.Execution.AdvanceAsync(context, new("tools",
+                [new(call, ObservedReadAssistantSource.ProposalId, JsonSerializer.Serialize(new { resourceId = scenario.Source.ResourceId }))], null, null), Ct);
+            Assert.True((await scenario.Dispatch.RecordProgressAsync(scenario.Claim, proposed.Value, Ct)).IsSuccess);
+            context = proposed.Value.Context;
+        }
+        Assert.True((await scenario.Dispatch.BeginProviderStepAsync(scenario.Claim, Ct)).Value);
+        var ids = context.Proposals.Select(proposal => proposal.Id).ToArray();
+        var closed = await scenario.Execution.AdvanceAsync(context, new("tools",
+            [new("select-call", "assistant_proposal", JsonSerializer.Serialize(new { proposalIds = ids }))], null, null), Ct);
+        Assert.True((await scenario.Dispatch.CompleteAsync(scenario.Claim, closed.Value, Ct)).IsSuccess);
+        var row = scenario.Row();
+        var lookup = Lookup(scenario, new Reader(row, [row]));
+        foreach (var id in ids)
+        {
+            var found = await lookup.FindAsync(row.OwnerUserId, row.RequestId, id, Group, Ct);
+            Assert.True(found.IsSuccess);
+            Assert.Equal(id, found.Value.Proposal.Id);
+            Assert.True(found.Value.IsCurrent);
+        }
+    }
+
     private static AiAssistantProposalLookup Lookup(ObservedReadAssistantScenario scenario, Reader reader) =>
         new(reader, scenario.Guard, scenario.ReloadedPolicy(new ObservedReadAssistantSource()), NullLogger<AiAssistantProposalLookup>.Instance);
 

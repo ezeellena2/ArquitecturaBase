@@ -45,7 +45,8 @@ internal sealed class AiAssistantDispatchGuard(IAiAssistantRepository repository
             if (AiAssistantAttachmentPolicy.Sealed(profile.Value, turn.AttachmentKey) is not { } file) return AiAssistantErrors.ContentBlocked;
             var offered = await catalog.BuildAsync(profile.Value.ChannelContext, file, ct);
             if (offered.IsFailure) return offered.Error;
-            if (offered.Value.Capabilities.Count != profile.Value.ChannelContext.AllowedCapabilities.Count) return AiAssistantErrors.ContentBlocked;
+            if (offered.Value.Capabilities.Count != profile.Value.ChannelContext.AllowedCapabilities.Count ||
+                offered.Value.Preloaded.Count != (profile.Value.ChannelContext.PreloadedCapabilities?.Count ?? 0)) return AiAssistantErrors.ContentBlocked;
         }
         var connection = await connectionReader.FindAsync(ct);
         if (connection.Revision != turn.ConnectionRevision || connection.Provider != turn.Provider ||

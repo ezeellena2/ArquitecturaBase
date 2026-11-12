@@ -42,7 +42,8 @@ internal sealed class AiAssistantProposalLookup(IAiAssistantReader reader, AiAss
             else return AiAssistantErrors.ContentUnavailable;
             var mapped = responsePolicy.Map(row, true, 0);
             if (mapped.IsFailure) return mapped.Error;
-            if (mapped.Value.ObservedProposal is not { } proposal || proposal.Id != proposalId) return AiAssistantErrors.NotFound;
+            // A turn closed with assistant_proposal@2 may hold several: the one with this Id.
+            if (mapped.Value.ObservedProposals.SingleOrDefault(item => item.Id == proposalId) is not { } proposal) return AiAssistantErrors.NotFound;
             AssistantAttachmentDescriptor? attachment = null;
             if (row.AttachmentKey is not null && (attachment = await AttachmentAsync(row, cancellationToken)) is null)
                 return AiAssistantErrors.ContentUnavailable;
@@ -78,8 +79,8 @@ internal sealed class AiAssistantProposalLookup(IAiAssistantReader reader, AiAss
                 if (turn.Ordinal <= row.Ordinal) return true;
                 if (turn.State != AiAssistantTurnState.Completed) continue;
                 var later = responsePolicy.Map(turn, true, 0);
-                if (later.IsSuccess && later.Value.ObservedProposal is { } replacement
-                    && replacing.Contains(replacement.Capability.Id, StringComparer.Ordinal)) return false;
+                if (later.IsSuccess && later.Value.ObservedProposals.Any(replacement => replacing.Contains(replacement.Capability.Id, StringComparer.Ordinal)))
+                    return false;
             }
             if (turns.Items.Count < PageSize || page * PageSize >= turns.TotalCount) return true;
         }

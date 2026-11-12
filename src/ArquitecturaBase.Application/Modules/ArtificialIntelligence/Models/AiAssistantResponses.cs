@@ -56,6 +56,10 @@ public sealed record AiAssistantTurnResponse(Guid TurnId, Guid ConversationId, G
     public AiAssistantTurnAttachmentResponse? Attachment { get; init; }
     [JsonIgnore]
     public AssistantObservedProposal? ObservedProposal { get; init; }
+
+    /// <summary>Every proposal the turn closed on, in order; the first one is <see cref="ObservedProposal"/>.</summary>
+    [JsonIgnore]
+    public IReadOnlyList<AssistantObservedProposal> ObservedProposals { get; init; } = [];
     [JsonIgnore]
     public AssistantNormalizedAudio? NormalizedAudio { get; init; }
     [JsonIgnore]

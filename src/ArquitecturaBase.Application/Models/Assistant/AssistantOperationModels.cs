@@ -34,6 +34,8 @@ public sealed record AssistantProposalLookupResponse(AssistantChannelContext Con
 public sealed record AssistantOperationResponse(Guid RequestId, string State, AssistantObservedProposal? Proposal,
     AssistantOperationProvenance? Provenance, string? FailureCode)
 {
+    /// <summary>Every proposal the operation closed on, in order (assistant_proposal@2 selects up to three); the first is <see cref="Proposal"/>.</summary>
+    public IReadOnlyList<AssistantObservedProposal> Proposals { get; init; } = [];
     public AssistantNormalizedAudio? NormalizedAudio { get; init; }
     /// <summary>What a completed ReadDocument read, while its content lasts.</summary>
     public StructuredDocumentReading? DocumentReading { get; init; }

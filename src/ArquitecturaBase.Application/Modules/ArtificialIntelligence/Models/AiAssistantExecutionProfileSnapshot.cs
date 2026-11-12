@@ -21,4 +21,8 @@ public enum AiAssistantPurpose { Interpret = 0, NormalizeAudio = 1, ReadDocument
 
 public sealed record AiAssistantCapabilityCatalogResponse(
     IReadOnlyList<AssistantCapabilityDefinition> Capabilities, IReadOnlyList<AssistantTerminalReference> Terminals,
-    AssistantPermissionRequirements RequiredPermissions);
+    AssistantPermissionRequirements RequiredPermissions)
+{
+    /// <summary>The reads the engine runs before the first step, in their order: never tools, outside the sixteen definitions.</summary>
+    public IReadOnlyList<AssistantCapabilityDefinition> Preloaded { get; init; } = [];
+}

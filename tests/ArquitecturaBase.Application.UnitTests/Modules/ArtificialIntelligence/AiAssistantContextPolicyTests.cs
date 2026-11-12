@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using ArquitecturaBase.Application.Common.Pagination;
+using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Configuration;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Persistence;
@@ -65,7 +66,7 @@ public sealed partial class AiAssistantContextPolicyTests
         public Protector Protector { get; } = new();
         public AiAssistantClaimResponse Claim { get; }
         public AiAssistantContextPolicy Policy { get; }
-        public Host(string culture, int[]? profileVersions = null, AiAssistantLimits? limits = null)
+        public Host(string culture, int[]? profileVersions = null, AiAssistantLimits? limits = null, IAssistantCapabilitySource[]? sources = null)
         {
             var users = Users;
             var actor = users.AddUser("fictional@example.test");
@@ -84,7 +85,7 @@ public sealed partial class AiAssistantContextPolicyTests
             var row = Reader.Row;
             Claim = new(row.Id, actor.Id, row.ConversationId, row.RequestId, row.Fence, row.AttemptId!.Value, row.DeadlineAtUtc!.Value, culture);
             var profiles = (profileVersions ?? [1]).Select(version => new AiAssistantModelProfile(AiProvider.OpenAI, "model", limits.ContextBytes, true, true) { Id = "home", Version = version }).ToArray();
-            var catalog = new AiAssistantCapabilityCatalogPolicy([], permissions);
+            var catalog = new AiAssistantCapabilityCatalogPolicy(sources ?? [], permissions);
             var guard = new AiAssistantAccessGuard(users, permissions, profiles, limits,
                 new FakeCurrentUser { UserId = actor.Id }, catalog, new([], [], new MemoryPrivateFileStore()));
             Guard = guard;

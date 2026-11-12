@@ -9,7 +9,9 @@ using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Configuration;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Services;
+using ArquitecturaBase.Application.Models.SystemQueries;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Models;
+using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Resources;
 using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
 using ArquitecturaBase.Domain.Results;
 
@@ -22,7 +24,11 @@ internal sealed class AiAssistantExecutionService(AiAssistantContextPolicy conte
     private static readonly Meter _meter = new("ArquitecturaBase.AiAssistant", "1.0");
     private static readonly Histogram<double> _toolLatency = _meter.CreateHistogram<double>("ai.assistant.tool.duration", "s");
     public Task<Result<AiAssistantExecutionContextResponse>> PrepareAsync(AiAssistantClaimResponse claim, CancellationToken cancellationToken) =>
-        OperationLog.RunAsync<Result<AiAssistantExecutionContextResponse>>(logger, "PrepareAssistant", () => contexts.PrepareAsync(claim, cancellationToken));
+        OperationLog.RunAsync<Result<AiAssistantExecutionContextResponse>>(logger, "PrepareAssistant", async () =>
+        {
+            var prepared = await contexts.PrepareAsync(claim, cancellationToken);
+            return prepared.IsFailure ? prepared : await PreloadAsync(prepared.Value, cancellationToken);
+        });
 
     public Task<Result<LlmConversationResponse>> CallProviderAsync(AiAssistantExecutionContextResponse context, CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<LlmConversationResponse>>(logger, "CallProviderAsync", async () =>
@@ -80,11 +86,19 @@ internal sealed class AiAssistantExecutionService(AiAssistantContextPolicy conte
             {
                 if (terminals.Length != 1 || response.ToolCalls.Count != 1 ||
                     !context.ProviderRequest.Tools.Any(t => t.Name == terminals[0].Name)) return AiAssistantErrors.InvalidOutput;
+                // A terminal can close the first step: the preloads are recorded with it.
                 if (terminals[0].Name == "assistant_proposal")
                 {
+                    if (profile.ChannelContext.AllowedTerminals.Contains(new AssistantTerminalReference("assistant_proposal", 2)))
+                    {
+                        var selection = AiAssistantTerminalPolicy.ValidateProposals(profile.ChannelContext, context.Claim.TurnId,
+                            terminals[0].Name, terminals[0].ArgumentsJson, context.Proposals);
+                        return selection.IsFailure ? selection.Error : new AiAssistantAdvanceResponse(context, null, context.PreloadedTools, response.Usage)
+                            { Proposal = selection.Value[0], Proposals = selection.Value };
+                    }
                     var proposal = AiAssistantTerminalPolicy.ValidateProposal(profile.ChannelContext, context.Claim.TurnId,
                         terminals[0].Name, terminals[0].ArgumentsJson, context.Proposals);
-                    return proposal.IsFailure ? proposal.Error : new AiAssistantAdvanceResponse(context, null, [], response.Usage) { Proposal = proposal.Value };
+                    return proposal.IsFailure ? proposal.Error : new AiAssistantAdvanceResponse(context, null, context.PreloadedTools, response.Usage) { Proposal = proposal.Value };
                 }
                 if (profile.ChannelContext.AllowedTerminals.Contains(new AssistantTerminalReference("assistant_answer", 2)))
                 {
@@ -99,20 +113,20 @@ internal sealed class AiAssistantExecutionService(AiAssistantContextPolicy conte
                     }
                     var checkedAnswer = AiAssistantEvidenceVerifier.Verify(closing.Value.Answer, context.Evidences, selected is not null);
                     return checkedAnswer.IsFailure ? checkedAnswer.Error
-                        : new AiAssistantAdvanceResponse(context, closing.Value.Answer, [], response.Usage) { Proposal = selected };
+                        : new AiAssistantAdvanceResponse(context, closing.Value.Answer, context.PreloadedTools, response.Usage) { Proposal = selected };
                 }
                 if (!profile.ChannelContext.AllowedTerminals.Contains(new AssistantTerminalReference("assistant_answer", 1))) return AiAssistantErrors.InvalidOutput;
                 var answer = ParseAnswer(terminals[0].ArgumentsJson);
                 if (answer.IsFailure) return answer.Error;
                 var verified = AiAssistantEvidenceVerifier.Verify(answer.Value, context.Evidences);
-                return verified.IsFailure ? verified.Error : new AiAssistantAdvanceResponse(context, answer.Value, [], response.Usage);
+                return verified.IsFailure ? verified.Error : new AiAssistantAdvanceResponse(context, answer.Value, context.PreloadedTools, response.Usage);
             }
             if (context.ToolCalls + response.ToolCalls.Count > limits.ToolCalls) return AiAssistantErrors.LimitExceeded;
             var evidences = context.Evidences.ToList();
             var observed = context.ObservedTools.ToList();
             var proposals = context.Proposals.ToList();
             var reads = context.ObservedReads.ToList();
-            var fresh = new List<AiAssistantObservedTool>();
+            var fresh = context.PreloadedTools.ToList();
             var results = new List<LlmToolResult>();
             var bytes = context.ToolBytes;
             var culture = CultureInfo.GetCultureInfo(context.Turn.Culture);
@@ -127,91 +141,149 @@ internal sealed class AiAssistantExecutionService(AiAssistantContextPolicy conte
                     var reference = profile.ChannelContext.AllowedCapabilities.SingleOrDefault(c => c.Id == call.Name);
                     var definition = reference is null ? null : catalog.Find(reference);
                     if (definition is null || !context.ProviderRequest.Tools.Any(t => t.Name == call.Name)) return AiAssistantErrors.ToolRejected;
-                    var channel = profile.ChannelContext with { RequiredPermissions = definition.RequiredPermissions };
-                    if ((await guard.AuthorizeAsync(channel, cancellationToken)).IsFailure) return AiAssistantErrors.ToolRejected;
-                    if (Encoding.UTF8.GetByteCount(call.ArgumentsJson) > definition.Budget.InputBytes) return AiAssistantErrors.LimitExceeded;
-                    // The provider has not observed this batch's fresh reads yet. Only prior confirmed steps may authorize a proposal.
-                    if (context.ObservedReads.Any(r => r.TurnId != context.Claim.TurnId)) return AiAssistantErrors.ToolRejected;
-                    var request = new AssistantCapabilityRequest(context.Claim.TurnId, profile.ChannelContext, reference!, call.ArgumentsJson, context.ObservedReads)
-                        { Attachment = context.Attachment, Document = context.Document };
-                    var remaining = context.Claim.DeadlineAtUtc - timeProvider.GetUtcNow().UtcDateTime;
-                    if (remaining <= TimeSpan.Zero) return AiAssistantErrors.Expired;
-                    var timeoutLimit = TimeSpan.FromSeconds(Math.Min(limits.ToolTimeoutSeconds, definition.Budget.TimeoutSeconds));
-                    using var timeout = new CancellationTokenSource(remaining < timeoutLimit ? remaining : timeoutLimit, timeProvider);
-                    using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeout.Token);
-                    var started = timeProvider.GetTimestamp();
-                    Result<AssistantCapabilityResponse> result;
-                    try { result = await capabilities.ExecuteAsync(request, linked.Token); }
-                    catch (IOException) when (definition.Kind == AssistantCapabilityKind.Read && !cancellationToken.IsCancellationRequested)
-                    { result = AiAssistantErrors.ContentUnavailable; }
-                    catch (TimeoutException) when (definition.Kind == AssistantCapabilityKind.Read && !cancellationToken.IsCancellationRequested)
-                    { result = AiAssistantErrors.ContentUnavailable; }
-                    catch (OperationCanceledException) when (definition.Kind == AssistantCapabilityKind.Read && timeout.IsCancellationRequested
-                        && !cancellationToken.IsCancellationRequested && timeProvider.GetUtcNow().UtcDateTime < context.Claim.DeadlineAtUtc)
-                    { result = AiAssistantErrors.ContentUnavailable; }
-                    finally { _toolLatency.Record(timeProvider.GetElapsedTime(started).TotalSeconds, new KeyValuePair<string, object?>("tool", definition.Id)); }
-                    cancellationToken.ThrowIfCancellationRequested();
-                    var readTimedOut = definition.Kind == AssistantCapabilityKind.Read && timeout.IsCancellationRequested
-                        && timeProvider.GetUtcNow().UtcDateTime < context.Claim.DeadlineAtUtc;
-                    if (readTimedOut) result = AiAssistantErrors.ContentUnavailable;
-                    else linked.Token.ThrowIfCancellationRequested();
-                    if (timeProvider.GetUtcNow().UtcDateTime >= context.Claim.DeadlineAtUtc) return AiAssistantErrors.Expired;
-                    if (result.IsFailure && definition.Kind == AssistantCapabilityKind.Read
-                        && result.Error.Type is not (ErrorType.Validation or ErrorType.Unauthorized or ErrorType.Forbidden))
-                    {
-                        var unavailableJson = JsonSerializer.Serialize(new { state = "unavailable", code = result.Error.Code }, AiAssistantResponsePolicy.JsonOptions);
-                        var unavailableBytes = Encoding.UTF8.GetByteCount(unavailableJson);
-                        if (unavailableBytes > Math.Min(limits.ToolResultBytes, definition.Budget.OutputBytes)
-                            || bytes + unavailableBytes > limits.ToolAggregateBytes) return AiAssistantErrors.LimitExceeded;
-                        bytes += unavailableBytes;
-                        results.Add(new(call.CallId, call.Name, unavailableJson));
-                        var unavailable = new AiAssistantObservedTool(context.ToolCalls + results.Count, call.CallId, call.Name, definition.Version,
-                            definition.RequiredPermissions.Actor, null, unavailableJson, unavailableBytes)
-                        { State = "unavailable", ObservedAtUtc = timeProvider.GetUtcNow().UtcDateTime, Kind = AssistantCapabilityKind.Read };
-                        fresh.Add(unavailable);
-                        observed.Add(unavailable);
-                        // An unavailable read is durable progress, never authority for a proposal or absence.
-                        continue;
-                    }
-                    if (result.IsFailure) return result.Error;
-                    if (result.Value.ItemCount < 0 || result.Value.ItemCount > definition.Budget.MaximumItems) return AiAssistantErrors.LimitExceeded;
-                    var payloadJson = JsonSerializer.Serialize(result.Value.Payload, result.Value.Payload.GetType(), AiAssistantResponsePolicy.JsonOptions);
-                    if (catalog.ParseOutput(reference!, payloadJson).IsFailure) return AiAssistantErrors.InvalidOutput;
-                    var payload = JsonSerializer.SerializeToElement(result.Value.Payload, result.Value.Payload.GetType(), AiAssistantResponsePolicy.JsonOptions);
-                    // A rejected proposal goes back to the model with its reasons; it gets no Id, so it can never be selected.
-                    var proposalId = definition.Kind == AssistantCapabilityKind.Proposal && result.Value.State != "rejected" ? Guid.NewGuid() : (Guid?)null;
-                    // Home retains its existing state/evidence bytes; other owners expose only their typed payload.
-                    var json = result.Value.Payload is AssistantSystemQueryPayload ? payloadJson : proposalId is { } id
-                        ? JsonSerializer.Serialize(new { result.Value.State, proposalId = id, payload }, AiAssistantResponsePolicy.JsonOptions)
-                        : JsonSerializer.Serialize(new { result.Value.State, payload }, AiAssistantResponsePolicy.JsonOptions);
-                    var resultBytes = Encoding.UTF8.GetByteCount(json);
-                    if (resultBytes > Math.Min(limits.ToolResultBytes, definition.Budget.OutputBytes) || bytes + resultBytes > limits.ToolAggregateBytes) return AiAssistantErrors.LimitExceeded;
-                    foreach (var evidence in result.Value.Evidences)
-                    {
-                        if (evidence.SourceId != call.Name || evidence.SourceVersion != definition.Version || evidence.Id == Guid.Empty ||
-                            evidence.RequiredPermissions.Except(definition.RequiredPermissions.Actor, StringComparer.Ordinal).Any()) return AiAssistantErrors.InvalidOutput;
-                        evidences.Add(evidence);
-                    }
-                    bytes += resultBytes;
-                    results.Add(new(call.CallId, call.Name, json));
-                    var ordinal = context.ToolCalls + results.Count;
-                    var tool = new AiAssistantObservedTool(ordinal, call.CallId, call.Name, definition.Version,
-                        definition.RequiredPermissions.Actor, (result.Value.Evidences.Count == 0 ? null : result.Value.Evidences[0]), json, resultBytes)
-                    { State = result.Value.State, ObservedAtUtc = timeProvider.GetUtcNow().UtcDateTime, Kind = definition.Kind,
-                        ProposalId = proposalId, ReadOrdinals = context.ObservedReads.Select(r => r.Ordinal).ToArray() };
-                    fresh.Add(tool);
-                    observed.Add(tool);
-                    if (proposalId is { } generatedId)
-                        proposals.Add(new(context.Claim.TurnId, generatedId, reference!, result.Value.Payload) { ObservedReads = context.ObservedReads });
-                    else if (definition.Kind == AssistantCapabilityKind.Read) reads.Add(new(context.Claim.TurnId, ordinal, reference!, result.Value.Payload));
+                    // Ordinals follow every observed tool, the preloads included; ToolCalls counts only the model's calls.
+                    var outcome = await ObserveAsync(context, profile.ChannelContext, reference!, definition, call.CallId, call.ArgumentsJson,
+                        context.ObservedTools.Count + results.Count + 1, bytes, cancellationToken);
+                    if (outcome.IsFailure) return outcome.Error;
+                    var observation = outcome.Value;
+                    bytes += observation.Tool.Bytes;
+                    results.Add(observation.Result);
+                    evidences.AddRange(observation.Evidences);
+                    fresh.Add(observation.Tool);
+                    observed.Add(observation.Tool);
+                    if (observation.Proposal is { } proposal) proposals.Add(proposal);
+                    else if (observation.Read is { } read) reads.Add(read);
                 }
             }
             finally { CultureInfo.CurrentCulture = previousCulture; CultureInfo.CurrentUICulture = previousUiCulture; }
             var nextRequest = context.ProviderRequest with { Continuation = response.Continuation, ToolResults = results };
             var next = context with { ProviderRequest = nextRequest, Evidences = evidences, ObservedTools = observed, Proposals = proposals,
-                ObservedReads = reads, ToolCalls = context.ToolCalls + response.ToolCalls.Count, ToolBytes = bytes };
+                ObservedReads = reads, ToolCalls = context.ToolCalls + response.ToolCalls.Count, ToolBytes = bytes, PreloadedTools = [] };
             return new AiAssistantAdvanceResponse(next, null, fresh, response.Usage);
         });
+
+    // Casos del asistente: the reads the channel declared run once, in order, before the first step. They are observed reads like any
+    // other, numbered from the first ordinal and recorded with the first step, and they go at the start of the request as data, with
+    // each one's description, because they are never tools. A technical purpose has none.
+    internal async Task<Result<AiAssistantExecutionContextResponse>> PreloadAsync(AiAssistantExecutionContextResponse context, CancellationToken cancellationToken)
+    {
+        var profile = context.ExecutionProfile;
+        if (profile is null || AiAssistantChannelPolicy.IsTechnical(profile.Purpose) || profile.ChannelContext.PreloadedCapabilities is not { Count: > 0 } preloads)
+            return context;
+        var tools = context.ObservedTools.ToList();
+        var reads = context.ObservedReads.ToList();
+        var evidences = context.Evidences.ToList();
+        var preloaded = new List<AiAssistantObservedTool>();
+        var blocks = new List<object>();
+        var bytes = context.ToolBytes;
+        var culture = CultureInfo.GetCultureInfo(context.Turn.Culture);
+        var previousCulture = CultureInfo.CurrentCulture;
+        var previousUiCulture = CultureInfo.CurrentUICulture;
+        try
+        {
+            CultureInfo.CurrentCulture = culture;
+            CultureInfo.CurrentUICulture = culture;
+            foreach (var reference in preloads)
+            {
+                if (catalog.Find(reference) is not { Kind: AssistantCapabilityKind.Read } definition) return AiAssistantErrors.ToolRejected;
+                var ordinal = tools.Count + 1;
+                var outcome = await ObserveAsync(context, profile.ChannelContext, reference, definition, "preload-" + ordinal.ToString(CultureInfo.InvariantCulture),
+                    "{}", ordinal, bytes, cancellationToken);
+                if (outcome.IsFailure) return outcome.Error;
+                var observation = outcome.Value;
+                bytes += observation.Tool.Bytes;
+                tools.Add(observation.Tool);
+                preloaded.Add(observation.Tool);
+                evidences.AddRange(observation.Evidences);
+                if (observation.Read is { } read) reads.Add(read);
+                blocks.Add(new { capability = reference.Id, reference.Version, definition.Description,
+                    result = JsonSerializer.Deserialize<JsonElement>(observation.Result.ResultJson) });
+            }
+        }
+        finally { CultureInfo.CurrentCulture = previousCulture; CultureInfo.CurrentUICulture = previousUiCulture; }
+        var block = AssistantTexts.Get("Prompt.PreloadedReads", context.Turn.Culture) + "\n" + JsonSerializer.Serialize(blocks, AiAssistantResponsePolicy.JsonOptions);
+        var request = context.ProviderRequest with { Messages = [new("user", block), .. context.ProviderRequest.Messages] };
+        if (RequestBytes(request) > limits.ContextBytes) return AiAssistantErrors.LimitExceeded;
+        return context with { ProviderRequest = request, ObservedTools = tools, ObservedReads = reads, Evidences = evidences, ToolBytes = bytes,
+            PreloadedTools = preloaded };
+    }
+
+    // One capability call, from the model or preloaded, authorized, bounded and observed the same way. A recoverable read failure is an
+    // unavailable result, durable progress that never authorizes a proposal or an absence; validation, authorization and cancellation end it.
+    private async Task<Result<Observation>> ObserveAsync(AiAssistantExecutionContextResponse context, AssistantChannelContext channelContext,
+        AssistantCapabilityReference reference, AssistantCapabilityDefinition definition, string callId, string arguments, int ordinal, int bytes,
+        CancellationToken cancellationToken)
+    {
+        var channel = channelContext with { RequiredPermissions = definition.RequiredPermissions };
+        if ((await guard.AuthorizeAsync(channel, cancellationToken)).IsFailure) return AiAssistantErrors.ToolRejected;
+        if (Encoding.UTF8.GetByteCount(arguments) > definition.Budget.InputBytes) return AiAssistantErrors.LimitExceeded;
+        // The provider has not observed this batch's fresh reads yet. Only prior confirmed steps, or the preloads, may authorize a proposal.
+        if (context.ObservedReads.Any(r => r.TurnId != context.Claim.TurnId)) return AiAssistantErrors.ToolRejected;
+        var request = new AssistantCapabilityRequest(context.Claim.TurnId, channelContext, reference, arguments, context.ObservedReads)
+            { Attachment = context.Attachment, Document = context.Document };
+        var remaining = context.Claim.DeadlineAtUtc - timeProvider.GetUtcNow().UtcDateTime;
+        if (remaining <= TimeSpan.Zero) return AiAssistantErrors.Expired;
+        var timeoutLimit = TimeSpan.FromSeconds(Math.Min(limits.ToolTimeoutSeconds, definition.Budget.TimeoutSeconds));
+        using var timeout = new CancellationTokenSource(remaining < timeoutLimit ? remaining : timeoutLimit, timeProvider);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeout.Token);
+        var started = timeProvider.GetTimestamp();
+        Result<AssistantCapabilityResponse> result;
+        try { result = await capabilities.ExecuteAsync(request, linked.Token); }
+        catch (IOException) when (definition.Kind == AssistantCapabilityKind.Read && !cancellationToken.IsCancellationRequested)
+        { result = AiAssistantErrors.ContentUnavailable; }
+        catch (TimeoutException) when (definition.Kind == AssistantCapabilityKind.Read && !cancellationToken.IsCancellationRequested)
+        { result = AiAssistantErrors.ContentUnavailable; }
+        catch (OperationCanceledException) when (definition.Kind == AssistantCapabilityKind.Read && timeout.IsCancellationRequested
+            && !cancellationToken.IsCancellationRequested && timeProvider.GetUtcNow().UtcDateTime < context.Claim.DeadlineAtUtc)
+        { result = AiAssistantErrors.ContentUnavailable; }
+        finally { _toolLatency.Record(timeProvider.GetElapsedTime(started).TotalSeconds, new KeyValuePair<string, object?>("tool", definition.Id)); }
+        cancellationToken.ThrowIfCancellationRequested();
+        var readTimedOut = definition.Kind == AssistantCapabilityKind.Read && timeout.IsCancellationRequested
+            && timeProvider.GetUtcNow().UtcDateTime < context.Claim.DeadlineAtUtc;
+        if (readTimedOut) result = AiAssistantErrors.ContentUnavailable;
+        else linked.Token.ThrowIfCancellationRequested();
+        if (timeProvider.GetUtcNow().UtcDateTime >= context.Claim.DeadlineAtUtc) return AiAssistantErrors.Expired;
+        if (result.IsFailure && definition.Kind == AssistantCapabilityKind.Read
+            && result.Error.Type is not (ErrorType.Validation or ErrorType.Unauthorized or ErrorType.Forbidden))
+        {
+            var unavailableJson = JsonSerializer.Serialize(new { state = "unavailable", code = result.Error.Code }, AiAssistantResponsePolicy.JsonOptions);
+            var unavailableBytes = Encoding.UTF8.GetByteCount(unavailableJson);
+            if (unavailableBytes > Math.Min(limits.ToolResultBytes, definition.Budget.OutputBytes)
+                || bytes + unavailableBytes > limits.ToolAggregateBytes) return AiAssistantErrors.LimitExceeded;
+            var unavailable = new AiAssistantObservedTool(ordinal, callId, reference.Id, definition.Version,
+                definition.RequiredPermissions.Actor, null, unavailableJson, unavailableBytes)
+            { State = "unavailable", ObservedAtUtc = timeProvider.GetUtcNow().UtcDateTime, Kind = AssistantCapabilityKind.Read };
+            return new Observation(new(callId, reference.Id, unavailableJson), unavailable, [], null, null);
+        }
+        if (result.IsFailure) return result.Error;
+        if (result.Value.ItemCount < 0 || result.Value.ItemCount > definition.Budget.MaximumItems) return AiAssistantErrors.LimitExceeded;
+        var payloadJson = JsonSerializer.Serialize(result.Value.Payload, result.Value.Payload.GetType(), AiAssistantResponsePolicy.JsonOptions);
+        if (catalog.ParseOutput(reference, payloadJson).IsFailure) return AiAssistantErrors.InvalidOutput;
+        var payload = JsonSerializer.SerializeToElement(result.Value.Payload, result.Value.Payload.GetType(), AiAssistantResponsePolicy.JsonOptions);
+        // A rejected proposal goes back to the model with its reasons; it gets no Id, so it can never be selected.
+        var proposalId = definition.Kind == AssistantCapabilityKind.Proposal && result.Value.State != "rejected" ? Guid.NewGuid() : (Guid?)null;
+        // Home retains its existing state/evidence bytes; other owners expose only their typed payload.
+        var json = result.Value.Payload is AssistantSystemQueryPayload ? payloadJson : proposalId is { } id
+            ? JsonSerializer.Serialize(new { result.Value.State, proposalId = id, payload }, AiAssistantResponsePolicy.JsonOptions)
+            : JsonSerializer.Serialize(new { result.Value.State, payload }, AiAssistantResponsePolicy.JsonOptions);
+        var resultBytes = Encoding.UTF8.GetByteCount(json);
+        if (resultBytes > Math.Min(limits.ToolResultBytes, definition.Budget.OutputBytes) || bytes + resultBytes > limits.ToolAggregateBytes) return AiAssistantErrors.LimitExceeded;
+        foreach (var evidence in result.Value.Evidences)
+            if (evidence.SourceId != reference.Id || evidence.SourceVersion != definition.Version || evidence.Id == Guid.Empty ||
+                evidence.RequiredPermissions.Except(definition.RequiredPermissions.Actor, StringComparer.Ordinal).Any()) return AiAssistantErrors.InvalidOutput;
+        var tool = new AiAssistantObservedTool(ordinal, callId, reference.Id, definition.Version,
+            definition.RequiredPermissions.Actor, (result.Value.Evidences.Count == 0 ? null : result.Value.Evidences[0]), json, resultBytes)
+        { State = result.Value.State, ObservedAtUtc = timeProvider.GetUtcNow().UtcDateTime, Kind = definition.Kind,
+            ProposalId = proposalId, ReadOrdinals = context.ObservedReads.Select(r => r.Ordinal).ToArray() };
+        AssistantObservedProposal? proposal = proposalId is { } generatedId
+            ? new(context.Claim.TurnId, generatedId, reference, result.Value.Payload) { ObservedReads = context.ObservedReads } : null;
+        AssistantObservedRead? read = proposal is null && definition.Kind == AssistantCapabilityKind.Read
+            ? new(context.Claim.TurnId, ordinal, reference, result.Value.Payload) : null;
+        return new Observation(new(callId, reference.Id, json), tool, result.Value.Evidences, read, proposal);
+    }
+
+    private sealed record Observation(LlmToolResult Result, AiAssistantObservedTool Tool, IReadOnlyList<SystemQueryEvidence> Evidences,
+        AssistantObservedRead? Read, AssistantObservedProposal? Proposal);
 
     private static Result<AiAssistantAnswer> ParseAnswer(string arguments)
     {

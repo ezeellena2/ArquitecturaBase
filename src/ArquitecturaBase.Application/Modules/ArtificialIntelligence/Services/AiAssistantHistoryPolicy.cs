@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Models;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Resources;
 
@@ -27,9 +28,11 @@ internal static class AiAssistantHistoryPolicy
             else if (asked.Trim().Length == 0 && turn.AttachedDocument is { } document)
                 asked = string.Format(CultureInfo.InvariantCulture, AssistantTexts.Get("Prompt.AttachedDocument", culture), Quoted(document));
             var answer = turn.Answer?.Text ?? "";
-            if (latest)
+            // A turn closed with assistant_proposal@2 shows each of its proposals, in order.
+            IReadOnlyList<AssistantObservedProposal> shown = !latest ? [] : turn.ObservedProposals.Count != 0 ? turn.ObservedProposals : [turn.ObservedProposal!];
+            foreach (var proposal in shown)
                 answer += (answer.Length == 0 ? "" : "\n\n") + string.Format(CultureInfo.InvariantCulture, AssistantTexts.Get("Prompt.PreviousProposal", culture),
-                    JsonSerializer.Serialize(turn.ObservedProposal!.Payload, turn.ObservedProposal.Payload.GetType(), AiAssistantResponsePolicy.JsonOptions));
+                    JsonSerializer.Serialize(proposal.Payload, proposal.Payload.GetType(), AiAssistantResponsePolicy.JsonOptions));
             var length = asked.Length + answer.Length;
             if (used + length > historyCharacters) continue;
             used += length;

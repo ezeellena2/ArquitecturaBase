@@ -53,7 +53,7 @@ internal sealed class AiAssistantOperations(IAiConnectionReader connectionReader
             var provenance = new AssistantOperationProvenance(captured.Value.ModelProfileId, captured.Value.ModelProfileVersion,
                 captured.Value.InstructionsId, captured.Value.InstructionsVersion, occurredAtUtc, captured.Value.ChannelContext.ChannelId);
             return new AssistantOperationResponse(requestId, mapped.Value.State, mapped.Value.ObservedProposal, provenance, row.FailureCode)
-                { NormalizedAudio = mapped.Value.NormalizedAudio, DocumentReading = mapped.Value.DocumentReading };
+                { NormalizedAudio = mapped.Value.NormalizedAudio, DocumentReading = mapped.Value.DocumentReading, Proposals = mapped.Value.ObservedProposals };
         });
 
 }

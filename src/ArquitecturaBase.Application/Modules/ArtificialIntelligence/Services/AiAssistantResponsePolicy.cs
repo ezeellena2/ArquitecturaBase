@@ -53,6 +53,7 @@ internal sealed class AiAssistantResponsePolicy(IAiConversationProtector protect
         string? question = null;
         AiAssistantAnswer? answer = null;
         AssistantObservedProposal? proposal = null;
+        IReadOnlyList<AssistantObservedProposal> proposals = [];
         AssistantNormalizedAudio? normalizedAudio = null;
         StructuredDocumentReading? documentReading = null;
         AiAssistantTurnAudioResponse? audio = null;
@@ -103,6 +104,14 @@ internal sealed class AiAssistantResponsePolicy(IAiConversationProtector protect
                     var decoded = DecodeProposal(row, json);
                     if (decoded.IsFailure) return decoded.Error;
                     (proposal, answer) = decoded.Value;
+                    if (proposal is not null) proposals = [proposal];
+                }
+                else if (IsKind(json, "proposals"))
+                {
+                    var decoded = DecodeProposals(row, json);
+                    if (decoded.IsFailure) return decoded.Error;
+                    proposals = decoded.Value;
+                    proposal = proposals[0];
                 }
                 else answer = JsonSerializer.Deserialize<AiAssistantAnswer>(json, JsonOptions);
             }
@@ -122,7 +131,7 @@ internal sealed class AiAssistantResponsePolicy(IAiConversationProtector protect
             row.Revision, State(row.State), row.Stage, access, question, answer, evidences, failure, usage,
             row.Culture, row.TimeZoneId, row.SubmittedAtUtc, now, pollingAfterSeconds)
         {
-            CancelRequestedAtUtc = row.CancelRequestedAtUtc, ObservedProposal = proposal, NormalizedAudio = normalizedAudio, DocumentReading = documentReading,
+            CancelRequestedAtUtc = row.CancelRequestedAtUtc, ObservedProposal = proposal, ObservedProposals = proposals, NormalizedAudio = normalizedAudio, DocumentReading = documentReading,
             Audio = audio, Attachment = attachment, AttachedDocument = attachedDocument,
             Proposal = proposal is null ? null : new AiAssistantProposalResponse(proposal.Id, proposal.Capability.Id, proposal.Capability.Version,
                 JsonSerializer.SerializeToElement(proposal.Payload, proposal.Payload.GetType(), JsonOptions)),
@@ -175,6 +184,43 @@ internal sealed class AiAssistantResponsePolicy(IAiConversationProtector protect
                 if (text.ValueKind != JsonValueKind.String || evidence.ValueKind != JsonValueKind.Array) return AiAssistantErrors.ContentUnavailable;
                 answer = new AiAssistantAnswer("proposal", text.GetString()!, evidence.EnumerateArray().Select(id => id.GetGuid()).ToArray());
             }
+            return DecodeSelected(row, ordinal, answer);
+        }
+        catch (Exception exception) when (exception is JsonException or InvalidOperationException or FormatException)
+        { return AiAssistantErrors.ContentUnavailable; }
+    }
+
+    // assistant_proposal@2 (Casos del asistente): two or three selected proposals, in their order; a channel needs each one.
+    private Result<IReadOnlyList<AssistantObservedProposal>> DecodeProposals(AiAssistantTurnRow row, string json)
+    {
+        try
+        {
+            using var selected = JsonDocument.Parse(json);
+            var root = selected.RootElement;
+            if (!Closed(root, "kind", "ordinals") || root.GetProperty("kind").GetString() != "proposals" ||
+                root.GetProperty("ordinals") is not { ValueKind: JsonValueKind.Array } values ||
+                values.GetArrayLength() is < 2 or > AiAssistantTerminalPolicy.MaximumSelected) return AiAssistantErrors.ContentUnavailable;
+            var proposals = new List<AssistantObservedProposal>();
+            var seen = new HashSet<int>();
+            foreach (var value in values.EnumerateArray())
+            {
+                if (!value.TryGetInt32(out var ordinal) || !seen.Add(ordinal)) return AiAssistantErrors.ContentUnavailable;
+                var decoded = DecodeSelected(row, ordinal, null);
+                if (decoded.IsFailure) return decoded.Error;
+                if (decoded.Value.Proposal is not { } proposal) return AiAssistantErrors.ContentUnavailable;
+                proposals.Add(proposal);
+            }
+            return Result.Success<IReadOnlyList<AssistantObservedProposal>>(proposals);
+        }
+        catch (Exception exception) when (exception is JsonException or InvalidOperationException or FormatException)
+        { return AiAssistantErrors.ContentUnavailable; }
+    }
+
+    // The proposal stored at an ordinal, with the reads it observed.
+    private Result<(AssistantObservedProposal? Proposal, AiAssistantAnswer? Answer)> DecodeSelected(AiAssistantTurnRow row, int ordinal, AiAssistantAnswer? answer)
+    {
+        try
+        {
             var result = row.ToolResults.SingleOrDefault(t => t.Ordinal == ordinal);
             if (result is null || result.ProtectedResult is null) return AiAssistantErrors.ContentUnavailable;
             var reference = new AssistantCapabilityReference(result.ToolId, result.Version);

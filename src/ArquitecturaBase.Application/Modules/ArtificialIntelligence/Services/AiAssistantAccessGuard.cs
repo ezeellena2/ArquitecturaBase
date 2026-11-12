@@ -99,9 +99,14 @@ internal sealed class AiAssistantAccessGuard(IUserReader users, IPermissionServi
         var profile = profiles.Where(p => p.Provider == connection.Provider && p.Model == connection.Model && p.SupportsTools &&
             p.SupportsTerminalAnswer && p.ContextBytes >= limits.ContextBytes).OrderByDescending(p => p.Version).ThenBy(p => p.Id, StringComparer.Ordinal).FirstOrDefault();
         if (profile is null) return AiAssistantErrors.Unavailable;
+        // A capability that drafts text goes only with a profile qualified to draft (ADR 0021), so it neither counts nor reserves otherwise.
+        if (!profile.QualifiedToDraft)
+            channel = channel with { AllowedCapabilities = channel.AllowedCapabilities.Where(reference => catalog.Find(reference)?.DraftsText != true).ToArray() };
         var offered = await catalog.BuildAsync(channel, attachment, ct);
         if (offered.IsFailure) return offered.Error;
         channel = channel with { AllowedCapabilities = offered.Value.Capabilities.Select(d => new AssistantCapabilityReference(d.Id, d.Version)).ToArray(),
+            PreloadedCapabilities = offered.Value.Preloaded.Count == 0 ? null
+                : offered.Value.Preloaded.Select(d => new AssistantCapabilityReference(d.Id, d.Version)).ToArray(),
             RequiredPermissions = offered.Value.RequiredPermissions };
         return new AiAssistantExecutionProfileSnapshot(profile.Id, profile.Version, instructionsId, instructionsVersion, channel)
             { OccurredAtUtc = occurredAtUtc, Attachment = attachment };
@@ -116,7 +121,8 @@ internal sealed class AiAssistantAccessGuard(IUserReader users, IPermissionServi
             DocumentProfile(snapshot, connection) is not null,
         _ => AiAssistantChannelPolicy.KnownInstructions(snapshot.InstructionsId, snapshot.InstructionsVersion) &&
             profiles.Any(p => p.Id == snapshot.ModelProfileId && p.Version == snapshot.ModelProfileVersion && p.Provider == connection.Provider &&
-                p.Model == connection.Model && p.SupportsTools && p.SupportsTerminalAnswer && p.ContextBytes >= limits.ContextBytes),
+                p.Model == connection.Model && p.SupportsTools && p.SupportsTerminalAnswer && p.ContextBytes >= limits.ContextBytes &&
+                (p.QualifiedToDraft || !snapshot.ChannelContext.AllowedCapabilities.Any(capability => catalog.Find(capability)?.DraftsText == true))),
     };
 
     public string Availability(AiConnectionRow connection)

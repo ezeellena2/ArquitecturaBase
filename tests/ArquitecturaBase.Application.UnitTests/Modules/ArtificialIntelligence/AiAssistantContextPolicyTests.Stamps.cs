@@ -89,8 +89,9 @@ public sealed partial class AiAssistantContextPolicyTests
         host.Reader.Row = host.Reader.Row with { ChannelId = "fixture-original-time", ExecutionProfileJson = JsonSerializer.Serialize(captured, AiAssistantResponsePolicy.JsonOptions) };
         var result = await host.Policy.PrepareAsync(host.Claim, TestContext.Current.CancellationToken);
         Assert.True(result.IsSuccess);
-        Assert.Contains("2026-06-01T23:45:00.0000000Z", result.Value.ProviderRequest.SystemPrompt, StringComparison.Ordinal);
-        Assert.Contains("UTC", result.Value.ProviderRequest.SystemPrompt, StringComparison.Ordinal);
+        // Casos del asistente: the time goes at the end of the current message, so the instructions stay the same from turn to turn.
+        Assert.Contains("2026-06-01T23:45:00.0000000Z", result.Value.ProviderRequest.Messages[^1].Text, StringComparison.Ordinal);
+        Assert.DoesNotContain("2026-06-01T23:45:00.0000000Z", result.Value.ProviderRequest.SystemPrompt, StringComparison.Ordinal);
     }
 
     private static AiAssistantExecutionProfileSnapshot CapturedHomeProfile(Host host) =>

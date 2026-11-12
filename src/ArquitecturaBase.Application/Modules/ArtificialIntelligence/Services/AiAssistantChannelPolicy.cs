@@ -62,6 +62,7 @@ internal static class AiAssistantChannelPolicy
         requested.ChannelConversationId == captured.ChannelConversationId &&
         requested.Culture == captured.Culture && requested.TimeZoneId == captured.TimeZoneId &&
         captured.AllowedCapabilities.All(requested.AllowedCapabilities.Contains) &&
+        (captured.PreloadedCapabilities ?? []).All((requested.PreloadedCapabilities ?? []).Contains) &&
         requested.AllowedTerminals.ToHashSet().SetEquals(captured.AllowedTerminals) &&
         requested.RequiredPermissions.Actor.All(captured.RequiredPermissions.Actor.Contains) &&
         requested.RequiredPermissions.Subject.All(captured.RequiredPermissions.Subject.Contains);

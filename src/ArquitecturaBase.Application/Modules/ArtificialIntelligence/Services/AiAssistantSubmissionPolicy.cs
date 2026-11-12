@@ -68,7 +68,7 @@ internal sealed class AiAssistantSubmissionPolicy(IAiAssistantRepository reposit
         // the file.
         if (string.IsNullOrWhiteSpace(request.Text) && (request.Attachment is null || request.PreviousRequestId is null) ||
             request.Text.Length > limits.QuestionCharacters ||
-            request.Context.AllowedTerminals.Count != 1 || request.Context.AllowedTerminals[0] != new AssistantTerminalReference("assistant_proposal", 1))
+            request.Context.AllowedTerminals is not [{ Id: "assistant_proposal", Version: 1 or 2 }])
             return AiAssistantErrors.Invalid;
         return null;
     }

@@ -39,6 +39,9 @@ public sealed record AssistantCapabilityDefinition(
         AssistantCapabilityAttachment.NoDocument => attachment != AssistantAttachmentKind.Document,
         _ => false,
     };
+
+    /// <summary>The proposal carries text the model wrote for people: offered only with a model profile qualified to draft (ADR 0021).</summary>
+    public bool DraftsText { get; init; }
 }
 
 /// <summary>Trusted server context; it is never an HTTP or model-supplied contract.</summary>
@@ -57,6 +60,10 @@ public sealed record AssistantChannelContext(
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public Guid? SourceRecordId { get; init; }
+
+    /// <summary>Reads the engine runs before the first step, in this order, and sends at the start of the request as data; never tools.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<AssistantCapabilityReference>? PreloadedCapabilities { get; init; }
 
     public override string ToString() => "AssistantChannelContext { Identity = [REDACTED] }";
 }

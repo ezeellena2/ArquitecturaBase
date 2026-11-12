@@ -64,6 +64,19 @@ internal sealed class AssistantOperationsFixture
 
     public (AiAssistantTurn Turn, AssistantObservedProposal Proposal, DateTime OccurredAtUtc) SeedCompleted()
     {
+        var (turn, proposals, occurredAtUtc) = Seed(1);
+        return (turn, proposals[0], occurredAtUtc);
+    }
+
+    // Casos del asistente: a turn closed with assistant_proposal@2 on several proposals, stored with their ordinals in order.
+    public (AiAssistantTurn Turn, IReadOnlyList<AssistantObservedProposal> Proposals) SeedCompletedWithProposals(int count)
+    {
+        var (turn, proposals, _) = Seed(count);
+        return (turn, proposals);
+    }
+
+    private (AiAssistantTurn Turn, IReadOnlyList<AssistantObservedProposal> Proposals, DateTime OccurredAtUtc) Seed(int count)
+    {
         var now = Clock.GetUtcNow().UtcDateTime;
         var occurredAtUtc = now.AddMinutes(-10);
         var capturedContext = Context with { RequiredPermissions = new(Context.RequiredPermissions.Actor, ["formrecords.create"]) };
@@ -77,18 +90,21 @@ internal sealed class AssistantOperationsFixture
             throw new InvalidOperationException("The operation fixture profile must seal before claiming.");
         turn.ProtectQuestion(Protector.Protect(ActorId, conversation.Id, turn.Id, "question", turn.PayloadRevision, "Fictional private input"));
         if (turn.Claim(Guid.NewGuid(), now.AddSeconds(90)).IsFailure) throw new InvalidOperationException("The operation fixture must claim.");
-        var proposal = new AssistantObservedProposal(turn.Id, Guid.NewGuid(), new("fixture.proposal", 1), new RoundtripAssistantPayload(Source.ResourceId, Source.PrivateText));
-        var output = JsonSerializer.Serialize(new { output = new { state = "proposed", proposalId = proposal.Id,
-            payload = new { resourceId = Source.ResourceId, privateText = Source.PrivateText } }, readOrdinals = Array.Empty<int>() }, AiAssistantResponsePolicy.JsonOptions);
-        var protectedOutput = Protector.Protect(ActorId, conversation.Id, turn.Id, "tool:1", turn.PayloadRevision, output);
-        var selection = Protector.Protect(ActorId, conversation.Id, turn.Id, "answer", turn.PayloadRevision, "{\"kind\":\"proposal\",\"ordinal\":1}");
+        var proposals = Enumerable.Range(1, count).Select(_ => new AssistantObservedProposal(turn.Id, Guid.NewGuid(), new("fixture.proposal", 1),
+            new RoundtripAssistantPayload(Source.ResourceId, Source.PrivateText))).ToArray();
+        var outputs = proposals.Select(proposal => JsonSerializer.Serialize(new { output = new { state = "proposed", proposalId = proposal.Id,
+            payload = new { resourceId = Source.ResourceId, privateText = Source.PrivateText } }, readOrdinals = Array.Empty<int>() }, AiAssistantResponsePolicy.JsonOptions)).ToArray();
+        var selection = Protector.Protect(ActorId, conversation.Id, turn.Id, "answer", turn.PayloadRevision, count == 1 ? "{\"kind\":\"proposal\",\"ordinal\":1}"
+            : JsonSerializer.Serialize(new { kind = "proposals", ordinals = Enumerable.Range(1, count) }, AiAssistantResponsePolicy.JsonOptions));
         var evidences = Protector.Protect(ActorId, conversation.Id, turn.Id, "evidences", turn.PayloadRevision, "[]");
         if (turn.Complete(turn.Fence, selection, evidences, now).IsFailure) throw new InvalidOperationException("The operation fixture must complete.");
         Store.Conversations.Add(conversation);
         Store.Turns.Add(turn);
-        Store.Tools.Add(AiAssistantToolExecution.Create(turn.Id, 1, "fixture-call", "fixture.proposal", 1, [], "", now, protectedOutput, output.Length, "proposed"));
+        for (var index = 0; index < count; index++)
+            Store.Tools.Add(AiAssistantToolExecution.Create(turn.Id, index + 1, $"fixture-call-{index + 1}", "fixture.proposal", 1, [], "", now,
+                Protector.Protect(ActorId, conversation.Id, turn.Id, "tool:" + (index + 1), turn.PayloadRevision, outputs[index]), outputs[index].Length, "proposed"));
         Store.Receipts.Add(AiAssistantRequestReceipt.Create(ActorId, turn.RequestId, "fixture-fingerprint", "test", conversation.Id, turn.Id, now, now.AddDays(30), conversation.ChannelId, false));
-        return (turn, proposal, occurredAtUtc);
+        return (turn, proposals, occurredAtUtc);
     }
 }
 

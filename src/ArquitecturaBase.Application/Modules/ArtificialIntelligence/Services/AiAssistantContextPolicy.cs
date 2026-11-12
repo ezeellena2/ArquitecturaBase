@@ -39,7 +39,8 @@ internal sealed class AiAssistantContextPolicy(IAiAssistantReader reader, IAiCon
             ? new AiAssistantCapabilityCatalogResponse([], [], profile.Value.ChannelContext.RequiredPermissions)
             : await capabilities.BuildAsync(profile.Value.ChannelContext, file.Value, cancellationToken);
         if (offered.IsFailure) return offered.Error;
-        if (offered.Value.Capabilities.Count != profile.Value.ChannelContext.AllowedCapabilities.Count) return AiAssistantErrors.ContentBlocked;
+        if (offered.Value.Capabilities.Count != profile.Value.ChannelContext.AllowedCapabilities.Count ||
+            offered.Value.Preloaded.Count != (profile.Value.ChannelContext.PreloadedCapabilities?.Count ?? 0)) return AiAssistantErrors.ContentBlocked;
         var credential = credentialPolicy.Reveal(connection.Provider, connection.ProtectedApiKey);
         if (credential.IsFailure) return credential.Error;
         var question = responsePolicy.Reveal(turn, "question", turn.ProtectedQuestion);
@@ -107,21 +108,24 @@ internal sealed class AiAssistantContextPolicy(IAiAssistantReader reader, IAiCon
             if (mapped.Value.ContentAccess == "allowed" && (mapped.Value.Answer is not null || mapped.Value.ObservedProposal is not null)) history.Add(mapped.Value);
         }
         var messages = AiAssistantHistoryPolicy.Messages(history, limits.HistoryCharacters, turn.Culture).ToList();
+        // The message's time goes at the very end, after any file, so the instructions and what precedes it stay the same between turns.
+        if (profile.Value.OccurredAtUtc is { } occurredAtUtc)
+            question += "\n\n" + string.Format(CultureInfo.InvariantCulture, AssistantTexts.Get("Prompt.SourceTime", turn.Culture),
+                occurredAtUtc.ToString("O", CultureInfo.InvariantCulture), turn.TimeZoneId);
         messages.Add(new("user", question));
         const string proposalSchema = "{\"type\":\"object\",\"properties\":{\"proposalId\":{\"type\":\"string\"}},\"required\":[\"proposalId\"],\"additionalProperties\":false}";
+        const string proposalsSchema = "{\"type\":\"object\",\"properties\":{\"proposalIds\":{\"type\":\"array\",\"items\":{\"type\":\"string\"},\"minItems\":1,\"maxItems\":3}},\"required\":[\"proposalIds\"],\"additionalProperties\":false}";
         var tools = offered.Value.Capabilities.Select(d => new LlmToolDefinition(d.Id, d.Description, d.InputSchemaJson)).ToList();
         foreach (var terminal in offered.Value.Terminals)
             tools.Add(terminal switch
             {
                 { Id: "assistant_answer", Version: 2 } => new("assistant_answer", AssistantTexts.Get("Prompt.TerminalAnswerV2Description", turn.Culture), AnswerSchemaV2),
                 { Id: "assistant_answer" } => new("assistant_answer", AssistantTexts.Get("Prompt.TerminalAnswerDescription", turn.Culture), AnswerSchema),
+                { Id: "assistant_proposal", Version: 2 } => new("assistant_proposal", AssistantTexts.Get("Prompt.TerminalProposalV2Description", turn.Culture), proposalsSchema),
                 _ => new("assistant_proposal", AssistantTexts.Get("Prompt.TerminalProposalDescription", turn.Culture), proposalSchema),
             });
         var system = AssistantTexts.Get(profile.Value.InstructionsId != "home-system" ? "Prompt.CapabilitiesV1"
             : profile.Value.InstructionsVersion == AiAssistantChannelPolicy.HomeInstructionsVersion ? "Prompt.SystemV2" : "Prompt.SystemV1", turn.Culture);
-        if (profile.Value.OccurredAtUtc is { } occurredAtUtc)
-            system += "\n" + string.Format(CultureInfo.InvariantCulture, AssistantTexts.Get("Prompt.SourceTime", turn.Culture),
-                occurredAtUtc.ToString("O", CultureInfo.InvariantCulture), turn.TimeZoneId);
         var request = new LlmConversationRequest(turn.Provider, turn.Model, credential.Value, system, messages, tools, [], null,
             limits.OutputTokens, limits.ProviderResponseBytes, limits.ContinuationBytes);
         if (RequestBytes(request) > limits.ContextBytes) return AiAssistantErrors.LimitExceeded;

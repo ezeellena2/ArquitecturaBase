@@ -39,7 +39,10 @@ internal sealed class ObservedReadAssistantScenario
 
     // Home closes with assistant_answer@2, which may name one observed proposal; the other channels select it with assistant_proposal.
     // A channel's own conversation is the assistant mode with the actor as its Subject, and its seal keeps the original instant.
-    public ObservedReadAssistantScenario(Func<Guid, DateTime, string, ObservedReadAssistantStorePorts> createStore, bool home = false, bool ownConversation = false)
+    // With preloadRead the read is preloaded by the engine and only the proposal is a tool (Casos del asistente); proposalTerminal 2
+    // lets a channel select up to three proposals.
+    public ObservedReadAssistantScenario(Func<Guid, DateTime, string, ObservedReadAssistantStorePorts> createStore, bool home = false, bool ownConversation = false,
+        bool preloadRead = false, int proposalTerminal = 1)
     {
         Home = home;
         var users = Users;
@@ -56,6 +59,10 @@ internal sealed class ObservedReadAssistantScenario
                     { OccurredAtUtc = Clock.GetUtcNow().UtcDateTime.AddMinutes(-3) }
                 : new("observed-fixture", 1, "capabilities-v1", 1,
                     new(Store.Conversation.ChannelId, actor.Id, null, Store.Turn.Culture, Store.Turn.TimeZoneId, new([], []), capabilities, [new("assistant_proposal", 1)]));
+        if (preloadRead)
+            Profile = Profile with { ChannelContext = Profile.ChannelContext with { AllowedCapabilities = [capabilities[1]], PreloadedCapabilities = [capabilities[0]] } };
+        if (proposalTerminal != 1 && !home)
+            Profile = Profile with { ChannelContext = Profile.ChannelContext with { AllowedTerminals = [new("assistant_proposal", proposalTerminal)] } };
         var catalog = new AiAssistantCapabilityCatalogPolicy([Source], Permissions);
         var limits = new AiAssistantLimits();
         var guard = new AiAssistantAccessGuard(users, Permissions,
@@ -90,9 +97,11 @@ internal sealed class ObservedReadAssistantScenario
         };
     }
 
+    // The tools are what the sealed profile offers, as ContextPolicy builds them: a preloaded read is never one.
     public AiAssistantExecutionContextResponse Context() => new(Claim, Row(),
         new(AiProvider.OpenAI, "model", "fictional-key", "Fictional read/proposal policy", [],
-            [new(ObservedReadAssistantSource.ReadId, "read", "{}"), new(ObservedReadAssistantSource.ProposalId, "proposal", "{}"),
+            [.. Profile.ChannelContext.AllowedCapabilities.Select(capability => new LlmToolDefinition(capability.Id,
+                capability.Id == ObservedReadAssistantSource.ReadId ? "read" : "proposal", "{}")),
                 new(Home ? "assistant_answer" : "assistant_proposal", "close", "{}")], [], null, 1500, 262144, 131072), [], [], 0, 0) { ExecutionProfile = Profile };
 
     public AiAssistantResponsePolicy ReloadedPolicy(ObservedReadAssistantSource codec) =>

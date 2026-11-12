@@ -6,4 +6,6 @@ public sealed record AiAssistantModelProfile(AiProvider Provider, string Model, 
 {
     public string Id { get; init; } = "";
     public int Version { get; init; } = 1;
+    /// <summary>Qualified with the cases of ADR 0021 to draft replies: only then is a capability that drafts text offered.</summary>
+    public bool QualifiedToDraft { get; init; }
 }

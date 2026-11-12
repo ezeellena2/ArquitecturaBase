@@ -13,6 +13,8 @@ public sealed record AiAssistantExecutionContextResponse(AiAssistantClaimRespons
     public AiAssistantExecutionProfileSnapshot? ExecutionProfile { get; init; }
     public IReadOnlyList<AssistantObservedProposal> Proposals { get; init; } = [];
     public IReadOnlyList<AssistantObservedRead> ObservedReads { get; init; } = [];
+    /// <summary>The preloads observed before the first step, recorded with that step's progress or completion.</summary>
+    public IReadOnlyList<AiAssistantObservedTool> PreloadedTools { get; init; } = [];
     /// <summary>The turn's prepared spreadsheet, revealed once to build the request; each capability call receives it.</summary>
     public StructuredSpreadsheet? Attachment { get; init; }
     /// <summary>The turn's read document, revealed the same way; each capability call receives it apart from the spreadsheet.</summary>
@@ -32,7 +34,10 @@ public sealed record AiAssistantObservedTool(int Ordinal, string CallId, string 
 public sealed record AiAssistantAdvanceResponse(AiAssistantExecutionContextResponse Context, AiAssistantAnswer? Answer,
     IReadOnlyList<AiAssistantObservedTool> NewTools, LlmConversationUsage? Usage)
 {
+    /// <summary>The selected proposal, the first one when assistant_proposal@2 selects several.</summary>
     public AssistantObservedProposal? Proposal { get; init; }
+    /// <summary>Every proposal selected by assistant_proposal@2, in the model's order; empty with the other terminals.</summary>
+    public IReadOnlyList<AssistantObservedProposal> Proposals { get; init; } = [];
     public AssistantNormalizedAudio? NormalizedAudio { get; init; }
     public StructuredDocumentReading? DocumentReading { get; init; }
     public bool IsComplete => Answer is not null || Proposal is not null || NormalizedAudio is not null || DocumentReading is not null;
