@@ -92,12 +92,13 @@ internal static partial class AgentOracle
         return checks;
     }
 
-    // One to three proposals of this turn, the first being the operation's, each from a capability the turn observed complete and of a
-    // kind its owner proposes.
+    // One to three proposals of this turn, the first being the operation's, each of a kind its owner proposes and from a capability the
+    // turn observed with the owner's own state (WhatsApp records «complete», a form registration «proposed»), never rejected or unavailable.
     private static bool ClosesOnObserved(AgentTurn turn) => turn.Proposals.Count is >= 1 and <= 3 && turn.First is { } first
         && first.Id == turn.Proposals[0].Id && turn.Proposals.Select(proposal => proposal.Id).Distinct().Count() == turn.Proposals.Count
         && turn.Proposals.All(proposal => proposal.TurnId == first.TurnId && Describe(proposal) is not null
-            && turn.Tools.Any(tool => tool.Id == proposal.Capability.Id && tool.Version == proposal.Capability.Version && tool.State == "complete"));
+            && turn.Tools.Any(tool => tool.Id == proposal.Capability.Id && tool.Version == proposal.Capability.Version
+                && tool.State is not ("rejected" or "unavailable")));
 
     private sealed record AgentAction(string Kind, string? Case, string? HandoffReason);
 

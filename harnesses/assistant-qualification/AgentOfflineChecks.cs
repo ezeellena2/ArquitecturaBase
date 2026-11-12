@@ -310,6 +310,9 @@ internal static class AgentOfflineChecks
         var warranty = Reply(turn, "exactText", "warranty");
         var invoice = Reply(turn, "exactText", "invoice");
         Require(Checks(Case("agent-multi-es"), new AgentTurn(warranty, [warranty, invoice], Tools(warranty, invoice), Occurred)).All(check => check.Passed));
+        var registration = Registration(turn, Maintenance, []);
+        Require(!Checks(Case("agent-form-es"), new AgentTurn(registration, [registration], [.. Preloads(),
+            new(AgentOracle.Registration, 1, 500, "rejected")], Occurred)).All(check => check.Passed));
         var elsewhere = invoice with { TurnId = Guid.NewGuid() };
         Require(!Checks(Case("agent-multi-es"), new AgentTurn(warranty, [warranty, elsewhere], Tools(warranty, elsewhere), Occurred)).All(check => check.Passed));
     }
@@ -330,8 +333,11 @@ internal static class AgentOfflineChecks
 
     private static IEnumerable<ObservedCapability> Preloads() => AgentOracle.Preloaded.Select(reference => new ObservedCapability(reference.Id, reference.Version, 900, "complete"));
 
+    // Each owner records its proposal with its own state: WhatsApp's reply and draft «complete», a form registration «proposed» (as
+    // agent_drafting_20261112_02 observed); a rejected proposal is never selected.
     private static ObservedCapability[] Tools(params AssistantObservedProposal[] proposals) => [.. Preloads(), new(AgentOracle.Knowledge, 1, 1200, "complete"),
-        .. proposals.Select(proposal => new ObservedCapability(proposal.Capability.Id, proposal.Capability.Version, 500, "complete"))];
+        .. proposals.Select(proposal => new ObservedCapability(proposal.Capability.Id, proposal.Capability.Version, 500,
+            proposal.Capability.Id == AgentOracle.Registration ? "proposed" : "complete"))];
 
     private static WhatsAppAssistantKnowledgePayload Knowledge(bool injected = true) => new(true,
     [
