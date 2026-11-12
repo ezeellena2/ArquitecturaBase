@@ -93,7 +93,7 @@ public sealed class PaginationTests(ApiFactory factory)
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Equal(
-            "La página debe estar entre 1 y 1000000.",
+            "La página debe estar entre 1 y 1.000.000.",
             problem.GetProperty("errors").GetProperty("page")[0].GetString());
     }
 
