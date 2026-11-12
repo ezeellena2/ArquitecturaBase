@@ -762,10 +762,11 @@ Lo que el diseño no fijaba, resuelto con la opción más simple que cumple el p
 | `GET /api/ai/assistant/documents/{requestId}` | ídem | El estado, el archivo y la legibilidad, o la falla |
 | `POST /api/ai/assistant/turns` | ídem | Suma `documentRequestId`, opcional |
 | `POST /api/ai/assistant/file-turns` | ídem | Acepta también un Word |
-| `GET /api/forms/documents` | `formdocuments.read` | La planilla de la bandeja, con los filtros, la búsqueda y los conteos por estado |
+| `POST /api/forms/documents/search` | `formdocuments.read` | La planilla de la bandeja, con los filtros, la búsqueda, los conteos por estado y las facetas de formulario y de quien lo mandó; los filtros van en el cuerpo, nunca en la dirección (corregido en la revisión del front, 7b) |
 | `GET /api/forms/documents/counts` | ídem | Los que esperan a alguien del equipo, para el menú |
 | `GET /api/forms/documents/{id}` | ídem | La lectura, la propuesta con sus marcas y el historial |
 | `GET /api/forms/documents/{id}/file` | ídem | El archivo, sin caché y con `nosniff` |
+| `POST /api/forms/documents/{id}/options` | `formdocuments.review` | Buscar entre las opciones de un catálogo de más de 200 que puede elegir quien lo mandó, con el texto en el cuerpo (7b) |
 | `POST /api/forms/documents/{id}/discard` y `/reopen` | `formdocuments.review` | Descartar y volver a abrir, con revisión esperada |
 | `PUT /api/forms/documents/{id}/form` y `GET …/extraction` | ídem | Cambiar de formulario: vuelve a extraer con la lectura guardada; se espera como el audio |
 | `POST /api/forms/documents/{id}/records` | ídem | Pasar al formulario con lo revisado, idempotente por el UUID del pedido |
@@ -994,8 +995,10 @@ Hechas, cada una con su revisión adversarial y su corrección: la tarea 1 (47d1
 (front 1ab8d45f), la 7 (f2f2356a), la 11 (front 608e9ad2 y backend a80e3192), la 12 (093f184f), la 13 (front 3a1f4338 y backend
 87db44bc), la 15 (a1c8c8ea) y la 16 (front b8e538d6; las referencias de la planilla con renglones que bajó su fila de pestañas, en
 el front 5ac661af). Desde el 2026-11-12 el usuario pidió la revisión completa en todas las tareas, también en las chicas de front y
-documentación. Desde la tarea 13 Inicio también ofrece `propose-form@2`, así que en el cierre se repite con la 2 la mitad de Inicio
-de `ia-authoring` y de `ia-spreadsheets`, con el visto bueno del usuario. Ajustes al programar: el
+documentación. Desde la tarea 13 Inicio también ofrece `propose-form@2`. El chat de la IA escribió el set `home-documents` (40f27c08) y,
+con el visto bueno del usuario, lo calificó con el modelo real junto con la mitad de Inicio de `ia-authoring` y de
+`ia-spreadsheets` con la 2 (evidencia en [configurar IA](../guides/configurar-ia.md), 29f1087d): de la tarea 17 quedan
+`channel-documents`, `forms-documents` y las mitades automáticas. Ajustes al programar: el
 reenvío por WhatsApp de una captura rechazada pasó de la tarea 5 a la 9; «Derivar» lo arma casos del asistente y la tarea 9 lo
 llama; el tablero usa la zona del perfil de quien lee y un solo período; las cargas por un archivo no gastan los ofrecimientos
 del día; con un documento tampoco se ofrece `forms.missing-request.propose`; la biblioteca manda lo que lee cada estándar con
@@ -1263,7 +1266,7 @@ No hay rutas nuevas: el inventario no cambia. Cambian de forma:
 | `GET /api/whatsapp/chats/{id}/messages` | El tipo `Contact` con `contact` (`name` y `phones`); el reenvío con `prefill` (etiqueta y valor, con la privacidad de «Por qué lo mandó»); en la respuesta rechazada porque el envío ya tenía la suya, `savedNumber`; el pie de una carga y «Por qué lo propuso» de una planilla, con sus filas y el enlace a la bandeja |
 | `GET /api/whatsapp/chats` | La vista previa «Contacto», un texto más: la forma no cambia |
 | `GET /api/forms/records/{id}` | El historial suma `LocationReceived` con `questions`, `ContactReceived` y `SentAgain` |
-| `GET /api/forms/documents` y `GET /api/forms/documents/{id}` | `row` (`sheet` y `number`) en una entrada de planilla y a quién espera un propuesto (`waitsFor`: `person` o `team`), que el filtro «Propuestos» trae juntos; el detalle de una fila trae sus celdas con los encabezados en lugar del visor |
+| `POST /api/forms/documents/search` y `GET /api/forms/documents/{id}` | `row` (`sheet` y `number`) en una entrada de planilla; a quién espera un propuesto ya lo dicen `replyExpiresAtUtc` (la persona, hasta esa hora) y `forReview` (el equipo), que el filtro «Propuestos» trae juntos; el detalle de una fila trae sus celdas con los encabezados en lugar del visor |
 | `GET /api/forms/documents/{id}/file` | En una fila, baja la planilla |
 | `POST /api/forms/documents/{id}/discard` y `…/records` | Una fila que espera a la persona da 409 con su motivo mientras su envío no venció |
 
@@ -1365,7 +1368,7 @@ comparten.
 
 **Etapa V · Varias cargas desde un Excel (VC1-A),** después de las tareas 7 a 10 y sobre su versión.
 
-26. **Front: los guards de las filas.** En la bandeja, `row` y `waitsFor`, y las celdas de la fila en el detalle; en el hilo, el
+26. **Front: los guards de las filas.** En la bandeja, `row`, y las celdas de la fila en el detalle; en el hilo, el
     pie de una carga y «Por qué lo propuso» de una planilla. Tests de los guards.
 27. **Las filas de una planilla.** El lector con las filas de datos de cada hoja y sus encabezados, y el tope de 50;
     `candidates` también con planilla, `forms.documents.propose-rows@1` y el mapeo aplicado sin IA (los tipos, las validaciones
@@ -1373,7 +1376,7 @@ comparten.
     capacidad (sólo con planilla y con Ids observados) y del mapeo: dos formularios, una repetida, una igual a otra, una que no
     encaja y ninguna que encaja.
 28. **La bandeja con filas.** Una entrada por fila (la hoja, la fila, la lectura y la copia compartida con su retención), el
-    índice con la fila, el motivo de lo que no se mandó, `waitsFor` y el filtro, el 409 de una fila que espera, «La fila»,
+    índice con la fila, el motivo de lo que no se mandó, a quién espera (`replyExpiresAtUtc` y `forReview`) y el filtro, el 409 de una fila que espera, «La fila»,
     «Descargar la planilla», cambiar de formulario con la fila guardada, la búsqueda y el origen «Salió de una planilla». La
     migración `AddReceivedDocumentRows`, con el pie que usa la tarea 29. Unitarias e integración con PostgreSQL, incluida la
     retención de la copia compartida; cohorte `forms-documents-http`.
