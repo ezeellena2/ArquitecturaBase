@@ -48,13 +48,20 @@ foreach ($case in @("Configuration", "Merge", "Missing", "Collision")) {
                 Assert-Condition ($extras["WHATSAPP_FORM_REPLIES_HTTP_OUTPUT"] -eq "whatsapp-form-replies") "Replies require their own raw root."
                 Assert-Condition ($extras["WHATSAPP_FORM_PRIVACY_HTTP_OUTPUT"] -eq "whatsapp-form-privacy") "Privacy requires its own raw root."
                 $cohorts = @(Read-ExporterAssignment "cohorts")
-                Assert-Condition ($cohorts.Count -eq 26) "The joint export contains twenty-six cohorts, including the Home assistant, its proposals and the dashboard."
+                Assert-Condition ($cohorts.Count -eq 27) "The joint export contains twenty-seven cohorts, including the Home assistant, its proposals, the dashboard and the WhatsApp assistant agent."
                 $dashboard = @($cohorts | Where-Object { $_.Name -eq "dashboard" })[0]
                 Assert-Condition ($null -ne $dashboard -and $dashboard.Environment -eq "FORM_DASHBOARD_HTTP_OUTPUT" -and $dashboard.Destination -eq "forms-dashboard-http") "The dashboard (DOC7-A) requires its own agreed output and destination."
                 $expectedDashboard = @("dashboard-day-es.json", "dashboard-week-en.json", "dashboard-month-es.json", "dashboard-filtered-es.json", "dashboard-own-es.json", "dashboard-empty-es.json", "dashboard-catalog-en.json", "dashboard-invalid-period-es.json", "dashboard-overflow-es.json", "dashboard-people-es.json")
                 Assert-Condition (@(Compare-Object $expectedDashboard $dashboard.RequiredNames).Count -eq 0) "The dashboard must contain its ten actual HTTP bodies."
                 foreach ($producer in @(($sourceRoot + "BusinessForms/FormDashboardHttpTests.cs"), ($captureRoot + "Modules/BusinessForms/FormDashboardScenario.cs"), ($captureRoot + "Modules/BusinessForms/FormDashboardContractCapture.cs"))) {
                     Assert-Condition ($producer -in $dashboard.Sources) "The dashboard producer, scenario and capture SHA must be included."
+                }
+                $agent = @($cohorts | Where-Object { $_.Name -eq "whatsapp-assistant-agent" })[0]
+                Assert-Condition ($null -ne $agent -and $agent.Environment -eq "WHATSAPP_ASSISTANT_AGENT_HTTP_OUTPUT" -and $agent.Destination -eq "whatsapp-assistant-agent-http") "The WhatsApp assistant agent requires its own agreed output and destination."
+                $expectedAgent = @("agent-defaults.json", "agent-saved.json", "agent-conflict.json", "agent-invalid.json", "test-accepted.json", "test-pending.json", "test-completed.json", "test-recipients.json")
+                Assert-Condition (@(Compare-Object $expectedAgent $agent.RequiredNames).Count -eq 0) "The WhatsApp assistant agent must contain its eight actual HTTP bodies, from the screen and from Probar."
+                foreach ($producer in @(($sourceRoot + "WhatsApp/WhatsAppAssistantAgentEndpointsTests.cs"), ($captureRoot + "Modules/WhatsApp/WhatsAppAssistantAgentContractCapture.cs"))) {
+                    Assert-Condition ($producer -in $agent.Sources) "The WhatsApp assistant agent producer and capture SHA must be included."
                 }
                 $proposals = @($cohorts | Where-Object { $_.Name -eq "assistant-proposals" })[0]
                 Assert-Condition ($null -ne $proposals -and $proposals.Environment -eq "FORM_ASSISTANT_PROPOSAL_HTTP_OUTPUT" -and $proposals.RequiredNames.Count -eq 16) "Creating from a Home proposal requires its own output and its sixteen bodies, including the catalog created from a spreadsheet proposal."
