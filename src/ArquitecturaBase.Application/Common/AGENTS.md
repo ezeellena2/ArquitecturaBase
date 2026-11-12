@@ -1,6 +1,6 @@
 # Common: mecanismos compartidos de Application
 
-`Pagination` define el pedido y resultado paginado; `Validation`, el puente a FluentValidation y errores por campo; `Logging`, operaciones; `Exceptions`, fallas técnicas que cruzan puertos.
+`Pagination` define el pedido y resultado paginado; `Validation`, el puente a FluentValidation y errores por campo; `Logging`, operaciones; `Exceptions`, fallas técnicas que cruzan puertos; `Formatting`, el único formato de números para una persona (`DisplayNumbers`).
 
 ## Al modificar
 
@@ -8,6 +8,7 @@
 - Los mecanismos comunes siguen sin conocer EF ni HTTP. El orden y paginado de EF se implementan en Infrastructure.
 - Conservá los constructores permitidos de `ValidationError` y el mapeo de campos; las declaraciones de errores de negocio pertenecen a Domain.
 - Un cambio común necesita verificar a sus consumidores con Application.UnitTests y las reglas de arquitectura.
+- Un número que ve una persona sale de `DisplayNumbers`, con la región de su idioma (es-AR, en-US): `Number` o `Format` para un texto con argumentos. Un `ToString("N0")`, un patrón `"#,…"` o un texto formateado con una cultura fuera de la pieza los frena `NumberFormattingTests` (2026-11-12).
 
 ## Referencias
 
