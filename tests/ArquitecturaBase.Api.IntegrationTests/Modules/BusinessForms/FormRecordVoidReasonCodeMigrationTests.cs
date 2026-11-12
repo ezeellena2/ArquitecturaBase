@@ -62,6 +62,8 @@ public sealed class FormRecordVoidReasonCodeMigrationTests(ApiFactory factory)
         {
             await migrator.MigrateAsync(cancellationToken: Ct);
             await InsertAsync(db, null, "Forms.Action.NotIssued");
+            // The migrations after this one go down first and succeed: the refusal is measured from this one.
+            await migrator.MigrateAsync(This(db), Ct);
             var history = await HistoryAsync(db);
             var applied = await db.Database.GetAppliedMigrationsAsync(Ct);
 
@@ -74,6 +76,9 @@ public sealed class FormRecordVoidReasonCodeMigrationTests(ApiFactory factory)
         }
         finally { await db.Database.EnsureDeletedAsync(CancellationToken.None); }
     }
+
+    private static string This(ApplicationDbContext db) =>
+        db.Database.GetMigrations().Single(migration => migration.EndsWith("_" + Migration, StringComparison.Ordinal));
 
     // The migration right before this one, whichever it is.
     private static string Before(ApplicationDbContext db) =>

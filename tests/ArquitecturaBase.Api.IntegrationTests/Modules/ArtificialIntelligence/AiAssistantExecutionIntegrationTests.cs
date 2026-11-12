@@ -140,11 +140,10 @@ public sealed class AiAssistantExecutionIntegrationTests(ApiFactory factory)
         else if (toolId == "business.information")
         {
             Assert.Equal(scenario.BusinessRevision, evidence.GetProperty("revision").GetInt64());
+            // Only confirmed facts (Casos del asistente): the earlier texts without review (hours, location and the FAQ) are not facts.
             var values = Assert.Single(rows).GetProperty("values");
-            Assert.Equal("Integration clinic", values[0].GetProperty("value").GetString());
-            Assert.Equal("09:00–17:00", values[2].GetProperty("value").GetString());
-            Assert.Equal("Example street 12", values[3].GetProperty("value").GetString());
-            Assert.Equal("Confirmed consultation", values[4].GetProperty("value").GetString());
+            Assert.Equal(new[] { "Integration clinic", "Confirmed business description", "Confirmed consultation", "Appointment required" },
+                values.EnumerateArray().Select(value => value.GetProperty("value").GetString()));
         }
         else
         {
