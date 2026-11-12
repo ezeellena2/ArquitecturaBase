@@ -35,6 +35,10 @@ internal sealed class FormReceivedDocumentReader(ApplicationDbContext dbContext)
         await Forms(FormOfferableVersionQuery.ChannelVersions(dbContext).Where(version => version.DocumentReadingJson != null))
             .Take(MaxForms).ToListAsync(cancellationToken);
 
+    public Task<bool> ExistsReadingFormAsync(CancellationToken cancellationToken) =>
+        FormOfferableVersionQuery.ChannelVersions(dbContext)
+            .AnyAsync(version => version.DocumentReadingJson != null && EF.Functions.JsonContains(version.DocumentReadingJson, ReadingOn), cancellationToken);
+
     public async Task<IReadOnlyList<FormDocumentFormNameRow>> ListReadingFormNamesAsync(CancellationToken cancellationToken) =>
         await (from version in FormOfferableVersionQuery.ChannelVersions(dbContext)
                where version.DocumentReadingJson != null && EF.Functions.JsonContains(version.DocumentReadingJson, ReadingOn)
@@ -166,8 +170,8 @@ internal sealed class FormReceivedDocumentReader(ApplicationDbContext dbContext)
             .ToListAsync(cancellationToken);
 
     public async Task<IReadOnlyList<string>> ListLiveStorageKeysAsync(IReadOnlyCollection<string> storageKeys, CancellationToken cancellationToken) =>
-        await dbContext.Set<FormReceivedDocument>().AsNoTracking().Where(document => storageKeys.Contains(document.StorageKey))
-            .Select(document => document.StorageKey).Distinct().ToListAsync(cancellationToken);
+        await dbContext.Set<FormReceivedDocument>().AsNoTracking().Where(document => document.StorageKey != null && storageKeys.Contains(document.StorageKey))
+            .Select(document => document.StorageKey!).Distinct().ToListAsync(cancellationToken);
 
     public async Task<IReadOnlyList<FormDocumentVersionRow>> ListVersionsAsync(IReadOnlyCollection<Guid> versionIds, CancellationToken cancellationToken) =>
         await dbContext.Set<BusinessFormVersion>().AsNoTracking().Where(version => versionIds.Contains(version.Id) && version.NameJson != null && version.Culture != null)

@@ -10,6 +10,12 @@ namespace ArquitecturaBase.Application.Interfaces.Channels;
 /// </summary>
 public interface IStructuredDocumentChannel
 {
+    /// <summary>
+    /// Whether some form published in a channel reads documents and whether the named person can load into one, by the rule the
+    /// documents capabilities are offered by (decision 10). Never the current user: a channel runs in a worker.
+    /// </summary>
+    Task<StructuredDocumentLoading> FindLoadingAsync(Guid personUserId, CancellationToken cancellationToken);
+
     Task<StructuredDocumentRegistration> RegisterAsync(StructuredDocumentRegistrationRequest request, CancellationToken cancellationToken);
     Task<StructuredDocumentSendPreparation> PrepareSendAsync(StructuredDocumentSendRequest request, CancellationToken cancellationToken);
     Task<StructuredDocumentChoiceState> ChooseOtherAsync(StructuredDocumentChoiceRequest request, CancellationToken cancellationToken);

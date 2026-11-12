@@ -424,6 +424,9 @@
   <data name="Forms.ReceivedDocument.FileUnavailable" xml:space="preserve">
     <value>The document's file could not be opened. Try again later.</value>
   </data>
+  <data name="Forms.ReceivedDocument.FileNotStored" xml:space="preserve">
+    <value>This document's file was not kept: it could not be opened.</value>
+  </data>
   <data name="Forms.ReceivedDocument.AwaitingSender" xml:space="preserve">
     <value>Whoever sent it can still complete it in their channel. Wait until their reply expires.</value>
   </data>

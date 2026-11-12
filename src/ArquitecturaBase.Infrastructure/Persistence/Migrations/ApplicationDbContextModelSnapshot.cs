@@ -3241,11 +3241,10 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<string>("Sha256")
-                        .IsRequired()
                         .HasMaxLength(64)
                         .HasColumnType("character(64)");
 
-                    b.Property<long>("Size")
+                    b.Property<long?>("Size")
                         .HasColumnType("bigint");
 
                     b.Property<string>("SourceId")
@@ -3259,7 +3258,6 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(16)");
 
                     b.Property<string>("StorageKey")
-                        .IsRequired()
                         .HasMaxLength(300)
                         .HasColumnType("character varying(300)");
 
@@ -4058,6 +4056,73 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
+                    b.Property<Guid?>("DocumentActorUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("DocumentContentExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DocumentContentType")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("DocumentContextJson")
+                        .HasMaxLength(16384)
+                        .HasColumnType("character varying(16384)");
+
+                    b.Property<string>("DocumentCopySha256")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("DocumentFailureCode")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<int>("DocumentFailureCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("DocumentFileName")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<DateTime?>("DocumentFirstFailureAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long?>("DocumentLinkRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("DocumentMediaId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<int?>("DocumentPages")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("DocumentReadingJson")
+                        .HasMaxLength(131072)
+                        .HasColumnType("character varying(131072)");
+
+                    b.Property<DateTime?>("DocumentRequestAwaitedUntilUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("DocumentRequestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("DocumentSha256")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<long?>("DocumentSize")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("DocumentState")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("DocumentStorageKey")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
                     b.Property<int?>("ErrorCode")
                         .HasColumnType("integer");
 
@@ -4214,6 +4279,10 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ContactId");
 
+                    b.HasIndex("DocumentRequestId")
+                        .IsUnique()
+                        .HasFilter("\"DocumentRequestId\" IS NOT NULL");
+
                     b.HasIndex("FlowSessionId");
 
                     b.HasIndex("WaMessageId")
@@ -4230,6 +4299,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasFilter("\"Direction\" = 'Inbound' AND \"Kind\" = 'FlowReply' AND \"ProcessedAtUtc\" IS NULL");
 
                     b.HasIndex("ContactId", "OccurredAtUtc", "Id");
+
+                    b.HasIndex(new[] { "ContactId" }, "IX_WhatsAppMessages_PendingDocuments")
+                        .HasFilter("\"DocumentState\" IN ('Pending', 'Reading')");
 
                     b.HasIndex(new[] { "ContactId" }, "IX_WhatsAppMessages_PendingSpreadsheets")
                         .HasFilter("\"SpreadsheetState\" = 'Pending'");

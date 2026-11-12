@@ -24,4 +24,5 @@
   <data name="LocationRequest" xml:space="preserve"><value>Para completar «{0}», mandanos tu ubicación.</value></data>
   <data name="LocationOptional" xml:space="preserve"><value>La ubicación es opcional.</value></data>
   <data name="LocationSkip" xml:space="preserve"><value>Seguir sin ubicación</value></data>
+  <data name="DocumentPreview" xml:space="preserve"><value>Documento</value></data>
 </root>

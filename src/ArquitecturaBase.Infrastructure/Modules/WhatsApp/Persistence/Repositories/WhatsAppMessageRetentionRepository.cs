@@ -24,6 +24,7 @@ internal sealed class WhatsAppMessageRetentionRepository(ApplicationDbContext db
             .Where(message => message.OccurredAtUtc < cutoffUtc
                 && (message.Body != null || message.QuickReplyTitlesJson != null || message.AssistantReplyJson != null || message.Kind == WhatsAppMessageKind.Audio && (message.AudioMediaId != null || message.AudioStorageKey != null || message.AudioContextJson != null)
                     || message.Kind == WhatsAppMessageKind.Spreadsheet && (message.SpreadsheetMediaId != null || message.SpreadsheetFileName != null || message.SpreadsheetStorageKey != null || message.SpreadsheetPreparedJson != null)
+                    || message.Kind == WhatsAppMessageKind.ReceivedDocument && (message.DocumentMediaId != null || message.DocumentFileName != null || message.DocumentStorageKey != null || message.DocumentReadingJson != null || message.DocumentContextJson != null)
                     || message.Latitude != null
                     || (message.ProtectedFlowResponse != null && message.ProcessedAtUtc != null)))
             .ExecuteUpdateAsync(setters => setters
@@ -49,6 +50,20 @@ internal sealed class WhatsAppMessageRetentionRepository(ApplicationDbContext db
                 .SetProperty(message => message.SpreadsheetSize, (long?)null)
                 .SetProperty(message => message.SpreadsheetCopySha256, (string?)null)
                 .SetProperty(message => message.SpreadsheetPreparedJson, (string?)null)
+                // A received document's descriptor, its copy, its reading and the context of its request go with the body too; its
+                // reason stays, and so does its state, except a reading in course, which ends expired.
+                .SetProperty(message => message.DocumentState, message => message.DocumentState == WhatsAppDocumentState.Reading
+                    ? WhatsAppDocumentState.Expired : message.DocumentState)
+                .SetProperty(message => message.DocumentMediaId, (string?)null)
+                .SetProperty(message => message.DocumentContentType, (string?)null)
+                .SetProperty(message => message.DocumentSha256, (string?)null)
+                .SetProperty(message => message.DocumentFileName, (string?)null)
+                .SetProperty(message => message.DocumentStorageKey, (string?)null)
+                .SetProperty(message => message.DocumentSize, (long?)null)
+                .SetProperty(message => message.DocumentCopySha256, (string?)null)
+                .SetProperty(message => message.DocumentPages, (int?)null)
+                .SetProperty(message => message.DocumentReadingJson, (string?)null)
+                .SetProperty(message => message.DocumentContextJson, (string?)null)
                 .SetProperty(message => message.ProtectedFlowResponse, (byte[]?)null), cancellationToken);
         var outgoing = await dbContext.Set<WhatsAppOutgoingMessage>()
             .Where(message => (message.Body != null || message.AssistantReplyJson != null) && message.RequestedAtUtc < cutoffUtc

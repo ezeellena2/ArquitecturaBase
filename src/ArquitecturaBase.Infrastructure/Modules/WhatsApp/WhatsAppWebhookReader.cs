@@ -191,6 +191,14 @@ internal sealed partial class WhatsAppWebhookReader(
             return;
         }
 
+        // Task 8 of the documents: a photo (JPEG or PNG) or any other document is a received document, with its caption and its descriptor.
+        if (ReadDocument(message) is { } received)
+        {
+            reading.Messages.Add(new WhatsAppWebhookMessage(waMessageId!, from, WhatsAppMessageKind.ReceivedDocument, received.Caption, null, occurredAtUtc)
+                { Document = received.Descriptor });
+            return;
+        }
+
         // W1-A: a location keeps only its point; the name and address of a chosen place are not kept. A point Meta sends out of
         // range stays a location without one.
         if (StringOf(message, "type") == "location")
@@ -287,6 +295,23 @@ internal sealed partial class WhatsAppWebhookReader(
         if (!IsSpreadsheet(fileName, type)) return null;
         return (StringOf(document, "caption"),
             new WhatsAppWebhookSpreadsheetDescriptor(StringOf(document, "id"), type, HexHashOrNull(StringOf(document, "sha256")), fileName));
+    }
+
+    /// <summary>
+    /// A photo Meta declares as a JPEG or a PNG, or a document that is not a spreadsheet (a PDF, a Word or any other file), with its caption
+    /// and what Meta says of its file; a photo has no name. The bytes decide later what it is, and the message whether the descriptor can be
+    /// downloaded. Null for anything else: a video, a sticker or a photo of another type stay as media.
+    /// </summary>
+    private static (string? Caption, WhatsAppWebhookDocumentDescriptor Descriptor)? ReadDocument(JsonElement message)
+    {
+        var type = StringOf(message, "type");
+        if (type is not ("image" or "document") || !TryGetProperty(message, type, out var media) || media.ValueKind is not JsonValueKind.Object) return null;
+        var mimeType = StringOf(media, "mime_type");
+        if (type == "image" && !(MediaTypeHeaderValue.TryParse(mimeType, out var mime) && mime.MediaType is { } mediaType
+                && (mediaType.Equals("image/jpeg", StringComparison.OrdinalIgnoreCase) || mediaType.Equals("image/png", StringComparison.OrdinalIgnoreCase))))
+            return null;
+        return (StringOf(media, "caption"), new WhatsAppWebhookDocumentDescriptor(StringOf(media, "id"), mimeType, HexHashOrNull(StringOf(media, "sha256")),
+            type == "document" ? StringOf(media, "filename") : null));
     }
 
     private static bool IsSpreadsheet(string? fileName, string? type) =>

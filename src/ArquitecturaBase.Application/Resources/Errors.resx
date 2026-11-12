@@ -424,6 +424,9 @@
   <data name="Forms.ReceivedDocument.FileUnavailable" xml:space="preserve">
     <value>No pudimos abrir el archivo del documento. Probá de nuevo más tarde.</value>
   </data>
+  <data name="Forms.ReceivedDocument.FileNotStored" xml:space="preserve">
+    <value>El archivo de este documento no se guardó: no se podía abrir.</value>
+  </data>
   <data name="Forms.ReceivedDocument.AwaitingSender" xml:space="preserve">
     <value>Quien lo mandó todavía puede completarlo por su canal. Esperá a que venza su respuesta.</value>
   </data>

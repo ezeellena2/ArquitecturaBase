@@ -49,6 +49,9 @@ public sealed record WhatsAppWebhookMessage(
     /// <summary>A spreadsheet's descriptor; its <c>caption</c> is the <see cref="Body"/>.</summary>
     public WhatsAppWebhookSpreadsheetDescriptor? Spreadsheet { get; init; }
 
+    /// <summary>A received document's descriptor (a photo, a PDF, a Word…); its <c>caption</c> is the <see cref="Body"/>.</summary>
+    public WhatsAppWebhookDocumentDescriptor? Document { get; init; }
+
     /// <summary>W1-A: the point of a location, rounded to six decimals.</summary>
     public WhatsAppWebhookLocation? Location { get; init; }
     public sealed override string ToString() => $"{nameof(WhatsAppWebhookMessage)} ({Kind})";

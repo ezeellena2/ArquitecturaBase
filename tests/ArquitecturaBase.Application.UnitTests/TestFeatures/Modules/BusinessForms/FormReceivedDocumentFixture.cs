@@ -49,6 +49,9 @@ internal sealed class FormReceivedDocumentFixture : IFormReceivedDocumentReposit
     // IFormReceivedDocumentReader
     public Task<IReadOnlyList<FormDocumentFormRow>> ListReadingFormsAsync(CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<FormDocumentFormRow>>(Forms.Where(form => !form.AppOnly && form.DocumentReadingJson is not null).Take(101).ToArray());
+    // As the SQL asks it: a form published in a channel whose reading says it is on.
+    public Task<bool> ExistsReadingFormAsync(CancellationToken cancellationToken) =>
+        Task.FromResult(Forms.Any(form => !form.AppOnly && FormDocumentFormPolicy.Reading(form) is { Enabled: true }));
     public Task<IReadOnlyList<FormDocumentFormNameRow>> ListReadingFormNamesAsync(CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<FormDocumentFormNameRow>>(Forms.Where(form => !form.AppOnly && FormDocumentFormPolicy.Reading(form) is { Enabled: true })
             .Take(100).Select(form => new FormDocumentFormNameRow(form.DefinitionId, form.NameJson, form.Culture)).ToArray());
@@ -84,7 +87,7 @@ internal sealed class FormReceivedDocumentFixture : IFormReceivedDocumentReposit
     public Task<IReadOnlyList<Guid>> ListExpiredIdsAsync(DateTime nowUtc, int maximum, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<Guid>>(Documents.Where(document => document.DeleteAfterUtc <= nowUtc).Select(document => document.Id).Take(maximum).ToArray());
     public Task<IReadOnlyList<string>> ListLiveStorageKeysAsync(IReadOnlyCollection<string> storageKeys, CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<string>>(Documents.Select(document => document.StorageKey).Where(storageKeys.Contains).Distinct().ToArray());
+        Task.FromResult<IReadOnlyList<string>>(Documents.Select(document => document.StorageKey).OfType<string>().Where(storageKeys.Contains).Distinct().ToArray());
     public Task<IReadOnlyList<FormDocumentVersionRow>> ListVersionsAsync(IReadOnlyCollection<Guid> versionIds, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<FormDocumentVersionRow>>(Forms.Where(form => versionIds.Contains(form.VersionId))
             .Select(form => new FormDocumentVersionRow(form.VersionId, form.DefinitionId, form.NameJson, form.Culture, form.SchemaJson)).ToArray());

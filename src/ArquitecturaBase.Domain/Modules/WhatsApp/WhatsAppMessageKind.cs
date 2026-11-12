@@ -53,4 +53,11 @@ public enum WhatsAppMessageKind
 
     /// <summary>Solo en un saliente: el pedido de ubicación que va antes del Flow de su envío (W1-A). El cuerpo es su texto.</summary>
     LocationRequest = 14,
+
+    /// <summary>
+    /// Solo en un entrante: una foto (JPEG o PNG) o un documento que no es una planilla (PDF, Word o cualquier otro). El cuerpo es su
+    /// <c>caption</c>; el descriptor, la copia y la lectura están en las columnas del documento. <see cref="Document"/> es el saliente
+    /// y el 16 queda para el contacto (W3).
+    /// </summary>
+    ReceivedDocument = 15,
 }

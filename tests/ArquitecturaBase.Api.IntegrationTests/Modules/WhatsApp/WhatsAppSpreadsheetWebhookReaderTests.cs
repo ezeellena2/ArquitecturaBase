@@ -75,13 +75,15 @@ public sealed class WhatsAppSpreadsheetWebhookReaderTests
     [InlineData("notas.txt", "text/plain")]
     [InlineData(null, "text/plain")]
     [InlineData("informe.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")]
-    public void Any_other_document_stays_as_media_without_its_caption(string? name, string type)
+    public void Any_other_document_is_a_received_document_with_its_caption(string? name, string type)
     {
         var message = Read(MetaWebhook.Document("wamid.other", WaId, Bsuid, SentAtUtc, name, type, "Mirá este archivo"));
 
-        Assert.Equal(WhatsAppMessageKind.Media, message.Kind);
-        Assert.Null(message.Body);
+        // Task 8 of the documents: it is no longer media (WhatsAppDocumentWebhookReaderTests).
+        Assert.Equal(WhatsAppMessageKind.ReceivedDocument, message.Kind);
+        Assert.Equal("Mirá este archivo", message.Body);
         Assert.Null(message.Spreadsheet);
+        Assert.Equal((name, type), (message.Document!.FileName, message.Document.ContentType));
     }
 
     [Theory]

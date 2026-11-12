@@ -54,7 +54,9 @@ internal sealed class WhatsAppChatQueryService(IWhatsAppChatReader reader, IWhat
                 // W1-A: a received location shows its point.
                 Location: message.Kind == WhatsAppMessageKind.Location && message.Latitude is { } latitude && message.Longitude is { } longitude
                     ? new WhatsAppLocationPointResponse(latitude, longitude) : null,
-                AssistantReply: WhatsAppOutgoingPresentationPolicy.Reply(message.AssistantReplyJson)))],
+                AssistantReply: WhatsAppOutgoingPresentationPolicy.Reply(message.AssistantReplyJson),
+                // Task 8 of the documents: a received document shows its name, kind and pages, and its caption as the body.
+                Document: WhatsAppReceivedDocumentPresentationPolicy.View(message.Kind, message.Document)))],
             [.. row.Outgoing.Select(item => ToOutgoingResponse(item, recordResult.CanReadRecords))], row.BeforeAtUtc, row.BeforeId, recordResult.CanReadRecords)
             {
                 AssistantAvailability = availability, AssistantSuggestion = pointer,
@@ -121,7 +123,8 @@ internal sealed class WhatsAppChatQueryService(IWhatsAppChatReader reader, IWhat
         var parsed = WhatsAppIds.Parse(phoneNumbers, row.PhoneNumber);
         // Like the audio's, a spreadsheet's preview is generic: neither its name nor its caption.
         var preview = row.PreviewIsAssistant ? FlowTexts.Get("AssistantPreview", CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es") : row.PreviewKind == WhatsAppMessageKind.Audio ? FlowTexts.Get("AudioPreview", CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es")
-            : row.PreviewKind == WhatsAppMessageKind.Spreadsheet ? FlowTexts.Get("SpreadsheetPreview", CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es") : row.PreviewIsFormAction
+            : row.PreviewKind == WhatsAppMessageKind.Spreadsheet ? FlowTexts.Get("SpreadsheetPreview", CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es")
+            : row.PreviewKind == WhatsAppMessageKind.ReceivedDocument ? FlowTexts.Get("DocumentPreview", CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es") : row.PreviewIsFormAction
             ? FlowTexts.Get("FormActionPreview", CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es")
             : row.PreviewKind == WhatsAppMessageKind.FlowReply
             ? FlowTexts.Get("FormReplyPreview", CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es")

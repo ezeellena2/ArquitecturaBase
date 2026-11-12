@@ -63,6 +63,14 @@ foreach ($case in @("Configuration", "Merge", "Missing", "Collision")) {
                 foreach ($producer in @(($sourceRoot + "BusinessForms/FormReceivedDocumentHttpTests.cs"), ($captureRoot + "Modules/BusinessForms/FormReceivedDocumentScenario.cs"), ($captureRoot + "Modules/BusinessForms/FormReceivedDocumentContractCapture.cs"), ($captureRoot + "Modules/BusinessForms/ScriptedDocumentOperations.cs"))) {
                     Assert-Condition ($producer -in $documents.Sources) "The received documents producer, scenario, scripted engine and capture SHA must be included."
                 }
+                # Task 8 of the documents: the WhatsApp thread with a received document joins the audio and the spreadsheet in their cohort.
+                $audio = @($cohorts | Where-Object { $_.Name -eq "whatsapp-audio" })[0]
+                Assert-Condition ($null -ne $audio -and $audio.Environment -eq "WHATSAPP_AUDIO_HTTP_OUTPUT" -and $audio.Destination -eq "whatsapp-audio-http") "The WhatsApp audio, spreadsheet and document thread require their agreed output and destination."
+                $expectedAudio = @("audio-request.json", "audio-thread-pending.json", "audio-thread-completed.json", "spreadsheet-thread.json", "document-thread.json")
+                Assert-Condition (@(Compare-Object $expectedAudio $audio.RequiredNames).Count -eq 0) "The WhatsApp thread cohort must contain its five actual HTTP bodies, including the received document."
+                foreach ($producer in @(($sourceRoot + "WhatsApp/WhatsAppChatTests.Audio.cs"), ($sourceRoot + "WhatsApp/WhatsAppChatTests.Spreadsheet.cs"), ($sourceRoot + "WhatsApp/WhatsAppChatTests.Document.cs"), ($captureRoot + "Modules/WhatsApp/WhatsAppAudioContractCapture.cs"))) {
+                    Assert-Condition ($producer -in $audio.Sources) "The WhatsApp thread producers and capture SHA must be included."
+                }
                 $agent = @($cohorts | Where-Object { $_.Name -eq "whatsapp-assistant-agent" })[0]
                 Assert-Condition ($null -ne $agent -and $agent.Environment -eq "WHATSAPP_ASSISTANT_AGENT_HTTP_OUTPUT" -and $agent.Destination -eq "whatsapp-assistant-agent-http") "The WhatsApp assistant agent requires its own agreed output and destination."
                 $expectedAgent = @("agent-defaults.json", "agent-saved.json", "agent-conflict.json", "agent-invalid.json", "test-accepted.json", "test-pending.json", "test-completed.json", "test-recipients.json", "chats-needs-person.json", "thread-agent.json", "suggestion-text-ready.json")

@@ -2,7 +2,15 @@ using ArquitecturaBase.Application.Models.StructuredData;
 
 namespace ArquitecturaBase.Application.Models.Assistant;
 
-public sealed record AssistantAvailabilityResponse(string State);
+public sealed record AssistantAvailabilityResponse(string State)
+{
+    /// <summary>
+    /// Whether the installation reads a PDF or a photo (ReadDocument): what Home publishes as <c>documentReading</c>, without the
+    /// person's part. Only for the channels: never serialized, so the bodies that carry the availability do not change.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool ReadsDocuments { get; init; }
+}
 
 public sealed record AssistantOperationRequest(Guid RequestId, AssistantChannelContext Context,
     string Text, DateTime OccurredAtUtc, DateTime ContentExpiresAtUtc)

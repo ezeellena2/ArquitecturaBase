@@ -15,9 +15,12 @@ internal sealed class WhatsAppAssistantOperationsDouble : IAssistantOperations
     public List<string> Calls { get; } = [];
     public List<AssistantOperationRequest> SubmitRequests { get; } = [];
     public string AvailabilityState { get; set; } = "available";
+    /// <summary>Whether the installation reads a PDF or a photo, as Home publishes it; a received document asks it.</summary>
+    public bool ReadsDocuments { get; set; } = true;
     public bool AllowSubmit { get; set; }
     public Error? SubmissionFailure { get; set; }
-    public Task<AssistantAvailabilityResponse> GetAvailabilityAsync(CancellationToken ct) => Task.FromResult(new AssistantAvailabilityResponse(AvailabilityState));
+    public Task<AssistantAvailabilityResponse> GetAvailabilityAsync(CancellationToken ct) =>
+        Task.FromResult(new AssistantAvailabilityResponse(AvailabilityState) { ReadsDocuments = ReadsDocuments });
     public Task<Result<AssistantOperationAcceptedResponse>> SubmitAsync(AssistantOperationRequest request, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();

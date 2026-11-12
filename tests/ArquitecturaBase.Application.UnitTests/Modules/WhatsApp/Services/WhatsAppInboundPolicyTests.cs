@@ -9,6 +9,7 @@ public sealed class WhatsAppInboundPolicyTests
     [InlineData(WhatsAppMessageKind.Text, "WANT_TO_ENTER")]
     [InlineData(WhatsAppMessageKind.Text, null)]
     [InlineData(WhatsAppMessageKind.Media, null)]
+    [InlineData(WhatsAppMessageKind.ReceivedDocument, null)]
     [InlineData(WhatsAppMessageKind.Other, null)]
     [InlineData(WhatsAppMessageKind.ButtonReply, "UNKNOWN")]
     public void Business_messages_are_not_classified_from_text_or_unknown_payloads(WhatsAppMessageKind kind, string? id)

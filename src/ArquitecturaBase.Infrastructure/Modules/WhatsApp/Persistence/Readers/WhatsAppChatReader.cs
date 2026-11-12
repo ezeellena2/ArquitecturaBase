@@ -73,7 +73,10 @@ internal sealed class WhatsAppChatReader(ApplicationDbContext dbContext) : IWhat
                         || item.Kind == WhatsAppMessageKind.Flow && item.FlowSession.LocationState == WhatsAppFlowLocationState.None)
                     ? new WhatsAppAssistantPresentationRow(item.FlowSession.Id,item.FlowSession.ContactId,item.FlowSession.UserId,item.FlowSession.VersionId,item.FlowSession.ProtectedAssistantContent,item.FlowSession.AssistantContentExpiresAtUtc.Value) : null, QuickReplyTitlesJson = item.QuickReplyTitlesJson,
                   SpreadsheetName = item.Kind == WhatsAppMessageKind.Spreadsheet ? item.SpreadsheetFileName : null,
-                  Latitude = item.Latitude, Longitude = item.Longitude, AssistantReplyJson = item.AssistantReplyJson }).ToListAsync(cancellationToken);
+                  Latitude = item.Latitude, Longitude = item.Longitude, AssistantReplyJson = item.AssistantReplyJson,
+                  // Task 8 of the documents: what the chat shows of a received document, from its own columns.
+                  Document = item.Kind == WhatsAppMessageKind.ReceivedDocument ? new WhatsAppReceivedDocumentMessageRow(item.DocumentFileName, item.DocumentContentType,
+                      item.DocumentStorageKey, item.DocumentPages, item.DocumentState, item.DocumentFailureCode) : null }).ToListAsync(cancellationToken);
         var hasPrevious = items.Count > request.Limit;
         if (hasPrevious) { items.RemoveAt(items.Count - 1); }
         items.Reverse();
@@ -135,7 +138,7 @@ internal sealed class WhatsAppChatReader(ApplicationDbContext dbContext) : IWhat
             Preview =
             dbContext.Set<WhatsAppMessage>().Where(message => message.ContactId == contact.Id)
                 .OrderByDescending(message => message.OccurredAtUtc).ThenByDescending(message => message.Id)
-                .Select(message => message.Purpose == WhatsAppMessagePurpose.Access || message.Origin == WhatsAppMessageOrigin.FormAction || message.Origin == WhatsAppMessageOrigin.Assistant || message.Kind == WhatsAppMessageKind.Audio || message.Kind == WhatsAppMessageKind.Spreadsheet ? null : message.Body).FirstOrDefault(),
+                .Select(message => message.Purpose == WhatsAppMessagePurpose.Access || message.Origin == WhatsAppMessageOrigin.FormAction || message.Origin == WhatsAppMessageOrigin.Assistant || message.Kind == WhatsAppMessageKind.Audio || message.Kind == WhatsAppMessageKind.Spreadsheet || message.Kind == WhatsAppMessageKind.ReceivedDocument ? null : message.Body).FirstOrDefault(),
             PreviewPurpose = dbContext.Set<WhatsAppMessage>().Where(message => message.ContactId == contact.Id)
                 .OrderByDescending(message => message.OccurredAtUtc).ThenByDescending(message => message.Id)
                 .Select(message => (WhatsAppMessagePurpose?)message.Purpose).FirstOrDefault() ?? WhatsAppMessagePurpose.Unclassified,
@@ -145,7 +148,7 @@ internal sealed class WhatsAppChatReader(ApplicationDbContext dbContext) : IWhat
             PreviewIsFormAction = dbContext.Set<WhatsAppMessage>().Where(message => message.ContactId == contact.Id)
                 .OrderByDescending(message => message.OccurredAtUtc).ThenByDescending(message => message.Id)
                 .Select(message => message.Origin == WhatsAppMessageOrigin.FormAction).FirstOrDefault(),
-            // The kind, read once: an audio, a spreadsheet or a form reply shows a generic preview.
+            // The kind, read once: an audio, a spreadsheet, a received document or a form reply shows a generic preview.
             PreviewKind = dbContext.Set<WhatsAppMessage>().Where(message => message.ContactId == contact.Id)
                 .OrderByDescending(message => message.OccurredAtUtc).ThenByDescending(message => message.Id)
                 .Select(message => (WhatsAppMessageKind?)message.Kind).FirstOrDefault(),

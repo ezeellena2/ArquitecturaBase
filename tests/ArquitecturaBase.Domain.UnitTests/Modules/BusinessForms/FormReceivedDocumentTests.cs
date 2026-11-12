@@ -38,6 +38,39 @@ public sealed class FormReceivedDocumentTests
         Assert.True(Received().Value.Reject("bad code!", null, Now).IsFailure);
     }
 
+    // Task 8 (decision 10): a file that cannot be opened enters discarded even when the inbox must not keep it: what its person sent, without
+    // a copy, a key or a SHA-256, and the size only when it was known.
+    [Fact]
+    public void A_file_the_inbox_does_not_keep_is_received_discarded_without_a_copy()
+    {
+        var received = FormReceivedDocument.ReceiveRejected(Guid.NewGuid(), "whatsapp", "m1", Guid.NewGuid(), Now, "informe.doc", "application/msword", 2048,
+            "legacy", Now);
+        var withoutSize = FormReceivedDocument.ReceiveRejected(Guid.NewGuid(), "whatsapp", "m2", Guid.NewGuid(), Now, "video.pdf", "application/pdf", null,
+            "tooLarge", Now);
+
+        Assert.True(received.IsSuccess);
+        var document = received.Value;
+        Assert.Equal((FormReceivedDocumentState.Discarded, "legacy", Now.AddDays(90)), (document.State, document.ReasonCode, document.DeleteAfterUtc));
+        Assert.Equal(((string?)null, (string?)null, (long?)2048, (int?)null, false),
+            (document.StorageKey, document.Sha256, document.Size, document.Pages, document.IsStored));
+        Assert.Equal(("informe.doc", "application/msword"), (document.FileName, document.MediaType));
+        Assert.True(withoutSize.IsSuccess);
+        Assert.Null(withoutSize.Value.Size);
+        Assert.True(Received().Value.IsStored);
+    }
+
+    [Fact]
+    public void A_file_without_a_copy_needs_its_name_type_reason_and_a_positive_size_when_it_has_one()
+    {
+        Assert.True(FormReceivedDocument.ReceiveRejected(Guid.NewGuid(), "whatsapp", "m1", Guid.NewGuid(), Now, " ", "application/pdf", 1, "legacy", Now).IsFailure);
+        Assert.True(FormReceivedDocument.ReceiveRejected(Guid.NewGuid(), "whatsapp", "m1", Guid.NewGuid(), Now, "a.doc", "", 1, "legacy", Now).IsFailure);
+        Assert.True(FormReceivedDocument.ReceiveRejected(Guid.NewGuid(), "whatsapp", "m1", Guid.NewGuid(), Now, "a.doc", "application/msword", 0, "legacy", Now).IsFailure);
+        Assert.True(FormReceivedDocument.ReceiveRejected(Guid.NewGuid(), "whatsapp", "m1", Guid.NewGuid(), Now, "a.doc", "application/msword", 1, "bad code!", Now).IsFailure);
+        Assert.True(FormReceivedDocument.ReceiveRejected(Guid.NewGuid(), "", "m1", Guid.NewGuid(), Now, "a.doc", "application/msword", 1, "legacy", Now).IsFailure);
+        Assert.True(FormReceivedDocument.ReceiveRejected(Guid.NewGuid(), "whatsapp", "m1", Guid.NewGuid(), Now, "a.doc", "application/msword", 1, "legacy",
+            DateTime.SpecifyKind(Now, DateTimeKind.Local)).IsFailure);
+    }
+
     [Fact]
     public void A_proposed_document_is_for_review_when_it_cannot_be_sent_nobody_waits_or_its_reply_expired()
     {

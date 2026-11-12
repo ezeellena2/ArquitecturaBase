@@ -73,6 +73,7 @@ internal sealed class FormReceivedDocumentService(FormReceivedDocumentAccessGuar
         var actor = await guard.CheckAsync(BusinessFormsPermissions.DocumentsRead, cancellationToken);
         if (actor.IsFailure) return actor.Error;
         if (await reader.FindAsync(documentId, cancellationToken) is not { } row) return FormReceivedDocumentErrors.NotFound;
+        if (row.StorageKey is null) return FormReceivedDocumentErrors.FileNotStored;
         var stream = await presentation.OpenAsync(row, cancellationToken);
         if (stream is null) return FormReceivedDocumentErrors.FileUnavailable;
         if (await guard.HasAsync(actor.Value.Id, BusinessFormsPermissions.DocumentsRead, cancellationToken))

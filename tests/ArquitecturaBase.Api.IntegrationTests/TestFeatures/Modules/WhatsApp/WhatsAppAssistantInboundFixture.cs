@@ -41,6 +41,16 @@ internal sealed class WhatsAppAssistantInboundFixture : IAsyncDisposable
     /// <summary>A spreadsheet waits for its next download attempt: the processor polls as soon as for a pending reference.</summary>
     public bool HasPendingSpreadsheet {get;set;}
     public bool AudioOnlyContact {get;set;}
+    /// <summary>Task 8 of the documents: a received document waits; its contact is pending and its step records "document-prepare".</summary>
+    public bool HasDocumentWork {get;set;}
+    /// <summary>A document waits for its next attempt or its reading: the processor polls as soon as for a pending reference.</summary>
+    public bool HasPendingDocument {get;set;}
+    /// <summary>Whether the document's step returns its reading (a PDF or a photo that is used) or keeps it without one.</summary>
+    public bool DocumentReads {get;set;}=true;
+    /// <summary>What the engine already has for the document's reading; null until it is submitted.</summary>
+    public string? ExistingDocumentState {get;set;}
+    public Result<AssistantOperationResponse>? DocumentCompleted {get;private set;}
+    public WhatsAppAssistantWorkResponse DocumentWork {get;}
     public bool AudioReady {get;set;}
     public bool InterpretAfterAudio {get;set;}
     public bool RejectAudioSubmit {get;set;}
@@ -65,6 +75,10 @@ internal sealed class WhatsAppAssistantInboundFixture : IAsyncDisposable
         AudioWork=new(Guid.NewGuid(),new(Guid.NewGuid(),context with {RequiredPermissions=new([WhatsAppPermissions.Read],[])},"",now,now.AddDays(90))
             {Audio=new("private/fictitious-audio","voice.ogg","audio/ogg",100,new string('a',64),now.AddDays(90))});
         AudioWork=AudioWork with {Operation=AudioWork.Operation! with {RequestId=AudioWork.RequestId}};
+        var documentContext=new AssistantChannelContext("whatsapp-assistant",context.SubjectUserId!.Value,context.SubjectUserId,"es","America/Argentina/Buenos_Aires",new([],[]),[],[]) { InteractionMode = AssistantInteractionMode.Assistant };
+        DocumentWork=new(Guid.NewGuid(),new(Guid.NewGuid(),documentContext,"",now,now.AddDays(90))
+            {Document=new("whatsapp/documents/fictitious.pdf","comprobante.pdf","application/pdf",100,new string('b',64),1,now.AddDays(90))});
+        DocumentWork=DocumentWork with {Operation=DocumentWork.Operation! with {RequestId=DocumentWork.RequestId}};
         var services=new ServiceCollection().AddScoped(_=>new ScopeIdentity())
             .AddSingleton<IWhatsAppMessageRepository>(new Messages())
             .AddSingleton<IWhatsAppAssistantReader>(new Reader(this))
@@ -72,6 +86,8 @@ internal sealed class WhatsAppAssistantInboundFixture : IAsyncDisposable
             .AddScoped<IWhatsAppAudioDispatchService>(sp=>new AudioDispatch(this,sp.GetRequiredService<ScopeIdentity>().Id))
             .AddSingleton<IWhatsAppSpreadsheetReader>(new SpreadsheetReader(this))
             .AddScoped<IWhatsAppSpreadsheetDispatchService>(sp=>new SpreadsheetDispatch(this,sp.GetRequiredService<ScopeIdentity>().Id))
+            .AddSingleton<IWhatsAppReceivedDocumentReader>(new DocumentReader(this))
+            .AddScoped<IWhatsAppReceivedDocumentDispatchService>(sp=>new DocumentDispatch(this,sp.GetRequiredService<ScopeIdentity>().Id))
             .AddScoped<IWhatsAppInboundService>(sp=>new Inbound(this,sp.GetRequiredService<ScopeIdentity>().Id))
             .AddScoped<IWhatsAppAssistantDispatchService>(sp=>new Dispatch(this,sp.GetRequiredService<ScopeIdentity>().Id))
             .AddScoped<IAssistantOperations>(sp=>new Operations(this,sp.GetRequiredService<ScopeIdentity>().Id))
@@ -155,6 +171,12 @@ internal sealed class WhatsAppAssistantInboundFixture : IAsyncDisposable
         public Task<AssistantAvailabilityResponse> GetAvailabilityAsync(CancellationToken ct)=>throw new NotSupportedException();
         public Task<Result<AssistantOperationAcceptedResponse>> SubmitAsync(AssistantOperationRequest request,CancellationToken ct)
         {
+            if(request.RequestId==host.DocumentWork.RequestId)
+            {
+                Assert.Equal(host.DocumentWork.Operation,request);host.Events.Add("submit-document");host.Scopes.Add(scope);
+                host.ExistingDocumentState ??= "pending";
+                return Task.FromResult(Result.Success(new AssistantOperationAcceptedResponse(request.RequestId,"pending")));
+            }
             if(request.RequestId==host.AudioWork.RequestId)
             {
                 Assert.Equal(host.AudioWork.Operation,request);host.Events.Add("submit-audio");host.Scopes.Add(scope);
@@ -168,6 +190,13 @@ internal sealed class WhatsAppAssistantInboundFixture : IAsyncDisposable
         public Task<Result> CancelAsync(AssistantChannelContext context, Guid requestId, CancellationToken ct) => Task.FromResult(Result.Success());
         public Task<Result<AssistantOperationResponse>> GetAsync(AssistantChannelContext context,Guid id,CancellationToken ct)
         {
+            if(id==host.DocumentWork.RequestId)
+            {
+                Assert.Equal(host.DocumentWork.Operation!.Context,context);host.Events.Add("get-document");host.Scopes.Add(scope);
+                return Task.FromResult(host.ExistingDocumentState is {} documentState
+                    ? Result.Success(new AssistantOperationResponse(id,documentState,null,null,null))
+                    : Result.Failure<AssistantOperationResponse>(WhatsAppChatErrors.NotFound));
+            }
             if(id==host.AudioWork.RequestId)
             {
                 Assert.Equal(host.AudioWork.Operation!.Context,context);host.Events.Add("get-audio");host.Scopes.Add(scope);
@@ -249,6 +278,30 @@ internal sealed class WhatsAppAssistantInboundFixture : IAsyncDisposable
         public Task<Result> PrepareAsync(Guid id,CancellationToken ct)
         {
             if(host.HasSpreadsheetWork){host.Events.Add("spreadsheet");host.Scopes.Add(scope);host.HasSpreadsheetWork=false;}
+            return Task.FromResult(Result.Success());
+        }
+    }
+    private sealed class DocumentReader(WhatsAppAssistantInboundFixture host) : IWhatsAppReceivedDocumentReader
+    {
+        public Task<IReadOnlyList<Guid>> ListPendingContactsAsync(IReadOnlyCollection<Guid> excluded,int limit,DateTime nowUtc,CancellationToken ct)=>
+            Task.FromResult<IReadOnlyList<Guid>>(host.HasDocumentWork && !excluded.Contains(host.ContactId)?[host.ContactId]:[]);
+        public Task<bool> ExistsPendingAsync(DateTime nowUtc,CancellationToken ct)=>Task.FromResult(host.HasPendingDocument);
+        public Task<WhatsAppReceivedDocumentSourceRow?> FindPendingAsync(Guid id,DateTime nowUtc,CancellationToken ct)=>throw new NotSupportedException();
+        public Task<WhatsAppReceivedDocumentSourceRow?> FindAsync(Guid id,Guid message,CancellationToken ct)=>throw new NotSupportedException();
+        public Task<WhatsAppReceivedDocumentSourceRow?> FindByRequestAsync(Guid id,Guid request,CancellationToken ct)=>throw new NotSupportedException();
+        public Task<IReadOnlyList<Guid>> ListRetainedMessageIdsAsync(IReadOnlyCollection<Guid> ids,DateTime cutoffUtc,CancellationToken ct)=>throw new NotSupportedException();
+    }
+    private sealed class DocumentDispatch(WhatsAppAssistantInboundFixture host,Guid scope) : IWhatsAppReceivedDocumentDispatchService
+    {
+        public Task<Result<WhatsAppAssistantWorkResponse?>> PrepareAsync(Guid id,CancellationToken ct)
+        {
+            if(!host.HasDocumentWork)return Task.FromResult(Result.Success<WhatsAppAssistantWorkResponse?>(null));
+            host.Events.Add("document-prepare");host.Scopes.Add(scope);host.HasDocumentWork=false;
+            return Task.FromResult(Result.Success<WhatsAppAssistantWorkResponse?>(host.DocumentReads?host.DocumentWork:null));
+        }
+        public Task<Result> CompleteAsync(Guid id,Guid requestId,Result<AssistantOperationResponse> outcome,CancellationToken ct)
+        {
+            Assert.Equal(host.DocumentWork.RequestId,requestId);host.Events.Add("document-complete");host.Scopes.Add(scope);host.DocumentCompleted=outcome;
             return Task.FromResult(Result.Success());
         }
     }

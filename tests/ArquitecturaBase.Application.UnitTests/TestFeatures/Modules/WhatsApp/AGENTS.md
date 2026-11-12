@@ -23,3 +23,5 @@ WhatsAppWebhookSignalFixture usa dos UoW ficticias para persistencia y retry, y 
 WhatsAppSpreadsheetFixture monta una planilla sobre el fixture de la conversación del asistente: Meta, el lector del dueño y la copia afirman correr fuera de la UoW, y la respuesta pasa por la política automática real.
 
 FakeWhatsAppAssistantAgentSources dobla el agente guardado (o ninguno), las cuentas de Probar y un historial ficticio con las respuestas del día y el inicio de la ráfaga; `WhatsAppAssistantAcceptanceFixture.CreateReply` arma la política de respuestas con ellos y la derivación real.
+
+WhatsAppReceivedDocumentFixture monta un documento recibido sobre el mismo fixture: Meta, el lector del dueño, la copia y el puerto de la bandeja afirman correr fuera de la UoW; los rechazos y la derivación pasan por las políticas reales.

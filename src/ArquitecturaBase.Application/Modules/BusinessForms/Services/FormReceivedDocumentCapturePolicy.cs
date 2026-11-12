@@ -32,9 +32,10 @@ internal sealed class FormReceivedDocumentCapturePolicy(FormEntryRecorder entrie
         List<StructuredRecordFileInput> files = [];
         if (question is not null)
         {
-            var content = await copies.ReadAsync(row.StorageKey, row.Sha256, row.Size, ct);
+            if (row is not { StorageKey: { } key, Sha256: { } sha256, Size: { } size }) return FormReceivedDocumentErrors.FileNotStored;
+            var content = await copies.ReadAsync(key, sha256, size, ct);
             if (content is null) return FormReceivedDocumentErrors.FileUnavailable;
-            files.Add(new(question.FieldId, 0, SourceId, question.Type, row.FileName, row.MediaType, row.Sha256, content));
+            files.Add(new(question.FieldId, 0, SourceId, question.Type, row.FileName, row.MediaType, sha256, content));
         }
         var proposed = Proposed(row, schema, version.VersionId);
         var origin = new StructuredRecordCaptureOrigin(StructuredRecordSenderKind.Manual, reviewerUserId, null, null, proposed,

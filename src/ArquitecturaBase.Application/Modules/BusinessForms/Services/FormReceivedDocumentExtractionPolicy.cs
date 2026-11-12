@@ -42,12 +42,13 @@ internal sealed class FormReceivedDocumentExtractionPolicy(FormReceivedDocumentC
     /// <summary>The operation that extracts the document for the fixed form, or null when it has no reading it can attach.</summary>
     public AssistantOperationRequest? Request(FormReceivedDocumentStoredRow row, Guid requestId, AssistantChannelContext context, DateTime requestedAtUtc)
     {
-        if (contents.ReadReading(row.Id, row.ProtectedReading) is not { } reading || Kind(row.MediaType) is not { } kind) return null;
+        if (contents.ReadReading(row.Id, row.ProtectedReading) is not { } reading || Kind(row.MediaType) is not { } kind
+            || row is not { StorageKey: { } key, Sha256: { } sha256, Size: { } size }) return null;
         var expiresAtUtc = requestedAtUtc.AddDays(ContentDays);
-        var document = new StructuredDocument(row.FileName, kind, row.MediaType, row.Size, row.Sha256, row.Pages, reading);
+        var document = new StructuredDocument(row.FileName, kind, row.MediaType, size, sha256, row.Pages, reading);
         try
         {
-            var attachment = AssistantAttachmentInput.ForDocument(row.StorageKey, row.FileName, expiresAtUtc, document);
+            var attachment = AssistantAttachmentInput.ForDocument(key, row.FileName, expiresAtUtc, document);
             return new AssistantOperationRequest(requestId, context, FormReceivedDocumentTexts.ExtractionRequest(context.Culture), requestedAtUtc, expiresAtUtc)
                 { Attachment = attachment };
         }
@@ -73,7 +74,8 @@ internal sealed class FormReceivedDocumentExtractionPolicy(FormReceivedDocumentC
         if (focused.Candidates is not [var candidate]) return new(null, null, Unrecognized);
         var form = await reader.FindActiveFormAsync(definitionId, ct);
         if (form is null || form.VersionId != candidate.VersionId) return new(null, null, FormChanged);
-        var prepared = await proposals.PrepareAsync(focused, row.Sha256, row.Id, ct);
+        if (row.Sha256 is not { } sha256) return new(null, null, Unrecognized);
+        var prepared = await proposals.PrepareAsync(focused, sha256, row.Id, ct);
         return prepared.Candidates.Count == 1 ? new(prepared, form, null) : new(null, null, FormChanged);
     }
 

@@ -28,6 +28,24 @@ public sealed class AiAssistantOperationsTests
         Assert.Equal(0, fixture.Source.Executions);
     }
 
+    // Task 8 of the documents: a channel reads a PDF or a photo only where Home would (documentReading), without the person's part.
+    [Theory]
+    [InlineData(true, true, true, true)]
+    [InlineData(false, true, true, false)]
+    [InlineData(true, false, true, false)]
+    [InlineData(true, true, false, false)]
+    public async Task Availability_says_whether_the_installation_reads_documents(bool qualified, bool enabled, bool withKey, bool reads)
+    {
+        var fixture = new AssistantOperationsFixture(documentQualified: qualified);
+        if (!enabled) fixture.Store.Connection = fixture.Store.Connection with { Enabled = false };
+        if (!withKey) fixture.Store.Connection = fixture.Store.Connection with { ProtectedApiKey = null };
+
+        var response = await fixture.Service.GetAvailabilityAsync(Ct);
+
+        Assert.Equal(reads, response.ReadsDocuments);
+        Assert.DoesNotContain("readsDocuments", JsonSerializer.Serialize(response, JsonSerializerOptions.Web), StringComparison.OrdinalIgnoreCase);
+    }
+
     [Fact]
     public async Task A_manual_channel_accepts_separate_actor_and_subject_permissions_without_Home_and_seals_the_owner_expiry()
     {

@@ -99,6 +99,8 @@ internal sealed partial class WhatsAppInboundProcessor(
             || await scope.ServiceProvider.GetRequiredService<IWhatsAppAudioReader>()
                 .ExistsPendingAsync(nowUtc, cancellationToken)
             || await scope.ServiceProvider.GetRequiredService<IWhatsAppSpreadsheetReader>()
+                .ExistsPendingAsync(nowUtc, cancellationToken)
+            || await scope.ServiceProvider.GetRequiredService<IWhatsAppReceivedDocumentReader>()
                 .ExistsPendingAsync(nowUtc, cancellationToken);
     }
 
@@ -116,11 +118,13 @@ internal sealed partial class WhatsAppInboundProcessor(
             .ListPendingContactsAsync(attempted, BatchSize, timeProvider.GetUtcNow().UtcDateTime, cancellationToken);
         var spreadsheets = await scope.ServiceProvider.GetRequiredService<IWhatsAppSpreadsheetReader>()
             .ListPendingContactsAsync(attempted, BatchSize, timeProvider.GetUtcNow().UtcDateTime, cancellationToken);
+        var documents = await scope.ServiceProvider.GetRequiredService<IWhatsAppReceivedDocumentReader>()
+            .ListPendingContactsAsync(attempted, BatchSize, timeProvider.GetUtcNow().UtcDateTime, cancellationToken);
         var replies = await scope.ServiceProvider.GetRequiredService<IWhatsAppFormActionReader>()
             .ListContactsWithPendingRepliesAsync(attempted, BatchSize, timeProvider.GetUtcNow().UtcDateTime, cancellationToken);
         var locations = await scope.ServiceProvider.GetRequiredService<IWhatsAppFlowSessionReader>()
             .ListContactsWithPendingLocationsAsync(attempted, BatchSize, timeProvider.GetUtcNow().UtcDateTime, cancellationToken);
-        return inbound.Concat(audio).Concat(spreadsheets).Concat(pending).Concat(replies).Concat(locations).Distinct().Take(BatchSize).ToArray();
+        return inbound.Concat(audio).Concat(spreadsheets).Concat(documents).Concat(pending).Concat(replies).Concat(locations).Distinct().Take(BatchSize).ToArray();
     }
 
     /// <summary>
@@ -145,6 +149,9 @@ internal sealed partial class WhatsAppInboundProcessor(
             // A received spreadsheet is downloaded, prepared and copied before the interpretation: it is a source, or its contiguous
             // text's pair, only once it is stored.
             await PrepareSpreadsheetAsync(contactId, cancellationToken);
+            // A received document is downloaded, prepared and copied before the interpretation too, and read when it will be used,
+            // polled like an audio's normalization.
+            await ProcessDocumentAsync(contactId, cancellationToken);
             // Retire an interpretation superseded by a new audio before attempting its normalization.
             var work = await PrepareAssistantAsync(contactId, cancellationToken);
             var completedAudio = await ProcessAudioAsync(contactId, cancellationToken);
@@ -222,6 +229,23 @@ internal sealed partial class WhatsAppInboundProcessor(
     {
         await using var scope = scopeFactory.CreateAsyncScope();
         await scope.ServiceProvider.GetRequiredService<IWhatsAppSpreadsheetDispatchService>().PrepareAsync(contactId, cancellationToken);
+    }
+
+    private async Task ProcessDocumentAsync(Guid contactId, CancellationToken cancellationToken)
+    {
+        ArquitecturaBase.Application.Modules.WhatsApp.Models.WhatsAppAssistantWorkResponse work;
+        await using (var prepareScope = scopeFactory.CreateAsyncScope())
+        {
+            var prepared = await prepareScope.ServiceProvider.GetRequiredService<IWhatsAppReceivedDocumentDispatchService>()
+                .PrepareAsync(contactId, cancellationToken);
+            if (prepared.IsFailure || prepared.Value is null) return;
+            work = prepared.Value;
+        }
+        // Get first: a reading already accepted is polled, and only one the engine does not know is submitted.
+        var outcome = await RunOperationAsync(work, cancellationToken, recoverExisting: true);
+        await using var completeScope = scopeFactory.CreateAsyncScope();
+        await completeScope.ServiceProvider.GetRequiredService<IWhatsAppReceivedDocumentDispatchService>()
+            .CompleteAsync(contactId, work.RequestId, outcome, cancellationToken);
     }
 
     private async Task<bool> ProcessAudioAsync(Guid contactId, CancellationToken cancellationToken)

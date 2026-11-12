@@ -36,4 +36,17 @@
   <data name="SpreadsheetTooLarge" xml:space="preserve"><value>The spreadsheet is over the limit of 10 MB, 10,000 rows and 64 columns. Make it smaller or split it and send it again telling me what you want me to do with it.</value></data>
   <data name="SpreadsheetUnreadable" xml:space="preserve"><value>I cannot read the spreadsheet. Save it as an Excel Workbook (.xlsx), or a CSV as CSV UTF-8, and send it again telling me what you want me to do with it.</value></data>
   <data name="SpreadsheetEmpty" xml:space="preserve"><value>The spreadsheet has no rows with data. Check that its first sheet has what you want to use and send it again telling me what you want me to do with it.</value></data>
+  <data name="DocumentProtectedPdf" xml:space="preserve"><value>The PDF has a password and I can't open it. Send me one without a password or a screenshot of the document.</value></data>
+  <data name="DocumentProtected" xml:space="preserve"><value>The file has a password and I can't open it. Send it to me without a password or as a PDF.</value></data>
+  <data name="DocumentLegacyWord" xml:space="preserve"><value>It's an old-format file (.doc) and I can't read it. Can you send it as a PDF?</value></data>
+  <data name="DocumentLegacy" xml:space="preserve"><value>It's an old-format file and I can't read it. Can you send it as a PDF?</value></data>
+  <data name="DocumentMacroEnabledWord" xml:space="preserve"><value>The Word file has macros and I don't open it. Send it without macros (.docx) or as a PDF.</value></data>
+  <data name="DocumentMacroEnabled" xml:space="preserve"><value>The file has macros and I don't open it. Send it without macros or as a PDF.</value></data>
+  <data name="DocumentTooLarge" xml:space="preserve"><value>The file is over the 10 MB limit and I can't read it. Send me a lighter one or a screenshot.</value></data>
+  <data name="DocumentImageTooLarge" xml:space="preserve"><value>The photo is too big and I can't read it. Send me a smaller one or a screenshot.</value></data>
+  <data name="DocumentTooManyPages" xml:space="preserve"><value>The PDF has more than 10 pages and I can't read it. Send me only the pages that matter.</value></data>
+  <data name="DocumentEmpty" xml:space="preserve"><value>The Word file is empty. Can you send me the one with the content?</value></data>
+  <data name="DocumentUnreadable" xml:space="preserve"><value>I couldn't open the file. Send it to me again as a PDF or a photo.</value></data>
+  <data name="DocumentNotAllowed" xml:space="preserve"><value>Thanks, I got your document. Your account can't load it from here: I passed it to someone on the team.</value></data>
+  <data name="DocumentNotAllowedReason" xml:space="preserve"><value>Sent a document and their account can't load it or build forms.</value></data>
 </root>

@@ -13,6 +13,7 @@ public static class FormReceivedDocumentErrors
     public static readonly Error SenderInactive = Error.Conflict("Forms.ReceivedDocument.SenderInactive", "Whoever sent the document is no longer active.");
     public static readonly Error ExtractionNotFound = Error.NotFound("Forms.ReceivedDocument.ExtractionNotFound", "The extraction was not found.");
     public static readonly Error FileUnavailable = Error.Conflict("Forms.ReceivedDocument.FileUnavailable", "The copy of the received document is unavailable.");
+    public static readonly Error FileNotStored = Error.NotFound("Forms.ReceivedDocument.FileNotStored", "The received document was kept without its file.");
     public static readonly Error AwaitingSender = Error.Conflict("Forms.ReceivedDocument.AwaitingSender", "Whoever sent the document can still complete it.");
     public static readonly Error RequestConflict = Error.Conflict("Forms.ReceivedDocument.RequestConflict", "The request was already used with other data.");
     public static readonly Error ExtractionUnavailable = Error.Failure("Forms.ReceivedDocument.ExtractionUnavailable", "The extraction could not be read.");

@@ -25,3 +25,5 @@ Prueba webhook, envío y registro de entregas, clasificación/acceso explícito,
 - [Independencia del núcleo](../../../../docs/guides/quitar-whatsapp.md).
 
 Casos del asistente: `WhatsAppAssistantAgentEndpointsTests` usa una base propia (el agente es una fila de la instalación) y prueba las cinco rutas (401 y 403), el 409, el 400 por ruta, el cuerpo cerrado y Probar con un motor controlado que guarda lo enviado; `WhatsAppAssistantAgentMigrationTests` prueba Up/Down/Up y la negativa del Down con el agente y con una conversación derivada. `WHATSAPP_ASSISTANT_AGENT_HTTP_OUTPUT` conserva los once cuerpos de la cohorte `whatsapp-assistant-agent-http` (también el chat del AS4: la lista, el hilo y la sugerencia con texto), sin acreditar decisiones del modelo.
+
+Documentos (tarea 8): `WhatsAppReceivedDocumentPostgresTests` usa `WhatsAppDocumentProbe` y una bandeja neutral capturadora, y `WhatsAppReceivedDocumentInboxTests` la real de formularios; `WhatsAppDocumentWebhookReaderTests` y `WhatsAppReceivedDocumentPipelineTests` corren sin Docker, y `WhatsAppChatTests.Document` deja `document-thread` en `WHATSAPP_AUDIO_HTTP_OUTPUT`.

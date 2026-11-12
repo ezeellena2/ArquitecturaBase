@@ -31,7 +31,9 @@ public sealed record WhatsAppMessageResponse(
     // W1-A: only a received location carries its point.
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] WhatsAppLocationPointResponse? Location = null,
     // Casos del asistente: only a reply of the agent carries «Por qué respondió esto».
-    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] WhatsAppAssistantReplyResponse? AssistantReply = null);
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] WhatsAppAssistantReplyResponse? AssistantReply = null,
+    // Task 8 of the documents: only a received document carries its name, kind and pages while its descriptor lives.
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] WhatsAppReceivedDocumentResponse? Document = null);
 public sealed record WhatsAppLocationPointResponse(decimal Latitude, decimal Longitude)
 {
     public override string ToString() => "WhatsAppLocationPointResponse { Content = [REDACTED] }";

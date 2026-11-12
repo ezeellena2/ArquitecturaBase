@@ -39,7 +39,7 @@ public sealed class FormReceivedDocumentHttpTests(ApiFactory factory)
         // Only a PDF, a photo (JPEG or PNG) or a Word is a document of the inbox.
         var text = await scenario.PortAsync(port => port.RegisterAsync(sent.Request with
         {
-            SourceId = "wamid.text-" + Guid.NewGuid().ToString("N"), Copy = sent.Request.Copy with { MediaType = "text/plain" },
+            SourceId = "wamid.text-" + Guid.NewGuid().ToString("N"), Copy = sent.Request.Copy! with { MediaType = "text/plain" },
         }, Ct));
 
         Assert.Equal(StructuredDocumentReplyKind.Sure, sent.Reply.Kind);

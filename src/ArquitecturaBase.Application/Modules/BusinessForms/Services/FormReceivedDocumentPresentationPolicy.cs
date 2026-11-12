@@ -65,7 +65,8 @@ internal sealed class FormReceivedDocumentPresentationPolicy(IFormReceivedDocume
             canReview, canReview ? await FormsAsync(culture, ct) : []);
     }
 
-    public Task<Stream?> OpenAsync(FormReceivedDocumentStoredRow row, CancellationToken ct) => copies.OpenAsync(row.StorageKey, ct);
+    public Task<Stream?> OpenAsync(FormReceivedDocumentStoredRow row, CancellationToken ct) =>
+        row.StorageKey is { } key ? copies.OpenAsync(key, ct) : Task.FromResult<Stream?>(null);
 
     /// <summary>
     /// The options of the sender's list for a catalog choice of the document's current form (one its reading fills) that match what was

@@ -68,3 +68,5 @@ IAssistantOperationCompletionSignal avisa el cierre confirmado de una operación
 `IStructuredCatalogFeed` aporta listas que formularios guarda como catálogos de sólo lectura (`External`): cada catálogo con su clave estable, nombre, tipo de valor y carpeta del sistema, y la lectura de sus opciones o el código de por qué no se pudo. Colección opcional sin adaptador apagado: sin orígenes no hay catálogos `External`. Leer no escribe ni abre UoW; las claves repetidas entre orígenes son error de composición.
 
 `IStructuredPartyLookup` completa una opción de un catálogo desde su CUIT («Completar con ARCA»): dice qué catálogo completa (por la `Key` que le dio un estándar) y qué campo tiene la CUIT, y responde el nombre y los valores por clave de campo (un campo de catálogo, por el código de la opción) o el código de por qué no. Colección opcional sin adaptador apagado; sólo lee, fuera de toda UoW.
+
+`IStructuredDocumentChannel.FindLoadingAsync` dice si algún formulario publicado en un canal lee documentos y si la persona nombrada puede cargar en uno, con la regla con que se ofrecen las capacidades de documentos; apagado, ninguno lee.

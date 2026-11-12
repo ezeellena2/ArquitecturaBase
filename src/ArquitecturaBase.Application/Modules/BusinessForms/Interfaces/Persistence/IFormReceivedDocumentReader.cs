@@ -11,6 +11,8 @@ public interface IFormReceivedDocumentReader
 {
     /// <summary>Active versions published in a channel whose sealed reading exists (the caller checks it is on), up to 101.</summary>
     Task<IReadOnlyList<FormDocumentFormRow>> ListReadingFormsAsync(CancellationToken cancellationToken);
+    /// <summary>Whether some form published in a channel has its reading on (task 8), asked in SQL without reading any schema.</summary>
+    Task<bool> ExistsReadingFormAsync(CancellationToken cancellationToken);
     /// <summary>The same forms with their reading on (filtered in the query), only by what names them, the first 100.</summary>
     Task<IReadOnlyList<FormDocumentFormNameRow>> ListReadingFormNamesAsync(CancellationToken cancellationToken);
     /// <summary>The active published version of a form, in a channel or only in the app, or null.</summary>

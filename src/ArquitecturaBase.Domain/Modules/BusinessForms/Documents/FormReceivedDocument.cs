@@ -43,11 +43,14 @@ public sealed class FormReceivedDocument : Entity, IAuditable
     public string SourceId { get; private set; } = "";
     public Guid SenderUserId { get; private set; }
     public DateTime ReceivedAtUtc { get; private set; }
-    public string StorageKey { get; private set; } = "";
+    /// <summary>The inbox's own copy; null for a file that cannot be opened and that the inbox does not keep (task 8).</summary>
+    public string? StorageKey { get; private set; }
     public string FileName { get; private set; } = "";
     public string MediaType { get; private set; } = "";
-    public long Size { get; private set; }
-    public string Sha256 { get; private set; } = "";
+    /// <summary>Null only without a copy, when the size was never known (over the limit before its bytes arrived).</summary>
+    public long? Size { get; private set; }
+    /// <summary>The SHA-256 of the copy, in lowercase; null without one.</summary>
+    public string? Sha256 { get; private set; }
     public int? Pages { get; private set; }
     public byte[]? ProtectedReading { get; private set; }
     public byte[]? ProtectedProposal { get; private set; }
@@ -98,6 +101,28 @@ public sealed class FormReceivedDocument : Entity, IAuditable
             State = FormReceivedDocumentState.Unclassified,
         };
     }
+
+    /// <summary>
+    /// A file that cannot be opened and that the inbox does not keep (decision 10, task 8): what its person sent (the file name, the media type
+    /// the channel declared and the size when it was known), discarded at once with its reason, without a copy, a reading or a proposal.
+    /// </summary>
+    public static Result<FormReceivedDocument> ReceiveRejected(Guid id, string channelId, string sourceId, Guid senderUserId, DateTime receivedAtUtc,
+        string fileName, string mediaType, long? size, string reasonCode, DateTime nowUtc)
+    {
+        if (id == Guid.Empty || !Text(channelId, MaxChannelIdLength) || !Text(sourceId, MaxSourceIdLength) || senderUserId == Guid.Empty
+            || receivedAtUtc.Kind != DateTimeKind.Utc || !Text(fileName, MaxFileNameLength) || !Text(mediaType, MaxMediaTypeLength) || size is <= 0
+            || !Code(reasonCode) || nowUtc.Kind != DateTimeKind.Utc)
+            return FormReceivedDocumentErrors.ContentInvalid;
+        return new FormReceivedDocument(id)
+        {
+            ChannelId = channelId, SourceId = sourceId, SenderUserId = senderUserId, ReceivedAtUtc = receivedAtUtc, FileName = fileName,
+            MediaType = mediaType, Size = size, State = FormReceivedDocumentState.Discarded, ReasonCode = reasonCode,
+            DeleteAfterUtc = nowUtc.AddDays(RetentionDays),
+        };
+    }
+
+    /// <summary>Whether the inbox keeps the document's file.</summary>
+    public bool IsStored => StorageKey is not null;
 
     /// <summary>The reading and, with a proposal, the type of document and the numbers to search it by; set while it is registered.</summary>
     public Result Describe(byte[]? protectedReading, string? documentType, string searchText)

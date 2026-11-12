@@ -222,23 +222,23 @@ public sealed class WhatsAppWebhookReaderTests
         Assert.True(batch.IsEmpty);
     }
 
+    // Task 8 of the documents: a JPEG photo is a received document, with its caption (WhatsAppDocumentWebhookReaderTests).
     [Fact]
-    public void A_photo_is_media_without_a_body()
+    public void A_photo_is_a_received_document_with_its_caption()
     {
         var batch = Read(MetaWebhook.Build(
             contacts: [MetaWebhook.Contact(WaId, Bsuid, "Ana")],
             messages: [MetaWebhook.Image(WaMessageId, WaId, Bsuid, SentAtUtc)]));
 
         var message = Assert.Single(batch.Messages);
-        Assert.Equal(WhatsAppMessageKind.Media, message.Kind);
-        Assert.Null(message.Body);
+        Assert.Equal(WhatsAppMessageKind.ReceivedDocument, message.Kind);
+        Assert.Equal("Mirá esta foto", message.Body);
     }
 
     [Theory]
     [InlineData("video")]
-    [InlineData("document")]
     [InlineData("sticker")]
-    public void Videos_documents_and_stickers_are_media(string type)
+    public void Videos_and_stickers_are_media(string type)
     {
         var message = MetaWebhook.Text(WaMessageId, WaId, Bsuid, SentAtUtc, "x");
         message.Remove("text");

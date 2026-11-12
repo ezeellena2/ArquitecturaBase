@@ -22,14 +22,18 @@ internal sealed class FormReceivedDocumentChannelService(IFormReceivedDocumentRe
 {
     private static readonly StructuredDocumentRegistration Unavailable = new(null, StructuredDocumentReplyKind.Unavailable);
 
+    public Task<StructuredDocumentLoading> FindLoadingAsync(Guid personUserId, CancellationToken cancellationToken) =>
+        guard.FindLoadingAsync(personUserId, cancellationToken);
+
     public async Task<StructuredDocumentRegistration> RegisterAsync(StructuredDocumentRegistrationRequest request, CancellationToken cancellationToken)
     {
         if (!Valid(request)) return Unavailable;
         if (await replies.FindReplayAsync(request, cancellationToken) is { } replay) return replay;
         if (!await guard.HasAsync(request.SenderUserId, BusinessFormsPermissions.RecordsCreate, cancellationToken)) return Unavailable;
         var documentId = Guid.CreateVersion7();
-        var storageKey = await copies.CopyAsync(documentId, request.Copy, cancellationToken);
-        if (storageKey is null) return Unavailable;
+        // A file that cannot be opened may come without a copy (task 8): the inbox keeps what its person sent and no file.
+        string? storageKey = null;
+        if (request.Copy is { } copy && (storageKey = await copies.CopyAsync(documentId, copy, cancellationToken)) is null) return Unavailable;
         var classification = await replies.ClassifyAsync(request, cancellationToken);
         var saved = await unitOfWork.ExecuteInTransactionAsync<Result<StructuredDocumentRegistration?>>(async ct =>
         {
@@ -93,8 +97,16 @@ internal sealed class FormReceivedDocumentChannelService(IFormReceivedDocumentRe
         request.ChannelId is { Length: > 0 and <= FormReceivedDocument.MaxChannelIdLength } channel && channel.All(c => char.IsAsciiLetterLower(c) || char.IsAsciiDigit(c) || c == '-')
         && request.SourceId is { Length: > 0 and <= FormReceivedDocument.MaxSourceIdLength } && !request.SourceId.Any(char.IsControl)
         && request.SenderUserId != Guid.Empty && request.Culture is "es" or "en" && request.ReceivedAtUtc.Kind == DateTimeKind.Utc
-        && request.Copy is { StorageKey.Length: > 0, Name.Length: > 0 } copy && FormReceivedDocumentExtractionPolicy.Kind(copy.MediaType) is not null
-        && copy.Size is > 0 and <= StructuredAttachmentLimits.MaximumBytes && copy.Pages is null or (>= 1 and <= StructuredAttachmentLimits.MaximumPages)
-        && copy.Sha256 is { Length: 64 } sha && sha.All(c => char.IsAsciiDigit(c) || c is >= 'a' and <= 'f')
+        && (request.Copy is { } copy ? request.File is null && ValidCopy(copy) : ValidFile(request))
         && (request.Reading is null) == (request.NotRead is not null) && request.ReplyExpiresAtUtc is null or { Kind: DateTimeKind.Utc };
+
+    private static bool ValidCopy(StructuredDocumentCopy copy) =>
+        copy is { StorageKey.Length: > 0, Name.Length: > 0 } && FormReceivedDocumentExtractionPolicy.Kind(copy.MediaType) is not null
+        && copy.Size is > 0 and <= StructuredAttachmentLimits.MaximumBytes && copy.Pages is null or (>= 1 and <= StructuredAttachmentLimits.MaximumPages)
+        && copy.Sha256 is { Length: 64 } sha && sha.All(c => char.IsAsciiDigit(c) || c is >= 'a' and <= 'f');
+
+    // Without a copy, only a file that cannot be opened (task 8): its name, the media type the channel declared and its size when known.
+    private static bool ValidFile(StructuredDocumentRegistrationRequest request) =>
+        request is { NotRead: StructuredDocumentNotRead.Rejected, Rejection: not null, Reading: null, Proposal: null, File: { Name.Length: > 0 } file }
+        && file.MediaType is { Length: > 0 and <= StructuredDocumentFile.MaxMediaTypeLength } type && !type.Any(char.IsControl) && file.Size is null or > 0;
 }

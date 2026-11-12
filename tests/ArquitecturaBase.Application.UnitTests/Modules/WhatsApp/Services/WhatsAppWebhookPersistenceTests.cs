@@ -65,6 +65,22 @@ public sealed class WhatsAppWebhookPersistenceTests
         Assert.Equal("CREATE_ACCOUNT", message.ReplyId);
     }
 
+    // Task 8 of the documents: a received document keeps its caption as the body and Meta's descriptor, with its name normalized once.
+    [Fact]
+    public async Task A_received_document_keeps_its_caption_and_its_descriptor_and_waits_to_be_downloaded()
+    {
+        var document = new WhatsAppWebhookMessage("wamid.3", From(WaId, Bsuid, "Ana"), WhatsAppMessageKind.ReceivedDocument, "Cargalo en pagos", null, Now)
+            { Document = new("1234", "application/pdf", new string('A', 64), @"C:\pagos\comprobante.pdf") };
+
+        await HandleAsync(Batch(document));
+
+        var message = Assert.Single(_messages.Added);
+        Assert.Equal((WhatsAppMessageKind.ReceivedDocument, "Cargalo en pagos", WhatsAppMessagePurpose.Business, WhatsAppDocumentState.Pending),
+            (message.Kind, message.Body, message.Purpose, message.DocumentState));
+        Assert.Equal(("1234", "application/pdf", new string('a', 64), "comprobante.pdf"),
+            (message.DocumentMediaId, message.DocumentContentType, message.DocumentSha256, message.DocumentFileName));
+    }
+
     [Fact]
     public async Task A_flow_reply_is_protected_before_the_message_is_saved()
     {

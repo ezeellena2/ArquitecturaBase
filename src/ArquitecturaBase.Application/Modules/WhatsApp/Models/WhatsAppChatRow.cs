@@ -40,6 +40,8 @@ public sealed record WhatsAppMessageRow(
     /// <summary>W1-A: the point of a received location.</summary>
     public decimal? Latitude { get; init; }
     public decimal? Longitude { get; init; }
+    /// <summary>Task 8 of the documents: what the chat shows of a received document.</summary>
+    public WhatsAppReceivedDocumentMessageRow? Document { get; init; }
 }
 public sealed record WhatsAppAudioMessageRow(WhatsAppAudioState State, bool HasContent, DateTime? ContentExpiresAtUtc, string? FailureCode = null);
 public sealed record WhatsAppFormReplyRow(string State, Guid? SourceReceiptId, Guid? DefinitionId, Guid? VersionId,

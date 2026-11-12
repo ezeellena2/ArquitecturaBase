@@ -15,13 +15,35 @@ public sealed record StructuredDocumentCopy(string StorageKey, string Name, stri
 public enum StructuredDocumentNotRead { Rejected, Quota }
 
 /// <summary>
+/// What the person sent when the channel keeps no copy of it, for one that cannot be opened (decision 10): the file name, the media type
+/// the channel declared and the size when it is known (one over the limit before its bytes arrived has none).
+/// </summary>
+public sealed record StructuredDocumentFile(string Name, string MediaType, long? Size)
+{
+    /// <summary>The longest media type the owner keeps; a channel declares a generic one when its own is longer.</summary>
+    public const int MaxMediaTypeLength = 100;
+
+    public override string ToString() => "StructuredDocumentFile { Content = [REDACTED] }";
+}
+
+/// <summary>Whether some published form reads documents, and whether the named person can load into one: neither without the owner.</summary>
+public sealed record StructuredDocumentLoading(bool AnyFormReads, bool CanLoad)
+{
+    public static StructuredDocumentLoading None { get; } = new(false, false);
+}
+
+/// <summary>
 /// A document a person with a linked and active account sent (decision 9): who and when, the copy and, when it was read, its reading
 /// and the interpretation's authentic proposal (the documents capability, or none when it closed without one). One that was not read
-/// says why. The channel and its opaque source id register it once; the reply deadline is when the person stops being waited for.
+/// says why. A file that cannot be opened may come without a copy (the channel must not keep it: over the limit, an old or macro-enabled
+/// Word, a protected Word, an unknown type, a photo over the pixel limit), with what the person sent in <see cref="File"/>. The channel and
+/// its opaque source id register it once; the reply deadline is when the person stops being waited for.
 /// </summary>
 public sealed record StructuredDocumentRegistrationRequest(string ChannelId, string SourceId, Guid SenderUserId, string Culture,
-    DateTime ReceivedAtUtc, StructuredDocumentCopy Copy)
+    DateTime ReceivedAtUtc, StructuredDocumentCopy? Copy)
 {
+    /// <summary>Only without a copy, and only for one that cannot be opened (NotRead Rejected): what the person sent.</summary>
+    public StructuredDocumentFile? File { get; init; }
     public StructuredDocumentReading? Reading { get; init; }
     public AssistantObservedProposal? Proposal { get; init; }
     public StructuredDocumentNotRead? NotRead { get; init; }

@@ -19,12 +19,17 @@ internal sealed class FormReceivedDocumentRecorder(IFormReceivedDocumentReposito
 {
     public const string DetailKind = "event";
 
-    public Result<FormReceivedDocument> Register(Guid documentId, string storageKey, StructuredDocumentRegistrationRequest request,
+    public Result<FormReceivedDocument> Register(Guid documentId, string? storageKey, StructuredDocumentRegistrationRequest request,
         FormReceivedDocumentClassification classification)
     {
         var now = clock.GetUtcNow().UtcDateTime;
+        // Without a copy, a file that cannot be opened (task 8): discarded at once with what its person sent, and nothing to read.
+        if (storageKey is null)
+            return request is { Copy: null, File: { } file } && classification.State == FormReceivedDocumentState.Discarded
+                ? Rejected(documentId, request, file, classification, now) : FormReceivedDocumentErrors.ContentInvalid;
+        if (request.Copy is not { } copy) return FormReceivedDocumentErrors.ContentInvalid;
         var received = FormReceivedDocument.Receive(documentId, request.ChannelId, request.SourceId, request.SenderUserId, request.ReceivedAtUtc,
-            storageKey, FileName(request.Copy.Name), request.Copy.MediaType, request.Copy.Size, request.Copy.Sha256, request.Copy.Pages, request.ReplyExpiresAtUtc);
+            storageKey, FileName(copy.Name), copy.MediaType, copy.Size, copy.Sha256, copy.Pages, request.ReplyExpiresAtUtc);
         if (received.IsFailure) return received.Error;
         var document = received.Value;
         var described = document.Describe(request.Reading is { } reading ? contents.ProtectReading(documentId, reading) : null,
@@ -43,6 +48,17 @@ internal sealed class FormReceivedDocumentRecorder(IFormReceivedDocumentReposito
         documents.Add(document);
         var recorded = Record(documentId, FormReceivedDocumentEventKind.Received, null, JsonNamingPolicy.CamelCase.ConvertName(classification.Reply.Kind.ToString()));
         return recorded.IsFailure ? recorded.Error : document;
+    }
+
+    private Result<FormReceivedDocument> Rejected(Guid documentId, StructuredDocumentRegistrationRequest request, StructuredDocumentFile file,
+        FormReceivedDocumentClassification classification, DateTime now)
+    {
+        var rejected = FormReceivedDocument.ReceiveRejected(documentId, request.ChannelId, request.SourceId, request.SenderUserId, request.ReceivedAtUtc,
+            FileName(file.Name), file.MediaType, file.Size, classification.ReasonCode ?? FormReceivedDocumentReplyPolicy.Unreadable, now);
+        if (rejected.IsFailure) return rejected.Error;
+        documents.Add(rejected.Value);
+        var recorded = Record(documentId, FormReceivedDocumentEventKind.Received, null, JsonNamingPolicy.CamelCase.ConvertName(classification.Reply.Kind.ToString()));
+        return recorded.IsFailure ? recorded.Error : rejected.Value;
     }
 
     /// <summary>A step of the history; its detail is a short text (a code, a form's name or a response's number), protected.</summary>

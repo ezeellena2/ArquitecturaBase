@@ -27,3 +27,5 @@ WhatsAppFlowDeprecationTests separa reserva de inicio, recuperación de lease, f
 IA, Etapa 2: WhatsAppMessageSpreadsheetTests prueba el descriptor y su nombre acotado, la copia guardada una vez, el rechazo cierto una sola vez, No disponible final y las fallas que saturan como las del audio.
 
 WhatsAppFormActionChoiceTests prueba las opciones de un aviso: botones fijados con el id de la salida, los topes de Meta, sin documento, el reintento con los mismos botones y el id que se lee de vuelta sólo con su prefijo.
+
+Documentos (tarea 8): WhatsAppMessageDocumentTests prueba el descriptor y su nombre por tipo, la espera de su pedido, la copia una vez, el rechazo cierto una sola vez, No disponible final, las fallas que saturan y la lectura sólo al usarse: un Word con lo preparado y lo demás con el pedido fijado una vez.

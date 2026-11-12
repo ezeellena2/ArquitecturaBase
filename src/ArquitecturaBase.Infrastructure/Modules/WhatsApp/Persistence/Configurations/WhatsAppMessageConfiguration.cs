@@ -66,6 +66,22 @@ internal sealed class WhatsAppMessageConfiguration : IEntityTypeConfiguration<Wh
         builder.HasIndex(message => message.ContactId, "IX_WhatsAppMessages_PendingSpreadsheets")
             .HasFilter($"\"{nameof(WhatsAppMessage.SpreadsheetState)}\" = '{nameof(WhatsAppSpreadsheetState.Pending)}'");
 
+        // Un documento recibido (tarea 8 de documentos): el descriptor de Meta, la copia privada, su estado, la lectura y su pedido al
+        // motor. El procesador busca en cada vuelta los que esperan bajarse o leerse, así que tienen su índice filtrado.
+        builder.Property(message => message.DocumentState).HasConversion<string>().HasMaxLength(20);
+        builder.Property(message => message.DocumentMediaId).HasMaxLength(128);
+        builder.Property(message => message.DocumentContentType).HasMaxLength(128);
+        builder.Property(message => message.DocumentSha256).HasMaxLength(64);
+        builder.Property(message => message.DocumentFileName).HasMaxLength(WhatsAppMessage.MaxDocumentFileNameLength);
+        builder.Property(message => message.DocumentStorageKey).HasMaxLength(500);
+        builder.Property(message => message.DocumentCopySha256).HasMaxLength(64);
+        builder.Property(message => message.DocumentReadingJson).HasMaxLength(WhatsAppMessage.MaxDocumentReadingLength);
+        builder.Property(message => message.DocumentContextJson).HasMaxLength(WhatsAppMessage.MaxDocumentContextBytes);
+        builder.Property(message => message.DocumentFailureCode).HasMaxLength(128);
+        builder.HasIndex(message => message.DocumentRequestId).IsUnique().HasFilter("\"DocumentRequestId\" IS NOT NULL");
+        builder.HasIndex(message => message.ContactId, "IX_WhatsAppMessages_PendingDocuments")
+            .HasFilter($"\"{nameof(WhatsAppMessage.DocumentState)}\" IN ('{nameof(WhatsAppDocumentState.Pending)}', '{nameof(WhatsAppDocumentState.Reading)}')");
+
         builder.HasIndex(message => message.WaMessageId).IsUnique();
 
         // El de la clave foránea, explícito: EF lo daría por cubierto con el de los pendientes, que empieza por la misma

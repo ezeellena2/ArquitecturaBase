@@ -74,7 +74,7 @@ public sealed record FormDocumentOriginRow(Guid SourceReceiptId, Guid ReviewerUs
 }
 
 public sealed record FormReceivedDocumentStoredRow(Guid Id, string ChannelId, string SourceId, Guid SenderUserId, string? SenderName,
-    DateTime ReceivedAtUtc, string StorageKey, string FileName, string MediaType, long Size, string Sha256, int? Pages,
+    DateTime ReceivedAtUtc, string? StorageKey, string FileName, string MediaType, long? Size, string? Sha256, int? Pages,
     byte[]? ProtectedReading, byte[]? ProtectedProposal, Guid? DefinitionId, Guid? VersionId, string? DefinitionNameJson, string? Prefix,
     ArquitecturaBase.Domain.Modules.BusinessForms.Documents.FormReceivedDocumentState State, string? ReasonCode, string? DocumentType, Guid? RecordId, long? RecordNumber, Guid? ReviewedByUserId, string? ReviewerName,
     DateTime? ReviewedAtUtc, DateTime? ReplyExpiresAtUtc, bool NotSendable, DateTime? DeleteAfterUtc, Guid? ExtractionRequestId,
@@ -132,8 +132,9 @@ public sealed record PassFormReceivedDocumentRequest(Guid? RequestId, Guid? Vers
 public sealed record FormReceivedDocumentPersonResponse(Guid UserId, string? DisplayName);
 public sealed record FormReceivedDocumentFormResponse(Guid DefinitionId, string Name);
 public sealed record FormReceivedDocumentRecordReference(Guid RecordId, string Number);
-// Stored: whether the inbox keeps a copy of it to open; always today (a file registered without one is what task 8 adds).
-public sealed record FormReceivedDocumentFileInfoResponse(string Name, string MediaType, long Size, int? Pages, bool Stored);
+// Stored: whether the inbox keeps a copy of it to open; a file that cannot be opened may be kept without one (task 8), and then its size
+// is null when it was never known (over the limit before its bytes arrived).
+public sealed record FormReceivedDocumentFileInfoResponse(string Name, string MediaType, long? Size, int? Pages, bool Stored);
 // A datum the list shows to find a document: the question and its value as read.
 public sealed record FormReceivedDocumentHighlightResponse(Guid FieldId, string Label, string Value)
 {

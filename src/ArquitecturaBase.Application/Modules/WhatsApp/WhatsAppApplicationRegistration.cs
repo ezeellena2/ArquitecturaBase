@@ -100,6 +100,11 @@ public static class WhatsAppApplicationRegistration
         services.AddScoped<WhatsAppSpreadsheetReplyPolicy>();
         services.AddScoped<IWhatsAppSpreadsheetDispatchService, WhatsAppSpreadsheetDispatchService>();
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IPrivateFileRetentionSource, WhatsAppSpreadsheetRetentionSource>());
+        services.AddScoped<WhatsAppReceivedDocumentPreparationPolicy>();
+        services.AddScoped<WhatsAppReceivedDocumentReplyPolicy>();
+        services.AddScoped<WhatsAppReceivedDocumentReadingPolicy>();
+        services.AddScoped<IWhatsAppReceivedDocumentDispatchService, WhatsAppReceivedDocumentDispatchService>();
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IPrivateFileRetentionSource, WhatsAppReceivedDocumentRetentionSource>());
         services.AddScoped<IWhatsAppChatService, WhatsAppChatService>();
         services.AddScoped<IWhatsAppChatModeService, WhatsAppChatModeService>();
         services.AddScoped<IWhatsAppChatQueryService, WhatsAppChatQueryService>();

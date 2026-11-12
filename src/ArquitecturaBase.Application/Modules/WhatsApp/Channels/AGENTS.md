@@ -16,6 +16,7 @@ Implementa puertos neutrales de `Application/Interfaces/Channels` con lo que sab
 | `WhatsAppAssistantAgentCapabilitySource` | `IAssistantCapabilitySource` | lecturas `whatsapp.agent`, `whatsapp.agent-knowledge` y `whatsapp.agent-history`; propuestas `whatsapp.reply` y `whatsapp.draft-reply` (Casos del asistente) |
 | `WhatsAppAudioRetentionSource` | `IPrivateFileRetentionSource` | claves de audio todavía referenciadas |
 | `WhatsAppSpreadsheetRetentionSource` | `IPrivateFileRetentionSource` | copias de planillas pendientes o guardadas mientras su mensaje tenga contenido |
+| `WhatsAppReceivedDocumentRetentionSource` | `IPrivateFileRetentionSource` | copias de documentos recibidos (`.pdf`, `.jpg`, `.png` o `.docx`) pendientes o guardadas mientras su mensaje tenga contenido |
 
 La evidencia local de retiro (`IStructuredFormChannelStateSource`) la implementa un lector de Infrastructure.
 

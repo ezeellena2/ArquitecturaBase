@@ -36,4 +36,17 @@
   <data name="SpreadsheetTooLarge" xml:space="preserve"><value>La planilla pasa el tope de 10 MB, 10.000 filas y 64 columnas. Achicala o dividila y mandala de nuevo contándome qué querés que haga con ella.</value></data>
   <data name="SpreadsheetUnreadable" xml:space="preserve"><value>No puedo leer la planilla. Guardala como Libro de Excel (.xlsx), o un CSV como CSV UTF-8, y mandala de nuevo contándome qué querés que haga con ella.</value></data>
   <data name="SpreadsheetEmpty" xml:space="preserve"><value>La planilla no tiene filas con datos. Revisá que su primera hoja tenga lo que querés usar y mandala de nuevo contándome qué querés que haga con ella.</value></data>
+  <data name="DocumentProtectedPdf" xml:space="preserve"><value>El PDF tiene contraseña y no lo puedo abrir. Mandame uno sin contraseña o una captura del documento.</value></data>
+  <data name="DocumentProtected" xml:space="preserve"><value>El archivo tiene contraseña y no lo puedo abrir. Mandámelo sin contraseña o en PDF.</value></data>
+  <data name="DocumentLegacyWord" xml:space="preserve"><value>Es un archivo de un formato viejo (.doc) y no lo puedo leer. ¿Me lo mandás en PDF?</value></data>
+  <data name="DocumentLegacy" xml:space="preserve"><value>Es un archivo de un formato viejo y no lo puedo leer. ¿Me lo mandás en PDF?</value></data>
+  <data name="DocumentMacroEnabledWord" xml:space="preserve"><value>El Word tiene macros y no lo abro. Mandámelo sin macros (.docx) o en PDF.</value></data>
+  <data name="DocumentMacroEnabled" xml:space="preserve"><value>El archivo tiene macros y no lo abro. Mandámelo sin macros o en PDF.</value></data>
+  <data name="DocumentTooLarge" xml:space="preserve"><value>El archivo pasa el tope de 10 MB y no lo puedo leer. Mandame uno más liviano o una captura.</value></data>
+  <data name="DocumentImageTooLarge" xml:space="preserve"><value>La foto es demasiado grande y no la puedo leer. Mandame una más chica o una captura.</value></data>
+  <data name="DocumentTooManyPages" xml:space="preserve"><value>El PDF tiene más de 10 páginas y no lo puedo leer. Mandame sólo las páginas que importan.</value></data>
+  <data name="DocumentEmpty" xml:space="preserve"><value>El Word está vacío. ¿Me mandás el que tiene el contenido?</value></data>
+  <data name="DocumentUnreadable" xml:space="preserve"><value>No pude abrir el archivo. Mandámelo de nuevo como PDF o como foto.</value></data>
+  <data name="DocumentNotAllowed" xml:space="preserve"><value>Gracias, recibí tu documento. Tu cuenta no puede cargarlo desde acá: se lo pasé a una persona del equipo.</value></data>
+  <data name="DocumentNotAllowedReason" xml:space="preserve"><value>Mandó un documento y su cuenta no puede cargarlo ni armar formularios.</value></data>
 </root>

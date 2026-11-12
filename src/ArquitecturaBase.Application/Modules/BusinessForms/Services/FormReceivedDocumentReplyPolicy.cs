@@ -34,10 +34,10 @@ internal sealed partial class FormReceivedDocumentReplyPolicy(IFormReceivedDocum
         if (request.NotRead == StructuredDocumentNotRead.Rejected || request.Reading is not { } reading)
             return new(FormReceivedDocumentState.Discarded, RejectionCode(request.Rejection), null, false, new(null, StructuredDocumentReplyKind.Rejected));
         FormDocumentPreparedProposal? prepared = null;
-        if (request.Proposal is { } proposal && FormDocumentObservationPolicy.Authentic(proposal, out var entry, out var read)
+        if (request is { Proposal: { } proposal, Copy: { } copy } && FormDocumentObservationPolicy.Authentic(proposal, out var entry, out var read)
             && (read is null || read.Capability == BusinessFormDocumentAssistantCapabilitySource.CandidatesId
                 && read.Read.Payload.UserId == request.SenderUserId && read.Read.Payload.Culture == culture))
-            prepared = await proposals.PrepareAsync(entry, request.Copy.Sha256, null, ct);
+            prepared = await proposals.PrepareAsync(entry, copy.Sha256, null, ct);
         return await ClassifyAsync(prepared, reading, request.SenderUserId, culture, ct);
     }
 

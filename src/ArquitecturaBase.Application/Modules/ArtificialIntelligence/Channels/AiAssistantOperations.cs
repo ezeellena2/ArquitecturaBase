@@ -18,7 +18,7 @@ internal sealed class AiAssistantOperations(IAiConnectionReader connectionReader
     public async Task<AssistantAvailabilityResponse> GetAvailabilityAsync(CancellationToken cancellationToken)
     {
         var connection = await connectionReader.FindAsync(cancellationToken);
-        return new AssistantAvailabilityResponse(guard.Availability(connection));
+        return new AssistantAvailabilityResponse(guard.Availability(connection)) { ReadsDocuments = guard.ReadsDocuments(connection) };
     }
 
     public Task<Result<AssistantOperationAcceptedResponse>> SubmitAsync(AssistantOperationRequest request, CancellationToken cancellationToken) =>
