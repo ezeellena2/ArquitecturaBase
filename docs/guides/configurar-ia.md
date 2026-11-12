@@ -369,6 +369,17 @@ La mediana local por caso fue de 10,29 s en `ia-spreadsheets`, 10,23 s en `ia-au
 
 Desde la tarea 12 de [documentos](../features/formularios.md#la-ia-arma-formularios-con-un-documento--etapa-3-propose-form2-2026-11-12) (2026-11-12), el asistente automático de WhatsApp ofrece `forms.authoring.propose-form@2`, con otro esquema, en lugar de la 1. La evidencia real de `ia-authoring` (su mitad automática), de `ia-spreadsheets` y de `channel-dictation` se tomó con la 1 y ya no la cubre: esos sets se repiten con la 2, con el visto bueno del usuario. `channel-stage5` e Inicio no cambian.
 
+El `2026-11-12` se calificó la [lectura de documentos](../features/inteligencia-artificial.md#lectura-de-documentos-en-el-mismo-motor--2026-11-11)
+con la misma conexión guardada, desde una copia limpia de `093f184f`: `doc_reading_20261112_02` (`document-reading`) leyó con
+`ReadDocument` los quince documentos ficticios del arnés en español y en inglés, con el perfil candidato
+`openai-document-candidate@1` (`gpt-6.1-sol`, PDF, JPEG y PNG hasta 10 MiB y 10 páginas, `document-read-v1@1`, razonamiento
+bajo). Dio 30/30 lecturas y 502/502 checks: cada dato con sus dígitos y ningún número inventado, el idioma original, la foto
+movida, la oscura y la cortada con su legibilidad y su causa, la orden escondida transcripta sin seguirla y el PDF escaneado y
+el de permisos leídos. Sumaron 30 pasos de proveedor, 65.863 tokens de entrada y 6.360 de salida, en 198 s en total. OpenAI
+aceptó en modo estricto el esquema de la lectura, el `input_file` y el `input_image` y el razonamiento bajo, que el arnés no
+podía comprobar sin conexión. El primer intento (`doc_reading_20261112_01`) se cortó al crear la base de evaluación, antes de
+llamar al proveedor, y no cuenta. Para que una instalación lea documentos falta declarar ese perfil en `DocumentModelProfiles`.
+
 Para otra calificación, ejecutá el [arnés](../../harnesses/assistant-qualification/README.md)
 con fixtures ficticios y presupuesto controlado. Detenelo ante el primer check fallido. Conservá
 la base, ledger, archivos privados y key ring DPAPI propio del run: `--resume` consulta Get
