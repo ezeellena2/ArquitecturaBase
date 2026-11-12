@@ -25,6 +25,39 @@ internal sealed class FormPublicationGuard(FormPublicationAccessGuard accessGuar
     public Task<FormCatalogPublicationAssessment> InspectCatalogsAsync(IReadOnlyList<CanonicalFormField> fields, CancellationToken ct,
         IReadOnlyList<string>? cultures = null, bool forChannels = true) => AssessCatalogsAsync(fields, true, cultures, forChannels, ct);
 
+    // DOC1: a lookup that compares what a question read with a catalog field needs that field active in the catalog of the question it
+    // fills and of a comparable type: a text with a text, a number with a decimal, a date with a date. The option's code and text need
+    // nothing else, and the draft already checked the rest. Only a reading that is on, the one a version seals, is checked, and only
+    // for a publication a channel completes: the caller skips it only in the app.
+    public async Task<IReadOnlyList<FormPublicationIssueResponse>> ValidateDocumentReadingAsync(FormDefinitionResponse definition, CancellationToken ct)
+    {
+        if (definition.Draft.DocumentReading is not { Enabled: true } reading) return [];
+        var issues = new List<FormPublicationIssueResponse>();
+        var catalogs = new Dictionary<Guid, FormCatalogStoredRow?>();
+        for (var index = 0; index < reading.Lookups.Count; index++)
+        {
+            var lookup = reading.Lookups[index];
+            if (!Guid.TryParseExact(lookup.Field, "D", out var fieldId)) continue;
+            var question = definition.Draft.Fields.FirstOrDefault(field => field.FieldId == lookup.QuestionId);
+            var source = definition.Draft.Fields.FirstOrDefault(field => field.FieldId == lookup.SourceQuestionId);
+            if (question?.Source?.Catalog is not { } catalogId || source is null) continue;
+            if (!catalogs.TryGetValue(catalogId, out var catalog)) catalogs[catalogId] = catalog = await catalogReader.FindAsync(catalogId, ct);
+            var field = FormCatalogFieldPolicy.ReadFields(catalog?.FieldsJson).SingleOrDefault(value => value.Id == fieldId);
+            if (field is { IsActive: true } && Comparable(field.Type, source.Type)) continue;
+            issues.Add(new(null, question.FieldId, null, $"draft.documentReading.lookups[{index}].field", FormPublicationErrors.DocumentLookupInvalid.Code,
+                ErrorMessages.Get(FormPublicationErrors.DocumentLookupInvalid.Code), null, null));
+        }
+        return issues;
+    }
+
+    internal static bool Comparable(string catalogField, string question) => catalogField switch
+    {
+        "text" => question is "shortText" or "longText",
+        "integer" or "decimal" => question == "decimal",
+        "date" => question == "date",
+        _ => false,
+    };
+
     private async Task<FormCatalogPublicationAssessment> AssessCatalogsAsync(IReadOnlyList<CanonicalFormField> questions, bool includeWarnings, IReadOnlyList<string>? cultures,
         bool forChannels, CancellationToken ct)
     {

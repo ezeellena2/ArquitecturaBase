@@ -10,7 +10,7 @@ Módulo opcional: autoría, publicación, ciclo de vida, catálogos, captura, pl
 - `Interfaces/Persistence/`: repositorios y lectores ([guía](Interfaces/Persistence/AGENTS.md)).
 - `Interfaces/Services/`: un contrato por caso de uso, consumido por Api y los workers.
 - `Models/`: pedidos, respuestas y filas; el `ToString()` de lo que lleva contenido se redacta.
-- `Resources/`: textos es/en (`.resx` y `.en.resx`) con sus accesores estáticos.
+- `Resources/`: textos es/en (`.resx` y `.en.resx`) con sus accesores estáticos; `Standards/`, los estándares que trae el módulo y la tabla de entidades del BCRA, como JSON incrustado (DOC1).
 - `Services/`: casos de uso y helpers, por área ([guía](Services/AGENTS.md)).
 - `Validation/`: validadores de los pedidos.
 

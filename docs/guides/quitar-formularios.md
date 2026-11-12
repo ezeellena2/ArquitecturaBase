@@ -49,8 +49,10 @@ encuentra formularios para mandar y el asistente pierde las capacidades de formu
 4. Quitá lo que nombra al módulo fuera de sus carpetas. El módulo no tiene configuración en `appsettings`.
    - En `src/ArquitecturaBase.Infrastructure/ArquitecturaBase.Infrastructure.csproj`, el `ItemGroup` de las fuentes del
      PDF (`Modules\BusinessForms\Pdf\Fonts\*.ttf`).
+   - En `src/ArquitecturaBase.Application/ArquitecturaBase.Application.csproj`, el `ItemGroup` de los estándares de la
+     biblioteca (`Modules\BusinessForms\Resources\Standards\*.json`).
    - En `.editorconfig`, las dos secciones de `src/ArquitecturaBase.Domain/Modules/BusinessForms/…`.
-   - Las 197 claves `Forms.*` de `Errors.resx` y `Errors.en.resx`. Si queda una,
+   - Las 201 claves `Forms.*` de `Errors.resx` y `Errors.en.resx`. Si queda una,
      `ErrorCodeTests.Every_error_key_belongs_to_a_code_declared_in_domain` falla y la nombra.
    - `FormCatalogStateInvalid` de `ValidationMessages` y de `Validation.resx`/`.en.resx`.
    - `harnesses/assistant-qualification`, el arnés manual de calificación del asistente. Está fuera de la solución y el

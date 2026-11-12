@@ -10,6 +10,8 @@ public sealed class BusinessFormDefinition : Entity, IAuditable, ISoftDeletable
     public string? OfferWhen { get; private set; }
     // «Dónde se completa» of the draft (SA1-A): true is «Sólo en la app». It belongs to the draft and its revision.
     public bool AppOnly { get; private set; }
+    // The reading of documents of the draft (DOC1), as Application validated it; null without one. It belongs to the draft too.
+    public string? DocumentReadingJson { get; private set; }
     public Guid? ActiveVersionId { get; private set; }
     public DateTime? DeactivatedAtUtc { get; private set; }
     public Guid? DeactivatedBy { get; private set; }
@@ -60,12 +62,13 @@ public sealed class BusinessFormDefinition : Entity, IAuditable, ISoftDeletable
         StandardBindingsJson = bindingsJson;
     }
     public Result SetDraft(long expectedRevision, string name, string nameJson, string prefix, string culture,
-        string submitLabelJson, string schemaJson, int questionCount, bool creating, string? offerWhen = null, bool appOnly = false)
+        string submitLabelJson, string schemaJson, int questionCount, bool creating, string? offerWhen = null, bool appOnly = false,
+        string? documentReadingJson = null)
     {
         if (Revision != expectedRevision || (!creating && Revision >= 9007199254740991)) return FormDraftErrors.RevisionConflict;
         if (PrefixLocked && Prefix != prefix) return FormDefinitionErrors.PrefixLocked;
         Name = name; NameJson = nameJson; Prefix = prefix; Culture = culture; SubmitLabelJson = submitLabelJson;
-        OfferWhen = offerWhen; AppOnly = appOnly;
+        OfferWhen = offerWhen; AppOnly = appOnly; DocumentReadingJson = documentReadingJson;
         SchemaJson = schemaJson; QuestionCount = questionCount;
         if (!creating) Revision++;
         return Result.Success();

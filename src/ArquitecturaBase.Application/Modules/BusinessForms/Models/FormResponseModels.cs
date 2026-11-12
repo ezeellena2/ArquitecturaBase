@@ -20,6 +20,10 @@ public sealed record FormResponseDefinitionRow(Guid Id, string Prefix, Guid Acti
             ?? throw new InvalidOperationException("The stored form schema is invalid."));
     /// <summary>The current name of each catalog of the questions, by language, read in the same batch as their types (DOC7-A).</summary>
     public IReadOnlyDictionary<Guid, IReadOnlyDictionary<string, string>>? CatalogNames { get; init; }
+    /// <summary>DOC1: the standard of the library the form came from, its version and its sealed bound map (datum → field id).</summary>
+    public string? StandardKey { get; init; }
+    public int? StandardVersion { get; init; }
+    public string? StandardBindingsJson { get; init; }
 }
 public sealed record FormResponseOption(Guid Id, string Label);
 public sealed record FormResponseColumn(Guid FieldId, string Type, string Label, long IntroducedInVersion, IReadOnlyList<FormResponseOption> Options,

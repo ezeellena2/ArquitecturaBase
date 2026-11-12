@@ -9,4 +9,7 @@ namespace ArquitecturaBase.Application.Interfaces.Channels;
 public interface IStructuredFormStandardSource
 {
     IReadOnlyList<StructuredFormStandard> Standards { get; }
+
+    /// <summary>DOC1: the standards of the next stages, without a draft, that the library lists as «Próximamente»; none by default.</summary>
+    IReadOnlyList<StructuredFormUpcomingStandard> Upcoming => [];
 }

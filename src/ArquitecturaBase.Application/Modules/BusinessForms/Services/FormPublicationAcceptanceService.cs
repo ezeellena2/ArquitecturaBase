@@ -73,6 +73,9 @@ internal sealed class FormPublicationAcceptanceService(IFormDraftRepository draf
             ? FormPublicationPolicy.CheckCultures(saved).Where(culture => culture.IsComplete).Select(culture => culture.Culture).ToArray()
             : profiles.SelectMany(profile => profile.Cultures).Select(culture => culture.Culture).Distinct(StringComparer.Ordinal).ToArray());
         if (appOnly) version.MarkAppOnly();
+        // DOC1: a version reads documents only when its reading was on and a channel completes it; turned off, or only in the app
+        // (where the editor hides it), the draft keeps what was saved and the version does not read.
+        if (!appOnly && saved.Draft.DocumentReading is { Enabled: true } reading) version.SealDocumentReading(FormDraftPolicy.Serialize(reading));
         var operation = BusinessFormPublicationOperation.Accept(id, version.Id, actor, input.RequestId, saved.Revision,
             number, definition.ActiveVersionId, [], nowUtc);
         operation.SealManifest(protector.ProtectManifest(Context(operation), new(1, attemptFingerprint, publicationFingerprint,

@@ -4,6 +4,8 @@ using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Domain.Common;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
+using ArquitecturaBase.Domain.Results;
+using ArquitecturaBase.Domain.ValueObjects;
 
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
@@ -76,6 +78,38 @@ internal static class FormRecordAnswerPolicy
         }
         return result;
     }
+
+    /// <summary>
+    /// DOC1: the first checked answer, in the order of the version's questions and of the items of the block, whose question has a
+    /// fixed validation it does not pass: an account (<see cref="BankAccountKey"/>) or a CUIT or CUIL (<see cref="CuitNumber"/>);
+    /// null when every one passes. The answer is kept as it was written.
+    /// </summary>
+    public static FormRecordAnswerFailure? FindInvalid(FormVersionSchema schema, IReadOnlyList<FormRecordAnswer> answers)
+    {
+        var validations = schema.Questions.Where(question => question.Validation is not null)
+            .ToDictionary(question => question.FieldId, question => question.Validation!);
+        if (validations.Count == 0) return null;
+        foreach (var answer in answers)
+        {
+            if (answer.Rows is { } rows)
+            {
+                for (var row = 0; row < rows.Count; row++)
+                    foreach (var item in rows[row])
+                        if (Failure(item, validations) is { } failed) return new(failed, item.FieldId, row);
+                continue;
+            }
+            if (Failure(answer, validations) is { } failure) return new(failure, answer.FieldId, null);
+        }
+        return null;
+    }
+
+    private static Error? Failure(FormRecordAnswer answer, Dictionary<Guid, string> validations) =>
+        answer.Text is not { } text || !validations.TryGetValue(answer.FieldId, out var validation) ? null : validation switch
+        {
+            FormQuestionValidation.BankAccount when BankAccountKey.Parse(text) is null => FormRecordErrors.BankAccountInvalid,
+            FormQuestionValidation.TaxId when CuitNumber.Normalize(text) is null => FormRecordErrors.TaxIdInvalid,
+            _ => null,
+        };
 
     private static List<IReadOnlyList<FormRecordAnswer>>? Rows(CanonicalFormField group, IReadOnlyList<CanonicalFormField> block,
         string raw, IReadOnlyList<StructuredFormCatalogOffer> offers)
@@ -230,6 +264,9 @@ internal static class FormRecordAnswerPolicy
             ? offers.SingleOrDefault(offer => offer.FieldId == question.FieldId && offer.CatalogId == catalogId)?.Options.Any(option => option.Id == choice) == true
             : question.Options?.Any(option => option.ChoiceId == choice) == true;
 }
+
+/// <summary>DOC1: the fixed validation an answer does not pass: its error, its question and, in the block, its item from 0.</summary>
+internal sealed record FormRecordAnswerFailure(Error Error, Guid FieldId, int? Row);
 
 /// <summary>A checked answer; a block keeps its items, each with its answers in the order of the questions of the block.</summary>
 internal sealed record FormRecordAnswer(Guid FieldId, string Type, string? Text, decimal? Decimal, DateOnly? Date, bool? Boolean,

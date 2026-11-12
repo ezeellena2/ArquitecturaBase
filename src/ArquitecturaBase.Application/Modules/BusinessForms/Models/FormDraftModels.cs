@@ -13,9 +13,11 @@ public sealed record SaveFormDraftRequest(Guid RequestId, IReadOnlyDictionary<st
     public override string ToString() => "SaveFormDraftRequest { Content = [REDACTED] }";
 }
 // AppOnly is «Dónde se completa» (SA1-A): true for «Sólo en la app», null otherwise, so every existing draft keeps its bytes.
+// DocumentReading (DOC1) is the reading of documents, null without it, for the same reason.
 public sealed record FormDraftInput(int Format, string Culture, IReadOnlyDictionary<string, string>? SubmitLabel, IReadOnlyList<FormFieldInput> Fields,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<FormSection>? Sections = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? AppOnly = null)
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? AppOnly = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormDocumentReading? DocumentReading = null)
 { public override string ToString() => "FormDraftInput { Content = [REDACTED] }"; }
 // A section title (CW15-B) is not a question: Start is how many questions go before it, and its title follows the language
 // rules of a label. Without titles the list is null, so drafts, versions and their fingerprints keep their bytes.
@@ -31,7 +33,8 @@ public sealed record FormFieldInput(string LocalId, Guid? FieldId, Guid? Replace
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? Repeated = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormCalculation? Calculation = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormShowWhen? ShowWhen = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<FormQuestionToggle>? Toggles = null)
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<FormQuestionToggle>? Toggles = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Validation = null)
 { public override string ToString() => "FormFieldInput { Content = [REDACTED] }"; }
 public sealed record FormChoiceInput(string LocalId, Guid? ChoiceId, IReadOnlyDictionary<string, string> Label)
 { public override string ToString() => "FormChoiceInput { Content = [REDACTED] }"; }
@@ -95,14 +98,17 @@ public sealed record CanonicalFormField(Guid FieldId, string Key, string Type, I
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? Repeated = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormCalculation? Calculation = null,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormShowWhen? ShowWhen = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<FormQuestionToggle>? Toggles = null)
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<FormQuestionToggle>? Toggles = null,
+    // DOC1: the fixed validation of a bound short text (FormQuestionValidation); omitted without one.
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Validation = null)
 { public override string ToString() => "CanonicalFormField { Content = [REDACTED] }"; }
 public sealed record FormQuestionSchema(int Format, IReadOnlyList<CanonicalFormField> Fields,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<FormSection>? Sections = null)
 { public override string ToString() => "FormQuestionSchema { Content = [REDACTED] }"; }
 public sealed record FormDraftResponse(int Format, string Culture, IReadOnlyDictionary<string, string> SubmitLabel, IReadOnlyList<CanonicalFormField> Fields,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<FormSection>? Sections = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? AppOnly = null)
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? AppOnly = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] FormDocumentReading? DocumentReading = null)
 { public override string ToString() => "FormDraftResponse { Content = [REDACTED] }"; }
 public sealed record FormDefinitionResponse(Guid Id, IReadOnlyDictionary<string, string> Name, string Prefix, bool PrefixLocked, long Revision, FormDraftResponse Draft, string? OfferWhen = null)
 {
@@ -130,8 +136,10 @@ public sealed record FormAuditResponse(DateTime CreatedAtUtc, DateTime? Modified
 public sealed record FormCapabilitiesResponse(bool CanSave, bool CanPublish, bool CanPreview);
 public sealed record FormDefinitionDetailResponse(FormDefinitionResponse Definition, FormCapabilitiesResponse Capabilities, FormAuditResponse Audit,
     FormPublicationOverviewResponse Publication, FormDefinitionLifecycleResponse Lifecycle);
+// DocumentReading: true when the active version reads documents (DOC1); omitted otherwise, like AppOnly.
 public sealed record FormActiveVersionResponse(Guid VersionId, long VersionNumber, long DraftRevision, IReadOnlyList<string> Cultures,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? AppOnly = null);
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? AppOnly = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? DocumentReading = null);
 public sealed record FormCurrentPublicationResponse(Guid VersionId, long VersionNumber, long DraftRevision, string State, string Stage,
     bool RequiresReview, bool CanRetry, Guid? RequestId);
 public sealed record FormPublicationOverviewResponse(FormActiveVersionResponse? ActiveVersion, FormCurrentPublicationResponse? CurrentOperation, string DisplayState);
@@ -159,6 +167,8 @@ public sealed record FormDefinitionStoredRow(Guid Id, string NameJson, string Pr
     public string? StandardKey { get; init; }
     public int? StandardVersion { get; init; }
     public string? StandardBindingsJson { get; init; }
+    // DOC1: the reading of documents of the draft, null without one.
+    public string? DocumentReadingJson { get; init; }
 }
 public sealed record FormChangeStoredRow(FormChangeProtectionContext Context, byte[]? ProtectedResult,
     DateTime ResultExpiresAtUtc, DateTime CommittedAtUtc, long CurrentRevision);

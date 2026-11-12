@@ -7,9 +7,29 @@ public sealed record FormLibraryStandardResponse(string Key, int Version, string
 {
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public string? Source { get; init; }
+    /// <summary>DOC1: the data a standard that reads documents reads, in its order; omitted without a reading.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<FormLibraryReadResponse>? Reads { get; init; }
+    /// <summary>DOC1: its fixed validations, each with the question that has it; omitted without them.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<FormLibraryValidationResponse>? Validations { get; init; }
     public override string ToString() => "FormLibraryStandardResponse { Content = [REDACTED] }";
 }
-public sealed record FormLibraryResponse(IReadOnlyList<FormLibraryStandardResponse> Standards);
+/// <summary>
+/// A datum a standard reads (DOC1): its key, the same as in the bound map of a copy (<see cref="FormDefinitionStandardResponse.Bound"/>),
+/// so the editor pairs it with its question, and the name of its question in the menu language.
+/// </summary>
+public sealed record FormLibraryReadResponse(string Key, string Name);
+/// <summary>A fixed validation of a standard (DOC1): the name of its question in the menu language and its kind ("bankAccount" or "taxId").</summary>
+public sealed record FormLibraryValidationResponse(string Name, string Kind);
+public sealed record FormLibraryResponse(IReadOnlyList<FormLibraryStandardResponse> Standards)
+{
+    /// <summary>DOC1: the standards of the next stages, listed as «Próximamente»; omitted when there are none.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<FormLibraryUpcomingResponse>? Upcoming { get; init; }
+}
+/// <summary>A standard of a next stage, without a draft (DOC1): its key, name and description in the menu language.</summary>
+public sealed record FormLibraryUpcomingResponse(string Key, string Name, string Description);
 
 /// <summary>«Agregar»: the new form's name and prefix, under its own request id so that a repeat gets the same draft.</summary>
 public sealed record AddFormStandardRequest(Guid RequestId, IReadOnlyDictionary<string, string> Name, string Prefix, Guid? FolderId = null)

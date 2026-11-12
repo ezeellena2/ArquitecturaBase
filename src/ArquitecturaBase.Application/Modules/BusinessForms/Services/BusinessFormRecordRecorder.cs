@@ -149,6 +149,9 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
         var answers = FormRecordAnswerPolicy.Normalize(schema, request.Answers, offers);
         if (answers is null)
             return Reject(request, fingerprint, FormRecordErrors.InvalidResponse.Code);
+        // DOC1: the fixed validations of the bound questions, at the question (and item) that does not pass them.
+        if (FormRecordAnswerPolicy.FindInvalid(schema, answers) is { } invalid)
+            return Reject(request, fingerprint, invalid.Error.Code, invalid.FieldId, invalid.Row);
 
         // Each answer with its item of the block, and the options chosen as «¿La emito?» reads them (FormIssuePreviewPolicy).
         var placed = FormRecordReferencePolicy.Placed(answers).ToArray();

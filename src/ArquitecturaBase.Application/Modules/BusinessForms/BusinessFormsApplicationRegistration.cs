@@ -110,6 +110,9 @@ public static class BusinessFormsApplicationRegistration
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IStructuredRecordOriginSource, BusinessFormEntryOriginSource>());
         services.TryAddScoped<IFormDraftService, FormDraftService>();
         services.TryAddScoped<IFormLibraryService, FormLibraryService>();
+        services.TryAddScoped<FormLibraryOfferPolicy>();
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IStructuredFormStandardSource, BusinessFormStandardSource>());
+        services.TryAddScoped<IFormDocumentReadingStatsService, FormDocumentReadingStatsService>();
         services.TryAddScoped<IFormFolderService, FormFolderService>();
         services.TryAddScoped<IFormFolderItemService, FormFolderItemService>();
         services.TryAddScoped<IFormMenuService, FormMenuService>();

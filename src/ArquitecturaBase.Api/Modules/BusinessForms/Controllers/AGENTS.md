@@ -43,6 +43,8 @@ H4: POST catalogs/{id}/proposal/approve y /discard consumen IFormCatalogProposal
 
 El tablero (`FormDashboardsController`, DOC7-A) sigue las reglas de la planilla: está en [respuestas, archivos y corrección](../../../../../docs/features/formularios-borde-http.md#respuestas-archivos-y-corrección).
 
+«Cómo viene leyendo» (`FormDocumentReadingController`, DOC1): GET `definitions/{id}/document-reading` con «Ver formularios», la política de lectura y no-store; las correcciones las suma el servicio sólo con «Ver respuestas». El detalle está en [formularios](../../../../../docs/features/formularios.md#lectura-de-documentos-y-validaciones-fijas--doc1-2026-11-11).
+
 ## Referencias
 
 - [Reglas comunes de los controllers](../../../Controllers/AGENTS.md).

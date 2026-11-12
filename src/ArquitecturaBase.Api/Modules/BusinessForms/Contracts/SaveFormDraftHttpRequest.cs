@@ -5,9 +5,19 @@ public sealed record SaveFormDraftHttpRequest(Guid RequestId, IReadOnlyDictionar
 { public override string ToString() => "SaveFormDraftHttpRequest { Content = [REDACTED] }"; }
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 // AppOnly is «Dónde se completa» (SA1-A): true for «Sólo en la app»; omitted, the form is also completed by the installed channels.
+// DocumentReading is the reading of documents (DOC1), sent back as it came; omitted without one.
 public sealed record FormDraftHttpRequest(int Format, string Culture, IReadOnlyDictionary<string, string>? SubmitLabel, IReadOnlyList<FormFieldHttpRequest> Fields,
-    IReadOnlyList<FormSectionHttpRequest>? Sections = null, bool? AppOnly = null)
+    IReadOnlyList<FormSectionHttpRequest>? Sections = null, bool? AppOnly = null, FormDocumentReadingHttpRequest? DocumentReading = null)
 { public override string ToString() => "FormDraftHttpRequest { Content = [REDACTED] }"; }
+// DOC1: whether the reading is on, «Cómo reconocerlo» and up to five lookups in catalogs.
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+public sealed record FormDocumentReadingHttpRequest(bool Enabled, string? Recognition, IReadOnlyList<FormDocumentLookupHttpRequest>? Lookups)
+{ public override string ToString() => "FormDocumentReadingHttpRequest { Content = [REDACTED] }"; }
+// The catalog question a lookup fills, the question whose reading it searches (FieldId or, if new, LocalId) and what of the catalog it
+// compares: "code", "text" or a catalog field by its id.
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+public sealed record FormDocumentLookupHttpRequest(Guid QuestionId, Guid SourceQuestionId, string? Field)
+{ public override string ToString() => "FormDocumentLookupHttpRequest { Content = [REDACTED] }"; }
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record FormSectionHttpRequest(int Start, IReadOnlyDictionary<string, string> Title)
 { public override string ToString() => "FormSectionHttpRequest { Content = [REDACTED] }"; }
@@ -16,7 +26,7 @@ public sealed record FormFieldHttpRequest(string LocalId, Guid? FieldId, Guid? R
     IReadOnlyDictionary<string, string> Label, IReadOnlyDictionary<string, string?>? Help, bool Required, int? MaxLength,
     IReadOnlyList<FormChoiceHttpRequest>? Options, FormQuestionSourceHttpRequest? Source = null, FormFileSettingsHttpRequest? Files = null, FormSelectionSettingsHttpRequest? Selection = null,
     FormRowSettingsHttpRequest? Rows = null, bool? Repeated = null, FormCalculationHttpRequest? Calculation = null, FormShowWhenHttpRequest? ShowWhen = null,
-    IReadOnlyList<FormQuestionToggleHttpRequest>? Toggles = null)
+    IReadOnlyList<FormQuestionToggleHttpRequest>? Toggles = null, string? Validation = null)
 { public override string ToString() => "FormFieldHttpRequest { Content = [REDACTED] }"; }
 // IV2-A: a toggle the library standard declares on a bound question, sent back as it came with the value chosen.
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]

@@ -249,7 +249,7 @@ El recorrido real verificó FOTO2B-000001: miniatura, visor con el original priv
 
 - **La zona** (`timeZoneId`): la del perfil de quien lee, leída en el servidor y nunca del pedido, porque el front arma en ella el filtro de la planilla y un día tiene que ser el mismo en los dos; si no se lee, la del negocio (la de la presentación) y después UTC. Va por su id IANA, el que lee PostgreSQL: un nombre de Windows, que el perfil admite, pasa a su IANA.
 - **Cuántas llegaron** (`count`) y, con los dos límites de recepción, el rango justo antes (`previous`, con sus límites y su cuenta). Con los dos límites en medianoches de la zona retrocede por su calendario: de un 1.º a otro 1.º, los mismos meses (octubre compara con septiembre entero); si no, los mismos días locales, también a través de un cambio de horario. Otro rango, el mismo largo.
-- **Números** (`numbers`): de cada pregunta de número fuera de un bloque, cuántas la respondieron, total, promedio, mínimo y máximo, y el total y el promedio del rango anterior; sin respuestas, total 0 y lo demás null. Cuando el estándar del formulario dice qué pregunta de elegir trae la moneda, el número se suma por moneda: `currencyId` (la opción; null, las que la dejaron vacía) y `currencyLabel`, para «Total de Monto (pesos)». Lo declara la lectura del estándar (tarea 5 del plan): mientras ninguno lo declare, `FormDashboardCurrencyPolicy` no da ninguna y cada número se suma entero.
+- **Números** (`numbers`): de cada pregunta de número fuera de un bloque, cuántas la respondieron, total, promedio, mínimo y máximo, y el total y el promedio del rango anterior; sin respuestas, total 0 y lo demás null. Cuando el estándar del formulario dice qué pregunta de elegir trae la moneda, el número se suma por moneda: `currencyId` (la opción; null, las que la dejaron vacía) y `currencyLabel`, para «Total de Monto (pesos)». Lo declara la lectura del estándar (DOC1, `Reading.Currencies`: en «Comprobante de transferencia», el monto con su moneda) y `FormDashboardCurrencyPolicy` lo lleva a las preguntas de la copia por su clave, su versión y su mapa sellado; un formulario propio, otra versión del estándar o una copia que no ata los dos datos suman cada número entero.
 - **Uno malo no frena al resto:** una suma, un promedio, un mínimo o un máximo que no entra en un decimal de C# vuelve null con `overflow: true` en su número (también en el total de un balde o una opción). Todo número vuelve redondeado a 28 cifras significativas y sin ceros de más.
 - **Series** (`series`): un balde por día, semana desde el lunes o mes en la zona, con la fecha local en que empieza, cuántas llegaron y el total de cada número y moneda (`totals`: `fieldId`, `currencyId`, `total` y `overflow`). Va del principio del rango, o la primera respuesta, a su fin o a hoy (un mes en curso termina hoy), y siempre hasta la última respuesta; un balde sin respuestas va en cero. Con más de 400 quedan los últimos y `truncated` lo dice.
 - **Series por fecha** (`dateSeries`): de cada pregunta de fecha fuera de un bloque, los mismos baldes por la fecha respondida, que no cambia de zona, en su propia ventana: de la primera a la última fecha respondida entre las respuestas, con el mismo tope, los mismos totales y los baldes vacíos en cero.
@@ -1242,6 +1242,72 @@ aparece.
   ella, a la del estándar (`Folder`: su clave y su nombre por idioma), en la misma transacción que el borrador. La del
   estándar es una carpeta del sistema (ver [Carpetas](#carpetas--cp1-a-a-cp5-a-2026-11-09)); una elegida que se borró en
   el medio da 404 `Forms.Folder.NotFound`.
+
+## Lectura de documentos y validaciones fijas — DOC1, 2026-11-11
+
+Lo que un formulario necesita para leer documentos (DOC1, [documentos por WhatsApp](../plans/2026-10-22-documentos-por-whatsapp.md));
+leerlos, cargarlos y la bandeja llegan con las tareas siguientes del plan.
+
+- **La lectura en el borrador.** `draft.documentReading` es un ajuste del formulario, como «Dónde se completa»: si está prendida,
+  «Cómo reconocerlo» (`recognition`, sin espacios alrededor, hasta 1.000 caracteres y obligatorio prendida) y hasta cinco cruces
+  con catálogos (`lookups`): `questionId`, la pregunta de elegir una de un catálogo, fuera del bloque, que se completa;
+  `sourceQuestionId`, otra pregunta del borrador cuya lectura se busca (un texto, un número o una fecha), y `field`, qué se
+  compara del catálogo: `code` o `text` de la opción, sólo contra un texto, o el id de un campo. Un cruce nombra sus preguntas
+  como un filtro: por `fieldId` o, si es nueva, por su `localId`. Sin lectura se omite, y apagada sin texto ni cruces también;
+  apagada con texto conserva lo escrito. Va en `FormDefinitions.DocumentReadingJson`, con el borrador, y entra en la huella del
+  chequeo y en la comparación con lo guardado.
+- **Al publicar.** El chequeo frena un cruce cuyo campo no está activo en el catálogo de su pregunta o no se compara con lo leído
+  (un texto con un texto, un número con un decimal, una fecha con una fecha): `Forms.Publication.DocumentLookupInvalid` en
+  `draft.documentReading.lookups[i].field`. La aceptación sella la lectura prendida en `BusinessFormVersions.DocumentReadingJson`
+  y el detalle dice `activeVersion.documentReading: true`. Los documentos los lee un canal (el editor oculta la lectura «Sólo en
+  la app»): una publicación sólo en la app no revisa los cruces, que la frenarían sin nada en pantalla para corregir, ni sella la
+  lectura, y el borrador conserva lo guardado. La migración es `AddFormDocumentReading`; su `Down` rechaza, antes del DDL, un
+  borrador o una versión con lectura.
+- **Las validaciones fijas.** Una pregunta atada de texto corto puede traer del estándar su `validation`: `bankAccount` o
+  `taxId`. Sólo una atada la tiene (si no, `Forms.Draft.QuestionConfigurationInvalid` en `draft.fields[i].validation`), no cambia
+  (`Forms.Draft.BoundQuestionChanged`), se sella con el esquema de la versión y vale en toda captura (la app, WhatsApp y las
+  correcciones): una cuenta que no es una CBU o una CVU con sus dos verificadores, ni un alias de 6 a 20 letras, números, puntos o
+  guiones, da `Forms.Record.BankAccountInvalid` («Revisá la cuenta: los números no dan. Copiala del comprobante.»), y una CUIT o
+  un CUIL sin su verificador, `Forms.Record.TaxIdInvalid`, en su pregunta (y su ítem, en el bloque). No se guarda la respuesta,
+  sólo el recibo rechazado; lo escrito que pasa se guarda tal cual. Los valores son del núcleo (`Domain/ValueObjects`):
+  `CuitNumber` y `BankAccountKey`, que da la cuenta normalizada, su tipo y el código de su entidad (los dígitos 1 a 3 de una CBU y
+  los 4 a 7 de una CVU). Los dígitos pueden venir separados por cualquier espacio (también el que no corta) o guion (también la
+  raya y el signo menos); 22 dígitos son siempre una CBU o una CVU y 11 una CUIT, que no es una cuenta: nunca se leen como alias,
+  y una clave de puros ceros no vale. Si un alias puede ser sólo números no se pudo confirmar con el BCRA, así que se acepta con
+  otro largo. Avisar el rechazo por WhatsApp y reenviar el formulario llega con la tarea 9.
+- **«Comprobante de transferencia»** (`forms.transfer-receipt`, versión 1, prefijo `REC`) lo trae formularios como datos
+  (`BusinessFormStandardSource`, con los JSON incrustados de `Resources/Standards`): 15 preguntas atadas en tres secciones
+  (origen, destino y transferencia), con la cuenta y la CUIT o el CUIL de cada lado validados; monto, moneda (Pesos o Dólares),
+  fecha y el comprobante (un documento) obligatorios, y la hora como texto corto de hasta 16 caracteres, como la escriba el
+  comprobante. Los nombres de sus preguntas entran en un Flow de WhatsApp (hasta 20 caracteres en un texto, un número o una lista):
+  una copia se publica también para WhatsApp. Va a su carpeta «Transferencias» con su catálogo
+  «Bancos y billeteras» (`forms.bank-entities`), que «Agregar» crea si no existe con la tabla de entidades: el código de entidad
+  como código, un nombre corto como texto y la denominación oficial como detalle. La tabla (`bank-entities.json`) lleva su fecha
+  y su fuente: los 59 bancos del registro de cheques del BCRA (`api.bcra.gob.ar/cheques/v1.0/entidades`, leído el 2026-11-11),
+  que deja afuera a los bancos digitales que no compensan cheques; los proveedores
+  de CVU los asigna COELSA y no se pudo leer una lista oficial, así que no se cargó ninguno. El estándar suma `Reading`: «Cómo
+  reconocerlo» y el resumen para WhatsApp por idioma (con datos entre llaves, `{amount}`), los datos que marcan un repetido
+  (operación, monto y fecha) y la moneda de cada monto (`amount → currency`). «Agregar» deja la copia leyendo documentos, con
+  «Cómo reconocerlo» en el idioma de la copia y las validaciones en sus preguntas.
+- **La biblioteca** suma `reads` (`[{ key, name }]`: cada dato que lee un estándar con lectura, en el orden del estándar, por la
+  clave del mapa `standard.bound` de su copia y con el nombre de su pregunta en el idioma del menú) y `validations`
+  (`[{ name, kind }]`), sólo en el estándar que los tiene, y `upcoming`: los estándares de las etapas siguientes, sin borrador,
+  que la página muestra como «Próximamente» (nota de crédito o débito, recibo, remito, ticket de gasto, orden de compra,
+  presupuesto, cheque o eCheq, constancias, liquidaciones, carta de porte y DTE) y que un `IStructuredFormStandardSource` declara
+  en `Upcoming`. Con formularios solo, «Biblioteca» ya aparece (`form-library`). Un estándar con una pregunta de foto o documento
+  (el comprobante) se ofrece sólo con almacenamiento privado (`FormLibraryOfferPolicy`), sin el que su copia no se podría publicar:
+  sin él no se lista y agregarlo da `Forms.Library.StandardNotFound`.
+- **Cómo viene leyendo.** `GET api/forms/definitions/{id}/document-reading` («Ver formularios»; 404 si el formulario no está o se
+  eliminó): desde dónde cuenta (`sinceUtc`, 30 días atrás), cuántos documentos se confirmaron (`documents`), por pregunta que la
+  lectura prellenó (lo propuesto que la captura incluyó, `origin.includedFieldIds`) cuántos valores prellenó y cuántos se
+  confirmaron sin cambios (`questions`: `questionId`, `read` y `unchanged`), la que más
+  se corrigió (`mostCorrected`: `questionId` y `corrections`, o null) y las preguntas que marcan un repetido
+  (`duplicateQuestionIds`, de `Reading.DuplicateKeys` por el mapa sellado de la copia; vacío en un formulario propio). Con «Ver
+  respuestas», revalidado antes de responder, suma `examples`: las últimas diez correcciones, de la más nueva a la más vieja
+  (`recordId`, `recordNumber` como «REC-000123», `confirmedAtUtc`, `questionId`, y lo leído y lo confirmado como texto, como lo
+  muestra un aviso: el número en el idioma de quien pide, la fecha con números, sí o no y una opción por su texto); sin ese
+  permiso la clave no va. Se calcula en SQL con las respuestas cuyo origen de captura trae el documento del que salieron
+  (`origin.document`, que suma la tarea 9): hasta entonces cuenta cero y las listas van vacías.
 
 ## Carpetas — CP1-A a CP5-A, 2026-11-09
 

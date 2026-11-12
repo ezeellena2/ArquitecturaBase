@@ -303,6 +303,8 @@
   <data name="Forms.Entry.Unavailable" xml:space="preserve"><value>The form was deactivated and can no longer be loaded.</value></data>
   <data name="Forms.Entry.QuestionNotFound" xml:space="preserve"><value>The question has no catalog in this version.</value></data>
   <data name="Forms.Record.CatalogItemInactive" xml:space="preserve"><value>An option was deactivated. The response was not saved. You can send another form.</value></data>
+  <data name="Forms.Record.BankAccountInvalid" xml:space="preserve"><value>Check the account: the digits don't add up. Copy it from the receipt.</value></data>
+  <data name="Forms.Record.TaxIdInvalid" xml:space="preserve"><value>Check the CUIT or CUIL: the digits don't add up. Copy it from the receipt.</value></data>
 <data name="WhatsApp.Flow.CatalogPreparationBlocked" xml:space="preserve"><value>The catalog could not be prepared. Review the options before sending.</value></data>
   <data name="WhatsApp.Flow.CaptureFailed" xml:space="preserve"><value>We could not save the response after several attempts. You can send the form again.</value></data>
   <data name="Forms.Publication.TooManyFiles" xml:space="preserve"><value>A form allows up to 10 files. Reduce the maximum for a question.</value></data>
@@ -484,6 +486,7 @@
   <data name="Forms.Publication.RowsOverChannelLimit" xml:space="preserve">
     <value>WhatsApp loads fewer items than the block maximum.</value>
   </data>
+  <data name="Forms.Publication.DocumentLookupInvalid" xml:space="preserve"><value>Check the catalog lookup of the document reading: the field is gone or cannot be compared with that question.</value></data>
   <data name="Forms.Publication.MinRowsOverChannelLimit" xml:space="preserve">
     <value>WhatsApp loads fewer items than the block minimum.</value>
   </data>

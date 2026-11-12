@@ -46,7 +46,7 @@ internal sealed class BusinessFormPublicationService : IBusinessFormPublicationS
         if (row.Revision != request.ExpectedRevision) return FormDraftErrors.RevisionConflict;
         input = FormDraftPolicy.Normalize(input);
         var saved = FormDraftPolicy.Definition(row.Id, row.NameJson, row.Prefix, row.PrefixLocked, row.Revision, row.Culture, row.SubmitLabelJson, row.SchemaJson,
-            appOnly: row.AppOnly);
+            appOnly: row.AppOnly, documentReadingJson: row.DocumentReadingJson);
         if (!FormPublicationSnapshotPolicy.Matches(input, saved)) return FormPublicationErrors.DraftMustBeSaved;
         var cultures = FormPublicationPolicy.CheckCultures(saved);
         // SA1-A and SA5: a draft for the app, or no channel installed, publishes only in the app: no channel takes part and
@@ -63,6 +63,9 @@ internal sealed class BusinessFormPublicationService : IBusinessFormPublicationS
         var catalogs = await _guard.InspectCatalogsAsync(saved.Draft.Fields, cancellationToken,
             cultures.Where(culture => culture.IsComplete).Select(culture => culture.Culture).ToArray(), forChannels: !appOnly);
         issues.AddRange(catalogs.Issues);
+        // DOC1: documents are read for the forms a channel completes (the editor hides the reading «Sólo en la app»), so only in the
+        // app no lookup is checked: an issue there would stop the publication with nothing on screen to fix it.
+        if (!appOnly) issues.AddRange(await _guard.ValidateDocumentReadingAsync(saved, cancellationToken));
         var canonical = FormPublicationSnapshotPolicy.ChannelRequest(saved, _guard.MaxFileSizeMiB);
         var profiles = new List<FormPublicationProfile>();
         var publicationAvailable = true;

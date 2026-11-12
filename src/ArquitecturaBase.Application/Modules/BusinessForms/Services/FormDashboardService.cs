@@ -1,6 +1,7 @@
 using System.Globalization;
 using ArquitecturaBase.Application.Common.Logging;
 using ArquitecturaBase.Application.Common.Validation;
+using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
@@ -14,7 +15,8 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 /// buckets and the previous range go in the zone the front builds that filter in (<see cref="FormDashboardZonePolicy"/>).
 /// </summary>
 internal sealed class FormDashboardService(IFormResponseReader responses, IFormDashboardReader reader, FormRecordAccessGuard access,
-    IRequestValidator validator, FormDashboardZonePolicy zones, TimeProvider timeProvider, ILogger<FormDashboardService> logger) : IFormDashboardService
+    IRequestValidator validator, FormDashboardZonePolicy zones, IEnumerable<IStructuredFormStandardSource> sources, TimeProvider timeProvider,
+    ILogger<FormDashboardService> logger) : IFormDashboardService
 {
     public Task<Result<FormDashboardResponse>> SearchAsync(Guid id, FormDashboardRequest request, CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<FormDashboardResponse>>(logger, "SearchFormDashboard", async () =>
@@ -27,7 +29,7 @@ internal sealed class FormDashboardService(IFormResponseReader responses, IFormD
             if (definition is null) return FormRecordErrors.NotFound;
             var valid = FormRecordFilterPolicy.Validate(request.Filter, definition); if (valid.IsFailure) return valid.Error;
             var culture = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es";
-            var plan = FormDashboardPolicy.Plan(definition, culture, FormDashboardCurrencyPolicy.Find(definition));
+            var plan = FormDashboardPolicy.Plan(definition, culture, FormDashboardCurrencyPolicy.Find(definition, sources.SelectMany(source => source.Standards)));
             var (zone, zoneId) = await zones.FindAsync(read.Value.Actor, cancellationToken);
             var filter = read.Value.Apply(request.Filter) with { DisplayCulture = culture };
             var totals = await reader.FindTotalsAsync(definition, filter, plan.Measures, plan.Dates.Select(date => date.FieldId).ToArray(), cancellationToken);

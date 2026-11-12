@@ -25,7 +25,7 @@ internal sealed class FormDefinitionReadPolicy(IFormDefinitionReader reader, IFo
         if (current.IsFailure || current.Value != actor) return FormDefinitionErrors.Forbidden;
         // The official preview is of a channel: a version published only in the app has none (SA2-A).
         return new FormDefinitionDetailResponse(FormDraftPolicy.Definition(row.Id, row.NameJson, row.Prefix, row.PrefixLocked, row.Revision,
-            row.Culture, row.SubmitLabelJson, row.SchemaJson, row.OfferWhen, row.AppOnly) with { Standard = FormStandardPolicy.Response(row.StandardKey, row.StandardVersion, row.StandardBindingsJson) },
+            row.Culture, row.SubmitLabelJson, row.SchemaJson, row.OfferWhen, row.AppOnly, row.DocumentReadingJson) with { Standard = FormStandardPolicy.Response(row.StandardKey, row.StandardVersion, row.StandardBindingsJson) },
             new(canSave, canPublish, publication.ActiveVersion is not null && publication.ActiveVersion.AppOnly != true),
             new(row.CreatedAtUtc, row.ModifiedAtUtc, row.LastChangedAtUtc, row.Author), publication,
             FormDefinitionLifecyclePolicy.View(facts, state, nowUtc, canSave, canPublish, canReadRecords));

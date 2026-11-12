@@ -131,6 +131,8 @@ internal sealed class FormEntryRecorder(IBusinessFormRecordCaptureService captur
         Error error = captured.ErrorCode switch
         {
             var code when code == FormRecordErrors.CatalogItemInactive.Code => FormRecordErrors.CatalogItemInactive,
+            var code when code == FormRecordErrors.BankAccountInvalid.Code => FormRecordErrors.BankAccountInvalid,
+            var code when code == FormRecordErrors.TaxIdInvalid.Code => FormRecordErrors.TaxIdInvalid,
             var code when code == FormRecordErrors.ReplayConflict.Code => FormRecordErrors.ReplayConflict,
             var code when code == FormRecordErrors.AuthorizationChanged.Code => FormRecordErrors.AuthorizationChanged,
             var code when code == FormRecordErrors.AmendUnavailable.Code => FormRecordErrors.AmendUnavailable,

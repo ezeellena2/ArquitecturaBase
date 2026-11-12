@@ -64,6 +64,8 @@ internal sealed partial class SaveFormDraftRequestValidator : AbstractValidator<
                 if (field.Calculation is { } calculation && !HasValidShape(calculation, field)) Fail(path + ".calculation");
                 if (field.ShowWhen is { } showWhen && !HasValidShape(showWhen, field)) Fail(path + ".showWhen");
                 if (field.Toggles is { } toggles && !HasValidShape(toggles)) Fail(path + ".toggles");
+                // DOC1: a fixed validation is of a short text; whether its standard declares it is checked when saving (FormStandardPolicy).
+                if (field.Validation is not null && (field.Type != "shortText" || !FormQuestionValidation.IsKnown(field.Validation))) Fail(path + ".validation");
                 var textType = field.Type is "shortText" or "longText";
                 if ((textType && field.MaxLength is < 1 or > 10000) || (!textType && field.MaxLength.HasValue)) Fail(path + ".maxLength");
                 if (field.Type is not ("choice" or "multiChoice"))
@@ -98,6 +100,7 @@ internal sealed partial class SaveFormDraftRequestValidator : AbstractValidator<
                         && label is not null && !labels.Add(label.Normalize().Trim())) Fail(optionPath + ".label." + draft.Culture);
                 }
             }
+            if (draft.DocumentReading is { } reading) CheckReading(reading, draft.Fields, Fail);
             if (draft.Sections is not { } sections) return;
             if (sections.Count > 40) { Fail("draft.sections"); return; }
             var previous = 0;
@@ -112,6 +115,35 @@ internal sealed partial class SaveFormDraftRequestValidator : AbstractValidator<
             }
         });
     }
+    // DOC1: «Cómo reconocerlo» goes trimmed, up to 1000 characters and visible while the reading is on. Up to five lookups, each
+    // filling a different catalog question of choosing one, outside the block, with what another question of the draft read (a text,
+    // a number or a date) compared with the option's code or text (only a text) or with a catalog field. A question is named by its
+    // FieldId or, when it is new, by its LocalId; whether the field belongs to the catalog is checked when publishing.
+    private static void CheckReading(FormDocumentReading reading, IReadOnlyList<FormFieldInput> fields, Action<string> fail)
+    {
+        const string path = "draft.documentReading";
+        if (reading.Recognition?.Trim() is not { } recognition || recognition.Length > FormDocumentReading.MaxRecognitionLength
+            || !StorableText.IsStorable(recognition) || !IsStorableText(recognition, allowLineBreaks: true, requireVisible: reading.Enabled))
+            fail(path + ".recognition");
+        if (reading.Lookups is not { Count: <= FormDocumentReading.MaxLookups } lookups) { fail(path + ".lookups"); return; }
+        var filled = new HashSet<string>(StringComparer.Ordinal);
+        for (var i = 0; i < lookups.Count; i++)
+        {
+            var lookupPath = $"{path}.lookups[{i}]";
+            if (lookups[i] is not { } lookup) { fail(lookupPath); continue; }
+            var question = Named(fields, lookup.QuestionId);
+            if (question is not { Type: "choice", Source.Catalog: not null } || question.Repeated == true || !filled.Add(question.LocalId))
+                fail(lookupPath + ".questionId");
+            var source = Named(fields, lookup.SourceQuestionId);
+            var byOption = lookup.Field is FormDocumentLookup.Code or FormDocumentLookup.Text;
+            if (source is null || source.LocalId == question?.LocalId || source.Repeated == true
+                || (byOption ? source.Type is not ("shortText" or "longText") : source.Type is not ("shortText" or "longText" or "decimal" or "date")))
+                fail(lookupPath + ".sourceQuestionId");
+            if (!byOption && (!Guid.TryParseExact(lookup.Field, "D", out var catalogField) || catalogField == Guid.Empty)) fail(lookupPath + ".field");
+        }
+    }
+    private static FormFieldInput? Named(IReadOnlyList<FormFieldInput> fields, Guid id) => id == Guid.Empty ? null
+        : fields.FirstOrDefault(field => field is not null && (field.FieldId == id || field.FieldId is null && Guid.TryParse(field.LocalId, out var local) && local == id));
     // IV2-A: the toggles of a question, each with its key, text and (i), without repeating a key. Whether the standard declares them
     // is checked when saving (FormStandardPolicy).
     private static bool HasValidShape(IReadOnlyList<FormQuestionToggle> toggles) => toggles.Count is >= 1 and <= FormQuestionToggle.MaxToggles

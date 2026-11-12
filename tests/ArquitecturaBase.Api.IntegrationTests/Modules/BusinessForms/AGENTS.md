@@ -26,6 +26,7 @@ Pruebas del módulo Formularios con HTTP, PostgreSQL, Redis, archivos, Excel y P
 - [PDF](../../../../docs/features/formularios-pruebas-de-integracion.md#pdf): la vista previa con Skia real y los emojis, en pruebas técnicas que exportan el PDF para revisarlo con Poppler.
 - [Asistente y sugerencias](../../../../docs/features/formularios-pruebas-de-integracion.md#asistente-y-sugerencias): cuándo ofrecer, la selección, el prellenado y la aclaración sobre lo publicado, las rutas y la captura de sugerencias, y crear desde una propuesta de la IA e importar la copia de su planilla.
 - [Motor para documentos y carpetas](../../../../docs/features/formularios-pruebas-de-integracion.md#motor-para-documentos-y-carpetas): cálculos y condiciones de punta a punta, el resultado en el detalle y la planilla, la biblioteca con sus catálogos y su carpeta, y las carpetas con su árbol, sus carreras, sus 409, el menú y el filtro de los listados.
+- [Lectura de documentos y validaciones fijas](../../../../docs/features/formularios-pruebas-de-integracion.md#lectura-de-documentos-y-validaciones-fijas): la copia del comprobante con su catálogo, su lectura y sus validaciones hasta la versión, el rechazo de una cuenta o una CUIT que no dan, «Cómo viene leyendo» en SQL y la migración.
 - [Ubicación](../../../../docs/features/formularios-pruebas-de-integracion.md#ubicación): del chequeo que la frena con WhatsApp a la carga desde la app, la planilla, el detalle, el Excel y la corrección con PostgreSQL, y el XLSX y el PDF con su enlace en pruebas técnicas.
 
 ## Referencias

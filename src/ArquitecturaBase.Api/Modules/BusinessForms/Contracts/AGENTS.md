@@ -18,6 +18,8 @@ Etapa 5, editor 03: create/update de borrador aceptan offerWhen escalar nullable
 
 E2-3: Source agrega Match/Presentation en el mapeo único, con contratos cerrados y redacción. GET recipient-samples y POST definitions/{id}/recipient-previews consumen IFormRecipientPreviewService, y POST recipient-maximums IFormRecipientMaximumService, en el mismo controller con Read+Manage+CatalogsRead (atributo de clase), no-store y políticas existentes (los POST, la de escritura); sólo la vista previa recibe persona, filtros y cultura, y recipient-maximums recibe sólo `source` en un cuerpo cerrado y devuelve `maximum` y `maximumLabel`. Publicación devuelve warnings siempre, separados de issues.
 
+DOC1: el borrador suma `documentReading` (`enabled`, `recognition` y `lookups`, en `FormDocumentReadingHttpRequest`) y una pregunta atada, `validation` (`bankAccount` o `taxId`); el editor los devuelve como llegaron, por el mismo mapeo en el guardado, el chequeo y la aceptación.
+
 ### Catálogos
 
 E1-B: el alta Manual admite `valueType` opcional (`Text` por defecto, `Integer`, `Decimal` o `Date`); PUT no lo admite y rechaza desconocidos. Cada ítem admite `value` nullable. Las respuestas de catálogo siempre llevan `valueType` y las de ítem `value`, incluso null; los errores de normalización señalan `items[index].value`. El controller sólo mapea, sin interpretar valores.

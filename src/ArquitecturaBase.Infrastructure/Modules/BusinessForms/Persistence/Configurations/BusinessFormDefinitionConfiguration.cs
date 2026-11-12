@@ -33,6 +33,8 @@ internal sealed class BusinessFormDefinitionConfiguration : IEntityTypeConfigura
             .HasComputedColumnSql("COALESCE(NULLIF(\"NameJson\" ->> 'en', ''), \"Name\")", stored: true);
         builder.Property(x => x.SchemaJson).HasColumnType("jsonb");
         builder.Property(x => x.SubmitLabelJson).HasColumnType("jsonb");
+        // DOC1: the reading of documents of the draft, null without one.
+        builder.Property(x => x.DocumentReadingJson).HasColumnType("jsonb");
         builder.Property(x => x.Revision).IsConcurrencyToken();
         builder.Property(x => x.LastRecordNumber).IsConcurrencyToken();
         builder.Property(x => x.ActiveVersionId).IsConcurrencyToken();

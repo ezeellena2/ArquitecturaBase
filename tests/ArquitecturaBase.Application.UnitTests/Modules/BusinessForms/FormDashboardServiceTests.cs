@@ -1,5 +1,6 @@
 using System.Text.Json;
 using ArquitecturaBase.Application.Models.Settings;
+using ArquitecturaBase.Application.Modules.BusinessForms.Channels;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
 using ArquitecturaBase.Application.Modules.BusinessForms.Validation;
@@ -220,13 +221,32 @@ public sealed class FormDashboardServiceTests
         Assert.Null(Assert.Single(dashboard.Numbers).CurrencyId);
     }
 
+    // DOC1: the reading of «Comprobante de transferencia» says the currency goes with the amount; the copy names both questions in its
+    // sealed bound map. A version of the standard the module does not bring declares nothing.
+    [Fact]
+    public async Task A_copy_of_a_standard_adds_up_each_amount_by_the_currency_its_reading_declares()
+    {
+        var currency = new CanonicalFormField(Guid.NewGuid(), "currency", "choice", Text("Moneda", "Currency"), null, false, null,
+            [new(Guid.NewGuid(), Text("Pesos", "Pesos")), new(Guid.NewGuid(), Text("Dólares", "Dollars"))]);
+        var bindings = JsonSerializer.Serialize(new Dictionary<string, Guid> { ["amount"] = Amount.FieldId, ["currency"] = currency.FieldId });
+        var (copy, copyReader, _, _) = Create([BusinessFormsPermissions.RecordsRead], questions: [Amount, currency], standard: ("forms.transfer-receipt", 1, bindings));
+        var (other, otherReader, _, _) = Create([BusinessFormsPermissions.RecordsRead], questions: [Amount, currency], standard: ("forms.transfer-receipt", 2, bindings));
+
+        Assert.True((await copy.SearchAsync(Guid.NewGuid(), new(), Ct)).IsSuccess);
+        Assert.True((await other.SearchAsync(Guid.NewGuid(), new(), Ct)).IsSuccess);
+
+        Assert.NotEmpty(copyReader.Measures);
+        Assert.All(copyReader.Measures, measures => Assert.Equal([new FormDashboardMeasure(Amount.FieldId, currency.FieldId)], measures));
+        Assert.All(otherReader.Measures, measures => Assert.Equal([new FormDashboardMeasure(Amount.FieldId)], measures));
+    }
+
     private static FormDashboardTotalsRow Totals(int count, IReadOnlyList<FormDashboardMeasureRow>? measures = null, DateTime? first = null,
         IReadOnlyList<FormDashboardDateRangeRow>? dates = null) =>
         new(count, count == 0 ? null : first ?? Utc(2026, 10, 5, 12), count == 0 ? null : first ?? Utc(2026, 10, 21, 12), measures ?? [], dates ?? []);
 
     private static (FormDashboardService Service, FakeFormDashboardReader Reader, FakeCurrentUser User, FakePermissionService Permissions) Create(
         IReadOnlyList<string> granted, bool definition = true, string zone = "America/Argentina/Buenos_Aires", InMemoryUserAccounts? accounts = null,
-        Guid? actor = null)
+        Guid? actor = null, IReadOnlyList<CanonicalFormField>? questions = null, (string Key, int Version, string BindingsJson)? standard = null)
     {
         var user = new FakeCurrentUser { UserId = actor ?? Guid.NewGuid() };
         var permissions = new FakePermissionService();
@@ -235,15 +255,19 @@ public sealed class FormDashboardServiceTests
         if (definition)
         {
             var version = new FormResponseVersionRow(Guid.NewGuid(), 1, JsonSerializer.Serialize(Text("Pagos", "Payments")),
-                JsonSerializer.Serialize(new FormVersionSchema(1, [Amount, Bank, PaidOn]), JsonSerializerOptions.Web), "es", ["es", "en"]);
-            responses.Definition = new(Guid.NewGuid(), "PAG", version.Id, [version]);
+                JsonSerializer.Serialize(new FormVersionSchema(1, questions ?? [Amount, Bank, PaidOn]), JsonSerializerOptions.Web), "es", ["es", "en"]);
+            responses.Definition = new(Guid.NewGuid(), "PAG", version.Id, [version])
+            {
+                StandardKey = standard?.Key, StandardVersion = standard?.Version, StandardBindingsJson = standard?.BindingsJson,
+            };
         }
         var reader = new FakeFormDashboardReader();
         var settings = new FakeSystemSettingsReader { Presentation = SystemPresentationResponse.Defaults with { DefaultTimeZoneId = zone } };
         var clock = new FakeTimeProvider(new DateTimeOffset(2026, 10, 22, 15, 0, 0, TimeSpan.Zero));
         var service = new FormDashboardService(responses, reader, new(user, permissions, responses),
             RequestValidators.For(new FormDashboardRequestValidator(), new ListFormRecordsRequestValidator()),
-            new FormDashboardZonePolicy(accounts ?? new InMemoryUserAccounts(), settings), clock, NullLogger<FormDashboardService>.Instance);
+            new FormDashboardZonePolicy(accounts ?? new InMemoryUserAccounts(), settings), [new BusinessFormStandardSource()], clock,
+            NullLogger<FormDashboardService>.Instance);
         return (service, reader, user, permissions);
     }
 

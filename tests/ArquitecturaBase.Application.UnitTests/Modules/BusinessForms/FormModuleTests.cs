@@ -12,7 +12,9 @@ public sealed class FormModuleTests
     public void Registration_is_idempotent_and_contributes_the_form_capability_and_permissions()
     {
         using var provider = new ServiceCollection().AddSingleton<ArquitecturaBase.Application.Interfaces.Integrations.Files.IPrivateFileStore>(new TestFeatures.Files.MemoryPrivateFileStore(false)).AddBusinessFormsApplication().AddBusinessFormsApplication().BuildServiceProvider();
-        Assert.Equal(new[] { "forms" }, Assert.Single(provider.GetServices<IClientCapabilitySource>()).InstalledFeatures);
+        // DOC1: formularios brings «Comprobante de transferencia» to its own library, so the menu shows «Biblioteca» with the module alone.
+        Assert.Equal(new[] { "forms", "form-library" }, Assert.Single(provider.GetServices<IClientCapabilitySource>()).InstalledFeatures);
+        Assert.Single(provider.GetServices<IStructuredFormStandardSource>());
         Assert.Equal(13, Assert.Single(provider.GetServices<IPermissionCatalogSource>()).Codes.Count);
         Assert.Contains(BusinessFormsPermissions.SuggestionsManage, Assert.Single(provider.GetServices<IPermissionCatalogSource>()).Codes);
         Assert.Contains(BusinessFormsPermissions.ApprovalsDecide, Assert.Single(provider.GetServices<IPermissionCatalogSource>()).Codes);

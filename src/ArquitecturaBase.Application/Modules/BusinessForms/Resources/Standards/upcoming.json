@@ -1,0 +1,123 @@
+[
+  {
+    "key": "forms.credit-note",
+    "name": {
+      "es": "Nota de crédito o débito",
+      "en": "Credit or debit note"
+    },
+    "description": {
+      "es": "Lee una nota de crédito o de débito: quién la emite, el comprobante que ajusta, el motivo y el importe.",
+      "en": "Reads a credit or debit note: who issues it, the voucher it adjusts, the reason and the amount."
+    }
+  },
+  {
+    "key": "forms.payment-receipt",
+    "name": {
+      "es": "Recibo",
+      "en": "Payment receipt"
+    },
+    "description": {
+      "es": "Lee un recibo de pago: quién cobra, quién paga, el concepto, el importe y la fecha.",
+      "en": "Reads a payment receipt: who is paid, who pays, the concept, the amount and the date."
+    }
+  },
+  {
+    "key": "forms.delivery-note",
+    "name": {
+      "es": "Remito",
+      "en": "Delivery note"
+    },
+    "description": {
+      "es": "Lee un remito: quién entrega, quién recibe y los artículos con sus cantidades.",
+      "en": "Reads a delivery note: who delivers, who receives and the items with their quantities."
+    }
+  },
+  {
+    "key": "forms.expense-ticket",
+    "name": {
+      "es": "Ticket de gasto",
+      "en": "Expense ticket"
+    },
+    "description": {
+      "es": "Lee el ticket de un gasto: el comercio, la fecha, el importe y el medio de pago.",
+      "en": "Reads the ticket of an expense: the store, the date, the amount and the means of payment."
+    }
+  },
+  {
+    "key": "forms.purchase-order",
+    "name": {
+      "es": "Orden de compra",
+      "en": "Purchase order"
+    },
+    "description": {
+      "es": "Lee una orden de compra: el proveedor, los artículos, las cantidades, los precios y la entrega.",
+      "en": "Reads a purchase order: the supplier, the items, the quantities, the prices and the delivery."
+    }
+  },
+  {
+    "key": "forms.quote",
+    "name": {
+      "es": "Presupuesto",
+      "en": "Quote"
+    },
+    "description": {
+      "es": "Lee un presupuesto: quién lo hace, los ítems con sus precios, el total y hasta cuándo vale.",
+      "en": "Reads a quote: who makes it, the items with their prices, the total and until when it is valid."
+    }
+  },
+  {
+    "key": "forms.check",
+    "name": {
+      "es": "Cheque o eCheq",
+      "en": "Check or eCheq"
+    },
+    "description": {
+      "es": "Lee un cheque o un eCheq: el banco, el número, quién lo libra, el importe y la fecha de pago.",
+      "en": "Reads a check or an eCheq: the bank, the number, who draws it, the amount and the payment date."
+    }
+  },
+  {
+    "key": "forms.certificate",
+    "name": {
+      "es": "Constancias",
+      "en": "Certificates"
+    },
+    "description": {
+      "es": "Lee constancias, como la de inscripción en ARCA o la de una CBU: quién figura y lo que certifica.",
+      "en": "Reads certificates, such as the ARCA registration or a CBU one: who appears and what it certifies."
+    }
+  },
+  {
+    "key": "forms.settlement",
+    "name": {
+      "es": "Liquidaciones",
+      "en": "Settlements"
+    },
+    "description": {
+      "es": "Lee liquidaciones, como la de una tarjeta o la de granos: el período, los conceptos y el neto.",
+      "en": "Reads settlements, such as a card or a grain one: the period, the items and the net amount."
+    }
+  },
+  {
+    "key": "forms.waybill",
+    "name": {
+      "es": "Carta de porte",
+      "en": "Waybill"
+    },
+    "description": {
+      "es": "Lee una carta de porte: el titular, el transportista, la carga, el origen y el destino.",
+      "en": "Reads a waybill: the holder, the carrier, the load, the origin and the destination."
+    }
+  },
+  {
+    "key": "forms.dte",
+    "name": {
+      "es": "DTE",
+      "en": "DTE"
+    },
+    "description": {
+      "es": "Lee el documento de tránsito electrónico de hacienda: el origen, el destino, la especie y la cantidad.",
+      "en": "Reads the electronic livestock transit document: the origin, the destination, the species and the number of head."
+    }
+  }
+]

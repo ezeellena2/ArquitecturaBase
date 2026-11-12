@@ -1,0 +1,305 @@
+{
+  "date": "2026-11-11",
+  "sources": [
+    "https://api.bcra.gob.ar/cheques/v1.0/entidades"
+  ],
+  "note": "Banks: the entity code (codigoEntidad) and denomination the BCRA publishes, read on the date above; the code, three digits, is how a CBU starts. The name is a short form of the denomination, which goes as is in officialName. Payment service providers (the four digits after 000 of a CVU) are assigned by COELSA, the CEC-BV of Comunicación A 6510 (https://www.bcra.gob.ar/archivos/Pdfs/comytexord/A6510.pdf); no official list of them could be read, so none is loaded.",
+  "banks": [
+    {
+      "code": "297",
+      "name": "Banco Banex",
+      "officialName": "BANCO BANEX S.A."
+    },
+    {
+      "code": "017",
+      "name": "Banco BBVA",
+      "officialName": "BANCO BBVA ARGENTINA S.A."
+    },
+    {
+      "code": "426",
+      "name": "Banco Bica",
+      "officialName": "BANCO BICA S.A."
+    },
+    {
+      "code": "259",
+      "name": "Banco BMA",
+      "officialName": "BANCO BMA S.A.U."
+    },
+    {
+      "code": "336",
+      "name": "Banco Bradesco",
+      "officialName": "BANCO BRADESCO ARGENTINA S.A.U."
+    },
+    {
+      "code": "338",
+      "name": "Banco BST",
+      "officialName": "BANCO DE SERVICIOS Y TRANSACCIONES SAU"
+    },
+    {
+      "code": "029",
+      "name": "Banco Ciudad",
+      "officialName": "BANCO DE LA CIUDAD DE BUENOS AIRES"
+    },
+    {
+      "code": "319",
+      "name": "Banco CMF",
+      "officialName": "BANCO CMF S.A."
+    },
+    {
+      "code": "431",
+      "name": "Banco Coinag",
+      "officialName": "BANCO COINAG S.A."
+    },
+    {
+      "code": "389",
+      "name": "Banco Columbia",
+      "officialName": "BANCO COLUMBIA S.A."
+    },
+    {
+      "code": "299",
+      "name": "Banco Comafi",
+      "officialName": "BANCO COMAFI SOCIEDAD ANONIMA"
+    },
+    {
+      "code": "191",
+      "name": "Banco Credicoop",
+      "officialName": "BANCO CREDICOOP COOPERATIVO LIMITADO"
+    },
+    {
+      "code": "432",
+      "name": "Banco de Comercio",
+      "officialName": "BANCO DE COMERCIO S.A."
+    },
+    {
+      "code": "020",
+      "name": "Banco de Córdoba",
+      "officialName": "BANCO DE LA PROVINCIA DE CORDOBA S.A."
+    },
+    {
+      "code": "094",
+      "name": "Banco de Corrientes",
+      "officialName": "BANCO DE CORRIENTES S.A."
+    },
+    {
+      "code": "315",
+      "name": "Banco de Formosa",
+      "officialName": "BANCO DE FORMOSA S.A."
+    },
+    {
+      "code": "007",
+      "name": "Banco de Galicia",
+      "officialName": "BANCO DE GALICIA Y BUENOS AIRES S.A."
+    },
+    {
+      "code": "011",
+      "name": "Banco de la Nación Argentina",
+      "officialName": "BANCO DE LA NACION ARGENTINA"
+    },
+    {
+      "code": "045",
+      "name": "Banco de San Juan",
+      "officialName": "BANCO DE SAN JUAN S.A."
+    },
+    {
+      "code": "086",
+      "name": "Banco de Santa Cruz",
+      "officialName": "BANCO DE SANTA CRUZ S.A."
+    },
+    {
+      "code": "321",
+      "name": "Banco de Santiago del Estero",
+      "officialName": "BANCO DE SANTIAGO DEL ESTERO S.A."
+    },
+    {
+      "code": "268",
+      "name": "Banco de Tierra del Fuego",
+      "officialName": "BANCO PROVINCIA DE TIERRA DEL FUEGO"
+    },
+    {
+      "code": "198",
+      "name": "Banco de Valores",
+      "officialName": "BANCO DE VALORES S.A."
+    },
+    {
+      "code": "083",
+      "name": "Banco del Chubut",
+      "officialName": "BANCO DEL CHUBUT S.A."
+    },
+    {
+      "code": "310",
+      "name": "Banco del Sol",
+      "officialName": "BANCO DEL SOL S.A."
+    },
+    {
+      "code": "060",
+      "name": "Banco del Tucumán",
+      "officialName": "BANCO DEL TUCUMAN S.A."
+    },
+    {
+      "code": "448",
+      "name": "Banco Dino",
+      "officialName": "BANCO DINO S.A."
+    },
+    {
+      "code": "303",
+      "name": "Banco Finansur",
+      "officialName": "BANCO FINANSUR S.A."
+    },
+    {
+      "code": "150",
+      "name": "Banco GGAL",
+      "officialName": "Banco GGAL SA"
+    },
+    {
+      "code": "044",
+      "name": "Banco Hipotecario",
+      "officialName": "BANCO HIPOTECARIO S.A."
+    },
+    {
+      "code": "322",
+      "name": "Banco Industrial",
+      "officialName": "BANCO INDUSTRIAL"
+    },
+    {
+      "code": "305",
+      "name": "Banco Julio",
+      "officialName": "BANCO JULIO SOCIEDAD ANONIMA"
+    },
+    {
+      "code": "285",
+      "name": "Banco Macro",
+      "officialName": "BANCO MACRO S.A."
+    },
+    {
+      "code": "254",
+      "name": "Banco Mariva",
+      "officialName": "BANCO MARIVA S.A."
+    },
+    {
+      "code": "341",
+      "name": "Banco Masventas",
+      "officialName": "BANCO MASVENTAS S.A."
+    },
+    {
+      "code": "281",
+      "name": "Banco Meridian",
+      "officialName": "BANCO MERIDIAN S.A."
+    },
+    {
+      "code": "065",
+      "name": "Banco Municipal de Rosario",
+      "officialName": "BANCO MUNICIPAL DE ROSARIO"
+    },
+    {
+      "code": "034",
+      "name": "Banco Patagonia",
+      "officialName": "BANCO PATAGONIA S.A."
+    },
+    {
+      "code": "301",
+      "name": "Banco Piano",
+      "officialName": "BANCO PIANO S.A."
+    },
+    {
+      "code": "306",
+      "name": "Banco Privado de Inversiones",
+      "officialName": "BANCO PRIVADO DE INVERSIONES S.A."
+    },
+    {
+      "code": "014",
+      "name": "Banco Provincia",
+      "officialName": "BANCO DE LA PROVINCIA DE BUENOS AIRES"
+    },
+    {
+      "code": "097",
+      "name": "Banco Provincia del Neuquén",
+      "officialName": "BANCO PROVINCIA DEL NEUQUEN S.A."
+    },
+    {
+      "code": "079",
+      "name": "Banco Regional de Cuyo",
+      "officialName": "BANCO REGIONAL DE CUYO S.A."
+    },
+    {
+      "code": "309",
+      "name": "Banco Rioja",
+      "officialName": "BANCO RIOJA SOCIEDAD ANÓNIMA UNIPERSONAL"
+    },
+    {
+      "code": "247",
+      "name": "Banco Roela",
+      "officialName": "BANCO ROELA S.A."
+    },
+    {
+      "code": "277",
+      "name": "Banco Saenz",
+      "officialName": "BANCO SAENZ S.A."
+    },
+    {
+      "code": "072",
+      "name": "Banco Santander",
+      "officialName": "BANCO SANTANDER ARGENTINA S.A."
+    },
+    {
+      "code": "435",
+      "name": "Banco Sucredito Regional",
+      "officialName": "BANCO SUCREDITO REGIONAL S.A.U."
+    },
+    {
+      "code": "027",
+      "name": "Banco Supervielle",
+      "officialName": "BANCO SUPERVIELLE S.A."
+    },
+    {
+      "code": "147",
+      "name": "Bibank",
+      "officialName": "BIBANK S.A."
+    },
+    {
+      "code": "266",
+      "name": "BNP Paribas",
+      "officialName": "BNP PARIBAS"
+    },
+    {
+      "code": "016",
+      "name": "Citibank",
+      "officialName": "CITIBANK N.A."
+    },
+    {
+      "code": "015",
+      "name": "ICBC",
+      "officialName": "INDUSTRIAL AND COMMERCIAL BANK OF CHINA"
+    },
+    {
+      "code": "093",
+      "name": "La Pampa",
+      "officialName": "LA PAMPA SA"
+    },
+    {
+      "code": "018",
+      "name": "MUFG Bank",
+      "officialName": "MUFG BANK, LTD"
+    },
+    {
+      "code": "386",
+      "name": "Nuevo Banco de Entre Ríos",
+      "officialName": "NUEVO BANCO DE ENTRE RÍOS S.A."
+    },
+    {
+      "code": "330",
+      "name": "Nuevo Banco de Santa Fe",
+      "officialName": "NUEVO BANCO DE SANTA FE SOCIEDAD ANONIMA"
+    },
+    {
+      "code": "311",
+      "name": "Nuevo Banco del Chaco",
+      "officialName": "NUEVO BANCO DEL CHACO S. A."
+    },
+    {
+      "code": "005",
+      "name": "The Royal Bank of Scotland",
+      "officialName": "The Royal Bank of Scotland N.V."
+    }
+  ],
+  "paymentProviders": []
+}

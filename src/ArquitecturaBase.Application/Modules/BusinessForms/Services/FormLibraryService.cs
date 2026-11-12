@@ -1,5 +1,4 @@
 using ArquitecturaBase.Application.Common.Logging;
-using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
@@ -16,11 +15,13 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 /// names, or that it declares as the option a question starts with (IV1-A), and the catalog does not have among its active options.
 /// The catalogs it brings come with their first options. The copy and the catalogs it creates go, in the same save, to the folder
 /// chosen or else to the standard's (<see cref="FormSystemFolderLinker"/>), and the rules it brings are the first revision of the
-/// copy's rules (<see cref="FormStandardRuleRecorder"/>).
+/// copy's rules (<see cref="FormStandardRuleRecorder"/>). DOC1: a standard that reads documents says what it reads and its fixed
+/// validations, the copy starts with its reading on, and the standards of the next stages are listed as «Próximamente»; one with a
+/// photo or document question is offered only with private storage (<see cref="FormLibraryOfferPolicy"/>).
 /// </summary>
 internal sealed class FormLibraryService : IFormLibraryService
 {
-    private readonly ArquitecturaBase.Application.Models.StructuredData.StructuredFormStandard[] _standards;
+    private readonly FormLibraryOfferPolicy _library;
     private readonly IFormDraftService _drafts;
     private readonly IFormLibraryReader _reader;
     private readonly FormDraftAccessGuard _access;
@@ -29,39 +30,44 @@ internal sealed class FormLibraryService : IFormLibraryService
     private readonly IFormCatalogItemCodeReader _codes;
     private readonly ILogger<FormLibraryService> _logger;
 
-    public FormLibraryService(IEnumerable<IStructuredFormStandardSource> sources, IFormDraftService drafts, IFormLibraryReader reader,
+    public FormLibraryService(FormLibraryOfferPolicy library, IFormDraftService drafts, IFormLibraryReader reader,
         FormDraftAccessGuard access, FormStandardRuleRecorder rules, FormStandardCopyRecorder copies, IFormCatalogItemCodeReader codes,
-        ILogger<FormLibraryService> logger)
-    {
-        _standards = sources.SelectMany(source => source.Standards).ToArray();
-        if (_standards.DistinctBy(standard => standard.Key, StringComparer.Ordinal).Count() != _standards.Length)
-            throw new InvalidOperationException("Library standard keys must be unique.");
-        (_drafts, _reader, _access, _rules, _copies, _codes, _logger) = (drafts, reader, access, rules, copies, codes, logger);
-    }
+        ILogger<FormLibraryService> logger) =>
+        (_library, _drafts, _reader, _access, _rules, _copies, _codes, _logger) = (library, drafts, reader, access, rules, copies, codes, logger);
 
     public Task<Result<FormLibraryResponse>> ListAsync(CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<FormLibraryResponse>>(_logger, "ListFormLibrary", async () =>
         {
             var access = await _access.CheckAsync(false, cancellationToken); if (access.IsFailure) return access.Error;
-            var copies = _standards.Length == 0 ? new Dictionary<string, int>()
-                : await _reader.ListCopyCountsAsync(_standards.Select(standard => standard.Key).ToArray(), cancellationToken);
+            var standards = _library.Offered();
+            var copies = standards.Count == 0 ? new Dictionary<string, int>()
+                : await _reader.ListCopyCountsAsync(standards.Select(standard => standard.Key).ToArray(), cancellationToken);
             // The number takes at most three characters of the twelve, so the prefixes in use start with the stem up to nine.
-            var taken = _standards.Length == 0 ? new HashSet<string>()
-                : await _reader.ListPrefixesAsync(_standards.Select(standard => standard.Prefix[..Math.Min(standard.Prefix.Length, 9)]).ToArray(), cancellationToken);
+            var taken = standards.Count == 0 ? new HashSet<string>()
+                : await _reader.ListPrefixesAsync(standards.Select(standard => standard.Prefix[..Math.Min(standard.Prefix.Length, 9)]).ToArray(), cancellationToken);
             var culture = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "es";
-            return new FormLibraryResponse(_standards.OrderBy(standard => FormRecordPresentationPolicy.Text(standard.Name, culture), StringComparer.CurrentCultureIgnoreCase)
+            return new FormLibraryResponse(standards.OrderBy(standard => FormRecordPresentationPolicy.Text(standard.Name, culture), StringComparer.CurrentCultureIgnoreCase)
                 .Select(standard => new FormLibraryStandardResponse(standard.Key, standard.Version, FormRecordPresentationPolicy.Text(standard.Name, culture),
                     FormRecordPresentationPolicy.Text(standard.Description, culture), standard.Prefix, copies.GetValueOrDefault(standard.Key),
                     FormDraftPolicy.Read<FormDraftInput>(standard.DraftJson).Culture, FormStandardPolicy.SuggestedPrefix(standard.Prefix, taken))
-                    { Source = standard.Source is { } source ? FormRecordPresentationPolicy.Text(source, culture) : null }).ToArray());
+                    {
+                        Source = standard.Source is { } source ? FormRecordPresentationPolicy.Text(source, culture) : null,
+                        Reads = FormStandardPolicy.Reads(standard, culture), Validations = FormStandardPolicy.Validations(standard, culture),
+                    }).ToArray())
+            {
+                Upcoming = _library.Upcoming.Count == 0 ? null : _library.Upcoming.Select(standard => new FormLibraryUpcomingResponse(standard.Key,
+                    FormRecordPresentationPolicy.Text(standard.Name, culture), FormRecordPresentationPolicy.Text(standard.Description, culture))).ToArray(),
+            };
         });
 
     public Task<Result<FormDraftCommitResponse>> AddAsync(string key, AddFormStandardRequest request, CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<FormDraftCommitResponse>>(_logger, "AddFormStandard", async () =>
         {
             var access = await _access.CheckAsync(true, cancellationToken); if (access.IsFailure) return access.Error;
-            if (_standards.SingleOrDefault(standard => standard.Key == key) is not { } standard) return FormLibraryErrors.StandardNotFound;
+            if (_library.Offered().SingleOrDefault(standard => standard.Key == key) is not { } standard) return FormLibraryErrors.StandardNotFound;
             var draft = FormDraftPolicy.Read<FormDraftInput>(standard.DraftJson);
+            // DOC1: a standard that reads documents leaves the copy reading them, in the copy's language; its validations come in its questions.
+            draft = draft with { DocumentReading = FormStandardPolicy.Reading(standard, draft.Culture) };
             var named = standard.Catalogs ?? new Dictionary<string, string>();
             var own = standard.OwnCatalogs ?? [];
             var keys = named.Values.Concat(own.Select(catalog => catalog.Key))
@@ -83,7 +89,7 @@ internal sealed class FormLibraryService : IFormLibraryService
                     "data", position, true)).ToArray(), null);
                 if (fields.IsFailure) throw new InvalidOperationException("A library standard declares invalid catalog fields.");
                 var items = (catalog.Items ?? []).Select((item, position) => entity.AddManualItem(item.Code, item.Text.GetValueOrDefault("es"),
-                    item.Text.GetValueOrDefault("en"), null, null, position)).ToArray();
+                    item.Text.GetValueOrDefault("en"), item.Detail?.GetValueOrDefault("es"), item.Detail?.GetValueOrDefault("en"), position)).ToArray();
                 if (items.Any(item => item.IsFailure)) throw new InvalidOperationException("A library standard declares invalid catalog options.");
                 createdItems.AddRange(items.Select(item => item.Value));
                 createdCodes[entity.Id] = items.ToDictionary(item => item.Value.Code, item => item.Value.Id, StringComparer.Ordinal);

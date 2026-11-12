@@ -17,6 +17,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Los estándares de la biblioteca de Formularios y la tabla de entidades del BCRA, como datos (DOC1). -->
+    <EmbeddedResource Include="Modules\BusinessForms\Resources\Standards\*.json" LogicalName="BusinessForms.Standards.%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
     <InternalsVisibleTo Include="ArquitecturaBase.Application.UnitTests" />
     <!-- Los tests de integración emiten enlaces de ingreso con LoginLinkIssuer, sin pasar por el bot. -->
     <InternalsVisibleTo Include="ArquitecturaBase.Api.IntegrationTests" />

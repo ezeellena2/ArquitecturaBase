@@ -1819,6 +1819,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(120)")
                         .HasComputedColumnSql("COALESCE(NULLIF(\"NameJson\" ->> 'es', ''), \"Name\")", true);
 
+                    b.Property<string>("DocumentReadingJson")
+                        .HasColumnType("jsonb");
+
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
@@ -3092,6 +3095,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasMaxLength(120)
                         .HasColumnType("character varying(120)")
                         .HasComputedColumnSql("\"NameJson\" ->> 'es'", true);
+
+                    b.Property<string>("DocumentReadingJson")
+                        .HasColumnType("jsonb");
 
                     b.Property<DateTime?>("ModifiedAtUtc")
                         .HasColumnType("timestamp with time zone");

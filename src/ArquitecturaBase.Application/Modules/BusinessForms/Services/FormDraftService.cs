@@ -79,7 +79,7 @@ internal sealed class FormDraftService(IFormDraftRepository repository, FormDefi
         var draft = resolved.Value.Draft;
         var updated = definition.SetDraft(request.ExpectedRevision ?? 1, request.Name[draft.Culture], FormDraftPolicy.Serialize(request.Name), request.Prefix, draft.Culture,
             FormDraftPolicy.Serialize(draft.SubmitLabel), FormDraftPolicy.Serialize(new FormQuestionSchema(1, draft.Fields, draft.Sections)), FormDraftPolicy.QuestionCount(draft.Fields), creating, request.OfferWhen,
-            draft.AppOnly == true);
+            draft.AppOnly == true, draft.DocumentReading is { } reading ? FormDraftPolicy.Serialize(reading) : null);
         if (updated.IsFailure) return updated.Error;
         if (creating && request.Standard is { } standard)
         {

@@ -19,7 +19,7 @@ internal sealed class FormDefinitionReader(ApplicationDbContext dbContext, IForm
                 row.LastChangedByUserId == null ? null : new FormAuthorResponse(row.LastChangedByUserId.Value,
                     dbContext.Users.Where(user => user.Id == row.LastChangedByUserId).Select(user => user.DisplayName).FirstOrDefault()),
                 row.Definition.OfferWhen, row.Definition.AppOnly) { StandardKey = row.Definition.StandardKey, StandardVersion = row.Definition.StandardVersion,
-                    StandardBindingsJson = row.Definition.StandardBindingsJson }).SingleOrDefaultAsync(cancellationToken);
+                    StandardBindingsJson = row.Definition.StandardBindingsJson, DocumentReadingJson = row.Definition.DocumentReadingJson }).SingleOrDefaultAsync(cancellationToken);
     public async Task<FormPublicationOverviewResponse> FindPublicationAsync(Guid id, Guid? recoveryActor, CancellationToken cancellationToken)
     {
         var activeRow = await (from definition in dbContext.Set<BusinessFormDefinition>().AsNoTracking().Where(value => value.Id == id)
@@ -28,7 +28,7 @@ internal sealed class FormDefinitionReader(ApplicationDbContext dbContext, IForm
                                where version.DefinitionId == id && operation.DefinitionId == id
                                select new { VersionId = version.Id, version.Number, operation.DraftRevision, OperationId = operation.Id,
                                    Actor = operation.OperatorUserId, operation.RequestId, operation.ProtectedManifest, version.AppOnly,
-                                   version.PublishedCultures }).SingleOrDefaultAsync(cancellationToken);
+                                   version.PublishedCultures, ReadsDocuments = version.DocumentReadingJson != null }).SingleOrDefaultAsync(cancellationToken);
         FormActiveVersionResponse? active = null;
         if (activeRow is not null)
         {
@@ -36,7 +36,7 @@ internal sealed class FormDefinitionReader(ApplicationDbContext dbContext, IForm
             // A version published only in the app has no channel profiles: its languages are the ones it sealed (SA3-A).
             active = new(activeRow.VersionId, activeRow.Number, activeRow.DraftRevision, activeRow.AppOnly ? activeRow.PublishedCultures ?? []
                 : manifest.Profiles.SelectMany(profile => profile.Cultures).Select(culture => culture.Culture).Distinct(StringComparer.Ordinal).ToArray(),
-                activeRow.AppOnly ? true : null);
+                activeRow.AppOnly ? true : null, activeRow.ReadsDocuments ? true : null);
         }
         var latest = await dbContext.Set<BusinessFormPublicationOperation>().AsNoTracking().Where(value => value.DefinitionId == id)
             .OrderByDescending(value => value.VersionNumber)

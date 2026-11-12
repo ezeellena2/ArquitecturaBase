@@ -1,6 +1,6 @@
 # Domain: modelo y reglas puras
 
-Define entidades, valores y errores de negocio. `Common` reúne identidad y auditoría; `Results`, los resultados; `ValueObjects`, correo y teléfono; las otras carpetas agrupan áreas funcionales.
+Define entidades, valores y errores de negocio. `Common` reúne identidad y auditoría; `Results`, los resultados; `ValueObjects`, correo, teléfono, CUIT y cuenta para transferir (CBU, CVU o alias); las otras carpetas agrupan áreas funcionales.
 
 ## Al modificar
 

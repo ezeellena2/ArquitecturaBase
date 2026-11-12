@@ -17,6 +17,8 @@ public sealed class BusinessFormVersion : Entity, IAuditable
     public string[]? PublishedCultures { get; private set; }
     // Published without channels: it is completed only in the app (SA1-A). Versions sealed before that went through a channel.
     public bool AppOnly { get; private set; }
+    // The reading of documents it was published with (DOC1); null for a version that does not read documents.
+    public string? DocumentReadingJson { get; private set; }
     public DateTime CreatedAtUtc { get; private set; }
     public Guid? CreatedBy { get; private set; }
     public DateTime? ModifiedAtUtc { get; private set; }
@@ -52,5 +54,11 @@ public sealed class BusinessFormVersion : Entity, IAuditable
         PublishedCultures = cultures.ToArray();
     }
     public void MarkAppOnly() => AppOnly = true;
+    public void SealDocumentReading(string documentReadingJson)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(documentReadingJson);
+        if (DocumentReadingJson is not null) throw new InvalidOperationException("A form version reading is immutable.");
+        DocumentReadingJson = documentReadingJson;
+    }
     public override string ToString() => $"BusinessFormVersion {{ Id = {Id}, Number = {Number}, Content = [REDACTED] }}";
 }

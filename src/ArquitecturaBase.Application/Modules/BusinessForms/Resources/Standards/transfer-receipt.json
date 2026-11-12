@@ -1,0 +1,284 @@
+{
+  "key": "forms.transfer-receipt",
+  "version": 1,
+  "name": {
+    "es": "Comprobante de transferencia",
+    "en": "Transfer receipt"
+  },
+  "description": {
+    "es": "Lee el comprobante de una transferencia y lo carga: las cuentas de origen y de destino con sus titulares, el monto, la fecha y el número de operación.",
+    "en": "Reads the receipt of a transfer and loads it: the source and destination accounts with their holders, the amount, the date and the operation number."
+  },
+  "prefix": "REC",
+  "folder": {
+    "key": "forms.transfers",
+    "name": {
+      "es": "Transferencias",
+      "en": "Transfers"
+    }
+  },
+  "draft": {
+    "format": 1,
+    "culture": "es",
+    "submitLabel": {
+      "es": "Enviar",
+      "en": "Send"
+    },
+    "fields": [
+      {
+        "localId": "0197a6d0-0000-7000-8000-000000000001",
+        "type": "choice",
+        "label": {
+          "es": "Banco de origen",
+          "en": "Sender bank"
+        },
+        "required": false
+      },
+      {
+        "localId": "0197a6d0-0000-7000-8000-000000000002",
+        "type": "shortText",
+        "label": {
+          "es": "Cuenta de origen",
+          "en": "Sender account"
+        },
+        "help": {
+          "es": "CBU, CVU o alias.",
+          "en": "CBU, CVU or alias."
+        },
+        "required": false,
+        "maxLength": 40,
+        "validation": "bankAccount"
+      },
+      {
+        "localId": "0197a6d0-0000-7000-8000-000000000003",
+        "type": "shortText",
+        "label": {
+          "es": "Titular de origen",
+          "en": "Sender name"
+        },
+        "required": false,
+        "maxLength": 120
+      },
+      {
+        "localId": "0197a6d0-0000-7000-8000-000000000004",
+        "type": "shortText",
+        "label": {
+          "es": "CUIT/CUIL de origen",
+          "en": "Sender CUIT/CUIL"
+        },
+        "required": false,
+        "maxLength": 13,
+        "validation": "taxId"
+      },
+      {
+        "localId": "0197a6d0-0000-7000-8000-000000000005",
+        "type": "choice",
+        "label": {
+          "es": "Banco de destino",
+          "en": "Recipient bank"
+        },
+        "required": false
+      },
+      {
+        "localId": "0197a6d0-0000-7000-8000-000000000006",
+        "type": "shortText",
+        "label": {
+          "es": "Cuenta de destino",
+          "en": "Recipient account"
+        },
+        "help": {
+          "es": "CBU, CVU o alias.",
+          "en": "CBU, CVU or alias."
+        },
+        "required": false,
+        "maxLength": 40,
+        "validation": "bankAccount"
+      },
+      {
+        "localId": "0197a6d0-0000-7000-8000-000000000007",
+        "type": "shortText",
+        "label": {
+          "es": "Titular de destino",
+          "en": "Recipient name"
+        },
+        "required": false,
+        "maxLength": 120
+      },
+      {
+        "localId": "0197a6d0-0000-7000-8000-000000000008",
+        "type": "shortText",
+        "label": {
+          "es": "CUIT/CUIL de destino",
+          "en": "Recipient CUIT/CUIL"
+        },
+        "required": false,
+        "maxLength": 13,
+        "validation": "taxId"
+      },
+      {
+        "localId": "0197a6d0-0000-7000-8000-000000000009",
+        "type": "decimal",
+        "label": {
+          "es": "Monto",
+          "en": "Amount"
+        },
+        "required": true
+      },
+      {
+        "localId": "0197a6d0-0000-7000-8000-00000000000a",
+        "type": "choice",
+        "label": {
+          "es": "Moneda",
+          "en": "Currency"
+        },
+        "required": true,
+        "options": [
+          {
+            "localId": "ars",
+            "label": {
+              "es": "Pesos",
+              "en": "Pesos"
+            }
+          },
+          {
+            "localId": "usd",
+            "label": {
+              "es": "Dólares",
+              "en": "Dollars"
+            }
+          }
+        ]
+      },
+      {
+        "localId": "0197a6d0-0000-7000-8000-00000000000b",
+        "type": "date",
+        "label": {
+          "es": "Fecha",
+          "en": "Date"
+        },
+        "required": true
+      },
+      {
+        "localId": "0197a6d0-0000-7000-8000-00000000000c",
+        "type": "shortText",
+        "label": {
+          "es": "Hora",
+          "en": "Time"
+        },
+        "help": {
+          "es": "Como figura en el comprobante, por ejemplo 14:35.",
+          "en": "As the receipt shows it, for example 14:35."
+        },
+        "required": false,
+        "maxLength": 16
+      },
+      {
+        "localId": "0197a6d0-0000-7000-8000-00000000000d",
+        "type": "shortText",
+        "label": {
+          "es": "Número de operación",
+          "en": "Operation number"
+        },
+        "required": false,
+        "maxLength": 40
+      },
+      {
+        "localId": "0197a6d0-0000-7000-8000-00000000000e",
+        "type": "longText",
+        "label": {
+          "es": "Concepto",
+          "en": "Concept"
+        },
+        "required": false,
+        "maxLength": 300
+      },
+      {
+        "localId": "0197a6d0-0000-7000-8000-00000000000f",
+        "type": "document",
+        "label": {
+          "es": "Comprobante",
+          "en": "Receipt"
+        },
+        "required": true,
+        "files": {
+          "minFiles": 1,
+          "maxFiles": 1
+        }
+      }
+    ],
+    "sections": [
+      {
+        "start": 0,
+        "title": {
+          "es": "Origen",
+          "en": "Sender"
+        }
+      },
+      {
+        "start": 4,
+        "title": {
+          "es": "Destino",
+          "en": "Recipient"
+        }
+      },
+      {
+        "start": 8,
+        "title": {
+          "es": "Transferencia",
+          "en": "Transfer"
+        }
+      }
+    ]
+  },
+  "bindings": {
+    "0197a6d0-0000-7000-8000-000000000001": "sourceBank",
+    "0197a6d0-0000-7000-8000-000000000002": "sourceAccount",
+    "0197a6d0-0000-7000-8000-000000000003": "sourceHolder",
+    "0197a6d0-0000-7000-8000-000000000004": "sourceTaxId",
+    "0197a6d0-0000-7000-8000-000000000005": "destinationBank",
+    "0197a6d0-0000-7000-8000-000000000006": "destinationAccount",
+    "0197a6d0-0000-7000-8000-000000000007": "destinationHolder",
+    "0197a6d0-0000-7000-8000-000000000008": "destinationTaxId",
+    "0197a6d0-0000-7000-8000-000000000009": "amount",
+    "0197a6d0-0000-7000-8000-00000000000a": "currency",
+    "0197a6d0-0000-7000-8000-00000000000b": "date",
+    "0197a6d0-0000-7000-8000-00000000000c": "time",
+    "0197a6d0-0000-7000-8000-00000000000d": "operationNumber",
+    "0197a6d0-0000-7000-8000-00000000000e": "concept",
+    "0197a6d0-0000-7000-8000-00000000000f": "receipt"
+  },
+  "catalogs": {
+    "0197a6d0-0000-7000-8000-000000000001": "forms.bank-entities",
+    "0197a6d0-0000-7000-8000-000000000005": "forms.bank-entities"
+  },
+  "catalog": {
+    "key": "forms.bank-entities",
+    "originalCulture": "es",
+    "name": {
+      "es": "Bancos y billeteras",
+      "en": "Banks and wallets"
+    },
+    "description": {
+      "es": "Los bancos y las billeteras de las transferencias. El código es el de la entidad en la cuenta: los tres primeros dígitos de una CBU, según la tabla del BCRA.",
+      "en": "The banks and wallets of transfers. The code is the entity's in the account: the first three digits of a CBU, as the BCRA table gives them."
+    }
+  },
+  "reading": {
+    "recognition": {
+      "es": "Comprobante de una transferencia de dinero entre dos cuentas, de cualquier banco o billetera virtual. Suele decir «Transferencia», «Comprobante» u «Operación exitosa» y muestra el monto, la fecha y la hora, el número de operación y las cuentas de origen y de destino (CBU, CVU o alias) con sus titulares y su CUIT o CUIL; a veces, un concepto. No es una factura, un recibo ni un ticket de compra.",
+      "en": "Receipt of a money transfer between two accounts, from any bank or digital wallet. It usually says «Transferencia», «Comprobante» or «Operación exitosa» and shows the amount, the date and time, the operation number and the source and destination accounts (CBU, CVU or alias) with their holders and their CUIT or CUIL; sometimes, a concept. It is not an invoice, a payment receipt or a purchase ticket."
+    },
+    "summary": {
+      "es": "Recibí un comprobante de transferencia de {amount} del {sourceBank}. ¿Lo cargo?",
+      "en": "I got a transfer receipt for {amount} from {sourceBank}. Shall I load it?"
+    },
+    "duplicateKeys": [
+      "operationNumber",
+      "amount",
+      "date"
+    ],
+    "currencies": {
+      "amount": "currency"
+    }
+  }
+}

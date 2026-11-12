@@ -29,4 +29,7 @@ public static class FormRecordErrors
     public static readonly Error AmendUnavailable = Error.Conflict("Forms.Record.AmendUnavailable", "The response changed and can no longer be corrected or voided.");
     public static readonly Error ReasonRequired = Error.Validation("Forms.Record.ReasonRequired", "Correcting or voiding a response requires a reason.");
     public static readonly Error ReasonInvalid = Error.Validation("Forms.Record.ReasonInvalid", "The reason cannot exceed five hundred characters.");
+    // DOC1: the fixed validations of a question bound by a library standard, on every capture.
+    public static readonly Error BankAccountInvalid = Error.Validation("Forms.Record.BankAccountInvalid", "The account is neither a CBU or CVU whose check digits add up nor a valid alias.");
+    public static readonly Error TaxIdInvalid = Error.Validation("Forms.Record.TaxIdInvalid", "The CUIT or CUIL does not have eleven digits with a valid check digit.");
 }

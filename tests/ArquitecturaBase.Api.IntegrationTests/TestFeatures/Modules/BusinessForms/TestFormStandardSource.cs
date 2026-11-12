@@ -9,7 +9,8 @@ namespace ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessFor
 /// of customers, with its first options, and files both in its folder, starts «Cliente» at «Consumidor final» (IV1-A) and shows
 /// «CUIT del cliente» only with the option «Otro», both named by their codes; and a voucher of the test issuer that brings its rules
 /// (issue, tell whoever loaded it with the PDF and send the copy, and a notice with conditions on a catalog option by its code, an
-/// own option by its local id and a yes or no).
+/// own option by its local id and a yes or no); and a payment whose account and CUIT bring their fixed validations (DOC1), without
+/// files, so a capture shows the rejection without private storage.
 /// </summary>
 internal sealed class TestFormStandardSource : IStructuredFormStandardSource
 {
@@ -68,7 +69,14 @@ internal sealed class TestFormStandardSource : IStructuredFormStandardSource
                  "showWhen":{"questionId":"{{{Buyer}}}","values":["code:nobody"]}}]}
                 """, new Dictionary<string, string>(), new Dictionary<string, string> { [Buyer] = CustomersCatalog }),
         Voucher,
+        new(AccountKey, 1, new Dictionary<string, string> { ["es"] = "Pago de prueba" }, new Dictionary<string, string> { ["es"] = "Una cuenta y su CUIT, con sus validaciones fijas." },
+            "PGP", $$$"""
+                {"format":1,"culture":"es","submitLabel":{"es":"Enviar"},"fields":[
+                {"localId":"{{{Account}}}","type":"shortText","label":{"es":"Cuenta"},"required":true,"maxLength":40,"validation":"bankAccount"},
+                {"localId":"{{{AccountTaxId}}}","type":"shortText","label":{"es":"CUIT"},"required":false,"maxLength":13,"validation":"taxId"}]}
+                """, new Dictionary<string, string> { [Account] = "account", [AccountTaxId] = "taxId" }),
     ];
+    public const string AccountKey = "test.payment", Account = "0196f2a0-0000-7000-8000-0000000000d1", AccountTaxId = "0196f2a0-0000-7000-8000-0000000000d2";
     // BI1-A rules: a copy of this standard starts with them, with the identities its save gives.
     private static readonly StructuredFormStandard Voucher = new(TestRecordIssuer.Key, 1, new Dictionary<string, string> { ["es"] = "Comprobante de prueba" },
         new Dictionary<string, string> { ["es"] = "Emite un comprobante de prueba y manda la copia." }, "CPP", $$$"""

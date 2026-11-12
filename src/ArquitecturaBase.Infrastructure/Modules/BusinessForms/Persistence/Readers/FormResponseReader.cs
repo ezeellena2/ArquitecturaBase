@@ -12,7 +12,7 @@ internal sealed partial class FormResponseReader(ApplicationDbContext dbContext,
     public async Task<FormResponseDefinitionRow?> FindDefinitionAsync(Guid id, CancellationToken cancellationToken)
     {
         var definition = await dbContext.Set<BusinessFormDefinition>().AsNoTracking().Where(value => value.Id == id && value.ActiveVersionId != null)
-            .Select(value => new { value.Id, value.Prefix, value.ActiveVersionId,
+            .Select(value => new { value.Id, value.Prefix, value.ActiveVersionId, value.StandardKey, value.StandardVersion, value.StandardBindingsJson,
                 HasApproval = dbContext.Set<BusinessFormRuleSet>().Any(rule => rule.DefinitionId == value.Id && rule.HasApproval
                     && (rule.Id == value.ActiveRuleSetId || dbContext.Set<BusinessFormRecord>().Any(record => record.RuleSetId == rule.Id))) })
             .SingleOrDefaultAsync(cancellationToken);
@@ -31,7 +31,8 @@ internal sealed partial class FormResponseReader(ApplicationDbContext dbContext,
         var historical = catalogIds.Length == 0 ? [] : await FindHistoricalCatalogFields(id).ToArrayAsync(cancellationToken);
         var catalogFields = ReadCatalogFields(catalogs, historical);
         return result with { CatalogValueTypes = catalogs.ToDictionary(catalog => catalog.Id, catalog => catalog.ValueType), CatalogFields = catalogFields,
-            CatalogNames = catalogs.ToDictionary(catalog => catalog.Id, catalog => (IReadOnlyDictionary<string, string>)ReadCatalogName(catalog.NameJson)) };
+            CatalogNames = catalogs.ToDictionary(catalog => catalog.Id, catalog => (IReadOnlyDictionary<string, string>)ReadCatalogName(catalog.NameJson)),
+            StandardKey = definition.StandardKey, StandardVersion = definition.StandardVersion, StandardBindingsJson = definition.StandardBindingsJson };
     }
     public async Task<PagedResult<FormResponseStoredRow>> ListAsync(FormResponseDefinitionRow definition, ListFormRecordsRequest request, CancellationToken cancellationToken)
     {

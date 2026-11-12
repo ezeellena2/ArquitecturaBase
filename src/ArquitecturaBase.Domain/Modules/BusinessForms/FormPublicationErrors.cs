@@ -32,4 +32,5 @@ public static class FormPublicationErrors
     public static readonly Error ConditionInvalid = Error.Validation("Forms.Publication.ConditionInvalid", "A condition must name an earlier choice or yes/no question outside the block and answers it has.");
     public static readonly Error RowsOverChannelLimit = Error.Validation("Forms.Publication.RowsOverChannelLimit", "The channel loads fewer items than the block maximum.");
     public static readonly Error MinRowsOverChannelLimit = Error.Validation("Forms.Publication.MinRowsOverChannelLimit", "The channel loads fewer items than the block minimum.");
+    public static readonly Error DocumentLookupInvalid = Error.Validation("Forms.Publication.DocumentLookupInvalid", "A document lookup names a catalog field that is missing, inactive or not comparable with the question read.");
 }
