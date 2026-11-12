@@ -27,6 +27,8 @@ public sealed class FormDocumentReadingMigrationTests(ApiFactory factory)
         await using var db = new ApplicationDbContext(scope.ServiceProvider.GetRequiredService<DbContextOptions<ApplicationDbContext>>());
         var migrator = db.GetService<IMigrator>();
         var before = Before(db);
+        // Only up to this migration: a later one may add columns to these rows, or refuse them on its way down.
+        var target = This(db);
         try
         {
             await migrator.MigrateAsync(before, Ct);
@@ -34,7 +36,7 @@ public sealed class FormDocumentReadingMigrationTests(ApiFactory factory)
             var history = await HistoryAsync(db);
             Assert.Equal(0, await ColumnsAsync(db));
 
-            await migrator.MigrateAsync(cancellationToken: Ct);
+            await migrator.MigrateAsync(target, Ct);
             Assert.Equal(2, await ColumnsAsync(db));
             Assert.Equal(history, await HistoryAsync(db));
             await db.Database.ExecuteSqlAsync($"""UPDATE "FormDefinitions" SET "DocumentReadingJson" = CAST({Reading} AS jsonb) WHERE "Id" = {definitionId}""", Ct);
@@ -43,7 +45,7 @@ public sealed class FormDocumentReadingMigrationTests(ApiFactory factory)
             await migrator.MigrateAsync(before, Ct);
             Assert.Equal(0, await ColumnsAsync(db));
             Assert.Equal(history, await HistoryAsync(db));
-            await migrator.MigrateAsync(cancellationToken: Ct);
+            await migrator.MigrateAsync(target, Ct);
             Assert.Equal(history, await HistoryAsync(db));
         }
         finally { await db.Database.EnsureDeletedAsync(CancellationToken.None); }
@@ -61,7 +63,8 @@ public sealed class FormDocumentReadingMigrationTests(ApiFactory factory)
         var migrator = db.GetService<IMigrator>();
         try
         {
-            await migrator.MigrateAsync(cancellationToken: Ct);
+            // Only up to this migration: a later one would otherwise have to come down first, and this test is about this Down.
+            await migrator.MigrateAsync(This(db), Ct);
             var definitionId = await InsertAsync(db);
             if (table == "FormDefinitions")
                 await db.Database.ExecuteSqlAsync($"""UPDATE "FormDefinitions" SET "DocumentReadingJson" = CAST({Reading} AS jsonb) WHERE "Id" = {definitionId}""", Ct);
@@ -81,6 +84,10 @@ public sealed class FormDocumentReadingMigrationTests(ApiFactory factory)
     // The migration right before this one, whichever it is.
     private static string Before(ApplicationDbContext db) =>
         db.Database.GetMigrations().TakeWhile(migration => !migration.EndsWith("_" + Migration, StringComparison.Ordinal)).Last();
+
+    // This migration, with its timestamp.
+    private static string This(ApplicationDbContext db) =>
+        db.Database.GetMigrations().Single(migration => migration.EndsWith("_" + Migration, StringComparison.Ordinal));
 
     // A published form with nothing to answer, written with the columns every schema has.
     private async Task<Guid> InsertAsync(ApplicationDbContext db)
