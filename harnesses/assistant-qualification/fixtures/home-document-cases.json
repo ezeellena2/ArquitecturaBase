@@ -122,7 +122,10 @@
               ]
             },
             {
-              "label": "Responsable"
+              "label": "Responsable",
+              "types": [
+                "shortText"
+              ]
             },
             {
               "label": "Sucursal",
@@ -138,7 +141,11 @@
               "catalog": "branches"
             },
             {
-              "label": "Insumo"
+              "label": "Insumo",
+              "types": [
+                "shortText",
+                "choice"
+              ]
             },
             {
               "label": "Cantidad",
@@ -147,10 +154,18 @@
               ]
             },
             {
-              "label": "Unidad"
+              "label": "Unidad",
+              "types": [
+                "shortText",
+                "choice"
+              ]
             },
             {
-              "label": "Observaciones"
+              "label": "Observaciones",
+              "types": [
+                "shortText",
+                "longText"
+              ]
             }
           ],
           "minimumQuestions": 7

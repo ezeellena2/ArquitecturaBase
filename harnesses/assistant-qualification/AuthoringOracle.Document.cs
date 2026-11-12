@@ -100,9 +100,10 @@ internal static partial class AuthoringOracle
         return true;
     }
 
-    // The questions the document prints, as an ordered subsequence of the proposal: each pinned label, one of the types it may take and, for a
-    // list of its own, the printed options; a list printed on paper may also become the existing catalog of the same thing (whose options no
-    // read shows), never another one.
+    // The questions the document prints, as an ordered subsequence of the proposal: each pinned label as a phrase of the question's (a table's
+    // column may repeat once per row, with its number, as a paper form with blank rows does), one of the types it may take and, for a list of
+    // its own, the printed options; a list printed on paper may also become the existing catalog of the same thing (whose options no read
+    // shows), never another one.
     internal static bool PrintedInOrder(IReadOnlyList<HomePrintedQuestion> wanted, IReadOnlyList<FormAuthoringDocumentQuestion> questions,
         QualificationChannelFixture fixture)
     {
@@ -113,7 +114,7 @@ internal static partial class AuthoringOracle
     }
 
     private static bool PrintedAs(HomePrintedQuestion wanted, FormAuthoringDocumentQuestion question, QualificationChannelFixture fixture) =>
-        (wanted.Label is null || SameText(wanted.Label, question.Label)) && (wanted.Types is null || wanted.Types.Contains(question.Type, StringComparer.Ordinal))
+        (wanted.Label is null || ContainsPhrase(question.Label, wanted.Label)) && (wanted.Types is null || wanted.Types.Contains(question.Type, StringComparer.Ordinal))
         && (wanted.Options is null || question.Type is not ("choice" or "multiChoice") || wanted.Options.Length == question.Options.Count
             && wanted.Options.Select((option, index) => SameText(option, question.Options[index])).All(same => same))
         && (question.Type != "catalog" || wanted.Catalog is { } alias && question.Catalog is { } used

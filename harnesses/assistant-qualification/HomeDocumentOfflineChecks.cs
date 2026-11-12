@@ -303,6 +303,16 @@ internal static class HomeDocumentOfflineChecks
             "printed-questions-in-order"));
         // A question the paper does not ask for, after the ones it prints, keeps their order.
         Require(Passes(paper, ideal with { Questions = [..questions, new FormAuthoringDocumentQuestion("Firma", "photo", false, [], null, null)] }));
+        // The table's columns once per blank row, with its number, keep the printed questions and their order; another word does not.
+        FormAuthoringDocumentQuestion Row(FormAuthoringDocumentQuestion question, int row) => question with { Label = question.Label + " " + row, Required = row == 1 };
+        Require(Passes(paper, ideal with { Questions = [..questions.Take(3), ..Enumerable.Range(1, 6).SelectMany(row => questions.Skip(3).Take(3).Select(question => Row(question, row))),
+            ..questions.Skip(6)] }));
+        Require(Fails(paper, ideal with { Questions = [..questions.Select((question, index) => index == 3 ? question with { Label = "Artículo" } : question)] },
+            "printed-questions-in-order"));
+        // One question never fills two printed ones: without a unit question, a quantity «(unidad)» of the next row is no unit.
+        FormAuthoringDocumentQuestion Quantity(int row) => questions[4] with { Label = "Cantidad (unidad) " + row };
+        Require(Fails(paper, ideal with { Questions = [..questions.Take(3), questions[3] with { Label = "Insumo 1" }, Quantity(1),
+            questions[3] with { Label = "Insumo 2" }, Quantity(2), ..questions.Skip(6)] }, "printed-questions-in-order"));
         // The printed branches may become the existing catalog of branches, whose options no read shows.
         FormAuthoringDocumentQuestion Catalog(FormAuthoringDocumentQuestion question) =>
             question with { Type = "catalog", Options = [], Catalog = new(Fixture.Catalogs.Single(item => item.Alias == "branches").Id, question.Label) };
