@@ -36,8 +36,8 @@ Lo demás de ADR 0020 sigue vigente:
 
 ## Consecuencias
 
-- **El canal habilita la propuesta de respuesta.** Puede ser una capacidad de propuesta de texto o `assistant_answer` adaptado; se decide al implementarlo, con la opción más simple que cumpla los límites. Necesita su validador en WhatsApp, su forma de verse en el chat y su desenlace en la cola de salida.
-- **La regla de [WhatsApp](../features/whatsapp.md) cambia al cerrar la etapa:** «no se envía texto libre del modelo» pasa a «solo texto redactado con estos límites, o fijo».
+- **El canal habilita la propuesta de respuesta.** Puede ser una capacidad de propuesta de texto o `assistant_answer` adaptado; se decide al implementarlo, con la opción más simple que cumpla los límites. Necesita su validador en WhatsApp, su forma de verse en el chat y su desenlace en la cola de salida. **Resuelto el 2026-11-12:** son dos capacidades de propuesta del canal, `whatsapp.reply@1` (los textos fijos, los botones, derivar y no responder) y `whatsapp.draft-reply@1` (el redactado); `WhatsAppAssistantReplyPolicy` y `WhatsAppDraftedReplyPolicy` los revisan antes de encolar, en la misma salida durable, y el motor ofrece el redactado sólo con un perfil `QualifiedToDraft`.
+- **La regla de [WhatsApp](../features/whatsapp.md) cambió el 2026-11-12:** «no se envía texto libre del modelo» pasó a «solo texto redactado con estos límites, o fijo».
 - **Respuestas de texto y ofrecimientos van por separado:** las respuestas tienen su propio tope por conversación y día, en los límites, y no consumen el cupo de ofrecimientos.
 - **El riesgo que queda** es que una respuesta correcta en forma tenga un error de contenido. Lo acotan las fuentes cerradas, la derivación ante la duda, la calificación y que el negocio vea cada respuesta con su «por qué».
 

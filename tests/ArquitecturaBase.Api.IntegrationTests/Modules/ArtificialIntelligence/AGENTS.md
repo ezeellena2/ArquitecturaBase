@@ -27,6 +27,8 @@ Los escenarios del worker real aceptan por POST: el servicio sella el perfil Hom
 
 Los tests técnicos AudioTranscriptionProvider/AudioProviderDispatch/AudioOptions/AudioCoordinator no usan ApiFactory, Collection, Docker ni proveedores reales: HTTP en memoria, bytes ficticios para protocolo, private store doblado y reloj falso. Verifican multipart, límites, cancelación/incertidumbre, no retries, hash exacto y el mismo cierre independiente del coordinador. No califican OGG/Opus ni calidad de transcripción: eso se comprueba por el motor real al cierre.
 
+`AiAssistantProviderContractTests.Preloads` (Casos del asistente) fija, en los dos proveedores, las precargas como el primer mensaje del usuario y la lista cerrada de `assistant_proposal@2`.
+
 ConversationScopeQuery verifica traducción SQL de scope explícito/null y modelo del índice con nulls no distintos, sin ApiFactory ni Docker. Las migraciones conservan contenido/sellos y rechazan bajar de versión si varios ámbitos activos no caben en el índice anterior; no cerrar ni borrar trabajo para hacer posible el Down.
 
 AiAssistantHomeAudioTests recorre IA4 con PostgreSQL: el bootstrap con audio, bytes que no son audio rechazados, la subida, la normalización con el cliente STT ficticio, el turno dictado con la transcripción del servidor, la grabación sólo para su persona y la retención. HomeAudioFiles es almacenamiento privado en memoria con WriteOnce; no acredita el almacenamiento real.

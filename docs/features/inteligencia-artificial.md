@@ -138,6 +138,18 @@ Los perfiles de texto se declaran por proveedor, modelo exacto, Id y versión. D
 
 El transporte admite hasta dieciséis definiciones en una petición entre capacidades y terminales. El catálogo depende del contexto; las sugerencias de continuación sólo se ofrecen con un registro de origen fijado por el servidor. Esa cota no aumenta el presupuesto de ejecución: siguen siendo seis invocaciones de capacidades y cuatro pasos de proveedor por turno. Los topes de bytes, tiempos, cuotas y capacidad se aplican además del catálogo. La selección terminal usa sólo referencias de propuestas observadas; ofrecer doce definiciones no permite ejecutar doce llamadas.
 
+### Lecturas precargadas y varias propuestas — Casos del asistente, 2026-11-12
+
+Un canal puede declarar en su contexto hasta tres lecturas precargadas (`PreloadedCapabilities`), aparte de sus herramientas. El catálogo exige lecturas registradas, sin repetir ni ofrecerlas también como herramienta; les aplica el filtro de archivo y de permisos de las herramientas, no las cuenta en las dieciséis definiciones y reserva sus permisos. La aceptación sella las que quedan (si no queda ninguna, no sella el campo), y ContextPolicy y DispatchGuard vuelven a comprobarlas.
+
+El motor las corre una vez, en su orden, al preparar el turno y antes del primer paso: con `{}` y con la autorización, los plazos y los topes de bytes de una herramienta. Son lecturas observadas desde el primer ordinal, autorizan una propuesta ya en el primer paso y se guardan con ese paso o con el cierre. Una que no se puede leer va `unavailable` y no autoriza nada; una validación, un permiso o la cancelación hacen fallar la preparación. `ToolCalls` cuenta sólo las llamadas del modelo, y sus bytes suman al tope del turno. Van al principio del pedido, en el primer mensaje, con la descripción de cada una y su resultado, como datos. La hora del mensaje de un canal pasa al final del mensaje actual, después del archivo: así las instrucciones y lo precargado quedan iguales entre turnos y el proveedor puede reusarlos.
+
+`assistant_proposal@2` elige de una a tres propuestas observadas del turno, distintas y en orden (`proposalIds`); la versión 1 sigue eligiendo una. Una sola se guarda como siempre y varias, con sus ordinales en orden (`kind: proposals`). El puerto devuelve `Proposals` en ese orden, con la primera en `Proposal`; la búsqueda encuentra cada una por su Id, una posterior de la misma capacidad o grupo las reemplaza y la historia las muestra todas.
+
+Una capacidad que redacta texto para personas (`DraftsText`) se ofrece sólo con un perfil calificado para redactar (`QualifiedToDraft`, [ADR 0021](../decisions/0021-respuestas-redactadas-por-el-asistente.md), punto 8): sin él no se sella ni reserva, y un turno sellado con ella necesita el perfil todavía calificado.
+
+Pruebas: `AiAssistantPreloadTests`, `AiAssistantProposalsTerminalTests`, `AiAssistantDraftQualificationTests`, `AiAssistantContextPolicyTests.Preloads` y `AiAssistantProposalLookupTests` (varias propuestas); los dos proveedores, en `AiAssistantProviderContractTests.Preloads`.
+
 ### Normalización de audio en el mismo motor
 
 `NormalizeAudio` es un propósito técnico de la misma operación durable, no una capacidad que escribe ni otro worker. Se acepta por `IAssistantOperations` con UUID, contexto y descriptor privado del archivo; usa los mismos recibos, cuotas, capacidad global, claim, fence, cancelación y cierre. No requiere las herramientas ni la salida terminal del perfil de texto. Su perfil STT se fija por Id/versión y las instrucciones se sellan como `audio-none-v1@1`: no se envía un prompt de interpretación ni historia.

@@ -179,6 +179,7 @@ Después de la evidencia, un perfil de texto se declara bajo
 | `Id` / `Version` | Identidad explícita y versión positiva de la configuración calificada. |
 | `ContextBytes` | Debe cubrir el presupuesto de contexto configurado en el motor. |
 | `SupportsTools` / `SupportsTerminalAnswer` | Ambos true y comprobados con llamadas reales. |
+| `QualifiedToDraft` | True sólo después de calificar el redactado con los casos del [ADR 0021](../decisions/0021-respuestas-redactadas-por-el-asistente.md) (punto 8). Sin él, el asistente de WhatsApp no redacta: responde con los textos fijos de sus casos. |
 
 La aceptación fija perfil e instrucciones por Id/versión. Inicio usa `home-system@1`; los
 canales usan `capabilities-v1@1`. El worker exige la versión capturada y no cambia una operación
