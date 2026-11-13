@@ -12,8 +12,11 @@ internal static class FormSpreadsheetPreflightFixture
     private static readonly MethodInfo InspectArchive = typeof(ClosedXmlFormSpreadsheetReader)
         .GetMethod("InspectArchive", BindingFlags.NonPublic | BindingFlags.Static)!;
 
-    public static Result<Dictionary<int, int[]>> Inspect(byte[] workbook) =>
-        (Result<Dictionary<int, int[]>>)InspectArchive.Invoke(null, [workbook, TestContext.Current.CancellationToken])!;
+    // The first-sheet preflight (importing a catalog and the assistant's attachment): only the first sheet's layout comes back, and every
+    // sheet spends the physical budget.
+    public static Result<List<(string Name, Dictionary<int, int[]> Rows)>> Inspect(byte[] workbook) =>
+        (Result<List<(string Name, Dictionary<int, int[]> Rows)>>)InspectArchive.Invoke(null,
+            [workbook, false, TestContext.Current.CancellationToken])!;
 
     public static byte[] Sheet(byte[] workbook, string rows, int number = 1)
     {

@@ -129,6 +129,6 @@ public sealed class FormSpreadsheetPhysicalLimitsTests
         var result = FormSpreadsheetPreflightFixture.Inspect(workbook);
 
         Assert.True(result.IsSuccess);
-        Assert.Empty(result.Value);
+        Assert.Empty(Assert.Single(result.Value).Rows);
     }
 }

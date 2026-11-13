@@ -46,7 +46,8 @@ public sealed class AiAssistantHomeAttachmentTests(ApiFactory factory)
             Assert.Equal("Ai.Assistant.AttachmentForbidden", (await forbidden.ReadJsonAsync()).GetProperty("code").GetString());
         }
         reader.Denied.Clear();
-        foreach (var rejection in Enum.GetValues<StructuredAttachmentRejection>())
+        // TooManyRows only answers loading a spreadsheet's rows from a channel (PrepareRowsAsync, VC1-A), which Home never asks for.
+        foreach (var rejection in Enum.GetValues<StructuredAttachmentRejection>().Where(value => value != StructuredAttachmentRejection.TooManyRows))
         {
             using var rejected = await scenario.Client.PostAsync("/api/ai/assistant/file-turns",
                 FileTurn(scenario, Guid.NewGuid(), Encoding.UTF8.GetBytes("reject:" + rejection)), Ct);
