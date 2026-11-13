@@ -68,10 +68,17 @@ az acr create --resource-group $RG --name $ACR --sku Basic
 La base real. Reemplaza al contenedor que levanta el AppHost en desarrollo.
 
 ```bash
-az postgres flexible-server create --resource-group $RG --name $PG --location $LOCATION --admin-user $PG_ADMIN --admin-password "$PG_PASSWORD" --sku-name Standard_B1ms --tier Burstable --version 18 --storage-size 32 --public-access None
+az postgres flexible-server create --resource-group $RG --name $PG --location $LOCATION --admin-user $PG_ADMIN --admin-password "$PG_PASSWORD" --sku-name Standard_B1ms --tier Burstable --version 18 --storage-size 32 --public-access None --backup-retention 7 --geo-redundant-backup Disabled
 ```
 
 `--public-access None` crea el servidor con acceso público habilitado pero sin reglas de firewall. El acceso se habilita por reglas posteriores. La pipeline abre una regla temporal para su runner y la borra al terminar. `0.0.0.0` tiene otro significado: permite recursos de Azure. [Referencia de Azure CLI](https://learn.microsoft.com/en-us/cli/azure/postgres/flexible-server?view=azure-cli-latest#az-postgres-flexible-server-create).
+
+`--backup-retention 7` es el plazo para restaurar a un momento dado: Azure guarda los respaldos y el registro de
+transacciones de los últimos 7 días. Es el mínimo y el valor por defecto; llega hasta 35 y se cambia después con
+`az postgres flexible-server update --backup-retention`. `--geo-redundant-backup Disabled` deja los respaldos en la
+región (con redundancia local o entre zonas, según la región y la alta disponibilidad). Una copia en la región pareada
+duplica lo que ocupan y se elige sólo al crear el servidor, sin vuelta atrás: se decide antes de crear el de producción
+([respaldos y restauración](https://learn.microsoft.com/en-us/azure/postgresql/backup-restore/concepts-backup-restore)).
 
 Creá la base:
 
@@ -86,6 +93,27 @@ Esta regla permite conexiones de recursos de Azure de otras suscripciones tambi�
 ```bash
 az postgres flexible-server firewall-rule create --resource-group $RG --name $PG --rule-name allow-azure-services --start-ip-address 0.0.0.0 --end-ip-address 0.0.0.0
 ```
+
+### Restaurar a un momento dado
+
+Restaurar no pisa el servidor: crea otro, con el plazo y la redundancia del original y sin sus reglas de firewall, que se
+vuelven a crear como arriba. La hora va en UTC.
+
+```bash
+az postgres flexible-server restore --resource-group $RG --name $PG-restaurado --source-server $PG --restore-time "2026-11-13T12:00:00Z"
+```
+
+Una Api levantada sobre la copia retoma lo que en ese momento seguía pendiente y se lo vuelve a mandar a los clientes:
+los mensajes de WhatsApp que esperaban salir y lo pendiente de los formularios en Meta. La primera vez, levantala con
+`WhatsApp:ProcessOutgoingInBackground=false` y `WhatsApp:ProcessFlowsInBackground=false` (en Container Apps,
+`WhatsApp__ProcessOutgoingInBackground` y `WhatsApp__ProcessFlowsInBackground`), y prendelos después de revisar en la
+base lo pendiente: las filas de `WhatsAppOutgoingMessages` en `Pending` y en `Sending` (un aviso o una respuesta del
+asistente que no llegó a llamar a Meta vuelve a `Pending` y sale) y las de `WhatsAppFlowOperations` con `Completed` en
+falso. Las acciones de los formularios y los comprobantes de ARCA tienen su propio interruptor
+(`BusinessForms__ActionWorker__ProcessInBackground` y `Arca__Invoicing__Worker__ProcessInBackground`). Las colas de correo y de acceso de WhatsApp (códigos
+de ingreso, invitaciones y orientación) no lo tienen: lo que quedó pendiente en la copia sale igual. La de WhatsApp
+sólo se frena levantando la copia sin `WhatsApp:PhoneNumberId`, con el módulo apagado. El ensayo de una restauración
+sigue pendiente en [verificación y producción](../plans/verificacion-y-produccion.md).
 
 ## 5. Container Apps environment y aplicación
 
