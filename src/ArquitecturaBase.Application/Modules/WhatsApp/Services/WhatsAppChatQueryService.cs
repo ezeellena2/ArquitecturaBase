@@ -63,7 +63,9 @@ internal sealed class WhatsAppChatQueryService(IWhatsAppChatReader reader, IWhat
                 // Task 8 of the documents: a received document shows its name, kind and pages, and its caption as the body.
                 Document: WhatsAppReceivedDocumentPresentationPolicy.View(message.Kind, message.Document, presentation, recordResult.CanReadRecords, formNames, culture),
                 // Review of task 9: the button of a question that went as a list, and the mark of what was sent for a file.
-                ListButton: message.ListButton, LoadsFile: message.LoadsFile))],
+                ListButton: message.ListButton, LoadsFile: message.LoadsFile,
+                // W3 (task 24): «Prellenado con» of a resend that went out, with what the send had taken when it left.
+                Prefill: presentation.Prefill(message.SharedPrefill, recordResult.CanReadRecords, message.OccurredAtUtc)))],
             [.. row.Outgoing.Select(item => ToOutgoingResponse(item, recordResult.CanReadRecords))], row.BeforeAtUtc, row.BeforeId, recordResult.CanReadRecords)
             {
                 AssistantAvailability = availability, AssistantSuggestion = pointer,
@@ -88,7 +90,11 @@ internal sealed class WhatsAppChatQueryService(IWhatsAppChatReader reader, IWhat
         new(row.Id, row.RequestId, row.OperatorUserId, (row.Origin == WhatsAppMessageOrigin.FormAction || row.LoadsFile) && !canReadRecords ? null : row.Body, row.RequestedAtUtc,
             row.State, row.WaMessageId, ToFormResponse(row.Form), Kind: WhatsAppOutgoingPresentationPolicy.Kind(row.Kind), Origin: row.Origin, Assistant: presentation.Explain(row.Assistant, canReadRecords),
             QuickReplies: row.Origin == WhatsAppMessageOrigin.FormAction && !canReadRecords ? null : WhatsAppAssistantPresentationPolicy.Titles(row.QuickRepliesJson, true),
-            AssistantReply: WhatsAppOutgoingPresentationPolicy.Reply(row.AssistantReplyJson), ListButton: row.ListButton, LoadsFile: row.LoadsFile);
+            AssistantReply: WhatsAppOutgoingPresentationPolicy.Reply(row.AssistantReplyJson), ListButton: row.ListButton, LoadsFile: row.LoadsFile,
+            // W3 (task 24): a resend that waits in the queue carries everything the send took; one that left it without going out (failed,
+            // uncertain or reviewed) says what it was queued with.
+            Prefill: presentation.Prefill(row.SharedPrefill, canReadRecords,
+                row.State is WhatsAppOutgoingMessageState.Pending or WhatsAppOutgoingMessageState.Sending ? null : row.RequestedAtUtc));
 
     // W3: the card of a shared contact while its content lives. One whose phones do not read, or that the front's closed contract would
     // refuse, is left out like a why that does not read: one bad row does not stop the thread.
@@ -135,6 +141,8 @@ internal sealed class WhatsAppChatQueryService(IWhatsAppChatReader reader, IWhat
             values, row.State == "Rejected" ? row.RejectionCode : null, row.State == "Rejected" ? row.RejectedQuestion : null, row.FileCount, row.FileCount.HasValue ? receivedAtUtc : null)
         {
             Amendment = record?.Amendment,
+            // W3 (task 24): the second response of a send says the number of the one it kept.
+            SavedNumber = row.State == "Rejected" ? row.SavedNumber : null,
         };
     }
 

@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Security.Cryptography;
 using System.Text.Json;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
@@ -33,6 +34,29 @@ internal sealed class WhatsAppAssistantPresentationPolicy(IWhatsAppFlowSessionPr
         if(content.Origin.Document is null)return null;
         return (content.Server?.Marks?.Count(mark=>mark.Kind==ArquitecturaBase.Application.Models.StructuredData.StructuredDocumentMarkKind.Doubtful)??0,
             canReadRecords?content.ProposedFields:null);
+    }
+    /// <summary>
+    /// W3 (task 24): «Prellenado con» of a resend, with the privacy of «Por qué lo mandó»: only with <c>formrecords.read</c> and while the
+    /// retention keeps what was written. It is what the send had taken up to <paramref name="untilUtc"/> (a resend that went out carried
+    /// what was taken before it left; a queued one carries everything), the location before the contact, from one to three values. What a
+    /// send took keeps the clock's instant and the messages the database's (1 µs), so it is compared at that precision. What does not
+    /// read is left out, never guessed.
+    /// </summary>
+    public IReadOnlyList<WhatsAppSharedPrefillResponse>? Prefill(WhatsAppSharedPrefillRow? row,bool canReadRecords,DateTime? untilUtc)
+    {
+        if(!canReadRecords || row is null)return null;
+        try
+        {
+            var shared=WhatsAppFlowSession.ReadSharedContent(row.SharedContentJson);
+            var written=protector.ReadShared(row.SessionId,row.ContactId,row.UserId,row.VersionId,row.ProtectedValues).Values;
+            WhatsAppSharedPrefillResponse[] prefill=[.. new[]{shared.Location,shared.Contact}.OfType<WhatsAppFlowSharedTake>()
+                .Where(take=>untilUtc is null || take.AtUtc.AddTicks(-(take.AtUtc.Ticks%TimeSpan.TicksPerMicrosecond))<=untilUtc).SelectMany(take=>take.FieldIds)
+                .Select(fieldId=>written.FirstOrDefault(value=>value.FieldId==fieldId)).OfType<WhatsAppFlowSharedValue>()
+                .Where(value=>value.Label is {Length:>0} && value.Value is {Length:>0}).Select(value=>new WhatsAppSharedPrefillResponse(value.Label,value.Value))];
+            // A location fills one question and a contact two: a resend says one to three.
+            return prefill.Length is >= 1 and <= 3 ? prefill : null;
+        }
+        catch(Exception exception) when(exception is CryptographicException or InvalidOperationException or JsonException){return null;}
     }
     public async Task<WhatsAppAssistantExplanationResponse?> ReadAsync(Guid actor,WhatsAppAssistantPresentationRow? row,CancellationToken ct)
     {

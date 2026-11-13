@@ -39,7 +39,9 @@ public sealed record WhatsAppMessageResponse(
     // Review of task 9 of the documents: only a question that went as a list carries the label of its button, and only what the assistant
     // sent for a file the person sent says so (its body, which may carry what was read, needs formrecords.read).
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? ListButton = null,
-    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)] bool LoadsFile = false);
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)] bool LoadsFile = false,
+    // W3 (task 24): only a resend of the form carries «Prellenado con», with the privacy of «Por qué lo mandó».
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<WhatsAppSharedPrefillResponse>? Prefill = null);
 public sealed record WhatsAppLocationPointResponse(decimal Latitude, decimal Longitude)
 {
     public override string ToString() => "WhatsAppLocationPointResponse { Content = [REDACTED] }";
@@ -53,6 +55,14 @@ public sealed record WhatsAppSharedContactResponse(string? Name, IReadOnlyList<s
 {
     public override string ToString() => "WhatsAppSharedContactResponse { Content = [REDACTED] }";
 }
+/// <summary>
+/// W3 (task 24): «Prellenado con» of a resend: what went into a question from what the person shared, with its label in the language of
+/// the send.
+/// </summary>
+public sealed record WhatsAppSharedPrefillResponse(string Label, string Value)
+{
+    public override string ToString() => "WhatsAppSharedPrefillResponse { Content = [REDACTED] }";
+}
 public sealed record WhatsAppFormReplyResponse(string State, Guid? DefinitionId, Guid? VersionId, long? VersionNumber,
     string? Name, Guid? RecordId, string? Number, IReadOnlyList<WhatsAppFormReplyValueResponse>? Values, [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? RejectionCode = null,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? RejectedQuestion = null,
@@ -62,6 +72,9 @@ public sealed record WhatsAppFormReplyResponse(string State, Guid? DefinitionId,
     /// <summary>The mark the chat shows when the response was later corrected («Replaced») or voided («Voided»).</summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public string? Amendment { get; init; }
+    /// <summary>W3 (task 24): a reply the send did not keep because it already had its response, with the number of the one it kept.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? SavedNumber { get; init; }
 }
 public sealed record WhatsAppFormReplyValueResponse(Guid FieldId, string Key, string Type, string Label, object? Value);
 
@@ -74,7 +87,9 @@ public sealed record WhatsAppOutgoingMessageResponse(
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] WhatsAppAssistantReplyResponse? AssistantReply = null,
     // Review of task 9 of the documents: as in the messages, the button of a list and the mark of a send for a file.
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? ListButton = null,
-    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)] bool LoadsFile = false);
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)] bool LoadsFile = false,
+    // W3 (task 24): as in the messages, «Prellenado con» of a queued resend.
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<WhatsAppSharedPrefillResponse>? Prefill = null);
 
 /// <summary>A line of the chat for what the assistant decided without a message, with its why.</summary>
 public sealed record WhatsAppAssistantEventResponse(Guid Id, DateTime AtUtc, WhatsAppAssistantReplyResponse Reply);

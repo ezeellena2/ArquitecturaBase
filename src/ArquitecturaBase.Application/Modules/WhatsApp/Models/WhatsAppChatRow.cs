@@ -52,12 +52,18 @@ public sealed record WhatsAppMessageRow(
     public bool LoadsFile { get; init; }
     /// <summary>Review of task 9: the label of the button of a question that went as a list, from the send it came from.</summary>
     public string? ListButton { get; init; }
+    /// <summary>W3 (task 24): what a resend of the form carried, while the retention keeps it; only a resend has it.</summary>
+    public WhatsAppSharedPrefillRow? SharedPrefill { get; init; }
     // The body, the point and the contact are what the person wrote or shared: the generated ToString would print them.
     public override string ToString() => $"{nameof(WhatsAppMessageRow)} ({Kind})";
 }
 public sealed record WhatsAppAudioMessageRow(WhatsAppAudioState State, bool HasContent, DateTime? ContentExpiresAtUtc, string? FailureCode = null);
 public sealed record WhatsAppFormReplyRow(string State, Guid? SourceReceiptId, Guid? DefinitionId, Guid? VersionId,
-    long? VersionNumber, string? NameJson, string? Culture, Guid? RecordId, string? Number, string? RejectionCode = null, string? RejectedQuestion = null, int? FileCount = null);
+    long? VersionNumber, string? NameJson, string? Culture, Guid? RecordId, string? Number, string? RejectionCode = null, string? RejectedQuestion = null, int? FileCount = null)
+{
+    /// <summary>W3 (task 24): a reply rejected after its send already had its response, with the number of the one that was kept.</summary>
+    public string? SavedNumber { get; init; }
+}
 public sealed record WhatsAppOutgoingMessageRow(
     Guid Id, Guid RequestId, Guid? OperatorUserId, string? Body, DateTime RequestedAtUtc,
     WhatsAppOutgoingMessageState State, string? WaMessageId,
@@ -72,6 +78,8 @@ public sealed record WhatsAppOutgoingMessageRow(
     public bool LoadsFile { get; init; }
     /// <summary>Review of task 9: the label of the button of a question that goes as a list.</summary>
     public string? ListButton { get; init; }
+    /// <summary>W3 (task 24): what a queued resend of the form carries, while the retention keeps it; only a resend has it.</summary>
+    public WhatsAppSharedPrefillRow? SharedPrefill { get; init; }
 }
 public sealed record WhatsAppThreadRow(
     WhatsAppChatRow Contact, IReadOnlyList<WhatsAppMessageRow> Messages,
@@ -85,6 +93,15 @@ public sealed record WhatsAppThreadRow(
 public sealed record WhatsAppAssistantEventRow(Guid RequestId, DateTime AtUtc, string OutcomeJson)
 {
     public override string ToString() => "WhatsAppAssistantEventRow { Content = [REDACTED] }";
+}
+
+/// <summary>
+/// W3 (task 24): the session of a resend, with what its send took (when and which questions, without values) and what was written in each
+/// question, protected for the session.
+/// </summary>
+public sealed record WhatsAppSharedPrefillRow(Guid SessionId, Guid ContactId, Guid UserId, Guid VersionId, string SharedContentJson, byte[] ProtectedValues)
+{
+    public override string ToString() => "WhatsAppSharedPrefillRow { Content = [REDACTED] }";
 }
 
 public sealed record WhatsAppAssistantPresentationRow(Guid SessionId, Guid ContactId, Guid UserId, Guid VersionId, byte[] ProtectedContent, DateTime ContentExpiresAtUtc)

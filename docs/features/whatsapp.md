@@ -379,6 +379,33 @@ que no se pueden leer.
 
 `WhatsAppContactWebhookReaderTests` y `WhatsAppLocationWebhookReaderTests`, sin Docker, leen los cuerpos de Meta: un lugar con y sin dirección, la ubicación actual, y un contacto con dos teléfonos, sin teléfono, sin nombre y con dos tarjetas. `WhatsAppMessageRetentionTests` vacía la dirección y el contacto, `WhatsAppSharedContentMigrationTests` prueba Up, Down y Up y la negativa, y `WhatsAppChatTests.Contact` recorre el webhook firmado hasta el hilo y deja `contact-thread` en la cohorte `whatsapp-audio-http`.
 
+### Lo que se ve (tarea 24)
+
+En el chat del operador, cada reenvío trae `prefill`, «Prellenado con»: de uno a tres renglones con la etiqueta de la pregunta en el
+idioma del envío y lo que se escribió (`label` y `value`), la ubicación antes que el contacto. Un reenvío que salió dice lo que el
+envío había tomado hasta que salió (el mensaje); uno que espera en la salida, todo lo que tomó, que es lo que va a llevar, y uno que la
+dejó sin salir (fallido, incierto o revisado), lo que el envío tenía al encolarlo. Lo tomado guarda el instante del reloj y los
+mensajes el de la base (1 µs), así que se comparan, y la actividad los ordena, con esa precisión. Tiene la
+privacidad de «Por qué lo mandó»: sólo con `formrecords.read` y mientras la retención conserva lo escrito (`ProtectedSharedValues`);
+sin eso, o si no se puede leer, no viene. El primer Flow del envío no lo trae nunca. La respuesta que llega cuando el envío ya tiene la
+suya sigue Rejected por la captura y suma `savedNumber`, el número de la que se guardó, que tiene la sesión: es una respuesta rechazada
+de una sesión que completó otra, y esa otra se procesó antes, porque la captura de una sesión es terminal. Lo ve todo el que lee el
+chat, como el número de una respuesta.
+
+En el detalle de la respuesta, el origen de WhatsApp (`WhatsAppRecordOriginReader`) suma, sin valores, lo que tomó el envío (cuándo y
+qué preguntas, de `SharedContentJson`) y los reenvíos que salieron (Meta los aceptó o una persona los revisó como enviados), por la
+hora en que se pidieron, como el primer Flow. `FormResponseHistoryPolicy` agrega después de «Se mandó el formulario» `LocationReceived`
+con `questions` (la pregunta que completó la ubicación), `ContactReceived` con una o dos preguntas y un `SentAgain` por reenvío, con su
+remitente; las preguntas van con las etiquetas de la versión en su idioma, y la que la versión no tiene queda afuera. La ubicación de
+W1-A sigue sin `questions`; la lista y la exportación no cambian.
+
+`WhatsAppChatQueryActionPrivacyTests.Shared`, sin Docker, prueba lo que dice cada reenvío y en qué orden, la privacidad, la retención,
+lo que no se lee y `savedNumber` sólo en un rechazo; `FormResponseHistoryPolicyTests`, los renglones nuevos, su orden, el remitente,
+W1-A sin preguntas y la pregunta que la versión no tiene, y `WhatsAppFlowSharedTests`, leer lo tomado desde su JSON. La composición de
+`WhatsAppFormSendingTests` lee por HTTP el hilo con los reenvíos en la salida y ya salidos (`thread-shared-pending` y
+`thread-shared-resend`) y la segunda respuesta (`thread-shared-second-reply`), en la cohorte `whatsapp-forms-http`, y el detalle con su
+actividad (`detail-shared-whatsapp-es`), en `forms-responses-http`.
+
 ## Ofrecimientos automáticos — Etapa 5
 
 El procesador entrante existente retoma mensajes de negocio vigentes y capturas de formulario confirmadas. Interpreta texto y audio ya transcripto de una cuenta vinculada y activa dentro de las 24 horas, y evalúa sugerencias después de una captura. Cada capacidad aplica sus permisos propios; registrar pedidos faltantes no exige el permiso de completar formularios. El modelo propone; WhatsApp y BusinessForms vuelven a autorizar antes de encolar. Tomar Atención manual invalida una propuesta tardía y conserva únicamente un POST que ya empezó.

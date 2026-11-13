@@ -139,7 +139,15 @@ public sealed record FormResponseDetailResponse(Guid Id, Guid DefinitionId, Guid
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
     public bool HasIssuance { get; init; }
 }
-public sealed record FormResponseHistoryResponse(string Kind, DateTime AtUtc, FormAuthorResponse? Actor);
+public sealed record FormResponseHistoryResponse(string Kind, DateTime AtUtc, FormAuthorResponse? Actor)
+{
+    /// <summary>
+    /// W3 (task 24): the questions the location or the contact the person shared completed, by the labels of the version; omitted in
+    /// every other event, also in the location asked before the form (W1-A).
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<string>? Questions { get; init; }
+}
 
 /// <summary>A correction: who and why, and how the version it replaced had ended (its decision and its PDF).</summary>
 public sealed record FormResponseCorrectionResponse(Guid PreviousRecordId, DateTime AtUtc, FormAuthorResponse By, string Reason,

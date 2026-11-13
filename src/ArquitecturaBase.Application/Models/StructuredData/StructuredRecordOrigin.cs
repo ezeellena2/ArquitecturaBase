@@ -10,6 +10,13 @@ public sealed record StructuredRecordOrigin(Guid SourceReceiptId, string Channel
     [System.Text.Json.Serialization.JsonIgnore] public DateTime? LocationResolvedAtUtc { get; init; }
     [System.Text.Json.Serialization.JsonIgnore] public bool LocationSkipped { get; init; }
     /// <summary>
+    /// W3 (task 24): the location and the contact the person shared while the form was open, each when the send took it and the
+    /// questions it completed, and when the form went out again with them. Only the owner's history uses them, without values.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore] public StructuredRecordOriginShare? SharedLocation { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore] public StructuredRecordOriginShare? SharedContact { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore] public IReadOnlyList<DateTime> ResentAtUtc { get; init; } = [];
+    /// <summary>
     /// The received document the response came from (DOC5-A) and its file's name, by an opaque id of its owner; omitted otherwise, so every
     /// other origin keeps its bytes.
     /// </summary>
@@ -17,6 +24,8 @@ public sealed record StructuredRecordOrigin(Guid SourceReceiptId, string Channel
     public StructuredRecordOriginDocument? Document { get; init; }
     public override string ToString() => "StructuredRecordOrigin { Content = [REDACTED] }";
 }
+/// <summary>W3: something shared that a send took, when and the questions it completed, by their opaque ids.</summary>
+public sealed record StructuredRecordOriginShare(DateTime AtUtc, IReadOnlyList<Guid> FieldIds);
 public sealed record StructuredRecordOriginDocument(Guid Id, string Name)
 {
     /// <summary>VC1-A: the row of a spreadsheet the response came from, with when its spreadsheet arrived; omitted for a document.</summary>

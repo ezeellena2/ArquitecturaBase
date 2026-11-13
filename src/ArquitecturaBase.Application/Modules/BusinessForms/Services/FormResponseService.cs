@@ -94,16 +94,12 @@ internal sealed class FormResponseService(IFormResponseReader reader, FormRecord
             var results = await resultReader.ListAsync([id], cancellationToken);
             if (!await access.StillAllowedAsync(read.Value, cancellationToken)) return FormDefinitionErrors.Forbidden;
             var contentCulture = (row.Version ?? throw new InvalidOperationException("The response version presentation is missing.")).DisplayCulture(Culture());
-            var reply = FormRecordPresentationPolicy.Project(row.Record, contentCulture, FormDraftPolicy.Read<FormVersionSchema>(row.Record.SchemaJson));
+            var schema = FormDraftPolicy.Read<FormVersionSchema>(row.Record.SchemaJson);
+            var reply = FormRecordPresentationPolicy.Project(row.Record, contentCulture, schema);
             var origin = channels.GetValueOrDefault(row.OriginReceiptId);
             var history = new List<FormResponseHistoryResponse>();
-            if (origin is not null && origin.ChannelId != FormEntryChannel.Id)
-            {
-                // W1-A: the location the channel asked for before the form, and its answer.
-                if (origin.LocationRequestedAtUtc is { } requested) history.Add(new("LocationRequested", requested, null));
-                if (origin.LocationResolvedAtUtc is { } resolved) history.Add(new(origin.LocationSkipped ? "LocationSkipped" : "LocationReceived", resolved, null));
-                history.Add(new("Sent", origin.SentAtUtc, origin.SenderUserId is { } senderId ? new(senderId, origin.SenderName) : null));
-            }
+            // W1-A and W3: what the channel did before the response (the location asked before the form, what was shared while it was open).
+            if (origin is not null && origin.ChannelId != FormEntryChannel.Id) history.AddRange(FormResponseHistoryPolicy.Channel(origin, schema, contentCulture));
             history.Add(new("Submitted", row.SubmittedAtUtc, row.Actor));
             history.Add(new("Saved", row.CreatedAtUtc, null));
             return new FormResponseDetailResponse(id, row.Record.DefinitionId, row.Record.VersionId, row.Record.VersionNumber, reply.Number, reply.Name,

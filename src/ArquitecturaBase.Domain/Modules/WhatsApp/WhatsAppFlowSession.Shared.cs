@@ -5,6 +5,9 @@ namespace ArquitecturaBase.Domain.Modules.WhatsApp;
 /// <summary>W3: what a send took of something the person shared, when and which questions it filled, without values.</summary>
 public sealed record WhatsAppFlowSharedTake(DateTime AtUtc, IReadOnlyList<Guid> FieldIds);
 
+/// <summary>W3: everything a send took, its location and its contact, each one when it took it and which questions it filled.</summary>
+public sealed record WhatsAppFlowSharedContent(WhatsAppFlowSharedTake? Location, WhatsAppFlowSharedTake? Contact);
+
 // W3 (task 23): an open send takes one location and one contact that the person shares on their own, the first of each that it can
 // use. It keeps what it took without values (SharedContentJson, for the activity) and what was written in each question, protected for
 // the send (ProtectedSharedValues, for its resend), which goes with the retention of the messages.
@@ -14,6 +17,13 @@ public sealed partial class WhatsAppFlowSession
 
     /// <summary>The location the send took, if any.</summary>
     public WhatsAppFlowSharedTake? SharedLocation => ReadShared().Location;
+
+    /// <summary>
+    /// Task 24: what a send took, read from its stored <see cref="SharedContentJson"/>, for the chat and the activity that read it without the
+    /// entity; empty when it took nothing.
+    /// </summary>
+    public static WhatsAppFlowSharedContent ReadSharedContent(string? sharedContentJson) => sharedContentJson is null ? new(null, null)
+        : JsonSerializer.Deserialize<WhatsAppFlowSharedContent>(sharedContentJson, SharedOptions) ?? throw new InvalidOperationException("What the send took is unreadable.");
 
     /// <summary>The contact the send took, if any.</summary>
     public WhatsAppFlowSharedTake? SharedContact => ReadShared().Contact;
@@ -65,8 +75,5 @@ public sealed partial class WhatsAppFlowSession
         return true;
     }
 
-    private SharedContent ReadShared() => SharedContentJson is null ? new(null, null)
-        : JsonSerializer.Deserialize<SharedContent>(SharedContentJson, SharedOptions) ?? throw new InvalidOperationException("What the send took is unreadable.");
-
-    private sealed record SharedContent(WhatsAppFlowSharedTake? Location, WhatsAppFlowSharedTake? Contact);
+    private WhatsAppFlowSharedContent ReadShared() => ReadSharedContent(SharedContentJson);
 }

@@ -15,6 +15,8 @@ $privacyNames = @("thread-read-only", "thread-send-with-users-read", "thread-sen
 $originalPresentationNames = @("original-only-choices", "original-only-preparation", "original-only-receipt", "original-only-history", "empty-secondary-choices", "empty-secondary-preparation", "empty-secondary-receipt", "empty-secondary-history")
 # W1-A: the location asked by WhatsApp before the Flow, captured in Spanish only.
 $locationNames = @("thread-location-requested", "thread-location-received")
+# W3 (task 24): the queued and sent resends with «Prellenado con» and the second response of a send, in Spanish only.
+$sharedNames = @("thread-shared-pending", "thread-shared-resend", "thread-shared-second-reply")
 function Assert-Condition([bool]$Condition, [string]$Message) { if (-not $Condition) { throw $Message } }
 function Read-ExporterAssignment([string]$Name) {
     $assignment = $exporterAst.Find({ param($node) $node -is [Management.Automation.Language.AssignmentStatementAst] -and $node.Left -is [Management.Automation.Language.VariableExpressionAst] -and $node.Left.VariablePath.UserPath -eq $Name }, $false)
@@ -91,9 +93,11 @@ foreach ($case in @("Configuration", "Merge", "Missing", "Collision")) {
                 $responses = @($cohorts | Where-Object { $_.Name -eq "responses" })[0]
                 $pdf = @($cohorts | Where-Object { $_.Name -eq "pdf" })[0]
                 $definitions = @($cohorts | Where-Object { $_.Name -eq "forms" })[0]
-                Assert-Condition ($responses.RequiredNames.Count -eq 66) "Responses must preserve the prior artifacts, ten captured extra-field artifacts, eight rows artifacts, the two of an external result and the detail of a location asked by WhatsApp (W1-A)."
+                Assert-Condition ($responses.RequiredNames.Count -eq 67) "Responses must preserve the prior artifacts, ten captured extra-field artifacts, eight rows artifacts, the two of an external result, the detail of a location asked by WhatsApp (W1-A) and the detail with what the person shared (W3)."
                 foreach ($name in @("result-detail-es.json", "result-sheet-es.json")) { Assert-Condition ($name -in $responses.RequiredNames) "An external result capture (RE1-A) is missing." }
                 Assert-Condition ("detail-location-whatsapp-es.json" -in $responses.RequiredNames) "The detail of a location asked by WhatsApp (W1-A) is missing."
+                Assert-Condition ("detail-shared-whatsapp-es.json" -in $responses.RequiredNames) "The detail with the location and the contact shared by WhatsApp (W3) is missing."
+                Assert-Condition (($sourceRoot + "WhatsApp/WhatsAppSharedContentCompositionTests.cs") -in $responses.Sources) "The shared content composition producer SHA must be included in responses."
                 Assert-Condition ($pdf.RequiredNames.Count -eq 36) "PDF must preserve twenty-eight artifacts and add four multiple-choice and four rows artifacts."
                 Assert-Condition ($definitions.RequiredNames.Count -eq 93) "Definitions must preserve the prior bodies, sixteen recipient filter bodies, four rows bodies, two section title bodies, two library bodies, five folder bodies, six app-only bodies, eight document reading bodies and two bodies with what a question receives (W3)."
                 foreach ($directory in @("library", "folders")) { Assert-Condition ($directory -in $definitions.IncludeDirectories) "The definition cohort must retain the library and folder captures." }
@@ -204,8 +208,9 @@ foreach ($case in @("Configuration", "Merge", "Missing", "Collision")) {
                 Assert-Condition (($sourceRoot + "BusinessForms/FormRetirementStatusHttpTests.cs") -in $lifecycle.Sources) "Local retirement status producer SHA must be included."
                 Assert-Condition (($captureRoot + "Modules/BusinessForms/ControlledFormChannelStateSource.cs") -in $lifecycle.Sources) "The controlled local channel source SHA must be included."
                 $forms = @($cohorts | Where-Object { $_.Name -eq "whatsapp-forms" })[0]
-                $expected = @(@("es", "en") | ForEach-Object { $culture = $_; @($baseNames + $replyNames + $privacyNames) | ForEach-Object { "$culture/$_.json" } }) + @($originalPresentationNames | ForEach-Object { "en/$_.json" }) + @($locationNames | ForEach-Object { "es/$_.json" })
-                Assert-Condition ($forms.RequiredNames.Count -eq 80) "The canonical WhatsApp form inventory must contain all eighty captures, with the two of the location asked before the Flow (W1-A)."
+                $expected = @(@("es", "en") | ForEach-Object { $culture = $_; @($baseNames + $replyNames + $privacyNames) | ForEach-Object { "$culture/$_.json" } }) + @($originalPresentationNames | ForEach-Object { "en/$_.json" }) + @($locationNames | ForEach-Object { "es/$_.json" }) + @($sharedNames | ForEach-Object { "es/$_.json" })
+                Assert-Condition ($forms.RequiredNames.Count -eq 83) "The canonical WhatsApp form inventory must contain all eighty-three captures, with the two of the location asked before the Flow (W1-A) and the three of what the person shares (W3)."
+                Assert-Condition (($sourceRoot + "WhatsApp/WhatsAppSharedContentCompositionTests.cs") -in $forms.Sources) "The shared content composition producer SHA must be included."
                 Assert-Condition (@(Compare-Object $expected $forms.RequiredNames).Count -eq 0) "The canonical capture names differ."
                 Assert-Condition (($sourceRoot + "WhatsApp/WhatsAppFormReplyAppPreviewTests.cs") -in $forms.Sources) "Reply producer SHA must be included."
                 Assert-Condition (($sourceRoot + "WhatsApp/WhatsAppMultipleChoiceCompositionTests.cs") -in $forms.Sources) "The real multiple-choice composition producer SHA must be included."

@@ -66,6 +66,12 @@ internal sealed class WhatsAppChatReader(ApplicationDbContext dbContext) : IWhat
                         item.FlowCaptureState == WhatsAppFlowCaptureState.Completed ? item.FlowRecordId : null,
                         item.FlowCaptureState == WhatsAppFlowCaptureState.Completed ? item.FlowRecordNumber : null,
                         item.FlowCaptureErrorCode, item.FlowRejectedQuestion, item.FlowFileCount)
+                        {
+                            // W3 (task 24): a reply rejected while its send already had its response (another reply completed it; a
+                            // session's capture is terminal, so that one was processed first) says the number of the one it kept.
+                            SavedNumber = item.FlowCaptureState == WhatsAppFlowCaptureState.Rejected && item.FlowSession.CaptureState == WhatsAppFlowCaptureState.Completed
+                                && item.FlowSession.ResponseWaMessageId != item.WaMessageId ? item.FlowSession.CompletedNumber : null,
+                        }
                     : null, item.Origin, item.Kind == WhatsAppMessageKind.Audio && item.AudioState != null ? new WhatsAppAudioMessageRow(item.AudioState.Value,item.AudioStorageKey != null,item.AudioContentExpiresAtUtc,item.AudioFailureCode) : null)
                 // «Por qué lo mandó» goes once, with what was sent when deciding: the location request, or the Flow of a send without one
                 // (W1-A); the reply keeps it as before, and a location or a tap that resolved the send takes none, nor a resend (W3).
@@ -75,6 +81,11 @@ internal sealed class WhatsAppChatReader(ApplicationDbContext dbContext) : IWhat
                     ? new WhatsAppAssistantPresentationRow(item.FlowSession.Id,item.FlowSession.ContactId,item.FlowSession.UserId,item.FlowSession.VersionId,item.FlowSession.ProtectedAssistantContent,item.FlowSession.AssistantContentExpiresAtUtc.Value) : null, QuickReplyTitlesJson = item.QuickReplyTitlesJson,
                   SpreadsheetName = item.Kind == WhatsAppMessageKind.Spreadsheet ? item.SpreadsheetFileName : null,
                   Latitude = item.Latitude, Longitude = item.Longitude, AssistantReplyJson = item.AssistantReplyJson,
+                  // W3 (task 24): «Prellenado con» of a resend that went out, while the retention keeps what was written.
+                  SharedPrefill = item.Kind == WhatsAppMessageKind.Flow && item.IsResend && item.FlowSession != null && item.FlowSession.SharedContentJson != null
+                      && item.FlowSession.ProtectedSharedValues != null
+                      ? new WhatsAppSharedPrefillRow(item.FlowSession.Id, item.FlowSession.ContactId, item.FlowSession.UserId, item.FlowSession.VersionId,
+                          item.FlowSession.SharedContentJson, item.FlowSession.ProtectedSharedValues) : null,
                   // W3: the first card of a shared contact, from its own columns; the address of a place stays out of the chat.
                   ContactName = item.Kind == WhatsAppMessageKind.Contact ? item.ContactName : null,
                   ContactPhonesJson = item.Kind == WhatsAppMessageKind.Contact ? item.ContactPhonesJson : null,
@@ -204,7 +215,12 @@ internal sealed class WhatsAppChatReader(ApplicationDbContext dbContext) : IWhat
                     && (item.Kind == WhatsAppOutgoingMessageKind.LocationRequest
                         || item.Kind == WhatsAppOutgoingMessageKind.Flow && item.FlowSession.LocationState == WhatsAppFlowLocationState.None && !item.IsResend)
                     ? new WhatsAppAssistantPresentationRow(item.FlowSession.Id,item.FlowSession.ContactId,item.FlowSession.UserId,item.FlowSession.VersionId,item.FlowSession.ProtectedAssistantContent,item.FlowSession.AssistantContentExpiresAtUtc.Value) : null, QuickRepliesJson = item.QuickRepliesJson,
-            AssistantReplyJson = item.AssistantReplyJson, ListButton = item.Kind == WhatsAppOutgoingMessageKind.List ? item.ListButton : null };
+            AssistantReplyJson = item.AssistantReplyJson, ListButton = item.Kind == WhatsAppOutgoingMessageKind.List ? item.ListButton : null,
+            // W3 (task 24): «Prellenado con» of a queued resend, while the retention keeps what was written.
+            SharedPrefill = item.Kind == WhatsAppOutgoingMessageKind.Flow && item.IsResend && item.FlowSession != null && item.FlowSession.SharedContentJson != null
+                && item.FlowSession.ProtectedSharedValues != null
+                ? new WhatsAppSharedPrefillRow(item.FlowSession.Id, item.FlowSession.ContactId, item.FlowSession.UserId, item.FlowSession.VersionId,
+                    item.FlowSession.SharedContentJson, item.FlowSession.ProtectedSharedValues) : null };
 
     private IQueryable<WhatsAppOutgoingMessage> Outgoing() => dbContext.Set<WhatsAppOutgoingMessage>().AsNoTracking();
 

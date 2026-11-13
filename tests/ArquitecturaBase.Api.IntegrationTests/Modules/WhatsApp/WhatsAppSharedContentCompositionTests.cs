@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures;
@@ -22,7 +23,9 @@ namespace ArquitecturaBase.Api.IntegrationTests.Modules.WhatsApp;
 // W3 (task 23) through the real WhatsApp channel and BusinessForms: a form whose text questions receive the location and the contact
 // publishes with WhatsApp and goes out twice; what the person shares goes to the oldest open send, one resend per send and pass with
 // what was shared over its prefill and the same token, and the reply to it saves those values; the origin of that response, read by its
-// detail and the list, is the first Flow of the send.
+// detail and the list, is the first Flow of the send. Task 24: the chat shows «Prellenado con» on each resend (queued and sent) and the
+// number of the kept response on the second one, and the detail tells what was shared and that the form went out again. With
+// WHATSAPP_FORMS_HTTP_CONTRACT_OUTPUT and FORM_RESPONSES_HTTP_OUTPUT it keeps those bodies for the front.
 public sealed partial class WhatsAppFormSendingTests
 {
     [Fact]
@@ -80,6 +83,12 @@ public sealed partial class WhatsAppFormSendingTests
             .Where(message => message.ContactId == contactId && (message.Kind == WhatsAppMessageKind.Location || message.Kind == WhatsAppMessageKind.Contact))
             .OrderBy(message => message.InboundSequence).Select(message => message.FlowSessionId).ToArrayAsync(Ct));
         Assert.Equal([sessions[0].Id, sessions[0].Id, sessions[1].Id, null], shared);
+        // Task 24: the queued resends say what they carry, the location before the contact: three values and one.
+        var pending = await ThreadAsync("thread-shared-pending");
+        Assert.Equal([Prefilled(("Dirección de entrega", "Bv. Oroño 1234, S2000 Rosario"), ("Recibió", "Ana Gómez"), ("Tel. de quien recibe", "+54 9 341 555-0101")),
+                Prefilled(("Dirección de entrega", "-32.947102, -60.638955"))],
+            pending.GetProperty("outgoing").EnumerateArray().Where(item => item.TryGetProperty("prefill", out _)).OrderBy(item => item.GetProperty("requestedAtUtc").GetDateTime())
+                .Select(item => Prefill(item.GetProperty("prefill"))));
 
         await outgoingWorker.ProcessNextAsync(Ct);
         await outgoingWorker.ProcessNextAsync(Ct);
@@ -96,6 +105,12 @@ public sealed partial class WhatsAppFormSendingTests
         Assert.Equal((firstFlows[1].FlowToken, "-32.947102, -60.638955"), (other.FlowToken, Assert.Single(other.InitialValues.Values.Single()).Value));
         Assert.Equal(2, await factory.ExecuteDbContextAsync(db => db.Set<WhatsAppMessage>().CountAsync(message => message.ContactId == contactId
             && message.Direction == WhatsAppMessageDirection.Outbound && message.Kind == WhatsAppMessageKind.Flow && message.IsResend, Ct)));
+        // Once they went out, each resend keeps what it carried; the first Flows and the rest of the messages say nothing of it.
+        var resent = await ThreadAsync("thread-shared-resend");
+        var withPrefill = resent.GetProperty("messages").EnumerateArray().Where(item => item.TryGetProperty("prefill", out _)).ToArray();
+        Assert.All(withPrefill, item => Assert.Equal("Flow", item.GetProperty("kind").GetString()));
+        Assert.Equal([Prefilled(("Dirección de entrega", "Bv. Oroño 1234, S2000 Rosario"), ("Recibió", "Ana Gómez"), ("Tel. de quien recibe", "+54 9 341 555-0101")),
+            Prefilled(("Dirección de entrega", "-32.947102, -60.638955"))], withPrefill.Select(item => Prefill(item.GetProperty("prefill"))));
 
         // The reply to the resend carries what the person confirmed: the shared values are saved as text answers.
         clock.Advance(TimeSpan.FromMinutes(2));
@@ -122,9 +137,38 @@ public sealed partial class WhatsAppFormSendingTests
             Assert.Equal(("Bv. Oroño 1234, S2000 Rosario", "Ana Gómez", "+54 9 341 555-0101"), (saved[keys[1]], saved[keys[2]], saved[keys[3]]));
         }
 
-        // The origin of the response is the first Flow of its send, also after a resend: the detail and the list of responses read it.
+        // Task 24: a second reply to the same send is not saved, and the chat says which response it kept.
+        clock.Advance(TimeSpan.FromMinutes(1));
+        var second = MetaWebhook.Text(MetaWebhook.UniqueWaMessageId(), waId, null, clock.GetUtcNow().UtcDateTime, "unused");
+        second.Remove("text"); second["type"] = "interactive";
+        second["interactive"] = new JsonObject { ["type"] = "nfm_reply", ["nfm_reply"] = new JsonObject
+        {
+            ["name"] = "flow", ["body"] = "Sent", ["response_json"] = new JsonObject { ["flow_token"] = firstFlows[0].FlowToken, [keys[0]] = "Ferretería Sur" }.ToJsonString(),
+        } };
+        await WebhookAsync(second);
+        await using (var scope = host.Services.CreateAsyncScope())
+            await scope.ServiceProvider.GetRequiredService<IWhatsAppFlowReplyService>().ProcessPendingAsync(Ct);
+        var replies = (await ThreadAsync("thread-shared-second-reply")).GetProperty("messages").EnumerateArray()
+            .Where(item => item.GetProperty("kind").GetString() == "FlowReply").Select(item => item.GetProperty("formReply")).ToArray();
+        Assert.Equal(("Completed", completed.CompletedNumber), (replies[0].GetProperty("state").GetString(), replies[0].GetProperty("number").GetString()));
+        Assert.False(replies[0].TryGetProperty("savedNumber", out _));
+        Assert.Equal(("Rejected", "Forms.Record.ReplayConflict", completed.CompletedNumber), (replies[1].GetProperty("state").GetString(),
+            replies[1].GetProperty("rejectionCode").GetString(), replies[1].GetProperty("savedNumber").GetString()));
+
+        // The origin of the response is the first Flow of its send, also after a resend: the detail and the list of responses read it. Its
+        // activity tells what the person shared, with the questions it completed, and that the form went out again.
         using (var detail = await author.GetAsync($"/api/forms/records/{completed.CompletedRecordId}", Ct))
+        {
             Assert.True(detail.StatusCode == HttpStatusCode.OK, await detail.Content.ReadAsStringAsync(Ct));
+            await ResponseContractCapture.WriteAsync(detail, "detail-shared-whatsapp-es", Ct);
+            var history = (await detail.ReadJsonAsync()).GetProperty("history").EnumerateArray().ToArray();
+            Assert.Equal(["Sent", "LocationReceived", "ContactReceived", "SentAgain", "Submitted", "Saved"], history.Select(item => item.GetProperty("kind").GetString()));
+            Assert.Equal(["Dirección de entrega"], history[1].GetProperty("questions").EnumerateArray().Select(item => item.GetString()));
+            Assert.Equal(["Recibió", "Tel. de quien recibe"], history[2].GetProperty("questions").EnumerateArray().Select(item => item.GetString()));
+            Assert.Equal((actorId, actorId), (history[0].GetProperty("actor").GetProperty("userId").GetGuid(), history[3].GetProperty("actor").GetProperty("userId").GetGuid()));
+            Assert.All(history[1..3], item => Assert.Equal(JsonValueKind.Null, item.GetProperty("actor").ValueKind));
+            Assert.False(history[3].TryGetProperty("questions", out _));
+        }
         using (var list = await author.GetAsync($"/api/forms/definitions/{definitionId}/records", Ct))
         {
             var body = await list.Content.ReadAsStringAsync(Ct);
@@ -142,6 +186,29 @@ public sealed partial class WhatsAppFormSendingTests
             Assert.Equal(HttpStatusCode.OK, webhook.StatusCode);
             await host.Services.GetRequiredService<WhatsAppInboundProcessor>().ProcessPendingAsync(Ct);
         }
+
+        async Task<JsonElement> ThreadAsync(string name)
+        {
+            using var thread = await author.GetAsync($"/api/whatsapp/chats/{contactId}/messages", Ct);
+            Assert.Equal(HttpStatusCode.OK, thread.StatusCode);
+            var body = await thread.Content.ReadAsByteArrayAsync(Ct);
+            if (Environment.GetEnvironmentVariable("WHATSAPP_FORMS_HTTP_CONTRACT_OUTPUT") is { Length: > 0 } output)
+            {
+                var directory = Path.Combine(output, "es");
+                Directory.CreateDirectory(directory);
+                await File.WriteAllBytesAsync(Path.Combine(directory, name + ".json"), body, Ct);
+            }
+            using var document = JsonDocument.Parse(body);
+            return document.RootElement.Clone();
+        }
+
+        // «Prellenado con» as the front's closed contract reads it: a label and a value, nothing else.
+        static string Prefilled(params (string Label, string Value)[] values) => string.Join(" | ", values.Select(value => value.Label + ": " + value.Value));
+        static string Prefill(JsonElement prefill) => string.Join(" | ", prefill.EnumerateArray().Select(value =>
+        {
+            Assert.Equal(["label", "value"], value.EnumerateObject().Select(property => property.Name));
+            return value.GetProperty("label").GetString() + ": " + value.GetProperty("value").GetString();
+        }));
 
         JsonObject ContactsMessage(DateTime sentAtUtc, string name, params string[] phones) => new()
         {

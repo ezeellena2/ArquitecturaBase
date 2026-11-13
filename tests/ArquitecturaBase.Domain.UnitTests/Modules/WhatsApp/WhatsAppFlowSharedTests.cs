@@ -30,6 +30,24 @@ public sealed class WhatsAppFlowSharedTests
         Assert.Throws<ArgumentException>(() => session.TakeShared(WhatsAppMessageKind.Contact, [], Now, Now));
     }
 
+    // Task 24: the chat and the activity read what a send took from its stored JSON, without the entity.
+    [Fact]
+    public void What_a_send_took_reads_from_its_stored_json_and_is_empty_when_it_took_nothing()
+    {
+        var session = Session(Now.AddMinutes(-10));
+        var place = Guid.CreateVersion7();
+        Assert.True(session.TakeShared(WhatsAppMessageKind.Location, [place], Now.AddMinutes(-1), Now));
+
+        var shared = WhatsAppFlowSession.ReadSharedContent(session.SharedContentJson);
+
+        Assert.Equal(Now, shared.Location!.AtUtc);
+        Assert.Equal([place], shared.Location.FieldIds);
+        Assert.Null(shared.Contact);
+        var none = WhatsAppFlowSession.ReadSharedContent(null);
+        Assert.Null(none.Location);
+        Assert.Null(none.Contact);
+    }
+
     [Fact]
     public void A_send_is_open_only_if_it_existed_went_out_has_no_reply_and_has_not_expired()
     {
