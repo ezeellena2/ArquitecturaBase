@@ -21,6 +21,15 @@ internal static class CallSites
     /// <summary>Una llamada con la cantidad de parámetros del método que nombra: distingue las sobrecargas de un constructor.</summary>
     public sealed record SizedCall(string Owner, string DeclaringType, string Method, int Parameters);
 
+    /// <summary>
+    /// Una llamada con el tipo que devuelve y los de sus parámetros, sin argumentos genéricos
+    /// (<c>FluentValidation.IRuleBuilderOptions`2</c>, <c>System.Func`2</c>): así se distinguen las sobrecargas.
+    /// </summary>
+    public sealed record OrderedCall(string DeclaringType, string Method, string ReturnType, IReadOnlyList<string> Parameters);
+
+    /// <summary>Las llamadas de un método de <paramref name="Owner"/>, en el orden de su cuerpo.</summary>
+    public sealed record MethodCalls(string Owner, string Method, IReadOnlyList<OrderedCall> Calls);
+
     public sealed record Literal(string Owner, string Value);
 
     /// <summary>Un tipo que nombra una instrucción de <paramref name="Owner"/>.</summary>
@@ -38,6 +47,31 @@ internal static class CallSites
         Read<SizedCall>(assembly, (owner, instruction) => instruction.Operand is MethodReference called
             ? [new SizedCall(owner, called.DeclaringType.FullName, called.Name, called.Parameters.Count)]
             : []);
+
+    /// <summary>
+    /// Las llamadas de cada método con cuerpo, separadas por método y en el orden del IL: una cadena fluida como
+    /// <c>RuleFor(...).NotEmpty().WithMessage(...)</c> queda en el orden en que se escribió. Una lambda es un método aparte,
+    /// así lo que llama no se mezcla con la cadena que la recibe.
+    /// </summary>
+    public static IReadOnlyList<MethodCalls> CallsByMethod(Assembly assembly) =>
+        Open<MethodCalls>(assembly, module =>
+        [
+            .. module.GetTypes()
+                .Where(type => !IsEmittedByGenerator(Outermost(type)))
+                .SelectMany(type => type.Methods
+                    .Where(method => method.HasBody)
+                    .Select(method => new MethodCalls(Outermost(type).FullName, $"{type.FullName}::{method.Name}",
+                    [
+                        .. method.Body.Instructions
+                            .Select(instruction => instruction.Operand)
+                            .OfType<MethodReference>()
+                            .Select(called => new OrderedCall(
+                                called.DeclaringType.GetElementType().FullName,
+                                called.Name,
+                                called.ReturnType.GetElementType().FullName,
+                                [.. called.Parameters.Select(parameter => parameter.ParameterType.GetElementType().FullName)])),
+                    ]))),
+        ]);
 
     public static IReadOnlyList<Literal> Literals(Assembly assembly) =>
         Read<Literal>(assembly, (owner, instruction) => instruction.Operand is string value ? [new Literal(owner, value)] : []);
