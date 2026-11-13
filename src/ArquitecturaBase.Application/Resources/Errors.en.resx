@@ -436,6 +436,18 @@
   <data name="Forms.ReceivedDocument.ExtractionUnavailable" xml:space="preserve">
     <value>The document could not be read for another form. Try again in a while.</value>
   </data>
+  <data name="Forms.ReceivedDocument.ProposalNotFound" xml:space="preserve">
+    <value>We could not find that proposal.</value>
+  </data>
+  <data name="Forms.ReceivedDocument.ProposalUnavailable" xml:space="preserve">
+    <value>We could not build the proposal. Try again in a moment; the documents are still in the inbox.</value>
+  </data>
+  <data name="Forms.ReceivedDocument.GroupUnavailable" xml:space="preserve">
+    <value>No unclassified documents of that topic are left to build the form.</value>
+  </data>
+  <data name="Forms.ReceivedDocument.AssistantUnavailable" xml:space="preserve">
+    <value>The assistant is not available for now; it is tried again in a moment.</value>
+  </data>
   <data name="Forms.Definition.DeactivationUnavailable" xml:space="preserve">
     <value>Only active published forms can be deactivated.</value>
   </data>

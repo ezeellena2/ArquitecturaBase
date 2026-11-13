@@ -1,6 +1,6 @@
 # Readers: proyecciones de formularios
 
-Lectores del módulo: proyecciones sin seguimiento para la tabla de formularios, la planilla y su export, la carga desde la app, la oferta, los pendientes y los historiales. Comparten consultas EF (`FormOfferableVersionQuery`, `FormVersionPresentationQuery`) y SQL fija (`FormCatalogFilterSql`, `FormRecordNavigationSql`). Los lectores de catálogos y de datos de personas, y las reglas que también tocan configuraciones o repositorios, están por tema en el [detalle](../../../../../../docs/features/formularios-persistencia.md): leé el tema del lector que cambiás.
+Lectores del módulo: proyecciones sin seguimiento para la tabla de formularios, la planilla y su export, la carga desde la app, la oferta, los pendientes y los historiales. Comparten consultas EF (`FormOfferableVersionQuery`, `FormVersionPresentationQuery`, `FormReceivedDocumentQuery`) y SQL fija (`FormCatalogFilterSql`, `FormRecordNavigationSql`). Los lectores de catálogos y de datos de personas, y las reglas que también tocan configuraciones o repositorios, están por tema en el [detalle](../../../../../../docs/features/formularios-persistencia.md): leé el tema del lector que cambiás.
 
 ## Al modificar
 

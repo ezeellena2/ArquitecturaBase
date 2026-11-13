@@ -32,6 +32,7 @@ internal sealed class FormsTestModule : IApiTestModule
         "POST /api/forms/documents/search", "GET /api/forms/documents/counts", "GET /api/forms/documents/{id:guid}", "GET /api/forms/documents/{id:guid}/file",
         "POST /api/forms/documents/{id:guid}/discard", "POST /api/forms/documents/{id:guid}/reopen", "PUT /api/forms/documents/{id:guid}/form",
         "GET /api/forms/documents/{id:guid}/extraction", "POST /api/forms/documents/{id:guid}/options", "POST /api/forms/documents/{id:guid}/records",
+        "POST /api/forms/documents/form-proposals", "GET /api/forms/documents/form-proposals/{requestid:guid}", "POST /api/forms/definitions/document-proposals",
         "POST /api/forms/definitions/{id:guid}/records/filter-counts/search", "GET /api/forms/records/{id:guid}","GET /api/forms/definitions", "GET /api/forms/definitions/facets",
         "GET /api/forms/definitions/{id:guid}", "POST /api/forms/definitions", "PUT /api/forms/definitions/{id:guid}/draft", "GET /api/forms/draft-changes/{requestid:guid}", "POST /api/forms/definitions/{id:guid}/publication-checks", "POST /api/forms/definitions/{id:guid}/publications",
         "GET /api/forms/definitions/{id:guid}/publications/{requestid:guid}", "GET /api/forms/definitions/{id:guid}/versions/{versionid:guid}/preview",
@@ -56,6 +57,7 @@ internal sealed class FormsTestModule : IApiTestModule
         services.Configure<ArquitecturaBase.Infrastructure.Modules.BusinessForms.Workers.FormPublicationWorkerOptions>(options => options.ProcessInBackground = false);
         services.Configure<ArquitecturaBase.Infrastructure.Modules.BusinessForms.Workers.FormActionWorkerOptions>(options => options.ProcessInBackground = false);
         services.Configure<ArquitecturaBase.Infrastructure.Modules.BusinessForms.Workers.FormCatalogFeedWorkerOptions>(options => options.ProcessInBackground = false);
+        services.Configure<ArquitecturaBase.Infrastructure.Modules.BusinessForms.Workers.FormDocumentRereadWorkerOptions>(options => options.ProcessInBackground = false);
         services.AddSingleton<IStructuredFormPublicationDriver, StructuredFormPublicationDriver>();
         services.AddSingleton<ArquitecturaBase.Application.Interfaces.Channels.IStructuredFormStandardSource, TestFormStandardSource>();
     }

@@ -101,6 +101,8 @@ public sealed record FormReceivedDocumentPageRow(IReadOnlyList<FormReceivedDocum
     IReadOnlyList<FormReceivedDocumentFormFacetRow> Forms, bool FormsTruncated, IReadOnlyList<FormReceivedDocumentSenderFacetRow> Senders,
     bool SendersTruncated)
 {
+    /// <summary>The groups of similar unclassified documents (DOC6), under the page's other filters.</summary>
+    public IReadOnlyList<FormReceivedDocumentGroupRow> Groups { get; init; } = [];
     public override string ToString() => "FormReceivedDocumentPageRow { Content = [REDACTED] }";
 }
 // A form with reading on a reviewer can change a document to: only what names it.
@@ -153,8 +155,9 @@ public sealed record FormReceivedDocumentSenderFacetResponse(Guid UserId, string
 // The options of the «Formulario» and «Mandó» filters, each counted under the list's other filters, with whether more were left out.
 public sealed record FormReceivedDocumentFacetsResponse(IReadOnlyList<FormReceivedDocumentFormFacetResponse> Forms, bool FormsTruncated,
     IReadOnlyList<FormReceivedDocumentSenderFacetResponse> Senders, bool SendersTruncated);
+// Groups (DOC6): the notice of similar documents, the largest first.
 public sealed record FormReceivedDocumentsPageResponse(IReadOnlyList<FormReceivedDocumentListItemResponse> Items, int Page, int PageSize, int TotalCount,
-    FormReceivedDocumentStateCounts Counts, FormReceivedDocumentFacetsResponse Facets)
+    FormReceivedDocumentStateCounts Counts, FormReceivedDocumentFacetsResponse Facets, IReadOnlyList<FormReceivedDocumentGroupResponse> Groups)
 {
     public override string ToString() => "FormReceivedDocumentsPageResponse { Content = [REDACTED] }";
 }

@@ -80,6 +80,13 @@ public static class BusinessFormsInfrastructureRegistration
         services.TryAddScoped<IFormReceivedDocumentReader, FormReceivedDocumentReader>();
         services.TryAddSingleton<IFormReceivedDocumentProtector, DataProtectionFormReceivedDocumentProtector>();
         services.AddHostedService<Workers.FormReceivedDocumentRetentionBackgroundService>();
+        // Task 14 (DOC6): the requests of «Armar formulario con la IA» and the re-reading of their documents after publishing.
+        services.TryAddScoped<IFormDocumentProposalRepository, FormDocumentProposalRepository>();
+        services.TryAddScoped<IFormDocumentProposalReader, FormDocumentProposalReader>();
+        services.AddOptions<Workers.FormDocumentRereadWorkerOptions>().BindConfiguration("BusinessForms:DocumentRereadWorker")
+            .Validate(value => value.PollInterval > TimeSpan.Zero, "BusinessForms:DocumentRereadWorker:PollInterval must be positive.").ValidateOnStart();
+        services.AddSingleton<Workers.FormDocumentRereadBackgroundService>();
+        services.AddHostedService(provider => provider.GetRequiredService<Workers.FormDocumentRereadBackgroundService>());
         return services;
     }
 }

@@ -15,4 +15,9 @@ internal static class FormAdvisoryLockKeys
     // Task 7: registering one channel source in the inbox, and every change to one received document (the last lock taken).
     public static string ReceivedDocumentSource(string channelId, string sourceId) => $"forms:received-document-source:{channelId}:{sourceId}";
     public static string ReceivedDocument(Guid documentId) => $"forms:received-document:{documentId:N}";
+    // DOC6: asking for one request of one person, and every change to a request, before the lock of any of its documents.
+    public static string DocumentProposalRequest(Guid actor, Guid requestId) => $"forms:document-proposal-request:{actor:N}:{requestId:N}";
+    public static string DocumentProposal(Guid proposalId) => $"forms:document-proposal:{proposalId:N}";
+    // DOC6: the reservations of one person's re-reads, their daily share, before the lock of the request.
+    public static string DocumentRereadAsker(Guid actor) => $"forms:document-reread-asker:{actor:N}";
 }

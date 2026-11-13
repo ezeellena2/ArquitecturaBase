@@ -3135,6 +3135,89 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.ToTable("BusinessFormVersions", (string)null);
                 });
 
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.BusinessForms.Documents.FormDocumentProposal", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ActorUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Culture")
+                        .IsRequired()
+                        .HasMaxLength(2)
+                        .HasColumnType("character varying(2)");
+
+                    b.Property<Guid?>("DefinitionId")
+                        .HasColumnType("uuid");
+
+                    b.PrimitiveCollection<Guid[]>("DocumentIds")
+                        .IsRequired()
+                        .HasColumnType("uuid[]");
+
+                    b.Property<DateTime?>("ModifiedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ModifiedBy")
+                        .HasColumnType("uuid");
+
+                    b.PrimitiveCollection<Guid[]>("PendingRereadIds")
+                        .IsRequired()
+                        .HasColumnType("uuid[]");
+
+                    b.Property<Guid?>("ProposalId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("RequestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("RequestedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("RereadAfterUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly?>("RereadDay")
+                        .HasColumnType("date");
+
+                    b.Property<Guid?>("RereadVersionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("RereadsOnDay")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("TimeZoneId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<Guid?>("TopicId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DefinitionId")
+                        .HasFilter("\"DefinitionId\" IS NOT NULL");
+
+                    b.HasIndex("TopicId")
+                        .HasFilter("\"TopicId\" IS NOT NULL");
+
+                    b.HasIndex("ActorUserId", "RequestId")
+                        .IsUnique();
+
+                    b.ToTable("FormDocumentProposals", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_FormDocumentProposals_Reread", "\"RereadVersionId\" IS NULL OR \"DefinitionId\" IS NOT NULL");
+                        });
+                });
+
             modelBuilder.Entity("ArquitecturaBase.Domain.Modules.BusinessForms.Documents.FormReceivedDocument", b =>
                 {
                     b.Property<Guid>("Id")
@@ -5523,6 +5606,14 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasForeignKey("DefinitionId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.BusinessForms.Documents.FormDocumentProposal", b =>
+                {
+                    b.HasOne("ArquitecturaBase.Domain.Modules.BusinessForms.BusinessFormDefinition", null)
+                        .WithMany()
+                        .HasForeignKey("DefinitionId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("ArquitecturaBase.Domain.Modules.BusinessForms.Documents.FormReceivedDocument", b =>

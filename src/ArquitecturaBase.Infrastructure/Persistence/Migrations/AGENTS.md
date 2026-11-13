@@ -48,6 +48,8 @@ AddWhatsAppSharedContent (W3) suma a `WhatsAppMessages` la dirección de un luga
 
 AddWhatsAppDocumentQuestions (tarea 9 de documentos, regenerada sobre W3) suma `ListButton` (hasta 20, nullable) a `WhatsAppOutgoingMessages`: la etiqueta del botón de una lista, la pregunta de un documento con más de tres formularios o con nombres largos. No reescribe filas. Su Down bloquea la tabla y se niega, antes del DDL, si una lista guarda su botón; WhatsAppDocumentQuestionsMigrationTests prueba Up, la negativa y Down y Up sin listas.
 
+AddFormDocumentProposals crea `FormDocumentProposals` (DOC6: único por quien pidió y su UUID, los documentos y los pendientes de releer en `uuid[]`, la FK restrictiva al borrador y un CHECK que deja releer sólo con borrador). Down bloquea la tabla y rechaza, antes del DDL, cualquier pedido; FormDocumentProposalMigrationTests prueba Up/Down/Up y ese rechazo.
+
 ## Referencias
 
 - [Comandos y revisión obligatoria](../../../../docs/guides/migracion.md).

@@ -19,12 +19,20 @@ internal sealed class ScriptedDocumentOperations : IAssistantOperations
     public Error? SubmitFailure { get; set; }
     /// <summary>When set, every read fails with it: a refusal for good (forbidden) or a transient failure.</summary>
     public Error? ReadFailure { get; set; }
+    /// <summary>When set, the next submission throws it, once: a step that fails halfway (the database or the network).</summary>
+    public Exception? ThrowNext { get => Volatile.Read(ref throwNext); set => Volatile.Write(ref throwNext, value); }
+    /// <summary>How many submissions it was asked for, taken, failed or thrown.</summary>
+    public int Attempts => Volatile.Read(ref attempts);
+    private int attempts;
+    private Exception? throwNext;
 
     public Task<AssistantAvailabilityResponse> GetAvailabilityAsync(CancellationToken cancellationToken) =>
         Task.FromResult(new AssistantAvailabilityResponse("available"));
 
     public Task<Result<AssistantOperationAcceptedResponse>> SubmitAsync(AssistantOperationRequest request, CancellationToken cancellationToken)
     {
+        Interlocked.Increment(ref attempts);
+        if (Interlocked.Exchange(ref throwNext, null) is { } thrown) return Task.FromException<Result<AssistantOperationAcceptedResponse>>(thrown);
         if (SubmitFailure is { } failure) return Task.FromResult(Result.Failure<AssistantOperationAcceptedResponse>(failure));
         Submitted.Enqueue(request);
         return Task.FromResult(Result.Success(new AssistantOperationAcceptedResponse(request.RequestId, "pending")));

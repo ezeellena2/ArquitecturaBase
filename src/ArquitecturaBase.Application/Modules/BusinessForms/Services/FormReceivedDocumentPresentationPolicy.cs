@@ -42,6 +42,10 @@ internal sealed class FormReceivedDocumentPresentationPolicy(IFormReceivedDocume
         page.Senders.Select(sender => new FormReceivedDocumentSenderFacetResponse(sender.UserId, sender.DisplayName, sender.Count)).ToArray(),
         page.SendersTruncated);
 
+    /// <summary>The notice of similar documents (DOC6): each group with its topic as it was noted, how many they are and the newest of them.</summary>
+    public static IReadOnlyList<FormReceivedDocumentGroupResponse> Groups(FormReceivedDocumentPageRow page) =>
+        page.Groups.Select(group => new FormReceivedDocumentGroupResponse(new(group.TopicId, group.TopicName), group.Count, group.DocumentIds)).ToArray();
+
     public async Task<FormReceivedDocumentDetailResponse> DetailAsync(FormReceivedDocumentStoredRow row, IReadOnlyList<FormReceivedDocumentEventRow> events,
         string culture, DateTime nowUtc, bool canReview, CancellationToken ct)
     {

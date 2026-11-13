@@ -436,6 +436,18 @@
   <data name="Forms.ReceivedDocument.ExtractionUnavailable" xml:space="preserve">
     <value>No pudimos leer el documento para otro formulario. Probá de nuevo en un rato.</value>
   </data>
+  <data name="Forms.ReceivedDocument.ProposalNotFound" xml:space="preserve">
+    <value>No encontramos esa propuesta.</value>
+  </data>
+  <data name="Forms.ReceivedDocument.ProposalUnavailable" xml:space="preserve">
+    <value>No pudimos armar la propuesta. Probá de nuevo en un momento; los documentos siguen en la bandeja.</value>
+  </data>
+  <data name="Forms.ReceivedDocument.GroupUnavailable" xml:space="preserve">
+    <value>Ya no quedan documentos sin clasificar de ese tema para armar el formulario.</value>
+  </data>
+  <data name="Forms.ReceivedDocument.AssistantUnavailable" xml:space="preserve">
+    <value>El asistente no está disponible por ahora; se vuelve a intentar en un momento.</value>
+  </data>
   <data name="Forms.Definition.DeactivationUnavailable" xml:space="preserve">
     <value>Solo podés dar de baja un formulario publicado que esté activo.</value>
   </data>

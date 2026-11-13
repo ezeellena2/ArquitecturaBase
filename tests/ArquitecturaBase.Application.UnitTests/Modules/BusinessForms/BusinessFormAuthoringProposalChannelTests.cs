@@ -153,6 +153,7 @@ public sealed class BusinessFormAuthoringProposalChannelTests
         public Task<Result<FormDraftAssistantProposalResponse>> CreateFromChannelAsync(StructuredAuthoringProposalRequest request, CancellationToken cancellationToken) =>
             Task.FromResult<Result<FormDraftAssistantProposalResponse>>(new FormDraftAssistantProposalResponse(request.Proposal.Id, Id));
         public Task<Result<FormDraftAssistantProposalResponse>> CreateAsync(CreateFromAssistantProposalRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<Result<FormDraftAssistantProposalResponse>> CreateFromDocumentsAsync(CreateFromDocumentProposalRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<Result<FormDraftAssistantProposalResponse>> GetAsync(Guid proposalId, CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 

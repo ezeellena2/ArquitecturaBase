@@ -57,8 +57,8 @@ public sealed partial class FormDraftEndpointsTests
         // (whether a catalog offers it, and the lookup). The dashboard of a form (DOC7-A) adds one, its search, and the reading
         // of documents (DOC1) one, «Cómo viene leyendo». The inbox «Documentos recibidos» (DOC5-A) adds ten: the search, its counts,
         // the detail, the file, discarding, reopening, changing the form and its extraction, passing it to the form and the options
-        // of a long list.
-        Assert.Equal(118,paths.EnumerateObject().Where(path => path.Name.StartsWith("/api/forms/", StringComparison.Ordinal))
+        // of a long list. «Armar formulario con la IA» (DOC6) adds three: asking for a proposal, reading it and creating its draft.
+        Assert.Equal(121,paths.EnumerateObject().Where(path => path.Name.StartsWith("/api/forms/", StringComparison.Ordinal))
             .Sum(path => path.Value.EnumerateObject().Count(operation => operation.Name is "get" or "post" or "put" or "delete")));
         // Creating from a Home proposal (IA2): 201 with what it created, problems for invalid, unavailable and replaced, and the status.
         foreach (var (path, schema) in new[] { ("/api/forms/definitions/assistant-proposals", "FormDraftAssistantProposalResponse"),

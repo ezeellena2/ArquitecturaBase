@@ -18,7 +18,8 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 /// context, whoever polls, and once it finished applies it in one unit of work: proposed for the fixed form, or the request dropped with
 /// its failure code. An engine that refuses or fails answers its own error and leaves the request as it was, except one that refuses to
 /// show it for good while it is read (403): then the request is dropped, so the document is not left reading for everybody. Each step goes
-/// to the history; the change and its failure, as steps of whoever asked.
+/// to the history; the change and its failure, as steps of whoever asked. DOC6: once a form built from documents is published, the server
+/// asks the same for each of them that is still unclassified, with the context of whoever asked for the form, and applies it when it ends.
 /// </summary>
 internal sealed class FormReceivedDocumentExtractionService(FormReceivedDocumentAccessGuard guard, IFormReceivedDocumentReader reader,
     IFormReceivedDocumentRepository repository, IAssistantOperations operations, FormReceivedDocumentExtractionPolicy extractions,
@@ -45,7 +46,7 @@ internal sealed class FormReceivedDocumentExtractionService(FormReceivedDocument
             return FormReceivedDocumentErrors.AwaitingSender;
         if (row.Revision != request.ExpectedRevision) return FormReceivedDocumentErrors.RevisionConflict;
         if (await reader.FindActiveFormAsync(definitionId, cancellationToken) is not { } form) return FormReceivedDocumentErrors.FormUnavailable;
-        var context = FormReceivedDocumentExtractionPolicy.Context(actor.Value.Id, actor.Value.Culture, actor.Value.TimeZoneId, definitionId);
+        var context = FormReceivedDocumentExtractionPolicy.Context(actor.Value.Id, actor.Value.Culture, actor.Value.TimeZoneId, definitionId, documentId);
         if (extractions.Request(row, requestId, context, now) is not { } operation) return FormReceivedDocumentErrors.ReadingUnavailable;
         var submitted = await operations.SubmitAsync(operation, cancellationToken);
         if (submitted.IsFailure) return EngineError(submitted.Error);
@@ -69,6 +70,48 @@ internal sealed class FormReceivedDocumentExtractionService(FormReceivedDocument
         var actor = await guard.CheckAsync(BusinessFormsPermissions.DocumentsReview, cancellationToken);
         if (actor.IsFailure) return actor.Error;
         if (await reader.FindAsync(documentId, cancellationToken) is not { } row) return FormReceivedDocumentErrors.NotFound;
+        return await ReadAsync(row, requestId, actor.Value.Id, actor.Value.Culture, cancellationToken);
+    }
+
+    public async Task<Result<FormReceivedDocumentExtractionResponse>> ApplyAsync(Guid documentId, CancellationToken cancellationToken) =>
+        await reader.FindAsync(documentId, cancellationToken) is { ExtractionRequestId: { } requestId } row
+            ? await ReadAsync(row, requestId, null, null, cancellationToken) : FormReceivedDocumentErrors.ExtractionNotFound;
+
+    public async Task<Result<FormReceivedDocumentExtractionResponse>> RereadAsync(FormReceivedDocumentRereadRequest request, CancellationToken cancellationToken)
+    {
+        if (request.DocumentId == Guid.Empty || request.DefinitionId == Guid.Empty || request.ActorUserId == Guid.Empty || request.Culture is not ("es" or "en")
+            || string.IsNullOrWhiteSpace(request.TimeZoneId)) return FormReceivedDocumentErrors.ContentInvalid;
+        if (await reader.FindAsync(request.DocumentId, cancellationToken) is not { } row) return FormReceivedDocumentErrors.NotFound;
+        // Only one still unclassified that nobody reads for a form meanwhile.
+        if (row is not { State: FormReceivedDocumentState.Unclassified, ExtractionRequestId: null }) return FormReceivedDocumentErrors.StateConflict;
+        if (await reader.FindActiveFormAsync(request.DefinitionId, cancellationToken) is not { } form) return FormReceivedDocumentErrors.FormUnavailable;
+        var now = clock.GetUtcNow().UtcDateTime;
+        var requestId = Guid.CreateVersion7();
+        var context = FormReceivedDocumentExtractionPolicy.Context(request.ActorUserId, request.Culture, request.TimeZoneId, request.DefinitionId, row.Id);
+        if (extractions.Request(row, requestId, context, now) is not { } operation) return FormReceivedDocumentErrors.ReadingUnavailable;
+        var submitted = await operations.SubmitAsync(operation, cancellationToken);
+        // The engine's quota or capacity and a turn still active come back as they are, and the assistant not available for now (paused, not
+        // configured or not qualified: a conflict of its own) as AssistantUnavailable: the server waits as long as the engine says, or a minute.
+        if (submitted.IsFailure) return submitted.Error.Type is ErrorType.TooManyRequests or ErrorType.Conflict ? Retryable(submitted.Error) : EngineError(submitted.Error);
+        var saved = await unitOfWork.ExecuteInTransactionAsync<Result>(async ct =>
+        {
+            await repository.LockAsync(row.Id, ct);
+            if (await repository.GetAsync(row.Id, ct) is not { } document) return FormReceivedDocumentErrors.NotFound;
+            if (document is not { State: FormReceivedDocumentState.Unclassified, ExtractionRequestId: null }) return FormReceivedDocumentErrors.StateConflict;
+            var requested = document.RequestExtraction(document.Revision, requestId, request.DefinitionId, request.ActorUserId, request.Culture,
+                request.TimeZoneId, now);
+            return requested.IsFailure ? requested
+                : recorder.Record(document.Id, FormReceivedDocumentEventKind.ExtractionRequested, request.ActorUserId, FormDocumentFormPolicy.Name(form, request.Culture));
+        }, CommitPolicy.OnSuccess, cancellationToken);
+        return saved.IsFailure ? saved.Error : Pending(requestId);
+    }
+
+    // Read with the context sealed with the extraction, whoever polls: a reviewer (whose step it falls back to, without a sealed asker) or
+    // the server.
+    private async Task<Result<FormReceivedDocumentExtractionResponse>> ReadAsync(FormReceivedDocumentStoredRow row, Guid requestId, Guid? poller,
+        string? pollerCulture, CancellationToken cancellationToken)
+    {
+        var documentId = row.Id;
         if (requestId == Guid.Empty || row.ExtractionRequestId != requestId || row.ExtractionDefinitionId is not { } definitionId
             || FormReceivedDocumentExtractionPolicy.Sealed(row) is not { } context)
             return FormReceivedDocumentErrors.ExtractionNotFound;
@@ -90,9 +133,9 @@ internal sealed class FormReceivedDocumentExtractionService(FormReceivedDocument
             await repository.LockAsync(documentId, ct);
             if (await repository.GetAsync(documentId, ct) is not { } document) return FormReceivedDocumentErrors.NotFound;
             if (document.ExtractionRequestId != requestId) return refused ? Result.Success() : FormReceivedDocumentErrors.ExtractionNotFound;
-            // The step is of whoever asked for the change, in their language, even when another reviewer's poll applies it.
-            var asker = document.ExtractionActorUserId ?? actor.Value.Id;
-            var askerCulture = document.ExtractionCulture ?? actor.Value.Culture;
+            // The step is of whoever asked for the change, in their language, even when another reviewer's poll or the server applies it.
+            var asker = document.ExtractionActorUserId ?? poller;
+            var askerCulture = document.ExtractionCulture ?? pollerCulture ?? "es";
             if (failure is not null)
             {
                 var failed = document.FailExtraction(requestId);
@@ -111,7 +154,16 @@ internal sealed class FormReceivedDocumentExtractionService(FormReceivedDocument
 
     private static FormReceivedDocumentExtractionResponse Pending(Guid requestId) => new(requestId, "pending", null);
 
-    // What the engine refused or could not do, as the inbox's own errors: never the engine's codes.
-    private static Error EngineError(Error error) =>
-        error.Type == ErrorType.Forbidden ? FormDefinitionErrors.Forbidden : FormReceivedDocumentErrors.ExtractionUnavailable;
+    // What the engine refused or could not do, as the inbox's own errors, except its quota and capacity, which come back as they are (429
+    // with its code, text and retryAfter), as in the other routes of the assistant.
+    private static Error EngineError(Error error) => error.Type switch
+    {
+        ErrorType.Forbidden => FormDefinitionErrors.Forbidden,
+        ErrorType.TooManyRequests => error,
+        _ => FormReceivedDocumentErrors.ExtractionUnavailable,
+    };
+
+    // What may pass: the engine's own error when it says so (its quota and capacity carry their wait), otherwise the assistant not available.
+    private static Error Retryable(Error error) =>
+        error.Type == ErrorType.TooManyRequests || error.Metadata?.ContainsKey("retryable") == true ? error : FormReceivedDocumentErrors.AssistantUnavailable;
 }

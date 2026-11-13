@@ -141,5 +141,8 @@ internal sealed class FormReceivedDocumentFixture : IFormReceivedDocumentReposit
         Forms.SingleOrDefault(form => form.VersionId == document.VersionId)?.NameJson, Forms.SingleOrDefault(form => form.DefinitionId == document.DefinitionId)?.Prefix,
         document.State, document.ReasonCode, document.DocumentType, document.RecordId, null, document.ReviewedByUserId, null, document.ReviewedAtUtc,
         document.ReplyExpiresAtUtc, document.NotSendable, document.DeleteAfterUtc, document.ExtractionRequestId, document.ExtractionDefinitionId,
-        document.ExtractionRequestedAtUtc, document.Revision);
+        document.ExtractionRequestedAtUtc, document.Revision)
+    {
+        ExtractionActorUserId = document.ExtractionActorUserId, ExtractionCulture = document.ExtractionCulture, ExtractionTimeZoneId = document.ExtractionTimeZoneId,
+    };
 }

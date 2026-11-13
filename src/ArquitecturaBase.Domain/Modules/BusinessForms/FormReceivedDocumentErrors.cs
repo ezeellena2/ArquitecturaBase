@@ -17,4 +17,11 @@ public static class FormReceivedDocumentErrors
     public static readonly Error AwaitingSender = Error.Conflict("Forms.ReceivedDocument.AwaitingSender", "Whoever sent the document can still complete it.");
     public static readonly Error RequestConflict = Error.Conflict("Forms.ReceivedDocument.RequestConflict", "The request was already used with other data.");
     public static readonly Error ExtractionUnavailable = Error.Failure("Forms.ReceivedDocument.ExtractionUnavailable", "The extraction could not be read.");
+    // DOC6, «Armar formulario con la IA»: a proposal built from one unclassified document or from a group of similar ones.
+    public static readonly Error ProposalNotFound = Error.NotFound("Forms.ReceivedDocument.ProposalNotFound", "The form proposal was not found.");
+    public static readonly Error ProposalUnavailable = Error.Failure("Forms.ReceivedDocument.ProposalUnavailable", "The form proposal could not be asked for or read.");
+    public static readonly Error GroupUnavailable = Error.Conflict("Forms.ReceivedDocument.GroupUnavailable", "No unclassified document of the group can be read.");
+    // DOC6, the re-reading after publishing: the assistant paused, not configured or not qualified for now; the server tries again.
+    public static readonly Error AssistantUnavailable = Error.Conflict("Forms.ReceivedDocument.AssistantUnavailable",
+        "The assistant is not available for now; the server tries again in a moment.", new Dictionary<string, object?> { ["retryable"] = true });
 }

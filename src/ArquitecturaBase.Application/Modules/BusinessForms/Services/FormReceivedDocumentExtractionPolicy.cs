@@ -14,7 +14,8 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 /// (<see cref="AssistantChannelContext.FocusDefinitionId"/>) and the reading the document keeps as its attachment, never read again. The
 /// context is sealed with the document when it is asked for, so any reviewer reads the operation with it. Its proposal is accepted only
 /// from that read and prepared without AI like a registration's, keeping only the fixed form; a form that stopped being active or changed
-/// version since has its own reason.
+/// version since has its own reason. Each document is its own channel conversation (DOC6): the readings of different documents, a
+/// reviewer's or the server's after publishing a form, never wait for each other.
 /// </summary>
 internal sealed class FormReceivedDocumentExtractionPolicy(FormReceivedDocumentContentPolicy contents, FormDocumentProposalPolicy proposals,
     IFormReceivedDocumentReader reader)
@@ -28,16 +29,16 @@ internal sealed class FormReceivedDocumentExtractionPolicy(FormReceivedDocumentC
     /// <summary>The engine refused the extraction for good while it was read (403): it was dropped.</summary>
     public const string Refused = "Forms.ReceivedDocument.ExtractionRefused";
 
-    public static AssistantChannelContext Context(Guid actorUserId, string culture, string timeZoneId, Guid definitionId) =>
+    public static AssistantChannelContext Context(Guid actorUserId, string culture, string timeZoneId, Guid definitionId, Guid documentId) =>
         new(ChannelId, actorUserId, null, culture, timeZoneId, new([BusinessFormsPermissions.DocumentsReview], []),
             [new(BusinessFormDocumentAssistantCapabilitySource.FormId, BusinessFormDocumentAssistantCapabilitySource.Version),
                 new(BusinessFormDocumentAssistantCapabilitySource.ProposeEntryId, BusinessFormDocumentAssistantCapabilitySource.Version)],
-            [new("assistant_proposal", 1)]) { FocusDefinitionId = definitionId };
+            [new("assistant_proposal", 1)]) { FocusDefinitionId = definitionId, ChannelConversationId = documentId };
 
     /// <summary>The context sealed with the extraction that runs (who asked, in which language and zone), or null without one.</summary>
     public static AssistantChannelContext? Sealed(FormReceivedDocumentStoredRow row) =>
         row is { ExtractionDefinitionId: { } definitionId, ExtractionActorUserId: { } actorUserId, ExtractionCulture: { } culture, ExtractionTimeZoneId: { } zone }
-            ? Context(actorUserId, culture, zone, definitionId) : null;
+            ? Context(actorUserId, culture, zone, definitionId, row.Id) : null;
 
     /// <summary>The operation that extracts the document for the fixed form, or null when it has no reading it can attach.</summary>
     public AssistantOperationRequest? Request(FormReceivedDocumentStoredRow row, Guid requestId, AssistantChannelContext context, DateTime requestedAtUtc)

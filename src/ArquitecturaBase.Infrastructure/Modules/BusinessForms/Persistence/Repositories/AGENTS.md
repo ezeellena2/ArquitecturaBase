@@ -6,6 +6,7 @@ Los repositorios del módulo cargan entidades seguidas para modificar, agregan o
 
 - `AsNoTracking` sólo en lectores; los repositorios devuelven entidades seguidas, dan de alta dentro del límite del servicio y nunca guardan. Sin `ExecuteUpdate`/`ExecuteDelete`: la purga de comprobantes sigue entidades.
 - «Documentos recibidos» (DOC5-A): `FormReceivedDocumentRepository` toma `forms:received-document-source:{canal}:{fuente}` al registrar y `forms:received-document:{id}` en cada cambio, siempre el último lock; su purga relee cada documento bajo su lock y borra la historia en cascada. Las tablas `FormReceivedDocuments` (canal y fuente únicos, un CHECK por estado y la búsqueda GIN `simple` sobre los números) y `FormReceivedDocumentEvents` salen de `AddFormReceivedDocuments`.
+- DOC6: `FormDocumentProposalRepository` toma `forms:document-proposal-request:{persona}:{pedido}` al guardar un pedido y `forms:document-proposal:{id}` en cada cambio (el borrador, la relectura), antes del lock de cualquiera de sus documentos; al reservar una relectura, `forms:document-reread-asker:{persona}` antes que el del pedido.
 
 ## Referencias
 

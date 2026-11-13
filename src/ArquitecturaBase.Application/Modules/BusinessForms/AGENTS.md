@@ -5,7 +5,7 @@ Leer [formularios](../../../../docs/features/formularios.md) y el [resumen de la
 Módulo opcional: autoría, publicación, ciclo de vida, catálogos, captura, planilla, reglas, PDF, asistente y sugerencias; persistencia en Infrastructure y rutas en Api.
 
 - `Channels/`: adaptadores de los puertos neutrales del núcleo ([guía](Channels/AGENTS.md)).
-- `Configuration/`: `BusinessFormsOptions`; `BusinessForms:MaxFileSizeMiB` admite 1–25 (25 por defecto), se valida al iniciar y lo sella el manifiesto ([fotos y documentos](../../../../docs/features/formularios.md#fotos-y-documentos--implementación-local-2b-2026-10-15)).
+- `Configuration/`: `BusinessFormsOptions`; `BusinessForms:MaxFileSizeMiB` admite 1–25 (25 por defecto), se valida al iniciar y lo sella el manifiesto ([fotos y documentos](../../../../docs/features/formularios.md#fotos-y-documentos--implementación-local-2b-2026-10-15)). `FormDocumentRereadOptions`: `BusinessForms:DocumentReread:DailyPerAsker` (1–100, 5), las relecturas de DOC6 por persona y día.
 - `Interfaces/Integrations/`: protectores de comprobantes y manifiestos (propósitos propios), renderer PDF, escritor de Excel y lector de planillas. El lector recibe un stream del llamador y devuelve celdas, errores y SHA-256 de los bytes originales; no guarda archivos ni conoce HTTP. `DetectFormat` dice qué son unos bytes y `Read` los lee con ese formato, para la planilla adjunta al asistente, y `ReadSheets`, todas sus hojas, para cargar sus filas (VC1-A); `IFormDocumentReader` hace lo mismo con un documento (PDF, foto o Word).
 - `Interfaces/Persistence/`: repositorios y lectores ([guía](Interfaces/Persistence/AGENTS.md)).
 - `Interfaces/Services/`: un contrato por caso de uso, consumido por Api y los workers.

@@ -16,7 +16,8 @@ namespace ArquitecturaBase.Infrastructure.Modules.BusinessForms.Persistence.Read
 // Task 7: the reads of the documents capabilities and of the inbox «Documentos recibidos», without tracking and filtered in SQL before
 // ordering: the forms with reading (the channel's active versions, or any active published version for the fixed form), the catalog
 // options a reading fills, the repetitions of a document in a form, the inbox with its filters, number search, counts and the forms and
-// senders to filter by (each counted under the other filters, at most 100 with the selected one always in, marking the cut), a document
+// senders to filter by (each counted under the other filters, at most 100 with the selected one always in, marking the cut), the groups of
+// similar unclassified documents (DOC6, under every filter but the state's), a document
 // with its history, the origin of the responses passed from it (with the document's file name) and the copies the live documents keep.
 internal sealed class FormReceivedDocumentReader(ApplicationDbContext dbContext) : IFormReceivedDocumentReader
 {
@@ -24,6 +25,9 @@ internal sealed class FormReceivedDocumentReader(ApplicationDbContext dbContext)
     private const int MaxFormNames = 100;
     private const int MaxEvents = 200;
     private const int MaxFacets = 100;
+    // DOC6: a group of similar documents starts at three, and the notice shows the largest few.
+    private const int MinGroupDocuments = 3;
+    private const int MaxGroups = 5;
     private const string ReadingOn = """{"enabled":true}""";
     private static readonly IReadOnlyDictionary<string, Expression<Func<FormReceivedDocument, object?>>> Sortable =
         new Dictionary<string, Expression<Func<FormReceivedDocument, object?>>>(StringComparer.OrdinalIgnoreCase)
@@ -141,7 +145,31 @@ internal sealed class FormReceivedDocumentReader(ApplicationDbContext dbContext)
         var filtered = InState(OfSender(OfForm(documents, request), request), request.State, nowUtc);
         var page = await Rows(filtered.ApplySort(SortDescriptor.Parse(request.Sort), Sortable, new("receivedAtUtc", true), document => document.Id))
             .ToPagedResultAsync(request, cancellationToken);
-        return new FormReceivedDocumentPageRow(page.Items, page.TotalCount, counts, forms, formsTruncated, senders, sendersTruncated);
+        // The groups of similar documents are unclassified by definition: every other filter applies, never the state's.
+        var groups = await GroupsAsync(OfSender(OfForm(documents, request), request), cancellationToken);
+        return new FormReceivedDocumentPageRow(page.Items, page.TotalCount, counts, forms, formsTruncated, senders, sendersTruncated) { Groups = groups };
+    }
+
+    // DOC6: the pending topics of «Formularios que faltan» that three or more unclassified documents share (none of an existing draft from
+    // documents, and no topic one exists for), the largest first, each with how many and the newest of them, up to a request's documents. One
+    // query: the largest groups, and each one's newest documents by a lateral join, never a query per group.
+    private async Task<IReadOnlyList<FormReceivedDocumentGroupRow>> GroupsAsync(IQueryable<FormReceivedDocument> documents, CancellationToken ct)
+    {
+        var drafted = FormReceivedDocumentQuery.Drafted(dbContext);
+        var grouped = from document in FormReceivedDocumentQuery.Groupable(dbContext, documents)
+                      join request in dbContext.Set<BusinessFormMissingRequest>().AsNoTracking() on document.Id equals request.SourceReceiptId
+                      join topic in dbContext.Set<BusinessFormMissingTopic>().AsNoTracking() on request.TopicId equals topic.Id
+                      where topic.State == BusinessFormMissingTopicState.Pending && !drafted.Any(proposal => proposal.TopicId == topic.Id)
+                      select new { document.Id, document.ReceivedAtUtc, TopicId = topic.Id, topic.Name };
+        var largest = grouped.GroupBy(row => new { row.TopicId, row.Name }).Select(group => new { group.Key.TopicId, group.Key.Name, Count = group.Count() })
+            .Where(group => group.Count >= MinGroupDocuments).OrderByDescending(group => group.Count).ThenBy(group => group.TopicId).Take(MaxGroups);
+        var rows = await (from topic in largest
+                          from document in grouped.Where(row => row.TopicId == topic.TopicId).OrderByDescending(row => row.ReceivedAtUtc)
+                              .ThenByDescending(row => row.Id).Take(FormDocumentProposal.MaxDocuments)
+                          select new { topic.TopicId, topic.Name, topic.Count, document.Id, document.ReceivedAtUtc }).ToListAsync(ct);
+        return [.. rows.GroupBy(row => (row.TopicId, row.Name, row.Count)).OrderByDescending(group => group.Key.Count).ThenBy(group => group.Key.TopicId)
+            .Select(group => new FormReceivedDocumentGroupRow(group.Key.TopicId, group.Key.Name, group.Key.Count,
+                [.. group.OrderByDescending(row => row.ReceivedAtUtc).ThenByDescending(row => row.Id).Select(row => row.Id)]))];
     }
 
     public Task<FormReceivedDocumentStateCounts> CountAsync(DateTime nowUtc, CancellationToken cancellationToken) =>
@@ -189,22 +217,7 @@ internal sealed class FormReceivedDocumentReader(ApplicationDbContext dbContext)
             VersionNumber = version.Number, SubmitLabelJson = version.SubmitLabelJson!, QuestionCount = version.QuestionCount!.Value,
         };
 
-    private IQueryable<FormReceivedDocumentStoredRow> Rows(IQueryable<FormReceivedDocument> documents) =>
-        documents.Select(document => new FormReceivedDocumentStoredRow(document.Id, document.ChannelId, document.SourceId, document.SenderUserId,
-            dbContext.Users.Where(user => user.Id == document.SenderUserId).Select(user => user.DisplayName).FirstOrDefault(),
-            document.ReceivedAtUtc, document.StorageKey, document.FileName, document.MediaType, document.Size, document.Sha256, document.Pages,
-            document.ProtectedReading, document.ProtectedProposal, document.DefinitionId, document.VersionId,
-            dbContext.Set<BusinessFormVersion>().Where(version => version.Id == document.VersionId).Select(version => version.NameJson).FirstOrDefault(),
-            dbContext.Set<BusinessFormDefinition>().Where(definition => definition.Id == document.DefinitionId).Select(definition => definition.Prefix).FirstOrDefault(),
-            document.State, document.ReasonCode, document.DocumentType, document.RecordId,
-            dbContext.Set<BusinessFormRecord>().Where(record => record.Id == document.RecordId).Select(record => (long?)record.Number).FirstOrDefault(),
-            document.ReviewedByUserId, dbContext.Users.Where(user => user.Id == document.ReviewedByUserId).Select(user => user.DisplayName).FirstOrDefault(),
-            document.ReviewedAtUtc, document.ReplyExpiresAtUtc, document.NotSendable, document.DeleteAfterUtc, document.ExtractionRequestId,
-            document.ExtractionDefinitionId, document.ExtractionRequestedAtUtc, document.Revision)
-        {
-            ExtractionActorUserId = document.ExtractionActorUserId, ExtractionCulture = document.ExtractionCulture,
-            ExtractionTimeZoneId = document.ExtractionTimeZoneId,
-        });
+    private IQueryable<FormReceivedDocumentStoredRow> Rows(IQueryable<FormReceivedDocument> documents) => FormReceivedDocumentQuery.Rows(dbContext, documents);
 
     private static async Task<FormReceivedDocumentStateCounts> CountAsync(IQueryable<FormReceivedDocument> documents, DateTime nowUtc, CancellationToken ct)
     {

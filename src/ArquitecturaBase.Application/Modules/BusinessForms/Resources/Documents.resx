@@ -5,4 +5,5 @@
   <data name="UnknownTopic" xml:space="preserve"><value>Documento sin formulario</value></data>
   <data name="TopicDescription" xml:space="preserve"><value>Llegaron documentos «{0}» que no encajan en ningún formulario.</value></data>
   <data name="ExtractionRequest" xml:space="preserve"><value>Leé el documento adjunto y proponé sus datos para el formulario.</value></data>
+  <data name="FormProposalRequest" xml:space="preserve"><value>Armá un formulario para cargar documentos como los adjuntos, que no encajan en ningún formulario: con la lectura prendida y «Cómo reconocerlo» a partir de lo que tienen en común, y una pregunta por cada dato que se repite, con lo que leíste en el primero. Si se parecen a un estándar de la biblioteca, nombralo.</value></data>
 </root>

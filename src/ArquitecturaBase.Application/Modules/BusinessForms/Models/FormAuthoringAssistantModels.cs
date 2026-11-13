@@ -107,7 +107,15 @@ public sealed record FormDraftProposalEvidence(string OriginalCulture, Guid Requ
 
 /// <summary>The proposal a new draft records; only the service that creates from a proposal sets it.</summary>
 public sealed record FormDraftProposalOrigin(Guid ProposalId, string EvidenceJson)
-{ public override string ToString() => "FormDraftProposalOrigin { Content = [REDACTED] }"; }
+{
+    /// <summary>
+    /// What a proposal from received documents (DOC6) leaves in the same save once it has the new definition: the draft its request created
+    /// (<c>FormDocumentProposalRecorder</c>). The draft's save only runs it.
+    /// </summary>
+    [JsonIgnore]
+    public Func<BusinessFormDefinition, CancellationToken, Task<ArquitecturaBase.Domain.Results.Result>>? RecordAsync { get; init; }
+    public override string ToString() => "FormDraftProposalOrigin { Content = [REDACTED] }";
+}
 
 public sealed record FormAuthoringNamedRow(Guid Id, string NameJson, string Culture)
 { public override string ToString() => "FormAuthoringNamedRow { Content = [REDACTED] }"; }

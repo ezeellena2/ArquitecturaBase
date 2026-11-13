@@ -141,10 +141,15 @@ $cohorts = @(
             "document-detail-choices-es.json", "document-record-detail-es.json", "document-options-es.json",
             "document-discarded-es.json", "document-revision-conflict-es.json", "document-extraction-accepted-es.json", "document-extraction-pending-es.json",
             "document-extraction-completed-es.json", "document-extraction-failed-es.json", "document-extraction-unavailable-es.json", "document-awaiting-sender-es.json",
-            "document-record-es.json", "document-sender-inactive-es.json");
+            "document-record-es.json", "document-sender-inactive-es.json",
+            "documents-groups-es.json", "form-proposal-accepted-es.json", "form-proposal-pending-es.json", "form-proposal-completed-es.json",
+            "form-proposal-failed-es.json", "form-proposal-unavailable-es.json", "form-proposal-draft-invalid-es.json", "form-proposal-draft-created-es.json",
+            "form-proposal-drafted-es.json");
         Sources = @(($sourceRoot + "BusinessForms/FormReceivedDocumentHttpTests.cs"), ($captureRoot + "Modules/BusinessForms/FormReceivedDocumentScenario.cs"),
             ($captureRoot + "Modules/BusinessForms/FormReceivedDocumentContractCapture.cs"), ($captureRoot + "Modules/BusinessForms/ScriptedDocumentOperations.cs"),
-            "src/ArquitecturaBase.Application/Modules/BusinessForms/Models/FormReceivedDocumentModels.cs", "src/ArquitecturaBase.Application/Models/StructuredData/StructuredRecordOrigin.cs") },
+            ($sourceRoot + "BusinessForms/FormDocumentProposalHttpTests.cs"),
+            "src/ArquitecturaBase.Application/Modules/BusinessForms/Models/FormReceivedDocumentModels.cs", "src/ArquitecturaBase.Application/Models/StructuredData/StructuredRecordOrigin.cs",
+            "src/ArquitecturaBase.Application/Modules/BusinessForms/Models/FormDocumentProposalModels.cs") },
     @{ Name = "whatsapp-audio"; Environment = "WHATSAPP_AUDIO_HTTP_OUTPUT"; Destination = "whatsapp-audio-http";
         RequiredNames = @("audio-request.json", "audio-thread-pending.json", "audio-thread-completed.json", "spreadsheet-thread.json", "document-thread.json", "contact-thread.json",
             "document-why-thread.json");

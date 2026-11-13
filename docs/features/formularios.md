@@ -588,14 +588,75 @@ recibe documentos con las tareas 8 y 9.
   muestras, para que se saquen ellas y no preguntas.
 - **Los estándares.** `forms.library.standards@1` (lectura con `formtemplates.read`, sólo con un documento) da los estándares
   de la biblioteca que leen documentos, con su nombre y descripción en el idioma de la conversación y lo que lee cada uno.
-  Inicio no la ofrece; la ofrecerá el canal de documentos de DOC6 (tarea 14).
+  Inicio no la ofrece; la ofrece el canal de documentos de [DOC6](#armar-formulario-con-la-ia-desde-la-bandeja--doc6-2026-11-12).
 - **Quién la ofrece hoy.** Inicio (desde la tarea 13) y el Asistente automático de WhatsApp ofrecen la 2 en lugar de la 1,
   con las mismas definiciones; mientras WhatsApp no reciba documentos propone lo mismo que la 1, y su resumen (IA3-A) es el de
   la 1. La 1 sigue registrada: sus turnos se leen y sus tarjetas y resúmenes crean, y las dos se reemplazan entre sí como una
   capacidad.
-- **Crear.** «Crear borrador», en Inicio y por WhatsApp, acepta las dos versiones (DOC6 creará con la misma regla): la 2 crea
+- **Crear.** «Crear borrador», en Inicio y por WhatsApp, acepta las dos versiones (DOC6 crea con la misma regla): la 2 crea
   el formulario de la 1 con la lectura prendida y su «Cómo reconocerlo», sin cruces. Las muestras y el estándar nunca se
   guardan, y la evidencia del borrador sólo dice que la propuesta traía una lectura: el texto queda en el borrador, que se edita.
+
+## Armar formulario con la IA desde la bandeja — DOC6, 2026-11-12
+
+Para los documentos que no encajan en ningún formulario (DOC6, decisión 17 de [documentos por WhatsApp](../plans/2026-10-22-documentos-por-whatsapp.md));
+lo técnico, en los [servicios](formularios-servicios.md#crear-desde-una-propuesta-del-asistente). Pide «Ver documentos recibidos»,
+«Revisar documentos» y «Diseñar formularios» (`formtemplates.read` y `formtemplates.manage`): sus respuestas llevan documentos de la bandeja
+y lo que se leyó en ellos. Está el backend (tarea 14); la página llega con su front.
+
+- **El aviso de los parecidos.** La página de la bandeja (`POST api/forms/documents/search`) suma `groups`: los temas pendientes de
+  «Formularios que faltan» que comparten tres o más documentos sin clasificar (los que dejó «Otro»), con todos los filtros de la
+  página salvo el estado, los más grandes primero y hasta cinco: `{ topic: { id, name }, count, documentIds }`, con el nombre como
+  se anotó y los más nuevos primero (hasta 20). No cuentan los documentos de un borrador ya armado ni el tema para el que se armó,
+  mientras ese borrador exista: si se elimina, vuelven. Sale en una sola consulta con la página.
+- **Pedir la propuesta.** `POST api/forms/documents/form-proposals` con `requestId` y `documentId` (uno sin clasificar, con su
+  lectura y su copia) o `topicId` (sus sin clasificar que no son de un borrador, los más nuevos primero, hasta 20), nunca los dos. Es
+  una interpretación del canal `forms-documents` con quien pide como Actor, sin Subject y en una conversación propia del pedido, que
+  ofrece `forms.authoring.forms@1`, `forms.authoring.catalogs@1`, `forms.library.standards@1` y `forms.authoring.propose-form@2` y
+  cierra con `assistant_proposal@1`: cinco definiciones de dieciséis. Su documento son las lecturas de hasta cinco: la primera con su
+  copia y la mitad de los 16 KiB, las otras se reparten el resto, cada una recortada por el servidor y la que no entra, afuera. Los
+  cupos son los del motor. 202 con el pedido; el mismo pedido otra vez contesta lo mismo sin pedirlo de nuevo y otro documento o tema
+  con el mismo `requestId` da 409 `RequestConflict`. Lo que el motor ya tomó con ese `requestId` sin que se guardara el pedido (otro
+  intento que llegó antes, o uno cuyo guardado falló) se recupera sin correr dos veces: se reenvía sellado en el mismo instante, el
+  motor lo reconoce y el pedido se guarda; con otros documentos (u otro contexto que la búsqueda encuentra), 409 `RequestConflict`. Un
+  conflicto del motor que no es ese UUID (el asistente pausado, sin configurar o con el modelo sin calificar) es su falla. Un documento que no está da 404; uno que no está sin clasificar, 409
+  `StateConflict`; sin lectura, 409 `ReadingUnavailable`; un tema sin documentos que se puedan leer, 409 `GroupUnavailable`. Si el
+  motor no lo toma no se guarda nada: 403 si se niega, 429 con el código, el texto y el `retryAfter` del motor si se agotó su cupo o su
+  capacidad (como las otras rutas del asistente) y 500 `ProposalUnavailable` si falla.
+- **Esperarla.** `GET api/forms/documents/form-proposals/{requestId}`, sólo para quien la pidió (si no, 404 `ProposalNotFound`), se
+  lee con el contexto sellado: `state` (`pending`, `completed` o `failed` con su `failureCode`: `Forms.ReceivedDocument.NoFormProposal`,
+  `Forms.ReceivedDocument.ProposalNotFound` o el código del motor tal cual, que la página muestra como una falla general), `topic`, `documents` como los lista
+  la bandeja y en el orden en que se adjuntaron, `proposal` (`{ id, capability, version, content }`, la de `propose-form@2` como la
+  muestra Inicio: el formulario, lo leído en el primero por pregunta, la lectura y un estándar parecido) y el `definitionId` del
+  borrador que creó. Se puede salir y volver.
+- **Crear el borrador.** `POST api/forms/definitions/document-proposals` con `requestId`, `proposalId` y el formulario como quedó:
+  `name`, `prefix`, `submitLabel`, `recognition` (obligatorio: la lectura va prendida) y `questions` (`label`, el `type` de la
+  propuesta, `required`, `options` y `catalogId`). La propuesta tiene que ser la que cerró su operación (si no, 404
+  `Forms.ReceivedDocument.ProposalNotFound`, como un pedido que no está). Lo editado se valida como el borrador (`SaveFormDraftRequestValidator`) y contesta con
+  las rutas del cuerpo (`name`, `prefix`, `submitLabel`, `recognition`, `questions[i]…`), sólo con catálogos activos que se puedan
+  leer y un nombre libre. Lo crea el guardado del editor con la lectura prendida y sin cruces, la evidencia como la de Inicio
+  (`requestedIn: "documents"`, el formulario como se propuso, nunca sus muestras ni el estándar) y, en ese mismo guardado, el borrador
+  que creó el pedido: sus documentos son los de origen. 201 con `{ proposalId, definitionId }`; el mismo pedido otra vez da el mismo
+  borrador y la propuesta de la que salió, diga lo que diga el cuerpo.
+- **Al publicar.** Un worker (`BusinessForms:DocumentRereadWorker`, cada 5 s) toma los pedidos cuyo borrador tiene una versión activa
+  publicada en un canal con la lectura prendida y no releída, fuera de la UoW de la publicación: para esa versión todos sus documentos
+  quedan pendientes, y cada uno sale cuando se pide su lectura o deja de necesitarla (ya no está sin clasificar o el formulario no
+  está). Cada vuelta toma los pendientes por dos minutos (otra copia del servidor no los repite) y vuelve a leer cada uno para ese
+  formulario, una interpretación de `forms-documents` por documento con el formulario fijo y el contexto de quien lo pidió; al
+  terminar queda «Propuesto», o como estaba si la lectura falla. Si el motor no puede tomarlo ahora (su cupo o su capacidad), los
+  pendientes esperan lo que dice —el cupo del día, hasta el otro día—, y si el asistente no está disponible por ahora (pausado, sin
+  configurar o sin calificar), un minuto; una vuelta posterior sigue, y un paso que falla a mitad deja el documento pendiente para la
+  vuelta siguiente, hasta tres veces seguidas: a la tercera sale de los pendientes (anotado con su código), así no retiene para siempre
+  su pedido ni los demás de esa persona. Las relecturas usan el cupo diario de quien pidió en el canal: sus pedidos releen entre todos a lo sumo unos
+  `BusinessForms:DocumentReread:DailyPerAsker` por día UTC (de 1 a 100, 5 por defecto: la mitad del cupo del motor; sólo cuenta lo que el
+  motor tomó), de a una vuelta por persona (una versión nueva espera la vuelta que retiene los pendientes, y cada vuelta ni lista los pedidos de
+  quien ya tiene otro retenido), y el resto sigue al otro día, así su bandeja conserva lo demás. La cuenta es aproximada: una vuelta que tarda más que su retención puede cruzarse con la siguiente, y
+  una lectura que el motor tomó no cuenta si su paso se corta antes de anotarla o si su guardado pierde con un cambio del documento. Una versión nueva relee los que siguen sin clasificar. Cada documento es su propia
+  conversación del canal, también en el cambio de formulario de quien revisa, así que las lecturas de documentos distintos no se
+  esperan entre sí.
+- **Persistencia.** `FormDocumentProposals`, único por quien pidió y `requestId`: el contexto, el tema, los documentos (`uuid[]`), el
+  borrador y la propuesta de la que salió, la versión releída, sus pendientes (`uuid[]`), hasta cuándo esperan y las relecturas del día;
+  migración `AddFormDocumentProposals`.
 
 ## Formularios que faltan — Etapa 5
 

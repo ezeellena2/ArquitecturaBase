@@ -5,4 +5,5 @@
   <data name="UnknownTopic" xml:space="preserve"><value>Document without a form</value></data>
   <data name="TopicDescription" xml:space="preserve"><value>«{0}» documents arrived that fit no form.</value></data>
   <data name="ExtractionRequest" xml:space="preserve"><value>Read the attached document and propose its data for the form.</value></data>
+  <data name="FormProposalRequest" xml:space="preserve"><value>Build a form to load documents like the attached ones, which fit no form: with the reading on and how to recognize them from what they have in common, and one question for each datum they repeat, with what you read in the first one. If they look like a library standard, name it.</value></data>
 </root>

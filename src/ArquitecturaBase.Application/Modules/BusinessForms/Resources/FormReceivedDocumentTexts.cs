@@ -14,6 +14,9 @@ internal static class FormReceivedDocumentTexts
     // What the inbox's extraction asks the engine for: an interpretation is written, the document goes as its attachment.
     public static string ExtractionRequest(string culture) => Get("ExtractionRequest", culture);
 
+    // What «Armar formulario con la IA» asks the engine for (DOC6): the documents go as the conversation's document.
+    public static string FormProposalRequest(string culture) => Get("FormProposalRequest", culture);
+
     public static string TopicDescription(string culture, string topic) => DisplayNumbers.Format(culture, Get("TopicDescription", culture), topic);
 
     private static string Get(string name, string culture) => Texts.GetString(name, CultureInfo.GetCultureInfo(culture))

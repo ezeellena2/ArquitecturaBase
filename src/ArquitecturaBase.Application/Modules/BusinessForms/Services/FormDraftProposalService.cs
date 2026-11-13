@@ -17,6 +17,9 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 internal sealed class FormDraftProposalService(IAssistantProposalLookup lookup, IFormAuthoringReader reader, IFormDraftService drafts,
     FormDraftAccessGuard accessGuard) : IFormDraftProposalService
 {
+    /// <summary>Where a draft from received documents (DOC6) was asked for, in its evidence.</summary>
+    public const string DocumentsRequestedIn = "documents";
+
     public async Task<Result<FormDraftAssistantProposalResponse>> CreateAsync(CreateFromAssistantProposalRequest request, CancellationToken cancellationToken)
     {
         var access = await accessGuard.CheckAsync(true, cancellationToken);
@@ -29,7 +32,7 @@ internal sealed class FormDraftProposalService(IAssistantProposalLookup lookup, 
         if (found.IsFailure || found.Value.Context.InteractionMode != AssistantInteractionMode.Unspecified || Proposed(found.Value.Proposal) is not { } proposal)
             return FormDefinitionErrors.ProposalUnavailable;
         if (!found.Value.IsCurrent) return FormDefinitionErrors.ProposalReplaced;
-        return await CreateDraftAsync(access.Value, found.Value.Proposal, proposal, found.Value.Provenance, "app", cancellationToken);
+        return await CreateDraftAsync(access.Value, found.Value.Proposal, proposal.Form, proposal, found.Value.Provenance, "app", null, cancellationToken);
     }
 
     // IA3-A: the channel's own conversation, where the person is both Actor and Subject, tapped «Crear borrador» on the latest
@@ -42,7 +45,19 @@ internal sealed class FormDraftProposalService(IAssistantProposalLookup lookup, 
         if (access.IsFailure) return access.Error;
         if (Proposed(request.Proposal) is not { } proposal) return FormDefinitionErrors.ProposalUnavailable;
         if (await CreatedAsync(access.Value, request.Proposal.Id, cancellationToken) is { } created) return created;
-        return await CreateDraftAsync(access.Value, request.Proposal, proposal, request.Provenance, null, cancellationToken);
+        return await CreateDraftAsync(access.Value, request.Proposal, proposal.Form, proposal, request.Provenance, null, null, cancellationToken);
+    }
+
+    // DOC6: the inbox checked the request and that the proposal is the one its operation closed on. The draft is the form as the reviewer
+    // edited it, with the reading on, and its evidence keeps the form as it was proposed; the same save records the draft in the request.
+    public async Task<Result<FormDraftAssistantProposalResponse>> CreateFromDocumentsAsync(CreateFromDocumentProposalRequest request, CancellationToken cancellationToken)
+    {
+        var access = await accessGuard.CheckActorAsync(request.ActorUserId, true, cancellationToken);
+        if (access.IsFailure) return access.Error;
+        if (Proposed(request.Proposal) is not { } proposal) return FormDefinitionErrors.ProposalUnavailable;
+        if (await CreatedAsync(access.Value, request.Proposal.Id, cancellationToken) is { } created) return created;
+        return await CreateDraftAsync(access.Value, request.Proposal, proposal.Form, (request.Form, request.Reading), request.Provenance, DocumentsRequestedIn,
+            request.RecordAsync, cancellationToken);
     }
 
     // Both versions create: version 1's form as it is, and version 2's (Stage 3) with the reading it turned on. Its samples and
@@ -63,20 +78,22 @@ internal sealed class FormDraftProposalService(IAssistantProposalLookup lookup, 
         return await CreatedAsync(access.Value, proposalId, cancellationToken) ?? new FormDraftAssistantProposalResponse(proposalId, null);
     }
 
+    // The created form is the proposal's or, from received documents, the one the reviewer edited; the evidence keeps the form as proposed.
     private async Task<Result<FormDraftAssistantProposalResponse>> CreateDraftAsync(Guid actor, AssistantObservedProposal observed,
-        (FormAuthoringFormProposal Form, FormAuthoringProposedReading? Reading) proposed, AssistantOperationProvenance provenance, string? requestedIn,
+        FormAuthoringFormProposal asProposed, (FormAuthoringFormProposal Form, FormAuthoringProposedReading? Reading) created,
+        AssistantOperationProvenance provenance, string? requestedIn, Func<BusinessFormDefinition, CancellationToken, Task<Result>>? recordAsync,
         CancellationToken ct)
     {
-        var (proposal, reading) = proposed;
+        var (proposal, reading) = created;
         var catalogs = await CheckCatalogsAsync(actor, proposal, ct);
         if (catalogs.IsFailure) return catalogs.Error;
         if (await reader.ExistsDefinitionNameAsync(proposal.Culture, proposal.Name, ct)) return FieldErrors.On(FormDefinitionErrors.NameTaken, "name");
-        var evidence = new FormDraftProposalEvidence(proposal.Culture, actor, provenance.OccurredAtUtc, observed.TurnId,
-            observed.Capability.Id, observed.Capability.Version, provenance, proposal, requestedIn, reading is null ? null : true);
+        var evidence = new FormDraftProposalEvidence(asProposed.Culture, actor, provenance.OccurredAtUtc, observed.TurnId,
+            observed.Capability.Id, observed.Capability.Version, provenance, asProposed, requestedIn, reading is null ? null : true);
         // The proposal is also the request of its draft change: two taps at once wait for each other and get the same draft.
         var draft = FormAuthoringProposalPolicy.Draft(observed.Id, proposal, reading) with
         {
-            Proposal = new FormDraftProposalOrigin(observed.Id, JsonSerializer.Serialize(evidence, JsonSerializerOptions.Web)),
+            Proposal = new FormDraftProposalOrigin(observed.Id, JsonSerializer.Serialize(evidence, JsonSerializerOptions.Web)) { RecordAsync = recordAsync },
             ActorUserId = actor,
         };
         var saved = await drafts.CreateAsync(draft, ct);
