@@ -66,6 +66,7 @@ internal static class QualificationChannelDocuments
     private static readonly ReadingFormField Date = new("date", "date", "Fecha", "Date", null, true);
     private static readonly ReadingFormField Amount = new("amount", "decimal", "Monto", "Amount", null, true);
     private static readonly ReadingFormField Operation = new("operation", "shortText", "Número de operación", "Operation number", 40, false);
+    // The phone channel compiles each label: a text question's fits 20 characters in each language (FormSeedOfflineChecks).
     public static readonly ReadingForm[] ReadingForms =
     [
         new("collection", "Comprobante de una transferencia que nos hizo un cliente para pagarnos, o una planilla de cobros a clientes"
@@ -75,7 +76,7 @@ internal static class QualificationChannelDocuments
         new("supplier-payment", "Comprobante de una transferencia que hicimos para pagarle a un proveedor, o una planilla de pagos a proveedores"
             + RecognitionData("el proveedor"),
             [Date, Amount, new("supplier", "shortText", "Proveedor", "Supplier", 80, false), new("cuit", "shortText", "CUIT del proveedor", "Supplier CUIT", 13, false),
-                new("account", "shortText", "CBU o CVU de destino", "Destination CBU or CVU", 22, false), Operation]),
+                new("account", "shortText", "CBU o CVU de destino", "Payee CBU or CVU", 22, false), Operation]),
     ];
     public static ReadingForm? ReadingFormOf(string alias) => ReadingForms.SingleOrDefault(form => form.Alias == alias);
 

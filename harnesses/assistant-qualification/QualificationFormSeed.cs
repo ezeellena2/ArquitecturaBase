@@ -21,6 +21,8 @@ namespace AssistantQualification;
 
 internal sealed record QualificationFormName(string Alias, string Prefix, string Spanish, string English);
 internal sealed record QualificationCatalogName(string Alias, string Spanish, string English);
+// A form the seed publishes: its fields as the draft service takes them, its offer and, in channel-documents, its reading.
+internal sealed record QualificationFormInput(string Alias, FormFieldInput[] Fields, string? When, FormDocumentReading? Reading = null);
 
 // Technical fixture writer for the isolated, fictitious evaluation database only.
 // Business authoring, catalog creation, suggestion configuration and capture use their real public services.
@@ -49,22 +51,8 @@ internal sealed class QualificationFormSeed(ApplicationDbContext db,IUnitOfWork 
             [new("red",null,"RED",CatalogTexts("Rojo","Red"),null,true),new("blue",null,"BLUE",CatalogTexts("Azul","Blue"),null,true)]),ct),"colors");
         var branches = Require(await catalogs.CreateManualAsync(new(CatalogTexts(branchName.Spanish,branchName.English),CatalogTexts("Sedes de prueba","Fixture branches"),
             [new("north",null,"NORTH",new Dictionary<string,string?> { ["es"] = "Sucursal Norte" },null,true)]),ct),"branches");
-        var prepared = new List<PreparedForm>
-        {
-            await CreateFormAsync("visit",VisitFields(),
-                InjectedVisitOfferWhen,ct),
-            await CreateFormAsync("local-visit",[..VisitFields(),
-                Field("branch","choice","Sede","Branch",catalog:branches.Catalog.Id)],
-                "Cuando pide explícitamente Visita local o Local visit, para visitar una sede local.",ct),
-            await CreateFormAsync("maintenance",
-                [Field("place","shortText","Lugar","Place",80,true),Field("notes","longText","Notas","Notes",600)],
-                "Cuando quiere registrar tareas de mantenimiento, reparaciones o arreglos de equipos.",ct),
-            await CreateFormAsync("control",
-                [Field("text","shortText","Texto","Text",80,true),Field("notes","longText","Notas","Notes",600),
-                    Field("amount","decimal","Importe","Amount"),Field("day","date","Día","Day"),
-                    Field("confirmed","boolean","Confirmado","Confirmed"),Field("color","choice","Color","Color",catalog:colors.Catalog.Id)],
-                "Cuando pide registrar un control con texto, notas, importe, fecha, confirmación y color.",ct),
-        };
+        var prepared = new List<PreparedForm>();
+        foreach (var form in ChannelForms(colors.Catalog.Id,branches.Catalog.Id)) prepared.Add(await CreateFormAsync(form,ct));
         var published = new List<QualificationForm>();
         foreach (var form in prepared) published.Add(await PublishFixtureAsync(form,manager.UserId,ct));
         var visit = published.Single(form => form.Alias == "visit");
@@ -117,24 +105,58 @@ internal sealed class QualificationFormSeed(ApplicationDbContext db,IUnitOfWork 
         var manager = actors.Operators.Single(actor => actor.Culture == "es");
         currentUser.Set(manager.UserId);
         var published = new List<QualificationForm>();
-        foreach (var form in QualificationChannelDocuments.ReadingForms)
-        {
-            var prepared = await CreateFormAsync(form.Alias,[..form.Fields.Select(field => Field(field.Key,field.Type,field.Spanish,field.English,field.MaxLength,field.Required))],
-                null,ct,new FormDocumentReading(true,form.Recognition,[]));
-            published.Add(await PublishFixtureAsync(prepared,manager.UserId,ct));
-        }
+        foreach (var form in ReadingForms()) published.Add(await PublishFixtureAsync(await CreateFormAsync(form,ct),manager.UserId,ct));
         return forms with { Forms = [..forms.Forms,..published] };
+    }
+
+    // The forms CreateAsync publishes, in order: the catalogs are the real ones while seeding and any id offline (FormSeedOfflineChecks).
+    internal static QualificationFormInput[] ChannelForms(Guid colors,Guid branches) =>
+    [
+        new("visit",VisitFields(),InjectedVisitOfferWhen),
+        new("local-visit",[..VisitFields(),Field("branch","choice","Sede","Branch",catalog:branches)],
+            "Cuando pide explícitamente Visita local o Local visit, para visitar una sede local."),
+        new("maintenance",[Field("place","shortText","Lugar","Place",80,true),Field("notes","longText","Notas","Notes",600)],
+            "Cuando quiere registrar tareas de mantenimiento, reparaciones o arreglos de equipos."),
+        new("control",[Field("text","shortText","Texto","Text",80,true),Field("notes","longText","Notas","Notes",600),
+                Field("amount","decimal","Importe","Amount"),Field("day","date","Día","Day"),
+                Field("confirmed","boolean","Confirmado","Confirmed"),Field("color","choice","Color","Color",catalog:colors)],
+            "Cuando pide registrar un control con texto, notas, importe, fecha, confirmación y color."),
+    ];
+
+    // The forms CreateReadingFormsAsync publishes (channel-documents), with their reading on.
+    internal static QualificationFormInput[] ReadingForms() => [..QualificationChannelDocuments.ReadingForms.Select(form => new QualificationFormInput(form.Alias,
+        [..form.Fields.Select(field => Field(field.Key,field.Type,field.Spanish,field.English,field.MaxLength,field.Required))],null,
+        new FormDocumentReading(true,form.Recognition,[])))];
+
+    // The request the seed checks, as FormPublicationSnapshotPolicy.ChannelRequest (internal to the app) builds it for these fields: a form
+    // with reading on says so (task 9b), so the check compiles what its publication compiles.
+    internal static StructuredFormCheckRequest CheckRequest(IReadOnlyDictionary<string,string> name,IReadOnlyDictionary<string,string> submit,
+        IReadOnlyList<StructuredFormQuestion> questions,FormDocumentReading? reading) =>
+        new(1,"es",name,submit,questions,["es","en"],25,ReadsDocuments:reading is { Enabled: true } ? true : null);
+
+    // Offline: the request of every form the seed publishes, from the same fixture. While seeding the draft service gives each question
+    // its FieldId and its key, so here any id does.
+    internal static StructuredFormCheckRequest[] OfflineCheckRequests() => [..ChannelForms(Guid.NewGuid(),Guid.NewGuid()).Concat(ReadingForms()).Select(form =>
+        CheckRequest(Texts(Name(form.Alias).Spanish,Name(form.Alias).English),SubmitLabel(),[..form.Fields.Select(OfflineQuestion)],form.Reading))];
+
+    private static StructuredFormQuestion OfflineQuestion(FormFieldInput field)
+    {
+        var id = Guid.NewGuid();
+        var help = field.Help?.Where(text => !string.IsNullOrWhiteSpace(text.Value)).ToDictionary(text => text.Key,text => text.Value!,StringComparer.Ordinal);
+        return new(id,"field_" + id.ToString("N"),field.Type,field.Label,help is { Count: > 0 } ? help : null,field.Required,field.MaxLength,
+            field.Options?.Select(option => new StructuredFormChoice(Guid.NewGuid(),option.Label)).ToArray(),field.Source?.Catalog,
+            field.Files is {} files ? new(files.MinFiles,files.MaxFiles,files.PhotoSource) : null);
     }
 
     private static QualificationFormName Name(string alias) => FormNames.Concat(QualificationChannelDocuments.FormNames).Single(item => item.Alias == alias);
 
-    private async Task<PreparedForm> CreateFormAsync(string alias,FormFieldInput[] fields,string? when,CancellationToken ct,FormDocumentReading? reading = null)
+    private async Task<PreparedForm> CreateFormAsync(QualificationFormInput form,CancellationToken ct)
     {
-        var name = Name(alias);
+        var name = Name(form.Alias);
         var saved = Require(await drafts.CreateAsync(new(Guid.CreateVersion7(),Texts(name.Spanish,name.English),name.Prefix,
-            new(1,"es",Texts("Enviar","Submit"),fields,DocumentReading:reading),OfferWhen:when),ct),"draft");
+            new(1,"es",SubmitLabel(),form.Fields,DocumentReading:form.Reading),OfferWhen:form.When),ct),"draft");
         var ids = saved.IdentityMap.Fields.ToDictionary(field => field.LocalId,field => field.FieldId,StringComparer.Ordinal);
-        return new(alias,saved.Definition,ids);
+        return new(form.Alias,saved.Definition,ids);
     }
 
     private async Task<QualificationForm> PublishFixtureAsync(PreparedForm form,Guid manager,CancellationToken ct)
@@ -144,7 +166,7 @@ internal sealed class QualificationFormSeed(ApplicationDbContext db,IUnitOfWork 
             question.Options?.Select(option => new StructuredFormChoice(option.ChoiceId,option.Label)).ToArray(),question.Source?.Catalog,
             question.Files is {} files ? new(files.MinFiles,files.MaxFiles,files.PhotoSource) : null)).ToArray();
         var channel = channels.Single(channel => channel.ChannelId == "phone");
-        var check = Require(await channel.CheckAsync(new(1,"es",form.Definition.Name,form.Definition.Draft.SubmitLabel,questions,["es","en"],25),ct),"compilation");
+        var check = Require(await channel.CheckAsync(CheckRequest(form.Definition.Name,form.Definition.Draft.SubmitLabel,questions,form.Definition.Draft.DocumentReading),ct),"compilation");
         if (check.Issues.Count != 0) throw new InvalidOperationException("Qualification fixture is not representable by the real compiler.");
         var versionId = Guid.Empty;
         Require(await unitOfWork.ExecuteInTransactionAsync(async token =>
@@ -241,6 +263,7 @@ internal sealed class QualificationFormSeed(ApplicationDbContext db,IUnitOfWork 
         new(key,null,null,type,Texts(es,en),null,required,max,null,catalog.HasValue ? new(catalog) : null);
     private static Dictionary<string,string?> CatalogTexts(string es,string en) => new() { ["es"] = es,["en"] = en };
     private static Dictionary<string,string> Texts(string es,string en) => new() { ["es"] = es,["en"] = en };
+    private static Dictionary<string,string> SubmitLabel() => Texts("Enviar","Submit");
     private static string Key(Guid field) => "field_" + field.ToString("N");
     private static string Hash(string value) => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(value)));
     private DateTime Now() { var now = clock.GetUtcNow().UtcDateTime; return now.AddTicks(-(now.Ticks % TimeSpan.TicksPerSecond)); }
