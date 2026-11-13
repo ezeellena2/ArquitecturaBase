@@ -59,6 +59,9 @@ public sealed partial class ApiFactory
         // mandan códigos por WhatsApp terminaría en 429 intermitentes. WhatsAppLoginCodeTests lo prueba con una Api
         // aparte (WithWebHostBuilder) y un tope chico.
         builder.UseSetting("WhatsApp:DailyAuthCodeLimit", "100000");
+        // Lo mismo con los topes por cuenta y por dirección (H10): MeWhatsAppEndpointsTests prueba el de cuenta con uno chico.
+        builder.UseSetting("WhatsApp:DailyLinkCodeLimitPerAccount", "100000");
+        builder.UseSetting("WhatsApp:DailySignInCodeLimitPerAddress", "100000");
     }
 
     internal void ConfigureWhatsAppServices(IServiceCollection services)

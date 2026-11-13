@@ -580,6 +580,27 @@ public sealed class MeWhatsAppEndpointsTests(ApiFactory factory)
         Assert.False(await factory.ExecuteDbContextAsync(db => db.LoginCodes.AnyAsync(code => code.Destination == second.Value, Ct)));
     }
 
+    // H10: one account does not spend the limit of everyone asking for codes for numbers of others; another account still can.
+    [Fact]
+    public async Task An_account_asks_for_a_limited_number_of_codes_to_link_a_number_a_day()
+    {
+        await using var api = factory.WithWebHostBuilder(builder => builder.UseSetting("WhatsApp:DailyLinkCodeLimitPerAccount", "1"));
+        using var client = api.CreateClient();
+        var user = await CreateAccountAsync(email: TestEmails.Unique("tope-cuenta"));
+        var other = await CreateAccountAsync(email: TestEmails.Unique("tope-otra"));
+        var (first, second, third) = (TestPhones.Unique(), TestPhones.Unique(), TestPhones.Unique());
+
+        using var firstResponse = await AskCodeAsync(client, user, first);
+        using var secondResponse = await AskCodeAsync(client, user, second);
+        using var otherResponse = await AskCodeAsync(client, other, third);
+
+        Assert.Equal(HttpStatusCode.Accepted, firstResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.TooManyRequests, secondResponse.StatusCode);
+        Assert.Equal(LoginCodeErrors.TooManyRequestsCode, (await secondResponse.ReadJsonAsync()).GetProperty("code").GetString());
+        Assert.Empty(factory.WhatsApp.SentTo(second));
+        Assert.Equal(HttpStatusCode.Accepted, otherResponse.StatusCode);
+    }
+
     [Fact]
     public async Task Only_numbers_of_the_allowed_countries_and_valid_mobiles_can_be_linked()
     {

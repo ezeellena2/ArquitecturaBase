@@ -8,7 +8,7 @@ Es el detalle de la guía [`src/ArquitecturaBase.Application/Modules/WhatsApp/Se
 
 - `ProfileWhatsAppChatService` sólo lee el chat del número de la cuenta para el perfil, con las mismas condiciones que un aviso: vínculo, número confirmado igual al del contacto y ventana de 24 h. No abre límite ni vincula.
 
-- `WhatsAppCodeIssuer` valida el país del número interpretado, aplica el tope diario global de `WhatsAppCodeQuotaGuard` (24 h móviles, todos los números) y emite con `LoginCodeIssuer`, dueño de los límites por destino. Conserva el propósito (SignInCode o VerifyPhoneCode) y marca enviado solo si la cola tomó el mensaje; corre en el límite del llamador.
+- `WhatsAppCodeIssuer` valida el país del número interpretado, aplica los topes de `WhatsAppCodeQuotaGuard`: el diario de todos (24 h móviles, todos los números, con un aviso al 80 %), el de cada cuenta en los códigos del perfil (`ListLatestSentTimesByRequesterAsync`) y, con el registro abierto, el de la dirección del pedido, que gasta al final cada código que salió, de ingreso o del perfil (`TakeAddress`, `IWhatsAppCodeAddressLimiter`, en memoria; IPv6 por /64); el aviso del 80 % sale cuando el código sale (`ReportSent`) y emite con `LoginCodeIssuer`, dueño de los límites por destino. Conserva el propósito (SignInCode o VerifyPhoneCode) y marca enviado solo si la cola tomó el mensaje; corre en el límite del llamador.
 - `EnsureEnabled*` va antes del límite. Confirmar el número usa `OnAnyResult` para gastar el código. Verificación y canje de enlaces son del núcleo; `WhatsAppContactLinker` solo actúa en cambios explícitos.
 
 ## Webhook y entrada

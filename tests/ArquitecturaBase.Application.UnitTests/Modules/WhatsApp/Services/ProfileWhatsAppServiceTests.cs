@@ -17,6 +17,7 @@ using ArquitecturaBase.Application.UnitTests.Modules.WhatsApp.TestDoubles;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
+using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Results;
@@ -89,6 +90,30 @@ public sealed class ProfileWhatsAppServiceTests
         Assert.Equal((Phone, "en", Code), (message.To.Value, message.LanguageCode, message.Code));
         Assert.Equal(["login-code:" + Phone], fixture.Locks.Keys);
         Assert.Equal(1, fixture.UnitOfWork.Commits);
+    }
+
+    [Fact]
+    public async Task An_account_asks_for_a_limited_number_of_link_codes_a_day_before_locking_the_number()
+    {
+        // H10: one account does not spend the limit of everyone with numbers of others.
+        var fixture = new Fixture { DailyLinkCodeLimitPerAccount = 1 };
+        var user = fixture.Accounts.AddUser("ana@example.com");
+        var sent = LoginCode.Issue(
+            LoginCodeDestination.ForPhone(PhoneNumber.Create("+5493515550199").Value), LoginCodePurpose.VerifyDestination,
+            user.Id, "hash", fixture.Clock.GetUtcNow().UtcDateTime, TimeSpan.FromMinutes(10), maxAttempts: 5);
+        sent.MarkSent(fixture.Clock.GetUtcNow().UtcDateTime);
+        fixture.Codes.Add(sent);
+
+        var result = await fixture.Service(user.Id)
+            .RequestPhoneLinkCodeAsync(new RequestPhoneLinkCodeRequest("AR", Phone), Ct);
+        Assert.Empty(fixture.Locks.Keys);
+        var other = fixture.Accounts.AddUser("beto@example.com");
+        var allowed = await fixture.Service(other.Id)
+            .RequestPhoneLinkCodeAsync(new RequestPhoneLinkCodeRequest("AR", Phone), Ct);
+
+        Assert.Equal(LoginCodeErrors.TooManyRequestsCode, result.Error.Code);
+        Assert.True(allowed.IsSuccess);
+        Assert.Single(fixture.SendQueue.Messages);
     }
 
     [Fact]
@@ -321,6 +346,8 @@ public sealed class ProfileWhatsAppServiceTests
         public InMemoryWhatsAppContactRepository Contacts { get; }
         public FakeWhatsAppSendQueue SendQueue { get; } = new();
         public int DailyAuthCodeLimit { get; init; } = 100;
+
+        public int DailyLinkCodeLimitPerAccount { get; init; } = 10;
         public FakeTimeProvider Clock { get; } = new(new DateTimeOffset(2026, 9, 24, 12, 0, 0, TimeSpan.Zero));
         public FakeLogger<ProfileWhatsAppService> Logger { get; } = new();
         public FakeUnitOfWork UnitOfWork { get; }
@@ -351,11 +378,15 @@ public sealed class ProfileWhatsAppServiceTests
             var currentUser = new FakeCurrentUser { UserId = userId };
             var codes = new SequencedLoginCodes(Codes, Locks);
             var hasher = new FakeLoginCodeHasher();
-            var whatsAppOptions = Options.Create(new WhatsAppLoginOptions { DailyAuthCodeLimit = DailyAuthCodeLimit });
+            var whatsAppOptions = Options.Create(new WhatsAppLoginOptions
+            {
+                DailyAuthCodeLimit = DailyAuthCodeLimit, DailyLinkCodeLimitPerAccount = DailyLinkCodeLimitPerAccount,
+            });
             var linker = new WhatsAppContactLinker(Contacts);
             var issuer = new WhatsAppCodeIssuer(
                 new LoginCodeIssuer(codes, new FakeLoginCodeGenerator(), hasher, _options, Clock),
-                new WhatsAppCodeQuotaGuard(codes, whatsAppOptions, Clock, NullLogger<WhatsAppCodeQuotaGuard>.Instance),
+                new WhatsAppCodeQuotaGuard(codes, whatsAppOptions, new FakeRequestInfo(), new FakeWhatsAppCodeAddressLimiter(), Clock,
+                    NullLogger<WhatsAppCodeQuotaGuard>.Instance),
                 Accounts,
                 new FakePhoneNumberParser(),
                 SendQueue,
@@ -446,6 +477,10 @@ public sealed class ProfileWhatsAppServiceTests
         public Task<IReadOnlyList<DateTime>> ListLatestSentTimesAsync(LoginCodeChannel channel, DateTime sinceUtc,
             int count, CancellationToken cancellationToken) =>
             inner.ListLatestSentTimesAsync(channel, sinceUtc, count, cancellationToken);
+
+        public Task<IReadOnlyList<DateTime>> ListLatestSentTimesByRequesterAsync(LoginCodeChannel channel, Guid requestedByUserId,
+            DateTime sinceUtc, int count, CancellationToken cancellationToken) =>
+            inner.ListLatestSentTimesByRequesterAsync(channel, requestedByUserId, sinceUtc, count, cancellationToken);
 
         public void Add(LoginCode loginCode) => inner.Add(loginCode);
     }

@@ -87,10 +87,13 @@ internal sealed class WhatsAppCodeIssuer(
             return issued.Error;
         }
 
-        if (user is not null || await accountCreation.AllowsNewAccountAsync(email: null, cancellationToken))
+        // Con el registro abierto cualquiera pide un código para cualquier número: lo que sale gasta además un lugar de la dirección.
+        var registrationOpen = await accountCreation.AllowsNewAccountAsync(email: null, cancellationToken);
+        // La cola puede rechazar el mensaje. En ese caso se guarda el código como no enviado.
+        if ((user is not null || registrationOpen) && Send(phone, UserCultures.Of(user), issued.Value, WhatsAppAccessEventKind.SignInCode)
+            && registrationOpen && quota.TakeAddress() is { } addressError)
         {
-            // La cola puede rechazar el mensaje. En ese caso se guarda el código como no enviado.
-            Send(phone, UserCultures.Of(user), issued.Value, WhatsAppAccessEventKind.SignInCode);
+            return addressError;
         }
 
         return new RequestWhatsAppLoginCodeResponse(issued.Value.ResendCooldownSeconds, phone.Value, phoneNumbers.Mask(phone));
@@ -98,7 +101,7 @@ internal sealed class WhatsAppCodeIssuer(
 
     /// <summary>
     /// Un código para que <paramref name="user"/> vincule el número desde el perfil. Comparte límites por destino y tope
-    /// diario con los códigos de ingreso.
+    /// diario con los códigos de ingreso, y tiene además un tope por cuenta (H10).
     /// </summary>
     public async Task<Result<RequestPhoneLinkCodeResponse>> RequestVerificationCodeAsync(
         UserAccount user, RequestPhoneLinkCodeRequest request, CancellationToken cancellationToken)
@@ -113,7 +116,7 @@ internal sealed class WhatsAppCodeIssuer(
         }
 
         var phone = phoneResult.Value;
-        if (await quota.CheckAsync(cancellationToken) is { } quotaError)
+        if (await quota.CheckLinkAsync(user.Id, cancellationToken) is { } quotaError)
         {
             return quotaError;
         }
@@ -124,8 +127,13 @@ internal sealed class WhatsAppCodeIssuer(
             return issued.Error;
         }
 
-        // Si la cola no lo toma, queda sin fecha de envío y no consume el tope.
-        Send(phone, UserCultures.Of(user), issued.Value, WhatsAppAccessEventKind.VerifyPhoneCode);
+        // Si la cola no lo toma, queda sin fecha de envío y no consume el tope. Con el registro abierto, quien abre varias cuentas
+        // para pedir desde cada perfil gasta los lugares de su dirección (H10).
+        if (Send(phone, UserCultures.Of(user), issued.Value, WhatsAppAccessEventKind.VerifyPhoneCode)
+            && await accountCreation.AllowsNewAccountAsync(email: null, cancellationToken) && quota.TakeAddress() is { } addressError)
+        {
+            return addressError;
+        }
 
         return new RequestPhoneLinkCodeResponse(issued.Value.ResendCooldownSeconds, phone.Value, phoneNumbers.Mask(phone));
     }
@@ -146,11 +154,15 @@ internal sealed class WhatsAppCodeIssuer(
 
     // Se encola antes del commit para que la fila se confirme ya marcada como enviada. Encolar no espera a Meta, así que
     // no alarga el lock del número.
-    private void Send(PhoneNumber phone, string culture, IssuedLoginCode issued, WhatsAppAccessEventKind eventKind)
+    private bool Send(PhoneNumber phone, string culture, IssuedLoginCode issued, WhatsAppAccessEventKind eventKind)
     {
-        if (sendQueue.TryEnqueue(new WhatsAppLoginCodeMessage(phone, culture, issued.Code, eventKind) { ExpiresAtUtc = issued.LoginCode.ExpiresAtUtc }))
+        if (!sendQueue.TryEnqueue(new WhatsAppLoginCodeMessage(phone, culture, issued.Code, eventKind) { ExpiresAtUtc = issued.LoginCode.ExpiresAtUtc }))
         {
-            issued.LoginCode.MarkSent(issued.IssuedAtUtc);
+            return false;
         }
+
+        issued.LoginCode.MarkSent(issued.IssuedAtUtc);
+        quota.ReportSent();
+        return true;
     }
 }

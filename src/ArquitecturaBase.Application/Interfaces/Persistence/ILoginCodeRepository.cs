@@ -62,5 +62,16 @@ public interface ILoginCodeRepository
         int count,
         CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Lo mismo, sólo de los códigos que pidió <paramref name="requestedByUserId"/> (<see cref="LoginCode.RequestedByUserId"/>):
+    /// el tope por cuenta de los códigos para vincular un número.
+    /// </summary>
+    Task<IReadOnlyList<DateTime>> ListLatestSentTimesByRequesterAsync(
+        LoginCodeChannel channel,
+        Guid requestedByUserId,
+        DateTime sinceUtc,
+        int count,
+        CancellationToken cancellationToken);
+
     void Add(LoginCode loginCode);
 }

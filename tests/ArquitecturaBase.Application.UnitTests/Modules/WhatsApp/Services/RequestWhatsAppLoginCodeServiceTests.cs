@@ -11,6 +11,7 @@ using ArquitecturaBase.Application.UnitTests.Modules.WhatsApp.TestDoubles;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
+using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Results;
@@ -293,6 +294,41 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
         Assert.Equal(2, fixture.UnitOfWork.Commits);
     }
 
+    // H10: with registration open anyone asks for a code for any number, so the address of the request has a daily limit; the
+    // request it stops issues nothing and sends nothing. With registration closed it is not asked.
+    [Theory]
+    [InlineData(RegistrationMode.Open, true)]
+    [InlineData(RegistrationMode.InviteOnly, false)]
+    public async Task With_registration_open_the_address_of_the_request_has_a_daily_limit(RegistrationMode mode, bool limited)
+    {
+        var fixture = new Fixture();
+        fixture.Addresses.RetryAfter = TimeSpan.FromMinutes(30);
+        fixture.Settings.Mode = mode;
+        fixture.Accounts.AddUser("ana@example.com", phoneNumber: Phone);
+
+        var result = await fixture.Service.RequestLoginCodeAsync(new("AR", Phone), Ct);
+
+        Assert.Equal(limited ? new[] { "203.0.113.10" } : Array.Empty<string>(), fixture.Addresses.Taken);
+        Assert.Equal(!limited, result.IsSuccess);
+        // The place is taken last: a refusal discards the code and the queued message with the unit of work, which does not commit.
+        Assert.Equal(limited ? 0 : 1, fixture.UnitOfWork.Commits);
+        if (limited) Assert.Equal((LoginCodeErrors.TooManyRequestsCode, 30 * 60), (result.Error.Code, result.Error.Metadata![LoginCodeErrors.RetryAfterKey]));
+    }
+
+    // H10: a request that the limits per number refuse (here, before the wait to resend) sends nothing and spends no place of its address.
+    [Fact]
+    public async Task A_request_refused_by_the_limits_per_number_spends_no_place_of_its_address()
+    {
+        var fixture = new Fixture();
+        fixture.Settings.Mode = RegistrationMode.Open;
+
+        Assert.True((await fixture.Service.RequestLoginCodeAsync(new("AR", Phone), Ct)).IsSuccess);
+        var again = await fixture.Service.RequestLoginCodeAsync(new("AR", Phone), Ct);
+
+        Assert.True(again.IsFailure);
+        Assert.Single(fixture.Addresses.Taken);
+    }
+
     [Fact]
     public async Task Daily_quota_is_a_moving_window_of_24_hours()
     {
@@ -388,7 +424,7 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
             Service = new WhatsAppLoginCodeService(
                 new WhatsAppCodeIssuer(
                     new LoginCodeIssuer(Codes, new FakeLoginCodeGenerator(), new FakeLoginCodeHasher(), codeOptions, Clock),
-                    new WhatsAppCodeQuotaGuard(Codes, whatsAppOptions, Clock, NullLogger<WhatsAppCodeQuotaGuard>.Instance),
+                    new WhatsAppCodeQuotaGuard(Codes, whatsAppOptions, new FakeRequestInfo(), Addresses, Clock, NullLogger<WhatsAppCodeQuotaGuard>.Instance),
                     Accounts,
                     Parser,
                     SendQueue,
@@ -403,6 +439,8 @@ public sealed class RequestWhatsAppLoginCodeServiceTests
         public FakeTimeProvider Clock { get; } = new(new DateTimeOffset(2026, 9, 23, 12, 0, 0, TimeSpan.Zero));
 
         public InMemoryLoginCodeRepository Codes { get; } = new();
+
+        public FakeWhatsAppCodeAddressLimiter Addresses { get; } = new();
 
         public InMemoryUserAccounts Accounts { get; } = new();
 

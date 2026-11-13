@@ -77,5 +77,18 @@ internal sealed class LoginCodeRepository(ApplicationDbContext dbContext) : ILog
             .Take(count)
             .ToListAsync(cancellationToken);
 
+    public async Task<IReadOnlyList<DateTime>> ListLatestSentTimesByRequesterAsync(
+        LoginCodeChannel channel,
+        Guid requestedByUserId,
+        DateTime sinceUtc,
+        int count,
+        CancellationToken cancellationToken) =>
+        await dbContext.LoginCodes
+            .Where(code => code.Channel == channel && code.RequestedByUserId == requestedByUserId && code.SentAtUtc > sinceUtc)
+            .OrderByDescending(code => code.SentAtUtc)
+            .Select(code => code.SentAtUtc!.Value)
+            .Take(count)
+            .ToListAsync(cancellationToken);
+
     public void Add(LoginCode loginCode) => dbContext.LoginCodes.Add(loginCode);
 }

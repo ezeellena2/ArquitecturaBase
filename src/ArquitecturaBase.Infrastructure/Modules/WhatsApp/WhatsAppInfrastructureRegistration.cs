@@ -77,6 +77,8 @@ public static class WhatsAppInfrastructureRegistration
             && !string.IsNullOrWhiteSpace(section[nameof(WhatsAppOptions.VerifyToken)]);
 
         services.AddSingleton<IWhatsAppAvailability>(new WhatsAppAvailability(enabled, webhookEnabled));
+        // The quota guard of Application asks it even with WhatsApp off; it only holds what this copy saw.
+        services.AddSingleton<IWhatsAppCodeAddressLimiter, WhatsAppCodeAddressLimiter>();
 
         // Readiness y no liveness (sin el tag "live"): un reinicio automático no arregla un token vencido o sin
         // permisos. Hace falta arreglarlo en Meta o cargar otro, y recién ahí reiniciar.

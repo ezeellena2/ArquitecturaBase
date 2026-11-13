@@ -61,6 +61,19 @@ internal sealed class InMemoryLoginCodeRepository : ILoginCodeRepository
             .ToList());
 
     // A cualquier destino y con cualquier propósito: el tope diario es por canal.
+    public Task<IReadOnlyList<DateTime>> ListLatestSentTimesByRequesterAsync(
+        LoginCodeChannel channel,
+        Guid requestedByUserId,
+        DateTime sinceUtc,
+        int count,
+        CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<DateTime>>(Codes
+            .Where(code => code.Channel == channel && code.RequestedByUserId == requestedByUserId && code.SentAtUtc > sinceUtc)
+            .Select(code => code.SentAtUtc!.Value)
+            .OrderDescending()
+            .Take(count)
+            .ToArray());
+
     public Task<IReadOnlyList<DateTime>> ListLatestSentTimesAsync(
         LoginCodeChannel channel,
         DateTime sinceUtc,
