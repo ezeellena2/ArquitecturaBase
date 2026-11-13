@@ -32,6 +32,6 @@ public sealed partial class AiAssistantContextPolicyTests
         Assert.Equal(Stage5Capabilities.Append("assistant_proposal"),prepared.Value.ProviderRequest.Tools.Select(tool=>tool.Name));
         Assert.DoesNotContain("users.summary",prepared.Value.ProviderRequest.Tools.Select(tool=>tool.Name));
         Assert.DoesNotContain("ai.assistant.use",fixture.Permissions.Permissions[fixture.ActorId]);Assert.Equal(0,source.Calls);
-        Assert.Equal(6,limits.ToolCalls);Assert.Equal(4,limits.ProviderSteps);
+        Assert.Equal(6,limits.ToolCalls);Assert.Equal(5,limits.ProviderSteps);
     }
 }

@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Models.Assistant;
+using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Configuration;
 
 namespace AssistantQualification;
 
@@ -49,7 +50,7 @@ internal sealed class AgentRunner(IAssistantOperations operations, SafeRunLedger
             new("real-channel-provenance", outcome.Provenance?.ChannelId == context.ChannelId),
             new("required-tools-observed", testCase.RequiredTools.All(observed.Contains)),
             new("no-home-tools", !technical.Capabilities.Any(item => QualificationSeed.HomeCapabilities.Contains(item.Id))),
-            new("bounded-provider-steps", technical.ProviderSteps is >= 1 and <= 4),
+            new("bounded-provider-steps", technical.ProviderSteps >= 1 && technical.ProviderSteps <= new AiAssistantLimits().ProviderSteps),
             new("bounded-tool-calls", technical.ToolCalls <= 6),
             new("bounded-tool-bytes", technical.ToolBytes <= 65536 && technical.Capabilities.All(item => item.Bytes <= 16384)),
         };

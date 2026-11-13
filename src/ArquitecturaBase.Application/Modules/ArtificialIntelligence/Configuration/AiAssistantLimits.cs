@@ -11,7 +11,8 @@ public sealed record AiAssistantLimits
     public int HistoryTurns { get; init; } = 12;
     public int HistoryCharacters { get; init; } = 24000;
     public int ContextBytes { get; init; } = 131072;
-    public int ProviderSteps { get; init; } = 4;
+    // «Armar formulario con la IA» (forms-documents) may read catalogs, forms and standards one per step: three reads, the proposal and the closing step.
+    public int ProviderSteps { get; init; } = 5;
     public int ToolCalls { get; init; } = 6;
     public int ToolResultBytes { get; init; } = 16384;
     public int ToolAggregateBytes { get; init; } = 65536;

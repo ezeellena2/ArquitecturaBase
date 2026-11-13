@@ -21,7 +21,7 @@ public sealed partial class AiAssistantProviderContractTests
         Assert.True(result.IsSuccess);Assert.Equal("whatsapp.no-reply",Assert.Single(result.Value.ToolCalls).Name);
         using var body=JsonDocument.Parse(Assert.Single(handler.Bodies));Assert.Equal(12,body.RootElement.GetProperty("tools").GetArrayLength());
         Assert.Equal(Stage5Capabilities.Append("assistant_proposal").Select(name=>name.Replace('.','_')),body.RootElement.GetProperty("tools").EnumerateArray().Select(tool=>tool.GetProperty("name").GetString()));
-        Assert.Equal(6,limits.ToolCalls);Assert.Equal(4,limits.ProviderSteps);
+        Assert.Equal(6,limits.ToolCalls);Assert.Equal(5,limits.ProviderSteps);
     }
     [Theory]
     [InlineData(AiProvider.OpenAI)]

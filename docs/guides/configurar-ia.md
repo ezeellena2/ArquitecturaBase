@@ -190,7 +190,7 @@ de configurar: los perfiles no se recargan en caliente y la revisión de conexi�
 El contexto ofrece únicamente capacidades aplicables: las sugerencias de continuación requieren
 una captura fijada por el servidor. El transporte admite hasta dieciséis definiciones entre capacidades
 y terminal. Es una cota de catálogo, independiente de las seis invocaciones y
-cuatro pasos máximos de ejecución por turno. No aumentes cuotas, bytes ni llamadas para
+cinco pasos máximos de ejecución por turno (tres lecturas, la propuesta y el cierre de «Armar formulario con la IA»). No aumentes cuotas, bytes ni llamadas para
 hacer pasar una calificación.
 
 | Clave bajo `ArtificialIntelligence:Assistant` | Valor inicial, aún propuesto para piloto |
@@ -200,7 +200,7 @@ hacer pasar una calificación.
 | `Limits:RetentionDays` | 30 desde cada turno |
 | `Limits:QuestionCharacters` / `HistoryTurns` / `HistoryCharacters` | 4000 / 12 / 24000 |
 | `Limits:ContextBytes` / `ContinuationBytes` | 131072 / 131072 |
-| `Limits:ProviderSteps` / `ToolCalls` | 4 / 6 |
+| `Limits:ProviderSteps` / `ToolCalls` | 5 / 6 |
 | `Limits:ToolResultBytes` / `ToolAggregateBytes` | 16384 / 65536 |
 | `Limits:OutputTokens` / `ProviderResponseBytes` | 4096 / 262144 |
 | `Limits:ToolTimeoutSeconds` / `ProviderTimeoutSeconds` | 5 / 30 |

@@ -5,6 +5,7 @@ using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Models.SystemQueries;
+using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Configuration;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Models;
@@ -203,7 +204,7 @@ internal sealed class HomeRunner(QualificationCurrentUser currentUser, IAiAssist
             new("required-tools-observed", testCase.RequiredTools.All(observedTools.Contains)),
             new("continuation-then-terminal", technical.ProviderSteps >= testCase.MinimumProviderSteps),
             new("evidence-identities-observed", result.Answer is not null && result.Answer.EvidenceIds.All(evidenceIds.Contains)),
-            new("bounded-provider-steps", technical.ProviderSteps <= 4),
+            new("bounded-provider-steps", technical.ProviderSteps <= new AiAssistantLimits().ProviderSteps),
             new("bounded-tool-calls", technical.ToolCalls <= 6),
             new("bounded-tool-bytes", technical.ToolBytes <= 65536 && technical.Capabilities.All(item => item.Bytes <= 16384)),
             new("culture-context-matches", result.Culture == testCase.Culture),
