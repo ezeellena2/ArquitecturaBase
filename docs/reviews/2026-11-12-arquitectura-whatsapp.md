@@ -449,6 +449,9 @@ fuente: cambiarla lo decidís vos.
 - **Arreglo:** sólo documentación. Fijar el plazo de restauración a un momento dado (Azure da 7 días por
   defecto y hasta 35) y la redundancia al crear el servidor, y levantar una copia restaurada con
   `WhatsApp:ProcessOutgoingInBackground=false` hasta revisar lo pendiente.
+- **Arreglado el 2026-11-13** en 54b213a4: [desplegar a Azure](../deploy/azure-setup.md) crea el servidor con
+  `--backup-retention 7` y `--geo-redundant-backup Disabled` y explica cómo restaurar y qué revisar antes de prender la
+  salida y los Flows. El ensayo sigue en [verificación y producción](../plans/verificacion-y-produccion.md).
 
 #### H16. Los chats se guardan en claro
 
@@ -479,6 +482,8 @@ fuente: cambiarla lo decidís vos.
   `AssistantTerminalTexts` ni `AssistantAgentValidation`.
 - **Arreglo:** un test que recorra cada `.resx` de Application con su `.en.resx`, para que uno nuevo no
   quede afuera. Trivial.
+- **Arreglado el 2026-11-13** en 64d878a0: la teoría de `ResourceParityTests` sale de los recursos compilados, y otro
+  test confirma que cada `ResourceManager` del código nombra uno que existe.
 
 #### H18. Dos textos no respetan el idioma o la región de quien recibe
 
@@ -495,6 +500,10 @@ fuente: cambiarla lo decidís vos.
   el codec acepta coma (`WhatsAppFlowValueCodec.cs:16`).
 - **Arreglo:** llevar el idioma en el id del botón de las invitaciones nuevas, sin leer cuentas y
   aceptando los botones ya enviados; y corregir la ayuda decimal en español. Chico.
+- **Arreglado el 2026-11-13** en 5372b7b4 (y c0caf0ad, la guía de pruebas): el botón dice `WANT_TO_ENTER:es` o `:en`,
+  y el perfil r15 pide en la ayuda de un decimal no separar los miles y, en español, la coma (el codec toma cualquiera
+  de las dos marcas como la decimal: «1.500» sería 1,5). Falta comprobar con Meta que el celular acepta la coma; va en
+  la prueba integral. Volver a una versión anterior no reconoce los botones nuevos: llegan como un mensaje de negocio.
 
 #### H19. No queda quién cambió el modo ni una traza de punta a punta
 
@@ -542,6 +551,8 @@ fuente: cambiarla lo decidís vos.
 - **Evidencia:** [quitar WhatsApp](../guides/quitar-whatsapp.md) no nombra `WhatsAppAssistantAgents`,
   que crea `20261112021526_AddWhatsAppAssistantAgent.cs:76-77`, y en dos lugares dice «ocho».
 - **Arreglo:** sumar la tabla y unificar la cuenta. Trivial.
+- **Arreglado el 2026-11-13** en ac5403bc: la guía cuenta diez tablas, con `WhatsAppAssistantAgents` en el borrado,
+  el `Down` y el `pg_dump`.
 
 ### Con varias copias
 

@@ -104,7 +104,7 @@ comprobó con servicios reales y qué con dobles. Clonar el código no acredita 
 
 ## Arreglos de la revisión de arquitectura
 
-Decididos el 2026-11-13, sin programar. Salen de la
+Decididos el 2026-11-13 y en programación, etapa por etapa (lo hecho, al pie de cada etapa). Salen de la
 [revisión de arquitectura de WhatsApp](../reviews/2026-11-12-arquitectura-whatsapp.md), que tiene el
 escenario, la evidencia (archivo y línea en `9c0eb048`) y el esfuerzo de cada hallazgo, y de las
 [decisiones del usuario](../reviews/2026-11-12-arquitectura-whatsapp.md#decisiones-del-2026-11-13),
@@ -154,6 +154,13 @@ dependencias que se nombran.
    nuevas lleva el idioma, para que el texto con el enlace salga en el de la invitación sin leer cuentas
    ([ADR 0011](../decisions/0011-separacion-acceso-y-atencion-whatsapp.md)); los botones ya enviados se
    siguen aceptando. Chico.
+
+**Hecha el 2026-11-13:** H17 en 64d878a0, H22 en ac5403bc, H15 en 54b213a4 y H18 en 5372b7b4 (con c0caf0ad). H18 pide en
+la ayuda decimal, además, no separar los miles en los dos idiomas, porque el codec toma cualquiera de las dos marcas como la
+decimal. Queda para la prueba integral comprobar con Meta que el celular y la vista oficial aceptan la coma con r15. La suite
+completa con Docker sobre una copia de c0caf0ad dio 10.569 de 10.582, con el build sin advertencias; las 13 fallas son ajenas: 12
+ya fallaban en be294cdb (`FormSpreadsheetPhysicalLimitsTests`, cuyo fixture no siguió a c9db1571, y una de planillas de la IA) y
+una de cargas por WhatsApp pasa sola.
 
 ### Etapa 2: acceso y abuso
 
