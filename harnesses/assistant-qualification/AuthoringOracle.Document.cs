@@ -72,6 +72,12 @@ internal static partial class AuthoringOracle
                 && document.Facts.All(fact => questions.Count(question => KeepsFact(question, fact, printed[0].Facts[fact])) == 1)));
         checks.Add(new("samples-as-written", proposal is not null
             && questions.All(question => question.Sample is null || SampleAsWritten(question.Sample, printed[0]))));
+        // The rule a sample breaks, so a failed run says it without the sample: its length, a number or a word the document does not print.
+        checks.Add(new("samples-within-length", proposal is not null && questions.All(question => question.Sample is null or { Length: > 0 and <= FormAuthoringDocumentFormProposal.MaxSampleLength })));
+        checks.Add(new("samples-print-their-numbers", proposal is not null
+            && questions.All(question => question.Sample is null || DocumentReadingOracle.NoInventedNumbers(question.Sample, printed[0].Text))));
+        checks.Add(new("samples-print-their-words", proposal is not null
+            && questions.All(question => question.Sample is null || SampleWordsPrinted(question.Sample, printed[0]))));
         if (document.EverySample)
             checks.Add(new("every-question-sampled", proposal is not null && questions.Count > 0 && questions.All(question => question.Sample is not null)));
         if (document.Printed is { Length: > 0 } wanted)
@@ -86,9 +92,13 @@ internal static partial class AuthoringOracle
 
     // A sample as the document writes it: within its length, no number the document does not print (a changed or an extra digit) and every
     // word one it prints, never translated or invented.
-    internal static bool SampleAsWritten(string sample, DocumentFixture printed)
+    internal static bool SampleAsWritten(string sample, DocumentFixture printed) =>
+        sample.Length is > 0 and <= FormAuthoringDocumentFormProposal.MaxSampleLength && DocumentReadingOracle.NoInventedNumbers(sample, printed.Text)
+        && SampleWordsPrinted(sample, printed);
+
+    // Every word of a sample is one the document prints, never translated or invented, and the sample has something to compare.
+    internal static bool SampleWordsPrinted(string sample, DocumentFixture printed)
     {
-        if (sample.Length is 0 or > FormAuthoringDocumentFormProposal.MaxSampleLength || !DocumentReadingOracle.NoInventedNumbers(sample, printed.Text)) return false;
         var words = printed.Text.SelectMany(DocumentReadingOracle.Tokens).ToHashSet(StringComparer.Ordinal);
         var tokens = DocumentReadingOracle.Tokens(sample);
         return tokens.Length > 0 && tokens.Where(token => token.Any(char.IsLetter)).All(words.Contains);

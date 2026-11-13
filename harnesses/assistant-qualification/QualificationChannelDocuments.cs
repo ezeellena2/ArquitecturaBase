@@ -124,6 +124,22 @@ internal static class QualificationChannelDocuments
     public static int Definitions(AssistantChannelContext context, bool document) => context.AllowedCapabilities.Count(item => document
         ? !SpreadsheetOnly.Contains(item) && !NoDocument.Contains(item) : !DocumentOnly.Contains(item)) + context.AllowedTerminals.Count;
 
+    // What the engine seals of a context in a turn with this file, from the registered definitions: each capability and each preload whose
+    // definition the file admits (OfferedWith, the one rule) and whose permissions the Actor and the Subject hold, in the context's order
+    // (AiAssistantCapabilityCatalogPolicy.BuildAsync). The set's candidate is not qualified to draft, so no capability that drafts text is offered
+    // (AiAssistantAccessGuard.CaptureProfileAsync, before the catalog; a preload is not filtered that way). A reference the catalog does not
+    // register, by Id and version, stops the run.
+    public static (AssistantCapabilityReference[] Offered, AssistantCapabilityReference[] Preloaded) Sealed(AssistantChannelContext context,
+        IReadOnlyCollection<AssistantCapabilityDefinition> registered, AssistantAttachmentKind attachment, IReadOnlyCollection<string> actor,
+        IReadOnlyCollection<string> subject)
+    {
+        AssistantCapabilityReference[] Admitted(IEnumerable<AssistantCapabilityReference> references, bool tools) => [..references.Where(reference =>
+            registered.Single(definition => definition.Id == reference.Id && definition.Version == reference.Version) is var definition
+            && (!tools || !definition.DraftsText) && definition.OfferedWith(attachment) && definition.RequiredPermissions.Actor.All(actor.Contains)
+            && definition.RequiredPermissions.Subject.All(subject.Contains))];
+        return (Admitted(context.AllowedCapabilities, tools: true), Admitted(context.PreloadedCapabilities ?? [], tools: false));
+    }
+
     // The reading of a document the person sent, as WhatsAppReceivedDocumentReadingPolicy captures it: the person as Actor and Subject in
     // the automatic channel, Assistant, nothing required, offered or allowed to end the turn.
     public static AssistantChannelContext ReadingContext(Guid personUserId, string culture) => new("whatsapp-assistant", personUserId, personUserId, culture,

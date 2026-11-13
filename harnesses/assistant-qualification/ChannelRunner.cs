@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text.RegularExpressions;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Interfaces.Integrations.Files;
+using ArquitecturaBase.Application.Interfaces.Integrations.Identity;
 using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Configuration;
@@ -119,7 +120,7 @@ internal static class QualificationChannelContexts
 
 internal sealed class ChannelRunner(IAssistantOperations operations, SafeRunLedger ledger, SafeTurnMetadata metadata,
     QualificationCurrentUser currentUser, TimeProvider clock, QualificationMeasurements measurements, IEnumerable<IAssistantCapabilitySource> sources,
-    IStructuredAttachmentReader attachments, IPrivateFileStore files)
+    IStructuredAttachmentReader attachments, IPrivateFileStore files, IPermissionService permissions)
 {
     private static readonly string[] ClarificationAliases=["visit","maintenance"];
 
@@ -269,7 +270,12 @@ internal sealed class ChannelRunner(IAssistantOperations operations, SafeRunLedg
             new("turn-carried-the-file", technical.AttachmentKey == key && technical.AttachmentSha256 == (testCase.Document?.Sha256 ?? testCase.Spreadsheet!.Sha256)
                 && technical.AttachmentSize == (testCase.Document?.ByteCount ?? testCase.Spreadsheet!.ByteCount)),
         };
-        checks.AddRange(ChannelDocumentOracle.ContextChecks(context, technical));
+        // What the engine seals of this context with this file: the registered definitions it admits and the person's permissions (Actor and Subject).
+        var actorPermissions = await permissions.GetPermissionsAsync(actor.UserId, ct);
+        var subjectPermissions = subject.UserId == actor.UserId ? actorPermissions : await permissions.GetPermissionsAsync(subject.UserId, ct);
+        var (offered, preloaded) = QualificationChannelDocuments.Sealed(context, [..sources.SelectMany(source => source.Definitions)],
+            read is not null ? AssistantAttachmentKind.Document : AssistantAttachmentKind.Spreadsheet, actorPermissions, subjectPermissions);
+        checks.AddRange(ChannelDocumentOracle.ContextChecks(context, offered, preloaded, read is not null, technical));
         if (previous is not null)
             checks.Add(new("continued-same-engine-conversation", technical.ConversationId != Guid.Empty && technical.ConversationId == previous.Metadata.ConversationId
                 && technical.Ordinal == previous.Metadata.Ordinal + 1));

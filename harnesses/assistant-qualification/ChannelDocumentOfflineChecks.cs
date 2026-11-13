@@ -23,6 +23,7 @@ internal static class ChannelDocumentOfflineChecks
     public static readonly Action[] All = [Channel_document_cases_agree_with_the_manifest_the_readings_and_the_files, Channel_document_cases_cover_what_the_channel_takes,
         Channel_document_inventory_rejects_a_changed_unpaired_or_orphan_case, Channel_document_case_file_pins_the_manifest_and_the_readings,
         Channel_document_spreadsheets_prepare_as_their_cases_expect, Channel_document_contexts_follow_the_access_policy,
+        Channel_document_context_check_follows_what_the_engine_seals,
         Channel_document_set_keeps_each_person_within_the_daily_quotas, Channel_document_ledgers_resume_their_exact_context,
         Channel_document_alone_text_is_the_server_text, Channel_document_oracle_accepts_the_ideal_proposals,
         Channel_document_oracle_rejects_a_wrong_form_digit_decision_or_obeyed_instruction, Channel_sheet_oracle_rejects_a_wrong_row_column_doubt_or_focus,
@@ -177,6 +178,81 @@ internal static class ChannelDocumentOfflineChecks
             && Throws(() => QualificationChannelContexts.Create(person, person.UserId, "sheet-loader-focused"))
             && Throws(() => QualificationChannelContexts.Create(person, person.UserId, "loader", null, focus))
             && Throws(() => QualificationChannelContexts.Create(person, person.UserId, "auto", null, focus)));
+    }
+
+    // The engine seals what it offers of the channel's context (AiAssistantCapabilityCatalogPolicy.BuildAsync): each capability and preload whose
+    // definition the turn's file admits and whose permissions the Actor and the Subject hold, in the context's order, and no capability that
+    // drafts text with the set's candidate (AiAssistantAccessGuard.CaptureProfileAsync); QualificationChannelDocuments.Sealed, on definitions made
+    // here. The check takes exactly that, with the loading capabilities, and the terminals, the focus, the mode and the Subject as the channel
+    // built them.
+    public static void Channel_document_context_check_follows_what_the_engine_seals()
+    {
+        var person = new QualificationActor(Guid.NewGuid(), "offline", "es", "QualificationSubject");
+        static AssistantCapabilityDefinition Definition(AssistantCapabilityReference reference, AssistantCapabilityAttachment attachment = AssistantCapabilityAttachment.Any,
+            string[]? actor = null, string[]? subject = null, bool drafts = false) =>
+            new(reference.Id, reference.Version, AssistantCapabilityKind.Read, "Fictitious capability.", "{}", "{}", new(actor ?? [], subject ?? []), new(1, 1, 1, 1))
+            { Attachment = attachment, DraftsText = drafts };
+        AssistantCapabilityReference spreadsheetOnly = new(SpreadsheetOracle.ProposeImport, 1), noDocument = new("forms.propose-registration", 1),
+            guarded = new("forms.authoring.forms", 1), forSubject = new("forms.catalog-filters.metadata", 1), drafting = new("whatsapp.no-reply", 1),
+            candidates = new(QualificationChannelDocuments.Candidates, 1), entry = new(QualificationChannelDocuments.ProposeEntry, 1),
+            preloadAny = new("qualification.preload-any", 1), preloadNoDocument = new("qualification.preload-no-document", 1),
+            preloadDrafting = new("qualification.preload-drafting", 1);
+        var loader = QualificationChannelContexts.Create(person, person.UserId, "loader")
+            with { PreloadedCapabilities = [preloadAny, preloadNoDocument, preloadDrafting] };
+        // As the catalog registers them, in another order than the context's.
+        AssistantCapabilityDefinition[] registered = [..loader.AllowedCapabilities.Concat(loader.PreloadedCapabilities ?? []).Select(reference =>
+            reference == spreadsheetOnly ? Definition(reference, AssistantCapabilityAttachment.Spreadsheet)
+            : reference == noDocument || reference == preloadNoDocument ? Definition(reference, AssistantCapabilityAttachment.NoDocument)
+            : reference == guarded ? Definition(reference, actor: ["forms.design"])
+            : reference == forSubject ? Definition(reference, subject: ["forms.records.read"])
+            : reference == drafting || reference == preloadDrafting ? Definition(reference, drafts: true)
+            : reference == entry ? Definition(reference, AssistantCapabilityAttachment.Document, ["forms.records.create"])
+            : reference == candidates ? Definition(reference, AssistantCapabilityAttachment.File, ["forms.records.create"])
+            : Definition(reference)).Reverse()];
+        string[] granted = ["forms.records.create"], reads = ["forms.records.read"];
+        var (offered, preloaded) = QualificationChannelDocuments.Sealed(loader, registered, AssistantAttachmentKind.Document, granted, granted);
+        Require(offered.SequenceEqual(loader.AllowedCapabilities.Where(item => item != spreadsheetOnly && item != noDocument && item != guarded
+                && item != forSubject && item != drafting)) && preloaded.SequenceEqual([preloadAny, preloadDrafting]));
+        // With a spreadsheet the document's proposal goes and the spreadsheet's and the one that never goes with a document stay. The Actor's and
+        // the Subject's permissions count apart, a capability needs its exact version and one the catalog does not register stops the run.
+        var sheet = QualificationChannelDocuments.Sealed(loader, registered, AssistantAttachmentKind.Spreadsheet, granted, reads).Offered;
+        var crossed = QualificationChannelDocuments.Sealed(loader, registered, AssistantAttachmentKind.Spreadsheet, reads, granted).Offered;
+        Require(sheet.Contains(spreadsheetOnly) && sheet.Contains(noDocument) && sheet.Contains(forSubject) && sheet.Contains(candidates)
+            && !sheet.Contains(entry) && !crossed.Contains(forSubject) && !crossed.Contains(candidates)
+            && Throws(() => QualificationChannelDocuments.Sealed(loader with
+                { AllowedCapabilities = [..loader.AllowedCapabilities.Where(item => item != entry), new(QualificationChannelDocuments.ProposeEntry, 2)] },
+                registered, AssistantAttachmentKind.Document, granted, granted))
+            && Throws(() => QualificationChannelDocuments.Sealed(loader with { AllowedCapabilities = [..loader.AllowedCapabilities, new("forms.unknown", 1)] },
+                registered, AssistantAttachmentKind.Document, granted, granted)));
+        static bool Passes(AssistantChannelContext expected, AssistantCapabilityReference[] offered, AssistantCapabilityReference[] preloaded, bool document,
+            TurnMetadata technical) => ChannelDocumentOracle.ContextChecks(expected, offered, preloaded, document, technical)
+                .Single(check => check.Id == "loading-context-matches-the-channel").Passed;
+        static TurnMetadata Turn(AssistantChannelContext context, IReadOnlyList<AssistantCapabilityReference> offered,
+            IReadOnlyList<AssistantCapabilityReference> preloaded) =>
+            new(2, 1, 4000, null, null, true, null, new("gpt-6.1-sol-candidate-1", 1, "hash", "capabilities-v1", 1, "whatsapp-assistant"), [])
+            {
+                InteractionMode = context.InteractionMode, SubjectUserId = context.SubjectUserId, OfferedReferences = offered,
+                PreloadedReferences = preloaded, Terminals = context.AllowedTerminals, FocusDefinitionId = context.FocusDefinitionId,
+            };
+        var turn = Turn(loader, offered, preloaded);
+        Require(Passes(loader, offered, preloaded, true, turn));
+        // Never the context as it was sent, an extra, a missing or a moved capability, other preloads, focus, Subject, terminals or mode.
+        Require(!Passes(loader, offered, preloaded, true, Turn(loader, loader.AllowedCapabilities, preloaded))
+            && !Passes(loader, offered, preloaded, true, Turn(loader, [..offered, spreadsheetOnly], preloaded))
+            && !Passes(loader, offered, preloaded, true, Turn(loader, [..offered.Skip(1)], preloaded))
+            && !Passes(loader, offered, preloaded, true, Turn(loader, [..offered.Reverse()], preloaded))
+            && !Passes(loader, offered, preloaded, true, Turn(loader, offered, []))
+            && !Passes(loader, offered, preloaded, true, turn with { FocusDefinitionId = Guid.NewGuid() })
+            && !Passes(loader, offered, preloaded, true, turn with { SubjectUserId = Guid.NewGuid() })
+            && !Passes(loader, offered, preloaded, true, turn with { Terminals = [] })
+            && !Passes(loader, offered, preloaded, true, turn with { InteractionMode = AssistantInteractionMode.Manual }));
+        // A loader without the permission to load seals what the engine computes and still qualifies nothing.
+        var bare = QualificationChannelDocuments.Sealed(loader, registered, AssistantAttachmentKind.Document, [], []).Offered;
+        Require(!Passes(loader, bare, preloaded, true, Turn(loader, bare, preloaded)));
+        // A spreadsheet focused on the chosen form offers its own loading capabilities, never a document's.
+        var focused = QualificationChannelContexts.Create(person, person.UserId, "sheet-loader-focused", null, Guid.NewGuid());
+        AssistantCapabilityReference[] rows = [..QualificationChannelDocuments.SpreadsheetCapabilities];
+        Require(Passes(focused, rows, [], false, Turn(focused, rows, [])) && !Passes(focused, rows, [], true, Turn(focused, rows, [])));
     }
 
     public static void Channel_document_set_keeps_each_person_within_the_daily_quotas()

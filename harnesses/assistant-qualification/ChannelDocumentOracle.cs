@@ -44,16 +44,21 @@ internal static class ChannelDocumentOracle
         : observed.Capability == RowsProposal && observed.Payload is FormDocumentRowsProposal rows ? rows.Forms.Any(form => form.Rows.Count > 0) ? "rows" : "unknown"
         : "none";
 
-    // The sealed context is the harness's copy of the one the channel builds for the case (QualificationChannelDocuments.Context), with its focus.
-    public static IReadOnlyList<CheckEvidence> ContextChecks(AssistantChannelContext expected, TurnMetadata technical) =>
+    // The engine seals what it offers of the context the channel builds for the case (the harness's copy, QualificationChannelDocuments.Context):
+    // the runner computes it from the registered definitions and the person's permissions (QualificationChannelDocuments.Sealed), and the turn
+    // seals exactly that, preloads included; the terminals, the focus, the mode and the Subject stay as the channel built them. The loaders may
+    // load, so every loading capability of the file is offered.
+    public static IReadOnlyList<CheckEvidence> ContextChecks(AssistantChannelContext expected, AssistantCapabilityReference[] offered,
+        AssistantCapabilityReference[] preloaded, bool document, TurnMetadata technical) =>
     [
-        new("loading-context-matches-the-channel", technical.OfferedReferences.SequenceEqual(expected.AllowedCapabilities)
-            && technical.PreloadedReferences.SequenceEqual(expected.PreloadedCapabilities ?? [])
+        new("loading-context-matches-the-channel", technical.OfferedReferences.SequenceEqual(offered) && technical.PreloadedReferences.SequenceEqual(preloaded)
+            && (document ? QualificationChannelDocuments.DocumentCapabilities : QualificationChannelDocuments.SpreadsheetCapabilities).All(offered.Contains)
             && technical.Terminals.SequenceEqual(expected.AllowedTerminals) && technical.FocusDefinitionId == expected.FocusDefinitionId
             && technical.InteractionMode == AssistantInteractionMode.Assistant && technical.SubjectUserId == expected.SubjectUserId),
     ];
 
-    // context: the one sealed for the turn; without a proposal, only one that just loads the document gets an answer from the inbox.
+    // context: the one WhatsApp keeps (ContextJson) and submits, which the app decides with (the engine seals a filtered copy); without a proposal,
+    // only one that just loads the document gets an answer from the inbox.
     public static IReadOnlyList<CheckEvidence> EntryChecks(ChannelCase testCase, AssistantChannelContext context, AssistantObservedProposal? observed,
         StructuredDocumentReading reading, DocumentFixture printed, QualificationChannelFixture forms, Guid subject)
     {
@@ -90,8 +95,8 @@ internal static class ChannelDocumentOracle
         return checks;
     }
 
-    // context: the one sealed for the turn, with the chosen form as its focus; without a proposal, only one that just loads the spreadsheet
-    // reaches the list, and with its request «No lo reconoce» needs the rows' proposal with no form.
+    // context: the one WhatsApp keeps and submits (the app decides with it), with the chosen form as its focus; without a proposal, only one that
+    // just loads the spreadsheet reaches the list, and with its request «No lo reconoce» needs the rows' proposal with no form.
     public static IReadOnlyList<CheckEvidence> RowsChecks(ChannelCase testCase, AssistantChannelContext context, AssistantObservedProposal? observed,
         StructuredSpreadsheet sheet, QualificationChannelFixture forms, Guid subject)
     {

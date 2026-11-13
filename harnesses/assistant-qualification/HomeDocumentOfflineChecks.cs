@@ -256,6 +256,14 @@ internal static class HomeDocumentOfflineChecks
         Require(Fails(receipt, Sampled(3, string.Join(' ', Enumerable.Repeat("Transferencia enviada", 9))), "samples-as-written"));
         // Separators may change, never a digit: the amount without its sign and the CBU in groups of four pass.
         Require(Passes(receipt, Sampled(1, "152.340,50")) && Passes(receipt, Sampled(3, "9020 0421 0000 3182 6405 74")));
+        // Each failure also names its rule: a changed digit is a number, a translation or an invented name a word, and a long sample its length.
+        var tooLong = string.Join(' ', Enumerable.Repeat("Transferencia enviada", 9));
+        Require(Fails(receipt, Sampled(1, "$ 152.340,51"), "samples-print-their-numbers") && !Fails(receipt, Sampled(1, "$ 152.340,51"), "samples-print-their-words")
+            && Fails(receipt, Sampled(2, "30-90000101-8"), "samples-print-their-numbers")
+            && Fails(receipt, Sampled(0, "November 3, 2026"), "samples-print-their-words") && !Fails(receipt, Sampled(0, "November 3, 2026"), "samples-print-their-numbers")
+            && Fails(receipt, Sampled(3, "Juan Pérez"), "samples-print-their-words") && !Fails(receipt, Sampled(3, "Juan Pérez"), "samples-within-length")
+            && Fails(receipt, Sampled(3, tooLong), "samples-within-length") && !Fails(receipt, Sampled(3, tooLong), "samples-print-their-words")
+            && !Fails(receipt, Sampled(3, tooLong), "samples-print-their-numbers"));
     }
 
     public static void Home_document_facts_need_one_question_of_their_type()
