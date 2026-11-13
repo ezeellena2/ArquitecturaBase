@@ -7,8 +7,9 @@ using ArquitecturaBase.Domain.Modules.WhatsApp;
 namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 
 // The owners' part of a tap on an authoring summary, outside any channel transaction: only the latest summary's buttons count,
-// «Cambiar algo» waits for the change, and «Crear» reads the operation again and lets its owner create it once. «Revisar
-// importación» (IA, Stage 2) reads it again too and answers with the link the owner builds, without creating anything.
+// «Cambiar algo» waits for the change, and «Crear» reads the operation again and lets its owner create it once, if the chat is still
+// in Assistant and linked to the same account at the same revision (H20; the transaction checks it again). «Revisar importación»
+// (IA, Stage 2) reads it again too and answers with the link the owner builds, without creating anything.
 internal sealed class WhatsAppAssistantAuthoringPolicy(IWhatsAppAssistantReader reader, IAssistantOperations operations,
     IStructuredAuthoringProposalChannel authoring, IPublicOrigin origin)
 {
@@ -33,6 +34,8 @@ internal sealed class WhatsAppAssistantAuthoringPolicy(IWhatsAppAssistantReader 
         if (review)
             return new(reference, WhatsAppAssistantAuthoringText.Review(authoring.Summarize(requestId, proposal, culture), culture, publicOrigin) ?? failed,
                 culture, null);
+        // Whoever has the phone after the number was unlinked does not create in the account's name: nothing is created or answered.
+        if (!await reader.ExistsCurrentLinkAsync(reference, ct)) return null;
         var created = await authoring.CreateAsync(new(requestId, context, proposal, provenance), ct);
         return new(reference, created.IsSuccess ? WhatsAppAssistantAuthoringText.Created(created.Value, culture, publicOrigin)
             : WhatsAppAssistantAuthoringText.Text("AuthoringNotCreated", culture), culture, null);

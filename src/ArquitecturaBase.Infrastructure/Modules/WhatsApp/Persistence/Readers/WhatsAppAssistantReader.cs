@@ -352,6 +352,9 @@ internal sealed class WhatsAppAssistantReader(ApplicationDbContext db,IOptions<W
             && row.SourceMessageId==ConversationInbound().Where(message=>message.ContactId==contact.Id)
                 .OrderByDescending(message=>message.InboundSequence).ThenByDescending(message=>message.Id).Select(message=>(Guid?)message.Id).FirstOrDefault()
          select row.Id).AnyAsync(ct);
+    public Task<bool> ExistsCurrentLinkAsync(WhatsAppAssistantReferenceRow reference,CancellationToken ct)=>
+        db.Set<WhatsAppContact>().AsNoTracking().AnyAsync(contact=>contact.Id==reference.ContactId && contact.Mode==WhatsAppConversationMode.Assistant
+            && contact.WaId!=null && contact.UserId==reference.SubjectUserId && contact.LinkRevision==reference.LinkRevision,ct);
     // A spreadsheet's rejection (its fixed text names its own request as the proposal) is no offer.
     public Task<bool> ExistsUnresolvedOfferAsync(Guid contactId,Guid excludingRequestId,CancellationToken ct)=>
         db.Set<WhatsAppOutgoingMessage>().AsNoTracking().AnyAsync(outgoing=>outgoing.ContactId==contactId

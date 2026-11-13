@@ -228,6 +228,7 @@ internal sealed class WhatsAppAssistantInboundFixture : IAsyncDisposable
         }
         public Task<bool> ExistsPendingAsync(DateTime nowUtc,CancellationToken ct)=>Task.FromResult(host.HasPendingAssistant);
         public Task<WhatsAppAssistantReferenceRow?> FindByOutgoingAsync(Guid id,CancellationToken ct)=>throw new NotSupportedException();
+        public Task<bool> ExistsCurrentLinkAsync(WhatsAppAssistantReferenceRow reference,CancellationToken ct)=>throw new NotSupportedException();
         public Task<WhatsAppAssistantSuggestionPointerResponse?> FindCurrentAsync(Guid id,CancellationToken ct)=>throw new NotSupportedException();
         public Task<WhatsAppOutgoingMessageRow?> FindOutgoingAsync(Guid id,Guid requestId,CancellationToken ct)=>throw new NotSupportedException();
         public Task<WhatsAppAssistantReferenceRow?> FindAsync(Guid id,Guid requestId,CancellationToken ct)=>throw new NotSupportedException();

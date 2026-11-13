@@ -196,6 +196,35 @@ public sealed class WhatsAppAssistantAuthoringIntegrationTests(ApiFactory factor
         Assert.Equal(["Crear borrador", "Cambiar algo"], buttons.QuickReplies.Select(reply => reply.Title));
     }
 
+    // H20 with PostgreSQL: a tap on «Crear» after the number was unlinked creates nothing and is only marked.
+    [Fact]
+    public async Task Creating_after_the_number_was_unlinked_creates_nothing()
+    {
+        var owner = new WhatsAppAuthoringChannelDouble();
+        await using var host = await WhatsAppAssistantScenario.CreateAsync(factory, Ct, builder => builder.ConfigureTestServices(services =>
+            services.Replace(ServiceDescriptor.Singleton<IStructuredAuthoringProposalChannel>(owner))));
+        var contact = await host.ContactAsync(Ct, automatic: true);
+        var summary = await ReferenceAsync(host, (await SummaryAsync(host, contact.ContactId)).RequestId);
+        var buttons = await OutgoingAsync(host, summary.OutgoingId!.Value);
+        await host.InTransactionAsync(async services =>
+        {
+            (await services.GetRequiredService<ApplicationDbContext>().Set<WhatsAppContact>().SingleAsync(item => item.Id == contact.ContactId, Ct)).UnlinkUser();
+            return true;
+        }, Ct);
+
+        var create = await TapAsync(host, contact.ContactId, buttons.QuickReplies[0].Id);
+        await ProcessTapAsync(host, contact.ContactId);
+
+        Assert.Empty(owner.Created);
+        await host.ScopeAsync(async services =>
+        {
+            var db = services.GetRequiredService<ApplicationDbContext>();
+            Assert.False(await db.Set<WhatsAppAssistantRequest>().AsNoTracking().AnyAsync(row => row.ContactId == contact.ContactId && row.SourceMessageId == create, Ct));
+            Assert.NotNull(await db.Set<WhatsAppMessage>().AsNoTracking().Where(message => message.Id == create).Select(message => message.AssistantProcessedAtUtc).SingleAsync(Ct));
+            return true;
+        });
+    }
+
     private static async Task<WhatsAppAssistantWorkResponse> SummaryAsync(WhatsAppAssistantScenario host, Guid contactId,
         string capability = WhatsAppAuthoringChannelDouble.ProposeFormId, int version = 1)
     {

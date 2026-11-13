@@ -45,6 +45,13 @@ public interface IWhatsAppAssistantReader
     Task<bool> ExistsPendingAsync(DateTime nowUtc, CancellationToken ct);
     Task<int> CountOffersAsync(Guid contactId, DateTime fromUtc, DateTime toUtc, CancellationToken ct, Guid? excludingRequestId = null);
     Task<bool> ExistsCurrentContextAsync(WhatsAppAssistantReferenceRow reference, DateTime nowUtc, CancellationToken ct);
+
+    /// <summary>
+    /// Whether the reference's chat is still in Assistant, with its number and linked to its Subject at the reference's link
+    /// revision. An effect outside the channel that a tap asks for («Crear» lets its owner create a draft) checks it first, as a
+    /// case's buttons do, and the transaction checks it again (H20).
+    /// </summary>
+    Task<bool> ExistsCurrentLinkAsync(WhatsAppAssistantReferenceRow reference, CancellationToken ct);
     Task<bool> ExistsUnresolvedOfferAsync(Guid contactId, Guid excludingRequestId, CancellationToken ct);
     Task<bool> ExistsDeclinedAsync(Guid contactId, Guid definitionId, CancellationToken ct);
     Task<IReadOnlyList<Guid>> ListDeclinedDefinitionIdsAsync(Guid subjectUserId, IReadOnlyCollection<Guid> definitionIds, CancellationToken ct);

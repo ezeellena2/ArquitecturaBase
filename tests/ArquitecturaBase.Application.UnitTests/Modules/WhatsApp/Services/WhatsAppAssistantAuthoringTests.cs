@@ -128,6 +128,22 @@ public sealed class WhatsAppAssistantAuthoringTests
         Assert.Empty(arranged.Owner.Created);
     }
 
+    // H20: whoever has the phone after the number was unlinked cannot create the draft in the account's name: the link is compared
+    // before the owner creates, as a case's buttons do, and the transaction repeats it.
+    [Fact]
+    public async Task Creating_after_the_number_was_unlinked_creates_nothing_and_answers_nothing()
+    {
+        var arranged = await SummarizedAsync();
+        arranged.Host.Context.Contact.UnlinkUser();
+        arranged.Host.Reader.CurrentLink = false;
+        Tap(arranged, WhatsAppAssistantAuthoringReplyCodec.Create);
+
+        Assert.True((await arranged.Taps.ProcessTapAsync(arranged.Host.Context.Contact.Id, Ct)).IsSuccess);
+
+        Assert.Empty(arranged.Owner.Created);
+        Assert.DoesNotContain(arranged.Host.Requests.Rows, row => row.SourceMessageId == arranged.Host.Reader.AuthoringTap!.Id);
+    }
+
     [Fact]
     public async Task An_owner_refusal_replies_that_it_could_not_be_built()
     {

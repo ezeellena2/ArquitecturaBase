@@ -15,6 +15,9 @@ internal sealed class FakeWhatsAppAssistantReader : IWhatsAppAssistantReader
     public List<StructuredFormOfferReference> Offers { get; } = [];
     public bool CurrentContext {get;set;}=true;
     public Task<bool> ExistsCurrentContextAsync(WhatsAppAssistantReferenceRow reference,DateTime nowUtc,CancellationToken ct)=>Task.FromResult(CurrentContext);
+    // H20: whether the reference's chat is still in Assistant, with its number and linked to its Subject at its link revision.
+    public bool CurrentLink {get;set;}=true;
+    public Task<bool> ExistsCurrentLinkAsync(WhatsAppAssistantReferenceRow reference,CancellationToken ct)=>Task.FromResult(CurrentLink);
     public bool CurrentIsVisible { get; set; } = true;
     public WhatsAppAssistantReferenceRow? Reference { get; set; }
     public WhatsAppAssistantChoiceRow? Choice {get;set;}
