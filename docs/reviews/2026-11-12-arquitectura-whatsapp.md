@@ -832,9 +832,10 @@ en [WhatsApp](../features/whatsapp.md)) se actualizan con su arreglo; H16 suma u
 - **Antes de la prueba integral:** B1 a B4 y H1 quedaron arreglados el 2026-11-12.
 - **Tus decisiones:** tomadas el 2026-11-13 ([decisiones](#decisiones-del-2026-11-13)).
 - **El plan de «Hoy»:** H2 a H22 (menos H14 y el ensayo de H15, que ya están anotados), H25, H33 y la
-  prioridad de H31, con esas decisiones. Son arreglos chicos o medianos para un solo plan. Los otros de
-  varias copias (H23, H24 y H26) van antes de sumar réplicas; el resto de gran escala, cuando haya
-  volumen real que medir.
+  prioridad de H31, con esas decisiones, en siete etapas del
+  [plan de WhatsApp](../plans/2026-10-01-bandeja-whatsapp.md#arreglos-de-la-revisión-de-arquitectura).
+  Los otros de varias copias (H23, H24 y H26) van antes de sumar réplicas; el resto de gran escala,
+  cuando haya volumen real que medir.
 - **Lo que ya estaba anotado:**
   - H14 y el ensayo de H15, en [verificación y producción](../plans/verificacion-y-produccion.md);
   - H30, en el [panel de conversaciones](../plans/2026-10-04-panel-conversaciones-inicio.md);

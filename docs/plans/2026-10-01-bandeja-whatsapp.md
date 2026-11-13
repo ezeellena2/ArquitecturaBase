@@ -1,6 +1,7 @@
 # WhatsApp después del chat: entregas pendientes
 
-Estado: **propuesta**. Alcance compartido: `ArquitecturaBase` y `../ArquitecturaBaseFront`.
+Estado: **propuesta**, salvo los [arreglos de la revisión de arquitectura](#arreglos-de-la-revisión-de-arquitectura),
+decididos el 2026-11-13. Alcance compartido: `ArquitecturaBase` y `../ArquitecturaBaseFront`.
 
 El chat de atención, sus permisos y la separación entre acceso y atención están implementados:
 las reglas están en [WhatsApp](../features/whatsapp.md#chat-de-atención--2026-10-02) y en el
@@ -100,3 +101,211 @@ separación de user-secrets, base, prefijo Redis, anillo e `InstallationId` de I
 
 Cierre: la guía escrita y ejecutada en una segunda instalación, con evidencia fechada de qué se
 comprobó con servicios reales y qué con dobles. Clonar el código no acredita una instalación.
+
+## Arreglos de la revisión de arquitectura
+
+Decididos el 2026-11-13, sin programar. Salen de la
+[revisión de arquitectura de WhatsApp](../reviews/2026-11-12-arquitectura-whatsapp.md), que tiene el
+escenario, la evidencia (archivo y línea en `9c0eb048`) y el esfuerzo de cada hallazgo, y de las
+[decisiones del usuario](../reviews/2026-11-12-arquitectura-whatsapp.md#decisiones-del-2026-11-13),
+que no se vuelven a preguntar.
+
+- **Alcance:** los hallazgos de «Hoy» (H2 a H22), menos H14 y el ensayo de H15, que ya están en
+  [verificación y producción](verificacion-y-produccion.md); además H25, H33 y la prioridad de H31.
+- **Fuera:** H23, H24 y H26 van antes de pasar de una réplica; el resto de gran escala, cuando haya
+  volumen real que medir.
+- **Al día:** el 2026-11-13 se contrastó lo que cambió desde `9c0eb048` y ningún hallazgo quedó
+  arreglado. W3 ya cifra y hace vencer lo que la persona comparte, pero no la ubicación del envío ni
+  su texto (H13). Cada tarea vuelve a leer sus archivos antes de empezar.
+
+**Cómo se trabaja.** Cada tarea sigue [validar un cambio](../guides/validar-un-cambio.md): el test en
+rojo primero, una revisión adversarial antes del commit y las suites rápidas del área. Cada etapa
+cierra con la suite completa con Docker y, si tocó el front, con sus controles. Además:
+
+- una regla escrita que cambia se corrige con su arreglo, no antes, en [WhatsApp](../features/whatsapp.md),
+  en sus [servicios](../features/whatsapp-servicios.md) y en los `AGENTS.md` que la repiten. La cadena
+  de guías de `Infrastructure/Modules/WhatsApp/Persistence` está casi en el tope de
+  `InstructionChainSizeTests`: lo que se cambie en esa cadena no puede crecer;
+- un error nuevo se declara en Domain, con su código estable y su texto en `Errors.resx` y `.en.resx`;
+- un cambio de un contrato publicado es aditivo, un campo o una ruta nuevos, y se revisa con el front
+  ([ADR 0005](../decisions/0005-sin-versionado-de-api-por-ahora.md));
+- los logs van con `[LoggerMessage]`, sin cuerpos, códigos de ingreso, tokens ni teléfonos enteros.
+
+Las etapas van en orden. Dentro de una etapa, las tareas pueden ir en cualquier orden, salvo las
+dependencias que se nombran.
+
+### Etapa 1: lo trivial y la documentación
+
+1. **H17. La paridad de todos los `.resx`.** Un test que recorra cada `.resx` de Application con su
+   `.en.resx`, en lugar de las listas a mano que hoy dejan afuera `AssistantTexts`,
+   `AssistantTerminalTexts` y `AssistantAgentValidation`. Trivial.
+2. **H22. La guía para quitar WhatsApp.** Sumar `WhatsAppAssistantAgents` y unificar la cuenta en
+   diez tablas: hoy dice «ocho» en dos lugares y «nueve» en otros dos. La exportación también guarda
+   la configuración del asistente. Trivial.
+3. **H15. El plazo del respaldo.** Sólo documentación en [desplegar a Azure](../deploy/azure-setup.md):
+   fijar el plazo de restauración a un momento dado (7 días por defecto, hasta 35) y la redundancia al
+   crear el servidor, y levantar una copia restaurada con `WhatsApp:ProcessOutgoingInBackground=false`
+   y `WhatsApp:ProcessFlowsInBackground=false` hasta revisar lo pendiente. La guía avisa que la cola de
+   acceso no tiene interruptor y manda igual lo que quedó pendiente.
+4. **H18. El idioma y la región de quien recibe.** La ayuda decimal en español (`DecimalHelp` de
+   `FlowTexts.resx`) pide punto, cuando en es-AR va coma y el formulario ya la acepta. Como el texto
+   queda sellado en el JSON de cada Flow, el nuevo va en una revisión nueva del perfil de Flows, con su
+   fixture, y los Flows ya publicados conservan el de hoy. Además, el id del botón de las invitaciones
+   nuevas lleva el idioma, para que el texto con el enlace salga en el de la invitación sin leer cuentas
+   ([ADR 0011](../decisions/0011-separacion-acceso-y-atencion-whatsapp.md)); los botones ya enviados se
+   siguen aceptando. Chico.
+
+### Etapa 2: acceso y abuso
+
+5. **H4. «Probar» con los permisos de quien prueba.** El contexto de «Probar» exige también
+   `whatsapp.read` para leer el historial real; sin lectura de registros, la prueba no devuelve motivo
+   ni campos, y el correo se busca y se muestra sólo con `users.read`. El front muestra la prueba sin
+   esos datos. Test: buscar por correo con un rol sin `users.read`. Chico.
+6. **H20. «Crear» revisa el vínculo antes de crear.** Antes de crear el borrador se comparan el modo, la
+   cuenta y la revisión del vínculo, y se repite en la transacción, como en los botones de los casos.
+   Test: un toque en «Crear» después de desvincular el número. Chico.
+7. **H10. El cupo de códigos.** Un tope diario por cuenta para los códigos del perfil (las filas ya
+   guardan quién los pidió) y, con el registro abierto, un tope diario por IP en el pedido anónimo.
+   El pedido que cruza el 80 % del cupo diario deja un aviso en el log. Chico.
+
+### Etapa 3: el chat no se traba y sale en orden
+
+8. **H2. Revisa cualquiera con `whatsapp.send`.** Una ruta nueva revisa un envío incierto por el id de
+   la salida, porque el `requestId` es de cada operador. Va con su test y en
+   `ExplicitRouteInventoryTests`, y la de hoy, que recibe el `requestId` de quien envió, se queda. Quién
+   y cuándo se guardan en `DeliveryReviewedByUserId` y `DeliveryReviewedAtUtc`, como en la revisión de
+   los avisos; hoy `Review()` no los llena. Revisar no reenvía ni afirma que llegó, y la consulta por
+   `requestId` sigue siendo de quien envió. El front ofrece «Revisar» en los inciertos de cualquier
+   operador y muestra quién lo revisó. Test: dos operadores con un envío incierto en el mismo chat.
+   Chico.
+9. **H6. Las acciones de una respuesta salen en orden.** Cada acción suma su lugar, en milisegundos, a
+   `RequestedAtUtc`, como ya hace `SkipRequestedAt`. Test con PostgreSQL: una respuesta de tres
+   acciones sale en orden. Con el mismo andamiaje va una prueba pendiente de B1, fuera de los
+   hallazgos: despachar de punta a punta una pregunta de caso de un botón y otra de tres. Chico.
+10. **H12 y la prioridad de H31: cómo se elige el próximo chat.** Van juntos porque cambian la misma
+    consulta (`GetNextPendingAsync`):
+    - se saltean los contactos con una salida en curso o en su espera de 6 s, con la hora del último
+      envío guardada en PostgreSQL. Es la misma condición que pide H23: queda programada acá, y su
+      prueba con dos hosts va con varias copias;
+    - entre los chats que pueden salir, primero los que tienen una respuesta pendiente (del operador,
+      del asistente o la confirmación de un toque) y después los avisos de las reglas. Avisos y
+      confirmaciones comparten el origen `FormAction`, así que la prioridad lleva su propia marca en la
+      fila, con su índice;
+    - dentro de un chat se mantiene el orden.
+
+    Tests con PostgreSQL: con un aviso a un rol grande en la fila, la respuesta de un operador a otro
+    chat sale antes; dos mensajes a una misma persona no frenan a las demás. La FIFO única figura dos
+    veces en [WhatsApp](../features/whatsapp.md) y en los `AGENTS.md` del módulo en Application e
+    Infrastructure. Mediano.
+11. **H8. Apagar sin cortar envíos.** Con el apagado pedido, no se toma trabajo nuevo, la llamada en
+    curso termina con su plazo y se confirma con un token acotado en todos los orígenes, como ya hacen
+    los Flows. Lo que esperaba su turno para escribirle a esa persona vuelve a pendiente sin llamar a
+    Meta: para el chat manual es una transición nueva del dominio, que después usa la tarea 13. Un
+    código que esperaba su reintento no queda tomado por la copia que se apaga. Test: apagar la copia
+    en medio de un envío manual. Chico.
+
+### Etapa 4: Meta y Redis fallan sin perder mensajes
+
+12. **H7. «No salió» o «no se sabe».** El cliente de mensajes separa los dos casos:
+    - «No salió»: 131056, 130429, circuito abierto o límite, error de conexión, DNS o TLS, y un 5xx con
+      un código que Meta manda reintentar (131000, 131016). Se reintenta con espera.
+    - «No se sabe»: timeout, respuesta cortada o 5xx sin código. Queda incierto.
+
+    En la cola de acceso, un timeout ya no se manda hasta tres veces, y una invitación incierta deja de
+    figurar como fallida: es un estado nuevo, revisado con el front, que el administrador ve antes de
+    reenviar. En la salida durable, una columna de próximo intento, que entra en la consulta de la
+    tarea 10: un chat cuya primera salida espera su próximo intento no sale, para no romper el orden.
+    Cambian los tests que fijan lo de hoy (`Network_failures_and_timeouts_are_transient` y
+    `Transient_failures_wait_the_configured_delay_before_retrying`). Chico en la cola de acceso;
+    mediano en la salida durable.
+13. **H3. Con Redis caído no se pierden mensajes.** Si no se llamó al proveedor, la salida vuelve a
+    pendiente con una espera, con la columna de la tarea 12. El dominio ya sabe devolver la reserva de
+    avisos y asistente; la del chat manual la suma la tarea 11. La cola de acceso reintenta el turno en
+    vez de descartar el mensaje. Test: apagar Redis con mensajes en cola. Mediano; depende de las tareas
+    11 y 12.
+14. **H11. Lo recibido con archivos aguanta una caída larga.** La ventana de reintentos pasa de unos 15
+    minutos a un día en los cuatro casos: respuestas de Flow, audios, planillas y documentos recibidos.
+    Después de la escala de hoy, la espera sigue creciendo hasta una hora entre intentos, para no volver
+    a Meta en cada vuelta del procesador; la respuesta cifrada ya queda guardada. La regla de WhatsApp
+    pasa a decir un día. El cliente de medios separa 401 y 403; el aviso a `/health` es de la tarea 16.
+    Chico.
+15. **H33. «Enviar» un formulario no consulta a Meta.** La consulta de los números de la cuenta sale del
+    pedido y de la propuesta (`WhatsAppFormSendPolicy`), que comparan el manifiesto con la cuenta
+    configurada sin llamar a Meta; queda sólo la del worker, que está documentada. Chico.
+16. **H9. Un envío fallido dice por qué.**
+    - Un código estable por tipo de rechazo, declarado en Domain y traducido, con su campo en el DTO y
+      su texto en el front, que hoy no usa el `errorCode` de los estados.
+    - El log lleva el id del envío, el código de error de Meta y la excepción, también cuando algo
+      explota antes de llamar.
+    - Todos los clientes de Meta avisan a `/health` (`WhatsAppHealth`) cuando el token falla, y una
+      llamada que vuelve a andar lo limpia; hoy sólo lo limpia un envío aceptado.
+    - Métricas de pendientes, inciertos y fallidos con su `AddMeter`, como la IA.
+
+    Chico a mediano. Va después de las tareas 12 y 14: los códigos dependen de qué se reintenta, y el
+    aviso de medios, de la separación de 401 y 403.
+
+### Etapa 5: el asistente y los toques
+
+17. **H5. Una falla del motor deriva.** Cuando un pedido automático termina bloqueado, porque el motor
+    falló o venció sin respuesta, se deriva con `WhatsAppAssistantHandoffPolicy` en la misma unidad, con
+    un motivo y un código estable nuevos («El asistente no pudo responder»). Sale el mensaje fijo de
+    derivar si el agente lo tiene y la ventana de 24 horas sigue abierta. Lo pendiente o reintentable no
+    deriva. Test: el motor falla en modo Asistente y el chat queda en Atención manual, con la marca y el
+    mensaje. Chico a mediano.
+18. **H21. El mismo toque, la misma respuesta.** El puerto `IStructuredRecordActionReplySink` recibe el
+    id del toque. El dueño lo guarda con su decisión y, ante el mismo toque, contesta Applied con el
+    mismo texto; un segundo toque, con otro id, se sigue ignorando. Cada confirmación se encola apenas
+    vuelve su dueño, sin esperar a los otros toques de la vuelta. Test: un corte entre la decisión del
+    dueño y la confirmación. Chico.
+
+### Etapa 6: datos y privacidad
+
+19. **H13. La ubicación y el texto del envío vencen.** La ubicación que guarda el envío y su texto
+    (`FlowBody`) se vacían al capturar o al vencer, por lotes dentro de una unidad (la sesión es
+    auditable y no admite `ExecuteUpdate`), como ya hace W3 con lo compartido. Al vencer se espera a que
+    no quede una respuesta pendiente (el predicado de `WhatsAppFlowSessionQuery`), porque la captura lee
+    esa ubicación. Se conserva el estado de la ubicación. Chico.
+20. **H16. El contenido del chat se cifra, con su ADR.**
+    - **El ADR:** la amenaza es una copia de la base, como en el
+      [ADR 0015](../decisions/0015-colas-transaccionales-cifradas.md). Las claves de Data Protection
+      viven en la base, pero un despliegue exige protegerlas con un certificado externo; por eso una
+      copia sola no alcanza para leer. El ADR enumera las columnas.
+    - **Qué se cifra:** todo el contenido, en todas las tablas del módulo. Por ejemplo, los cuerpos de
+      mensajes y salidas (textos y transcripciones), las planillas, las ubicaciones, los contactos
+      compartidos, lo leído de documentos, los títulos de los botones, lo que guarda el asistente y el
+      texto del envío. El nombre y el número de cada chat quedan en claro para la bandeja.
+    - **Lo que cambia:** las consultas que preguntan si el cuerpo está vacío pasan a guardar `null` en
+      lugar de vacío. La migración cambia el tipo de esas columnas y deja vacío lo que ya hay, como la
+      retención a los 90 días: los chats y sus mensajes siguen, sin el texto. Hoy sólo hay datos de
+      desarrollo (decidido el 2026-11-13), y el traspaso al multitenant avisa que una instalación con
+      chats reales necesita convertirlos.
+    - **Tests:** lo guardado no se lee en SQL, el chat se lee igual, y la retención y la búsqueda siguen
+      andando.
+
+    Mediano. Va después de la tarea 19, que define cuándo se vacían la ubicación y el texto del envío.
+21. **H19. Quién cambió el modo, y una traza.** Se guarda quién cambió el modo y cuándo, también al
+    derivar; no sirve `IAuditable`, porque cada mensaje entrante modifica el contacto. Además, la fila
+    de cada mensaje y de cada salida guarda el contexto de traza, y un `ActivitySource` del módulo une
+    el webhook, el worker y Meta. Chico la auditoría; mediano la traza.
+
+### Etapa 7: despliegues sin romper
+
+22. **H25. La versión vieja deja lo que no entiende.** Una copia deja para otra, con un tope, lo que su
+    versión no sabe leer:
+    - una respuesta de Flow de un formulario que no entiende queda pendiente, sin cerrar la sesión;
+    - un formulario que otra versión dejó listo con otro perfil de Flows no se publica ni queda
+      fallido: espera a una copia que lo sepa compilar;
+    - una salida de un tipo desconocido vuelve a pendiente, en lugar de salir como texto o quedar
+      fallida;
+    - un mensaje de un tipo nuevo no rompe el historial;
+    - una entrega de acceso que no se decodifica no se borra.
+
+    Además, la [guía de despliegue](../guides/despliegue.md) y la de [migraciones](../guides/migracion.md)
+    piden escribir cada campo o valor nuevo un despliegue después del que ya sabe leerlo. Test: una fila
+    con un tipo o un campo que la versión no conoce. Chico a mediano.
+
+**Cierre.** Cada regla que cambió queda en [WhatsApp](../features/whatsapp.md), la de H16 también en su
+ADR, y la revisión anota qué commit arregló cada hallazgo. Las decisiones van a las fuentes de las
+[premisas](../architecture/premisas-de-la-plantilla.md) y la sección se retira con la
+[auditoría documental](../guides/auditar-documentacion.md). Lo programado entra en el próximo traspaso
+al multitenant, que avisa el paso de datos de H16.
