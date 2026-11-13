@@ -93,11 +93,29 @@ internal sealed class WhatsAppChatService(
                 if (await repository.GetForUpdateAsync(contactId, ct) is null) { return Result.Failure(WhatsAppChatErrors.NotFound); }
                 var operation = await repository.GetByRequestAsync(contactId, Actor, requestId, ct);
                 if (operation is null) { return Result.Failure(WhatsAppChatErrors.NotFound); }
-                if (operation.State == WhatsAppOutgoingMessageState.Reviewed) { return Result.Success(); }
-                if (operation.State != WhatsAppOutgoingMessageState.Uncertain) { return Result.Failure(WhatsAppChatErrors.SendPending); }
-                operation.Review();
-                return Result.Success();
+                return Review(operation);
             }, CommitPolicy.OnSuccess, cancellationToken));
+
+    public Task<Result> ReviewUncertainOutgoingAsync(Guid contactId, Guid outgoingId, CancellationToken cancellationToken) =>
+        OperationLog.RunAsync<Result>(logger, "ReviewWhatsAppOutgoing", () =>
+            unitOfWork.ExecuteInTransactionAsync(async ct =>
+            {
+                // The contact before its outgoing row, as sending and the worker take them.
+                if (await repository.GetForUpdateAsync(contactId, ct) is null) { return Result.Failure(WhatsAppChatErrors.NotFound); }
+                var operation = await repository.GetOutgoingAsync(outgoingId, ct);
+                // Only a send of the chat blocks it; a notice and the assistant have their own way.
+                if (operation is null || operation.ContactId != contactId || operation.Origin != WhatsAppMessageOrigin.Conversation)
+                    return Result.Failure(WhatsAppChatErrors.NotFound);
+                return Review(operation);
+            }, CommitPolicy.OnSuccess, cancellationToken));
+
+    private Result Review(WhatsAppOutgoingMessage operation)
+    {
+        if (operation.State == WhatsAppOutgoingMessageState.Reviewed) { return Result.Success(); }
+        if (operation.State != WhatsAppOutgoingMessageState.Uncertain) { return Result.Failure(WhatsAppChatErrors.SendPending); }
+        operation.Review(Actor, timeProvider.GetUtcNow().UtcDateTime);
+        return Result.Success();
+    }
 
     internal static bool IsReplyWindowOpen(WhatsAppContact contact, DateTime nowUtc) =>
         IsReplyWindowOpen(contact.LastInboundAtUtc, nowUtc);

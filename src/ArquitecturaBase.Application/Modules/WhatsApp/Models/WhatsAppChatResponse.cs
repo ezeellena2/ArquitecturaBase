@@ -93,7 +93,10 @@ public sealed record WhatsAppOutgoingMessageResponse(
     // W3 (task 24): as in the messages, «Prellenado con» of a queued resend.
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<WhatsAppSharedPrefillResponse>? Prefill = null,
     // VC1-A (task 29): as in the messages, «Por qué lo propuso» of a queued notice of the loads.
-    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] WhatsAppSpreadsheetRowsResponse? SpreadsheetRows = null);
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] WhatsAppSpreadsheetRowsResponse? SpreadsheetRows = null,
+    // H2: who marked an uncertain send as reviewed, and when; only a reviewed one has it.
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] Guid? ReviewedByUserId = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] DateTime? ReviewedAtUtc = null);
 
 /// <summary>A line of the chat for what the assistant decided without a message, with its why.</summary>
 public sealed record WhatsAppAssistantEventResponse(Guid Id, DateTime AtUtc, WhatsAppAssistantReplyResponse Reply);

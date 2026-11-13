@@ -134,6 +134,18 @@ public sealed class WhatsAppAssistantOutgoingTests
         Assert.False(outgoing.MarkAssistantMessageEffect(second,Now.AddMinutes(1)));
     }
 
+    // H2: the review of the chat is only for a send of the chat; the assistant's uncertainty only admits a late acceptance.
+    [Fact]
+    public void An_uncertain_assistant_send_is_not_reviewed_as_a_send_of_the_chat()
+    {
+        var outgoing = Text(); var reservation = outgoing.ReserveAssistant(Now);
+        Assert.True(outgoing.MarkAssistantMessageEffect(reservation,Now));
+        outgoing.RecoverExpiredAssistant();
+        Assert.Throws<InvalidOperationException>(() => outgoing.Review(Guid.NewGuid(),Now));
+        Assert.Equal(WhatsAppOutgoingMessageState.Uncertain,outgoing.State);
+        Assert.Null(outgoing.DeliveryReviewedByUserId);
+    }
+
     [Fact]
     public void An_expired_post_is_uncertain_and_only_a_late_acceptance_can_confirm_it()
     {

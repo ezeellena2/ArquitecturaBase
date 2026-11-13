@@ -71,4 +71,13 @@ public sealed class WhatsAppChatsController(IWhatsAppChatService service, ISyste
     [ProducesProblem(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Review([FromRoute] Guid id, [FromRoute] Guid requestId, CancellationToken cancellationToken) =>
         (await service.ReviewUncertainAsync(id, requestId, cancellationToken)).ToActionResult(this);
+
+    /// <summary>H2: any operator who can send reviews an uncertain send of the chat by its id; who and when stay.</summary>
+    [HttpPost("{id:guid}/outgoing-messages/{outgoingId:guid}/review")]
+    [HasPermission(WhatsAppPermissions.Send)]
+    [EnableRateLimiting(WhatsAppApiRegistration.ChatWriteRateLimitPolicy)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesProblem(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> ReviewOutgoing([FromRoute] Guid id, [FromRoute] Guid outgoingId, CancellationToken cancellationToken) =>
+        (await service.ReviewUncertainOutgoingAsync(id, outgoingId, cancellationToken)).ToActionResult(this);
 }

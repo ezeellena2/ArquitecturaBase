@@ -175,10 +175,19 @@ public sealed partial class WhatsAppOutgoingMessage : Entity
         return true;
     }
 
-    public void Review()
+    /// <summary>
+    /// A person looked at an uncertain send and the conversation goes on (H2: any operator who can send). It does not say that it
+    /// arrived nor sends it again; who and when stay, as in the review of a notice.
+    /// </summary>
+    public void Review(Guid reviewedByUserId, DateTime reviewedAtUtc)
     {
+        if (reviewedByUserId == Guid.Empty) throw new ArgumentException("A review is made by someone.", nameof(reviewedByUserId));
+        // A notice has its own review, with its decision, and the assistant's uncertainty only admits a late acceptance.
+        if (Origin != WhatsAppMessageOrigin.Conversation) throw new InvalidOperationException("Only a send of the chat is reviewed this way.");
         RequireState(WhatsAppOutgoingMessageState.Uncertain);
         State = WhatsAppOutgoingMessageState.Reviewed;
+        DeliveryReviewedByUserId = reviewedByUserId;
+        DeliveryReviewedAtUtc = reviewedAtUtc;
     }
 
     /// <summary>

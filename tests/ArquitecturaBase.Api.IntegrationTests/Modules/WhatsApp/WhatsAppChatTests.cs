@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Application.Interfaces.Persistence;
+using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Domain.ValueObjects;
@@ -125,7 +126,7 @@ public sealed partial class WhatsAppChatTests(ApiFactory factory)
     }
 
     [Fact]
-    public async Task Expired_sending_becomes_uncertain_and_requires_its_operator_to_review_it()
+    public async Task Expired_sending_becomes_uncertain_and_reviewing_it_by_request_does_not_send_it_again()
     {
         var (contactId, _) = await ReceiveAsync();
         var actor = await OperatorAsync(WhatsAppPermissions.Read, WhatsAppPermissions.Send, WhatsAppPermissions.ConfigureAssistant);
@@ -142,19 +143,96 @@ public sealed partial class WhatsAppChatTests(ApiFactory factory)
             JsonContent.Create(new { requestId, body = "Respuesta sin confirmar" }), userId: actor.ToString());
         Assert.Equal(HttpStatusCode.Accepted, sent.StatusCode);
         var id = (await sent.ReadJsonAsync()).GetProperty("id").GetGuid();
-        await factory.ExecuteScopeAsync(services => services.GetRequiredService<IWhatsAppChatDispatchService>().ReserveAsync(Ct));
+        // The send started and its outcome never came back, without taking another test's row from the shared queue.
         await factory.InTransactionAsync(async services =>
         {
             var db = services.GetRequiredService<Infrastructure.Persistence.ApplicationDbContext>();
-            await db.Database.ExecuteSqlInterpolatedAsync($"""UPDATE "WhatsAppOutgoingMessages" SET "StartedAtUtc" = {Now.AddMinutes(-3)} WHERE "Id" = {id}""", Ct);
+            await db.Database.ExecuteSqlInterpolatedAsync($"""UPDATE "WhatsAppOutgoingMessages" SET "State" = 'Sending', "StartedAtUtc" = {Now.AddMinutes(-3)} WHERE "Id" = {id}""", Ct);
         });
         await factory.ExecuteScopeAsync(services => services.GetRequiredService<IWhatsAppChatDispatchService>().RecoverExpiredAsync(Ct));
         using var outcome = await client.SendAsync(HttpMethod.Get, $"/api/whatsapp/chats/{contactId}/outgoing/{requestId}", userId: actor.ToString());
         Assert.Equal("Uncertain", (await outcome.ReadJsonAsync()).GetProperty("state").GetString());
         using var review = await client.SendAsync(HttpMethod.Post, $"/api/whatsapp/chats/{contactId}/outgoing/{requestId}/review", userId: actor.ToString());
         Assert.Equal(HttpStatusCode.NoContent, review.StatusCode);
-        var reserved = await factory.ExecuteScopeAsync(async services => (await services.GetRequiredService<IWhatsAppChatDispatchService>().ReserveAsync(Ct)).Value.Operation);
-        Assert.Null(reserved);
+        // Reviewing does not queue it again: it stays reviewed, out of the queue.
+        Assert.Equal(WhatsAppOutgoingMessageState.Reviewed, await factory.ExecuteDbContextAsync(db =>
+            db.Set<WhatsAppOutgoingMessage>().Where(item => item.Id == id).Select(item => item.State).SingleAsync(Ct)));
+    }
+
+    // H2: Ana's send is uncertain and she ends her shift; Beto, who can send too, reviews it by its id and the chat goes on. The row
+    // keeps who and when, the thread shows it, and the query by requestId is still Ana's.
+    [Fact]
+    public async Task Another_operator_who_can_send_reviews_an_uncertain_send_by_its_id()
+    {
+        var (contactId, _) = await ReceiveAsync();
+        var ana = await OperatorAsync(WhatsAppPermissions.Read, WhatsAppPermissions.Send, WhatsAppPermissions.ConfigureAssistant);
+        var beto = await OperatorAsync(WhatsAppPermissions.Read, WhatsAppPermissions.Send);
+        var reader = await OperatorAsync(WhatsAppPermissions.Read);
+        using var client = factory.CreateClient();
+        using (var mode = await client.SendAsync(HttpMethod.Put, $"/api/whatsapp/chats/{contactId}/mode",
+            JsonContent.Create(new { mode = "Manual", expectedRevision = 0 }), userId: ana.ToString())) Assert.Equal(HttpStatusCode.OK, mode.StatusCode);
+        var requestId = Guid.NewGuid();
+        using var sent = await client.SendAsync(HttpMethod.Post, $"/api/whatsapp/chats/{contactId}/messages",
+            JsonContent.Create(new { requestId, body = "Respuesta de Ana sin confirmar" }), userId: ana.ToString());
+        var id = (await sent.ReadJsonAsync()).GetProperty("id").GetGuid();
+        // Ana's send started and the outcome never came back, without taking another test's row from the shared queue.
+        await factory.InTransactionAsync(async services =>
+        {
+            var db = services.GetRequiredService<Infrastructure.Persistence.ApplicationDbContext>();
+            await db.Database.ExecuteSqlInterpolatedAsync($"""UPDATE "WhatsAppOutgoingMessages" SET "State" = 'Sending', "StartedAtUtc" = {Now.AddMinutes(-3)} WHERE "Id" = {id}""", Ct);
+        });
+        await factory.ExecuteScopeAsync(services => services.GetRequiredService<IWhatsAppChatDispatchService>().RecoverExpiredAsync(Ct));
+        using var blocked = await client.SendAsync(HttpMethod.Post, $"/api/whatsapp/chats/{contactId}/messages",
+            JsonContent.Create(new { requestId = Guid.NewGuid(), body = "Beto quiere responder" }), userId: beto.ToString());
+        Assert.Equal(HttpStatusCode.Conflict, blocked.StatusCode);
+
+        using var byRequest = await client.SendAsync(HttpMethod.Post, $"/api/whatsapp/chats/{contactId}/outgoing/{requestId}/review", userId: beto.ToString());
+        using var forbidden = await client.SendAsync(HttpMethod.Post, $"/api/whatsapp/chats/{contactId}/outgoing-messages/{id}/review", userId: reader.ToString());
+        using var elsewhere = await client.SendAsync(HttpMethod.Post, $"/api/whatsapp/chats/{Guid.NewGuid()}/outgoing-messages/{id}/review", userId: beto.ToString());
+        // Neither another real chat nor a send of this chat that is not an operator's: the assistant's has its own way.
+        var (otherContactId, _) = await ReceiveAsync();
+        using var otherChat = await client.SendAsync(HttpMethod.Post, $"/api/whatsapp/chats/{otherContactId}/outgoing-messages/{id}/review", userId: beto.ToString());
+        var assistantId = await UncertainAssistantSendAsync(contactId, ana);
+        using var assistant = await client.SendAsync(HttpMethod.Post, $"/api/whatsapp/chats/{contactId}/outgoing-messages/{assistantId}/review", userId: beto.ToString());
+        using var review = await client.SendAsync(HttpMethod.Post, $"/api/whatsapp/chats/{contactId}/outgoing-messages/{id}/review", userId: beto.ToString());
+        using var again = await client.SendAsync(HttpMethod.Post, $"/api/whatsapp/chats/{contactId}/outgoing-messages/{id}/review", userId: beto.ToString());
+
+        Assert.Equal(HttpStatusCode.NotFound, byRequest.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, forbidden.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, elsewhere.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, otherChat.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, assistant.StatusCode);
+        Assert.Equal(WhatsAppOutgoingMessageState.Uncertain, await factory.ExecuteDbContextAsync(db =>
+            db.Set<WhatsAppOutgoingMessage>().Where(item => item.Id == assistantId).Select(item => item.State).SingleAsync(Ct)));
+        Assert.Equal(HttpStatusCode.NoContent, review.StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, again.StatusCode);
+        using var thread = await client.SendAsync(HttpMethod.Get, $"/api/whatsapp/chats/{contactId}/messages", userId: ana.ToString());
+        var reviewed = (await thread.ReadJsonAsync()).GetProperty("outgoing").EnumerateArray().Single(item => item.GetProperty("id").GetGuid() == id);
+        Assert.Equal(("Reviewed", beto), (reviewed.GetProperty("state").GetString(), reviewed.GetProperty("reviewedByUserId").GetGuid()));
+        Assert.Equal(Now, reviewed.GetProperty("reviewedAtUtc").GetDateTime(), TimeSpan.FromMinutes(5));
+        using var outcome = await client.SendAsync(HttpMethod.Get, $"/api/whatsapp/chats/{contactId}/outgoing/{requestId}", userId: beto.ToString());
+        Assert.Equal(HttpStatusCode.NotFound, outcome.StatusCode);
+        // The chat goes on: nothing blocks a reply anymore (without queuing one that another test's worker would take).
+        Assert.False(await factory.ExecuteScopeAsync(services =>
+            services.GetRequiredService<IWhatsAppConversationRepository>().ExistsUnresolvedOutgoingAsync(contactId, Ct)));
+    }
+
+    // An assistant send of the chat that stayed uncertain, by the domain's own steps (H2).
+    private async Task<Guid> UncertainAssistantSendAsync(Guid contactId, Guid subjectUserId)
+    {
+        var id = Guid.Empty;
+        await factory.InTransactionAsync(async services =>
+        {
+            var db = services.GetRequiredService<Infrastructure.Persistence.ApplicationDbContext>();
+            var contact = await db.Set<WhatsAppContact>().SingleAsync(item => item.Id == contactId, Ct);
+            var outgoing = WhatsAppOutgoingMessage.CreateAssistantText(subjectUserId, contact.Id, Guid.NewGuid(), "Respuesta del asistente sin confirmar",
+                Now, contact.LinkRevision, contact.WaId!, contact.ModeRevision);
+            Assert.True(outgoing.MarkAssistantMessageEffect(outgoing.ReserveAssistant(Now), Now));
+            outgoing.RecoverExpiredAssistant();
+            db.Add(outgoing);
+            id = outgoing.Id;
+        });
+        return id;
     }
 
     [Fact]

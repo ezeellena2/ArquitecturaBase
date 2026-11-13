@@ -97,7 +97,7 @@ public sealed class WhatsAppFormActionOutgoingTests
         Assert.Equal(WhatsAppOutgoingMessageState.Accepted,outgoing.State);Assert.Equal("wamid.late",outgoing.WaMessageId);
         Assert.False(outgoing.RetryFormAction(2,Now));Assert.False(outgoing.DeliveryReviewWasSent);
         var manual=WhatsAppOutgoingMessage.Create(Guid.NewGuid(),Guid.NewGuid(),Guid.NewGuid(),"Manual",Now);manual.Start(Now);manual.MarkUncertain();
-        Assert.False(manual.ReviewFormAction(1,false,Guid.NewGuid(),Now));manual.Review();
+        Assert.False(manual.ReviewFormAction(1,false,Guid.NewGuid(),Now));manual.Review(Guid.NewGuid(),Now);
         Assert.Null(manual.DeliveryReviewWasSent);
         var failed=WhatsAppOutgoingMessage.Create(Guid.NewGuid(),Guid.NewGuid(),Guid.NewGuid(),"Manual",Now);failed.Fail();
         Assert.Throws<InvalidOperationException>(()=>failed.Accept("wamid.invalid-late"));

@@ -99,7 +99,13 @@ internal sealed class WhatsAppChatQueryService(IWhatsAppChatReader reader, IWhat
             // uncertain or reviewed) says what it was queued with.
             Prefill: presentation.Prefill(row.SharedPrefill, canReadRecords,
                 row.State is WhatsAppOutgoingMessageState.Pending or WhatsAppOutgoingMessageState.Sending ? null : row.RequestedAtUtc),
-            SpreadsheetRows: WhatsAppSpreadsheetRowsCodec.Read(row.SpreadsheetRowsJson, formNames ?? new Dictionary<Guid, string>()));
+            SpreadsheetRows: WhatsAppSpreadsheetRowsCodec.Read(row.SpreadsheetRowsJson, formNames ?? new Dictionary<Guid, string>()),
+            // H2: who reviewed a send of the chat; a notice's reviewer belongs to the forms' review, not to the thread.
+            ReviewedByUserId: IsReviewedSend(row) ? row.ReviewedByUserId : null,
+            ReviewedAtUtc: IsReviewedSend(row) ? row.ReviewedAtUtc : null);
+
+    private static bool IsReviewedSend(WhatsAppOutgoingMessageRow row) =>
+        row.Origin == WhatsAppMessageOrigin.Conversation && row.State == WhatsAppOutgoingMessageState.Reviewed;
 
     // W3: the card of a shared contact while its content lives. One whose phones do not read, or that the front's closed contract would
     // refuse, is left out like a why that does not read: one bad row does not stop the thread.

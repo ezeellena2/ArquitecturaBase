@@ -84,6 +84,9 @@ public sealed record WhatsAppOutgoingMessageRow(
     public WhatsAppSharedPrefillRow? SharedPrefill { get; init; }
     /// <summary>VC1-A (task 29): «Por qué lo propuso» of the queued notice of the loads of a spreadsheet.</summary>
     public string? SpreadsheetRowsJson { get; init; }
+    /// <summary>H2: who marked an uncertain send as reviewed, and when.</summary>
+    public Guid? ReviewedByUserId { get; init; }
+    public DateTime? ReviewedAtUtc { get; init; }
 }
 public sealed record WhatsAppThreadRow(
     WhatsAppChatRow Contact, IReadOnlyList<WhatsAppMessageRow> Messages,

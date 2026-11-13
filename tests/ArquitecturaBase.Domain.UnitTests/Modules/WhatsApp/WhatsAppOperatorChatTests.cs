@@ -62,4 +62,26 @@ public sealed class WhatsAppOperatorChatTests
         Assert.Throws<InvalidOperationException>(() => operation.Fail());
         Assert.Equal(WhatsAppOutgoingMessageState.Accepted, operation.State);
     }
+
+    // H2: any operator who can send reviews an uncertain send, and the row keeps who and when, as the review of a notice does;
+    // reviewing does not say it arrived nor sends it again.
+    [Fact]
+    public void Reviewing_an_uncertain_send_keeps_who_and_when_without_saying_it_arrived()
+    {
+        var operation = WhatsAppOutgoingMessage.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "Hola", Now);
+        operation.Start(Now);
+        operation.MarkUncertain();
+        var reviewer = Guid.NewGuid();
+
+        operation.Review(reviewer, Now.AddMinutes(5));
+
+        Assert.Equal((WhatsAppOutgoingMessageState.Reviewed, (Guid?)reviewer, (DateTime?)Now.AddMinutes(5)),
+            (operation.State, operation.DeliveryReviewedByUserId, operation.DeliveryReviewedAtUtc));
+        Assert.Null(operation.DeliveryReviewWasSent);
+        Assert.Null(operation.WaMessageId);
+        var other = WhatsAppOutgoingMessage.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "Hola", Now);
+        other.Start(Now);
+        other.MarkUncertain();
+        Assert.Throws<ArgumentException>(() => other.Review(Guid.Empty, Now));
+    }
 }
