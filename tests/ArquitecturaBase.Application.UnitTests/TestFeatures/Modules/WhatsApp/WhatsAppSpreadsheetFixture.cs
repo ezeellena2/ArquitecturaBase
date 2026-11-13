@@ -150,7 +150,7 @@ internal sealed class WhatsAppSpreadsheetFixture : IWhatsAppSpreadsheetReader, I
         public Task<bool> ExistsUnresolvedOutgoingAsync(Guid contactId, CancellationToken ct) => throw new NotSupportedException();
         public Task<IReadOnlyList<WhatsAppAssistantRequest>> ListPendingAutomaticRequestsAsync(Guid contactId, CancellationToken ct) => throw new NotSupportedException();
         public Task<bool> ExistsStartedAssistantMessageAsync(Guid contactId, CancellationToken ct) => throw new NotSupportedException();
-        public Task<WhatsAppOutgoingMessage?> GetNextPendingAsync(CancellationToken ct) => throw new NotSupportedException();
+        public Task<WhatsAppOutgoingMessage?> GetNextPendingAsync(DateTime waitingSinceUtc, CancellationToken ct) => throw new NotSupportedException();
         public Task<IReadOnlyList<WhatsAppOutgoingMessage>> ListExpiredSendingAsync(DateTime cutoffUtc, CancellationToken ct) => throw new NotSupportedException();
         public void Add(WhatsAppReadState state) => throw new NotSupportedException();
         public void Add(WhatsAppOutgoingMessage outgoing) => host.Host.Conversation.Add(outgoing);

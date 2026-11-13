@@ -34,6 +34,7 @@ Es el detalle de la guía [`src/ArquitecturaBase.Application/Modules/WhatsApp/Se
 `WhatsAppChatDispatchService`, `WhatsAppOutgoingSendGuard`, `WhatsAppManualSendGuard`, `WhatsAppDeliveryService`.
 
 - Reservar revalida con `WhatsAppOutgoingSendGuard` según el origen: operador real con Read+Send, destinatario de avisos, o modo, vínculo, contexto y contenido del asistente. Un Sending vencido queda Uncertain; avisos y asistente vuelven a Pending solo si no marcaron el inicio del efecto.
+- El próximo chat (H12 y H31): `GetNextPendingAsync(ahora − WhatsAppDispatchPacing.RecipientWait)` no toma un contacto con una salida Sending, deja para después a los que están en su espera de 6 s (`LastDispatchAtUtc`, que `CompleteAsync` anota al cerrar cada envío; gana la última escrita) y ordena por `IsNotice` y después por hora e Id: lo que contesta a alguien antes que los avisos. Si sólo quedan contactos en su espera, toma uno y el worker espera la lease de Redis, que usa los mismos 6 s. Del contacto elegido sale siempre su salida más vieja, y esa consulta vuelve a mirar que no tenga una Sending, ya con el contacto tomado: la elección pudo ver el contacto antes del commit de otra copia. `CreateFormAction` marca el aviso; `CreateFormActionReply`, la confirmación de un toque, no.
 - Avisos y asistente marcan el efecto en otra UoW, revalidando justo antes del POST; completar exige la misma reserva.
 - `WhatsAppDeliveryService` registra lo que salió por `IWhatsAppSendQueue` después del HTTP y bloquea el wamid antes de leer: el receipt puede llegar primero.
 

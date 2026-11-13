@@ -65,6 +65,21 @@ public sealed class WhatsAppFormActionDispatchTests
         Assert.Empty(host.Messages.Added);
     }
 
+    // H12: reserving asks for the people out of their six-second wait, and a finished send starts the person's wait.
+    [Fact]
+    public async Task Reserving_asks_for_people_out_of_their_wait_and_a_finished_send_starts_it()
+    {
+        var host = new Host(); var work = (await host.Service.ReserveAsync(Ct)).Value.Operation!;
+        Assert.Equal(Now.UtcDateTime.AddSeconds(-6), host.Repository.WaitingSinceUtc);
+        Assert.Null(host.Repository.Contact.LastDispatchAtUtc);
+        Assert.True((await host.Service.MarkFormActionMessageEffectAsync(work.ContactId, work.Id, work.DispatchReservationId!.Value, Ct)).Value);
+        host.Clock.Advance(TimeSpan.FromSeconds(2));
+
+        Assert.True((await host.Service.CompleteAsync(work.ContactId, work.Id, "wamid.sent", false, Ct, work.DispatchReservationId)).IsSuccess);
+
+        Assert.Equal(Now.UtcDateTime.AddSeconds(2), host.Repository.Contact.LastDispatchAtUtc);
+    }
+
     [Fact]
     public async Task A_confirmed_document_keeps_its_system_origin_and_cannot_be_sent_again()
     {
@@ -119,7 +134,12 @@ public sealed class WhatsAppFormActionDispatchTests
         public Task<WhatsAppOutgoingMessage?> GetOutgoingAsync(Guid id, CancellationToken ct) => Task.FromResult<WhatsAppOutgoingMessage?>(Outgoing.Id == id ? Outgoing : null);
         public Task<IReadOnlyList<WhatsAppAssistantRequest>> ListPendingAutomaticRequestsAsync(Guid contactId, CancellationToken ct) => Task.FromResult<IReadOnlyList<WhatsAppAssistantRequest>>([]);
         public Task<bool> ExistsStartedAssistantMessageAsync(Guid contactId, CancellationToken ct) => Task.FromResult(false);
-        public Task<WhatsAppOutgoingMessage?> GetNextPendingAsync(CancellationToken ct) => Task.FromResult<WhatsAppOutgoingMessage?>(Outgoing.State == WhatsAppOutgoingMessageState.Pending ? Outgoing : null);
+        public DateTime? WaitingSinceUtc { get; private set; }
+        public Task<WhatsAppOutgoingMessage?> GetNextPendingAsync(DateTime waitingSinceUtc, CancellationToken ct)
+        {
+            WaitingSinceUtc = waitingSinceUtc;
+            return Task.FromResult<WhatsAppOutgoingMessage?>(Outgoing.State == WhatsAppOutgoingMessageState.Pending ? Outgoing : null);
+        }
         public Task<IReadOnlyList<WhatsAppOutgoingMessage>> ListExpiredSendingAsync(DateTime cutoff, CancellationToken ct) => Task.FromResult<IReadOnlyList<WhatsAppOutgoingMessage>>(Outgoing.State == WhatsAppOutgoingMessageState.Sending && Outgoing.StartedAtUtc < cutoff ? [Outgoing] : []);
         public Task<WhatsAppOutgoingMessage?> GetByRequestAsync(Guid contact, Guid actor, Guid request, CancellationToken ct) => throw new NotSupportedException();
         public Task<bool> ExistsUnresolvedOutgoingAsync(Guid contact, CancellationToken ct) => throw new NotSupportedException();

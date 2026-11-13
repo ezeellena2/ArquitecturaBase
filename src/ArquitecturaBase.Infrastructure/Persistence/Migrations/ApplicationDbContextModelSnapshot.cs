@@ -3661,6 +3661,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
+                    b.Property<DateTime?>("LastDispatchAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTime>("LastInboundAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -4527,6 +4530,11 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasColumnType("boolean")
                         .HasDefaultValue(false);
 
+                    b.Property<bool>("IsNotice")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
                     b.Property<bool>("IsResend")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
@@ -4604,7 +4612,7 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.HasIndex("ContactId", "OperatorUserId", "RequestId")
                         .IsUnique();
 
-                    b.HasIndex("State", "RequestedAtUtc", "Id");
+                    b.HasIndex("State", "IsNotice", "RequestedAtUtc", "Id");
 
                     b.ToTable("WhatsAppOutgoingMessages", (string)null);
                 });

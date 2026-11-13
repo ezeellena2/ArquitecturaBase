@@ -93,7 +93,7 @@ public sealed class WhatsAppChatServiceTests
         public Task<WhatsAppOutgoingMessage?> GetOutgoingAsync(Guid id, CancellationToken ct) => throw new NotSupportedException();
         public Task<IReadOnlyList<WhatsAppAssistantRequest>> ListPendingAutomaticRequestsAsync(Guid contactId, CancellationToken ct) => Task.FromResult<IReadOnlyList<WhatsAppAssistantRequest>>([]);
         public Task<bool> ExistsStartedAssistantMessageAsync(Guid contactId, CancellationToken ct) => Task.FromResult(false);
-        public Task<WhatsAppOutgoingMessage?> GetNextPendingAsync(CancellationToken ct) => throw new NotSupportedException();
+        public Task<WhatsAppOutgoingMessage?> GetNextPendingAsync(DateTime waitingSinceUtc, CancellationToken ct) => throw new NotSupportedException();
         public Task<IReadOnlyList<WhatsAppOutgoingMessage>> ListExpiredSendingAsync(DateTime cutoff, CancellationToken ct) => throw new NotSupportedException();
     }
 

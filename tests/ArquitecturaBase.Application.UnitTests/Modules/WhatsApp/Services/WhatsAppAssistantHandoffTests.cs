@@ -136,7 +136,7 @@ public sealed class WhatsAppAssistantHandoffTests
 
         public Task<WhatsAppContact?> GetForUpdateAsync(Guid id, CancellationToken ct) => Task.FromResult<WhatsAppContact?>(Contact.Id == id ? Contact : null);
         public Task<WhatsAppOutgoingMessage?> GetOutgoingAsync(Guid id, CancellationToken ct) => Task.FromResult(Added.SingleOrDefault(item => item.Id == id));
-        public Task<WhatsAppOutgoingMessage?> GetNextPendingAsync(CancellationToken ct) =>
+        public Task<WhatsAppOutgoingMessage?> GetNextPendingAsync(DateTime waitingSinceUtc, CancellationToken ct) =>
             Task.FromResult(Added.FirstOrDefault(item => item.State == WhatsAppOutgoingMessageState.Pending));
         public Task<IReadOnlyList<WhatsAppOutgoingMessage>> ListExpiredSendingAsync(DateTime cutoff, CancellationToken ct) => Task.FromResult<IReadOnlyList<WhatsAppOutgoingMessage>>([]);
         public Task<IReadOnlyList<WhatsAppAssistantRequest>> ListPendingAutomaticRequestsAsync(Guid contactId, CancellationToken ct) => Task.FromResult<IReadOnlyList<WhatsAppAssistantRequest>>([]);

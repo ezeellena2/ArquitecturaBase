@@ -1,11 +1,12 @@
 using System.Security.Cryptography;
 using System.Text;
+using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Domain.ValueObjects;
 using ArquitecturaBase.Infrastructure.Caching;
 
 namespace ArquitecturaBase.Infrastructure.Modules.WhatsApp;
 
-/// <summary>All senders share a renewable recipient lease and a six-second cooldown across hosts.</summary>
+/// <summary>All senders share a renewable recipient lease and a six-second cooldown across hosts (<see cref="WhatsAppDispatchPacing"/>).</summary>
 internal sealed class WhatsAppDispatchCoordinator(RedisCache cache, TimeProvider timeProvider) : IWhatsAppDispatchCoordinator
 {
     private static readonly TimeSpan LeaseDuration = TimeSpan.FromSeconds(60);
@@ -73,7 +74,7 @@ internal sealed class WhatsAppDispatchCoordinator(RedisCache cache, TimeProvider
             await renewal;
             try
             {
-                await cache.ReleaseExclusiveLeaseAsync(key, owner, TimeSpan.FromSeconds(6), CancellationToken.None);
+                await cache.ReleaseExclusiveLeaseAsync(key, owner, WhatsAppDispatchPacing.RecipientWait, CancellationToken.None);
             }
             finally
             {

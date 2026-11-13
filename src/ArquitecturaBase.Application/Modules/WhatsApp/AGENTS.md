@@ -22,7 +22,7 @@ Antes de tocar esto, leé [`docs/features/whatsapp.md`](../../../../docs/feature
 
 - El núcleo no nombra clases del módulo y el módulo no referencia BusinessForms ni IA: usa puertos de `Application/Interfaces/Channels` con IDs opacos. `WhatsAppApplicationRegistration` registra todo en su bloque, aun con WhatsApp apagado; las rutas condicionales cortan lo que exige transporte.
 - Un mensaje entrante no crea cuentas, no confirma teléfonos, no vincula contactos ni emite enlaces. El acceso sale solo de botones reconocidos, nunca de frases.
-- Códigos, invitaciones y orientación se encolan con `IWhatsAppSendQueue` en la transacción del llamador. Texto manual, Flows, avisos y asistente comparten una única salida durable FIFO. No agregues otra cola ni prioridad.
+- Códigos, invitaciones y orientación se encolan con `IWhatsAppSendQueue` en la transacción del llamador. Texto manual, Flows, avisos y asistente comparten una única salida durable: lo que contesta a alguien va antes que los avisos de las reglas, quien está en su espera de 6 s después de los demás y dentro de un chat se mantiene el orden (H12, H31). No agregues otra cola.
 - Responder sin plantilla exige la ventana de 24 h (`WhatsAppChatService.IsReplyWindowOpen`) al aceptar y otra vez al despachar.
 - Un método público que escribe abre una sola UoW. Policies, guards, issuers y codecs no guardan. Meta, medios, almacenamiento, IA y las escrituras de otro dueño (capturas, propuestas) van fuera del límite.
 - Los límites de reserva, efecto y cierre usan `OperationLog`; los logs usan `[LoggerMessage]` y nunca llevan teléfonos enteros, BSUID, códigos, tokens, enlaces, cuerpos ni valores de respuestas.

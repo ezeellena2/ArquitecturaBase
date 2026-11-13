@@ -34,7 +34,7 @@ internal sealed class WhatsAppFormActionReplyPolicy(WhatsAppFormActionPolicy act
         if (contact is null || contact.Id != tap.ContactId || !WhatsAppOutgoingMessage.IsVisibleBody(text) || text.Length > WhatsAppMessage.MaxBodyLength
             || await actions.ValidateAsync(contact, reply.RecipientUserId, null, cancellationToken) is not null)
             return null;
-        return WhatsAppOutgoingMessage.CreateFormAction(reply.RecipientUserId, contact.Id, tap.Id, text, nowUtc, null, contact.LinkRevision, contact.WaId);
+        return WhatsAppOutgoingMessage.CreateFormActionReply(reply.RecipientUserId, contact.Id, tap.Id, text, nowUtc, contact.LinkRevision, contact.WaId);
     }
 
     private static IEnumerable<string> SentIds(WhatsAppFormActionReplyTargetRow target) =>

@@ -17,7 +17,8 @@ internal sealed class WhatsAppChatDispatchService(
         OperationLog.RunAsync<Result<WhatsAppDispatchReservationResponse>>(logger, "ReserveWhatsAppOutgoing", () =>
         unitOfWork.ExecuteInTransactionAsync(async ct =>
         {
-            var outgoing = await repository.GetNextPendingAsync(ct);
+            var nowUtc = timeProvider.GetUtcNow().UtcDateTime;
+            var outgoing = await repository.GetNextPendingAsync(nowUtc - WhatsAppDispatchPacing.RecipientWait, ct);
             if (outgoing is null) { return Result.Success(new WhatsAppDispatchReservationResponse(false, null)); }
             var contact = await repository.GetForUpdateAsync(outgoing.ContactId, ct);
             var phone = await sends.ValidateAsync(contact, outgoing, ct);
@@ -26,7 +27,6 @@ internal sealed class WhatsAppChatDispatchService(
                 outgoing.Fail(phone.Error.Code);
                 return Result.Success(new WhatsAppDispatchReservationResponse(true, null));
             }
-            var nowUtc = timeProvider.GetUtcNow().UtcDateTime;
             Guid? reservation = outgoing.Origin switch
             {
                 WhatsAppMessageOrigin.FormAction => outgoing.ReserveFormAction(nowUtc),
@@ -95,6 +95,8 @@ internal sealed class WhatsAppChatDispatchService(
                 if (uncertain) { operation.MarkUncertain(); } else { operation.Fail(failureCode); }
             }
 
+            // H12: this person's six seconds count from here, and meanwhile the next chat is chosen without waiting for them.
+            contact.RecordDispatch(timeProvider.GetUtcNow().UtcDateTime);
             return Result.Success();
         }, CommitPolicy.OnSuccess, cancellationToken));
 

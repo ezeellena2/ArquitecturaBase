@@ -54,23 +54,42 @@ internal sealed class WhatsAppConversationRepository(ApplicationDbContext dbCont
             && item.MessageEffectStartedAtUtc.HasValue, cancellationToken);
     }
 
-    public async Task<WhatsAppOutgoingMessage?> GetNextPendingAsync(CancellationToken cancellationToken)
+    public async Task<WhatsAppOutgoingMessage?> GetNextPendingAsync(DateTime waitingSinceUtc, CancellationToken cancellationToken)
     {
         dbContext.RequireTransaction();
         // Preparation can be recovered to Pending. Always take the contact before its outgoing row,
         // matching Mark/Complete even if a stale worker is still waiting for the destination lease.
-        var contacts = await dbContext.Set<WhatsAppContact>()
+        // H12: a contact with a send in progress is not taken, so a second copy cannot overtake it (H23); one in its wait goes after
+        // the others and, alone, waits its turn at the lease. H31: what answers someone goes before a rule's notice.
+        var contact = (await dbContext.Set<WhatsAppContact>()
             .FromSql($"""
                 SELECT c.* FROM "WhatsAppContacts" AS c
                 JOIN "WhatsAppOutgoingMessages" AS o ON o."ContactId" = c."Id"
-                WHERE o."State" = 'Pending'
-                ORDER BY o."RequestedAtUtc", o."Id"
+                WHERE o."State" = 'Pending' AND (c."LastDispatchAtUtc" IS NULL OR c."LastDispatchAtUtc" <= {waitingSinceUtc})
+                  AND NOT EXISTS (SELECT 1 FROM "WhatsAppOutgoingMessages" AS s WHERE s."ContactId" = c."Id" AND s."State" = 'Sending')
+                ORDER BY o."IsNotice", o."RequestedAtUtc", o."Id"
                 LIMIT 1 FOR NO KEY UPDATE OF c SKIP LOCKED
                 """)
-            .ToListAsync(cancellationToken);
-        if (contacts.SingleOrDefault() is not { } contact) return null;
+            .ToListAsync(cancellationToken)).SingleOrDefault()
+            ?? (await dbContext.Set<WhatsAppContact>()
+            .FromSql($"""
+                SELECT c.* FROM "WhatsAppContacts" AS c
+                JOIN "WhatsAppOutgoingMessages" AS o ON o."ContactId" = c."Id"
+                WHERE o."State" = 'Pending' AND c."LastDispatchAtUtc" > {waitingSinceUtc}
+                  AND NOT EXISTS (SELECT 1 FROM "WhatsAppOutgoingMessages" AS s WHERE s."ContactId" = c."Id" AND s."State" = 'Sending')
+                ORDER BY o."IsNotice", o."RequestedAtUtc", o."Id"
+                LIMIT 1 FOR NO KEY UPDATE OF c SKIP LOCKED
+                """)
+            .ToListAsync(cancellationToken)).SingleOrDefault();
+        if (contact is null) return null;
+        // Within a chat the order stays, whatever the mark. The send in progress is asked again here, with the contact already
+        // locked and a fresh snapshot: the choice above may have seen the contact before another copy's reservation committed.
         var rows = await dbContext.Set<WhatsAppOutgoingMessage>()
-            .FromSql($"""SELECT * FROM "WhatsAppOutgoingMessages" WHERE "ContactId" = {contact.Id} AND "State" = 'Pending' ORDER BY "RequestedAtUtc", "Id" LIMIT 1 FOR NO KEY UPDATE SKIP LOCKED""")
+            .FromSql($"""
+                SELECT * FROM "WhatsAppOutgoingMessages" WHERE "ContactId" = {contact.Id} AND "State" = 'Pending'
+                  AND NOT EXISTS (SELECT 1 FROM "WhatsAppOutgoingMessages" AS s WHERE s."ContactId" = {contact.Id} AND s."State" = 'Sending')
+                ORDER BY "RequestedAtUtc", "Id" LIMIT 1 FOR NO KEY UPDATE SKIP LOCKED
+                """)
             .ToListAsync(cancellationToken);
         return rows.SingleOrDefault();
     }

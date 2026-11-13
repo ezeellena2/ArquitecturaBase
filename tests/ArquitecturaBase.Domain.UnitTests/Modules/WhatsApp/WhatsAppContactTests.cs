@@ -10,6 +10,20 @@ public sealed class WhatsAppContactTests
 
     private static readonly DateTime Now = new(2026, 9, 23, 12, 0, 0, DateTimeKind.Utc);
 
+    // H12: the contact keeps when its last send finished, where its six-second wait starts; the last one written wins, so a copy
+    // with its clock ahead does not leave the person waiting until the clocks meet.
+    [Fact]
+    public void A_finished_send_starts_the_wait_and_the_last_one_written_wins()
+    {
+        var contact = WhatsAppContact.Create(WaId, Bsuid, "Ana", Now);
+        Assert.Null(contact.LastDispatchAtUtc);
+
+        contact.RecordDispatch(Now.AddSeconds(10));
+        contact.RecordDispatch(Now.AddSeconds(5));
+
+        Assert.Equal(Now.AddSeconds(5), contact.LastDispatchAtUtc);
+    }
+
     [Fact]
     public void New_contacts_start_in_manual_mode()
     {

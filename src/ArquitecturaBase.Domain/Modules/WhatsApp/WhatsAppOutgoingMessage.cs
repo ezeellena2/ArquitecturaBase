@@ -42,6 +42,13 @@ public sealed partial class WhatsAppOutgoingMessage : Entity
     /// <summary>W3: a resend of the form of a send, with what was shared over its prefill (task 23); false in every outgoing of before.</summary>
     public bool IsResend { get; private set; }
 
+    /// <summary>
+    /// H31: a rule's notice, which goes after what answers someone (an operator's or the assistant's reply, a tap's confirmation) when
+    /// the next chat is chosen; within a chat the order stays. A confirmation shares the FormAction origin, so the mark is its own;
+    /// false in every outgoing of before.
+    /// </summary>
+    public bool IsNotice { get; private set; }
+
     /// <summary>W3: a queued Flow of a send is its resend, with what was shared over its prefill; marked once, before it goes out.</summary>
     public void MarkResend()
     {
@@ -212,7 +219,7 @@ public sealed partial class WhatsAppOutgoingMessage : Entity
             throw new ArgumentException("The form action document metadata is invalid.", nameof(document));
         var outgoing = new WhatsAppOutgoingMessage
         {
-            Origin = WhatsAppMessageOrigin.FormAction, RecipientUserId = recipientUserId, ContactId = contactId,
+            Origin = WhatsAppMessageOrigin.FormAction, IsNotice = true, RecipientUserId = recipientUserId, ContactId = contactId,
             RecipientLinkRevision = contactLinkRevision, RecipientWaId = recipientWaId, RequestId = runId,
             Body = body, RequestedAtUtc = nowUtc, Kind = document is null ? WhatsAppOutgoingMessageKind.Text : WhatsAppOutgoingMessageKind.Document,
             DocumentStorageKey = document?.StorageKey, DocumentName = document?.Name, DocumentContentType = document?.ContentType,
@@ -225,6 +232,18 @@ public sealed partial class WhatsAppOutgoingMessage : Entity
                 .Select(choice => new WhatsAppOutgoingQuickReply(WhatsAppFormActionChoice.ReplyId(outgoing.Id, choice.Id), choice.Title, 0)).ToArray());
         }
 
+        return outgoing;
+    }
+
+    /// <summary>
+    /// The text an owner hands back for an applied tap: a form action text with the tap as its request and the checks of any notice,
+    /// but it answers the person, so it goes before the rules' notices when the next chat is chosen (H31).
+    /// </summary>
+    public static WhatsAppOutgoingMessage CreateFormActionReply(Guid recipientUserId, Guid contactId, Guid tapId, string body, DateTime nowUtc,
+        long contactLinkRevision, string? recipientWaId)
+    {
+        var outgoing = CreateFormAction(recipientUserId, contactId, tapId, body, nowUtc, null, contactLinkRevision, recipientWaId);
+        outgoing.IsNotice = false;
         return outgoing;
     }
 

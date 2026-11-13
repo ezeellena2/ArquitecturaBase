@@ -53,6 +53,8 @@ public sealed class WhatsAppFormActionReplyServiceTests
         var answer = Assert.Single(host.Actions.Outgoing);
         Assert.Equal((WhatsAppMessageOrigin.FormAction, WhatsAppOutgoingMessageKind.Text, WhatsAppOutgoingMessageState.Pending, "No la emitimos. FAC-000012 quedó anulada."),
             (answer.Origin, answer.Kind, answer.State, answer.Body));
+        // H31: the confirmation answers the person, so it goes before the rules' notices when the next chat is chosen.
+        Assert.False(answer.IsNotice);
         Assert.Equal((tap.Id, host.User.Id, host.ContactId, host.Contact.LinkRevision, WaId),
             (answer.RequestId, answer.RecipientUserId!.Value, answer.ContactId, answer.RecipientLinkRevision!.Value, answer.RecipientWaId));
         Assert.All(host.First.Calls, call => Assert.False(call.InTransaction));

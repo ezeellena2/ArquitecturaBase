@@ -7,6 +7,21 @@ public sealed class WhatsAppFormActionOutgoingTests
     private static readonly DateTime Now = new(2026, 10, 16, 12, 0, 0, DateTimeKind.Utc);
     private static WhatsAppOutgoingMessage Create() => WhatsAppOutgoingMessage.CreateFormAction(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "Visita aprobada", Now);
 
+    // H31: a rule's notice carries its own mark; a tap's confirmation shares its origin but answers the person, like an operator's or
+    // the assistant's reply.
+    [Fact]
+    public void Only_a_rules_notice_is_marked_as_a_notice()
+    {
+        var recipient = Guid.NewGuid(); var contact = Guid.NewGuid();
+        var reply = WhatsAppOutgoingMessage.CreateFormActionReply(recipient, contact, Guid.NewGuid(), "Listo, quedó aprobada.", Now, 2, "5493413654813");
+
+        Assert.True(Create().IsNotice);
+        Assert.Equal((WhatsAppMessageOrigin.FormAction, WhatsAppOutgoingMessageKind.Text, false, (long?)2, (string?)"5493413654813"),
+            (reply.Origin, reply.Kind, reply.IsNotice, reply.RecipientLinkRevision, reply.RecipientWaId));
+        Assert.False(WhatsAppOutgoingMessage.Create(Guid.NewGuid(), contact, Guid.NewGuid(), "Hola", Now).IsNotice);
+        Assert.False(WhatsAppOutgoingMessage.CreateAssistantText(recipient, contact, Guid.NewGuid(), "Abrimos de 9 a 18.", Now, 0, "5493413654813", 0).IsNotice);
+    }
+
     [Fact]
     public void A_system_action_fixes_its_recipient_and_run_without_an_operator()
     {

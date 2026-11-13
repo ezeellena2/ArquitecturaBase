@@ -4,7 +4,7 @@ namespace ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.WhatsApp;
 
 internal static class WhatsAppRoleQueueMeasurement
 {
-    public static async Task WriteAsync(int roleRecipients, IReadOnlyList<double> dispatchMilliseconds, CancellationToken ct)
+    public static async Task WriteAsync(int roleRecipients, int manualDispatchPosition, IReadOnlyList<double> dispatchMilliseconds, CancellationToken ct)
     {
         var path = Environment.GetEnvironmentVariable("WHATSAPP_ROLE_QUEUE_MEASUREMENT_OUTPUT");
         if (string.IsNullOrWhiteSpace(path)) return;
@@ -12,7 +12,7 @@ internal static class WhatsAppRoleQueueMeasurement
         var evidence = new
         {
             roleRecipients,
-            manualDispatchPosition = dispatchMilliseconds.Count,
+            manualDispatchPosition,
             dispatchMilliseconds,
             backgroundPollingDelayIncluded = false,
             provider = "controlled; no Meta network",

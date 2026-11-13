@@ -204,7 +204,7 @@ Todas del **2026-10-21**. Las de ráfagas y acciones se tomaron con lo recomenda
 3. Arma el pedido, en orden estable: perfil, casos, formularios candidatos (los publicados, activos y completos que esa cuenta puede completar, con su «Cuándo lo ofrece»), historial de 24 h de esa conversación y lo que ya hizo.
 4. El modelo elige el caso y propone hasta 3 acciones, en orden.
 5. El sistema valida cada acción por separado: permisos, cupo de ofrecimientos, cupo de respuestas, y largo, idioma, enlaces y datos de contacto de un texto. Un texto que no pasa no sale y deriva.
-6. Encola en la salida durable, que hoy es una única FIFO, y guarda el porqué de cada acción.
+6. Encola en la salida durable, donde lo que contesta a alguien va antes que los avisos de las reglas (H31), y guarda el porqué de cada acción.
 7. Si deriva: mensaje fijo del perfil, Atención manual y la marca «Necesita una persona».
 8. En Atención manual, la respuesta redactada queda como borrador para el operador.
 

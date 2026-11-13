@@ -71,6 +71,18 @@ public sealed class WhatsAppContact : Entity
     /// <summary>«Necesita una persona»: from a handoff until a person answers or the conversation goes back to the assistant.</summary>
     public bool NeedsPerson => HandoffAtUtc.HasValue;
 
+    /// <summary>
+    /// H12: when the outgoing last finished a send to this person. Their six-second wait counts from here, so the next chat is chosen
+    /// without waiting for them; null before the first one.
+    /// </summary>
+    public DateTime? LastDispatchAtUtc { get; private set; }
+
+    /// <summary>
+    /// A send to this person finished. The last one written wins: the sends to a person go one at a time, and a copy with its clock
+    /// ahead does not leave the person behind the others until the clocks meet.
+    /// </summary>
+    public void RecordDispatch(DateTime atUtc) => LastDispatchAtUtc = atUtc;
+
     public long RegisterInboundMessage() => ++LastInboundSequence;
 
     public void ChangeMode(WhatsAppConversationMode mode)

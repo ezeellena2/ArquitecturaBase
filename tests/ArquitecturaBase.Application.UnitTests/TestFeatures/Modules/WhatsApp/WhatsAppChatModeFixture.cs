@@ -60,7 +60,7 @@ internal sealed class WhatsAppChatModeFixture
         public Task<WhatsAppOutgoingMessage?> GetOutgoingAsync(Guid id, CancellationToken ct) => throw new NotSupportedException();
         public Task<IReadOnlyList<WhatsAppAssistantRequest>> ListPendingAutomaticRequestsAsync(Guid contactId, CancellationToken ct) => Task.FromResult<IReadOnlyList<WhatsAppAssistantRequest>>(Pending.Where(row => row.ContactId == contactId && row.Kind == WhatsAppAssistantRequestKind.Automatic && row.State == WhatsAppAssistantRequestState.Pending).ToArray());
         public Task<bool> ExistsStartedAssistantMessageAsync(Guid contactId, CancellationToken ct) => Task.FromResult(StartedAssistantMessage);
-        public Task<WhatsAppOutgoingMessage?> GetNextPendingAsync(CancellationToken ct) => throw new NotSupportedException();
+        public Task<WhatsAppOutgoingMessage?> GetNextPendingAsync(DateTime waitingSinceUtc, CancellationToken ct) => throw new NotSupportedException();
         public Task<IReadOnlyList<WhatsAppOutgoingMessage>> ListExpiredSendingAsync(DateTime cutoff, CancellationToken ct) => throw new NotSupportedException();
         public void Add(WhatsAppReadState state) => throw new NotSupportedException();
         public void Add(WhatsAppOutgoingMessage outgoing) => Outgoing.Add(outgoing);
