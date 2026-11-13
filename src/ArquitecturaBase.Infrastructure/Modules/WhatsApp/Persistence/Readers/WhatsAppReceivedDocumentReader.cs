@@ -1,6 +1,7 @@
 using ArquitecturaBase.Application.Modules.WhatsApp.Configuration;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
+using ArquitecturaBase.Application.Modules.WhatsApp.Services;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -49,7 +50,25 @@ internal sealed class WhatsAppReceivedDocumentReader(ApplicationDbContext db, Wh
             FollowedByText = db.Set<WhatsAppMessage>().Any(next => next.ContactId == message.ContactId && next.Direction == WhatsAppMessageDirection.Inbound
                 && next.InboundSequence > message.InboundSequence && (next.Kind == WhatsAppMessageKind.Text
                     || next.Kind == WhatsAppMessageKind.Audio && next.AudioState == WhatsAppAudioState.Completed)),
+            // Task 9: the business message right before it, or right after it, is a text (or an audio with its transcription) less than
+            // ten minutes apart, without an assistant reply requested in between: its request, as a spreadsheet pairs.
+            PairedRequest = db.Set<WhatsAppMessage>().Where(previous => previous.ContactId == message.ContactId && previous.Direction == WhatsAppMessageDirection.Inbound
+                        && previous.Purpose != WhatsAppMessagePurpose.Access && previous.InboundSequence < message.InboundSequence)
+                    .OrderByDescending(previous => previous.InboundSequence).ThenByDescending(previous => previous.Id).Take(1)
+                    .Any(previous => (previous.Kind == WhatsAppMessageKind.Text || previous.Kind == WhatsAppMessageKind.Audio && previous.AudioState == WhatsAppAudioState.Completed)
+                        && !string.IsNullOrWhiteSpace(previous.Body) && previous.OccurredAtUtc > message.OccurredAtUtc.AddSeconds(-PairingSeconds)
+                        && !db.Set<WhatsAppOutgoingMessage>().Any(outgoing => outgoing.ContactId == message.ContactId && outgoing.Origin == WhatsAppMessageOrigin.Assistant
+                            && outgoing.State != WhatsAppOutgoingMessageState.Failed && outgoing.RequestedAtUtc > previous.OccurredAtUtc && outgoing.RequestedAtUtc < message.OccurredAtUtc))
+                || db.Set<WhatsAppMessage>().Where(next => next.ContactId == message.ContactId && next.Direction == WhatsAppMessageDirection.Inbound
+                        && next.Purpose != WhatsAppMessagePurpose.Access && next.InboundSequence > message.InboundSequence)
+                    .OrderBy(next => next.InboundSequence).ThenBy(next => next.Id).Take(1)
+                    .Any(next => (next.Kind == WhatsAppMessageKind.Text || next.Kind == WhatsAppMessageKind.Audio && next.AudioState == WhatsAppAudioState.Completed)
+                        && !string.IsNullOrWhiteSpace(next.Body) && next.OccurredAtUtc < message.OccurredAtUtc.AddSeconds(PairingSeconds)
+                        && !db.Set<WhatsAppOutgoingMessage>().Any(outgoing => outgoing.ContactId == message.ContactId && outgoing.Origin == WhatsAppMessageOrigin.Assistant
+                            && outgoing.State != WhatsAppOutgoingMessageState.Failed && outgoing.RequestedAtUtc > message.OccurredAtUtc && outgoing.RequestedAtUtc < next.OccurredAtUtc)),
         };
+
+    private static readonly double PairingSeconds = WhatsAppAssistantSourcePolicy.PairingWindow.TotalSeconds;
 
     public async Task<IReadOnlyList<Guid>> ListPendingContactsAsync(IReadOnlyCollection<Guid> excluded, int limit, DateTime nowUtc, CancellationToken ct) =>
         await Due(nowUtc).Select(message => message.ContactId!.Value).Where(id => !excluded.Contains(id))

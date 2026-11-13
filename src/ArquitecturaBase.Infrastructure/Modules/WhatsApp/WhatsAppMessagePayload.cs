@@ -99,6 +99,23 @@ internal static class WhatsAppMessagePayload
                 });
                 break;
 
+            // Task 9 of the documents: a list of up to ten options behind a button, in one section titled like the button (Meta's guide
+            // asks for the title), each row with its description when it has one.
+            case WhatsAppListMessage list:
+                payload["type"] = "interactive";
+                payload["interactive"] = Interactive("list", list.Body, null, new JsonObject
+                {
+                    ["button"] = list.Button,
+                    ["sections"] = new JsonArray(new JsonObject
+                    {
+                        ["title"] = list.Button,
+                        ["rows"] = new JsonArray([.. list.Rows.Select(row => (JsonNode)(row.Description is { } description
+                            ? new JsonObject { ["id"] = row.Id, ["title"] = row.Title, ["description"] = description }
+                            : new JsonObject { ["id"] = row.Id, ["title"] = row.Title }))]),
+                    }),
+                });
+                break;
+
             case WhatsAppLoginCodeMessage loginCode:
                 payload["type"] = "template";
                 payload["template"] = new JsonObject

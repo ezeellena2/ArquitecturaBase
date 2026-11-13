@@ -55,6 +55,12 @@ internal sealed class WhatsAppOutgoingSendGuard(IPhoneNumberParser phoneNumbers,
     private async Task<bool> ValidateAssistantContentAsync(WhatsAppOutgoingMessage outgoing, WhatsAppAssistantReferenceRow reference, CancellationToken ct)
     {
         if (outgoing.Kind == WhatsAppOutgoingMessageKind.Text) return true;
+        // Task 9 of the documents: a document question is the outgoing its own reference accepted, every option of its operation and proposal.
+        if (outgoing.Kind is WhatsAppOutgoingMessageKind.QuickReplies or WhatsAppOutgoingMessageKind.List && outgoing.QuickReplies.Count > 0
+            && outgoing.QuickReplies.All(reply => reply.Id.StartsWith(WhatsAppAssistantDocumentReplyCodec.Prefix, StringComparison.Ordinal)))
+            return outgoing.Id == reference.OutgoingId && reference.ProposalId is { } documentProposal && outgoing.QuickReplies.All(reply =>
+                WhatsAppAssistantDocumentReplyCodec.TryParse(reply.Id, out var requestId, out var proposal, out _)
+                    && requestId == reference.RequestId && proposal == documentProposal);
         // W1-A: a send of a form with a location opens with its request and, when optional, «Seguir sin ubicación»; they are checked
         // like its Flow, which goes out later with another RequestId, and none of them goes out once the content has expired.
         if (outgoing.Kind is WhatsAppOutgoingMessageKind.Flow or WhatsAppOutgoingMessageKind.LocationRequest || IsLocationSkip(outgoing))
@@ -65,7 +71,8 @@ internal sealed class WhatsAppOutgoingSendGuard(IPhoneNumberParser phoneNumbers,
                 && session.ExpiresAtUtc > clock.GetUtcNow().UtcDateTime
                 && session.AssistantContentExpiresAtUtc > clock.GetUtcNow().UtcDateTime
                 && session.ProtectedAssistantContent is { Length: > 0 }
-                && !await references.ExistsDeclinedAsync(reference.ContactId, session.DefinitionId, ct)
+                // Review of task 9: a form that answers a file the person sent (its reference carries it) is no offer, so a decline does not stop it.
+                && (reference.AttachmentMessageId is not null || !await references.ExistsDeclinedAsync(reference.ContactId, session.DefinitionId, ct))
                 && await forms.FindAcceptedSessionAsync(session.UserId, session.Culture, session.DefinitionId, session.VersionId, ct) is not null;
         }
         // A case's question («Preguntar con botones») is, like an authoring summary, the outgoing its own reference accepted, so it is

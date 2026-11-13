@@ -30,6 +30,57 @@ public sealed class WhatsAppAssistantOutgoingTests
         Assert.Equal(kind == WhatsAppOutgoingMessageKind.Flow ? Session : null, outgoing.FlowSessionId);
     }
 
+    // Task 9 of the documents: up to ten options behind a visible button of up to 20 characters, each with a unique id of up to 200 and a
+    // visible title of up to 24, the limits of a WhatsApp list.
+    [Fact]
+    public void A_list_keeps_its_button_and_up_to_ten_options_with_the_limits_of_whatsapp()
+    {
+        var rows = Enumerable.Range(1, 10).Select(index => new WhatsAppOutgoingQuickReply("FORM_DOCUMENT:" + index, "Formulario " + index, 0)).ToList();
+        var outgoing = WhatsAppOutgoingMessage.CreateAssistantList(Recipient, Contact, Request, "No reconocí este documento.", "Elegir formulario", rows, Now, 7, WaId, 11);
+        rows.Clear();
+        Assert.Equal((WhatsAppOutgoingMessageKind.List, "Elegir formulario", 10, WhatsAppMessageOrigin.Assistant),
+            (outgoing.Kind, outgoing.ListButton, outgoing.QuickReplies.Count, outgoing.Origin));
+        Assert.Equal((Recipient, 7L, WaId, 11L), (outgoing.RecipientUserId!.Value, outgoing.RecipientLinkRevision!.Value, outgoing.RecipientWaId, outgoing.AssistantModeRevision!.Value));
+    }
+
+    [Theory]
+    [InlineData(0, "Elegir formulario", "Uno")]
+    [InlineData(11, "Elegir formulario", "Uno")]
+    [InlineData(1, "Un botón demasiado largo", "Uno")]
+    [InlineData(1, " ", "Uno")]
+    [InlineData(1, "Elegir formulario", "Un título que pasa de veinticuatro")]
+    public void A_list_outside_the_limits_of_whatsapp_is_refused(int count, string button, string title)
+    {
+        var rows = Enumerable.Range(1, count).Select(index => new WhatsAppOutgoingQuickReply("FORM_DOCUMENT:" + index, title, 0)).ToArray();
+        Assert.Throws<ArgumentException>(() => WhatsAppOutgoingMessage.CreateAssistantList(Recipient, Contact, Request, "¿Qué es?", button, rows, Now, 7, WaId, 11));
+    }
+
+    // Review of task 9: a row keeps a description of up to 72 characters, the full name of a form whose title was cut, so the rows of
+    // two forms that start alike stay apart; a longer one is refused.
+    [Theory]
+    [InlineData(72, true)]
+    [InlineData(73, false)]
+    public void A_list_row_keeps_a_description_of_up_to_seventy_two_characters(int length, bool allowed)
+    {
+        var description = new string('a', length);
+        WhatsAppOutgoingQuickReply[] rows = [new("FORM_DOCUMENT:1", "Comprobante de transfer…", 0) { Description = description }, new("FORM_DOCUMENT:2", "Otro", 0)];
+        if (!allowed)
+        {
+            Assert.Throws<ArgumentException>(() => WhatsAppOutgoingMessage.CreateAssistantList(Recipient, Contact, Request, "¿Qué es?", "Elegir formulario", rows, Now, 7, WaId, 11));
+            return;
+        }
+        var outgoing = WhatsAppOutgoingMessage.CreateAssistantList(Recipient, Contact, Request, "¿Qué es?", "Elegir formulario", rows, Now, 7, WaId, 11);
+        Assert.Equal((description, (string?)null), (outgoing.QuickReplies[0].Description, outgoing.QuickReplies[1].Description));
+        Assert.DoesNotContain("Description", System.Text.Json.JsonSerializer.Serialize(outgoing.QuickReplies[1]), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_list_refuses_repeated_ids()
+    {
+        WhatsAppOutgoingQuickReply[] rows = [new("FORM_DOCUMENT:1", "Uno", 0), new("FORM_DOCUMENT:1", "Dos", 0)];
+        Assert.Throws<ArgumentException>(() => WhatsAppOutgoingMessage.CreateAssistantList(Recipient, Contact, Request, "¿Qué es?", "Elegir formulario", rows, Now, 7, WaId, 11));
+    }
+
     [Fact]
     public void Quick_replies_capture_the_actual_choices_before_the_callers_collection_changes()
     {

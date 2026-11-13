@@ -51,12 +51,14 @@ public sealed partial class WhatsAppChatQueryActionPrivacyTests
         public AssistantOperations Operations { get; } = new();
         public WhatsAppChatQueryService Service { get; }
         public Microsoft.Extensions.Time.Testing.FakeTimeProvider Clock { get; } = new(new DateTimeOffset(Now));
-        public Host() => Service = new(Reader, new Forms(), Source, new FakePhoneNumberParser(), Operations, new(new(90),Clock), new(Presentation.Protector,Presentation.Reader,Source,Presentation.Context.Permissions,Presentation.Context.Clock), NullLogger<WhatsAppChatQueryService>.Instance);
+        public Host() => Service = new(Reader, new Forms(), Source, new FakePhoneNumberParser(), Operations, new(new(90),Clock), new(Presentation.Protector,Presentation.Reader,Source,Presentation.Context.Permissions,Presentation.Context.Clock,Presentation.Forms), NullLogger<WhatsAppChatQueryService>.Instance);
     }
     private sealed class Reader : IWhatsAppChatReader
     {
         public bool Missing { get; set; }
         public WhatsAppMessageRow? Audio { get; set; }
+        // Review of task 9: the one queued send of the thread, when a test needs its own.
+        public WhatsAppOutgoingMessageRow? Outgoing { get; set; }
         public bool AudioPreview { get; set; }
         public bool SpreadsheetPreview { get; set; }
         // Task 8 of the documents: the kind of the latest message, for its generic preview.
@@ -71,7 +73,7 @@ public sealed partial class WhatsAppChatQueryActionPrivacyTests
         public Task<WhatsAppChatCounts> CountChatsAsync(ListWhatsAppChatsRequest request, Guid actor, CancellationToken ct) => Task.FromResult(new WhatsAppChatCounts(1, 0));
         public Task<WhatsAppThreadRow?> FindThreadAsync(ListWhatsAppMessagesRequest request, Guid actor, CancellationToken ct) => Task.FromResult<WhatsAppThreadRow?>(Missing ? null : new(Contact,
             [Audio ?? new(Guid.NewGuid(), WhatsAppMessageDirection.Outbound, WhatsAppMessageKind.Text, PrivateBody, Now, 0, null, null, null, Origin: AssistantRow is null ? WhatsAppMessageOrigin.FormAction : WhatsAppMessageOrigin.Assistant) { Assistant=AssistantRow,QuickReplyTitlesJson=TitlesJson,AssistantReplyJson=ReplyJson }],
-            [new(Guid.NewGuid(), Guid.NewGuid(), null, PrivateBody, Now, WhatsAppOutgoingMessageState.Pending, null, Origin: AssistantRow is null ? WhatsAppMessageOrigin.FormAction : WhatsAppMessageOrigin.Assistant) { Assistant=AssistantRow,QuickRepliesJson=TitlesJson is null?null:"[]",AssistantReplyJson=ReplyJson }], null, null) { AssistantEvents=Events });
+            [Outgoing ?? new(Guid.NewGuid(), Guid.NewGuid(), null, PrivateBody, Now, WhatsAppOutgoingMessageState.Pending, null, Origin: AssistantRow is null ? WhatsAppMessageOrigin.FormAction : WhatsAppMessageOrigin.Assistant) { Assistant=AssistantRow,QuickRepliesJson=TitlesJson is null?null:"[]",AssistantReplyJson=ReplyJson }], null, null) { AssistantEvents=Events });
         public Task<WhatsAppOutgoingMessageRow?> FindOutgoingAsync(Guid contact, Guid request, Guid actor, CancellationToken ct) => Task.FromResult<WhatsAppOutgoingMessageRow?>(null);
     }
     private sealed class Source : IStructuredRecordSource

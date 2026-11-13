@@ -52,6 +52,8 @@ public static class WhatsAppApplicationRegistration
         services.AddScoped<WhatsAppAssistantTerminalPolicy>();
         services.AddScoped<WhatsAppAssistantAuthoringPolicy>();
         services.AddScoped<IWhatsAppAssistantAuthoringService, WhatsAppAssistantAuthoringService>();
+        services.AddScoped<WhatsAppAssistantDocumentPolicy>();
+        services.AddScoped<IWhatsAppAssistantDocumentService, WhatsAppAssistantDocumentService>();
         services.AddScoped<IWhatsAppAssistantService, WhatsAppAssistantService>();
         services.AddScoped<IWhatsAppAssistantAgentService, WhatsAppAssistantAgentService>();
         services.AddScoped<WhatsAppAssistantHandoffPolicy>();

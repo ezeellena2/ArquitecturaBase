@@ -38,6 +38,9 @@ internal sealed partial class WhatsAppOutgoingBackgroundService(
                 WhatsAppOutgoingMessageKind.QuickReplies => new WhatsAppReplyButtonsMessage(operation.To, operation.Body,
                     (operation.QuickReplies ?? []).Select(reply => new WhatsAppReplyButton(reply.Id, reply.Title)).ToArray()),
                 WhatsAppOutgoingMessageKind.LocationRequest => new WhatsAppLocationRequestMessage(operation.To, operation.Body),
+                WhatsAppOutgoingMessageKind.List => new WhatsAppListMessage(operation.To, operation.Body,
+                    operation.ListButton ?? throw new InvalidOperationException("A list send has no button."),
+                    (operation.QuickReplies ?? []).Select(row => new WhatsAppListRow(row.Id, row.Title, row.Description)).ToArray()),
                 _ => new WhatsAppTextMessage(operation.To, operation.Body),
             };
             if (operation.Origin == WhatsAppMessageOrigin.FormAction && operation.Kind == WhatsAppOutgoingMessageKind.Document)

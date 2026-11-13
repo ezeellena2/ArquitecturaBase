@@ -49,4 +49,23 @@
   <data name="DocumentUnreadable" xml:space="preserve"><value>No pude abrir el archivo. Mandámelo de nuevo como PDF o como foto.</value></data>
   <data name="DocumentNotAllowed" xml:space="preserve"><value>Gracias, recibí tu documento. Tu cuenta no puede cargarlo desde acá: se lo pasé a una persona del equipo.</value></data>
   <data name="DocumentNotAllowedReason" xml:space="preserve"><value>Mandó un documento y su cuenta no puede cargarlo ni armar formularios.</value></data>
+  <data name="DocumentSure" xml:space="preserve"><value>Recibí un documento para «{0}». ¿Lo cargo?</value></data>
+  <data name="DocumentChosen" xml:space="preserve"><value>Listo: te preparé el formulario con el documento. Revisalo y confirmalo.</value></data>
+  <data name="DocumentDoubt" xml:space="preserve"><value>¿Qué es este documento?</value></data>
+  <data name="DocumentUnknown" xml:space="preserve"><value>No reconocí este documento. ¿Qué querés cargar con él?</value></data>
+  <data name="DocumentOther" xml:space="preserve"><value>Otro</value></data>
+  <data name="DocumentChooseForm" xml:space="preserve"><value>Elegir formulario</value></data>
+  <data name="DocumentOtherChosen" xml:space="preserve"><value>Listo, lo dejé para que lo revise el equipo. Si hace falta, te escriben por acá.</value></data>
+  <data name="DocumentUnreadableDatum" xml:space="preserve"><value>No se lee «{0}». ¿Me lo reenviás? Sacale otra foto con buena luz, sin mover el celular.</value></data>
+  <data name="DocumentNotLegible" xml:space="preserve"><value>No se lee el documento. ¿Me lo reenviás? Sacale otra foto con buena luz, sin mover el celular.</value></data>
+  <data name="DocumentDuplicate" xml:space="preserve"><value>Este comprobante ya se cargó el {0} en {1}. No lo cargo de nuevo.</value></data>
+  <data name="DocumentDuplicateDate" xml:space="preserve"><value>Este comprobante ya se cargó el {0}. No lo cargo de nuevo.</value></data>
+  <data name="DocumentNotSendable" xml:space="preserve"><value>Gracias, recibí tu documento para «{0}». No lo puedo cargar desde acá: se lo pasé a una persona del equipo para que lo revise.</value></data>
+  <data name="DocumentNotSendableReason" xml:space="preserve"><value>Mandó un documento de «{0}» y no se le puede mandar ese formulario.</value></data>
+  <data name="DocumentQuota" xml:space="preserve"><value>Por hoy llegué al tope de documentos que puedo leer. Lo dejé para que lo revise el equipo.</value></data>
+  <data name="DocumentReplaced" xml:space="preserve"><value>Esa pregunta ya cambió. Usá la del último documento.</value></data>
+  <data name="DocumentNotPrepared" xml:space="preserve"><value>No pude preparar el formulario. Lo dejé para que lo revise el equipo.</value></data>
+  <data name="DocumentAlone" xml:space="preserve"><value>(Mandó el documento «{0}» sin mensaje)</value></data>
+  <data name="DocumentExpired" xml:space="preserve"><value>Ese documento ya quedó para que lo revise el equipo. Si hace falta, te escriben por acá.</value></data>
+  <data name="DocumentReason" xml:space="preserve"><value>Leyó el documento «{0}» que mandó la persona.</value></data>
 </root>

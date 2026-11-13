@@ -57,6 +57,35 @@ public sealed partial class WhatsAppOutgoingMessage
         return outgoing;
     }
 
+    /// <summary>The label of the button that opens a list (task 9 of the documents), as WhatsApp shows it: up to 20 characters.</summary>
+    public string? ListButton { get; private set; }
+
+    public const int MaxListButtonLength = 20;
+    public const int MaxListRows = 10;
+    public const int MaxListRowTitleLength = 24;
+    public const int MaxListRowIdLength = 200;
+    public const int MaxListRowDescriptionLength = 72;
+
+    /// <summary>
+    /// Task 9 of the documents: a text with a button that opens up to ten options, each with a unique bounded id and a visible title
+    /// of up to 24 characters, the limits of a WhatsApp list. The options keep the shape of quick replies.
+    /// </summary>
+    public static WhatsAppOutgoingMessage CreateAssistantList(Guid recipientUserId, Guid contactId, Guid requestId, string body, string button,
+        IReadOnlyList<WhatsAppOutgoingQuickReply> rows, DateTime nowUtc, long contactLinkRevision, string recipientWaId, long modeRevision)
+    {
+        ArgumentNullException.ThrowIfNull(rows);
+        if (button is null || button.Length > MaxListButtonLength || !IsVisibleBody(button))
+            throw new ArgumentException("A list needs a visible button of up to 20 characters.", nameof(button));
+        if (rows.Count is < 1 or > MaxListRows || rows.Select(item => item.Id).Distinct(StringComparer.Ordinal).Count() != rows.Count ||
+            rows.Any(item => string.IsNullOrWhiteSpace(item.Id) || item.Id.Length > MaxListRowIdLength || item.Id.Any(char.IsControl) || item.Id != item.Id.Trim() ||
+                item.Title.Length > MaxListRowTitleLength || !IsVisibleBody(item.Title) || item.DefinitionRevision < 0
+                || item.Description is { } description && (description.Length > MaxListRowDescriptionLength || !IsVisibleBody(description))))
+            throw new ArgumentException("A list must have from 1 to 10 rows with unique bounded IDs, visible titles and bounded descriptions.", nameof(rows));
+        var outgoing = CreateAssistant(recipientUserId, contactId, requestId, body, nowUtc, contactLinkRevision, recipientWaId, modeRevision, 1024);
+        outgoing.Kind = WhatsAppOutgoingMessageKind.List; outgoing.QuickRepliesJson = JsonSerializer.Serialize(rows); outgoing.ListButton = button;
+        return outgoing;
+    }
+
     /// <summary>W1-A, sent by the assistant: the location request that goes before the Flow of its send.</summary>
     public static WhatsAppOutgoingMessage CreateAssistantLocationRequest(Guid recipientUserId, Guid contactId, Guid requestId,
         string body, Guid sessionId, DateTime nowUtc, long contactLinkRevision, string recipientWaId, long modeRevision)

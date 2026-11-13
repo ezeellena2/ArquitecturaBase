@@ -46,6 +46,8 @@ AddWhatsAppInboundDocuments suma a `WhatsAppMessages` las columnas `Document*` d
 
 AddWhatsAppSharedContent (W3) suma a `WhatsAppMessages` la dirección de un lugar (`LocationAddress`), el contacto compartido (`ContactName` y `ContactPhonesJson`, jsonb) e `IsResend`; `IsResend` a `WhatsAppOutgoingMessages` (falso en las de antes), y lo que tomó un envío a `WhatsAppFlowSessions` (`SharedContentJson`, jsonb, y `ProtectedSharedValues`). No reescribe filas ni reclasifica los `Other`. Su Down bloquea las tres tablas y se niega, antes del DDL, si hay un reenvío o algo tomado; vuelve a `Other` los mensajes `Contact`, con su fila, y quita las columnas. WhatsAppSharedContentMigrationTests prueba Up, Down y Up y la negativa.
 
+AddWhatsAppDocumentQuestions (tarea 9 de documentos, regenerada sobre W3) suma `ListButton` (hasta 20, nullable) a `WhatsAppOutgoingMessages`: la etiqueta del botón de una lista, la pregunta de un documento con más de tres formularios o con nombres largos. No reescribe filas. Su Down bloquea la tabla y se niega, antes del DDL, si una lista guarda su botón; WhatsAppDocumentQuestionsMigrationTests prueba Up, la negativa y Down y Up sin listas.
+
 ## Referencias
 
 - [Comandos y revisión obligatoria](../../../../docs/guides/migracion.md).

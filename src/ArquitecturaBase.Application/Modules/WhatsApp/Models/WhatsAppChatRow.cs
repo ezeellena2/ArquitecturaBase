@@ -45,6 +45,13 @@ public sealed record WhatsAppMessageRow(
     /// <summary>W3: the first card of a shared contact, while its content lives.</summary>
     public string? ContactName { get; init; }
     public string? ContactPhonesJson { get; init; }
+    /// <summary>
+    /// Review of task 9 of the documents: a form the assistant sent for a file the person sent (its body may say what was read), hidden
+    /// without <c>formrecords.read</c> like the body of a form action.
+    /// </summary>
+    public bool LoadsFile { get; init; }
+    /// <summary>Review of task 9: the label of the button of a question that went as a list, from the send it came from.</summary>
+    public string? ListButton { get; init; }
     // The body, the point and the contact are what the person wrote or shared: the generated ToString would print them.
     public override string ToString() => $"{nameof(WhatsAppMessageRow)} ({Kind})";
 }
@@ -61,6 +68,10 @@ public sealed record WhatsAppOutgoingMessageRow(
     public string? QuickRepliesJson { get; init; }
     /// <summary>Casos del asistente: «Por qué respondió esto» of a queued reply.</summary>
     public string? AssistantReplyJson { get; init; }
+    /// <summary>Review of task 9: a form sent for a file the person sent, whose body is hidden without <c>formrecords.read</c>.</summary>
+    public bool LoadsFile { get; init; }
+    /// <summary>Review of task 9: the label of the button of a question that goes as a list.</summary>
+    public string? ListButton { get; init; }
 }
 public sealed record WhatsAppThreadRow(
     WhatsAppChatRow Contact, IReadOnlyList<WhatsAppMessageRow> Messages,

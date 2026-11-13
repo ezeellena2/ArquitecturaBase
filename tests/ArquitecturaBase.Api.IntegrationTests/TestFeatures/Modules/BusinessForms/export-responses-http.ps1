@@ -146,9 +146,11 @@ $cohorts = @(
             ($captureRoot + "Modules/BusinessForms/FormReceivedDocumentContractCapture.cs"), ($captureRoot + "Modules/BusinessForms/ScriptedDocumentOperations.cs"),
             "src/ArquitecturaBase.Application/Modules/BusinessForms/Models/FormReceivedDocumentModels.cs", "src/ArquitecturaBase.Application/Models/StructuredData/StructuredRecordOrigin.cs") },
     @{ Name = "whatsapp-audio"; Environment = "WHATSAPP_AUDIO_HTTP_OUTPUT"; Destination = "whatsapp-audio-http";
-        RequiredNames = @("audio-request.json", "audio-thread-pending.json", "audio-thread-completed.json", "spreadsheet-thread.json", "document-thread.json", "contact-thread.json");
+        RequiredNames = @("audio-request.json", "audio-thread-pending.json", "audio-thread-completed.json", "spreadsheet-thread.json", "document-thread.json", "contact-thread.json",
+            "document-why-thread.json");
         Sources = @(($sourceRoot + "WhatsApp/WhatsAppChatTests.Audio.cs"), ($sourceRoot + "WhatsApp/WhatsAppChatTests.Spreadsheet.cs"), ($sourceRoot + "WhatsApp/WhatsAppChatTests.Document.cs"),
-            ($sourceRoot + "WhatsApp/WhatsAppChatTests.Contact.cs"),
+            ($sourceRoot + "WhatsApp/WhatsAppChatTests.Contact.cs"), ($sourceRoot + "WhatsApp/WhatsAppAssistantDocumentIntegrationTests.cs"),
+            ($captureRoot + "Modules/WhatsApp/CapturingStructuredDocumentChannel.cs"),
             ($captureRoot + "Modules/WhatsApp/WhatsAppAudioContractCapture.cs"), "src/ArquitecturaBase.Application/Modules/WhatsApp/Models/WhatsAppReceivedDocumentModels.cs") },
     @{ Name = "missing-requests"; Environment = "FORM_MISSING_REQUEST_HTTP_OUTPUT"; Destination = "forms-missing-requests-http";
         Sources = @(($sourceRoot + "BusinessForms/FormMissingRequestHttpTests.cs"), ($captureRoot + "Modules/BusinessForms/FormMissingRequestScenario.cs"), ($captureRoot + "Modules/BusinessForms/FormMissingRequestContractCapture.cs")) },

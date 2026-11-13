@@ -12,17 +12,21 @@ internal sealed class WhatsAppFlowSessionIssuer(IWhatsAppFlowSessionProtector pr
 {
     public WhatsAppFlowSessionIssue Create(WhatsAppFormSendContext context, SendWhatsAppFormRequest request,
         Guid actor, string fingerprint, string token, IReadOnlyList<StructuredFormCatalogOffer>? catalogs = null) =>
-        Issue(context, request, actor, fingerprint, token, catalogs, null, null);
+        Issue(context, request, actor, fingerprint, token, catalogs, null, null, null);
 
+    /// <summary>
+    /// A send proposed by the assistant. A received document's send (task 9 of the documents) expires when the inbox stops waiting for
+    /// the person (<paramref name="expiresAtUtc"/>), never later than its own lifetime allows.
+    /// </summary>
     public WhatsAppFlowSessionIssue CreateProposed(WhatsAppFormSendContext context, Guid requestId, long modeRevision,
         Guid? actor, string fingerprint, string token, WhatsAppFlowAssistantContent content, DateTime sourceExpiresAtUtc,
-        IReadOnlyList<StructuredFormCatalogOffer>? catalogs = null) =>
+        IReadOnlyList<StructuredFormCatalogOffer>? catalogs = null, DateTime? expiresAtUtc = null) =>
         Issue(context, new(context.Recipient.ContactId, requestId, context.Form.DefinitionId, context.Form.VersionId,
-            modeRevision, context.RecipientRevision, null), actor, fingerprint, token, catalogs, content, sourceExpiresAtUtc);
+            modeRevision, context.RecipientRevision, null), actor, fingerprint, token, catalogs, content, sourceExpiresAtUtc, expiresAtUtc);
 
     private WhatsAppFlowSessionIssue Issue(WhatsAppFormSendContext context, SendWhatsAppFormRequest request, Guid? actor,
         string fingerprint, string token, IReadOnlyList<StructuredFormCatalogOffer>? catalogs,
-        WhatsAppFlowAssistantContent? content, DateTime? sourceExpiresAtUtc)
+        WhatsAppFlowAssistantContent? content, DateTime? sourceExpiresAtUtc, DateTime? fixedExpiresAtUtc)
     {
         var recipient = context.Recipient;
         var userId = recipient.UserId!.Value;
@@ -40,6 +44,12 @@ internal sealed class WhatsAppFlowSessionIssuer(IWhatsAppFlowSessionProtector pr
             if (sourceExpiry.Kind != DateTimeKind.Utc || sourceExpiry <= nowUtc)
                 throw new InvalidOperationException("The proposed content must have an unexpired UTC retention limit.");
             if (sourceExpiry < expiresAtUtc) expiresAtUtc = sourceExpiry;
+        }
+        if (fixedExpiresAtUtc is { } fixedExpiry)
+        {
+            if (fixedExpiry.Kind != DateTimeKind.Utc || fixedExpiry <= nowUtc)
+                throw new InvalidOperationException("A fixed session expiry must be a future UTC instant.");
+            if (fixedExpiry < expiresAtUtc) expiresAtUtc = fixedExpiry;
         }
         var tokenBytes = Encoding.UTF8.GetBytes(token);
         string tokenHash;

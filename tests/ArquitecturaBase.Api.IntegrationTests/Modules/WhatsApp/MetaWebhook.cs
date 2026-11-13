@@ -98,6 +98,18 @@ internal static class MetaWebhook
         return message;
     }
 
+    /// <summary>La persona eligió una opción de una lista (<c>list_reply</c>, con su id y su título).</summary>
+    public static JsonObject ListReply(string waMessageId, string? from, string? fromUserIdentifier, DateTime sentAtUtc, string id, string title)
+    {
+        var message = Message(waMessageId, from, fromUserIdentifier, sentAtUtc, "interactive", new JsonObject
+        {
+            ["type"] = "list_reply",
+            ["list_reply"] = new JsonObject { ["id"] = id, ["title"] = title },
+        });
+        message["context"] = new JsonObject { ["from"] = DisplayPhoneNumber, ["id"] = "wamid.context" };
+        return message;
+    }
+
     /// <summary>La persona tocó el botón de respuesta rápida de una plantilla (<c>button</c>, con su payload).</summary>
     public static JsonObject TemplateButton(string waMessageId, string? from, string? fromUserIdentifier, DateTime sentAtUtc, string payload, string text) =>
         Message(waMessageId, from, fromUserIdentifier, sentAtUtc, "button", new JsonObject { ["payload"] = payload, ["text"] = text });

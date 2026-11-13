@@ -15,6 +15,21 @@ public sealed class WhatsAppAssistantMessageTests
         Assert.Equal(WhatsAppMessagePurpose.Business,message.Purpose);
         Assert.Equal(new[]{"Visita","Gasto"},JsonSerializer.Deserialize<string[]>(message.QuickReplyTitlesJson!));
     }
+    // Review of task 9 of the documents: a list that went out keeps the titles of its rows with a list's limits (up to ten, of up to 24
+    // characters); buttons keep the limits of buttons (up to three, of up to 20).
+    [Fact]
+    public void A_list_that_went_out_keeps_its_rows_titles_within_the_limits_of_a_list()
+    {
+        var titles = Enumerable.Range(1, 10).Select(index => ("Registrar mantenimiento " + index)[..24]).ToArray();
+        var list = WhatsAppMessage.Outbound(Guid.NewGuid(), "wamid.list", WhatsAppMessageKind.Interactive, "No reconocí este documento.", Now);
+        list.AttributeAssistant(titles, list: true);
+        Assert.Equal(titles, JsonSerializer.Deserialize<string[]>(list.QuickReplyTitlesJson!));
+
+        var buttons = WhatsAppMessage.Outbound(Guid.NewGuid(), "wamid.buttons", WhatsAppMessageKind.Interactive, "¿Qué es este documento?", Now);
+        Assert.Throws<ArgumentException>(() => buttons.AttributeAssistant(["Registrar mantenimiento", "Otro"]));
+        var tooMany = WhatsAppMessage.Outbound(Guid.NewGuid(), "wamid.long-list", WhatsAppMessageKind.Interactive, "No reconocí este documento.", Now);
+        Assert.Throws<ArgumentException>(() => tooMany.AttributeAssistant([.. titles, "Otro"], list: true));
+    }
     [Fact]
     public void An_inbound_message_cannot_be_reclassified_as_an_automatic_outbound()
     {

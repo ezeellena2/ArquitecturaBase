@@ -37,8 +37,12 @@ internal sealed class WhatsAppAssistantAutomaticPolicy(WhatsAppAssistantAcceptan
         if(terminal.Body is null) return false;
         // A question about what to build waits for the answer: the next message continues this operation (IA3-A).
         if(terminal.AwaitsAnswer && !row.AwaitAnswer()) return false;
-        // An authoring summary goes with its two buttons; any other reply is a fixed text.
-        var outgoing=terminal.Buttons is {} buttons
+        // An authoring summary goes with its two buttons, a document question with its buttons or its list (task 9); any other reply
+        // is a fixed text.
+        var outgoing=terminal is {List:{} rows,ListButton:{} button}
+            ? WhatsAppOutgoingMessage.CreateAssistantList(row.SubjectUserId,contact.Id,row.RequestId,terminal.Body,button,rows,nowUtc,
+                contact.LinkRevision,contact.WaId!,row.ModeRevision)
+            : terminal.Buttons is {} buttons
             ? WhatsAppOutgoingMessage.CreateAssistantQuickReplies(row.SubjectUserId,contact.Id,row.RequestId,terminal.Body,buttons,nowUtc,
                 contact.LinkRevision,contact.WaId!,row.ModeRevision)
             : WhatsAppOutgoingMessage.CreateAssistantText(row.SubjectUserId,contact.Id,row.RequestId,terminal.Body,nowUtc,
@@ -47,6 +51,26 @@ internal sealed class WhatsAppAssistantAutomaticPolicy(WhatsAppAssistantAcceptan
         if(!row.Ready(terminal.ProposalId,null,nowUtc) || !row.Accept(outgoing.Id,fingerprint,null,nowUtc)) return false;
         conversations.Add(outgoing);
         return true;
+    }
+
+    /// <summary>
+    /// Task 9 of the documents: the reply to a read document, in the caller's transaction. The prefilled form goes out with its text, a
+    /// form that cannot be sent hands off with its text, and the rest goes as <see cref="AcceptTerminal"/> queues it. False when nothing
+    /// could be queued.
+    /// </summary>
+    public async Task<bool> AcceptTerminalAsync(WhatsAppContact contact,WhatsAppAssistantRequest row,WhatsAppAssistantTerminalResponse terminal,CancellationToken ct)
+    {
+        if(row.Kind==WhatsAppAssistantRequestKind.Automatic && terminal.Send is not null)
+            return (await acceptance.AcceptDocumentAsync(contact,row,terminal,ct)).IsSuccess;
+        if(row.Kind==WhatsAppAssistantRequestKind.Automatic && terminal is {HandOff:{} handoff,Body:{} message})
+        {
+            var nowUtc=clock.GetUtcNow().UtcDateTime;
+            var outgoing=await acceptance.HandOffAsync(contact,row,handoff,message,ct);
+            if(outgoing is null) return row.FinishWithoutReply(false,nowUtc);
+            var fingerprint=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(row.RequestId.ToString("N")+terminal.ProposalId.ToString("N"))));
+            return row.Ready(terminal.ProposalId,null,nowUtc) && row.Accept(outgoing.Id,fingerprint,null,nowUtc);
+        }
+        return AcceptTerminal(contact,row,terminal);
     }
 
     public async Task<Result<WhatsAppFormSendContext?>> ResolveAsync(Guid contactId,WhatsAppAssistantSuggestionView view,CancellationToken ct)

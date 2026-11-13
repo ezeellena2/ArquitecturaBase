@@ -284,6 +284,11 @@ internal sealed partial class WhatsAppWebhookReader(
                 && TryGetProperty(content, "button_reply", out var reply) && reply.ValueKind is JsonValueKind.Object =>
                 (WhatsAppMessageKind.ButtonReply, StringOf(reply, "title"), ReplyIdOrNull(StringOf(reply, "id")), null),
 
+            // Task 9 of the documents: the option chosen in a list reads like a reply button, with its id and its title.
+            "interactive" when StringOf(content, "type") == "list_reply"
+                && TryGetProperty(content, "list_reply", out var row) && row.ValueKind is JsonValueKind.Object =>
+                (WhatsAppMessageKind.ButtonReply, StringOf(row, "title"), ReplyIdOrNull(StringOf(row, "id")), null),
+
             // El botón de respuesta rápida de una plantilla, como "Quiero entrar": su payload es el id.
             "button" => (WhatsAppMessageKind.ButtonReply, StringOf(content, "text"), ReplyIdOrNull(StringOf(content, "payload")), null),
 

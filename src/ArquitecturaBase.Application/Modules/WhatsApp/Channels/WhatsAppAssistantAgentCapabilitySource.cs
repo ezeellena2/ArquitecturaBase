@@ -248,7 +248,7 @@ internal sealed class WhatsAppAssistantAgentCapabilitySource(IWhatsAppAssistantA
     private static string ActionKind(WhatsAppAssistantHistoryActionRow action) => action.Kind switch
     {
         WhatsAppOutgoingMessageKind.Flow => "form",
-        WhatsAppOutgoingMessageKind.QuickReplies => "question",
+        WhatsAppOutgoingMessageKind.QuickReplies or WhatsAppOutgoingMessageKind.List => "question",
         WhatsAppOutgoingMessageKind.LocationRequest => "locationRequest",
         _ when action.IsHandoff => "handoff",
         _ => "reply",

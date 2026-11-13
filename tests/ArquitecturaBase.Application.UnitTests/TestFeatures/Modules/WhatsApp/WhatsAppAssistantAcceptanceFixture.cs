@@ -1,4 +1,5 @@
 using System.Text.Json;
+using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
@@ -15,16 +16,28 @@ internal static class WhatsAppAssistantAcceptanceFixture
     public static WhatsAppAssistantAutomaticPolicy CreateAutomatic(WhatsAppAssistantSuggestionFixture host)=>
         new(Create(host),host.Reader,host.Context.Clock,host.Conversation,host.Messages,new WhatsAppAssistantTerminalFixture().Policy,new(host.Reader,host.Context.Clock),
             CreateReply(host));
+    /// <summary>
+    /// Task 9 of the documents: the circuit's policy, with the inbox's port the test gives (none answers Unavailable). The send it resolves
+    /// is revalidated by the acceptance: give both the same sending policy, whose bindings keep their ids like the database's.
+    /// </summary>
+    public static WhatsAppAssistantDocumentPolicy CreateDocuments(WhatsAppAssistantSuggestionFixture host, IStructuredDocumentChannel? documents = null,
+        WhatsAppFormSendPolicy? sending = null) =>
+        new(documents ?? new ArquitecturaBase.Application.Channels.UnavailableStructuredDocumentChannel(), sending ?? CreateSending(host), new Environment(host.UnitOfWork),
+            host.Assistant, host.Reader, host.Context.Clock);
+    /// <summary>Derivar (AS4) with the chat's own doubles.</summary>
+    public static WhatsAppAssistantHandoffPolicy CreateHandoffs(WhatsAppAssistantSuggestionFixture host) =>
+        new(host.Conversation, new WhatsAppFormActionPolicy(host.Context.Users, new FakePhoneNumberParser(), new FakeWhatsAppAvailability(true, true),
+            host.Context.Clock), host.Context.Clock);
     /// <summary>Casos del asistente: the replies of the agent, with no agent saved unless the test gives one.</summary>
     public static WhatsAppAssistantReplyPolicy CreateReply(WhatsAppAssistantSuggestionFixture host, IWhatsAppAssistantAgentReader? agents = null,
         IWhatsAppAssistantHistoryReader? history = null) =>
         new(agents ?? new FakeWhatsAppAssistantAgentReader(), history ?? new FakeWhatsAppAssistantHistoryReader(),
             new(host.Conversation, new WhatsAppFormActionPolicy(host.Context.Users, new FakePhoneNumberParser(), new FakeWhatsAppAvailability(true, true),
                 host.Context.Clock), host.Context.Clock), host.Conversation, host.Requests, host.Messages, host.Context.Clock);
-    public static WhatsAppAssistantAcceptancePolicy Create(WhatsAppAssistantSuggestionFixture host)
+    public static WhatsAppAssistantAcceptancePolicy Create(WhatsAppAssistantSuggestionFixture host, WhatsAppFormSendPolicy? shared = null)
     {
-        var sending = CreateSending(host);
-        return new(sending,host.Forms,host.Sessions,host.Conversation,new(host.Protector,host.Context.Clock),host.Context.Clock,host.Presentation);
+        var sending = shared ?? CreateSending(host);
+        return new(sending,host.Forms,host.Sessions,host.Conversation,new(host.Protector,host.Context.Clock),host.Context.Clock,host.Presentation,CreateHandoffs(host));
     }
     public static WhatsAppFormSendPolicy CreateSending(WhatsAppAssistantSuggestionFixture host) =>
         new(host.Context.Recipients, host.Forms, new Bindings(host.Forms), new Projection(host.Forms),

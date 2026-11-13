@@ -92,6 +92,7 @@ internal sealed class WhatsAppAssistantInboundFixture : IAsyncDisposable
             .AddScoped<IWhatsAppAssistantDispatchService>(sp=>new Dispatch(this,sp.GetRequiredService<ScopeIdentity>().Id))
             .AddScoped<IAssistantOperations>(sp=>new Operations(this,sp.GetRequiredService<ScopeIdentity>().Id))
             .AddScoped<IWhatsAppAssistantAuthoringService>(_=>new Taps())
+            .AddScoped<IWhatsAppAssistantDocumentService>(_=>new DocumentTaps())
             .AddSingleton<IWhatsAppFormActionReader>(new ActionReplies())
             .AddScoped<IWhatsAppFormActionReplyService>(_=>new ActionReplies())
             // W1-A: the processor also asks which contacts have a location to resolve; none here.
@@ -127,6 +128,11 @@ internal sealed class WhatsAppAssistantInboundFixture : IAsyncDisposable
     }
     // No tap on an authoring summary reaches these scenarios; the authoring flow has its own tests.
     private sealed class Taps : IWhatsAppAssistantAuthoringService
+    {
+        public Task<Result> ProcessTapAsync(Guid contactId,CancellationToken ct)=>Task.FromResult(Result.Success());
+    }
+    // Nor a tap on a document question (task 9 of the documents): the circuit has its own tests.
+    private sealed class DocumentTaps : IWhatsAppAssistantDocumentService
     {
         public Task<Result> ProcessTapAsync(Guid contactId,CancellationToken ct)=>Task.FromResult(Result.Success());
     }

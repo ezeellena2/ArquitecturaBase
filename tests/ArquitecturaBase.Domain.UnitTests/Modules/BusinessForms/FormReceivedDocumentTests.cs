@@ -236,6 +236,41 @@ public sealed class FormReceivedDocumentTests
         Assert.True(FormReceivedDocumentEvent.Record(Guid.NewGuid(), FormReceivedDocumentEventKind.Received, null, Now, []).IsFailure);
     }
 
+    // Task 9 of the documents: a document that was not recognized, for which its person chose a form in the channel, is proposed for it with
+    // the deadline of the new send, or discarded when it is not legible or repeats another; never after «Otro» or while a change waits.
+    [Fact]
+    public void An_unclassified_document_is_recognized_for_the_form_its_person_chose_and_advances_the_revision()
+    {
+        var document = Received().Value;
+        Assert.True(document.LeaveUnclassified("unknown", null, Now).IsSuccess);
+        var revision = document.Revision;
+        var definition = Guid.NewGuid();
+        var version = Guid.NewGuid();
+
+        Assert.True(document.Recognize(definition, version, [3], "comprobante", "150000", false, Now.AddHours(24)).IsSuccess);
+
+        Assert.Equal((FormReceivedDocumentState.Proposed, (string?)null, (Guid?)definition, (Guid?)version, (DateTime?)Now.AddHours(24), (DateTime?)null),
+            (document.State, document.ReasonCode, document.DefinitionId, document.VersionId, document.ReplyExpiresAtUtc, document.DeleteAfterUtc));
+        Assert.Equal((revision + 1, "comprobante", "150000"), (document.Revision, document.DocumentType, document.SearchText));
+        Assert.Equal(FormReceivedDocumentErrors.StateConflict, document.Recognize(definition, version, [3], null, "", false, null).Error);
+    }
+
+    [Fact]
+    public void An_unclassified_document_recognized_but_not_legible_is_discarded_and_after_choosing_other_nothing_changes()
+    {
+        var document = Received().Value;
+        Assert.True(document.LeaveUnclassified("unknown", null, Now).IsSuccess);
+        Assert.True(document.RejectRecognized("duplicate", [4], Now).IsSuccess);
+        Assert.Equal((FormReceivedDocumentState.Discarded, "duplicate", (DateTime?)Now.AddDays(90)), (document.State, document.ReasonCode, document.DeleteAfterUtc));
+
+        var other = Received().Value;
+        Assert.True(other.LeaveUnclassified("unknown", null, Now).IsSuccess);
+        Assert.True(other.ChooseOther(Now).IsSuccess);
+        Assert.Equal(FormReceivedDocumentErrors.StateConflict, other.Recognize(Guid.NewGuid(), Guid.NewGuid(), [3], null, "", false, null).Error);
+        Assert.Equal(FormReceivedDocumentErrors.StateConflict, other.RejectRecognized("unreadable", null, Now).Error);
+        Assert.Equal(FormReceivedDocumentErrors.StateConflict, Proposed().Recognize(Guid.NewGuid(), Guid.NewGuid(), [3], null, "", false, null).Error);
+    }
+
     [Fact]
     public void Seeing_and_reviewing_received_documents_are_two_permissions_at_the_end_of_the_module_catalog()
     {

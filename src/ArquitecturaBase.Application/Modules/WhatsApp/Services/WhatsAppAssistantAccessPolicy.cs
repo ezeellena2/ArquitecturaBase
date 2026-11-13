@@ -79,6 +79,32 @@ internal sealed class WhatsAppAssistantAccessPolicy(IUserReader users, IPermissi
         };
     }
 
+    /// <summary>The documents' candidates and proposal (task 9 of the documents): what loads a read document into a form.</summary>
+    public static readonly AssistantCapabilityReference[] DocumentCapabilities = [new("forms.documents.candidates", 1), new("forms.documents.propose-entry", 1)];
+
+    /// <summary>
+    /// A read document with its request (task 9): the person's automatic conversation, with or without an agent, plus the documents'
+    /// candidates and proposal, so the model loads it or builds a form with it. Only a turn with a document declares them; the five
+    /// that never go with one are left out by the engine: 13 definitions without an agent and 14 with one, within the sixteen.
+    /// </summary>
+    public static AssistantChannelContext WithDocument(AssistantChannelContext context) => context with
+    {
+        AllowedCapabilities = [.. context.AllowedCapabilities.Where(capability => !DocumentCapabilities.Contains(capability)), .. DocumentCapabilities],
+    };
+
+    /// <summary>
+    /// A read document without a request (task 9): only loading it, with or without an agent: the documents' capabilities, no preloads
+    /// and one proposal, which formularios registers in the inbox and says what to tell the person.
+    /// </summary>
+    public static AssistantChannelContext ForDocument(AssistantChannelContext context) => context with
+    {
+        PreloadedCapabilities = null, AllowedTerminals = [new("assistant_proposal", 1)], AllowedCapabilities = DocumentCapabilities,
+    };
+
+    /// <summary>Whether a sealed context only loads a document (<see cref="ForDocument"/>).</summary>
+    public static bool LoadsDocumentOnly(AssistantChannelContext context) =>
+        context.AllowedCapabilities.Count == DocumentCapabilities.Length && context.AllowedCapabilities.All(DocumentCapabilities.Contains);
+
     // A suggestion after a capture (C4) keeps its own contract, with or without an agent: its tools, no preloads and one proposal.
     public static AssistantChannelContext ForCapturedRecord(AssistantChannelContext context, Guid recordId)=>context with
     {

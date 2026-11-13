@@ -42,9 +42,12 @@ internal sealed class WhatsAppChatQueryService(IWhatsAppChatReader reader, IWhat
         var availability = await assistant.GetAvailabilityAsync(cancellationToken);
         var pointer = await presentation.FindCurrentAsync(request.ContactId, actor, cancellationToken);
         var recordResult = await recordSource.ReadAsync(actor, culture, receiptIds, cancellationToken);
+        // Review of task 9: the forms of «Por qué lo propuso» and «Por qué preguntó», named in the reader's language as they are now.
+        var formNames = row.Messages.Any(message => message.Document?.Why is not null)
+            ? await presentation.FormNamesAsync(culture, cancellationToken) : new Dictionary<Guid, string>();
         return new WhatsAppThreadResponse(new(ToResponse(row.Contact), formContact),
             [.. row.Messages.Select(message => new WhatsAppMessageResponse(message.Id, message.Direction, message.Kind,
-                message.Purpose == WhatsAppMessagePurpose.Access || message.Origin == WhatsAppMessageOrigin.FormAction && !recordResult.CanReadRecords
+                message.Purpose == WhatsAppMessagePurpose.Access || (message.Origin == WhatsAppMessageOrigin.FormAction || message.LoadsFile) && !recordResult.CanReadRecords
                     ? null : audio.VisibleText(message), message.OccurredAtUtc,
                 message.InboundSequence, message.OperatorUserId, message.Status, message.ErrorCode, message.Purpose, message.AccessEventKind,
                 ToFormResponse(message.Form), ToFormReplyResponse(message.FormReply, recordResult, message.OccurredAtUtc), message.Origin, Assistant: presentation.Explain(message.Assistant, recordResult.CanReadRecords),
@@ -58,7 +61,9 @@ internal sealed class WhatsAppChatQueryService(IWhatsAppChatReader reader, IWhat
                 Contact: ToContactResponse(message),
                 AssistantReply: WhatsAppOutgoingPresentationPolicy.Reply(message.AssistantReplyJson),
                 // Task 8 of the documents: a received document shows its name, kind and pages, and its caption as the body.
-                Document: WhatsAppReceivedDocumentPresentationPolicy.View(message.Kind, message.Document)))],
+                Document: WhatsAppReceivedDocumentPresentationPolicy.View(message.Kind, message.Document, presentation, recordResult.CanReadRecords, formNames, culture),
+                // Review of task 9: the button of a question that went as a list, and the mark of what was sent for a file.
+                ListButton: message.ListButton, LoadsFile: message.LoadsFile))],
             [.. row.Outgoing.Select(item => ToOutgoingResponse(item, recordResult.CanReadRecords))], row.BeforeAtUtc, row.BeforeId, recordResult.CanReadRecords)
             {
                 AssistantAvailability = availability, AssistantSuggestion = pointer,
@@ -80,10 +85,10 @@ internal sealed class WhatsAppChatQueryService(IWhatsAppChatReader reader, IWhat
     });
 
     private WhatsAppOutgoingMessageResponse ToOutgoingResponse(WhatsAppOutgoingMessageRow row, bool canReadRecords = true) =>
-        new(row.Id, row.RequestId, row.OperatorUserId, row.Origin == WhatsAppMessageOrigin.FormAction && !canReadRecords ? null : row.Body, row.RequestedAtUtc,
-            row.State, row.WaMessageId, ToFormResponse(row.Form), Kind: row.Kind, Origin: row.Origin, Assistant: presentation.Explain(row.Assistant, canReadRecords),
+        new(row.Id, row.RequestId, row.OperatorUserId, (row.Origin == WhatsAppMessageOrigin.FormAction || row.LoadsFile) && !canReadRecords ? null : row.Body, row.RequestedAtUtc,
+            row.State, row.WaMessageId, ToFormResponse(row.Form), Kind: WhatsAppOutgoingPresentationPolicy.Kind(row.Kind), Origin: row.Origin, Assistant: presentation.Explain(row.Assistant, canReadRecords),
             QuickReplies: row.Origin == WhatsAppMessageOrigin.FormAction && !canReadRecords ? null : WhatsAppAssistantPresentationPolicy.Titles(row.QuickRepliesJson, true),
-            AssistantReply: WhatsAppOutgoingPresentationPolicy.Reply(row.AssistantReplyJson));
+            AssistantReply: WhatsAppOutgoingPresentationPolicy.Reply(row.AssistantReplyJson), ListButton: row.ListButton, LoadsFile: row.LoadsFile);
 
     // W3: the card of a shared contact while its content lives. One whose phones do not read, or that the front's closed contract would
     // refuse, is left out like a why that does not read: one bad row does not stop the thread.

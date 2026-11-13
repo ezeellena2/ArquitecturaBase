@@ -146,8 +146,14 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
                 null, null, files.Error.Code, cancellationToken, WhatsAppFlowMediaPolicy.QuestionLabel(projection, files.Error.Metadata?.GetValueOrDefault("fieldId") as Guid?));
             return;
         }
+        // Task 9 of the documents: the document the send carries goes to its question when the person did not choose another; its bytes
+        // come below from this module's own copy, without Meta.
+        var serverFile = ServerFile(projection, assistant.Value, files.Value);
+        IReadOnlyList<StructuredRecordFileInput> inputs = serverFile is null ? files.Value
+            : [.. files.Value, new StructuredRecordFileInput(serverFile.FieldId, 0, serverFile.StorageKey,
+                projection.Mapping.Single(field => field.FieldId == serverFile.FieldId).Type, serverFile.Name, serverFile.ContentType, serverFile.Sha256)];
         var captureRequest = new StructuredRecordCaptureRequest(session.SessionId,
-            session.DefinitionId, session.VersionId, session.UserId, message.OccurredAtUtc, decoded.Value, payload.Catalogs, files.Value, assistant.Value?.Origin)
+            session.DefinitionId, session.VersionId, session.UserId, message.OccurredAtUtc, decoded.Value, payload.Catalogs, inputs, assistant.Value?.Origin)
         { PresentationCulture = session.Culture };
         try
         {
@@ -164,7 +170,7 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
                 return;
             }
 
-            if (files.Value.Count > 0)
+            if (inputs.Count > 0)
             {
                 var prior = await records.FindExistingReceiptAsync(captureRequest, cancellationToken);
                 if (prior is not null)
@@ -172,12 +178,14 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
                     await MarkCaptureAsync(message, session, prior, payload.Catalogs, projection, cancellationToken);
                     return;
                 }
-                await stateService.MarkDownloadingAsync(message.WaMessageId, session.SessionId, files.Value.Count, cancellationToken);
+                await stateService.MarkDownloadingAsync(message.WaMessageId, session.SessionId, inputs.Count, cancellationToken);
                 var downloaded = new List<StructuredRecordFileInput>();
                 long totalBytes = 0;
-                foreach (var file in files.Value)
+                foreach (var file in inputs)
                 {
-                    var content = await mediaClient.DownloadAsync(file.SourceId, file.ContentType, file.Sha256, cancellationToken);
+                    var content = serverFile is not null && file.SourceId == serverFile.StorageKey && file.FieldId == serverFile.FieldId
+                        ? await mediaClient.ReadServerFileAsync(serverFile, cancellationToken)
+                        : await mediaClient.DownloadAsync(file.SourceId, file.ContentType, file.Sha256, cancellationToken);
                     if (content.IsFailure)
                     {
                         if (content.Error == ArquitecturaBase.Domain.Files.FileErrors.Unavailable)
@@ -290,6 +298,15 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
             && field.Type is "shortText" or "longText" or "decimal" or "date" or "boolean" or "choice" or "multiChoice" or "photo" or "document" or "group" or "location")
             && WhatsAppFlowRowsCodec.IsWellFormed(projection.Mapping);
     }
+
+    /// <summary>
+    /// Task 9 of the documents: the file the send carries (a received document's own copy) for its question of a photo or a document,
+    /// only when the person sent none for it, which replaces it.
+    /// </summary>
+    private static WhatsAppFlowServerFile? ServerFile(WhatsAppFlowProjection projection, WhatsAppFlowAssistantContent? content,
+        IReadOnlyList<StructuredRecordFileInput> sent) =>
+        content?.Server?.File is { } file && sent.All(input => input.FieldId != file.FieldId)
+        && projection.Mapping.SingleOrDefault(field => field.FieldId == file.FieldId) is { Type: "photo" or "document", Files: not null } ? file : null;
 
     /// <summary>
     /// What the send itself adds at capture to what the person sent in the Flow: the one place for a datum the send keeps, apart from

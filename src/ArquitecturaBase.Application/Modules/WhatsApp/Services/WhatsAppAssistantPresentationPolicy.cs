@@ -8,13 +8,31 @@ using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 internal sealed class WhatsAppAssistantPresentationPolicy(IWhatsAppFlowSessionProtector protector,IWhatsAppAssistantReader references,
-    IStructuredRecordSource records,IPermissionService permissions,TimeProvider clock)
+    IStructuredRecordSource records,IPermissionService permissions,TimeProvider clock,IStructuredFormSource forms)
 {
+    /// <summary>
+    /// Review of task 9: the names the channel's forms have now in the reader's language, by id, to name the forms of «Por qué lo propuso» and
+    /// «Por qué preguntó» when the chat is read.
+    /// </summary>
+    public async Task<IReadOnlyDictionary<Guid,string>> FormNamesAsync(string culture,CancellationToken ct)=>
+        (await forms.ListAssistantFormsAsync(culture,ct)).GroupBy(form=>form.DefinitionId).ToDictionary(group=>group.Key,group=>group.First().Name);
     public WhatsAppAssistantExplanationResponse? Explain(WhatsAppAssistantPresentationRow? row,bool canReadRecords)
     {
         if(!canReadRecords || row is null || row.ContentExpiresAtUtc<=clock.GetUtcNow().UtcDateTime)return null;
         var content=protector.ReadAssistant(row.SessionId,row.ContactId,row.UserId,row.VersionId,row.ProtectedContent);
         return content.Origin.Reason is {Length:>0} reason ? new(reason,content.ProposedFields) : null;
+    }
+    /// <summary>
+    /// Task 9 of the documents: what the form of a received document went with: how many data were read with doubts and, only with
+    /// <c>formrecords.read</c>, the values read; nothing once the sealed content expired.
+    /// </summary>
+    public (int Doubtful, IReadOnlyList<WhatsAppAssistantPrefillResponse>? Fields)? ExplainDocument(WhatsAppAssistantPresentationRow? row,bool canReadRecords)
+    {
+        if(row is null || row.ContentExpiresAtUtc<=clock.GetUtcNow().UtcDateTime)return null;
+        var content=protector.ReadAssistant(row.SessionId,row.ContactId,row.UserId,row.VersionId,row.ProtectedContent);
+        if(content.Origin.Document is null)return null;
+        return (content.Server?.Marks?.Count(mark=>mark.Kind==ArquitecturaBase.Application.Models.StructuredData.StructuredDocumentMarkKind.Doubtful)??0,
+            canReadRecords?content.ProposedFields:null);
     }
     public async Task<WhatsAppAssistantExplanationResponse?> ReadAsync(Guid actor,WhatsAppAssistantPresentationRow? row,CancellationToken ct)
     {

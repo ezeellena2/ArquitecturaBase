@@ -16,8 +16,14 @@ internal static class WhatsAppOutgoingPresentationPolicy
     /// <summary>W1-A: how the send of a location request stands.</summary>
     public static WhatsAppFlowLocationResponse? Location(WhatsAppFlowLocationRow? row) =>
         row is null || row.State == WhatsAppFlowLocationState.None ? null : new(row.State.ToString(), row.ExpiresAtUtc);
+    /// <summary>
+    /// The kind the chat shows: a list (task 9 of the documents) is a text with its options, like quick replies, so the chat keeps the
+    /// kinds it knows.
+    /// </summary>
+    public static WhatsAppOutgoingMessageKind Kind(WhatsAppOutgoingMessageKind kind) =>
+        kind == WhatsAppOutgoingMessageKind.List ? WhatsAppOutgoingMessageKind.QuickReplies : kind;
     public static WhatsAppOutgoingMessageResponse Map(WhatsAppOutgoingMessageRow row,WhatsAppAssistantExplanationResponse? explanation = null) =>
-        new(row.Id,row.RequestId,row.OperatorUserId,row.Body,row.RequestedAtUtc,row.State,row.WaMessageId,Form(row.Form),Kind:row.Kind,Origin:row.Origin,Assistant:explanation,QuickReplies:WhatsAppAssistantPresentationPolicy.Titles(row.QuickRepliesJson,true),
+        new(row.Id,row.RequestId,row.OperatorUserId,row.Body,row.RequestedAtUtc,row.State,row.WaMessageId,Form(row.Form),Kind:Kind(row.Kind),Origin:row.Origin,Assistant:explanation,QuickReplies:WhatsAppAssistantPresentationPolicy.Titles(row.QuickRepliesJson,true),
             AssistantReply:Reply(row.AssistantReplyJson));
     /// <summary>Casos del asistente: «Por qué respondió esto» as the chat shows it, or nothing when it does not read.</summary>
     public static WhatsAppAssistantReplyResponse? Reply(string? json) =>
@@ -26,5 +32,5 @@ internal static class WhatsAppOutgoingPresentationPolicy
         new(row.Id,row.RequestId,row.OperatorUserId,row.Body,row.RequestedAtUtc,row.State,row.WaMessageId,
             Form(new(session.DefinitionId,session.VersionId,session.VersionNumber,session.NameJson,session.Culture)
                 { Location = row.Kind == WhatsAppOutgoingMessageKind.LocationRequest ? new(session.LocationState, session.ExpiresAtUtc) : null }),
-            Kind:row.Kind,Origin:row.Origin,Assistant:explanation,QuickReplies:WhatsAppAssistantPresentationPolicy.Titles(row.QuickRepliesJson,true));
+            Kind:Kind(row.Kind),Origin:row.Origin,Assistant:explanation,QuickReplies:WhatsAppAssistantPresentationPolicy.Titles(row.QuickRepliesJson,true));
 }

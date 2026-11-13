@@ -22,6 +22,11 @@ public sealed record WhatsAppReceivedDocumentSourceRow
 {
     public DateTime? RequestAwaitedUntilUtc { get; init; }
     public bool FollowedByText { get; init; }
+    /// <summary>
+    /// Task 9: the contiguous text (or audio with its transcription) is its request, before or after it, as a spreadsheet pairs: less
+    /// than ten minutes apart and without an assistant reply requested in between (WhatsAppAssistantSourcePolicy).
+    /// </summary>
+    public bool PairedRequest { get; init; }
     public Guid MessageId { get; init; }
     public Guid ContactId { get; init; }
     public DateTime OccurredAtUtc { get; init; }
@@ -51,7 +56,23 @@ public sealed record WhatsAppReceivedDocumentSourceRow
 public sealed record WhatsAppReceivedDocumentMessageRow(string? FileName, string? ContentType, string? StorageKey, int? Pages,
     WhatsAppDocumentState? State, string? FailureCode)
 {
+    /// <summary>Task 9: what the assistant did with it, from the latest reference that carries it; null when it did nothing.</summary>
+    public WhatsAppReceivedDocumentWhyRow? Why { get; init; }
     public override string ToString() => "WhatsAppReceivedDocumentMessageRow { Metadata = [REDACTED] }";
+}
+
+/// <summary>
+/// Task 9: the latest reference that carried a received document and what it sent: a prefilled form (its session, sealed) or a document
+/// question (its options), and the option the person chose, when they chose one.
+/// </summary>
+public sealed record WhatsAppReceivedDocumentWhyRow(WhatsAppOutgoingMessageKind Kind, string? QuickRepliesJson, string? FormNameJson, string? FormCulture,
+    WhatsAppAssistantPresentationRow? Assistant, string? Chosen)
+{
+    /// <summary>Review of task 9: the form of a prefilled form sent, named when the chat is read in the reader's language.</summary>
+    public Guid? DefinitionId { get; init; }
+    /// <summary>Review of task 9: the id of the option chosen in a document question (its form, or «Otro»).</summary>
+    public string? ChosenReplyId { get; init; }
+    public override string ToString() => "WhatsAppReceivedDocumentWhyRow { Content = [REDACTED] }";
 }
 
 /// <summary>
@@ -71,5 +92,28 @@ public sealed record WhatsAppReceivedDocumentResponse([property: JsonIgnore(Cond
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ReasonCode { get; init; }
 
+    /// <summary>Task 9: «Por qué lo propuso» or «Por qué preguntó» under the document; absent when the assistant did nothing with it.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public WhatsAppReceivedDocumentWhyResponse? Why { get; init; }
+
     public override string ToString() => "WhatsAppReceivedDocumentResponse { Name = [REDACTED] }";
+}
+
+/// <summary>
+/// Task 9, «Por qué lo propuso» (<c>proposed</c>: the form it sent prefilled, how many data it read with doubts and, only with
+/// <c>formrecords.read</c>, what it read) or «Por qué preguntó» (<c>asked</c>: the forms it offered, without «Otro», and the option the
+/// person chose, when they chose one).
+/// </summary>
+public sealed record WhatsAppReceivedDocumentWhyResponse(string Kind, IReadOnlyList<string> Forms)
+{
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Chosen { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? Doubtful { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<WhatsAppAssistantPrefillResponse>? Fields { get; init; }
+
+    public override string ToString() => "WhatsAppReceivedDocumentWhyResponse { Content = [REDACTED] }";
 }

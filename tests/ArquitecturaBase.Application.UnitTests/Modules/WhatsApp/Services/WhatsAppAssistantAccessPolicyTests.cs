@@ -71,6 +71,46 @@ public sealed class WhatsAppAssistantAccessPolicyTests
         Assert.DoesNotContain(new AssistantCapabilityReference("forms.authoring.propose-form",1),context.AllowedCapabilities);
         Assert.Equal(16,context.AllowedCapabilities.Count+context.AllowedTerminals.Count);
         Assert.Equal(context.AllowedCapabilities.Count,context.AllowedCapabilities.Select(capability=>capability.Id).Distinct(StringComparer.Ordinal).Count());
+        // Task 9 of the documents: only a turn with a document declares the documents' candidates and proposal.
+        Assert.DoesNotContain(context.AllowedCapabilities,WhatsAppAssistantAccessPolicy.DocumentCapabilities.Contains);
+    }
+
+    // Task 9: a read document with its request keeps the whole conversation, with or without an agent, and adds the documents' two.
+    [Theory]
+    [InlineData(false,17)]
+    [InlineData(true,17)]
+    public async Task A_document_with_its_request_adds_the_documents_capabilities_to_the_conversation(bool agent,int declared)
+    {
+        var h=new WhatsAppAssistantContextFixture();h.Contact.ChangeMode(WhatsAppConversationMode.Assistant);
+        if(agent) h.Agents.Agent=new(1,"es",new("Asistente","","","","",new("Te paso con una persona.",null)),[],
+            new(WhatsAppAssistantActionKind.NoReply),WhatsAppAssistantAgentLimits.DefaultLimits);
+        var captured=(await h.Policy.CaptureAsync(h.Contact,null,Ct)).Value.Context;
+        var context=WhatsAppAssistantAccessPolicy.WithDocument(captured);
+        Assert.Equal([..captured.AllowedCapabilities,..WhatsAppAssistantAccessPolicy.DocumentCapabilities],context.AllowedCapabilities);
+        Assert.Equal(declared,context.AllowedCapabilities.Count);
+        Assert.Equal((captured.PreloadedCapabilities,captured.AllowedTerminals),(context.PreloadedCapabilities,context.AllowedTerminals));
+        Assert.Equal(context.AllowedCapabilities,WhatsAppAssistantAccessPolicy.WithDocument(context).AllowedCapabilities);
+    }
+
+    // Task 9 of the documents: a read document without a request only loads it, with or without an agent: the documents' candidates and
+    // proposal, no preloads and one proposal; the people and the conversation stay the same.
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_document_alone_only_loads_it(bool agent)
+    {
+        var h=new WhatsAppAssistantContextFixture();h.Contact.ChangeMode(WhatsAppConversationMode.Assistant);
+        if(agent) h.Agents.Agent=new(1,"es",new("Asistente","","","","",new("Te paso con una persona.",null)),[],
+            new(WhatsAppAssistantActionKind.NoReply),WhatsAppAssistantAgentLimits.DefaultLimits);
+        var captured=(await h.Policy.CaptureAsync(h.Contact,null,Ct)).Value.Context;
+        var context=WhatsAppAssistantAccessPolicy.ForDocument(captured);
+        Assert.Equal(WhatsAppAssistantAccessPolicy.DocumentCapabilities,context.AllowedCapabilities);
+        Assert.Equal(new[]{new AssistantTerminalReference("assistant_proposal",1)},context.AllowedTerminals);
+        Assert.Null(context.PreloadedCapabilities);
+        Assert.Equal((captured.ChannelId,captured.ActorUserId,captured.SubjectUserId,captured.Culture,captured.InteractionMode),
+            (context.ChannelId,context.ActorUserId,context.SubjectUserId,context.Culture,context.InteractionMode));
+        Assert.True(WhatsAppAssistantAccessPolicy.LoadsDocumentOnly(context));
+        Assert.False(WhatsAppAssistantAccessPolicy.LoadsDocumentOnly(captured));
     }
     // Casos del asistente: with a saved agent the engine preloads the agent, the form candidates and the history; the agent's reply
     // replaces «No responder», the offers come with the history and the automatic channel closes on up to three proposals.

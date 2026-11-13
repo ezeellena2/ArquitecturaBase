@@ -50,6 +50,11 @@ public sealed record StructuredDocumentRegistrationRequest(string ChannelId, str
     /// <summary>The reason a file cannot be opened, when <see cref="NotRead"/> is Rejected (protected, legacy, too large…).</summary>
     public StructuredAttachmentRejection? Rejection { get; init; }
     public DateTime? ReplyExpiresAtUtc { get; init; }
+    /// <summary>
+    /// The form its person chose in the channel for a document that was not recognized (task 9): registering it again with a proposal for
+    /// that form recognizes it; a proposal for another form changes nothing.
+    /// </summary>
+    public Guid? FocusDefinitionId { get; init; }
     public override string ToString() => "StructuredDocumentRegistrationRequest { Content = [REDACTED] }";
 }
 
@@ -73,6 +78,11 @@ public sealed record StructuredDocumentRegistration(Guid? DocumentId, Structured
     public StructuredDocumentProblem? Problem { get; init; }
     public StructuredDocumentDuplicate? Duplicate { get; init; }
     public bool WasAlreadyRegistered { get; init; }
+    /// <summary>
+    /// Review of task 9: until when the owner waits for its person, as it keeps it (the first registration's, never recomputed by a
+    /// repeated one); null when nobody is waited for. The channel never sends a form that outlives it.
+    /// </summary>
+    public DateTime? ReplyExpiresAtUtc { get; init; }
     public override string ToString() => "StructuredDocumentRegistration { Content = [REDACTED] }";
 }
 
@@ -95,7 +105,8 @@ public sealed record StructuredDocumentSendRequest(Guid DocumentId, string Chann
     public override string ToString() => "StructuredDocumentSendRequest { Content = [REDACTED] }";
 }
 
-public enum StructuredDocumentSendState { Ready, NotSendable, Unavailable }
+/// <summary>Review of task 9: <c>Expired</c>, the owner no longer waits for its person (the reply deadline passed): it is for the team.</summary>
+public enum StructuredDocumentSendState { Ready, NotSendable, Unavailable, Expired }
 
 /// <summary>How a datum of the prepared form is marked (DOC3): read with doubts, not read, not passing its fixed validation, completed by the server.</summary>
 public enum StructuredDocumentMarkKind { Doubtful, NotRead, Invalid, Completed }

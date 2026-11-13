@@ -158,6 +158,58 @@ public sealed record WhatsAppReplyButtonsMessage : WhatsAppOutboundMessage
 }
 
 /// <summary>
+/// A text with a button that opens a list of up to ten options (task 9 of the documents), each with its id and title: WhatsApp returns
+/// the id of the one chosen in the webhook, like a reply button.
+/// </summary>
+public sealed record WhatsAppListMessage : WhatsAppOutboundMessage
+{
+    public const int MaxRows = 10;
+    public const int MaxButtonLength = 20;
+    public const int MaxRowIdLength = 200;
+    public const int MaxRowTitleLength = 24;
+    public const int MaxRowDescriptionLength = 72;
+
+    public WhatsAppListMessage(PhoneNumber to, string body, string button, IReadOnlyList<WhatsAppListRow> rows)
+        : base(to)
+    {
+        ArgumentNullException.ThrowIfNull(rows);
+        Body = WhatsAppMessageLimits.Require(body, MaxInteractiveBodyLength, nameof(body));
+        Button = WhatsAppMessageLimits.Require(button, MaxButtonLength, nameof(button));
+        if (rows.Count is 0 or > MaxRows || rows.DistinctBy(row => row.Id, StringComparer.Ordinal).Count() != rows.Count)
+            throw new ArgumentException($"A list needs from 1 to {MaxRows} rows with unique ids.", nameof(rows));
+        Rows = [.. rows];
+    }
+
+    public string Body { get; }
+
+    public string Button { get; }
+
+    public IReadOnlyList<WhatsAppListRow> Rows { get; }
+
+    public override string SafeSummary => $"{Body} [{Button}: {string.Join(" | ", Rows.Select(row => row.Title))}]";
+}
+
+/// <summary>
+/// An option of a list: WhatsApp returns its <see cref="Id"/> in the webhook when the person chooses it. Its optional description is the
+/// line under the title (the full name of a form whose title was cut).
+/// </summary>
+public sealed record WhatsAppListRow
+{
+    public WhatsAppListRow(string id, string title, string? description = null)
+    {
+        Id = WhatsAppMessageLimits.Require(id, WhatsAppListMessage.MaxRowIdLength, nameof(id));
+        Title = WhatsAppMessageLimits.Require(title, WhatsAppListMessage.MaxRowTitleLength, nameof(title));
+        Description = description is null ? null : WhatsAppMessageLimits.Require(description, WhatsAppListMessage.MaxRowDescriptionLength, nameof(description));
+    }
+
+    public string Id { get; }
+
+    public string Title { get; }
+
+    public string? Description { get; }
+}
+
+/// <summary>
 /// El código de ingreso. Sale con la plantilla de autenticación aprobada en Meta, que pone el texto: acá van el idioma
 /// (el mismo código que la cultura del perfil, "es" o "en") y el código. Qué plantilla se usa lo decide Infrastructure
 /// con su configuración (<c>WhatsApp:Templates:LoginCode</c>), no quien pide el mensaje.

@@ -26,7 +26,8 @@ internal sealed partial class FormReceivedDocumentReplyPolicy(IFormReceivedDocum
     public const string Unreadable = "unreadable";
     public const string Duplicate = "duplicate";
 
-    public async Task<FormReceivedDocumentClassification> ClassifyAsync(StructuredDocumentRegistrationRequest request, CancellationToken ct)
+    public async Task<FormReceivedDocumentClassification> ClassifyAsync(StructuredDocumentRegistrationRequest request, CancellationToken ct,
+        Guid? exceptDocumentId = null)
     {
         var culture = request.Culture;
         if (request.NotRead == StructuredDocumentNotRead.Quota)
@@ -37,7 +38,7 @@ internal sealed partial class FormReceivedDocumentReplyPolicy(IFormReceivedDocum
         if (request is { Proposal: { } proposal, Copy: { } copy } && FormDocumentObservationPolicy.Authentic(proposal, out var entry, out var read)
             && (read is null || read.Capability == BusinessFormDocumentAssistantCapabilitySource.CandidatesId
                 && read.Read.Payload.UserId == request.SenderUserId && read.Read.Payload.Culture == culture))
-            prepared = await proposals.PrepareAsync(entry, copy.Sha256, null, ct);
+            prepared = await proposals.PrepareAsync(entry, copy.Sha256, exceptDocumentId, ct);
         return await ClassifyAsync(prepared, reading, request.SenderUserId, culture, ct);
     }
 
@@ -90,7 +91,8 @@ internal sealed partial class FormReceivedDocumentReplyPolicy(IFormReceivedDocum
             }
         }
         else reply = new(row.Id, StructuredDocumentReplyKind.Rejected);
-        return reply with { DocumentId = row.Id, WasAlreadyRegistered = true };
+        // Review of task 9: the deadline it keeps for its person, never recomputed by a repeated registration.
+        return reply with { DocumentId = row.Id, WasAlreadyRegistered = true, ReplyExpiresAtUtc = row.ReplyExpiresAtUtc };
     }
 
     // A candidate of the stored proposal by the name of the version it was read for.

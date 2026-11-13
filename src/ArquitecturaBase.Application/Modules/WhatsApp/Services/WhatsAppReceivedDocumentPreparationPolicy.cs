@@ -21,9 +21,9 @@ internal enum WhatsAppReceivedDocumentDecision { Keep, NotLinked, NotAllowed, Wa
 // before, for everybody. With one (or with a request), it is downloaded only for the linked, active account of an automatic conversation,
 // whose number is the chat's, that can build forms (the owner lets it attach documents) or load them (the inbox's port), with private
 // storage for the copy and, for a PDF or a photo, an installation that reads documents (what Home publishes as documentReading); it will
-// be read when it has a request or the person can load it. The request is its caption: the contiguous text or audio is the circuit's
-// (HasRequest is the seam), so one that could be asked for waits for it, still pending, until the pairing window passes or another
-// message follows. An unlinked number and a linked account that can do neither are not read. Downloading, checking, preparing and
+// be read when it has a request or the person can load it. The request is its caption or the contiguous text or audio, before or after it
+// (task 9, HasRequest), so one that could be asked for and not loaded waits for it, still pending, until the pairing window passes or
+// another message follows. An unlinked number and a linked account that can do neither are not read. Downloading, checking, preparing and
 // copying happen outside the channel transaction, as a spreadsheet's: the declared size and the bytes are bounded, the bytes must have
 // Meta's SHA-256, the owner prepares them through the neutral port, the copy is written once and read back, and a file that cannot be
 // read goes to the inbox discarded: from that copy when the inbox may keep its kind, otherwise with only what the person sent (never the
@@ -81,10 +81,10 @@ internal sealed class WhatsAppReceivedDocumentPreparationPolicy(IWhatsAppMediaCl
     };
 
     /// <summary>
-    /// The seam of the request: the caption now. The circuit (task 9) adds the contiguous text or audio, before or after it, as the
-    /// spreadsheets pair (WhatsAppAssistantSourcePolicy); the wait below gives the one after it the chance to arrive.
+    /// The request: the caption, or the contiguous text or audio, before or after it, as the spreadsheets pair (task 9,
+    /// WhatsAppAssistantSourcePolicy); the wait below gives the one after it the chance to arrive.
     /// </summary>
-    public static bool HasRequest(WhatsAppReceivedDocumentSourceRow source) => !string.IsNullOrWhiteSpace(source.Caption);
+    public static bool HasRequest(WhatsAppReceivedDocumentSourceRow source) => !string.IsNullOrWhiteSpace(source.Caption) || source.PairedRequest;
 
     // A request may still come: the pairing window of the spreadsheets has not passed and no text of the person (nor an audio already
     // transcribed) followed it; an audio still transcribing keeps it waiting, as a spreadsheet waits for it.
@@ -113,12 +113,11 @@ internal sealed class WhatsAppReceivedDocumentPreparationPolicy(IWhatsAppMediaCl
         var engineReads = (await operations.GetAvailabilityAsync(ct)).ReadsDocuments;
         if (!engineReads && NeedsEngine(source.ContentType)) return WhatsAppReceivedDocumentPlan.Keep;
         var requested = HasRequest(source);
-        // While no form reads documents, one without a request is not downloaded: it waits for the request that may follow it, and then
-        // stays as today.
-        if (!loading.AnyFormReads && !requested)
-            return MayStillBeAsked(source, nowUtc)
-                ? new(WhatsAppReceivedDocumentDecision.Wait, recipient.Culture) { AwaitedUntilUtc = source.OccurredAtUtc + WhatsAppAssistantSourcePolicy.PairingWindow }
-                : WhatsAppReceivedDocumentPlan.Keep;
+        // One without a request that the person could not load waits for the request that may follow it (task 9: the text or the
+        // audio that follows is its request), without being downloaded; then, while no form reads documents, it stays as today.
+        if (!requested && !loading.CanLoad && MayStillBeAsked(source, nowUtc))
+            return new(WhatsAppReceivedDocumentDecision.Wait, recipient.Culture) { AwaitedUntilUtc = source.OccurredAtUtc + WhatsAppAssistantSourcePolicy.PairingWindow };
+        if (!loading.AnyFormReads && !requested) return WhatsAppReceivedDocumentPlan.Keep;
         return new(WhatsAppReceivedDocumentDecision.Download, recipient.Culture)
             { Reads = requested || loading.CanLoad, CanLoad = loading.CanLoad, EngineReads = engineReads };
     }

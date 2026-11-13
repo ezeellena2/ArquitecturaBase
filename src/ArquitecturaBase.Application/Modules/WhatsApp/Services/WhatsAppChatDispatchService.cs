@@ -35,7 +35,7 @@ internal sealed class WhatsAppChatDispatchService(
             };
             if (reservation is null) outgoing.Start(nowUtc);
             return Result.Success(new WhatsAppDispatchReservationResponse(true, new(outgoing.Id, contact!.Id, phone.Value, outgoing.Body!,
-                outgoing.Kind, outgoing.FlowSessionId, outgoing.Origin, reservation, outgoing.Document, outgoing.DocumentMediaId, outgoing.QuickReplies)));
+                outgoing.Kind, outgoing.FlowSessionId, outgoing.Origin, reservation, outgoing.Document, outgoing.DocumentMediaId, outgoing.QuickReplies, outgoing.ListButton)));
         }, CommitPolicy.OnSuccess, cancellationToken));
 
     public Task<Result> CompleteAsync(Guid contactId, Guid operationId, string? waMessageId, bool uncertain, CancellationToken cancellationToken, Guid? reservationId = null, string? failureCode = null) =>
@@ -61,7 +61,7 @@ internal sealed class WhatsAppChatDispatchService(
                     {
                         WhatsAppOutgoingMessageKind.Flow => WhatsAppMessageKind.Flow,
                         WhatsAppOutgoingMessageKind.Document => WhatsAppMessageKind.Document,
-                        WhatsAppOutgoingMessageKind.QuickReplies => WhatsAppMessageKind.Interactive,
+                        WhatsAppOutgoingMessageKind.QuickReplies or WhatsAppOutgoingMessageKind.List => WhatsAppMessageKind.Interactive,
                         WhatsAppOutgoingMessageKind.LocationRequest => WhatsAppMessageKind.LocationRequest,
                         _ => WhatsAppMessageKind.Text,
                     };
@@ -76,8 +76,8 @@ internal sealed class WhatsAppChatDispatchService(
                         && operation.FlowSessionId is not null) message.RecordReplyTitles(operation.QuickReplies.Select(reply => reply.Title).ToArray());
                     if (operation.Origin == WhatsAppMessageOrigin.FormAction) message.AttributeFormAction();
                     if (operation.Origin == WhatsAppMessageOrigin.Assistant) message.AttributeAssistant(
-                        operation.Kind == WhatsAppOutgoingMessageKind.QuickReplies ? operation.QuickReplies.Select(reply => reply.Title).ToArray() : null,
-                        operation.AssistantReplyJson);
+                        operation.Kind is WhatsAppOutgoingMessageKind.QuickReplies or WhatsAppOutgoingMessageKind.List ? operation.QuickReplies.Select(reply => reply.Title).ToArray() : null,
+                        operation.AssistantReplyJson, list: operation.Kind == WhatsAppOutgoingMessageKind.List);
                     if (await messages.GetReceiptAsync(waMessageId, ct) is { } receipt)
                     {
                         message.ApplyStatus(receipt.Status, receipt.OccurredAtUtc, receipt.ErrorCode);

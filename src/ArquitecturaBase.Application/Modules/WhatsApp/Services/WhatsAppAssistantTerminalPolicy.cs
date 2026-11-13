@@ -12,9 +12,10 @@ namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 
 // The dispatcher calls the owner outside its own UoW, then deduplicates the fixed reply in its existing outbox. An authoring
 // proposal (a form, a catalog, an import, H4's people catalog or why nothing can be built) is only summarized here: its button
-// creates it, or opens the import in the app.
+// creates it, or opens the import in the app. A read document's proposal (task 9 of the documents) goes to the inbox, which says
+// what to tell the person.
 internal sealed class WhatsAppAssistantTerminalPolicy(IStructuredAuthoringProposalChannel authoring,
-    IStructuredMissingFormRequestSink missing, IPublicOrigin origin, IWhatsAppAssistantReader reader)
+    IStructuredMissingFormRequestSink missing, IPublicOrigin origin, IWhatsAppAssistantReader reader, WhatsAppAssistantDocumentPolicy documents)
 {
     private static readonly string[] Ids = ["forms.missing-request.propose", "forms.catalog-filters.propose", "forms.authoring.propose-form",
         "forms.authoring.propose-catalog", "forms.authoring.propose-import", "forms.authoring.decline"];
@@ -22,12 +23,23 @@ internal sealed class WhatsAppAssistantTerminalPolicy(IStructuredAuthoringPropos
     // Version 2 of a catalog maps the spreadsheet (IA, Stage 2) and version 2 of a form reads the conversation's document (Stage 3);
     // version 1 still closes what is in progress.
     public static bool Handles(AssistantCapabilityReference capability) => capability.Version == 1 && Ids.Contains(capability.Id, StringComparer.Ordinal)
-        || capability is { Id: "forms.authoring.propose-catalog" or "forms.authoring.propose-form", Version: 2 };
+        || capability is { Id: "forms.authoring.propose-catalog" or "forms.authoring.propose-form", Version: 2 }
+        || WhatsAppAssistantDocumentPolicy.Handles(capability);
+
+    /// <summary>
+    /// Task 9: an interpretation that only loads a read document and closed without a proposal still goes to the inbox, which leaves it
+    /// unclassified and offers what the person can complete.
+    /// </summary>
+    public static bool HandlesDocumentWithoutProposal(WhatsAppAssistantReferenceRow reference, AssistantOperationResponse operation) =>
+        operation is { State: "completed", Proposal: null } && reference.AttachmentMessageId is not null
+        && reference.Kind == WhatsAppAssistantRequestKind.Automatic
+        && WhatsAppAssistantAccessPolicy.LoadsDocumentOnly(WhatsAppAssistantSuggestionPolicy.Context(reference));
 
     public async Task<Result<WhatsAppAssistantTerminalResponse?>> ApplyAsync(WhatsAppAssistantReferenceRow reference,
         WhatsAppAssistantSourceRow source, AssistantOperationResponse operation, CancellationToken ct)
     {
-        if (operation.State != "completed" || operation.Proposal is not {} proposal || operation.Provenance is not {} provenance || !Handles(proposal.Capability))
+        var documentOnly = HandlesDocumentWithoutProposal(reference, operation);
+        if (!documentOnly && (operation.State != "completed" || operation.Proposal is not {} handled || operation.Provenance is null || !Handles(handled.Capability)))
             return Result.Success<WhatsAppAssistantTerminalResponse?>(null);
         if (operation.RequestId != reference.RequestId || source.Id != reference.SourceMessageId || source.ContactId != reference.ContactId)
             return WhatsAppAssistantErrors.InvalidProposal;
@@ -38,6 +50,11 @@ internal sealed class WhatsAppAssistantTerminalPolicy(IStructuredAuthoringPropos
             || reference.Kind == WhatsAppAssistantRequestKind.Automatic && reference.ActorUserId != reference.SubjectUserId)
             return WhatsAppAssistantErrors.InvalidProposal;
         var automatic = reference.Kind == WhatsAppAssistantRequestKind.Automatic;
+        // A read document goes to the inbox in the person's own conversation, which says what to answer.
+        if (documentOnly || WhatsAppAssistantDocumentPolicy.Handles(operation.Proposal!.Capability))
+            return automatic ? await documents.RegisterAsync(reference, operation, context, ct) : new WhatsAppAssistantTerminalResponse(operation.Proposal?.Id ?? reference.RequestId, null, context.Culture);
+        var proposal = operation.Proposal!;
+        var provenance = operation.Provenance!;
         if (proposal.Capability.Id != "forms.missing-request.propose")
         {
             if (!automatic) return new WhatsAppAssistantTerminalResponse(proposal.Id, null, context.Culture);
@@ -60,7 +77,8 @@ internal sealed class WhatsAppAssistantTerminalPolicy(IStructuredAuthoringPropos
         var seen = new HashSet<Guid>();
         for (var current = reference; current is not null;
              current = current.PreviousRequestId is { } previous && seen.Add(previous) ? await reader.FindAsync(reference.ContactId, previous, ct) : null)
-            if (current.AttachmentMessageId is not null) return true;
+            // The latest file decides, as the engine inherits it: a read document (task 9) is not a spreadsheet.
+            if (current.AttachmentMessageId is { } attachment) return await reader.FindDocumentAsync(reference.ContactId, attachment, ct) is null;
         return false;
     }
 }

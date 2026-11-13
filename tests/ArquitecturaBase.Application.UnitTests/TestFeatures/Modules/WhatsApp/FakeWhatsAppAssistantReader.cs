@@ -26,6 +26,20 @@ internal sealed class FakeWhatsAppAssistantReader : IWhatsAppAssistantReader
     public Task<Guid?> FindLatestAuthoringRequestAsync(Guid contactId,CancellationToken ct)=>Task.FromResult(LatestAuthoringRequest);
     public Guid? ChangeRequest {get;set;}
     public Task<Guid?> FindChangeRequestAsync(Guid contactId,CancellationToken ct)=>Task.FromResult(ChangeRequest);
+    // Task 9 of the documents: the read documents by their message, the tap on a document question and the latest question's operation.
+    public Dictionary<Guid,WhatsAppAssistantDocumentRow> Documents { get; } = [];
+    public Task<WhatsAppAssistantDocumentRow?> FindDocumentAsync(Guid contactId,Guid messageId,CancellationToken ct)=>
+        Task.FromResult(Documents.TryGetValue(messageId,out var document)?document:null);
+    public WhatsAppAssistantChoiceRow? DocumentTap {get;set;}
+    public Task<WhatsAppAssistantChoiceRow?> FindLatestDocumentTapAsync(Guid contactId,CancellationToken ct)=>Task.FromResult(DocumentTap);
+    public Guid? LatestDocumentRequest {get;set;}
+    public Task<Guid?> FindLatestDocumentRequestAsync(Guid contactId,CancellationToken ct)=>Task.FromResult(LatestDocumentRequest);
+    // Review of task 9: what the reader finds of a tap: a closed conversation, or the questions another tap already answered.
+    public WhatsAppAssistantDocumentTapState DocumentTapState {get;set;}=WhatsAppAssistantDocumentTapState.Open;
+    public HashSet<Guid> AnsweredDocumentRequests {get;}=[];
+    public Task<WhatsAppAssistantDocumentTapState> FindDocumentTapStateAsync(WhatsAppAssistantReferenceRow question,Guid tapId,DateTime nowUtc,CancellationToken ct)=>
+        Task.FromResult(DocumentTapState==WhatsAppAssistantDocumentTapState.Closed?DocumentTapState
+            :AnsweredDocumentRequests.Contains(question.RequestId)?WhatsAppAssistantDocumentTapState.Answered:WhatsAppAssistantDocumentTapState.Open);
     public WhatsAppAssistantSourceRow? Source { get; set; }
     public WhatsAppOutgoingMessageRow? Outgoing { get; set; }
     public int OfferCount { get; set; }

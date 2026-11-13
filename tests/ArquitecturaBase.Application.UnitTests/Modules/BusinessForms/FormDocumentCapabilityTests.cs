@@ -53,6 +53,22 @@ public sealed class FormDocumentCapabilityTests
         Assert.Equal(["Pesos", "Dólares"], form.Questions.Single(question => question.Label == "Moneda").Choices.Select(choice => choice.Text));
     }
 
+    // Task 9: a form its person chose in a channel for a document that was not recognized is the only one read again.
+    [Fact]
+    public async Task The_candidates_read_of_a_form_chosen_in_a_channel_shows_only_that_form()
+    {
+        var f = new Fixture();
+        var other = f.Documents.AddForm([FormReceivedDocumentFixture.Question("decimal", "Importe", required: true)], name: "Gastos");
+        var request = f.Candidates();
+
+        var all = Assert.IsType<FormDocumentReadPayload>((await f.Source.ExecuteAsync(request, Ct)).Value.Payload);
+        var focused = Assert.IsType<FormDocumentReadPayload>((await f.Source.ExecuteAsync(request with
+            { Context = request.Context with { FocusDefinitionId = other.DefinitionId } }, Ct)).Value.Payload);
+
+        Assert.Equal(new[] { f.Form.DefinitionId, other.DefinitionId }.Order(), all.Forms.Select(form => form.DefinitionId).Order());
+        Assert.Equal(other.DefinitionId, Assert.Single(focused.Forms).DefinitionId);
+    }
+
     [Fact]
     public async Task The_candidates_read_needs_a_sender_who_can_still_load_responses_in_the_conversation_language()
     {

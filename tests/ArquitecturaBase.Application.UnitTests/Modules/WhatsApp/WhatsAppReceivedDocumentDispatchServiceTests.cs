@@ -70,8 +70,8 @@ public sealed class WhatsAppReceivedDocumentDispatchServiceTests
         Assert.Empty(f.Registrations);
     }
 
-    // The other order: a text that follows (or an audio once transcribed) ends the wait before its time. Taking it as the request (the
-    // contiguous text or audio, which HasRequest will pair) is the circuit's; here the document stays as today.
+    // The other order: a text that follows (or an audio once transcribed) ends the wait before its time. One that does not pair with it
+    // (later than the window, or after an assistant reply) is not its request, and the document stays as today.
     [Fact]
     public async Task A_message_that_follows_ends_the_wait_before_its_time()
     {
@@ -109,6 +109,37 @@ public sealed class WhatsAppReceivedDocumentDispatchServiceTests
         Assert.Equal((WhatsAppDocumentState.Unavailable, (DateTime?)null, 0), (f.Message.DocumentState, f.Message.DocumentRequestAwaitedUntilUtc, f.Downloads));
     }
 
+    // Task 9: the contiguous text or audio is the request, in both orders. Before it, at once; after it, when it arrives and ends the
+    // wait. Then someone who only builds forms gets it read too.
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task A_contiguous_text_is_the_request_of_a_document_without_a_caption(bool anyFormReads)
+    {
+        var f = new WhatsAppReceivedDocumentFixture(caption: null) { Loading = new(anyFormReads, false), MayAuthor = true, PairedRequest = true };
+
+        var result = await f.Dispatch.PrepareAsync(f.Contact.Id, Ct);
+
+        Assert.Equal((1, WhatsAppDocumentState.Reading), (f.Downloads, f.Message.DocumentState));
+        Assert.NotNull(result.Value?.Operation?.Document);
+    }
+
+    [Fact]
+    public async Task The_text_that_follows_and_pairs_ends_the_wait_and_gets_it_read()
+    {
+        var f = new WhatsAppReceivedDocumentFixture(caption: null) { Loading = new(true, false), MayAuthor = true };
+        Assert.True((await f.Dispatch.PrepareAsync(f.Contact.Id, Ct)).IsSuccess);
+        Assert.Equal((WhatsAppDocumentState.Pending, 0), (f.Message.DocumentState, f.Downloads));
+        f.Host.Context.Clock.Advance(TimeSpan.FromMinutes(3));
+        f.FollowedByText = true;
+        f.PairedRequest = true;
+
+        var result = await f.Dispatch.PrepareAsync(f.Contact.Id, Ct);
+
+        Assert.Equal((1, WhatsAppDocumentState.Reading), (f.Downloads, f.Message.DocumentState));
+        Assert.NotNull(result.Value?.Operation?.Document);
+    }
+
     [Fact]
     public async Task While_no_form_reads_documents_one_with_a_request_is_read_for_someone_who_builds_forms()
     {
@@ -121,11 +152,14 @@ public sealed class WhatsAppReceivedDocumentDispatchServiceTests
         Assert.NotNull(result.Value?.Operation?.Document);
     }
 
-    // The request is its caption here; pairing it with the contiguous text or audio is the circuit's.
+    // Someone who only builds forms waits for the request first; without one it stays stored in the chat.
     [Fact]
     public async Task Someone_who_only_builds_forms_keeps_a_document_without_a_request_stored_in_the_chat_without_spending_a_reading()
     {
         var f = new WhatsAppReceivedDocumentFixture(caption: null) { Loading = new(true, false), MayAuthor = true };
+        Assert.Null((await f.Dispatch.PrepareAsync(f.Contact.Id, Ct)).Value);
+        Assert.Equal((WhatsAppDocumentState.Pending, 0), (f.Message.DocumentState, f.Downloads));
+        f.Host.Context.Clock.Advance(TimeSpan.FromMinutes(10));
 
         var result = await f.Dispatch.PrepareAsync(f.Contact.Id, Ct);
 
@@ -637,7 +671,7 @@ public sealed class WhatsAppReceivedDocumentDispatchServiceTests
     [Fact]
     public async Task A_download_decided_otherwise_under_the_lock_is_taken_again_in_the_next_round()
     {
-        var f = new WhatsAppReceivedDocumentFixture(caption: null) { MayAuthor = true };
+        var f = new WhatsAppReceivedDocumentFixture { MayAuthor = true };
         f.LoadingAnswers.Enqueue(new(true, false));
         f.LoadingAnswers.Enqueue(new(true, true));
 
@@ -711,7 +745,7 @@ public sealed class WhatsAppReceivedDocumentDispatchServiceTests
         Assert.Empty(f.Registrations);
     }
 
-    // The circuit says it (task 9); here the quota leaves the document registered unclassified, from its copy, and not read.
+    // The quota leaves the document registered unclassified, from its copy, and not read; the person is told once (task 9).
     [Fact]
     public async Task Over_the_day_reading_quota_it_goes_to_the_inbox_unclassified_without_being_read()
     {
@@ -728,7 +762,7 @@ public sealed class WhatsAppReceivedDocumentDispatchServiceTests
         Assert.Equal(new StructuredDocumentCopy(f.Key(), "comprobante.pdf", "application/pdf", f.Content.Length, WhatsAppReceivedDocumentFixture.Hash(f.Content), 2),
             registered.Copy);
         Assert.Null(registered.File);
-        Assert.Empty(f.Replies);
+        Assert.Equal("Por hoy llegué al tope de documentos que puedo leer. Lo dejé para que lo revise el equipo.", Assert.Single(f.Replies).Body);
     }
 
     [Fact]

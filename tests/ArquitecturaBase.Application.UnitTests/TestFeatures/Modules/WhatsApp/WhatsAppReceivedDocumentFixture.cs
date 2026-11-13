@@ -33,6 +33,8 @@ internal sealed class WhatsAppReceivedDocumentFixture : IWhatsAppReceivedDocumen
     public bool MayAuthor { get; set; }
     public bool InstallationReadsDocuments { get; set; } = true;
     public bool FollowedByText { get; set; }
+    /// <summary>Task 9: the contiguous text or audio, before or after it, is its request (the reader pairs them as a spreadsheet).</summary>
+    public bool PairedRequest { get; set; }
     /// <summary>What the inbox's port answers each time it is asked, in order, before <see cref="Loading"/>: a change between two decisions.</summary>
     public Queue<StructuredDocumentLoading> LoadingAnswers { get; } = new();
     public StructuredDocumentReplyKind? RegistrationReply { get; set; }
@@ -77,7 +79,7 @@ internal sealed class WhatsAppReceivedDocumentFixture : IWhatsAppReceivedDocumen
 
     public WhatsAppReceivedDocumentSourceRow Row() => new()
     {
-        RequestAwaitedUntilUtc = Message.DocumentRequestAwaitedUntilUtc, FollowedByText = FollowedByText,
+        RequestAwaitedUntilUtc = Message.DocumentRequestAwaitedUntilUtc, FollowedByText = FollowedByText, PairedRequest = PairedRequest,
         MessageId = Message.Id, ContactId = Contact.Id, OccurredAtUtc = Message.OccurredAtUtc, Mode = Contact.Mode, LinkedUserId = Contact.UserId,
         LinkRevision = Contact.LinkRevision, State = Message.DocumentState!.Value, Caption = Message.Body, MediaId = Message.DocumentMediaId,
         ContentType = Message.DocumentContentType, Sha256 = Message.DocumentSha256, FileName = Message.DocumentFileName, StorageKey = Message.DocumentStorageKey,

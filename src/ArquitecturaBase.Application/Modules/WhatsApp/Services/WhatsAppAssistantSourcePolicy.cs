@@ -10,7 +10,8 @@ namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 // or audio with its transcription, before or after it, when no assistant reply was requested in between and they arrived less than
 // ten minutes apart: the request is the text, and the spreadsheet goes with it. A text waits for its spreadsheet while it is
 // downloaded, and is not interpreted when it was rejected, since the rejection answered; an unavailable one leaves it alone. The
-// reader resolves its sources with this rule; a spreadsheet alone is interpreted only as the answer its conversation waits for.
+// reader resolves its sources with this rule; a spreadsheet alone is interpreted only as the answer its conversation waits for. A read
+// document pairs the same way (task 9 of the documents): a text waits while it is downloaded or read, and alone it is also loaded.
 public static class WhatsAppAssistantSourcePolicy
 {
     public static readonly TimeSpan PairingWindow = TimeSpan.FromMinutes(10);
@@ -20,7 +21,8 @@ public static class WhatsAppAssistantSourcePolicy
         ArgumentNullException.ThrowIfNull(source);
         if (source.CapturedRecordId is not null) return source;
         var pair = previous is { AnsweredSince: false } && source.OccurredAtUtc - previous.OccurredAtUtc < PairingWindow ? previous : null;
-        if (source.Kind == WhatsAppMessageKind.Spreadsheet)
+        // Task 9 of the documents: a read document pairs as a spreadsheet does, in both orders.
+        if (source.Kind == WhatsAppMessageKind.ReceivedDocument || source.Kind == WhatsAppMessageKind.Spreadsheet)
         {
             if (!string.IsNullOrWhiteSpace(source.Body)) return source;
             if (pair is { Kind: WhatsAppMessageKind.Text or WhatsAppMessageKind.Audio } && !string.IsNullOrWhiteSpace(pair.Body))
@@ -28,6 +30,18 @@ public static class WhatsAppAssistantSourcePolicy
             return source with { Body = "", State = pair is { Kind: WhatsAppMessageKind.Audio, AudioState: WhatsAppAudioState.Pending or WhatsAppAudioState.Transcribing }
                 ? WhatsAppAssistantSourceState.Waiting : WhatsAppAssistantSourceState.Alone };
         }
+        if (pair is { Kind: WhatsAppMessageKind.ReceivedDocument } && string.IsNullOrWhiteSpace(pair.Body))
+            return pair.DocumentState switch
+            {
+                WhatsAppDocumentState.Pending or WhatsAppDocumentState.Reading => source with { State = WhatsAppAssistantSourceState.Waiting },
+                WhatsAppDocumentState.Rejected => source with { State = WhatsAppAssistantSourceState.Answered },
+                // Review of task 9: over the day's reading quota it was answered with its fixed text too.
+                WhatsAppDocumentState.Unavailable when pair.DocumentFailureCode == WhatsAppReceivedDocumentPreparationPolicy.QuotaCode =>
+                    source with { State = WhatsAppAssistantSourceState.Answered },
+                WhatsAppDocumentState.Read when pair.Document is { } document =>
+                    source with { Document = document, ContentExpiresAtUtc = Earliest(source.ContentExpiresAtUtc, document.ExpiresAtUtc) },
+                _ => source,
+            };
         if (pair is not { Kind: WhatsAppMessageKind.Spreadsheet } || !string.IsNullOrWhiteSpace(pair.Body)) return source;
         return pair.SpreadsheetState switch
         {
@@ -52,6 +66,26 @@ public static class WhatsAppAssistantSourcePolicy
         if (prepared is null) throw new InvalidOperationException("The stored prepared spreadsheet is missing.");
         return new(sheet.StorageKey, WhatsAppMessage.SpreadsheetName(sheet.FileName, prepared.MediaType), prepared.MediaType, sheet.Size, sheet.Sha256,
             sheet.ExpiresAtUtc, prepared);
+    }
+
+    /// <summary>
+    /// Task 9: a read document as the engine takes it: the private copy (its kind by its key), with the name, size, SHA-256 and pages the
+    /// message keeps, the expiry of its content and its reading. The reading was serialized by this module: one that does not read is a fault.
+    /// </summary>
+    public static AssistantAttachmentInput Attachment(WhatsAppAssistantDocumentRow document)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        if (!WhatsAppReceivedDocumentPreparationPolicy.TryParseKey(document.StorageKey, out _, out var kind))
+            throw new InvalidOperationException("The stored document copy has an unknown key.");
+        StructuredDocumentReading? reading;
+        try { reading = JsonSerializer.Deserialize<StructuredDocumentReading>(document.ReadingJson, WhatsAppReceivedDocumentReadingPolicy.ReadingJson); }
+        catch (JsonException exception) { throw new InvalidOperationException("The stored document reading is invalid.", exception); }
+        if (reading is null || !Enum.IsDefined(reading.Readability) || reading.Text is null)
+            throw new InvalidOperationException("The stored document reading is missing.");
+        var mediaType = WhatsAppReceivedDocumentPreparationPolicy.MediaType(kind);
+        return AssistantAttachmentInput.ForDocument(document.StorageKey, document.FileName, document.ExpiresAtUtc,
+            new StructuredDocument(document.FileName, kind, mediaType, document.Size, document.Sha256,
+                kind == StructuredDocumentKind.Pdf ? document.Pages : null, reading));
     }
 
     private static DateTime Earliest(DateTime first, DateTime second) => first <= second ? first : second;

@@ -21,6 +21,7 @@ internal sealed class WhatsAppAssistantDispatchFixture
     public WhatsAppChatDispatchService Service { get; }
     public WhatsAppOutgoingSendGuard Guard { get; }
     public FakeAssistantForms Forms { get; } = new();
+    public Sessions FlowSessions { get; } = new();
     public DateTime Now => Context.Clock.GetUtcNow().UtcDateTime;
 
     private WhatsAppAssistantDispatchFixture()
@@ -30,21 +31,24 @@ internal sealed class WhatsAppAssistantDispatchFixture
             "Recibimos el pedido", Now, Context.Contact.LinkRevision, Context.Contact.WaId!, Context.Contact.ModeRevision);
         Repository = new(Context.Contact, Outgoing, UnitOfWork);
         Messages = new(new LockLog { InTransaction = () => UnitOfWork.InTransaction });
-        Guard=CreateGuard(Context,Reader,Forms);
+        Guard=CreateGuard(Context,Reader,Forms,FlowSessions);
         Service = new(Repository, Messages, UnitOfWork, Context.Clock,
             Guard,
             NullLogger<WhatsAppChatDispatchService>.Instance);
     }
 
-    public static WhatsAppOutgoingSendGuard CreateGuard(WhatsAppAssistantContextFixture context, FakeWhatsAppAssistantReader? reader = null, FakeAssistantForms? forms = null) =>
+    public static WhatsAppOutgoingSendGuard CreateGuard(WhatsAppAssistantContextFixture context, FakeWhatsAppAssistantReader? reader = null, FakeAssistantForms? forms = null,
+        Sessions? sessions = null) =>
         new(new FakePhoneNumberParser(), new(context.Users,context.Permissions),
             new(context.Users,new FakePhoneNumberParser(),new FakeWhatsAppAvailability(true,true),context.Clock),context.Policy,
-            reader ?? new(),new Sessions(),forms ?? new FakeAssistantForms(),context.Clock);
+            reader ?? new(),sessions ?? new Sessions(),forms ?? new FakeAssistantForms(),context.Clock);
 
-    private sealed class Sessions : IWhatsAppFlowSessionReader
+    public sealed class Sessions : IWhatsAppFlowSessionReader
     {
+        /// <summary>Review of task 9: the session of an assistant Flow, as the dispatch reads it.</summary>
+        public WhatsAppFormDispatchRow? Dispatch { get; set; }
         public Task<IReadOnlyList<Guid>> ListContactsWithPendingLocationsAsync(IReadOnlyCollection<Guid> excluded, int limit, DateTime nowUtc, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<Guid>>([]);
-        public Task<WhatsAppFormDispatchRow?> FindDispatchAsync(Guid outgoingId,CancellationToken ct) => Task.FromResult<WhatsAppFormDispatchRow?>(null);
+        public Task<WhatsAppFormDispatchRow?> FindDispatchAsync(Guid outgoingId,CancellationToken ct) => Task.FromResult(Dispatch?.OutgoingId==outgoingId?Dispatch:null);
         public Task<WhatsAppFormBindingRow?> FindBindingAsync(Guid definitionId,Guid versionId,string culture,CancellationToken ct) => throw new NotSupportedException();
         public Task<WhatsAppFlowReplySessionRow?> FindReplySessionAsync(Guid contactId,string tokenHash,CancellationToken ct) => throw new NotSupportedException();
         public Task<IReadOnlyList<WhatsAppPendingFlowReplyRow>> ListPendingFlowRepliesAsync(int limit,CancellationToken ct) => throw new NotSupportedException();

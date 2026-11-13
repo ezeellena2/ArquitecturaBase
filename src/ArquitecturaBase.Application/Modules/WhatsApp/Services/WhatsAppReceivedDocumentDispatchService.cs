@@ -153,7 +153,7 @@ internal sealed partial class WhatsAppReceivedDocumentDispatchService(IWhatsAppR
 
     private async Task<Result> ApplyAsync(Guid contactId, Guid requestId, Result<AssistantOperationResponse> outcome, CancellationToken ct)
     {
-        if (await conversations.GetForUpdateAsync(contactId, ct) is null) return Result.Success();
+        if (await conversations.GetForUpdateAsync(contactId, ct) is not { } contact) return Result.Success();
         var message = await messages.GetByRequestForUpdateAsync(contactId, requestId, ct);
         var source = message is null ? null : await reader.FindAsync(contactId, message.Id, ct);
         if (message is null || source is not { State: WhatsAppDocumentState.Reading }) return Result.Success();
@@ -171,8 +171,13 @@ internal sealed partial class WhatsAppReceivedDocumentDispatchService(IWhatsAppR
         if (outcome.IsFailure)
         {
             if (WhatsAppReceivedDocumentReadingPolicy.IsRetryable(outcome.Error)) message.SetDocumentReadingState(WhatsAppDocumentState.Reading);
-            else message.SetDocumentReadingState(WhatsAppDocumentState.Unavailable, WhatsAppReceivedDocumentReadingPolicy.IsQuota(outcome)
-                ? WhatsAppReceivedDocumentPreparationPolicy.QuotaCode : outcome.Error.Code);
+            else if (WhatsAppReceivedDocumentReadingPolicy.IsQuota(outcome))
+            {
+                // Task 9: the day's quota is said once, with its fixed text (the inbox registered it unclassified before).
+                message.SetDocumentReadingState(WhatsAppDocumentState.Unavailable, WhatsAppReceivedDocumentPreparationPolicy.QuotaCode);
+                await replies.QuotaAsync(contact, message, ct);
+            }
+            else message.SetDocumentReadingState(WhatsAppDocumentState.Unavailable, outcome.Error.Code);
             return Result.Success();
         }
         if (outcome.Value.RequestId != requestId) return Result.Failure(WhatsAppChatErrors.RequestConflict);

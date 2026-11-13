@@ -278,6 +278,33 @@ public sealed class FormReceivedDocument : Entity, IAuditable
         return Advance();
     }
 
+    /// <summary>
+    /// Task 9 of the documents: an unclassified document whose person chose a form in the channel, recognized for that form: proposed with the
+    /// new proposal, its type and numbers and the deadline of the new send, or one that cannot be sent to them, for the team at once.
+    /// </summary>
+    public Result Recognize(Guid definitionId, Guid versionId, byte[] protectedProposal, string? documentType, string searchText, bool notSendable,
+        DateTime? replyExpiresAtUtc)
+    {
+        if (State != FormReceivedDocumentState.Unclassified || ReasonCode == ChoseOther || ExtractionRequestId is not null)
+            return FormReceivedDocumentErrors.StateConflict;
+        if (replyExpiresAtUtc is { Kind: not DateTimeKind.Utc }) return FormReceivedDocumentErrors.ContentInvalid;
+        var described = Describe(ProtectedReading, documentType, searchText);
+        if (described.IsFailure) return described;
+        var proposed = Propose(definitionId, versionId, protectedProposal, notSendable);
+        if (proposed.IsFailure) return proposed;
+        ReplyExpiresAtUtc = replyExpiresAtUtc;
+        return Advance();
+    }
+
+    /// <summary>Task 9: an unclassified document recognized for the form its person chose, but not legible or repeated: discarded with its reason.</summary>
+    public Result RejectRecognized(string reasonCode, byte[]? protectedProposal, DateTime nowUtc)
+    {
+        if (State != FormReceivedDocumentState.Unclassified || ReasonCode == ChoseOther || ExtractionRequestId is not null)
+            return FormReceivedDocumentErrors.StateConflict;
+        var rejected = Reject(reasonCode, protectedProposal, nowUtc);
+        return rejected.IsFailure ? rejected : Advance();
+    }
+
     /// <summary>The person chose «Otro» in the channel: unclassified, so the missing form is noted by its type of document.</summary>
     public Result ChooseOther(DateTime nowUtc)
     {

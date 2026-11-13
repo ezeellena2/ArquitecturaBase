@@ -1006,6 +1006,18 @@ su clave; una publicación sólo en la app no chequea ni sella la lectura; un PD
 objetos) y PdfPig corre en un hilo propio; «Bancos y billeteras» trae sólo los bancos del registro de cheques del BCRA,
 porque la lista de proveedores de CVU no se pudo leer de una fuente oficial.
 
+La tarea 9 quedó programada, con su revisión adversarial corregida (la pregunta se contesta una vez, el plazo de la bandeja manda,
+lo que responde a un archivo no es una oferta, un toque contestado no es un turno, la lista se lee con su botón, `why` se nombra al
+leer y lo que sale por un archivo lleva `loadsFile`). Quedan
+para la tarea 9b el chequeo de repetidos al capturar, el reenvío en la misma UoW de una captura rechazada por una validación fija o
+por repetida y el Flow r14 (los textos de ayuda y de error dinámicos y la pregunta del documento original en dos pantallas) con su
+vista oficial de Meta. Al programar: el archivo que suma el servidor al capturar es la copia de WhatsApp (el canal no ve la de la
+bandeja) y el «no enviable» no dice el monto, porque el puerto no lo trae. Al cerrarla (2026-11-12): un documento sin plazo (reabierto
+por quien revisa, o registrado sin él) no espera a nadie, como lo lee la bandeja, así que no sale ningún formulario; sólo una elección
+aplicada cierra la pregunta y lo que la bandeja o el motor no pudieron hacer en ese momento contesta «No pude preparar el formulario»;
+la opción elegida del chat es el primer toque aplicado; un toque contestado tampoco esconde, al buscar a quién atender, el texto que
+esperaba su ráfaga, y la migración se regeneró sobre W3 (`20261113011825_AddWhatsAppDocumentQuestions`).
+
 ## Ubicación y contacto por WhatsApp (W3) y varias cargas desde un Excel
 
 Anexado el 2026-11-11. Es lo que el [alcance](#alcance) de la implementación dejaba afuera: la ubicación y el contacto que la

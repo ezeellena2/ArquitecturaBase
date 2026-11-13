@@ -50,6 +50,26 @@ internal sealed class FormReceivedDocumentRecorder(IFormReceivedDocumentReposito
         return recorded.IsFailure ? recorded.Error : document;
     }
 
+    /// <summary>
+    /// Task 9: an unclassified document recognized for the form its person chose in the channel (checked by its caller under the lock):
+    /// proposed, or discarded when it is not legible or repeats another, with the step of its history.
+    /// </summary>
+    public Result Recognize(FormReceivedDocument document, StructuredDocumentRegistrationRequest request, FormReceivedDocumentClassification classification)
+    {
+        var proposal = classification.Proposal is { } prepared ? contents.ProtectProposal(document.Id, prepared) : null;
+        var changed = classification.State switch
+        {
+            FormReceivedDocumentState.Proposed when classification.Proposal is { Candidates: [var first, ..] } recognized =>
+                document.Recognize(first.DefinitionId, first.VersionId, proposal!, recognized.DocumentType,
+                    FormReceivedDocumentSearchPolicy.Build(request.Reading, recognized), classification.NotSendable, request.ReplyExpiresAtUtc),
+            FormReceivedDocumentState.Discarded => document.RejectRecognized(classification.ReasonCode ?? FormReceivedDocumentReplyPolicy.Unreadable, proposal,
+                clock.GetUtcNow().UtcDateTime),
+            _ => Result.Failure(FormReceivedDocumentErrors.ContentInvalid),
+        };
+        return changed.IsFailure ? changed
+            : Record(document.Id, FormReceivedDocumentEventKind.FormChosen, null, JsonNamingPolicy.CamelCase.ConvertName(classification.Reply.Kind.ToString()));
+    }
+
     private Result<FormReceivedDocument> Rejected(Guid documentId, StructuredDocumentRegistrationRequest request, StructuredDocumentFile file,
         FormReceivedDocumentClassification classification, DateTime now)
     {

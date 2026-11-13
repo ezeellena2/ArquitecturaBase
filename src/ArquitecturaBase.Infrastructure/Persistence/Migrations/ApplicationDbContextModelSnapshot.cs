@@ -4411,6 +4411,10 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<long>("LastFormActionControlRevision")
                         .HasColumnType("bigint");
 
+                    b.Property<string>("ListButton")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.Property<DateTime?>("MessageEffectStartedAtUtc")
                         .HasColumnType("timestamp with time zone");
 

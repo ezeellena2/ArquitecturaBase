@@ -162,6 +162,42 @@ public sealed class WhatsAppCloudClientTests
             request.Body);
     }
 
+    // Task 9 of the documents: a list has its button and one section, titled like the button as Meta's guide asks, and a row carries its
+    // description (the full name of a form whose title was cut) only when it has one.
+    [Fact]
+    public async Task A_list_has_its_button_a_titled_section_and_each_row_with_its_description_when_it_has_one()
+    {
+        var request = await SendAsync(new WhatsAppListMessage(To, "No reconocí este documento. ¿Qué querés cargar con él?", "Elegir formulario",
+            [new WhatsAppListRow("FORM_DOCUMENT:1", "Comprobantes de transfe…", "Comprobantes de transferencia bancaria"), new WhatsAppListRow("FORM_DOCUMENT:2", "Otro")]));
+
+        AssertJson(
+            """
+            {
+              "messaging_product": "whatsapp",
+              "recipient_type": "individual",
+              "to": "+5493411234567",
+              "type": "interactive",
+              "interactive": {
+                "type": "list",
+                "body": { "text": "No reconocí este documento. ¿Qué querés cargar con él?" },
+                "action": {
+                  "button": "Elegir formulario",
+                  "sections": [
+                    {
+                      "title": "Elegir formulario",
+                      "rows": [
+                        { "id": "FORM_DOCUMENT:1", "title": "Comprobantes de transfe…", "description": "Comprobantes de transferencia bancaria" },
+                        { "id": "FORM_DOCUMENT:2", "title": "Otro" }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+            """,
+            request.Body);
+    }
+
     [Fact]
     public async Task Text_is_a_text_message()
     {

@@ -28,24 +28,46 @@ internal sealed class FormReceivedDocumentChannelService(IFormReceivedDocumentRe
     public async Task<StructuredDocumentRegistration> RegisterAsync(StructuredDocumentRegistrationRequest request, CancellationToken cancellationToken)
     {
         if (!Valid(request)) return Unavailable;
-        if (await replies.FindReplayAsync(request, cancellationToken) is { } replay) return replay;
-        if (!await guard.HasAsync(request.SenderUserId, BusinessFormsPermissions.RecordsCreate, cancellationToken)) return Unavailable;
-        var documentId = Guid.CreateVersion7();
-        // A file that cannot be opened may come without a copy (task 8): the inbox keeps what its person sent and no file.
+        // Task 9: a document that was not recognized, registered again with a proposal for the form its person chose in the channel, is
+        // recognized for it (below); any other repeated registration answers as before.
+        var replay = await replies.FindReplayAsync(request, cancellationToken);
+        Guid? recognizing = replay is { Kind: StructuredDocumentReplyKind.Unknown, DocumentId: { } existing }
+            && request is { FocusDefinitionId: not null, Proposal: not null } ? existing : null;
+        if (replay is not null && recognizing is null) return replay;
+        if (recognizing is null && !await guard.HasAsync(request.SenderUserId, BusinessFormsPermissions.RecordsCreate, cancellationToken)) return Unavailable;
+        var documentId = recognizing ?? Guid.CreateVersion7();
+        // A file that cannot be opened may come without a copy (task 8): the inbox keeps what its person sent and no file. One recognized again
+        // keeps the copy it has.
         string? storageKey = null;
-        if (request.Copy is { } copy && (storageKey = await copies.CopyAsync(documentId, copy, cancellationToken)) is null) return Unavailable;
-        var classification = await replies.ClassifyAsync(request, cancellationToken);
+        if (recognizing is null && request.Copy is { } copy && (storageKey = await copies.CopyAsync(documentId, copy, cancellationToken)) is null) return Unavailable;
+        var classification = await replies.ClassifyAsync(request, cancellationToken, recognizing);
+        // It changes only with a proposal for the form chosen that recognizes it.
+        if (recognizing is not null && (classification.Proposal is not { Candidates: [var first, ..] } || first.DefinitionId != request.FocusDefinitionId
+            || classification.State is not (FormReceivedDocumentState.Proposed or FormReceivedDocumentState.Discarded))) return replay!;
         var saved = await unitOfWork.ExecuteInTransactionAsync<Result<StructuredDocumentRegistration?>>(async ct =>
         {
+            if (recognizing is { } recognized) return await RecognizeCoreAsync(recognized, request, classification, ct);
             await repository.LockSourceAsync(request.ChannelId, request.SourceId, ct);
             if (await repository.GetBySourceAsync(request.ChannelId, request.SourceId, ct) is not null)
                 return Result.Success<StructuredDocumentRegistration?>(null);
             var registered = recorder.Register(documentId, storageKey, request, classification);
             if (registered.IsFailure) return registered.Error;
-            return classification.Reply with { DocumentId = documentId };
+            return classification.Reply with { DocumentId = documentId, ReplyExpiresAtUtc = request.ReplyExpiresAtUtc };
         }, CommitPolicy.OnSuccess, cancellationToken);
-        if (saved.IsFailure) return Unavailable;
+        if (saved.IsFailure) return recognizing is null ? Unavailable : replay!;
         return saved.Value ?? await replies.FindReplayAsync(request, cancellationToken) ?? Unavailable;
+    }
+
+    // Task 9: under the document's lock it is still unclassified for not being recognized, and of the same person and channel source.
+    private async Task<Result<StructuredDocumentRegistration?>> RecognizeCoreAsync(Guid documentId, StructuredDocumentRegistrationRequest request,
+        FormReceivedDocumentClassification classification, CancellationToken ct)
+    {
+        await repository.LockAsync(documentId, ct);
+        if (await repository.GetAsync(documentId, ct) is not { State: FormReceivedDocumentState.Unclassified, ReasonCode: FormReceivedDocumentReplyPolicy.Unknown } document
+            || document.SenderUserId != request.SenderUserId || document.ChannelId != request.ChannelId || document.SourceId != request.SourceId)
+            return Result.Success<StructuredDocumentRegistration?>(null);
+        var recognized = recorder.Recognize(document, request, classification);
+        return recognized.IsFailure ? recognized.Error : classification.Reply with { DocumentId = documentId, ReplyExpiresAtUtc = request.ReplyExpiresAtUtc };
     }
 
     public async Task<StructuredDocumentSendPreparation> PrepareSendAsync(StructuredDocumentSendRequest request, CancellationToken cancellationToken)
@@ -53,18 +75,24 @@ internal sealed class FormReceivedDocumentChannelService(IFormReceivedDocumentRe
         // The person's choice is only a candidate of the stored proposal; the document follows it, under its lock, before the form is prepared,
         // so a reviewer who saw the previous form gets a revision conflict and the capture checks the form the person completes.
         if (await sends.ChoiceAsync(request, cancellationToken) is not { } choice) return new(StructuredDocumentSendState.Unavailable);
+        // Review of task 9: only while its person is waited for; after its deadline it is for the team, and no form goes to them.
+        if (!Waits(choice.Row.ReplyExpiresAtUtc)) return new(StructuredDocumentSendState.Expired);
         if (choice.Row.DefinitionId != request.DefinitionId || choice.Row.VersionId != choice.Candidate.VersionId)
         {
-            var chosen = await unitOfWork.ExecuteInTransactionAsync<Result>(async ct =>
+            var chosen = await unitOfWork.ExecuteInTransactionAsync<Result<bool>>(async ct =>
             {
                 await repository.LockAsync(request.DocumentId, ct);
                 if (await repository.GetAsync(request.DocumentId, ct) is not { } document || document.SenderUserId != request.RecipientUserId)
                     return FormReceivedDocumentErrors.NotFound;
-                if (document.DefinitionId == request.DefinitionId && document.VersionId == choice.Candidate.VersionId) return Result.Success();
+                if (!Waits(document.ReplyExpiresAtUtc)) return false;
+                if (document.DefinitionId == request.DefinitionId && document.VersionId == choice.Candidate.VersionId) return true;
                 var changed = document.Choose(request.DefinitionId, choice.Candidate.VersionId);
-                return changed.IsFailure ? changed : recorder.Record(document.Id, FormReceivedDocumentEventKind.FormChosen, null);
+                if (changed.IsFailure) return changed.Error;
+                var recorded = recorder.Record(document.Id, FormReceivedDocumentEventKind.FormChosen, null);
+                return recorded.IsFailure ? recorded.Error : true;
             }, CommitPolicy.OnSuccess, cancellationToken);
             if (chosen.IsFailure) return new(StructuredDocumentSendState.Unavailable);
+            if (!chosen.Value) return new(StructuredDocumentSendState.Expired);
         }
         return await sends.PrepareAsync(request, cancellationToken);
     }
@@ -92,6 +120,10 @@ internal sealed class FormReceivedDocumentChannelService(IFormReceivedDocumentRe
         }, CommitPolicy.OnSuccess, cancellationToken);
         return result.IsSuccess ? result.Value : StructuredDocumentChoiceState.Unavailable;
     }
+
+    // A channel's document carries its deadline. Closing task 9: one without a deadline waits for nobody (a reviewer reopened it, or it was
+    // registered without one), as IsForReview reads it: it is for the team and no form goes to its person.
+    private bool Waits(DateTime? replyExpiresAtUtc) => replyExpiresAtUtc is { } deadline && deadline > clock.GetUtcNow().UtcDateTime;
 
     private static bool Valid(StructuredDocumentRegistrationRequest request) =>
         request.ChannelId is { Length: > 0 and <= FormReceivedDocument.MaxChannelIdLength } channel && channel.All(c => char.IsAsciiLetterLower(c) || char.IsAsciiDigit(c) || c == '-')

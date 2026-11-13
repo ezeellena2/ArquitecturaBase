@@ -44,7 +44,7 @@ internal sealed class WhatsAppAssistantSuggestionFixture
                     outgoing.Kind,new(session.DefinitionId,session.VersionId,session.VersionNumber,session.NameJson,session.Culture),outgoing.Origin) { Assistant=WhatsAppAssistantPresentationPolicy.Row(session),QuickRepliesJson=outgoing.QuickRepliesJson };
         }};
         Assistant=new(UnitOfWork); Wake=new(UnitOfWork);
-        Presentation=new(Protector,Reader,Records,Context.Permissions,Context.Clock);
+        Presentation=new(Protector,Reader,Records,Context.Permissions,Context.Clock,Forms);
         Service=new(Context.Policy,new(Reader,Assistant,Forms,Context.Clock,Presentation),Requests,Conversation,UnitOfWork,Wake,WhatsAppAssistantAcceptanceFixture.Create(this),NullLogger<WhatsAppAssistantService>.Instance);
         Request=new(Context.Contact.Id,Guid.NewGuid(),SourceId,Context.Contact.ModeRevision);
     }

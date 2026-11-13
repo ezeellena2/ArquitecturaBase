@@ -370,7 +370,7 @@ public sealed partial class WhatsAppFlowReplyServiceTests
         private readonly LockLog _locks = new();
         private readonly Dictionary<string, string> _responses = new(StringComparer.Ordinal);
 
-        public Fixture(bool catalog = false, bool media = false, bool assisted = false, bool automatic = false)
+        public Fixture(bool catalog = false, bool media = false, bool assisted = false, bool automatic = false, bool optionalMedia = false)
         {
             var tokenHash = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(_token)));
             Session = automatic
@@ -388,7 +388,7 @@ public sealed partial class WhatsAppFlowReplyServiceTests
                 Field(4, "boolean"),
                 Field(5, "choice", choices: catalog ? [] : [OptionId]),
             ];
-            if (media) Mapping = [Field(0, "photo") with { Files = new(1, 2, "camera") }];
+            if (media) Mapping = [optionalMedia ? Field(0, "photo") with { Required = false, Files = new(0, 1, "camera") } : Field(0, "photo") with { Files = new(1, 2, "camera") }];
             Projection = new(1, media ? JsonSerializer.Serialize(new { screens = new[] { new { layout = new { children = new[] { new { name = Mapping[0].Key, label = "Foto de prueba" } } } } } }) : "{}", new string('b', 64), "flow-static-7.3-r3", 1, "es", Mapping);
             var replySession = new WhatsAppFlowReplySessionRow(Session.Id, _contactId, _userId, _definitionId,
                 _versionId, _bindingId, _operationId, "es", [2], "VIS", tokenHash, [1], Now.AddMinutes(20), true,
@@ -418,7 +418,7 @@ public sealed partial class WhatsAppFlowReplyServiceTests
             ProjectionProtector = new FakeProjectionProtector(Projection);
             Service = new WhatsAppFlowReplyService(Sessions, new FakeReplyProtector(_responses), new WhatsAppFlowSessionVerifier(SessionProtector, Clock),
                 ProjectionProtector, Sink, stateService,
-                NullLogger<WhatsAppFlowReplyService>.Instance, new WhatsAppFlowMediaRecorder(Media, Clock));
+                NullLogger<WhatsAppFlowReplyService>.Instance, new WhatsAppFlowMediaRecorder(Media, Clock, Files));
         }
 
         public FakeUnitOfWork UnitOfWork { get; } = new();
@@ -430,6 +430,8 @@ public sealed partial class WhatsAppFlowReplyServiceTests
         public InMemoryWhatsAppMessageRepository Messages { get; }
         public FakeSink Sink { get; }
         public FakeWhatsAppMediaClient Media { get; }
+        /// <summary>Task 9 of the documents: this module's private copies, from which a file the send carries is read.</summary>
+        public ArquitecturaBase.Application.UnitTests.TestFeatures.Files.MemoryPrivateFileStore Files { get; } = new();
         public FakeSessionReader Sessions { get; }
         public FakeTimeProvider Clock { get; }
         public WhatsAppFlowReplyService Service { get; }

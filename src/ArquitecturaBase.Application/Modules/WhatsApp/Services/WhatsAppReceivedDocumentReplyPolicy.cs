@@ -32,6 +32,18 @@ internal sealed class WhatsAppReceivedDocumentReplyPolicy(WhatsAppAssistantAcces
     }
 
     /// <summary>
+    /// Task 9: over the day's reading quota the document is not read; it went to the inbox unclassified and the person is told so once,
+    /// with its fixed text, like a rejection.
+    /// </summary>
+    public async Task QuotaAsync(WhatsAppContact contact, WhatsAppMessage message, CancellationToken ct)
+    {
+        if (await ReferenceAsync(contact, message, ct) is not { } reference) return;
+        var (row, culture) = reference;
+        if (automatic.AcceptTerminal(contact, row, new WhatsAppAssistantTerminalResponse(row.RequestId, AssistantTerminalTexts.Get("DocumentQuota", culture), culture)))
+            requests.Add(row);
+    }
+
+    /// <summary>
     /// A linked account that can neither load nor build forms: the document is not read, the person is told so once and the conversation
     /// goes to Atención manual marked «Necesita una persona», with why for the operator, also when the message cannot go out.
     /// </summary>

@@ -10,6 +10,7 @@ internal sealed class WhatsAppAssistantPresentationFixture
     public FakeWhatsAppAssistantReader Reader {get;}=new();
     public WhatsAppAssistantSuggestionFixture.SessionProtector Protector {get;}=new();
     public RecordSource Records {get;}=new();
+    public FakeAssistantForms Forms {get;}=new();
     public WhatsAppAssistantPresentationRow Row {get;}
     public WhatsAppAssistantPresentationPolicy Policy {get;}
     public Guid FieldId {get;}=Guid.NewGuid();
@@ -21,7 +22,7 @@ internal sealed class WhatsAppAssistantPresentationFixture
         Reader.Reference=new(Guid.NewGuid(),Context.Contact.Id,Guid.NewGuid(),Context.Operator.Id,Context.Subject.Id,
             WhatsAppAssistantRequestKind.Manual,Context.Contact.ModeRevision,Context.Contact.LinkRevision,"{}",Row.ContentExpiresAtUtc,
             WhatsAppAssistantRequestState.Ready,Guid.NewGuid(),Guid.NewGuid(),null);
-        Policy=new(Protector,Reader,Records,Context.Permissions,Context.Clock);
+        Policy=new(Protector,Reader,Records,Context.Permissions,Context.Clock,Forms);
     }
     internal sealed class RecordSource : IStructuredRecordSource
     {

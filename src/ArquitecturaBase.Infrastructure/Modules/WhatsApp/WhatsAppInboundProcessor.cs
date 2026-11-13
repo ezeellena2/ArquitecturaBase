@@ -146,6 +146,7 @@ internal sealed partial class WhatsAppInboundProcessor(
             await ProcessActionRepliesAsync(contactId, cancellationToken);
             await ProcessFlowLocationsAsync(contactId, cancellationToken);
             await ProcessAuthoringTapAsync(contactId, cancellationToken);
+            await ProcessDocumentTapAsync(contactId, cancellationToken);
             // A received spreadsheet is downloaded, prepared and copied before the interpretation: it is a source, or its contiguous
             // text's pair, only once it is stored.
             await PrepareSpreadsheetAsync(contactId, cancellationToken);
@@ -199,6 +200,14 @@ internal sealed partial class WhatsAppInboundProcessor(
     {
         await using var scope = scopeFactory.CreateAsyncScope();
         await scope.ServiceProvider.GetRequiredService<IWhatsAppAssistantAuthoringService>().ProcessTapAsync(contactId, cancellationToken);
+    }
+
+    // Task 9 of the documents: a tap on an option of a document question is answered before interpreting; a form chosen when the document
+    // was not recognized leaves the reference the interpretation below takes.
+    private async Task ProcessDocumentTapAsync(Guid contactId, CancellationToken cancellationToken)
+    {
+        await using var scope = scopeFactory.CreateAsyncScope();
+        await scope.ServiceProvider.GetRequiredService<IWhatsAppAssistantDocumentService>().ProcessTapAsync(contactId, cancellationToken);
     }
 
     private async Task<ArquitecturaBase.Application.Modules.WhatsApp.Models.WhatsAppAssistantWorkResponse?> PrepareAssistantAsync(Guid contactId, CancellationToken cancellationToken)

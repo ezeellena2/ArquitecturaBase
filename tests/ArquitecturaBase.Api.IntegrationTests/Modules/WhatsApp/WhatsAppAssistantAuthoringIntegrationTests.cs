@@ -109,6 +109,44 @@ public sealed class WhatsAppAssistantAuthoringIntegrationTests(ApiFactory factor
             services.GetRequiredService<IWhatsAppAssistantReader>().FindLatestAuthoringRequestAsync(contact.ContactId, Ct)));
     }
 
+    // Task 9 of the documents: a document question is also the own outgoing of an automatic reference with buttons, and without the
+    // agent's why, but it is no summary either: the summary before it keeps its buttons.
+    [Fact]
+    public async Task A_later_document_question_leaves_the_summary_before_it_as_the_latest()
+    {
+        var owner = new WhatsAppAuthoringChannelDouble();
+        await using var host = await WhatsAppAssistantScenario.CreateAsync(factory, Ct, builder => builder.ConfigureTestServices(services =>
+            services.Replace(ServiceDescriptor.Singleton<IStructuredAuthoringProposalChannel>(owner))));
+        var contact = await host.ContactAsync(Ct, automatic: true);
+        var summary = await SummaryAsync(host, contact.ContactId);
+
+        host.Clock.Advance(TimeSpan.FromMinutes(1));
+        await host.ScopeAsync(async services =>
+        {
+            var db = services.GetRequiredService<ApplicationDbContext>();
+            var chat = await db.Set<WhatsAppContact>().SingleAsync(row => row.Id == contact.ContactId, Ct);
+            var now = host.Clock.GetUtcNow().UtcDateTime;
+            var document = WhatsAppMessage.Inbound(contact.ContactId, MetaWebhook.UniqueWaMessageId(), WhatsAppMessageKind.ReceivedDocument, "Cargá esto", null, now);
+            var requestId = Guid.NewGuid();
+            var proposalId = Guid.NewGuid();
+            var question = WhatsAppAssistantRequest.Create(requestId, contact.ContactId, document.Id, contact.RecipientId, contact.RecipientId,
+                WhatsAppAssistantRequestKind.Automatic, chat.ModeRevision, chat.LinkRevision, "{\"channelId\":\"fixture\"}", now, now.AddDays(30));
+            Assert.True(question.CarryAttachment(document.Id));
+            // As WhatsAppAssistantDocumentPolicy asks it: the forms of its own proposal as buttons, without the agent's why.
+            var outgoing = WhatsAppOutgoingMessage.CreateAssistantQuickReplies(contact.RecipientId, contact.ContactId, requestId, "¿Qué es este documento?",
+                [new(WhatsAppAssistantDocumentReplyCodec.Encode(requestId, proposalId, Guid.NewGuid()), "Pagos", 0),
+                    new(WhatsAppAssistantDocumentReplyCodec.Encode(requestId, proposalId, Guid.NewGuid()), "Gastos", 0)],
+                now, chat.LinkRevision, chat.WaId!, chat.ModeRevision);
+            Assert.True(question.Ready(proposalId, null, now));
+            Assert.True(question.Accept(outgoing.Id, new string('a', 64), null, now));
+            db.AddRange(document, question, outgoing);
+            await db.SaveChangesAsync(Ct);
+        });
+
+        Assert.Equal(summary.RequestId, await host.ScopeAsync(services =>
+            services.GetRequiredService<IWhatsAppAssistantReader>().FindLatestAuthoringRequestAsync(contact.ContactId, Ct)));
+    }
+
     // «Pregunta y espera»: the question is a fixed text, not an offer nor a summary, and the answer continues the same operation.
     [Fact]
     public async Task An_unclear_request_asks_what_to_build_and_the_answer_continues_its_operation()

@@ -70,7 +70,9 @@ internal sealed class BusinessFormDocumentAssistantCapabilitySource(IFormReceive
             return FormRecordErrors.InvalidResponse;
         var culture = request.Context.Culture;
         if (!await CanCompleteAsync(subject, culture, ct)) return FormRecordErrors.AuthorizationChanged;
-        var rows = await reader.ListReadingFormsAsync(ct);
+        var listed = await reader.ListReadingFormsAsync(ct);
+        // Task 9: a form its person chose in a channel for a document that was not recognized is the only one read again.
+        var rows = request.Context.FocusDefinitionId is { } focus ? listed.Where(row => row.DefinitionId == focus).ToArray() : listed;
         var reading = rows.Take(FormDocumentCapabilityCodec.MaxForms).Where(row => !row.AppOnly && FormDocumentFormPolicy.Reading(row) is { Enabled: true }).ToArray();
         var forms = await CandidatesAsync(reading, culture, ct);
         if (!await CanCompleteAsync(subject, culture, ct)) return FormRecordErrors.AuthorizationChanged;

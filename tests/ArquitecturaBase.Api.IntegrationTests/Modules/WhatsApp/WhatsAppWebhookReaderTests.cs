@@ -59,6 +59,18 @@ public sealed class WhatsAppWebhookReaderTests
         Assert.Equal("CREATE_ACCOUNT", message.ReplyId);
     }
 
+    // Task 9 of the documents: the option chosen in a list (list_reply) reads like a reply button, with its id and its title.
+    [Fact]
+    public void The_option_chosen_in_a_list_keeps_its_id_and_its_title()
+    {
+        var batch = Read(MetaWebhook.Build(
+            contacts: [MetaWebhook.Contact(WaId, Bsuid, "Ana")],
+            messages: [MetaWebhook.ListReply(WaMessageId, WaId, Bsuid, SentAtUtc, "FORM_DOCUMENT:abc", "Pagos de clientes")]));
+
+        var message = Assert.Single(batch.Messages);
+        Assert.Equal((WhatsAppMessageKind.ButtonReply, "Pagos de clientes", "FORM_DOCUMENT:abc"), (message.Kind, message.Body, message.ReplyId));
+    }
+
     /// <summary>El botón "Quiero entrar" de la plantilla de invitación llega como <c>button</c>, con su payload.</summary>
     [Fact]
     public void A_template_button_keeps_its_payload_as_the_reply_id()

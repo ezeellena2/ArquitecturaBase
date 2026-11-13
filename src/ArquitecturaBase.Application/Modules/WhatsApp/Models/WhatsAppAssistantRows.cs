@@ -3,9 +3,10 @@ using ArquitecturaBase.Domain.Modules.WhatsApp;
 namespace ArquitecturaBase.Application.Modules.WhatsApp.Models;
 
 /// <summary>
-/// Whether a source is interpreted now (<see cref="Ready"/>), is a stored spreadsheet without a request (<see cref="Alone"/>, only
-/// the answer a conversation waits for), waits for its pair (<see cref="Waiting"/>: a spreadsheet still downloading or an audio still
-/// transcribing) or was answered already (<see cref="Answered"/>: its spreadsheet was rejected with its reason).
+/// Whether a source is interpreted now (<see cref="Ready"/>), is a stored spreadsheet or a read document without a request
+/// (<see cref="Alone"/>: a spreadsheet only as the answer a conversation waits for; a document also to be loaded, task 9), waits for its
+/// pair (<see cref="Waiting"/>: a spreadsheet or a document still downloading or being read, or an audio still transcribing) or was
+/// answered already (<see cref="Answered"/>: its spreadsheet or document was rejected with its reason).
 /// </summary>
 public enum WhatsAppAssistantSourceState { Ready, Alone, Waiting, Answered }
 
@@ -19,8 +20,22 @@ public sealed record WhatsAppAssistantSourceRow(Guid Id, Guid ContactId, string 
     public long InboundSequence {get;init;}
     /// <summary>The stored spreadsheet the request carries: the message's own or the contiguous one it pairs with.</summary>
     public WhatsAppAssistantSpreadsheetRow? Spreadsheet {get;init;}
+    /// <summary>Task 9 of the documents: the read document the request carries, the message's own or the contiguous one, as a spreadsheet.</summary>
+    public WhatsAppAssistantDocumentRow? Document {get;init;}
     public WhatsAppAssistantSourceState State {get;init;}
     public override string ToString() => "WhatsAppAssistantSourceRow { Content = [REDACTED] }";
+}
+
+/// <summary>
+/// A read document as the request takes it (task 9): its message, its private copy (key, the normalized file name, size, SHA-256 of the
+/// bytes and the pages of a PDF), the expiry of its content and its reading, serialized as the message keeps it.
+/// </summary>
+public sealed record WhatsAppAssistantDocumentRow(Guid MessageId, string StorageKey, string FileName, long Size, string Sha256, int? Pages,
+    DateTime ExpiresAtUtc, string ReadingJson)
+{
+    /// <summary>When the person sent it, as Meta stamped it: what the inbox registers as its arrival.</summary>
+    public DateTime ReceivedAtUtc { get; init; }
+    public override string ToString() => "WhatsAppAssistantDocumentRow { Content = [REDACTED] }";
 }
 
 /// <summary>
@@ -44,6 +59,11 @@ public sealed record WhatsAppAssistantNeighborRow(Guid Id, WhatsAppMessageKind K
     public WhatsAppAudioState? AudioState {get;init;}
     public WhatsAppSpreadsheetState? SpreadsheetState {get;init;}
     public WhatsAppAssistantSpreadsheetRow? Spreadsheet {get;init;}
+    /// <summary>A received document's state and, read, its copy and reading (task 9).</summary>
+    public WhatsAppDocumentState? DocumentState {get;init;}
+    /// <summary>Review of task 9: why a received document is unavailable (<c>quota</c> was answered with its fixed text).</summary>
+    public string? DocumentFailureCode {get;init;}
+    public WhatsAppAssistantDocumentRow? Document {get;init;}
     public bool AnsweredSince {get;init;}
     public override string ToString() => "WhatsAppAssistantNeighborRow { Content = [REDACTED] }";
 }

@@ -2,6 +2,7 @@ using System.Linq.Expressions;
 using ArquitecturaBase.Application.Common.Pagination;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
+using ArquitecturaBase.Application.Modules.WhatsApp.Services;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Infrastructure.Persistence;
 using ArquitecturaBase.Infrastructure.Persistence.Extensions;
@@ -77,16 +78,35 @@ internal sealed class WhatsAppChatReader(ApplicationDbContext dbContext) : IWhat
                   // W3: the first card of a shared contact, from its own columns; the address of a place stays out of the chat.
                   ContactName = item.Kind == WhatsAppMessageKind.Contact ? item.ContactName : null,
                   ContactPhonesJson = item.Kind == WhatsAppMessageKind.Contact ? item.ContactPhonesJson : null,
+                  // Review of task 9: the form the assistant sent for a file the person sent (its reference carries that file).
+                  LoadsFile = item.Kind == WhatsAppMessageKind.Flow && item.FlowSessionId != null && dbContext.Set<WhatsAppOutgoingMessage>().Any(outgoing =>
+                      outgoing.FlowSessionId == item.FlowSessionId && dbContext.Set<WhatsAppAssistantRequest>().Any(reference =>
+                          reference.OutgoingId == outgoing.Id && reference.AttachmentMessageId != null)),
+                  // Review of task 9: a question that went as a list keeps the label of its button from the send it came from, while its
+                  // options live.
+                  ListButton = item.Origin == WhatsAppMessageOrigin.Assistant && item.Kind == WhatsAppMessageKind.Interactive && item.QuickReplyTitlesJson != null
+                      ? dbContext.Set<WhatsAppOutgoingMessage>().Where(sent => sent.ContactId == item.ContactId && sent.WaMessageId == item.WaMessageId
+                          && sent.Kind == WhatsAppOutgoingMessageKind.List).Select(sent => sent.ListButton).FirstOrDefault() : null,
                   // Task 8 of the documents: what the chat shows of a received document, from its own columns.
                   Document = item.Kind == WhatsAppMessageKind.ReceivedDocument ? new WhatsAppReceivedDocumentMessageRow(item.DocumentFileName, item.DocumentContentType,
                       item.DocumentStorageKey, item.DocumentPages, item.DocumentState, item.DocumentFailureCode) : null }).ToListAsync(cancellationToken);
         var hasPrevious = items.Count > request.Limit;
         if (hasPrevious) { items.RemoveAt(items.Count - 1); }
         items.Reverse();
+        items = await WithDocumentWhyAsync(request.ContactId, items, cancellationToken);
         var first = items.FirstOrDefault();
         var outgoing = await Outgoing().Where(item => item.ContactId == request.ContactId && item.State != WhatsAppOutgoingMessageState.Accepted)
             .OrderByDescending(item => item.RequestedAtUtc).ThenByDescending(item => item.Id).Take(50)
             .Select(OutgoingProjection).ToListAsync(cancellationToken);
+        // Review of task 9: the queued forms the assistant sent for a file the person sent, by their send as in the messages: also the Flow
+        // that follows its location request, which is what the reference keeps.
+        var flowIds = outgoing.Where(item => item.Kind == WhatsAppOutgoingMessageKind.Flow).Select(item => item.Id).ToArray();
+        var loading = flowIds.Length == 0 ? [] : await Outgoing()
+            .Where(flow => flowIds.Contains(flow.Id) && flow.FlowSessionId != null && dbContext.Set<WhatsAppOutgoingMessage>().Any(opening =>
+                opening.FlowSessionId == flow.FlowSessionId && dbContext.Set<WhatsAppAssistantRequest>().Any(reference =>
+                    reference.OutgoingId == opening.Id && reference.AttachmentMessageId != null)))
+            .Select(flow => flow.Id).ToListAsync(cancellationToken);
+        if (loading.Count > 0) outgoing = [.. outgoing.Select(item => loading.Contains(item.Id) ? item with { LoadsFile = true } : item)];
         // Casos del asistente: what the assistant decided without a message, in the span of this page.
         var fromUtc = hasPrevious && first is not null ? first.OccurredAtUtc : DateTime.MinValue;
         var toUtc = request.BeforeAtUtc ?? DateTime.MaxValue;
@@ -97,6 +117,78 @@ internal sealed class WhatsAppChatReader(ApplicationDbContext dbContext) : IWhat
             .Select(item => new WhatsAppAssistantEventRow(item.RequestId, item.DecidedAtUtc!.Value, item.OutcomeJson!)).ToListAsync(cancellationToken);
         events.Reverse();
         return new(contact, items, outgoing, hasPrevious ? first?.OccurredAtUtc : null, hasPrevious ? first?.Id : null) { AssistantEvents = events };
+    }
+
+    // Task 9 of the documents: «Por qué lo propuso» or «Por qué preguntó» of the received documents of the page, from the latest automatic
+    // reference that carries each one and what it sent (a prefilled form or a document question), with the option the person chose.
+    private async Task<List<WhatsAppMessageRow>> WithDocumentWhyAsync(Guid contactId, List<WhatsAppMessageRow> items, CancellationToken ct)
+    {
+        var documentIds = items.Where(item => item.Document is not null).Select(item => item.Id).ToArray();
+        if (documentIds.Length == 0) return items;
+        var sent = await (from reference in dbContext.Set<WhatsAppAssistantRequest>().AsNoTracking()
+                join outgoing in dbContext.Set<WhatsAppOutgoingMessage>().AsNoTracking() on reference.OutgoingId equals outgoing.Id
+                where reference.ContactId == contactId && reference.Kind == WhatsAppAssistantRequestKind.Automatic && reference.AttachmentMessageId != null
+                    && documentIds.Contains(reference.AttachmentMessageId.Value)
+                    // A form with a location question opens with its location request, which is what the reference keeps.
+                    && ((outgoing.Kind == WhatsAppOutgoingMessageKind.Flow || outgoing.Kind == WhatsAppOutgoingMessageKind.LocationRequest) && outgoing.FlowSession != null
+                        || (outgoing.Kind == WhatsAppOutgoingMessageKind.QuickReplies || outgoing.Kind == WhatsAppOutgoingMessageKind.List) && outgoing.QuickRepliesJson != null)
+                orderby reference.CreatedAtUtc descending, reference.Id descending
+                select new
+                {
+                    MessageId = reference.AttachmentMessageId!.Value, reference.RequestId, outgoing.Kind, outgoing.QuickRepliesJson,
+                    DefinitionId = outgoing.FlowSession != null ? (Guid?)outgoing.FlowSession.DefinitionId : null,
+                    FormNameJson = outgoing.FlowSession != null ? outgoing.FlowSession.NameJson : null,
+                    FormCulture = outgoing.FlowSession != null ? outgoing.FlowSession.Culture : null,
+                    Assistant = outgoing.FlowSession != null && outgoing.FlowSession.ProtectedAssistantContent != null && outgoing.FlowSession.AssistantContentExpiresAtUtc != null
+                        ? new WhatsAppAssistantPresentationRow(outgoing.FlowSession.Id, outgoing.FlowSession.ContactId, outgoing.FlowSession.UserId, outgoing.FlowSession.VersionId,
+                            outgoing.FlowSession.ProtectedAssistantContent, outgoing.FlowSession.AssistantContentExpiresAtUtc.Value) : null,
+                })
+            .ToListAsync(ct);
+        if (sent.Count == 0) return items;
+        var latest = sent.GroupBy(row => row.MessageId).ToDictionary(group => group.Key, group => group.First());
+        // The option chosen: a question is answered once, so the first tap on it whose choice was applied, resolved for each question of the
+        // page however many taps the person has; the chat names it when read.
+        var questions = latest.Values.Where(row => row.Kind is WhatsAppOutgoingMessageKind.QuickReplies or WhatsAppOutgoingMessageKind.List)
+            .Select(row => row.RequestId.ToString("N")).Distinct().ToArray();
+        var taps = await ListFirstTapsAsync(contactId, questions, ct);
+        return items.Select(item =>
+        {
+            if (item.Document is not { } document || !latest.TryGetValue(item.Id, out var row)) return item;
+            var tap = row.Kind is WhatsAppOutgoingMessageKind.QuickReplies or WhatsAppOutgoingMessageKind.List
+                ? taps.GetValueOrDefault(row.RequestId.ToString("N")) : null;
+            return item with
+            {
+                Document = document with
+                {
+                    Why = new WhatsAppReceivedDocumentWhyRow(row.Kind, row.QuickRepliesJson, row.FormNameJson, row.FormCulture, row.Assistant, tap?.Body)
+                        { DefinitionId = row.DefinitionId, ChosenReplyId = tap?.ReplyId },
+                },
+            };
+        }).ToList();
+    }
+
+    private sealed record DocumentTap(string ReplyId, string? Body);
+
+    // The first tap whose choice was applied on each question asked: the lowest inbound sequence of each one, and then those taps. Closing
+    // task 9: applied is a reference that continues the operation or whose reply went out naming the question's proposal; «ya cambió», the
+    // team has it, it could not be prepared (they name their own reference) and a reply that could not be accepted (Blocked) are not.
+    private async Task<IReadOnlyDictionary<string, DocumentTap>> ListFirstTapsAsync(Guid contactId, string[] questions, CancellationToken ct)
+    {
+        if (questions.Length == 0) return new Dictionary<string, DocumentTap>();
+        var start = WhatsAppAssistantDocumentReplyCodec.Prefix.Length;
+        var answered = dbContext.Set<WhatsAppMessage>().AsNoTracking()
+            .Where(message => message.ContactId == contactId && message.Direction == WhatsAppMessageDirection.Inbound && message.Kind == WhatsAppMessageKind.ButtonReply
+                && message.ReplyId != null && EF.Functions.Like(message.ReplyId, WhatsAppAssistantDocumentReplyCodec.Prefix + "%")
+                && questions.Contains(message.ReplyId.Substring(start, 32))
+                && dbContext.Set<WhatsAppAssistantRequest>().Any(reference => reference.ContactId == contactId && reference.SourceMessageId == message.Id
+                    && (reference.PreviousRequestId != null
+                        || reference.State == WhatsAppAssistantRequestState.Sent && reference.ProposalId != reference.RequestId)));
+        var firsts = await answered.GroupBy(message => message.ReplyId!.Substring(start, 32)).Select(group => group.Min(message => message.InboundSequence))
+            .ToListAsync(ct);
+        var rows = await answered.Where(message => firsts.Contains(message.InboundSequence)).OrderBy(message => message.InboundSequence)
+            .Select(message => new DocumentTap(message.ReplyId!, message.Body)).ToListAsync(ct);
+        return rows.GroupBy(row => row.ReplyId.Substring(start, 32), StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
     }
 
     public Task<WhatsAppOutgoingMessageRow?> FindOutgoingAsync(Guid contactId, Guid requestId, Guid operatorUserId, CancellationToken cancellationToken) =>
@@ -112,7 +204,7 @@ internal sealed class WhatsAppChatReader(ApplicationDbContext dbContext) : IWhat
                     && (item.Kind == WhatsAppOutgoingMessageKind.LocationRequest
                         || item.Kind == WhatsAppOutgoingMessageKind.Flow && item.FlowSession.LocationState == WhatsAppFlowLocationState.None)
                     ? new WhatsAppAssistantPresentationRow(item.FlowSession.Id,item.FlowSession.ContactId,item.FlowSession.UserId,item.FlowSession.VersionId,item.FlowSession.ProtectedAssistantContent,item.FlowSession.AssistantContentExpiresAtUtc.Value) : null, QuickRepliesJson = item.QuickRepliesJson,
-            AssistantReplyJson = item.AssistantReplyJson };
+            AssistantReplyJson = item.AssistantReplyJson, ListButton = item.Kind == WhatsAppOutgoingMessageKind.List ? item.ListButton : null };
 
     private IQueryable<WhatsAppOutgoingMessage> Outgoing() => dbContext.Set<WhatsAppOutgoingMessage>().AsNoTracking();
 

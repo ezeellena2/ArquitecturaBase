@@ -28,4 +28,6 @@ Casos del asistente: `WhatsAppAssistantAgentEndpointsTests` usa una base propia 
 
 Documentos (tarea 8): `WhatsAppReceivedDocumentPostgresTests` usa `WhatsAppDocumentProbe` y una bandeja neutral capturadora, y `WhatsAppReceivedDocumentInboxTests` la real de formularios; `WhatsAppDocumentWebhookReaderTests` y `WhatsAppReceivedDocumentPipelineTests` corren sin Docker, y `WhatsAppChatTests.Document` deja `document-thread` en `WHATSAPP_AUDIO_HTTP_OUTPUT`.
 
+Documentos (tarea 9): `WhatsAppAssistantDocumentIntegrationTests` usa la misma sonda y bandeja, del webhook a la pregunta y su toque; `WhatsAppAssistantFileCatalogTests` cuenta también las definiciones con un documento, y `WhatsAppDocumentQuestionsMigrationTests` prueba Up/Down/Up y la negativa del Down con una lista.
+
 W3 (tarea 22): `WhatsAppContactWebhookReaderTests` corre sin Docker con los cuerpos de Meta; `WhatsAppSharedContentMigrationTests` prueba Up/Down/Up y la negativa del Down, y `WhatsAppChatTests.Contact` pasa por el webhook firmado y deja `contact-thread` en `WHATSAPP_AUDIO_HTTP_OUTPUT`.

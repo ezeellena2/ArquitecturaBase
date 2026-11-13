@@ -13,8 +13,9 @@ namespace ArquitecturaBase.Api.IntegrationTests.Modules.WhatsApp;
 // Documents (task 3) with PostgreSQL: what the automatic assistant offers, from the list its access policy captures and the definitions
 // the installed owners declare through the neutral port, by the rule each definition states for the turn's file. With every permission:
 // 15 definitions without a file, 16 with a spreadsheet (the cap) and 11 with a document, which leaves out the import, the three text
-// registrations and the missing form, all of the text circuit. The two capabilities of documents come later and take two of the free
-// places. A test of a module cannot name the engine's catalog (ModuleBoundaryTests): the rule is the one the catalog applies.
+// registrations and the missing form, all of the text circuit. The two capabilities of documents (task 9) go only with a turn that carries
+// a document and take two of the free places. A test of a module cannot name the engine's catalog (ModuleBoundaryTests): the rule is the
+// one the catalog applies.
 [Collection(ApiTestGroup.Name)]
 public sealed class WhatsAppAssistantFileCatalogTests(ApiFactory factory)
 {
@@ -42,5 +43,37 @@ public sealed class WhatsAppAssistantFileCatalogTests(ApiFactory factory)
                 "forms.propose-registration"],
             context.AllowedCapabilities.Where(reference => !definitions[reference].OfferedWith(AssistantAttachmentKind.Document))
                 .Select(reference => reference.Id).Order(StringComparer.Ordinal));
+    }
+
+    // Task 9: a document with its request adds the two capabilities of documents to the conversation, and a document alone, of a person
+    // who can load it, offers only them with the terminal. The worst case is the agent's context, whose draft is counted as if the profile
+    // were qualified to draft: none passes the engine's sixteen definitions with the terminal.
+    [Fact]
+    public async Task A_document_adds_the_two_capabilities_of_documents_and_no_automatic_context_passes_sixteen_definitions()
+    {
+        await using var host = await WhatsAppAssistantScenario.CreateAsync(factory, Ct);
+        var person = await host.ContactAsync(Ct, automatic: true);
+        var (context, definitions) = await host.ScopeAsync(async services =>
+        {
+            var contact = await services.GetRequiredService<ApplicationDbContext>().Set<WhatsAppContact>().SingleAsync(row => row.Id == person.ContactId, Ct);
+            var captured = await services.GetRequiredService<WhatsAppAssistantAccessPolicy>().CaptureAsync(contact, null, Ct);
+            Assert.True(captured.IsSuccess);
+            var declared = services.GetServices<IAssistantCapabilitySource>().SelectMany(source => source.Definitions)
+                .ToDictionary(definition => new AssistantCapabilityReference(definition.Id, definition.Version));
+            return (captured.Value.Context, declared);
+        });
+        int Offered(AssistantChannelContext offered, AssistantAttachmentKind file) =>
+            offered.AllowedCapabilities.Count(reference => definitions[reference].OfferedWith(file)) + offered.AllowedTerminals.Count;
+
+        var counts = new[] { context, WhatsAppAssistantAccessPolicy.WithAgent(context, automatic: true) }.SelectMany(conversation => new[]
+        {
+            Offered(conversation, AssistantAttachmentKind.None),
+            Offered(conversation, AssistantAttachmentKind.Spreadsheet),
+            Offered(WhatsAppAssistantAccessPolicy.WithDocument(conversation), AssistantAttachmentKind.Document),
+            Offered(WhatsAppAssistantAccessPolicy.ForDocument(conversation), AssistantAttachmentKind.Document),
+        }).ToArray();
+
+        Assert.Equal([15, 16, 13, 3, 15, 16, 14, 3], counts);
+        Assert.All(counts, count => Assert.InRange(count, 1, 16));
     }
 }

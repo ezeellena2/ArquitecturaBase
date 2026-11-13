@@ -44,6 +44,8 @@ public sealed class WhatsAppReceivedDocumentPostgresTests(ApiFactory factory)
         await using var host = await CreateAsync(probe, inbox);
         host.Operations.AllowSubmit = true;
         var person = await host.ContactAsync(Ct, automatic: true);
+        // Alone: the scenario's first message is outside the pairing window, so it is no request of the document (task 9).
+        host.Clock.Advance(TimeSpan.FromMinutes(11));
         var waMessageId = await ReceiveAsync(host, person, probe, "comprobante.pdf", "application/pdf", null);
 
         await ProcessAsync(host);
@@ -67,7 +69,11 @@ public sealed class WhatsAppReceivedDocumentPostgresTests(ApiFactory factory)
         var read = await MessageAsync(host, waMessageId);
         Assert.Equal(WhatsAppDocumentState.Read, read.DocumentState);
         Assert.Equal(Reading, JsonSerializer.Deserialize<StructuredDocumentReading>(read.DocumentReadingJson!, WhatsAppReceivedDocumentReadingPolicy.ReadingJson));
-        Assert.Single(host.Operations.SubmitRequests);
+        // Task 9: read, it is used: alone, of a person who can load, it goes to an interpretation with only the documents' capabilities.
+        Assert.Single(host.Operations.SubmitRequests, request => request.Document is not null);
+        var interpretation = host.Operations.SubmitRequests.Last();
+        Assert.Equal((AssistantAttachmentKind.Document, read.DocumentStorageKey), (interpretation.Attachment!.Kind, interpretation.Attachment.StorageKey));
+        Assert.Equal(WhatsAppAssistantAccessPolicy.DocumentCapabilities, interpretation.Context.AllowedCapabilities);
         Assert.Empty(inbox.Registrations);
         Assert.Empty(await OutgoingAsync(host, person.ContactId));
     }
@@ -159,9 +165,10 @@ public sealed class WhatsAppReceivedDocumentPostgresTests(ApiFactory factory)
     }
 
     // Decision 10: someone who builds forms may send the request right after the document. While no form reads documents, the document
-    // waits for it, still pending and not downloaded, and the next message ends the wait (pairing it is the circuit's).
+    // waits for it, still pending and not downloaded, and without a request it stays as today once the ten minutes pass. The scenario's
+    // first message is outside the pairing window, so it is no request of the document (task 9).
     [Fact]
-    public async Task A_document_without_a_request_waits_for_the_next_message_and_then_stays_as_today()
+    public async Task A_document_without_a_request_waits_for_it_and_after_the_pairing_window_stays_as_today()
     {
         var probe = new WhatsAppDocumentProbe { Bytes = Pdf() };
         var inbox = new CapturingStructuredDocumentChannel { Loading = StructuredDocumentLoading.None };
@@ -169,6 +176,7 @@ public sealed class WhatsAppReceivedDocumentPostgresTests(ApiFactory factory)
         host.Operations.AllowSubmit = true;
         var person = await host.ContactAsync(Ct, automatic: true);
         await GrantAsync(host, person.RecipientId, "formtemplates.read", "formtemplates.manage");
+        host.Clock.Advance(TimeSpan.FromMinutes(11));
         var waMessageId = await ReceiveAsync(host, person, probe, "comprobante.pdf", "application/pdf", null);
 
         await ProcessAsync(host);
@@ -178,11 +186,46 @@ public sealed class WhatsAppReceivedDocumentPostgresTests(ApiFactory factory)
         Assert.False(await PendingAsync(host, person.ContactId, host.Clock.GetUtcNow().UtcDateTime));
         Assert.False(await host.ScopeAsync(services => services.GetRequiredService<IWhatsAppReceivedDocumentReader>().ExistsPendingAsync(host.Clock.GetUtcNow().UtcDateTime, Ct)));
 
-        await ReceiveTextAsync(host, person, "Armame un formulario con esto");
+        host.Clock.Advance(TimeSpan.FromMinutes(10));
         await ProcessAsync(host);
 
         var kept = await MessageAsync(host, waMessageId);
         Assert.Equal((WhatsAppDocumentState.Unavailable, 0), (kept.DocumentState, probe.Downloads));
+        Assert.Empty(inbox.Registrations);
+        Assert.Empty(host.Operations.SubmitRequests);
+    }
+
+    // Task 9: the text that follows a waiting document is its request, as a spreadsheet pairs: the document is downloaded and read, and
+    // the text's interpretation, which waits for the reading, then carries it with the documents' capabilities.
+    [Fact]
+    public async Task The_text_that_follows_a_waiting_document_is_its_request_and_its_interpretation_carries_it()
+    {
+        var probe = new WhatsAppDocumentProbe { Bytes = Pdf() };
+        var inbox = new CapturingStructuredDocumentChannel { Loading = StructuredDocumentLoading.None };
+        await using var host = await CreateAsync(probe, inbox);
+        host.Operations.AllowSubmit = true;
+        var person = await host.ContactAsync(Ct, automatic: true);
+        await GrantAsync(host, person.RecipientId, "formtemplates.read", "formtemplates.manage");
+        host.Clock.Advance(TimeSpan.FromMinutes(11));
+        var waMessageId = await ReceiveAsync(host, person, probe, "comprobante.pdf", "application/pdf", null);
+        await ProcessAsync(host);
+
+        await ReceiveTextAsync(host, person, "Armame un formulario con esto");
+        await ProcessAsync(host);
+
+        var reading = await MessageAsync(host, waMessageId);
+        Assert.Equal((WhatsAppDocumentState.Reading, 1), (reading.DocumentState, probe.Downloads));
+        var submitted = Assert.Single(host.Operations.SubmitRequests);
+        Assert.Equal(reading.DocumentRequestId!.Value, submitted.RequestId);
+
+        host.Operations.Complete(new AssistantOperationResponse(submitted.RequestId, "completed", null, null, null) { DocumentReading = Reading });
+        await ProcessAsync(host);
+
+        var interpretation = host.Operations.SubmitRequests.Last();
+        Assert.Equal((2, AssistantAttachmentKind.Document, reading.DocumentStorageKey),
+            (host.Operations.SubmitRequests.Count, interpretation.Attachment!.Kind, interpretation.Attachment.StorageKey));
+        Assert.Contains(WhatsAppAssistantDocumentPolicy.ProposeEntry, interpretation.Context.AllowedCapabilities);
+        Assert.Contains(interpretation.Context.AllowedCapabilities, capability => capability.Id.StartsWith("forms.authoring.", StringComparison.Ordinal));
         Assert.Empty(inbox.Registrations);
     }
 
@@ -271,7 +314,7 @@ public sealed class WhatsAppReceivedDocumentPostgresTests(ApiFactory factory)
         Assert.Empty(await OutgoingAsync(host, person.ContactId));
     }
 
-    // The circuit says it (task 9); here the day's quota leaves the document registered unclassified, from its copy, and not read.
+    // The day's quota leaves the document registered unclassified, from its copy, and not read, and the circuit says it once (task 9).
     [Fact]
     public async Task Over_the_day_reading_quota_the_document_goes_to_the_inbox_unclassified()
     {
@@ -289,7 +332,8 @@ public sealed class WhatsAppReceivedDocumentPostgresTests(ApiFactory factory)
         Assert.Equal((WhatsAppDocumentState.Unavailable, "quota"), (message.DocumentState, message.DocumentFailureCode));
         var registered = Assert.Single(inbox.Registrations);
         Assert.Equal((StructuredDocumentNotRead.Quota, message.DocumentStorageKey, (int?)1), (registered.NotRead, registered.Copy!.StorageKey, registered.Copy.Pages));
-        Assert.Empty(await OutgoingAsync(host, person.ContactId));
+        Assert.Equal("Por hoy llegué al tope de documentos que puedo leer. Lo dejé para que lo revise el equipo.",
+            Assert.Single(await OutgoingAsync(host, person.ContactId)).Body);
     }
 
     [Fact]

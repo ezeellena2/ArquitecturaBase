@@ -32,7 +32,8 @@ internal sealed class WhatsAppAssistantTerminalFixture : IStructuredAuthoringPro
     public Result<StructuredMissingFormRequestCaptureResponse> MissingResult { get; set; } = Result.Success(new StructuredMissingFormRequestCaptureResponse(Guid.NewGuid(), Guid.NewGuid(), false));
     /// <summary>The references a question walks to know whether its conversation has a spreadsheet (IA, Stage 2).</summary>
     public FakeWhatsAppAssistantReader Reader { get; } = new();
-    public WhatsAppAssistantTerminalPolicy Policy => new(this, this, this, Reader);
+    public WhatsAppAssistantTerminalPolicy Policy => new(this, this, this, Reader,
+        new WhatsAppAssistantDocumentPolicy(new ArquitecturaBase.Application.Channels.UnavailableStructuredDocumentChannel(), null!, null!, null!, Reader, TimeProvider.System));
     public AssistantChannelContext Context => new(Kind == WhatsAppAssistantRequestKind.Manual ? "whatsapp-manual" : "whatsapp-assistant",
         Kind == WhatsAppAssistantRequestKind.Manual ? OperatorId : SubjectId, SubjectId, Culture, "America/Argentina/Buenos_Aires", new([], []), [new(CapabilityId, CapabilityVersion)], [new("assistant_proposal", 1)]) { InteractionMode = Kind == WhatsAppAssistantRequestKind.Manual ? AssistantInteractionMode.Manual : AssistantInteractionMode.Assistant };
     public WhatsAppAssistantReferenceRow Reference => new(RequestId, ContactId, SourceId, Context.ActorUserId, SubjectId, Kind, 0, 1,

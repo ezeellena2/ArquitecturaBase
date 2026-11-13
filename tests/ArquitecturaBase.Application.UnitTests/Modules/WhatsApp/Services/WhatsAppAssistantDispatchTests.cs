@@ -152,4 +152,49 @@ public sealed class WhatsAppAssistantDispatchTests
         host.Reader.Reference=reference with{OutgoingId=outgoing.Id};
         Assert.True((await host.Guard.ValidateAsync(host.Context.Contact,outgoing,Ct)).IsSuccess);
     }
+    // Task 9 of the documents: a document question goes out only as the outgoing its own reference accepted, with every option of its
+    // request and proposal, as buttons or as a list.
+    [Theory]
+    [InlineData("own",WhatsAppOutgoingMessageKind.QuickReplies,true)] [InlineData("own",WhatsAppOutgoingMessageKind.List,true)]
+    [InlineData("request",WhatsAppOutgoingMessageKind.QuickReplies,false)] [InlineData("proposal",WhatsAppOutgoingMessageKind.List,false)]
+    [InlineData("outgoing",WhatsAppOutgoingMessageKind.QuickReplies,false)]
+    public async Task A_document_question_goes_out_only_with_the_options_of_its_own_request_and_proposal(string change,WhatsAppOutgoingMessageKind kind,bool allowed)
+    {
+        var host=await WhatsAppAssistantDispatchFixture.CreateAsync();
+        var reference=host.Reader.Reference!;
+        var proposal=reference.ProposalId!.Value;
+        WhatsAppOutgoingQuickReply[] options=[new(WhatsAppAssistantDocumentReplyCodec.Encode(change=="request"?Guid.NewGuid():reference.RequestId,
+                change=="proposal"?Guid.NewGuid():proposal,Guid.NewGuid()),"Pagos",0),
+            new(WhatsAppAssistantDocumentReplyCodec.Encode(reference.RequestId,proposal,null),"Otro",0)];
+        var contact=host.Context.Contact;
+        var outgoing=kind==WhatsAppOutgoingMessageKind.List
+            ?WhatsAppOutgoingMessage.CreateAssistantList(host.Context.Subject.Id,contact.Id,reference.RequestId,"No reconocí este documento.","Elegir formulario",options,
+                host.Now,contact.LinkRevision,contact.WaId!,contact.ModeRevision)
+            :WhatsAppOutgoingMessage.CreateAssistantQuickReplies(host.Context.Subject.Id,contact.Id,reference.RequestId,"¿Qué es este documento?",options,host.Now,
+                contact.LinkRevision,contact.WaId!,contact.ModeRevision);
+        host.Reader.Reference=reference with{OutgoingId=change=="outgoing"?Guid.NewGuid():outgoing.Id};
+        Assert.Equal(allowed,(await host.Guard.ValidateAsync(contact,outgoing,Ct)).IsSuccess);
+    }
+    // Review of task 9: a form that answers a document the person sent is no offer: a decline of that form as an offer does not stop it,
+    // while an offered form the person declined still does not go out.
+    [Theory]
+    [InlineData(true,true)] [InlineData(false,false)]
+    public async Task A_form_that_answers_a_document_goes_out_even_if_the_person_declined_it_as_an_offer(bool answersDocument,bool allowed)
+    {
+        var host=await WhatsAppAssistantDispatchFixture.CreateAsync();
+        var contact=host.Context.Contact;
+        var reference=host.Reader.Reference!;
+        var form=new StructuredFormSelectionRow(Guid.NewGuid(),Guid.NewGuid(),1,"PAG",new Dictionary<string,string>{["es"]="Pagos"},1,
+            new Dictionary<string,string>{["es"]="Enviar"}){DefinitionRevision=1};
+        var sessionId=Guid.NewGuid();
+        var flow=WhatsAppOutgoingMessage.CreateAssistantFlow(host.Context.Subject.Id,contact.Id,reference.RequestId,"Recibí un documento para «Pagos». ¿Lo cargo?",sessionId,
+            host.Now,contact.LinkRevision,contact.WaId!,contact.ModeRevision);
+        host.FlowSessions.Dispatch=new(flow.Id,sessionId,new string('a',64),contact.Id,contact.WaId,host.Context.Subject.Id,null,form.DefinitionId,form.VersionId,
+            Guid.NewGuid(),"es",[1],host.Now.AddHours(1),WhatsAppOutgoingMessageState.Pending,flow.Body,WhatsAppConversationMode.Assistant,contact.ModeRevision,host.Now)
+            {Origin=WhatsAppMessageOrigin.Assistant,ProtectedAssistantContent=[3],AssistantContentExpiresAtUtc=host.Now.AddHours(1)};
+        host.Forms.AcceptedForms=[form];
+        host.Reader.Declined=true;
+        host.Reader.Reference=reference with{OutgoingId=flow.Id,DefinitionId=form.DefinitionId,AttachmentMessageId=answersDocument?Guid.NewGuid():null};
+        Assert.Equal(allowed,(await host.Guard.ValidateAsync(contact,flow,Ct)).IsSuccess);
+    }
 }

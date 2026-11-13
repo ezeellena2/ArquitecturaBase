@@ -35,7 +35,11 @@ public sealed record WhatsAppMessageResponse(
     // Task 8 of the documents: only a received document carries its name, kind and pages while its descriptor lives.
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] WhatsAppReceivedDocumentResponse? Document = null,
     // W3: only a shared contact carries its first card, while its content lives.
-    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] WhatsAppSharedContactResponse? Contact = null);
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] WhatsAppSharedContactResponse? Contact = null,
+    // Review of task 9 of the documents: only a question that went as a list carries the label of its button, and only what the assistant
+    // sent for a file the person sent says so (its body, which may carry what was read, needs formrecords.read).
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? ListButton = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)] bool LoadsFile = false);
 public sealed record WhatsAppLocationPointResponse(decimal Latitude, decimal Longitude)
 {
     public override string ToString() => "WhatsAppLocationPointResponse { Content = [REDACTED] }";
@@ -67,7 +71,10 @@ public sealed record WhatsAppOutgoingMessageResponse(
     string? RecoveryPath = null, WhatsAppOutgoingMessageKind Kind = WhatsAppOutgoingMessageKind.Text,
     WhatsAppMessageOrigin Origin = WhatsAppMessageOrigin.Conversation,
     WhatsAppAssistantExplanationResponse? Assistant = null, IReadOnlyList<string>? QuickReplies = null,
-    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] WhatsAppAssistantReplyResponse? AssistantReply = null);
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] WhatsAppAssistantReplyResponse? AssistantReply = null,
+    // Review of task 9 of the documents: as in the messages, the button of a list and the mark of a send for a file.
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? ListButton = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)] bool LoadsFile = false);
 
 /// <summary>A line of the chat for what the assistant decided without a message, with its why.</summary>
 public sealed record WhatsAppAssistantEventResponse(Guid Id, DateTime AtUtc, WhatsAppAssistantReplyResponse Reply);

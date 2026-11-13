@@ -120,8 +120,9 @@ public sealed class FormReceivedDocumentHttpTests(ApiFactory factory)
     public async Task A_chosen_form_is_prepared_to_send_and_another_one_notes_the_missing_form_once()
     {
         await using var scenario = await FormReceivedDocumentScenario.CreateAsync(factory, Ct);
-        var sent = await scenario.SendAsync(Ct);
         var now = factory.Clock.GetUtcNow().UtcDateTime;
+        // Its person is waited for: a channel registers it with the deadline of the send that may follow.
+        var sent = await scenario.SendAsync(Ct, replyExpiresAtUtc: now.AddHours(24));
         var send = new StructuredDocumentSendRequest(sent.Id, FormReceivedDocumentScenario.Channel, sent.Request.SourceId, scenario.Sender, "es", scenario.Form.DefinitionId);
 
         var ready = await scenario.PortAsync(port => port.PrepareSendAsync(send, Ct));
@@ -173,7 +174,8 @@ public sealed class FormReceivedDocumentHttpTests(ApiFactory factory)
     public async Task A_person_who_chooses_the_second_form_of_a_doubt_moves_the_document_to_it_and_the_reviewer_passes_it_there()
     {
         await using var scenario = await FormReceivedDocumentScenario.CreateAsync(factory, Ct);
-        var doubt = await scenario.SendAsync(Ct, outcome: "doubt", candidates: [scenario.Form, scenario.Other]);
+        var doubt = await scenario.SendAsync(Ct, outcome: "doubt", candidates: [scenario.Form, scenario.Other],
+            replyExpiresAtUtc: factory.Clock.GetUtcNow().UtcDateTime.AddMinutes(10));
         var send = new StructuredDocumentSendRequest(doubt.Id, FormReceivedDocumentScenario.Channel, doubt.Request.SourceId, scenario.Sender, "es",
             scenario.Other.DefinitionId);
         var outsider = await scenario.TransferAsync(Ct);
@@ -189,7 +191,8 @@ public sealed class FormReceivedDocumentHttpTests(ApiFactory factory)
         using var reviewer = scenario.Client(scenario.Reviewer);
         Assert.Equal(["received", "formChosen"], await HistoryAsync(reviewer, doubt.Id));
 
-        // The reviewer who saw the first form is late; passed to the second, it is confirmed there.
+        // Once its person is no longer waited for, the reviewer who saw the first form is late; passed to the second, it is confirmed there.
+        factory.Clock.Advance(TimeSpan.FromMinutes(11));
         object Pass(Guid versionId, long revision) => new
         {
             requestId = Guid.NewGuid(), versionId, expectedRevision = revision,
@@ -204,6 +207,77 @@ public sealed class FormReceivedDocumentHttpTests(ApiFactory factory)
         Assert.Equal(scenario.Other.DefinitionId, record.DefinitionId);
         var confirmed = await factory.ExecuteDbContextAsync(db => db.Set<FormReceivedDocument>().AsNoTracking().SingleAsync(value => value.Id == doubt.Id, Ct));
         Assert.Equal((FormReceivedDocumentState.Confirmed, scenario.Other.DefinitionId), (confirmed.State, confirmed.DefinitionId!.Value));
+    }
+
+    // Review of task 9: the inbox answers the deadline it keeps for the person (the first registration's, which a repeated one never
+    // recomputes), and a form chosen after it is for the team: no send is prepared and the document is not moved to that form.
+    [Fact]
+    public async Task The_inbox_answers_the_deadline_it_keeps_and_a_choice_after_it_prepares_no_send()
+    {
+        await using var scenario = await FormReceivedDocumentScenario.CreateAsync(factory, Ct);
+        var now = factory.Clock.GetUtcNow().UtcDateTime;
+        var sent = await scenario.SendAsync(Ct, replyExpiresAtUtc: now.AddHours(2));
+        var again = await scenario.PortAsync(port => port.RegisterAsync(sent.Request with { ReplyExpiresAtUtc = now.AddHours(30) }, Ct));
+        var send = new StructuredDocumentSendRequest(sent.Id, FormReceivedDocumentScenario.Channel, sent.Request.SourceId, scenario.Sender, "es", scenario.Form.DefinitionId);
+
+        Assert.Equal((DateTime?)now.AddHours(2), sent.Reply.ReplyExpiresAtUtc);
+        Assert.Equal((true, (DateTime?)now.AddHours(2)), (again.WasAlreadyRegistered, again.ReplyExpiresAtUtc));
+        Assert.Equal(StructuredDocumentSendState.Ready, (await scenario.PortAsync(port => port.PrepareSendAsync(send, Ct))).State);
+
+        var late = await scenario.SendAsync(Ct, outcome: "doubt", candidates: [scenario.Form, scenario.Other], replyExpiresAtUtc: now.AddMinutes(-1));
+        var lateSend = new StructuredDocumentSendRequest(late.Id, FormReceivedDocumentScenario.Channel, late.Request.SourceId, scenario.Sender, "es",
+            scenario.Other.DefinitionId);
+        Assert.Equal(StructuredDocumentSendState.Expired, (await scenario.PortAsync(port => port.PrepareSendAsync(lateSend, Ct))).State);
+        var kept = await factory.ExecuteDbContextAsync(db => db.Set<FormReceivedDocument>().AsNoTracking().SingleAsync(value => value.Id == late.Id, Ct));
+        Assert.Equal((scenario.Form.DefinitionId, 1L), (kept.DefinitionId!.Value, kept.Revision));
+    }
+
+    // Closing task 9: a document nobody waits for (a reviewer discarded and reopened it, which clears its deadline) is for the team: a choice
+    // from its person's question, still open in the channel, prepares no send and does not move it to another form.
+    [Fact]
+    public async Task A_reopened_document_waits_for_nobody_and_a_choice_from_its_question_prepares_no_send()
+    {
+        await using var scenario = await FormReceivedDocumentScenario.CreateAsync(factory, Ct);
+        var doubt = await scenario.SendAsync(Ct, outcome: "doubt", candidates: [scenario.Form, scenario.Other],
+            replyExpiresAtUtc: factory.Clock.GetUtcNow().UtcDateTime.AddMinutes(10));
+        factory.Clock.Advance(TimeSpan.FromMinutes(11));
+        using var reviewer = scenario.Client(scenario.Reviewer);
+        using var discarded = await reviewer.PostAsJsonAsync($"/api/forms/documents/{doubt.Id}/discard", new { expectedRevision = 1 }, Ct);
+        using var reopened = await reviewer.PostAsJsonAsync($"/api/forms/documents/{doubt.Id}/reopen", new { expectedRevision = 2 }, Ct);
+        Assert.Equal((HttpStatusCode.OK, HttpStatusCode.OK), (discarded.StatusCode, reopened.StatusCode));
+        var send = new StructuredDocumentSendRequest(doubt.Id, FormReceivedDocumentScenario.Channel, doubt.Request.SourceId, scenario.Sender, "es",
+            scenario.Other.DefinitionId);
+
+        Assert.Equal(StructuredDocumentSendState.Expired, (await scenario.PortAsync(port => port.PrepareSendAsync(send, Ct))).State);
+
+        var kept = await factory.ExecuteDbContextAsync(db => db.Set<FormReceivedDocument>().AsNoTracking().SingleAsync(value => value.Id == doubt.Id, Ct));
+        Assert.Equal((FormReceivedDocumentState.Proposed, scenario.Form.DefinitionId, 3L, (DateTime?)null),
+            (kept.State, kept.DefinitionId!.Value, kept.Revision, kept.ReplyExpiresAtUtc));
+    }
+
+    // Review of task 9: a document that was not recognized, registered again with a proposal for the form its person chose in the channel,
+    // is recognized for that form with the deadline of the new send (and not taken for a repetition of itself); a proposal for another form
+    // changes nothing.
+    [Fact]
+    public async Task A_document_not_recognized_is_recognized_for_the_form_its_person_chose_and_not_for_another()
+    {
+        await using var scenario = await FormReceivedDocumentScenario.CreateAsync(factory, Ct);
+        var now = factory.Clock.GetUtcNow().UtcDateTime;
+        var sent = await scenario.SendAsync(Ct, outcome: "unknown");
+        AssistantObservedProposal For(FormReceivedDocumentScenarioForm form) => FormReceivedDocumentScenario.Proposal([form], scenario.Sender, "sure",
+            value => [(value.AmountId, "decimal", "150000", false), (value.OperationId, "shortText", "778899", false)]);
+
+        var other = await scenario.PortAsync(port => port.RegisterAsync(sent.Request with
+            { Proposal = For(scenario.Other), FocusDefinitionId = scenario.Form.DefinitionId, ReplyExpiresAtUtc = now.AddHours(24) }, Ct));
+        var chosen = await scenario.PortAsync(port => port.RegisterAsync(sent.Request with
+            { Proposal = For(scenario.Form), FocusDefinitionId = scenario.Form.DefinitionId, ReplyExpiresAtUtc = now.AddHours(24) }, Ct));
+
+        Assert.Equal(StructuredDocumentReplyKind.Unknown, sent.Reply.Kind);
+        Assert.Equal(StructuredDocumentReplyKind.Unknown, other.Kind);
+        Assert.Equal((StructuredDocumentReplyKind.Sure, (DateTime?)now.AddHours(24)), (chosen.Kind, chosen.ReplyExpiresAtUtc));
+        var document = await factory.ExecuteDbContextAsync(db => db.Set<FormReceivedDocument>().AsNoTracking().SingleAsync(value => value.Id == sent.Id, Ct));
+        Assert.Equal((FormReceivedDocumentState.Proposed, scenario.Form.DefinitionId, (DateTime?)now.AddHours(24)),
+            (document.State, document.DefinitionId!.Value, document.ReplyExpiresAtUtc));
     }
 
     [Fact]
