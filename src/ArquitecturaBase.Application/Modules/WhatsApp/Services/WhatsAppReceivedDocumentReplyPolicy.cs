@@ -51,6 +51,19 @@ internal sealed class WhatsAppReceivedDocumentReplyPolicy(WhatsAppAssistantAcces
     {
         if (message.DocumentState != WhatsAppDocumentState.Pending) return;
         message.SetDocumentUnavailable(WhatsAppReceivedDocumentPreparationPolicy.NotAllowedCode);
+        await HandOffNotAllowedAsync(contact, message, subject, personCulture, ct);
+    }
+
+    /// <summary>VC1-A (rule B8): a spreadsheet of a linked account that can neither load nor build, told and handed to a person as a document.</summary>
+    public async Task RefuseSpreadsheetAsync(WhatsAppContact contact, WhatsAppMessage message, Guid subject, string personCulture, CancellationToken ct)
+    {
+        if (message.SpreadsheetState != WhatsAppSpreadsheetState.Pending) return;
+        message.SetSpreadsheetUnavailable(WhatsAppReceivedDocumentPreparationPolicy.NotAllowedCode);
+        await HandOffNotAllowedAsync(contact, message, subject, personCulture, ct);
+    }
+
+    private async Task HandOffNotAllowedAsync(WhatsAppContact contact, WhatsAppMessage message, Guid subject, string personCulture, CancellationToken ct)
+    {
         var nowUtc = clock.GetUtcNow().UtcDateTime;
         if (await ReferenceAsync(contact, message, ct) is not { } reference)
         {

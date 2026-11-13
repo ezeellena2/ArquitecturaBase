@@ -101,6 +101,35 @@ internal sealed class WhatsAppAssistantAccessPolicy(IUserReader users, IPermissi
         PreloadedCapabilities = null, AllowedTerminals = [new("assistant_proposal", 1)], AllowedCapabilities = DocumentCapabilities,
     };
 
+    /// <summary>VC1-A (task 29): the candidates and the rows' proposal, what loads the rows of a spreadsheet into forms.</summary>
+    public static readonly AssistantCapabilityReference[] SpreadsheetCapabilities = [new("forms.documents.candidates", 1), new("forms.documents.propose-rows", 1)];
+
+    // The three that register with text, which a turn that loads a spreadsheet swaps for the loading ones.
+    private static readonly AssistantCapabilityReference[] TextRegistration =
+        [new("forms.assistant-candidates", 1), new("forms.propose-registration", 1), new("forms.clarify-registration", 1)];
+
+    /// <summary>
+    /// A spreadsheet to load with its request (decision 10): the person's automatic conversation, with or without an agent, with the loading
+    /// capabilities instead of the three that register with text, so the model loads its rows or builds with it: 15 definitions without an
+    /// agent and 16 with one, within the sixteen.
+    /// </summary>
+    public static AssistantChannelContext WithSpreadsheet(AssistantChannelContext context) => context with
+    {
+        PreloadedCapabilities = context.PreloadedCapabilities?.Where(capability => !TextRegistration.Contains(capability)).ToArray(),
+        AllowedCapabilities = [.. context.AllowedCapabilities.Where(capability => !TextRegistration.Contains(capability) && !SpreadsheetCapabilities.Contains(capability)),
+            .. SpreadsheetCapabilities],
+    };
+
+    /// <summary>A spreadsheet to load without a request (decision 10): only loading it, with no preloads and one proposal.</summary>
+    public static AssistantChannelContext ForSpreadsheet(AssistantChannelContext context) => context with
+    {
+        PreloadedCapabilities = null, AllowedTerminals = [new("assistant_proposal", 1)], AllowedCapabilities = SpreadsheetCapabilities,
+    };
+
+    /// <summary>Whether a sealed context only loads a spreadsheet (<see cref="ForSpreadsheet"/>).</summary>
+    public static bool LoadsSpreadsheetOnly(AssistantChannelContext context) =>
+        context.AllowedCapabilities.Count == SpreadsheetCapabilities.Length && context.AllowedCapabilities.All(SpreadsheetCapabilities.Contains);
+
     /// <summary>Whether a sealed context only loads a document (<see cref="ForDocument"/>).</summary>
     public static bool LoadsDocumentOnly(AssistantChannelContext context) =>
         context.AllowedCapabilities.Count == DocumentCapabilities.Length && context.AllowedCapabilities.All(DocumentCapabilities.Contains);

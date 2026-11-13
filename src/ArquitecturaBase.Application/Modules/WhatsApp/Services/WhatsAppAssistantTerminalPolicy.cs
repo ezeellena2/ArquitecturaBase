@@ -15,7 +15,8 @@ namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 // creates it, or opens the import in the app. A read document's proposal (task 9 of the documents) goes to the inbox, which says
 // what to tell the person.
 internal sealed class WhatsAppAssistantTerminalPolicy(IStructuredAuthoringProposalChannel authoring,
-    IStructuredMissingFormRequestSink missing, IPublicOrigin origin, IWhatsAppAssistantReader reader, WhatsAppAssistantDocumentPolicy documents)
+    IStructuredMissingFormRequestSink missing, IPublicOrigin origin, IWhatsAppAssistantReader reader, WhatsAppAssistantDocumentPolicy documents,
+    WhatsAppAssistantSpreadsheetPolicy spreadsheets, WhatsAppAssistantLoadAcceptancePolicy loads)
 {
     private static readonly string[] Ids = ["forms.missing-request.propose", "forms.catalog-filters.propose", "forms.authoring.propose-form",
         "forms.authoring.propose-catalog", "forms.authoring.propose-import", "forms.authoring.decline"];
@@ -24,16 +25,21 @@ internal sealed class WhatsAppAssistantTerminalPolicy(IStructuredAuthoringPropos
     // version 1 still closes what is in progress.
     public static bool Handles(AssistantCapabilityReference capability) => capability.Version == 1 && Ids.Contains(capability.Id, StringComparer.Ordinal)
         || capability is { Id: "forms.authoring.propose-catalog" or "forms.authoring.propose-form", Version: 2 }
-        || WhatsAppAssistantDocumentPolicy.Handles(capability);
+        || WhatsAppAssistantDocumentPolicy.Handles(capability) || WhatsAppAssistantSpreadsheetPolicy.Handles(capability);
 
     /// <summary>
     /// Task 9: an interpretation that only loads a read document and closed without a proposal still goes to the inbox, which leaves it
-    /// unclassified and offers what the person can complete.
+    /// unclassified and offers what the person can complete. VC1-A (task 29): so does one that only loads a spreadsheet.
     /// </summary>
     public static bool HandlesDocumentWithoutProposal(WhatsAppAssistantReferenceRow reference, AssistantOperationResponse operation) =>
         operation is { State: "completed", Proposal: null } && reference.AttachmentMessageId is not null
-        && reference.Kind == WhatsAppAssistantRequestKind.Automatic
-        && WhatsAppAssistantAccessPolicy.LoadsDocumentOnly(WhatsAppAssistantSuggestionPolicy.Context(reference));
+        && reference.Kind == WhatsAppAssistantRequestKind.Automatic && WhatsAppAssistantSuggestionPolicy.Context(reference) is var context
+        && (WhatsAppAssistantAccessPolicy.LoadsDocumentOnly(context) || WhatsAppAssistantAccessPolicy.LoadsSpreadsheetOnly(context));
+
+    /// <summary>VC1-A (task 29): whether an outcome registers the rows of a spreadsheet: their proposal, or a spreadsheet alone without one.</summary>
+    public static bool RegistersRows(WhatsAppAssistantReferenceRow reference, AssistantOperationResponse operation) =>
+        operation.Proposal is { } proposal ? WhatsAppAssistantSpreadsheetPolicy.Handles(proposal.Capability)
+            : HandlesDocumentWithoutProposal(reference, operation) && WhatsAppAssistantAccessPolicy.LoadsSpreadsheetOnly(WhatsAppAssistantSuggestionPolicy.Context(reference));
 
     public async Task<Result<WhatsAppAssistantTerminalResponse?>> ApplyAsync(WhatsAppAssistantReferenceRow reference,
         WhatsAppAssistantSourceRow source, AssistantOperationResponse operation, CancellationToken ct)
@@ -50,6 +56,11 @@ internal sealed class WhatsAppAssistantTerminalPolicy(IStructuredAuthoringPropos
             || reference.Kind == WhatsAppAssistantRequestKind.Automatic && reference.ActorUserId != reference.SubjectUserId)
             return WhatsAppAssistantErrors.InvalidProposal;
         var automatic = reference.Kind == WhatsAppAssistantRequestKind.Automatic;
+        // VC1-A (task 29): the rows of a spreadsheet go to the inbox in the person's own conversation, which says what became of each; a
+        // spreadsheet alone that closed without a proposal too, which the inbox leaves unclassified with the forms to choose.
+        if (RegistersRows(reference, operation))
+            return automatic ? await spreadsheets.RegisterAsync(reference, source, operation, context, ct)
+                : new WhatsAppAssistantTerminalResponse(operation.Proposal?.Id ?? reference.RequestId, null, context.Culture);
         // A read document goes to the inbox in the person's own conversation, which says what to answer.
         if (documentOnly || WhatsAppAssistantDocumentPolicy.Handles(operation.Proposal!.Capability))
             return automatic ? await documents.RegisterAsync(reference, operation, context, ct) : new WhatsAppAssistantTerminalResponse(operation.Proposal?.Id ?? reference.RequestId, null, context.Culture);
@@ -69,6 +80,14 @@ internal sealed class WhatsAppAssistantTerminalPolicy(IStructuredAuthoringPropos
         if (captured.IsFailure) return captured.Error;
         return new WhatsAppAssistantTerminalResponse(proposal.Id, automatic ? AssistantTerminalTexts.Get("MissingFormRequested", context.Culture) : null, context.Culture);
     }
+
+    /// <summary>VC1-A (task 29): a spreadsheet to load over the day's quota, outside any transaction.</summary>
+    public Task<Result<WhatsAppAssistantTerminalResponse?>> RegisterSpreadsheetOverQuotaAsync(WhatsAppAssistantReferenceRow reference,
+        WhatsAppAssistantSourceRow source, CancellationToken ct) => spreadsheets.RegisterOverQuotaAsync(reference, source, ct);
+
+    /// <summary>VC1-A (task 29): the notice of a spreadsheet and its loads, in the caller's transaction.</summary>
+    public Task<Result> AcceptLoadsAsync(WhatsAppContact contact, WhatsAppAssistantRequest row, WhatsAppAssistantTerminalResponse terminal, CancellationToken ct) =>
+        loads.AcceptAsync(contact, row, terminal, ct);
 
     // The conversation has a spreadsheet when this request carries one or an operation it continues did, as the engine inherits it:
     // the references of a conversation chain by the operation each one continues.

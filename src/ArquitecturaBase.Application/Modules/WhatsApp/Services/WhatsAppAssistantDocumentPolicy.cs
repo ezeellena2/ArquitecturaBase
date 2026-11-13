@@ -22,7 +22,8 @@ namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 /// without another interpretation; «Otro» leaves it unclassified; a form chosen from the list continues the operation with that form fixed.
 /// </summary>
 internal sealed class WhatsAppAssistantDocumentPolicy(IStructuredDocumentChannel documents, WhatsAppFormSendPolicy sending,
-    IWhatsAppFlowEnvironment environment, IAssistantOperations operations, IWhatsAppAssistantReader reader, TimeProvider clock)
+    IWhatsAppFlowEnvironment environment, IAssistantOperations operations, IWhatsAppAssistantReader reader, TimeProvider clock,
+    WhatsAppAssistantSpreadsheetPolicy spreadsheets)
 {
     /// <summary>The handoff's stable reason code when the form cannot be sent to the person (CE4-A).</summary>
     public const string NotSendableCode = "documentNotSendable";
@@ -81,7 +82,9 @@ internal sealed class WhatsAppAssistantDocumentPolicy(IStructuredDocumentChannel
             return new(reference, Replaced(reference, proposalId), null);
         var context = WhatsAppAssistantSuggestionPolicy.Context(reference);
         var culture = context.Culture;
-        if (await reader.FindDocumentAsync(contactId, messageId, ct) is not { } document) return new(reference, NotPrepared(proposalId, culture), null);
+        // VC1-A (task 29): the question of a spreadsheet none of whose rows fit.
+        if (await reader.FindDocumentAsync(contactId, messageId, ct) is not { } document)
+            return await spreadsheets.ChooseAsync(reference, proposalId, definitionId, context, ct) ?? new(reference, NotPrepared(proposalId, culture), null);
         var registration = await documents.RegisterAsync(new StructuredDocumentRegistrationRequest(WhatsAppReceivedDocumentPreparationPolicy.ChannelId,
             SourceId(document), reference.SubjectUserId, culture, document.ReceivedAtUtc, Copy(document))
         {
@@ -192,7 +195,7 @@ internal sealed class WhatsAppAssistantDocumentPolicy(IStructuredDocumentChannel
 
     // Two or three candidates with short names go as buttons (with two, the third is «Otro»); a longer name, or the forms of a document
     // that was not recognized (up to nine and «Otro»), as a list.
-    private static WhatsAppAssistantTerminalResponse Question(Guid requestId, Guid proposalId, string body, IReadOnlyList<StructuredDocumentFormChoice> forms,
+    internal static WhatsAppAssistantTerminalResponse Question(Guid requestId, Guid proposalId, string body, IReadOnlyList<StructuredDocumentFormChoice> forms,
         string culture, bool list = false)
     {
         var options = forms.Take(9).Select(form => new WhatsAppOutgoingQuickReply(WhatsAppAssistantDocumentReplyCodec.Encode(requestId, proposalId, form.DefinitionId),

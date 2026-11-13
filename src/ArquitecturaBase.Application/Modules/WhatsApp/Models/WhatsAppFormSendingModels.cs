@@ -69,6 +69,8 @@ public sealed record WhatsAppFormDispatchRow(Guid OutgoingId, Guid SessionId, st
     public byte[]? ProtectedProjection { get; init; }
     /// <summary>W3: a resend of the send, which goes out with what was shared over its prefill, and only while the send has no reply.</summary>
     public bool IsResend { get; init; }
+    /// <summary>VC1-A (task 29): the footer of the Flow of a load, only for Meta.</summary>
+    public string? Footer { get; init; }
     public byte[]? ProtectedSharedValues { get; init; }
     public WhatsAppFlowCaptureState CaptureState { get; init; }
     /// <summary>W3: an inbound reply is attached to the send, captured or not yet (its files may be downloading).</summary>
@@ -125,6 +127,14 @@ public sealed record WhatsAppFlowMessageResponse : WhatsAppOutboundMessage
     public WhatsAppFlowAccountContext Account { get; }
     public IReadOnlyList<StructuredFormCatalogOffer> Catalogs { get; }
     public IReadOnlyDictionary<string,IReadOnlyDictionary<string,string>> InitialValues { get; }
+
+    /// <summary>VC1-A (task 29): the footer of the Flow of a load («Cobranzas · prellenado»), up to Meta's limit; null without one.</summary>
+    public string? Footer
+    {
+        get;
+        init => field = value is null ? null : WhatsAppMessageLimits.Require(value, WhatsAppOutgoingMessage.MaxFooterLength, nameof(Footer));
+    }
+
     public override WhatsAppMessagePurpose Purpose => WhatsAppMessagePurpose.Business;
     public override string SafeSummary => $"{Body} [{ButtonText}]";
 }

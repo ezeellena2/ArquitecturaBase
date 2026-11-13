@@ -41,7 +41,9 @@ public sealed record WhatsAppMessageResponse(
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? ListButton = null,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)] bool LoadsFile = false,
     // W3 (task 24): only a resend of the form carries «Prellenado con», with the privacy of «Por qué lo mandó».
-    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<WhatsAppSharedPrefillResponse>? Prefill = null);
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<WhatsAppSharedPrefillResponse>? Prefill = null,
+    // VC1-A (task 29): only the notice of the loads of a spreadsheet carries «Por qué lo propuso», seen with whatsapp.read.
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] WhatsAppSpreadsheetRowsResponse? SpreadsheetRows = null);
 public sealed record WhatsAppLocationPointResponse(decimal Latitude, decimal Longitude)
 {
     public override string ToString() => "WhatsAppLocationPointResponse { Content = [REDACTED] }";
@@ -89,7 +91,9 @@ public sealed record WhatsAppOutgoingMessageResponse(
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? ListButton = null,
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)] bool LoadsFile = false,
     // W3 (task 24): as in the messages, «Prellenado con» of a queued resend.
-    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<WhatsAppSharedPrefillResponse>? Prefill = null);
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<WhatsAppSharedPrefillResponse>? Prefill = null,
+    // VC1-A (task 29): as in the messages, «Por qué lo propuso» of a queued notice of the loads.
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] WhatsAppSpreadsheetRowsResponse? SpreadsheetRows = null);
 
 /// <summary>A line of the chat for what the assistant decided without a message, with its why.</summary>
 public sealed record WhatsAppAssistantEventResponse(Guid Id, DateTime AtUtc, WhatsAppAssistantReplyResponse Reply);

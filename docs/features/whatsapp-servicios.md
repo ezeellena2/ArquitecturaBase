@@ -120,6 +120,8 @@ Es el detalle de la guía [`src/ArquitecturaBase.Application/Modules/WhatsApp/Se
 
 ## Documentos recibidos
 
+VC1-A (tarea 29): `WhatsAppAssistantSpreadsheetPolicy` registra las filas de una planilla en la bandeja fuera de la UoW y arma el aviso y hasta tres cargas; `WhatsAppAssistantLoadAcceptancePolicy` los encola en la UoW del despacho, con una referencia por carga ([reglas](whatsapp.md#planilla-recibida--ia-etapa-2-2026-11-10)).
+
 `WhatsAppReceivedDocumentDispatchService`, `WhatsAppReceivedDocumentPreparationPolicy`, `WhatsAppReceivedDocumentReplyPolicy`, `WhatsAppReceivedDocumentReadingPolicy` y `WhatsAppReceivedDocumentPresentationPolicy`. El circuito (tarea 9) suma `WhatsAppAssistantDocumentPolicy`, `WhatsAppAssistantDocumentService` y `WhatsAppAssistantDocumentReplyCodec`.
 
 - Quién lo baja, o por qué no (como hoy, sin cuenta, sin permiso o esperando su pedido), lo decide la preparación antes de cualquier I/O y otra vez bajo lock, con el mismo vínculo, el mismo modo y el mismo instante; vale la de bajo lock, y una descarga se guarda sólo con la misma decisión (otra queda pendiente para la vuelta siguiente). Descarga, verificación, preparación por `IStructuredAttachmentReader`, `WriteOnce` con relectura y el registro de un rechazo en la bandeja van fuera de la UoW, que toma contacto y mensaje y guarda una vez lo que salió. El pedido es el `caption` o el texto o el audio contiguo emparejado como una planilla (`HasRequest` con `PairedRequest`, tarea 9); la espera (`AwaitDocumentRequest`) usa la ventana de `WhatsAppAssistantSourcePolicy`, y la disponibilidad del motor dice si la instalación lee documentos (`ReadsDocuments`, que no se serializa).

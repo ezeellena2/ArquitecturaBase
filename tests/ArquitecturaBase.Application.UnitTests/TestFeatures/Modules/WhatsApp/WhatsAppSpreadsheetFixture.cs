@@ -32,6 +32,11 @@ internal sealed class WhatsAppSpreadsheetFixture : IWhatsAppSpreadsheetReader, I
     public List<long> DownloadLimits { get; } = [];
     public int Downloads => DownloadLimits.Count;
     public List<string> PreparedNames { get; } = [];
+    // VC1-A: the sheet prepared to load its rows, whether the person loads (the inbox decides) and what the inbox registered.
+    public List<string> RowsPreparedNames { get; } = [];
+    public StructuredAttachmentPreparation? RowsPreparation { get; set; }
+    public StructuredDocumentLoading Loading { get; set; } = StructuredDocumentLoading.None;
+    public List<StructuredDocumentRegistrationRequest> Registrations { get; } = [];
     public List<string> Locks { get; } = [];
     public WhatsAppSpreadsheetDispatchService Dispatch { get; }
     public WhatsAppContact Contact => Host.Context.Contact;
@@ -45,9 +50,12 @@ internal sealed class WhatsAppSpreadsheetFixture : IWhatsAppSpreadsheetReader, I
         Message = WhatsAppMessage.Inbound(Contact.Id, "wamid.spreadsheet", WhatsAppMessageKind.Spreadsheet, "Armame un catálogo con esta planilla", null, Now);
         Assert.True(Message.SetSpreadsheetDescriptor("1234", "text/csv", metaHash ?? Hash(Content), "clientes.csv"));
         var recipientGuard = new WhatsAppFormActionPolicy(Host.Context.Users, new FakePhoneNumberParser(), new FakeWhatsAppAvailability(true, true), Host.Context.Clock);
-        var preparation = new WhatsAppSpreadsheetPreparationPolicy(this, this, Files, Host.Context.Recipients, recipientGuard);
+        var preparation = new WhatsAppSpreadsheetPreparationPolicy(this, this, Files, Host.Context.Recipients, recipientGuard,
+            new Documents(this));
         var replies = new WhatsAppSpreadsheetReplyPolicy(Host.Context.Policy, WhatsAppAssistantAcceptanceFixture.CreateAutomatic(Host),
-            Host.Requests, Host.Context.Clock);
+            Host.Requests,
+            new WhatsAppReceivedDocumentReplyPolicy(Host.Context.Policy, WhatsAppAssistantAcceptanceFixture.CreateAutomatic(Host), Host.Requests,
+                new WhatsAppAssistantHandoffPolicy(new Conversations(this), recipientGuard, Host.Context.Clock), Host.Context.Clock), Host.Context.Clock);
         Dispatch = new(this, this, new Conversations(this), preparation, replies, Host.UnitOfWork, Host.Context.Clock,
             NullLogger<WhatsAppSpreadsheetDispatchService>.Instance);
     }
@@ -109,6 +117,14 @@ internal sealed class WhatsAppSpreadsheetFixture : IWhatsAppSpreadsheetReader, I
             [new(1, new Dictionary<string, string> { ["A"] = "Código", ["B"] = "Texto" }), new(2, new Dictionary<string, string> { ["A"] = "A1", ["B"] = "Uno" })])));
     }
 
+    public Task<StructuredAttachmentPreparation> PrepareRowsAsync(byte[] content, string fileName, CancellationToken ct)
+    {
+        Assert.False(Host.UnitOfWork.InTransaction);
+        RowsPreparedNames.Add(fileName);
+        return Task.FromResult(RowsPreparation ?? StructuredAttachmentPreparation.Prepared(new StructuredSpreadsheet(fileName, StructuredSpreadsheetKind.Csv, "text/csv",
+            content.LongLength, Hash(content), "", 3, 2, [new(1, new Dictionary<string, string> { ["A"] = "Código", ["B"] = "Texto" })]) { DataRowCount = 2 }));
+    }
+
     public async Task<byte[]?> StoredAsync(string key)
     {
         await using var stream = await Files.OpenReadAsync(key, TestContext.Current.CancellationToken);
@@ -138,5 +154,22 @@ internal sealed class WhatsAppSpreadsheetFixture : IWhatsAppSpreadsheetReader, I
         public Task<IReadOnlyList<WhatsAppOutgoingMessage>> ListExpiredSendingAsync(DateTime cutoffUtc, CancellationToken ct) => throw new NotSupportedException();
         public void Add(WhatsAppReadState state) => throw new NotSupportedException();
         public void Add(WhatsAppOutgoingMessage outgoing) => host.Host.Conversation.Add(outgoing);
+    }
+
+    // VC1-A: the inbox's answer about loading, and what it registers, outside the transaction.
+    private sealed class Documents(WhatsAppSpreadsheetFixture host) : IStructuredDocumentChannel
+    {
+        public Task<StructuredDocumentLoading> FindLoadingAsync(Guid personUserId, CancellationToken ct) =>
+            Task.FromResult(personUserId == host.Host.Context.Subject.Id ? host.Loading : StructuredDocumentLoading.None);
+
+        public Task<StructuredDocumentRegistration> RegisterAsync(StructuredDocumentRegistrationRequest request, CancellationToken ct)
+        {
+            Assert.False(host.Host.UnitOfWork.InTransaction);
+            host.Registrations.Add(request);
+            return Task.FromResult(new StructuredDocumentRegistration(null, StructuredDocumentReplyKind.Unavailable));
+        }
+
+        public Task<StructuredDocumentSendPreparation> PrepareSendAsync(StructuredDocumentSendRequest request, CancellationToken ct) => throw new NotSupportedException();
+        public Task<StructuredDocumentChoiceState> ChooseOtherAsync(StructuredDocumentChoiceRequest request, CancellationToken ct) => throw new NotSupportedException();
     }
 }

@@ -35,7 +35,8 @@ internal sealed class WhatsAppFormDispatchPolicy(IWhatsAppFormRecipientReader re
         if (!account.Value.HasSameIdentity(payload.Account)) return FlowErrors.AccountMismatch;
         var phone = WhatsAppIds.Parse(phoneNumbers,row.WaId);
         return phone.IsFailure ? WhatsAppChatErrors.DestinationMissing :
-            new WhatsAppFlowMessageResponse(phone.Value,row.Body!,payload.ButtonText,payload.MetaFlowId,payload.Token,payload.StartScreen,account.Value,payload.Catalogs,initial.Value);
+            new WhatsAppFlowMessageResponse(phone.Value,row.Body!,payload.ButtonText,payload.MetaFlowId,payload.Token,payload.StartScreen,account.Value,payload.Catalogs,initial.Value)
+                { Footer = row.Footer };
     }
 
     private Result<IReadOnlyDictionary<string,IReadOnlyDictionary<string,string>>> InitialValues(WhatsAppFormDispatchRow row,

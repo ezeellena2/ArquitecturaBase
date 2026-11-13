@@ -16,9 +16,10 @@ namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 // automatic conversation, whose number is the chat's, that the owner of spreadsheets lets attach, and with private storage for the
 // copy. Downloading, checking, preparing and copying happen outside the channel transaction: the size Meta declares and the bytes are
 // bounded, the bytes must have Meta's SHA-256, the owner prepares them through the neutral port, and the copy is written once and read
-// back, never assumed ours.
+// back, never assumed ours. VC1-A (decision 13): besides whoever may attach spreadsheets, whoever can load responses downloads one while
+// some published form reads documents; for them it is prepared to load its rows, and building and importing keep their first sheet.
 internal sealed class WhatsAppSpreadsheetPreparationPolicy(IWhatsAppMediaClient media, IStructuredAttachmentReader attachments,
-    IPrivateFileStore files, IWhatsAppFormRecipientReader recipients, WhatsAppFormActionPolicy recipientGuard)
+    IPrivateFileStore files, IWhatsAppFormRecipientReader recipients, WhatsAppFormActionPolicy recipientGuard, IStructuredDocumentChannel documents)
 {
     private const string Prefix = "whatsapp/documents/";
 
@@ -33,15 +34,44 @@ internal sealed class WhatsAppSpreadsheetPreparationPolicy(IWhatsAppMediaClient 
         return name.Length > 32 && name[32..] is ".xlsx" or ".csv" && Guid.TryParseExact(name[..32], "N", out messageId) && messageId != Guid.Empty;
     }
 
-    public async Task<bool> CanDownloadAsync(WhatsAppSpreadsheetSourceRow source, CancellationToken ct)
+    public async Task<bool> CanDownloadAsync(WhatsAppSpreadsheetSourceRow source, CancellationToken ct) => (await AccessAsync(source, ct)).Downloads;
+
+    /// <summary>Who downloads it: whoever may attach spreadsheets builds with it; whoever can load while some form reads documents loads it.</summary>
+    public async Task<WhatsAppSpreadsheetAccess> AccessAsync(WhatsAppSpreadsheetSourceRow source, CancellationToken ct)
     {
-        if (!files.IsAvailable || source.Mode != WhatsAppConversationMode.Assistant || source.LinkedUserId is not { } subject) return false;
+        if (!files.IsAvailable || source.Mode != WhatsAppConversationMode.Assistant || source.LinkedUserId is not { } subject) return WhatsAppSpreadsheetAccess.None;
         var recipient = await recipients.FindAsync(source.ContactId, ct);
-        return recipient is { IsActive: true } && recipient.UserId == subject && recipient.LinkRevision == source.LinkRevision
-            && await recipientGuard.CanReachAsync(recipient.WaId, subject, ct) && (await attachments.CanAttachAsync(subject, ct)).Spreadsheets;
+        if (recipient is not { IsActive: true } || recipient.UserId != subject || recipient.LinkRevision != source.LinkRevision
+            || !await recipientGuard.CanReachAsync(recipient.WaId, subject, ct)) return WhatsAppSpreadsheetAccess.None;
+        var build = (await attachments.CanAttachAsync(subject, ct)).Spreadsheets;
+        var loading = await documents.FindLoadingAsync(subject, ct);
+        // DOC4 (rule B8): a linked account that can neither load nor build is told so, in its language, only while some form reads documents.
+        return new(build, loading is { AnyFormReads: true, CanLoad: true })
+        {
+            NotAllowed = !build && !loading.CanLoad && loading.AnyFormReads && recipient.Culture is "es" or "en", Culture = recipient.Culture,
+        };
     }
 
-    public async Task<Result<WhatsAppPreparedSpreadsheet>> AcquireAsync(WhatsAppSpreadsheetSourceRow source, CancellationToken ct)
+    /// <summary>
+    /// VC1-A (rule B8, decision 11): a spreadsheet of someone who loads that cannot be read (with macros, with a password, of an old format
+    /// or over the fifty rows to load) enters the inbox discarded, without bytes: its name and the type Meta declared. Outside any transaction.
+    /// </summary>
+    public async Task RegisterRejectedAsync(WhatsAppSpreadsheetSourceRow source, StructuredAttachmentRejection rejection, CancellationToken ct)
+    {
+        if (source.LinkedUserId is not { } subject || await recipients.FindAsync(source.ContactId, ct) is not { Culture: "es" or "en" } recipient) return;
+        var type = source.ContentType is { Length: > 0 and <= StructuredDocumentFile.MaxMediaTypeLength } declared && !declared.Any(char.IsControl)
+            ? declared : "application/octet-stream";
+        await documents.RegisterAsync(new(WhatsAppReceivedDocumentPreparationPolicy.ChannelId, source.MessageId.ToString("N"), subject, recipient.Culture,
+            source.OccurredAtUtc, null)
+        {
+            File = new(WhatsAppMessage.SpreadsheetName(source.FileName, type), type, null), NotRead = StructuredDocumentNotRead.Rejected, Rejection = rejection,
+        }, ct);
+    }
+
+    public Task<Result<WhatsAppPreparedSpreadsheet>> AcquireAsync(WhatsAppSpreadsheetSourceRow source, CancellationToken ct) =>
+        AcquireAsync(source, new(true, false), ct);
+
+    public async Task<Result<WhatsAppPreparedSpreadsheet>> AcquireAsync(WhatsAppSpreadsheetSourceRow source, WhatsAppSpreadsheetAccess access, CancellationToken ct)
     {
         if (source.MediaId is null || source.ContentType is null || source.Sha256 is null) return FileErrors.InvalidMetadata;
         var downloaded = await media.DownloadAsync(source.MediaId, source.ContentType, source.Sha256, AssistantAttachmentInput.MaximumBytes, ct);
@@ -52,7 +82,11 @@ internal sealed class WhatsAppSpreadsheetPreparationPolicy(IWhatsAppMediaClient 
         if (content.LongLength > AssistantAttachmentInput.MaximumBytes) return WhatsAppPreparedSpreadsheet.Rejected(StructuredAttachmentRejection.TooLarge);
         var sha256 = Sha256(content);
         if (sha256 != source.Sha256) return FileErrors.HashMismatch;
-        var prepared = await attachments.PrepareAsync(content, source.FileName ?? string.Empty, ct);
+        var name = source.FileName ?? string.Empty;
+        var prepared = access.Load ? await attachments.PrepareRowsAsync(content, name, ct) : await attachments.PrepareAsync(content, name, ct);
+        // A spreadsheet without rows to load, or over the fifty, keeps its first sheet for one who may build: building and importing keep their limits.
+        if (access is { Load: true, Build: true } && prepared.Rejection is StructuredAttachmentRejection.TooManyRows or StructuredAttachmentRejection.Empty)
+            prepared = await attachments.PrepareAsync(content, name, ct);
         if (prepared.Spreadsheet is not { } spreadsheet) return WhatsAppPreparedSpreadsheet.Rejected(SpreadsheetRejection(prepared));
         var key = Key(source.MessageId, spreadsheet.Kind);
         await using (var stream = new MemoryStream(content, false)) await files.WriteOnceAsync(key, stream, spreadsheet.MediaType, ct);
@@ -84,6 +118,16 @@ internal sealed class WhatsAppSpreadsheetPreparationPolicy(IWhatsAppMediaClient 
     }
 
     private static string Sha256(byte[] content) => Convert.ToHexStringLower(SHA256.HashData(content));
+}
+
+/// <summary>VC1-A (decision 13): whether the person builds with a received spreadsheet, loads its rows, both or neither.</summary>
+internal sealed record WhatsAppSpreadsheetAccess(bool Build, bool Load)
+{
+    public static WhatsAppSpreadsheetAccess None { get; } = new(false, false);
+    /// <summary>DOC4 (rule B8): a linked account that can neither load nor build, while some form reads documents, in <see cref="Culture"/>.</summary>
+    public bool NotAllowed { get; init; }
+    public string? Culture { get; init; }
+    public bool Downloads => Build || Load;
 }
 
 /// <summary>

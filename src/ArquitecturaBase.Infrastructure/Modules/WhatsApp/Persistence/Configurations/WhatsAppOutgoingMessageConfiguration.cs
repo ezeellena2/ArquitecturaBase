@@ -31,6 +31,9 @@ internal sealed class WhatsAppOutgoingMessageConfiguration : IEntityTypeConfigur
         builder.Property(item => item.WaMessageId).HasMaxLength(WhatsAppMessage.MaxWaMessageIdLength);
         // W3: a resend of the form of a send (task 23); every outgoing of before is not one.
         builder.Property(item => item.IsResend).HasDefaultValue(false);
+        // VC1-A (task 29): the footer of the Flow of a load, only for Meta, and «Por qué lo propuso» of the notice of the loads.
+        builder.Property(item => item.Footer).HasMaxLength(WhatsAppOutgoingMessage.MaxFooterLength);
+        builder.Property(item => item.SpreadsheetRowsJson).HasColumnType("jsonb");
         builder.HasIndex(item => new { item.ContactId, item.OperatorUserId, item.RequestId }).IsUnique();
         builder.HasIndex(item => new { item.State, item.RequestedAtUtc, item.Id });
         builder.HasOne<WhatsAppContact>().WithMany().HasForeignKey(item => item.ContactId).OnDelete(DeleteBehavior.Restrict);

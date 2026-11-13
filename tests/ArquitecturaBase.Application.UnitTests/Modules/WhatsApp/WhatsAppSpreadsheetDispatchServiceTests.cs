@@ -1,6 +1,7 @@
 using System.Text.Json;
 using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Models.StructuredData;
+using ArquitecturaBase.Application.Modules.WhatsApp.Services;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Files;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
@@ -334,4 +335,92 @@ public sealed class WhatsAppSpreadsheetDispatchServiceTests
     [Fact]
     public void The_limit_of_a_spreadsheet_is_the_engine_one_in_every_layer() =>
         Assert.Equal(AssistantAttachmentInput.MaximumBytes, WhatsAppMessage.MaxSpreadsheetBytes);
+
+    // VC1-A (task 29, review): the whole access is compared under the lock, as documents do: a copy prepared as rows is not kept for a
+    // person who stopped loading while it downloaded, although they still build.
+    [Fact]
+    public async Task A_copy_prepared_as_rows_is_not_kept_when_the_person_stopped_loading_while_it_downloaded()
+    {
+        var f = new WhatsAppSpreadsheetFixture { Loading = new(true, true) };
+        f.BeforeDownload = () => f.Loading = new(true, false);
+
+        Assert.True((await f.Dispatch.PrepareAsync(f.Contact.Id, Ct)).IsSuccess);
+
+        Assert.Equal(["clientes.csv"], f.RowsPreparedNames);
+        Assert.Empty(f.PreparedNames);
+        Assert.Equal((WhatsAppSpreadsheetState.Unavailable, (string?)null), (f.Message.SpreadsheetState, f.Message.SpreadsheetPreparedJson));
+        Assert.Empty(f.Replies);
+    }
+
+    // VC1-A (rule B8, DOC4): a linked account that can neither load nor build, while some form reads documents, is told so once and the
+    // conversation goes to a person, as a document's; the spreadsheet is not downloaded nor registered.
+    [Fact]
+    public async Task A_linked_account_that_can_neither_load_nor_build_is_told_once_and_handed_to_a_person_like_a_document()
+    {
+        var f = new WhatsAppSpreadsheetFixture { MayAttach = false, Loading = new(true, false) };
+
+        Assert.True((await f.Dispatch.PrepareAsync(f.Contact.Id, Ct)).IsSuccess);
+        Assert.True((await f.Dispatch.PrepareAsync(f.Contact.Id, Ct)).IsSuccess);
+
+        Assert.Equal(0, f.Downloads);
+        Assert.Equal((WhatsAppSpreadsheetState.Unavailable, WhatsAppReceivedDocumentPreparationPolicy.NotAllowedCode),
+            (f.Message.SpreadsheetState, f.Message.SpreadsheetFailureCode));
+        var reply = Assert.Single(f.Replies);
+        Assert.Equal("Gracias, recibí tu documento. Tu cuenta no puede cargarlo desde acá: se lo pasé a una persona del equipo.", reply.Body);
+        Assert.Equal((WhatsAppConversationMode.Manual, true, WhatsAppReceivedDocumentReplyPolicy.HandoffReasonCode),
+            (f.Contact.Mode, f.Contact.NeedsPerson, f.Contact.HandoffReasonCode));
+        var reference = Assert.Single(f.Host.Requests.Rows);
+        Assert.Equal((f.Message.Id, WhatsAppAssistantRequestState.Sent, (Guid?)reply.Id), (reference.SourceMessageId, reference.State, reference.OutgoingId));
+        Assert.Empty(f.Registrations);
+    }
+
+    // Without any form that reads documents nobody is told: it stays as today, unavailable.
+    [Fact]
+    public async Task Without_forms_that_read_documents_an_account_without_permission_keeps_it_as_today()
+    {
+        var f = new WhatsAppSpreadsheetFixture { MayAttach = false, Loading = new(false, false) };
+
+        Assert.True((await f.Dispatch.PrepareAsync(f.Contact.Id, Ct)).IsSuccess);
+
+        Assert.Equal((WhatsAppSpreadsheetState.Unavailable, WhatsAppAssistantErrors.Unavailable.Code), (f.Message.SpreadsheetState, f.Message.SpreadsheetFailureCode));
+        Assert.Equal((WhatsAppConversationMode.Assistant, 0), (f.Contact.Mode, f.Replies.Count));
+    }
+
+    // Decision 13: over the fifty rows to load, someone who both builds and loads keeps the first sheet to build with, not a rejection.
+    [Fact]
+    public async Task Over_fifty_rows_someone_who_builds_and_loads_keeps_the_first_sheet_to_build_with()
+    {
+        var f = new WhatsAppSpreadsheetFixture
+        {
+            Loading = new(true, true), RowsPreparation = StructuredAttachmentPreparation.Rejected(StructuredAttachmentRejection.TooManyRows),
+        };
+
+        Assert.True((await f.Dispatch.PrepareAsync(f.Contact.Id, Ct)).IsSuccess);
+
+        Assert.Equal(["clientes.csv"], f.RowsPreparedNames);
+        Assert.Equal(["clientes.csv"], f.PreparedNames);
+        Assert.Equal(WhatsAppSpreadsheetState.Stored, f.Message.SpreadsheetState);
+        Assert.Null(JsonSerializer.Deserialize<StructuredSpreadsheet>(f.Message.SpreadsheetPreparedJson!, JsonSerializerOptions.Web)!.DataRowCount);
+        Assert.Empty(f.Replies);
+        Assert.Empty(f.Registrations);
+    }
+
+    // Rule B8: only a spreadsheet of someone who loads enters the inbox discarded; one who only builds is answered and not registered.
+    [Fact]
+    public async Task A_rejected_spreadsheet_of_someone_who_only_builds_is_answered_and_not_registered_in_the_inbox()
+    {
+        var f = new WhatsAppSpreadsheetFixture { Preparation = StructuredAttachmentPreparation.Rejected(StructuredAttachmentRejection.Protected) };
+
+        Assert.True((await f.Dispatch.PrepareAsync(f.Contact.Id, Ct)).IsSuccess);
+
+        Assert.Equal(WhatsAppSpreadsheetState.Rejected, f.Message.SpreadsheetState);
+        Assert.Single(f.Replies);
+        Assert.Empty(f.Registrations);
+        var loads = new WhatsAppSpreadsheetFixture
+        {
+            Loading = new(true, true), RowsPreparation = StructuredAttachmentPreparation.Rejected(StructuredAttachmentRejection.Protected),
+        };
+        Assert.True((await loads.Dispatch.PrepareAsync(loads.Contact.Id, Ct)).IsSuccess);
+        Assert.Equal((StructuredDocumentNotRead?)StructuredDocumentNotRead.Rejected, Assert.Single(loads.Registrations).NotRead);
+    }
 }

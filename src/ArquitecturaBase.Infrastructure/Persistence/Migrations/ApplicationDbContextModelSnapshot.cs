@@ -4376,6 +4376,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasMaxLength(16384)
                         .HasColumnType("character varying(16384)");
 
+                    b.Property<string>("SpreadsheetRowsJson")
+                        .HasColumnType("jsonb");
+
                     b.Property<string>("SpreadsheetSha256")
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
@@ -4505,6 +4508,10 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("FlowSessionId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("Footer")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)");
+
                     b.Property<bool>("IsAssistantHandoff")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
@@ -4556,6 +4563,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
 
                     b.Property<DateTime>("RequestedAtUtc")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("SpreadsheetRowsJson")
+                        .HasColumnType("jsonb");
 
                     b.Property<DateTime?>("StartedAtUtc")
                         .HasColumnType("timestamp with time zone");

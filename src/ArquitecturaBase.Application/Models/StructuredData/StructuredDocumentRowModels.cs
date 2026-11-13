@@ -5,7 +5,8 @@ namespace ArquitecturaBase.Application.Models.StructuredData;
 /// <summary>
 /// VC1-A: the rows of a spreadsheet a person with a linked and active account sent (decision 12): who and when, the channel's copy of the
 /// spreadsheet (an xlsx or a CSV, without pages) and the interpretation's authentic proposal of forms.documents.propose-rows@1 on its sample,
-/// with the SHA-256 of that sample, which must be the copy's; without an interpretation, why (only the day's quota). The channel and its
+/// with the SHA-256 of that sample, which must be the copy's; without a proposal, an interpretation that proposed nothing (none fits) or, with
+/// <see cref="NotRead"/>, why it was not interpreted (only the day's quota). The channel and its
 /// opaque source id register it once; the reply deadline is when the person stops being waited for in each load.
 /// </summary>
 public sealed record StructuredDocumentRowsRegistrationRequest(string ChannelId, string SourceId, Guid SenderUserId, string Culture,

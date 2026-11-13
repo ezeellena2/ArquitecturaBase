@@ -22,6 +22,16 @@ internal sealed class WhatsAppAssistantAutomaticPolicy(WhatsAppAssistantAcceptan
         return await terminals.ApplyAsync(reference,source,operation,ct);
     }
 
+    /// <summary>VC1-A (task 29): a spreadsheet to load over the day's quota goes to the inbox outside the transaction, with the documents' text.</summary>
+    public async Task<Result<WhatsAppAssistantTerminalResponse?>> RegisterSpreadsheetOverQuotaAsync(WhatsAppAssistantReferenceRow reference,WhatsAppAssistantSourceRow source,CancellationToken ct)
+    {
+        var nowUtc=clock.GetUtcNow().UtcDateTime;
+        if(reference.State!=WhatsAppAssistantRequestState.Pending || reference.ContentExpiresAtUtc<=nowUtc || source.ContentExpiresAtUtc<=nowUtc
+            || !await reader.ExistsCurrentContextAsync(reference,nowUtc,ct))
+            return WhatsAppAssistantErrors.StateConflict;
+        return await terminals.RegisterSpreadsheetOverQuotaAsync(reference,source,ct);
+    }
+
     // Casos del asistente: the actions of a reply are checked outside the unit of work and queued inside it, in order.
     public Task<Result<WhatsAppAssistantReplyPlan>> PrepareReplyAsync(WhatsAppAssistantReferenceRow reference,AssistantOperationResponse operation,CancellationToken ct)=>
         replies.PrepareAsync(reference,operation,ct);
@@ -60,6 +70,8 @@ internal sealed class WhatsAppAssistantAutomaticPolicy(WhatsAppAssistantAcceptan
     /// </summary>
     public async Task<bool> AcceptTerminalAsync(WhatsAppContact contact,WhatsAppAssistantRequest row,WhatsAppAssistantTerminalResponse terminal,CancellationToken ct)
     {
+        if(row.Kind==WhatsAppAssistantRequestKind.Automatic && terminal.Loads is not null)
+            return (await terminals.AcceptLoadsAsync(contact,row,terminal,ct)).IsSuccess;
         if(row.Kind==WhatsAppAssistantRequestKind.Automatic && terminal.Send is not null)
             return (await acceptance.AcceptDocumentAsync(contact,row,terminal,ct)).IsSuccess;
         if(row.Kind==WhatsAppAssistantRequestKind.Automatic && terminal is {HandOff:{} handoff,Body:{} message})

@@ -54,6 +54,6 @@ internal sealed class FormReceivedDocumentRowService(IFormReceivedDocumentReposi
         && request.SenderUserId != Guid.Empty && request.Culture is "es" or "en" && request.ReceivedAtUtc.Kind == DateTimeKind.Utc
         && request.Copy is { StorageKey.Length: > 0, Name.Length: > 0, Pages: null } copy && FormReceivedDocumentRowPolicy.Format(copy.MediaType) is not null
         && copy.Size is > 0 and <= StructuredAttachmentLimits.MaximumBytes && copy.Sha256 is { Length: 64 } sha && sha.All(c => char.IsAsciiDigit(c) || c is >= 'a' and <= 'f')
-        && (request.Proposal is not null ? request is { NotRead: null, SampleSha256: not null } : request.NotRead == StructuredDocumentNotRead.Quota)
+        && (request.Proposal is not null ? request is { NotRead: null, SampleSha256: not null } : request.NotRead is null or StructuredDocumentNotRead.Quota)
         && request.ReplyExpiresAtUtc is null or { Kind: DateTimeKind.Utc };
 }

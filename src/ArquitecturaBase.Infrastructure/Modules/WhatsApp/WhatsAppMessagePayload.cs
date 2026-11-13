@@ -54,6 +54,8 @@ internal static class WhatsAppMessagePayload
                         },
                     },
                 };
+                // VC1-A (task 29): the Flow of a load names its form in the footer.
+                if (flow.Footer is { } footer) ((JsonObject)payload["interactive"]!)["footer"] = new JsonObject { ["text"] = footer };
                 break;
 
             case WhatsAppDocumentMessage document:

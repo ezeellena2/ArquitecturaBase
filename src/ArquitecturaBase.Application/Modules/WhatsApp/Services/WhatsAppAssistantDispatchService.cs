@@ -64,7 +64,9 @@ internal sealed class WhatsAppAssistantDispatchService(WhatsAppAssistantAccessPo
             // A spreadsheet without a request is only that answer, and a text whose spreadsheet was rejected was already answered. A read
             // document without a request is also loaded (task 9 of the documents), with only the documents' capabilities.
             var alone=latest.State==WhatsAppAssistantSourceState.Alone;
-            var interpretable=latest.State==WhatsAppAssistantSourceState.Ready || alone && (previous is not null || latest.Document is not null);
+            // VC1-A (task 29): a spreadsheet prepared to load its rows without a request is also loaded, with only the loading capabilities.
+            var loads=WhatsAppAssistantSpreadsheetPolicy.Loads(latest.Spreadsheet);
+            var interpretable=latest.State==WhatsAppAssistantSourceState.Ready || alone && (previous is not null || latest.Document is not null || loads);
             var captured=interpretable?await access.CaptureAsync(contact,null,ct):null;
             if(captured is not {IsSuccess:true} || latest.ContentExpiresAtUtc<=proposals.NowUtc)
             {
@@ -72,9 +74,10 @@ internal sealed class WhatsAppAssistantDispatchService(WhatsAppAssistantAccessPo
                 return Result.Success<WhatsAppAssistantWorkResponse?>(null);
             }
             // A read document goes with the documents' capabilities: only them when it comes alone, or with the whole conversation.
-            var context=latest.Document is null ? captured.Value.Context
-                : alone && previous is null ? WhatsAppAssistantAccessPolicy.ForDocument(captured.Value.Context)
-                : WhatsAppAssistantAccessPolicy.WithDocument(captured.Value.Context);
+            var context=latest.Document is not null
+                ? alone && previous is null ? WhatsAppAssistantAccessPolicy.ForDocument(captured.Value.Context) : WhatsAppAssistantAccessPolicy.WithDocument(captured.Value.Context)
+                : loads ? alone && previous is null ? WhatsAppAssistantAccessPolicy.ForSpreadsheet(captured.Value.Context) : WhatsAppAssistantAccessPolicy.WithSpreadsheet(captured.Value.Context)
+                : captured.Value.Context;
             row=WhatsAppAssistantRequest.Create(Guid.CreateVersion7(),contactId,latest.Id,context.ActorUserId,
                 context.SubjectUserId!.Value,WhatsAppAssistantRequestKind.Automatic,contact.ModeRevision,contact.LinkRevision,
                 JsonSerializer.Serialize(context,JsonSerializerOptions.Web),proposals.NowUtc,latest.ContentExpiresAtUtc);
@@ -170,10 +173,14 @@ internal sealed class WhatsAppAssistantDispatchService(WhatsAppAssistantAccessPo
 
     // The latest source still makes this reference's request: the same message, with the same spreadsheet (IA, Stage 2) or read
     // document (task 9), interpreted now or, without a request, as the answer the reference continues or a document to load.
-    private static bool MakesRequest(WhatsAppAssistantRequest row,WhatsAppAssistantSourceRow source)=>source.Id==row.SourceMessageId
-        && (source.Spreadsheet?.MessageId ?? source.Document?.MessageId)==row.AttachmentMessageId
+    private static bool MakesRequest(WhatsAppAssistantRequest row,WhatsAppAssistantSourceRow source)=>
+        MakesRequest(row.SourceMessageId,row.AttachmentMessageId,row.PreviousRequestId.HasValue,source);
+
+    private static bool MakesRequest(Guid sourceMessageId,Guid? attachmentMessageId,bool continues,WhatsAppAssistantSourceRow source)=>source.Id==sourceMessageId
+        && (source.Spreadsheet?.MessageId ?? source.Document?.MessageId)==attachmentMessageId
         && (source.State==WhatsAppAssistantSourceState.Ready
-            || source.State==WhatsAppAssistantSourceState.Alone && (row.PreviousRequestId.HasValue || source.Document is not null));
+            || source.State==WhatsAppAssistantSourceState.Alone && (continues || source.Document is not null
+                || WhatsAppAssistantSpreadsheetPolicy.Loads(source.Spreadsheet)));
 
     private static WhatsAppAssistantWorkResponse Work(WhatsAppAssistantRequest row,WhatsAppAssistantSourceRow source,bool submit)
     {
@@ -243,11 +250,23 @@ internal sealed class WhatsAppAssistantDispatchService(WhatsAppAssistantAccessPo
         if (outcome.IsSuccess && outcome.Value.RequestId != requestId) return WhatsAppAssistantErrors.InvalidProposal;
         Result<WhatsAppAssistantTerminalResponse?>? terminal = null;
         // Task 9 of the documents: a read document's proposal, or a document alone that closed without one, goes to the inbox.
-        var document = outcome.IsSuccess && (outcome.Value.Proposal?.Capability is {} documentCapability && WhatsAppAssistantDocumentPolicy.Handles(documentCapability)
+        // VC1-A (task 29): and so do the rows of a spreadsheet; what the inbox did not register, or registered before, is not said.
+        var document = outcome.IsSuccess && (outcome.Value.Proposal?.Capability is {} documentCapability
+                && (WhatsAppAssistantDocumentPolicy.Handles(documentCapability) || WhatsAppAssistantSpreadsheetPolicy.Handles(documentCapability))
             || WhatsAppAssistantTerminalPolicy.HandlesDocumentWithoutProposal(original, outcome.Value));
-        if (outcome.IsSuccess && (outcome.Value.Proposal?.Capability is {} capability && WhatsAppAssistantTerminalPolicy.Handles(capability) || document)
+        // VC1-A (task 29): over the day's quota a spreadsheet to load goes to the inbox unclassified and its person is told (rule B7).
+        var quota = WhatsAppReceivedDocumentReadingPolicy.IsQuota(outcome) && original.Kind == WhatsAppAssistantRequestKind.Automatic && original.AttachmentMessageId is not null;
+        // Review of task 29: the rows of a spreadsheet are registered only while this reference still makes the request; after a newer message
+        // it is replaced below and that message answers them, also from what the inbox kept when it registered them in between.
+        var current = !(quota || outcome.IsSuccess && WhatsAppAssistantTerminalPolicy.RegistersRows(original, outcome.Value))
+            || await reader.FindLatestSourceAsync(contactId, ct) is {} newest
+                && MakesRequest(original.SourceMessageId, original.AttachmentMessageId, original.PreviousRequestId.HasValue, newest);
+        if (current && outcome.IsSuccess && (outcome.Value.Proposal?.Capability is {} capability && WhatsAppAssistantTerminalPolicy.Handles(capability) || document)
             && await reader.FindSourceAsync(contactId,original.SourceMessageId,ct) is {} terminalSource)
             terminal=await automatic.PrepareTerminalAsync(original,terminalSource,outcome.Value,ct);
+        if (current && quota && await reader.FindSourceAsync(contactId, original.SourceMessageId, ct) is { Spreadsheet: {} quotaSheet } quotaSource
+            && WhatsAppAssistantSpreadsheetPolicy.Loads(quotaSheet))
+            terminal = await automatic.RegisterSpreadsheetOverQuotaAsync(original, quotaSource, ct);
         // Casos del asistente: the agent's actions are checked against what is saved now, outside the contact/request transaction.
         Result<WhatsAppAssistantReplyPlan>? reply = null;
         if (outcome.IsSuccess && original.Kind == WhatsAppAssistantRequestKind.Automatic && selectedDefinition is null
@@ -294,7 +313,7 @@ internal sealed class WhatsAppAssistantDispatchService(WhatsAppAssistantAccessPo
                 row.Replace(proposals.NowUtc);
                 return Result.Success();
             }
-            else if (observed.IsFailure)
+            else if (observed.IsFailure && !(quota && terminal is {IsSuccess:true,Value:not null}))
             {
                 row.FinishWithoutReply(true, proposals.NowUtc);
                 return Result.Success();
@@ -307,7 +326,7 @@ internal sealed class WhatsAppAssistantDispatchService(WhatsAppAssistantAccessPo
             }
             if (terminal is {IsSuccess:true,Value: {} effect})
             {
-                if (effect.Send is not null || effect.HandOff is not null || effect.List is not null)
+                if (effect.Send is not null || effect.HandOff is not null || effect.List is not null || effect.Loads is not null)
                 {
                     if (!await automatic.AcceptTerminalAsync(contact,row,effect,token)) row.FinishWithoutReply(true, proposals.NowUtc);
                 }

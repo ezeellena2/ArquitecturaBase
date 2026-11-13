@@ -23,7 +23,18 @@ internal static class WhatsAppAssistantAcceptanceFixture
     public static WhatsAppAssistantDocumentPolicy CreateDocuments(WhatsAppAssistantSuggestionFixture host, IStructuredDocumentChannel? documents = null,
         WhatsAppFormSendPolicy? sending = null) =>
         new(documents ?? new ArquitecturaBase.Application.Channels.UnavailableStructuredDocumentChannel(), sending ?? CreateSending(host), new Environment(host.UnitOfWork),
+            host.Assistant, host.Reader, host.Context.Clock, CreateSpreadsheets(host, documents, sending));
+
+    /// <summary>VC1-A (task 29): the rows' circuit, with the rows' port the test gives (none answers Unavailable) and the inbox of the documents.</summary>
+    public static WhatsAppAssistantSpreadsheetPolicy CreateSpreadsheets(WhatsAppAssistantSuggestionFixture host, IStructuredDocumentChannel? documents = null,
+        WhatsAppFormSendPolicy? sending = null, IStructuredDocumentRowsChannel? rows = null) =>
+        new(rows ?? new ArquitecturaBase.Application.Channels.UnavailableStructuredDocumentRowsChannel(),
+            documents ?? new ArquitecturaBase.Application.Channels.UnavailableStructuredDocumentChannel(), sending ?? CreateSending(host), new Environment(host.UnitOfWork),
             host.Assistant, host.Reader, host.Context.Clock);
+
+    /// <summary>VC1-A (task 29): the notice and the loads of a spreadsheet, accepted with the chat's own doubles.</summary>
+    public static WhatsAppAssistantLoadAcceptancePolicy CreateLoads(WhatsAppAssistantSuggestionFixture host, WhatsAppFormSendPolicy? sending = null) =>
+        new(sending ?? CreateSending(host), host.Sessions, host.Conversation, host.Requests, host.Reader, new(host.Protector, host.Context.Clock), host.Context.Clock);
     /// <summary>Derivar (AS4) with the chat's own doubles.</summary>
     public static WhatsAppAssistantHandoffPolicy CreateHandoffs(WhatsAppAssistantSuggestionFixture host) =>
         new(host.Conversation, new WhatsAppFormActionPolicy(host.Context.Users, new FakePhoneNumberParser(), new FakeWhatsAppAvailability(true, true),

@@ -22,7 +22,7 @@ internal sealed class WhatsAppMessageRetentionRepository(ApplicationDbContext db
         // sobre OccurredAtUtc y contenido presente deja afuera los mensajes que ya se vaciaron.
         var messages = await dbContext.Set<WhatsAppMessage>()
             .Where(message => message.OccurredAtUtc < cutoffUtc
-                && (message.Body != null || message.QuickReplyTitlesJson != null || message.AssistantReplyJson != null || message.Kind == WhatsAppMessageKind.Audio && (message.AudioMediaId != null || message.AudioStorageKey != null || message.AudioContextJson != null)
+                && (message.Body != null || message.QuickReplyTitlesJson != null || message.AssistantReplyJson != null || message.SpreadsheetRowsJson != null || message.Kind == WhatsAppMessageKind.Audio && (message.AudioMediaId != null || message.AudioStorageKey != null || message.AudioContextJson != null)
                     || message.Kind == WhatsAppMessageKind.Spreadsheet && (message.SpreadsheetMediaId != null || message.SpreadsheetFileName != null || message.SpreadsheetStorageKey != null || message.SpreadsheetPreparedJson != null)
                     || message.Kind == WhatsAppMessageKind.ReceivedDocument && (message.DocumentMediaId != null || message.DocumentFileName != null || message.DocumentStorageKey != null || message.DocumentReadingJson != null || message.DocumentContextJson != null)
                     || message.Latitude != null
@@ -39,6 +39,8 @@ internal sealed class WhatsAppMessageRetentionRepository(ApplicationDbContext db
                 .SetProperty(message => message.ContactPhonesJson, (string?)null)
                 .SetProperty(message => message.QuickReplyTitlesJson, (string?)null)
                 .SetProperty(message => message.AssistantReplyJson, (string?)null)
+                // VC1-A (task 29): «Por qué lo propuso» of the notice of the loads goes with the body too.
+                .SetProperty(message => message.SpreadsheetRowsJson, (string?)null)
                 .SetProperty(message => message.AudioMediaId, (string?)null)
                 .SetProperty(message => message.AudioContentType, (string?)null)
                 .SetProperty(message => message.AudioSha256, (string?)null)
@@ -71,10 +73,11 @@ internal sealed class WhatsAppMessageRetentionRepository(ApplicationDbContext db
                 .SetProperty(message => message.DocumentContextJson, (string?)null)
                 .SetProperty(message => message.ProtectedFlowResponse, (byte[]?)null), cancellationToken);
         var outgoing = await dbContext.Set<WhatsAppOutgoingMessage>()
-            .Where(message => (message.Body != null || message.AssistantReplyJson != null) && message.RequestedAtUtc < cutoffUtc
+            .Where(message => (message.Body != null || message.AssistantReplyJson != null || message.SpreadsheetRowsJson != null) && message.RequestedAtUtc < cutoffUtc
                 && message.State != WhatsAppOutgoingMessageState.Pending && message.State != WhatsAppOutgoingMessageState.Sending)
             .ExecuteUpdateAsync(setters => setters.SetProperty(message => message.Body, (string?)null)
-                .SetProperty(message => message.AssistantReplyJson, (string?)null), cancellationToken);
+                .SetProperty(message => message.AssistantReplyJson, (string?)null)
+                .SetProperty(message => message.SpreadsheetRowsJson, (string?)null), cancellationToken);
         return messages + outgoing;
     }
     public async Task<int> ClearExpiredAssistantContentAsync(DateTime nowUtc,int limit,CancellationToken cancellationToken)

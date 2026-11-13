@@ -15,5 +15,9 @@ internal sealed record WhatsAppAssistantTerminalResponse(Guid ProposalId, string
     public WhatsAppAssistantDocumentSend? Send { get; init; }
     /// <summary>Task 9: after the text the conversation goes to Atención manual, marked «Necesita una persona» with this reason.</summary>
     public WhatsAppAssistantDocumentHandoff? HandOff { get; init; }
+    /// <summary>VC1-A (task 29): the body is the notice of the loads of a spreadsheet, which go after it (none, or up to three).</summary>
+    public IReadOnlyList<WhatsAppAssistantSpreadsheetLoad>? Loads { get; init; }
+    /// <summary>VC1-A (task 29): «Por qué lo propuso» of the notice of the loads.</summary>
+    public string? SpreadsheetRowsJson { get; init; }
     public override string ToString() => "WhatsAppAssistantTerminalResponse { Content = [REDACTED] }";
 }

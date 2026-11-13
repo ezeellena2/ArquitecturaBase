@@ -68,4 +68,22 @@
   <data name="DocumentAlone" xml:space="preserve"><value>(Sent the document “{0}” without a message)</value></data>
   <data name="DocumentExpired" xml:space="preserve"><value>That document is now with the team to review. If needed, they'll write to you here.</value></data>
   <data name="DocumentReason" xml:space="preserve"><value>It read the document “{0}” the person sent.</value></data>
+  <data name="SpreadsheetTooManyRows" xml:space="preserve"><value>I load spreadsheets of up to 50 rows here. Split it and send it to me again.</value></data>
+  <data name="SpreadsheetNoticeForm" xml:space="preserve"><value>I got a spreadsheet with {0} rows of “{1}”.</value></data>
+  <data name="SpreadsheetNoticeFormOne" xml:space="preserve"><value>I got a spreadsheet with {0} row of “{1}”.</value></data>
+  <data name="SpreadsheetNoticeOne" xml:space="preserve"><value>I got a spreadsheet with {0} row.</value></data>
+  <data name="SpreadsheetNotice" xml:space="preserve"><value>I got a spreadsheet with {0} rows.</value></data>
+  <data name="SpreadsheetLoadsAll" xml:space="preserve"><value>I prepared a form for each one: check them and confirm them.</value></data>
+  <data name="SpreadsheetLoadsFirst" xml:space="preserve"><value>I prepared a form for each of the first {0}: check them and confirm them.</value></data>
+  <data name="SpreadsheetLoadsOne" xml:space="preserve"><value>I prepared the form: check it and confirm it.</value></data>
+  <data name="SpreadsheetRepeated" xml:space="preserve"><value>Row {0} was already loaded on {1} in {2}: I won't load it again.</value></data>
+  <data name="SpreadsheetRepeatedOne" xml:space="preserve"><value>Row {0} was already loaded: I won't load it again.</value></data>
+  <data name="SpreadsheetRepeatedSame" xml:space="preserve"><value>Row {0} is the same as row {1}: I won't load it again.</value></data>
+  <data name="SpreadsheetForTeam" xml:space="preserve"><value>I passed the other {0} to a person on the team.</value></data>
+  <data name="SpreadsheetForTeamOne" xml:space="preserve"><value>I passed the other one to a person on the team.</value></data>
+  <data name="SpreadsheetLoadBody" xml:space="preserve"><value>{0} of {1} · {2}</value></data>
+  <data name="SpreadsheetLoadFooter" xml:space="preserve"><value>{0} · prefilled</value></data>
+  <data name="SpreadsheetUnknown" xml:space="preserve"><value>I didn't recognize the rows of this spreadsheet. What do you want to load with it?</value></data>
+  <data name="SpreadsheetDuplicate" xml:space="preserve"><value>This spreadsheet already reached me on {0}. I won't load it again.</value></data>
+  <data name="SpreadsheetReason" xml:space="preserve"><value>It read row {1} of the spreadsheet “{0}” the person sent.</value></data>
 </root>

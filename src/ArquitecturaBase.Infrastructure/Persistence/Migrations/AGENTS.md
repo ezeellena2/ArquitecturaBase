@@ -52,6 +52,8 @@ AddReceivedDocumentRows (VC1-A) suma a `FormReceivedDocuments` `SheetName`, `Row
 
 AddFormDocumentProposals crea `FormDocumentProposals` (DOC6: único por quien pidió y su UUID, los documentos y los pendientes de releer en `uuid[]`, la FK restrictiva al borrador y un CHECK que deja releer sólo con borrador). Down bloquea la tabla y rechaza, antes del DDL, cualquier pedido; FormDocumentProposalMigrationTests prueba Up/Down/Up y ese rechazo.
 
+AddWhatsAppSpreadsheetLoads (VC1-A, tarea 29) suma `Footer` (hasta 60) y `SpreadsheetRowsJson` (jsonb) a `WhatsAppOutgoingMessages` y `SpreadsheetRowsJson` a `WhatsAppMessages`: el pie del Flow de una carga y «Por qué lo propuso» del aviso de las cargas. No reescribe filas. Down bloquea las dos tablas y se niega, antes del DDL, si alguna los guarda; WhatsAppSpreadsheetLoadsMigrationTests prueba Up, la negativa y Down y Up.
+
 ## Referencias
 
 - [Comandos y revisión obligatoria](../../../../docs/guides/migracion.md).

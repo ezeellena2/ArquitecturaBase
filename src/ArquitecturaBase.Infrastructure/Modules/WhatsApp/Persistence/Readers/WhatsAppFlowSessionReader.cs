@@ -45,7 +45,7 @@ internal sealed class WhatsAppFlowSessionReader(ApplicationDbContext dbContext, 
              outgoing.State, outgoing.Body, contact.Mode, contact.ModeRevision, contact.LastInboundAtUtc)
          { Origin=session.Origin, ProtectedAssistantContent=session.ProtectedAssistantContent, AssistantContentExpiresAtUtc=session.AssistantContentExpiresAtUtc,
            BindingOperationId=binding.OperationId, ProtectedProjection=binding.ProtectedProjection,
-           IsResend=outgoing.IsResend, ProtectedSharedValues=session.ProtectedSharedValues, CaptureState=session.CaptureState,
+           IsResend=outgoing.IsResend, ProtectedSharedValues=session.ProtectedSharedValues, CaptureState=session.CaptureState, Footer=outgoing.Footer,
            HasReply=dbContext.Set<WhatsAppMessage>().Any(reply=>reply.FlowSessionId==session.Id && reply.Direction==WhatsAppMessageDirection.Inbound
                && reply.Kind==WhatsAppMessageKind.FlowReply) })
         .SingleOrDefaultAsync(cancellationToken);

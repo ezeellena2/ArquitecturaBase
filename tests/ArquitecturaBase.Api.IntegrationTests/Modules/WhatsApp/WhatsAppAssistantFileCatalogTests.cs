@@ -47,7 +47,8 @@ public sealed class WhatsAppAssistantFileCatalogTests(ApiFactory factory)
 
     // Task 9: a document with its request adds the two capabilities of documents to the conversation, and a document alone, of a person
     // who can load it, offers only them with the terminal. The worst case is the agent's context, whose draft is counted as if the profile
-    // were qualified to draft: none passes the engine's sixteen definitions with the terminal.
+    // were qualified to draft: none passes the engine's sixteen definitions with the terminal. A spreadsheet to load (VC1-A) is 15, 16 with
+    // the agent, and 3 alone.
     [Fact]
     public async Task A_document_adds_the_two_capabilities_of_documents_and_no_automatic_context_passes_sixteen_definitions()
     {
@@ -71,9 +72,12 @@ public sealed class WhatsAppAssistantFileCatalogTests(ApiFactory factory)
             Offered(conversation, AssistantAttachmentKind.Spreadsheet),
             Offered(WhatsAppAssistantAccessPolicy.WithDocument(conversation), AssistantAttachmentKind.Document),
             Offered(WhatsAppAssistantAccessPolicy.ForDocument(conversation), AssistantAttachmentKind.Document),
+            // VC1-A (task 29): a spreadsheet to load swaps the three that register with text for the two that load, or offers only them alone.
+            Offered(WhatsAppAssistantAccessPolicy.WithSpreadsheet(conversation), AssistantAttachmentKind.Spreadsheet),
+            Offered(WhatsAppAssistantAccessPolicy.ForSpreadsheet(conversation), AssistantAttachmentKind.Spreadsheet),
         }).ToArray();
 
-        Assert.Equal([15, 16, 13, 3, 15, 16, 14, 3], counts);
+        Assert.Equal([15, 16, 13, 3, 15, 3, 15, 16, 14, 3, 16, 3], counts);
         Assert.All(counts, count => Assert.InRange(count, 1, 16));
     }
 }

@@ -35,7 +35,8 @@ public sealed class WhatsAppAssistantDocumentTests
         var sending = WhatsAppAssistantAcceptanceFixture.CreateSending(host);
         var policy = WhatsAppAssistantAcceptanceFixture.CreateDocuments(host, documents, sending);
         var automatic = new WhatsAppAssistantAutomaticPolicy(WhatsAppAssistantAcceptanceFixture.Create(host, sending), host.Reader, host.Context.Clock, host.Conversation,
-            host.Messages, new(owner, owner, owner, host.Reader, policy), new(host.Reader, host.Context.Clock), WhatsAppAssistantAcceptanceFixture.CreateReply(host));
+            host.Messages, new(owner, owner, owner, host.Reader, policy, WhatsAppAssistantAcceptanceFixture.CreateSpreadsheets(host, documents, sending),
+                WhatsAppAssistantAcceptanceFixture.CreateLoads(host, sending)), new(host.Reader, host.Context.Clock), WhatsAppAssistantAcceptanceFixture.CreateReply(host));
         var dispatch = new WhatsAppAssistantDispatchService(host.Context.Policy, new(host.Reader, host.Assistant, host.Forms, host.Context.Clock, host.Presentation),
             host.Reader, host.Requests, host.Conversation, host.UnitOfWork, automatic, NullLogger<WhatsAppAssistantDispatchService>.Instance);
         var taps = new WhatsAppAssistantDocumentService(host.Reader, host.Requests, host.Conversation, host.UnitOfWork, automatic, policy, host.Context.Clock,

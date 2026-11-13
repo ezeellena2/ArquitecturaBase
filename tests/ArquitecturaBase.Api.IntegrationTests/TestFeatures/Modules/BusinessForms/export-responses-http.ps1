@@ -156,7 +156,7 @@ $cohorts = @(
             "src/ArquitecturaBase.Application/Modules/BusinessForms/Models/FormDocumentProposalModels.cs") },
     @{ Name = "whatsapp-audio"; Environment = "WHATSAPP_AUDIO_HTTP_OUTPUT"; Destination = "whatsapp-audio-http";
         RequiredNames = @("audio-request.json", "audio-thread-pending.json", "audio-thread-completed.json", "spreadsheet-thread.json", "document-thread.json", "contact-thread.json",
-            "document-why-thread.json");
+            "document-why-thread.json", "spreadsheet-loads-thread.json");
         Sources = @(($sourceRoot + "WhatsApp/WhatsAppChatTests.Audio.cs"), ($sourceRoot + "WhatsApp/WhatsAppChatTests.Spreadsheet.cs"), ($sourceRoot + "WhatsApp/WhatsAppChatTests.Document.cs"),
             ($sourceRoot + "WhatsApp/WhatsAppChatTests.Contact.cs"), ($sourceRoot + "WhatsApp/WhatsAppAssistantDocumentIntegrationTests.cs"),
             ($captureRoot + "Modules/WhatsApp/CapturingStructuredDocumentChannel.cs"),

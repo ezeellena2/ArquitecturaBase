@@ -54,6 +54,8 @@ public sealed record WhatsAppMessageRow(
     public string? ListButton { get; init; }
     /// <summary>W3 (task 24): what a resend of the form carried, while the retention keeps it; only a resend has it.</summary>
     public WhatsAppSharedPrefillRow? SharedPrefill { get; init; }
+    /// <summary>VC1-A (task 29): «Por qué lo propuso» of the notice of the loads of a spreadsheet, with the ids of its forms.</summary>
+    public string? SpreadsheetRowsJson { get; init; }
     // The body, the point and the contact are what the person wrote or shared: the generated ToString would print them.
     public override string ToString() => $"{nameof(WhatsAppMessageRow)} ({Kind})";
 }
@@ -80,6 +82,8 @@ public sealed record WhatsAppOutgoingMessageRow(
     public string? ListButton { get; init; }
     /// <summary>W3 (task 24): what a queued resend of the form carries, while the retention keeps it; only a resend has it.</summary>
     public WhatsAppSharedPrefillRow? SharedPrefill { get; init; }
+    /// <summary>VC1-A (task 29): «Por qué lo propuso» of the queued notice of the loads of a spreadsheet.</summary>
+    public string? SpreadsheetRowsJson { get; init; }
 }
 public sealed record WhatsAppThreadRow(
     WhatsAppChatRow Contact, IReadOnlyList<WhatsAppMessageRow> Messages,

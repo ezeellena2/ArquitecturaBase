@@ -68,4 +68,22 @@
   <data name="DocumentAlone" xml:space="preserve"><value>(Mandó el documento «{0}» sin mensaje)</value></data>
   <data name="DocumentExpired" xml:space="preserve"><value>Ese documento ya quedó para que lo revise el equipo. Si hace falta, te escriben por acá.</value></data>
   <data name="DocumentReason" xml:space="preserve"><value>Leyó el documento «{0}» que mandó la persona.</value></data>
+  <data name="SpreadsheetTooManyRows" xml:space="preserve"><value>Por acá cargo planillas de hasta 50 filas. Dividila y mandámela de nuevo.</value></data>
+  <data name="SpreadsheetNoticeForm" xml:space="preserve"><value>Recibí una planilla con {0} filas de «{1}».</value></data>
+  <data name="SpreadsheetNoticeFormOne" xml:space="preserve"><value>Recibí una planilla con {0} fila de «{1}».</value></data>
+  <data name="SpreadsheetNoticeOne" xml:space="preserve"><value>Recibí una planilla con {0} fila.</value></data>
+  <data name="SpreadsheetNotice" xml:space="preserve"><value>Recibí una planilla con {0} filas.</value></data>
+  <data name="SpreadsheetLoadsAll" xml:space="preserve"><value>Te preparé un formulario por cada una: revisalos y confirmalos.</value></data>
+  <data name="SpreadsheetLoadsFirst" xml:space="preserve"><value>Te preparé un formulario para cada una de las {0} primeras: revisalos y confirmalos.</value></data>
+  <data name="SpreadsheetLoadsOne" xml:space="preserve"><value>Te preparé el formulario: revisalo y confirmalo.</value></data>
+  <data name="SpreadsheetRepeated" xml:space="preserve"><value>La fila {0} ya se cargó el {1} en {2}: no la cargo de nuevo.</value></data>
+  <data name="SpreadsheetRepeatedOne" xml:space="preserve"><value>La fila {0} ya se cargó: no la cargo de nuevo.</value></data>
+  <data name="SpreadsheetRepeatedSame" xml:space="preserve"><value>La fila {0} es igual a la fila {1}: no la cargo de nuevo.</value></data>
+  <data name="SpreadsheetForTeam" xml:space="preserve"><value>Las otras {0} se las pasé a una persona del equipo.</value></data>
+  <data name="SpreadsheetForTeamOne" xml:space="preserve"><value>La otra se la pasé a una persona del equipo.</value></data>
+  <data name="SpreadsheetLoadBody" xml:space="preserve"><value>{0} de {1} · {2}</value></data>
+  <data name="SpreadsheetLoadFooter" xml:space="preserve"><value>{0} · prellenado</value></data>
+  <data name="SpreadsheetUnknown" xml:space="preserve"><value>No reconocí las filas de esta planilla. ¿Qué querés cargar con ella?</value></data>
+  <data name="SpreadsheetDuplicate" xml:space="preserve"><value>Esta planilla ya me llegó el {0}. No la cargo de nuevo.</value></data>
+  <data name="SpreadsheetReason" xml:space="preserve"><value>Leyó la fila {1} de la planilla «{0}» que mandó la persona.</value></data>
 </root>

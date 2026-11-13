@@ -81,6 +81,8 @@ internal sealed class WhatsAppChatReader(ApplicationDbContext dbContext) : IWhat
                     ? new WhatsAppAssistantPresentationRow(item.FlowSession.Id,item.FlowSession.ContactId,item.FlowSession.UserId,item.FlowSession.VersionId,item.FlowSession.ProtectedAssistantContent,item.FlowSession.AssistantContentExpiresAtUtc.Value) : null, QuickReplyTitlesJson = item.QuickReplyTitlesJson,
                   SpreadsheetName = item.Kind == WhatsAppMessageKind.Spreadsheet ? item.SpreadsheetFileName : null,
                   Latitude = item.Latitude, Longitude = item.Longitude, AssistantReplyJson = item.AssistantReplyJson,
+                  // VC1-A (task 29): «Por qué lo propuso» of the notice of the loads of a spreadsheet, while the retention keeps it.
+                  SpreadsheetRowsJson = item.SpreadsheetRowsJson,
                   // W3 (task 24): «Prellenado con» of a resend that went out, while the retention keeps what was written.
                   SharedPrefill = item.Kind == WhatsAppMessageKind.Flow && item.IsResend && item.FlowSession != null && item.FlowSession.SharedContentJson != null
                       && item.FlowSession.ProtectedSharedValues != null
@@ -216,6 +218,7 @@ internal sealed class WhatsAppChatReader(ApplicationDbContext dbContext) : IWhat
                         || item.Kind == WhatsAppOutgoingMessageKind.Flow && item.FlowSession.LocationState == WhatsAppFlowLocationState.None && !item.IsResend)
                     ? new WhatsAppAssistantPresentationRow(item.FlowSession.Id,item.FlowSession.ContactId,item.FlowSession.UserId,item.FlowSession.VersionId,item.FlowSession.ProtectedAssistantContent,item.FlowSession.AssistantContentExpiresAtUtc.Value) : null, QuickRepliesJson = item.QuickRepliesJson,
             AssistantReplyJson = item.AssistantReplyJson, ListButton = item.Kind == WhatsAppOutgoingMessageKind.List ? item.ListButton : null,
+            SpreadsheetRowsJson = item.SpreadsheetRowsJson,
             // W3 (task 24): «Prellenado con» of a queued resend, while the retention keeps what was written.
             SharedPrefill = item.Kind == WhatsAppOutgoingMessageKind.Flow && item.IsResend && item.FlowSession != null && item.FlowSession.SharedContentJson != null
                 && item.FlowSession.ProtectedSharedValues != null

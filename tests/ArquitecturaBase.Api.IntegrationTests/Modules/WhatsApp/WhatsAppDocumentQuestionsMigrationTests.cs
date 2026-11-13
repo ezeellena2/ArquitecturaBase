@@ -44,7 +44,9 @@ public sealed class WhatsAppDocumentQuestionsMigrationTests(ApiFactory factory)
             var withList = await Assert.ThrowsAsync<PostgresException>(() => db.GetService<IMigrator>().MigrateAsync(previous, Ct));
             Assert.Equal("P0001", withList.SqlState);
             Assert.Contains(Migration, await db.Database.GetAppliedMigrationsAsync(Ct));
-            Assert.Equal("Elegir formulario", (await db.Set<WhatsAppOutgoingMessage>().AsNoTracking().SingleAsync(item => item.Id == list.Id, Ct)).ListButton);
+            // The later migrations went back before this one refused (each in its own transaction): only the columns it knows are read.
+            Assert.Equal("Elegir formulario", await db.Set<WhatsAppOutgoingMessage>().AsNoTracking().Where(item => item.Id == list.Id)
+                .Select(item => item.ListButton).SingleAsync(Ct));
 
             await db.Database.ExecuteSqlAsync($"""DELETE FROM "WhatsAppOutgoingMessages" WHERE "Id" = {list.Id}""", Ct);
             await db.GetService<IMigrator>().MigrateAsync(previous, Ct);

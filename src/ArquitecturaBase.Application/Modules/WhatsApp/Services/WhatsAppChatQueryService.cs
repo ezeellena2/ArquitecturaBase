@@ -43,7 +43,8 @@ internal sealed class WhatsAppChatQueryService(IWhatsAppChatReader reader, IWhat
         var pointer = await presentation.FindCurrentAsync(request.ContactId, actor, cancellationToken);
         var recordResult = await recordSource.ReadAsync(actor, culture, receiptIds, cancellationToken);
         // Review of task 9: the forms of «Por qué lo propuso» and «Por qué preguntó», named in the reader's language as they are now.
-        var formNames = row.Messages.Any(message => message.Document?.Why is not null)
+        var formNames = row.Messages.Any(message => message.Document?.Why is not null || message.SpreadsheetRowsJson is not null)
+            || row.Outgoing.Any(item => item.SpreadsheetRowsJson is not null)
             ? await presentation.FormNamesAsync(culture, cancellationToken) : new Dictionary<Guid, string>();
         return new WhatsAppThreadResponse(new(ToResponse(row.Contact), formContact),
             [.. row.Messages.Select(message => new WhatsAppMessageResponse(message.Id, message.Direction, message.Kind,
@@ -65,8 +66,10 @@ internal sealed class WhatsAppChatQueryService(IWhatsAppChatReader reader, IWhat
                 // Review of task 9: the button of a question that went as a list, and the mark of what was sent for a file.
                 ListButton: message.ListButton, LoadsFile: message.LoadsFile,
                 // W3 (task 24): «Prellenado con» of a resend that went out, with what the send had taken when it left.
-                Prefill: presentation.Prefill(message.SharedPrefill, recordResult.CanReadRecords, message.OccurredAtUtc)))],
-            [.. row.Outgoing.Select(item => ToOutgoingResponse(item, recordResult.CanReadRecords))], row.BeforeAtUtc, row.BeforeId, recordResult.CanReadRecords)
+                Prefill: presentation.Prefill(message.SharedPrefill, recordResult.CanReadRecords, message.OccurredAtUtc),
+                // VC1-A (task 29): «Por qué lo propuso» of the notice of the loads, its forms named in the reader's language as they are now.
+                SpreadsheetRows: WhatsAppSpreadsheetRowsCodec.Read(message.SpreadsheetRowsJson, formNames)))],
+            [.. row.Outgoing.Select(item => ToOutgoingResponse(item, recordResult.CanReadRecords, formNames))], row.BeforeAtUtc, row.BeforeId, recordResult.CanReadRecords)
             {
                 AssistantAvailability = availability, AssistantSuggestion = pointer,
                 // Casos del asistente: what ended without a message is a line of the chat; one whose why does not read is left out.
@@ -86,7 +89,8 @@ internal sealed class WhatsAppChatQueryService(IWhatsAppChatReader reader, IWhat
         return ToOutgoingResponse(outgoing, access.CanReadRecords);
     });
 
-    private WhatsAppOutgoingMessageResponse ToOutgoingResponse(WhatsAppOutgoingMessageRow row, bool canReadRecords = true) =>
+    private WhatsAppOutgoingMessageResponse ToOutgoingResponse(WhatsAppOutgoingMessageRow row, bool canReadRecords = true,
+        IReadOnlyDictionary<Guid, string>? formNames = null) =>
         new(row.Id, row.RequestId, row.OperatorUserId, (row.Origin == WhatsAppMessageOrigin.FormAction || row.LoadsFile) && !canReadRecords ? null : row.Body, row.RequestedAtUtc,
             row.State, row.WaMessageId, ToFormResponse(row.Form), Kind: WhatsAppOutgoingPresentationPolicy.Kind(row.Kind), Origin: row.Origin, Assistant: presentation.Explain(row.Assistant, canReadRecords),
             QuickReplies: row.Origin == WhatsAppMessageOrigin.FormAction && !canReadRecords ? null : WhatsAppAssistantPresentationPolicy.Titles(row.QuickRepliesJson, true),
@@ -94,7 +98,8 @@ internal sealed class WhatsAppChatQueryService(IWhatsAppChatReader reader, IWhat
             // W3 (task 24): a resend that waits in the queue carries everything the send took; one that left it without going out (failed,
             // uncertain or reviewed) says what it was queued with.
             Prefill: presentation.Prefill(row.SharedPrefill, canReadRecords,
-                row.State is WhatsAppOutgoingMessageState.Pending or WhatsAppOutgoingMessageState.Sending ? null : row.RequestedAtUtc));
+                row.State is WhatsAppOutgoingMessageState.Pending or WhatsAppOutgoingMessageState.Sending ? null : row.RequestedAtUtc),
+            SpreadsheetRows: WhatsAppSpreadsheetRowsCodec.Read(row.SpreadsheetRowsJson, formNames ?? new Dictionary<Guid, string>()));
 
     // W3: the card of a shared contact while its content lives. One whose phones do not read, or that the front's closed contract would
     // refuse, is left out like a why that does not read: one bad row does not stop the thread.

@@ -80,6 +80,9 @@ internal sealed class WhatsAppChatDispatchService(
                     if (operation.Origin == WhatsAppMessageOrigin.Assistant) message.AttributeAssistant(
                         operation.Kind is WhatsAppOutgoingMessageKind.QuickReplies or WhatsAppOutgoingMessageKind.List ? operation.QuickReplies.Select(reply => reply.Title).ToArray() : null,
                         operation.AssistantReplyJson, list: operation.Kind == WhatsAppOutgoingMessageKind.List);
+                    // VC1-A (task 29): the notice of the loads of a spreadsheet keeps «Por qué lo propuso» in the chat.
+                    if (!message.RecordSpreadsheetRows(operation.SpreadsheetRowsJson))
+                        throw new InvalidOperationException("The notice of the loads could not keep its rows.");
                     if (await messages.GetReceiptAsync(waMessageId, ct) is { } receipt)
                     {
                         message.ApplyStatus(receipt.Status, receipt.OccurredAtUtc, receipt.ErrorCode);

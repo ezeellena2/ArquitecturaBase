@@ -13,8 +13,15 @@ namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 // proposal, so the reader leaves it out of the conversation: a change or an answer the person was asked for still waits for the next
 // message, and its text is no offer. It runs in the caller's transaction and never reaches the model.
 internal sealed class WhatsAppSpreadsheetReplyPolicy(WhatsAppAssistantAccessPolicy access, WhatsAppAssistantAutomaticPolicy automatic,
-    IWhatsAppAssistantRepository requests, TimeProvider clock)
+    IWhatsAppAssistantRepository requests, WhatsAppReceivedDocumentReplyPolicy documents, TimeProvider clock)
 {
+    /// <summary>
+    /// VC1-A (rule B8, DOC4): a linked account that can neither load nor build, while some form reads documents, is told so once and the
+    /// conversation goes to a person, with the documents' hand-off; in the caller's transaction.
+    /// </summary>
+    public Task RefuseAsync(WhatsAppContact contact, WhatsAppMessage message, Guid subject, string personCulture, CancellationToken ct) =>
+        documents.RefuseSpreadsheetAsync(contact, message, subject, personCulture, ct);
+
     public async Task RejectAsync(WhatsAppContact contact, WhatsAppMessage message, StructuredAttachmentRejection rejection, CancellationToken ct)
     {
         if (!message.RejectSpreadsheet(ReasonCode(rejection))) return;
@@ -39,6 +46,7 @@ internal sealed class WhatsAppSpreadsheetReplyPolicy(WhatsAppAssistantAccessPoli
         StructuredAttachmentRejection.TooLarge => "tooLarge",
         StructuredAttachmentRejection.Unreadable => "unreadable",
         StructuredAttachmentRejection.Empty => "empty",
+        StructuredAttachmentRejection.TooManyRows => "tooManyRows",
         _ => "unavailable",
     };
 
@@ -50,6 +58,8 @@ internal sealed class WhatsAppSpreadsheetReplyPolicy(WhatsAppAssistantAccessPoli
         StructuredAttachmentRejection.TooLarge => "SpreadsheetTooLarge",
         StructuredAttachmentRejection.Unreadable => "SpreadsheetUnreadable",
         StructuredAttachmentRejection.Empty => "SpreadsheetEmpty",
+        // VC1-A (decision 11): over the fifty rows to load.
+        StructuredAttachmentRejection.TooManyRows => "SpreadsheetTooManyRows",
         _ => throw new ArgumentOutOfRangeException(nameof(rejection), rejection, "A spreadsheet that is not available is not answered."),
     }, culture);
 }

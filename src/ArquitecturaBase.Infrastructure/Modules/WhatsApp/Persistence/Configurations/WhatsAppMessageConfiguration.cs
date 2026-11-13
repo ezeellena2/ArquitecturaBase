@@ -40,6 +40,8 @@ internal sealed class WhatsAppMessageConfiguration : IEntityTypeConfiguration<Wh
         builder.Property(message => message.ContactName).HasMaxLength(WhatsAppMessage.MaxContactNameLength);
         builder.Property(message => message.ContactPhonesJson).HasColumnType("jsonb");
         builder.Property(message => message.IsResend).HasDefaultValue(false);
+        // VC1-A (task 29): «Por qué lo propuso» of the notice of the loads, copied from its outgoing; the retention clears it with the body.
+        builder.Property(message => message.SpreadsheetRowsJson).HasColumnType("jsonb");
         builder.Property(message => message.ProtectedFlowResponse).HasMaxLength(96 * 1024);
         builder.Property(message => message.FlowCaptureState).HasConversion<string>().HasMaxLength(16);
         builder.Property(message => message.FlowRecordNumber).HasMaxLength(64);

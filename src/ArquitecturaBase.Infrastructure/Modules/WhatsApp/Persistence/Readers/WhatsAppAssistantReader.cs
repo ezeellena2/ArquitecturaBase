@@ -353,6 +353,10 @@ internal sealed class WhatsAppAssistantReader(ApplicationDbContext db,IOptions<W
                 && (reference.OutgoingId==outgoing.Id || reference.QuestionOutgoingId==outgoing.Id
                     || outgoing.FlowSessionId!=null && db.Set<WhatsAppOutgoingMessage>().Any(first=>first.Id==reference.OutgoingId && first.FlowSessionId==outgoing.FlowSessionId)))
             && !References().Any(reference=>reference.OutgoingId==outgoing.Id && reference.ProposalId==reference.RequestId),ct);
+    public Task<bool> ExistsAttachmentAnswerAsync(Guid contactId,Guid attachmentMessageId,CancellationToken ct)=>
+        References().AnyAsync(row=>row.ContactId==contactId && row.AttachmentMessageId==attachmentMessageId && row.ActionOrdinal==0
+            && (row.OutgoingId!=null || row.QuestionOutgoingId!=null),ct);
+
     public Task<bool> ExistsDeclinedAsync(Guid contactId,Guid definitionId,CancellationToken ct)=>
         (from row in References() join contact in db.Set<WhatsAppContact>().AsNoTracking() on row.ContactId equals contact.Id
          where row.ContactId==contactId && row.SubjectUserId==contact.UserId && row.LinkRevision==contact.LinkRevision && row.DeclinedDefinitionId==definitionId

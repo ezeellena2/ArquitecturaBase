@@ -19,6 +19,8 @@ internal sealed class CapturingStructuredDocumentChannel : IStructuredDocumentCh
     public List<StructuredDocumentChoiceRequest> Others { get; } = [];
     /// <summary>Review of task 9: the form prepared for a chosen candidate, as the scenario fixes it, and every send asked for.</summary>
     public StructuredDocumentSendPreparation Preparation { get; set; } = new(StructuredDocumentSendState.Unavailable);
+    /// <summary>VC1-A (task 29): what each send is prepared with, when it depends on the entry; otherwise <see cref="Preparation"/>.</summary>
+    public Func<StructuredDocumentSendRequest, StructuredDocumentSendPreparation>? Prepare { get; set; }
     public List<StructuredDocumentSendRequest> Sends { get; } = [];
     private readonly Dictionary<string, Guid> documents = new(StringComparer.Ordinal);
     private readonly Dictionary<string, DateTime?> deadlines = new(StringComparer.Ordinal);
@@ -56,7 +58,7 @@ internal sealed class CapturingStructuredDocumentChannel : IStructuredDocumentCh
         lock (gate)
         {
             Sends.Add(request);
-            return Task.FromResult(Preparation);
+            return Task.FromResult(Prepare?.Invoke(request) ?? Preparation);
         }
     }
 
