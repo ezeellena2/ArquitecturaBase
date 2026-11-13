@@ -11,4 +11,7 @@ internal sealed class UnavailableStructuredDocumentRowsChannel : IStructuredDocu
         cancellationToken.ThrowIfCancellationRequested();
         return Task.FromResult(new StructuredDocumentRowsRegistration(StructuredDocumentReplyKind.Unavailable));
     }
+
+    public Task<StructuredDocumentRowsRegistration> RecognizeRowsAsync(StructuredDocumentRowsRegistrationRequest request, CancellationToken cancellationToken) =>
+        RegisterRowsAsync(request, cancellationToken);
 }

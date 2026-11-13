@@ -1,7 +1,12 @@
+using ArquitecturaBase.Application.Interfaces.Persistence;
+using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Channels;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
+using ArquitecturaBase.Application.UnitTests.TestDoubles;
+using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
+using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Modules.BusinessForms.Documents;
@@ -138,6 +143,219 @@ public sealed class FormReceivedDocumentRowTests
             FormReceivedDocumentRowPolicy.Format("text/csv"), FormReceivedDocumentRowPolicy.Format("application/pdf")));
         Assert.True(FormReceivedDocumentCopyPolicy.TryParseKey(FormReceivedDocumentCopyPolicy.Key(Guid.NewGuid(), FormReceivedDocumentRowPolicy.XlsxMediaType), out _));
         Assert.EndsWith(".csv", FormReceivedDocumentCopyPolicy.Key(Guid.NewGuid(), "text/csv"), StringComparison.Ordinal);
+    }
+
+    // Decision 12: a row changes form with the fixed form's read and propose-rows on a sample of its own row, so the engine offers that read
+    // with a spreadsheet too, never without a file.
+    [Fact]
+    public void The_fixed_forms_read_goes_with_the_sample_of_a_row_as_with_a_document()
+    {
+        var form = new BusinessFormDocumentAssistantCapabilitySource(new FormReceivedDocumentFixture(), new InMemoryUserAccounts(), new FakePermissionService())
+            .Definitions.Single(definition => definition.Id == BusinessFormDocumentAssistantCapabilitySource.FormId);
+
+        Assert.Equal((true, true, false), (form.OfferedWith(AssistantAttachmentKind.Spreadsheet), form.OfferedWith(AssistantAttachmentKind.Document),
+            form.OfferedWith(AssistantAttachmentKind.None)));
+    }
+
+    // What the inbox keeps of each row: one the model did not see is unclassified as unseen (reason and history), apart from one that fits no form.
+    [Fact]
+    public void A_row_the_model_did_not_see_is_kept_as_unseen_and_one_that_fits_no_form_as_unknown()
+    {
+        var unseen = FormReceivedDocumentRowPolicy.Classified(StructuredDocumentRowKind.Unseen, null, 1);
+        var unmatched = FormReceivedDocumentRowPolicy.Classified(StructuredDocumentRowKind.Unmatched, null, 1);
+        var load = FormReceivedDocumentRowPolicy.Classified(StructuredDocumentRowKind.Load, 2, 3);
+
+        Assert.Equal((FormReceivedDocumentState.Unclassified, "unseen", (FormReceivedDocumentNotSentReason?)null), (unseen.State, unseen.ReasonCode, unseen.NotSent));
+        Assert.Equal([(FormReceivedDocumentEventKind.Received, "unseen")], unseen.Steps);
+        Assert.Equal((FormReceivedDocumentState.Unclassified, "unknown"), (unmatched.State, unmatched.ReasonCode));
+        Assert.Equal([(FormReceivedDocumentEventKind.Received, "unknown")], unmatched.Steps);
+        Assert.Equal([(FormReceivedDocumentEventKind.Received, "sure"), (FormReceivedDocumentEventKind.Sent, "2/3")], load.Steps);
+    }
+
+    // A spreadsheet over the fifty rows to load enters discarded with its own reason, not as one that cannot be read.
+    [Fact]
+    public void A_spreadsheet_with_too_many_rows_is_discarded_as_too_many_rows() =>
+        Assert.Equal(("tooManyRows", "unreadable"), (FormReceivedDocumentReplyPolicy.RejectionCode(StructuredAttachmentRejection.TooManyRows),
+            FormReceivedDocumentReplyPolicy.RejectionCode(StructuredAttachmentRejection.Unreadable)));
+
+    // The rows' port (VC1-A): a spreadsheet nobody recognized becomes its rows for the form its person chose. Its single entry is the first row,
+    // with its copy and a step saying the form was chosen instead of arriving again; the others enter with the steps of a first registration and
+    // arrived with the spreadsheet, not with the tap that chose the form.
+    [Fact]
+    public void A_spreadsheet_nobody_recognized_becomes_its_rows_and_its_single_entry_is_the_first_one()
+    {
+        var fixture = new FormReceivedDocumentFixture();
+        var now = fixture.Clock.GetUtcNow().UtcDateTime;
+        var request = Request(now.AddHours(2)) with { FocusDefinitionId = Guid.CreateVersion7() };
+        var single = FormReceivedDocument.Receive(Guid.CreateVersion7(), request.ChannelId, request.SourceId, request.SenderUserId, request.ReceivedAtUtc,
+            "forms/documents/d.xlsx", "cobranzas.xlsx", FormReceivedDocumentRowPolicy.XlsxMediaType, 18_000, Sha, null, now.AddHours(1)).Value;
+        Assert.True(single.LeaveUnclassified(FormReceivedDocumentReplyPolicy.Unknown, null, now).IsSuccess);
+        var candidate = new FormDocumentPreparedCandidate(request.FocusDefinitionId!.Value, Guid.CreateVersion7(), 2,
+            [new(Guid.CreateVersion7(), "decimal", "61250", null) { Searchable = true }]);
+        var proposal = new FormDocumentPreparedProposal(FormDocumentEntryProposal.Sure, "planilla de cobranzas", [candidate]);
+        var reading = FormDocumentRowReading.From(new("Hoja1", 2, [new("Importe")], [new("61250")]), 1, "es");
+        var load = FormReceivedDocumentRowPolicy.Classified(StructuredDocumentRowKind.Load, 1, 1);
+        var unseen = FormReceivedDocumentRowPolicy.Classified(StructuredDocumentRowKind.Unseen, null, 1);
+        FormReceivedDocumentRowEntry[] entries =
+        [
+            new(single.Id, null, 2, 1, FormReceivedDocumentRowKind.Load, load.State, load.ReasonCode, proposal, load.NotSent, true, reading, "planilla de cobranzas", load.Steps),
+            new(Guid.CreateVersion7(), null, 3, 2, FormReceivedDocumentRowKind.Unseen, unseen.State, unseen.ReasonCode, null, unseen.NotSent, false, reading,
+                "planilla de cobranzas", unseen.Steps),
+        ];
+
+        var tapped = request with { ReceivedAtUtc = request.ReceivedAtUtc.AddMinutes(5) };
+        Assert.True(fixture.Recorder().RecognizeRows(single, tapped, entries).IsSuccess);
+
+        var added = Assert.Single(fixture.Documents);
+        Assert.Equal(single.ReceivedAtUtc, added.ReceivedAtUtc);
+        Assert.Equal((2, FormReceivedDocumentState.Proposed, request.FocusDefinitionId, request.ReplyExpiresAtUtc, 2L),
+            (single.RowNumber!.Value, single.State, single.DefinitionId, single.ReplyExpiresAtUtc, single.Revision));
+        Assert.Equal(("forms/documents/d.xlsx", 3, FormReceivedDocumentState.Unclassified, "unseen", (DateTime?)null),
+            (added.StorageKey, added.RowNumber!.Value, added.State, added.ReasonCode, added.ReplyExpiresAtUtc));
+        var contents = new FormReceivedDocumentContentPolicy(fixture);
+        Assert.Equal(2, contents.ReadRow(single.Id, single.ProtectedReading)!.Number);
+        Assert.Equal([(single.Id, FormReceivedDocumentEventKind.FormChosen, "sure"), (single.Id, FormReceivedDocumentEventKind.Sent, "1/1"),
+            (added.Id, FormReceivedDocumentEventKind.Received, "unseen")],
+            fixture.Events.Select(step => (step.DocumentId, step.Kind, contents.ReadDetail(step.DocumentId, step.ProtectedDetail))));
+        // Only an entry nobody recognized becomes rows.
+        Assert.True(fixture.Recorder().RecognizeRows(single, tapped, entries).IsFailure);
+    }
+
+    // Rule B4 (review of task 29b): the same spreadsheet sent twice before choosing a form. Once the first became its rows, choosing a form for the
+    // second does not load them again: it is discarded as a repeated document with when the first arrived, as at a first registration, under the
+    // source's lock and then its entry's; choosing again answers what was stored.
+    [Fact]
+    public async Task Choosing_a_form_for_the_same_spreadsheet_whose_rows_the_inbox_has_discards_it_as_repeated_once()
+    {
+        var inbox = new FormReceivedDocumentFixture();
+        var (service, unitOfWork, sender) = Service(inbox);
+        var request = Chosen(sender);
+        var earlier = Row(inbox, request, "wamid.before");
+        var single = Single(inbox, request);
+
+        var reply = await service.RecognizeRowsAsync(request, Ct);
+
+        Assert.Equal((StructuredDocumentReplyKind.Duplicate, (Guid?)single.Id, (DateTime?)earlier.ReceivedAtUtc, false),
+            (reply.Kind, reply.DocumentId, reply.Duplicate?.AtUtc, reply.WasAlreadyRegistered));
+        Assert.Equal((FormReceivedDocumentState.Discarded, "duplicate", (int?)null, 2), (single.State, single.ReasonCode, single.RowNumber, inbox.Documents.Count));
+        var contents = new FormReceivedDocumentContentPolicy(inbox);
+        var repetition = contents.ReadProposal(single.Id, single.ProtectedProposal)!.Repetition!;
+        Assert.Equal((earlier.ReceivedAtUtc, (Guid?)earlier.Id), (repetition.AtUtc, repetition.DocumentId));
+        Assert.Equal([(single.Id, FormReceivedDocumentEventKind.FormChosen, "duplicate")],
+            inbox.Events.Select(step => (step.DocumentId, step.Kind, contents.ReadDetail(step.DocumentId, step.ProtectedDetail))));
+        Assert.Equal([$"source:whatsapp:{request.SourceId}", $"document:{single.Id:N}"], inbox.LockOrder);
+        Assert.Equal((1, (CommitPolicy?)CommitPolicy.OnSuccess), (unitOfWork.Commits, unitOfWork.LastPolicy));
+
+        var again = await service.RecognizeRowsAsync(request, Ct);
+
+        Assert.Equal((StructuredDocumentReplyKind.Duplicate, (DateTime?)earlier.ReceivedAtUtc, true), (again.Kind, again.Duplicate?.AtUtc, again.WasAlreadyRegistered));
+        Assert.Single(inbox.Events);
+    }
+
+    // Review of task 29b: recognizing takes its entry's lock after the source's, the last one, like a reviewer's change and task 9's, and reads it
+    // again under it: a «Descartar» that committed while it waited is not overwritten.
+    [Fact]
+    public async Task Recognizing_reads_the_entry_again_under_its_lock_and_keeps_what_a_reviewer_did_meanwhile()
+    {
+        var inbox = new FormReceivedDocumentFixture();
+        var (service, _, sender) = Service(inbox);
+        var request = Chosen(sender);
+        Row(inbox, request, "wamid.before");
+        var single = Single(inbox, request);
+        inbox.WhileLocking = id => Assert.True(inbox.Documents.Single(document => document.Id == id)
+            .Discard(single.Revision, inbox.Clock.GetUtcNow().UtcDateTime).IsSuccess);
+
+        var reply = await service.RecognizeRowsAsync(request, Ct);
+
+        Assert.Equal([$"source:whatsapp:{request.SourceId}", $"document:{single.Id:N}"], inbox.LockOrder);
+        Assert.Equal((FormReceivedDocumentState.Discarded, FormReceivedDocument.DiscardedByReviewer), (single.State, single.ReasonCode));
+        Assert.Empty(inbox.Events);
+        Assert.Equal((StructuredDocumentReplyKind.Rejected, true), (reply.Kind, reply.WasAlreadyRegistered));
+    }
+
+    // Only the single entry of a spreadsheet nobody recognized, of the person who chooses, becomes rows: «Otro», the quota, a file that is not a
+    // spreadsheet and an entry already classified (by the team, or already its rows) answer as stored, and another sender's is not theirs to hear
+    // about. None takes a lock or changes anything.
+    [Theory]
+    [InlineData("other", StructuredDocumentReplyKind.Unknown)]
+    [InlineData("quota", StructuredDocumentReplyKind.Quota)]
+    [InlineData("document", StructuredDocumentReplyKind.Unknown)]
+    [InlineData("discarded", StructuredDocumentReplyKind.Rejected)]
+    [InlineData("rows", StructuredDocumentReplyKind.Sure)]
+    [InlineData("sender", StructuredDocumentReplyKind.Unavailable)]
+    public async Task Only_a_spreadsheet_nobody_recognized_of_the_person_who_chooses_becomes_its_rows(string stored, StructuredDocumentReplyKind expected)
+    {
+        var inbox = new FormReceivedDocumentFixture();
+        var (service, unitOfWork, sender) = Service(inbox);
+        var request = Chosen(sender);
+        if (stored == "rows") Row(inbox, request, request.SourceId);
+        else
+        {
+            var single = Single(inbox, request, stored switch
+            {
+                "other" => FormReceivedDocument.ChoseOther,
+                "quota" => FormReceivedDocumentReplyPolicy.Quota,
+                _ => FormReceivedDocumentReplyPolicy.Unknown,
+            }, stored == "document" ? "application/pdf" : FormReceivedDocumentRowPolicy.XlsxMediaType, stored == "sender" ? Guid.NewGuid() : null);
+            if (stored == "discarded") Assert.True(single.Discard(single.Revision, inbox.Clock.GetUtcNow().UtcDateTime).IsSuccess);
+        }
+        var before = inbox.Documents.Select(document => (document.State, document.ReasonCode, document.Revision)).ToArray();
+
+        var reply = await service.RecognizeRowsAsync(request, Ct);
+
+        Assert.Equal((expected, expected != StructuredDocumentReplyKind.Unavailable), (reply.Kind, reply.WasAlreadyRegistered));
+        Assert.Equal(before, inbox.Documents.Select(document => (document.State, document.ReasonCode, document.Revision)));
+        Assert.Empty(inbox.Events);
+        Assert.Empty(inbox.LockOrder);
+        Assert.Equal(0, unitOfWork.Transactions);
+    }
+
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
+    // The rows' port over the inbox in memory, for a sender who can load; what arms rows from the copy is not reached here.
+    private static (FormReceivedDocumentRowService Service, FakeUnitOfWork UnitOfWork, Guid Sender) Service(FormReceivedDocumentFixture inbox)
+    {
+        var users = new InMemoryUserAccounts();
+        var permissions = new FakePermissionService();
+        var sender = users.AddUser("carga@example.test").Id;
+        permissions.Permissions[sender] = [BusinessFormsPermissions.RecordsCreate];
+        var contents = new FormReceivedDocumentContentPolicy(inbox);
+        var replies = new FormReceivedDocumentReplyPolicy(inbox, new FormDocumentProposalPolicy(inbox, inbox, []), null!, contents);
+        var unitOfWork = new FakeUnitOfWork();
+        var service = new FormReceivedDocumentRowService(inbox, inbox, new FormReceivedDocumentRowPolicy(inbox, null!, null!, null!, null!, replies, contents),
+            null!, new FormReceivedDocumentAccessGuard(new FakeCurrentUser(), users, permissions, inbox), inbox.Recorder(), unitOfWork);
+        return (service, unitOfWork, sender);
+    }
+
+    // A form chosen from the list for the spreadsheet of the request's source, with the proposal of the interpretation that continued.
+    private static StructuredDocumentRowsRegistrationRequest Chosen(Guid sender) => Request(null) with
+    {
+        SenderUserId = sender, FocusDefinitionId = Guid.CreateVersion7(), SampleSha256 = Sha,
+        Proposal = new(Guid.CreateVersion7(), Guid.CreateVersion7(),
+            new(BusinessFormDocumentAssistantCapabilitySource.ProposeRowsId, BusinessFormDocumentAssistantCapabilitySource.Version),
+            new FormDocumentRowsProposal("proposed", 0, [], [], [], "planilla de cobranzas")),
+    };
+
+    // The single entry a spreadsheet left at the request's source (none of its rows fit, «Otro», the quota), from its sender or another.
+    private static FormReceivedDocument Single(FormReceivedDocumentFixture inbox, StructuredDocumentRowsRegistrationRequest request,
+        string reason = FormReceivedDocumentReplyPolicy.Unknown, string mediaType = FormReceivedDocumentRowPolicy.XlsxMediaType, Guid? sender = null)
+    {
+        var single = FormReceivedDocument.Receive(Guid.CreateVersion7(), request.ChannelId, request.SourceId, sender ?? request.SenderUserId, request.ReceivedAtUtc,
+            "forms/documents/d.xlsx", "cobranzas.xlsx", mediaType, 18_000, Sha, null, request.ReceivedAtUtc.AddHours(1)).Value;
+        Assert.True(single.LeaveUnclassified(reason, null, inbox.Clock.GetUtcNow().UtcDateTime).IsSuccess);
+        inbox.Documents.Add(single);
+        return single;
+    }
+
+    // A row of the same spreadsheet in the inbox, five minutes older: at a source of its own (the same file sent before) or at the request's.
+    private static FormReceivedDocument Row(FormReceivedDocumentFixture inbox, StructuredDocumentRowsRegistrationRequest request, string sourceId)
+    {
+        var row = FormReceivedDocument.ReceiveRow(Guid.CreateVersion7(), request.ChannelId, sourceId, request.SenderUserId, request.ReceivedAtUtc.AddMinutes(-5),
+            "forms/documents/b.xlsx", "cobranzas.xlsx", FormReceivedDocumentRowPolicy.XlsxMediaType, 18_000, Sha, null, 2, 1, FormReceivedDocumentRowKind.Unmatched,
+            null).Value;
+        Assert.True(row.LeaveUnclassified(FormReceivedDocumentReplyPolicy.Unknown, null, inbox.Clock.GetUtcNow().UtcDateTime).IsSuccess);
+        inbox.Documents.Add(row);
+        return row;
     }
 
     private static StructuredDocumentRowsRegistrationRequest Request(DateTime? replyExpiresAtUtc) =>

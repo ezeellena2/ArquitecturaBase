@@ -13,4 +13,13 @@ namespace ArquitecturaBase.Application.Interfaces.Channels;
 public interface IStructuredDocumentRowsChannel
 {
     Task<StructuredDocumentRowsRegistration> RegisterRowsAsync(StructuredDocumentRowsRegistrationRequest request, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// A spreadsheet none of whose rows fit, whose person chose a form from the «No lo reconoce» list (DOC2): with the proposal of the interpretation
+    /// that continued with that form fixed (<see cref="StructuredDocumentRowsRegistrationRequest.FocusDefinitionId"/>), its single entry becomes
+    /// its rows, armed from the owner's copy with the same rules as a first registration, and the reply says what became of each, like
+    /// <see cref="RegisterRowsAsync"/>. Idempotent by channel and source id: rows already recognized, a choice that fits no row, or an entry that is
+    /// no longer waiting for a form answer what the owner kept.
+    /// </summary>
+    Task<StructuredDocumentRowsRegistration> RecognizeRowsAsync(StructuredDocumentRowsRegistrationRequest request, CancellationToken cancellationToken);
 }

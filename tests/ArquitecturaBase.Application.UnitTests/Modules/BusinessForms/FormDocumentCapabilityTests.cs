@@ -16,7 +16,8 @@ public sealed class FormDocumentCapabilityTests
 {
     private static readonly CancellationToken Ct = CancellationToken.None;
 
-    // Since VC1-A (task 27) the candidates read also goes with a spreadsheet and the rows of one have their own proposal (FormDocumentRowCapabilityTests).
+    // Since VC1-A (task 27) the candidates read also goes with a spreadsheet and the rows of one have their own proposal (FormDocumentRowCapabilityTests);
+    // the fixed form's read too, with which a row changes form in the inbox (decision 12).
     [Fact]
     public void The_documents_capabilities_are_offered_only_with_a_document_or_a_spreadsheet_and_never_in_Home()
     {
@@ -24,7 +25,7 @@ public sealed class FormDocumentCapabilityTests
         var definitions = f.Source.Definitions;
         Assert.Equal([BusinessFormDocumentAssistantCapabilitySource.CandidatesId, BusinessFormDocumentAssistantCapabilitySource.FormId,
             BusinessFormDocumentAssistantCapabilitySource.ProposeEntryId, BusinessFormDocumentAssistantCapabilitySource.ProposeRowsId], definitions.Select(definition => definition.Id));
-        Assert.Equal([AssistantCapabilityAttachment.File, AssistantCapabilityAttachment.Document, AssistantCapabilityAttachment.Document,
+        Assert.Equal([AssistantCapabilityAttachment.File, AssistantCapabilityAttachment.File, AssistantCapabilityAttachment.Document,
             AssistantCapabilityAttachment.Spreadsheet], definitions.Select(definition => definition.Attachment));
         Assert.All(definitions, definition => Assert.Equal((false, 1), (definition.OfferedInHome, definition.Version)));
         Assert.Empty(definitions[0].RequiredPermissions.Actor);

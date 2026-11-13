@@ -14,7 +14,8 @@ namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 // Task 9 of the documents: a tap on an option of a document question gets its own reference, carrying the document, and is marked in the
 // same commit, so a retry after the commit finds it answered. What it decided outside the transaction (the inbox's port and the send) is
 // queued here: the chosen candidate's form, «Otro» or «la pregunta ya cambió»; a form chosen when the document was not recognized leaves a
-// pending reference that continues the operation with that form fixed, which the next interpretation takes.
+// pending reference that continues the operation with that form fixed, which the next interpretation takes. VC1-A: so does a form chosen for a
+// spreadsheet none of whose rows fit, whose continuation only loads its rows.
 internal sealed class WhatsAppAssistantDocumentService(IWhatsAppAssistantReader reader, IWhatsAppAssistantRepository requests,
     IWhatsAppConversationRepository conversations, IUnitOfWork unitOfWork, WhatsAppAssistantAutomaticPolicy automatic,
     WhatsAppAssistantDocumentPolicy documents, TimeProvider clock, ILogger<WhatsAppAssistantDocumentService> logger) : IWhatsAppAssistantDocumentService
@@ -49,7 +50,7 @@ internal sealed class WhatsAppAssistantDocumentService(IWhatsAppAssistantReader 
                     try { context = JsonSerializer.Deserialize<AssistantChannelContext>(contextJson, JsonSerializerOptions.Web); }
                     catch (JsonException) { return Result.Success(); }
                     if (context is null) return Result.Success();
-                    var focused = WhatsAppAssistantAccessPolicy.ForDocument(context) with { FocusDefinitionId = focus };
+                    var focused = WhatsAppAssistantAccessPolicy.Focused(context, focus, choice.Spreadsheet);
                     var continuation = WhatsAppAssistantRequest.Create(Guid.CreateVersion7(), contactId, tap.Id, actor, reference.SubjectUserId,
                         WhatsAppAssistantRequestKind.Automatic, contact.ModeRevision, contact.LinkRevision, JsonSerializer.Serialize(focused, JsonSerializerOptions.Web),
                         nowUtc, reference.ContentExpiresAtUtc);

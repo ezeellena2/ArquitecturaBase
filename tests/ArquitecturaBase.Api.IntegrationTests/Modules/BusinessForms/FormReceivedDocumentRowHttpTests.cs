@@ -239,6 +239,7 @@ public sealed class FormReceivedDocumentRowHttpTests(ApiFactory factory)
         Assert.Equal([(2, 1), (3, 2), (4, 3), (5, 4), (7, 5)], stored.Select(document => (document.RowNumber!.Value, document.RowOrder!.Value)));
         Assert.Equal([FormReceivedDocumentNotSentReason.NotSendable, FormReceivedDocumentNotSentReason.NotSendable, FormReceivedDocumentNotSentReason.NotSendable,
             null, null], stored.Select(document => document.NotSentReason));
+        Assert.Equal((FormReceivedDocumentState.Unclassified, "unseen"), (stored[4].State, stored[4].ReasonCode));
         // A repeated registration answers each row as it was registered, the one the model did not see too.
         var replayed = await scenario.RegisterAsync(request, Ct);
         Assert.Equal(reply.Rows.Select(row => (row.DocumentId, row.Kind, row.Position)), replayed.Rows.Select(row => (row.DocumentId, row.Kind, row.Position)));
@@ -250,6 +251,93 @@ public sealed class FormReceivedDocumentRowHttpTests(ApiFactory factory)
         var detail = await (await reviewer.GetAsync($"/api/forms/documents/{reply.Rows[4].DocumentId}", Ct)).ReadJsonAsync();
         Assert.Equal([("Monto", "98765.25"), ("Operación", "sin formulario")], detail.GetProperty("rowCells").EnumerateArray()
             .Select(cell => (cell.GetProperty("header").GetString(), cell.GetProperty("value").GetString())));
+        Assert.Equal([("received", "unseen")], detail.GetProperty("history").EnumerateArray()
+            .Select(step => (step.GetProperty("kind").GetString(), step.GetProperty("detail").GetString())));
+    }
+
+    // A spreadsheet nobody recognized becomes its rows when its person chooses a form from the list: with the proposal of the interpretation that
+    // continued with that form fixed, its single entry is the first row and keeps the copy, the others enter with the rules of a first
+    // registration and its arrival (not the tap's), and the loads wait for their person until the new deadline; a choice that fits no row leaves
+    // it as it was, and recognizing
+    // it again (a retry) answers what was stored.
+    [Fact]
+    public async Task A_spreadsheet_nobody_recognized_becomes_its_rows_for_the_form_its_person_chose()
+    {
+        await using var scenario = await FormReceivedDocumentScenario.CreateAsync(factory, Ct);
+        var arrived = factory.Clock.GetUtcNow().UtcDateTime;
+        var content = FormReceivedDocumentRowScenario.Workbook(("74001", "1"), ("74002", "2"), ("nota", ""));
+        var (unknown, request) = await scenario.SendRowsAsync(content,
+            FormReceivedDocumentRowScenario.Proposal(scenario.Form, scenario.Sender, [], [2, 3, 4], [2, 3, 4]), Ct, arrived.AddHours(1));
+        Assert.Equal(StructuredDocumentReplyKind.Unknown, unknown.Kind);
+        var single = unknown.DocumentId!.Value;
+        factory.Clock.Advance(TimeSpan.FromMinutes(1));
+        var deadline = factory.Clock.GetUtcNow().UtcDateTime.AddHours(1);
+
+        var unchanged = await scenario.RecognizeAsync(request with
+        {
+            FocusDefinitionId = scenario.Other.DefinitionId, ReplyExpiresAtUtc = deadline,
+            Proposal = FormReceivedDocumentRowScenario.Proposal(scenario.Other, scenario.Sender, [], [2, 3, 4], [2, 3, 4]),
+        }, Ct);
+        var chosen = request with
+        {
+            FocusDefinitionId = scenario.Form.DefinitionId, ReplyExpiresAtUtc = deadline, ReceivedAtUtc = factory.Clock.GetUtcNow().UtcDateTime,
+            Proposal = FormReceivedDocumentRowScenario.Proposal(scenario.Form, scenario.Sender, [2, 3], [4], [2, 3, 4]),
+        };
+        var reply = await scenario.RecognizeAsync(chosen, Ct);
+
+        Assert.Equal((StructuredDocumentReplyKind.Unknown, (Guid?)single, true), (unchanged.Kind, unchanged.DocumentId, unchanged.WasAlreadyRegistered));
+        Assert.Equal((StructuredDocumentReplyKind.Sure, single, 2), (reply.Kind, reply.Rows[0].DocumentId, reply.Loads));
+        Assert.Equal([(2, StructuredDocumentRowKind.Load, (int?)1), (3, StructuredDocumentRowKind.Load, 2), (4, StructuredDocumentRowKind.Unmatched, null)],
+            reply.Rows.Select(row => (row.Number, row.Kind, row.Position)));
+        Assert.Equal((scenario.Form.DefinitionId, deadline), (reply.Rows[0].Form!.DefinitionId, reply.ReplyExpiresAtUtc));
+        var stored = await scenario.DbAsync(db => db.Set<FormReceivedDocument>().AsNoTracking().Where(document => document.SourceId == request.SourceId)
+            .OrderBy(document => document.RowOrder).ToListAsync(Ct));
+        Assert.Equal([(single, 2), (reply.Rows[1].DocumentId, 3), (reply.Rows[2].DocumentId, 4)], stored.Select(document => (document.Id, document.RowNumber!.Value)));
+        Assert.Single(stored.Select(document => document.ReceivedAtUtc).Distinct());
+        Assert.Equal(FormReceivedDocumentCopyPolicy.Key(single, FormReceivedDocumentRowScenario.MediaType), Assert.Single(stored.Select(document => document.StorageKey).Distinct()));
+        Assert.Equal([(FormReceivedDocumentState.Proposed, (DateTime?)deadline), (FormReceivedDocumentState.Proposed, deadline), (FormReceivedDocumentState.Unclassified, null)],
+            stored.Select(document => (document.State, document.ReplyExpiresAtUtc)));
+        using var reviewer = scenario.Client(scenario.Reviewer);
+        var detail = await (await reviewer.GetAsync($"/api/forms/documents/{single}", Ct)).ReadJsonAsync();
+        Assert.Equal([("received", "unknown"), ("formChosen", "sure"), ("sent", "1/2")], detail.GetProperty("history").EnumerateArray()
+            .Select(step => (step.GetProperty("kind").GetString(), step.GetProperty("detail").GetString())));
+
+        var again = await scenario.RecognizeAsync(chosen, Ct);
+        Assert.True(again.WasAlreadyRegistered);
+        Assert.Equal(reply.Rows.Select(row => (row.DocumentId, row.Kind, row.Position)), again.Rows.Select(row => (row.DocumentId, row.Kind, row.Position)));
+    }
+
+    // Rule B4 (review of task 29b): the same spreadsheet sent twice before choosing a form is loaded once. Choosing the form for the second one
+    // after the first became its rows discards it as a repeated document with when the first arrived, as at a first registration, and choosing
+    // again answers the same.
+    [Fact]
+    public async Task The_same_spreadsheet_sent_twice_before_choosing_a_form_is_loaded_once()
+    {
+        await using var scenario = await FormReceivedDocumentScenario.CreateAsync(factory, Ct);
+        var content = FormReceivedDocumentRowScenario.Workbook(("74501", "1"), ("74502", "2"), ("nota", ""));
+        var none = FormReceivedDocumentRowScenario.Proposal(scenario.Form, scenario.Sender, [], [2, 3, 4], [2, 3, 4]);
+        var (firstUnknown, first) = await scenario.SendRowsAsync(content, none, Ct, factory.Clock.GetUtcNow().UtcDateTime.AddHours(1));
+        var (secondUnknown, second) = await scenario.SendRowsAsync(content, none, Ct, factory.Clock.GetUtcNow().UtcDateTime.AddHours(1));
+        factory.Clock.Advance(TimeSpan.FromMinutes(1));
+        var choice = FormReceivedDocumentRowScenario.Proposal(scenario.Form, scenario.Sender, [2, 3], [4], [2, 3, 4]);
+
+        var loaded = await scenario.RecognizeAsync(first with { FocusDefinitionId = scenario.Form.DefinitionId, Proposal = choice }, Ct);
+        var chosen = second with { FocusDefinitionId = scenario.Form.DefinitionId, Proposal = choice };
+        var repeated = await scenario.RecognizeAsync(chosen, Ct);
+
+        Assert.Equal((StructuredDocumentReplyKind.Unknown, StructuredDocumentReplyKind.Unknown, StructuredDocumentReplyKind.Sure),
+            (firstUnknown.Kind, secondUnknown.Kind, loaded.Kind));
+        var rows = await scenario.DbAsync(db => db.Set<FormReceivedDocument>().AsNoTracking().Where(document => document.SourceId == first.SourceId).ToListAsync(Ct));
+        Assert.Equal((StructuredDocumentReplyKind.Duplicate, secondUnknown.DocumentId, false, (DateTime?)rows[0].ReceivedAtUtc),
+            (repeated.Kind, repeated.DocumentId, repeated.WasAlreadyRegistered, repeated.Duplicate?.AtUtc));
+        var entry = await scenario.DbAsync(db => db.Set<FormReceivedDocument>().AsNoTracking().SingleAsync(document => document.SourceId == second.SourceId, Ct));
+        Assert.Equal((FormReceivedDocumentState.Discarded, "duplicate", (int?)null), (entry.State, entry.ReasonCode, entry.RowNumber));
+        using var reviewer = scenario.Client(scenario.Reviewer);
+        var detail = await (await reviewer.GetAsync($"/api/forms/documents/{entry.Id}", Ct)).ReadJsonAsync();
+        Assert.Equal([("received", "unknown"), ("formChosen", "duplicate")], detail.GetProperty("history").EnumerateArray()
+            .Select(step => (step.GetProperty("kind").GetString(), step.GetProperty("detail").GetString())));
+        var again = await scenario.RecognizeAsync(chosen, Ct);
+        Assert.Equal((StructuredDocumentReplyKind.Duplicate, true), (again.Kind, again.WasAlreadyRegistered));
     }
 
     [Fact]

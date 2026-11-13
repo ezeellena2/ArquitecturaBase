@@ -15,8 +15,13 @@ internal sealed class WhatsAppFlowSessionRepository(ApplicationDbContext dbConte
                     && session.CaptureState == WhatsAppFlowCaptureState.Pending && session.ExpiresAtUtc > nowUtc
                     && request.Kind == WhatsAppOutgoingMessageKind.LocationRequest
                 orderby session.CreatedAtUtc, session.Id
-                select new { session, request }).ToListAsync(cancellationToken))
-        .Select(row => new WhatsAppFlowLocationWait(row.session, row.request)).ToArray();
+                select new
+                {
+                    session, request,
+                    load = dbContext.Set<WhatsAppAssistantRequest>().Any(reference => reference.OutgoingId == request.Id && reference.ActionOrdinal > 0
+                        && reference.AttachmentMessageId != null),
+                }).ToListAsync(cancellationToken))
+        .Select(row => new WhatsAppFlowLocationWait(row.session, row.request) { Load = row.load }).ToArray();
     public async Task<IReadOnlyList<WhatsAppFlowOpenSend>> ListOpenAsync(Guid contactId, DateTime nowUtc, CancellationToken cancellationToken) =>
         (await (from session in dbContext.Set<WhatsAppFlowSession>()
                 join binding in dbContext.Set<WhatsAppFlowBinding>() on new { session.BindingId, session.VersionId } equals new { BindingId = binding.Id, binding.VersionId }

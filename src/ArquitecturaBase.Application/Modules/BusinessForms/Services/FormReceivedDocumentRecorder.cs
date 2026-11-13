@@ -66,27 +66,59 @@ internal sealed class FormReceivedDocumentRecorder(IFormReceivedDocumentReposito
                 FileName(copy.Name), copy.MediaType, copy.Size, copy.Sha256, entry.Sheet, entry.Number, entry.Order, entry.Kind,
                 entry.Waits ? request.ReplyExpiresAtUtc : null);
             if (received.IsFailure) return received.Error;
-            var document = received.Value;
-            var described = document.Describe(contents.ProtectRow(entry.Id, entry.Reading), entry.DocumentType,
-                FormReceivedDocumentSearchPolicy.BuildRow(entry.Reading, entry.Proposal));
-            if (described.IsFailure) return described;
-            var proposal = entry.Proposal is { } prepared ? contents.ProtectProposal(entry.Id, prepared) : null;
-            var classified = entry.State switch
-            {
-                FormReceivedDocumentState.Proposed when entry.Proposal is { Candidates: [var first, ..] } =>
-                    document.Propose(first.DefinitionId, first.VersionId, proposal!, entry.NotSent),
-                FormReceivedDocumentState.Unclassified => document.LeaveUnclassified(entry.ReasonCode ?? FormReceivedDocumentReplyPolicy.Unknown, proposal, now),
-                FormReceivedDocumentState.Discarded => document.Reject(entry.ReasonCode ?? FormReceivedDocumentReplyPolicy.Duplicate, proposal, now),
-                _ => Result.Failure(FormReceivedDocumentErrors.ContentInvalid),
-            };
+            var classified = Classify(received.Value, entry, now);
             if (classified.IsFailure) return classified;
-            documents.Add(document);
-            // Its steps happen together: each a microsecond after the one before, so its history keeps their order.
-            for (var index = 0; index < entry.Steps.Count; index++)
-            {
-                var recorded = Record(entry.Id, entry.Steps[index].Kind, null, entry.Steps[index].Detail, now.AddTicks(index * TimeSpan.TicksPerMicrosecond));
-                if (recorded.IsFailure) return recorded;
-            }
+            documents.Add(received.Value);
+            var recorded = Steps(entry.Id, entry.Steps, now);
+            if (recorded.IsFailure) return recorded;
+        }
+        return Result.Success();
+    }
+
+    /// <summary>
+    /// VC1-A: a spreadsheet nobody recognized becoming its rows for the form its person chose (checked by its caller under its locks): its
+    /// single entry, whose id named the copy, is the first row, classified as a row with a step saying the form was chosen instead of arriving
+    /// again; the other rows enter like those of a first registration, with the same copy and its arrival (not the tap's that chose the form).
+    /// </summary>
+    public Result RecognizeRows(FormReceivedDocument single, StructuredDocumentRowsRegistrationRequest request, IReadOnlyList<FormReceivedDocumentRowEntry> entries)
+    {
+        ArgumentNullException.ThrowIfNull(single);
+        if (single is not { IsRow: false, StorageKey: { } storageKey } || entries is not [var first, ..] || first.Id != single.Id)
+            return FormReceivedDocumentErrors.ContentInvalid;
+        var now = clock.GetUtcNow().UtcDateTime;
+        var recognized = single.RecognizeRow(first.Sheet, first.Number, first.Order, first.Kind, first.Waits ? request.ReplyExpiresAtUtc : null);
+        if (recognized.IsFailure) return recognized;
+        var classified = Classify(single, first, now);
+        if (classified.IsFailure) return classified;
+        var recorded = Steps(single.Id, [.. first.Steps.Select((step, index) => index == 0 && step.Kind == FormReceivedDocumentEventKind.Received
+            ? (FormReceivedDocumentEventKind.FormChosen, step.Detail) : step)], now);
+        return recorded.IsFailure ? recorded : RegisterRows(request with { ReceivedAtUtc = single.ReceivedAtUtc }, storageKey, [.. entries.Skip(1)]);
+    }
+
+    // A row's reading, the numbers to search it by (its proposal's or, without a form, its cells') and what became of it.
+    private Result Classify(FormReceivedDocument document, FormReceivedDocumentRowEntry entry, DateTime now)
+    {
+        var described = document.Describe(contents.ProtectRow(entry.Id, entry.Reading), entry.DocumentType,
+            FormReceivedDocumentSearchPolicy.BuildRow(entry.Reading, entry.Proposal));
+        if (described.IsFailure) return described;
+        var proposal = entry.Proposal is { } prepared ? contents.ProtectProposal(entry.Id, prepared) : null;
+        return entry.State switch
+        {
+            FormReceivedDocumentState.Proposed when entry.Proposal is { Candidates: [var first, ..] } =>
+                document.Propose(first.DefinitionId, first.VersionId, proposal!, entry.NotSent),
+            FormReceivedDocumentState.Unclassified => document.LeaveUnclassified(entry.ReasonCode ?? FormReceivedDocumentReplyPolicy.Unknown, proposal, now),
+            FormReceivedDocumentState.Discarded => document.Reject(entry.ReasonCode ?? FormReceivedDocumentReplyPolicy.Duplicate, proposal, now),
+            _ => Result.Failure(FormReceivedDocumentErrors.ContentInvalid),
+        };
+    }
+
+    // A row's steps happen together: each a microsecond after the one before, so its history keeps their order.
+    private Result Steps(Guid documentId, IReadOnlyList<(FormReceivedDocumentEventKind Kind, string? Detail)> steps, DateTime now)
+    {
+        for (var index = 0; index < steps.Count; index++)
+        {
+            var recorded = Record(documentId, steps[index].Kind, null, steps[index].Detail, now.AddTicks(index * TimeSpan.TicksPerMicrosecond));
+            if (recorded.IsFailure) return recorded;
         }
         return Result.Success();
     }
@@ -121,17 +153,28 @@ internal sealed class FormReceivedDocumentRecorder(IFormReceivedDocumentReposito
     /// </summary>
     public Result Recognize(FormReceivedDocument document, StructuredDocumentRegistrationRequest request, FormReceivedDocumentClassification classification)
     {
+        if (classification.State == FormReceivedDocumentState.Discarded) return RejectRecognized(document, classification);
         var proposal = classification.Proposal is { } prepared ? contents.ProtectProposal(document.Id, prepared) : null;
         var changed = classification.State switch
         {
             FormReceivedDocumentState.Proposed when classification.Proposal is { Candidates: [var first, ..] } recognized =>
                 document.Recognize(first.DefinitionId, first.VersionId, proposal!, recognized.DocumentType,
                     FormReceivedDocumentSearchPolicy.Build(request.Reading, recognized), classification.NotSendable, request.ReplyExpiresAtUtc),
-            FormReceivedDocumentState.Discarded => document.RejectRecognized(classification.ReasonCode ?? FormReceivedDocumentReplyPolicy.Unreadable, proposal,
-                clock.GetUtcNow().UtcDateTime),
             _ => Result.Failure(FormReceivedDocumentErrors.ContentInvalid),
         };
         return changed.IsFailure ? changed
+            : Record(document.Id, FormReceivedDocumentEventKind.FormChosen, null, JsonNamingPolicy.CamelCase.ConvertName(classification.Reply.Kind.ToString()));
+    }
+
+    /// <summary>
+    /// Task 9 and rule B4: a document, or the single entry of a spreadsheet, nobody recognized that for the form its person chose is not legible
+    /// or repeats another (checked by its caller under the lock): discarded with its reason and the step saying the form was chosen.
+    /// </summary>
+    public Result RejectRecognized(FormReceivedDocument document, FormReceivedDocumentClassification classification)
+    {
+        var proposal = classification.Proposal is { } prepared ? contents.ProtectProposal(document.Id, prepared) : null;
+        var rejected = document.RejectRecognized(classification.ReasonCode ?? FormReceivedDocumentReplyPolicy.Unreadable, proposal, clock.GetUtcNow().UtcDateTime);
+        return rejected.IsFailure ? rejected
             : Record(document.Id, FormReceivedDocumentEventKind.FormChosen, null, JsonNamingPolicy.CamelCase.ConvertName(classification.Reply.Kind.ToString()));
     }
 

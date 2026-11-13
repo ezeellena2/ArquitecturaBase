@@ -355,6 +355,22 @@ public sealed class FormReceivedDocument : Entity, IAuditable
         return Advance();
     }
 
+    /// <summary>
+    /// VC1-A: a spreadsheet none of whose rows fit (its single entry, unclassified, with its copy and without pages) whose person chose a form in
+    /// the channel becomes the first of its rows for that form: its sheet when the book has more than one, its number, its place among the
+    /// entries of the book, what became of it and the deadline of the new loads when it is one. Its caller classifies it as a row afterwards.
+    /// </summary>
+    public Result RecognizeRow(string? sheetName, int rowNumber, int rowOrder, FormReceivedDocumentRowKind rowKind, DateTime? replyExpiresAtUtc)
+    {
+        if (IsRow || !IsStored || Pages is not null || State != FormReceivedDocumentState.Unclassified || ReasonCode == ChoseOther || ExtractionRequestId is not null)
+            return FormReceivedDocumentErrors.StateConflict;
+        if (sheetName is not null && !Text(sheetName, MaxSheetNameLength) || rowNumber is < 1 or > MaxRowNumber || rowOrder < 1 || !Enum.IsDefined(rowKind)
+            || replyExpiresAtUtc is { Kind: not DateTimeKind.Utc })
+            return FormReceivedDocumentErrors.ContentInvalid;
+        SheetName = sheetName; RowNumber = rowNumber; RowOrder = rowOrder; RowKind = rowKind; ReplyExpiresAtUtc = replyExpiresAtUtc;
+        return Advance();
+    }
+
     /// <summary>Task 9: an unclassified document recognized for the form its person chose, but not legible or repeated: discarded with its reason.</summary>
     public Result RejectRecognized(string reasonCode, byte[]? protectedProposal, DateTime nowUtc)
     {

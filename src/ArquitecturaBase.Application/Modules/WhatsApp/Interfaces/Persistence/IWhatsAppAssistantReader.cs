@@ -36,8 +36,10 @@ public interface IWhatsAppAssistantReader
     /// <summary>
     /// VC1-A (task 29): whether the spreadsheet of a message was already answered in the person's conversation, because a first reference that
     /// carries it has its outgoing (the notice of its loads, or another answer). Read before answering a registration again and under the lock.
+    /// A reference that continues a question (a form chosen from its list) counts only the references that continue that same question: the
+    /// question itself answered the spreadsheet.
     /// </summary>
-    Task<bool> ExistsAttachmentAnswerAsync(Guid contactId, Guid attachmentMessageId, CancellationToken ct) => Task.FromResult(false);
+    Task<bool> ExistsAttachmentAnswerAsync(Guid contactId, Guid attachmentMessageId, CancellationToken ct, Guid? continuing = null) => Task.FromResult(false);
     Task<WhatsAppAssistantSourceRow?> FindLatestSourceAsync(Guid contactId, CancellationToken ct);
     Task<IReadOnlyList<Guid>> ListPendingContactsAsync(IReadOnlyCollection<Guid> excluded, int limit, DateTime nowUtc, CancellationToken ct);
     Task<bool> ExistsPendingAsync(DateTime nowUtc, CancellationToken ct);

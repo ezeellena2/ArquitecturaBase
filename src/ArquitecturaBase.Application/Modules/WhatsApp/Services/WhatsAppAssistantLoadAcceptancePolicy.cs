@@ -29,8 +29,10 @@ internal sealed class WhatsAppAssistantLoadAcceptancePolicy(WhatsAppFormSendPoli
             || row.AttachmentMessageId is not { } attachmentMessageId || loads.Count > WhatsAppAssistantRequest.MaxLoads || contact.WaId is not { } waId)
             return WhatsAppAssistantErrors.StateConflict;
         // Answered again from what the inbox kept (review of task 29), it goes only while nothing answered that spreadsheet: another reference
-        // that carries it may have sent its notice since it was read.
-        if (await reader.ExistsAttachmentAnswerAsync(contact.Id, attachmentMessageId, ct))
+        // that carries it may have sent its notice since it was read. A form chosen from the list continues a question that answered it, so only
+        // another continuation of that question counts.
+        if (await reader.ExistsAttachmentAnswerAsync(contact.Id, attachmentMessageId, ct, WhatsAppAssistantSpreadsheetPolicy.ContinuedQuestion(
+                WhatsAppAssistantSuggestionPolicy.Context(WhatsAppAssistantSuggestionPolicy.Reference(row)), row.PreviousRequestId)))
             return row.FinishWithoutReply(false, clock.GetUtcNow().UtcDateTime) ? Result.Success() : WhatsAppAssistantErrors.StateConflict;
         var destination = sending.ValidateContact(contact);
         if (destination.IsFailure) return destination.Error;

@@ -10,6 +10,7 @@ using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
+using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Application.Modules.WhatsApp.Services;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
@@ -165,6 +166,127 @@ public sealed class WhatsAppAssistantSpreadsheetLoadTests(ApiFactory factory)
 
         Assert.Equal((entry, person.RecipientId), (Assert.Single(inbox.Others).DocumentId, inbox.Others[0].SenderUserId));
         Assert.Equal("Listo, lo dejé para que lo revise el equipo. Si hace falta, te escriben por acá.", (await ReplyAsync(host, person.ContactId, tap)).Body);
+    }
+
+    // A form chosen from the list continues the operation with that form fixed: the tap is its source with the spreadsheet its reference carries,
+    // the interpretation only loads it, the owner of the rows recognizes them for that form with the new proposal, and the notice and its loads go
+    // out to Meta's double. Task 29's missing check: a load's capture records the row of the inbox as its document and the server adds no file.
+    [Fact]
+    public async Task A_form_chosen_from_the_list_loads_the_rows_for_it_and_a_load_is_captured_with_its_row_and_no_file()
+    {
+        var probe = new WhatsAppDocumentProbe { Bytes = Csv(3) };
+        var (rows, inbox) = (new CapturingStructuredDocumentRowsChannel(), new CapturingStructuredDocumentChannel());
+        await using var host = await CreateAsync(probe, rows, inbox, capture: true);
+        var visit = new StructuredDocumentFormChoice(host.Forms.Form.DefinitionId, host.Forms.Form.VersionId, "Registrar visita");
+        var three = Three(host);
+        rows.Reply = _ => new(StructuredDocumentReplyKind.Unknown) { DocumentId = Guid.NewGuid(), Forms = [visit, new(Guid.NewGuid(), Guid.NewGuid(), "Gastos")] };
+        rows.Recognize = request => request.FocusDefinitionId == visit.DefinitionId ? three : new(StructuredDocumentReplyKind.Unknown);
+        inbox.Preparation = Prepared(host);
+        var person = await PersonAsync(host);
+        var waMessageId = await ReceiveSpreadsheetAsync(host, person, probe);
+        var operation = await InterpretAsync(host);
+        await CompleteAsync(host, person, operation);
+        var list = await OutgoingAsync(host, (await ReferenceAsync(host, operation.RequestId)).OutgoingId!.Value);
+
+        var tap = await TapAsync(host, person.ContactId, list.QuickReplies[0].Id, list.QuickReplies[0].Title);
+        var focused = await InterpretAsync(host);
+
+        var sheet = await MessageAsync(host, waMessageId);
+        var continuation = await host.ScopeAsync(services => services.GetRequiredService<ApplicationDbContext>().Set<WhatsAppAssistantRequest>().AsNoTracking()
+            .SingleAsync(row => row.ContactId == person.ContactId && row.SourceMessageId == tap, Ct));
+        Assert.Equal(((Guid?)operation.RequestId, (Guid?)sheet.Id), (continuation.PreviousRequestId, continuation.AttachmentMessageId));
+        Assert.Equal((continuation.RequestId, "Registrar visita", (Guid?)operation.RequestId, (Guid?)visit.DefinitionId, $"whatsapp/documents/{sheet.Id:N}.csv"),
+            (focused.RequestId, focused.Text, focused.PreviousRequestId, focused.Context.FocusDefinitionId, focused.Attachment!.StorageKey));
+        Assert.Equal(WhatsAppAssistantAccessPolicy.SpreadsheetCapabilities, focused.Context.AllowedCapabilities);
+        Assert.Empty(rows.Recognitions);
+
+        await CompleteAsync(host, person, focused);
+
+        var recognized = Assert.Single(rows.Recognitions);
+        Assert.Equal(((Guid?)visit.DefinitionId, sheet.Id.ToString("N"), true), (recognized.FocusDefinitionId, recognized.SourceId, recognized.Proposal is not null));
+        // The loads carry the tap as their source too: the notice is the continuation's own outgoing.
+        var notice = await OutgoingAsync(host, (await ReferenceAsync(host, continuation.RequestId)).OutgoingId!.Value);
+        Assert.Equal((WhatsAppOutgoingMessageKind.Text, AllThree), (notice.Kind, notice.Body));
+        var loads = await LoadReferencesAsync(host, continuation.RequestId);
+        Assert.Equal([1, 2, 3], loads.Select(row => row.ActionOrdinal));
+        Assert.Equal(three.Rows.Select(row => row.DocumentId), inbox.Sends.Select(send => send.DocumentId));
+        var worker = host.Host.Services.GetRequiredService<WhatsAppOutgoingBackgroundService>();
+        for (var round = 0; round < 12 && host.Cloud.Messages.OfType<WhatsAppFlowMessageResponse>().Count() < 3; round++) await worker.ProcessNextAsync(Ct);
+        var flows = host.Cloud.Messages.OfType<WhatsAppFlowMessageResponse>().ToArray();
+        Assert.Equal(["1 de 3 · $ 1.000", "2 de 3 · $ 2.000", "3 de 3 · $ 3.000"], flows.Select(flow => flow.Body));
+        Assert.All(flows, flow => Assert.Equal("Registrar visita · prellenado", flow.Footer));
+        Assert.Contains(host.Cloud.Messages.OfType<WhatsAppTextMessage>(), message => message.Body == AllThree);
+
+        await WhatsAppAssistantCaptureFixture.ReplyAsync(host, person, flows[0], host.Forms.FieldId, Ct);
+
+        var capture = host.Host.Services.GetRequiredService<CapturingStructuredRecordPort>().Captures[^1];
+        Assert.Equal((three.Rows[0].DocumentId, StructuredRecordSenderKind.Assistant), (capture.Origin!.Document, capture.Origin.SenderKind));
+        Assert.True(capture.Files is null or { Count: 0 });
+    }
+
+    // Review of task 29b: the owner of the rows recognized them in an attempt whose answer did not commit, so it answers what it kept. The question
+    // that answered the spreadsheet is not an answer of its continuation (only those of its own continuations count, in SQL): the notice and its
+    // loads go out, and once they did, the continuation answered it.
+    [Fact]
+    public async Task Rows_the_inbox_kept_for_a_chosen_form_are_answered_by_the_continuation_although_the_question_answered_the_spreadsheet()
+    {
+        var probe = new WhatsAppDocumentProbe { Bytes = Csv(3) };
+        var (rows, inbox) = (new CapturingStructuredDocumentRowsChannel(), new CapturingStructuredDocumentChannel());
+        await using var host = await CreateAsync(probe, rows, inbox);
+        var visit = new StructuredDocumentFormChoice(host.Forms.Form.DefinitionId, host.Forms.Form.VersionId, "Registrar visita");
+        var kept = Three(host) with { WasAlreadyRegistered = true };
+        rows.Reply = _ => new(StructuredDocumentReplyKind.Unknown) { DocumentId = Guid.NewGuid(), Forms = [visit, new(Guid.NewGuid(), Guid.NewGuid(), "Gastos")] };
+        rows.Recognize = _ => kept;
+        inbox.Preparation = Prepared(host);
+        var person = await PersonAsync(host);
+        var waMessageId = await ReceiveSpreadsheetAsync(host, person, probe);
+        var operation = await InterpretAsync(host);
+        await CompleteAsync(host, person, operation);
+        var list = await OutgoingAsync(host, (await ReferenceAsync(host, operation.RequestId)).OutgoingId!.Value);
+        await TapAsync(host, person.ContactId, list.QuickReplies[0].Id, list.QuickReplies[0].Title);
+        var focused = await InterpretAsync(host);
+        var sheet = await MessageAsync(host, waMessageId);
+        Task<(bool Any, bool Continuation)> AnsweredAsync() => host.ScopeAsync(async services =>
+        {
+            var reader = services.GetRequiredService<IWhatsAppAssistantReader>();
+            return (await reader.ExistsAttachmentAnswerAsync(person.ContactId, sheet.Id, Ct),
+                await reader.ExistsAttachmentAnswerAsync(person.ContactId, sheet.Id, Ct, operation.RequestId));
+        });
+        Assert.Equal((true, false), await AnsweredAsync());
+
+        await CompleteAsync(host, person, focused);
+
+        Assert.Equal((true, true), await AnsweredAsync());
+        var notice = await OutgoingAsync(host, (await ReferenceAsync(host, focused.RequestId)).OutgoingId!.Value);
+        Assert.Equal((WhatsAppOutgoingMessageKind.Text, AllThree), (notice.Kind, notice.Body));
+        Assert.Equal([1, 2, 3], (await LoadReferencesAsync(host, focused.RequestId)).Select(row => row.ActionOrdinal));
+    }
+
+    // The Flow that follows the location request of a load carries its footer, like the other loads.
+    [Fact]
+    public async Task The_flow_that_follows_the_location_request_of_a_load_carries_its_footer()
+    {
+        var probe = new WhatsAppDocumentProbe { Bytes = Csv(3) };
+        var (rows, inbox) = (new CapturingStructuredDocumentRowsChannel(), new CapturingStructuredDocumentChannel());
+        await using var host = await CreateAsync(probe, rows, inbox, withLocation: true);
+        rows.Reply = _ => Three(host);
+        inbox.Preparation = Prepared(host);
+        var person = await PersonAsync(host);
+        await ReceiveSpreadsheetAsync(host, person, probe);
+        var operation = await InterpretAsync(host);
+        await CompleteAsync(host, person, operation);
+        var first = await OutgoingAsync(host, (await LoadReferencesAsync(host, operation.RequestId))[0].OutgoingId!.Value);
+        Assert.Equal((WhatsAppOutgoingMessageKind.LocationRequest, (string?)null), (first.Kind, first.Footer));
+        var worker = host.Host.Services.GetRequiredService<WhatsAppOutgoingBackgroundService>();
+        for (var round = 0; round < 12 && host.Cloud.Messages.OfType<WhatsAppLocationRequestMessage>().Count() < 3; round++) await worker.ProcessNextAsync(Ct);
+        Assert.Equal(3, host.Cloud.Messages.OfType<WhatsAppLocationRequestMessage>().Count());
+
+        await LocationAsync(host, person.ContactId);
+        Assert.Equal(1, (await host.ScopeAsync(services => services.GetRequiredService<IWhatsAppFlowLocationService>().ProcessAsync(person.ContactId, Ct))).Value);
+
+        var flow = await host.ScopeAsync(services => services.GetRequiredService<ApplicationDbContext>().Set<WhatsAppOutgoingMessage>().AsNoTracking()
+            .SingleAsync(row => row.FlowSessionId == first.FlowSessionId && row.Kind == WhatsAppOutgoingMessageKind.Flow, Ct));
+        Assert.Equal("Registrar visita · prellenado", flow.Footer);
     }
 
     // DOC4: a number without a linked account is neither downloaded, nor registered nor answered; a spreadsheet over the fifty rows to load is
@@ -409,14 +531,30 @@ public sealed class WhatsAppAssistantSpreadsheetLoadTests(ApiFactory factory)
     private static byte[] Csv(int rows) =>
         Encoding.UTF8.GetBytes("Fecha,Cliente,Monto\n" + string.Concat(Enumerable.Range(1, rows).Select(index => $"01/11/2026,Cliente {index},{index * 1000}\n")));
 
-    private async Task<WhatsAppAssistantScenario> CreateAsync(WhatsAppDocumentProbe probe, CapturingStructuredDocumentRowsChannel rows, CapturingStructuredDocumentChannel inbox) =>
+    private async Task<WhatsAppAssistantScenario> CreateAsync(WhatsAppDocumentProbe probe, CapturingStructuredDocumentRowsChannel rows, CapturingStructuredDocumentChannel inbox,
+        bool capture = false, bool withLocation = false) =>
         await WhatsAppAssistantScenario.CreateAsync(factory, Ct, builder => builder.ConfigureTestServices(services =>
         {
             services.Replace(ServiceDescriptor.Singleton<IPrivateFileStore>(probe));
             services.Replace(ServiceDescriptor.Singleton<IWhatsAppMediaClient>(probe));
             services.Replace(ServiceDescriptor.Singleton<IStructuredDocumentChannel>(inbox));
             services.Replace(ServiceDescriptor.Singleton<IStructuredDocumentRowsChannel>(rows));
-        }));
+            if (capture) WhatsAppAssistantCaptureFixture.Configure(services);
+        }), withLocation: withLocation);
+
+    // The person sends a location some time after the request went out.
+    private static Task<Guid> LocationAsync(WhatsAppAssistantScenario host, Guid contactId) => host.InTransactionAsync(async services =>
+    {
+        host.Clock.Advance(TimeSpan.FromSeconds(30));
+        var db = services.GetRequiredService<ApplicationDbContext>();
+        var contact = await db.Set<WhatsAppContact>().SingleAsync(item => item.Id == contactId, Ct);
+        var now = host.Clock.GetUtcNow().UtcDateTime;
+        var message = WhatsAppMessage.Inbound(contact.Id, MetaWebhook.UniqueWaMessageId(), WhatsAppMessageKind.Location, null, null, now);
+        message.RecordLocation(-34.603722m, -58.381592m);
+        message.Classify(WhatsAppMessagePurpose.Business); message.SetInboundSequence(contact.RegisterInboundMessage()); message.MarkProcessed(now);
+        contact.RecordInbound(contact.WaId, contact.UserIdentifier, contact.ProfileName, now); db.Add(message);
+        return message.Id;
+    }, Ct);
 
     // A linked person of the automatic assistant, far from the contact's first message: the inbox says they can load.
     private static async Task<WhatsAppAssistantContact> PersonAsync(WhatsAppAssistantScenario host)

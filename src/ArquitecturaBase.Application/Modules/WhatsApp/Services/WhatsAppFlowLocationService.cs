@@ -1,3 +1,4 @@
+using System.Text.Json;
 using ArquitecturaBase.Application.Common.Logging;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
@@ -12,7 +13,8 @@ namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 /// <summary>
 /// W1-A: under the contact's lock, the sends that wait for a location take the locations and «Seguir sin ubicación» taps that
 /// arrived (<see cref="WhatsAppFlowLocationPolicy.Resolve"/>), and each resolved send queues its Flow in the durable outgoing of the
-/// same unit of work. W3, after it: the open sends take the locations nothing took and the contacts
+/// same unit of work; the Flow of a load of a spreadsheet carries its footer, like the other loads (VC1-A). W3, after it: the open sends take the
+/// locations nothing took and the contacts
 /// (<see cref="WhatsAppSharedContentPolicy.Resolve"/>) among those whose sender would pass the reservation and whose seals can be read
 /// (<see cref="WhatsAppSharedContentGuard"/>), and each send that took something queues one resend. What no send takes stays a message
 /// of the chat.
@@ -36,9 +38,25 @@ internal sealed class WhatsAppFlowLocationService(IWhatsAppConversationRepositor
                 var answers = await messages.ListLocationAnswersAsync(contactId, sinceUtc, ct);
                 var resolved = WhatsAppFlowLocationPolicy.Resolve(waiting.Select(wait => wait.Session).ToArray(), answers, nowUtc);
                 foreach (var session in resolved)
-                    conversations.Add(WhatsAppFlowLocationPolicy.Flow(session, waiting.First(wait => wait.Session == session).Request, nowUtc));
+                {
+                    var wait = waiting.First(item => item.Session == session);
+                    var flow = WhatsAppFlowLocationPolicy.Flow(session, wait.Request, nowUtc);
+                    if (wait.Load && FormName(session) is { } name) _ = flow.AttachFooter(WhatsAppAssistantSpreadsheetPolicy.Footer(name, session.Culture));
+                    conversations.Add(flow);
+                }
                 return Result.Success(resolved.Count + await ShareAsync(contact, open, answers, nowUtc, ct));
             }, CommitPolicy.OnSuccess, cancellationToken));
+
+    // The name of the send's form in its language, as its Flow was sealed (or the first one it has).
+    private static string? FormName(WhatsAppFlowSession session)
+    {
+        try
+        {
+            var names = JsonSerializer.Deserialize<Dictionary<string, string>>(session.NameJson, JsonSerializerOptions.Web);
+            return names is null ? null : names.TryGetValue(session.Culture, out var name) ? name : names.Values.FirstOrDefault();
+        }
+        catch (JsonException) { return null; }
+    }
 
     // W3: one resend per send and pass, with everything the send took so far over its prefill, protected for the send.
     private async Task<int> ShareAsync(WhatsAppContact contact, IReadOnlyList<WhatsAppFlowOpenSend> open, IReadOnlyList<WhatsAppMessage> answers,

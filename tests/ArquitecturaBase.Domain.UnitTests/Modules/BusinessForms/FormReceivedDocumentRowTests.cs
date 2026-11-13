@@ -102,6 +102,39 @@ public sealed class FormReceivedDocumentRowTests
         Assert.True(FormReceivedDocumentEvent.Record(Guid.NewGuid(), FormReceivedDocumentEventKind.Sent, null, Now, [1]).IsSuccess);
     }
 
+    // A spreadsheet nobody recognized (its single entry, unclassified) becomes the first of its rows for the form its person chose: its place,
+    // what became of it and the deadline of the new loads, one revision more. A row, a file with pages, «Otro» or an extraction in course do not.
+    [Fact]
+    public void A_spreadsheet_nobody_recognized_becomes_its_first_row_and_nothing_else_does()
+    {
+        var spreadsheet = Spreadsheet();
+
+        Assert.True(spreadsheet.RecognizeRow("Ventas", 2, 1, FormReceivedDocumentRowKind.Load, Now.AddHours(24)).IsSuccess);
+
+        Assert.Equal(("Ventas", (int?)2, (int?)1, (FormReceivedDocumentRowKind?)FormReceivedDocumentRowKind.Load, (DateTime?)Now.AddHours(24), 2L, true),
+            (spreadsheet.SheetName, spreadsheet.RowNumber, spreadsheet.RowOrder, spreadsheet.RowKind, spreadsheet.ReplyExpiresAtUtc, spreadsheet.Revision, spreadsheet.IsRow));
+        Assert.True(spreadsheet.Propose(Guid.NewGuid(), Guid.NewGuid(), [1], FormReceivedDocumentNotSentReason.OverLimit).IsSuccess);
+        var other = Spreadsheet();
+        Assert.True(other.ChooseOther(Now).IsSuccess);
+        var extracting = Spreadsheet();
+        Assert.True(extracting.Describe([1], null, "").IsSuccess);
+        Assert.True(extracting.RequestExtraction(1, Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "es", "UTC", Now).IsSuccess);
+        var pdf = Document();
+        Assert.True(pdf.LeaveUnclassified("unknown", null, Now).IsSuccess);
+        Assert.All([Row(null, 3).Value, other, extracting, pdf], entry => Assert.Equal(FormReceivedDocumentErrors.StateConflict.Code,
+            entry.RecognizeRow(null, 3, 1, FormReceivedDocumentRowKind.Load, null).Error.Code));
+        Assert.True(Spreadsheet().RecognizeRow(" ", 2, 1, FormReceivedDocumentRowKind.Load, null).IsFailure);
+        Assert.True(Spreadsheet().RecognizeRow(null, 0, 1, FormReceivedDocumentRowKind.Load, null).IsFailure);
+    }
+
+    private static FormReceivedDocument Spreadsheet()
+    {
+        var spreadsheet = FormReceivedDocument.Receive(Guid.NewGuid(), "whatsapp", "wamid.3", Guid.NewGuid(), Now, "forms/documents/z.xlsx", "cobranzas.xlsx",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", 18_000, Sha, null, Now.AddHours(1)).Value;
+        Assert.True(spreadsheet.LeaveUnclassified("unknown", null, Now).IsSuccess);
+        return spreadsheet;
+    }
+
     private static Result<FormReceivedDocument> Row(string? sheet, int number, DateTime? replyExpiresAtUtc = null, int order = 1,
         FormReceivedDocumentRowKind kind = FormReceivedDocumentRowKind.Load) =>
         FormReceivedDocument.ReceiveRow(Guid.NewGuid(), "whatsapp", "wamid.1", Guid.NewGuid(), Now, "forms/documents/x.xlsx", "cobranzas.xlsx",

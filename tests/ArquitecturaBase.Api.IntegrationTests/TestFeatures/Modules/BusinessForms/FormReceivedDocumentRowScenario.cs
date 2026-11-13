@@ -100,4 +100,9 @@ internal static class FormReceivedDocumentRowScenario
     public static Task<StructuredDocumentRowsRegistration> RegisterAsync(this FormReceivedDocumentScenario scenario, StructuredDocumentRowsRegistrationRequest request,
         CancellationToken ct) =>
         scenario.ScopeAsync(services => services.GetRequiredService<IStructuredDocumentRowsChannel>().RegisterRowsAsync(request, ct));
+
+    /// <summary>The rows of a spreadsheet nobody recognized, recognized for the form its person chose, as a channel asks for them.</summary>
+    public static Task<StructuredDocumentRowsRegistration> RecognizeAsync(this FormReceivedDocumentScenario scenario, StructuredDocumentRowsRegistrationRequest request,
+        CancellationToken ct) =>
+        scenario.ScopeAsync(services => services.GetRequiredService<IStructuredDocumentRowsChannel>().RecognizeRowsAsync(request, ct));
 }

@@ -126,6 +126,13 @@ internal sealed class WhatsAppAssistantAccessPolicy(IUserReader users, IPermissi
         PreloadedCapabilities = null, AllowedTerminals = [new("assistant_proposal", 1)], AllowedCapabilities = SpreadsheetCapabilities,
     };
 
+    /// <summary>
+    /// A form chosen from the «No lo reconoce» list (task 9; VC1-A for a spreadsheet): the continuation only loads the file, a document or the rows
+    /// of a spreadsheet, with that form fixed, so the candidates read shows only it.
+    /// </summary>
+    public static AssistantChannelContext Focused(AssistantChannelContext context, Guid definitionId, bool spreadsheet) =>
+        (spreadsheet ? ForSpreadsheet(context) : ForDocument(context)) with { FocusDefinitionId = definitionId };
+
     /// <summary>Whether a sealed context only loads a spreadsheet (<see cref="ForSpreadsheet"/>).</summary>
     public static bool LoadsSpreadsheetOnly(AssistantChannelContext context) =>
         context.AllowedCapabilities.Count == SpreadsheetCapabilities.Length && context.AllowedCapabilities.All(SpreadsheetCapabilities.Contains);

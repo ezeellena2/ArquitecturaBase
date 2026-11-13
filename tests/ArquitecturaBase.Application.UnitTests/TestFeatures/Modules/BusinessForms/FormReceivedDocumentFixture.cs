@@ -35,6 +35,10 @@ internal sealed class FormReceivedDocumentFixture : IFormReceivedDocumentReposit
     public List<BusinessFormMissingTopic> Topics { get; } = [];
     public List<BusinessFormMissingRequest> MissingRequests { get; } = [];
     public List<Guid> Locks { get; } = [];
+    /// <summary>The locks taken, in order: a channel source's (<c>source:</c>) and a document's (<c>document:</c>).</summary>
+    public List<string> LockOrder { get; } = [];
+    /// <summary>What another change did while a document's lock was awaited: it committed first, like a reviewer's.</summary>
+    public Action<Guid>? WhileLocking { get; set; }
 
     public FormReceivedDocumentRecorder Recorder() => new(this, this, this, new FormReceivedDocumentContentPolicy(this), Clock);
 
@@ -111,8 +115,18 @@ internal sealed class FormReceivedDocumentFixture : IFormReceivedDocumentReposit
             .Select(form => new FormDocumentVersionRow(form.VersionId, form.DefinitionId, form.NameJson, form.Culture, form.SchemaJson)).ToArray());
 
     // IFormReceivedDocumentRepository
-    public Task LockSourceAsync(string channelId, string sourceId, CancellationToken cancellationToken) => Task.CompletedTask;
-    public Task LockAsync(Guid documentId, CancellationToken cancellationToken) { Locks.Add(documentId); return Task.CompletedTask; }
+    public Task LockSourceAsync(string channelId, string sourceId, CancellationToken cancellationToken)
+    {
+        LockOrder.Add($"source:{channelId}:{sourceId}");
+        return Task.CompletedTask;
+    }
+    public Task LockAsync(Guid documentId, CancellationToken cancellationToken)
+    {
+        WhileLocking?.Invoke(documentId);
+        Locks.Add(documentId);
+        LockOrder.Add($"document:{documentId:N}");
+        return Task.CompletedTask;
+    }
     public Task<FormReceivedDocument?> GetAsync(Guid documentId, CancellationToken cancellationToken) =>
         Task.FromResult(Documents.SingleOrDefault(document => document.Id == documentId));
     public Task<FormReceivedDocument?> GetBySourceAsync(string channelId, string sourceId, CancellationToken cancellationToken) =>

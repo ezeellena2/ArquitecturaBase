@@ -7,6 +7,8 @@ namespace ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.WhatsApp;
 internal sealed class FakeWhatsAppAssistantReader : IWhatsAppAssistantReader
 {
     public HashSet<Guid> DeclinedDefinitions { get; } = [];
+    /// <summary>The answers that went out for an attachment, by the question their reference continues (null: not a continuation).</summary>
+    public HashSet<(Guid AttachmentMessageId, Guid? Continuing)> AttachmentAnswers { get; } = [];
     public IReadOnlyCollection<Guid>? RequestedDeclineDefinitions { get; private set; }
     public Task<IReadOnlyList<Guid>> ListDeclinedDefinitionIdsAsync(Guid subjectUserId, IReadOnlyCollection<Guid> definitionIds, CancellationToken ct)
     { RequestedDeclineDefinitions = definitionIds; return Task.FromResult<IReadOnlyList<Guid>>(definitionIds.Where(DeclinedDefinitions.Contains).Distinct().ToArray()); }
@@ -56,6 +58,9 @@ internal sealed class FakeWhatsAppAssistantReader : IWhatsAppAssistantReader
     public Task<WhatsAppAssistantReferenceRow?> FindAsync(Guid contactId,Guid requestId,CancellationToken ct) => Task.FromResult(References.TryGetValue(requestId,out var row)?row:Reference);
     public Task<WhatsAppAssistantSourceRow?> FindSourceAsync(Guid contactId,Guid id,CancellationToken ct) => Task.FromResult(PinnedSource??Source);
     public Task<WhatsAppAssistantSourceRow?> FindLatestSourceAsync(Guid contactId,CancellationToken ct) => Task.FromResult(Source);
+    // As the SQL asks it: any answer of the attachment, or only those of the continuations of a question.
+    public Task<bool> ExistsAttachmentAnswerAsync(Guid contactId,Guid attachmentMessageId,CancellationToken ct,Guid? continuing=null) =>
+        Task.FromResult(AttachmentAnswers.Any(answer => answer.AttachmentMessageId == attachmentMessageId && (continuing is null || answer.Continuing == continuing)));
     public Task<IReadOnlyList<Guid>> ListPendingContactsAsync(IReadOnlyCollection<Guid> excluded,int limit,DateTime nowUtc,CancellationToken ct) => Task.FromResult<IReadOnlyList<Guid>>([]);
     public Task<bool> ExistsPendingAsync(DateTime nowUtc,CancellationToken ct)=>throw new NotSupportedException();
     public Task<int> CountOffersAsync(Guid contactId,DateTime fromUtc,DateTime toUtc,CancellationToken ct,Guid? excludingRequestId=null) {LastCount=(fromUtc,toUtc,excludingRequestId);return Task.FromResult(excludingRequestId.HasValue && ExcludedOfferCount is {} excluded?excluded:OfferCount);}

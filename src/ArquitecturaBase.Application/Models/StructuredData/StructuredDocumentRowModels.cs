@@ -7,7 +7,9 @@ namespace ArquitecturaBase.Application.Models.StructuredData;
 /// spreadsheet (an xlsx or a CSV, without pages) and the interpretation's authentic proposal of forms.documents.propose-rows@1 on its sample,
 /// with the SHA-256 of that sample, which must be the copy's; without a proposal, an interpretation that proposed nothing (none fits) or, with
 /// <see cref="NotRead"/>, why it was not interpreted (only the day's quota). The channel and its
-/// opaque source id register it once; the reply deadline is when the person stops being waited for in each load.
+/// opaque source id register it once; the reply deadline is when the person stops being waited for in each load. To recognize a spreadsheet
+/// none of whose rows fit (<see cref="Interfaces.Channels.IStructuredDocumentRowsChannel.RecognizeRowsAsync"/>), it also names the form its
+/// person chose from the «No lo reconoce» list, with the proposal of the interpretation that continued with that form fixed.
 /// </summary>
 public sealed record StructuredDocumentRowsRegistrationRequest(string ChannelId, string SourceId, Guid SenderUserId, string Culture,
     DateTime ReceivedAtUtc, StructuredDocumentCopy Copy)
@@ -16,6 +18,7 @@ public sealed record StructuredDocumentRowsRegistrationRequest(string ChannelId,
     public string? SampleSha256 { get; init; }
     public StructuredDocumentNotRead? NotRead { get; init; }
     public DateTime? ReplyExpiresAtUtc { get; init; }
+    public Guid? FocusDefinitionId { get; init; }
     public override string ToString() => "StructuredDocumentRowsRegistrationRequest { Content = [REDACTED] }";
 }
 

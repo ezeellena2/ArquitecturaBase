@@ -1,9 +1,13 @@
 using System.Text.Json;
+using ArquitecturaBase.Application.Channels;
+using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Models.Assistant;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Application.Modules.WhatsApp.Services;
+using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
+using Microsoft.Extensions.Time.Testing;
 
 namespace ArquitecturaBase.Application.UnitTests.Modules.WhatsApp.Services;
 
@@ -122,6 +126,120 @@ public sealed class WhatsAppSpreadsheetLoadTests
         var alone = WhatsAppAssistantAccessPolicy.ForSpreadsheet(agent);
         Assert.Equal((WhatsAppAssistantAccessPolicy.SpreadsheetCapabilities, (IReadOnlyList<AssistantCapabilityReference>?)null, 1),
             (alone.AllowedCapabilities, alone.PreloadedCapabilities, alone.AllowedTerminals.Single().Version));
+    }
+
+    // A form chosen from the «No lo reconoce» list of a spreadsheet: the continuation only loads its rows with that form fixed (a document's,
+    // only the document), registers its rows through the port's recognition, and only another continuation of that question answered it.
+    [Fact]
+    public void A_form_chosen_for_a_spreadsheet_continues_only_loading_its_rows_with_that_form_fixed()
+    {
+        var context = new AssistantChannelContext("whatsapp-assistant", Guid.NewGuid(), Guid.NewGuid(), "es", "UTC", new([], []),
+            [new("forms.assistant-candidates", 1), new("whatsapp.no-reply", 1)], [new("assistant_proposal", 1)]);
+        var focus = Guid.NewGuid();
+        var question = Guid.NewGuid();
+
+        var spreadsheet = WhatsAppAssistantAccessPolicy.Focused(context, focus, spreadsheet: true);
+        var document = WhatsAppAssistantAccessPolicy.Focused(context, focus, spreadsheet: false);
+
+        Assert.Equal((WhatsAppAssistantAccessPolicy.SpreadsheetCapabilities, (Guid?)focus, true),
+            (spreadsheet.AllowedCapabilities, spreadsheet.FocusDefinitionId, WhatsAppAssistantAccessPolicy.LoadsSpreadsheetOnly(spreadsheet)));
+        Assert.True(WhatsAppAssistantAccessPolicy.LoadsDocumentOnly(document));
+        Assert.Equal(((Guid?)question, (Guid?)null), (WhatsAppAssistantSpreadsheetPolicy.ContinuedQuestion(spreadsheet, question),
+            WhatsAppAssistantSpreadsheetPolicy.ContinuedQuestion(context, question)));
+    }
+
+    // Review of task 29b: a form chosen from the list that fits no row, or a continuation whose interpretation ends without a proposal, leaves the
+    // spreadsheet as it was. The inbox answers what it kept, and the list is asked again: the question that answered the spreadsheet before does
+    // not count, only the answers of its own continuations.
+    [Fact]
+    public async Task A_chosen_form_that_fits_no_row_or_a_continuation_without_a_proposal_asks_the_list_again()
+    {
+        var (policy, rows, reader) = Spreadsheet();
+        var context = Continued();
+        var reference = Continuation(context);
+        rows.Reply = new(StructuredDocumentReplyKind.Unknown) { DocumentId = Guid.NewGuid(), Forms = [Collections, Expenses], WasAlreadyRegistered = true };
+        reader.AttachmentAnswers.Add((Sheet, null));
+
+        var unfitting = await policy.RegisterAsync(reference, Source(), Operation(reference.RequestId, proposal: true), context, Ct);
+        var unproposed = await policy.RegisterAsync(reference, Source(), Operation(reference.RequestId, proposal: false), context, Ct);
+
+        Assert.Equal(((Guid?)Collections.DefinitionId, 1), (Assert.Single(rows.Recognitions).FocusDefinitionId, rows.Registrations.Count));
+        Assert.All([unfitting, unproposed], question => Assert.Equal((WhatsAppAssistantDocumentPolicy.Text("SpreadsheetUnknown", "es"), 3),
+            (question.Value!.Body, question.Value.List!.Count)));
+    }
+
+    // Review of task 29b: the inbox recognized the rows in an attempt whose answer did not commit and answers what it kept. Its notice goes while no
+    // continuation of the question answered the spreadsheet (the question did), and once one did, a retry says nothing again.
+    [Fact]
+    public async Task A_retry_of_the_continuation_answers_the_rows_the_inbox_kept_once()
+    {
+        var (policy, rows, reader) = Spreadsheet();
+        var context = Continued();
+        var reference = Continuation(context);
+        rows.Reply = Rows(Load(2, 1), Load(3, 2)) with { WasAlreadyRegistered = true, ReplyExpiresAtUtc = Day.AddMinutes(-1) };
+        reader.AttachmentAnswers.Add((Sheet, null));
+
+        var notice = await policy.RegisterAsync(reference, Source(), Operation(reference.RequestId, proposal: true), context, Ct);
+        reader.AttachmentAnswers.Add((Sheet, Question));
+        var again = await policy.RegisterAsync(reference, Source(), Operation(reference.RequestId, proposal: true), context, Ct);
+
+        Assert.StartsWith("Recibí una planilla con 2 filas de «Cobranzas».", notice.Value!.Body, StringComparison.Ordinal);
+        Assert.Empty(notice.Value.Loads!);
+        Assert.Equal((true, (WhatsAppAssistantTerminalResponse?)null), (again.IsSuccess, again.Value));
+        Assert.Equal(2, rows.Recognitions.Count);
+    }
+
+    private static readonly Guid Sheet = Guid.NewGuid();
+    private static readonly Guid Question = Guid.NewGuid();
+
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
+    private static (WhatsAppAssistantSpreadsheetPolicy Policy, RowsChannel Rows, FakeWhatsAppAssistantReader Reader) Spreadsheet()
+    {
+        var rows = new RowsChannel();
+        var reader = new FakeWhatsAppAssistantReader();
+        return (new(rows, new UnavailableStructuredDocumentChannel(), null!, new StubWhatsAppFlowEnvironment(), null!, reader, new FakeTimeProvider(Day)), rows, reader);
+    }
+
+    // The continuation of the «No lo reconoce» question with «Cobranzas» chosen from its list.
+    private static AssistantChannelContext Continued() => WhatsAppAssistantAccessPolicy.Focused(new AssistantChannelContext("whatsapp-assistant", Guid.NewGuid(),
+        Guid.NewGuid(), "es", "UTC", new([], []), [new("forms.assistant-candidates", 1), new("whatsapp.no-reply", 1)], [new("assistant_proposal", 1)]),
+        Collections.DefinitionId, spreadsheet: true);
+
+    private static WhatsAppAssistantReferenceRow Continuation(AssistantChannelContext context) =>
+        Reference(context) with { AttachmentMessageId = Sheet, PreviousRequestId = Question };
+
+    private static WhatsAppAssistantSourceRow Source() => new(Guid.NewGuid(), Guid.NewGuid(), "", Day, Day.AddDays(30))
+    {
+        Spreadsheet = new(Sheet, $"whatsapp/documents/{Sheet:N}.csv", "cobranzas.csv", 27, new string('b', 64), Day.AddDays(30), JsonSerializer.Serialize(
+            new StructuredSpreadsheet("cobranzas.csv", StructuredSpreadsheetKind.Csv, "text/csv", 27, new string('b', 64), "Hoja1", 3, 3, []) { DataRowCount = 2 },
+            JsonSerializerOptions.Web)),
+    };
+
+    private static AssistantOperationResponse Operation(Guid requestId, bool proposal) => new(requestId, "completed",
+        proposal ? new(Guid.NewGuid(), Guid.NewGuid(), WhatsAppAssistantSpreadsheetPolicy.ProposeRows, new RowsPayload()) : null,
+        proposal ? new("qualified-model", 3, "qualified-instructions", 7, Day, "whatsapp-assistant") : null, null);
+
+    private sealed record RowsPayload : AssistantCapabilityPayload;
+
+    // The inbox's rows port: what it answers and the requests it got, to register or to recognize.
+    private sealed class RowsChannel : IStructuredDocumentRowsChannel
+    {
+        public StructuredDocumentRowsRegistration Reply { get; set; } = new(StructuredDocumentReplyKind.Unavailable);
+        public List<StructuredDocumentRowsRegistrationRequest> Registrations { get; } = [];
+        public List<StructuredDocumentRowsRegistrationRequest> Recognitions { get; } = [];
+
+        public Task<StructuredDocumentRowsRegistration> RegisterRowsAsync(StructuredDocumentRowsRegistrationRequest request, CancellationToken cancellationToken)
+        {
+            Registrations.Add(request);
+            return Task.FromResult(Reply);
+        }
+
+        public Task<StructuredDocumentRowsRegistration> RecognizeRowsAsync(StructuredDocumentRowsRegistrationRequest request, CancellationToken cancellationToken)
+        {
+            Recognitions.Add(request);
+            return Task.FromResult(Reply);
+        }
     }
 
     private static StructuredDocumentRowsRegistration Rows(params StructuredDocumentRowRegistration[] rows) => new(StructuredDocumentReplyKind.Sure) { Rows = rows };

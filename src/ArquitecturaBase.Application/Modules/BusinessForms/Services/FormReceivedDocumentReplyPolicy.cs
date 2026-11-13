@@ -25,6 +25,8 @@ internal sealed partial class FormReceivedDocumentReplyPolicy(IFormReceivedDocum
     public const string Unknown = "unknown";
     public const string Unreadable = "unreadable";
     public const string Duplicate = "duplicate";
+    /// <summary>VC1-A: a row of a spreadsheet the model did not see (outside its sample), unclassified apart from one that fits no form.</summary>
+    public const string Unseen = "unseen";
 
     public async Task<FormReceivedDocumentClassification> ClassifyAsync(StructuredDocumentRegistrationRequest request, CancellationToken ct,
         Guid? exceptDocumentId = null)
@@ -184,13 +186,14 @@ internal sealed partial class FormReceivedDocumentReplyPolicy(IFormReceivedDocum
         };
     }
 
-    private static string RejectionCode(StructuredAttachmentRejection? rejection) => rejection switch
+    internal static string RejectionCode(StructuredAttachmentRejection? rejection) => rejection switch
     {
         StructuredAttachmentRejection.Legacy => "legacy",
         StructuredAttachmentRejection.Protected => "protected",
         StructuredAttachmentRejection.MacroEnabled => "macroEnabled",
         StructuredAttachmentRejection.TooLarge => "tooLarge",
         StructuredAttachmentRejection.TooManyPages => "tooManyPages",
+        StructuredAttachmentRejection.TooManyRows => "tooManyRows",
         StructuredAttachmentRejection.Empty => "empty",
         _ => Unreadable,
     };

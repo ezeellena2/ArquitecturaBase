@@ -79,7 +79,11 @@ public sealed record WhatsAppFormDispatchRow(Guid OutgoingId, Guid SessionId, st
 }
 
 /// <summary>W1-A: a send that waits for its location and the request that opened it, whose sender its Flow continues.</summary>
-public sealed record WhatsAppFlowLocationWait(WhatsAppFlowSession Session, WhatsAppOutgoingMessage Request);
+public sealed record WhatsAppFlowLocationWait(WhatsAppFlowSession Session, WhatsAppOutgoingMessage Request)
+{
+    /// <summary>VC1-A: the request is a load of a spreadsheet (a reference of its loads, ordinal from 1, that carries it): its Flow has a footer.</summary>
+    public bool Load { get; init; }
+}
 
 public sealed record WhatsAppFlowReplySessionRow(Guid SessionId, Guid ContactId, Guid UserId, Guid DefinitionId,
     Guid VersionId, Guid BindingId, Guid OperationId, string Culture, byte[] ProtectedProjection, string Prefix,

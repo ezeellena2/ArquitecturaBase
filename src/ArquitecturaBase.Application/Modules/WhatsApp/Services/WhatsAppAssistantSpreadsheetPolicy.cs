@@ -17,7 +17,8 @@ namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 /// the notice (how many rows of which form, what goes, what was repeated and what went to the team), which the model does not write, and up to
 /// three loads, each its form prepared like a document's («1 de 3 · …», with its form in the footer), in the order of the spreadsheet. None
 /// fits: «No lo reconoce» with the list and «Otro»; the same spreadsheet again: when it arrived; the day's quota: its text. The loads answer
-/// the file the person sent: they are no offers and spend none.
+/// the file the person sent: they are no offers and spend none. A form chosen from the list continues the operation with that form fixed, and its
+/// interpretation recognizes the rows for it (<see cref="IStructuredDocumentRowsChannel.RecognizeRowsAsync"/>), answered like a first registration.
 /// </summary>
 internal sealed class WhatsAppAssistantSpreadsheetPolicy(IStructuredDocumentRowsChannel rows, IStructuredDocumentChannel documents,
     WhatsAppFormSendPolicy sending, IWhatsAppFlowEnvironment environment, IAssistantOperations operations, IWhatsAppAssistantReader reader, TimeProvider clock)
@@ -48,8 +49,11 @@ internal sealed class WhatsAppAssistantSpreadsheetPolicy(IStructuredDocumentRows
         var culture = context.Culture;
         var proposalId = proposal?.Id ?? reference.RequestId;
         var expiresAtUtc = ReplyExpiresAtUtc(reference);
-        var registration = await rows.RegisterRowsAsync(Request(reference, source, sheet, prepared, culture, proposal, expiresAtUtc), ct);
-        if (await AnsweredAsync(reference, messageId, registration, ct)) return Result.Success<WhatsAppAssistantTerminalResponse?>(null);
+        var request = Request(reference, source, sheet, prepared, culture, proposal, expiresAtUtc);
+        // A form chosen from the list: its proposal recognizes the rows only for that form; without one, the question is asked again.
+        var registration = context.FocusDefinitionId is { } focus && proposal is not null
+            ? await rows.RecognizeRowsAsync(request with { FocusDefinitionId = focus }, ct) : await rows.RegisterRowsAsync(request, ct);
+        if (await AnsweredAsync(reference, context, messageId, registration, ct)) return Result.Success<WhatsAppAssistantTerminalResponse?>(null);
         switch (registration.Kind)
         {
             case StructuredDocumentReplyKind.Sure when registration.Rows.Count > 0 && proposal is not null:
@@ -90,18 +94,19 @@ internal sealed class WhatsAppAssistantSpreadsheetPolicy(IStructuredDocumentRows
     {
         if (reference.AttachmentMessageId is not { } messageId || source.Spreadsheet is not { } sheet || sheet.MessageId != messageId
             || Prepared(sheet) is not { DataRowCount: not null } prepared) return WhatsAppAssistantErrors.InvalidProposal;
-        var culture = WhatsAppAssistantSuggestionPolicy.Context(reference).Culture;
+        var context = WhatsAppAssistantSuggestionPolicy.Context(reference);
+        var culture = context.Culture;
         var registration = await rows.RegisterRowsAsync(Request(reference, source, sheet, prepared, culture, null, ReplyExpiresAtUtc(reference))
             with { NotRead = StructuredDocumentNotRead.Quota }, ct);
-        return registration.Kind != StructuredDocumentReplyKind.Quota || await AnsweredAsync(reference, messageId, registration, ct)
+        return registration.Kind != StructuredDocumentReplyKind.Quota || await AnsweredAsync(reference, context, messageId, registration, ct)
             ? Result.Success<WhatsAppAssistantTerminalResponse?>(null)
             : new WhatsAppAssistantTerminalResponse(reference.RequestId, Text("DocumentQuota", culture), culture);
     }
 
     /// <summary>
-    /// A tap on the question of a spreadsheet none of whose rows fit: «Otro» leaves it for the team, as a document's. Null when the question's
-    /// file is not a spreadsheet to load. A form chosen from the list cannot be sent yet: the rows' port registers a spreadsheet once and takes
-    /// no form fixed by its person, so it is said that it could not be prepared and the question stays open.
+    /// A tap on the question of a spreadsheet none of whose rows fit: «Otro» leaves it for the team, as a document's; a form of the list, while
+    /// the inbox still offers it, continues the operation with that form fixed, only loading the spreadsheet (like a document's, task 9). Null when
+    /// the question's file is not a spreadsheet to load; what the inbox cannot do now is said, and the question stays open.
     /// </summary>
     public async Task<WhatsAppAssistantDocumentChoice?> ChooseAsync(WhatsAppAssistantReferenceRow reference, Guid proposalId, Guid? definitionId,
         AssistantChannelContext context, CancellationToken ct)
@@ -113,11 +118,14 @@ internal sealed class WhatsAppAssistantSpreadsheetPolicy(IStructuredDocumentRows
         var operation = await operations.GetAsync(context, reference.RequestId, ct);
         // A spreadsheet alone that closed without a proposal asked with its reference's own request.
         var proposal = operation.IsSuccess ? operation.Value?.Proposal : null;
-        if (definitionId is not null || operation.IsFailure || operation.Value is null
+        if (operation.IsFailure || operation.Value is null
             || (proposal is null ? proposalId != reference.RequestId : proposal.Id != proposalId || !Handles(proposal.Capability)))
             return new(reference, NotPrepared(proposalId, culture), null);
         var registration = await rows.RegisterRowsAsync(Request(reference, source, sheet, prepared, culture, proposal, ReplyExpiresAtUtc(reference)), ct);
         if (registration is not { Kind: StructuredDocumentReplyKind.Unknown, DocumentId: { } documentId }) return new(reference, NotPrepared(proposalId, culture), null);
+        if (definitionId is { } form)
+            return registration.Forms.Any(choice => choice.DefinitionId == form) ? new(reference, null, form) { Applies = true, Spreadsheet = true }
+                : new(reference, NotPrepared(proposalId, culture), null);
         var chosen = await documents.ChooseOtherAsync(new(documentId, WhatsAppReceivedDocumentPreparationPolicy.ChannelId, SourceId(messageId),
             reference.SubjectUserId, culture, clock.GetUtcNow().UtcDateTime), ct);
         return chosen == StructuredDocumentChoiceState.Unavailable ? new(reference, NotPrepared(proposalId, culture), null)
@@ -200,10 +208,19 @@ internal sealed class WhatsAppAssistantSpreadsheetPolicy(IStructuredDocumentRows
             : row with { Kind = StructuredDocumentRowKind.NotSendable, Position = null })],
     };
 
-    // Answered from what the inbox kept, a spreadsheet goes only while no reference that carries it was answered.
-    private async Task<bool> AnsweredAsync(WhatsAppAssistantReferenceRow reference, Guid messageId, StructuredDocumentRowsRegistration registration,
-        CancellationToken ct) =>
-        registration.WasAlreadyRegistered && await reader.ExistsAttachmentAnswerAsync(reference.ContactId, messageId, ct);
+    /// <summary>
+    /// The question a reference continues when it carries a form chosen from its list (its context fixes that form): that question answered the
+    /// spreadsheet, so only the answers of its own continuations count. Null for any other reference.
+    /// </summary>
+    internal static Guid? ContinuedQuestion(AssistantChannelContext context, Guid? previousRequestId) =>
+        context.FocusDefinitionId is not null ? previousRequestId : null;
+
+    // Answered from what the inbox kept, a spreadsheet goes only while no reference that carries it was answered (after the question, for a form
+    // chosen from its list).
+    private async Task<bool> AnsweredAsync(WhatsAppAssistantReferenceRow reference, AssistantChannelContext context, Guid messageId,
+        StructuredDocumentRowsRegistration registration, CancellationToken ct) =>
+        registration.WasAlreadyRegistered && await reader.ExistsAttachmentAnswerAsync(reference.ContactId, messageId, ct,
+            ContinuedQuestion(context, reference.PreviousRequestId));
 
     private static StructuredDocumentRowsRegistrationRequest Request(WhatsAppAssistantReferenceRow reference, WhatsAppAssistantSourceRow source,
         WhatsAppAssistantSpreadsheetRow sheet, StructuredSpreadsheet prepared, string culture, AssistantObservedProposal? proposal, DateTime expiresAtUtc) =>

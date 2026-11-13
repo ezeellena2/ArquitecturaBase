@@ -16,7 +16,10 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 /// a load waits for its person and is sent as «i of k», one whose form cannot be sent to them (CE4-A, it does not count for the three) or past
 /// the three loads is for the team, a repeated one is discarded with where it is, and one that fits no form or the model did not see stays
 /// unclassified. Each keeps its row with the headers of its sheet as its reading, the sheet only when the book has more than one, and its place
-/// in the book with what became of it, which a repeated registration answers.
+/// in the book with what became of it, which a repeated registration answers. A spreadsheet none of whose rows fit becomes its rows when its
+/// person chooses a form from the list (<see cref="RecognizeAsync"/>): the proposal of the interpretation that continued with that form fixed is
+/// kept only for that form and armed from the inbox's own copy, the only place its rows are, with the same rules and the spreadsheet's arrival;
+/// the same spreadsheet whose rows the inbox has by then is discarded as repeated, as at its registration (rule B4).
 /// </summary>
 internal sealed class FormReceivedDocumentRowPolicy(IFormReceivedDocumentReader reader, IFormSpreadsheetReader spreadsheets,
     FormReceivedDocumentCopyPolicy copies, FormDocumentRowPolicy rows, FormCatalogOptionsPolicy options, FormReceivedDocumentReplyPolicy replies,
@@ -47,31 +50,76 @@ internal sealed class FormReceivedDocumentRowPolicy(IFormReceivedDocumentReader 
         if (request.NotRead == StructuredDocumentNotRead.Quota)
             return Single(request, copyId, new(FormReceivedDocumentState.Unclassified, FormReceivedDocumentReplyPolicy.Quota, null, false,
                 new(copyId, StructuredDocumentReplyKind.Quota)));
-        if (await reader.FindSpreadsheetAsync(copy.Sha256, ct) is { } earlier)
-            return Single(request, copyId, new(FormReceivedDocumentState.Discarded, FormReceivedDocumentReplyPolicy.Duplicate,
-                new FormDocumentPreparedProposal(FormDocumentEntryProposal.Unknown, null, []) { Repetition = new(earlier.ReceivedAtUtc, null, null, earlier.Id) },
-                false, new(copyId, StructuredDocumentReplyKind.Duplicate) { Duplicate = new(earlier.ReceivedAtUtc, null) }));
-        // Like a document's (decision 8): the forms come from the candidates read of its person, in their language.
-        if (request.Proposal is not { } proposal || !FormDocumentRowCodec.Authentic(proposal, out var mapping, out var read)
-            || read is not null && (read.Capability != BusinessFormDocumentAssistantCapabilitySource.CandidatesId
-                || read.Read.Payload.UserId != request.SenderUserId || read.Read.Payload.Culture != request.Culture)
-            || request.SampleSha256 != copy.Sha256)
-            return await UnknownAsync(request, copyId, null, ct);
-        if (Format(copy.MediaType) is not { } format || await copies.ReadAsync(storageKey, copy.Sha256, copy.Size, ct) is not { } content) return null;
+        if (await reader.FindSpreadsheetAsync(copy.Sha256, ct) is { } earlier) return Repeated(request, copyId, earlier);
+        if (Mapping(request) is not { } mapping) return await UnknownAsync(request, copyId, null, ct);
+        if (await ArmAsync(request, copyId, storageKey, copy.Sha256, copy.Size, mapping, ct) is not { } armed) return null;
+        return armed.Entries.Count > 0 ? armed : await UnknownAsync(request, copyId, mapping.DocumentType, ct);
+    }
+
+    /// <summary>
+    /// A spreadsheet none of whose rows fit, as its single entry keeps it (unclassified, with the inbox's copy), recognized for the form its person
+    /// chose: its rows from the proposal kept only for that form, its first row taking the entry's id, all of them arrived when the spreadsheet did
+    /// (not with the tap that chose the form); the entry alone, discarded as repeated, when the inbox has the rows of the same spreadsheet from
+    /// another file (rule B4); with no entries when the choice fits no row, or null when the proposal cannot be used or the copy cannot be read.
+    /// </summary>
+    public async Task<FormReceivedDocumentRowClassification?> RecognizeAsync(StructuredDocumentRowsRegistrationRequest request, FormReceivedDocumentStoredRow single,
+        CancellationToken ct)
+    {
+        if (request.FocusDefinitionId is not { } focus || single is not { StorageKey: { } storageKey, Sha256: { } sha256, Size: { } size }
+            || sha256 != request.Copy.Sha256) return null;
+        if (await reader.FindSpreadsheetAsync(sha256, ct) is { } earlier) return Repeated(request, single.Id, earlier);
+        if (Mapping(request) is not { } mapping) return null;
+        return await ArmAsync(request with { ReceivedAtUtc = single.ReceivedAtUtc }, single.Id, storageKey, sha256, size,
+            mapping with { Forms = [.. mapping.Forms.Where(form => form.DefinitionId == focus)] }, ct);
+    }
+
+    // Like a document's (decision 8): the forms come from the candidates read of its person, in their language, on this copy's sample.
+    private static FormDocumentRowsProposal? Mapping(StructuredDocumentRowsRegistrationRequest request) =>
+        request.Proposal is { } proposal && FormDocumentRowCodec.Authentic(proposal, out var mapping, out var read)
+            && (read is null || read.Capability == BusinessFormDocumentAssistantCapabilitySource.CandidatesId
+                && read.Read.Payload.UserId == request.SenderUserId && read.Read.Payload.Culture == request.Culture)
+            && request.SampleSha256 == request.Copy.Sha256 ? mapping : null;
+
+    // The rows of data with text armed from the copy with the mapping: no entries when none fits, null when the copy cannot be read.
+    private async Task<FormReceivedDocumentRowClassification?> ArmAsync(StructuredDocumentRowsRegistrationRequest request, Guid firstId, string storageKey,
+        string sha256, long size, FormDocumentRowsProposal mapping, CancellationToken ct)
+    {
+        if (Format(request.Copy.MediaType) is not { } format || await copies.ReadAsync(storageKey, sha256, size, ct) is not { } content) return null;
         var opened = spreadsheets.ReadSheets(content, format, ct);
-        if (opened.IsFailure || opened.Value is not [var first, ..] || first.Sha256 != copy.Sha256) return null;
+        if (opened.IsFailure || opened.Value is not [var first, ..] || first.Sha256 != sha256) return null;
         var data = FormDocumentRowPolicy.DataRows(opened.Value);
         if (data.Count is 0 or > StructuredAttachmentLimits.MaximumLoadingRows) return null;
         var forms = await FormsAsync(mapping, request, ct);
         var plan = await rows.PrepareAsync(mapping, [.. data.Where(HasText)], request.Culture, ct,
             forms.Where(form => form.Value.Sendable).Select(form => form.Key).ToHashSet());
-        if (!plan.AnyFits) return await UnknownAsync(request, copyId, mapping.DocumentType, ct);
+        if (!plan.AnyFits) return new([], null, new(StructuredDocumentReplyKind.Unknown));
         var sheets = FormDocumentRowPolicy.Sheets(opened.Value);
         var headers = new Dictionary<string, int>(StringComparer.Ordinal);
         foreach (var (name, sheetRows) in sheets)
             if (sheetRows.Count > 0) headers.TryAdd(name, sheetRows[0].Number);
-        return Rows(request, copyId, plan, data, headers, sheets.Count > 1, forms);
+        return Rows(request, firstId, plan, data, headers, sheets.Count > 1, forms);
     }
+
+    /// <summary>
+    /// What the inbox keeps of a row by what became of it (VC1-A), with the steps of its history: a load waits for its person and was sent as
+    /// «i of k»; one whose form cannot be sent to them, or past the three loads, is proposed for the team; a repeated one is discarded; one that
+    /// fits no form stays unclassified as unknown and one the model did not see, as unseen.
+    /// </summary>
+    internal static FormReceivedDocumentRowClassified Classified(StructuredDocumentRowKind kind, int? load, int loads) => kind switch
+    {
+        StructuredDocumentRowKind.Load => new(FormReceivedDocumentState.Proposed, null, null,
+            [(FormReceivedDocumentEventKind.Received, "sure"), (FormReceivedDocumentEventKind.Sent, $"{load}/{loads}")]),
+        StructuredDocumentRowKind.NotSendable => new(FormReceivedDocumentState.Proposed, null, FormReceivedDocumentNotSentReason.NotSendable,
+            [(FormReceivedDocumentEventKind.Received, "notSendable")]),
+        StructuredDocumentRowKind.OverLimit => new(FormReceivedDocumentState.Proposed, null, FormReceivedDocumentNotSentReason.OverLimit,
+            [(FormReceivedDocumentEventKind.Received, "sure"), (FormReceivedDocumentEventKind.OverLimit, null)]),
+        StructuredDocumentRowKind.Repeated => new(FormReceivedDocumentState.Discarded, FormReceivedDocumentReplyPolicy.Duplicate, null,
+            [(FormReceivedDocumentEventKind.Received, FormReceivedDocumentReplyPolicy.Duplicate)]),
+        StructuredDocumentRowKind.Unseen => new(FormReceivedDocumentState.Unclassified, FormReceivedDocumentReplyPolicy.Unseen, null,
+            [(FormReceivedDocumentEventKind.Received, FormReceivedDocumentReplyPolicy.Unseen)]),
+        _ => new(FormReceivedDocumentState.Unclassified, FormReceivedDocumentReplyPolicy.Unknown, null,
+            [(FormReceivedDocumentEventKind.Received, FormReceivedDocumentReplyPolicy.Unknown)]),
+    };
 
     /// <summary>
     /// The reply of a spreadsheet already registered, from what it kept: its single entry as a document answers, or its rows in the order of
@@ -151,24 +199,10 @@ internal sealed class FormReceivedDocumentRowPolicy(IFormReceivedDocumentReader 
             var proposal = prepared.Candidate is { } candidate
                 ? new FormDocumentPreparedProposal(FormDocumentEntryProposal.Sure, plan.DocumentType, [candidate]) { Repetition = repetition } : null;
             var load = kind == StructuredDocumentRowKind.Load ? ++position : (int?)null;
-            List<(FormReceivedDocumentEventKind, string?)> steps = kind switch
-            {
-                StructuredDocumentRowKind.Load => [(FormReceivedDocumentEventKind.Received, "sure"), (FormReceivedDocumentEventKind.Sent, $"{load}/{loads}")],
-                StructuredDocumentRowKind.NotSendable => [(FormReceivedDocumentEventKind.Received, "notSendable")],
-                StructuredDocumentRowKind.OverLimit => [(FormReceivedDocumentEventKind.Received, "sure"), (FormReceivedDocumentEventKind.OverLimit, null)],
-                StructuredDocumentRowKind.Repeated => [(FormReceivedDocumentEventKind.Received, FormReceivedDocumentReplyPolicy.Duplicate)],
-                _ => [(FormReceivedDocumentEventKind.Received, FormReceivedDocumentReplyPolicy.Unknown)],
-            };
-            var (state, reason, notSent) = kind switch
-            {
-                StructuredDocumentRowKind.Load => (FormReceivedDocumentState.Proposed, (string?)null, (FormReceivedDocumentNotSentReason?)null),
-                StructuredDocumentRowKind.NotSendable => (FormReceivedDocumentState.Proposed, null, FormReceivedDocumentNotSentReason.NotSendable),
-                StructuredDocumentRowKind.OverLimit => (FormReceivedDocumentState.Proposed, null, FormReceivedDocumentNotSentReason.OverLimit),
-                StructuredDocumentRowKind.Repeated => (FormReceivedDocumentState.Discarded, FormReceivedDocumentReplyPolicy.Duplicate, null),
-                _ => (FormReceivedDocumentState.Unclassified, FormReceivedDocumentReplyPolicy.Unknown, null),
-            };
-            entries.Add(new(id, sheet, prepared.Number, entries.Count + 1, Stored(kind), state, reason, proposal, notSent, kind == StructuredDocumentRowKind.Load,
-                FormDocumentRowReading.From(source, headers.GetValueOrDefault(source.Sheet, source.Number), culture), plan.DocumentType, steps));
+            var classified = Classified(kind, load, loads);
+            entries.Add(new(id, sheet, prepared.Number, entries.Count + 1, Stored(kind), classified.State, classified.ReasonCode, proposal, classified.NotSent,
+                kind == StructuredDocumentRowKind.Load, FormDocumentRowReading.From(source, headers.GetValueOrDefault(source.Sheet, source.Number), culture),
+                plan.DocumentType, classified.Steps));
             replied.Add(new(id, sheet, prepared.Number, kind)
             {
                 Form = prepared.Candidate is not null && form is not null ? new(form.DefinitionId, form.VersionId, FormDocumentFormPolicy.Name(form, culture)) : null,
@@ -180,6 +214,14 @@ internal sealed class FormReceivedDocumentRowPolicy(IFormReceivedDocumentReader 
         }
         return new(entries, null, new(StructuredDocumentReplyKind.Sure) { Rows = replied, ReplyExpiresAtUtc = request.ReplyExpiresAtUtc });
     }
+
+    // The same spreadsheet again (a file whose rows the inbox has and the team did not discard): one entry discarded as a repeated document (VC4),
+    // with when the earlier one arrived.
+    private static FormReceivedDocumentRowClassification Repeated(StructuredDocumentRowsRegistrationRequest request, Guid copyId,
+        FormReceivedDocumentStoredRow earlier) =>
+        Single(request, copyId, new(FormReceivedDocumentState.Discarded, FormReceivedDocumentReplyPolicy.Duplicate,
+            new FormDocumentPreparedProposal(FormDocumentEntryProposal.Unknown, null, []) { Repetition = new(earlier.ReceivedAtUtc, null, null, earlier.Id) },
+            false, new(copyId, StructuredDocumentReplyKind.Duplicate) { Duplicate = new(earlier.ReceivedAtUtc, null) }));
 
     // None fits, or the proposal cannot be used: one entry, as a document nobody recognized, with the forms the person can choose.
     private async Task<FormReceivedDocumentRowClassification> UnknownAsync(StructuredDocumentRowsRegistrationRequest request, Guid copyId, string? documentType,
@@ -230,6 +272,10 @@ internal sealed class FormReceivedDocumentRowPolicy(IFormReceivedDocumentReader 
     private static string[] Summary(FormDocumentPreparedCandidate candidate, string culture) =>
         [.. FormDocumentRowPolicy.Summary(candidate).Select(value => FormReceivedDocumentReplyPolicy.Display(value, culture)).OfType<string>()];
 }
+
+/// <summary>What the inbox keeps of a row by what became of it: its state, its reason, why it was not sent and the steps of its history.</summary>
+internal sealed record FormReceivedDocumentRowClassified(FormReceivedDocumentState State, string? ReasonCode, FormReceivedDocumentNotSentReason? NotSent,
+    IReadOnlyList<(FormReceivedDocumentEventKind Kind, string? Detail)> Steps);
 
 /// <summary>The rows of a spreadsheet as entries, or the single entry of one without rows, and what to tell the person.</summary>
 internal sealed record FormReceivedDocumentRowClassification(IReadOnlyList<FormReceivedDocumentRowEntry> Entries, FormReceivedDocumentClassification? Single,

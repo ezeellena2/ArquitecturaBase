@@ -282,11 +282,13 @@ internal sealed class WhatsAppAssistantDocumentPolicy(IStructuredDocumentChannel
 /// <summary>
 /// What a tap on a document question decided (task 9): the reference it answers and either what to say or send now, or the form the next
 /// interpretation fixes (a form chosen when the document was not recognized). <see cref="Applies"/> when the choice changed the document
-/// (its form goes or goes to the team, «Otro» was recorded, or the form is fixed): only then does it close the question.
+/// (its form goes or goes to the team, «Otro» was recorded, or the form is fixed): only then does it close the question. <see cref="Spreadsheet"/>
+/// when the question's file is a spreadsheet to load (VC1-A), so the interpretation that continues with the form fixed only loads its rows.
 /// </summary>
 internal sealed record WhatsAppAssistantDocumentChoice(WhatsAppAssistantReferenceRow Reference, WhatsAppAssistantTerminalResponse? Reply, Guid? FocusDefinitionId)
 {
     public bool Applies { get; init; }
+    public bool Spreadsheet { get; init; }
 
     public override string ToString() => "WhatsAppAssistantDocumentChoice { Content = [REDACTED] }";
 }

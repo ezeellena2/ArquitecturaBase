@@ -122,7 +122,7 @@ Es el detalle de la guía [`src/ArquitecturaBase.Application/Modules/WhatsApp/Se
 
 ## Documentos recibidos
 
-VC1-A (tarea 29): `WhatsAppAssistantSpreadsheetPolicy` registra las filas de una planilla en la bandeja fuera de la UoW y arma el aviso y hasta tres cargas; `WhatsAppAssistantLoadAcceptancePolicy` los encola en la UoW del despacho, con una referencia por carga ([reglas](whatsapp.md#planilla-recibida--ia-etapa-2-2026-11-10)).
+VC1-A (tarea 29): `WhatsAppAssistantSpreadsheetPolicy` registra las filas de una planilla en la bandeja fuera de la UoW y arma el aviso y hasta tres cargas; `WhatsAppAssistantLoadAcceptancePolicy` los encola en la UoW del despacho, con una referencia por carga ([reglas](whatsapp.md#planilla-recibida--ia-etapa-2-2026-11-10)). Un formulario elegido de la lista de una planilla que no encaja sigue por `WhatsAppAssistantDocumentService`, con el contexto de `WhatsAppAssistantAccessPolicy.Focused` (sólo cargar la planilla, con el formulario fijado); su propuesta va a `RecognizeRowsAsync`.
 
 `WhatsAppReceivedDocumentDispatchService`, `WhatsAppReceivedDocumentPreparationPolicy`, `WhatsAppReceivedDocumentReplyPolicy`, `WhatsAppReceivedDocumentReadingPolicy` y `WhatsAppReceivedDocumentPresentationPolicy`. El circuito (tarea 9) suma `WhatsAppAssistantDocumentPolicy`, `WhatsAppAssistantDocumentService` y `WhatsAppAssistantDocumentReplyCodec`.
 

@@ -116,9 +116,15 @@ internal sealed class WhatsAppAssistantReader(ApplicationDbContext db,IOptions<W
         if(source.Kind==WhatsAppMessageKind.ButtonReply && await References().Where(reference=>reference.ContactId==source.ContactId
                 && reference.SourceMessageId==source.Id && reference.AttachmentMessageId!=null && reference.PreviousRequestId!=null)
                 .Select(reference=>reference.AttachmentMessageId).FirstOrDefaultAsync(ct) is {} attachment)
-            return await FindDocumentAsync(source.ContactId,attachment,ct) is {} document
-                ? source with {Document=document,ContentExpiresAtUtc=document.ExpiresAtUtc<source.ContentExpiresAtUtc?document.ExpiresAtUtc:source.ContentExpiresAtUtc}
-                : source;
+        {
+            if(await FindDocumentAsync(source.ContactId,attachment,ct) is {} document)
+                return source with {Document=document,ContentExpiresAtUtc=document.ExpiresAtUtc<source.ContentExpiresAtUtc?document.ExpiresAtUtc:source.ContentExpiresAtUtc};
+            // VC1-A: and one chosen for a spreadsheet none of whose rows fit, with the stored spreadsheet it carries.
+            var sheet=(await SourceRows(Sources().Where(message=>message.ContactId==source.ContactId && message.Id==attachment
+                && message.Kind==WhatsAppMessageKind.Spreadsheet)).SingleOrDefaultAsync(ct))?.Spreadsheet;
+            return sheet is null ? source
+                : source with {Spreadsheet=sheet,ContentExpiresAtUtc=sheet.ExpiresAtUtc<source.ContentExpiresAtUtc?sheet.ExpiresAtUtc:source.ContentExpiresAtUtc};
+        }
         return WhatsAppAssistantSourcePolicy.Resolve(source,await FindPreviousAsync(source,ct));
     }
     // W1-A: a later message of the same send (its skip button, the Flow after the location) has another RequestId: the outgoing
@@ -353,9 +359,9 @@ internal sealed class WhatsAppAssistantReader(ApplicationDbContext db,IOptions<W
                 && (reference.OutgoingId==outgoing.Id || reference.QuestionOutgoingId==outgoing.Id
                     || outgoing.FlowSessionId!=null && db.Set<WhatsAppOutgoingMessage>().Any(first=>first.Id==reference.OutgoingId && first.FlowSessionId==outgoing.FlowSessionId)))
             && !References().Any(reference=>reference.OutgoingId==outgoing.Id && reference.ProposalId==reference.RequestId),ct);
-    public Task<bool> ExistsAttachmentAnswerAsync(Guid contactId,Guid attachmentMessageId,CancellationToken ct)=>
+    public Task<bool> ExistsAttachmentAnswerAsync(Guid contactId,Guid attachmentMessageId,CancellationToken ct,Guid? continuing=null)=>
         References().AnyAsync(row=>row.ContactId==contactId && row.AttachmentMessageId==attachmentMessageId && row.ActionOrdinal==0
-            && (row.OutgoingId!=null || row.QuestionOutgoingId!=null),ct);
+            && (continuing==null || row.PreviousRequestId==continuing) && (row.OutgoingId!=null || row.QuestionOutgoingId!=null),ct);
 
     public Task<bool> ExistsDeclinedAsync(Guid contactId,Guid definitionId,CancellationToken ct)=>
         (from row in References() join contact in db.Set<WhatsAppContact>().AsNoTracking() on row.ContactId equals contact.Id

@@ -6,6 +6,8 @@ namespace ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.WhatsApp;
 /// <summary>
 /// VC1-A (task 29): a neutral owner of the rows of a spreadsheet that keeps every request and answers what the scenario scripts for each
 /// one, idempotent by channel and source id like the inbox: a registered spreadsheet answers again what it was told, marked as already registered.
+/// Recognizing the rows of one none of whose rows fit answers what the scenario scripts, once: rows already recognized, or a script that does not
+/// recognize them, answer what it kept.
 /// </summary>
 public sealed class CapturingStructuredDocumentRowsChannel : IStructuredDocumentRowsChannel
 {
@@ -13,6 +15,8 @@ public sealed class CapturingStructuredDocumentRowsChannel : IStructuredDocument
 
     public List<StructuredDocumentRowsRegistrationRequest> Requests { get; } = [];
     public Func<StructuredDocumentRowsRegistrationRequest, StructuredDocumentRowsRegistration>? Reply { get; set; }
+    public List<StructuredDocumentRowsRegistrationRequest> Recognitions { get; } = [];
+    public Func<StructuredDocumentRowsRegistrationRequest, StructuredDocumentRowsRegistration>? Recognize { get; set; }
 
     public Task<StructuredDocumentRowsRegistration> RegisterRowsAsync(StructuredDocumentRowsRegistrationRequest request, CancellationToken cancellationToken)
     {
@@ -23,6 +27,20 @@ public sealed class CapturingStructuredDocumentRowsChannel : IStructuredDocument
             if (registered.TryGetValue(key, out var stored)) return Task.FromResult(stored with { WasAlreadyRegistered = true });
             var reply = Reply?.Invoke(request) ?? new StructuredDocumentRowsRegistration(StructuredDocumentReplyKind.Unavailable);
             if (reply.Kind != StructuredDocumentReplyKind.Unavailable) registered[key] = reply;
+            return Task.FromResult(reply);
+        }
+    }
+
+    public Task<StructuredDocumentRowsRegistration> RecognizeRowsAsync(StructuredDocumentRowsRegistrationRequest request, CancellationToken cancellationToken)
+    {
+        lock (registered)
+        {
+            Recognitions.Add(request);
+            var key = request.ChannelId + ":" + request.SourceId;
+            if (!registered.TryGetValue(key, out var stored)) return Task.FromResult(new StructuredDocumentRowsRegistration(StructuredDocumentReplyKind.Unavailable));
+            if (stored.Kind != StructuredDocumentReplyKind.Unknown || Recognize?.Invoke(request) is not { Kind: StructuredDocumentReplyKind.Sure } reply)
+                return Task.FromResult(stored with { WasAlreadyRegistered = true });
+            registered[key] = reply;
             return Task.FromResult(reply);
         }
     }
