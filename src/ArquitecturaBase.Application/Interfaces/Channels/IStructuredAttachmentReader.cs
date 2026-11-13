@@ -16,4 +16,13 @@ public interface IStructuredAttachmentReader
 
     /// <summary>The kind comes from the bytes, never from the extension of the name.</summary>
     Task<StructuredAttachmentPreparation> PrepareAsync(byte[] content, string fileName, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// A spreadsheet to load its rows (VC1-A): the rows with content of the sheets the person sees, each with its sheet, or why not, as
+    /// <see cref="PrepareAsync"/>; over <see cref="StructuredAttachmentLimits.MaximumLoadingRows"/> rows of data it is
+    /// <see cref="StructuredAttachmentRejection.TooManyRows"/>, and anything but a spreadsheet is not loaded. Without the owner, unavailable.
+    /// </summary>
+    Task<StructuredAttachmentPreparation> PrepareRowsAsync(byte[] content, string fileName, CancellationToken cancellationToken) =>
+        cancellationToken.IsCancellationRequested ? Task.FromCanceled<StructuredAttachmentPreparation>(cancellationToken)
+            : Task.FromResult(StructuredAttachmentPreparation.Rejected(StructuredAttachmentRejection.Unavailable));
 }

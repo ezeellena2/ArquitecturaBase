@@ -41,6 +41,17 @@ internal sealed class FormDocumentProposalPolicy(IFormReceivedDocumentReader rea
         return new FormDocumentPreparedProposal(outcome, proposal.DocumentType, candidates) { Repetition = repetition };
     }
 
+    /// <summary>A row of a spreadsheet as a candidate of its form's active version (VC1-A), validated and completed like a document's.</summary>
+    public Task<FormDocumentPreparedCandidate> PrepareCandidateAsync(FormDocumentFormRow row, FormVersionSchema schema, FormDocumentEntryCandidate candidate,
+        CancellationToken ct) => CandidateAsync(row, schema, Standard(row), candidate, ct);
+
+    /// <summary>
+    /// A response with the same data as a row (VC1-A): only by every duplicate key of the standard, never by the file, which a row shares
+    /// with the others of its spreadsheet and a capture of a row never attaches.
+    /// </summary>
+    public Task<FormDocumentRepetition?> FindRepeatedDataAsync(FormDocumentFormRow row, FormDocumentPreparedCandidate candidate, CancellationToken ct) =>
+        RepetitionAsync(row, Standard(row), candidate, null, null, ct);
+
     private async Task<FormDocumentPreparedCandidate> CandidateAsync(FormDocumentFormRow row, FormVersionSchema schema, StructuredFormStandard? standard,
         FormDocumentEntryCandidate candidate, CancellationToken ct)
     {
@@ -125,9 +136,10 @@ internal sealed class FormDocumentProposalPolicy(IFormReceivedDocumentReader rea
         return value with { Value = itemId.ToString("D"), Mark = FormDocumentMarks.Completed, Text = texts.Count == 0 ? null : texts };
     }
 
-    // The same file, or the same values of every duplicate key of the standard (all of them read and passing), in the form.
+    // The same file, or the same values of every duplicate key of the standard (all of them read and passing), in the form; without a file
+    // (a row of a spreadsheet), only the values, and nothing to ask without them.
     private async Task<FormDocumentRepetition?> RepetitionAsync(FormDocumentFormRow row, StructuredFormStandard? standard, FormDocumentPreparedCandidate candidate,
-        string sha256, Guid? exceptDocumentId, CancellationToken ct)
+        string? sha256, Guid? exceptDocumentId, CancellationToken ct)
     {
         var keys = new List<FormDocumentRepetitionKey>();
         if (standard?.Reading is { DuplicateKeys.Count: > 0 } reading && Bindings(row) is { } bound)
@@ -143,6 +155,7 @@ internal sealed class FormDocumentProposalPolicy(IFormReceivedDocumentReader rea
                 keys.Add(new(value.FieldId, value.Type, value.Value!));
             }
         }
+        if (sha256 is null && keys.Count == 0) return null;
         var found = (await reader.ListRepetitionsAsync(row.DefinitionId, sha256, keys, exceptDocumentId, ct)).MinBy(item => item.AtUtc);
         return found is null ? null : new(found.AtUtc, found.RecordId,
             found.Number is { } number ? row.Prefix + "-" + number.ToString("D6", CultureInfo.InvariantCulture) : null, found.DocumentId);

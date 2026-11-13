@@ -8,10 +8,10 @@ public enum AssistantCapabilityKind { Read, Proposal }
 public enum AssistantInteractionMode { Unspecified = 0, Assistant = 1, Manual = 2 }
 
 /// <summary>
-/// Which file of the turn its owner needs to offer a capability: any or none (the default), only a spreadsheet, only a read document, or
-/// anything but a document.
+/// Which file of the turn its owner needs to offer a capability: any or none (the default), only a spreadsheet, only a read document,
+/// anything but a document, or a file of either kind but never none.
 /// </summary>
-public enum AssistantCapabilityAttachment { Any, Spreadsheet, Document, NoDocument }
+public enum AssistantCapabilityAttachment { Any, Spreadsheet, Document, NoDocument, File }
 public sealed record AssistantCapabilityReference(string Id, int Version);
 public sealed record AssistantTerminalReference(string Id, int Version);
 public sealed record AssistantCapabilityBudget(int InputBytes, int OutputBytes, int MaximumItems, int TimeoutSeconds);
@@ -37,6 +37,7 @@ public sealed record AssistantCapabilityDefinition(
         AssistantCapabilityAttachment.Spreadsheet => attachment == AssistantAttachmentKind.Spreadsheet,
         AssistantCapabilityAttachment.Document => attachment == AssistantAttachmentKind.Document,
         AssistantCapabilityAttachment.NoDocument => attachment != AssistantAttachmentKind.Document,
+        AssistantCapabilityAttachment.File => attachment is AssistantAttachmentKind.Spreadsheet or AssistantAttachmentKind.Document,
         _ => false,
     };
 

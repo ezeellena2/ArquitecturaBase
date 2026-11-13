@@ -28,8 +28,9 @@ public interface IFormReceivedDocumentReader
     /// <summary>
     /// Where the same file or the same data already are in a form: its current responses with a file of that SHA-256 or with all the
     /// given values, and the inbox documents of the form with that SHA-256 that were not discarded, the earliest first, at most two.
+    /// Without a SHA-256 (a row of a spreadsheet, VC1-A) only the responses with all the given values.
     /// </summary>
-    Task<IReadOnlyList<FormDocumentRepetitionRow>> ListRepetitionsAsync(Guid definitionId, string sha256, IReadOnlyList<FormDocumentRepetitionKey> keys,
+    Task<IReadOnlyList<FormDocumentRepetitionRow>> ListRepetitionsAsync(Guid definitionId, string? sha256, IReadOnlyList<FormDocumentRepetitionKey> keys,
         Guid? exceptDocumentId, CancellationToken cancellationToken);
     Task<FormReceivedDocumentStoredRow?> FindAsync(Guid documentId, CancellationToken cancellationToken);
     Task<FormReceivedDocumentStoredRow?> FindBySourceAsync(string channelId, string sourceId, CancellationToken cancellationToken);

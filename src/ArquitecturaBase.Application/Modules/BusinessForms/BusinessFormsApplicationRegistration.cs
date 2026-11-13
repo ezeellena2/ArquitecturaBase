@@ -122,6 +122,7 @@ public static class BusinessFormsApplicationRegistration
         services.TryAddScoped<IFormReceivedDocumentRecordService, FormReceivedDocumentRecordService>();
         services.TryAddScoped<IFormReceivedDocumentRetentionService, FormReceivedDocumentRetentionService>();
         services.TryAddScoped<FormDocumentProposalPolicy>();
+        services.TryAddScoped<FormDocumentRowPolicy>();
         services.TryAddScoped<FormReceivedDocumentAccessGuard>();
         services.TryAddScoped<FormReceivedDocumentCopyPolicy>();
         services.TryAddScoped<FormReceivedDocumentContentPolicy>();

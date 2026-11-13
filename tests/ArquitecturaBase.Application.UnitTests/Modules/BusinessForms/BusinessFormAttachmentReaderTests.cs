@@ -340,6 +340,76 @@ public sealed class BusinessFormAttachmentReaderTests
         await cancelled.CancelAsync();
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Reader(new(), new()).PrepareAsync(Content, "p.csv", cancelled.Token));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Reader(new(), new()).PrepareRowsAsync(Content, "p.csv", cancelled.Token));
+    }
+
+    // VC1-A, task 27: a spreadsheet to load is read with every sheet, by its bytes, and travels with the rows of all of them.
+    [Fact]
+    public async Task A_spreadsheet_to_load_is_read_with_every_sheet_and_its_rows_travel_with_their_sheet()
+    {
+        var spreadsheets = new Spreadsheets { Format = FormSpreadsheetFormat.Xlsx };
+        var documents = new Documents();
+
+        var preparation = await Reader(spreadsheets, documents).PrepareRowsAsync(Content, "C:\\fakepath\\cobranzas.csv", Ct);
+
+        Assert.True(documents.Detected);
+        Assert.Equal(FormSpreadsheetFormat.Xlsx, spreadsheets.ReadSheetsFormat);
+        Assert.Same(Content, spreadsheets.ReadBytes);
+        Assert.Null(spreadsheets.ReadFormat);
+        var prepared = preparation.Spreadsheet!;
+        Assert.Equal(("cobranzas.csv", StructuredSpreadsheetKind.Xlsx, "Enero", 3), (prepared.FileName, prepared.Kind, prepared.SheetName, prepared.DataRowCount));
+        Assert.Equal([("Enero", 1), ("Enero", 2), ("Enero", 3), ("Febrero", 1), ("Febrero", 2)], prepared.Rows.Select(row => (row.Sheet!, row.Number)));
+    }
+
+    [Theory]
+    [InlineData(FormDocumentFormat.Pdf, StructuredAttachmentFileKind.Pdf)]
+    [InlineData(FormDocumentFormat.Jpeg, StructuredAttachmentFileKind.Image)]
+    [InlineData(FormDocumentFormat.Docx, StructuredAttachmentFileKind.Word)]
+    [InlineData(FormDocumentFormat.WordLegacy, StructuredAttachmentFileKind.Word)]
+    public async Task A_document_is_never_loaded_as_rows_and_is_not_opened(FormDocumentFormat format, StructuredAttachmentFileKind kind)
+    {
+        var spreadsheets = new Spreadsheets { Format = FormSpreadsheetFormat.Xlsx };
+        var documents = new Documents { Format = format };
+
+        var preparation = await Reader(spreadsheets, documents).PrepareRowsAsync(Content, "cobranzas.xlsx", Ct);
+
+        Assert.Equal((StructuredAttachmentRejection.Unreadable, kind), (preparation.Rejection, preparation.FileKind));
+        Assert.Null(documents.ReadFormat);
+        Assert.False(spreadsheets.Detected);
+    }
+
+    [Theory]
+    [InlineData(FormSpreadsheetFormat.MacroEnabled, StructuredAttachmentRejection.MacroEnabled, StructuredAttachmentFileKind.Spreadsheet)]
+    [InlineData(FormSpreadsheetFormat.Legacy, StructuredAttachmentRejection.Legacy, StructuredAttachmentFileKind.Spreadsheet)]
+    [InlineData(FormSpreadsheetFormat.Protected, StructuredAttachmentRejection.Protected, StructuredAttachmentFileKind.Spreadsheet)]
+    [InlineData(FormSpreadsheetFormat.Unknown, StructuredAttachmentRejection.Unreadable, StructuredAttachmentFileKind.Unknown)]
+    public async Task A_spreadsheet_to_load_that_does_not_open_says_why_as_one_to_build(FormSpreadsheetFormat format, StructuredAttachmentRejection rejection,
+        StructuredAttachmentFileKind kind)
+    {
+        var spreadsheets = new Spreadsheets { Format = format };
+
+        var preparation = await Reader(spreadsheets, new()).PrepareRowsAsync(Content, "cobranzas.xlsx", Ct);
+
+        Assert.Equal((rejection, kind), (preparation.Rejection, preparation.FileKind));
+        Assert.Null(spreadsheets.ReadSheetsFormat);
+    }
+
+    // The import's limits are too large, as for one to build: its rows count empty ones with a format too, so they say nothing of the fifty
+    // rows of data to load, which PrepareRows counts (FormDocumentRowPreparationTests).
+    [Fact]
+    public async Task A_spreadsheet_to_load_over_the_import_limits_is_too_large_and_any_other_failure_unreadable()
+    {
+        foreach (var error in new[] { FormCatalogImportErrors.FileTooLarge, FormCatalogImportErrors.InSheet(FormCatalogImportErrors.TooManyRows, "Hoja2"),
+            FormCatalogImportErrors.TooManyColumns, FormCatalogImportErrors.TooManyCells })
+        {
+            var tooLarge = await Reader(new() { Format = FormSpreadsheetFormat.Xlsx, Error = error }, new()).PrepareRowsAsync(Content, "p.xlsx", Ct);
+            Assert.Equal((StructuredAttachmentRejection.TooLarge, StructuredAttachmentFileKind.Spreadsheet), (tooLarge.Rejection, tooLarge.FileKind));
+        }
+        var unreadable = await Reader(new() { Format = FormSpreadsheetFormat.Xlsx, Error = FormCatalogImportErrors.FileUnreadable }, new())
+            .PrepareRowsAsync(Content, "p.xlsx", Ct);
+        Assert.Equal((StructuredAttachmentRejection.Unreadable, StructuredAttachmentFileKind.Spreadsheet), (unreadable.Rejection, unreadable.FileKind));
+        var oversized = await Reader(new(), new()).PrepareRowsAsync(new byte[StructuredAttachmentLimits.MaximumBytes + 1], "p.xlsx", Ct);
+        Assert.Equal((StructuredAttachmentRejection.TooLarge, StructuredAttachmentFileKind.Unknown), (oversized.Rejection, oversized.FileKind));
     }
 
     [Theory]
@@ -387,6 +457,19 @@ public sealed class BusinessFormAttachmentReaderTests
             Result<FormSpreadsheet> result = Error is { } error ? error
                 : new FormSpreadsheet("", Sha, [new(1, [new("CUIT"), new("Razón social")]), new(2, [new("30-71234567-8"), new("Agro Sur")])]);
             return result;
+        }
+
+        public FormSpreadsheetFormat? ReadSheetsFormat { get; private set; }
+
+        // Two sheets, each with its headers: two rows of data in the first and one in the second.
+        public Result<IReadOnlyList<FormSpreadsheet>> ReadSheets(byte[] content, FormSpreadsheetFormat format, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            (ReadBytes, ReadSheetsFormat) = (content, format);
+            if (Error is { } error) return error;
+            return Result.Success<IReadOnlyList<FormSpreadsheet>>([
+                new("Enero", Sha, [new(1, [new("Fecha"), new("Monto")]), new(2, [new("2026-11-03"), new("95000")]), new(3, [new("2026-11-04"), new("12500")])]),
+                new("Febrero", Sha, [new(1, [new("Fecha"), new("Monto")]), new(2, [new("2026-02-01"), new("8000")])])]);
         }
 
         public Task<Result<FormSpreadsheet>> ReadAsync(Stream content, string fileName, CancellationToken cancellationToken) =>

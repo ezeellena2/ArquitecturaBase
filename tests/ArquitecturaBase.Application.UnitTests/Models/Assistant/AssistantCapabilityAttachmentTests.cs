@@ -3,7 +3,7 @@ using ArquitecturaBase.Application.Models.Assistant;
 namespace ArquitecturaBase.Application.UnitTests.Models.Assistant;
 
 // Documents (task 3): the owner of a capability says which file of the turn it needs, and this one rule decides it for the catalog and
-// for whoever reads the definitions.
+// for whoever reads the definitions. A file of either kind, never none, is what the documents' candidates need since VC1-A (task 27).
 public sealed class AssistantCapabilityAttachmentTests
 {
     [Theory]
@@ -11,6 +11,7 @@ public sealed class AssistantCapabilityAttachmentTests
     [InlineData(AssistantCapabilityAttachment.Spreadsheet, false, true, false)]
     [InlineData(AssistantCapabilityAttachment.Document, false, false, true)]
     [InlineData(AssistantCapabilityAttachment.NoDocument, true, true, false)]
+    [InlineData(AssistantCapabilityAttachment.File, false, true, true)]
     [InlineData((AssistantCapabilityAttachment)9, false, false, false)]
     public void A_capability_is_offered_only_with_the_file_its_owner_admits(AssistantCapabilityAttachment requirement, bool none, bool spreadsheet,
         bool document)

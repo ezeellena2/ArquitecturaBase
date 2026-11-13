@@ -81,13 +81,14 @@ internal sealed class FormReceivedDocumentReader(ApplicationDbContext dbContext)
         await dbContext.Set<BusinessFormCatalogItem>().AsNoTracking().Where(item => itemIds.Contains(item.Id))
             .Select(item => new FormDocumentCatalogItemRow(item.Id, item.Code, item.TextEs, item.TextEn)).ToListAsync(cancellationToken);
 
-    public async Task<IReadOnlyList<FormDocumentRepetitionRow>> ListRepetitionsAsync(Guid definitionId, string sha256, IReadOnlyList<FormDocumentRepetitionKey> keys,
+    public async Task<IReadOnlyList<FormDocumentRepetitionRow>> ListRepetitionsAsync(Guid definitionId, string? sha256, IReadOnlyList<FormDocumentRepetitionKey> keys,
         Guid? exceptDocumentId, CancellationToken cancellationToken)
     {
         var current = dbContext.Set<BusinessFormRecord>().AsNoTracking()
             .Where(record => record.DefinitionId == definitionId && record.ReplacedByRecordId == null && record.State != FormRecordState.Voided);
         var found = new List<FormDocumentRepetitionRow>();
-        var byFile = await (from record in current
+        // A row of a spreadsheet (VC1-A) comes without a SHA-256: it never compares a file, only its data.
+        var byFile = sha256 is null ? null : await (from record in current
                             join file in dbContext.Set<BusinessFormRecordFile>().AsNoTracking() on record.Id equals file.RecordId
                             join stored in dbContext.Set<StoredFile>().AsNoTracking() on file.FileId equals stored.Id
                             where stored.Sha256 == sha256
@@ -102,7 +103,7 @@ internal sealed class FormReceivedDocumentReader(ApplicationDbContext dbContext)
                 .Select(record => new FormDocumentRepetitionRow(record.SubmittedAtUtc, record.Id, record.Number, null)).FirstOrDefaultAsync(cancellationToken);
             if (match is not null) found.Add(match);
         }
-        var inInbox = await dbContext.Set<FormReceivedDocument>().AsNoTracking()
+        var inInbox = sha256 is null ? null : await dbContext.Set<FormReceivedDocument>().AsNoTracking()
             .Where(document => document.DefinitionId == definitionId && document.Sha256 == sha256 && document.State != FormReceivedDocumentState.Discarded
                 && (exceptDocumentId == null || document.Id != exceptDocumentId))
             .OrderBy(document => document.ReceivedAtUtc).ThenBy(document => document.Id)

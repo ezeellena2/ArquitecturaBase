@@ -21,6 +21,11 @@ public sealed class UnavailableStructuredAttachmentReaderTests
         Assert.Equal((StructuredAttachmentRejection.Unavailable, StructuredAttachmentFileKind.Unknown), (preparation.Rejection, preparation.FileKind));
         Assert.Null(preparation.Spreadsheet);
         Assert.Null(preparation.Document);
+        // VC1-A: nor are the rows of a spreadsheet loaded.
+        IStructuredAttachmentReader port = reader;
+        var rows = await port.PrepareRowsAsync(Encoding.UTF8.GetBytes("Code,Text\nA,North\n"), "options.csv", ct);
+        Assert.Equal((StructuredAttachmentRejection.Unavailable, StructuredAttachmentFileKind.Unknown, (StructuredSpreadsheet?)null),
+            (rows.Rejection, rows.FileKind, rows.Spreadsheet));
     }
 
     [Fact]
@@ -32,5 +37,6 @@ public sealed class UnavailableStructuredAttachmentReaderTests
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => reader.CanAttachAsync(Guid.NewGuid(), cancelled.Token));
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => reader.PrepareAsync([], "options.csv", cancelled.Token));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => ((IStructuredAttachmentReader)reader).PrepareRowsAsync([], "options.csv", cancelled.Token));
     }
 }

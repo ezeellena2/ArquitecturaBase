@@ -26,7 +26,12 @@ public sealed record FormSpreadsheetCell(string? Text, Error? Error = null, bool
 public sealed record FormSpreadsheetRow(int Number, IReadOnlyList<FormSpreadsheetCell> Cells)
 { public override string ToString() => "FormSpreadsheetRow { Content = [REDACTED] }"; }
 public sealed record FormSpreadsheet(string Name, string Sha256, IReadOnlyList<FormSpreadsheetRow> Rows)
-{ public override string ToString() => "FormSpreadsheet { Content = [REDACTED] }"; }
+{
+    /// <summary>A worksheet the workbook hides (a list for its dropdowns, say): the rows to load leave it out (VC1-A).</summary>
+    public bool Hidden { get; init; }
+
+    public override string ToString() => "FormSpreadsheet { Content = [REDACTED] }";
+}
 
 public sealed record FormCatalogImportRequest(long ExpectedRevision, string Mode, Stream Content, string FileName,
     string? SheetSha256 = null, int? ConfirmDeactivations = null, bool ConfirmEmpty = false, bool ConfirmErrors = false)

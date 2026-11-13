@@ -14,4 +14,10 @@ public interface IFormSpreadsheetReader
 
     /// <summary>The bytes as <see cref="DetectFormat"/> said (Xlsx or Csv), with the same limits, without copying them; a CSV has no sheet name.</summary>
     Result<FormSpreadsheet> Read(byte[] content, FormSpreadsheetFormat format, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Like <see cref="Read"/>, every worksheet in the workbook's order, each with its name and its rows (a CSV is one sheet without a name):
+    /// the rows of a spreadsheet to load (VC1-A).
+    /// </summary>
+    Result<IReadOnlyList<FormSpreadsheet>> ReadSheets(byte[] content, FormSpreadsheetFormat format, CancellationToken cancellationToken);
 }

@@ -35,24 +35,55 @@ internal sealed class BusinessFormAttachmentReader(FormCatalogAccessGuard catalo
             ?? FormDocumentPreparationPolicy.Prepare(name, content, document, await documents.ReadAsync(content, document, cancellationToken));
     }
 
+    // VC1-A: a spreadsheet to load is read with every sheet; a document is never loaded as rows and is not opened. The import's limits are too
+    // large, as for one to build (its rows count empty ones with a format too); over the fifty rows of data to load is TooManyRows.
+    public Task<StructuredAttachmentPreparation> PrepareRowsAsync(byte[] content, string fileName, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+        ArgumentNullException.ThrowIfNull(fileName);
+        cancellationToken.ThrowIfCancellationRequested();
+        if (content.Length > StructuredAttachmentLimits.MaximumBytes)
+            return Task.FromResult(Rejected(StructuredAttachmentRejection.TooLarge, StructuredAttachmentFileKind.Unknown));
+        var document = documents.DetectFormat(content);
+        if (document != FormDocumentFormat.Unknown) return Task.FromResult(Rejected(StructuredAttachmentRejection.Unreadable, document switch
+        {
+            FormDocumentFormat.Pdf => StructuredAttachmentFileKind.Pdf,
+            FormDocumentFormat.Jpeg or FormDocumentFormat.Png => StructuredAttachmentFileKind.Image,
+            _ => StructuredAttachmentFileKind.Word,
+        }));
+        var (format, kind, rejection) = Format(content, fileName);
+        if (rejection is not null) return Task.FromResult(rejection);
+        var sheets = spreadsheets.ReadSheets(content, format, cancellationToken);
+        if (sheets.IsFailure)
+            return Task.FromResult(Rejected(Limits.Contains(sheets.Error.Code) ? StructuredAttachmentRejection.TooLarge : StructuredAttachmentRejection.Unreadable,
+                StructuredAttachmentFileKind.Spreadsheet));
+        return Task.FromResult(FormAttachmentPreparationPolicy.PrepareRows(FormAttachmentPreparationPolicy.FileName(fileName), kind, content.LongLength, sheets.Value));
+    }
+
     private StructuredAttachmentPreparation PrepareSpreadsheet(byte[] content, string fileName, string name, CancellationToken cancellationToken)
     {
-        var format = spreadsheets.DetectFormat(content);
-        StructuredSpreadsheetKind kind;
-        switch (format)
-        {
-            case FormSpreadsheetFormat.Xlsx: kind = StructuredSpreadsheetKind.Xlsx; break;
-            case FormSpreadsheetFormat.Csv: kind = StructuredSpreadsheetKind.Csv; break;
-            case FormSpreadsheetFormat.MacroEnabled: return Rejected(StructuredAttachmentRejection.MacroEnabled, StructuredAttachmentFileKind.Spreadsheet);
-            case FormSpreadsheetFormat.Legacy: return Rejected(StructuredAttachmentRejection.Legacy, StructuredAttachmentFileKind.Spreadsheet);
-            case FormSpreadsheetFormat.Protected: return Rejected(StructuredAttachmentRejection.Protected, FormAttachmentPreparationPolicy.ProtectedKind(fileName));
-            default: return Rejected(StructuredAttachmentRejection.Unreadable, StructuredAttachmentFileKind.Unknown);
-        }
+        var (format, kind, rejection) = Format(content, fileName);
+        if (rejection is not null) return rejection;
         var sheet = spreadsheets.Read(content, format, cancellationToken);
         if (sheet.IsFailure)
             return Rejected(Limits.Contains(sheet.Error.Code) ? StructuredAttachmentRejection.TooLarge : StructuredAttachmentRejection.Unreadable,
                 StructuredAttachmentFileKind.Spreadsheet);
         return FormAttachmentPreparationPolicy.Prepare(name, kind, content.LongLength, sheet.Value);
+    }
+
+    // What the bytes of a spreadsheet are, or why they are not read.
+    private (FormSpreadsheetFormat Format, StructuredSpreadsheetKind Kind, StructuredAttachmentPreparation? Rejection) Format(byte[] content, string fileName)
+    {
+        var format = spreadsheets.DetectFormat(content);
+        return format switch
+        {
+            FormSpreadsheetFormat.Xlsx => (format, StructuredSpreadsheetKind.Xlsx, null),
+            FormSpreadsheetFormat.Csv => (format, StructuredSpreadsheetKind.Csv, null),
+            FormSpreadsheetFormat.MacroEnabled => (format, default, Rejected(StructuredAttachmentRejection.MacroEnabled, StructuredAttachmentFileKind.Spreadsheet)),
+            FormSpreadsheetFormat.Legacy => (format, default, Rejected(StructuredAttachmentRejection.Legacy, StructuredAttachmentFileKind.Spreadsheet)),
+            FormSpreadsheetFormat.Protected => (format, default, Rejected(StructuredAttachmentRejection.Protected, FormAttachmentPreparationPolicy.ProtectedKind(fileName))),
+            _ => (format, default, Rejected(StructuredAttachmentRejection.Unreadable, StructuredAttachmentFileKind.Unknown)),
+        };
     }
 
     private static StructuredAttachmentPreparation Rejected(StructuredAttachmentRejection rejection, StructuredAttachmentFileKind kind) =>

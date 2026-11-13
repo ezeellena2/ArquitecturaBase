@@ -64,6 +64,32 @@ internal sealed partial class ClosedXmlFormSpreadsheetReader : IFormSpreadsheetR
         }
     }
 
+    // VC1-A: the rows of a spreadsheet to load are those of every worksheet, read as the first one is: the same bytes, limits and cells.
+    public Result<IReadOnlyList<FormSpreadsheet>> ReadSheets(byte[] content, FormSpreadsheetFormat format, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+        cancellationToken.ThrowIfCancellationRequested();
+        if (content.Length > FormCatalogImportLimits.MaximumFileBytes) return FormCatalogImportErrors.FileTooLarge;
+        try
+        {
+            var sha = Convert.ToHexStringLower(SHA256.HashData(content));
+            switch (format)
+            {
+                case FormSpreadsheetFormat.Csv:
+                    var csv = FormCsvReader.Read(content, "", sha, cancellationToken);
+                    return csv.IsFailure ? csv.Error : Result.Success<IReadOnlyList<FormSpreadsheet>>([csv.Value]);
+                case FormSpreadsheetFormat.Xlsx:
+                    return ReadWorkbook(content, sha, every: true, cancellationToken);
+                default:
+                    return FormCatalogImportErrors.FileUnreadable;
+            }
+        }
+        catch (Exception exception) when (IsUnreadable(exception))
+        {
+            return FormCatalogImportErrors.FileUnreadable;
+        }
+    }
+
     private static bool IsUnreadable(Exception exception) => exception is IOException or InvalidDataException or XmlException
         or FormatException or ArgumentException or NotSupportedException or OpenXmlPackageException;
 
@@ -85,24 +111,44 @@ internal sealed partial class ClosedXmlFormSpreadsheetReader : IFormSpreadsheetR
 
     private static Result<FormSpreadsheet> ReadWorkbook(byte[] bytes, string sha, CancellationToken ct)
     {
-        var layout = InspectArchive(bytes, ct);
-        if (layout.IsFailure) return layout.Error;
+        var sheets = ReadWorkbook(bytes, sha, every: false, ct);
+        return sheets.IsFailure ? sheets.Error : sheets.Value[0];
+    }
+
+    // The first worksheet, or every one; the first by its position, as always, and the others by their name, which a workbook never repeats.
+    private static Result<IReadOnlyList<FormSpreadsheet>> ReadWorkbook(byte[] bytes, string sha, bool every, CancellationToken ct)
+    {
+        var layouts = InspectArchive(bytes, every, ct);
+        if (layouts.IsFailure) return layouts.Error;
         using var content = new MemoryStream(bytes, writable: false);
         var opened = OpenWorkbook(content);
         if (opened.IsFailure) return opened.Error;
         using var workbook = opened.Value;
         if (workbook.Worksheets.Count == 0) return FormCatalogImportErrors.FileUnreadable;
-        var sheet = workbook.Worksheet(1);
-        var rows = new List<FormSpreadsheetRow>(layout.Value.Count);
-        var width = layout.Value.Count == 0 ? 0 : layout.Value.Values.SelectMany(columns => columns).Max();
-        foreach (var (number, _) in layout.Value.OrderBy(row => row.Key))
+        var sheets = new List<FormSpreadsheet>(layouts.Value.Count);
+        for (var index = 0; index < layouts.Value.Count; index++)
+        {
+            var (name, layout) = layouts.Value[index];
+            // By the name as the workbook writes it: looking a name up would read two apostrophes in a row as one.
+            var sheet = index == 0 ? workbook.Worksheet(1) : workbook.Worksheets.FirstOrDefault(worksheet => string.Equals(worksheet.Name, name, StringComparison.Ordinal));
+            if (sheet is null) return FormCatalogImportErrors.FileUnreadable;
+            sheets.Add(ReadSheet(sheet, sha, layout, ct));
+        }
+        return Result.Success<IReadOnlyList<FormSpreadsheet>>(sheets);
+    }
+
+    private static FormSpreadsheet ReadSheet(IXLWorksheet sheet, string sha, Dictionary<int, int[]> layout, CancellationToken ct)
+    {
+        var rows = new List<FormSpreadsheetRow>(layout.Count);
+        var width = layout.Count == 0 ? 0 : layout.Values.SelectMany(columns => columns).Max();
+        foreach (var (number, _) in layout.OrderBy(row => row.Key))
         {
             ct.ThrowIfCancellationRequested();
             var cells = new FormSpreadsheetCell[width];
             for (var column = 1; column <= width; column++) cells[column - 1] = ReadCell(sheet.Cell(number, column));
             rows.Add(new(number, cells));
         }
-        return new FormSpreadsheet(sheet.Name, sha, rows);
+        return new FormSpreadsheet(sheet.Name, sha, rows) { Hidden = sheet.Visibility != XLWorksheetVisibility.Visible };
     }
 
     private static Result<XLWorkbook> OpenWorkbook(Stream content)

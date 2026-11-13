@@ -21,7 +21,7 @@ internal sealed class FormReceivedDocumentFixture : IFormReceivedDocumentReposit
     public List<FormDocumentCatalogNameRow> Catalogs { get; } = [];
     public List<(Guid CatalogId, FormDocumentCatalogItemRow Item, IReadOnlyDictionary<string, string> Fields)> Items { get; } = [];
     public List<FormDocumentRepetitionRow> Repetitions { get; } = [];
-    public List<(Guid DefinitionId, string Sha256, IReadOnlyList<FormDocumentRepetitionKey> Keys)> RepetitionQueries { get; } = [];
+    public List<(Guid DefinitionId, string? Sha256, IReadOnlyList<FormDocumentRepetitionKey> Keys)> RepetitionQueries { get; } = [];
     public List<FormReceivedDocument> Documents { get; } = [];
     public List<FormReceivedDocumentEvent> Events { get; } = [];
     public List<BusinessFormMissingTopic> Topics { get; } = [];
@@ -65,7 +65,7 @@ internal sealed class FormReceivedDocumentFixture : IFormReceivedDocumentReposit
             : item.Fields.TryGetValue(field, out var found) && found == value).Item);
     public Task<IReadOnlyList<FormDocumentCatalogItemRow>> ListCatalogItemsAsync(IReadOnlyCollection<Guid> itemIds, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<FormDocumentCatalogItemRow>>(Items.Where(item => itemIds.Contains(item.Item.ItemId)).Select(item => item.Item).ToArray());
-    public Task<IReadOnlyList<FormDocumentRepetitionRow>> ListRepetitionsAsync(Guid definitionId, string sha256, IReadOnlyList<FormDocumentRepetitionKey> keys,
+    public Task<IReadOnlyList<FormDocumentRepetitionRow>> ListRepetitionsAsync(Guid definitionId, string? sha256, IReadOnlyList<FormDocumentRepetitionKey> keys,
         Guid? exceptDocumentId, CancellationToken cancellationToken)
     {
         RepetitionQueries.Add((definitionId, sha256, keys));

@@ -11,7 +11,8 @@ internal sealed partial class ClosedXmlFormSpreadsheetReader
 {
     private const int MaximumExcelRows = 1048576;
     private const int MaximumExcelColumns = 16384;
-    private static Result<Dictionary<int, int[]>> InspectArchive(byte[] bytes, CancellationToken ct)
+    // Every worksheet is checked against the limits; the layout of the first one is kept, or of every one when the rows of all of them are read.
+    private static Result<List<(string Name, Dictionary<int, int[]> Rows)>> InspectArchive(byte[] bytes, bool every, CancellationToken ct)
     {
         using var content = new MemoryStream(bytes, writable: false);
         using var archive = new ZipArchive(content, ZipArchiveMode.Read);
@@ -24,16 +25,17 @@ internal sealed partial class ClosedXmlFormSpreadsheetReader
             while (xml.Read()) ct.ThrowIfCancellationRequested();
         }
         var worksheets = WorksheetPaths(archive);
-        Dictionary<int, int[]>? firstRows = null;
+        var layouts = new List<(string Name, Dictionary<int, int[]> Rows)>();
         var physicalRows = 0; long physicalCells = 0;
         for (var index = 0; index < worksheets.Count; index++)
         {
             var entry = archive.GetEntry(worksheets[index].Path) ?? throw new InvalidDataException("A worksheet part is missing.");
-            var rows = InspectSheet(entry, index == 0, ref physicalRows, ref physicalCells, ct);
+            var capture = every || index == 0;
+            var rows = InspectSheet(entry, capture, ref physicalRows, ref physicalCells, ct);
             if (rows.IsFailure) return FormCatalogImportErrors.InSheet(rows.Error, worksheets[index].Name);
-            if (index == 0) firstRows = rows.Value;
+            if (capture) layouts.Add((worksheets[index].Name, rows.Value));
         }
-        return firstRows is null ? FormCatalogImportErrors.FileUnreadable : Result.Success(firstRows);
+        return layouts.Count == 0 ? FormCatalogImportErrors.FileUnreadable : layouts;
     }
 
     private static List<(string Path, string Name)> WorksheetPaths(ZipArchive archive)

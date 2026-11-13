@@ -57,15 +57,17 @@ internal static partial class FormAuthoringSpreadsheetPolicy
         return new(issues, mapped);
     }
 
-    // The card: the file, the sheet and its rows of data, each mapped column with its header and up to three rows after them.
+    // The card: the file, the sheet and its rows of data, each mapped column with its header and up to three rows after them. A sample to
+    // load brings the rows of every sheet (VC1-A): building and importing keep the first sheet's.
     public static FormAuthoringSpreadsheetSummary Summary(StructuredSpreadsheet sheet, bool hasHeaders, IReadOnlyList<Column> columns)
     {
         ArgumentNullException.ThrowIfNull(sheet);
-        var header = hasHeaders && sheet.Rows.Count > 0 ? sheet.Rows[0] : null;
+        var rows = sheet.Rows.Where(row => row.Sheet is null || row.Sheet == sheet.SheetName).ToArray();
+        var header = hasHeaders && rows.Length > 0 ? rows[0] : null;
         return new(sheet.FileName, sheet.SheetName, Math.Max(0, sheet.RowCount - (hasHeaders ? 1 : 0)), hasHeaders,
             columns.Select(column => new FormAuthoringMappedColumn(column.Target, column.Field, column.Key, column.Letter!,
                 header?.Cells.GetValueOrDefault(column.Letter!))).ToArray(),
-            sheet.Rows.Skip(hasHeaders ? 1 : 0).Take(SampleRows)
+            rows.Skip(hasHeaders ? 1 : 0).Take(SampleRows)
                 .Select(row => (IReadOnlyList<string>)columns.Select(column => row.Cells.GetValueOrDefault(column.Letter!) ?? "").ToArray()).ToArray());
     }
 
