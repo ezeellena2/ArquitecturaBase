@@ -111,11 +111,14 @@ internal sealed class ActionCloudTransport : IWhatsAppCloudClient
     public List<WhatsAppOutboundMessage> Messages { get; } = [];
     public Func<WhatsAppSendResult>? Respond { get; set; }
     public Action? BeforeReturn { get; set; }
-    public Task<WhatsAppSendResult> SendAsync(WhatsAppOutboundMessage message, CancellationToken cancellationToken)
+    /// <summary>H8: holds the call at Meta until the test lets it go, with the token the worker passed.</summary>
+    public Func<CancellationToken, Task>? Gate { get; set; }
+    public async Task<WhatsAppSendResult> SendAsync(WhatsAppOutboundMessage message, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested(); Messages.Add(message);
+        if (Gate is { } gate) await gate(cancellationToken);
         var result = Respond?.Invoke() ?? WhatsAppSendResult.Sent("wamid.action-" + Guid.NewGuid().ToString("N"));
-        BeforeReturn?.Invoke(); return Task.FromResult(result);
+        BeforeReturn?.Invoke(); return result;
     }
 }
 internal sealed class ActionMediaTransport : IWhatsAppMediaUploadClient

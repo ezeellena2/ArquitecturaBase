@@ -54,8 +54,23 @@ internal sealed partial class WhatsAppSendQueue : IWhatsAppSendQueue, IMessageSo
         return false;
     }
 
-    public IAsyncEnumerable<WhatsAppOutboundMessage> ReadAllAsync(CancellationToken cancellationToken) =>
-        _channel.Reader.ReadAllAsync(cancellationToken);
+    private WhatsAppOutboundMessage? _current;
+
+    public async IAsyncEnumerable<WhatsAppOutboundMessage> ReadAllAsync([System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        await foreach (var message in _channel.Reader.ReadAllAsync(cancellationToken))
+        {
+            _current = message;
+            yield return message;
+            _current = null;
+        }
+    }
+
+    /// <summary>H8: in the transport tests' memory, a message given back returns to the channel for the next reader.</summary>
+    public void GiveBackCurrent()
+    {
+        if (_current is { } message && _channel.Writer.TryWrite(message)) _current = null;
+    }
 
     // Sin el destinatario ni el contenido, que puede llevar un código o un enlace.
     [LoggerMessage(Level = LogLevel.Warning, Message = "The WhatsApp queue is full (capacity {Capacity}); the message was not queued")]

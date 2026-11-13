@@ -8,7 +8,9 @@ using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Domain.Users;
 using ArquitecturaBase.Domain.Delivery;
 using ArquitecturaBase.Infrastructure.Delivery;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Emails;
 
@@ -102,5 +104,45 @@ public sealed class TransactionalEmailQueueTests(ApiFactory factory) : IClassFix
             Assert.False(queue.TryEnqueue(channel, 1, "test", "second", null));
             return Task.FromResult(Result.Failure(UserErrors.NotFound));
         }, CommitPolicy.OnSuccess, TestContext.Current.CancellationToken));
+    }
+
+    // H8: a delivery the worker gives back without having called the provider goes back to its channel, also when the worker stops
+    // reading right after, and the next consumer claims it; one the worker finishes is completed even while it stops.
+    [Fact]
+    public async Task A_delivery_given_back_by_the_worker_is_claimed_again_and_one_it_finishes_is_completed()
+    {
+        var channel = "queue-test-" + Guid.NewGuid().ToString("N");
+        var ct = TestContext.Current.CancellationToken;
+        await factory.ExecuteScopeAsync(provider => provider.GetRequiredService<IUnitOfWork>().ExecuteInTransactionAsync(_ =>
+        {
+            Assert.True(provider.GetRequiredService<DurableMessageStore>().TryEnqueue(channel, 2, "test", "private-code-123456", null));
+            return Task.FromResult(Result.Success());
+        }, CommitPolicy.OnSuccess, ct));
+        var source = new TextSource(channel, factory.Services);
+        await using (var reader = source.ReadAllAsync(ct).GetAsyncEnumerator(ct))
+        {
+            Assert.True(await reader.MoveNextAsync());
+            Assert.Equal("private-code-123456", reader.Current);
+            source.GiveBackCurrent();
+        }
+
+        var claimed = await factory.ExecuteScopeAsync(provider => provider.GetRequiredService<IDeliveryQueueService>().ClaimNextAsync(channel, ct));
+        Assert.NotNull(claimed.Value);
+        await factory.ExecuteScopeAsync(provider => provider.GetRequiredService<IDeliveryQueueService>().ReleaseAsync(claimed.Value!.Id, ct));
+        using var stopping = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        await using (var reader = source.ReadAllAsync(stopping.Token).GetAsyncEnumerator(stopping.Token))
+        {
+            Assert.True(await reader.MoveNextAsync());
+            await stopping.CancelAsync();
+            Assert.False(await reader.MoveNextAsync());
+        }
+        Assert.False(await factory.ExecuteDbContextAsync(db => db.Set<QueuedDelivery>().AnyAsync(delivery => delivery.Channel == channel, ct)));
+    }
+
+    private sealed class TextSource(string channel, IServiceProvider services) : DurableMessageSource<string>(
+        services.GetRequiredService<IServiceScopeFactory>(), services.GetRequiredService<IDataProtectionProvider>(), NullLogger.Instance)
+    {
+        protected override string Channel => channel;
+        protected override string Deserialize(string messageType, string payload) => payload;
     }
 }

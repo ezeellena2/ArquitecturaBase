@@ -272,6 +272,26 @@ public sealed partial class WhatsAppOutgoingMessage : Entity
 
     public void RecoverExpiredFormAction() => RecoverExpiredSystemDispatch(WhatsAppMessageOrigin.FormAction);
 
+    /// <summary>
+    /// H8: the send stopped before Meta was called (the host stopped while it waited for its turn to write to this person, or
+    /// while it prepared it), so it goes back to Pending in its place, nothing sent. For the chat it is a transition of its own;
+    /// a notice or the assistant also needs its reservation and no started message effect, as when its preparation expires. The
+    /// caller vouches that Meta was not called. Whether it went back.
+    /// </summary>
+    public bool ReturnUnsent(Guid? reservationId)
+    {
+        if (State != WhatsAppOutgoingMessageState.Sending) return false;
+        if (Origin is WhatsAppMessageOrigin.FormAction or WhatsAppMessageOrigin.Assistant)
+        {
+            if (DispatchReservationId is null || DispatchReservationId != reservationId || MessageEffectStartedAtUtc.HasValue) return false;
+            DispatchReservationId = null;
+        }
+
+        State = WhatsAppOutgoingMessageState.Pending;
+        StartedAtUtc = null;
+        return true;
+    }
+
     private Guid ReserveSystemDispatch(WhatsAppMessageOrigin origin, DateTime nowUtc)
     {
         if (Origin != origin) throw new InvalidOperationException("The outgoing origin does not own this system dispatch.");

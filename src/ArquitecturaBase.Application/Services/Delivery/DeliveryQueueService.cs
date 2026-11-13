@@ -20,6 +20,14 @@ internal sealed class DeliveryQueueService(IDeliveryRepository deliveries, IUnit
             return Result.Success<DeliveryMessageResponse?>(new DeliveryMessageResponse(next.Id, next.MessageType, next.ProtectedPayload));
         }, CommitPolicy.OnSuccess, cancellationToken);
 
+    public Task<Result> ReleaseAsync(Guid id, CancellationToken cancellationToken) =>
+        unitOfWork.ExecuteInTransactionAsync(async ct =>
+        {
+            var delivery = await deliveries.GetAsync(id, ct);
+            if (delivery?.ClaimedAtUtc is not null) delivery.Release();
+            return Result.Success();
+        }, CommitPolicy.OnSuccess, cancellationToken);
+
     public Task<Result> CompleteAsync(Guid id, CancellationToken cancellationToken) =>
         unitOfWork.ExecuteInTransactionAsync(async ct =>
         {

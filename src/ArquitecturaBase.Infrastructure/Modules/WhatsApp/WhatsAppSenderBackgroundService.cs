@@ -31,15 +31,26 @@ internal sealed partial class WhatsAppSenderBackgroundService(
 {
     public const int MaxAttempts = 3;
 
+    /// <summary>
+    /// H8: lo que registra el resultado de un envío tiene su propio plazo, independiente del apagado. Va con el reloj del sistema:
+    /// así no suma timers al reloj falso con el que los tests miden las esperas de los reintentos.
+    /// </summary>
+    private static readonly TimeSpan RecordTimeout = TimeSpan.FromSeconds(10);
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         await foreach (var message in sendQueue.ReadAllAsync(stoppingToken))
         {
-            await SendWithRetriesAsync(message, stoppingToken);
+            if (await SendWithRetriesAsync(message, stoppingToken)) continue;
+
+            // H8: la Api se apagó mientras esperaba su turno o su reintento: vuelve a la cola para otra copia y no se toma nada nuevo.
+            sendQueue.GiveBackCurrent();
+            break;
         }
     }
 
-    private async Task SendWithRetriesAsync(WhatsAppOutboundMessage message, CancellationToken cancellationToken)
+    /// <summary>Si el mensaje terminó (salió o se informó que no); false si la Api se apagó antes de que saliera.</summary>
+    private async Task<bool> SendWithRetriesAsync(WhatsAppOutboundMessage message, CancellationToken cancellationToken)
     {
         var messageType = message.GetType().Name;
         var recipient = phoneNumberParser.Mask(message.To);
@@ -47,36 +58,58 @@ internal sealed partial class WhatsAppSenderBackgroundService(
         for (var attempt = 1; ; attempt++)
         {
             WhatsAppSendResult result;
+            IWhatsAppDispatchLease lease;
 
             try
             {
-                await using var lease = await coordinator.AcquireAsync(message.To, cancellationToken);
-                using var sending = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, lease.LostOwnership);
-                // Un scope por intento: el HttpClient tipado es transient y el factory rota sus handlers.
-                await using var scope = scopeFactory.CreateAsyncScope();
-                result = await scope.ServiceProvider.GetRequiredService<IWhatsAppCloudClient>().SendAsync(message, sending.Token);
+                lease = await coordinator.AcquireAsync(message.To, cancellationToken);
             }
-            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                LogGivenBack(logger, messageType, recipient);
+
+                return false;
+            }
+            catch (Exception exception)
+            {
+                LogUnexpectedFailure(logger, messageType, recipient, exception);
+                await RecordUnsentAsync(message, messageType, recipient);
+
+                return true;
+            }
+
+            try
+            {
+                // H8: con su turno tomado, la llamada termina con su plazo (los del cliente o la lease perdida), sin que la
+                // corte el apagado. Un scope por intento: el HttpClient tipado es transient y el factory rota sus handlers.
+                await using var scope = scopeFactory.CreateAsyncScope();
+                result = await scope.ServiceProvider.GetRequiredService<IWhatsAppCloudClient>().SendAsync(message, lease.LostOwnership);
+            }
+            catch (OperationCanceledException)
             {
                 result = WhatsAppSendResult.Uncertain();
             }
-            catch (Exception exception) when (exception is not OperationCanceledException)
+            catch (Exception exception)
             {
                 // El cliente traduce las fallas de Meta y de la red: esto es un bug. Se descarta y la cola sigue.
                 LogUnexpectedFailure(logger, messageType, recipient, exception);
-                await RecordUnsentAsync(message, messageType, recipient, cancellationToken);
+                await ReleaseTurnAsync(lease, messageType, recipient);
+                await RecordUnsentAsync(message, messageType, recipient);
 
-                return;
+                return true;
             }
+
+            // Liberar el turno no pisa lo que pasó con el envío: si Redis falla, la lease vence sola.
+            await ReleaseTurnAsync(lease, messageType, recipient);
 
             if (result.IsSent)
             {
                 health.ReportSent();
                 LogSent(logger, messageType, recipient);
 
-                await RecordAsync(message, result.WaMessageId!, messageType, recipient, cancellationToken);
+                await RecordAsync(message, result.WaMessageId!, messageType, recipient);
 
-                return;
+                return true;
             }
 
             var failure = result.Failure!.Value;
@@ -95,25 +128,25 @@ internal sealed partial class WhatsAppSenderBackgroundService(
                     LogMissingPermission(logger, messageType, recipient, result.MetaErrorCode);
                 }
 
-                await RecordUnsentAsync(message, messageType, recipient, cancellationToken);
+                await RecordUnsentAsync(message, messageType, recipient);
 
-                return;
+                return true;
             }
 
             if (!failure.IsRetryable())
             {
                 LogNotSent(logger, messageType, recipient, failure, result.MetaErrorCode);
-                await RecordUnsentAsync(message, messageType, recipient, cancellationToken);
+                await RecordUnsentAsync(message, messageType, recipient);
 
-                return;
+                return true;
             }
 
             if (attempt == MaxAttempts)
             {
                 LogDropped(logger, messageType, recipient, MaxAttempts, failure, result.MetaErrorCode);
-                await RecordUnsentAsync(message, messageType, recipient, cancellationToken);
+                await RecordUnsentAsync(message, messageType, recipient);
 
-                return;
+                return true;
             }
 
             // Nunca menos de 6 segundos (lo controla WhatsAppOptions al arrancar): antes, Meta rechaza otra vez un
@@ -121,7 +154,17 @@ internal sealed partial class WhatsAppSenderBackgroundService(
             var delay = TimeSpan.FromSeconds(options.Value.RetryDelaySeconds);
             LogRetry(logger, messageType, recipient, failure, result.MetaErrorCode, attempt, MaxAttempts, delay.TotalSeconds);
 
-            await Task.Delay(delay, timeProvider, cancellationToken);
+            try
+            {
+                await Task.Delay(delay, timeProvider, cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                // H8: no salió en este intento, así que se devuelve en vez de quedar tomado por la copia que se apaga.
+                LogGivenBack(logger, messageType, recipient);
+
+                return false;
+            }
         }
     }
 
@@ -130,51 +173,69 @@ internal sealed partial class WhatsAppSenderBackgroundService(
     /// encuentren (sección 9 del spec). En su propio scope, donde IWhatsAppDeliveryService abre su límite
     /// (ExecuteInTransactionAsync); el HTTP a Meta ya salió, fuera de toda transacción. Si lanza, el mensaje ya salió:
     /// se registra y no se vuelve a mandar, porque la persona lo recibiría dos veces. Lo único que se pierde es su
-    /// historial y sus estados.
+    /// historial y sus estados. H8: con un token propio y acotado, también mientras la Api se apaga.
     /// </summary>
     private async Task RecordAsync(
         WhatsAppOutboundMessage message,
         string waMessageId,
         string messageType,
-        string recipient,
-        CancellationToken cancellationToken)
+        string recipient)
     {
         try
         {
+            using var bounded = new CancellationTokenSource(RecordTimeout);
             await using var scope = scopeFactory.CreateAsyncScope();
             var delivery = scope.ServiceProvider.GetRequiredService<IWhatsAppDeliveryService>();
 
-            await delivery.RecordSentAsync(message, waMessageId, cancellationToken);
+            await delivery.RecordSentAsync(message, waMessageId, bounded.Token);
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
+        catch (Exception exception)
         {
             LogNotRecorded(logger, messageType, recipient, exception);
         }
     }
 
+    private async Task ReleaseTurnAsync(IWhatsAppDispatchLease lease, string messageType, string recipient)
+    {
+        try
+        {
+            await lease.DisposeAsync();
+        }
+        catch (Exception exception)
+        {
+            LogTurnNotReleased(logger, messageType, recipient, exception);
+        }
+    }
+
     /// <summary>
-    /// Informa que el mensaje no salió, en su propio scope y su propio límite, como <see cref="RecordAsync"/>. Hoy solo
-    /// cambia algo para una invitación, que queda como fallida. Si lanza, se registra: lo único que se pierde es que el
-    /// admin vea la invitación como pendiente en lugar de fallida.
+    /// Informa que el mensaje no salió, en su propio scope y su propio límite, como <see cref="RecordAsync"/>, y con su
+    /// mismo token acotado. Hoy solo cambia algo para una invitación, que queda como fallida. Si lanza, se registra: lo único
+    /// que se pierde es que el admin vea la invitación como pendiente en lugar de fallida.
     /// </summary>
     private async Task RecordUnsentAsync(
         WhatsAppOutboundMessage message,
         string messageType,
-        string recipient,
-        CancellationToken cancellationToken)
+        string recipient)
     {
         try
         {
+            using var bounded = new CancellationTokenSource(RecordTimeout);
             await using var scope = scopeFactory.CreateAsyncScope();
             var delivery = scope.ServiceProvider.GetRequiredService<IWhatsAppDeliveryService>();
 
-            await delivery.RecordUnsentAsync(message, cancellationToken);
+            await delivery.RecordUnsentAsync(message, bounded.Token);
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
+        catch (Exception exception)
         {
             LogUnsentNotRecorded(logger, messageType, recipient, exception);
         }
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "The {MessageType} to {Recipient} was given back to the queue: the host stopped before it was sent")]
+    private static partial void LogGivenBack(ILogger logger, string messageType, string recipient);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The turn to write to {Recipient} for the {MessageType} could not be released; it expires on its own")]
+    private static partial void LogTurnNotReleased(ILogger logger, string messageType, string recipient, Exception exception);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "The {MessageType} to {Recipient} was sent")]
     private static partial void LogSent(ILogger logger, string messageType, string recipient);

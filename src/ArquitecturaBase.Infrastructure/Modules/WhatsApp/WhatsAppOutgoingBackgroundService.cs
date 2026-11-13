@@ -62,9 +62,11 @@ internal sealed partial class WhatsAppOutgoingBackgroundService(
                     failureCode = verified is null ? WhatsAppFormActionErrors.DocumentUnavailable.Code : WhatsAppFormActionErrors.UploadFailed.Code;
                     if (mediaId is not null)
                     {
+                        // H8: the uploaded document's id is kept with a bounded token, also while the host stops.
+                        using var recordTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(10), timeProvider);
                         await using var recording = scopes.CreateAsyncScope();
                         var recorded = await recording.ServiceProvider.GetRequiredService<IWhatsAppChatDispatchService>()
-                            .RecordFormActionMediaAsync(operation.Id, operation.DispatchReservationId!.Value, mediaId, cancellationToken);
+                            .RecordFormActionMediaAsync(operation.Id, operation.DispatchReservationId!.Value, mediaId, recordTimeout.Token);
                         if (recorded.IsFailure || !recorded.Value) return true;
                     }
                 }
@@ -72,8 +74,10 @@ internal sealed partial class WhatsAppOutgoingBackgroundService(
             }
             if (message is not null || operation.Kind == WhatsAppOutgoingMessageKind.Flow)
             {
+                // H8: waiting for the turn to write to this person stops with the host; once it is taken, the send ends within its
+                // own deadline (the client's timeouts or a lost lease) instead of being cut by the shutdown.
                 await using var lease = await coordinator.AcquireAsync(operation.To, cancellationToken);
-                using var sending = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, lease.LostOwnership);
+                using var sending = CancellationTokenSource.CreateLinkedTokenSource(lease.LostOwnership);
                 await using var scope = scopes.CreateAsyncScope();
                 if (operation.Kind == WhatsAppOutgoingMessageKind.Flow)
                 {
@@ -104,7 +108,18 @@ internal sealed partial class WhatsAppOutgoingBackgroundService(
                 else if (result.Failure is { } failure && failure.IsTokenProblem()) { health.ReportTokenProblem(failure); }
             }
         }
-        catch (Exception) when (!cancellationToken.IsCancellationRequested)
+        catch (Exception) when (cancellationToken.IsCancellationRequested && !providerInvoked)
+        {
+            // H8: the host stopped before Meta was called (waiting for its turn or preparing): back to the queue, nothing sent. Any
+            // failure on the way counts, since the host may be taking services down; a real fault fails on the next copy.
+            LogReturnedUnsent(logger);
+            using var returnTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(10), timeProvider);
+            await using var giving = scopes.CreateAsyncScope();
+            await giving.ServiceProvider.GetRequiredService<IWhatsAppChatDispatchService>()
+                .ReturnUnsentAsync(operation.ContactId, operation.Id, operation.DispatchReservationId, returnTimeout.Token);
+            return true;
+        }
+        catch (Exception)
         {
             uncertain = providerInvoked;
             failureCode ??= operation.Kind == WhatsAppOutgoingMessageKind.Document ? WhatsAppFormActionErrors.DocumentUnavailable.Code : WhatsAppFormActionErrors.SendRejected.Code;
@@ -112,12 +127,12 @@ internal sealed partial class WhatsAppOutgoingBackgroundService(
             else LogDispatchFailedBeforeProvider(logger);
         }
 
-        // A known system outcome is confirmed with a bounded token independent of shutdown. Interrupted effects without an id are recovered as Uncertain.
+        // H8: every outcome, of every origin, is confirmed with a bounded token independent of shutdown. Interrupted effects
+        // without an id are recovered as Uncertain.
         using var completionTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(10), timeProvider);
-        var completionToken = operation.Origin is WhatsAppMessageOrigin.FormAction or WhatsAppMessageOrigin.Assistant ? completionTimeout.Token : cancellationToken;
         await using var completion = scopes.CreateAsyncScope();
         await completion.ServiceProvider.GetRequiredService<IWhatsAppChatDispatchService>()
-            .CompleteAsync(operation.ContactId, operation.Id, providerId, uncertain, completionToken, operation.DispatchReservationId, failureCode);
+            .CompleteAsync(operation.ContactId, operation.Id, providerId, uncertain, completionTimeout.Token, operation.DispatchReservationId, failureCode);
         return true;
     }
 
@@ -149,6 +164,9 @@ internal sealed partial class WhatsAppOutgoingBackgroundService(
             await Task.Delay(TimeSpan.FromSeconds(2), timeProvider, stoppingToken);
         }
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "The WhatsApp outgoing went back to the queue: the host stopped before it was sent.")]
+    private static partial void LogReturnedUnsent(ILogger logger);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "The WhatsApp outgoing dispatch failed before invoking the provider.")]
     private static partial void LogDispatchFailedBeforeProvider(ILogger logger);

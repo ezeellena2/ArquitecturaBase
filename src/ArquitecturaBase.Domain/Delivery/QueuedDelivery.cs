@@ -34,4 +34,14 @@ public sealed class QueuedDelivery : Entity
         }
         ClaimedAtUtc = nowUtc;
     }
+
+    /// <summary>
+    /// H8: the worker gives it back because the host stopped while it waited for its turn, or for the retry it was going to make
+    /// anyway, so another copy can claim it. A claim interrupted in the middle of a send is never released.
+    /// </summary>
+    public void Release()
+    {
+        if (ClaimedAtUtc is null) throw new InvalidOperationException("Only a claimed delivery can be given back.");
+        ClaimedAtUtc = null;
+    }
 }

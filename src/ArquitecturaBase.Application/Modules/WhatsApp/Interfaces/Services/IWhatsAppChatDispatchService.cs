@@ -11,4 +11,10 @@ public interface IWhatsAppChatDispatchService
     Task<Result<bool>> RecordFormActionMediaAsync(Guid operationId, Guid reservationId, string mediaId, CancellationToken cancellationToken);
     Task<Result<bool>> MarkFormActionMessageEffectAsync(Guid contactId, Guid operationId, Guid reservationId, CancellationToken cancellationToken);
     Task<Result> RecoverExpiredAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// H8: a reserved send that stopped before Meta was called (the host stopped while it waited for its turn to write to that
+    /// person) goes back to Pending in its place; one whose message effect already started stays and is recovered as uncertain.
+    /// </summary>
+    Task<Result> ReturnUnsentAsync(Guid contactId, Guid operationId, Guid? reservationId, CancellationToken cancellationToken);
 }

@@ -134,6 +134,20 @@ public sealed class WhatsAppAssistantOutgoingTests
         Assert.False(outgoing.MarkAssistantMessageEffect(second,Now.AddMinutes(1)));
     }
 
+    // H8: an assistant send goes back to the queue only with its own reservation and before its message effect started.
+    [Fact]
+    public void An_assistant_send_goes_back_only_with_its_reservation_and_before_its_effect()
+    {
+        var outgoing = Text(); var reservation = outgoing.ReserveAssistant(Now);
+        Assert.False(outgoing.ReturnUnsent(Guid.NewGuid()));
+        Assert.True(outgoing.ReturnUnsent(reservation));
+        Assert.Equal((WhatsAppOutgoingMessageState.Pending, (Guid?)null), (outgoing.State, outgoing.DispatchReservationId));
+        var started = outgoing.ReserveAssistant(Now.AddSeconds(1));
+        Assert.True(outgoing.MarkAssistantMessageEffect(started,Now.AddSeconds(1)));
+        Assert.False(outgoing.ReturnUnsent(started));
+        Assert.Equal(WhatsAppOutgoingMessageState.Sending,outgoing.State);
+    }
+
     // H2: the review of the chat is only for a send of the chat; the assistant's uncertainty only admits a late acceptance.
     [Fact]
     public void An_uncertain_assistant_send_is_not_reviewed_as_a_send_of_the_chat()

@@ -63,6 +63,23 @@ public sealed class WhatsAppOperatorChatTests
         Assert.Equal(WhatsAppOutgoingMessageState.Accepted, operation.State);
     }
 
+    // H8: a manual send that stopped before Meta was called goes back to the queue in its place; anything else does not move.
+    [Fact]
+    public void A_manual_send_stopped_before_Meta_goes_back_to_the_queue_in_its_place()
+    {
+        var operation = WhatsAppOutgoingMessage.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "Hola", Now);
+        operation.Start(Now.AddSeconds(1));
+
+        Assert.True(operation.ReturnUnsent(null));
+
+        Assert.Equal((WhatsAppOutgoingMessageState.Pending, (DateTime?)null, Now), (operation.State, operation.StartedAtUtc, operation.RequestedAtUtc));
+        Assert.False(operation.ReturnUnsent(null));
+        operation.Start(Now.AddSeconds(2));
+        operation.Accept("wamid.sent");
+        Assert.False(operation.ReturnUnsent(null));
+        Assert.Equal(WhatsAppOutgoingMessageState.Accepted, operation.State);
+    }
+
     // H2: any operator who can send reviews an uncertain send, and the row keeps who and when, as the review of a notice does;
     // reviewing does not say it arrived nor sends it again.
     [Fact]

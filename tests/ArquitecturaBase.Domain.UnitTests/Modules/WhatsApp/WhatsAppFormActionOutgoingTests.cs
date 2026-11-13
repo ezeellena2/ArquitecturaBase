@@ -7,6 +7,24 @@ public sealed class WhatsAppFormActionOutgoingTests
     private static readonly DateTime Now = new(2026, 10, 16, 12, 0, 0, DateTimeKind.Utc);
     private static WhatsAppOutgoingMessage Create() => WhatsAppOutgoingMessage.CreateFormAction(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "Visita aprobada", Now);
 
+    // H8: a notice goes back to the queue only with its reservation and before its message effect, and keeps its uploaded document.
+    [Fact]
+    public void A_notice_goes_back_with_its_reservation_before_its_effect_and_keeps_its_media()
+    {
+        var notice = WhatsAppOutgoingMessage.CreateFormAction(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "Visita aprobada", Now,
+            new("private/visit.pdf", "Visit.pdf", "application/pdf", 80, new string('a', 64)));
+        var reservation = notice.ReserveFormAction(Now);
+        Assert.True(notice.RecordFormActionMedia(reservation, "123456"));
+
+        Assert.False(notice.ReturnUnsent(null));
+        Assert.True(notice.ReturnUnsent(reservation));
+
+        Assert.Equal((WhatsAppOutgoingMessageState.Pending, (Guid?)null, "123456"), (notice.State, notice.DispatchReservationId, notice.DocumentMediaId));
+        var started = notice.ReserveFormAction(Now.AddSeconds(1));
+        Assert.True(notice.MarkFormActionMessageEffect(started, Now.AddSeconds(1)));
+        Assert.False(notice.ReturnUnsent(started));
+    }
+
     // H31: a rule's notice carries its own mark; a tap's confirmation shares its origin but answers the person, like an operator's or
     // the assistant's reply.
     [Fact]

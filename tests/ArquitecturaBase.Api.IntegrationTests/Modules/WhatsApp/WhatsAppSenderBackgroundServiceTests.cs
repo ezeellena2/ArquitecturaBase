@@ -67,6 +67,34 @@ public sealed class WhatsAppSenderBackgroundServiceTests
         Assert.Single(client.Delivered);
     }
 
+    /// <summary>
+    /// H8: un mensaje que esperaba su reintento cuando la Api se apaga se devuelve, en vez de quedar tomado por la copia que se
+    /// apaga: no se informa como no enviado y el próximo lector lo encuentra.
+    /// </summary>
+    [Fact]
+    public async Task A_message_waiting_for_its_retry_is_given_back_when_the_host_stops()
+    {
+        var clock = new TimerCountingTimeProvider();
+        var client = new ScriptedCloudClient().Script(Ana, Failed(WhatsAppSendFailure.PairRateLimited, 131056), Sent());
+        var unsent = new RecordingDeliveryService();
+        WhatsAppSendQueue? queue = null;
+
+        await RunAsync(client, clock, async (sendQueue, _) =>
+        {
+            queue = sendQueue;
+            sendQueue.TryEnqueue(Text(Ana));
+            await WaitUntilAsync(() => clock.TimersCreated == 1);
+        }, unsent: unsent);
+
+        Assert.Equal(1, client.AttemptsFor(Ana));
+        Assert.Empty(unsent.Unsent);
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(Ct);
+        timeout.CancelAfter(TimeSpan.FromSeconds(5));
+        await using var next = queue!.ReadAllAsync(timeout.Token).GetAsyncEnumerator(timeout.Token);
+        Assert.True(await next.MoveNextAsync());
+        Assert.Equal(Ana, next.Current.To);
+    }
+
     [Fact]
     public async Task Transient_failures_wait_the_configured_delay_before_retrying()
     {

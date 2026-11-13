@@ -100,6 +100,18 @@ internal sealed class WhatsAppChatDispatchService(
             return Result.Success();
         }, CommitPolicy.OnSuccess, cancellationToken));
 
+    public Task<Result> ReturnUnsentAsync(Guid contactId, Guid operationId, Guid? reservationId, CancellationToken cancellationToken) =>
+        OperationLog.RunAsync<Result>(logger, "ReturnWhatsAppOutgoing", () =>
+        unitOfWork.ExecuteInTransactionAsync(async ct =>
+        {
+            // The contact before its outgoing row, as reserving and completing take them.
+            if (await repository.GetForUpdateAsync(contactId, ct) is null) return Result.Failure(WhatsAppChatErrors.NotFound);
+            var operation = await repository.GetOutgoingAsync(operationId, ct);
+            if (operation is null || operation.ContactId != contactId) return Result.Failure(WhatsAppChatErrors.NotFound);
+            operation.ReturnUnsent(reservationId);
+            return Result.Success();
+        }, CommitPolicy.OnSuccess, cancellationToken));
+
     public Task<Result<bool>> MarkAssistantMessageEffectAsync(Guid contactId, Guid operationId, Guid reservationId, CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<bool>>(logger, "StartWhatsAppAssistantMessage", () =>
         unitOfWork.ExecuteInTransactionAsync(async ct =>

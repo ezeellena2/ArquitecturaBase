@@ -18,7 +18,9 @@ internal sealed class WhatsAppDispatchCoordinator(RedisCache cache, TimeProvider
         var owner = Guid.NewGuid().ToString("N");
         for (var attempt = 0; attempt < 120; attempt++)
         {
-            if (await cache.TryAcquireExclusiveLeaseAsync(key, owner, LeaseDuration, cancellationToken))
+            // H8: a stop stops the wait, never a SET that Redis may have taken: that would leave the turn held for a minute.
+            cancellationToken.ThrowIfCancellationRequested();
+            if (await cache.TryAcquireExclusiveLeaseAsync(key, owner, LeaseDuration, CancellationToken.None))
             {
                 return new Lease(cache, key, owner, timeProvider);
             }
