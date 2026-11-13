@@ -101,8 +101,6 @@ public sealed class FormEntryServiceTests
             new() { PageSize = 50 }, Ct);
         var search = await fixture.Service.ListOptionsAsync(fixture.Catalogs.DefinitionId, fixture.Catalogs.Version.Id, fixture.FieldId,
             new() { Search = "  lote 5 ", PageSize = 50 }, Ct);
-        var tooLarge = await fixture.Service.ListOptionsAsync(fixture.Catalogs.DefinitionId, fixture.Catalogs.Version.Id, fixture.FieldId,
-            new() { PageSize = 51 }, Ct);
 
         Assert.Equal(60, first.Value.TotalCount);
         Assert.Equal(50, first.Value.Items.Count);
@@ -110,7 +108,23 @@ public sealed class FormEntryServiceTests
         Assert.Equal(["Lote 5", "Lote 50", "Lote 51", "Lote 52", "Lote 53", "Lote 54", "Lote 55", "Lote 56", "Lote 57", "Lote 58", "Lote 59"],
             search.Value.Items.Select(option => option.Title));
         Assert.Equal("lote 5", fixture.ItemQueries[^1].Search);
-        Assert.IsType<ValidationError>(tooLarge.Error);
+    }
+
+    // The options are read up to 50 at a time: a size outside that says so once, with those limits, and reads nothing.
+    [Theory]
+    [InlineData(0)]
+    [InlineData(51)]
+    [InlineData(101)]
+    public async Task An_options_page_size_out_of_range_says_the_limits_of_the_options(int pageSize)
+    {
+        using var fixture = new FormEntryFixture();
+        using var culture = new CultureScope("es");
+
+        var result = await fixture.Service.ListOptionsAsync(fixture.Catalogs.DefinitionId, fixture.Catalogs.Version.Id, fixture.FieldId,
+            new() { PageSize = pageSize }, Ct);
+
+        Assert.Equal(["La cantidad por página debe estar entre 1 y 50."], Assert.IsType<ValidationError>(result.Error).Errors["pageSize"]);
+        Assert.Empty(fixture.ItemQueries);
     }
 
     // CA1-A: the rate of a percentage chosen from a catalog with values is seen while loading, so its option brings the value.

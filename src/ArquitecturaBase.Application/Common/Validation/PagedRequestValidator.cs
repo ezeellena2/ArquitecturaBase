@@ -7,19 +7,23 @@ namespace ArquitecturaBase.Application.Common.Validation;
 /// <summary>
 /// Valida página, tamaño y orden. Cada consulta pasa su lista blanca de campos ordenables:
 /// <c>internal sealed class ListUsersRequestValidator() : PagedRequestValidator&lt;ListUsersRequest&gt;(ListUsersRequest.SortableFields);</c>
+/// Una consulta que lee menos filas por vez pasa su tope (las opciones de una pregunta, 50) en vez de sumar otra regla de tamaño:
+/// así hay un solo error y dice ese tope.
 /// </summary>
 public abstract class PagedRequestValidator<TRequest> : AbstractValidator<TRequest>
     where TRequest : PagedRequest
 {
-    protected PagedRequestValidator(IReadOnlyCollection<string> sortableFields)
+    protected PagedRequestValidator(IReadOnlyCollection<string> sortableFields, int maxPageSize = PagedRequest.MaxPageSize)
     {
         ArgumentNullException.ThrowIfNull(sortableFields);
+        // PagedRequest.MaxPage se fijó con el tope común (100): una consulta sólo puede bajarlo.
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(maxPageSize, PagedRequest.MaxPageSize);
 
         RuleFor(request => request.Page)
             .InclusiveBetween(1, PagedRequest.MaxPage).WithMessage(_ => ValidationMessages.PageInvalid);
 
         RuleFor(request => request.PageSize)
-            .InclusiveBetween(1, PagedRequest.MaxPageSize).WithMessage(_ => ValidationMessages.PageSizeInvalid);
+            .InclusiveBetween(1, maxPageSize).WithMessage(_ => ValidationMessages.PageSizeInvalid);
 
         RuleFor(request => request.Sort)
             .Must(sort => IsSortable(sort, sortableFields)).WithMessage(_ => ValidationMessages.SortNotAllowed);

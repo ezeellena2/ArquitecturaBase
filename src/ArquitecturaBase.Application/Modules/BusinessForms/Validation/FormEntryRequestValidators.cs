@@ -8,10 +8,8 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Validation;
 
 internal sealed class ListFormEntryOptionsRequestValidator : PagedRequestValidator<ListFormEntryOptionsRequest>
 {
-    public ListFormEntryOptionsRequestValidator() : base(ListFormEntryOptionsRequest.SortableFields)
+    public ListFormEntryOptionsRequestValidator() : base(ListFormEntryOptionsRequest.SortableFields, ListFormEntryOptionsRequest.MaximumPageSize)
     {
-        RuleFor(request => request.PageSize).LessThanOrEqualTo(ListFormEntryOptionsRequest.MaximumPageSize)
-            .WithMessage(_ => ValidationMessages.PageSizeInvalid);
         RuleFor(request => request.Answers).Must(FormEntrySendRules.ValidChosen)
             .WithMessage(_ => ErrorMessages.Get(FormRecordErrors.InvalidResponse.Code));
         // LD1-A: one value chosen first, as long as a fixed filter value, or the options without one; not both.

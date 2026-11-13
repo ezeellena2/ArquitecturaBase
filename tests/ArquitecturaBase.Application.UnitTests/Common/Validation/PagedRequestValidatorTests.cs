@@ -9,6 +9,11 @@ public sealed class PagedRequestValidatorTests
 
     private sealed class ProductsQueryValidator() : PagedRequestValidator<ProductsQuery>(["name", "createdAtUtc"]);
 
+    // A query that reads fewer rows at a time, like the options of a question (50).
+    private sealed class ShortPagesQueryValidator() : PagedRequestValidator<ProductsQuery>(["name"], 50);
+
+    private sealed class WidePagesQueryValidator() : PagedRequestValidator<ProductsQuery>(["name"], PagedRequest.MaxPageSize + 1);
+
     private static readonly ProductsQueryValidator Validator = new();
 
     [Fact]
@@ -57,6 +62,35 @@ public sealed class PagedRequestValidatorTests
         var result = Validator.Validate(new ProductsQuery { PageSize = pageSize });
 
         Assert.Equal("La cantidad por página debe estar entre 1 y 100.", Assert.Single(result.Errors).ErrorMessage);
+    }
+
+    [Theory]
+    [InlineData("es", 0, "La cantidad por página debe estar entre 1 y 50.")]
+    [InlineData("es", 51, "La cantidad por página debe estar entre 1 y 50.")]
+    [InlineData("es", 101, "La cantidad por página debe estar entre 1 y 50.")]
+    [InlineData("en", 51, "Page size must be between 1 and 50.")]
+    public void Page_size_outside_a_smaller_cap_is_rejected_once_with_that_cap(string language, int pageSize, string message)
+    {
+        using var culture = new CultureScope(language);
+
+        var result = new ShortPagesQueryValidator().Validate(new ProductsQuery { PageSize = pageSize });
+
+        var failure = Assert.Single(result.Errors);
+        Assert.Equal("PageSize", failure.PropertyName);
+        Assert.Equal(message, failure.ErrorMessage);
+    }
+
+    [Fact]
+    public void Page_size_at_a_smaller_cap_is_valid()
+    {
+        Assert.True(new ShortPagesQueryValidator().Validate(new ProductsQuery { PageSize = 50 }).IsValid);
+    }
+
+    // PagedRequest.MaxPage was set with the common cap (100): a query may only lower it.
+    [Fact]
+    public void A_cap_above_the_common_maximum_is_refused()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new WidePagesQueryValidator());
     }
 
     [Theory]
