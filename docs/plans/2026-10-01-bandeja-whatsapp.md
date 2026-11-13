@@ -175,6 +175,11 @@ una de cargas por WhatsApp pasa sola.
    guardan quién los pidió) y, con el registro abierto, un tope diario por IP en el pedido anónimo.
    El pedido que cruza el 80 % del cupo diario deja un aviso en el log. Chico.
 
+**Hecha el 2026-11-13:** H20 en c7798d5d, H4 en 61de6935 (front b2ea62b7) y H10 en ac5b5ca8. La suite completa con Docker
+sobre una copia de ac5b5ca8 dio 10.613 de 10.626, con el build sin advertencias; las 13 fallas son ajenas: las 12 de la etapa
+1 y una de formularios con condiciones que pasa sola (un timeout de Redis al sembrar, con la máquina cargada). En el front,
+tsc y oxlint sin errores y vitest del área de WhatsApp en verde (925 tests en 62 archivos, en tandas).
+
 ### Etapa 3: el chat no se traba y sale en orden
 
 8. **H2. Revisa cualquiera con `whatsapp.send`.** Una ruta nueva revisa un envío incierto por el id de

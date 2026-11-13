@@ -272,6 +272,10 @@ fuente: cambiarla lo decidís vos.
 - **Arreglo:** exigir también `whatsapp.read` en el contexto de «Probar» (`WhatsAppAssistantAgentTestPolicy.cs:41`),
   que el motor ya controla; sin lectura de registros, no devolver motivo ni campos; buscar y mostrar el
   correo sólo con `users.read`. Chico.
+- **Arreglado el 2026-11-13** en 61de6935 y, en el front, b2ea62b7: las tres rutas de «Probar» exigen también
+  `whatsapp.read` y el contexto se lo pide al motor; sin `formrecords.read`, la prueba llega sin el porqué, sin el texto
+  redactado y sin lo que llenaría un formulario, y el front lo dice; el correo se busca y se muestra sólo con `users.read`.
+  Sin `whatsapp.read`, «Probar» se apaga con su motivo.
 
 #### H5. Si falla el motor de IA, la persona queda sin respuesta y nadie se entera
 
@@ -384,6 +388,10 @@ fuente: cambiarla lo decidís vos.
 - **Arreglo:** un tope diario por cuenta para los códigos del perfil (las filas ya guardan quién los
   pidió) y, con el registro abierto, un tope diario por IP en el pedido anónimo; además, una alerta al
   80 % del cupo. Chico.
+- **Arreglado el 2026-11-13** en ac5b5ca8: los códigos del perfil tienen un tope diario por cuenta (10) y, con el registro
+  abierto, cada código que sale gasta un lugar de la dirección del pedido (20 por día; IPv6 por su /64), en la memoria de cada
+  copia como los demás límites por dirección. El código que lleva el día al 80 % del cupo deja un aviso en el log. Detrás de un
+  proxy o un NAT compartido cuenta la dirección que llega a la Api ([despliegue](../guides/despliegue.md)).
 
 #### H11. Lo recibido con archivos se pierde si Meta o el token fallan más de 15 minutos
 
@@ -527,6 +535,9 @@ fuente: cambiarla lo decidís vos.
   antes (`WhatsAppAssistantReplyPolicy.cs:208-216`).
 - **Arreglo:** comparar modo, cuenta y revisión del vínculo antes de crear, y repetirlo en la
   transacción. Chico.
+- **Arreglado el 2026-11-13** en c7798d5d: antes de pedirle el borrador al dueño, la política compara el modo, la cuenta y
+  la revisión del vínculo (`ExistsCurrentLinkAsync`), y la transacción lo repite; un toque en «Crear» después de desvincular
+  el número queda marcado, sin crear nada ni contestar.
 
 #### H21. La confirmación de un toque puede perderse
 
