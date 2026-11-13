@@ -40,13 +40,13 @@ commitear de otras sesiones (ese día seguía en curso la lectura de documentos 
   - el lock global de formularios (H32);
   - la consulta a Meta por cada formulario (H33);
   - los índices que se crean bloqueando la tabla (H34).
-- **Lo que te toca decidir:**
-  - quién puede revisar un envío incierto (H2);
-  - si una falla del motor deriva a una persona (H5);
-  - si el chat se cifra en la base (H16);
-  - si un toque repetido vuelve a mandar la confirmación de lo ya aplicado (H21);
-  - si la respuesta de un operador pasa adelante de los avisos de un rol (H31);
-  - qué horizonte conviene pagar.
+- **Lo que decidiste el 2026-11-13** ([detalle](#decisiones-del-2026-11-13)):
+  - cualquiera con permiso de enviar revisa un envío incierto (H2);
+  - una falla del motor deriva a una persona (H5);
+  - el chat se cifra en la base (H16);
+  - un toque que se vuelve a entregar recibe la misma confirmación (H21);
+  - lo que le contesta a alguien pasa adelante de los avisos de las reglas (H31);
+  - el horizonte es «Hoy», más H25, H33 y la prioridad de H31.
 
 ## Ficha
 
@@ -232,6 +232,8 @@ fuente: cambiarla lo decidís vos.
 - **Arreglo:** que pueda revisar cualquiera con `whatsapp.send`, guardando quién lo hizo, o que lo
   incierto deje de bloquear a los demás después de un plazo. Chico. **Lo decidís vos:** cambia una
   regla documentada.
+- **Decidido el 2026-11-13:** revisa cualquiera con `whatsapp.send`, y queda guardado quién lo hizo
+  ([decisiones](#decisiones-del-2026-11-13)).
 
 #### H3. Con Redis caído se pierden códigos e invitaciones
 
@@ -285,6 +287,7 @@ fuente: cambiarla lo decidís vos.
 - **Arreglo:** cuando un pedido automático termina bloqueado por una falla del motor, derivar con
   `WhatsAppAssistantHandoffPolicy` en la misma unidad, con un código estable nuevo. Chico a mediano.
   **Lo decidís vos:** derivar pasa la conversación a Atención manual.
+- **Decidido el 2026-11-13:** deriva ([decisiones](#decisiones-del-2026-11-13)).
 
 #### H6. Las acciones de una respuesta del asistente salen en cualquier orden
 
@@ -463,6 +466,8 @@ fuente: cambiarla lo decidís vos.
   - cifrar con Data Protection al menos avisos, transcripciones y planillas; es mediano, porque los
     lectores filtran por el cuerpo en SQL;
   - dejar escrito que el chat queda en claro, protegido por los 90 días de retención y el acceso a la base.
+- **Decidido el 2026-11-13:** se cifra todo el contenido, con un ADR
+  ([decisiones](#decisiones-del-2026-11-13)).
 
 #### H17. La paridad de textos no cubre los del asistente de WhatsApp
 
@@ -525,6 +530,8 @@ fuente: cambiarla lo decidís vos.
 - **Arreglo, si se quiere:** pasarle al dueño el id del toque para que devuelva el mismo texto ante el
   mismo toque, y encolar cada confirmación apenas vuelve su dueño. Chico. **Lo decidís vos:** cambia
   una regla documentada.
+- **Decidido el 2026-11-13:** el mismo toque recibe la misma respuesta, y cada confirmación se encola
+  apenas vuelve su dueño ([decisiones](#decisiones-del-2026-11-13)).
 
 #### H22. La guía para quitar WhatsApp olvida una tabla
 
@@ -583,6 +590,7 @@ fuente: cambiarla lo decidís vos.
 - **Arreglo:** que una copia deje para otra lo que su versión no entiende (pendiente, sin cerrar la
   sesión), con un tope, y escribir cada campo o valor nuevo un despliegue después del que ya sabe
   leerlo. Chico a mediano.
+- **Decidido el 2026-11-13:** entra con los arreglos de «Hoy» ([decisiones](#decisiones-del-2026-11-13)).
 
 #### H26. Los límites de pedidos y la salud son de cada copia
 
@@ -661,6 +669,9 @@ fuente: cambiarla lo decidís vos.
 - **Arreglo:** subir el PDF una sola vez por corrida, saltear los contactos en espera (H12) y mandar
   varios mensajes a la vez por copia. **Lo decidís vos:** una prioridad para el operador cambia la
   decisión escrita. Mediano.
+- **Decidido el 2026-11-13:** lo que le contesta a alguien va primero, con los arreglos de «Hoy»;
+  saltear los contactos en espera va con H12, y subir el PDF una sola vez y mandar varios a la vez
+  quedan en gran escala ([decisiones](#decisiones-del-2026-11-13)).
 
 #### H32. Un lock global de formularios
 
@@ -683,6 +694,7 @@ fuente: cambiarla lo decidís vos.
   `WhatsAppFlowEnvironment.cs:17-25`.
 - **Arreglo:** sacar la consulta del pedido y de la propuesta, que no está documentada, y dejar sólo la
   del worker, que sí lo está (`docs/features/formularios.md:147`). Chico.
+- **Decidido el 2026-11-13:** entra con los arreglos de «Hoy» ([decisiones](#decisiones-del-2026-11-13)).
 
 #### H34. Los índices se crean bloqueando la tabla
 
@@ -774,12 +786,55 @@ IDs opacos y sin transacciones compartidas. Separarlo pediría un ADR nuevo.
   copias es diseño, no algo observado.
 - **Front.** Se leyó en `1b0c45e3`, sólo donde hacía falta para un criterio.
 
+## Decisiones del 2026-11-13
+
+En las seis preguntas elegiste la opción recomendada. Las reglas escritas que cambian (H2, H21 y H31,
+en [WhatsApp](../features/whatsapp.md)) se actualizan con su arreglo; H16 suma un ADR nuevo.
+
+- **Horizonte: «Hoy», más H25, H33 y la prioridad de H31.** El plan lleva H2 a H22, la prioridad de H31
+  y dos que ya afectan a una sola copia:
+  - H25, porque cada despliegue hace convivir las dos versiones y volver a la imagen anterior rompe lo
+    que guardó la nueva;
+  - H33, porque si la API de Meta que da los números de la cuenta anda lenta, «Enviar» un formulario
+    tarda hasta 30 s.
+
+  H23, H24 y H26 van antes de pasar de una réplica (hoy `--max-replicas 1`, en
+  [desplegar a Azure](../deploy/azure-setup.md)); el resto de H27 a H32 y H34, cuando haya volumen real
+  que medir.
+- **H2: revisa cualquiera con `whatsapp.send`.** Cualquier operador que puede enviar marca como revisado
+  un envío incierto, y queda guardado quién lo hizo. Revisar no lo reenvía ni afirma que llegó. La
+  consulta por `requestId` sigue siendo de quien envió. Se descartó un plazo que destrabe solo: deja
+  seguir sin que nadie haya mirado si el mensaje salió.
+- **H5: una falla del motor deriva.** Cuando un pedido automático termina bloqueado, porque el motor
+  falló o venció sin respuesta, en la misma unidad el chat pasa a Atención manual y a «Necesita una
+  persona», con un motivo y un código estable propios. Sale el mensaje fijo de derivar si el agente lo
+  tiene y la ventana de 24 horas sigue abierta. Lo pendiente o reintentable no deriva. Se descartó
+  mostrar la falla sin derivar, porque la persona sigue sin respuesta, y también reintentar, porque
+  cada intento se paga. El costo aceptado: después de un corte del proveedor, cada chat derivado vuelve
+  a Asistente a mano.
+- **H16: se cifra todo el contenido del chat.** Con Data Protection, como las respuestas de Flow, y en
+  todas las tablas del módulo: textos y transcripciones (los cuerpos de mensajes y salidas), planillas,
+  ubicaciones, contactos compartidos, lo leído de documentos, títulos de botones y lo que guarda el
+  asistente. El nombre y el número de cada chat quedan en claro para la bandeja. El ADR fija las
+  columnas y dice por qué alcanza contra una copia de la base: un despliegue exige proteger las claves
+  con un certificado externo. Se descartó dejarlo en claro, y también cifrar sólo lo más sensible,
+  porque el cuerpo de los avisos comparte columna con el de los demás mensajes.
+- **H21: el mismo toque, la misma respuesta.** El dueño guarda el id del toque con su decisión y, ante
+  ese mismo toque, devuelve el mismo texto; cada confirmación se encola apenas vuelve su dueño. Un
+  segundo toque de la persona, con otro id, se sigue ignorando.
+- **H31: lo que le contesta a alguien va primero.** Al elegir el próximo chat, las respuestas del
+  operador, las del asistente y las confirmaciones de toques pasan adelante de los avisos de las reglas;
+  dentro de un chat se mantiene el orden. Saltear los contactos en espera va con H12; subir el PDF una
+  sola vez y mandar varios a la vez quedan en gran escala.
+
 ## Cómo seguir
 
 - **Antes de la prueba integral:** B1 a B4 y H1 quedaron arreglados el 2026-11-12.
-- **Tus decisiones:** H2, H5, H16, H21, la prioridad de H31 y el horizonte.
-- **El resto de «Hoy»:** son arreglos chicos o medianos, y conviene juntarlos en un plan. Los de varias
-  copias van antes de sumar réplicas; los de gran escala, cuando se elija ese horizonte.
+- **Tus decisiones:** tomadas el 2026-11-13 ([decisiones](#decisiones-del-2026-11-13)).
+- **El plan de «Hoy»:** H2 a H22 (menos H14 y el ensayo de H15, que ya están anotados), H25, H33 y la
+  prioridad de H31, con esas decisiones. Son arreglos chicos o medianos para un solo plan. Los otros de
+  varias copias (H23, H24 y H26) van antes de sumar réplicas; el resto de gran escala, cuando haya
+  volumen real que medir.
 - **Lo que ya estaba anotado:**
   - H14 y el ensayo de H15, en [verificación y producción](../plans/verificacion-y-produccion.md);
   - H30, en el [panel de conversaciones](../plans/2026-10-04-panel-conversaciones-inicio.md);
