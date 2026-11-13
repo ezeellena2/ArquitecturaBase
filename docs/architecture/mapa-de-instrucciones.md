@@ -102,7 +102,7 @@ El módulo de [IA](../features/inteligencia-artificial.md) agrega estos ámbitos
 | [Infrastructure/Modules/ArtificialIntelligence](../../src/ArquitecturaBase.Infrastructure/Modules/ArtificialIntelligence/AGENTS.md) | EF, cifrado externo, adaptadores OpenAI/Anthropic y STT con bytes privados; mismo worker con scopes separados, métricas y mantenimiento; Places con credencial independiente. |
 | [Api/Modules/ArtificialIntelligence](../../src/ArquitecturaBase.Api/Modules/ArtificialIntelligence/AGENTS.md) | Contratos HTTP, controller y límites por operador. |
 | [Domain.UnitTests/Modules/ArtificialIntelligence](../../tests/ArquitecturaBase.Domain.UnitTests/Modules/ArtificialIntelligence/AGENTS.md) | Invariantes puras. |
-| [Application.UnitTests/Modules/ArtificialIntelligence](../../tests/ArquitecturaBase.Application.UnitTests/Modules/ArtificialIntelligence/AGENTS.md) | Coordinación con dobles y paridad de recursos. |
+| [Application.UnitTests/Modules/ArtificialIntelligence](../../tests/ArquitecturaBase.Application.UnitTests/Modules/ArtificialIntelligence/AGENTS.md) | Coordinación con dobles. |
 | [Api.IntegrationTests/Modules/ArtificialIntelligence](../../tests/ArquitecturaBase.Api.IntegrationTests/Modules/ArtificialIntelligence/AGENTS.md) | Docker, dos hosts, cifrado y HTTP simulado, sin facturación. |
 | [ArchitectureTests/Modules/ArtificialIntelligence](../../tests/ArquitecturaBase.ArchitectureTests/Modules/ArtificialIntelligence/AGENTS.md) | Aportes de lock, punto de entrada neutral y lector de capacidades propios. |
 | [tests/Shared](../../tests/Shared/AGENTS.md) | Registro de módulos de Application enlazado en los arneses. |
@@ -118,7 +118,7 @@ El módulo [ARCA](../decisions/0023-arca-como-modulo-opcional.md), ordenado por 
 | [Api/Modules/Arca](../../src/ArquitecturaBase.Api/Modules/Arca/AGENTS.md) | Rutas de la conexión, el robot de delegación, el padrón y la facturación, con permisos y límites por operador. |
 | [Infrastructure/Modules/Arca](../../src/ArquitecturaBase.Infrastructure/Modules/Arca/AGENTS.md) | Anillo propio, opciones por ambiente y servicio, clientes HTTP por familia sin reintentos globales; WSAA, ticket compartido, clientes del padrón y de WSFEv1, persistencia y locks por familia; el robot de delegación con Playwright. |
 | [Domain.UnitTests/Modules/Arca](../../tests/ArquitecturaBase.Domain.UnitTests/Modules/Arca/AGENTS.md) | Reglas puras por familia: CUIT, conexión, certificado, ticket, padrón y punto de venta. |
-| [Application.UnitTests/Modules/Arca](../../tests/ArquitecturaBase.Application.UnitTests/Modules/Arca/AGENTS.md) | Permisos, paridad de recursos y pruebas por familia. |
+| [Application.UnitTests/Modules/Arca](../../tests/ArquitecturaBase.Application.UnitTests/Modules/Arca/AGENTS.md) | Permisos y pruebas por familia. |
 | [Application.UnitTests/TestFeatures/Modules/Arca](../../tests/ArquitecturaBase.Application.UnitTests/TestFeatures/Modules/Arca/AGENTS.md) | Host con los servicios reales, almacén en memoria y familias de prueba. |
 | [Api.IntegrationTests/Modules/Arca](../../tests/ArquitecturaBase.Api.IntegrationTests/Modules/Arca/AGENTS.md) | Anillo de prueba, clientes sin red, opciones, composición y persistencia por familia. |
 | [Api.IntegrationTests/TestFeatures/Modules/Arca](../../tests/ArquitecturaBase.Api.IntegrationTests/TestFeatures/Modules/Arca/AGENTS.md) | Escenario de persistencia y dobles de ARCA, sin red. |

@@ -183,8 +183,9 @@ que éste no lo esquiva.
 ### 7. Lo que ve el usuario
 
 26. **Idioma.** ¿Cada texto sale de un `.resx` con su `.en.resx`, y quien recibe lo lee en su idioma
-    también por WhatsApp, correo, PDF y Excel? Ya lo cuida, para los recursos que nombra:
-    `ResourceParityTests`; confirmar que estén los del desarrollo.
+    también por WhatsApp, correo, PDF y Excel? Las claves ya las cuidan `ResourceParityTests`, que recorre
+    todos los `.resx` de Application, y `EmailTemplateRendererTests`, los de los correos; un `.resx` en otra
+    capa necesita el suyo.
 27. **Fechas, zonas horarias y números.** ¿Se guarda en UTC con el reloj inyectado, y «hoy», «vence» o
     «abre» se calculan en la zona del negocio? Calculado en UTC, en Argentina el día cambia a las 21.
     ¿Las fechas le llegan al usuario sólo con números, y los números con la región de su idioma? Mirar

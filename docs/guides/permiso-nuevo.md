@@ -40,6 +40,6 @@ Los permisos de cada rol se cachean una hora en Redis por su `ConcurrencyStamp` 
 |---|---|---|
 | [`PermissionsTests`](../../tests/ArquitecturaBase.Domain.UnitTests/Authorization/PermissionsTests.cs) | Domain | `All` completo, en orden y sin repetidos; el formato |
 | [`PermissionTextsTests`](../../tests/ArquitecturaBase.Application.UnitTests/Resources/PermissionTextsTests.cs) | Application | cada `Area.*`, `Permission.*` y `PermissionDescription.*`, en español y en inglés |
-| [`ResourceParityTests`](../../tests/ArquitecturaBase.Application.UnitTests/Resources/ResourceParityTests.cs) | Application | `Permission_texts_have_the_same_keys_in_spanish_and_english` |
+| [`ResourceParityTests`](../../tests/ArquitecturaBase.Application.UnitTests/Resources/ResourceParityTests.cs) | Application | `Every_resource_has_the_same_keys_in_spanish_and_english`: las mismas claves en cada `.resx` de Application y su `.en.resx`, también los de permisos |
 | [`PermissionAuthorizationTests`](../../tests/ArquitecturaBase.ArchitectureTests/PermissionAuthorizationTests.cs) | Architecture | Atributos de permiso simple u OR en lugar de políticas a mano, y cada alternativa en el catálogo |
 | `RolesEndpointsTests`, `SeedTests`, `UsersEndpointsTests.Admin_gets_every_permission` y pruebas del módulo | IntegrationTests (Docker) | el catálogo por HTTP y los permisos de Admin; las pruebas del núcleo fijan `Permissions.All` y las del módulo, su extensión |
