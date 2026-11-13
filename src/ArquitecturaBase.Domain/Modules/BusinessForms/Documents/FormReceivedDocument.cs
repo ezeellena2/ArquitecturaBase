@@ -10,6 +10,19 @@ namespace ArquitecturaBase.Domain.Modules.BusinessForms.Documents;
 public enum FormReceivedDocumentState { Proposed, Unclassified, Confirmed, Discarded }
 
 /// <summary>
+/// Why a proposed one was not sent to its person (VC1-A): the form cannot be sent to them (CE4-A), or it is a row past the loads of its
+/// spreadsheet. Stored as text: never renumber.
+/// </summary>
+public enum FormReceivedDocumentNotSentReason { NotSendable, OverLimit }
+
+/// <summary>
+/// What became of a row of a spreadsheet when it was registered (VC1-A): a load, one whose form cannot be sent to its person, one past the
+/// loads, a repeated one, one that fits no form or one the model did not see. A repeated registration answers it, whatever the team did with
+/// the row later. Stored as text: never renumber.
+/// </summary>
+public enum FormReceivedDocumentRowKind { Load, NotSendable, OverLimit, Repeated, Unmatched, Unseen }
+
+/// <summary>
 /// A document a person with a linked account sent through a channel, in the inbox «Documentos recibidos» (decision 9): its own private
 /// copy, its reading and proposal (protected by Application), its state with its reason, the numbers to search it by and the response it
 /// became. The channel and its opaque source id are unique: a document is registered once. A proposed one waits for its person until its
@@ -30,6 +43,9 @@ public sealed class FormReceivedDocument : Entity, IAuditable
     public const int MaxSearchTextLength = 4000;
     public const int MaxPages = 10;
     public const int MaxTimeZoneIdLength = Users.AccountRules.TimeZoneIdMaxLength;
+    public const int MaxSheetNameLength = 120;
+    /// <summary>The last row a sheet of Excel has.</summary>
+    public const int MaxRowNumber = 1_048_576;
 
     /// <summary>A person discarded it in the inbox.</summary>
     public const string DiscardedByReviewer = "reviewer";
@@ -65,6 +81,17 @@ public sealed class FormReceivedDocument : Entity, IAuditable
     public DateTime? ReviewedAtUtc { get; private set; }
     public DateTime? ReplyExpiresAtUtc { get; private set; }
     public bool NotSendable { get; private set; }
+    /// <summary>Why it was not sent to its person, exactly while <see cref="NotSendable"/> (VC1-A).</summary>
+    public FormReceivedDocumentNotSentReason? NotSentReason { get; private set; }
+    /// <summary>
+    /// VC1-A: a row of a spreadsheet is an entry of its own, with its sheet (only when its book has more than one) and its number as Excel
+    /// numbers it; its copy is the spreadsheet's, which its other rows share. Both null in a document.
+    /// </summary>
+    public string? SheetName { get; private set; }
+    public int? RowNumber { get; private set; }
+    /// <summary>VC1-A: a row's place among the entries of its spreadsheet, in the order of its book, and what became of it there.</summary>
+    public int? RowOrder { get; private set; }
+    public FormReceivedDocumentRowKind? RowKind { get; private set; }
     public DateTime? DeleteAfterUtc { get; private set; }
     /// <summary>
     /// The extraction a reviewer asked for to change its form, while it runs: its request, its form, when it was asked and who asked, in
@@ -103,6 +130,25 @@ public sealed class FormReceivedDocument : Entity, IAuditable
     }
 
     /// <summary>
+    /// VC1-A: a row of a spreadsheet as it arrives, still to classify: like a document, with the copy of its spreadsheet (shared with its other
+    /// rows, without pages), its sheet when the book has more than one, its number, its place among the entries of the book and what became of it.
+    /// </summary>
+    public static Result<FormReceivedDocument> ReceiveRow(Guid id, string channelId, string sourceId, Guid senderUserId, DateTime receivedAtUtc,
+        string storageKey, string fileName, string mediaType, long size, string sha256, string? sheetName, int rowNumber, int rowOrder,
+        FormReceivedDocumentRowKind rowKind, DateTime? replyExpiresAtUtc)
+    {
+        if (sheetName is not null && !Text(sheetName, MaxSheetNameLength) || rowNumber is < 1 or > MaxRowNumber || rowOrder < 1 || !Enum.IsDefined(rowKind))
+            return FormReceivedDocumentErrors.ContentInvalid;
+        var received = Receive(id, channelId, sourceId, senderUserId, receivedAtUtc, storageKey, fileName, mediaType, size, sha256, null, replyExpiresAtUtc);
+        if (received.IsFailure) return received;
+        received.Value.SheetName = sheetName;
+        received.Value.RowNumber = rowNumber;
+        received.Value.RowOrder = rowOrder;
+        received.Value.RowKind = rowKind;
+        return received;
+    }
+
+    /// <summary>
     /// A file that cannot be opened and that the inbox does not keep (decision 10, task 8): what its person sent (the file name, the media type
     /// the channel declared and the size when it was known), discarded at once with its reason, without a copy, a reading or a proposal.
     /// </summary>
@@ -124,6 +170,9 @@ public sealed class FormReceivedDocument : Entity, IAuditable
     /// <summary>Whether the inbox keeps the document's file.</summary>
     public bool IsStored => StorageKey is not null;
 
+    /// <summary>Whether it is a row of a spreadsheet (VC1-A).</summary>
+    public bool IsRow => RowNumber is not null;
+
     /// <summary>The reading and, with a proposal, the type of document and the numbers to search it by; set while it is registered.</summary>
     public Result Describe(byte[]? protectedReading, string? documentType, string searchText)
     {
@@ -137,10 +186,20 @@ public sealed class FormReceivedDocument : Entity, IAuditable
     }
 
     /// <summary>Proposed for a form at registration, waiting for its person; one that cannot be sent to them is for the team at once.</summary>
-    public Result Propose(Guid definitionId, Guid versionId, byte[] protectedProposal, bool notSendable)
+    public Result Propose(Guid definitionId, Guid versionId, byte[] protectedProposal, bool notSendable) =>
+        Propose(definitionId, versionId, protectedProposal, notSendable ? FormReceivedDocumentNotSentReason.NotSendable : null);
+
+    /// <summary>
+    /// Proposed for a form at registration, waiting for its person unless it is not sent to them, with the reason: the form cannot be sent to
+    /// them, or (only a row, VC1-A) it is past the loads of its spreadsheet. Either is for the team at once.
+    /// </summary>
+    public Result Propose(Guid definitionId, Guid versionId, byte[] protectedProposal, FormReceivedDocumentNotSentReason? notSent)
     {
-        if (definitionId == Guid.Empty || versionId == Guid.Empty || protectedProposal is not { Length: > 0 }) return FormReceivedDocumentErrors.ContentInvalid;
-        DefinitionId = definitionId; VersionId = versionId; ProtectedProposal = protectedProposal; NotSendable = notSendable;
+        if (definitionId == Guid.Empty || versionId == Guid.Empty || protectedProposal is not { Length: > 0 }
+            || notSent is { } reason && (!Enum.IsDefined(reason) || reason == FormReceivedDocumentNotSentReason.OverLimit && !IsRow))
+            return FormReceivedDocumentErrors.ContentInvalid;
+        DefinitionId = definitionId; VersionId = versionId; ProtectedProposal = protectedProposal;
+        NotSendable = notSent is not null; NotSentReason = notSent;
         State = FormReceivedDocumentState.Proposed; ReasonCode = null; DeleteAfterUtc = null;
         return Result.Success();
     }

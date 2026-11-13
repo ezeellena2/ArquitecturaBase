@@ -46,7 +46,8 @@ internal sealed class FormReceivedDocumentExtractionService(FormReceivedDocument
             return FormReceivedDocumentErrors.AwaitingSender;
         if (row.Revision != request.ExpectedRevision) return FormReceivedDocumentErrors.RevisionConflict;
         if (await reader.FindActiveFormAsync(definitionId, cancellationToken) is not { } form) return FormReceivedDocumentErrors.FormUnavailable;
-        var context = FormReceivedDocumentExtractionPolicy.Context(actor.Value.Id, actor.Value.Culture, actor.Value.TimeZoneId, definitionId, documentId);
+        var context = FormReceivedDocumentExtractionPolicy.Context(actor.Value.Id, actor.Value.Culture, actor.Value.TimeZoneId, definitionId, documentId,
+            row.RowNumber is not null);
         if (extractions.Request(row, requestId, context, now) is not { } operation) return FormReceivedDocumentErrors.ReadingUnavailable;
         var submitted = await operations.SubmitAsync(operation, cancellationToken);
         if (submitted.IsFailure) return EngineError(submitted.Error);
@@ -87,7 +88,8 @@ internal sealed class FormReceivedDocumentExtractionService(FormReceivedDocument
         if (await reader.FindActiveFormAsync(request.DefinitionId, cancellationToken) is not { } form) return FormReceivedDocumentErrors.FormUnavailable;
         var now = clock.GetUtcNow().UtcDateTime;
         var requestId = Guid.CreateVersion7();
-        var context = FormReceivedDocumentExtractionPolicy.Context(request.ActorUserId, request.Culture, request.TimeZoneId, request.DefinitionId, row.Id);
+        var context = FormReceivedDocumentExtractionPolicy.Context(request.ActorUserId, request.Culture, request.TimeZoneId, request.DefinitionId, row.Id,
+            row.RowNumber is not null);
         if (extractions.Request(row, requestId, context, now) is not { } operation) return FormReceivedDocumentErrors.ReadingUnavailable;
         var submitted = await operations.SubmitAsync(operation, cancellationToken);
         // The engine's quota or capacity and a turn still active come back as they are, and the assistant not available for now (paused, not

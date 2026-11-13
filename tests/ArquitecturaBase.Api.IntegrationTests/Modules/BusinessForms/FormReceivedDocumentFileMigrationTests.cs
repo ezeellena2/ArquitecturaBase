@@ -32,11 +32,15 @@ public sealed class FormReceivedDocumentFileMigrationTests(ApiFactory factory)
             // Only up to this migration: a later one would otherwise have to come down first, and this test is about this Down.
             await migrator.MigrateAsync(This(db), Ct);
             Assert.Equal(["YES", "YES", "YES"], await NullableAsync(db));
+            // Only the columns of this schema (a later migration adds others the current model maps, VC1-A): a rejected file without its copy.
             var document = FormReceivedDocument.ReceiveRejected(Guid.CreateVersion7(), "whatsapp", "wamid.migration", Guid.NewGuid(), now, "informe.doc",
                 "application/msword", 2048, "legacy", now).Value;
-            db.Add(document);
-            await db.SaveChangesAsync(Ct);
-            db.ChangeTracker.Clear();
+            await db.Database.ExecuteSqlAsync($"""
+                INSERT INTO "FormReceivedDocuments" ("Id", "ChannelId", "SourceId", "SenderUserId", "ReceivedAtUtc", "FileName", "MediaType", "Size", "State",
+                    "ReasonCode", "SearchText", "NotSendable", "DeleteAfterUtc", "Revision", "CreatedAtUtc")
+                VALUES ({document.Id}, {document.ChannelId}, {document.SourceId}, {document.SenderUserId}, {document.ReceivedAtUtc}, {document.FileName},
+                    {document.MediaType}, {document.Size}, 'Discarded', {document.ReasonCode}, '', FALSE, {document.DeleteAfterUtc}, 1, {now})
+                """, Ct);
             var applied = await db.Database.GetAppliedMigrationsAsync(Ct);
 
             var error = await Assert.ThrowsAsync<PostgresException>(() => migrator.MigrateAsync(Before(db), Ct));
@@ -44,7 +48,8 @@ public sealed class FormReceivedDocumentFileMigrationTests(ApiFactory factory)
             Assert.Equal(PostgresErrorCodes.RaiseException, error.SqlState);
             Assert.Equal(applied, await db.Database.GetAppliedMigrationsAsync(Ct));
             Assert.Equal(["YES", "YES", "YES"], await NullableAsync(db));
-            Assert.Equal("informe.doc", (await db.Set<FormReceivedDocument>().AsNoTracking().SingleAsync(row => row.Id == document.Id, Ct)).FileName);
+            Assert.Equal("informe.doc", await db.Database.SqlQuery<string>(
+                $"""SELECT "FileName" AS "Value" FROM "FormReceivedDocuments" WHERE "Id" = {document.Id}""").SingleAsync(Ct));
 
             await db.Database.ExecuteSqlAsync($"""DELETE FROM "FormReceivedDocuments" WHERE "Id" = {document.Id}""", Ct);
             await migrator.MigrateAsync(Before(db), Ct);

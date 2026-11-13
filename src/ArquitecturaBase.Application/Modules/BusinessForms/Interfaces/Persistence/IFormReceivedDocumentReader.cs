@@ -33,7 +33,15 @@ public interface IFormReceivedDocumentReader
     Task<IReadOnlyList<FormDocumentRepetitionRow>> ListRepetitionsAsync(Guid definitionId, string? sha256, IReadOnlyList<FormDocumentRepetitionKey> keys,
         Guid? exceptDocumentId, CancellationToken cancellationToken);
     Task<FormReceivedDocumentStoredRow?> FindAsync(Guid documentId, CancellationToken cancellationToken);
+    /// <summary>The document of a channel source, never a row of a spreadsheet (VC1-A).</summary>
     Task<FormReceivedDocumentStoredRow?> FindBySourceAsync(string channelId, string sourceId, CancellationToken cancellationToken);
+    /// <summary>VC1-A: every entry of a channel source: the rows of its spreadsheet in the order of its book, or its single entry.</summary>
+    Task<IReadOnlyList<FormReceivedDocumentStoredRow>> ListBySourceAsync(string channelId, string sourceId, CancellationToken cancellationToken);
+    /// <summary>
+    /// VC1-A: the earliest row of a spreadsheet with that SHA-256 the team did not discard, or null: the same spreadsheet again is a repeated
+    /// document; its single entry (over the quota, not recognized, or repeated) or its discarded rows are not.
+    /// </summary>
+    Task<FormReceivedDocumentStoredRow?> FindSpreadsheetAsync(string sha256, CancellationToken cancellationToken);
     Task<FormReceivedDocumentPageRow> FindPageAsync(ListFormReceivedDocumentsRequest request, string? searchDigits, DateTime nowUtc,
         CancellationToken cancellationToken);
     Task<FormReceivedDocumentStateCounts> CountAsync(DateTime nowUtc, CancellationToken cancellationToken);

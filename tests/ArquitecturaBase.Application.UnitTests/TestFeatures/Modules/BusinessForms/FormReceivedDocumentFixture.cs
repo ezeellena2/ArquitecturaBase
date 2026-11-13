@@ -74,7 +74,13 @@ internal sealed class FormReceivedDocumentFixture : IFormReceivedDocumentReposit
     public Task<FormReceivedDocumentStoredRow?> FindAsync(Guid documentId, CancellationToken cancellationToken) =>
         Task.FromResult(Documents.Where(document => document.Id == documentId).Select(Row).SingleOrDefault());
     public Task<FormReceivedDocumentStoredRow?> FindBySourceAsync(string channelId, string sourceId, CancellationToken cancellationToken) =>
-        Task.FromResult(Documents.Where(document => document.ChannelId == channelId && document.SourceId == sourceId).Select(Row).SingleOrDefault());
+        Task.FromResult(Documents.Where(document => document.ChannelId == channelId && document.SourceId == sourceId && !document.IsRow).Select(Row).SingleOrDefault());
+    public Task<IReadOnlyList<FormReceivedDocumentStoredRow>> ListBySourceAsync(string channelId, string sourceId, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<FormReceivedDocumentStoredRow>>(Documents.Where(document => document.ChannelId == channelId && document.SourceId == sourceId)
+            .OrderBy(document => document.RowOrder).Select(Row).ToArray());
+    public Task<FormReceivedDocumentStoredRow?> FindSpreadsheetAsync(string sha256, CancellationToken cancellationToken) =>
+        Task.FromResult(Documents.Where(document => document.Sha256 == sha256 && document.IsRow && document.State != FormReceivedDocumentState.Discarded)
+            .OrderBy(document => document.ReceivedAtUtc).Select(Row).FirstOrDefault());
     public Task<FormReceivedDocumentPageRow> FindPageAsync(ListFormReceivedDocumentsRequest request, string? searchDigits, DateTime nowUtc,
         CancellationToken cancellationToken) => throw new NotSupportedException("The inbox list is covered with PostgreSQL.");
     public Task<FormReceivedDocumentStateCounts> CountAsync(DateTime nowUtc, CancellationToken cancellationToken) =>
@@ -98,7 +104,9 @@ internal sealed class FormReceivedDocumentFixture : IFormReceivedDocumentReposit
     public Task<FormReceivedDocument?> GetAsync(Guid documentId, CancellationToken cancellationToken) =>
         Task.FromResult(Documents.SingleOrDefault(document => document.Id == documentId));
     public Task<FormReceivedDocument?> GetBySourceAsync(string channelId, string sourceId, CancellationToken cancellationToken) =>
-        Task.FromResult(Documents.SingleOrDefault(document => document.ChannelId == channelId && document.SourceId == sourceId));
+        Task.FromResult(Documents.SingleOrDefault(document => document.ChannelId == channelId && document.SourceId == sourceId && !document.IsRow));
+    public Task<bool> ExistsSourceAsync(string channelId, string sourceId, CancellationToken cancellationToken) =>
+        Task.FromResult(Documents.Any(document => document.ChannelId == channelId && document.SourceId == sourceId));
     public void Add(FormReceivedDocument document) => Documents.Add(document);
     public void Add(FormReceivedDocumentEvent documentEvent) => Events.Add(documentEvent);
     public void Remove(FormReceivedDocument document) { Documents.Remove(document); Events.RemoveAll(item => item.DocumentId == document.Id); }
@@ -144,5 +152,7 @@ internal sealed class FormReceivedDocumentFixture : IFormReceivedDocumentReposit
         document.ExtractionRequestedAtUtc, document.Revision)
     {
         ExtractionActorUserId = document.ExtractionActorUserId, ExtractionCulture = document.ExtractionCulture, ExtractionTimeZoneId = document.ExtractionTimeZoneId,
+        SheetName = document.SheetName, RowNumber = document.RowNumber, NotSentReason = document.NotSentReason, RowOrder = document.RowOrder,
+        RowKind = document.RowKind,
     };
 }

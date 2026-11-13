@@ -48,7 +48,8 @@ internal sealed class FormReceivedDocumentChannelService(IFormReceivedDocumentRe
         {
             if (recognizing is { } recognized) return await RecognizeCoreAsync(recognized, request, classification, ct);
             await repository.LockSourceAsync(request.ChannelId, request.SourceId, ct);
-            if (await repository.GetBySourceAsync(request.ChannelId, request.SourceId, ct) is not null)
+            // The rows of a spreadsheet of the same source block it too (VC1-A).
+            if (await repository.ExistsSourceAsync(request.ChannelId, request.SourceId, ct))
                 return Result.Success<StructuredDocumentRegistration?>(null);
             var registered = recorder.Register(documentId, storageKey, request, classification);
             if (registered.IsFailure) return registered.Error;

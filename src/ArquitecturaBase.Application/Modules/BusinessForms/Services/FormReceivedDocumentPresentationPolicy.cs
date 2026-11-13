@@ -61,12 +61,15 @@ internal sealed class FormReceivedDocumentPresentationPolicy(IFormReceivedDocume
         return new(Item(row, proposal, versions, culture, nowUtc),
             reading is null ? null : new(Camel(reading.Readability.ToString()), reading.Problem is { } problem ? Camel(problem.ToString()) : null,
                 reading.Language, reading.Text, reading.Truncated),
-            proposal is null ? null : new(proposal.Outcome, proposal.DocumentType, candidates, proposal.Repetition),
+            proposal is null ? null : new(proposal.Outcome, proposal.DocumentType, candidates, Repetition(proposal, versions, culture)),
             row.ExtractionRequestId is { } requestId && row.ExtractionDefinitionId is { } definitionId && row.ExtractionRequestedAtUtc is { } requestedAt
                 ? new(requestId, definitionId, requestedAt) : null,
             events.OrderBy(item => item.AtUtc).ThenBy(item => item.Id).Select(item => new FormReceivedDocumentEventResponse(item.AtUtc, Camel(item.Kind),
                 item.ActorUserId is { } actor ? new(actor, item.ActorName) : null, contents.ReadDetail(row.Id, item.ProtectedDetail))).ToArray(),
-            canReview, canReview ? await FormsAsync(culture, ct) : []);
+            canReview, canReview ? await FormsAsync(culture, ct) : [])
+        {
+            RowCells = row.RowNumber is null ? null : RowCells(contents.ReadRow(row.Id, row.ProtectedReading)),
+        };
     }
 
     public Task<Stream?> OpenAsync(FormReceivedDocumentStoredRow row, CancellationToken ct) =>
@@ -105,7 +108,41 @@ internal sealed class FormReceivedDocumentPresentationPolicy(IFormReceivedDocume
         return new(row.Id, row.ReceivedAtUtc, row.ChannelId, new(row.SenderUserId, row.SenderName), form, Camel(row.State.ToString()),
             FormReceivedDocument.IsForReview(row.State, row.NotSendable, row.ReplyExpiresAtUtc, nowUtc),
             FormReceivedDocument.AwaitedUntil(row.State, row.NotSendable, row.ReplyExpiresAtUtc, nowUtc), row.ReasonCode, row.DocumentType, record,
-            new(row.FileName, row.MediaType, row.Size, row.Pages, row.StorageKey is not null), highlights, row.DeleteAfterUtc, row.Revision);
+            new(row.FileName, row.MediaType, row.Size, row.Pages, row.StorageKey is not null), highlights, row.DeleteAfterUtc, row.Revision)
+        {
+            Row = row.RowNumber is { } rowNumber ? new(row.SheetName, rowNumber) : null,
+        };
+    }
+
+    // Where it repeats, with what a row adds (VC1-A): the questions whose data matched, as the version of its candidate names them in the reader's
+    // language, and the earlier row it is equal to.
+    private static FormReceivedDocumentRepetitionResponse? Repetition(FormDocumentPreparedProposal proposal,
+        IReadOnlyDictionary<Guid, (FormDocumentVersionRow Row, FormVersionSchema Schema)> versions, string culture)
+    {
+        if (proposal.Repetition is not { } repetition) return null;
+        string[]? labels = null;
+        if (repetition.FieldIds is { Count: > 0 } fieldIds && proposal.Candidates is [var candidate, ..] && versions.TryGetValue(candidate.VersionId, out var version))
+        {
+            labels = [.. fieldIds.Select(fieldId => version.Schema.Questions.SingleOrDefault(question => question.FieldId == fieldId)).OfType<CanonicalFormField>()
+                .Select(question => FormRecordPresentationPolicy.Text(question.Label, culture)).Where(label => !string.IsNullOrWhiteSpace(label)).Distinct(StringComparer.Ordinal)];
+            if (labels.Length == 0) labels = null;
+        }
+        return new(repetition.AtUtc, repetition.RecordId, repetition.RecordNumber, repetition.DocumentId)
+        {
+            Labels = labels, Row = repetition.RowNumber is { } number ? new(repetition.RowSheet, number) : null,
+        };
+    }
+
+    // The cells with content of a row as they came, in the order of their columns, each with the header of its column or, when it is empty, its
+    // letter (VC1-A). A row is registered only with the text of some cell: one whose reading cannot be read is a failure of its protection,
+    // never a row without cells.
+    private static FormReceivedDocumentRowCellResponse[] RowCells(FormDocumentRowReading? reading)
+    {
+        FormReceivedDocumentRowCellResponse[] cells = reading is null ? []
+            : [.. reading.Cells.Select((cell, index) => (cell.Text, Index: index)).Where(cell => !string.IsNullOrWhiteSpace(cell.Text))
+                .Select(cell => new FormReceivedDocumentRowCellResponse(cell.Index < reading.Headers.Count && reading.Headers[cell.Index] is { } header
+                    && !string.IsNullOrWhiteSpace(header) ? header.Trim() : FormAttachmentPreparationPolicy.Column(cell.Index + 1), cell.Text!))];
+        return cells.Length > 0 ? cells : throw new InvalidOperationException("The reading of a row of a spreadsheet cannot be read.");
     }
 
     private static FormReceivedDocumentHighlightResponse[] Highlights(FormDocumentPreparedCandidate candidate, FormVersionSchema schema, string culture) =>

@@ -24,7 +24,10 @@ internal sealed class BusinessFormDocumentOriginSource(IFormReceivedDocumentRead
         return rows.Select(row => new StructuredRecordOrigin(row.SourceReceiptId, FormReceivedDocumentCapturePolicy.SourceId, row.ReviewerUserId,
             row.ReviewerName, row.ReviewedAtUtc, null, null, nameof(StructuredRecordSenderKind.Manual))
         {
-            Document = canSee ? new(row.DocumentId, row.FileName) : null,
+            Document = canSee ? new(row.DocumentId, row.FileName)
+            {
+                Row = row is { RowNumber: { } number, ReceivedAtUtc: { } receivedAt } ? new(row.SheetName, number, receivedAt) : null,
+            } : null,
         }).ToArray();
     }
 }

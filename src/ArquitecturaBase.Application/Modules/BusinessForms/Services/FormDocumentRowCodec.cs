@@ -214,18 +214,28 @@ internal static class FormDocumentRowCodec
     /// The same check on a proposal the engine already returned, for whoever registers its rows: its forms are in the latest documents read
     /// of its turn, the one it was normalized against; one without forms needs no read.
     /// </summary>
-    public static bool Authentic(AssistantObservedProposal proposal, [NotNullWhen(true)] out FormDocumentRowsProposal? payload)
+    public static bool Authentic(AssistantObservedProposal proposal, [NotNullWhen(true)] out FormDocumentRowsProposal? payload) =>
+        Authentic(proposal, out payload, out _);
+
+    /// <summary>The same check, with the read its forms come from (null without forms), so its caller checks whose it is (decision 8).</summary>
+    public static bool Authentic(AssistantObservedProposal proposal, [NotNullWhen(true)] out FormDocumentRowsProposal? payload,
+        out FormObservedDocumentSelection? read)
     {
         payload = null;
+        read = null;
         if (proposal.Id == Guid.Empty || proposal.TurnId == Guid.Empty
             || proposal.Capability is not { Id: BusinessFormDocumentAssistantCapabilitySource.ProposeRowsId, Version: BusinessFormDocumentAssistantCapabilitySource.Version }
             || proposal.Payload is not FormDocumentRowsProposal rows || !ValidProposal(rows)) return false;
         var latest = proposal.ObservedReads.Where(read => read.TurnId == proposal.TurnId && read.Capability.Id is BusinessFormDocumentAssistantCapabilitySource.CandidatesId
             or BusinessFormDocumentAssistantCapabilitySource.FormId).MaxBy(read => read.Ordinal);
-        if (rows.Forms.Count != 0 && (latest is null || latest.Ordinal != rows.ReadOrdinal || latest.Payload is not FormDocumentReadPayload read
-            || !FormDocumentCapabilityCodec.ValidRead(read)
-            || rows.Forms.Any(form => !read.Forms.Any(candidate => candidate.DefinitionId == form.DefinitionId && candidate.VersionId == form.VersionId))))
-            return false;
+        if (rows.Forms.Count != 0)
+        {
+            if (latest is null || latest.Ordinal != rows.ReadOrdinal || latest.Payload is not FormDocumentReadPayload observed
+                || !FormDocumentCapabilityCodec.ValidRead(observed)
+                || rows.Forms.Any(form => !observed.Forms.Any(candidate => candidate.DefinitionId == form.DefinitionId && candidate.VersionId == form.VersionId)))
+                return false;
+            read = new(latest.Capability.Id, new(latest.Ordinal, observed));
+        }
         payload = rows;
         return true;
     }

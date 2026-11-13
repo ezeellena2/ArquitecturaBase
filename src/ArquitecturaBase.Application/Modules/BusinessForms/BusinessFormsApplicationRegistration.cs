@@ -117,6 +117,9 @@ public static class BusinessFormsApplicationRegistration
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IAssistantCapabilitySource, BusinessFormDocumentAssistantCapabilitySource>());
         services.Replace(ServiceDescriptor.Scoped<IStructuredDocumentChannel, FormReceivedDocumentChannelService>());
         services.TryAddScoped<IFormReceivedDocumentChannelService, FormReceivedDocumentChannelService>();
+        services.Replace(ServiceDescriptor.Scoped<IStructuredDocumentRowsChannel, FormReceivedDocumentRowService>());
+        services.TryAddScoped<IFormReceivedDocumentRowService, FormReceivedDocumentRowService>();
+        services.TryAddScoped<FormReceivedDocumentRowPolicy>();
         services.TryAddScoped<IFormReceivedDocumentService, FormReceivedDocumentService>();
         services.TryAddScoped<IFormReceivedDocumentExtractionService, FormReceivedDocumentExtractionService>();
         services.TryAddScoped<IFormReceivedDocumentRecordService, FormReceivedDocumentRecordService>();

@@ -149,7 +149,7 @@ internal static class FormAttachmentPreparationPolicy
         row with { Cells = row.Cells.ToDictionary(cell => cell.Key, cell => Shorten(cell.Value, length), StringComparer.Ordinal) };
 
     // 1 → A, 26 → Z, 27 → AA… 64 → BL.
-    private static string Column(int number)
+    internal static string Column(int number)
     {
         var letters = "";
         for (; number > 0; number = (number - 1) / 26) letters = (char)('A' + (number - 1) % 26) + letters;

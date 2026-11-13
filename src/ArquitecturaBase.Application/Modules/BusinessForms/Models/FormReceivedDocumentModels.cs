@@ -33,9 +33,14 @@ public sealed record FormDocumentPreparedValue(Guid FieldId, string Type, string
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public bool Searchable { get; init; }
     public override string ToString() => "FormDocumentPreparedValue { Content = [REDACTED] }";
 }
-// Where the same document already is: a response of the form (with its number) or another document of the inbox.
+// Where the same document already is: a response of the form (with its number) or another document of the inbox. VC1-A: a row keeps the
+// questions whose data matched a response (the standard's duplicate keys), or the earlier row of its spreadsheet it is equal to (its sheet only
+// when the book has more than one, and its number), whose entry is the document.
 public sealed record FormDocumentRepetition(DateTime AtUtc, Guid? RecordId, string? RecordNumber, Guid? DocumentId)
 {
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public IReadOnlyList<Guid>? FieldIds { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? RowSheet { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public int? RowNumber { get; init; }
     public override string ToString() => "FormDocumentRepetition { Content = [REDACTED] }";
 }
 
@@ -70,6 +75,10 @@ public sealed record FormDocumentRepetitionKey(Guid FieldId, string Type, string
 public sealed record FormDocumentOriginRow(Guid SourceReceiptId, Guid ReviewerUserId, string? ReviewerName, DateTime ReviewedAtUtc, Guid DocumentId,
     string FileName)
 {
+    /// <summary>VC1-A: of a row, its sheet (only when the book has more than one), its number and when its spreadsheet arrived.</summary>
+    public string? SheetName { get; init; }
+    public int? RowNumber { get; init; }
+    public DateTime? ReceivedAtUtc { get; init; }
     public override string ToString() => "FormDocumentOriginRow { Content = [REDACTED] }";
 }
 
@@ -84,6 +93,12 @@ public sealed record FormReceivedDocumentStoredRow(Guid Id, string ChannelId, st
     public Guid? ExtractionActorUserId { get; init; }
     public string? ExtractionCulture { get; init; }
     public string? ExtractionTimeZoneId { get; init; }
+    /// <summary>VC1-A: a row's sheet (only when the book has more than one) and number, both null in a document; why it was not sent.</summary>
+    public string? SheetName { get; init; }
+    public int? RowNumber { get; init; }
+    public ArquitecturaBase.Domain.Modules.BusinessForms.Documents.FormReceivedDocumentNotSentReason? NotSentReason { get; init; }
+    public int? RowOrder { get; init; }
+    public ArquitecturaBase.Domain.Modules.BusinessForms.Documents.FormReceivedDocumentRowKind? RowKind { get; init; }
     public override string ToString() => "FormReceivedDocumentStoredRow { Content = [REDACTED] }";
 }
 public sealed record FormReceivedDocumentEventRow(Guid Id, DateTime AtUtc, string Kind, Guid? ActorUserId, string? ActorName, byte[]? ProtectedDetail)
@@ -148,7 +163,16 @@ public sealed record FormReceivedDocumentListItemResponse(Guid Id, DateTime Rece
     FormReceivedDocumentRecordReference? Record, FormReceivedDocumentFileInfoResponse File, IReadOnlyList<FormReceivedDocumentHighlightResponse> Highlights,
     DateTime? DeleteAfterUtc, long Revision)
 {
+    /// <summary>VC1-A: only a row of a spreadsheet, whose file is the spreadsheet; omitted for a document.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public FormReceivedDocumentRowResponse? Row { get; init; }
     public override string ToString() => "FormReceivedDocumentListItemResponse { Content = [REDACTED] }";
+}
+// A row of a spreadsheet: its sheet, only when the book has more than one (null otherwise), and its number as Excel numbers it.
+public sealed record FormReceivedDocumentRowResponse(string? Sheet, int Number);
+// A cell with content of a row as it came, with the header of its column (its letter when that header is empty).
+public sealed record FormReceivedDocumentRowCellResponse(string Header, string Value)
+{
+    public override string ToString() => "FormReceivedDocumentRowCellResponse { Content = [REDACTED] }";
 }
 public sealed record FormReceivedDocumentFormFacetResponse(Guid DefinitionId, string Name, int Count);
 public sealed record FormReceivedDocumentSenderFacetResponse(Guid UserId, string? DisplayName, int Count);
@@ -206,9 +230,17 @@ public sealed record FormReceivedDocumentCandidateResponse(Guid DefinitionId, Gu
     public override string ToString() => "FormReceivedDocumentCandidateResponse { Content = [REDACTED] }";
 }
 public sealed record FormReceivedDocumentProposalResponse(string Outcome, string? DocumentType, IReadOnlyList<FormReceivedDocumentCandidateResponse> Candidates,
-    FormDocumentRepetition? Repetition)
+    FormReceivedDocumentRepetitionResponse? Repetition)
 {
     public override string ToString() => "FormReceivedDocumentProposalResponse { Content = [REDACTED] }";
+}
+// Where the same document already is: a response (with its number) or another entry of the inbox. VC1-A: of a row, the questions whose data
+// matched, as the reader names them, or the earlier row of its spreadsheet it is equal to, whose entry is the document; each omitted otherwise.
+public sealed record FormReceivedDocumentRepetitionResponse(DateTime AtUtc, Guid? RecordId, string? RecordNumber, Guid? DocumentId)
+{
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public IReadOnlyList<string>? Labels { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public FormReceivedDocumentRowResponse? Row { get; init; }
+    public override string ToString() => "FormReceivedDocumentRepetitionResponse { Content = [REDACTED] }";
 }
 public sealed record FormReceivedDocumentExtractionInfoResponse(Guid RequestId, Guid DefinitionId, DateTime RequestedAtUtc);
 public sealed record FormReceivedDocumentEventResponse(DateTime AtUtc, string Kind, FormReceivedDocumentPersonResponse? Actor, string? Detail)
@@ -220,6 +252,8 @@ public sealed record FormReceivedDocumentDetailResponse(FormReceivedDocumentList
     FormReceivedDocumentProposalResponse? Proposal, FormReceivedDocumentExtractionInfoResponse? Extraction,
     IReadOnlyList<FormReceivedDocumentEventResponse> History, bool CanReview, IReadOnlyList<FormReceivedDocumentFormResponse> Forms)
 {
+    /// <summary>VC1-A: a row brings its cells with content instead of the reading of a document; omitted for a document.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public IReadOnlyList<FormReceivedDocumentRowCellResponse>? RowCells { get; init; }
     public override string ToString() => "FormReceivedDocumentDetailResponse { Content = [REDACTED] }";
 }
 // A change of form while it runs (pending), after it (completed, with the document as it stayed) or when it failed, with its code.

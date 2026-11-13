@@ -14,6 +14,8 @@ internal sealed class FormReceivedDocumentContentPolicy(IFormReceivedDocumentPro
 {
     public const string ReadingKind = "reading";
     public const string ProposalKind = "proposal";
+    /// <summary>VC1-A: a row's reading is its row with the headers of its sheet, under a kind of its own.</summary>
+    public const string RowKind = "row";
     private static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web)
     {
         Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: false) },
@@ -26,6 +28,11 @@ internal sealed class FormReceivedDocumentContentPolicy(IFormReceivedDocumentPro
         protector.Protect(documentId, ProposalKind, JsonSerializer.Serialize(proposal, Options));
 
     public StructuredDocumentReading? ReadReading(Guid documentId, byte[]? value) => Read<StructuredDocumentReading>(documentId, ReadingKind, value);
+
+    public byte[] ProtectRow(Guid documentId, FormDocumentRowReading reading) =>
+        protector.Protect(documentId, RowKind, JsonSerializer.Serialize(reading, Options));
+
+    public FormDocumentRowReading? ReadRow(Guid documentId, byte[]? value) => Read<FormDocumentRowReading>(documentId, RowKind, value);
 
     public FormDocumentPreparedProposal? ReadProposal(Guid documentId, byte[]? value) => Read<FormDocumentPreparedProposal>(documentId, ProposalKind, value);
 

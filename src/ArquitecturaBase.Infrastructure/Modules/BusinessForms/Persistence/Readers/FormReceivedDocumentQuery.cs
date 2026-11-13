@@ -24,7 +24,8 @@ internal static class FormReceivedDocumentQuery
             document.ExtractionDefinitionId, document.ExtractionRequestedAtUtc, document.Revision)
         {
             ExtractionActorUserId = document.ExtractionActorUserId, ExtractionCulture = document.ExtractionCulture,
-            ExtractionTimeZoneId = document.ExtractionTimeZoneId,
+            ExtractionTimeZoneId = document.ExtractionTimeZoneId, SheetName = document.SheetName, RowNumber = document.RowNumber,
+            NotSentReason = document.NotSentReason, RowOrder = document.RowOrder, RowKind = document.RowKind,
         });
 
     // The requests whose draft still exists: a deleted one (the definitions' soft-delete filter) keeps neither its documents nor its topic.

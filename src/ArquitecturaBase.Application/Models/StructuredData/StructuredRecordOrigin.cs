@@ -19,5 +19,10 @@ public sealed record StructuredRecordOrigin(Guid SourceReceiptId, string Channel
 }
 public sealed record StructuredRecordOriginDocument(Guid Id, string Name)
 {
+    /// <summary>VC1-A: the row of a spreadsheet the response came from, with when its spreadsheet arrived; omitted for a document.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public StructuredRecordOriginRow? Row { get; init; }
     public override string ToString() => "StructuredRecordOriginDocument { Content = [REDACTED] }";
 }
+/// <summary>A row of a spreadsheet: its sheet (only when the book has more than one), its number and when its spreadsheet arrived.</summary>
+public sealed record StructuredRecordOriginRow(string? Sheet, int Number, DateTime ReceivedAtUtc);

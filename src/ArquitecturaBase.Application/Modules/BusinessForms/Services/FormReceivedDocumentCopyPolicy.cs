@@ -12,7 +12,8 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 internal sealed class FormReceivedDocumentCopyPolicy(IPrivateFileStore files)
 {
     public const string Prefix = "forms/documents/";
-    private static readonly string[] Extensions = [".pdf", ".jpg", ".png", ".docx", ".bin"];
+    // VC1-A: the copy of a spreadsheet, which its rows share.
+    private static readonly string[] Extensions = [".pdf", ".jpg", ".png", ".docx", ".xlsx", ".csv", ".bin"];
 
     public bool IsAvailable => files.IsAvailable;
 
@@ -24,6 +25,8 @@ internal sealed class FormReceivedDocumentCopyPolicy(IPrivateFileStore files)
         "image/jpeg" => ".jpg",
         "image/png" => ".png",
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document" => ".docx",
+        FormReceivedDocumentRowPolicy.XlsxMediaType => ".xlsx",
+        FormReceivedDocumentRowPolicy.CsvMediaType => ".csv",
         _ => ".bin",
     };
 

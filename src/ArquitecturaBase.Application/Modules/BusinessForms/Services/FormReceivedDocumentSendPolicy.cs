@@ -52,7 +52,8 @@ internal sealed class FormReceivedDocumentSendPolicy(IFormReceivedDocumentReader
                 value.Value, FormReceivedDocumentReplyPolicy.Display(value, request.Culture) ?? value.Value));
         }
         var image = row.MediaType is "image/jpeg" or "image/png";
-        var documentField = schema.Questions.FirstOrDefault(question => question.Files is { MaxFiles: >= 1 } && question.Repeated != true
+        // VC1-A: a row's file is its spreadsheet, never the receipt: a load goes without a question for its file.
+        var documentField = row.RowNumber is not null ? null : schema.Questions.FirstOrDefault(question => question.Files is { MaxFiles: >= 1 } && question.Repeated != true
             && question.Type == (image ? "photo" : "document"))
             ?? (image ? schema.Questions.FirstOrDefault(question => question.Files is { MaxFiles: >= 1 } && question.Repeated != true && question.Type == "document") : null);
         var selection = new StructuredFormSelectionRow(form.DefinitionId, form.VersionId, form.VersionNumber, form.Prefix,

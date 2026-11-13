@@ -46,6 +46,7 @@ public static class DependencyInjection
         services.TryAddScoped<IStructuredAttachmentReader, UnavailableStructuredAttachmentReader>();
         services.TryAddScoped<IStructuredMissingFormRequestSink, UnavailableStructuredMissingFormRequestSink>();
         services.TryAddScoped<IStructuredDocumentChannel, UnavailableStructuredDocumentChannel>();
+        services.TryAddScoped<IStructuredDocumentRowsChannel, UnavailableStructuredDocumentRowsChannel>();
         services.TryAddScoped<IStructuredRecordSource, UnavailableStructuredRecordSource>();
         services.TryAddScoped<IBusinessKnowledgeSource, UnavailableBusinessKnowledgeSource>();
         services.TryAddSingleton<IPermissionCatalog, PermissionCatalog>();

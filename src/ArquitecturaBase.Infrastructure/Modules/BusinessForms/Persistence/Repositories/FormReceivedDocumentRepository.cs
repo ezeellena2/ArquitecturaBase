@@ -18,7 +18,11 @@ internal sealed class FormReceivedDocumentRepository(ApplicationDbContext dbCont
         dbContext.Set<FormReceivedDocument>().SingleOrDefaultAsync(document => document.Id == documentId, cancellationToken);
 
     public Task<FormReceivedDocument?> GetBySourceAsync(string channelId, string sourceId, CancellationToken cancellationToken) =>
-        dbContext.Set<FormReceivedDocument>().SingleOrDefaultAsync(document => document.ChannelId == channelId && document.SourceId == sourceId, cancellationToken);
+        dbContext.Set<FormReceivedDocument>().SingleOrDefaultAsync(document => document.ChannelId == channelId && document.SourceId == sourceId
+            && document.RowNumber == null, cancellationToken);
+
+    public Task<bool> ExistsSourceAsync(string channelId, string sourceId, CancellationToken cancellationToken) =>
+        dbContext.Set<FormReceivedDocument>().AnyAsync(document => document.ChannelId == channelId && document.SourceId == sourceId, cancellationToken);
 
     public void Add(FormReceivedDocument document)
     {

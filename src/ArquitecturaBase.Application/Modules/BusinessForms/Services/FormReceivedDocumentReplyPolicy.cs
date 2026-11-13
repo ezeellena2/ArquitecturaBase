@@ -143,7 +143,7 @@ internal sealed partial class FormReceivedDocumentReplyPolicy(IFormReceivedDocum
     }
 
     // The forms with reading on the person can complete, by name: the list of «no lo reconoce».
-    private async Task<IReadOnlyList<StructuredDocumentFormChoice>> FormsAsync(string culture, CancellationToken ct) =>
+    public async Task<IReadOnlyList<StructuredDocumentFormChoice>> FormsAsync(string culture, CancellationToken ct) =>
         (await reader.ListReadingFormsAsync(ct)).Where(row => !row.AppOnly && FormDocumentFormPolicy.Reading(row) is { Enabled: true })
             .Select(row => new StructuredDocumentFormChoice(row.DefinitionId, row.VersionId, FormDocumentFormPolicy.Name(row, culture)))
             .OrderBy(choice => choice.Name, StringComparer.Create(CultureInfo.GetCultureInfo(culture), true)).Take(MaxForms).ToArray();

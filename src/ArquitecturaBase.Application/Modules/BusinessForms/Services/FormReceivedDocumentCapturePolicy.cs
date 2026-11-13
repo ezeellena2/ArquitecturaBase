@@ -27,7 +27,9 @@ internal sealed class FormReceivedDocumentCapturePolicy(FormEntryRecorder entrie
             new SubmitFormEntryRequest(request.RequestId!.Value, version.VersionId, request.Answers, []));
         if (entry.IsFailure) return entry.Error;
         var image = row.MediaType is "image/jpeg" or "image/png";
-        var question = schema.Questions.FirstOrDefault(value => value.Files is { MaxFiles: >= 1 } && value.Repeated != true && value.Type == (image ? "photo" : "document"))
+        // VC1-A: a row's file is its spreadsheet, never the receipt: the response does not take it.
+        var question = row.RowNumber is not null ? null
+            : schema.Questions.FirstOrDefault(value => value.Files is { MaxFiles: >= 1 } && value.Repeated != true && value.Type == (image ? "photo" : "document"))
             ?? (image ? schema.Questions.FirstOrDefault(value => value.Files is { MaxFiles: >= 1 } && value.Repeated != true && value.Type == "document") : null);
         List<StructuredRecordFileInput> files = [];
         if (question is not null)

@@ -3,10 +3,13 @@ using ArquitecturaBase.Domain.Results;
 
 namespace ArquitecturaBase.Domain.Modules.BusinessForms.Documents;
 
-/// <summary>What happened to a received document, for its history. Stored as text: never renumber.</summary>
+/// <summary>
+/// What happened to a received document, for its history. VC1-A: a row sent to its person as one of the loads of its spreadsheet («i/k» in
+/// its detail), or past those loads. Stored as text: never renumber.
+/// </summary>
 public enum FormReceivedDocumentEventKind
 {
-    Received, Discarded, Reopened, ExtractionRequested, FormChanged, ExtractionFailed, Confirmed, ChoseOther, FormChosen,
+    Received, Discarded, Reopened, ExtractionRequested, FormChanged, ExtractionFailed, Confirmed, ChoseOther, FormChosen, Sent, OverLimit,
 }
 
 /// <summary>

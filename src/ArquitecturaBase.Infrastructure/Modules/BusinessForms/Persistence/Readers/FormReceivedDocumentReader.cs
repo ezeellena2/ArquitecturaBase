@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Linq.Expressions;
 using System.Text.Json;
 using ArquitecturaBase.Application.Common.Pagination;
+using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Domain.Files;
@@ -122,8 +123,20 @@ internal sealed class FormReceivedDocumentReader(ApplicationDbContext dbContext)
         Rows(dbContext.Set<FormReceivedDocument>().AsNoTracking().Where(document => document.Id == documentId)).SingleOrDefaultAsync(cancellationToken);
 
     public Task<FormReceivedDocumentStoredRow?> FindBySourceAsync(string channelId, string sourceId, CancellationToken cancellationToken) =>
-        Rows(dbContext.Set<FormReceivedDocument>().AsNoTracking().Where(document => document.ChannelId == channelId && document.SourceId == sourceId))
+        Rows(dbContext.Set<FormReceivedDocument>().AsNoTracking()
+            .Where(document => document.ChannelId == channelId && document.SourceId == sourceId && document.RowNumber == null))
             .SingleOrDefaultAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<FormReceivedDocumentStoredRow>> ListBySourceAsync(string channelId, string sourceId, CancellationToken cancellationToken) =>
+        await Rows(dbContext.Set<FormReceivedDocument>().AsNoTracking().Where(document => document.ChannelId == channelId && document.SourceId == sourceId)
+            .OrderBy(document => document.RowOrder).ThenBy(document => document.Id).Take(StructuredAttachmentLimits.MaximumLoadingRows + 1))
+            .ToListAsync(cancellationToken);
+
+    public Task<FormReceivedDocumentStoredRow?> FindSpreadsheetAsync(string sha256, CancellationToken cancellationToken) =>
+        Rows(dbContext.Set<FormReceivedDocument>().AsNoTracking()
+            .Where(document => document.Sha256 == sha256 && document.RowNumber != null && document.State != FormReceivedDocumentState.Discarded)
+            .OrderBy(document => document.ReceivedAtUtc).ThenBy(document => document.Id).Take(1))
+            .FirstOrDefaultAsync(cancellationToken);
 
     public async Task<FormReceivedDocumentPageRow> FindPageAsync(ListFormReceivedDocumentsRequest request, string? searchDigits, DateTime nowUtc,
         CancellationToken cancellationToken)
@@ -189,7 +202,10 @@ internal sealed class FormReceivedDocumentReader(ApplicationDbContext dbContext)
                where document.ReviewedByUserId != null && document.ReviewedAtUtc != null && sourceReceiptIds.Contains(record.SourceReceiptId)
                select new FormDocumentOriginRow(record.SourceReceiptId, document.ReviewedByUserId!.Value,
                    dbContext.Users.Where(user => user.Id == document.ReviewedByUserId).Select(user => user.DisplayName).FirstOrDefault(),
-                   document.ReviewedAtUtc!.Value, document.Id, document.FileName)).ToListAsync(cancellationToken);
+                   document.ReviewedAtUtc!.Value, document.Id, document.FileName)
+               {
+                   SheetName = document.SheetName, RowNumber = document.RowNumber, ReceivedAtUtc = document.ReceivedAtUtc,
+               }).ToListAsync(cancellationToken);
 
     public async Task<IReadOnlyList<Guid>> ListExpiredIdsAsync(DateTime nowUtc, int maximum, CancellationToken cancellationToken) =>
         await dbContext.Set<FormReceivedDocument>().AsNoTracking()

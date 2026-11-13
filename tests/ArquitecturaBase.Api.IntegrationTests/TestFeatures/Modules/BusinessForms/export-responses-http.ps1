@@ -144,8 +144,10 @@ $cohorts = @(
             "document-record-es.json", "document-sender-inactive-es.json",
             "documents-groups-es.json", "form-proposal-accepted-es.json", "form-proposal-pending-es.json", "form-proposal-completed-es.json",
             "form-proposal-failed-es.json", "form-proposal-unavailable-es.json", "form-proposal-draft-invalid-es.json", "form-proposal-draft-created-es.json",
-            "form-proposal-drafted-es.json");
+            "form-proposal-drafted-es.json", "documents-rows-es.json", "document-row-detail-es.json", "document-row-repeated-es.json",
+            "document-row-awaiting-sender-es.json", "document-row-record-detail-es.json", "document-row-repeated-record-es.json");
         Sources = @(($sourceRoot + "BusinessForms/FormReceivedDocumentHttpTests.cs"), ($captureRoot + "Modules/BusinessForms/FormReceivedDocumentScenario.cs"),
+            ($sourceRoot + "BusinessForms/FormReceivedDocumentRowHttpTests.cs"), ($captureRoot + "Modules/BusinessForms/FormReceivedDocumentRowScenario.cs"),
             ($captureRoot + "Modules/BusinessForms/FormReceivedDocumentContractCapture.cs"), ($captureRoot + "Modules/BusinessForms/ScriptedDocumentOperations.cs"),
             ($sourceRoot + "BusinessForms/FormDocumentProposalHttpTests.cs"),
             "src/ArquitecturaBase.Application/Modules/BusinessForms/Models/FormReceivedDocumentModels.cs", "src/ArquitecturaBase.Application/Models/StructuredData/StructuredRecordOrigin.cs",

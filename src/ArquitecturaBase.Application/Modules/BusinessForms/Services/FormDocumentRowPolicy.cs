@@ -11,7 +11,8 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 /// sample, without AI and in the order of the spreadsheet: its cells converted to the type of their questions (as a text the import reads, with
 /// the conventions of the person's language; an option by its text), validated and completed like a document's candidate, repeated when a
 /// response has its data (the standard's duplicate keys) or an earlier row of its form is equal to it, and a load while there are fewer than
-/// <see cref="MaximumLoads"/>. A row that fits no form, of a form that changed its version or stopped being active, or one the model did not
+/// <see cref="MaximumLoads"/>; with the forms its caller knows its person can receive (CE4-A), one of another form is for the team and does
+/// not count, since the limit counts the loads proposed to the person. A row that fits no form, of a form that changed its version or stopped being active, or one the model did not
 /// see, fits none; one the model saw and did not name (a total, a note) is not a row.
 /// </summary>
 internal sealed class FormDocumentRowPolicy(IFormReceivedDocumentReader reader, FormDocumentProposalPolicy proposals)
@@ -40,7 +41,7 @@ internal sealed class FormDocumentRowPolicy(IFormReceivedDocumentReader reader, 
     }
 
     public async Task<FormDocumentRowPlan> PrepareAsync(FormDocumentRowsProposal proposal, IReadOnlyList<FormDocumentSheetRow> rows, string culture,
-        CancellationToken ct)
+        CancellationToken ct, IReadOnlySet<Guid>? sendable = null)
     {
         ArgumentNullException.ThrowIfNull(proposal);
         ArgumentNullException.ThrowIfNull(rows);
@@ -89,6 +90,7 @@ internal sealed class FormDocumentRowPolicy(IFormReceivedDocumentReader reader, 
                 var candidate = await proposals.PrepareCandidateAsync(form, schema, Candidate(form, schema, mapping, row, culture), ct);
                 var repetition = await proposals.FindRepeatedDataAsync(form, candidate, ct);
                 var outcome = repetition is not null ? FormDocumentRowOutcome.Repeated
+                    : sendable is not null && !sendable.Contains(mapping.DefinitionId) ? FormDocumentRowOutcome.NotSendable
                     : ++loads <= MaximumLoads ? FormDocumentRowOutcome.Load : FormDocumentRowOutcome.OverLimit;
                 result = new(row.Sheet, row.Number, outcome) { Candidate = candidate, Repetition = repetition };
             }

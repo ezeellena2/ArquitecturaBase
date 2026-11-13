@@ -66,6 +66,26 @@ public sealed class FormDocumentRowPolicyTests
     }
 
     [Fact]
+    public async Task Rows_of_a_form_its_person_cannot_receive_go_to_the_team_and_do_not_count_for_the_limit()
+    {
+        var f = new Fixture();
+        var rows = FormDocumentRowPolicy.DataRows([
+            Sheet("Transferencias", Row(1, "Operación", "Monto", "Fecha"), Row(2, "111", "100", "2026-11-04"), Row(3, "222", "200", "2026-11-05"),
+                Row(4, "333", "300", "2026-11-06")),
+            Sheet("Enero", Row(1, "Fecha", "Monto"), Row(2, "2026-11-03", "400"), Row(3, "2026-11-04", "500"), Row(4, "2026-11-05", "600"),
+                Row(5, "2026-11-06", "700"))]);
+        var proposal = Fixture.Proposal([f.Transfers("Transferencias", [2, 3, 4]), f.Payments("Enero", [2, 3, 4, 5])],
+            seen: [new("Transferencias", [2, 3, 4]), new("Enero", [2, 3, 4, 5])]);
+
+        // Only the payments can be sent to the person (CE4-A): the limit counts the loads proposed to them.
+        var plan = await f.Policy.PrepareAsync(proposal, rows, "es", Ct, new HashSet<Guid> { f.PaymentsForm.DefinitionId });
+
+        Assert.Equal([FormDocumentRowOutcome.NotSendable, FormDocumentRowOutcome.NotSendable, FormDocumentRowOutcome.NotSendable, FormDocumentRowOutcome.Load,
+            FormDocumentRowOutcome.Load, FormDocumentRowOutcome.Load, FormDocumentRowOutcome.OverLimit], plan.Rows.Select(row => row.Outcome));
+        Assert.All(plan.Rows, row => Assert.NotNull(row.Candidate));
+    }
+
+    [Fact]
     public async Task A_row_with_the_data_of_a_response_is_repeated_and_does_not_count_for_the_limit()
     {
         var f = new Fixture();

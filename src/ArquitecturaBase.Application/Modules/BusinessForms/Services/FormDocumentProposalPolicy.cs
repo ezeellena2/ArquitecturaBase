@@ -157,8 +157,12 @@ internal sealed class FormDocumentProposalPolicy(IFormReceivedDocumentReader rea
         }
         if (sha256 is null && keys.Count == 0) return null;
         var found = (await reader.ListRepetitionsAsync(row.DefinitionId, sha256, keys, exceptDocumentId, ct)).MinBy(item => item.AtUtc);
+        // VC1-A: a row (without a file) says which data matched: the standard's duplicate keys, all of them.
         return found is null ? null : new(found.AtUtc, found.RecordId,
-            found.Number is { } number ? row.Prefix + "-" + number.ToString("D6", CultureInfo.InvariantCulture) : null, found.DocumentId);
+            found.Number is { } number ? row.Prefix + "-" + number.ToString("D6", CultureInfo.InvariantCulture) : null, found.DocumentId)
+        {
+            FieldIds = sha256 is null && keys.Count > 0 ? [.. keys.Select(key => key.FieldId)] : null,
+        };
     }
 
     public StructuredFormStandard? Standard(FormDocumentFormRow row) => row.StandardKey is not { } key ? null

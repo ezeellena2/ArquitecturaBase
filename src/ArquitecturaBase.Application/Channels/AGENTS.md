@@ -30,4 +30,6 @@ UnavailableStructuredAuthoringProposalChannel no resume nada (null) y no crea (N
 
 UnavailableStructuredAttachmentReader: sin el dueño de los adjuntos nadie puede adjuntar planillas ni documentos y preparar un archivo da `Unavailable`.
 
+UnavailableStructuredDocumentRowsChannel no registra filas de una planilla: `Unavailable`.
+
 UnavailableBusinessKnowledgeSource responde `NotInstalled` sin zonas cuando falta la IA: el asistente no tiene hechos para usar y el canal no los inventa.

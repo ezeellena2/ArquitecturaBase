@@ -46,10 +46,11 @@ public sealed record FormDocumentRowSet(string Sheet, IReadOnlyList<int> Rows)
 }
 
 /// <summary>
-/// What became of a row of data (VC1-A): one of the first three loads in the order of the spreadsheet, a load over that limit (for the team),
-/// a repeated one (of a response with the same data, or equal to an earlier row), one that fits no form, or one the model did not see.
+/// What became of a row of data (VC1-A): one of the first three loads its person can receive, in the order of the spreadsheet, one whose form
+/// cannot be sent to them (CE4-A, for the team without counting), a load over that limit (for the team), a repeated one (of a response with
+/// the same data, or equal to an earlier row), one that fits no form, or one the model did not see.
 /// </summary>
-public enum FormDocumentRowOutcome { Load, OverLimit, Repeated, Unmatched, Unseen }
+public enum FormDocumentRowOutcome { Load, NotSendable, OverLimit, Repeated, Unmatched, Unseen }
 
 /// <summary>
 /// A row of data with what became of it: the form it was mapped to, prepared like a document's candidate (a load, one over the limit or a
@@ -65,6 +66,42 @@ public sealed record FormDocumentPreparedRow(string Sheet, int Number, FormDocum
 public sealed record FormDocumentRowReference(string Sheet, int Number)
 {
     public override string ToString() => "FormDocumentRowReference { Content = [REDACTED] }";
+}
+
+// VC1-A, task 28: what a row of a spreadsheet keeps as its reading, protected: its sheet as the sample names it, the number of its headers' row and
+// its own, the language of its person (a change of form reads its numbers and dates with its conventions again) and, by column, the headers and
+// the cells (an empty one without text; one with an error keeps no text, only the mark).
+public sealed record FormDocumentRowReading(string Sheet, int HeaderNumber, int Number, string Culture, IReadOnlyList<string?> Headers,
+    IReadOnlyList<FormDocumentRowReadingCell> Cells)
+{
+    public static FormDocumentRowReading From(FormDocumentSheetRow row, int headerNumber, string culture) => new(row.Sheet, headerNumber, row.Number, culture,
+        [.. row.Headers.Select(cell => cell.Error is null ? cell.Text : null)],
+        [.. row.Cells.Select(cell => new FormDocumentRowReadingCell(cell.Error is null ? cell.Text : null, cell.Error is not null, cell.IsCanonicalValue))]);
+
+    /// <summary>The row as the copy had it, to arm it again for another form.</summary>
+    public FormDocumentSheetRow SheetRow() => new(Sheet, Number, [.. Headers.Select(text => new FormSpreadsheetCell(text))],
+        [.. Cells.Select(cell => new FormSpreadsheetCell(cell.Text, cell.Error ? ArquitecturaBase.Domain.Modules.BusinessForms.FormReceivedDocumentErrors.ContentInvalid : null,
+            cell.Canonical))]);
+
+    public override string ToString() => "FormDocumentRowReading { Content = [REDACTED] }";
+}
+public sealed record FormDocumentRowReadingCell(string? Text, bool Error, bool Canonical)
+{
+    public override string ToString() => "FormDocumentRowReadingCell { Content = [REDACTED] }";
+}
+
+/// <summary>
+/// A row as it is registered: its entry's id, sheet (only when the book has more than one) and number, its place among the entries of the book
+/// and what became of it, its state with its reason, its prepared proposal, why it was not sent, whether it waits for its person, its reading,
+/// the type of document and the steps of its history.
+/// </summary>
+internal sealed record FormReceivedDocumentRowEntry(Guid Id, string? Sheet, int Number, int Order,
+    ArquitecturaBase.Domain.Modules.BusinessForms.Documents.FormReceivedDocumentRowKind Kind,
+    ArquitecturaBase.Domain.Modules.BusinessForms.Documents.FormReceivedDocumentState State, string? ReasonCode,
+    FormDocumentPreparedProposal? Proposal, ArquitecturaBase.Domain.Modules.BusinessForms.Documents.FormReceivedDocumentNotSentReason? NotSent, bool Waits, FormDocumentRowReading Reading, string? DocumentType,
+    IReadOnlyList<(ArquitecturaBase.Domain.Modules.BusinessForms.Documents.FormReceivedDocumentEventKind Kind, string? Detail)> Steps)
+{
+    public override string ToString() => "FormReceivedDocumentRowEntry { Content = [REDACTED] }";
 }
 
 /// <summary>The rows of data of a spreadsheet in its order, each with what became of it, and the type of document the model named.</summary>

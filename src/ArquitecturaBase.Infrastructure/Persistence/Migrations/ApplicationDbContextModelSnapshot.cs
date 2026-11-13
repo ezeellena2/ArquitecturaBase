@@ -3284,6 +3284,10 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<bool>("NotSendable")
                         .HasColumnType("boolean");
 
+                    b.Property<string>("NotSentReason")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
                     b.Property<int?>("Pages")
                         .HasColumnType("integer");
 
@@ -3315,6 +3319,16 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<long>("Revision")
                         .HasColumnType("bigint");
 
+                    b.Property<string>("RowKind")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<int?>("RowNumber")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("RowOrder")
+                        .HasColumnType("integer");
+
                     b.Property<string>("SearchText")
                         .IsRequired()
                         .HasMaxLength(4000)
@@ -3326,6 +3340,10 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<string>("Sha256")
                         .HasMaxLength(64)
                         .HasColumnType("character(64)");
+
+                    b.Property<string>("SheetName")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
 
                     b.Property<long?>("Size")
                         .HasColumnType("bigint");
@@ -3363,16 +3381,21 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
 
                     NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("SearchText"), "GIN");
 
-                    b.HasIndex("StorageKey");
+                    b.HasIndex("Sha256")
+                        .HasFilter("\"RowNumber\" IS NOT NULL");
 
-                    b.HasIndex("ChannelId", "SourceId")
-                        .IsUnique();
+                    b.HasIndex("StorageKey");
 
                     b.HasIndex("DefinitionId", "Sha256");
 
                     b.HasIndex("DefinitionId", "VersionId");
 
                     b.HasIndex("State", "ReceivedAtUtc");
+
+                    b.HasIndex("ChannelId", "SourceId", "SheetName", "RowNumber")
+                        .IsUnique();
+
+                    NpgsqlIndexBuilderExtensions.AreNullsDistinct(b.HasIndex("ChannelId", "SourceId", "SheetName", "RowNumber"), false);
 
                     b.ToTable("FormReceivedDocuments", null, t =>
                         {
@@ -3382,9 +3405,13 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("CK_FormReceivedDocuments_Extraction", "(\"ExtractionRequestId\" IS NULL) = (\"ExtractionDefinitionId\" IS NULL) AND (\"ExtractionRequestId\" IS NULL) = (\"ExtractionRequestedAtUtc\" IS NULL) AND (\"ExtractionRequestId\" IS NULL) = (\"ExtractionActorUserId\" IS NULL) AND (\"ExtractionRequestId\" IS NULL) = (\"ExtractionCulture\" IS NULL) AND (\"ExtractionRequestId\" IS NULL) = (\"ExtractionTimeZoneId\" IS NULL)");
 
+                            t.HasCheckConstraint("CK_FormReceivedDocuments_NotSent", "\"NotSendable\" = (\"NotSentReason\" IS NOT NULL)");
+
                             t.HasCheckConstraint("CK_FormReceivedDocuments_Proposed", "\"State\" <> 'Proposed' OR (\"DefinitionId\" IS NOT NULL AND \"VersionId\" IS NOT NULL AND \"ProtectedProposal\" IS NOT NULL)");
 
                             t.HasCheckConstraint("CK_FormReceivedDocuments_Review", "(\"ReviewedByUserId\" IS NULL) = (\"ReviewedAtUtc\" IS NULL)");
+
+                            t.HasCheckConstraint("CK_FormReceivedDocuments_Row", "(\"RowNumber\" IS NULL OR \"RowNumber\" BETWEEN 1 AND 1048576) AND (\"SheetName\" IS NULL OR \"RowNumber\" IS NOT NULL) AND (\"NotSentReason\" IS DISTINCT FROM 'OverLimit' OR \"RowNumber\" IS NOT NULL) AND (\"RowNumber\" IS NULL) = (\"RowOrder\" IS NULL) AND (\"RowNumber\" IS NULL) = (\"RowKind\" IS NULL) AND (\"RowOrder\" IS NULL OR \"RowOrder\" >= 1)");
                         });
                 });
 

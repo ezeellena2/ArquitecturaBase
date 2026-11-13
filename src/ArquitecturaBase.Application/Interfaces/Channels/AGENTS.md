@@ -69,4 +69,6 @@ IAssistantOperationCompletionSignal avisa el cierre confirmado de una operación
 
 `IStructuredPartyLookup` completa una opción de un catálogo desde su CUIT («Completar con ARCA»): dice qué catálogo completa (por la `Key` que le dio un estándar) y qué campo tiene la CUIT, y responde el nombre y los valores por clave de campo (un campo de catálogo, por el código de la opción) o el código de por qué no. Colección opcional sin adaptador apagado; sólo lee, fuera de toda UoW.
 
+`IStructuredDocumentRowsChannel` (VC1-A) registra las filas de una planilla en la bandeja, idempotente por canal y fuente: una entrada por fila con lo que pasó con ella, o una sola cuando ninguna encaja, se repite la planilla o no hay cupo; cada carga se prepara después con `PrepareSendAsync`. Apagado, `Unavailable`.
+
 `IStructuredDocumentChannel.FindLoadingAsync` dice si algún formulario publicado en un canal lee documentos y si la persona nombrada puede cargar en uno, con la regla con que se ofrecen las capacidades de documentos; apagado, ninguno lee.

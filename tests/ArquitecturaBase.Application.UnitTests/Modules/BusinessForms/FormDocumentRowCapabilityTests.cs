@@ -227,14 +227,18 @@ public sealed class FormDocumentRowCapabilityTests
         var later = read with { Ordinal = 2, Payload = ((FormDocumentReadPayload)read.Payload) with { Forms = [] } };
         var none = new FormDocumentRowsProposal("proposed", 0, [], [new("Enero", [2])], proposal.Seen, "planilla de cobranzas");
 
-        Assert.True(FormDocumentRowCodec.Authentic(observed, out var authentic));
+        Assert.True(FormDocumentRowCodec.Authentic(observed, out var authentic, out var selection));
         Assert.Same(proposal, authentic);
+        // Whose read it is, for whoever registers the rows (its person, in their language) or changes the form of one (the form read).
+        Assert.Equal((read.Capability.Id, read.Ordinal), (selection!.Capability, selection.Read.ReadOrdinal));
+        Assert.Same(read.Payload, selection.Read.Payload);
         Assert.False(FormDocumentRowCodec.Authentic(observed with { ObservedReads = [read, later] }, out _));
         Assert.False(FormDocumentRowCodec.Authentic(observed with { ObservedReads = [] }, out _));
         Assert.False(FormDocumentRowCodec.Authentic(observed with { Capability = new(BusinessFormDocumentAssistantCapabilitySource.ProposeEntryId, 1) }, out _));
         // With no form, nothing fits: no read is needed.
         Assert.True(FormDocumentRowCodec.Authentic(new AssistantObservedProposal(f.TurnId, Guid.NewGuid(),
-            new(BusinessFormDocumentAssistantCapabilitySource.ProposeRowsId, 1), none), out _));
+            new(BusinessFormDocumentAssistantCapabilitySource.ProposeRowsId, 1), none), out _, out var noRead));
+        Assert.Null(noRead);
     }
 
     private static FormDocumentEntryRejection Rejection(ArquitecturaBase.Domain.Results.Result<AssistantCapabilityResponse> result) =>

@@ -11,7 +11,10 @@ public interface IFormReceivedDocumentRepository
     Task LockSourceAsync(string channelId, string sourceId, CancellationToken cancellationToken);
     Task LockAsync(Guid documentId, CancellationToken cancellationToken);
     Task<FormReceivedDocument?> GetAsync(Guid documentId, CancellationToken cancellationToken);
+    /// <summary>The document of a channel source, never a row of a spreadsheet (VC1-A).</summary>
     Task<FormReceivedDocument?> GetBySourceAsync(string channelId, string sourceId, CancellationToken cancellationToken);
+    /// <summary>VC1-A: whether the channel source has any entry, a document or the rows of a spreadsheet.</summary>
+    Task<bool> ExistsSourceAsync(string channelId, string sourceId, CancellationToken cancellationToken);
     void Add(FormReceivedDocument document);
     void Add(FormReceivedDocumentEvent documentEvent);
     /// <summary>Deletes the document; its history goes with it.</summary>

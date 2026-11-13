@@ -2,6 +2,7 @@ using System.Text.Json;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
+using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.BusinessForms.Resources;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Modules.BusinessForms.Documents;
@@ -51,6 +52,70 @@ internal sealed class FormReceivedDocumentRecorder(IFormReceivedDocumentReposito
     }
 
     /// <summary>
+    /// VC1-A: the rows of a spreadsheet as its caller classified them, each an entry with the copy they share, its reading (its row with the
+    /// headers of its sheet), its place in the book and what became of it, its proposal, the numbers to search it by (its proposal's or, without a
+    /// form, its cells') and the steps of its history; only a load waits for its person.
+    /// </summary>
+    public Result RegisterRows(StructuredDocumentRowsRegistrationRequest request, string storageKey, IReadOnlyList<FormReceivedDocumentRowEntry> entries)
+    {
+        var now = clock.GetUtcNow().UtcDateTime;
+        var copy = request.Copy;
+        foreach (var entry in entries)
+        {
+            var received = FormReceivedDocument.ReceiveRow(entry.Id, request.ChannelId, request.SourceId, request.SenderUserId, request.ReceivedAtUtc, storageKey,
+                FileName(copy.Name), copy.MediaType, copy.Size, copy.Sha256, entry.Sheet, entry.Number, entry.Order, entry.Kind,
+                entry.Waits ? request.ReplyExpiresAtUtc : null);
+            if (received.IsFailure) return received.Error;
+            var document = received.Value;
+            var described = document.Describe(contents.ProtectRow(entry.Id, entry.Reading), entry.DocumentType,
+                FormReceivedDocumentSearchPolicy.BuildRow(entry.Reading, entry.Proposal));
+            if (described.IsFailure) return described;
+            var proposal = entry.Proposal is { } prepared ? contents.ProtectProposal(entry.Id, prepared) : null;
+            var classified = entry.State switch
+            {
+                FormReceivedDocumentState.Proposed when entry.Proposal is { Candidates: [var first, ..] } =>
+                    document.Propose(first.DefinitionId, first.VersionId, proposal!, entry.NotSent),
+                FormReceivedDocumentState.Unclassified => document.LeaveUnclassified(entry.ReasonCode ?? FormReceivedDocumentReplyPolicy.Unknown, proposal, now),
+                FormReceivedDocumentState.Discarded => document.Reject(entry.ReasonCode ?? FormReceivedDocumentReplyPolicy.Duplicate, proposal, now),
+                _ => Result.Failure(FormReceivedDocumentErrors.ContentInvalid),
+            };
+            if (classified.IsFailure) return classified;
+            documents.Add(document);
+            // Its steps happen together: each a microsecond after the one before, so its history keeps their order.
+            for (var index = 0; index < entry.Steps.Count; index++)
+            {
+                var recorded = Record(entry.Id, entry.Steps[index].Kind, null, entry.Steps[index].Detail, now.AddTicks(index * TimeSpan.TicksPerMicrosecond));
+                if (recorded.IsFailure) return recorded;
+            }
+        }
+        return Result.Success();
+    }
+
+    /// <summary>
+    /// VC1-A: a spreadsheet without rows in the inbox (none fits, the same one again, or over the quota): one entry with its copy and its type
+    /// of document, without a reading, like a document.
+    /// </summary>
+    public Result RegisterSpreadsheet(Guid documentId, string storageKey, StructuredDocumentRowsRegistrationRequest request,
+        FormReceivedDocumentClassification classification)
+    {
+        var now = clock.GetUtcNow().UtcDateTime;
+        var copy = request.Copy;
+        var received = FormReceivedDocument.Receive(documentId, request.ChannelId, request.SourceId, request.SenderUserId, request.ReceivedAtUtc, storageKey,
+            FileName(copy.Name), copy.MediaType, copy.Size, copy.Sha256, null, request.ReplyExpiresAtUtc);
+        if (received.IsFailure) return received.Error;
+        var document = received.Value;
+        var described = document.Describe(null, classification.Proposal?.DocumentType, "");
+        if (described.IsFailure) return described;
+        var proposal = classification.Proposal is { } prepared ? contents.ProtectProposal(documentId, prepared) : null;
+        var classified = classification.State == FormReceivedDocumentState.Discarded
+            ? document.Reject(classification.ReasonCode ?? FormReceivedDocumentReplyPolicy.Duplicate, proposal, now)
+            : document.LeaveUnclassified(classification.ReasonCode ?? FormReceivedDocumentReplyPolicy.Unknown, proposal, now);
+        if (classified.IsFailure) return classified;
+        documents.Add(document);
+        return Record(documentId, FormReceivedDocumentEventKind.Received, null, JsonNamingPolicy.CamelCase.ConvertName(classification.Reply.Kind.ToString()));
+    }
+
+    /// <summary>
     /// Task 9: an unclassified document recognized for the form its person chose in the channel (checked by its caller under the lock):
     /// proposed, or discarded when it is not legible or repeats another, with the step of its history.
     /// </summary>
@@ -82,10 +147,13 @@ internal sealed class FormReceivedDocumentRecorder(IFormReceivedDocumentReposito
     }
 
     /// <summary>A step of the history; its detail is a short text (a code, a form's name or a response's number), protected.</summary>
-    public Result Record(Guid documentId, FormReceivedDocumentEventKind kind, Guid? actorUserId, string? detail = null)
+    public Result Record(Guid documentId, FormReceivedDocumentEventKind kind, Guid? actorUserId, string? detail = null) =>
+        Record(documentId, kind, actorUserId, detail, clock.GetUtcNow().UtcDateTime);
+
+    private Result Record(Guid documentId, FormReceivedDocumentEventKind kind, Guid? actorUserId, string? detail, DateTime atUtc)
     {
         var protectedDetail = detail is null ? null : protector.Protect(documentId, DetailKind, JsonSerializer.Serialize(detail));
-        var recorded = FormReceivedDocumentEvent.Record(documentId, kind, actorUserId, clock.GetUtcNow().UtcDateTime, protectedDetail);
+        var recorded = FormReceivedDocumentEvent.Record(documentId, kind, actorUserId, atUtc, protectedDetail);
         if (recorded.IsFailure) return recorded.Error;
         documents.Add(recorded.Value);
         return Result.Success();

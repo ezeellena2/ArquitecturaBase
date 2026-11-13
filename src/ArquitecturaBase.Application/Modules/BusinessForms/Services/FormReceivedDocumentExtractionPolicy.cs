@@ -18,7 +18,7 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 /// reviewer's or the server's after publishing a form, never wait for each other.
 /// </summary>
 internal sealed class FormReceivedDocumentExtractionPolicy(FormReceivedDocumentContentPolicy contents, FormDocumentProposalPolicy proposals,
-    IFormReceivedDocumentReader reader)
+    IFormReceivedDocumentReader reader, FormDocumentRowPolicy rows)
 {
     public const string ChannelId = "forms-documents";
     public const int ContentDays = 7;
@@ -29,20 +29,23 @@ internal sealed class FormReceivedDocumentExtractionPolicy(FormReceivedDocumentC
     /// <summary>The engine refused the extraction for good while it was read (403): it was dropped.</summary>
     public const string Refused = "Forms.ReceivedDocument.ExtractionRefused";
 
-    public static AssistantChannelContext Context(Guid actorUserId, string culture, string timeZoneId, Guid definitionId, Guid documentId) =>
+    /// <summary>VC1-A: a row is mapped again with propose-rows instead of propose-entry, on a sample of its own row.</summary>
+    public static AssistantChannelContext Context(Guid actorUserId, string culture, string timeZoneId, Guid definitionId, Guid documentId, bool row = false) =>
         new(ChannelId, actorUserId, null, culture, timeZoneId, new([BusinessFormsPermissions.DocumentsReview], []),
             [new(BusinessFormDocumentAssistantCapabilitySource.FormId, BusinessFormDocumentAssistantCapabilitySource.Version),
-                new(BusinessFormDocumentAssistantCapabilitySource.ProposeEntryId, BusinessFormDocumentAssistantCapabilitySource.Version)],
+                new(row ? BusinessFormDocumentAssistantCapabilitySource.ProposeRowsId : BusinessFormDocumentAssistantCapabilitySource.ProposeEntryId,
+                    BusinessFormDocumentAssistantCapabilitySource.Version)],
             [new("assistant_proposal", 1)]) { FocusDefinitionId = definitionId, ChannelConversationId = documentId };
 
     /// <summary>The context sealed with the extraction that runs (who asked, in which language and zone), or null without one.</summary>
     public static AssistantChannelContext? Sealed(FormReceivedDocumentStoredRow row) =>
         row is { ExtractionDefinitionId: { } definitionId, ExtractionActorUserId: { } actorUserId, ExtractionCulture: { } culture, ExtractionTimeZoneId: { } zone }
-            ? Context(actorUserId, culture, zone, definitionId, row.Id) : null;
+            ? Context(actorUserId, culture, zone, definitionId, row.Id, row.RowNumber is not null) : null;
 
     /// <summary>The operation that extracts the document for the fixed form, or null when it has no reading it can attach.</summary>
     public AssistantOperationRequest? Request(FormReceivedDocumentStoredRow row, Guid requestId, AssistantChannelContext context, DateTime requestedAtUtc)
     {
+        if (row.RowNumber is not null) return RowRequest(row, requestId, context, requestedAtUtc);
         if (contents.ReadReading(row.Id, row.ProtectedReading) is not { } reading || Kind(row.MediaType) is not { } kind
             || row is not { StorageKey: { } key, Sha256: { } sha256, Size: { } size }) return null;
         var expiresAtUtc = requestedAtUtc.AddDays(ContentDays);
@@ -63,6 +66,7 @@ internal sealed class FormReceivedDocumentExtractionPolicy(FormReceivedDocumentC
     public async Task<FormReceivedDocumentExtractionOutcome> PrepareAsync(AssistantOperationResponse operation, FormReceivedDocumentStoredRow row,
         Guid definitionId, CancellationToken ct)
     {
+        if (row.RowNumber is not null) return await PrepareRowAsync(operation, row, definitionId, ct);
         var proposal = operation.Proposals.FirstOrDefault(value => value.Capability.Id == BusinessFormDocumentAssistantCapabilitySource.ProposeEntryId)
             ?? operation.Proposal;
         if (proposal is null || !FormDocumentObservationPolicy.Authentic(proposal, out var entry, out var read)
@@ -78,6 +82,45 @@ internal sealed class FormReceivedDocumentExtractionPolicy(FormReceivedDocumentC
         if (row.Sha256 is not { } sha256) return new(null, null, Unrecognized);
         var prepared = await proposals.PrepareAsync(focused, sha256, row.Id, ct);
         return prepared.Candidates.Count == 1 ? new(prepared, form, null) : new(null, null, FormChanged);
+    }
+
+    // VC1-A: a row is read again from what it keeps, never from its spreadsheet: its headers and its cells as a sample to load of one row of data,
+    // under the copy of its spreadsheet.
+    private AssistantOperationRequest? RowRequest(FormReceivedDocumentStoredRow row, Guid requestId, AssistantChannelContext context, DateTime requestedAtUtc)
+    {
+        if (contents.ReadRow(row.Id, row.ProtectedReading) is not { } reading || row is not { StorageKey: { } key, Sha256: { } sha256, Size: { } size }
+            || FormReceivedDocumentRowPolicy.Format(row.MediaType) is not { } format) return null;
+        var sheet = new FormSpreadsheet(reading.Sheet, sha256, [new(reading.HeaderNumber, [.. reading.Headers.Select(text => new FormSpreadsheetCell(text))]),
+            new(reading.Number, reading.SheetRow().Cells)]);
+        var name = FormAttachmentPreparationPolicy.FileName(row.FileName);
+        var prepared = FormAttachmentPreparationPolicy.PrepareRows(name, format == FormSpreadsheetFormat.Csv ? StructuredSpreadsheetKind.Csv : StructuredSpreadsheetKind.Xlsx,
+            size, [sheet]);
+        if (prepared.Spreadsheet is not { } sample) return null;
+        var expiresAtUtc = requestedAtUtc.AddDays(ContentDays);
+        return new AssistantOperationRequest(requestId, context, FormReceivedDocumentTexts.ExtractionRequest(context.Culture), requestedAtUtc, expiresAtUtc)
+        {
+            Attachment = new AssistantAttachmentInput(key, name, row.MediaType, size, sha256, expiresAtUtc, sample),
+        };
+    }
+
+    // VC1-A: a row's change of form closes on propose-rows from the fixed form's read (never a candidates read, like a document), armed again
+    // from what the row keeps and in its person's language, like at its registration; the fixed form is the one candidate.
+    private async Task<FormReceivedDocumentExtractionOutcome> PrepareRowAsync(AssistantOperationResponse operation, FormReceivedDocumentStoredRow row,
+        Guid definitionId, CancellationToken ct)
+    {
+        var proposal = operation.Proposals.FirstOrDefault(value => value.Capability.Id == BusinessFormDocumentAssistantCapabilitySource.ProposeRowsId)
+            ?? operation.Proposal;
+        if (proposal is null || !FormDocumentRowCodec.Authentic(proposal, out var mapping, out var read)
+            || read is not { Capability: BusinessFormDocumentAssistantCapabilitySource.FormId } || contents.ReadRow(row.Id, row.ProtectedReading) is not { } reading)
+            return new(null, null, Unrecognized);
+        var focused = mapping with { Forms = [.. mapping.Forms.Where(form => form.DefinitionId == definitionId).Take(1)] };
+        if (focused.Forms is not [var mapped]) return new(null, null, Unrecognized);
+        var form = await reader.FindActiveFormAsync(definitionId, ct);
+        if (form is null || form.VersionId != mapped.VersionId) return new(null, null, FormChanged);
+        var plan = await rows.PrepareAsync(focused, [reading.SheetRow()], reading.Culture, ct);
+        return plan.Rows is [{ Candidate: { } candidate } armed]
+            ? new(new FormDocumentPreparedProposal(FormDocumentEntryProposal.Sure, plan.DocumentType, [candidate]) { Repetition = armed.Repetition }, form, null)
+            : new(null, null, Unrecognized);
     }
 
     public byte[] Protect(Guid documentId, FormDocumentPreparedProposal proposal) => contents.ProtectProposal(documentId, proposal);

@@ -69,4 +69,6 @@ UB1-A: `StructuredRecordLocationValue` es el punto de una pregunta de ubicación
 
 Etapa 3 de ARCA (decisión 4): `StructuredIssueResponse.CatalogItem` (`StructuredIssueCatalogItem`: la `Key` del catálogo del estándar, el código, el nombre, los campos por clave en forma canónica, uno de catálogo por el código de su opción, y `TaxIdField`, la clave del campo con la identificación fiscal) es a quien completó el emisor al encolar, para que formularios lo sume a ese catálogo. Opcional con JsonIgnore(WhenWritingNull): los resultados guardados conservan sus bytes. Redacta `ToString`.
 
+VC1-A: `StructuredDocumentRowsRegistrationRequest` y `StructuredDocumentRowsRegistration`, con cada `StructuredDocumentRowRegistration`; `StructuredRecordOriginDocument.Row`, omitido en un documento. Redactan `ToString`.
+
 Bandas de la zona «Comprobante» (2026-11-11): en `StructuredIssueResponse`, `FailureDetail` es lo que dijo el proveedor de un rechazo («10015 · …»), `Attempts` cuántas veces probó mientras espera (null si no espera) y `ReviewText` los textos de una revisión por idioma; opcionales con JsonIgnore(WhenWritingNull), formularios los pasa al flujo como `reason`, `attempts` y `review`.

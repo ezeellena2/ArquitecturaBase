@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
 using ArquitecturaBase.Application.Models.StructuredData;
@@ -20,7 +21,20 @@ internal static partial class FormReceivedDocumentSearchPolicy
     public const int MinimumDigits = 3;
     private const int MinimumNumberDigits = 4;
 
-    public static string Build(StructuredDocumentReading? reading, FormDocumentPreparedProposal? proposal)
+    public static string Build(StructuredDocumentReading? reading, FormDocumentPreparedProposal? proposal) =>
+        Build(proposal, reading?.Text is { Length: > 0 } text ? [(text, false)] : []);
+
+    /// <summary>
+    /// VC1-A: a row's, from its cells instead of a reading. Without a form, each cell like a reading (its amounts and its CUIT, CBU or CVU),
+    /// and a number the spreadsheet typed (its canonical value) as an amount, with and without its cents.
+    /// </summary>
+    public static string BuildRow(FormDocumentRowReading reading, FormDocumentPreparedProposal? proposal)
+    {
+        ArgumentNullException.ThrowIfNull(reading);
+        return Build(proposal, [.. reading.Cells.Where(cell => !string.IsNullOrWhiteSpace(cell.Text)).Select(cell => (cell.Text!.Trim(), cell.Canonical))]);
+    }
+
+    private static string Build(FormDocumentPreparedProposal? proposal, IReadOnlyList<(string Text, bool Canonical)> texts)
     {
         var numbers = new List<string>();
         if (proposal is { Candidates.Count: > 0 })
@@ -38,14 +52,21 @@ internal static partial class FormReceivedDocumentSearchPolicy
                         if (Digits(group) is { Length: >= MinimumNumberDigits } digits) numbers.Add(digits);
             }
         }
-        else if (reading is { Text: { Length: > 0 } read })
-        {
-            foreach (Match match in AmountPattern().Matches(read))
-                numbers.Add(Digits(match.Groups["whole"].Value));
-            foreach (Match match in NumberPattern().Matches(read))
-                if (CuitNumber.Normalize(match.Value) is not null || BankAccountKey.Parse(match.Value) is { Kind: not BankAccountKind.Alias })
-                    numbers.Add(Digits(match.Value));
-        }
+        else
+            foreach (var (read, canonical) in texts)
+            {
+                if (canonical && decimal.TryParse(read, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out _))
+                {
+                    numbers.Add(Digits(read));
+                    if (read.Split('.') is [var whole, _]) numbers.Add(Digits(whole));
+                    continue;
+                }
+                foreach (Match match in AmountPattern().Matches(read))
+                    numbers.Add(Digits(match.Groups["whole"].Value));
+                foreach (Match match in NumberPattern().Matches(read))
+                    if (CuitNumber.Normalize(match.Value) is not null || BankAccountKey.Parse(match.Value) is { Kind: not BankAccountKind.Alias })
+                        numbers.Add(Digits(match.Value));
+            }
         var builder = new StringBuilder();
         foreach (var number in numbers.Where(number => number.Length > 0 && !IsCard(number)).Distinct(StringComparer.Ordinal))
         {
