@@ -6,6 +6,7 @@ using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
+using ArquitecturaBase.Application.Modules.WhatsApp.Configuration;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Application.Modules.WhatsApp.Services;
 using ArquitecturaBase.Application.UnitTests.Modules.WhatsApp.TestDoubles;
@@ -159,6 +160,42 @@ public sealed partial class WhatsAppFlowReplyServiceTests
         Assert.Null(reply.FlowRecordId);
         Assert.Equal(0, fixture.Sink.CaptureCount);
         Assert.Equal(1, fixture.Sink.ReceiptProbeCount);
+    }
+
+    // Task 9c of the documents: only the capture that found a fixed validation answers, with the form again, in the unit of work that
+    // records the rejection; another rejection answers nothing.
+    [Fact]
+    public async Task A_capture_rejected_by_a_fixed_validation_queues_the_form_again_with_the_rejection()
+    {
+        var fixture = new Fixture();
+        fixture.Sink.Results.Add(new("Rejected", null, null, "Forms.Record.BankAccountInvalid", fixture.Mapping[0].FieldId) { FixedValidation = true });
+        var rejected = fixture.AddReply("wamid.fixed", fixture.ValidAnswers("123"));
+
+        await fixture.Service.ProcessPendingAsync(CancellationToken.None);
+
+        Assert.Equal((WhatsAppFlowCaptureState.Rejected, "Forms.Record.BankAccountInvalid"), (rejected.FlowCaptureState, rejected.FlowCaptureErrorCode));
+        var flow = Assert.Single(fixture.Rejections.Conversations.Outgoing);
+        Assert.Equal((WhatsAppOutgoingMessageKind.Flow, rejected.Id, "Revisá la cuenta: los números no dan. Copiala del comprobante. Corregilo en el formulario «Formulario» y confirmalo."),
+            (flow.Kind, flow.RequestId, flow.Body));
+        Assert.Equal(flow.FlowSessionId, Assert.Single(fixture.Rejections.Sessions.Rows).Id);
+    }
+
+    // Review of task 9c: a reply with files is found again by its receipt (a retry after its own unit of work failed, once BusinessForms
+    // kept the rejection), which says the fixed validation again, so the retry still queues the form again, once.
+    [Fact]
+    public async Task A_reply_with_files_found_by_its_rejected_receipt_still_queues_the_form_again_once()
+    {
+        var fixture = new Fixture(media: true);
+        fixture.Sink.ExistingReceipt = new("Rejected", null, null, "Forms.Record.BankAccountInvalid", fixture.Mapping[0].FieldId) { FixedValidation = true };
+        var rejected = fixture.AddFileReply("wamid.fixed-files");
+
+        await fixture.Service.ProcessPendingAsync(CancellationToken.None);
+        await fixture.Service.ProcessPendingAsync(CancellationToken.None);
+
+        Assert.Equal((WhatsAppFlowCaptureState.Rejected, 0, 1), (rejected.FlowCaptureState, fixture.Sink.CaptureCount, fixture.Sink.ReceiptProbeCount));
+        var flow = Assert.Single(fixture.Rejections.Conversations.Outgoing);
+        Assert.Equal((WhatsAppOutgoingMessageKind.Flow, rejected.Id), (flow.Kind, flow.RequestId));
+        Assert.Equal(flow.FlowSessionId, Assert.Single(fixture.Rejections.Sessions.Rows).Id);
     }
 
     [Fact]
@@ -360,9 +397,12 @@ public sealed partial class WhatsAppFlowReplyServiceTests
     {
         private static readonly DateTime Now = new(2026, 10, 11, 12, 0, 0, DateTimeKind.Utc);
         private readonly string _token = "secret-flow-token";
-        private readonly Guid _contactId = Guid.NewGuid();
-        private readonly Guid _userId = Guid.NewGuid();
-        private readonly Guid _actorId = Guid.NewGuid();
+        // Task 9c: the contact, the person and the operator are real accounts of the context, so the reservation's own checks run before
+        // a new send is queued.
+        private readonly WhatsAppAssistantContextFixture _context = new();
+        private readonly Guid _contactId;
+        private readonly Guid _userId;
+        private readonly Guid _actorId;
         private readonly Guid _definitionId = Guid.NewGuid();
         private readonly Guid _versionId = Guid.NewGuid();
         private readonly Guid _bindingId = Guid.NewGuid();
@@ -372,6 +412,7 @@ public sealed partial class WhatsAppFlowReplyServiceTests
 
         public Fixture(bool catalog = false, bool media = false, bool assisted = false, bool automatic = false, bool optionalMedia = false)
         {
+            (_contactId, _userId, _actorId) = (_context.Contact.Id, _context.Subject.Id, _context.Operator.Id);
             var tokenHash = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(_token)));
             Session = automatic
                 ? WhatsAppFlowSession.CreateAssistant(_contactId, 0, _userId, _definitionId, _versionId,
@@ -400,7 +441,12 @@ public sealed partial class WhatsAppFlowReplyServiceTests
             Sink = new FakeSink();
             Clock = new FakeTimeProvider(Now);
             Signal = new(UnitOfWork);
-            var stateService = new WhatsAppFlowReplyStateService(Messages, sessionRepository, UnitOfWork, Clock, Signal);
+            Contact = _context.Contact;
+            Contact.RecordInbound(Contact.WaId, Contact.UserIdentifier, Contact.ProfileName, WhatsAppAssistantContextFixture.Now.UtcDateTime);
+            Rejections = new(new WhatsAppAssistantSuggestionFixture.Conversations(Contact));
+            var stateService = new WhatsAppFlowReplyStateService(Messages, sessionRepository, UnitOfWork, Clock, Signal,
+                new WhatsAppFlowRejectionPolicy(Requests, Rejections.Conversations, Rejections.Sessions, new WhatsAppFlowSessionIssuer(Rejections.Protector, Clock),
+                    WhatsAppAssistantDispatchFixture.CreateGuard(_context), new WhatsAppContentRetention(30), Clock));
             Media = new FakeWhatsAppMediaClient();
             SessionProtector = new FakeSessionProtector(new(automatic ? 2 : 1, _contactId, _userId, Session.OperatorUserId, _definitionId, _versionId, _bindingId,
                 "es", new string('c', 64), 0, "1", "flow-name", Projection.Hash, _token, "Abrir", "START",
@@ -422,6 +468,10 @@ public sealed partial class WhatsAppFlowReplyServiceTests
         }
 
         public FakeUnitOfWork UnitOfWork { get; } = new();
+        /// <summary>Task 9c: where what a rejection answers goes: the outbox and the seals of a new send.</summary>
+        public RejectionDoubles Rejections { get; }
+        public WhatsAppContact Contact { get; }
+        public WhatsAppAssistantSuggestionFixture.Repository Requests { get; } = new();
         public WhatsAppAssistantSuggestionFixture.Signal Signal { get; }
         public Guid OptionId { get; } = Guid.NewGuid();
         public IReadOnlyList<WhatsAppFlowProjectionField> Mapping { get; }
@@ -476,6 +526,13 @@ public sealed partial class WhatsAppFlowReplyServiceTests
             var key = Key(index);
             return new(Guid.Parse(key[6..]), key, type, true, maxLength, choices ?? []);
         }
+    }
+
+    internal sealed class RejectionDoubles(WhatsAppAssistantSuggestionFixture.Conversations conversations)
+    {
+        public WhatsAppAssistantSuggestionFixture.Conversations Conversations { get; } = conversations;
+        public WhatsAppAssistantSuggestionFixture.SessionProtector Protector { get; } = new();
+        public WhatsAppAssistantSuggestionFixture.SessionRepository Sessions { get; } = new();
     }
 
     private sealed class FakeSessionReader(WhatsAppFlowReplySessionRow session,

@@ -165,7 +165,7 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
             return Reject(request, fingerprint, FormRecordErrors.InvalidResponse.Code);
         // DOC1: the fixed validations of the bound questions, at the question (and item) that does not pass them.
         if (FormRecordAnswerPolicy.FindInvalid(schema, answers) is { } invalid)
-            return Reject(request, fingerprint, invalid.Error.Code, invalid.FieldId, invalid.Row).Value with { FixedValidation = true };
+            return Reject(request, fingerprint, invalid.Error.Code, invalid.FieldId, invalid.Row, fixedValidation: true);
 
         // Each answer with its item of the block, and the options chosen as «¿La emito?» reads them (FormIssuePreviewPolicy).
         var placed = FormRecordReferencePolicy.Placed(answers).ToArray();
@@ -180,7 +180,7 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
         var catalogFields = await FormCatalogFieldCapturePolicy.CaptureAsync(records, FormRecordReferencePolicy.ItemIds(selected), ct);
 
         var origin = await origins.ValidateAsync(request, schema, ct);
-        if (origin.IsFailure) return Reject(request, fingerprint, origin.Error.Code).Value with { Repetition = FormRecordRepetitionPolicy.Describe(origin.Error) };
+        if (origin.IsFailure) return Reject(request, fingerprint, origin.Error.Code, repetition: FormRecordRepetitionPolicy.Describe(origin.Error));
 
         var valuesJson = FormDraftPolicy.Serialize(answers.Select(value => new { value.FieldId, value.Value }).ToArray());
         BusinessFormRecord record;
@@ -251,12 +251,14 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
         return new StructuredRecordCaptureResponse("Completed", record.Id, number, null);
     }
 
+    // Task 9c of the documents: the receipt keeps the fixed validation or the repetition, so its replay says it again.
     private Result<StructuredRecordCaptureResponse> Reject(StructuredRecordCaptureRequest request, string fingerprint, string code,
-        Guid? rejectedFieldId = null, int? rejectedRow = null)
+        Guid? rejectedFieldId = null, int? rejectedRow = null, bool fixedValidation = false, StructuredRecordRepetition? repetition = null)
     {
         records.Add(BusinessFormCaptureReceipt.Reject(request.SourceReceiptId, request.DefinitionId, request.VersionId,
-            fingerprint, code, timeProvider.GetUtcNow().UtcDateTime, rejectedFieldId, rejectedRow));
-        return new StructuredRecordCaptureResponse("Rejected", null, null, code, rejectedFieldId, rejectedRow);
+            fingerprint, code, timeProvider.GetUtcNow().UtcDateTime, rejectedFieldId, rejectedRow, fixedValidation, repetition?.RecordNumber, repetition?.AtUtc));
+        return new StructuredRecordCaptureResponse("Rejected", null, null, code, rejectedFieldId, rejectedRow)
+        { FixedValidation = fixedValidation ? true : null, Repetition = repetition };
     }
 
     // An entry's offer is rebuilt by the server on every send, so it stays out: the replay compares what the person sent.

@@ -25,6 +25,27 @@ public sealed class WhatsAppFlowLocationTests
         Assert.Throws<InvalidOperationException>(() => session.RequestLocation(required: false, "Otro"));
     }
 
+    // Task 9c of the documents: the new send after a fixed validation keeps the point its rejected send resolved, so its reply takes it.
+    [Fact]
+    public void A_new_send_keeps_the_location_its_rejected_send_resolved_once()
+    {
+        var rejected = Session();
+        rejected.RequestLocation(required: true, "Completá el formulario «Visita».");
+        Assert.True(rejected.ReceiveLocation(-34.603722m, -58.381592m, "wamid.point", Now.AddMinutes(1)));
+        var again = WhatsAppFlowSession.Create(rejected.ContactId, 2, rejected.UserId, rejected.OperatorUserId!.Value, rejected.DefinitionId,
+            rejected.VersionId, 1, rejected.BindingId, "es", "{}", "V", new('c', 64), new('b', 64), rejected.ExpiresAtUtc);
+
+        again.ContinueLocation(rejected);
+
+        Assert.Equal((WhatsAppFlowLocationState.Received, true, -34.603722m, -58.381592m, "wamid.point", "Completá el formulario «Visita»."),
+            (again.LocationState, again.LocationRequired, again.LocationLatitude, again.LocationLongitude, again.LocationWaMessageId, again.FlowBody));
+        Assert.False(again.AwaitsLocation(Now.AddMinutes(2)));
+        Assert.Throws<InvalidOperationException>(() => again.ContinueLocation(rejected));
+        var withoutLocation = Session();
+        withoutLocation.ContinueLocation(Session());
+        Assert.Equal(WhatsAppFlowLocationState.None, withoutLocation.LocationState);
+    }
+
     [Fact]
     public void The_first_location_completes_the_request_and_another_changes_nothing()
     {

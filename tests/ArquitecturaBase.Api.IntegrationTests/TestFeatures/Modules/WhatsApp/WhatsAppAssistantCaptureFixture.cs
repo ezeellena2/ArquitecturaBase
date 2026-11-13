@@ -48,7 +48,18 @@ internal static class WhatsAppAssistantCaptureFixture
     public static async Task<WhatsAppAssistantCapturedReply> ReplyAsync(WhatsAppAssistantScenario host,WhatsAppAssistantContact contact,
         WhatsAppFlowMessageResponse flow,Guid fieldId,CancellationToken ct,string? waMessageId=null)
     {
-        var answer=new JsonObject{["flow_token"]=flow.FlowToken,["field_"+fieldId.ToString("N")]="Sucursal Norte"};
+        var wamid=await AnswerAsync(host,flow,fieldId,ct,waMessageId);
+        var row=await host.ScopeAsync(services=>services.GetRequiredService<ApplicationDbContext>().Set<WhatsAppMessage>().AsNoTracking()
+            .SingleAsync(item=>item.WaMessageId==wamid,ct));
+        Assert.Equal(WhatsAppFlowCaptureState.Completed,row.FlowCaptureState);Assert.NotNull(row.FlowSessionId);Assert.NotNull(row.FlowRecordId);
+        Assert.Equal(contact.ContactId,row.ContactId);return new(row.Id,row.FlowSessionId.Value,row.FlowRecordId.Value,wamid);
+    }
+
+    /// <summary>The person answers the Flow through the signed webhook and the reply worker processes it, whatever its capture says.</summary>
+    public static async Task<string> AnswerAsync(WhatsAppAssistantScenario host,WhatsAppFlowMessageResponse flow,Guid fieldId,CancellationToken ct,
+        string? waMessageId=null,string value="Sucursal Norte")
+    {
+        var answer=new JsonObject{["flow_token"]=flow.FlowToken,["field_"+fieldId.ToString("N")]=value};
         var wamid=waMessageId??MetaWebhook.UniqueWaMessageId();var waId=flow.To.Value[1..];
         var message=MetaWebhook.Text(wamid,waId,null,host.Clock.GetUtcNow().UtcDateTime,"unused");message.Remove("text");message["type"]="interactive";
         message["interactive"]=new JsonObject{["type"]="nfm_reply",["nfm_reply"]=new JsonObject{
@@ -58,9 +69,6 @@ internal static class WhatsAppAssistantCaptureFixture
         request.Content.Headers.ContentType=new("application/json");request.Headers.Add("X-Hub-Signature-256",MetaWebhook.Sign(payload));
         using var client=host.Client();using var response=await client.SendAsync(request,ct);Assert.Equal(HttpStatusCode.OK,response.StatusCode);
         await host.ScopeAsync(services=>services.GetRequiredService<IWhatsAppFlowReplyService>().ProcessPendingAsync(ct));
-        var row=await host.ScopeAsync(services=>services.GetRequiredService<ApplicationDbContext>().Set<WhatsAppMessage>().AsNoTracking()
-            .SingleAsync(item=>item.WaMessageId==wamid,ct));
-        Assert.Equal(WhatsAppFlowCaptureState.Completed,row.FlowCaptureState);Assert.NotNull(row.FlowSessionId);Assert.NotNull(row.FlowRecordId);
-        Assert.Equal(contact.ContactId,row.ContactId);return new(row.Id,row.FlowSessionId.Value,row.FlowRecordId.Value,wamid);
+        return wamid;
     }
 }

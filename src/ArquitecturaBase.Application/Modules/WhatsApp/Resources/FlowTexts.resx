@@ -32,6 +32,8 @@
   <data name="SharedReview" xml:space="preserve"><value>Revisá el formulario «{0}» y confirmalo.</value></data>
   <data name="DocumentNotice" xml:space="preserve"><value>Lo completamos con el documento que mandaste. Revisá lo marcado antes de confirmar.</value></data>
   <data name="SpreadsheetNotice" xml:space="preserve"><value>Lo completamos con la planilla que mandaste. Revisá lo marcado antes de confirmar.</value></data>
+  <data name="FixedValidationResend" xml:space="preserve"><value>Corregilo en el formulario «{0}» y confirmalo.</value></data>
+  <data name="CorrectionNotice" xml:space="preserve"><value>Lo completamos con lo que mandaste. Corregí lo marcado antes de confirmar.</value></data>
   <data name="MarkDoubtful" xml:space="preserve"><value>Revisá: lo leímos con dudas.</value></data>
   <data name="MarkNotRead" xml:space="preserve"><value>No se leyó.</value></data>
   <data name="MarkInvalid" xml:space="preserve"><value>Revisá este dato: no pasa la validación.</value></data>

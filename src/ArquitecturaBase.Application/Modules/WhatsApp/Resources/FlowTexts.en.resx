@@ -32,6 +32,8 @@
   <data name="SharedReview" xml:space="preserve"><value>Check the form “{0}” and confirm it.</value></data>
   <data name="DocumentNotice" xml:space="preserve"><value>We filled it in with the document you sent. Check what is marked before confirming.</value></data>
   <data name="SpreadsheetNotice" xml:space="preserve"><value>We filled it in with the spreadsheet you sent. Check what is marked before confirming.</value></data>
+  <data name="FixedValidationResend" xml:space="preserve"><value>Fix it in the form “{0}” and confirm it.</value></data>
+  <data name="CorrectionNotice" xml:space="preserve"><value>We filled it in with what you sent. Fix what is marked before confirming.</value></data>
   <data name="MarkDoubtful" xml:space="preserve"><value>Check it: we read it with doubts.</value></data>
   <data name="MarkNotRead" xml:space="preserve"><value>It could not be read.</value></data>
   <data name="MarkInvalid" xml:space="preserve"><value>Check this answer: it does not pass the validation.</value></data>

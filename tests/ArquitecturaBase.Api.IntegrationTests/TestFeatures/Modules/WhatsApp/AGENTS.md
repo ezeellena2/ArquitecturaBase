@@ -46,4 +46,6 @@ CapturingActionReplySink es un dueño neutral de las respuestas a avisos: regist
 
 WhatsAppAssistantAgentContractCapture escribe intactos los cuerpos de la pantalla «Asistente» y de Probar sólo con WHATSAPP_ASSISTANT_AGENT_HTTP_OUTPUT; el exportador central los suma como la cohorte whatsapp-assistant-agent-http.
 
+FailingFlowReplyStateService (revisión de la tarea 9c) hace fallar la unidad de trabajo que marca una respuesta rechazada las veces que fija el escenario, antes de llegar al servicio real, para probar que el reintento la contesta una vez; lo demás va al servicio real. CapturingStructuredRecordPort guarda un rechazo guionado por su recibo y lo repite con lo que dijo, como el recibo del dueño desde la tarea 9c.
+
 CapturingStructuredDocumentRowsChannel es el dueño neutral de las filas de una planilla (VC1-A): contesta lo que fija el escenario, una vez por fuente. CapturingStructuredDocumentChannel es un dueño neutral de la bandeja: dice si algún formulario lee documentos y quién puede cargar, y registra lo que le entrega el canal sin leer la copia ni decidir, sin importar formularios. WhatsAppAssistantInboundFixture suma un documento con su lectura: Get primero, Submit y Complete.

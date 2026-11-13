@@ -12,6 +12,7 @@ internal sealed class FormCaptureReceiptReader(ApplicationDbContext dbContext) :
         dbContext.Set<BusinessFormCaptureReceipt>().AsNoTracking()
             .Where(receipt => receipt.SourceReceiptId == sourceReceiptId)
             .Select(receipt => new FormCaptureReceiptRow(receipt.SourceReceiptId, receipt.DefinitionId,
-                receipt.VersionId, receipt.Fingerprint, receipt.RecordId, receipt.Number, receipt.State, receipt.ErrorCode, receipt.RejectedFieldId, receipt.RejectedRow))
+                receipt.VersionId, receipt.Fingerprint, receipt.RecordId, receipt.Number, receipt.State, receipt.ErrorCode, receipt.RejectedFieldId, receipt.RejectedRow,
+                receipt.FixedValidation, receipt.RepeatedRecordNumber, receipt.RepeatedAtUtc))
             .SingleOrDefaultAsync(cancellationToken);
 }

@@ -166,6 +166,9 @@ public sealed class WhatsAppFlowDocumentCompilerTests
         Assert.Equal("Lo completamos con la planilla que mandaste. Revisá lo marcado antes de confirmar.", load.Texts["notice"]);
         Assert.False(load.Flags[request.Questions[^1].Key + "_attached"]);
         Assert.Empty(load.Objects);
+        var again = WhatsAppFlowMarks.Build(projection, server with { Correction = true });
+        Assert.Equal("Lo completamos con lo que mandaste. Corregí lo marcado antes de confirmar.\n«Banco» no se leyó.", again.Texts["notice"]);
+        Assert.Equal("Revisá la cuenta: los números no dan. Copiala del comprobante.", again.Objects["errors_FORM"][request.Questions[1].Key]);
         var operatorSend = WhatsAppFlowMarks.Build(projection, null);
         Assert.False(operatorSend.Flags["notice_visible"]);
         Assert.Equal("", operatorSend.Texts["notice"]);

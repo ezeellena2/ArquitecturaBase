@@ -352,8 +352,10 @@ public sealed partial class FormDraftEndpointsTests
         Assert.Equal("Revisá la CUIT o CUIL: los números no dan. Copiala del comprobante.",
             taxProblem.GetProperty("errors").GetProperty("answers." + taxId.ToString("D"))[0].GetString());
         Assert.Equal(0, await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormRecord>().CountAsync(record => record.DefinitionId == id, Ct)));
-        // The rejection keeps only the receipt of the attempt, with its code and question.
+        // The rejection keeps only the receipt of the attempt, with its code and question, and (task 9c) that a fixed validation found it,
+        // so its replay says it again.
         Assert.Equal(2, await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormCaptureReceipt>().CountAsync(receipt => receipt.DefinitionId == id
+            && receipt.FixedValidation && receipt.RepeatedAtUtc == null
             && (receipt.ErrorCode == FormRecordErrors.BankAccountInvalid.Code && receipt.RejectedFieldId == account
                 || receipt.ErrorCode == FormRecordErrors.TaxIdInvalid.Code && receipt.RejectedFieldId == taxId), Ct)));
 

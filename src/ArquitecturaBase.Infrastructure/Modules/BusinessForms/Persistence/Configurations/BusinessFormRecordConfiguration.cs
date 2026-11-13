@@ -84,5 +84,6 @@ internal sealed class BusinessFormCaptureReceiptConfiguration : IEntityTypeConfi
         builder.Property(value => value.Fingerprint).HasMaxLength(64);
         builder.Property(value => value.State).HasMaxLength(16);
         builder.Property(value => value.ErrorCode).HasMaxLength(128);
+        builder.Property(value => value.RepeatedRecordNumber).HasMaxLength(32);
     }
 }

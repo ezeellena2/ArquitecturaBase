@@ -40,6 +40,18 @@ public sealed class WhatsAppProposedFlowDispatchTests
         Assert.Equal("Av. Pellegrini 1200",Assert.Single(resend.Value.InitialValues["prefill_FORM"]).Value);
         Assert.Equal(FlowErrors.StateConflict,empty.Error);
     }
+    // Task 9c of the documents: the new send after a fixed validation opens with what the person sent, over what was proposed.
+    [Fact]
+    public async Task A_new_send_after_a_fixed_validation_opens_with_what_the_person_sent_over_the_proposal()
+    {
+        var host=await QueuedAsync();var fields=host.Forms.Prefill.Value.Fields;var row=WhatsAppAssistantAcceptanceFixture.DispatchRow(host);
+        var proposed=host.Protector.Content!.Origin.ProposedValues[0];
+        host.Protector.Content=host.Protector.Content with {Answers=[proposed with {Value="lo que mandó"}]};
+        var prepared=await WhatsAppAssistantAcceptanceFixture.CreateDispatch(host,row).PrepareAsync(row.OutgoingId,Ct);
+        Assert.Equal("lo que mandó",prepared.Value.InitialValues["prefill_FORM"][fields[0].Key]);
+        host.Protector.Content=host.Protector.Content with {Answers=[proposed with {FieldId=Guid.NewGuid()}]};
+        Assert.Equal(FlowErrors.StateConflict,(await WhatsAppAssistantAcceptanceFixture.CreateDispatch(host,row).PrepareAsync(row.OutgoingId,Ct)).Error);
+    }
     [Fact]
     public async Task A_proposed_false_remains_a_wire_string_instead_of_becoming_an_absent_value()
     {

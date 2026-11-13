@@ -99,10 +99,10 @@ public sealed class BusinessFormDocumentCaptureTests
         Assert.Equal(FormReceivedDocumentState.Proposed, otherDocument.State);
     }
 
-    // Task 9b: a confirmation in a channel is checked again with what the person corrected; only the capture that finds the repetition
-    // says which response it repeats, and a reviewer who passes a document from the inbox decides it themselves.
+    // Task 9b: a confirmation in a channel is checked again with what the person corrected and says which response it repeats; task 9c:
+    // its replay says it again from the receipt, and a reviewer who passes a document from the inbox decides it themselves.
     [Fact]
-    public async Task A_channel_confirmation_that_repeats_a_saved_response_says_which_one_and_neither_its_replay_nor_a_reviewer_pass_does()
+    public async Task A_channel_confirmation_that_repeats_a_saved_response_says_which_one_its_replay_too_and_a_reviewer_pass_does_not()
     {
         var capture = new BusinessFormCaptureFixture("shortText", false);
         var savedAtUtc = new DateTime(2026, 11, 10, 15, 30, 0, DateTimeKind.Utc);
@@ -115,7 +115,8 @@ public sealed class BusinessFormDocumentCaptureTests
 
         Assert.Equal(("Rejected", FormRecordErrors.Repeated.Code), (rejected.State, rejected.ErrorCode));
         Assert.Equal(new StructuredRecordRepetition("FORM-000007", savedAtUtc), rejected.Repetition);
-        Assert.Equal(("Rejected", FormRecordErrors.Repeated.Code, (StructuredRecordRepetition?)null), (replay.State, replay.ErrorCode, replay.Repetition));
+        Assert.Equal(("Rejected", FormRecordErrors.Repeated.Code, rejected.Repetition, (bool?)null),
+            (replay.State, replay.ErrorCode, replay.Repetition, replay.FixedValidation));
         var key = Assert.Single(Assert.Single(capture.Documents.RepetitionQueries).Keys);
         Assert.Equal((fieldId, "shortText", "local"), (key.FieldId, key.Type, key.Value));
         Assert.Equal(FormReceivedDocumentState.Proposed, document.State);

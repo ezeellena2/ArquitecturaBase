@@ -16,10 +16,11 @@ public sealed record StructuredRecordCaptureResponse(string State, Guid? RecordI
 {
     /// <summary>
     /// Task 9b of the documents: the capture was rejected by a fixed validation of a question (DOC1), so a channel may send the form again
-    /// with what the person entered. Only the capture that found it says it: a replay of the receipt does not.
+    /// with what the person entered. Task 9c: the receipt keeps it and its replay says it again, so a channel whose own unit of work failed
+    /// after the capture still answers; the channel answers once by its own idempotency.
     /// </summary>
     public bool? FixedValidation { get; init; }
-    /// <summary>Task 9b: the response a rejected capture repeats (its number and when it was received); only on the capture that found it.</summary>
+    /// <summary>Task 9b: the response a rejected capture repeats (its number and when it was received); task 9c: its replay says it again.</summary>
     public StructuredRecordRepetition? Repetition { get; init; }
 }
 

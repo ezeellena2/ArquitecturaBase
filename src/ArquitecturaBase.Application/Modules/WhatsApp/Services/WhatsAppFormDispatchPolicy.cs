@@ -67,6 +67,12 @@ internal sealed class WhatsAppFormDispatchPolicy(IWhatsAppFormRecipientReader re
                 values.Add(mapped.Key,proposed.Value);
             }
         }
+        // Task 9c: a new send after a fixed validation opens with what the person sent, over what was proposed.
+        foreach(var answer in content?.Answers ?? [])
+        {
+            if(projection.Mapping.SingleOrDefault(field=>field.FieldId==answer.FieldId) is not { Files: null } mapped || mapped.Type!=answer.Type) return FlowErrors.StateConflict;
+            values[mapped.Key]=answer.Value;
+        }
         // W3: what the person shared goes over the prefill, each value in its question; the prefill policy checks it like any other.
         foreach(var value in shared?.Values ?? [])
         {

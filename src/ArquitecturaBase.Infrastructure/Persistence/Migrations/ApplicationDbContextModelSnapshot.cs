@@ -1504,6 +1504,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
+                    b.Property<bool>("FixedValidation")
+                        .HasColumnType("boolean");
+
                     b.Property<long?>("Number")
                         .HasColumnType("bigint");
 
@@ -1515,6 +1518,13 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
 
                     b.Property<int?>("RejectedRow")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime?>("RepeatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("RepeatedRecordNumber")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
 
                     b.Property<Guid>("SourceReceiptId")
                         .HasColumnType("uuid");

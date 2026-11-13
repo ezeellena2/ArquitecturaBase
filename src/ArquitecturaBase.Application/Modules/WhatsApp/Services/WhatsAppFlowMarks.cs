@@ -138,7 +138,8 @@ internal static class WhatsAppFlowMarks
         }
         else
         {
-            var head = FlowTexts.Get(server.Spreadsheet == true ? "SpreadsheetNotice" : "DocumentNotice", culture);
+            // Task 9c: the form again after a fixed validation asks to correct what is marked, whether it came from a document or not.
+            var head = FlowTexts.Get(server.Correction == true ? "CorrectionNotice" : server.Spreadsheet == true ? "SpreadsheetNotice" : "DocumentNotice", culture);
             texts[Notice] = string.Join("\n", [head, .. lines]);
             flags[NoticeShown] = true;
         }

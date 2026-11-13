@@ -11,5 +11,11 @@ public sealed record WhatsAppFlowAssistantContent(int Format, StructuredRecordCa
     /// </summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public WhatsAppFlowServerData? Server { get; init; }
+    /// <summary>
+    /// Task 9c of the documents: what the person sent in the reply a fixed validation rejected, which the new send opens with over what
+    /// was proposed; omitted otherwise, so the contents sealed before keep their bytes.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<StructuredRecordProposedValue>? Answers { get; init; }
     public override string ToString() => "WhatsAppFlowAssistantContent { Content = [REDACTED] }";
 }

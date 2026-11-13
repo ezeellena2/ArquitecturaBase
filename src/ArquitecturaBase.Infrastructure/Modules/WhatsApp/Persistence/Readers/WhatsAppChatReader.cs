@@ -142,6 +142,9 @@ internal sealed class WhatsAppChatReader(ApplicationDbContext dbContext) : IWhat
                 join outgoing in dbContext.Set<WhatsAppOutgoingMessage>().AsNoTracking() on reference.OutgoingId equals outgoing.Id
                 where reference.ContactId == contactId && reference.Kind == WhatsAppAssistantRequestKind.Automatic && reference.AttachmentMessageId != null
                     && documentIds.Contains(reference.AttachmentMessageId.Value)
+                    // Review of task 9c: what answers a rejected capture (it names its own request as the proposal) carries the document too,
+                    // but the why is the one of the send that proposed the form.
+                    && reference.ProposalId != reference.RequestId
                     // A form with a location question opens with its location request, which is what the reference keeps.
                     && ((outgoing.Kind == WhatsAppOutgoingMessageKind.Flow || outgoing.Kind == WhatsAppOutgoingMessageKind.LocationRequest) && outgoing.FlowSession != null
                         || (outgoing.Kind == WhatsAppOutgoingMessageKind.QuickReplies || outgoing.Kind == WhatsAppOutgoingMessageKind.List) && outgoing.QuickRepliesJson != null)

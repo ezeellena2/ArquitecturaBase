@@ -96,9 +96,10 @@ public sealed class FormFixedValidationTests
         Assert.Empty(f.Repository.Values);
     }
 
-    // Task 9b: a channel may send the form again with what the person entered; only the capture that found the failure says it.
+    // Task 9b: a channel may send the form again with what the person entered. Task 9c: the receipt keeps it, so a replay says it again and
+    // a channel whose own unit of work failed after the capture still answers (once, by its own idempotency).
     [Fact]
-    public async Task Only_the_capture_a_fixed_validation_rejects_says_so_and_its_replay_does_not()
+    public async Task A_capture_a_fixed_validation_rejects_says_so_and_its_replay_says_it_again()
     {
         var question = Field();
         var f = new BusinessFormCaptureFixture([question]);
@@ -110,8 +111,9 @@ public sealed class FormFixedValidationTests
             with { SourceReceiptId = Guid.CreateVersion7() }, Ct);
 
         Assert.Equal(("Rejected", "Forms.Record.BankAccountInvalid", (bool?)true), (rejected.State, rejected.ErrorCode, rejected.FixedValidation));
-        Assert.Equal(("Rejected", "Forms.Record.BankAccountInvalid", (Guid?)question.FieldId, (bool?)null),
+        Assert.Equal(("Rejected", "Forms.Record.BankAccountInvalid", (Guid?)question.FieldId, (bool?)true),
             (replay.State, replay.ErrorCode, replay.RejectedFieldId, replay.FixedValidation));
+        Assert.Null(replay.Repetition);
         Assert.Equal(("Rejected", FormRecordErrors.InvalidResponse.Code, (bool?)null), (tooLong.State, tooLong.ErrorCode, tooLong.FixedValidation));
     }
 

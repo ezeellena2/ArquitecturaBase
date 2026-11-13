@@ -157,6 +157,26 @@ public sealed partial class WhatsAppFlowSession : Entity, IAuditable
         return true;
     }
 
+    /// <summary>
+    /// Task 9c of the documents: a new send of the form of a rejected one keeps the location its rejected send resolved (W1-A), so its
+    /// reply takes the same point; it is set once, before the new send goes out.
+    /// </summary>
+    public void ContinueLocation(WhatsAppFlowSession rejected)
+    {
+        ArgumentNullException.ThrowIfNull(rejected);
+        if (rejected.LocationState is not (WhatsAppFlowLocationState.Received or WhatsAppFlowLocationState.Skipped)) return;
+        if (LocationState != WhatsAppFlowLocationState.None || CaptureState != WhatsAppFlowCaptureState.Pending || rejected.ContactId != ContactId
+            || rejected.VersionId != VersionId)
+            throw new InvalidOperationException("A new send keeps the location of its own rejected send, once.");
+        LocationState = rejected.LocationState;
+        LocationRequired = rejected.LocationRequired;
+        LocationLatitude = rejected.LocationLatitude;
+        LocationLongitude = rejected.LocationLongitude;
+        LocationWaMessageId = rejected.LocationWaMessageId;
+        LocationResolvedAtUtc = rejected.LocationResolvedAtUtc;
+        FlowBody = rejected.FlowBody;
+    }
+
     internal static bool IsPoint(decimal latitude, decimal longitude) =>
         latitude is >= -90 and <= 90 && longitude is >= -180 and <= 180
         && decimal.Round(latitude, 6) == latitude && decimal.Round(longitude, 6) == longitude;

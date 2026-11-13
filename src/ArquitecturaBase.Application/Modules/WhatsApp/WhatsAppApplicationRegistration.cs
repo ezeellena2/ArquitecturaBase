@@ -116,6 +116,7 @@ public static class WhatsAppApplicationRegistration
         services.AddScoped<IWhatsAppFormService, WhatsAppFormService>();
         services.AddScoped<WhatsAppFormSendPolicy>();
         services.AddScoped<WhatsAppFlowSessionIssuer>();
+        services.AddScoped<WhatsAppFlowRejectionPolicy>();
         services.AddScoped<WhatsAppFlowSessionVerifier>();
         services.AddScoped<WhatsAppFormDispatchPolicy>();
         services.AddScoped<IWhatsAppAssistantContentRetentionService, WhatsAppAssistantContentRetentionService>();

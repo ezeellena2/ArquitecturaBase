@@ -133,6 +133,28 @@ public sealed partial class WhatsAppAssistantRequest : Entity
         };
     }
 
+    /// <summary>
+    /// Task 9c of the documents: what answers a reply its capture rejected (the form again after a fixed validation, or the notice of a
+    /// repeated one) is a reference of its own on that reply: its outgoing and its checks before sending, with the context, revisions,
+    /// lifetime and attachment of the reference that sent the form. It names its own request as the proposal, so it is no offer.
+    /// </summary>
+    public static WhatsAppAssistantRequest CreateCaptureReply(WhatsAppAssistantRequest sent, Guid requestId, Guid replyMessageId, DateTime nowUtc)
+    {
+        ArgumentNullException.ThrowIfNull(sent);
+        ArgumentOutOfRangeException.ThrowIfEqual(requestId, Guid.Empty);
+        ArgumentOutOfRangeException.ThrowIfEqual(replyMessageId, Guid.Empty);
+        if (sent.Kind != WhatsAppAssistantRequestKind.Automatic || sent.ContextJson is null || sent.ActorUserId is null || sent.OutgoingId is null
+            || replyMessageId == sent.SourceMessageId || nowUtc >= sent.ContentExpiresAtUtc)
+            throw new ArgumentException("A capture reply follows the automatic reference that sent its form, while its content lives.", nameof(sent));
+        return new()
+        {
+            RequestId = requestId, ContactId = sent.ContactId, SourceMessageId = replyMessageId, ActorUserId = sent.ActorUserId,
+            SubjectUserId = sent.SubjectUserId, Kind = sent.Kind, ModeRevision = sent.ModeRevision, LinkRevision = sent.LinkRevision,
+            ContextJson = sent.ContextJson, CreatedAtUtc = nowUtc, ContentExpiresAtUtc = sent.ContentExpiresAtUtc,
+            AttachmentMessageId = sent.AttachmentMessageId,
+        };
+    }
+
     /// <summary>The outcome of an action that sent nothing, bounded, once; the content retention clears it.</summary>
     public bool RecordOutcome(string outcomeJson)
     {

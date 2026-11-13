@@ -213,6 +213,15 @@ public sealed class BusinessFormCaptureReceipt : Entity
     public Guid? RejectedFieldId { get; private set; }
     /// <summary>The item of the rejected answer when its question is in a block; null outside a block.</summary>
     public int? RejectedRow { get; private set; }
+    /// <summary>
+    /// Task 9c of the documents: the rejection was a fixed validation (DOC1). The receipt keeps it so its replay says it again, and a
+    /// channel whose own unit of work failed after the capture still answers it (once, by its own idempotency).
+    /// </summary>
+    public bool FixedValidation { get; private set; }
+    /// <summary>Task 9c: the number of the response a rejected capture repeats, when it has one; its replay says it again.</summary>
+    public string? RepeatedRecordNumber { get; private set; }
+    /// <summary>Task 9c: when the response a rejected capture repeats was received; null for any other receipt.</summary>
+    public DateTime? RepeatedAtUtc { get; private set; }
     public DateTime CreatedAtUtc { get; private set; }
     public static BusinessFormCaptureReceipt Complete(Guid sourceReceiptId, Guid definitionId, Guid versionId,
         string fingerprint, Guid recordId, long number, DateTime nowUtc) => new()
@@ -221,17 +230,22 @@ public sealed class BusinessFormCaptureReceipt : Entity
         RecordId = recordId, Number = number, State = "Completed", CreatedAtUtc = nowUtc,
     };
     public static BusinessFormCaptureReceipt Reject(Guid sourceReceiptId, Guid definitionId, Guid versionId,
-        string fingerprint, string errorCode, DateTime nowUtc, Guid? rejectedFieldId = null, int? rejectedRow = null)
+        string fingerprint, string errorCode, DateTime nowUtc, Guid? rejectedFieldId = null, int? rejectedRow = null,
+        bool fixedValidation = false, string? repeatedRecordNumber = null, DateTime? repeatedAtUtc = null)
     {
         if (rejectedRow is { } row)
         {
             if (rejectedFieldId is null) throw new ArgumentException("A rejected item needs its rejected question.", nameof(rejectedRow));
             BusinessFormRecordValue.CheckRow(row, nameof(rejectedRow));
         }
+        if (repeatedRecordNumber is not null && repeatedAtUtc is null || repeatedAtUtc is { Kind: not DateTimeKind.Utc }
+            || fixedValidation && repeatedAtUtc is not null)
+            throw new ArgumentException("A repeated response is a UTC reception, and a rejection is a fixed validation or a repetition.", nameof(repeatedAtUtc));
         return new()
         {
             SourceReceiptId = sourceReceiptId, DefinitionId = definitionId, VersionId = versionId, Fingerprint = fingerprint,
             State = "Rejected", ErrorCode = errorCode, RejectedFieldId = rejectedFieldId, RejectedRow = rejectedRow, CreatedAtUtc = nowUtc,
+            FixedValidation = fixedValidation, RepeatedRecordNumber = repeatedRecordNumber, RepeatedAtUtc = repeatedAtUtc,
         };
     }
     public override string ToString() => $"BusinessFormCaptureReceipt {{ State = {State}, RecordId = {RecordId} }}";

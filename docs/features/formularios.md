@@ -1358,11 +1358,15 @@ leerlos, cargarlos y la bandeja llegan con las tareas siguientes del plan.
   correcciones): una cuenta que no es una CBU o una CVU con sus dos verificadores, ni un alias de 6 a 20 letras, números, puntos o
   guiones, da `Forms.Record.BankAccountInvalid` («Revisá la cuenta: los números no dan. Copiala del comprobante.»), y una CUIT o
   un CUIL sin su verificador, `Forms.Record.TaxIdInvalid`, en su pregunta (y su ítem, en el bloque). No se guarda la respuesta,
-  sólo el recibo rechazado; lo escrito que pasa se guarda tal cual, y la respuesta de la captura dice `fixedValidation` (sólo la captura que
-  lo encontró, no un replay del recibo), para que un canal pueda volver a mandar el formulario. Desde la tarea 9b de documentos, una respuesta
+  sólo el recibo rechazado; lo escrito que pasa se guarda tal cual, y la respuesta de la captura dice `fixedValidation` (desde la revisión de la
+  tarea 9c también su replay: el recibo guarda `FixedValidation`), para que un canal pueda volver a mandar el formulario: WhatsApp lo hace desde la tarea 9c, con el motivo y
+  lo que la persona mandó en un envío nuevo, y a un repetido (`repetition`) sólo le avisa
+  ([WhatsApp](whatsapp.md#rechazos-y-reintentos-de-formularios--2026-10-13)). Desde la tarea 9b de documentos, una respuesta
   que su persona confirma en un canal desde un documento recibido o una fila (`origin.document` sin `documentRevision`) se vuelve a revisar
   al capturar con lo corregido: si los datos que marcan un repetido del estándar (`DuplicateKeys`, todos respondidos) coinciden con una
-  respuesta guardada del formulario, da `Forms.Record.Repeated` y la captura dice `repetition` (su número y cuándo llegó), así dos
+  respuesta guardada del formulario, da `Forms.Record.Repeated` y la captura dice `repetition` (su número y cuándo llegó; el recibo lo guarda en
+  `RepeatedRecordNumber` y `RepeatedAtUtc` y su replay lo vuelve a decir, así un canal cuya propia UoW falló después de la captura igual
+  contesta, una vez), así dos
   comprobantes mandados juntos no se guardan los dos (`FormRecordRepetitionPolicy`, en la UoW de la captura y después del lock del
   documento). Lo que pasa quien revisa desde la bandeja no se revisa: lo decide esa persona. Los valores son del núcleo (`Domain/ValueObjects`):
   `CuitNumber` y `BankAccountKey`, que da la cuenta normalizada, su tipo y el código de su entidad (los dígitos 1 a 3 de una CBU y

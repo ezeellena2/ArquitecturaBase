@@ -40,5 +40,13 @@ internal sealed class WhatsAppAssistantRepository(ApplicationDbContext db) : IWh
         if(row is not null) await db.Entry(row).ReloadAsync(ct);
         return row;
     }
+    // Task 9c: only read, to copy it into the reference of the reply, so it takes no lock.
+    public Task<WhatsAppAssistantRequest?> GetBySessionAsync(Guid contactId,Guid sessionId,CancellationToken ct)
+    {
+        db.RequireTransaction();
+        return db.Set<WhatsAppAssistantRequest>().Where(row=>row.ContactId==contactId && row.OutgoingId!=null
+                && db.Set<WhatsAppOutgoingMessage>().Any(outgoing=>outgoing.Id==row.OutgoingId && outgoing.FlowSessionId==sessionId))
+            .OrderBy(row=>row.CreatedAtUtc).ThenBy(row=>row.Id).FirstOrDefaultAsync(ct);
+    }
     public void Add(WhatsAppAssistantRequest request)=>db.Set<WhatsAppAssistantRequest>().Add(request);
 }

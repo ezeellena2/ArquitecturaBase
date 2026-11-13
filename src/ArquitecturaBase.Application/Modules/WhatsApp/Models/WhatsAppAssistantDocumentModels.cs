@@ -49,5 +49,8 @@ public sealed record WhatsAppFlowServerData(
     /// <summary>Task 9b: the send is a load of a spreadsheet (VC1-A), so the notice atop its Flow names the spreadsheet; null otherwise.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public bool? Spreadsheet { get; init; }
+    /// <summary>Task 9c: the send is the form again after a fixed validation, so the notice atop its Flow asks to correct what is marked; null otherwise.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? Correction { get; init; }
     public override string ToString() => "WhatsAppFlowServerData { Content = [REDACTED] }";
 }

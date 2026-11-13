@@ -36,6 +36,11 @@ internal sealed class FormRecordCaptureGuard(IFormCaptureReceiptReader receipts,
         var prior = await receipts.FindAsync(request.SourceReceiptId, ct);
         if (prior is null || prior.SourceReceiptId != request.SourceReceiptId || prior.DefinitionId != request.DefinitionId
             || prior.VersionId != request.VersionId || prior.Fingerprint != fingerprint) return null;
-        return new(prior.State, prior.RecordId, prior.Number, prior.ErrorCode, prior.RejectedFieldId, prior.RejectedRow);
+        // Task 9c of the documents: a replay says the fixed validation or the repetition its receipt kept, as the capture that found it.
+        return new(prior.State, prior.RecordId, prior.Number, prior.ErrorCode, prior.RejectedFieldId, prior.RejectedRow)
+        {
+            FixedValidation = prior.FixedValidation ? true : null,
+            Repetition = prior.RepeatedAtUtc is { } repeatedAtUtc ? new(prior.RepeatedRecordNumber, repeatedAtUtc) : null,
+        };
     }
 }

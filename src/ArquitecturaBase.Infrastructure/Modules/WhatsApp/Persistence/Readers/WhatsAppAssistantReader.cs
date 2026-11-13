@@ -331,7 +331,9 @@ internal sealed class WhatsAppAssistantReader(ApplicationDbContext db,IOptions<W
     // A load that answers a file the person sent (a document or a spreadsheet, the reference carries it) is not an offer either.
     public Task<int> CountOffersAsync(Guid contactId,DateTime fromUtc,DateTime toUtc,CancellationToken ct,Guid? excludingRequestId=null)=>
         References().CountAsync(reference=>reference.ContactId==contactId && reference.Kind==WhatsAppAssistantRequestKind.Automatic
-            && reference.RequestId!=excludingRequestId && reference.AttachmentMessageId==null && db.Set<WhatsAppOutgoingMessage>().Any(outgoing=>
+            // Task 9c: what answers a rejected capture names its own request as the proposal, and is no offer.
+            && reference.RequestId!=excludingRequestId && reference.AttachmentMessageId==null && reference.ProposalId!=reference.RequestId
+            && db.Set<WhatsAppOutgoingMessage>().Any(outgoing=>
                 // A summary of a form or catalog to build (its own outgoing with buttons) is not an offer (IA3-A).
                 // W1-A: a send with a location opens with its request, which is the offer; its later Flow is not another one.
                 (outgoing.Id==reference.OutgoingId && (outgoing.Kind==WhatsAppOutgoingMessageKind.Flow || outgoing.Kind==WhatsAppOutgoingMessageKind.LocationRequest)

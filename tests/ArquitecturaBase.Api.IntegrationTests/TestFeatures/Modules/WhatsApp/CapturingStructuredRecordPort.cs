@@ -14,9 +14,13 @@ internal sealed class CapturingStructuredRecordPort(StructuredFormCheckRequest s
     internal IReadOnlyList<StructuredRecordCaptureRequest> Captures => _captures;
     internal bool RejectCatalogItems { get; set; }
     internal Guid? AcceptedReceiptId { get; set; }
+    /// <summary>What the next captures answer, in order (task 9c of the documents: a fixed validation or a repetition).</summary>
+    internal Queue<StructuredRecordCaptureResponse> Next { get; } = new();
     internal IReadOnlyList<StructuredRecordCaptureIdentity> IgnoredCaptures => _ignoredCaptures;
     private readonly List<StructuredRecordCaptureRequest> _captures = [];
     private readonly List<StructuredRecordCaptureIdentity> _ignoredCaptures = [];
+    // Review of task 9c: a scripted rejection is kept by its receipt and replayed with what it said, as the owner's receipt does.
+    private readonly Dictionary<Guid, StructuredRecordCaptureResponse> _rejections = [];
 
     public Task<StructuredRecordCaptureResponse> CaptureAsync(StructuredRecordCaptureRequest request, CancellationToken cancellationToken)
     {
@@ -26,7 +30,13 @@ internal sealed class CapturingStructuredRecordPort(StructuredFormCheckRequest s
             _ignoredCaptures.Add(new(request.SourceReceiptId, request.DefinitionId, request.VersionId));
             return Task.FromResult(new StructuredRecordCaptureResponse("Unavailable", null, null, null));
         }
+        if (_rejections.TryGetValue(request.SourceReceiptId, out var kept)) return Task.FromResult(kept);
         _captures.Add(request);
+        if (Next.TryDequeue(out var scripted))
+        {
+            if (scripted.State == "Rejected") _rejections[request.SourceReceiptId] = scripted;
+            return Task.FromResult(scripted);
+        }
         if (RejectCatalogItems && request.Catalogs is { Count: > 0 })
             return Task.FromResult(new StructuredRecordCaptureResponse("Rejected", null, null, "Forms.Record.CatalogItemInactive", request.Catalogs[0].FieldId));
         if (request.Answers.Values.Contains("reject-fixture"))
@@ -40,7 +50,7 @@ internal sealed class CapturingStructuredRecordPort(StructuredFormCheckRequest s
     }
 
     public Task<StructuredRecordCaptureResponse?> FindExistingReceiptAsync(StructuredRecordCaptureRequest request, CancellationToken cancellationToken) =>
-        Task.FromResult<StructuredRecordCaptureResponse?>(null);
+        Task.FromResult(_rejections.GetValueOrDefault(request.SourceReceiptId));
 
     internal IStructuredRecordSource Source(IPermissionService permissions) => new ReadSource(this, permissions);
 

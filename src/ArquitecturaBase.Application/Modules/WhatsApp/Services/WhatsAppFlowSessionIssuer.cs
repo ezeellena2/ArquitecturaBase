@@ -24,6 +24,40 @@ internal sealed class WhatsAppFlowSessionIssuer(IWhatsAppFlowSessionProtector pr
         Issue(context, new(context.Recipient.ContactId, requestId, context.Form.DefinitionId, context.Form.VersionId,
             modeRevision, context.RecipientRevision, null), actor, fingerprint, token, catalogs, content, sourceExpiresAtUtc, expiresAtUtc);
 
+    /// <summary>
+    /// Task 9c of the documents: a new send of the form of a send whose reply a fixed validation rejected. It keeps the recipient, sender,
+    /// form, version, binding, culture, request, deadline and resolved location of the rejected one and its sealed payload, with a token of
+    /// its own (a send's capture is terminal and its owner keeps one receipt per send), and seals the content it opens with. Meta is not
+    /// called here: the dispatch checks the account again.
+    /// </summary>
+    public WhatsAppFlowSession Again(WhatsAppFlowSession rejected, WhatsAppFlowSessionPayload payload, WhatsAppFlowAssistantContent content,
+        DateTime contentExpiresAtUtc)
+    {
+        var automatic = rejected.Origin == WhatsAppMessageOrigin.Assistant;
+        if (content.Format != 1 || content.Origin.OperatorUserId != rejected.OperatorUserId || payload.Origin != rejected.Origin
+            || payload.OperatorUserId != rejected.OperatorUserId || payload.ContactId != rejected.ContactId || payload.VersionId != rejected.VersionId
+            || content.Origin.SenderKind != (automatic ? StructuredRecordSenderKind.Assistant : StructuredRecordSenderKind.Manual))
+            throw new InvalidOperationException("The new send must preserve its explicit sender identity.");
+        var token = Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(32));
+        var tokenBytes = Encoding.UTF8.GetBytes(token);
+        string tokenHash;
+        try { tokenHash = Convert.ToHexStringLower(SHA256.HashData(tokenBytes)); }
+        finally { CryptographicOperations.ZeroMemory(tokenBytes); }
+        var session = rejected.OperatorUserId is { } sender
+            ? WhatsAppFlowSession.Create(rejected.ContactId, rejected.LinkRevision, rejected.UserId, sender, rejected.DefinitionId, rejected.VersionId,
+                rejected.VersionNumber, rejected.BindingId, rejected.Culture, rejected.NameJson, rejected.Prefix, tokenHash, rejected.RequestFingerprint,
+                rejected.ExpiresAtUtc)
+            : WhatsAppFlowSession.CreateAssistant(rejected.ContactId, rejected.LinkRevision, rejected.UserId, rejected.DefinitionId, rejected.VersionId,
+                rejected.VersionNumber, rejected.BindingId, rejected.Culture, rejected.NameJson, rejected.Prefix, tokenHash, rejected.RequestFingerprint,
+                rejected.ExpiresAtUtc);
+        session.ContinueLocation(rejected);
+        session.SealPayload(protector.Protect(session.Id, rejected.ContactId, rejected.UserId, rejected.VersionId, payload with { Token = token }));
+        if (!session.SealAssistantContent(protector.ProtectAssistant(session.Id, rejected.ContactId, rejected.UserId, rejected.VersionId, content),
+            contentExpiresAtUtc))
+            throw new InvalidOperationException("The content of a new send must be sealed exactly once.");
+        return session;
+    }
+
     private WhatsAppFlowSessionIssue Issue(WhatsAppFormSendContext context, SendWhatsAppFormRequest request, Guid? actor,
         string fingerprint, string token, IReadOnlyList<StructuredFormCatalogOffer>? catalogs,
         WhatsAppFlowAssistantContent? content, DateTime? sourceExpiresAtUtc, DateTime? fixedExpiresAtUtc)

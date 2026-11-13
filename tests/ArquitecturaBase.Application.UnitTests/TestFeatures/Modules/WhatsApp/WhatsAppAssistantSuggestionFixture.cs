@@ -90,6 +90,10 @@ internal sealed class WhatsAppAssistantSuggestionFixture
         public Task<WhatsAppAssistantRequest?> GetBySourceAsync(Guid contactId,Guid sourceId,WhatsAppAssistantRequestKind kind,CancellationToken ct)=>Task.FromResult(Rows.SingleOrDefault(row=>row.ContactId==contactId && row.SourceMessageId==sourceId && row.Kind==kind));
         public Task<WhatsAppAssistantRequest?> GetByCapturedRecordAsync(Guid contactId,Guid recordId,CancellationToken ct)=>Task.FromResult(Rows.SingleOrDefault(row=>row.ContactId==contactId&&row.SourceRecordId==recordId));
         public Task<WhatsAppAssistantRequest?> GetPendingAsync(Guid contactId,CancellationToken ct)=>Task.FromResult(Rows.FirstOrDefault(row=>row.ContactId==contactId && row.State==WhatsAppAssistantRequestState.Pending));
+        /// <summary>Task 9c: the outgoings of each send, as the database relates them.</summary>
+        public Dictionary<Guid,IReadOnlyList<Guid>> SessionOutgoings {get;}=[];
+        public Task<WhatsAppAssistantRequest?> GetBySessionAsync(Guid contactId,Guid sessionId,CancellationToken ct)=>Task.FromResult(Rows.FirstOrDefault(row=>row.ContactId==contactId
+            && row.OutgoingId is {} outgoingId && SessionOutgoings.TryGetValue(sessionId,out var outgoings) && outgoings.Contains(outgoingId)));
         public void Add(WhatsAppAssistantRequest row)=>Rows.Add(row);
     }
     public sealed class Operations(FakeUnitOfWork transaction) : IAssistantOperations

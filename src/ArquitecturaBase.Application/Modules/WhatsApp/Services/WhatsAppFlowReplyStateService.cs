@@ -2,13 +2,15 @@ using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Integrations;
 using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
+using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Results;
 
 namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 
 internal sealed class WhatsAppFlowReplyStateService(IWhatsAppMessageRepository messages,
-    IWhatsAppFlowSessionRepository sessions, IUnitOfWork unitOfWork, TimeProvider timeProvider, IWhatsAppInboundSignal inboundSignal) : IWhatsAppFlowReplyStateService
+    IWhatsAppFlowSessionRepository sessions, IUnitOfWork unitOfWork, TimeProvider timeProvider, IWhatsAppInboundSignal inboundSignal,
+    WhatsAppFlowRejectionPolicy rejections) : IWhatsAppFlowReplyStateService
 {
     public Task<Result> MarkDownloadingAsync(string waMessageId, Guid sessionId, int fileCount, CancellationToken cancellationToken) =>
         unitOfWork.ExecuteInTransactionAsync(async ct =>
@@ -44,7 +46,8 @@ internal sealed class WhatsAppFlowReplyStateService(IWhatsAppMessageRepository m
         }, CommitPolicy.OnSuccess, cancellationToken);
 
     public async Task<Result> MarkProcessedAsync(string waMessageId, Guid? sessionId, WhatsAppFlowCaptureState state,
-        Guid? recordId, string? number, string? errorCode, CancellationToken cancellationToken, string? rejectedQuestion = null)
+        Guid? recordId, string? number, string? errorCode, CancellationToken cancellationToken, string? rejectedQuestion = null,
+        WhatsAppFlowRejection? rejection = null)
     {
         var result = await unitOfWork.ExecuteInTransactionAsync(async ct =>
         {
@@ -55,7 +58,9 @@ internal sealed class WhatsAppFlowReplyStateService(IWhatsAppMessageRepository m
             {
                 message.AttachFlowSession(id);
                 var session = await sessions.GetAsync(id, ct);
-                session?.CompleteCapture(waMessageId, state, recordId, number, errorCode, rejectedQuestion);
+                // Task 9c: what the rejection answers (the form again or a notice) is queued with it, before the reply is marked processed.
+                if (session?.CompleteCapture(waMessageId, state, recordId, number, errorCode, rejectedQuestion) == true && rejection is not null)
+                    await rejections.QueueAsync(message, session, rejection, ct);
             }
             message?.MarkProcessed(timeProvider.GetUtcNow().UtcDateTime);
             return Result.Success();

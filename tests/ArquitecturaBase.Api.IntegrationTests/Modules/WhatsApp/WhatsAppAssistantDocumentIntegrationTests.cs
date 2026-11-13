@@ -506,6 +506,220 @@ public sealed class WhatsAppAssistantDocumentIntegrationTests(ApiFactory factory
         Assert.Equal("Listo, lo dejé para que lo revise el equipo. Si hace falta, te escriben por acá.", (await ReplyAsync(host, person.ContactId, again)).Body);
     }
 
+    // Task 9c of the documents: a reply that a fixed validation rejects is answered, in the unit of work that records the rejection, with
+    // the reason and the form again in a new send that opens with what the person sent and the mark; it goes out to Meta as the assistant's
+    // (a reference of its own on the reply, which carries the document), is no offer, and its corrected reply is captured with its own receipt.
+    [Fact]
+    public async Task A_reply_a_fixed_validation_rejects_queues_its_reason_and_the_form_again_with_what_was_sent_and_its_mark()
+    {
+        var probe = new WhatsAppDocumentProbe { Bytes = Pdf() };
+        var inbox = new CapturingStructuredDocumentChannel();
+        await using var host = await CreateAsync(probe, inbox, capture: true);
+        var person = await host.ContactAsync(Ct, automatic: true);
+        var sent = await SendFormAsync(host, person, probe, inbox);
+        var captures = host.Host.Services.GetRequiredService<CapturingStructuredRecordPort>();
+        captures.Next.Enqueue(new("Rejected", null, null, "Forms.Record.BankAccountInvalid", host.Forms.FieldId) { FixedValidation = true });
+        var offers = await OffersAsync(host, person.ContactId);
+
+        // What the person writes differs from what was read («Sucursal Norte»), so the new send shows it opens with what they sent.
+        var reply = await MessageAsync(host, await WhatsAppAssistantCaptureFixture.AnswerAsync(host, sent, host.Forms.FieldId, Ct, value: "Sucursal Sur"));
+
+        Assert.Equal((WhatsAppFlowCaptureState.Rejected, "Forms.Record.BankAccountInvalid"), (reply.FlowCaptureState, reply.FlowCaptureErrorCode));
+        var again = await ReplyAsync(host, person.ContactId, reply.Id);
+        Assert.Equal((WhatsAppOutgoingMessageKind.Flow, WhatsAppMessageOrigin.Assistant, false), (again.Kind, again.Origin, again.IsResend));
+        Assert.StartsWith("Revisá la cuenta: los números no dan. Copiala del comprobante. Corregilo en el formulario «", again.Body);
+        Assert.NotEqual(reply.FlowSessionId, again.FlowSessionId);
+        var content = await host.ScopeAsync(async services =>
+        {
+            var session = await services.GetRequiredService<ApplicationDbContext>().Set<WhatsAppFlowSession>().AsNoTracking().SingleAsync(row => row.Id == again.FlowSessionId, Ct);
+            return services.GetRequiredService<IWhatsAppFlowSessionProtector>().ReadAssistant(session.Id, session.ContactId, session.UserId, session.VersionId,
+                session.ProtectedAssistantContent);
+        });
+        var answer = Assert.Single(content.Answers!);
+        Assert.Equal((host.Forms.FieldId, "Sucursal Sur"), (answer.FieldId, answer.Value));
+        var mark = Assert.Single(content.Server!.Marks!);
+        Assert.Equal((host.Forms.FieldId, StructuredDocumentMarkKind.Invalid, "Forms.Record.BankAccountInvalid", true),
+            (mark.FieldId, mark.Kind, mark.ErrorCode, content.Server.Correction));
+        Assert.NotNull(content.Origin.Document);
+        Assert.Equal(offers, await OffersAsync(host, person.ContactId));
+        // Review of task 9c: the reference that answers carries the document too, but «Por qué lo propuso» is still the one of the send
+        // that proposed the form, with its doubt, not the new send's (whose only mark is the validation).
+        var document = await host.ScopeAsync(services => services.GetRequiredService<ApplicationDbContext>().Set<WhatsAppMessage>().AsNoTracking()
+            .SingleAsync(row => row.ContactId == person.ContactId && row.Kind == WhatsAppMessageKind.ReceivedDocument, Ct));
+        using (var reader = host.Client(host.FirstOperator))
+        {
+            var why = ThreadMessage(await ThreadAsync(reader, person.ContactId), document.Id).GetProperty("document").GetProperty("why");
+            Assert.Equal(("proposed", 1), (why.GetProperty("kind").GetString(), why.GetProperty("doubtful").GetInt32()));
+        }
+
+        var worker = host.Host.Services.GetRequiredService<WhatsAppOutgoingBackgroundService>();
+        for (var round = 0; round < 5 && host.Cloud.Messages.OfType<WhatsAppFlowMessageResponse>().Count() < 2; round++) await worker.ProcessNextAsync(Ct);
+        var resent = host.Cloud.Messages.OfType<WhatsAppFlowMessageResponse>().Last();
+        Assert.Equal(again.Body, resent.Body);
+        Assert.NotEqual(sent.FlowToken, resent.FlowToken);
+        Assert.Equal("Sucursal Sur", resent.InitialValues.Where(screen => screen.Key.StartsWith("prefill_", StringComparison.Ordinal))
+            .SelectMany(screen => screen.Value).Single(pair => pair.Key == "field_" + host.Forms.FieldId.ToString("N")).Value);
+
+        var corrected = await WhatsAppAssistantCaptureFixture.ReplyAsync(host, person, resent, host.Forms.FieldId, Ct);
+        Assert.Equal(again.FlowSessionId, corrected.SessionId);
+        Assert.Equal(again.FlowSessionId, captures.Captures[^1].SourceReceiptId);
+    }
+
+    // Task 9c: a capture that repeats a response only gets its notice, with the date in numbers and the number, and no form again.
+    [Fact]
+    public async Task A_repeated_capture_only_queues_its_notice()
+    {
+        var probe = new WhatsAppDocumentProbe { Bytes = Pdf() };
+        var inbox = new CapturingStructuredDocumentChannel();
+        await using var host = await CreateAsync(probe, inbox, capture: true);
+        var person = await host.ContactAsync(Ct, automatic: true);
+        var sent = await SendFormAsync(host, person, probe, inbox);
+        host.Host.Services.GetRequiredService<CapturingStructuredRecordPort>().Next.Enqueue(new("Rejected", null, null, "Forms.Record.Repeated")
+        { Repetition = new("VIS-000012", new DateTime(2026, 10, 5, 15, 0, 0, DateTimeKind.Utc)) });
+
+        var reply = await MessageAsync(host, await WhatsAppAssistantCaptureFixture.AnswerAsync(host, sent, host.Forms.FieldId, Ct));
+
+        Assert.Equal((WhatsAppFlowCaptureState.Rejected, "Forms.Record.Repeated"), (reply.FlowCaptureState, reply.FlowCaptureErrorCode));
+        var notice = await ReplyAsync(host, person.ContactId, reply.Id);
+        Assert.Equal((WhatsAppOutgoingMessageKind.Text, WhatsAppMessageOrigin.Assistant, "Este comprobante ya se cargó el 05/10/2026 en VIS-000012. No lo cargo de nuevo."),
+            (notice.Kind, notice.Origin, notice.Body));
+        Assert.Equal(1, await host.ScopeAsync(services => services.GetRequiredService<ApplicationDbContext>().Set<WhatsAppOutgoingMessage>()
+            .CountAsync(row => row.ContactId == person.ContactId && row.Kind == WhatsAppOutgoingMessageKind.Flow, Ct)));
+    }
+
+    // Review of task 9c: the unit of work that marks the rejected reply fails once after the owner kept its receipt (a transient error, a
+    // deadlock, a deploy). The retry finds the receipt (a document's reply carries its file), which says the fixed validation or the
+    // repetition again, so it still queues the form again or the notice, once, without capturing again.
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_rejected_reply_whose_marking_failed_is_still_answered_once_by_its_retry(bool repeated)
+    {
+        var probe = new WhatsAppDocumentProbe { Bytes = Pdf() };
+        var inbox = new CapturingStructuredDocumentChannel();
+        var failures = new FailingFlowReplyStateService.Failures { Remaining = 1 };
+        await using var host = await CreateAsync(probe, inbox, capture: true, failures: failures);
+        var person = await host.ContactAsync(Ct, automatic: true);
+        var sent = await SendFormAsync(host, person, probe, inbox);
+        var captures = host.Host.Services.GetRequiredService<CapturingStructuredRecordPort>();
+        captures.Next.Enqueue(repeated
+            ? new("Rejected", null, null, "Forms.Record.Repeated") { Repetition = new("VIS-000012", new DateTime(2026, 10, 5, 15, 0, 0, DateTimeKind.Utc)) }
+            : new("Rejected", null, null, "Forms.Record.BankAccountInvalid", host.Forms.FieldId) { FixedValidation = true });
+
+        var wamid = await WhatsAppAssistantCaptureFixture.AnswerAsync(host, sent, host.Forms.FieldId, Ct);
+        var failed = await MessageAsync(host, wamid);
+        Assert.Equal((1, (WhatsAppFlowCaptureState?)null, (DateTime?)null), (failures.Failed, failed.FlowCaptureState, failed.ProcessedAtUtc));
+        Assert.Equal(0, await AnswersAsync(host, failed.Id));
+        host.Clock.Advance(TimeSpan.FromSeconds(31));
+        await host.ScopeAsync(services => services.GetRequiredService<IWhatsAppFlowReplyService>().ProcessPendingAsync(Ct));
+        await host.ScopeAsync(services => services.GetRequiredService<IWhatsAppFlowReplyService>().ProcessPendingAsync(Ct));
+
+        var reply = await MessageAsync(host, wamid);
+        Assert.Equal((WhatsAppFlowCaptureState.Rejected, true), (reply.FlowCaptureState, reply.ProcessedAtUtc.HasValue));
+        Assert.Single(captures.Captures);
+        Assert.Equal(1, await AnswersAsync(host, reply.Id));
+        var answer = await ReplyAsync(host, person.ContactId, reply.Id);
+        Assert.Equal(repeated ? WhatsAppOutgoingMessageKind.Text : WhatsAppOutgoingMessageKind.Flow, answer.Kind);
+        if (repeated) Assert.Equal("Este comprobante ya se cargó el 05/10/2026 en VIS-000012. No lo cargo de nuevo.", answer.Body);
+        else Assert.NotEqual(reply.FlowSessionId, answer.FlowSessionId);
+    }
+
+    // Review of task 9c: an assistant's form that does not answer a document is an offer, which counts; what answers its rejected capture
+    // (a reference of its own, without a document, naming its own request as the proposal) is sent again and is no other offer.
+    [Fact]
+    public async Task An_offered_form_a_fixed_validation_rejects_is_sent_again_without_spending_another_offer()
+    {
+        await using var host = await CreateAsync(new WhatsAppDocumentProbe { Bytes = Pdf() }, new CapturingStructuredDocumentChannel(), capture: true);
+        var person = await host.ContactAsync(Ct, automatic: true);
+        var work = await host.ScopeAsync(services => services.GetRequiredService<IWhatsAppAssistantDispatchService>().PrepareAsync(person.ContactId, Ct));
+        Assert.True(work.IsSuccess);
+        await host.CompleteOutcomeAsync(person.ContactId, host.Outcome(person, Assert.IsType<WhatsAppAssistantWorkResponse>(work.Value), "ready"), Ct);
+        var sent = await DispatchFlowAsync(host);
+        var offers = await OffersAsync(host, person.ContactId);
+        Assert.Equal(1, offers);
+        host.Host.Services.GetRequiredService<CapturingStructuredRecordPort>().Next.Enqueue(
+            new("Rejected", null, null, "Forms.Record.BankAccountInvalid", host.Forms.FieldId) { FixedValidation = true });
+
+        var reply = await MessageAsync(host, await WhatsAppAssistantCaptureFixture.AnswerAsync(host, sent, host.Forms.FieldId, Ct));
+
+        var reference = await host.ScopeAsync(services => services.GetRequiredService<ApplicationDbContext>().Set<WhatsAppAssistantRequest>().AsNoTracking()
+            .SingleAsync(row => row.ContactId == person.ContactId && row.SourceMessageId == reply.Id, Ct));
+        Assert.Equal((reference.RequestId, (Guid?)null), (reference.ProposalId!.Value, reference.AttachmentMessageId));
+        var again = await OutgoingAsync(host, reference.OutgoingId!.Value);
+        Assert.Equal((WhatsAppOutgoingMessageKind.Flow, WhatsAppMessageOrigin.Assistant), (again.Kind, again.Origin));
+        Assert.StartsWith("Revisá la cuenta: los números no dan. Copiala del comprobante. Corregilo en el formulario «", again.Body);
+        Assert.Equal(offers, await OffersAsync(host, person.ContactId));
+    }
+
+    // Review of task 9c: an operator's send without a proposal is sent again by the operator, with what the person sent and the mark; it
+    // goes out to Meta with that prefill, and its corrected reply is captured with its Manual origin, from the operator.
+    [Fact]
+    public async Task An_operator_send_a_fixed_validation_rejects_is_sent_again_by_the_operator_and_its_correction_keeps_the_manual_origin()
+    {
+        await using var host = await CreateAsync(new WhatsAppDocumentProbe { Bytes = Pdf() }, new CapturingStructuredDocumentChannel(), capture: true);
+        var person = await host.ContactAsync(Ct);
+        var sent = await WhatsAppAssistantCaptureFixture.SendManualParentAsync(host, person, Ct);
+        var captures = host.Host.Services.GetRequiredService<CapturingStructuredRecordPort>();
+        captures.Next.Enqueue(new("Rejected", null, null, "Forms.Record.BankAccountInvalid", host.Forms.FieldId) { FixedValidation = true });
+
+        var reply = await MessageAsync(host, await WhatsAppAssistantCaptureFixture.AnswerAsync(host, sent, host.Forms.FieldId, Ct, value: "Sucursal Sur"));
+
+        var again = await host.ScopeAsync(services => services.GetRequiredService<ApplicationDbContext>().Set<WhatsAppOutgoingMessage>().AsNoTracking()
+            .SingleAsync(row => row.ContactId == person.ContactId && row.RequestId == reply.Id, Ct));
+        Assert.Equal((WhatsAppOutgoingMessageKind.Flow, WhatsAppMessageOrigin.Conversation, (Guid?)host.FirstOperator),
+            (again.Kind, again.Origin, again.OperatorUserId));
+        Assert.StartsWith("Revisá la cuenta: los números no dan. Copiala del comprobante. Corregilo en el formulario «", again.Body);
+        var content = await host.ScopeAsync(async services =>
+        {
+            var session = await services.GetRequiredService<ApplicationDbContext>().Set<WhatsAppFlowSession>().AsNoTracking().SingleAsync(row => row.Id == again.FlowSessionId, Ct);
+            Assert.True(session.AssistantContentExpiresAtUtc > session.ExpiresAtUtc);
+            return services.GetRequiredService<IWhatsAppFlowSessionProtector>().ReadAssistant(session.Id, session.ContactId, session.UserId, session.VersionId,
+                session.ProtectedAssistantContent);
+        });
+        Assert.Equal((StructuredRecordSenderKind.Manual, (Guid?)host.FirstOperator, 0), (content.Origin.SenderKind, content.Origin.OperatorUserId, content.Origin.ProposedValues.Count));
+        Assert.Equal((host.Forms.FieldId, "Sucursal Sur"), (Assert.Single(content.Answers!).FieldId, content.Answers![0].Value));
+        var mark = Assert.Single(content.Server!.Marks!);
+        Assert.Equal((host.Forms.FieldId, StructuredDocumentMarkKind.Invalid, true), (mark.FieldId, mark.Kind, content.Server.Correction));
+
+        await host.Host.Services.GetRequiredService<WhatsAppOutgoingBackgroundService>().ProcessNextAsync(Ct);
+        var resent = Assert.IsType<WhatsAppFlowMessageResponse>(host.Cloud.Messages.Last());
+        Assert.Equal(again.Body, resent.Body);
+        Assert.NotEqual(sent.FlowToken, resent.FlowToken);
+        Assert.Equal("Sucursal Sur", resent.InitialValues.Where(screen => screen.Key.StartsWith("prefill_", StringComparison.Ordinal))
+            .SelectMany(screen => screen.Value).Single(pair => pair.Key == "field_" + host.Forms.FieldId.ToString("N")).Value);
+
+        var corrected = await WhatsAppAssistantCaptureFixture.ReplyAsync(host, person, resent, host.Forms.FieldId, Ct);
+        Assert.Equal(again.FlowSessionId, corrected.SessionId);
+        var origin = captures.Captures[^1].Origin!;
+        Assert.Equal((again.FlowSessionId!.Value, StructuredRecordSenderKind.Manual, (Guid?)host.FirstOperator, true),
+            (captures.Captures[^1].SourceReceiptId, origin.SenderKind, origin.OperatorUserId, origin.Proposal is null));
+    }
+
+    // The references that answer a message (what answers a rejected capture is one, once).
+    private static Task<int> AnswersAsync(WhatsAppAssistantScenario host, Guid messageId) => host.ScopeAsync(services =>
+        services.GetRequiredService<ApplicationDbContext>().Set<WhatsAppAssistantRequest>().CountAsync(row => row.SourceMessageId == messageId, Ct));
+
+    // A document with its request, a doubt and the tap on the first form: its Flow goes out to Meta's double with what was read.
+    private static async Task<WhatsAppFlowMessageResponse> SendFormAsync(WhatsAppAssistantScenario host, WhatsAppAssistantContact person,
+        WhatsAppDocumentProbe probe, CapturingStructuredDocumentChannel inbox)
+    {
+        inbox.ReadReply = new(null, StructuredDocumentReplyKind.Doubt) { Forms = [
+            new(host.Forms.Form.DefinitionId, host.Forms.Form.VersionId, "Registrar visita"),
+            new(host.Forms.AlternativeForm.DefinitionId, host.Forms.AlternativeForm.VersionId, "Registrar mantenimiento")] };
+        inbox.Preparation = Prepared(host);
+        var operation = await ReadAndInterpretAsync(host, await ReceiveAsync(host, person, probe, "Cargalo"));
+        await CompleteAsync(host, person, operation);
+        var question = await OutgoingAsync(host, (await ReferenceAsync(host, operation.RequestId)).OutgoingId!.Value);
+        await TapAsync(host, person.ContactId, question.QuickReplies[0].Id, "Registrar visita");
+        await ProcessAsync(host);
+        return await DispatchFlowAsync(host);
+    }
+
+    // The offers the automatic assistant counts for the person today.
+    private static Task<int> OffersAsync(WhatsAppAssistantScenario host, Guid contactId) => host.ScopeAsync(services =>
+        services.GetRequiredService<IWhatsAppAssistantReader>().CountOffersAsync(contactId, host.Clock.GetUtcNow().UtcDateTime.AddDays(-1),
+            host.Clock.GetUtcNow().UtcDateTime.AddDays(1), Ct));
+
     // The form the inbox prepares for the scenario's published form: the place read, with doubts.
     private static StructuredDocumentSendPreparation Prepared(WhatsAppAssistantScenario host) => new(StructuredDocumentSendState.Ready)
     {
@@ -564,13 +778,14 @@ public sealed class WhatsAppAssistantDocumentIntegrationTests(ApiFactory factory
     private sealed record EntryPayload : AssistantCapabilityPayload;
 
     private Task<WhatsAppAssistantScenario> CreateAsync(WhatsAppDocumentProbe probe, CapturingStructuredDocumentChannel inbox, bool capture = false,
-        bool withLocation = false) =>
+        bool withLocation = false, FailingFlowReplyStateService.Failures? failures = null) =>
         WhatsAppAssistantScenario.CreateAsync(factory, Ct, builder => builder.ConfigureTestServices(services =>
         {
             services.Replace(ServiceDescriptor.Singleton<IPrivateFileStore>(probe));
             services.Replace(ServiceDescriptor.Singleton<IWhatsAppMediaClient>(probe));
             services.Replace(ServiceDescriptor.Singleton<IStructuredDocumentChannel>(inbox));
             if (capture) WhatsAppAssistantCaptureFixture.Configure(services);
+            if (failures is not null) FailingFlowReplyStateService.Configure(services, failures);
         }), withLocation: withLocation);
 
     private static async Task<JsonElement> ThreadAsync(HttpClient client, Guid contactId)
