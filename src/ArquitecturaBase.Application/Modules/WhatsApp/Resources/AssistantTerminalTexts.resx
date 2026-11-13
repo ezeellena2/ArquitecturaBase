@@ -66,6 +66,7 @@
   <data name="DocumentReplaced" xml:space="preserve"><value>Esa pregunta ya cambió. Usá la del último documento.</value></data>
   <data name="DocumentNotPrepared" xml:space="preserve"><value>No pude preparar el formulario. Lo dejé para que lo revise el equipo.</value></data>
   <data name="DocumentAlone" xml:space="preserve"><value>(Mandó el documento «{0}» sin mensaje)</value></data>
+  <data name="SpreadsheetAlone" xml:space="preserve"><value>(Mandó la planilla «{0}» sin mensaje)</value></data>
   <data name="DocumentExpired" xml:space="preserve"><value>Ese documento ya quedó para que lo revise el equipo. Si hace falta, te escriben por acá.</value></data>
   <data name="DocumentReason" xml:space="preserve"><value>Leyó el documento «{0}» que mandó la persona.</value></data>
   <data name="SpreadsheetTooManyRows" xml:space="preserve"><value>Por acá cargo planillas de hasta 50 filas. Dividila y mandámela de nuevo.</value></data>

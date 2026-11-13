@@ -38,9 +38,11 @@ public sealed class WhatsAppAssistantSpreadsheetTests
         return message;
     }
 
-    private static WhatsAppAssistantSpreadsheetRow Sheet(Guid messageId, DateTime expiresAtUtc) => new(messageId, $"whatsapp/documents/{messageId:N}.csv",
+    // A spreadsheet that loads was prepared with its data rows (VC1-A, task 29).
+    private static WhatsAppAssistantSpreadsheetRow Sheet(Guid messageId, DateTime expiresAtUtc, bool loads = false) => new(messageId, $"whatsapp/documents/{messageId:N}.csv",
         "clientes.csv", 27, new string('c', 64), expiresAtUtc, JsonSerializer.Serialize(new StructuredSpreadsheet("clientes.csv", StructuredSpreadsheetKind.Csv,
-            "text/csv", 27, new string('c', 64), "", 3, 2, [new(1, new Dictionary<string, string> { ["A"] = "Código", ["B"] = "Texto" })]), JsonSerializerOptions.Web));
+            "text/csv", 27, new string('c', 64), "", 3, 2, [new(1, new Dictionary<string, string> { ["A"] = "Código", ["B"] = "Texto" })])
+            { DataRowCount = loads ? 2 : null }, JsonSerializerOptions.Web));
 
     private static WhatsAppAssistantSourceRow Source(WhatsAppMessage message, string body, WhatsAppAssistantSourceState state = WhatsAppAssistantSourceState.Ready,
         WhatsAppAssistantSpreadsheetRow? spreadsheet = null) =>
@@ -107,6 +109,37 @@ public sealed class WhatsAppAssistantSpreadsheetTests
         var row = Assert.Single(host.Requests.Rows);
         Assert.Equal(((Guid?)change, (Guid?)answer.Id), (row.PreviousRequestId, row.AttachmentMessageId));
         Assert.Null(answer.AssistantProcessedAtUtc);
+    }
+
+    [Fact]
+    public async Task A_spreadsheet_to_load_that_answers_a_change_goes_with_its_conversation_and_without_a_name()
+    {
+        var host = await HostAsync();
+        var answer = Message(host, WhatsAppMessageKind.Spreadsheet, null);
+        var change = Guid.NewGuid();
+        host.Reader.ChangeRequest = change;
+        host.Reader.Source = Source(answer, "", WhatsAppAssistantSourceState.Alone, Sheet(answer.Id, Now(host).AddDays(20), loads: true));
+
+        var work = (await Service(host).PrepareAsync(host.Context.Contact.Id, Ct)).Value!;
+
+        Assert.Equal(("", (Guid?)change), (work.Operation!.Text, work.Operation.PreviousRequestId));
+    }
+
+    // VC1-A (task 29): without a message, the turn that only loads says what arrived, as a document alone does, or it would be
+    // submitted without text and without a conversation to continue.
+    [Fact]
+    public async Task A_spreadsheet_to_load_alone_goes_to_an_interpretation_that_only_loads_it_named_by_the_server()
+    {
+        var host = await HostAsync();
+        var alone = Message(host, WhatsAppMessageKind.Spreadsheet, null);
+        host.Reader.Source = Source(alone, "", WhatsAppAssistantSourceState.Alone, Sheet(alone.Id, Now(host).AddDays(20), loads: true));
+
+        var work = (await Service(host).PrepareAsync(host.Context.Contact.Id, Ct)).Value!;
+
+        Assert.Equal(("(Mandó la planilla «clientes.csv» sin mensaje)", (Guid?)null), (work.Operation!.Text, work.Operation.PreviousRequestId));
+        Assert.True(WhatsAppAssistantAccessPolicy.LoadsSpreadsheetOnly(work.Operation.Context));
+        Assert.Equal($"whatsapp/documents/{alone.Id:N}.csv", work.Operation.Attachment!.StorageKey);
+        Assert.Equal((alone.Id, (Guid?)alone.Id), (Assert.Single(host.Requests.Rows).SourceMessageId, host.Requests.Rows[0].AttachmentMessageId));
     }
 
     [Fact]

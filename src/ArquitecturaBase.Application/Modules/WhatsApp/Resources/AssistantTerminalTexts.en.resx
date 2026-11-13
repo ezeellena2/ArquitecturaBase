@@ -66,6 +66,7 @@
   <data name="DocumentReplaced" xml:space="preserve"><value>That question already changed. Use the one of the latest document.</value></data>
   <data name="DocumentNotPrepared" xml:space="preserve"><value>I couldn't prepare the form. I left it for the team to review.</value></data>
   <data name="DocumentAlone" xml:space="preserve"><value>(Sent the document “{0}” without a message)</value></data>
+  <data name="SpreadsheetAlone" xml:space="preserve"><value>(Sent the spreadsheet “{0}” without a message)</value></data>
   <data name="DocumentExpired" xml:space="preserve"><value>That document is now with the team to review. If needed, they'll write to you here.</value></data>
   <data name="DocumentReason" xml:space="preserve"><value>It read the document “{0}” the person sent.</value></data>
   <data name="SpreadsheetTooManyRows" xml:space="preserve"><value>I load spreadsheets of up to 50 rows here. Split it and send it to me again.</value></data>

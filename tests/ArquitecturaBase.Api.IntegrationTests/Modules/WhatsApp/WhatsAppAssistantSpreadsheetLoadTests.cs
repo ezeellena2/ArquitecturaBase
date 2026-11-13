@@ -60,6 +60,7 @@ public sealed class WhatsAppAssistantSpreadsheetLoadTests(ApiFactory factory)
         var sheet = await MessageAsync(host, waMessageId);
         Assert.Equal(WhatsAppAssistantAccessPolicy.SpreadsheetCapabilities, operation.Context.AllowedCapabilities);
         Assert.Equal((7, $"whatsapp/documents/{sheet.Id:N}.csv"), (operation.Attachment!.Spreadsheet!.DataRowCount, operation.Attachment.StorageKey));
+        Assert.Equal($"(Mandó la planilla «{sheet.SpreadsheetFileName}» sin mensaje)", operation.Text);
         await CompleteAsync(host, person, operation);
 
         var request = Assert.Single(rows.Requests);

@@ -186,11 +186,14 @@ internal sealed class WhatsAppAssistantDispatchService(WhatsAppAssistantAccessPo
     {
         if(row.IsAlways) return new(row.RequestId,null){ShouldSubmit=false};
         var context=WhatsAppAssistantSuggestionPolicy.Context(WhatsAppAssistantSuggestionPolicy.Reference(row));
-        // A read document without a request (task 9) is named by the server: a channel turn always says something.
+        // A read document (task 9) or a spreadsheet to load (VC1-A, task 29) without a request is named by the server, under the
+        // condition that seals its context to only load it: a channel turn always says something.
+        var named=string.IsNullOrWhiteSpace(source.Body) && row.PreviousRequestId is null;
         var text=row.SourceRecordId is {} recordId
             ? "A form response was captured. Evaluate only its configured next-form suggestions. Source record: "+recordId.ToString("D")+"."
-            : string.IsNullOrWhiteSpace(source.Body) && row.PreviousRequestId is null && source.Document is {} alone
-                ? WhatsAppAssistantDocumentPolicy.Text("DocumentAlone",context.Culture,alone.FileName) : source.Body;
+            : named && source.Document is {} alone ? WhatsAppAssistantDocumentPolicy.Text("DocumentAlone",context.Culture,alone.FileName)
+            : named && source.Spreadsheet is {} sheet && WhatsAppAssistantSpreadsheetPolicy.Loads(sheet)
+                ? WhatsAppAssistantDocumentPolicy.Text("SpreadsheetAlone",context.Culture,sheet.FileName) : source.Body;
         var attachment=row.AttachmentMessageId is not {} attached ? null
             : source.Spreadsheet is {} spreadsheet && spreadsheet.MessageId==attached ? WhatsAppAssistantSourcePolicy.Attachment(spreadsheet)
             : source.Document is {} document && document.MessageId==attached ? WhatsAppAssistantSourcePolicy.Attachment(document) : null;
