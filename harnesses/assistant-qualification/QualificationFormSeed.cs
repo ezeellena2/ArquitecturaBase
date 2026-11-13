@@ -232,7 +232,7 @@ internal sealed class QualificationFormSeed(ApplicationDbContext db,IUnitOfWork 
             session.SealPayload(sessions.Protect(session.Id,contact.Id,subject.UserId,form.VersionId,payload));
             sessionId = session.Id;
             var outgoing = WhatsAppOutgoingMessage.CreateFlow(manager,contact.Id,requestId,"Qualification historical offer",session.Id,now.AddMinutes(-15));
-            outgoing.Start(now.AddMinutes(-15)); outgoing.MarkUncertain(); outgoing.Review();
+            outgoing.Start(now.AddMinutes(-15)); outgoing.MarkUncertain(); outgoing.Review(manager, now.AddMinutes(-15));
             db.Set<WhatsAppContact>().Add(contact); db.Set<WhatsAppFlowBinding>().Add(binding);
             db.Set<WhatsAppFlowSession>().Add(session); db.Set<WhatsAppOutgoingMessage>().Add(outgoing);
             return Result.Success();
