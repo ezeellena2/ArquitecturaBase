@@ -301,7 +301,10 @@ public sealed record WhatsAppInvitationMessage : WhatsAppOutboundMessage
     /// <summary>El nombre del sistema (<c>Email:AppName</c>).</summary>
     public string AppName { get; }
 
-    /// <summary>El payload del botón de respuesta rápida: <c>WANT_TO_ENTER</c>, el que reconoce la política de acceso.</summary>
+    /// <summary>
+    /// El payload del botón de respuesta rápida, el que reconoce la política de acceso: <c>WANT_TO_ENTER:es</c> o
+    /// <c>WANT_TO_ENTER:en</c>, con el idioma de la invitación; los ya enviados dicen <c>WANT_TO_ENTER</c>.
+    /// </summary>
     public string ReplyPayload { get; }
 
     /// <summary>Sin el nombre: el historial no necesita repetir datos de la persona que ya están en su cuenta.</summary>

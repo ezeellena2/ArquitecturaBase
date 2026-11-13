@@ -89,7 +89,7 @@ public sealed class WhatsAppInvitationChannelTests
         Assert.Equal("en", message.LanguageCode);
         Assert.Equal("Ana", message.Name);
         Assert.Equal("Test", message.AppName);
-        Assert.Equal(WhatsAppAccessActions.WantToEnter, message.ReplyPayload);
+        Assert.Equal("WANT_TO_ENTER:en", message.ReplyPayload);
         Assert.False(invitation.SendFailed);
         Assert.Empty(_logger.Collector.GetSnapshot());
     }

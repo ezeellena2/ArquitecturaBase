@@ -236,14 +236,29 @@ public sealed class WhatsAppFlowCompilerTests
         var catalog = Question(7, "choice") with { Options = null, SourceCatalogId = Guid.Parse("019a0000-0000-7000-8000-000000000200") };
         var compiled = WhatsAppFlowCompiler.Compile(request with { Questions = [.. request.Questions, catalog] }).Flows.Single(flow => flow.Culture == culture);
         FlowProfileFixtureWriter.Export(WhatsAppFlowCompiler.ProfileRevision, culture, compiled.Json);
-        foreach (var profile in new[] { WhatsAppFlowCompiler.ProfileRevision, "flow-static-7.3-r8" })
-        {
-            using var stream = typeof(WhatsAppFlowCompilerTests).Assembly.GetManifestResourceStream($"FlowProfile.{profile}-{culture}.json")
-                ?? throw new InvalidOperationException("The synthetic flow fixture is missing.");
-            using var reader = new StreamReader(stream);
-            Assert.Equal(reader.ReadToEnd(), compiled.Json);
-        }
+        Assert.Equal(FlowProfileFixtures.Read($"{WhatsAppFlowCompiler.ProfileRevision}-{culture}"), compiled.Json);
+
+        // r15 only changes the help of a decimal (H18): every other byte is what r14 compiled, the same as r8.
+        var previous = FlowProfileFixtures.Read($"flow-static-7.3-r14-{culture}");
+        Assert.Equal(FlowProfileFixtures.Read($"flow-static-7.3-r8-{culture}"), previous);
+        Assert.Equal(FlowProfileFixtures.AsR15(previous, culture), compiled.Json);
+        Assert.NotEqual(previous, compiled.Json);
     }
+
+    [Theory]
+    [InlineData("es", "Ingresá el número sin separador de miles; usá coma para los decimales.")]
+    [InlineData("en", "Enter the number without thousands separators; use a dot for decimals.")]
+    public void A_decimal_without_its_own_help_names_the_separator_of_the_recipient_language(string culture, string help)
+    {
+        var compiled = WhatsAppFlowCompiler.Compile(Request()).Flows.Single(flow => flow.Culture == culture);
+
+        using var json = JsonDocument.Parse(compiled.Json);
+        var controls = json.RootElement.GetProperty("screens")[0].GetProperty("layout").GetProperty("children")[0].GetProperty("children");
+        Assert.Equal("^-?(0|[1-9][0-9]*)([.,][0-9]+)?$", controls[2].GetProperty("pattern").GetString());
+        Assert.Equal(help, controls[2].GetProperty("helper-text").GetString());
+        Assert.Equal("flow-static-7.3-r15", WhatsAppFlowCompiler.ProfileRevision);
+    }
+
     [Fact]
     public void Name_and_present_help_require_each_target_language_and_titles_use_that_language()
     {

@@ -9,7 +9,7 @@ El perfil sigue además [`docs/features/identidad.md`](../../../../docs/features
 
 ## Al modificar
 
-- La invitación WhatsApp conserva consentimiento y WANT_TO_ENTER; orienta al login público y después al código web. Los mensajes comunes no crean cuentas ni vinculan/confirman teléfonos.
+- La invitación WhatsApp conserva consentimiento y WANT_TO_ENTER (con su idioma, `WANT_TO_ENTER:es` o `:en`); orienta al login público y después al código web. Los mensajes comunes no crean cuentas ni vinculan/confirman teléfonos.
 
 - Conservá último administrador y último medio de ingreso; las carreras necesitan lock antes de leer la cuenta.
 - Alta y edición tienen efectos distintos: cargar un destino no equivale a verificarlo. El perfil propio reemplaza los campos previstos del contrato.

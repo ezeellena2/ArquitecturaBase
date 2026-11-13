@@ -99,7 +99,7 @@ public sealed partial class UserInvitationEndpointsTests
         Assert.Equal("Laura Ríos", message.Name);
         Assert.Equal("Acceso", message.AppName);
         Assert.Equal("en", message.LanguageCode);
-        Assert.Equal("WANT_TO_ENTER", message.ReplyPayload);
+        Assert.Equal("WANT_TO_ENTER:en", message.ReplyPayload);
         Assert.Equal(userId, message.UserId);
         Assert.Equal("[invitación]", message.SafeSummary);
 

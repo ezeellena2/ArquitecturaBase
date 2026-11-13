@@ -13,8 +13,9 @@ En Development las migraciones se aplican al iniciar; en producción, bundle ant
 3. Dejando el chat en Manual, abrí `/login`, elegí WhatsApp, pedí el código y verificalo en la web.
    El historial debe mostrar un evento de acceso con hora/estado, sin el código o URL secreta.
 4. Probá `/registro` según la política de registro, y verificar/vincular/desvincular desde Mi perfil.
-5. Invitá desde Usuarios con consentimiento. Comprobá en Meta el payload configurado
-   WANT_TO_ENTER. Tocá «Quiero entrar»: debe orientar a `/login`; pedí y verificá el código.
+5. Invitá desde Usuarios con consentimiento. La plantilla manda el payload del botón con el idioma de la
+   cuenta (`WANT_TO_ENTER:es` o `WANT_TO_ENTER:en`). Tocá «Quiero entrar»: debe orientar a `/login`, en ese
+   idioma; pedí y verificá el código.
    Un botón histórico CREATE_ACCOUNT solo debe orientar a `/registro`.
 6. Revisá lecturas por dos operadores, un borrador al cambiar de chat y la consulta de un
    envío incierto antes de repetir el mismo requestId. Anotá el resultado real en una línea.

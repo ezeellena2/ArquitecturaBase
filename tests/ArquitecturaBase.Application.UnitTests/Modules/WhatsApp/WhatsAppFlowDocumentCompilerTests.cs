@@ -2,6 +2,7 @@ using System.Text.Json;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Application.Modules.WhatsApp.Services;
+using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.WhatsApp;
 
 namespace ArquitecturaBase.Application.UnitTests.Modules.WhatsApp;
 
@@ -9,20 +10,18 @@ namespace ArquitecturaBase.Application.UnitTests.Modules.WhatsApp;
 public sealed class WhatsAppFlowDocumentCompilerTests
 {
     // Without reading r14 adds nothing: the bytes r13 compiled for a form on several screens, with a condition and a catalog on a later
-    // screen (flow-static-7.3-r13-screens, exported from r13), without the flag or with reading off.
+    // screen (flow-static-7.3-r13-screens, exported from r13), without the flag or with reading off. r15 only changes the help of
+    // its decimal (H18).
     [Theory]
     [InlineData("es")]
     [InlineData("en")]
     public void Without_reading_r14_compiles_the_bytes_of_r13_for_a_form_on_several_screens(string culture)
     {
-        Assert.Equal("flow-static-7.3-r14", WhatsAppFlowCompiler.ProfileRevision);
-        using var stream = typeof(WhatsAppFlowDocumentCompilerTests).Assembly.GetManifestResourceStream($"FlowProfile.flow-static-7.3-r13-screens-{culture}.json")
-            ?? throw new InvalidOperationException("The r13 fixture of several screens is missing.");
-        using var reader = new StreamReader(stream);
-        var r13 = reader.ReadToEnd();
+        Assert.Equal("flow-static-7.3-r15", WhatsAppFlowCompiler.ProfileRevision);
+        var r13 = FlowProfileFixtures.Read($"flow-static-7.3-r13-screens-{culture}");
         Assert.Equal(3, JsonDocument.Parse(r13).RootElement.GetProperty("screens").GetArrayLength());
         foreach (var reads in new bool?[] { null, false })
-            Assert.Equal(r13, WhatsAppFlowCompiler.Compile(Screens() with { ReadsDocuments = reads }).Flows.Single(flow => flow.Culture == culture).Json);
+            Assert.Equal(FlowProfileFixtures.AsR15(r13, culture), WhatsAppFlowCompiler.Compile(Screens() with { ReadsDocuments = reads }).Flows.Single(flow => flow.Culture == culture).Json);
     }
 
     [Fact]

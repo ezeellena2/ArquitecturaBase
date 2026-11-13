@@ -62,7 +62,7 @@ internal sealed partial class WhatsAppInvitationChannel(
 
     /// <summary>
     /// Encola la plantilla de <paramref name="invitation"/>, ya agregada, en el idioma <paramref name="culture"/> de la
-    /// cuenta. Si la cola no toma el mensaje, la invitación queda marcada como no enviada: el alta no se deshace por un
+    /// cuenta, que también lleva el botón «Quiero entrar» para que el enlace salga en ese idioma. Si la cola no toma el mensaje, la invitación queda marcada como no enviada: el alta no se deshace por un
     /// envío que falló, y el admin lo ve y la reenvía.
     /// </summary>
     public void Enqueue(UserAccount user, UserInvitation invitation, string culture)
@@ -77,7 +77,7 @@ internal sealed partial class WhatsAppInvitationChannel(
             culture,
             user.DisplayName!,
             appName.Value,
-            WhatsAppAccessActions.WantToEnter);
+            WhatsAppAccessActions.WantToEnterIn(culture));
 
         if (!sendQueue.TryEnqueue(message))
         {

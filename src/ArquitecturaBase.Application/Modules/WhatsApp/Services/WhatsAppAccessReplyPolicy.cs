@@ -7,18 +7,23 @@ using ArquitecturaBase.Domain.ValueObjects;
 
 namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 
-/// <summary>Public instructions only. Identity is verified by the explicit web flow.</summary>
+/// <summary>
+/// Public instructions only. Identity is verified by the explicit web flow. They go out in the language the button of a new
+/// invitation carries, or else in the one of the installation: nothing here reads accounts.
+/// </summary>
 internal sealed class WhatsAppAccessReplyPolicy(IPublicOrigin publicOrigin, ISystemSettingsReader settings)
 {
     public async Task<WhatsAppOutboundMessage> DecideAsync(PhoneNumber phone, string replyId, CancellationToken cancellationToken)
     {
-        if (replyId is not (WhatsAppAccessActions.WantToEnter or WhatsAppAccessActions.HaveAccount or WhatsAppAccessActions.CreateAccount))
+        var carried = WhatsAppAccessActions.CultureOf(replyId);
+        var action = carried is null ? replyId : WhatsAppAccessActions.WantToEnter;
+        if (action is not (WhatsAppAccessActions.WantToEnter or WhatsAppAccessActions.HaveAccount or WhatsAppAccessActions.CreateAccount))
         {
             throw new ArgumentException("The action does not request public access instructions.", nameof(replyId));
         }
 
-        var culture = CultureInfo.GetCultureInfo((await settings.FindPresentationAsync(cancellationToken)).DefaultCulture);
-        var register = replyId == WhatsAppAccessActions.CreateAccount;
+        var culture = CultureInfo.GetCultureInfo(carried ?? (await settings.FindPresentationAsync(cancellationToken)).DefaultCulture);
+        var register = action == WhatsAppAccessActions.CreateAccount;
         var origin = publicOrigin.Value ?? throw new InvalidOperationException("Public access instructions require a configured public origin.");
         return new WhatsAppLinkButtonMessage(phone,
             AccessTexts.Get(register ? "RegisterInstructions" : "SignInInstructions", culture),

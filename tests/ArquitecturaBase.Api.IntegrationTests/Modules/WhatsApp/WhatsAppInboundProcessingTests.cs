@@ -82,6 +82,27 @@ public sealed class WhatsAppInboundProcessingTests(ApiFactory factory)
         Assert.Equal(WhatsAppMessagePurpose.Access, Assert.Single(await InboundOfAsync(await FindContactAsync(person))).Purpose);
     }
 
+    /// <summary>
+    /// H18: el botón de una invitación nueva lleva su idioma, y la orientación sale en ese idioma aunque la instalación esté en
+    /// otro, sin leer cuentas.
+    /// </summary>
+    [Fact]
+    public async Task The_button_of_a_new_invitation_answers_in_the_language_it_carries()
+    {
+        await using var defaults = await SystemCultureOverride.SetAsync(factory, "es");
+        var person = Person.Unique();
+        using var client = factory.CreateClient();
+
+        using var response = await PostSignedAsync(client, person.Taps("WANT_TO_ENTER:en", "Let me in", Now));
+        await ProcessPendingAsync();
+
+        var reply = Assert.IsType<WhatsAppLinkButtonMessage>(Assert.Single(factory.WhatsApp.SentTo(person.Phone)));
+        Assert.Equal("https://localhost/login", reply.Url);
+        Assert.Equal("Sign in", reply.ButtonText);
+        Assert.Null(await FindAccountByPhoneAsync(person.Phone));
+        Assert.Equal(WhatsAppMessagePurpose.Access, Assert.Single(await InboundOfAsync(await FindContactAsync(person))).Purpose);
+    }
+
     /// <summary>Meta reintenta el webhook que no recibió su 200: el mensaje repetido no recibe otra respuesta.</summary>
     [Fact]
     public async Task A_repeated_webhook_gets_a_single_reply()

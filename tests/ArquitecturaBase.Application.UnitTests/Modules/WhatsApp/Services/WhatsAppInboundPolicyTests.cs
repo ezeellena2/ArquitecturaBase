@@ -12,6 +12,12 @@ public sealed class WhatsAppInboundPolicyTests
     [InlineData(WhatsAppMessageKind.ReceivedDocument, null)]
     [InlineData(WhatsAppMessageKind.Other, null)]
     [InlineData(WhatsAppMessageKind.ButtonReply, "UNKNOWN")]
+    [InlineData(WhatsAppMessageKind.ButtonReply, "WANT_TO_ENTER:fr")]
+    [InlineData(WhatsAppMessageKind.ButtonReply, "WANT_TO_ENTER:EN")]
+    [InlineData(WhatsAppMessageKind.ButtonReply, "WANT_TO_ENTER:")]
+    [InlineData(WhatsAppMessageKind.ButtonReply, "WANT_TO_ENTER:en:x")]
+    [InlineData(WhatsAppMessageKind.ButtonReply, "HAVE_ACCOUNT:en")]
+    [InlineData(WhatsAppMessageKind.Text, "WANT_TO_ENTER:en")]
     public void Business_messages_are_not_classified_from_text_or_unknown_payloads(WhatsAppMessageKind kind, string? id)
     {
         Assert.Equal((WhatsAppMessagePurpose.Business, (WhatsAppAccessEventKind?)null), WhatsAppInboundPolicy.Classify(kind, id));
@@ -22,6 +28,8 @@ public sealed class WhatsAppInboundPolicyTests
     [InlineData("HAVE_ACCOUNT")]
     [InlineData("CREATE_ACCOUNT")]
     [InlineData("DID_NOT_REQUEST_CODE")]
+    [InlineData("WANT_TO_ENTER:es")]
+    [InlineData("WANT_TO_ENTER:en")]
     public void Only_known_structured_buttons_are_access(string id)
     {
         Assert.Equal((WhatsAppMessagePurpose.Access, (WhatsAppAccessEventKind?)WhatsAppAccessEventKind.AccessRequested),

@@ -12,14 +12,17 @@ public static class WhatsAppFlowProfile
     // r14 (task 9b of the documents) opens a form that reads documents with what was read: a hidden notice atop the first screen, the
     // dynamic help of each text or date control without its own, the dynamic error-messages of each Form and, for the question that
     // may receive the sent document on the last screen, a twin screen chosen by an If (the notice and an optional picker); without
-    // reading it compiles the same bytes as r13.
-    public const string Revision = "flow-static-7.3-r14";
+    // reading it compiles the same bytes as r13. r15 (H18 of the architecture review) changes the help of a decimal without its own:
+    // in Spanish it asks for a comma, as es-AR writes it and the codec accepts, and in both languages for no thousands separator,
+    // because the codec reads either mark as the decimal one. The text is sealed in each Flow, so the published ones keep theirs;
+    // a form without a decimal compiles the same bytes as r14.
+    public const string Revision = "flow-static-7.3-r15";
     public static IReadOnlySet<string> PrefillRevisions { get; } = new[]
     {
         "flow-static-7.3-r8", "flow-static-7.3-r9", "flow-static-7.3-r10", "flow-static-7.3-r11", "flow-static-7.3-r12",
-        "flow-static-7.3-r13", "flow-static-7.3-r14"
+        "flow-static-7.3-r13", "flow-static-7.3-r14", "flow-static-7.3-r15"
     }.ToFrozenSet(StringComparer.Ordinal);
-    // The rows r10 to r14 compile, prefill and map from their sealed bytes: another cap is another revision, and the webhook
+    // The rows r10 to r15 compile, prefill and map from their sealed bytes: another cap is another revision, and the webhook
     // keeps accepting _r10 from the flows already published. Publishing warns with the same number (StructuredFormLimits).
     public const int MaxRows = 10;
     public const string GraphApiVersion = "v25.0";
