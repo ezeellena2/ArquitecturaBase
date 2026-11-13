@@ -20,6 +20,9 @@ internal sealed record QualificationLedgerEntry(string CaseId, Guid RequestId, G
     // IA3-A continuation after «Cambiar algo»: the operation this message continues. Absent in every other ledger.
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public Guid? PreviousRequestId { get; init; }
+    // channel-documents (task 29b): the form chosen from «No lo reconoce» that the continuation fixes. Absent in every other ledger.
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public Guid? FocusDefinitionId { get; init; }
 }
 
 internal sealed record QualificationRunBinding(string RunId, string EvaluationIdentitySha256);
@@ -56,7 +59,7 @@ internal sealed class SafeRunLedger(QualificationSettings settings)
             if (previous is null || previous.RequestId != entry.RequestId || previous.ActorUserId != entry.ActorUserId
                 || previous.OperationKind != entry.OperationKind || previous.ChannelId != entry.ChannelId || previous.InteractionMode != entry.InteractionMode || previous.Culture != entry.Culture
                 || previous.SubjectUserId != entry.SubjectUserId || previous.ChannelKind != entry.ChannelKind || previous.SourceRecordId != entry.SourceRecordId
-                || previous.PreviousRequestId != entry.PreviousRequestId)
+                || previous.PreviousRequestId != entry.PreviousRequestId || previous.FocusDefinitionId != entry.FocusDefinitionId)
                 throw new InvalidOperationException("Qualification case already has an immutable request identity and scope.");
         }
         var temporary = path + ".new";

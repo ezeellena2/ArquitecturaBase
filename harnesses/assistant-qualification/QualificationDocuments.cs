@@ -120,8 +120,9 @@ internal static class QualificationDocuments
 
     // What the owner prepared from the public bytes is the case's document: a PDF or a photo with its pages and without a reading, which
     // only the engine gives it.
-    public static bool PreparedAsExpected(DocumentCase testCase, StructuredAttachmentPreparation prepared) =>
-        prepared is { Rejection: null, Spreadsheet: null, Document: { Reading: null } document } && document.FileName == testCase.FileName
+    // name: the one the file was prepared with, its own unless a channel names it (QualificationChannelDocuments.ChannelName).
+    public static bool PreparedAsExpected(DocumentCase testCase, StructuredAttachmentPreparation prepared, string? name = null) =>
+        prepared is { Rejection: null, Spreadsheet: null, Document: { Reading: null } document } && document.FileName == (name ?? testCase.FileName)
         && document.Kind == Kind(testCase.ContentType) && document.MediaType == testCase.ContentType && document.Size == testCase.ByteCount
         && document.Sha256 == testCase.Sha256 && (document.Pages ?? 1) == testCase.Pages
         && (document.Kind == StructuredDocumentKind.Pdf) == document.Pages.HasValue;

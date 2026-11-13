@@ -12,7 +12,8 @@ namespace AssistantQualification;
 internal sealed record ScalarExpectation(string Key, string Type, string Value);
 internal sealed record ChannelCase(string Id, string Culture, string ActorKind, string Question, string ExpectedPayload,
     string[] RequiredTools, string? FormAlias = null, ScalarExpectation[]? Values = null, bool RequireLimitation = false,
-    AuthoringExpectation? Authoring = null, DictationAudioFixture? Audio = null, SpreadsheetFixture? Spreadsheet = null);
+    AuthoringExpectation? Authoring = null, DictationAudioFixture? Audio = null, SpreadsheetFixture? Spreadsheet = null,
+    HomeDocumentFixture? Document = null, ChannelLoadingExpectation? Loading = null, string? Focus = null, string? Continues = null);
 internal sealed record ChannelObservation(Guid RequestId, AssistantOperationResponse Result, TurnMetadata Metadata,
     double ElapsedSeconds, IReadOnlyList<CheckEvidence> Checks, MeasurementSnapshot Measurements);
 
@@ -49,10 +50,18 @@ internal static class QualificationChannelContexts
     public static readonly AssistantCapabilityReference[] AgentInventory = [..AgentReferences, ..AgentPreloaded];
     // "author" is the automatic conversation of a recipient who may build forms and catalogs (Actor equal to Subject); "agent", the
     // automatic conversation of whoever writes to a business with a saved agent (Actor equal to Subject too).
-    private static readonly string[] Kinds = ["auto", "manual", "catalog", "no-forms", "author", "agent"];
-    public static AssistantChannelContext Create(QualificationActor actor, Guid subject, string kind, Guid? sourceRecordId = null)
+    // channel-documents (task 17a): the person's own automatic conversation with a read document or a spreadsheet to load, as the harness's
+    // copy of WhatsAppAssistantAccessPolicy turns it (QualificationChannelDocuments.Context): with its request, alone, or a form chosen from the list.
+    private static readonly string[] Kinds = ["auto", "manual", "catalog", "no-forms", "author", "agent", ..QualificationChannelDocuments.LoadingKinds];
+    public static AssistantChannelContext Create(QualificationActor actor, Guid subject, string kind, Guid? sourceRecordId = null, Guid? focusDefinitionId = null)
     {
         if(!Kinds.Contains(kind,StringComparer.Ordinal)) throw new ArgumentException("Unknown qualification channel kind.",nameof(kind));
+        if(QualificationChannelDocuments.LoadingKinds.Contains(kind,StringComparer.Ordinal))
+        {
+            if(subject != actor.UserId || sourceRecordId is not null) throw new ArgumentException("A file to load comes from the person's own conversation.",nameof(subject));
+            return QualificationChannelDocuments.Context(Create(actor,subject,"auto"),kind,focusDefinitionId);
+        }
+        if(focusDefinitionId is not null) throw new ArgumentException("Only a chosen form fixes its focus.",nameof(focusDefinitionId));
         if(kind == "agent")
         {
             if(subject != actor.UserId || sourceRecordId is not null) throw new ArgumentException("An agent conversation is the person's own.",nameof(subject));
@@ -93,9 +102,13 @@ internal static class QualificationChannelContexts
             if(entry.ChannelId!="whatsapp-manual" || entry.SubjectUserId is not null) throw new InvalidOperationException("Invalid audio ledger scope.");
             return CreateAudio(entry.ActorUserId,entry.Culture) with { InteractionMode = entry.InteractionMode };
         }
-        if(entry.OperationKind!="channel" || entry.ChannelKind is not ("auto" or "manual" or "catalog" or "no-forms" or "author" or "agent") || entry.SubjectUserId is not {} subject)
+        // channel-documents: the reading of a document the person sent, in the context WhatsApp reads it with.
+        if(entry.OperationKind==QualificationChannelDocuments.ReadingOperation)
+            return QualificationChannelDocuments.IsReadingLedger(entry) ? QualificationChannelDocuments.ReadingContext(entry.ActorUserId,entry.Culture)
+                : throw new InvalidOperationException("Invalid document ledger scope.");
+        if(entry.OperationKind!="channel" || entry.ChannelKind is null || !Kinds.Contains(entry.ChannelKind,StringComparer.Ordinal) || entry.SubjectUserId is not {} subject)
             throw new InvalidOperationException("Invalid channel ledger scope.");
-        var context=Create(new(entry.ActorUserId,"resumed",entry.Culture,"fictitious"),subject,entry.ChannelKind,entry.SourceRecordId) with { InteractionMode = entry.InteractionMode };
+        var context=Create(new(entry.ActorUserId,"resumed",entry.Culture,"fictitious"),subject,entry.ChannelKind,entry.SourceRecordId,entry.FocusDefinitionId) with { InteractionMode = entry.InteractionMode };
         if(context.ChannelId!=entry.ChannelId) throw new InvalidOperationException("Ledger channel identity changed.");
         return context;
     }
@@ -146,17 +159,7 @@ internal sealed class ChannelRunner(IAssistantOperations operations, SafeRunLedg
         var accepted=await operations.SubmitAsync(new(requestId,context,text,now,now.AddDays(1)) { PreviousRequestId = previous?.RequestId, Attachment = attachment },ct);
         if(accepted.IsFailure) throw QualificationRejections.Stop("channel-submit",accepted.Error);
         await ledger.SaveAsync(new QualificationLedgerEntry(testCase.Id,requestId,actor.UserId,null,null,"accepted") {OperationKind="channel",ChannelId=context.ChannelId,InteractionMode=context.InteractionMode,Culture=context.Culture,SubjectUserId=subject.UserId,ChannelKind=testCase.ActorKind,SourceRecordId=context.SourceRecordId,PreviousRequestId=previous?.RequestId},ct);
-        AssistantOperationResponse? outcome=null;
-        var deadline=clock.GetUtcNow().AddSeconds(240);
-        while(clock.GetUtcNow()<deadline)
-        {
-            var read=await operations.GetAsync(context,requestId,ct);
-            if(read.IsFailure) throw QualificationRejections.Stop("channel-status",read.Error);
-            outcome=read.Value;
-            if(outcome.State is not ("pending" or "running" or "queued")) break;
-            await Task.Delay(TimeSpan.FromSeconds(2),clock,ct);
-        }
-        if(outcome is null || outcome.State is "pending" or "running" or "queued") throw new TimeoutException("Retain the existing qualification request identity.");
+        var outcome=await ObserveAsync(context,requestId,ct);
         var technical=await metadata.FindByRequestAsync(actor.UserId,requestId,ct);
         var observed=technical.Capabilities.Select(item=>item.Id).ToHashSet(StringComparer.Ordinal);
         var checks=new List<CheckEvidence>
@@ -178,6 +181,100 @@ internal sealed class ChannelRunner(IAssistantOperations operations, SafeRunLedg
         else AddAuthoringChecks(checks,testCase,outcome,technical,forms,actors,proposals,previous);
         if(dictated is not null)AddDictationChecks(checks,testCase,text,dictated,technical,subject.UserId,requestId);
         return new(requestId,outcome,technical,elapsed.Elapsed.TotalSeconds,checks,measurements.EndCase());
+    }
+
+    private async Task<AssistantOperationResponse> ObserveAsync(AssistantChannelContext context, Guid requestId, CancellationToken ct)
+    {
+        AssistantOperationResponse? outcome=null;
+        var deadline=clock.GetUtcNow().AddSeconds(240);
+        while(clock.GetUtcNow()<deadline)
+        {
+            var read=await operations.GetAsync(context,requestId,ct);
+            if(read.IsFailure) throw QualificationRejections.Stop("channel-status",read.Error);
+            outcome=read.Value;
+            if(outcome.State is not ("pending" or "running" or "queued")) break;
+            await Task.Delay(TimeSpan.FromSeconds(2),clock,ct);
+        }
+        if(outcome is null || outcome.State is "pending" or "running" or "queued") throw new TimeoutException("Retain the existing qualification request identity.");
+        return outcome;
+    }
+
+    // channel-documents (task 17a): the interpretation of a file the person sent, as WhatsApp submits it. A document goes with the reading
+    // observed before it in its own scope (its copy, name, size, SHA-256 and pages); a spreadsheet, prepared through the real loading port
+    // (PrepareRowsAsync), with its copy written once, or, for the form chosen from the list, carried again from the case it continues
+    // (PreviousRequestId and FocusDefinitionId). The text is the request, the server's transcript of a voice note or the server's line for a
+    // document or a spreadsheet alone; a photo goes with the name the app gives it. Payload facts: ChannelDocumentOracle.
+    public async Task<ChannelObservation> RunLoadingAsync(ChannelCase testCase, QualificationFixture actors, QualificationChannelFixture forms,
+        VerifiedChannelDocumentSet set, CancellationToken ct, ChannelObservation? previous = null, AudioObservation? dictated = null, DocumentObservation? read = null)
+    {
+        if (!QualificationChannelDocuments.IsValid(testCase) || (testCase.Continues is null) != (previous is null) || (testCase.Audio is null) != (dictated is null)
+            || (testCase.Document is null) != (read is null) || read is not null && (read.Key is null || read.Prepared is null || read.Result.DocumentReading is null))
+            throw new InvalidOperationException("A loading case needs exactly its reading, voice note and previous operation.");
+        var (actor, subject) = People(testCase, actors);
+        var kind = QualificationChannelDocuments.Kind(testCase);
+        Guid? focus = testCase.Focus is { } alias ? forms.Form(alias).DefinitionId : null;
+        var context = QualificationChannelContexts.Create(actor, subject.UserId, kind, null, focus);
+        var sheetBytes = testCase.Spreadsheet is { } attached ? await QualificationSpreadsheets.ReadAsync(attached, ct) : null;
+        var sheet = sheetBytes is null ? null : (await attachments.PrepareRowsAsync(sheetBytes, testCase.Spreadsheet!.FileName, ct)).Spreadsheet
+            ?? throw new InvalidOperationException("Public spreadsheet fixture is not loadable.");
+        var text = QualificationChannelDocuments.Text(testCase, dictated is null ? null : DictatedText(testCase, dictated));
+        currentUser.Set(actor.UserId);
+        var requestId = Guid.CreateVersion7();
+        var entry = new QualificationLedgerEntry(testCase.Id, requestId, actor.UserId, null, null, "before-submit") { OperationKind = "channel", ChannelId = context.ChannelId,
+            InteractionMode = context.InteractionMode, Culture = context.Culture, SubjectUserId = subject.UserId, ChannelKind = kind,
+            PreviousRequestId = previous?.RequestId, FocusDefinitionId = focus };
+        await ledger.SaveAsync(entry, ct);
+        var now = clock.GetUtcNow().UtcDateTime;
+        string key;
+        AssistantAttachmentInput attachment;
+        if (read is not null)
+        {
+            // With the name the app gives the file, in the attachment and in its document (WhatsAppAssistantSourcePolicy.Attachment).
+            key = read.Key!;
+            var name = QualificationChannelDocuments.ChannelName(testCase.Document!.FileName, testCase.Document.ContentType);
+            attachment = AssistantAttachmentInput.ForDocument(key, name, now.AddDays(1), read.Prepared! with { FileName = name, Reading = read.Result.DocumentReading });
+        }
+        else
+        {
+            key = testCase.Spreadsheet!.Inherited ? previous!.Metadata.AttachmentKey ?? throw new InvalidOperationException("The chosen form carries its spreadsheet.")
+                : QualificationSpreadsheets.ChannelKey(requestId, sheet!.Kind);
+            if (!testCase.Spreadsheet.Inherited)
+                using (var input = new MemoryStream(sheetBytes!, writable: false))
+                    if (!await files.WriteOnceAsync(key, input, sheet!.MediaType, ct))
+                        throw new InvalidOperationException("A qualification object already exists; observe its request instead.");
+            attachment = new AssistantAttachmentInput(key, testCase.Spreadsheet.FileName, sheet!.MediaType, sheetBytes!.LongLength, testCase.Spreadsheet.Sha256,
+                now.AddDays(1), sheet);
+        }
+        measurements.BeginCase();
+        var elapsed = Stopwatch.StartNew();
+        var accepted = await operations.SubmitAsync(new(requestId, context, text, now, now.AddDays(1)) { PreviousRequestId = previous?.RequestId, Attachment = attachment }, ct);
+        if (accepted.IsFailure) throw QualificationRejections.Stop("channel-submit", accepted.Error);
+        await ledger.SaveAsync(entry with { Phase = "accepted" }, ct);
+        var outcome = await ObserveAsync(context, requestId, ct);
+        var technical = await metadata.FindByRequestAsync(actor.UserId, requestId, ct);
+        var observed = technical.Capabilities.Select(item => item.Id).ToHashSet(StringComparer.Ordinal);
+        var checks = new List<CheckEvidence>
+        {
+            new("completed", outcome.State == "completed"),
+            new("real-channel-provenance", outcome.Provenance?.ChannelId == context.ChannelId),
+            new("required-tools-observed", testCase.RequiredTools.All(observed.Contains)),
+            new("no-home-tools", !technical.Capabilities.Any(item => QualificationSeed.HomeCapabilities.Contains(item.Id))),
+            new("bounded-provider-steps", technical.ProviderSteps is >= 1 and <= 4),
+            new("bounded-tool-calls", technical.ToolCalls <= 6),
+            new("bounded-tool-bytes", technical.ToolBytes <= 65536 && technical.Capabilities.All(item => item.Bytes <= 16384)),
+            new("proposal-from-observed-owner", outcome.Proposal is null || observed.Contains(outcome.Proposal.Capability.Id)),
+            new("turn-carried-the-file", technical.AttachmentKey == key && technical.AttachmentSha256 == (testCase.Document?.Sha256 ?? testCase.Spreadsheet!.Sha256)
+                && technical.AttachmentSize == (testCase.Document?.ByteCount ?? testCase.Spreadsheet!.ByteCount)),
+        };
+        checks.AddRange(ChannelDocumentOracle.ContextChecks(context, technical));
+        if (previous is not null)
+            checks.Add(new("continued-same-engine-conversation", technical.ConversationId != Guid.Empty && technical.ConversationId == previous.Metadata.ConversationId
+                && technical.Ordinal == previous.Metadata.Ordinal + 1));
+        checks.AddRange(read is not null
+            ? ChannelDocumentOracle.EntryChecks(testCase, context, outcome.Proposal, read.Result.DocumentReading!, set.Document(testCase), forms, subject.UserId)
+            : ChannelDocumentOracle.RowsChecks(testCase, context, outcome.Proposal, sheet!, forms, subject.UserId));
+        if (dictated is not null) AddDictationChecks(checks, testCase, text, dictated, technical, subject.UserId, requestId);
+        return new(requestId, outcome, technical, elapsed.Elapsed.TotalSeconds, checks, measurements.EndCase());
     }
 
     // What an author builds with in the automatic own conversation, by Id and version: the form and the catalog in version 2 and, only in a
@@ -226,6 +323,7 @@ internal sealed class ChannelRunner(IAssistantOperations operations, SafeRunLedg
         var actor = testCase.ActorKind is "manual" or "catalog" ? In(actors.Operators) : subject;
         if (testCase.ActorKind == "no-forms") actor = subject = In(actors.AudioActors);
         if (testCase.ActorKind == "catalog") subject = actor;
+        if (testCase.ActorKind == QualificationChannelDocuments.SheetLoader) actor = subject = In(actors.SheetLoaders);
         return (actor, subject);
     }
 

@@ -24,6 +24,9 @@ internal sealed record QualificationFixture(IReadOnlyList<QualificationActor> Ac
     public IReadOnlyList<QualificationActor> ChannelAuthors { get; init; } = [];
     // IA3-A by voice: recipients of the same role who dictate, with a daily quota of their own (ChannelAuthors already use all ten).
     public IReadOnlyList<QualificationActor> VoiceAuthors { get; init; } = [];
+    // channel-documents only (QualificationDocumentSeed): loaders of the subjects' role who send the spreadsheets, with a daily quota of
+    // their own (the subjects already read and interpret the documents).
+    public IReadOnlyList<QualificationActor> SheetLoaders { get; init; } = [];
 }
 
 internal sealed class QualificationSeed(IUnitOfWork unitOfWork, IUserRepository users, IRoleRepository roles,

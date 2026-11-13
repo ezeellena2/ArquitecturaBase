@@ -41,7 +41,7 @@ internal sealed class AudioRunner(IAssistantOperations operations,IPrivateFileSt
     // its interpretation. Its ledger and evidence are "<case>-audio"; Resume reads it back with the same automatic context.
     public async Task<AudioObservation> NormalizeDictationAsync(ChannelCase testCase,QualificationActor author,CancellationToken ct)
     {
-        if(testCase.Audio is not {} audio || !AudioFixtureRules.IsValidVoiceNote(audio) || testCase.ActorKind!="author" || author.Culture!=testCase.Culture)
+        if(testCase.Audio is not {} audio || !AudioFixtureRules.IsValidVoiceNote(audio) || testCase.ActorKind is not ("author" or QualificationChannelDocuments.Loader) || author.Culture!=testCase.Culture)
             throw new InvalidOperationException("Invalid public voice note fixture.");
         var bytes=await ReadFixtureAsync(audio.FileName,audio.ByteCount,audio.Sha256,ct);
         if(!AudioFixtureRules.IsVoiceNote(bytes))throw new InvalidOperationException("Public voice note fixture changed.");

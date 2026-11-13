@@ -2,12 +2,14 @@ using System.Diagnostics;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Interfaces.Integrations.Files;
 using ArquitecturaBase.Application.Models.Assistant;
+using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Persistence;
 
 namespace AssistantQualification;
 
+// channel-documents also keeps the copy the reading opened and the document as its owner prepared it, which its interpretation carries.
 internal sealed record DocumentObservation(AssistantOperationResponse Result, TurnMetadata Metadata, double ElapsedSeconds,
-    IReadOnlyList<CheckEvidence> Checks, MeasurementSnapshot Measurements);
+    IReadOnlyList<CheckEvidence> Checks, MeasurementSnapshot Measurements, string? Key = null, StructuredDocument? Prepared = null);
 
 // One reading of the document-reading set: the owner prepares the public bytes through the real port (as Home and WhatsApp will), the
 // copy is written once under the run, and ReadDocument goes through IAssistantOperations with the ledger identity fixed before the submit.
@@ -16,24 +18,34 @@ internal sealed class DocumentRunner(IAssistantOperations operations, IStructure
     IAiConnectionReader connections, SafeRunLedger ledger, SafeTurnMetadata metadata, QualificationCurrentUser currentUser, TimeProvider clock,
     QualificationMeasurements measurements)
 {
-    public async Task<DocumentObservation> RunAsync(DocumentCase testCase, DocumentFixture fixture, QualificationActor actor, CancellationToken ct)
+    // channelCaseId: a channel-documents case reads its document as WhatsApp does (QualificationChannelDocuments.ReadingContext), with the
+    // ledger and evidence of that case (<case>-document); its checks are the same document-reading ones.
+    public async Task<DocumentObservation> RunAsync(DocumentCase testCase, DocumentFixture fixture, QualificationActor actor, CancellationToken ct,
+        string? channelCaseId = null)
     {
         if (!QualificationDocuments.IsValid(testCase) || fixture is not { Use: "provider" } || fixture.FileName != testCase.FileName
             || actor.Culture != testCase.Culture)
             throw new InvalidOperationException("Invalid public document fixture.");
         var bytes = await QualificationDocuments.ReadAsync(testCase, ct);
-        var prepared = await attachments.PrepareAsync(bytes, testCase.FileName, ct);
-        if (!QualificationDocuments.PreparedAsExpected(testCase, prepared))
+        // WhatsApp reads the file under the name it gives it: a photo has none and is named by its type.
+        var name = channelCaseId is null ? testCase.FileName : QualificationChannelDocuments.ChannelName(testCase.FileName, testCase.ContentType);
+        var prepared = await attachments.PrepareAsync(bytes, name, ct);
+        if (!QualificationDocuments.PreparedAsExpected(testCase, prepared, name))
             throw new InvalidOperationException("Public document fixture is not prepared as its case expects.");
         var document = prepared.Document!;
         var connection = await connections.FindAsync(ct);
         if (!connection.Enabled || connection.Provider.ToString() != "OpenAI" || connection.Model != "gpt-6.1-sol")
             throw new InvalidOperationException("The existing OpenAI connection is unavailable.");
         currentUser.Set(actor.UserId);
-        var context = QualificationDocuments.Context(actor.UserId, actor.Culture);
+        var context = channelCaseId is null ? QualificationDocuments.Context(actor.UserId, actor.Culture)
+            : QualificationChannelDocuments.ReadingContext(actor.UserId, actor.Culture);
         var requestId = Guid.CreateVersion7();
-        var entry = new QualificationLedgerEntry(testCase.Id, requestId, actor.UserId, null, null, "before-submit")
-            { OperationKind = "document", ChannelId = context.ChannelId, Culture = context.Culture };
+        var entry = channelCaseId is null
+            ? new QualificationLedgerEntry(testCase.Id, requestId, actor.UserId, null, null, "before-submit")
+                { OperationKind = "document", ChannelId = context.ChannelId, Culture = context.Culture }
+            : new QualificationLedgerEntry(channelCaseId + "-document", requestId, actor.UserId, null, null, "before-submit")
+                { OperationKind = QualificationChannelDocuments.ReadingOperation, ChannelId = context.ChannelId, Culture = context.Culture,
+                    SubjectUserId = actor.UserId, InteractionMode = AssistantInteractionMode.Assistant };
         await ledger.SaveAsync(entry, ct);
         var key = QualificationDocuments.Key(requestId, document.MediaType);
         using (var input = new MemoryStream(bytes, writable: false))
@@ -62,6 +74,6 @@ internal sealed class DocumentRunner(IAssistantOperations operations, IStructure
         var current = await connections.FindAsync(ct);
         var sameConnection = connection.Provider == current.Provider && connection.Model == current.Model && connection.Revision == current.Revision;
         return new(result, technical, elapsed.Elapsed.TotalSeconds,
-            DocumentReadingOracle.Checks(testCase, fixture, result, technical, context.ChannelId, sameConnection), measurements.EndCase());
+            DocumentReadingOracle.Checks(testCase, fixture, result, technical, context.ChannelId, sameConnection), measurements.EndCase(), key, document);
     }
 }

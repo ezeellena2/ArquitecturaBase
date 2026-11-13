@@ -366,9 +366,13 @@ internal static class SpreadsheetOfflineChecks
             var bytes = File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "fixtures", "spreadsheets", file.Key));
             Require(bytes.LongLength == file.First().ByteCount && EvidenceWriter.HashPublicBytes(bytes) == file.First().Sha256);
         }
-        // The folder holds exactly the five fixtures the cases use (and the attributes that keep a CSV's bytes).
+        // The folder holds exactly the five fixtures the cases use, the ten CSV files of channel-documents (QualificationChannelDocuments) and the
+        // attributes that keep a CSV's bytes.
         var committed = Directory.GetFiles(Path.Combine(AppContext.BaseDirectory, "fixtures", "spreadsheets")).Select(Path.GetFileName).Order(StringComparer.Ordinal).ToArray();
-        Require(committed.SequenceEqual(Files().Select(sheet => sheet.FileName).Append(".gitattributes").Order(StringComparer.Ordinal)) && Files().Length == 5);
+        var loading = QualificationChannelDocuments.Load(File.ReadAllBytes(QualificationChannelDocuments.CasePath)).Cases.Select(testCase => testCase.Spreadsheet)
+            .OfType<SpreadsheetFixture>().Select(sheet => sheet.FileName).Distinct(StringComparer.Ordinal).ToArray();
+        Require(committed.SequenceEqual(Files().Select(sheet => sheet.FileName).Concat(loading).Append(".gitattributes").Order(StringComparer.Ordinal))
+            && Files().Length == 5 && loading.Length == 10);
         var changed = descriptors[0] with { Sha256 = new string('a', 64) };
         Require(Throws(() => QualificationSpreadsheets.ReadAsync(changed, CancellationToken.None).GetAwaiter().GetResult()));
         Require(!QualificationSpreadsheets.IsValid(descriptors[0] with { FileName = "../contratistas.xlsx" })

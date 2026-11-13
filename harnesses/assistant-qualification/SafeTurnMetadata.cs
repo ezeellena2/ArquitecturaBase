@@ -31,6 +31,8 @@ internal sealed record TurnMetadata(int ProviderSteps, int ToolCalls, int ToolBy
     public string? AttachmentKey { get; init; }
     public string? AttachmentSha256 { get; init; }
     public long? AttachmentSize { get; init; }
+    // channel-documents (task 29b): the form a continuation chosen from «No lo reconoce» fixes. Never exported either.
+    public Guid? FocusDefinitionId { get; init; }
 }
 
 internal sealed class SafeTurnMetadata(ApplicationDbContext db)
@@ -73,6 +75,7 @@ internal sealed class SafeTurnMetadata(ApplicationDbContext db)
             PreloadedReferences = profile.ChannelContext.PreloadedCapabilities?.ToArray() ?? [],
             Terminals = profile.ChannelContext.AllowedTerminals.ToArray(),
             AttachmentKey = turn.AttachmentKey, AttachmentSha256 = turn.AttachmentSha256, AttachmentSize = turn.AttachmentSize,
+            FocusDefinitionId = profile.ChannelContext.FocusDefinitionId,
         };
     }
 }

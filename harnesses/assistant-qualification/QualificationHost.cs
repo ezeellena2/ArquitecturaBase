@@ -108,6 +108,7 @@ internal static class QualificationHost
         builder.Services.AddScoped<QualificationFormSeed>();
         builder.Services.AddScoped<QualificationAuthoringSeed>();
         builder.Services.AddScoped<QualificationAgentSeed>();
+        builder.Services.AddScoped<QualificationDocumentSeed>();
         builder.Services.AddScoped<AgentRunner>();
         builder.Services.RemoveAll<IPrivateFileStore>();
         builder.Services.AddSingleton<IPrivateFileStore>(_ => new QualificationPrivateFiles(Path.Combine(settings.OutputDirectory, "private-audio")));

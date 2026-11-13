@@ -109,11 +109,30 @@ internal sealed class QualificationFormSeed(ApplicationDbContext db,IUnitOfWork 
         };
     }
 
-    private async Task<PreparedForm> CreateFormAsync(string alias,FormFieldInput[] fields,string when,CancellationToken ct)
+    // channel-documents only: the forms with document reading (DOC1) that a person who sends a document or a spreadsheet can load, created by
+    // the real draft service like the other forms and published with their reading sealed, as the publication seals it.
+    public async Task<QualificationChannelFixture> CreateReadingFormsAsync(QualificationFixture actors,QualificationChannelFixture forms,CancellationToken ct)
     {
-        var name = FormNames.Single(item => item.Alias == alias);
+        ArgumentNullException.ThrowIfNull(actors);ArgumentNullException.ThrowIfNull(forms);
+        var manager = actors.Operators.Single(actor => actor.Culture == "es");
+        currentUser.Set(manager.UserId);
+        var published = new List<QualificationForm>();
+        foreach (var form in QualificationChannelDocuments.ReadingForms)
+        {
+            var prepared = await CreateFormAsync(form.Alias,[..form.Fields.Select(field => Field(field.Key,field.Type,field.Spanish,field.English,field.MaxLength,field.Required))],
+                null,ct,new FormDocumentReading(true,form.Recognition,[]));
+            published.Add(await PublishFixtureAsync(prepared,manager.UserId,ct));
+        }
+        return forms with { Forms = [..forms.Forms,..published] };
+    }
+
+    private static QualificationFormName Name(string alias) => FormNames.Concat(QualificationChannelDocuments.FormNames).Single(item => item.Alias == alias);
+
+    private async Task<PreparedForm> CreateFormAsync(string alias,FormFieldInput[] fields,string? when,CancellationToken ct,FormDocumentReading? reading = null)
+    {
+        var name = Name(alias);
         var saved = Require(await drafts.CreateAsync(new(Guid.CreateVersion7(),Texts(name.Spanish,name.English),name.Prefix,
-            new(1,"es",Texts("Enviar","Submit"),fields),OfferWhen:when),ct),"draft");
+            new(1,"es",Texts("Enviar","Submit"),fields,DocumentReading:reading),OfferWhen:when),ct),"draft");
         var ids = saved.IdentityMap.Fields.ToDictionary(field => field.LocalId,field => field.FieldId,StringComparer.Ordinal);
         return new(alias,saved.Definition,ids);
     }
@@ -135,6 +154,8 @@ internal sealed class QualificationFormSeed(ApplicationDbContext db,IUnitOfWork 
             var hash = Hash(schema);
             var version = BusinessFormVersion.Create(definition.Id,1,hash); version.SealSchema(schema);
             version.SealPresentation(JsonSerializer.Serialize(form.Definition.Name,Json),JsonSerializer.Serialize(form.Definition.Draft.SubmitLabel,Json),"es",questions.Length);
+            // A form with document reading (channel-documents) seals the reading its draft keeps, as FormPublicationAcceptanceService does.
+            if (definition.DocumentReadingJson is { } reading) version.SealDocumentReading(reading);
             var now = Now();
             var operation = BusinessFormPublicationOperation.Accept(definition.Id,version.Id,manager,Guid.CreateVersion7(),definition.Revision,1,null,[],now);
             var manifest = new FormPublicationManifest(1,Hash("qualification-attempt:" + definition.Id),Hash("qualification-publication:" + definition.Id),
@@ -151,7 +172,7 @@ internal sealed class QualificationFormSeed(ApplicationDbContext db,IUnitOfWork 
             versionId = version.Id;
             return Result.Success();
         },CommitPolicy.OnSuccess,ct),"published fixture");
-        var names = FormNames.Single(item => item.Alias == form.Alias);
+        var names = Name(form.Alias);
         return new(form.Definition.Id,versionId,form.Alias,form.Fields) { Names = Texts(names.Spanish,names.English),Prefix = names.Prefix };
     }
 
