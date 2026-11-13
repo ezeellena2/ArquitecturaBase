@@ -992,8 +992,10 @@ adjunta documentos. El usuario lo aprobó el mismo día («Sí, arrancá»).
 
 Hechas, cada una con su revisión adversarial y su corrección: la tarea 1 (47d1dbec), la 2 (7d559160), la 3 (03cf386d), la 4
 (7d737e2e; la corrida real, con el visto bueno del usuario, en 8b057da5: 30 de 30), la 5 (front 71937f06 y backend 4dc93dc4), la 6
-(front 1ab8d45f), la 7 (f2f2356a), la 11 (front 608e9ad2 y backend a80e3192), la 12 (093f184f), la 13 (front 3a1f4338 y backend
-87db44bc), la 15 (a1c8c8ea) y la 16 (front b8e538d6; las referencias de la planilla con renglones que bajó su fila de pestañas, en
+(front 1ab8d45f), la 7 (f2f2356a; su 7b, c1a53569), la 8 (29da5591; front daff81dd), la 9 (6aed2572; front 4e32b70c; falta la
+9b, abajo), la 10 (front d772179c), la 11 (front 608e9ad2 y backend a80e3192), la 12 (093f184f), la 13 (front 3a1f4338 y backend
+87db44bc), la 14 (43fb61e6; front 83465252), la 15 (a1c8c8ea) y la 16 (front b8e538d6; las referencias de la planilla con
+renglones que bajó su fila de pestañas, en
 el front 5ac661af). Desde el 2026-11-12 el usuario pidió la revisión completa en todas las tareas, también en las chicas de front y
 documentación. Desde la tarea 13 Inicio también ofrece `propose-form@2`. El chat de la IA escribió el set `home-documents` (40f27c08) y,
 con el visto bueno del usuario, lo calificó con el modelo real junto con la mitad de Inicio de `ia-authoring` y de
@@ -1036,7 +1038,16 @@ lector del asistente (`WhatsAppAssistantReader`). Varias cargas desde un Excel v
 2026-11-12: hechas, cada una con su revisión, la 18 (el diseño, front f0133c43), la 19a (los guards de `receives`, front
 91e888dc), la 20 (0b19e9cf: `receives` en el borrador, el validador, también sin condición ni validación fija, el contrato neutral
 y la proyección del Flow, que no cambia) y la 21 (la zona del editor, front 1b0c45e3); las capturas de `forms-http` esperan la
-exportación conjunta. La 19b (los guards del hilo y de la actividad) y las tareas 8 y 9, antes de la etapa U, están en curso.
+exportación conjunta. Después, también con su revisión: la 19b (los guards del hilo y de la actividad, front 7cf29da5), la 22 (lo
+que llega: la dirección de un lugar y el contacto, f2b37c8c), la 23 (el circuito y el reenvío, 2a2f7a0b, con sus
+[reglas](../features/whatsapp.md#el-circuito-tarea-23): el origen de una respuesta es el primer Flow de su envío, también después
+de un reenvío), la 24 (lo que se ve, 02039892, con sus [reglas](../features/whatsapp.md#lo-que-se-ve-tarea-24): «Prellenado con»
+en cada reenvío, `savedNumber` en la segunda respuesta y la actividad del detalle), la 25 (el chat y la actividad, front ee742958),
+la 26 (los guards de las filas, front 9f2d7c5d), la 27 (las filas de cada hoja y el mapeo sin IA, c9db1571) y la 28 (la bandeja con
+filas, c3c21bfe, sobre su puerto propio `IStructuredDocumentRowsChannel` y la migración `AddReceivedDocumentRows`; el pie y
+`SpreadsheetRowsJson` de las salidas van con la migración de la tarea 29, que toca los archivos de WhatsApp). Las capturas nuevas
+de `forms-documents-http`, `whatsapp-audio-http`, `whatsapp-forms-http` y `forms-responses-http` esperan la exportación conjunta.
+Faltan la 29 y la 30 de la etapa V, la 9b y el cierre (17).
 
 ### Lo elegido
 
@@ -1266,7 +1277,8 @@ Lo que el diseño no fijaba, por lo más simple que cumple el plan y las reglas.
 | `WhatsAppFlowSessions` | `SharedContentJson` (de la ubicación y del contacto: cuándo y qué preguntas) y `ProtectedSharedValues` (lo escrito, protegido) | la misma |
 | `FormReceivedDocuments` | `SheetName` y `RowNumber` (nulos en un documento), el índice único con la fila y el motivo de lo que no se le mandó | `AddReceivedDocumentRows` |
 | `FormReceivedDocumentEvents` | Los eventos de una fila: llegó en la planilla, se mandó como 1 de 3, pasó el tope | — |
-| `WhatsAppOutgoingMessages` (etapa V) | `Footer`, el pie del Flow de una carga | la misma que las filas |
+| `WhatsAppOutgoingMessages` (etapa V) | `Footer`, el pie del Flow de una carga (sólo para Meta: el chat dibuja la carga como la tarjeta del formulario, sin pie), y `SpreadsheetRowsJson`, «Por qué lo propuso» del aviso de las cargas | la de la tarea 29 |
+| `WhatsAppMessages` (etapa V) | `SpreadsheetRowsJson`, copiado de su salida al despacharla, como la respuesta del asistente, así el aviso ya leído lo conserva; lo vacía la retención con el cuerpo | la de la tarea 29 |
 
 #### Contratos HTTP
 
@@ -1390,7 +1402,7 @@ comparten.
 28. **La bandeja con filas.** Una entrada por fila (la hoja, la fila, la lectura y la copia compartida con su retención), el
     índice con la fila, el motivo de lo que no se mandó, a quién espera (`replyExpiresAtUtc` y `forReview`) y el filtro, el 409 de una fila que espera, «La fila»,
     «Descargar la planilla», cambiar de formulario con la fila guardada, la búsqueda y el origen «Salió de una planilla». La
-    migración `AddReceivedDocumentRows`, con el pie que usa la tarea 29. Unitarias e integración con PostgreSQL, incluida la
+    migración `AddReceivedDocumentRows` (el pie y `SpreadsheetRowsJson` van con la de la tarea 29). Unitarias e integración con PostgreSQL, incluida la
     retención de la copia compartida; cohorte `forms-documents-http`.
 29. **WhatsApp: la planilla, el aviso y las cargas.** Quién baja una planilla, la planilla sola al turno de carga y sus
     definiciones; el aviso con sus variantes, hasta tres Flows con su cuerpo y su pie, y el aviso de arriba del Flow («Lo
