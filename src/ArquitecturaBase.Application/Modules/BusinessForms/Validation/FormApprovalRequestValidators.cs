@@ -9,13 +9,14 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Validation;
 internal sealed class ListFormApprovalsRequestValidator : PagedRequestValidator<ListFormApprovalsRequest>
 {
     public ListFormApprovalsRequestValidator() : base(ListFormApprovalsRequest.SortableFields)
-    { RuleFor(request => request.DefinitionId).Must(id => id is null || id != Guid.Empty); }
+    { RuleFor(request => request.DefinitionId).Must(id => id is null || id != Guid.Empty).WithMessage(_ => ValidationMessages.Required); }
 }
 internal sealed class DecideFormApprovalRequestValidator : AbstractValidator<DecideFormApprovalRequest>
 {
     public DecideFormApprovalRequestValidator()
     {
-        RuleFor(request => request.ExpectedRevision).NotNull().InclusiveBetween(1, 9007199254740990);
+        RuleFor(request => request.ExpectedRevision).NotNull().WithMessage(_ => ErrorMessages.Get(FormApprovalErrors.ContentInvalid.Code))
+            .InclusiveBetween(1, 9007199254740990).WithMessage(_ => ErrorMessages.Get(FormApprovalErrors.ContentInvalid.Code));
         RuleFor(request => request.Decision).Must(decision => decision is "Approved" or "Rejected").WithMessage(_ => ErrorMessages.Get(FormApprovalErrors.ContentInvalid.Code));
         RuleFor(request => request.Reason).Must((request, reason) => request.Decision == "Approved" ? reason is null : !string.IsNullOrWhiteSpace(reason))
             .WithMessage(_ => ErrorMessages.Get(FormApprovalErrors.ReasonRequired.Code));
@@ -28,9 +29,9 @@ internal sealed class FormApprovalContinuationRequestValidator : AbstractValidat
 {
     public FormApprovalContinuationRequestValidator()
     {
-        RuleFor(request => request.DefinitionId).NotEmpty();
+        RuleFor(request => request.DefinitionId).Required();
         RuleFor(request => request.Direction).Must(direction => direction is "Next" or "Previous")
             .WithMessage(_ => ErrorMessages.Get(FormApprovalErrors.ContentInvalid.Code));
-        RuleFor(request => request.PageSize).InclusiveBetween(1, 100);
+        RuleFor(request => request.PageSize).InclusiveBetween(1, 100).WithMessage(_ => ValidationMessages.PageSizeInvalid);
     }
 }

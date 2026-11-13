@@ -34,8 +34,8 @@ internal sealed class SubmitFormEntryRequestValidator : AbstractValidator<Submit
         RuleFor(request => request.VersionId).NotEqual(Guid.Empty).WithMessage(_ => ValidationMessages.Required);
         RuleFor(request => request.Answers).NotNull().WithMessage(_ => ErrorMessages.Get(FormRecordErrors.InvalidResponse.Code))
             .Must(FormEntrySendRules.ValidAnswers).WithMessage(_ => ErrorMessages.Get(FormRecordErrors.InvalidResponse.Code));
-        RuleFor(request => request.Files).NotNull().Must(FormEntrySendRules.ValidFiles)
-            .WithMessage(_ => ErrorMessages.Get(FormRecordErrors.InvalidResponse.Code));
+        RuleFor(request => request.Files).NotNull().WithMessage(_ => ErrorMessages.Get(FormRecordErrors.InvalidResponse.Code))
+            .Must(FormEntrySendRules.ValidFiles).WithMessage(_ => ErrorMessages.Get(FormRecordErrors.InvalidResponse.Code));
     }
 }
 
@@ -59,9 +59,10 @@ internal sealed class CorrectFormEntryRequestValidator : AbstractValidator<Corre
         RuleFor(request => request.VersionId).NotEqual(Guid.Empty).WithMessage(_ => ValidationMessages.Required);
         RuleFor(request => request.Answers).NotNull().WithMessage(_ => ErrorMessages.Get(FormRecordErrors.InvalidResponse.Code))
             .Must(FormEntrySendRules.ValidAnswers).WithMessage(_ => ErrorMessages.Get(FormRecordErrors.InvalidResponse.Code));
-        RuleFor(request => request.Files).NotNull().Must(FormEntrySendRules.ValidFiles)
-            .WithMessage(_ => ErrorMessages.Get(FormRecordErrors.InvalidResponse.Code));
-        RuleFor(request => request.KeptFileIds).NotNull().Must((request, kept) => kept is null || kept.All(id => id != Guid.Empty)
+        RuleFor(request => request.Files).NotNull().WithMessage(_ => ErrorMessages.Get(FormRecordErrors.InvalidResponse.Code))
+            .Must(FormEntrySendRules.ValidFiles).WithMessage(_ => ErrorMessages.Get(FormRecordErrors.InvalidResponse.Code));
+        RuleFor(request => request.KeptFileIds).NotNull().WithMessage(_ => ErrorMessages.Get(FormRecordErrors.InvalidResponse.Code))
+            .Must((request, kept) => kept is null || kept.All(id => id != Guid.Empty)
                 && kept.Distinct().Count() == kept.Count && kept.Count + (request.Files?.Count ?? 0) <= 10)
             .WithMessage(_ => ErrorMessages.Get(FormRecordErrors.InvalidResponse.Code));
         FormEntrySendRules.Reason(RuleFor(request => request.Reason));

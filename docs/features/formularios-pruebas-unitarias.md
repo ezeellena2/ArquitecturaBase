@@ -2,6 +2,8 @@
 
 Es el detalle de la guía [`tests/ArquitecturaBase.Application.UnitTests/Modules/BusinessForms/AGENTS.md`](../../tests/ArquitecturaBase.Application.UnitTests/Modules/BusinessForms/AGENTS.md): qué garantizan las pruebas unitarias de Formularios, agrupado por tema. Antes de tocar esas pruebas, leé la sección de su tema; la guía es el índice y conserva las reglas que valen para todas.
 
+Los mensajes de validación de todos los temas: `FormRequestValidationMessageTests` prueba, con un caso por validador, que las reglas que respondían con el texto de FluentValidation dicen el error de su área o uno común, en español y en inglés y con un error por campo. Que ninguna regla quede sin texto lo cuida `ValidationMessageTests`.
+
 ## Opciones, capacidad e importación de catálogos
 
 Eliminar opciones: borra la que no se usa y renumera, libera su código en el mismo guardado, rechaza una ajena, editada o movida en el pedido y responde `ItemInUse` con los usos de la primera usada sin guardar; el validador rechaza identidades repetidas o vacías.
