@@ -30,6 +30,7 @@ vino de tres prácticas que ninguna fuente prohibía:
 2. **Verificación por paso.** En cada corte: build y los tests del área afectada (`--filter-class`, o los del proyecto
    tocado; en el front, `tsc`, `lint` y los tests de la feature). Al cerrar un paso o un desarrollo: la suite completa
    con Docker, `npm run build`, `lint` y `test` completos y, si hay cambios visuales, el recorrido en el navegador.
+   Enmendado el 2026-11-13: la suite completa va una sola vez, al cerrar el desarrollo (ver [Enmiendas](#enmiendas)).
 3. **El contrato es el código.** Entre backend y front, el contrato son los DTO, el OpenAPI y los ejemplos de respuesta
    que exporta el backend para el front; no se escriben contratos en Markdown antes del código. Planes, arranques y
    revisiones se actualizan al cerrar cada paso, con un resumen corto: qué quedó, cómo se probó y qué falta.
@@ -52,3 +53,14 @@ vino de tres prácticas que ninguna fuente prohibía:
   la suite del cierre del paso no compensa.
 - **Contratos en Markdown como fuente:** duplican el código, se desactualizan y no se pueden verificar; los ejemplos
   exportados sí.
+
+## Enmiendas
+
+**Enmienda (2026-11-13, a pedido del usuario):** la corrida completa ya no cierra cada paso o etapa. Va una sola vez,
+al cerrar el desarrollo, y si varios chats trabajan a la vez la corre una sola sesión, con la PC quieta, cuando terminan
+todos. Al terminar una tarea o etapa alcanza con el build sin advertencias, los proyectos unitarios y `ArchitectureTests`
+enteros y los tests de integración de lo que cambió; el detalle está en
+[validar un cambio](../guides/validar-un-cambio.md#verificación-y-cierre). El motivo es el de la alternativa descartada:
+la suite pasó de 2.605 tests y 22 minutos a unos 10.600 casos y más de una hora por corrida, y con muchos chats a la vez
+cada corrida compite por la misma PC. Lo que una tarea rompa en otra área lo detecta la corrida del cierre, que sigue
+siendo obligatoria para dar el desarrollo por cerrado.

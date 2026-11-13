@@ -119,8 +119,10 @@ que no se vuelven a preguntar.
   su texto (H13). Cada tarea vuelve a leer sus archivos antes de empezar.
 
 **Cómo se trabaja.** Cada tarea sigue [validar un cambio](../guides/validar-un-cambio.md): el test en
-rojo primero, una revisión adversarial antes del commit y las suites rápidas del área. Cada etapa
-cierra con la suite completa con Docker y, si tocó el front, con sus controles. Además:
+rojo primero y las suites rápidas del área; si toca datos, permisos, la cola de salida o Meta, una
+revisión adversarial antes del commit. Cada etapa cierra con los unitarios y `ArchitectureTests`
+enteros y la integración de lo que cambió; la suite completa con Docker la corre la coordinadora una
+sola vez, al final de la tanda (decidido el 2026-11-13). Además:
 
 - una regla escrita que cambia se corrige con su arreglo, no antes, en [WhatsApp](../features/whatsapp.md),
   en sus [servicios](../features/whatsapp-servicios.md) y en los `AGENTS.md` que la repiten. La cadena
