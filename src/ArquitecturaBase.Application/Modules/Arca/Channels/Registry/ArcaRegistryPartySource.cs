@@ -7,6 +7,7 @@ using ArquitecturaBase.Application.Modules.Arca.Services.Registry;
 using ArquitecturaBase.Domain.Modules.Arca;
 using ArquitecturaBase.Domain.Modules.Arca.Connection;
 using ArquitecturaBase.Domain.Results;
+using ArquitecturaBase.Domain.ValueObjects;
 
 namespace ArquitecturaBase.Application.Modules.Arca.Channels.Registry;
 

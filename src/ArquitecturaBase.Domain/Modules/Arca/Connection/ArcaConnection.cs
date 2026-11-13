@@ -1,5 +1,6 @@
 using ArquitecturaBase.Domain.Common;
 using ArquitecturaBase.Domain.Results;
+using ArquitecturaBase.Domain.ValueObjects;
 
 namespace ArquitecturaBase.Domain.Modules.Arca.Connection;
 

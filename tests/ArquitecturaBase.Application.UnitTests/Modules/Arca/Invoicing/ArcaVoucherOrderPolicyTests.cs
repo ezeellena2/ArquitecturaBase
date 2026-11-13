@@ -25,6 +25,7 @@ public sealed class ArcaVoucherOrderPolicyTests
 
     [Theory]
     [InlineData(80, 30712345672L, 1)]
+    [InlineData(80, 0L, 1)]
     [InlineData(99, 30712345671L, 5)]
     [InlineData(99, 0L, 1)]
     [InlineData(96, 0L, 5)]

@@ -8,6 +8,7 @@ using ArquitecturaBase.Application.Modules.Arca.Models.Connection;
 using ArquitecturaBase.Domain.Modules.Arca;
 using ArquitecturaBase.Domain.Modules.Arca.Connection;
 using ArquitecturaBase.Domain.Results;
+using ArquitecturaBase.Domain.ValueObjects;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 

@@ -2,6 +2,7 @@ using System.Text;
 using ArquitecturaBase.Application.Modules.Arca.Interfaces.Integrations.Connection;
 using ArquitecturaBase.Application.Modules.Arca.Models.Connection;
 using ArquitecturaBase.Domain.Modules.Arca.Connection;
+using ArquitecturaBase.Domain.ValueObjects;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Playwright;

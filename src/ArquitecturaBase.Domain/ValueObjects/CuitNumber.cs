@@ -2,8 +2,7 @@ namespace ArquitecturaBase.Domain.ValueObjects;
 
 /// <summary>
 /// La CUIT o el CUIL: once dígitos con el verificador de módulo 11 (pesos 5, 4, 3, 2, 7, 6, 5, 4, 3, 2; un resto que deja 11 es
-/// 0 y uno que deja 10 nunca es válido). Es del núcleo: la usan las validaciones fijas de los formularios. ARCA tiene por ahora la
-/// suya, con la misma forma.
+/// 0 y uno que deja 10 nunca es válido). Es del núcleo: la usa todo lo que valida una CUIT o un CUIL.
 /// </summary>
 public static class CuitNumber
 {

@@ -1,4 +1,4 @@
-using ArquitecturaBase.Domain.Modules.Arca.Connection;
+using ArquitecturaBase.Domain.ValueObjects;
 
 namespace ArquitecturaBase.Infrastructure.Modules.Arca.Connection.Robot;
 

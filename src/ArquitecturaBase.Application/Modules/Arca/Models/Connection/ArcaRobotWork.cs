@@ -1,4 +1,5 @@
 using ArquitecturaBase.Domain.Modules.Arca.Connection;
+using ArquitecturaBase.Domain.ValueObjects;
 
 namespace ArquitecturaBase.Application.Modules.Arca.Models.Connection;
 

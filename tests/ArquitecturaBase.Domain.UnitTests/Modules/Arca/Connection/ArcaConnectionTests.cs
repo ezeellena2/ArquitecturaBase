@@ -31,6 +31,14 @@ public sealed class ArcaConnectionTests
         Assert.Equal(ArcaConnectionErrors.CuitInvalid, result.Error);
     }
 
+    // Task 17 of the documents: ARCA validates with the core's CUIT, so eleven zeros are no CUIT and any space or dash separates.
+    [Fact]
+    public void The_cuit_follows_the_rule_of_the_core()
+    {
+        Assert.Equal(ArcaConnectionErrors.CuitInvalid, ArcaConnection.Start("00000000000", ArcaEnvironment.Testing, [Invoicing], Installed, Required).Error);
+        Assert.Equal("30710001231", ArcaConnection.Start("30–71000123–1", ArcaEnvironment.Testing, [Invoicing], Installed, Required).Value.Cuit);
+    }
+
     [Fact]
     public void A_required_service_is_always_chosen_and_the_codes_are_kept_once_in_order()
     {

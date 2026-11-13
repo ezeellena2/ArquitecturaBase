@@ -70,7 +70,9 @@ revisión esperada y responden 409 con `Arca.Connection.RevisionConflict` si cam
 - **Límites por operador** (`Arca:RateLimiting`): lectura, escritura y `arca-remote`, que cubre lo que llama a ARCA
   (subir, probar, listar y elegir el punto de venta). Los cuerpos tienen 16 KiB como mucho. El padrón de un tercero, que se
   pide desde formularios, tiene su propio cupo por persona (`Arca:Registry`, en «Completar con ARCA»).
-- **Contratos:** el `ToString` de los pedidos enmascara la CUIT y oculta el certificado.
+- **Contratos:** el `ToString` de los pedidos enmascara la CUIT y oculta el certificado. Toda CUIT del módulo (la de la conexión, la de
+  la plataforma, la de quien entra con el robot, la del padrón y la del receptor) se valida con el `CuitNumber` del núcleo
+  (`Domain/ValueObjects`): once dígitos con su verificador, cualquier espacio o guion como separador y nunca once ceros.
 
 ## Certificado y credenciales
 
