@@ -13,7 +13,8 @@ namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 /// Probar (AS3): the context of a test, rebuilt the same way to start it and to read it, and what a conversation would get from its
 /// proposals, checked like a conversation checks them (without spending its daily limit).
 /// </summary>
-internal sealed class WhatsAppAssistantAgentTestPolicy(IWhatsAppFormRecipientReader recipients, ISystemSettingsReader settings, IStructuredFormSource forms)
+internal sealed class WhatsAppAssistantAgentTestPolicy(IWhatsAppFormRecipientReader recipients, ISystemSettingsReader settings, IStructuredFormSource forms,
+    IStructuredRecordSource records)
 {
     public const string ChannelId = "whatsapp-assistant-test";
 
@@ -30,7 +31,10 @@ internal sealed class WhatsAppAssistantAgentTestPolicy(IWhatsAppFormRecipientRea
         new(WhatsAppAssistantAgentCapabilitySource.ReplyId, 1), new(WhatsAppAssistantAgentCapabilitySource.DraftId, 1),
     ];
 
-    /// <summary>The tester is the Actor and the chosen account the Subject; the conversation is that account's chat.</summary>
+    /// <summary>
+    /// The tester is the Actor and the chosen account the Subject; the conversation is that account's chat. The model reads its real
+    /// history, so the engine also asks the tester to read WhatsApp chats (H4).
+    /// </summary>
     public async Task<Result<AssistantChannelContext>> ContextAsync(Guid actorUserId, Guid contactId, CancellationToken ct)
     {
         var recipient = await recipients.FindAsync(contactId, ct);
@@ -38,15 +42,25 @@ internal sealed class WhatsAppAssistantAgentTestPolicy(IWhatsAppFormRecipientRea
         var presentation = await settings.FindPresentationAsync(ct);
         if (!TimeZoneInfo.TryFindSystemTimeZoneById(presentation.DefaultTimeZoneId, out _)) return WhatsAppAssistantErrors.Unavailable;
         return new AssistantChannelContext(ChannelId, actorUserId, subject, recipient.Culture, presentation.DefaultTimeZoneId,
-            new([WhatsAppPermissions.ConfigureAssistant], []), Capabilities, [new("assistant_proposal", 2)])
+            new([WhatsAppPermissions.ConfigureAssistant, WhatsAppPermissions.Read], []), Capabilities, [new("assistant_proposal", 2)])
         { InteractionMode = AssistantInteractionMode.Assistant, ChannelConversationId = contactId, PreloadedCapabilities = Preloaded };
     }
 
     /// <summary>
     /// The actions in their order: the agent's with the texts saved now (or the handoff that replaces what does not pass) and the
-    /// forms with what they would fill. A proposal that no longer reads is left out.
+    /// forms with what they would fill. A proposal that no longer reads is left out. Why the model chose and what a form would fill
+    /// are values of records: only a tester who reads them sees them (H4).
     /// </summary>
     public async Task<IReadOnlyList<WhatsAppAssistantAgentTestAction>> ActionsAsync(AssistantOperationResponse operation, WhatsAppAssistantAgentRow agent,
+        AssistantChannelContext context, CancellationToken ct)
+    {
+        var actions = await StepsAsync(operation, agent, context, ct);
+        return actions.Count == 0 || (await records.ReadAsync(context.ActorUserId, context.Culture, [], ct)).CanReadRecords
+            ? actions
+            : WithoutRecordValues(actions);
+    }
+
+    private async Task<IReadOnlyList<WhatsAppAssistantAgentTestAction>> StepsAsync(AssistantOperationResponse operation, WhatsAppAssistantAgentRow agent,
         AssistantChannelContext context, CancellationToken ct)
     {
         var proposals = WhatsAppAssistantReplyPolicy.Proposals(operation);
@@ -61,6 +75,18 @@ internal sealed class WhatsAppAssistantAgentTestPolicy(IWhatsAppFormRecipientRea
                 context.Culture, failure).Steps.Select(Action)];
         return [.. steps.Select(Action)];
     }
+
+    /// <summary>
+    /// What a tester without permission to read records sees (H4): nothing the model wrote, which may repeat a notice with the values
+    /// of a response (why it chose and a drafted text), nor what a form would fill. The business's own texts stay.
+    /// </summary>
+    public static IReadOnlyList<WhatsAppAssistantAgentTestAction> WithoutRecordValues(IReadOnlyList<WhatsAppAssistantAgentTestAction> actions) =>
+        [.. actions.Select(action => action with
+        {
+            Reason = "",
+            Text = action.Kind == WhatsAppAssistantActionKind.DraftedReply ? null : action.Text,
+            Form = action.Form is { } form ? form with { Fields = [] } : null,
+        })];
 
     private async Task<WhatsAppAssistantAgentTestAction?> FormAsync(AssistantObservedProposal proposal, AssistantChannelContext context, CancellationToken ct)
     {

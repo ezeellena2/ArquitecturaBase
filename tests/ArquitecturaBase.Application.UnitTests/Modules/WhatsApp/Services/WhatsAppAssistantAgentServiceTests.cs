@@ -209,7 +209,7 @@ public sealed class WhatsAppAssistantAgentServiceTests
         public void Add(WhatsAppAssistantAgent agent) { Added.Add(agent); Main = agent; }
         public Task<WhatsAppAssistantAgentRow?> FindMainAsync(CancellationToken cancellationToken) => Task.FromResult(Main is { } agent
             ? new WhatsAppAssistantAgentRow(agent.Revision, agent.OriginalCulture, agent.Profile, agent.Cases, agent.Fallback, agent.Limits) : null);
-        public Task<IReadOnlyList<WhatsAppAssistantTestRecipientRow>> ListTestRecipientsAsync(string? search, int limit, CancellationToken cancellationToken) =>
+        public Task<IReadOnlyList<WhatsAppAssistantTestRecipientRow>> ListTestRecipientsAsync(string? search, bool withEmail, int limit, CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<WhatsAppAssistantTestRecipientRow>>([]);
     }
 

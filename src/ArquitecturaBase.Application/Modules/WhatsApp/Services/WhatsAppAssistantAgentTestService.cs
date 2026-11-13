@@ -16,7 +16,8 @@ namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 
 /// <summary>
 /// Probar (AS3). It only submits and reads an operation of the engine in its own channel: no unit of work of the channel, no queue,
-/// no WhatsApp limit. The tester needs «Configurar el asistente» (the route) and the saved agent; the engine charges its own quota.
+/// no WhatsApp limit. The tester needs «Configurar el asistente» and, because the model reads the real chat, to read WhatsApp chats
+/// (the routes and the engine's context, H4), and the saved agent; the engine charges its own quota.
 /// </summary>
 internal sealed class WhatsAppAssistantAgentTestService(IWhatsAppAssistantAgentReader agents, IAssistantOperations operations, ICurrentUser currentUser,
     IRequestValidator validator, IPermissionService permissions, WhatsAppAssistantAgentTestPolicy tests, TimeProvider clock,
@@ -29,10 +30,11 @@ internal sealed class WhatsAppAssistantAgentTestService(IWhatsAppAssistantAgentR
         {
             if (currentUser.UserId is not { } actor) return WhatsAppAssistantErrors.SessionRequired;
             var text = search?.Trim();
-            var rows = await agents.ListTestRecipientsAsync(string.IsNullOrEmpty(text) ? null : text[..Math.Min(text.Length, 100)], MaxRecipients, cancellationToken);
-            // The email of an account is shown only to someone who can read accounts.
+            // The email of an account is searched and shown only to someone who can read accounts.
             var emails = await permissions.HasPermissionAsync(actor, Permissions.Users.Read, cancellationToken);
-            return new WhatsAppAssistantTestRecipientsResponse([.. rows.Select(row => emails ? row : row with { Email = null })]);
+            var rows = await agents.ListTestRecipientsAsync(string.IsNullOrEmpty(text) ? null : text[..Math.Min(text.Length, 100)], emails, MaxRecipients,
+                cancellationToken);
+            return new WhatsAppAssistantTestRecipientsResponse(rows);
         });
 
     public Task<Result<WhatsAppAssistantAgentTestAcceptedResponse>> StartAsync(StartWhatsAppAssistantAgentTestRequest request, CancellationToken cancellationToken)
@@ -73,4 +75,5 @@ internal sealed class WhatsAppAssistantAgentTestService(IWhatsAppAssistantAgentR
                 _ => new WhatsAppAssistantAgentTestResponse(requestId, "failed", operation.Value.FailureCode ?? WhatsAppAssistantErrors.Unavailable.Code, []),
             };
         });
+
 }

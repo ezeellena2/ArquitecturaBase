@@ -33,8 +33,12 @@ public sealed class WhatsAppAssistantAgentController(IWhatsAppAssistantAgentServ
     public async Task<IActionResult> Update([FromBody] UpdateWhatsAppAssistantAgentHttpRequest request, CancellationToken cancellationToken) =>
         (await service.UpdateAsync(WhatsAppAssistantAgentRequestMapping.Map(request), cancellationToken)).ToActionResult(this);
 
-    /// <summary>Probar (AS3): what the assistant would do with what is saved, as an account linked to WhatsApp. Nothing is sent.</summary>
+    /// <summary>
+    /// Probar (AS3): what the assistant would do with what is saved, as an account linked to WhatsApp. Nothing is sent. The model
+    /// reads that account's real chat, so the three routes of Probar also need to read WhatsApp chats (H4).
+    /// </summary>
     [HttpPost("tests")]
+    [HasPermission(WhatsAppPermissions.Read)]
     [EnableRateLimiting(WhatsAppApiRegistration.ChatWriteRateLimitPolicy)]
     [ProducesResponseType<WhatsAppAssistantAgentTestAcceptedResponse>(StatusCodes.Status202Accepted)]
     [ProducesProblem(StatusCodes.Status400BadRequest)]
@@ -44,12 +48,14 @@ public sealed class WhatsAppAssistantAgentController(IWhatsAppAssistantAgentServ
         (await tests.StartAsync(new(request.RequestId, request.ContactId, request.Messages), cancellationToken)).ToAcceptedResult(this);
 
     [HttpGet("tests/{requestId:guid}")]
+    [HasPermission(WhatsAppPermissions.Read)]
     [ProducesResponseType<WhatsAppAssistantAgentTestResponse>(StatusCodes.Status200OK)]
     [ProducesProblem(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetTest(Guid requestId, [FromQuery] WhatsAppAssistantAgentTestQuery query, CancellationToken cancellationToken) =>
         (await tests.GetAsync(requestId, query.ContactId, cancellationToken)).ToActionResult(this);
 
     [HttpGet("test-recipients")]
+    [HasPermission(WhatsAppPermissions.Read)]
     [ProducesResponseType<WhatsAppAssistantTestRecipientsResponse>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ListTestRecipients([FromQuery] WhatsAppAssistantTestRecipientsQuery query, CancellationToken cancellationToken) =>
         (await tests.ListRecipientsAsync(query.Search, cancellationToken)).ToActionResult(this);

@@ -421,7 +421,7 @@ public sealed class WhatsAppAssistantAgentCapabilitySourceTests
     {
         public Task<WhatsAppAssistantAgentRow?> FindMainAsync(CancellationToken cancellationToken) => Task.FromResult(agent);
 
-        public Task<IReadOnlyList<WhatsAppAssistantTestRecipientRow>> ListTestRecipientsAsync(string? search, int limit, CancellationToken cancellationToken) =>
+        public Task<IReadOnlyList<WhatsAppAssistantTestRecipientRow>> ListTestRecipientsAsync(string? search, bool withEmail, int limit, CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<WhatsAppAssistantTestRecipientRow>>([]);
     }
 

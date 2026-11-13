@@ -108,8 +108,8 @@ public sealed class WhatsAppAssistantAgentEndpointsTests(ApiFactory factory)
     public async Task Probar_writes_as_a_linked_account_in_its_own_channel_and_shows_what_would_go_out()
     {
         await using var host = await Host.CreateAsync(factory, Ct);
-        var manager = await host.OperatorAsync(WhatsAppPermissions.ConfigureAssistant, Permissions.Users.Read);
-        var configurer = await host.OperatorAsync(WhatsAppPermissions.ConfigureAssistant);
+        var manager = await host.OperatorAsync(WhatsAppPermissions.ConfigureAssistant, WhatsAppPermissions.Read, Permissions.Users.Read, "formrecords.read");
+        var configurer = await host.OperatorAsync(WhatsAppPermissions.ConfigureAssistant, WhatsAppPermissions.Read);
         var contactId = await host.LinkedContactAsync("Ana Gómez", "ana.probar@example.com");
         using (var saved = await host.SendAsync("PUT", Route, manager, Agent(0))) Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
 
@@ -130,6 +130,7 @@ public sealed class WhatsAppAssistantAgentEndpointsTests(ApiFactory factory)
         Assert.Equal(("whatsapp-assistant-test", manager, (Guid?)contactId, "Hola\n¿A qué hora abren?"),
             (submitted.Context.ChannelId, submitted.Context.ActorUserId, submitted.Context.ChannelConversationId, submitted.Text));
         Assert.Contains(new AssistantCapabilityReference("whatsapp.reply", 1), submitted.Context.AllowedCapabilities);
+        Assert.Contains(WhatsAppPermissions.Read, submitted.Context.RequiredPermissions.Actor);
 
         using var pending = await host.SendAsync("GET", Route + $"/tests/{requestId}?contactId={contactId}", manager);
         Assert.Equal("pending", (await pending.ReadJsonAsync()).GetProperty("state").GetString());
@@ -144,6 +145,9 @@ public sealed class WhatsAppAssistantAgentEndpointsTests(ApiFactory factory)
         var action = Assert.Single(result.GetProperty("actions").EnumerateArray());
         Assert.Equal(("ExactText", "Own", "Pregunta por el horario", "Abrimos de 9 a 18."), (action.GetProperty("kind").GetString(),
             action.GetProperty("caseSource").GetString(), action.GetProperty("caseTitle").GetString(), action.GetProperty("text").GetString()));
+        // Whoever reads records sees why (H4); without the forms module nobody reads records, so nobody does.
+        if (host.App.Services.GetService<ArquitecturaBase.Api.IntegrationTests.TestFeatures.IStructuredFormPublicationDriver>() is not null)
+            Assert.Equal("Pregunta el horario.", action.GetProperty("reason").GetString());
         await WhatsAppAssistantAgentContractCapture.WriteAsync(completed, "test-completed", Ct);
     }
 
@@ -151,7 +155,7 @@ public sealed class WhatsAppAssistantAgentEndpointsTests(ApiFactory factory)
     public async Task Probar_needs_one_to_five_messages_and_an_account_linked_to_a_chat()
     {
         await using var host = await Host.CreateAsync(factory, Ct);
-        var manager = await host.OperatorAsync(WhatsAppPermissions.ConfigureAssistant);
+        var manager = await host.OperatorAsync(WhatsAppPermissions.ConfigureAssistant, WhatsAppPermissions.Read);
         var contactId = await host.LinkedContactAsync("Bruno Díaz", "bruno.probar@example.com");
         using (var saved = await host.SendAsync("PUT", Route, manager, Agent(0))) Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
 
@@ -165,6 +169,54 @@ public sealed class WhatsAppAssistantAgentEndpointsTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.NotFound, unknown.StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
         Assert.Empty(host.Operations.Submitted);
+    }
+
+    // H4: Probar is for someone who reads WhatsApp chats, the email is searched and shown only with users.read, and without reading
+    // records a test shows neither why nor what a form would fill.
+    [Fact]
+    public async Task Probar_follows_the_permissions_of_who_tests()
+    {
+        await using var host = await Host.CreateAsync(factory, Ct);
+        var manager = await host.OperatorAsync(WhatsAppPermissions.ConfigureAssistant, WhatsAppPermissions.Read, Permissions.Users.Read);
+        var tester = await host.OperatorAsync(WhatsAppPermissions.ConfigureAssistant, WhatsAppPermissions.Read);
+        var configurer = await host.OperatorAsync(WhatsAppPermissions.ConfigureAssistant);
+        var contactId = await host.LinkedContactAsync("Carla Ruiz", "carla.reservada@example.com");
+        var nameless = await host.LinkedContactAsync(null, "sin.nombre.reservado@example.com", "Perfil de WhatsApp");
+        var unnamed = await host.LinkedContactAsync(null, "sin.nada.reservado@example.com", "");
+        using (var saved = await host.SendAsync("PUT", Route, manager, Agent(0))) Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+
+        using var byEmail = await host.SendAsync("GET", Route + "/test-recipients?search=carla.reservada", manager);
+        using var hiddenEmail = await host.SendAsync("GET", Route + "/test-recipients?search=carla.reservada", tester);
+        using var byName = await host.SendAsync("GET", Route + "/test-recipients?search=carla", tester);
+        using var namelessForManager = await host.SendAsync("GET", Route + "/test-recipients?search=sin.nombre.reservado", manager);
+        using var namelessForTester = await host.SendAsync("GET", Route + "/test-recipients?search=perfil de whatsapp", tester);
+        using var emailOfNameless = await host.SendAsync("GET", Route + "/test-recipients?search=sin.nombre.reservado", tester);
+        Assert.Equal("carla.reservada@example.com", Assert.Single((await byEmail.ReadJsonAsync()).GetProperty("items").EnumerateArray()).GetProperty("email").GetString());
+        Assert.Empty((await hiddenEmail.ReadJsonAsync()).GetProperty("items").EnumerateArray());
+        var found = Assert.Single((await byName.ReadJsonAsync()).GetProperty("items").EnumerateArray());
+        Assert.Equal((contactId, "Carla Ruiz", JsonValueKind.Null), (found.GetProperty("contactId").GetGuid(), found.GetProperty("name").GetString(), found.GetProperty("email").ValueKind));
+        Assert.Equal("sin.nombre.reservado@example.com", Assert.Single((await namelessForManager.ReadJsonAsync()).GetProperty("items").EnumerateArray()).GetProperty("name").GetString());
+        var withoutEmail = Assert.Single((await namelessForTester.ReadJsonAsync()).GetProperty("items").EnumerateArray());
+        Assert.Equal((nameless, "Perfil de WhatsApp", JsonValueKind.Null), (withoutEmail.GetProperty("contactId").GetGuid(), withoutEmail.GetProperty("name").GetString(), withoutEmail.GetProperty("email").ValueKind));
+        Assert.Empty((await emailOfNameless.ReadJsonAsync()).GetProperty("items").EnumerateArray());
+        using var everyone = await host.SendAsync("GET", Route + "/test-recipients?search=%2B", tester);
+        Assert.StartsWith("+", (await everyone.ReadJsonAsync()).GetProperty("items").EnumerateArray()
+            .Single(item => item.GetProperty("contactId").GetGuid() == unnamed).GetProperty("name").GetString(), StringComparison.Ordinal);
+
+        var requestId = Guid.NewGuid();
+        using var list = await host.SendAsync("GET", Route + "/test-recipients", configurer);
+        using var start = await host.SendAsync("POST", Route + "/tests", configurer, new { requestId, contactId, messages = new[] { "Hola" } });
+        using var read = await host.SendAsync("GET", Route + $"/tests/{requestId}?contactId={contactId}", configurer);
+        Assert.All(new[] { list, start, read }, response => Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode));
+        Assert.Empty(host.Operations.Submitted);
+
+        using var started = await host.SendAsync("POST", Route + "/tests", tester, new { requestId, contactId, messages = new[] { "¿A qué hora abren?" } });
+        Assert.Equal(HttpStatusCode.Accepted, started.StatusCode);
+        host.Operations.Complete(requestId, new AssistantObservedProposal(Guid.NewGuid(), Guid.NewGuid(), new("whatsapp.reply", 1),
+            new WhatsAppAssistantReplyPayload("exactText", "own", Hours, "Pregunta por el horario", "Leyó el aviso con el total.", "Abrimos de 9 a 18.", null, null, null)));
+        using var completed = await host.SendAsync("GET", Route + $"/tests/{requestId}?contactId={contactId}", tester);
+        var action = Assert.Single((await completed.ReadJsonAsync()).GetProperty("actions").EnumerateArray());
+        Assert.Equal(("Abrimos de 9 a 18.", ""), (action.GetProperty("text").GetString(), action.GetProperty("reason").GetString()));
     }
 
     private static object Agent(long revision, string when = "Pregunta por el horario", string buttonTitle = "Sí") => new
@@ -287,7 +339,7 @@ public sealed class WhatsAppAssistantAgentEndpointsTests(ApiFactory factory)
             return userId;
         }
 
-        public async Task<Guid> LinkedContactAsync(string name, string email)
+        public async Task<Guid> LinkedContactAsync(string? name, string email, string? profileName = null)
         {
             await using var scope = App.Services.CreateAsyncScope();
             Guid contactId = Guid.Empty;
@@ -295,7 +347,7 @@ public sealed class WhatsAppAssistantAgentEndpointsTests(ApiFactory factory)
             {
                 var phone = PhoneNumber.Create("+" + MetaWebhook.UniqueWaId()).Value;
                 var user = await scope.ServiceProvider.GetRequiredService<IUserRepository>().CreateAsync(Email.Create(email).Value, phone, true, name, "es", token);
-                var contact = WhatsAppContact.Create(phone.Value[1..], MetaWebhook.UniqueBsuid(), name,
+                var contact = WhatsAppContact.Create(phone.Value[1..], MetaWebhook.UniqueBsuid(), profileName ?? name,
                     scope.ServiceProvider.GetRequiredService<TimeProvider>().GetUtcNow().UtcDateTime);
                 contact.LinkUser(user.Id);
                 scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Add(contact);

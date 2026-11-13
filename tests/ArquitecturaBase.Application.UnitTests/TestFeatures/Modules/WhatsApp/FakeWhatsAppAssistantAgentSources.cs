@@ -11,11 +11,11 @@ internal sealed class FakeWhatsAppAssistantAgentReader : IWhatsAppAssistantAgent
     public Task<WhatsAppAssistantAgentRow?> FindMainAsync(CancellationToken cancellationToken) => Task.FromResult(Agent);
 
     public List<WhatsAppAssistantTestRecipientRow> Recipients { get; } = [];
-    public (string? Search, int Limit)? Listed { get; private set; }
+    public (string? Search, bool WithEmail, int Limit)? Listed { get; private set; }
 
-    public Task<IReadOnlyList<WhatsAppAssistantTestRecipientRow>> ListTestRecipientsAsync(string? search, int limit, CancellationToken cancellationToken)
+    public Task<IReadOnlyList<WhatsAppAssistantTestRecipientRow>> ListTestRecipientsAsync(string? search, bool withEmail, int limit, CancellationToken cancellationToken)
     {
-        Listed = (search, limit);
+        Listed = (search, withEmail, limit);
         return Task.FromResult<IReadOnlyList<WhatsAppAssistantTestRecipientRow>>([.. Recipients.Take(limit)]);
     }
 }
