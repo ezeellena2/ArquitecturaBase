@@ -66,6 +66,7 @@ internal sealed class WhatsAppAssistantSuggestionFixture
     public sealed class SessionRepository : IWhatsAppFlowSessionRepository
     {
         public Task<IReadOnlyList<WhatsAppFlowLocationWait>> ListAwaitingLocationAsync(Guid contactId, DateTime nowUtc, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<WhatsAppFlowLocationWait>>([]);
+        public Task<IReadOnlyList<WhatsAppFlowOpenSend>> ListOpenAsync(Guid contactId, DateTime nowUtc, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<WhatsAppFlowOpenSend>>([]);
         public List<WhatsAppFlowSession> Rows {get;}=[];
         public Task<WhatsAppFlowSession?> GetAsync(Guid id,CancellationToken ct)=>Task.FromResult(Rows.SingleOrDefault(row=>row.Id==id));
         public void Add(WhatsAppFlowSession row)=>Rows.Add(row);
@@ -78,6 +79,9 @@ internal sealed class WhatsAppAssistantSuggestionFixture
         public WhatsAppFlowSessionPayload Read(Guid sessionId,Guid contactId,Guid userId,Guid versionId,byte[] payload)=>Payload!;
         public byte[] ProtectAssistant(Guid sessionId,Guid contactId,Guid userId,Guid versionId,WhatsAppFlowAssistantContent content) {Content=content;return [2];}
         public WhatsAppFlowAssistantContent ReadAssistant(Guid sessionId,Guid contactId,Guid userId,Guid versionId,byte[] content)=>Content!;
+        public WhatsAppFlowSharedValues? Shared {get;set;}
+        public byte[] ProtectShared(Guid sessionId,Guid contactId,Guid userId,Guid versionId,WhatsAppFlowSharedValues values) {Shared=values;return [3];}
+        public WhatsAppFlowSharedValues ReadShared(Guid sessionId,Guid contactId,Guid userId,Guid versionId,byte[] values)=>Shared!;
     }
     public sealed class Repository : IWhatsAppAssistantRepository
     {

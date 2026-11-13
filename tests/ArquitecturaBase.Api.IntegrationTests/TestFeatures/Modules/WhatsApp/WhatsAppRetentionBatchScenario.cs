@@ -24,7 +24,7 @@ internal sealed class WhatsAppRetentionBatchScenario : IAsyncDisposable
             .AddScoped<IWhatsAppMessageRetentionRepository,Repository>().AddScoped<Transaction>().AddScoped<IUnitOfWork>(services=>services.GetRequiredService<Transaction>())
             .AddScoped<IWhatsAppAssistantContentRetentionService>(services=>new WhatsAppAssistantContentRetentionService(
                 services.GetRequiredService<IWhatsAppMessageRetentionRepository>(),services.GetRequiredService<IUnitOfWork>(),clock,
-                NullLogger<WhatsAppAssistantContentRetentionService>.Instance)).BuildServiceProvider();
+                new(90),NullLogger<WhatsAppAssistantContentRetentionService>.Instance)).BuildServiceProvider();
         Service=new(provider.GetRequiredService<IServiceScopeFactory>(),Options.Create(new WhatsAppMessageRetentionOptions()),clock,
             NullLogger<WhatsAppMessageRetentionService>.Instance);
     }
@@ -36,6 +36,8 @@ internal sealed class WhatsAppRetentionBatchScenario : IAsyncDisposable
         {Assert.False(transaction.Open);return Task.FromResult(0);}
         public Task<int> ClearExpiredAssistantContentAsync(DateTime nowUtc,int limit,CancellationToken ct)
         {Assert.True(transaction.Open);Assert.Equal(500,limit);host.RepositoryInstances.Add(id);return Task.FromResult(host.Batches.Dequeue());}
+        public Task<int> ClearExpiredSharedValuesAsync(DateTime cutoffUtc,int limit,CancellationToken ct)
+        {Assert.True(transaction.Open);Assert.Equal(500,limit);return Task.FromResult(0);}
         public void Dispose()=>host.DisposedRepositories++;
     }
     private sealed class Transaction(WhatsAppRetentionBatchScenario host) : IUnitOfWork

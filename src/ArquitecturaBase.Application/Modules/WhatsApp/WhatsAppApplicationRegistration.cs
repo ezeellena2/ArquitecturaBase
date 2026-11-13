@@ -43,6 +43,7 @@ public static class WhatsAppApplicationRegistration
         services.AddScoped<IWhatsAppFlowLocationService, WhatsAppFlowLocationService>();
         services.AddScoped<WhatsAppManualSendGuard>();
         services.AddScoped<WhatsAppOutgoingSendGuard>();
+        services.AddScoped<WhatsAppSharedContentGuard>();
         services.AddScoped<WhatsAppAssistantPresentationPolicy>();
         services.AddScoped<WhatsAppAssistantAccessPolicy>();
         services.AddScoped<WhatsAppAssistantSuggestionPolicy>();

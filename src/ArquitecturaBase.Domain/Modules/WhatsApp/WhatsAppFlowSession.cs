@@ -4,7 +4,7 @@ namespace ArquitecturaBase.Domain.Modules.WhatsApp;
 
 public enum WhatsAppFlowCaptureState { Pending, Completed, Rejected, Unrecognized }
 
-public sealed class WhatsAppFlowSession : Entity, IAuditable
+public sealed partial class WhatsAppFlowSession : Entity, IAuditable
 {
     private WhatsAppFlowSession() { }
     public Guid ContactId { get; private set; }

@@ -87,12 +87,28 @@ internal static class WhatsAppFlowLocationPolicy
         if (session.LocationState is not (WhatsAppFlowLocationState.Received or WhatsAppFlowLocationState.Skipped) || session.FlowBody is not { } body
             || request.Kind != WhatsAppOutgoingMessageKind.LocationRequest || request.FlowSessionId != session.Id)
             throw new InvalidOperationException("Only a send with its location resolved opens its Flow, after its own request.");
-        var flow = request.Origin == WhatsAppMessageOrigin.Assistant
-            ? WhatsAppOutgoingMessage.CreateAssistantFlow(request.RecipientUserId!.Value, session.ContactId, Guid.CreateVersion7(), body, session.Id,
-                nowUtc, request.RecipientLinkRevision!.Value, request.RecipientWaId!, request.AssistantModeRevision!.Value)
-            : WhatsAppOutgoingMessage.CreateFlow(request.OperatorUserId!.Value, session.ContactId, Guid.CreateVersion7(), body, session.Id, nowUtc);
-        return Attached(flow, session);
+        return Continue(session, request, body, nowUtc);
     }
+
+    /// <summary>
+    /// W3: the resend of the form of an open send, with the message that names what the person shared. It continues the first message
+    /// of the send (its Flow, or its location request) like the Flow after a location, from the same sender and with its seal, and
+    /// carries the mark that leaves it out of «Por qué lo mandó» and of the offers.
+    /// </summary>
+    public static WhatsAppOutgoingMessage Resend(WhatsAppFlowSession session, WhatsAppOutgoingMessage first, string body, DateTime nowUtc)
+    {
+        if (first.FlowSessionId != session.Id || first.IsResend || first.Kind is not (WhatsAppOutgoingMessageKind.Flow or WhatsAppOutgoingMessageKind.LocationRequest))
+            throw new InvalidOperationException("A resend continues the first message of its own send.");
+        var resend = Continue(session, first, body, nowUtc);
+        resend.MarkResend();
+        return resend;
+    }
+
+    private static WhatsAppOutgoingMessage Continue(WhatsAppFlowSession session, WhatsAppOutgoingMessage first, string body, DateTime nowUtc) =>
+        Attached(first.Origin == WhatsAppMessageOrigin.Assistant
+            ? WhatsAppOutgoingMessage.CreateAssistantFlow(first.RecipientUserId!.Value, session.ContactId, Guid.CreateVersion7(), body, session.Id,
+                nowUtc, first.RecipientLinkRevision!.Value, first.RecipientWaId!, first.AssistantModeRevision!.Value)
+            : WhatsAppOutgoingMessage.CreateFlow(first.OperatorUserId!.Value, session.ContactId, Guid.CreateVersion7(), body, session.Id, nowUtc), session);
 
     /// <summary>The answer of the location question as its owner reads a location; WhatsApp gives no accuracy.</summary>
     public static string? Answer(WhatsAppFlowLocationState state, decimal? latitude, decimal? longitude) =>

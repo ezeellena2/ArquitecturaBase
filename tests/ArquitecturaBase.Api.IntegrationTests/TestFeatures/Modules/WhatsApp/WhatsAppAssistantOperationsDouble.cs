@@ -69,11 +69,19 @@ internal sealed class WhatsAppAssistantFormSource : IStructuredFormSource
     public bool WithLocation { get; set; }
     public bool LocationOptional { get; set; }
     public Guid LocationFieldId { get; } = Guid.NewGuid();
+    /// <summary>W3: the form also has text questions that receive the location and the contact the person shares on their own.</summary>
+    public bool SharedQuestions { get; set; }
+    public Guid AddressFieldId { get; } = Guid.NewGuid();
+    public Guid ReceiverFieldId { get; } = Guid.NewGuid();
     public StructuredFormCheckRequest Snapshot => SnapshotFor(Form);
     public StructuredFormCheckRequest SnapshotFor(StructuredFormSelectionRow form) => new(1, "es", form.Name, form.SubmitLabel,
         [new(form.DefinitionId == AlternativeForm.DefinitionId ? AlternativeFieldId : FieldId, "field_" + (form.DefinitionId == AlternativeForm.DefinitionId ? AlternativeFieldId : FieldId).ToString("N"), "shortText", new Dictionary<string,string> { ["es"] = "Lugar", ["en"] = "Place" }, null, false, 80, null, null),
             .. WithLocation && form.DefinitionId == Form.DefinitionId
                 ? [new(LocationFieldId, "field_" + LocationFieldId.ToString("N"), "location", new Dictionary<string,string> { ["es"] = "Dónde estás", ["en"] = "Where you are" }, null, !LocationOptional, null, null, null)]
+                : Array.Empty<StructuredFormQuestion>(),
+            .. SharedQuestions && form.DefinitionId == Form.DefinitionId
+                ? [new(AddressFieldId, "field_" + AddressFieldId.ToString("N"), "shortText", new Dictionary<string,string> { ["es"] = "Dirección de entrega", ["en"] = "Delivery address" }, null, false, 120, null, Receives: "location"),
+                    new StructuredFormQuestion(ReceiverFieldId, "field_" + ReceiverFieldId.ToString("N"), "shortText", new Dictionary<string,string> { ["es"] = "Recibió", ["en"] = "Received by" }, null, false, 60, null, Receives: "contactName")]
                 : Array.Empty<StructuredFormQuestion>()], ["es", "en"]);
     public AssistantObservedProposal Proposal(Guid recipient) => ObservedProposal(recipient, "forms.propose-registration");
     public AssistantObservedProposal ClarificationProposal(Guid recipient) => ObservedProposal(recipient, "forms.clarify-registration");

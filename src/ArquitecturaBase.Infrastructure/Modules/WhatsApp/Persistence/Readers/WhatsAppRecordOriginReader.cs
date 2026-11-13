@@ -21,11 +21,12 @@ internal sealed class WhatsAppRecordOriginReader(ApplicationDbContext dbContext,
             };
         }).ToArray();
     }
-    // A send of W1-A has more outgoing messages than its Flow: the location request and, if optional, its skip button.
+    // A send of W1-A has more outgoing messages than its Flow: the location request and, if optional, its skip button. A resend of W3
+    // is another Flow of the same send: the origin is its first Flow, the only one of each send that is not a resend.
     private IQueryable<OriginRow> Rows(IReadOnlyCollection<Guid> sourceReceiptIds)=>
         from session in dbContext.Set<WhatsAppFlowSession>().AsNoTracking()
         where sourceReceiptIds.Contains(session.Id)
-        join outgoing in dbContext.Set<WhatsAppOutgoingMessage>().Where(item=>item.Kind==WhatsAppOutgoingMessageKind.Flow) on (Guid?)session.Id equals outgoing.FlowSessionId
+        join outgoing in dbContext.Set<WhatsAppOutgoingMessage>().Where(item=>item.Kind==WhatsAppOutgoingMessageKind.Flow && !item.IsResend) on (Guid?)session.Id equals outgoing.FlowSessionId
         join contact in dbContext.Set<WhatsAppContact>() on session.ContactId equals contact.Id
         select new OriginRow(session.Id,session.OperatorUserId,contact.WaId,session.ContactId,outgoing.RequestedAtUtc,
             dbContext.Users.Where(user=>user.Id==session.OperatorUserId).Select(user=>user.DisplayName).FirstOrDefault(),session.Origin==WhatsAppMessageOrigin.Assistant?"Assistant":"Manual",

@@ -364,8 +364,8 @@ internal sealed class WhatsAppAssistantReader(ApplicationDbContext db,IOptions<W
             join session in db.Set<WhatsAppFlowSession>().AsNoTracking() on outgoing.FlowSessionId equals session.Id
             join contact in db.Set<WhatsAppContact>().AsNoTracking() on session.ContactId equals contact.Id
             where contact.UserId == subjectUserId && session.UserId == subjectUserId && session.LinkRevision == contact.LinkRevision
-                // W1-A: one per send: its location request, or the Flow of a send without one.
-                && (outgoing.Kind == WhatsAppOutgoingMessageKind.Flow && session.LocationState == WhatsAppFlowLocationState.None
+                // W1-A: one per send: its location request, or the Flow of a send without one; its resend (W3) is not another offer.
+                && (outgoing.Kind == WhatsAppOutgoingMessageKind.Flow && session.LocationState == WhatsAppFlowLocationState.None && !outgoing.IsResend
                     || outgoing.Kind == WhatsAppOutgoingMessageKind.LocationRequest) && outgoing.State != WhatsAppOutgoingMessageState.Failed
                 && outgoing.RequestedAtUtc >= sinceUtc
             orderby outgoing.RequestedAtUtc descending, outgoing.Id descending

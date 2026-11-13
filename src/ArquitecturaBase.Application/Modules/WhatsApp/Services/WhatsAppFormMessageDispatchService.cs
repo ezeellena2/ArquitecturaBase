@@ -20,6 +20,8 @@ internal sealed class WhatsAppFormMessageDispatchService(IWhatsAppFlowSessionRea
             var verified = verifier.Verify(row);
             if (verified.IsFailure) return verified.Error;
             var content = verifier.ReadAssistant(row);
-            return content.IsFailure ? content.Error : await policy.PrepareAsync(row, verified.Value, content.Value, cancellationToken);
+            if (content.IsFailure) return content.Error;
+            var shared = verifier.ReadShared(row);
+            return shared.IsFailure ? shared.Error : await policy.PrepareAsync(row, verified.Value, content.Value, shared.Value, cancellationToken);
         });
 }

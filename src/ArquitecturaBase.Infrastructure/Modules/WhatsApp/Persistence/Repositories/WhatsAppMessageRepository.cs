@@ -65,11 +65,12 @@ internal sealed class WhatsAppMessageRepository(ApplicationDbContext dbContext) 
             .Take(50)
             .ToListAsync(cancellationToken);
 
-    /// <summary>W1-A: an inbound location or «Seguir sin ubicación» tap of the contact that has not resolved a send yet.</summary>
+    /// <summary>W1-A: an inbound location or «Seguir sin ubicación» tap of the contact that has not resolved a send yet; W3 adds the
+    /// contacts no send took.</summary>
     internal static System.Linq.Expressions.Expression<Func<WhatsAppMessage, bool>> LocationAnswer(Guid contactId, DateTime sinceUtc) => message =>
         message.ContactId == contactId && message.Direction == WhatsAppMessageDirection.Inbound && message.FlowSessionId == null
         && message.OccurredAtUtc >= sinceUtc
-        && (message.Kind == WhatsAppMessageKind.Location
+        && (message.Kind == WhatsAppMessageKind.Location || message.Kind == WhatsAppMessageKind.Contact
             || message.Kind == WhatsAppMessageKind.ButtonReply && message.ReplyId != null && message.ReplyId.StartsWith(WhatsAppFlowLocationReply.Prefix));
 
     public void Add(WhatsAppMessage message) => dbContext.Set<WhatsAppMessage>().Add(message);

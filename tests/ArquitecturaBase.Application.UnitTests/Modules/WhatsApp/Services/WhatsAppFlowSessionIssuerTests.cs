@@ -107,5 +107,7 @@ public sealed class WhatsAppFlowSessionIssuerTests
         public byte[] ProtectAssistant(Guid sessionId,Guid contactId,Guid userId,Guid versionId,WhatsAppFlowAssistantContent content)
         { Content=content;return [2]; }
         public WhatsAppFlowAssistantContent ReadAssistant(Guid sessionId,Guid contactId,Guid userId,Guid versionId,byte[] content)=>throw new NotSupportedException();
+        public byte[] ProtectShared(Guid sessionId,Guid contactId,Guid userId,Guid versionId,WhatsAppFlowSharedValues values)=>throw new NotSupportedException();
+        public WhatsAppFlowSharedValues ReadShared(Guid sessionId,Guid contactId,Guid userId,Guid versionId,byte[] values)=>throw new NotSupportedException();
     }
 }

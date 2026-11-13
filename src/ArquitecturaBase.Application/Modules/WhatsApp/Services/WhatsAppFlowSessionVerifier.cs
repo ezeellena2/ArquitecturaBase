@@ -27,6 +27,18 @@ internal sealed class WhatsAppFlowSessionVerifier(IWhatsAppFlowSessionProtector 
         catch (Exception exception) when (exception is CryptographicException or InvalidOperationException) { return FlowErrors.StateConflict; }
     }
 
+    /// <summary>
+    /// W3: what was shared, decrypted for the resend that carries it over the prefill; any other Flow carries nothing of it, and a resend
+    /// without it does not go out.
+    /// </summary>
+    public Result<WhatsAppFlowSharedValues?> ReadShared(WhatsAppFormDispatchRow row)
+    {
+        if (!row.IsResend) return Result.Success<WhatsAppFlowSharedValues?>(null);
+        if (row.ProtectedSharedValues is not { Length: > 0 } values) return FlowErrors.StateConflict;
+        try { return protector.ReadShared(row.SessionId, row.ContactId, row.UserId, row.VersionId, values); }
+        catch (Exception exception) when (exception is CryptographicException or InvalidOperationException or JsonException) { return FlowErrors.StateConflict; }
+    }
+
     public Result<WhatsAppFlowSessionPayload> Verify(WhatsAppFormDispatchRow row)
     {
         var now = timeProvider.GetUtcNow().UtcDateTime;

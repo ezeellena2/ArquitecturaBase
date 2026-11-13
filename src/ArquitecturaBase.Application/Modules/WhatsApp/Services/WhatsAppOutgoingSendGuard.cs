@@ -16,6 +16,10 @@ internal sealed class WhatsAppOutgoingSendGuard(IPhoneNumberParser phoneNumbers,
 {
     public async Task<Result<PhoneNumber>> ValidateAsync(WhatsAppContact? contact, WhatsAppOutgoingMessage outgoing, CancellationToken ct)
     {
+        // W3: a resend goes out only while its send has no reply, captured or attached by the reply worker, since the first reply is
+        // the one kept (A7); then, as any message of its sender, below.
+        if (outgoing.IsResend && await sessions.FindDispatchAsync(outgoing.Id, ct) is not { CaptureState: WhatsAppFlowCaptureState.Pending, HasReply: false })
+            return FlowErrors.StateConflict;
         if (outgoing.Origin == WhatsAppMessageOrigin.FormAction)
         {
             if (await formActions.ValidateAsync(contact, outgoing.RecipientUserId!.Value, outgoing, ct) is { } error) return error;

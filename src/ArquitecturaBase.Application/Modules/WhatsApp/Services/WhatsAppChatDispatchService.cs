@@ -70,6 +70,8 @@ internal sealed class WhatsAppChatDispatchService(
                     // W1-A: the Flow and the location request keep their send in the chat; «Seguir sin ubicación» only keeps its button.
                     if (operation.FlowSessionId is { } sessionId && operation.Kind is WhatsAppOutgoingMessageKind.Flow or WhatsAppOutgoingMessageKind.LocationRequest)
                         message.AttachFlowSession(sessionId);
+                    // W3: the resend keeps its mark in the chat.
+                    if (operation.IsResend) message.MarkResend();
                     if (operation.OperatorUserId is { } operatorId) message.AttributeOperator(operatorId);
                     // W1-A: «Seguir sin ubicación» keeps its button in the chat.
                     if (operation.Origin == WhatsAppMessageOrigin.Conversation && operation.Kind == WhatsAppOutgoingMessageKind.QuickReplies

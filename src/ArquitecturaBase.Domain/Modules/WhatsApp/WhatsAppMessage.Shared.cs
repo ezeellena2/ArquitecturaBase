@@ -49,6 +49,14 @@ public sealed partial class WhatsAppMessage
         ContactPhonesJson = JsonSerializer.Serialize(phones.Select(phone => phone?.Trim()).OfType<string>().Where(IsContactPhone).Take(MaxContactPhones).ToArray());
     }
 
+    /// <summary>W3: the Flow that went out as the resend of its send keeps the mark, once; it is not the one «Por qué lo mandó» goes with.</summary>
+    public void MarkResend()
+    {
+        if (Direction != WhatsAppMessageDirection.Outbound || Kind != WhatsAppMessageKind.Flow || FlowSessionId is null || IsResend)
+            throw new InvalidOperationException("Only a sent Flow of a send is marked as its resend, once.");
+        IsResend = true;
+    }
+
     private static bool IsContactPhone(string phone) =>
         phone.Length is > 0 and <= MaxContactPhoneLength && StorableText.IsStorable(phone) && !phone.Any(char.IsControl);
 

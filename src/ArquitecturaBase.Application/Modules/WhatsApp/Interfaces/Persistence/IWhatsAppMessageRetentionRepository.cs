@@ -8,4 +8,6 @@ public interface IWhatsAppMessageRetentionRepository
     /// </summary>
     Task<int> ClearExpiredBodiesAsync(DateTime cutoffUtc, CancellationToken cancellationToken);
     Task<int> ClearExpiredAssistantContentAsync(DateTime nowUtc, int limit, CancellationToken cancellationToken);
+    /// <summary>W3: what was written from what the person shared, of the sends whose shared messages are all past the cutoff.</summary>
+    Task<int> ClearExpiredSharedValuesAsync(DateTime cutoffUtc, int limit, CancellationToken cancellationToken);
 }

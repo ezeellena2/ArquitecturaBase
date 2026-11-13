@@ -68,10 +68,10 @@ internal sealed class WhatsAppChatReader(ApplicationDbContext dbContext) : IWhat
                         item.FlowCaptureErrorCode, item.FlowRejectedQuestion, item.FlowFileCount)
                     : null, item.Origin, item.Kind == WhatsAppMessageKind.Audio && item.AudioState != null ? new WhatsAppAudioMessageRow(item.AudioState.Value,item.AudioStorageKey != null,item.AudioContentExpiresAtUtc,item.AudioFailureCode) : null)
                 // «Por qué lo mandó» goes once, with what was sent when deciding: the location request, or the Flow of a send without one
-                // (W1-A); the reply keeps it as before, and a location or a tap that resolved the send takes none.
+                // (W1-A); the reply keeps it as before, and a location or a tap that resolved the send takes none, nor a resend (W3).
                 { Assistant = item.FlowSession != null && item.FlowSession.ProtectedAssistantContent != null && item.FlowSession.AssistantContentExpiresAtUtc != null
                     && (item.Kind == WhatsAppMessageKind.FlowReply || item.Kind == WhatsAppMessageKind.LocationRequest
-                        || item.Kind == WhatsAppMessageKind.Flow && item.FlowSession.LocationState == WhatsAppFlowLocationState.None)
+                        || item.Kind == WhatsAppMessageKind.Flow && item.FlowSession.LocationState == WhatsAppFlowLocationState.None && !item.IsResend)
                     ? new WhatsAppAssistantPresentationRow(item.FlowSession.Id,item.FlowSession.ContactId,item.FlowSession.UserId,item.FlowSession.VersionId,item.FlowSession.ProtectedAssistantContent,item.FlowSession.AssistantContentExpiresAtUtc.Value) : null, QuickReplyTitlesJson = item.QuickReplyTitlesJson,
                   SpreadsheetName = item.Kind == WhatsAppMessageKind.Spreadsheet ? item.SpreadsheetFileName : null,
                   Latitude = item.Latitude, Longitude = item.Longitude, AssistantReplyJson = item.AssistantReplyJson,
@@ -202,7 +202,7 @@ internal sealed class WhatsAppChatReader(ApplicationDbContext dbContext) : IWhat
                     { Location = item.Kind == WhatsAppOutgoingMessageKind.LocationRequest ? new WhatsAppFlowLocationRow(item.FlowSession.LocationState, item.FlowSession.ExpiresAtUtc) : null } : null,item.Origin)
         { Assistant = item.FlowSession != null && item.FlowSession.ProtectedAssistantContent != null && item.FlowSession.AssistantContentExpiresAtUtc != null
                     && (item.Kind == WhatsAppOutgoingMessageKind.LocationRequest
-                        || item.Kind == WhatsAppOutgoingMessageKind.Flow && item.FlowSession.LocationState == WhatsAppFlowLocationState.None)
+                        || item.Kind == WhatsAppOutgoingMessageKind.Flow && item.FlowSession.LocationState == WhatsAppFlowLocationState.None && !item.IsResend)
                     ? new WhatsAppAssistantPresentationRow(item.FlowSession.Id,item.FlowSession.ContactId,item.FlowSession.UserId,item.FlowSession.VersionId,item.FlowSession.ProtectedAssistantContent,item.FlowSession.AssistantContentExpiresAtUtc.Value) : null, QuickRepliesJson = item.QuickRepliesJson,
             AssistantReplyJson = item.AssistantReplyJson, ListButton = item.Kind == WhatsAppOutgoingMessageKind.List ? item.ListButton : null };
 

@@ -499,6 +499,7 @@ public sealed partial class WhatsAppFlowReplyServiceTests
     private sealed class FakeSessionRepository(WhatsAppFlowSession session) : IWhatsAppFlowSessionRepository
     {
         public Task<IReadOnlyList<WhatsAppFlowLocationWait>> ListAwaitingLocationAsync(Guid contactId, DateTime nowUtc, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<WhatsAppFlowLocationWait>>([]);
+        public Task<IReadOnlyList<WhatsAppFlowOpenSend>> ListOpenAsync(Guid contactId, DateTime nowUtc, CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<WhatsAppFlowOpenSend>>([]);
         public Task<WhatsAppFlowSession?> GetAsync(Guid id, CancellationToken cancellationToken) =>
             Task.FromResult<WhatsAppFlowSession?>(id == session.Id ? session : null);
         public void Add(WhatsAppFlowSession value) => throw new NotSupportedException();
@@ -518,6 +519,8 @@ public sealed partial class WhatsAppFlowReplyServiceTests
         public bool FailAssistantRead { get; set; }
         public byte[] Protect(Guid sessionId, Guid contactId, Guid userId, Guid versionId, WhatsAppFlowSessionPayload value) => throw new NotSupportedException();
         public byte[] ProtectAssistant(Guid sessionId, Guid contactId, Guid userId, Guid versionId, WhatsAppFlowAssistantContent content) => throw new NotSupportedException();
+        public byte[] ProtectShared(Guid sessionId, Guid contactId, Guid userId, Guid versionId, WhatsAppFlowSharedValues values) => throw new NotSupportedException();
+        public WhatsAppFlowSharedValues ReadShared(Guid sessionId, Guid contactId, Guid userId, Guid versionId, byte[] values) => throw new NotSupportedException();
         public WhatsAppFlowAssistantContent ReadAssistant(Guid sessionId, Guid contactId, Guid userId, Guid versionId, byte[] content)
         {
             AssistantReadCount++;

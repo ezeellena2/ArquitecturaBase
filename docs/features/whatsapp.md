@@ -331,9 +331,51 @@ Los botones son `FORM_DOCUMENT:{pedido}:{propuesta}:{formulario|other}`. Una pre
 
 ## Contacto y dirección compartidos — W3, tarea 22 (2026-11-12)
 
-Lo que la persona comparte se guarda una vez con su mensaje, tal como vino, y se va con el cuerpo ([plan](../plans/2026-10-22-documentos-por-whatsapp.md#ubicación-y-contacto-por-whatsapp-w3-y-varias-cargas-desde-un-excel); el circuito que lo lleva al formulario abierto es la tarea 23). Un `contacts` de Meta entra como `Contact` (16), un tipo propio de entrada y sin cuerpo, con lo de su primera tarjeta: el `formatted_name` (`ContactName`, hasta 256 caracteres como el nombre de un perfil, nulo si no trae, nunca vacío) y los teléfonos como vienen (`ContactPhonesJson`, los diez primeros; uno vacío, de más de 64 caracteres o con un carácter de control no es un teléfono y queda afuera, sin cortarse). Un contacto sin nombre o sin teléfono es un caso real; las otras tarjetas, las direcciones, los correos y la empresa no se leen, y un mensaje sin tarjeta queda como un contacto sin ella. Los `Other` de antes no se reclasifican y el contacto no es fuente del asistente. De un lugar se guarda, con el punto, su dirección (`LocationAddress`, hasta 256); la ubicación actual trae sólo el punto.
+Lo que la persona comparte se guarda una vez con su mensaje, tal como vino, y se va con el cuerpo ([plan](../plans/2026-10-22-documentos-por-whatsapp.md#ubicación-y-contacto-por-whatsapp-w3-y-varias-cargas-desde-un-excel); el circuito que lo lleva al formulario abierto está [abajo](#el-circuito-tarea-23)). Un `contacts` de Meta entra como `Contact` (16), un tipo propio de entrada y sin cuerpo, con lo de su primera tarjeta: el `formatted_name` (`ContactName`, hasta 256 caracteres como el nombre de un perfil, nulo si no trae, nunca vacío) y los teléfonos como vienen (`ContactPhonesJson`, los diez primeros; uno vacío, de más de 64 caracteres o con un carácter de control no es un teléfono y queda afuera, sin cortarse). Un contacto sin nombre o sin teléfono es un caso real; las otras tarjetas, las direcciones, los correos y la empresa no se leen, y un mensaje sin tarjeta queda como un contacto sin ella. Los `Other` de antes no se reclasifican y el contacto no es fuente del asistente. De un lugar se guarda, con el punto, su dirección (`LocationAddress`, hasta 256); la ubicación actual trae sólo el punto.
 
 En el chat del operador el contacto trae `contact` (`name`, nulo si no tiene, y de 0 a 10 `phones`), que ve todo el que lee el chat, y la vista previa de la bandeja es genérica («Contacto» o «Contact»); cuando la retención vacía el nombre y los teléfonos, `contact` no viene. La dirección de un lugar no sale en el hilo. `AddWhatsAppSharedContent` suma también las columnas del circuito: `IsResend` en mensajes y salidas (falso en los de antes) y lo que tomó un envío (`SharedContentJson` y `ProtectedSharedValues`). Su `Down` vuelve los contactos a `Other` y se niega, antes del DDL, mientras haya un reenvío o algo tomado.
+
+### El circuito (tarea 23)
+
+Después de W1-A, en el mismo servicio, la misma unidad de trabajo y el mismo lock (`WhatsAppFlowLocationService`),
+`WhatsAppSharedContentPolicy` da cada ubicación que nada tomó, y cada contacto, al envío abierto más viejo cuya proyección sellada
+tiene una pregunta que lo recibe (`Receives`), que todavía no tomó uno de ese tipo y cuyo remitente puede mandar; lo que ningún
+envío puede usar queda en el chat, sin atar, sin IA y sin gastar cupos. Un envío abierto ya existía cuando llegó lo
+compartido y su Flow salió: Meta lo aceptó o una persona lo revisó como enviado (uno de W1-A, sólo si su ubicación lo resolvió
+antes; uno Pending, Sending, Uncertain o Failed no salió). No tiene respuesta, ni capturada ni adjuntada por el worker de respuestas
+mientras baja sus archivos, no venció y es de la cuenta y el vínculo que el número tiene hoy. Su remitente puede mandar mientras la
+conversación siga con la revisión de modo que selló el envío: en Atención manual el del operador; en Asistente, con el vínculo y el
+número sellados, el del asistente. Antes de decidir, `WhatsAppSharedContentGuard` pasa el primer mensaje de cada envío por los
+controles de la reserva (`WhatsAppOutgoingSendGuard`), porque el reenvío lo continúa: un operador inactivo o sin `whatsapp.read` o
+`whatsapp.send`, o un asistente cuyo contexto ya no vale, deja el envío afuera, y lo compartido va al siguiente o queda en el chat
+en lugar de un reenvío que fallaría. Un envío cuya proyección, payload o valores anteriores no se pueden leer tampoco toma nada: se
+registra por el tipo del error, nunca con un valor, y la vuelta sigue, W1-A incluido. Se escribe la dirección del lugar o
+su punto («-32.947102, -60.638955») y, del contacto, el nombre y el primer teléfono, cortados en el largo de su pregunta; lo que el
+prellenado rechazaría no se escribe, así que un contacto sin teléfono completa sólo el nombre y no va a un envío que sólo recibe
+el teléfono. El envío guarda lo que tomó, cuándo y qué preguntas, sin valores (`SharedContentJson`), y lo escrito con su etiqueta
+en el idioma del envío, protegido con un propósito propio (`ProtectedSharedValues`), que la retención de los mensajes vacía cuando
+la última ubicación o el último contacto que tomó pasan su plazo.
+
+Cada envío que tomó algo encola un solo reenvío por vuelta, también si en la misma tanda llegaron una ubicación y un contacto: un
+`Flow` de la misma sesión y el mismo token, marcado `IsResend`, del remitente del primer mensaje del envío y con su sello
+(`WhatsAppFlowLocationPolicy.Resend`). Su mensaje nombra lo que se completó en esa vuelta y el formulario («Puse tu ubicación en
+«Dirección de entrega». Revisá el formulario «Registrar entrega» y confirmalo.»; con el contacto, «Puse el contacto en «Recibió» y
+«Teléfono de quien recibe».» o sólo la pregunta que completó). Al despacharlo, el verificador descifra lo compartido y
+`WhatsAppFormDispatchPolicy` lo pone sobre el prellenado; otro Flow del envío no lo lleva y un reenvío sin él no sale. La reserva
+lo frena como a cualquier mensaje de su remitente (si una persona tomó la conversación, el del asistente queda Failed) y también
+cuando el envío ya tiene su respuesta, capturada o adjuntada. La marca pasa al mensaje que deja al salir y lo deja afuera de «Por qué lo mandó» y de
+`ListOffersAsync`; `CountOffersAsync` ya contaba por la referencia del asistente. El origen de la respuesta, en el detalle, la lista y
+la exportación, es el primer Flow del envío (`WhatsAppRecordOriginReader`): el reenvío no suma otro.
+
+`WhatsAppSharedContentPolicyTests` y `WhatsAppFlowSharedTests`, sin Docker, prueban el orden, W1-A primero, el más viejo, lo
+primero vale, el envío que esperaba su ubicación, el modo del remitente, la cuenta, el vínculo y el número sellados, el corte y el
+contacto sin teléfono; `WhatsAppSharedContentGuardTests`, el operador inactivo o sin `whatsapp.send` y lo que no se puede leer,
+registrado por su tipo, y `WhatsAppProposedFlowDispatchTests`, lo compartido sobre el prellenado. Con PostgreSQL y Meta simulado, la
+composición de `WhatsAppFormSendingTests` lleva una ubicación y un contacto hasta la captura con dos envíos y lee por HTTP el
+detalle y la lista de esa respuesta, y `WhatsAppSharedContentIntegrationTests` prueba el envío del asistente con una toma antes y
+después, las ofertas que no cambian, la retención (lo escrito queda mientras lo último que tomó el envío es reciente), el remitente
+que ya no pasaría la reserva, el reenvío de un envío con su respuesta capturada o adjuntada, qué envío está abierto y los valores
+que no se pueden leer.
 
 `WhatsAppContactWebhookReaderTests` y `WhatsAppLocationWebhookReaderTests`, sin Docker, leen los cuerpos de Meta: un lugar con y sin dirección, la ubicación actual, y un contacto con dos teléfonos, sin teléfono, sin nombre y con dos tarjetas. `WhatsAppMessageRetentionTests` vacía la dirección y el contacto, `WhatsAppSharedContentMigrationTests` prueba Up, Down y Up y la negativa, y `WhatsAppChatTests.Contact` recorre el webhook firmado hasta el hilo y deja `contact-thread` en la cohorte `whatsapp-audio-http`.
 

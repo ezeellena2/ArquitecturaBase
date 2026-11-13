@@ -67,6 +67,12 @@ public sealed record WhatsAppFormDispatchRow(Guid OutgoingId, Guid SessionId, st
     public DateTime? AssistantContentExpiresAtUtc { get; init; }
     public Guid BindingOperationId { get; init; }
     public byte[]? ProtectedProjection { get; init; }
+    /// <summary>W3: a resend of the send, which goes out with what was shared over its prefill, and only while the send has no reply.</summary>
+    public bool IsResend { get; init; }
+    public byte[]? ProtectedSharedValues { get; init; }
+    public WhatsAppFlowCaptureState CaptureState { get; init; }
+    /// <summary>W3: an inbound reply is attached to the send, captured or not yet (its files may be downloading).</summary>
+    public bool HasReply { get; init; }
     public override string ToString() => "WhatsAppFormDispatchRow { Content = [REDACTED] }";
 }
 

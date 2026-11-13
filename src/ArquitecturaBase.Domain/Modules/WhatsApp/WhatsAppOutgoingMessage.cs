@@ -41,6 +41,14 @@ public sealed partial class WhatsAppOutgoingMessage : Entity
 
     /// <summary>W3: a resend of the form of a send, with what was shared over its prefill (task 23); false in every outgoing of before.</summary>
     public bool IsResend { get; private set; }
+
+    /// <summary>W3: a queued Flow of a send is its resend, with what was shared over its prefill; marked once, before it goes out.</summary>
+    public void MarkResend()
+    {
+        if (Kind != WhatsAppOutgoingMessageKind.Flow || FlowSessionId is null || State != WhatsAppOutgoingMessageState.Pending || IsResend)
+            throw new InvalidOperationException("Only a queued Flow of a send is marked as its resend, once.");
+        IsResend = true;
+    }
     public static bool IsStorableBody(string body) => StorableText.IsStorable(body);
     public static bool IsVisibleBody(string body)
     {

@@ -26,4 +26,8 @@
   <data name="LocationSkip" xml:space="preserve"><value>Seguir sin ubicación</value></data>
   <data name="DocumentPreview" xml:space="preserve"><value>Documento</value></data>
   <data name="ContactPreview" xml:space="preserve"><value>Contacto</value></data>
+  <data name="SharedLocationPut" xml:space="preserve"><value>Puse tu ubicación en «{0}».</value></data>
+  <data name="SharedContactPutOne" xml:space="preserve"><value>Puse el contacto en «{0}».</value></data>
+  <data name="SharedContactPutTwo" xml:space="preserve"><value>Puse el contacto en «{0}» y «{1}».</value></data>
+  <data name="SharedReview" xml:space="preserve"><value>Revisá el formulario «{0}» y confirmalo.</value></data>
 </root>

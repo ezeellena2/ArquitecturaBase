@@ -16,7 +16,7 @@ internal sealed class WhatsAppFormDispatchPolicy(IWhatsAppFormRecipientReader re
     IWhatsAppFlowProtector projections, IUserReader users, TimeProvider clock)
 {
     public async Task<Result<WhatsAppFlowMessageResponse>> PrepareAsync(WhatsAppFormDispatchRow row,
-        WhatsAppFlowSessionPayload payload, WhatsAppFlowAssistantContent? content, CancellationToken ct)
+        WhatsAppFlowSessionPayload payload, WhatsAppFlowAssistantContent? content, WhatsAppFlowSharedValues? shared, CancellationToken ct)
     {
         if (row.ExpiresAtUtc <= clock.GetUtcNow().UtcDateTime) return FlowErrors.StateConflict;
         var actor = row.OperatorUserId ?? row.UserId;
@@ -28,7 +28,7 @@ internal sealed class WhatsAppFormDispatchPolicy(IWhatsAppFormRecipientReader re
         if (recipient?.UserId != row.UserId || !recipient.IsActive
             || WhatsAppFormRecipientRevision.Create(actor,recipient) != payload.RecipientRevision) return FlowErrors.RecipientContextChanged;
         if (await forms.FindAcceptedSessionAsync(row.UserId,row.Culture,row.DefinitionId,row.VersionId,ct) is null) return FlowErrors.FormUnavailable;
-        var initial = InitialValues(row,payload,content);
+        var initial = InitialValues(row,payload,content,shared);
         if (initial.IsFailure) return initial.Error;
         var account = await environment.VerifyAccountAsync(ct);
         if (account.IsFailure) return account.Error;
@@ -39,10 +39,10 @@ internal sealed class WhatsAppFormDispatchPolicy(IWhatsAppFormRecipientReader re
     }
 
     private Result<IReadOnlyDictionary<string,IReadOnlyDictionary<string,string>>> InitialValues(WhatsAppFormDispatchRow row,
-        WhatsAppFlowSessionPayload payload,WhatsAppFlowAssistantContent? content)
+        WhatsAppFlowSessionPayload payload,WhatsAppFlowAssistantContent? content,WhatsAppFlowSharedValues? shared)
     {
         if(row.ProtectedProjection is null)
-            return content is null ? Result.Success<IReadOnlyDictionary<string,IReadOnlyDictionary<string,string>>>(new Dictionary<string,IReadOnlyDictionary<string,string>>()) : FlowErrors.StateConflict;
+            return content is null && shared is null ? Result.Success<IReadOnlyDictionary<string,IReadOnlyDictionary<string,string>>>(new Dictionary<string,IReadOnlyDictionary<string,string>>()) : FlowErrors.StateConflict;
         WhatsAppFlowProjection projection;
         try { projection=projections.ReadProjection(row.BindingOperationId,row.BindingId,row.VersionId,row.Culture,row.ProtectedProjection); }
         catch(Exception exception) when(exception is CryptographicException or InvalidOperationException) { return FlowErrors.StateConflict; }
@@ -60,6 +60,12 @@ internal sealed class WhatsAppFormDispatchPolicy(IWhatsAppFormRecipientReader re
                 if(proposed is null || mapped is null || mapped.Type!=proposed.Type || mapped.Files is not null) return FlowErrors.StateConflict;
                 values.Add(mapped.Key,proposed.Value);
             }
+        }
+        // W3: what the person shared goes over the prefill, each value in its question; the prefill policy checks it like any other.
+        foreach(var value in shared?.Values ?? [])
+        {
+            if(projection.Mapping.SingleOrDefault(field=>field.FieldId==value.FieldId) is not { Files: null } mapped) return FlowErrors.StateConflict;
+            values[mapped.Key]=value.Value;
         }
         return WhatsAppFlowPrefillPolicy.Build(projection,values);
     }

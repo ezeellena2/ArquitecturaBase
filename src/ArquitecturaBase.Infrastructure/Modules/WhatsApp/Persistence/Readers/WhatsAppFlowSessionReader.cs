@@ -44,7 +44,10 @@ internal sealed class WhatsAppFlowSessionReader(ApplicationDbContext dbContext, 
              session.DefinitionId, session.VersionId, session.BindingId, session.Culture, session.ProtectedPayload, session.ExpiresAtUtc,
              outgoing.State, outgoing.Body, contact.Mode, contact.ModeRevision, contact.LastInboundAtUtc)
          { Origin=session.Origin, ProtectedAssistantContent=session.ProtectedAssistantContent, AssistantContentExpiresAtUtc=session.AssistantContentExpiresAtUtc,
-           BindingOperationId=binding.OperationId, ProtectedProjection=binding.ProtectedProjection })
+           BindingOperationId=binding.OperationId, ProtectedProjection=binding.ProtectedProjection,
+           IsResend=outgoing.IsResend, ProtectedSharedValues=session.ProtectedSharedValues, CaptureState=session.CaptureState,
+           HasReply=dbContext.Set<WhatsAppMessage>().Any(reply=>reply.FlowSessionId==session.Id && reply.Direction==WhatsAppMessageDirection.Inbound
+               && reply.Kind==WhatsAppMessageKind.FlowReply) })
         .SingleOrDefaultAsync(cancellationToken);
 
     public Task<WhatsAppFlowReplySessionRow?> FindReplySessionAsync(Guid contactId, string tokenHash, CancellationToken cancellationToken) =>

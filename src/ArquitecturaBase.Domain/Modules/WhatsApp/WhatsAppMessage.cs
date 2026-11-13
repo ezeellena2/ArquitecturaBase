@@ -96,14 +96,15 @@ public sealed partial class WhatsAppMessage : Entity
 
     /// <summary>
     /// The send of a Flow message or its reply; W1-A adds the location request and, inbound, the location or the «Seguir sin
-    /// ubicación» tap that resolved its send.
+    /// ubicación» tap that resolved its send, and W3 the contact a send took.
     /// </summary>
     public void AttachFlowSession(Guid sessionId)
     {
         ArgumentOutOfRangeException.ThrowIfEqual(sessionId, Guid.Empty);
         if (FlowSessionId == sessionId) return;
         if (!(Direction == WhatsAppMessageDirection.Outbound && Kind is WhatsAppMessageKind.Flow or WhatsAppMessageKind.LocationRequest
-            || Direction == WhatsAppMessageDirection.Inbound && Kind is WhatsAppMessageKind.FlowReply or WhatsAppMessageKind.Location or WhatsAppMessageKind.ButtonReply)
+            || Direction == WhatsAppMessageDirection.Inbound && Kind is WhatsAppMessageKind.FlowReply or WhatsAppMessageKind.Location or WhatsAppMessageKind.ButtonReply
+                or WhatsAppMessageKind.Contact)
             || FlowSessionId.HasValue)
             throw new InvalidOperationException("Only a Flow message can attach its session once.");
         FlowSessionId = sessionId;

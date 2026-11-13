@@ -44,6 +44,25 @@ internal sealed class WhatsAppFlowSessionProtector(IDataProtectionProvider provi
         }
         finally { CryptographicOperations.ZeroMemory(bytes); }
     }
+    public byte[] ProtectShared(Guid sessionId, Guid contactId, Guid userId, Guid versionId, WhatsAppFlowSharedValues values)
+    {
+        var bytes = JsonSerializer.SerializeToUtf8Bytes(values, Options);
+        try { return SharedProtector(sessionId, contactId, userId, versionId).Protect(bytes); }
+        finally { CryptographicOperations.ZeroMemory(bytes); }
+    }
+    public WhatsAppFlowSharedValues ReadShared(Guid sessionId, Guid contactId, Guid userId, Guid versionId, byte[] values)
+    {
+        var bytes = SharedProtector(sessionId, contactId, userId, versionId).Unprotect(values);
+        try
+        {
+            var value = JsonSerializer.Deserialize<WhatsAppFlowSharedValues>(bytes, Options);
+            return value is { Format: 1 } ? value : throw new InvalidOperationException("What a send took is invalid.");
+        }
+        finally { CryptographicOperations.ZeroMemory(bytes); }
+    }
+    // W3: what was written from what the person shared has a purpose of its own, tied to the send like the assistant's content.
+    private IDataProtector SharedProtector(Guid sessionId, Guid contactId, Guid userId, Guid versionId) => provider.CreateProtector(
+        "ArquitecturaBase.WhatsApp.FlowSessions.Shared.v1", sessionId.ToString("N"), contactId.ToString("N"), userId.ToString("N"), versionId.ToString("N"));
     private IDataProtector AssistantProtector(Guid sessionId, Guid contactId, Guid userId, Guid versionId) => provider.CreateProtector(
         "ArquitecturaBase.WhatsApp.FlowSessions.Assistant.v1", sessionId.ToString("N"), contactId.ToString("N"), userId.ToString("N"), versionId.ToString("N"));
     private IDataProtector Protector(Guid sessionId, Guid contactId, Guid userId, Guid versionId) => provider.CreateProtector(

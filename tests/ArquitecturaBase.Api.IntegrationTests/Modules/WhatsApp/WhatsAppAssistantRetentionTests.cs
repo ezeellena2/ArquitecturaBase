@@ -33,7 +33,7 @@ public sealed class WhatsAppAssistantRetentionTests
         var repository=new RetentionRepository(transaction,session);
         await using var provider=new ServiceCollection().AddSingleton<IWhatsAppMessageRetentionRepository>(repository)
             .AddSingleton<IWhatsAppAssistantContentRetentionService>(new WhatsAppAssistantContentRetentionService(repository,transaction,new FakeTimeProvider(now),
-                NullLogger<WhatsAppAssistantContentRetentionService>.Instance)).BuildServiceProvider();
+                new(90),NullLogger<WhatsAppAssistantContentRetentionService>.Instance)).BuildServiceProvider();
         using var service=new WhatsAppMessageRetentionService(provider.GetRequiredService<IServiceScopeFactory>(),
             Options.Create(new WhatsAppMessageRetentionOptions{MessageRetentionDays=90,ApplyMessageRetentionInBackground=false}),new FakeTimeProvider(now),
             NullLogger<WhatsAppMessageRetentionService>.Instance);
@@ -48,6 +48,8 @@ public sealed class WhatsAppAssistantRetentionTests
         {Assert.False(transaction.IsOpen);Bodies++;return Task.FromResult(1);}
         public Task<int> ClearExpiredAssistantContentAsync(DateTime nowUtc,int limit,CancellationToken ct)
         {Assert.True(transaction.IsOpen);Limit=limit;return Task.FromResult(session.ClearAssistantContent(nowUtc)?1:0);}
+        public Task<int> ClearExpiredSharedValuesAsync(DateTime cutoffUtc,int limit,CancellationToken ct)
+        {Assert.True(transaction.IsOpen);return Task.FromResult(0);}
     }
     private sealed class Transaction : IUnitOfWork
     {

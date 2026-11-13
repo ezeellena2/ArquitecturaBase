@@ -91,5 +91,16 @@ internal sealed class WhatsAppMessageRetentionRepository(ApplicationDbContext db
         foreach(var request in outcomes) request.ClearOutcome();
         return sessions.Count + outcomes.Count;
     }
+    public async Task<int> ClearExpiredSharedValuesAsync(DateTime cutoffUtc,int limit,CancellationToken cancellationToken)
+    {
+        dbContext.RequireTransaction();
+        // W3: what a send took goes when the last location or contact it took is past the retention of the messages.
+        var sessions = await dbContext.Set<WhatsAppFlowSession>()
+            .Where(session=>session.ProtectedSharedValues!=null && !dbContext.Set<WhatsAppMessage>().Any(message=>message.FlowSessionId==session.Id
+                && (message.Kind==WhatsAppMessageKind.Location || message.Kind==WhatsAppMessageKind.Contact) && message.OccurredAtUtc>=cutoffUtc))
+            .OrderBy(session=>session.CreatedAtUtc).ThenBy(session=>session.Id).Take(limit).ToListAsync(cancellationToken);
+        foreach(var session in sessions) session.ClearSharedValues();
+        return sessions.Count;
+    }
 
 }
