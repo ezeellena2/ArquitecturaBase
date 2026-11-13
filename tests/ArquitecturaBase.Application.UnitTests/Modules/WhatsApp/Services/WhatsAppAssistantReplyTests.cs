@@ -126,6 +126,9 @@ public sealed class WhatsAppAssistantReplyTests
         Assert.Equal(new[] { (1, 2), (2, 2) }, outgoing.Select(message => WhatsAppAssistantReplyRecordCodec.Parse(message.AssistantReplyJson)!)
             .Select(record => (record.Ordinal, record.Count)));
         Assert.Equal(2, arranged.Host.Requests.Rows.Count);
+        // H6: the queue sends by RequestedAtUtc and then by Id, a Guid v7 that is random within a millisecond: each action adds its place.
+        Assert.True(outgoing[0].RequestedAtUtc < outgoing[1].RequestedAtUtc);
+        Assert.Equal(outgoing.Select(message => message.Id), outgoing.OrderBy(message => message.RequestedAtUtc).ThenBy(message => message.Id).Select(message => message.Id));
     }
 
     // A form or a question about which form goes alone: mixed with the agent's actions, nothing of the reply goes out and it hands off.

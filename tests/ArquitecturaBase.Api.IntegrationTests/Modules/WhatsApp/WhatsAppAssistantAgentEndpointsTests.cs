@@ -29,7 +29,7 @@ namespace ArquitecturaBase.Api.IntegrationTests.Modules.WhatsApp;
 /// tests use a database of their own.
 /// </summary>
 [Collection(ApiTestGroup.Name)]
-public sealed class WhatsAppAssistantAgentEndpointsTests(ApiFactory factory)
+public sealed partial class WhatsAppAssistantAgentEndpointsTests(ApiFactory factory)
 {
     private const string Route = "/api/whatsapp/assistant-agent";
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
@@ -293,18 +293,22 @@ public sealed class WhatsAppAssistantAgentEndpointsTests(ApiFactory factory)
         await WhatsAppAssistantAgentContractCapture.WriteAsync(ready, "suggestion-text-ready", Ct);
     }
 
-    private sealed class Host : IAsyncDisposable
+    private sealed partial class Host : IAsyncDisposable
     {
         private Host(WebApplicationFactory<Program> app) => App = app;
         public WebApplicationFactory<Program> App { get; }
         public Operations Operations { get; } = new();
 
-        public static async Task<Host> CreateAsync(ApiFactory factory, CancellationToken ct)
+        public static async Task<Host> CreateAsync(ApiFactory factory, CancellationToken ct, FakeMetaHandler? meta = null)
         {
             var connection = factory.NewDatabaseConnectionString("assistant_agent");
             Host? host = null;
             var app = factory.WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:appdb", connection)
-                .ConfigureTestServices(services => services.Replace(ServiceDescriptor.Singleton<IAssistantOperations>(_ => host!.Operations))));
+                .ConfigureTestServices(services =>
+                {
+                    services.Replace(ServiceDescriptor.Singleton<IAssistantOperations>(_ => host!.Operations));
+                    if (meta is not null) Dispatching(services, meta);
+                }));
             host = new Host(app);
             await using var scope = app.Services.CreateAsyncScope();
             await scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Database.EnsureCreatedAsync(ct);
@@ -415,10 +419,11 @@ public sealed class WhatsAppAssistantAgentEndpointsTests(ApiFactory factory)
     /// <summary>The engine of Probar: it keeps what was submitted and answers pending until the test completes it.</summary>
     private sealed class Operations : IAssistantOperations
     {
-        private readonly Dictionary<Guid, AssistantObservedProposal> completed = [];
+        private readonly Dictionary<Guid, AssistantObservedProposal[]> completed = [];
         public List<AssistantOperationRequest> Submitted { get; } = [];
 
-        public void Complete(Guid requestId, AssistantObservedProposal proposal) => completed[requestId] = proposal;
+        /// <summary>The engine's answer: one proposal, or the actions of a reply in their order (H6).</summary>
+        public void Complete(Guid requestId, AssistantObservedProposal first, params AssistantObservedProposal[] rest) => completed[requestId] = [first, .. rest];
 
         public Task<AssistantAvailabilityResponse> GetAvailabilityAsync(CancellationToken cancellationToken) => Task.FromResult(new AssistantAvailabilityResponse("available"));
 
@@ -433,8 +438,9 @@ public sealed class WhatsAppAssistantAgentEndpointsTests(ApiFactory factory)
         public Task<Result<AssistantOperationResponse>> GetAsync(AssistantChannelContext context, Guid requestId, CancellationToken cancellationToken)
         {
             if (Submitted.All(request => request.RequestId != requestId)) return Task.FromResult<Result<AssistantOperationResponse>>(Error.NotFound("Assistant.Operation.NotFound", "Not found."));
-            return Task.FromResult<Result<AssistantOperationResponse>>(completed.TryGetValue(requestId, out var proposal)
-                ? new AssistantOperationResponse(requestId, "completed", proposal, new("qualified-text", 1, "neutral", 1, new DateTime(2026, 11, 11, 12, 0, 0, DateTimeKind.Utc), context.ChannelId), null)
+            return Task.FromResult<Result<AssistantOperationResponse>>(completed.TryGetValue(requestId, out var proposals)
+                ? new AssistantOperationResponse(requestId, "completed", proposals[0], new("qualified-text", 1, "neutral", 1, new DateTime(2026, 11, 11, 12, 0, 0, DateTimeKind.Utc), context.ChannelId), null)
+                    { Proposals = proposals.Length > 1 ? proposals : [] }
                 : new AssistantOperationResponse(requestId, "pending", null, null, null));
         }
     }

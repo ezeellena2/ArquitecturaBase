@@ -155,14 +155,17 @@ internal sealed class WhatsAppAssistantReplyPolicy(IWhatsAppAssistantAgentReader
             }
 
             var record = WhatsAppAssistantReplyRecordCodec.Serialize(step.Record);
+            // H6: the queue sends by RequestedAtUtc and then by Id, a Guid v7 that is random within a millisecond: each action adds its
+            // place in milliseconds, as «Seguir sin ubicación» does, so a reply goes out in the model's order.
+            var requestedAtUtc = nowUtc.AddMilliseconds(index);
             WhatsAppOutgoingMessage? outgoing = step.Record.Kind switch
             {
                 WhatsAppAssistantActionKind.ExactText or WhatsAppAssistantActionKind.DraftedReply => WhatsAppOutgoingMessage.CreateAssistantText(
-                    row.SubjectUserId, contact.Id, row.RequestId, step.Text!, nowUtc, contact.LinkRevision, waId, row.ModeRevision),
+                    row.SubjectUserId, contact.Id, row.RequestId, step.Text!, requestedAtUtc, contact.LinkRevision, waId, row.ModeRevision),
                 WhatsAppAssistantActionKind.AskButtons => WhatsAppOutgoingMessage.CreateAssistantQuickReplies(row.SubjectUserId, contact.Id, row.RequestId,
                     step.Text!, [.. step.Buttons!.Select((title, button) => new WhatsAppOutgoingQuickReply(
                         WhatsAppAssistantCaseButtonCodec.Encode(row.RequestId, button), title, 0))],
-                    nowUtc, contact.LinkRevision, waId, row.ModeRevision),
+                    requestedAtUtc, contact.LinkRevision, waId, row.ModeRevision),
                 _ => null,
             };
             if (outgoing is not null) conversations.Add(outgoing);
