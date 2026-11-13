@@ -20,15 +20,16 @@ internal sealed class DocumentRunner(IAssistantOperations operations, IStructure
 {
     // channelCaseId: a channel-documents case reads its document as WhatsApp does (QualificationChannelDocuments.ReadingContext), with the
     // ledger and evidence of that case (<case>-document); its checks are the same document-reading ones.
+    // channelName: forms-documents names every document as the app names one WhatsApp sends without a name.
     public async Task<DocumentObservation> RunAsync(DocumentCase testCase, DocumentFixture fixture, QualificationActor actor, CancellationToken ct,
-        string? channelCaseId = null)
+        string? channelCaseId = null, string? channelName = null)
     {
         if (!QualificationDocuments.IsValid(testCase) || fixture is not { Use: "provider" } || fixture.FileName != testCase.FileName
-            || actor.Culture != testCase.Culture)
+            || actor.Culture != testCase.Culture || channelName is not null && channelCaseId is null)
             throw new InvalidOperationException("Invalid public document fixture.");
         var bytes = await QualificationDocuments.ReadAsync(testCase, ct);
         // WhatsApp reads the file under the name it gives it: a photo has none and is named by its type.
-        var name = channelCaseId is null ? testCase.FileName : QualificationChannelDocuments.ChannelName(testCase.FileName, testCase.ContentType);
+        var name = channelCaseId is null ? testCase.FileName : channelName ?? QualificationChannelDocuments.ChannelName(testCase.FileName, testCase.ContentType);
         var prepared = await attachments.PrepareAsync(bytes, name, ct);
         if (!QualificationDocuments.PreparedAsExpected(testCase, prepared, name))
             throw new InvalidOperationException("Public document fixture is not prepared as its case expects.");

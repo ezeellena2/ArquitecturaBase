@@ -18,6 +18,38 @@ internal static partial class AuthoringOracle
         AssistantCapabilityPayload? payload, QualificationChannelFixture fixture, DocumentFixture printed, AssistantCapabilityPayload? previous)
     {
         var proposal = payload as FormAuthoringDocumentFormProposal;
+        var checks = DocumentFormChecks(expected, document, culture, proposal, fixture, [printed], previous);
+        checks.Add(new("no-library-standard-in-home", proposal is not null && proposal.Standard is null));
+        return checks;
+    }
+
+    // DOC6 (forms-documents, task 17b): what «Crear borrador» would keep of the proposal the page shows (the form, and the reading with its
+    // «Cómo reconocerlo»), with Home's rules: the facts and the samples are the first document's, as the request asks («con lo que leíste en
+    // el primero») and as the page shows each sample, and «Cómo reconocerlo» copies none of the documents. The standard, which the page shows
+    // but never keeps, is the expected one, none, or none or any, and only one the library read of the same turn showed, by its name.
+    public static IReadOnlyList<CheckEvidence> FormsDocumentPayloadChecks(FormsDocumentExpectation expected, string culture, AssistantObservedProposal? observed,
+        QualificationChannelFixture fixture, IReadOnlyList<DocumentFixture> printed)
+    {
+        var proposal = observed?.Payload as FormAuthoringDocumentFormProposal;
+        var checks = DocumentFormChecks(new(ProposeForm, Version: DocumentFormVersion), expected.Document, culture, proposal, fixture, printed, null);
+        checks.Add(new("library-standard-as-expected", proposal is not null && StandardAsExpected(expected, proposal.Standard, observed!)));
+        return checks;
+    }
+
+    internal static bool StandardAsExpected(FormsDocumentExpectation expected, FormAuthoringProposedStandard? standard, AssistantObservedProposal observed)
+    {
+        if (standard is null) return expected.Standard is null;
+        if (expected.Standard is { } key ? standard.Key != key : !expected.AnyStandard) return false;
+        return observed.ObservedReads.Any(read => read.TurnId == observed.TurnId && read.Ordinal > 0
+            && read.Capability == new AssistantCapabilityReference(QualificationFormsDocuments.Standards, 1) && read.Payload is FormLibraryStandardsPayload shown
+            && shown.Standards.Any(row => row.Key == standard.Key && SameText(row.Name, standard.Name)));
+    }
+
+    // The checks a form with documents shares in Home and in DOC6: printed holds the turn's documents, the first one first. The facts and the
+    // samples are the first one's; the others only feed «Cómo reconocerlo».
+    private static List<CheckEvidence> DocumentFormChecks(AuthoringExpectation expected, HomeDocumentExpectation document, string culture,
+        FormAuthoringDocumentFormProposal? proposal, QualificationChannelFixture fixture, IReadOnlyList<DocumentFixture> printed, AssistantCapabilityPayload? previous)
+    {
         var checks = FormChecks(expected, culture, proposal?.ToForm(), fixture, previous);
         var questions = proposal?.Questions ?? [];
         // A case that lets the model take the questions from the document pins only how many and which facts they keep.
@@ -33,16 +65,17 @@ internal static partial class AuthoringOracle
             false => proposal.DocumentReading is null,
             null => proposal.DocumentReading is null || Canonical(recognition).Length > 0,
         }));
-        checks.Add(new("recognition-copies-nothing", proposal is not null && (recognition is null || RecognitionCopiesNothing(recognition, printed))));
+        checks.Add(new("recognition-copies-nothing", proposal is not null
+            && (recognition is null || printed.All(each => RecognitionCopiesNothing(recognition, each)))));
         if (document.Facts.Length > 0)
             checks.Add(new("document-facts-in-their-questions", proposal is not null
-                && document.Facts.All(fact => questions.Count(question => KeepsFact(question, fact, printed.Facts[fact])) == 1)));
-        checks.Add(new("samples-as-written", proposal is not null && questions.All(question => question.Sample is null || SampleAsWritten(question.Sample, printed))));
+                && document.Facts.All(fact => questions.Count(question => KeepsFact(question, fact, printed[0].Facts[fact])) == 1)));
+        checks.Add(new("samples-as-written", proposal is not null
+            && questions.All(question => question.Sample is null || SampleAsWritten(question.Sample, printed[0]))));
         if (document.EverySample)
             checks.Add(new("every-question-sampled", proposal is not null && questions.Count > 0 && questions.All(question => question.Sample is not null)));
         if (document.Printed is { Length: > 0 } wanted)
             checks.Add(new("printed-questions-in-order", proposal is not null && PrintedInOrder(wanted, questions, fixture)));
-        checks.Add(new("no-library-standard-in-home", proposal is not null && proposal.Standard is null));
         return checks;
     }
 

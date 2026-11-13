@@ -105,6 +105,7 @@ internal static class QualificationHost
         builder.Services.AddScoped<ChannelRunner>();
         builder.Services.AddScoped<AudioRunner>();
         builder.Services.AddScoped<DocumentRunner>();
+        builder.Services.AddScoped<FormsDocumentRunner>();
         builder.Services.AddScoped<QualificationFormSeed>();
         builder.Services.AddScoped<QualificationAuthoringSeed>();
         builder.Services.AddScoped<QualificationAgentSeed>();

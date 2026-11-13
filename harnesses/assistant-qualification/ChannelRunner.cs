@@ -91,6 +91,8 @@ internal static class QualificationChannelContexts
     public static AssistantChannelContext Resume(QualificationLedgerEntry entry)
     {
         if(entry.Culture is not ("es" or "en") || !Enum.IsDefined(entry.InteractionMode)) throw new InvalidOperationException("Invalid ledger culture.");
+        // forms-documents: the reviewer's interpretation, in the request's own conversation of the inbox channel.
+        if(entry.OperationKind==QualificationFormsDocuments.Operation) return QualificationFormsDocuments.Resume(entry);
         if(entry.OperationKind=="audio")
         {
             if(entry.ChannelId=="whatsapp-assistant")

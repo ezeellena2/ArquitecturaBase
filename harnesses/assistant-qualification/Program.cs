@@ -26,10 +26,11 @@ internal static partial class Program
         "Program.Documents.cs","DocumentRunner.cs","QualificationDocuments.cs","FormDocumentReader.cs","AgentRunner.cs","AgentOracle.cs",
         "QualificationAgentSeed.cs","WhatsAppAssistantAgentService.cs","WhatsAppAssistantAgentCapabilitySource.cs","AiBusinessInformationService.cs",
         "QualificationHomeDocuments.cs","AuthoringOracle.Document.cs","AiAssistantDocumentService.cs",
-        "Program.ChannelDocuments.cs","QualificationChannelDocuments.cs","QualificationDocumentSeed.cs","ChannelDocumentOracle.cs"];
+        "Program.ChannelDocuments.cs","QualificationChannelDocuments.cs","QualificationDocumentSeed.cs","ChannelDocumentOracle.cs",
+        "Program.FormsDocuments.cs","QualificationFormsDocuments.cs","FormsDocumentRunner.cs","FormDocumentAuthoringPolicy.cs"];
 
     internal static readonly string[] CaseSets=["home-existing","channel-stage5","audio-es-en","stage5-all","home-authoring","channel-authoring","ia-authoring","channel-dictation",
-        "home-spreadsheets","channel-spreadsheets","ia-spreadsheets","document-reading","channel-agent","home-documents","channel-documents"];
+        "home-spreadsheets","channel-spreadsheets","ia-spreadsheets","document-reading","channel-agent","home-documents","channel-documents","forms-documents"];
     // channel-dictation runs only the voice notes of channel-authoring (IA3-A by voice), without repeating the typed cases already qualified.
     internal static ChannelCase[] SelectChannelCases(string? selected,ChannelCase[] cases)=>
         selected=="channel-dictation"?cases.Where(item=>item.Audio is not null).ToArray():cases;
@@ -78,6 +79,8 @@ internal static partial class Program
             var homeDocuments=selected=="home-documents";
             // channel-documents (task 17a): a document or a spreadsheet by WhatsApp, on its own run and database with the forms that read documents.
             var channelDocuments=selected=="channel-documents";
+            // forms-documents (task 17b): «Armar formulario con la IA» from the inbox, on its own run and database with its reviewers.
+            var formsDocuments=selected=="forms-documents";
             if(!args.Contains("--live",StringComparer.Ordinal))
             {
                 if(selected is "home-existing" or "stage5-all")foreach(var item in await CasesAsync<HomeCase>("home-cases.json",CancellationToken.None))Console.WriteLine(item.Id);
@@ -91,6 +94,7 @@ internal static partial class Program
                 if(agentSet)foreach(var item in await CasesAsync<AgentCase>(AgentCasesFile,CancellationToken.None))Console.WriteLine(item.Id);
                 if(homeDocuments)foreach(var item in (await HomeDocumentsAsync(CancellationToken.None)).Cases)Console.WriteLine(item.Id);
                 if(channelDocuments)foreach(var item in (await QualificationChannelDocuments.LoadVerifiedAsync(CancellationToken.None)).Cases)Console.WriteLine(item.Id);
+                if(formsDocuments)foreach(var item in (await QualificationFormsDocuments.LoadVerifiedAsync(CancellationToken.None)).Cases)Console.WriteLine(item.Id);
                 Console.WriteLine("Prepared only. No connection or secret store was opened.");return 0;
             }
             // Nothing above this explicit gate reads environment, credentials, services or a database.
@@ -99,6 +103,7 @@ internal static partial class Program
             var documentSet=documents && !args.Contains("--resume",StringComparer.Ordinal)?await QualificationDocuments.LoadVerifiedAsync(CancellationToken.None):null;
             var homeDocumentSet=homeDocuments && !args.Contains("--resume",StringComparer.Ordinal)?await HomeDocumentsAsync(CancellationToken.None):null;
             var channelDocumentSet=channelDocuments && !args.Contains("--resume",StringComparer.Ordinal)?await QualificationChannelDocuments.LoadVerifiedAsync(CancellationToken.None):null;
+            var formsDocumentSet=formsDocuments && !args.Contains("--resume",StringComparer.Ordinal)?await QualificationFormsDocuments.LoadVerifiedAsync(CancellationToken.None):null;
             var settings=QualificationSettings.FromEnvironment(RequiredOption(args,"--run-id"),RequiredOption(args,"--repository"),RequiredOption(args,"--output"));
             using var timeout=new CancellationTokenSource(TimeSpan.FromHours(2));var ct=timeout.Token;
             if(diagnose)return await DiagnoseExistingFixtureAsync(settings,ct);
@@ -120,9 +125,10 @@ internal static partial class Program
                 await RefuseNonemptyEvaluationDatabaseAsync(db,ct);
                 await db.Database.MigrateAsync(ct); // Isolated evaluation DB only.
                 fixture=await scope.ServiceProvider.GetRequiredService<QualificationSeed>().CreateAsync(ct);
-                if(selected is "channel-stage5" or "stage5-all" || homeAuthoring || channelAuthoring || spreadsheets || agentSet || homeDocuments || channelDocuments)
+                if(selected is "channel-stage5" or "stage5-all" || homeAuthoring || channelAuthoring || spreadsheets || agentSet || homeDocuments || channelDocuments || formsDocuments)
                     forms=await scope.ServiceProvider.GetRequiredService<QualificationFormSeed>().CreateAsync(fixture,ct);
                 if(channelDocuments)(fixture,forms)=await scope.ServiceProvider.GetRequiredService<QualificationDocumentSeed>().CreateAsync(fixture,forms!,ct);
+                if(formsDocuments)fixture=await scope.ServiceProvider.GetRequiredService<QualificationDocumentSeed>().CreateReviewersAsync(fixture,ct);
                 if(agentSet)agent=await scope.ServiceProvider.GetRequiredService<QualificationAgentSeed>().CreateAsync(fixture,forms!,ct);
                 if(homeAuthoring || channelAuthoring || spreadsheets || homeDocuments)
                 {
@@ -145,6 +151,7 @@ internal static partial class Program
                 if(homeDocumentSet is not null)if(!await RunHomeAsync(host,settings,fixture,forms,QualificationHomeDocuments.CaseFile,HomeAuthoringCapabilities,ct,homeDocumentSet))return 1;
                 if(agent is not null)if(!await RunAgentAsync(host,settings,agent,forms!,ct))return 1;
                 if(channelDocumentSet is not null)if(!await RunChannelDocumentsAsync(host,settings,fixture,forms!,channelDocumentSet,ct))return 1;
+                if(formsDocumentSet is not null)if(!await RunFormsDocumentsAsync(host,settings,fixture,forms!,formsDocumentSet,ct))return 1;
                 return 0; // Mechanical checks do not declare production qualification.
             }
             finally{await host.StopAsync(CancellationToken.None);}

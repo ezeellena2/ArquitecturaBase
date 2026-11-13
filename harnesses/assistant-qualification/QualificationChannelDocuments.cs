@@ -131,7 +131,8 @@ internal static class QualificationChannelDocuments
     public static bool IsReadingLedger(QualificationLedgerEntry entry) => entry is { OperationKind: ReadingOperation, ChannelId: "whatsapp-assistant",
             ChannelKind: null, SourceRecordId: null, PreviousRequestId: null, FocusDefinitionId: null, InteractionMode: AssistantInteractionMode.Assistant }
         && entry.SubjectUserId == entry.ActorUserId && entry.Culture is "es" or "en"
-        && entry.CaseId.StartsWith("channel-document-", StringComparison.Ordinal) && entry.CaseId.EndsWith("-document", StringComparison.Ordinal);
+        && (entry.CaseId.StartsWith("channel-document-", StringComparison.Ordinal) || entry.CaseId.StartsWith("forms-document-", StringComparison.Ordinal))
+        && entry.CaseId.EndsWith("-document", StringComparison.Ordinal);
 
     // The name the app gives the file in the text, the attachment and its document (WhatsAppMessage.DocumentName): a photo from WhatsApp
     // comes without a name and is named by its type («image.jpg», «image.png»); a PDF keeps the one the phone sends.

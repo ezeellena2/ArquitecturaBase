@@ -108,7 +108,8 @@ internal static class QualificationHomeDocuments
                 && document.Expected is { } expected && ValidExpectation(expected) : document.Expected is null);
     }
 
-    private static bool ValidExpectation(HomeDocumentExpectation expected) =>
+    // Also forms-documents' (task 17b), which shares Home's rules for what a form does with its documents.
+    internal static bool ValidExpectation(HomeDocumentExpectation expected) =>
         expected.Facts is not null && expected.Facts.All(fact => FactType(fact) is not null) && expected.Facts.Distinct(StringComparer.Ordinal).Count() == expected.Facts.Length
         && expected.MinimumQuestions >= 1
         && (expected.Printed is null || expected.Printed.Length > 0 && expected.Printed.All(question => (question.Label is not null || question.Types is not null)

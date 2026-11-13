@@ -27,6 +27,8 @@ internal sealed record QualificationFixture(IReadOnlyList<QualificationActor> Ac
     // channel-documents only (QualificationDocumentSeed): loaders of the subjects' role who send the spreadsheets, with a daily quota of
     // their own (the subjects already read and interpret the documents).
     public IReadOnlyList<QualificationActor> SheetLoaders { get; init; } = [];
+    // forms-documents only (QualificationDocumentSeed.CreateReviewersAsync): the inbox reviewers who also design forms, one per culture.
+    public IReadOnlyList<QualificationActor> Reviewers { get; init; } = [];
 }
 
 internal sealed class QualificationSeed(IUnitOfWork unitOfWork, IUserRepository users, IRoleRepository roles,
