@@ -52,7 +52,7 @@ internal sealed class BusinessFormCaptureFixture
         Issuances = new FakeRecordIssuanceReader(() => UnitOfWork.InTransaction);
         Sink = new BusinessFormRecordRecorder(Repository, new(ReceiptReader, Permission, new(Current, Permission, Users), Issuances, Users), UnitOfWork, Actions.Clock,
             NullLogger<BusinessFormRecordRecorder>.Instance, preparer, Actions.Recorder,
-            new(OriginResponses, Suggestions, Documents, Documents.Recorder(), Documents.Clock));
+            new(OriginResponses, Suggestions, Documents, Documents.Recorder(), Documents.Clock, new(Documents, new(Documents, Documents, [Documents]))));
         VersionId = version.Id;
     }
 

@@ -1358,7 +1358,13 @@ leerlos, cargarlos y la bandeja llegan con las tareas siguientes del plan.
   correcciones): una cuenta que no es una CBU o una CVU con sus dos verificadores, ni un alias de 6 a 20 letras, números, puntos o
   guiones, da `Forms.Record.BankAccountInvalid` («Revisá la cuenta: los números no dan. Copiala del comprobante.»), y una CUIT o
   un CUIL sin su verificador, `Forms.Record.TaxIdInvalid`, en su pregunta (y su ítem, en el bloque). No se guarda la respuesta,
-  sólo el recibo rechazado; lo escrito que pasa se guarda tal cual. Los valores son del núcleo (`Domain/ValueObjects`):
+  sólo el recibo rechazado; lo escrito que pasa se guarda tal cual, y la respuesta de la captura dice `fixedValidation` (sólo la captura que
+  lo encontró, no un replay del recibo), para que un canal pueda volver a mandar el formulario. Desde la tarea 9b de documentos, una respuesta
+  que su persona confirma en un canal desde un documento recibido o una fila (`origin.document` sin `documentRevision`) se vuelve a revisar
+  al capturar con lo corregido: si los datos que marcan un repetido del estándar (`DuplicateKeys`, todos respondidos) coinciden con una
+  respuesta guardada del formulario, da `Forms.Record.Repeated` y la captura dice `repetition` (su número y cuándo llegó), así dos
+  comprobantes mandados juntos no se guardan los dos (`FormRecordRepetitionPolicy`, en la UoW de la captura y después del lock del
+  documento). Lo que pasa quien revisa desde la bandeja no se revisa: lo decide esa persona. Los valores son del núcleo (`Domain/ValueObjects`):
   `CuitNumber` y `BankAccountKey`, que da la cuenta normalizada, su tipo y el código de su entidad (los dígitos 1 a 3 de una CBU y
   los 4 a 7 de una CVU). Los dígitos pueden venir separados por cualquier espacio (también el que no corta) o guion (también la
   raya y el signo menos); 22 dígitos son siempre una CBU o una CVU y 11 una CUIT, que no es una cuenta: nunca se leen como alias,

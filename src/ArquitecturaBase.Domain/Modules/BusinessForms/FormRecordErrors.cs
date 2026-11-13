@@ -32,4 +32,8 @@ public static class FormRecordErrors
     // DOC1: the fixed validations of a question bound by a library standard, on every capture.
     public static readonly Error BankAccountInvalid = Error.Validation("Forms.Record.BankAccountInvalid", "The account is neither a CBU or CVU whose check digits add up nor a valid alias.");
     public static readonly Error TaxIdInvalid = Error.Validation("Forms.Record.TaxIdInvalid", "The CUIT or CUIL does not have eleven digits with a valid check digit.");
+    // Task 9b of the documents: a response confirmed in a channel from a received document repeats the duplicate keys of one already saved.
+    public static readonly Error Repeated = Error.Conflict("Forms.Record.Repeated", "A response with the same values of the standard's duplicate keys is already saved.");
+    public static Error RepeatedOf(string? recordNumber, DateTime atUtc) =>
+        Repeated with { Metadata = new Dictionary<string, object?> { ["recordNumber"] = recordNumber, ["atUtc"] = atUtc } };
 }

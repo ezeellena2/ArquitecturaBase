@@ -186,9 +186,12 @@ internal sealed partial class WhatsAppFlowDispatchService(IWhatsAppFlowRepositor
             return new(null, null, "channel", culture);
         // A section subtitle (CW15-B) points to its title; the components after it count without the subtitles before them.
         var (before, subtitles) = Subtitles(projection.Json, pointer.ScreenIndex);
+        // r14 (task 9b): the notice atop a screen is not a question; the components after it count without it.
+        var notices = WhatsAppFlowMarks.Notices(projection.Json, pointer.ScreenIndex);
+        if (notices.Contains(position)) return new(null, null, "channel", culture);
         if (subtitles.Contains(position))
             return new(null, null, $"draft.sections[{before + subtitles.Count(at => at < position)}].title.{culture}", culture);
-        position -= subtitles.Count(at => at < position);
+        position -= subtitles.Count(at => at < position) + notices.Count(at => at < position);
         var screen = screens[pointer.ScreenIndex];
         IReadOnlyList<int> indices = screen.Kind == "ask" ? [] : screen.Questions;
         // The dropdown of values points to its question; the components after it count without it.

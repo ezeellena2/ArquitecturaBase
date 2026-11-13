@@ -11,10 +11,11 @@ namespace ArquitecturaBase.Infrastructure.Modules.WhatsApp;
 internal static class WhatsAppFlowNavigation
 {
     public static JsonObject Build(string screen, IReadOnlyList<StructuredFormCatalogOffer> catalogs,
-        IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> initialValues)
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> initialValues,
+        IReadOnlyDictionary<string, string>? texts = null, IReadOnlyDictionary<string, bool>? flags = null)
     {
         var navigation = new JsonObject { ["screen"] = screen };
-        if (catalogs.Count == 0 && initialValues.Count == 0) return navigation;
+        if (catalogs.Count == 0 && initialValues.Count == 0 && (texts?.Count ?? 0) == 0 && (flags?.Count ?? 0) == 0) return navigation;
         var data = new JsonObject();
         foreach (var catalog in catalogs)
         {
@@ -27,6 +28,9 @@ internal static class WhatsAppFlowNavigation
             foreach (var field in initial.Value) fields[field.Key] = field.Value;
             data[initial.Key] = fields;
         }
+        // r14 (task 9b): the notice, the help of each control and the booleans of the first screen.
+        foreach (var text in texts ?? new Dictionary<string, string>()) data[text.Key] = text.Value;
+        foreach (var flag in flags ?? new Dictionary<string, bool>()) data[flag.Key] = flag.Value;
         navigation["data"] = data;
         return navigation;
     }

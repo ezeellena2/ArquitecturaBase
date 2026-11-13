@@ -117,6 +117,10 @@ internal static class WhatsAppFlowCompiler
                 ? WhatsAppFlowScreenBuilder.Shared(request.Questions, screens, shown, WhatsAppFlowScreenBuilder.Owner(screens, shown[0])) : null);
         }
         var guarded = places.Values.Where(place => place.When is not null).ToDictionary(place => place.At, place => place.When!.Count);
+        // r14 (task 9b): a form that reads documents opens prefilled with what was read and its marks; the twin screen of the question that
+        // may receive the sent document, when it is the last one.
+        var reads = request.ReadsDocuments == true;
+        var twin = reads && rows is null ? WhatsAppFlowMarks.Twin(request.Questions, screens) : -1;
         // A calculation is not a component, and each component of a question with a condition, or a title shown with them, goes
         // inside one If per condition (r13).
         int Ifs(IEnumerable<int> indices) => indices.Sum(index => (request.Questions[index] is { ShowWhen: not null, Calculated: not true } question
@@ -211,6 +215,12 @@ internal static class WhatsAppFlowCompiler
                     ["name"] = question.Key, ["label"] = label ?? "", ["required"] = question.Required,
                 };
                 if (help is not null) control[question.Type is "boolean" or "multiChoice" || question.Files is not null ? "description" : "helper-text"] = help;
+                // r14: a text or date control without its own help says what was read with doubts or not read, as data of the send.
+                else if (reads && question.Type is "shortText" or "longText" or "date" && question.ShowWhen is null && question.Repeated != true)
+                {
+                    control["helper-text"] = "${data." + WhatsAppFlowMarks.Help(question.Key) + "}";
+                    screenData[WhatsAppFlowMarks.Help(question.Key)] = new { type = "string", __example__ = FlowTexts.Get("MarkDoubtful", culture) };
+                }
                 if (question.Files is not null) WhatsAppFlowScreenBuilder.ConfigurePicker(control, question, request.MaxFileSizeMiB ?? 25);
                 if (question.Type is "shortText" or "longText") control[question.Type == "shortText" ? "max-chars" : "max-length"] = question.MaxLength!.Value;
                 if (question.Type == "decimal")
@@ -255,11 +265,13 @@ internal static class WhatsAppFlowCompiler
                 "end" => 3,
                 _ => screen.Questions.Count + (WhatsAppFlowScreenBuilder.Asks(rows, screen.Row) ? 4 : 1) + 1,
             });
+            // r14: the notice atop the first screen and, conservatively, the twin screen with its notice, Footer and the If before it.
+            count += (reads ? 1 : 0) + (twin >= 0 ? screens[twin].Questions.Count + 5 : 0);
             if (count > 50) issues.Add(new(null, null, "draft.fields", FlowErrors.ComponentBudgetExceeded, 50, culture));
             if (issues.Count > 0) continue;
             var json = rows is null
-                ? WhatsAppFlowScreenBuilder.Build(request.Questions, screens, components, screenData, name, submit, culture, subtitles)
-                : WhatsAppFlowScreenBuilder.BuildRows(request.Questions, screens, components, screenData, name, blockTitle, submit, culture, subtitles);
+                ? WhatsAppFlowScreenBuilder.Build(request.Questions, screens, components, screenData, name, submit, culture, subtitles, reads, twin)
+                : WhatsAppFlowScreenBuilder.BuildRows(request.Questions, screens, components, screenData, name, blockTitle, submit, culture, subtitles, reads);
             var bytes = Encoding.UTF8.GetBytes(json);
             if (bytes.Length > 1048576) { issues.Add(new(null, null, "draft", FlowErrors.UnsupportedConfiguration)); continue; }
             flows.Add(new(culture, json, Convert.ToHexStringLower(SHA256.HashData(bytes)), count, mapping.AsReadOnly()));

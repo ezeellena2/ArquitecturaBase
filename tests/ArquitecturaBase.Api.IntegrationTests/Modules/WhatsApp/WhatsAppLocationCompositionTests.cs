@@ -101,7 +101,7 @@ public sealed partial class WhatsAppFormSendingTests
             foreach (var binding in bindings)
             {
                 var projection = protector.ReadProjection(binding.OperationId, binding.Id, binding.VersionId, binding.Culture, binding.ProtectedProjection);
-                Assert.Equal("flow-static-7.3-r13", projection.ProfileRevision);
+                Assert.Equal("flow-static-7.3-r14", projection.ProfileRevision);
                 Assert.Equal(["shortText", "location"], projection.Mapping.Select(field => field.Type));
                 Assert.DoesNotContain(keys[1], projection.Json, StringComparison.Ordinal);
             }

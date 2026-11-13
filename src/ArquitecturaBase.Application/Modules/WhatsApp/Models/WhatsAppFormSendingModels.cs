@@ -127,6 +127,10 @@ public sealed record WhatsAppFlowMessageResponse : WhatsAppOutboundMessage
     public WhatsAppFlowAccountContext Account { get; }
     public IReadOnlyList<StructuredFormCatalogOffer> Catalogs { get; }
     public IReadOnlyDictionary<string,IReadOnlyDictionary<string,string>> InitialValues { get; }
+    /// <summary>r14 (task 9b): the texts of the first screen's data (the notice and each help); empty for another Flow.</summary>
+    public IReadOnlyDictionary<string,string> Texts { get; init; } = new Dictionary<string,string>();
+    /// <summary>r14 (task 9b): the booleans of the first screen's data (the notice shown and the twin of the sent document).</summary>
+    public IReadOnlyDictionary<string,bool> Flags { get; init; } = new Dictionary<string,bool>();
 
     /// <summary>VC1-A (task 29): the footer of the Flow of a load («Cobranzas · prellenado»), up to Meta's limit; null without one.</summary>
     public string? Footer

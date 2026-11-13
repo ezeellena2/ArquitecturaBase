@@ -1,4 +1,6 @@
 using ArquitecturaBase.Application.Models.StructuredData;
+using ArquitecturaBase.Application.Modules.BusinessForms.Models;
+using ArquitecturaBase.Application.Modules.BusinessForms.Services;
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using ArquitecturaBase.Domain.Modules.BusinessForms.Documents;
@@ -95,6 +97,47 @@ public sealed class BusinessFormDocumentCaptureTests
         Assert.Equal((FormReceivedDocumentState.Confirmed, (Guid?)null), (document.State, document.ReviewedByUserId));
         Assert.Equal(("Rejected", FormReceivedDocumentErrors.StateConflict.Code), (refused.State, refused.ErrorCode));
         Assert.Equal(FormReceivedDocumentState.Proposed, otherDocument.State);
+    }
+
+    // Task 9b: a confirmation in a channel is checked again with what the person corrected; only the capture that finds the repetition
+    // says which response it repeats, and a reviewer who passes a document from the inbox decides it themselves.
+    [Fact]
+    public async Task A_channel_confirmation_that_repeats_a_saved_response_says_which_one_and_neither_its_replay_nor_a_reviewer_pass_does()
+    {
+        var capture = new BusinessFormCaptureFixture("shortText", false);
+        var savedAtUtc = new DateTime(2026, 11, 10, 15, 30, 0, DateTimeKind.Utc);
+        var fieldId = Follow(capture, savedAtUtc, "local");
+        var document = Document(capture, capture.Definition.Id, replyExpiresAtUtc: capture.Documents.Clock.GetUtcNow().UtcDateTime.AddHours(1));
+        var request = Channel(capture, document);
+
+        var rejected = await capture.Sink.CaptureAsync(request, Ct);
+        var replay = await capture.Sink.CaptureAsync(request, Ct);
+
+        Assert.Equal(("Rejected", FormRecordErrors.Repeated.Code), (rejected.State, rejected.ErrorCode));
+        Assert.Equal(new StructuredRecordRepetition("FORM-000007", savedAtUtc), rejected.Repetition);
+        Assert.Equal(("Rejected", FormRecordErrors.Repeated.Code, (StructuredRecordRepetition?)null), (replay.State, replay.ErrorCode, replay.Repetition));
+        var key = Assert.Single(Assert.Single(capture.Documents.RepetitionQueries).Keys);
+        Assert.Equal((fieldId, "shortText", "local"), (key.FieldId, key.Type, key.Value));
+        Assert.Equal(FormReceivedDocumentState.Proposed, document.State);
+        Assert.Empty(capture.Repository.Records);
+
+        var reviewed = Document(capture, capture.Definition.Id);
+        var passed = await capture.Sink.CaptureDocumentAsync(Pass(capture, reviewed, capture.Users.AddUser("reviewer@example.invalid").Id)
+            with { SourceReceiptId = Guid.CreateVersion7() }, Ct);
+
+        Assert.Equal(("Completed", (StructuredRecordRepetition?)null), (passed.State, passed.Repetition));
+        Assert.Single(capture.Documents.RepetitionQueries);
+    }
+
+    // The form copies a standard whose duplicate key is its question, and a response with this value was saved (number 7).
+    private static Guid Follow(BusinessFormCaptureFixture capture, DateTime savedAtUtc, string value)
+    {
+        var questions = FormDraftPolicy.Read<FormVersionSchema>(capture.Version.SchemaJson).Questions;
+        capture.Documents.Standards.Add(FormReceivedDocumentFixture.Standard("test.transfer", "operation"));
+        var form = capture.Documents.AddForm(questions, standardKey: "test.transfer", bindings: new Dictionary<string, Guid> { ["operation"] = questions[0].FieldId });
+        capture.Documents.Forms[^1] = form with { DefinitionId = capture.Definition.Id, VersionId = capture.VersionId, Prefix = "FORM" };
+        capture.Documents.SavedKeys.Add((new(savedAtUtc, Guid.CreateVersion7(), 7, null), [new(questions[0].FieldId, "shortText", value)]));
+        return questions[0].FieldId;
     }
 
     // A document of the capture's person proposed for a form (the capture's own, or another the person did not choose).

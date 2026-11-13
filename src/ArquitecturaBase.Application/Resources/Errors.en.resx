@@ -321,6 +321,7 @@
   <data name="Forms.Record.CatalogItemInactive" xml:space="preserve"><value>An option was deactivated. The response was not saved. You can send another form.</value></data>
   <data name="Forms.Record.BankAccountInvalid" xml:space="preserve"><value>Check the account: the digits don't add up. Copy it from the receipt.</value></data>
   <data name="Forms.Record.TaxIdInvalid" xml:space="preserve"><value>Check the CUIT or CUIL: the digits don't add up. Copy it from the receipt.</value></data>
+  <data name="Forms.Record.Repeated" xml:space="preserve"><value>This receipt was already loaded in another response with the same data. It is not saved again.</value></data>
 <data name="WhatsApp.Flow.CatalogPreparationBlocked" xml:space="preserve"><value>The catalog could not be prepared. Review the options before sending.</value></data>
   <data name="WhatsApp.Flow.CaptureFailed" xml:space="preserve"><value>We could not save the response after several attempts. You can send the form again.</value></data>
   <data name="Forms.Publication.TooManyFiles" xml:space="preserve"><value>A form allows up to 10 files. Reduce the maximum for a question.</value></data>

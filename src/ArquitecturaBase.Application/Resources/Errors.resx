@@ -321,6 +321,7 @@
   <data name="Forms.Record.CatalogItemInactive" xml:space="preserve"><value>Una opción se dio de baja. La respuesta no se guardó. Podés mandar otro formulario.</value></data>
   <data name="Forms.Record.BankAccountInvalid" xml:space="preserve"><value>Revisá la cuenta: los números no dan. Copiala del comprobante.</value></data>
   <data name="Forms.Record.TaxIdInvalid" xml:space="preserve"><value>Revisá la CUIT o CUIL: los números no dan. Copiala del comprobante.</value></data>
+  <data name="Forms.Record.Repeated" xml:space="preserve"><value>Este comprobante ya se cargó en otra respuesta con los mismos datos. No se guarda de nuevo.</value></data>
 <data name="WhatsApp.Flow.CatalogPreparationBlocked" xml:space="preserve"><value>No se pudo preparar el catálogo. Revisá las opciones antes de mandar.</value></data>
   <data name="WhatsApp.Flow.CaptureFailed" xml:space="preserve"><value>No pudimos guardar la respuesta después de varios intentos. Podés mandar el formulario de nuevo.</value></data>
   <data name="Forms.Publication.TooManyFiles" xml:space="preserve"><value>El formulario admite hasta 10 archivos. Bajá el máximo de alguna pregunta.</value></data>

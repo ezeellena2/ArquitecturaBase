@@ -9,7 +9,7 @@ using ArquitecturaBase.Domain.Results;
 namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
 internal sealed class FormRecordCaptureOriginPolicy(IFormResponseReader responses, IFormSuggestionRepository suggestions,
-    IFormReceivedDocumentRepository documents, FormReceivedDocumentRecorder recorder, TimeProvider clock)
+    IFormReceivedDocumentRepository documents, FormReceivedDocumentRecorder recorder, TimeProvider clock, FormRecordRepetitionPolicy repetitions)
 {
     /// <summary>
     /// The received document the response came from, confirmed with its record in the capture's commit and its step recorded, with the
@@ -89,6 +89,8 @@ internal sealed class FormRecordCaptureOriginPolicy(IFormResponseReader response
                 if (document.Revision != revision) return FormReceivedDocumentErrors.RevisionConflict;
                 if (!document.IsForReview(clock.GetUtcNow().UtcDateTime)) return FormReceivedDocumentErrors.AwaitingSender;
             }
+            // Task 9b: its person confirms it in a channel, so it is checked again with what they corrected.
+            else if (await repetitions.FindAsync(request, schema, documentId, ct) is { } repeated) return repeated;
         }
         return new FormRecordCaptureOriginPreparation(captured, changed, choices) { Document = document };
     }

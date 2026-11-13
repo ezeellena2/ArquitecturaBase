@@ -7,3 +7,5 @@ La regla funcional está en [formularios](../../../../../docs/features/formulari
 H7: FormMissingRequestFixture implementa únicamente persistencia de temas/pedidos en memoria y exige la UoW real simulada para locks/altas. Usa cuentas, permisos, validadores y TimeProvider ya compartidos; los casos prueban recibo estable, reapertura, revisión, permisos y metadata privada sin otro motor.
 
 DOC6: FormDocumentProposalFixture suma a la bandeja en memoria (`FormReceivedDocumentFixture`) los pedidos de «Armar formulario con la IA», los temas por sus documentos y `ScriptedFormProposalEngine`, un motor guionado que sólo encuentra una operación con su contexto sellado (también la conversación del canal).
+
+Tarea 9b: `FormReceivedDocumentFixture` también es la fuente de estándares (`Standards`, con `Standard(...)`) y guarda respuestas con sus claves (`SavedKeys`), que compara como el lector: el texto exacto y el número por su valor.

@@ -1,5 +1,8 @@
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
+using ArquitecturaBase.Application.Interfaces.Channels;
+using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
@@ -14,13 +17,18 @@ namespace ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.BusinessFo
 // forms with reading, catalog options by code, text or field, repetitions, documents and their history, and a reversible protector bound
 // to the document and the kind, like the real one. No provider, no engine.
 internal sealed class FormReceivedDocumentFixture : IFormReceivedDocumentRepository, IFormReceivedDocumentReader, IFormReceivedDocumentProtector,
-    IFormCatalogItemCodeReader, IFormMissingRequestRepository
+    IFormCatalogItemCodeReader, IFormMissingRequestRepository, IStructuredFormStandardSource
 {
     public FakeTimeProvider Clock { get; } = new(new DateTimeOffset(2026, 11, 12, 12, 0, 0, TimeSpan.Zero));
     public List<FormDocumentFormRow> Forms { get; } = [];
     public List<FormDocumentCatalogNameRow> Catalogs { get; } = [];
     public List<(Guid CatalogId, FormDocumentCatalogItemRow Item, IReadOnlyDictionary<string, string> Fields)> Items { get; } = [];
     public List<FormDocumentRepetitionRow> Repetitions { get; } = [];
+    /// <summary>Task 9b: responses saved with the values of their duplicate keys; a query finds one only with the same values.</summary>
+    public List<(FormDocumentRepetitionRow Row, IReadOnlyList<FormDocumentRepetitionKey> Keys)> SavedKeys { get; } = [];
+    /// <summary>Task 9b: the standards the forms copy, none unless a test adds one.</summary>
+    public List<StructuredFormStandard> Standards { get; } = [];
+    IReadOnlyList<StructuredFormStandard> IStructuredFormStandardSource.Standards => Standards;
     public List<(Guid DefinitionId, string? Sha256, IReadOnlyList<FormDocumentRepetitionKey> Keys)> RepetitionQueries { get; } = [];
     public List<FormReceivedDocument> Documents { get; } = [];
     public List<FormReceivedDocumentEvent> Events { get; } = [];
@@ -69,7 +77,11 @@ internal sealed class FormReceivedDocumentFixture : IFormReceivedDocumentReposit
         Guid? exceptDocumentId, CancellationToken cancellationToken)
     {
         RepetitionQueries.Add((definitionId, sha256, keys));
-        return Task.FromResult<IReadOnlyList<FormDocumentRepetitionRow>>(Repetitions.ToArray());
+        // As the reader compares them: every key with the value its question stored, a number by its value.
+        var byKeys = SavedKeys.Where(saved => keys.Count > 0 && keys.All(key => saved.Keys.Any(stored => stored.FieldId == key.FieldId && (key.Type == "decimal"
+            ? decimal.Parse(stored.Value, CultureInfo.InvariantCulture) == decimal.Parse(key.Value, CultureInfo.InvariantCulture)
+            : string.Equals(stored.Value, key.Value, StringComparison.Ordinal))))).Select(saved => saved.Row);
+        return Task.FromResult<IReadOnlyList<FormDocumentRepetitionRow>>([.. Repetitions, .. byKeys]);
     }
     public Task<FormReceivedDocumentStoredRow?> FindAsync(Guid documentId, CancellationToken cancellationToken) =>
         Task.FromResult(Documents.Where(document => document.Id == documentId).Select(Row).SingleOrDefault());
@@ -134,6 +146,12 @@ internal sealed class FormReceivedDocumentFixture : IFormReceivedDocumentReposit
         Forms.Add(form);
         return form;
     }
+
+    /// <summary>Task 9b: a standard whose reading compares these data as its duplicate keys.</summary>
+    public static StructuredFormStandard Standard(string key, params string[] duplicateKeys) => new(key, 1, new Dictionary<string, string> { ["es"] = "Transferencia" },
+        new Dictionary<string, string> { ["es"] = "Transferencia" }, "REC", "{}", new Dictionary<string, string>(),
+        Reading: new(new Dictionary<string, string> { ["es"] = "Un comprobante." }, new Dictionary<string, string> { ["es"] = "Recibí {amount}." },
+            duplicateKeys, new Dictionary<string, string>(), new Dictionary<string, string>()));
 
     public static CanonicalFormField Question(string type, string label, bool required = false, Guid? catalog = null, string? validation = null,
         IReadOnlyList<CanonicalFormChoice>? options = null, FormFileSettings? files = null)

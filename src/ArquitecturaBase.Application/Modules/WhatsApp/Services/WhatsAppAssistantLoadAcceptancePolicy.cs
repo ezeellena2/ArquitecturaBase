@@ -62,7 +62,7 @@ internal sealed class WhatsAppAssistantLoadAcceptancePolicy(WhatsAppFormSendPoli
                 prefill.Fields.Select(field => field.FieldId).ToArray()) { Document = send.DocumentId };
             var content = new WhatsAppFlowAssistantContent(1, origin, prefill.Fields.Select(field => new WhatsAppAssistantPrefillResponse(field.FieldId, field.Label, field.DisplayValue)).ToArray())
             {
-                Server = new(null, send.Marks.Count == 0 ? null : send.Marks),
+                Server = new(null, send.Marks.Count == 0 ? null : send.Marks) { Spreadsheet = true },
             };
             var fingerprint = Fingerprint(reference.RequestId, terminal.ProposalId, send.DocumentId);
             var issue = issuer.CreateProposed(send.Context, reference.RequestId, row.ModeRevision, null, fingerprint,

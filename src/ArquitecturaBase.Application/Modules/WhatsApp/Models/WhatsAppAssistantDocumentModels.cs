@@ -46,5 +46,8 @@ public sealed record WhatsAppFlowServerData(
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] WhatsAppFlowServerFile? File,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<StructuredDocumentFieldMark>? Marks)
 {
+    /// <summary>Task 9b: the send is a load of a spreadsheet (VC1-A), so the notice atop its Flow names the spreadsheet; null otherwise.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? Spreadsheet { get; init; }
     public override string ToString() => "WhatsAppFlowServerData { Content = [REDACTED] }";
 }

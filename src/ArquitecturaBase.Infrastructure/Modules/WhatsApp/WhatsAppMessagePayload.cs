@@ -173,7 +173,7 @@ internal static class WhatsAppMessagePayload
     }
 
     private static JsonObject FlowNavigation(WhatsAppFlowMessageResponse flow) =>
-        WhatsAppFlowNavigation.Build(flow.StartScreen, flow.Catalogs, flow.InitialValues);
+        WhatsAppFlowNavigation.Build(flow.StartScreen, flow.Catalogs, flow.InitialValues, flow.Texts, flow.Flags);
 
     private static JsonObject Interactive(string type, string body, string? footer, JsonObject action)
     {

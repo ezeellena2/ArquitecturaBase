@@ -51,10 +51,12 @@ internal sealed partial class FormPublicationDispatchService(IFormDraftRepositor
         }
         FormPublicationManifest manifest;
         FormVersionSchema schema;
+        string? documentReadingJson;
         try
         {
             manifest = protector.ReadManifest(new(operation.Id, operation.OperatorUserId, operation.RequestId, operation.DefinitionId, operation.VersionId), operation.ProtectedManifest);
             var version = await repository.GetVersionAsync(operation.VersionId, ct) ?? throw new InvalidOperationException("The sealed publication version is missing.");
+            documentReadingJson = version.DocumentReadingJson;
             schema = JsonSerializer.Deserialize<FormVersionSchema>(version.SchemaJson, JsonSerializerOptions.Web) ?? throw new InvalidOperationException("The sealed publication schema is invalid.");
             if (manifest.ContentHash != FormPublicationSnapshotPolicy.Hash(FormDraftPolicy.Serialize(schema))) throw new InvalidOperationException("The sealed publication schema does not match its manifest.");
         }
@@ -65,12 +67,13 @@ internal sealed partial class FormPublicationDispatchService(IFormDraftRepositor
             ManifestUnreadable(logger, operation.Id, exception.GetType().Name);
             return Result.Success<FormPublicationWorkResponse?>(null);
         }
-        var channelRequests = CreateChannelRequests(operation, manifest, schema);
+        var channelRequests = CreateChannelRequests(operation, manifest, schema,
+            documentReadingJson is null ? null : FormDraftPolicy.Read<FormDocumentReading>(documentReadingJson));
         return new FormPublicationWorkResponse(operation.Id, operation.DefinitionId, operation.VersionId, operation.OperatorUserId, reserved.Value,
             manifest, schema, channelRequests, reconciliationOnly);
     }
     private static FormPublicationChannelRequest[] CreateChannelRequests(BusinessFormPublicationOperation operation,
-        FormPublicationManifest manifest, FormVersionSchema schema)
+        FormPublicationManifest manifest, FormVersionSchema schema, FormDocumentReading? documentReading)
     {
         var targetCultures = manifest.Profiles.SelectMany(profile => profile.Cultures).Select(culture => culture.Culture)
             .Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
@@ -82,7 +85,8 @@ internal sealed partial class FormPublicationDispatchService(IFormDraftRepositor
                 field.Rows is null ? null : new StructuredFormRowSettings(field.Rows.MinRows, field.Rows.MaxRows), field.Repeated,
                 FormPublicationSnapshotPolicy.ChoosesFirst(field.Source?.GroupBy), FormPublicationSnapshotPolicy.Calculated(field.Calculation),
                 FormPublicationSnapshotPolicy.ShowWhen(field.ShowWhen), field.Receives)).ToArray(),
-            targetCultures, manifest.MaxFileSizeMiB, FormPublicationSnapshotPolicy.Sections(schema.Sections));
+            targetCultures, manifest.MaxFileSizeMiB, FormPublicationSnapshotPolicy.Sections(schema.Sections),
+            FormPublicationSnapshotPolicy.ReadsDocuments(documentReading));
         return manifest.Profiles.Select(profile => new FormPublicationChannelRequest(profile.ChannelId,
             new StructuredFormPublicationRequest(operation.Id, operation.DefinitionId, operation.VersionId, operation.OperatorUserId,
                 RequiredPermissions, manifest.PublicationFingerprint, profile.ProfileRevision,

@@ -165,7 +165,7 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
             return Reject(request, fingerprint, FormRecordErrors.InvalidResponse.Code);
         // DOC1: the fixed validations of the bound questions, at the question (and item) that does not pass them.
         if (FormRecordAnswerPolicy.FindInvalid(schema, answers) is { } invalid)
-            return Reject(request, fingerprint, invalid.Error.Code, invalid.FieldId, invalid.Row);
+            return Reject(request, fingerprint, invalid.Error.Code, invalid.FieldId, invalid.Row).Value with { FixedValidation = true };
 
         // Each answer with its item of the block, and the options chosen as «¿La emito?» reads them (FormIssuePreviewPolicy).
         var placed = FormRecordReferencePolicy.Placed(answers).ToArray();
@@ -180,7 +180,7 @@ internal sealed class BusinessFormRecordRecorder(IFormRecordRepository records, 
         var catalogFields = await FormCatalogFieldCapturePolicy.CaptureAsync(records, FormRecordReferencePolicy.ItemIds(selected), ct);
 
         var origin = await origins.ValidateAsync(request, schema, ct);
-        if (origin.IsFailure) return Reject(request, fingerprint, origin.Error.Code);
+        if (origin.IsFailure) return Reject(request, fingerprint, origin.Error.Code).Value with { Repetition = FormRecordRepetitionPolicy.Describe(origin.Error) };
 
         var valuesJson = FormDraftPolicy.Serialize(answers.Select(value => new { value.FieldId, value.Value }).ToArray());
         BusinessFormRecord record;

@@ -16,7 +16,10 @@ internal static class FormPublicationSnapshotPolicy
                 field.Rows is null ? null : new StructuredFormRowSettings(field.Rows.MinRows, field.Rows.MaxRows), field.Repeated,
                 ChoosesFirst(field.Source?.GroupBy), Calculated(field.Calculation), ShowWhen(field.ShowWhen), field.Receives)).ToArray(),
         FormPublicationPolicy.CheckCultures(saved).Where(culture => culture.IsComplete).Select(culture => culture.Culture).ToArray(),
-        saved.Draft.Fields.Any(field => field.Files is not null) ? maxFileSizeMiB ?? 25 : null, Sections(saved.Draft.Sections));
+        saved.Draft.Fields.Any(field => field.Files is not null) ? maxFileSizeMiB ?? 25 : null, Sections(saved.Draft.Sections),
+        ReadsDocuments(saved.Draft.DocumentReading));
+    /// <summary>Task 9b: a form that reads documents opens prefilled with its marks (r14); null without reading, so the request keeps its bytes.</summary>
+    public static bool? ReadsDocuments(FormDocumentReading? reading) => reading is { Enabled: true } ? true : null;
     /// <summary>LD2-A: whether the question asks first for a field's value; null without it, so the request keeps its bytes.</summary>
     public static bool? ChoosesFirst(Guid? groupBy) => groupBy is null ? null : true;
     /// <summary>CA1-A: a calculation is computed on receiving; null without it, so the request keeps its bytes.</summary>

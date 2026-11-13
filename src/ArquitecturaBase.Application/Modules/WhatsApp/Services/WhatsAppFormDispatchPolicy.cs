@@ -30,20 +30,25 @@ internal sealed class WhatsAppFormDispatchPolicy(IWhatsAppFormRecipientReader re
         if (await forms.FindAcceptedSessionAsync(row.UserId,row.Culture,row.DefinitionId,row.VersionId,ct) is null) return FlowErrors.FormUnavailable;
         var initial = InitialValues(row,payload,content,shared);
         if (initial.IsFailure) return initial.Error;
+        // r14 (task 9b): the marks and the notice the server sealed, as data of the first screen; nothing for another Flow.
+        var marks = initial.Value.Marks;
         var account = await environment.VerifyAccountAsync(ct);
         if (account.IsFailure) return account.Error;
         if (!account.Value.HasSameIdentity(payload.Account)) return FlowErrors.AccountMismatch;
         var phone = WhatsAppIds.Parse(phoneNumbers,row.WaId);
         return phone.IsFailure ? WhatsAppChatErrors.DestinationMissing :
-            new WhatsAppFlowMessageResponse(phone.Value,row.Body!,payload.ButtonText,payload.MetaFlowId,payload.Token,payload.StartScreen,account.Value,payload.Catalogs,initial.Value)
-                { Footer = row.Footer };
+            new WhatsAppFlowMessageResponse(phone.Value,row.Body!,payload.ButtonText,payload.MetaFlowId,payload.Token,payload.StartScreen,account.Value,payload.Catalogs,
+                marks.Objects.Count == 0 ? initial.Value.Values : initial.Value.Values.Concat(marks.Objects).ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal))
+                { Footer = row.Footer, Texts = marks.Texts, Flags = marks.Flags };
     }
 
-    private Result<IReadOnlyDictionary<string,IReadOnlyDictionary<string,string>>> InitialValues(WhatsAppFormDispatchRow row,
+    private Result<(IReadOnlyDictionary<string,IReadOnlyDictionary<string,string>> Values, WhatsAppFlowDynamicData Marks)> InitialValues(WhatsAppFormDispatchRow row,
         WhatsAppFlowSessionPayload payload,WhatsAppFlowAssistantContent? content,WhatsAppFlowSharedValues? shared)
     {
         if(row.ProtectedProjection is null)
-            return content is null && shared is null ? Result.Success<IReadOnlyDictionary<string,IReadOnlyDictionary<string,string>>>(new Dictionary<string,IReadOnlyDictionary<string,string>>()) : FlowErrors.StateConflict;
+            return content is null && shared is null
+                ? Result.Success<(IReadOnlyDictionary<string,IReadOnlyDictionary<string,string>>, WhatsAppFlowDynamicData)>((new Dictionary<string,IReadOnlyDictionary<string,string>>(), WhatsAppFlowDynamicData.Empty))
+                : FlowErrors.StateConflict;
         WhatsAppFlowProjection projection;
         try { projection=projections.ReadProjection(row.BindingOperationId,row.BindingId,row.VersionId,row.Culture,row.ProtectedProjection); }
         catch(Exception exception) when(exception is CryptographicException or InvalidOperationException) { return FlowErrors.StateConflict; }
@@ -68,6 +73,8 @@ internal sealed class WhatsAppFormDispatchPolicy(IWhatsAppFormRecipientReader re
             if(projection.Mapping.SingleOrDefault(field=>field.FieldId==value.FieldId) is not { Files: null } mapped) return FlowErrors.StateConflict;
             values[mapped.Key]=value.Value;
         }
-        return WhatsAppFlowPrefillPolicy.Build(projection,values);
+        var prefill = WhatsAppFlowPrefillPolicy.Build(projection,values);
+        if(prefill.IsFailure) return prefill.Error;
+        return (prefill.Value, WhatsAppFlowMarks.Build(projection, content?.Server));
     }
 }

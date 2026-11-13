@@ -96,6 +96,25 @@ public sealed class FormFixedValidationTests
         Assert.Empty(f.Repository.Values);
     }
 
+    // Task 9b: a channel may send the form again with what the person entered; only the capture that found the failure says it.
+    [Fact]
+    public async Task Only_the_capture_a_fixed_validation_rejects_says_so_and_its_replay_does_not()
+    {
+        var question = Field();
+        var f = new BusinessFormCaptureFixture([question]);
+        var request = f.Request(new Dictionary<string, string> { [f.Key] = "2850590940090418135202" });
+
+        var rejected = await f.Sink.CaptureAsync(request, Ct);
+        var replay = await f.Sink.CaptureAsync(request, Ct);
+        var tooLong = await f.Sink.CaptureAsync(f.Request(new Dictionary<string, string> { [f.Key] = new string('1', 41) })
+            with { SourceReceiptId = Guid.CreateVersion7() }, Ct);
+
+        Assert.Equal(("Rejected", "Forms.Record.BankAccountInvalid", (bool?)true), (rejected.State, rejected.ErrorCode, rejected.FixedValidation));
+        Assert.Equal(("Rejected", "Forms.Record.BankAccountInvalid", (Guid?)question.FieldId, (bool?)null),
+            (replay.State, replay.ErrorCode, replay.RejectedFieldId, replay.FixedValidation));
+        Assert.Equal(("Rejected", FormRecordErrors.InvalidResponse.Code, (bool?)null), (tooLong.State, tooLong.ErrorCode, tooLong.FixedValidation));
+    }
+
     [Fact]
     public async Task An_optional_question_left_empty_is_not_validated()
     {
