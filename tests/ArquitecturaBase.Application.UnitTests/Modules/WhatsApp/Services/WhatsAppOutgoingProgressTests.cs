@@ -29,7 +29,7 @@ public sealed class WhatsAppOutgoingProgressTests
     public async Task A_rejected_pending_send_reports_its_committed_failure_without_fabricating_a_dispatch()
     {
         var host = await WhatsAppAssistantDispatchFixture.CreateAsync();
-        host.Context.Contact.ChangeMode(WhatsAppConversationMode.Manual);
+        host.Context.Contact.ChangeMode(WhatsAppConversationMode.Manual, null, DateTime.UnixEpoch);
 
         var result = await host.Service.ReserveAsync(Ct);
 

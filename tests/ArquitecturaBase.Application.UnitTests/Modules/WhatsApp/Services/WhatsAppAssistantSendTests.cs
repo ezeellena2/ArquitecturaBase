@@ -57,7 +57,7 @@ public sealed class WhatsAppAssistantSendTests
     [Fact]
     public async Task A_mode_revision_change_prevents_accepting_the_old_interpretation()
     {
-        var host=await WhatsAppAssistantSuggestionFixture.ReadyAsync();host.Context.Contact.ChangeMode(WhatsAppConversationMode.Assistant);
+        var host=await WhatsAppAssistantSuggestionFixture.ReadyAsync();host.Context.Contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
         var result=await host.Service.SendAsync(Send(host),TestContext.Current.CancellationToken);
         Assert.True(result.IsFailure);Assert.Equal(WhatsAppAssistantErrors.StateConflict.Code,result.Error.Code);Assert.Empty(host.Conversation.Outgoing);
     }

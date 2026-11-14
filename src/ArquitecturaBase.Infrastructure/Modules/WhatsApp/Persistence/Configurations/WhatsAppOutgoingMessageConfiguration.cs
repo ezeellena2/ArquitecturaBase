@@ -29,6 +29,7 @@ internal sealed class WhatsAppOutgoingMessageConfiguration : IEntityTypeConfigur
         builder.Property(item => item.Body).HasMaxLength(WhatsAppMessage.MaxBodyLength);
         builder.Property(item => item.State).HasConversion<string>().HasMaxLength(20);
         builder.Property(item => item.WaMessageId).HasMaxLength(WhatsAppMessage.MaxWaMessageIdLength);
+        builder.Property(item => item.TraceParent).HasMaxLength(WhatsAppMessage.TraceParentLength);
         // W3: a resend of the form of a send (task 23); every outgoing of before is not one.
         builder.Property(item => item.IsResend).HasDefaultValue(false);
         // H31: the mark of a rule's notice, which goes after what answers someone when the next chat is chosen.

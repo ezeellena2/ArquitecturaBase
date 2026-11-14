@@ -84,7 +84,7 @@ public sealed class WhatsAppAssistantAutomaticIntegrationTests(ApiFactory factor
         await host.InTransactionAsync(async services =>
         {
             var row = await services.GetRequiredService<ApplicationDbContext>().Set<WhatsAppContact>().SingleAsync(item => item.Id == contact.ContactId, Ct);
-            row.ChangeMode(WhatsAppConversationMode.Manual); return true;
+            row.ChangeMode(WhatsAppConversationMode.Manual, null, DateTime.UnixEpoch); return true;
         }, Ct);
         await host.CompleteOutcomeAsync(contact.ContactId, outcome, Ct);
         await host.CompleteOutcomeAsync(contact.ContactId, outcome, Ct);

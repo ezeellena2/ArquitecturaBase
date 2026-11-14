@@ -74,7 +74,7 @@ public sealed class WhatsAppAssistantServiceTests
     [Fact]
     public async Task Manual_suggestion_requests_do_not_change_assistant_mode_or_send_on_behalf_of_an_operator()
     {
-        var host=new WhatsAppAssistantSuggestionFixture();host.Context.Contact.ChangeMode(WhatsAppConversationMode.Assistant);
+        var host=new WhatsAppAssistantSuggestionFixture();host.Context.Contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
         var result=await host.Service.RequestAsync(host.Request,TestContext.Current.CancellationToken);
         Assert.True(result.IsFailure);Assert.Equal(WhatsAppAssistantErrors.StateConflict.Code,result.Error.Code);Assert.Empty(host.Requests.Rows);Assert.Empty(host.Conversation.Outgoing);
     }

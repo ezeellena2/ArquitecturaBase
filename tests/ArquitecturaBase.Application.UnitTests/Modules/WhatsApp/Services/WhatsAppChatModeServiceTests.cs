@@ -18,7 +18,7 @@ public sealed class WhatsAppChatModeServiceTests
     public async Task Send_alone_can_stop_assistance_without_repeating_or_rewriting_an_outgoing_send(WhatsAppOutgoingMessageState state)
     {
         var host = new WhatsAppChatModeFixture([WhatsAppPermissions.Send]);
-        host.Repository.Contact.ChangeMode(AssistantMode);
+        host.Repository.Contact.ChangeMode(AssistantMode, null, DateTime.UnixEpoch);
         var outgoing = WhatsAppOutgoingMessage.Create(host.Actor, host.Repository.Contact.Id, Guid.NewGuid(), "Fictitious reply", WhatsAppChatModeFixture.Now);
         if (state is WhatsAppOutgoingMessageState.Sending or WhatsAppOutgoingMessageState.Uncertain) outgoing.Start(WhatsAppChatModeFixture.Now);
         if (state == WhatsAppOutgoingMessageState.Uncertain) outgoing.MarkUncertain();
@@ -33,13 +33,28 @@ public sealed class WhatsAppChatModeServiceTests
         Assert.Equal(1, host.UnitOfWork.Commits);
     }
 
+    // H19: the change keeps who made it and when.
+    [Fact]
+    public async Task A_change_keeps_who_made_it_and_when()
+    {
+        var host = new WhatsAppChatModeFixture([WhatsAppPermissions.Send]);
+        host.Repository.Contact.ChangeMode(AssistantMode, null, DateTime.UnixEpoch);
+
+        var result = await host.Service.ChangeAsync(new(host.Repository.Contact.Id, WhatsAppConversationMode.Manual,
+            host.Repository.Contact.ModeRevision), Ct);
+
+        Assert.True(result.IsSuccess);
+        var change = Assert.Single(host.Repository.Contact.ModeChanges, change => change.Mode == WhatsAppConversationMode.Manual);
+        Assert.Equal(((Guid?)host.Actor, WhatsAppChatModeFixture.Now), (change.ChangedByUserId, change.ChangedAtUtc));
+    }
+
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
     public async Task Taking_manual_attention_reports_only_the_send_already_started_by_the_assistant(bool started)
     {
         var host = new WhatsAppChatModeFixture([WhatsAppPermissions.Send]);
-        host.Repository.Contact.ChangeMode(AssistantMode);
+        host.Repository.Contact.ChangeMode(AssistantMode, null, DateTime.UnixEpoch);
         host.Repository.StartedAssistantMessage = started;
         var result = await host.Service.ChangeAsync(new(host.Repository.Contact.Id, WhatsAppConversationMode.Manual, 1), Ct);
         Assert.True(result.IsSuccess);
@@ -53,7 +68,7 @@ public sealed class WhatsAppChatModeServiceTests
     public async Task Taking_manual_attention_cancels_pending_model_work_after_commit_without_touching_an_outgoing_effect()
     {
         var host = new WhatsAppChatModeFixture([WhatsAppPermissions.Send]);
-        host.Repository.Contact.ChangeMode(AssistantMode);
+        host.Repository.Contact.ChangeMode(AssistantMode, null, DateTime.UnixEpoch);
         var context = new AssistantChannelContext("whatsapp-assistant", host.Actor, host.Actor, "es", "UTC", new([], []), [], []);
         var pending = WhatsAppAssistantRequest.Create(Guid.NewGuid(), host.Repository.Contact.Id, Guid.NewGuid(), host.Actor, host.Actor,
             WhatsAppAssistantRequestKind.Automatic, host.Repository.Contact.ModeRevision, host.Repository.Contact.LinkRevision,
@@ -138,7 +153,7 @@ public sealed class WhatsAppChatModeServiceTests
     public async Task A_stale_revision_cannot_stop_a_different_mode_change()
     {
         var host = new WhatsAppChatModeFixture([WhatsAppPermissions.Send]);
-        host.Repository.Contact.ChangeMode(AssistantMode);
+        host.Repository.Contact.ChangeMode(AssistantMode, null, DateTime.UnixEpoch);
         var result = await host.Service.ChangeAsync(new(host.Repository.Contact.Id, WhatsAppConversationMode.Manual, 0), Ct);
         Assert.Equal(WhatsAppChatErrors.RevisionConflict, result.Error);
         Assert.Equal(AssistantMode, host.Repository.Contact.Mode);

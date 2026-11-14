@@ -236,7 +236,7 @@ public sealed class WhatsAppSharedContentIntegrationTests(ApiFactory factory)
     private static Task<bool> TakeAsync(WhatsAppAssistantScenario host, Guid contactId) => host.InTransactionAsync(async services =>
     {
         var row = await services.GetRequiredService<ApplicationDbContext>().Set<WhatsAppContact>().SingleAsync(item => item.Id == contactId, Ct);
-        row.ChangeMode(WhatsAppConversationMode.Manual); return true;
+        row.ChangeMode(WhatsAppConversationMode.Manual, null, DateTime.UnixEpoch); return true;
     }, Ct);
 
     // The person shares a place, or a contact, some time after the Flow arrived, so what it sends goes after what is already queued.

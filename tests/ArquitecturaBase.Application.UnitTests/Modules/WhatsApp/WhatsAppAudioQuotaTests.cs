@@ -16,7 +16,7 @@ public sealed class WhatsAppAudioQuotaTests
         var f = new WhatsAppAudioFixture();
         f.Offers.OfferCount = 2;
         if (copied) Assert.Null((await f.Dispatch.PrepareAsync(f.Contact.Id, Ct)).Value);
-        f.Contact.ChangeMode(WhatsAppConversationMode.Assistant);
+        f.Contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
 
         var result = await f.Dispatch.PrepareAsync(f.Contact.Id, Ct);
 
@@ -43,7 +43,7 @@ public sealed class WhatsAppAudioQuotaTests
         var f = new WhatsAppAudioFixture();
         f.Offers.OfferCount = 2;
         f.Offers.ChangeRequest = Guid.NewGuid();
-        f.Contact.ChangeMode(WhatsAppConversationMode.Assistant);
+        f.Contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
         var result = await f.Dispatch.PrepareAsync(f.Contact.Id, Ct);
         Assert.True(result.IsSuccess);
         Assert.NotEqual(WhatsAppAudioState.Unavailable, f.Message.AudioState);
@@ -56,7 +56,7 @@ public sealed class WhatsAppAudioQuotaTests
     public async Task A_pinned_automatic_request_is_recovery_only_when_the_offer_quota_is_exhausted(int offers, bool recoverOnly)
     {
         var f = new WhatsAppAudioFixture();
-        f.Contact.ChangeMode(WhatsAppConversationMode.Assistant);
+        f.Contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
         var requestId = f.Pin(automatic: true);
         Assert.True(f.Message.StoreAudio(WhatsAppAudioStoragePolicy.Key(f.Message.Id), 47).IsSuccess);
         f.Message.SetAudioState(WhatsAppAudioState.Transcribing);
@@ -85,7 +85,7 @@ public sealed class WhatsAppAudioQuotaTests
         Assert.True(f.Message.StoreAudio(WhatsAppAudioStoragePolicy.Key(f.Message.Id), 47).IsSuccess);
         f.Message.SetAudioState(WhatsAppAudioState.Transcribing);
         f.Offers.OfferCount = 2;
-        if (assistantMode) f.Contact.ChangeMode(WhatsAppConversationMode.Assistant);
+        if (assistantMode) f.Contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
 
         var result = await f.Dispatch.PrepareAsync(f.Contact.Id, Ct);
 

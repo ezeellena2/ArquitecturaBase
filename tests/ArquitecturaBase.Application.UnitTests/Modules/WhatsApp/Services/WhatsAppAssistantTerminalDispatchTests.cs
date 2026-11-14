@@ -25,7 +25,7 @@ public sealed class WhatsAppAssistantTerminalDispatchTests
         var id=host.Request.RequestId;
         if(automatic)
         {
-            host.Requests.Rows.Clear();host.Reader.Reference=null;host.Context.Contact.ChangeMode(WhatsAppConversationMode.Assistant);
+            host.Requests.Rows.Clear();host.Reader.Reference=null;host.Context.Contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
             var work=await service.PrepareAsync(host.Context.Contact.Id,Ct);id=work.Value!.RequestId;
         }
         host.Assistant.Outcome=host.Assistant.Outcome.Value with {RequestId=id,
@@ -94,7 +94,7 @@ public sealed class WhatsAppAssistantTerminalDispatchTests
     public async Task Taking_manual_after_the_owner_commits_preserves_its_result_without_an_automatic_ack()
     {
         var(host,service,sinks,id)=await ArrangeAsync(true,"forms.missing-request.propose");
-        sinks.AfterCommit=()=>host.Context.Contact.ChangeMode(WhatsAppConversationMode.Manual);
+        sinks.AfterCommit=()=>host.Context.Contact.ChangeMode(WhatsAppConversationMode.Manual, null, DateTime.UnixEpoch);
         await service.CompleteAsync(host.Context.Contact.Id,id,host.Assistant.Outcome,Ct);
         Assert.Equal(1,sinks.Calls);Assert.Empty(host.Conversation.Outgoing);Assert.Equal(WhatsAppAssistantRequestState.Blocked,host.Requests.Rows[0].State);
     }

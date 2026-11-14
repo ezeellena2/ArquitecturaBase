@@ -19,7 +19,7 @@ public sealed partial class WhatsAppAssistantAutomaticTests
     {
         var host = await WhatsAppAssistantSuggestionFixture.ReadyAsync(recipientCulture);
         host.Requests.Rows.Clear();
-        host.Context.Contact.ChangeMode(WhatsAppConversationMode.Assistant);
+        host.Context.Contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
         var captured = await host.Context.Policy.CaptureAsync(host.Context.Contact,null,Ct);
         Assert.True(captured.IsSuccess);
         if (withReference)
@@ -148,7 +148,7 @@ public sealed partial class WhatsAppAssistantAutomaticTests
     [Fact]
     public async Task A_manual_takeover_while_the_model_is_running_prevents_the_automatic_effect()
     {
-        var host = await HostAsync(); host.Context.Contact.ChangeMode(WhatsAppConversationMode.Manual);
+        var host = await HostAsync(); host.Context.Contact.ChangeMode(WhatsAppConversationMode.Manual, null, DateTime.UnixEpoch);
         Assert.True((await Service(host).CompleteAsync(host.Context.Contact.Id,host.Request.RequestId,host.Assistant.Outcome,Ct)).IsSuccess);
         Assert.Equal(WhatsAppAssistantRequestState.Blocked,host.Requests.Rows[0].State);
         Assert.Empty(host.Conversation.Outgoing);

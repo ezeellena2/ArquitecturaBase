@@ -41,7 +41,7 @@ public sealed partial class WhatsAppChatTests
         return await factory.InTransactionAsync(async services=>
         {
             var db=services.GetRequiredService<ApplicationDbContext>();var contact=WhatsAppContact.Create(MetaWebhook.UniqueWaId(),null,"Audio source fixture",Now.AddHours(-3));contact.LinkUser(actor);
-            if(automatic)contact.ChangeMode(WhatsAppConversationMode.Assistant);
+            if(automatic)contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
             var text=WhatsAppMessage.Inbound(contact.Id,MetaWebhook.UniqueWaMessageId(),WhatsAppMessageKind.Text,"Older source",null,Now.AddHours(-4));text.SetInboundSequence(1);text.Classify(WhatsAppMessagePurpose.Business);text.MarkProcessed(Now.AddHours(-4));
             var audio=WhatsAppMessage.Inbound(contact.Id,MetaWebhook.UniqueWaMessageId(),WhatsAppMessageKind.Audio,null,null,Now.AddHours(-3));audio.SetInboundSequence(2);audio.SetAudioDescriptor("12345","audio/ogg",new string('a',64));audio.StoreAudio("whatsapp/audio/"+audio.Id.ToString("N")+".ogg",100);audio.Classify(WhatsAppMessagePurpose.Business);audio.MarkProcessed(Now.AddHours(-3));
             var expiry=state=="expired"?Now.AddHours(-1):Now.AddMinutes(30);

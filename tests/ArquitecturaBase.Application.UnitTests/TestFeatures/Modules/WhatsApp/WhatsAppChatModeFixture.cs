@@ -8,6 +8,7 @@ using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Application.UnitTests.TestDoubles.Users;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Results;
+using Microsoft.Extensions.Time.Testing;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.WhatsApp;
@@ -30,7 +31,8 @@ internal sealed class WhatsAppChatModeFixture
         Permissions.Permissions[Actor] = permissions;
         Assistant = new(UnitOfWork);
         Service = new(Repository, RequestValidators.For(new ChangeWhatsAppModeRequestValidator()), CurrentUser,
-            UnitOfWork, Permissions, Users, Assistant, NullLogger<WhatsAppChatModeService>.Instance);
+            UnitOfWork, new WhatsAppManualSendGuard(Users, Permissions), Assistant, new FakeTimeProvider(new DateTimeOffset(Now)),
+            NullLogger<WhatsAppChatModeService>.Instance);
     }
     public sealed class ModeAssistant(FakeUnitOfWork work) : IAssistantOperations
     {

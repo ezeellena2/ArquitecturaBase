@@ -4,6 +4,7 @@ using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.Infrastructure.Modules.WhatsApp.Persistence.Readers;
 using ArquitecturaBase.Infrastructure.Modules.WhatsApp.Persistence.Repositories;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -85,8 +86,10 @@ public static class WhatsAppInfrastructureRegistration
         // permisos. Hace falta arreglarlo en Meta o cargar otro, y recién ahí reiniciar.
         services.AddSingleton<WhatsAppHealth>();
         services.AddHealthChecks().AddCheck<WhatsAppHealthCheck>(WhatsAppHealthCheck.Name);
-        // H9: what each send ended in, as the assistant counts its own.
-        services.AddOpenTelemetry().WithMetrics(metrics => metrics.AddMeter(WhatsAppMetrics.MeterName));
+        // H9: what each send ended in, as the assistant counts its own; H19: its traces, with the context each row keeps.
+        services.AddOpenTelemetry().WithMetrics(metrics => metrics.AddMeter(WhatsAppMetrics.MeterName))
+            .WithTracing(tracing => tracing.AddSource(WhatsAppTelemetry.SourceName));
+        services.AddScoped<ISaveChangesInterceptor, WhatsAppTraceInterceptor>();
 
         AddMessageRetention(services, section);
 

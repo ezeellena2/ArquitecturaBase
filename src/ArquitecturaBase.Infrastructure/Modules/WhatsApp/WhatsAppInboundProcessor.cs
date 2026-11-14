@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.Application.Interfaces.Channels;
@@ -135,6 +136,8 @@ internal sealed partial class WhatsAppInboundProcessor(
     /// </summary>
     private async Task ProcessContactAsync(Guid contactId, CancellationToken cancellationToken)
     {
+        // H19: the round continues the trace of the last message of the chat.
+        using var activity = WhatsAppTelemetry.StartInbound(await FindTraceAsync(contactId, cancellationToken));
         try
         {
             await using (var scope = scopeFactory.CreateAsyncScope())
@@ -161,7 +164,23 @@ internal sealed partial class WhatsAppInboundProcessor(
         }
         catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
         {
+            activity?.SetStatus(ActivityStatusCode.Error);
             LogContactFailed(logger, contactId, exception);
+        }
+    }
+
+    // Only the trace: a failure to read it never holds the round back.
+    private async Task<string?> FindTraceAsync(Guid contactId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await using var scope = scopeFactory.CreateAsyncScope();
+            return await scope.ServiceProvider.GetRequiredService<IWhatsAppMessageReader>().FindLatestInboundTraceAsync(contactId, cancellationToken);
+        }
+        catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            LogTraceUnavailable(logger, contactId, exception);
+            return null;
         }
     }
 
@@ -313,6 +332,11 @@ internal sealed partial class WhatsAppInboundProcessor(
     }
 
     // El id del contacto es nuestro: no dice nada de la persona, y sirve para encontrarlo en la base.
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The WhatsApp inbound processor could not read the trace of the contact {ContactId}; its round goes on without it")]
+    private static partial void LogTraceUnavailable(ILogger logger, Guid contactId, Exception exception);
+
     [LoggerMessage(
         Level = LogLevel.Error,
         Message = "The WhatsApp inbound processor could not process the contact {ContactId}; its messages stay pending for the next round")]

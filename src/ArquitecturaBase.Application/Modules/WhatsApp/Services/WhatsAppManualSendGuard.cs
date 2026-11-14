@@ -3,9 +3,16 @@ using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 
-/// <summary>Revalidates the real operator of manual text and Flow sends. System actions do not use this guard.</summary>
+/// <summary>
+/// Revalidates the real operator of manual text and Flow sends, and of a mode change (H19). System actions do not use this guard.
+/// </summary>
 internal sealed class WhatsAppManualSendGuard(IUserReader users, IPermissionService permissions)
 {
+    /// <summary>An active account with the permission a mode change asks for.</summary>
+    public async Task<bool> HasPermissionAsync(Guid actor, string permission, CancellationToken cancellationToken) =>
+        await users.FindByIdAsync(actor, cancellationToken) is { IsActive: true }
+        && await permissions.HasPermissionAsync(actor, permission, cancellationToken);
+
     public async Task<bool> IsAllowedAsync(Guid? operatorUserId, CancellationToken cancellationToken)
     {
         if (operatorUserId is not { } actor) return false;

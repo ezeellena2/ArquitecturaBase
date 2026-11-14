@@ -46,7 +46,7 @@ internal sealed class WhatsAppSpreadsheetFixture : IWhatsAppSpreadsheetReader, I
     {
         Content = content ?? Csv;
         Files = new MemoryPrivateFileStore(storage);
-        Contact.ChangeMode(WhatsAppConversationMode.Assistant);
+        Contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
         Message = WhatsAppMessage.Inbound(Contact.Id, "wamid.spreadsheet", WhatsAppMessageKind.Spreadsheet, "Armame un catálogo con esta planilla", null, Now);
         Assert.True(Message.SetSpreadsheetDescriptor("1234", "text/csv", metaHash ?? Hash(Content), "clientes.csv"));
         var recipientGuard = new WhatsAppFormActionPolicy(Host.Context.Users, new FakePhoneNumberParser(), new FakeWhatsAppAvailability(true, true), Host.Context.Clock);

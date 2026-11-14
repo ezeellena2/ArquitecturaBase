@@ -58,6 +58,14 @@ public sealed class WhatsAppContact : Entity
     public WhatsAppConversationMode Mode { get; private set; } = WhatsAppConversationMode.Manual;
     public long ModeRevision { get; private set; }
 
+    private readonly List<WhatsAppModeChange> modeChanges = [];
+
+    /// <summary>
+    /// H19: the changes of mode made in this unit, which EF adds with the contact; they are not loaded with it, and the history is
+    /// their table. Not with IAuditable: every message that arrives changes the contact.
+    /// </summary>
+    public IReadOnlyCollection<WhatsAppModeChange> ModeChanges => modeChanges;
+
     /// <summary>Derivar (AS4): the stable code of why the conversation needs a person (a case, the daily cap, an owner's own reason).</summary>
     public const int MaxHandoffReasonCodeLength = 64;
 
@@ -85,17 +93,24 @@ public sealed class WhatsAppContact : Entity
 
     public long RegisterInboundMessage() => ++LastInboundSequence;
 
-    public void ChangeMode(WhatsAppConversationMode mode)
+    /// <summary>H19: a change adds who made it (nobody for the assistant) and when; the same mode adds nothing.</summary>
+    public void ChangeMode(WhatsAppConversationMode mode, Guid? changedByUserId, DateTime changedAtUtc)
     {
         if (!Enum.IsDefined(mode))
         {
             throw new ArgumentOutOfRangeException(nameof(mode), mode, "Unknown conversation mode.");
         }
 
+        if (changedAtUtc.Kind != DateTimeKind.Utc)
+        {
+            throw new ArgumentException("The time of a mode change is UTC.", nameof(changedAtUtc));
+        }
+
         if (Mode != mode)
         {
             Mode = mode;
             ModeRevision++;
+            modeChanges.Add(WhatsAppModeChange.Create(Id, ModeRevision, mode, changedByUserId, changedAtUtc));
         }
 
         if (mode == WhatsAppConversationMode.Assistant)
@@ -127,7 +142,7 @@ public sealed class WhatsAppContact : Entity
             throw new ArgumentException("The handoff time is UTC.", nameof(nowUtc));
         }
 
-        ChangeMode(WhatsAppConversationMode.Manual);
+        ChangeMode(WhatsAppConversationMode.Manual, null, nowUtc);
         HandoffReasonCode = reasonCode;
         HandoffReason = text;
         HandoffAtUtc = nowUtc;

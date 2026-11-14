@@ -41,8 +41,8 @@ public sealed class WhatsAppAssistantDispatchTests
         var reservation = host.Outgoing.ReserveAssistant(host.Now);
         switch (change)
         {
-            case "manual": host.Context.Contact.ChangeMode(WhatsAppConversationMode.Manual); break;
-            case "revision": host.Context.Contact.ChangeMode(WhatsAppConversationMode.Manual);host.Context.Contact.ChangeMode(WhatsAppConversationMode.Assistant);break;
+            case "manual": host.Context.Contact.ChangeMode(WhatsAppConversationMode.Manual, null, DateTime.UnixEpoch); break;
+            case "revision": host.Context.Contact.ChangeMode(WhatsAppConversationMode.Manual, null, DateTime.UnixEpoch);host.Context.Contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);break;
             case "link": host.Context.Contact.UnlinkUser();host.Context.Contact.LinkUser(host.Context.Subject.Id);break;
             case "inactive": await host.Context.Users.SetActiveAsync(host.Context.Subject.Id,false,Ct);break;
             case "window": host.Context.Clock.Advance(TimeSpan.FromSeconds(31));break;
@@ -70,7 +70,7 @@ public sealed class WhatsAppAssistantDispatchTests
     {
         var host = await WhatsAppAssistantDispatchFixture.CreateAsync();
         var reservation = host.Outgoing.ReserveAssistant(host.Now);host.Outgoing.MarkAssistantMessageEffect(reservation,host.Now);
-        host.Context.Contact.ChangeMode(WhatsAppConversationMode.Manual);
+        host.Context.Contact.ChangeMode(WhatsAppConversationMode.Manual, null, DateTime.UnixEpoch);
         var result = await host.Service.CompleteAsync(host.Context.Contact.Id,host.Outgoing.Id,"wamid.assistant-known",false,Ct,reservation);
         Assert.True(result.IsSuccess);Assert.Equal(WhatsAppOutgoingMessageState.Accepted,host.Outgoing.State);
         var message=Assert.Single(host.Messages.Added);Assert.Equal(WhatsAppMessageOrigin.Assistant,message.Origin);
@@ -83,7 +83,7 @@ public sealed class WhatsAppAssistantDispatchTests
         var host = await WhatsAppAssistantDispatchFixture.CreateAsync();
         var reservation = host.Outgoing.ReserveAssistant(host.Now);
         host.Outgoing.MarkAssistantMessageEffect(reservation,host.Now);
-        host.Context.Contact.ChangeMode(WhatsAppConversationMode.Manual);
+        host.Context.Contact.ChangeMode(WhatsAppConversationMode.Manual, null, DateTime.UnixEpoch);
         var result = await host.Service.MarkAssistantMessageEffectAsync(host.Context.Contact.Id,host.Outgoing.Id,reservation,Ct);
         Assert.False(result.Value);Assert.Equal(WhatsAppOutgoingMessageState.Sending,host.Outgoing.State);
         Assert.Equal(host.Now,host.Outgoing.MessageEffectStartedAtUtc);

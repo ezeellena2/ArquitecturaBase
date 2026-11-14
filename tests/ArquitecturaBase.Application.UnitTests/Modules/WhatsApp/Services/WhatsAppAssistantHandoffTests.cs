@@ -73,7 +73,7 @@ public sealed class WhatsAppAssistantHandoffTests
     {
         var host = new Host();
         await host.Policy.HandOffAsync(host.Repository.Contact, host.Recipient, Guid.CreateVersion7(), "case", "Motivo", "Te paso con una persona.", Ct);
-        host.Repository.Contact.ChangeMode(WhatsAppConversationMode.Assistant);
+        host.Repository.Contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
 
         var work = (await host.Service.ReserveAsync(Ct)).Value.Operation;
 
@@ -131,7 +131,7 @@ public sealed class WhatsAppAssistantHandoffTests
         {
             Contact.RecordInbound("5493413654813", null, "Ana", nowUtc);
             Contact.LinkUser(recipient);
-            Contact.ChangeMode(WhatsAppConversationMode.Assistant);
+            Contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
         }
 
         public Task<WhatsAppContact?> GetForUpdateAsync(Guid id, CancellationToken ct) => Task.FromResult<WhatsAppContact?>(Contact.Id == id ? Contact : null);

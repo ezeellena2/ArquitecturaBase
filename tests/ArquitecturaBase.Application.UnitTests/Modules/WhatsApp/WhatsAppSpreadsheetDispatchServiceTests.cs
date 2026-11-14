@@ -57,7 +57,7 @@ public sealed class WhatsAppSpreadsheetDispatchServiceTests
     public async Task Anyone_else_keeps_it_as_today_without_downloading_it(string who)
     {
         var f = new WhatsAppSpreadsheetFixture(storage: who != "withoutStorage");
-        if (who == "manual") f.Contact.ChangeMode(WhatsAppConversationMode.Manual);
+        if (who == "manual") f.Contact.ChangeMode(WhatsAppConversationMode.Manual, null, DateTime.UnixEpoch);
         if (who == "unlinked") f.Contact.UnlinkUser();
         if (who == "inactive") await f.Host.Context.Users.ArrangeAsync(users => users.SetActiveAsync(f.Host.Context.Subject.Id, false, Ct));
         if (who == "forbidden") f.MayAttach = false;
@@ -299,7 +299,7 @@ public sealed class WhatsAppSpreadsheetDispatchServiceTests
         var f = new WhatsAppSpreadsheetFixture();
         f.BeforeDownload = () =>
         {
-            if (change == "mode") f.Contact.ChangeMode(WhatsAppConversationMode.Manual);
+            if (change == "mode") f.Contact.ChangeMode(WhatsAppConversationMode.Manual, null, DateTime.UnixEpoch);
             else { f.Contact.UnlinkUser(); f.Contact.LinkUser(f.Host.Context.Subject.Id); }
         };
 

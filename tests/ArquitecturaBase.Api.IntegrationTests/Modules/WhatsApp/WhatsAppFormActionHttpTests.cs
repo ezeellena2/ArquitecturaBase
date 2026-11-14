@@ -86,7 +86,7 @@ public sealed class WhatsAppFormActionHttpTests(ApiFactory factory)
         {
             var db = services.GetRequiredService<ApplicationDbContext>();
             var contact = await db.Set<WhatsAppContact>().SingleAsync(item => item.Id == recipient.ContactId, Ct);
-            contact.ChangeMode(WhatsAppConversationMode.Assistant);
+            contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
             var outgoing = WhatsAppOutgoingMessage.CreateFormAction(recipient.UserId, contact.Id, Guid.NewGuid(), PrivateBody, Now,
                 contactLinkRevision: contact.LinkRevision, recipientWaId: contact.WaId);
             var reservation = outgoing.ReserveFormAction(Now); outgoing.MarkFormActionMessageEffect(reservation, Now); outgoing.MarkUncertain();

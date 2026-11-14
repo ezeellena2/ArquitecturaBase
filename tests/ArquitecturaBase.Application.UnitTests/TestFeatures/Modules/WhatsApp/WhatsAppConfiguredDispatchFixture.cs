@@ -17,7 +17,7 @@ internal sealed class WhatsAppConfiguredDispatchFixture
     public static async Task<WhatsAppConfiguredDispatchFixture> CreateAsync(bool automatic)
     {
         var host=await WhatsAppAssistantSuggestionFixture.ReadyAsync();host.Requests.Rows.Clear();host.Reader.Reference=null;host.Assistant.ResetCalls();host.Assistant.Availability="paused";
-        if(automatic)host.Context.Contact.ChangeMode(WhatsAppConversationMode.Assistant);
+        if(automatic)host.Context.Contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
         var record=Guid.NewGuid();var set=Guid.NewGuid();var suggestion=Guid.NewGuid();
         var source=Capture(host,record,1);
         var prefill=host.Forms.Prefill.Value;

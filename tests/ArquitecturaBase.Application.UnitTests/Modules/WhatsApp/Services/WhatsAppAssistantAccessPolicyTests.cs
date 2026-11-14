@@ -25,7 +25,7 @@ public sealed class WhatsAppAssistantAccessPolicyTests
     [Fact]
     public async Task Automatic_context_uses_the_recipient_and_the_business_zone_without_inheriting_operator_permissions()
     {
-        var h=new WhatsAppAssistantContextFixture();h.Contact.ChangeMode(WhatsAppConversationMode.Assistant);
+        var h=new WhatsAppAssistantContextFixture();h.Contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
         var result=await h.Policy.CaptureAsync(h.Contact,null,Ct);Assert.True(result.IsSuccess);var context=result.Value.Context;
         Assert.Equal(h.Subject.Id,context.ActorUserId);Assert.Equal(h.Subject.Id,context.SubjectUserId);
         Assert.Equal("America/New_York",context.TimeZoneId);Assert.NotEqual(h.Subject.TimeZoneId,context.TimeZoneId);
@@ -46,7 +46,7 @@ public sealed class WhatsAppAssistantAccessPolicyTests
     [InlineData(true,15)]
     public async Task Only_the_automatic_channel_offers_catalog_filter_and_authoring_proposals(bool automatic,int count)
     {
-        var h=new WhatsAppAssistantContextFixture();if(automatic)h.Contact.ChangeMode(WhatsAppConversationMode.Assistant);
+        var h=new WhatsAppAssistantContextFixture();if(automatic)h.Contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
         var captured=await h.Policy.CaptureAsync(h.Contact,automatic?null:h.Operator.Id,Ct);
         Assert.True(captured.IsSuccess);Assert.Equal(count,captured.Value.Context.AllowedCapabilities.Count);
         Assert.Equal(automatic,captured.Value.Context.AllowedCapabilities.Any(capability=>capability.Id=="forms.catalog-filters.metadata"));
@@ -61,7 +61,7 @@ public sealed class WhatsAppAssistantAccessPolicyTests
     [Fact]
     public async Task The_automatic_channel_offers_the_catalog_with_its_mapping_and_the_import_within_the_sixteen_definitions()
     {
-        var h=new WhatsAppAssistantContextFixture();h.Contact.ChangeMode(WhatsAppConversationMode.Assistant);
+        var h=new WhatsAppAssistantContextFixture();h.Contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
         var context=(await h.Policy.CaptureAsync(h.Contact,null,Ct)).Value.Context;
         Assert.Contains(new AssistantCapabilityReference("forms.authoring.propose-catalog",2),context.AllowedCapabilities);
         Assert.Contains(new AssistantCapabilityReference("forms.authoring.propose-import",1),context.AllowedCapabilities);
@@ -81,7 +81,7 @@ public sealed class WhatsAppAssistantAccessPolicyTests
     [InlineData(true,17)]
     public async Task A_document_with_its_request_adds_the_documents_capabilities_to_the_conversation(bool agent,int declared)
     {
-        var h=new WhatsAppAssistantContextFixture();h.Contact.ChangeMode(WhatsAppConversationMode.Assistant);
+        var h=new WhatsAppAssistantContextFixture();h.Contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
         if(agent) h.Agents.Agent=new(1,"es",new("Asistente","","","","",new("Te paso con una persona.",null)),[],
             new(WhatsAppAssistantActionKind.NoReply),WhatsAppAssistantAgentLimits.DefaultLimits);
         var captured=(await h.Policy.CaptureAsync(h.Contact,null,Ct)).Value.Context;
@@ -99,7 +99,7 @@ public sealed class WhatsAppAssistantAccessPolicyTests
     [InlineData(true)]
     public async Task A_document_alone_only_loads_it(bool agent)
     {
-        var h=new WhatsAppAssistantContextFixture();h.Contact.ChangeMode(WhatsAppConversationMode.Assistant);
+        var h=new WhatsAppAssistantContextFixture();h.Contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
         if(agent) h.Agents.Agent=new(1,"es",new("Asistente","","","","",new("Te paso con una persona.",null)),[],
             new(WhatsAppAssistantActionKind.NoReply),WhatsAppAssistantAgentLimits.DefaultLimits);
         var captured=(await h.Policy.CaptureAsync(h.Contact,null,Ct)).Value.Context;
@@ -122,7 +122,7 @@ public sealed class WhatsAppAssistantAccessPolicyTests
         var h = new WhatsAppAssistantContextFixture();
         h.Agents.Agent = new(1, "es", new("Asistente", "", "", "", "", new("Te paso con una persona.", null)), [],
             new(WhatsAppAssistantActionKind.NoReply), WhatsAppAssistantAgentLimits.DefaultLimits);
-        if (automatic) h.Contact.ChangeMode(WhatsAppConversationMode.Assistant);
+        if (automatic) h.Contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
         var context = (await h.Policy.CaptureAsync(h.Contact, automatic ? null : h.Operator.Id, Ct)).Value.Context;
         Assert.Equal(new AssistantCapabilityReference[] { new("whatsapp.agent", 1), new("forms.assistant-candidates", 1), new("whatsapp.agent-history", 1) },
             context.PreloadedCapabilities);
@@ -141,7 +141,7 @@ public sealed class WhatsAppAssistantAccessPolicyTests
         var h = new WhatsAppAssistantContextFixture();
         h.Agents.Agent = new(1, "es", new("Asistente", "", "", "", "", new("Te paso con una persona.", null)), [],
             new(WhatsAppAssistantActionKind.NoReply), WhatsAppAssistantAgentLimits.DefaultLimits);
-        h.Contact.ChangeMode(WhatsAppConversationMode.Assistant);
+        h.Contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
         var c4 = WhatsAppAssistantAccessPolicy.ForCapturedRecord((await h.Policy.CaptureAsync(h.Contact, null, Ct)).Value.Context, Guid.NewGuid());
         Assert.Null(c4.PreloadedCapabilities);
         Assert.Equal(new[] { new AssistantTerminalReference("assistant_proposal", 1) }, c4.AllowedTerminals);
@@ -152,7 +152,7 @@ public sealed class WhatsAppAssistantAccessPolicyTests
     public async Task Without_an_agent_the_contexts_are_the_ones_of_before()
     {
         var h = new WhatsAppAssistantContextFixture();
-        h.Contact.ChangeMode(WhatsAppConversationMode.Assistant);
+        h.Contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
         var context = (await h.Policy.CaptureAsync(h.Contact, null, Ct)).Value.Context;
         Assert.Null(context.PreloadedCapabilities);
         Assert.Contains(new AssistantCapabilityReference("whatsapp.no-reply", 1), context.AllowedCapabilities);
@@ -182,15 +182,15 @@ public sealed class WhatsAppAssistantAccessPolicyTests
     [InlineData(true)]
     public async Task The_context_must_match_the_selected_mode(bool automatic)
     {
-        var h=new WhatsAppAssistantContextFixture();if(!automatic)h.Contact.ChangeMode(WhatsAppConversationMode.Assistant);
+        var h=new WhatsAppAssistantContextFixture();if(!automatic)h.Contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
         Assert.True((await h.Policy.CaptureAsync(h.Contact,automatic?null:h.Operator.Id,Ct)).IsFailure);
     }
     [Fact]
     public async Task An_unlinked_contact_is_not_an_automatic_identity()
-    { var h=new WhatsAppAssistantContextFixture();h.Contact.UnlinkUser();h.Contact.ChangeMode(WhatsAppConversationMode.Assistant);Assert.True((await h.Policy.CaptureAsync(h.Contact,null,Ct)).IsFailure); }
+    { var h=new WhatsAppAssistantContextFixture();h.Contact.UnlinkUser();h.Contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);Assert.True((await h.Policy.CaptureAsync(h.Contact,null,Ct)).IsFailure); }
     [Fact]
     public async Task A_closed_customer_window_blocks_an_automatic_context()
-    {var h=new WhatsAppAssistantContextFixture();h.Contact.ChangeMode(WhatsAppConversationMode.Assistant);h.Clock.Advance(TimeSpan.FromHours(24));Assert.True((await h.Policy.CaptureAsync(h.Contact,null,Ct)).IsFailure);}
+    {var h=new WhatsAppAssistantContextFixture();h.Contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);h.Clock.Advance(TimeSpan.FromHours(24));Assert.True((await h.Policy.CaptureAsync(h.Contact,null,Ct)).IsFailure);}
     [Fact]
     public async Task An_unchanged_reference_can_be_revalidated_without_a_model_call()
     {var h=new WhatsAppAssistantContextFixture();var captured=await h.Policy.CaptureAsync(h.Contact,h.Operator.Id,Ct);Assert.True(captured.IsSuccess);Assert.Null(await h.Policy.RevalidateAsync(h.Contact,Reference(h,captured.Value.Context),Ct));}

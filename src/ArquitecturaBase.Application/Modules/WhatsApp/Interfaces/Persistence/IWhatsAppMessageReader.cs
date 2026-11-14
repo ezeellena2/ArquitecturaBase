@@ -13,4 +13,7 @@ public interface IWhatsAppMessageReader
     /// saliente guardado con ese id o Meta todavía no avisó nada. Un entrante con el mismo id no cuenta.
     /// </summary>
     Task<WhatsAppMessageStatus?> FindOutboundStatusAsync(string waMessageId, CancellationToken cancellationToken);
+
+    /// <summary>H19: the trace context of the last message that arrived in a chat, which the round that processes it continues.</summary>
+    Task<string?> FindLatestInboundTraceAsync(Guid contactId, CancellationToken cancellationToken);
 }

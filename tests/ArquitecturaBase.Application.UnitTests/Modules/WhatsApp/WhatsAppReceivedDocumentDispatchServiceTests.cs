@@ -99,7 +99,7 @@ public sealed class WhatsAppReceivedDocumentDispatchServiceTests
         {
             Loading = StructuredDocumentLoading.None, MayAuthor = who != "cannotBuild", InstallationReadsDocuments = who != "installationDoesNotRead",
         };
-        if (who == "manual") f.Contact.ChangeMode(WhatsAppConversationMode.Manual);
+        if (who == "manual") f.Contact.ChangeMode(WhatsAppConversationMode.Manual, null, DateTime.UnixEpoch);
         if (who == "otherNumber")
             await f.Host.Context.Users.ArrangeAsync(users => users.SetPhoneAsync(f.Host.Context.Subject.Id,
                 Domain.ValueObjects.PhoneNumber.Create("+5493410000000").Value, true, Ct));
@@ -244,7 +244,7 @@ public sealed class WhatsAppReceivedDocumentDispatchServiceTests
     public async Task Anyone_else_keeps_it_as_today_without_downloading_it(string who)
     {
         var f = new WhatsAppReceivedDocumentFixture(storage: who != "withoutStorage");
-        if (who == "manual") f.Contact.ChangeMode(WhatsAppConversationMode.Manual);
+        if (who == "manual") f.Contact.ChangeMode(WhatsAppConversationMode.Manual, null, DateTime.UnixEpoch);
         if (who == "inactive") await f.Host.Context.Users.ArrangeAsync(users => users.SetActiveAsync(f.Host.Context.Subject.Id, false, Ct));
         if (who == "otherNumber")
             await f.Host.Context.Users.ArrangeAsync(users => users.SetPhoneAsync(f.Host.Context.Subject.Id,
@@ -268,7 +268,7 @@ public sealed class WhatsAppReceivedDocumentDispatchServiceTests
     {
         var f = new WhatsAppReceivedDocumentFixture();
         f.Contact.UnlinkUser();
-        f.Contact.ChangeMode(mode);
+        f.Contact.ChangeMode(mode, null, DateTime.UnixEpoch);
 
         Assert.True((await f.Dispatch.PrepareAsync(f.Contact.Id, Ct)).IsSuccess);
 
@@ -611,7 +611,7 @@ public sealed class WhatsAppReceivedDocumentDispatchServiceTests
         var f = new WhatsAppReceivedDocumentFixture();
         f.BeforeDownload = () =>
         {
-            if (change == "mode") f.Contact.ChangeMode(WhatsAppConversationMode.Manual);
+            if (change == "mode") f.Contact.ChangeMode(WhatsAppConversationMode.Manual, null, DateTime.UnixEpoch);
             else { f.Contact.UnlinkUser(); f.Contact.LinkUser(f.Host.Context.Subject.Id); }
         };
 

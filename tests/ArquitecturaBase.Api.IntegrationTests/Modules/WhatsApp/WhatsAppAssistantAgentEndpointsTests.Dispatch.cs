@@ -123,7 +123,7 @@ public sealed partial class WhatsAppAssistantAgentEndpointsTests
             var result = await scope.ServiceProvider.GetRequiredService<IUnitOfWork>().ExecuteInTransactionAsync(async token =>
             {
                 var contact = await db.Set<WhatsAppContact>().SingleAsync(item => item.Id == contactId, token);
-                contact.ChangeMode(WhatsAppConversationMode.Assistant);
+                contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
                 var message = WhatsAppMessage.Inbound(contact.Id, MetaWebhook.UniqueWaMessageId(), WhatsAppMessageKind.Text, body, null, atUtc);
                 message.Classify(WhatsAppMessagePurpose.Business);
                 message.SetInboundSequence(contact.RegisterInboundMessage());

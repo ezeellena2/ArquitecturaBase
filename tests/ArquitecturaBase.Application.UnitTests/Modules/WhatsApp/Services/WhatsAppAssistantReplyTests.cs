@@ -306,7 +306,7 @@ public sealed class WhatsAppAssistantReplyTests
     public async Task A_tap_after_a_person_took_the_conversation_is_only_marked()
     {
         var arranged = await QuestionSentAsync();
-        arranged.Host.Context.Contact.ChangeMode(WhatsAppConversationMode.Manual);
+        arranged.Host.Context.Contact.ChangeMode(WhatsAppConversationMode.Manual, null, DateTime.UnixEpoch);
         var outgoingBefore = arranged.Host.Conversation.Outgoing.Count;
         var tap = Tap(arranged, 1);
 
@@ -498,7 +498,7 @@ public sealed class WhatsAppAssistantReplyTests
         var arranged = await PendingAsync();
         var row = Assert.Single(arranged.Host.Requests.Rows);
         var contact = arranged.Host.Context.Contact;
-        if (scope == "person") contact.ChangeMode(WhatsAppConversationMode.Manual);
+        if (scope == "person") contact.ChangeMode(WhatsAppConversationMode.Manual, null, DateTime.UnixEpoch);
         else if (scope == "relinked")
         {
             // The same account linked again: another link, so the request is not of this conversation.
@@ -545,7 +545,7 @@ public sealed class WhatsAppAssistantReplyTests
         host.Requests.Rows.Clear();
         host.Reader.Reference = null;
         host.Conversation.Outgoing.Clear();
-        host.Context.Contact.ChangeMode(WhatsAppConversationMode.Assistant);
+        host.Context.Contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
         return new(host, dispatch, agents, history, Guid.Empty);
     }
 

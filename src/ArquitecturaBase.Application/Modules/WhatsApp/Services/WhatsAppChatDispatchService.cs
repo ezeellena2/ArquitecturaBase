@@ -36,7 +36,7 @@ internal sealed class WhatsAppChatDispatchService(
             if (reservation is null) outgoing.Start(nowUtc);
             return Result.Success(new WhatsAppDispatchReservationResponse(true, new(outgoing.Id, contact!.Id, phone.Value, outgoing.Body!,
                 outgoing.Kind, outgoing.FlowSessionId, outgoing.Origin, reservation, outgoing.Document, outgoing.DocumentMediaId, outgoing.QuickReplies, outgoing.ListButton,
-                outgoing.DispatchRetries)));
+                outgoing.DispatchRetries, outgoing.TraceParent)));
         }, CommitPolicy.OnSuccess, cancellationToken));
 
     public Task<Result> CompleteAsync(Guid contactId, Guid operationId, string? waMessageId, bool uncertain, CancellationToken cancellationToken, Guid? reservationId = null, string? failureCode = null) =>

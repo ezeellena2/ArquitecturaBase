@@ -30,7 +30,7 @@ public sealed class WhatsAppFormActionDispatchTests
     [Fact]
     public async Task Reservation_in_bot_mode_does_not_require_an_operator_or_start_the_message_effect()
     {
-        var host = new Host(); host.Repository.Contact.ChangeMode(WhatsAppConversationMode.Assistant);
+        var host = new Host(); host.Repository.Contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
         var work = (await host.Service.ReserveAsync(Ct)).Value.Operation;
         Assert.NotNull(work);
         Assert.Equal(WhatsAppMessageOrigin.FormAction, work.Origin);

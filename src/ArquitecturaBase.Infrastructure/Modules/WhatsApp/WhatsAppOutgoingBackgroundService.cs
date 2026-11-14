@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Security.Cryptography;
 using ArquitecturaBase.Application.Interfaces.Integrations.Files;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
@@ -27,6 +28,8 @@ internal sealed partial class WhatsAppOutgoingBackgroundService(
 
         var operation = reservation.Operation;
         if (operation is null) { return reservation.Progressed; }
+        // H19: the send continues the trace where it was written; the call to Meta goes as its child.
+        using var activity = WhatsAppTelemetry.StartOutgoing(operation.TraceParent, operation.Origin, operation.Kind);
         string? providerId = null;
         var uncertain = false;
         var retry = false;
@@ -175,6 +178,7 @@ internal sealed partial class WhatsAppOutgoingBackgroundService(
         await using var completion = scopes.CreateAsyncScope();
         var completing = completion.ServiceProvider.GetRequiredService<IWhatsAppChatDispatchService>();
         WhatsAppMetrics.RecordOutgoing(retry ? "retry" : providerId is not null ? "sent" : uncertain ? "uncertain" : "failed", operation.Origin);
+        if (!retry && providerId is null) activity?.SetStatus(ActivityStatusCode.Error);
         if (retry) await completing.RetryLaterAsync(operation.ContactId, operation.Id, operation.DispatchReservationId, completionTimeout.Token);
         else await completing.CompleteAsync(operation.ContactId, operation.Id, providerId, uncertain, completionTimeout.Token, operation.DispatchReservationId, failureCode);
         return true;

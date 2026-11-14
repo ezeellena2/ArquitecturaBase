@@ -54,6 +54,23 @@ public sealed partial class WhatsAppMessage : Entity
 
     public WhatsAppMessageOrigin Origin { get; private set; }
 
+    /// <summary>H19: a W3C traceparent, the only form that fits.</summary>
+    public const int TraceParentLength = 55;
+
+    /// <summary>H19: the trace context where it was written, so its processing continues that trace; none before H19.</summary>
+    public string? TraceParent { get; private set; }
+
+    /// <summary>H19: kept once, when it is first saved.</summary>
+    public void RecordTrace(string traceParent)
+    {
+        if (traceParent is not { Length: TraceParentLength })
+        {
+            throw new ArgumentException("A trace context is a W3C traceparent.", nameof(traceParent));
+        }
+
+        TraceParent ??= traceParent;
+    }
+
     public WhatsAppMessageDirection Direction { get; private set; }
 
     /// <summary>El id de Meta (<c>wamid.…</c>). Único.</summary>

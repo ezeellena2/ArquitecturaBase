@@ -28,6 +28,9 @@ internal sealed class WhatsAppContactConfiguration : IEntityTypeConfiguration<Wh
         builder.Property(contact => contact.HandoffReasonCode).HasMaxLength(WhatsAppContact.MaxHandoffReasonCodeLength);
         builder.Property(contact => contact.HandoffReason).HasMaxLength(WhatsAppContact.MaxHandoffReasonLength);
         builder.HasIndex(contact => contact.HandoffAtUtc).HasFilter("\"HandoffAtUtc\" IS NOT NULL");
+        // H19: each change of mode goes with the contact that made it; nothing loads them with it.
+        builder.HasMany(contact => contact.ModeChanges).WithOne().HasForeignKey(change => change.ContactId).OnDelete(DeleteBehavior.Restrict);
+        builder.Navigation(contact => contact.ModeChanges).UsePropertyAccessMode(PropertyAccessMode.Field);
 
         builder.HasIndex(contact => contact.UserIdentifier).IsUnique();
         builder.HasIndex(contact => contact.UserId).IsUnique();

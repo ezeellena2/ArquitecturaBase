@@ -14,7 +14,7 @@ public sealed class WhatsAppAssistantClarificationTests
     private static async Task<(WhatsAppAssistantSuggestionFixture Host,Guid RequestId)> HostAsync()
     {
         var host=await WhatsAppAssistantSuggestionFixture.ReadyAsync();host.Requests.Rows.Clear();host.Reader.Reference=null;
-        host.Context.Contact.ChangeMode(WhatsAppConversationMode.Assistant);
+        host.Context.Contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
         var work=await Service(host).PrepareAsync(host.Context.Contact.Id,Ct);Assert.NotNull(work.Value);
         var proposal=host.Assistant.Outcome.Value.Proposal! with {Capability=new("forms.clarify-registration",1)};
         host.Assistant.Outcome=host.Assistant.Outcome.Value with {RequestId=work.Value.RequestId,Proposal=proposal,
@@ -96,7 +96,7 @@ public sealed class WhatsAppAssistantClarificationTests
     public async Task A_late_choice_after_taking_manual_attention_never_creates_a_flow()
     {
         var(host,id)=await HostAsync();var service=Service(host);await service.CompleteAsync(host.Context.Contact.Id,id,host.Assistant.Outcome,Ct);
-        Choose(host,id,host.Forms.Clarification.Value.Choices[0]);host.Context.Contact.ChangeMode(WhatsAppConversationMode.Manual);
+        Choose(host,id,host.Forms.Clarification.Value.Choices[0]);host.Context.Contact.ChangeMode(WhatsAppConversationMode.Manual, null, DateTime.UnixEpoch);
         await service.CompleteAsync(host.Context.Contact.Id,id,host.Assistant.Outcome,Ct);
         Assert.Empty(host.Sessions.Rows);Assert.Single(host.Conversation.Outgoing);Assert.NotNull(host.Messages.Messages[0].AssistantProcessedAtUtc);
     }

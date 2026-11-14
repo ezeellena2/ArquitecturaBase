@@ -4417,6 +4417,10 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<DateTime?>("StatusAtUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("TraceParent")
+                        .HasMaxLength(55)
+                        .HasColumnType("character varying(55)");
+
                     b.Property<string>("WaMessageId")
                         .IsRequired()
                         .HasMaxLength(256)
@@ -4461,6 +4465,36 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasFilter("\"Direction\" = 'Inbound' AND \"Kind\" = 'ButtonReply' AND \"AssistantProcessedAtUtc\" IS NULL");
 
                     b.ToTable("WhatsAppMessages", (string)null);
+                });
+
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.WhatsApp.WhatsAppModeChange", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("ChangedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ChangedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ContactId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Mode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<long>("ModeRevision")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ContactId", "ModeRevision")
+                        .IsUnique();
+
+                    b.ToTable("WhatsAppModeChanges", (string)null);
                 });
 
             modelBuilder.Entity("ArquitecturaBase.Domain.Modules.WhatsApp.WhatsAppOutgoingMessage", b =>
@@ -4601,6 +4635,10 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
+
+                    b.Property<string>("TraceParent")
+                        .HasMaxLength(55)
+                        .HasColumnType("character varying(55)");
 
                     b.Property<string>("WaMessageId")
                         .HasMaxLength(256)
@@ -5771,6 +5809,15 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Navigation("FlowSession");
                 });
 
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.WhatsApp.WhatsAppModeChange", b =>
+                {
+                    b.HasOne("ArquitecturaBase.Domain.Modules.WhatsApp.WhatsAppContact", null)
+                        .WithMany("ModeChanges")
+                        .HasForeignKey("ContactId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("ArquitecturaBase.Domain.Modules.WhatsApp.WhatsAppOutgoingMessage", b =>
                 {
                     b.HasOne("ArquitecturaBase.Domain.Modules.WhatsApp.WhatsAppContact", null)
@@ -5869,6 +5916,11 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Navigation("Application");
 
                     b.Navigation("Authorization");
+                });
+
+            modelBuilder.Entity("ArquitecturaBase.Domain.Modules.WhatsApp.WhatsAppContact", b =>
+                {
+                    b.Navigation("ModeChanges");
                 });
 
             modelBuilder.Entity("OpenIddict.EntityFrameworkCore.Models.OpenIddictEntityFrameworkCoreApplication<System.Guid>", b =>

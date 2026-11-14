@@ -59,7 +59,7 @@ public sealed class WhatsAppSharedContentPolicyTests
     [Fact]
     public void A_send_whose_sender_can_no_longer_send_takes_nothing_and_it_goes_to_the_next_one()
     {
-        _contact.ChangeMode(WhatsAppConversationMode.Assistant);
+        _contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
         var operatorSend = Send(Now.AddMinutes(-10), Location);
         var stale = Send(Now.AddMinutes(-8), Location, assistant: true, modeRevision: _contact.ModeRevision - 1);
         var assistantSend = Send(Now.AddMinutes(-5), Location, assistant: true);
@@ -68,7 +68,7 @@ public sealed class WhatsAppSharedContentPolicyTests
         var take = Assert.Single(WhatsAppSharedContentPolicy.Resolve([operatorSend, stale, assistantSend], [location], _contact, Now));
 
         Assert.Equal(assistantSend.Session, take.Send.Session);
-        _contact.ChangeMode(WhatsAppConversationMode.Manual);
+        _contact.ChangeMode(WhatsAppConversationMode.Manual, null, DateTime.UnixEpoch);
         var later = Shared(2, location: "Bv. Oroño 50");
         Assert.Empty(WhatsAppSharedContentPolicy.Resolve([stale, assistantSend], [later], _contact, Now));
         Assert.Null(later.FlowSessionId);
@@ -97,7 +97,7 @@ public sealed class WhatsAppSharedContentPolicyTests
     [Fact]
     public void A_location_and_a_contact_in_one_pass_make_one_resend_that_continues_the_first_message()
     {
-        _contact.ChangeMode(WhatsAppConversationMode.Assistant);
+        _contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
         var send = Send(Now.AddMinutes(-10), Location, ContactName, ContactPhone, assistant: true, culture: "en");
         var location = Shared(1, location: "1200 Pellegrini Ave");
         var contact = Shared(2, name: "Ana Gómez", phones: ["+54 9 341 555-0101"]);
@@ -127,7 +127,7 @@ public sealed class WhatsAppSharedContentPolicyTests
     [InlineData("number")]
     public void A_send_sealed_for_another_account_link_or_number_takes_nothing(string sealedFor)
     {
-        _contact.ChangeMode(WhatsAppConversationMode.Assistant);
+        _contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
         var stale = Send(Now.AddMinutes(-10), Location, assistant: true);
         var current = Send(Now.AddMinutes(-5), Location, assistant: true);
         object target = sealedFor is "account" or "link" ? stale.Session : stale.First;

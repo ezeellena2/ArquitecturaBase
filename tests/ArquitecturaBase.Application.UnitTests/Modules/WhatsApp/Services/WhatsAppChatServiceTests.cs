@@ -21,10 +21,10 @@ public sealed class WhatsAppChatServiceTests
     public async Task Manual_reply_is_persisted_once_and_a_repeated_request_returns_the_same_operation()
     {
         var host = new Host();
-        host.Repository.Contact.ChangeMode(WhatsAppConversationMode.Manual);
+        host.Repository.Contact.ChangeMode(WhatsAppConversationMode.Manual, null, DateTime.UnixEpoch);
         var request = new SendWhatsAppTextRequest(host.Repository.Contact.Id, Guid.NewGuid(), "Hola");
         var first = await host.Service.SendTextAsync(request, Ct);
-        host.Repository.Contact.ChangeMode(WhatsAppConversationMode.Assistant);
+        host.Repository.Contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
         var repeated = await host.Service.SendTextAsync(request, Ct);
         Assert.True(first.IsSuccess);
         Assert.True(repeated.IsSuccess);
@@ -37,7 +37,7 @@ public sealed class WhatsAppChatServiceTests
     public async Task Assistant_mode_rejects_manual_reply_without_storing_a_send()
     {
         var host = new Host();
-        host.Repository.Contact.ChangeMode(WhatsAppConversationMode.Assistant);
+        host.Repository.Contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
         var result = await host.Service.SendTextAsync(new(host.Repository.Contact.Id, Guid.NewGuid(), "Hola"), Ct);
         Assert.Equal(WhatsAppChatErrors.ManualRequired, result.Error);
         Assert.Empty(host.Repository.Outgoing);
@@ -57,7 +57,7 @@ public sealed class WhatsAppChatServiceTests
     public async Task Reusing_a_request_id_for_different_content_is_a_conflict()
     {
         var host = new Host();
-        host.Repository.Contact.ChangeMode(WhatsAppConversationMode.Manual);
+        host.Repository.Contact.ChangeMode(WhatsAppConversationMode.Manual, null, DateTime.UnixEpoch);
         var requestId = Guid.NewGuid();
         await host.Service.SendTextAsync(new(host.Repository.Contact.Id, requestId, "Hola"), Ct);
         var result = await host.Service.SendTextAsync(new(host.Repository.Contact.Id, requestId, "Otro"), Ct);

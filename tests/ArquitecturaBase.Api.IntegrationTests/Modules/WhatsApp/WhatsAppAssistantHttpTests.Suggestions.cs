@@ -167,7 +167,7 @@ public sealed partial class WhatsAppAssistantHttpTests
         host.Operations.AllowSubmit=true;await C4ProcessAsync(host);var submitted=Assert.Single(host.Operations.SubmitRequests,request=>request.Context.SubjectUserId==contact.RecipientId);
         var outcome=host.Outcome(contact,new(submitted.RequestId,submitted),"suggestion");
         await host.InTransactionAsync(async services=>{var row=await services.GetRequiredService<ApplicationDbContext>().Set<WhatsAppContact>().SingleAsync(item=>item.Id==contact.ContactId,Ct);
-            row.ChangeMode(WhatsAppConversationMode.Manual);return true;},Ct);
+            row.ChangeMode(WhatsAppConversationMode.Manual, null, DateTime.UnixEpoch);return true;},Ct);
         await host.CompleteOutcomeAsync(contact.ContactId,outcome,Ct);Assert.Equal((1,1),await C4CountsAsync(host,contact.ContactId));
         Assert.Equal(WhatsAppAssistantRequestState.Blocked,(await C4ReferenceAsync(host,captured.RecordId)).State);
         Assert.True(await host.ScopeAsync(services=>services.GetRequiredService<ApplicationDbContext>().Set<WhatsAppFlowSession>().AsNoTracking()

@@ -123,7 +123,7 @@ internal sealed class WhatsAppAssistantScenario : IAsyncDisposable
         await services.GetRequiredService<IUserRepository>().SetRolesAsync(user.Id, [role], ct);
         var now = Clock.GetUtcNow().UtcDateTime;
         var contact = WhatsAppContact.Create(phone.Value[1..], MetaWebhook.UniqueBsuid(), "Persona ficticia", now); contact.LinkUser(user.Id);
-        if (automatic) contact.ChangeMode(WhatsAppConversationMode.Assistant);
+        if (automatic) contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
         var message = WhatsAppMessage.Inbound(contact.Id, MetaWebhook.UniqueWaMessageId(), WhatsAppMessageKind.Text,
             "Visité Sucursal Norte.", null, now); message.Classify(WhatsAppMessagePurpose.Business);
         message.SetInboundSequence(contact.RegisterInboundMessage()); message.MarkProcessed(now);

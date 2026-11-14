@@ -107,7 +107,7 @@ public sealed partial class WhatsAppChatTests(ApiFactory factory)
         await factory.InTransactionAsync(async services =>
         {
             var db = services.GetRequiredService<Infrastructure.Persistence.ApplicationDbContext>();
-            (await db.Set<WhatsAppContact>().SingleAsync(item => item.Id == contactId, Ct)).ChangeMode(WhatsAppConversationMode.Assistant);
+            (await db.Set<WhatsAppContact>().SingleAsync(item => item.Id == contactId, Ct)).ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
         });
         using var assistant = await client.SendAsync(HttpMethod.Post, route,
             JsonContent.Create(new { requestId = Guid.NewGuid(), body = "Hola" }), userId: sender.ToString());

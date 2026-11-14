@@ -23,7 +23,7 @@ public sealed class WhatsAppAssistantDeclineTests
         var id=host.Request.RequestId;
         if(automatic)
         {
-            host.Requests.Rows.Clear();host.Reader.Reference=null;host.Context.Contact.ChangeMode(WhatsAppConversationMode.Assistant);
+            host.Requests.Rows.Clear();host.Reader.Reference=null;host.Context.Contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
             var prepared=await service.PrepareAsync(host.Context.Contact.Id,Ct);
             Assert.True(prepared.IsSuccess);Assert.NotNull(prepared.Value);id=prepared.Value.RequestId;
         }

@@ -156,7 +156,7 @@ public sealed class WhatsAppAssistantDocumentIntegrationTests(ApiFactory factory
         await host.InTransactionAsync(async services =>
         {
             var contact = await services.GetRequiredService<ApplicationDbContext>().Set<WhatsAppContact>().SingleAsync(item => item.Id == person.ContactId, Ct);
-            contact.ChangeMode(WhatsAppConversationMode.Manual);
+            contact.ChangeMode(WhatsAppConversationMode.Manual, null, DateTime.UnixEpoch);
             return true;
         }, Ct);
         var asked = inbox.Asked.Count;

@@ -30,7 +30,7 @@ public sealed class WhatsAppAssistantAuthoringTests
             host.Reader, host.Requests, host.Conversation, host.UnitOfWork, automatic, NullLogger<WhatsAppAssistantDispatchService>.Instance);
         var taps = new WhatsAppAssistantAuthoringService(host.Reader, host.Requests, host.Conversation, host.UnitOfWork, automatic,
             new(host.Reader, host.Assistant, owner, owner), host.Context.Clock, NullLogger<WhatsAppAssistantAuthoringService>.Instance);
-        host.Requests.Rows.Clear(); host.Reader.Reference = null; host.Context.Contact.ChangeMode(WhatsAppConversationMode.Assistant);
+        host.Requests.Rows.Clear(); host.Reader.Reference = null; host.Context.Contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
         var work = await dispatch.PrepareAsync(host.Context.Contact.Id, Ct);
         var id = work.Value!.RequestId;
         host.Assistant.Outcome = host.Assistant.Outcome.Value with { RequestId = id,

@@ -56,7 +56,7 @@ internal sealed class WhatsAppReceivedDocumentFixture : IWhatsAppReceivedDocumen
     {
         Content = content ?? Pdf;
         Files = new MemoryPrivateFileStore(storage);
-        Contact.ChangeMode(WhatsAppConversationMode.Assistant);
+        Contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
         Message = WhatsAppMessage.Inbound(Contact.Id, "wamid.document", WhatsAppMessageKind.ReceivedDocument, caption, null, Now);
         Assert.True(Message.SetDocumentDescriptor("1234", contentType, metaHash ?? Hash(Content), fileName));
         var recipientGuard = new WhatsAppFormActionPolicy(Host.Context.Users, new FakePhoneNumberParser(), new FakeWhatsAppAvailability(true, true), Host.Context.Clock);

@@ -49,7 +49,7 @@ internal sealed class WhatsAppAudioFixture : IWhatsAppFormRecipientReader, IWhat
         sampleContent = sample ?? Bytes();
         Actor=Users.AddUser("audio-operator@example.test").Id;
         Subject=Users.AddUser("audio-subject@example.test",phoneNumber:"+5493413654813").Id;
-        Contact.LinkUser(Subject); Contact.ChangeMode(WhatsAppConversationMode.Manual); Current.UserId=Actor;
+        Contact.LinkUser(Subject); Contact.ChangeMode(WhatsAppConversationMode.Manual, null, DateTime.UnixEpoch); Current.UserId=Actor;
         Permissions.Permissions[Actor]=[WhatsAppPermissions.Read];
         Message=WhatsAppMessage.Inbound(Contact.Id,"wamid.audio.test",WhatsAppMessageKind.Audio,null,null,Now);
         Message.SetAudioDescriptor("12345","audio/ogg; codecs=opus",Convert.ToHexStringLower(SHA256.HashData(sampleContent)));

@@ -120,7 +120,7 @@ internal sealed class WhatsAppAssistantIsolationScenario:IAsyncDisposable
         await users.SetRolesAsync(user.Id,[role],token);
         var contact=WhatsAppContact.Create(phone.Value[1..],MetaWebhook.UniqueBsuid(),"Persona ficticia",TimeProvider.System.GetUtcNow().UtcDateTime);
         contact.LinkUser(user.Id);
-        if(automatic)contact.ChangeMode(WhatsAppConversationMode.Assistant);
+        if(automatic)contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
         services.GetRequiredService<ApplicationDbContext>().Add(contact);
         return new AssistantIsolationContact(user.Id,contact.Id,phone.Value[1..],marker);
     }));

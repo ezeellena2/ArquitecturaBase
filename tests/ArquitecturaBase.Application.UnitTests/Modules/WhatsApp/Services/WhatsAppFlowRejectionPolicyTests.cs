@@ -137,7 +137,7 @@ public sealed class WhatsAppFlowRejectionPolicyTests
     public async Task Nothing_is_queued_when_the_reservation_would_refuse_its_sender(bool automatic)
     {
         var host = await Host.CreateAsync(automatic);
-        host.Contact.ChangeMode(automatic ? WhatsAppConversationMode.Manual : WhatsAppConversationMode.Assistant);
+        host.Contact.ChangeMode(automatic ? WhatsAppConversationMode.Manual : WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
 
         await host.Policy.QueueAsync(host.Reply, host.Session, host.Rejection(Host.Fixed(host.Account.FieldId)), Ct);
 
@@ -193,7 +193,7 @@ public sealed class WhatsAppFlowRejectionPolicyTests
         public static async Task<Host> CreateAsync(bool automatic)
         {
             var context = new WhatsAppAssistantContextFixture();
-            if (automatic) context.Contact.ChangeMode(WhatsAppConversationMode.Assistant);
+            if (automatic) context.Contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
             var host = new Host(context, automatic);
             if (automatic) await host.SendAsync(context);
             return host;

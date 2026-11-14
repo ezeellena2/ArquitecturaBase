@@ -58,7 +58,7 @@ public sealed partial class WhatsAppFormSendingTests
         if (reason == "Assistant")
             await factory.ExecuteDbContextAsync(async db =>
             {
-                (await db.Set<WhatsAppContact>().SingleAsync(contact => contact.Id == contactId, Ct)).ChangeMode(WhatsAppConversationMode.Assistant);
+                (await db.Set<WhatsAppContact>().SingleAsync(contact => contact.Id == contactId, Ct)).ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
                 await db.SaveChangesAsync(Ct);
             });
         using var choices = await author.GetAsync($"/api/whatsapp/chats/{contactId}/forms", Ct);

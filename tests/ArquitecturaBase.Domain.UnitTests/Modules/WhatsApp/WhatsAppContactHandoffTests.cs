@@ -66,10 +66,10 @@ public sealed class WhatsAppContactHandoffTests
         var contact = AssistantContact();
         contact.HandOff("case", "Motivo", Now);
 
-        contact.ChangeMode(WhatsAppConversationMode.Manual);
+        contact.ChangeMode(WhatsAppConversationMode.Manual, null, DateTime.UnixEpoch);
         Assert.True(contact.NeedsPerson);
 
-        contact.ChangeMode(WhatsAppConversationMode.Assistant);
+        contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
         Assert.False(contact.NeedsPerson);
     }
 
@@ -118,7 +118,7 @@ public sealed class WhatsAppContactHandoffTests
     private static WhatsAppContact AssistantContact()
     {
         var contact = WhatsAppContact.Create("5493413654813", null, "Ana", Now);
-        contact.ChangeMode(WhatsAppConversationMode.Assistant);
+        contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
         return contact;
     }
 }

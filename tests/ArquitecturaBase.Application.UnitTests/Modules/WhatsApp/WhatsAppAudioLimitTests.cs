@@ -15,7 +15,7 @@ public sealed class WhatsAppAudioLimitTests
         WhatsAppAudioFixture.Bytes().CopyTo(bytes, 0);
         var fixture = new WhatsAppAudioFixture(bytes);
         if (manual) fixture.Pin();
-        else fixture.Contact.ChangeMode(WhatsAppConversationMode.Assistant);
+        else fixture.Contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
         var result = await fixture.Dispatch.PrepareAsync(fixture.Contact.Id, TestContext.Current.CancellationToken);
         Assert.True(result.IsSuccess);
         Assert.Null(result.Value);
@@ -31,7 +31,7 @@ public sealed class WhatsAppAudioLimitTests
         var bytes = new byte[1_000_000];
         WhatsAppAudioFixture.Bytes().CopyTo(bytes, 0);
         var fixture = new WhatsAppAudioFixture(bytes);
-        fixture.Contact.ChangeMode(WhatsAppConversationMode.Assistant);
+        fixture.Contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
         var result = await fixture.Dispatch.PrepareAsync(fixture.Contact.Id, TestContext.Current.CancellationToken);
         Assert.True(result.IsSuccess);
         Assert.NotNull(result.Value);

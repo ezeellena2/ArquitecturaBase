@@ -373,7 +373,7 @@ public sealed partial class WhatsAppAssistantAgentEndpointsTests(ApiFactory fact
             var result = await scope.ServiceProvider.GetRequiredService<IUnitOfWork>().ExecuteInTransactionAsync(async token =>
             {
                 var contact = await db.Set<WhatsAppContact>().SingleAsync(item => item.Id == contactId, token);
-                contact.ChangeMode(WhatsAppConversationMode.Assistant);
+                contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
                 WhatsAppMessage Inbound(string body, DateTime atUtc)
                 {
                     var message = WhatsAppMessage.Inbound(contact.Id, "wamid.agent-chat-" + Guid.NewGuid().ToString("N"), WhatsAppMessageKind.Text, body, null, atUtc);

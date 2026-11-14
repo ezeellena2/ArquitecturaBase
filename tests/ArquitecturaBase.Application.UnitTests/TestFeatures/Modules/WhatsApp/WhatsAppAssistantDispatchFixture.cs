@@ -26,7 +26,7 @@ internal sealed class WhatsAppAssistantDispatchFixture
 
     private WhatsAppAssistantDispatchFixture()
     {
-        Context.Contact.ChangeMode(WhatsAppConversationMode.Assistant);
+        Context.Contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
         Outgoing = WhatsAppOutgoingMessage.CreateAssistantText(Context.Subject.Id, Context.Contact.Id, Guid.NewGuid(),
             "Recibimos el pedido", Now, Context.Contact.LinkRevision, Context.Contact.WaId!, Context.Contact.ModeRevision);
         Repository = new(Context.Contact, Outgoing, UnitOfWork);

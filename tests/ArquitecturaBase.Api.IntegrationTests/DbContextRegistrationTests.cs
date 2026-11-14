@@ -27,6 +27,8 @@ public sealed class DbContextRegistrationTests(ApiFactory factory)
 
         Assert.Equal(typeof(TestDbContext), contextType);
         Assert.Equal(typeof(ApplicationDbContext), optionsContextType);
-        Assert.Equal([typeof(SoftDeleteInterceptor), typeof(AuditableEntityInterceptor)], interceptorTypes);
+        // The core's, in their order; a module may add its own after them.
+        Assert.Equal([typeof(SoftDeleteInterceptor), typeof(AuditableEntityInterceptor)],
+            interceptorTypes.Where(type => type.Namespace == typeof(SoftDeleteInterceptor).Namespace));
     }
 }

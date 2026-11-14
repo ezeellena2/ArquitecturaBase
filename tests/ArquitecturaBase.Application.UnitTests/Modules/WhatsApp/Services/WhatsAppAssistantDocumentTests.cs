@@ -29,7 +29,7 @@ public sealed class WhatsAppAssistantDocumentTests
         host.Requests.Rows.Clear();
         host.Reader.Reference = null;
         host.Conversation.Outgoing.Clear();
-        host.Context.Contact.ChangeMode(WhatsAppConversationMode.Assistant);
+        host.Context.Contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
         var documents = new Documents(host.UnitOfWork);
         var owner = new WhatsAppAssistantTerminalFixture();
         var sending = WhatsAppAssistantAcceptanceFixture.CreateSending(host);
@@ -497,7 +497,7 @@ public sealed class WhatsAppAssistantDocumentTests
         a.Documents.Registration = new(Guid.NewGuid(), StructuredDocumentReplyKind.Unknown) { Forms = [Form("Gastos")] };
         var (requestId, proposal) = await InterpretAsync(a);
         Sent(a, requestId);
-        if (change == "manual") a.Host.Context.Contact.ChangeMode(WhatsAppConversationMode.Manual);
+        if (change == "manual") a.Host.Context.Contact.ChangeMode(WhatsAppConversationMode.Manual, null, DateTime.UnixEpoch);
         else a.Host.Context.Contact.UnlinkUser();
         a.Host.Reader.DocumentTapState = WhatsAppAssistantDocumentTapState.Closed;
         var before = (a.Documents.Registrations.Count, a.Host.Conversation.Outgoing.Count);

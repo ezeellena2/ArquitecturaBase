@@ -9,7 +9,7 @@ public sealed class WhatsAppAudioDispatchServiceTests
     [Fact]
     public async Task Acquires_outside_the_transaction_and_seals_one_request_before_the_model_effect()
     {
-        var f=new WhatsAppAudioFixture();f.Contact.ChangeMode(WhatsAppConversationMode.Assistant);
+        var f=new WhatsAppAudioFixture();f.Contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
         var result=await f.Dispatch.PrepareAsync(f.Contact.Id,TestContext.Current.CancellationToken);
         Assert.True(result.IsSuccess);Assert.NotNull(result.Value);Assert.Equal(1,f.Downloads);Assert.Equal(1,f.UnitOfWork.Transactions);
         Assert.Equal(["contact","message"],f.Locks);Assert.Equal(f.Message.AudioRequestId,result.Value.RequestId);Assert.Equal("",result.Value.Operation!.Text);
@@ -44,7 +44,7 @@ public sealed class WhatsAppAudioDispatchServiceTests
     [Fact]
     public async Task Taking_manual_while_downloading_preserves_audio_without_an_automatic_model_request()
     {
-        var f=new WhatsAppAudioFixture();f.Contact.ChangeMode(WhatsAppConversationMode.Assistant);f.BeforeDownload=()=>f.Contact.ChangeMode(WhatsAppConversationMode.Manual);
+        var f=new WhatsAppAudioFixture();f.Contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);f.BeforeDownload=()=>f.Contact.ChangeMode(WhatsAppConversationMode.Manual, null, DateTime.UnixEpoch);
         var result=await f.Dispatch.PrepareAsync(f.Contact.Id,TestContext.Current.CancellationToken);
         Assert.True(result.IsSuccess);Assert.Null(result.Value);Assert.Null(f.Message.AudioRequestId);Assert.Equal(1,f.Files.WriteCount);
     }
@@ -64,7 +64,7 @@ public sealed class WhatsAppAudioDispatchServiceTests
     {
         var ct = TestContext.Current.CancellationToken;
         var f = new WhatsAppAudioFixture();
-        f.Contact.ChangeMode(WhatsAppConversationMode.Assistant);
+        f.Contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
         if (inactive) await f.Users.ArrangeAsync(users => users.SetActiveAsync(f.Subject, false, ct));
         else f.Contact.UnlinkUser();
 
@@ -87,7 +87,7 @@ public sealed class WhatsAppAudioDispatchServiceTests
     public async Task Losing_the_link_while_copying_new_audio_keeps_playback_without_model_work()
     {
         var f = new WhatsAppAudioFixture();
-        f.Contact.ChangeMode(WhatsAppConversationMode.Assistant);
+        f.Contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
         f.BeforeDownload = () => f.Contact.UnlinkUser();
 
         var result = await f.Dispatch.PrepareAsync(f.Contact.Id, TestContext.Current.CancellationToken);
@@ -109,7 +109,7 @@ public sealed class WhatsAppAudioDispatchServiceTests
     {
         var ct = TestContext.Current.CancellationToken;
         var f = new WhatsAppAudioFixture();
-        f.Contact.ChangeMode(WhatsAppConversationMode.Assistant);
+        f.Contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
         f.Contact.UnlinkUser();
         f.DownloadError = FileErrors.Unavailable;
 

@@ -46,7 +46,7 @@ public sealed class WhatsAppAssistantModeMigrationTests(ApiFactory factory)
             Assert.Equal(WhatsAppOutgoingMessageState.Pending, outgoing.State);
             Assert.Equal(request, outgoing.RequestId);
             Assert.Equal(actor, outgoing.OperatorUserId);
-            changed.ChangeMode(WhatsAppConversationMode.Assistant);
+            changed.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
             await db.SaveChangesAsync(Ct);
             await db.GetService<IMigrator>().MigrateAsync(Before, Ct);
             db.ChangeTracker.Clear();

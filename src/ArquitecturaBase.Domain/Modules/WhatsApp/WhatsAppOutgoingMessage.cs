@@ -11,6 +11,21 @@ public sealed partial class WhatsAppOutgoingMessage : Entity
     private WhatsAppOutgoingMessage() { }
     public Guid? OperatorUserId { get; private set; }
     public WhatsAppMessageOrigin Origin { get; private set; }
+
+    /// <summary>H19: the trace context where it was written, which its send continues; none before H19.</summary>
+    public string? TraceParent { get; private set; }
+
+    /// <summary>H19: kept once, when it is first saved.</summary>
+    public void RecordTrace(string traceParent)
+    {
+        if (traceParent is not { Length: WhatsAppMessage.TraceParentLength })
+        {
+            throw new ArgumentException("A trace context is a W3C traceparent.", nameof(traceParent));
+        }
+
+        TraceParent ??= traceParent;
+    }
+
     public Guid? RecipientUserId { get; private set; }
     public long? RecipientLinkRevision { get; private set; }
     public string? RecipientWaId { get; private set; }

@@ -204,6 +204,8 @@ internal sealed class FakeWhatsAppMessageReader : IWhatsAppMessageReader
 
     public List<string> Reads { get; } = [];
 
+    public Task<string?> FindLatestInboundTraceAsync(Guid contactId, CancellationToken cancellationToken) => Task.FromResult<string?>(null);
+
     public Task<WhatsAppMessageStatus?> FindOutboundStatusAsync(string waMessageId, CancellationToken cancellationToken)
     {
         Reads.Add(waMessageId);

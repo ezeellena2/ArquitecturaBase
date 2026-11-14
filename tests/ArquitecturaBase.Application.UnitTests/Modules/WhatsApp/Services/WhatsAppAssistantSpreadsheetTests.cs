@@ -24,7 +24,7 @@ public sealed class WhatsAppAssistantSpreadsheetTests
         var host = await WhatsAppAssistantSuggestionFixture.ReadyAsync();
         host.Requests.Rows.Clear();
         host.Reader.Reference = null;
-        host.Context.Contact.ChangeMode(WhatsAppConversationMode.Assistant);
+        host.Context.Contact.ChangeMode(WhatsAppConversationMode.Assistant, null, DateTime.UnixEpoch);
         return host;
     }
 
