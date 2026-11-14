@@ -218,6 +218,12 @@ tsc y oxlint sin errores y vitest del área de WhatsApp en verde (925 tests en 6
     código que esperaba su reintento no queda tomado por la copia que se apaga. Test: apagar la copia
     en medio de un envío manual. Chico.
 
+**Hecha el 2026-11-13:** H2 en 3e750848 (front a202c056), H6 en 7bf19995, H12 y H31 en b3c2fb5e y H8 en 79925e34. La suite
+completa con Docker sobre una copia de 79925e34 dio 10.643 de 10.645, con el build sin advertencias: las dos fallas eran tests
+de migración que la migración de H12 rompía (después de un downgrade rechazado leían columnas posteriores), arreglados en
+4d7f1e9b y corridos solos en verde. Desde acá no hay suite completa por etapa: la corre la coordinadora una vez, al final de la tanda. Quedan como avisos los
+mensajes de BusinessForms que contestan por el canal neutral (ver H31 en la revisión).
+
 ### Etapa 4: Meta y Redis fallan sin perder mensajes
 
 12. **H7. «No salió» o «no se sabe».** El cliente de mensajes separa los dos casos:

@@ -234,6 +234,10 @@ fuente: cambiarla lo decidís vos.
   regla documentada.
 - **Decidido el 2026-11-13:** revisa cualquiera con `whatsapp.send`, y queda guardado quién lo hizo
   ([decisiones](#decisiones-del-2026-11-13)).
+- **Arreglado el 2026-11-13** en 3e750848 y, en el front, a202c056: una ruta nueva
+  (`POST api/whatsapp/chats/{id}/outgoing-messages/{outgoingId}/review`, con `whatsapp.send`) revisa por el id de la
+  salida, sólo una del chat; quién y cuándo quedan en `DeliveryReviewedByUserId` y `DeliveryReviewedAtUtc`, y el front ofrece
+  «Ya revisé el WhatsApp» en los inciertos de cualquier operador y dice quién lo revisó. Revisar no reenvía ni afirma que llegó.
 
 #### H3. Con Redis caído se pierden códigos e invitaciones
 
@@ -306,6 +310,9 @@ fuente: cambiarla lo decidís vos.
 - **Arreglo:** sumar a `RequestedAtUtc` el lugar de cada acción en milisegundos, como ya hace
   `SkipRequestedAt`, con un test con PostgreSQL que despache una respuesta de tres acciones. Chico. Con
   varias copias hace falta además H23.
+- **Arreglado el 2026-11-13** en 7bf19995: cada acción suma su lugar, en milisegundos, a `RequestedAtUtc`; una respuesta de
+  tres acciones sale en orden con PostgreSQL, Redis y el worker real, y la prueba pendiente de B1 (preguntas de caso de uno y
+  de tres botones) sale de punta a punta.
 
 #### H7. El cliente de mensajes no distingue «no salió» de «no se sabe»
 
@@ -346,6 +353,9 @@ fuente: cambiarla lo decidís vos.
   (`WhatsAppOutgoingBackgroundService.cs:112-114`); `DurableMessageSource.cs:49-50` y `QueuedDelivery.cs:29-35`.
 - **Arreglo:** con el apagado pedido, no tomar trabajo nuevo, terminar la llamada en curso con su plazo
   y confirmar con un token acotado en todos los orígenes, como ya hacen los Flows. Chico.
+- **Arreglado el 2026-11-13** en 79925e34: con el apagado pedido la salida durable no toma trabajo nuevo, la llamada en curso
+  termina con su plazo y todo cierre se confirma con un token propio de 10 s; lo que esperaba su turno, o se preparaba, vuelve
+  a Pending sin llamar a Meta (`ReturnUnsent`), y la cola de acceso lo devuelve en vez de dejarlo tomado.
 
 #### H9. Un envío fallido no dice por qué, ni en la pantalla ni en los logs
 
@@ -418,6 +428,9 @@ fuente: cambiarla lo decidís vos.
 - **Evidencia:** `WhatsAppDispatchCoordinator.cs:18-25,76` y `WhatsAppConversationRepository.cs:62-75`.
 - **Arreglo:** reservar salteando los contactos con una salida en curso o en espera, con la hora del
   último envío guardada en PostgreSQL. Chico a mediano.
+- **Arreglado el 2026-11-13** en b3c2fb5e (y 4d7f1e9b, dos tests de migración que leían columnas posteriores):
+  `GetNextPendingAsync` no toma un contacto con un envío en curso y deja para después a quien está en su espera de 6 s
+  (`LastDispatchAtUtc`); si es el único, lo toma y espera la lease de Redis, que usa la misma pausa.
 
 #### H13. La ubicación y el texto del envío no vencen
 
@@ -694,6 +707,10 @@ fuente: cambiarla lo decidís vos.
 - **Decidido el 2026-11-13:** lo que le contesta a alguien va primero, con los arreglos de «Hoy»;
   saltear los contactos en espera va con H12, y subir el PDF una sola vez y mandar varios a la vez
   quedan en gran escala ([decisiones](#decisiones-del-2026-11-13)).
+- **Arreglado el 2026-11-13** en b3c2fb5e: lo que contesta a alguien (el operador, el asistente o la confirmación de un toque)
+  sale antes que los avisos de las reglas (`IsNotice`), y dentro de un chat se mantiene el orden. Los mensajes de BusinessForms
+  que contestan por el canal neutral («¿La emito?», el resumen tras «Volver a probar», el aviso de espera del emisor) siguen
+  como avisos: marcarlos pide una marca neutral en `StructuredRecordActionMessage`.
 
 #### H32. Un lock global de formularios
 
