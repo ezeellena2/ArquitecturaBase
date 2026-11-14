@@ -35,6 +35,9 @@ public static class WhatsAppInfrastructureRegistration
 
     public static IServiceCollection AddWhatsAppInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
+        // H16: the protector of the chat content, fixed before any worker starts.
+        services.AddHostedService<WhatsAppChatContentStartup>();
+
         // Los repositorios y el lector del módulo, siempre: los usan la retención, los servicios del módulo y el estado de
         // entrega de las invitaciones aunque WhatsApp esté apagado. Solo este registro nombra sus clases concretas
         // (PersistenceRegistrationTests).

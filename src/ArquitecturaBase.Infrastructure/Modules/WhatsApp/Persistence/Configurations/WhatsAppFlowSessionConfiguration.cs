@@ -23,10 +23,11 @@ internal sealed class WhatsAppFlowSessionConfiguration : IEntityTypeConfiguratio
         builder.Property(session => session.ResponseWaMessageId).HasMaxLength(WhatsAppMessage.MaxWaMessageIdLength);
         // W1-A: the location asked before the Flow. A send of before has none.
         builder.Property(session => session.LocationState).HasConversion<string>().HasMaxLength(16).HasDefaultValue(WhatsAppFlowLocationState.None);
-        builder.Property(session => session.LocationLatitude).HasPrecision(9, 6);
-        builder.Property(session => session.LocationLongitude).HasPrecision(9, 6);
+        // H16 (ADR 0030): the point and the body of the send are kept encrypted.
+        builder.Property(session => session.LocationLatitude).HasConversion(WhatsAppChatContent.Number).HasColumnType("bytea");
+        builder.Property(session => session.LocationLongitude).HasConversion(WhatsAppChatContent.Number).HasColumnType("bytea");
         builder.Property(session => session.LocationWaMessageId).HasMaxLength(WhatsAppMessage.MaxWaMessageIdLength);
-        builder.Property(session => session.FlowBody).HasMaxLength(1024);
+        builder.Property(session => session.FlowBody).HasConversion(WhatsAppChatContent.Text).HasColumnType("bytea");
         // W3: what the send took of what the person shared (task 23); a send of before took nothing.
         builder.Property(session => session.SharedContentJson).HasColumnType("jsonb");
         builder.Property(session => session.ProtectedSharedValues).HasColumnType("bytea");

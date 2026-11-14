@@ -97,6 +97,11 @@ Además:
   estampa el interceptor del módulo y lo continúan sus workers con el `ActivitySource` `ArquitecturaBase.WhatsApp`, registrado en
   el módulo como su medidor; las etiquetas no llevan números, cuerpos ni ids. Una fila de antes, o escrita sin traza, no tiene. La
   captura de los Flows (con su rechazo y su reenvío) y la cola de acceso todavía no continúan la traza.
+- **El contenido del chat se guarda cifrado (H16, [ADR 0030](../decisions/0030-contenido-del-chat-cifrado.md)).** Con Data
+  Protection y un propósito propio, por un conversor de EF que cifra al guardar y descifra al leer (`WhatsAppChatContent`, cuyo
+  protector se fija al arrancar): el contenido no se busca ni se compara en SQL, sólo se pregunta si es nulo. Desde el
+  2026-11-14 se cifran el cuerpo y el punto de un envío y el porqué de una referencia; las salidas y los mensajes siguen. La
+  migración de cada parte vacía lo que había, como la retención, y su Down se niega mientras haya contenido cifrado.
 - **Dos versiones a la vez (H25, 2026-11-14).** Mientras conviven dos versiones (un despliegue, o al volver a la imagen
   anterior), una copia deja para otra lo que su versión no sabe leer, con un tope. Un mensaje de un tipo que no conoce se lee
   como `Other` y el historial abre; la columna conserva el tipo, y un entrante así queda para la copia que lo conoce. Una salida

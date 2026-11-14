@@ -54,6 +54,8 @@ AddFormDocumentProposals crea `FormDocumentProposals` (DOC6: único por quien pi
 
 AddWhatsAppSpreadsheetLoads (VC1-A, tarea 29) suma `Footer` (hasta 60) y `SpreadsheetRowsJson` (jsonb) a `WhatsAppOutgoingMessages` y `SpreadsheetRowsJson` a `WhatsAppMessages`: el pie del Flow de una carga y «Por qué lo propuso» del aviso de las cargas. No reescribe filas. Down bloquea las dos tablas y se niega, antes del DDL, si alguna los guarda; WhatsAppSpreadsheetLoadsMigrationTests prueba Up, la negativa y Down y Up.
 
+EncryptWhatsAppSendContent (H16, ADR 0030) pasa a `bytea` el cuerpo y el punto de un envío y el porqué de una referencia, y vacía lo que había (`USING NULL`, confirmado por el usuario): PostgreSQL no convierte texto, número ni jsonb a `bytea`. Down toma los locks de las dos tablas y rechaza, antes del DDL, cualquier contenido cifrado; WhatsAppSendContentEncryptionMigrationTests prueba el cifrado, la lectura, el rechazo por cada tabla y Down y Up sin contenido.
+
 ## Referencias
 
 - [Comandos y revisión obligatoria](../../../../docs/guides/migracion.md).

@@ -42,6 +42,8 @@ Dos migraciones de la plantilla no cumplen esa regla, a propósito, porque no ha
 UPDATE "LoginCodes" SET "Channel" = 'Phone' WHERE "Channel" = 'WhatsApp';
 ```
 
+Tampoco cumplen la regla las migraciones que cifran el chat de WhatsApp (H16, [ADR 0030](../decisions/0030-contenido-del-chat-cifrado.md)): cambian el tipo de esas columnas y vacían lo que había, así que entre el bundle y la imagen nueva la imagen anterior falla al leer o guardar ese contenido. Se decidió así porque todavía no hay chats reales; una instalación con chats tiene que convertirlos antes.
+
 Un proyecto derivado que ya esté en producción con WhatsApp las tiene que partir en dos despliegues, en lugar de estas dos migraciones:
 
 1. **Primero:** una migración que agrega `ProviderMessageId` y copia `WaMessageId`, y una versión que lee y escribe solo `ProviderMessageId` (su modelo ya no mapea `WaMessageId`) y escribe `'Phone'`, pero también lee `'WhatsApp'` (un conversor que traduzca el nombre viejo).

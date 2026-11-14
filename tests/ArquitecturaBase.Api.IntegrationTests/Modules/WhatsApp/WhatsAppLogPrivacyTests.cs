@@ -5,6 +5,7 @@ using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Domain.ValueObjects;
 using ArquitecturaBase.Infrastructure.Modules.WhatsApp;
 using ArquitecturaBase.Infrastructure.Phones;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -128,6 +129,8 @@ public sealed class WhatsAppLogPrivacyTests
         services.ConfigureHttpClientDefaults(http => http.AddStandardResilienceHandler());
 
         services.AddSingleton<IWhatsAppDispatchCoordinator, ImmediateCoordinator>();
+        // H16: the module fixes the protector of the chat content when a host starts; this container only calls StartAsync.
+        services.AddDataProtection().UseEphemeralDataProtectionProvider();
         services.AddWhatsAppInfrastructure(configuration);
         // This transport-only test deliberately supplies an in-memory source; transactional persistence has its own Docker tests.
         services.Replace(ServiceDescriptor.Singleton<WhatsAppSendQueue>(provider => new WhatsAppSendQueue(provider.GetRequiredService<IOptions<WhatsAppOptions>>(), provider.GetRequiredService<ILogger<WhatsAppSendQueue>>())));

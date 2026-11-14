@@ -51,3 +51,4 @@ Las siete primeras salen de las decisiones D1 a D7 del plan de estandarización 
 - [0027 — Delegación guiada en ARCA](0027-delegacion-guiada-arca.md) (aceptada el 2026-11-09; rige desde la [etapa 5 de ARCA](../plans/2026-11-09-arca-etapa-5-delegacion-guiada.md)).
 - [0028 — Emisión de comprobantes en ARCA: cola, numeración y reconciliación](0028-emision-de-comprobantes-arca.md) (aceptada el 2026-11-09; rige desde la [etapa 3 de ARCA](../plans/2026-11-09-arca-etapa-3-factura-c.md)).
 - [0029 — La biblioteca de estándares, aportada por los módulos como datos](0029-biblioteca-de-estandares.md) (aceptada el 2026-11-09; rige desde la [etapa 2 de ARCA](../plans/2026-11-09-arca-etapa-2-motor.md)).
+- [0030 — El contenido del chat de WhatsApp se guarda cifrado](0030-contenido-del-chat-cifrado.md) (aceptada el 2026-11-14; rige desde la tarea 20 del [plan de la bandeja](../plans/2026-10-01-bandeja-whatsapp.md)).

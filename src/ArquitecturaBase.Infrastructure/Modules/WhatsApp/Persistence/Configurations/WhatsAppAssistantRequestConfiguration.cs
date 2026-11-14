@@ -25,7 +25,8 @@ internal sealed class WhatsAppAssistantRequestConfiguration : IEntityTypeConfigu
         builder.HasIndex(request => new {request.ContactId,request.SourceRecordId}).IsUnique().HasFilter("\"SourceRecordId\" IS NOT NULL");
         // Casos del asistente: the second and third actions of a reply have the source of the first one and their own ordinal.
         builder.HasIndex(request => new { request.ContactId, request.SourceMessageId, request.Kind, request.ActionOrdinal }).IsUnique();
-        builder.Property(request => request.OutcomeJson).HasColumnType("jsonb");
+        // H16 (ADR 0030): why it ended without a message is kept encrypted.
+        builder.Property(request => request.OutcomeJson).HasConversion(WhatsAppChatContent.Text).HasColumnType("bytea");
         builder.HasIndex(request => new { request.ContactId, request.State, request.CreatedAtUtc, request.Id });
         builder.HasOne<WhatsAppContact>().WithMany().HasForeignKey(request => request.ContactId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<WhatsAppMessage>().WithMany().HasForeignKey(request => request.SourceMessageId).OnDelete(DeleteBehavior.Restrict);

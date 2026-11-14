@@ -3589,8 +3589,8 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("OperationRequestId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("OutcomeJson")
-                        .HasColumnType("jsonb");
+                    b.Property<byte[]>("OutcomeJson")
+                        .HasColumnType("bytea");
 
                     b.Property<Guid?>("OutgoingId")
                         .HasColumnType("uuid");
@@ -3990,20 +3990,17 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("ExpiresAtUtc")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("FlowBody")
-                        .HasMaxLength(1024)
-                        .HasColumnType("character varying(1024)");
+                    b.Property<byte[]>("FlowBody")
+                        .HasColumnType("bytea");
 
                     b.Property<long>("LinkRevision")
                         .HasColumnType("bigint");
 
-                    b.Property<decimal?>("LocationLatitude")
-                        .HasPrecision(9, 6)
-                        .HasColumnType("numeric(9,6)");
+                    b.Property<byte[]>("LocationLatitude")
+                        .HasColumnType("bytea");
 
-                    b.Property<decimal?>("LocationLongitude")
-                        .HasPrecision(9, 6)
-                        .HasColumnType("numeric(9,6)");
+                    b.Property<byte[]>("LocationLongitude")
+                        .HasColumnType("bytea");
 
                     b.Property<bool>("LocationRequired")
                         .HasColumnType("boolean");
