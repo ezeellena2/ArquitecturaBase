@@ -551,8 +551,8 @@ Lo que el diseño no fijaba, resuelto con la opción más simple que cumple el p
      Los demás rechazos siguen como hoy.
    - Los validadores son genéricos y del núcleo del dominio, junto al correo y el teléfono (`Domain/ValueObjects`): `CuitNumber`
      (once dígitos y su verificador) y `BankAccountKey`: CBU y CVU (22 dígitos y sus dos verificadores; un CVU empieza con 000) o
-     alias (6 a 20 letras, números, puntos o guiones). ARCA tiene hoy su propio `CuitNumber` y sus archivos tienen cambios ajenos
-     sin commitear: pasa a usar el del núcleo (sólo cambian sus `using`) en el cierre, cuando esos archivos estén libres.
+     alias (6 a 20 letras, números, puntos o guiones). ARCA tenía su propio `CuitNumber`; desde el 2026-11-13 usa
+     el del núcleo (6c1aff65).
    - El banco o la billetera sale de la cuenta, no del texto (DOC3): la tabla de entidades (el código de entidad del CBU y el del
      proveedor del CVU) son datos del módulo, con su fecha y su fuente oficial; un código que no se puede confirmar no se carga. Si
      la cuenta pasa, el servidor elige la opción del catálogo «Bancos y billeteras» por ese código; si no, queda vacía y marcada.
@@ -1020,6 +1020,21 @@ aplicada cierra la pregunta y lo que la bandeja o el motor no pudieron hacer en 
 la opción elegida del chat es el primer toque aplicado; un toque contestado tampoco esconde, al buscar a quién atender, el texto que
 esperaba su ráfaga, y la migración se regeneró sobre W3 (`20261113011825_AddWhatsAppDocumentQuestions`).
 
+2026-11-13, cerradas con su revisión adversarial y su corrección: la 9b (feb646a1) y la 9c (fbc68773). La 9b abre con lo leído el
+Flow `flow-static-7.3-r14` de un formulario con la lectura prendida (`ReadsDocuments`; sin lectura compila los mismos bytes que r13): el
+aviso de arriba, la ayuda y los errores dinámicos y la gemela de la pregunta del documento, que vale cuando esa pregunta pide un archivo
+o ninguno de mínimo, empieza la última pantalla, no es la primera y no hay bloque ([reglas](../features/whatsapp.md#selección-múltiple-y-perfil-r9));
+y la captura vuelve a buscar repetidos con lo corregido ([reglas](../features/formularios.md#lectura-de-documentos-y-validaciones-fijas--doc1-2026-11-11)).
+La 9c cumple el punto 6 al capturar por WhatsApp: un rechazo por una validación fija recibe el motivo y el formulario de nuevo,
+prellenado y marcado, en una sesión nueva encolada en la misma UoW que el rechazo, y un repetido sólo el aviso; el recibo guarda los
+dos (migración `AddCaptureReceiptRejectionDetails`) para que un reintento conteste una vez. Al programar: el aviso dice «documento» y
+no «comprobante», porque un formulario propio puede leer cualquier documento, y el motivo viaja en el cuerpo del Flow nuevo, en un solo
+mensaje. La vista oficial de Meta del Flow r14 queda para la prueba integral.
+
+De la tarea 17: los sets `channel-documents` (2999e02b, 28 casos) y `forms-documents` (5394e8dc, 12 casos), con sus controles offline;
+el primero encontró que una planilla sola no se interpretaba (d8d14eda). ARCA usa el `CuitNumber` del núcleo (6c1aff65). La corrida real con OpenAI (2026-11-13 y 14) dejó calificados `channel-documents` (`doc_channel_documents_20261113_04`, 794/794 checks) y `forms-documents` (`doc_forms_documents_20261114_05`, desde `5e9f5644`: 12/12 casos y 12/12 lecturas, 556/556 checks), y también las mitades automáticas con `propose-form@2` (`channel-authoring`, `channel-spreadsheets` y `channel-dictation`); la evidencia está en [configurar IA](../guides/configurar-ia.md). En el camino dejó tres arreglos de la app: cinco pasos de proveedor para DOC6 (0a70cdbb); la duda cuando el comprobante no dice de qué lado está el negocio y el pedido de DOC6 que pide las muestras como están escritas (fac348ab); y que el servidor descarte una muestra que la lectura no escribe (e0b2978b). Esto último lo decidió el usuario, porque un rechazo dejaba a DOC6 sin pasos para corregir. Los tests que la tarea 27 había dejado atrás quedaron al día en 7ba8cc0e.
+Quedan la prueba a mano y la exportación conjunta de las cohortes.
+
 ## Ubicación y contacto por WhatsApp (W3) y varias cargas desde un Excel
 
 Anexado el 2026-11-11. Es lo que el [alcance](#alcance) de la implementación dejaba afuera: la ubicación y el contacto que la
@@ -1047,7 +1062,10 @@ la 26 (los guards de las filas, front 9f2d7c5d), la 27 (las filas de cada hoja y
 filas, c3c21bfe, sobre su puerto propio `IStructuredDocumentRowsChannel` y la migración `AddReceivedDocumentRows`; el pie y
 `SpreadsheetRowsJson` de las salidas van con la migración de la tarea 29, que toca los archivos de WhatsApp). Las capturas nuevas
 de `forms-documents-http`, `whatsapp-audio-http`, `whatsapp-forms-http` y `forms-responses-http` esperan la exportación conjunta.
-Faltan la 29 y la 30 de la etapa V, la 9b y el cierre (17).
+2026-11-13: la 29 (bba30e82: el aviso, hasta tres formularios y «Por qué lo propuso»), la 30 (front 117116de) y la 29b (d9fb633c:
+elegir un formulario de la lista de una planilla que no encaja, `unseen` y `tooManyRows`, el pie del Flow que sigue al pedido de
+ubicación; front 62311ac6), cada una con su revisión, y después que una planilla sola se interprete (d8d14eda). El cierre sigue en la
+tarea 17, arriba.
 
 ### Lo elegido
 

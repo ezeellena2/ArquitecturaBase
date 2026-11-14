@@ -296,7 +296,8 @@ builder.Services
 
 **Hecha el 2026-11-04, con la tarea 3 en el mismo commit:** `EntityConfigurationTests` pide la configuración de EF de
 cada entidad en el mismo cambio. Diferencias con lo escrito:
-- `Cuit` se llama `CuitNumber`, porque `ArcaConnection` ya tiene una propiedad `Cuit`.
+- `Cuit` se llama `CuitNumber`, porque `ArcaConnection` ya tiene una propiedad `Cuit`. (Desde el 2026-11-13 ARCA usa el `CuitNumber` del
+  núcleo, `Domain/ValueObjects`, y esta copia y `CuitTests` ya no existen: 6c1aff65.)
 - No hay `NotTested`: ningún caso de la etapa lo devuelve.
 - `ArcaConnection` suma `ReevaluateFamilies`, para cuando una familia completa o pierde su configuración, y
   `EnabledServices` es un `string[]` con setter privado, como `PublishedCultures` de formularios, para mapearlo a `text[]`.

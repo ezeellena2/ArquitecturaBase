@@ -367,7 +367,7 @@ La mediana local por caso fue de 10,29 s en `ia-spreadsheets`, 10,23 s en `ia-au
 
 `home-existing`, `audio-es-en` y `stage5-all` no se repitieron, porque sus capacidades, esquemas e instrucciones no cambiaron. El primer intento (`ia2_spreadsheets_20261111_01`) se cortó al sembrar el catálogo de importar, antes de llamar al proveedor, por una falla del arnés corregida en `51db5a59`, y no cuenta. El alcance sigue siendo `fixture-facts-checked-in-memory; style/free-text-not-exhaustively-assessed`.
 
-Desde la tarea 12 de [documentos](../features/formularios.md#la-ia-arma-formularios-con-un-documento--etapa-3-propose-form2-2026-11-12) (2026-11-12), el asistente automático de WhatsApp ofrece `forms.authoring.propose-form@2`, con otro esquema, en lugar de la 1. La evidencia real de `ia-authoring` (su mitad automática), de `ia-spreadsheets` y de `channel-dictation` se tomó con la 1 y ya no la cubre: esos sets se repiten con la 2, con el visto bueno del usuario. `channel-stage5` no cambia; desde la tarea 13 Inicio también ofrece la 2, así que su mitad de `ia-authoring` y de `ia-spreadsheets`, tomada con la 1, se repitió con la 2 el 2026-11-12, junto con `home-documents` (más abajo).
+Desde la tarea 12 de [documentos](../features/formularios.md#la-ia-arma-formularios-con-un-documento--etapa-3-propose-form2-2026-11-12) (2026-11-12), el asistente automático de WhatsApp ofrece `forms.authoring.propose-form@2`, con otro esquema, en lugar de la 1. La evidencia real de `ia-authoring` (su mitad automática), de `ia-spreadsheets` y de `channel-dictation` se tomó con la 1 y ya no la cubre: esos sets se repitieron con la 2 el 2026-11-13 (`channel-authoring`, `channel-spreadsheets` y `channel-dictation`, más abajo). `channel-stage5` no cambia; desde la tarea 13 Inicio también ofrece la 2, así que su mitad de `ia-authoring` y de `ia-spreadsheets`, tomada con la 1, se repitió con la 2 el 2026-11-12, junto con `home-documents` (más abajo).
 
 El `2026-11-12` se calificó la [lectura de documentos](../features/inteligencia-artificial.md#lectura-de-documentos-en-el-mismo-motor--2026-11-11)
 con la misma conexión guardada, desde una copia limpia de `093f184f`: `doc_reading_20261112_02` (`document-reading`) leyó con
@@ -429,6 +429,24 @@ La mediana local por caso fue de 11,30 s en `home-documents`, 12,23 s en `home-a
 - un documento sin texto pregunta qué hacer.
 
 El primer intento (`ia3_home_documents_20261112_01`) pasó los dos comprobantes y se cortó en la planilla en papel por un falso fallo del oráculo: pedía la etiqueta exacta de cada columna y el modelo repitió la tabla por renglón, con su número (`e70542a3`). No cuenta. El alcance sigue siendo `fixture-facts-checked-in-memory; style/free-text-not-exhaustively-assessed`.
+
+El `2026-11-13` y el `2026-11-14` se calificaron con la misma conexión guardada y `gpt-6.1-sol-candidate-1@1` los dos sets de [documentos por WhatsApp](../plans/2026-10-22-documentos-por-whatsapp.md) y las mitades automáticas que la tarea 12 dejó con `propose-form@2`. Cada corrida salió de una copia limpia de HEAD, con su base vacía, y cada documento se leyó antes con `openai-document-candidate@1`, como lo lee WhatsApp:
+
+| Corrida | Resultado |
+| --- | --- |
+| `doc_channel_authoring_20261113_01` (`channel-authoring`, desde `5394e8dc`) | 24/24 casos y 2/2 dictados; 510/510 checks. |
+| `doc_channel_spreadsheets_20261113_01` (`channel-spreadsheets`, desde `5394e8dc`) | 12/12 casos y 2/2 dictados; 354/354 checks. |
+| `doc_channel_dictation_20261113_01` (`channel-dictation`, desde `5394e8dc`) | 2/2 casos y 2/2 dictados; 62/62 checks. |
+| `doc_channel_documents_20261113_04` (`channel-documents`, desde `63d3e847`) | 28/28 casos, 2/2 dictados y 16/16 lecturas; 794/794 checks. |
+| `doc_forms_documents_20261114_05` (`forms-documents`, desde `5e9f5644`) | 12/12 casos y 12/12 lecturas; 556/556 checks. |
+
+Entre las cinco sumaron 323 pasos de proveedor, 209 invocaciones de herramientas, 867.938 tokens de entrada y 31.164 de salida, y los dictados informaron 70 segundos de audio. Los máximos fueron 25.694 bytes de contexto, 18.967 de continuación y 4.919 de herramientas, y por caso cinco pasos y cuatro invocaciones, en «Armar formulario con la IA». La mediana local por caso fue de 8,27 s a 15,33 s según el set, y el caso más largo tardó 20,35 s.
+
+Los intentos anteriores no cuentan, y cada uno dejó un arreglo:
+- `channel-documents`: el `_01` se cortó al sembrar, antes del proveedor, porque el compilador real rechazaba los formularios que leen documentos (`84f2d5d8`). El `_02` dio un falso fallo del oráculo: comparaba el contexto enviado con el sellado, pero el motor sella sólo lo que admiten el archivo y los permisos (`6a8fecbd`; `80ae4bac` arregló además la compilación del arnés). En el `_03`, con un comprobante neutro mandado solo y en inglés, el modelo eligió un formulario donde correspondía una duda; la descripción de `propose-entry@1` ahora nombra el dato que falta, si el negocio pagó o cobró (`fac348ab`).
+- `forms-documents`: el `_01` cortó con `LimitExceeded`, porque cuatro pasos no alcanzaban para leer catálogos, formularios y estándares, proponer y cerrar (`0a70cdbb`, cinco pasos). En el `_02` y el `_03`, en inglés, una muestra salió reescrita, y el pedido pasó a pedirlas tal como las escribe el primer documento, sin traducir y nunca una instrucción (`fac348ab`; el check `samples-copy-no-instruction`, `63d3e847`). En el `_04` otra muestra salió traducida, y desde `e0b2978b` el servidor descarta una muestra que la lectura no escribe: no la rechaza, porque el pedido ya usa los cinco pasos de proveedor y un rechazo lo dejaba sin propuesta.
+
+El alcance sigue siendo `fixture-facts-checked-in-memory; style/free-text-not-exhaustively-assessed`.
 
 Para otra calificación, ejecutá el [arnés](../../harnesses/assistant-qualification/README.md)
 con fixtures ficticios y presupuesto controlado. Detenelo ante el primer check fallido. Conservá
