@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Domain.ValueObjects;
@@ -8,6 +9,13 @@ namespace ArquitecturaBase.Infrastructure.Modules.WhatsApp;
 /// <summary>Closed wire format: database content never selects an arbitrary CLR type.</summary>
 internal static class WhatsAppQueuedMessageCodec
 {
+    /// <summary>N27 and H25: the types this version reads; the queue gives it no other.</summary>
+    public static IReadOnlyCollection<string> MessageTypes { get; } = [nameof(WhatsAppTextMessage), nameof(WhatsAppLinkButtonMessage),
+        nameof(WhatsAppReplyButtonsMessage), nameof(WhatsAppLoginCodeMessage), nameof(WhatsAppInvitationMessage)];
+
+    // N27 and H25: a member this version does not know makes it unreadable here, so it is left for another copy, not sent without it.
+    private static readonly JsonSerializerOptions Strict = new() { UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow };
+
     private sealed record Content(string To, string? Body = null, string? Footer = null, string? ButtonText = null, string? Url = null,
         IReadOnlyList<WhatsAppReplyButton>? Buttons = null, string? LanguageCode = null, string? Code = null,
         WhatsAppAccessEventKind? EventKind = null, Guid UserId = default, Guid InvitationId = default, string? Name = null, string? AppName = null, string? ReplyPayload = null);
@@ -30,9 +38,11 @@ internal static class WhatsAppQueuedMessageCodec
 
     public static WhatsAppOutboundMessage Deserialize(string messageType, string payload)
     {
-        var content = JsonSerializer.Deserialize<Content>(payload) ?? throw new InvalidOperationException("A delivery has no content.");
+        var content = JsonSerializer.Deserialize<Content>(payload, Strict) ?? throw new InvalidOperationException("A delivery has no content.");
         var phone = PhoneNumber.Create(content.To);
         if (phone.IsFailure) throw new InvalidOperationException("A delivery has an invalid destination.");
+        // N27 and H25: an access event this version does not know is left for another copy, never classified with a wrong kind.
+        if (content.EventKind is { } eventKind && !Enum.IsDefined(eventKind)) throw new InvalidOperationException("A delivery has an unknown access event.");
         return messageType switch
         {
             nameof(WhatsAppTextMessage) => new WhatsAppTextMessage(phone.Value, content.Body!),

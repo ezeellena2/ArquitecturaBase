@@ -97,6 +97,22 @@ Además:
   estampa el interceptor del módulo y lo continúan sus workers con el `ActivitySource` `ArquitecturaBase.WhatsApp`, registrado en
   el módulo como su medidor; las etiquetas no llevan números, cuerpos ni ids. Una fila de antes, o escrita sin traza, no tiene. La
   captura de los Flows (con su rechazo y su reenvío) y la cola de acceso todavía no continúan la traza.
+- **Dos versiones a la vez (H25, 2026-11-14).** Mientras conviven dos versiones (un despliegue, o al volver a la imagen
+  anterior), una copia deja para otra lo que su versión no sabe leer, con un tope. Un mensaje de un tipo que no conoce se lee
+  como `Other` y el historial abre; la columna conserva el tipo, y un entrante así queda para la copia que lo conoce. Una salida
+  de un tipo que no conoce vuelve a pendiente, en su lugar, sin gastar sus reintentos, hasta diez minutos desde que se pidió, y
+  después falla como una que no salió (un aviso, con su código): nunca sale como texto. Una
+  respuesta de Flow cuya proyección escribió otra versión (un formato nuevo, un miembro o una forma que ésta no sabe leer) queda
+  pendiente, con su envío abierto, hasta las fallas de una respuesta (cinco y un día), y recién ahí se rechaza. Cada campo o
+  valor nuevo se escribe un despliegue después del que ya sabe leerlo ([despliegue](../guides/despliegue.md#el-orden-bundle-después-imagen)).
+  Lo que la cola de acceso no descifra o no lee (también un evento de acceso que no conoce) vuelve a la cola con una espera,
+  hasta diez veces, como el correo, y cada
+  copia reserva sólo los tipos que conoce ([colas](../architecture/backend.md#colas-transaccionales), N27); un motivo de lectura
+  de un documento que no conoce se lee como «Otro». Todavía no: un formulario preparado con otro perfil de Flows queda fallido
+  si lo publica una copia que no lo conoce; una respuesta cuyo envío (el payload sellado o el contenido del asistente) escribió
+  otra versión queda sin reconocer; un Flow que preparó otra versión falla al despacharse, y un valor nuevo de otro enum
+  guardado como texto (el origen o el estado de una salida, el modo del contacto, el origen, el propósito o el estado de un
+  mensaje) rompe su lectura, y en la salida frena la cola.
 
 ## Perfil local de formularios — 2026-10-10
 

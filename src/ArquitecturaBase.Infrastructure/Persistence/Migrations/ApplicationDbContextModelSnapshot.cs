@@ -167,6 +167,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<DateTime?>("AvailableAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("Channel")
                         .IsRequired()
                         .HasMaxLength(64)
@@ -189,6 +192,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<string>("ProtectedPayload")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<int>("ReadFailures")
+                        .HasColumnType("integer");
 
                     b.HasKey("Id");
 

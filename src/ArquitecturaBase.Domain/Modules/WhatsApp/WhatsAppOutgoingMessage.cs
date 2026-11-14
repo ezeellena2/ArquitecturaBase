@@ -149,6 +149,18 @@ public sealed partial class WhatsAppOutgoingMessage : Entity
         return true;
     }
 
+    /// <summary>
+    /// H25: a send of a kind this version does not know waits, in its place, for a copy that knows it, without spending the retries
+    /// of its send (H7). Only while Pending; once <paramref name="limit"/> passed since its request it does not, and the caller
+    /// fails it.
+    /// </summary>
+    public bool WaitForAnotherCopy(DateTime nowUtc, TimeSpan wait, TimeSpan limit)
+    {
+        if (State != WhatsAppOutgoingMessageState.Pending || nowUtc - RequestedAtUtc >= limit) return false;
+        NextAttemptAtUtc = nowUtc + wait;
+        return true;
+    }
+
     public static WhatsAppOutgoingMessage CreateFlow(Guid actor, Guid contactId, Guid requestId, string body, Guid sessionId, DateTime nowUtc)
     {
         ArgumentOutOfRangeException.ThrowIfEqual(sessionId, Guid.Empty);

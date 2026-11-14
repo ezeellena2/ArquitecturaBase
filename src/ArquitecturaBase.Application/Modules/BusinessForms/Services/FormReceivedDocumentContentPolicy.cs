@@ -18,7 +18,8 @@ internal sealed class FormReceivedDocumentContentPolicy(IFormReceivedDocumentPro
     public const string RowKind = "row";
     private static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web)
     {
-        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: false) },
+        // N27 and H25: a reason a newer version writes reads as Other.
+        Converters = { new StructuredDocumentProblemJsonConverter(), new JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: false) },
     };
 
     public byte[] ProtectReading(Guid documentId, StructuredDocumentReading reading) =>

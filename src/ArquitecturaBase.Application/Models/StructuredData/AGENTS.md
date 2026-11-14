@@ -19,7 +19,7 @@ F3 agrega entradas de archivo con bytes transitorios ignorados al serializar; su
 StructuredRecordActionReview lleva decisión humana, actor y fecha originales; no es evidencia de entrega del proveedor. Redacta su representación y no acepta identidad ni tiempo del navegador.
 Review incluye la revisión esperada original; Retry recibe el fence del trabajo. El canal aplica ambos con un único control monotónico por salida.
 
-La respuesta neutral separa Receipt (fechas de entrega/lectura del proveedor) de Review (decisión humana atribuida); una revisión no crea fechas de entrega.
+N27 y H25: lo nuevo se escribe un despliegue después del que ya lo lee; sólo un motivo de lectura desconocido pasa a `Other` (`StructuredDocumentProblemJsonConverter`).
 
 D2 agrega SenderKind (Manual | Assistant) como metadata del productor de origen. Un origen desconocido permanece null; el tipo nunca se deduce de un operador ausente. La atribución preserva el operador real y no concede acceso al enlace de conversación.
 

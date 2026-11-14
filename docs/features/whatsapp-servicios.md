@@ -34,6 +34,7 @@ Es el detalle de la guía [`src/ArquitecturaBase.Application/Modules/WhatsApp/Se
 
 `WhatsAppChatDispatchService`, `WhatsAppOutgoingSendGuard`, `WhatsAppManualSendGuard`, `WhatsAppDeliveryService`.
 
+- Antes, una salida de un tipo que esta versión no conoce vuelve a esperar, en su lugar, a otra copia (`WaitForAnotherCopy`, H25), sin gastar sus reintentos, hasta diez minutos desde que se pidió (`AnotherCopyLimit`); después falla con `Unavailable`, o un aviso con `SendRejected`.
 - Reservar revalida con `WhatsAppOutgoingSendGuard` según el origen: operador real con Read+Send, destinatario de avisos, o modo, vínculo, contexto y contenido del asistente. Un Sending vencido queda Uncertain; avisos y asistente vuelven a Pending solo si no marcaron el inicio del efecto.
 - El próximo chat (H12 y H31): `GetNextPendingAsync(ahora)` no toma un contacto con una salida Sending, deja para después a los que están en su espera de 6 s (`ahora − WhatsAppDispatchPacing.RecipientWait` contra `LastDispatchAtUtc`, que `CompleteAsync` y `RetryLaterAsync` anotan al cerrar cada intento; gana la última escrita) y ordena por `IsNotice` y después por hora e Id: lo que contesta a alguien antes que los avisos. Si sólo quedan contactos en su espera, toma uno y el worker espera la lease de Redis, que usa los mismos 6 s. Del contacto elegido sale siempre su salida más vieja, y esa consulta vuelve a mirar que no tenga una Sending, ya con el contacto tomado: la elección pudo ver el contacto antes del commit de otra copia. `CreateFormAction` marca el aviso; `CreateFormActionReply`, la confirmación de un toque, no.
 - Avisos y asistente marcan el efecto en otra UoW, revalidando justo antes del POST; completar exige la misma reserva.
@@ -82,6 +83,8 @@ Es el detalle de la guía [`src/ArquitecturaBase.Application/Modules/WhatsApp/Se
 ## Respuestas de Flow
 
 `WhatsAppFlowReplyService`, `WhatsAppFlowReplyStateService`, `WhatsAppFlowMediaPolicy`, `WhatsAppFlowMediaRecorder`, `WhatsAppFlowRejectionPolicy`.
+
+- H25: una proyección que escribió otra versión (un formato nuevo, un miembro que ésta no conoce o una forma que no sabe leer) deja la respuesta pendiente como una falla recuperable (`RegisterFailureAsync`), con su envío abierto; una que no se descifra no es otra versión y queda sin reconocer.
 
 - Verifica token, cabecera (Conversation con operador y formato 1; Assistant sin operador y formato 2), sesión y proyección, y decodifica con el mapping sellado y la oferta antes del sink neutral. El Actor es quien completa; origen y cultura de sesión viajan intactos.
 - Los arrays se clasifican por mapping: multiChoice exige strings GUID D ofrecidos, distintos y dentro del rango; sólo photo/document pasan objetos a MediaPolicy. Claves ajenas, escalares sustituidos y mezclas se rechazan antes de I/O. El contador preliminar excluye strings; [] ambiguo conserva presupuesto64, pero sólo un conteo > 0 marca descarga.

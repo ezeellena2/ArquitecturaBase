@@ -16,4 +16,10 @@ public static class WhatsAppDispatchPacing
     /// like any other, so a long outage does not hold the chat (and the operator) for hours.
     /// </summary>
     public const int MaxRetries = 2;
+
+    /// <summary>
+    /// H25: how long since its request a send of a kind this version does not know waits for a copy that knows it, as long as a
+    /// gradual deployment; then it fails as one that could not go out.
+    /// </summary>
+    public static readonly TimeSpan AnotherCopyLimit = TimeSpan.FromMinutes(10);
 }

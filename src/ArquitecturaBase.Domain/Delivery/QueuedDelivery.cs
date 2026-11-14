@@ -14,6 +14,12 @@ public sealed class QueuedDelivery : Entity
     public DateTime ExpiresAtUtc { get; private set; }
     public DateTime? ClaimedAtUtc { get; private set; }
 
+    /// <summary>N27 and H25: when a delivery a copy could not read may be claimed again; before then, nothing claims it.</summary>
+    public DateTime? AvailableAtUtc { get; private set; }
+
+    /// <summary>N27 and H25: how many times a copy could not read it.</summary>
+    public int ReadFailures { get; private set; }
+
     public static QueuedDelivery Create(string channel, string messageType, string protectedPayload, DateTime nowUtc, DateTime expiresAtUtc)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(channel);
@@ -43,5 +49,20 @@ public sealed class QueuedDelivery : Entity
     {
         if (ClaimedAtUtc is null) throw new InvalidOperationException("Only a claimed delivery can be given back.");
         ClaimedAtUtc = null;
+    }
+
+    /// <summary>
+    /// N27 and H25: the copy that claimed it could not read it (its key ring does not open it, or its version does not know its
+    /// content), so it goes back to the queue until <paramref name="availableAtUtc"/>, for another copy, and counts. At
+    /// <paramref name="maxReadFailures"/> it does not, and the caller completes it.
+    /// </summary>
+    public bool LeaveForAnotherCopy(DateTime availableAtUtc, int maxReadFailures)
+    {
+        if (ClaimedAtUtc is null) throw new InvalidOperationException("Only a claimed delivery can be left for another copy.");
+        if (ReadFailures >= maxReadFailures) return false;
+        ClaimedAtUtc = null;
+        AvailableAtUtc = availableAtUtc;
+        ReadFailures++;
+        return true;
     }
 }

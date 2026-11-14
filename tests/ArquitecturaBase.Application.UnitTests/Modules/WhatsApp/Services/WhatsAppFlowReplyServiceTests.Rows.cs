@@ -120,8 +120,9 @@ public sealed partial class WhatsAppFlowReplyServiceTests
         Assert.Equal(0, fixture.Sink.CaptureCount);
     }
 
+    // H25: another version may read it, so it waits, with its send open, up to the failures of a reply.
     [Fact]
-    public async Task A_projection_this_app_cannot_read_is_rejected_with_the_usual_notice_instead_of_being_unrelated()
+    public async Task A_projection_this_app_cannot_read_waits_and_then_is_rejected_with_the_usual_notice_instead_of_being_unrelated()
     {
         var fixture = new Fixture();
         var other = Guid.Parse("00000000-0000-7000-8000-0000000000e9");
@@ -130,6 +131,12 @@ public sealed partial class WhatsAppFlowReplyServiceTests
         var message = fixture.AddReply("wamid.rows-unreadable", PhoneReply(fixture, mapping));
 
         await fixture.Service.ProcessPendingAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(((WhatsAppFlowCaptureState?)null, WhatsAppFlowCaptureState.Pending), (message.FlowCaptureState, fixture.Session.CaptureState));
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            fixture.Clock.Advance(TimeSpan.FromHours(6));
+            await fixture.Service.ProcessPendingAsync(TestContext.Current.CancellationToken);
+        }
 
         Assert.Equal(WhatsAppFlowCaptureState.Rejected, message.FlowCaptureState);
         Assert.Equal(FlowErrors.InvalidValue.Code, message.FlowCaptureErrorCode);

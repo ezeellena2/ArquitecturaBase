@@ -10,6 +10,7 @@ internal sealed class WhatsAppMessageSource(IServiceScopeFactory scopeFactory, I
     : DurableMessageSource<WhatsAppOutboundMessage>(scopeFactory, protection, logger)
 {
     protected override string Channel => "whatsapp-access";
+    protected override IReadOnlyCollection<string> MessageTypes => WhatsAppQueuedMessageCodec.MessageTypes;
     protected override WhatsAppOutboundMessage Deserialize(string messageType, string payload) => WhatsAppQueuedMessageCodec.Deserialize(messageType, payload);
 
     // H3: a message that waits for its turn knows when it stops being worth sending (a code, after its ten minutes).

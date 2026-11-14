@@ -16,6 +16,60 @@ namespace ArquitecturaBase.Api.IntegrationTests.Emails;
 
 public sealed class TransactionalEmailQueueTests(ApiFactory factory) : IClassFixture<ApiFactory>
 {
+    private static readonly string[] Types = ["test"];
+
+    // N27 and H25: the queue gives a copy only the message types its version reads.
+    [Fact]
+    public async Task A_delivery_of_a_type_this_version_does_not_know_is_not_claimed()
+    {
+        var channel = "queue-test-" + Guid.NewGuid().ToString("N");
+        var ct = TestContext.Current.CancellationToken;
+        await factory.ExecuteScopeAsync(provider => provider.GetRequiredService<IUnitOfWork>().ExecuteInTransactionAsync(_ =>
+        {
+            Assert.True(provider.GetRequiredService<DurableMessageStore>().TryEnqueue(channel, 2, "test-v2", "newer-content", null));
+            return Task.FromResult(Result.Success());
+        }, CommitPolicy.OnSuccess, ct));
+
+        var claimed = await factory.ExecuteScopeAsync(provider => provider.GetRequiredService<IDeliveryQueueService>().ClaimNextAsync(channel, Types, ct));
+
+        Assert.Null(claimed.Value);
+        Assert.True(await factory.ExecuteDbContextAsync(db => db.Set<QueuedDelivery>().AnyAsync(delivery => delivery.Channel == channel && delivery.ClaimedAtUtc == null, ct)));
+    }
+
+    // N27 and H25: what a copy could not read goes back with a wait, for another copy, and only at its cap is it deleted.
+    [Fact]
+    public async Task A_delivery_a_copy_could_not_read_waits_for_another_up_to_its_cap()
+    {
+        var channel = "queue-test-" + Guid.NewGuid().ToString("N");
+        var ct = TestContext.Current.CancellationToken;
+        await factory.ExecuteScopeAsync(provider => provider.GetRequiredService<IUnitOfWork>().ExecuteInTransactionAsync(_ =>
+        {
+            Assert.True(provider.GetRequiredService<DurableMessageStore>().TryEnqueue(channel, 60, "test", "unread-content", null));
+            return Task.FromResult(Result.Success());
+        }, CommitPolicy.OnSuccess, ct));
+        Task<Result<ArquitecturaBase.Application.Models.Delivery.DeliveryMessageResponse?>> ClaimAsync() =>
+            factory.ExecuteScopeAsync(provider => provider.GetRequiredService<IDeliveryQueueService>().ClaimNextAsync(channel, Types, ct));
+
+        var first = (await ClaimAsync()).Value!;
+        await factory.ExecuteScopeAsync(provider => provider.GetRequiredService<IDeliveryQueueService>().LeaveForAnotherCopyAsync(first.Id, ct));
+
+        var left = await factory.ExecuteDbContextAsync(db => db.Set<QueuedDelivery>().SingleAsync(delivery => delivery.Id == first.Id, ct));
+        Assert.Equal(((DateTime?)null, 1), (left.ClaimedAtUtc, left.ReadFailures));
+        Assert.Null((await ClaimAsync()).Value);
+        for (var read = 1; read < 10; read++)
+        {
+            factory.Clock.Advance(TimeSpan.FromSeconds(31));
+            var again = (await ClaimAsync()).Value!;
+            Assert.Equal(first.Id, again.Id);
+            await factory.ExecuteScopeAsync(provider => provider.GetRequiredService<IDeliveryQueueService>().LeaveForAnotherCopyAsync(again.Id, ct));
+        }
+        factory.Clock.Advance(TimeSpan.FromSeconds(31));
+        var last = (await ClaimAsync()).Value!;
+        await factory.ExecuteScopeAsync(provider => provider.GetRequiredService<IDeliveryQueueService>().LeaveForAnotherCopyAsync(last.Id, ct));
+
+        Assert.False(await factory.ExecuteDbContextAsync(db => db.Set<QueuedDelivery>().AnyAsync(delivery => delivery.Channel == channel, ct)));
+    }
+
     [Fact]
     public async Task Enqueue_requires_the_callers_transaction()
     {
@@ -46,9 +100,9 @@ public sealed class TransactionalEmailQueueTests(ApiFactory factory) : IClassFix
         var persisted = await factory.ExecuteDbContextAsync(db => db.Set<QueuedDelivery>().SingleAsync(delivery => delivery.Channel == channel, ct));
         Assert.DoesNotContain("123456", persisted.ProtectedPayload, StringComparison.Ordinal);
         // Each call resolves a new scope and consumer. A claimed delivery is never selected after a restart.
-        var claimed = await factory.ExecuteScopeAsync(provider => provider.GetRequiredService<IDeliveryQueueService>().ClaimNextAsync(channel, ct));
+        var claimed = await factory.ExecuteScopeAsync(provider => provider.GetRequiredService<IDeliveryQueueService>().ClaimNextAsync(channel, Types, ct));
         Assert.Equal(persisted.Id, claimed.Value!.Id);
-        var afterRestart = await factory.ExecuteScopeAsync(provider => provider.GetRequiredService<IDeliveryQueueService>().ClaimNextAsync(channel, ct));
+        var afterRestart = await factory.ExecuteScopeAsync(provider => provider.GetRequiredService<IDeliveryQueueService>().ClaimNextAsync(channel, Types, ct));
         Assert.Null(afterRestart.Value);
         await factory.ExecuteScopeAsync(provider => provider.GetRequiredService<IDeliveryQueueService>().CompleteAsync(persisted.Id, ct));
         Assert.False(await factory.ExecuteDbContextAsync(db => db.Set<QueuedDelivery>().AnyAsync(delivery => delivery.Channel == channel, ct)));
@@ -68,8 +122,8 @@ public sealed class TransactionalEmailQueueTests(ApiFactory factory) : IClassFix
         await using var secondHost = factory.WithWebHostBuilder(_ => { });
         await using var secondScope = secondHost.Services.CreateAsyncScope();
         var claims = await Task.WhenAll(
-            factory.ExecuteScopeAsync(provider => provider.GetRequiredService<IDeliveryQueueService>().ClaimNextAsync(channel, ct)),
-            secondScope.ServiceProvider.GetRequiredService<IDeliveryQueueService>().ClaimNextAsync(channel, ct));
+            factory.ExecuteScopeAsync(provider => provider.GetRequiredService<IDeliveryQueueService>().ClaimNextAsync(channel, Types, ct)),
+            secondScope.ServiceProvider.GetRequiredService<IDeliveryQueueService>().ClaimNextAsync(channel, Types, ct));
         var winner = Assert.Single(claims, result => result.Value is not null).Value!;
         await factory.ExecuteScopeAsync(provider => provider.GetRequiredService<IDeliveryQueueService>().CompleteAsync(winner.Id, ct));
     }
@@ -126,7 +180,7 @@ public sealed class TransactionalEmailQueueTests(ApiFactory factory) : IClassFix
             source.GiveBackCurrent();
         }
 
-        var claimed = await factory.ExecuteScopeAsync(provider => provider.GetRequiredService<IDeliveryQueueService>().ClaimNextAsync(channel, ct));
+        var claimed = await factory.ExecuteScopeAsync(provider => provider.GetRequiredService<IDeliveryQueueService>().ClaimNextAsync(channel, Types, ct));
         Assert.NotNull(claimed.Value);
         await factory.ExecuteScopeAsync(provider => provider.GetRequiredService<IDeliveryQueueService>().ReleaseAsync(claimed.Value!.Id, ct));
         using var stopping = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -143,6 +197,7 @@ public sealed class TransactionalEmailQueueTests(ApiFactory factory) : IClassFix
         services.GetRequiredService<IServiceScopeFactory>(), services.GetRequiredService<IDataProtectionProvider>(), NullLogger.Instance)
     {
         protected override string Channel => channel;
+        protected override IReadOnlyCollection<string> MessageTypes => Types;
         protected override string Deserialize(string messageType, string payload) => payload;
     }
 }

@@ -20,7 +20,8 @@ internal static class AiAssistantDocumentPolicy
     private const string StoredKind = "readDocument";
     private static readonly JsonSerializerOptions Stored = new(JsonSerializerDefaults.Web)
     {
-        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: false) },
+        // N27 and H25: a reason a newer version writes reads as Other.
+        Converters = { new StructuredDocumentProblemJsonConverter(), new JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: false) },
     };
 
     // A bounded private key and the person's file name, one of the three types as the server detected it, the attachment's size, 1 to 10

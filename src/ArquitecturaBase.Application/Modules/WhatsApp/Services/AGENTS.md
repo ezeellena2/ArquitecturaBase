@@ -36,4 +36,4 @@ Casos de uso del módulo (`*Service`, detrás de `Interfaces/Services`), sus hel
 
 Los avisos son locales, sin contenido y posteriores al commit: el webhook despierta entrada y, sólo con `nfm_reply`, captura; una captura Completed despierta entrada para evaluar qué sugerir después. Los resultados terminales de IA y audio llegan al canal mediante el puerto neutral de Application. El estado durable y el polling siguen siendo la recuperación.
 
-La reserva de salida informa progreso sólo al confirmar Pending→Sending o Pending→Failed. Una reserva con progreso y sin operación representa un rechazo persistido, no un envío. No cambiar por esto reservas, leases, fences ni el coordinador de despacho.
+La reserva de salida informa progreso sólo al confirmar Pending→Sending o Pending→Failed, o al dejar para otra copia una salida de un tipo que no conoce (H25). Una reserva con progreso y sin operación representa un rechazo o una espera persistidos, no un envío. No cambiar por esto reservas, leases, fences ni el coordinador de despacho.

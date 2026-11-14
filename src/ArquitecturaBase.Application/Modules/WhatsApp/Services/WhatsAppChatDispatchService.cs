@@ -21,6 +21,14 @@ internal sealed class WhatsAppChatDispatchService(
             var outgoing = await repository.GetNextPendingAsync(nowUtc, ct);
             if (outgoing is null) { return Result.Success(new WhatsAppDispatchReservationResponse(false, null)); }
             var contact = await repository.GetForUpdateAsync(outgoing.ContactId, ct);
+            // H25: a kind this version does not know waits, in its place, for a copy that knows it, without spending its retries;
+            // after the limit it fails as one that could not go out (a notice, with its own code, H9). It never goes out as text.
+            if (!Enum.IsDefined(outgoing.Kind))
+            {
+                if (!outgoing.WaitForAnotherCopy(nowUtc, WhatsAppDispatchPacing.RetryWait, WhatsAppDispatchPacing.AnotherCopyLimit))
+                    outgoing.Fail(outgoing.Origin == WhatsAppMessageOrigin.FormAction ? WhatsAppFormActionErrors.SendRejected.Code : WhatsAppSendErrors.Unavailable.Code);
+                return Result.Success(new WhatsAppDispatchReservationResponse(true, null));
+            }
             var phone = await sends.ValidateAsync(contact, outgoing, ct);
             if (phone.IsFailure)
             {

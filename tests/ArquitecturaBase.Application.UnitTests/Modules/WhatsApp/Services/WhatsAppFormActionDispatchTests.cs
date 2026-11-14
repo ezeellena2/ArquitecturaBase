@@ -1,6 +1,7 @@
 using ArquitecturaBase.Application.UnitTests.TestFeatures.Modules.WhatsApp;
 using Microsoft.Extensions.Logging.Abstractions;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
+using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Application.Modules.WhatsApp.Services;
 using ArquitecturaBase.Application.UnitTests.Modules.WhatsApp.TestDoubles;
 using ArquitecturaBase.Application.UnitTests.TestDoubles;
@@ -25,6 +26,26 @@ public sealed class WhatsAppFormActionDispatchTests
         Assert.True((await host.Service.ReserveAsync(Ct)).Value.Progressed);
 
         Assert.Equal((WhatsAppOutgoingMessageState.Failed, "WhatsApp.Send.WindowClosed"), (host.Repository.Outgoing.State, host.Repository.Outgoing.FailureCode));
+    }
+
+    // H25: a kind this version does not know waits, in its place, for a copy that knows it, without spending its retries; after
+    // its limit it fails as one that could not go out: a manual send with Unavailable, a notice with its own code (H9).
+    [Theory]
+    [InlineData(true, "WhatsApp.Send.Unavailable")]
+    [InlineData(false, "WhatsApp.FormAction.SendRejected")]
+    public async Task A_send_of_a_kind_this_version_does_not_know_waits_for_another_copy_up_to_its_limit(bool manual, string code)
+    {
+        var host = new Host(manual: manual);
+        typeof(WhatsAppOutgoingMessage).GetProperty(nameof(WhatsAppOutgoingMessage.Kind))!.SetValue(host.Repository.Outgoing, (WhatsAppOutgoingMessageKind)99);
+
+        var first = (await host.Service.ReserveAsync(Ct)).Value;
+
+        Assert.Equal((true, (WhatsAppDispatchResponse?)null), (first.Progressed, first.Operation));
+        Assert.Equal((WhatsAppOutgoingMessageState.Pending, (DateTime?)Now.UtcDateTime.AddSeconds(30), 0),
+            (host.Repository.Outgoing.State, host.Repository.Outgoing.NextAttemptAtUtc, host.Repository.Outgoing.DispatchRetries));
+        host.Clock.Advance(TimeSpan.FromMinutes(10));
+        Assert.Null((await host.Service.ReserveAsync(Ct)).Value.Operation);
+        Assert.Equal((WhatsAppOutgoingMessageState.Failed, code), (host.Repository.Outgoing.State, host.Repository.Outgoing.FailureCode));
     }
 
     [Fact]

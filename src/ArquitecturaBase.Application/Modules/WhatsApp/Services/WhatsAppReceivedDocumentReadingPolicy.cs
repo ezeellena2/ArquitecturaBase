@@ -22,7 +22,8 @@ internal sealed class WhatsAppReceivedDocumentReadingPolicy(IUserReader users, I
     /// <summary>How a reading is kept with its message: the web defaults with the enums by name, as the engine keeps it.</summary>
     public static JsonSerializerOptions ReadingJson { get; } = new(JsonSerializerDefaults.Web)
     {
-        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: false) },
+        // N27 and H25: a reason a newer version writes reads as Other.
+        Converters = { new StructuredDocumentProblemJsonConverter(), new JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: false) },
     };
 
     public DateTime NowUtc => clock.GetUtcNow().UtcDateTime;

@@ -96,9 +96,16 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
             projection = flowProtector.ReadProjection(session.OperationId, session.BindingId, session.VersionId,
                 session.Culture, session.ProtectedProjection);
         }
-        catch (Exception exception) when (exception is CryptographicException or InvalidOperationException or JsonException)
+        catch (CryptographicException)
         {
             await stateService.MarkProcessedAsync(message.WaMessageId, session.SessionId, WhatsAppFlowCaptureState.Unrecognized, null, null, null, cancellationToken);
+            return;
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or JsonException)
+        {
+            // H25: another version wrote this projection (a newer format, or a member this one does not know): the reply waits, with
+            // its send open, for a copy that reads it, up to the failures of a reply.
+            await stateService.RegisterFailureAsync(message.WaMessageId, session.SessionId, cancellationToken);
             return;
         }
         var verified = sessionVerifier.VerifyReply(session, token, projection);
@@ -107,11 +114,11 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
             await stateService.MarkProcessedAsync(message.WaMessageId, session.SessionId, WhatsAppFlowCaptureState.Unrecognized, null, null, null, cancellationToken);
             return;
         }
-        // The reply belongs to its session, but this app cannot read its projection: it is not saved, with the usual notice.
+        // The reply belongs to its session, but this app cannot read its projection (H25: another version may): it waits, with its send
+        // open, up to the failures of a reply, and then it is not saved, with the usual notice.
         if (!ProjectionIsWellFormed(projection))
         {
-            await stateService.MarkProcessedAsync(message.WaMessageId, session.SessionId, WhatsAppFlowCaptureState.Rejected, null, null,
-                FlowErrors.InvalidValue.Code, cancellationToken);
+            await stateService.RegisterFailureAsync(message.WaMessageId, session.SessionId, cancellationToken, FlowErrors.InvalidValue.Code);
             return;
         }
 

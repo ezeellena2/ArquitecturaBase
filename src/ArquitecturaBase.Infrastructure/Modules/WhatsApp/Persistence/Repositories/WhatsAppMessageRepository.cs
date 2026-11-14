@@ -78,8 +78,11 @@ internal sealed class WhatsAppMessageRepository(ApplicationDbContext dbContext) 
         dbContext.Set<WhatsAppDeliveryReceipt>().SingleOrDefaultAsync(item => item.WaMessageId == waMessageId, cancellationToken);
     public void Add(WhatsAppDeliveryReceipt receipt) => dbContext.Set<WhatsAppDeliveryReceipt>().Add(receipt);
 
+    // H25: an inbound of a kind this version does not know (it reads as Other) is left for a copy that knows it.
+    private static readonly WhatsAppMessageKind[] KnownKinds = Enum.GetValues<WhatsAppMessageKind>();
+
     private IQueryable<WhatsAppMessage> PendingInbound() =>
         dbContext.Set<WhatsAppMessage>().Where(message =>
             message.Direction == WhatsAppMessageDirection.Inbound && message.Kind != WhatsAppMessageKind.FlowReply
-            && message.ProcessedAtUtc == null && message.ContactId != null);
+            && message.ProcessedAtUtc == null && message.ContactId != null && KnownKinds.Contains(message.Kind));
 }

@@ -12,6 +12,9 @@ internal abstract partial class DurableMessageSource<T>(IServiceScopeFactory sco
 
     protected abstract string Channel { get; }
 
+    /// <summary>N27 and H25: the message types this version reads; it claims no other.</summary>
+    protected abstract IReadOnlyCollection<string> MessageTypes { get; }
+
     public void GiveBackCurrent() => _givenBack = true;
     protected abstract T Deserialize(string messageType, string payload);
 
@@ -26,7 +29,7 @@ internal abstract partial class DurableMessageSource<T>(IServiceScopeFactory sco
             try
             {
                 await using var scope = scopeFactory.CreateAsyncScope();
-                var result = await scope.ServiceProvider.GetRequiredService<IDeliveryQueueService>().ClaimNextAsync(Channel, cancellationToken);
+                var result = await scope.ServiceProvider.GetRequiredService<IDeliveryQueueService>().ClaimNextAsync(Channel, MessageTypes, cancellationToken);
                 delivery = result.Value;
             }
             catch (Exception exception) when (exception is not OperationCanceledException)
@@ -49,8 +52,10 @@ internal abstract partial class DurableMessageSource<T>(IServiceScopeFactory sco
             }
             catch (Exception exception) when (exception is not OperationCanceledException)
             {
+                // N27 and H25: what this copy cannot read (its key ring does not open it, or its version does not know its content)
+                // is left for another copy, with a wait and a cap, instead of being deleted.
                 LogReadFailure(logger, exception.GetType().Name);
-                await CompleteAsync(delivery.Id);
+                await LeaveForAnotherCopyAsync(delivery.Id);
                 continue;
             }
             // H8: a message the worker gave back (waiting for its turn, or for the retry the queue was going to make anyway) goes
@@ -85,6 +90,21 @@ internal abstract partial class DurableMessageSource<T>(IServiceScopeFactory sco
         catch (Exception exception)
         {
             // A completed external send must not be repeated if recording completion fails.
+            LogReadFailure(logger, exception.GetType().Name);
+        }
+    }
+
+    private async Task LeaveForAnotherCopyAsync(Guid id)
+    {
+        try
+        {
+            using var bounded = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            await using var scope = scopeFactory.CreateAsyncScope();
+            await scope.ServiceProvider.GetRequiredService<IDeliveryQueueService>().LeaveForAnotherCopyAsync(id, bounded.Token);
+        }
+        catch (Exception exception)
+        {
+            // Not left, it stays claimed and expires, as a crash leaves it.
             LogReadFailure(logger, exception.GetType().Name);
         }
     }

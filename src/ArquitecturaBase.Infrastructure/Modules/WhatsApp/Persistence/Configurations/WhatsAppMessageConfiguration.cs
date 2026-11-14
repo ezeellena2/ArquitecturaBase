@@ -25,7 +25,8 @@ internal sealed class WhatsAppMessageConfiguration : IEntityTypeConfiguration<Wh
         builder.Property(message => message.TraceParent).HasMaxLength(WhatsAppMessage.TraceParentLength);
         builder.Property(message => message.Origin).HasConversion<string>().HasMaxLength(EnumMaxLength).HasDefaultValue(WhatsAppMessageOrigin.Conversation);
         builder.Property(message => message.Direction).HasConversion<string>().HasMaxLength(EnumMaxLength);
-        builder.Property(message => message.Kind).HasConversion<string>().HasMaxLength(EnumMaxLength);
+        // H25: a kind a newer version writes reads here as Other, so the history of its chat still opens; its column keeps it.
+        builder.Property(message => message.Kind).HasConversion(kind => kind.ToString(), value => ReadKind(value)).HasMaxLength(EnumMaxLength);
         builder.Property(message => message.Purpose).HasConversion<string>().HasMaxLength(EnumMaxLength).HasDefaultValue(WhatsAppMessagePurpose.Unclassified);
         builder.Property(message => message.AccessEventKind).HasConversion<string>().HasMaxLength(EnumMaxLength);
         builder.Property(message => message.Status).HasConversion<string>().HasMaxLength(EnumMaxLength);
@@ -117,4 +118,7 @@ internal sealed class WhatsAppMessageConfiguration : IEntityTypeConfiguration<Wh
             .HasForeignKey(message => message.ContactId)
             .OnDelete(DeleteBehavior.Restrict);
     }
+
+    private static WhatsAppMessageKind ReadKind(string value) =>
+        Enum.TryParse<WhatsAppMessageKind>(value, out var kind) && Enum.IsDefined(kind) ? kind : WhatsAppMessageKind.Other;
 }

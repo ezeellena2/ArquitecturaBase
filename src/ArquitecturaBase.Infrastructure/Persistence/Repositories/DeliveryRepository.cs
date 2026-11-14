@@ -9,8 +9,9 @@ internal sealed class DeliveryRepository(ApplicationDbContext dbContext) : IDeli
 {
     public Task LockAsync(string channel, CancellationToken cancellationToken) => dbContext.AcquireAdvisoryLocksAsync([AdvisoryLockKeys.Delivery(channel)], cancellationToken);
     public Task LockRetentionAsync(CancellationToken cancellationToken) => dbContext.AcquireAdvisoryLocksAsync([AdvisoryLockKeys.DeliveryRetention], cancellationToken);
-    public Task<QueuedDelivery?> GetNextAsync(string channel, DateTime nowUtc, CancellationToken cancellationToken) =>
-        dbContext.Set<QueuedDelivery>().Where(delivery => delivery.Channel == channel && delivery.ClaimedAtUtc == null && delivery.ExpiresAtUtc > nowUtc)
+    public Task<QueuedDelivery?> GetNextAsync(string channel, IReadOnlyCollection<string> messageTypes, DateTime nowUtc, CancellationToken cancellationToken) =>
+        dbContext.Set<QueuedDelivery>().Where(delivery => delivery.Channel == channel && delivery.ClaimedAtUtc == null && delivery.ExpiresAtUtc > nowUtc
+                && (delivery.AvailableAtUtc == null || delivery.AvailableAtUtc <= nowUtc) && messageTypes.Contains(delivery.MessageType))
             .OrderBy(delivery => delivery.CreatedAtUtc).ThenBy(delivery => delivery.Id).FirstOrDefaultAsync(cancellationToken);
     public Task<QueuedDelivery?> GetAsync(Guid id, CancellationToken cancellationToken) => dbContext.Set<QueuedDelivery>().SingleOrDefaultAsync(delivery => delivery.Id == id, cancellationToken);
     public async Task DeleteExpiredAsync(DateTime nowUtc, CancellationToken cancellationToken)

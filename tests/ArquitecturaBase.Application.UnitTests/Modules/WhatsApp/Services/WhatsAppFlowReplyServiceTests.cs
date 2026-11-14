@@ -211,6 +211,36 @@ public sealed partial class WhatsAppFlowReplyServiceTests
         Assert.Equal(1, fixture.Sink.CaptureCount);
     }
 
+    // H25: another version wrote the projection (a member this one does not know): the reply waits, with its send open, for a copy
+    // that reads it; a projection that does not open at all is not another version.
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_projection_another_version_wrote_leaves_the_reply_pending_with_its_send_open(bool format)
+    {
+        var fixture = new Fixture();
+        fixture.ProjectionProtector.ReadFailure = format ? new InvalidOperationException("newer format") : new JsonException("unknown member");
+        var reply = fixture.AddReply("wamid.newer-projection", fixture.ValidAnswers("válido"));
+
+        await fixture.Service.ProcessPendingAsync(CancellationToken.None);
+
+        Assert.Equal(((DateTime?)null, (WhatsAppFlowCaptureState?)null, 1), (reply.ProcessedAtUtc, reply.FlowCaptureState, reply.FlowReplyFailureCount));
+        Assert.Equal(WhatsAppFlowCaptureState.Pending, fixture.Session.CaptureState);
+        Assert.Equal(0, fixture.Sink.CaptureCount);
+    }
+
+    [Fact]
+    public async Task A_projection_that_does_not_open_is_not_recognized_at_once()
+    {
+        var fixture = new Fixture();
+        fixture.ProjectionProtector.ReadFailure = new CryptographicException("no key");
+        var reply = fixture.AddReply("wamid.unopened-projection", fixture.ValidAnswers("válido"));
+
+        await fixture.Service.ProcessPendingAsync(CancellationToken.None);
+
+        Assert.Equal(WhatsAppFlowCaptureState.Unrecognized, reply.FlowCaptureState);
+    }
+
     // H13: the retention cleared the point the send kept; a reply Meta delivers after that is not captured without it, as with an
     // expired content.
     [Fact]
@@ -619,7 +649,9 @@ public sealed partial class WhatsAppFlowReplyServiceTests
         public byte[] ProtectManifest(Guid operationId, Guid neutralOperationId, Guid versionId, WhatsAppFlowStoredManifest manifest) => throw new NotSupportedException();
         public WhatsAppFlowStoredManifest ReadManifest(Guid operationId, Guid neutralOperationId, Guid versionId, byte[] protectedManifest) => throw new NotSupportedException();
         public byte[] ProtectProjection(Guid operationId, Guid bindingId, Guid versionId, string culture, WhatsAppFlowProjection value) => throw new NotSupportedException();
-        public WhatsAppFlowProjection ReadProjection(Guid operationId, Guid bindingId, Guid versionId, string culture, byte[] protectedProjection) => Projection;
+        public Exception? ReadFailure { get; set; }
+        public WhatsAppFlowProjection ReadProjection(Guid operationId, Guid bindingId, Guid versionId, string culture, byte[] protectedProjection) =>
+            ReadFailure is { } failure ? throw failure : Projection;
     }
 
     private sealed class FakeSink : IStructuredRecordSink
