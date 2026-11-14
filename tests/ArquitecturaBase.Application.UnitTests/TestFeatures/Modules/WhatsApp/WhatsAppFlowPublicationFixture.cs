@@ -20,6 +20,7 @@ internal sealed class WhatsAppFlowPublicationFixture : IWhatsAppFlowRepository, 
     public bool IsConfigured => true;
     public TimeSpan SessionLifetime => TimeSpan.FromHours(24);
     public WhatsAppFlowPublicationService CreateService() => new(this, this, this, UnitOfWork, this, NullLogger<WhatsAppFlowPublicationService>.Instance);
+    public Result<WhatsAppFlowAccountContext> ConfiguredAccount() => new WhatsAppFlowAccountContext("waba", "phone", "v25.0", "configuration");
     public Task<Result<WhatsAppFlowAccountContext>> VerifyAccountAsync(CancellationToken cancellationToken)
     {
         Assert.False(UnitOfWork.InTransaction);

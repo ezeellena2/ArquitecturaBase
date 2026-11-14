@@ -58,8 +58,9 @@ internal sealed class WhatsAppFormSendPolicy(
             binding.Culture, binding.ProtectedProjection);
         var startScreen = WhatsAppFlowStartScreen.Of(projection);
         if (startScreen is null) return FlowErrors.FormUnavailable;
-        if (!environment.IsConfigured) return FlowErrors.AccountUnavailable;
-        var account = await environment.VerifyAccountAsync(cancellationToken);
+        // H33: the request and the proposal compare the manifest with the configured account without asking Meta; the dispatch
+        // worker is the one that verifies the number with Meta before sending.
+        var account = environment.ConfiguredAccount();
         if (account.IsFailure) return account.Error;
         var manifest = flowProtector.ReadManifest(binding.OperationId, binding.NeutralOperationId,
             binding.VersionId, binding.ProtectedManifest);

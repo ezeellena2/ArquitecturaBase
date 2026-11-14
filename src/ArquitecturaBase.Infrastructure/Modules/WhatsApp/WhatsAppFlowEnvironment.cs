@@ -14,14 +14,20 @@ internal sealed class WhatsAppFlowEnvironment(IOptions<WhatsAppOptions> options,
     public TimeSpan SessionLifetime => TimeSpan.FromHours(options.Value.FlowSessionLifetimeHours);
     public bool IsConfigured => NumericId(options.Value.WabaId) && NumericId(options.Value.PhoneNumberId)
         && !string.IsNullOrWhiteSpace(options.Value.AccessToken) && options.Value.GraphApiVersion == WhatsAppFlowProfile.GraphApiVersion;
-    public async Task<Result<WhatsAppFlowAccountContext>> VerifyAccountAsync(CancellationToken cancellationToken)
+    public Result<WhatsAppFlowAccountContext> ConfiguredAccount()
     {
         if (!IsConfigured) return FlowErrors.AccountUnavailable;
         var settings = options.Value;
-        var membership = await client.VerifyPhoneAsync(settings.WabaId!, settings.PhoneNumberId!, cancellationToken);
+        return new WhatsAppFlowAccountContext(settings.WabaId!, settings.PhoneNumberId!, settings.GraphApiVersion, Fingerprint(settings));
+    }
+    public async Task<Result<WhatsAppFlowAccountContext>> VerifyAccountAsync(CancellationToken cancellationToken)
+    {
+        var account = ConfiguredAccount();
+        if (account.IsFailure) return account;
+        var membership = await client.VerifyPhoneAsync(account.Value.WabaId, account.Value.PhoneNumberId, cancellationToken);
         if (membership.IsFailure) return FlowErrors.AccountUnavailable;
         if (!membership.Value) return FlowErrors.AccountMismatch;
-        return new WhatsAppFlowAccountContext(settings.WabaId!, settings.PhoneNumberId!, settings.GraphApiVersion, Fingerprint(settings));
+        return account;
     }
     internal static string Fingerprint(WhatsAppOptions settings)
     {

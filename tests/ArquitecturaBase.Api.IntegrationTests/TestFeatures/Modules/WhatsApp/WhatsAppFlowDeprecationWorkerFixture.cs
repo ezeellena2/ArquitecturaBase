@@ -21,6 +21,7 @@ internal sealed class WhatsAppFlowDeprecationWorkerFixture : IWhatsAppFlowDeprec
     public bool IsConfigured => true;
     public TimeSpan SessionLifetime => TimeSpan.FromHours(1);
     private static WhatsAppFlowAccountContext Account => new("222","111","v25.0","configuration");
+    public Result<WhatsAppFlowAccountContext> ConfiguredAccount() => Account;
     public Task<Result<WhatsAppFlowAccountContext>> VerifyAccountAsync(CancellationToken ct)
     { Events.Add("Account"); return Task.FromResult<Result<WhatsAppFlowAccountContext>>(DifferentAccount ? new("999","111","v25.0","configuration") : Account); }
     public Task<IReadOnlyList<Guid>> ListDueBindingIdsAsync(CancellationToken ct) => throw new NotSupportedException();

@@ -75,6 +75,7 @@ internal static class WhatsAppAssistantAcceptanceFixture
     {
         public bool IsConfigured => true;
         public TimeSpan SessionLifetime => TimeSpan.FromHours(24);
+        public Result<WhatsAppFlowAccountContext> ConfiguredAccount() => Account;
         public Task<Result<WhatsAppFlowAccountContext>> VerifyAccountAsync(CancellationToken ct)
         {Assert.False(transaction.InTransaction);return Task.FromResult(Result.Success(Account));}
     }

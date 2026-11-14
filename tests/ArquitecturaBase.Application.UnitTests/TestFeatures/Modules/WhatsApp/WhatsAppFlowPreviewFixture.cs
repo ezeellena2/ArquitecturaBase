@@ -50,6 +50,8 @@ internal sealed class WhatsAppFlowPreviewFixture : IWhatsAppFlowReader, IWhatsAp
     public WhatsAppFlowProjection ReadProjection(Guid operationId, Guid bindingId, Guid versionId, string culture, byte[] protectedProjection) =>
         new(1, """{"screens":[{"id":"FORM"}]}""", "hash", WhatsAppFlowCompiler.ProfileRevision, 1, culture, []);
 
+    public Result<WhatsAppFlowAccountContext> ConfiguredAccount() => Account;
+
     public async Task<Result<WhatsAppFlowAccountContext>> VerifyAccountAsync(CancellationToken cancellationToken)
     {
         await StopIfAsync(WhatsAppFlowPreviewHang.Account, cancellationToken);

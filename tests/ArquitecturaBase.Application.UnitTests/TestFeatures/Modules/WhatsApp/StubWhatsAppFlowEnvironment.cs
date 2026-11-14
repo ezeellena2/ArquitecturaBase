@@ -9,6 +9,7 @@ internal sealed class StubWhatsAppFlowEnvironment : IWhatsAppFlowEnvironment
 {
     public bool IsConfigured => false;
     public TimeSpan SessionLifetime => TimeSpan.FromHours(24);
+    public Result<WhatsAppFlowAccountContext> ConfiguredAccount() => FlowErrors.AccountUnavailable;
     public Task<Result<WhatsAppFlowAccountContext>> VerifyAccountAsync(CancellationToken cancellationToken) =>
         Task.FromResult<Result<WhatsAppFlowAccountContext>>(FlowErrors.AccountUnavailable);
 }
