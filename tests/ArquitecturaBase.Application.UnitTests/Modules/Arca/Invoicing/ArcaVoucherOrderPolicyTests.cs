@@ -120,11 +120,24 @@ public sealed class ArcaVoucherOrderPolicyTests
     [Fact]
     public void A_class_a_order_with_net_prices_adds_the_vat_of_each_rate()
     {
-        var priced = ForClass(ArcaVoucherClass.A, Taxed(Order()) with { ExpectedTotal = 629200.21m });
+        // The form's «Total» is the sum of its items (520000.19), without the VAT that the A adds.
+        var priced = ForClass(ArcaVoucherClass.A, Taxed(Order()));
 
         AssertAmounts(new ArcaVoucherAmounts(629200.21m, 0m, 520000.19m, 0m, 0m, 109200.02m, [new(4, 0.19m, 0.02m), new(5, 520000m, 109200m)]),
             priced.Value.Amounts);
         Assert.Equal([Rate(5), Rate(4)], priced.Value.Lines.Select(line => line.Vat));
+    }
+
+    [Fact]
+    public void A_class_b_order_with_net_prices_expects_the_total_of_its_items_as_the_form_computes_it()
+    {
+        var order = Taxed(Order()) with { Receiver = new(96, 28765433, "Lucía Fernández", 5, null) };
+
+        var priced = ForClass(ArcaVoucherClass.B, order);
+
+        Assert.Equal(629200.21m, priced.Value.Amounts.Total);
+        // The total with VAT is not what the form computes: it does not match the items.
+        Assert.Equal(ArcaInvoicingErrors.TotalMismatch, ForClass(ArcaVoucherClass.B, order with { ExpectedTotal = 629200.21m }).Error);
     }
 
     [Fact]

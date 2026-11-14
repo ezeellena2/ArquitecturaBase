@@ -206,7 +206,9 @@ la prueba integral y la de homologación. Lo que se ve en la app y en WhatsApp e
   no vuelven a ARCA. Una falla no se guarda.
 - **Encolar** (`IArcaVoucherService`) valida el receptor (CUIT con su dígito, DNI, o consumidor final sin identificar),
   el concepto, el período y el vencimiento del pago de un servicio, la fecha que ARCA acepta hoy y los renglones, y
-  recalcula cada importe con half-even: un total distinto del pedido no se encola. La clase la decide el sistema con la
+  recalcula cada importe con half-even. El total del pedido es el «Total» del formulario, la suma de los importes de los
+  renglones: si no coincide, no se encola; con precios sin IVA, el de la A o la B es mayor, porque suma el IVA, y sale en el
+  resultado. La clase la decide el sistema con la
   condición frente al IVA de la empresa (`IArcaCompanyProfileSource`, del padrón) y la del receptor: monotributo o exento,
   C; responsable inscripto, A al responsable inscripto y a los monotributistas (1, 6, 13 y 16) y B a los demás. Fija lo que
   va a emitir, con los datos del emisor de ese momento, y la clave del pedido la hace idempotente. La nota de crédito anula

@@ -11,7 +11,8 @@ namespace ArquitecturaBase.Application.Modules.Arca.Services.Invoicing;
 /// documento del receptor (CUIT con su dígito, DNI, o consumidor final sin identificar), el concepto, el período y el
 /// vencimiento del pago de un servicio, la fecha que ARCA acepta hoy y los renglones, con el IVA de cada uno si lo trae. Con
 /// la clase decidida, <see cref="ForClass"/> pide CUIT en la A y el IVA de cada renglón en la A y la B, y calcula los importes.
-/// Un total distinto del que calculó quien pide no se encola.
+/// El total que calculó quien pide es la suma de los importes de los renglones, como la calcula el formulario en cualquier clase:
+/// si no coincide, no se encola. Con precios sin IVA, la A y la B suman el IVA a ese total.
 /// </summary>
 internal static class ArcaVoucherOrderPolicy
 {
@@ -48,9 +49,8 @@ internal static class ArcaVoucherOrderPolicy
         if (voucherClass == ArcaVoucherClass.C) lines = [.. lines.Select(line => line with { Vat = null })];
         else if (lines.Any(line => line.Vat is null)) return ArcaInvoicingErrors.ItemsInvalid;
 
-        var amounts = ArcaVoucherRequestPolicy.Amounts(voucherClass, lines, order.PricesIncludeVat);
-        if (order.ExpectedTotal is { } expected && expected != amounts.Total) return ArcaInvoicingErrors.TotalMismatch;
-        return (lines, amounts);
+        if (order.ExpectedTotal is { } expected && expected != lines.Sum(line => line.Amount)) return ArcaInvoicingErrors.TotalMismatch;
+        return (lines, ArcaVoucherRequestPolicy.Amounts(voucherClass, lines, order.PricesIncludeVat));
     }
 
     private static bool ReceiverIsValid(ArcaVoucherParty receiver)

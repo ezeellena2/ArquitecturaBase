@@ -7,6 +7,7 @@ using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.Arca.Interfaces.Services.Invoicing;
 using ArquitecturaBase.Application.Modules.Arca.Services.Invoicing;
 using ArquitecturaBase.Domain.Modules.Arca.Invoicing;
+using ArquitecturaBase.Domain.Modules.Arca.Registry;
 using ArquitecturaBase.Infrastructure.Modules.Arca.Invoicing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
@@ -104,6 +105,43 @@ public sealed class ArcaStructuredRecordIssuerTests(ApiFactory factory) : IDispo
             Assert.Equal((StructuredIssueState.Pending, true, 2, factory.Clock.GetUtcNow().UtcDateTime + ArcaRetrySchedule.After(2)),
                 (queued.State, queued.WaitingForProvider, queued.Attempts, queued.NextCheckAtUtc));
             Assert.Null(queued.FailureDetail);
+        }
+        finally
+        {
+            await ArcaVoucherScenario.RemoveAsync(factory);
+        }
+    }
+
+    // «Factura» comes with «El precio incluye IVA» unmarked: the form's «Total» is the sum of the items, without VAT. A registered
+    // taxpayer issues its A and its B that way and with the box marked, when the sum already has the VAT.
+    [Theory]
+    [InlineData(false, false, ArcaVoucherClass.A, 1, 1573.6)]
+    [InlineData(false, true, ArcaVoucherClass.A, 1, 1300.5)]
+    [InlineData(true, false, ArcaVoucherClass.B, 6, 1573.6)]
+    [InlineData(true, true, ArcaVoucherClass.B, 6, 1300.5)]
+    public async Task A_registered_taxpayer_issues_the_a_and_the_b_of_the_standard_with_or_without_the_vat_in_its_prices(bool finalConsumer,
+        bool pricesIncludeVat, ArcaVoucherClass voucherClass, int voucherType, double total)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        factory.Services.GetRequiredService<FakeArca>().Reset();
+        await ArcaVoucherScenario.ConnectAsync(factory, authority, ArcaVatCondition.RegisteredTaxpayer);
+        try
+        {
+            var request = Request(Guid.CreateVersion7());
+            StructuredIssueDatum[] data =
+            [
+                finalConsumer ? new("customer", "final", "Consumidor final") : request.Data[0],
+                .. request.Data.Skip(1),
+                new("pricesIncludeVat", pricesIncludeVat ? "true" : "false"),
+            ];
+
+            var queued = await IssuerAsync(factory, issuer => issuer.EnqueueAsync(request with { Data = data }, ct));
+            Assert.Equal((StructuredIssueState.Pending, (string?)null), (queued.State, queued.FailureCode));
+            await factory.Services.GetRequiredService<ArcaVoucherProcessor>().ProcessAsync(ArcaVoucherScenario.Sequence(voucherType), ct);
+
+            var voucher = Assert.Single(await factory.ExecuteScopeAsync(services =>
+                services.GetRequiredService<IArcaVoucherReviewService>().ListAsync([request.RunId], ct)));
+            Assert.Equal((ArcaVoucherState.Authorized, voucherClass, (decimal)total), (voucher.State, voucher.Class, voucher.Total));
         }
         finally
         {

@@ -363,7 +363,8 @@ public sealed class ArcaVoucherQueueTests(ApiFactory factory) : IDisposable
                     new ArcaVoucherOrderItem("Semilla de soja", 10m, 52000m, new(ArcaVatTreatmentKind.Taxed, 5)),
                     new ArcaVoucherOrderItem("Flete", 1m, 85500m, new(ArcaVatTreatmentKind.Taxed, 4)),
                 ],
-                ExpectedTotal = 723677.5m,
+                // The form's «Total» is the sum of the items, without the VAT that the A adds.
+                ExpectedTotal = 605500m,
             };
             var preview = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IArcaVoucherService>().PreviewAsync(order, ct));
             Assert.Equal((ArcaVoucherClass.A, 1, 723677.5m, 118177.5m), (preview.Value.Class, preview.Value.VoucherType, preview.Value.Total, preview.Value.Vat));
