@@ -907,9 +907,10 @@ es una versión nueva de las instrucciones, que se califica; y el máximo diario
 ## Cómo seguir
 
 - **Tus decisiones:** tomadas el 2026-11-14 ([decisiones](#decisiones-del-2026-11-14)).
-- **El plan:** «Hoy», I17 y lo trivial que se sumó se planifican aparte en `docs/plans`, anexados al plan de IA que
-  corresponda, como se hizo con WhatsApp; las reglas que cambien van a su fuente en ese desarrollo. I18 va antes de pasar de
-  una réplica; el resto de gran escala, cuando haya volumen real que medir.
+- **El plan:** anexado el 2026-11-14 al del asistente de Inicio, como
+  [arreglos de la revisión de arquitectura](../plans/2026-10-04-panel-conversaciones-inicio.md#arreglos-de-la-revisión-de-arquitectura):
+  29 tareas en siete etapas, sin programar; las reglas que cambien van a su fuente con cada arreglo. I18 va antes de pasar
+  de una réplica; el resto de gran escala, cuando haya volumen real que medir.
 - **Para otras sesiones:** I4 extiende al motor la regla de N27, que `42d8f47f` aplicó a la cola durable y a WhatsApp; lo que
   se vio del lado de Formularios quedó para su revisión.
 - **Lo que ya estaba anotado:** la traza de WhatsApp (H19), que I10 extiende al motor; el plazo de apagado (N17), que necesita

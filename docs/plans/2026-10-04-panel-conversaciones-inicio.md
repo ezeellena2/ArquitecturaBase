@@ -90,3 +90,193 @@ habilita. El piloto con modelos y cuentas reales está en [verificación y produ
 Referencias: PostgreSQL, [particionado](https://www.postgresql.org/docs/current/ddl-partitioning.html)
 y [vacuum](https://www.postgresql.org/docs/current/routine-vacuuming.html). El plan original
 (panel y capacidad) se recupera desde Git, commit `ceaed208`.
+
+## Arreglos de la revisión de arquitectura
+
+Decididos el 2026-11-14 y sin programar. Salen de la [revisión de arquitectura de IA](../reviews/2026-11-14-arquitectura-ia.md),
+que tiene el escenario, la evidencia (archivo y línea en `a9f57202`) y el esfuerzo de cada hallazgo, y de las
+[decisiones del usuario](../reviews/2026-11-14-arquitectura-ia.md#decisiones-del-2026-11-14), que no se vuelven a preguntar.
+
+- **Alcance:** los hallazgos de «Hoy» (B1 a B5 e I1 a I16), I17, y de gran escala sólo el conteo de pendientes del bootstrap,
+  los índices parciales de I20 y el conteo del claim de I19.
+- **Fuera:** I18, antes de pasar de una réplica; el resto de I19 e I20, cuando haya volumen real que medir; y las
+  observaciones menores, que quedan anotadas en la revisión.
+- **Cruce con este plan:** la tarea 18 resuelve, para Inicio, la metadata sin plazo del punto de partida y parte de los
+  pendientes 1 y 2 (la metadata de una conversación de Inicio vive lo que su contenido y sus recibos); la tarea 28 es el
+  índice parcial que pide el pendiente 3; y la tarea 12 baja el tope de pendientes, que el pendiente 7 vuelve a calibrar con
+  el piloto. El punto de partida dice que una cuenta borrada retira lo suyo: sólo pasa si todavía tiene contenido (I3), y lo
+  arregla la tarea 18.
+- **Cuándo:** en orden y sin fecha; ninguna traba la prueba integral de la tanda.
+- **Al día:** el 2026-11-14 el único commit que tocó el código de IA desde `a9f57202` fue `42d8f47f` (el motivo de la
+  lectura guardada de un documento). Cada tarea vuelve a leer sus archivos antes de empezar.
+- **Sin revisor del plan:** es documentación, y la revisión adversarial va según el riesgo; la de cada tarea va abajo.
+
+**Cómo se trabaja.** Cada tarea sigue [validar un cambio](../guides/validar-un-cambio.md): el test en rojo primero y las
+suites rápidas del área. La revisión adversarial va completa en lo que toca datos personales, permisos, el cupo o una llamada
+al proveedor, y no en documentación, textos ni arreglos de una línea. Cada etapa cierra con el build sin advertencias, los
+unitarios y `ArchitectureTests` enteros y la integración de lo que cambió; la corrida completa va una sola vez, al cerrar el
+desarrollo. Además:
+
+- una regla escrita que cambia se corrige con su arreglo, no antes, y cada tarea nombra las suyas:
+  [inteligencia artificial](../features/inteligencia-artificial.md), [configurar IA](../guides/configurar-ia.md),
+  [quitar IA](../guides/quitar-ia.md) y los `AGENTS.md` del módulo, que repiten algunas;
+- ninguna suite llama a una API que cobra: los proveedores van con sus dobles, que aprenden cada caso nuevo antes del
+  arreglo (un 429 de cupo, un 404 de modelo, una conexión rechazada), como pide el
+  [ADR 0018](../decisions/0018-robustez-proporcional-al-efecto.md);
+- un error nuevo se declara en Domain, con su código estable y sus textos en `Errors.resx` y `.en.resx`;
+- un cambio de un contrato publicado es aditivo y se revisa con el front
+  ([ADR 0005](../decisions/0005-sin-versionado-de-api-por-ahora.md)); una columna nueva es opcional, y un valor nuevo del
+  sello o del proveedor se escribe un despliegue después del que ya lo lee ([despliegue](../guides/despliegue.md));
+- los logs van con `[LoggerMessage]`, sin preguntas, respuestas, claves ni datos de la persona;
+- ninguna tarea cambia las instrucciones del modelo, que pediría una versión nueva y una calificación con el motor real
+  ([configurar IA](../guides/configurar-ia.md#evidencia-para-habilitar-perfiles)): la tarea 6 suma la hora al mensaje, no a
+  las instrucciones, y el formato de fechas y números espera a la próxima versión que haya que calificar (decisión 7).
+
+Las etapas van en orden, y dentro de cada etapa las tareas también, salvo en las etapas 1 y 2, donde son independientes.
+
+### Etapa 1: lo trivial y la documentación
+
+1. **B3. Una falla pasajera de la base no cancela la consulta.** El vigilante de cancelación registra la excepción y sigue
+   con la lectura siguiente; la confirmación final ya verifica fence, estado y cancelación (`AiAssistantCoordinator`). Test:
+   con una lectura del vigilante que falla, el turno termina con la respuesta del proveedor. Una línea.
+2. **B4. Una instrucción que falta, lanza.** `AssistantTexts.Prompt(key)` lanza si falta la clave y `Get` conserva su
+   respaldo para los códigos de falla; un test recorre las claves de instrucciones que usa el código. Trivial.
+3. **B5. Inicio y los canales arman los hechos del negocio con la misma regla.** `business.information` de Inicio usa
+   `AiBusinessKnowledgePolicy`, sin los días sin definir ni la zona cuando ningún día está confirmado; un test compara los
+   dos con los mismos datos. Trivial.
+4. **I10, el log. El sondeo vacío no llena el log.** El claim y la reconciliación sin trabajo no pasan por `OperationLog`, y
+   `Microsoft.EntityFrameworkCore.Database.Command` va en Warning en `appsettings.json`. Test: un claim sin trabajo no
+   escribe en Information. Trivial.
+5. **I16. La guía para quitar IA, al día.** Sin número fijo de claves (remite a `ErrorCodeTests`), con el prefijo
+   `ai/assistant/documents/` y un paso previo: pasar a Manual los chats en modo Asistente y cerrar las extracciones
+   pendientes de Formularios, con lo que defina su revisión. Si la tarea 26 agrega una tabla, la guía la nombra. Chico.
+6. **I15, el instante. En Inicio el modelo sabe qué día es** (decisión 7). Al armar el contexto de Inicio, la hora del pedido
+   y la zona del perfil van al final del mensaje actual, como en los canales, sin tocar el perfil sellado ni las
+   instrucciones, así no cambia la huella de los reintentos. Test del contexto de Inicio con la línea de la hora. La regla de
+   la hora (`inteligencia-artificial.md:147`) pasa a valer también para Inicio. Trivial.
+7. **Los dos costos, escritos** (decisión 8). La regla de IA dice que la cuota corta en el día UTC, e Inicio muestra, con el
+   error de cupo, la hora local en que se renueva, a partir de `retryAfter`; [configurar IA](../guides/configurar-ia.md)
+   escribe el máximo diario en tokens que resulta de las cuotas y de los techos de cada turno, y sugiere una alerta en la
+   cuenta del proveedor. Chico.
+
+### Etapa 2: las fallas se entienden
+
+8. **I5. Una capacidad que falla no se culpa al proveedor.** En `ScopedAssistantCapabilityExecutor`, una excepción de la base
+   no cancelada se vuelve un resultado fallido, con un `[LoggerMessage]` que nombra la capacidad, la versión y el turno: una
+   lectura queda «no disponible» y el turno sigue; una propuesta corta con un código propio. El coordinador usa
+   `ProviderUnavailable` sólo para lo que salió de la llamada al proveedor. Tests: una fuente que lanza `DbException` en una
+   lectura, en una precarga y en una propuesta. Chico.
+9. **I6. El turno distingue las fallas del proveedor** (decisión 5). Por estado, sin leer el cuerpo: 401 y 403, clave
+   rechazada; 402 y 429, cupo o límite del proveedor; 400 y 404, modelo o pedido rechazado, cada uno con su código y su texto
+   para quien administra. La resolución de nombres, la conexión rechazada y el TLS son «no disponible» y no inciertos, con un
+   plazo de conexión en el handler. El estado HTTP va a un `[LoggerMessage]` con el turno y el proveedor. Vale para texto,
+   audio y documentos. Cambia el test que fija todo 4xx como rechazo (`AiAssistantProviderContractTests`), el doble del
+   proveedor aprende los casos y un test comprueba que WhatsApp deriva igual con los códigos nuevos (H5). El corte que falla
+   rápido queda para más adelante. Chico.
+10. **I7. Una clave ilegible se entiende y no quema cupo.** `Ai.Connection.CredentialUnavailable` deja de ser una falla
+    interna y el front lo traduce con «No pudimos leer la clave guardada: reemplazala», resaltando «Reemplazar clave»; la
+    disponibilidad del asistente prueba el descifrado, local y sin proveedor, y responde no disponible, así no acepta turnos
+    que no pueden andar; y el buscador de lugares sin clave de Google es una capacidad apagada, no un 500 por búsqueda.
+    Tests: la pantalla con ese código, el bootstrap con una clave ilegible y el buscador sin clave. Chico.
+11. **I8. Una fila ilegible no tira la página.** El listado, el detalle y la página de turnos marcan esa fila como contenido
+    no disponible, como lo bloqueado, con un log del id; el contexto del worker saltea el turno ilegible como si hubiera
+    vencido; y se puede borrar desde el panel. El test que hoy exige que falle la página pasa a exigir ver las demás. Chico.
+
+### Etapa 3: el cupo y las subidas
+
+12. **I1. Lo que vence sin intentarse devuelve el cupo** (decisión 2). Al vencer un pendiente que no reservó ningún paso, su
+    recibo se marca como devuelto: sigue deduplicando el UUID y deja de contar en las cuotas del día. El tope de pendientes
+    por defecto baja a lo que cuatro carriles alcanzan a empezar en 120 segundos con turnos largos, del orden de 8 a 12, como
+    dato del piloto. Tests con `FakeTimeProvider`: una tanda de turnos de duración fija devuelve el cupo de los que vencieron
+    sin intento, y uno que reservó un paso no lo devuelve. Cambian «borrar no libera la cuota»
+    (`inteligencia-artificial.md:217`, `configurar-ia.md:213`), sólo para lo que nunca se intentó, y el valor propuesto en
+    `configurar-ia.md`. Chico.
+13. **I14. Con el cupo agotado no se lee ni se guarda el archivo.** Antes de leer y guardar, una revisión barata y sin
+    candados del cupo del actor y de la instalación, de la capacidad y, en el audio, del perfil de transcripción, con el
+    mismo error y su `retryAfter`; la aceptación sigue mandando. En `file-turns`, audio y documentos. Test: con el cupo
+    agotado, ni el lector ni el almacenamiento reciben nada. Chico.
+14. **I13. El mismo audio dos veces termina en una transcripción.** Como en los documentos: ante `RequestReused` de la
+    aceptación se vuelve a consultar y se devuelve esa transcripción si el archivo coincide, y la consulta inicial compara el
+    archivo con el descriptor y da 409 si es otro. Con los dos tests espejo de los documentos. La regla del audio en Inicio
+    (`inteligencia-artificial.md:183`) suma lo que ya promete para planillas y documentos. Chico.
+15. **B2. Cambiar el idioma con una lectura en curso no la pierde.** Para `home-audio` y `home-document`, la consulta y la
+    recuperación van por persona e identificador, sin exigir el mismo idioma ni la misma zona; y el front descarta el pedido
+    del audio ante un 409, como el del documento. Test: la consulta con otro idioma encuentra la operación. Chico.
+16. **I9. Las subidas grandes no voltean una copia.** Un limitador de concurrencia por copia para las tres rutas que reciben
+    archivos (`file-turns`, `audio` y `documents`), con una cola corta y 429 con espera, que el front ya entiende; el archivo
+    se lee una sola vez a un arreglo de su largo; y la relectura de la copia se compara con un hash incremental, sin traerla
+    entera. Test: con el límite tomado, la subida siguiente recibe 429. El costo del lector de Formularios con fotos grandes
+    lo mira su revisión. Chico a mediano.
+
+### Etapa 4: lo que se borra
+
+17. **I2. Borrar una conversación borra sus lecturas y transcripciones** (decisión 3). Al borrar una conversación de Inicio,
+    en la misma unidad, se purga el contenido de las lecturas y normalizaciones que nombraron sus turnos (`AudioRequestId` y
+    el documento sellado en el perfil), con el lock de su conversación en el orden de la casa; las otras conversaciones que
+    las usaron conservan su copia sellada. Una lectura o una grabación que no llegó a ningún turno vence a las 24 horas. El
+    aviso de borrar nombra los archivos y audios (`front:src/locales/{es,en}/assistant.json`). Tests de integración: borrar
+    una conversación con foto y audio deja sin contenido su lectura y su transcripción, la consulta ya no las devuelve y la
+    retención suelta las copias; una lectura sin turno vence a las 24 horas. Cambian las reglas de borrar
+    (`inteligencia-artificial.md:97`) y de retención del audio y de los documentos (`:185`, `:203`). Chico a mediano.
+18. **I3. La conversación de Inicio se borra cuando venció todo** (decisión 3). La purga trata a Inicio como a los canales: se
+    borra cuando no tiene turnos activos, venció todo su contenido y ningún recibo sigue vigente, aunque nadie la haya
+    retirado; y una cuenta borrada retira las suyas aunque ya no tengan contenido. El panel deja de listar esas
+    conversaciones, que sólo mostraban un título genérico. Tests: una de Inicio con todo vencido se borra, y una cuenta
+    borrada tres meses después de su último uso queda sin conversaciones; cambia el caso `home` de
+    `AiAssistantRetentionTests`. Cambian `inteligencia-artificial.md:217` y `:221` y el punto de partida de este plan. Chico.
+
+### Etapa 5: versiones y apagado
+
+19. **I4, la regla. Un valor nuevo del motor, un despliegue después** (decisión 4). [Inteligencia artificial](../features/inteligencia-artificial.md)
+    anota la regla de `despliegue.md` para el sello del turno (propósito, archivo, modo, instrucciones, capacidades y
+    terminales) y el proveedor, y los `AGENTS.md` del motor la repiten. Docs.
+20. **I4, el motor. Lo que no entiende no se falla ni se niega.** La lectura del sello distingue «un valor que no conozco»
+    de «dañado». Con lo primero, la consulta de una operación, la búsqueda de una propuesta y la cancelación devuelven una
+    falla reintentable propia en vez de «no existe», y el claim no toma lo que no entiende: lo deja pendiente para la versión
+    que lo conoce, y si nadie lo toma vence sin gastar cupo (tarea 12). El texto de `ContentBlocked` deja de invitar a borrar
+    una conversación sana cuando el sello no se entiende. Tests: un turno con un valor futuro sigue pendiente después del
+    claim y su consulta no da «no existe»; Formularios y WhatsApp tratan esa falla como transitoria. Lo que hace Formularios
+    con un «no existe» es de su revisión. Chico a mediano.
+21. **I4, los módulos. La versión sellada de una capacidad sigue valiendo.** La comparación del alcance y la huella aceptan,
+    para la capacidad de un módulo, la versión sellada mientras el catálogo la conozca, en vez de exigir la que arma hoy el
+    código: así un despliegue que sube una versión no hace fallar lo que quedó en vuelo (`FormReceivedDocumentExtractionPolicy`,
+    `WhatsAppAssistantAccessPolicy`). Tests: una extracción y un turno de WhatsApp sellados con la versión anterior se
+    recuperan después de subirla. Mediano.
+22. **I4, el proveedor. Un proveedor desconocido no tira la IA.** El proveedor guardado se lee tolerante: un nombre que la
+    versión no conoce es «no soportado», con la conexión pausada y el asistente no disponible, en vez de un 500 en cada
+    lectura. Test: una conexión guardada con un proveedor futuro. Chico.
+23. **I11. Una pestaña de Inicio abierta tolera la versión nueva** (decisión 4). `api/assistant.ts` lee las respuestas con
+    esquemas que descartan lo desconocido, y lo estricto queda en los tests de contrato, que leen los ejemplos exportados;
+    cambia la regla de zod estricto del `AGENTS.md` de la feature para las respuestas. Extenderlo a todo el front se decide
+    con esa regla del front. Test: un cuerpo exportado con un campo de más se sigue leyendo. Chico.
+24. **I12. El apagado deja terminar el paso en curso** (decisión 6). Al apagarse, la copia deja de tomar turnos pero no corta
+    el que está en curso: le da un plazo de vaciado y recién ahí corta; lo que no reservó un paso en este intento vuelve a
+    pendiente en vez de cerrarse como cancelado; y un corte por apagado lleva su código, sin decir que el proveedor pudo
+    consumir cuando no hubo paso. Va con el plazo de apagado de N17, que se fija en el núcleo. Tests: con el host
+    deteniéndose durante un paso, el paso termina; sin paso, el turno vuelve a pendiente. Chico.
+
+### Etapa 6: la traza y el anillo
+
+25. **I10, la traza. Una consulta se sigue a través del motor.** Como H19: una fuente de trazas del asistente registrada con
+    `AddSource`; el contexto de quien llama, guardado en el turno al aceptar, en una columna opcional (por WhatsApp hereda
+    el de su vuelta y en Inicio el del pedido); una actividad por turno en el coordinador que lo continúa, con el proveedor y
+    las capacidades adentro; y el turno en un scope de los logs del worker. Migración aditiva. Tests: el turno guarda el
+    contexto y el coordinador abre su actividad con él. Chico a mediano.
+26. **I17. Una copia con otro anillo no queda lista** (decisión 1). Un valor de control por clave del anillo, guardado en la
+    base: la primera copia lo escribe y cada copia que arranca lo recalcula; si no coincide, un chequeo de salud de IA falla
+    readiness con un log claro, sin descifrar datos ni llamar al proveedor. Las tres huellas tratan una clave ausente como
+    «no se puede verificar» y no como una excepción, que hoy da 500. Migración aditiva: una tabla chica del módulo, que
+    [quitar IA](../guides/quitar-ia.md) nombra. Test de integración: una copia con otro `InstallationId` sobre una base con
+    el control escrito no queda lista. Chico a mediano.
+
+### Etapa 7: lo trivial de gran escala
+
+27. **I20, el bootstrap. Abrir Inicio no mide toda la tabla.** El bootstrap pide sólo la cantidad de pendientes, que resuelve
+    el índice por estado, en vez de `FindWorkloadAsync`, que queda para el worker. Test: el bootstrap no llama a la
+    medición. Trivial.
+28. **I20, los índices. La purga y la medición usan índice.** Índices parciales sobre los turnos que todavía tienen contenido
+    (`ContentExpiresAtUtc`, `Id`) y sobre las conversaciones retiradas, con la selección de la purga y la medición partida en
+    consultas que los usen: vencidos, retiradas y dueños borrados. Migración según la [guía](../guides/migracion.md). Test de
+    PostgreSQL: con miles de turnos purgados, el plan de la purga no recorre la tabla. Chico.
+29. **I19, el claim. El claim cuenta sólo lo que está en curso.** El claim deja de contar los recibos del día y cuenta sólo
+    los turnos en curso, que es lo único que usa. Test: con la capacidad llena, el claim no cuenta recibos. Trivial.
