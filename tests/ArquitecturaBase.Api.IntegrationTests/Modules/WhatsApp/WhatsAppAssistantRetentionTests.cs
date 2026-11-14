@@ -50,6 +50,8 @@ public sealed class WhatsAppAssistantRetentionTests
         {Assert.True(transaction.IsOpen);Limit=limit;return Task.FromResult(session.ClearAssistantContent(nowUtc)?1:0);}
         public Task<int> ClearExpiredSharedValuesAsync(DateTime cutoffUtc,int limit,CancellationToken ct)
         {Assert.True(transaction.IsOpen);return Task.FromResult(0);}
+        public Task<int> ClearExpiredSendContentAsync(DateTime nowUtc,int limit,CancellationToken ct)
+        {Assert.True(transaction.IsOpen);return Task.FromResult(0);}
     }
     private sealed class Transaction : IUnitOfWork
     {

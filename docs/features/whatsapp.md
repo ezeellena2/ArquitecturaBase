@@ -187,7 +187,9 @@ Un Flow no puede pedir la ubicación, así que la pregunta «Ubicación» de un 
   WhatsApp en el idioma del teléfono. Si la pregunta es opcional sale también un botón de respuesta, «La ubicación es
   opcional.» con «Seguir sin ubicación» («Continue without it»: Meta limita el título a 20 caracteres), pedido un
   milisegundo después: la salida va por la hora y después por el id, que dentro de un milisegundo no tiene orden. La sesión guarda el
-  cuerpo del Flow, el mensaje del operador o la apertura predeterminada.
+  cuerpo del Flow, el mensaje del operador o la apertura predeterminada. La retención vacía ese cuerpo y el punto que guardó el
+  envío en la pasada siguiente a que se cierra su captura, o cuando vence sin una respuesta en camino, y conserva el estado de la
+  ubicación; una respuesta que Meta entrega después queda sin reconocer, como con el contenido vencido (H13, 2026-11-14).
 - **La ubicación que llega.** El webhook lee un `location` como `Location`, con la latitud y la longitud redondeadas a seis
   decimales; desde W3 se guarda también la dirección de un lugar elegido, nunca su nombre, y la retención vacía el punto y la
   dirección con el cuerpo ([lo compartido](#contacto-y-dirección-compartidos--w3-tarea-22-2026-11-12)). Después

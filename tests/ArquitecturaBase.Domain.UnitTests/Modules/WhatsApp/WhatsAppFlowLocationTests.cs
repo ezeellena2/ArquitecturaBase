@@ -25,6 +25,24 @@ public sealed class WhatsAppFlowLocationTests
         Assert.Throws<InvalidOperationException>(() => session.RequestLocation(required: false, "Otro"));
     }
 
+    // H13: the retention clears the point and the body the send kept once it can no longer take them; the state of its location stays.
+    [Fact]
+    public void Clearing_the_content_of_a_send_keeps_the_state_of_its_location()
+    {
+        var session = Session();
+        session.RequestLocation(required: true, "Completá el formulario «Visita».");
+        Assert.True(session.ReceiveLocation(-34.603722m, -58.381592m, "wamid.point", Now.AddMinutes(1)));
+        // An open send still takes them: its capture reads the point.
+        Assert.False(session.ClearSendContent(Now.AddMinutes(2)));
+
+        Assert.True(session.ClearSendContent(session.ExpiresAtUtc));
+
+        Assert.Equal((WhatsAppFlowLocationState.Received, true, (decimal?)null, (decimal?)null, (string?)null, "wamid.point", Now.AddMinutes(1)),
+            (session.LocationState, session.LocationRequired, session.LocationLatitude, session.LocationLongitude, session.FlowBody, session.LocationWaMessageId,
+                session.LocationResolvedAtUtc));
+        Assert.False(session.ClearSendContent(session.ExpiresAtUtc));
+    }
+
     // Task 9c of the documents: the new send after a fixed validation keeps the point its rejected send resolved, so its reply takes it.
     [Fact]
     public void A_new_send_keeps_the_location_its_rejected_send_resolved_once()

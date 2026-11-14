@@ -38,6 +38,8 @@ internal sealed class WhatsAppRetentionBatchScenario : IAsyncDisposable
         {Assert.True(transaction.Open);Assert.Equal(500,limit);host.RepositoryInstances.Add(id);return Task.FromResult(host.Batches.Dequeue());}
         public Task<int> ClearExpiredSharedValuesAsync(DateTime cutoffUtc,int limit,CancellationToken ct)
         {Assert.True(transaction.Open);Assert.Equal(500,limit);return Task.FromResult(0);}
+        public Task<int> ClearExpiredSendContentAsync(DateTime nowUtc,int limit,CancellationToken ct)
+        {Assert.True(transaction.Open);Assert.Equal(500,limit);return Task.FromResult(0);}
         public void Dispose()=>host.DisposedRepositories++;
     }
     private sealed class Transaction(WhatsAppRetentionBatchScenario host) : IUnitOfWork

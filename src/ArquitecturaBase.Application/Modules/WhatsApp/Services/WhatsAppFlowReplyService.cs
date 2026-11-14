@@ -124,6 +124,15 @@ internal sealed partial class WhatsAppFlowReplyService(IWhatsAppFlowSessionReade
                 WhatsAppFlowCaptureState.Unrecognized, null, null, null, cancellationToken);
             return;
         }
+        // H13: the retention cleared the point the send kept; a reply Meta delivers after that is not captured without it.
+        if (WhatsAppFlowLocationPolicy.Question(projection) is not null && session.LocationState == WhatsAppFlowLocationState.Received
+            && (session.LocationLatitude is null || session.LocationLongitude is null))
+        {
+            await stateService.MarkProcessedAsync(message.WaMessageId,
+                session.CaptureState == WhatsAppFlowCaptureState.Completed ? null : session.SessionId,
+                WhatsAppFlowCaptureState.Unrecognized, null, null, null, cancellationToken);
+            return;
+        }
         var payload = verified.Value;
 
         // BusinessForms owns its own UoW. If this process dies before the WhatsApp marker below, the same session

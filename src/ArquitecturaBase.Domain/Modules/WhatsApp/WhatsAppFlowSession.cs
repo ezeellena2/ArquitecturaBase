@@ -158,6 +158,20 @@ public sealed partial class WhatsAppFlowSession : Entity, IAuditable
     }
 
     /// <summary>
+    /// H13: the retention clears the point and the body the send kept once it cannot take them anymore (its capture closed, or past its
+    /// time without a reply on its way); never while it is open. The state of its location, its message and when it resolved stay.
+    /// </summary>
+    public bool ClearSendContent(DateTime nowUtc)
+    {
+        if (CaptureState == WhatsAppFlowCaptureState.Pending && nowUtc < ExpiresAtUtc) return false;
+        if (FlowBody is null && LocationLatitude is null && LocationLongitude is null) return false;
+        FlowBody = null;
+        LocationLatitude = null;
+        LocationLongitude = null;
+        return true;
+    }
+
+    /// <summary>
     /// Task 9c of the documents: a new send of the form of a rejected one keeps the location its rejected send resolved (W1-A), so its
     /// reply takes the same point; it is set once, before the new send goes out.
     /// </summary>

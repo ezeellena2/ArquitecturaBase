@@ -1,5 +1,6 @@
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
+using ArquitecturaBase.Infrastructure.Modules.WhatsApp.Persistence.Readers;
 using ArquitecturaBase.Infrastructure.Persistence;
 using ArquitecturaBase.Infrastructure.Persistence.Extensions;
 using Microsoft.EntityFrameworkCore;
@@ -104,6 +105,19 @@ internal sealed class WhatsAppMessageRetentionRepository(ApplicationDbContext db
             .OrderBy(session=>session.CreatedAtUtc).ThenBy(session=>session.Id).Take(limit).ToListAsync(cancellationToken);
         foreach(var session in sessions) session.ClearSharedValues();
         return sessions.Count;
+    }
+    public async Task<int> ClearExpiredSendContentAsync(DateTime nowUtc,int limit,CancellationToken cancellationToken)
+    {
+        dbContext.RequireTransaction();
+        // H13: the point and the body a send kept go once it can no longer take them: its capture closed (a rejected one copied them
+        // to its new send in that same unit), or past its time without a reply on its way, which the capture reads them for.
+        var sessions = await dbContext.Set<WhatsAppFlowSession>()
+            .Where(session=>(session.FlowBody!=null || session.LocationLatitude!=null || session.LocationLongitude!=null)
+                && (session.CaptureState!=WhatsAppFlowCaptureState.Pending || session.ExpiresAtUtc<=nowUtc)
+                && !WhatsAppFlowSessionQuery.WithPendingReplies(dbContext).Any(reply=>reply.Id==session.Id))
+            .OrderBy(session=>session.ExpiresAtUtc).ThenBy(session=>session.Id).Take(limit).ToListAsync(cancellationToken);
+        // Counts what it cleared: the run repeats while a batch clears, and a send the domain keeps must not repeat it.
+        return sessions.Count(session=>session.ClearSendContent(nowUtc));
     }
 
 }

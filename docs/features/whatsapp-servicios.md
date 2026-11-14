@@ -144,4 +144,4 @@ VC1-A (tarea 29): `WhatsAppAssistantSpreadsheetPolicy` registra las filas de una
 
 ## Retención
 
-`WhatsAppAssistantContentRetentionService` vacía un lote de hasta 500 por UoW; lo invoca la retención diaria de Infrastructure, sin otro job ni plazo. En el mismo lote vacía lo escrito de W3 (`ClearExpiredSharedValuesAsync`) de los envíos cuyas ubicaciones y contactos tomados pasaron la retención de los mensajes.
+`WhatsAppAssistantContentRetentionService` vacía un lote de hasta 500 por UoW; lo invoca la retención diaria de Infrastructure, sin otro job ni plazo. En el mismo lote vacía lo escrito de W3 (`ClearExpiredSharedValuesAsync`) de los envíos cuyas ubicaciones y contactos tomados pasaron la retención de los mensajes, y el punto y el cuerpo de los envíos con la captura cerrada o vencidos sin una respuesta en camino (`ClearExpiredSendContentAsync`, H13); `WhatsAppFlowReplyService` deja sin reconocer una respuesta que llega después.

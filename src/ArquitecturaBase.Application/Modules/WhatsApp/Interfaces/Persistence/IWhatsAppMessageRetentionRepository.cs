@@ -10,4 +10,6 @@ public interface IWhatsAppMessageRetentionRepository
     Task<int> ClearExpiredAssistantContentAsync(DateTime nowUtc, int limit, CancellationToken cancellationToken);
     /// <summary>W3: what was written from what the person shared, of the sends whose shared messages are all past the cutoff.</summary>
     Task<int> ClearExpiredSharedValuesAsync(DateTime cutoffUtc, int limit, CancellationToken cancellationToken);
+    /// <summary>H13: the point and the body of the sends captured, or past their time without a reply on its way, in the caller's unit.</summary>
+    Task<int> ClearExpiredSendContentAsync(DateTime nowUtc, int limit, CancellationToken cancellationToken);
 }

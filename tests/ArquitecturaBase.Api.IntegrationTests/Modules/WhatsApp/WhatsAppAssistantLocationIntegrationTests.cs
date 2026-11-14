@@ -151,6 +151,77 @@ public sealed class WhatsAppAssistantLocationIntegrationTests(ApiFactory factory
         Assert.Equal((WhatsAppOutgoingMessageKind.Flow, WhatsAppOutgoingMessageState.Failed), (await OutgoingAsync(host, contact.ContactId))[1]);
     }
 
+    // H13: the point and the body the send kept stay while it can take them, and go with the retention when its time runs out without
+    // a reply on its way; the state of its location stays.
+    [Fact]
+    public async Task The_point_and_the_body_of_a_send_go_when_it_expires_without_a_reply_on_its_way()
+    {
+        await using var host = await WhatsAppAssistantScenario.CreateAsync(factory, Ct, withLocation: true);
+        var contact = await RequestSentAsync(host);
+        await AddLocationAsync(host, contact);
+        await ResolveAsync(host, contact.ContactId);
+        var retention = host.Host.Services.GetRequiredService<WhatsAppMessageRetentionService>();
+
+        await retention.ClearExpiredTextsAsync(Ct);
+        Assert.Equal((-34.603722m, true), await SendContentAsync(host, contact.ContactId));
+
+        var expiry = await host.ScopeAsync(services => services.GetRequiredService<ApplicationDbContext>().Set<WhatsAppFlowSession>().AsNoTracking()
+            .Where(item => item.ContactId == contact.ContactId).Select(item => item.ExpiresAtUtc).SingleAsync(Ct));
+        host.Clock.SetUtcNow(new DateTimeOffset(expiry.AddMinutes(1)));
+        await retention.ClearExpiredTextsAsync(Ct);
+
+        Assert.Equal(((decimal?)null, false), await SendContentAsync(host, contact.ContactId));
+        Assert.Equal(WhatsAppFlowLocationState.Received, await LocationStateAsync(host, contact.ContactId));
+    }
+
+    // H13: a captured send no longer needs them: they go in the next pass, before its time runs out.
+    [Fact]
+    public async Task The_point_and_the_body_of_a_captured_send_go_in_the_next_pass()
+    {
+        await using var host = await WhatsAppAssistantScenario.CreateAsync(factory, Ct, withLocation: true);
+        var contact = await RequestSentAsync(host);
+        await AddLocationAsync(host, contact);
+        await ResolveAsync(host, contact.ContactId);
+        await host.InTransactionAsync(async services =>
+        {
+            var session = await services.GetRequiredService<ApplicationDbContext>().Set<WhatsAppFlowSession>().SingleAsync(item => item.ContactId == contact.ContactId, Ct);
+            return session.CompleteCapture(MetaWebhook.UniqueWaMessageId(), WhatsAppFlowCaptureState.Completed, Guid.NewGuid(), "VISIT-000001", null);
+        }, Ct);
+
+        // One batch, not the whole run: the run repeats a batch while it clears, and a clear that is not saved would never end it.
+        await host.ScopeAsync(services => services.GetRequiredService<IWhatsAppAssistantContentRetentionService>().ClearAsync(Ct));
+
+        Assert.Equal(((decimal?)null, false), await SendContentAsync(host, contact.ContactId));
+        Assert.Equal(WhatsAppFlowLocationState.Received, await LocationStateAsync(host, contact.ContactId));
+    }
+
+    // H13: a reply on its way protects what the send kept also past its time, since its capture reads the point.
+    [Fact]
+    public async Task A_reply_on_its_way_keeps_the_point_and_the_body_of_an_expired_send()
+    {
+        await using var host = await WhatsAppAssistantScenario.CreateAsync(factory, Ct, withLocation: true);
+        var contact = await RequestSentAsync(host);
+        await AddLocationAsync(host, contact);
+        await ResolveAsync(host, contact.ContactId);
+        // A reply sent before its time, still unprocessed: the protected response is not read by the retention.
+        await host.InTransactionAsync(async services =>
+        {
+            var db = services.GetRequiredService<ApplicationDbContext>();
+            var row = await db.Set<WhatsAppContact>().SingleAsync(item => item.Id == contact.ContactId, Ct);
+            var now = host.Clock.GetUtcNow().UtcDateTime;
+            var reply = WhatsAppMessage.Inbound(row.Id, MetaWebhook.UniqueWaMessageId(), WhatsAppMessageKind.FlowReply, null, null, now, [1, 2, 3]);
+            reply.Classify(WhatsAppMessagePurpose.Business); reply.SetInboundSequence(row.RegisterInboundMessage());
+            row.RecordInbound(row.WaId, row.UserIdentifier, row.ProfileName, now); db.Add(reply); return true;
+        }, Ct);
+        var expiry = await host.ScopeAsync(services => services.GetRequiredService<ApplicationDbContext>().Set<WhatsAppFlowSession>().AsNoTracking()
+            .Where(item => item.ContactId == contact.ContactId).Select(item => item.ExpiresAtUtc).SingleAsync(Ct));
+        host.Clock.SetUtcNow(new DateTimeOffset(expiry.AddMinutes(1)));
+
+        await host.Host.Services.GetRequiredService<WhatsAppMessageRetentionService>().ClearExpiredTextsAsync(Ct);
+
+        Assert.Equal((-34.603722m, true), await SendContentAsync(host, contact.ContactId));
+    }
+
     // The assistant accepts its own proposal of the form with a location: the location request goes out first, as the assistant's.
     private static async Task<WhatsAppAssistantContact> RequestSentAsync(WhatsAppAssistantScenario host)
     {
@@ -212,6 +283,14 @@ public sealed class WhatsAppAssistantLocationIntegrationTests(ApiFactory factory
         host.ScopeAsync(async services => (await services.GetRequiredService<ApplicationDbContext>().Set<WhatsAppOutgoingMessage>().AsNoTracking()
             .Where(item => item.ContactId == contactId).OrderBy(item => item.RequestedAtUtc).ThenBy(item => item.Id)
             .Select(item => new { item.Kind, item.State }).ToListAsync(Ct)).Select(item => (item.Kind, item.State)).ToList());
+
+    // The latitude the send kept and whether it still keeps the body of its Flow.
+    private static async Task<(decimal? Latitude, bool Body)> SendContentAsync(WhatsAppAssistantScenario host, Guid contactId)
+    {
+        var row = await host.ScopeAsync(services => services.GetRequiredService<ApplicationDbContext>().Set<WhatsAppFlowSession>().AsNoTracking()
+            .Where(item => item.ContactId == contactId).Select(item => new { item.LocationLatitude, Body = item.FlowBody != null }).SingleAsync(Ct));
+        return (row.LocationLatitude, row.Body);
+    }
 
     private static Task<WhatsAppFlowLocationState> LocationStateAsync(WhatsAppAssistantScenario host, Guid contactId) =>
         host.ScopeAsync(services => services.GetRequiredService<ApplicationDbContext>().Set<WhatsAppFlowSession>().AsNoTracking()

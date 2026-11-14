@@ -211,6 +211,24 @@ public sealed partial class WhatsAppFlowReplyServiceTests
         Assert.Equal(1, fixture.Sink.CaptureCount);
     }
 
+    // H13: the retention cleared the point the send kept; a reply Meta delivers after that is not captured without it, as with an
+    // expired content.
+    [Fact]
+    public async Task A_reply_after_the_retention_cleared_the_point_of_its_send_is_not_captured()
+    {
+        var fixture = new Fixture();
+        var id = Guid.NewGuid();
+        var location = fixture.Mapping[0] with { FieldId = id, Key = "field_" + id.ToString("N"), Type = "location", MaxLength = null };
+        fixture.ProjectionProtector.Projection = fixture.Projection with { Mapping = [.. fixture.Mapping, location] };
+        fixture.Sessions.Row = fixture.Sessions.Row with { LocationState = WhatsAppFlowLocationState.Received };
+        var reply = fixture.AddReply("wamid.after-retention", fixture.ValidAnswers("válido"));
+
+        await fixture.Service.ProcessPendingAsync(CancellationToken.None);
+
+        Assert.Equal(WhatsAppFlowCaptureState.Unrecognized, reply.FlowCaptureState);
+        Assert.Equal(0, fixture.Sink.CaptureCount);
+    }
+
     [Fact]
     public async Task A_reply_submitted_at_expiry_is_rejected_even_when_the_worker_runs_before_expiry()
     {
