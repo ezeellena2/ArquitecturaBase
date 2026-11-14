@@ -50,10 +50,11 @@ leerlo. No cambia el motor ni el front: lo que se registra acá sigue en pie, e 
   asistente (I19) y en la limpieza, la medición y la apertura de Inicio, que recorren toda la historia (I20).
 - **Fuera de los criterios:** la última propuesta puede quedar afuera de la historia que se le manda al modelo, justo cuando
   la persona pide cambiarla (B1).
-- **Lo que tenés que decidir** ([decisiones](#decisiones-que-pide-la-revisión)): el horizonte; si lo que vence sin intentarse
-  devuelve el cupo; qué se borra al borrar una conversación y cuánto vive la metadata de Inicio; extender al motor y al front
-  la regla de versiones de N27; cómo se informan las fallas del proveedor; el apagado; las fechas en las instrucciones del
-  modelo; y dos costos ya aceptados.
+- **Tus decisiones del 2026-11-14** ([decisiones](#decisiones-del-2026-11-14)): en las ocho, la recomendada. Entra «Hoy» más
+  I17; lo que vence sin intentarse devuelve el cupo; borrar una conversación borra también sus lecturas y transcripciones, y
+  la de Inicio se borra cuando venció todo; la regla de versiones de N27 llega al motor y a Inicio; las fallas del proveedor
+  se distinguen; el apagado deja terminar el paso en curso; el instante llega a Inicio ya; y los dos costos se mantienen,
+  escritos.
 
 ## Ficha
 
@@ -268,7 +269,7 @@ cambiarla lo decidís vos.
   - el tope de pendientes, calibrado como dato del piloto a lo que cuatro carriles alcanzan a empezar en 120 segundos con
     turnos largos (trivial), o rechazar por capacidad cuando la fila no llega a empezar (mediano).
 
-  **Lo decidís vos** ([decisiones](#decisiones-que-pide-la-revisión)).
+  **Decidido el 2026-11-14:** devuelve el cupo y el tope de pendientes se calibra ([decisiones](#decisiones-del-2026-11-14)).
 
 #### I2. Borrar una conversación deja la foto, su texto leído, la grabación y su transcripción
 
@@ -294,8 +295,8 @@ cambiarla lo decidís vos.
   `front:src/locales/es/assistant.json:37-38`.
 - **Arreglo:** al borrar una conversación de Inicio, purgar en la misma unidad las lecturas y transcripciones que nombraron
   sus turnos (las otras conversaciones que las usaron tienen su propia copia sellada); ajustar el aviso y escribir la regla.
-  Chico. **Lo decidís vos:** qué pasa con una lectura o una grabación que nunca llegó a un turno, que hoy dura 30 días sin
-  nada visible que borrar ([decisiones](#decisiones-que-pide-la-revisión)).
+  Chico. **Decidido el 2026-11-14:** borrar una conversación purga sus lecturas y transcripciones, y lo que nunca llegó a un
+  turno vence a las 24 horas ([decisiones](#decisiones-del-2026-11-14)).
 
 #### I3. La metadata de Inicio no vence, tampoco la de una cuenta borrada
 
@@ -313,8 +314,8 @@ cambiarla lo decidís vos.
   «las cuentas borradas retiran y cancelan las suyas» (`inteligencia-artificial.md:217`); el único test usa un turno con
   contenido (`AiAssistantDispatchServiceTests.cs:98-109`).
 - **Arreglo:** retirar las conversaciones de una cuenta borrada aunque ya no tengan contenido, con una prueba de tres meses
-  después del último uso. Chico. **Lo decidís vos:** cuánto vive la metadata de una conversación de Inicio que nadie borra
-  ([decisiones](#decisiones-que-pide-la-revisión)).
+  después del último uso. Chico. **Decidido el 2026-11-14:** una conversación de Inicio se borra cuando venció todo su
+  contenido y sus recibos ([decisiones](#decisiones-del-2026-11-14)).
 
 #### I4. Cada despliegue que suma un valor al motor hace fallar trabajo ajeno, y otros módulos lo guardan como definitivo
 
@@ -354,8 +355,8 @@ cambiarla lo decidís vos.
     el worker no toma lo que no entiende (lo vence su plazo);
   - los módulos aceptan la versión sellada de su propia capacidad mientras el catálogo la conozca, en vez de exigir la actual.
 
-  Chico a mediano. **Lo decidís vos** ([decisiones](#decisiones-que-pide-la-revisión)). Lo que hacen Formularios y WhatsApp
-  con un 404 es de sus revisiones; quedó anotado para la de Formularios.
+  Chico a mediano. **Decidido el 2026-11-14:** la regla de N27 llega al motor ([decisiones](#decisiones-del-2026-11-14)). Lo
+  que hacen Formularios y WhatsApp con un 404 es de sus revisiones; quedó anotado para la de Formularios.
 
 #### I5. Si una capacidad falla con un error de la base, el turno entero se pierde y se culpa al proveedor
 
@@ -401,8 +402,9 @@ cambiarla lo decidís vos.
 - **Arreglo:** clasificar por estado, sin leer el cuerpo: 401 y 403, clave rechazada; 402 y 429, cupo o límite del proveedor;
   400 y 404, modelo o pedido rechazado, con textos para quien administra; la resolución de nombres, la conexión rechazada y
   el TLS, «no disponible» (no incierto), con un plazo de conexión; y el estado en un log. Chico. Un corte que falle rápido
-  después de varios rechazos es opcional para hoy (mediano; para que valga entre copias, guardado en la fila de la conexión). **Lo decidís vos**
-  ([decisiones](#decisiones-que-pide-la-revisión)).
+  después de varios rechazos es opcional para hoy (mediano; para que valga entre copias, guardado en la fila de la
+  conexión). **Decidido el 2026-11-14:** se clasifica por estado y el corte queda para más adelante
+  ([decisiones](#decisiones-del-2026-11-14)).
 
 #### I7. Una clave guardada ilegible deja al asistente cobrando cupo sin poder responder, y la pantalla dice «error inesperado»
 
@@ -498,7 +500,8 @@ cambiarla lo decidís vos.
   la transición (`:148-154`). Es un patrón de todo el front: hay 382 usos de `strictObject` fuera de los tests.
 - **Arreglo:** leer las respuestas tolerando campos desconocidos y dejar lo estricto en los tests de contrato, que leen los
   ejemplos exportados; o que la Api publique la versión del build y el front pida recargar cuando no coincida. Chico.
-  **Lo decidís vos**, con I4: cambia la regla del front ([decisiones](#decisiones-que-pide-la-revisión)).
+  **Decidido el 2026-11-14:** Inicio tolera campos desconocidos; extenderlo a todo el front se decide con su regla
+  ([decisiones](#decisiones-del-2026-11-14)).
 
 #### I12. Cada despliegue corta las consultas en curso y las rotula mal
 
@@ -513,8 +516,8 @@ cambiarla lo decidís vos.
   `Errors.resx:132,138`. Una copia que muere de golpe retiene su lugar hasta 105 segundos: lo acepta la regla
   (`AiAssistantCoordinator.cs:14`, `inteligencia-artificial.md:215`). El plazo de apagado es N17.
 - **Arreglo:** al apagarse, dejar de tomar turnos y darle al paso en curso un plazo para terminar; lo que no reservó un paso
-  vuelve a pendiente en vez de cancelarse. Chico, con el plazo de apagado de N17. **Lo decidís vos**
-  ([decisiones](#decisiones-que-pide-la-revisión)).
+  vuelve a pendiente en vez de cancelarse. Chico, con el plazo de apagado de N17. **Decidido el 2026-11-14:** así
+  ([decisiones](#decisiones-del-2026-11-14)).
 
 #### I13. El mismo audio dos veces casi a la vez da «conflicto»
 
@@ -558,8 +561,8 @@ cambiarla lo decidís vos.
   no hablan de formatos (`Assistant.resx:65,67`). Atenúa que ninguna capacidad de Inicio recibe fechas.
 - **Arreglo:** usar en Inicio el instante del pedido al armar el contexto, sin tocar el perfil sellado (no cambia las
   instrucciones); y pedir fechas y números como la app en una versión nueva de las instrucciones, que se vuelve a calificar
-  (`inteligencia-artificial.md:139`). Trivial, más la calificación. **Lo decidís vos**
-  ([decisiones](#decisiones-que-pide-la-revisión)).
+  (`inteligencia-artificial.md:139`). Trivial, más la calificación. **Decidido el 2026-11-14:** el instante ya; el formato,
+  con la próxima calificación ([decisiones](#decisiones-del-2026-11-14)).
 
 #### I16. La guía para quitar IA quedó atrás del código
 
@@ -851,58 +854,62 @@ ADR nuevo.
   del pedido) se le pasó como dato, y acá se cita en I4, I9 e I16.
 - **Front.** Se leyó en `7b95095b`, sólo donde hacía falta para un criterio.
 
-## Decisiones que pide la revisión
+## Decisiones del 2026-11-14
 
-Cada una con la opción que recomiendo primero. Las reglas escritas cambian con su arreglo, no antes.
+En las ocho elegiste la opción recomendada. Las reglas escritas cambian con su arreglo, no antes: I1, I2, I3 y el corte de la
+cuota por día UTC, en [inteligencia artificial](../features/inteligencia-artificial.md), y «borrar no libera la cuota»
+también en [configurar IA](../guides/configurar-ia.md); I4 suma al motor la regla de los dos despliegues que `despliegue.md`
+ya tiene; I11 cambia la regla de zod estricto del front de IA (`front:src/features/artificial-intelligence/AGENTS.md`); I15
+es una versión nueva de las instrucciones, que se califica; y el máximo diario en tokens va a
+[configurar IA](../guides/configurar-ia.md).
 
-1. **Horizonte.** Recomiendo «Hoy»: I1 a I16 y B1 a B5, más I17, que es barato y evita una pérdida definitiva aunque haya una
-   sola réplica (alcanza una revisión nueva con otro anillo). I18, antes de pasar de una réplica (hoy `--max-replicas 1`, en
-   [desplegar a Azure](../deploy/azure-setup.md)). De gran escala, sólo lo trivial que no cambia contratos: el conteo de
-   pendientes del bootstrap y los índices parciales de I20, y el conteo del claim de I19; el resto, cuando haya volumen real
-   que medir.
-2. **I1: lo que vence sin intentarse.**
-   - **Recomendada:** devuelve el cupo (su recibo sigue sirviendo para deduplicar) y el tope de pendientes se calibra a lo que
-     se alcanza a empezar. Cambia «borrar no libera la cuota» sólo para lo que nunca se intentó.
-   - Otra: sólo calibrar el tope, y aceptar que una tanda gaste cupo sin respuesta.
-   - Otra: rechazar por capacidad cuando la fila no llega a empezar (mediano).
-3. **I2 e I3: qué se borra y cuánto vive.**
-   - **Recomendada:** borrar una conversación purga también las lecturas y transcripciones que nombraron sus turnos, y el aviso
-     lo dice; una lectura o una grabación que nunca llegó a un turno vence a las 24 horas, como una copia huérfana; y una
-     conversación de Inicio se borra como las de los canales, cuando venció todo su contenido y sus recibos (sale del panel,
-     donde ya sólo mostraba un título genérico). Además, las cuentas borradas retiran las suyas aunque no tengan contenido,
-     que es lo que ya dice la regla.
-   - Otra: sólo avisar en el diálogo de borrar que los archivos quedan 30 días, y conservar la metadata de Inicio con su costo
-     escrito.
-4. **I4 e I11: una sola regla de versiones también en el motor y en el front.**
-   - **Recomendada:** extender al motor la regla de N27 (decidida el 2026-11-14): un valor nuevo se escribe un despliegue
-     después; la consulta devuelve una falla reintentable en vez de «no existe»; el worker no toma lo que no entiende; y los
-     módulos aceptan la versión sellada de su capacidad. En el front, las respuestas de Inicio se leen tolerando campos
-     desconocidos y lo estricto queda en los tests de contrato; que valga para todo el front es una regla del front que conviene
-     decidir con ella.
-   - Otra: sólo anotar en la regla de IA la de los dos despliegues (la general ya está en `despliegue.md`); no cubre el
-     trabajo en vuelo al subir una versión ni la pestaña abierta.
-5. **I6: cómo se informan las fallas del proveedor.**
-   - **Recomendada:** clasificar por estado, con textos para quien administra, la falta de conexión como «no disponible» y el
-     estado en el log (chico).
-   - Otra: además, un corte que falle rápido después de varios rechazos, válido entre copias (mediano); conviene más adelante.
-6. **I12: el apagado.**
-   - **Recomendada:** dejar terminar el paso en curso dentro de un plazo y devolver a pendiente lo que no salió, con el plazo de
-     apagado de N17.
-   - Otra: dejarlo como está y sólo corregir el texto de «cancelada».
-7. **I15: fechas en las instrucciones del modelo.**
-   - **Recomendada:** el instante en Inicio ya, porque no cambia las instrucciones; el formato de fechas y números y la frase
-     del permiso, con la próxima versión de las instrucciones que haya que calificar por otra razón.
-   - Otra: todo ahora, con una calificación propia del modelo, que cuesta una corrida real con el proveedor.
-8. **Dos costos ya aceptados.**
-   - **Recomendada:** mantener la cuota por día UTC, escribiéndola en la regla y mostrando en Inicio la hora local en que se
-     renueva; y mantener el gasto en la cuenta del proveedor, escribiendo en la guía el máximo diario en tokens.
-   - Otra: contar el día en la zona del negocio (más trabajo por los cambios de horario) o sumar un tope de tokens propio.
+- **Horizonte: «Hoy», más I17.** El plan lleva I1 a I16 y B1 a B5, y también I17: el valor de control del anillo es barato y
+  evita una pérdida definitiva aunque haya una sola réplica, porque alcanza una revisión nueva con otro anillo.
+  - I18, antes de pasar de una réplica (hoy `--max-replicas 1`, en [desplegar a Azure](../deploy/azure-setup.md)).
+  - De gran escala entra sólo lo trivial que no cambia contratos: el conteo de pendientes del bootstrap y los índices
+    parciales de I20, y el conteo del claim de I19.
+  - El resto de I19 e I20, cuando haya volumen real que medir.
+- **I1: lo que vence sin intentarse devuelve el cupo.** Su recibo sigue sirviendo para deduplicar, pero no cuenta en la
+  cuota, y el tope de pendientes se calibra, como dato del piloto, a lo que cuatro carriles alcanzan a empezar antes de que
+  venza. Cambia «borrar no libera la cuota» sólo para lo que nunca se intentó. Se descartó sólo calibrar el tope, porque una
+  tanda seguiría gastando cupo sin respuesta, y también rechazar por capacidad según la fila estimada, que es mediano.
+- **I2 e I3: qué se borra y cuánto vive.**
+  - Borrar una conversación de Inicio purga también las lecturas y transcripciones que nombraron sus turnos, y el aviso de
+    borrar lo dice.
+  - Una lectura o una grabación que nunca llegó a un turno vence a las 24 horas, como una copia huérfana.
+  - Una conversación de Inicio se borra como las de los canales, cuando venció todo su contenido y sus recibos: sale del
+    panel, donde ya sólo mostraba un título genérico.
+  - Las cuentas borradas retiran las suyas aunque ya no tengan contenido, como dice la regla.
+
+  Se descartó sólo avisar que los archivos quedan 30 días y conservar la metadata de Inicio con su costo escrito.
+- **I4 e I11: una sola regla de versiones, también en el motor y en Inicio.** La regla de N27 llega al motor: un valor nuevo
+  del sello o del proveedor se escribe un despliegue después del que ya lo lee; la consulta devuelve una falla reintentable
+  en vez de «no existe»; el worker no toma lo que no entiende; y los módulos aceptan la versión sellada de su capacidad
+  mientras el catálogo la conozca. En el front, las respuestas de Inicio se leen tolerando campos desconocidos y lo estricto
+  queda en los tests de contrato; extenderlo a todo el front, que tiene 382 esquemas estrictos, se decide con esa regla del
+  front. Se descartó sólo anotar la regla de los dos despliegues, que no cubre el trabajo en vuelo al subir una versión ni
+  la pestaña abierta.
+- **I6: las fallas del proveedor se distinguen.** Clave rechazada, cupo o límite del proveedor y modelo o pedido rechazado,
+  cada uno con su texto para quien administra; la falta de conexión, como «no disponible» y no como incierta; y el estado
+  HTTP en el log, sin el cuerpo. El corte que falla rápido después de varios rechazos queda para más adelante.
+- **I12: el apagado deja terminar el paso en curso.** Al apagarse, la copia deja de tomar turnos y le da al paso en curso un
+  plazo para terminar; lo que no reservó un paso vuelve a pendiente en vez de cancelarse. Va con el plazo de apagado de N17.
+  Se descartó corregir sólo el texto de «cancelada».
+- **I15: el instante en Inicio ya; el formato, con la próxima calificación.** Inicio usa el instante del pedido al armar el
+  contexto, que no cambia las instrucciones. El formato de fechas y números y la frase del permiso van en la próxima versión
+  de las instrucciones que haya que calificar por otra razón. Se descartó una calificación propia ahora, que cuesta una
+  corrida real con el proveedor.
+- **Los dos costos se mantienen, escritos.** La cuota sigue contando por día UTC: se escribe en la regla e Inicio muestra la
+  hora local en que se renueva. El gasto sigue limitado en la cuenta del proveedor, y la guía escribe el máximo diario en
+  tokens. Se descartó contar el día en la zona del negocio, que es más trabajo por los cambios de horario, y un tope de
+  tokens propio.
 
 ## Cómo seguir
 
-- **Tus decisiones:** pendientes, en la sección anterior.
-- **El plan:** lo que elijas se planifica aparte en `docs/plans`, anexado al plan de IA que corresponda, como se hizo con
-  WhatsApp; las reglas que cambien van a su fuente en ese desarrollo.
+- **Tus decisiones:** tomadas el 2026-11-14 ([decisiones](#decisiones-del-2026-11-14)).
+- **El plan:** «Hoy», I17 y lo trivial que se sumó se planifican aparte en `docs/plans`, anexados al plan de IA que
+  corresponda, como se hizo con WhatsApp; las reglas que cambien van a su fuente en ese desarrollo. I18 va antes de pasar de
+  una réplica; el resto de gran escala, cuando haya volumen real que medir.
 - **Para otras sesiones:** I4 extiende al motor la regla de N27, que `42d8f47f` aplicó a la cola durable y a WhatsApp; lo que
   se vio del lado de Formularios quedó para su revisión.
 - **Lo que ya estaba anotado:** la traza de WhatsApp (H19), que I10 extiende al motor; el plazo de apagado (N17), que necesita
