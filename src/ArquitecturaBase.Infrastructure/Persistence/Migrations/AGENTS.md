@@ -58,6 +58,8 @@ EncryptWhatsAppSendContent (H16, ADR 0030) pasa a `bytea` el cuerpo y el punto d
 
 EncryptWhatsAppOutgoingContent (H16, parte 2) hace lo mismo con lo que dice una salida (`Body`, `QuickRepliesJson`, `AssistantReplyJson`, `ListButton`, `Footer`, `SpreadsheetRowsJson`, `DocumentName`); Down se niega con cualquiera de ellas cifrada, y WhatsAppOutgoingContentEncryptionMigrationTests lo prueba igual.
 
+EncryptWhatsAppMessageContent (H16, parte 3) hace lo mismo con las trece columnas de contenido de un mensaje, y WhatsAppMessageContentEncryptionMigrationTests lo prueba igual. Un test que baja por debajo de H16 vacía antes el contenido (`WhatsAppChatContentMigration`) y escribe lo de antes en el esquema anterior al cifrado.
+
 ## Referencias
 
 - [Comandos y revisión obligatoria](../../../../docs/guides/migracion.md).

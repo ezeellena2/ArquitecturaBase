@@ -157,6 +157,17 @@ public sealed class WhatsAppMessageTests
         Assert.Equal(expected, message.Body);
     }
 
+    // H16 (ADR 0030): the body goes encrypted and SQL only asks whether there is one, so a blank one is stored as none.
+    [Theory]
+    [InlineData("   ")]
+    [InlineData("\0 \t\n")]
+    public void A_blank_body_is_stored_as_none(string body)
+    {
+        var message = WhatsAppMessage.Inbound(ContactId, WaMessageId, WhatsAppMessageKind.Text, body, null, Now);
+
+        Assert.Null(message.Body);
+    }
+
     /// <summary>
     /// Media letra suelta no se puede mandar a Postgres: se cambia por el carácter de reemplazo (U+FFFD), en lugar de
     /// perder el mensaje.

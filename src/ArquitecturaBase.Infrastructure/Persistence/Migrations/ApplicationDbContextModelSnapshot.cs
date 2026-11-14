@@ -4127,8 +4127,8 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<DateTime?>("AssistantProcessedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("AssistantReplyJson")
-                        .HasColumnType("jsonb");
+                    b.Property<byte[]>("AssistantReplyJson")
+                        .HasColumnType("bytea");
 
                     b.Property<Guid?>("AudioActorUserId")
                         .HasColumnType("uuid");
@@ -4179,19 +4179,17 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
-                    b.Property<string>("Body")
-                        .HasMaxLength(4096)
-                        .HasColumnType("character varying(4096)");
+                    b.Property<byte[]>("Body")
+                        .HasColumnType("bytea");
 
                     b.Property<Guid?>("ContactId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("ContactName")
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
+                    b.Property<byte[]>("ContactName")
+                        .HasColumnType("bytea");
 
-                    b.Property<string>("ContactPhonesJson")
-                        .HasColumnType("jsonb");
+                    b.Property<byte[]>("ContactPhonesJson")
+                        .HasColumnType("bytea");
 
                     b.Property<string>("Direction")
                         .IsRequired()
@@ -4223,9 +4221,8 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<int>("DocumentFailureCount")
                         .HasColumnType("integer");
 
-                    b.Property<string>("DocumentFileName")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
+                    b.Property<byte[]>("DocumentFileName")
+                        .HasColumnType("bytea");
 
                     b.Property<DateTime?>("DocumentFirstFailureAtUtc")
                         .HasColumnType("timestamp with time zone");
@@ -4240,9 +4237,8 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<int?>("DocumentPages")
                         .HasColumnType("integer");
 
-                    b.Property<string>("DocumentReadingJson")
-                        .HasMaxLength(131072)
-                        .HasColumnType("character varying(131072)");
+                    b.Property<byte[]>("DocumentReadingJson")
+                        .HasColumnType("bytea");
 
                     b.Property<DateTime?>("DocumentRequestAwaitedUntilUtc")
                         .HasColumnType("timestamp with time zone");
@@ -4319,17 +4315,14 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
-                    b.Property<decimal?>("Latitude")
-                        .HasPrecision(9, 6)
-                        .HasColumnType("numeric(9,6)");
+                    b.Property<byte[]>("Latitude")
+                        .HasColumnType("bytea");
 
-                    b.Property<string>("LocationAddress")
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
+                    b.Property<byte[]>("LocationAddress")
+                        .HasColumnType("bytea");
 
-                    b.Property<decimal?>("Longitude")
-                        .HasPrecision(9, 6)
-                        .HasColumnType("numeric(9,6)");
+                    b.Property<byte[]>("Longitude")
+                        .HasColumnType("bytea");
 
                     b.Property<DateTime>("OccurredAtUtc")
                         .HasColumnType("timestamp with time zone");
@@ -4358,8 +4351,8 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(20)")
                         .HasDefaultValue("Unclassified");
 
-                    b.Property<string>("QuickReplyTitlesJson")
-                        .HasColumnType("jsonb");
+                    b.Property<byte[]>("QuickReplyTitlesJson")
+                        .HasColumnType("bytea");
 
                     b.Property<string>("ReplyId")
                         .HasMaxLength(256)
@@ -4380,9 +4373,8 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<int>("SpreadsheetFailureCount")
                         .HasColumnType("integer");
 
-                    b.Property<string>("SpreadsheetFileName")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
+                    b.Property<byte[]>("SpreadsheetFileName")
+                        .HasColumnType("bytea");
 
                     b.Property<DateTime?>("SpreadsheetFirstFailureAtUtc")
                         .HasColumnType("timestamp with time zone");
@@ -4391,12 +4383,11 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)");
 
-                    b.Property<string>("SpreadsheetPreparedJson")
-                        .HasMaxLength(16384)
-                        .HasColumnType("character varying(16384)");
+                    b.Property<byte[]>("SpreadsheetPreparedJson")
+                        .HasColumnType("bytea");
 
-                    b.Property<string>("SpreadsheetRowsJson")
-                        .HasColumnType("jsonb");
+                    b.Property<byte[]>("SpreadsheetRowsJson")
+                        .HasColumnType("bytea");
 
                     b.Property<string>("SpreadsheetSha256")
                         .HasMaxLength(64)

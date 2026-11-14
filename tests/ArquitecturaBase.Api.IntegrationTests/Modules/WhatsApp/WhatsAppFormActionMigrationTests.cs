@@ -88,8 +88,12 @@ public sealed class WhatsAppFormActionMigrationTests(ApiFactory factory)
             Assert.Equal(3, await db.Set<WhatsAppOutgoingMessage>()
                 .CountAsync(item => item.Origin == WhatsAppMessageOrigin.FormAction && item.OperatorUserId == null, Ct));
 
-            // H16: the encrypted content goes back to plain text only empty.
+            // H16: the encrypted content goes back to plain text only empty. The image of before the encryption of the messages writes
+            // their text again, so the Down below still shows what it keeps and what it empties.
             await WhatsAppChatContentMigration.EmptyAsync(db, Ct);
+            await migrator.MigrateAsync(WhatsAppChatContentMigration.BeforeMessageEncryption(db), Ct);
+            await db.Database.ExecuteSqlAsync($"""UPDATE "WhatsAppMessages" SET "Body" = 'Manual text that must survive' WHERE "Id" = {manualMessageId}""", Ct);
+            await db.Database.ExecuteSqlAsync($"""UPDATE "WhatsAppMessages" SET "Body" = 'Sensitive form answer: 125500' WHERE "Id" = {actionMessage.Id}""", Ct);
             await migrator.MigrateAsync(Before, Ct);
             db.ChangeTracker.Clear();
 
@@ -137,8 +141,8 @@ public sealed class WhatsAppFormActionMigrationTests(ApiFactory factory)
 
             await db.Database.MigrateAsync(Ct);
             db.ChangeTracker.Clear();
-            Assert.Equal("Manual text that must survive",
-                (await db.Set<WhatsAppMessage>().SingleAsync(item => item.Id == manualMessageId, Ct)).Body);
+            // H16: going up again empties what the messages said, as the retention does; the rows stay.
+            Assert.Null((await db.Set<WhatsAppMessage>().SingleAsync(item => item.Id == manualMessageId, Ct)).Body);
             var restoredAction = await db.Set<WhatsAppMessage>().SingleAsync(item => item.Id == actionMessage.Id, Ct);
             Assert.Null(restoredAction.Body);
             Assert.Equal(WhatsAppMessageKind.Media, restoredAction.Kind);

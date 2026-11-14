@@ -41,7 +41,8 @@ public sealed class WhatsAppAssistantModeMigrationTests(ApiFactory factory)
             Assert.Equal(8, changed.ModeRevision);
             Assert.Equal(1, changed.LastInboundSequence);
             Assert.Equal(8, (await db.Set<WhatsAppContact>().SingleAsync(item => item.Id == manual, Ct)).ModeRevision);
-            Assert.Equal("Fictitious prior message", (await db.Set<WhatsAppMessage>().SingleAsync(item => item.Id == message, Ct)).Body);
+            // H16: going up empties what the message said, as the retention does; the row stays.
+            Assert.Null((await db.Set<WhatsAppMessage>().SingleAsync(item => item.Id == message, Ct)).Body);
             var outgoing = await db.Set<WhatsAppOutgoingMessage>().SingleAsync(item => item.Id == pending, Ct);
             Assert.Equal(WhatsAppOutgoingMessageState.Pending, outgoing.State);
             Assert.Equal(request, outgoing.RequestId);

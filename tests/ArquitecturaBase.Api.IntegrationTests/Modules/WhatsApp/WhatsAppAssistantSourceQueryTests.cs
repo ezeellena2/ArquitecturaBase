@@ -31,6 +31,23 @@ public sealed class WhatsAppAssistantSourceQueryTests(ApiFactory factory)
         Assert.DoesNotContain("AssistantProcessedAtUtc",sources.Select(source=>source.Id).ToQueryString(),StringComparison.Ordinal);
     }
 
+    // H16 (ADR 0030): the content goes encrypted, so the SQL of the sources only asks whether it is there. A constant next to it would go
+    // through its converter and be encrypted when the query is compiled.
+    [Fact]
+    public void The_sources_only_ask_in_SQL_whether_their_content_is_there()
+    {
+        var now=new DateTime(2026,11,14,12,0,0,DateTimeKind.Utc);
+        using var db=new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql("Host=localhost;Database=not-opened;Username=test;Password=test").Options);
+        var reader=new WhatsAppAssistantReader(db,Options.Create(new WhatsAppMessageRetentionOptions()),new FakeTimeProvider(now));
+        var sources=Assert.IsAssignableFrom<IQueryable<WhatsAppMessage>>(typeof(WhatsAppAssistantReader).GetMethod("Sources",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(reader,null));
+        var rows=Assert.IsAssignableFrom<IQueryable<WhatsAppAssistantSourceRow>>(
+            typeof(WhatsAppAssistantReader).GetMethod("SourceRows",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(reader,[sources]));
+        var sql=rows.ToQueryString();
+        Assert.Matches("""[a-zA-Z0-9_]+[.]["]Body["] IS NOT NULL""",sql);
+        Assert.DoesNotContain("btrim",sql,StringComparison.Ordinal);
+        Assert.DoesNotMatch("""COALESCE[(][a-zA-Z0-9_]+[.]["](Body|SpreadsheetFileName|DocumentFileName)["]""",sql);
+    }
+
     [Fact]
     public void Automatic_new_work_scan_excludes_terminal_text_and_audio_sources_in_SQL()
     {
@@ -199,6 +216,38 @@ public sealed class WhatsAppAssistantSourceQueryTests(ApiFactory factory)
         var source=await host.ScopeAsync(services=>services.GetRequiredService<IWhatsAppAssistantReader>().FindLatestSourceAsync(person.ContactId,Ct));
 
         Assert.Equal(paired?("Armame un catálogo de clientes",WhatsAppAssistantSourceState.Ready):("",WhatsAppAssistantSourceState.Alone),(source!.Body,source.State));
+    }
+
+    // H16 (ADR 0030): a prepared sheet the key ring no longer opens reads as null, while SQL still sees it there; it comes back empty, so
+    // the engine takes it as a damaged one instead of failing on a null.
+    [Fact]
+    public async Task A_prepared_sheet_that_no_longer_opens_comes_back_empty()
+    {
+        await using var host=await WhatsAppAssistantScenario.CreateAsync(factory,Ct);
+        var person=await host.ContactAsync(Ct,automatic:true);
+        var now=host.Clock.GetUtcNow().UtcDateTime;
+        var id=Guid.Empty;
+        await host.InTransactionAsync(async services=>
+        {
+            var db=services.GetRequiredService<ApplicationDbContext>();
+            var contact=await db.Set<WhatsAppContact>().SingleAsync(row=>row.Id==person.ContactId,Ct);
+            var spreadsheet=WhatsAppMessage.Inbound(contact.Id,MetaWebhook.UniqueWaMessageId(),WhatsAppMessageKind.Spreadsheet,null,null,now.AddMinutes(-1));
+            Assert.True(spreadsheet.SetSpreadsheetDescriptor("1234","text/csv",new string('a',64),"clientes.csv"));
+            Assert.True(spreadsheet.StoreSpreadsheet($"whatsapp/documents/{spreadsheet.Id:N}.csv",27,new string('b',64),"{\"rowCount\":2}").IsSuccess);
+            Add(db,contact,spreadsheet,now);
+            id=spreadsheet.Id;
+            return true;
+        },Ct);
+        await host.InTransactionAsync(async services=>
+        {
+            await services.GetRequiredService<ApplicationDbContext>().Database.ExecuteSqlAsync(
+                $"""UPDATE "WhatsAppMessages" SET "SpreadsheetPreparedJson" = '\x01'::bytea WHERE "Id" = {id}""",Ct);
+            return true;
+        },Ct);
+
+        var source=await host.ScopeAsync(services=>services.GetRequiredService<IWhatsAppAssistantReader>().FindLatestSourceAsync(person.ContactId,Ct));
+
+        Assert.Equal((id,string.Empty),(source!.Id,source.Spreadsheet!.PreparedJson));
     }
 
     // H11: a spreadsheet whose download keeps failing holds back the text after it only for the usual window (five failures and

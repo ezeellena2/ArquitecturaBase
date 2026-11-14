@@ -30,20 +30,22 @@ internal sealed class WhatsAppMessageConfiguration : IEntityTypeConfiguration<Wh
         builder.Property(message => message.Purpose).HasConversion<string>().HasMaxLength(EnumMaxLength).HasDefaultValue(WhatsAppMessagePurpose.Unclassified);
         builder.Property(message => message.AccessEventKind).HasConversion<string>().HasMaxLength(EnumMaxLength);
         builder.Property(message => message.Status).HasConversion<string>().HasMaxLength(EnumMaxLength);
-        builder.Property(message => message.QuickReplyTitlesJson).HasColumnType("jsonb");
-        builder.Property(message => message.AssistantReplyJson).HasColumnType("jsonb");
-        builder.Property(message => message.Body).HasMaxLength(WhatsAppMessage.MaxBodyLength);
+        // H16 (ADR 0030): what a message says (its text, the titles of its buttons, why it went, its rows, the place, the shared
+        // contact, the names of its files, what was prepared and what was read) is kept encrypted; SQL only asks whether it is there.
+        builder.Property(message => message.QuickReplyTitlesJson).HasConversion(WhatsAppChatContent.Text).HasColumnType("bytea");
+        builder.Property(message => message.AssistantReplyJson).HasConversion(WhatsAppChatContent.Text).HasColumnType("bytea");
+        builder.Property(message => message.Body).HasConversion(WhatsAppChatContent.Text).HasColumnType("bytea");
         builder.Property(message => message.ReplyId).HasMaxLength(WhatsAppMessage.MaxReplyIdLength);
         // W1-A: the point of a received location.
-        builder.Property(message => message.Latitude).HasPrecision(9, 6);
-        builder.Property(message => message.Longitude).HasPrecision(9, 6);
+        builder.Property(message => message.Latitude).HasConversion(WhatsAppChatContent.Number).HasColumnType("bytea");
+        builder.Property(message => message.Longitude).HasConversion(WhatsAppChatContent.Number).HasColumnType("bytea");
         // W3: the address of a shared place and the first card of a shared contact, and the mark of a resent form (false before).
-        builder.Property(message => message.LocationAddress).HasMaxLength(WhatsAppMessage.MaxLocationAddressLength);
-        builder.Property(message => message.ContactName).HasMaxLength(WhatsAppMessage.MaxContactNameLength);
-        builder.Property(message => message.ContactPhonesJson).HasColumnType("jsonb");
+        builder.Property(message => message.LocationAddress).HasConversion(WhatsAppChatContent.Text).HasColumnType("bytea");
+        builder.Property(message => message.ContactName).HasConversion(WhatsAppChatContent.Text).HasColumnType("bytea");
+        builder.Property(message => message.ContactPhonesJson).HasConversion(WhatsAppChatContent.Text).HasColumnType("bytea");
         builder.Property(message => message.IsResend).HasDefaultValue(false);
         // VC1-A (task 29): «Por qué lo propuso» of the notice of the loads, copied from its outgoing; the retention clears it with the body.
-        builder.Property(message => message.SpreadsheetRowsJson).HasColumnType("jsonb");
+        builder.Property(message => message.SpreadsheetRowsJson).HasConversion(WhatsAppChatContent.Text).HasColumnType("bytea");
         builder.Property(message => message.ProtectedFlowResponse).HasMaxLength(96 * 1024);
         builder.Property(message => message.FlowCaptureState).HasConversion<string>().HasMaxLength(16);
         builder.Property(message => message.FlowRecordNumber).HasMaxLength(64);
@@ -66,10 +68,10 @@ internal sealed class WhatsAppMessageConfiguration : IEntityTypeConfiguration<Wh
         builder.Property(message => message.SpreadsheetMediaId).HasMaxLength(128);
         builder.Property(message => message.SpreadsheetContentType).HasMaxLength(128);
         builder.Property(message => message.SpreadsheetSha256).HasMaxLength(64);
-        builder.Property(message => message.SpreadsheetFileName).HasMaxLength(WhatsAppMessage.MaxSpreadsheetFileNameLength);
+        builder.Property(message => message.SpreadsheetFileName).HasConversion(WhatsAppChatContent.Text).HasColumnType("bytea");
         builder.Property(message => message.SpreadsheetStorageKey).HasMaxLength(500);
         builder.Property(message => message.SpreadsheetCopySha256).HasMaxLength(64);
-        builder.Property(message => message.SpreadsheetPreparedJson).HasMaxLength(WhatsAppMessage.MaxSpreadsheetPreparedLength);
+        builder.Property(message => message.SpreadsheetPreparedJson).HasConversion(WhatsAppChatContent.Text).HasColumnType("bytea");
         builder.Property(message => message.SpreadsheetFailureCode).HasMaxLength(128);
         // Con nombre propio: sin él, EF tomaría el índice de la clave foránea, que es sobre la misma columna.
         builder.HasIndex(message => message.ContactId, "IX_WhatsAppMessages_PendingSpreadsheets")
@@ -81,10 +83,10 @@ internal sealed class WhatsAppMessageConfiguration : IEntityTypeConfiguration<Wh
         builder.Property(message => message.DocumentMediaId).HasMaxLength(128);
         builder.Property(message => message.DocumentContentType).HasMaxLength(128);
         builder.Property(message => message.DocumentSha256).HasMaxLength(64);
-        builder.Property(message => message.DocumentFileName).HasMaxLength(WhatsAppMessage.MaxDocumentFileNameLength);
+        builder.Property(message => message.DocumentFileName).HasConversion(WhatsAppChatContent.Text).HasColumnType("bytea");
         builder.Property(message => message.DocumentStorageKey).HasMaxLength(500);
         builder.Property(message => message.DocumentCopySha256).HasMaxLength(64);
-        builder.Property(message => message.DocumentReadingJson).HasMaxLength(WhatsAppMessage.MaxDocumentReadingLength);
+        builder.Property(message => message.DocumentReadingJson).HasConversion(WhatsAppChatContent.Text).HasColumnType("bytea");
         builder.Property(message => message.DocumentContextJson).HasMaxLength(WhatsAppMessage.MaxDocumentContextBytes);
         builder.Property(message => message.DocumentFailureCode).HasMaxLength(128);
         builder.HasIndex(message => message.DocumentRequestId).IsUnique().HasFilter("\"DocumentRequestId\" IS NOT NULL");

@@ -56,19 +56,20 @@ internal sealed class WhatsAppReceivedDocumentReader(ApplicationDbContext db, Wh
                 && next.InboundSequence > message.InboundSequence && (next.Kind == WhatsAppMessageKind.Text
                     || next.Kind == WhatsAppMessageKind.Audio && next.AudioState == WhatsAppAudioState.Completed)),
             // Task 9: the business message right before it, or right after it, is a text (or an audio with its transcription) less than
-            // ten minutes apart, without an assistant reply requested in between: its request, as a spreadsheet pairs.
+            // ten minutes apart, without an assistant reply requested in between: its request, as a spreadsheet pairs. H16: the text is
+            // encrypted, so only whether it is there; a blank one is stored as none.
             PairedRequest = db.Set<WhatsAppMessage>().Where(previous => previous.ContactId == message.ContactId && previous.Direction == WhatsAppMessageDirection.Inbound
                         && previous.Purpose != WhatsAppMessagePurpose.Access && previous.InboundSequence < message.InboundSequence)
                     .OrderByDescending(previous => previous.InboundSequence).ThenByDescending(previous => previous.Id).Take(1)
                     .Any(previous => (previous.Kind == WhatsAppMessageKind.Text || previous.Kind == WhatsAppMessageKind.Audio && previous.AudioState == WhatsAppAudioState.Completed)
-                        && !string.IsNullOrWhiteSpace(previous.Body) && previous.OccurredAtUtc > message.OccurredAtUtc.AddSeconds(-PairingSeconds)
+                        && previous.Body != null && previous.OccurredAtUtc > message.OccurredAtUtc.AddSeconds(-PairingSeconds)
                         && !db.Set<WhatsAppOutgoingMessage>().Any(outgoing => outgoing.ContactId == message.ContactId && outgoing.Origin == WhatsAppMessageOrigin.Assistant
                             && outgoing.State != WhatsAppOutgoingMessageState.Failed && outgoing.RequestedAtUtc > previous.OccurredAtUtc && outgoing.RequestedAtUtc < message.OccurredAtUtc))
                 || db.Set<WhatsAppMessage>().Where(next => next.ContactId == message.ContactId && next.Direction == WhatsAppMessageDirection.Inbound
                         && next.Purpose != WhatsAppMessagePurpose.Access && next.InboundSequence > message.InboundSequence)
                     .OrderBy(next => next.InboundSequence).ThenBy(next => next.Id).Take(1)
                     .Any(next => (next.Kind == WhatsAppMessageKind.Text || next.Kind == WhatsAppMessageKind.Audio && next.AudioState == WhatsAppAudioState.Completed)
-                        && !string.IsNullOrWhiteSpace(next.Body) && next.OccurredAtUtc < message.OccurredAtUtc.AddSeconds(PairingSeconds)
+                        && next.Body != null && next.OccurredAtUtc < message.OccurredAtUtc.AddSeconds(PairingSeconds)
                         && !db.Set<WhatsAppOutgoingMessage>().Any(outgoing => outgoing.ContactId == message.ContactId && outgoing.Origin == WhatsAppMessageOrigin.Assistant
                             && outgoing.State != WhatsAppOutgoingMessageState.Failed && outgoing.RequestedAtUtc > message.OccurredAtUtc && outgoing.RequestedAtUtc < next.OccurredAtUtc)),
         };

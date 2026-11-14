@@ -1,4 +1,5 @@
 using ArquitecturaBase.Api.IntegrationTests.Support;
+using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -38,6 +39,12 @@ public sealed class WhatsAppSpreadsheetMigrationTests(ApiFactory factory)
             await db.SaveChangesAsync(Ct);
             db.ChangeTracker.Clear();
 
+            // H16: what the messages said goes back to plain text only empty; the image of before the encryption writes the captions
+            // again, so the Down below still shows that it keeps them.
+            await WhatsAppChatContentMigration.EmptyAsync(db, Ct);
+            await db.GetService<IMigrator>().MigrateAsync(WhatsAppChatContentMigration.BeforeMessageEncryption(db), Ct);
+            await db.Database.ExecuteSqlAsync($"""UPDATE "WhatsAppMessages" SET "Body" = 'Armame un catálogo' WHERE "Id" = {spreadsheet.Id}""", Ct);
+            await db.Database.ExecuteSqlAsync($"""UPDATE "WhatsAppMessages" SET "Body" = 'Hola' WHERE "Id" = {text.Id}""", Ct);
             await db.GetService<IMigrator>().MigrateAsync(Previous, Ct);
 
             Assert.DoesNotContain("SpreadsheetState", await ColumnsAsync(db));
@@ -48,7 +55,8 @@ public sealed class WhatsAppSpreadsheetMigrationTests(ApiFactory factory)
             await db.Database.MigrateAsync(Ct);
 
             var restored = await db.Set<WhatsAppMessage>().AsNoTracking().SingleAsync(row => row.Id == spreadsheet.Id, Ct);
-            Assert.Equal((WhatsAppMessageKind.Media, "Armame un catálogo", (WhatsAppSpreadsheetState?)null, 0),
+            // H16: going up again empties the caption, as the retention does; the media stays.
+            Assert.Equal((WhatsAppMessageKind.Media, (string?)null, (WhatsAppSpreadsheetState?)null, 0),
                 (restored.Kind, restored.Body, restored.SpreadsheetState, restored.SpreadsheetFailureCount));
             Assert.False(db.Database.HasPendingModelChanges());
         }

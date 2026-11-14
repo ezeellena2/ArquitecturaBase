@@ -63,7 +63,9 @@ public sealed class WhatsAppSendContentEncryptionMigrationTests(ApiFactory facto
             Assert.Equal("""{"why":"Sin mensaje"}""", await db.Set<WhatsAppAssistantRequest>().AsNoTracking()
                 .Where(item => item.Id == reference.Id).Select(item => item.OutcomeJson).SingleAsync(Ct));
 
-            // Going back refuses while there is encrypted content, in either table.
+            // Going back refuses while there is encrypted content, in either table. What the messages say (part 3) goes back first, and
+            // empty, so each refusal below is this part's.
+            await db.Database.ExecuteSqlRawAsync("""UPDATE "WhatsAppMessages" SET "Body" = NULL""", Ct);
             var previous = Previous(db);
             Assert.Equal("P0001", (await Assert.ThrowsAsync<PostgresException>(() => db.GetService<IMigrator>().MigrateAsync(previous, Ct))).SqlState);
             await db.Database.ExecuteSqlRawAsync("""UPDATE "WhatsAppFlowSessions" SET "FlowBody" = NULL, "LocationLatitude" = NULL, "LocationLongitude" = NULL""", Ct);

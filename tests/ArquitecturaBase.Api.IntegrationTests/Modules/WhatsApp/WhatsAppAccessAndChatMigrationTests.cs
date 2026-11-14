@@ -1,4 +1,5 @@
 using ArquitecturaBase.Api.IntegrationTests.Support;
+using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Authentication;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Infrastructure.Persistence;
@@ -73,7 +74,8 @@ public sealed class WhatsAppAccessAndChatMigrationTests(ApiFactory factory)
             var received = Assert.Single(history, item => item.Id == inbound);
             Assert.Equal(WhatsAppMessagePurpose.Unclassified, received.Purpose);
             Assert.Null(received.AccessEventKind);
-            Assert.Equal("código WANT_TO_ENTER", received.Body);
+            // H16: going up empties what a message said, as the retention does; the row stays.
+            Assert.Null(received.Body);
             Assert.Equal(2, received.InboundSequence);
             Assert.Null(received.ProcessedAtUtc);
             var sent = Assert.Single(history, item => item.Id == outbound);
@@ -83,7 +85,7 @@ public sealed class WhatsAppAccessAndChatMigrationTests(ApiFactory factory)
             Assert.Equal(actor, sent.OperatorUserId);
             var legacy = Assert.Single(history, item => item.Id == legacyAccess);
             Assert.Equal(WhatsAppMessagePurpose.Unclassified, legacy.Purpose);
-            Assert.Equal("[código]", legacy.Body);
+            Assert.Null(legacy.Body);
             Assert.Equal(WhatsAppMessageStatus.Delivered, legacy.Status);
             var preservedLink = await db.LoginLinks.SingleAsync(Ct);
             Assert.Equal(pendingLink.Id, preservedLink.Id);
@@ -109,7 +111,7 @@ public sealed class WhatsAppAccessAndChatMigrationTests(ApiFactory factory)
             Assert.False(db.Database.HasPendingModelChanges());
 
             // H16: the encrypted content goes back to plain text only empty.
-            await db.Database.ExecuteSqlRawAsync("""UPDATE "WhatsAppOutgoingMessages" SET "Body" = NULL, "QuickRepliesJson" = NULL, "AssistantReplyJson" = NULL, "ListButton" = NULL, "Footer" = NULL, "SpreadsheetRowsJson" = NULL, "DocumentName" = NULL""", Ct);
+            await WhatsAppChatContentMigration.EmptyAsync(db, Ct);
             await db.GetService<IMigrator>().MigrateAsync(Before, Ct);
             db.ChangeTracker.Clear();
             var rolledBackModes = await db.Database.SqlQueryRaw<string>("SELECT \"Mode\" AS \"Value\" FROM \"WhatsAppContacts\"").ToListAsync(Ct);

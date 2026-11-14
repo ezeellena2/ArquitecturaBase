@@ -1,4 +1,5 @@
 using ArquitecturaBase.Api.IntegrationTests.Support;
+using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -43,6 +44,13 @@ public sealed class WhatsAppReceivedDocumentMigrationTests(ApiFactory factory)
             await db.SaveChangesAsync(Ct);
             db.ChangeTracker.Clear();
 
+            // H16: what the messages said goes back to plain text only empty; the image of before the encryption writes the captions
+            // again, so the Down below still shows that it keeps them.
+            await WhatsAppChatContentMigration.EmptyAsync(db, Ct);
+            await db.GetService<IMigrator>().MigrateAsync(WhatsAppChatContentMigration.BeforeMessageEncryption(db), Ct);
+            await db.Database.ExecuteSqlAsync($"""UPDATE "WhatsAppMessages" SET "Body" = 'Cargalo en pagos' WHERE "Id" = {document.Id}""", Ct);
+            await db.Database.ExecuteSqlAsync($"""UPDATE "WhatsAppMessages" SET "Body" = 'Armame un catálogo' WHERE "Id" = {spreadsheet.Id}""", Ct);
+            await db.Database.ExecuteSqlAsync($"""UPDATE "WhatsAppMessages" SET "Body" = 'Hola' WHERE "Id" = {text.Id}""", Ct);
             await db.GetService<IMigrator>().MigrateAsync(Previous, Ct);
 
             Assert.DoesNotContain("DocumentState", await ColumnsAsync(db));
@@ -55,7 +63,8 @@ public sealed class WhatsAppReceivedDocumentMigrationTests(ApiFactory factory)
             await db.Database.MigrateAsync(Ct);
 
             var restored = await db.Set<WhatsAppMessage>().AsNoTracking().SingleAsync(row => row.Id == document.Id, Ct);
-            Assert.Equal((WhatsAppMessageKind.Media, "Cargalo en pagos", (WhatsAppDocumentState?)null, 0, (Guid?)null),
+            // H16: going up again empties the caption, as the retention does; the media stays.
+            Assert.Equal((WhatsAppMessageKind.Media, (string?)null, (WhatsAppDocumentState?)null, 0, (Guid?)null),
                 (restored.Kind, restored.Body, restored.DocumentState, restored.DocumentFailureCount, restored.DocumentRequestId));
             Assert.Equal(WhatsAppSpreadsheetState.Pending,
                 (await db.Set<WhatsAppMessage>().AsNoTracking().SingleAsync(row => row.Id == spreadsheet.Id, Ct)).SpreadsheetState);

@@ -32,7 +32,8 @@ internal sealed class WhatsAppAssistantReader(ApplicationDbContext db,IOptions<W
                 || message.Kind==WhatsAppMessageKind.ButtonReply && message.ReplyId!=null && EF.Functions.Like(message.ReplyId,WhatsAppAssistantDocumentReplyCodec.Prefix+"%")
                     && db.Set<WhatsAppAssistantRequest>().Any(reference=>reference.ContactId==message.ContactId && reference.SourceMessageId==message.Id
                         && reference.AttachmentMessageId!=null && reference.PreviousRequestId!=null))
-                && !string.IsNullOrWhiteSpace(message.Body)
+                // H16: the body is encrypted, so only whether there is one; a blank one is stored as none.
+                && message.Body!=null
             || message.Kind==WhatsAppMessageKind.FlowReply && message.FlowCaptureState==WhatsAppFlowCaptureState.Completed && message.FlowRecordId!=null
             || message.Kind==WhatsAppMessageKind.Spreadsheet && message.SpreadsheetState==WhatsAppSpreadsheetState.Stored && message.SpreadsheetStorageKey!=null
                 && message.SpreadsheetSize!=null && message.SpreadsheetCopySha256!=null && message.SpreadsheetPreparedJson!=null
@@ -40,20 +41,25 @@ internal sealed class WhatsAppAssistantReader(ApplicationDbContext db,IOptions<W
             || message.Kind==WhatsAppMessageKind.ReceivedDocument && message.DocumentState==WhatsAppDocumentState.Read && message.DocumentStorageKey!=null
                 && message.DocumentSize!=null && message.DocumentCopySha256!=null && message.DocumentReadingJson!=null));
     private IQueryable<WhatsAppAssistantSourceRow> SourceRows(IQueryable<WhatsAppMessage> messages)=>messages.Select(message=>new WhatsAppAssistantSourceRow(
-        message.Id,message.ContactId!.Value,message.Kind==WhatsAppMessageKind.FlowReply?string.Empty:message.Body??string.Empty,message.OccurredAtUtc,
+        message.Id,message.ContactId!.Value,SourceBody(message.Kind,message.Body),message.OccurredAtUtc,
         message.Kind==WhatsAppMessageKind.Audio && message.AudioContentExpiresAtUtc<message.OccurredAtUtc.AddDays(retention.Value.MessageRetentionDays)
             ? message.AudioContentExpiresAtUtc!.Value : message.OccurredAtUtc.AddDays(retention.Value.MessageRetentionDays))
         {CapturedRecordId=message.Kind==WhatsAppMessageKind.FlowReply?message.FlowRecordId:null,WaMessageId=message.WaMessageId,AssistantProcessedAtUtc=message.AssistantProcessedAtUtc,
             Kind=message.Kind,InboundSequence=message.InboundSequence,
             Spreadsheet=message.Kind==WhatsAppMessageKind.Spreadsheet && message.SpreadsheetState==WhatsAppSpreadsheetState.Stored && message.SpreadsheetStorageKey!=null
                 && message.SpreadsheetSize!=null && message.SpreadsheetCopySha256!=null && message.SpreadsheetPreparedJson!=null
-                ? new WhatsAppAssistantSpreadsheetRow(message.Id,message.SpreadsheetStorageKey,message.SpreadsheetFileName??string.Empty,message.SpreadsheetSize.Value,
-                    message.SpreadsheetCopySha256,message.OccurredAtUtc.AddDays(retention.Value.MessageRetentionDays),message.SpreadsheetPreparedJson) : null,
+                ? new WhatsAppAssistantSpreadsheetRow(message.Id,message.SpreadsheetStorageKey,OrEmpty(message.SpreadsheetFileName),message.SpreadsheetSize.Value,
+                    message.SpreadsheetCopySha256,message.OccurredAtUtc.AddDays(retention.Value.MessageRetentionDays),OrEmpty(message.SpreadsheetPreparedJson)) : null,
             Document=message.Kind==WhatsAppMessageKind.ReceivedDocument && message.DocumentState==WhatsAppDocumentState.Read && message.DocumentStorageKey!=null
                 && message.DocumentSize!=null && message.DocumentCopySha256!=null && message.DocumentReadingJson!=null
-                ? new WhatsAppAssistantDocumentRow(message.Id,message.DocumentStorageKey,message.DocumentFileName??string.Empty,message.DocumentSize.Value,
-                    message.DocumentCopySha256,message.DocumentPages,message.OccurredAtUtc.AddDays(retention.Value.MessageRetentionDays),message.DocumentReadingJson)
+                ? new WhatsAppAssistantDocumentRow(message.Id,message.DocumentStorageKey,OrEmpty(message.DocumentFileName),message.DocumentSize.Value,
+                    message.DocumentCopySha256,message.DocumentPages,message.OccurredAtUtc.AddDays(retention.Value.MessageRetentionDays),OrEmpty(message.DocumentReadingJson))
                     {ReceivedAtUtc=message.OccurredAtUtc} : null});
+    // H16 (ADR 0030): what a message says is encrypted, so nothing goes next to it in SQL (a constant there would go through its converter):
+    // these run on what was read. What the key ring no longer opens reads as null while SQL still sees it, so a prepared sheet or a reading
+    // comes back empty and the engine takes it as a damaged one.
+    private static string SourceBody(WhatsAppMessageKind kind,string? body)=>kind==WhatsAppMessageKind.FlowReply?string.Empty:body??string.Empty;
+    private static string OrEmpty(string? text)=>text??string.Empty;
     // IA, Stage 2: the business message just before a source, for a spreadsheet to pair with its contiguous text or audio: a text's body,
     // a completed audio's transcription while it lasts, a spreadsheet's caption, state and copy, and whether an assistant reply (one
     // that did not fail) was requested after it and before the source. Meta stamps the messages and the server the replies.
@@ -192,8 +198,8 @@ internal sealed class WhatsAppAssistantReader(ApplicationDbContext db,IOptions<W
                 && message.DocumentState==WhatsAppDocumentState.Read && message.DocumentStorageKey!=null && message.DocumentSize!=null
                 && message.DocumentCopySha256!=null && message.DocumentReadingJson!=null
                 && message.OccurredAtUtc>clock.GetUtcNow().UtcDateTime.AddDays(-retention.Value.MessageRetentionDays))
-            .Select(message=>new WhatsAppAssistantDocumentRow(message.Id,message.DocumentStorageKey!,message.DocumentFileName??string.Empty,message.DocumentSize!.Value,
-                message.DocumentCopySha256!,message.DocumentPages,message.OccurredAtUtc.AddDays(retention.Value.MessageRetentionDays),message.DocumentReadingJson!)
+            .Select(message=>new WhatsAppAssistantDocumentRow(message.Id,message.DocumentStorageKey!,OrEmpty(message.DocumentFileName),message.DocumentSize!.Value,
+                message.DocumentCopySha256!,message.DocumentPages,message.OccurredAtUtc.AddDays(retention.Value.MessageRetentionDays),OrEmpty(message.DocumentReadingJson))
                 {ReceivedAtUtc=message.OccurredAtUtc}).SingleOrDefaultAsync(ct);
     // Review of task 9: a tap on a document question changes something only in the person's automatic conversation with the question's
     // link, before its content expires, and once: another tap on the same question that got its own reference already answered it.

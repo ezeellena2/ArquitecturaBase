@@ -403,5 +403,7 @@ public sealed partial class WhatsAppMessage : Entity
         string.IsNullOrWhiteSpace(value) ? null : RequireId(value, maxLength, paramName);
 
     // El texto lo elige la persona: se limpia y se recorta en lugar de rechazar el mensaje.
-    private static string? Truncate(string? body) => StorableText.Clean(body, MaxBodyLength);
+    // H16 (ADR 0030): the body goes encrypted and SQL only asks whether there is one, so a blank one is stored as none.
+    private static string? Truncate(string? body) =>
+        StorableText.Clean(body, MaxBodyLength) is { } text && !string.IsNullOrWhiteSpace(text) ? text : null;
 }

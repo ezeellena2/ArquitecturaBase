@@ -45,7 +45,13 @@ public sealed class WhatsAppSharedContentMigrationTests(ApiFactory factory)
             await db.SaveChangesAsync(Ct);
             db.ChangeTracker.Clear();
 
+            // H16: what the messages said goes back to plain text only empty; the image of before the encryption writes it again, so the
+            // Down below still shows what it keeps.
             await WhatsAppChatContentMigration.EmptyAsync(db, Ct);
+            await db.GetService<IMigrator>().MigrateAsync(WhatsAppChatContentMigration.BeforeMessageEncryption(db), Ct);
+            await db.Database.ExecuteSqlAsync($"""UPDATE "WhatsAppMessages" SET "ContactName" = 'Ana Gómez', "ContactPhonesJson" = '["+54 9 341 365-4813"]'::jsonb WHERE "Id" = {card.Id}""", Ct);
+            await db.Database.ExecuteSqlAsync($"""UPDATE "WhatsAppMessages" SET "Latitude" = -32.947102, "Longitude" = -60.638955, "LocationAddress" = 'Bv. Oroño 1234, Rosario' WHERE "Id" = {place.Id}""", Ct);
+            await db.Database.ExecuteSqlAsync($"""UPDATE "WhatsAppMessages" SET "Body" = 'Hola' WHERE "Id" = {text.Id}""", Ct);
             await db.GetService<IMigrator>().MigrateAsync(Previous(db), Ct);
 
             Assert.Empty((await ColumnsAsync(db, "WhatsAppMessages")).Intersect(["LocationAddress", "ContactName", "ContactPhonesJson", "IsResend"]));
@@ -62,9 +68,10 @@ public sealed class WhatsAppSharedContentMigrationTests(ApiFactory factory)
             var restored = await db.Set<WhatsAppMessage>().AsNoTracking().Where(row => row.ContactId == contact.Id).ToDictionaryAsync(row => row.Id, Ct);
             Assert.Equal((WhatsAppMessageKind.Other, (string?)null, (string?)null, false, 1L),
                 (restored[card.Id].Kind, restored[card.Id].ContactName, restored[card.Id].ContactPhonesJson, restored[card.Id].IsResend, restored[card.Id].InboundSequence));
-            Assert.Equal((WhatsAppMessageKind.Location, (decimal?)-32.947102m, (string?)null),
+            // H16: going up again empties what the messages said, as the retention does; the rows and their kinds stay.
+            Assert.Equal((WhatsAppMessageKind.Location, (decimal?)null, (string?)null),
                 (restored[place.Id].Kind, restored[place.Id].Latitude, restored[place.Id].LocationAddress));
-            Assert.Equal((WhatsAppMessageKind.Other, WhatsAppMessageKind.Text, "Hola"), (restored[other.Id].Kind, restored[text.Id].Kind, restored[text.Id].Body));
+            Assert.Equal((WhatsAppMessageKind.Other, WhatsAppMessageKind.Text, (string?)null), (restored[other.Id].Kind, restored[text.Id].Kind, restored[text.Id].Body));
             Assert.False((await db.Set<WhatsAppOutgoingMessage>().AsNoTracking().SingleAsync(row => row.Id == outgoing.Id, Ct)).IsResend);
             Assert.False(db.Database.HasPendingModelChanges());
         }

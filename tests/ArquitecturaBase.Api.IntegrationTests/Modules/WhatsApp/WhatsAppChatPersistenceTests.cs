@@ -1,4 +1,5 @@
 using ArquitecturaBase.Api.IntegrationTests.Support;
+using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Infrastructure.Caching;
 using ArquitecturaBase.Infrastructure.Persistence;
@@ -35,10 +36,14 @@ public sealed class WhatsAppChatPersistenceTests(ApiFactory factory)
                 VALUES ({firstId}, {contactId}, 'Inbound', 'wamid.older', 'Text', 'Primero', {earlier}),
                        ({secondId}, {contactId}, 'Inbound', 'wamid.newer', 'Text', 'Segundo', {later});
                 """, Ct);
+            // The sequencing keeps the text; H16 empties it afterwards, when what a message says goes encrypted.
+            await db.GetService<IMigrator>().MigrateAsync(WhatsAppChatContentMigration.BeforeMessageEncryption(db), Ct);
+            Assert.Equal("Primero|Segundo", await db.Database.SqlQuery<string>(
+                $"""SELECT string_agg("Body", '|' ORDER BY "InboundSequence") AS "Value" FROM "WhatsAppMessages" WHERE "ContactId" = {contactId}""").SingleAsync(Ct));
             await db.Database.MigrateAsync(Ct);
             var messages = await db.Set<WhatsAppMessage>().OrderBy(message => message.InboundSequence).ToListAsync(Ct);
             Assert.Equal([1L, 2L], messages.Select(message => message.InboundSequence));
-            Assert.Equal(["Primero", "Segundo"], messages.Select(message => message.Body));
+            Assert.All(messages, message => Assert.Null(message.Body));
             var contact = await db.Set<WhatsAppContact>().SingleAsync(Ct);
             Assert.Equal(2, contact.LastInboundSequence);
             Assert.Equal(WhatsAppConversationMode.Manual, contact.Mode);

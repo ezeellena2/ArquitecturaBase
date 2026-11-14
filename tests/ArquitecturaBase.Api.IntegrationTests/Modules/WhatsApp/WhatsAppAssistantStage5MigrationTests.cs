@@ -1,5 +1,6 @@
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.WhatsApp;
+using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -40,6 +41,9 @@ public sealed class WhatsAppAssistantStage5MigrationTests(ApiFactory factory)
                 """).SingleAsync(Ct));
             var duringDeployment=await WhatsAppAssistantMigrationSeed.InsertLegacyAsync(db,now.AddMinutes(1),Ct);
             await AssertLegacyAsync(db,duringDeployment,now.AddMinutes(1));
+            // H16: the previous binary no longer writes the content (ADR 0030, the images do not coexist), so its contract is that of
+            // the other columns; what it writes raw into an encrypted column reads as empty instead of breaking the load of its row.
+            Assert.Null(await db.Set<WhatsAppMessage>().AsNoTracking().Where(item=>item.Id==duringDeployment.MediaMessageId).Select(item=>item.Body).SingleAsync(Ct));
             await AssertSessionDefaultsAsync(db,duringDeployment);
             Assert.Empty(await db.Database.GetPendingMigrationsAsync(Ct));
         });
@@ -58,11 +62,19 @@ public sealed class WhatsAppAssistantStage5MigrationTests(ApiFactory factory)
             await db.Database.ExecuteSqlInterpolatedAsync($"""
                 INSERT INTO "WhatsAppMessages" ("Id","ContactId","Direction","WaMessageId","Kind","Body","OccurredAtUtc","InboundSequence","Purpose","Origin",
                     "AudioState","AudioMediaId","AudioContentType","AudioSha256","AudioStorageKey","AudioSize","AudioRequestId","AudioActorUserId","AudioContextJson","AudioLinkRevision","AudioContentExpiresAtUtc","AudioFailureCount")
-                VALUES ({audio},{legacy.ContactId},'Inbound',{wamid},'Audio','Synthetic normalized transcript',{now},3,'Business','Conversation',
+                VALUES ({audio},{legacy.ContactId},'Inbound',{wamid},'Audio',NULL,{now},3,'Business','Conversation',
                     'Completed','123','audio/ogg',{hash},'whatsapp/audio/migration.ogg',320,{request},{legacy.RecipientId},{contextJson}::jsonb,1,{now.AddDays(1)},0)
                 """,Ct);
+            // H16: what a message says goes back to plain text only empty; the image of before the encryption writes the transcript and
+            // the annotation again, so the Down below still shows that it clears only the new transcripts.
+            await WhatsAppChatContentMigration.EmptyAsync(db,Ct);
+            await migrator.MigrateAsync(WhatsAppChatContentMigration.BeforeMessageEncryption(db),Ct);
+            await db.Database.ExecuteSqlAsync($"""UPDATE "WhatsAppMessages" SET "Body"='Synthetic normalized transcript' WHERE "Id"={audio}""",Ct);
+            await db.Database.ExecuteSqlAsync($"""UPDATE "WhatsAppMessages" SET "Body"='Legacy media annotation' WHERE "Id"={legacy.MediaMessageId}""",Ct);
             await migrator.MigrateAsync(Before,Ct);
             await AssertLegacyAsync(db,legacy,now);
+            Assert.True(await db.Database.SqlQuery<bool>(
+                $"""SELECT "Body"='Legacy media annotation' AS "Value" FROM "WhatsAppMessages" WHERE "Id"={legacy.MediaMessageId}""").SingleAsync(Ct));
             Assert.True(await db.Database.SqlQuery<bool>($"""
                 SELECT ("Kind"='Media' AND "Body" IS NULL AND "Direction"='Inbound' AND "Purpose"='Business'
                     AND "Origin"='Conversation' AND "ContactId"={legacy.ContactId} AND "OccurredAtUtc"={now} AND "InboundSequence"=3) AS "Value"
@@ -141,8 +153,9 @@ public sealed class WhatsAppAssistantStage5MigrationTests(ApiFactory factory)
                 AND encode("ProtectedPayload",'hex')='070809' AND "CreatedAtUtc"={nowUtc} AND "ExpiresAtUtc"={nowUtc.AddHours(24)}) AS "Value"
             FROM "WhatsAppFlowSessions" WHERE "Id"={row.SessionId}
             """).SingleAsync(Ct));
+        // H16: what the message said is not compared here: going up empties it, and the previous binary writes it again.
         Assert.True(await db.Database.SqlQuery<bool>($"""
-            SELECT ("Body"='Legacy media annotation' AND "Kind"='Media' AND "Direction"='Inbound' AND "Purpose"='Business'
+            SELECT ("Kind"='Media' AND "Direction"='Inbound' AND "Purpose"='Business'
                 AND "Origin"='Conversation' AND "ContactId"={row.ContactId} AND "OccurredAtUtc"={nowUtc} AND "InboundSequence"=1) AS "Value"
             FROM "WhatsAppMessages" WHERE "Id"={row.MediaMessageId}
             """).SingleAsync(Ct));

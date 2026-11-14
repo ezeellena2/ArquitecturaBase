@@ -18,7 +18,8 @@ internal sealed class WhatsAppAssistantHistoryReader(ApplicationDbContext db) : 
     {
         var rows = await db.Set<WhatsAppMessage>().AsNoTracking()
             .Where(message => message.ContactId == contactId && message.OccurredAtUtc >= sinceUtc && message.Purpose != WhatsAppMessagePurpose.Access
-                && message.Body != null && message.Body != "")
+                // H16: the body is encrypted, so only whether there is one; a blank one is stored as none.
+                && message.Body != null)
             .OrderByDescending(message => message.OccurredAtUtc).ThenByDescending(message => message.Id).Take(limit)
             .Select(message => new WhatsAppAssistantHistoryMessageRow(message.OccurredAtUtc, message.Direction, message.Origin, message.Kind, message.Body))
             .ToListAsync(cancellationToken);

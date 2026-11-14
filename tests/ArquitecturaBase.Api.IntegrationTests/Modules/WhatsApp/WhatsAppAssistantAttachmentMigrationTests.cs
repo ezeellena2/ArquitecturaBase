@@ -1,4 +1,5 @@
 using ArquitecturaBase.Api.IntegrationTests.Support;
+using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -42,6 +43,8 @@ public sealed class WhatsAppAssistantAttachmentMigrationTests(ApiFactory factory
                 $"""UPDATE "WhatsAppAssistantRequests" SET "SourceRecordId" = {Guid.NewGuid()} WHERE "Id" = {reference.Id}""", Ct));
             Assert.Equal("CK_WhatsAppAssistantRequests_Attachment", violation.ConstraintName);
 
+            // H16: the encrypted content goes back to plain text only empty.
+            await WhatsAppChatContentMigration.EmptyAsync(db, Ct);
             await db.GetService<IMigrator>().MigrateAsync(Previous, Ct);
 
             Assert.DoesNotContain("AttachmentMessageId", await ColumnsAsync(db));
