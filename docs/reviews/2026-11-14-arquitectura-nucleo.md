@@ -44,10 +44,19 @@ día seguían los arreglos de WhatsApp y la lectura de documentos).
 - **Fuera de los criterios:** la plantilla trae datos de esta instalación y no arranca en Development sin el
   token de WhatsApp (B1), y sin Formularios el asistente de WhatsApp no anda, aunque la guía para quitarlo diga
   lo contrario (B5).
-- **Lo que tenés que decidir** ([decisiones](#decisiones-que-pide-la-revisión)): el horizonte, la regla de los
-  permisos delegados, el bloqueo de cuentas, qué se restaura, qué pasa con Redis caído, el correo de
-  producción, una sola regla de versiones para el núcleo y WhatsApp, los plazos de retención, dos costos ya
-  aceptados y el enlace de ingreso.
+- **Lo que decidiste el 2026-11-14** ([detalle](#decisiones-del-2026-11-14)):
+  - nadie da lo que no tiene, ni actúa sobre una cuenta con más permisos que los suyos (N1);
+  - el bloqueo por códigos deja de servir contra otros (N3);
+  - restaurar una cuenta quita el acceso que el alta no trajo (N4);
+  - con Redis caído, la app degrada de verdad (N9);
+  - el correo de producción sigue en Gmail, con los topes de N7;
+  - una sola regla de versiones para el núcleo, WhatsApp y los módulos (N27);
+  - retención: códigos y enlaces, 30 días; la IP de los registros de ingreso, 12 meses; OpenIddict vencido,
+    14 días (N16);
+  - la invitación sigue saliendo en el idioma general (N24), y la pantalla no deja quitarle Admin al
+    administrador inicial (N25);
+  - el enlace de ingreso se retira (B4);
+  - el horizonte es «Hoy», más N27 y lo trivial de N28, N30 y N31.
 
 ## Ficha
 
@@ -191,7 +200,8 @@ documentada, se cita la fuente: cambiarla lo decidís vos.
   tests; las dos rutas de canje siguen abiertas. [Identidad](../features/identidad.md) lo documenta (`:43`),
   pero su razón, canjear los enlaces pendientes del bot, venció a los diez minutos de retirarlo.
 - **Arreglo:** retirar el emisor y las dos rutas, con su regla. Trivial. **Lo decidís vos:** cambia
-  `identidad.md:43` ([decisiones](#decisiones-que-pide-la-revisión)).
+  `identidad.md:43`.
+- **Decidido el 2026-11-14:** se retira ([decisiones](#decisiones-del-2026-11-14)).
 
 #### B5. Sin Formularios, el asistente de WhatsApp no anda
 
@@ -235,8 +245,9 @@ documentada, se cita la fuente: cambiarla lo decidís vos.
     o borrarla;
   - sólo Admin edita los permisos de «User».
 
-  Chico, con tests de integración con cuentas que tienen sólo cada permiso. **Lo decidís vos**
-  ([decisiones](#decisiones-que-pide-la-revisión)).
+  Chico, con tests de integración con cuentas que tienen sólo cada permiso. **Lo decidís vos.**
+- **Decidido el 2026-11-14:** la regla entera: nadie da lo que no tiene, nadie actúa sobre una cuenta con más
+  permisos que los suyos y sólo Admin edita «User» ([decisiones](#decisiones-del-2026-11-14)).
 
 #### N2. Usuarios y roles se guardan sin control de revisión: el último pisa al anterior
 
@@ -299,6 +310,7 @@ documentada, se cita la fuente: cambiarla lo decidís vos.
 
   Chico. **Lo decidís vos:** si se acepta que `LockedOut` revele la cuenta, y que el bloqueo por códigos deje de
   frenar a Google, que cambia la regla de `identidad.md:29`.
+- **Decidido el 2026-11-14:** las tres medidas juntas ([decisiones](#decisiones-del-2026-11-14)).
 
 #### N4. Restaurar una cuenta borrada le devuelve el acceso a su dueño anterior
 
@@ -317,6 +329,8 @@ documentada, se cita la fuente: cambiarla lo decidís vos.
 - **Arreglo:** dejar sin verificar no alcanza, porque entrar con el código lo verifica. Al restaurar, quitar lo
   que el alta no trajo (correo, número y logins externos) y que la pantalla diga que se restauró; o no restaurar
   con el número solo. Chico. **Lo decidís vos:** cambia una regla documentada.
+- **Decidido el 2026-11-14:** al restaurar se quita lo que el alta no trajo, y la pantalla dice que se restauró
+  ([decisiones](#decisiones-del-2026-11-14)).
 
 #### N5. Con el correo caído, códigos e invitaciones se pierden en segundos y nadie se entera
 
@@ -390,8 +404,9 @@ documentada, se cita la fuente: cambiarla lo decidís vos.
 - **Arreglo:** contar todo código que sale, no sólo los que van a destinos sin cuenta (eso revelaría cuáles
   existen), con un tope diario por dirección agrupada por /64, como WhatsApp; un tope diario global por debajo
   del cupo del proveedor, con aviso al 80 %; un tope por cuenta para los códigos del perfil y uno diario de
-  invitaciones por administrador. Chico. Para producción, un proveedor transaccional con su cupo medido
-  ([decisiones](#decisiones-que-pide-la-revisión)).
+  invitaciones por administrador. Chico. Para producción, un proveedor transaccional con su cupo medido.
+- **Decidido el 2026-11-14:** van los topes, y el correo de producción sigue en Gmail, con su cupo escrito en la
+  guía y el tope global por debajo ([decisiones](#decisiones-del-2026-11-14)).
 
 #### N8. Un correo se pierde en un despliegue o sale dos veces si el servidor tarda
 
@@ -431,10 +446,12 @@ documentada, se cita la fuente: cambiarla lo decidís vos.
 - **Un dato para decidir:** la caché de permisos no ahorra consultas: cada pregunta lee igual en la base los
   roles de la persona y la versión de cada rol antes de ir a Redis (`PermissionService.cs:17-30,46,71-75`). Una
   sola consulta indexada daría lo mismo sin depender de Redis (N33).
-- **Arreglo:** **lo decidís vos** ([decisiones](#decisiones-que-pide-la-revisión)). Degradar de verdad
-  (`/health` en Degraded, como WhatsApp; permisos desde la base; la configuración, desde la base si Redis no
-  responde; un texto propio para un 5xx sin código) es mediano y enmienda el ADR 0009. Lo mínimo es el chequeo
-  en Degraded y el texto del front, que hace falta igual: cubre también los 502 y 504 del ingress.
+- **Arreglo:** **lo decidís vos.** Degradar de verdad (`/health` en Degraded, como WhatsApp; permisos desde la
+  base; la configuración, desde la base si Redis no responde; un texto propio para un 5xx sin código) es mediano y
+  enmienda el ADR 0009. Lo mínimo es el chequeo en Degraded y el texto del front, que hace falta igual: cubre
+  también los 502 y 504 del ingress.
+- **Decidido el 2026-11-14:** degradar de verdad, con la enmienda del ADR 0009
+  ([decisiones](#decisiones-del-2026-11-14)).
 
 #### N10. El código de error que ve la persona no se puede rastrear en producción
 
@@ -526,6 +543,8 @@ documentada, se cita la fuente: cambiarla lo decidís vos.
 - **Arreglo:** un worker de retención con lease que conserve al menos las 24 horas que leen los límites y el
   último ingreso de cada cuenta, borre por lotes (el núcleo no usa `ExecuteDelete`) los códigos y enlaces viejos,
   borre o anonimice los `LoginAudits` y corra la poda de OpenIddict. Mediano. **Lo decidís vos:** los plazos.
+- **Decidido el 2026-11-14:** códigos y enlaces, 30 días; `LoginAudits`, 12 meses y después sin la IP; la poda de
+  OpenIddict, a los 14 días de vencidos ([decisiones](#decisiones-del-2026-11-14)).
 
 #### N17. El arranque deja pasar configuración de producción incompleta
 
@@ -626,6 +645,7 @@ documentada, se cita la fuente: cambiarla lo decidís vos.
 - **Evidencia:** `UserContactLinker.cs:140-142` y `UserInvitationIssuer.cs:85`; test
   `Resending_by_email_goes_in_the_language_of_the_account_and_not_in_the_one_of_the_administrator`.
 - **Arreglo, si se quiere:** un campo opcional de idioma en el alta y la edición. Chico.
+- **Decidido el 2026-11-14:** se mantiene, como costo aceptado ([decisiones](#decisiones-del-2026-11-14)).
 
 #### N25. El seed le devuelve Admin al administrador inicial en cada arranque
 
@@ -636,6 +656,7 @@ documentada, se cita la fuente: cambiarla lo decidís vos.
 - **Evidencia:** `RoleSeeder.cs:50-65` y `UserGuard.cs:44-65`.
 - **Arreglo, si se quiere:** que la guarda rechace quitarle Admin a esa cuenta, o cambiarle el correo, con un
   mensaje que diga que hay que cambiar `Seed:AdminEmail`. Trivial.
+- **Decidido el 2026-11-14:** se cierra con la guarda ([decisiones](#decisiones-del-2026-11-14)).
 
 #### N26. Un modelo con respuestas de personas no redacta su `ToString`
 
@@ -683,7 +704,9 @@ documentada, se cita la fuente: cambiarla lo decidís vos.
     para los modelos neutros la regla va en `Models/StructuredData/AGENTS.md`, con un test que lea un nombre
     desconocido (pasar lo desconocido a `Other` sirve sólo para el motivo, no para los campos que restringen).
 
-  Chico a mediano. **Lo decidís vos:** que sea una sola regla ([decisiones](#decisiones-que-pide-la-revisión)).
+  Chico a mediano. **Lo decidís vos:** que sea una sola regla.
+- **Decidido el 2026-11-14:** una sola regla, que extiende H25 a `DurableMessageSource` y a los modelos que guardan
+  los módulos, y entra con los arreglos de «Hoy» ([decisiones](#decisiones-del-2026-11-14)).
 
 #### N28. La limpieza de archivos corre en cada copia, recorre todo el contenedor y puede borrar una foto recién subida
 
@@ -703,6 +726,8 @@ documentada, se cita la fuente: cambiarla lo decidís vos.
 - **Arreglo:** una lease para que barra una sola copia (chico); borrar con el ETag del listado (trivial, aunque no
   alcanza para quien reaprovecha un archivo con `WriteOnceAsync` sin reescribirlo); y a gran escala, listar sólo lo
   que espera confirmación (mediano: el ADR 0018 pide justificar ese staging, y a esa escala se justifica).
+- **Decidido el 2026-11-14:** el ETag entra con «Hoy»; la lease, antes de pasar de una réplica; listar sólo lo
+  pendiente, a gran escala ([decisiones](#decisiones-del-2026-11-14)).
 
 ### A gran escala
 
@@ -738,6 +763,8 @@ documentada, se cita la fuente: cambiarla lo decidís vos.
 - **Arreglo:** dejar de pedir los conteos que no se muestran (trivial); un índice parcial
   `(CreatedAtUtc, Id) WHERE NOT "IsDeleted"` y trigramas sobre correo y nombre; el total estimado. Chico a mediano;
   antes, medir con un millón de filas.
+- **Decidido el 2026-11-14:** dejar de pedir los conteos que no se muestran entra con «Hoy»; el resto, cuando haya
+  volumen real ([decisiones](#decisiones-del-2026-11-14)).
 
 #### N31. El tope diario de WhatsApp recorre toda la tabla de códigos
 
@@ -747,6 +774,7 @@ documentada, se cita la fuente: cambiarla lo decidís vos.
   `WhatsAppCodeQuotaGuard.cs:46,89`. La revisión de WhatsApp no lo registró.
 - **Arreglo:** índices parciales `(Channel, SentAtUtc) WHERE SentAtUtc IS NOT NULL` y por `RequestedByUserId`, con la
   purga de N16. Trivial.
+- **Decidido el 2026-11-14:** entra con los arreglos de «Hoy» ([decisiones](#decisiones-del-2026-11-14)).
 
 #### N32. Cada lectura de roles vuelve a contar a todas las personas
 
@@ -773,6 +801,8 @@ documentada, se cita la fuente: cambiarla lo decidís vos.
   innecesaria la invalidación (va con N9 y enmienda el ADR 0009 y lo que lo cita); como mínimo, memorizarlos por
   scope, que sólo evita las preguntas repetidas: no saca la segunda conexión en los workers ni en los scopes del
   asistente. Chico.
+- **Decidido el 2026-11-14:** se resuelve con N9, que lee los permisos con una sola consulta en el contexto del
+  pedido, y entra con los arreglos de «Hoy» ([decisiones](#decisiones-del-2026-11-14)).
 
 #### N34. Las migraciones no tienen un control que impida bloquear tablas grandes
 
@@ -946,53 +976,83 @@ lo descarta por prematuro.
 - **Front.** Se leyó en `7b95095b`, sólo donde hacía falta para un criterio.
 - **Módulos.** Se miraron sólo donde cruzan la frontera; IA y Formularios tienen su propia revisión pendiente.
 
-## Decisiones que pide la revisión
+## Decisiones del 2026-11-14
 
-Cada una lleva mi recomendación. Las reglas escritas que cambien se actualizan con su arreglo, no antes.
+En nueve de las diez elegiste la opción recomendada; en el correo de producción, mantener Gmail. Las reglas escritas
+cambian con su arreglo, no antes: N3 y B4, en [identidad](../features/identidad.md); N4 y el PUT de ajustes de N2, en
+[administración](../features/administracion.md); N1 y N25 suman reglas nuevas; N9 enmienda el
+[ADR 0009](../decisions/0009-redis-como-unico-cache-de-datos.md) y lo que lo cita; y N27 suma la suya a
+`Models/StructuredData/AGENTS.md`.
 
-- **Horizonte: «Hoy», más N27.** Recomiendo N1 a N26 con lo que decidas abajo, incluido el tamaño del pool de N6
-  (el plan de base del despliegue acepta la mitad de lo que una sola copia puede pedir), más N27, que ya pesa con
-  una sola copia: cada despliegue hace convivir dos versiones, y su regla completa una que ya decidiste (H25).
+- **Horizonte: «Hoy», más N27.** El plan lleva N1 a N26, con el tamaño del pool de N6 y el retiro del PUT de ajustes
+  de N2, y N27, que ya pesa con una sola copia: cada despliegue hace convivir dos versiones, y volver a la imagen
+  anterior rompe lo que guardó la nueva.
+  - De N28, el ETag va con «Hoy», porque la carrera pasa también con una sola copia; la lease, antes de pasar de una
+    réplica (hoy `--max-replicas 1`, en [desplegar a Azure](../deploy/azure-setup.md)); y listar sólo lo pendiente,
+    a gran escala.
+  - De gran escala entra sólo lo trivial que no cambia contratos: los índices de N31 y dejar de pedir los conteos
+    que no se muestran (N30). N33 se resuelve con N9.
+  - El resto de N29 a N34, cuando haya volumen real que medir.
+- **N1: nadie da lo que no tiene.** La regla vale en cuentas y en roles, evaluada dentro del límite con los permisos
+  efectivos de quien pide:
+  - nadie da ni quita un permiso, o un rol con permisos, que no tiene, ni en el alta ni en la edición;
+  - nadie actúa sobre una cuenta con permisos que él no tiene: cambiarle el correo o el número, desactivarla o
+    borrarla;
+  - sólo Admin edita los permisos de «User».
 
-  De N28, el ETag va con «Hoy», porque es trivial y la carrera pasa también con una sola copia; la lease, antes de
-  pasar de una réplica; listar sólo lo pendiente, a gran escala. El resto de gran escala, cuando haya volumen real
-  que medir, salvo lo trivial que no cambia contratos y puede ir con «Hoy»: los índices de N31 y dejar de pedir los
-  conteos que no se muestran (N30).
-- **N1: nadie da lo que no tiene.** Recomiendo la regla: nadie da ni quita un permiso o un rol con permisos que no
-  tiene, nadie actúa sobre una cuenta con más permisos que los suyos y sólo Admin edita «User». Las alternativas son
-  que sólo Admin asigne y edite roles, que quita la posibilidad de delegar, o dejar escrito que esos dos permisos
-  equivalen a ser administrador, que deja abierta la toma de cuentas.
-- **N3: el bloqueo no se usa contra otros.** Recomiendo las tres juntas: el bloqueo por códigos no frena a Google,
-  `AlreadyUsed` y `Expired` responden sólo al código que coincide, y `LockedOut` sale recién después de un código
-  correcto. La alternativa es aceptar que `LockedOut` diga que la cuenta existe.
-- **N4: restaurar sin el acceso anterior.** Recomiendo que, al restaurar, se quite lo que el alta no trajo (correo,
-  número y logins externos) y que la pantalla diga que se restauró: conserva la historia de la cuenta y corta al
-  dueño anterior. Las alternativas son no restaurar con el número solo, que deja la historia de la cuenta vieja
-  aparte, o pedir confirmación con un 409, que deja la decisión a quien da el alta.
-- **N9: con Redis caído, la app sigue.** Recomiendo degradar de verdad: `/health` en Degraded, los permisos desde la
-  base con una consulta (que también resuelve N33), la configuración desde la base si Redis no responde y un texto
-  propio en el front. Es mediano y enmienda el ADR 0009, pero la caché de permisos hoy no ahorra consultas, así que
-  sacarla simplifica. La alternativa mínima es sólo el chequeo en Degraded y el texto del front.
-- **N7: el correo de producción.** Recomiendo un proveedor transaccional para producción, con su cupo escrito en la
-  guía, además de los topes de N7; Gmail queda para desarrollo. Mantener Gmail deja un techo de unos 500 correos
-  por día para códigos e invitaciones juntos.
-- **N27: una sola regla de versiones.** Recomiendo extender H25 a `DurableMessageSource` y a los modelos que guardan
-  los módulos, con las tres partes de N27, para decidirlo una vez para el correo, WhatsApp y los módulos.
-- **N16: plazos de retención.** Recomiendo conservar los códigos y enlaces 30 días (los límites leen 24 horas), los
-  `LoginAudits` 12 meses y después sin la IP, y podar las autorizaciones y tokens de OpenIddict vencidos hace más de
-  14 días. Completa el pendiente de [verificación y producción](../plans/verificacion-y-produccion.md).
-- **N24 y N25: dos costos aceptados.** Recomiendo mantener N24 (la invitación en el idioma general es simple y tiene
-  efecto chico) y cerrar N25 con la guarda trivial, para que la pantalla no acepte lo que el seed va a deshacer.
-- **B4: retirar el enlace de ingreso.** Recomiendo retirarlo: la razón escrita para conservarlo, canjear los enlaces
-  pendientes del bot, venció a los diez minutos de retirarlo.
+  Se sigue pudiendo delegar. Se descartó que sólo Admin asigne y edite roles, porque quita delegar y no cubre el
+  cambio de correo de un administrador, y también dejar escrito que esos dos permisos equivalen a ser
+  administrador, porque deja abierta la toma de cuentas.
+- **N3: el bloqueo no se usa contra otros.** Van las tres medidas juntas: el bloqueo por códigos deja de frenar a
+  Google, `AlreadyUsed` y `Expired` responden sólo al código que coincide, y `LockedOut` sale recién después de un
+  código correcto. Cambia la regla de `identidad.md:29`. Se descartó aceptar que `LockedOut` revele la cuenta.
+- **N4: restaurar sin el acceso anterior.** Al restaurar se quita lo que el alta no trajo (correo, número y logins
+  externos), y la pantalla dice que se restauró: la cuenta conserva su historia y el dueño anterior queda afuera.
+  Cambia `administracion.md:14`. Se descartó no restaurar con el número solo, que no cubre un correo que pasó a otra
+  persona, y también pedir confirmación con un 409, que deja la decisión en quien da el alta.
+- **N9: con Redis caído, la app sigue.** Se degrada de verdad:
+  - `/health` en Degraded, como WhatsApp;
+  - los permisos, desde la base con una consulta en el contexto del pedido, que también resuelve N33;
+  - la configuración, desde la base si Redis no responde;
+  - un texto propio en el front para un 5xx sin código, que cubre también los 502 y 504 del ingress.
+
+  Enmienda el ADR 0009. Se descartó lo mínimo, sólo el chequeo y el texto, porque deja sin ingreso hasta que vuelva
+  Redis.
+- **N7: el correo de producción sigue en Gmail.** Van los topes de N7: uno diario por dirección agrupada por /64,
+  uno global por debajo del cupo de la cuenta con aviso al 80 %, uno por cuenta para los códigos del perfil y uno
+  diario de invitaciones por administrador. El cupo de la cuenta de Gmail que se use (unos 500 correos por día en
+  una cuenta gratuita) se escribe en la [guía de despliegue](../guides/despliegue.md), con el tope global por
+  debajo. El costo aceptado: ese cupo es el techo de códigos e invitaciones juntos, y un abuso desde varias
+  direcciones puede agotar el tope global y dejar a todos sin códigos ese día. Se descartó el proveedor
+  transaccional que recomendaba la revisión.
+- **N27: una sola regla de versiones.** H25 se extiende a `DurableMessageSource` y a los modelos que guardan los
+  módulos, con las tres partes de N27:
+  - lo que una copia no puede leer no se borra: vuelve a la cola con una espera y un tope de intentos;
+  - la reserva toma sólo los tipos de mensaje que su versión conoce;
+  - un campo, tipo o valor nuevo se escribe un despliegue después del que ya sabe leerlo.
+
+  Hecha en la clase común, cubre de una vez el correo, WhatsApp y los módulos: la tarea 22 del
+  [plan de la bandeja](../plans/2026-10-01-bandeja-whatsapp.md) se programa con esta regla.
+- **N16: plazos de retención.** Los códigos y enlaces se conservan 30 días (los límites leen 24 horas); los
+  `LoginAudits`, 12 meses, y después quedan sin la IP; las autorizaciones y tokens de OpenIddict se podan a los 14
+  días de vencidos. Lo hace un worker con lease que borra por lotes y conserva el último ingreso de cada cuenta.
+  Completa el pendiente de [verificación y producción](../plans/verificacion-y-produccion.md). La pregunta no nombró
+  las invitaciones (`UserInvitations`): su plazo lo fija el plan, con la opción más simple que no le quite datos a
+  una pantalla.
+- **N24 y N25: uno se mantiene y el otro se cierra.** N24 queda como costo aceptado: la invitación sale en el idioma
+  general, como dice `administracion.md:74-78`. N25 se cierra con la guarda trivial: la pantalla no deja quitarle
+  Admin ni cambiarle el correo al administrador del seed, y avisa que hay que cambiar `Seed:AdminEmail`.
+- **B4: se retira el enlace de ingreso.** Se quitan el emisor, las dos rutas de canje y su regla (`identidad.md:43`).
 
 ## Cómo seguir
 
-- **Tus decisiones:** pendientes ([decisiones](#decisiones-que-pide-la-revisión)).
-- **El plan:** con lo que elijas, se planifica aparte en `docs/plans`, anexado al plan que corresponda, como se hizo
-  con WhatsApp; las reglas que cambien van a su fuente en ese desarrollo.
+- **Tus decisiones:** tomadas el 2026-11-14 ([decisiones](#decisiones-del-2026-11-14)).
+- **El plan:** «Hoy», N27 y lo trivial que se sumó se planifican aparte en `docs/plans`, anexados al plan que
+  corresponda, como se hizo con WhatsApp; las reglas que cambien van a su fuente en ese desarrollo. La lease de N28
+  va antes de pasar de una réplica; el resto de gran escala, cuando haya volumen real que medir.
 - **Lo que ya estaba anotado:**
   - la retención de N16, en [verificación y producción](../plans/verificacion-y-produccion.md);
   - la exportación de telemetría de N10, a medias, en el mismo plan;
-  - H25, en la etapa 7 del [plan de la bandeja](../plans/2026-10-01-bandeja-whatsapp.md), que N27 propone extender.
+  - H25, en la etapa 7 del [plan de la bandeja](../plans/2026-10-01-bandeja-whatsapp.md), que N27 extiende: su
+    tarea 22 se programa con la regla única.
 - **IA y Formularios:** su revisión arranca después, con el cupo medido.
