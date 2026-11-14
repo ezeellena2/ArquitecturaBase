@@ -707,6 +707,11 @@ documentada, se cita la fuente: cambiarla lo decidís vos.
   Chico a mediano. **Lo decidís vos:** que sea una sola regla.
 - **Decidido el 2026-11-14:** una sola regla, que extiende H25 a `DurableMessageSource` y a los modelos que guardan
   los módulos, y entra con los arreglos de «Hoy» ([decisiones](#decisiones-del-2026-11-14)).
+- **Casi entero arreglado el 2026-11-14** en 42d8f47f, con H25 de los arreglos de WhatsApp: cada fuente de la cola durable
+  reserva sólo los tipos que conoce; lo que no descifra o no lee vuelve a la cola con una espera de 30 s, hasta diez veces,
+  en lugar de borrarse; el correo y la cola de acceso leen estricto; un motivo de lectura desconocido se lee como `Other`; y
+  las guías piden escribir lo nuevo un despliegue después. Faltan los demás enums de los modelos neutros que los módulos
+  guardan por nombre ([tarea 31](../plans/2026-11-14-arreglos-del-nucleo.md#etapa-6-lo-trivial-y-la-documentación)).
 
 #### N28. La limpieza de archivos corre en cada copia, recorre todo el contenedor y puede borrar una foto recién subida
 
@@ -1047,12 +1052,13 @@ cambian con su arreglo, no antes: N3 y B4, en [identidad](../features/identidad.
 ## Cómo seguir
 
 - **Tus decisiones:** tomadas el 2026-11-14 ([decisiones](#decisiones-del-2026-11-14)).
-- **El plan:** «Hoy», N27 y lo trivial que se sumó se planifican aparte en `docs/plans`, anexados al plan que
-  corresponda, como se hizo con WhatsApp; las reglas que cambien van a su fuente en ese desarrollo. La lease de N28
-  va antes de pasar de una réplica; el resto de gran escala, cuando haya volumen real que medir.
+- **El plan:** B1 a B5, N1 a N26 (menos N24) y lo que sumaron las decisiones (lo que falta de N27, el ETag de N28, los
+  conteos de N30, los índices de N31 y N33 con N9), en 31 tareas y seis etapas del
+  [plan de los arreglos del núcleo](../plans/2026-11-14-arreglos-del-nucleo.md). La lease de N28 va antes de pasar de una
+  réplica; el resto de gran escala, cuando haya volumen real que medir.
 - **Lo que ya estaba anotado:**
   - la retención de N16, en [verificación y producción](../plans/verificacion-y-produccion.md);
   - la exportación de telemetría de N10, a medias, en el mismo plan;
-  - H25, en la etapa 7 del [plan de la bandeja](../plans/2026-10-01-bandeja-whatsapp.md), que N27 extiende: su
-    tarea 22 se programa con la regla única.
+  - H25, en la etapa 7 del [plan de la bandeja](../plans/2026-10-01-bandeja-whatsapp.md), que se programó junto con
+    N27 en 42d8f47f.
 - **IA y Formularios:** su revisión arranca después, con el cupo medido.
