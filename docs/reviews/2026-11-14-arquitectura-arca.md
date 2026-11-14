@@ -1035,8 +1035,8 @@ reescribe ([índice de ADR](../decisions/README.md)).
 
 ## Cómo seguir
 
-- **Antes de la prueba integral:** B1, que hace fallar el paso 4 de la prueba de la etapa 4, y H1, que traba una secuencia con una
-  venta atrasada; van también antes de homologar.
+- **Antes de la prueba integral:** B1, H1 y B2 quedaron arreglados el 2026-11-14: B1 en 829ed447, y H1 con B2 en 0385b59b, con el
+  [ADR 0031](../decisions/0031-fecha-rechazada-y-numero-adelantado-arca.md).
 - **Tus decisiones:** tomadas el 2026-11-14 ([decisiones](#decisiones-del-2026-11-14)).
 - **El plan de «Hoy»:** B1 a B5, H1 a H31, la documentación de H32, el índice de H34 y la pausa de H33, con esas decisiones, en
   ocho etapas de la [hoja de ruta de ARCA](../plans/2026-10-31-arca-formularios-estandar.md#arreglos-de-la-revisión-de-arquitectura);

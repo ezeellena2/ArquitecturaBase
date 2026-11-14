@@ -275,22 +275,37 @@ Las etapas van en orden, y dentro de cada etapa las tareas también, salvo en la
    factura es mayor y sale en el resultado. Con eso vuelve a pasar el paso 4 de la prueba a mano de la
    [etapa 4](2026-11-09-arca-etapa-4-factura-a-y-b.md). Chico.
 2. **H1 y B2. Un 10016 que ARCA no emitió va a revisión** (decisión 2).
-   - Si el reenvío vuelve con 10016 y la consulta dice que ARCA no tiene ese número, el comprobante va a revisión, libera el
-     número y lleva un motivo propio («anterior a la del último comprobante»), con sus textos en el emisor. El mismo camino
-     cubre un incierto cuya fecha salió de la ventana.
+   - Si ARCA no tiene el número y el último autorizado es menor, antes de reenviarlo se consulta la fecha de ese último. Si la
+     nuestra es anterior o salió de la ventana, el comprobante va a revisión, libera el número y lleva su motivo («anterior a
+     la del último comprobante» o «fuera de la ventana»), con sus textos en el emisor. Un 10016 solo no alcanza para soltar el
+     número: puede ser nuestro y estar autorizado tarde.
    - La revisión ofrece «Emitir con la fecha de hoy», con la mayor entre hoy y la última fecha autorizada que la base conoce de
      la secuencia, o «No emitir»; hoy esa opción existe sólo para la fecha fuera de la ventana. Al elegirla, la revisión
      reescribe en el pedido guardado la fecha y un vencimiento del pago ya pasado, que corre a esa fecha como en la nota de
      crédito, y el texto de la opción lo dice (B2).
    - Al encolar y en «¿La emito?» se avisa si la fecha es anterior a esa misma fecha de la base.
-   - El ARCA simulado da el 10016 por una fecha anterior a la del último comprobante y por una fuera de la ventana, no sólo por
-     el número.
+   - El ARCA simulado da el 10016 por una fecha anterior a la del último comprobante, no sólo por el número. Una fecha fuera de
+     la ventana ya no llega a ARCA.
    - Cambian la reconciliación y la revisión por fecha en [ARCA](../features/arca.md). Lo que cambia de la decisión 5 del
      [ADR 0028](../decisions/0028-emision-de-comprobantes-arca.md) va en un ADR nuevo, que registra también el control de la
      tarea 13, decidido el mismo día (decisión 4).
 
    Tests: una venta atrasada va a revisión sin frenar la secuencia, y «Emitir con la fecha de hoy» sale con el vencimiento
    corrido. Mediano.
+
+**Hecha el 2026-11-14:** B1 en 829ed447, y H1 con B2 en 0385b59b, con el
+[ADR 0031](../decisions/0031-fecha-rechazada-y-numero-adelantado-arca.md).
+- **La revisión adversarial** no encontró fallas serias y cambió dos cosas:
+  - El número se suelta por la fecha del último comprobante, consultada a ARCA, y no por el 10016. Un 10016 puede venir de un
+    número nuestro autorizado tarde, y soltarlo así facturaría dos veces.
+  - Un comprobante que vuelve a la cola después de una revisión deja de decir que espera a ARCA.
+- **Pruebas:** el build sin advertencias; Domain (1158), Application (6016) y ArchitectureTests (226) enteros; la integración de
+  la cola, el emisor y el cliente de facturación (48/48). La corrida completa va en el cierre conjunto.
+- **Límites conocidos:**
+  - después de un corte largo, la espera tras un 10016 sigue la espera acumulada, hasta una hora, con la secuencia frenada;
+  - un servicio con fecha futura en la misma secuencia que productos puede dejar una venta sin fecha posible hasta que pase el
+    tiempo.
+- **Etapas 2 a 8:** no empezaron.
 
 ### Etapa 2: lo trivial y la documentación
 
