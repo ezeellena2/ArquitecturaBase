@@ -1038,8 +1038,8 @@ reescribe ([índice de ADR](../decisions/README.md)).
 - **Antes de la prueba integral:** B1, que hace fallar el paso 4 de la prueba de la etapa 4, y H1, que traba una secuencia con una
   venta atrasada; van también antes de homologar.
 - **Tus decisiones:** tomadas el 2026-11-14 ([decisiones](#decisiones-del-2026-11-14)).
-- **El plan de «Hoy»:** todavía no está armado. Lleva B1 a B5, H1 a H31, la documentación de H32, el índice de H34 y la pausa de
-  H33, con esas decisiones, y se anexa a un plan de ARCA en `docs/plans`, como el de WhatsApp. El resto de gran escala espera a
-  que haya volumen real que medir.
+- **El plan de «Hoy»:** B1 a B5, H1 a H31, la documentación de H32, el índice de H34 y la pausa de H33, con esas decisiones, en
+  ocho etapas de la [hoja de ruta de ARCA](../plans/2026-10-31-arca-formularios-estandar.md#arreglos-de-la-revisión-de-arquitectura);
+  la primera es B1 y H1. El resto de gran escala espera a que haya volumen real que medir.
 - **Repetir:** después de homologar con la CUIT del usuario, que confirma o corrige lo que hoy sale del manual (el 10016 por
   fecha, los errores de la constancia y la ventana del WSAA).

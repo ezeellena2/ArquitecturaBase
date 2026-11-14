@@ -225,3 +225,261 @@ automático.
 - **Multitenant:** al cerrar cada etapa se ofrece el [traspaso](2026-10-30-traspaso-multitenant-carga-desde-la-app.md) a
   ArquitecturaBaseMutitenant. Los modos de delegación encajan ahí con una sola CUIT de plataforma para todas las
   organizaciones.
+
+## Arreglos de la revisión de arquitectura
+
+Decididos el 2026-11-14 y sin programar. Salen de la [revisión de arquitectura de ARCA](../reviews/2026-11-14-arquitectura-arca.md),
+que tiene el escenario, la evidencia (archivo y línea en `23797fff`) y el esfuerzo de cada hallazgo, y de las
+[decisiones del usuario](../reviews/2026-11-14-arquitectura-arca.md#decisiones-del-2026-11-14), que no se vuelven a preguntar.
+
+- **Alcance:** los hallazgos de «Hoy» (B1 a B5 y H1 a H31), la documentación de H32, el índice de H34 y la pausa de H33. De las
+  observaciones menores entran O10, por la decisión 4, y la espera de O9 en el mismo paso del robot.
+- **Fuera:** el resto de gran escala (más puntos de venta o lotes en H33, y H35 a H37), cuando haya volumen real que medir, y las
+  demás observaciones, que quedan anotadas en la revisión.
+- **Cuándo:** la etapa 1 (B1 y H1) va antes de la prueba integral y de homologar; las demás, en orden y sin fecha.
+- **Al día:** el 2026-11-14 ningún commit había tocado el código de ARCA desde `23797fff`. Cada tarea vuelve a leer sus archivos
+  antes de empezar.
+- **Revisado:** el mismo día, un revisor contrastó el plan con la revisión y con el código, y sus correcciones ya están
+  incorporadas. Las tareas 4, 5, 11, 12, 17 a 22, 27 a 29 y 31 a 33 las contrastó sólo con la revisión.
+- **Sin datos que convertir:** no hubo emisiones reales, así que un cambio de formato de la cola no lee el de hoy y los
+  comprobantes de prueba de desarrollo no se convierten.
+
+**Cómo se trabaja.** Cada tarea sigue [validar un cambio](../guides/validar-un-cambio.md): el test en rojo primero y las suites
+rápidas del área. La revisión adversarial va completa en lo que toca la emisión, los permisos, los datos personales o el robot, y
+no en documentación, textos ni arreglos de una línea. Cada etapa cierra con el build sin advertencias, los unitarios y
+`ArchitectureTests` enteros y la integración de lo que cambió; la corrida completa va una sola vez, al cerrar el desarrollo, y la
+etapa 1 entra en la de la tanda, antes de la prueba integral. Además:
+
+- una regla escrita que cambia se corrige con su arreglo, no antes, y cada tarea nombra las suyas. Las de ARCA están en
+  [ARCA](../features/arca.md), sus guías ([configurar](../guides/configurar-arca.md), [quitar](../guides/quitar-arca.md) y
+  [el robot](../guides/robot-arca.md)) y los `AGENTS.md` de sus carpetas, que repiten algunas. Lo que cambia de un ADR aceptado
+  va en uno nuevo ([índice de ADR](../decisions/README.md));
+- el ARCA simulado aprende cada caso nuevo antes del arreglo (el 10016 por fecha, un corte a mitad del cuerpo, un último
+  autorizado que la base no conoce, una constancia con errores), como pide el
+  [ADR 0018](../decisions/0018-robustez-proporcional-al-efecto.md) para un efecto fuera del sistema;
+- un error nuevo se declara en Domain, con su código estable y sus textos en `Errors.resx` y `.en.resx`; los textos de un motivo
+  de revisión nuevo van en los `.resx` del emisor, porque el front no tiene textos de un emisor;
+- un cambio de un contrato publicado es aditivo, un campo o una ruta nuevos, y se revisa con el front
+  ([ADR 0005](../decisions/0005-sin-versionado-de-api-por-ahora.md));
+- los logs van con `[LoggerMessage]`, sin claves, secretos ni datos personales del receptor.
+
+Las etapas van en orden, y dentro de cada etapa las tareas también, salvo en la etapa 2, donde son independientes.
+
+### Etapa 1: lo que traba la emisión
+
+1. **B1. La factura A o B con precios sin IVA se emite.** El total esperado se compara con la suma de los importes de los
+   renglones, que es lo que calcula el formulario en cualquier clase, y no con neto más IVA (`ArcaVoucherOrderPolicy`, que usan
+   la vista previa y el encolado). Cambian las dos pruebas que fijan el total con IVA y se suma una del emisor con una empresa
+   responsable inscripta y el estándar, para una A y una B, con «El precio incluye IVA» marcado y sin marcar. La regla de
+   [ARCA](../features/arca.md) dice que el «Total» del formulario es la suma de los importes y que, sin IVA incluido, el de la
+   factura es mayor y sale en el resultado. Con eso vuelve a pasar el paso 4 de la prueba a mano de la
+   [etapa 4](2026-11-09-arca-etapa-4-factura-a-y-b.md). Chico.
+2. **H1 y B2. Un 10016 que ARCA no emitió va a revisión** (decisión 2).
+   - Si el reenvío vuelve con 10016 y la consulta dice que ARCA no tiene ese número, el comprobante va a revisión, libera el
+     número y lleva un motivo propio («anterior a la del último comprobante»), con sus textos en el emisor. El mismo camino
+     cubre un incierto cuya fecha salió de la ventana.
+   - La revisión ofrece «Emitir con la fecha de hoy», con la mayor entre hoy y la última fecha autorizada que la base conoce de
+     la secuencia, o «No emitir»; hoy esa opción existe sólo para la fecha fuera de la ventana. Al elegirla, la revisión
+     reescribe en el pedido guardado la fecha y un vencimiento del pago ya pasado, que corre a esa fecha como en la nota de
+     crédito, y el texto de la opción lo dice (B2).
+   - Al encolar y en «¿La emito?» se avisa si la fecha es anterior a esa misma fecha de la base.
+   - El ARCA simulado da el 10016 por una fecha anterior a la del último comprobante y por una fuera de la ventana, no sólo por
+     el número.
+   - Cambian la reconciliación y la revisión por fecha en [ARCA](../features/arca.md). Lo que cambia de la decisión 5 del
+     [ADR 0028](../decisions/0028-emision-de-comprobantes-arca.md) va en un ADR nuevo, que registra también el control de la
+     tarea 13, decidido el mismo día (decisión 4).
+
+   Tests: una venta atrasada va a revisión sin frenar la secuencia, y «Emitir con la fecha de hoy» sale con el vencimiento
+   corrido. Mediano.
+
+### Etapa 2: lo trivial y la documentación
+
+3. **H10. El rechazo del padrón al tocar «Emitir» se puede reintentar.** Sale con `CanRetry`, porque no se encoló nada, como
+   dice [formularios](../features/formularios.md); el rechazo de un pedido mal armado sigue sin reintento, porque repetirlo da
+   lo mismo. Test: con el padrón caído, la acción queda fallida con «Reintentar». Una línea.
+4. **H12. Un corte a mitad de la respuesta es «ARCA no respondió».** `SoapEnvelope` atrapa `IOException` como `Unavailable`,
+   con un modo del ARCA simulado que corta a mitad del cuerpo. Una línea.
+5. **H16. Anular mientras la cola espera no la frena.** En el paso de esperar, si la emisión ya no está en cola, incierta ni
+   enviándose, sólo se suelta la reserva de la secuencia. Test: anular mientras ARCA no contesta. Una línea.
+6. **H33. La cola no espera si emitió algo.** La pausa de 2 s se saltea cuando la vuelta pidió un CAE o guardó un PDF; una
+   secuencia frenada, una espera o una falla no cuentan. Tests: varios comprobantes de una secuencia salen sin la pausa entre uno
+   y otro, y con una revisión abierta la cola sigue pausando. Chico.
+7. **H23 y H32. La configuración se valida y se documenta.**
+   - Al arrancar se validan las reservas contra los plazos, de modo que pasen los valores de fábrica: la del ticket, mayor que el
+     plazo de un pedido (`Arca:RequestTimeout`) con margen; la de la cola, que cubra una vuelta que concilia (hasta tres pedidos
+     a wsfe y la espera del ticket); y la del robot, al menos cuatro `StepTimeout` (los de fábrica, 3 minutos y 45 s, quedan
+     justo), sólo con el robot prendido. Si un valor de fábrica no cubre su cuenta, se sube.
+   - [Configurar ARCA](../guides/configurar-arca.md) escribe esas cuentas; el paso a paso de la rotación del anillo, con la
+     consulta del id de clave, como el de IA; y que los límites de pedidos y el cupo del padrón son de cada copia, con cómo
+     dimensionarlos (H32). La [guía de despliegue](../guides/despliegue.md) suma la fila de `Arca:SecretProtection`.
+
+   Chico.
+8. **H3 y H24. Los PDF fiscales no se borran solos.**
+   - La retención guarda todo `arca-vouchers/` sin mirar la base (una línea). Cambia la frase de la retención en
+     [ARCA](../features/arca.md) y en el `AGENTS.md` de Application.
+   - [Desplegar a Azure](../deploy/azure-setup.md) suma un apartado de ARCA en la restauración: levantar la copia con la cola
+     (`Arca:Invoicing:Worker:ProcessInBackground`) y las acciones de formularios
+     (`BusinessForms:ActionWorker:ProcessInBackground`) apagadas; los PDF fiscales ya no se borran, pero la limpieza sigue y borra
+     a las 24 horas los demás archivos sin fila;
+     comparar el último autorizado de cada punto de venta con la base y recuperar del servidor original los comprobantes que
+     falten antes de prenderlas.
+   - [Quitar ARCA](../guides/quitar-arca.md), en la sección del módulo y en la de la facturación, copia `arca-vouchers/` fuera
+     del alcance de la limpieza antes de desplegar, con el aviso de que se borran una hora después de arrancar; así dice lo que
+     el ADR 0028 cree que ya dice. Corrige también «siete tablas», que son ocho.
+
+   Chico.
+
+### Etapa 3: quién pone a emitir y qué se emite
+
+9. **H6. Poner a emitir pide `formrules.manage` y `arca.issue`** (decisión 3). Agregar de la biblioteca un estándar con reglas
+   que emiten pide los dos, y todo guardado de reglas que deje una acción «Emitir» suma el permiso de su emisor al
+   `formrules.manage` que ya pide: en una copia de «Factura», cambiar cualquier regla pide `arca.issue`. Formularios no nombra a
+   ARCA: el permiso sale del emisor (`ReviewPermission` del puerto), y si falta se responde como en la anulación
+   (`FormIssueReversalRecorder`). Cargar la «Factura» sigue sin pedir `arca.issue`. Cambian las reglas de
+   [formularios](../features/formularios.md) (quién guarda reglas y quién agrega de la biblioteca) y los permisos de
+   [ARCA](../features/arca.md). Test: un rol con «Administrar formularios» y «Publicar formularios», sin permisos de ARCA, no
+   puede agregar «Factura». Chico.
+10. **H2. La cola manda lo que se fijó al encolar.** Al encolar se fija el pedido ya armado (importes, alícuotas, fechas y
+    códigos) con una versión, y el worker sólo pone el número; la nota de crédito fija el suyo desde el de la factura. La
+    reconciliación y el PDF usan lo fijado, y el worker comprueba la huella (`DataHash`, que hoy nadie lee) antes de mandar: si
+    no coincide, va a revisión con su motivo, no se pospone. Con una versión que no entiende, el worker la pospone, la respuesta
+    se muestra sin el receptor y la revisión y la anulación responden un conflicto. «Emitir con la fecha de hoy» (tarea 2)
+    cambia la fecha y el vencimiento de lo fijado, y la huella nueva sale al dar el número. Cambian «Fija lo que va a emitir»
+    en [ARCA](../features/arca.md) y los datos fijados en el `AGENTS.md` de Application. Tests: una fila con una versión que el
+    worker no conoce queda esperando, y una cuya huella no coincide va a revisión. Mediano.
+11. **H9. Los importes tienen tope antes de encolar.** Un tope para el total y cada renglón (9.999.999.999.999,99), y para la
+    cantidad y el precio, antes de calcular el IVA, con un código propio, en la vista previa y al encolar. Test: Cantidad
+    1.000.000 por Precio 10.000.000.000 responde el código y no queda «sin confirmar». Chico.
+12. **H27 y H34. Dos índices en la cola.** Una migración con un único parcial sobre `CancelsVoucherId` para las notas de crédito
+    que no están rechazadas ni canceladas (H27) y un índice parcial sobre los autorizados sin PDF, que conviene crear ahora,
+    con la tabla vacía (H34). Test de persistencia: dos notas activas para la misma factura no se guardan. Chico.
+
+### Etapa 4: restauraciones, esperas y PDF
+
+13. **H3. Lo que ARCA tiene y la base no conoce va a revisión** (decisión 4). Al numerar, si ARCA tiene un último autorizado mayor
+    que el último número que la base conoce de la secuencia (de sus comprobantes con número, autorizados o pendientes), el
+    comprobante va a revisión con un motivo propio, salvo cuando la base no conoce ningún número de la secuencia. La revisión
+    ofrece emitir con el número siguiente o no emitir, con un texto que pide mirar en ARCA si esa venta ya se facturó. Guarda
+    el último autorizado que vio, y emitir vale para ése: toma el siguiente sin volver a revisión mientras ARCA siga en ese
+    número, y si ARCA avanzó otra vez, vuelve a revisión. Lo mismo vale para «Emitir con el número siguiente» de un número
+    tomado o que falta, que si no caerían en esta revisión para siempre. Cambian la numeración en [ARCA](../features/arca.md),
+    el apartado de restauración de la tarea 8 y [configurar ARCA](../guides/configurar-arca.md): en los modos 1 y 2 el punto de
+    venta lo elige la persona, y si lo comparte con otro sistema, cada factura pide una decisión. Tests: con el ARCA simulado
+    adelantado, una venta encolada no se emite dos veces, y emitir desde la revisión sale una sola vez, sin pedir otra
+    decisión. Mediano. El punto de venta propio del robot es la tarea 30.
+14. **H7. La espera dice de quién es.** El motivo de la espera se separa (ARCA, el almacén o la conexión), cada uno con su aviso,
+    y el código del almacén queda declarado; con la facturación instalada, la Api no arranca sin almacén. Una factura autorizada
+    sin su PDF se informa emitida, con su resultado y sin el documento (un dato nuevo del puerto, aditivo), así que formularios
+    muestra el número y el CAE y la puede anular. Cambian el aviso «ARCA no responde. Tu factura sale apenas vuelva.» de
+    [ARCA](../features/arca.md), NC1-A en [formularios](../features/formularios.md) y el almacén obligatorio en configurar ARCA
+    y en la [guía de despliegue](../guides/despliegue.md). Test: con el almacén caído después de autorizar, el aviso no culpa a
+    ARCA y muestra el CAE. Mediano.
+15. **H17. Un PDF que no se puede armar no frena a los demás.** El armado va dentro del `try`, con un `try` por comprobante, y el
+    que falla se pospone con su propio código, de los que declara la tarea 14. Test: un comprobante con una alícuota
+    desconocida no deja sin PDF al siguiente. Chico.
+
+### Etapa 5: la conexión y el ticket
+
+16. **B4. El estado sigue al certificado y a los servicios** (decisión 5). Primero se corrige `CertificateExpired()`, que lleva
+    «sin verificar» a «requiere atención» contra la regla del alta; después el vencimiento se calcula al leer y la conexión
+    corta con `CertificateExpired` antes de llamar a ARCA. Sumar un servicio a una conexión activa la pasa a «requiere
+    atención» hasta que una prueba dé verde, sin probar sola: cambian la frase «la pantalla vuelve a probar» de
+    [ARCA](../features/arca.md) y el diseño del front. Chico.
+17. **H4. Las tablas de ARCA no piden un ticket que no sirve.** El feed de ARCA devuelve un código sin llamar si wsfe no está
+    elegido o la conexión no está activa; con la tarea 16, sumar un servicio frena la lectura de las tablas hasta otra prueba en
+    verde. Test: sin Facturación elegida, una vuelta del worker de catálogos no llama al WSAA. Chico.
+18. **H8. Cortar el pedido de un ticket no lo pierde.** El pedido al WSAA usa `Arca:RequestTimeout`, sin el token de quien llama
+    ni el del apagado; guardar no se cancela; la reserva se suelta en un `finally`; y el ticket guardado se entrega mientras no venza,
+    también al bloquear. Test: cancelar la vista previa mientras se pide el ticket. Chico.
+19. **H15. Los guardados confirman la conexión que se leyó.** Las escrituras comparan el id de la conexión además de la
+    revisión; la prueba y el punto de venta dan 409 si cambió la conexión o sus servicios y calculan la completitud bajo el
+    lock; y el estado se recalcula en la misma transacción que el guardado. Chico a mediano.
+20. **H30. Las pantallas de ARCA dicen por qué fallaron.** La zona de puntos de venta muestra el detalle de un código `Arca.*`.
+    Cambiar CUIT, ambiente o modo pasa a ser un solo pedido que reemplaza la conexión en una transacción del servidor, con una
+    ruta nueva y su test, y la pantalla vuelve a leer la conexión ante `NotConnected` o un 409. Mediano.
+
+### Etapa 6: el padrón y los clientes
+
+21. **B3. Una constancia con errores no decide la clase.** Con errores en el grupo que decide la condición frente al IVA, no se
+    infiere: responde un código propio y pide revisar, y esa condición no llega a «Clientes». Cambia lo que dice
+    [ARCA](../features/arca.md) de una constancia con errores. Chico.
+22. **H13 y H14. El padrón dice por qué falló.** El «no existe» se reconoce por el código o el texto de la falla, y las demás
+    pasan a «ARCA rechazó el pedido» o «ARCA no respondió» (H14); el adaptador de la caché del padrón traduce el corte de la
+    espera a «ARCA no respondió» (H13). Cambia lo que dice ARCA de una CUIT que el padrón no tiene. Chico.
+23. **H25 y H31. Los datos personales y «Clientes»** (decisión 6).
+    - [ARCA](../features/arca.md) dice que los comprobantes, su pedido y su PDF se conservan durante el plazo fiscal, que fija
+      el negocio con su contador, y que un pedido de borrado no los alcanza dentro de ese plazo. ARCA se suma al procedimiento
+      de borrado pendiente en [verificación y producción](verificacion-y-produccion.md); la purga al vencer queda para después.
+    - El cliente escrito por su CUIT se suma a «Clientes» recién cuando la factura queda emitida, sin el domicilio si es una
+      persona humana, que se sabe por el tipo de persona del padrón, guardado al encolar. La consulta devuelve el cliente con el
+      resultado emitido, para toda CUIT (formularios ya descarta el que está), así que también se suma si la acción se retoma
+      después de un corte (H31). Una factura siguiente a esa persona sale sin domicilio, como hoy la de un cliente de
+      «Clientes» que no lo tiene. Cambia la frase del cliente que vuelve al encolar en ARCA, en
+      [formularios](../features/formularios.md) y en el `AGENTS.md` de Application.
+
+    Tests: una factura que no llega a emitirse no suma el cliente, y un corte entre encolar y cerrar el run lo suma igual al
+    emitirse. Chico.
+24. **B5. «Factura» por WhatsApp con más de 200 clientes.** La pregunta Cliente elige primero por «Inicial»
+    ([LD1-A](../features/formularios.md#elegir-primero-por-un-campo--ld1-a-2026-11-07), que WhatsApp manda desde r11), un campo
+    de texto nuevo de «Clientes» con la primera letra del nombre: el emisor lo completa al sumar un cliente, se corrige a mano, y
+    «Consumidor final» y «Otro» llevan la suya. «Agregar» traduce el campo por su clave, como ya traduce el catálogo, y frena si
+    el «Clientes» que reusa no lo tiene, como con una opción que falta: es un cambio de la biblioteca de formularios. Va con la
+    versión 2 del estándar y cuesta el prellenado del cliente por WhatsApp, que LD1-A no hace. La regla de ARCA escribe el tope
+    de 200 por inicial. La otra salida de la revisión, escribir la CUIT por WhatsApp, pediría un mecanismo nuevo en los Flows.
+    Mediano.
+
+### Etapa 7: el robot
+
+25. **H5. La clave rechazada de la plataforma no se vuelve a probar sola.** Un lado de la plataforma frenado por ingreso
+    rechazado no se rearma al tocar «Delegar con el robot», ni al terminar a mano, ni al arrancar: lo rearma sólo una acción
+    explícita de quien tiene `arca.manage`, después de actualizar la clave, con una ruta nueva, su test y su botón en la zona del
+    robot. Así se cumple la decisión 3 del [ADR 0026](../decisions/0026-robot-de-delegacion-arca.md) («un ingreso rechazado no se
+    reintenta»): la clave de la plataforma es una sola para todas sus instalaciones, y un reintento automático en cada una
+    podría hacerla bloquear. Cambia el test que hoy fija el rearme, y la [guía del robot](../guides/robot-arca.md) y el correo
+    dicen cómo rearmarlo. Chico.
+26. **H18 y H19. El robot dice por qué se frena y avisa cuando se rinde.**
+    - El plazo vencido de una navegación y un 5xx en cualquier página son «ARCA no responde»; «pantalla cambiada» queda para una
+      página cargada a la que le falta lo esperado (H18).
+    - `TryReserve` respeta `MaxAttempts`, así que una pasada interrumpida también se frena. Cuando el lado de la plataforma queda
+      frenado para siempre, por cualquier motivo, también «ARCA no respondió» o una pasada interrumpida, sale el correo de RB4-A
+      (decisión 8), y la pantalla de la empresa promete el aviso sólo cuando sale (H19).
+    - Cambian RB4-A en [ARCA](../features/arca.md) y lo que dice la guía del robot de cuándo llega el correo.
+
+    Chico.
+27. **H20. La reserva acompaña al paso.** Un latido renueva la reserva mientras corre un paso, y la del cliente se renueva al
+    sacarlo de la cola; la validación contra `StepTimeout` al arrancar es de la tarea 7. Test: un paso más largo que la reserva
+    no deja que otro host la tome. Mediano.
+28. **H21. La clave fiscal vive lo menos posible.** Las credenciales entregan la clave una sola vez y quedan vacías, sin que el
+    bucle ni el canal la retengan, y la Api no arranca con un `DEBUG` que tenga `*` o `pw`. Chico.
+29. **H22. Chromium medido y un driver que vuelve.** La [guía del robot](../guides/robot-arca.md) documenta la memoria y la CPU de
+    una pasada en la imagen publicada; si no entran en el despliegue, corre un lado por vez por host. El driver se recrea cuando
+    se cae, y el chequeo de arranque abre y cierra Chromium. Mediano; la medición se confirma en la corrida real.
+30. **O10. El robot da de alta un punto de venta propio** (decisión 4). En lugar de usar cualquier punto de venta de web service
+    vigente, da de alta uno: antes de confirmarlo guarda en la corrida el número que va a dar, y al reintentar toma ese número
+    si ya está en la tabla, así repetir la corrida no da de alta otro (ADR 0026, decisión 5). En el mismo paso espera la tabla
+    después del clic (O9). La regla de ARCA deja de decir «o usa el que ya hay». Chico.
+
+### Etapa 8: lo que se ve y lo que se sigue
+
+31. **H11. Por WhatsApp, quien cargó se entera si la emisión falla.** Cuando la emisión termina fallida, se avisa a quien cargó,
+    con el motivo en su idioma, como cuando falla la vista previa. Es de formularios: antes de programarla, mirar si la revisión
+    de arquitectura de formularios, que corre en paralelo, la trata. Chico.
+32. **H26. Una emisión se sigue de punta a punta.**
+    - Los logs del worker llevan el id del comprobante, su clave de pedido y el código de la falla, también en los caminos que
+      hoy posponen callados, y el mensaje de las excepciones propias que no llevan datos personales.
+    - El certificado y la configuración pasan a `IAuditable`, con su migración, y desconectar deja un log con el usuario.
+    - Una métrica de la cola con su `AddMeter`, como WhatsApp y la IA: los pendientes, los que esperan una revisión y la
+      antigüedad del más viejo.
+
+    Chico la trazabilidad y la auditoría; mediano la métrica.
+33. **H28. Los nombres fiscales, en español en todos lados** (decisión 7). La vista previa usa el español para el comprobante, el
+    documento y la condición, como el resultado y el PDF, y la regla de [ARCA](../features/arca.md) lo dice también para el
+    comprobante. Una línea más el ajuste.
+34. **H29. Los importes con dos decimales fijos.** En el front y en el dato `{result:arca.invoice.total}` del resultado, como ya
+    salen en el PDF fiscal y en el resumen por WhatsApp: el total pasa a un tipo «importe» del puerto (aditivo), que formularios
+    y el front escriben con dos decimales fijos y la región de cada idioma. Chico.
+
+**Cierre.** Cada regla que cambió queda en [ARCA](../features/arca.md) y sus guías, lo de H1 y H3 también en su ADR nuevo, y la
+revisión anota qué commit arregló cada hallazgo. Las decisiones van a las fuentes de las
+[premisas](../architecture/premisas-de-la-plantilla.md) y la sección se retira con la
+[auditoría documental](../guides/auditar-documentacion.md). Lo programado entra en el próximo traspaso al multitenant.
