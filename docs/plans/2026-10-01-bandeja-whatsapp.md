@@ -264,6 +264,13 @@ mensajes de BusinessForms que contestan por el canal neutral (ver H31 en la revi
     Chico a mediano. Va después de las tareas 12 y 14: los códigos dependen de qué se reintenta, y el
     aviso de medios, de la separación de 401 y 403.
 
+**Hecha el 2026-11-13:** H7 en 83e53357 (front 85fa7666), H11 en 4f2df684, H33 en 2232dfe7, H3 en 8303e7d4 y H9 en 0097643b
+(front 9cb1f971). Sin suite completa por etapa (la corre la coordinadora al final): el build sin advertencias,
+Domain, Application y ArchitectureTests enteros y la integración de cada cambio; en el front, tsc, oxlint y vitest del área.
+Quedan para el reporte final: `WhatsAppAssistantSpreadsheetLoadTests.The_flow_that_follows_the_location_request_of_a_load_carries_its_footer`
+falla a veces bajo carga (cargas a 1 µs y «Seguir sin ubicación» a 1 ms), y con `MessageRetentionDays` en 1 un archivo que
+reintenta sale de la retención antes de abandonarse.
+
 ### Etapa 5: el asistente y los toques
 
 17. **H5. Una falla del motor deriva.** Cuando un pedido automático termina bloqueado, porque el motor

@@ -259,6 +259,10 @@ fuente: cambiarla lo decidís vos.
   (`WhatsAppOutgoingMessage.cs:252-258`).
 - **Arreglo:** si no se llamó al proveedor, devolver la fila a pendiente con una espera; en la cola de
   acceso, reintentar el turno en vez de descartar. Mediano.
+- **Arreglado el 2026-11-13** en 8303e7d4: sin turno, la salida vuelve a Pending en su lugar con `NextAttemptAtUtc` (30 s) y
+  sin gastar un reintento, y la cola de acceso espera y vuelve a pedir el turno, salvo que el mensaje venza mientras tanto (la
+  cola durable le pasa su vencimiento); liberar el turno sin Redis ya no pisa el resultado. La caída se simula con
+  `FailingDispatchCoordinator`: el `FailFast` real y la espera de 30 s del turno tomado no se prueban.
 
 #### H4. «Probar» deja leer chats ajenos y buscar correos sin permiso
 
@@ -338,6 +342,10 @@ fuente: cambiarla lo decidís vos.
     revisa con el front.
 
   Chico en la cola de acceso; mediano en la salida durable, que necesita una columna de próximo intento.
+- **Arreglado el 2026-11-13** en 83e53357 y, en el front, 85fa7666: el cliente separa «no salió» (se reintenta con espera; de
+  un 5xx, sólo 131000, 131016, 2 y 133004) de «no se sabe» (queda incierto). La cola de acceso no reintenta lo incierto ni lo
+  informa como no enviado: la invitación queda «Sin confirmar», que hace esperar el minuto. La salida durable vuelve a Pending
+  en su lugar con `NextAttemptAtUtc` hasta dos veces (`DispatchRetries`), y el reintento manual de un aviso empieza de cero.
 
 #### H8. Cada despliegue corta los envíos en curso
 
@@ -381,6 +389,14 @@ fuente: cambiarla lo decidís vos.
   - métricas de pendientes, inciertos y fallidos con su `AddMeter`, como la IA.
 
   Chico a mediano.
+- **Arreglado el 2026-11-13** en 0097643b y, en el front, 9cb1f971: una salida del chat o del asistente que
+  no salió guarda un código por tipo de rechazo (`WhatsAppSendErrors`), también la ventana que se cerró mientras esperaba,
+  y un mensaje que Meta avisó como fallido después lo deduce de su `errorCode`; el hilo lo devuelve como `failureCode` y el
+  chat muestra el motivo debajo de «No se pudo enviar». El log lleva el id, el motivo y el código de Meta (el token, como
+  error), o la excepción. Todos los clientes de Meta avisan a `/health`, con el permiso que falta por familia. Contadores de
+  resultados y gauges de lo que espera (pendientes, inciertos y el más viejo), con su `AddMeter`. `/health` mira el status,
+  no el código de Meta del cuerpo, y la cohorte `whatsapp-forms-http` se reexporta para que los ejemplos fallidos lleven
+  `failureCode`.
 
 #### H10. Una sola persona agota el cupo diario de códigos
 
@@ -417,6 +433,10 @@ fuente: cambiarla lo decidís vos.
   guardada, así que reprocesarla sería posible.
 - **Arreglo:** alargar la ventana a horas, que es compatible con «al menos», o permitir reintentar a mano
   los rechazos por no disponible; separar 401 y 403 en el cliente de medios. Chico.
+- **Arreglado el 2026-11-13** en 4f2df684: la respuesta de Flow, el audio, la planilla y el documento se rinden con cinco
+  fallas y un día (`WhatsAppAcquisitionRetry`), con una espera que crece hasta una hora; con cinco y 15 minutos el archivo
+  deja de frenar el texto que empareja, y el procesador vuelve rápido sólo por un reintento que toca en 30 s. El cliente de
+  medios separa en el log un 401 de un 403.
 
 #### H12. La espera de 6 s entre mensajes a una persona frena a todos
 
@@ -734,6 +754,9 @@ fuente: cambiarla lo decidís vos.
 - **Arreglo:** sacar la consulta del pedido y de la propuesta, que no está documentada, y dejar sólo la
   del worker, que sí lo está (`docs/features/formularios.md:147`). Chico.
 - **Decidido el 2026-11-13:** entra con los arreglos de «Hoy» ([decisiones](#decisiones-del-2026-11-13)).
+- **Arreglado el 2026-11-13** en 2232dfe7: el pedido y la propuesta comparan el manifiesto con la cuenta configurada
+  (`ConfiguredAccount`) sin llamar a Meta; sólo el worker la verifica. Con la consulta caída, un pedido de ubicación previo sale
+  igual y una oferta del asistente ya anunciada no tiene plan B si su Flow cae: está anotado en la regla.
 
 #### H34. Los índices se crean bloqueando la tabla
 
