@@ -325,7 +325,18 @@ derivar, el `NotFound` de `Submit` en una continuación y el botón viejo despu�
 H13 mostró que el predicado de respuestas pendientes llevaba `AsNoTracking` y la retención no guardaba lo vaciado; la revisión
 de H19 llevó la auditoría del modo a un historial. Se corrió el build sin advertencias, Domain, Application y ArchitectureTests
 enteros y la integración de lo que cambió, clase por clase, y compila el arnés de calificación. Falta H16, que no entra en el
-cupo de esta semana: espera la decisión de hacerlo antes o después de H25.
+cupo de esta semana, y el usuario pidió arrancarlo igual, en partes en verde. Va en tres partes con el
+[ADR 0030](../decisions/0030-contenido-del-chat-cifrado.md), y el usuario ya confirmó vaciar el contenido existente en las tres:
+
+- **Parte 1, hecha en 1a538093:** el conversor (`WhatsAppChatContent`, protector fijado al arrancar), las sesiones de envío
+  (`FlowBody`, `LocationLatitude`, `LocationLongitude`) y el porqué de las referencias (`OutcomeJson`), con su migración
+  (`EncryptWhatsAppSendContent`) y su prueba.
+- **Parte 2, falta:** las salidas (`Body`, `QuickRepliesJson`, `AssistantReplyJson`, `ListButton`, `Footer`,
+  `SpreadsheetRowsJson`, `DocumentName`), con la vista previa del chat armada en memoria.
+- **Parte 3, falta:** los mensajes (las trece columnas del ADR), con las consultas que miran el cuerpo en SQL
+  (`WhatsAppChatReader`, `WhatsAppAssistantReader`, `WhatsAppAssistantHistoryReader`, `WhatsAppReceivedDocumentReader` y
+  `WhatsAppFormActionReader`), la prueba de las fuentes que pide el cuerpo y la planilla en el SQL, y los tests que escriben o leen
+  contenido por SQL (el relevamiento está en el ADR).
 
 ### Etapa 7: despliegues sin romper
 
@@ -342,6 +353,13 @@ cupo de esta semana: espera la decisión de hacerlo antes o después de H25.
     Además, la [guía de despliegue](../guides/despliegue.md) y la de [migraciones](../guides/migracion.md)
     piden escribir cada campo o valor nuevo un despliegue después del que ya sabe leerlo. Test: una fila
     con un tipo o un campo que la versión no conoce. Chico a mediano.
+
+**Hecha el 2026-11-14:** H25 en 42d8f47f, con N27 de la revisión del núcleo (una sola regla de versiones para la cola durable, el
+correo y WhatsApp), cada una con su revisión adversarial aplicada. Se corrió el build sin advertencias, Domain, Application y
+ArchitectureTests enteros y la integración de lo que cambió (chat, colas del correo y de acceso, entrantes, documentos, migraciones
+y envío de formularios), y compila el arnés de calificación. Quedan escritos en [WhatsApp](../features/whatsapp.md) la publicación
+con otro perfil de Flows, una respuesta cuyo envío escribió otra versión, un Flow que preparó otra versión y otros enums guardados
+como texto.
 
 **Cierre.** Cada regla que cambió queda en [WhatsApp](../features/whatsapp.md), la de H16 también en su
 ADR, y la revisión anota qué commit arregló cada hallazgo. Las decisiones van a las fuentes de las

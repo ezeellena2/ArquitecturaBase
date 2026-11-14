@@ -522,6 +522,8 @@ fuente: cambiarla lo decidís vos.
   - dejar escrito que el chat queda en claro, protegido por los 90 días de retención y el acceso a la base.
 - **Decidido el 2026-11-13:** se cifra todo el contenido, con un ADR
   ([decisiones](#decisiones-del-2026-11-13)).
+- **En curso el 2026-11-14:** el [ADR 0030](../decisions/0030-contenido-del-chat-cifrado.md) fija las columnas y el mecanismo, y
+  la parte 1 (sesiones de envío y porqué de las referencias) está en 1a538093. Faltan las salidas y los mensajes.
 
 #### H17. La paridad de textos no cubre los del asistente de WhatsApp
 
@@ -666,6 +668,12 @@ fuente: cambiarla lo decidís vos.
   sesión), con un tope, y escribir cada campo o valor nuevo un despliegue después del que ya sabe
   leerlo. Chico a mediano.
 - **Decidido el 2026-11-13:** entra con los arreglos de «Hoy» ([decisiones](#decisiones-del-2026-11-13)).
+- **Arreglado el 2026-11-14** en 42d8f47f, junto con N27 de la [revisión del núcleo](2026-11-14-arquitectura-nucleo.md): un
+  mensaje de un tipo que la versión no conoce se lee como `Other` y queda para la copia que lo conoce; una salida así espera a
+  otra copia hasta diez minutos, sin gastar sus reintentos; una respuesta cuya proyección escribió otra versión queda pendiente;
+  la cola durable reserva sólo los tipos que conoce y deja para otra copia lo que no descifra o no lee, y el correo y la cola de
+  acceso leen estricto. Todavía no: la publicación con otro perfil de Flows, una respuesta cuyo envío escribió otra versión, un
+  Flow que preparó otra versión y otros enums guardados como texto ([WhatsApp](../features/whatsapp.md)).
 
 #### H26. Los límites de pedidos y la salud son de cada copia
 
