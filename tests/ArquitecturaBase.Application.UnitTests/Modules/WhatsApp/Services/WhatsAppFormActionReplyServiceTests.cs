@@ -27,14 +27,16 @@ public sealed class WhatsAppFormActionReplyServiceTests
         var host = new Host();
         var tap = host.Tap(host.ReplyId("issue"));
 
-        Assert.True((await host.Service.ProcessAsync(host.ContactId, Ct)).IsSuccess);
+        Assert.Equal([tap.Id], await host.Service.ListPendingAsync(host.ContactId, Ct));
+        Assert.True((await host.Service.ProcessAsync(host.ContactId, tap.Id, Ct)).IsSuccess);
 
-        Assert.Equal([new Call(host.RunId, host.User.Id, "issue", false)], host.First.Calls);
+        Assert.Equal([new Call(host.RunId, host.User.Id, "issue", tap.Id, false)], host.First.Calls);
         Assert.Equal(host.First.Calls, host.Second.Calls);
         Assert.NotNull(tap.AssistantProcessedAtUtc);
         Assert.Empty(host.Actions.Outgoing);
         Assert.Equal(1, host.UnitOfWork.Transactions);
-        Assert.True((await host.Service.ProcessAsync(host.ContactId, Ct)).IsSuccess);
+        Assert.Empty(await host.Service.ListPendingAsync(host.ContactId, Ct));
+        Assert.True((await host.Service.ProcessAsync(host.ContactId, tap.Id, Ct)).IsSuccess);
         Assert.Single(host.First.Calls);
         Assert.Equal(1, host.UnitOfWork.Transactions);
     }
@@ -47,9 +49,9 @@ public sealed class WhatsAppFormActionReplyServiceTests
         var tap = host.Tap(host.ReplyId("skip"));
         host.Tap(host.ReplyId("issue"));
 
-        await host.Service.ProcessAsync(host.ContactId, Ct);
+        await host.RoundAsync();
 
-        // The later tap reaches the owner too, which ignores it: only the applied one is answered, in the transaction that marks the taps.
+        // The later tap reaches the owner too, which ignores it: only the applied one is answered, in the transaction that marks its tap.
         var answer = Assert.Single(host.Actions.Outgoing);
         Assert.Equal((WhatsAppMessageOrigin.FormAction, WhatsAppOutgoingMessageKind.Text, WhatsAppOutgoingMessageState.Pending, "No la emitimos. FAC-000012 quedó anulada."),
             (answer.Origin, answer.Kind, answer.State, answer.Body));
@@ -59,10 +61,11 @@ public sealed class WhatsAppFormActionReplyServiceTests
             (answer.RequestId, answer.RecipientUserId!.Value, answer.ContactId, answer.RecipientLinkRevision!.Value, answer.RecipientWaId));
         Assert.All(host.First.Calls, call => Assert.False(call.InTransaction));
         Assert.All(host.Messages.Messages, message => Assert.NotNull(message.AssistantProcessedAtUtc));
-        Assert.Equal(1, host.UnitOfWork.Transactions);
+        // H21: one unit of work per tap.
+        Assert.Equal(2, host.UnitOfWork.Transactions);
 
         host.Tap(host.ReplyId("skip"));
-        await host.Service.ProcessAsync(host.ContactId, Ct);
+        await host.RoundAsync();
 
         Assert.Single(host.Actions.Outgoing);
     }
@@ -75,7 +78,7 @@ public sealed class WhatsAppFormActionReplyServiceTests
         var tap = host.Tap(host.ReplyId("skip"));
         host.Clock.Advance(TimeSpan.FromHours(25));
 
-        Assert.True((await host.Service.ProcessAsync(host.ContactId, Ct)).IsSuccess);
+        Assert.True((await host.Service.ProcessAsync(host.ContactId, tap.Id, Ct)).IsSuccess);
 
         Assert.Equal([StructuredRecordActionReplyState.Applied], host.First.Answers);
         Assert.Empty(host.Actions.Outgoing);
@@ -89,7 +92,7 @@ public sealed class WhatsAppFormActionReplyServiceTests
         host.Tap(host.ReplyId("issue"));
         host.Tap(host.ReplyId("skip"));
 
-        await host.Service.ProcessAsync(host.ContactId, Ct);
+        await host.RoundAsync();
 
         Assert.Equal(["issue", "skip"], host.First.Calls.Select(call => call.ChoiceId));
         Assert.Equal([StructuredRecordActionReplyState.Applied, StructuredRecordActionReplyState.Ignored], host.First.Answers);
@@ -111,8 +114,8 @@ public sealed class WhatsAppFormActionReplyServiceTests
             host.Tap(host.ReplyId("issue"), contactId: other),
         ];
 
-        await host.Service.ProcessAsync(host.ContactId, Ct);
-        await host.Service.ProcessAsync(other, Ct);
+        await host.RoundAsync();
+        await host.RoundAsync(other);
 
         Assert.Empty(host.First.Calls);
         Assert.All(taps, tap => Assert.NotNull(tap.AssistantProcessedAtUtc));
@@ -125,33 +128,106 @@ public sealed class WhatsAppFormActionReplyServiceTests
         await host.Users.SetPhoneAsync(host.User.Id, PhoneNumber.Create("+" + WaId).Value, false, Ct);
         var tap = host.Tap(host.ReplyId("issue"));
 
-        await host.Service.ProcessAsync(host.ContactId, Ct);
+        await host.RoundAsync();
 
         Assert.Empty(host.First.Calls);
         Assert.NotNull(tap.AssistantProcessedAtUtc);
     }
 
     [Fact]
-    public async Task An_owner_failure_leaves_the_taps_unmarked_and_the_next_round_hands_them_over_again()
+    public async Task An_owner_failure_leaves_its_tap_unmarked_and_the_next_round_hands_it_over_again()
     {
         var host = new Host();
         var tap = host.Tap(host.ReplyId("issue"));
         host.First.FailNext = true;
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => host.Service.ProcessAsync(host.ContactId, Ct));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => host.Service.ProcessAsync(host.ContactId, tap.Id, Ct));
         Assert.Null(tap.AssistantProcessedAtUtc);
         Assert.Equal(0, host.UnitOfWork.Transactions);
 
-        await host.Service.ProcessAsync(host.ContactId, Ct);
+        await host.RoundAsync();
 
         Assert.Equal(2, host.First.Calls.Count);
         Assert.Single(host.Second.Calls);
         Assert.NotNull(tap.AssistantProcessedAtUtc);
     }
 
-    // Every round reads its taps' buttons once and marks its taps with one more read, however many taps it has.
+    // H21: each tap is handled on its own: one whose owner failed stays pending, and another one is answered and marked by itself.
     [Fact]
-    public async Task A_round_reads_the_buttons_of_all_its_taps_at_once_and_marks_them_with_one_read()
+    public async Task A_tap_whose_owner_failed_stays_pending_while_another_is_answered_on_its_own()
+    {
+        var host = new Host();
+        host.First.Text = "No la emitimos. FAC-000012 quedó anulada.";
+        var failing = host.Tap(host.ReplyId("issue", host.OtherOutgoing));
+        var answered = host.Tap(host.ReplyId("skip"));
+        host.First.FailNext = true;
+
+        var pending = await host.Service.ListPendingAsync(host.ContactId, Ct);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => host.Service.ProcessAsync(host.ContactId, pending[0], Ct));
+        Assert.True((await host.Service.ProcessAsync(host.ContactId, pending[1], Ct)).IsSuccess);
+
+        Assert.Equal([failing.Id, answered.Id], pending);
+        Assert.Null(failing.AssistantProcessedAtUtc);
+        Assert.NotNull(answered.AssistantProcessedAtUtc);
+        Assert.Equal(answered.Id, Assert.Single(host.Actions.Outgoing).RequestId);
+    }
+
+    // H21: a cut between the owner's decision and the confirmation: the next round hands the same tap over, the owner answers it the
+    // same, and the confirmation goes out once.
+    [Fact]
+    public async Task A_cut_between_the_owner_decision_and_the_confirmation_is_answered_in_the_next_round()
+    {
+        var host = new Host();
+        host.First.Text = "No la emitimos. FAC-000012 quedó anulada.";
+        var tap = host.Tap(host.ReplyId("skip"));
+        host.Actions.FailNextContact = true;
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => host.Service.ProcessAsync(host.ContactId, tap.Id, Ct));
+        Assert.Null(tap.AssistantProcessedAtUtc);
+        Assert.Empty(host.Actions.Outgoing);
+
+        await host.RoundAsync();
+
+        Assert.Equal([tap.Id, tap.Id], host.First.Calls.Select(call => call.TapId));
+        Assert.Equal([StructuredRecordActionReplyState.Applied, StructuredRecordActionReplyState.Applied], host.First.Answers);
+        Assert.Equal("No la emitimos. FAC-000012 quedó anulada.", Assert.Single(host.Actions.Outgoing).Body);
+        Assert.NotNull(tap.AssistantProcessedAtUtc);
+    }
+
+    // The port answers once per tap: with two owners that hand back a text, only the first one goes back.
+    [Fact]
+    public async Task Two_owners_with_a_text_answer_a_tap_once()
+    {
+        var host = new Host();
+        host.First.Text = "No la emitimos. FAC-000012 quedó anulada.";
+        host.Second.Text = "Otro texto.";
+        var tap = host.Tap(host.ReplyId("skip"));
+
+        Assert.True((await host.Service.ProcessAsync(host.ContactId, tap.Id, Ct)).IsSuccess);
+
+        Assert.Equal("No la emitimos. FAC-000012 quedó anulada.", Assert.Single(host.Actions.Outgoing).Body);
+        Assert.NotNull(tap.AssistantProcessedAtUtc);
+    }
+
+    // Two copies of the processor may hand over the same tap: the one that finds it marked under the contact's lock leaves it.
+    [Fact]
+    public async Task A_tap_another_copy_answered_meanwhile_is_not_answered_twice()
+    {
+        var host = new Host();
+        host.First.Text = "No la emitimos. FAC-000012 quedó anulada.";
+        var tap = host.Tap(host.ReplyId("skip"));
+        var answeredAt = host.Clock.GetUtcNow().UtcDateTime;
+        host.First.OnReply = () => tap.MarkAssistantProcessed(answeredAt);
+
+        Assert.True((await host.Service.ProcessAsync(host.ContactId, tap.Id, Ct)).IsSuccess);
+
+        Assert.Empty(host.Actions.Outgoing);
+        Assert.Equal(answeredAt, tap.AssistantProcessedAtUtc);
+    }
+
+    // Each tap is answered and marked in a unit of work of its own, whatever its button.
+    [Fact]
+    public async Task Each_tap_is_answered_and_marked_in_its_own_unit_of_work()
     {
         var host = new Host();
         WhatsAppMessage[] taps =
@@ -162,10 +238,10 @@ public sealed class WhatsAppFormActionReplyServiceTests
             host.Tap(WhatsAppFormActionChoice.ReplyPrefix + "not-an-id"),
         ];
 
-        Assert.True((await host.Service.ProcessAsync(host.ContactId, Ct)).IsSuccess);
+        await host.RoundAsync();
 
         Assert.Equal(["issue", "skip"], host.First.Calls.Select(call => call.ChoiceId));
-        Assert.Equal((1, 1), (host.Reader.TargetReads, host.Actions.TapReads));
+        Assert.Equal((4, 4), (host.UnitOfWork.Transactions, host.Actions.TapReads));
         Assert.All(taps, tap => Assert.NotNull(tap.AssistantProcessedAtUtc));
     }
 
@@ -175,12 +251,12 @@ public sealed class WhatsAppFormActionReplyServiceTests
         var host = new Host(withOwners: false);
         var tap = host.Tap(host.ReplyId("issue"));
 
-        Assert.True((await host.Service.ProcessAsync(host.ContactId, Ct)).IsSuccess);
+        Assert.True((await host.Service.ProcessAsync(host.ContactId, tap.Id, Ct)).IsSuccess);
 
         Assert.NotNull(tap.AssistantProcessedAtUtc);
     }
 
-    private sealed record Call(Guid RunId, Guid RecipientUserId, string ChoiceId, bool InTransaction);
+    private sealed record Call(Guid RunId, Guid RecipientUserId, string ChoiceId, Guid TapId, bool InTransaction);
 
     private sealed class Host
     {
@@ -197,6 +273,8 @@ public sealed class WhatsAppFormActionReplyServiceTests
         public Guid ContactId => Contact.Id;
         public Guid RunId { get; } = Guid.NewGuid();
         public WhatsAppOutgoingMessage Outgoing { get; }
+        /// <summary>A notice of another run to the same person, with the same choices.</summary>
+        public WhatsAppOutgoingMessage OtherOutgoing { get; }
         public WhatsAppFormActionReplyService Service { get; }
 
         public Host(bool withOwners = true)
@@ -209,13 +287,25 @@ public sealed class WhatsAppFormActionReplyServiceTests
             Reader = new Reader(Messages);
             Reader.Targets[Outgoing.Id] = new(Outgoing.Id, Outgoing.ContactId, Outgoing.RequestId, User.Id, Outgoing.RecipientLinkRevision,
                 Outgoing.RecipientWaId, Outgoing.QuickRepliesJson!);
+            OtherOutgoing = WhatsAppOutgoingMessage.CreateFormAction(User.Id, ContactId, Guid.NewGuid(), "¿La emito?", Now.UtcDateTime, null, 1, WaId,
+                [new("issue", "Emitir"), new("skip", "No emitir")]);
+            Reader.Targets[OtherOutgoing.Id] = new(OtherOutgoing.Id, OtherOutgoing.ContactId, OtherOutgoing.RequestId, User.Id, OtherOutgoing.RecipientLinkRevision,
+                OtherOutgoing.RecipientWaId, OtherOutgoing.QuickRepliesJson!);
             First = new Owner(UnitOfWork);
             Second = new Owner(UnitOfWork);
             var policy = new WhatsAppFormActionReplyPolicy(new WhatsAppFormActionPolicy(Users, new FakePhoneNumberParser(), new FakeWhatsAppAvailability(true, true), Clock));
             Service = new(Reader, Actions, UnitOfWork, policy, withOwners ? [First, Second] : [], Clock, NullLogger<WhatsAppFormActionReplyService>.Instance);
         }
 
-        public string ReplyId(string choiceId) => WhatsAppFormActionChoice.ReplyId(Outgoing.Id, choiceId);
+        public string ReplyId(string choiceId, WhatsAppOutgoingMessage? outgoing = null) =>
+            WhatsAppFormActionChoice.ReplyId((outgoing ?? Outgoing).Id, choiceId);
+
+        // As the processor does a round: each pending tap on its own, oldest first.
+        public async Task RoundAsync(Guid? contactId = null)
+        {
+            foreach (var tap in await Service.ListPendingAsync(contactId ?? ContactId, Ct))
+                await Service.ProcessAsync(contactId ?? ContactId, tap, Ct);
+        }
 
         public WhatsAppMessage Tap(string replyId, Guid? contactId = null, Guid? userId = null, long linkRevision = 1)
         {
@@ -231,18 +321,28 @@ public sealed class WhatsAppFormActionReplyServiceTests
 
     private sealed class Owner(FakeUnitOfWork unitOfWork) : IStructuredRecordActionReplySink
     {
-        private readonly HashSet<(Guid, Guid)> decided = [];
+        // H21: like a real owner, it keeps the tap that decided each run and person and answers that same tap the same.
+        private readonly Dictionary<(Guid, Guid), (Guid Tap, StructuredRecordActionReply Answer)> decided = [];
         public List<Call> Calls { get; } = [];
         public List<StructuredRecordActionReplyState> Answers { get; } = [];
         public bool FailNext { get; set; }
         public string? Text { get; set; }
+        /// <summary>What happens elsewhere while the owner decides (another copy that answers the same tap).</summary>
+        public Action? OnReply { get; set; }
 
-        public Task<StructuredRecordActionReply> ReplyAsync(Guid runId, Guid recipientUserId, string choiceId, CancellationToken cancellationToken)
+        public Task<StructuredRecordActionReply> ReplyAsync(Guid runId, Guid recipientUserId, string choiceId, Guid tapId, CancellationToken cancellationToken)
         {
-            Calls.Add(new(runId, recipientUserId, choiceId, unitOfWork.InTransaction));
+            Calls.Add(new(runId, recipientUserId, choiceId, tapId, unitOfWork.InTransaction));
+            OnReply?.Invoke();
             if (FailNext) { FailNext = false; throw new InvalidOperationException("The owner is unavailable."); }
-            var answer = decided.Add((runId, recipientUserId))
-                ? new StructuredRecordActionReply(StructuredRecordActionReplyState.Applied, Text) : new StructuredRecordActionReply(StructuredRecordActionReplyState.Ignored);
+            StructuredRecordActionReply answer;
+            if (decided.TryGetValue((runId, recipientUserId), out var kept))
+                answer = kept.Tap == tapId ? kept.Answer : new StructuredRecordActionReply(StructuredRecordActionReplyState.Ignored);
+            else
+            {
+                answer = new StructuredRecordActionReply(StructuredRecordActionReplyState.Applied, Text);
+                decided[(runId, recipientUserId)] = (tapId, answer);
+            }
             Answers.Add(answer.State);
             return Task.FromResult(answer);
         }
@@ -278,14 +378,19 @@ public sealed class WhatsAppFormActionReplyServiceTests
         public WhatsAppContact? Contact { get; set; }
         public List<WhatsAppOutgoingMessage> Outgoing { get; } = [];
         public int TapReads { get; private set; }
+        /// <summary>A cut inside the boundary that queues the confirmation: the next read of the contact throws once.</summary>
+        public bool FailNextContact { get; set; }
         public Task<IReadOnlyList<WhatsAppMessage>> ListTapsAsync(Guid contactId, IReadOnlyCollection<Guid> tapIds, CancellationToken ct)
         {
             TapReads++;
             return Task.FromResult<IReadOnlyList<WhatsAppMessage>>([.. messages.Messages.Where(message => tapIds.Contains(message.Id)
                 && message.ContactId == contactId && message.Direction == WhatsAppMessageDirection.Inbound)]);
         }
-        public Task<WhatsAppContact?> GetContactForUpdateAsync(Guid recipientUserId, CancellationToken ct) =>
-            Task.FromResult(Contact?.UserId == recipientUserId ? Contact : null);
+        public Task<WhatsAppContact?> GetContactForUpdateAsync(Guid recipientUserId, CancellationToken ct)
+        {
+            if (FailNextContact) { FailNextContact = false; throw new InvalidOperationException("The connection went away."); }
+            return Task.FromResult(Contact?.UserId == recipientUserId ? Contact : null);
+        }
         public void Add(WhatsAppOutgoingMessage outgoing) => Outgoing.Add(outgoing);
         public Task LockAsync(Guid runId, Guid recipientUserId, CancellationToken ct) => throw new NotSupportedException();
         public Task<WhatsAppOutgoingMessage?> GetByRunAsync(Guid runId, Guid recipientUserId, CancellationToken ct) => throw new NotSupportedException();

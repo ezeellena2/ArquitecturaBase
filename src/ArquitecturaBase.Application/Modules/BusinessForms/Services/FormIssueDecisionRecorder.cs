@@ -12,14 +12,15 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 /// forbidden for whoever reads responses and missing for whoever only reads their own. Only a response that still stands, while
 /// its run waits for that person; a repeated or stale decision changes nothing. Going on is what the person saw: «Emitir» on a
 /// summary that came out, «Volver a probar» on one that failed (decision 4); either releases the run, which issues or asks for
-/// the summary again. «No emitir» voids the response with the code of «No se emitió». It does not save on its own.
+/// the summary again. «No emitir» voids the response with the code of «No se emitió». A decision from a button keeps its tap, and
+/// that same tap handed again gets the same answer without deciding again (H21). It does not save on its own.
 /// </summary>
 internal sealed class FormIssueDecisionRecorder(FormRecordAmendmentGuard access, IFormActionRunRepository runs, IFormDraftRepository drafts,
     FormRecordVoidRecorder voids, TimeProvider timeProvider)
 {
     /// <summary>After «No emitir», the prefix and number of the voided response; nothing after «Emitir» or «Volver a probar».</summary>
     public async Task<Result<(string Prefix, long Number)?>> DecideAsync(Guid? recordId, Guid runId, Guid actor, bool issue, bool retry,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, Guid? tapId = null)
     {
         await drafts.LockDefinitionsAsync(cancellationToken);
         if (await access.FindAsync(actor, cancellationToken) is not { } current) return FormDefinitionErrors.Forbidden;
@@ -27,6 +28,7 @@ internal sealed class FormIssueDecisionRecorder(FormRecordAmendmentGuard access,
         if (run is null || recordId is { } id && run.RecordId != id || run.Kind != "IssueDocument") return FormActionErrors.NotFound;
         var record = await runs.GetRecordAsync(run.RecordId, cancellationToken) ?? throw new InvalidOperationException("The action response is missing.");
         if (record.ActorUserId != actor) return current.CanRead ? FormDefinitionErrors.Forbidden : FormRecordErrors.NotFound;
+        if (tapId is { } tap && run.DecisionTapId == tap) return issue ? Result.Success<(string Prefix, long Number)?>(null) : await VoidedAsync(record, cancellationToken);
         if (!record.CanBeAmended || run.State != FormActionRunState.Uncertain || run.FailureCode != FormActionErrors.AwaitingConfirmation.Code)
             return FormActionErrors.StateConflict;
         var now = timeProvider.GetUtcNow().UtcDateTime;
@@ -35,11 +37,21 @@ internal sealed class FormIssueDecisionRecorder(FormRecordAmendmentGuard access,
             var failed = run.OutcomeJson is not null && FormDraftPolicy.Read<FormActionOutcomeResponse>(run.OutcomeJson).IssuePreview?.FailureCode is not null;
             if (failed != retry) return FormActionErrors.StateConflict;
             var requested = run.RequestIssueReview(run.Fence, true, actor, now);
-            return requested.IsFailure ? requested.Error : Result.Success<(string Prefix, long Number)?>(null);
+            if (requested.IsFailure) return requested.Error;
+            if (tapId is { } issuedBy) run.RecordDecisionTap(issuedBy);
+            return Result.Success<(string Prefix, long Number)?>(null);
         }
         // The run that waited is released with the void and ends «No aplica»: nothing goes to the issuer.
         var voided = await voids.VoidAsync(record, actor, null, FormActionErrors.NotIssued.Code, now, cancellationToken);
         if (voided.IsFailure) return voided.Error;
+        if (tapId is { } voidedBy) run.RecordDecisionTap(voidedBy);
+        return await VoidedAsync(record, cancellationToken);
+    }
+
+    // What «No emitir» answers: the response voided, named as the app names it.
+    private async Task<Result<(string Prefix, long Number)?>> VoidedAsync(BusinessFormRecord record, CancellationToken cancellationToken)
+    {
+        if (record.State != FormRecordState.Voided) return FormActionErrors.StateConflict;
         var definition = await drafts.GetAsync(record.DefinitionId, cancellationToken) ?? throw new InvalidOperationException("The response form is missing.");
         return Result.Success<(string Prefix, long Number)?>((definition.Prefix, record.Number));
     }

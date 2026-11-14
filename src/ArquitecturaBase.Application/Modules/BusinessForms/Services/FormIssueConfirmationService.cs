@@ -33,13 +33,13 @@ internal sealed class FormIssueConfirmationService(FormRecordAmendmentGuard acce
             return decided.IsFailure ? decided.Error : await workflow.ReadAsync(recordId, cancellationToken);
         });
 
-    public async Task<StructuredRecordActionReply> ReplyAsync(Guid runId, Guid recipientUserId, string choiceId, CancellationToken cancellationToken)
+    public async Task<StructuredRecordActionReply> ReplyAsync(Guid runId, Guid recipientUserId, string choiceId, Guid tapId, CancellationToken cancellationToken)
     {
         if (!FormIssueConfirmationPolicy.TryReadChoice(runId, choiceId, out var run, out var choice)) return Ignored;
         var replied = await OperationLog.RunAsync<Result<string?>>(logger, "ReplyFormIssue", async () =>
         {
             var decided = await unitOfWork.ExecuteInTransactionAsync(ct => decisions.DecideAsync(null, run, recipientUserId,
-                choice != FormIssueConfirmationPolicy.Skip, choice == FormIssueConfirmationPolicy.Retry, ct), CommitPolicy.OnSuccess, cancellationToken);
+                choice != FormIssueConfirmationPolicy.Skip, choice == FormIssueConfirmationPolicy.Retry, ct, tapId), CommitPolicy.OnSuccess, cancellationToken);
             if (decided.IsFailure) return decided.Error;
             if (decided.Value is not { } voided) return Result.Success<string?>(null);
             var culture = (await recipients.FindAsync(recipientUserId, cancellationToken))?.Culture is "en" ? "en" : "es";

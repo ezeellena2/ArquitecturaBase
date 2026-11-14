@@ -29,6 +29,8 @@ public sealed class BusinessFormActionRun : Entity, IAuditable
     public long? DeliveryReviewExpectedRevision { get; private set; }
     public Guid? DeliveryReviewedByUserId { get; private set; }
     public DateTime? DeliveryReviewedAtUtc { get; private set; }
+    /// <summary>H21: the channel's tap of its latest decision from a button, so that same tap handed again is answered the same.</summary>
+    public Guid? DecisionTapId { get; private set; }
     public long Fence { get; private set; }
     public DateTime? LeaseExpiresAtUtc { get; private set; }
     public DateTime? NextCheckAtUtc { get; private set; }
@@ -104,6 +106,12 @@ public sealed class BusinessFormActionRun : Entity, IAuditable
         DeliveryReviewRequested=true;DeliveryReviewRecipientUserId=null;DeliveryReviewExpectedRevision=expectedRevision;DeliveryReviewWasSent=proceed;DeliveryReviewedByUserId=reviewedByUserId;DeliveryReviewedAtUtc=nowUtc;
         State=FormActionRunState.Running;LeaseExpiresAtUtc=null;RetryRequested=false;RetryRecipientUserId=null;NextCheckAtUtc=null;UpdatedAtUtc=nowUtc;
         return Result.Success();
+    }
+    public bool RecordDecisionTap(Guid tapId)
+    {
+        if(tapId==Guid.Empty) return false;
+        DecisionTapId=tapId;
+        return true;
     }
     public Result RequestConsult(DateTime nowUtc)
     {

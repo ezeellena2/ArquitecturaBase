@@ -1188,7 +1188,9 @@ ARCA» ([ADR 0028](../decisions/0028-emision-de-comprobantes-arca.md)); sin emis
   receptor, el total, `info`, `date` y `amounts`) sólo para quien la cargó, y `POST api/forms/records/{id}/actions/{runId}/confirmation` con
   `{"issue": true}` la emite o con `false` anula la respuesta con el motivo «No se emitió» (guardado como el código
   `Forms.Action.NotIssued`, que el detalle lee en el idioma de quien lo pide), sin ir al emisor. El botón del canal llega por
-  `IStructuredRecordActionReplySink` y decide lo mismo; un botón viejo o ajeno se ignora. Decide sólo quien la cargó, con los
+  `IStructuredRecordActionReplySink`, con el id del toque, y decide lo mismo; el run guarda ese toque con la decisión
+  (`DecisionTapId`) y al mismo toque entregado otra vez le contesta lo mismo sin decidir de nuevo (H21); un botón viejo o ajeno,
+  u otro toque, se ignora. Decide sólo quien la cargó, con los
   permisos que tiene ahora, revalidados bajo el lock también desde el botón (los de `FormRecordAmendmentGuard`: «Completar
   formularios», o «Corregir y anular respuestas» con «Ver respuestas», y una cuenta activa): sin ellos el botón se ignora y la
   ruta da 403, y la respuesta de otra persona da 404 a quien sólo ve lo suyo y 403 a quien ve respuestas. Una respuesta que ya

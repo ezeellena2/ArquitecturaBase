@@ -381,8 +381,12 @@ public sealed partial class FormDraftEndpointsTests
             return prefix + "-" + record.Number.ToString("D6", CultureInfo.InvariantCulture);
         });
         var authorId = Guid.Parse(author.DefaultRequestHeaders.GetValues(TestAuthHandler.UserIdHeader).Single());
+        var tap = Guid.NewGuid();
         Assert.Equal(new StructuredRecordActionReply(StructuredRecordActionReplyState.Applied, $"No la emitimos. {name} quedó anulada."),
-            await ReplyAsync(host, repliedRun, authorId, "skip"));
+            await ReplyAsync(host, repliedRun, authorId, "skip", tap));
+        // H21: the same tap handed again gets the same answer, kept with the decision; another tap is ignored.
+        Assert.Equal(new StructuredRecordActionReply(StructuredRecordActionReplyState.Applied, $"No la emitimos. {name} quedó anulada."),
+            await ReplyAsync(host, repliedRun, authorId, "skip", tap));
         Assert.Equal(new StructuredRecordActionReply(StructuredRecordActionReplyState.Ignored), await ReplyAsync(host, repliedRun, authorId, "skip"));
         await worker.ProcessNextAsync(repliedRun, Ct);
         Assert.Equal((FormRecordState.Voided, FormActionRunState.NotApplicable), (await RecordStateAsync(repliedId), (await RunAsync(repliedRun)).State));
@@ -449,10 +453,12 @@ public sealed partial class FormDraftEndpointsTests
     }
 
     // A button of a channel reaches the owner in its own scope, as the channel hands it over.
-    private static async Task<StructuredRecordActionReply> ReplyAsync(WebApplicationFactory<Program> host, Guid runId, Guid recipientUserId, string choiceId)
+    private static async Task<StructuredRecordActionReply> ReplyAsync(WebApplicationFactory<Program> host, Guid runId, Guid recipientUserId, string choiceId,
+        Guid? tapId = null)
     {
         await using var scope = host.Services.CreateAsyncScope();
-        return await scope.ServiceProvider.GetServices<IStructuredRecordActionReplySink>().Single().ReplyAsync(runId, recipientUserId, choiceId, Ct);
+        return await scope.ServiceProvider.GetServices<IStructuredRecordActionReplySink>().Single()
+            .ReplyAsync(runId, recipientUserId, choiceId, tapId ?? Guid.NewGuid(), Ct);
     }
 
     [Fact]

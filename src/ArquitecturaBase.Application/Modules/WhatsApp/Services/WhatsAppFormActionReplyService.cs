@@ -4,7 +4,6 @@ using ArquitecturaBase.Application.Interfaces.Persistence;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
-using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Logging;
@@ -13,8 +12,9 @@ namespace ArquitecturaBase.Application.Modules.WhatsApp.Services;
 
 // EM2-A: a tap on a form action button goes to its owners, which decide in their own transaction; WhatsApp marks the tap as
 // handled, with the same marker as any other handled tap. The text an owner hands back with an applied tap («No la emitimos.
-// FAC-000012 quedó anulada.») is queued to the chat in the transaction that marks it: a tap handed over again finds the owner
-// ignoring it, so it is never answered twice. A round reads the buttons of all its taps at once and marks them with one more read.
+// FAC-000012 quedó anulada.») is queued to the chat in the transaction that marks it, by the tap (its request), so it goes out
+// once. H21: each tap is its own call, its answer queued as soon as its owners return; the owner gets the tap's id and answers that
+// same tap the same, so one handed over again after a cut is still answered.
 internal sealed partial class WhatsAppFormActionReplyService(IWhatsAppFormActionReader reader,
     IWhatsAppFormActionRepository actions, IUnitOfWork unitOfWork, WhatsAppFormActionReplyPolicy policy,
     IEnumerable<IStructuredRecordActionReplySink> owners, TimeProvider clock, ILogger<WhatsAppFormActionReplyService> logger)
@@ -22,54 +22,54 @@ internal sealed partial class WhatsAppFormActionReplyService(IWhatsAppFormAction
 {
     private const int MaxTaps = 20;
 
-    public Task<Result> ProcessAsync(Guid contactId, CancellationToken cancellationToken) =>
-        OperationLog.RunAsync<Result>(logger, "ProcessWhatsAppActionReplies", async () =>
-        {
-            var taps = await reader.ListPendingRepliesAsync(contactId, clock.GetUtcNow().UtcDateTime, MaxTaps, cancellationToken);
-            if (taps.Count == 0) return Result.Success();
-            var buttons = taps.Select(tap => WhatsAppFormActionChoice.TryParseReplyId(tap.ReplyId, out var outgoingId, out _) ? outgoingId : (Guid?)null)
-                .OfType<Guid>().Distinct().ToArray();
-            var targets = buttons.Length == 0 ? new Dictionary<Guid, WhatsAppFormActionReplyTargetRow>()
-                : (await reader.ListReplyTargetsAsync(buttons, cancellationToken)).ToDictionary(target => target.OutgoingId);
-            var answers = new List<(WhatsAppFormActionTapRow Tap, WhatsAppFormActionReply Reply, string Text)>();
-            // Oldest first: of two taps on the same message the first decides, and the owner ignores the repeat.
-            foreach (var tap in taps)
-            {
-                var target = WhatsAppFormActionChoice.TryParseReplyId(tap.ReplyId, out var outgoingId, out _)
-                    ? targets.GetValueOrDefault(outgoingId) : null;
-                if (await policy.ResolveAsync(tap, target, cancellationToken) is not { } reply)
-                {
-                    LogIgnored(logger);
-                    continue;
-                }
+    // Oldest first: of two taps on the same message the first decides, and the owner ignores the other.
+    public async Task<IReadOnlyList<Guid>> ListPendingAsync(Guid contactId, CancellationToken cancellationToken) =>
+        [.. (await reader.ListPendingRepliesAsync(contactId, clock.GetUtcNow().UtcDateTime, MaxTaps, cancellationToken)).Select(tap => tap.Id)];
 
+    public Task<Result> ProcessAsync(Guid contactId, Guid tapId, CancellationToken cancellationToken) =>
+        OperationLog.RunAsync<Result>(logger, "ProcessWhatsAppActionReply", async () =>
+        {
+            // Another round, or another copy, may have handled it since it was listed.
+            var tap = (await reader.ListPendingRepliesAsync(contactId, clock.GetUtcNow().UtcDateTime, MaxTaps, cancellationToken))
+                .SingleOrDefault(item => item.Id == tapId);
+            if (tap is null) return Result.Success();
+            var target = WhatsAppFormActionChoice.TryParseReplyId(tap.ReplyId, out var outgoingId, out _)
+                ? (await reader.ListReplyTargetsAsync([outgoingId], cancellationToken)).SingleOrDefault() : null;
+            var reply = await policy.ResolveAsync(tap, target, cancellationToken);
+            // The port answers once per tap: the first text of an owner that applied it.
+            string? text = null;
+            if (reply is null) LogIgnored(logger);
+            else
+            {
                 var applied = 0;
                 foreach (var owner in owners)
                 {
-                    var answer = await owner.ReplyAsync(reply.RunId, reply.RecipientUserId, reply.ChoiceId, cancellationToken);
+                    var answer = await owner.ReplyAsync(reply.RunId, reply.RecipientUserId, reply.ChoiceId, tap.Id, cancellationToken);
                     if (answer.State != StructuredRecordActionReplyState.Applied) continue;
                     applied++;
-                    if (answer.Message is { } text) answers.Add((tap, reply, text));
+                    text ??= answer.Message;
                 }
 
                 LogHandedOver(logger, applied);
             }
 
-            // An owner that throws leaves every tap unmarked: the next round hands them over again and the owner ignores repeats.
+            // An owner that throws, or a cut before this commit, leaves the tap unmarked: the next round hands it over again and the
+            // owner answers that same tap the same.
             return await unitOfWork.ExecuteInTransactionAsync(async ct =>
             {
                 var nowUtc = clock.GetUtcNow().UtcDateTime;
                 // The contact goes first, as in every send; the answer leaves by the normal outgoing with the checks of any notice.
-                foreach (var (tap, reply, text) in answers)
+                var contact = reply is not null && text is not null ? await actions.GetContactForUpdateAsync(reply.RecipientUserId, ct) : null;
+                var taps = await actions.ListTapsAsync(contactId, [tap.Id], ct);
+                // Another copy handed over the same tap and answered it while this one waited for the contact.
+                if (taps.Any(message => message.AssistantProcessedAtUtc is not null)) return Result.Success();
+                if (reply is not null && text is not null)
                 {
-                    var contact = await actions.GetContactForUpdateAsync(reply.RecipientUserId, ct);
                     if (await policy.AnswerAsync(contact, tap, reply, text, nowUtc, ct) is { } outgoing) actions.Add(outgoing);
                     else LogNotAnswered(logger);
                 }
 
-                foreach (var message in await actions.ListTapsAsync(contactId, [.. taps.Select(tap => tap.Id)], ct))
-                    message.MarkAssistantProcessed(nowUtc);
-
+                foreach (var message in taps) message.MarkAssistantProcessed(nowUtc);
                 return Result.Success();
             }, CommitPolicy.OnSuccess, cancellationToken);
         });

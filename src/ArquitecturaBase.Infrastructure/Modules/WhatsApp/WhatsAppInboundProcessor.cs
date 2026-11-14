@@ -167,16 +167,34 @@ internal sealed partial class WhatsAppInboundProcessor(
 
     // EM2-A: a tap on a form action button goes to its owner, never to the assistant. Its own failure is logged and retried in the
     // next round without holding back the rest of the contact's pipeline.
+    // H21: each tap in its own scope, so its answer is queued as soon as its owners return. One that fails stops the round there and
+    // the next round goes on from it: of two taps on the same notice the first decides, also when its owner failed for a moment.
     private async Task ProcessActionRepliesAsync(Guid contactId, CancellationToken cancellationToken)
     {
+        IReadOnlyList<Guid> taps;
         try
         {
             await using var scope = scopeFactory.CreateAsyncScope();
-            await scope.ServiceProvider.GetRequiredService<IWhatsAppFormActionReplyService>().ProcessAsync(contactId, cancellationToken);
+            taps = await scope.ServiceProvider.GetRequiredService<IWhatsAppFormActionReplyService>().ListPendingAsync(contactId, cancellationToken);
         }
         catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
         {
             LogActionRepliesFailed(logger, contactId, exception);
+            return;
+        }
+
+        foreach (var tap in taps)
+        {
+            try
+            {
+                await using var scope = scopeFactory.CreateAsyncScope();
+                await scope.ServiceProvider.GetRequiredService<IWhatsAppFormActionReplyService>().ProcessAsync(contactId, tap, cancellationToken);
+            }
+            catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
+            {
+                LogActionRepliesFailed(logger, contactId, exception);
+                return;
+            }
         }
     }
 

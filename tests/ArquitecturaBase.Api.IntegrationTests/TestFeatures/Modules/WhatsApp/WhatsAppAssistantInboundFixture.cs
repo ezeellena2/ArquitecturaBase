@@ -150,7 +150,8 @@ internal sealed class WhatsAppAssistantInboundFixture : IAsyncDisposable
 
     private sealed class ActionReplies : IWhatsAppFormActionReader, IWhatsAppFormActionReplyService
     {
-        public Task<Result> ProcessAsync(Guid contactId,CancellationToken cancellationToken)=>Task.FromResult(Result.Success());
+        public Task<IReadOnlyList<Guid>> ListPendingAsync(Guid contactId,CancellationToken cancellationToken)=>Task.FromResult<IReadOnlyList<Guid>>([]);
+        public Task<Result> ProcessAsync(Guid contactId,Guid tapId,CancellationToken cancellationToken)=>Task.FromResult(Result.Success());
         public Task<IReadOnlyList<Guid>> ListContactsWithPendingRepliesAsync(IReadOnlyCollection<Guid> excluded,int limit,DateTime nowUtc,CancellationToken cancellationToken)=>
             Task.FromResult<IReadOnlyList<Guid>>([]);
         public Task<IReadOnlyList<WhatsAppFormActionTapRow>> ListPendingRepliesAsync(Guid contactId,DateTime nowUtc,int limit,CancellationToken cancellationToken)=>throw new NotSupportedException();

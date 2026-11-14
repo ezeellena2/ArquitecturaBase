@@ -268,6 +268,21 @@ public sealed class BusinessFormActionRunTests
         Assert.Equal(live,BusinessFormActionRun.LiveIssuance.Compile()(run));
         Assert.Equal(live,run.IsLiveIssuance);
     }
+    // H21: the run keeps the channel's tap of its latest decision, so that tap handed again is answered the same.
+    [Fact]
+    public void A_decision_keeps_its_tap_and_a_later_decision_keeps_its_own()
+    {
+        var run = Create("IssueDocument");
+        var first = Guid.NewGuid();
+        var later = Guid.NewGuid();
+
+        Assert.True(run.RecordDecisionTap(first));
+        Assert.Equal(first, run.DecisionTapId);
+        Assert.True(run.RecordDecisionTap(later));
+        Assert.Equal(later, run.DecisionTapId);
+        Assert.False(run.RecordDecisionTap(Guid.Empty));
+        Assert.Equal(later, run.DecisionTapId);
+    }
     private static BusinessFormActionRun Completed(BusinessFormActionRun run)
     {
         var lease=run.Reserve(Now,TimeSpan.FromMinutes(2)).Value;

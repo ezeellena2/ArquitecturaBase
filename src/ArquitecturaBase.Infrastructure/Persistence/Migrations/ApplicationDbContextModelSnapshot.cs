@@ -1380,6 +1380,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("CreatedBy")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("DecisionTapId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("DefinitionId")
                         .HasColumnType("uuid");
 

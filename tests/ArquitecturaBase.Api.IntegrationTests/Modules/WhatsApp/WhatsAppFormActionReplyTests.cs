@@ -105,6 +105,36 @@ public sealed class WhatsAppFormActionReplyTests(ApiFactory factory)
         await AssertHandledAsync(scenario, expected: 2);
     }
 
+    // H21: the taps of a round go one by one, oldest first, each answered as soon as its owner returns. One that fails stops the
+    // round, so a later tap on the same notice («Emitir») never decides before the first («No emitir»); the next round goes on.
+    [Fact]
+    public async Task A_tap_that_fails_stops_the_round_so_a_later_tap_never_decides_first()
+    {
+        await using var scenario = await WhatsAppFormActionScenario.CreateAsync(factory, Ct);
+        scenario.Replies.Texts["skip"] = "No la emitimos. FAC-000012 quedó anulada.";
+        var recipient = await scenario.RecipientAsync(Now, Ct);
+        var run = Guid.NewGuid();
+        var buttons = await SendAsync(scenario, run, recipient.UserId);
+        var contact = await ContactAsync(scenario, recipient.ContactId);
+        using var client = scenario.Host.CreateClient();
+        var worker = scenario.Services.GetRequiredService<WhatsAppOutgoingBackgroundService>();
+        await PostTapAsync(client, contact, buttons[1].Id, "No emitir");
+        await PostTapAsync(client, contact, buttons[0].Id, "Emitir");
+        scenario.Replies.FailNext = true;
+
+        await ProcessAsync(scenario);
+
+        Assert.Equal(new[] { (run, recipient.UserId, "skip") }, scenario.Replies.Calls);
+        Assert.False(await worker.ProcessNextAsync(Ct));
+
+        await ProcessAsync(scenario);
+
+        Assert.Equal(new[] { (run, recipient.UserId, "skip"), (run, recipient.UserId, "skip"), (run, recipient.UserId, "issue") }, scenario.Replies.Calls);
+        Assert.True(await worker.ProcessNextAsync(Ct));
+        Assert.Equal("No la emitimos. FAC-000012 quedó anulada.", Assert.IsType<WhatsAppTextMessage>(scenario.Cloud.Messages[^1]).Body);
+        await AssertHandledAsync(scenario, expected: 2);
+    }
+
     [Fact]
     public async Task A_tap_from_another_chat_on_an_unknown_row_or_on_a_choice_not_offered_reaches_no_owner()
     {

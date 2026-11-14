@@ -24,7 +24,7 @@ public sealed class FormIssueConfirmationReplyTests
     {
         var host = new Host(culture);
 
-        var reply = await host.Sink.ReplyAsync(host.Run.Id, host.Record.ActorUserId, FormIssueConfirmationPolicy.Skip, CancellationToken.None);
+        var reply = await host.Sink.ReplyAsync(host.Run.Id, host.Record.ActorUserId, FormIssueConfirmationPolicy.Skip, Guid.NewGuid(), CancellationToken.None);
 
         Assert.Equal(new StructuredRecordActionReply(StructuredRecordActionReplyState.Applied, expected), reply);
         Assert.Equal(FormRecordState.Voided, host.Record.State);
@@ -37,22 +37,72 @@ public sealed class FormIssueConfirmationReplyTests
     {
         var host = new Host("es");
 
-        var reply = await host.Sink.ReplyAsync(host.Run.Id, host.Record.ActorUserId, FormIssueConfirmationPolicy.Issue, CancellationToken.None);
+        var reply = await host.Sink.ReplyAsync(host.Run.Id, host.Record.ActorUserId, FormIssueConfirmationPolicy.Issue, Guid.NewGuid(), CancellationToken.None);
 
         Assert.Equal(new StructuredRecordActionReply(StructuredRecordActionReplyState.Applied), reply);
         Assert.Equal((FormActionRunState.Running, true), (host.Run.State, host.Run.DeliveryReviewWasSent));
         Assert.Equal(FormRecordState.Received, host.Record.State);
     }
 
+    // H21: another tap after the decision (a second tap of the person) changes nothing and is not answered.
     [Fact]
-    public async Task A_repeated_decision_is_ignored_without_a_text()
+    public async Task Another_tap_after_a_decision_is_ignored_without_a_text()
     {
         var host = new Host("es");
-        await host.Sink.ReplyAsync(host.Run.Id, host.Record.ActorUserId, FormIssueConfirmationPolicy.Skip, CancellationToken.None);
+        await host.Sink.ReplyAsync(host.Run.Id, host.Record.ActorUserId, FormIssueConfirmationPolicy.Skip, Guid.NewGuid(), CancellationToken.None);
 
-        Assert.Equal(Ignored, await host.Sink.ReplyAsync(host.Run.Id, host.Record.ActorUserId, FormIssueConfirmationPolicy.Skip, CancellationToken.None));
-        Assert.Equal(Ignored, await host.Sink.ReplyAsync(host.Run.Id, host.Record.ActorUserId, FormIssueConfirmationPolicy.Issue, CancellationToken.None));
+        Assert.Equal(Ignored, await host.Sink.ReplyAsync(host.Run.Id, host.Record.ActorUserId, FormIssueConfirmationPolicy.Skip, Guid.NewGuid(), CancellationToken.None));
+        Assert.Equal(Ignored, await host.Sink.ReplyAsync(host.Run.Id, host.Record.ActorUserId, FormIssueConfirmationPolicy.Issue, Guid.NewGuid(), CancellationToken.None));
         Assert.Equal(1, host.Fixture.Rules.UnitOfWork.Commits);
+    }
+
+    // H21: the same tap handed again (the channel did not get to answer it) gets the same answer, without deciding again.
+    [Fact]
+    public async Task The_same_tap_handed_again_gets_the_same_answer_without_deciding_again()
+    {
+        var host = new Host("es");
+        var tap = Guid.NewGuid();
+
+        var first = await host.Sink.ReplyAsync(host.Run.Id, host.Record.ActorUserId, FormIssueConfirmationPolicy.Skip, tap, CancellationToken.None);
+        var again = await host.Sink.ReplyAsync(host.Run.Id, host.Record.ActorUserId, FormIssueConfirmationPolicy.Skip, tap, CancellationToken.None);
+
+        Assert.Equal(new StructuredRecordActionReply(StructuredRecordActionReplyState.Applied, "No la emitimos. VISIT-000001 quedó anulada."), first);
+        Assert.Equal(first, again);
+        Assert.Equal((FormRecordState.Voided, tap), (host.Record.State, host.Run.DecisionTapId));
+    }
+
+    [Fact]
+    public async Task The_same_tap_on_issuing_is_applied_again_without_asking_twice()
+    {
+        var host = new Host("es");
+        var tap = Guid.NewGuid();
+        await host.Sink.ReplyAsync(host.Run.Id, host.Record.ActorUserId, FormIssueConfirmationPolicy.Issue, tap, CancellationToken.None);
+        var reviewed = host.Run.DeliveryReviewedAtUtc;
+        host.Fixture.Clock.Advance(TimeSpan.FromMinutes(1));
+
+        Assert.Equal(new StructuredRecordActionReply(StructuredRecordActionReplyState.Applied),
+            await host.Sink.ReplyAsync(host.Run.Id, host.Record.ActorUserId, FormIssueConfirmationPolicy.Issue, tap, CancellationToken.None));
+        Assert.Equal((reviewed, tap), (host.Run.DeliveryReviewedAtUtc, host.Run.DecisionTapId));
+    }
+
+    // H21: the same «Volver a probar» tap handed again when the run already asks anew is answered the same, without asking again.
+    [Fact]
+    public async Task The_same_retry_tap_after_the_run_asks_again_does_not_ask_twice()
+    {
+        var preview = new StructuredIssuePreview(null, null, null, "Arca.Registry.PersonNotFound");
+        var host = new Host("es", preview);
+        var tap = Guid.NewGuid();
+        Assert.Equal(new StructuredRecordActionReply(StructuredRecordActionReplyState.Applied),
+            await host.Sink.ReplyAsync(host.Run.Id, host.Record.ActorUserId, FormIssueConfirmationPolicy.Retry, tap, CancellationToken.None));
+        // The run asked for the summary again, it failed again and waits for a new decision.
+        var now = host.Fixture.Clock.GetUtcNow().UtcDateTime;
+        Assert.True(host.Run.RecordOutcome(host.Run.Reserve(now, TimeSpan.FromMinutes(2)).Value.Fence, now, FormActionRunState.Uncertain,
+            FormActionErrors.AwaitingConfirmation.Code, false,
+            FormDraftPolicy.Serialize(new FormActionOutcomeResponse(FormActionRunState.Uncertain, FormActionErrors.AwaitingConfirmation.Code, IssuePreview: preview))).IsSuccess);
+
+        Assert.Equal(new StructuredRecordActionReply(StructuredRecordActionReplyState.Applied),
+            await host.Sink.ReplyAsync(host.Run.Id, host.Record.ActorUserId, FormIssueConfirmationPolicy.Retry, tap, CancellationToken.None));
+        Assert.Equal((FormActionRunState.Uncertain, FormActionErrors.AwaitingConfirmation.Code), (host.Run.State, host.Run.FailureCode));
     }
 
     [Fact]
@@ -60,9 +110,9 @@ public sealed class FormIssueConfirmationReplyTests
     {
         var host = new Host("es");
 
-        Assert.Equal(Ignored, await host.Sink.ReplyAsync(host.Run.Id, Guid.NewGuid(), FormIssueConfirmationPolicy.Skip, CancellationToken.None));
-        Assert.Equal(Ignored, await host.Sink.ReplyAsync(host.Run.Id, host.Record.ActorUserId, "other", CancellationToken.None));
-        Assert.Equal(Ignored, await host.Sink.ReplyAsync(Guid.NewGuid(), host.Record.ActorUserId, FormIssueConfirmationPolicy.Skip, CancellationToken.None));
+        Assert.Equal(Ignored, await host.Sink.ReplyAsync(host.Run.Id, Guid.NewGuid(), FormIssueConfirmationPolicy.Skip, Guid.NewGuid(), CancellationToken.None));
+        Assert.Equal(Ignored, await host.Sink.ReplyAsync(host.Run.Id, host.Record.ActorUserId, "other", Guid.NewGuid(), CancellationToken.None));
+        Assert.Equal(Ignored, await host.Sink.ReplyAsync(Guid.NewGuid(), host.Record.ActorUserId, FormIssueConfirmationPolicy.Skip, Guid.NewGuid(), CancellationToken.None));
 
         Assert.Equal(FormRecordState.Received, host.Record.State);
         Assert.Equal((FormActionRunState.Uncertain, FormActionErrors.AwaitingConfirmation.Code), (host.Run.State, host.Run.FailureCode));
@@ -76,13 +126,13 @@ public sealed class FormIssueConfirmationReplyTests
     {
         var host = new Host("es", new StructuredIssuePreview(null, null, null, "Arca.Registry.PersonNotFound"));
 
-        Assert.Equal(Ignored, await host.Sink.ReplyAsync(host.Run.Id, host.Record.ActorUserId, FormIssueConfirmationPolicy.Issue, CancellationToken.None));
-        var reply = await host.Sink.ReplyAsync(host.Run.Id, host.Record.ActorUserId, FormIssueConfirmationPolicy.Retry, CancellationToken.None);
+        Assert.Equal(Ignored, await host.Sink.ReplyAsync(host.Run.Id, host.Record.ActorUserId, FormIssueConfirmationPolicy.Issue, Guid.NewGuid(), CancellationToken.None));
+        var reply = await host.Sink.ReplyAsync(host.Run.Id, host.Record.ActorUserId, FormIssueConfirmationPolicy.Retry, Guid.NewGuid(), CancellationToken.None);
 
         Assert.Equal(new StructuredRecordActionReply(StructuredRecordActionReplyState.Applied), reply);
         Assert.Equal((FormActionRunState.Running, true), (host.Run.State, host.Run.DeliveryReviewWasSent));
         Assert.Equal(FormRecordState.Received, host.Record.State);
-        Assert.Equal(Ignored, await new Host("es").Sink.ReplyAsync(host.Run.Id, host.Record.ActorUserId, FormIssueConfirmationPolicy.Retry, CancellationToken.None));
+        Assert.Equal(Ignored, await new Host("es").Sink.ReplyAsync(host.Run.Id, host.Record.ActorUserId, FormIssueConfirmationPolicy.Retry, Guid.NewGuid(), CancellationToken.None));
     }
 
     // A message after «Volver a probar» has an id of its own: its buttons name the run, and «No emitir» there voids as anywhere.
@@ -92,7 +142,7 @@ public sealed class FormIssueConfirmationReplyTests
         var host = new Host("en", new StructuredIssuePreview(null, null, null, "Arca.Connection.Unavailable"));
         var skip = FormIssueConfirmationPolicy.Choices(true, "en", host.Run.Id)[1].Id;
 
-        var reply = await host.Sink.ReplyAsync(FormIssueConfirmationPolicy.MessageId(host.Run.Id, 1), host.Record.ActorUserId, skip, CancellationToken.None);
+        var reply = await host.Sink.ReplyAsync(FormIssueConfirmationPolicy.MessageId(host.Run.Id, 1), host.Record.ActorUserId, skip, Guid.NewGuid(), CancellationToken.None);
 
         Assert.Equal(new StructuredRecordActionReply(StructuredRecordActionReplyState.Applied, "We did not issue it. VISIT-000001 was voided."), reply);
         Assert.Equal((FormRecordState.Voided, FormActionErrors.NotIssued.Code, (string?)null), (host.Record.State, host.Record.VoidReasonCode, host.Record.VoidReason));
@@ -106,8 +156,8 @@ public sealed class FormIssueConfirmationReplyTests
         var host = new Host("es");
         host.Fixture.Rules.Permissions.Permissions[host.Record.ActorUserId] = [];
 
-        Assert.Equal(Ignored, await host.Sink.ReplyAsync(host.Run.Id, host.Record.ActorUserId, FormIssueConfirmationPolicy.Skip, CancellationToken.None));
-        Assert.Equal(Ignored, await host.Sink.ReplyAsync(host.Run.Id, host.Record.ActorUserId, FormIssueConfirmationPolicy.Issue, CancellationToken.None));
+        Assert.Equal(Ignored, await host.Sink.ReplyAsync(host.Run.Id, host.Record.ActorUserId, FormIssueConfirmationPolicy.Skip, Guid.NewGuid(), CancellationToken.None));
+        Assert.Equal(Ignored, await host.Sink.ReplyAsync(host.Run.Id, host.Record.ActorUserId, FormIssueConfirmationPolicy.Issue, Guid.NewGuid(), CancellationToken.None));
 
         Assert.Equal(FormRecordState.Received, host.Record.State);
         Assert.Equal((FormActionRunState.Uncertain, false), (host.Run.State, host.Run.DeliveryReviewRequested));
@@ -120,8 +170,8 @@ public sealed class FormIssueConfirmationReplyTests
         var host = new Host("es");
         Assert.True(host.Record.Void(Guid.NewGuid(), "Se cargó mal", host.Fixture.Clock.GetUtcNow().UtcDateTime).IsSuccess);
 
-        Assert.Equal(Ignored, await host.Sink.ReplyAsync(host.Run.Id, host.Record.ActorUserId, FormIssueConfirmationPolicy.Issue, CancellationToken.None));
-        Assert.Equal(Ignored, await host.Sink.ReplyAsync(host.Run.Id, host.Record.ActorUserId, FormIssueConfirmationPolicy.Skip, CancellationToken.None));
+        Assert.Equal(Ignored, await host.Sink.ReplyAsync(host.Run.Id, host.Record.ActorUserId, FormIssueConfirmationPolicy.Issue, Guid.NewGuid(), CancellationToken.None));
+        Assert.Equal(Ignored, await host.Sink.ReplyAsync(host.Run.Id, host.Record.ActorUserId, FormIssueConfirmationPolicy.Skip, Guid.NewGuid(), CancellationToken.None));
 
         Assert.Equal(("Se cargó mal", false), (host.Record.VoidReason, host.Run.DeliveryReviewRequested));
     }
