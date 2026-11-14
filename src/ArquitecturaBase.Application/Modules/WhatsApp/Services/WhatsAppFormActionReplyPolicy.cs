@@ -37,6 +37,7 @@ internal sealed class WhatsAppFormActionReplyPolicy(WhatsAppFormActionPolicy act
         return WhatsAppOutgoingMessage.CreateFormActionReply(reply.RecipientUserId, contact.Id, tap.Id, text, nowUtc, contact.LinkRevision, contact.WaId);
     }
 
-    private static IEnumerable<string> SentIds(WhatsAppFormActionReplyTargetRow target) =>
-        JsonSerializer.Deserialize<WhatsAppOutgoingQuickReply[]>(target.QuickRepliesJson)?.Select(reply => reply.Id) ?? [];
+    // H16: buttons the key ring no longer opens read as empty: no tap matches them.
+    private static IEnumerable<string> SentIds(WhatsAppFormActionReplyTargetRow target) => string.IsNullOrEmpty(target.QuickRepliesJson) ? []
+        : JsonSerializer.Deserialize<WhatsAppOutgoingQuickReply[]>(target.QuickRepliesJson)?.Select(reply => reply.Id) ?? [];
 }

@@ -1,4 +1,5 @@
 using ArquitecturaBase.Api.IntegrationTests.Support;
+using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -87,6 +88,8 @@ public sealed class WhatsAppFormActionMigrationTests(ApiFactory factory)
             Assert.Equal(3, await db.Set<WhatsAppOutgoingMessage>()
                 .CountAsync(item => item.Origin == WhatsAppMessageOrigin.FormAction && item.OperatorUserId == null, Ct));
 
+            // H16: the encrypted content goes back to plain text only empty.
+            await WhatsAppChatContentMigration.EmptyAsync(db, Ct);
             await migrator.MigrateAsync(Before, Ct);
             db.ChangeTracker.Clear();
 
@@ -102,7 +105,8 @@ public sealed class WhatsAppFormActionMigrationTests(ApiFactory factory)
             Assert.Equal("Uncertain", await db.Database.SqlQuery<string>($"""
                 SELECT "State" AS "Value" FROM "WhatsAppOutgoingMessages" WHERE "Id" = {manualOutgoingId}
                 """).SingleAsync(Ct));
-            Assert.Equal("Manual uncertain text that must survive", await db.Database.SqlQuery<string>($"""
+            // H16 emptied the text of the sends when going up: the send survives without it.
+            Assert.Null(await db.Database.SqlQuery<string?>($"""
                 SELECT "Body" AS "Value" FROM "WhatsAppOutgoingMessages" WHERE "Id" = {manualOutgoingId}
                 """).SingleAsync(Ct));
             Assert.Equal("Manual text that must survive", await db.Database.SqlQuery<string>($"""

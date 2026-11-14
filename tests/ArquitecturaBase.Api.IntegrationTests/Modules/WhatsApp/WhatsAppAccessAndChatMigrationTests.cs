@@ -108,6 +108,8 @@ public sealed class WhatsAppAccessAndChatMigrationTests(ApiFactory factory)
             Assert.Equal(WhatsAppConversationMode.Manual, (await db.Set<WhatsAppContact>().SingleAsync(item => item.Id == fresh, Ct)).Mode);
             Assert.False(db.Database.HasPendingModelChanges());
 
+            // H16: the encrypted content goes back to plain text only empty.
+            await db.Database.ExecuteSqlRawAsync("""UPDATE "WhatsAppOutgoingMessages" SET "Body" = NULL, "QuickRepliesJson" = NULL, "AssistantReplyJson" = NULL, "ListButton" = NULL, "Footer" = NULL, "SpreadsheetRowsJson" = NULL, "DocumentName" = NULL""", Ct);
             await db.GetService<IMigrator>().MigrateAsync(Before, Ct);
             db.ChangeTracker.Clear();
             var rolledBackModes = await db.Database.SqlQueryRaw<string>("SELECT \"Mode\" AS \"Value\" FROM \"WhatsAppContacts\"").ToListAsync(Ct);

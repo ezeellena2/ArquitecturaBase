@@ -56,6 +56,8 @@ AddWhatsAppSpreadsheetLoads (VC1-A, tarea 29) suma `Footer` (hasta 60) y `Spread
 
 EncryptWhatsAppSendContent (H16, ADR 0030) pasa a `bytea` el cuerpo y el punto de un envío y el porqué de una referencia, y vacía lo que había (`USING NULL`, confirmado por el usuario): PostgreSQL no convierte texto, número ni jsonb a `bytea`. Down toma los locks de las dos tablas y rechaza, antes del DDL, cualquier contenido cifrado; WhatsAppSendContentEncryptionMigrationTests prueba el cifrado, la lectura, el rechazo por cada tabla y Down y Up sin contenido.
 
+EncryptWhatsAppOutgoingContent (H16, parte 2) hace lo mismo con lo que dice una salida (`Body`, `QuickRepliesJson`, `AssistantReplyJson`, `ListButton`, `Footer`, `SpreadsheetRowsJson`, `DocumentName`); Down se niega con cualquiera de ellas cifrada, y WhatsAppOutgoingContentEncryptionMigrationTests lo prueba igual.
+
 ## Referencias
 
 - [Comandos y revisión obligatoria](../../../../docs/guides/migracion.md).

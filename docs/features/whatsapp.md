@@ -100,7 +100,8 @@ Además:
 - **El contenido del chat se guarda cifrado (H16, [ADR 0030](../decisions/0030-contenido-del-chat-cifrado.md)).** Con Data
   Protection y un propósito propio, por un conversor de EF que cifra al guardar y descifra al leer (`WhatsAppChatContent`, cuyo
   protector se fija al arrancar): el contenido no se busca ni se compara en SQL, sólo se pregunta si es nulo. Desde el
-  2026-11-14 se cifran el cuerpo y el punto de un envío y el porqué de una referencia; las salidas y los mensajes siguen. La
+  2026-11-14 se cifran el cuerpo y el punto de un envío, el porqué de una referencia y lo que dice cada salida (texto, botones,
+  porqué, lista, pie, filas y nombre del documento); los mensajes siguen. La
   migración de cada parte vacía lo que había, como la retención, y su Down se niega mientras haya contenido cifrado.
 - **Dos versiones a la vez (H25, 2026-11-14).** Mientras conviven dos versiones (un despliegue, o al volver a la imagen
   anterior), una copia deja para otra lo que su versión no sabe leer, con un tope. Un mensaje de un tipo que no conoce se lee

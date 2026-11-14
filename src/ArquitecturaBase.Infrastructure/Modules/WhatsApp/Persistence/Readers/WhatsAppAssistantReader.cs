@@ -237,7 +237,8 @@ internal sealed class WhatsAppAssistantReader(ApplicationDbContext db,IOptions<W
                 && outgoing.Origin==WhatsAppMessageOrigin.Assistant && outgoing.QuickRepliesJson!=null
              orderby reference.CreatedAtUtc descending,reference.Id descending
              select new { reference.RequestId, outgoing.QuickRepliesJson }).Take(20).ToListAsync(ct);
-        return questions.FirstOrDefault(question=>question.QuickRepliesJson!.Contains(WhatsAppAssistantDocumentReplyCodec.Prefix,StringComparison.Ordinal))?.RequestId;
+        // H16: what the key ring no longer opens reads as null.
+        return questions.FirstOrDefault(question=>question.QuickRepliesJson?.Contains(WhatsAppAssistantDocumentReplyCodec.Prefix,StringComparison.Ordinal)==true)?.RequestId;
     }
     public Task<WhatsAppAssistantChoiceRow?> FindLatestCaseTapAsync(Guid contactId,CancellationToken ct)
     {
@@ -422,11 +423,15 @@ internal sealed class WhatsAppAssistantReader(ApplicationDbContext db,IOptions<W
         where reference.SubjectUserId==subjectUserId && contact.UserId==subjectUserId && reference.LinkRevision==contact.LinkRevision
             && outgoing.ContactId==contact.Id && outgoing.Kind==WhatsAppOutgoingMessageKind.QuickReplies
             && outgoing.Origin==WhatsAppMessageOrigin.Assistant && outgoing.State!=WhatsAppOutgoingMessageState.Failed && outgoing.RequestedAtUtc >= sinceUtc
+            // H16: a question whose buttons the migration emptied is no offer.
+            && outgoing.QuickRepliesJson!=null
         orderby outgoing.RequestedAtUtc descending,outgoing.Id descending
         select new QuickOfferRow(outgoing.Id,contact.Id,reference.RequestId,outgoing.RequestedAtUtc,outgoing.QuickRepliesJson!);
 
-    internal static StructuredFormOfferReference[] ReadQuickReplies(Guid requestId,string json)
+    internal static StructuredFormOfferReference[] ReadQuickReplies(Guid requestId,string? json)
     {
+        // H16: buttons the key ring no longer opens read as null, as corrupt ones.
+        if(json is null) throw new InvalidOperationException("The stored assistant question has no options.");
         WhatsAppOutgoingQuickReply[] replies;
         try { replies=JsonSerializer.Deserialize<WhatsAppOutgoingQuickReply[]>(json,JsonSerializerOptions.Web)
                 ?? throw new InvalidOperationException("The stored assistant question has no options."); }

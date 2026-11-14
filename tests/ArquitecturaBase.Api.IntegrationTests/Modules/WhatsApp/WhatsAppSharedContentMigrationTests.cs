@@ -45,6 +45,7 @@ public sealed class WhatsAppSharedContentMigrationTests(ApiFactory factory)
             await db.SaveChangesAsync(Ct);
             db.ChangeTracker.Clear();
 
+            await WhatsAppChatContentMigration.EmptyAsync(db, Ct);
             await db.GetService<IMigrator>().MigrateAsync(Previous(db), Ct);
 
             Assert.Empty((await ColumnsAsync(db, "WhatsAppMessages")).Intersect(["LocationAddress", "ContactName", "ContactPhonesJson", "IsResend"]));
@@ -90,6 +91,7 @@ public sealed class WhatsAppSharedContentMigrationTests(ApiFactory factory)
             // A send of the operator with its Flow, its reply and an outgoing: one row of each table the Down checks.
             await WhatsAppAssistantMigrationSeed.InsertLegacyAsync(db, now, Ct);
             Assert.True(await db.Database.ExecuteSqlRawAsync(mark, Ct) > 0);
+            await WhatsAppChatContentMigration.EmptyAsync(db, Ct);
             var previous = Previous(db);
 
             var refused = await Assert.ThrowsAsync<PostgresException>(() => db.GetService<IMigrator>().MigrateAsync(previous, Ct));

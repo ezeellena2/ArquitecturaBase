@@ -4509,12 +4509,11 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<long?>("AssistantModeRevision")
                         .HasColumnType("bigint");
 
-                    b.Property<string>("AssistantReplyJson")
-                        .HasColumnType("jsonb");
+                    b.Property<byte[]>("AssistantReplyJson")
+                        .HasColumnType("bytea");
 
-                    b.Property<string>("Body")
-                        .HasMaxLength(4096)
-                        .HasColumnType("character varying(4096)");
+                    b.Property<byte[]>("Body")
+                        .HasColumnType("bytea");
 
                     b.Property<Guid>("ContactId")
                         .HasColumnType("uuid");
@@ -4542,9 +4541,8 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)");
 
-                    b.Property<string>("DocumentName")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
+                    b.Property<byte[]>("DocumentName")
+                        .HasColumnType("bytea");
 
                     b.Property<string>("DocumentSha256")
                         .HasMaxLength(64)
@@ -4564,9 +4562,8 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("FlowSessionId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("Footer")
-                        .HasMaxLength(60)
-                        .HasColumnType("character varying(60)");
+                    b.Property<byte[]>("Footer")
+                        .HasColumnType("bytea");
 
                     b.Property<bool>("IsAssistantHandoff")
                         .ValueGeneratedOnAdd()
@@ -4589,9 +4586,8 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<long>("LastFormActionControlRevision")
                         .HasColumnType("bigint");
 
-                    b.Property<string>("ListButton")
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
+                    b.Property<byte[]>("ListButton")
+                        .HasColumnType("bytea");
 
                     b.Property<DateTime?>("MessageEffectStartedAtUtc")
                         .HasColumnType("timestamp with time zone");
@@ -4609,8 +4605,8 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(20)")
                         .HasDefaultValue("Conversation");
 
-                    b.Property<string>("QuickRepliesJson")
-                        .HasColumnType("jsonb");
+                    b.Property<byte[]>("QuickRepliesJson")
+                        .HasColumnType("bytea");
 
                     b.Property<long?>("RecipientLinkRevision")
                         .HasColumnType("bigint");
@@ -4628,8 +4624,8 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("RequestedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("SpreadsheetRowsJson")
-                        .HasColumnType("jsonb");
+                    b.Property<byte[]>("SpreadsheetRowsJson")
+                        .HasColumnType("bytea");
 
                     b.Property<DateTime?>("StartedAtUtc")
                         .HasColumnType("timestamp with time zone");

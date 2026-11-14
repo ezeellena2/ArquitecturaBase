@@ -1,4 +1,5 @@
 using ArquitecturaBase.Api.IntegrationTests.Support;
+using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -41,13 +42,20 @@ public sealed class WhatsAppSpreadsheetLoadsMigrationTests(ApiFactory factory)
             db.AddRange(contact, notice, text, sent);
             await db.SaveChangesAsync(Ct);
             db.ChangeTracker.Clear();
+            // H16: the encrypted content goes back to plain text only empty, so the notice keeps its rows, and the load its body, in the
+            // plain columns of before, as the image of before wrote them.
+            await WhatsAppChatContentMigration.EmptyAsync(db, Ct);
+            await db.GetService<IMigrator>().MigrateAsync(migrations[migrations.FindIndex(id => id.EndsWith("_EncryptWhatsAppSendContent", StringComparison.Ordinal)) - 1], Ct);
+            const string rows = """{"recognized":[],"sent":[],"forTeam":[],"repeated":[]}""";
+            await db.Database.ExecuteSqlAsync($"""UPDATE "WhatsAppOutgoingMessages" SET "SpreadsheetRowsJson" = CAST({rows} AS jsonb) WHERE "Id" = {notice.Id}""", Ct);
+            await db.Database.ExecuteSqlAsync($"""UPDATE "WhatsAppOutgoingMessages" SET "Body" = 'Recibí tu planilla.' WHERE "Id" = {text.Id}""", Ct);
 
             var withRows = await Assert.ThrowsAsync<PostgresException>(() => db.GetService<IMigrator>().MigrateAsync(previous, Ct));
             Assert.Equal("P0001", withRows.SqlState);
             Assert.Contains(Migration, await db.Database.GetAppliedMigrationsAsync(Ct));
             // The later migrations went back before this one refused (each in its own transaction): only the columns it knows are read.
-            Assert.NotNull(await db.Set<WhatsAppOutgoingMessage>().AsNoTracking().Where(item => item.Id == notice.Id)
-                .Select(item => item.SpreadsheetRowsJson).SingleAsync(Ct));
+            Assert.True(await db.Database.SqlQuery<bool>(
+                $"""SELECT "SpreadsheetRowsJson" IS NOT NULL AS "Value" FROM "WhatsAppOutgoingMessages" WHERE "Id" = {notice.Id}""").SingleAsync(Ct));
 
             await db.Database.ExecuteSqlAsync($"""DELETE FROM "WhatsAppOutgoingMessages" WHERE "Id" = {notice.Id}""", Ct);
             // Each column it cannot keep refuses on its own: the footer of a load, and «Por qué lo propuso» of a notice that went out.
@@ -66,7 +74,8 @@ public sealed class WhatsAppSpreadsheetLoadsMigrationTests(ApiFactory factory)
             await db.Database.MigrateAsync(Ct);
             Assert.False(db.Database.HasPendingModelChanges());
             var back = await db.Set<WhatsAppOutgoingMessage>().AsNoTracking().SingleAsync(item => item.Id == text.Id, Ct);
-            Assert.Equal((WhatsAppOutgoingMessageKind.Text, "Recibí tu planilla.", (string?)null, (string?)null), (back.Kind, back.Body, back.Footer, back.SpreadsheetRowsJson));
+            // Going up again keeps the send and empties what the image of before wrote (H16).
+            Assert.Equal((WhatsAppOutgoingMessageKind.Text, (string?)null, (string?)null, (string?)null), (back.Kind, back.Body, back.Footer, back.SpreadsheetRowsJson));
         }
         finally { await db.Database.EnsureDeletedAsync(CancellationToken.None); }
     }

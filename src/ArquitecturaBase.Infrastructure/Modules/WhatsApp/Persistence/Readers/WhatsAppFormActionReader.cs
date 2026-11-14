@@ -52,7 +52,8 @@ internal sealed class WhatsAppFormActionReader(ApplicationDbContext db) : IWhats
         join receipt in db.Set<WhatsAppDeliveryReceipt>().AsNoTracking() on outgoing.WaMessageId equals receipt.WaMessageId into receipts
         from receipt in receipts.DefaultIfEmpty()
         select new WhatsAppFormActionObservationRow(outgoing.RequestId, outgoing.RecipientUserId!.Value, outgoing.State, outgoing.FailureCode,
-            !string.IsNullOrWhiteSpace(outgoing.Body), outgoing.LastFormActionControlRevision, outgoing.DeliveryReviewWasSent, outgoing.DeliveryReviewedByUserId, outgoing.DeliveryReviewedAtUtc,
+            // H16: the text is encrypted, so only whether it is still there (a notice always has one, the retention empties it).
+            outgoing.Body != null, outgoing.LastFormActionControlRevision, outgoing.DeliveryReviewWasSent, outgoing.DeliveryReviewedByUserId, outgoing.DeliveryReviewedAtUtc,
             receipt == null ? null : receipt.DeliveredAtUtc ?? (receipt.Status == WhatsAppMessageStatus.Delivered ? (DateTime?)receipt.OccurredAtUtc : null),
             receipt == null ? null : receipt.ReadAtUtc ?? (receipt.Status == WhatsAppMessageStatus.Read ? (DateTime?)receipt.OccurredAtUtc : null));
 }

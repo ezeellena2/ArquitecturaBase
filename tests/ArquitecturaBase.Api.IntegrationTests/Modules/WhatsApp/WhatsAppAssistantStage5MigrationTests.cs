@@ -153,7 +153,7 @@ public sealed class WhatsAppAssistantStage5MigrationTests(ApiFactory factory)
             """).SingleAsync(Ct));
         Assert.True(await db.Database.SqlQuery<bool>($"""
             SELECT ("OperatorUserId"={row.OperatorId} AND "ContactId"={row.ContactId} AND "RequestId"={row.RequestId}
-                AND "Body"='Legacy manual form' AND "State"='Accepted' AND "Kind"=1 AND "Origin"='Conversation'
+                AND "State"='Accepted' AND "Kind"=1 AND "Origin"='Conversation'
                 AND "FlowSessionId"={row.SessionId} AND "RequestedAtUtc"={nowUtc} AND "WaMessageId" IS NOT NULL) AS "Value"
             FROM "WhatsAppOutgoingMessages" WHERE "Id"={row.OutgoingId}
             """).SingleAsync(Ct));

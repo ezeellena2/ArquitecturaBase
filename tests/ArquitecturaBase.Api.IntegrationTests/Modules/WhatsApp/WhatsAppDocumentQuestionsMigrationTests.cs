@@ -41,12 +41,21 @@ public sealed class WhatsAppDocumentQuestionsMigrationTests(ApiFactory factory)
             await db.SaveChangesAsync(Ct);
             db.ChangeTracker.Clear();
 
+            // H16: the encrypted content goes back to plain text only empty, so the list keeps its button in the plain column of
+            // before, as the image of before wrote it.
+            var all = db.Database.GetMigrations().ToList();
+            var beforeEncryption = all[all.FindIndex(id => id.EndsWith("_EncryptWhatsAppSendContent", StringComparison.Ordinal)) - 1];
+            await db.Database.ExecuteSqlRawAsync("""UPDATE "WhatsAppOutgoingMessages" SET "Body" = NULL, "QuickRepliesJson" = NULL, "AssistantReplyJson" = NULL, "ListButton" = NULL, "Footer" = NULL, "SpreadsheetRowsJson" = NULL, "DocumentName" = NULL""", Ct);
+            await db.GetService<IMigrator>().MigrateAsync(beforeEncryption, Ct);
+            await db.Database.ExecuteSqlAsync($"""UPDATE "WhatsAppOutgoingMessages" SET "ListButton" = 'Elegir formulario', "Body" = 'No reconocí este documento.' WHERE "Id" = {list.Id}""", Ct);
+            await db.Database.ExecuteSqlAsync($"""UPDATE "WhatsAppOutgoingMessages" SET "Body" = 'Recibí tu documento.' WHERE "Id" = {text.Id}""", Ct);
+
             var withList = await Assert.ThrowsAsync<PostgresException>(() => db.GetService<IMigrator>().MigrateAsync(previous, Ct));
             Assert.Equal("P0001", withList.SqlState);
             Assert.Contains(Migration, await db.Database.GetAppliedMigrationsAsync(Ct));
             // The later migrations went back before this one refused (each in its own transaction): only the columns it knows are read.
-            Assert.Equal("Elegir formulario", await db.Set<WhatsAppOutgoingMessage>().AsNoTracking().Where(item => item.Id == list.Id)
-                .Select(item => item.ListButton).SingleAsync(Ct));
+            Assert.Equal("Elegir formulario", await db.Database.SqlQuery<string>(
+                $"""SELECT "ListButton" AS "Value" FROM "WhatsAppOutgoingMessages" WHERE "Id" = {list.Id}""").SingleAsync(Ct));
 
             await db.Database.ExecuteSqlAsync($"""DELETE FROM "WhatsAppOutgoingMessages" WHERE "Id" = {list.Id}""", Ct);
             await db.GetService<IMigrator>().MigrateAsync(previous, Ct);
@@ -54,8 +63,9 @@ public sealed class WhatsAppDocumentQuestionsMigrationTests(ApiFactory factory)
 
             await db.Database.MigrateAsync(Ct);
             Assert.False(db.Database.HasPendingModelChanges());
+            // Going up again keeps the send and empties what the image of before wrote (H16).
             var back = await db.Set<WhatsAppOutgoingMessage>().AsNoTracking().SingleAsync(item => item.Id == text.Id, Ct);
-            Assert.Equal((WhatsAppOutgoingMessageKind.Text, "Recibí tu documento.", (string?)null), (back.Kind, back.Body, back.ListButton));
+            Assert.Equal((WhatsAppOutgoingMessageKind.Text, (string?)null, (string?)null), (back.Kind, back.Body, back.ListButton));
         }
         finally { await db.Database.EnsureDeletedAsync(CancellationToken.None); }
     }
