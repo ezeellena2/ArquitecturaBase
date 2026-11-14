@@ -57,6 +57,35 @@ public sealed class WhatsAppAssistantAgentCapabilitySourceTests
     }
 
     [Fact]
+    public void Only_the_drafted_reply_drafts_text_so_the_engine_offers_it_only_with_a_profile_qualified_to_draft()
+    {
+        var definitions = new Host().Source.Definitions;
+
+        // ADR 0021, point 8: the engine leaves out a capability that drafts text unless the model profile is qualified to draft.
+        Assert.Equal([WhatsAppAssistantAgentCapabilitySource.DraftId], definitions.Where(definition => definition.DraftsText).Select(definition => definition.Id));
+    }
+
+    [Theory]
+    [InlineData("handoff", "unknown", true)]
+    [InlineData("handoff", "blockedTopic", true)]
+    [InlineData("handoff", "case", false)]
+    [InlineData("exactText", null, false)]
+    [InlineData("noReply", null, false)]
+    public async Task Without_the_draft_a_drafted_case_can_only_hand_off(string kind, string? handoffReason, bool accepted)
+    {
+        var host = new Host();
+
+        // A profile not qualified to draft never gets whatsapp.draft-reply: for a drafted case, the reply hands off with its fixed message.
+        var reply = await host.Source.ExecuteAsync(Request(WhatsAppAssistantAgentCapabilitySource.ReplyId,
+            Reply("own", Drafted, kind, handoffReason, "No puede redactar.")), Ct);
+
+        Assert.Equal(accepted, reply.IsSuccess);
+        if (accepted)
+            Assert.Equal(("handoff", "Te paso con una persona del equipo."), (((WhatsAppAssistantReplyPayload)reply.Value.Payload).Kind,
+                ((WhatsAppAssistantReplyPayload)reply.Value.Payload).Text));
+    }
+
+    [Fact]
     public async Task The_agent_read_has_the_active_cases_in_order_in_the_language_of_the_conversation()
     {
         var host = new Host();

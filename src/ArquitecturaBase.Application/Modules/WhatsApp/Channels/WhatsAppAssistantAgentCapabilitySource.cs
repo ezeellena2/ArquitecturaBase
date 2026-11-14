@@ -53,7 +53,9 @@ internal sealed class WhatsAppAssistantAgentCapabilitySource(IWhatsAppAssistantA
         new(ReplyId, 1, AssistantCapabilityKind.Proposal, "Propose one action of the chosen case; the server sends the business's saved text: exactText (the case's exact text), askButtons (its question and buttons), handoff (the conversation goes to a person with the profile's fixed message; for a handoff case, handoffReason case; when asked about a blocked topic, blockedTopic; when the loaded knowledge has no answer, unknown) or noReply (the case says not to reply). caseSource own with the case id, or fallback with null. The reason is for the business and never sent. A handoff or noReply goes alone, and so does a form or a question about which form; otherwise up to three reply and draft actions, one for each thing the person asked, in that order.",
             ReplyInput, ReplyOutput, new([], []), new(2048, ResultBytes, 1, 3)),
         new(DraftId, 1, AssistantCapabilityKind.Proposal, "Propose a short reply you draft for a case whose action is draftedReply (an own case or the fallback): only with the profile, the case's instructions and the confirmed facts; in the conversation's language; within the maximum reply length; without links, phones, emails, prices or commitments that are not in the facts, and never what the business cannot promise. Name the facts you used by id. If the facts have no answer, propose a handoff with reason unknown instead. A rejected draft comes back with its problems: fix it once or hand off.",
-            DraftInput, DraftOutput, new([], []), new(4096, ResultBytes, 1, 5)),
+            DraftInput, DraftOutput, new([], []), new(4096, ResultBytes, 1, 5))
+        // It drafts text for people (ADR 0021, point 8): the engine offers it only with a model profile qualified to draft.
+        { DraftsText = true },
     ];
 
     public async Task<Result<AssistantCapabilityResponse>> ExecuteAsync(AssistantCapabilityRequest request, CancellationToken ct)
