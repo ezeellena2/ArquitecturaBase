@@ -118,7 +118,7 @@ internal sealed class WhatsAppChatDispatchService(
             return Result.Success();
         }, CommitPolicy.OnSuccess, cancellationToken));
 
-    public Task<Result> ReturnUnsentAsync(Guid contactId, Guid operationId, Guid? reservationId, CancellationToken cancellationToken) =>
+    public Task<Result> ReturnUnsentAsync(Guid contactId, Guid operationId, Guid? reservationId, TimeSpan? wait, CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result>(logger, "ReturnWhatsAppOutgoing", () =>
         unitOfWork.ExecuteInTransactionAsync(async ct =>
         {
@@ -126,7 +126,7 @@ internal sealed class WhatsAppChatDispatchService(
             if (await repository.GetForUpdateAsync(contactId, ct) is null) return Result.Failure(WhatsAppChatErrors.NotFound);
             var operation = await repository.GetOutgoingAsync(operationId, ct);
             if (operation is null || operation.ContactId != contactId) return Result.Failure(WhatsAppChatErrors.NotFound);
-            operation.ReturnUnsent(reservationId);
+            operation.ReturnUnsent(reservationId, wait is { } delay ? timeProvider.GetUtcNow().UtcDateTime + delay : null);
             return Result.Success();
         }, CommitPolicy.OnSuccess, cancellationToken));
 

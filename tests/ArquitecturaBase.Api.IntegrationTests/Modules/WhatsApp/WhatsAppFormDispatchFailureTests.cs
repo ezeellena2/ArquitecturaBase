@@ -9,6 +9,7 @@ using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Infrastructure.Modules.WhatsApp;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Time.Testing;
@@ -19,7 +20,8 @@ public sealed partial class WhatsAppFormSendingTests
 {
     [Theory]
     [InlineData("Preparation", "Failed", 0)]
-    [InlineData("Lease", "Failed", 0)]
+    // H3: without the turn to write to the person, Meta was not called and it waits for its next attempt.
+    [InlineData("Lease", "Pending", 0)]
     [InlineData("Provider", "Uncertain", 1)]
     public async Task A_failed_dispatch_is_uncertain_only_after_invoking_the_provider(string phase, string state, int providerCalls)
     {
@@ -80,5 +82,9 @@ public sealed partial class WhatsAppFormSendingTests
         Assert.Equal(providerCalls, failures.ProviderCalls);
         using var reloaded = await author.GetAsync(path, Ct);
         Assert.Equal(state, (await reloaded.ReadJsonAsync()).GetProperty("state").GetString());
+        // H3: a send without its turn waits in the shared queue: it is left terminal, so another test's worker does not take it.
+        if (state == "Pending")
+            await factory.InTransactionAsync(async services => await services.GetRequiredService<ArquitecturaBase.Infrastructure.Persistence.ApplicationDbContext>()
+                .Database.ExecuteSqlInterpolatedAsync($"""UPDATE "WhatsAppOutgoingMessages" SET "State" = 'Failed' WHERE "ContactId" = {contactId}""", Ct));
     }
 }

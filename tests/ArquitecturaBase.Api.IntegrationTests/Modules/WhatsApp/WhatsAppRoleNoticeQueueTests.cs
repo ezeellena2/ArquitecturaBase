@@ -9,6 +9,8 @@ using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Infrastructure.Modules.WhatsApp;
+using ArquitecturaBase.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
 
@@ -183,6 +185,54 @@ public sealed class WhatsAppRoleNoticeQueueTests(ApiFactory factory)
         Assert.False(await worker.ProcessNextAsync(Ct));
         Assert.Equal(["Para Ana", "Para Ana", "Para Ana"], Bodies(scenario));
         Assert.Equal(StructuredRecordActionState.Failed, (await scenario.ScopeAsync(services => services.GetServices<IStructuredRecordActionChannel>()
+            .Single(channel => channel.ChannelId == "phone").GetAsync(run, ana.UserId, Ct))).State);
+    }
+
+    // H3: with Redis down the turn to write to the person cannot be taken; Meta was not called, so the notice goes back to the queue
+    // in its place and waits, without failing nor spending one of its retries (three outages are more than its two), and goes out
+    // once Redis is back.
+    [Fact]
+    public async Task A_notice_whose_turn_cannot_be_taken_waits_and_goes_out_once_redis_is_back()
+    {
+        var clock = new FakeTimeProvider(factory.Clock.GetUtcNow());
+        var coordinator = new FailingDispatchCoordinator(failures: 3);
+        await using var scenario = await WhatsAppFormActionScenario.CreateAsync(factory, Ct, clock, coordinator);
+        var ana = await scenario.RecipientAsync(clock.GetUtcNow().UtcDateTime, Ct);
+        var run = Guid.NewGuid();
+        await NoticeAsync(scenario, run, ana.UserId, "Para Ana");
+        var worker = scenario.Services.GetRequiredService<WhatsAppOutgoingBackgroundService>();
+
+        for (var outage = 0; outage < 3; outage++)
+        {
+            Assert.True(await worker.ProcessNextAsync(Ct));
+            Assert.False(await worker.ProcessNextAsync(Ct));
+            clock.Advance(TimeSpan.FromSeconds(31));
+        }
+        Assert.Empty(scenario.Cloud.Messages);
+        Assert.True(await worker.ProcessNextAsync(Ct));
+
+        Assert.Equal(["Para Ana"], Bodies(scenario));
+        Assert.Equal(4, coordinator.Attempts);
+        Assert.Equal(0, await scenario.ScopeAsync(services => services.GetRequiredService<ApplicationDbContext>().Set<WhatsAppOutgoingMessage>()
+            .Where(outgoing => outgoing.ContactId == ana.ContactId).Select(outgoing => outgoing.DispatchRetries).SingleAsync(Ct)));
+        Assert.Equal(StructuredRecordActionState.Accepted, (await scenario.ScopeAsync(services => services.GetServices<IStructuredRecordActionChannel>()
+            .Single(channel => channel.ChannelId == "phone").GetAsync(run, ana.UserId, Ct))).State);
+    }
+
+    // H3: Redis goes down between taking the turn and releasing it; the notice already went out, and that is what stays.
+    [Fact]
+    public async Task Releasing_the_turn_without_redis_does_not_change_what_happened_to_the_send()
+    {
+        var clock = new FakeTimeProvider(factory.Clock.GetUtcNow());
+        await using var scenario = await WhatsAppFormActionScenario.CreateAsync(factory, Ct, clock, new FailingDispatchCoordinator(failures: 0, failRelease: true));
+        var ana = await scenario.RecipientAsync(clock.GetUtcNow().UtcDateTime, Ct);
+        var run = Guid.NewGuid();
+        await NoticeAsync(scenario, run, ana.UserId, "Para Ana");
+
+        Assert.True(await scenario.Services.GetRequiredService<WhatsAppOutgoingBackgroundService>().ProcessNextAsync(Ct));
+
+        Assert.Equal(["Para Ana"], Bodies(scenario));
+        Assert.Equal(StructuredRecordActionState.Accepted, (await scenario.ScopeAsync(services => services.GetServices<IStructuredRecordActionChannel>()
             .Single(channel => channel.ChannelId == "phone").GetAsync(run, ana.UserId, Ct))).State);
     }
 

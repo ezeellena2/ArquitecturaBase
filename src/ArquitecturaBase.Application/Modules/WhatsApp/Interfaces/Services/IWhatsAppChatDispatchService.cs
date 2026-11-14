@@ -15,8 +15,10 @@ public interface IWhatsAppChatDispatchService
     /// <summary>
     /// H8: a reserved send that stopped before Meta was called (the host stopped while it waited for its turn to write to that
     /// person) goes back to Pending in its place; one whose message effect already started stays and is recovered as uncertain.
+    /// H3: with <paramref name="wait"/> (the turn could not be taken, as with Redis down) it waits that long before its next
+    /// attempt, and meanwhile nothing else of its chat goes out.
     /// </summary>
-    Task<Result> ReturnUnsentAsync(Guid contactId, Guid operationId, Guid? reservationId, CancellationToken cancellationToken);
+    Task<Result> ReturnUnsentAsync(Guid contactId, Guid operationId, Guid? reservationId, TimeSpan? wait, CancellationToken cancellationToken);
 
     /// <summary>
     /// H7: a send that did not go out (the network or Meta refused it before it arrived, and it is worth retrying) goes back to

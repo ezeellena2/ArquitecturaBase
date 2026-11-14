@@ -309,9 +309,10 @@ public sealed partial class WhatsAppOutgoingMessage : Entity
     /// H8: the send stopped before Meta was called (the host stopped while it waited for its turn to write to this person, or
     /// while it prepared it), so it goes back to Pending in its place, nothing sent. For the chat it is a transition of its own;
     /// a notice or the assistant also needs its reservation and no started message effect, as when its preparation expires. The
-    /// caller vouches that Meta was not called. Whether it went back.
+    /// caller vouches that Meta was not called. H3: with <paramref name="nextAttemptAtUtc"/> (the turn to write to this person could
+    /// not be taken, as with Redis down) it waits until then, without spending one of its retries. Whether it went back.
     /// </summary>
-    public bool ReturnUnsent(Guid? reservationId)
+    public bool ReturnUnsent(Guid? reservationId, DateTime? nextAttemptAtUtc = null)
     {
         if (State != WhatsAppOutgoingMessageState.Sending) return false;
         if (Origin is WhatsAppMessageOrigin.FormAction or WhatsAppMessageOrigin.Assistant)
@@ -322,6 +323,7 @@ public sealed partial class WhatsAppOutgoingMessage : Entity
 
         State = WhatsAppOutgoingMessageState.Pending;
         StartedAtUtc = null;
+        NextAttemptAtUtc = nextAttemptAtUtc;
         return true;
     }
 

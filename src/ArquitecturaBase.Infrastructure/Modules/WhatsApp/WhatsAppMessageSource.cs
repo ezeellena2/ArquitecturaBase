@@ -11,4 +11,8 @@ internal sealed class WhatsAppMessageSource(IServiceScopeFactory scopeFactory, I
 {
     protected override string Channel => "whatsapp-access";
     protected override WhatsAppOutboundMessage Deserialize(string messageType, string payload) => WhatsAppQueuedMessageCodec.Deserialize(messageType, payload);
+
+    // H3: a message that waits for its turn knows when it stops being worth sending (a code, after its ten minutes).
+    protected override WhatsAppOutboundMessage WithExpiry(WhatsAppOutboundMessage message, DateTime? expiresAtUtc) =>
+        expiresAtUtc is null ? message : message with { ExpiresAtUtc = expiresAtUtc };
 }

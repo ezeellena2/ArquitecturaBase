@@ -81,6 +81,18 @@ public sealed class WhatsAppOperatorChatTests
         Assert.Equal(2, operation.DispatchRetries);
     }
 
+    // H3: a send whose turn could not be taken goes back to wait for its next attempt, without spending one of its retries.
+    [Fact]
+    public void A_send_whose_turn_could_not_be_taken_waits_without_spending_a_retry()
+    {
+        var operation = WhatsAppOutgoingMessage.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "Hola", Now);
+        operation.Start(Now);
+
+        Assert.True(operation.ReturnUnsent(null, Now.AddSeconds(30)));
+
+        Assert.Equal((WhatsAppOutgoingMessageState.Pending, (DateTime?)Now.AddSeconds(30), 0), (operation.State, operation.NextAttemptAtUtc, operation.DispatchRetries));
+    }
+
     // H7: a notice that failed after its retries starts a new round when it is retried by hand.
     [Fact]
     public void A_notice_retried_by_hand_starts_its_retries_again()

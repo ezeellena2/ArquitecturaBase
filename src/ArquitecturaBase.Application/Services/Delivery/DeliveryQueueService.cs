@@ -17,7 +17,8 @@ internal sealed class DeliveryQueueService(IDeliveryRepository deliveries, IUnit
             var next = await deliveries.GetNextAsync(channel, nowUtc, ct);
             if (next is null) return Result.Success<DeliveryMessageResponse?>(null);
             next.Claim(nowUtc);
-            return Result.Success<DeliveryMessageResponse?>(new DeliveryMessageResponse(next.Id, next.MessageType, next.ProtectedPayload));
+            return Result.Success<DeliveryMessageResponse?>(new DeliveryMessageResponse(next.Id, next.MessageType, next.ProtectedPayload)
+                { ExpiresAtUtc = next.ExpiresAtUtc });
         }, CommitPolicy.OnSuccess, cancellationToken);
 
     public Task<Result> ReleaseAsync(Guid id, CancellationToken cancellationToken) =>

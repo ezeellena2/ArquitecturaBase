@@ -30,6 +30,7 @@ internal sealed partial class WhatsAppOutgoingBackgroundService(
         var uncertain = false;
         var retry = false;
         var providerInvoked = false;
+        var waitingForTurn = false;
         string? failureCode = null;
         try
         {
@@ -77,7 +78,9 @@ internal sealed partial class WhatsAppOutgoingBackgroundService(
             {
                 // H8: waiting for the turn to write to this person stops with the host; once it is taken, the send ends within its
                 // own deadline (the client's timeouts or a lost lease) instead of being cut by the shutdown.
-                await using var lease = await coordinator.AcquireAsync(operation.To, cancellationToken);
+                waitingForTurn = true;
+                await using var lease = new TurnRelease(await coordinator.AcquireAsync(operation.To, cancellationToken), logger, operation.Id);
+                waitingForTurn = false;
                 using var sending = CancellationTokenSource.CreateLinkedTokenSource(lease.LostOwnership);
                 await using var scope = scopes.CreateAsyncScope();
                 if (operation.Kind == WhatsAppOutgoingMessageKind.Flow)
@@ -125,7 +128,19 @@ internal sealed partial class WhatsAppOutgoingBackgroundService(
             using var returnTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(10), timeProvider);
             await using var giving = scopes.CreateAsyncScope();
             await giving.ServiceProvider.GetRequiredService<IWhatsAppChatDispatchService>()
-                .ReturnUnsentAsync(operation.ContactId, operation.Id, operation.DispatchReservationId, returnTimeout.Token);
+                .ReturnUnsentAsync(operation.ContactId, operation.Id, operation.DispatchReservationId, null, returnTimeout.Token);
+            return true;
+        }
+        catch (Exception exception) when (waitingForTurn)
+        {
+            // H3: the turn to write to this person could not be taken (Redis down, or a copy that died holding it). Meta was not
+            // called, so it goes back to the queue in its place and waits, without spending one of its retries; meanwhile the
+            // other chats go on.
+            LogTurnUnavailable(logger, operation.Id, exception.GetType().Name);
+            using var returnTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(10), timeProvider);
+            await using var giving = scopes.CreateAsyncScope();
+            await giving.ServiceProvider.GetRequiredService<IWhatsAppChatDispatchService>()
+                .ReturnUnsentAsync(operation.ContactId, operation.Id, operation.DispatchReservationId, WhatsAppDispatchPacing.RetryWait, returnTimeout.Token);
             return true;
         }
         catch (Exception)
@@ -180,6 +195,27 @@ internal sealed partial class WhatsAppOutgoingBackgroundService(
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "The WhatsApp outgoing {OutgoingId} did not go out ({Failure}, Meta code {MetaErrorCode}) after its {MaxRetries} retries; it fails.")]
     private static partial void LogRetriesExhausted(ILogger logger, Guid outgoingId, WhatsAppSendFailure failure, int? metaErrorCode, int maxRetries);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The WhatsApp outgoing {OutgoingId} went back to the queue: the turn to write to its recipient could not be taken ({ExceptionType}).")]
+    private static partial void LogTurnUnavailable(ILogger logger, Guid outgoingId, string exceptionType);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The turn to write to the recipient of the WhatsApp outgoing {OutgoingId} could not be released ({ExceptionType}); it expires on its own.")]
+    private static partial void LogTurnNotReleased(ILogger logger, Guid outgoingId, string exceptionType);
+
+    /// <summary>
+    /// H3: releasing the turn never overrides what happened to the send: if Redis fails, the lease expires on its own and the
+    /// outcome stays as it was.
+    /// </summary>
+    private sealed class TurnRelease(IWhatsAppDispatchLease lease, ILogger logger, Guid outgoingId) : IAsyncDisposable
+    {
+        public CancellationToken LostOwnership => lease.LostOwnership;
+
+        public async ValueTask DisposeAsync()
+        {
+            try { await lease.DisposeAsync(); }
+            catch (Exception exception) { LogTurnNotReleased(logger, outgoingId, exception.GetType().Name); }
+        }
+    }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "The WhatsApp outgoing went back to the queue: the host stopped before it was sent.")]
     private static partial void LogReturnedUnsent(ILogger logger);

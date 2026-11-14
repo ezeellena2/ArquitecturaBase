@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Globalization;
+using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.WhatsApp;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Domain.Results;
@@ -116,6 +117,86 @@ public sealed class WhatsAppSenderBackgroundServiceTests
         Assert.Equal(0, clock.TimersCreated);
         Assert.Empty(recorder.Unsent);
         Assert.Equal(Ana, Assert.Single(recorder.Uncertain).To);
+    }
+
+    /// <summary>
+    /// H3: con Redis caído no se consigue el turno para escribirle a la persona; Meta no se llamó, así que el mensaje no se
+    /// descarta: espera la demora de los reintentos y sale cuando vuelve Redis, sin gastar un intento ni informarse como no
+    /// enviado.
+    /// </summary>
+    [Fact]
+    public async Task A_message_whose_turn_cannot_be_taken_waits_and_goes_out_once_redis_is_back()
+    {
+        var clock = new TimerCountingTimeProvider();
+        var client = new ScriptedCloudClient().Script(Ana, Sent());
+        var recorder = new RecordingDeliveryService();
+        // Three outages, as many as its attempts: none of them spends one.
+        var coordinator = new FailingDispatchCoordinator(failures: 3);
+
+        await RunAsync(client, clock, async (sendQueue, _) =>
+        {
+            sendQueue.TryEnqueue(Text(Ana));
+            for (var outage = 1; outage <= 3; outage++)
+            {
+                await WaitUntilAsync(() => clock.TimersCreated == outage);
+                Assert.Equal(0, client.AttemptsFor(Ana));
+                clock.Advance(DefaultRetryDelay);
+            }
+            await WaitUntilAsync(() => !recorder.Sent.IsEmpty);
+        }, recorder: recorder, coordinator: coordinator);
+
+        Assert.Equal((4, 1), (coordinator.Attempts, client.AttemptsFor(Ana)));
+        Assert.Empty(recorder.Unsent);
+    }
+
+    /// <summary>
+    /// H3: un mensaje que vence mientras espera su turno (un código, a los diez minutos) ya no sirve: no se manda y se informa como
+    /// no enviado.
+    /// </summary>
+    [Fact]
+    public async Task A_message_that_expires_while_it_waits_for_its_turn_is_not_sent()
+    {
+        var clock = new TimerCountingTimeProvider();
+        var client = new ScriptedCloudClient().Script(Ana, Sent());
+        var recorder = new RecordingDeliveryService();
+
+        await RunAsync(client, clock, async (sendQueue, _) =>
+        {
+            sendQueue.TryEnqueue(Text(Ana) with { ExpiresAtUtc = clock.GetUtcNow().UtcDateTime.AddSeconds(10) });
+            await WaitUntilAsync(() => clock.TimersCreated == 1);
+            clock.Advance(DefaultRetryDelay);
+            await WaitUntilAsync(() => clock.TimersCreated == 2);
+            clock.Advance(DefaultRetryDelay);
+            await WaitUntilAsync(() => !recorder.Unsent.IsEmpty);
+        }, recorder: recorder, coordinator: new FailingDispatchCoordinator(failures: int.MaxValue));
+
+        Assert.Equal(0, client.AttemptsFor(Ana));
+        Assert.Equal(Ana, Assert.Single(recorder.Unsent).To);
+    }
+
+    /// <summary>H3: si la Api se apaga mientras el mensaje espera su turno, vuelve a la cola para otra copia.</summary>
+    [Fact]
+    public async Task A_message_waiting_for_its_turn_is_given_back_when_the_host_stops()
+    {
+        var clock = new TimerCountingTimeProvider();
+        var client = new ScriptedCloudClient().Script(Ana, Sent());
+        var recorder = new RecordingDeliveryService();
+        WhatsAppSendQueue? queue = null;
+
+        await RunAsync(client, clock, async (sendQueue, _) =>
+        {
+            queue = sendQueue;
+            sendQueue.TryEnqueue(Text(Ana));
+            await WaitUntilAsync(() => clock.TimersCreated == 1);
+        }, recorder: recorder, coordinator: new FailingDispatchCoordinator(failures: int.MaxValue));
+
+        Assert.Equal(0, client.AttemptsFor(Ana));
+        Assert.Empty(recorder.Unsent);
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(Ct);
+        timeout.CancelAfter(TimeSpan.FromSeconds(5));
+        await using var next = queue!.ReadAllAsync(timeout.Token).GetAsyncEnumerator(timeout.Token);
+        Assert.True(await next.MoveNextAsync());
+        Assert.Equal(Ana, next.Current.To);
     }
 
     [Fact]
@@ -406,7 +487,8 @@ public sealed class WhatsAppSenderBackgroundServiceTests
         WhatsAppHealth? health = null,
         int? retryDelaySeconds = null,
         RecordingDeliveryService? recorder = null,
-        RecordingDeliveryService? unsent = null)
+        RecordingDeliveryService? unsent = null,
+        IWhatsAppDispatchCoordinator? coordinator = null)
     {
         var services = new ServiceCollection();
         services.AddSingleton<IWhatsAppCloudClient>(client);
@@ -428,7 +510,7 @@ public sealed class WhatsAppSenderBackgroundServiceTests
             new LibPhoneNumberParser(),
             health,
             clock,
-            new ImmediateCoordinator(),
+            coordinator ?? new ImmediateCoordinator(),
             logger ?? NullLogger<WhatsAppSenderBackgroundService>.Instance);
 
         await service.StartAsync(Ct);

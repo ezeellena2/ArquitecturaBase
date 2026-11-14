@@ -29,7 +29,7 @@ internal sealed class WhatsAppFormActionScenario : IAsyncDisposable
     public ActionCloudTransport Cloud { get; } = new();
     public ActionMediaTransport Media { get; } = new();
     public CapturingActionReplySink Replies { get; } = new();
-    private WhatsAppFormActionScenario(ApiFactory factory, TimeProvider? clock)
+    private WhatsAppFormActionScenario(ApiFactory factory, TimeProvider? clock, IWhatsAppDispatchCoordinator? coordinator)
     {
         ConnectionString = factory.NewDatabaseConnectionString("form_action");
         Host = factory.WithWebHostBuilder(builder =>
@@ -42,15 +42,17 @@ internal sealed class WhatsAppFormActionScenario : IAsyncDisposable
                 services.Replace(ServiceDescriptor.Singleton<IWhatsAppCloudClient>(Cloud));
                 services.Replace(ServiceDescriptor.Singleton<IWhatsAppMediaUploadClient>(Media));
                 services.AddSingleton<IStructuredRecordActionReplySink>(Replies);
-                // Redis expires leases and cooldowns in real time; keep only these waits on the same clock.
+                // Redis expires leases and cooldowns in real time; keep only these waits on the same clock. H3: a scenario can
+                // bring its own turn, as when Redis is down.
                 services.Replace(ServiceDescriptor.Singleton<IWhatsAppDispatchCoordinator>(provider =>
-                    new WhatsAppDispatchCoordinator(provider.GetRequiredService<RedisCache>(), TimeProvider.System)));
+                    coordinator ?? new WhatsAppDispatchCoordinator(provider.GetRequiredService<RedisCache>(), TimeProvider.System)));
             });
         });
     }
-    public static async Task<WhatsAppFormActionScenario> CreateAsync(ApiFactory factory, CancellationToken ct, TimeProvider? clock = null)
+    public static async Task<WhatsAppFormActionScenario> CreateAsync(ApiFactory factory, CancellationToken ct, TimeProvider? clock = null,
+        IWhatsAppDispatchCoordinator? coordinator = null)
     {
-        var scenario = new WhatsAppFormActionScenario(factory, clock);
+        var scenario = new WhatsAppFormActionScenario(factory, clock, coordinator);
         await scenario.ScopeAsync(services => services.GetRequiredService<ApplicationDbContext>().Database.EnsureCreatedAsync(ct));
         await scenario.Services.SeedDatabaseAsync(ct);
         return scenario;

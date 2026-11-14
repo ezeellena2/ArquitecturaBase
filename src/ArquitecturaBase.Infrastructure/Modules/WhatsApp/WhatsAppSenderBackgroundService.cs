@@ -60,24 +60,47 @@ internal sealed partial class WhatsAppSenderBackgroundService(
         for (var attempt = 1; ; attempt++)
         {
             WhatsAppSendResult result;
-            IWhatsAppDispatchLease lease;
+            IWhatsAppDispatchLease? lease = null;
 
-            try
+            while (lease is null)
             {
-                lease = await coordinator.AcquireAsync(message.To, cancellationToken);
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                LogGivenBack(logger, messageType, recipient);
+                try
+                {
+                    lease = await coordinator.AcquireAsync(message.To, cancellationToken);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    LogGivenBack(logger, messageType, recipient);
 
-                return false;
-            }
-            catch (Exception exception)
-            {
-                LogUnexpectedFailure(logger, messageType, recipient, exception);
-                await RecordUnsentAsync(message, messageType, recipient);
+                    return false;
+                }
+                catch (Exception exception)
+                {
+                    // H3: el turno para escribirle a esa persona no se pudo tomar (Redis caído, o una copia que se cortó con
+                    // el turno tomado). Meta no se llamó: el mensaje no se descarta, espera la demora de los reintentos y lo
+                    // vuelve a intentar, sin gastar un intento. Con el apagado, vuelve a la cola.
+                    LogTurnUnavailable(logger, messageType, recipient, exception.GetType().Name);
+                    if (message.ExpiresAtUtc is { } expiresAtUtc && timeProvider.GetUtcNow().UtcDateTime >= expiresAtUtc)
+                    {
+                        // Venció mientras esperaba su turno (un código, a los diez minutos): ya no sirve mandarlo, y se informa
+                        // como no enviado.
+                        LogExpiredWaitingForTurn(logger, messageType, recipient);
+                        await RecordUnsentAsync(message, messageType, recipient);
 
-                return true;
+                        return true;
+                    }
+
+                    try
+                    {
+                        await Task.Delay(TimeSpan.FromSeconds(options.Value.RetryDelaySeconds), timeProvider, cancellationToken);
+                    }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        LogGivenBack(logger, messageType, recipient);
+
+                        return false;
+                    }
+                }
             }
 
             try
@@ -258,6 +281,12 @@ internal sealed partial class WhatsAppSenderBackgroundService(
 
     [LoggerMessage(Level = LogLevel.Information, Message = "The {MessageType} to {Recipient} was given back to the queue: the host stopped before it was sent")]
     private static partial void LogGivenBack(ILogger logger, string messageType, string recipient);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The turn to write to {Recipient} for the {MessageType} could not be taken ({ExceptionType}); it waits and tries again")]
+    private static partial void LogTurnUnavailable(ILogger logger, string messageType, string recipient, string exceptionType);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The {MessageType} to {Recipient} expired while it waited for its turn: it is not sent")]
+    private static partial void LogExpiredWaitingForTurn(ILogger logger, string messageType, string recipient);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "The turn to write to {Recipient} for the {MessageType} could not be released; it expires on its own")]
     private static partial void LogTurnNotReleased(ILogger logger, string messageType, string recipient, Exception exception);

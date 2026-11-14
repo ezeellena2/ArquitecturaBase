@@ -15,6 +15,9 @@ internal abstract partial class DurableMessageSource<T>(IServiceScopeFactory sco
     public void GiveBackCurrent() => _givenBack = true;
     protected abstract T Deserialize(string messageType, string payload);
 
+    /// <summary>H3: the message with the expiry its row keeps, for a channel whose messages carry it.</summary>
+    protected virtual T WithExpiry(T message, DateTime? expiresAtUtc) => message;
+
     public async IAsyncEnumerable<T> ReadAllAsync([EnumeratorCancellation] CancellationToken cancellationToken)
     {
         while (!cancellationToken.IsCancellationRequested)
@@ -42,7 +45,7 @@ internal abstract partial class DurableMessageSource<T>(IServiceScopeFactory sco
             try
             {
                 var payload = protection.CreateProtector("ArquitecturaBase.Delivery.v1", Channel, delivery.MessageType).Unprotect(delivery.ProtectedPayload);
-                message = Deserialize(delivery.MessageType, payload);
+                message = WithExpiry(Deserialize(delivery.MessageType, payload), delivery.ExpiresAtUtc);
             }
             catch (Exception exception) when (exception is not OperationCanceledException)
             {
