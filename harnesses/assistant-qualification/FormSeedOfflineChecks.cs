@@ -4,6 +4,7 @@ using ArquitecturaBase.Application.Modules.WhatsApp;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
+using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -22,6 +23,8 @@ internal static class FormSeedOfflineChecks
     {
         public bool IsConfigured => false;
         public TimeSpan SessionLifetime => throw Unexpected();
+        // As the installation without WhatsApp (DisabledWhatsAppFlowEnvironment): no account is configured.
+        public Result<WhatsAppFlowAccountContext> ConfiguredAccount() => FlowErrors.AccountUnavailable;
         public Task<Result<WhatsAppFlowAccountContext>> VerifyAccountAsync(CancellationToken cancellationToken) => throw Unexpected();
         public Task<Result<StructuredFormPublicationResponse>> AcceptAsync(StructuredFormPublicationRequest request, CancellationToken cancellationToken) => throw Unexpected();
         public Task<Result<StructuredFormPublicationResponse>> GetAsync(StructuredFormPublicationQuery query, CancellationToken cancellationToken) => throw Unexpected();
