@@ -1054,8 +1054,9 @@ cambian con su arreglo, no antes: N3 y B4, en [identidad](../features/identidad.
 - **Tus decisiones:** tomadas el 2026-11-14 ([decisiones](#decisiones-del-2026-11-14)).
 - **El plan:** B1 a B5, N1 a N26 (menos N24) y lo que sumaron las decisiones (lo que falta de N27, el ETag de N28, los
   conteos de N30, los índices de N31 y N33 con N9), en 31 tareas y seis etapas del
-  [plan de los arreglos del núcleo](../plans/2026-11-14-arreglos-del-nucleo.md). La lease de N28 va antes de pasar de una
-  réplica; el resto de gran escala, cuando haya volumen real que medir.
+  [plan de los arreglos del núcleo](../plans/2026-11-14-arreglos-del-nucleo.md), que se programa antes de la prueba
+  integral, como elegiste el mismo día. La lease de N28 va antes de pasar de una réplica; el resto de gran escala, cuando
+  haya volumen real que medir.
 - **Lo que ya estaba anotado:**
   - la retención de N16, en [verificación y producción](../plans/verificacion-y-produccion.md);
   - la exportación de telemetría de N10, a medias, en el mismo plan;

@@ -26,8 +26,9 @@ El núcleo no tenía un plan propio donde anexarlos; el pendiente de retención 
   revisor contra el código. La primera tarea de cada etapa relee el código de sus hallazgos y corrige el plan si hace falta.
 - **Sin datos que convertir:** no hay producción. La revisión nueva de usuarios y roles arranca en 0 en las filas que ya
   existen, y la retención corre igual sobre los datos de desarrollo.
-- **Cuándo:** sin fecha. Ninguna tarea traba la prueba integral; B1 (tarea 25) no se programa durante esa prueba, porque
-  cambia la configuración de esta PC.
+- **Cuándo:** antes de la prueba integral, como eligió el usuario el 2026-11-14, para probar todo una sola vez. Arranca
+  cuando lo permita el cupo semanal, que se reinicia el 17/11 a las 23:59, de a una etapa y mirándolo antes de cada una. B1
+  (tarea 25) va antes de la prueba y no durante, porque cambia la configuración de esta PC.
 
 **Cómo se trabaja.** Cada tarea sigue [validar un cambio](../guides/validar-un-cambio.md): el test en rojo primero y las suites
 rápidas del área. La revisión adversarial va completa en lo que toca permisos, cuentas, datos personales o el correo, y no en
