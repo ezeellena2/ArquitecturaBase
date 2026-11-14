@@ -104,7 +104,8 @@ comprobó con servicios reales y qué con dobles. Clonar el código no acredita 
 
 ## Arreglos de la revisión de arquitectura
 
-Decididos el 2026-11-13 y en programación, etapa por etapa (lo hecho, al pie de cada etapa). Salen de la
+Decididos el 2026-11-13 y programados, etapa por etapa, el 2026-11-13 y el 2026-11-14 (lo hecho, al pie de cada etapa); falta
+la corrida completa, que la coordinadora corre una sola vez al final de la tanda. Salen de la
 [revisión de arquitectura de WhatsApp](../reviews/2026-11-12-arquitectura-whatsapp.md), que tiene el
 escenario, la evidencia (archivo y línea en `9c0eb048`) y el esfuerzo de cada hallazgo, y de las
 [decisiones del usuario](../reviews/2026-11-12-arquitectura-whatsapp.md#decisiones-del-2026-11-13),
@@ -321,22 +322,25 @@ derivar, el `NotFound` de `Submit` en una continuación y el botón viejo despu�
     de cada mensaje y de cada salida guarda el contexto de traza, y un `ActivitySource` del módulo une
     el webhook, el worker y Meta. Chico la auditoría; mediano la traza.
 
-**En curso el 2026-11-14:** H13 en 379b38fc y H19 en dbc81d12, cada una con su revisión adversarial aplicada. La integración de
-H13 mostró que el predicado de respuestas pendientes llevaba `AsNoTracking` y la retención no guardaba lo vaciado; la revisión
-de H19 llevó la auditoría del modo a un historial. Se corrió el build sin advertencias, Domain, Application y ArchitectureTests
-enteros y la integración de lo que cambió, clase por clase, y compila el arnés de calificación. Falta H16, que no entra en el
-cupo de esta semana, y el usuario pidió arrancarlo igual, en partes en verde. Va en tres partes con el
-[ADR 0030](../decisions/0030-contenido-del-chat-cifrado.md), y el usuario ya confirmó vaciar el contenido existente en las tres:
+**Hecha el 2026-11-14:** H13 en 379b38fc, H19 en dbc81d12 y H16 en tres partes, cada una con su revisión adversarial aplicada.
+La integración de H13 mostró que el predicado de respuestas pendientes llevaba `AsNoTracking` y la retención no guardaba lo
+vaciado; la revisión de H19 llevó la auditoría del modo a un historial. H16 no entraba en el cupo de esta semana y el usuario
+pidió hacerlo igual, en partes en verde, con el [ADR 0030](../decisions/0030-contenido-del-chat-cifrado.md); confirmó vaciar el
+contenido existente en las tres:
 
-- **Parte 1, hecha en 1a538093:** el conversor (`WhatsAppChatContent`, protector fijado al arrancar), las sesiones de envío
+- **Parte 1, en 1a538093:** el conversor (`WhatsAppChatContent`, protector fijado al arrancar), las sesiones de envío
   (`FlowBody`, `LocationLatitude`, `LocationLongitude`) y el porqué de las referencias (`OutcomeJson`), con su migración
   (`EncryptWhatsAppSendContent`) y su prueba.
-- **Parte 2, falta:** las salidas (`Body`, `QuickRepliesJson`, `AssistantReplyJson`, `ListButton`, `Footer`,
-  `SpreadsheetRowsJson`, `DocumentName`), con la vista previa del chat armada en memoria.
-- **Parte 3, falta:** los mensajes (las trece columnas del ADR), con las consultas que miran el cuerpo en SQL
-  (`WhatsAppChatReader`, `WhatsAppAssistantReader`, `WhatsAppAssistantHistoryReader`, `WhatsAppReceivedDocumentReader` y
-  `WhatsAppFormActionReader`), la prueba de las fuentes que pide el cuerpo y la planilla en el SQL, y los tests que escriben o leen
-  contenido por SQL (el relevamiento está en el ADR).
+- **Parte 2, en e8f91535:** las salidas (`Body`, `QuickRepliesJson`, `AssistantReplyJson`, `ListButton`, `Footer`,
+  `SpreadsheetRowsJson`, `DocumentName`), con `EncryptWhatsAppOutgoingContent`; los botones que ya no se abren se leen como sin
+  opciones.
+- **Parte 3, en e355c639:** los mensajes (las trece columnas del ADR), con `EncryptWhatsAppMessageContent`. Las consultas
+  preguntan sólo si el cuerpo es nulo (un cuerpo recibido en blanco se guarda como nulo) y completan el texto de una fuente y los
+  nombres de archivo con lo leído; la vista previa del chat sigue en SQL, porque el conversor descifra lo que devuelve.
+
+Se corrió el build sin advertencias, Domain, Application y ArchitectureTests enteros y la integración de lo que cambió, clase por
+clase (en H16, todos los tests de migración del módulo y los lectores de mensajes), y compila el arnés de calificación. La corrida
+completa va una sola vez, al cierre del desarrollo.
 
 ### Etapa 7: despliegues sin romper
 

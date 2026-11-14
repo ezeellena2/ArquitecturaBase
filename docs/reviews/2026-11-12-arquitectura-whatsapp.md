@@ -522,8 +522,10 @@ fuente: cambiarla lo decidís vos.
   - dejar escrito que el chat queda en claro, protegido por los 90 días de retención y el acceso a la base.
 - **Decidido el 2026-11-13:** se cifra todo el contenido, con un ADR
   ([decisiones](#decisiones-del-2026-11-13)).
-- **En curso el 2026-11-14:** el [ADR 0030](../decisions/0030-contenido-del-chat-cifrado.md) fija las columnas y el mecanismo, y
-  la parte 1 (sesiones de envío y porqué de las referencias) está en 1a538093. Faltan las salidas y los mensajes.
+- **Arreglado el 2026-11-14** en tres partes, con el [ADR 0030](../decisions/0030-contenido-del-chat-cifrado.md): 1a538093
+  (sesiones de envío y porqué de las referencias), e8f91535 (salidas) y e355c639 (mensajes). Un conversor de EF cifra con
+  Data Protection y en SQL sólo se pregunta si el contenido es nulo. Cada migración vació lo que había, como confirmó el usuario,
+  y su Down se niega mientras quede contenido cifrado.
 
 #### H17. La paridad de textos no cubre los del asistente de WhatsApp
 
