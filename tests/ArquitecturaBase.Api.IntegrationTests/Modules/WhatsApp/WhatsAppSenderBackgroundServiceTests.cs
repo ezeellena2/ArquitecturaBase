@@ -95,6 +95,29 @@ public sealed class WhatsAppSenderBackgroundServiceTests
         Assert.Equal(Ana, next.Current.To);
     }
 
+    /// <summary>
+    /// H7: lo que quedó incierto (un timeout, una respuesta cortada) no se reintenta, porque Meta pudo haberlo recibido, y
+    /// no se informa como no enviado: una invitación queda sin confirmar, no fallida.
+    /// </summary>
+    [Fact]
+    public async Task An_uncertain_send_is_not_retried_nor_reported_as_unsent()
+    {
+        var clock = new TimerCountingTimeProvider();
+        var client = new ScriptedCloudClient().Script(Ana, WhatsAppSendResult.Uncertain(), Sent());
+        var recorder = new RecordingDeliveryService();
+
+        await RunAsync(client, clock, async (sendQueue, _) =>
+        {
+            sendQueue.TryEnqueue(Text(Ana));
+            await WaitUntilAsync(() => !recorder.Uncertain.IsEmpty);
+        }, recorder: recorder);
+
+        Assert.Equal(1, client.AttemptsFor(Ana));
+        Assert.Equal(0, clock.TimersCreated);
+        Assert.Empty(recorder.Unsent);
+        Assert.Equal(Ana, Assert.Single(recorder.Uncertain).To);
+    }
+
     [Fact]
     public async Task Transient_failures_wait_the_configured_delay_before_retrying()
     {
@@ -465,6 +488,15 @@ public sealed class WhatsAppSenderBackgroundServiceTests
         public ConcurrentQueue<SentMessage> Sent { get; } = new();
 
         public ConcurrentQueue<WhatsAppOutboundMessage> Unsent { get; } = new();
+
+        public ConcurrentQueue<WhatsAppOutboundMessage> Uncertain { get; } = new();
+
+        public Task<Result> RecordUncertainAsync(WhatsAppOutboundMessage message, CancellationToken cancellationToken)
+        {
+            Uncertain.Enqueue(message);
+
+            return Task.FromResult(Result.Success());
+        }
 
         public Func<WhatsAppOutboundMessage, bool> FailsSent { get; init; } = _ => false;
 

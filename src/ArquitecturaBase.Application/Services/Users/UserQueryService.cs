@@ -94,7 +94,7 @@ internal sealed class UserQueryService(
     // su canal; sin fuente (el correo), no hay estado que seguir.
     private async Task<InvitationDeliveryStatus?> TrackedStatusAsync(UserInvitationRow invitation, CancellationToken cancellationToken)
     {
-        if (invitation.SendFailed
+        if (invitation.SendFailed || invitation.SendUncertain
             || deliveryStatuses.SingleOrDefault(source => source.Channel == invitation.Channel) is not { } source)
         {
             return null;

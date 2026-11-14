@@ -98,7 +98,40 @@ public sealed partial class WhatsAppOutgoingMessage : Entity
     {
         RequireState(WhatsAppOutgoingMessageState.Pending);
         StartedAtUtc = nowUtc;
+        NextAttemptAtUtc = null;
         State = WhatsAppOutgoingMessageState.Sending;
+    }
+
+    /// <summary>
+    /// H7: when a send that did not go out may try again; meanwhile nothing else of its chat goes out, so the order stays. It
+    /// only means something while Pending: reserving clears it, and one already past never holds anything back.
+    /// </summary>
+    public DateTime? NextAttemptAtUtc { get; private set; }
+
+    /// <summary>H7: how many times this send went back to wait for its next attempt; the worker stops retrying at its limit.</summary>
+    public int DispatchRetries { get; private set; }
+
+    /// <summary>
+    /// H7: the send did not go out (the network or Meta refused it before it arrived, and it is worth retrying), so it goes back
+    /// to Pending in its place until <paramref name="nextAttemptAtUtc"/>. A notice or the assistant also needs its own
+    /// reservation, even after its message effect started: the answer said it was not taken. A notice keeps its uploaded
+    /// document. Whether it went back.
+    /// </summary>
+    public bool RetryLater(Guid? reservationId, DateTime nextAttemptAtUtc)
+    {
+        if (State != WhatsAppOutgoingMessageState.Sending) return false;
+        if (Origin is WhatsAppMessageOrigin.FormAction or WhatsAppMessageOrigin.Assistant)
+        {
+            if (DispatchReservationId is null || DispatchReservationId != reservationId) return false;
+            DispatchReservationId = null;
+            MessageEffectStartedAtUtc = null;
+        }
+
+        State = WhatsAppOutgoingMessageState.Pending;
+        StartedAtUtc = null;
+        NextAttemptAtUtc = nextAttemptAtUtc;
+        DispatchRetries++;
+        return true;
     }
 
     public static WhatsAppOutgoingMessage CreateFlow(Guid actor, Guid contactId, Guid requestId, string body, Guid sessionId, DateTime nowUtc)
@@ -327,6 +360,9 @@ public sealed partial class WhatsAppOutgoingMessage : Entity
         DispatchReservationId = null;
         FailureCode = null;
         DocumentMediaId = null;
+        // H7: a manual retry is a new round of attempts, with no wait left.
+        NextAttemptAtUtc = null;
+        DispatchRetries = 0;
         return true;
     }
 

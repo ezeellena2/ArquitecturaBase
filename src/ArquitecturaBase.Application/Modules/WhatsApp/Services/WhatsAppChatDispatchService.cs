@@ -18,7 +18,7 @@ internal sealed class WhatsAppChatDispatchService(
         unitOfWork.ExecuteInTransactionAsync(async ct =>
         {
             var nowUtc = timeProvider.GetUtcNow().UtcDateTime;
-            var outgoing = await repository.GetNextPendingAsync(nowUtc - WhatsAppDispatchPacing.RecipientWait, ct);
+            var outgoing = await repository.GetNextPendingAsync(nowUtc, ct);
             if (outgoing is null) { return Result.Success(new WhatsAppDispatchReservationResponse(false, null)); }
             var contact = await repository.GetForUpdateAsync(outgoing.ContactId, ct);
             var phone = await sends.ValidateAsync(contact, outgoing, ct);
@@ -35,7 +35,8 @@ internal sealed class WhatsAppChatDispatchService(
             };
             if (reservation is null) outgoing.Start(nowUtc);
             return Result.Success(new WhatsAppDispatchReservationResponse(true, new(outgoing.Id, contact!.Id, phone.Value, outgoing.Body!,
-                outgoing.Kind, outgoing.FlowSessionId, outgoing.Origin, reservation, outgoing.Document, outgoing.DocumentMediaId, outgoing.QuickReplies, outgoing.ListButton)));
+                outgoing.Kind, outgoing.FlowSessionId, outgoing.Origin, reservation, outgoing.Document, outgoing.DocumentMediaId, outgoing.QuickReplies, outgoing.ListButton,
+                outgoing.DispatchRetries)));
         }, CommitPolicy.OnSuccess, cancellationToken));
 
     public Task<Result> CompleteAsync(Guid contactId, Guid operationId, string? waMessageId, bool uncertain, CancellationToken cancellationToken, Guid? reservationId = null, string? failureCode = null) =>
@@ -97,6 +98,23 @@ internal sealed class WhatsAppChatDispatchService(
 
             // H12: this person's six seconds count from here, and meanwhile the next chat is chosen without waiting for them.
             contact.RecordDispatch(timeProvider.GetUtcNow().UtcDateTime);
+            return Result.Success();
+        }, CommitPolicy.OnSuccess, cancellationToken));
+
+    public Task<Result> RetryLaterAsync(Guid contactId, Guid operationId, Guid? reservationId, CancellationToken cancellationToken) =>
+        OperationLog.RunAsync<Result>(logger, "RetryWhatsAppOutgoing", () =>
+        unitOfWork.ExecuteInTransactionAsync(async ct =>
+        {
+            // The contact before its outgoing row, as reserving and completing take them.
+            var contact = await repository.GetForUpdateAsync(contactId, ct);
+            if (contact is null) return Result.Failure(WhatsAppChatErrors.NotFound);
+            var operation = await repository.GetOutgoingAsync(operationId, ct);
+            if (operation is null || operation.ContactId != contactId) return Result.Failure(WhatsAppChatErrors.NotFound);
+            var nowUtc = timeProvider.GetUtcNow().UtcDateTime;
+            if (!operation.RetryLater(reservationId, nowUtc + WhatsAppDispatchPacing.RetryWait))
+                return Result.Failure(WhatsAppFormActionErrors.StateConflict);
+            // The turn to write to this person was used, as when a send finishes.
+            contact.RecordDispatch(nowUtc);
             return Result.Success();
         }, CommitPolicy.OnSuccess, cancellationToken));
 

@@ -63,6 +63,42 @@ public sealed class WhatsAppOperatorChatTests
         Assert.Equal(WhatsAppOutgoingMessageState.Accepted, operation.State);
     }
 
+    // H7: a manual send that did not go out waits for its next attempt in its place; reserving it again clears the wait.
+    [Fact]
+    public void A_manual_send_that_did_not_go_out_waits_for_its_next_attempt_in_its_place()
+    {
+        var operation = WhatsAppOutgoingMessage.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "Hola", Now);
+        operation.Start(Now.AddSeconds(1));
+
+        Assert.True(operation.RetryLater(null, Now.AddSeconds(31)));
+
+        Assert.Equal((WhatsAppOutgoingMessageState.Pending, (DateTime?)Now.AddSeconds(31), Now), (operation.State, operation.NextAttemptAtUtc, operation.RequestedAtUtc));
+        Assert.False(operation.RetryLater(null, Now.AddSeconds(60)));
+        operation.Start(Now.AddSeconds(31));
+        Assert.Null(operation.NextAttemptAtUtc);
+        Assert.Equal(1, operation.DispatchRetries);
+        Assert.True(operation.RetryLater(null, Now.AddSeconds(62)));
+        Assert.Equal(2, operation.DispatchRetries);
+    }
+
+    // H7: a notice that failed after its retries starts a new round when it is retried by hand.
+    [Fact]
+    public void A_notice_retried_by_hand_starts_its_retries_again()
+    {
+        var notice = WhatsAppOutgoingMessage.CreateFormAction(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "Aviso", Now);
+        for (var attempt = 0; attempt < 2; attempt++)
+        {
+            var reservation = notice.ReserveFormAction(Now);
+            Assert.True(notice.RetryLater(reservation, Now.AddSeconds(30)));
+        }
+        notice.ReserveFormAction(Now);
+        notice.Fail("WhatsApp.FormAction.SendRejected");
+
+        Assert.True(notice.RetryFormAction(1, Now.AddMinutes(5)));
+
+        Assert.Equal((0, (DateTime?)null, WhatsAppOutgoingMessageState.Pending), (notice.DispatchRetries, notice.NextAttemptAtUtc, notice.State));
+    }
+
     // H8: a manual send that stopped before Meta was called goes back to the queue in its place; anything else does not move.
     [Fact]
     public void A_manual_send_stopped_before_Meta_goes_back_to_the_queue_in_its_place()

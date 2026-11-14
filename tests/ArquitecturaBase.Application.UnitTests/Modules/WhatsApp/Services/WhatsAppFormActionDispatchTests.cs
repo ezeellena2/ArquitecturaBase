@@ -65,12 +65,12 @@ public sealed class WhatsAppFormActionDispatchTests
         Assert.Empty(host.Messages.Added);
     }
 
-    // H12: reserving asks for the people out of their six-second wait, and a finished send starts the person's wait.
+    // H12: reserving asks for the next chat at this moment, and a finished send starts the person's wait.
     [Fact]
     public async Task Reserving_asks_for_people_out_of_their_wait_and_a_finished_send_starts_it()
     {
         var host = new Host(); var work = (await host.Service.ReserveAsync(Ct)).Value.Operation!;
-        Assert.Equal(Now.UtcDateTime.AddSeconds(-6), host.Repository.WaitingSinceUtc);
+        Assert.Equal(Now.UtcDateTime, host.Repository.NowUtc);
         Assert.Null(host.Repository.Contact.LastDispatchAtUtc);
         Assert.True((await host.Service.MarkFormActionMessageEffectAsync(work.ContactId, work.Id, work.DispatchReservationId!.Value, Ct)).Value);
         host.Clock.Advance(TimeSpan.FromSeconds(2));
@@ -78,6 +78,22 @@ public sealed class WhatsAppFormActionDispatchTests
         Assert.True((await host.Service.CompleteAsync(work.ContactId, work.Id, "wamid.sent", false, Ct, work.DispatchReservationId)).IsSuccess);
 
         Assert.Equal(Now.UtcDateTime.AddSeconds(2), host.Repository.Contact.LastDispatchAtUtc);
+    }
+
+    // H7: a notice that did not go out goes back to the queue in its place, waits thirty seconds and uses the person's turn.
+    [Fact]
+    public async Task A_notice_that_did_not_go_out_waits_for_its_next_attempt()
+    {
+        var host = new Host(); var work = (await host.Service.ReserveAsync(Ct)).Value.Operation!;
+        Assert.True((await host.Service.MarkFormActionMessageEffectAsync(work.ContactId, work.Id, work.DispatchReservationId!.Value, Ct)).Value);
+
+        Assert.True((await host.Service.RetryLaterAsync(work.ContactId, work.Id, work.DispatchReservationId, Ct)).IsSuccess);
+
+        Assert.Equal((WhatsAppOutgoingMessageState.Pending, (DateTime?)Now.UtcDateTime.AddSeconds(30), (Guid?)null, (DateTime?)null),
+            (host.Repository.Outgoing.State, host.Repository.Outgoing.NextAttemptAtUtc, host.Repository.Outgoing.DispatchReservationId,
+                host.Repository.Outgoing.MessageEffectStartedAtUtc));
+        Assert.Equal(Now.UtcDateTime, host.Repository.Contact.LastDispatchAtUtc);
+        Assert.Empty(host.Messages.Added);
     }
 
     [Fact]
@@ -134,10 +150,10 @@ public sealed class WhatsAppFormActionDispatchTests
         public Task<WhatsAppOutgoingMessage?> GetOutgoingAsync(Guid id, CancellationToken ct) => Task.FromResult<WhatsAppOutgoingMessage?>(Outgoing.Id == id ? Outgoing : null);
         public Task<IReadOnlyList<WhatsAppAssistantRequest>> ListPendingAutomaticRequestsAsync(Guid contactId, CancellationToken ct) => Task.FromResult<IReadOnlyList<WhatsAppAssistantRequest>>([]);
         public Task<bool> ExistsStartedAssistantMessageAsync(Guid contactId, CancellationToken ct) => Task.FromResult(false);
-        public DateTime? WaitingSinceUtc { get; private set; }
+        public DateTime? NowUtc { get; private set; }
         public Task<WhatsAppOutgoingMessage?> GetNextPendingAsync(DateTime waitingSinceUtc, CancellationToken ct)
         {
-            WaitingSinceUtc = waitingSinceUtc;
+            NowUtc = waitingSinceUtc;
             return Task.FromResult<WhatsAppOutgoingMessage?>(Outgoing.State == WhatsAppOutgoingMessageState.Pending ? Outgoing : null);
         }
         public Task<IReadOnlyList<WhatsAppOutgoingMessage>> ListExpiredSendingAsync(DateTime cutoff, CancellationToken ct) => Task.FromResult<IReadOnlyList<WhatsAppOutgoingMessage>>(Outgoing.State == WhatsAppOutgoingMessageState.Sending && Outgoing.StartedAtUtc < cutoff ? [Outgoing] : []);

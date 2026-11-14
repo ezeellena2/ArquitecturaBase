@@ -10,12 +10,14 @@ using Microsoft.Extensions.Options;
 namespace ArquitecturaBase.Infrastructure.Modules.WhatsApp;
 
 /// <summary>
-/// Manda los mensajes de la cola de a uno (sección 9 del spec). Lo que Meta rechaza por un rato (el límite por persona,
-/// el de la cuenta, un 5xx o un timeout) se reintenta con espera, hasta 3 intentos en total; lo que fallaría igual (la
-/// ventana de 24 horas, un número sin WhatsApp, el token o sus permisos) no se insiste. Un problema del token va además
-/// a <see cref="WhatsAppHealth"/>. Cada mensaje que sale se guarda en el historial con su resumen seguro, y uno que no
-/// sale se informa igual mediante <see cref="IWhatsAppDeliveryService"/>: una invitación queda como fallida para que el
-/// admin la vea. Los logs llevan el número enmascarado, el motivo y el código de Meta: nunca el cuerpo, el código de
+/// Manda los mensajes de la cola de a uno (sección 9 del spec). Lo que no salió y vale reintentar (H7: la red no llegó a
+/// Meta, el circuito o el límite cortaron antes, o Meta lo rechazó por un rato: el límite por persona, el de la cuenta,
+/// un 5xx con 131000, 131016, 2 o 133004) se reintenta con espera, hasta 3 intentos en total; lo que fallaría igual (la ventana de
+/// 24 horas, un número sin WhatsApp, el token o sus permisos) no se insiste, y lo que pudo haber llegado (un timeout,
+/// una respuesta cortada, un 5xx sin código) no se repite. Un problema del token va además a <see cref="WhatsAppHealth"/>.
+/// Cada mensaje que sale se guarda en el historial con su resumen seguro, y uno que no sale, o no se sabe, se informa
+/// igual mediante <see cref="IWhatsAppDeliveryService"/>: una invitación queda fallida o sin confirmar para que el admin
+/// la vea. Los logs llevan el número enmascarado, el motivo y el código de Meta: nunca el cuerpo, el código de
 /// ingreso, la URL ni el token.
 /// </summary>
 internal sealed partial class WhatsAppSenderBackgroundService(
@@ -112,6 +114,15 @@ internal sealed partial class WhatsAppSenderBackgroundService(
                 return true;
             }
 
+            if (result.OutcomeUncertain)
+            {
+                // H7: Meta pudo haberlo recibido: no se reintenta (se mandaría dos veces) ni se informa como no enviado.
+                LogUncertain(logger, messageType, recipient);
+                await RecordUncertainAsync(message, messageType, recipient);
+
+                return true;
+            }
+
             var failure = result.Failure!.Value;
 
             if (failure.IsTokenProblem())
@@ -195,6 +206,20 @@ internal sealed partial class WhatsAppSenderBackgroundService(
         }
     }
 
+    private async Task RecordUncertainAsync(WhatsAppOutboundMessage message, string messageType, string recipient)
+    {
+        try
+        {
+            using var bounded = new CancellationTokenSource(RecordTimeout);
+            await using var scope = scopeFactory.CreateAsyncScope();
+            await scope.ServiceProvider.GetRequiredService<IWhatsAppDeliveryService>().RecordUncertainAsync(message, bounded.Token);
+        }
+        catch (Exception exception)
+        {
+            LogUncertainNotRecorded(logger, messageType, recipient, exception);
+        }
+    }
+
     private async Task ReleaseTurnAsync(IWhatsAppDispatchLease lease, string messageType, string recipient)
     {
         try
@@ -237,6 +262,9 @@ internal sealed partial class WhatsAppSenderBackgroundService(
     [LoggerMessage(Level = LogLevel.Warning, Message = "The turn to write to {Recipient} for the {MessageType} could not be released; it expires on its own")]
     private static partial void LogTurnNotReleased(ILogger logger, string messageType, string recipient, Exception exception);
 
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The {MessageType} to {Recipient} may have reached Meta: it is not sent again")]
+    private static partial void LogUncertain(ILogger logger, string messageType, string recipient);
+
     [LoggerMessage(Level = LogLevel.Information, Message = "The {MessageType} to {Recipient} was sent")]
     private static partial void LogSent(ILogger logger, string messageType, string recipient);
 
@@ -244,6 +272,11 @@ internal sealed partial class WhatsAppSenderBackgroundService(
         Level = LogLevel.Warning,
         Message = "The {MessageType} to {Recipient} was sent but could not be saved in the history; it is not sent again")]
     private static partial void LogNotRecorded(ILogger logger, string messageType, string recipient, Exception exception);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "The {MessageType} to {Recipient} may have reached Meta and that could not be saved")]
+    private static partial void LogUncertainNotRecorded(ILogger logger, string messageType, string recipient, Exception exception);
 
     [LoggerMessage(
         Level = LogLevel.Warning,

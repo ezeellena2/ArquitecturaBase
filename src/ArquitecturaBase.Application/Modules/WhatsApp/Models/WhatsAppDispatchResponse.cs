@@ -9,7 +9,7 @@ public sealed record WhatsAppDispatchResponse(Guid Id, Guid ContactId, PhoneNumb
     WhatsAppOutgoingMessageKind Kind = WhatsAppOutgoingMessageKind.Text, Guid? FlowSessionId = null,
     WhatsAppMessageOrigin Origin = WhatsAppMessageOrigin.Conversation, Guid? DispatchReservationId = null,
     WhatsAppOutgoingDocument? Document = null, string? DocumentMediaId = null, IReadOnlyList<WhatsAppOutgoingQuickReply>? QuickReplies = null,
-    string? ListButton = null)
+    string? ListButton = null, int DispatchRetries = 0)
 {
     public override string ToString() => nameof(WhatsAppDispatchResponse);
 }

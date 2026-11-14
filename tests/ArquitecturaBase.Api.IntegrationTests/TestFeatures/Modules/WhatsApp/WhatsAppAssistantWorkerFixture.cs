@@ -64,6 +64,7 @@ internal sealed class WhatsAppAssistantWorkerFixture : IAsyncDisposable
         }
         public Task<Result> RecoverExpiredAsync(CancellationToken ct)=>Task.FromResult(Result.Success());
         public Task<Result> ReturnUnsentAsync(Guid contact,Guid operation,Guid? reservation,CancellationToken ct){host.Events.Add("return");return Task.FromResult(Result.Success());}
+        public Task<Result> RetryLaterAsync(Guid contact,Guid operation,Guid? reservation,CancellationToken ct){host.Events.Add("retry");return Task.FromResult(Result.Success());}
         public Task<Result<bool>> MarkAssistantMessageEffectAsync(Guid contact,Guid operation,Guid reservation,CancellationToken ct)
         {Assert.Equal(host._activeOperation!.DispatchReservationId,reservation);host.Events.Add("mark");return Task.FromResult(Result.Success(host.AllowPost));}
         public Task<Result<bool>> MarkFormActionMessageEffectAsync(Guid contact,Guid operation,Guid reservation,CancellationToken ct)=>throw new NotSupportedException();

@@ -11,4 +11,7 @@ public enum InvitationDeliveryStatus
     Delivered = 3,
     Read = 4,
     Failed = 5,
+
+    /// <summary>H7: por WhatsApp, no se sabe si salió; el administrador revisa antes de mandar otra.</summary>
+    Uncertain = 6,
 }

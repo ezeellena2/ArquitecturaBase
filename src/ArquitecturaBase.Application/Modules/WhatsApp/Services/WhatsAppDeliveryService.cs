@@ -26,6 +26,7 @@ internal sealed class WhatsAppDeliveryService(
 {
     private const string RecordSentOperation = "RecordSentWhatsAppMessage";
     private const string RecordUnsentOperation = "RecordUnsentWhatsAppMessage";
+    private const string RecordUncertainOperation = "RecordUncertainWhatsAppMessage";
 
     public Task<Result> RecordSentAsync(
         WhatsAppOutboundMessage message, string waMessageId, CancellationToken cancellationToken)
@@ -48,6 +49,23 @@ internal sealed class WhatsAppDeliveryService(
         return OperationLog.RunAsync<Result>(logger, RecordUnsentOperation, () =>
             unitOfWork.ExecuteInTransactionAsync(
                 ct => RecordUnsentCoreAsync(message, ct), CommitPolicy.OnSuccess, cancellationToken));
+    }
+
+    public Task<Result> RecordUncertainAsync(WhatsAppOutboundMessage message, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(message);
+
+        return OperationLog.RunAsync<Result>(logger, RecordUncertainOperation, () =>
+            unitOfWork.ExecuteInTransactionAsync(async ct =>
+            {
+                if (message is WhatsAppInvitationMessage invitation)
+                {
+                    await invitations.LockAccountAsync(invitation.UserId, ct);
+                    (await invitations.GetByIdAsync(invitation.InvitationId, ct))?.MarkSendUncertain();
+                }
+
+                return Result.Success();
+            }, CommitPolicy.OnSuccess, cancellationToken));
     }
 
     // Lock the provider id before reading: a receipt may arrive before the sent message is recorded.

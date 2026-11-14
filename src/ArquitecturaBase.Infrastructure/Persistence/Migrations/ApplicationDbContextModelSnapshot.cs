@@ -4491,6 +4491,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("DispatchReservationId")
                         .HasColumnType("uuid");
 
+                    b.Property<int>("DispatchRetries")
+                        .HasColumnType("integer");
+
                     b.Property<string>("DocumentContentType")
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)");
@@ -4551,6 +4554,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(20)");
 
                     b.Property<DateTime?>("MessageEffectStartedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("NextAttemptAtUtc")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid?>("OperatorUserId")
@@ -4746,6 +4752,9 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(256)");
 
                     b.Property<bool>("SendFailed")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("SendUncertain")
                         .HasColumnType("boolean");
 
                     b.Property<DateTime>("SentAtUtc")

@@ -134,6 +134,21 @@ public sealed class WhatsAppAssistantOutgoingTests
         Assert.False(outgoing.MarkAssistantMessageEffect(second,Now.AddMinutes(1)));
     }
 
+    // H7: Meta said an assistant send did not go out, so it waits for its next attempt even after its message effect started,
+    // only with its own reservation.
+    [Fact]
+    public void An_assistant_send_that_did_not_go_out_waits_for_its_next_attempt_with_its_reservation()
+    {
+        var outgoing = Text(); var reservation = outgoing.ReserveAssistant(Now);
+        Assert.True(outgoing.MarkAssistantMessageEffect(reservation,Now));
+        Assert.False(outgoing.RetryLater(Guid.NewGuid(),Now.AddSeconds(30)));
+
+        Assert.True(outgoing.RetryLater(reservation,Now.AddSeconds(30)));
+
+        Assert.Equal((WhatsAppOutgoingMessageState.Pending,(Guid?)null,(DateTime?)null,(DateTime?)Now.AddSeconds(30)),
+            (outgoing.State,outgoing.DispatchReservationId,outgoing.MessageEffectStartedAtUtc,outgoing.NextAttemptAtUtc));
+    }
+
     // H8: an assistant send goes back to the queue only with its own reservation and before its message effect started.
     [Fact]
     public void An_assistant_send_goes_back_only_with_its_reservation_and_before_its_effect()

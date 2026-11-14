@@ -32,7 +32,11 @@ internal enum WhatsAppSendFailure
     /// </summary>
     MissingPermission,
 
-    /// <summary>Un 5xx, un timeout o la red: algo pasajero. Se reintenta.</summary>
+    /// <summary>
+    /// H7: no salió y vale reintentarlo: el DNS, la conexión o el TLS no llegaron, el circuito o el límite de la resiliencia
+    /// cortaron antes, o un 5xx con un código que Meta manda reintentar. Lo que pudo haber llegado (un timeout, una respuesta
+    /// cortada, un 5xx sin código) es <see cref="WhatsAppSendResult.Uncertain"/>, que no se reintenta.
+    /// </summary>
     Transient,
 
     /// <summary>Cualquier otro error de Meta, con su código si vino. Reintentar daría lo mismo.</summary>

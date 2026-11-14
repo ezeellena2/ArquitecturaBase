@@ -17,6 +17,7 @@ public sealed record LastInvitation(UserInvitationChannel Channel, DateTime Sent
     {
         ArgumentNullException.ThrowIfNull(row);
 
-        return new LastInvitation(row.Channel, row.SentAtUtc, row.SendFailed ? InvitationDeliveryStatus.Failed : trackedStatus);
+        return new LastInvitation(row.Channel, row.SentAtUtc, row.SendFailed ? InvitationDeliveryStatus.Failed
+            : row.SendUncertain ? InvitationDeliveryStatus.Uncertain : trackedStatus);
     }
 }

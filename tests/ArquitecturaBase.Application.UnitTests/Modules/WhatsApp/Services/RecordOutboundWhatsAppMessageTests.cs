@@ -140,6 +140,26 @@ public sealed class RecordOutboundWhatsAppMessageTests
         Assert.Single(_messages.Added);
     }
 
+    // H7: an invitation whose send is uncertain is left unconfirmed, not failed, under the account's lock; nothing goes to the
+    // history, since there is no Meta id.
+    [Fact]
+    public async Task An_uncertain_invitation_is_left_unconfirmed_not_failed()
+    {
+        var userId = Guid.CreateVersion7();
+        var invitation = UserInvitation.Send(
+            userId, UserInvitationChannel.WhatsApp, Guid.CreateVersion7(), Now.AddSeconds(-2), consentConfirmed: true);
+        _invitations.Invitations.Add(invitation);
+
+        var result = await new WhatsAppDeliveryService(
+            _contacts, _messages, _accounts, _invitations, _unitOfWork, _clock, NullLogger<WhatsAppDeliveryService>.Instance)
+            .RecordUncertainAsync(new WhatsAppInvitationMessage(Phone, userId, invitation.Id, "es", "Laura Ríos", "Arquitectura Base", "WANT_TO_ENTER"), Ct);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal((true, false), (invitation.SendUncertain, invitation.SendFailed));
+        Assert.Equal(["lock:" + userId, "read:GetByIdAsync"], _invitations.Events);
+        Assert.Empty(_messages.Added);
+    }
+
     [Fact]
     public async Task Other_messages_do_not_touch_the_invitations()
     {

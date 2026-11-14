@@ -28,6 +28,7 @@ internal sealed partial class WhatsAppOutgoingBackgroundService(
         if (operation is null) { return reservation.Progressed; }
         string? providerId = null;
         var uncertain = false;
+        var retry = false;
         var providerInvoked = false;
         string? failureCode = null;
         try
@@ -103,7 +104,15 @@ internal sealed partial class WhatsAppOutgoingBackgroundService(
                 if (!result.IsSent && operation.Origin == WhatsAppMessageOrigin.FormAction)
                     failureCode = result.Failure == WhatsAppSendFailure.OutsideCustomerServiceWindow
                         ? WhatsAppFormActionErrors.WindowClosed.Code : WhatsAppFormActionErrors.SendRejected.Code;
-                uncertain = result.OutcomeUncertain || result.Failure == WhatsAppSendFailure.Transient;
+                // H7: what may have reached Meta stays uncertain; what did not go out, and is worth retrying, waits for its next
+                // attempt in its place, twice at most: the third refusal fails as any other.
+                uncertain = result.OutcomeUncertain;
+                if (!result.OutcomeUncertain && result.Failure is { } refused && refused.IsRetryable())
+                {
+                    retry = operation.DispatchRetries < WhatsAppDispatchPacing.MaxRetries;
+                    if (retry) LogRetryLater(logger, operation.Id, refused, result.MetaErrorCode, operation.DispatchRetries + 1, WhatsAppDispatchPacing.MaxRetries);
+                    else LogRetriesExhausted(logger, operation.Id, refused, result.MetaErrorCode, WhatsAppDispatchPacing.MaxRetries);
+                }
                 if (result.IsSent) { health.ReportSent(); }
                 else if (result.Failure is { } failure && failure.IsTokenProblem()) { health.ReportTokenProblem(failure); }
             }
@@ -131,8 +140,9 @@ internal sealed partial class WhatsAppOutgoingBackgroundService(
         // without an id are recovered as Uncertain.
         using var completionTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(10), timeProvider);
         await using var completion = scopes.CreateAsyncScope();
-        await completion.ServiceProvider.GetRequiredService<IWhatsAppChatDispatchService>()
-            .CompleteAsync(operation.ContactId, operation.Id, providerId, uncertain, completionTimeout.Token, operation.DispatchReservationId, failureCode);
+        var completing = completion.ServiceProvider.GetRequiredService<IWhatsAppChatDispatchService>();
+        if (retry) await completing.RetryLaterAsync(operation.ContactId, operation.Id, operation.DispatchReservationId, completionTimeout.Token);
+        else await completing.CompleteAsync(operation.ContactId, operation.Id, providerId, uncertain, completionTimeout.Token, operation.DispatchReservationId, failureCode);
         return true;
     }
 
@@ -164,6 +174,12 @@ internal sealed partial class WhatsAppOutgoingBackgroundService(
             await Task.Delay(TimeSpan.FromSeconds(2), timeProvider, stoppingToken);
         }
     }
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The WhatsApp outgoing {OutgoingId} did not go out ({Failure}, Meta code {MetaErrorCode}); retry {Retry} of {MaxRetries} after its wait.")]
+    private static partial void LogRetryLater(ILogger logger, Guid outgoingId, WhatsAppSendFailure failure, int? metaErrorCode, int retry, int maxRetries);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The WhatsApp outgoing {OutgoingId} did not go out ({Failure}, Meta code {MetaErrorCode}) after its {MaxRetries} retries; it fails.")]
+    private static partial void LogRetriesExhausted(ILogger logger, Guid outgoingId, WhatsAppSendFailure failure, int? metaErrorCode, int maxRetries);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "The WhatsApp outgoing went back to the queue: the host stopped before it was sent.")]
     private static partial void LogReturnedUnsent(ILogger logger);

@@ -294,6 +294,28 @@ public sealed partial class UserInvitationEndpointsTests
         Assert.Equal("Failed", await DeliveryStatusAsync(admin, userId));
     }
 
+    // H7: Meta did not confirm the send (a 5xx without its code): the invitation is unconfirmed, not failed, and is not sent again.
+    [Fact]
+    public async Task An_invitation_that_meta_may_have_shows_as_unconfirmed_and_is_not_sent_again()
+    {
+        var calls = 0;
+        var meta = new FakeMetaHandler(_ =>
+        {
+            Interlocked.Increment(ref calls);
+            return FakeMetaHandler.Json(HttpStatusCode.BadGateway, "<html>Bad gateway</html>");
+        });
+        await using var api = WithRealQueue(meta);
+        using var client = api.CreateClient();
+        var admin = await AdminUsersApi.SignInAsync(factory, client);
+
+        var userId = await admin.CreateOkAsync(
+            WithPhone(TestPhones.Unique(), "Laura Ríos", new { channel = "WhatsApp", consent = true }));
+        await WaitUntilAsync(async () => Assert.Single(await InvitationsOfAsync(userId)).SendUncertain);
+
+        Assert.Equal("Uncertain", await DeliveryStatusAsync(admin, userId));
+        Assert.Equal(1, Volatile.Read(ref calls));
+    }
+
     [Fact]
     public async Task Tapping_want_to_enter_in_the_invitation_guides_to_public_login_then_the_web_code_signs_in()
     {

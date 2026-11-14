@@ -105,6 +105,19 @@ public sealed class UserInvitationTests
         Assert.True(invitation.SendFailed);
     }
 
+    // H7: an invitation whose send is uncertain (Meta may have it) is unconfirmed, not failed, and the next one waits the minute as
+    // after one that was sent: it may have arrived.
+    [Fact]
+    public void An_invitation_whose_send_is_uncertain_is_unconfirmed_and_the_next_one_still_waits()
+    {
+        var invitation = ByWhatsApp();
+
+        invitation.MarkSendUncertain();
+
+        Assert.Equal((true, false), (invitation.SendUncertain, invitation.SendFailed));
+        Assert.Equal(TimeSpan.FromMinutes(1), invitation.WaitBeforeAnother(Now));
+    }
+
     [Fact]
     public void Another_invitation_to_the_same_account_waits_a_minute_after_one_that_was_sent()
     {

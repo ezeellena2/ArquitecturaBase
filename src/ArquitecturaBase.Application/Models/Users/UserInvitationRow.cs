@@ -11,4 +11,8 @@ public sealed record UserInvitationRow(
     UserInvitationChannel Channel,
     DateTime SentAtUtc,
     bool SendFailed,
-    string? ProviderMessageId);
+    string? ProviderMessageId)
+{
+    /// <summary>H7: no se sabe si salió.</summary>
+    public bool SendUncertain { get; init; }
+}

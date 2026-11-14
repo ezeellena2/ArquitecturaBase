@@ -17,4 +17,10 @@ public interface IWhatsAppChatDispatchService
     /// person) goes back to Pending in its place; one whose message effect already started stays and is recovered as uncertain.
     /// </summary>
     Task<Result> ReturnUnsentAsync(Guid contactId, Guid operationId, Guid? reservationId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// H7: a send that did not go out (the network or Meta refused it before it arrived, and it is worth retrying) goes back to
+    /// Pending in its place and waits <see cref="Models.WhatsAppDispatchPacing.RetryWait"/>; meanwhile nothing else of its chat goes out.
+    /// </summary>
+    Task<Result> RetryLaterAsync(Guid contactId, Guid operationId, Guid? reservationId, CancellationToken cancellationToken);
 }

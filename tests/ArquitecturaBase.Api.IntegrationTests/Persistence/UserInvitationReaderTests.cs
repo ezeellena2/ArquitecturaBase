@@ -59,6 +59,20 @@ public sealed class UserInvitationReaderTests(ApiFactory factory)
             await FindLatestAsync(userId));
     }
 
+    // H7: an invitation whose send is uncertain says so, and it is not failed.
+    [Fact]
+    public async Task An_invitation_whose_send_is_uncertain_says_so()
+    {
+        var userId = Guid.CreateVersion7();
+        var invitation = UserInvitation.Send(userId, UserInvitationChannel.WhatsApp, Guid.CreateVersion7(), SentAt, consentConfirmed: true);
+        invitation.MarkSendUncertain();
+        await AddAsync(invitation);
+
+        Assert.Equal(
+            new UserInvitationRow(UserInvitationChannel.WhatsApp, SentAt, SendFailed: false, ProviderMessageId: null) { SendUncertain = true },
+            await FindLatestAsync(userId));
+    }
+
     [Fact]
     public async Task An_invitation_that_has_not_left_has_no_provider_id()
     {

@@ -75,6 +75,13 @@ public sealed class UserInvitation : Entity
     public bool SendFailed { get; private set; }
 
     /// <summary>
+    /// H7: no se sabe si salió (Meta pudo haberla recibido: un timeout, una respuesta cortada). No figura como fallida: el
+    /// administrador revisa el WhatsApp de la persona antes de mandar otra; como pudo haber llegado, la próxima espera el
+    /// minuto.
+    /// </summary>
+    public bool SendUncertain { get; private set; }
+
+    /// <summary>
     /// La invitación que manda <paramref name="sentBy"/> por <paramref name="channel"/>. Si el canal pide el consentimiento
     /// de la persona (<paramref name="consentConfirmed"/>), quien la manda es quien lo confirma: sin él no se puede invitar
     /// por ese canal, y eso lo controla el canal antes de llegar acá.
@@ -116,9 +123,11 @@ public sealed class UserInvitation : Entity
 
     public void MarkSendFailed() => SendFailed = true;
 
+    public void MarkSendUncertain() => SendUncertain = true;
+
     /// <summary>
     /// Cuánto falta para poder mandarle otra a la misma cuenta, contando desde esta: cero si ya se puede. Una que no se
-    /// pudo mandar no hace esperar.
+    /// pudo mandar no hace esperar; una sin confirmar sí, porque pudo haber llegado (H7).
     /// </summary>
     public TimeSpan WaitBeforeAnother(DateTime nowUtc)
     {

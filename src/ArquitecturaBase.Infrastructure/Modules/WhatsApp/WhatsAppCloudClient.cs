@@ -5,6 +5,7 @@ using System.Text.Json;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using Microsoft.Extensions.Options;
 using Polly;
+using Polly.Timeout;
 
 namespace ArquitecturaBase.Infrastructure.Modules.WhatsApp;
 
@@ -45,28 +46,45 @@ internal sealed class WhatsAppCloudClient(HttpClient httpClient, IOptions<WhatsA
 
             var metaErrorCode = ErrorCodeOf(body);
 
+            // H7: un 5xx sin código de Meta (un proxy, una caída a mitad de camino) no dice si lo procesó: no se sabe.
+            if (metaErrorCode is null && (int)response.StatusCode >= 500) return WhatsAppSendResult.Uncertain();
+
             return WhatsAppSendResult.Failed(FailureFor(response.StatusCode, metaErrorCode), metaErrorCode);
+        }
+        catch (HttpRequestException exception) when (exception.HttpRequestError is HttpRequestError.NameResolutionError
+            or HttpRequestError.ConnectionError or HttpRequestError.SecureConnectionError)
+        {
+            // H7: el DNS, la conexión o el TLS no llegaron a Meta: no salió, y se reintenta.
+            return WhatsAppSendResult.Failed(WhatsAppSendFailure.Transient);
         }
         catch (HttpRequestException)
         {
-            return WhatsAppSendResult.Failed(WhatsAppSendFailure.Transient);
+            // Una respuesta cortada o inválida: Meta pudo haberlo recibido.
+            return WhatsAppSendResult.Uncertain();
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            // El timeout del HttpClient: la cancelación de la app, en cambio, se propaga.
-            return WhatsAppSendResult.Failed(WhatsAppSendFailure.Transient);
+            // El timeout del HttpClient: Meta pudo haberlo recibido. La cancelación de la app, en cambio, se propaga.
+            return WhatsAppSendResult.Uncertain();
+        }
+        catch (TimeoutRejectedException)
+        {
+            // El timeout de la resiliencia estándar: como el del HttpClient, no se sabe.
+            return WhatsAppSendResult.Uncertain();
         }
         catch (ExecutionRejectedException)
         {
-            // La resiliencia estándar cortó el pedido: su timeout, el circuit breaker abierto o su límite.
+            // El circuit breaker abierto o el límite de la resiliencia cortaron antes de mandar: no salió.
             return WhatsAppSendResult.Failed(WhatsAppSendFailure.Transient);
         }
     }
 
     /// <summary>
     /// Manda el código de Meta, que es lo que recomienda su documentación, y gana sobre el status: el 3, por ejemplo,
-    /// llega con un 500 y no es pasajero. Los de autorización salen de la tabla "Authorization errors" de Meta. Sin un
-    /// código conocido, el status: un 401 es el token, un 403 un permiso, un 5xx algo pasajero y un 429 un límite.
+    /// llega con un 500 y no es pasajero. Los de autorización salen de la tabla "Authorization errors" de Meta. H7: de un
+    /// 5xx sólo se reintentan los que Meta manda reintentar (131000, 131016, 2 y 133004); otro código dice qué pasó y no
+    /// se insiste, y un 5xx sin código no llega acá, porque no se sabe si salió. Sin un código conocido, el status: un 401
+    /// es el token, un 403 un permiso y un 429 un límite, que se reintenta.
     /// </summary>
     private static WhatsAppSendFailure FailureFor(HttpStatusCode status, int? metaErrorCode) => metaErrorCode switch
     {
@@ -76,6 +94,10 @@ internal sealed class WhatsAppCloudClient(HttpClient httpClient, IOptions<WhatsA
         131056 => WhatsAppSendFailure.PairRateLimited,
         130429 => WhatsAppSendFailure.RateLimited,
 
+        // H7: «Something went wrong», «Service unavailable», «Temporary due to downtime» y «Server is temporarily
+        // unavailable», con un 5xx: Meta pide reintentarlos.
+        131000 or 131016 or 2 or 133004 when (int)status >= 500 => WhatsAppSendFailure.Transient,
+
         // 0: AuthException. 190: el token venció o lo revocaron.
         0 or 190 => WhatsAppSendFailure.InvalidToken,
 
@@ -84,7 +106,6 @@ internal sealed class WhatsAppCloudClient(HttpClient httpClient, IOptions<WhatsA
 
         _ when status == HttpStatusCode.Unauthorized => WhatsAppSendFailure.InvalidToken,
         _ when status == HttpStatusCode.Forbidden => WhatsAppSendFailure.MissingPermission,
-        _ when (int)status >= 500 => WhatsAppSendFailure.Transient,
         _ when status == HttpStatusCode.TooManyRequests => WhatsAppSendFailure.RateLimited,
         _ => WhatsAppSendFailure.Other,
     };

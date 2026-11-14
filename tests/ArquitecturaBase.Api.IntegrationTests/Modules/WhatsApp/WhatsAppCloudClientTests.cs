@@ -296,6 +296,14 @@ public sealed class WhatsAppCloudClientTests
     [InlineData(HttpStatusCode.BadRequest, 300, "Other", false)]
     [InlineData(HttpStatusCode.InternalServerError, 131000, "Transient", true)]
     [InlineData(HttpStatusCode.ServiceUnavailable, 131016, "Transient", true)]
+
+    // H7: of a 5xx, only the codes Meta says to retry (those two, a downtime and a server temporarily unavailable) are retried;
+    // another code says what happened (131045, a certificate; 1, a generic one) and is not insisted on, nor is 131000 with a 400.
+    [InlineData(HttpStatusCode.ServiceUnavailable, 2, "Transient", true)]
+    [InlineData(HttpStatusCode.ServiceUnavailable, 133004, "Transient", true)]
+    [InlineData(HttpStatusCode.InternalServerError, 131045, "Other", false)]
+    [InlineData(HttpStatusCode.InternalServerError, 1, "Other", false)]
+    [InlineData(HttpStatusCode.BadRequest, 131000, "Other", false)]
     [InlineData(HttpStatusCode.BadRequest, 100, "Other", false)]
     public async Task Meta_errors_become_a_typed_failure_that_says_whether_to_retry(
         HttpStatusCode status,
@@ -315,12 +323,12 @@ public sealed class WhatsAppCloudClientTests
     }
 
     /// <summary>
-    /// Sin un cuerpo que se pueda leer, manda el status: un 401 es el token, un 403 un permiso y un 5xx, algo pasajero.
+    /// Sin un cuerpo que se pueda leer, manda el status: un 401 es el token, un 403 un permiso y un 429 un límite, que se
+    /// reintenta. Un 5xx así no dice si salió: queda incierto (el caso «gateway», más abajo).
     /// </summary>
     [Theory]
     [InlineData(HttpStatusCode.Unauthorized, "InvalidToken")]
     [InlineData(HttpStatusCode.Forbidden, "MissingPermission")]
-    [InlineData(HttpStatusCode.BadGateway, "Transient")]
     [InlineData(HttpStatusCode.TooManyRequests, "RateLimited")]
     [InlineData(HttpStatusCode.BadRequest, "Other")]
     public async Task Without_a_readable_error_the_status_code_decides(HttpStatusCode status, string expectedFailure)
@@ -333,17 +341,54 @@ public sealed class WhatsAppCloudClientTests
         Assert.Null(result.MetaErrorCode);
     }
 
-    [Fact]
-    public async Task Network_failures_and_timeouts_are_transient()
+    /// <summary>
+    /// H7: «no salió». La conexión, el DNS o el TLS no llegaron a Meta, y el circuito abierto o el límite de la resiliencia
+    /// cortaron antes de mandar: se reintenta con espera.
+    /// </summary>
+    public static TheoryData<string> NeverSent => new() { "connection", "dns", "tls", "circuit", "limit" };
+
+    [Theory]
+    [MemberData(nameof(NeverSent))]
+    public async Task Failures_that_never_reached_Meta_are_retried(string failure)
     {
-        var unreachable = CreateClient(new FakeMetaHandler(_ => throw new HttpRequestException("Connection refused")));
-        var timedOut = CreateClient(new FakeMetaHandler(_ => throw new TaskCanceledException("The request timed out")));
+        Exception error = failure switch
+        {
+            "connection" => new HttpRequestException(HttpRequestError.ConnectionError, "Connection refused"),
+            "dns" => new HttpRequestException(HttpRequestError.NameResolutionError, "No such host"),
+            "tls" => new HttpRequestException(HttpRequestError.SecureConnectionError, "The SSL connection could not be established"),
+            "circuit" => new Polly.CircuitBreaker.BrokenCircuitException("The circuit is open"),
+            _ => new Polly.RateLimiting.RateLimiterRejectedException(),
+        };
+        var client = CreateClient(new FakeMetaHandler(_ => throw error));
 
-        var unreachableResult = await unreachable.SendAsync(new WhatsAppTextMessage(To, "Hola"), Ct);
-        var timedOutResult = await timedOut.SendAsync(new WhatsAppTextMessage(To, "Hola"), Ct);
+        var result = await client.SendAsync(new WhatsAppTextMessage(To, "Hola"), Ct);
 
-        Assert.Equal(WhatsAppSendFailure.Transient, unreachableResult.Failure);
-        Assert.Equal(WhatsAppSendFailure.Transient, timedOutResult.Failure);
+        Assert.Equal((WhatsAppSendFailure.Transient, true, false), (result.Failure!.Value, result.Failure.Value.IsRetryable(), result.OutcomeUncertain));
+    }
+
+    /// <summary>
+    /// H7: «no se sabe». Un timeout, una respuesta cortada o un 5xx sin código de Meta pueden haber llegado: queda incierto y
+    /// no se reintenta, porque se mandaría dos veces (y cada plantilla se paga).
+    /// </summary>
+    public static TheoryData<string> MaybeSent => new() { "timeout", "resilience-timeout", "cut", "gateway" };
+
+    [Theory]
+    [MemberData(nameof(MaybeSent))]
+    public async Task Failures_where_Meta_may_have_the_message_are_uncertain(string failure)
+    {
+        var client = CreateClient(new FakeMetaHandler(_ => failure switch
+        {
+            "timeout" => throw new TaskCanceledException("The request timed out"),
+            "resilience-timeout" => throw new Polly.Timeout.TimeoutRejectedException("The operation didn't complete within the allowed timeout"),
+            "cut" => throw new HttpRequestException(HttpRequestError.ResponseEnded, "The response ended prematurely"),
+            _ => FakeMetaHandler.Json(HttpStatusCode.BadGateway, "<html>Bad gateway</html>"),
+        }));
+
+        var result = await client.SendAsync(new WhatsAppTextMessage(To, "Hola"), Ct);
+
+        Assert.True(result.OutcomeUncertain);
+        Assert.False(result.IsSent);
+        Assert.False(result.Failure!.Value.IsRetryable());
     }
 
     [Fact]

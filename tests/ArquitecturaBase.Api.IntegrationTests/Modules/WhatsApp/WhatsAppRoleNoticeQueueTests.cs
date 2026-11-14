@@ -130,6 +130,62 @@ public sealed class WhatsAppRoleNoticeQueueTests(ApiFactory factory)
         Assert.Null(third);
     }
 
+    // H7: Ana's first notice does not go out (the connection failed before Meta): it waits for its next attempt in its place, so
+    // her second one does not overtake it while Beto's goes out; after the wait, both go out in their order.
+    [Fact]
+    public async Task A_chat_whose_head_waits_for_its_next_attempt_does_not_go_out_until_then()
+    {
+        var clock = new FakeTimeProvider(factory.Clock.GetUtcNow());
+        await using var scenario = await WhatsAppFormActionScenario.CreateAsync(factory, Ct, clock);
+        var ana = await scenario.RecipientAsync(clock.GetUtcNow().UtcDateTime, Ct);
+        var beto = await scenario.RecipientAsync(clock.GetUtcNow().UtcDateTime, Ct);
+        await NoticeAsync(scenario, Guid.NewGuid(), ana.UserId, "Primero para Ana");
+        clock.Advance(TimeSpan.FromMilliseconds(1));
+        await NoticeAsync(scenario, Guid.NewGuid(), ana.UserId, "Segundo para Ana");
+        clock.Advance(TimeSpan.FromMilliseconds(1));
+        await NoticeAsync(scenario, Guid.NewGuid(), beto.UserId, "Para Beto");
+        var calls = 0;
+        scenario.Cloud.Respond = () => ++calls == 1 ? WhatsAppSendResult.Failed(WhatsAppSendFailure.Transient)
+            : WhatsAppSendResult.Sent("wamid.action-" + Guid.NewGuid().ToString("N"));
+        var worker = scenario.Services.GetRequiredService<WhatsAppOutgoingBackgroundService>();
+
+        await worker.ProcessNextAsync(Ct);
+        // Out of her six seconds, Ana's chat still waits for its next attempt: Beto's goes out, and nothing of hers.
+        clock.Advance(TimeSpan.FromSeconds(7));
+        await worker.ProcessNextAsync(Ct);
+        Assert.False(await worker.ProcessNextAsync(Ct));
+        Assert.Equal(["Primero para Ana", "Para Beto"], Bodies(scenario));
+
+        clock.Advance(TimeSpan.FromSeconds(24));
+        for (var index = 0; index < 2; index++) await worker.ProcessNextAsync(Ct);
+
+        Assert.Equal(["Primero para Ana", "Para Beto", "Primero para Ana", "Segundo para Ana"], Bodies(scenario));
+    }
+
+    // H7: a send that keeps not going out is retried twice, each after its wait, and the third refusal fails it like any other.
+    [Fact]
+    public async Task A_notice_that_keeps_not_going_out_fails_after_its_two_retries()
+    {
+        var clock = new FakeTimeProvider(factory.Clock.GetUtcNow());
+        await using var scenario = await WhatsAppFormActionScenario.CreateAsync(factory, Ct, clock);
+        var ana = await scenario.RecipientAsync(clock.GetUtcNow().UtcDateTime, Ct);
+        var run = Guid.NewGuid();
+        await NoticeAsync(scenario, run, ana.UserId, "Para Ana");
+        scenario.Cloud.Respond = () => WhatsAppSendResult.Failed(WhatsAppSendFailure.RateLimited, 130429);
+        var worker = scenario.Services.GetRequiredService<WhatsAppOutgoingBackgroundService>();
+
+        for (var attempt = 0; attempt < 3; attempt++)
+        {
+            Assert.True(await worker.ProcessNextAsync(Ct));
+            clock.Advance(TimeSpan.FromSeconds(31));
+        }
+
+        Assert.False(await worker.ProcessNextAsync(Ct));
+        Assert.Equal(["Para Ana", "Para Ana", "Para Ana"], Bodies(scenario));
+        Assert.Equal(StructuredRecordActionState.Failed, (await scenario.ScopeAsync(services => services.GetServices<IStructuredRecordActionChannel>()
+            .Single(channel => channel.ChannelId == "phone").GetAsync(run, ana.UserId, Ct))).State);
+    }
+
     private static async Task NoticeAsync(WhatsAppFormActionScenario scenario, Guid runId, Guid userId, string text)
     {
         var queued = await scenario.ScopeAsync(services => services.GetServices<IStructuredRecordActionChannel>()

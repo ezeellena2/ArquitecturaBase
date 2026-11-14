@@ -33,6 +33,18 @@ public sealed class LastInvitationTests
         Assert.Equal(new LastInvitation(UserInvitationChannel.Email, SentAt, InvitationDeliveryStatus.Failed), last);
     }
 
+    // H7: one whose send is uncertain is shown unconfirmed: it has no Meta id to follow, and the administrator checks before
+    // sending another.
+    [Fact]
+    public void An_invitation_whose_send_is_uncertain_is_unconfirmed()
+    {
+        var last = LastInvitation.From(
+            new UserInvitationRow(UserInvitationChannel.WhatsApp, SentAt, SendFailed: false, ProviderMessageId: null) { SendUncertain = true },
+            trackedStatus: null);
+
+        Assert.Equal(new LastInvitation(UserInvitationChannel.WhatsApp, SentAt, InvitationDeliveryStatus.Uncertain), last);
+    }
+
     [Fact]
     public void An_invitation_that_could_not_be_sent_is_failed_whatever_its_source_says()
     {

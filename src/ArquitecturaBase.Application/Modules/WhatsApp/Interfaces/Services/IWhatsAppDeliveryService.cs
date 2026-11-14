@@ -10,4 +10,7 @@ public interface IWhatsAppDeliveryService
         WhatsAppOutboundMessage message, string waMessageId, CancellationToken cancellationToken);
 
     Task<Result> RecordUnsentAsync(WhatsAppOutboundMessage message, CancellationToken cancellationToken);
+
+    /// <summary>H7: no se sabe si salió (Meta pudo haberlo recibido); una invitación queda sin confirmar, no fallida.</summary>
+    Task<Result> RecordUncertainAsync(WhatsAppOutboundMessage message, CancellationToken cancellationToken);
 }

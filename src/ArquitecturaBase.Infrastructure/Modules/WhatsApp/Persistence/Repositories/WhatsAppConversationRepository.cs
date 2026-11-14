@@ -1,4 +1,5 @@
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
+using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Infrastructure.Persistence;
 using ArquitecturaBase.Infrastructure.Persistence.Extensions;
@@ -54,19 +55,22 @@ internal sealed class WhatsAppConversationRepository(ApplicationDbContext dbCont
             && item.MessageEffectStartedAtUtc.HasValue, cancellationToken);
     }
 
-    public async Task<WhatsAppOutgoingMessage?> GetNextPendingAsync(DateTime waitingSinceUtc, CancellationToken cancellationToken)
+    public async Task<WhatsAppOutgoingMessage?> GetNextPendingAsync(DateTime nowUtc, CancellationToken cancellationToken)
     {
         dbContext.RequireTransaction();
+        var waitingSinceUtc = nowUtc - WhatsAppDispatchPacing.RecipientWait;
         // Preparation can be recovered to Pending. Always take the contact before its outgoing row,
         // matching Mark/Complete even if a stale worker is still waiting for the destination lease.
         // H12: a contact with a send in progress is not taken, so a second copy cannot overtake it (H23); one in its wait goes after
-        // the others and, alone, waits its turn at the lease. H31: what answers someone goes before a rule's notice.
+        // the others and, alone, waits its turn at the lease. H31: what answers someone goes before a rule's notice. H7: a chat whose
+        // head waits for its next attempt does not go out, so nothing overtakes it.
         var contact = (await dbContext.Set<WhatsAppContact>()
             .FromSql($"""
                 SELECT c.* FROM "WhatsAppContacts" AS c
                 JOIN "WhatsAppOutgoingMessages" AS o ON o."ContactId" = c."Id"
                 WHERE o."State" = 'Pending' AND (c."LastDispatchAtUtc" IS NULL OR c."LastDispatchAtUtc" <= {waitingSinceUtc})
-                  AND NOT EXISTS (SELECT 1 FROM "WhatsAppOutgoingMessages" AS s WHERE s."ContactId" = c."Id" AND s."State" = 'Sending')
+                  AND NOT EXISTS (SELECT 1 FROM "WhatsAppOutgoingMessages" AS s WHERE s."ContactId" = c."Id"
+                    AND (s."State" = 'Sending' OR s."State" = 'Pending' AND s."NextAttemptAtUtc" > {nowUtc}))
                 ORDER BY o."IsNotice", o."RequestedAtUtc", o."Id"
                 LIMIT 1 FOR NO KEY UPDATE OF c SKIP LOCKED
                 """)
@@ -76,7 +80,8 @@ internal sealed class WhatsAppConversationRepository(ApplicationDbContext dbCont
                 SELECT c.* FROM "WhatsAppContacts" AS c
                 JOIN "WhatsAppOutgoingMessages" AS o ON o."ContactId" = c."Id"
                 WHERE o."State" = 'Pending' AND c."LastDispatchAtUtc" > {waitingSinceUtc}
-                  AND NOT EXISTS (SELECT 1 FROM "WhatsAppOutgoingMessages" AS s WHERE s."ContactId" = c."Id" AND s."State" = 'Sending')
+                  AND NOT EXISTS (SELECT 1 FROM "WhatsAppOutgoingMessages" AS s WHERE s."ContactId" = c."Id"
+                    AND (s."State" = 'Sending' OR s."State" = 'Pending' AND s."NextAttemptAtUtc" > {nowUtc}))
                 ORDER BY o."IsNotice", o."RequestedAtUtc", o."Id"
                 LIMIT 1 FOR NO KEY UPDATE OF c SKIP LOCKED
                 """)
@@ -87,7 +92,8 @@ internal sealed class WhatsAppConversationRepository(ApplicationDbContext dbCont
         var rows = await dbContext.Set<WhatsAppOutgoingMessage>()
             .FromSql($"""
                 SELECT * FROM "WhatsAppOutgoingMessages" WHERE "ContactId" = {contact.Id} AND "State" = 'Pending'
-                  AND NOT EXISTS (SELECT 1 FROM "WhatsAppOutgoingMessages" AS s WHERE s."ContactId" = {contact.Id} AND s."State" = 'Sending')
+                  AND NOT EXISTS (SELECT 1 FROM "WhatsAppOutgoingMessages" AS s WHERE s."ContactId" = {contact.Id}
+                    AND (s."State" = 'Sending' OR s."State" = 'Pending' AND s."NextAttemptAtUtc" > {nowUtc}))
                 ORDER BY "RequestedAtUtc", "Id" LIMIT 1 FOR NO KEY UPDATE SKIP LOCKED
                 """)
             .ToListAsync(cancellationToken);
