@@ -42,7 +42,7 @@ WhatsAppAuthoringChannelDouble resume un formulario ficticio, contesta `unclear`
 
 WhatsAppDocumentProbe reemplaza sólo la descarga de Meta y el almacenamiento privado de una planilla o un documento recibido, con bytes ficticios y, si se pide, descargas que fallan como un medio no disponible; el webhook, el procesador, el despacho y el lector del dueño siguen siendo productivos. WhatsAppAssistantInboundFixture suma una planilla pendiente que hace esperar 2 s.
 
-CapturingActionReplySink es un dueño neutral de las respuestas a avisos: registra lo que entrega el canal y aplica sólo la primera por run y persona, devolviendo el texto que el escenario fijó para esa opción (`Texts`), sin importar formularios; WhatsAppFormActionScenario lo registra. WhatsAppAssistantInboundFixture suma un lector y un servicio de respuestas vacíos: ningún toque en un aviso llega a sus escenarios.
+CapturingActionReplySink es un dueño neutral de las respuestas a avisos: registra lo que entrega el canal y aplica sólo la primera por run y persona, devolviendo el texto que el escenario fijó para esa opción (`Texts`); al mismo toque le contesta lo mismo (H21) y puede fallar una vez (`FailNext`), sin importar formularios; WhatsAppFormActionScenario lo registra. WhatsAppAssistantInboundFixture suma un lector y un servicio de respuestas vacíos: ningún toque en un aviso llega a sus escenarios.
 
 WhatsAppAssistantAgentContractCapture escribe intactos los cuerpos de la pantalla «Asistente» y de Probar sólo con WHATSAPP_ASSISTANT_AGENT_HTTP_OUTPUT; el exportador central los suma como la cohorte whatsapp-assistant-agent-http.
 
