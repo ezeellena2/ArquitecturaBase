@@ -285,6 +285,12 @@ reintenta sale de la retención antes de abandonarse.
     vuelve su dueño, sin esperar a los otros toques de la vuelta. Test: un corte entre la decisión del
     dueño y la confirmación. Chico.
 
+**Hecha el 2026-11-14:** H5 en 8c357060 (front 7b95095b) y H21 en 852857fa, cada una con su revisión adversarial
+aplicada: H5 también deriva el pedido que vence la ventana esperando al motor, y H21 corta la vuelta en el toque que falla.
+Se corrió el build sin advertencias, Domain, Application y ArchitectureTests enteros y la integración del asistente y de los
+toques; en el front, tsc, oxlint y vitest de WhatsApp. Quedan para el reporte final un sticker después del pedido, que evita
+derivar, el `NotFound` de `Submit` en una continuación y el botón viejo después de «Volver a probar».
+
 ### Etapa 6: datos y privacidad
 
 19. **H13. La ubicación y el texto del envío vencen.** La ubicación que guarda el envío y su texto

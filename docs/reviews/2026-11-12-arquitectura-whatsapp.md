@@ -300,6 +300,12 @@ fuente: cambiarla lo decidís vos.
   `WhatsAppAssistantHandoffPolicy` en la misma unidad, con un código estable nuevo. Chico a mediano.
   **Lo decidís vos:** derivar pasa la conversación a Atención manual.
 - **Decidido el 2026-11-13:** deriva ([decisiones](#decisiones-del-2026-11-13)).
+- **Arreglado el 2026-11-14** en 8c357060 y, en el front, 7b95095b: un pedido automático que interpreta un mensaje de la
+  persona y se queda sin la respuesta del motor (falló, venció o quedó incierto, o un error que no se reintenta), o que deja
+  de valer mientras la espera (se cerró la ventana de 24 horas), deriva en la misma unidad con `assistantFailed`; lo pendiente
+  o reintentable, la sugerencia tras una captura, un chat que tomó una persona o un mensaje más nuevo no. Quedan afuera, de
+  antes: un mensaje que no es fuente (un sticker o una ubicación) después del pedido evita la derivación, y un `NotFound` de
+  `Submit` en una continuación deja el pedido pendiente y lo vuelve a mandar en cada vuelta.
 
 #### H6. Las acciones de una respuesta del asistente salen en cualquier orden
 
@@ -585,6 +591,11 @@ fuente: cambiarla lo decidís vos.
   una regla documentada.
 - **Decidido el 2026-11-13:** el mismo toque recibe la misma respuesta, y cada confirmación se encola
   apenas vuelve su dueño ([decisiones](#decisiones-del-2026-11-13)).
+- **Arreglado el 2026-11-14** en 852857fa: el puerto recibe el id del toque y Formularios lo guarda con la decisión
+  (`DecisionTapId`): al mismo toque le contesta lo mismo sin decidir otra vez. WhatsApp encola cada confirmación en su propia
+  unidad apenas vuelve el dueño, un solo texto por toque; si un toque falla, la vuelta se corta ahí para que decida el primero
+  de dos toques sobre el mismo aviso. Queda, de antes: un botón viejo del mismo sentido puede decidir la pregunta nueva
+  después de «Volver a probar».
 
 #### H22. La guía para quitar WhatsApp olvida una tabla
 
