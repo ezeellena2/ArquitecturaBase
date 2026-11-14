@@ -66,9 +66,8 @@ qué cambió en esta semana, qué no se probó todavía y qué choca con la hoja
 
 - **En la PC del usuario:** los repos están en `C:\Users\ezequ\source\repos\ArquitecturaBase` y
   `C:\Users\ezequ\source\repos\ArquitecturaBaseFront`.
-- **En otra PC:** en GitHub, `ezeellena2/ArquitecturaBase` y `ezeellena2/ArquitecturaBaseFront`, rama `main`. Al escribir
-  esto, GitHub estaba atrasado (el backend en `5cf993fc`, del 9/11, y el front en `acc37bdf`, del 8/11): mientras no se
-  suban, ni este traspaso ni el código que cuenta están ahí. Subirlos lo decide el usuario.
+- **En otra PC:** en GitHub, `ezeellena2/ArquitecturaBase` y `ezeellena2/ArquitecturaBaseFront`, rama `main`. Los dos se
+  subieron el 2026-11-14 a pedido del usuario: el backend con este traspaso y el front hasta `7b95095b`.
 
 ## Prompt para el chat guía del multitenant
 
