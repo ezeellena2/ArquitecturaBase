@@ -48,7 +48,16 @@ de homologar.
 - **A gran escala**, el techo está en la cola de a uno por secuencia (H33, que con picos ya se nota hoy), en las búsquedas de los
   PDF y la limpieza que recorren todo (H34 y H35), en el lock del ticket en cada llamada (H36) y en «Clientes» cargado entero
   (H37).
-- **Lo que tenés que decidir:** ocho preguntas, cada una con la opción recomendada ([decisiones](#decisiones-que-pide-la-revisión)).
+- **Lo que decidiste el 2026-11-14**, en las ocho la opción recomendada ([detalle](#decisiones-del-2026-11-14)):
+  - el horizonte es «Hoy», con B1 y H1 antes de la prueba integral, más la documentación de H32, el índice de H34 y la pausa de
+    H33;
+  - un 10016 que ARCA no emitió va a revisión (H1);
+  - poner a emitir un formulario pide `formrules.manage` y `arca.issue` (H6);
+  - lo que ARCA tiene y la base no conoce va a revisión, y el robot da de alta un punto de venta propio (H3);
+  - sumar un servicio pasa la conexión a «requiere atención» (B4);
+  - el plazo fiscal se escribe, y «Clientes» suma al cliente recién al emitir (H25);
+  - los nombres fiscales van en español en todos lados (H28);
+  - la plataforma avisa cuando se rinde (H19).
 
 ## Ficha
 
@@ -219,7 +228,7 @@ cambiarla lo decidís vos.
   fijó que no (`docs/design/arca-conexion.md:36-39` del front).
 - **Arreglo:** calcular el vencimiento al leer y cortar con `CertificateExpired` antes de llamar a ARCA; antes, corregir
   `CertificateExpired()`, que lleva «sin verificar» a «requiere atención» contra la regla del alta. Para los servicios, ver la
-  [decisión 5](#decisiones-que-pide-la-revisión). Chico.
+  [decisión 5](#decisiones-del-2026-11-14). Chico.
 
 #### B5. Con más de 200 clientes, la «Factura» deja de poder cargarse por WhatsApp
 
@@ -259,7 +268,7 @@ cambiarla lo decidís vos.
   con un motivo y un texto propios («anterior a la del último comprobante»); avisar antes, al encolar y en «¿La emito?»,
   comparando con la última fecha autorizada de la secuencia; que «Emitir con la fecha de hoy» use la mayor entre hoy y la del
   último y corra el vencimiento del pago (B2), y que el doble aprenda las dos reglas de fecha. Mediano. Ver la
-  [decisión 2](#decisiones-que-pide-la-revisión).
+  [decisión 2](#decisiones-del-2026-11-14).
 
 #### H2. Una versión puede mandarle a ARCA otro comprobante que el confirmado
 
@@ -304,7 +313,7 @@ cambiarla lo decidís vos.
   propio, salvo cuando la base no conoce ningún número de la secuencia (mediano); y un apartado de ARCA en la restauración:
   levantar la copia con la cola y las acciones de formularios apagadas, avisar que la limpieza sigue corriendo y borra a las 24
   horas todo objeto sin fila, comparar el último autorizado de cada punto de venta con la base y recuperar del servidor original
-  lo que falte antes de prenderlas (chico). Ver la [decisión 4](#decisiones-que-pide-la-revisión).
+  lo que falte antes de prenderlas (chico). Ver la [decisión 4](#decisiones-del-2026-11-14).
 
 #### H4. Las tablas de ARCA piden un ticket de wsfe cada cinco minutos para un servicio que no se eligió
 
@@ -351,7 +360,7 @@ cambiarla lo decidís vos.
   acepta que cargar la «Factura» no pida `arca.issue`, pero exige `formrules.manage` para configurar la acción, y la biblioteca
   la configura sin él.
 - **Arreglo:** pedir `formrules.manage` y el permiso del emisor (`arca.issue`) a quien agrega un estándar con reglas que emiten o
-  guarda una regla así, o dejar esas reglas sin activar al copiar. Chico. Ver la [decisión 3](#decisiones-que-pide-la-revisión).
+  guarda una regla así, o dejar esas reglas sin activar al copiar. Chico. Ver la [decisión 3](#decisiones-del-2026-11-14).
 
 #### H7. Una espera que no es de ARCA avisa «ARCA no responde», también con el CAE ya dado
 
@@ -537,8 +546,8 @@ cambiarla lo decidís vos.
 - **Evidencia:** el aviso no sale por «ARCA no respondió» ni «interrumpida», ni sin dirección (`ArcaRobotAlertPolicy.cs:30-32,41`);
   el texto no mira el motivo (`RobotZone.tsx:102,108` y `arcaRobot.json:48` en el front); `TryReserve` suma intentos sin tope
   (`ArcaRobotRun.cs:133-142`; el tope sólo vale en `ArcaRobotRunStore.cs:165`) y `Fail` no se aplica con la reserva vencida.
-- **Arreglo:** que la pantalla prometa el aviso sólo cuando sale, que `TryReserve` respete `MaxAttempts` y, si decidís, avisar
-  cuando la plataforma queda frenada para siempre. Chico. Ver la [decisión 8](#decisiones-que-pide-la-revisión).
+- **Arreglo:** que la pantalla prometa el aviso sólo cuando sale, que `TryReserve` respete `MaxAttempts` y avisar cuando la
+  plataforma queda frenada para siempre, también por «ARCA no respondió». Chico. Ver la [decisión 8](#decisiones-del-2026-11-14).
 
 #### H20. Robot: la reserva no acompaña a un paso largo ni a una corrida que espera
 
@@ -644,7 +653,7 @@ cambiarla lo decidís vos.
   fiscal y que ese plazo prevalece sobre un pedido de supresión, qué se anonimiza al vencer y en qué orden, y sumar ARCA al
   procedimiento de borrado pendiente en [verificación y producción](../plans/verificacion-y-produccion.md) (chico); la purga al
   vencer, si se decide, es mediana. En «Clientes», sumar el cliente recién cuando la factura queda emitida (chico). Ver la
-  [decisión 6](#decisiones-que-pide-la-revisión).
+  [decisión 6](#decisiones-del-2026-11-14).
 
 #### H26. Una emisión no se puede seguir de punta a punta, y no queda quién desconectó
 
@@ -691,7 +700,7 @@ cambiarla lo decidís vos.
   (`ArcaInvoiceIssuePolicy.cs:103,107`) sin una regla que lo diga, mientras la vista previa usa los dos idiomas (`:69`).
 - **Arreglo:** decir en la regla que los nombres fiscales van en español, como en el PDF, y usar el español también en la vista
   previa, para que no cambie entre antes y después (una línea más el ajuste); traducirlos pediría que el resultado guarde los
-  dos idiomas, en el núcleo, formularios y el front (mediano). Ver la [decisión 7](#decisiones-que-pide-la-revisión).
+  dos idiomas, en el núcleo, formularios y el front (mediano). Ver la [decisión 7](#decisiones-del-2026-11-14).
 
 #### H29. En la app, los importes de la emisión salen sin dos decimales fijos
 
@@ -841,7 +850,7 @@ plataforma) y H4 (cada copia pide sus tickets).
   en la corrida real.
 - **O10. El robot reutiliza cualquier punto de venta de web service vigente,** aunque lo use otro sistema de la empresa
   (`ArcaPointOfSaleRobotStep.cs:28-33`); está en la regla («o usa el que ya hay») y se cruza con la
-  [decisión 4](#decisiones-que-pide-la-revisión).
+  [decisión 4](#decisiones-del-2026-11-14).
 - **O11. El consentimiento del robot queda sólo en la última corrida:** cada reintento lo pisa y desconectar lo borra
   (`ArcaRobotRun.cs:207-208`). Si la revisión legal pide guardar cada autorización, es una tabla chica.
 - **O12. Lo confirmado no se fija:** con la fecha vacía, la factura sale con la fecha del día en que se toca «Emitir», no con la
@@ -972,50 +981,65 @@ No son defectos: los acepta una decisión escrita, y cambiarlos lo decidís vos.
   varias copias es diseño, no algo observado.
 - **Front.** Se leyó en `7b95095b`, sólo donde hacía falta para un criterio.
 
-## Decisiones que pide la revisión
+## Decisiones del 2026-11-14
 
-Cada una lleva la opción recomendada primero. Hasta que decidas, no se planifica ningún arreglo; lo que cambia una regla escrita
-se actualiza con su arreglo.
+En las ocho preguntas elegiste la opción recomendada. Las reglas escritas que cambian se actualizan con su arreglo, no antes; lo
+que cambia del [ADR 0028](../decisions/0028-emision-de-comprobantes-arca.md) va en un ADR nuevo, porque un ADR aceptado no se
+reescribe ([índice de ADR](../decisions/README.md)).
 
-1. **Horizonte.** Recomendado: «Hoy» entero (B1 a B5 y H1 a H31), con B1 y H1 antes de la prueba integral y de homologar,
-   porque traban la emisión, y H32 como documentación. Los de varias copias van antes de pasar de una réplica (hoy
-   `--max-replicas 1`); los de gran escala (H33 a H37), cuando haya volumen real que medir, salvo el índice de H34, que
-   conviene ahora, con la tabla vacía, y la pausa de H33, que es de una línea. Alternativa: antes de homologar sólo lo que traba
-   la emisión o tiene efecto legal (B1 a B3, H1 a H3, H7 y H9), y el resto después.
-2. **H1: un 10016 que ARCA no emitió va a revisión.** Recomendado: liberar el número y pedir una decisión («Emitir con la fecha
-   de hoy», con la mayor entre hoy y la fecha del último comprobante, o «No emitir»), y avisar antes de encolar si la fecha es
-   anterior a la última emitida. Cambia la decisión 5 del ADR 0028, que hoy reenvía con el mismo número. Se descarta corregir la
-   fecha sola, porque cambia un dato legal sin una persona.
-3. **H6: quién puede poner a emitir un formulario.** Recomendado: pedir `formrules.manage` y `arca.issue` a quien agrega un
-   estándar con reglas que emiten o guarda una regla así. Alternativas: dejar esas reglas sin activar al copiar, para que las
-   prenda alguien con permiso; pedir `arca.issue` a cada persona que carga, que frenaría la carga por WhatsApp; o dejarlo como
-   está y escribirlo en la regla.
-4. **H3: comprobantes que la app no conoce.** Recomendado: si ARCA tiene un último autorizado mayor que el que conoce la base, el
-   comprobante va a revisión. Cubre una restauración y otro sistema que factura en el mismo punto de venta; el costo es que, si
-   la empresa usa otro sistema en ese punto de venta, cada factura pide una decisión, así que el robot tendría que dar de alta
-   un punto de venta propio en lugar de usar el que haya (O10). Alternativa: sólo la guía de restauración y la retención de los
-   PDF, sin el control.
-5. **B4: el estado al sumar un servicio.** Las fuentes se contradicen. Recomendado: que sumar un servicio a una conexión activa
-   la pase a «requiere atención» hasta probarlo, como pide la regla; no se prueba sola, porque antes hay que autorizarlo en
-   ARCA. Alternativa: corregir la regla y el ADR 0025 para que digan lo que fijó el front.
-6. **H25: datos personales.** Recomendado: escribir en la regla el plazo de conservación fiscal (lo fija el negocio con su
-   contador) y que un pedido de borrado no alcanza a los comprobantes dentro de ese plazo, con la purga para después; y sumar a
-   «Clientes» el cliente escrito por su CUIT recién cuando la factura queda emitida, sin el domicilio si es una persona humana.
-   Alternativa: sólo la regla escrita, sin cambiar «Clientes».
-7. **H28: el idioma de los datos de la emisión.** Recomendado: que el nombre del comprobante, el documento y la condición del
-   cliente vayan en español en todos lados, también en la vista previa, como el PDF, y escribirlo en la regla, que ya lo decide
-   para el documento y la condición. Alternativa: traducirlos en la pantalla y en los avisos, que pide que el resultado guarde
-   los dos idiomas en el núcleo, formularios y el front.
-8. **H19: el aviso cuando la plataforma se rinde.** Recomendado: mandar el correo cuando la plataforma queda frenada para
-   siempre, también por «ARCA no respondió», porque es el fin de los reintentos y no un corte pasajero, y que la pantalla prometa
-   el aviso sólo cuando sale. Cambia RB4-A. Alternativa: sólo corregir el texto de la pantalla.
+1. **Horizonte: «Hoy» entero, con B1 y H1 primero.** El plan lleva B1 a B5 y H1 a H31; B1 y H1 van antes de la prueba integral y
+   de homologar, porque traban la emisión. El resto de gran escala (más puntos de venta o lotes en H33, y H35 a H37) espera a que
+   haya volumen real que medir, y para pasar de una réplica no queda otro arreglo: H2, H4 y H20, que empeoran con más copias, ya
+   van en «Hoy». El plan suma además tres arreglos chicos:
+   - la documentación de H32: los límites de pedidos y el cupo del padrón son de cada copia;
+   - el índice de H34, que conviene crear ahora, con la tabla vacía;
+   - la pausa de H33: la cola no espera si la vuelta emitió algo.
+2. **H1: un 10016 que ARCA no emitió va a revisión.** Si el reenvío vuelve con 10016 y la consulta dice que ARCA no tiene ese
+   número, el comprobante va a revisión, libera el número y lleva un motivo y un texto propios («anterior a la del último
+   comprobante»). La revisión ofrece «Emitir con la fecha de hoy», con la mayor entre hoy y la fecha del último comprobante y el
+   vencimiento del pago corrido (B2), o «No emitir». Al encolar y en «¿La emito?» se avisa si la fecha es anterior a la última
+   autorizada de la secuencia. El mismo camino manda a revisión un incierto cuya fecha salió de la ventana, como ya pedía el
+   ADR (§6). Reemplaza la decisión 5 del ADR 0028, que reenvía con el mismo número. Se descartó corregir la fecha sola, porque
+   cambia un dato legal sin que lo vea una persona.
+3. **H6: poner a emitir pide `formrules.manage` y `arca.issue`.** Agregar de la biblioteca un estándar con reglas que emiten pide
+   los dos, y guardar una regla así suma `arca.issue` al `formrules.manage` que ya pide. Cargar la «Factura» sigue sin pedir
+   `arca.issue`, como acepta el [plan de la etapa 3](../plans/2026-11-09-arca-etapa-3-factura-c.md), así que la carga por
+   WhatsApp no cambia. Se descartó dejar esas reglas apagadas al copiar, pedir `arca.issue` a cada persona que carga, que
+   frenaría la carga por WhatsApp, y dejarlo como está.
+4. **H3: lo que ARCA tiene y la base no conoce va a revisión.** Al numerar, si ARCA tiene un último autorizado mayor que el último
+   que la base conoce para esa secuencia, el comprobante va a revisión con un motivo propio, salvo cuando la base no conoce
+   ningún número de la secuencia. Con el control van la retención de todos los PDF fiscales, sin mirar la base, y un apartado de
+   ARCA en la guía de restauración. Cubre una restauración y otro sistema que factura en el mismo punto de venta. El costo
+   aceptado: si la empresa usa otro sistema en ese punto de venta, cada factura pide una decisión. Por eso el robot da de alta un
+   punto de venta propio en lugar de usar el que haya (O10), y la regla deja de decir «o usa el que ya hay». Se descartó
+   quedarse con la guía y la retención, sin el control.
+5. **B4: sumar un servicio pasa la conexión a «requiere atención».** Una conexión activa a la que se le suma un servicio queda en
+   «requiere atención» hasta que una prueba dé verde, como pide la regla para una familia elegida sin su configuración. No se
+   prueba sola, porque antes hay que autorizar el servicio en ARCA: la frase «la pantalla vuelve a probar» de
+   [ARCA](../features/arca.md) y el diseño del front se ajustan con el arreglo. Se descartó corregir la regla y el
+   [ADR 0025](../decisions/0025-familias-de-servicios-arca.md) para que digan lo que fijó el front.
+6. **H25: el plazo fiscal se escribe, y «Clientes» suma al cliente recién al emitir.** [ARCA](../features/arca.md) va a decir que
+   los comprobantes, su pedido y su PDF se conservan durante el plazo fiscal, que fija el negocio con su contador, y que un
+   pedido de borrado no los alcanza dentro de ese plazo. ARCA se suma al procedimiento de borrado pendiente en
+   [verificación y producción](../plans/verificacion-y-produccion.md), y la purga al vencer queda para después. El cliente
+   escrito por su CUIT se suma a «Clientes» recién cuando la factura queda emitida, sin el domicilio si es una persona humana.
+   Se descartó escribir sólo la regla, sin cambiar «Clientes».
+7. **H28: los nombres fiscales van en español en todos lados.** El nombre del comprobante, el documento y la condición del
+   cliente salen en español también en la vista previa, como en el PDF, y la regla de [ARCA](../features/arca.md), que ya lo
+   decide para el documento y la condición, lo dice también para el comprobante. Se descartó traducirlos, que pide guardar los
+   dos idiomas en el resultado, en el núcleo, formularios y el front.
+8. **H19: la plataforma avisa cuando se rinde.** Cuando el lado de la plataforma queda frenado para siempre, también por «ARCA no
+   respondió», sale el correo de RB4-A, porque es el fin de los reintentos y no un corte pasajero; y la pantalla de la empresa
+   promete el aviso sólo cuando sale. Cambia RB4-A en [ARCA](../features/arca.md). Se descartó corregir sólo el texto de la
+   pantalla.
 
 ## Cómo seguir
 
-- **Antes de la prueba integral:** B1 hace fallar el paso 4 de la prueba de la etapa 4 y H1 traba una secuencia con una venta
-  atrasada; conviene arreglarlos antes, decidas lo que decidas sobre el resto.
-- **Tus decisiones:** las ocho de arriba.
-- **El plan de «Hoy»:** se arma en `docs/plans` con lo que decidas, como el de WhatsApp. Lo de varias copias va antes de sumar
-  réplicas; lo de gran escala, cuando haya volumen real.
+- **Antes de la prueba integral:** B1, que hace fallar el paso 4 de la prueba de la etapa 4, y H1, que traba una secuencia con una
+  venta atrasada; van también antes de homologar.
+- **Tus decisiones:** tomadas el 2026-11-14 ([decisiones](#decisiones-del-2026-11-14)).
+- **El plan de «Hoy»:** todavía no está armado. Lleva B1 a B5, H1 a H31, la documentación de H32, el índice de H34 y la pausa de
+  H33, con esas decisiones, y se anexa a un plan de ARCA en `docs/plans`, como el de WhatsApp. El resto de gran escala espera a
+  que haya volumen real que medir.
 - **Repetir:** después de homologar con la CUIT del usuario, que confirma o corrige lo que hoy sale del manual (el 10016 por
   fecha, los errores de la constancia y la ventana del WSAA).
