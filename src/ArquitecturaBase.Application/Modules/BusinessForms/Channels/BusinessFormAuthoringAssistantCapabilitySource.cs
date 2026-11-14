@@ -138,8 +138,9 @@ internal sealed class BusinessFormAuthoringAssistantCapabilitySource(IFormAuthor
         return Proposed(proposal, issues, FormAuthoringProposalPolicy.Draft(request.TurnId, proposal));
     }
 
-    // Stage 3: version 1's form and, only with the turn's document, its reading and what each question read in it; the similar
-    // standard only as the library read of the same turn showed it. The draft it validates carries the reading, as creating does.
+    // Stage 3: version 1's form and, only with the turn's document, its reading and what each question read in it, as the document's
+    // reading writes it; the similar standard only as the library read of the same turn showed it. The draft it validates carries the
+    // reading, as creating does.
     private async Task<Result<AssistantCapabilityResponse>> ProposeDocumentFormAsync(AssistantCapabilityRequest request, CancellationToken ct)
     {
         var parsed = FormAuthoringAssistantCodec.ParseDocumentFormArguments(request.ArgumentsJson);
@@ -150,8 +151,11 @@ internal sealed class BusinessFormAuthoringAssistantCapabilitySource(IFormAuthor
         if (arguments.DocumentReading is not null && !document) issues.Add(new("documentReading", "noDocument"));
         var samples = arguments.Questions.Select(question => FormAuthoringProposalPolicy.Sample(question.Sample)).ToArray();
         for (var index = 0; index < samples.Length; index++)
-            if (samples[index] is { } sample && (!document || !FormAuthoringProposalPolicy.ValidSample(sample)))
-                issues.Add(new($"questions[{index}].sample", document ? "invalid" : "noDocument"));
+        {
+            if (samples[index] is not { } sample) continue;
+            if (SampleIssue(sample, document) is { } code) issues.Add(new($"questions[{index}].sample", code));
+            else if (!FormAuthoringProposalPolicy.SampleInReading(sample, request.Document?.Reading?.Text)) samples[index] = null;
+        }
         FormAuthoringProposedStandard? standard = null;
         if (arguments.Standard is { } named && (standard = ShownStandard(request, named.Key.Trim())) is null) issues.Add(new("standard.key", "notFound"));
         var proposal = new FormAuthoringDocumentFormProposal(form.Culture, form.Name, form.Prefix, form.SubmitLabel,
@@ -160,6 +164,15 @@ internal sealed class BusinessFormAuthoringAssistantCapabilitySource(IFormAuthor
             arguments.DocumentReading is { } reading ? new FormAuthoringProposedReading(reading.Recognition.Trim()) : null, standard);
         return Proposed(proposal, issues, FormAuthoringProposalPolicy.Draft(request.TurnId, proposal));
     }
+
+    // A sample needs the turn's document and its limit; the rejection names each sample for the model to fix it. A valid sample the
+    // document's reading does not write as it is (translated, reworded, invented, or any of an unreadable document) is discarded and
+    // the proposal goes on without it: DOC6 spends its five provider steps on three reads, proposing and closing, and a rejection would
+    // leave it no step to fix one.
+    private static string? SampleIssue(string sample, bool document) =>
+        !document ? "noDocument"
+        : !FormAuthoringProposalPolicy.ValidSample(sample) ? "invalid"
+        : null;
 
     // Version 1's checks: catalogs the person can read and are active, and each question's kind; the rest, the draft validator.
     private async Task<(FormAuthoringFormProposal Proposal, List<FormAuthoringIssue> Issues)> FormAsync(AssistantCapabilityRequest request,

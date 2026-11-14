@@ -580,7 +580,12 @@ recibe documentos con las tareas 8 y 9.
 - **La propuesta.** `forms.authoring.propose-form@2` es el formulario de la versión 1 y, sólo con un documento en el turno,
   la lectura prendida (`documentReading` con «Cómo reconocerlo», hasta 1.000 caracteres) y lo leído por pregunta (`sample`,
   en una línea, sin caracteres invisibles y hasta 160 caracteres contados como grafemas, para comparar en DOC6); sin documento,
-  cualquiera de los dos vuelve `rejected` con `noDocument`. La lectura se prende sólo si el documento es un ejemplo de los que
+  cualquiera de los dos vuelve `rejected` con `noDocument`. Una muestra más larga vuelve `rejected` con `invalid`, y una que la
+  lectura del documento no escribe se descarta: queda vacía y la propuesta sigue, sin rechazo. Mayúsculas, acentos y signos no
+  cuentan; un número puede cambiar `. , / -` o partirse en grupos, pero cada parte tiene que estar, dígito por dígito, dentro de
+  un número de la lectura, que se compara como la muestra, sin caracteres invisibles. Uno partido en la lectura y junto en la
+  muestra no entra, y tampoco una palabra traducida («Various» por «Varios»), reescrita («6:44 PM» por «18:44 h») o inventada, un
+  dígito que cambia ni una muestra de un documento ilegible (sin texto). La lectura se prende sólo si el documento es un ejemplo de los que
   va a recibir el formulario, nunca con una planilla en blanco que describe preguntas, y «Cómo reconocerlo» describe ese tipo de
   documento en general, sin copiar nombres, números, cuentas, montos ni instrucciones escritas en él. `standard` (`key`) nombra
   un estándar parecido de la biblioteca: sólo uno que mostró `forms.library.standards@1` en el mismo turno (si no, `notFound`),
@@ -614,8 +619,10 @@ y lo que se leyó en ellos. Está el backend (tarea 14); la página llega con su
   una interpretación del canal `forms-documents` con quien pide como Actor, sin Subject y en una conversación propia del pedido, que
   ofrece `forms.authoring.forms@1`, `forms.authoring.catalogs@1`, `forms.library.standards@1` y `forms.authoring.propose-form@2` y
   cierra con `assistant_proposal@1`: cinco definiciones de dieciséis. Su documento son las lecturas de hasta cinco: la primera con su
-  copia y la mitad de los 16 KiB, las otras se reparten el resto, cada una recortada por el servidor y la que no entra, afuera. Los
-  cupos son los del motor. 202 con el pedido; el mismo pedido otra vez contesta lo mismo sin pedirlo de nuevo y otro documento o tema
+  copia y la mitad de los 16 KiB, las otras se reparten el resto, cada una recortada por el servidor y la que no entra, afuera. Cada
+  muestra es la del primero tal como la escribe su lectura: la que no está escrita así se descarta y queda vacía, como en la Etapa 3,
+  porque las tres lecturas, proponer y cerrar usan los cinco pasos de proveedor del turno y un rechazo no dejaría uno para
+  corregirla. Los cupos son los del motor. 202 con el pedido; el mismo pedido otra vez contesta lo mismo sin pedirlo de nuevo y otro documento o tema
   con el mismo `requestId` da 409 `RequestConflict`. Lo que el motor ya tomó con ese `requestId` sin que se guardara el pedido (otro
   intento que llegó antes, o uno cuyo guardado falló) se recupera sin correr dos veces: se reenvía sellado en el mismo instante, el
   motor lo reconoce y el pedido se guarda; con otros documentos (u otro contexto que la búsqueda encuentra), 409 `RequestConflict`. Un

@@ -96,6 +96,59 @@ internal static class FormAuthoringProposalPolicy
     public static bool ValidSample(string sample) => StringInfo.ParseCombiningCharacters(sample).Length <= FormAuthoringDocumentFormProposal.MaxSampleLength
         && StorableText.IsStorable(sample);
 
+    // A sample as the document's reading writes it, by the qualification oracle's rule: each of its words is one the reading writes
+    // (case and accents aside, never translated or invented) and each of its numbers lies inside one number of the reading, digit by
+    // digit (the separators may change, a digit never). The reading is compared as a sample is kept, so an invisible format character
+    // in it (a soft hyphen, a zero-width space between digits) hides nothing; a reading without text writes nothing. A number the
+    // reading splits with a space and the sample writes joined is not in it, as in the oracle. Without a letter or a digit there is
+    // nothing to compare.
+    public static bool SampleInReading(string sample, string? reading)
+    {
+        var tokens = Tokens(sample);
+        if (tokens.Length == 0) return false;
+        var written = Sample(reading) ?? "";
+        var words = Tokens(written).ToHashSet(StringComparer.Ordinal);
+        var numbers = WrittenNumbers(written);
+        return tokens.Where(token => token.Any(char.IsLetter)).All(words.Contains)
+            && WrittenNumbers(sample).All(number => numbers.Any(written => written.Contains(number, StringComparison.Ordinal)));
+    }
+
+    // Lowercase letters and digits without accents; anything else separates them.
+    private static string[] Tokens(string text) => new string([.. text.Normalize(NormalizationForm.FormD)
+            .Where(character => CharUnicodeInfo.GetUnicodeCategory(character) != UnicodeCategory.NonSpacingMark)
+            .Select(character => char.IsLetterOrDigit(character) ? char.ToLowerInvariant(character) : ' ')])
+        .Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+    // The numbers of a text as written: digits that only a dot, a comma, a slash or a dash join, one between each group. A space or any
+    // other character ends them, so a date and its time, or an account in groups of four, are several numbers.
+    private static List<string> WrittenNumbers(string text)
+    {
+        var numbers = new List<string>();
+        var digits = new StringBuilder();
+        var joined = false;
+        foreach (var character in text)
+        {
+            if (char.IsAsciiDigit(character))
+            {
+                digits.Append(character);
+                joined = false;
+            }
+            else if (digits.Length > 0 && !joined && (character is '.' or ',' or '/' or '-'
+                || CharUnicodeInfo.GetUnicodeCategory(character) == UnicodeCategory.DashPunctuation))
+            {
+                joined = true;
+            }
+            else
+            {
+                if (digits.Length > 0) numbers.Add(digits.ToString());
+                digits.Clear();
+                joined = false;
+            }
+        }
+        if (digits.Length > 0) numbers.Add(digits.ToString());
+        return numbers;
+    }
+
     // Version 2's own parts as the server proposed them: «Cómo reconocerlo» within its limit, each sample normalized and within its
     // limit, and the standard with its key and name.
     public static bool HasValidDocumentParts(FormAuthoringDocumentFormProposal proposal) =>

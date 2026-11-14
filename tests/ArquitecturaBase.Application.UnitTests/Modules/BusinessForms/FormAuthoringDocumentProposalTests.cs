@@ -18,7 +18,13 @@ public sealed class FormAuthoringDocumentProposalTests
     private const int DocumentVersion = BusinessFormAuthoringAssistantCapabilitySource.DocumentFormVersion;
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
     private static string Json<T>(T value) => JsonSerializer.Serialize(value, JsonSerializerOptions.Web);
-    private static readonly StructuredDocument Receipt = new("comprobante.pdf", StructuredDocumentKind.Pdf, "application/pdf", 48_000, new string('a', 64), 1, null);
+    // The turn's document as the engine read it, a fictitious transfer receipt in Spanish: a sample is only what its reading writes.
+    private const string ReceiptText = "Comprobante de transferencia\nFecha: 12/03/2026 18:44 h\nTitular: Ana Pérez\nCBU destino: 0110599820000012345678\n"
+        + "Importe: $ 64.250,00\nComisión: $ 1.234,50\nCargo: $ 10\nConcepto: Varios";
+    private static readonly StructuredDocument Receipt = Printed(ReceiptText);
+
+    private static StructuredDocument Printed(string reading) => new("comprobante.pdf", StructuredDocumentKind.Pdf, "application/pdf", 48_000,
+        new string('a', 64), 1, new(StructuredDocumentReadability.Readable, null, "es", reading, false));
 
     private static object Question(string label, string type, bool required = false, string? sample = null, string[]? options = null) =>
         new { label, type, required, options = options ?? [], catalogId = (Guid?)null, sample };
@@ -29,7 +35,10 @@ public sealed class FormAuthoringDocumentProposalTests
             : questions, documentReading, standard });
 
     private static AssistantCapabilityRequest Request(AuthoringAssistantFixture host, string json, bool document = false) =>
-        host.Request(ProposeForm, json, DocumentVersion) with { Document = document ? Receipt : null };
+        Request(host, json, document ? Receipt : null);
+
+    private static AssistantCapabilityRequest Request(AuthoringAssistantFixture host, string json, StructuredDocument? document) =>
+        host.Request(ProposeForm, json, DocumentVersion) with { Document = document };
 
     private static FormAuthoringRejection Rejected(Result<AssistantCapabilityResponse> result)
     {
@@ -130,6 +139,73 @@ public sealed class FormAuthoringDocumentProposalTests
     public void A_sample_keeps_only_what_is_seen(string text, string? expected) =>
         Assert.Equal(expected, FormAuthoringProposalPolicy.Sample(text));
 
+    // The qualification oracle's rule: case, accents and signs never decide; a translated or invented word, a changed digit or a number
+    // the reading does not write do. A number may change its separators (a dot, a comma, a slash or a dash) or come in groups, but each
+    // part lies inside one number of the reading: one the reading splits with a space and the sample writes joined is not in it, as in
+    // the oracle. The reading is compared as a sample is kept, so its invisible format characters hide nothing. A sample of signs alone
+    // has nothing to compare.
+    [Theory]
+    [InlineData("Varios", true)]
+    [InlineData("VARIOS", true)]
+    [InlineData("Ana Perez", true)]
+    [InlineData("64.250,00", true)]
+    [InlineData("$64,250.00", true)]
+    [InlineData("0110 5998 2000 0012 3456 78", true)]
+    [InlineData("18:44 h", true)]
+    [InlineData("12/03/2026", true)]
+    [InlineData("12-03-2026", true)]
+    [InlineData("12‐03‐2026", true)]
+    [InlineData("Ana Pérez", true, "Titular: Ana Pé­rez")]
+    [InlineData("0110599820000012345678", true, "CBU destino: 0110​5998​2000​0012​3456​78")]
+    [InlineData("Various", false)]
+    [InlineData("Honorarios", false)]
+    [InlineData("6:44 PM", false)]
+    [InlineData("$ 64.250,01", false)]
+    [InlineData("$ 1.500,00", false)]
+    [InlineData("13/03/2026", false)]
+    [InlineData("0110599820000012345678", false, "CBU destino: 0110 5998 2000 0012 3456 78")]
+    [InlineData("$ —", false)]
+    public void A_sample_is_in_the_reading_only_as_it_is_written(string sample, bool written, string reading = ReceiptText) =>
+        Assert.Equal(written, FormAuthoringProposalPolicy.SampleInReading(sample, reading));
+
+    // DOC6 spends its five provider steps on three reads, proposing and closing, so a rejection would leave no step to fix it: the server
+    // discards a sample the reading does not write (translated, reworded or invented) and the proposal goes on with the others as they came.
+    [Fact]
+    public async Task A_sample_the_reading_does_not_write_is_discarded_and_the_proposal_goes_on()
+    {
+        var host = new AuthoringAssistantFixture();
+        var result = await host.Source.ExecuteAsync(Request(host, Form(null, null, Question("Concepto", "shortText", false, "Various"),
+            Question("Hora", "shortText", false, "6:44 PM"), Question("Monto", "number", true, "$ 64.250,00"),
+            Question("Titular", "shortText", false, " Ana\nPérez ")), document: true), Ct);
+        Assert.Equal([null, null, "$ 64.250,00", "Ana Pérez"], Proposed(result).Questions.Select(question => question.Sample));
+        var rejection = Json(new FormAuthoringRejection([new("questions[0].sample", "notInDocument")]));
+        Assert.True(host.Source.ParseOutput(new(ProposeForm, DocumentVersion), rejection).IsFailure);
+    }
+
+    // An unreadable document has a reading without text: it writes no sample, so every one is discarded and the form goes on.
+    [Fact]
+    public async Task An_unreadable_document_without_text_discards_every_sample()
+    {
+        var host = new AuthoringAssistantFixture();
+        var blurry = Receipt with { Reading = new(StructuredDocumentReadability.Unreadable, StructuredDocumentProblem.Blurry, null, "", false) };
+        var result = await host.Source.ExecuteAsync(Request(host, Form(null, null, Question("Concepto", "shortText", false, "Varios"),
+            Question("Monto", "number", true, "$ 64.250,00")), blurry), Ct);
+        Assert.Equal([null, null], Proposed(result).Questions.Select(question => question.Sample));
+    }
+
+    // The limit goes first: a sample past it comes back invalid for the model to shorten, even one the reading does not write; only a
+    // valid sample is discarded.
+    [Fact]
+    public async Task A_sample_past_its_limit_comes_back_invalid_and_is_not_discarded()
+    {
+        var host = new AuthoringAssistantFixture();
+        var sample = new string('x', FormAuthoringDocumentFormProposal.MaxSampleLength + 1);
+        Assert.False(FormAuthoringProposalPolicy.SampleInReading(sample, ReceiptText));
+        var result = await host.Source.ExecuteAsync(Request(host, Form(null, null, Question("Concepto", "longText", false, sample),
+            Question("Monto", "number", true, "$ 64.250,00")), document: true), Ct);
+        Assert.Equal([new FormAuthoringIssue("questions[0].sample", "invalid")], Rejected(result).Issues);
+    }
+
     [Theory]
     [InlineData(160, true)]
     [InlineData(161, false)]
@@ -138,7 +214,7 @@ public sealed class FormAuthoringDocumentProposalTests
         var host = new AuthoringAssistantFixture();
         // A decomposed «é» is one grapheme and two UTF-16 units: 160 of them are 320 units.
         var sample = string.Concat(Enumerable.Repeat("e\u0301", length));
-        var result = await host.Source.ExecuteAsync(Request(host, Form(null, null, Question("Concepto", "longText", false, sample)), document: true), Ct);
+        var result = await host.Source.ExecuteAsync(Request(host, Form(null, null, Question("Concepto", "longText", false, sample)), Printed("Concepto: " + sample)), Ct);
         if (accepted) Assert.Equal(sample, Proposed(result).Questions[0].Sample);
         else Assert.Equal([new FormAuthoringIssue("questions[0].sample", "invalid")], Rejected(result).Issues);
     }
@@ -149,9 +225,10 @@ public sealed class FormAuthoringDocumentProposalTests
     {
         var host = new AuthoringAssistantFixture();
         var questions = Enumerable.Range(1, 40).Select(index => Question("Pregunta " + index, "shortText", false, new string('á', 160))).ToArray();
-        var result = await host.Source.ExecuteAsync(Request(host, Form(null, null, questions), document: true), Ct);
+        var printed = Printed(new string('á', 160));
+        var result = await host.Source.ExecuteAsync(Request(host, Form(null, null, questions), printed), Ct);
         Assert.Equal(Enumerable.Range(0, 40).Select(index => new FormAuthoringIssue($"questions[{index}].sample", "tooLarge")), Rejected(result).Issues);
-        var fits = await host.Source.ExecuteAsync(Request(host, Form(null, null, questions[..10]), document: true), Ct);
+        var fits = await host.Source.ExecuteAsync(Request(host, Form(null, null, questions[..10]), printed), Ct);
         Assert.Equal(10, Proposed(fits).Questions.Count);
     }
 
