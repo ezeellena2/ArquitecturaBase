@@ -70,14 +70,15 @@ internal sealed class ArcaStructuredRecordIssuer(IArcaVoucherService vouchers, I
         (await reviews.ListAsync([runId], cancellationToken)).SingleOrDefault() is { } voucher
             ? ArcaInvoiceIssuePolicy.Response(voucher) : new(StructuredIssueState.NotFound);
 
-    // Proceeding is what the reason allows: another number for a number taken or missing, the date of today for an expired one.
+    // Proceeding is what the reason allows: another number for a number taken or missing, the date of today for one ARCA does
+    // not take (expired, or before the last voucher's).
     public async Task<StructuredIssueResponse> ReviewAsync(Guid runId, StructuredIssueReview review, CancellationToken cancellationToken)
     {
         if ((await reviews.ListAsync([runId], cancellationToken)).SingleOrDefault() is not { } voucher) return new(StructuredIssueState.NotFound);
         if (voucher.State != ArcaVoucherState.NeedsReview || review.ExpectedRevision is < int.MinValue or > int.MaxValue)
             return ArcaInvoiceIssuePolicy.Response(voucher);
         var decision = !review.Proceed ? ArcaVoucherReviewDecision.DoNotIssue
-            : voucher.ReviewReason == ArcaVoucherReviewReason.DateOutOfRange ? ArcaVoucherReviewDecision.IssueToday : ArcaVoucherReviewDecision.IssueWithNextNumber;
+            : ArcaInvoiceIssuePolicy.IsDate(voucher.ReviewReason) ? ArcaVoucherReviewDecision.IssueToday : ArcaVoucherReviewDecision.IssueWithNextNumber;
         var reviewed = await reviews.ReviewAsync(runId, decision, (int)review.ExpectedRevision, cancellationToken);
         return reviewed.IsSuccess ? ArcaInvoiceIssuePolicy.Response(reviewed.Value) : await GetAsync(runId, cancellationToken);
     }

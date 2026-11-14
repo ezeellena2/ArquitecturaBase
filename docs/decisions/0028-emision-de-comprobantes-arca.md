@@ -5,7 +5,8 @@
 **Aceptada**, 2026-11-09, por decisión del usuario, con el [diseño de la etapa 3 de ARCA](../plans/2026-11-09-arca-etapa-3-factura-c.md).
 Rige desde esa etapa. Complementa el [ADR 0023](0023-arca-como-modulo-opcional.md) (módulo y
 credenciales) y el [ADR 0025](0025-familias-de-servicios-arca.md) (familias), y aplica el
-[ADR 0018](0018-robustez-proporcional-al-efecto.md) a un efecto con valor legal.
+[ADR 0018](0018-robustez-proporcional-al-efecto.md) a un efecto con valor legal. Desde el 2026-11-14, el
+[ADR 0031](0031-fecha-rechazada-y-numero-adelantado-arca.md) reemplaza la decisión 5 en lo que dice del 10016.
 
 ## Contexto
 

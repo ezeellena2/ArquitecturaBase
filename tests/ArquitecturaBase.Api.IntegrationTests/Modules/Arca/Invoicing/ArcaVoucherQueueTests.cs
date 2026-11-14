@@ -249,6 +249,187 @@ public sealed class ArcaVoucherQueueTests(ApiFactory factory) : IDisposable
         }
     }
 
+    // ADR 0031 (H1): with the number that was next, a 10016 is about the date. The voucher goes to a person with its number free,
+    // the sequence goes on, and «Emitir con la fecha de hoy» issues it.
+    [Fact]
+    public async Task A_sale_dated_before_the_last_voucher_goes_to_review_with_its_number_free_and_is_issued_today()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var arca = Arca();
+        await ArcaVoucherScenario.ConnectAsync(factory, authority);
+        try
+        {
+            // Another system issued number 1 today: the base does not know it, so it cannot warn before queuing.
+            arca.Vouchers.IssueElsewhere(4, 11, 1, 20111111112, 1000m, Today.ToString("yyyyMMdd", CultureInfo.InvariantCulture));
+            var late = ArcaVoucherScenario.Order(Today.AddDays(-2));
+            await EnqueueAsync(late);
+            await ProcessAsync();
+            var sent = await VoucherAsync(late.RequestKey);
+            Assert.Equal((ArcaVoucherState.Uncertain, (long?)2), (sent.State, sent.Number));
+
+            factory.Clock.Advance(ArcaRetrySchedule.After(1));
+            await ProcessAsync();
+
+            var review = await VoucherAsync(late.RequestKey);
+            Assert.Equal((ArcaVoucherState.NeedsReview, (ArcaVoucherReviewReason?)ArcaVoucherReviewReason.DateBeforeLastVoucher, (long?)null),
+                (review.State, review.ReviewReason, review.Number));
+            Assert.Equal(1, arca.Calls("FECAESolicitar", FakeArca.InvoicingService));
+
+            // The sequence does not wait for the person: the next sale takes number 2.
+            var next = ArcaVoucherScenario.Order(Today);
+            await EnqueueAsync(next);
+            await ProcessAsync();
+            var issuedNext = await VoucherAsync(next.RequestKey);
+            Assert.Equal((ArcaVoucherState.Authorized, (long?)2), (issuedNext.State, issuedNext.Number));
+
+            Assert.True((await factory.ExecuteScopeAsync(services => services.GetRequiredService<IArcaVoucherReviewService>()
+                .ReviewAsync(late.RequestKey, ArcaVoucherReviewDecision.IssueToday, review.Revision, ct))).IsSuccess);
+            await ProcessAsync();
+
+            var issued = await VoucherAsync(late.RequestKey);
+            Assert.Equal((ArcaVoucherState.Authorized, (long?)3, (DateOnly?)Today), (issued.State, issued.Number, issued.IssuedOn));
+            Assert.Equal(3, arca.Calls("FECAESolicitar", FakeArca.InvoicingService));
+        }
+        finally
+        {
+            await ArcaVoucherScenario.RemoveAsync(factory);
+        }
+    }
+
+    // ADR 0031: a numbered voucher that ARCA did not issue goes again with its number only if ARCA can take its date; if its date
+    // left the window, it goes to review out of the window, with its number free, instead of being sent forever.
+    [Fact]
+    public async Task A_numbered_voucher_whose_date_left_the_window_goes_to_review_with_its_number_free()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var arca = Arca();
+        await ArcaVoucherScenario.ConnectAsync(factory, authority);
+        try
+        {
+            var order = ArcaVoucherScenario.Order(Today);
+            await EnqueueAsync(order);
+            arca.Vouchers.Enqueue(FakeArcaVoucherFault.LoseRequest);
+            await ProcessAsync();
+            factory.Clock.Advance(TimeSpan.FromDays(6));
+            await ProcessAsync();
+
+            var review = await VoucherAsync(order.RequestKey);
+            Assert.Equal((ArcaVoucherState.NeedsReview, (ArcaVoucherReviewReason?)ArcaVoucherReviewReason.DateOutOfRange, (long?)null),
+                (review.State, review.ReviewReason, review.Number));
+            Assert.Equal(1, arca.Calls("FECAESolicitar", FakeArca.InvoicingService));
+
+            await factory.ExecuteScopeAsync(services => services.GetRequiredService<IArcaVoucherReviewService>()
+                .ReviewAsync(order.RequestKey, ArcaVoucherReviewDecision.IssueToday, review.Revision, ct));
+            await ProcessAsync();
+
+            var issued = await VoucherAsync(order.RequestKey);
+            Assert.Equal((ArcaVoucherState.Authorized, (long?)1, (DateOnly?)Today), (issued.State, issued.Number, issued.IssuedOn));
+        }
+        finally
+        {
+            await ArcaVoucherScenario.RemoveAsync(factory);
+        }
+    }
+
+    // ADR 0031: «Emitir con la fecha de hoy» never goes before the last voucher the base knows: with one dated after today, it
+    // takes that date, which ARCA does take.
+    [Fact]
+    public async Task Issuing_with_todays_date_takes_the_date_of_the_last_voucher_when_it_is_later()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        Arca();
+        await ArcaVoucherScenario.ConnectAsync(factory, authority);
+        try
+        {
+            var old = ArcaVoucherScenario.Order(Today);
+            await EnqueueAsync(old);
+            factory.Clock.Advance(TimeSpan.FromDays(6));
+            await ProcessAsync();
+            var review = await VoucherAsync(old.RequestKey);
+            Assert.Equal(ArcaVoucherReviewReason.DateOutOfRange, review.ReviewReason);
+
+            var ahead = ArcaVoucherScenario.Order(Today.AddDays(2));
+            await EnqueueAsync(ahead);
+            await ProcessAsync();
+            Assert.Equal(ArcaVoucherState.Authorized, (await VoucherAsync(ahead.RequestKey)).State);
+
+            await factory.ExecuteScopeAsync(services => services.GetRequiredService<IArcaVoucherReviewService>()
+                .ReviewAsync(old.RequestKey, ArcaVoucherReviewDecision.IssueToday, review.Revision, ct));
+            await ProcessAsync();
+
+            var issued = await VoucherAsync(old.RequestKey);
+            Assert.Equal((ArcaVoucherState.Authorized, (long?)2, (DateOnly?)Today.AddDays(2)), (issued.State, issued.Number, issued.IssuedOn));
+        }
+        finally
+        {
+            await ArcaVoucherScenario.RemoveAsync(factory);
+        }
+    }
+
+    // B2: «Emitir con la fecha de hoy» moves to that date a payment due date of a service that already passed; ARCA refuses a
+    // due date before the date of the voucher. The period does not move.
+    [Fact]
+    public async Task Issuing_a_service_with_todays_date_moves_a_payment_due_date_that_passed()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var arca = Arca();
+        await ArcaVoucherScenario.ConnectAsync(factory, authority);
+        try
+        {
+            var (from, to) = (Today.AddDays(-30), Today);
+            var order = ArcaVoucherScenario.Order(Today) with { Concept = 2, ServiceFrom = from, ServiceTo = to, PaymentDueOn = Today.AddDays(2) };
+            await EnqueueAsync(order);
+            factory.Clock.Advance(TimeSpan.FromDays(11));
+            await ProcessAsync();
+
+            var review = await VoucherAsync(order.RequestKey);
+            Assert.Equal((ArcaVoucherState.NeedsReview, (ArcaVoucherReviewReason?)ArcaVoucherReviewReason.DateOutOfRange), (review.State, review.ReviewReason));
+            await factory.ExecuteScopeAsync(services => services.GetRequiredService<IArcaVoucherReviewService>()
+                .ReviewAsync(order.RequestKey, ArcaVoucherReviewDecision.IssueToday, review.Revision, ct));
+            await ProcessAsync();
+
+            Assert.Equal(ArcaVoucherState.Authorized, (await VoucherAsync(order.RequestKey)).State);
+            var request = arca.LastRequest("FECAESolicitar")!;
+            string Day(DateOnly date) => date.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
+            Assert.Equal((Day(Today), Day(Today), Day(from), Day(to)),
+                (Value(request, "CbteFch"), Value(request, "FchVtoPago"), Value(request, "FchServDesde"), Value(request, "FchServHasta")));
+        }
+        finally
+        {
+            await ArcaVoucherScenario.RemoveAsync(factory);
+        }
+    }
+
+    // ADR 0031: a date before the last voucher the base knows would come back with 10016: «¿La emito?» and «Emitir» say so first.
+    [Fact]
+    public async Task A_date_before_the_last_voucher_the_base_knows_is_not_queued()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        Arca();
+        await ArcaVoucherScenario.ConnectAsync(factory, authority);
+        try
+        {
+            var first = ArcaVoucherScenario.Order(Today);
+            await EnqueueAsync(first);
+            await ProcessAsync();
+            Assert.Equal(ArcaVoucherState.Authorized, (await VoucherAsync(first.RequestKey)).State);
+
+            var late = ArcaVoucherScenario.Order(Today.AddDays(-1));
+            var preview = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IArcaVoucherService>().PreviewAsync(late, ct));
+            var queued = await factory.ExecuteScopeAsync(services => services.GetRequiredService<IArcaVoucherService>().EnqueueAsync(late, ct));
+
+            Assert.Equal((ArcaInvoicingErrors.IssueDateBeforeLast, ArcaInvoicingErrors.IssueDateBeforeLast), (preview.Error, queued.Error));
+            Assert.Empty(await factory.ExecuteScopeAsync(services => services.GetRequiredService<IArcaVoucherReviewService>().ListAsync([late.RequestKey], ct)));
+            // The same date as the last one is fine.
+            Assert.True((await factory.ExecuteScopeAsync(services => services.GetRequiredService<IArcaVoucherService>()
+                .PreviewAsync(ArcaVoucherScenario.Order(Today), ct))).IsSuccess);
+        }
+        finally
+        {
+            await ArcaVoucherScenario.RemoveAsync(factory);
+        }
+    }
+
     [Fact]
     public async Task Two_hosts_never_work_the_same_sequence_at_once()
     {

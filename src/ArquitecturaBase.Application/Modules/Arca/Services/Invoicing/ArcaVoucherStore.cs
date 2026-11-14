@@ -27,8 +27,9 @@ internal sealed class ArcaVoucherStore(IArcaConnectionRepository connections, IA
         (await unitOfWork.ExecuteInTransactionAsync(token => AssignNumberCoreAsync(work, lastAuthorized, token), CommitPolicy.OnSuccess, cancellationToken)).Value;
 
     public async Task<ArcaVoucherWorkResponse?> ReconcileAsync(ArcaVoucherWorkResponse work, ArcaIssuedVoucher? found, long lastAuthorized,
-        CancellationToken cancellationToken) =>
-        (await unitOfWork.ExecuteInTransactionAsync(token => ReconcileCoreAsync(work, found, lastAuthorized, token), CommitPolicy.OnSuccess, cancellationToken)).Value;
+        DateOnly? lastIssuedOn, CancellationToken cancellationToken) =>
+        (await unitOfWork.ExecuteInTransactionAsync(token => ReconcileCoreAsync(work, found, lastAuthorized, lastIssuedOn, token), CommitPolicy.OnSuccess,
+            cancellationToken)).Value;
 
     public async Task<bool> CompleteAsync(ArcaVoucherWorkResponse work, ArcaAuthorization authorization, CancellationToken cancellationToken) =>
         (await unitOfWork.ExecuteInTransactionAsync(token => ChangeCoreAsync(work, (voucher, sequence, nowUtc) => Complete(voucher, sequence, authorization, nowUtc), token),
@@ -112,14 +113,21 @@ internal sealed class ArcaVoucherStore(IArcaConnectionRepository connections, IA
     }
 
     private async Task<Result<ArcaVoucherWorkResponse?>> ReconcileCoreAsync(ArcaVoucherWorkResponse work, ArcaIssuedVoucher? found, long lastAuthorized,
-        CancellationToken cancellationToken)
+        DateOnly? lastIssuedOn, CancellationToken cancellationToken)
     {
         if (await OwnedAsync(work, cancellationToken) is not (var voucher, var sequence, var nowUtc)) return Result.Success<ArcaVoucherWorkResponse?>(null);
-        switch (ArcaReconciliationPolicy.Decide(work.Request, found, lastAuthorized))
+        var today = ArcaIssueDateWindow.Today(nowUtc);
+        switch (ArcaReconciliationPolicy.Decide(work.Request, found, lastAuthorized, lastIssuedOn, today))
         {
             case ArcaReconciliation.NotIssued:
                 voucher.Resend(sequence.LeaseUntilUtc ?? nowUtc);
                 return Result.Success<ArcaVoucherWorkResponse?>(work);
+            case ArcaReconciliation.DateRefused:
+                // ADR 0031: a revisión sin el número, que queda libre para el siguiente; el motivo dice si salió de la ventana.
+                voucher.RequireReview(ArcaIssueDateWindow.Admits(voucher.Concept, voucher.RequestedOn, today)
+                    ? ArcaVoucherReviewReason.DateBeforeLastVoucher : ArcaVoucherReviewReason.DateOutOfRange, nowUtc);
+                sequence.ReleasePending(voucher.Id);
+                break;
             case ArcaReconciliation.Issued when found!.AuthorizationDueOn is { } due:
                 voucher.Authorize(found.AuthorizationCode!, due, null, nowUtc);
                 sequence.ReleasePending(voucher.Id);

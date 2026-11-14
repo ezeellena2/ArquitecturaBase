@@ -21,9 +21,11 @@ public interface IArcaVoucherStore
 
     /// <summary>
     /// Aplica la reconciliación: si ARCA lo emitió, lo autoriza; si alguien usó el número o falta, lo deja en revisión. Si no
-    /// se emitió, lo vuelve a poner en envío y devuelve el trabajo para mandarlo otra vez con el mismo número.
+    /// se emitió, lo vuelve a poner en envío y devuelve el trabajo para mandarlo otra vez con el mismo número, salvo que ARCA no
+    /// pueda aceptar su fecha (<paramref name="lastIssuedOn"/> es la del último autorizado): entonces va a revisión sin el número.
     /// </summary>
-    Task<ArcaVoucherWorkResponse?> ReconcileAsync(ArcaVoucherWorkResponse work, ArcaIssuedVoucher? found, long lastAuthorized, CancellationToken cancellationToken);
+    Task<ArcaVoucherWorkResponse?> ReconcileAsync(ArcaVoucherWorkResponse work, ArcaIssuedVoucher? found, long lastAuthorized, DateOnly? lastIssuedOn,
+        CancellationToken cancellationToken);
 
     /// <summary>Guarda lo que respondió <c>FECAESolicitar</c> y suelta la reserva.</summary>
     Task<bool> CompleteAsync(ArcaVoucherWorkResponse work, ArcaAuthorization authorization, CancellationToken cancellationToken);

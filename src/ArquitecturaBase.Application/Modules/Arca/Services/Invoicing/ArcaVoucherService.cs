@@ -7,6 +7,7 @@ using ArquitecturaBase.Application.Modules.Arca.Interfaces.Services.Invoicing;
 using ArquitecturaBase.Application.Modules.Arca.Models.Connection;
 using ArquitecturaBase.Application.Modules.Arca.Models.Invoicing;
 using ArquitecturaBase.Domain.Modules.Arca;
+using ArquitecturaBase.Domain.Modules.Arca.Connection;
 using ArquitecturaBase.Domain.Modules.Arca.Invoicing;
 using ArquitecturaBase.Domain.Results;
 using Microsoft.Extensions.Logging;
@@ -41,12 +42,13 @@ internal sealed class ArcaVoucherService(IArcaConnectionRepository connections, 
             if (lines.IsFailure) return Result.Failure<ArcaVoucherPreviewResponse>(lines.Error);
             // Sólo lee, sin transacción: no guarda nada.
             if (await connections.GetConnectionAsync(cancellationToken) is not { } connection) return ArcaConnectionErrors.NotConnected;
-            if ((await settings.GetSettingsAsync(connection.Id, cancellationToken))?.PointOfSale is null) return ArcaInvoicingErrors.PointOfSaleMissing;
+            if (await settings.GetSettingsAsync(connection.Id, cancellationToken) is not { PointOfSale: { } pointOfSale }) return ArcaInvoicingErrors.PointOfSaleMissing;
             if (await profiles.FindAsync(connection.Id, cancellationToken) is not { } profile) return ArcaInvoicingErrors.IssuerDataMissing;
             var decided = ArcaVoucherClassPolicy.Decide(profile.TaxStatus, order.Receiver.VatConditionId);
             if (decided.IsFailure) return decided.Error;
             var priced = ArcaVoucherOrderPolicy.ForClass(decided.Value, order, lines.Value);
             if (priced.IsFailure) return priced.Error;
+            if (await DateBeforeLastAsync(connection, pointOfSale, decided.Value, order.IssueOn, cancellationToken)) return ArcaInvoicingErrors.IssueDateBeforeLast;
             return new ArcaVoucherPreviewResponse(decided.Value, ArcaVoucherTypes.Code(decided.Value, ArcaVoucherKind.Invoice), priced.Value.Amounts.Total,
                 priced.Value.Amounts.Vat) { Amounts = priced.Value.Amounts, CompanyTaxStatus = profile.TaxStatus };
         });
@@ -63,6 +65,7 @@ internal sealed class ArcaVoucherService(IArcaConnectionRepository connections, 
         if (decided.IsFailure) return decided.Error;
         var priced = ArcaVoucherOrderPolicy.ForClass(decided.Value, order, lines);
         if (priced.IsFailure) return priced.Error;
+        if (await DateBeforeLastAsync(connection, pointOfSale, decided.Value, order.IssueOn, cancellationToken)) return ArcaInvoicingErrors.IssueDateBeforeLast;
 
         var receiver = order.Receiver with { Name = order.Receiver.Name.Trim(), Address = Trimmed(order.Receiver.Address) };
         var payload = new ArcaVoucherPayload(receiver, order.ServiceFrom, order.ServiceTo, order.PaymentDueOn, priced.Value.Lines,
@@ -98,6 +101,15 @@ internal sealed class ArcaVoucherService(IArcaConnectionRepository connections, 
         vouchers.Add(note);
         return ArcaVoucherRowPolicy.Response(note);
     }
+
+    /// <summary>
+    /// ARCA no acepta una fecha anterior a la del último comprobante del mismo tipo y punto de venta (10016): se avisa antes de
+    /// encolar, con el último que conoce la base (ADR 0031). Uno que emitió otro sistema lo resuelve la revisión.
+    /// </summary>
+    private async Task<bool> DateBeforeLastAsync(ArcaConnection connection, int pointOfSale, ArcaVoucherClass voucherClass, DateOnly issueOn,
+        CancellationToken cancellationToken) =>
+        await vouchers.FindLastIssuedOnAsync(new ArcaVoucherSequenceRow(connection.Environment, connection.Cuit, pointOfSale,
+            ArcaVoucherTypes.Code(voucherClass, ArcaVoucherKind.Invoice)), cancellationToken) is { } last && issueOn < last;
 
     private static ArcaVoucherIssuer Issuer(ArcaCompanyProfile profile, string? grossIncomeNumber, DateOnly? activityStartOn) =>
         new(profile.LegalName, profile.FiscalAddress, profile.TaxStatus, grossIncomeNumber, activityStartOn);

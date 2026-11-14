@@ -124,17 +124,21 @@ internal static class ArcaInvoiceIssuePolicy
         DisplayNumbers.Format(culture, Texts.GetString(key, CultureInfo.GetCultureInfo(culture))
             ?? throw new InvalidOperationException("The ARCA invoicing text is missing."), arguments), StringComparer.Ordinal);
 
-    // A review says why and how it goes on: another number (with where to look first) or today's date.
+    // A review says why and how it goes on: another number (with where to look first) or, for a date ARCA does not take, today's.
     private static StructuredIssueReviewText Review(ArcaVoucherReviewReason reason)
     {
         var key = "Review." + reason;
-        var next = reason == ArcaVoucherReviewReason.DateOutOfRange ? "Review.IssueToday" : "Review.IssueNext";
-        return new(Localized(key + ".Title"), Localized(next))
+        var date = IsDate(reason);
+        return new(Localized(key + ".Title"), Localized(date ? "Review.IssueToday" : "Review.IssueNext"))
         {
             Detail = Localized(key + ".Detail"),
-            Advice = reason == ArcaVoucherReviewReason.DateOutOfRange ? null : Localized("Review.CheckVouchers"),
+            Advice = date ? null : Localized("Review.CheckVouchers"),
         };
     }
+
+    /// <summary>A date ARCA does not take, out of the window or before the last voucher's: it goes on with today's date (ADR 0031).</summary>
+    public static bool IsDate(ArcaVoucherReviewReason? reason) =>
+        reason is ArcaVoucherReviewReason.DateOutOfRange or ArcaVoucherReviewReason.DateBeforeLastVoucher;
 
     private static string Camel(string name) => char.ToLowerInvariant(name[0]) + name[1..];
 }

@@ -147,16 +147,26 @@ public sealed class ArcaVoucher : Entity
         Wait(failureCode, nowUtc);
     }
 
+    /// <summary>
+    /// Una persona decide. Un número tomado o que falta lo frena con su número. Una fecha que ARCA no acepta lo frena sin número:
+    /// en cola, antes de darle uno, o con el que la reconciliación dijo que ARCA no emitió, que queda libre (ADR 0031).
+    /// </summary>
     public void RequireReview(ArcaVoucherReviewReason reason, DateTime nowUtc)
     {
-        Require(reason == ArcaVoucherReviewReason.DateOutOfRange
-            ? State == ArcaVoucherState.Queued && Number is null
-            : State is ArcaVoucherState.Sending or ArcaVoucherState.Uncertain && Number is not null, "require a review");
+        var date = reason is ArcaVoucherReviewReason.DateOutOfRange or ArcaVoucherReviewReason.DateBeforeLastVoucher;
+        Require(date && State == ArcaVoucherState.Queued && Number is null
+            || State is ArcaVoucherState.Sending or ArcaVoucherState.Uncertain && Number is not null, "require a review");
+        if (date) (Number, DataHash) = (null, null);
         (State, ReviewReason, NextAttemptAtUtc) = (ArcaVoucherState.NeedsReview, reason, nowUtc);
         Revision++;
     }
 
-    public Result Review(ArcaVoucherReviewDecision decision, int expectedRevision, DateOnly today, DateTime nowUtc)
+    /// <summary>
+    /// Lo que decide la persona, con la revisión esperada. «Emitir con la fecha de hoy» lleva la fecha que ARCA acepta
+    /// (<paramref name="today"/>, que no es anterior al último comprobante que conoce la base) y, si hace falta, el pedido con el
+    /// vencimiento del pago corrido a esa fecha (<paramref name="payloadJson"/>); lo arma Application.
+    /// </summary>
+    public Result Review(ArcaVoucherReviewDecision decision, int expectedRevision, DateOnly today, DateTime nowUtc, string? payloadJson = null)
     {
         if (State != ArcaVoucherState.NeedsReview) return ArcaInvoicingErrors.VoucherNotInReview;
         if (expectedRevision != Revision) return ArcaInvoicingErrors.VoucherRevisionConflict;
@@ -170,8 +180,9 @@ public sealed class ArcaVoucher : Entity
                 (Number, DataHash) = (null, null);
                 Requeue(nowUtc);
                 return Result.Success();
-            case ArcaVoucherReviewDecision.IssueToday when ReviewReason == ArcaVoucherReviewReason.DateOutOfRange:
+            case ArcaVoucherReviewDecision.IssueToday when ReviewReason is ArcaVoucherReviewReason.DateOutOfRange or ArcaVoucherReviewReason.DateBeforeLastVoucher:
                 RequestedOn = today;
+                if (payloadJson is not null) PayloadJson = payloadJson;
                 Requeue(nowUtc);
                 return Result.Success();
             default:
@@ -210,9 +221,10 @@ public sealed class ArcaVoucher : Entity
         Revision++;
     }
 
+    // Una persona decidió: vuelve a la cola como nuevo, sin las esperas de antes ni el aviso de que espera a ARCA.
     private void Requeue(DateTime nowUtc)
     {
-        (State, ReviewReason, Failures, FailureCode, NextAttemptAtUtc) = (ArcaVoucherState.Queued, null, 0, null, nowUtc);
+        (State, ReviewReason, Failures, FailureCode, WaitedForArca, NextAttemptAtUtc) = (ArcaVoucherState.Queued, null, 0, null, false, nowUtc);
         Revision++;
     }
 

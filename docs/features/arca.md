@@ -208,7 +208,9 @@ la prueba integral y la de homologación. Lo que se ve en la app y en WhatsApp e
   el concepto, el período y el vencimiento del pago de un servicio, la fecha que ARCA acepta hoy y los renglones, y
   recalcula cada importe con half-even. El total del pedido es el «Total» del formulario, la suma de los importes de los
   renglones: si no coincide, no se encola; con precios sin IVA, el de la A o la B es mayor, porque suma el IVA, y sale en el
-  resultado. La clase la decide el sistema con la
+  resultado. Una fecha anterior a la del último comprobante autorizado que la base conoce de la secuencia tampoco se encola
+  (`Arca.Invoicing.IssueDateBeforeLast`, también en «¿La emito?»), porque ARCA la rechaza
+  ([ADR 0031](../decisions/0031-fecha-rechazada-y-numero-adelantado-arca.md)). La clase la decide el sistema con la
   condición frente al IVA de la empresa (`IArcaCompanyProfileSource`, del padrón) y la del receptor: monotributo o exento,
   C; responsable inscripto, A al responsable inscripto y a los monotributistas (1, 6, 13 y 16) y B a los demás. Fija lo que
   va a emitir, con los datos del emisor de ese momento, y la clave del pedido la hace idempotente. La nota de crédito anula
@@ -227,10 +229,15 @@ la prueba integral y la de homologación. Lo que se ve en la app y en WhatsApp e
 - **Reconciliación:** ante un 10016, una respuesta que no llega, un 500, un 501, un 502 o una falla SOAP, el comprobante
   queda incierto y el próximo intento consulta `FECompConsultar`: si ARCA lo tiene con el mismo documento, fecha, concepto
   y total, queda autorizado con ese CAE; si no lo tiene y el número sigue siendo el siguiente, se manda otra vez con el
-  mismo número. Un número tomado con otros datos o que falta va a revisión humana y frena su secuencia.
+  mismo número, salvo que ARCA no pueda aceptar su fecha: antes de reenviarlo se consulta la del último autorizado, y si la
+  nuestra es anterior o salió de la ventana, va a revisión sin el número, que queda libre (ADR 0031). Un 10016 solo no suelta
+  el número: puede ser nuestro, autorizado tarde y todavía sin mostrarse. Un número tomado con otros datos o que falta va a
+  revisión humana y frena su secuencia.
 - **Espera creciente:** 30 s, 1, 2, 5, 10 y 30 minutos y después cada hora, sin tope; sin ticket o sin conexión, espera sin
-  número. Una fecha que salió de la ventana (5 días con productos, 10 con servicios, en hora de la Argentina) va a revisión:
-  «Emitir con la fecha de hoy» o «No emitir». Revisar exige la revisión esperada; cancelar, que no tenga número.
+  número. Una fecha que salió de la ventana (5 días con productos, 10 con servicios, en hora de la Argentina), o que ARCA
+  rechazó por anterior a la del último comprobante, va a revisión: «Emitir con la fecha de hoy» o «No emitir». Emitir toma la
+  de hoy o, si el último comprobante que conoce la base es posterior, la suya, y corre a esa fecha un vencimiento del pago
+  anterior. Revisar exige la revisión esperada; cancelar, que no tenga número.
 - **PDF fiscal:** al autorizarse, el worker lo dibuja con diseño fijo y el QR de ARCA, lo escribe una vez en el almacén
   privado (`arca-vouchers/{id}.pdf`) y confirma su SHA-256. Si el almacén falla, el comprobante sigue autorizado y el PDF
   espera. Esos PDF no se limpian mientras exista su comprobante. El nombre y el domicilio del receptor son datos fiscales y

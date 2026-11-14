@@ -17,6 +17,7 @@ public static class ArcaInvoicingErrors
     public static readonly Error ConceptInvalid = Error.Validation("Arca.Invoicing.ConceptInvalid", "The concept is products, services or both.");
     public static readonly Error ServicePeriodInvalid = Error.Validation("Arca.Invoicing.ServicePeriodInvalid", "A service needs its period and payment due date, in order.");
     public static readonly Error IssueDateOutOfRange = Error.Validation("Arca.Invoicing.IssueDateOutOfRange", "ARCA does not take that date.");
+    public static readonly Error IssueDateBeforeLast = Error.Validation("Arca.Invoicing.IssueDateBeforeLast", "The date is before the last voucher of its type that ARCA authorized.");
     public static readonly Error ItemsInvalid = Error.Validation("Arca.Invoicing.ItemsInvalid", "Each item needs a description, a quantity and a price, and the total must be above zero.");
     public static readonly Error TotalMismatch = Error.Validation("Arca.Invoicing.TotalMismatch", "The total does not match the items.");
     public static readonly Error InvoiceNotAuthorized = Error.Conflict("Arca.Invoicing.InvoiceNotAuthorized", "The invoice has not been issued.");

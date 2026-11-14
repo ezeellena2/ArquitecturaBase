@@ -133,7 +133,10 @@ internal sealed partial class ArcaVoucherProcessor(IServiceScopeFactory scopes, 
         return await StepAsync(store => store.AssignNumberAsync(work, last.Value, cancellationToken));
     }
 
-    /// <summary>Lo que ARCA tiene con ese número y, si no lo tiene, el último autorizado; sin respuesta, sigue incierto.</summary>
+    /// <summary>
+    /// Lo que ARCA tiene con ese número y, si no lo tiene, el último autorizado y, si el número sigue siendo el siguiente, la
+    /// fecha de ese último, que dice si ARCA puede aceptar la nuestra (ADR 0031); sin respuesta, sigue incierto.
+    /// </summary>
     private async Task<ArcaVoucherWorkResponse?> ReconcileAsync(ArcaVoucherWorkResponse work, ArcaTicketOutcome.Ready ticket,
         CancellationToken cancellationToken)
     {
@@ -146,6 +149,7 @@ internal sealed partial class ArcaVoucherProcessor(IServiceScopeFactory scopes, 
         }
 
         var lastAuthorized = 0L;
+        DateOnly? lastIssuedOn = null;
         if (found.Value is null)
         {
             var last = await client.GetLastAuthorizedAsync(work.Certificate, ticket, request.PointOfSale, request.VoucherType, cancellationToken);
@@ -156,10 +160,21 @@ internal sealed partial class ArcaVoucherProcessor(IServiceScopeFactory scopes, 
             }
 
             lastAuthorized = last.Value;
+            if (lastAuthorized > 0 && lastAuthorized < request.Number)
+            {
+                var latest = await client.FindVoucherAsync(work.Certificate, ticket, request.PointOfSale, request.VoucherType, lastAuthorized, cancellationToken);
+                if (latest.Status != ArcaServiceCheckStatus.Ready)
+                {
+                    await StepAsync(store => store.PostponeAsync(work, Failure(latest.Status, latest.FailureCode), cancellationToken));
+                    return null;
+                }
+
+                lastIssuedOn = latest.Value?.IssuedOn;
+            }
         }
 
         LogReconciled(request.PointOfSale, request.VoucherType, request.Number, found.Value is not null);
-        return await StepAsync(store => store.ReconcileAsync(work, found.Value, lastAuthorized, cancellationToken));
+        return await StepAsync(store => store.ReconcileAsync(work, found.Value, lastAuthorized, lastIssuedOn, cancellationToken));
     }
 
     private static string TicketFailure(ArcaTicketOutcome outcome) => outcome switch

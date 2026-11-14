@@ -11,4 +11,10 @@ public enum ArcaVoucherReviewReason
 
     /// <summary>La fecha pedida ya no entra en la ventana que acepta ARCA.</summary>
     DateOutOfRange,
+
+    /// <summary>
+    /// ARCA no aceptó la fecha con el número que le tocaba (10016): es anterior a la del último comprobante del mismo tipo y
+    /// punto de venta. El número quedó libre.
+    /// </summary>
+    DateBeforeLastVoucher,
 }

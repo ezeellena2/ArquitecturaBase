@@ -29,12 +29,14 @@ internal sealed record FakeArcaVoucher(int PointOfSale, int Type, long Number, i
 
 /// <summary>
 /// La emisión de WSFEv1 del ARCA simulado: el último número por punto de venta y tipo, los comprobantes autorizados, el
-/// 10016 cuando el número no es el siguiente y las fallas programadas de <c>FECAESolicitar</c> y <c>FECompConsultar</c>.
-/// También responde las tablas de parámetros. Es parte de <see cref="FakeArca"/> y se limpia con su <c>Reset</c>.
+/// 10016 cuando el número no es el siguiente o la fecha es anterior a la del último comprobante, y las fallas programadas de
+/// <c>FECAESolicitar</c> y <c>FECompConsultar</c>. También responde las tablas de parámetros. Es parte de
+/// <see cref="FakeArca"/> y se limpia con su <c>Reset</c>.
 /// </summary>
 internal sealed class FakeArcaVouchers
 {
     private static readonly XNamespace Fev1 = "http://ar.gov.afip.dif.FEV1/";
+    private const string DateRefusal = "El numero o fecha del comprobante no se corresponde con el proximo a autorizar. Consultar metodo FECompUltimoAutorizado.";
     private readonly Lock gate = new();
     private readonly Dictionary<(int, int), long> last = [];
     private readonly List<FakeArcaVoucher> issued = [];
@@ -124,11 +126,15 @@ internal sealed class FakeArcaVouchers
         }
 
         FakeArcaVoucher? voucher = null;
+        var dateRefused = false;
         lock (gate)
         {
-            if (number == last.GetValueOrDefault((pointOfSale, type)) + 1)
+            var issuedOn = detail.Element(Fev1 + "CbteFch")!.Value;
+            // WSFEv1 answers 10016 also for a date before the last voucher of the point of sale and type (yyyyMMdd compares as text).
+            dateRefused = issued.Where(v => v.PointOfSale == pointOfSale && v.Type == type).MaxBy(v => v.Number) is { } latest
+                && string.CompareOrdinal(issuedOn, latest.IssuedOn) < 0;
+            if (number == last.GetValueOrDefault((pointOfSale, type)) + 1 && !dateRefused)
             {
-                var issuedOn = detail.Element(Fev1 + "CbteFch")!.Value;
                 var due = DateOnly.ParseExact(issuedOn, "yyyyMMdd", CultureInfo.InvariantCulture).AddDays(10).ToString("yyyyMMdd", CultureInfo.InvariantCulture);
                 voucher = new(pointOfSale, type, number, Int(detail.Element(Fev1 + "Concepto")), Int(detail.Element(Fev1 + "DocTipo")),
                     Long(detail.Element(Fev1 + "DocNro")), issuedOn, decimal.Parse(detail.Element(Fev1 + "ImpTotal")!.Value, CultureInfo.InvariantCulture),
@@ -139,9 +145,9 @@ internal sealed class FakeArcaVouchers
         }
 
         if (fault == FakeArcaVoucherFault.LoseResponseAfterAuthorizing) return null;
-        return voucher is null
-            ? Detail(pointOfSale, type, detail, number, "R", null, null, (10016, $"comp. {number} no coincide con el proximo a autorizar"))
-            : Detail(pointOfSale, type, detail, number, "A", voucher.Cae, voucher.CaeDueOn, null);
+        return voucher is not null ? Detail(pointOfSale, type, detail, number, "A", voucher.Cae, voucher.CaeDueOn, null)
+            : dateRefused ? Detail(pointOfSale, type, detail, number, "R", null, null, (10016, DateRefusal))
+            : Detail(pointOfSale, type, detail, number, "R", null, null, (10016, $"comp. {number} no coincide con el proximo a autorizar"));
     }
 
     /// <summary>La respuesta de <c>FECompConsultar</c>, o null si se corta la conexión.</summary>

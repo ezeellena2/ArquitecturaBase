@@ -130,6 +130,24 @@ public sealed class ArcaInvoiceIssuePolicyTests
         Assert.Null(ArcaInvoiceIssuePolicy.Response(Voucher(ArcaVoucherState.Rejected)).ReviewText);
     }
 
+    // ADR 0031: a date before the last voucher's goes on with today's date, like one out of the window, and a past payment due
+    // date moves with it (B2), which both details say.
+    [Fact]
+    public void A_date_before_the_last_voucher_goes_on_with_todays_date_and_says_the_due_date_moves()
+    {
+        var response = ArcaInvoiceIssuePolicy.Response(Voucher(ArcaVoucherState.NeedsReview) with { ReviewReason = ArcaVoucherReviewReason.DateBeforeLastVoucher });
+        var before = response.ReviewText!;
+        var outOfRange = ArcaInvoiceIssuePolicy.Response(Voucher(ArcaVoucherState.NeedsReview) with { ReviewReason = ArcaVoucherReviewReason.DateOutOfRange }).ReviewText!;
+
+        Assert.Equal("arca.invoice.dateBeforeLastVoucher", response.ReviewReason);
+        Assert.Equal(("ARCA no acepta una fecha anterior a la del último comprobante", "ARCA does not take a date before the last voucher's"),
+            (before.Title["es"], before.Title["en"]));
+        Assert.Equal(("Emitir con la fecha de hoy", "Issue with today's date"), (before.Proceed["es"], before.Proceed["en"]));
+        Assert.Null(before.Advice);
+        Assert.All([before.Detail!["es"], outOfRange.Detail!["es"]], detail => Assert.Contains("vencimiento del pago", detail, StringComparison.Ordinal));
+        Assert.All([before.Detail!["en"], outOfRange.Detail!["en"]], detail => Assert.Contains("payment due date", detail, StringComparison.Ordinal));
+    }
+
     [Fact]
     public void The_preview_of_an_invoice_c_says_why_and_itemizes_nothing()
     {

@@ -216,6 +216,7 @@
   <data name="Arca.Invoicing.ConceptInvalid" xml:space="preserve"><value>The concept is products, services or both.</value></data>
   <data name="Arca.Invoicing.ServicePeriodInvalid" xml:space="preserve"><value>For services, fill in the period and the payment due date, in order.</value></data>
   <data name="Arca.Invoicing.IssueDateOutOfRange" xml:space="preserve"><value>ARCA does not take that date: up to 5 days before or after today for products, 10 for services.</value></data>
+  <data name="Arca.Invoicing.IssueDateBeforeLast" xml:space="preserve"><value>ARCA does not take a date before the last voucher of that type already issued. Use a later date, such as today's.</value></data>
   <data name="Arca.Invoicing.ItemsInvalid" xml:space="preserve"><value>Check the items: each one with a description, a quantity and a price, and a total above zero.</value></data>
   <data name="Arca.Invoicing.ArcaNoAnswer" xml:space="preserve"><value>ARCA did not answer: we try again on our own.</value></data>
   <data name="Arca.Invoicing.ArcaFailed" xml:space="preserve"><value>ARCA answered with an error: we try again on our own.</value></data>

@@ -140,6 +140,64 @@ public sealed class ArcaVoucherTests
     }
 
     [Fact]
+    public void A_date_arca_refused_with_the_number_that_was_next_goes_to_review_and_frees_the_number()
+    {
+        var voucher = Sending();
+        voucher.MarkUncertain("wsfe.10016", Now);
+
+        voucher.RequireReview(ArcaVoucherReviewReason.DateBeforeLastVoucher, Now);
+
+        Assert.Equal((ArcaVoucherState.NeedsReview, (ArcaVoucherReviewReason?)ArcaVoucherReviewReason.DateBeforeLastVoucher, (long?)null, (string?)null),
+            (voucher.State, voucher.ReviewReason, voucher.Number, voucher.DataHash));
+        Assert.False(voucher.HoldsNumber);
+    }
+
+    [Fact]
+    public void A_numbered_voucher_whose_date_left_the_window_also_frees_its_number_in_review()
+    {
+        var voucher = Sending();
+        voucher.MarkUncertain("wsfe.10016", Now);
+
+        voucher.RequireReview(ArcaVoucherReviewReason.DateOutOfRange, Now);
+
+        Assert.Equal((ArcaVoucherState.NeedsReview, (long?)null), (voucher.State, voucher.Number));
+        Assert.False(voucher.HoldsNumber);
+    }
+
+    [Fact]
+    public void Issuing_with_todays_date_takes_the_date_and_the_payload_the_review_gives()
+    {
+        var voucher = Sending();
+        voucher.MarkUncertain("wsfe.10016", Now);
+        voucher.RequireReview(ArcaVoucherReviewReason.DateBeforeLastVoucher, Now);
+
+        var reviewed = voucher.Review(ArcaVoucherReviewDecision.IssueToday, voucher.Revision, new DateOnly(2026, 11, 10), Now, """{"paymentDueOn":"2026-11-10"}""");
+
+        Assert.True(reviewed.IsSuccess);
+        Assert.Equal((ArcaVoucherState.Queued, new DateOnly(2026, 11, 10), """{"paymentDueOn":"2026-11-10"}""", (long?)null),
+            (voucher.State, voucher.RequestedOn, voucher.PayloadJson, voucher.Number));
+        // Back in the queue after a person decided, it is not waiting for ARCA: «ARCA no responde» would not be true.
+        Assert.Equal((false, 0, (string?)null), (voucher.WaitedForArca, voucher.Failures, voucher.FailureCode));
+    }
+
+    [Fact]
+    public void A_date_refused_by_arca_goes_on_only_with_todays_date()
+    {
+        var voucher = Sending();
+        voucher.MarkUncertain("wsfe.10016", Now);
+        voucher.RequireReview(ArcaVoucherReviewReason.DateBeforeLastVoucher, Now);
+
+        Assert.Equal(ArcaInvoicingErrors.ReviewDecisionInvalid,
+            voucher.Review(ArcaVoucherReviewDecision.IssueWithNextNumber, voucher.Revision, RequestedOn, Now).Error);
+    }
+
+    [Fact]
+    public void A_number_review_still_needs_the_number()
+    {
+        Assert.Throws<InvalidOperationException>(() => New().RequireReview(ArcaVoucherReviewReason.NumberTaken, Now));
+    }
+
+    [Fact]
     public void Not_issuing_after_review_cancels_the_voucher()
     {
         var voucher = New();

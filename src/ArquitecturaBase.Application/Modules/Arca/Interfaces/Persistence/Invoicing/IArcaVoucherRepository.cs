@@ -21,6 +21,12 @@ public interface IArcaVoucherRepository
     /// <summary>Si la factura ya tiene una nota de crédito que no se rechazó ni se canceló.</summary>
     Task<bool> ExistsCreditNoteAsync(Guid invoiceId, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// La fecha del último comprobante autorizado que la base conoce de la secuencia, o null si no conoce ninguno. ARCA no acepta
+    /// una anterior (ADR 0031); un comprobante que emitió otro sistema no está acá.
+    /// </summary>
+    Task<DateOnly?> FindLastIssuedOnAsync(ArcaVoucherSequenceRow sequence, CancellationToken cancellationToken);
+
     void Add(ArcaVoucher voucher);
 
     void Add(ArcaVoucherSequence sequence);
