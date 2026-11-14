@@ -386,6 +386,140 @@ public sealed class WhatsAppAssistantReplyTests
         Assert.Throws<ArgumentOutOfRangeException>(() => WhatsAppAssistantCaseButtonCodec.Encode(requestId, 3));
     }
 
+    // H5: when the engine does not answer (it failed, could not tell, expired or refused the request for good), a person does: the
+    // conversation goes to Atención manual marked «Necesita una persona», with the profile's message while the person can be reached.
+    [Theory]
+    [InlineData("failed")]
+    [InlineData("expired")]
+    [InlineData("uncertain")]
+    public async Task A_failure_of_the_engine_hands_off_with_the_profile_message(string state)
+    {
+        var arranged = await PendingAsync();
+
+        Assert.True((await FailAsync(arranged, state)).IsSuccess);
+
+        var contact = arranged.Host.Context.Contact;
+        Assert.Equal((WhatsAppConversationMode.Manual, true, "assistantFailed", (string?)null),
+            (contact.Mode, contact.NeedsPerson, contact.HandoffReasonCode, contact.HandoffReason));
+        var outgoing = Assert.Single(arranged.Host.Conversation.Outgoing);
+        Assert.True(outgoing.IsAssistantHandoff);
+        Assert.Equal("Te paso con una persona del equipo.", outgoing.Body);
+        var record = WhatsAppAssistantReplyRecordCodec.Parse(outgoing.AssistantReplyJson)!;
+        Assert.Equal((WhatsAppAssistantActionKind.Handoff, "assistantFailed"), (record.Kind, record.HandoffReasonCode));
+        var row = Assert.Single(arranged.Host.Requests.Rows);
+        Assert.Equal((WhatsAppAssistantRequestState.Blocked, (string?)null), (row.State, row.OutcomeJson));
+    }
+
+    [Fact]
+    public async Task An_engine_error_that_is_not_retried_hands_off_too()
+    {
+        var arranged = await PendingAsync();
+
+        await arranged.Dispatch.CompleteAsync(arranged.Host.Context.Contact.Id, arranged.RequestId,
+            Result.Failure<AssistantOperationResponse>(Error.Failure("Ai.Assistant.ProviderUnavailable", "Fictitious provider failure.")), Ct);
+
+        Assert.Equal("assistantFailed", arranged.Host.Context.Contact.HandoffReasonCode);
+        var outgoing = Assert.Single(arranged.Host.Conversation.Outgoing);
+        Assert.True(outgoing.IsAssistantHandoff);
+        Assert.Equal("assistantFailed", WhatsAppAssistantReplyRecordCodec.Parse(outgoing.AssistantReplyJson)!.HandoffReasonCode);
+        var row = Assert.Single(arranged.Host.Requests.Rows);
+        Assert.Equal((WhatsAppAssistantRequestState.Blocked, (string?)null), (row.State, row.OutcomeJson));
+    }
+
+    // The engine still had not answered when the 24-hour window closed (its worker was down): the next round of the processor finds
+    // the request no longer valid and a person answers, with only the mark, since nothing can go out.
+    [Fact]
+    public async Task A_request_that_waits_past_the_window_hands_off_in_the_next_round_and_keeps_why_for_the_chat()
+    {
+        var arranged = await PendingAsync();
+        var row = Assert.Single(arranged.Host.Requests.Rows);
+        arranged.Host.Context.Clock.Advance(TimeSpan.FromHours(25));
+
+        var work = await arranged.Dispatch.PrepareAsync(arranged.Host.Context.Contact.Id, Ct);
+
+        Assert.Null(work.Value);
+        Assert.Equal((WhatsAppConversationMode.Manual, "assistantFailed"), (arranged.Host.Context.Contact.Mode, arranged.Host.Context.Contact.HandoffReasonCode));
+        Assert.Empty(arranged.Host.Conversation.Outgoing);
+        Assert.Equal(WhatsAppAssistantRequestState.Blocked, row.State);
+        var why = WhatsAppAssistantReplyRecordCodec.Parse(row.OutcomeJson)!;
+        Assert.Equal((WhatsAppAssistantActionKind.Handoff, "assistantFailed"), (why.Kind, why.HandoffReasonCode));
+    }
+
+    // A newer message took its place: that one gets its own interpretation, so this failure hands nothing off.
+    [Fact]
+    public async Task A_failure_after_a_newer_message_does_not_hand_off()
+    {
+        var arranged = await PendingAsync();
+        arranged.Host.Reader.Source = arranged.Host.Reader.Source! with { Id = Guid.NewGuid(), Body = "Otra consulta" };
+
+        await FailAsync(arranged, "failed");
+
+        Assert.Equal((WhatsAppConversationMode.Assistant, false), (arranged.Host.Context.Contact.Mode, arranged.Host.Context.Contact.NeedsPerson));
+        Assert.Empty(arranged.Host.Conversation.Outgoing);
+    }
+
+    [Fact]
+    public async Task Without_an_agent_a_failure_of_the_engine_only_marks_the_conversation()
+    {
+        var arranged = await PendingAsync();
+        arranged.Agents.Agent = null;
+
+        await FailAsync(arranged, "failed");
+
+        Assert.True(arranged.Host.Context.Contact.NeedsPerson);
+        Assert.Empty(arranged.Host.Conversation.Outgoing);
+        Assert.Equal("assistantFailed", WhatsAppAssistantReplyRecordCodec.Parse(Assert.Single(arranged.Host.Requests.Rows).OutcomeJson)!.HandoffReasonCode);
+    }
+
+    [Theory]
+    [InlineData("running")]
+    [InlineData("retryable")]
+    [InlineData("notFound")]
+    public async Task What_is_pending_or_can_be_retried_does_not_hand_off(string outcome)
+    {
+        var arranged = await PendingAsync();
+
+        if (outcome == "running") await FailAsync(arranged, "running");
+        else await arranged.Dispatch.CompleteAsync(arranged.Host.Context.Contact.Id, arranged.RequestId, Result.Failure<AssistantOperationResponse>(outcome == "retryable"
+            ? Error.Conflict("Ai.Assistant.ActiveTurn", "Fictitious active turn.", new Dictionary<string, object?> { ["retryable"] = true })
+            : Error.NotFound("Ai.Assistant.NotFound", "Fictitious unknown operation.")), Ct);
+
+        Assert.Equal((WhatsAppConversationMode.Assistant, false), (arranged.Host.Context.Contact.Mode, arranged.Host.Context.Contact.NeedsPerson));
+        Assert.Equal(WhatsAppAssistantRequestState.Pending, Assert.Single(arranged.Host.Requests.Rows).State);
+        Assert.Empty(arranged.Host.Conversation.Outgoing);
+    }
+
+    [Theory]
+    [InlineData("person")]
+    [InlineData("relinked")]
+    [InlineData("capture")]
+    public async Task A_failure_after_a_person_took_the_conversation_or_of_a_suggestion_after_a_capture_does_not_hand_off(string scope)
+    {
+        var arranged = await PendingAsync();
+        var row = Assert.Single(arranged.Host.Requests.Rows);
+        var contact = arranged.Host.Context.Contact;
+        if (scope == "person") contact.ChangeMode(WhatsAppConversationMode.Manual);
+        else if (scope == "relinked")
+        {
+            // The same account linked again: another link, so the request is not of this conversation.
+            var user = contact.UserId!.Value;
+            contact.UnlinkUser();
+            contact.LinkUser(user);
+        }
+        else
+        {
+            // Nobody asked: the assistant only weighed what to suggest after a form came back.
+            Assert.True(row.SetCapturedSuggestion(Guid.NewGuid(), null, null, "es", false, arranged.Host.Context.Clock.GetUtcNow().UtcDateTime));
+            arranged.Host.Reader.Reference = WhatsAppAssistantSuggestionPolicy.Reference(row);
+        }
+
+        await FailAsync(arranged, "failed");
+
+        Assert.False(arranged.Host.Context.Contact.NeedsPerson);
+        Assert.Empty(arranged.Host.Conversation.Outgoing);
+        Assert.Equal(WhatsAppAssistantRequestState.Blocked, row.State);
+    }
+
     private sealed record Arranged(WhatsAppAssistantSuggestionFixture Host, WhatsAppAssistantDispatchService Dispatch, FakeWhatsAppAssistantAgentReader Agents,
         FakeWhatsAppAssistantHistoryReader History, Guid RequestId);
 
@@ -453,6 +587,18 @@ public sealed class WhatsAppAssistantReplyTests
             Provenance = outcome.Provenance! with { ChannelId = "whatsapp-assistant" },
         };
         return await arranged.Dispatch.CompleteAsync(host.Context.Contact.Id, arranged.RequestId, host.Assistant.Outcome, Ct);
+    }
+
+    private static Task<Result> FailAsync(Arranged arranged, string state)
+    {
+        var host = arranged.Host;
+        var outcome = host.Assistant.Outcome.Value;
+        host.Assistant.Outcome = outcome with
+        {
+            RequestId = arranged.RequestId, State = state, Proposal = null, Proposals = [],
+            Provenance = outcome.Provenance! with { ChannelId = "whatsapp-assistant" },
+        };
+        return arranged.Dispatch.CompleteAsync(host.Context.Contact.Id, arranged.RequestId, host.Assistant.Outcome, Ct);
     }
 
     private static async Task<Result> CompleteManyAsync(Arranged arranged, params (string Capability, AssistantCapabilityPayload Payload)[] selected)

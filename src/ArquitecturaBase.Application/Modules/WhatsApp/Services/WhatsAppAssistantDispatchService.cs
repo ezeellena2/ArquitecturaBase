@@ -90,8 +90,11 @@ internal sealed class WhatsAppAssistantDispatchService(WhatsAppAssistantAccessPo
         if(revoked || !MatchesSource(row,latest))
         {
             supersede(WhatsAppAssistantSuggestionPolicy.Reference(row));
+            // H5: it stopped being valid while it waited for the engine and its message is still the last one: a person answers.
+            if(revoked && latest is not null && MakesRequest(row,latest) && WhatsAppAssistantReplyPolicy.WaitedInVain(contact,WhatsAppAssistantSuggestionPolicy.Reference(row)))
+                await automatic.HandOffFailureAsync(contact,row,ct);
             // A newer message replaced it before it answered: the message that replaces it continues what it continued.
-            if(revoked) row.FinishWithoutReply(true,proposals.NowUtc); else row.Replace(proposals.NowUtc);
+            else if(revoked) row.FinishWithoutReply(true,proposals.NowUtc); else row.Replace(proposals.NowUtc);
             return Result.Success<WhatsAppAssistantWorkResponse?>(null);
         }
         var work = Work(row, latest!, true);
@@ -282,6 +285,9 @@ internal sealed class WhatsAppAssistantDispatchService(WhatsAppAssistantAccessPo
         Result<WhatsAppFormSendContext?>? prepared = null;
         if (original.Kind == WhatsAppAssistantRequestKind.Automatic && observed.IsSuccess && observed.Value.Response.State == WhatsAppAssistantRequestState.Ready)
             prepared = await automatic.ResolveAsync(contactId, observed.Value, ct);
+        // H5: the engine did not answer the person's message; a spreadsheet over the day's quota was already told so.
+        var failed = selectedDefinition is null && WhatsAppAssistantReplyPolicy.EngineFailed(original, outcome)
+            && !(quota && terminal is {IsSuccess:true,Value:not null});
         return await unitOfWork.ExecuteInTransactionAsync(async token =>
         {
             var contact = await conversations.GetForUpdateAsync(contactId, token);
@@ -304,6 +310,13 @@ internal sealed class WhatsAppAssistantDispatchService(WhatsAppAssistantAccessPo
                     row.FinishWithoutReply(true, proposals.NowUtc);
                     return Result.Success();
                 }
+            }
+            else if (failed && WhatsAppAssistantAccessPolicy.InSameConversation(contact, WhatsAppAssistantSuggestionPolicy.Reference(row))
+                && await reader.FindLatestSourceAsync(contactId, token) is {} unanswered && MakesRequest(row, unanswered))
+            {
+                // H5: in the conversation it was made in and while it is still the last message, also past the window.
+                await automatic.HandOffFailureAsync(contact, row, token);
+                return Result.Success();
             }
             else if (await access.RevalidateAsync(contact, WhatsAppAssistantSuggestionPolicy.Reference(row), token) is not null)
             {

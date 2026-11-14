@@ -157,10 +157,13 @@ internal sealed class WhatsAppAssistantAccessPolicy(IUserReader users, IPermissi
         return recipient.Culture;
     }
 
+    /// <summary>The conversation is still the one the reference was made in: the same person, link and mode (H5 hands off only there).</summary>
+    public static bool InSameConversation(WhatsAppContact contact, WhatsAppAssistantReferenceRow reference) => contact.Id == reference.ContactId
+        && contact.UserId == reference.SubjectUserId && contact.LinkRevision == reference.LinkRevision && contact.ModeRevision == reference.ModeRevision;
+
     public async Task<Error?> RevalidateAsync(WhatsAppContact contact, WhatsAppAssistantReferenceRow reference, CancellationToken ct)
     {
-        if (contact.Id != reference.ContactId || contact.UserId != reference.SubjectUserId || contact.LinkRevision != reference.LinkRevision
-            || contact.ModeRevision != reference.ModeRevision || clock.GetUtcNow().UtcDateTime >= reference.ContentExpiresAtUtc)
+        if (!InSameConversation(contact, reference) || clock.GetUtcNow().UtcDateTime >= reference.ContentExpiresAtUtc)
             return WhatsAppAssistantErrors.StateConflict;
         if(reference.IsAlways && reference.Kind==WhatsAppAssistantRequestKind.Manual && reference.ActorUserId is null && reference.ContextJson is null)
         {

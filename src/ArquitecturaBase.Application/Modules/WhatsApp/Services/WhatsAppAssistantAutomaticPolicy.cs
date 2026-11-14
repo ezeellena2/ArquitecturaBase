@@ -38,6 +38,7 @@ internal sealed class WhatsAppAssistantAutomaticPolicy(WhatsAppAssistantAcceptan
     public Task<Result> AcceptReplyAsync(WhatsAppContact contact,WhatsAppAssistantRequest row,WhatsAppAssistantReplyPlan plan,CancellationToken ct)=>
         replies.ApplyAsync(contact,row,plan,ct);
     public Task<bool> ApplyCaseTapAsync(WhatsAppContact contact,WhatsAppAssistantChoiceRow tap,CancellationToken ct)=>replies.ApplyTapAsync(contact,tap,ct);
+    public Task HandOffFailureAsync(WhatsAppContact contact,WhatsAppAssistantRequest row,CancellationToken ct)=>replies.HandOffFailureAsync(contact,row,ct);
     public Task<bool> WaitsForBurstAsync(Guid contactId,DateTime latestUtc,CancellationToken ct)=>replies.WaitsForBurstAsync(contactId,latestUtc,ct);
 
     public bool AcceptTerminal(WhatsAppContact contact,WhatsAppAssistantRequest row,WhatsAppAssistantTerminalResponse terminal)

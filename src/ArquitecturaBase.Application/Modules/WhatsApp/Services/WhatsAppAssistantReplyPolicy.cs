@@ -101,6 +101,47 @@ internal sealed class WhatsAppAssistantReplyPolicy(IWhatsAppAssistantAgentReader
             agent.Profile.HandoffMessage.For(culture, agent.OriginalCulture), null)]);
     }
 
+    /// <summary>The code of a handoff because the engine did not answer (H5): «El asistente no pudo responder».</summary>
+    public const string AssistantFailedCode = "assistantFailed";
+
+    /// <summary>
+    /// H5: whether a person answers because the engine did not: it failed, could not tell or expired, or it refused the request for
+    /// good. What is pending or can be retried does not, nor a suggestion after a capture, which nobody asked. A request that stops
+    /// being valid while it waits (the 24-hour window closed) hands off when the processor finds it (<see cref="WaitedInVain"/>).
+    /// </summary>
+    public static bool EngineFailed(WhatsAppAssistantReferenceRow reference, Result<AssistantOperationResponse> outcome) =>
+        reference is { Kind: WhatsAppAssistantRequestKind.Automatic, SourceRecordId: null }
+        && (outcome.IsFailure && outcome.Error.Type != ErrorType.NotFound && !WhatsAppReceivedDocumentReadingPolicy.IsRetryable(outcome.Error)
+            || outcome.IsSuccess && outcome.Value.State is "failed" or "expired" or "uncertain");
+
+    /// <summary>
+    /// H5: a pending request of the person's message that stopped being valid while it waited for the engine (the 24-hour window
+    /// closed, or the person's account changed) in the same conversation, which it still opens: a person answers.
+    /// </summary>
+    public static bool WaitedInVain(WhatsAppContact contact, WhatsAppAssistantReferenceRow reference) =>
+        reference is { Kind: WhatsAppAssistantRequestKind.Automatic, SourceRecordId: null, State: WhatsAppAssistantRequestState.Pending }
+        && WhatsAppAssistantAccessPolicy.InSameConversation(contact, reference);
+
+    /// <summary>
+    /// H5: the conversation goes to a person with the profile's message, as a reply that does not pass, in the caller's unit of work
+    /// and under its locks of the contact and the reference. The reference stays Blocked; the message carries why, or the reference
+    /// keeps it for the chat when nothing goes out (without an agent, its message or the 24-hour window).
+    /// </summary>
+    public async Task HandOffFailureAsync(WhatsAppContact contact, WhatsAppAssistantRequest row, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(contact);
+        ArgumentNullException.ThrowIfNull(row);
+        var agent = await agents.FindMainAsync(ct);
+        var culture = WhatsAppAssistantSuggestionPolicy.Context(WhatsAppAssistantSuggestionPolicy.Reference(row)).Culture;
+        var why = WhatsAppAssistantReplyRecordCodec.Serialize(new(WhatsAppAssistantActionKind.Handoff, WhatsAppAssistantCaseSource.Fallback, null, null,
+            "", [], 1, 1, AssistantFailedCode));
+        var outgoing = await handoffs.HandOffAsync(contact, row.SubjectUserId, row.RequestId, AssistantFailedCode, null,
+            agent is null ? null : agent.Profile.HandoffMessage.For(culture, agent.OriginalCulture), ct);
+        if (outgoing is not null) outgoing.ExplainAssistantReply(why);
+        else if (!row.RecordOutcome(why)) throw new InvalidOperationException("A failed request could not record why it handed off.");
+        if (!row.FinishWithoutReply(true, clock.GetUtcNow().UtcDateTime)) throw new InvalidOperationException("A failed request could not finish.");
+    }
+
     public static int Replies(IReadOnlyList<WhatsAppAssistantReplyStep> steps) => steps.Count(step => step.Record.Kind
         is WhatsAppAssistantActionKind.ExactText or WhatsAppAssistantActionKind.DraftedReply or WhatsAppAssistantActionKind.AskButtons);
 
