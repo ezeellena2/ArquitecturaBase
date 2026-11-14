@@ -46,9 +46,13 @@ public sealed class WhatsAppAssistantAgentMigrationTests(ApiFactory factory)
             var withHandoff = await Assert.ThrowsAsync<PostgresException>(() => db.GetService<IMigrator>().MigrateAsync(previous, Ct));
             Assert.Equal("P0001", withHandoff.SqlState);
             Assert.Contains(Migration, await db.Database.GetAppliedMigrationsAsync(Ct));
-            var kept = await db.Set<WhatsAppContact>().AsNoTracking().SingleAsync(item => item.Id == contact.Id, Ct);
+            // The later migrations went back before this one refused (each in its own transaction): only the columns it knows are read,
+            // and saving through the model brings them back first.
+            var kept = await db.Set<WhatsAppContact>().AsNoTracking().Where(item => item.Id == contact.Id)
+                .Select(item => new { item.HandoffReasonCode, item.HandoffReason }).SingleAsync(Ct);
             Assert.Equal(("case", "Pide hablar con una persona."), (kept.HandoffReasonCode, kept.HandoffReason));
 
+            await db.Database.MigrateAsync(Ct);
             var handedOff = await db.Set<WhatsAppContact>().SingleAsync(item => item.Id == contact.Id, Ct);
             handedOff.ClearHandOff();
             await db.SaveChangesAsync(Ct);

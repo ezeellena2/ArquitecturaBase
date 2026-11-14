@@ -45,7 +45,9 @@ public sealed class WhatsAppSpreadsheetLoadsMigrationTests(ApiFactory factory)
             var withRows = await Assert.ThrowsAsync<PostgresException>(() => db.GetService<IMigrator>().MigrateAsync(previous, Ct));
             Assert.Equal("P0001", withRows.SqlState);
             Assert.Contains(Migration, await db.Database.GetAppliedMigrationsAsync(Ct));
-            Assert.NotNull((await db.Set<WhatsAppOutgoingMessage>().AsNoTracking().SingleAsync(item => item.Id == notice.Id, Ct)).SpreadsheetRowsJson);
+            // The later migrations went back before this one refused (each in its own transaction): only the columns it knows are read.
+            Assert.NotNull(await db.Set<WhatsAppOutgoingMessage>().AsNoTracking().Where(item => item.Id == notice.Id)
+                .Select(item => item.SpreadsheetRowsJson).SingleAsync(Ct));
 
             await db.Database.ExecuteSqlAsync($"""DELETE FROM "WhatsAppOutgoingMessages" WHERE "Id" = {notice.Id}""", Ct);
             // Each column it cannot keep refuses on its own: the footer of a load, and «Por qué lo propuso» of a notice that went out.
