@@ -62,6 +62,27 @@ public sealed class WhatsAppAudioPostgresDispatchTests(ApiFactory factory)
         Assert.Equal(WhatsAppAudioState.Completed,stored.AudioState);Assert.Equal("Visité el taller Sur.",stored.Body);Assert.Equal(work.RequestId,stored.AudioRequestId);
         Assert.Null(await host.ScopeAsync(services=>services.GetRequiredService<IWhatsAppAudioReader>().FindPendingAsync(person.ContactId,now,Ct)));
     }
+    // H11: an audio that waits long for its next attempt does not keep the processor in its quick rounds for the day it retries: it
+    // counts once that attempt is due within the next half minute.
+    [Fact]
+    public async Task Audio_waiting_long_for_its_next_attempt_does_not_keep_the_processor_polling()
+    {
+        await using var host=await WhatsAppAssistantScenario.CreateAsync(factory,Ct);
+        var person=await host.ContactAsync(Ct);
+        var now=host.Clock.GetUtcNow().UtcDateTime;
+        await host.InTransactionAsync(services=>
+        {
+            var message=WhatsAppMessage.Inbound(person.ContactId,MetaWebhook.UniqueWaMessageId(),WhatsAppMessageKind.Audio,null,null,now);
+            Assert.True(message.SetAudioDescriptor("12345","audio/ogg",new string('a',64)));
+            for(var failure=0;failure<5;failure++) message.RegisterAudioFailure(now,"Files.Unavailable");
+            services.GetRequiredService<ApplicationDbContext>().Add(message);
+            return Task.FromResult(message.Id);
+        },Ct);
+
+        Assert.False(await host.ScopeAsync(services=>services.GetRequiredService<IWhatsAppAudioReader>().ExistsPendingAsync(now,Ct)));
+        host.Clock.Advance(TimeSpan.FromSeconds(900));
+        Assert.True(await host.ScopeAsync(services=>services.GetRequiredService<IWhatsAppAudioReader>().ExistsPendingAsync(host.Clock.GetUtcNow().UtcDateTime,Ct)));
+    }
     [Fact]
     public async Task Live_audio_keeps_polling_during_retry_backoff_without_becoming_dispatchable_early()
     {

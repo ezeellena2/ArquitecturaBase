@@ -49,7 +49,8 @@ public sealed partial class WhatsAppFormSendingTests
                     Assert.Null(message.FlowRecordId);
                 }
             });
-            clock.Advance(TimeSpan.FromMinutes(4));
+            // H11: the fifth failure rejects it only a day after the first one.
+            clock.Advance(TimeSpan.FromHours(6));
         }
         using var finalScope = factory.Services.CreateScope();
         var ownMessage = await factory.ExecuteDbContextAsync(db => db.Set<WhatsAppMessage>().AsNoTracking()

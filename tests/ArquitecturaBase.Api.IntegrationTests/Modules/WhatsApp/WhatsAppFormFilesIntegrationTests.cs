@@ -19,6 +19,7 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
 using SkiaSharp;
@@ -58,7 +59,7 @@ public sealed partial class WhatsAppFormSendingTests
         {
             services.RemoveAll<IPrivateFileStore>(); services.AddSingleton<IPrivateFileStore>(store);
             services.RemoveAll<IWhatsAppCloudClient>(); services.AddSingleton<IWhatsAppCloudClient>(transport);
-            services.RemoveAll<IWhatsAppMediaClient>(); services.AddSingleton<IWhatsAppMediaClient>(new WhatsAppMediaClient(mediaHttp, Options.Create(new WhatsAppOptions { PhoneNumberId = ApiFactory.WhatsAppPhoneNumberId, AccessToken = "synthetic-media-token", GraphApiVersion = "v25.0" }), TimeProvider.System));
+            services.RemoveAll<IWhatsAppMediaClient>(); services.AddSingleton<IWhatsAppMediaClient>(new WhatsAppMediaClient(mediaHttp, Options.Create(new WhatsAppOptions { PhoneNumberId = ApiFactory.WhatsAppPhoneNumberId, AccessToken = "synthetic-media-token", GraphApiVersion = "v25.0" }), TimeProvider.System, NullLogger<WhatsAppMediaClient>.Instance));
             services.RemoveAll<IWhatsAppDispatchCoordinator>(); services.AddSingleton<IWhatsAppDispatchCoordinator>(sp => new WhatsAppDispatchCoordinator(sp.GetRequiredService<RedisCache>(), TimeProvider.System));
         }); });
         if (preview is not null) WhatsAppFormAppPreview.Listen(host);
@@ -96,10 +97,12 @@ public sealed partial class WhatsAppFormSendingTests
         for(var i=0;i<20;i++){await driver.ProcessAsync(operationId,Ct);await host.Services.GetRequiredService<WhatsAppFlowBackgroundService>().ProcessNextAsync(operationId,Ct);clock.Advance(TimeSpan.FromSeconds(16));}
         using var published=await author.GetAsync(receipt.GetProperty("recoveryPath").GetString(),Ct);
         Assert.Equal("Published",(await published.ReadJsonAsync()).GetProperty("state").GetString());
-        Guid? keptRecord=null;Guid? keptFile=null;long expectedNumber=0;
+        Guid? keptRecord=null;Guid? keptFile=null;long expectedNumber=0;var retrying=new List<Guid>();
         var contactId=await CreateLinkedContactAsync(employeeId,clock);
         var waId=await factory.ExecuteDbContextAsync(db=>db.Set<WhatsAppContact>().Where(c=>c.Id==contactId).Select(c=>c.WaId).SingleAsync(Ct));
-        foreach(var kind in new[]{"Valid","Hash","Type","Size","Unavailable","Expired","ValidAgain"})
+        // H11: the unavailable and expired files go last, since they keep retrying for a day and a later valid scenario would let them
+        // complete.
+        foreach(var kind in new[]{"Valid","Hash","Type","Size","ValidAgain","Unavailable","Expired"})
         {
             scenario=kind;
             using var choices=await author.GetAsync($"/api/whatsapp/chats/{contactId}/forms",Ct);
@@ -130,7 +133,8 @@ public sealed partial class WhatsAppFormSendingTests
             {await using var scope=host.Services.CreateAsyncScope();await scope.ServiceProvider.GetRequiredService<IWhatsAppFlowReplyService>().ProcessPendingAsync(Ct);clock.Advance(TimeSpan.FromMinutes(4));}
             using var response=await author.GetAsync(route,Ct);var thread=await response.ReadJsonAsync();
             var reply=thread.GetProperty("messages").EnumerateArray().Single(m=>m.GetProperty("id").GetGuid()==replyId).GetProperty("formReply");
-            Assert.Equal(kind.StartsWith("Valid",StringComparison.Ordinal)?"Completed":"Rejected",reply.GetProperty("state").GetString());
+            Assert.Equal(kind.StartsWith("Valid",StringComparison.Ordinal)?"Completed":kind is "Unavailable" or "Expired"?"RetryingFiles":"Rejected",reply.GetProperty("state").GetString());
+            if(kind is "Unavailable" or "Expired")retrying.Add(replyId);
             if(!kind.StartsWith("Valid",StringComparison.Ordinal)){Assert.Equal(JsonValueKind.Null,reply.GetProperty("number").ValueKind);Assert.Equal(JsonValueKind.Null,reply.GetProperty("values").ValueKind);continue;}
             expectedNumber++;
             Assert.EndsWith("-"+expectedNumber.ToString("D6",System.Globalization.CultureInfo.InvariantCulture),reply.GetProperty("number").GetString());
@@ -169,6 +173,18 @@ public sealed partial class WhatsAppFormSendingTests
                 Assert.Equal("Operador", originWithoutChat.GetProperty("senderName").GetString());
                 await ArquitecturaBase.Api.IntegrationTests.TestFeatures.ResponseContractCapture.WriteAsync(withoutChat, "files-detail-without-chat-d2-es", Ct);
                 await ExportFilesAsync("reply-completed",thread);await ExportFilesAsync("reply-without-read",privateThread);using var reload=await author.GetAsync(route,Ct);await ExportFilesAsync("reply-reloaded",await reload.ReadJsonAsync());keptRecord=recordId;keptFile=photoId;}
+        }
+        // H11: an unavailable or expired file keeps retrying for a day, and the attempt after it rejects the reply, without number nor
+        // values.
+        clock.Advance(TimeSpan.FromDays(1));
+        await using(var scope=host.Services.CreateAsyncScope())await scope.ServiceProvider.GetRequiredService<IWhatsAppFlowReplyService>().ProcessPendingAsync(Ct);
+        using(var late=await author.GetAsync($"/api/whatsapp/chats/{contactId}/messages",Ct))
+        {
+            var lateReplies=(await late.ReadJsonAsync()).GetProperty("messages").EnumerateArray().Where(m=>retrying.Contains(m.GetProperty("id").GetGuid()))
+                .Select(m=>m.GetProperty("formReply")).ToList();
+            Assert.Equal(2,lateReplies.Count);
+            Assert.All(lateReplies,reply=>{Assert.Equal("Rejected",reply.GetProperty("state").GetString());Assert.Equal(JsonValueKind.Null,reply.GetProperty("number").ValueKind);
+                Assert.Equal(JsonValueKind.Null,reply.GetProperty("values").ValueKind);});
         }
         await using(var orphan=new MemoryStream([1,2,3]))await store.WriteAsync("orphan-test",orphan,"application/octet-stream",Ct);
         if (preview is not null) await preview.HoldAsync(factory,host,[("files-read",actorId,contactId,"es")],clock,new ControlledWhatsAppSendClient(),Ct);

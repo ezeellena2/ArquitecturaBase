@@ -9,6 +9,11 @@ public sealed class WhatsAppFlowReplyRetryTests
     [InlineData(3, 210)]
     [InlineData(4, 450)]
     [InlineData(5, 930)]
+    // H11: past the old scale the wait keeps growing up to an hour between attempts.
+    [InlineData(6, 1890)]
+    [InlineData(7, 3810)]
+    [InlineData(8, 7410)]
+    [InlineData(20, 50610)]
     public void Recent_failures_do_not_take_slots_before_their_next_due_time(int failures, int seconds)
     {
         var now = new DateTime(2026, 10, 15, 12, 0, 0, DateTimeKind.Utc);

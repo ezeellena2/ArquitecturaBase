@@ -3,12 +3,13 @@ using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Infrastructure.Persistence;
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 
 namespace ArquitecturaBase.Infrastructure.Modules.WhatsApp.Persistence.Readers;
 
 // Stage 2 of the assistant authoring: the received spreadsheets. A pending one waits within its message's retention and, after a
-// failure, until its next attempt (30, 90, 210, 450 and 930 seconds after the first, as an audio's download).
+// failure, until its next attempt (30, 90, 210, 450, 930, 1890 and 3810 seconds and then an hour more each time (H11) after the first, as an audio's download).
 internal sealed class WhatsAppSpreadsheetReader(ApplicationDbContext db, WhatsAppContentRetention retention) : IWhatsAppSpreadsheetReader
 {
     private IQueryable<WhatsAppMessage> Spreadsheets() => db.Set<WhatsAppMessage>().AsNoTracking().Where(message => message.Kind == WhatsAppMessageKind.Spreadsheet
@@ -17,11 +18,15 @@ internal sealed class WhatsAppSpreadsheetReader(ApplicationDbContext db, WhatsAp
     private IQueryable<WhatsAppMessage> Pending(DateTime nowUtc)
     {
         var cutoff = nowUtc.AddDays(-retention.MessageRetentionDays);
-        return Spreadsheets().Where(message => message.SpreadsheetState == WhatsAppSpreadsheetState.Pending && message.OccurredAtUtc > cutoff
-            && (message.SpreadsheetFirstFailureAtUtc == null || message.SpreadsheetFirstFailureAtUtc.Value.AddSeconds(
-                message.SpreadsheetFailureCount <= 1 ? 30 : message.SpreadsheetFailureCount == 2 ? 90 : message.SpreadsheetFailureCount == 3 ? 210
-                    : message.SpreadsheetFailureCount == 4 ? 450 : 930) <= nowUtc));
+        return Spreadsheets().Where(message => message.SpreadsheetState == WhatsAppSpreadsheetState.Pending && message.OccurredAtUtc > cutoff)
+            .Where(RetryDueAt(nowUtc));
     }
+
+    // The audio's scale (H11: an hour more for each failure past the seventh).
+    internal static Expression<Func<WhatsAppMessage, bool>> RetryDueAt(DateTime nowUtc) => message =>
+        message.SpreadsheetFirstFailureAtUtc == null || message.SpreadsheetFirstFailureAtUtc.Value.AddSeconds(
+            message.SpreadsheetFailureCount <= 1 ? 30 : message.SpreadsheetFailureCount == 2 ? 90 : message.SpreadsheetFailureCount == 3 ? 210
+                : message.SpreadsheetFailureCount == 4 ? 450 : message.SpreadsheetFailureCount == 5 ? 930 : message.SpreadsheetFailureCount == 6 ? 1890 : message.SpreadsheetFailureCount == 7 ? 3810 : 3810 + (message.SpreadsheetFailureCount - 7) * 3600) <= nowUtc;
 
     private IQueryable<WhatsAppSpreadsheetSourceRow> Project(IQueryable<WhatsAppMessage> spreadsheets) =>
         from message in spreadsheets
@@ -37,9 +42,10 @@ internal sealed class WhatsAppSpreadsheetReader(ApplicationDbContext db, WhatsAp
         await Pending(nowUtc).Select(message => message.ContactId!.Value).Where(id => !excluded.Contains(id))
             .Distinct().OrderBy(id => id).Take(limit).ToListAsync(ct);
 
-    // Only for the processor's wait, as an audio's: one waiting for its next attempt is still pending.
-    public Task<bool> ExistsPendingAsync(DateTime nowUtc, CancellationToken ct) => Spreadsheets().AnyAsync(message =>
-        message.SpreadsheetState == WhatsAppSpreadsheetState.Pending && message.OccurredAtUtc > nowUtc.AddDays(-retention.MessageRetentionDays), ct);
+    // Only for the processor's wait, as an audio's: one waiting for its next attempt counts once it is near (H11).
+    public Task<bool> ExistsPendingAsync(DateTime nowUtc, CancellationToken ct) => Spreadsheets().Where(message =>
+        message.SpreadsheetState == WhatsAppSpreadsheetState.Pending && message.OccurredAtUtc > nowUtc.AddDays(-retention.MessageRetentionDays))
+        .Where(RetryDueAt(nowUtc + WhatsAppAcquisitionRetry.ImminentAttempt)).AnyAsync(ct);
 
     public Task<WhatsAppSpreadsheetSourceRow?> FindPendingAsync(Guid contactId, DateTime nowUtc, CancellationToken ct) =>
         Project(Pending(nowUtc).Where(message => message.ContactId == contactId))

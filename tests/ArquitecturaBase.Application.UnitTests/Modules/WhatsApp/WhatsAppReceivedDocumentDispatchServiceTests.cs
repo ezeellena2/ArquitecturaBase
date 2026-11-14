@@ -575,7 +575,7 @@ public sealed class WhatsAppReceivedDocumentDispatchServiceTests
     }
 
     [Fact]
-    public async Task A_download_that_fails_is_retried_and_ends_unavailable_after_five_failures_and_fifteen_minutes()
+    public async Task A_download_that_fails_is_retried_and_ends_unavailable_after_five_failures_and_a_day()
     {
         var f = new WhatsAppReceivedDocumentFixture { DownloadError = FileErrors.Unavailable };
 
@@ -583,7 +583,7 @@ public sealed class WhatsAppReceivedDocumentDispatchServiceTests
         {
             Assert.True((await f.Dispatch.PrepareAsync(f.Contact.Id, Ct)).IsSuccess);
             Assert.Equal(WhatsAppDocumentState.Pending, f.Message.DocumentState);
-            f.Host.Context.Clock.Advance(TimeSpan.FromMinutes(3));
+            f.Host.Context.Clock.Advance(TimeSpan.FromHours(5));
         }
         Assert.True((await f.Dispatch.PrepareAsync(f.Contact.Id, Ct)).IsSuccess);
 

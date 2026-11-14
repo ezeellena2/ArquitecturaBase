@@ -27,13 +27,17 @@ public static class WhatsAppAssistantSourcePolicy
             if (!string.IsNullOrWhiteSpace(source.Body)) return source;
             if (pair is { Kind: WhatsAppMessageKind.Text or WhatsAppMessageKind.Audio } && !string.IsNullOrWhiteSpace(pair.Body))
                 return source with { Body = pair.Body, ContentExpiresAtUtc = Earliest(source.ContentExpiresAtUtc, pair.ContentExpiresAtUtc) };
-            return source with { Body = "", State = pair is { Kind: WhatsAppMessageKind.Audio, AudioState: WhatsAppAudioState.Pending or WhatsAppAudioState.Transcribing }
+            // H11: an audio whose download keeps failing past the usual window no longer holds it back.
+            return source with { Body = "", State = pair is { Kind: WhatsAppMessageKind.Audio, AudioState: WhatsAppAudioState.Transcribing }
+                    or { Kind: WhatsAppMessageKind.Audio, AudioState: WhatsAppAudioState.Pending, AcquisitionStalled: false }
                 ? WhatsAppAssistantSourceState.Waiting : WhatsAppAssistantSourceState.Alone };
         }
         if (pair is { Kind: WhatsAppMessageKind.ReceivedDocument } && string.IsNullOrWhiteSpace(pair.Body))
             return pair.DocumentState switch
             {
-                WhatsAppDocumentState.Pending or WhatsAppDocumentState.Reading => source with { State = WhatsAppAssistantSourceState.Waiting },
+                // H11: one whose download keeps failing past the usual window goes on as one that is not available.
+                WhatsAppDocumentState.Pending when !pair.AcquisitionStalled => source with { State = WhatsAppAssistantSourceState.Waiting },
+                WhatsAppDocumentState.Reading => source with { State = WhatsAppAssistantSourceState.Waiting },
                 WhatsAppDocumentState.Rejected => source with { State = WhatsAppAssistantSourceState.Answered },
                 // Review of task 9: over the day's reading quota it was answered with its fixed text too.
                 WhatsAppDocumentState.Unavailable when pair.DocumentFailureCode == WhatsAppReceivedDocumentPreparationPolicy.QuotaCode =>
@@ -45,7 +49,7 @@ public static class WhatsAppAssistantSourcePolicy
         if (pair is not { Kind: WhatsAppMessageKind.Spreadsheet } || !string.IsNullOrWhiteSpace(pair.Body)) return source;
         return pair.SpreadsheetState switch
         {
-            WhatsAppSpreadsheetState.Pending => source with { State = WhatsAppAssistantSourceState.Waiting },
+            WhatsAppSpreadsheetState.Pending when !pair.AcquisitionStalled => source with { State = WhatsAppAssistantSourceState.Waiting },
             WhatsAppSpreadsheetState.Rejected => source with { State = WhatsAppAssistantSourceState.Answered },
             WhatsAppSpreadsheetState.Stored when pair.Spreadsheet is { } sheet =>
                 source with { Spreadsheet = sheet, ContentExpiresAtUtc = Earliest(source.ContentExpiresAtUtc, sheet.ExpiresAtUtc) },

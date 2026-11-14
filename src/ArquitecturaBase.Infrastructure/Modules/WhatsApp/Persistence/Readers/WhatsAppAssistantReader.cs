@@ -68,6 +68,11 @@ internal sealed class WhatsAppAssistantReader(ApplicationDbContext db,IOptions<W
             {
                 DocumentState=message.DocumentState,DocumentFailureCode=message.DocumentFailureCode,DocumentStorageKey=message.DocumentStorageKey,DocumentFileName=message.DocumentFileName,
                 DocumentSize=message.DocumentSize,DocumentCopySha256=message.DocumentCopySha256,DocumentPages=message.DocumentPages,DocumentReadingJson=message.DocumentReadingJson,
+                // H11: the download failures of its file, the one its kind has.
+                AcquisitionFailures=message.Kind==WhatsAppMessageKind.Audio?message.AudioFailureCount:message.Kind==WhatsAppMessageKind.Spreadsheet?message.SpreadsheetFailureCount
+                    :message.Kind==WhatsAppMessageKind.ReceivedDocument?message.DocumentFailureCount:0,
+                FirstAcquisitionFailureAtUtc=message.Kind==WhatsAppMessageKind.Audio?message.AudioFirstFailureAtUtc:message.Kind==WhatsAppMessageKind.Spreadsheet?message.SpreadsheetFirstFailureAtUtc
+                    :message.Kind==WhatsAppMessageKind.ReceivedDocument?message.DocumentFirstFailureAtUtc:null,
             });
     private sealed record PreviousRow(Guid Id,WhatsAppMessageKind Kind,DateTime OccurredAtUtc,string? Body,WhatsAppAudioState? AudioState,
         DateTime? AudioContentExpiresAtUtc,WhatsAppSpreadsheetState? SpreadsheetState,string? SpreadsheetStorageKey,string? SpreadsheetFileName,
@@ -82,6 +87,8 @@ internal sealed class WhatsAppAssistantReader(ApplicationDbContext db,IOptions<W
         public string? DocumentCopySha256 {get;init;}
         public int? DocumentPages {get;init;}
         public string? DocumentReadingJson {get;init;}
+        public int AcquisitionFailures {get;init;}
+        public DateTime? FirstAcquisitionFailureAtUtc {get;init;}
         public override string ToString()=>"PreviousRow { Content = [REDACTED] }";
     }
     private async Task<WhatsAppAssistantNeighborRow?> FindPreviousAsync(WhatsAppAssistantSourceRow source,CancellationToken ct)
@@ -98,6 +105,7 @@ internal sealed class WhatsAppAssistantReader(ApplicationDbContext db,IOptions<W
             Body=live && (previous.Kind is WhatsAppMessageKind.Text or WhatsAppMessageKind.Spreadsheet or WhatsAppMessageKind.ReceivedDocument || audible) ? previous.Body : null,
             AudioState=previous.AudioState,SpreadsheetState=previous.SpreadsheetState,AnsweredSince=previous.AnsweredSince,DocumentState=previous.DocumentState,
             DocumentFailureCode=previous.DocumentFailureCode,
+            AcquisitionStalled=WhatsAppAcquisitionRetry.StopsHolding(previous.AcquisitionFailures,previous.FirstAcquisitionFailureAtUtc,nowUtc),
             Document=live && previous.Kind==WhatsAppMessageKind.ReceivedDocument && previous.DocumentState==WhatsAppDocumentState.Read
                 && previous.DocumentStorageKey is {} documentKey && previous.DocumentSize is {} documentSize && previous.DocumentCopySha256 is {} documentSha256
                 && previous.DocumentReadingJson is {} reading

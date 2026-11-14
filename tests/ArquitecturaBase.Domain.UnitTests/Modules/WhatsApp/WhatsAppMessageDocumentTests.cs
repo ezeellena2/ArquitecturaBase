@@ -198,17 +198,19 @@ public sealed class WhatsAppMessageDocumentTests
     }
 
     [Fact]
-    public void Download_failures_saturate_at_five_and_end_only_after_fifteen_minutes()
+    // H11: the failures keep counting (the readers' wait grows with them) and the download ends only after a day.
+    public void Download_failures_keep_counting_and_end_only_after_a_day()
     {
         var message = Described();
 
         for (var attempt = 0; attempt < 6; attempt++) Assert.False(message.RegisterDocumentFailure(Now.AddMinutes(attempt), "Files.Content.Unavailable"));
 
-        Assert.Equal((5, (DateTime?)Now, WhatsAppDocumentState.Pending),
+        Assert.Equal((6, (DateTime?)Now, WhatsAppDocumentState.Pending),
             (message.DocumentFailureCount, message.DocumentFirstFailureAtUtc, message.DocumentState));
-        Assert.True(message.RegisterDocumentFailure(Now.AddMinutes(15), "Files.Content.Unavailable"));
+        Assert.False(message.RegisterDocumentFailure(Now.AddMinutes(15), "Files.Content.Unavailable"));
+        Assert.True(message.RegisterDocumentFailure(Now.AddDays(1), "Files.Content.Unavailable"));
         Assert.Equal((WhatsAppDocumentState.Unavailable, "Files.Content.Unavailable"), (message.DocumentState, message.DocumentFailureCode));
-        Assert.False(message.RegisterDocumentFailure(Now.AddMinutes(16), "Files.Content.Unavailable"));
+        Assert.False(message.RegisterDocumentFailure(Now.AddDays(2), "Files.Content.Unavailable"));
     }
 
     // A Word is read by its owner while it is prepared: once it is used it is read without the engine, and never asks for a reading.

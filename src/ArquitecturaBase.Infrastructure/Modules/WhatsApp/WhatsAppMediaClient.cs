@@ -4,12 +4,15 @@ using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Integrations;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Domain.Files;
 using ArquitecturaBase.Domain.Results;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace ArquitecturaBase.Infrastructure.Modules.WhatsApp;
 
-internal sealed class WhatsAppMediaClient(HttpClient http, IOptions<WhatsAppOptions> options, TimeProvider timeProvider) : IWhatsAppMediaClient
+internal sealed partial class WhatsAppMediaClient(HttpClient http, IOptions<WhatsAppOptions> options, TimeProvider timeProvider,
+    ILogger<WhatsAppMediaClient> logger) : IWhatsAppMediaClient
 {
+
     public async Task<Result<WhatsAppMediaContent>> DownloadAsync(string mediaId, string contentType, string sha256, long maximumBytes, CancellationToken cancellationToken)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maximumBytes);
@@ -25,7 +28,7 @@ internal sealed class WhatsAppMediaClient(HttpClient http, IOptions<WhatsAppOpti
             var path = options.Value.GraphApiVersion + "/" + mediaId + "?phone_number_id=" + Uri.EscapeDataString(options.Value.PhoneNumberId);
             using var metadataRequest = Request(new Uri(http.BaseAddress!, path));
             using var metadataResponse = await http.SendAsync(metadataRequest, HttpCompletionOption.ResponseHeadersRead, ct);
-            if (!metadataResponse.IsSuccessStatusCode) return FileErrors.Unavailable;
+            if (!metadataResponse.IsSuccessStatusCode) return Unavailable(metadataResponse.StatusCode, "metadata");
             var metadataBytes = await ReadAsync(metadataResponse.Content, 8192, ct);
             if (metadataBytes is null) return FileErrors.Unavailable;
             using var metadata = JsonDocument.Parse(metadataBytes);
@@ -41,7 +44,7 @@ internal sealed class WhatsAppMediaClient(HttpClient http, IOptions<WhatsAppOpti
             // Bearer is only attached after validating the provider URL. Redirects are disabled in registration.
             using var contentRequest = Request(url);
             using var contentResponse = await http.SendAsync(contentRequest, HttpCompletionOption.ResponseHeadersRead, ct);
-            if (!contentResponse.IsSuccessStatusCode) return FileErrors.Unavailable;
+            if (!contentResponse.IsSuccessStatusCode) return Unavailable(contentResponse.StatusCode, "content");
             var bytes = await ReadAsync(contentResponse.Content, maximum, ct);
             if (bytes is null) return FileErrors.TooLarge;
             if (bytes.LongLength != size) return FileErrors.InvalidMetadata;
@@ -53,6 +56,21 @@ internal sealed class WhatsAppMediaClient(HttpClient http, IOptions<WhatsAppOpti
             return FileErrors.Unavailable;
         }
     }
+    // H11: a 401 is the token and a 403 a permission, apart in the log and with the request Meta refused (its metadata in Graph or
+    // the content in the media host); the file stays unavailable and keeps retrying (the warning to /health is task 16).
+    private Error Unavailable(System.Net.HttpStatusCode status, string step)
+    {
+        if (status == System.Net.HttpStatusCode.Unauthorized) LogInvalidToken(logger, step);
+        else if (status == System.Net.HttpStatusCode.Forbidden) LogMissingPermission(logger, step);
+        return FileErrors.Unavailable;
+    }
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "A WhatsApp media download ({Step}) was refused because the access token is not valid (401)")]
+    private static partial void LogInvalidToken(ILogger logger, string step);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "A WhatsApp media download ({Step}) was refused because the token lacks a permission (403)")]
+    private static partial void LogMissingPermission(ILogger logger, string step);
+
     private HttpRequestMessage Request(Uri uri)
     {
         var request = new HttpRequestMessage(HttpMethod.Get, uri);

@@ -22,16 +22,18 @@ public sealed class WhatsAppMessageTests
         var message = WhatsAppMessage.Inbound(ContactId, WaMessageId, WhatsAppMessageKind.FlowReply, null, null, Now.AddDays(-1), [1]);
         for (var attempt = 0; attempt < 7; attempt++)
             Assert.False(message.RegisterFlowReplyFailure(Now.AddSeconds(attempt * 30)));
-        Assert.Equal(5, message.FlowReplyFailureCount);
+        Assert.Equal(7, message.FlowReplyFailureCount);
         Assert.True(message.SetFlowReplyCapture(WhatsAppFlowCaptureState.Completed, Guid.NewGuid(), "VIS-000001", null));
         Assert.False(message.RegisterFlowReplyFailure(Now.AddHours(1)));
     }
 
+    // H11: a long outage of Meta, the token or the storage does not lose the reply: it is rejected only with five failures and a day.
     [Theory]
-    [InlineData(4, 60, false)]
-    [InlineData(5, 14, false)]
-    [InlineData(5, 15, true)]
-    public void Permanent_failures_require_both_attempts_and_age_from_the_first_failure(int attempts, int minutes, bool rejected)
+    [InlineData(4, 48 * 60, false)]
+    [InlineData(5, 15, false)]
+    [InlineData(5, 24 * 60 - 1, false)]
+    [InlineData(5, 24 * 60, true)]
+    public void Permanent_failures_require_both_attempts_and_a_day_from_the_first_failure(int attempts, int minutes, bool rejected)
     {
         var message = WhatsAppMessage.Inbound(ContactId, WaMessageId, WhatsAppMessageKind.FlowReply, null, null, Now, [1]);
         for (var attempt = 1; attempt < attempts; attempt++) Assert.False(message.RegisterFlowReplyFailure(Now));

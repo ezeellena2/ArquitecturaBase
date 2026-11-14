@@ -81,7 +81,6 @@ public sealed partial class WhatsAppMessage : Entity
     }
     public int FlowReplyFailureCount { get; private set; }
     public DateTime? FlowReplyFirstFailureAtUtc { get; private set; }
-    public const int MaxFlowReplyFailures = 5;
 
     public bool RegisterFlowReplyFailure(DateTime nowUtc)
     {
@@ -89,9 +88,9 @@ public sealed partial class WhatsAppMessage : Entity
             throw new InvalidOperationException("Only an inbound Flow reply can retry capture.");
         if (ProcessedAtUtc.HasValue || FlowCaptureState.HasValue) return false;
         FlowReplyFirstFailureAtUtc ??= nowUtc;
-        FlowReplyFailureCount = Math.Min(FlowReplyFailureCount + 1, MaxFlowReplyFailures);
-        return FlowReplyFailureCount == MaxFlowReplyFailures
-            && nowUtc - FlowReplyFirstFailureAtUtc.Value >= TimeSpan.FromMinutes(15);
+        // H11: the count keeps growing and the reply is rejected only after a day (WhatsAppAcquisitionRetry).
+        FlowReplyFailureCount = WhatsAppAcquisitionRetry.Count(FlowReplyFailureCount);
+        return WhatsAppAcquisitionRetry.GivesUp(FlowReplyFailureCount, FlowReplyFirstFailureAtUtc.Value, nowUtc);
     }
 
     /// <summary>

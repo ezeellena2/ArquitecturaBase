@@ -193,7 +193,7 @@ public sealed class WhatsAppSpreadsheetDispatchServiceTests
     }
 
     [Fact]
-    public async Task A_download_that_fails_is_retried_and_ends_unavailable_after_five_failures_and_fifteen_minutes()
+    public async Task A_download_that_fails_is_retried_and_ends_unavailable_after_five_failures_and_a_day()
     {
         var f = new WhatsAppSpreadsheetFixture { DownloadError = FileErrors.Unavailable };
 
@@ -201,7 +201,7 @@ public sealed class WhatsAppSpreadsheetDispatchServiceTests
         {
             Assert.True((await f.Dispatch.PrepareAsync(f.Contact.Id, Ct)).IsSuccess);
             Assert.Equal(WhatsAppSpreadsheetState.Pending, f.Message.SpreadsheetState);
-            f.Host.Context.Clock.Advance(TimeSpan.FromMinutes(3));
+            f.Host.Context.Clock.Advance(TimeSpan.FromHours(5));
         }
         Assert.Equal((5, FileErrors.Unavailable.Code), (f.Message.SpreadsheetFailureCount, f.Message.SpreadsheetFailureCode));
         Assert.True((await f.Dispatch.PrepareAsync(f.Contact.Id, Ct)).IsSuccess);
@@ -270,7 +270,7 @@ public sealed class WhatsAppSpreadsheetDispatchServiceTests
         {
             Assert.True((await f.Dispatch.PrepareAsync(f.Contact.Id, Ct)).IsSuccess);
             Assert.Equal(WhatsAppSpreadsheetState.Pending, f.Message.SpreadsheetState);
-            f.Host.Context.Clock.Advance(TimeSpan.FromMinutes(3));
+            f.Host.Context.Clock.Advance(TimeSpan.FromHours(5));
         }
         Assert.Equal((5, FileErrors.Unavailable.Code), (f.Message.SpreadsheetFailureCount, f.Message.SpreadsheetFailureCode));
         Assert.True((await f.Dispatch.PrepareAsync(f.Contact.Id, Ct)).IsSuccess);

@@ -92,20 +92,22 @@ public sealed class WhatsAppMessageAudioTests
     }
 
     [Fact]
-    public void Acquisition_failures_saturate_at_five_but_keep_retrying_for_at_least_fifteen_minutes()
+    // H11: the failures keep counting (the wait grows with them) and the audio keeps retrying for a day.
+    public void Acquisition_failures_keep_counting_and_keep_retrying_for_a_day()
     {
         var message=Message();message.SetAudioDescriptor("123","audio/ogg",new string('a',64));
         for(var i=0;i<8;i++)Assert.False(message.RegisterAudioFailure(Now,"Files.Content.Unavailable"));
-        Assert.Equal(5,message.AudioFailureCount);Assert.Equal(Now,message.AudioFirstFailureAtUtc);Assert.Equal(WhatsAppAudioState.Pending,message.AudioState);
-        Assert.True(message.RegisterAudioFailure(Now.AddMinutes(15),"Files.Content.Unavailable"));Assert.Equal(WhatsAppAudioState.Unavailable,message.AudioState);Assert.Equal(5,message.AudioFailureCount);
+        Assert.Equal(8,message.AudioFailureCount);Assert.Equal(Now,message.AudioFirstFailureAtUtc);Assert.Equal(WhatsAppAudioState.Pending,message.AudioState);
+        Assert.False(message.RegisterAudioFailure(Now.AddMinutes(15),"Files.Content.Unavailable"));Assert.Equal(WhatsAppAudioState.Pending,message.AudioState);
+        Assert.True(message.RegisterAudioFailure(Now.AddDays(1),"Files.Content.Unavailable"));Assert.Equal(WhatsAppAudioState.Unavailable,message.AudioState);Assert.Equal(10,message.AudioFailureCount);
     }
     [Fact]
     public void Acquisition_retries_need_both_the_count_and_the_age_limits()
     {
         var message=Message();message.SetAudioDescriptor("123","audio/ogg",new string('a',64));
         Assert.False(message.RegisterAudioFailure(Now,"Files.Content.Unavailable"));
-        for(var i=0;i<3;i++)Assert.False(message.RegisterAudioFailure(Now.AddHours(1),"Files.Content.Unavailable"));
-        Assert.True(message.RegisterAudioFailure(Now.AddHours(1),"Files.Content.Unavailable"));Assert.Equal(5,message.AudioFailureCount);
+        for(var i=0;i<3;i++)Assert.False(message.RegisterAudioFailure(Now.AddDays(2),"Files.Content.Unavailable"));
+        Assert.True(message.RegisterAudioFailure(Now.AddDays(2),"Files.Content.Unavailable"));Assert.Equal(5,message.AudioFailureCount);
     }
     [Fact]
     public void Terminal_audio_does_not_restart_acquisition_or_advance_failure_metadata()

@@ -152,16 +152,16 @@ public sealed partial class WhatsAppMessage
     }
 
     /// <summary>
-    /// A download failure that may pass: the count saturates at five, and the document ends unavailable only when there are five and
-    /// fifteen minutes passed since the first. True when it ends.
+    /// A download failure that may pass: the document ends unavailable only with five failures and a day since the first (H11,
+    /// <see cref="WhatsAppAcquisitionRetry"/>). True when it ends.
     /// </summary>
     public bool RegisterDocumentFailure(DateTime nowUtc, string code)
     {
         if (DocumentState != WhatsAppDocumentState.Pending || nowUtc.Kind != DateTimeKind.Utc || !IsFailureCode(code)) return false;
         DocumentFirstFailureAtUtc ??= nowUtc;
-        DocumentFailureCount = Math.Min(5, DocumentFailureCount + 1);
+        DocumentFailureCount = WhatsAppAcquisitionRetry.Count(DocumentFailureCount);
         DocumentFailureCode = code;
-        if (DocumentFailureCount < 5 || nowUtc - DocumentFirstFailureAtUtc.Value < TimeSpan.FromMinutes(15)) return false;
+        if (!WhatsAppAcquisitionRetry.GivesUp(DocumentFailureCount, DocumentFirstFailureAtUtc.Value, nowUtc)) return false;
         DocumentState = WhatsAppDocumentState.Unavailable;
         return true;
     }

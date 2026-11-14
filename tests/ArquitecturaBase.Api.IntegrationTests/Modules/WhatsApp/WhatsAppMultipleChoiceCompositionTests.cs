@@ -21,6 +21,7 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
 using SkiaSharp;
@@ -81,7 +82,7 @@ public sealed partial class WhatsAppFormSendingTests
             services.AddSingleton<IWhatsAppMediaClient>(new WhatsAppMediaClient(mediaHttp, Options.Create(new WhatsAppOptions
             {
                 PhoneNumberId = ApiFactory.WhatsAppPhoneNumberId, AccessToken = "synthetic-media-token", GraphApiVersion = "v25.0",
-            }), TimeProvider.System));
+            }), TimeProvider.System, NullLogger<WhatsAppMediaClient>.Instance));
             services.RemoveAll<IWhatsAppDispatchCoordinator>();
             services.AddSingleton<IWhatsAppDispatchCoordinator>(sp => new WhatsAppDispatchCoordinator(
                 sp.GetRequiredService<RedisCache>(), TimeProvider.System));

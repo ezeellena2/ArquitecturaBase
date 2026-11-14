@@ -80,8 +80,8 @@ public sealed partial class WhatsAppMessage
     {
         if(AudioState is not (WhatsAppAudioState.Pending or WhatsAppAudioState.Transcribing) || nowUtc.Kind!=DateTimeKind.Utc
             || string.IsNullOrEmpty(code) || code.Length>128 || !StorableText.IsStorable(code))return false;
-        AudioFirstFailureAtUtc ??= nowUtc;AudioFailureCount=Math.Min(5,AudioFailureCount+1);AudioFailureCode=code;
-        if(AudioFailureCount<5 || nowUtc-AudioFirstFailureAtUtc.Value<TimeSpan.FromMinutes(15))return false;
+        AudioFirstFailureAtUtc ??= nowUtc;AudioFailureCount=WhatsAppAcquisitionRetry.Count(AudioFailureCount);AudioFailureCode=code;
+        if(!WhatsAppAcquisitionRetry.GivesUp(AudioFailureCount,AudioFirstFailureAtUtc.Value,nowUtc))return false;
         AudioState=WhatsAppAudioState.Unavailable;return true;
     }
 }

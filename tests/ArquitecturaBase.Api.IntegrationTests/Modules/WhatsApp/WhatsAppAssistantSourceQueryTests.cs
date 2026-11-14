@@ -201,6 +201,33 @@ public sealed class WhatsAppAssistantSourceQueryTests(ApiFactory factory)
         Assert.Equal(paired?("Armame un catálogo de clientes",WhatsAppAssistantSourceState.Ready):("",WhatsAppAssistantSourceState.Alone),(source!.Body,source.State));
     }
 
+    // H11: a spreadsheet whose download keeps failing holds back the text after it only for the usual window (five failures and
+    // fifteen minutes since the first); then the text goes on alone while the spreadsheet keeps retrying.
+    [Theory]
+    [InlineData(14,WhatsAppAssistantSourceState.Waiting)]
+    [InlineData(15,WhatsAppAssistantSourceState.Ready)]
+    public async Task A_text_waits_for_a_failing_spreadsheet_only_for_the_usual_window(int minutes,WhatsAppAssistantSourceState expected)
+    {
+        await using var host=await WhatsAppAssistantScenario.CreateAsync(factory,Ct);
+        var person=await host.ContactAsync(Ct,automatic:true);
+        var now=host.Clock.GetUtcNow().UtcDateTime;
+        await host.InTransactionAsync(async services=>
+        {
+            var db=services.GetRequiredService<ApplicationDbContext>();
+            var contact=await db.Set<WhatsAppContact>().SingleAsync(row=>row.Id==person.ContactId,Ct);
+            var spreadsheet=WhatsAppMessage.Inbound(contact.Id,MetaWebhook.UniqueWaMessageId(),WhatsAppMessageKind.Spreadsheet,null,null,now.AddMinutes(-minutes-1));
+            Assert.True(spreadsheet.SetSpreadsheetDescriptor("1234","text/csv",new string('a',64),"clientes.csv"));
+            for(var failure=0;failure<5;failure++)spreadsheet.RegisterSpreadsheetFailure(now.AddMinutes(-minutes),"Files.Unavailable");
+            Add(db,contact,spreadsheet,now);
+            Add(db,contact,WhatsAppMessage.Inbound(contact.Id,MetaWebhook.UniqueWaMessageId(),WhatsAppMessageKind.Text,"Cargá esta planilla",null,now.AddMinutes(-minutes)),now);
+            return true;
+        },Ct);
+
+        var source=await host.ScopeAsync(services=>services.GetRequiredService<IWhatsAppAssistantReader>().FindLatestSourceAsync(person.ContactId,Ct));
+
+        Assert.Equal(("Cargá esta planilla",expected,(WhatsAppAssistantSpreadsheetRow?)null),(source!.Body,source.State,source.Spreadsheet));
+    }
+
     private static CancellationToken Ct=>TestContext.Current.CancellationToken;
 
     private static void Add(ApplicationDbContext db,WhatsAppContact contact,WhatsAppMessage message,DateTime nowUtc)

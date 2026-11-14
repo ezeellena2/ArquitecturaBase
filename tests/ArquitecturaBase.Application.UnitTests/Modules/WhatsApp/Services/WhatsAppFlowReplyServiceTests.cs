@@ -242,7 +242,7 @@ public sealed partial class WhatsAppFlowReplyServiceTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task A_permanently_failing_reply_is_rejected_after_five_attempts_and_fifteen_minutes(bool unavailable)
+    public async Task A_permanently_failing_reply_is_rejected_after_five_attempts_and_a_day(bool unavailable)
     {
         var fixture = new Fixture();
         var reply = fixture.AddReply("wamid.permanent", fixture.ValidAnswers("answer"));
@@ -251,9 +251,13 @@ public sealed partial class WhatsAppFlowReplyServiceTests
         {
             if (unavailable) fixture.Sink.Results.Add(new("Unavailable", null, null, null));
             await fixture.Service.ProcessPendingAsync(CancellationToken.None);
-            if (attempt < 5) Assert.Null(reply.ProcessedAtUtc);
-            fixture.Clock.Advance(TimeSpan.FromMinutes(4));
+            Assert.Null(reply.ProcessedAtUtc);
+            fixture.Clock.Advance(TimeSpan.FromHours(4));
         }
+        // H11: five failures in sixteen hours keep retrying; the attempt a day after the first failure rejects it.
+        fixture.Clock.Advance(TimeSpan.FromHours(4));
+        if (unavailable) fixture.Sink.Results.Add(new("Unavailable", null, null, null));
+        await fixture.Service.ProcessPendingAsync(CancellationToken.None);
         Assert.Equal(WhatsAppFlowCaptureState.Rejected, reply.FlowCaptureState);
         Assert.NotNull(reply.ProcessedAtUtc);
         Assert.Null(reply.FlowRecordId);
@@ -261,7 +265,7 @@ public sealed partial class WhatsAppFlowReplyServiceTests
         Assert.Equal(fixture.Session.Id, reply.FlowSessionId);
         Assert.Equal(WhatsAppFlowCaptureState.Rejected, fixture.Session.CaptureState);
         await fixture.Service.ProcessPendingAsync(CancellationToken.None);
-        Assert.Equal(5, fixture.Sink.CaptureCount);
+        Assert.Equal(6, fixture.Sink.CaptureCount);
     }
 
     [Fact]
@@ -357,8 +361,12 @@ public sealed partial class WhatsAppFlowReplyServiceTests
         var message = fixture.AddFileReply("wamid.media.failed");
         await fixture.Service.ProcessPendingAsync(CancellationToken.None);
         Assert.Null(message.ProcessedAtUtc);
+        // H11: sixteen minutes no longer reject it; a day does.
         fixture.Clock.Advance(TimeSpan.FromMinutes(16));
         for (var index = 0; index < 4; index++) await fixture.Service.ProcessPendingAsync(CancellationToken.None);
+        Assert.Null(message.FlowCaptureState);
+        fixture.Clock.Advance(TimeSpan.FromDays(1));
+        await fixture.Service.ProcessPendingAsync(CancellationToken.None);
         Assert.Equal(WhatsAppFlowCaptureState.Rejected, message.FlowCaptureState);
         Assert.Equal(ArquitecturaBase.Domain.Files.FileErrors.Unavailable.Code, message.FlowCaptureErrorCode);
         Assert.Equal(0, fixture.Sink.CaptureCount);

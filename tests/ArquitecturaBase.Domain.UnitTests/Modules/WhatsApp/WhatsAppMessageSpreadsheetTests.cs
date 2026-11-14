@@ -185,16 +185,18 @@ public sealed class WhatsAppMessageSpreadsheetTests
     }
 
     [Fact]
-    public void Download_failures_saturate_at_five_and_end_only_after_fifteen_minutes()
+    // H11: the failures keep counting (the readers' wait grows with them) and the download ends only after a day.
+    public void Download_failures_keep_counting_and_end_only_after_a_day()
     {
         var message = Described();
 
         for (var attempt = 0; attempt < 6; attempt++) Assert.False(message.RegisterSpreadsheetFailure(Now.AddMinutes(attempt), "Files.Content.Unavailable"));
 
-        Assert.Equal((5, (DateTime?)Now, WhatsAppSpreadsheetState.Pending),
+        Assert.Equal((6, (DateTime?)Now, WhatsAppSpreadsheetState.Pending),
             (message.SpreadsheetFailureCount, message.SpreadsheetFirstFailureAtUtc, message.SpreadsheetState));
-        Assert.True(message.RegisterSpreadsheetFailure(Now.AddMinutes(15), "Files.Content.Unavailable"));
+        Assert.False(message.RegisterSpreadsheetFailure(Now.AddMinutes(15), "Files.Content.Unavailable"));
+        Assert.True(message.RegisterSpreadsheetFailure(Now.AddDays(1), "Files.Content.Unavailable"));
         Assert.Equal((WhatsAppSpreadsheetState.Unavailable, "Files.Content.Unavailable"), (message.SpreadsheetState, message.SpreadsheetFailureCode));
-        Assert.False(message.RegisterSpreadsheetFailure(Now.AddMinutes(16), "Files.Content.Unavailable"));
+        Assert.False(message.RegisterSpreadsheetFailure(Now.AddDays(2), "Files.Content.Unavailable"));
     }
 }

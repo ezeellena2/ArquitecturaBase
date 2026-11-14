@@ -113,16 +113,16 @@ public sealed partial class WhatsAppMessage
     }
 
     /// <summary>
-    /// A download failure that may pass: the count saturates at five, and the spreadsheet ends unavailable only when there are five
-    /// and fifteen minutes passed since the first. True when it ends.
+    /// A download failure that may pass: the count keeps growing, and the spreadsheet ends unavailable only when there are five
+    /// and a day since the first (H11, <see cref="WhatsAppAcquisitionRetry"/>). True when it ends.
     /// </summary>
     public bool RegisterSpreadsheetFailure(DateTime nowUtc, string code)
     {
         if (SpreadsheetState != WhatsAppSpreadsheetState.Pending || nowUtc.Kind != DateTimeKind.Utc || !IsFailureCode(code)) return false;
         SpreadsheetFirstFailureAtUtc ??= nowUtc;
-        SpreadsheetFailureCount = Math.Min(5, SpreadsheetFailureCount + 1);
+        SpreadsheetFailureCount = WhatsAppAcquisitionRetry.Count(SpreadsheetFailureCount);
         SpreadsheetFailureCode = code;
-        if (SpreadsheetFailureCount < 5 || nowUtc - SpreadsheetFirstFailureAtUtc.Value < TimeSpan.FromMinutes(15)) return false;
+        if (!WhatsAppAcquisitionRetry.GivesUp(SpreadsheetFailureCount, SpreadsheetFirstFailureAtUtc.Value, nowUtc)) return false;
         SpreadsheetState = WhatsAppSpreadsheetState.Unavailable;
         return true;
     }

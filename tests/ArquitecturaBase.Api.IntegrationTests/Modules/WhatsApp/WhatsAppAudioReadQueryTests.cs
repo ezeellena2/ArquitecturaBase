@@ -14,6 +14,8 @@ public sealed class WhatsAppAudioReadQueryTests
     [InlineData(3,210)]
     [InlineData(4,450)]
     [InlineData(5,930)]
+    [InlineData(6,1890)]
+    [InlineData(8,7410)]
     public void Audio_failures_do_not_take_scan_slots_until_the_flow_retry_schedule_is_due(int failures,int seconds)
     {
         var clock=new FakeTimeProvider(new DateTimeOffset(2026,10,18,12,0,0,TimeSpan.Zero));var now=clock.GetUtcNow().UtcDateTime;

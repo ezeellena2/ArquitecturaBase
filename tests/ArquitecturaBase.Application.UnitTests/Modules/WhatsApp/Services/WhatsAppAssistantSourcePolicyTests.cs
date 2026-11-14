@@ -99,6 +99,34 @@ public sealed class WhatsAppAssistantSourcePolicyTests
         Assert.Equal((WhatsAppAssistantSourceState.Waiting, (WhatsAppAssistantSpreadsheetRow?)null), (resolved.State, resolved.Spreadsheet));
     }
 
+    // H11: a download that keeps failing retries for a day, but past the usual window (five failures and fifteen minutes) it no longer
+    // holds back the text paired with it, nor a spreadsheet after a pending audio: they go on as with a file that is not available.
+    [Fact]
+    public void A_text_stops_waiting_for_a_spreadsheet_whose_download_keeps_failing()
+    {
+        var source = Text();
+        Assert.Equal(source, WhatsAppAssistantSourcePolicy.Resolve(source, PreviousSpreadsheet(WhatsAppSpreadsheetState.Pending) with { AcquisitionStalled = true }));
+    }
+
+    [Fact]
+    public void A_text_stops_waiting_for_a_received_document_whose_download_keeps_failing()
+    {
+        var source = Text();
+        var document = new WhatsAppAssistantNeighborRow(Guid.NewGuid(), WhatsAppMessageKind.ReceivedDocument, Now.AddMinutes(-2), Now.AddDays(90))
+            { DocumentState = WhatsAppDocumentState.Pending, AcquisitionStalled = true };
+        Assert.Equal(source, WhatsAppAssistantSourcePolicy.Resolve(source, document));
+        Assert.Equal(WhatsAppAssistantSourceState.Waiting, WhatsAppAssistantSourcePolicy.Resolve(source, document with { AcquisitionStalled = false }).State);
+        Assert.Equal(WhatsAppAssistantSourceState.Waiting, WhatsAppAssistantSourcePolicy.Resolve(source, document with { DocumentState = WhatsAppDocumentState.Reading }).State);
+    }
+
+    [Fact]
+    public void A_spreadsheet_stops_waiting_for_an_audio_whose_download_keeps_failing()
+    {
+        var audio = new WhatsAppAssistantNeighborRow(Guid.NewGuid(), WhatsAppMessageKind.Audio, Now.AddMinutes(-1), Now.AddDays(1))
+            { AudioState = WhatsAppAudioState.Pending, AcquisitionStalled = true };
+        Assert.Equal(WhatsAppAssistantSourceState.Alone, WhatsAppAssistantSourcePolicy.Resolve(Spreadsheet(), audio).State);
+    }
+
     [Fact]
     public void A_text_whose_spreadsheet_was_rejected_was_answered_already()
     {

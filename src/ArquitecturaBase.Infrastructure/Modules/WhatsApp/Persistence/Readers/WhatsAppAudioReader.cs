@@ -19,7 +19,9 @@ internal sealed class WhatsAppAudioReader(ApplicationDbContext db,WhatsAppConten
             ContextJson=message.AudioContextJson,CapturedLinkRevision=message.AudioLinkRevision,ContentExpiresAtUtc=message.AudioContentExpiresAtUtc,
         };
     private IQueryable<WhatsAppAudioSourceRow> Pending(DateTime nowUtc)=>PendingRows(Audio().Where(RetryDueAt(nowUtc)),nowUtc);
-    public Task<bool> ExistsPendingAsync(DateTime nowUtc,CancellationToken ct)=>PendingRows(Audio(),nowUtc).AnyAsync(ct);
+    // H11: one waiting for its next attempt counts only once it is near, so a day of retries does not keep the processor in quick rounds.
+    public Task<bool> ExistsPendingAsync(DateTime nowUtc,CancellationToken ct)=>
+        PendingRows(Audio().Where(RetryDueAt(nowUtc+WhatsAppAcquisitionRetry.ImminentAttempt)),nowUtc).AnyAsync(ct);
     private IQueryable<WhatsAppAudioSourceRow> PendingRows(IQueryable<WhatsAppMessage> audio,DateTime nowUtc)
     {
         var cutoff=nowUtc.AddDays(-retention.MessageRetentionDays);
@@ -28,7 +30,7 @@ internal sealed class WhatsAppAudioReader(ApplicationDbContext db,WhatsAppConten
     }
     internal static Expression<Func<WhatsAppMessage,bool>> RetryDueAt(DateTime nowUtc)=>message=>
         message.AudioFirstFailureAtUtc==null || message.AudioFirstFailureAtUtc.Value.AddSeconds(
-            message.AudioFailureCount<=1?30:message.AudioFailureCount==2?90:message.AudioFailureCount==3?210:message.AudioFailureCount==4?450:930)<=nowUtc;
+            message.AudioFailureCount<=1?30:message.AudioFailureCount==2?90:message.AudioFailureCount==3?210:message.AudioFailureCount==4?450:message.AudioFailureCount==5?930:message.AudioFailureCount==6?1890:message.AudioFailureCount==7?3810:3810+(message.AudioFailureCount-7)*3600)<=nowUtc;
     public async Task<IReadOnlyList<Guid>> ListPendingContactsAsync(IReadOnlyCollection<Guid> excluded,int limit,DateTime nowUtc,CancellationToken ct)=>
         await Pending(nowUtc).Where(row=>!excluded.Contains(row.ContactId)).Select(row=>row.ContactId).Distinct().OrderBy(id=>id).Take(limit).ToListAsync(ct);
     public Task<WhatsAppAudioSourceRow?> FindPendingAsync(Guid contactId,DateTime nowUtc,CancellationToken ct)=>Pending(nowUtc).Where(row=>row.ContactId==contactId)

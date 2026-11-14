@@ -21,7 +21,7 @@ internal sealed class WhatsAppFlowSessionReader(ApplicationDbContext dbContext, 
     internal static Expression<Func<WhatsAppMessage, bool>> RetryDueAt(DateTime nowUtc) => message =>
         message.FlowReplyFirstFailureAtUtc == null || message.FlowReplyFirstFailureAtUtc.Value.AddSeconds(
             message.FlowReplyFailureCount <= 1 ? 30 : message.FlowReplyFailureCount == 2 ? 90
-            : message.FlowReplyFailureCount == 3 ? 210 : message.FlowReplyFailureCount == 4 ? 450 : 930) <= nowUtc;
+            : message.FlowReplyFailureCount == 3 ? 210 : message.FlowReplyFailureCount == 4 ? 450 : message.FlowReplyFailureCount == 5 ? 930 : message.FlowReplyFailureCount == 6 ? 1890 : message.FlowReplyFailureCount == 7 ? 3810 : 3810 + (message.FlowReplyFailureCount - 7) * 3600) <= nowUtc;
 
     public Task<WhatsAppFormBindingRow?> FindBindingAsync(Guid definitionId, Guid versionId, string culture, CancellationToken cancellationToken) =>
         (from binding in dbContext.Set<WhatsAppFlowBinding>().AsNoTracking()

@@ -65,6 +65,8 @@ public sealed record WhatsAppAssistantNeighborRow(Guid Id, WhatsAppMessageKind K
     public string? DocumentFailureCode {get;init;}
     public WhatsAppAssistantDocumentRow? Document {get;init;}
     public bool AnsweredSince {get;init;}
+    /// <summary>H11: its file keeps failing past the usual window, so it no longer holds back what pairs with it.</summary>
+    public bool AcquisitionStalled {get;init;}
     public override string ToString() => "WhatsAppAssistantNeighborRow { Content = [REDACTED] }";
 }
 

@@ -4,12 +4,13 @@ using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Application.Modules.WhatsApp.Services;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
 using ArquitecturaBase.Infrastructure.Persistence;
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 
 namespace ArquitecturaBase.Infrastructure.Modules.WhatsApp.Persistence.Readers;
 
 // Task 8 of the documents: the received documents. One waits within its message's retention: pending to be downloaded, after a failure
-// until its next attempt (30, 90, 210, 450 and 930 seconds after the first, as a spreadsheet's), or being read by the engine while its
+// until its next attempt (30, 90, 210, 450, 930, 1890 and 3810 seconds and then an hour more each time (H11) after the first, as a spreadsheet's), or being read by the engine while its
 // content lasts, polled in every round. One that waits for its request is due only when its time passed or a text of the person (or an
 // audio once transcribed) followed it; a pending one is taken before a reading, so a slow reading never holds back a reply or a handoff.
 internal sealed class WhatsAppReceivedDocumentReader(ApplicationDbContext db, WhatsAppContentRetention retention) : IWhatsAppReceivedDocumentReader
@@ -27,13 +28,17 @@ internal sealed class WhatsAppReceivedDocumentReader(ApplicationDbContext db, Wh
     // One that waits for its request is due once its time passed or a text followed it (by the inbound sequence): an audio counts once
     // transcribed, as a spreadsheet waits for it.
     private IQueryable<WhatsAppMessage> Due(DateTime nowUtc) => Waiting(nowUtc).Where(message => message.DocumentState == WhatsAppDocumentState.Reading
-        || (message.DocumentRequestAwaitedUntilUtc == null || message.DocumentRequestAwaitedUntilUtc <= nowUtc
+        || message.DocumentRequestAwaitedUntilUtc == null || message.DocumentRequestAwaitedUntilUtc <= nowUtc
                 || db.Set<WhatsAppMessage>().Any(next => next.ContactId == message.ContactId && next.Direction == WhatsAppMessageDirection.Inbound
                     && next.InboundSequence > message.InboundSequence && (next.Kind == WhatsAppMessageKind.Text
                         || next.Kind == WhatsAppMessageKind.Audio && next.AudioState == WhatsAppAudioState.Completed)))
-            && (message.DocumentFirstFailureAtUtc == null || message.DocumentFirstFailureAtUtc.Value.AddSeconds(
-                message.DocumentFailureCount <= 1 ? 30 : message.DocumentFailureCount == 2 ? 90 : message.DocumentFailureCount == 3 ? 210
-                    : message.DocumentFailureCount == 4 ? 450 : 930) <= nowUtc));
+        .Where(RetryDueAt(nowUtc));
+
+    // The audio's scale (H11: an hour more for each failure past the seventh); one being read is not waiting for a download.
+    internal static Expression<Func<WhatsAppMessage, bool>> RetryDueAt(DateTime nowUtc) => message =>
+        message.DocumentState == WhatsAppDocumentState.Reading || message.DocumentFirstFailureAtUtc == null || message.DocumentFirstFailureAtUtc.Value.AddSeconds(
+            message.DocumentFailureCount <= 1 ? 30 : message.DocumentFailureCount == 2 ? 90 : message.DocumentFailureCount == 3 ? 210
+                : message.DocumentFailureCount == 4 ? 450 : message.DocumentFailureCount == 5 ? 930 : message.DocumentFailureCount == 6 ? 1890 : message.DocumentFailureCount == 7 ? 3810 : 3810 + (message.DocumentFailureCount - 7) * 3600) <= nowUtc;
 
     private IQueryable<WhatsAppReceivedDocumentSourceRow> Project(IQueryable<WhatsAppMessage> documents) =>
         from message in documents
@@ -74,10 +79,11 @@ internal sealed class WhatsAppReceivedDocumentReader(ApplicationDbContext db, Wh
         await Due(nowUtc).Select(message => message.ContactId!.Value).Where(id => !excluded.Contains(id))
             .Distinct().OrderBy(id => id).Take(limit).ToListAsync(ct);
 
-    // Only for the processor's wait, as a spreadsheet's: one waiting for its next attempt is still pending; one that waits for its
-    // request is not, since nothing hurries it (the next message wakes the processor anyway).
+    // Only for the processor's wait, as a spreadsheet's: one waiting for its next attempt counts once it is near (H11); one that waits
+    // for its request does not, since nothing hurries it (the next message wakes the processor anyway).
     public Task<bool> ExistsPendingAsync(DateTime nowUtc, CancellationToken ct) => Waiting(nowUtc).Where(message => message.DocumentState == WhatsAppDocumentState.Reading
-        || message.DocumentRequestAwaitedUntilUtc == null || message.DocumentRequestAwaitedUntilUtc <= nowUtc).AnyAsync(ct);
+        || message.DocumentRequestAwaitedUntilUtc == null || message.DocumentRequestAwaitedUntilUtc <= nowUtc)
+        .Where(RetryDueAt(nowUtc + WhatsAppAcquisitionRetry.ImminentAttempt)).AnyAsync(ct);
 
     public Task<WhatsAppReceivedDocumentSourceRow?> FindPendingAsync(Guid contactId, DateTime nowUtc, CancellationToken ct) =>
         Project(Due(nowUtc).Where(message => message.ContactId == contactId))
