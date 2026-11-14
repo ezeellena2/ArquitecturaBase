@@ -470,6 +470,10 @@ fuente: cambiarla lo decidís vos.
 - **Arreglo:** vaciarlos al capturar o al vencer, por lotes dentro de una unidad (la sesión es auditable
   y no admite `ExecuteUpdate`), conservando el estado de la ubicación; y ampliar la regla en
   [WhatsApp](../features/whatsapp.md). Chico.
+- **Arreglado el 2026-11-14** en 379b38fc: la retención vacía el punto y el cuerpo del envío en la pasada siguiente a que se
+  cierra su captura, o cuando vence sin una respuesta en camino, y conserva el estado de la ubicación; una respuesta que Meta
+  entrega después queda sin reconocer. La integración mostró que el predicado de respuestas pendientes llevaba `AsNoTracking`,
+  que EF aplica a toda la consulta donde aparece: la retención no guardaba lo vaciado y repetía la tanda sin fin. Quedó sin él.
 
 #### H14. No se puede borrar ni anonimizar a una persona
 
@@ -562,6 +566,11 @@ fuente: cambiarla lo decidís vos.
 - **Arreglo:** guardar quién cambió el modo y cuándo, también al derivar (no sirve `IAuditable`, porque
   cada mensaje entrante modifica el contacto), y guardar el contexto de traza en la fila para enlazarlo.
   Chico la auditoría; mediano la traza.
+- **Arreglado el 2026-11-14** en dbc81d12: cada cambio de modo queda en `WhatsAppModeChanges` con quién y cuándo (al derivar,
+  sin persona), así que una derivación posterior no borra quién pasó el chat al asistente. Cada mensaje y cada salida guardan el
+  contexto de traza W3C de donde se escribieron, y la vuelta del procesador entrante y el envío lo continúan con el
+  `ActivitySource` `ArquitecturaBase.WhatsApp`, con la llamada a Meta adentro. La captura de Flows y la cola de acceso todavía
+  no continúan la traza.
 
 #### H20. «Crear» desde un resumen actúa antes de revisar el vínculo
 

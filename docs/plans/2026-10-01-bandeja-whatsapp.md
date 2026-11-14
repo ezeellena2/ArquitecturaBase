@@ -321,6 +321,12 @@ derivar, el `NotFound` de `Submit` en una continuación y el botón viejo despu�
     de cada mensaje y de cada salida guarda el contexto de traza, y un `ActivitySource` del módulo une
     el webhook, el worker y Meta. Chico la auditoría; mediano la traza.
 
+**En curso el 2026-11-14:** H13 en 379b38fc y H19 en dbc81d12, cada una con su revisión adversarial aplicada. La integración de
+H13 mostró que el predicado de respuestas pendientes llevaba `AsNoTracking` y la retención no guardaba lo vaciado; la revisión
+de H19 llevó la auditoría del modo a un historial. Se corrió el build sin advertencias, Domain, Application y ArchitectureTests
+enteros y la integración de lo que cambió, clase por clase, y compila el arnés de calificación. Falta H16, que no entra en el
+cupo de esta semana: espera la decisión de hacerlo antes o después de H25.
+
 ### Etapa 7: despliegues sin romper
 
 22. **H25. La versión vieja deja lo que no entiende.** Una copia deja para otra, con un tope, lo que su
