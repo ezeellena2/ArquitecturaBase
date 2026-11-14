@@ -54,9 +54,8 @@ Los hallazgos van numerados F1 a F48 y, aparte, B1 a B3; las piezas de la ficha 
   global de formularios que ya registró WhatsApp H32 (F37).
 - **Fuera de los criterios:** el «¿La emito?» que se vuelve a preguntar puede ignorar el toque (B1) y, para el núcleo, una cuenta
   borrada conservaría sus permisos (B2, por confirmar con un test).
-- **Lo que tenés que decidir** ([decisiones](#decisiones-que-pide-la-revisión)): el horizonte, qué hace una regla cuando una acción
-  no sale, el permiso de las reglas, tres reglas escritas, los números, la retención, los temas de «Formularios que faltan» y los
-  números en claro de la bandeja.
+- **Tus decisiones** ([decisiones](#decisiones-del-2026-11-14)): el 2026-11-14 elegiste las ocho recomendadas, del horizonte a los
+  números en claro de la bandeja; falta armar el plan de «Hoy».
 
 ## Ficha
 
@@ -269,8 +268,8 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
   «1.234» en español es ambiguo (`FormCatalogValuePolicy.cs:49-57`).
 - **Arreglo:** leer el número con la región del idioma de quien carga y marcar en su pregunta lo que admite dos lecturas («1.500»
   con un solo separador y tres cifras) para que la persona lo confirme, como la importación de catálogos; mientras tanto, la misma
-  ayuda que el Flow en las preguntas con decimales. Chico. Si el Flow también lee con la región lo decidís vos
-  ([decisiones](#decisiones-que-pide-la-revisión)).
+  ayuda que el Flow en las preguntas con decimales. Chico. El Flow también lee con la región
+  ([decisión 5](#decisiones-del-2026-11-14)).
 
 #### F2. Una acción que falla o queda en duda frena el resto de su regla, y nadie se entera
 
@@ -282,8 +281,8 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
   vuelve a consultar, aunque consultar no reenvía nada, y no hay una lista de «acciones por resolver»: la ve sólo quien abre
   esa respuesta, y sólo quien además tiene «Administrar reglas y PDF» puede tocar «Consultar», «Revisar» o «Reintentar». Pasa
   lo mismo con un aviso que el canal no pudo encolar, con una emisión que ARCA dejó «en revisión» y con «Pedir aprobación» a un
-  rol que se borró: esa respuesta queda «Recibida» hasta que alguien la anule o la corrija a mano. Si el aviso falló por la ventana de 24 horas, «Reintentar»
-  vuelve a fallar mientras la persona no escriba. [ARCA H11](2026-11-14-arquitectura-arca.md) es el caso de la emisión por
+  rol que se borró: esa respuesta queda «Recibida» hasta que alguien la anule o la corrija a mano. Si el aviso falló por la
+  ventana de 24 horas, «Reintentar» vuelve a fallar mientras la persona no escriba. [ARCA H11](2026-11-14-arquitectura-arca.md) es el caso de la emisión por
   WhatsApp; esto vale para cualquier acción.
 - **Evidencia:** cualquier excepción del efecto termina en duda (`FormActionEffectService.cs:25-31,42,44,97-101`); una acción en
   duda o fallida no se reserva ni entra en la cola (`BusinessFormActionRun.cs:58-59`, `FormActionRunReader.cs:15-20`) y sólo sale
@@ -295,8 +294,8 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
 - **Arreglo:** consultar solo, con espera creciente, lo que quedó en duda por un error local, dejando a mano sólo lo que pide
   una decisión (un aviso que el canal no puede confirmar, una emisión en revisión); una marca «Con acciones por resolver» en la
   planilla de cada formulario, con su filtro, y un contador para quien administra reglas; y avisar a quien cargó cuando su regla
-  se frena, que es lo que pide ARCA H11. Mediano. Qué hacer con la ventana de 24 horas lo decidís vos
-  ([decisiones](#decisiones-que-pide-la-revisión)).
+  se frena, que es lo que pide ARCA H11. Mediano. El aviso que no puede salir por la ventana de 24 horas queda «No aplica» y no
+  frena lo que sigue ([decisión 2](#decisiones-del-2026-11-14)).
 
 #### F3. Una publicación que queda «sin confirmar» traba el formulario y nadie la puede destrabar
 
@@ -433,7 +432,7 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
   busca sólo los otros dos estados (`FormReceivedDocumentReader.cs:210-215`). La decisión 9 de los documentos fija los 90 días
   sólo para descartados y sin clasificar (`docs/plans/2026-10-22-documentos-por-whatsapp.md:589-592`).
 - **Arreglo:** un plazo para el propuesto que nadie mira: por ejemplo, 90 días después de vencido su envío pasa a descartado con
-  motivo «venció» y sigue la purga. Chico, una vez decidido ([decisiones](#decisiones-que-pide-la-revisión)).
+  motivo «venció» y sigue la purga. Chico; el plazo se decidió el 2026-11-14 ([decisión 6](#decisiones-del-2026-11-14)).
 
 #### F10. La retención pendiente de las respuestas no nombra todo lo que guarda datos de personas
 
@@ -461,7 +460,7 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
   tomó la respuesta se suelte la copia de la bandeja (el detalle tiene que apuntar al de la respuesta); y que el borrado definitivo
   de una persona sea un puerto del núcleo que cada módulo implementa, como las fuentes de retención que ya existen, para que
   [ARCA H25](2026-11-14-arquitectura-arca.md) y los [N4 y N16 del núcleo](2026-11-14-arquitectura-nucleo.md) caigan en el mismo
-  gancho. Chico la decisión; mediano el borrado ([decisiones](#decisiones-que-pide-la-revisión)).
+  gancho. Chico la decisión; mediano el borrado ([decisión 6](#decisiones-del-2026-11-14)).
 
 #### F11. Varias exportaciones grandes a la vez pueden dejar sin memoria a una copia
 
@@ -1097,8 +1096,9 @@ entidades; no controla las claves foráneas hacia el núcleo ni que el resto com
 
 ## Costos aceptados por decisiones documentadas
 
-No son defectos: los acepta una decisión escrita, y cambiarlos lo decidís vos. Los que la revisión pide reconsiderar están en
-[decisiones](#decisiones-que-pide-la-revisión).
+No son defectos: los acepta una decisión escrita, y cambiarlos lo decidís vos. El 2026-11-14 decidiste cambiar las horas del PDF,
+los destinatarios de un aviso y el toque viejo, y escribir el costo de los números en claro de la bandeja
+([decisiones](#decisiones-del-2026-11-14)).
 
 - **Las respuestas no tienen plazo:** registros, valores, recibos y versiones se conservan hasta que se decida la retención
   ([planes pendientes](../plans/README.md), «Formularios: retención de respuestas»). F10 dice qué más tiene que nombrar esa
@@ -1232,58 +1232,58 @@ No son defectos: los acepta una decisión escrita, y cambiarlos lo decidís vos.
   fuera del repositorio.
 - **Front.** Se leyó en `7b95095b`, sólo donde hacía falta para un criterio.
 
-## Decisiones que pide la revisión
+## Decisiones del 2026-11-14
 
-Cada una lleva la opción recomendada primero. Hasta que decidas, no se planifica ningún arreglo; lo que cambia una regla escrita
-se actualiza con su arreglo.
+En las ocho preguntas elegiste la opción recomendada. Las reglas escritas que cambian se actualizan con su arreglo, no antes: las
+tres líneas de [formularios](../features/formularios.md) de la decisión 4, la de [WhatsApp](../features/whatsapp.md) de la 5,
+la regla de los documentos recibidos de la 6 y la 8, y la fila de la retención en los [planes pendientes](../plans/README.md).
 
-1. **Horizonte.** Recomendado: «Hoy» entero (F1 a F26), con F1 antes de la prueba integral porque cambia datos sin avisar,
-   y los de convivencia de versiones (F27 a F31), que pasan en cada despliegue aunque haya una sola copia y entran en la
-   regla común que ya elegiste para WhatsApp (H25) y el núcleo (N27). F32, que con una sola copia sólo pasa si un efecto dura
-   más de dos minutos justo en la convivencia, va antes de pasar de una réplica. De gran escala, sólo lo chico que no cambia
-   contratos: contar sólo los documentos abiertos (F38), la purga de documentos (F40), la consulta por lote de la captura
-   (F37), el índice por fecha de las respuestas (F33), el índice de carpetas del menú (F47) y, de F48, ordenar por nombre
-   antes de cortar (el aviso de «hay más» cambia el contrato y va con el resto); el resto, cuando haya volumen real que medir.
-   Alternativa: antes de la prueba integral, F1 a F7 (los números, las reglas que se frenan, la publicación trabada, los
-   permisos, el PDF hostil y la privacidad), y el resto después.
-2. **Qué hace una regla cuando una acción no sale (F2).** Recomendado: consultar solo, con espera creciente, lo que quedó en duda
-   por un error local; una marca «Con acciones por resolver» en la planilla, con su contador para quien administra reglas; avisar a
-   quien cargó cuando su regla se frena, que es lo que pide ARCA H11; y que el aviso que no puede salir porque la ventana de 24
-   horas está cerrada quede «No aplica» para esa persona, con su motivo, sin frenar lo que sigue, como ya pasa con quien cargó en la
-   app sin canal. Alternativas: mandar ese aviso con una plantilla aprobada por Meta, que pide el trámite de plantillas anotado en
-   el traspaso al multitenant; o dejarlo frenado y sumar sólo la marca y el aviso.
-3. **«Administrar reglas y PDF» y las respuestas (F5).** Recomendado: pedir también «Ver respuestas» para guardar una regla
-   cuyos avisos citen respuestas, como dice la regla del dominio. Alternativa: escribir que administrar reglas permite mandar
-   respuestas por aviso, y decirlo en la descripción del permiso.
-4. **Tres reglas escritas que conviene reconsiderar.** Cada una cambia una línea de [formularios](../features/formularios.md):
-   - las horas del PDF: recomendado escribirlas en una zona con su nombre, por ejemplo la de la cuenta de quien cargó (la app y el
-     Excel usan la de quien lee o exporta; una zona propia del negocio no existe todavía en el núcleo, y sumarla sería otra
-     decisión); alternativa, seguir en UTC (`formularios.md:425`);
-   - los destinatarios de un aviso a un rol: recomendado saltear al mandar, como «No aplica», a quien ya no es del rol; alternativa,
-     seguir fijándolos al capturar (`formularios.md:271`);
-   - el toque viejo en «¿La emito?»: recomendado contestarle una vez a quien cargó «Esa respuesta ya no se puede emitir», en su
-     idioma, y seguir ignorando lo ajeno; alternativa, seguir ignorándolo (`formularios.md:1199-1204`).
-5. **Los números (F1).** Recomendado: que la carga desde la app lea el número con la región del idioma y marque lo ambiguo para
-   que la persona lo confirme, como la importación de catálogos, con la ayuda «sin separador de miles» mientras tanto; y que el Flow
-   de WhatsApp lea igual, con la cultura del Flow, lo que cambia la regla que hoy acepta el costo ([WhatsApp](../features/whatsapp.md),
-   `whatsapp.md:524`). Alternativa: sólo la app; el Flow sigue con su ayuda.
-6. **La retención (F10 y F9).** Recomendado: decidir ahora el plazo del documento propuesto que nadie revisa (90 días después
-   de vencido su envío pasa a descartado con motivo «venció» y sigue la purga), y que la decisión pendiente de retención nombre todo
-   lo que lista F10, con el borrado definitivo de una persona como un puerto del núcleo que implementa cada módulo. Alternativa:
-   dejarlo todo para la decisión de retención, antes de producción.
-7. **Los temas de «Formularios que faltan» (F7 y F14).** Recomendado: que un tema nuevo no se ofrezca a otras personas hasta
-   que lo revise alguien con «Diseñar formularios», que el asistente reciba sólo su nombre, y separar la completitud de los temas
-   de la de los formularios, para que la función no se apague sola. Alternativa: sólo sacar la descripción y separar la
-   completitud.
-8. **Los números en claro de la bandeja.** Recomendado: aceptar el costo por escrito en la regla de documentos, porque lo que
-   expone de un documento confirmado ya está en claro en la respuesta, y decidir el cifrado de las copias de archivos junto con el
-   N15 del núcleo. Alternativa: guardar huellas HMAC de los números, que pierde la búsqueda por prefijo.
+1. **Horizonte: «Hoy» entero, con F1 primero.** El plan lleva F1 a F26 y los casos de convivencia de versiones, F27 a F31, con la
+   regla común que ya rige para WhatsApp (H25) y el núcleo (N27). F1 va antes de la prueba integral, porque cambia datos sin
+   avisar. F32 va antes de pasar de una réplica (hoy `--max-replicas 1`): con una sola copia sólo pasa si un efecto dura más de dos
+   minutos justo en la convivencia. De gran escala entra sólo lo chico que no cambia contratos: contar sólo los documentos
+   abiertos (F38), la purga de documentos (F40), la consulta por lote de la captura (F37), el índice por fecha de las respuestas
+   (F33), el índice de carpetas del menú (F47) y, de F48, ordenar por nombre antes de cortar; el resto, cuando haya volumen real
+   que medir. Se descartó dejar para después de la prueba todo lo que no toca datos ni permisos.
+2. **F2: una regla que no puede seguir avisa.** Se consulta sola, con espera creciente, la acción que quedó en duda por un error
+   local (la consulta nunca reenvía); la planilla de cada formulario marca las respuestas «Con acciones por resolver», con su
+   filtro y un contador para quien administra reglas; a quien cargó le llega un aviso cuando su regla se frena, que es lo que
+   pedía ARCA H11; y el aviso que no puede salir porque la ventana de 24 horas está cerrada queda «No aplica» para esa persona,
+   con su motivo, sin frenar lo que sigue, como ya pasa con quien cargó en la app sin canal. Se descartaron la plantilla aprobada
+   por Meta, que pide el trámite de plantillas, y dejar la regla frenada con sólo la marca y el aviso.
+3. **F5: guardar una regla cuyos avisos citen respuestas pide también «Ver respuestas»,** además de «Administrar reglas y PDF»,
+   como dice la regla del dominio. Se descartó escribir que administrar reglas permite mandar respuestas por aviso.
+4. **Tres reglas escritas cambian:**
+   - las horas del PDF van en una zona con su nombre, por ejemplo la de la cuenta de quien cargó, en lugar de UTC
+     (`formularios.md:425`); una zona propia del negocio no existe todavía en el núcleo, y sumarla sería otra decisión;
+   - un aviso a un rol saltea al mandar, como «No aplica», a quien ya no es del rol (`formularios.md:271`);
+   - ante un toque viejo en «¿La emito?», quien cargó recibe una vez «Esa respuesta ya no se puede emitir», en su idioma; lo
+     ajeno se sigue ignorando (`formularios.md:1199-1204`).
+5. **F1: los números se leen con la región del idioma, también en el Flow.** La carga desde la app lee el número con la región del
+   idioma de quien carga y marca lo ambiguo («1.500», con un solo separador y tres cifras) para que la persona lo confirme, como
+   la importación de catálogos; mientras tanto, la ayuda «sin separador de miles». El Flow de WhatsApp lee igual, con la cultura
+   del Flow, y cambia la regla que hoy acepta el costo (`whatsapp.md:524`). Se descartó cambiar sólo la app.
+6. **Retención: el documento propuesto vence, y la decisión pendiente nombra todo.** Un documento propuesto que nadie revisa, o
+   uno descartado que alguien reabre, pasa a descartado con motivo «venció» a los 90 días (desde que vence su envío, o desde que
+   se reabrió) y sigue la purga de siempre. La decisión pendiente de retención de las respuestas nombra todo lo que lista F10
+   (acciones, tareas, resultados, PDF fijos, documentos confirmados, datos de las personas y pedidos faltantes), con el borrado
+   definitivo de una persona como un puerto del núcleo que implementa cada módulo. Se descartó dejarlo todo para la decisión de
+   retención.
+7. **F7 y F14: un tema de «Formularios que faltan» se revisa antes de ofrecerse.** Un tema nuevo, o uno descartado que reabre
+   otro pedido, no se ofrece a otras personas hasta que lo revisa alguien con «Diseñar formularios»; el asistente recibe sólo su
+   nombre, sin la descripción; y la completitud de los temas se separa de la de los formularios, para que la función no se apague
+   sola. Se descartó sacar sólo la descripción.
+8. **Los números en claro de la bandeja se aceptan por escrito.** La regla de los documentos recibidos dice el costo: lo que
+   expone de un documento confirmado ya está en claro en la respuesta. El cifrado de las copias de archivos se decide con el N15
+   del núcleo. Se descartaron las huellas HMAC, que pierden la búsqueda por prefijo.
 
 ## Cómo seguir
 
-- **Antes de la prueba integral:** F1, que es chico y cambia datos sin avisar. Lo demás espera tus decisiones.
-- **Tus decisiones:** las ocho de arriba.
-- **El plan:** los arreglos elegidos se planifican aparte en `docs/plans`, como los de WhatsApp, ARCA y el núcleo.
+- **Antes de la prueba integral:** F1, que es chico y cambia datos sin avisar.
+- **Tus decisiones:** tomadas el 2026-11-14 ([decisiones](#decisiones-del-2026-11-14)).
+- **El plan de «Hoy»:** falta armarlo con esas decisiones, en `docs/plans` y anexado al plan que corresponda, como los de
+  WhatsApp, ARCA, el núcleo y la IA. Ahí van también las reglas que cambian y la lista de la retención para su fila de los planes
+  pendientes.
 - **Lo que ya estaba anotado:** la retención de respuestas y la deuda menor de la Etapa 1, en [planes pendientes](../plans/README.md);
   el lock global, en WhatsApp H32.
 - **Repetir:** cuando el módulo cambie mucho o antes de subir de horizonte, comparando con ésta.
