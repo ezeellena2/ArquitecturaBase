@@ -20,6 +20,8 @@ internal sealed class WhatsAppAssistantWorkerFixture : IAsyncDisposable
     public OutgoingClock Clock { get; } = new();
     public bool CancelAfterProvider { get; set; }
     public bool Uncertain { get; set; }
+    public WhatsAppSendResult? NextResult { get; set; }
+    public string? CompletedFailureCode { get; private set; }
     public bool CompletedWithLiveToken { get; private set; }
     public string? CompletedId { get; private set; }
     public bool CompletedUncertain { get; private set; }
@@ -70,7 +72,7 @@ internal sealed class WhatsAppAssistantWorkerFixture : IAsyncDisposable
         public Task<Result<bool>> MarkFormActionMessageEffectAsync(Guid contact,Guid operation,Guid reservation,CancellationToken ct)=>throw new NotSupportedException();
         public Task<Result<bool>> RecordFormActionMediaAsync(Guid operation,Guid reservation,string media,CancellationToken ct)=>throw new NotSupportedException();
         public Task<Result> CompleteAsync(Guid contact,Guid operation,string? id,bool uncertain,CancellationToken ct,Guid? reservationId=null,string? failureCode=null)
-        {host.Events.Add("complete");host.CompletedWithLiveToken=!ct.IsCancellationRequested;host.CompletedId=id;host.CompletedUncertain=uncertain;return Task.FromResult(Result.Success());}
+        {host.Events.Add("complete");host.CompletedWithLiveToken=!ct.IsCancellationRequested;host.CompletedId=id;host.CompletedUncertain=uncertain;host.CompletedFailureCode=failureCode;return Task.FromResult(Result.Success());}
     }
     private sealed class Coordinator(WhatsAppAssistantWorkerFixture host):IWhatsAppDispatchCoordinator
     {
@@ -82,7 +84,7 @@ internal sealed class WhatsAppAssistantWorkerFixture : IAsyncDisposable
     private sealed class Cloud(WhatsAppAssistantWorkerFixture host):IWhatsAppCloudClient
     {
         public Task<WhatsAppSendResult> SendAsync(WhatsAppOutboundMessage message,CancellationToken ct)
-        {host.Events.Add("post");host.SentMessage=message;if(host.CancelAfterProvider)host.Shutdown.Cancel();return Task.FromResult(host.Uncertain?WhatsAppSendResult.Uncertain():WhatsAppSendResult.Sent("wamid.assistant-known"));}
+        {host.Events.Add("post");host.SentMessage=message;if(host.CancelAfterProvider)host.Shutdown.Cancel();return Task.FromResult(host.NextResult??(host.Uncertain?WhatsAppSendResult.Uncertain():WhatsAppSendResult.Sent("wamid.assistant-known")));}
     }
     public sealed class OutgoingClock : FakeTimeProvider
     {

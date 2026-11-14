@@ -75,6 +75,14 @@
   <data name="WhatsApp.Chat.DestinationMissing" xml:space="preserve"><value>Este contacto no tiene un número válido para responder.</value></data>
   <data name="WhatsApp.Chat.RequestConflict" xml:space="preserve"><value>Este pedido ya corresponde a otro texto. Revisá el envío.</value></data>
   <data name="WhatsApp.Chat.ReadPositionInvalid" xml:space="preserve"><value>La posición de lectura no corresponde al historial guardado.</value></data>
+  <data name="WhatsApp.Send.NotAllowed" xml:space="preserve"><value>Este número no está habilitado para recibir mensajes de la cuenta de WhatsApp.</value></data>
+  <data name="WhatsApp.Send.WindowClosed" xml:space="preserve"><value>La ventana para responder terminó antes de que saliera. Esperá un mensaje nuevo del contacto.</value></data>
+  <data name="WhatsApp.Send.Undeliverable" xml:space="preserve"><value>Meta no pudo entregarlo: puede que el número no tenga WhatsApp.</value></data>
+  <data name="WhatsApp.Send.RateLimited" xml:space="preserve"><value>Meta lo frenó por su límite de mensajes. Probá de nuevo en un rato.</value></data>
+  <data name="WhatsApp.Send.TokenInvalid" xml:space="preserve"><value>La conexión con WhatsApp venció o la revocaron. Hay que renovarla.</value></data>
+  <data name="WhatsApp.Send.PermissionMissing" xml:space="preserve"><value>A la conexión con WhatsApp le falta un permiso para enviar.</value></data>
+  <data name="WhatsApp.Send.Unavailable" xml:space="preserve"><value>No se pudo llegar a WhatsApp, ni con los reintentos. Probá de nuevo en un rato.</value></data>
+  <data name="WhatsApp.Send.Rejected" xml:space="preserve"><value>WhatsApp rechazó el mensaje.</value></data>
   <data name="Ai.Connection.Invalid" xml:space="preserve"><value>Revisá el proveedor y el modelo de la conexión.</value></data>
   <data name="Ai.Connection.CredentialRequired" xml:space="preserve"><value>Configurá una clave para usar o probar la conexión.</value></data>
   <data name="Ai.Connection.ProviderChanged" xml:space="preserve"><value>Al cambiar de proveedor, reemplazá o quitá la clave.</value></data>

@@ -80,11 +80,13 @@ internal sealed partial class WhatsAppSenderBackgroundService(
                     // el turno tomado). Meta no se llamó: el mensaje no se descarta, espera la demora de los reintentos y lo
                     // vuelve a intentar, sin gastar un intento. Con el apagado, vuelve a la cola.
                     LogTurnUnavailable(logger, messageType, recipient, exception.GetType().Name);
+                    WhatsAppMetrics.RecordAccess("turnUnavailable");
                     if (message.ExpiresAtUtc is { } expiresAtUtc && timeProvider.GetUtcNow().UtcDateTime >= expiresAtUtc)
                     {
                         // Venció mientras esperaba su turno (un código, a los diez minutos): ya no sirve mandarlo, y se informa
                         // como no enviado.
                         LogExpiredWaitingForTurn(logger, messageType, recipient);
+                        WhatsAppMetrics.RecordAccess("expired");
                         await RecordUnsentAsync(message, messageType, recipient);
 
                         return true;
@@ -131,6 +133,7 @@ internal sealed partial class WhatsAppSenderBackgroundService(
             {
                 health.ReportSent();
                 LogSent(logger, messageType, recipient);
+                WhatsAppMetrics.RecordAccess("sent");
 
                 await RecordAsync(message, result.WaMessageId!, messageType, recipient);
 
@@ -141,6 +144,7 @@ internal sealed partial class WhatsAppSenderBackgroundService(
             {
                 // H7: Meta pudo haberlo recibido: no se reintenta (se mandaría dos veces) ni se informa como no enviado.
                 LogUncertain(logger, messageType, recipient);
+                WhatsAppMetrics.RecordAccess("uncertain");
                 await RecordUncertainAsync(message, messageType, recipient);
 
                 return true;
@@ -162,6 +166,7 @@ internal sealed partial class WhatsAppSenderBackgroundService(
                     LogMissingPermission(logger, messageType, recipient, result.MetaErrorCode);
                 }
 
+                WhatsAppMetrics.RecordAccess("failed");
                 await RecordUnsentAsync(message, messageType, recipient);
 
                 return true;
@@ -170,6 +175,7 @@ internal sealed partial class WhatsAppSenderBackgroundService(
             if (!failure.IsRetryable())
             {
                 LogNotSent(logger, messageType, recipient, failure, result.MetaErrorCode);
+                WhatsAppMetrics.RecordAccess("failed");
                 await RecordUnsentAsync(message, messageType, recipient);
 
                 return true;
@@ -178,6 +184,7 @@ internal sealed partial class WhatsAppSenderBackgroundService(
             if (attempt == MaxAttempts)
             {
                 LogDropped(logger, messageType, recipient, MaxAttempts, failure, result.MetaErrorCode);
+                WhatsAppMetrics.RecordAccess("failed");
                 await RecordUnsentAsync(message, messageType, recipient);
 
                 return true;
@@ -187,6 +194,7 @@ internal sealed partial class WhatsAppSenderBackgroundService(
             // mensaje a la misma persona (131056) y el intento se pierde.
             var delay = TimeSpan.FromSeconds(options.Value.RetryDelaySeconds);
             LogRetry(logger, messageType, recipient, failure, result.MetaErrorCode, attempt, MaxAttempts, delay.TotalSeconds);
+            WhatsAppMetrics.RecordAccess("retry");
 
             try
             {

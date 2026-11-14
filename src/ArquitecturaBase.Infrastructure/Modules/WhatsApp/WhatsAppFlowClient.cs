@@ -14,7 +14,7 @@ using Microsoft.Extensions.Options;
 
 namespace ArquitecturaBase.Infrastructure.Modules.WhatsApp;
 
-internal sealed partial class WhatsAppFlowClient(HttpClient httpClient, IOptions<WhatsAppOptions> options) : IWhatsAppFlowProvider
+internal sealed partial class WhatsAppFlowClient(HttpClient httpClient, IOptions<WhatsAppOptions> options, WhatsAppHealth health) : IWhatsAppFlowProvider
 {
     private const int MaximumBodyBytes = 1024 * 1024;
     private static readonly string[] Categories = ["OTHER"];
@@ -30,6 +30,7 @@ internal sealed partial class WhatsAppFlowClient(HttpClient httpClient, IOptions
                 if (after is not null) path += "&after=" + Uri.EscapeDataString(after);
                 using var request = GraphRequest(HttpMethod.Get, path);
                 using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+                health.Observe(response.StatusCode, WhatsAppTokenUse.Management);
                 if (!response.IsSuccessStatusCode) return FlowErrors.AccountUnavailable;
                 var bytes = await ReadBytesAsync(response.Content, cancellationToken);
                 if (bytes is null) return FlowErrors.AccountUnavailable;
@@ -72,6 +73,7 @@ internal sealed partial class WhatsAppFlowClient(HttpClient httpClient, IOptions
             {
                 using var request = GraphRequest(HttpMethod.Post, options.Value.GraphApiVersion + "/" + path); request.Content = content;
                 using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+                health.Observe(response.StatusCode, WhatsAppTokenUse.Management);
                 if ((int)response.StatusCode is >= 500 or 429) return new(false, true, null, []);
                 var bytes = await ReadBytesAsync(response.Content, ct);
                 if (!response.IsSuccessStatusCode) return new(false, false, null, [], requireAcknowledgement ? FlowErrors.DeprecationRejected.Code : null);
@@ -174,6 +176,7 @@ internal sealed partial class WhatsAppFlowClient(HttpClient httpClient, IOptions
         {
             using var request = GraphRequest(HttpMethod.Get, path);
             using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+            health.Observe(response.StatusCode, WhatsAppTokenUse.Management);
             if (!response.IsSuccessStatusCode) return null;
             var bytes = await ReadBytesAsync(response.Content, ct);
             return bytes is null ? null : JsonDocument.Parse(bytes);

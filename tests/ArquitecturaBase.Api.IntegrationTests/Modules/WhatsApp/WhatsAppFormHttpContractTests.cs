@@ -119,6 +119,8 @@ public sealed partial class WhatsAppFormSendingTests
             var outcome = await CaptureAsync(uncertain ? "outgoing-uncertain" : "outgoing-failed",
                 author.GetAsync($"/api/whatsapp/chats/{nextContactId}/outgoing/{nextRequestId}", Ct), HttpStatusCode.OK);
             Assert.Equal(uncertain ? "Uncertain" : "Failed", outcome.GetProperty("state").GetString());
+            // H9: the failed one says why; the uncertain one does not.
+            Assert.Equal(uncertain ? null : "WhatsApp.Send.Undeliverable", outcome.TryGetProperty("failureCode", out var failureCode) ? failureCode.GetString() : null);
             await CaptureAsync(uncertain ? "thread-uncertain" : "thread-failed",
                 author.GetAsync($"/api/whatsapp/chats/{nextContactId}/messages", Ct), HttpStatusCode.OK);
         }

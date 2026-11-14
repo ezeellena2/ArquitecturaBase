@@ -87,6 +87,8 @@ public sealed record WhatsAppOutgoingMessageRow(
     /// <summary>H2: who marked an uncertain send as reviewed, and when.</summary>
     public Guid? ReviewedByUserId { get; init; }
     public DateTime? ReviewedAtUtc { get; init; }
+    /// <summary>H9: why a failed send did not go out, when it says.</summary>
+    public string? FailureCode { get; init; }
 }
 public sealed record WhatsAppThreadRow(
     WhatsAppChatRow Contact, IReadOnlyList<WhatsAppMessageRow> Messages,

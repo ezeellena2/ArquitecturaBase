@@ -14,7 +14,7 @@ public sealed class WhatsAppFlowDeprecationClientTests
         using var handler = new StubFlowHttpHandler(_ => new(HttpStatusCode.OK) { Content = new StringContent("{\"success\":true}") });
         using var http = new HttpClient(handler) { BaseAddress = WhatsAppCloudClient.GraphApiAddress };
         var settings = Settings();
-        var result = await new WhatsAppFlowClient(http, Options.Create(settings)).DeprecateAsync(Account(settings), "333", TestContext.Current.CancellationToken);
+        var result = await new WhatsAppFlowClient(http, Options.Create(settings), new WhatsAppHealth()).DeprecateAsync(Account(settings), "333", TestContext.Current.CancellationToken);
         Assert.True(result.Success); Assert.False(result.Uncertain);
         var request = Assert.Single(handler.Requests);
         Assert.Equal(HttpMethod.Post, request.Method);
@@ -37,7 +37,7 @@ public sealed class WhatsAppFlowDeprecationClientTests
         using var handler = new StubFlowHttpHandler(_ => new((HttpStatusCode)code) { Content = new StringContent(json) });
         using var http = new HttpClient(handler) { BaseAddress = WhatsAppCloudClient.GraphApiAddress };
         var settings = Settings();
-        var result = await new WhatsAppFlowClient(http, Options.Create(settings)).DeprecateAsync(Account(settings), "333", TestContext.Current.CancellationToken);
+        var result = await new WhatsAppFlowClient(http, Options.Create(settings), new WhatsAppHealth()).DeprecateAsync(Account(settings), "333", TestContext.Current.CancellationToken);
         Assert.False(result.Success); Assert.Equal(uncertain, result.Uncertain);
         Assert.Single(handler.Requests);
     }
@@ -56,7 +56,7 @@ public sealed class WhatsAppFlowDeprecationClientTests
         using var handler = new StubFlowHttpHandler(_ => new(HttpStatusCode.OK) { Content = new StringContent(json) });
         using var http = new HttpClient(handler) { BaseAddress = WhatsAppCloudClient.GraphApiAddress };
         var settings = Settings();
-        var result = await new WhatsAppFlowClient(http, Options.Create(settings)).GetStateAsync(Account(settings), "333", "fixed", TestContext.Current.CancellationToken);
+        var result = await new WhatsAppFlowClient(http, Options.Create(settings), new WhatsAppHealth()).GetStateAsync(Account(settings), "333", "fixed", TestContext.Current.CancellationToken);
         Assert.Equal(identityMatches, result.IdentityMatches); Assert.Equal(expected, result.State);
         var request = Assert.Single(handler.Requests);
         Assert.Equal(HttpMethod.Get, request.Method);
@@ -73,7 +73,7 @@ public sealed class WhatsAppFlowDeprecationClientTests
         using var handler = new StubFlowHttpHandler(_ => throw new InvalidOperationException("The different connection must not be called."));
         using var http = new HttpClient(handler) { BaseAddress = WhatsAppCloudClient.GraphApiAddress };
         var settings = Settings();
-        var client = new WhatsAppFlowClient(http, Options.Create(settings));
+        var client = new WhatsAppFlowClient(http, Options.Create(settings), new WhatsAppHealth());
         var other = new WhatsAppFlowAccountContext("999", "111", "v25.0", "old");
         Assert.False((await client.DeprecateAsync(other, "333", TestContext.Current.CancellationToken)).Success);
         var state = await client.GetStateAsync(other, "333", "fixed", TestContext.Current.CancellationToken);
@@ -94,7 +94,7 @@ public sealed class WhatsAppFlowDeprecationClientTests
             : new(HttpStatusCode.OK) { Content = new StringContent("{\"id\":\"333\",\"name\":\"fixed\",\"status\":\"DEPRECATED\",\"whatsapp_business_account\":{\"id\":\"222\"}}") });
         using var http = new HttpClient(handler) { BaseAddress = WhatsAppCloudClient.GraphApiAddress };
         var settings = Settings();
-        var client = new WhatsAppFlowClient(http, Options.Create(settings));
+        var client = new WhatsAppFlowClient(http, Options.Create(settings), new WhatsAppHealth());
         var result = await client.DeprecateAsync(Account(settings), "333", TestContext.Current.CancellationToken);
         Assert.False(result.Success); Assert.False(result.Uncertain);
         Assert.Equal("WhatsApp.Flow.DeprecationRejected", result.FailureCode);
@@ -112,7 +112,7 @@ public sealed class WhatsAppFlowDeprecationClientTests
         using var handler = new StubFlowHttpHandler(_ => new(HttpStatusCode.BadRequest) { Content = new StringContent("{}") });
         using var http = new HttpClient(handler) { BaseAddress = WhatsAppCloudClient.GraphApiAddress };
         var settings = Settings();
-        var result = await new WhatsAppFlowClient(http, Options.Create(settings)).PublishAsync(Account(settings), "333", TestContext.Current.CancellationToken);
+        var result = await new WhatsAppFlowClient(http, Options.Create(settings), new WhatsAppHealth()).PublishAsync(Account(settings), "333", TestContext.Current.CancellationToken);
         Assert.False(result.Success); Assert.False(result.Uncertain); Assert.Null(result.FailureCode);
     }
 

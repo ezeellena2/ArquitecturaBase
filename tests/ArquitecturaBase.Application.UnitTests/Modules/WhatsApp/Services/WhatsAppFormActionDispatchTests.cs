@@ -15,6 +15,18 @@ public sealed class WhatsAppFormActionDispatchTests
     private static readonly DateTimeOffset Now = new(2026, 10, 16, 12, 0, 0, TimeSpan.Zero);
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
+    // H9: a manual send whose 24-hour window closed while it waited fails saying so, as when Meta refuses it for the window.
+    [Fact]
+    public async Task A_manual_send_whose_window_closed_while_it_waited_says_so()
+    {
+        var host = new Host(manual: true);
+        host.Clock.Advance(TimeSpan.FromHours(25));
+
+        Assert.True((await host.Service.ReserveAsync(Ct)).Value.Progressed);
+
+        Assert.Equal((WhatsAppOutgoingMessageState.Failed, "WhatsApp.Send.WindowClosed"), (host.Repository.Outgoing.State, host.Repository.Outgoing.FailureCode));
+    }
+
     [Fact]
     public async Task Reservation_in_bot_mode_does_not_require_an_operator_or_start_the_message_effect()
     {
@@ -119,12 +131,14 @@ public sealed class WhatsAppFormActionDispatchTests
         public InMemoryWhatsAppMessageRepository Messages { get; } = new(new LockLog());
         public FakeTimeProvider Clock { get; } = new(Now);
         public WhatsAppChatDispatchService Service { get; }
-        public Host(bool document = false)
+        public FakePermissionService Permissions { get; } = new();
+        public Host(bool document = false, bool manual = false)
         {
             var users = new InMemoryUserAccounts(); var user = users.AddUser("recipient@example.com", phoneNumber: "+5493413654813");
-            Repository = new(user.Id, document);
+            Repository = new(user.Id, document, manual);
+            if (manual) Permissions.Permissions[user.Id] = [WhatsAppPermissions.Read, WhatsAppPermissions.Send];
             var parser = new FakePhoneNumberParser(); var policy = new WhatsAppFormActionPolicy(users, parser, new FakeWhatsAppAvailability(true, true), Clock);
-            Service = new(Repository, Messages, new FakeUnitOfWork(), Clock, new WhatsAppOutgoingSendGuard(parser,new(users,new FakePermissionService()),policy,
+            Service = new(Repository, Messages, new FakeUnitOfWork(), Clock, new WhatsAppOutgoingSendGuard(parser,new(users,Permissions),policy,
                 new WhatsAppAssistantContextFixture().Policy,new FakeWhatsAppAssistantReader(),new UnusedSessions(),new FakeAssistantForms(),Clock), NullLogger<WhatsAppChatDispatchService>.Instance);
         }
     }
@@ -140,11 +154,12 @@ public sealed class WhatsAppFormActionDispatchTests
     {
         public WhatsAppContact Contact { get; } = WhatsAppContact.Create("5493413654813", null, "Ana", Now.UtcDateTime);
         public WhatsAppOutgoingMessage Outgoing { get; }
-        public Repository(Guid recipient, bool document)
+        public Repository(Guid recipient, bool document, bool manual = false)
         {
             Contact.LinkUser(recipient);
-            Outgoing = WhatsAppOutgoingMessage.CreateFormAction(recipient, Contact.Id, Guid.NewGuid(), "Visita aprobada", Now.UtcDateTime,
-                document ? new("private/visit.pdf", "Visit.pdf", "application/pdf", 80, new string('a', 64)) : null, Contact.LinkRevision, Contact.WaId);
+            Outgoing = manual ? WhatsAppOutgoingMessage.Create(recipient, Contact.Id, Guid.NewGuid(), "Hola", Now.UtcDateTime)
+                : WhatsAppOutgoingMessage.CreateFormAction(recipient, Contact.Id, Guid.NewGuid(), "Visita aprobada", Now.UtcDateTime,
+                    document ? new("private/visit.pdf", "Visit.pdf", "application/pdf", 80, new string('a', 64)) : null, Contact.LinkRevision, Contact.WaId);
         }
         public Task<WhatsAppContact?> GetForUpdateAsync(Guid id, CancellationToken ct) => Task.FromResult<WhatsAppContact?>(Contact.Id == id ? Contact : null);
         public Task<WhatsAppOutgoingMessage?> GetOutgoingAsync(Guid id, CancellationToken ct) => Task.FromResult<WhatsAppOutgoingMessage?>(Outgoing.Id == id ? Outgoing : null);

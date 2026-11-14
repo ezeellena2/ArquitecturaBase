@@ -49,6 +49,7 @@ public static class WhatsAppInfrastructureRegistration
         services.AddScoped<IWhatsAppAssistantAgentRepository, WhatsAppAssistantAgentRepository>();
         services.AddScoped<IWhatsAppAssistantHistoryReader, WhatsAppAssistantHistoryReader>();
         services.AddScoped<IWhatsAppAudioReader, WhatsAppAudioReader>();
+        services.AddScoped<IWhatsAppOutgoingWorkloadReader, WhatsAppOutgoingWorkloadReader>();
         services.AddScoped<IWhatsAppAudioRepository, WhatsAppAudioRepository>();
         services.AddScoped<IWhatsAppSpreadsheetReader, WhatsAppSpreadsheetReader>();
         services.AddScoped<IWhatsAppSpreadsheetRepository, WhatsAppSpreadsheetRepository>();
@@ -84,6 +85,8 @@ public static class WhatsAppInfrastructureRegistration
         // permisos. Hace falta arreglarlo en Meta o cargar otro, y recién ahí reiniciar.
         services.AddSingleton<WhatsAppHealth>();
         services.AddHealthChecks().AddCheck<WhatsAppHealthCheck>(WhatsAppHealthCheck.Name);
+        // H9: what each send ended in, as the assistant counts its own.
+        services.AddOpenTelemetry().WithMetrics(metrics => metrics.AddMeter(WhatsAppMetrics.MeterName));
 
         AddMessageRetention(services, section);
 

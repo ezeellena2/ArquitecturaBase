@@ -46,8 +46,9 @@ internal sealed class WhatsAppOutgoingSendGuard(IPhoneNumberParser phoneNumbers,
             if (!await ValidateAssistantContentAsync(outgoing, reference, ct)) return WhatsAppAssistantErrors.InvalidProposal;
         }
         else if (contact is null || contact.Mode != WhatsAppConversationMode.Manual
-            || !WhatsAppChatService.IsReplyWindowOpen(contact, clock.GetUtcNow().UtcDateTime)
             || !await manualSends.IsAllowedAsync(outgoing.OperatorUserId, ct)) return WhatsAppChatErrors.ManualRequired;
+        // H9: the 24-hour window closed while the send waited: it says so, as when Meta refuses it for the window.
+        else if (!WhatsAppChatService.IsReplyWindowOpen(contact, clock.GetUtcNow().UtcDateTime)) return WhatsAppSendErrors.WindowClosed;
         if (string.IsNullOrWhiteSpace(outgoing.Body)) return WhatsAppAssistantErrors.InvalidRequest;
         return WhatsAppIds.Parse(phoneNumbers, contact?.WaId);
     }

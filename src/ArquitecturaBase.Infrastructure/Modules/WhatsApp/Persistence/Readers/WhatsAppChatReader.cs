@@ -222,6 +222,7 @@ internal sealed class WhatsAppChatReader(ApplicationDbContext dbContext) : IWhat
                     ? new WhatsAppAssistantPresentationRow(item.FlowSession.Id,item.FlowSession.ContactId,item.FlowSession.UserId,item.FlowSession.VersionId,item.FlowSession.ProtectedAssistantContent,item.FlowSession.AssistantContentExpiresAtUtc.Value) : null, QuickRepliesJson = item.QuickRepliesJson,
             AssistantReplyJson = item.AssistantReplyJson, ListButton = item.Kind == WhatsAppOutgoingMessageKind.List ? item.ListButton : null,
             SpreadsheetRowsJson = item.SpreadsheetRowsJson, ReviewedByUserId = item.DeliveryReviewedByUserId, ReviewedAtUtc = item.DeliveryReviewedAtUtc,
+            FailureCode = item.State == WhatsAppOutgoingMessageState.Failed ? item.FailureCode : null,
             // W3 (task 24): «Prellenado con» of a queued resend, while the retention keeps what was written.
             SharedPrefill = item.Kind == WhatsAppOutgoingMessageKind.Flow && item.IsResend && item.FlowSession != null && item.FlowSession.SharedContentJson != null
                 && item.FlowSession.ProtectedSharedValues != null

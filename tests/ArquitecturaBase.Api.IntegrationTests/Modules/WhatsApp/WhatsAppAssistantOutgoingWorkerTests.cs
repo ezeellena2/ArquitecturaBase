@@ -1,6 +1,8 @@
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.WhatsApp;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
+using ArquitecturaBase.Infrastructure.Modules.WhatsApp;
+using Microsoft.Extensions.Diagnostics.Metrics.Testing;
 
 namespace ArquitecturaBase.Api.IntegrationTests.Modules.WhatsApp;
 
@@ -13,6 +15,26 @@ public sealed class WhatsAppAssistantOutgoingWorkerTests
         await using var host=new WhatsAppAssistantWorkerFixture();
         await host.Worker.ProcessNextAsync(Ct);
         Assert.Equal(new[]{"reserve","lease","mark","post","complete"},host.Events);
+    }
+    // H9: an assistant send that Meta refuses keeps why, one stable code per kind of refusal, and the count of what it ended in has it.
+    [Fact]
+    public async Task A_refused_assistant_send_keeps_why_it_did_not_go_out()
+    {
+        using var outcomes=new MetricCollector<long>(null,WhatsAppMetrics.MeterName,"whatsapp.outgoing.outcomes");
+        await using var host=new WhatsAppAssistantWorkerFixture{NextResult=WhatsAppSendResult.Failed(WhatsAppSendFailure.Undeliverable,131026)};
+        await host.Worker.ProcessNextAsync(Ct);
+        Assert.Equal((false,"WhatsApp.Send.Undeliverable"),(host.CompletedUncertain,host.CompletedFailureCode));
+        Assert.Contains(outcomes.GetMeasurementSnapshot(),measurement=>measurement.Tags["outcome"] is "failed"&&measurement.Tags["origin"] is "Assistant");
+    }
+    // H9: an assistant send that did not go out after its retries keeps that it could not reach WhatsApp.
+    [Fact]
+    public async Task An_assistant_send_that_spent_its_retries_keeps_that_whatsapp_was_unavailable()
+    {
+        await using var host=new WhatsAppAssistantWorkerFixture{NextResult=WhatsAppSendResult.Failed(WhatsAppSendFailure.Transient)};
+        host.Operation=host.Operation with{DispatchRetries=WhatsAppDispatchPacing.MaxRetries};
+        await host.Worker.ProcessNextAsync(Ct);
+        Assert.Equal("WhatsApp.Send.Unavailable",host.CompletedFailureCode);
+        Assert.DoesNotContain("retry",host.Events);
     }
     [Fact]
     public async Task A_rejected_revalidation_never_invokes_the_provider()

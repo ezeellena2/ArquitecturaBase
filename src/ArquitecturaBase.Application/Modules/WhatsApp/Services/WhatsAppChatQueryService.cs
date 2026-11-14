@@ -68,7 +68,10 @@ internal sealed class WhatsAppChatQueryService(IWhatsAppChatReader reader, IWhat
                 // W3 (task 24): «Prellenado con» of a resend that went out, with what the send had taken when it left.
                 Prefill: presentation.Prefill(message.SharedPrefill, recordResult.CanReadRecords, message.OccurredAtUtc),
                 // VC1-A (task 29): «Por qué lo propuso» of the notice of the loads, its forms named in the reader's language as they are now.
-                SpreadsheetRows: WhatsAppSpreadsheetRowsCodec.Read(message.SpreadsheetRowsJson, formNames)))],
+                SpreadsheetRows: WhatsAppSpreadsheetRowsCodec.Read(message.SpreadsheetRowsJson, formNames),
+                // H9: what went out and Meta later reported as failed says why.
+                FailureCode: message.Direction == WhatsAppMessageDirection.Outbound && message.Status == WhatsAppMessageStatus.Failed
+                    && message.Purpose != WhatsAppMessagePurpose.Access ? WhatsAppSendErrors.FromMetaCode(message.ErrorCode)?.Code : null))],
             [.. row.Outgoing.Select(item => ToOutgoingResponse(item, recordResult.CanReadRecords, formNames))], row.BeforeAtUtc, row.BeforeId, recordResult.CanReadRecords)
             {
                 AssistantAvailability = availability, AssistantSuggestion = pointer,
@@ -102,7 +105,8 @@ internal sealed class WhatsAppChatQueryService(IWhatsAppChatReader reader, IWhat
             SpreadsheetRows: WhatsAppSpreadsheetRowsCodec.Read(row.SpreadsheetRowsJson, formNames ?? new Dictionary<Guid, string>()),
             // H2: who reviewed a send of the chat; a notice's reviewer belongs to the forms' review, not to the thread.
             ReviewedByUserId: IsReviewedSend(row) ? row.ReviewedByUserId : null,
-            ReviewedAtUtc: IsReviewedSend(row) ? row.ReviewedAtUtc : null);
+            ReviewedAtUtc: IsReviewedSend(row) ? row.ReviewedAtUtc : null,
+            FailureCode: row.State == WhatsAppOutgoingMessageState.Failed ? row.FailureCode : null);
 
     private static bool IsReviewedSend(WhatsAppOutgoingMessageRow row) =>
         row.Origin == WhatsAppMessageOrigin.Conversation && row.State == WhatsAppOutgoingMessageState.Reviewed;

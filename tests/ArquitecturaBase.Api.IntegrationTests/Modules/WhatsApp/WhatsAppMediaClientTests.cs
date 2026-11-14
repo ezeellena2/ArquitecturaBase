@@ -24,7 +24,8 @@ public sealed class WhatsAppMediaClientTests
         using var handler = new StubFlowHttpHandler(_ => new HttpResponseMessage(status));
         using var http = new HttpClient(handler) { BaseAddress = new Uri("https://graph.facebook.com/") };
         var logger = new FakeLogger<WhatsAppMediaClient>();
-        var client = new WhatsAppMediaClient(http, Options.Create(new WhatsAppOptions { PhoneNumberId = "111", AccessToken = "test-token" }), TimeProvider.System, logger);
+        var health = new WhatsAppHealth();
+        var client = new WhatsAppMediaClient(http, Options.Create(new WhatsAppOptions { PhoneNumberId = "111", AccessToken = "test-token" }), TimeProvider.System, health, logger);
 
         var result = await client.DownloadAsync("123", "application/pdf", Convert.ToBase64String(SHA256.HashData([1])), WhatsAppMediaContent.MaximumBytes,
             TestContext.Current.CancellationToken);
@@ -35,6 +36,8 @@ public sealed class WhatsAppMediaClientTests
         Assert.Contains(reason, entry.Message, StringComparison.Ordinal);
         Assert.Contains("metadata", entry.Message, StringComparison.Ordinal);
         Assert.DoesNotContain("test-token", entry.Message, StringComparison.Ordinal);
+        // H9: it also reaches /health.
+        Assert.Equal(status == HttpStatusCode.Unauthorized ? "InvalidToken" : "MissingPermission", health.TokenProblem?.ToString());
     }
 
     [Fact]
@@ -46,9 +49,13 @@ public sealed class WhatsAppMediaClientTests
             ? Metadata("https://lookaside.fbsbx.com/whatsapp_business/attachments/?test=synthetic", bytes.Length, hash)
             : new(HttpStatusCode.OK) { Content = new ByteArrayContent(bytes) });
         using var http = new HttpClient(handler) { BaseAddress = new Uri("https://graph.facebook.com/") };
-        var client = new WhatsAppMediaClient(http, Options.Create(new WhatsAppOptions { PhoneNumberId = "111", AccessToken = "test-token", GraphApiVersion = "v25.0" }), TimeProvider.System, NullLogger<WhatsAppMediaClient>.Instance);
+        // H9: a download that works clears a token problem that /health had.
+        var health = new WhatsAppHealth();
+        health.ReportTokenProblem(WhatsAppSendFailure.InvalidToken);
+        var client = new WhatsAppMediaClient(http, Options.Create(new WhatsAppOptions { PhoneNumberId = "111", AccessToken = "test-token", GraphApiVersion = "v25.0" }), TimeProvider.System, health, NullLogger<WhatsAppMediaClient>.Instance);
         var result = await client.DownloadAsync("123", "application/pdf", hash, WhatsAppMediaContent.MaximumBytes, TestContext.Current.CancellationToken);
         Assert.True(result.IsSuccess);
+        Assert.Null(health.TokenProblem);
         Assert.Equal(bytes, result.Value.Content);
         Assert.Contains("phone_number_id=111", handler.Requests[0].RequestUri!.Query);
         Assert.Equal(2, handler.Requests.Count);
@@ -64,7 +71,7 @@ public sealed class WhatsAppMediaClientTests
         var hash = Convert.ToBase64String(SHA256.HashData([1, 2]));
         using var handler = new StubFlowHttpHandler(_ => Metadata(url, 2, hash));
         using var http = new HttpClient(handler) { BaseAddress = new Uri("https://graph.facebook.com/") };
-        var client = new WhatsAppMediaClient(http, Options.Create(new WhatsAppOptions { PhoneNumberId = "111", AccessToken = "test-token" }), TimeProvider.System, NullLogger<WhatsAppMediaClient>.Instance);
+        var client = new WhatsAppMediaClient(http, Options.Create(new WhatsAppOptions { PhoneNumberId = "111", AccessToken = "test-token" }), TimeProvider.System, new WhatsAppHealth(), NullLogger<WhatsAppMediaClient>.Instance);
         Assert.Equal(FileErrors.Unavailable, (await client.DownloadAsync("123", "application/pdf", hash, WhatsAppMediaContent.MaximumBytes, TestContext.Current.CancellationToken)).Error);
         Assert.Single(handler.Requests);
     }
@@ -82,7 +89,7 @@ public sealed class WhatsAppMediaClientTests
             Content = new StringContent(JsonSerializer.Serialize(new { id = "123", mime_type = "application/pdf", sha256 = hash }).TrimEnd('}') + ",\"file_size\":" + sizeJson + "}")
         });
         using var http = new HttpClient(handler) { BaseAddress = new Uri("https://graph.facebook.com/") };
-        var client = new WhatsAppMediaClient(http, Options.Create(new WhatsAppOptions { PhoneNumberId = "111", AccessToken = "test-token" }), TimeProvider.System, NullLogger<WhatsAppMediaClient>.Instance);
+        var client = new WhatsAppMediaClient(http, Options.Create(new WhatsAppOptions { PhoneNumberId = "111", AccessToken = "test-token" }), TimeProvider.System, new WhatsAppHealth(), NullLogger<WhatsAppMediaClient>.Instance);
         Assert.Equal(FileErrors.InvalidMetadata, (await client.DownloadAsync("123", "application/pdf", hash, WhatsAppMediaContent.MaximumBytes, TestContext.Current.CancellationToken)).Error);
         Assert.Single(handler.Requests);
     }
@@ -99,7 +106,7 @@ public sealed class WhatsAppMediaClientTests
             ?Metadata("https://lookaside.fbsbx.com/whatsapp_business/attachments/test",bytes.Length,hash,providerMime)
             :new(HttpStatusCode.OK){Content=new ByteArrayContent(bytes)});
         using var http=new HttpClient(handler){BaseAddress=new Uri("https://graph.facebook.com/")};
-        var client=new WhatsAppMediaClient(http,Options.Create(new WhatsAppOptions{PhoneNumberId="111",AccessToken="test-token"}),TimeProvider.System, NullLogger<WhatsAppMediaClient>.Instance);
+        var client=new WhatsAppMediaClient(http,Options.Create(new WhatsAppOptions{PhoneNumberId="111",AccessToken="test-token"}),TimeProvider.System, new WhatsAppHealth(), NullLogger<WhatsAppMediaClient>.Instance);
         var result=await client.DownloadAsync("123",expectedMime,hash,WhatsAppMediaContent.MaximumBytes,TestContext.Current.CancellationToken);
         Assert.Equal(accepted,result.IsSuccess);Assert.Equal(accepted?2:1,handler.Requests.Count);
     }
@@ -116,7 +123,7 @@ public sealed class WhatsAppMediaClientTests
             ? Metadata("https://lookaside.fbsbx.com/whatsapp_business/attachments/test", size, hash)
             : new(HttpStatusCode.OK) { Content = new ByteArrayContent(bytes) });
         using var http = new HttpClient(handler) { BaseAddress = new Uri("https://graph.facebook.com/") };
-        var client = new WhatsAppMediaClient(http, Options.Create(new WhatsAppOptions { PhoneNumberId = "111", AccessToken = "test-token" }), TimeProvider.System, NullLogger<WhatsAppMediaClient>.Instance);
+        var client = new WhatsAppMediaClient(http, Options.Create(new WhatsAppOptions { PhoneNumberId = "111", AccessToken = "test-token" }), TimeProvider.System, new WhatsAppHealth(), NullLogger<WhatsAppMediaClient>.Instance);
         var result = await client.DownloadAsync("123", "application/pdf", hash, WhatsAppMediaContent.MaximumBytes, TestContext.Current.CancellationToken);
         Assert.Equal(accepted, result.IsSuccess);
         if (accepted) Assert.Equal(bytes, result.Value.Content);
@@ -133,7 +140,7 @@ public sealed class WhatsAppMediaClientTests
             ? Metadata("https://lookaside.fbsbx.com/whatsapp_business/attachments/test", bytes.Length - 1, hash)
             : new(HttpStatusCode.OK) { Content = new ByteArrayContent(bytes) { Headers = { ContentLength = bytes.Length - 1 } } });
         using var http = new HttpClient(handler) { BaseAddress = new Uri("https://graph.facebook.com/") };
-        var client = new WhatsAppMediaClient(http, Options.Create(new WhatsAppOptions { PhoneNumberId = "111", AccessToken = "test-token" }), TimeProvider.System, NullLogger<WhatsAppMediaClient>.Instance);
+        var client = new WhatsAppMediaClient(http, Options.Create(new WhatsAppOptions { PhoneNumberId = "111", AccessToken = "test-token" }), TimeProvider.System, new WhatsAppHealth(), NullLogger<WhatsAppMediaClient>.Instance);
         var result = await client.DownloadAsync("123", "application/pdf", hash, WhatsAppMediaContent.MaximumBytes, TestContext.Current.CancellationToken);
         Assert.True(result.IsFailure);
         Assert.Equal(FileErrors.TooLarge, result.Error);
@@ -154,7 +161,7 @@ public sealed class WhatsAppMediaClientTests
             ? Metadata("https://lookaside.fbsbx.com/whatsapp_business/attachments/test", declared, hash, "text/csv")
             : new(HttpStatusCode.OK) { Content = new ByteArrayContent(bytes) { Headers = { ContentLength = null } } });
         using var http = new HttpClient(handler) { BaseAddress = new Uri("https://graph.facebook.com/") };
-        var client = new WhatsAppMediaClient(http, Options.Create(new WhatsAppOptions { PhoneNumberId = "111", AccessToken = "test-token" }), TimeProvider.System, NullLogger<WhatsAppMediaClient>.Instance);
+        var client = new WhatsAppMediaClient(http, Options.Create(new WhatsAppOptions { PhoneNumberId = "111", AccessToken = "test-token" }), TimeProvider.System, new WhatsAppHealth(), NullLogger<WhatsAppMediaClient>.Instance);
 
         var result = await client.DownloadAsync("123", "text/csv", hash, limit, TestContext.Current.CancellationToken);
 

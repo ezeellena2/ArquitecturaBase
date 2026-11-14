@@ -217,6 +217,52 @@ public sealed partial class WhatsAppChatTests(ApiFactory factory)
             services.GetRequiredService<IWhatsAppConversationRepository>().ExistsUnresolvedOutgoingAsync(contactId, Ct)));
     }
 
+    // H9: a send that failed says why in the thread, one stable code per kind of refusal, so the operator knows which to repeat.
+    [Fact]
+    public async Task A_failed_send_says_why_in_the_thread()
+    {
+        var (contactId, _) = await ReceiveAsync();
+        var ana = await OperatorAsync(WhatsAppPermissions.Read, WhatsAppPermissions.Send);
+        var failedId = await factory.InTransactionAsync(services =>
+        {
+            var outgoing = WhatsAppOutgoingMessage.Create(ana, contactId, Guid.NewGuid(), "Un mensaje que no salió", Now);
+            outgoing.Start(Now);
+            outgoing.Fail(WhatsAppSendErrors.Undeliverable.Code);
+            services.GetRequiredService<Infrastructure.Persistence.ApplicationDbContext>().Add(outgoing);
+            return Task.FromResult(outgoing.Id);
+        });
+        using var client = factory.CreateClient();
+
+        using var thread = await client.SendAsync(HttpMethod.Get, $"/api/whatsapp/chats/{contactId}/messages", userId: ana.ToString());
+
+        var failed = (await thread.ReadJsonAsync()).GetProperty("outgoing").EnumerateArray().Single(item => item.GetProperty("id").GetGuid() == failedId);
+        Assert.Equal(("Failed", "WhatsApp.Send.Undeliverable"), (failed.GetProperty("state").GetString(), failed.GetProperty("failureCode").GetString()));
+    }
+
+    // H9: Meta accepted the send and later said in its status that it failed (131026): the message says why too.
+    [Fact]
+    public async Task A_send_that_meta_failed_later_says_why_in_the_thread()
+    {
+        var (contactId, _) = await ReceiveAsync();
+        var ana = await OperatorAsync(WhatsAppPermissions.Read, WhatsAppPermissions.Send);
+        var wamid = MetaWebhook.UniqueWaMessageId();
+        var waId = await factory.InTransactionAsync(async services =>
+        {
+            var db = services.GetRequiredService<Infrastructure.Persistence.ApplicationDbContext>();
+            var contact = await db.Set<WhatsAppContact>().SingleAsync(item => item.Id == contactId, Ct);
+            db.Add(WhatsAppMessage.Outbound(contactId, wamid, WhatsAppMessageKind.Text, "Un mensaje que Meta no entregó", Now));
+            return contact.WaId!;
+        });
+        using var client = factory.CreateClient();
+        await WhatsAppTestConversation.PostStatusAsync(client, wamid, "failed", MetaWebhook.TruncatedToSeconds(Now), PhoneNumber.Create("+" + waId).Value, 131026);
+
+        using var thread = await client.SendAsync(HttpMethod.Get, $"/api/whatsapp/chats/{contactId}/messages", userId: ana.ToString());
+
+        var failed = (await thread.ReadJsonAsync()).GetProperty("messages").EnumerateArray().Single(item => item.GetProperty("direction").GetString() == "Outbound");
+        Assert.Equal(("Failed", 131026, "WhatsApp.Send.Undeliverable"),
+            (failed.GetProperty("status").GetString(), failed.GetProperty("errorCode").GetInt32(), failed.GetProperty("failureCode").GetString()));
+    }
+
     // An assistant send of the chat that stayed uncertain, by the domain's own steps (H2).
     private async Task<Guid> UncertainAssistantSendAsync(Guid contactId, Guid subjectUserId)
     {

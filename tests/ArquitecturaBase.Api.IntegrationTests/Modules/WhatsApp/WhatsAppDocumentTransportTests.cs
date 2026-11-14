@@ -13,12 +13,30 @@ public sealed class WhatsAppDocumentTransportTests
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
     private static readonly WhatsAppOptions Settings = new() { PhoneNumberId = "123456", AccessToken = "test-token", GraphApiVersion = "v25.0" };
 
+    // H9: a refused token on an upload reaches /health, and an upload that works clears it.
+    [Fact]
+    public async Task A_refused_upload_token_reaches_health_and_an_upload_that_works_clears_it()
+    {
+        var refuse = true;
+        var meta = new FakeMetaHandler(_ => refuse ? FakeMetaHandler.Error(HttpStatusCode.Unauthorized, 190) : FakeMetaHandler.Json(HttpStatusCode.OK, "{\"id\":\"987654\"}"));
+        using var http = new HttpClient(meta) { BaseAddress = WhatsAppCloudClient.GraphApiAddress };
+        var health = new WhatsAppHealth();
+        var client = new WhatsAppMediaUploadClient(http, Options.Create(Settings), health);
+        var document = new WhatsAppOutgoingDocument("private/internal.pdf", "Visita.pdf", "application/pdf", 16, new string('a', 64));
+
+        using (var refused = new MemoryStream(Encoding.UTF8.GetBytes("%PDF fixed copy"))) Assert.Null(await client.UploadAsync(document, refused, Ct));
+        Assert.Equal("InvalidToken", health.TokenProblem?.ToString());
+        refuse = false;
+        using (var accepted = new MemoryStream(Encoding.UTF8.GetBytes("%PDF fixed copy"))) Assert.Equal("987654", await client.UploadAsync(document, accepted, Ct));
+        Assert.Null(health.TokenProblem);
+    }
+
     [Fact]
     public async Task Private_pdf_upload_uses_the_media_endpoint_and_multipart_bytes_without_storage_urls()
     {
         var meta = new FakeMetaHandler(_ => FakeMetaHandler.Json(HttpStatusCode.OK, "{\"id\":\"987654\"}"));
         using var http = new HttpClient(meta) { BaseAddress = WhatsAppCloudClient.GraphApiAddress };
-        var client = new WhatsAppMediaUploadClient(http, Options.Create(Settings));
+        var client = new WhatsAppMediaUploadClient(http, Options.Create(Settings), new WhatsAppHealth());
         var document = new WhatsAppOutgoingDocument("private/internal.pdf", "Visita.pdf", "application/pdf", 16, new string('a', 64));
         using var content = new MemoryStream(Encoding.UTF8.GetBytes("%PDF fixed copy"));
         Assert.Equal("987654", await client.UploadAsync(document, content, Ct));

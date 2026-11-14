@@ -391,6 +391,20 @@ public sealed class WhatsAppCloudClientTests
         Assert.False(result.Failure!.Value.IsRetryable());
     }
 
+    // H9: each refusal keeps a stable code in a send of the chat or of the assistant, so the operator knows which to repeat.
+    [Theory]
+    [InlineData("RecipientNotAllowed", "WhatsApp.Send.NotAllowed")]
+    [InlineData("OutsideCustomerServiceWindow", "WhatsApp.Send.WindowClosed")]
+    [InlineData("Undeliverable", "WhatsApp.Send.Undeliverable")]
+    [InlineData("PairRateLimited", "WhatsApp.Send.RateLimited")]
+    [InlineData("RateLimited", "WhatsApp.Send.RateLimited")]
+    [InlineData("InvalidToken", "WhatsApp.Send.TokenInvalid")]
+    [InlineData("MissingPermission", "WhatsApp.Send.PermissionMissing")]
+    [InlineData("Transient", "WhatsApp.Send.Unavailable")]
+    [InlineData("Other", "WhatsApp.Send.Rejected")]
+    public void Each_refusal_keeps_its_stable_code(string failure, string code) =>
+        Assert.Equal(code, Enum.Parse<WhatsAppSendFailure>(failure).ToSendError().Code);
+
     [Fact]
     public async Task A_successful_status_without_a_message_id_is_not_retried()
     {

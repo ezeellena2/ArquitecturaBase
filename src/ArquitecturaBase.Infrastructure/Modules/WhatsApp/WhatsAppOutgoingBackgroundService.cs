@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using ArquitecturaBase.Application.Interfaces.Integrations.Files;
+using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
@@ -31,6 +32,7 @@ internal sealed partial class WhatsAppOutgoingBackgroundService(
         var retry = false;
         var providerInvoked = false;
         var waitingForTurn = false;
+        var notPrepared = false;
         string? failureCode = null;
         try
         {
@@ -62,8 +64,10 @@ internal sealed partial class WhatsAppOutgoingBackgroundService(
                     mediaId = verified is null ? null : await preparation.ServiceProvider.GetRequiredService<IWhatsAppMediaUploadClient>()
                         .UploadAsync(document, verified, preparationToken);
                     failureCode = verified is null ? WhatsAppFormActionErrors.DocumentUnavailable.Code : WhatsAppFormActionErrors.UploadFailed.Code;
-                    if (mediaId is not null)
+                    if (mediaId is null) LogDocumentNotUploaded(logger, operation.Id, failureCode);
+                    else
                     {
+                        failureCode = null;
                         // H8: the uploaded document's id is kept with a bounded token, also while the host stops.
                         using var recordTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(10), timeProvider);
                         await using var recording = scopes.CreateAsyncScope();
@@ -89,7 +93,7 @@ internal sealed partial class WhatsAppOutgoingBackgroundService(
                     var prepared = await scope.ServiceProvider.GetRequiredService<IWhatsAppFormMessageDispatchService>()
                         .PrepareAsync(operation.Id, sending.Token);
                     if (prepared.IsSuccess) message = prepared.Value;
-                    else failureCode = prepared.Error.Code;
+                    else { failureCode = prepared.Error.Code; notPrepared = true; }
                 }
                 if (message is null) throw new InvalidOperationException("The outgoing message could not be prepared.");
                 var dispatch = scope.ServiceProvider.GetRequiredService<IWhatsAppChatDispatchService>();
@@ -107,6 +111,8 @@ internal sealed partial class WhatsAppOutgoingBackgroundService(
                 if (!result.IsSent && operation.Origin == WhatsAppMessageOrigin.FormAction)
                     failureCode = result.Failure == WhatsAppSendFailure.OutsideCustomerServiceWindow
                         ? WhatsAppFormActionErrors.WindowClosed.Code : WhatsAppFormActionErrors.SendRejected.Code;
+                // H9: a send of the chat or of the assistant keeps why it did not go out, one stable code per kind of refusal.
+                else if (!result.IsSent && !result.OutcomeUncertain && result.Failure is { } refusal) failureCode = refusal.ToSendError().Code;
                 // H7: what may have reached Meta stays uncertain; what did not go out, and is worth retrying, waits for its next
                 // attempt in its place, twice at most: the third refusal fails as any other.
                 uncertain = result.OutcomeUncertain;
@@ -115,6 +121,13 @@ internal sealed partial class WhatsAppOutgoingBackgroundService(
                     retry = operation.DispatchRetries < WhatsAppDispatchPacing.MaxRetries;
                     if (retry) LogRetryLater(logger, operation.Id, refused, result.MetaErrorCode, operation.DispatchRetries + 1, WhatsAppDispatchPacing.MaxRetries);
                     else LogRetriesExhausted(logger, operation.Id, refused, result.MetaErrorCode, WhatsAppDispatchPacing.MaxRetries);
+                }
+                // H9: what did not go out says so in the log, with the id of the send and the code of Meta.
+                else if (result.OutcomeUncertain) LogUncertainSend(logger, operation.Id);
+                else if (!result.IsSent && result.Failure is { } notSent)
+                {
+                    if (notSent.IsTokenProblem()) LogTokenRefused(logger, operation.Id, notSent, result.MetaErrorCode);
+                    else LogNotSent(logger, operation.Id, notSent, result.MetaErrorCode);
                 }
                 if (result.IsSent) { health.ReportSent(); }
                 else if (result.Failure is { } failure && failure.IsTokenProblem()) { health.ReportTokenProblem(failure); }
@@ -125,6 +138,7 @@ internal sealed partial class WhatsAppOutgoingBackgroundService(
             // H8: the host stopped before Meta was called (waiting for its turn or preparing): back to the queue, nothing sent. Any
             // failure on the way counts, since the host may be taking services down; a real fault fails on the next copy.
             LogReturnedUnsent(logger);
+            WhatsAppMetrics.RecordOutgoing("returned", operation.Origin);
             using var returnTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(10), timeProvider);
             await using var giving = scopes.CreateAsyncScope();
             await giving.ServiceProvider.GetRequiredService<IWhatsAppChatDispatchService>()
@@ -137,18 +151,22 @@ internal sealed partial class WhatsAppOutgoingBackgroundService(
             // called, so it goes back to the queue in its place and waits, without spending one of its retries; meanwhile the
             // other chats go on.
             LogTurnUnavailable(logger, operation.Id, exception.GetType().Name);
+            WhatsAppMetrics.RecordOutgoing("returned", operation.Origin);
             using var returnTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(10), timeProvider);
             await using var giving = scopes.CreateAsyncScope();
             await giving.ServiceProvider.GetRequiredService<IWhatsAppChatDispatchService>()
                 .ReturnUnsentAsync(operation.ContactId, operation.Id, operation.DispatchReservationId, WhatsAppDispatchPacing.RetryWait, returnTimeout.Token);
             return true;
         }
-        catch (Exception)
+        catch (Exception exception)
         {
             uncertain = providerInvoked;
-            failureCode ??= operation.Kind == WhatsAppOutgoingMessageKind.Document ? WhatsAppFormActionErrors.DocumentUnavailable.Code : WhatsAppFormActionErrors.SendRejected.Code;
-            if (providerInvoked) LogDispatchUnknown(logger);
-            else LogDispatchFailedBeforeProvider(logger);
+            // H9: the log says which send and why: a Flow that did not prepare says its code; anything else, its exception.
+            if (providerInvoked) LogDispatchUnknown(logger, operation.Id, exception);
+            else if (notPrepared) LogDispatchNotPrepared(logger, operation.Id, failureCode!);
+            else LogDispatchFailedBeforeProvider(logger, operation.Id, exception);
+            if (operation.Origin == WhatsAppMessageOrigin.FormAction)
+                failureCode ??= operation.Kind == WhatsAppOutgoingMessageKind.Document ? WhatsAppFormActionErrors.DocumentUnavailable.Code : WhatsAppFormActionErrors.SendRejected.Code;
         }
 
         // H8: every outcome, of every origin, is confirmed with a bounded token independent of shutdown. Interrupted effects
@@ -156,9 +174,21 @@ internal sealed partial class WhatsAppOutgoingBackgroundService(
         using var completionTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(10), timeProvider);
         await using var completion = scopes.CreateAsyncScope();
         var completing = completion.ServiceProvider.GetRequiredService<IWhatsAppChatDispatchService>();
+        WhatsAppMetrics.RecordOutgoing(retry ? "retry" : providerId is not null ? "sent" : uncertain ? "uncertain" : "failed", operation.Origin);
         if (retry) await completing.RetryLaterAsync(operation.ContactId, operation.Id, operation.DispatchReservationId, completionTimeout.Token);
         else await completing.CompleteAsync(operation.ContactId, operation.Id, providerId, uncertain, completionTimeout.Token, operation.DispatchReservationId, failureCode);
         return true;
+    }
+
+    private async Task ObserveWorkloadAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await using var scope = scopes.CreateAsyncScope();
+            var snapshot = await scope.ServiceProvider.GetRequiredService<IWhatsAppOutgoingWorkloadReader>().FindAsync(cancellationToken);
+            WhatsAppMetrics.ObserveWorkload(snapshot, timeProvider.GetUtcNow().UtcDateTime);
+        }
+        catch (Exception exception) when (!cancellationToken.IsCancellationRequested) { LogWorkloadFailed(logger, exception); }
     }
 
     private static async Task<MemoryStream?> ReadDocumentAsync(Stream content, WhatsAppOutgoingDocument document, CancellationToken cancellationToken)
@@ -182,10 +212,17 @@ internal sealed partial class WhatsAppOutgoingBackgroundService(
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         if (!options.Value.ProcessOutgoingInBackground) { return; }
+        var nextWorkloadAtUtc = DateTimeOffset.MinValue;
         while (!stoppingToken.IsCancellationRequested)
         {
+            // H9: once a minute, what waits now feeds the gauges, as the assistant's workload does.
+            if (timeProvider.GetUtcNow() >= nextWorkloadAtUtc)
+            {
+                nextWorkloadAtUtc = timeProvider.GetUtcNow().AddMinutes(1);
+                await ObserveWorkloadAsync(stoppingToken);
+            }
             try { if (await ProcessNextAsync(stoppingToken)) continue; }
-            catch (Exception) when (!stoppingToken.IsCancellationRequested) { LogDispatchUnknown(logger); }
+            catch (Exception exception) when (!stoppingToken.IsCancellationRequested) { LogRoundFailed(logger, exception); }
             await Task.Delay(TimeSpan.FromSeconds(2), timeProvider, stoppingToken);
         }
     }
@@ -220,9 +257,30 @@ internal sealed partial class WhatsAppOutgoingBackgroundService(
     [LoggerMessage(Level = LogLevel.Information, Message = "The WhatsApp outgoing went back to the queue: the host stopped before it was sent.")]
     private static partial void LogReturnedUnsent(ILogger logger);
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "The WhatsApp outgoing dispatch failed before invoking the provider.")]
-    private static partial void LogDispatchFailedBeforeProvider(ILogger logger);
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The WhatsApp outgoing {OutgoingId} failed before invoking the provider.")]
+    private static partial void LogDispatchFailedBeforeProvider(ILogger logger, Guid outgoingId, Exception exception);
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "The manual WhatsApp dispatch could not confirm its outcome; it is not repeated automatically.")]
-    private static partial void LogDispatchUnknown(ILogger logger);
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The WhatsApp outgoing {OutgoingId} could not be prepared ({FailureCode}); the provider was not invoked.")]
+    private static partial void LogDispatchNotPrepared(ILogger logger, Guid outgoingId, string failureCode);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The WhatsApp outgoing {OutgoingId} could not confirm its outcome; it is not repeated automatically.")]
+    private static partial void LogDispatchUnknown(ILogger logger, Guid outgoingId, Exception exception);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The WhatsApp outgoing {OutgoingId} may have reached Meta: it stays uncertain.")]
+    private static partial void LogUncertainSend(ILogger logger, Guid outgoingId);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The WhatsApp outgoing {OutgoingId} was not sent: {Failure} (Meta code {MetaErrorCode}).")]
+    private static partial void LogNotSent(ILogger logger, Guid outgoingId, WhatsAppSendFailure failure, int? metaErrorCode);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "A round of the WhatsApp outgoing failed; the next one tries again.")]
+    private static partial void LogRoundFailed(ILogger logger, Exception exception);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "The WhatsApp outgoing {OutgoingId} was refused for the access token: {Failure} (Meta code {MetaErrorCode}).")]
+    private static partial void LogTokenRefused(ILogger logger, Guid outgoingId, WhatsAppSendFailure failure, int? metaErrorCode);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The document of the WhatsApp outgoing {OutgoingId} was not uploaded ({FailureCode}).")]
+    private static partial void LogDocumentNotUploaded(ILogger logger, Guid outgoingId, string failureCode);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The workload of the WhatsApp outgoing could not be read for its gauges.")]
+    private static partial void LogWorkloadFailed(ILogger logger, Exception exception);
 }

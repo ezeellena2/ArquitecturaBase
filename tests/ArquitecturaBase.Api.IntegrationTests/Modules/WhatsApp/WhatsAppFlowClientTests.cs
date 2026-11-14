@@ -41,7 +41,7 @@ public sealed class WhatsAppFlowClientTests
         });
         using var http = new HttpClient(handler) { BaseAddress = WhatsAppCloudClient.GraphApiAddress };
         var settings = new WhatsAppOptions { WabaId = "222", PhoneNumberId = "111", AccessToken = "rotated-test-token" };
-        var provider = new WhatsAppFlowClient(http, Options.Create(settings));
+        var provider = new WhatsAppFlowClient(http, Options.Create(settings), new WhatsAppHealth());
         var legacyHash = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(
             System.Text.Encoding.UTF8.GetBytes("222\n111\nv25.0\nold-test-token")));
         var account = new WhatsAppFlowAccountContext(wabaId, phoneId, graphVersion, legacyHash);
@@ -64,14 +64,14 @@ public sealed class WhatsAppFlowClientTests
         using var unavailable = new StubFlowHttpHandler(_ => new(HttpStatusCode.ServiceUnavailable)
         { Content = new StringContent("{}") });
         using var unavailableHttp = new HttpClient(unavailable) { BaseAddress = WhatsAppCloudClient.GraphApiAddress };
-        var unavailableResult = await new WhatsAppFlowClient(unavailableHttp, Options.Create(Settings()))
+        var unavailableResult = await new WhatsAppFlowClient(unavailableHttp, Options.Create(Settings()), new WhatsAppHealth())
             .VerifyPhoneAsync("222", "111", TestContext.Current.CancellationToken);
         Assert.True(unavailableResult.IsFailure);
 
         using var confirmed = new StubFlowHttpHandler(_ => new(HttpStatusCode.OK)
         { Content = new StringContent("{\"data\":[{\"id\":\"999\"}]}") });
         using var confirmedHttp = new HttpClient(confirmed) { BaseAddress = WhatsAppCloudClient.GraphApiAddress };
-        var confirmedResult = await new WhatsAppFlowClient(confirmedHttp, Options.Create(Settings()))
+        var confirmedResult = await new WhatsAppFlowClient(confirmedHttp, Options.Create(Settings()), new WhatsAppHealth())
             .VerifyPhoneAsync("222", "111", TestContext.Current.CancellationToken);
         Assert.True(confirmedResult.IsSuccess);
         Assert.False(confirmedResult.Value);
@@ -112,7 +112,7 @@ public sealed class WhatsAppFlowClientTests
         using var handler = new StubFlowHttpHandler(_ => new(HttpStatusCode.OK) { Content = new StringContent(
             "{\"success\":true,\"validation_errors\":[{\"message\":\"PRIVATE_PROVIDER_TEXT\",\"pointers\":[{\"path\":\"screens[0].layout.children[0].children[2].data-source[1].title\"}]}]}") });
         using var http = new HttpClient(handler) { BaseAddress = new Uri("https://graph.facebook.com/") };
-        var settings = Settings(); var provider = new WhatsAppFlowClient(http, Options.Create(settings));
+        var settings = Settings(); var provider = new WhatsAppFlowClient(http, Options.Create(settings), new WhatsAppHealth());
         var result = await provider.UploadAsync(Account(settings), "333", "{\"private\":true}", TestContext.Current.CancellationToken);
         Assert.True(result.Success); Assert.False(result.Uncertain);
         var issue = Assert.Single(result.ValidationErrors); Assert.Equal(2, issue.FieldIndex); Assert.Equal(1, issue.ChoiceIndex);
@@ -137,7 +137,7 @@ public sealed class WhatsAppFlowClientTests
         });
         using var handler = new StubFlowHttpHandler(_ => new(HttpStatusCode.OK) { Content = new StringContent(body) });
         using var http = new HttpClient(handler) { BaseAddress = new Uri("https://graph.facebook.com/") };
-        var settings = Settings(); var provider = new WhatsAppFlowClient(http, Options.Create(settings));
+        var settings = Settings(); var provider = new WhatsAppFlowClient(http, Options.Create(settings), new WhatsAppHealth());
         var result = await provider.UploadAsync(Account(settings), "333", "{}", TestContext.Current.CancellationToken);
         var issue = Assert.Single(result.ValidationErrors);
         Assert.Equal(fieldIndex, issue.FieldIndex); Assert.Equal(choiceIndex, issue.ChoiceIndex); Assert.Equal(property, issue.Property);
@@ -152,11 +152,32 @@ public sealed class WhatsAppFlowClientTests
         {
             using var handler = new StubFlowHttpHandler(_ => new(response) { Content = new StringContent("{\"success\":true}") });
             using var http = new HttpClient(handler) { BaseAddress = new Uri("https://graph.facebook.com/") };
-            var settings = Settings(); var provider = new WhatsAppFlowClient(http, Options.Create(settings));
+            var settings = Settings(); var provider = new WhatsAppFlowClient(http, Options.Create(settings), new WhatsAppHealth());
             var result = await provider.CreateAsync(Account(settings), "form_operation_es", TestContext.Current.CancellationToken);
             Assert.True(result.Uncertain); Assert.Null(result.MetaFlowId); Assert.Single(handler.Requests);
         }
     }
+    // H9: what Meta answers about the token reaches /health from every client: a 401 is the token and a 403 a permission, and a
+    // call that works again clears it.
+    [Theory]
+    [InlineData(HttpStatusCode.Unauthorized, "InvalidToken")]
+    [InlineData(HttpStatusCode.Forbidden, "MissingPermission")]
+    public async Task A_refused_token_reaches_health_and_a_call_that_works_clears_it(HttpStatusCode status, string expected)
+    {
+        var refuse = true;
+        using var handler = new StubFlowHttpHandler(_ => refuse ? new HttpResponseMessage(status)
+            : new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("""{"data":[{"id":"111"}]}""") });
+        using var http = new HttpClient(handler) { BaseAddress = new Uri("https://graph.facebook.com/") };
+        var health = new WhatsAppHealth();
+        var provider = new WhatsAppFlowClient(http, Options.Create(Settings()), health);
+
+        Assert.True((await provider.VerifyPhoneAsync("222", "111", TestContext.Current.CancellationToken)).IsFailure);
+        Assert.Equal(expected, health.TokenProblem?.ToString());
+        refuse = false;
+        Assert.True((await provider.VerifyPhoneAsync("222", "111", TestContext.Current.CancellationToken)).Value);
+        Assert.Null(health.TokenProblem);
+    }
+
     [Fact]
     public async Task An_open_circuit_is_a_pre_effect_retryable_failure()
     {
@@ -164,7 +185,7 @@ public sealed class WhatsAppFlowClientTests
         using var http = new HttpClient(handler) { BaseAddress = new Uri("https://graph.facebook.com/") };
         var settings = Settings();
 
-        var result = await new WhatsAppFlowClient(http, Options.Create(settings))
+        var result = await new WhatsAppFlowClient(http, Options.Create(settings), new WhatsAppHealth())
             .CreateAsync(Account(settings), "form_operation_es", TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
@@ -180,7 +201,7 @@ public sealed class WhatsAppFlowClientTests
             using var handler = new StubFlowHttpHandler(_ => new(HttpStatusCode.OK) { Content = new StringContent(
                 "{\"id\":\"333\",\"preview\":{\"preview_url\":\"" + origin + "\",\"expires_at\":\"2026-10-11T13:00:00+0000\"}}") });
             using var http = new HttpClient(handler) { BaseAddress = new Uri("https://graph.facebook.com/") };
-            var settings = Settings(); var provider = new WhatsAppFlowClient(http, Options.Create(settings));
+            var settings = Settings(); var provider = new WhatsAppFlowClient(http, Options.Create(settings), new WhatsAppHealth());
             var result = await provider.GetPreviewAsync(Account(settings), "333", new("FORM", []), TestContext.Current.CancellationToken);
             Assert.Equal(origin.StartsWith("https://business.facebook.com/", StringComparison.Ordinal), result.IsSuccess);
             Assert.Contains("invalidate(false)", Assert.Single(handler.Requests).RequestUri!.ToString(), StringComparison.Ordinal);
@@ -196,7 +217,7 @@ public sealed class WhatsAppFlowClientTests
     {
         using var handler = new StubFlowHttpHandler(_ => new(HttpStatusCode.OK) { Content = new StringContent("{\"data\":[{\"id\":\"333\",\"name\":\"technical_name\"},{\"id\":\"444\",\"name\":\"technical_name\"}]}") });
         using var http = new HttpClient(handler) { BaseAddress = new Uri("https://graph.facebook.com/") };
-        var settings = Settings(); var provider = new WhatsAppFlowClient(http, Options.Create(settings));
+        var settings = Settings(); var provider = new WhatsAppFlowClient(http, Options.Create(settings), new WhatsAppHealth());
         var result = await provider.InspectUnknownCreationAsync(Account(settings), "technical_name", TestContext.Current.CancellationToken);
         Assert.Equal(2, result.CreationCandidateCount); Assert.False(result.Published); Assert.False(result.AssetAndOwnerMatch);
         Assert.Equal(HttpMethod.Get, Assert.Single(handler.Requests).Method);
@@ -228,7 +249,7 @@ public sealed class WhatsAppFlowClientTests
             Assert.NotNull(request.Headers.Authorization); return new(HttpStatusCode.OK) { Content = new StringContent(content) };
         });
         using var http = new HttpClient(handler) { BaseAddress = new Uri("https://graph.facebook.com/") };
-        var settings = Settings(); var provider = new WhatsAppFlowClient(http, Options.Create(settings));
+        var settings = Settings(); var provider = new WhatsAppFlowClient(http, Options.Create(settings), new WhatsAppHealth());
         var hash = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(json)));
         var result = await provider.VerifyAsync(Account(settings), "333", "technical_name", hash, TestContext.Current.CancellationToken);
         Assert.Equal(expected, result.AssetAndOwnerMatch);
@@ -274,7 +295,7 @@ public sealed class WhatsAppFlowClientTests
             return new(HttpStatusCode.OK) { Content = new StringContent(content) };
         });
         using var http = new HttpClient(handler) { BaseAddress = new Uri("https://graph.facebook.com/") };
-        var settings = Settings(); var provider = new WhatsAppFlowClient(http, Options.Create(settings));
+        var settings = Settings(); var provider = new WhatsAppFlowClient(http, Options.Create(settings), new WhatsAppHealth());
         var hash = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(json)));
         var result = await provider.VerifyAsync(Account(settings), "333", "technical_name", hash, TestContext.Current.CancellationToken);
         Assert.True(result.Draft); Assert.False(result.Published); Assert.True(result.Validated);
@@ -316,7 +337,7 @@ public sealed class WhatsAppFlowClientTests
             return new(HttpStatusCode.OK) { Content = new StringContent(content) };
         });
         using var http = new HttpClient(handler) { BaseAddress = new Uri("https://graph.facebook.com/") };
-        var settings = Settings(); var provider = new WhatsAppFlowClient(http, Options.Create(settings));
+        var settings = Settings(); var provider = new WhatsAppFlowClient(http, Options.Create(settings), new WhatsAppHealth());
         var hash = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(scenario == "wrong-hash" ? "{}" : json)));
         var result = await provider.VerifyAsync(Account(settings), "333", "technical_name", hash, TestContext.Current.CancellationToken);
         Assert.False(result.AssetAndOwnerMatch); Assert.True(result.Healthy);
@@ -391,7 +412,7 @@ public sealed class WhatsAppFlowClientTests
     private static StubFlowHttpHandler PreviewHandler(string origin) => new(_ => new(HttpStatusCode.OK) { Content = new StringContent(
         "{\"id\":\"333\",\"preview\":{\"preview_url\":\"" + origin + "\",\"expires_at\":\"2026-10-11T13:00:00+0000\"}}") });
     private static WhatsAppFlowClient PreviewProvider(StubFlowHttpHandler handler) =>
-        new(new HttpClient(handler, disposeHandler: false) { BaseAddress = new Uri("https://graph.facebook.com/") }, Options.Create(Settings()));
+        new(new HttpClient(handler, disposeHandler: false) { BaseAddress = new Uri("https://graph.facebook.com/") }, Options.Create(Settings()), new WhatsAppHealth());
     private static StructuredFormCatalogOffer Offer(string key, IReadOnlyList<StructuredFormCatalogOption> options) =>
         new(Guid.CreateVersion7(), key, "Artículo", Guid.CreateVersion7(), 1, "Manual", "Insumos", options);
     private static WhatsAppOptions Settings() => new() { PhoneNumberId = "111", WabaId = "222", AccessToken = "test-token", GraphApiVersion = "v25.0" };

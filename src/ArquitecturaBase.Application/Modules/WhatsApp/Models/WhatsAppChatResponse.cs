@@ -43,7 +43,9 @@ public sealed record WhatsAppMessageResponse(
     // W3 (task 24): only a resend of the form carries «Prellenado con», with the privacy of «Por qué lo mandó».
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<WhatsAppSharedPrefillResponse>? Prefill = null,
     // VC1-A (task 29): only the notice of the loads of a spreadsheet carries «Por qué lo propuso», seen with whatsapp.read.
-    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] WhatsAppSpreadsheetRowsResponse? SpreadsheetRows = null);
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] WhatsAppSpreadsheetRowsResponse? SpreadsheetRows = null,
+    // H9: a message that went out and Meta later reported as failed says why, by the stable code of its error code.
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? FailureCode = null);
 public sealed record WhatsAppLocationPointResponse(decimal Latitude, decimal Longitude)
 {
     public override string ToString() => "WhatsAppLocationPointResponse { Content = [REDACTED] }";
@@ -96,7 +98,9 @@ public sealed record WhatsAppOutgoingMessageResponse(
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] WhatsAppSpreadsheetRowsResponse? SpreadsheetRows = null,
     // H2: who marked an uncertain send as reviewed, and when; only a reviewed one has it.
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] Guid? ReviewedByUserId = null,
-    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] DateTime? ReviewedAtUtc = null);
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] DateTime? ReviewedAtUtc = null,
+    // H9: why a failed send did not go out, one stable code per kind of refusal; only a failed one that says has it.
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? FailureCode = null);
 
 /// <summary>A line of the chat for what the assistant decided without a message, with its why.</summary>
 public sealed record WhatsAppAssistantEventResponse(Guid Id, DateTime AtUtc, WhatsAppAssistantReplyResponse Reply);

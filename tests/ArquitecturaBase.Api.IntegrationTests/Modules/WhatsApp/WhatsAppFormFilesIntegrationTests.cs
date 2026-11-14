@@ -59,7 +59,7 @@ public sealed partial class WhatsAppFormSendingTests
         {
             services.RemoveAll<IPrivateFileStore>(); services.AddSingleton<IPrivateFileStore>(store);
             services.RemoveAll<IWhatsAppCloudClient>(); services.AddSingleton<IWhatsAppCloudClient>(transport);
-            services.RemoveAll<IWhatsAppMediaClient>(); services.AddSingleton<IWhatsAppMediaClient>(new WhatsAppMediaClient(mediaHttp, Options.Create(new WhatsAppOptions { PhoneNumberId = ApiFactory.WhatsAppPhoneNumberId, AccessToken = "synthetic-media-token", GraphApiVersion = "v25.0" }), TimeProvider.System, NullLogger<WhatsAppMediaClient>.Instance));
+            services.RemoveAll<IWhatsAppMediaClient>(); services.AddSingleton<IWhatsAppMediaClient>(new WhatsAppMediaClient(mediaHttp, Options.Create(new WhatsAppOptions { PhoneNumberId = ApiFactory.WhatsAppPhoneNumberId, AccessToken = "synthetic-media-token", GraphApiVersion = "v25.0" }), TimeProvider.System, new WhatsAppHealth(), NullLogger<WhatsAppMediaClient>.Instance));
             services.RemoveAll<IWhatsAppDispatchCoordinator>(); services.AddSingleton<IWhatsAppDispatchCoordinator>(sp => new WhatsAppDispatchCoordinator(sp.GetRequiredService<RedisCache>(), TimeProvider.System));
         }); });
         if (preview is not null) WhatsAppFormAppPreview.Listen(host);

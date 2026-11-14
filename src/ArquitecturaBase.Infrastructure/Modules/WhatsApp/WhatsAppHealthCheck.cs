@@ -23,12 +23,20 @@ internal sealed class WhatsAppHealthCheck(IWhatsAppAvailability availability, Wh
                 WhatsAppSendFailure.InvalidToken => HealthCheckResult.Degraded(
                     "WhatsApp rejected the access token. Load a new one in WhatsApp:AccessToken and restart the Api, "
                     + "which reads it at startup."),
-                // MissingPermission: WhatsAppHealth no acepta otro motivo.
+                // MissingPermission: WhatsAppHealth no acepta otro motivo. H9: nombra el permiso de la familia a la que le falta.
                 _ => HealthCheckResult.Degraded(
                     "The WhatsApp access token lacks a permission. Give the system user the WhatsApp account and a token "
-                    + "with whatsapp_business_messaging in WhatsApp:AccessToken, then restart the Api, which reads it at startup."),
+                    + "with " + MissingPermissions(health.MissingPermissions) + " in WhatsApp:AccessToken, then restart the Api, "
+                    + "which reads it at startup."),
             };
 
         return Task.FromResult(result);
     }
+
+    private static string MissingPermissions((bool Messaging, bool Management) missing) => missing switch
+    {
+        (true, true) => "whatsapp_business_messaging and whatsapp_business_management",
+        (false, true) => "whatsapp_business_management",
+        _ => "whatsapp_business_messaging",
+    };
 }

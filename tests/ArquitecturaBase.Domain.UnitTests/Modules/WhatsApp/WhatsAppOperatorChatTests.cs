@@ -81,6 +81,23 @@ public sealed class WhatsAppOperatorChatTests
         Assert.Equal(2, operation.DispatchRetries);
     }
 
+    // H9: a refusal Meta reported with its own code, also later in a status, keeps the stable code of its kind.
+    [Theory]
+    [InlineData(131030, "WhatsApp.Send.NotAllowed")]
+    [InlineData(131047, "WhatsApp.Send.WindowClosed")]
+    [InlineData(131026, "WhatsApp.Send.Undeliverable")]
+    [InlineData(130429, "WhatsApp.Send.RateLimited")]
+    [InlineData(131056, "WhatsApp.Send.RateLimited")]
+    [InlineData(190, "WhatsApp.Send.TokenInvalid")]
+    [InlineData(10, "WhatsApp.Send.PermissionMissing")]
+    [InlineData(131016, "WhatsApp.Send.Unavailable")]
+    [InlineData(131049, "WhatsApp.Send.Rejected")]
+    public void A_refusal_reported_by_its_meta_code_keeps_its_stable_code(int metaCode, string code) =>
+        Assert.Equal(code, WhatsAppSendErrors.FromMetaCode(metaCode)?.Code);
+
+    [Fact]
+    public void Without_a_meta_code_there_is_no_stable_code() => Assert.Null(WhatsAppSendErrors.FromMetaCode(null));
+
     // H3: a send whose turn could not be taken goes back to wait for its next attempt, without spending one of its retries.
     [Fact]
     public void A_send_whose_turn_could_not_be_taken_waits_without_spending_a_retry()

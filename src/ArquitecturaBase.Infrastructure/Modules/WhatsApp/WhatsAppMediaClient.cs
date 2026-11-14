@@ -10,7 +10,7 @@ using Microsoft.Extensions.Options;
 namespace ArquitecturaBase.Infrastructure.Modules.WhatsApp;
 
 internal sealed partial class WhatsAppMediaClient(HttpClient http, IOptions<WhatsAppOptions> options, TimeProvider timeProvider,
-    ILogger<WhatsAppMediaClient> logger) : IWhatsAppMediaClient
+    WhatsAppHealth health, ILogger<WhatsAppMediaClient> logger) : IWhatsAppMediaClient
 {
 
     public async Task<Result<WhatsAppMediaContent>> DownloadAsync(string mediaId, string contentType, string sha256, long maximumBytes, CancellationToken cancellationToken)
@@ -28,6 +28,7 @@ internal sealed partial class WhatsAppMediaClient(HttpClient http, IOptions<What
             var path = options.Value.GraphApiVersion + "/" + mediaId + "?phone_number_id=" + Uri.EscapeDataString(options.Value.PhoneNumberId);
             using var metadataRequest = Request(new Uri(http.BaseAddress!, path));
             using var metadataResponse = await http.SendAsync(metadataRequest, HttpCompletionOption.ResponseHeadersRead, ct);
+            health.Observe(metadataResponse.StatusCode, WhatsAppTokenUse.Messaging);
             if (!metadataResponse.IsSuccessStatusCode) return Unavailable(metadataResponse.StatusCode, "metadata");
             var metadataBytes = await ReadAsync(metadataResponse.Content, 8192, ct);
             if (metadataBytes is null) return FileErrors.Unavailable;
@@ -57,7 +58,7 @@ internal sealed partial class WhatsAppMediaClient(HttpClient http, IOptions<What
         }
     }
     // H11: a 401 is the token and a 403 a permission, apart in the log and with the request Meta refused (its metadata in Graph or
-    // the content in the media host); the file stays unavailable and keeps retrying (the warning to /health is task 16).
+    // the content in the media host); the file stays unavailable and keeps retrying. /health hears Graph's answer (H9).
     private Error Unavailable(System.Net.HttpStatusCode status, string step)
     {
         if (status == System.Net.HttpStatusCode.Unauthorized) LogInvalidToken(logger, step);

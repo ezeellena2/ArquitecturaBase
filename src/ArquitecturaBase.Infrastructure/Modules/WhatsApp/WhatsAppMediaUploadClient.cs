@@ -5,7 +5,7 @@ using Microsoft.Extensions.Options;
 namespace ArquitecturaBase.Infrastructure.Modules.WhatsApp;
 
 /// <summary>Uploads private PDF bytes, without exposing their storage key or a public URL to the provider.</summary>
-internal sealed class WhatsAppMediaUploadClient(HttpClient httpClient, IOptions<WhatsAppOptions> options) : IWhatsAppMediaUploadClient
+internal sealed class WhatsAppMediaUploadClient(HttpClient httpClient, IOptions<WhatsAppOptions> options, WhatsAppHealth health) : IWhatsAppMediaUploadClient
 {
     public async Task<string?> UploadAsync(WhatsAppOutgoingDocument document, Stream content, CancellationToken cancellationToken)
     {
@@ -23,6 +23,7 @@ internal sealed class WhatsAppMediaUploadClient(HttpClient httpClient, IOptions<
         try
         {
             using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            health.Observe(response.StatusCode, WhatsAppTokenUse.Messaging);
             if (!response.IsSuccessStatusCode) return null;
             // A media id response is tiny. Read a bounded body even when the provider returns malformed content.
             await using var body = await response.Content.ReadAsStreamAsync(cancellationToken);

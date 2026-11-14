@@ -82,7 +82,7 @@ public sealed partial class WhatsAppFormSendingTests
             services.AddSingleton<IWhatsAppMediaClient>(new WhatsAppMediaClient(mediaHttp, Options.Create(new WhatsAppOptions
             {
                 PhoneNumberId = ApiFactory.WhatsAppPhoneNumberId, AccessToken = "synthetic-media-token", GraphApiVersion = "v25.0",
-            }), TimeProvider.System, NullLogger<WhatsAppMediaClient>.Instance));
+            }), TimeProvider.System, new WhatsAppHealth(), NullLogger<WhatsAppMediaClient>.Instance));
             services.RemoveAll<IWhatsAppDispatchCoordinator>();
             services.AddSingleton<IWhatsAppDispatchCoordinator>(sp => new WhatsAppDispatchCoordinator(
                 sp.GetRequiredService<RedisCache>(), TimeProvider.System));

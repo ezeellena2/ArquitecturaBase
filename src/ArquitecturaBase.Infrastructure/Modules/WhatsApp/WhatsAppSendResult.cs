@@ -1,3 +1,6 @@
+using ArquitecturaBase.Domain.Modules.WhatsApp;
+using ArquitecturaBase.Domain.Results;
+
 namespace ArquitecturaBase.Infrastructure.Modules.WhatsApp;
 
 /// <summary>Por qué Meta no aceptó un mensaje (sección 9 del spec). Cada motivo dice si vale la pena reintentar.</summary>
@@ -47,6 +50,19 @@ internal static class WhatsAppSendFailureExtensions
 {
     public static bool IsRetryable(this WhatsAppSendFailure failure) =>
         failure is WhatsAppSendFailure.PairRateLimited or WhatsAppSendFailure.RateLimited or WhatsAppSendFailure.Transient;
+
+    /// <summary>H9: el código estable que guarda un envío del chat o del asistente que no salió por este motivo.</summary>
+    public static Error ToSendError(this WhatsAppSendFailure failure) => failure switch
+    {
+        WhatsAppSendFailure.RecipientNotAllowed => WhatsAppSendErrors.NotAllowed,
+        WhatsAppSendFailure.OutsideCustomerServiceWindow => WhatsAppSendErrors.WindowClosed,
+        WhatsAppSendFailure.Undeliverable => WhatsAppSendErrors.Undeliverable,
+        WhatsAppSendFailure.PairRateLimited or WhatsAppSendFailure.RateLimited => WhatsAppSendErrors.RateLimited,
+        WhatsAppSendFailure.InvalidToken => WhatsAppSendErrors.TokenInvalid,
+        WhatsAppSendFailure.MissingPermission => WhatsAppSendErrors.PermissionMissing,
+        WhatsAppSendFailure.Transient => WhatsAppSendErrors.Unavailable,
+        _ => WhatsAppSendErrors.Rejected,
+    };
 
     /// <summary>
     /// Un problema de configuración del token, no del mensaje: todos los envíos van a fallar igual hasta que alguien lo

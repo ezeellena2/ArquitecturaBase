@@ -5,6 +5,7 @@ using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.WhatsApp;
 using ArquitecturaBase.Application.Interfaces.Channels;
 using ArquitecturaBase.Application.Models.StructuredData;
+using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.WhatsApp.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.WhatsApp.Models;
 using ArquitecturaBase.Domain.Modules.WhatsApp;
@@ -234,6 +235,24 @@ public sealed class WhatsAppRoleNoticeQueueTests(ApiFactory factory)
         Assert.Equal(["Para Ana"], Bodies(scenario));
         Assert.Equal(StructuredRecordActionState.Accepted, (await scenario.ScopeAsync(services => services.GetServices<IStructuredRecordActionChannel>()
             .Single(channel => channel.ChannelId == "phone").GetAsync(run, ana.UserId, Ct))).State);
+    }
+
+    // H9: the gauges of the outgoing read what waits now: the pending ones, the uncertain ones and the oldest pending.
+    [Fact]
+    public async Task The_workload_of_the_outgoing_counts_what_waits_now()
+    {
+        var clock = new FakeTimeProvider(factory.Clock.GetUtcNow());
+        await using var scenario = await WhatsAppFormActionScenario.CreateAsync(factory, Ct, clock);
+        var ana = await scenario.RecipientAsync(clock.GetUtcNow().UtcDateTime, Ct);
+        var first = clock.GetUtcNow().UtcDateTime;
+        await NoticeAsync(scenario, Guid.NewGuid(), ana.UserId, "Primero para Ana");
+        clock.Advance(TimeSpan.FromSeconds(5));
+        await NoticeAsync(scenario, Guid.NewGuid(), ana.UserId, "Segundo para Ana");
+
+        var workload = await scenario.ScopeAsync(services => services.GetRequiredService<IWhatsAppOutgoingWorkloadReader>().FindAsync(Ct));
+
+        Assert.Equal((2, 0), (workload.Pending, workload.Uncertain));
+        Assert.Equal(first, workload.OldestPendingAtUtc!.Value, TimeSpan.FromMilliseconds(1));
     }
 
     private static async Task NoticeAsync(WhatsAppFormActionScenario scenario, Guid runId, Guid userId, string text)

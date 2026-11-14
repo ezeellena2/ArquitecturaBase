@@ -74,6 +74,14 @@
   <data name="WhatsApp.Chat.WindowClosed" xml:space="preserve"><value>The reply window has closed. Wait for a new message from the contact.</value></data>
   <data name="WhatsApp.Chat.DestinationMissing" xml:space="preserve"><value>This contact has no supported number for replies.</value></data>
   <data name="WhatsApp.Chat.RequestConflict" xml:space="preserve"><value>This request already belongs to different content. Review the send.</value></data>
+  <data name="WhatsApp.Send.NotAllowed" xml:space="preserve"><value>This number is not allowed to receive messages from the WhatsApp account.</value></data>
+  <data name="WhatsApp.Send.WindowClosed" xml:space="preserve"><value>The reply window ended before it went out. Wait for a new message from the contact.</value></data>
+  <data name="WhatsApp.Send.Undeliverable" xml:space="preserve"><value>Meta could not deliver it: the number may not have WhatsApp.</value></data>
+  <data name="WhatsApp.Send.RateLimited" xml:space="preserve"><value>Meta held it back by its message limit. Try again in a while.</value></data>
+  <data name="WhatsApp.Send.TokenInvalid" xml:space="preserve"><value>The WhatsApp connection expired or was revoked. It needs to be renewed.</value></data>
+  <data name="WhatsApp.Send.PermissionMissing" xml:space="preserve"><value>The WhatsApp connection lacks a permission to send.</value></data>
+  <data name="WhatsApp.Send.Unavailable" xml:space="preserve"><value>WhatsApp could not be reached, not even with the retries. Try again in a while.</value></data>
+  <data name="WhatsApp.Send.Rejected" xml:space="preserve"><value>WhatsApp refused the message.</value></data>
   <data name="WhatsApp.Chat.ReadPositionInvalid" xml:space="preserve"><value>The read position is outside the stored history.</value></data>
   <data name="Ai.Connection.Invalid" xml:space="preserve"><value>Review the connection provider and model.</value></data>
   <data name="Ai.Connection.CredentialRequired" xml:space="preserve"><value>Configure a key to use or test the connection.</value></data>
