@@ -64,6 +64,10 @@ internal sealed class FormRuleService(IFormDraftRepository drafts, IFormRuleRepo
             if ((current?.Revision ?? 0) != request.ExpectedRevision) return Result.Failure<long>(FormRuleErrors.RevisionConflict);
             var options = await optionsBuilder.ReadAsync(actor.Value, definitionId, ct) ?? throw new InvalidOperationException("The tracked form definition is missing from its reader.");
             var rules = FormRulePolicy.Normalize(request, options, action => FormRulePolicy.Declared(action, options)); if (rules.IsFailure) return Result.Failure<long>(rules.Error);
+            // H6: rules that keep an action that issues ask for the permission of its issuer too.
+            var issuing = await access.MayIssueAsync(actor.Value, rules.Value.SelectMany(rule => rule.Actions).Where(action => action.Kind == "IssueDocument")
+                .Select(action => action.IssuerId), ct);
+            if (issuing.IsFailure) return Result.Failure<long>(issuing.Error);
             var ruleSet = BusinessFormRuleSet.Create(definitionId, (current?.Revision ?? 0) + 1, options.OriginalCulture,
                 FormDraftPolicy.Serialize(rules.Value), rules.Value.SelectMany(rule => rule.Actions).Any(action => action.Kind == "RequestApproval"),
                 FormDraftPolicy.Serialize(new FormVersionSchema(1, options.Questions)));

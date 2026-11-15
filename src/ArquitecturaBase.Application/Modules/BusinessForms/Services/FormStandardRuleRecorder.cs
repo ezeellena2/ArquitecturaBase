@@ -14,9 +14,22 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 /// checks of the rule editor against the new draft and the issuers of the standard; a standard whose rules do not is a bug of its
 /// module. It does not save on its own.
 /// </summary>
-internal sealed class FormStandardRuleRecorder(IFormRuleRepository rules, IFormCatalogItemCodeReader codeReader, IEnumerable<IStructuredRecordIssuer> issuers)
+internal sealed class FormStandardRuleRecorder(IFormRuleRepository rules, IFormCatalogItemCodeReader codeReader, IEnumerable<IStructuredRecordIssuer> issuers,
+    FormRuleAccessGuard access)
 {
     private const string CodePrefix = "code:";
+
+    /// <summary>
+    /// H6: a standard whose rules issue leaves the copy issuing with legal effect, so whoever adds it needs the rules permission and
+    /// the permission of each issuer it names.
+    /// </summary>
+    public async Task<Result> CheckIssuingAsync(StructuredFormStandard standard, CancellationToken cancellationToken)
+    {
+        if (standard.Rules?.SelectMany(rule => rule.Actions).Select(action => action.IssuerId).OfType<string>().ToArray() is not { Length: > 0 } issuing)
+            return Result.Success();
+        var actor = await access.CheckAsync(cancellationToken); if (actor.IsFailure) return actor.Error;
+        return await access.MayIssueAsync(actor.Value, issuing, cancellationToken);
+    }
 
     /// <summary>What the save runs once it has the new definition; null when the standard brings no rules.</summary>
     public async Task<Result<Action<BusinessFormDefinition, FormIdentityMap>?>> PrepareAsync(StructuredFormStandard standard,

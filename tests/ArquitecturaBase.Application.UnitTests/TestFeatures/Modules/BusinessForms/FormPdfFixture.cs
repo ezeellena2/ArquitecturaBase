@@ -30,7 +30,7 @@ internal sealed class FormPdfFixture : IFormPdfDesignRepository, IFormPdfDesignR
     public string? RenderCulture { get; private set; }
     public string Value => "Prueba";
     public FormPdfDesignService Service { get; }
-    public FormPdfFixture() => Service = new(Rules,this,this,new(Rules.User,Rules.Permissions),Rules.UnitOfWork,
+    public FormPdfFixture() => Service = new(Rules,this,this,new(Rules.User,Rules.Permissions,Rules.Issuers),Rules.UnitOfWork,
         RequestValidators.For(new SaveFormPdfDesignRequestValidator(),new PreviewFormPdfDesignRequestValidator()),new(this,this,Clock),NullLogger<FormPdfDesignService>.Instance);
     public Task<BusinessFormPdfDesign?> GetAsync(Guid id,CancellationToken ct) => Task.FromResult(Designs.SingleOrDefault(design=>design.Id==id));
     public void Add(BusinessFormPdfDesign design) => Designs.Add(design);

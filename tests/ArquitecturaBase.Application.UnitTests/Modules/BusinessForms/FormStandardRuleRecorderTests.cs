@@ -3,6 +3,7 @@ using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Application.Modules.BusinessForms.Models;
 using ArquitecturaBase.Application.Modules.BusinessForms.Services;
+using ArquitecturaBase.Application.UnitTests.TestDoubles.Auth;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 
 namespace ArquitecturaBase.Application.UnitTests.Modules.BusinessForms;
@@ -56,7 +57,7 @@ public sealed class FormStandardRuleRecorderTests
     public async Task Adding_finds_the_option_codes_first_and_leaves_the_rules_as_the_active_revision_of_the_new_definition()
     {
         var repository = new RuleSets();
-        var recorder = new FormStandardRuleRecorder(repository, new CodeReader(), [new Issuer()]);
+        var recorder = new FormStandardRuleRecorder(repository, new CodeReader(), [new Issuer()], Access(new FakeCurrentUser(), new FakePermissionService()));
         var catalogs = new Dictionary<string, string> { [Priority] = "test.priorities" };
         var ids = new Dictionary<string, Guid> { ["test.priorities"] = CatalogId };
 
@@ -75,6 +76,29 @@ public sealed class FormStandardRuleRecorderTests
         Assert.Equal(ruleSet.Id, definition.ActiveRuleSetId);
         Assert.Equal(UrgentId, FormDraftPolicy.Read<FormRule[]>(ruleSet.RulesJson)[1].Conditions[0].Values!.Select(Guid.Parse).Single());
     }
+
+    // H6: a standard whose rules issue needs the rules permission and the issuer's own to be added; one that does not issue, neither.
+    [Fact]
+    public async Task Adding_a_standard_that_issues_needs_the_rules_and_the_issuer_permissions()
+    {
+        var user = new FakeCurrentUser { UserId = Guid.NewGuid() };
+        var permissions = new FakePermissionService();
+        var recorder = new FormStandardRuleRecorder(new RuleSets(), new CodeReader(), [new Issuer()], Access(user, permissions));
+
+        Assert.True((await recorder.CheckIssuingAsync(Standard(null), CancellationToken.None)).IsSuccess);
+        (string[] Granted, string Code)[] missingOne = [([BusinessFormsPermissions.RulesManage], FormRuleErrors.IssuerPermissionRequired.Code),
+            (["test.issue"], FormDefinitionErrors.Forbidden.Code), ([], FormDefinitionErrors.Forbidden.Code)];
+        foreach (var (granted, code) in missingOne)
+        {
+            permissions.Permissions[user.UserId.Value] = granted;
+            Assert.Equal(code, (await recorder.CheckIssuingAsync(Standard(Rules), CancellationToken.None)).Error.Code);
+        }
+
+        permissions.Permissions[user.UserId.Value] = [BusinessFormsPermissions.RulesManage, "test.issue"];
+        Assert.True((await recorder.CheckIssuingAsync(Standard(Rules), CancellationToken.None)).IsSuccess);
+    }
+
+    private static FormRuleAccessGuard Access(FakeCurrentUser user, FakePermissionService permissions) => new(user, permissions, [new Issuer()]);
 
     private static StructuredFormStandard Standard(IReadOnlyList<StructuredFormStandardRule>? rules) => new("test.issuer.standard", 1,
         new Dictionary<string, string> { ["es"] = "Prueba" }, new Dictionary<string, string> { ["es"] = "Prueba" }, "PRB", "{}",

@@ -258,7 +258,8 @@ de «Armar el PDF».
 - **`arca.issue`** («Emitir comprobantes en ARCA», el permiso de emitir que pedía la hoja de ruta). Hace falta, además de los
   permisos de formularios, para resolver la revisión de una emisión y para anular una respuesta con factura (efectos con
   valor legal). Cargar el formulario «Factura» no lo pide: lo controla quién puede completar ese formulario.
-- Configurar la acción en las reglas sigue con `formrules.manage`.
+- Configurar la acción en las reglas pide `formrules.manage` y, desde H6 (2026-11-15), también `arca.issue`: todo guardado que
+  deje una acción «Emitir» y agregar «Factura» de la biblioteca ([formularios](../features/formularios.md)).
 
 ### Pruebas
 

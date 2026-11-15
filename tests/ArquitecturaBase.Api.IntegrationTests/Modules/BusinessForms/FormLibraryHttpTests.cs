@@ -163,7 +163,9 @@ public sealed partial class FormDraftEndpointsTests
     [Fact]
     public async Task A_standard_with_rules_is_added_with_them_as_the_first_revision_of_its_rules_once_per_request()
     {
-        using var designer = await OperatorAsync(["formtemplates.read", "formtemplates.manage", BusinessFormsPermissions.RulesManage]);
+        // The test issuer asks for ApprovalsDecide: adding a standard whose rules issue needs it (H6).
+        using var designer = await OperatorAsync(["formtemplates.read", "formtemplates.manage", BusinessFormsPermissions.RulesManage,
+            BusinessFormsPermissions.ApprovalsDecide]);
         var issuer = new TestRecordIssuer();
         await using var host = IssuerHost(issuer);
         using var client = InHost(host, designer);
@@ -197,6 +199,43 @@ public sealed partial class FormDraftEndpointsTests
                 (fields[2].GetProperty("fieldId").GetGuid(), "true")],
             rules[1].GetProperty("conditions").EnumerateArray().Select(condition => (condition.GetProperty("fieldId").GetGuid(), condition.GetProperty("values")[0].GetString())));
         Assert.Equal(1, await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormRuleSet>().CountAsync(ruleSet => ruleSet.DefinitionId == id, Ct)));
+    }
+
+    // H6: putting a form to issue asks for the rules permission and the issuer's, when a standard whose rules issue is added and
+    // when rules that keep an issuing action are saved.
+    [Fact]
+    public async Task A_standard_that_issues_needs_the_rules_and_issuer_permissions_to_be_added_and_its_rules_to_be_saved()
+    {
+        var issuer = new TestRecordIssuer();
+        await using var host = IssuerHost(issuer);
+        var prefix = "P" + Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
+        using var withoutRules = await OperatorAsync(["formtemplates.read", "formtemplates.manage", BusinessFormsPermissions.ApprovalsDecide]);
+        using var withoutIssuer = await OperatorAsync(["formtemplates.read", "formtemplates.manage", BusinessFormsPermissions.RulesManage]);
+        using var designer = await OperatorAsync(["formtemplates.read", "formtemplates.manage", BusinessFormsPermissions.RulesManage,
+            BusinessFormsPermissions.ApprovalsDecide]);
+        using var rulesClient = InHost(host, withoutRules);
+        using var issuerClient = InHost(host, withoutIssuer);
+        using var designerClient = InHost(host, designer);
+
+        // Without the issuer's permission the answer has its own code, so the rule editor tells it instead of closing.
+        using (var refused = await rulesClient.PostAsJsonAsync($"/api/forms/library/{TestRecordIssuer.Key}/copies", Add(Guid.NewGuid(), prefix), Ct))
+            Assert.Equal((HttpStatusCode.Forbidden, "Forms.Definition.Forbidden"), (refused.StatusCode, (await refused.ReadJsonAsync()).GetProperty("code").GetString()));
+        using (var refused = await issuerClient.PostAsJsonAsync($"/api/forms/library/{TestRecordIssuer.Key}/copies", Add(Guid.NewGuid(), prefix), Ct))
+            Assert.Equal((HttpStatusCode.Forbidden, "Forms.Rule.IssuerPermissionRequired"), (refused.StatusCode, (await refused.ReadJsonAsync()).GetProperty("code").GetString()));
+
+        using var added = await designerClient.PostAsJsonAsync($"/api/forms/library/{TestRecordIssuer.Key}/copies", Add(Guid.NewGuid(), prefix), Ct);
+        Assert.Equal(HttpStatusCode.Created, added.StatusCode);
+        var id = (await added.ReadJsonAsync()).GetProperty("definition").GetProperty("id").GetGuid();
+        using var current = await designerClient.GetAsync($"/api/forms/definitions/{id}/rules", Ct);
+        var rules = (await current.ReadJsonAsync()).GetProperty("rules");
+
+        using var saved = await issuerClient.PostAsJsonAsync($"/api/forms/definitions/{id}/rules", new { expectedRevision = 1, rules }, Ct);
+        Assert.Equal((HttpStatusCode.Forbidden, "Forms.Rule.IssuerPermissionRequired"), (saved.StatusCode, (await saved.ReadJsonAsync()).GetProperty("code").GetString()));
+        using var savedByDesigner = await designerClient.PostAsJsonAsync($"/api/forms/definitions/{id}/rules", new { expectedRevision = 1, rules }, Ct);
+        Assert.Equal(HttpStatusCode.Created, savedByDesigner.StatusCode);
+        // Taking the issuing rule out issues nothing, so it asks only for the rules permission.
+        using var withoutIssuing = await issuerClient.PostAsJsonAsync($"/api/forms/definitions/{id}/rules", new { expectedRevision = 2, rules = new[] { rules[1] } }, Ct);
+        Assert.Equal(HttpStatusCode.Created, withoutIssuing.StatusCode);
     }
 
     // «Agregar» offers a prefix that no form uses, deleted ones too: after a copy takes it, the next one is another.

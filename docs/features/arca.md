@@ -30,7 +30,9 @@ que siguen están en la [hoja de ruta](../plans/2026-10-31-arca-formularios-esta
 
 - `arca.read` lee; cambiar algo o llamar a ARCA pide también `arca.manage` (`ArcaPermissions`, por
   `IPermissionCatalogSource`). Sin `arca.read`, «ARCA» no aparece en el menú.
-- `arca.issue` decide sobre una emisión en revisión, además de los permisos de formularios.
+- `arca.issue` decide sobre una emisión en revisión, además de los permisos de formularios. También lo pide poner a emitir
+  un formulario: agregar «Factura» de la biblioteca, con `formrules.manage`, o guardar una regla que emite (H6). Cargar la
+  «Factura» no lo pide.
 - La pantalla es `/configuracion/arca`, en Administración → Configuración, sin estado en la URL. El alta va por zonas que
   se habilitan de a una y la conexión activa, por zonas con su acción en la banda. Los tableros y lo que se fijó al
   programar están en el [diseño del front](../../../ArquitecturaBaseFront/docs/design/arca-conexion.md).

@@ -65,6 +65,7 @@ internal sealed class FormLibraryService : IFormLibraryService
         {
             var access = await _access.CheckAsync(true, cancellationToken); if (access.IsFailure) return access.Error;
             if (_library.Offered().SingleOrDefault(standard => standard.Key == key) is not { } standard) return FormLibraryErrors.StandardNotFound;
+            var issuing = await _rules.CheckIssuingAsync(standard, cancellationToken); if (issuing.IsFailure) return issuing.Error;
             var draft = FormDraftPolicy.Read<FormDraftInput>(standard.DraftJson);
             // DOC1: a standard that reads documents leaves the copy reading them, in the copy's language; its validations come in its questions.
             draft = draft with { DocumentReading = FormStandardPolicy.Reading(standard, draft.Culture) };

@@ -260,7 +260,7 @@ Todo se suma en SQL acotado (`FormDashboardReader`): toma sin ejecutarlo el coma
 
 ## Reglas con revisiones propias — Etapa 4, G1
 
-`formrules.manage` permite consultar y guardar las reglas, sus revisiones y las opciones para configurarlas. Cada guardado crea una revisión inmutable de `BusinessFormRuleSets` y mueve `ActiveRuleSetId` bajo el lock de definiciones existente. `expectedRevision` parte de cero y un guardado atrasado devuelve 409. No cambia la revisión del borrador, las preguntas ni la versión publicada, ni llama a WhatsApp. Guardar una lista vacía deshabilita las reglas mediante una revisión nueva.
+`formrules.manage` permite consultar y guardar las reglas, sus revisiones y las opciones para configurarlas. Un guardado que deja una acción «Emitir» pide además el permiso de su emisor, que sale del puerto, y si falta da 403 `Forms.Rule.IssuerPermissionRequired` (H6), un código propio para que el editor lo avise y conserve lo editado: en una copia de «Factura», cambiar una regla mientras quede «Emitir» pide `arca.issue`, y sacar la regla que emite no lo pide. Cargar el formulario no lo pide. Cada guardado crea una revisión inmutable de `BusinessFormRuleSets` y mueve `ActiveRuleSetId` bajo el lock de definiciones existente. `expectedRevision` parte de cero y un guardado atrasado devuelve 409. No cambia la revisión del borrador, las preguntas ni la versión publicada, ni llama a WhatsApp. Guardar una lista vacía deshabilita las reglas mediante una revisión nueva.
 
 Cada regla conserva identidades de regla y acciones, evento Received/Approved/Rejected, hasta diez condiciones AND de la gramática de planilla y acciones ordenadas. Pedir aprobación sólo al recibir y al final de su regla; generar PDF sólo al aprobar. Adjuntar PDF al aviso de quien cargó exige una acción anterior de generación en esa regla. El esquema de preguntas queda fijado junto con las reglas para resolver placeholders por identidad aunque después cambien las etiquetas. Un dato del mensaje puede guardar la identidad de la pregunta, `{FieldId}`, en lugar de su nombre (MD1-A, 2026-11-02). Se valida contra las preguntas de las opciones, sirve igual en los dos idiomas y sigue valiendo si la pregunta cambia de nombre. El nombre entre llaves, en el idioma del texto, se sigue aceptando. Al leer las reglas, una revisión o el historial, se convierte en la referencia con el esquema fijado de esa revisión, aunque la pregunta ya tenga otro nombre. Así el editor y la comparación del historial ven una sola forma. Los textos nuevos exigen sólo el idioma original del formulario; la traducción es opcional. La [regla de idiomas vigente](#idioma-original-y-traducción-opcional--2026-10-19) abarca también publicación y envío.
 
@@ -1292,7 +1292,10 @@ aparece.
   salieron de cada uno y el prefijo que ofrece «Agregar» (`suggestedPrefix`): el del estándar o, si un formulario ya lo tiene, el
   primero con un número después que ningún formulario usa, también los eliminados, como mira el guardado.
 - **Agregar.** `POST api/forms/library/{key}/copies` («Administrar formularios») recibe `requestId`, nombre y prefijo y crea el
-  borrador por el guardado de siempre: el mismo pedido devuelve el mismo borrador. La definición sella una vez el estándar, su
+  borrador por el guardado de siempre: el mismo pedido devuelve el mismo borrador. Un estándar con reglas que emiten deja la
+  copia emitiendo con efecto legal: pide además `formrules.manage` y el permiso de cada emisor que nombra (`ReviewPermission`
+  del puerto, como en la anulación), y si falta alguno da 403 `Forms.Rule.IssuerPermissionRequired` (H6); un emisor que no está
+  instalado da `Forms.Action.IssuerUnavailable`, como en la anulación. La definición sella una vez el estándar, su
   versión y `dato → fieldId`, que el detalle trae en `standard`. Un estándar que no está da 404
   `Forms.Library.StandardNotFound` y un catálogo que falta o está inactivo, 409 `Forms.Library.CatalogUnavailable`.
 - **Un catálogo propio del estándar** (`OwnCatalogs`, como «Clientes» de la factura) se crea Manual, con su `Key`, sus
