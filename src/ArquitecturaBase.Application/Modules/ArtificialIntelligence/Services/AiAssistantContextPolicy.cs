@@ -42,7 +42,9 @@ internal sealed class AiAssistantContextPolicy(IAiAssistantReader reader, IAiCon
         if (offered.Value.Capabilities.Count != profile.Value.ChannelContext.AllowedCapabilities.Count ||
             offered.Value.Preloaded.Count != (profile.Value.ChannelContext.PreloadedCapabilities?.Count ?? 0)) return AiAssistantErrors.ContentBlocked;
         var credential = credentialPolicy.Reveal(connection.Provider, connection.ProtectedApiKey);
-        if (credential.IsFailure) return credential.Error;
+        // I7, review: a key that became unreadable after acceptance closes the turn as unavailable, a text the person can act on; the one
+        // that sends to «Reemplazar clave» is for the models catalog and the connection test.
+        if (credential.IsFailure) return AiAssistantErrors.Unavailable;
         var question = responsePolicy.Reveal(turn, "question", turn.ProtectedQuestion);
         if (question is null) return AiAssistantErrors.ContentUnavailable;
         if (turn.ProtectedTranscript is { } protectedTranscript)

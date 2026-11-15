@@ -67,6 +67,7 @@ public sealed partial class AiAssistantContextPolicyTests
         public Guid UserId { get; }
         public Reader Reader { get; }
         public Protector Protector { get; } = new();
+        public SecretProtector Secrets { get; } = new();
         public FakeLogger<AiAssistantResponsePolicy> Log { get; } = new();
         public AiAssistantClaimResponse Claim { get; }
         public AiAssistantContextPolicy Policy { get; }
@@ -97,7 +98,7 @@ public sealed partial class AiAssistantContextPolicyTests
                 new FakeCurrentUser { UserId = actor.Id }, catalog, new([], [], new MemoryPrivateFileStore()), FictionalCredentials.Policy);
             Guard = guard;
             Policy = new(Reader, new ConnectionReader(), guard, new AiAssistantResponsePolicy(Protector, clock, catalog, Log),
-                new AiConnectionCandidatePolicy(new SecretProtector()), catalog, limits, clock);
+                new AiConnectionCandidatePolicy(Secrets), catalog, limits, clock);
         }
     }
     private sealed class Protector : IAiConversationProtector
@@ -123,8 +124,11 @@ public sealed partial class AiAssistantContextPolicyTests
     }
     private sealed class SecretProtector : IAiSecretProtector
     {
+        // I7, review: false stands for a saved key the installation can no longer decrypt.
+        public bool Readable { get; set; } = true;
         public string Protect(AiProvider provider, string apiKey) => throw new NotSupportedException();
-        public string? Unprotect(AiProvider provider, string protectedApiKey) => "fictional-key";
+        public string? Unprotect(AiProvider provider, string protectedApiKey) => Readable ? "fictional-key" : null;
+        public bool CanUnprotect(AiProvider provider, string protectedApiKey) => Unprotect(provider, protectedApiKey) is not null;
     }
     private sealed class ConnectionReader : IAiConnectionReader
     {

@@ -43,6 +43,16 @@ public sealed class AiBusinessInformationEndpointsTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.Conflict, conflict.StatusCode);
     }
 
+    // I7, review: the search without the installation's Google key is a 409 with ProblemDetails, and the document says so.
+    [Fact]
+    public async Task Place_search_documents_its_conflict_without_a_key()
+    {
+        var document = await OpenApiTests.ReadDocumentAsync(factory);
+        var responses = document.GetProperty("paths").GetProperty("/api/ai/business-information/places/search").GetProperty("post").GetProperty("responses");
+        Assert.Equal("#/components/schemas/ProblemDetails", responses.GetProperty("409").GetProperty("content").GetProperty("application/problem+json")
+            .GetProperty("schema").GetProperty("$ref").GetString());
+    }
+
     [Theory]
     [InlineData("es")]
     [InlineData("en")]

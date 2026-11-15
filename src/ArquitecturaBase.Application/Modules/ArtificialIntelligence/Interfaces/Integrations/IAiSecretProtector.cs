@@ -5,4 +5,5 @@ public interface IAiSecretProtector
 {
     string Protect(AiProvider provider, string apiKey);
     string? Unprotect(AiProvider provider, string protectedApiKey);
+    bool CanUnprotect(AiProvider provider, string protectedApiKey);
 }

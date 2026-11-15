@@ -502,6 +502,7 @@ public sealed partial class AiAssistantAttachmentTests
     {
         public string Protect(AiProvider provider, string apiKey) => throw new NotSupportedException();
         public string? Unprotect(AiProvider provider, string protectedApiKey) => "fictional-key";
+        public bool CanUnprotect(AiProvider provider, string protectedApiKey) => Unprotect(provider, protectedApiKey) is not null;
     }
 
     // The five core Home queries, as metadata only: accepting a turn never runs or parses a capability.

@@ -21,23 +21,28 @@ internal sealed class AesGcmAiSecretProtector(AiKeyRing ring) : IAiSecretProtect
         }
         finally { CryptographicOperations.ZeroMemory(key); CryptographicOperations.ZeroMemory(plain); }
     }
-    public string? Unprotect(AiProvider provider, string protectedApiKey)
+    public string? Unprotect(AiProvider provider, string protectedApiKey) => Decrypt(provider, protectedApiKey, plain => Encoding.UTF8.GetString(plain));
+
+    // I7, review: probing decrypts into a buffer that is cleared, without building a string with the key that could not be.
+    public bool CanUnprotect(AiProvider provider, string protectedApiKey) => Decrypt(provider, protectedApiKey, _ => true);
+
+    private T? Decrypt<T>(AiProvider provider, string protectedApiKey, Func<byte[], T> read)
     {
         byte[]? key = null;
         byte[]? plain = null;
         try
         {
             var parts = protectedApiKey.Split('.');
-            if (parts.Length != 5 || parts[0] != "1") return null;
+            if (parts.Length != 5 || parts[0] != "1") return default;
             key = ring.Find(parts[1]);
-            if (key is null) return null;
+            if (key is null) return default;
             var cipher = Convert.FromBase64String(parts[4]);
             plain = new byte[cipher.Length];
             using var aes = new AesGcm(key, 16);
             aes.Decrypt(Convert.FromBase64String(parts[2]), cipher, Convert.FromBase64String(parts[3]), plain, AssociatedData(parts[1], provider));
-            return Encoding.UTF8.GetString(plain);
+            return read(plain);
         }
-        catch (Exception ex) when (ex is CryptographicException or FormatException or ArgumentException) { return null; }
+        catch (Exception ex) when (ex is CryptographicException or FormatException or ArgumentException) { return default; }
         finally
         {
             if (key is not null) CryptographicOperations.ZeroMemory(key);

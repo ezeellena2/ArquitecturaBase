@@ -44,6 +44,21 @@ public sealed class AiSecretProtectionTests
         Assert.Null(protector.Unprotect(AiProvider.Anthropic, encrypted));
     }
 
+    // I7, review: probing a saved key agrees with reading it, for every reason a key cannot be read, without handing out its text.
+    [Fact]
+    public void Probing_a_saved_key_agrees_with_reading_it()
+    {
+        var protector = Protector(Ring());
+        var encrypted = protector.Protect(AiProvider.OpenAI, "fictional-key");
+        Assert.True(protector.CanUnprotect(AiProvider.OpenAI, encrypted));
+        Assert.True(Protector(Ring("two")).CanUnprotect(AiProvider.OpenAI, encrypted));
+        Assert.False(protector.CanUnprotect(AiProvider.Anthropic, encrypted));
+        Assert.False(protector.CanUnprotect(AiProvider.OpenAI, encrypted[..^3] + "abc"));
+        Assert.False(protector.CanUnprotect(AiProvider.OpenAI, "not-an-envelope"));
+        Assert.False(Protector(Ring(installation: "another-installation")).CanUnprotect(AiProvider.OpenAI, encrypted));
+        Assert.False(Protector(Ring() with { Keys = new Dictionary<string, string>() }).CanUnprotect(AiProvider.OpenAI, encrypted));
+    }
+
     [Fact]
     public void Encryption_is_randomized_and_authenticates_the_installation_and_envelope()
     {

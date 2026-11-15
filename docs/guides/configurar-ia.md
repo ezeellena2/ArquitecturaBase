@@ -115,8 +115,9 @@ el proveedor dice «No pudimos leer la clave guardada: reemplazala» junto a la 
 **Reemplazar clave** resaltado (cargar modelos y probar responden 409
 `Ai.Connection.CredentialUnavailable`), y el asistente, el audio y los documentos quedan no
 disponibles (`notConfigured`, también para WhatsApp y Formularios): la disponibilidad prueba el
-descifrado sin llamar al proveedor, así nadie gasta cupo en turnos que no pueden andar. Reemplazar
-la clave lo arregla.
+descifrado sin llamar al proveedor, así nadie gasta cupo en turnos que no pueden andar. Un turno
+aceptado antes cierra como no disponible, sin el texto de reemplazar la clave. Reemplazar la clave
+lo arregla.
 
 Una conversación o un turno que no se puede descifrar (I8) se muestra «no disponible» en Inicio
 (título genérico, sin contenido) y las demás se siguen viendo; cada pedido deja un solo aviso en el

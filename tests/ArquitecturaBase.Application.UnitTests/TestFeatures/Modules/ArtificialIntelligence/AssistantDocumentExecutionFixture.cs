@@ -77,6 +77,7 @@ internal sealed class AssistantDocumentExecutionFixture
     {
         public string Protect(AiProvider provider, string key) => throw new NotSupportedException();
         public string? Unprotect(AiProvider provider, string key) => "fixture-document-key";
+        public bool CanUnprotect(AiProvider provider, string key) => Unprotect(provider, key) is not null;
     }
 }
 

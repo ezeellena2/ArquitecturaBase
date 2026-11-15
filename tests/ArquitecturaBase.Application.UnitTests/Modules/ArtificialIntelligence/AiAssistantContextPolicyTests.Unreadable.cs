@@ -59,4 +59,17 @@ public sealed partial class AiAssistantContextPolicyTests
         Assert.Equal(AiAssistantErrors.ContentUnavailable, result.Error);
         Assert.Empty(host.Log.Collector.GetSnapshot());
     }
+
+    // I7, review: a key that became unreadable after the turn was accepted closes it with Ai.Assistant.Unavailable, whose text the person
+    // can act on; the one that names «Reemplazar clave» stays for the models catalog and the connection test.
+    [Fact]
+    public async Task A_saved_key_that_became_unreadable_fails_the_turn_as_unavailable()
+    {
+        var host = new Host("es");
+        host.Secrets.Readable = false;
+
+        var result = await host.Policy.PrepareAsync(host.Claim, TestContext.Current.CancellationToken);
+
+        Assert.Equal(AiAssistantErrors.Unavailable, result.Error);
+    }
 }

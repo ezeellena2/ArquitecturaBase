@@ -53,6 +53,21 @@ public sealed class AiAssistantOperationsTests
         Assert.Equal(0, fixture.Work.Commits);
     }
 
+    // I7, review: the checks in memory go before decrypting the saved key, and a request probes it once even when the assistant and the
+    // documents both need it.
+    [Fact]
+    public async Task Availability_probes_the_saved_key_once_and_only_after_the_checks_in_memory()
+    {
+        var fixture = new AssistantOperationsFixture(documentQualified: true);
+        var available = await fixture.Service.GetAvailabilityAsync(Ct);
+        Assert.Equal(("available", true), (available.State, available.ReadsDocuments));
+        Assert.Equal(1, fixture.Secrets.Probes);
+
+        var unqualified = new AssistantOperationsFixture(qualified: false);
+        Assert.Equal("modelNotQualified", (await unqualified.Service.GetAvailabilityAsync(Ct)).State);
+        Assert.Equal(0, unqualified.Secrets.Probes);
+    }
+
     // Task 8 of the documents: a channel reads a PDF or a photo only where Home would (documentReading), without the person's part.
     [Theory]
     [InlineData(true, true, true, true)]

@@ -15,7 +15,7 @@ internal sealed class AiAssistantAccessGuard(IUserReader users, IPermissionServi
     AiAssistantTechnicalProfilePolicy technical, AiConnectionCandidatePolicy credentials)
 {
     // I7: what needs the saved key (the assistant, the audio and the documents) is offered and accepted only while it can be read here,
-    // locally and without the provider, after the cheaper checks.
+    // locally and without the provider, after every check in memory (I7, review).
     public bool HearsHomeAudio(AiConnectionRow connection) => technical.HearsHomeAudio(connection) && credentials.CanReveal(connection);
 
     public Result<AiAssistantExecutionProfileSnapshot> CaptureAudioProfile(AiConnectionRow connection,
@@ -139,9 +139,10 @@ internal sealed class AiAssistantAccessGuard(IUserReader users, IPermissionServi
     {
         if (connection.ProtectedApiKey is null || string.IsNullOrWhiteSpace(connection.Model)) return "notConfigured";
         if (!connection.Enabled) return "paused";
-        // A key that cannot be read is as good as none (I7): the connection needs it replaced, and no turn is accepted meanwhile.
-        if (!credentials.CanReveal(connection)) return "notConfigured";
-        return profiles.Any(p => p.Provider == connection.Provider && p.Model == connection.Model && p.SupportsTools &&
-            p.SupportsTerminalAnswer && p.ContextBytes >= limits.ContextBytes) ? "available" : "modelNotQualified";
+        if (!profiles.Any(p => p.Provider == connection.Provider && p.Model == connection.Model && p.SupportsTools &&
+            p.SupportsTerminalAnswer && p.ContextBytes >= limits.ContextBytes)) return "modelNotQualified";
+        // A key that cannot be read is as good as none (I7): the connection needs it replaced, and no turn is accepted meanwhile. It is
+        // the last check, the only one that decrypts (I7, review).
+        return credentials.CanReveal(connection) ? "available" : "notConfigured";
     }
 }

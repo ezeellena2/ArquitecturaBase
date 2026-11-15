@@ -40,6 +40,8 @@ internal sealed class AssistantOperationsFixture
     public AiAssistantOperations Service { get; }
     // I8, review: what the response policy logs about content that cannot be read, only ids.
     public FakeLogger<AiAssistantResponsePolicy> ResponseLog { get; } = new();
+    // I7, review: the saved key's probes, one per request and after the checks in memory.
+    public FictionalCredentials.Protector Secrets { get; } = new();
 
     public AssistantOperationsFixture(bool qualified = true, bool audioQualified = false, bool documentQualified = false, AiAssistantLimits? limits = null)
     {
@@ -57,7 +59,7 @@ internal sealed class AssistantOperationsFixture
             ? [new(AiProvider.OpenAI, "vision-model", "fixture-document", 4, ["application/pdf", "image/jpeg", "image/png"], 10 * 1024 * 1024, 10)] : [];
         var catalog = new AiAssistantCapabilityCatalogPolicy([Source], Permissions);
         var guard = new AiAssistantAccessGuard(Users, Permissions, Profiles, limits, new FakeCurrentUser { UserId = Guid.NewGuid() }, catalog,
-            new(AudioProfiles, DocumentProfiles, new MemoryPrivateFileStore()), FictionalCredentials.Policy);
+            new(AudioProfiles, DocumentProfiles, new MemoryPrivateFileStore()), new AiConnectionCandidatePolicy(Secrets));
         var responses = new AiAssistantResponsePolicy(Protector, Clock, catalog, ResponseLog);
         var submissions = new AiAssistantSubmissionPolicy(Store, Store, Store, guard, Protector, new OperationsFingerprint(), limits, responses);
         Service = new(Store, guard, submissions, Work, Store, responses, NullLogger<AiAssistantOperations>.Instance);

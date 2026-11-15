@@ -169,6 +169,7 @@ public sealed class AiConnectionServiceTests
         public int Encryptions { get; private set; }
         public string Protect(AiProvider provider, string apiKey) { Encryptions++; return "protected:" + apiKey; }
         public string? Unprotect(AiProvider provider, string protectedApiKey) => protectedApiKey[10..];
+        public bool CanUnprotect(AiProvider provider, string protectedApiKey) => Unprotect(provider, protectedApiKey) is not null;
     }
     private sealed class Fingerprint : IAiChangeFingerprint
     {

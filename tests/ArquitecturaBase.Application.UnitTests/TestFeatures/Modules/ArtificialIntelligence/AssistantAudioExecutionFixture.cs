@@ -64,6 +64,7 @@ internal sealed class AssistantAudioExecutionFixture
     {
         public string Protect(AiProvider provider, string key) => throw new NotSupportedException();
         public string? Unprotect(AiProvider provider, string key) => "fixture-audio-key";
+        public bool CanUnprotect(AiProvider provider, string key) => Unprotect(provider, key) is not null;
     }
 }
 internal sealed class AudioConversationClient : ILlmConversationClient

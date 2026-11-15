@@ -1,6 +1,7 @@
 using ArquitecturaBase.Api.Authorization;
 using ArquitecturaBase.Api.ErrorHandling;
 using ArquitecturaBase.Api.Modules.ArtificialIntelligence.Contracts;
+using ArquitecturaBase.Api.OpenApi;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Interfaces.Services;
 using ArquitecturaBase.Application.Modules.ArtificialIntelligence.Models;
 using ArquitecturaBase.Domain.Modules.ArtificialIntelligence;
@@ -19,6 +20,8 @@ public sealed class BusinessPlacesController(IBusinessPlacesService service) : C
 {
     [HttpPost("search")]
     [ProducesResponseType<BusinessPlacesResponse>(StatusCodes.Status200OK)]
+    // I7: without the installation's Google key the search is not configured.
+    [ProducesProblem(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Search([FromBody] SearchBusinessPlacesHttpRequest request, CancellationToken cancellationToken) =>
         (await service.SearchAsync(new(request.Input), cancellationToken)).ToActionResult(this);
 }

@@ -12,9 +12,16 @@ internal static class FictionalCredentials
 
     public static AiConnectionCandidatePolicy Policy => new(new Protector());
 
-    private sealed class Protector : IAiSecretProtector
+    // Counts how many times the saved key is probed, so a test sees the in-memory checks go first and one probe per request (I7, review).
+    internal sealed class Protector : IAiSecretProtector
     {
+        public int Probes { get; private set; }
         public string Protect(AiProvider provider, string apiKey) => "protected:" + apiKey;
         public string? Unprotect(AiProvider provider, string protectedApiKey) => protectedApiKey == UnreadableKey ? null : "fictional-key";
+        public bool CanUnprotect(AiProvider provider, string protectedApiKey)
+        {
+            Probes++;
+            return Unprotect(provider, protectedApiKey) is not null;
+        }
     }
 }
