@@ -166,22 +166,22 @@ Las etapas van en orden, y dentro de cada etapa las tareas también, salvo en la
     que la copia no entiende, un permiso perdido en una carrera), o el front arma un pedido nuevo tras un 400 sin errores por
     pregunta; y los textos de esos dos errores sirven también en la app. Chico.
 27. **F11. Un tope de exportaciones a la vez por copia.** Un limitador global (por ejemplo, dos a la vez) con 429 y `Retry-After`.
-    Escribir el XLSX por partes queda para gran escala. Chico.
+    Escribir el XLSX por partes queda para gran escala. Chico. Hecha el 2026-11-15 en `13eb9b41`.
 28. **F12. La planilla que se infla no pasa.** Se cuentan también los estilos y los textos compartidos, o baja el tope descomprimido,
-    y hay un tope global de importaciones a la vez por copia; antes, medir el pico con una planilla de casi 100 MiB. Chico.
+    y hay un tope global de importaciones a la vez por copia; antes, medir el pico con una planilla de casi 100 MiB. Chico. Hecha el 2026-11-15 en `2760dc30`.
 29. **F15. Los campos históricos de catálogo, en una tabla chica.** La unión de campos por formulario, catálogo y campo se escribe
     al capturar, nunca al leer, se rellena con lo existente en la misma migración y la planilla la lee por índice. Mediano.
 30. **F16. Una regla no nombra una opción que no existe.** Guardar una regla, un filtro o una sugerencia comprueba que sus opciones
     existen, y borrar opciones toma antes el lock de definiciones. Chico.
 31. **F21. «Agregar» un estándar resuelve sus catálogos dentro del guardado.** Por clave, después del lock, usando el que ya
-    apareció; un doble clic devuelve el mismo borrador. Chico.
+    apareció; un doble clic devuelve el mismo borrador. Chico. Hecha el 2026-11-15 en `fe6ed930`.
 32. **F22. El canal dice por qué no pudo crear un borrador.** WhatsApp traduce el nombre repetido, el catálogo no disponible y la
-    falta de permiso. Chico.
-33. **F24. Crear un catálogo es idempotente.** Un id de pedido en la creación, como los borradores. Chico.
+    falta de permiso. Chico. Hecha el 2026-11-15 en `ec9d212c`.
+33. **F24. Crear un catálogo es idempotente.** Un id de pedido en la creación, como los borradores. Chico. Hecha el 2026-11-15 en `fb0545a0`.
 34. **F33. El índice por fecha de las respuestas.** Por formulario y fecha de recepción, sobre las vigentes; lo demás de F33 queda
     para gran escala. Trivial.
 35. **F37. La captura revisa las opciones elegidas por lote.** Una consulta por catálogo que conserva el orden del rechazo. Chico.
-36. **F47. El menú arma el índice de carpetas una vez.** Y las carpetas suman un tope, con su error. Chico.
+36. **F47. El menú arma el índice de carpetas una vez.** Y las carpetas suman un tope, con su error. Chico. Hecha el 2026-11-15 en `64874daf`.
 
 ### Etapa 7: versiones y documentación
 

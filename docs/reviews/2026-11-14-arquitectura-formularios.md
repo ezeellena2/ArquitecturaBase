@@ -490,6 +490,7 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
 - **Arreglo:** un limitador global de exportaciones por copia (por ejemplo, dos a la vez, con 429 y `Retry-After`), chico; y
   escribir el XLSX por partes hacia la respuesta o un archivo temporal, para que la memoria no dependa de las filas, mediano.
   **Prueba que lo resuelve:** tres a cinco exportaciones de 100.000 filas a la vez contra el límite de memoria del despliegue.
+- **Arreglado el 2026-11-15** en 13eb9b41.
 
 #### F12. Una planilla de 10 MiB puede inflarse a casi 100 MiB de XML que ClosedXML abre entero, dentro del pedido
 
@@ -507,6 +508,7 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
   (`FormSpreadsheetReaderTests.cs:175-211`).
 - **Arreglo:** medir el pico con una planilla de casi 100 MiB de estilos y de textos compartidos; bajar el tope descomprimido o
   contar también los estilos y los textos compartidos; y un tope global de importaciones a la vez por copia. Chico.
+- **Arreglado el 2026-11-15** en 2760dc30.
 
 #### F13. Un revisor puede pasar un comprobante repetido sin enterarse
 
@@ -642,6 +644,7 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
   (`UnitOfWork.cs:69-72`); la huella del pedido incluye los ids generados (`FormDraftService.cs:44`).
 - **Arreglo:** resolver los catálogos por clave dentro del guardado, después del lock, y usar el que ya apareció; o derivar del
   pedido los ids del catálogo y sus opciones, para que el reintento tenga la misma huella. Chico a mediano.
+- **Arreglado el 2026-11-15** en fe6ed930.
 
 #### F22. Por WhatsApp, «Crear borrador» que falla dice siempre «No pude armarlo»
 
@@ -652,6 +655,7 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
 - **Evidencia:** `WhatsAppAssistantAuthoringPolicy.cs:39-41`, `AssistantTerminalTexts.resx:20-21`; Formularios devuelve el motivo
   con código estable (`FormDraftProposalService.cs:43-46,88-90`).
 - **Arreglo:** que el canal traduzca al menos el nombre repetido, el catálogo no disponible y la falta de permiso. Chico.
+- **Arreglado el 2026-11-15** en ec9d212c.
 
 #### F23. «Cómo reconocerlo» puede llevar al modelo instrucciones escritas en un documento recibido
 
@@ -679,6 +683,7 @@ Cada hallazgo dice dónde falla, que es el horizonte, el escenario, la evidencia
   `FormCatalogFiltersService.cs:62-81`); no hay único por nombre (`BusinessFormCatalogConfiguration.cs:41-48`). Crear desde una
   propuesta sí controla el nombre (`FormCatalogAssistantProposalService.cs:72,80`).
 - **Arreglo:** un id de pedido en la creación, que devuelva el mismo catálogo ante la repetición, como los borradores. Chico.
+- **Arreglado el 2026-11-15** en fb0545a0.
 
 #### F25. La guía para quitar Formularios cuenta 26 tablas y son 29, y no dice qué pasa con ARCA
 
@@ -1043,6 +1048,7 @@ Cada despliegue hace convivir un rato la versión vieja y la nueva, así que los
   profundidad (`BusinessFormFolder.cs:17-19`).
 - **Arreglo:** armar el índice de hijos una vez, calcular sólo los subárboles de las carpetas del menú y poner un tope de carpetas
   con su error. Chico.
+- **Arreglado el 2026-11-15** en 64874daf.
 
 #### F48. Con más de 101 formularios publicados en WhatsApp, la configuración del asistente muestra los más viejos y no avisa
 
