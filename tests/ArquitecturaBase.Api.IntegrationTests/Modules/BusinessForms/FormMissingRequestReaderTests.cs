@@ -23,19 +23,24 @@ public sealed class FormMissingRequestReaderTests(ApiFactory factory)
             var discarded = BusinessFormMissingTopic.Create("Discarded topic", "Fictitious discarded request.", "en").Value;
             Assert.True(discarded.Discard(1, Guid.CreateVersion7(), factory.Clock.GetUtcNow().UtcDateTime).IsSuccess);
             var pending = BusinessFormMissingTopic.Create("Pending topic", "Fictitious pending request.", "en").Value;
-            db.Set<BusinessFormMissingTopic>().AddRange(discarded, pending);
+            Assert.True(pending.Review(1, Guid.CreateVersion7(), factory.Clock.GetUtcNow().UtcDateTime).IsSuccess);
+            var unreviewed = BusinessFormMissingTopic.Create("Unreviewed topic", "Fictitious unreviewed request.", "en").Value;
+            db.Set<BusinessFormMissingTopic>().AddRange(discarded, pending, unreviewed);
             await db.SaveChangesAsync(Ct);
             var reader = scope.ServiceProvider.GetRequiredService<IFormMissingRequestReader>();
             var first = Assert.Single(await reader.ListAssistantTopicsAsync(Ct));
             Assert.Equal(pending.Id, first.Id);
             for (var index = 0; index < 100; index++)
-                db.Set<BusinessFormMissingTopic>().Add(BusinessFormMissingTopic.Create("Pending topic " + index,
-                    "Fictitious pending request for the bounded read.", "en").Value);
+            {
+                var extra = BusinessFormMissingTopic.Create("Pending topic " + index, "Fictitious pending request for the bounded read.", "en").Value;
+                Assert.True(extra.Review(1, Guid.CreateVersion7(), factory.Clock.GetUtcNow().UtcDateTime).IsSuccess);
+                db.Set<BusinessFormMissingTopic>().Add(extra);
+            }
             await db.SaveChangesAsync(Ct);
             db.ChangeTracker.Clear();
             var rows = await reader.ListAssistantTopicsAsync(Ct);
             Assert.Equal(101, rows.Count);
-            Assert.DoesNotContain(rows, row => row.Id == discarded.Id);
+            Assert.DoesNotContain(rows, row => row.Id == discarded.Id || row.Id == unreviewed.Id);
             Assert.Equal(rows.Select(row => row.Id).Order(), rows.Select(row => row.Id));
         }
         finally { await db.Database.EnsureDeletedAsync(Ct); }

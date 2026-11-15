@@ -2279,6 +2279,12 @@ namespace ArquitecturaBase.Infrastructure.Persistence.Migrations
                         .HasMaxLength(2)
                         .HasColumnType("character varying(2)");
 
+                    b.Property<DateTime?>("ReviewedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ReviewedByUserId")
+                        .HasColumnType("uuid");
+
                     b.Property<long>("Revision")
                         .HasColumnType("bigint");
 

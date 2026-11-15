@@ -13,6 +13,9 @@ public sealed class BusinessFormMissingTopic : Entity, IAuditable
     public BusinessFormMissingTopicState State { get; private set; }
     public Guid? DiscardedByUserId { get; private set; }
     public DateTime? DiscardedAtUtc { get; private set; }
+    public Guid? ReviewedByUserId { get; private set; }
+    public DateTime? ReviewedAtUtc { get; private set; }
+    public bool IsReviewed => ReviewedAtUtc is not null;
     public DateTime CreatedAtUtc { get; private set; }
     public Guid? CreatedBy { get; private set; }
     public DateTime? ModifiedAtUtc { get; private set; }
@@ -27,6 +30,7 @@ public sealed class BusinessFormMissingTopic : Entity, IAuditable
     public Result RegisterRequest()
     {
         if (Revision >= 9007199254740991) return FormMissingRequestErrors.RevisionConflict;
+        if (State == BusinessFormMissingTopicState.Discarded) { ReviewedByUserId = null; ReviewedAtUtc = null; }
         State = BusinessFormMissingTopicState.Pending; Revision++;
         return Result.Success();
     }
@@ -36,6 +40,14 @@ public sealed class BusinessFormMissingTopic : Entity, IAuditable
             return FormMissingRequestErrors.RevisionConflict;
         if (actorUserId == Guid.Empty || nowUtc.Kind != DateTimeKind.Utc) return FormMissingRequestErrors.ContentInvalid;
         State = BusinessFormMissingTopicState.Discarded; DiscardedByUserId = actorUserId; DiscardedAtUtc = nowUtc; Revision++;
+        return Result.Success();
+    }
+    public Result Review(long expectedRevision, Guid actorUserId, DateTime nowUtc)
+    {
+        if (Revision != expectedRevision || Revision >= 9007199254740991 || State != BusinessFormMissingTopicState.Pending || IsReviewed)
+            return FormMissingRequestErrors.RevisionConflict;
+        if (actorUserId == Guid.Empty || nowUtc.Kind != DateTimeKind.Utc) return FormMissingRequestErrors.ContentInvalid;
+        ReviewedByUserId = actorUserId; ReviewedAtUtc = nowUtc; Revision++;
         return Result.Success();
     }
     public static string NormalizeName(string name) => string.Join(" ", name.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)).ToUpperInvariant();

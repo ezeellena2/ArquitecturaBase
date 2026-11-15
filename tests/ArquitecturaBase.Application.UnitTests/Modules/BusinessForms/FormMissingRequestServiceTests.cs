@@ -59,6 +59,27 @@ public sealed class FormMissingRequestServiceTests
         Assert.Equal(BusinessFormMissingTopicState.Discarded,topic.State); Assert.Equal(revision,topic.Revision);
     }
     [Fact]
+    public async Task Review_marks_the_topic_with_the_actor_and_time_and_a_stale_review_conflicts()
+    {
+        var f = new FormMissingRequestFixture(); Assert.True((await f.Service.CaptureAsync(f.Request(),Ct)).IsSuccess);
+        var topic = Assert.Single(f.Topics); Assert.False(topic.IsReviewed);
+        var stale = await f.Service.ReviewAsync(topic.Id,new(topic.Revision + 1),Ct);
+        Assert.True(stale.IsFailure); Assert.Equal(FormMissingRequestErrors.RevisionConflict.Code,stale.Error.Code); Assert.False(topic.IsReviewed);
+        var reviewed = await f.Service.ReviewAsync(topic.Id,new(topic.Revision),Ct);
+        Assert.True(reviewed.IsSuccess); Assert.True(topic.IsReviewed); Assert.Equal(f.Manager,topic.ReviewedByUserId);
+        Assert.Equal(f.Manager,reviewed.Value.ReviewedBy?.UserId); Assert.NotNull(reviewed.Value.ReviewedAtUtc);
+        Assert.Equal(FormMissingRequestErrors.RevisionConflict.Code,(await f.Service.ReviewAsync(topic.Id,new(topic.Revision),Ct)).Error.Code);
+    }
+    [Fact]
+    public async Task Review_requires_manage_and_a_valid_revision()
+    {
+        var f = new FormMissingRequestFixture(); Assert.True((await f.Service.CaptureAsync(f.Request(),Ct)).IsSuccess);
+        var topic = Assert.Single(f.Topics);
+        Assert.True((await f.Service.ReviewAsync(topic.Id,new(null),Ct)).IsFailure);
+        f.Assistant.Permissions.Permissions[f.Manager] = [BusinessFormsPermissions.Read];
+        Assert.True((await f.Service.ReviewAsync(topic.Id,new(topic.Revision),Ct)).IsFailure); Assert.False(topic.IsReviewed);
+    }
+    [Fact]
     public async Task Stale_discard_returns_conflict_without_overwriting_the_actual_decision()
     {
         var f = new FormMissingRequestFixture(); Assert.True((await f.Service.CaptureAsync(f.Request(),Ct)).IsSuccess);

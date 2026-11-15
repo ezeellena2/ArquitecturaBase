@@ -13,8 +13,10 @@ public sealed record ListMissingFormTopicsRequest : PagedRequest
     public string? State { get; init; } = "Pending";
 }
 public sealed record DiscardMissingFormTopicRequest(long? ExpectedRevision);
+public sealed record ReviewMissingFormTopicRequest(long? ExpectedRevision);
 public sealed record MissingFormTopicResponse(Guid Id, long Revision, string Name, string Description, string OriginalCulture,
-    int RequestCount, int PersonCount, DateTime LastRequestedAtUtc, string State, FormAuthorResponse? DiscardedBy, DateTime? DiscardedAtUtc)
+    int RequestCount, int PersonCount, DateTime LastRequestedAtUtc, string State, FormAuthorResponse? DiscardedBy, DateTime? DiscardedAtUtc,
+    FormAuthorResponse? ReviewedBy, DateTime? ReviewedAtUtc)
 { public override string ToString() => "MissingFormTopicResponse { Content = [REDACTED] }"; }
 public sealed record MissingFormTopicStateCounts(int Pending, int Discarded);
 public sealed record MissingFormTopicsPageResponse(IReadOnlyList<MissingFormTopicResponse> Items, int Page, int PageSize,

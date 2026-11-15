@@ -25,9 +25,12 @@ internal sealed class FormMissingRequestReader(ApplicationDbContext dbContext) :
         public Guid? DiscardedByUserId { get; init; }
         public string? DiscardedByName { get; init; }
         public DateTime? DiscardedAtUtc { get; init; }
+        public Guid? ReviewedByUserId { get; init; }
+        public string? ReviewedByName { get; init; }
+        public DateTime? ReviewedAtUtc { get; init; }
     }
     public async Task<IReadOnlyList<FormMissingTopicRow>> ListAssistantTopicsAsync(CancellationToken ct) =>
-        await dbContext.Set<BusinessFormMissingTopic>().AsNoTracking().Where(topic => topic.State == BusinessFormMissingTopicState.Pending).OrderBy(topic => topic.Id).Take(101)
+        await dbContext.Set<BusinessFormMissingTopic>().AsNoTracking().Where(topic => topic.State == BusinessFormMissingTopicState.Pending && topic.ReviewedAtUtc != null).OrderBy(topic => topic.Id).Take(101)
             .Select(topic => new FormMissingTopicRow(topic.Id,topic.Name,topic.Description,topic.OriginalCulture)).ToArrayAsync(ct);
 
     public async Task<MissingFormTopicsPageResponse> FindPageAsync(ListMissingFormTopicsRequest request,CancellationToken ct)
@@ -61,10 +64,12 @@ internal sealed class FormMissingRequestReader(ApplicationDbContext dbContext) :
                join aggregate in requests on topic.Id equals aggregate.TopicId
                select new TopicAggregate { Id = topic.Id,Revision = topic.Revision,Name = topic.Name,Description = topic.Description,OriginalCulture = topic.OriginalCulture,
                    RequestCount = aggregate.RequestCount,PersonCount = aggregate.PersonCount,LastRequestedAtUtc = aggregate.LastRequestedAtUtc,State = topic.State,
-                   DiscardedByUserId = topic.DiscardedByUserId,DiscardedAtUtc = topic.DiscardedAtUtc,
+                   DiscardedByUserId = topic.DiscardedByUserId,DiscardedAtUtc = topic.DiscardedAtUtc,ReviewedByUserId = topic.ReviewedByUserId,ReviewedAtUtc = topic.ReviewedAtUtc,
+                   ReviewedByName = dbContext.Users.Where(user => user.Id == topic.ReviewedByUserId).Select(user => user.DisplayName).FirstOrDefault(),
                    DiscardedByName = dbContext.Users.Where(user => user.Id == topic.DiscardedByUserId).Select(user => user.DisplayName).FirstOrDefault() };
     }
     private static IQueryable<MissingFormTopicResponse> Project(IQueryable<TopicAggregate> query) => query.Select(topic => new MissingFormTopicResponse(
         topic.Id,topic.Revision,topic.Name,topic.Description,topic.OriginalCulture,topic.RequestCount,topic.PersonCount,topic.LastRequestedAtUtc,topic.State.ToString(),
-        topic.DiscardedByUserId.HasValue ? new FormAuthorResponse(topic.DiscardedByUserId.Value,topic.DiscardedByName) : null,topic.DiscardedAtUtc));
+        topic.DiscardedByUserId.HasValue ? new FormAuthorResponse(topic.DiscardedByUserId.Value,topic.DiscardedByName) : null,topic.DiscardedAtUtc,
+        topic.ReviewedByUserId.HasValue ? new FormAuthorResponse(topic.ReviewedByUserId.Value,topic.ReviewedByName) : null,topic.ReviewedAtUtc));
 }

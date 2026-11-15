@@ -12,7 +12,7 @@ internal sealed class FormsTestModule : IApiTestModule
         "GET /api/forms/person-attributes/{id:guid}/options", "GET /api/forms/person-data", "GET /api/forms/person-data/{userid:guid}", "PUT /api/forms/person-data/{userid:guid}",
         "DELETE /api/forms/definitions/{id:guid}",
         "GET /api/forms/definitions/{id:guid}/deactivation", "POST /api/forms/definitions/{id:guid}/deactivation",
-        "GET /api/forms/missing-requests", "POST /api/forms/missing-requests/{id:guid}/discard",
+        "GET /api/forms/missing-requests", "POST /api/forms/missing-requests/{id:guid}/review", "POST /api/forms/missing-requests/{id:guid}/discard",
         "GET /api/forms/definitions/{id:guid}/pdf-design", "POST /api/forms/definitions/{id:guid}/pdf-design", "POST /api/forms/definitions/{id:guid}/pdf-design/preview",
         "GET /api/forms/records/{recordid:guid}/documents/{documentid:guid}/content",
         "GET /api/forms/overview", "GET /api/forms/approvals", "GET /api/forms/approvals/count",

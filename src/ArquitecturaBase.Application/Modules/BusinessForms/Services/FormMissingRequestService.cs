@@ -44,6 +44,27 @@ internal sealed class FormMissingRequestService(IFormMissingRequestRepository re
         return await CanManageAsync(actor,ct) ? page : FormDefinitionErrors.Forbidden;
     }
 
+    public async Task<Result<MissingFormTopicResponse>> ReviewAsync(Guid topicId,ReviewMissingFormTopicRequest request,CancellationToken ct)
+    {
+        if (currentUser.UserId is not { } actor) return FormDefinitionErrors.Unauthorized;
+        if (!await CanManageAsync(actor,ct)) return FormDefinitionErrors.Forbidden;
+        if (request.ExpectedRevision is null or < 1 or > 9007199254740991) return FieldErrors.On(FormMissingRequestErrors.ContentInvalid,"expectedRevision");
+        return await unitOfWork.ExecuteInTransactionAsync<Result<MissingFormTopicResponse>>(async inner =>
+        {
+            await repository.LockAsync(inner);
+            if (!await CanManageAsync(actor,inner)) return FormDefinitionErrors.Forbidden;
+            var topic = await repository.GetAsync(topicId,inner);
+            if (topic is null) return FormMissingRequestErrors.NotFound;
+            var row = await reader.FindAsync(topicId,inner) ?? throw new InvalidOperationException("The missing topic aggregate is missing.");
+            var account = await users.FindByIdAsync(actor,inner);
+            if (account is not { IsActive: true }) return FormDefinitionErrors.Forbidden;
+            var now = timeProvider.GetUtcNow().UtcDateTime;
+            var reviewed = topic.Review(request.ExpectedRevision.Value,actor,now);
+            if (reviewed.IsFailure) return reviewed.Error;
+            return row with { Revision = topic.Revision,ReviewedBy = new(actor,account.DisplayName),ReviewedAtUtc = now };
+        },CommitPolicy.OnSuccess,ct);
+    }
+
     public async Task<Result<MissingFormTopicResponse>> DiscardAsync(Guid topicId,DiscardMissingFormTopicRequest request,CancellationToken ct)
     {
         if (currentUser.UserId is not { } actor) return FormDefinitionErrors.Unauthorized;

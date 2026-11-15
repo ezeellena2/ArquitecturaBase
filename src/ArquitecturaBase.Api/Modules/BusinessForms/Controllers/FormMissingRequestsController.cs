@@ -25,6 +25,17 @@ public sealed class FormMissingRequestsController(IFormMissingRequestService ser
         Response.Headers.CacheControl = "no-store";
         return (await service.ListAsync(new() { Page = query.Page,PageSize = query.PageSize,Sort = query.Sort,Search = query.Search,State = query.State },cancellationToken)).ToActionResult(this);
     }
+    [HttpPost("{id:guid}/review")]
+    [EnableRateLimiting(BusinessFormsApiRegistration.WritePolicy)]
+    [ProducesResponseType<MissingFormTopicResponse>(StatusCodes.Status200OK)]
+    [ProducesProblem(StatusCodes.Status400BadRequest)]
+    [ProducesProblem(StatusCodes.Status404NotFound)]
+    [ProducesProblem(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Review([FromRoute] Guid id,[FromBody] ReviewMissingFormTopicHttpRequest request,CancellationToken cancellationToken)
+    {
+        Response.Headers.CacheControl = "no-store";
+        return (await service.ReviewAsync(id,new(request.ExpectedRevision),cancellationToken)).ToActionResult(this);
+    }
     [HttpPost("{id:guid}/discard")]
     [EnableRateLimiting(BusinessFormsApiRegistration.WritePolicy)]
     [ProducesResponseType<MissingFormTopicResponse>(StatusCodes.Status200OK)]

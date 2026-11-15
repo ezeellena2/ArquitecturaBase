@@ -47,6 +47,36 @@ public sealed class BusinessFormMissingTopicTests
         Assert.Equal(actor, topic.DiscardedByUserId); Assert.Equal(AtUtc, topic.DiscardedAtUtc);
     }
     [Fact]
+    public void A_new_topic_is_unreviewed_and_review_keeps_the_actor_and_utc_time_under_the_expected_revision()
+    {
+        var topic = BusinessFormMissingTopic.Create("Horas extra", "Registrar horas trabajadas fuera de horario.", "es").Value;
+        Assert.False(topic.IsReviewed);
+        var actor = Guid.NewGuid(); Assert.True(topic.Review(1, actor, AtUtc).IsSuccess);
+        Assert.True(topic.IsReviewed); Assert.Equal(2, topic.Revision); Assert.Equal(actor, topic.ReviewedByUserId); Assert.Equal(AtUtc, topic.ReviewedAtUtc);
+        Assert.Equal(BusinessFormMissingTopicState.Pending, topic.State);
+    }
+    [Fact]
+    public void A_stale_review_a_second_review_and_a_review_of_a_discarded_topic_conflict()
+    {
+        var topic = BusinessFormMissingTopic.Create("Horas extra", "Registrar horas trabajadas fuera de horario.", "es").Value;
+        topic.RegisterRequest();
+        Assert.Equal(FormMissingRequestErrors.RevisionConflict, topic.Review(1, Guid.NewGuid(), AtUtc).Error);
+        Assert.True(topic.Review(2, Guid.NewGuid(), AtUtc).IsSuccess);
+        Assert.Equal(FormMissingRequestErrors.RevisionConflict, topic.Review(3, Guid.NewGuid(), AtUtc).Error);
+        var other = BusinessFormMissingTopic.Create("Otro", "Registrar otra cosa.", "es").Value;
+        Assert.True(other.Discard(1, Guid.NewGuid(), AtUtc).IsSuccess);
+        Assert.Equal(FormMissingRequestErrors.RevisionConflict, other.Review(2, Guid.NewGuid(), AtUtc).Error);
+    }
+    [Fact]
+    public void A_request_keeps_the_review_of_a_pending_topic_but_a_discarded_topic_that_reopens_is_unreviewed()
+    {
+        var topic = BusinessFormMissingTopic.Create("Horas extra", "Registrar horas trabajadas fuera de horario.", "es").Value;
+        Assert.True(topic.Review(1, Guid.NewGuid(), AtUtc).IsSuccess);
+        Assert.True(topic.RegisterRequest().IsSuccess); Assert.True(topic.IsReviewed);
+        Assert.True(topic.Discard(3, Guid.NewGuid(), AtUtc).IsSuccess); Assert.True(topic.RegisterRequest().IsSuccess);
+        Assert.False(topic.IsReviewed); Assert.Null(topic.ReviewedByUserId); Assert.Null(topic.ReviewedAtUtc);
+    }
+    [Fact]
     public void A_stale_discard_cannot_hide_a_new_request()
     {
         var topic = BusinessFormMissingTopic.Create("Horas extra", "Registrar horas trabajadas fuera de horario.", "es").Value;

@@ -1,8 +1,10 @@
 using Microsoft.Extensions.DependencyInjection;
 using System.Net;
+using System.Text.Json;
 using System.Net.Http.Json;
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessForms;
+using ArquitecturaBase.Application.Modules.BusinessForms.Interfaces.Persistence;
 using ArquitecturaBase.Domain.Modules.BusinessForms;
 using Microsoft.EntityFrameworkCore;
 
@@ -20,6 +22,7 @@ public sealed class FormMissingRequestHttpTests(ApiFactory factory)
         await using var scenario = await FormMissingRequestScenario.CreateAsync(factory,culture,Ct);
         var firstRequest = await scenario.PrepareAsync(ct:Ct);
         var first = await scenario.CaptureAsync(firstRequest,Ct); Assert.True(first.IsSuccess);
+        await scenario.ReviewAsync(first.Value.TopicId,Ct);
         var samePerson = await scenario.CaptureAsync(await scenario.PrepareAsync(existing:first.Value.TopicId,ct:Ct),Ct); Assert.True(samePerson.IsSuccess);
         var otherPerson = await scenario.CaptureAsync(await scenario.PrepareAsync(scenario.OtherSubjectId,first.Value.TopicId,Ct),Ct); Assert.True(otherPerson.IsSuccess);
         using var manager = scenario.Client(scenario.ManagerId); manager.DefaultRequestHeaders.AcceptLanguage.ParseAdd(culture);
@@ -28,18 +31,19 @@ public sealed class FormMissingRequestHttpTests(ApiFactory factory)
         await FormMissingRequestContractCapture.WriteAsync(list,"pending-" + culture,Ct);
         var body = await list.ReadJsonAsync(); var row = Assert.Single(body.GetProperty("items").EnumerateArray());
         Assert.Equal(3,row.GetProperty("requestCount").GetInt32()); Assert.Equal(2,row.GetProperty("personCount").GetInt32());
-        Assert.Equal(culture,row.GetProperty("originalCulture").GetString()); Assert.Equal(3,row.GetProperty("revision").GetInt64());
+        Assert.Equal(scenario.ManagerId,row.GetProperty("reviewedBy").GetProperty("userId").GetGuid());
+        Assert.Equal(culture,row.GetProperty("originalCulture").GetString()); Assert.Equal(4,row.GetProperty("revision").GetInt64());
         Assert.Equal(3,body.GetProperty("totalRequests").GetInt32());
         var raw = await list.Content.ReadAsStringAsync(Ct);
         Assert.DoesNotContain("Private requester",raw,StringComparison.Ordinal); Assert.DoesNotContain(scenario.SubjectId.ToString(),raw,StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("sourceReceiptId",raw,StringComparison.Ordinal); Assert.DoesNotContain("messages",raw,StringComparison.Ordinal);
-        using var discarded = await manager.PostAsJsonAsync($"/api/forms/missing-requests/{first.Value.TopicId}/discard",new { expectedRevision = 3 },Ct);
+        using var discarded = await manager.PostAsJsonAsync($"/api/forms/missing-requests/{first.Value.TopicId}/discard",new { expectedRevision = 4 },Ct);
         Assert.Equal(HttpStatusCode.OK,discarded.StatusCode);
         var decision = await discarded.ReadJsonAsync(); Assert.Equal("Discarded",decision.GetProperty("state").GetString());
         Assert.Equal(scenario.ManagerId,decision.GetProperty("discardedBy").GetProperty("userId").GetGuid());
         using var discardedList = await manager.GetAsync("/api/forms/missing-requests?state=Discarded&search=" + scenario.Suffix,Ct);
         Assert.Equal(HttpStatusCode.OK,discardedList.StatusCode); await FormMissingRequestContractCapture.WriteAsync(discardedList,"discarded-" + culture,Ct);
-        using var stale = await manager.PostAsJsonAsync($"/api/forms/missing-requests/{first.Value.TopicId}/discard",new { expectedRevision = 3 },Ct);
+        using var stale = await manager.PostAsJsonAsync($"/api/forms/missing-requests/{first.Value.TopicId}/discard",new { expectedRevision = 4 },Ct);
         Assert.Equal(HttpStatusCode.Conflict,stale.StatusCode);
         if (culture == "es") await FormMissingRequestContractCapture.WriteAsync(stale,"conflict",Ct);
         var replay = await scenario.CaptureAsync(firstRequest,Ct); Assert.True(replay.IsSuccess); Assert.True(replay.Value.WasAlreadyRecorded);
@@ -48,8 +52,34 @@ public sealed class FormMissingRequestHttpTests(ApiFactory factory)
         var reopened = await scenario.CaptureAsync(await scenario.PrepareAsync(ct:Ct),Ct); Assert.True(reopened.IsSuccess);
         using var pending = await manager.GetAsync("/api/forms/missing-requests?search=" + scenario.Suffix,Ct);
         var reopenedRow = Assert.Single((await pending.ReadJsonAsync()).GetProperty("items").EnumerateArray());
-        Assert.Equal(4,reopenedRow.GetProperty("requestCount").GetInt32()); Assert.Equal(5,reopenedRow.GetProperty("revision").GetInt64());
+        Assert.Equal(4,reopenedRow.GetProperty("requestCount").GetInt32()); Assert.Equal(6,reopenedRow.GetProperty("revision").GetInt64());
+        Assert.Equal(JsonValueKind.Null,reopenedRow.GetProperty("reviewedAtUtc").ValueKind);
         Assert.Equal(decision.GetProperty("discardedAtUtc").GetString(),reopenedRow.GetProperty("discardedAtUtc").GetString());
+    }
+    [Fact]
+    public async Task A_topic_is_offered_to_the_assistant_only_after_it_is_reviewed_and_review_answers_409_403_and_404()
+    {
+        await using var scenario = await FormMissingRequestScenario.CreateAsync(factory,"es",Ct);
+        var first = await scenario.CaptureAsync(await scenario.PrepareAsync(ct:Ct),Ct); Assert.True(first.IsSuccess);
+        var topicId = first.Value.TopicId;
+        Assert.Empty(await scenario.ScopeAsync(services => services.GetRequiredService<IFormMissingRequestReader>().ListAssistantTopicsAsync(Ct)));
+        var duplicate = await scenario.CaptureAsync(await scenario.PrepareAsync(scenario.OtherSubjectId,ct:Ct),Ct);
+        Assert.True(duplicate.IsSuccess); Assert.Equal(topicId,duplicate.Value.TopicId);
+        using var subject = scenario.Client(scenario.SubjectId);
+        using var forbidden = await subject.PostAsJsonAsync($"/api/forms/missing-requests/{topicId}/review",new { expectedRevision = 2 },Ct);
+        Assert.Equal(HttpStatusCode.Forbidden,forbidden.StatusCode);
+        using var manager = scenario.Client(scenario.ManagerId);
+        using var missing = await manager.PostAsJsonAsync($"/api/forms/missing-requests/{Guid.NewGuid()}/review",new { expectedRevision = 1 },Ct);
+        Assert.Equal(HttpStatusCode.NotFound,missing.StatusCode);
+        using var old = await manager.PostAsJsonAsync($"/api/forms/missing-requests/{topicId}/review",new { expectedRevision = 1 },Ct);
+        Assert.Equal(HttpStatusCode.Conflict,old.StatusCode);
+        Assert.Empty(await scenario.ScopeAsync(services => services.GetRequiredService<IFormMissingRequestReader>().ListAssistantTopicsAsync(Ct)));
+        using var reviewed = await manager.PostAsJsonAsync($"/api/forms/missing-requests/{topicId}/review",new { expectedRevision = 2 },Ct);
+        Assert.Equal(HttpStatusCode.OK,reviewed.StatusCode);
+        Assert.Equal(scenario.ManagerId,(await reviewed.ReadJsonAsync()).GetProperty("reviewedBy").GetProperty("userId").GetGuid());
+        Assert.Equal(topicId,Assert.Single(await scenario.ScopeAsync(services => services.GetRequiredService<IFormMissingRequestReader>().ListAssistantTopicsAsync(Ct))).Id);
+        using var again = await manager.PostAsJsonAsync($"/api/forms/missing-requests/{topicId}/review",new { expectedRevision = 3 },Ct);
+        Assert.Equal(HttpStatusCode.Conflict,again.StatusCode);
     }
     [Fact]
     public async Task Independent_missing_request_scenarios_never_observe_each_others_topics()

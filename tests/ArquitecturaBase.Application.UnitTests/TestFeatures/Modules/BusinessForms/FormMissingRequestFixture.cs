@@ -76,6 +76,7 @@ internal sealed class FormMissingRequestFixture : IFormMissingRequestRepository,
         var requests = Requests.Where(request => request.TopicId == topic.Id).ToArray();
         return new(topic.Id,topic.Revision,topic.Name,topic.Description,topic.OriginalCulture,requests.Length,
             requests.Select(request => request.SubjectUserId).Distinct().Count(),requests.Max(request => request.RequestedAtUtc),topic.State.ToString(),
-            topic.DiscardedByUserId is { } actor ? new(actor,Assistant.Users.Users.Single(user => user.Id == actor).DisplayName) : null,topic.DiscardedAtUtc);
+            topic.DiscardedByUserId is { } actor ? new(actor,Assistant.Users.Users.Single(user => user.Id == actor).DisplayName) : null,topic.DiscardedAtUtc,
+            topic.ReviewedByUserId is { } reviewer ? new(reviewer,Assistant.Users.Users.Single(user => user.Id == reviewer).DisplayName) : null,topic.ReviewedAtUtc);
     }
 }

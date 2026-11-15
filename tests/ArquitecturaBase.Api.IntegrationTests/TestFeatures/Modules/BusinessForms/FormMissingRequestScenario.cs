@@ -10,7 +10,9 @@ using ArquitecturaBase.Domain.Results;
 using ArquitecturaBase.Infrastructure.Persistence;
 using ArquitecturaBase.Infrastructure.Persistence.Seed;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using System.Net.Http.Json;
 
 namespace ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.BusinessForms;
 
@@ -38,6 +40,14 @@ internal sealed record FormMissingRequestScenario(ApiFactory Factory,Guid Subjec
             return (Subject:subject.Id,Manager:manager.Id,Other:other.Id);
         },ct);
         return scenario with {SubjectId=actors.Subject,ManagerId=actors.Manager,OtherSubjectId=actors.Other};
+    }
+    public async Task ReviewAsync(Guid topicId,CancellationToken ct)
+    {
+        using var manager = Client(ManagerId);
+        var revision = await ScopeAsync(services => services.GetRequiredService<ApplicationDbContext>().Set<BusinessFormMissingTopic>().AsNoTracking()
+            .Where(topic => topic.Id == topicId).Select(topic => topic.Revision).SingleAsync(ct));
+        using var response = await manager.PostAsJsonAsync($"/api/forms/missing-requests/{topicId}/review",new { expectedRevision = revision },ct);
+        Assert.Equal(System.Net.HttpStatusCode.OK,response.StatusCode);
     }
     public async Task<StructuredMissingFormRequestCaptureRequest> PrepareAsync(Guid? subject = null,Guid? existing = null,CancellationToken ct = default)
     {
