@@ -151,6 +151,33 @@ public sealed partial class FormDraftEndpointsTests
     }
 
     [Fact]
+    public async Task Simultaneous_additions_of_a_standard_with_an_own_catalog_all_succeed_with_one_catalog()
+    {
+        using var designer = await OperatorAsync(["formtemplates.read", "formtemplates.manage"]);
+        var requests = Enumerable.Range(0, 6).Select(_ => Add(Guid.NewGuid(), "V" + Guid.NewGuid().ToString("N")[..6].ToUpperInvariant())).ToArray();
+        // The same request twice, as a double click that crosses: the second gets the first one's draft.
+        var twin = Add(Guid.NewGuid(), "V" + Guid.NewGuid().ToString("N")[..6].ToUpperInvariant());
+        var responses = await Task.WhenAll(requests.Append(twin).Append(twin)
+            .Select(request => designer.PostAsJsonAsync($"/api/forms/library/{TestFormStandardSource.RaceKey}/copies", request, Ct)));
+        try
+        {
+            foreach (var r in responses) Assert.True(r.StatusCode == HttpStatusCode.Created, await r.Content.ReadAsStringAsync(Ct));
+            var twins = responses[^2..];
+            Assert.Equal((await twins[0].ReadJsonAsync()).GetProperty("definition").GetProperty("id").GetGuid(),
+                (await twins[1].ReadJsonAsync()).GetProperty("definition").GetProperty("id").GetGuid());
+            var catalog = Assert.Single(await factory.ExecuteDbContextAsync(db => db.Set<BusinessFormCatalog>()
+                .Where(value => value.Key == TestFormStandardSource.RaceCatalog).Select(value => value.Id).ToListAsync(Ct)));
+            foreach (var response in responses)
+                Assert.Equal(catalog, (await response.ReadJsonAsync()).GetProperty("definition").GetProperty("draft").GetProperty("fields")[0]
+                    .GetProperty("source").GetProperty("catalog").GetGuid());
+        }
+        finally
+        {
+            foreach (var response in responses) response.Dispose();
+        }
+    }
+
+    [Fact]
     public async Task A_standard_goes_to_the_folder_chosen_when_it_is_added_and_a_folder_that_is_gone_is_not_found()
     {
         using var designer = await OperatorAsync(["formtemplates.read", "formtemplates.manage"]);

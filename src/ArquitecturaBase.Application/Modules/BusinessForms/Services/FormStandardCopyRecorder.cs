@@ -8,16 +8,20 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
 /// <summary>
 /// What «Agregar» leaves in the same save as the copy of a library standard (BI1-A), once that save has the new definition: the
-/// catalogs the standard brings with their first options, its rules as the first revision of the copy's, and the copy and those
+/// catalogs the standard brings with their first options (unless one appeared meanwhile, F21), its rules as the first revision of the copy's, and the copy and those
 /// catalogs in the folder chosen or else the standard's (<see cref="FormSystemFolderLinker"/>). The draft's save runs it through
 /// <see cref="FormDraftStandardOrigin.RecordAsync"/>; it does not save on its own.
 /// </summary>
-internal sealed class FormStandardCopyRecorder(IFormLibraryRepository repository, FormSystemFolderLinker folders)
+internal sealed class FormStandardCopyRecorder(IFormLibraryRepository repository, IFormLibraryReader reader, FormSystemFolderLinker folders)
 {
     public Func<BusinessFormDefinition, FormIdentityMap, CancellationToken, Task<Result>> Prepare(IReadOnlyList<BusinessFormCatalog> catalogs,
         IReadOnlyList<BusinessFormCatalogItem> items, Action<BusinessFormDefinition, FormIdentityMap>? rules, Guid? folderId, StructuredFormStandardFolder? folder) =>
         async (definition, identities, ct) =>
         {
+            // F21: the catalogs were built before this save took its locks. One that exists now, because a concurrent copy saved it first,
+            // is not created twice: the copy stops and the service builds it again, this time finding that catalog.
+            if (catalogs.Count > 0 && (await reader.ListCatalogsByKeyAsync([.. catalogs.Select(catalog => catalog.Key)], ct)).Count > 0)
+                return FormLibraryErrors.CatalogAppeared;
             foreach (var catalog in catalogs) repository.AddCatalog(catalog);
             if (items.Count > 0) repository.AddItems(items);
             rules?.Invoke(definition, identities);

@@ -271,6 +271,7 @@
   <data name="Forms.Draft.ReceivesTaken" xml:space="preserve"><value>Another question already receives it.</value></data>
   <data name="Forms.Draft.ReceivesLocationAsked" xml:space="preserve"><value>The form has a “Location” question: the location goes there.</value></data>
   <data name="Forms.Library.StandardNotFound" xml:space="preserve"><value>That standard is not in the library.</value></data>
+  <data name="Forms.Library.CatalogAppeared" xml:space="preserve"><value>Someone just added a catalog of this standard. Try again.</value></data>
   <data name="Forms.Library.CatalogUnavailable" xml:space="preserve"><value>A catalog the standard needs is missing.</value></data>
   <data name="Forms.Folder.NotFound" xml:space="preserve"><value>The folder was not found.</value></data>
   <data name="Forms.Folder.NameInvalid" xml:space="preserve"><value>Enter a name of up to 80 characters.</value></data>

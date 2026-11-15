@@ -62,9 +62,19 @@ internal sealed class FormLibraryService : IFormLibraryService
             };
         });
 
+    // F21: a catalog that a concurrent copy created while this one was being built stops the save (<see cref="FormStandardCopyRecorder"/>);
+    // the copy is built again and uses the one that appeared. Every attempt is its own save.
     public Task<Result<FormDraftCommitResponse>> AddAsync(string key, AddFormStandardRequest request, CancellationToken cancellationToken) =>
         OperationLog.RunAsync<Result<FormDraftCommitResponse>>(_logger, "AddFormStandard", async () =>
         {
+            var result = await AddOnceAsync(key, request, cancellationToken);
+            for (var attempt = 1; attempt < 3 && result.IsFailure && result.Error.Code == FormLibraryErrors.CatalogAppeared.Code; attempt++)
+                result = await AddOnceAsync(key, request, cancellationToken);
+            return result;
+        });
+
+    private async Task<Result<FormDraftCommitResponse>> AddOnceAsync(string key, AddFormStandardRequest request, CancellationToken cancellationToken)
+    {
             var access = await _access.CheckAsync(true, cancellationToken); if (access.IsFailure) return access.Error;
             if (_library.Offered().SingleOrDefault(standard => standard.Key == key) is not { } standard) return FormLibraryErrors.StandardNotFound;
             var issuing = await _rules.CheckIssuingAsync(standard, cancellationToken); if (issuing.IsFailure) return issuing.Error;
@@ -130,7 +140,7 @@ internal sealed class FormLibraryService : IFormLibraryService
                 Standard = new FormDraftStandardOrigin(standard.Key, standard.Version, standard.Bindings)
                     { RecordAsync = _copies.Prepare(created, createdItems, rules.Value, request.FolderId, standard.Folder) },
             }, cancellationToken);
-        });
+    }
 
     // B5: the values an option of the standard brings, by the identity of their field, as the catalog field policy takes them.
     private static Dictionary<Guid, Dictionary<string, JsonElement>> OptionValues(StructuredFormStandardCatalog catalog,

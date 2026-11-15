@@ -1358,6 +1358,7 @@ aparece.
   código que el catálogo no tiene frena con `Forms.Library.CatalogUnavailable`, antes de guardar. La definición nueva y su
   revisión activa se apuntan entre sí: la clave que ata la revisión activa a su definición es diferida
   (`DeferActiveRuleSetKey`, ver [backend](../architecture/backend.md#migraciones)).
+- **Dos «Agregar» a la vez (F21).** Los catálogos propios del estándar se arman antes del guardado; si en el guardado, ya con el lock, uno de sus catálogos apareció porque otra copia lo guardó primero, esa copia se corta y el servicio la arma de nuevo (hasta tres veces) usando el catálogo que apareció; si siguiera cambiando, `Forms.Library.CatalogAppeared` (409). Un mismo pedido repetido (`requestId`) devuelve el mismo borrador: su huella es el estándar, el nombre y el prefijo, sin los ids de los catálogos.
 - **La carpeta.** «Agregar» recibe `folderId` opcional: la copia y los catálogos propios que crea van a esa carpeta y, sin
   ella, a la del estándar (`Folder`: su clave y su nombre por idioma), en la misma transacción que el borrador. La del
   estándar es una carpeta del sistema (ver [Carpetas](#carpetas--cp1-a-a-cp5-a-2026-11-09)); una elegida que se borró en

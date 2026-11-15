@@ -271,6 +271,7 @@
   <data name="Forms.Draft.ReceivesTaken" xml:space="preserve"><value>Otra pregunta ya recibe ese dato.</value></data>
   <data name="Forms.Draft.ReceivesLocationAsked" xml:space="preserve"><value>El formulario tiene una pregunta «Ubicación»: la ubicación va ahí.</value></data>
   <data name="Forms.Library.StandardNotFound" xml:space="preserve"><value>No está ese estándar en la biblioteca.</value></data>
+  <data name="Forms.Library.CatalogAppeared" xml:space="preserve"><value>Alguien acaba de agregar un catálogo de este estándar. Probá de nuevo.</value></data>
   <data name="Forms.Library.CatalogUnavailable" xml:space="preserve"><value>Falta un catálogo que necesita el estándar.</value></data>
   <data name="Forms.Folder.NotFound" xml:space="preserve"><value>No se encontró la carpeta.</value></data>
   <data name="Forms.Folder.NameInvalid" xml:space="preserve"><value>Escribí un nombre de hasta 80 caracteres.</value></data>

@@ -58,6 +58,14 @@ internal sealed class TestFormStandardSource : IStructuredFormStandardSource
                 [new("final", new Dictionary<string, string> { ["es"] = "Consumidor final" }) { Fields = new Dictionary<string, string> { ["initial"] = "C" } },
                     new("other", new Dictionary<string, string> { ["es"] = "Otro: escribir la CUIT" }) { Fields = new Dictionary<string, string> { ["initial"] = "O" } }])],
             Defaults: new Dictionary<string, string> { [Buyer] = "final" }, GroupBy: new Dictionary<string, string> { [Buyer] = "initial" }),
+        // F21: only the concurrent «Agregar» test adds this one, so its catalog does not exist yet when the copies race.
+        new(RaceKey, 1, new Dictionary<string, string> { ["es"] = "Carrera de prueba" }, new Dictionary<string, string> { ["es"] = "Un catálogo propio que nadie agregó todavía." },
+            "CRP", $$$"""
+                {"format":1,"culture":"es","submitLabel":{"es":"Enviar"},"fields":[
+                {"localId":"{{{Buyer}}}","type":"choice","label":{"es":"Cliente"},"required":true}]}
+                """, new Dictionary<string, string> { [Buyer] = "customer" }, new Dictionary<string, string> { [Buyer] = RaceCatalog },
+            OwnCatalogs: [new(RaceCatalog, "es", new Dictionary<string, string> { ["es"] = "Clientes de la carrera" }, new Dictionary<string, string>(), [],
+                [new("one", new Dictionary<string, string> { ["es"] = "Uno" })])]),
         new(MissingKey, 1, new Dictionary<string, string> { ["es"] = "Sin catálogo" }, new Dictionary<string, string> { ["es"] = "Nombra un catálogo que no está." },
             "SCP", $$$"""
                 {"format":1,"culture":"es","submitLabel":{"es":"Enviar"},"fields":[
@@ -110,6 +118,7 @@ internal sealed class TestFormStandardSource : IStructuredFormStandardSource
     public const string PrioritiesCatalog = "test.priorities", VoucherAmount = "0196f2a0-0000-7000-8000-0000000000f1",
         VoucherPriority = "0196f2a0-0000-7000-8000-0000000000f2", VoucherCopy = "0196f2a0-0000-7000-8000-0000000000f3",
         VoucherChannel = "0196f2a0-0000-7000-8000-0000000000f4", VoucherByMail = "0196f2a0-0000-7000-8000-0000000000f5";
+    public const string RaceKey = "test.race", RaceCatalog = "test.race-customers";
     public const string CustomersKey = "test.sale", MissingKey = "test.missing-catalog", MissingCodeKey = "test.missing-code",
         MissingFieldKey = "test.missing-field", CustomersCatalog = "test.customers", SalesFolder = "test.sales",
         Buyer = "0196f2a0-0000-7000-8000-0000000000e1", BuyerTaxId = "0196f2a0-0000-7000-8000-0000000000e2";
