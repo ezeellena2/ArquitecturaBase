@@ -1039,7 +1039,16 @@ reescribe ([índice de ADR](../decisions/README.md)).
   [ADR 0031](../decisions/0031-fecha-rechazada-y-numero-adelantado-arca.md).
 - **Tus decisiones:** tomadas el 2026-11-14 ([decisiones](#decisiones-del-2026-11-14)).
 - **El plan de «Hoy»:** B1 a B5, H1 a H31, la documentación de H32, el índice de H34 y la pausa de H33, con esas decisiones, en
-  ocho etapas de la [hoja de ruta de ARCA](../plans/2026-10-31-arca-formularios-estandar.md#arreglos-de-la-revisión-de-arquitectura);
-  la primera es B1 y H1. El resto de gran escala espera a que haya volumen real que medir.
+  ocho etapas de la [hoja de ruta de ARCA](../plans/2026-10-31-arca-formularios-estandar.md#arreglos-de-la-revisión-de-arquitectura),
+  programadas el 2026-11-14 y el 15: la etapa 1 en 829ed447, 0385b59b y 473f7d9d; la 2 en ba9dba84; la 3 en 960d1c48, 78dc2114 y
+  e6974cf3; la 4 en 6ee20368, 27469add y 8ac6588b; la 5 en adaf6d6b, 0b42d899, 945513cf, 5537d08b y e9a2e280; la 6 en
+  e283a29f, 66ee7c63, fc24b0d3 y 936b3b0c; la 7 en 237ea6df, 3c0b4d3a, f4e5a372, 8749f436, 51bfc96a, e322d9b5 y 02029be2, y la 8
+  en 74d86581, e3e582c4, 5a9ffb1f, 3ac32991, 3cd27c01 y c6890b3f. El front, en 018caf37, d518f018, 80281db9, ba0761e4, 341cea32
+  y 57021f72. La nota de cada etapa en el plan dice qué commit arregló cada hallazgo. H11 va con F2 de la
+  [revisión de formularios](2026-11-14-arquitectura-formularios.md). El resto de gran escala espera a que haya volumen real
+  que medir.
+- **Falta:** la corrida completa y la prueba integral, la medición del robot en la imagen publicada (H22) y, al cerrar el
+  desarrollo, llevar las decisiones a las premisas, retirar la sección del plan con la auditoría documental y sumar lo
+  programado al traspaso al multitenant.
 - **Repetir:** después de homologar con la CUIT del usuario, que confirma o corrige lo que hoy sale del manual (el 10016 por
   fecha, los errores de la constancia y la ventana del WSAA).
