@@ -56,12 +56,33 @@ public sealed class ArcaInvoiceIssuePolicyTests
         Assert.Null(ArcaInvoiceIssuePolicy.CopyRecipient(Data("true", "juana")));
     }
 
+    // H7: authorized while its fiscal PDF waits, it is issued, with its number and CAE, without the document and without blaming
+    // ARCA; the run asks again on the queue schedule.
     [Fact]
-    public void An_authorized_voucher_still_waiting_for_its_pdf_is_pending_on_the_queue_schedule()
+    public void An_authorized_voucher_still_waiting_for_its_pdf_is_issued_with_its_result_and_without_the_document()
     {
-        var pending = ArcaInvoiceIssuePolicy.Response(Voucher(ArcaVoucherState.Authorized));
+        var issued = ArcaInvoiceIssuePolicy.Response(Voucher(ArcaVoucherState.Authorized) with
+        {
+            Receiver = new ArcaVoucherParty(99, 0, "Consumidor final", 5, null), WaitedForArca = true, FailureCode = "Arca.Invoicing.PdfStorageUnavailable",
+        });
 
-        Assert.Equal((StructuredIssueState.Pending, Next), (pending.State, pending.NextCheckAtUtc));
+        Assert.Equal((StructuredIssueState.Issued, true, Next, (StructuredRecordActionDocument?)null, (IReadOnlyDictionary<string, string>?)null),
+            (issued.State, issued.DocumentPending, issued.NextCheckAtUtc, issued.Document, issued.WaitingNotice));
+        Assert.Equal("86123456789012", issued.Result!.Values.Single(value => value.Key == "cae").Value);
+    }
+
+    // H7: a wait says whose it is: ARCA, the connection (a person fixes it) or another version of the app (an update).
+    [Theory]
+    [InlineData("Arca.Invoicing.ArcaNoAnswer", "ARCA no responde. Tu factura sale apenas vuelva.")]
+    [InlineData("Arca.Connection.Unavailable", "ARCA no responde. Tu factura sale apenas vuelva.")]
+    [InlineData("Arca.Connection.NotConnected", "La conexión con ARCA necesita atención. El comprobante sale cuando se resuelva.")]
+    [InlineData("Arca.Connection.ServiceNotAuthorized", "La conexión con ARCA necesita atención. El comprobante sale cuando se resuelva.")]
+    [InlineData("Arca.Invoicing.VersionUnknown", "La app se está actualizando. El comprobante sale en unos minutos.")]
+    public void A_wait_says_whose_it_is(string failureCode, string notice)
+    {
+        var waiting = ArcaInvoiceIssuePolicy.Response(Voucher(ArcaVoucherState.Queued) with { WaitedForArca = true, FailureCode = failureCode });
+
+        Assert.Equal((StructuredIssueState.Pending, notice), (waiting.State, waiting.WaitingNotice!["es"]));
     }
 
     // H2: a version that does not know how the voucher was fixed answers without its receiver, so the result waits for one that does.

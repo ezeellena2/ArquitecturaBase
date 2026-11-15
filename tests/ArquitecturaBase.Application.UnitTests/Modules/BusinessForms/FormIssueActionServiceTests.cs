@@ -215,6 +215,19 @@ public sealed class FormIssueActionServiceTests
         Assert.Equal((FormActionRunState.Failed, "Arca.Invoicing.TotalMismatch", true), (outcome.State, outcome.FailureCode, outcome.CanRetry));
     }
 
+    // H7: issued while its document is still being made, the run keeps following it, with its result, until the document is there.
+    [Fact]
+    public async Task An_issuance_issued_before_its_document_keeps_running_with_its_result()
+    {
+        var (service, issuer, work) = Arrange();
+        var result = new StructuredRecordResult("test.issuer", Names("Comprobante"), []);
+        issuer.Next = new(StructuredIssueState.Issued, NextCheckAtUtc: Now.AddMinutes(1), Result: result) { DocumentPending = true };
+
+        var outcome = await service.ExecuteAsync(work, CancellationToken.None);
+
+        Assert.Equal((FormActionRunState.Running, result, true), (outcome.State, outcome.Issue!.Result, outcome.Issue.DocumentPending));
+    }
+
     [Fact]
     public async Task An_issuance_in_review_waits_for_a_person_and_takes_the_decision_on_the_revision_the_run_saw()
     {

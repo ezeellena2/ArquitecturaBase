@@ -49,7 +49,9 @@ public sealed class ArcaStructuredRecordIssuerTests(ApiFactory factory) : IDispo
 
             var processor = host.Services.GetRequiredService<ArcaVoucherProcessor>();
             await processor.ProcessAsync(ArcaVoucherScenario.Sequence(), ct);
-            Assert.Equal(StructuredIssueState.Pending, (await IssuerAsync(host, issuer => issuer.GetAsync(request.RunId, ct))).State);
+            // H7: authorized before its PDF, it is issued with its result, and the run waits for the document.
+            var beforePdf = await IssuerAsync(host, issuer => issuer.GetAsync(request.RunId, ct));
+            Assert.Equal((StructuredIssueState.Issued, true, (StructuredRecordActionDocument?)null), (beforePdf.State, beforePdf.DocumentPending, beforePdf.Document));
             await processor.ProcessDuePdfsAsync(ct);
 
             var issued = await IssuerAsync(host, issuer => issuer.GetAsync(request.RunId, ct));
@@ -73,6 +75,41 @@ public sealed class ArcaStructuredRecordIssuerTests(ApiFactory factory) : IDispo
 
     // The band of the zone «Comprobante»: «Rechazada» with the code and text ARCA sent, and «En cola» with when the queue tries
     // again and how many times it tried.
+    // H7: with the store down after ARCA authorized, the invoice is issued with its number and CAE, the notice does not blame
+    // ARCA and the PDF waits with its own code.
+    [Fact]
+    public async Task With_the_store_down_after_authorizing_the_invoice_is_issued_with_its_cae_and_its_pdf_waits()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var files = new ArcaMemoryFiles { Available = false };
+        await using var host = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+        {
+            services.RemoveAll<IPrivateFileStore>();
+            services.AddSingleton<IPrivateFileStore>(files);
+        }));
+        host.Services.GetRequiredService<FakeArca>().Reset();
+        await ArcaVoucherScenario.ConnectAsync(factory, authority);
+        try
+        {
+            var request = Request(Guid.CreateVersion7());
+            await IssuerAsync(host, issuer => issuer.EnqueueAsync(request, ct));
+            var processor = host.Services.GetRequiredService<ArcaVoucherProcessor>();
+            await processor.ProcessAsync(ArcaVoucherScenario.Sequence(), ct);
+            await processor.ProcessDuePdfsAsync(ct);
+
+            var issued = await IssuerAsync(host, issuer => issuer.GetAsync(request.RunId, ct));
+            Assert.Equal((StructuredIssueState.Issued, true, (IReadOnlyDictionary<string, string>?)null), (issued.State, issued.DocumentPending, issued.WaitingNotice));
+            Assert.Equal(host.Services.GetRequiredService<FakeArca>().Vouchers.Issued.Single().Cae, issued.Result!.Values.Single(value => value.Key == "cae").Value);
+            Assert.Equal("Arca.Invoicing.PdfStorageUnavailable", (await host.Services.CreateScope().ServiceProvider.GetRequiredService<IArcaVoucherReviewService>()
+                .ListAsync([request.RunId], ct)).Single().FailureCode);
+            Assert.Empty(files.Objects);
+        }
+        finally
+        {
+            await ArcaVoucherScenario.RemoveAsync(factory);
+        }
+    }
+
     [Fact]
     public async Task A_rejection_comes_back_with_what_arca_said_and_a_wait_with_how_many_times_the_queue_tried()
     {

@@ -382,15 +382,52 @@ public sealed class FormActionDispatchServiceTests
         Assert.Equal(FormActionRunState.Running, issued.State);
     }
 
+    // H7: an issuance issued before its document shows its result at once (the number and the CAE) and keeps it once; the
+    // document joins the response when it is there.
+    [Fact]
+    public async Task The_result_of_an_issuance_is_kept_once_when_issued_and_its_document_when_it_is_there()
+    {
+        var fixture = new FormActionFixture();
+        var results = new CountedResults();
+        var documents = new MemoryFormDocumentRepository();
+        var service = Dispatch(fixture, documents: documents, results: results);
+        var issue = FormActionFixture.Action("IssueDocument") with { IssuerId = "test.issuer" };
+        var (record, snapshot) = fixture.Capture([new FormRule(Guid.NewGuid(), "Received", [], [issue])]);
+        await fixture.Recorder.RecordAsync(record, snapshot, "Received", CancellationToken.None);
+        var run = Assert.Single(fixture.Runs.Runs);
+        var result = new StructuredRecordResult("test.issuer", new Dictionary<string, string> { ["es"] = "Comprobante" },
+            [new StructuredRecordResultValue("number", new Dictionary<string, string> { ["es"] = "Número" }, StructuredRecordResultField.Text, "0004-00000012")]);
+        var waiting = new FormActionOutcomeResponse(FormActionRunState.Running,
+            Issue: new StructuredIssueResponse(StructuredIssueState.Issued, Result: result) { DocumentPending = true });
+
+        Assert.True((await service.CompleteAsync((await service.ReserveAsync(run.Id, CancellationToken.None)).Value!, waiting, CancellationToken.None)).IsSuccess);
+        Assert.Equal((FormActionRunState.Running, 1), (run.State, results.Added));
+
+        var issued = new FormActionOutcomeResponse(FormActionRunState.Completed, Issue: new StructuredIssueResponse(StructuredIssueState.Issued, Result: result,
+            Document: new StructuredRecordActionDocument("issued/1.pdf", "Factura C 0004-00000012.pdf", "application/pdf", 4, new string('a', 64))));
+        fixture.Clock.Advance(TimeSpan.FromMinutes(1));
+        Assert.True((await service.CompleteAsync((await service.ReserveAsync(run.Id, CancellationToken.None)).Value!, issued, CancellationToken.None)).IsSuccess);
+
+        Assert.Equal((FormActionRunState.Completed, 1, 1), (run.State, results.Added, documents.Documents.Count));
+    }
+
     private static FormActionDispatchService Dispatch(FormActionFixture fixture, FakeUnitOfWork? boundary = null,
-        MemoryFormDocumentRepository? documents = null, MemoryStoredFileRepository? files = null, FakeEmailQueue? emails = null) =>
+        MemoryFormDocumentRepository? documents = null, MemoryStoredFileRepository? files = null, FakeEmailQueue? emails = null,
+        IFormRecordResultRepository? results = null) =>
         new(fixture.Runs, fixture.Runs, fixture.Rules, fixture.Rules, boundary ?? fixture.Rules.UnitOfWork,
-            new FormActionOutcomeRecorder(new FormPdfDocumentRecorder(documents ?? new(), files ?? new()), new FormRecordResultRecorder(new IgnoredResults(), fixture.Clock), fixture.Runs,
+            new FormActionOutcomeRecorder(new FormPdfDocumentRecorder(documents ?? new(), files ?? new()),
+                new FormRecordResultRecorder(results ?? new IgnoredResults(), fixture.Clock), fixture.Runs,
                 new FormIssuedCatalogItemRecorder(null!, null!, null!, null!, null!), emails ?? new FakeEmailQueue(), new FormRecordVoidRecorder(fixture.Runs)),
             fixture.Clock, NullLogger<FormActionDispatchService>.Instance);
 
     private sealed class IgnoredResults : IFormRecordResultRepository
     {
         public void Add(BusinessFormRecordResult result) { }
+    }
+
+    private sealed class CountedResults : IFormRecordResultRepository
+    {
+        public int Added { get; private set; }
+        public void Add(BusinessFormRecordResult result) => Added++;
     }
 }

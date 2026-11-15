@@ -8,7 +8,8 @@ namespace ArquitecturaBase.Application.Modules.BusinessForms.Services;
 
 /// <summary>
 /// What a completed action leaves in its response, in the transaction that confirms it under its fence: the PDF copies of
-/// «Armar el PDF», the result of an issuance (RE1-A) with its fiscal PDF as one more document, and, when a reversal ends, the
+/// «Armar el PDF», the result of an issuance (RE1-A) with its fiscal PDF as one more document (an issuance issued before its
+/// document leaves its result once, when issued, and the document when it is there: H7), and, when a reversal ends, the
 /// voided response (NC1-A) with the reason and the person of the void, as when an issuance in review is not issued, by the one
 /// way to void (<see cref="FormRecordVoidRecorder"/>). It does not save on its own.
 /// </summary>
@@ -40,7 +41,7 @@ internal sealed class FormActionOutcomeRecorder(FormPdfDocumentRecorder document
     {
         if (outcome.Pdf is { } pdf)
             await documents.AddAsync(run.DefinitionId, run.RecordId, snapshot.Pdf ?? throw new InvalidOperationException("The PDF snapshot is missing."), pdf, cancellationToken);
-        if (outcome.Issue?.Result is { } result)
+        if (outcome.Issue?.Result is { } result && !KeptResult(run))
             results.Add(run.DefinitionId, run.RecordId, run.Id, result);
         if (outcome.Issue?.Document is { } document)
         {
@@ -68,6 +69,10 @@ internal sealed class FormActionOutcomeRecorder(FormPdfDocumentRecorder document
         var record = await runs.GetRecordAsync(run.RecordId, cancellationToken) ?? throw new InvalidOperationException("The action response is missing.");
         Voided(await voids.VoidAsync(record, review.ReviewedByUserId, null, FormActionErrors.NotIssued.Code, nowUtc, cancellationToken));
     }
+
+    // H7: the run's last outcome already was its issuance, issued before its document, with the result it left then.
+    private static bool KeptResult(BusinessFormActionRun run) =>
+        run.OutcomeJson is { } json && FormDraftPolicy.Read<FormActionOutcomeResponse>(json).Issue is { State: StructuredIssueState.Issued, Result: not null };
 
     // A finished action that cannot void its response is a bug: the confirmation must not hide it.
     private static void Voided(ArquitecturaBase.Domain.Results.Result voided)

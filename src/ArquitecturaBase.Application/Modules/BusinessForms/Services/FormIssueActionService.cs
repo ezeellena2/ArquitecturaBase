@@ -77,6 +77,8 @@ internal sealed class FormIssueActionService(IEnumerable<IStructuredRecordIssuer
     private static FormActionOutcomeResponse Outcome(StructuredIssueResponse status) => status.State switch
     {
         StructuredIssueState.Pending => new(FormActionRunState.Running, Issue: status),
+        // H7: issued before its document: the run keeps following it, with its result, until the document is there.
+        StructuredIssueState.Issued when status.DocumentPending => new(FormActionRunState.Running, Issue: status),
         StructuredIssueState.Issued => new(FormActionRunState.Completed, Issue: status),
         StructuredIssueState.Rejected => new(FormActionRunState.Failed, status.FailureCode ?? FormActionErrors.NotIssued.Code, status.CanRetry, Issue: status),
         StructuredIssueState.NeedsReview => new(FormActionRunState.Uncertain, status.ReviewReason ?? FormActionErrors.EffectUnconfirmed.Code, Issue: status),

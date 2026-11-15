@@ -1232,7 +1232,8 @@ ARCA» ([ADR 0028](../decisions/0028-emision-de-comprobantes-arca.md)); sin emis
   acto: cada emisión recibe un run de reversión (evento `Voided`) que el worker lleva fuera de toda transacción. Lo que nunca se
   emitió se cancela, si todavía se puede, y la respuesta queda anulada; lo emitido se revierte por el total (la nota de crédito)
   y la respuesta queda anulada, con el motivo y la persona de la anulación, cuando la reversión se emite. Una emisión con número
-  todavía sin resolver hace esperar a la reversión. Si el emisor rechaza la reversión, la respuesta sigue vigente y se puede
+  todavía sin resolver hace esperar a la reversión. Una emitida cuyo documento todavía no está (el emisor responde
+  `DocumentPending`, H7) ya es emitida: muestra su resultado, se revierte, y su run sigue hasta que llega el documento. Si el emisor rechaza la reversión, la respuesta sigue vigente y se puede
   volver a anular, con otra clave. Mientras dura, la actividad muestra la reversión («Anulándose») y anular otra vez da
   `Forms.Record.Voiding`. Toda anulación (la de la app, la de «No emitir», la de una revisión que no emite y la de una reversión
   que termina) pasa por una sola pieza, `FormRecordVoidRecorder`, en la transacción de quien anula: deja la respuesta anulada con

@@ -75,7 +75,9 @@ internal sealed class FormActionDispatchService(IFormActionRunRepository runs,IF
             if(run?.State==FormActionRunState.Completed&&run.Fence==work.Fence)return Result.Success();
             if(run is null||run.RecordId!=work.RecordId||!run.OwnsLease(work.Fence,now))return FormActionErrors.StateConflict;
             outcome=outcomes.QueueCopy(outcome);
-            if(outcome.State==FormActionRunState.Completed||outcome.State==FormActionRunState.NotApplicable&&work.Snapshot.ReversesRunId is not null)
+            // H7: an issuance issued before its document leaves its result now (the number shows, and it can be reversed).
+            if(outcome.State==FormActionRunState.Completed||outcome.Issue is {State:StructuredIssueState.Issued,DocumentPending:true}
+                ||outcome.State==FormActionRunState.NotApplicable&&work.Snapshot.ReversesRunId is not null)
                 await outcomes.AddAsync(run,work.Snapshot,outcome,now,ct);
             await outcomes.AddIssuedItemAsync(outcome,ct);
             await outcomes.VoidNotIssuedAsync(run,work,outcome,now,ct);

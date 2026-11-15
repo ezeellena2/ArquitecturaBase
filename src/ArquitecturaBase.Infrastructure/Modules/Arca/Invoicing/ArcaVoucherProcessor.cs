@@ -96,7 +96,7 @@ internal sealed partial class ArcaVoucherProcessor(IServiceScopeFactory scopes, 
         catch (Exception exception) when (!cancellationToken.IsCancellationRequested)
         {
             LogPdfFailed(exception.GetType().Name);
-            await StepAsync(store => store.PostponePdfAsync(voucherId, "Files.Unavailable", cancellationToken));
+            await StepAsync(store => store.PostponePdfAsync(voucherId, ArcaInvoicingErrors.PdfStorageUnavailable.Code, cancellationToken));
             return false;
         }
     }

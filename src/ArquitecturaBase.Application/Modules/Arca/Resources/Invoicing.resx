@@ -17,6 +17,8 @@
   <data name="Voucher.CreditNote" xml:space="preserve"><value>Nota de crédito {0}</value></data>
   <data name="Notice.WaitingInvoice" xml:space="preserve"><value>ARCA no responde. Tu factura sale apenas vuelva.</value></data>
   <data name="Notice.WaitingCreditNote" xml:space="preserve"><value>ARCA no responde. Tu nota de crédito sale apenas vuelva.</value></data>
+  <data name="Notice.WaitingConnection" xml:space="preserve"><value>La conexión con ARCA necesita atención. El comprobante sale cuando se resuelva.</value></data>
+  <data name="Notice.WaitingVersion" xml:space="preserve"><value>La app se está actualizando. El comprobante sale en unos minutos.</value></data>
   <data name="Preview.Info.C" xml:space="preserve"><value>Lo decide el sistema: sos monotributista.</value></data>
   <data name="Preview.Info.C.Exempt" xml:space="preserve"><value>Lo decide el sistema: sos exento en IVA.</value></data>
   <data name="Preview.Info.A" xml:space="preserve"><value>Lo decide el sistema: sos responsable inscripto y tu cliente también.</value></data>

@@ -9,7 +9,9 @@ internal sealed class ArcaMemoryFiles : IPrivateFileStore
 {
     private readonly ConcurrentDictionary<string, byte[]> objects = new(StringComparer.Ordinal);
 
-    public bool IsAvailable => true;
+    public bool Available { get; init; } = true;
+
+    public bool IsAvailable => Available;
 
     public int Writes { get; private set; }
 

@@ -8,7 +8,8 @@ dentro de ARCA los hace cada uno con su clave fiscal: la app nunca la pide.
 ## El anillo de claves
 
 El módulo cifra la clave privada del certificado y el ticket de acceso con un anillo externo propio, del mismo diseño que
-el de IA. La Api no arranca sin él, aunque todavía no haya ningún certificado.
+el de IA. La Api no arranca sin él, aunque todavía no haya ningún certificado. Con la facturación, tampoco arranca sin el
+almacén privado (`FileStorage`): ahí va el PDF fiscal de cada comprobante.
 
 | Clave | Valor |
 | --- | --- |

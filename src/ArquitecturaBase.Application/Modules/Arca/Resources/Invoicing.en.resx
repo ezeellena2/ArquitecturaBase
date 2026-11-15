@@ -17,6 +17,8 @@
   <data name="Voucher.CreditNote" xml:space="preserve"><value>Credit note {0}</value></data>
   <data name="Notice.WaitingInvoice" xml:space="preserve"><value>ARCA is not responding. Your invoice goes out as soon as it is back.</value></data>
   <data name="Notice.WaitingCreditNote" xml:space="preserve"><value>ARCA is not responding. Your credit note goes out as soon as it is back.</value></data>
+  <data name="Notice.WaitingConnection" xml:space="preserve"><value>The ARCA connection needs attention. The voucher goes out once it is fixed.</value></data>
+  <data name="Notice.WaitingVersion" xml:space="preserve"><value>The app is being updated. The voucher goes out in a few minutes.</value></data>
   <data name="Preview.Info.C" xml:space="preserve"><value>The system decides it: you are a Monotributo taxpayer.</value></data>
   <data name="Preview.Info.C.Exempt" xml:space="preserve"><value>The system decides it: you are VAT exempt.</value></data>
   <data name="Preview.Info.A" xml:space="preserve"><value>The system decides it: you are a registered VAT taxpayer and so is your customer.</value></data>

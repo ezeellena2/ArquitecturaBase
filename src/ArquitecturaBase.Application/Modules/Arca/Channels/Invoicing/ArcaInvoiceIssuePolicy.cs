@@ -4,6 +4,7 @@ using ArquitecturaBase.Application.Common.Formatting;
 using ArquitecturaBase.Application.Models.StructuredData;
 using ArquitecturaBase.Application.Modules.Arca.Models.Invoicing;
 using ArquitecturaBase.Application.Modules.Arca.Services.Invoicing;
+using ArquitecturaBase.Domain.Modules.Arca;
 using ArquitecturaBase.Domain.Modules.Arca.Invoicing;
 
 namespace ArquitecturaBase.Application.Modules.Arca.Channels.Invoicing;
@@ -37,6 +38,9 @@ internal static class ArcaInvoiceIssuePolicy
         ArcaVoucherState.Authorized when voucher.PdfStorageKey is { } storageKey && voucher.Receiver is not null => new(StructuredIssueState.Issued, Revision: voucher.Revision,
             Result: Result(voucher), Document: new StructuredRecordActionDocument(storageKey,
                 $"{ArcaFiscalDocumentPolicy.Name(voucher.Class, voucher.Kind)} {Number(voucher)}.pdf", "application/pdf", voucher.PdfSize!.Value, voucher.PdfSha256!)),
+        // H7: issued before its fiscal PDF, with its number and CAE and without blaming ARCA; the run asks again when the PDF is due.
+        ArcaVoucherState.Authorized when voucher.Receiver is not null => new(StructuredIssueState.Issued, NextCheckAtUtc: voucher.NextAttemptAtUtc,
+            Revision: voucher.Revision, Result: Result(voucher)) { DocumentPending = true },
         ArcaVoucherState.Rejected => new(StructuredIssueState.Rejected, voucher.FailureCode, Revision: voucher.Revision)
         {
             FailureDetail = voucher.Messages is [var message, ..] ? $"{message.Code.ToString(CultureInfo.InvariantCulture)} · {message.Text.Trim()}" : null,
@@ -45,8 +49,7 @@ internal static class ArcaInvoiceIssuePolicy
             ReviewReason: ArcaInvoiceStandard.Key + "." + Camel(voucher.ReviewReason!.Value.ToString())) { ReviewText = Review(voucher.ReviewReason.Value) },
         ArcaVoucherState.Cancelled => new(StructuredIssueState.Cancelled, Revision: voucher.Revision),
         _ => new(StructuredIssueState.Pending, voucher.FailureCode, WaitingForProvider: voucher.WaitedForArca, NextCheckAtUtc: voucher.NextAttemptAtUtc,
-            Revision: voucher.Revision, WaitingNotice: voucher.WaitedForArca
-                ? Localized(voucher.Kind == ArcaVoucherKind.CreditNote ? "Notice.WaitingCreditNote" : "Notice.WaitingInvoice") : null)
+            Revision: voucher.Revision, WaitingNotice: voucher.WaitedForArca ? Localized(WaitingKey(voucher)) : null)
         {
             // «Ya probamos 3 veces»: the attempts that failed in a row while it waits.
             Attempts = voucher.WaitedForArca && voucher.Failures > 0 ? voucher.Failures : null,
@@ -140,6 +143,18 @@ internal static class ArcaInvoiceIssuePolicy
     /// <summary>A date ARCA does not take, out of the window or before the last voucher's: it goes on with today's date (ADR 0031).</summary>
     public static bool IsDate(ArcaVoucherReviewReason? reason) =>
         reason is ArcaVoucherReviewReason.DateOutOfRange or ArcaVoucherReviewReason.DateBeforeLastVoucher;
+
+    // H7: a wait says whose it is: the connection (a person fixes it), another version of the app (an update) or ARCA.
+    private static readonly HashSet<string> ConnectionCodes = new(StringComparer.Ordinal)
+    {
+        ArcaConnectionErrors.NotConnected.Code, ArcaConnectionErrors.ServiceNotAuthorized.Code, ArcaConnectionErrors.ServiceNotDelegated.Code,
+        ArcaConnectionErrors.ServiceBlocked(0).Code, ArcaConnectionErrors.ClockSkew.Code,
+    };
+
+    private static string WaitingKey(ArcaVoucherResponse voucher) =>
+        voucher.FailureCode == ArcaInvoicingErrors.VersionUnknown.Code ? "Notice.WaitingVersion"
+        : voucher.FailureCode is { } code && ConnectionCodes.Contains(code) ? "Notice.WaitingConnection"
+        : voucher.Kind == ArcaVoucherKind.CreditNote ? "Notice.WaitingCreditNote" : "Notice.WaitingInvoice";
 
     private static string Camel(string name) => char.ToLowerInvariant(name[0]) + name[1..];
 }

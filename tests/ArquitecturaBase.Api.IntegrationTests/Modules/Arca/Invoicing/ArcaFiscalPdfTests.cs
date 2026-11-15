@@ -76,13 +76,23 @@ public sealed class ArcaFiscalPdfTests(ApiFactory factory) : IDisposable
             await factory.Services.GetRequiredService<ArcaVoucherProcessor>().ProcessPdfAsync(voucher.Id, ct);
 
             var row = await VoucherAsync(voucher.RequestKey);
-            Assert.Equal((ArcaVoucherState.Authorized, (string?)null, "Files.Unavailable"), (row.State, row.PdfStorageKey, row.FailureCode));
+            Assert.Equal((ArcaVoucherState.Authorized, (string?)null, "Arca.Invoicing.PdfStorageUnavailable"), (row.State, row.PdfStorageKey, row.FailureCode));
             Assert.Equal(factory.Clock.GetUtcNow().UtcDateTime.AddSeconds(30), row.NextAttemptAtUtc);
         }
         finally
         {
             await ArcaVoucherScenario.RemoveAsync(factory);
         }
+    }
+
+    // H7: with invoicing installed, the Api does not start without the private store, where the fiscal PDFs go.
+    [Fact]
+    public async Task Invoicing_does_not_start_without_the_private_store()
+    {
+        await new ArcaInvoicingStorageCheck(new ArcaMemoryFiles()).StartAsync(TestContext.Current.CancellationToken);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            new ArcaInvoicingStorageCheck(new ArcaMemoryFiles { Available = false }).StartAsync(TestContext.Current.CancellationToken));
     }
 
     public void Dispose() => authority.Dispose();

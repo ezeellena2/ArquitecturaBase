@@ -1,6 +1,7 @@
 using ArquitecturaBase.Api.IntegrationTests.Support;
 using ArquitecturaBase.Api.IntegrationTests.TestFeatures.Modules.Arca;
 using ArquitecturaBase.Infrastructure.Modules.Arca;
+using ArquitecturaBase.Infrastructure.Modules.Arca.Invoicing;
 using ArquitecturaBase.Infrastructure.Modules.Arca.Connection.Robot;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
@@ -53,6 +54,8 @@ internal sealed class ArcaTestModule : IApiTestModule
         services.AddSingleton<ILoggerProvider>(provider => provider.GetRequiredService<FakeArcaLogCapture>());
         // El chequeo de Chromium levanta Playwright al arrancar: cada factory lo pagaría. Se prueba una vez, en ArcaDelegationRobotTests.
         services.Remove(services.Single(service => service.ServiceType == typeof(IHostedService) && service.ImplementationType == typeof(ArcaRobotBrowserCheck)));
+        // La factory base no tiene almacén privado: lo pone cada test que lo usa. El chequeo se prueba en ArcaFiscalPdfTests.
+        services.Remove(services.Single(service => service.ServiceType == typeof(IHostedService) && service.ImplementationType == typeof(ArcaInvoicingStorageCheck)));
         foreach (var name in new[] { ArcaInfrastructureRegistration.WsaaHttpClientName, ArcaInfrastructureRegistration.RegistryHttpClientName,
                      ArcaInfrastructureRegistration.InvoicingHttpClientName })
         {

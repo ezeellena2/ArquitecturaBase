@@ -168,8 +168,11 @@ la prueba integral y la de homologación. Lo que se ve en la app y en WhatsApp e
   idiomas (`ReviewText`: por qué espera, qué significa, «Emitir con el número siguiente» o «Emitir con la fecha de hoy» y,
   por el número, «Antes de decidir, mirá «Mis comprobantes» en ARCA.»), así formularios no nombra a ARCA; seguir es otro
   número o la fecha de hoy, y decidirlo pide `arca.issue`. Anular la respuesta cancela la emisión que todavía no
-  tiene número o pide la nota de crédito por el total (`EnqueueCreditNoteAsync`), las dos por el mismo puerto. Mientras espera por ARCA, el aviso es «ARCA no responde. Tu factura
-  sale apenas vuelva.» (o «Tu nota de crédito»), y la respuesta trae cuándo vuelve a probar la cola (`NextCheckAtUtc`) y
+  tiene número o pide la nota de crédito por el total (`EnqueueCreditNoteAsync`), las dos por el mismo puerto. Mientras espera,
+  el aviso dice de quién es la espera (H7): por ARCA, «ARCA no responde. Tu factura sale apenas vuelva.» (o «Tu nota de
+  crédito»); por la conexión (sin conexión activa, un servicio sin autorizar, sin delegar o bloqueado, o el reloj),
+  «La conexión con ARCA necesita atención. El comprobante sale cuando se resuelva.»; y por otra versión de la app, «La app se
+  está actualizando. El comprobante sale en unos minutos.». La respuesta trae cuándo vuelve a probar la cola (`NextCheckAtUtc`) y
   cuántas veces seguidas no salió (`Attempts`, la columna `Failures` del comprobante, que vuelve a cero al emitir o al seguir
   después de una revisión). Los motivos que la cola pone sin un mensaje de ARCA están declarados en `ArcaInvoicingErrors`, con
   su texto: `Arca.Invoicing.ArcaNoAnswer` (no respondió), `ArcaFailed` (respondió con un error), `AnswerIncomplete` (tiene el
@@ -257,7 +260,9 @@ la prueba integral y la de homologación. Lo que se ve en la app y en WhatsApp e
   anterior. Revisar exige la revisión esperada; cancelar, que no tenga número.
 - **PDF fiscal:** al autorizarse, el worker lo dibuja con diseño fijo y el QR de ARCA, lo escribe una vez en el almacén
   privado (`arca-vouchers/{id}.pdf`) y confirma su SHA-256. Si el almacén falla, el comprobante sigue autorizado y el PDF
-  espera. Mientras el módulo esté instalado, esos PDF no se limpian, aunque la base no tenga su comprobante, como después de
+  espera (`Arca.Invoicing.PdfStorageUnavailable`); mientras tanto la emisión se informa emitida, con su número y su CAE y sin
+  el documento (`DocumentPending`, H7), así que formularios lo muestra y la puede anular. Con la facturación instalada, la Api
+  no arranca sin el almacén privado. Mientras el módulo esté instalado, esos PDF no se limpian, aunque la base no tenga su comprobante, como después de
   restaurarla. El nombre y el
   domicilio del receptor son datos fiscales y
   no se recortan: se parten por palabras en los renglones que hagan falta y el recuadro del receptor crece con ellos, con el

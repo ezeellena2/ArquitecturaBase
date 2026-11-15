@@ -57,6 +57,13 @@ public sealed record StructuredIssueResponse(StructuredIssueState State, string?
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public int? Attempts { get; init; }
 
+    /// <summary>
+    /// Issued, with its result, while its document is still being made: the run keeps following it, asked again at NextCheckAtUtc,
+    /// until the document is there. The result shows meanwhile, and the issuance can be reversed.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public bool DocumentPending { get; init; }
+
     /// <summary>The texts of an issuance in review, by language, so whoever decides reads why without the core naming the issuer.</summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public StructuredIssueReviewText? ReviewText { get; init; }
