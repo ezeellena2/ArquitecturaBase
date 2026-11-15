@@ -71,7 +71,7 @@ internal static class ArcaInvoiceIssuePolicy
     /// exempt and not taxed; the B to a final consumer, the VAT it contains) and the recalculated total.
     /// </summary>
     public static StructuredIssuePreview Preview(ArcaVoucherPreviewResponse preview, ArcaVoucherOrder order) =>
-        new(Localized("Voucher.Invoice", preview.Class.ToString()), order.Receiver.Name, Canonical(preview.Total))
+        new(Spanish(Localized("Voucher.Invoice", preview.Class.ToString())), order.Receiver.Name, Canonical(preview.Total))
         {
             Info = Localized(InfoKey(preview, order.Receiver.VatConditionId)),
             Date = order.IssueOn,
@@ -100,6 +100,10 @@ internal static class ArcaInvoiceIssuePolicy
         if (amounts.NotTaxed > 0m) lines.Add(new(Localized("Preview.NotTaxed"), Canonical(amounts.NotTaxed)));
         return lines;
     }
+
+    // H28: los nombres fiscales van en español en todos los idiomas, como en el resultado y el PDF fiscal.
+    private static Dictionary<string, string> Spanish(Dictionary<string, string> localized) =>
+        Cultures.ToDictionary(culture => culture, _ => localized["es"], StringComparer.Ordinal);
 
     private static string Canonical(decimal value) => value.ToString("0.############################", CultureInfo.InvariantCulture);
 

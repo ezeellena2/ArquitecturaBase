@@ -177,7 +177,8 @@ la prueba integral y la de homologación. Lo que se ve en la app y en WhatsApp e
   «DNI …» o «Sin identificar»), su condición frente al IVA y total como resultado (`voucher`, `number`, `issuedOn`, `cae`,
   `caeDueOn`, `customer`, `customerDocument`, `customerVatCondition` y `total`), también en la nota de crédito. Es la zona
   «Comprobante» del detalle y los datos `{result:arca.invoice.<clave>}` de los avisos; el documento y la condición se escriben
-  con `ArcaFiscalDocumentPolicy`, como en el PDF fiscal. En revisión responde `arca.invoice.<motivo>` y sus textos en los dos
+  con `ArcaFiscalDocumentPolicy`, como en el PDF fiscal. Los nombres fiscales (el comprobante, el documento y la condición
+  frente al IVA) van en español en todos los idiomas, también en la vista previa (H28, decisión 7). En revisión responde `arca.invoice.<motivo>` y sus textos en los dos
   idiomas (`ReviewText`: por qué espera, qué significa, «Emitir con el número siguiente» o «Emitir con la fecha de hoy» y,
   por el número, «Antes de decidir, mirá «Mis comprobantes» en ARCA.»), así formularios no nombra a ARCA; seguir es otro
   número o la fecha de hoy, y decidirlo pide `arca.issue`. Anular la respuesta cancela la emisión que todavía no

@@ -185,8 +185,10 @@ public sealed class ArcaInvoiceIssuePolicyTests
         var preview = ArcaInvoiceIssuePolicy.Preview(new ArcaVoucherPreviewResponse(ArcaVoucherClass.C, 11, 3101.5m, 0m)
             { Amounts = new(3101.5m, 0m, 3101.5m, 0m, 0m, 0m, []) }, Order(new(99, 0, "Juana Pérez", 5, null)));
 
-        Assert.Equal(("Factura C", "Invoice C", "Juana Pérez", "3101.5"), (preview.Document!["es"], preview.Document["en"], preview.Receiver, preview.Total));
+        // H28: the fiscal names go in Spanish in every language, as in the result and the fiscal PDF.
+        Assert.Equal(("Factura C", "Factura C", "Juana Pérez", "3101.5"), (preview.Document!["es"], preview.Document["en"], preview.Receiver, preview.Total));
         Assert.Equal(("Lo decide el sistema: sos monotributista.", (DateOnly?)new DateOnly(2026, 11, 9)), (preview.Info!["es"], preview.Date));
+        Assert.Equal("The system decides it: you are «Responsable Monotributo».", preview.Info["en"]);
         Assert.Null(preview.Amounts);
     }
 
