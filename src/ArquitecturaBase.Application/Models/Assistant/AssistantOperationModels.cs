@@ -45,6 +45,8 @@ public sealed record AssistantOperationResponse(Guid RequestId, string State, As
     /// <summary>Every proposal the operation closed on, in order (assistant_proposal@2 selects up to three); the first is <see cref="Proposal"/>.</summary>
     public IReadOnlyList<AssistantObservedProposal> Proposals { get; init; } = [];
     public AssistantNormalizedAudio? NormalizedAudio { get; init; }
+    /// <summary>The recording a NormalizeAudio hears (the descriptor of its copy), in any state while its content lasts.</summary>
+    public AssistantAudioInput? Audio { get; init; }
     /// <summary>What a completed ReadDocument read, while its content lasts.</summary>
     public StructuredDocumentReading? DocumentReading { get; init; }
     /// <summary>The document a ReadDocument reads (the descriptor of its copy), in any state while its content lasts.</summary>

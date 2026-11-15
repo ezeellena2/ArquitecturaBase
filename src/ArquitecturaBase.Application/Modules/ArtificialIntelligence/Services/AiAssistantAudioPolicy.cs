@@ -26,6 +26,18 @@ internal static class AiAssistantAudioPolicy
             audio.Size is <= 0 or > 25000000 || audio.Sha256.Length != 64 || !audio.Sha256.All(Uri.IsHexDigit) ||
             audio.ExpiresAtUtc.Kind != DateTimeKind.Utc ? AiAssistantErrors.Invalid : null;
     }
+    // The descriptor is the turn's protected question; anything that is not a whole and valid one is none.
+    public static AssistantAudioInput? ReadDescriptor(string? json)
+    {
+        if (json is null) return null;
+        try
+        {
+            var audio = JsonSerializer.Deserialize<AssistantAudioInput>(json, AiAssistantResponsePolicy.JsonOptions);
+            return audio is { StorageKey: not null, Name: not null, ContentType: not null, Sha256: not null } && Validate(audio) is null ? audio : null;
+        }
+        catch (JsonException) { return null; }
+    }
+
     private static ReadOnlySpan<byte> Ebml => [0x1A, 0x45, 0xDF, 0xA3];
 
     // What a browser recording is, by its bytes and never by what the browser declares: WebM opens with the EBML header and MP4

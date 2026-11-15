@@ -66,6 +66,9 @@ public sealed record AiAssistantTurnResponse(Guid TurnId, Guid ConversationId, G
     public IReadOnlyList<AssistantObservedProposal> ObservedProposals { get; init; } = [];
     [JsonIgnore]
     public AssistantNormalizedAudio? NormalizedAudio { get; init; }
+    // The recording a completed normalization heard (the descriptor of its copy), with NormalizedAudio.
+    [JsonIgnore]
+    public AssistantAudioInput? NormalizedRecording { get; init; }
     [JsonIgnore]
     public ArquitecturaBase.Application.Models.StructuredData.StructuredDocumentReading? DocumentReading { get; init; }
     // The document a completed reading read (the descriptor of its copy), with DocumentReading.

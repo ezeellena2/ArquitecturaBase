@@ -29,6 +29,11 @@ internal sealed class AiAssistantHomeAudioPolicy(IPrivateFileStore files, IAiAss
             && Guid.TryParseExact(name[..32], "N", out requestId) && requestId != Guid.Empty;
     }
 
+    // A retry is the same recording (SHA-256, size and type) as the normalization's (I13); its name follows from its request and type.
+    public static bool IsSameFile(AssistantAudioInput descriptor, byte[] content, string mediaType) =>
+        descriptor.Size == content.LongLength && AiAssistantAudioPolicy.MediaType(descriptor) == mediaType
+        && descriptor.Sha256 == Convert.ToHexStringLower(SHA256.HashData(content));
+
     public async Task<Result<AssistantAudioInput>> StoreAsync(Guid requestId, byte[] content, string mediaType, DateTime expiresAtUtc, CancellationToken ct)
     {
         if (!files.IsAvailable) return FileErrors.Unavailable;

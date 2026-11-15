@@ -115,6 +115,7 @@ internal sealed partial class AiAssistantResponsePolicy(IAiConversationProtector
         AssistantObservedProposal? proposal = null;
         IReadOnlyList<AssistantObservedProposal> proposals = [];
         AssistantNormalizedAudio? normalizedAudio = null;
+        AssistantAudioInput? normalizedRecording = null;
         StructuredDocumentReading? documentReading = null;
         AssistantDocumentInput? readDocument = null;
         AiAssistantTurnAudioResponse? audio = null;
@@ -151,6 +152,8 @@ internal sealed partial class AiAssistantResponsePolicy(IAiConversationProtector
                     var decoded = DecodeNormalizedAudio(row, json);
                     if (decoded.IsFailure) return decoded.Error;
                     normalizedAudio = decoded.Value;
+                    // A normalization's question is the descriptor of the recording it heard.
+                    normalizedRecording = AiAssistantAudioPolicy.ReadDescriptor(question);
                     question = null;
                 }
                 else if (IsKind(json, "readDocument"))
@@ -196,7 +199,7 @@ internal sealed partial class AiAssistantResponsePolicy(IAiConversationProtector
             row.Culture, row.TimeZoneId, row.SubmittedAtUtc, now, pollingAfterSeconds)
         {
             CancelRequestedAtUtc = row.CancelRequestedAtUtc, ObservedProposal = proposal, ObservedProposals = proposals, NormalizedAudio = normalizedAudio, DocumentReading = documentReading,
-            ReadDocument = readDocument,
+            ReadDocument = readDocument, NormalizedRecording = normalizedRecording,
             Audio = audio, Attachment = attachment, AttachedDocument = attachedDocument,
             Proposal = proposal is null ? null : new AiAssistantProposalResponse(proposal.Id, proposal.Capability.Id, proposal.Capability.Version,
                 JsonSerializer.SerializeToElement(proposal.Payload, proposal.Payload.GetType(), JsonOptions)),

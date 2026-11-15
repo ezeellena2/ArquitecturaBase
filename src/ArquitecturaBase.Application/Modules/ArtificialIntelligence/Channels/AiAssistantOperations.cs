@@ -56,8 +56,11 @@ internal sealed class AiAssistantOperations(IAiConnectionReader connectionReader
                 ? AiAssistantDocumentPolicy.ReadDescriptor(mapped.Value.Question) : null);
             var provenance = new AssistantOperationProvenance(captured.Value.ModelProfileId, captured.Value.ModelProfileVersion,
                 captured.Value.InstructionsId, captured.Value.InstructionsVersion, occurredAtUtc, captured.Value.ChannelContext.ChannelId);
+            // A normalization's question is the descriptor of its recording, likewise (I13).
+            var audio = mapped.Value.NormalizedRecording ?? (captured.Value.Purpose == AiAssistantPurpose.NormalizeAudio
+                ? AiAssistantAudioPolicy.ReadDescriptor(mapped.Value.Question) : null);
             return new AssistantOperationResponse(requestId, mapped.Value.State, mapped.Value.ObservedProposal, provenance, row.FailureCode)
-                { NormalizedAudio = mapped.Value.NormalizedAudio, DocumentReading = mapped.Value.DocumentReading, Document = document,
+                { NormalizedAudio = mapped.Value.NormalizedAudio, Audio = audio, DocumentReading = mapped.Value.DocumentReading, Document = document,
                     Proposals = mapped.Value.ObservedProposals };
         });
 

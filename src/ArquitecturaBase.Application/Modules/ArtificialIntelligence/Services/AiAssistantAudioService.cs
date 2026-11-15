@@ -15,7 +15,8 @@ using Microsoft.Extensions.Logging;
 namespace ArquitecturaBase.Application.Modules.ArtificialIntelligence.Services;
 
 // IA4: a Home recording is a private copy normalized by the engine's own NormalizeAudio in a channel of its own; the turn then
-// names it and the server takes its transcript. Get comes first: retrying the same request recovers it and never submits again.
+// names it and the server takes its transcript. Get comes first: retrying the same request with the same recording recovers it and
+// never keeps or submits again; another recording under it is a conflict, as with a document (I13).
 internal sealed class AiAssistantAudioService(IAssistantOperations operations, AiAssistantHomeAudioPolicy audio, AiAssistantAccessGuard guard,
     AiAssistantSubmissionPolicy submissions, ICurrentUser current, AiAssistantLimits limits, TimeProvider clock, ILogger<AiAssistantAudioService> logger) : IAiAssistantAudioService
 {
@@ -30,7 +31,7 @@ internal sealed class AiAssistantAudioService(IAssistantOperations operations, A
             if (actor.IsFailure) return actor.Error;
             var context = AiAssistantChannelPolicy.HomeAudio(userId, request.Culture, actor.Value.TimeZoneId);
             var existing = await operations.GetAsync(context, request.RequestId, cancellationToken);
-            if (existing.IsSuccess) return Response(existing.Value, request.Culture);
+            if (existing.IsSuccess) return Recovered(existing.Value, request, mediaType);
             if (existing.Error != AiAssistantErrors.NotFound) return existing.Error;
             // I14: what the acceptance would refuse (the quota, the capacity, the transcription profile) refuses before the copy is kept.
             if (await submissions.PrecheckAudioAsync(context, mediaType, request.Content.Length, cancellationToken) is { } refused) return refused;
@@ -40,8 +41,11 @@ internal sealed class AiAssistantAudioService(IAssistantOperations operations, A
             if (stored.IsFailure) return stored.Error;
             var accepted = await operations.SubmitAsync(new AssistantOperationRequest(request.RequestId, context, "", now, expiresAtUtc)
                 { Audio = stored.Value }, cancellationToken);
-            return accepted.IsFailure ? accepted.Error
-                : new AiAssistantAudioResponse(request.RequestId, accepted.Value.State, null, null, limits.PollingAfterSeconds);
+            if (accepted.IsSuccess) return new AiAssistantAudioResponse(request.RequestId, accepted.Value.State, null, null, limits.PollingAfterSeconds);
+            // Another upload of the same request got there first with this same copy, sealed at another instant: its normalization answers both.
+            if (accepted.Error != AiAssistantErrors.RequestReused) return accepted.Error;
+            var raced = await operations.GetAsync(context, request.RequestId, cancellationToken);
+            return raced.IsSuccess ? Recovered(raced.Value, request, mediaType) : accepted.Error;
         });
 
     public Task<Result<AiAssistantAudioResponse>> GetAsync(Guid requestId, string culture, CancellationToken cancellationToken) =>
@@ -61,6 +65,12 @@ internal sealed class AiAssistantAudioService(IAssistantOperations operations, A
             var actor = await guard.AuthorizeAsync(userId, cancellationToken);
             return actor.IsFailure ? actor.Error : await audio.OpenAsync(userId, requestId, cancellationToken);
         });
+
+    // A retry is the same recording as the normalization's, in any state; another one under the request is a conflict. A normalization
+    // whose content is gone has no descriptor to compare and nothing left to give, so it answers as it is.
+    private Result<AiAssistantAudioResponse> Recovered(AssistantOperationResponse operation, SubmitAiAssistantAudioRequest request, string mediaType) =>
+        operation.Audio is { } heard && !AiAssistantHomeAudioPolicy.IsSameFile(heard, request.Content, mediaType)
+            ? AiAssistantErrors.RequestReused : Response(operation, request.Culture);
 
     private AiAssistantAudioResponse Response(AssistantOperationResponse operation, string culture) => new(operation.RequestId, operation.State,
         operation.NormalizedAudio?.Text, operation.FailureCode is { } code

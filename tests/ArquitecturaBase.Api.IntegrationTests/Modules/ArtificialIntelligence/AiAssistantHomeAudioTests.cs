@@ -56,6 +56,14 @@ public sealed class AiAssistantHomeAudioTests(ApiFactory factory)
             Assert.Equal("pending", body.GetProperty("state").GetString());
             Assert.Equal(JsonValueKind.Null, body.GetProperty("transcript").ValueKind);
         }
+        // The same recording again recovers its normalization without keeping or submitting again; another one under it is a conflict (I13).
+        using (var repeated = await scenario.Client.PostAsync("/api/ai/assistant/audio", Recording(audioRequestId, Webm), Ct))
+            Assert.Equal(HttpStatusCode.Accepted, repeated.StatusCode);
+        using (var reused = await scenario.Client.PostAsync("/api/ai/assistant/audio", Recording(audioRequestId, [.. Webm, 0x01]), Ct))
+        {
+            Assert.Equal(HttpStatusCode.Conflict, reused.StatusCode);
+            Assert.Equal("Ai.Assistant.RequestReused", (await reused.ReadJsonAsync()).GetProperty("code").GetString());
+        }
         Assert.Equal([key], files.Keys);
         Assert.True(await scenario.ProcessNextAsync());
         Assert.Equal(1, transcription.Calls);

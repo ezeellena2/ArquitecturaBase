@@ -213,6 +213,51 @@ public sealed class AiAssistantHomeAudioTests
         Assert.Equal(0, host.Operations.Reads);
     }
 
+    // I13: a retry is the same recording again (SHA-256, size and type, compared with the normalization's descriptor in any state); another
+    // recording under the same request is a conflict, and nothing is kept or submitted again.
+    [Theory]
+    [InlineData("pending")]
+    [InlineData("completed")]
+    [InlineData("failed")]
+    public async Task Repeating_the_request_with_another_recording_is_a_conflict_whatever_the_state_of_its_normalization(string state)
+    {
+        var host = new OperationsHost();
+        var requestId = Guid.NewGuid();
+        Assert.True((await host.UploadAsync(Webm, requestId)).IsSuccess);
+        if (state == "completed") host.Complete(requestId, "Armame un formulario de visitas");
+        if (state == "failed")
+        {
+            var turn = host.Turn(requestId);
+            Assert.True(turn.Claim(Guid.NewGuid(), host.Now.AddSeconds(90)).IsSuccess);
+            Assert.True(turn.Fail(turn.Fence, AiAssistantErrors.InvalidOutput.Code, false, host.Now).IsSuccess);
+        }
+
+        Assert.Equal(AiAssistantErrors.RequestReused, (await host.UploadAsync([.. Webm, 0x01], requestId)).Error);
+        Assert.Equal(AiAssistantErrors.RequestReused, (await host.UploadAsync(Mp4, requestId)).Error);
+        var again = await host.UploadAsync(Webm, requestId);
+        Assert.Equal(state, again.Value.State);
+        Assert.Equal(state == "completed" ? "Armame un formulario de visitas" : null, again.Value.Transcript);
+        Assert.Equal((1, 1, 1), (host.Files.WriteCount, host.Fixture.Store.Turns.Count, host.Fixture.Store.Receipts.Count));
+    }
+
+    // I13: two uploads of the same recording at once: the second does not see the first's normalization yet, keeps the same copy, and its
+    // acceptance meets the first's, sealed at another instant: it answers with that normalization, as a retry would.
+    [Fact]
+    public async Task Two_overlapping_uploads_of_the_same_recording_end_in_one_normalization()
+    {
+        var host = new OperationsHost();
+        var requestId = Guid.NewGuid();
+        Assert.True((await host.UploadAsync(Webm, requestId)).IsSuccess);
+        host.Fixture.Clock.Advance(TimeSpan.FromMinutes(1));
+        host.Fixture.Store.HiddenAcceptedLookups = 1;
+
+        var second = await host.UploadAsync(Webm, requestId);
+
+        Assert.True(second.IsSuccess, second.IsFailure ? second.Error.Code : null);
+        Assert.Equal((requestId, "pending"), (second.Value.RequestId, second.Value.State));
+        Assert.Equal((1, 1, 1), (host.Files.WriteCount, host.Fixture.Store.Turns.Count, host.Fixture.Store.Receipts.Count));
+    }
+
     private static AiAssistantAccessGuard Guard(AiAssistantAudioModelProfile[] audioProfiles, MemoryPrivateFileStore files)
     {
         var permissions = new FakePermissionService();
@@ -247,6 +292,52 @@ public sealed class AiAssistantHomeAudioTests
                 new OperationsFingerprint(), limits, responses);
             Service = new(Operations, new AiAssistantHomeAudioPolicy(Files, null!, null!, clock), guard, submissions, current, limits, clock,
                 NullLogger<AiAssistantAudioService>.Instance);
+        }
+    }
+
+    // The service over the real operations and acceptance, with a transcription profile for browser recordings: a retry and an overlap
+    // meet the receipt the first upload left (I13).
+    private sealed class OperationsHost
+    {
+        public AssistantOperationsFixture Fixture { get; } = new();
+        public MemoryPrivateFileStore Files { get; } = new();
+        public FakeCurrentUser Current { get; }
+        public AiAssistantAudioService Service { get; }
+        public Guid ActorId => Fixture.ActorId;
+        public Guid OtherId => Fixture.SubjectId;
+        public DateTime Now => Fixture.Clock.GetUtcNow().UtcDateTime;
+
+        public OperationsHost()
+        {
+            Fixture.Permissions.Permissions[ActorId] = [ArtificialIntelligencePermissions.AssistantUse];
+            Current = new FakeCurrentUser { UserId = ActorId };
+            var limits = new AiAssistantLimits();
+            var catalog = new AiAssistantCapabilityCatalogPolicy([], Fixture.Permissions);
+            AiAssistantAudioModelProfile[] hears = [new(AiProvider.OpenAI, "audio-model", "fixture-audio", 1, ["audio/webm", "audio/mp4"], 25000000)];
+            var guard = new AiAssistantAccessGuard(Fixture.Users, Fixture.Permissions, Fixture.Profiles, limits, Current, catalog,
+                new(hears, [], Files), FictionalCredentials.Policy);
+            var responses = new AiAssistantResponsePolicy(Fixture.Protector, Fixture.Clock, catalog, NullLogger<AiAssistantResponsePolicy>.Instance);
+            var submissions = new AiAssistantSubmissionPolicy(Fixture.Store, Fixture.Store, Fixture.Store, guard, Fixture.Protector,
+                new OperationsFingerprint(), limits, responses);
+            var operations = new AiAssistantOperations(Fixture.Store, guard, submissions, Fixture.Work, Fixture.Store, responses,
+                NullLogger<AiAssistantOperations>.Instance);
+            Service = new(operations, new AiAssistantHomeAudioPolicy(Files, Fixture.Store, Fixture.Protector, Fixture.Clock), guard, submissions,
+                Current, limits, Fixture.Clock, NullLogger<AiAssistantAudioService>.Instance);
+        }
+
+        public Task<Result<AiAssistantAudioResponse>> UploadAsync(byte[] content, Guid requestId, string culture = "es") =>
+            Service.SubmitAsync(new(requestId, culture, content), TestContext.Current.CancellationToken);
+
+        public AiAssistantTurn Turn(Guid requestId) => Fixture.Store.Turns.Single(turn => turn.RequestId == requestId);
+
+        // The normalization as the worker would leave it, with what was said.
+        public void Complete(Guid requestId, string text)
+        {
+            var turn = Turn(requestId);
+            Assert.True(turn.Claim(Guid.NewGuid(), Now.AddSeconds(90)).IsSuccess);
+            var answer = $$"""{"kind":"normalizedAudio","languages":["es"],"text":"{{text}}"}""";
+            Assert.True(turn.Complete(turn.Fence, Fixture.Protector.Protect(turn.OwnerUserId, turn.ConversationId, turn.Id, "answer", turn.PayloadRevision,
+                answer), Fixture.Protector.Protect(turn.OwnerUserId, turn.ConversationId, turn.Id, "evidences", turn.PayloadRevision, "[]"), Now).IsSuccess);
         }
     }
 
